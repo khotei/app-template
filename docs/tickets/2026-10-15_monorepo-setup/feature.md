@@ -107,7 +107,7 @@ Alongside the code, set up an in-repo spec-driven development (SDD) flow (featur
 ### Dev, hot reload and debug
 
 - **R19** — WHILE `make dev-api` is running, WHEN a handler source file changes, THE api SHALL serve the new response without restarting its process (same PID; `--hot`).
-- **R20** — WHILE `make dev-worker` is running, WHEN a source file changes, THE worker SHALL restart its process (`--watch`).
+- **R20** — WHILE `make dev-worker` is running, WHEN a source file changes, THE worker SHALL restart with a fresh runtime (`--watch`): `globalThis` is reset and timers are not duplicated. Bun restarts by exec, so the PID may stay the same.
 - **R21** — WHILE `make dev-web` is running, WHEN a client source file changes, THE browser SHALL update through Bun HMR.
 - **R22** — WHEN `make debug-<app>` runs, THE process SHALL expose a Bun inspector (`--inspect`) and keep the reload mode of its dev target.
 - **R23** — `docs/knowledge/tooling.md` SHALL explain `--hot` vs `--watch`, note that `--dev` does not exist, and describe how debugging works.
@@ -173,7 +173,7 @@ Alongside the code, set up an in-repo spec-driven development (SDD) flow (featur
 | R14–R15 | Add `import … from '@oblik/infrastructure'` in `domain/` → `make lint` fails. Same for `@oblik/domain` or `@oblik/config` inside `apps/web/src/app/`. `@oblik/config` in `apps/web/src/main.ts` passes. |
 | R17–R18 | `make dev-api` serves on `API_PORT` from `.env`. `cd apps/api && bun run dev` does the same. Removing `API_PORT` → startup error names `API_PORT`. |
 | R19 | `curl /health`, then edit the handler text, then `curl` again: the response has changed and `pgrep` shows the same PID. |
-| R20–R21 | Editing a worker file prints a restart log. Editing `web` client code updates the browser without a manual refresh. |
+| R20–R21 | Editing a worker file prints the startup log again, and a `globalThis` counter restarts at 1. Editing `web` client code rebuilds the bundle (`Reloaded in …`), and the open browser tab updates without a manual refresh. |
 | R22 | `make debug-api` prints the inspector URL, and `debug.bun.sh` attaches. |
 | R24–R25 | `mv .env .env.bak && bun test` → all tests pass. |
 | R27 | A commit with a type error is rejected. A push with a failing test is rejected. |

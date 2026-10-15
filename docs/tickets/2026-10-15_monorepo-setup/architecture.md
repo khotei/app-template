@@ -137,7 +137,7 @@ The tree below is the end state of `template/claude`, which already includes thi
 │   └── example/
 │       ├── example.repository.ts        ★  in-memory ExampleRepository
 │       ├── example.storage.ts           ★  stub
-│       ├── example.queue.ts             ★  stub
+│       ├── example.queue.ts             ★  in-memory ExampleQueue (send/receive)
 │       └── example.llm.ts               ★  stub
 ├── packages/
 │   ├── CLAUDE.md
@@ -156,7 +156,8 @@ The tree below is the end state of `template/claude`, which already includes thi
 │   ├── worker/                          # @oblik/worker
 │   │   └── src/{main,layer}.ts · handlers/example.handler.ts ★
 │   └── web/                             # @oblik/web
-│       └── src/main.ts (Bun.serve + HTML import) · index.html · app/ · features/example/ · shared/
+│       └── src/main.ts (Bun.serve + HTML import + /api/* proxy) · index.html · app/main.ts
+│           · features/example/health-panel.ts · shared/api.ts
 │   (each: package.json with dev/debug/start · tsconfig.json)
 ├── deployment/                          # @oblik/deployment — stubs only
 │   ├── CLAUDE.md · package.json · tsconfig.json
@@ -262,16 +263,26 @@ export const buildRoutes = (layer: ReturnType<typeof buildLayer>) => ({
 // apps/api/src/main.ts
 Bun.serve({ port: config.api.port, routes: buildRoutes(buildLayer()) })
 
+// infrastructure/example/example.queue.ts — in-memory until the queue client exists
+export interface ExampleJob { readonly type: 'example.process'; readonly exampleId: ExampleId }
+export interface ExampleQueue { send(job: ExampleJob): Promise<void>; receive(): Promise<readonly ExampleJob[]> }
+export const createExampleQueue = (): ExampleQueue
+
 // apps/worker/src/handlers/example.handler.ts
-export const handleExample = (job: { exampleId: ExampleId }): Promise<void>
-// apps/worker/src/main.ts — setInterval polling stub that calls handleExample and logs
+export const createExampleHandler = (deps: { exampleService: ExampleService }) => (job: ExampleJob): Promise<void>
+// apps/worker/src/layer.ts — buildLayer() => ({ queue, pollOnce() })
+// apps/worker/src/main.ts — setInterval(pollOnce, 1_000), errors logged
 
 // packages/api-client/index.ts
 export const createApiClient = (baseUrl: string) => ({ getHealth(): Promise<{ status: 'ok' }> })
 
-// apps/web/src/main.ts
+// apps/web/src/main.ts — server entry; the only web file that may import @oblik/config (D19)
 import index from './index.html'
-Bun.serve({ port: config.web.port, routes: { '/': index }, development: { hmr: true, console: true } })
+Bun.serve({
+  port: config.web.port,
+  routes: { '/': index, '/api/*': proxyToApi }, // same-origin calls, no CORS (D23)
+  development: config.nodeEnv === 'development' && { hmr: true, console: true },
+})
 ```
 
 The `packages/{db,storage,queue,llm}/client.ts`, `infrastructure/example/example.{storage,queue,llm}.ts`, `infrastructure/shared/*` and `deployment/**` files are export-only stubs. Each exports a typed factory or constant, for example `createDbClient(config: { url: string })` and `exampleQueueName`. They compile and are imported nowhere at runtime.
@@ -471,6 +482,8 @@ App scripts load the root file explicitly:
 - **D20 — Named catalogs only: a single `runtime` namespace now; lock-step families get their own namespace when introduced.** Using a namespace from day one makes the mechanism visible in `package.json`, so the next agent extends it (e.g. `catalogs.effect`, `catalogs.pulumi`) instead of reaching for a default bucket. Bun rejects a reference to an unknown namespace. *Rejected:* a default `catalog`, which hides the mechanism; splitting `tooling` from `runtime` now (user choice); reserving empty `effect` and `pulumi` namespaces before those tickets exist.
 - **D21 — Every step commit needs explicit user approval.** A subagent cannot ask the user, so `implementer` stops after verifying a step and returns a summary. `/ticket:implement`, running in the main session, shows that summary and commits only on an explicit OK (R35a). *Rejected:* the implementer committing autonomously, which the user disallowed on 2026-10-15.
 - **D22 — Clients take explicit options and do not import `@oblik/config`.** `infrastructure/shared/*.client.ts` maps `Config` onto client options. Agnostic clients can then be reused or published without the project's env schema, and no dependency is declared before it is used. *Rejected:* `packages/{db,storage,queue,llm}` → `@oblik/config`, which would be an unused dependency while every service variable is still commented out (Q33).
+- **D23 — The web dev server proxies `/api/*` to the api.** The browser stays same-origin, so the api needs no CORS policy. The api origin is `localhost:${API_PORT}` until a deploy ticket adds `API_URL`. *Rejected:* CORS headers on the api, which leak a dev concern into the backend.
+- **D24 — The example queue is in-memory in `infrastructure`, like the repository.** `apps/*` may not import `packages/queue`, so the worker gets its queue from infrastructure. `infrastructure` drops its `@oblik/queue` dependency until a real client exists. *Rejected:* letting the worker import the queue client, which breaks the dependency matrix.
 - **D8 — Explicit `--env-file=../../.env` in app scripts.** This was verified: Bun loads `.env` relative to the cwd only. *Rejected:* Makefile-only env loading, which breaks `bun run dev` from a package directory; per-package `bunfig.toml`.
 - **D9 — `linker = "isolated"`.** The experiment showed that references do not stop undeclared imports. The isolated linker makes an undeclared workspace import fail at resolution. Verified in S5: importing the undeclared `@oblik/config` from `infrastructure` fails at runtime (`Cannot find module`) and in `bun check` (TS2307). *Rejected:* `hoisted`, where any package can be imported.
 - **D10 — Biome `noRestrictedImports` overrides in the root config are the authoritative layer guard.** They catch the problem at lint time, with a message that names the rule. They also catch a *declared but forbidden* dependency, which the linker cannot catch. The isolated linker plus `bun check` is the second line: it rejects any *undeclared* import.

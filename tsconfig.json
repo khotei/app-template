@@ -11,6 +11,8 @@
     { "path": "./packages/llm" },
     { "path": "./packages/api-client" },
     { "path": "./packages/ui" },
-    { "path": "./apps/api" }
+    { "path": "./apps/api" },
+    { "path": "./apps/worker" },
+    { "path": "./apps/web" }
   ]
 }

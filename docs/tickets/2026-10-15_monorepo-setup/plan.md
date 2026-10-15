@@ -174,7 +174,14 @@
   - `bun check` exits 0;
   - **R20 (manual):** while `bun run dev` runs in `apps/worker`, edit the handler → a restart log appears;
   - **R21 (manual):** while `bun run dev` runs in `apps/web`, edit the client code → the browser updates without a refresh, and the page shows the api health fetched through `api-client`.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - `--watch` restarts by exec: the PID stays the same, but `globalThis` is reset. `--hot` keeps `globalThis`, so `setInterval` duplicates on every reload. Verified with a probe script; this confirms D11.
+  - The web dev server rebuilds the client bundle on edit (`Reloaded in 0ms`, new bundle hash). The browser-side HMR update needs a human check in an open tab.
+  - Changes beyond the plan:
+    - D23: a `/api/*` proxy in `apps/web/src/main.ts`;
+    - D24: an in-memory `ExampleQueue`, so `infrastructure` no longer depends on `@oblik/queue`;
+    - `api-client` now resolves paths relative to its base URL, so `/api/` keeps working.
 
 #### S9 — `@oblik/deployment` stubs
 

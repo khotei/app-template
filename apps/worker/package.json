@@ -1,0 +1,15 @@
+{
+  "name": "@oblik/worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --env-file=../../.env --watch src/main.ts",
+    "debug": "bun --env-file=../../.env --inspect --watch src/main.ts",
+    "start": "bun --env-file=../../.env src/main.ts"
+  },
+  "dependencies": {
+    "@oblik/application": "workspace:*",
+    "@oblik/config": "workspace:*",
+    "@oblik/infrastructure": "workspace:*"
+  }
+}

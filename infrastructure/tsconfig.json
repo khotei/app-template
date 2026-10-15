@@ -9,7 +9,6 @@
     { "path": "../domain" },
     { "path": "../packages/db" },
     { "path": "../packages/storage" },
-    { "path": "../packages/queue" },
     { "path": "../packages/llm" }
   ]
 }

@@ -1,5 +1,4 @@
 import type { ExampleId } from '@oblik/domain/example'
-import type { QueueClient } from '@oblik/queue'
 
 export const exampleJobType = 'example.process' as const
 
@@ -9,7 +8,18 @@ export interface ExampleJob {
 }
 
 export interface ExampleQueue {
-  readonly url: string
+  send(job: ExampleJob): Promise<void>
+  receive(): Promise<readonly ExampleJob[]>
 }
 
-export const createExampleQueue = (client: QueueClient): ExampleQueue => ({ url: client.url })
+export const createExampleQueue = (): ExampleQueue => {
+  const pending: ExampleJob[] = []
+  return {
+    async send(job) {
+      pending.push(job)
+    },
+    async receive() {
+      return pending.splice(0)
+    },
+  }
+}

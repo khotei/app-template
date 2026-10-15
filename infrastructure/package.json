@@ -10,7 +10,6 @@
     "@oblik/db": "workspace:*",
     "@oblik/domain": "workspace:*",
     "@oblik/llm": "workspace:*",
-    "@oblik/queue": "workspace:*",
     "@oblik/storage": "workspace:*"
   }
 }
