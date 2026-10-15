@@ -301,7 +301,13 @@
     If it does, switch to `hoisted` and record a `Decision:`.
   - After the remote exists (ask first): push the branch and confirm all three jobs pass.
 - **Layer gate:** `make check` is green, then `git branch template/tooling`. After the remote exists, push it and confirm CI is green (R4).
-- **Status:** todo
+- **Status:** done — layer gate passed, `template/tooling` cut at this commit.
+- **Findings:**
+  - Actions pinned to the current majors: `checkout@v7`, `cache@v6`, `setup-bun@v2`, `lychee-action@v2`. The pinned Bun comes from `packageManager` through `bun-version-file`.
+  - Every CI command runs green locally, and `--frozen-lockfile` rejects a catalog/lock drift.
+  - Relative links check out (6 files, 0 broken) with a script that follows `lychee --offline` semantics.
+  - V3: the isolated linker caused no tool failures.
+  - Not yet verified on GitHub: `actionlint`, the real lychee run and the workflow itself. They need the remote, which is deferred to S19 (Q52).
 
 ### Layer 3 — `claude` → `template/claude`
 

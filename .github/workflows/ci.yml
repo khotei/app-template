@@ -1,0 +1,116 @@
+name: CI
+
+# Gate every pull request on any base, and every push to main and to the frozen
+# template/* branches: templates never receive PRs, so push is their only gate.
+on:
+  push:
+    branches: [main, 'template/*']
+  pull_request:
+
+# Cancel superseded runs for the same ref.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static:
+    name: lint · typecheck (bun ${{ matrix.bun }})
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.bun == 'latest' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        bun: [pinned, latest]
+    steps:
+      - uses: actions/checkout@v7
+
+      # pinned = the packageManager field in package.json
+      - name: Setup Bun (pinned)
+        if: matrix.bun == 'pinned'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Setup Bun (latest)
+        if: matrix.bun == 'latest'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache Bun install
+        uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ matrix.bun }}-${{ hashFiles('bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-${{ matrix.bun }}-
+
+      # --frozen-lockfile fails CI if bun.lock is out of date.
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bunx biome ci
+
+      - name: Typecheck
+        run: bun check
+
+  test:
+    name: test (bun ${{ matrix.bun }})
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.bun == 'latest' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        bun: [pinned, latest]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Bun (pinned)
+        if: matrix.bun == 'pinned'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Setup Bun (latest)
+        if: matrix.bun == 'latest'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache Bun install
+        uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ matrix.bun }}-${{ hashFiles('bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-${{ matrix.bun }}-
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      # Tests pass their env explicitly, so CI needs no .env file (R25).
+      - name: Test
+        run: bun test
+
+  # Guards the drift vector of a link-don't-restate doc strategy: a renamed target
+  # is a broken relative link. --offline checks only links inside the repo.
+  links:
+    name: docs link check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --offline
+            --no-progress
+            README.md
+            'docs/**/*.md'
+            '.claude/**/*.md'
+          fail: true
+
+# Deferred CI jobs (they depend on later tickets, not on this scaffold):
+#   - integration tests against Postgres / MiniStack containers
+#   - production build of apps/web and the server bundles
+#   - deploy preview of the Pulumi stack
