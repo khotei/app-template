@@ -413,7 +413,7 @@ App scripts load the root file explicitly:
 |---|---|
 | `help` (default) | lists targets from `##` comments |
 | `setup` | `bun install`, then copies `.env.example` → `.env` if `.env` is missing |
-| `dev` | `bun --filter './apps/*' --parallel dev` |
+| `dev` | `bun --filter './apps/*' dev` (long-running scripts start together, with package-prefixed output) |
 | `dev-api` / `dev-worker` / `dev-web` | `bun --filter @oblik/<app> dev` |
 | `debug-api` / `debug-worker` / `debug-web` | `bun --filter @oblik/<app> debug` |
 | `check` | `lint` + `typecheck` + `test` |

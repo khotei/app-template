@@ -213,7 +213,10 @@
 - **Layer gate:**
   - `make check` is green, and `git status` is clean after `tsc -b` (R12);
   - then cut the template branch: `git branch template/monorepo`.
-- **Status:** todo
+- **Status:** done — layer gate passed, `template/monorepo` cut at this commit.
+- **Findings:**
+  - `bun --filter './apps/*' dev` already runs long-running scripts concurrently, so `--parallel` is not needed.
+  - `make clean` removes every per-workspace `node_modules` that the isolated linker creates.
 
 ### Layer 2 — `tooling` → `template/tooling`
 
