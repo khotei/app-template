@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(bun *)",
+      "Bash(bunx *)",
+      "Bash(make *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git branch)",
+      "Bash(git branch --show-current*)",
+      "Bash(git branch --list*)",
+      "Bash(git branch -a*)",
+      "Bash(git branch -v*)",
+      "Bash(git rev-parse*)",
+      "Bash(git remote -v*)",
+      "Bash(git add *)",
+      "Bash(git restore *)",
+      "Bash(gh pr view*)",
+      "Bash(gh pr checks*)",
+      "Bash(gh pr diff*)",
+      "Bash(gh pr status*)",
+      "WebFetch(domain:bun.com)",
+      "WebFetch(domain:biomejs.dev)",
+      "WebFetch(domain:www.typescriptlang.org)",
+      "WebFetch(domain:code.claude.com)",
+      "WebFetch(domain:docs.claude.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.npmjs.com)"
+    ],
+    "ask": [
+      "Bash(git commit*)",
+      "Bash(git push*)",
+      "Bash(gh pr create*)",
+      "Bash(gh repo create*)",
+      "Bash(git checkout *)",
+      "Bash(git switch *)",
+      "Bash(git branch -d*)",
+      "Bash(git branch -D*)",
+      "Bash(git branch -m*)",
+      "Bash(git branch -f*)",
+      "Bash(git rebase*)",
+      "Bash(git reset *)",
+      "WebFetch(*)",
+      "WebSearch(*)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(rm -rf *)",
+      "Bash(sudo *)",
+      "Bash(npm *)",
+      "Bash(yarn *)",
+      "Bash(pnpm *)"
+    ]
+  }
+}

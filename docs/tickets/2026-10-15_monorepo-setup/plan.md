@@ -325,7 +325,11 @@
   - every rule is ≤ ~80 lines;
   - `grep -ri notion .claude/rules` finds nothing;
   - all content is in English.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - All seven rules are 23–56 lines and are scoped with `paths:` where a rule only matters for code or docs.
+  - `settings.json` puts `git commit`, `git push`, `gh pr create` and `gh repo create` under `ask`, so Claude Code itself enforces the approval gate (D21).
+  - The links to `docs/knowledge/{tooling,architecture}.md` point forward to S18; lychee runs on the PR, after S18.
 
 #### S15 — `CLAUDE.md` files
 
