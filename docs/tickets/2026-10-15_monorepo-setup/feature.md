@@ -96,6 +96,7 @@ Alongside the code, set up an in-repo spec-driven development (SDD) flow (featur
 
 - **R13** — Every layer SHALL contain the `example` slice listed in [architecture.md › Structure](./architecture.md#structure). It SHALL be plain TypeScript, without Effect.
 - **R14** — Imports SHALL only go down the layer stack `apps` → `application` → `infrastructure` → `domain` ([architecture.md › Dependency rules](./architecture.md#dependency-rules)). The rules are: `domain` imports no workspace; `packages/*` may be imported by every layer except `domain` and may import each other, but never a layer; apps never import each other; `deployment` imports only `packages/*`. WHEN a forbidden import is added, THE `biome check` command SHALL fail with a message that names the rule.
+- **R14a** — Inside a workspace, modules SHALL import each other through the workspace's own subpath imports (`#<workspace>/…`, declared in its `package.json` `imports`); relative imports (`./`, `../`) SHALL fail `biome check`. Imports SHALL be grouped in this order, separated by one blank line: runtime (`bun:`, `node:`), external packages, `@oblik/*` workspaces, `#` subpaths.
 - **R15** — `apps/web` client code (`src/app/`, `src/features/`, `src/shared/`) SHALL import no internal package other than `@oblik/api-client` and `@oblik/ui`. The server entry `apps/web/src/main.ts` MAY additionally import `@oblik/config`, and nothing else internal.
 
 ### Environment and config
@@ -170,6 +171,7 @@ Alongside the code, set up an in-repo spec-driven development (SDD) flow (featur
 | R1–R4 | `git log main --reverse` shows the `bun init` commit first. `git branch -a` lists `template/{monorepo,tooling,claude}`. CI is green on each of them. |
 | R5–R8 | `grep -R '"\^\|"~' **/package.json` finds nothing. Every external dependency is `catalog:<namespace>`, and `grep -rn '"catalog:"' --include=package.json .` finds nothing. `npm view` matches the catalogs. |
 | R10–R12 | `bun check` exits 0. Adding a type error in `application` makes it exit 1. `tsc -b` exits 0 and `git status` stays clean. |
+| R14a | `import './x'` or `export * from '../y'` in any workspace fails `make lint`; `#<workspace>/…` passes. An unsorted or ungrouped import block fails `biome check` (`assist/source/organizeImports`). |
 | R14–R15 | `make lint` fails for `@oblik/config` or `@oblik/infrastructure` imported in `domain/`, for `@oblik/application` imported in `infrastructure/`, for `@oblik/worker` imported in `apps/api/`, and for `@oblik/config` or `@oblik/domain` imported in `apps/web/src/app/`. It passes for `@oblik/infrastructure` imported in `application/`, for `@oblik/config` imported in `packages/db/`, and for `@oblik/config` imported in `apps/web/src/main.ts`. |
 | R17–R18 | `make dev-api` serves on `API_PORT` from `.env`. `cd apps/api && bun run dev` does the same. Removing `API_PORT` → startup error names `API_PORT`. |
 | R19 | `curl /health`, then edit the handler text, then `curl` again: the response has changed and `pgrep` shows the same PID. |

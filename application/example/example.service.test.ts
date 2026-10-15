@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+
 import {
   buildExample,
   type Example,
@@ -6,7 +7,8 @@ import {
   ExampleNotFoundError,
   type ExampleRepository,
 } from '@oblik/domain/example'
-import { createExampleService } from './example.service'
+
+import { createExampleService } from '#application/example/example.service'
 
 const createMapRepository = (): ExampleRepository => {
   const examples = new Map<ExampleId, Example>()

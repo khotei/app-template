@@ -1,11 +1,13 @@
 import { describe, expect, mock, test } from 'bun:test'
+
 import {
   type Example,
   ExampleNameInvalidError,
   type ExampleRepository,
 } from '@oblik/domain/example'
-import { createExampleUseCase } from './create.use-case'
-import { createExampleService } from './example.service'
+
+import { createExampleUseCase } from '#application/example/create.use-case'
+import { createExampleService } from '#application/example/example.service'
 
 const now = new Date('2026-10-15T00:00:00.000Z')
 

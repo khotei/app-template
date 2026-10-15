@@ -5,6 +5,9 @@
   "exports": {
     "./example": "./example/index.ts"
   },
+  "imports": {
+    "#application/*": "./*.ts"
+  },
   "dependencies": {
     "@oblik/domain": "workspace:*"
   }

@@ -2,6 +2,9 @@
   "name": "@oblik/api",
   "private": true,
   "type": "module",
+  "imports": {
+    "#api/*": "./src/*.ts"
+  },
   "scripts": {
     "dev": "bun --env-file=../../.env --hot src/main.ts",
     "debug": "bun --env-file=../../.env --inspect --hot src/main.ts",

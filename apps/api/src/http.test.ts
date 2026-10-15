@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { buildRoutes } from './http'
-import { buildLayer } from './layer'
+
+import { buildRoutes } from '#api/http'
+import { buildLayer } from '#api/layer'
 
 const server = Bun.serve({ port: 0, routes: buildRoutes(buildLayer()) })
 afterAll(() => server.stop(true))

@@ -1,5 +1,5 @@
-import { DomainError } from '../shared/error'
-import type { ExampleId } from './example.model'
+import type { ExampleId } from '#domain/example/example.model'
+import { DomainError } from '#domain/shared/error'
 
 export class ExampleNameInvalidError extends DomainError {
   readonly _tag = 'ExampleNameInvalidError'

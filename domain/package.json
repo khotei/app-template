@@ -5,5 +5,8 @@
   "exports": {
     "./shared": "./shared/index.ts",
     "./example": "./example/index.ts"
+  },
+  "imports": {
+    "#domain/*": "./*.ts"
   }
 }

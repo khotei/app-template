@@ -1,2 +1,2 @@
-export * from './db.client'
-export * from './outbox.repository'
+export * from '#infrastructure/shared/db.client'
+export * from '#infrastructure/shared/outbox.repository'

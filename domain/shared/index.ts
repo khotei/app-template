@@ -1,2 +1,2 @@
-export * from './error'
-export * from './id'
+export * from '#domain/shared/error'
+export * from '#domain/shared/id'

@@ -1,6 +1,6 @@
-import { buildId } from '../shared/id'
-import { ExampleNameInvalidError } from './example.error'
-import type { Example, ExampleId } from './example.model'
+import { ExampleNameInvalidError } from '#domain/example/example.error'
+import type { Example, ExampleId } from '#domain/example/example.model'
+import { buildId } from '#domain/shared/id'
 
 export interface ExampleRepository {
   upsert(example: Example): Promise<void>

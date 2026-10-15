@@ -1,2 +1,2 @@
-export * from './config'
-export * from './load'
+export * from '#config/config'
+export * from '#config/load'

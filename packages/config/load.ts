@@ -1,4 +1,4 @@
-import { type Config, ConfigError, logLevels, nodeEnvs } from './config'
+import { type Config, ConfigError, logLevels, nodeEnvs } from '#config/config'
 
 type Env = Readonly<Record<string, string | undefined>>
 

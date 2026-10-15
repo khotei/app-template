@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
-import { ConfigError } from './config'
-import { loadConfig } from './load'
+
+import { ConfigError } from '#config/config'
+import { loadConfig } from '#config/load'
 
 const validEnv = {
   NODE_ENV: 'production',

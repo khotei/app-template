@@ -6,6 +6,9 @@
     "./shared": "./shared/index.ts",
     "./example": "./example/index.ts"
   },
+  "imports": {
+    "#infrastructure/*": "./*.ts"
+  },
   "dependencies": {
     "@oblik/db": "workspace:*",
     "@oblik/domain": "workspace:*",

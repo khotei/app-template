@@ -1,2 +1,2 @@
-export * from './create.use-case'
-export * from './example.service'
+export * from '#application/example/create.use-case'
+export * from '#application/example/example.service'

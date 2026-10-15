@@ -1,4 +1,4 @@
-import type { Id } from '../shared/id'
+import type { Id } from '#domain/shared/id'
 
 export type ExampleId = Id<'Example'>
 

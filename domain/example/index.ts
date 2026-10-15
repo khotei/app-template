@@ -1,3 +1,3 @@
-export * from './example.error'
-export * from './example.model'
-export * from './example.service'
+export * from '#domain/example/example.error'
+export * from '#domain/example/example.model'
+export * from '#domain/example/example.service'

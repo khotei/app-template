@@ -245,6 +245,21 @@
   - The import model changed to a downward stack (Q45–Q48, D6), enforced with deny-lists. Verified with 20 probe imports and the `apps/web/src/main.ts` exception.
   - A relative cross-workspace import is caught by `bun check` (TS6059/TS6307), so no Biome rule is needed for it (Q44).
 
+#### S11a — Workspace subpath imports and import groups
+
+- **Goal:** absolute imports inside each workspace and grouped import blocks (R14a, D25, D26). Added on the user's request during S11.
+- **Files:**
+  - every workspace `package.json` gains `imports` (`#<workspace>/*`);
+  - 69 relative specifiers in 31 files are rewritten mechanically;
+  - `biome.json` gets the relative-path ban in every override and at top level, plus `organizeImports.groups`.
+- **Verify:**
+  - `make check` passes;
+  - all three apps boot through `make dev`, including `#web/index.html`;
+  - the probes reject `./…`, `../…` and `export * from './…'` while the layer guards still fire;
+  - type probes with `@ts-expect-error` traps and an `any`/`unknown` control show the types are preserved;
+  - `biome check` fails on an ungrouped import block.
+- **Status:** done
+
 #### S12 — Husky hooks
 
 - **Goal:** `pre-commit` runs `bun check` and staged Biome; `pre-push` runs `bun test` (R27, R9).
@@ -288,6 +303,7 @@
 - **Files:** `.claude/rules/{claude-md,comments,naming,commits,pull-requests,tooling,sdd}.md` and `.claude/settings.json`.
   - Apply the adaptations listed in architecture.md › `.claude` adaptation.
   - `sdd.md` states the approval gate (D21): no commit or amend of a step without the user's explicit OK.
+  - `naming.md` and `tooling.md` state the import rules: `#<workspace>/…` inside a workspace, `@oblik/…` across workspaces, never relative paths, and the import group order (D25, D26).
   - `tooling.md` states the `.env` convention: string values double-quoted, numbers bare (R16).
   - `tooling.md` states the catalog rule (D20): versions only in `catalogs.<namespace>`, never the unnamed `catalog:`. A new lock-step family gets its own namespace. Every other dependency goes to `runtime`.
   - `tooling.md` holds imperatives only, ≤ ~80 lines, and links to `docs/knowledge/tooling.md`. That link resolves after S18; lychee runs in CI on the PR, which by then includes S18.
@@ -378,7 +394,7 @@
 | R11 | S3–S9 | R28–R29 | S13 |
 | R12 | S2, S10 | R30 | S7, S8, S10–S12 |
 | R13 | S3–S9 | R31 | S10 |
-| R14 | S3–S9 (deps), S11 (lint) | R32 | S14–S17 |
+| R14, R14a | S3–S9 (deps), S11, S11a (lint) | R32 | S14–S17 |
 | R15 | S8, S11 | R33 | S15, S18 |
 | R16 | S4 | R34 | S14, S18 |
 | R17 | S7, S8 | R35, R35a | S16 (+ S14 for R35a) |

@@ -1,6 +1,7 @@
 import { createExampleService } from '@oblik/application/example'
 import { createExampleQueue, createExampleRepository } from '@oblik/infrastructure/example'
-import { createExampleHandler } from './handlers/example.handler'
+
+import { createExampleHandler } from '#worker/handlers/example.handler'
 
 export const buildLayer = () => {
   const exampleService = createExampleService({ repository: createExampleRepository() })

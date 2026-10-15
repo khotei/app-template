@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
-import { ExampleNameInvalidError } from './example.error'
-import { buildExample } from './example.service'
+
+import { ExampleNameInvalidError } from '#domain/example/example.error'
+import { buildExample } from '#domain/example/example.service'
 
 describe('buildExample', () => {
   const now = new Date('2026-10-15T00:00:00.000Z')

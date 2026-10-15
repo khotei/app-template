@@ -1,6 +1,6 @@
-import { buildResourceName } from '../shared/naming'
-import { buildTags } from '../shared/tags'
-import { deploymentConfig } from './config'
+import { deploymentConfig } from '#deployment/aws/config'
+import { buildResourceName } from '#deployment/shared/naming'
+import { buildTags } from '#deployment/shared/tags'
 
 export const database = {
   name: buildResourceName(deploymentConfig.stage, 'database'),

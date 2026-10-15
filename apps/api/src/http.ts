@@ -1,7 +1,8 @@
 import type { CreateExampleInput } from '@oblik/application/example'
 import type { ExampleId } from '@oblik/domain/example'
 import { DomainError } from '@oblik/domain/shared'
-import type { Layer } from './layer'
+
+import type { Layer } from '#api/layer'
 
 const statusByTag: Readonly<Record<string, number>> = {
   ExampleNameInvalidError: 422,

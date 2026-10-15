@@ -1,5 +1,6 @@
 import { buildExample, type Example } from '@oblik/domain/example'
-import type { ExampleService } from './example.service'
+
+import type { ExampleService } from '#application/example/example.service'
 
 export interface CreateExampleInput {
   readonly name: string

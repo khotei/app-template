@@ -1,5 +1,6 @@
 import { loadConfig } from '@oblik/config'
-import index from './index.html'
+
+import index from '#web/index.html'
 
 const config = loadConfig()
 const apiOrigin = `http://localhost:${config.api.port}`

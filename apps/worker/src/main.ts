@@ -1,5 +1,6 @@
 import { loadConfig } from '@oblik/config'
-import { buildLayer } from './layer'
+
+import { buildLayer } from '#worker/layer'
 
 const pollIntervalMs = 1_000
 

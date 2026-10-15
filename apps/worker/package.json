@@ -2,6 +2,9 @@
   "name": "@oblik/worker",
   "private": true,
   "type": "module",
+  "imports": {
+    "#worker/*": "./src/*.ts"
+  },
   "scripts": {
     "dev": "bun --env-file=../../.env --watch src/main.ts",
     "debug": "bun --env-file=../../.env --inspect --watch src/main.ts",
