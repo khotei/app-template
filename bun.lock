@@ -40,6 +40,9 @@
         "@oblik/infrastructure": "workspace:*",
       },
     },
+    "deployment": {
+      "name": "@oblik/deployment",
+    },
     "domain": {
       "name": "@oblik/domain",
     },
@@ -90,6 +93,8 @@
     "@oblik/config": ["@oblik/config@workspace:packages/config"],
 
     "@oblik/db": ["@oblik/db@workspace:packages/db"],
+
+    "@oblik/deployment": ["@oblik/deployment@workspace:deployment"],
 
     "@oblik/domain": ["@oblik/domain@workspace:domain"],
 

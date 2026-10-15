@@ -193,7 +193,8 @@
   - `deployment/aws/{index,config,database,storage,queue,api,worker,web,iam}.ts`;
   - `deployment/shared/{naming,tags}.ts`.
 - **Verify:** `bun check` exits 0 and reports the `deployment` project.
-- **Status:** todo
+- **Status:** done
+- **Findings:** the `workspaces` list is now complete (R5). Both YAML files parse. `Pulumi.yaml` has not been validated by the `pulumi` CLI, which is not installed; the deploy ticket covers that. The region `eu-central-1` is a placeholder.
 
 #### S10 — Makefile
 
