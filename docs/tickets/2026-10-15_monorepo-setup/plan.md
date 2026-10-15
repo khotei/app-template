@@ -237,8 +237,13 @@
   - `Makefile`, adding `lint` and `fmt` and adding `lint` to `check`.
 - **Verify:**
   - `make lint` is green;
-  - **R14/R15 negative checks:** temporarily add `import '@oblik/infrastructure'` in `domain/` and `import '@oblik/config'` in `apps/web/src/app/`. `make lint` must fail on both with the override's message, and `@oblik/config` in `apps/web/src/main.ts` must pass (D19). Revert both changes.
-- **Status:** todo
+  - **R14/R15 negative checks:** temporarily add `import '@oblik/infrastructure'` in `domain/` and `import '@oblik/config'` in `apps/web/src/app/`. `make lint` must fail on both with the override's message, and `@oblik/config` in `apps/web/src/main.ts` must pass (D19). Revert both changes. The full probe set is listed in architecture.md › Dependency rules.
+- **Status:** done
+- **Findings:**
+  - Biome 2.5 uses `"preset": "recommended"`. `noRestrictedImports` lives in `style`, and its `patterns[].group` is gitignore-style (V2).
+  - Overrides on the same file replace each other's options, so they do not merge.
+  - The import model changed to a downward stack (Q45–Q48, D6), enforced with deny-lists. Verified with 20 probe imports and the `apps/web/src/main.ts` exception.
+  - A relative cross-workspace import is caught by `bun check` (TS6059/TS6307), so no Biome rule is needed for it (Q44).
 
 #### S12 — Husky hooks
 

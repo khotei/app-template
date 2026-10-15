@@ -8,26 +8,27 @@
 
 ```mermaid
 graph TD
-  web[apps/web] --> apiClient[packages/api-client]
-  web --> ui[packages/ui]
-  web -.->|main.ts only| config
-  api[apps/api] --> application
-  api --> infrastructure
-  worker[apps/worker] --> application
-  worker --> infrastructure
-  api --> config[packages/config]
-  worker --> config
-  application --> domain
+  apps["apps/api · apps/worker"] --> application
+  application --> infrastructure
   infrastructure --> domain
-  infrastructure --> clients["packages/db · storage · queue · llm"]
-  infrastructure --> config
+  apps --> packages["packages/* (config · db · storage · queue · llm · api-client · ui)"]
+  application --> packages
+  infrastructure --> packages
+  packages --> packages
+  web["apps/web (client)"] --> clientPkgs["api-client · ui"]
+  webMain["apps/web/src/main.ts"] --> clientPkgs
+  webMain --> config["packages/config"]
+  deployment --> packages
 ```
 
-- **`domain`** has no dependencies. It owns the models, the errors, and the **ports**: interfaces that infrastructure implements.
-- **`application`** depends only on `domain`. It receives its ports as arguments.
-- **`infrastructure`** implements the domain ports on top of the agnostic `packages/*` clients. It also maps `Config` onto client options, because the clients take explicit options and never import `@oblik/config` (D22).
-- **`apps/api` and `apps/worker`** are composition roots: `layer.ts` wires infrastructure into application. Each `layer.ts` is the future Effect `Layer` seam.
-- **`apps/web`** talks to the backend only through `api-client`.
+Imports only go **down**: `apps` → `application` → `infrastructure` → `domain`. A layer may import any layer below it, not only the next one.
+
+- **`domain`** is the pure core: models, errors, ports, and pure operations. It imports no workspace, not even `packages/*`.
+- **`infrastructure`** implements domain ports on top of the generic `packages/*` clients.
+- **`application`** holds services and use cases. It may import `infrastructure` directly. Injecting ports through `layer.ts` is still the default wiring, but it is no longer a hard rule (D6).
+- **`packages/*`** are generic. Every layer except `domain` may import them, and they may import each other, but they never import a layer.
+- **`apps/api` and `apps/worker`** are composition roots: `layer.ts` is the future Effect `Layer` seam. Apps never import each other.
+- **`apps/web`** ships to the browser, so its client code sees only `api-client` and `ui`. The server entry `main.ts` may also read `config` (D19).
 
 ### Delivery: git
 
@@ -177,20 +178,18 @@ The tree below is the end state of `template/claude`, which already includes thi
 
 ### Dependency rules
 
-Rows list what the workspace may import. A `✗` is enforced twice: by `dependencies` and by Biome `noRestrictedImports`.
+Each row lists what a workspace may import. Biome `noRestrictedImports` enforces the ✗ cells (D10). Even for a ✓ cell, the dependency must be **declared** in the workspace's `package.json`: the isolated linker and `bun check` reject undeclared imports (TS2307, D9).
 
-| From ↓ / may import → | domain | application | infrastructure | packages/config | packages/{db,storage,queue,llm} | api-client · ui |
-|---|---|---|---|---|---|---|
-| domain | (self) | ✗ | ✗ | ✗ | ✗ | ✗ |
-| application | ✓ | (self) | ✗ | ✗ | ✗ | ✗ |
-| infrastructure | ✓ | ✗ | (self) | ✓ | ✓ | ✗ |
-| packages/config | ✗ | ✗ | ✗ | (self) | ✗ | ✗ |
-| packages/{db,storage,queue,llm} | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
-| packages/{api-client,ui} | ✗ | ✗ | ✗ | ✗ | ✗ | (self) |
-| apps/api · apps/worker | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ |
-| apps/web (client: `app/`, `features/`, `shared/`) | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ |
-| apps/web/src/main.ts (server entry) | ✗ | ✗ | ✗ | ✓ | ✗ | ✓ |
-| deployment | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| From ↓ / may import → | domain | infrastructure | application | packages/* | apps |
+|---|---|---|---|---|---|
+| domain | — | ✗ | ✗ | ✗ | ✗ |
+| infrastructure | ✓ | — | ✗ | ✓ | ✗ |
+| application | ✓ | ✓ | — | ✓ | ✗ |
+| packages/* | ✗ | ✗ | ✗ | ✓ (each other) | ✗ |
+| apps/api · apps/worker | ✓ | ✓ | ✓ | ✓ | ✗ (no sibling app) |
+| apps/web client (`app/`, `features/`, `shared/`) | ✗ | ✗ | ✗ | `api-client`, `ui` only | ✗ |
+| apps/web/src/main.ts | ✗ | ✗ | ✗ | `api-client`, `ui`, `config` | ✗ |
+| deployment | ✗ | ✗ | ✗ | ✓ | ✗ |
 
 ## Contracts
 
@@ -364,27 +363,36 @@ linker = "isolated"   # undeclared workspace imports fail to resolve (see D9)
 ```jsonc
 {
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true, "defaultBranch": "main" },
-  "files": { "ignoreUnknown": true },
+  "files": { "ignoreUnknown": true, "includes": ["**", "!bun.lock"] },
   "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },
   "javascript": { "formatter": { "quoteStyle": "single", "semicolons": "asNeeded" } },
   "linter": {
     "rules": {
-      "recommended": true,
+      "preset": "recommended", // Biome 2.5 syntax
       "style": { "useImportType": "error" },
       "suspicious": { "noExplicitAny": "error" }
     }
   },
   "overrides": [
-    // one override per row of the dependency-rules table, e.g.:
-    { "includes": ["domain/**"], "linter": { "rules": { "style": { "noRestrictedImports": {
+    // Deny-lists: each layer forbids what sits above it and its sibling apps,
+    // so a new packages/* workspace needs no Biome change. Allow-lists remain only
+    // for domain (nothing) and the web client (api-client, ui).
+    { "includes": ["application/**"], "linter": { "rules": { "style": { "noRestrictedImports": {
       "level": "error",
-      "options": { "patterns": [{ "group": ["@oblik/*", "!@oblik/domain"], "message": "domain imports nothing internal" }] }
+      "options": { "patterns": [{
+        "group": ["@oblik/api", "@oblik/api/**", "@oblik/worker", "@oblik/worker/**", "…"],
+        "message": "application may import infrastructure, domain and packages/*: no upward imports"
+      }] }
     } } } } }
   ]
 }
 ```
 
-The exact option shape of `noRestrictedImports` is verified at implementation time (feature V2). Nested `biome.json` files are added only when a workspace needs to differ, using `"extends": "//"`.
+Verified in Biome 2.5 (V2):
+
+- `patterns[].group` takes gitignore-style globs, where `**` covers subpath imports and `!` excludes a path.
+- When several overrides set `noRestrictedImports` on the same file, the later override **replaces** the earlier one's options. Each override therefore carries every pattern that applies to its files.
+- Nested `biome.json` files are added only when a workspace needs to differ, using `"extends": "//"`.
 
 ### Environment
 
@@ -477,16 +485,16 @@ App scripts load the root file explicitly:
 - **D3 — Root-level config files** (`biome.json` with `"//"` extends, `tsconfig.base.json`). *Rejected:* kotodama's presets package with `--config-path`. Editors and CI would need the flag, and the name would collide with the runtime `packages/config`.
 - **D4 — Project references with `composite` + `emitDeclarationOnly` into `node_modules/.cache/tsc`.** `bun check` is the gate and emits nothing; `tsc -b` stays valid. *Rejected:* `noEmit` (TS6310); a single flat root tsconfig (the user chose references).
 - **D5 — Domain `*.service.ts` hosts ports and pure operations.** It keeps the architecture-page file set and later becomes the Effect `Context.Tag` site. *Rejected:* an extra `*.port.ts` role, which deviates from the target tree.
-- **D6 — Application depends only on domain; apps wire infrastructure in `layer.ts`.** Services are injected and never import each other; use cases compose services. *Rejected:* application importing infrastructure, which couples scenarios to adapters.
+- **D6 — Layers form one stack: `apps` → `application` → `infrastructure` → `domain`; each layer may import any layer below it (user decision, Q45).** `application` may import `infrastructure` directly. Wiring through `layer.ts` is still preferred, so use cases stay testable with fakes. *Rejected:* ports-only (`application` → `domain` only), which the user found too strict; `infrastructure` → `application`.
 - **D7 — Exact pins in named root catalogs.** Every workspace uses `catalog:<namespace>`, and `exact = true`. *Rejected:* per-package pins, which duplicate versions.
 - **D20 — Named catalogs only: a single `runtime` namespace now; lock-step families get their own namespace when introduced.** Using a namespace from day one makes the mechanism visible in `package.json`, so the next agent extends it (e.g. `catalogs.effect`, `catalogs.pulumi`) instead of reaching for a default bucket. Bun rejects a reference to an unknown namespace. *Rejected:* a default `catalog`, which hides the mechanism; splitting `tooling` from `runtime` now (user choice); reserving empty `effect` and `pulumi` namespaces before those tickets exist.
 - **D21 — Every step commit needs explicit user approval.** A subagent cannot ask the user, so `implementer` stops after verifying a step and returns a summary. `/ticket:implement`, running in the main session, shows that summary and commits only on an explicit OK (R35a). *Rejected:* the implementer committing autonomously, which the user disallowed on 2026-10-15.
-- **D22 — Clients take explicit options and do not import `@oblik/config`.** `infrastructure/shared/*.client.ts` maps `Config` onto client options. Agnostic clients can then be reused or published without the project's env schema, and no dependency is declared before it is used. *Rejected:* `packages/{db,storage,queue,llm}` → `@oblik/config`, which would be an unused dependency while every service variable is still commented out (Q33).
+- **D22 — `packages/*` may import each other, but the clients take explicit options and do not import `@oblik/config` yet.** `infrastructure` maps `Config` onto client options once `Config` has service fields. Agnostic clients stay reusable, and no dependency is declared before it is used. *Rejected:* forcing `config` into every client while all service variables are still commented out (Q33).
 - **D23 — The web dev server proxies `/api/*` to the api.** The browser stays same-origin, so the api needs no CORS policy. The api origin is `localhost:${API_PORT}` until a deploy ticket adds `API_URL`. *Rejected:* CORS headers on the api, which leak a dev concern into the backend.
 - **D24 — The example queue is in-memory in `infrastructure`, like the repository.** `apps/*` may not import `packages/queue`, so the worker gets its queue from infrastructure. `infrastructure` drops its `@oblik/queue` dependency until a real client exists. *Rejected:* letting the worker import the queue client, which breaks the dependency matrix.
 - **D8 — Explicit `--env-file=../../.env` in app scripts.** This was verified: Bun loads `.env` relative to the cwd only. *Rejected:* Makefile-only env loading, which breaks `bun run dev` from a package directory; per-package `bunfig.toml`.
 - **D9 — `linker = "isolated"`.** The experiment showed that references do not stop undeclared imports. The isolated linker makes an undeclared workspace import fail at resolution. Verified in S5: importing the undeclared `@oblik/config` from `infrastructure` fails at runtime (`Cannot find module`) and in `bun check` (TS2307). *Rejected:* `hoisted`, where any package can be imported.
-- **D10 — Biome `noRestrictedImports` overrides in the root config are the authoritative layer guard.** They catch the problem at lint time, with a message that names the rule. They also catch a *declared but forbidden* dependency, which the linker cannot catch. The isolated linker plus `bun check` is the second line: it rejects any *undeclared* import.
+- **D10 — Biome `noRestrictedImports` overrides in the root config are the authoritative guard for import direction.** Overrides are deny-lists of the layers above and of sibling apps, so a new `packages/*` workspace needs no Biome change. Each diagnostic names its rule. Two further lines of defence back them up. The isolated linker together with `bun check` rejects any *undeclared* import (TS2307). A relative path into another workspace (`../../infrastructure/...`) fails `bun check` with TS6059/TS6307, because each workspace is a `composite` project with `rootDir: "."`. That is why Biome has no separate rule for it (Q44).
 - **D11 — `--hot` for api and web, `--watch` for worker; there is no `--dev`.** `--hot` swaps `Bun.serve` handlers and keeps `globalThis`. `--watch` restarts the process, so the worker's timers and connections never duplicate. Hot reload is accepted manually (same PID), not with a flaky automated test.
 - **D12 — Built-in `bun check` replaces `tsc` as the typecheck gate.** It is a native port, is 3–6× faster, and needs no emit. `typescript` stays installed for the editor and `tsc -b`.
 - **D13 — Hooks are split: commit runs typecheck and lint, push runs tests.** Commits stay fast, and CI catches `--no-verify`.

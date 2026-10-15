@@ -45,8 +45,6 @@ describe('loadConfig', () => {
   })
 
   test.each(['abc', '0', '70000', '3000.5'])('rejects the invalid port %p', (port) => {
-    expect(issuesOf({ ...validEnv, WEB_PORT: port })).toEqual([
-      expect.stringContaining('WEB_PORT'),
-    ])
+    expect(issuesOf({ ...validEnv, WEB_PORT: port })).toEqual([expect.stringContaining('WEB_PORT')])
   })
 })

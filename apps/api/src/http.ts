@@ -25,12 +25,14 @@ export const buildRoutes = (layer: Layer) => ({
     POST: async (request: Request) => {
       const body: unknown = await request.json().catch(() => undefined)
       if (!isCreateExampleInput(body)) {
-        return Response.json({ error: 'BadRequest', message: 'name must be a string' }, { status: 400 })
+        return Response.json(
+          { error: 'BadRequest', message: 'name must be a string' },
+          { status: 400 },
+        )
       }
-      return layer.createExample(body).then(
-        (example) => Response.json(example, { status: 201 }),
-        respondWithDomainError,
-      )
+      return layer
+        .createExample(body)
+        .then((example) => Response.json(example, { status: 201 }), respondWithDomainError)
     },
   },
   '/examples/:id': {

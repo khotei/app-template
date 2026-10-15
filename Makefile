@@ -3,7 +3,7 @@
 .DEFAULT_GOAL := help
 
 .PHONY: help setup dev dev-api dev-worker dev-web debug-api debug-worker debug-web \
-  check typecheck test clean outdated
+  check lint fmt typecheck test clean outdated
 
 help: ## List all targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) \
@@ -34,7 +34,13 @@ debug-worker: ## Run the worker with --inspect and --watch
 debug-web: ## Run the web dev server with --inspect
 	bun --filter @oblik/web debug
 
-check: typecheck test ## Run every gate: typecheck and tests
+check: lint typecheck test ## Run every gate: lint, typecheck and tests
+
+lint: ## Lint and format-check with Biome
+	bun run lint
+
+fmt: ## Apply Biome formatting and safe fixes
+	bun run format
 
 typecheck: ## Typecheck every workspace with bun check
 	bun check
