@@ -12,6 +12,16 @@
     "domain": {
       "name": "@oblik/domain",
     },
+    "infrastructure": {
+      "name": "@oblik/infrastructure",
+      "dependencies": {
+        "@oblik/db": "workspace:*",
+        "@oblik/domain": "workspace:*",
+        "@oblik/llm": "workspace:*",
+        "@oblik/queue": "workspace:*",
+        "@oblik/storage": "workspace:*",
+      },
+    },
     "packages/api-client": {
       "name": "@oblik/api-client",
     },
@@ -48,6 +58,8 @@
     "@oblik/db": ["@oblik/db@workspace:packages/db"],
 
     "@oblik/domain": ["@oblik/domain@workspace:domain"],
+
+    "@oblik/infrastructure": ["@oblik/infrastructure@workspace:infrastructure"],
 
     "@oblik/llm": ["@oblik/llm@workspace:packages/llm"],
 

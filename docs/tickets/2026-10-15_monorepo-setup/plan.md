@@ -104,11 +104,14 @@
 - **Goal:** domain ports implemented on top of the clients (R13). The only working adapter is an in-memory `ExampleRepository`; everything else is an export-only stub.
 - **Files:**
   - root `package.json`: append `"infrastructure"` to `workspaces`;
-  - `infrastructure/{package.json,tsconfig.json}` (deps: `@oblik/domain`, `@oblik/config`, `@oblik/{db,storage,queue,llm}`);
+  - `infrastructure/{package.json,tsconfig.json}` (deps: `@oblik/domain`, `@oblik/{db,storage,queue,llm}`; `@oblik/config` is added once `Config` has service fields, see D22);
   - `infrastructure/shared/{db.client,outbox.repository}.ts`;
   - `infrastructure/example/example.{repository,storage,queue,llm}.ts`.
 - **Verify:** `bun check` exits 0. A one-off REPL check confirms that `upsert` followed by `selectById` round-trips; no test file is required by the feature.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - `@oblik/config` is not a dependency yet, because `Config` has no service fields (D22). `createSharedDbClient` takes `url` explicitly.
+  - D9 verified: an undeclared workspace import fails at runtime and in `bun check` under the isolated linker.
 
 #### S6 — `@oblik/application`
 

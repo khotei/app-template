@@ -346,7 +346,7 @@ linker = "isolated"   # undeclared workspace imports fail to resolve (see D9)
   - `bun check` from the root walks the references and emits nothing;
   - `tsc -b` emits only into the cache;
   - `composite` combined with `noEmit` fails with TS6310;
-  - references do **not** stop an undeclared cross-package import (see D9 and D10).
+  - with a hoisted layout, references do **not** stop an undeclared cross-package import. With the isolated linker, such an import fails both at runtime and in `bun check` (TS2307); this was verified in S5 (see D9 and D10).
 
 ### Biome (`biome.json`, root only)
 
@@ -472,8 +472,8 @@ App scripts load the root file explicitly:
 - **D21 — Every step commit needs explicit user approval.** A subagent cannot ask the user, so `implementer` stops after verifying a step and returns a summary. `/ticket:implement`, running in the main session, shows that summary and commits only on an explicit OK (R35a). *Rejected:* the implementer committing autonomously, which the user disallowed on 2026-10-15.
 - **D22 — Clients take explicit options and do not import `@oblik/config`.** `infrastructure/shared/*.client.ts` maps `Config` onto client options. Agnostic clients can then be reused or published without the project's env schema, and no dependency is declared before it is used. *Rejected:* `packages/{db,storage,queue,llm}` → `@oblik/config`, which would be an unused dependency while every service variable is still commented out (Q33).
 - **D8 — Explicit `--env-file=../../.env` in app scripts.** This was verified: Bun loads `.env` relative to the cwd only. *Rejected:* Makefile-only env loading, which breaks `bun run dev` from a package directory; per-package `bunfig.toml`.
-- **D9 — `linker = "isolated"`.** The experiment showed that references do not stop undeclared imports. The isolated linker makes an undeclared workspace import fail at resolution. *Rejected:* `hoisted`, where any package can be imported.
-- **D10 — Biome `noRestrictedImports` overrides in the root config are the authoritative layer guard.** They catch the problem at lint time, with a message that names the rule. Dependencies and the isolated linker are the second line.
+- **D9 — `linker = "isolated"`.** The experiment showed that references do not stop undeclared imports. The isolated linker makes an undeclared workspace import fail at resolution. Verified in S5: importing the undeclared `@oblik/config` from `infrastructure` fails at runtime (`Cannot find module`) and in `bun check` (TS2307). *Rejected:* `hoisted`, where any package can be imported.
+- **D10 — Biome `noRestrictedImports` overrides in the root config are the authoritative layer guard.** They catch the problem at lint time, with a message that names the rule. They also catch a *declared but forbidden* dependency, which the linker cannot catch. The isolated linker plus `bun check` is the second line: it rejects any *undeclared* import.
 - **D11 — `--hot` for api and web, `--watch` for worker; there is no `--dev`.** `--hot` swaps `Bun.serve` handlers and keeps `globalThis`. `--watch` restarts the process, so the worker's timers and connections never duplicate. Hot reload is accepted manually (same PID), not with a flaky automated test.
 - **D12 — Built-in `bun check` replaces `tsc` as the typecheck gate.** It is a native port, is 3–6× faster, and needs no emit. `typescript` stays installed for the editor and `tsc -b`.
 - **D13 — Hooks are split: commit runs typecheck and lint, push runs tests.** Commits stay fast, and CI catches `--no-verify`.

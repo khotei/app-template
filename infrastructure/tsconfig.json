@@ -1,0 +1,15 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "../node_modules/.cache/tsc/infrastructure"
+  },
+  "include": ["**/*.ts"],
+  "references": [
+    { "path": "../domain" },
+    { "path": "../packages/db" },
+    { "path": "../packages/storage" },
+    { "path": "../packages/queue" },
+    { "path": "../packages/llm" }
+  ]
+}
