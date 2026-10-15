@@ -1,0 +1,11 @@
+{
+  "name": "@oblik/application",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./example": "./example/index.ts"
+  },
+  "dependencies": {
+    "@oblik/domain": "workspace:*"
+  }
+}

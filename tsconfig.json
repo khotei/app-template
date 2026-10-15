@@ -2,6 +2,7 @@
   "files": [],
   "references": [
     { "path": "./domain" },
+    { "path": "./application" },
     { "path": "./infrastructure" },
     { "path": "./packages/config" },
     { "path": "./packages/db" },

@@ -122,9 +122,14 @@
 - **Files:**
   - root `package.json`: append `"application"` to `workspaces`;
   - `application/{package.json,tsconfig.json}`;
-  - `application/example/{example.service,create.use-case}.ts`.
+  - `application/example/{example.service,create.use-case,index}.ts`, plus `example.service.test.ts`.
 - **Verify:** `bun test application` is green, and `bun check` exits 0.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Added `example.service.test.ts` beyond the plan, so `ExampleNotFoundError` is covered.
+  - `expect(promise).rejects` must be awaited in `bun test`; otherwise the assertion is silently skipped.
+  - Mutation checks confirmed the tests fail on a missing not-found throw and on a double save.
+  - D6 verified: importing `@oblik/infrastructure` from `application` fails `bun check` (TS2307).
 
 #### S7 — `@oblik/api`
 

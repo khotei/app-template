@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "packageManager": "bun@1.4.3",
-  "workspaces": ["domain", "infrastructure", "packages/*", "apps/*"],
+  "workspaces": ["domain", "application", "infrastructure", "packages/*", "apps/*"],
   "catalogs": {
     "runtime": {
       "@types/bun": "1.4.3",

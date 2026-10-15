@@ -9,6 +9,12 @@
         "typescript": "catalog:runtime",
       },
     },
+    "application": {
+      "name": "@oblik/application",
+      "dependencies": {
+        "@oblik/domain": "workspace:*",
+      },
+    },
     "domain": {
       "name": "@oblik/domain",
     },
@@ -52,6 +58,8 @@
   },
   "packages": {
     "@oblik/api-client": ["@oblik/api-client@workspace:packages/api-client"],
+
+    "@oblik/application": ["@oblik/application@workspace:application"],
 
     "@oblik/config": ["@oblik/config@workspace:packages/config"],
 
