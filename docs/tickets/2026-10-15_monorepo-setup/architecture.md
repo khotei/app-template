@@ -250,7 +250,7 @@ export class ConfigError extends Error { readonly issues: readonly string[] } //
 export const loadConfig = (env: Record<string, string | undefined> = Bun.env): Config
 
 // apps/api/src/layer.ts — composition root (future Effect Layer)
-export const buildLayer = (config: Config) => ({ exampleService, createExample })
+export const buildLayer = () => ({ exampleService, createExample }) // takes Config once a client needs it (D22)
 
 // apps/api/src/http.ts — Bun.serve routes, testable without a port
 export const buildRoutes = (layer: ReturnType<typeof buildLayer>) => ({
@@ -260,7 +260,7 @@ export const buildRoutes = (layer: ReturnType<typeof buildLayer>) => ({
 })
 
 // apps/api/src/main.ts
-Bun.serve({ port: config.api.port, routes: buildRoutes(buildLayer(config)) })
+Bun.serve({ port: config.api.port, routes: buildRoutes(buildLayer()) })
 
 // apps/worker/src/handlers/example.handler.ts
 export const handleExample = (job: { exampleId: ExampleId }): Promise<void>

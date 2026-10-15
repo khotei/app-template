@@ -10,6 +10,7 @@
     { "path": "./packages/queue" },
     { "path": "./packages/llm" },
     { "path": "./packages/api-client" },
-    { "path": "./packages/ui" }
+    { "path": "./packages/ui" },
+    { "path": "./apps/api" }
   ]
 }

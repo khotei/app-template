@@ -137,7 +137,7 @@
   - a runnable `Bun.serve` with `/health` and `/examples` (R19, R22, R24);
   - `layer.ts` as the composition root (D17);
   - root `.env` loading through `--env-file` (R17, R30).
-- **Test first:** `apps/api/src/http.test.ts`. It runs `Bun.serve({ port: 0, routes: buildRoutes(buildLayer(testConfig)) })` and checks:
+- **Test first:** `apps/api/src/http.test.ts`. It runs `Bun.serve({ port: 0, routes: buildRoutes(buildLayer()) })` and checks:
   - `GET /health` → `{ status: 'ok' }`;
   - `POST /examples` followed by `GET /examples/:id` round-trips;
   - an unknown id → 404.
@@ -150,7 +150,12 @@
   - **R19 (manual):** `curl /health`, edit the response text, `curl` again → the text has changed and `pgrep -f apps/api` shows the same PID;
   - **R22 (manual):** `bun run debug` prints the inspector URL;
   - **V1:** with `.env` removed, record how `--env-file` behaves in `docs/knowledge/tooling.md` (written in S18).
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - `buildLayer()` takes no `Config` yet, for the same reason as D22.
+  - Domain errors map to HTTP statuses by `_tag`: 404 for not found, 422 for an invalid name, 400 for a malformed body.
+  - R17, R19 and R22 were verified manually. Under `--hot` the PID stays the same, but module state is rebuilt, so in-memory examples are lost on reload; only `globalThis` survives.
+  - V1: Bun silently ignores a missing `--env-file`, and `loadConfig` then reports the missing variables. Variables exported in the shell work, so CI needs no `.env`.
 
 #### S8 — `@oblik/worker` and `@oblik/web`
 

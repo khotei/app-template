@@ -15,6 +15,15 @@
         "@oblik/domain": "workspace:*",
       },
     },
+    "apps/api": {
+      "name": "@oblik/api",
+      "dependencies": {
+        "@oblik/application": "workspace:*",
+        "@oblik/config": "workspace:*",
+        "@oblik/domain": "workspace:*",
+        "@oblik/infrastructure": "workspace:*",
+      },
+    },
     "domain": {
       "name": "@oblik/domain",
     },
@@ -57,6 +66,8 @@
     },
   },
   "packages": {
+    "@oblik/api": ["@oblik/api@workspace:apps/api"],
+
     "@oblik/api-client": ["@oblik/api-client@workspace:packages/api-client"],
 
     "@oblik/application": ["@oblik/application@workspace:application"],
