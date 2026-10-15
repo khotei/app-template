@@ -12,6 +12,27 @@
     "domain": {
       "name": "@oblik/domain",
     },
+    "packages/api-client": {
+      "name": "@oblik/api-client",
+    },
+    "packages/config": {
+      "name": "@oblik/config",
+    },
+    "packages/db": {
+      "name": "@oblik/db",
+    },
+    "packages/llm": {
+      "name": "@oblik/llm",
+    },
+    "packages/queue": {
+      "name": "@oblik/queue",
+    },
+    "packages/storage": {
+      "name": "@oblik/storage",
+    },
+    "packages/ui": {
+      "name": "@oblik/ui",
+    },
   },
   "catalogs": {
     "runtime": {
@@ -20,7 +41,21 @@
     },
   },
   "packages": {
+    "@oblik/api-client": ["@oblik/api-client@workspace:packages/api-client"],
+
+    "@oblik/config": ["@oblik/config@workspace:packages/config"],
+
+    "@oblik/db": ["@oblik/db@workspace:packages/db"],
+
     "@oblik/domain": ["@oblik/domain@workspace:domain"],
+
+    "@oblik/llm": ["@oblik/llm@workspace:packages/llm"],
+
+    "@oblik/queue": ["@oblik/queue@workspace:packages/queue"],
+
+    "@oblik/storage": ["@oblik/storage@workspace:packages/storage"],
+
+    "@oblik/ui": ["@oblik/ui@workspace:packages/ui"],
 
     "@types/bun": ["@types/bun@1.4.3", "", { "dependencies": { "bun-types": "1.4.3" } }, "sha512-N67Pqy8JXbAY/j0tNraS3V5mubGvc6rrrNDmDCtZLlFzccbUJPDb0tvgUBC5q4m8ybkP93Jcn1QB+RYQ6PvBhw=="],
 

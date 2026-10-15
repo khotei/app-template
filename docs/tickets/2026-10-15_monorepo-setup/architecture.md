@@ -20,12 +20,12 @@ graph TD
   application --> domain
   infrastructure --> domain
   infrastructure --> clients["packages/db · storage · queue · llm"]
-  clients --> config
+  infrastructure --> config
 ```
 
 - **`domain`** has no dependencies. It owns the models, the errors, and the **ports**: interfaces that infrastructure implements.
 - **`application`** depends only on `domain`. It receives its ports as arguments.
-- **`infrastructure`** implements the domain ports on top of the agnostic `packages/*` clients.
+- **`infrastructure`** implements the domain ports on top of the agnostic `packages/*` clients. It also maps `Config` onto client options, because the clients take explicit options and never import `@oblik/config` (D22).
 - **`apps/api` and `apps/worker`** are composition roots: `layer.ts` wires infrastructure into application. Each `layer.ts` is the future Effect `Layer` seam.
 - **`apps/web`** talks to the backend only through `api-client`.
 
@@ -184,7 +184,7 @@ Rows list what the workspace may import. A `✗` is enforced twice: by `dependen
 | application | ✓ | (self) | ✗ | ✗ | ✗ | ✗ |
 | infrastructure | ✓ | ✗ | (self) | ✓ | ✓ | ✗ |
 | packages/config | ✗ | ✗ | ✗ | (self) | ✗ | ✗ |
-| packages/{db,storage,queue,llm} | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ |
+| packages/{db,storage,queue,llm} | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
 | packages/{api-client,ui} | ✗ | ✗ | ✗ | ✗ | ✗ | (self) |
 | apps/api · apps/worker | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ |
 | apps/web (client: `app/`, `features/`, `shared/`) | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ |
@@ -470,6 +470,7 @@ App scripts load the root file explicitly:
 - **D7 — Exact pins in named root catalogs.** Every workspace uses `catalog:<namespace>`, and `exact = true`. *Rejected:* per-package pins, which duplicate versions.
 - **D20 — Named catalogs only: a single `runtime` namespace now; lock-step families get their own namespace when introduced.** Using a namespace from day one makes the mechanism visible in `package.json`, so the next agent extends it (e.g. `catalogs.effect`, `catalogs.pulumi`) instead of reaching for a default bucket. Bun rejects a reference to an unknown namespace. *Rejected:* a default `catalog`, which hides the mechanism; splitting `tooling` from `runtime` now (user choice); reserving empty `effect` and `pulumi` namespaces before those tickets exist.
 - **D21 — Every step commit needs explicit user approval.** A subagent cannot ask the user, so `implementer` stops after verifying a step and returns a summary. `/ticket:implement`, running in the main session, shows that summary and commits only on an explicit OK (R35a). *Rejected:* the implementer committing autonomously, which the user disallowed on 2026-10-15.
+- **D22 — Clients take explicit options and do not import `@oblik/config`.** `infrastructure/shared/*.client.ts` maps `Config` onto client options. Agnostic clients can then be reused or published without the project's env schema, and no dependency is declared before it is used. *Rejected:* `packages/{db,storage,queue,llm}` → `@oblik/config`, which would be an unused dependency while every service variable is still commented out (Q33).
 - **D8 — Explicit `--env-file=../../.env` in app scripts.** This was verified: Bun loads `.env` relative to the cwd only. *Rejected:* Makefile-only env loading, which breaks `bun run dev` from a package directory; per-package `bunfig.toml`.
 - **D9 — `linker = "isolated"`.** The experiment showed that references do not stop undeclared imports. The isolated linker makes an undeclared workspace import fail at resolution. *Rejected:* `hoisted`, where any package can be imported.
 - **D10 — Biome `noRestrictedImports` overrides in the root config are the authoritative layer guard.** They catch the problem at lint time, with a message that names the rule. Dependencies and the isolated linker are the second line.

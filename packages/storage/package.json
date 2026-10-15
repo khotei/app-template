@@ -1,0 +1,8 @@
+{
+  "name": "@oblik/storage",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./client.ts"
+  }
+}

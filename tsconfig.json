@@ -1,4 +1,13 @@
 {
   "files": [],
-  "references": [{ "path": "./domain" }]
+  "references": [
+    { "path": "./domain" },
+    { "path": "./packages/config" },
+    { "path": "./packages/db" },
+    { "path": "./packages/storage" },
+    { "path": "./packages/queue" },
+    { "path": "./packages/llm" },
+    { "path": "./packages/api-client" },
+    { "path": "./packages/ui" }
+  ]
 }

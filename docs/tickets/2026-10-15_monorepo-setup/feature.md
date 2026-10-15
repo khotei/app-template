@@ -100,7 +100,7 @@ Alongside the code, set up an in-repo spec-driven development (SDD) flow (featur
 
 ### Environment and config
 
-- **R16** — THE repository SHALL have a single gitignored root `.env` and a committed `.env.example`. `.env.example` SHALL list the variables the code actually reads; placeholders for stubbed services stay commented out.
+- **R16** — THE repository SHALL have a single gitignored root `.env` and a committed `.env.example`. `.env.example` SHALL list the variables the code actually reads; placeholders for stubbed services stay commented out. String values SHALL be double-quoted (`NODE_ENV="development"`); numeric values stay bare (`API_PORT=3000`).
 - **R17** — WHEN an app script runs, whether started from the root via `make` or from its own package directory, THE app SHALL receive the root `.env` variables through `--env-file`.
 - **R18** — WHEN a required variable is missing or invalid, `loadConfig` SHALL throw a single error that names every offending variable.
 

@@ -88,13 +88,16 @@
   - Tests pass the env explicitly and never read `.env` (R25).
 - **Files:**
   - `packages/config/{package.json,tsconfig.json,config.ts,load.ts,index.ts}`;
-  - `packages/{db,storage,queue,llm}/{package.json,tsconfig.json,client.ts}` (stubs, each depending on `@oblik/config`);
+  - `packages/{db,storage,queue,llm}/{package.json,tsconfig.json,client.ts}` (stubs taking explicit options, with no internal dependencies; D22);
   - `packages/api-client/{…,index.ts}` (`createApiClient(baseUrl).getHealth()`);
   - `packages/ui/{…,index.ts}`;
   - `.env.example` (read variables first, then commented placeholders);
   - root `tsconfig.json` references.
 - **Verify:** `bun test packages` is green, and `bun check` exits 0.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Clients do not depend on `@oblik/config`, because `Config` has no service fields yet (D22).
+  - `.env` values: strings are double-quoted and numbers stay bare. Bun strips the quotes, which was verified with `--env-file`.
 
 #### S5 — `@oblik/infrastructure`
 
@@ -256,6 +259,7 @@
 - **Files:** `.claude/rules/{claude-md,comments,naming,commits,pull-requests,tooling,sdd}.md` and `.claude/settings.json`.
   - Apply the adaptations listed in architecture.md › `.claude` adaptation.
   - `sdd.md` states the approval gate (D21): no commit or amend of a step without the user's explicit OK.
+  - `tooling.md` states the `.env` convention: string values double-quoted, numbers bare (R16).
   - `tooling.md` states the catalog rule (D20): versions only in `catalogs.<namespace>`, never the unnamed `catalog:`. A new lock-step family gets its own namespace. Every other dependency goes to `runtime`.
   - `tooling.md` holds imperatives only, ≤ ~80 lines, and links to `docs/knowledge/tooling.md`. That link resolves after S18; lychee runs in CI on the PR, which by then includes S18.
 - **Verify:**

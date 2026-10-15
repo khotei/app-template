@@ -1,0 +1,8 @@
+{
+  "name": "@oblik/config",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  }
+}
