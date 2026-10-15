@@ -118,8 +118,9 @@ The tree below is the end state of `template/claude`, which already includes thi
 ├── domain/                              # @oblik/domain
 │   ├── CLAUDE.md
 │   ├── package.json · tsconfig.json
-│   ├── shared/{id,error}.ts             ★
+│   ├── shared/{id,error,index}.ts       ★
 │   └── example/
+│       ├── index.ts                     ★  barrel → @oblik/domain/example
 │       ├── example.model.ts             ★
 │       ├── example.error.ts             ★
 │       ├── example.service.ts           ★  ports + pure domain ops

@@ -73,7 +73,8 @@
   - `domain/example/example.{model,error,service}.ts`;
   - a reference added to the root `tsconfig.json`.
 - **Verify:** `bun test domain` is green, and `bun check` exits 0.
-- **Status:** todo
+- **Status:** done
+- **Findings:** each entity folder and `shared/` get a barrel `index.ts`, which makes the subpath import `@oblik/domain/example` (Q4) possible. Imports inside a workspace are extensionless.
 
 #### S4 — `packages/*` clients and config
 
