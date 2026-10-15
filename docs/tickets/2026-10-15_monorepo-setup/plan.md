@@ -233,7 +233,7 @@
   4. `bun run format` across the repo.
 - **Files:**
   - `biome.json`;
-  - root `package.json`, adding the scripts `lint` and `format`; `bun add -d --catalog=runtime @biomejs/biome@<ver>`;
+  - root `package.json`, adding the scripts `lint` and `format`; `bun add -d --catalog=runtime @biomejs/biome@<ver>` (moved to `catalog:tools` in S12, D20);
   - `Makefile`, adding `lint` and `fmt` and adding `lint` to `check`.
 - **Verify:**
   - `make lint` is green;
@@ -267,12 +267,20 @@
 - **Files:**
   - `.husky/pre-commit`: `bun check`, then `bunx biome check --staged --no-errors-on-unmatched`;
   - `.husky/pre-push`: `bun test`;
-  - root `package.json`, adding the `prepare: husky` script; `bun add -d --catalog=runtime husky@<ver>`.
+  - root `package.json`, adding the `prepare: husky` script; `bun add -d --catalog=tools husky@<ver>`; `@biomejs/biome` moves to `tools` too (Q51, D20).
 - **Verify:**
   - a commit containing a type error is rejected;
   - a commit containing a lint error in a staged file is rejected;
   - a push with a failing test is rejected. Test this against a throwaway local bare remote so nothing is pushed outward.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - `husky init` writes `bun test` into `pre-commit`; it was replaced as planned.
+  - A fresh clone gets the hooks through `prepare` (`core.hooksPath = .husky/_`).
+  - Verified in a throwaway clone with a local bare remote:
+    - a type error blocks the commit (TS2322), and so does a staged `any` (`noExplicitAny`);
+    - a clean commit passes;
+    - a failing test blocks the push, and green tests let it through.
+  - The catalogs were split into `tools` (husky, biome) and `runtime` (Q51, D20).
 
 #### S13 — `.github`: PR templates and CI
 
@@ -305,7 +313,7 @@
   - `sdd.md` states the approval gate (D21): no commit or amend of a step without the user's explicit OK.
   - `naming.md` and `tooling.md` state the import rules: `#<workspace>/…` inside a workspace, `@oblik/…` across workspaces, never relative paths, and the import group order (D25, D26).
   - `tooling.md` states the `.env` convention: string values double-quoted, numbers bare (R16).
-  - `tooling.md` states the catalog rule (D20): versions only in `catalogs.<namespace>`, never the unnamed `catalog:`. A new lock-step family gets its own namespace. Every other dependency goes to `runtime`.
+  - `tooling.md` states the catalog rule (D20): versions only in `catalogs.<namespace>`, never the unnamed `catalog:`. `tools` holds only developer-workflow tools (`husky`, `biome`); everything else, `typescript` and `@types/bun` included, goes to `runtime`. A new lock-step family gets its own namespace.
   - `tooling.md` holds imperatives only, ≤ ~80 lines, and links to `docs/knowledge/tooling.md`. That link resolves after S18; lychee runs in CI on the PR, which by then includes S18.
 - **Verify:**
   - every rule is ≤ ~80 lines;

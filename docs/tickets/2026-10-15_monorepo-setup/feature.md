@@ -43,7 +43,7 @@ Alongside the code, set up an in-repo spec-driven development (SDD) flow (featur
 ## Scope
 
 - Git: an initial `bun init` commit on `main`, one ticket branch, and three frozen template branches.
-- Bun workspaces, with a named root catalog (`runtime`) for exact dependency versions.
+- Bun workspaces, with named root catalogs (`tools`, `runtime`) for exact dependency versions.
 - TypeScript 7 project references, with one shared base config.
 - An `example` vertical slice through every layer. Plain TS, no Effect, mostly export-only stubs. `api`, `worker` and `web` are minimally runnable.
 - A single root `.env` and a typed config loader.
@@ -80,8 +80,8 @@ Alongside the code, set up an in-repo spec-driven development (SDD) flow (featur
 - **R5** — THE root `package.json` SHALL declare:
   - the workspaces `domain`, `application`, `infrastructure`, `packages/*`, `apps/*` and `deployment`;
   - `packageManager: "bun@<pinned>"`;
-  - named `catalogs`, starting with `runtime` only, and no default `catalog`.
-- **R6** — Every external dependency version SHALL be declared exactly once, as an exact version (no `^`/`~`), in a named root catalog. For now there is one namespace, `runtime`, and it holds every dependency (tools included). A family of packages whose versions must move together (e.g. `effect` + `@effect/*`, `@pulumi/*`) SHALL get its own namespace when it is introduced. Workspaces SHALL reference versions with `"catalog:<namespace>"`; the unnamed `"catalog:"` SHALL NOT be used. Internal dependencies SHALL use `"workspace:*"`.
+  - named `catalogs` — `tools` and `runtime` — and no default `catalog`.
+- **R6** — Every external dependency version SHALL be declared exactly once, as an exact version (no `^`/`~`), in a named root catalog. `tools` holds developer-workflow tools that never shape the code's types or execution (`husky`, `@biomejs/biome`); `runtime` holds everything else, including `typescript` and `@types/bun`, because they define the language and runtime the code is written against. A family of packages whose versions must move together (e.g. `effect` + `@effect/*`, `@pulumi/*`) SHALL get its own namespace when it is introduced. Workspaces SHALL reference versions with `"catalog:<namespace>"`; the unnamed `"catalog:"` SHALL NOT be used. Internal dependencies SHALL use `"workspace:*"`.
 - **R7** — The root `bunfig.toml` SHALL set `[install] exact = true` and an explicit `linker`.
 - **R8** — The pinned versions SHALL be the latest stable ones at implementation time, verified with `npm view`.
 - **R9** — Each tool SHALL be scaffolded with its own init command first (`bun init`, `biome init`, `husky init`), and the result then adapted.

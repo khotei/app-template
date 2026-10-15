@@ -298,17 +298,19 @@ The `packages/{db,storage,queue,llm}/client.ts`, `infrastructure/example/example
   "packageManager": "bun@1.4.3",
   "workspaces": ["domain", "application", "infrastructure", "packages/*", "apps/*", "deployment"],
   "catalogs": {
-    "runtime": {
+    "tools": {
       "@biomejs/biome": "2.5.15",
+      "husky": "9.1.7"
+    },
+    "runtime": {
       "@types/bun": "1.4.3",
-      "husky": "9.1.7",
       "typescript": "7.0.2"
     }
   },
   "devDependencies": {
-    "@biomejs/biome": "catalog:runtime",
+    "@biomejs/biome": "catalog:tools",
     "@types/bun": "catalog:runtime",
-    "husky": "catalog:runtime",
+    "husky": "catalog:tools",
     "typescript": "catalog:runtime"
   },
   "scripts": {
@@ -487,7 +489,7 @@ App scripts load the root file explicitly:
 - **D5 — Domain `*.service.ts` hosts ports and pure operations.** It keeps the architecture-page file set and later becomes the Effect `Context.Tag` site. *Rejected:* an extra `*.port.ts` role, which deviates from the target tree.
 - **D6 — Layers form one stack: `apps` → `application` → `infrastructure` → `domain`; each layer may import any layer below it (user decision, Q45).** `application` may import `infrastructure` directly. Wiring through `layer.ts` is still preferred, so use cases stay testable with fakes. *Rejected:* ports-only (`application` → `domain` only), which the user found too strict; `infrastructure` → `application`.
 - **D7 — Exact pins in named root catalogs.** Every workspace uses `catalog:<namespace>`, and `exact = true`. *Rejected:* per-package pins, which duplicate versions.
-- **D20 — Named catalogs only: a single `runtime` namespace now; lock-step families get their own namespace when introduced.** Using a namespace from day one makes the mechanism visible in `package.json`, so the next agent extends it (e.g. `catalogs.effect`, `catalogs.pulumi`) instead of reaching for a default bucket. Bun rejects a reference to an unknown namespace. *Rejected:* a default `catalog`, which hides the mechanism; splitting `tooling` from `runtime` now (user choice); reserving empty `effect` and `pulumi` namespaces before those tickets exist.
+- **D20 — Named catalogs only: `tools` and `runtime`; lock-step families get their own namespace when introduced.** `tools` holds developer-workflow tools that never shape the code's types or execution (`husky`, `@biomejs/biome`); `runtime` holds everything else, including `typescript` and `@types/bun`, because they define the language and runtime the code is written against. The taxonomy is visible in `package.json` itself, so the next agent classifies a new dependency instead of reaching for a default bucket. Bun rejects a reference to an unknown namespace. *History:* S2 started with a single `runtime` namespace; S12 split `tools` out when `husky` arrived (user decision, Q51). *Rejected:* a default `catalog`, which hides the mechanism; putting `typescript` and `@types/bun` under `tools`.
 - **D21 — Every step commit needs explicit user approval.** A subagent cannot ask the user, so `implementer` stops after verifying a step and returns a summary. `/ticket:implement`, running in the main session, shows that summary and commits only on an explicit OK (R35a). *Rejected:* the implementer committing autonomously, which the user disallowed on 2026-10-15.
 - **D22 — `packages/*` may import each other, but the clients take explicit options and do not import `@oblik/config` yet.** `infrastructure` maps `Config` onto client options once `Config` has service fields. Agnostic clients stay reusable, and no dependency is declared before it is used. *Rejected:* forcing `config` into every client while all service variables are still commented out (Q33).
 - **D23 — The web dev server proxies `/api/*` to the api.** The browser stays same-origin, so the api needs no CORS policy. The api origin is `localhost:${API_PORT}` until a deploy ticket adds `API_URL`. *Rejected:* CORS headers on the api, which leak a dev concern into the backend.
