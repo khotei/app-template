@@ -5,6 +5,7 @@
 ## How to run this plan
 
 - **Bootstrap.** This ticket creates `/ticket:implement` and `/ticket:verify` itself, so the plan runs in the main session. The steps that come after S16 may use the new commands.
+- **Approval gate.** After implementing and verifying a step, stop and report. Commit, or amend, only after the user has reviewed the step and explicitly allowed the commit.
 - **One step, one commit** on `chore/monorepo-setup`. The commit format follows R37: `<gitmoji> <type>(monorepo-setup): <Subject>`, plus `Decision:` lines where a choice is non-obvious, and `Refs: docs/tickets/2026-10-15_monorepo-setup/` last. Before committing, set the step's `Status:` to `done` in this file.
 - **Test first** wherever a step has behaviour: write the test, watch it fail, then implement. Config-only steps are verified by their **Verify** commands instead.
 - **Layer gates.** At the end of each layer, run the gate commands and cut the `template/<layer>` branch at the last commit of that layer (R3, R4). Never rewrite a template branch after it is cut.
@@ -253,6 +254,7 @@
 - **Goal:** seven rules adapted from kotodama-core, plus project permissions (R32, R34, R36–R38).
 - **Files:** `.claude/rules/{claude-md,comments,naming,commits,pull-requests,tooling,sdd}.md` and `.claude/settings.json`.
   - Apply the adaptations listed in architecture.md › `.claude` adaptation.
+  - `sdd.md` states the approval gate (D21): no commit or amend of a step without the user's explicit OK.
   - `tooling.md` states the catalog rule (D20): versions only in `catalogs.<namespace>`, never the unnamed `catalog:`. A new lock-step family gets its own namespace. Every other dependency goes to `runtime`.
   - `tooling.md` holds imperatives only, ≤ ~80 lines, and links to `docs/knowledge/tooling.md`. That link resolves after S18; lychee runs in CI on the PR, which by then includes S18.
 - **Verify:**
@@ -272,13 +274,15 @@
 
 #### S16 — Agents and commands
 
-- **Goal:** three agents and five flat commands (R32, R35, D14).
+- **Goal:** three agents and five flat commands (R32, R35, R35a, D14, D21).
 - **Files:**
   - `.claude/agents/{researcher,implementer,verifier}.md`. `researcher` and `verifier` set `disallowedTools: Edit, Write, NotebookEdit`; no agent sets `model:`.
   - `.claude/commands/ticket:{feature,architecture,plan,implement,verify}.md`. Each command takes the ticket path, `@`-includes the matching `docs/tickets/_template/*`, and persists the agent output (for example, verify writes `verification.md`).
+  - `implementer.md` stops after verifying a step and returns a summary: the diff stat, the verification output, and a proposed commit message. It never runs `git commit`. `ticket:implement.md` shows that summary and commits only after the user explicitly approves (D21).
 - **Verify:**
   - the frontmatter of each agent is correct;
-  - the commands appear in Claude Code's `/` menu.
+  - the commands appear in Claude Code's `/` menu;
+  - a dry run of `/ticket:implement` stops before committing.
 - **Status:** todo
 
 #### S17 — Vendored skills
@@ -343,7 +347,7 @@
 | R14 | S3–S9 (deps), S11 (lint) | R32 | S14–S17 |
 | R15 | S8, S11 | R33 | S15, S18 |
 | R16 | S4 | R34 | S14, S18 |
-| R17 | S7, S8 | R35 | S16 |
+| R17 | S7, S8 | R35, R35a | S16 (+ S14 for R35a) |
 | R18 | S4 | R36 | S14, S18 |
 | R19 | S7 | R37 | every commit, S14 |
 | R20 | S8 | R38 | S14–S18 |

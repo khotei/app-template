@@ -147,6 +147,7 @@ Alongside the code, set up an in-repo spec-driven development (SDD) flow (featur
 - **R33** — SDD artifacts SHALL live only in `docs/tickets/<YYYY-MM-DD>_<slug>/`, as `feature.md`, `architecture.md`, `plan.md` and `verification.md`. Their templates SHALL live in `docs/tickets/_template/`. The root `CLAUDE.md` SHALL tell agents to ignore artifact paths that come from plugins.
 - **R34** — `feature.md` requirements SHALL be written in EARS. Non-obvious choices SHALL be recorded in `architecture.md › Decisions` and in a `Decision:` line in the commit.
 - **R35** — `researcher` and `verifier` SHALL NOT be able to edit files. `/ticket:verify` SHALL persist the verifier's report to `verification.md`.
+- **R35a** — WHEN the implementer finishes a plan step, `/ticket:implement` SHALL present the change summary and its verification results, and SHALL NOT commit (or amend) until the user explicitly approves that step.
 - **R36** — `.claude/rules/tooling.md` SHALL hold short agent-facing imperatives and link to `docs/knowledge/tooling.md` for the explanations. No fact is written in both places. `docs/knowledge/` SHALL start with `tooling.md`, `architecture.md` (layers, dependency rules, the Effect seam) and `sdd.md` (how to run `/ticket:*`).
 - **R37** — Commits and PR titles SHALL follow `<gitmoji> <type>(<scope>): <Subject>`, ending with `Refs: docs/tickets/<ticket>/`.
 - **R38** — All `.claude/` and `docs/` content SHALL be in English.
@@ -178,7 +179,7 @@ Alongside the code, set up an in-repo spec-driven development (SDD) flow (featur
 | R27 | A commit with a type error is rejected. A push with a failing test is rejected. |
 | R28 | The PR shows the `static`, `test` and `links` jobs. A broken relative link in `docs/` fails `links`. |
 | R30–R31 | `make help` lists all targets. `find . -name Makefile -not -path ./Makefile -not -path '*/node_modules/*'` finds nothing. |
-| R32–R38 | The files exist. `/ticket:verify` writes `verification.md`. Agent frontmatter for `researcher` and `verifier` disallows `Edit`/`Write`. |
+| R32–R38 | The files exist. `/ticket:verify` writes `verification.md`. `/ticket:implement` stops before committing and commits only after an explicit approval. Agent frontmatter for `researcher` and `verifier` disallows `Edit`/`Write`. |
 | R39–R40 | `bun check` covers `deployment`. `lychee --offline README.md` passes. |
 
 ## Open questions

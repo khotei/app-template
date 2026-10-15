@@ -60,13 +60,15 @@ graph LR
   FM --> A["/ticket:architecture<br/>codebase-design + researcher"] --> AM[architecture.md]
   AM --> P["/ticket:plan"] --> PM[plan.md]
   PM -->|human review| I["/ticket:implement<br/>implementer · tdd"]
-  I -->|commit per step| V["/ticket:verify<br/>verifier"]
+  I -->|step summary| G{"user approves?"}
+  G -->|no: feedback| I
+  G -->|yes: commit step| V["/ticket:verify<br/>verifier"]
   V --> VM[verification.md]
   VM -->|simplifications| I
   VM -->|pass| PR[PR · squash]
 ```
 
-Commands run in the main session, because the grilling and review steps need dialogue with the user. Agents are delegated workers, and their tool limits are set on the agent definition, not on the command.
+Commands run in the main session, because the grilling, review and commit-approval steps need dialogue with the user. Agents are delegated workers, and their tool limits are set on the agent definition, not on the command.
 
 ## Structure
 
@@ -466,6 +468,7 @@ App scripts load the root file explicitly:
 - **D6 — Application depends only on domain; apps wire infrastructure in `layer.ts`.** Services are injected and never import each other; use cases compose services. *Rejected:* application importing infrastructure, which couples scenarios to adapters.
 - **D7 — Exact pins in named root catalogs.** Every workspace uses `catalog:<namespace>`, and `exact = true`. *Rejected:* per-package pins, which duplicate versions.
 - **D20 — Named catalogs only: a single `runtime` namespace now; lock-step families get their own namespace when introduced.** Using a namespace from day one makes the mechanism visible in `package.json`, so the next agent extends it (e.g. `catalogs.effect`, `catalogs.pulumi`) instead of reaching for a default bucket. Bun rejects a reference to an unknown namespace. *Rejected:* a default `catalog`, which hides the mechanism; splitting `tooling` from `runtime` now (user choice); reserving empty `effect` and `pulumi` namespaces before those tickets exist.
+- **D21 — Every step commit needs explicit user approval.** A subagent cannot ask the user, so `implementer` stops after verifying a step and returns a summary. `/ticket:implement`, running in the main session, shows that summary and commits only on an explicit OK (R35a). *Rejected:* the implementer committing autonomously, which the user disallowed on 2026-10-15.
 - **D8 — Explicit `--env-file=../../.env` in app scripts.** This was verified: Bun loads `.env` relative to the cwd only. *Rejected:* Makefile-only env loading, which breaks `bun run dev` from a package directory; per-package `bunfig.toml`.
 - **D9 — `linker = "isolated"`.** The experiment showed that references do not stop undeclared imports. The isolated linker makes an undeclared workspace import fail at resolution. *Rejected:* `hoisted`, where any package can be imported.
 - **D10 — Biome `noRestrictedImports` overrides in the root config are the authoritative layer guard.** They catch the problem at lint time, with a message that names the rule. Dependencies and the isolated linker are the second line.
