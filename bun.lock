@@ -5,11 +5,15 @@
     "": {
       "name": "oblik",
       "devDependencies": {
-        "@types/bun": "latest",
+        "@types/bun": "catalog:runtime",
+        "typescript": "catalog:runtime",
       },
-      "peerDependencies": {
-        "typescript": "^7",
-      },
+    },
+  },
+  "catalogs": {
+    "runtime": {
+      "@types/bun": "1.4.3",
+      "typescript": "7.0.2",
     },
   },
   "packages": {

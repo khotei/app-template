@@ -284,17 +284,19 @@ The `packages/{db,storage,queue,llm}/client.ts`, `infrastructure/example/example
   "type": "module",
   "packageManager": "bun@1.4.3",
   "workspaces": ["domain", "application", "infrastructure", "packages/*", "apps/*", "deployment"],
-  "catalog": {
-    "@biomejs/biome": "2.5.15",
-    "@types/bun": "1.4.3",
-    "husky": "9.1.7",
-    "typescript": "7.0.2"
+  "catalogs": {
+    "runtime": {
+      "@biomejs/biome": "2.5.15",
+      "@types/bun": "1.4.3",
+      "husky": "9.1.7",
+      "typescript": "7.0.2"
+    }
   },
   "devDependencies": {
-    "@biomejs/biome": "catalog:",
-    "@types/bun": "catalog:",
-    "husky": "catalog:",
-    "typescript": "catalog:"
+    "@biomejs/biome": "catalog:runtime",
+    "@types/bun": "catalog:runtime",
+    "husky": "catalog:runtime",
+    "typescript": "catalog:runtime"
   },
   "scripts": {
     "prepare": "husky",
@@ -405,7 +407,7 @@ App scripts load the root file explicitly:
 | `typecheck` | `bun check` |
 | `test` | `bun test` |
 | `clean` | removes `node_modules`, `node_modules/.cache`, `coverage` |
-| `outdated` | `bun outdated` (update by editing one catalog line) |
+| `outdated` | `bun outdated` (update by editing one line in `catalogs.<namespace>`) |
 
 ### Hooks and CI
 
@@ -462,7 +464,8 @@ App scripts load the root file explicitly:
 - **D4 — Project references with `composite` + `emitDeclarationOnly` into `node_modules/.cache/tsc`.** `bun check` is the gate and emits nothing; `tsc -b` stays valid. *Rejected:* `noEmit` (TS6310); a single flat root tsconfig (the user chose references).
 - **D5 — Domain `*.service.ts` hosts ports and pure operations.** It keeps the architecture-page file set and later becomes the Effect `Context.Tag` site. *Rejected:* an extra `*.port.ts` role, which deviates from the target tree.
 - **D6 — Application depends only on domain; apps wire infrastructure in `layer.ts`.** Services are injected and never import each other; use cases compose services. *Rejected:* application importing infrastructure, which couples scenarios to adapters.
-- **D7 — Exact pins in a single root `catalog`.** Every workspace uses `catalog:`, and `exact = true`. *Rejected:* per-package pins, which duplicate versions.
+- **D7 — Exact pins in named root catalogs.** Every workspace uses `catalog:<namespace>`, and `exact = true`. *Rejected:* per-package pins, which duplicate versions.
+- **D20 — Named catalogs only: a single `runtime` namespace now; lock-step families get their own namespace when introduced.** Using a namespace from day one makes the mechanism visible in `package.json`, so the next agent extends it (e.g. `catalogs.effect`, `catalogs.pulumi`) instead of reaching for a default bucket. Bun rejects a reference to an unknown namespace. *Rejected:* a default `catalog`, which hides the mechanism; splitting `tooling` from `runtime` now (user choice); reserving empty `effect` and `pulumi` namespaces before those tickets exist.
 - **D8 — Explicit `--env-file=../../.env` in app scripts.** This was verified: Bun loads `.env` relative to the cwd only. *Rejected:* Makefile-only env loading, which breaks `bun run dev` from a package directory; per-package `bunfig.toml`.
 - **D9 — `linker = "isolated"`.** The experiment showed that references do not stop undeclared imports. The isolated linker makes an undeclared workspace import fail at resolution. *Rejected:* `hoisted`, where any package can be imported.
 - **D10 — Biome `noRestrictedImports` overrides in the root config are the authoritative layer guard.** They catch the problem at lint time, with a message that names the rule. Dependencies and the isolated linker are the second line.

@@ -1,15 +1,17 @@
 {
   "name": "oblik",
-  "module": "index.ts",
-  "type": "module",
   "private": true,
-  "scripts": {
-    "typecheck": "bun check"
+  "type": "module",
+  "packageManager": "bun@1.4.3",
+  "workspaces": ["packages/*", "apps/*"],
+  "catalogs": {
+    "runtime": {
+      "@types/bun": "1.4.3",
+      "typescript": "7.0.2"
+    }
   },
   "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^7"
+    "@types/bun": "catalog:runtime",
+    "typescript": "catalog:runtime"
   }
 }

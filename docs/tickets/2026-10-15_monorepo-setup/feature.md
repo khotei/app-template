@@ -43,7 +43,7 @@ Alongside the code, set up an in-repo spec-driven development (SDD) flow (featur
 ## Scope
 
 - Git: an initial `bun init` commit on `main`, one ticket branch, and three frozen template branches.
-- Bun workspaces, with a root catalog for exact dependency versions.
+- Bun workspaces, with a named root catalog (`runtime`) for exact dependency versions.
 - TypeScript 7 project references, with one shared base config.
 - An `example` vertical slice through every layer. Plain TS, no Effect, mostly export-only stubs. `api`, `worker` and `web` are minimally runnable.
 - A single root `.env` and a typed config loader.
@@ -80,8 +80,8 @@ Alongside the code, set up an in-repo spec-driven development (SDD) flow (featur
 - **R5** — THE root `package.json` SHALL declare:
   - the workspaces `domain`, `application`, `infrastructure`, `packages/*`, `apps/*` and `deployment`;
   - `packageManager: "bun@<pinned>"`;
-  - a `catalog`.
-- **R6** — Every external dependency version SHALL be declared exactly once, as an exact version (no `^`/`~`), in the root `catalog`. Workspaces SHALL reference it with `"catalog:"`. Internal dependencies SHALL use `"workspace:*"`.
+  - named `catalogs`, starting with `runtime` only, and no default `catalog`.
+- **R6** — Every external dependency version SHALL be declared exactly once, as an exact version (no `^`/`~`), in a named root catalog. For now there is one namespace, `runtime`, and it holds every dependency (tools included). A family of packages whose versions must move together (e.g. `effect` + `@effect/*`, `@pulumi/*`) SHALL get its own namespace when it is introduced. Workspaces SHALL reference versions with `"catalog:<namespace>"`; the unnamed `"catalog:"` SHALL NOT be used. Internal dependencies SHALL use `"workspace:*"`.
 - **R7** — The root `bunfig.toml` SHALL set `[install] exact = true` and an explicit `linker`.
 - **R8** — The pinned versions SHALL be the latest stable ones at implementation time, verified with `npm view`.
 - **R9** — Each tool SHALL be scaffolded with its own init command first (`bun init`, `biome init`, `husky init`), and the result then adapted.
@@ -167,7 +167,7 @@ Alongside the code, set up an in-repo spec-driven development (SDD) flow (featur
 | Req | How to verify |
 |---|---|
 | R1–R4 | `git log main --reverse` shows the `bun init` commit first. `git branch -a` lists `template/{monorepo,tooling,claude}`. CI is green on each of them. |
-| R5–R8 | `grep -R '"\^\|"~' **/package.json` finds nothing. Every external dependency is `catalog:`. `npm view` matches the catalog. |
+| R5–R8 | `grep -R '"\^\|"~' **/package.json` finds nothing. Every external dependency is `catalog:<namespace>`, and `grep -rn '"catalog:"' --include=package.json .` finds nothing. `npm view` matches the catalogs. |
 | R10–R12 | `bun check` exits 0. Adding a type error in `application` makes it exit 1. `tsc -b` exits 0 and `git status` stays clean. |
 | R14–R15 | Add `import … from '@oblik/infrastructure'` in `domain/` → `make lint` fails. Same for `@oblik/domain` or `@oblik/config` inside `apps/web/src/app/`. `@oblik/config` in `apps/web/src/main.ts` passes. |
 | R17–R18 | `make dev-api` serves on `API_PORT` from `.env`. `cd apps/api && bun run dev` does the same. Removing `API_PORT` → startup error names `API_PORT`. |

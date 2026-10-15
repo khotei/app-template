@@ -43,7 +43,7 @@
   - a root workspace with exact catalog pins (R5–R8);
   - a shared TypeScript base and a references root (R10, R12).
 - **Files:**
-  - `package.json` (`name`, `private`, `type`, `packageManager`, `workspaces`, `catalog`, `devDependencies` via `catalog:`; no scripts yet);
+  - `package.json` (`name`, `private`, `type`, `packageManager`, `workspaces`, `catalog`, `devDependencies` via `catalog:runtime`; no scripts yet);
   - `bunfig.toml` (`exact = true`, `linker = "isolated"`);
   - `tsconfig.base.json`, `tsconfig.json` (`files: []`, empty `references`);
   - `.gitignore` (`.env`, `node_modules`, `node_modules/.cache`, `coverage`, `.claude/settings.local.json`; the last is ignored only by the author's global git config, not by the template);
@@ -51,9 +51,13 @@
 - **Verify:**
   - `bun install` succeeds;
   - `grep -E '"[\^~]' package.json` finds nothing;
-  - `bun check` exits 0;
-  - `npm view` matches every catalog entry.
-- **Status:** todo
+  - `npm view` matches every catalog entry;
+  - `bun check` and `tsc -b` report TS18002 (empty `files` and no references yet). Without any `.ts` file, every form of `bun check` fails ("Nothing to check"), so the typecheck gate goes green from S3 onwards.
+- **Status:** done
+- **Findings:**
+  - Bun rejects explicit workspace paths that do not exist yet (`error: Workspace not found "infrastructure"`). S2 therefore declares only the globs `packages/*` and `apps/*`. Each layer step appends its own path: S3 `domain`, S5 `infrastructure`, S6 `application`, S9 `deployment`.
+  - Named catalogs only (D20): `catalogs.runtime` holds the dependencies installed so far, `@types/bun` and `typescript`. There is no default `catalog`. `@biomejs/biome` arrives in S11 and `husky` in S12.
+  - Verified: Bun accepts empty namespaces and rejects a reference to an unknown one (`there is no catalog named "missing"`). `bun add -d --catalog=runtime <pkg>@<ver>` writes the version into the namespace, but it also reformats `package.json` with a 1-space indent, which S11 normalises.
 
 #### S3 — `@oblik/domain`
 
@@ -62,6 +66,7 @@
   - `buildExample` returns a branded id, a trimmed name and the given `createdAt`.
   - It throws `ExampleNameInvalidError` for an empty or blank name.
 - **Files:**
+  - root `package.json`: append `"domain"` to `workspaces`;
   - `domain/{package.json,tsconfig.json}`;
   - `domain/shared/{id,error}.ts`;
   - `domain/example/example.{model,error,service}.ts`;
@@ -93,6 +98,7 @@
 
 - **Goal:** domain ports implemented on top of the clients (R13). The only working adapter is an in-memory `ExampleRepository`; everything else is an export-only stub.
 - **Files:**
+  - root `package.json`: append `"infrastructure"` to `workspaces`;
   - `infrastructure/{package.json,tsconfig.json}` (deps: `@oblik/domain`, `@oblik/config`, `@oblik/{db,storage,queue,llm}`);
   - `infrastructure/shared/{db.client,outbox.repository}.ts`;
   - `infrastructure/example/example.{repository,storage,queue,llm}.ts`.
@@ -106,6 +112,7 @@
   - The use case builds an example with the injected `now`, saves it once, and returns it.
   - An invalid name propagates `ExampleNameInvalidError`, and `save` is never called.
 - **Files:**
+  - root `package.json`: append `"application"` to `workspaces`;
   - `application/{package.json,tsconfig.json}`;
   - `application/example/{example.service,create.use-case}.ts`.
 - **Verify:** `bun test application` is green, and `bun check` exits 0.
@@ -155,6 +162,7 @@
 
 - **Goal:** stub files only. No `@pulumi/*`, and everything typechecks (R39).
 - **Files:**
+  - root `package.json`: append `"deployment"` to `workspaces`;
   - `deployment/{package.json,tsconfig.json,Pulumi.yaml}`;
   - `deployment/local/{docker-compose.yml,README.md}`;
   - `deployment/aws/{index,config,database,storage,queue,api,worker,web,iam}.ts`;
@@ -196,7 +204,7 @@
   4. `bun run format` across the repo.
 - **Files:**
   - `biome.json`;
-  - root `package.json`, adding the scripts `lint` and `format` and the catalog entry `@biomejs/biome`;
+  - root `package.json`, adding the scripts `lint` and `format`; `bun add -d --catalog=runtime @biomejs/biome@<ver>`;
   - `Makefile`, adding `lint` and `fmt` and adding `lint` to `check`.
 - **Verify:**
   - `make lint` is green;
@@ -210,7 +218,7 @@
 - **Files:**
   - `.husky/pre-commit`: `bun check`, then `bunx biome check --staged --no-errors-on-unmatched`;
   - `.husky/pre-push`: `bun test`;
-  - root `package.json`, adding the `prepare: husky` script and the catalog entry `husky`.
+  - root `package.json`, adding the `prepare: husky` script; `bun add -d --catalog=runtime husky@<ver>`.
 - **Verify:**
   - a commit containing a type error is rejected;
   - a commit containing a lint error in a staged file is rejected;
@@ -245,6 +253,7 @@
 - **Goal:** seven rules adapted from kotodama-core, plus project permissions (R32, R34, R36–R38).
 - **Files:** `.claude/rules/{claude-md,comments,naming,commits,pull-requests,tooling,sdd}.md` and `.claude/settings.json`.
   - Apply the adaptations listed in architecture.md › `.claude` adaptation.
+  - `tooling.md` states the catalog rule (D20): versions only in `catalogs.<namespace>`, never the unnamed `catalog:`. A new lock-step family gets its own namespace. Every other dependency goes to `runtime`.
   - `tooling.md` holds imperatives only, ≤ ~80 lines, and links to `docs/knowledge/tooling.md`. That link resolves after S18; lychee runs in CI on the PR, which by then includes S18.
 - **Verify:**
   - every rule is ≤ ~80 lines;
@@ -289,7 +298,7 @@
   - `README.md` (R40).
 - **Files:**
   - `docs/tickets/_template/{feature,architecture,plan,verification}.md`;
-  - `docs/knowledge/tooling.md`, covering scripts and Makefile, `--hot` vs `--watch`, `--dev` not existing, debug, `.env` plus the V1 finding, catalog and upgrades, references plus the `tsc -b` cache;
+  - `docs/knowledge/tooling.md`, covering scripts and Makefile, `--hot` vs `--watch`, `--dev` not existing, debug, `.env` plus the V1 finding, the catalog namespaces (D20) and upgrades, references plus the `tsc -b` cache;
   - `docs/knowledge/architecture.md`, covering layers, dependency rules and the Effect seam;
   - `docs/knowledge/sdd.md`, covering `/ticket:*` usage, starting a project from a template, and deleting this ticket's docs when doing so;
   - `README.md`, replacing the one from `bun init`.
