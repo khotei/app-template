@@ -66,7 +66,7 @@ graph LR
 ├── vitest.config.ts                       ★ one root config: default exclude + repos/**
 ├── package.json                           ✎ catalogs effect · typescript · tools; scripts test, prepare
 ├── tsconfig.base.json                     ✎ plugins: @effect/language-service
-├── biome.json                             ✎ v3 ban, domain = effect only, web client bans effect, !repos
+├── biome.json                             ✎ domain: no workspace, no @effect/* but vitest; web client bans effect; !repos
 ├── Makefile                               ✎ typecheck = tsc -b; test → vitest; vendor-effect; openapi
 ├── .husky/{pre-commit,pre-push}           ✎ make typecheck · make test
 ├── .github/workflows/ci.yml               ✎ tsc --version check, make typecheck, bun run test
@@ -350,9 +350,11 @@ lands on one file at the root `.data/`, which is gitignored.
   are no projects: vitest collects every `*.test.ts` from the root, so a new workspace needs no
   test config.
 - **Biome:**
-  - a root `noRestrictedImports` lists the v3 packages, each with its v4 replacement in the message;
-  - the `domain` override allows only `effect`;
-  - the web client override adds `effect`, `effect/*` and `@effect/*`;
+  - no v3 ban: no v3 package is installed, so an import fails `make typecheck` with TS2307 (D18);
+  - the `domain` override bans `@oblik/**` and `@effect/**` except `@effect/vitest`, for code and
+    tests alike; there is no `*.test.ts` override (D18);
+  - the web client override adds `effect`, `effect/**` and `@effect/**`; the server entry
+    `src/main.ts` keeps its own override and may use `effect`;
   - `files.includes` gains `!repos`.
   Relative imports into `repos/` already fail the existing relative-path ban.
 - **Make:**
@@ -522,6 +524,16 @@ Checked by hand in `/ticket-verify`, not by tests:
   - a service per adapter (`ExampleQueue`, `ExampleLlm`): pass-throughs that add a layer each;
   - a service per use case (`CreateExample.run`) over a thin `ExampleService`: a class, a layer
     and a root entry per verb, and the service in between is a middle man.
+- **D18 — The `domain` guard is a deny-list shared by code and tests, and no rule bans v3
+  packages.** `domain` bans `@oblik/**` (any workspace) and `@effect/**` except `@effect/vitest`,
+  so `effect`, `#domain/**`, `vitest` and `@effect/vitest` pass, and a test follows its workspace's
+  rule like every other file. *Rejected:*
+  - an allow-list of `effect` and `#domain/**`: it needs a separate `*.test.ts` override that
+    repeats the group, because Biome overrides replace the `noRestrictedImports` options (probed:
+    a root `paths` ban is lost in every override), and it must widen for every test helper;
+  - a v3 ban with a v4-replacement message: it would repeat in the root and every override
+    (~116 lines), while TS2307 already fails an uninstalled v3 package and `repos/effect` is the
+    reference for the v4 API.
 
 ## Risks
 

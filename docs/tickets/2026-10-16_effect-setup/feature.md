@@ -100,9 +100,9 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
   - `typescript` (new, replacing the `runtime` entry): `typescript`, `@effect/tsgo`, which embeds a
     specific TypeScript version;
   - `tools`: `vitest`, constrained by the `@effect/vitest` peer range.
-- **R5** — WHEN a v3-only package (`@effect/platform`, `@effect/schema`, `@effect/sql`, `@effect/ai`,
-  `@effect/rpc`, `@effect/cli`, `@effect/experimental`) is imported anywhere, `biome check` SHALL fail
-  with a message that names the v4 replacement.
+- **R5** — WHEN code imports an Effect v3-only package (`@effect/platform`, `@effect/schema`, …),
+  `make typecheck` SHALL fail with TS2307, since none is declared or installed. *Amended in S7: no
+  Biome ban, which the first version had; R37 covers verifying APIs against `repos/effect`.*
 - **R6** — Each tool SHALL be scaffolded with its own init or setup command where it has one
   (`effect-tsgo setup`), and the result then adapted.
 
@@ -145,8 +145,9 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
 
 ### Domain and errors
 
-- **R17** — `domain` SHALL import no package other than `effect`. WHEN it imports `@oblik/*` or
-  `@effect/*`, `biome check` SHALL fail.
+- **R17** — WHEN code in `domain/` imports another workspace or an `@effect/*` package other than
+  `@effect/vitest`, `biome check` SHALL fail. *Amended in S7: the rule is a deny-list shared by
+  code and tests; a runtime module or third-party package in `domain` is left to review and R19.*
 - **R18** — Domain models SHALL be stable `Schema` definitions (`Schema.Class`, not the unstable
   `Model`) with branded ids; domain errors SHALL be `Schema.TaggedError` classes and SHALL carry no
   transport detail (no HTTP status); ports SHALL be `Context.Service` declarations with no layer,
@@ -293,12 +294,12 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
 |---|---|
 | R1–R3 | `git log main..chore/effect-setup` shows `feature.md`, then one commit per step (two for vendoring), the docs first; `make check` passes at the last commit of each layer; `git diff --stat` per step, without `repos/`, `bun.lock` and `openapi.json`, stays near 400 lines, except the docs step. |
 | R4, R6 | The catalogs match the registry `latest`; no `^`/`~`; every Effect package is `catalog:effect`. |
-| R5 | `import { HttpApi } from '@effect/platform'` in any workspace fails `make lint` with the replacement named. |
+| R5 | `import { HttpApi } from '@effect/platform'` in any workspace fails `make typecheck` with TS2307. `.claude/rules/effect.md` sends the agent to `repos/effect`. |
 | R7–R9 | After `bun install`, `tsc --version` reports `+effect-tsgo`. A bare `Effect.log('x')` statement, which `bun check` passes, fails `make check`, `pre-commit` and CI; so does a probe with the rule lowered to `warning`. No gate runs `bun check`. |
 | R10–R11 | `repos/effect/packages/effect/package.json` version equals the pinned one, and a PR that bumps the `effect` catalog also holds the vendoring commits. `make check` ignores `repos/`. `import … from '../../repos/effect/…'` fails `make lint`. |
 | R12–R15 | `mv .env .env.bak && make test` passes. A failing test in each workspace makes `make test` exit non-zero (checked from S8 with `it.effect`). `git grep "from 'bun:test'" -- ':!docs/tickets'` finds nothing. |
 | R16 | A commit with a floating Effect is rejected; a push with a failing test is rejected. |
-| R17–R19 | `make lint` fails for `@effect/platform-bun` or `@oblik/config` imported in `domain/`. `git grep -E "Date.now|new Date\(|randomUUID" domain/` finds nothing. A test fixes time with `TestClock` and ids with `TestCrypto`. |
+| R17–R19 | `make lint` fails for `@effect/platform-bun` or `@oblik/config` imported in `domain/`, and passes for `effect`, `vitest` and `@effect/vitest` in a `domain/*.test.ts`. `git grep -E "Date.now|new Date\(|randomUUID" domain/` finds nothing. A test fixes time with `TestClock` and ids with `TestCrypto`. |
 | R20–R22 | Removing `API_PORT` and `QUEUE_SQLITE_PATH` gives one startup error naming both. `.env.example` lists every variable read. |
 | R23–R25 | `example-summary.job.ts` exports `ExampleSummaryJob` with `enqueue` and `ExampleSummaryJob.worker`; `apps/worker/src` holds no job logic and no `handlers/` folder. Swapping the in-memory and SQLite queue layers changes only `apps/*/src/layer.ts`. |
 | R26–R29 | With the worker stopped, three `POST /examples` queue three jobs; starting the worker logs three job results. A job made to fail is retried per the schedule (tested with `TestClock`) and then dead-lettered. SIGTERM during a job leaves it for the next worker at the same attempt. |

@@ -271,21 +271,46 @@
 #### S7 — Biome bans for Effect
 
 - **Goal:**
-  - v3 packages are banned, and each message names the v4 replacement (R5);
-  - `domain` may import only `effect` (R17);
+  - `domain`, code and tests alike, may import no workspace and no `@effect/*` package except
+    `@effect/vitest` (R17);
   - web client code may import no `effect` or `@effect/*` (R33);
-  - imports from `repos/` fail (R11).
+  - imports from `repos/` fail (R11);
+  - a v3-only package fails `make typecheck` with TS2307, with no lint rule (R5).
 - **Blocked by:** S1.
 - **Files:** `biome.json`.
 - **Test first:** config only. Probe edits are the red check.
 - **Verify:**
-  - `make lint` fails, naming the replacement, for each of these probe edits, each then reverted:
-    - `@effect/platform` in `application/`;
+  - `make lint` fails for each of these probe edits, each then reverted:
     - `@effect/platform-bun` or `@oblik/config` in `domain/`;
     - `effect` in `apps/web/src/features/`;
     - `../../repos/effect/…`;
+  - `make lint` passes for `effect`, `vitest` and `@effect/vitest` in a `domain/*.test.ts`, and for
+    `effect` in `apps/web/src/main.ts`;
+  - `@effect/platform` in `application/` fails `make typecheck` with TS2307;
   - `make check` is green. This is the **`setup` layer gate**.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - **No v3 ban, on review.** A first version banned the v3-only packages with a message mapping
+    each to its v4 replacement. Biome overrides replace the whole `noRestrictedImports` options
+    (probed: a root `paths` ban fired in an unmatched root file but not under `domain/` or
+    `application/`), so the ban had to repeat in the root and all ten overrides, ~116 lines. The
+    user withdrew it: no v3 package is declared or installed, so
+    `import { HttpApi } from '@effect/platform'` in `application/` fails `make typecheck` with
+    `TS2307: Cannot find module '@effect/platform'` (exit 2), and agents verify APIs against
+    `repos/effect`. R5 is rewritten onto R37, and D18 records the rejected ban.
+  - **No allow-list or test override, on review.** A second version made `domain` an allow-list
+    (`**` minus `effect`, `effect/**`, `#domain/**`) with a `domain/**/*.test.ts` override adding
+    the test runner, which had to repeat the group. The user asked that tests follow their
+    workspace's rule, so `domain` is a deny-list again, extended: `@oblik/**` and `@effect/**`
+    except `@effect/vitest`. R17 is amended to match, and D18 records the rejected allow-list.
+    The trade-off: a third-party package or `node:*` in `domain` is no longer caught by lint;
+    review and R19's grep cover purity.
+  - **Web.** Only client code is banned from `effect` (R33); the server entry `src/main.ts`, whose
+    own override replaces the client one, may import `effect` and needs to from S19, which reads
+    `WEB_PORT` through `createConfigLayer`.
+  - Outside the file list: `docs/knowledge/architecture.md` (the `domain` bullet and matrix row,
+    the guard table and paragraph) and `docs/knowledge/tooling.md` (the `domain` troubleshooting
+    row, a web row, and a link instead of restating what each override repeats).
 
 ### Layer 2 — `modules`
 
@@ -557,7 +582,7 @@
 #### S20 — `effect.md`, the rule and the knowledge doc
 
 - **Goal:**
-  - `.claude/rules/effect.md` (`paths: **/*.ts`, ≤ ~80 lines) covers (R37, R37a, R37b):
+  - `.claude/rules/effect.md` (`paths: **/*.ts`, ≤ ~80 lines) covers (R5, R37, R37a, R37b):
     - v3 memory is wrong; read `repos/effect`, `LLMS.md` first;
     - the order in which a capability is sourced, and the layer limits;
     - core data primitives;
@@ -634,7 +659,7 @@
 | R2 | gates S7, S19, S22 | R22 | S9 |
 | R3 | every step; S4 | R23 | S8, S12 |
 | R4 | S2 | R24 | S13 |
-| R5 | S7 | R25 | S13, S14, S17, S18 |
+| R5 | S7 (TS2307 probe), S20 | R25 | S13, S14, S17, S18 |
 | R6 | S2 | R26 | S14, S17 |
 | R7 | S2 | R27 | S13, S18 |
 | R8 | S6, S8 (probe) | R28 | S8, S13 |

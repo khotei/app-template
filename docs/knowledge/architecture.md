@@ -48,7 +48,8 @@ Each row lists what a workspace may import.
 | apps/web/src/main.ts | ✗ | ✗ | ✗ | `api-client`, `ui`, `config` | ✗ |
 | deployment | ✗ | ✗ | ✗ | ✓ | ✗ |
 
-- **`domain` imports nothing,** not even `packages/*`, so it stays pure and testable without fakes.
+- **`domain` imports `effect` and no workspace,** not even `packages/*`, and no `@effect/*`
+  package but the test runner `@effect/vitest`, so it stays pure and testable without fakes.
 - **`apps/web` client code ships to the browser.** Only its server entry `main.ts` may read
   `config`, to get a validated `WEB_PORT`.
 - **A ✓ is permission, not a declaration.** The dependency must also be in the importer's
@@ -148,19 +149,20 @@ The import rules are enforced three times, each catching what the others miss:
 
 | Guard | Catches | Reports |
 |---|---|---|
-| Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json` | an import that goes up a layer or into a sibling app; any relative path | `make lint`, `pre-commit`, CI `static` |
+| Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json` | an import that goes up a layer or into a sibling app; any relative path; a workspace or an `@effect/*` package other than `@effect/vitest` in `domain`; `effect` in web client code | `make lint`, `pre-commit`, CI `static` |
 | the isolated linker with `tsc -b` | an allowed import of a workspace that is not declared in `package.json` | TS2307 in `make typecheck` and at runtime |
 | `composite` project references (`rootDir: "."`) | a path that reaches into an unreferenced workspace's files | TS6059 / TS6307 in `make typecheck` |
 
 The Biome overrides are **deny-lists**: each names the workspaces a layer must not import. A new
-`packages/*` workspace therefore needs no Biome change, while a new layer or app does. Overrides
-that match the same file replace each other's options rather than merge, so every override repeats
-the relative-path ban. Symptoms and fixes:
+`packages/*` workspace therefore needs no Biome change, while a new layer or app does. Test files
+follow their workspace's override; none has its own. Overrides that match the same file replace
+each other's options rather than merge, so every override repeats the relative-path ban. Symptoms
+and fixes:
 [tooling.md › Troubleshooting](tooling.md#troubleshooting).
 
 ### Known gaps
 
-Two forms pass all three guards. No code uses them; review is what catches them.
+Three forms pass all three guards. No code uses them; review is what catches them.
 
 - **A type import inside an expression in web client code.** `export type X =
   import('@oblik/config').Config` in `app/`, `features/` or `shared/` passes Biome, which does not
@@ -171,3 +173,6 @@ Two forms pass all three guards. No code uses them; review is what catches them.
   `application/` passes Biome, whose overrides list only other workspaces, and `tsc -b`, which
   resolves a package's own `exports`. It skips the `#<workspace>/` convention and can import the
   file's own barrel, a cycle that shows up as `undefined` while modules initialise.
+- **A runtime module or third-party package in `domain`.** `node:crypto` or any npm package passes
+  the domain guard, which bans only workspaces and `@effect/*`. Purity rests on review and on the
+  grep for `Date.now`, `new Date(` and `randomUUID`.

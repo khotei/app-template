@@ -78,8 +78,8 @@
               "options": {
                 "patterns": [
                   {
-                    "group": ["@oblik/**"],
-                    "message": "domain is the pure core: it imports no workspace, not even packages/*"
+                    "group": ["@oblik/**", "@effect/**", "!@effect/vitest", "!@effect/vitest/**"],
+                    "message": "domain is the pure core: it imports no workspace and no @effect/* package except the test runner @effect/vitest"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -279,6 +279,10 @@
                       "!@oblik/ui/**"
                     ],
                     "message": "web client code may import only @oblik/api-client and @oblik/ui: it ships to the browser"
+                  },
+                  {
+                    "group": ["effect", "effect/**", "@effect/**"],
+                    "message": "web client code imports no effect or @effect/*: it calls the api through the Promise-returning @oblik/api-client"
                   },
                   {
                     "group": ["./**", "../**"],
