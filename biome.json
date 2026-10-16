@@ -27,6 +27,7 @@
     "rules": {
       "preset": "recommended",
       "style": {
+        "noCommonJs": "error",
         "useImportType": "error",
         "noRestrictedImports": {
           "level": "error",

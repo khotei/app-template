@@ -553,7 +553,10 @@
 - **Files:** `Makefile` (`ids` target, part of `check`), `.github/workflows/ci.yml` (`links` runs `make ids`), `biome.json` (`noCommonJs`), `docs/knowledge/tooling.md` (commands, CI, an id example that does not match), `.claude/skills/ticket-implement/SKILL.md` (the Spec axis asks whether the diff changes what a quoted `R…` asks, then requires the `feature.md` edit), `docs/knowledge/sdd.md` (overrides table).
 - **Test first:** a probe `(D99)` fails `make check`; a probe `require('@oblik/api')` in `application/` fails `biome check`.
 - **Verify:** `make check` green on the clean tree; the `links` id step exits 0 locally.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - **Red first:** with the old `docs/knowledge/tooling.md` the new `make ids` printed its line 167 and exited 2; an untracked probe `// keep this (D99)` failed the same way, so `--untracked` lets the implementer's hook catch a file before it is staged. `require('@oblik/api')` in `application/` passed Biome, and fails with `lint/style/noCommonJs` once the rule is on.
+  - CI's `links` job now runs `make ids`, so the grep exists once; `make help` lists 17 targets.
 
 #### S19g — One fake style in application tests
 

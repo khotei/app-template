@@ -100,11 +100,7 @@ jobs:
 
       # A new project deletes the ticket folder, so an id outside it points nowhere.
       - name: No ticket ids outside docs/tickets
-        run: |
-          if git grep -nE '\((D|R|Q)[0-9]+[a-z]?\)' -- . ':!docs/tickets' ':!.github/PULL_REQUEST_example.md'; then
-            echo "Ticket ids (D…, R…, Q…) belong in docs/tickets/ and commit messages, not in code, config or docs."
-            exit 1
-          fi
+        run: make ids
 
       - name: Check links
         uses: lycheeverse/lychee-action@v2

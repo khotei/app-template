@@ -21,7 +21,7 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. G
    | code-review asks for | Use |
    |---|---|
    | the fixed point and diff | `HEAD`; the diff is `git diff HEAD` plus every untracked file in `git status --short`, so the uncommitted step is reviewed |
-   | the spec | the step in `plan.md`, and the `R…` it cites from `feature.md` |
+   | the spec | the step in `plan.md`, and the `R…` it cites from `feature.md`; the Spec axis also reports whether the diff changes what a quoted `R…` asks, which then requires the `feature.md` edit in the same diff |
    | the standards | `.claude/rules/*.md` and the `CLAUDE.md` of every touched workspace |
    | the sub-agents | the `reviewer` agent, once per axis, in parallel |
 
@@ -29,9 +29,9 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. G
    code-review aggregates them.
 5. **Approval gate.** Wait for the user's explicit word:
    - **approve:** set the step's `Status: done` (or `blocked: <gate>` while a gate the step
-     names, such as a branch, a push or a CI run, has not run yet), add its findings to `plan.md` and any new
-     decision to `architecture.md`, stage the step's files, and commit with the proposed message
-     as a command of its own;
+     names, such as a branch, a push or a CI run, has not run yet), add its findings to `plan.md`
+     and any new decision to `architecture.md`, stage the step's files, and commit with the
+     proposed message as a command of its own;
    - **feedback:** send it to the same implementer (`SendMessage`), then return to 3;
    - **stop:** leave the working tree as it is.
 6. Name the next unblocked step.

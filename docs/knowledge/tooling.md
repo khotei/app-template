@@ -15,7 +15,8 @@ Everything runs through the root `Makefile` (GNU Make 3.81, the macOS default). 
 | `make dev` | `bun --filter './apps/*' dev` | all three processes, interleaved output |
 | `make dev-api` · `dev-worker` · `dev-web` | one app's `dev` script | one process |
 | `make debug-api` · `debug-worker` · `debug-web` | one app's `debug` script | the same mode plus `--inspect` |
-| `make check` | `lint`, `typecheck`, `test` | the gate before every commit and step report |
+| `make check` | `ids`, `lint`, `typecheck`, `test` | the gate before every commit and step report |
+| `make ids` | `git grep` for ticket ids in parentheses outside `docs/tickets/` | a new project deletes the ticket, so an id elsewhere points nowhere |
 | `make lint` | `biome check` | lint, format and import order, without writing |
 | `make fmt` | `biome check --write` | apply formatting, import sorting and safe fixes |
 | `make typecheck` | `bun check` | typecheck every workspace through the project references |
@@ -164,7 +165,7 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 |---|---|
 | `static` | `bun install --frozen-lockfile`, `biome ci`, `bun check` |
 | `test` | `bun install --frozen-lockfile`, `bun test` |
-| `links` | fails on ticket ids such as `(D12)` outside `docs/tickets/`, then `lychee --offline` on `README.md`, `docs/**/*.md` and `.claude/**/*.md` |
+| `links` | `make ids`, then `lychee --offline` on `README.md`, `docs/**/*.md` and `.claude/**/*.md` |
 
 `static` and `test` run on two Bun versions: `pinned` (from `packageManager`) blocks the merge, and
 `latest` only reports. The link check keeps relative links between documents from rotting.
