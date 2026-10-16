@@ -358,7 +358,14 @@
   - every command quoted in the docs runs as written;
   - the links from `.claude/rules/{tooling,naming}.md` and the root `CLAUDE.md` now resolve;
   - `make check` is green.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Every quoted command was run in a throwaway clone: `make setup`, `make dev` (api `/health`, web `/` and the `/api/*` proxy), `make debug-api` (the `debug.bun.sh` block), `bun add --catalog=runtime zod@3.25.76` inside `packages/config`, `bunx tsc -b`, `make outdated`. The troubleshooting messages were reproduced there as well.
+  - **Timers under `--hot`, checked by experiment:** after one edit both the old and the new `setInterval` keep ticking, and a `globalThis` counter reads 2. Under `--watch` only the new one runs. This is now the documented reason for D11.
+  - **D10 corrected:** a relative path into a *referenced* workspace (`application` → `../../domain/…`) passes `bun check`. TS6059/TS6307 appear only for an unreferenced one, so the Biome relative-path ban (D25) is the real guard.
+  - A declared `workspace:*` dependency without a `tsconfig.json` reference also passes `bun check`; the docs ask for the reference anyway, for `tsc -b`.
+  - `README.md` points to `.claude/rules/sdd.md` until S18b writes `docs/knowledge/sdd.md`.
+  - `lychee` is not installed locally. A script checked every relative link and anchor in `README.md`, the root and layer `CLAUDE.md` files, `.claude/rules/` and `docs/knowledge/`: none is broken.
 
 #### S16 — SDD wrapper skills, agents and hook
 
