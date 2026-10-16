@@ -68,7 +68,22 @@
   - `node_modules/.bin/tsc --version` contains `effect-tsgo`;
   - `grep -E '"[\^~]' package.json` finds nothing, and `bun info` matches every pin;
   - `make check`.
-- **Status:** todo
+- **Status:** done
+- **Findings:** every pin of `feature.md › Context` was still the registry `latest`.
+  `effect-tsgo setup --project tsconfig.base.json --typescript` wrote `prepare` as
+  `husky && effect-tsgo patch --typescript --no-oxlint`, replaced the two `catalog:typescript`
+  references with literal versions, and added `$schema` plus `plugins` to `tsconfig.base.json`.
+  Trimmed: the flags (`--typescript` is redundant, since a bare `patch` finds only the installed
+  TypeScript and exits 0; `--no-oxlint` is not a documented flag) and the literal versions; kept: `$schema`, which gives
+  editors completion for the plugin's diagnostic options. `bun install` after `make clean` reports
+  `7.0.2+effect-tsgo.0.53.2`, and a second install is idempotent ("hash matches the replacement").
+  Not in the step's file list but edited: the catalog table and the `prepare` line in
+  `docs/knowledge/tooling.md`, which this step made false (`sdd.md`: knowledge docs change in the
+  commit that changes the behaviour); the gate description in its TypeScript section (`bun check`
+  ignores `plugins`, only the patched `tsc` reports Effect diagnostics) waits for S6, which adds
+  the gate. `vitest` sits in `tools` as a developer-workflow runner, while `@effect/vitest` stays in
+  `effect` because it is released in lock-step with `effect`. The unused `effect` catalog entries
+  sit in `bun.lock` without a resolved package until S8 declares a consumer.
 
 #### S3 — Exclude `repos/` and add `make vendor-effect`
 

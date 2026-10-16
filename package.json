@@ -15,22 +15,33 @@
     "lint": "biome check",
     "format": "biome check --write",
     "test": "bun test",
-    "prepare": "husky"
+    "prepare": "husky && effect-tsgo patch"
   },
   "catalogs": {
     "tools": {
       "@biomejs/biome": "2.5.15",
-      "husky": "9.1.7"
+      "husky": "9.1.7",
+      "vitest": "5.0.5"
     },
     "runtime": {
-      "@types/bun": "1.4.3",
+      "@types/bun": "1.4.3"
+    },
+    "typescript": {
+      "@effect/tsgo": "0.53.2",
       "typescript": "7.0.2"
+    },
+    "effect": {
+      "@effect/platform-bun": "4.0.5",
+      "@effect/sql-sqlite-bun": "4.0.5",
+      "@effect/vitest": "4.0.5",
+      "effect": "4.0.5"
     }
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:tools",
+    "@effect/tsgo": "catalog:typescript",
     "@types/bun": "catalog:runtime",
     "husky": "catalog:tools",
-    "typescript": "catalog:runtime"
+    "typescript": "catalog:typescript"
   }
 }

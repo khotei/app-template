@@ -88,9 +88,9 @@ Workspaces reference it as `catalog:<namespace>`; the unnamed `catalog:` is not 
 
 | Namespace | Holds | Today |
 |---|---|---|
-| `tools` | developer-workflow tools that never shape types or runtime behaviour | `@biomejs/biome`, `husky` |
-| `runtime` | everything else, including the language and runtime the code targets | `typescript`, `@types/bun` |
-| one per family | packages released in lock-step | none yet; `effect` + `@effect/*` will get one |
+| `tools` | developer-workflow tools that never shape types or runtime behaviour | `@biomejs/biome`, `husky`, `vitest` |
+| `runtime` | everything else, including the runtime the code targets | `@types/bun` |
+| one per family | packages released in lock-step | `typescript`: `typescript`, `@effect/tsgo` (it embeds one TypeScript version) · `effect`: `effect`, `@effect/*` |
 
 `bunfig.toml` sets `exact = true`, so `bun add` writes `1.2.3`, never `^1.2.3`.
 
@@ -150,7 +150,8 @@ new version. CI also runs a non-blocking job on Bun `latest`, which shows the ne
 
 ## Git hooks and CI
 
-`bun install` runs the `prepare` script (`husky`), which installs the hooks:
+`bun install` runs the `prepare` script (`husky && effect-tsgo patch`), which installs the hooks and
+patches the `tsc` binary with the Effect language service (`tsc --version` reports `+effect-tsgo`):
 
 | Hook | Runs | Why there |
 |---|---|---|

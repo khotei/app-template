@@ -1,4 +1,5 @@
 {
+  "$schema": "./node_modules/@effect/tsgo/schema.json",
   "compilerOptions": {
     // Environment
     "lib": ["ESNext"],
@@ -23,6 +24,10 @@
     "skipLibCheck": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true
+    "noImplicitOverride": true,
+
+    // Effect diagnostics, read only by the effect-tsgo binary: the patched tsc and the editor
+    // language server. bun check and a stock tsserver ignore plugins
+    "plugins": [{ "name": "@effect/language-service" }]
   }
 }
