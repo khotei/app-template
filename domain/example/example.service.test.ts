@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, test } from 'vitest'
 
 import { ExampleNameInvalidError } from '#domain/example/example.error'
 import { buildExample } from '#domain/example/example.service'

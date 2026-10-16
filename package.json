@@ -14,7 +14,7 @@
   "scripts": {
     "lint": "biome check",
     "format": "biome check --write",
-    "test": "bun test",
+    "test": "bun --bun vitest run",
     "prepare": "husky && effect-tsgo patch"
   },
   "catalogs": {
@@ -42,6 +42,7 @@
     "@effect/tsgo": "catalog:typescript",
     "@types/bun": "catalog:runtime",
     "husky": "catalog:tools",
-    "typescript": "catalog:typescript"
+    "typescript": "catalog:typescript",
+    "vitest": "catalog:tools"
   }
 }

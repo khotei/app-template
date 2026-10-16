@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from 'bun:test'
+import { describe, expect, test, vi } from 'vitest'
 
 import {
   buildExample,
@@ -14,8 +14,8 @@ const example = buildExample('First', new Date('2026-10-15T00:00:00.000Z'))
 
 const setup = (stored?: Example) => {
   const repository = {
-    upsert: mock(async (_example: Example) => {}),
-    selectById: mock(async (_id: ExampleId) => stored),
+    upsert: vi.fn(async (_example: Example) => {}),
+    selectById: vi.fn(async (_id: ExampleId) => stored),
   } satisfies ExampleRepository
   return { repository, service: createExampleService({ repository }) }
 }

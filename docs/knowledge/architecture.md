@@ -59,7 +59,7 @@ Each row lists what a workspace may import.
 Every import line says where its module lives:
 
 ```ts
-import { describe, expect, test } from 'bun:test'           // Bun and Node built-ins
+import { readFileSync } from 'node:fs'                      // Bun and Node built-ins
 
 import { z } from 'zod'                                     // external packages
 

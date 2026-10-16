@@ -52,8 +52,8 @@ fmt: ## Apply Biome formatting and safe fixes
 typecheck: ## Typecheck every workspace with bun check
 	bun check
 
-test: ## Run all tests with bun test
-	bun test
+test: ## Run all tests with vitest on the Bun runtime
+	bun run test
 
 clean: ## Remove installed dependencies, build caches and coverage
 	find . -name node_modules -type d -prune -exec rm -rf {} +

@@ -63,7 +63,7 @@ graph LR
 ```text
 .
 ├── repos/effect/                          ★ git subtree --squash of Effect-TS/effect at effect@<pinned>
-├── vitest.config.ts                       ★ one project per root workspace
+├── vitest.config.ts                       ★ one root config: default exclude + repos/**
 ├── package.json                           ✎ catalogs effect · typescript · tools; scripts test, prepare
 ├── tsconfig.base.json                     ✎ plugins: @effect/language-service
 ├── biome.json                             ✎ v3 ban, domain = effect only, web client bans effect, !repos
@@ -345,8 +345,9 @@ lands on one file at the root `.data/`, which is gitignored.
   references, writes declarations to the existing cache, and fails on Effect errors and warnings
   (`ignoreEffectWarningsInTscExitCode: false`, the default) (D8). `setup` scaffolds it with
   `effect-tsgo setup`, then trims the result.
-- **vitest:** `vitest.config.ts` reads the root `workspaces` and declares each as a project root, so
-  a new workspace needs no test config. It excludes `repos/**`.
+- **vitest:** one root `vitest.config.ts` that only adds `repos/**` to the default exclude. There
+  are no projects: vitest collects every `*.test.ts` from the root, so a new workspace needs no
+  test config.
 - **Biome:**
   - a root `noRestrictedImports` lists the v3 packages, each with its v4 replacement in the message;
   - the `domain` override allows only `effect`;
@@ -451,11 +452,15 @@ Checked by hand in `/ticket-verify`, not by tests:
   references incrementally and fails on Effect warnings by default. *Rejected:*
   - `effect-tsgo diagnostics --strict --project` in a loop over workspaces: nine cold runs;
   - replacing `bun check`: R9 keeps it as the typecheck gate.
-- **D9 — vitest 5 with `@effect/vitest` on the Bun runtime, one root config, one project per root
-  workspace.** `it.effect`, `it.layer` and `TestClock` need vitest; `bun --bun` keeps Bun APIs;
-  probes confirmed `#imports`, `.ts` exports and exit 1 on any failure. *Rejected:*
+- **D9 — vitest 5 with `@effect/vitest` on the Bun runtime, one root config, no projects.**
+  `it.effect`, `it.layer` and `TestClock` need vitest; `bun --bun` keeps Bun APIs; probes confirmed
+  `#imports`, `.ts` exports and exit 1 on any failure. The root config only adds `repos/**` to the
+  default exclude. *Rejected:*
   - `bun:test`: `@effect/vitest` fails under it;
   - vitest on Node: no Bun APIs;
+  - a project per workspace from the `workspaces` globs: vitest's project globs also match files
+    such as `packages/CLAUDE.md` and refuse to start, and the workaround is ~20 lines of glob
+    expansion for nothing the plan needs, only names in the reporter;
   - a config per workspace: a forgotten one silently skips its tests.
 - **D10 — Retries, schedules and dead-letters are tested on the memory store under `TestClock`;
   the SQLite store is tested only for persistence and dedup.** The SQL store measures delays with
@@ -529,7 +534,7 @@ Checked by hand in `/ticket-verify`, not by tests:
 ## To verify during implementation
 
 Carried over from `feature.md`: V1 (moot since S3: no shallow fetch), V2 (now: patched `tsc -b` on the
-references) and V3 (vitest reporter under an agent). New:
+references) and V3 (vitest reporter under an agent; settled in S5: no forced reporter). New:
 
 - **V4** — How the 500 enters every endpoint's error union: as an error of `RequestValidation`, or
   declared on the API. A defect's empty 500 body must then decode to `InternalServerError`, not to
@@ -537,3 +542,4 @@ references) and V3 (vitest reporter under an agent). New:
 - **V5** — Whether `Config.LogLevel` accepts lower-case values. If it does not, `.env.example`
   switches to `LOG_LEVEL="Info"`.
 - **V6** — vitest projects given as the root `workspaces` globs, with no config file per directory.
+  Moot since S5: the root config declares no projects.

@@ -16,7 +16,7 @@
   │                                                                          │
   │  ── Author self-check (tick before requesting review) ──                 │
   │  [ ] Title is a commits.md subject (gitmoji + type(scope) + imperative ≤50)
-  │  [ ] `make check` passes (Biome + bun check + bun test)                  │
+  │  [ ] `make check` passes (Biome + bun check + vitest)                    │
   │  [ ] Imports only go down: apps -> application -> infrastructure -> domain│
   │  [ ] domain imports no workspace; web client imports only api-client, ui │
   │  [ ] Inside a workspace: #<workspace>/… imports, no relative paths       │

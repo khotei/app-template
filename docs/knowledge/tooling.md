@@ -2,7 +2,7 @@
 
 How to run, check and extend the monorepo, and why it is set up this way. The short imperatives for
 agents live in [.claude/rules/tooling.md](../../.claude/rules/tooling.md); this document explains
-them. Versions: Bun 1.4.3, TypeScript 7.0.2, Biome 2.5.15, husky 9.1.7.
+them. Versions: Bun 1.4.3, TypeScript 7.0.2, Biome 2.5.15, husky 9.1.7, vitest 5.0.5.
 
 ## Commands
 
@@ -20,13 +20,27 @@ Everything runs through the root `Makefile` (GNU Make 3.81, the macOS default). 
 | `make lint` | `biome check` | lint, format and import order, without writing |
 | `make fmt` | `biome check --write` | apply formatting, import sorting and safe fixes |
 | `make typecheck` | `bun check` | typecheck every workspace through the project references |
-| `make test` | `bun test` | every colocated `*.test.ts` |
+| `make test` | `bun run test`, which is `bun --bun vitest run` | every colocated `*.test.ts` |
 | `make outdated` | `bun outdated --recursive` | newer versions for every workspace |
 | `make vendor-effect` | `git subtree pull --squash --prefix repos/effect` of the `effect@<pin>` tag | update `repos/effect` to the catalog pin; it commits, so run it on a clean tree. First time: `git subtree add` with the same arguments |
 | `make clean` | removes every `node_modules` and `coverage` | a clean reinstall: follow with `make setup` |
 
-`bun check` is Bun's built-in native typechecker, not a `package.json` script. `bun test` runs Bun's
-test runner, while `bun run test` would run the root `test` script.
+`bun check` is Bun's built-in native typechecker, not a `package.json` script. `bun run test` runs
+the root `test` script, while `bun test` would start Bun's own test runner, which is denied in
+`.claude/settings.json`.
+
+### Tests
+
+Tests run on vitest 5, on the Bun runtime (`bun --bun`), so `Bun.serve` and the other Bun APIs work
+inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`, `it.layer`,
+`TestClock`) needs vitest.
+
+- **One root `vitest.config.ts`**, which only adds `repos/**` to the default exclude: every
+  colocated `*.test.ts` runs, a new workspace needs no test config, and Effect's own suites stay
+  out.
+- **Output.** vitest switches to its `minimal` reporter when it detects an agent (`CLAUDECODE`,
+  `AI_AGENT`): failures and a summary only. A terminal without them gets the per-file `default`
+  reporter; `bun run test --reporter=default` forces it.
 
 ## Run and debug
 
@@ -163,7 +177,7 @@ patches the `tsc` binary with the Effect language service (`tsc --version` repor
 | Hook | Runs | Why there |
 |---|---|---|
 | `pre-commit` | `bun check`, then `bunx biome check --staged --no-errors-on-unmatched` | fast checks; only staged files are linted, and nothing is rewritten |
-| `pre-push` | `bun test` | tests are slower, so they run once per push |
+| `pre-push` | `make test` | tests are slower, so they run once per push |
 
 Never skip a hook with `--no-verify`. CI runs the same checks, so a skipped hook fails there.
 
@@ -172,7 +186,7 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 | Job | Runs |
 |---|---|
 | `static` | `bun install --frozen-lockfile`, `biome ci`, `bun check` |
-| `test` | `bun install --frozen-lockfile`, `bun test` |
+| `test` | `bun install --frozen-lockfile`, `bun run test` |
 | `links` | `make ids`, then `lychee --offline` on `README.md`, `docs/**/*.md` and `.claude/**/*.md` |
 
 `static` and `test` run on two Bun versions: `pinned` (from `packageManager`) blocks the merge, and

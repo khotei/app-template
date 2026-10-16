@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, test } from 'bun:test'
+import { afterAll, describe, expect, test } from 'vitest'
 
 import { createRoutes, type StatusByTag } from '#api/http'
 import { createLayer } from '#api/layer'

@@ -133,8 +133,7 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
 ### Testing
 
 - **R12** — WHEN `make test` runs, THE SYSTEM SHALL run every colocated `*.test.ts` in every
-  workspace with vitest 5 on the Bun runtime (`bun --bun vitest run`), from one root config with one
-  project per workspace.
+  workspace with vitest 5 on the Bun runtime (`bun --bun vitest run`), from one root config.
 - **R13** — IF any test fails in any workspace, THEN `make test` SHALL exit non-zero.
 - **R14** — Tests of Effect code SHALL use `@effect/vitest` (`it.effect`, `it.layer`), with fakes
   provided as layers and time controlled by `TestClock`. `bun:test` SHALL NOT be imported anywhere.
@@ -296,7 +295,7 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
 | R5 | `import { HttpApi } from '@effect/platform'` in any workspace fails `make lint` with the replacement named. |
 | R7–R9 | After `bun install`, `tsc --version` reports `+effect-tsgo`. A bare `Effect.log('x')` statement fails `make check`, `pre-commit` and CI while `bun check` alone passes. |
 | R10–R11 | `repos/effect/packages/effect/package.json` version equals the pinned one, and a PR that bumps the `effect` catalog also holds the vendoring commits. `make check` ignores `repos/`. `import … from '../../repos/effect/…'` fails `make lint`. |
-| R12–R15 | `mv .env .env.bak && make test` passes. A failing `it.effect` in each workspace makes `make test` exit 1. `git grep "bun:test"` finds nothing. |
+| R12–R15 | `mv .env .env.bak && make test` passes. A failing test in each workspace makes `make test` exit non-zero (checked from S8 with `it.effect`). `git grep "from 'bun:test'" -- ':!docs/tickets'` finds nothing. |
 | R16 | A commit with a floating Effect is rejected; a push with a failing test is rejected. |
 | R17–R19 | `make lint` fails for `@effect/platform-bun` or `@oblik/config` imported in `domain/`. `git grep -E "Date.now|new Date\(|randomUUID" domain/` finds nothing. A test fixes time with `TestClock` and ids with `TestCrypto`. |
 | R20–R22 | Removing `API_PORT` and `QUEUE_SQLITE_PATH` gives one startup error naming both. `.env.example` lists every variable read. |
@@ -319,4 +318,4 @@ None. Settled by grilling and experiments on 2026-10-16.
 - **V2** — The patched `tsc -b` on the project references setup (only plain `tsc` 7.0.2 was run
   on the probes).
 - **V3** — vitest 5 picks the `minimal` reporter when it detects an agent (`CLAUDECODE`); whether
-  `make test` should force `--reporter=default`.
+  `make test` should force `--reporter=default`. Settled in S5: no forced reporter.

@@ -104,7 +104,10 @@
   - `make help` lists `vendor-effect`.
 - **Status:** done
 - **Findings:**
-  - The probe was red on `ids` and `lint` before the change and green after.
+  - The probe was red on `ids` and `lint` before the change and green after. It held no test
+    file, so it missed that a bare `bun test` still collects `*.test.ts` under `repos/`; found
+    by S4's implementer before vendoring. S4 is now blocked by S5, whose vitest config excludes
+    `repos/**`.
   - **Simplified on review.** A first version guarded the pin, shallow-fetched the tag, chose `add`
     or `merge`, built a `commits.md` message from a `TICKET` variable, and in a fresh clone had to
     fetch the previous split commit by SHA, because `git subtree merge` aborts without it
@@ -133,7 +136,8 @@
 #### S4 — Vendor the Effect source
 
 - **Goal:** `repos/effect` is a squashed subtree at `effect@<pinned>` (R3, R10).
-- **Blocked by:** S2, S3.
+- **Blocked by:** S2, S3, S5 (until vitest excludes `repos/**`, a bare `bun test` collects
+  Effect's own tests from `repos/` and fails).
 - **Files:** `repos/effect/**`, written on a clean tree after the user's OK by the one-time
   `git subtree add --squash --prefix repos/effect https://github.com/Effect-TS/effect.git effect@4.0.5 -m ':wrench: chore(effect-setup): Vendor effect at effect@4.0.5'`
   (the arguments of `make vendor-effect`, with `add` for `pull` and the ticket scope; the tag
@@ -154,8 +158,7 @@
 #### S5 — vitest 5 on Bun replaces `bun:test`
 
 - **Goal:**
-  - one root `vitest.config.ts` with a project per root workspace, excluding `repos/**` (R11, R12,
-    D9);
+  - one root `vitest.config.ts` that excludes `repos/**` (R11, R12, D9);
   - any failure exits non-zero (R13);
   - no `bun:test` import left (R14);
   - `pre-push` and CI test through vitest (R16).
@@ -168,16 +171,32 @@
   - `ci.yml` (test job runs `bun run test`);
   - `.claude/settings.json`: deny `bun test`;
   - the five existing `*.test.ts` files: imports from `vitest`, `mock` → `vi.fn`;
-  - the false lines in `.claude/rules/tooling.md` and `docs/knowledge/tooling.md`.
+  - the false lines in `.claude/rules/tooling.md` and `docs/knowledge/tooling.md`;
+  - the `bun test` mentions in `.github/PULL_REQUEST_TEMPLATE.md`, `.github/PULL_REQUEST_example.md`
+    and the `bun:test` import example in `docs/knowledge/architecture.md`.
 - **Test first:** config only. The red check is R13: a deliberately failing test.
 - **Verify:**
   - `make test` runs every workspace's tests;
-  - a failing test in `domain` and then in `apps/api` each makes `make test` exit 1;
+  - a failing test in `domain` and then in `apps/api` each makes `make test` exit non-zero;
   - `mv .env .env.bak && make test` passes;
-  - `git grep "bun:test"` finds nothing;
+  - `git grep "from 'bun:test'" -- ':!docs/tickets'` finds nothing;
+  - a scratch failing `repos/x/probe.test.ts` leaves `make test` green; remove it afterwards;
   - **V3:** decide whether `test` forces `--reporter=default` under `CLAUDECODE`;
-  - **V6:** projects come from the `workspaces` globs, with no per-directory config.
-- **Status:** todo
+  - **V6:** moot, see Findings.
+- **Status:** done
+- **Findings:**
+  - **Simplified on review.** A first version declared a project per workspace: the raw
+    `workspaces` globs make vitest refuse to start (they also match `packages/CLAUDE.md`), and the
+    workaround expanded `<glob>/package.json` in ~20 lines, for nothing the plan needs beyond
+    names in the reporter. The config is now one line: the default exclude plus `repos/**`, which
+    a failing `repos/x/probe.test.ts` and a fake `repos/effect` with its own vitest config both
+    confirm. V6 is moot: there are no projects.
+  - **V3:** no forced reporter. vitest picks `minimal` under an agent (`CLAUDECODE`, `AI_AGENT`),
+    which prints every failure in full plus a summary; humans and CI get `default`.
+  - A failing test makes `make test` exit 2 (vitest 1 → `bun run` 1 → make 2), so R12–R15's
+    acceptance says "non-zero"; the `it.effect` part of that row is checked from S8.
+  - Three files outside the original list held `bun test` or `bun:test` and are fixed here:
+    the two PR templates and the import example in `docs/knowledge/architecture.md`.
 
 #### S6 — The patched `tsc -b` gate
 
@@ -240,7 +259,9 @@
 - **Verify:**
   - `make check`;
   - **R8 probe:** a bare `Effect.log('x')` statement in `queue.ts` fails `make typecheck`
-    (`tsc -b`) while `bun check` passes. Then revert it.
+    (`tsc -b`) while `bun check` passes. Then revert it;
+  - **R13 with `it.effect`:** a deliberately failing `it.effect` makes `make test` exit non-zero.
+    Then remove it.
 - **Status:** todo
 
 #### S9 — Config as services

@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from 'bun:test'
+import { describe, expect, test, vi } from 'vitest'
 
 import {
   type Example,
@@ -13,8 +13,8 @@ const now = new Date('2026-10-15T00:00:00.000Z')
 
 const setup = () => {
   const repository = {
-    upsert: mock(async (_example: Example) => {}),
-    selectById: mock(async () => undefined),
+    upsert: vi.fn(async (_example: Example) => {}),
+    selectById: vi.fn(async () => undefined),
   } satisfies ExampleRepository
   const exampleService = createExampleService({ repository })
   const createExample = createExampleUseCase({ exampleService, now: () => now })

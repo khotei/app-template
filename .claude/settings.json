@@ -51,6 +51,7 @@
       "Bash(git push -f*)",
       "Bash(rm -rf *)",
       "Bash(sudo *)",
+      "Bash(bun test*)",
       "Bash(npm *)",
       "Bash(yarn *)",
       "Bash(pnpm *)"
