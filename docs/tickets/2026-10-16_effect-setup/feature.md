@@ -1,7 +1,7 @@
 # Effect setup
 
 > Ticket: `2026-10-16_effect-setup` · Source: conversation
-> Related: architecture.md (next step, `/ticket-architecture`) · plan.md
+> Related: [architecture.md](./architecture.md) · [plan.md](./plan.md)
 
 ## Goal
 
@@ -11,8 +11,8 @@ Effect primitives with tests on Effect's test tooling, and rules that make Claud
 Effect v4 instead of v3 from memory.
 
 The slice has to demonstrate the target architecture end to end: the web app calls the api through
-a client generated from the api's own contract; the api emits an event to a queue; the worker takes
-the event and runs a job that calls a language model. Today every external service is in-memory or a
+a client generated from the api's own contract; the api enqueues a job; the worker takes the job
+and runs it, calling a language model. Today every external service is in-memory or a
 stub; Postgres, S3, SQS and a real LLM provider each replace one `Layer` in a later ticket.
 
 The ticket stays a worked example: a future project reads `chore/effect-setup` step by step.
@@ -22,7 +22,7 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
 - **Starting point.** `main` at `1bbdd1a` (the squashed `monorepo-setup`): plain TypeScript layers
   shaped for Effect ([architecture.md › The Effect seam](../../knowledge/architecture.md#the-effect-seam)),
   `bun:test`, `bun check`, Biome layer guards, husky hooks, CI.
-- **Product direction**, for intent only: the api accepts requests and emits events; the worker runs
+- **Product direction**, for intent only: the api accepts requests and enqueues jobs; the worker runs
   background jobs such as LLM agents analysing documents; the web app consumes a typed api client.
   No product entity is built here.
 - **Donor.** [`khotei/kotodama-core`](https://github.com/khotei/kotodama-core) is a source of ideas,
@@ -87,11 +87,13 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
 
 - **R1** — THE implementation SHALL happen on the single branch `chore/effect-setup` cut from `main`,
   with one commit per `plan.md` step, merged through one squash-merged PR, and the branch kept
-  afterwards. The first step SHALL commit this ticket's documents.
+  afterwards. `feature.md` is committed before planning; the first step SHALL commit the rest of
+  this ticket's documents. The vendoring step is the two commits that `git subtree` writes.
 - **R2** — `plan.md` SHALL group its steps into three consecutive layers, `setup`, `modules`,
   `claude`. WHEN the last step of a layer is committed, `make check` SHALL pass at that commit.
-- **R3** — A step SHALL change at most ~400 lines, counted without `repos/` and `bun.lock`. Vendoring
-  `repos/effect` SHALL be a step of its own.
+- **R3** — A step SHALL change at most ~400 lines, counted without `repos/`, `bun.lock` and
+  generated files (`openapi.json`); a step that holds only this ticket's documents is exempt.
+  Vendoring `repos/effect` SHALL be a step of its own.
 - **R4** — THE root catalogs SHALL hold, pinned exactly to the latest stable versions at
   implementation time:
   - `effect`: `effect`, `@effect/platform-bun`, `@effect/sql-sqlite-bun`, `@effect/vitest`;
@@ -109,9 +111,9 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
 - **R7** — THE shared tsconfig SHALL enable the `@effect/language-service` plugin, and the root
   `prepare` script SHALL run `effect-tsgo patch` after `husky`. WHEN `bun install` runs,
   `node_modules/.bin/tsc --version` SHALL report the patched build.
-- **R8** — WHEN `make check`, the `pre-commit` hook or CI runs, THE SYSTEM SHALL run
-  `effect-tsgo diagnostics` over every workspace and fail on any Effect error or warning, such as an
-  Effect value that is neither yielded nor assigned.
+- **R8** — WHEN `make check`, the `pre-commit` hook or CI runs, THE SYSTEM SHALL run the patched
+  `tsc -b` over the project references and fail on any Effect error or warning, such as an Effect
+  value that is neither yielded nor assigned (architecture D8).
 - **R9** — `bun check` SHALL remain the typecheck gate; R8 adds to it and does not replace it.
 
 ### Vendored Effect source
@@ -122,7 +124,7 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
   drops the subtree's commit metadata, the PR body SHALL carry the `git-subtree-dir:` and
   `git-subtree-split:` trailers outside its HTML comment, so a later `git subtree pull --squash`
   on `main` still works.
-- **R11** — `repos/` SHALL be excluded from Biome, vitest, `bun check`, `effect-tsgo`, lychee and
+- **R11** — `repos/` SHALL be excluded from Biome, vitest, `bun check`, the patched `tsc -b`, lychee and
   `make ids`, and no workspace glob SHALL match it. WHEN code imports from `repos/`, `biome check`
   SHALL fail.
 
@@ -136,7 +138,7 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
   provided as layers and time controlled by `TestClock`. `bun:test` SHALL NOT be imported anywhere.
 - **R15** — Tests SHALL NOT depend on a root `.env`: config comes from a replacement
   `ConfigProvider`.
-- **R16** — `pre-commit` SHALL run `bun check`, `effect-tsgo diagnostics` and `biome check --staged`;
+- **R16** — `pre-commit` SHALL run `bun check`, the patched `tsc -b` and `biome check --staged`;
   `pre-push` SHALL run `make test`. CI SHALL run the same gates.
 
 ### Domain and errors
@@ -154,8 +156,10 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
 
 ### Infrastructure and packages
 
-- **R20** — Each adapter SHALL be a `Layer` that provides a `Context.Service`. The repository stays
-  in-memory; `storage` and `db` are `Context.Service` stubs with in-memory layers; `llm` exposes
+- **R20** — An adapter that implements a port, or that holds a resource or a varying
+  implementation, SHALL be a `Layer` that provides a `Context.Service`; any other adapter SHALL
+  be a value or a function with requirements (architecture D17). The repository stays in-memory;
+  `storage` and `db` are `Context.Service` stubs with in-memory layers; `llm` exposes
   `LanguageModel` from `effect/ai` through a stub layer that returns a canned response.
 - **R21** — `@oblik/config` SHALL define settings with `effect/Config`, read through
   `ConfigProvider.fromEnv`. WHEN required variables are missing or invalid, the process SHALL fail at
@@ -165,33 +169,34 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
 - **R22** — `.env.example` SHALL list every variable the code reads, including the queue's SQLite
   path, and the SQLite file SHALL be gitignored.
 
-### Events and jobs
+### Jobs
 
 - **R23** — `packages/queue` SHALL expose a generic queue port whose typed queues offer `send` and
   `consume`, with layers for in-memory use and for a SQLite file. Producers, the job handler and the
   infrastructure queue SHALL NOT depend on which layer is provided, so an SQS layer later replaces
   only the composition roots' choice.
-- **R24** — `infrastructure` SHALL define the `example` queue: its name, its message `Schema` and its
-  retry policy (`maxAttempts`, `Schedule`).
-- **R25** — `application` SHALL own both sides of the event in one service,
-  `application/example/example-job.use-case.ts`, with two methods: one emits the event, the other
-  handles it. `apps/api` SHALL call only the first and `apps/worker` SHALL wire only the second to
-  `consume`; neither app SHALL hold job logic.
-- **R26** — WHEN `POST /examples` succeeds, THE api SHALL emit an `example` event whose id is
-  derived from the example's id, so a repeated send is deduplicated. The event SHALL carry every
-  field the job needs, because the worker does not share the api's in-memory data.
-- **R27** — WHILE the worker runs, WHEN an `example` event is queued, THE worker SHALL run the job,
-  which calls `LanguageModel`, and log the result. WHEN the worker starts after events were queued
-  while it was stopped, it SHALL process them.
+- **R24** — `infrastructure` SHALL define the `example-summary` queue as a definition value: its
+  name, its message `Schema` and its retry policy (`maxAttempts`, `Schedule`).
+- **R25** — `application` SHALL own both sides of the job in one file,
+  `application/example/example-summary.job.ts`: the service `ExampleSummaryJob` with the method
+  `enqueue`, and the layer `ExampleSummaryJob.worker`, which wires the module's `handle` to
+  `consume` (architecture D2). The api SHALL reach `enqueue` only through `ExampleService.create`,
+  and `apps/worker` SHALL only launch `ExampleSummaryJob.worker`; neither app SHALL hold job logic.
+- **R26** — WHEN `POST /examples` succeeds, THE api SHALL enqueue an `example-summary` job whose id
+  is derived from the example's id, so a repeated send is deduplicated. The job message SHALL carry
+  every field the job needs, because the worker does not share the api's in-memory data.
+- **R27** — WHILE the worker runs, WHEN an `example-summary` job is queued, THE worker SHALL run it,
+  calling `LanguageModel`, and log the result. WHEN the worker starts after jobs were queued while
+  it was stopped, it SHALL process them.
 - **R28** — IF the job fails, THEN THE SYSTEM SHALL retry it on the queue's `Schedule` until
   `maxAttempts`, then keep it as dead-lettered and log it.
 - **R29** — WHEN the worker receives SIGINT or SIGTERM, including a `--watch` restart, it SHALL stop
-  consuming and release in-flight events without counting the attempt, and the restarted worker
+  consuming and release in-flight jobs without counting the attempt, and the restarted worker
   SHALL take them back at once. A job's interrupt path SHALL do nothing asynchronous before the
   release, because `--watch` re-executes the process after the synchronous part of the finalizers.
 - **R29a** — The queue's lock expiration and lock refresh interval SHALL come from `QueueConfig`,
   with the refresh shorter than the expiration (dev defaults about 15 s and 5 s), so a killed worker's
-  event is retried within seconds and a healthy long job is never stolen.
+  job is retried within seconds and a healthy long job is never stolen.
 
 ### Api, contract and client
 
@@ -232,8 +237,8 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
 - **R37** — `.claude/rules/effect.md` (`paths: **/*.ts`, ≤ ~80 lines) SHALL hold only what an agent
   cannot derive: that its Effect v3 knowledge is wrong and the source of truth is `repos/effect`
   (`LLMS.md` first); the project's Effect decisions (domain imports, contract conventions, queue
-  port, where event logic lives); and any deviation from upstream style. The style itself is
-  upstream `LLMS.md`, not restated.
+  port, where job logic lives, which layers bundle); and any deviation from upstream style. The
+  style itself is upstream `LLMS.md`, not restated.
 - **R37a** — The rule SHALL fix the order in which a capability is sourced: first a module of
   `effect` or an `@effect/*` package (including the Bun platform services such as `FileSystem`,
   `Crypto` and `HttpClient`), then Bun's standard library, then Node built-ins, and a third-party
@@ -248,7 +253,7 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
   `DateTime` rather than `Date`), following upstream's dual API and its "avoid tacit usage"
   guideline. Before writing any helper, the agent SHALL look for it in `repos/effect`.
 - **R38** — `docs/knowledge/effect.md` SHALL explain, for humans: services and layers and where
-  they are composed, errors, config, the contract and client with `openapi.json`, events and jobs and
+  they are composed, errors, config, the contract and client with `openapi.json`, jobs and
   how SQS replaces the queue layer, testing, the language service and its gate, and the vendored
   source. `docs/knowledge/tooling.md` SHALL cover the new commands and gates, editor setup with a
   LazyVim note (switch to the `tsc` LSP), and troubleshooting. `architecture.md` SHALL replace "The
@@ -261,18 +266,30 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
   - a service identifier is `@oblik/<workspace>/<entity>/<Name>`;
   - an adapter layer is a constant `<Port><Implementation>` (`ExampleRepositoryMemory`,
     `QueueClientSqlite`), never `*Live`;
-  - an application service is a class with `static layer` (`ExampleJob.layer`), and its methods
-    are `Effect.fn('<Service>.<method>')`;
+  - an application service is `<Entity>Service`, a class with `static layer` whose methods are the
+    entity's use cases (`ExampleService.create`), each `Effect.fn('<Service>.<method>')`;
+  - a queued job is `<Entity><Purpose>Job` with the method `enqueue` and the layer `worker`
+    (`ExampleSummaryJob`); its message is a command named after the job (`SummarizeExample`);
+  - a `static layer` provides every dependency that has one implementation and leaves open the
+    ones that vary (ports, clients, platform services); there is no `layerNoDeps`
+    (architecture D16);
   - settings are `<Area>Config` (`ApiConfig`), replacing `loadConfig`;
   - `build` and `ensure` stay the verbs of pure functions;
-  - the `.handler` role is removed; `.use-case` holds an application service.
+  - a service exists only when it holds a resource or something varies behind it; otherwise
+    `infrastructure` exports a value (`exampleSummaryQueue`) or a function with requirements
+    (`summarizeExample`) (architecture D17);
+  - contract errors are `<Entity><Problem>` without `Error` (`ExampleNotFound`), because their tag
+    travels on the wire; a prompt function is `<entity>Prompt`, an exception to verb-first;
+  - the `.handler` and `.use-case` roles are removed; `.job` holds both sides of a queued job in
+    `application`, as `<entity>-<purpose>.job.ts` (`example-summary.job.ts`); `.prompt` holds a
+    typed prompt function in `infrastructure`.
 - **R40** — All `.claude/`, `docs/` and code content SHALL be in English.
 
 ## Acceptance
 
 | Req | How to verify |
 |---|---|
-| R1–R3 | `git log main..chore/effect-setup` shows one commit per step, the docs first; `make check` passes at the last commit of each layer; `git diff --stat` per step, without `repos/` and `bun.lock`, stays near 400 lines. |
+| R1–R3 | `git log main..chore/effect-setup` shows `feature.md`, then one commit per step (two for vendoring), the docs first; `make check` passes at the last commit of each layer; `git diff --stat` per step, without `repos/`, `bun.lock` and `openapi.json`, stays near 400 lines, except the docs step. |
 | R4, R6 | The catalogs match the registry `latest`; no `^`/`~`; every Effect package is `catalog:effect`. |
 | R5 | `import { HttpApi } from '@effect/platform'` in any workspace fails `make lint` with the replacement named. |
 | R7–R9 | After `bun install`, `tsc --version` reports `+effect-tsgo`. A bare `Effect.log('x')` statement fails `make check`, `pre-commit` and CI while `bun check` alone passes. |
@@ -281,8 +298,8 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
 | R16 | A commit with a floating Effect is rejected; a push with a failing test is rejected. |
 | R17–R19 | `make lint` fails for `@effect/platform-bun` or `@oblik/config` imported in `domain/`. `git grep -E "Date.now|new Date\(|randomUUID" domain/` finds nothing. A test fixes time with `TestClock` and ids with `TestCrypto`. |
 | R20–R22 | Removing `API_PORT` and `QUEUE_SQLITE_PATH` gives one startup error naming both. `.env.example` lists every variable read. |
-| R23–R25 | `example-job.use-case.ts` exports one service with both methods; `apps/worker/src` holds no job logic and no `handlers/` folder. Swapping the in-memory and SQLite queue layers changes only `apps/*/src/layer.ts`. |
-| R26–R29 | With the worker stopped, three `POST /examples` queue three events; starting the worker logs three job results. A job made to fail is retried per the schedule (tested with `TestClock`) and then dead-lettered. SIGTERM during a job leaves it for the next worker at the same attempt. |
+| R23–R25 | `example-summary.job.ts` exports `ExampleSummaryJob` with `enqueue` and `ExampleSummaryJob.worker`; `apps/worker/src` holds no job logic and no `handlers/` folder. Swapping the in-memory and SQLite queue layers changes only `apps/*/src/layer.ts`. |
+| R26–R29 | With the worker stopped, three `POST /examples` queue three jobs; starting the worker logs three job results. A job made to fail is retried per the schedule (tested with `TestClock`) and then dead-lettered. SIGTERM during a job leaves it for the next worker at the same attempt. |
 | R30–R33 | `packages/api-contract` imports only `effect`. Editing an endpoint without regenerating fails `make check`; `openapi.json` documents the 400. Through `@oblik/api-client`, an unknown id resolves to `{ ok: false, error: { _tag: <contract 404> } }`, a bad body to the 400's tag, a stopped server to the transport tag, and no call rejects. A `switch` over `error._tag` missing a case fails `bun check`. `import 'effect'` in `apps/web/src/features/` fails `make lint`. |
 | R34–R36 | `make dev-web` keeps HMR. `make dev-api`: a forked ticker logs once per second; edit a handler, `curl` again: the response changed, one listening socket, the ticker still logs once per second. `make dev-worker`: edit a file, one consumer runs. SIGTERM logs finalizers. |
 | R37a | `effect.md` lists the four-step order and the layer limits; a code search finds no `Bun.*` or `node:` call where an `effect` module in use covers the same need (e.g. `Bun.file` beside `FileSystem`, `console.log` beside `Effect.log`). |
@@ -296,7 +313,7 @@ None. Settled by grilling and experiments on 2026-10-16.
 ## To verify during implementation
 
 - **V1** — Pushing from a repository whose `.git/shallow` lists the shallow-fetched Effect tag.
-- **V2** — `effect-tsgo diagnostics` on the project references setup (only plain `tsc` 7.0.2 was run
+- **V2** — The patched `tsc -b` on the project references setup (only plain `tsc` 7.0.2 was run
   on the probes).
 - **V3** — vitest 5 picks the `minimal` reporter when it detects an agent (`CLAUDECODE`); whether
   `make test` should force `--reporter=default`.
