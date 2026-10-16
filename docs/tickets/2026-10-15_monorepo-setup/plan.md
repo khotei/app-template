@@ -511,7 +511,12 @@
   - `deployment/aws/*.ts`: one helper for `{ name, tags }`; `infrastructure/shared/db.client.ts`: drop `createSharedDbClient`; `apps/api/src/http.ts`: `statusByTag` keyed by the union of error tags (Q76).
 - **Test first:** `apps/api/src/http.test.ts` stays green through the renames; a type-level check that an unmapped tag fails `bun check`.
 - **Verify:** `make check` green; `make dev` serves `/health`.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - **Red first:** the new `http.test.ts` imported `createRoutes`, `createLayer` and `StatusByTag` and asserted with `@ts-expect-error` that a map missing `ExampleNameInvalidError` fails; `bun check` reported TS2305 and TS2578. Green after the change: `StatusByTag = Record<ExampleError['_tag'], number>`, with `ExampleError` exported next to the error classes.
+  - Dropping `createSharedDbClient` left `infrastructure` with no use of `@oblik/db`, so the dependency and its `tsconfig.json` reference went too, as D24 did for `@oblik/queue`. `infrastructure/shared/` keeps `outbox.repository.ts`.
+  - `deployment/aws/resource.ts` adds `buildResource(resource)`; each resource file is one line.
+  - Q70 is recorded as D38 and in `domain/CLAUDE.md` and `infrastructure/CLAUDE.md`.
 
 #### S19d — Lessons
 

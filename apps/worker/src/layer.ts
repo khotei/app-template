@@ -3,7 +3,7 @@ import { createExampleQueue, createExampleRepository } from '@oblik/infrastructu
 
 import { createExampleHandler } from '#worker/handlers/example.handler'
 
-export const buildLayer = () => {
+export const createLayer = () => {
   const exampleService = createExampleService({ repository: createExampleRepository() })
   const queue = createExampleQueue()
   const handleExample = createExampleHandler({ exampleService })
@@ -15,4 +15,4 @@ export const buildLayer = () => {
   }
 }
 
-export type Layer = ReturnType<typeof buildLayer>
+export type Layer = ReturnType<typeof createLayer>

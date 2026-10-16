@@ -132,7 +132,7 @@ The tree below is the end state of the ticket branch, which already includes thi
 │       └── create.use-case.test.ts      ★
 ├── infrastructure/                      # @oblik/infrastructure
 │   ├── CLAUDE.md · package.json · tsconfig.json
-│   ├── shared/{db.client,outbox.repository}.ts
+│   ├── shared/outbox.repository.ts
 │   └── example/
 │       ├── example.repository.ts        ★  in-memory ExampleRepository
 │       ├── example.storage.ts           ★  stub
@@ -161,7 +161,7 @@ The tree below is the end state of the ticket branch, which already includes thi
 ├── deployment/                          # @oblik/deployment — stubs only
 │   ├── CLAUDE.md · package.json · tsconfig.json
 │   ├── local/{docker-compose.yml,README.md}
-│   ├── aws/{index,config,database,storage,queue,api,worker,web,iam}.ts
+│   ├── aws/{index,config,resource,database,storage,queue,api,worker,web,iam}.ts
 │   ├── shared/{naming,tags}.ts
 │   └── Pulumi.yaml
 ├── .env.example · .gitignore            # .env, node_modules, node_modules/.cache, coverage
@@ -248,17 +248,17 @@ export class ConfigError extends Error { readonly issues: readonly string[] } //
 export const loadConfig = (env: Record<string, string | undefined> = Bun.env): Config
 
 // apps/api/src/layer.ts — composition root (future Effect Layer)
-export const buildLayer = () => ({ exampleService, createExample }) // takes Config once a client needs it (D22)
+export const createLayer = () => ({ exampleService, createExample }) // takes Config once a client needs it (D22)
 
 // apps/api/src/http.ts — Bun.serve routes, testable without a port
-export const buildRoutes = (layer: ReturnType<typeof buildLayer>) => ({
+export const createRoutes = (layer: ReturnType<typeof createLayer>) => ({
   '/health': () => Response.json({ status: 'ok' }),
   '/examples': { POST: async (req: Request) => Response },
   '/examples/:id': { GET: async (req: Bun.BunRequest<'/examples/:id'>) => Response },
 })
 
 // apps/api/src/main.ts
-Bun.serve({ port: config.api.port, routes: buildRoutes(buildLayer()) })
+Bun.serve({ port: config.api.port, routes: createRoutes(createLayer()) })
 
 // infrastructure/example/example.queue.ts — in-memory until the queue client exists
 export interface ExampleJob { readonly type: 'example.process'; readonly exampleId: ExampleId }
@@ -267,7 +267,7 @@ export const createExampleQueue = (): ExampleQueue
 
 // apps/worker/src/handlers/example.handler.ts
 export const createExampleHandler = (deps: { exampleService: ExampleService }) => (job: ExampleJob): Promise<void>
-// apps/worker/src/layer.ts — buildLayer() => ({ queue, pollOnce() })
+// apps/worker/src/layer.ts — createLayer() => ({ queue, pollOnce() })
 // apps/worker/src/main.ts — setInterval(pollOnce, 1_000), errors logged
 
 // packages/api-client/index.ts
@@ -292,7 +292,7 @@ Where this ticket's tests and checks observe behaviour:
 |---|---|---|
 | `buildExample(name, now)` and the `ExampleRepository` port (`domain`) | trimming, blank-name rejection, fresh ids | persistence |
 | `createExampleService` / `createExampleUseCase` with a `mock()` port (`application`) | saves once, propagates domain errors, not-found | a real adapter |
-| `Bun.serve({ port: 0, routes: buildRoutes(buildLayer()) })` (`apps/api`) | HTTP status mapping by `_tag`, the create → read round trip, bad bodies | the web proxy, hot reload |
+| `Bun.serve({ port: 0, routes: createRoutes(createLayer()) })` (`apps/api`) | HTTP status mapping by `_tag`, the create → read round trip, bad bodies | the web proxy, hot reload |
 | `loadConfig(env)` (`packages/config`) | defaults, one `ConfigError` naming every bad variable | `--env-file` loading |
 | `make check` on a probe import (Biome, `bun check`) | every forbidden layer edge, relative paths, undeclared dependencies | edges between workspaces that are allowed |
 | `.claude/hooks/make-check.sh` on crafted stdin | exit 0 / 2 / 0 on green / red / `BLOCKED:` | the live `SubagentStop` wiring |
@@ -519,6 +519,7 @@ App scripts load the root file explicitly:
 - **D35 — Four topic documents in `docs/knowledge/` plus a showcase README, not a Diátaxis split (Q66).** Each document answers one group of questions and mixes how-to, explanation and reference for its topic. The README covers the quick start and starting a project from a template, `tooling.md` holds the troubleshooting table, and `architecture.md` holds the add-an-entity recipe. *Rejected:* ~15 files split by genre, which scatters one topic across folders and breaks the single `docs/knowledge/tooling.md` link from the rules; one large guide, which agents would have to read whole.
 - **D36 — The dependency map is hand-written once, in `docs/knowledge/sdd.md`, next to the skill and agent files it summarises (Q68, revised by Q69).** The files are what Claude executes; the map is the one human overview, and the SDD rule makes a commit that changes a skill's uses update the map, which the Standards review checks. *History:* S18b first built `metadata` blocks in every file plus a generated map and a byte-equality test in a `checks/` workspace. The user dropped it (Q69): the test guarded only `metadata` against the map, not against the file bodies that actually run, at the cost of a workspace, ~170 lines of TypeScript and a third copy of each fact. *Rejected:* that generated map; a CI-only `git diff --exit-code` over a generator, which keeps the duplication.
 - **D37 — Documentation is written in two passes (Q65).** S18a documents what is already built and verified (README, tooling, architecture). S18b writes `sdd.md` and the ticket templates after S16–S17, from the built and tested flow rather than from its design.
+- **D38 — The domain holds persistence ports; an adapter for an infrastructure concern owns its interface (Q70).** `ExampleRepository` lives in `domain/example/example.service.ts`, while `ExampleQueue`, `ExampleJob`, `ExampleStorage` and `ExampleLlm` stay in their `infrastructure` files: the domain knows nothing about messaging, object keys or prompts, and the matrix already lets apps import infrastructure. *Rejected:* moving every interface into the domain, which would teach it transport concerns.
 - **D8 — Explicit `--env-file=../../.env` in app scripts.** This was verified: Bun loads `.env` relative to the cwd only. *Rejected:* Makefile-only env loading, which breaks `bun run dev` from a package directory; per-package `bunfig.toml`.
 - **D9 — `linker = "isolated"`.** The experiment showed that references do not stop undeclared imports. The isolated linker makes an undeclared workspace import fail at resolution. Verified in S5: importing the undeclared `@oblik/config` from `infrastructure` fails at runtime (`Cannot find module`) and in `bun check` (TS2307). *Rejected:* `hoisted`, where any package can be imported.
 - **D10 — Biome `noRestrictedImports` overrides in the root config are the authoritative guard for import direction.** Overrides are deny-lists of the layers above and of sibling apps, so a new `packages/*` workspace needs no Biome change. Each diagnostic names its rule. Two further lines of defence back them up. The isolated linker together with `bun check` rejects any *undeclared* import (TS2307). A relative path into another workspace that is **not referenced** (`../../application/...` from `infrastructure`) fails `bun check` with TS6059/TS6307, because each workspace is a `composite` project with `rootDir: "."`. A relative path into a referenced workspace passes `bun check` (found in S18a), so the relative-path ban in every override (D25) is what stops it.

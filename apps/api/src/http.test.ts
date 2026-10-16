@@ -1,9 +1,9 @@
 import { afterAll, describe, expect, test } from 'bun:test'
 
-import { buildRoutes } from '#api/http'
-import { buildLayer } from '#api/layer'
+import { createRoutes, type StatusByTag } from '#api/http'
+import { createLayer } from '#api/layer'
 
-const server = Bun.serve({ port: 0, routes: buildRoutes(buildLayer()) })
+const server = Bun.serve({ port: 0, routes: createRoutes(createLayer()) })
 afterAll(() => server.stop(true))
 
 const request = (path: string, init?: RequestInit) => fetch(new URL(path, server.url), init)
@@ -50,5 +50,12 @@ describe('api routes', () => {
 
   test('POST /examples answers 400 for a malformed body', async () => {
     expect((await postExample({ title: 'First' })).status).toBe(400)
+  })
+
+  test('every example error tag needs an HTTP status', () => {
+    // @ts-expect-error ExampleNameInvalidError has no status, so bun check fails
+    const incomplete: StatusByTag = { ExampleNotFoundError: 404 }
+
+    expect(Object.keys(incomplete)).toEqual(['ExampleNotFoundError'])
   })
 })

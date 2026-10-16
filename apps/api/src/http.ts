@@ -1,17 +1,21 @@
 import type { CreateExampleInput } from '@oblik/application/example'
-import type { ExampleId } from '@oblik/domain/example'
+import type { ExampleError, ExampleId } from '@oblik/domain/example'
 import { DomainError } from '@oblik/domain/shared'
 
 import type { Layer } from '#api/layer'
 
-const statusByTag: Readonly<Record<string, number>> = {
+export type StatusByTag = Readonly<Record<ExampleError['_tag'], number>>
+
+const statusByTag: StatusByTag = {
   ExampleNameInvalidError: 422,
   ExampleNotFoundError: 404,
 }
 
+const isMappedTag = (tag: string): tag is keyof StatusByTag => Object.hasOwn(statusByTag, tag)
+
 const respondWithDomainError = (error: unknown): Response => {
-  const status = error instanceof DomainError ? statusByTag[error._tag] : undefined
-  if (error instanceof DomainError && status !== undefined) {
+  if (error instanceof DomainError && isMappedTag(error._tag)) {
+    const status = statusByTag[error._tag]
     return Response.json({ error: error._tag, message: error.message }, { status })
   }
   throw error
@@ -20,7 +24,7 @@ const respondWithDomainError = (error: unknown): Response => {
 const isCreateExampleInput = (body: unknown): body is CreateExampleInput =>
   typeof body === 'object' && body !== null && typeof (body as { name?: unknown }).name === 'string'
 
-export const buildRoutes = (layer: Layer) => ({
+export const createRoutes = (layer: Layer) => ({
   '/health': () => Response.json({ status: 'ok' }),
   '/examples': {
     POST: async (request: Request) => {

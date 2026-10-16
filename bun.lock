@@ -51,7 +51,6 @@
     "infrastructure": {
       "name": "@oblik/infrastructure",
       "dependencies": {
-        "@oblik/db": "workspace:*",
         "@oblik/domain": "workspace:*",
         "@oblik/llm": "workspace:*",
         "@oblik/storage": "workspace:*",

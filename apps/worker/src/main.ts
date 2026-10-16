@@ -1,11 +1,11 @@
 import { loadConfig } from '@oblik/config'
 
-import { buildLayer } from '#worker/layer'
+import { createLayer } from '#worker/layer'
 
 const pollIntervalMs = 1_000
 
 const config = loadConfig()
-const layer = buildLayer()
+const layer = createLayer()
 
 setInterval(() => {
   layer.pollOnce().catch((error: unknown) => console.error('worker poll failed', error))

@@ -8,6 +8,6 @@ and pure operations.
   argument (`buildExample(name, now)`), so operations stay deterministic and testable.
 - Errors extend `DomainError` and set `_tag` to the class name; apps map status codes from `_tag`,
   and the field is the seam for Effect's `Data.TaggedError`.
-- Ports live in `<entity>.service.ts` next to the pure operations; they become Effect services
-  later without moving files.
+- Persistence ports live in `<entity>.service.ts` next to the pure operations; they become Effect
+  services later without moving files.
 - Each entity folder exposes itself through `index.ts` (`@oblik/domain/<entity>`).

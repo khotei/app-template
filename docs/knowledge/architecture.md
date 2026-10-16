@@ -88,8 +88,8 @@ Using the `example` slice as the map:
 | other adapters | `infrastructure/example/example.{queue,storage,llm}.ts` | `createExampleQueue()` … |
 | service over the port | `application/example/example.service.ts` | `createExampleService({ repository })` |
 | use case | `application/example/create.use-case.ts` | `createExampleUseCase({ exampleService, now })` |
-| wiring | `apps/{api,worker}/src/layer.ts` | `buildLayer()` |
-| HTTP routes and error mapping | `apps/api/src/http.ts` | `buildRoutes(layer)` |
+| wiring | `apps/{api,worker}/src/layer.ts` | `createLayer()` |
+| HTTP routes and error mapping | `apps/api/src/http.ts` | `createRoutes(layer)` |
 | job handler | `apps/worker/src/handlers/example.handler.ts` | `createExampleHandler({ exampleService })` |
 | browser feature | `apps/web/src/features/example/health-panel.ts` | `renderHealthPanel(root, apiClient)` |
 
@@ -120,7 +120,7 @@ Pascal one (`Document`).
    and takes `now: () => Date`. Test them with `mock()` fakes of the port. Add `index.ts` and the
    `exports` entry.
 7. **Wiring.** In `apps/api/src/layer.ts` (and the worker's, if it needs it), create the adapter,
-   pass it to the service and the use cases, and return them from `buildLayer()`.
+   pass it to the service and the use cases, and return them from `createLayer()`.
 8. **Delivery.** Add routes in `apps/api/src/http.ts`, and map each new error `_tag` to a status in
    `statusByTag`. Extend `apps/api/src/http.test.ts` with a round trip.
 9. **Client, if the browser needs it.** Add a method to `@oblik/api-client`, then a feature folder
@@ -138,7 +138,7 @@ structure:
 
 | Today | Becomes | Why it already fits |
 |---|---|---|
-| `apps/*/src/layer.ts` with `buildLayer()` | an Effect `Layer` | the one place where adapters are wired into services |
+| `apps/*/src/layer.ts` with `createLayer()` | an Effect `Layer` | the one place where adapters are wired into services |
 | ports in `domain/<entity>/<entity>.service.ts` | `Context.Tag` services | the port already sits where the tag will be declared |
 | `DomainError` subclasses with `_tag` | `Data.TaggedError` | `_tag` already discriminates errors, as in `http.ts` |
 | dependencies passed as arguments (`{ repository }`, `now`) | requirements in the `Effect` type | nothing reaches for a global |

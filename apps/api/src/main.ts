@@ -1,9 +1,9 @@
 import { loadConfig } from '@oblik/config'
 
-import { buildRoutes } from '#api/http'
-import { buildLayer } from '#api/layer'
+import { createRoutes } from '#api/http'
+import { createLayer } from '#api/layer'
 
 const config = loadConfig()
-const server = Bun.serve({ port: config.api.port, routes: buildRoutes(buildLayer()) })
+const server = Bun.serve({ port: config.api.port, routes: createRoutes(createLayer()) })
 
 console.log(`api listening on ${server.url}`)

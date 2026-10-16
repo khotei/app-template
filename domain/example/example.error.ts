@@ -16,3 +16,5 @@ export class ExampleNotFoundError extends DomainError {
     super(`Example ${id} not found`)
   }
 }
+
+export type ExampleError = ExampleNameInvalidError | ExampleNotFoundError

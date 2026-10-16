@@ -1,7 +1,7 @@
 import { createExampleService, createExampleUseCase } from '@oblik/application/example'
 import { createExampleRepository } from '@oblik/infrastructure/example'
 
-export const buildLayer = () => {
+export const createLayer = () => {
   const exampleService = createExampleService({ repository: createExampleRepository() })
   return {
     exampleService,
@@ -9,4 +9,4 @@ export const buildLayer = () => {
   }
 }
 
-export type Layer = ReturnType<typeof buildLayer>
+export type Layer = ReturnType<typeof createLayer>

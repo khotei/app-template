@@ -1,8 +1,3 @@
-import { deploymentConfig } from '#deployment/aws/config'
-import { buildResourceName } from '#deployment/shared/naming'
-import { buildTags } from '#deployment/shared/tags'
+import { buildResource } from '#deployment/aws/resource'
 
-export const queue = {
-  name: buildResourceName(deploymentConfig.stage, 'queue'),
-  tags: buildTags(deploymentConfig.stage),
-} as const
+export const queue = buildResource('queue')

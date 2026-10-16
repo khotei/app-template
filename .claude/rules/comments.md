@@ -16,7 +16,7 @@ flow, a test name, a rule or `CLAUDE.md`)? Yes → delete it on sight. Only four
 - a non-obvious **decision plus the rejected alternative** (it stops an agent "fixing" it back);
 - a **gotcha or non-local coupling** that is surprising from a distance;
 - an **invariant the type cannot express**;
-- a usage **constraint on an exported symbol** ("call `loadConfig` before `buildLayer`").
+- a usage **constraint on an exported symbol** ("call `loadConfig` before `createLayer`").
 
 Never write line narration, step markers, a doc block that repeats the function name, a `@param`
 that restates a type, or provenance tags (ticket or requirement ids belong in the commit `Refs:`).

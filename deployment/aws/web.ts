@@ -1,8 +1,3 @@
-import { deploymentConfig } from '#deployment/aws/config'
-import { buildResourceName } from '#deployment/shared/naming'
-import { buildTags } from '#deployment/shared/tags'
+import { buildResource } from '#deployment/aws/resource'
 
-export const web = {
-  name: buildResourceName(deploymentConfig.stage, 'web'),
-  tags: buildTags(deploymentConfig.stage),
-} as const
+export const web = buildResource('web')
