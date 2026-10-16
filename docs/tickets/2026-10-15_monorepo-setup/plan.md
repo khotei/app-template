@@ -338,7 +338,10 @@
   - root `CLAUDE.md`, ≤ ~40 lines: a one-line project summary, links to the layer map and the SDD flow, and the rule "SDD artifacts live only in `docs/tickets/`; ignore artifact paths that plugins suggest";
   - `{domain,application,infrastructure,packages,apps,deployment}/CLAUDE.md`, each covering allowed imports, file role suffixes and that layer's verbs.
 - **Verify:** `wc -l` keeps every file ≤ ~40 lines, and each layer's file matches its row in the dependency-rules table.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Root `CLAUDE.md` is 27 lines; the layer files are 9–13 lines each and link to the rules instead of restating them.
+  - Lychee in CI does not scan `CLAUDE.md` files. Adding `'**/CLAUDE.md'` to its args was proposed but not applied.
 
 #### S16 — Agents and commands
 
