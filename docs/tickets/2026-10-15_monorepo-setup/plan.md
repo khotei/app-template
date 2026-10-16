@@ -525,7 +525,10 @@
 - **Files:** `.claude/rules/sdd.md` (a requirement change edits `feature.md`), `.github/workflows/ci.yml` (fail on ticket ids outside `docs/tickets/`), `.claude/skills/ticket-plan/SKILL.md` (a docs step trims the rules that link to it), `.claude/skills/ticket-implement/SKILL.md` (a gated step is `done` only after its gate ran), `docs/knowledge/sdd.md` ("Periodically": `improve-codebase-architecture`, `retro`).
 - **Test first:** the CI id check fails on a probe `(D99)` in a scratch clone.
 - **Verify:** `make check` green; `verification.md › Lessons` marked applied.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - **Red first:** in a scratch clone a staged probe `// keep this (D99)` made the id check exit 1 and print the offending line; the clean tree exits 0. The check runs in the CI `links` job, with `git grep` over tracked files, excluding `docs/tickets/` and the ticket's own PR example.
+  - The other four lessons are one line each: `.claude/rules/sdd.md` (a requirement change edits `feature.md`), `/ticket-plan` (a docs step trims restating rules), `/ticket-implement` (`blocked: <gate>` until the gate runs), and `docs/knowledge/sdd.md › Periodically`.
 
 ## Requirement coverage
 

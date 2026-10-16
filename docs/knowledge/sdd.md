@@ -137,6 +137,18 @@ rule, a test or a hook. A judgement call gets one line in a named skill or rule.
 never grows from a lesson, and nothing is applied without your OK. For a broader look at a whole
 session, the plugin's `/mattpocock-skills:retro` is available to run by hand.
 
+## Periodically
+
+Two plugin skills look wider than one ticket. Both are run by hand, because the plugin marks them
+user-invoked:
+
+- `/mattpocock-skills:improve-codebase-architecture` scans the code for shallow modules and
+  proposes deepening refactors. Run it every few tickets, once real product code has piled up.
+  Tell it that the glossary is `docs/knowledge/glossary.md` and decisions are in each ticket's
+  `architecture.md`, since it looks for `GLOSSARY.md` and `docs/adr/`.
+- `/mattpocock-skills:retro` reviews a whole session and suggests changes to rules, checks and
+  skills. Its findings go through the same OK as Lessons.
+
 ## After a plugin update
 
 The plugin updates itself, so its behaviour can shift under the wrappers. After an update:

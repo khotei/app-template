@@ -21,6 +21,8 @@ steps only conform to the plan. Gates: `.claude/rules/sdd.md`.
    - **Test first**: the Seam from `architecture.md` and the behaviour to see red, or `config only`;
    - **Verify**: commands and manual checks;
    - **Status:** `todo`.
+   A step that writes or rewrites a `docs/knowledge/` page also trims, in the same step, every
+   rule and `CLAUDE.md` line that restates it.
 4. End with a coverage table that maps every `R…` to at least one step.
 5. Present the plan and iterate until the user approves it. Next comes
    `/ticket-implement <ticket folder>`.

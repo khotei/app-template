@@ -28,7 +28,8 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. G
 4. **Present** the implementer's report, then the `## Standards` and `## Spec` reports as
    code-review aggregates them.
 5. **Approval gate.** Wait for the user's explicit word:
-   - **approve:** set the step's `Status: done`, add its findings to `plan.md` and any new
+   - **approve:** set the step's `Status: done` (or `blocked: <gate>` while a gate the step
+     names, such as a branch, a push or a CI run, has not run yet), add its findings to `plan.md` and any new
      decision to `architecture.md`, stage the step's files, and commit with the proposed message
      as a command of its own;
    - **feedback:** send it to the same implementer (`SendMessage`), then return to 3;

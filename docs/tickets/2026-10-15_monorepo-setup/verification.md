@@ -110,8 +110,8 @@ Looks wrong:
 
 | Lesson | Evidence | Proposed change | Applied |
 |---|---|---|---|
-| A decision taken mid-ticket was not carried back into `feature.md` | R34, R40 redefined in S18a, stale vendoring lines | `.claude/rules/sdd.md › Gates`: a deviation that changes a requirement edits `feature.md` in the same commit | no |
-| Ticket ids leaked into config, hooks and docs | `biome.json`, `make-check.sh`, `tooling.md`; S11, S16, S18a | a check: CI fails on `\((D\|R\|Q)[0-9]+\)` outside `docs/tickets/` | no |
-| Rules were written before the docs they link to, then never trimmed | R36 failure; `CLAUDE.md` restatements; S14, S15, S18a | `/ticket-plan`: a step that writes a `docs/knowledge/` page also trims the rules that link to it | no |
-| A layer gate was marked done before it ran | S18b `done` without `template/claude` | `/ticket-implement` step 5: a step with a gate is `done` only after the gate ran | no |
-| Periodic, codebase-wide review has no home | user question after the run | `docs/knowledge/sdd.md`: a short "Periodically" section for `/mattpocock-skills:improve-codebase-architecture` and `/mattpocock-skills:retro`, with the glossary path override | no |
+| A decision taken mid-ticket was not carried back into `feature.md` | R34, R40 redefined in S18a, stale vendoring lines | `.claude/rules/sdd.md › Gates`: a deviation that changes a requirement edits `feature.md` in the same commit | yes, S19d |
+| Ticket ids leaked into config, hooks and docs | `biome.json`, `make-check.sh`, `tooling.md`; S11, S16, S18a | a check: CI fails on `\((D\|R\|Q)[0-9]+\)` outside `docs/tickets/` | yes, S19d |
+| Rules were written before the docs they link to, then never trimmed | R36 failure; `CLAUDE.md` restatements; S14, S15, S18a | `/ticket-plan`: a step that writes a `docs/knowledge/` page also trims the rules that link to it | yes, S19d |
+| A layer gate was marked done before it ran | S18b `done` without `template/claude` | `/ticket-implement` step 5: a step with a gate is `done` only after the gate ran | yes, S19d |
+| Periodic, codebase-wide review has no home | user question after the run | `docs/knowledge/sdd.md`: a short "Periodically" section for `/mattpocock-skills:improve-codebase-architecture` and `/mattpocock-skills:retro`, with the glossary path override | yes, S19d |

@@ -31,8 +31,8 @@ Every change of substance runs **feature → architecture → plan → implement
 - **Approval gate.** After each step: the implementer's report, the two-axis review, then the
   user's explicit OK before any commit or amend. Pushing, opening a PR or creating a remote needs
   its own OK.
-- **Deviations are recorded** in the same commit: `plan.md` findings, and `architecture.md ›
-  Decisions` when it is a decision.
+- **Deviations are recorded** in the same commit: `plan.md` findings, `architecture.md ›
+  Decisions` when it is a decision, and `feature.md` when it changes what a requirement asks.
 - **Lessons change a skill, a rule or a check**, never a `CLAUDE.md`, and only on the user's OK.
 
 ## Toolkit layout (the model gets these wrong)

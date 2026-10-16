@@ -164,7 +164,7 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 |---|---|
 | `static` | `bun install --frozen-lockfile`, `biome ci`, `bun check` |
 | `test` | `bun install --frozen-lockfile`, `bun test` |
-| `links` | `lychee --offline` on `README.md`, `docs/**/*.md` and `.claude/**/*.md` |
+| `links` | fails on ticket ids such as `(D12)` outside `docs/tickets/`, then `lychee --offline` on `README.md`, `docs/**/*.md` and `.claude/**/*.md` |
 
 `static` and `test` run on two Bun versions: `pinned` (from `packageManager`) blocks the merge, and
 `latest` only reports. The link check keeps relative links between documents from rotting.
