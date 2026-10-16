@@ -115,12 +115,11 @@ Pascal one (`Document`).
 5. **Adapter.** `infrastructure/<entity>/<entity>.repository.ts`: `create<Entity>Repository()`
    returning the domain port type. Start in-memory, like the example; a real client later
    replaces the body, not the signature. Add `index.ts` and the `exports` entry.
-6. **Service and use cases.** `application/<entity>/<entity>.service.ts` takes the port as an
-   argument (`create<Entity>Service({ repository })`), and `<verb>.use-case.ts` composes services
-   and takes `now: () => Date`. Test them with `mock()` fakes of the port. Add `index.ts` and the
-   `exports` entry.
-7. **Wiring.** In `apps/api/src/layer.ts` (and the worker's, if it needs it), create the adapter,
-   pass it to the service and the use cases, and return them from `createLayer()`.
+6. **Service and use cases.** `application/<entity>/<entity>.service.ts` holds the service, and
+   `<verb>.use-case.ts` composes services. A service may import its adapter or receive the port as
+   an argument, and may read the time with `new Date()`. Add `index.ts` and the `exports` entry.
+7. **Wiring.** In `apps/api/src/layer.ts` (and the worker's, if it needs it), create the service
+   and the use cases, with whatever they take as arguments, and return them from `createLayer()`.
 8. **Delivery.** Add routes in `apps/api/src/http.ts`, and map each new error `_tag` to a status in
    `statusByTag`. Extend `apps/api/src/http.test.ts` with a round trip.
 9. **Client, if the browser needs it.** Add a method to `@oblik/api-client`, then a feature folder
@@ -141,7 +140,7 @@ structure:
 | `apps/*/src/layer.ts` with `createLayer()` | an Effect `Layer` | the one place where adapters are wired into services |
 | ports in `domain/<entity>/<entity>.service.ts` | `Context.Tag` services | the port already sits where the tag will be declared |
 | `DomainError` subclasses with `_tag` | `Data.TaggedError` | `_tag` already discriminates errors, as in `http.ts` |
-| dependencies passed as arguments (`{ repository }`, `now`) | requirements in the `Effect` type | nothing reaches for a global |
+| the example's dependencies passed as arguments (`{ repository }`, `now`) | requirements in the `Effect` type | the example reaches for no global |
 
 ## Three boundary guards
 

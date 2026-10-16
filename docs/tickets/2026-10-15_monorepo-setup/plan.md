@@ -579,6 +579,16 @@
 - **Status:** done
 - **Findings:** the first lesson proposed `/ticket-implement`, but the skill only spawns the implementer with pointers; the line went to `implementer.md`, which runs the step test-first.
 
+#### S19i — No dependency or clock rules in application
+
+- **Goal:** drop the two `application/CLAUDE.md` rules on receiving ports as arguments and taking the clock as a dependency (D39).
+- **Blocked by:** S19h.
+- **Files:** `application/CLAUDE.md`, `docs/knowledge/architecture.md` (Add a new entity, steps 6 and 7; the Effect seam row), `architecture.md` (D39), this plan.
+- **Test first:** docs only; `setSystemTime` from `bun:test` pins `new Date()` on Bun 1.4.3, checked in a scratch test.
+- **Verify:** `make check` green.
+- **Status:** done
+- **Findings:** no requirement quotes either rule, so `feature.md` is unchanged. The example slice keeps `{ repository }` and `now`; it is now one allowed style, not the rule.
+
 ## Requirement coverage
 
 | Req | Steps | Req | Steps |
