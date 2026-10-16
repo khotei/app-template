@@ -49,9 +49,10 @@ A file with none of these roles keeps a bare kebab name (`layer.ts`, `http.ts`, 
 - Types are `PascalCase` `<Entity><Role>`: `ExampleRepository`, `ExampleService`, `ExampleJob`.
 - Errors are `<Entity><Problem>Error`, and their `_tag` equals the class name.
 - Branded ids are `Id<'<Entity>'>`, aliased `<Entity>Id`.
-- Functions are verb-first, and the verb marks the layer:
+- Functions are verb-first, and the verb marks the kind of work:
   - `create<Thing>`: a factory that wires dependencies (`createExampleService`);
-  - `build` / `ensure`: pure domain operations (`buildExample`);
+  - `build` / `ensure`: a pure function that derives a value, in any layer (`buildExample`,
+    `buildObjectKey`);
   - `select` / `insert` / `upsert` / `delete`: persistence (`selectById`);
   - `load` / `read`: configuration and environment (`loadConfig`).
 - Constants are `camelCase` with `as const` for literals (`exampleJobType`).

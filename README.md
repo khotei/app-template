@@ -29,7 +29,7 @@ make dev     # api, worker and web together
 | How is a change specified, planned, implemented and verified? What do the `/ticket-*` skills use under the hood? | [docs/knowledge/sdd.md](docs/knowledge/sdd.md) |
 | What are the rules for one layer? | its `CLAUDE.md`, listed in [CLAUDE.md](CLAUDE.md) |
 | How are commits and pull requests written? | [.claude/rules/commits.md](.claude/rules/commits.md), [.claude/rules/pull-requests.md](.claude/rules/pull-requests.md) |
-| Why is the scaffold built this way? | [the ticket that built it](docs/tickets/2026-10-15_monorepo-setup/architecture.md#decisions) |
+| Why is the scaffold built this way? | the ticket that built it, `docs/tickets/2026-10-15_monorepo-setup/`, and the step commits on branch `chore/monorepo-setup` |
 
 ## Starting a new project
 

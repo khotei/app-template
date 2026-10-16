@@ -115,3 +115,94 @@ Looks wrong:
 | Rules were written before the docs they link to, then never trimmed | R36 failure; `CLAUDE.md` restatements; S14, S15, S18a | `/ticket-plan`: a step that writes a `docs/knowledge/` page also trims the rules that link to it | yes, S19d |
 | A layer gate was marked done before it ran | S18b `done` without `template/claude` | `/ticket-implement` step 5: a step with a gate is `done` only after the gate ran | yes, S19d |
 | Periodic, codebase-wide review has no home | user question after the run | `docs/knowledge/sdd.md`: a short "Periodically" section for `/mattpocock-skills:improve-codebase-architecture` and `/mattpocock-skills:retro`, with the glossary path override | yes, S19d |
+
+## 2026-10-16 — run 2
+
+Branch `chore/monorepo-setup` at `ea3d4f3` against `main` at `67f3adc`. Fresh-context `verifier`
+(probes in a scratch clone, working tree left clean), and `code-review` with one `reviewer` agent
+per axis.
+
+**Verdict:** fail. `make check` is green (87 files linted, 53 typechecked, 21 tests) and every
+behaviour check passes, including the browser half of R21. R28 fails because the ticket-id check
+added in S19d matches its own example in `docs/knowledge/tooling.md:167`; R35 and R36 fail on spec
+and documentation text.
+
+### Requirements
+
+| Req | Result | Evidence |
+|---|---|---|
+| R1 | pass | a fresh `bun init -y` is byte-identical up to a newer transitive `undici-types` in `bun.lock` |
+| R2 | pass (local) | one branch, one commit per step; `d5bb68a` and `c520ba4` edit only ticket docs; the squash is not yet observable |
+| R3 | pass | `make check` exits 0 in clean checkouts at the layer ends `1ccd0ec`, `2245647`, `3c3e311` and at HEAD |
+| R4 | not verifiable | no remote, no merge |
+| R5–R8 | pass | workspaces, `packageManager`, named catalogs only, no `^`/`~`, pins equal the registry `latest` |
+| R9 | pass (artifacts) | `biome.json` schema, `.husky/_`, `prepare: husky` |
+| R10–R12 | pass | references equal declared deps; TS2322 probe fails `bun check`; `tsc -b` emits only into `node_modules/.cache/tsc` |
+| R13 | pass | structure matches; no Effect import |
+| R14, R14a, R15 | pass (gap) | 21 forbidden-edge probes fail with the rule message, 9 allowed edges pass; **gap:** `require()` passes Biome, and `require('@oblik/config')` in web client code passes everything |
+| R16–R18 | pass | four variables, root `.env` read by `make dev-api` and `bun run dev`, one `ConfigError` lists all missing variables |
+| R19, R20 | pass | hot `/health` edit with the same PID; `--watch` restart resets the `globalThis` counter and the old timer |
+| R21 | pass | headless Chrome over CDP: DOM text changed, a `window` marker survived, no navigation |
+| R22 | pass | inspector block printed; `Runtime.evaluate` ran in the api process |
+| R23–R27 | pass | doc sections; 21 tests without `.env`; Biome style probes; hooks reject a type error, an `any` and a failing test |
+| R28 | **fail** | jobs, matrix and commands match, but the `links` job's first step exits 1 on `docs/knowledge/tooling.md:167` ("such as `(D12)`"), so lychee never runs |
+| R29–R31 | pass | one comment block per PR file; script split exact; `make help` lists 16 targets |
+| R32, R33 | pass | a fresh `claude -p` lists the agents with their limits, 11 `mattpocock-skills:` skills and no `superpowers:` |
+| R34 | pass | Seams in `architecture.md`; `Blocked by:` on all 26 steps |
+| R35 | **fail (minor)** | behaviour holds, but the skill, rule and guide allow a lesson to be "a mechanical check", while R35 still says "one line in a named skill or rule" |
+| R35a–R35d | pass | files and hook driven directly (exit 0 / 2 / 0); no live `/ticket-implement` run observed |
+| R36 | **fail** | `.claude/rules/tooling.md` still names facts its knowledge doc owns (`:11`, `:13`, `:15`, `:20-21`, `:25-26`, `:30`, `:36-38`, `:45`) |
+| R36a, R37–R40 | pass | map complete; 26 subjects in format with `Refs:`; no Cyrillic; stubs typecheck; README question map |
+
+**Not verifiable:** the PR, the squash, a real CI run and the PR title (no remote); lychee itself
+(substitute scan: 28 files, 38 links, 0 broken); the `debug.bun.sh` UI; live `/ticket-*` runs.
+
+**Other findings:** following README's new-project steps (delete the ticket folder) breaks two
+links, `README.md:32` and `docs/knowledge/architecture.md:5`; `architecture.md` D1 still says "22
+step commits".
+
+### Review
+
+#### Standards
+
+Hard violations:
+
+1. **The ticket-id check fails on its own docs** (`ci.yml:104` vs `docs/knowledge/tooling.md:167`).
+2. **`build` outside the domain.** `naming.md › Symbols` reserves `build`/`ensure` for pure domain
+   operations; `buildPrompt`, `buildObjectKey`, `buildResourceName`, `buildTags` and the new
+   `buildResource` (S19c) use it in infrastructure and deployment.
+
+Judgement calls, carried over from run 1: `outbox.repository.ts` holds no adapter and an unbranded
+id; `crypto.randomUUID()` inside the domain's `buildExample` against "no ambient state";
+`ConfigError` lacks a `<Problem>`; `ea3d4f3` is typed `ci` while 7 of its 8 files are docs and rules.
+
+Smells: `env` and `issues` travel through every reader in `packages/config/load.ts` (Data Clumps);
+`application/example/example.service.test.ts` rebuilds the Map repository while
+`create.use-case.test.ts` uses `mock()` (Duplicated Code, two fake styles); `example.{llm,storage}.ts`
+pass client fields through (Middle Man); the deployment stage is a bare `string` (Primitive
+Obsession).
+
+#### Spec
+
+1. **R28:** the `links` job is red at HEAD (as above).
+2. **R2, R4:** `feature.md:45` still promises "three frozen template branches".
+3. **R28, R35 drift:** the id check is in neither R28 nor `architecture.md › Hooks and CI`; the
+   "mechanical check" lesson is in neither R35 nor D34; `blocked: <gate>` is in no requirement.
+4. **R35c wording:** `implementer.md` declares `Stop:`, while `plan.md` and `docs/knowledge/sdd.md`
+   say `SubagentStop`; behaviour is right (frontmatter `Stop` runs as `SubagentStop`).
+5. **Settings summary:** `architecture.md:79` says "git read", but `git add *` is allowed.
+
+### Simplifications
+
+1. `.github/workflows/ci.yml`: move the id grep into a Makefile target that `make check` runs, so
+   the hook and pre-commit catch what only CI caught.
+2. `README.md:32`, `docs/knowledge/architecture.md:5`: name the ticket as text, not a link, so a
+   new project that deletes it keeps a green link check.
+3. `biome.json`: enable `noCommonJs` to close the `require()` gap.
+
+### Lessons
+
+| Lesson | Evidence | Proposed change | Applied |
+|---|---|---|---|
+| A gate that runs only in CI escapes `make check`, the implementer's hook and pre-commit, so a step reports green while CI is red | S19d reported the id check green after a later edit broke it; lychee is likewise only substituted locally (S18a, S19a) | a check: `make check` runs every offline CI gate (the id grep now) | no |
+| A step that changes what a requirement asks still leaves `feature.md` behind, even with the S19d rule | R35 and R28 drift (S19d), `feature.md:45` (S19a) | `/ticket-implement`: the Spec axis also asks whether the diff changes what a quoted `R…` asks, and then requires the `feature.md` edit | no |

@@ -76,7 +76,7 @@ The tree below is the end state of the ticket branch, which already includes thi
 ```text
 .
 ├── .claude/
-│   ├── settings.json                    # permissions: deny npm/yarn/pnpm, push --force, rm -rf; allow bun/bunx/make/git read
+│   ├── settings.json                    # permissions: deny npm/yarn/pnpm, push --force, rm -rf; allow bun/bunx/make, git read and git add
 │   ├── rules/
 │   │   ├── claude-md.md                 # CLAUDE.md ≤ ~40 lines, rule ≤ ~80, one author per fact
 │   │   ├── comments.md                  # default no comment; WHY-only gates
@@ -87,7 +87,7 @@ The tree below is the end state of the ticket branch, which already includes thi
 │   │   └── sdd.md                       # flow contract, artifact paths, EARS
 │   ├── agents/
 │   │   ├── researcher.md                # read-only facts, primary sources
-│   │   ├── implementer.md               # one plan step; preloads tdd; SubagentStop hook → make check
+│   │   ├── implementer.md               # one plan step; preloads tdd; Stop hook (runs as SubagentStop) → make check
 │   │   ├── reviewer.md                  # read-only; one code-review axis (Standards or Spec)
 │   │   └── verifier.md                  # read-only; whole ticket, R-by-R behaviour
 │   ├── hooks/
@@ -456,7 +456,7 @@ App scripts load the root file explicitly:
   - **jobs:**
     - `static` — `biome ci`, then `bun check`;
     - `test` — `bun test`;
-    - `links` — `lycheeverse/lychee-action`, `--offline` on `README.md`, `docs/**/*.md`, `.claude/**/*.md`;
+    - `links` — `make ids` (no ticket ids outside `docs/tickets/`), then `lycheeverse/lychee-action`, `--offline` on `README.md`, `docs/**/*.md`, `.claude/**/*.md`;
   - **Bun matrix:** pinned version via `bun-version-file: package.json` (blocking) and `latest` (`continue-on-error`);
   - **caching and install:** `~/.bun/install/cache` keyed on `bun.lock`, then `bun install --frozen-lockfile`;
   - **dropped from kotodama:** Testcontainers, the docker image cache and the Ryuk env var;
@@ -494,7 +494,7 @@ App scripts load the root file explicitly:
 
 ## Decisions
 
-- **D1 — One ticket branch with the full step history; the PR is squash-merged into `main`, and the branch is kept.** `main` gets one commit, and `chore/monorepo-setup` keeps every step commit as the record of how the scaffold was built. *History:* the plan first cut frozen `template/{monorepo,tooling}` branches at layer ends; after run 1 of `/ticket-verify` the user dropped them for a single branch (2026-10-16), and both were deleted (their commits are ancestors of the ticket branch). *Rejected:* cumulative template branches, which multiply what CI and the docs must keep alive; merging without squash, which puts 22 step commits on `main`.
+- **D1 — One ticket branch with the full step history; the PR is squash-merged into `main`, and the branch is kept.** `main` gets one commit, and `chore/monorepo-setup` keeps every step commit as the record of how the scaffold was built. *History:* the plan first cut frozen `template/{monorepo,tooling}` branches at layer ends; after run 1 of `/ticket-verify` the user dropped them for a single branch (2026-10-16), and both were deleted (their commits are ancestors of the ticket branch). *Rejected:* cumulative template branches, which multiply what CI and the docs must keep alive; merging without squash, which puts every step commit on `main`.
 - **D2 — One workspace per layer** (`@oblik/domain`, …). The entity folders are subpath exports. *Rejected:* a package per layer × entity (dozens of packages); `paths`-only aliases (no dependency graph).
 - **D3 — Root-level config files** (`biome.json` with `"//"` extends, `tsconfig.base.json`). *Rejected:* kotodama's presets package with `--config-path`. Editors and CI would need the flag, and the name would collide with the runtime `packages/config`.
 - **D4 — Project references with `composite` + `emitDeclarationOnly` into `node_modules/.cache/tsc`.** `bun check` is the gate and emits nothing; `tsc -b` stays valid. *Rejected:* `noEmit` (TS6310); a single flat root tsconfig (the user chose references).
@@ -515,7 +515,7 @@ App scripts load the root file explicitly:
 - **D31 — The glossary lives in `docs/knowledge/glossary.md`, written through `domain-modeling` with an explicit path override (Q59, Q64).** The wrapper tells the skill which file to use and forbids `GLOSSARY.md`, `CONTEXT.md` and `docs/adr/`; the root `CLAUDE.md` repeats this in case the skill fires on its own. A live run in S17 confirmed the override: the terms landed in `docs/knowledge/glossary.md`, and no `GLOSSARY.md` or `docs/adr/` appeared. *Rejected:* a root `GLOSSARY.md`, which would break the docs layout; a home-grown glossary step, which would drop the plugin's term-challenging discipline.
 - **D32 — `settings.json` enables `mattpocock-skills` and disables `superpowers` for this project (Q62).** A clone gets a prompt to install the required plugin instead of a silently broken flow. `superpowers` is disabled because its skills demand to run first and write to `docs/superpowers/`.
 - **D33 — `architecture.md` names the Seams, and `plan.md` steps carry `Blocked by:` (Q58).** `tdd` writes no test at an unconfirmed seam. `Blocked by` shows which steps are independent and could later run in parallel (`isolation: worktree`).
-- **D34 — `/ticket-verify` ends with Lessons (Q61).** A mistake that repeated across two or more steps becomes one proposed line in a named skill or rule, never in an always-on `CLAUDE.md`, and is applied only on the user's OK.
+- **D34 — `/ticket-verify` ends with Lessons (Q61).** A mistake that repeated across two or more steps becomes one proposed line in a named skill or rule, or a mechanical check (a Biome rule, a test, a `make` target) when the mistake is mechanical, never a line in an always-on `CLAUDE.md`, and is applied only on the user's OK.
 - **D35 — Four topic documents in `docs/knowledge/` plus a showcase README, not a Diátaxis split (Q66).** Each document answers one group of questions and mixes how-to, explanation and reference for its topic. The README covers the quick start and starting a project from a template, `tooling.md` holds the troubleshooting table, and `architecture.md` holds the add-an-entity recipe. *Rejected:* ~15 files split by genre, which scatters one topic across folders and breaks the single `docs/knowledge/tooling.md` link from the rules; one large guide, which agents would have to read whole.
 - **D36 — The dependency map is hand-written once, in `docs/knowledge/sdd.md`, next to the skill and agent files it summarises (Q68, revised by Q69).** The files are what Claude executes; the map is the one human overview, and the SDD rule makes a commit that changes a skill's uses update the map, which the Standards review checks. *History:* S18b first built `metadata` blocks in every file plus a generated map and a byte-equality test in a `checks/` workspace. The user dropped it (Q69): the test guarded only `metadata` against the map, not against the file bodies that actually run, at the cost of a workspace, ~170 lines of TypeScript and a third copy of each fact. *Rejected:* that generated map; a CI-only `git diff --exit-code` over a generator, which keeps the duplication.
 - **D37 — Documentation is written in two passes (Q65).** S18a documents what is already built and verified (README, tooling, architecture). S18b writes `sdd.md` and the ticket templates after S16–S17, from the built and tested flow rather than from its design.

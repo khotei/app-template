@@ -59,7 +59,7 @@ uses updates this map too; the Standards review checks it against `.claude/rules
 | `/ticket-plan` | — | — | — | `plan.md` |
 | `/ticket-implement` | `code-review` | `implementer`, `reviewer` | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, one commit per approved step |
 | `/ticket-verify` | `code-review` | `verifier`, `reviewer` | — | `verification.md` |
-| `implementer` | `tdd`, preloaded | — | `make-check.sh` on `SubagentStop` | the step's files |
+| `implementer` | `tdd`, preloaded | — | `make-check.sh` on `Stop` (runs as `SubagentStop`) | the step's files |
 | `reviewer` | one axis of `code-review` | — | — | nothing: read-only |
 | `verifier` | — | — | — | nothing: read-only |
 | `researcher` | — | — | — | nothing: read-only |

@@ -42,7 +42,7 @@ Alongside the code, set up an in-repo spec-driven development (SDD) flow (featur
 
 ## Scope
 
-- Git: an initial `bun init` commit on `main`, one ticket branch, and three frozen template branches.
+- Git: an initial `bun init` commit on `main`, and one ticket branch that is squash-merged through a PR and kept.
 - Bun workspaces, with named root catalogs (`tools`, `runtime`) for exact dependency versions.
 - TypeScript 7 project references, with one shared base config.
 - An `example` vertical slice through every layer. Plain TS, no Effect, mostly export-only stubs. `api`, `worker` and `web` are minimally runnable.
@@ -125,6 +125,7 @@ Alongside the code, set up an in-repo spec-driven development (SDD) flow (featur
 - **R28** — CI SHALL run on `pull_request` and on `push` to `main`. It SHALL:
   - run `bun install --frozen-lockfile`, `biome ci`, `bun check` and `bun test`;
   - use a Bun matrix of pinned (blocking) and `latest` (non-blocking);
+  - fail on ticket ids (`D…`, `R…`, `Q…` in parentheses) outside `docs/tickets/`, through a `make` target that `make check` also runs;
   - run `lychee --offline` on `README.md`, `docs/**/*.md` and `.claude/**/*.md`.
 - **R29** — `.github/` SHALL contain `PULL_REQUEST_TEMPLATE.md` and `PULL_REQUEST_example.md`, adapted from kotodama-core. The example SHALL be rewritten around this ticket.
 
@@ -146,12 +147,12 @@ Alongside the code, set up an in-repo spec-driven development (SDD) flow (featur
   - `settings.json`, which enables the `mattpocock-skills` plugin and disables `superpowers` for this project.
 - **R33** — SDD artifacts SHALL live only in `docs/tickets/<YYYY-MM-DD>_<slug>/`, as `feature.md`, `architecture.md`, `plan.md` and `verification.md`. Their templates SHALL live in `docs/tickets/_template/`. The domain glossary SHALL live in `docs/knowledge/glossary.md`, created lazily. No `GLOSSARY.md`, `CONTEXT.md` or `docs/adr/` SHALL be created. The root `CLAUDE.md` SHALL tell agents to ignore artifact paths that come from plugins.
 - **R34** — `feature.md` requirements SHALL be written in EARS. Non-obvious choices SHALL be recorded in `architecture.md › Decisions` and in a `Decision:` line in the commit. `architecture.md` SHALL list the **Seams** where tests observe behaviour. Every `plan.md` step SHALL state `Blocked by:` and fit one fresh session.
-- **R35** — `researcher`, `reviewer` and `verifier` SHALL have no file-editing tools (`Edit`, `Write`, `NotebookEdit`) and SHALL NOT spawn agents; they keep `Bash` only to read, run checks and probe outside the working tree. `/ticket-verify` SHALL persist the verifier's report to `verification.md`, ending with a **Lessons** section: each lesson proposes one line in a named skill or rule, applied only after the user's OK.
+- **R35** — `researcher`, `reviewer` and `verifier` SHALL have no file-editing tools (`Edit`, `Write`, `NotebookEdit`) and SHALL NOT spawn agents; they keep `Bash` only to read, run checks and probe outside the working tree. `/ticket-verify` SHALL persist the verifier's report to `verification.md`, ending with a **Lessons** section: each lesson proposes one line in a named skill or rule, or a mechanical check when the mistake is mechanical, applied only after the user's OK.
 - **R35a** — WHEN the implementer finishes a plan step, `/ticket-implement` SHALL present the change summary, its verification results and the reviewer's verdict, and SHALL NOT commit (or amend) until the user explicitly approves that step.
 - **R35b** — WHEN the implementer finishes a plan step, `/ticket-implement` SHALL run the plugin's `code-review` on the uncommitted step diff, with one fresh-context `reviewer` agent per axis (Standards and Spec), before the user is asked to approve.
 - **R35c** — WHILE `make check` fails, THE `implementer` SHALL NOT be able to finish: a `SubagentStop` hook blocks it and returns the failing output.
 - **R35d** — The wrapper skills SHALL delegate interviewing, domain modelling, design vocabulary, TDD and ticket-level review to the `mattpocock-skills` plugin (`grilling`, `domain-modeling`, `codebase-design`, `tdd`, `code-review`). They SHALL override only artifact paths and gates, and SHALL NOT copy or edit the plugin's skills.
-- **R36** — `.claude/rules/tooling.md` SHALL hold short agent-facing imperatives and link to `docs/knowledge/tooling.md` for the explanations. No fact is written in both places. `docs/knowledge/` SHALL hold four topic documents, each mixing how-to, explanation and reference for its topic: `tooling.md` (make targets, run and debug, add a dependency or workspace, upgrade versions, dev modes, `.env`, catalogs, hooks and CI, and a troubleshooting table of symptom → cause → fix), `architecture.md` (layers and the downward rule with a diagram, `#<workspace>/` vs `@oblik/`, the `example` slice as a step-by-step recipe for a new entity, the Effect seam, the three boundary guards), `sdd.md` (when to run the full cycle, the five `/ticket-*` skills, the dependency map, the overrides of the plugin, the approval gate, plugin updates, Lessons), and `glossary.md` (created lazily).
+- **R36** — `.claude/rules/tooling.md` SHALL hold short agent-facing imperatives and link to `docs/knowledge/tooling.md` for the explanations. A rule may name the convention it enforces, but no explanation is written in both places. `docs/knowledge/` SHALL hold four topic documents, each mixing how-to, explanation and reference for its topic: `tooling.md` (make targets, run and debug, add a dependency or workspace, upgrade versions, dev modes, `.env`, catalogs, hooks and CI, and a troubleshooting table of symptom → cause → fix), `architecture.md` (layers and the downward rule with a diagram, `#<workspace>/` vs `@oblik/`, the `example` slice as a step-by-step recipe for a new entity, the Effect seam, the three boundary guards), `sdd.md` (when to run the full cycle, the five `/ticket-*` skills, the dependency map, the overrides of the plugin, the approval gate, plugin updates, Lessons), and `glossary.md` (created lazily).
 - **R36a** — `docs/knowledge/sdd.md` SHALL hold the dependency map, a table and a diagram of what each `/ticket-*` skill and each agent uses under the hood: the plugin skills, the agents it spawns, the hooks and the files it writes. It SHALL be the only summary of these facts besides the skill and agent files themselves, and `.claude/rules/sdd.md` SHALL require a commit that changes those uses to update the map.
 - **R37** — Commits and PR titles SHALL follow `<gitmoji> <type>(<scope>): <Subject>`, ending with `Refs: docs/tickets/<ticket>/`.
 - **R38** — All `.claude/` and `docs/` content SHALL be in English.
@@ -182,7 +183,7 @@ Alongside the code, set up an in-repo spec-driven development (SDD) flow (featur
 | R22 | `make debug-api` prints the inspector URL, and `debug.bun.sh` attaches. |
 | R24–R25 | `mv .env .env.bak && bun test` → all tests pass. |
 | R27 | A commit with a type error is rejected. A push with a failing test is rejected. |
-| R28 | The PR shows the `static`, `test` and `links` jobs. A broken relative link in `docs/` fails `links`. |
+| R28 | The PR shows the `static`, `test` and `links` jobs. A broken relative link in `docs/`, or a ticket id outside `docs/tickets/`, fails `links`; the id probe also fails `make check`. |
 | R30–R31 | `make help` lists all targets. `find . -name Makefile -not -path ./Makefile -not -path '*/node_modules/*'` finds nothing. |
 | R36, R36a | Each topic in R36 has a section in its document. Every plugin skill, agent and hook named in a skill or agent file appears in the map, and no skill or agent file carries a `metadata` block. |
 | R32–R38 | The files exist and `.claude/commands/` does not. A fresh `claude -p` session lists the four agents with the right tool limits and the five `/ticket-*` skills. `/ticket-implement` shows the implementer summary plus the reviewer verdict and stops before committing. With a failing test, the implementer cannot finish (hook output visible). `/ticket-feature` writes glossary terms only to `docs/knowledge/glossary.md`. `/ticket-verify` writes `verification.md` with a Lessons section. |

@@ -472,6 +472,7 @@
 - **Findings:**
   - **Run 1 (2026-10-16): fail.** R3/R4 (template strategy), R34, R36 and R40 failed; behaviour passed. Decisions Q70–Q77 answered by the user; fixes are S19a–S19d.
   - The user dropped the `template/*` strategy for one branch with the full history (D1). `template/monorepo` and `template/tooling` were deleted after checking that both are ancestors of the ticket branch.
+  - **Run 2 (2026-10-16): fail.** R28 (the S19d id check matches its own example in `docs/knowledge/tooling.md`), R35 and R36 (spec and rule text) failed; behaviour passed, including the browser half of R21. Decisions Q78–Q82 answered by the user; fixes are S19e–S19g. Q82: `ea3d4f3` keeps its `ci` type; the squash replaces it on `main`.
 
 #### S19a — Single-branch delivery
 
@@ -530,6 +531,39 @@
   - **Red first:** in a scratch clone a staged probe `// keep this (D99)` made the id check exit 1 and print the offending line; the clean tree exits 0. The check runs in the CI `links` job, with `git grep` over tracked files, excluding `docs/tickets/` and the ticket's own PR example.
   - The other four lessons are one line each: `.claude/rules/sdd.md` (a requirement change edits `feature.md`), `/ticket-plan` (a docs step trims restating rules), `/ticket-implement` (`blocked: <gate>` until the gate runs), and `docs/knowledge/sdd.md › Periodically`.
 
+#### S19e — Run 2 spec and docs alignment
+
+- **Goal:** the spec and docs findings of run 2 (Q78, Q79).
+- **Blocked by:** S19d.
+- **Files:**
+  - `verification.md` (run 2), this plan;
+  - `feature.md`: Scope (one kept branch), R28 (id check via `make`), R35 (a lesson may be a mechanical check), R36 (a rule may name its convention, no explanation twice, Q78);
+  - `architecture.md`: settings summary, `implementer` hook wording, Hooks and CI, D1, D34;
+  - `.claude/rules/tooling.md`: drop the explanations its knowledge doc owns; `.claude/rules/naming.md`: `build` derives a pure value in any layer (Q79);
+  - `README.md`, `docs/knowledge/architecture.md`: name the ticket as text, so deleting it keeps the link check green; `docs/knowledge/sdd.md`: the `Stop` hook runs as `SubagentStop`.
+- **Test first:** docs only.
+- **Verify:** link scan clean, also with the ticket folder deleted in a scratch clone; `make check` green.
+- **Status:** done
+- **Findings:** the link scan found 0 broken links in 35 files, and 0 in 31 files with the ticket folder deleted. The id check still matches `docs/knowledge/tooling.md:167` until S19f.
+
+#### S19f — Checks
+
+- **Goal:** `make check` runs every offline CI gate, and `require()` cannot cross a boundary (Q81, simplifications 1 and 3 of run 2).
+- **Blocked by:** S19e.
+- **Files:** `Makefile` (`ids` target, part of `check`), `.github/workflows/ci.yml` (`links` runs `make ids`), `biome.json` (`noCommonJs`), `docs/knowledge/tooling.md` (commands, CI, an id example that does not match), `.claude/skills/ticket-implement/SKILL.md` (the Spec axis asks whether the diff changes what a quoted `R…` asks, then requires the `feature.md` edit), `docs/knowledge/sdd.md` (overrides table).
+- **Test first:** a probe `(D99)` fails `make check`; a probe `require('@oblik/api')` in `application/` fails `biome check`.
+- **Verify:** `make check` green on the clean tree; the `links` id step exits 0 locally.
+- **Status:** todo
+
+#### S19g — One fake style in application tests
+
+- **Goal:** `application` tests use `mock()` fakes only, as `application/CLAUDE.md` asks (Q80).
+- **Blocked by:** S19e.
+- **Files:** `application/example/example.service.test.ts`.
+- **Test first:** the service tests stay green with `mock()` fakes in place of the Map repository.
+- **Verify:** `make check` green.
+- **Status:** todo
+
 ## Requirement coverage
 
 | Req | Steps | Req | Steps |
@@ -541,14 +575,14 @@
 | R5–R8 | S2 | R25 | S4, S10 |
 | R9 | S0, S11, S12 | R26 | S11 |
 | R10 | S2–S9 | R27 | S12 |
-| R11 | S3–S9 | R28–R29 | S13 |
+| R11 | S3–S9 | R28–R29 | S13, S19f |
 | R12 | S2, S10 | R30 | S7, S8, S10–S12 |
 | R13 | S3–S9 | R31 | S10 |
 | R14, R14a | S3–S9 (deps), S11, S11a (lint) | R32 | S14–S17 |
 | R15 | S8, S11 | R33 | S15, S17, S18b |
 | R16 | S4 | R34 | S14, S18b |
-| R17 | S7, S8 | R35–R35d | S16, S17 (+ S14 for R35a) |
-| R18 | S4 | R36, R36a | S14, S18a, S18b |
+| R17 | S7, S8 | R35–R35d | S16, S17, S19f (+ S14 for R35a) |
+| R18 | S4 | R36, R36a | S14, S18a, S18b, S19e |
 | R19 | S7 | R37 | every commit, S14 |
 | R20 | S8 | R38 | S14–S18b |
 | | | R39 | S9 |
