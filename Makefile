@@ -49,8 +49,10 @@ lint: ## Lint and format-check with Biome
 fmt: ## Apply Biome formatting and safe fixes
 	bun run format
 
-typecheck: ## Typecheck every workspace with bun check
-	bun check
+# The patched tsc, not bun check: bun check ignores tsconfig plugins, so it misses every Effect
+# diagnostic.
+typecheck: ## Typecheck every workspace with Effect diagnostics
+	bunx tsc -b
 
 test: ## Run all tests with vitest on the Bun runtime
 	bun run test

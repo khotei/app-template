@@ -50,8 +50,12 @@ jobs:
       - name: Lint
         run: bunx biome ci
 
+      # prepare patches tsc on install; an install without it silently drops Effect diagnostics.
+      - name: Assert the patched tsc
+        run: bunx tsc --version | grep effect-tsgo
+
       - name: Typecheck
-        run: bun check
+        run: make typecheck
 
   test:
     name: test (bun ${{ matrix.bun }})

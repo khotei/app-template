@@ -67,9 +67,9 @@ graph LR
 ├── package.json                           ✎ catalogs effect · typescript · tools; scripts test, prepare
 ├── tsconfig.base.json                     ✎ plugins: @effect/language-service
 ├── biome.json                             ✎ v3 ban, domain = effect only, web client bans effect, !repos
-├── Makefile                               ✎ typecheck += tsc -b; test → vitest; vendor-effect; openapi
-├── .husky/{pre-commit,pre-push}           ✎ + tsc -b · make test
-├── .github/workflows/ci.yml               ✎ + tsc -b, tsc --version check, bun run test
+├── Makefile                               ✎ typecheck = tsc -b; test → vitest; vendor-effect; openapi
+├── .husky/{pre-commit,pre-push}           ✎ make typecheck · make test
+├── .github/workflows/ci.yml               ✎ tsc --version check, make typecheck, bun run test
 ├── .env.example · .gitignore              ✎ QUEUE_*; LOG_LEVEL literal; .data/
 ├── .claude/
 │   ├── rules/effect.md                    ★ v3 memory is wrong · source order · data primitives · project choices
@@ -341,9 +341,10 @@ lands on one file at the root `.data/`, which is gitignored.
   - `tools`: `vitest` 5.0.5, plus the existing Biome and husky. `runtime` keeps `@types/bun`.
 - **Root scripts:** `prepare` = `husky && effect-tsgo patch`; `test` = `bun --bun vitest run`.
   `make test` runs `bun run test`, and `bun test` (Bun's own runner) is denied in `settings.json`.
-- **Typecheck gate:** `make typecheck` = `bun check && tsc -b`. The patched `tsc -b` walks the project
-  references, writes declarations to the existing cache, and fails on Effect errors and warnings
-  (`ignoreEffectWarningsInTscExitCode: false`, the default) (D8). `setup` scaffolds it with
+- **Typecheck gate:** `make typecheck` = `bunx tsc -b`, the only typecheck gate. The patched
+  `tsc -b` walks the project references, writes declarations to the existing cache, and fails on
+  type errors and on Effect errors and warnings (`ignoreEffectWarningsInTscExitCode: false`, the
+  default) (D8). `setup` scaffolds it with
   `effect-tsgo setup`, then trims the result.
 - **vitest:** one root `vitest.config.ts` that only adds `repos/**` to the default exclude. There
   are no projects: vitest collects every `*.test.ts` from the root, so a new workspace needs no
@@ -359,9 +360,10 @@ lands on one file at the root `.data/`, which is gitignored.
   - `openapi` writes `openapi.json`;
   - `ids` excludes `repos/`.
 - **Hooks and CI:**
-  - `pre-commit`: `bun check`, `tsc -b`, `biome check --staged`;
+  - `pre-commit`: `make typecheck`, `biome check --staged`;
   - `pre-push`: `make test`;
-  - CI `static` adds `tsc --version | grep effect-tsgo` and `tsc -b`, and CI `test` runs `bun run test`.
+  - CI `static` replaces `bun check` with `tsc --version | grep effect-tsgo` and `make typecheck`,
+    and CI `test` runs `bun run test`.
 
 ## Seams
 
@@ -447,11 +449,15 @@ Checked by hand in `/ticket-verify`, not by tests:
   names every bad variable, and tests swap the `ConfigProvider`. *Rejected:*
   - a layer per area, or `Config.all`: both stop at the first failure;
   - a `Schema` over the raw env record: it loses the `ConfigProvider` seam.
-- **D8 — The Effect gate is the patched `tsc -b` next to `bun check`.** `bun check` ignores
-  tsconfig plugins, and `effect-tsgo diagnostics` has no build mode. The patched `tsc -b` walks the
-  references incrementally and fails on Effect warnings by default. *Rejected:*
-  - `effect-tsgo diagnostics --strict --project` in a loop over workspaces: nine cold runs;
-  - replacing `bun check`: R9 keeps it as the typecheck gate.
+- **D8 — The patched `tsc -b` is the single typecheck gate.** It is TS 7 over the same
+  references, so it reports every type error `bun check` does, plus the Effect diagnostics; it
+  walks the references incrementally and fails on Effect warnings by default. *Rejected:*
+  - `bun check` alone: it ignores tsconfig plugins, and a probe with a floating Effect passes it
+    while the patched `tsc` fails;
+  - both gates, as first built in S6: every type error is reported twice, and the gate has two
+    spellings to keep in sync;
+  - `effect-tsgo diagnostics --strict --project` in a loop over workspaces: it has no build mode,
+    so nine cold runs.
 - **D9 — vitest 5 with `@effect/vitest` on the Bun runtime, one root config, no projects.**
   `it.effect`, `it.layer` and `TestClock` need vitest; `bun --bun` keeps Bun APIs; probes confirmed
   `#imports`, `.ts` exports and exit 1 on any failure. The root config only adds `repos/**` to the
@@ -522,7 +528,7 @@ Checked by hand in `/ticket-verify`, not by tests:
 | Risk | Mitigation |
 |---|---|
 | `effect/http`, `http-api`, `persistence`, `ai` are `@stability unstable`; a patch release may change them | exact lock-step catalog; `make vendor-effect` runs in the same PR as a bump, right after the bump's commit; the seams above catch behaviour changes |
-| `effect-tsgo patch` replaces the `tsc` binary; an install without `prepare` silently loses the gate | CI asserts `tsc --version` contains `effect-tsgo`; the troubleshooting section in `tooling.md` covers it |
+| `effect-tsgo patch` replaces the `tsc` binary; an install without `prepare` leaves a stock `tsc`, which still typechecks but silently loses every Effect diagnostic | CI asserts `tsc --version` contains `effect-tsgo`; the troubleshooting section in `tooling.md` covers it |
 | A group or API middleware skips endpoints added after it | `.middleware(RequestValidation)` is the last call on `Api`; a type test asserts `RequestInvalid` in every method's error union |
 | `take` fails with the handler's error, so `Effect.forever` stops at the first failure | `consume` catches and logs per iteration; the `JobQueue` suite has a "loop continues after failure" case |
 | A hard crash consumes the in-flight attempt (only an interrupt releases it) | lock expiry 15 s in dev; the worker shuts down through `runMain` on SIGINT/SIGTERM |
@@ -533,8 +539,9 @@ Checked by hand in `/ticket-verify`, not by tests:
 
 ## To verify during implementation
 
-Carried over from `feature.md`: V1 (moot since S3: no shallow fetch), V2 (now: patched `tsc -b` on the
-references) and V3 (vitest reporter under an agent; settled in S5: no forced reporter). New:
+Carried over from `feature.md`: V1 (moot since S3: no shallow fetch), V2 (patched `tsc -b` on the
+references; settled in S6: 14 projects, none under `repos/`, no tracked emits) and V3 (vitest
+reporter under an agent; settled in S5: no forced reporter). New:
 
 - **V4** — How the 500 enters every endpoint's error union: as an error of `RequestValidation`, or
   declared on the API. A defect's empty 500 body must then decode to `InternalServerError`, not to

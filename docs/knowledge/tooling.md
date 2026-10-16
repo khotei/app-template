@@ -19,15 +19,14 @@ Everything runs through the root `Makefile` (GNU Make 3.81, the macOS default). 
 | `make ids` | `git grep` for ticket ids in parentheses outside `docs/tickets/` and `repos/` | a new project deletes the ticket, so an id elsewhere points nowhere |
 | `make lint` | `biome check` | lint, format and import order, without writing |
 | `make fmt` | `biome check --write` | apply formatting, import sorting and safe fixes |
-| `make typecheck` | `bun check` | typecheck every workspace through the project references |
+| `make typecheck` | `bunx tsc -b`, the patched `tsc` | typecheck every workspace through the project references, Effect diagnostics included |
 | `make test` | `bun run test`, which is `bun --bun vitest run` | every colocated `*.test.ts` |
 | `make outdated` | `bun outdated --recursive` | newer versions for every workspace |
 | `make vendor-effect` | `git subtree pull --squash --prefix repos/effect` of the `effect@<pin>` tag | update `repos/effect` to the catalog pin; it commits, so run it on a clean tree. First time: `git subtree add` with the same arguments |
 | `make clean` | removes every `node_modules` and `coverage` | a clean reinstall: follow with `make setup` |
 
-`bun check` is Bun's built-in native typechecker, not a `package.json` script. `bun run test` runs
-the root `test` script, while `bun test` would start Bun's own test runner, which is denied in
-`.claude/settings.json`.
+`bun run test` runs the root `test` script, while `bun test` would start Bun's own test runner,
+which is denied in `.claude/settings.json`.
 
 ### Tests
 
@@ -123,8 +122,9 @@ Bun writes `"zod": "3.25.76"` into the root `catalogs.runtime` and `"zod": "cata
 `"zod": "catalog:runtime"` by hand and runs `bun install`.
 
 A dependency on another workspace is declared as `"@oblik/<name>": "workspace:*"`. Also add that
-workspace to the consumer's `tsconfig.json` `references`. `bun check` does not catch a missing
-reference, but `tsc -b` needs it to build in order.
+workspace to the consumer's `tsconfig.json` `references`, so `tsc -b` builds it first. No gate
+catches a missing reference: TS 7 resolves the workspace through its package symlink and checks
+its sources either way.
 
 ### Add a workspace
 
@@ -160,14 +160,18 @@ new version. CI also runs a non-blocking job on Bun `latest`, which shows the ne
 
 - **Project references.** The root `tsconfig.json` has no files of its own and references all 14
   workspaces. Each workspace is a `composite` project that references what it imports.
-- **`bun check` is the gate.** It walks the references, typechecks every workspace and emits
-  nothing. `typescript` stays installed for editors and for `bunx tsc -b`.
+- **The patched `tsc -b` is the only typecheck gate.** It walks the references, reports every
+  type error, and runs the Effect language service, whose errors and warnings both fail it
+  (`ignoreEffectWarningsInTscExitCode` stays `false`). `make typecheck`, `pre-commit` and CI all
+  run it. `repos/` is never walked: no reference points into it.
+- **`bun check` is not a gate.** Bun's native typechecker is faster and emits nothing, but it
+  ignores tsconfig `plugins`, so it passes an Effect value that is neither yielded nor assigned.
 - **`tsc -b` writes only into `node_modules/.cache/tsc/<workspace>`.** `composite` cannot be
   combined with `noEmit` (TS6310), so the base config emits declarations only, into that
   gitignored cache. Nothing emitted is ever committed.
 - **The isolated linker** (`linker = "isolated"`) links each workspace only to the packages it
-  declares. An undeclared import fails at runtime and in `bun check` with TS2307. References alone
-  do not stop it.
+  declares. An undeclared import fails at runtime and in `make typecheck` with TS2307. References
+  alone do not stop it.
 
 ## Git hooks and CI
 
@@ -176,7 +180,7 @@ patches the `tsc` binary with the Effect language service (`tsc --version` repor
 
 | Hook | Runs | Why there |
 |---|---|---|
-| `pre-commit` | `bun check`, then `bunx biome check --staged --no-errors-on-unmatched` | fast checks; only staged files are linted, and nothing is rewritten |
+| `pre-commit` | `make typecheck`, then `bunx biome check --staged --no-errors-on-unmatched` | fast checks; only staged files are linted, and nothing is rewritten |
 | `pre-push` | `make test` | tests are slower, so they run once per push |
 
 Never skip a hook with `--no-verify`. CI runs the same checks, so a skipped hook fails there.
@@ -185,7 +189,7 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 
 | Job | Runs |
 |---|---|
-| `static` | `bun install --frozen-lockfile`, `biome ci`, `bun check` |
+| `static` | `bun install --frozen-lockfile`, `biome ci`, `tsc --version \| grep effect-tsgo`, `make typecheck` |
 | `test` | `bun install --frozen-lockfile`, `bun run test` |
 | `links` | `make ids`, then `lychee --offline` on `README.md`, `docs/**/*.md` and `.claude/**/*.md` |
 
@@ -196,13 +200,15 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `TS2307: Cannot find module '@oblik/<name>'` from `bun check`, or `Cannot find module` at runtime | the import is allowed, but the workspace is not declared in this workspace's `package.json` | add `"@oblik/<name>": "workspace:*"` and a `tsconfig.json` reference, then `bun install` |
+| `TS2307: Cannot find module '@oblik/<name>'` from `make typecheck`, or `Cannot find module` at runtime | the import is allowed, but the workspace is not declared in this workspace's `package.json` | add `"@oblik/<name>": "workspace:*"` and a `tsconfig.json` reference, then `bun install` |
 | `TS6059 … is not under 'rootDir'` and `TS6307 … is not listed within the file list of project` | a relative path reaches into another workspace that is not referenced | import it as `@oblik/<name>/…`; relative paths are banned anyway |
 | Biome `lint/style/noRestrictedImports`: `domain is the pure core…` or `… no upward imports` | the import goes up a layer or into a sibling app | move the shared code down a layer, or receive it as an argument; see [architecture.md](architecture.md#dependency-rules) |
 | Biome `noRestrictedImports`: `… never a relative path` | a `./` or `../` import inside a workspace | use `#<workspace>/<path>`, for example `#domain/shared/id` |
 | Biome `assist/source/organizeImports`: `Sort these imports.` | import groups out of order or without blank lines between them | `make fmt` |
-| a commit is rejected after `bun check` or Biome output | the `pre-commit` hook failed | fix the reported error, `git add`, and commit again |
+| a commit is rejected after `tsc` or Biome output | the `pre-commit` hook failed | fix the reported error, `git add`, and commit again |
 | a push is rejected after test output | the `pre-push` hook failed | fix the tests; never use `--no-verify` |
+| `<file>:<line> - error TS377001: … effect(floatingEffect)`, or another `effect(<rule>)` | the Effect language service flags a misuse; the name in parentheses is the rule | fix the code (here: yield or assign the Effect). A rule's severity is set in the plugin's `diagnosticSeverity` in `tsconfig.base.json` |
+| CI `Assert the patched tsc` fails: `grep` finds no `effect-tsgo` | `tsc` is the stock build, because `bun install` ran without the `prepare` script; it reports no Effect diagnostics | run `bun install`, so `prepare` runs `effect-tsgo patch`; `bunx tsc --version` then reports `+effect-tsgo` |
 | CI `Install`: `lockfile had changes, but lockfile is frozen` | `package.json` or a catalog changed without `bun install` | run `bun install` locally and commit `bun.lock` |
 | an app exits at startup with `ConfigError: Invalid environment` | `.env` is missing or a variable is invalid; Bun ignores a missing `--env-file` without a warning | `make setup`, or fix the listed variables in `.env` |
 | `bun install` fails with a workspace path error | an explicit `workspaces` entry points to a folder that does not exist yet | create the folder first, then add the path |

@@ -6,11 +6,13 @@
 
 - **Branch and commits.** Work happens on `chore/effect-setup`, with one commit per step through
   `/ticket-implement`, made only after the user's OK. Before committing, set the step's `Status:`
-  to `done`. Commits follow `.claude/rules/commits.md`, with the scope `effect-setup`. The one
-  exception is the merge commit that `make vendor-effect` writes: scope `deps` and a subject only,
-  because the PR's squash merge drops branch messages.
+  to `done`. Commits follow `.claude/rules/commits.md`, with the scope `effect-setup`. Three
+  exceptions keep a message the format does not shape, because the PR's squash merge drops branch
+  messages: the squash commit that `git subtree` writes with its own text and trailers; S4's
+  one-time `git subtree add` merge (scope `effect-setup`, subject only); and every merge commit
+  that `make vendor-effect` writes (scope `deps`, subject only).
 - **Green at every commit.** Each step leaves `make check` green, because from S6 on `pre-commit`
-  runs `bun check` and `tsc -b`, and `--no-verify` is banned. The layer gates of R2 fall on S7,
+  runs the patched `tsc -b`, and `--no-verify` is banned. The layer gates of R2 fall on S7,
   S19 and S22.
 - **Size.** A step changes ≤ ~400 lines, counted as R3 says: without `repos/`, `bun.lock` and the
   generated `openapi.json`, and S1, which holds only the ticket's documents, is exempt. A step that
@@ -57,7 +59,7 @@
   - the `effect`, `typescript` and `tools` catalogs pinned exactly (R4);
   - `@effect/tsgo` scaffolded by `effect-tsgo setup` and then trimmed (R6);
   - the plugin in `tsconfig.base.json`, and `prepare` = `husky && effect-tsgo patch` (R7);
-  - `bun check` unchanged (R9).
+  - `bun check` unchanged (R9 as first written; S6 later made the patched `tsc -b` the only gate).
 - **Blocked by:** S1.
 - **Files:**
   - root `package.json`: `catalogs.effect`; `catalogs.typescript` (`typescript` moves out of
@@ -153,7 +155,20 @@
   - `repos/effect/LLMS.md` exists;
   - `make check`;
   - `.git/shallow` is absent.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Vendored as `9bedf0df8` (squash, `git-subtree-split: 7f524e25c`) and `f9c364e75` (merge):
+    2789 files, ~1.06M lines, a 53 MB tree on disk, of which 580 are `*.test.ts`. The split
+    equals the `effect@4.0.5` tag commit.
+  - The precondition was re-run before the add: a failing `repos/x/probe.test.ts` left
+    `make test` green; the probe was removed first.
+  - `make vendor-effect` right after: `Subtree is already at commit 7f524e2…`, no new commit.
+  - `repos/effect/packages/effect/package.json` is `4.0.5`, equal to the pin; `LLMS.md` exists;
+    `.git/shallow` is absent.
+  - The gates did not slow down: Biome still checks 88 files, `bun check` 53 files in 14 projects,
+    vitest still runs 5 test files, and `make check` takes ~0.5 s, as before the add.
+  - `Status: done` and these findings landed in S6's commit, as this step's entry says, because
+    `git subtree` commits by itself.
 
 #### S5 — vitest 5 on Bun replaces `bun:test`
 
@@ -200,20 +215,58 @@
 
 #### S6 — The patched `tsc -b` gate
 
-- **Goal:** `make check`, `pre-commit` and CI fail on Effect diagnostics, with `bun check` kept
-  beside `tsc -b` (R8, R9, R16, D8).
+- **Goal:** `make check`, `pre-commit` and CI typecheck with the patched `tsc -b` alone and fail on
+  Effect diagnostics; `bun check` leaves every gate (R8, R9, R16, D8).
 - **Blocked by:** S2, S4.
 - **Files:**
-  - `Makefile` (`typecheck` = `bun check && tsc -b`);
-  - `.husky/pre-commit` (adds `tsc -b`);
-  - `ci.yml` (`static` adds `tsc --version | grep effect-tsgo` and `tsc -b`);
-  - the false lines in `.claude/rules/tooling.md` and `docs/knowledge/tooling.md`.
-- **Test first:** config only. The floating-Effect probe needs Effect code and runs in S8.
+  - `Makefile` (`typecheck` = `bunx tsc -b`);
+  - `.husky/pre-commit` (`make typecheck`, then the staged Biome check);
+  - `ci.yml` (`static`: `tsc --version | grep effect-tsgo`, then `make typecheck`, no `bun check`);
+  - the lines that name `bun check` as a gate: `.claude/rules/tooling.md`,
+    `docs/knowledge/{tooling,architecture}.md`, the PR template and example,
+    `.claude/agents/reviewer.md`, a comment in `apps/api/src/http.test.ts`.
+- **Test first:** config only; the red check is a floating stand-in Effect, and S8 repeats it on a
+  real `Effect.log`.
 - **Verify:**
   - `make check`;
   - **V2:** `tsc -b` walks the references, and `git status` shows no emitted file;
-  - `tsc -b --verbose` lists no project under `repos/` (R11).
-- **Status:** todo
+  - `tsc -b --verbose` lists no project under `repos/` (R11);
+  - a floating Effect fails `make typecheck`, `pre-commit` and the CI commands, also at `warning`
+    severity.
+- **Status:** done
+- **Findings:**
+  - **One gate, on review.** The first version ran `bun check && tsc -b`. The patched `tsc` is
+    TS 7 over the same references, so it reports every type error `bun check` does, and no probe
+    found an error that only `bun check` catches; `bun check` passes a floating Effect, because it
+    ignores tsconfig plugins. The user approved dropping it: R9 is rewritten (`tsc -b` only, and
+    `bun check` is not a gate), R11 and R16 no longer name it, and D8, the Configuration lines,
+    the Structure tree and the risk row follow.
+  - Every surface calls `bunx tsc` through `make typecheck`: `make` does not put
+    `node_modules/.bin` on `PATH`, `bunx` resolves the local, patched binary
+    (`7.0.2+effect-tsgo.0.53.2`), and the root `package.json` may hold no `typecheck` script.
+  - **Red before S8.** A structural stand-in for an Effect value (an interface with the
+    `'~effect/Effect'` variance struct of `repos/effect/packages/effect/src/Effect.ts`), floating
+    in a scratch `domain/zz-probe.ts`, passes `bun check` and fails `make typecheck`,
+    `.husky/pre-commit` and the CI commands with
+    `TS377001 … neither yielded nor used in an assignment. effect(floatingEffect)`. Lowered to
+    `warning` in `diagnosticSeverity`, it still fails `tsc -b` (exit 2); set to `off`, it passes.
+    The same file under `repos/x/` leaves `make typecheck` green. Every probe was removed.
+  - The guard table of `docs/knowledge/architecture.md` holds under `tsc -b`: an undeclared
+    workspace import gives TS2307, a relative path into an unreferenced workspace TS6059/TS6307,
+    and a workspace importing itself by name still passes (a known gap).
+  - **A missing project reference is caught by no gate.** With `application`'s reference to
+    `domain` removed, both `bun check` and `tsc -b` stay green: TS 7 resolves the workspace through
+    its package symlink and checks its sources. `docs/knowledge/tooling.md` said `tsc -b` needs
+    the reference, and now says so honestly.
+  - **V2:** after `tsc -b --clean`, `tsc -b --verbose` builds the 14 referenced projects and
+    nothing under `repos/`; a warm run takes ~0.2 s. Emits land only in the gitignored
+    `node_modules/.cache/tsc/<workspace>`, and `git status` shows no new file. One exception: on
+    TS6059 (a relative import of another workspace's file), `tsc -b` still emits, and writes that
+    file's `.d.ts` next to its source. Biome then fails on the stray file; delete it. Biome bans
+    the relative path in the first place.
+  - Outside the first file list: the PR template and example self-check line, the reviewer agent's
+    list of enforced gates, and a test comment, which named `bun check` as the gate. New
+    troubleshooting rows cover a failed patched-`tsc` assertion and an `effect(<rule>)` diagnostic.
 
 #### S7 — Biome bans for Effect
 
@@ -260,6 +313,8 @@
   - `make check`;
   - **R8 probe:** a bare `Effect.log('x')` statement in `queue.ts` fails `make typecheck`
     (`tsc -b`) while `bun check` passes. Then revert it;
+  - **R16:** a real `git commit` of that floating `Effect.log` is rejected by `pre-commit`. Then
+    remove it;
   - **R13 with `it.effect`:** a deliberately failing `it.effect` makes `make test` exit non-zero.
     Then remove it.
 - **Status:** todo
@@ -583,14 +638,14 @@
 | R6 | S2 | R26 | S14, S17 |
 | R7 | S2 | R27 | S13, S18 |
 | R8 | S6, S8 (probe) | R28 | S8, S13 |
-| R9 | S2, S6 | R29 | S8, S13, S18 |
+| R9 | S6 | R29 | S8, S13, S18 |
 | R10 | S3, S4, S23 | R29a | S9, S12 |
 | R11 | S3, S5, S6, S7 | R30 | S15 |
 | R12 | S5 | R31 | S17 |
 | R13 | S5 | R32 | S15 |
 | R14 | S5, S8, S9, S11, S13–S17 | R33 | S7, S16 |
 | R15 | S9 | R34 | S19 |
-| R16 | S5, S6 | R35 | S17, S18 |
+| R16 | S5, S6, S8 | R35 | S17, S18 |
 | R17 | S7, S11 | R36 | S17, S18 |
 | R18 | S11 | R37, R37a, R37b | S20 |
 | R19 | S11, S14 | R38 | S20, S22 |

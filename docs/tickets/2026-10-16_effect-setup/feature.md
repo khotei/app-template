@@ -114,7 +114,8 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
 - **R8** — WHEN `make check`, the `pre-commit` hook or CI runs, THE SYSTEM SHALL run the patched
   `tsc -b` over the project references and fail on any Effect error or warning, such as an Effect
   value that is neither yielded nor assigned (architecture D8).
-- **R9** — `bun check` SHALL remain the typecheck gate; R8 adds to it and does not replace it.
+- **R9** — WHEN `make typecheck`, `pre-commit` or CI typechecks, THE SYSTEM SHALL use the patched
+  `tsc -b` only; `bun check` is not a gate, because it ignores tsconfig plugins.
 
 ### Vendored Effect source
 
@@ -126,7 +127,7 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
   `git-subtree-dir:` and `git-subtree-split:` trailers outside its HTML comment, because a squash
   merge drops the subtree's commit metadata and a later `make vendor-effect`
   (`git subtree pull --squash`) on `main` needs them.
-- **R11** — `repos/` SHALL be excluded from Biome, vitest, `bun check`, the patched `tsc -b`, lychee and
+- **R11** — `repos/` SHALL be excluded from Biome, vitest, the patched `tsc -b`, lychee and
   `make ids`, and no workspace glob SHALL match it. WHEN code imports from `repos/`, `biome check`
   SHALL fail.
 
@@ -139,8 +140,8 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
   provided as layers and time controlled by `TestClock`. `bun:test` SHALL NOT be imported anywhere.
 - **R15** — Tests SHALL NOT depend on a root `.env`: config comes from a replacement
   `ConfigProvider`.
-- **R16** — `pre-commit` SHALL run `bun check`, the patched `tsc -b` and `biome check --staged`;
-  `pre-push` SHALL run `make test`. CI SHALL run the same gates.
+- **R16** — `pre-commit` SHALL run the patched `tsc -b` (through `make typecheck`) and
+  `biome check --staged`; `pre-push` SHALL run `make test`. CI SHALL run the same gates.
 
 ### Domain and errors
 
@@ -293,7 +294,7 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
 | R1–R3 | `git log main..chore/effect-setup` shows `feature.md`, then one commit per step (two for vendoring), the docs first; `make check` passes at the last commit of each layer; `git diff --stat` per step, without `repos/`, `bun.lock` and `openapi.json`, stays near 400 lines, except the docs step. |
 | R4, R6 | The catalogs match the registry `latest`; no `^`/`~`; every Effect package is `catalog:effect`. |
 | R5 | `import { HttpApi } from '@effect/platform'` in any workspace fails `make lint` with the replacement named. |
-| R7–R9 | After `bun install`, `tsc --version` reports `+effect-tsgo`. A bare `Effect.log('x')` statement fails `make check`, `pre-commit` and CI while `bun check` alone passes. |
+| R7–R9 | After `bun install`, `tsc --version` reports `+effect-tsgo`. A bare `Effect.log('x')` statement, which `bun check` passes, fails `make check`, `pre-commit` and CI; so does a probe with the rule lowered to `warning`. No gate runs `bun check`. |
 | R10–R11 | `repos/effect/packages/effect/package.json` version equals the pinned one, and a PR that bumps the `effect` catalog also holds the vendoring commits. `make check` ignores `repos/`. `import … from '../../repos/effect/…'` fails `make lint`. |
 | R12–R15 | `mv .env .env.bak && make test` passes. A failing test in each workspace makes `make test` exit non-zero (checked from S8 with `it.effect`). `git grep "from 'bun:test'" -- ':!docs/tickets'` finds nothing. |
 | R16 | A commit with a floating Effect is rejected; a push with a failing test is rejected. |
@@ -301,7 +302,7 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
 | R20–R22 | Removing `API_PORT` and `QUEUE_SQLITE_PATH` gives one startup error naming both. `.env.example` lists every variable read. |
 | R23–R25 | `example-summary.job.ts` exports `ExampleSummaryJob` with `enqueue` and `ExampleSummaryJob.worker`; `apps/worker/src` holds no job logic and no `handlers/` folder. Swapping the in-memory and SQLite queue layers changes only `apps/*/src/layer.ts`. |
 | R26–R29 | With the worker stopped, three `POST /examples` queue three jobs; starting the worker logs three job results. A job made to fail is retried per the schedule (tested with `TestClock`) and then dead-lettered. SIGTERM during a job leaves it for the next worker at the same attempt. |
-| R30–R33 | `packages/api-contract` imports only `effect`. Editing an endpoint without regenerating fails `make check`; `openapi.json` documents the 400. Through `@oblik/api-client`, an unknown id resolves to `{ ok: false, error: { _tag: <contract 404> } }`, a bad body to the 400's tag, a stopped server to the transport tag, and no call rejects. A `switch` over `error._tag` missing a case fails `bun check`. `import 'effect'` in `apps/web/src/features/` fails `make lint`. |
+| R30–R33 | `packages/api-contract` imports only `effect`. Editing an endpoint without regenerating fails `make check`; `openapi.json` documents the 400. Through `@oblik/api-client`, an unknown id resolves to `{ ok: false, error: { _tag: <contract 404> } }`, a bad body to the 400's tag, a stopped server to the transport tag, and no call rejects. A `switch` over `error._tag` missing a case fails `make typecheck`. `import 'effect'` in `apps/web/src/features/` fails `make lint`. |
 | R34–R36 | `make dev-web` keeps HMR. `make dev-api`: a forked ticker logs once per second; edit a handler, `curl` again: the response changed, one listening socket, the ticker still logs once per second. `make dev-worker`: edit a file, one consumer runs. SIGTERM logs finalizers. |
 | R37a | `effect.md` lists the four-step order and the layer limits; a code search finds no `Bun.*` or `node:` call where an `effect` module in use covers the same need (e.g. `Bun.file` beside `FileSystem`, `console.log` beside `Effect.log`). |
 | R37b | `effect.md` states the rule. `git grep -n "new Date\|Date.now"` outside `apps/web` finds nothing. Review of the slice finds no native array, object, string or date method and no hand-written helper where an `effect` module covers it. |
@@ -316,6 +317,7 @@ None. Settled by grilling and experiments on 2026-10-16.
 - **V1** — Moot: `make vendor-effect` runs `git subtree pull`, which makes no shallow fetch, so
   `.git/shallow` never appears (settled in S3).
 - **V2** — The patched `tsc -b` on the project references setup (only plain `tsc` 7.0.2 was run
-  on the probes).
+  on the probes). Settled in S6: it builds the 14 referenced projects, none under `repos/`, and
+  emits only into the gitignored cache.
 - **V3** — vitest 5 picks the `minimal` reporter when it detects an agent (`CLAUDECODE`); whether
   `make test` should force `--reporter=default`. Settled in S5: no forced reporter.

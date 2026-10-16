@@ -53,7 +53,7 @@ describe('api routes', () => {
   })
 
   test('every example error tag needs an HTTP status', () => {
-    // @ts-expect-error ExampleNameInvalidError has no status, so bun check fails
+    // @ts-expect-error ExampleNameInvalidError has no status
     const incomplete: StatusByTag = { ExampleNotFoundError: 404 }
 
     expect(Object.keys(incomplete)).toEqual(['ExampleNotFoundError'])

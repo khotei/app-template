@@ -23,7 +23,7 @@ it to see the shape end-to-end. Source of truth for the format stays
 
   Author self-check:
   [x] Title is a commits.md subject line
-  [x] `make check` passes (Biome + bun check + vitest)
+  [x] `make check` passes (Biome + tsc -b + vitest)
   [x] Imports only go down; domain imports no workspace; web client sees api-client, ui
   [x] #<workspace>/… imports inside workspaces, no relative paths
   [x] Every dependency pinned in catalogs.tools or catalogs.runtime
