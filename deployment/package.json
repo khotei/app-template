@@ -1,0 +1,8 @@
+{
+  "name": "@oblik/deployment",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#deployment/*": "./*.ts"
+  }
+}

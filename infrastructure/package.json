@@ -1,0 +1,17 @@
+{
+  "name": "@oblik/infrastructure",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./shared": "./shared/index.ts",
+    "./example": "./example/index.ts"
+  },
+  "imports": {
+    "#infrastructure/*": "./*.ts"
+  },
+  "dependencies": {
+    "@oblik/domain": "workspace:*",
+    "@oblik/llm": "workspace:*",
+    "@oblik/storage": "workspace:*"
+  }
+}

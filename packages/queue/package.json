@@ -1,0 +1,11 @@
+{
+  "name": "@oblik/queue",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./client.ts"
+  },
+  "imports": {
+    "#queue/*": "./*.ts"
+  }
+}

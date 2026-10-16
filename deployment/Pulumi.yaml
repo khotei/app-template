@@ -1,0 +1,8 @@
+# Stub: no @pulumi/* dependencies are installed yet. The AWS deploy ticket fills this in.
+name: oblik
+description: Oblik+ infrastructure on AWS
+runtime:
+  name: nodejs
+  options:
+    packagemanager: bun
+main: aws/index.ts

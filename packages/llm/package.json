@@ -1,0 +1,11 @@
+{
+  "name": "@oblik/llm",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./client.ts"
+  },
+  "imports": {
+    "#llm/*": "./*.ts"
+  }
+}

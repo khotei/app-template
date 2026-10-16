@@ -1,0 +1,12 @@
+{
+  "name": "@oblik/domain",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./shared": "./shared/index.ts",
+    "./example": "./example/index.ts"
+  },
+  "imports": {
+    "#domain/*": "./*.ts"
+  }
+}

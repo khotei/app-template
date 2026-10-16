@@ -1,0 +1,19 @@
+{
+  "name": "@oblik/web",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#web/index.html": "./src/index.html",
+    "#web/*": "./src/*.ts"
+  },
+  "scripts": {
+    "dev": "bun --env-file=../../.env --hot src/main.ts",
+    "debug": "bun --env-file=../../.env --inspect --hot src/main.ts",
+    "start": "bun --env-file=../../.env src/main.ts"
+  },
+  "dependencies": {
+    "@oblik/api-client": "workspace:*",
+    "@oblik/config": "workspace:*",
+    "@oblik/ui": "workspace:*"
+  }
+}

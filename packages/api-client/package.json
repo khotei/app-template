@@ -1,0 +1,11 @@
+{
+  "name": "@oblik/api-client",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "imports": {
+    "#api-client/*": "./*.ts"
+  }
+}

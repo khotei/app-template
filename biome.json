@@ -1,0 +1,364 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true,
+    "defaultBranch": "main"
+  },
+  "files": {
+    "ignoreUnknown": true,
+    "includes": ["**", "!bun.lock"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "semicolons": "asNeeded"
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "style": {
+        "noCommonJs": "error",
+        "useImportType": "error",
+        "noRestrictedImports": {
+          "level": "error",
+          "options": {
+            "patterns": [
+              {
+                "group": ["./**", "../**"],
+                "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+              }
+            ]
+          }
+        }
+      },
+      "suspicious": {
+        "noExplicitAny": "error"
+      }
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": {
+          "level": "on",
+          "options": {
+            "groups": [
+              [":BUN:", ":NODE:"],
+              ":BLANK_LINE:",
+              [":PACKAGE:", ":PACKAGE_WITH_PROTOCOL:", ":URL:", "!@oblik/**"],
+              ":BLANK_LINE:",
+              "@oblik/**",
+              ":BLANK_LINE:",
+              ":ALIAS:"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["domain/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@oblik/**"],
+                    "message": "domain is the pure core: it imports no workspace, not even packages/*"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["infrastructure/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@oblik/application",
+                      "@oblik/application/**",
+                      "@oblik/api",
+                      "@oblik/api/**",
+                      "@oblik/worker",
+                      "@oblik/worker/**",
+                      "@oblik/web",
+                      "@oblik/web/**",
+                      "@oblik/deployment",
+                      "@oblik/deployment/**"
+                    ],
+                    "message": "infrastructure may import only domain and packages/*: no upward imports"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["application/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@oblik/api",
+                      "@oblik/api/**",
+                      "@oblik/worker",
+                      "@oblik/worker/**",
+                      "@oblik/web",
+                      "@oblik/web/**",
+                      "@oblik/deployment",
+                      "@oblik/deployment/**"
+                    ],
+                    "message": "application may import infrastructure, domain and packages/*: no upward imports"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@oblik/domain",
+                      "@oblik/domain/**",
+                      "@oblik/infrastructure",
+                      "@oblik/infrastructure/**",
+                      "@oblik/application",
+                      "@oblik/application/**",
+                      "@oblik/api",
+                      "@oblik/api/**",
+                      "@oblik/worker",
+                      "@oblik/worker/**",
+                      "@oblik/web",
+                      "@oblik/web/**",
+                      "@oblik/deployment",
+                      "@oblik/deployment/**"
+                    ],
+                    "message": "packages/* are generic: they may import each other, but never a layer or an app"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/api/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@oblik/worker",
+                      "@oblik/worker/**",
+                      "@oblik/web",
+                      "@oblik/web/**",
+                      "@oblik/deployment",
+                      "@oblik/deployment/**"
+                    ],
+                    "message": "apps are independent: api must not import another app"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/worker/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@oblik/api",
+                      "@oblik/api/**",
+                      "@oblik/web",
+                      "@oblik/web/**",
+                      "@oblik/deployment",
+                      "@oblik/deployment/**"
+                    ],
+                    "message": "apps are independent: worker must not import another app"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@oblik/**",
+                      "!@oblik/api-client",
+                      "!@oblik/api-client/**",
+                      "!@oblik/ui",
+                      "!@oblik/ui/**"
+                    ],
+                    "message": "web client code may import only @oblik/api-client and @oblik/ui: it ships to the browser"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/src/main.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@oblik/**",
+                      "!@oblik/api-client",
+                      "!@oblik/api-client/**",
+                      "!@oblik/ui",
+                      "!@oblik/ui/**",
+                      "!@oblik/config",
+                      "!@oblik/config/**"
+                    ],
+                    "message": "the web server entry may additionally import @oblik/config"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["deployment/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@oblik/domain",
+                      "@oblik/domain/**",
+                      "@oblik/infrastructure",
+                      "@oblik/infrastructure/**",
+                      "@oblik/application",
+                      "@oblik/application/**",
+                      "@oblik/api",
+                      "@oblik/api/**",
+                      "@oblik/worker",
+                      "@oblik/worker/**",
+                      "@oblik/web",
+                      "@oblik/web/**"
+                    ],
+                    "message": "deployment may import only packages/*"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "name": "@oblik/db",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./client.ts"
+  },
+  "imports": {
+    "#db/*": "./*.ts"
+  }
+}
