@@ -565,7 +565,8 @@
 - **Files:** `application/example/example.service.test.ts`.
 - **Test first:** the service tests stay green with `mock()` fakes in place of the Map repository.
 - **Verify:** `make check` green.
-- **Status:** todo
+- **Status:** done
+- **Findings:** the Map repository re-implemented the infrastructure adapter; the `mock()` fakes assert the calls instead, so the save test now checks `upsert` directly (a no-op `save` fails it, where the old round trip needed `get` to notice). 22 tests, up from 21: the round trip became separate save and get tests.
 
 ## Requirement coverage
 

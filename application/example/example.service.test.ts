@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, mock, test } from 'bun:test'
 
 import {
   buildExample,
@@ -10,26 +10,34 @@ import {
 
 import { createExampleService } from '#application/example/example.service'
 
-const createMapRepository = (): ExampleRepository => {
-  const examples = new Map<ExampleId, Example>()
-  return {
-    upsert: async (example) => void examples.set(example.id, example),
-    selectById: async (id) => examples.get(id),
-  }
+const example = buildExample('First', new Date('2026-10-15T00:00:00.000Z'))
+
+const setup = (stored?: Example) => {
+  const repository = {
+    upsert: mock(async (_example: Example) => {}),
+    selectById: mock(async (_id: ExampleId) => stored),
+  } satisfies ExampleRepository
+  return { repository, service: createExampleService({ repository }) }
 }
 
 describe('createExampleService', () => {
-  test('returns a saved example by id', async () => {
-    const service = createExampleService({ repository: createMapRepository() })
-    const example = buildExample('First', new Date())
+  test('saves an example through the repository', async () => {
+    const { repository, service } = setup()
 
     await service.save(example)
 
+    expect(repository.upsert).toHaveBeenCalledWith(example)
+  })
+
+  test('returns the stored example by id', async () => {
+    const { repository, service } = setup(example)
+
     expect(await service.get(example.id)).toBe(example)
+    expect(repository.selectById).toHaveBeenCalledWith(example.id)
   })
 
   test('throws ExampleNotFoundError for an unknown id', async () => {
-    const service = createExampleService({ repository: createMapRepository() })
+    const { service } = setup()
 
     await expect(service.get('missing' as ExampleId)).rejects.toThrow(ExampleNotFoundError)
   })
