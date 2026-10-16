@@ -3,13 +3,6 @@ name: ticket-implement
 description: "SDD 4/5: implement one plan.md step, review it, and commit only after approval"
 argument-hint: "<ticket folder> [step id, default: next todo]"
 disable-model-invocation: true
-metadata:
-  delegates: "mattpocock-skills:code-review"
-  spawns: "implementer, reviewer"
-  hooks: ".claude/hooks/make-check.sh (through implementer)"
-  overrides: "code-review reviews the uncommitted step with reviewer agents; replaces implement, which commits on its own"
-  reads: "docs/tickets/<ticket>/plan.md, docs/tickets/<ticket>/feature.md, .claude/rules/"
-  writes: "docs/tickets/<ticket>/plan.md, docs/tickets/<ticket>/architecture.md, one commit per approved step"
 ---
 
 Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. Gates:

@@ -4,13 +4,6 @@ description: >-
   Read-only reviewer for one axis (Standards or Spec) of a code-review. Spawned as the axis
   sub-agent of mattpocock-skills:code-review by /ticket-implement and /ticket-verify. Never edits.
 disallowedTools: Edit, Write, NotebookEdit, Agent
-metadata:
-  delegates: "mattpocock-skills:code-review (its axis brief and smell baseline arrive in the prompt)"
-  spawns: "none"
-  hooks: "none"
-  overrides: "reviews the diff it is given, which for a step is the uncommitted working tree"
-  reads: "the diff, the spec and the standards files named in the prompt"
-  writes: "nothing"
 ---
 
 You are **reviewer**, one axis of a `code-review`. You start in a fresh context on purpose: you

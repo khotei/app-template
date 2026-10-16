@@ -3,13 +3,6 @@ name: ticket-architecture
 description: "SDD 2/5: design a ticket into architecture.md with Seams and Decisions"
 argument-hint: "<ticket folder>"
 disable-model-invocation: true
-metadata:
-  delegates: "mattpocock-skills:codebase-design, mattpocock-skills:grilling"
-  spawns: "researcher"
-  hooks: "none"
-  overrides: "decisions go to architecture.md › Decisions instead of docs/adr/"
-  reads: "docs/tickets/<ticket>/feature.md, docs/knowledge/, CLAUDE.md files, docs/tickets/_template/architecture.md"
-  writes: "docs/tickets/<ticket>/architecture.md"
 ---
 
 Design the ticket at `$ARGUMENTS` into its `architecture.md`: where the change lives, the Seams

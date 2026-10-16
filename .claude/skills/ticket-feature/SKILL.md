@@ -3,13 +3,6 @@ name: ticket-feature
 description: "SDD 1/5: grill an idea into docs/tickets/<date>_<slug>/feature.md"
 argument-hint: "<slug> [idea, notes or link]"
 disable-model-invocation: true
-metadata:
-  delegates: "mattpocock-skills:grilling, mattpocock-skills:domain-modeling"
-  spawns: "researcher"
-  hooks: "none"
-  overrides: "domain-modeling writes the glossary to docs/knowledge/glossary.md and sends ADR candidates to the ticket"
-  reads: "docs/knowledge/, docs/tickets/_template/feature.md"
-  writes: "docs/tickets/<ticket>/feature.md, docs/knowledge/glossary.md"
 ---
 
 Turn `$ARGUMENTS` into the ticket's `feature.md`: what changes and why, as EARS requirements the

@@ -42,8 +42,9 @@ Every change of substance runs **feature → architecture → plan → implement
   `.claude/commands/`.
 - The plugin `mattpocock-skills` is referenced by name (`mattpocock-skills:<skill>`), never copied
   or edited. A wrapper overrides only paths and gates.
-- Each skill and agent declares what it uses in its frontmatter `metadata` (`delegates`, `spawns`,
-  `hooks`, `overrides`, `reads`, `writes`). Keep it true when the file changes.
+- **The dependency map in `docs/knowledge/sdd.md` is the only summary** of what each skill and
+  agent uses (plugin skills, agents, hooks, overrides). A commit that changes what a skill or agent
+  uses updates the map in the same commit.
 - Tool limits live on the agent (`disallowedTools`). `researcher`, `reviewer` and `verifier`
   cannot edit or spawn agents, so the skill persists their output.
 - Subagents cannot ask the user anything, so grilling, plan review and commit approval run in the

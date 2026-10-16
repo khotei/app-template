@@ -390,7 +390,7 @@
   - The read-only agents also deny `Agent`. Otherwise they could spawn a subagent that edits.
   - `researcher` does not preload the plugin's `research`. That skill spawns a background agent and writes a notes file into the repo, which clashes with a read-only fact finder. The primary-source order is kept in the agent itself.
   - The plugin's `retro` (new in 1.3.1) covers what Lessons does, but it sets `disable-model-invocation`, so `/ticket-verify` cannot call it. S18b mentions it as a user-run option.
-  - `metadata` values are strings, as the Agent Skills spec requires. Agent files accept the unknown `metadata` key silently. The S18b test parses both kinds of file.
+  - `metadata` blocks were added to every skill and agent here; S18b removed them again (Q69, D36).
   - **For S17:** the live `/ticket-feature` test runs before `docs/tickets/_template/` exists (S18b). The skills name the template paths, so the test should either note the missing template or create a minimal one in the scratch clone.
 
 #### S17 — Plugin wiring and SDD rule
@@ -420,20 +420,23 @@
 
 - **Goal:**
   - `docs/knowledge/sdd.md` written from the built and tested flow (R36, D37);
-  - the dependency map: a table and a diagram rendered from the skill and agent `metadata`, kept equal by a test (R36a, D36);
+  - the dependency map: a hand-written table and diagram, the only summary of what each skill and agent uses (R36a, D36);
   - ticket templates with Seams, `Blocked by` and Lessons (R33–R35).
 - **Blocked by:** S16, S17.
 - **Files:**
   - `docs/knowledge/sdd.md`: when to run the full cycle and when a short one is enough; the five `/ticket-*` skills (input → what the user decides → output); the dependency map; what is overridden in the plugin and why; the approval gate and the reviewer; plugin updates and what to re-check afterwards; Lessons;
   - `docs/tickets/_template/{feature,architecture,plan,verification}.md`;
-  - the consistency test for the dependency map. Its location (a small `tools` workspace or `deployment`-like leaf) is decided in this step, so that `bun check` and `bun test` cover it;
   - root `CLAUDE.md` and README link to `sdd.md`.
 - **Verify:**
-  - the test fails after a deliberate `metadata` edit and passes after the table is updated;
+  - every plugin skill, agent and hook named in `.claude/skills/` and `.claude/agents/` appears in the map;
   - a relative-link scan of `README.md`, `docs/`, `.claude/` and every `CLAUDE.md` finds nothing broken;
   - `make check` is green.
 - **Layer gate:** `git branch template/claude`.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - **Q69, the generated map dropped.** The first version added `metadata` blocks to every skill and agent, a `checks/` workspace (`sdd-map.ts` and a test) and `make sdd-map`. That version worked: a deliberate `metadata` edit failed `bun test` with a diff. The user then chose to remove it. The test only guarded `metadata` against the map, not the file bodies that run, and it cost a workspace and a third copy of each fact. The map is now hand-written, `.claude/rules/sdd.md` requires updating it, and the Standards review checks that rule. R36a and D36 were rewritten, and D38 was dropped.
+  - The map drops the *Overrides* column: the next table in `sdd.md`, *What the wrappers override, and why*, already owns those facts.
+  - The templates name `docs/knowledge/glossary.md` as text, not as a link: it is created lazily, and a link to it would fail the link check.
 
 ### Wrap-up
 

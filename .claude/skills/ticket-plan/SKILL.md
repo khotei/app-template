@@ -3,13 +3,6 @@ name: ticket-plan
 description: "SDD 3/5: turn feature.md and architecture.md into a reviewed plan.md"
 argument-hint: "<ticket folder>"
 disable-model-invocation: true
-metadata:
-  delegates: "none"
-  spawns: "none"
-  hooks: "none"
-  overrides: "replaces to-tickets, which writes to .scratch/ or an issue tracker"
-  reads: "docs/tickets/<ticket>/feature.md, docs/tickets/<ticket>/architecture.md, docs/tickets/_template/plan.md"
-  writes: "docs/tickets/<ticket>/plan.md"
 ---
 
 Write the implementation plan for the ticket at `$ARGUMENTS`. **This is the heavy review**: later

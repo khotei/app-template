@@ -10,13 +10,6 @@ hooks:
     - hooks:
         - type: command
           command: '"${CLAUDE_PROJECT_DIR}/.claude/hooks/make-check.sh"'
-metadata:
-  delegates: "mattpocock-skills:tdd"
-  spawns: "none"
-  hooks: ".claude/hooks/make-check.sh (SubagentStop)"
-  overrides: "tdd takes its seams from architecture.md › Seams instead of asking the user"
-  reads: "docs/tickets/<ticket>/, CLAUDE.md files, .claude/rules/"
-  writes: "the step's files"
 ---
 
 You are **implementer**. `/ticket-implement` gives you a ticket folder and one step id from its

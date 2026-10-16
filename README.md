@@ -26,7 +26,7 @@ make dev     # api, worker and web together
 |---|---|
 | How do I run, debug, test, add a dependency or a workspace? Why did a check fail? | [docs/knowledge/tooling.md](docs/knowledge/tooling.md) |
 | Which layer does my code belong to, and what may it import? How do I add an entity? | [docs/knowledge/architecture.md](docs/knowledge/architecture.md) |
-| How is a change specified, planned, implemented and verified? | [.claude/rules/sdd.md](.claude/rules/sdd.md) |
+| How is a change specified, planned, implemented and verified? What do the `/ticket-*` skills use under the hood? | [docs/knowledge/sdd.md](docs/knowledge/sdd.md) |
 | What are the rules for one layer? | its `CLAUDE.md`, listed in [CLAUDE.md](CLAUDE.md) |
 | How are commits and pull requests written? | [.claude/rules/commits.md](.claude/rules/commits.md), [.claude/rules/pull-requests.md](.claude/rules/pull-requests.md) |
 | Why is the scaffold built this way? | [the ticket that built it](docs/tickets/2026-10-15_monorepo-setup/architecture.md#decisions) |

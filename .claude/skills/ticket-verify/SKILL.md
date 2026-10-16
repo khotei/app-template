@@ -3,13 +3,6 @@ name: ticket-verify
 description: "SDD 5/5: verify a whole ticket in a fresh context into verification.md with Lessons"
 argument-hint: "<ticket folder>"
 disable-model-invocation: true
-metadata:
-  delegates: "mattpocock-skills:code-review"
-  spawns: "verifier, reviewer"
-  hooks: "none"
-  overrides: "code-review takes the ticket folder as the spec and reviewer agents as its sub-agents"
-  reads: "docs/tickets/<ticket>/, git diff main...HEAD"
-  writes: "docs/tickets/<ticket>/verification.md"
 ---
 
 Verify the ticket at `$ARGUMENTS` before its PR: does the branch do what `feature.md` asks, and

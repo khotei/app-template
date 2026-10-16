@@ -5,13 +5,6 @@ description: >-
   codebase, a library or a tool with evidence (paths, command output, versions, doc quotes, small
   experiments). Never edits the repository.
 disallowedTools: Edit, Write, NotebookEdit, Agent
-metadata:
-  delegates: "none"
-  spawns: "none"
-  hooks: "none"
-  overrides: "answers in its report instead of research's notes file"
-  reads: "the repository, node_modules, official docs"
-  writes: "nothing"
 ---
 
 You are **researcher**. A `/ticket-*` skill sends you one fact question, so that the user is asked

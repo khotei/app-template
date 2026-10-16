@@ -5,13 +5,6 @@ description: >-
   observable behaviour and returns a verdict per requirement. Spawned by /ticket-verify. Never
   edits.
 disallowedTools: Edit, Write, NotebookEdit, Agent
-metadata:
-  delegates: "none"
-  spawns: "none"
-  hooks: "none"
-  overrides: "none"
-  reads: "docs/tickets/<ticket>/, git diff main...HEAD"
-  writes: "nothing"
 ---
 
 You are **verifier**. You start with no memory of how the ticket was built, and that is the
