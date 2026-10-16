@@ -3,7 +3,7 @@
 .DEFAULT_GOAL := help
 
 .PHONY: help setup dev dev-api dev-worker dev-web debug-api debug-worker debug-web \
-  check ids lint fmt typecheck test clean outdated
+  check ids lint fmt typecheck test clean outdated vendor-effect
 
 help: ## List all targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) \
@@ -38,7 +38,7 @@ check: ids lint typecheck test ## Run every gate: ticket ids, lint, typecheck an
 
 ids: ## Fail on ticket ids in parentheses (D12, R3, Q70) outside docs/tickets
 	@if git grep --untracked -nE '\((D|R|Q)[0-9]+[a-z]?\)' -- . ':!docs/tickets' \
-		':!.github/PULL_REQUEST_example.md'; then \
+		':!.github/PULL_REQUEST_example.md' ':!repos'; then \
 		echo 'Ticket ids belong in docs/tickets/ and commit messages, not in code, config or docs.'; \
 		exit 1; \
 	fi
@@ -61,3 +61,8 @@ clean: ## Remove installed dependencies, build caches and coverage
 
 outdated: ## List outdated dependencies in every workspace
 	bun outdated --recursive
+
+vendor-effect: EFFECT_TAG = effect@$(shell bun pm pkg get catalogs.effect.effect 2>/dev/null | tr -d '"')
+vendor-effect: ## Pull Effect-TS/effect at the catalog pin into repos/effect (commits)
+	git subtree pull --squash --prefix repos/effect https://github.com/Effect-TS/effect.git \
+		$(EFFECT_TAG) -m ':wrench: chore(deps): Vendor effect at $(EFFECT_TAG)'

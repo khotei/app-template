@@ -6,7 +6,9 @@
 
 - **Branch and commits.** Work happens on `chore/effect-setup`, with one commit per step through
   `/ticket-implement`, made only after the user's OK. Before committing, set the step's `Status:`
-  to `done`. Commits follow `.claude/rules/commits.md`, with the scope `effect-setup`.
+  to `done`. Commits follow `.claude/rules/commits.md`, with the scope `effect-setup`. The one
+  exception is the merge commit that `make vendor-effect` writes: scope `deps` and a subject only,
+  because the PR's squash merge drops branch messages.
 - **Green at every commit.** Each step leaves `make check` green, because from S6 on `pre-commit`
   runs `bun check` and `tsc -b`, and `--no-verify` is banned. The layer gates of R2 fall on S7,
   S19 and S22.
@@ -92,30 +94,61 @@
 - **Blocked by:** S1.
 - **Files:**
   - `biome.json` (`!repos`);
-  - `Makefile` (`vendor-effect`: a shallow fetch of the tag, then `git subtree add|merge --squash
-    --prefix repos/effect`; `ids` excludes `repos/`);
+  - `Makefile` (`vendor-effect`: one `git subtree pull --squash --prefix repos/effect` of the
+    pinned tag; `ids` excludes `repos/`);
   - `.github/workflows/ci.yml` (lychee excludes `repos/`).
 - **Test first:** config only.
 - **Verify:**
   - with a scratch `repos/x/bad.ts` (lint errors, a ticket id), `make check` stays green; remove it
     afterwards;
   - `make help` lists `vendor-effect`.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The probe was red on `ids` and `lint` before the change and green after.
+  - **Simplified on review.** A first version guarded the pin, shallow-fetched the tag, chose `add`
+    or `merge`, built a `commits.md` message from a `TICKET` variable, and in a fresh clone had to
+    fetch the previous split commit by SHA, because `git subtree merge` aborts without it
+    (`fatal: could not rev-parse split hash`). The target is now one `git subtree pull --squash` of
+    the tag. It fetches the tag's full history, which holds the previous split, into the local
+    `.git` only: just the squash commit is reachable, so nothing extra is pushed. The first
+    vendoring is a one-time `git subtree add` with the same arguments, in S4. Recorded in D13.
+  - The message is a subject only (`:wrench: chore(deps): Vendor effect at effect@<pin>`): branch
+    commits are squashed by the PR merge, and the squash commit keeps `git subtree`'s own text and
+    trailers.
+  - **R10 reworded** from "the same commit" to "the same PR": `git subtree` refuses any staged or
+    unstaged change, so a catalog bump and its vendoring are two branch commits. Updated:
+    `feature.md` R10, `architecture.md` D13 and its risk row, and
+    `docs/knowledge/tooling.md › Upgrade versions`, which also says to copy the subtree trailers
+    into the PR body.
+  - Checked on a local fixture upstream with tags `effect@4.0.5`–`4.0.7`: the manual `add`, a
+    `make vendor-effect` pull to a newer tag, and the pull from a fresh clone that lacks the old
+    split commit.
+  - lychee gets `--exclude-path '^repos/'` (the value is an unanchored regex) although its inputs
+    never reach `repos/`; it was not run locally (no binary).
+  - Also edited: the `make ids` and `make vendor-effect` rows of `docs/knowledge/tooling.md`.
+  - **V1 is moot:** no step makes a shallow fetch any more, so `.git/shallow` never appears; S4
+    only checks that it stays absent. Marked in `feature.md` and `architecture.md`.
+  - R10 is rewritten in EARS form; what it asks is unchanged by that.
 
 #### S4 — Vendor the Effect source
 
 - **Goal:** `repos/effect` is a squashed subtree at `effect@<pinned>` (R3, R10).
 - **Blocked by:** S2, S3.
-- **Files:** `repos/effect/**`, written by `make vendor-effect` on a clean tree after the user's OK.
-  `git subtree` writes the squash commit and the merge commit itself (R1); the merge message is
-  given with `-m` in the `commits.md` format. This step's `Status:` is set in the next step's commit.
+- **Files:** `repos/effect/**`, written on a clean tree after the user's OK by the one-time
+  `git subtree add --squash --prefix repos/effect https://github.com/Effect-TS/effect.git effect@4.0.5 -m ':wrench: chore(effect-setup): Vendor effect at effect@4.0.5'`
+  (the arguments of `make vendor-effect`, with `add` for `pull` and the ticket scope; the tag
+  follows the catalog pin).
+  `git subtree` writes the squash commit and the merge commit itself (R1). This step's `Status:`
+  is set in the next step's commit.
 - **Test first:** config only.
 - **Verify:**
+  - the `git subtree add` exits 0, and `git log -2` shows the merge commit and the squash commit
+    with `git-subtree-dir:` and `git-subtree-split:`;
+  - `make vendor-effect` right after reports the subtree up to date;
   - `repos/effect/packages/effect/package.json` `version` equals the catalog pin;
   - `repos/effect/LLMS.md` exists;
   - `make check`;
-  - **V1:** `git push --dry-run` succeeds with `.git/shallow` present (only after the user's OK
-    to touch the remote; otherwise this moves to S23).
+  - `.git/shallow` is absent.
 - **Status:** todo
 
 #### S5 — vitest 5 on Bun replaces `bun:test`
@@ -513,8 +546,8 @@
 - **Blocked by:** S21, S22.
 - **Files:** `verification.md` (written by `/ticket-verify`); the PR body.
 - **Test first:** config only.
-- **Verify:** pushing, opening the PR and merging each need the user's OK. **V1** is checked here
-  if S4 did not. `git log main -1` carries the subtree trailers.
+- **Verify:** pushing, opening the PR and merging each need the user's OK. `git log main -1`
+  carries the subtree trailers.
 - **Status:** todo
 
 ## Requirement coverage

@@ -16,12 +16,13 @@ Everything runs through the root `Makefile` (GNU Make 3.81, the macOS default). 
 | `make dev-api` · `dev-worker` · `dev-web` | one app's `dev` script | one process |
 | `make debug-api` · `debug-worker` · `debug-web` | one app's `debug` script | the same mode plus `--inspect` |
 | `make check` | `ids`, `lint`, `typecheck`, `test` | the gate before every commit and step report |
-| `make ids` | `git grep` for ticket ids in parentheses outside `docs/tickets/` | a new project deletes the ticket, so an id elsewhere points nowhere |
+| `make ids` | `git grep` for ticket ids in parentheses outside `docs/tickets/` and `repos/` | a new project deletes the ticket, so an id elsewhere points nowhere |
 | `make lint` | `biome check` | lint, format and import order, without writing |
 | `make fmt` | `biome check --write` | apply formatting, import sorting and safe fixes |
 | `make typecheck` | `bun check` | typecheck every workspace through the project references |
 | `make test` | `bun test` | every colocated `*.test.ts` |
 | `make outdated` | `bun outdated --recursive` | newer versions for every workspace |
+| `make vendor-effect` | `git subtree pull --squash --prefix repos/effect` of the `effect@<pin>` tag | update `repos/effect` to the catalog pin; it commits, so run it on a clean tree. First time: `git subtree add` with the same arguments |
 | `make clean` | removes every `node_modules` and `coverage` | a clean reinstall: follow with `make setup` |
 
 `bun check` is Bun's built-in native typechecker, not a `package.json` script. `bun test` runs Bun's
@@ -131,6 +132,12 @@ layer or app needs its own `overrides` entry in `biome.json`.
 1. `make outdated` lists what is behind.
 2. Edit the version in the root `catalogs`. It is the only place a version lives.
 3. Run `bun install`, then `make check`, and commit `package.json` with `bun.lock`.
+4. After an `effect` catalog bump, run `make vendor-effect` on the now clean tree. `git subtree`
+   refuses any uncommitted change, so the bump and the vendoring are two commits of the same PR.
+   Copy the squash commit's `git-subtree-dir:` and `git-subtree-split:` trailers into the PR body,
+   outside its HTML comment: the squash merge drops them, and the next pull needs them.
+
+Another repository vendored under `repos/` gets one more target of the same shape.
 
 Upgrading Bun means bumping `packageManager` and `@types/bun` together, so CI's pinned job uses the
 new version. CI also runs a non-blocking job on Bun `latest`, which shows the next upgrade early.

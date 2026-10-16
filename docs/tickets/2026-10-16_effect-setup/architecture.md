@@ -354,7 +354,7 @@ lands on one file at the root `.data/`, which is gitignored.
   - `files.includes` gains `!repos`.
   Relative imports into `repos/` already fail the existing relative-path ban.
 - **Make:**
-  - `vendor-effect` shallow-fetches the `effect@<pinned>` tag and runs `git subtree add|merge --squash --prefix repos/effect`;
+  - `vendor-effect` runs `git subtree pull --squash --prefix repos/effect` of the `effect@<pinned>` tag (D13);
   - `openapi` writes `openapi.json`;
   - `ids` excludes `repos/`.
 - **Hooks and CI:**
@@ -471,8 +471,14 @@ Checked by hand in `/ticket-verify`, not by tests:
   its subtleties.
 - **D13 — Effect's source is vendored as a `git subtree --squash` at `repos/effect`, pinned to the
   catalog's version.** Agents read the exact code, tests and `LLMS.md` of the installed version
-  offline. *Rejected:*
+  offline. `make vendor-effect` is one `git subtree pull --squash` of the pinned tag; the first
+  vendoring is a one-time `git subtree add` with the same arguments. A bump and its vendoring land
+  in one PR as two branch commits, because `git subtree` refuses a dirty tree and commits by
+  itself. Another repository under `repos/` gets a target of its own. *Rejected:*
   - a submodule: clones and CI do not fetch it by default;
+  - a manual depth-1 fetch of the tag: a fresh clone lacks the previous split commit, so it needs
+    extra code to fetch that commit before every pull; `git subtree pull` fetches the tag's full
+    history, which holds it, into the local `.git` only;
   - reading `node_modules`: no tests or docs there;
   - docs search: network-bound and drifts from the pin.
 - **D14 — Prompts are typed functions in `<entity>.prompt.ts`.** A renamed variable fails the
@@ -510,7 +516,7 @@ Checked by hand in `/ticket-verify`, not by tests:
 
 | Risk | Mitigation |
 |---|---|
-| `effect/http`, `http-api`, `persistence`, `ai` are `@stability unstable`; a patch release may change them | exact lock-step catalog; `vendor-effect` runs in the same commit as a bump; the seams above catch behaviour changes |
+| `effect/http`, `http-api`, `persistence`, `ai` are `@stability unstable`; a patch release may change them | exact lock-step catalog; `make vendor-effect` runs in the same PR as a bump, right after the bump's commit; the seams above catch behaviour changes |
 | `effect-tsgo patch` replaces the `tsc` binary; an install without `prepare` silently loses the gate | CI asserts `tsc --version` contains `effect-tsgo`; the troubleshooting section in `tooling.md` covers it |
 | A group or API middleware skips endpoints added after it | `.middleware(RequestValidation)` is the last call on `Api`; a type test asserts `RequestInvalid` in every method's error union |
 | `take` fails with the handler's error, so `Effect.forever` stops at the first failure | `consume` catches and logs per iteration; the `JobQueue` suite has a "loop continues after failure" case |
@@ -522,7 +528,7 @@ Checked by hand in `/ticket-verify`, not by tests:
 
 ## To verify during implementation
 
-Carried over from `feature.md`: V1 (push with `.git/shallow`), V2 (now: patched `tsc -b` on the
+Carried over from `feature.md`: V1 (moot since S3: no shallow fetch), V2 (now: patched `tsc -b` on the
 references) and V3 (vitest reporter under an agent). New:
 
 - **V4** — How the 500 enters every endpoint's error union: as an error of `RequestValidation`, or

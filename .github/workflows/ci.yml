@@ -108,6 +108,7 @@ jobs:
           args: >-
             --offline
             --no-progress
+            --exclude-path '^repos/'
             README.md
             'docs/**/*.md'
             '.claude/**/*.md'

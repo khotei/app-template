@@ -119,11 +119,13 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
 ### Vendored Effect source
 
 - **R10** — `repos/effect` SHALL be a `git subtree --squash` of `Effect-TS/effect` at the tag of the
-  pinned `effect` version. A `make` target SHALL update it to the pinned version from a shallow
-  fetch of that tag, and a version bump SHALL update it in the same commit. Because a squash merge
-  drops the subtree's commit metadata, the PR body SHALL carry the `git-subtree-dir:` and
-  `git-subtree-split:` trailers outside its HTML comment, so a later `git subtree pull --squash`
-  on `main` still works.
+  pinned `effect` version, and a `make` target SHALL pull it to that tag. WHEN the `effect` catalog
+  version changes, THE SYSTEM SHALL update `repos/effect` in the same PR (one squash commit on
+  `main`; on the branch the bump and the vendoring are separate commits, because `git subtree`
+  refuses a tree with uncommitted changes). WHEN that PR is opened, its body SHALL carry the
+  `git-subtree-dir:` and `git-subtree-split:` trailers outside its HTML comment, because a squash
+  merge drops the subtree's commit metadata and a later `make vendor-effect`
+  (`git subtree pull --squash`) on `main` needs them.
 - **R11** — `repos/` SHALL be excluded from Biome, vitest, `bun check`, the patched `tsc -b`, lychee and
   `make ids`, and no workspace glob SHALL match it. WHEN code imports from `repos/`, `biome check`
   SHALL fail.
@@ -293,7 +295,7 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
 | R4, R6 | The catalogs match the registry `latest`; no `^`/`~`; every Effect package is `catalog:effect`. |
 | R5 | `import { HttpApi } from '@effect/platform'` in any workspace fails `make lint` with the replacement named. |
 | R7–R9 | After `bun install`, `tsc --version` reports `+effect-tsgo`. A bare `Effect.log('x')` statement fails `make check`, `pre-commit` and CI while `bun check` alone passes. |
-| R10–R11 | `repos/effect/packages/effect/package.json` version equals the pinned one. `make check` ignores `repos/`. `import … from '../../repos/effect/…'` fails `make lint`. |
+| R10–R11 | `repos/effect/packages/effect/package.json` version equals the pinned one, and a PR that bumps the `effect` catalog also holds the vendoring commits. `make check` ignores `repos/`. `import … from '../../repos/effect/…'` fails `make lint`. |
 | R12–R15 | `mv .env .env.bak && make test` passes. A failing `it.effect` in each workspace makes `make test` exit 1. `git grep "bun:test"` finds nothing. |
 | R16 | A commit with a floating Effect is rejected; a push with a failing test is rejected. |
 | R17–R19 | `make lint` fails for `@effect/platform-bun` or `@oblik/config` imported in `domain/`. `git grep -E "Date.now|new Date\(|randomUUID" domain/` finds nothing. A test fixes time with `TestClock` and ids with `TestCrypto`. |
@@ -312,7 +314,8 @@ None. Settled by grilling and experiments on 2026-10-16.
 
 ## To verify during implementation
 
-- **V1** — Pushing from a repository whose `.git/shallow` lists the shallow-fetched Effect tag.
+- **V1** — Moot: `make vendor-effect` runs `git subtree pull`, which makes no shallow fetch, so
+  `.git/shallow` never appears (settled in S3).
 - **V2** — The patched `tsc -b` on the project references setup (only plain `tsc` 7.0.2 was run
   on the probes).
 - **V3** — vitest 5 picks the `minimal` reporter when it detects an agent (`CLAUDECODE`); whether
