@@ -57,19 +57,22 @@ gitGraph
 
 ```mermaid
 graph LR
-  F["/ticket:feature<br/>grilling + researcher"] --> FM[feature.md]
-  FM --> A["/ticket:architecture<br/>codebase-design + researcher"] --> AM[architecture.md]
-  AM --> P["/ticket:plan"] --> PM[plan.md]
-  PM -->|human review| I["/ticket:implement<br/>implementer · tdd"]
-  I -->|step summary| G{"user approves?"}
+  F["/ticket-feature<br/>grilling · domain-modeling"] --> FM[feature.md]
+  FM --> A["/ticket-architecture<br/>codebase-design"] --> AM[architecture.md + Seams]
+  AM --> P["/ticket-plan"] --> PM[plan.md + Blocked by]
+  PM -->|human review| I["implementer<br/>tdd · SubagentStop: make check"]
+  I --> R["reviewer<br/>Standards ∥ Spec"]
+  R --> G{"user approves?"}
   G -->|no: feedback| I
-  G -->|yes: commit step| V["/ticket:verify<br/>verifier"]
-  V --> VM[verification.md]
-  VM -->|simplifications| I
+  G -->|yes: commit step| I
+  G -->|all steps done| V["/ticket-verify<br/>verifier · code-review"]
+  V --> VM[verification.md + Lessons]
+  VM -->|fixes| I
   VM -->|pass| PR[PR · squash]
 ```
 
-Commands run in the main session, because the grilling, review and commit-approval steps need dialogue with the user. Agents are delegated workers, and their tool limits are set on the agent definition, not on the command.
+- **Wrappers, not a fork.** Our five `/ticket-*` skills decide *where* artifacts go and *when* the user decides. The `mattpocock-skills` plugin decides *how* to interview, model the domain, design, test and review. The plugin updates itself, and the wrappers reference its skills by name (D30).
+- **Every skill runs in the main session**, because grilling, plan review and commit approval need the user, and subagents cannot ask questions. Agents are delegated workers, and their tool limits live on the agent definition.
 
 ## Structure
 
@@ -88,19 +91,18 @@ The tree below is the end state of `template/claude`, which already includes thi
 │   │   ├── tooling.md                   # imperatives → links docs/knowledge/tooling.md
 │   │   └── sdd.md                       # flow contract, artifact paths, EARS
 │   ├── agents/
-│   │   ├── researcher.md                # read-only facts (no Edit/Write/NotebookEdit)
-│   │   ├── implementer.md               # plan step → TDD → commit
-│   │   └── verifier.md                  # read-only verdict + simplifications
-│   ├── commands/
-│   │   ├── ticket:feature.md
-│   │   ├── ticket:architecture.md
-│   │   ├── ticket:plan.md
-│   │   ├── ticket:implement.md
-│   │   └── ticket:verify.md
-│   └── skills/
-│       ├── grilling/SKILL.md
-│       ├── codebase-design/SKILL.md
-│       └── tdd/SKILL.md
+│   │   ├── researcher.md                # read-only facts; preloads research
+│   │   ├── implementer.md               # one plan step; preloads tdd; SubagentStop hook → make check
+│   │   ├── reviewer.md                  # read-only; uncommitted step diff, Standards ∥ Spec
+│   │   └── verifier.md                  # read-only; whole ticket, R-by-R + code-review
+│   ├── hooks/
+│   │   └── make-check.sh                # SubagentStop gate for implementer
+│   └── skills/                          # user-invoked wrappers over mattpocock-skills
+│       ├── ticket-feature/SKILL.md
+│       ├── ticket-architecture/SKILL.md
+│       ├── ticket-plan/SKILL.md
+│       ├── ticket-implement/SKILL.md
+│       └── ticket-verify/SKILL.md
 ├── .github/
 │   ├── PULL_REQUEST_TEMPLATE.md
 │   ├── PULL_REQUEST_example.md
@@ -115,7 +117,8 @@ The tree below is the end state of `template/claude`, which already includes thi
 │   └── knowledge/
 │       ├── tooling.md                   # scripts, Makefile, --hot vs --watch, debug, .env, catalog, references
 │       ├── architecture.md              # layers, dependency rules, Effect seam
-│       └── sdd.md                       # how to run /ticket:*
+│       ├── sdd.md                       # how to run /ticket-*
+│       └── glossary.md                  # domain language, created lazily by /ticket-feature
 ├── domain/                              # @oblik/domain
 │   ├── CLAUDE.md
 │   ├── package.json · tsconfig.json
@@ -470,12 +473,11 @@ App scripts load the root file explicitly:
 - **`sdd.md`:**
   - kotodama's rule *"never mirror a local specs folder"* is inverted: `docs/tickets/` is the single source;
   - Notion data sources are dropped;
-  - commands stay flat, with colon filenames;
+  - it holds constraints only (artifact paths, EARS, gates); procedures live in the `/ticket-*` skills;
   - tool boundaries stay on agents.
 - **Agents:**
-  - `researcher` — `disallowedTools: Edit, Write, NotebookEdit`; Bash is allowed for `npm view` and scratch experiments;
-  - `verifier` — same restriction;
-  - `implementer` — unrestricted.
+  - `researcher`, `reviewer`, `verifier` — `disallowedTools: Edit, Write, NotebookEdit`; Bash is allowed for reading, running checks and scratch experiments;
+  - `implementer` — unrestricted, but it never commits, and a `SubagentStop` hook keeps it working until `make check` passes.
 
   No agent sets `model:`, so each inherits the session model.
 - **Vendored skills:** reduced to the parts the flow uses, with paths rewritten to `docs/tickets/`, and with upstream and version recorded in the frontmatter.
@@ -490,20 +492,31 @@ App scripts load the root file explicitly:
 - **D6 — Layers form one stack: `apps` → `application` → `infrastructure` → `domain`; each layer may import any layer below it (user decision, Q45).** `application` may import `infrastructure` directly. Wiring through `layer.ts` is still preferred, so use cases stay testable with fakes. *Rejected:* ports-only (`application` → `domain` only), which the user found too strict; `infrastructure` → `application`.
 - **D7 — Exact pins in named root catalogs.** Every workspace uses `catalog:<namespace>`, and `exact = true`. *Rejected:* per-package pins, which duplicate versions.
 - **D20 — Named catalogs only: `tools` and `runtime`; lock-step families get their own namespace when introduced.** `tools` holds developer-workflow tools that never shape the code's types or execution (`husky`, `@biomejs/biome`); `runtime` holds everything else, including `typescript` and `@types/bun`, because they define the language and runtime the code is written against. The taxonomy is visible in `package.json` itself, so the next agent classifies a new dependency instead of reaching for a default bucket. Bun rejects a reference to an unknown namespace. *History:* S2 started with a single `runtime` namespace; S12 split `tools` out when `husky` arrived (user decision, Q51). *Rejected:* a default `catalog`, which hides the mechanism; putting `typescript` and `@types/bun` under `tools`.
-- **D21 — Every step commit needs explicit user approval.** A subagent cannot ask the user, so `implementer` stops after verifying a step and returns a summary. `/ticket:implement`, running in the main session, shows that summary and commits only on an explicit OK (R35a). *Rejected:* the implementer committing autonomously, which the user disallowed on 2026-10-15.
+- **D21 — Every step commit needs explicit user approval.** A subagent cannot ask the user, so `implementer` stops after verifying a step and returns a summary. `/ticket-implement`, running in the main session, shows that summary and commits only on an explicit OK (R35a). *Rejected:* the implementer committing autonomously, which the user disallowed on 2026-10-15.
 - **D22 — `packages/*` may import each other, but the clients take explicit options and do not import `@oblik/config` yet.** `infrastructure` maps `Config` onto client options once `Config` has service fields. Agnostic clients stay reusable, and no dependency is declared before it is used. *Rejected:* forcing `config` into every client while all service variables are still commented out (Q33).
 - **D23 — The web dev server proxies `/api/*` to the api.** The browser stays same-origin, so the api needs no CORS policy. The api origin is `localhost:${API_PORT}` until a deploy ticket adds `API_URL`. *Rejected:* CORS headers on the api, which leak a dev concern into the backend.
 - **D24 — The example queue is in-memory in `infrastructure`, like the repository.** `apps/*` may not import `packages/queue`, so the worker gets its queue from infrastructure. `infrastructure` drops its `@oblik/queue` dependency until a real client exists. *Rejected:* letting the worker import the queue client, which breaks the dependency matrix.
 - **D25 — Inside a workspace, imports go through `#<workspace>/…` subpath imports; relative paths are banned.** Every `package.json` maps its own prefix, for example `"#domain/*": "./*.ts"`, or `"#api/*": "./src/*.ts"` for apps, plus `"#web/index.html"` for the HTML entry. `#` means *inside this workspace* and `@oblik/` means *another workspace*, so every import line states where the module lives. Biome bans `./**` and `../**` in every override and at top level, because the overrides replace each other. Types flow through `#` imports unchanged; `@ts-expect-error` traps with an `any` control confirmed this. *Rejected:* a bare `#/` prefix, which TS accepts but Bun 1.4.3 cannot resolve (`Cannot find module`); self-referencing `@oblik/<own>/…`, which risks barrel cycles and clashes with the domain guard; tsconfig `paths`, which only TS understands.
 - **D26 — Biome `organizeImports` groups imports, with a blank line between groups:** `:BUN:`/`:NODE:`, then external packages, then `@oblik/**`, then `:ALIAS:` (`#…`). `biome check` fails on a violation and `make fmt` fixes it. `:BLANK_LINE:` works in 2.5 even though the JSON schema does not list it.
+- **D27 — A fresh-context `reviewer` checks every step before the user approves it (Q54).** It reviews the **uncommitted** step diff on two axes: Standards (rules, composition, needless abstraction, smells) and Spec (the step and the requirements it serves). The plugin's `code-review` cannot do this, because it diffs only committed work from a fixed point. It is used at ticket level in `/ticket-verify` instead. *Rejected:* review only at the end of the ticket.
+- **D28 — A `SubagentStop` hook on `implementer` runs `make check` and blocks the agent from finishing while it fails (Q55).** This makes the verification loop deterministic instead of a request. The hook is scoped to the agent, so grilling and doc edits in the main session are not slowed. *Rejected:* a global `Stop` hook; an instruction only.
+- **D29 — Procedures are user-invoked skills named `ticket-<phase>`, not commands (Q56).** Commands are merged into skills, and a colon is reserved for plugin namespaces. `disable-model-invocation: true` keeps side-effecting procedures under the user's control. *Rejected:* flat `.claude/commands/ticket:*.md`.
+- **D30 — Wrappers own *where* and *when*; the plugin owns *how* (Q60–Q63).** `ticket-feature` calls `grilling` and `domain-modeling`; `ticket-architecture` calls `codebase-design`; `implementer` preloads `tdd`; `ticket-verify` calls `code-review`. The wrappers replace `to-spec`, `to-tickets` and `implement`, because those write to `.scratch/`, use user stories instead of EARS, or commit without approval. *Rejected:* the plugin alone, which cannot produce the `docs/tickets/` layout; our skills alone, which would re-implement disciplines the plugin already refines.
+- **D31 — The glossary lives in `docs/knowledge/glossary.md`, written through `domain-modeling` with an explicit path override (Q59, Q64).** The wrapper tells the skill which file to use and forbids `GLOSSARY.md`, `CONTEXT.md` and `docs/adr/`; the root `CLAUDE.md` repeats this in case the skill fires on its own. The override is tested live after S16. *Rejected:* a root `GLOSSARY.md`, which would break the docs layout; a home-grown glossary step, which would drop the plugin's term-challenging discipline.
+- **D32 — `settings.json` enables `mattpocock-skills` and disables `superpowers` for this project (Q62).** A clone gets a prompt to install the required plugin instead of a silently broken flow. `superpowers` is disabled because its skills demand to run first and write to `docs/superpowers/`.
+- **D33 — `architecture.md` names the Seams, and `plan.md` steps carry `Blocked by:` (Q58).** `tdd` writes no test at an unconfirmed seam. `Blocked by` shows which steps are independent and could later run in parallel (`isolation: worktree`).
+- **D34 — `/ticket-verify` ends with Lessons (Q61).** A mistake that repeated across two or more steps becomes one proposed line in a named skill or rule, never in an always-on `CLAUDE.md`, and is applied only on the user's OK.
+- **D35 — Four topic documents in `docs/knowledge/` plus a showcase README, not a Diátaxis split (Q66).** Each document answers one group of questions and mixes how-to, explanation and reference for its topic. The README covers the quick start and starting a project from a template, `tooling.md` holds the troubleshooting table, and `architecture.md` holds the add-an-entity recipe. *Rejected:* ~15 files split by genre, which scatters one topic across folders and breaks the single `docs/knowledge/tooling.md` link from the rules; one large guide, which agents would have to read whole.
+- **D36 — `SKILL.md` and agent `metadata` are the single source of the dependency map; `sdd.md` renders it, and a test keeps them equal (Q68).** This keeps "one author per fact" while giving humans one overview. *Rejected:* a hand-kept table without a check, which goes stale; per-skill sections with no overview.
+- **D37 — Documentation is written in two passes (Q65).** S18a documents what is already built and verified (README, tooling, architecture). S18b writes `sdd.md` and the ticket templates after S16–S17, from the built and tested flow rather than from its design.
 - **D8 — Explicit `--env-file=../../.env` in app scripts.** This was verified: Bun loads `.env` relative to the cwd only. *Rejected:* Makefile-only env loading, which breaks `bun run dev` from a package directory; per-package `bunfig.toml`.
 - **D9 — `linker = "isolated"`.** The experiment showed that references do not stop undeclared imports. The isolated linker makes an undeclared workspace import fail at resolution. Verified in S5: importing the undeclared `@oblik/config` from `infrastructure` fails at runtime (`Cannot find module`) and in `bun check` (TS2307). *Rejected:* `hoisted`, where any package can be imported.
 - **D10 — Biome `noRestrictedImports` overrides in the root config are the authoritative guard for import direction.** Overrides are deny-lists of the layers above and of sibling apps, so a new `packages/*` workspace needs no Biome change. Each diagnostic names its rule. Two further lines of defence back them up. The isolated linker together with `bun check` rejects any *undeclared* import (TS2307). A relative path into another workspace (`../../infrastructure/...`) fails `bun check` with TS6059/TS6307, because each workspace is a `composite` project with `rootDir: "."`. That is why Biome has no separate rule for it (Q44).
 - **D11 — `--hot` for api and web, `--watch` for worker; there is no `--dev`.** `--hot` swaps `Bun.serve` handlers and keeps `globalThis`. `--watch` restarts the process, so the worker's timers and connections never duplicate. Hot reload is accepted manually (same PID), not with a flaky automated test.
 - **D12 — Built-in `bun check` replaces `tsc` as the typecheck gate.** It is a native port, is 3–6× faster, and needs no emit. `typescript` stays installed for the editor and `tsc -b`.
 - **D13 — Hooks are split: commit runs typecheck and lint, push runs tests.** Commits stay fast, and CI catches `--no-verify`.
-- **D14 — Five commands and three agents.** Interactive phases (grilling, plan review) cannot run in a subagent. Read-only agents return their reports, and the command persists them. *Rejected:* kotodama's 5 agents and 6 commands, as over-scoped.
-- **D15 — Skills are vendored, not used from plugins.** The template has to be self-contained, and the plugins write to `.scratch/` and `docs/superpowers/`, which would conflict with `docs/tickets/`.
+- **D14 — Five wrapper skills and four agents.** The interactive phases (grilling, plan review, commit approval) run in the main session, because `AskUserQuestion` is removed from every subagent. Read-only agents return reports, and the skill persists them. *Rejected:* kotodama's 5 agents and 6 commands, which are over-scoped.
+- **D15 — Matt Pocock's skills are referenced through the plugin, never copied or edited (Q63).** The plugin updates itself; the wrappers name its skills. *Rejected:* vendored copies with edits, which fork upstream; `bunx skills add` copies, which pin the version but stop automatic updates. *Trade-off:* behaviour can shift on a plugin update, so `/ticket-verify` Lessons is where such drift surfaces.
 - **D16 — Ticket templates live in `docs/tickets/_template/`**, next to their output (user choice).
 - **D17 — `layer.ts` keeps its name.** The Effect migration then replaces the contents, not the structure.
 - **D18 — This ticket's docs are tracked from the first step.** Every template therefore ships a complete worked example of the SDD flow, and a new project deletes it. *Rejected:* keeping the docs untracked until a final step, which risks losing them and hides the flow's own example.

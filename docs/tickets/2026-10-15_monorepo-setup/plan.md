@@ -4,7 +4,7 @@
 
 ## How to run this plan
 
-- **Bootstrap.** This ticket creates `/ticket:implement` and `/ticket:verify` itself, so the plan runs in the main session. The steps that come after S16 may use the new commands.
+- **Bootstrap.** This ticket creates `/ticket-implement` and `/ticket-verify` itself, so the plan runs in the main session. The steps that come after S16 may use the new commands.
 - **Approval gate.** After implementing and verifying a step, stop and report. Commit, or amend, only after the user has reviewed the step and explicitly allowed the commit.
 - **One step, one commit** on `chore/monorepo-setup`. The commit format follows R37: `<gitmoji> <type>(monorepo-setup): <Subject>`, plus `Decision:` lines where a choice is non-obvious, and `Refs: docs/tickets/2026-10-15_monorepo-setup/` last. Before committing, set the step's `Status:` to `done` in this file.
 - **Test first** wherever a step has behaviour: write the test, watch it fail, then implement. Config-only steps are verified by their **Verify** commands instead.
@@ -149,7 +149,7 @@
   - `cd apps/api && bun run dev` serves on `API_PORT` taken from the root `.env`;
   - **R19 (manual):** `curl /health`, edit the response text, `curl` again → the text has changed and `pgrep -f apps/api` shows the same PID;
   - **R22 (manual):** `bun run debug` prints the inspector URL;
-  - **V1:** with `.env` removed, record how `--env-file` behaves in `docs/knowledge/tooling.md` (written in S18).
+  - **V1:** with `.env` removed, record how `--env-file` behaves in `docs/knowledge/tooling.md` (written in S18a).
 - **Status:** done
 - **Findings:**
   - `buildLayer()` takes no `Config` yet, for the same reason as D22.
@@ -343,42 +343,66 @@
   - Root `CLAUDE.md` is 27 lines; the layer files are 9–13 lines each and link to the rules instead of restating them.
   - Lychee in CI does not scan `CLAUDE.md` files. Adding `'**/CLAUDE.md'` to its args was proposed but not applied.
 
-#### S16 — Agents and commands
+#### S18a — Knowledge docs and README for what is built
 
-- **Goal:** three agents and five flat commands (R32, R35, R35a, D14, D21).
+- **Goal:** document the monorepo that already works, before the SDD flow is rebuilt (R23, R36, R40, D35, D37).
+- **Blocked by:** S15.
 - **Files:**
-  - `.claude/agents/{researcher,implementer,verifier}.md`. `researcher` and `verifier` set `disallowedTools: Edit, Write, NotebookEdit`; no agent sets `model:`.
-  - `.claude/commands/ticket:{feature,architecture,plan,implement,verify}.md`. Each command takes the ticket path, `@`-includes the matching `docs/tickets/_template/*`, and persists the agent output (for example, verify writes `verification.md`).
-  - `implementer.md` stops after verifying a step and returns a summary: the diff stat, the verification output, and a proposed commit message. It never runs `git commit`. `ticket:implement.md` shows that summary and commits only after the user explicitly approves (D21).
+  - `README.md` (replaces the `bun init` one): what Oblik+ is; the quick start (`make setup`, `make dev`, URLs); a map from reader question to document; starting a new project from `template/*`;
+  - `docs/knowledge/tooling.md`:
+    - *how-to*: every `make` target; run and debug (`debug.bun.sh`); add a dependency (`--catalog=<namespace>`); add a workspace; upgrade versions;
+    - *explanation*: `--hot` vs `--watch` and why there is no `--dev` (with the `globalThis` experiment); `.env` and `--env-file` (V1); `tools`/`runtime` catalogs; project references and the `tsc -b` cache; hooks and CI;
+    - *reference*: troubleshooting table, symptom → cause → fix (TS2307, TS6059/TS6307, Biome `noRestrictedImports` and `organizeImports`, a hook rejecting a commit or push, `--frozen-lockfile`);
+  - `docs/knowledge/architecture.md`: layers and the downward rule with a Mermaid diagram and the matrix; `#<workspace>/` vs `@oblik/`; where things live; **add a new entity**, step by step through every layer along the `example` slice; the Effect seam (`layer.ts`, `_tag`, ports in `.service.ts`); the three boundary guards.
 - **Verify:**
-  - the frontmatter of each agent is correct;
-  - the commands appear in Claude Code's `/` menu;
-  - a dry run of `/ticket:implement` stops before committing.
+  - every command quoted in the docs runs as written;
+  - the links from `.claude/rules/{tooling,naming}.md` and the root `CLAUDE.md` now resolve;
+  - `make check` is green.
 - **Status:** todo
 
-#### S17 — Vendored skills
+#### S16 — SDD wrapper skills, agents and hook
 
-- **Goal:** reduced copies of `grilling`, `codebase-design` and `tdd`, with paths rewritten to `docs/tickets/` (R32, D15).
-- **Files:** `.claude/skills/{grilling,codebase-design,tdd}/SKILL.md`. The frontmatter records the upstream repo and version (`mattpocock/skills`, main @ commit).
+- **Goal:** five user-invoked wrapper skills over `mattpocock-skills`, four agents, and the `implementer` gate (R32, R35–R35d, D14, D27–D31).
+- **Blocked by:** S14, S15.
+- **Files:**
+  - `.claude/skills/ticket-{feature,architecture,plan,implement,verify}/SKILL.md` with `disable-model-invocation: true`. Each skill names the plugin skills it delegates to and states the path and gate overrides explicitly. `ticket-feature` overrides `domain-modeling` to write only to `docs/knowledge/glossary.md`.
+  - `.claude/agents/{researcher,implementer,reviewer,verifier}.md`. `researcher`, `reviewer` and `verifier` set `disallowedTools: Edit, Write, NotebookEdit`. `implementer` preloads `tdd` via `skills:` and has a `SubagentStop` hook.
+  - `.claude/hooks/make-check.sh`: runs `make check`; on failure it exits 2 with the trimmed output.
+  - The former `.claude/commands/` is removed (it was never committed).
 - **Verify:**
-  - `grep -r "\.scratch\|docs/superpowers" .claude/` finds nothing;
-  - the skills appear in Claude Code's skill list.
+  - a fresh `claude -p` session lists four agents with the right tool limits and five `/ticket-*` skills;
+  - the hook blocks with a failing test and passes when green, tested directly with a crafted input;
+  - `make check` passes.
 - **Status:** todo
 
-#### S18 — Docs: templates, knowledge, README
+#### S17 — Plugin wiring and SDD rule
+
+- **Goal:** the project declares its plugins, and `sdd.md` shrinks to constraints (R32, R33, D29, D32).
+- **Blocked by:** S16.
+- **Files:**
+  - `.claude/settings.json`: `enabledPlugins` turns `mattpocock-skills` on and `superpowers` off;
+  - `.claude/rules/sdd.md`: artifact paths, EARS, Seams, `Blocked by`, gates and toolkit layout (skills, not colon commands); procedures move to the skills;
+  - root `CLAUDE.md`: the glossary lives in `docs/knowledge/glossary.md`; never create `GLOSSARY.md`, `CONTEXT.md` or `docs/adr/`.
+- **Verify:**
+  - a fresh session reports `mattpocock-skills` skills available and `superpowers` skills absent;
+  - **live override test (Q64):** a throwaway `/ticket-feature` run in a scratch clone, where one domain term is agreed. The term must land in `docs/knowledge/glossary.md`, with no `GLOSSARY.md` or `docs/adr/`. Record the result; if the override does not hold, stop and ask.
+- **Status:** todo
+
+#### S18b — SDD guide, dependency map and ticket templates
 
 - **Goal:**
-  - ticket templates (R33, R34);
-  - the starter knowledge docs (R23, R36);
-  - `README.md` (R40).
+  - `docs/knowledge/sdd.md` written from the built and tested flow (R36, D37);
+  - the dependency map: a table and a diagram rendered from the skill and agent `metadata`, kept equal by a test (R36a, D36);
+  - ticket templates with Seams, `Blocked by` and Lessons (R33–R35).
+- **Blocked by:** S16, S17.
 - **Files:**
+  - `docs/knowledge/sdd.md`: when to run the full cycle and when a short one is enough; the five `/ticket-*` skills (input → what the user decides → output); the dependency map; what is overridden in the plugin and why; the approval gate and the reviewer; plugin updates and what to re-check afterwards; Lessons;
   - `docs/tickets/_template/{feature,architecture,plan,verification}.md`;
-  - `docs/knowledge/tooling.md`, covering scripts and Makefile, `--hot` vs `--watch`, `--dev` not existing, debug, `.env` plus the V1 finding, the catalog namespaces (D20) and upgrades, references plus the `tsc -b` cache;
-  - `docs/knowledge/architecture.md`, covering layers, dependency rules and the Effect seam;
-  - `docs/knowledge/sdd.md`, covering `/ticket:*` usage, starting a project from a template, and deleting this ticket's docs when doing so;
-  - `README.md`, replacing the one from `bun init`.
+  - the consistency test for the dependency map. Its location (a small `tools` workspace or `deployment`-like leaf) is decided in this step, so that `bun check` and `bun test` cover it;
+  - root `CLAUDE.md` and README link to `sdd.md`.
 - **Verify:**
-  - `lychee --offline README.md docs .claude` passes;
+  - the test fails after a deliberate `metadata` edit and passes after the table is updated;
+  - a relative-link scan of `README.md`, `docs/`, `.claude/` and every `CLAUDE.md` finds nothing broken;
   - `make check` is green.
 - **Layer gate:** `git branch template/claude`.
 - **Status:** todo
@@ -389,8 +413,8 @@
 
 - **Goal:** an independent verification, then one squash-merged PR (R2, R4).
 - **Do:**
-  1. Run `/ticket:verify`. It writes `verification.md`, with a verdict for each requirement R1–R40 and proposed simplifications.
-  2. If the verdict lists simplifications or failures, fix them in new steps `S19a…`, re-run `/ticket:verify`, and repeat until the verdict is pass.
+  1. Run `/ticket-verify`. It writes `verification.md`, with a verdict for each requirement R1–R40 and proposed simplifications.
+  2. If the verdict lists simplifications or failures, fix them in new steps `S19a…`, re-run `/ticket-verify`, and repeat until the verdict is pass.
 
      These fixes land **after** the template branches are cut. Templates are never rewritten (D1). If a fix matters for a template, cut a new versioned template branch, and only after asking the user.
   3. Commit `verification.md`.
@@ -407,7 +431,7 @@
 |---|---|---|---|
 | R1 | S0 | R21 | S8 |
 | R2 | S1, S19 | R22 | S7, S8 |
-| R3 | S10, S13, S18 (gates) | R23 | S18 |
+| R3 | S10, S13, S18b (gates) | R23 | S18a |
 | R4 | gates, S19 | R24 | S3, S6, S7 |
 | R5–R8 | S2 | R25 | S4, S10 |
 | R9 | S0, S11, S12 | R26 | S11 |
@@ -416,11 +440,11 @@
 | R12 | S2, S10 | R30 | S7, S8, S10–S12 |
 | R13 | S3–S9 | R31 | S10 |
 | R14, R14a | S3–S9 (deps), S11, S11a (lint) | R32 | S14–S17 |
-| R15 | S8, S11 | R33 | S15, S18 |
-| R16 | S4 | R34 | S14, S18 |
-| R17 | S7, S8 | R35, R35a | S16 (+ S14 for R35a) |
-| R18 | S4 | R36 | S14, S18 |
+| R15 | S8, S11 | R33 | S15, S17, S18b |
+| R16 | S4 | R34 | S14, S18b |
+| R17 | S7, S8 | R35–R35d | S16, S17 (+ S14 for R35a) |
+| R18 | S4 | R36, R36a | S14, S18a, S18b |
 | R19 | S7 | R37 | every commit, S14 |
-| R20 | S8 | R38 | S14–S18 |
+| R20 | S8 | R38 | S14–S18b |
 | | | R39 | S9 |
-| | | R40 | S18 |
+| | | R40 | S18a |
