@@ -380,7 +380,18 @@
   - a fresh `claude -p` session lists four agents with the right tool limits and five `/ticket-*` skills;
   - the hook blocks with a failing test and passes when green, tested directly with a crafted input;
   - `make check` passes.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - **Discovery:** a fresh `claude -p` session lists the four agents. The debug log shows `project: 5` skills; the `/ticket-*` skills stay hidden from the model, as `disable-model-invocation` intends.
+  - **Preload and hook, live:** a test run of `implementer` logged `Preloaded skill 'mattpocock-skills:tdd'`, and the agent quoted its first heading. The log also shows `Converting Stop hook to SubagentStop for agent 'implementer'`. Plugin-namespaced names work in `skills:`, although the docs do not say so.
+  - **Hook, direct:** with crafted inputs `make-check.sh` exits 0 when the gate is green and 2 when it is red, returning the failing `Expected`/`Received` lines. A final message starting with `BLOCKED:` exits 0. `NO_COLOR` alone left ANSI codes in the output, so the hook also sets `FORCE_COLOR=0`.
+  - **D27 reworked:** subagents may spawn subagents, and `code-review` accepts a fixed point. `/ticket-implement` therefore runs the plugin's `code-review` on `git diff HEAD` plus untracked files, with `reviewer` as each axis sub-agent. `reviewer` became a thin axis worker, and the smell baseline stays upstream. R35b reworded.
+  - **D28 escape:** the `BLOCKED:` prefix. In `SubagentStop`, `stop_hook_active` reports a main-session `Stop` hook, not a repeated block, so it cannot break a loop.
+  - The read-only agents also deny `Agent`. Otherwise they could spawn a subagent that edits.
+  - `researcher` does not preload the plugin's `research`. That skill spawns a background agent and writes a notes file into the repo, which clashes with a read-only fact finder. The primary-source order is kept in the agent itself.
+  - The plugin's `retro` (new in 1.3.1) covers what Lessons does, but it sets `disable-model-invocation`, so `/ticket-verify` cannot call it. S18b mentions it as a user-run option.
+  - `metadata` values are strings, as the Agent Skills spec requires. Agent files accept the unknown `metadata` key silently. The S18b test parses both kinds of file.
+  - **For S17:** the live `/ticket-feature` test runs before `docs/tickets/_template/` exists (S18b). The skills name the template paths, so the test should either note the missing template or create a minimal one in the scratch clone.
 
 #### S17 — Plugin wiring and SDD rule
 
