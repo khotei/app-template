@@ -24,7 +24,7 @@ Alongside the code, set up an in-repo spec-driven development (SDD) flow (featur
   - `apps/` — thin entry points (`api`, `worker`, `web`);
   - `deployment/` — local Docker Compose, AWS Pulumi.
 - **Conventions donor** is [`khotei/kotodama-core`](https://github.com/khotei/kotodama-core): `.claude/rules`, agents, Biome style, tsconfig options, PR template, CI. Its topology, Effect/Drizzle code and git history are **not** carried over.
-- **Workflow donor** is [`mattpocock/skills`](https://github.com/mattpocock/skills): grilling, codebase-design, tdd. Only reduced, vendored copies are used.
+- **Workflow donor** is [`mattpocock/skills`](https://github.com/mattpocock/skills): grilling, domain-modeling, codebase-design, tdd, code-review, used through the `mattpocock-skills` plugin and never copied (R35d).
 - **Tooling facts, checked 2026-10-15** (versions are re-verified at implementation time):
 
   | Tool | Version / fact |
@@ -51,7 +51,7 @@ Alongside the code, set up an in-repo spec-driven development (SDD) flow (featur
 - `bun test` setup with colocated example tests.
 - Biome with layer-boundary rules, husky hooks, GitHub PR template and CI.
 - Makefile as the human interface, and a minimal root `package.json`.
-- `.claude/`: CLAUDE.md files, rules, 3 agents, 5 commands, 3 vendored skills, project settings.
+- `.claude/`: CLAUDE.md files, rules, 4 agents, 5 `/ticket-*` wrapper skills, a hook, project settings.
 - `docs/`: ticket templates, this ticket's documents, and starter knowledge docs.
 - `README.md`.
 
@@ -146,7 +146,7 @@ Alongside the code, set up an in-repo spec-driven development (SDD) flow (featur
   - `settings.json`, which enables the `mattpocock-skills` plugin and disables `superpowers` for this project.
 - **R33** — SDD artifacts SHALL live only in `docs/tickets/<YYYY-MM-DD>_<slug>/`, as `feature.md`, `architecture.md`, `plan.md` and `verification.md`. Their templates SHALL live in `docs/tickets/_template/`. The domain glossary SHALL live in `docs/knowledge/glossary.md`, created lazily. No `GLOSSARY.md`, `CONTEXT.md` or `docs/adr/` SHALL be created. The root `CLAUDE.md` SHALL tell agents to ignore artifact paths that come from plugins.
 - **R34** — `feature.md` requirements SHALL be written in EARS. Non-obvious choices SHALL be recorded in `architecture.md › Decisions` and in a `Decision:` line in the commit. `architecture.md` SHALL list the **Seams** where tests observe behaviour. Every `plan.md` step SHALL state `Blocked by:` and fit one fresh session.
-- **R35** — `researcher`, `reviewer` and `verifier` SHALL NOT be able to edit files. `/ticket-verify` SHALL persist the verifier's report to `verification.md`, ending with a **Lessons** section: each lesson proposes one line in a named skill or rule, applied only after the user's OK.
+- **R35** — `researcher`, `reviewer` and `verifier` SHALL have no file-editing tools (`Edit`, `Write`, `NotebookEdit`) and SHALL NOT spawn agents; they keep `Bash` only to read, run checks and probe outside the working tree. `/ticket-verify` SHALL persist the verifier's report to `verification.md`, ending with a **Lessons** section: each lesson proposes one line in a named skill or rule, applied only after the user's OK.
 - **R35a** — WHEN the implementer finishes a plan step, `/ticket-implement` SHALL present the change summary, its verification results and the reviewer's verdict, and SHALL NOT commit (or amend) until the user explicitly approves that step.
 - **R35b** — WHEN the implementer finishes a plan step, `/ticket-implement` SHALL run the plugin's `code-review` on the uncommitted step diff, with one fresh-context `reviewer` agent per axis (Standards and Spec), before the user is asked to approve.
 - **R35c** — WHILE `make check` fails, THE `implementer` SHALL NOT be able to finish: a `SubagentStop` hook blocks it and returns the failing output.
@@ -162,8 +162,8 @@ Alongside the code, set up an in-repo spec-driven development (SDD) flow (featur
 - **R40** — `README.md` SHALL contain:
   - a one-line description;
   - a quick start (`make setup && make dev`);
-  - a layer map linking to `docs/knowledge/`;
-  - pointers to the tooling and SDD docs.
+  - a map from reader question to the `docs/knowledge/` document that answers it (tooling, architecture with its layer map, SDD);
+  - how to start a new project from it.
 
   It SHALL link to these documents, not restate them.
 

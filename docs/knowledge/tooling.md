@@ -176,7 +176,7 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 | `TS2307: Cannot find module '@oblik/<name>'` from `bun check`, or `Cannot find module` at runtime | the import is allowed, but the workspace is not declared in this workspace's `package.json` | add `"@oblik/<name>": "workspace:*"` and a `tsconfig.json` reference, then `bun install` |
 | `TS6059 … is not under 'rootDir'` and `TS6307 … is not listed within the file list of project` | a relative path reaches into another workspace that is not referenced | import it as `@oblik/<name>/…`; relative paths are banned anyway |
 | Biome `lint/style/noRestrictedImports`: `domain is the pure core…` or `… no upward imports` | the import goes up a layer or into a sibling app | move the shared code down a layer, or receive it as an argument; see [architecture.md](architecture.md#dependency-rules) |
-| Biome `noRestrictedImports`: `… never a relative path (D25)` | a `./` or `../` import inside a workspace | use `#<workspace>/<path>`, for example `#domain/shared/id` |
+| Biome `noRestrictedImports`: `… never a relative path` | a `./` or `../` import inside a workspace | use `#<workspace>/<path>`, for example `#domain/shared/id` |
 | Biome `assist/source/organizeImports`: `Sort these imports.` | import groups out of order or without blank lines between them | `make fmt` |
 | a commit is rejected after `bun check` or Biome output | the `pre-commit` hook failed | fix the reported error, `git add`, and commit again |
 | a push is rejected after test output | the `pre-push` hook failed | fix the tests; never use `--no-verify` |

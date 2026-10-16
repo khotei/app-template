@@ -282,7 +282,22 @@ Bun.serve({
 })
 ```
 
-The `packages/{db,storage,queue,llm}/client.ts`, `infrastructure/example/example.{storage,queue,llm}.ts`, `infrastructure/shared/*` and `deployment/**` files are export-only stubs. Each exports a typed factory or constant, for example `createDbClient(config: { url: string })` and `exampleQueueName`. They compile and are imported nowhere at runtime.
+The `packages/{db,storage,queue,llm}/client.ts`, `infrastructure/example/example.{storage,queue,llm}.ts`, `infrastructure/shared/*` and `deployment/**` files are export-only stubs. Each exports a typed factory or constant, for example `createDbClient(config: { url: string })` and `exampleQueueName`. They compile, and only the in-memory `example.queue.ts` runs (in the worker).
+
+## Seams
+
+Where this ticket's tests and checks observe behaviour:
+
+| Seam | Catches | Misses |
+|---|---|---|
+| `buildExample(name, now)` and the `ExampleRepository` port (`domain`) | trimming, blank-name rejection, fresh ids | persistence |
+| `createExampleService` / `createExampleUseCase` with a `mock()` port (`application`) | saves once, propagates domain errors, not-found | a real adapter |
+| `Bun.serve({ port: 0, routes: buildRoutes(buildLayer()) })` (`apps/api`) | HTTP status mapping by `_tag`, the create → read round trip, bad bodies | the web proxy, hot reload |
+| `loadConfig(env)` (`packages/config`) | defaults, one `ConfigError` naming every bad variable | `--env-file` loading |
+| `make check` on a probe import (Biome, `bun check`) | every forbidden layer edge, relative paths, undeclared dependencies | edges between workspaces that are allowed |
+| `.claude/hooks/make-check.sh` on crafted stdin | exit 0 / 2 / 0 on green / red / `BLOCKED:` | the live `SubagentStop` wiring |
+
+Hot reload, the inspector and the git hooks are checked by hand (D11), not by tests.
 
 ## Configuration
 
@@ -471,11 +486,11 @@ App scripts load the root file explicitly:
   - it holds constraints only (artifact paths, EARS, gates); procedures live in the `/ticket-*` skills;
   - tool boundaries stay on agents.
 - **Agents:**
-  - `researcher`, `reviewer`, `verifier` — `disallowedTools: Edit, Write, NotebookEdit`; Bash is allowed for reading, running checks and scratch experiments;
+  - `researcher`, `reviewer`, `verifier` — `disallowedTools: Edit, Write, NotebookEdit, Agent`; Bash is allowed for reading, running checks and scratch experiments;
   - `implementer` — unrestricted, but it never commits, and a `SubagentStop` hook keeps it working until `make check` passes.
 
   No agent sets `model:`, so each inherits the session model.
-- **Vendored skills:** reduced to the parts the flow uses, with paths rewritten to `docs/tickets/`, and with upstream and version recorded in the frontmatter.
+- **Plugin skills:** referenced by name (`mattpocock-skills:<skill>`), never vendored (D15).
 
 ## Decisions
 

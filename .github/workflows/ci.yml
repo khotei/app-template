@@ -86,7 +86,7 @@ jobs:
       - name: Install
         run: bun install --frozen-lockfile
 
-      # Tests pass their env explicitly, so CI needs no .env file (R25).
+      # Tests pass their env explicitly, so CI needs no .env file.
       - name: Test
         run: bun test
 

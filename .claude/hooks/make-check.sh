@@ -1,5 +1,5 @@
 #!/bin/sh
-# SubagentStop gate for the implementer agent (D28): it finishes only with a green `make check`.
+# SubagentStop gate for the implementer agent: it finishes only with a green `make check`.
 # A final message that starts with "BLOCKED:" passes, so a stuck agent can still report why.
 
 input=$(cat)

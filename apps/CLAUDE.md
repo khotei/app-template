@@ -10,4 +10,3 @@ Thin entry points: `api` (HTTP), `worker` (jobs) and `web` (browser UI plus its 
   `@oblik/ui`**, because it ships to the browser. Only the server entry `web/src/main.ts` may also
   import `@oblik/config`.
 - `api` maps domain errors to HTTP statuses by `_tag`; unknown errors are rethrown, not swallowed.
-- Dev modes: `api` and `web` run `--hot`, `worker` runs `--watch` (why: `.claude/rules/tooling.md`).

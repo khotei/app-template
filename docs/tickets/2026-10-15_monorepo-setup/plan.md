@@ -20,6 +20,7 @@
 #### S0 — Initial commit with `bun init`
 
 - **Goal:** `main` starts with exactly the output of `bun init -y` (R1, R9).
+- **Blocked by:** none.
 - **Do:**
   1. `git init -b main`
   2. `bun init -y`
@@ -34,6 +35,7 @@
 #### S1 — Commit the ticket docs
 
 - **Goal:** the ticket's documents are tracked from the first branch commit (R2, D18).
+- **Blocked by:** S0.
 - **Files:** `docs/tickets/2026-10-15_monorepo-setup/{feature,architecture,plan}.md`.
 - **Commit:** `:memo: docs(monorepo-setup): Add ticket docs`.
 - **Status:** done
@@ -43,6 +45,7 @@
 - **Goal:**
   - a root workspace with exact catalog pins (R5–R8);
   - a shared TypeScript base and a references root (R10, R12).
+- **Blocked by:** S1.
 - **Files:**
   - `package.json` (`name`, `private`, `type`, `packageManager`, `workspaces`, `catalog`, `devDependencies` via `catalog:runtime`; no scripts yet);
   - `bunfig.toml` (`exact = true`, `linker = "isolated"`);
@@ -63,6 +66,7 @@
 #### S3 — `@oblik/domain`
 
 - **Goal:** the domain workspace with shared primitives and the `example` slice: model, errors, port, and the pure `buildExample` (R13, D5).
+- **Blocked by:** S2.
 - **Test first:** `domain/example/example.service.test.ts`.
   - `buildExample` returns a branded id, a trimmed name and the given `createdAt`.
   - It throws `ExampleNameInvalidError` for an empty or blank name.
@@ -82,6 +86,7 @@
   - typed config loading from the environment (R16, R18);
   - agnostic client stubs;
   - `api-client` and `ui`.
+- **Blocked by:** S2.
 - **Test first:** `packages/config/load.test.ts`.
   - A valid env returns a typed `Config`.
   - When `API_PORT` is missing and `LOG_LEVEL` is invalid, a single `ConfigError` is thrown, and its `issues` name both variables.
@@ -102,6 +107,7 @@
 #### S5 — `@oblik/infrastructure`
 
 - **Goal:** domain ports implemented on top of the clients (R13). The only working adapter is an in-memory `ExampleRepository`; everything else is an export-only stub.
+- **Blocked by:** S3, S4.
 - **Files:**
   - root `package.json`: append `"infrastructure"` to `workspaces`;
   - `infrastructure/{package.json,tsconfig.json}` (deps: `@oblik/domain`, `@oblik/{db,storage,queue,llm}`; `@oblik/config` is added once `Config` has service fields, see D22);
@@ -116,6 +122,7 @@
 #### S6 — `@oblik/application`
 
 - **Goal:** an application service plus a use case that composes it. The workspace depends only on `@oblik/domain` (R13, D6).
+- **Blocked by:** S3.
 - **Test first:** `application/example/create.use-case.test.ts`, using a fake `ExampleRepository` built with `mock()` from `bun:test`.
   - The use case builds an example with the injected `now`, saves it once, and returns it.
   - An invalid name propagates `ExampleNameInvalidError`, and `save` is never called.
@@ -137,6 +144,7 @@
   - a runnable `Bun.serve` with `/health` and `/examples` (R19, R22, R24);
   - `layer.ts` as the composition root (D17);
   - root `.env` loading through `--env-file` (R17, R30).
+- **Blocked by:** S5, S6.
 - **Test first:** `apps/api/src/http.test.ts`. It runs `Bun.serve({ port: 0, routes: buildRoutes(buildLayer()) })` and checks:
   - `GET /health` → `{ status: 'ok' }`;
   - `POST /examples` followed by `GET /examples/:id` round-trips;
@@ -163,6 +171,7 @@
   - the worker: a polling stub that restarts on change (R20);
   - the web app: a Bun fullstack server with HMR that uses only `api-client` and `ui` (R15, R21);
   - debug scripts for both (R22).
+- **Blocked by:** S4, S5, S6.
 - **Files:**
   - `apps/worker/{package.json,tsconfig.json}`;
   - `apps/worker/src/{main,layer}.ts`, `apps/worker/src/handlers/example.handler.ts`;
@@ -186,6 +195,7 @@
 #### S9 — `@oblik/deployment` stubs
 
 - **Goal:** stub files only. No `@pulumi/*`, and everything typechecks (R39).
+- **Blocked by:** S4.
 - **Files:**
   - root `package.json`: append `"deployment"` to `workspaces`;
   - `deployment/{package.json,tsconfig.json,Pulumi.yaml}`;
@@ -199,6 +209,7 @@
 #### S10 — Makefile
 
 - **Goal:** the root Makefile as the human interface, compatible with GNU Make 3.81 (R30, R31). The root `package.json` gains only `test` for now; `prepare`, `lint` and `format` arrive with their tools.
+- **Blocked by:** S7, S8, S9.
 - **Files:** `Makefile` with these targets:
   - `help` (default), `setup`;
   - `dev`, `dev-{api,worker,web}`, `debug-{api,worker,web}`;
@@ -226,6 +237,7 @@
   - a single root Biome config in kotodama style (R26);
   - the layer-boundary rules (R14, R15, D10);
   - the scripts `lint` and `format`.
+- **Blocked by:** S10.
 - **Do:**
   1. `bunx biome init`;
   2. adapt the generated config following architecture.md › Biome;
@@ -248,6 +260,7 @@
 #### S11a — Workspace subpath imports and import groups
 
 - **Goal:** absolute imports inside each workspace and grouped import blocks (R14a, D25, D26). Added on the user's request during S11.
+- **Blocked by:** S11.
 - **Files:**
   - every workspace `package.json` gains `imports` (`#<workspace>/*`);
   - 69 relative specifiers in 31 files are rewritten mechanically;
@@ -263,6 +276,7 @@
 #### S12 — Husky hooks
 
 - **Goal:** `pre-commit` runs `bun check` and staged Biome; `pre-push` runs `bun test` (R27, R9).
+- **Blocked by:** S11a.
 - **Do:** `bunx husky init`, then replace the generated hook.
 - **Files:**
   - `.husky/pre-commit`: `bun check`, then `bunx biome check --staged --no-errors-on-unmatched`;
@@ -285,6 +299,7 @@
 #### S13 — `.github`: PR templates and CI
 
 - **Goal:** the PR template, a worked example and CI, adapted from kotodama-core (R28, R29).
+- **Blocked by:** S12.
 - **Files:**
   - `.github/PULL_REQUEST_TEMPLATE.md`;
   - `.github/PULL_REQUEST_example.md`, rewritten around this ticket;
@@ -314,6 +329,7 @@
 #### S14 — `.claude/rules` and settings
 
 - **Goal:** seven rules adapted from kotodama-core, plus project permissions (R32, R34, R36–R38).
+- **Blocked by:** S13.
 - **Files:** `.claude/rules/{claude-md,comments,naming,commits,pull-requests,tooling,sdd}.md` and `.claude/settings.json`.
   - Apply the adaptations listed in architecture.md › `.claude` adaptation.
   - `sdd.md` states the approval gate (D21): no commit or amend of a step without the user's explicit OK.
@@ -334,6 +350,7 @@
 #### S15 — `CLAUDE.md` files
 
 - **Goal:** a root `CLAUDE.md` and one per layer (R32, R33).
+- **Blocked by:** S14.
 - **Files:**
   - root `CLAUDE.md`, ≤ ~40 lines: a one-line project summary, links to the layer map and the SDD flow, and the rule "SDD artifacts live only in `docs/tickets/`; ignore artifact paths that plugins suggest";
   - `{domain,application,infrastructure,packages,apps,deployment}/CLAUDE.md`, each covering allowed imports, file role suffixes and that layer's verbs.
@@ -478,7 +495,11 @@
   - R35 reworded (Q72); R40 matches the question map (Q74); `.claude/settings.json`: `git restore` moves to `ask` (Q73).
 - **Test first:** config only.
 - **Verify:** Biome messages still name the rule; link scan clean; `make check` green.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The root `CLAUDE.md` keeps two deliberate repeats of `.claude/rules/sdd.md`: ignoring plugin artifact paths (required by R33) and the glossary path (D31), because a plugin skill can fire outside a `/ticket-*` skill. The `make check` gate and the approval gate were dropped from it; the always-loaded rules own them.
+  - `.claude/rules/tooling.md` now gives imperatives only: which command to run, which catalog to choose, which reload flag to keep. The knowledge doc owns the reasons and definitions.
+  - `.github/PULL_REQUEST_example.md` keeps its `D…` ids: it is the PR of this ticket, and a new project deletes it together with the ticket.
 
 #### S19c — Code fixes and simplifications
 
