@@ -31,19 +31,14 @@ make dev     # api, worker and web together
 | How are commits and pull requests written? | [.claude/rules/commits.md](.claude/rules/commits.md), [.claude/rules/pull-requests.md](.claude/rules/pull-requests.md) |
 | Why is the scaffold built this way? | [the ticket that built it](docs/tickets/2026-10-15_monorepo-setup/architecture.md#decisions) |
 
-## Starting a new project from a template
-
-The scaffold is frozen as cumulative `template/*` branches; each one passes `make check` on its own:
-
-| Branch | Adds |
-|---|---|
-| `template/monorepo` | workspaces, catalogs, the `example` slice in every layer, three apps, `Makefile` |
-| `template/tooling` | Biome with the layer guards, `#<workspace>/` imports, husky hooks, CI, PR templates |
-| `template/claude` | `CLAUDE.md` files, `.claude/` rules and the SDD toolkit, `docs/knowledge/` |
+## Starting a new project
 
 ```sh
-git checkout template/<layer> -b <project>
+git clone <this repository> <project>
 ```
 
 Then rename the `@oblik` scope everywhere, delete `docs/tickets/2026-10-15_monorepo-setup/` (it is
 this scaffold's own worked ticket), and run `make setup && make check`.
+
+`main` holds the scaffold as one squashed commit. The branch `chore/monorepo-setup` keeps the
+step-by-step history: one commit per plan step, each with its `Decision:` notes.

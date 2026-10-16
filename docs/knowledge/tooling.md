@@ -158,8 +158,7 @@ new version. CI also runs a non-blocking job on Bun `latest`, which shows the ne
 
 Never skip a hook with `--no-verify`. CI runs the same checks, so a skipped hook fails there.
 
-CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `main` and
-`template/*`:
+CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `main`:
 
 | Job | Runs |
 |---|---|

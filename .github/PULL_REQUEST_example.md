@@ -11,7 +11,7 @@ it to see the shape end-to-end. Source of truth for the format stays
 ## 1. The PR title (becomes the squash commit subject)
 
 ```
-:tada: chore(monorepo-setup): Scaffold Bun monorepo
+:wrench: chore(monorepo-setup): Scaffold Bun monorepo
 ```
 
 ## 2. The PR description (pasted into the description box, template filled)
@@ -34,8 +34,7 @@ it to see the shape end-to-end. Source of truth for the format stays
     curl localhost:3000/health; open localhost:3001
 
   Screenshots / notes:
-    template/monorepo, template/tooling and template/claude are cut from
-    this branch's step commits and stay frozen after the squash.
+    Keep chore/monorepo-setup after the squash: it holds the step history.
 -->
 
 ## Summary
@@ -94,7 +93,7 @@ After GitHub strips the HTML comment, the commit on `main` is:
 **Subject** (from the PR title):
 
 ```
-:tada: chore(monorepo-setup): Scaffold Bun monorepo
+:wrench: chore(monorepo-setup): Scaffold Bun monorepo
 ```
 
 **Body**: the PR description from `## Summary` down to `## Refs`, with the

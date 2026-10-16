@@ -9,7 +9,7 @@ Build a Bun + TypeScript 7 monorepo skeleton for Oblik+. It has to be:
 
 - small enough to extend without first deleting anything;
 - complete enough that every layer of the [target architecture](https://app.notion.com/p/3f6fb28bd5f180809f29d196639f2331) already has a compiling, tested example;
-- usable as a starting point for future projects, through frozen `template/*` branches.
+- usable as a starting point for future projects: clone `main`, rename the `@oblik` scope, and read the step-by-step history on `chore/monorepo-setup`.
 
 Alongside the code, set up an in-repo spec-driven development (SDD) flow (feature → architecture → plan → implement → verify) that keeps every artifact inside the repository.
 
@@ -71,9 +71,9 @@ Alongside the code, set up an in-repo spec-driven development (SDD) flow (featur
 ### Git and branches
 
 - **R1** — THE repository SHALL have a `main` branch whose first commit contains exactly the output of `bun init -y`.
-- **R2** — THE implementation SHALL happen on a single branch `chore/monorepo-setup`, with one commit per `plan.md` step, merged into `main` through one squash-merged PR. The first step SHALL commit this ticket's documents, so every `template/*` carries them as a worked example of the SDD flow. A project started from a template deletes them.
-- **R3** — `plan.md` SHALL group its steps into three consecutive layers: `monorepo`, `tooling`, `claude`. WHEN the last step of a layer is committed, THE implementer SHALL create the branch `template/<layer>` at that commit.
-- **R4** — Each `template/*` branch SHALL pass `make check` and CI on its own, and SHALL stay frozen after creation. Its commits outlive the ticket branch; `main` holds the single squashed result.
+- **R2** — THE implementation SHALL happen on a single branch `chore/monorepo-setup`, with one commit per `plan.md` step, merged into `main` through one squash-merged PR. The first step SHALL commit this ticket's documents, so the result carries them as a worked example of the SDD flow. A project started from it deletes them.
+- **R3** — `plan.md` SHALL group its steps into three consecutive layers: `monorepo`, `tooling`, `claude`. WHEN the last step of a layer is committed, `make check` SHALL pass at that commit.
+- **R4** — WHEN the PR is squash-merged, THE branch `chore/monorepo-setup` SHALL be kept, so its step commits stay available as the history of how the scaffold was built; `main` holds the single squashed result.
 
 ### Workspaces and versions
 
@@ -122,7 +122,7 @@ Alongside the code, set up an in-repo spec-driven development (SDD) flow (featur
 
 - **R26** — Formatting and lint SHALL be configured once, in the root `biome.json`, with kotodama style: 2 spaces, width 100, single quotes, `semicolons: asNeeded`, `useImportType`, `noExplicitAny`.
 - **R27** — Husky SHALL run on `pre-commit`: `bun check` and `biome check --staged`; and on `pre-push`: `bun test`.
-- **R28** — CI SHALL run on `pull_request` and on `push` to `main` and `template/*`. It SHALL:
+- **R28** — CI SHALL run on `pull_request` and on `push` to `main`. It SHALL:
   - run `bun install --frozen-lockfile`, `biome ci`, `bun check` and `bun test`;
   - use a Bun matrix of pinned (blocking) and `latest` (non-blocking);
   - run `lychee --offline` on `README.md`, `docs/**/*.md` and `.claude/**/*.md`.
@@ -171,7 +171,7 @@ Alongside the code, set up an in-repo spec-driven development (SDD) flow (featur
 
 | Req | How to verify |
 |---|---|
-| R1–R4 | `git log main --reverse` shows the `bun init` commit first. `git branch -a` lists `template/{monorepo,tooling,claude}`. CI is green on each of them. |
+| R1–R4 | `git log main --reverse` shows the `bun init` commit first, then the squash. `git branch -a` lists `chore/monorepo-setup` after the merge. `make check` passes at the last commit of each layer. |
 | R5–R8 | `grep -R '"\^\|"~' **/package.json` finds nothing. Every external dependency is `catalog:<namespace>`, and `grep -rn '"catalog:"' --include=package.json .` finds nothing. `npm view` matches the catalogs. |
 | R10–R12 | `bun check` exits 0. Adding a type error in `application` makes it exit 1. `tsc -b` exits 0 and `git status` stays clean. |
 | R14a | `import './x'` or `export * from '../y'` in any workspace fails `make lint`; `#<workspace>/…` passes. An unsorted or ungrouped import block fails `biome check` (`assist/source/organizeImports`). |

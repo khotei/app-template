@@ -8,7 +8,7 @@
 - **Approval gate.** After implementing and verifying a step, stop and report. Commit, or amend, only after the user has reviewed the step and explicitly allowed the commit.
 - **One step, one commit** on `chore/monorepo-setup`. The commit format follows R37: `<gitmoji> <type>(monorepo-setup): <Subject>`, plus `Decision:` lines where a choice is non-obvious, and `Refs: docs/tickets/2026-10-15_monorepo-setup/` last. Before committing, set the step's `Status:` to `done` in this file.
 - **Test first** wherever a step has behaviour: write the test, watch it fail, then implement. Config-only steps are verified by their **Verify** commands instead.
-- **Layer gates.** At the end of each layer, run the gate commands and cut the `template/<layer>` branch at the last commit of that layer (R3, R4). Never rewrite a template branch after it is cut.
+- **Layer gates.** At the end of each layer, `make check` passes at its last commit (R3). Until 2026-10-16 the gate also cut a `template/<layer>` branch; that strategy was dropped (D1).
 - **Versions.** Re-check every pinned version with `npm view <pkg> version` at S2. If a newer stable version exists, pin it and update `feature.md › Context` (R8).
 - **Size.** Each step stays at or under ~400 changed lines, not counting `bun.lock`. If a step grows past that, split it and keep the numbering, e.g. `S7a`, `S7b`.
 - **Prerequisite for S13 and S19.** A GitHub repository (remote `origin`) must exist. Creating it and pushing to it are outward-facing actions, so ask the user before doing either.
@@ -29,7 +29,7 @@
 - **Verify:** `git show --stat HEAD` lists only the `bun init` files (`package.json`, `tsconfig.json`, `index.ts`, `README.md`, `CLAUDE.md`, `.gitignore`, `bun.lock`).
 - **Status:** done — `67f3adc`. `bun init` 1.4.3 also ran `bun install` (typescript 7.0.2, @types/bun 1.4.3).
 
-### Layer 1 — `monorepo` → `template/monorepo`
+### Layer 1 — `monorepo`
 
 #### S1 — Commit the ticket docs
 
@@ -218,7 +218,7 @@
   - `bun --filter './apps/*' dev` already runs long-running scripts concurrently, so `--parallel` is not needed.
   - `make clean` removes every per-workspace `node_modules` that the isolated linker creates.
 
-### Layer 2 — `tooling` → `template/tooling`
+### Layer 2 — `tooling`
 
 #### S11 — Biome and layer guards
 
@@ -309,7 +309,7 @@
   - V3: the isolated linker caused no tool failures.
   - Not yet verified on GitHub: `actionlint`, the real lychee run and the workflow itself. They need the remote, which is deferred to S19 (Q52).
 
-### Layer 3 — `claude` → `template/claude`
+### Layer 3 — `claude`
 
 #### S14 — `.claude/rules` and settings
 
@@ -431,7 +431,7 @@
   - every plugin skill, agent and hook named in `.claude/skills/` and `.claude/agents/` appears in the map;
   - a relative-link scan of `README.md`, `docs/`, `.claude/` and every `CLAUDE.md` finds nothing broken;
   - `make check` is green.
-- **Layer gate:** `git branch template/claude`.
+- **Layer gate:** `make check` green. The `template/claude` branch was never cut: the template strategy was dropped (D1).
 - **Status:** done
 - **Findings:**
   - **Q69, the generated map dropped.** The first version added `metadata` blocks to every skill and agent, a `checks/` workspace (`sdd-map.ts` and a test) and `make sdd-map`. That version worked: a deliberate `metadata` edit failed `bun test` with a diff. The user then chose to remove it. The test only guarded `metadata` against the map, not the file bodies that run, and it cost a workspace and a third copy of each fact. The map is now hand-written, `.claude/rules/sdd.md` requires updating it, and the Standards review checks that rule. R36a and D36 were rewritten, and D38 was dropped.
@@ -443,17 +443,62 @@
 #### S19 — Verify, PR, merge
 
 - **Goal:** an independent verification, then one squash-merged PR (R2, R4).
+- **Blocked by:** S18b.
 - **Do:**
-  1. Run `/ticket-verify`. It writes `verification.md`, with a verdict for each requirement R1–R40 and proposed simplifications.
-  2. If the verdict lists simplifications or failures, fix them in new steps `S19a…`, re-run `/ticket-verify`, and repeat until the verdict is pass.
-
-     These fixes land **after** the template branches are cut. Templates are never rewritten (D1). If a fix matters for a template, cut a new versioned template branch, and only after asking the user.
-  3. Commit `verification.md`.
-  4. After asking the user: push the branch, open the PR from the template, and squash-merge it once CI is green.
-  5. After asking the user: push `template/{monorepo,tooling,claude}`.
+  1. Run `/ticket-verify`; it writes `verification.md`.
+  2. Fix failures and accepted simplifications in steps `S19a…`, then re-run `/ticket-verify` until the verdict is pass.
+  3. After asking the user: create the remote, push `chore/monorepo-setup`, open the PR from the template, and squash-merge it once CI is green. Keep the branch after the merge.
 - **Verify:**
   - `git log main --oneline` shows two commits: the `bun init` commit and the squash;
-  - all three template branches exist on the remote with green CI.
+  - `chore/monorepo-setup` still exists on the remote with all step commits.
+- **Status:** in progress
+- **Findings:**
+  - **Run 1 (2026-10-16): fail.** R3/R4 (template strategy), R34, R36 and R40 failed; behaviour passed. Decisions Q70–Q77 answered by the user; fixes are S19a–S19d.
+  - The user dropped the `template/*` strategy for one branch with the full history (D1). `template/monorepo` and `template/tooling` were deleted after checking that both are ancestors of the ticket branch.
+
+#### S19a — Single-branch delivery
+
+- **Goal:** the ticket describes one branch kept after the squash, not template branches (R1–R4, R28, D1, Q77).
+- **Blocked by:** S19.
+- **Files:** `feature.md` (goal, R2–R4, R28, acceptance), `architecture.md` (delivery, D1, CI triggers, PR title, risks), this plan, `README.md` (starting a new project), `.github/workflows/ci.yml` (push to `main` only), `docs/knowledge/tooling.md`, `.github/PULL_REQUEST_example.md` (`:wrench:` title), `verification.md` (run 1).
+- **Test first:** config only.
+- **Verify:** `git grep 'template/'` outside `docs/tickets/_template` finds only history notes; link scan clean; `make check` green.
+- **Status:** done
+- **Findings:** the done steps S10, S13 and S18a keep their original template wording as history; D1 records the change.
+
+#### S19b — Docs and rules consistency
+
+- **Goal:** fix R34, R36 and R40 and the review's documentation findings (Q72–Q74).
+- **Blocked by:** S19a.
+- **Files:**
+  - this ticket's `architecture.md`: a Seams section; `plan.md`: `Blocked by:` on S0–S15;
+  - `.claude/rules/tooling.md`: drop facts that `docs/knowledge/tooling.md` owns; root and `apps/CLAUDE.md`: drop restated rules;
+  - ticket ids out of `biome.json` messages, `.claude/hooks/make-check.sh` and `docs/knowledge/tooling.md`; the comment in `domain/shared/error.ts`;
+  - stale lines: `feature.md` (vendored copies, "5 commands"), `architecture.md` (vendored skills, "imported nowhere");
+  - R35 reworded (Q72); R40 matches the question map (Q74); `.claude/settings.json`: `git restore` moves to `ask` (Q73).
+- **Test first:** config only.
+- **Verify:** Biome messages still name the rule; link scan clean; `make check` green.
+- **Status:** todo
+
+#### S19c — Code fixes and simplifications
+
+- **Goal:** the review's code findings (Q70, Q71, Q76).
+- **Blocked by:** S19a.
+- **Files:**
+  - `infrastructure/CLAUDE.md`: domain holds persistence ports; an adapter for an infrastructure concern (queue, storage keys, prompts) owns its interface (Q70);
+  - `buildLayer` → `createLayer`, `buildRoutes` → `createRoutes`, with their docs (Q71);
+  - `deployment/aws/*.ts`: one helper for `{ name, tags }`; `infrastructure/shared/db.client.ts`: drop `createSharedDbClient`; `apps/api/src/http.ts`: `statusByTag` keyed by the union of error tags (Q76).
+- **Test first:** `apps/api/src/http.test.ts` stays green through the renames; a type-level check that an unmapped tag fails `bun check`.
+- **Verify:** `make check` green; `make dev` serves `/health`.
+- **Status:** todo
+
+#### S19d — Lessons
+
+- **Goal:** apply the five lessons of run 1 (Q75).
+- **Blocked by:** S19b.
+- **Files:** `.claude/rules/sdd.md` (a requirement change edits `feature.md`), `.github/workflows/ci.yml` (fail on ticket ids outside `docs/tickets/`), `.claude/skills/ticket-plan/SKILL.md` (a docs step trims the rules that link to it), `.claude/skills/ticket-implement/SKILL.md` (a gated step is `done` only after its gate ran), `docs/knowledge/sdd.md` ("Periodically": `improve-codebase-architecture`, `retro`).
+- **Test first:** the CI id check fails on a probe `(D99)` in a scratch clone.
+- **Verify:** `make check` green; `verification.md › Lessons` marked applied.
 - **Status:** todo
 
 ## Requirement coverage

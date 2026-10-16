@@ -38,20 +38,15 @@ gitGraph
   branch chore/monorepo-setup
   commit id: "ticket docs"
   commit id: "monorepo steps"
-  branch template/monorepo
-  checkout chore/monorepo-setup
   commit id: "tooling steps"
-  branch template/tooling
-  checkout chore/monorepo-setup
   commit id: "claude steps"
-  branch template/claude
   checkout main
   merge chore/monorepo-setup id: "squash"
 ```
 
-- **Steps.** Each layer in the diagram covers one or more `plan.md` steps, one commit per step. The `template/*` branch is cut at the last step of its layer.
-- **Merge.** The PR is squash-merged, so `main` receives one commit. The `template/*` branches keep the step commits alive as frozen snapshots.
-- **Starting a new project:** `git checkout template/<layer> -b <project>`, rename the `@oblik` scope, and delete `docs/tickets/2026-10-15_monorepo-setup/`.
+- **Steps.** Each layer covers one or more `plan.md` steps, one commit per step, and ends with `make check` green.
+- **Merge.** The PR is squash-merged, so `main` receives one commit. `chore/monorepo-setup` is kept after the merge and holds the step history.
+- **Starting a new project:** clone `main`, rename the `@oblik` scope, and delete `docs/tickets/2026-10-15_monorepo-setup/`.
 
 ### SDD flow
 
@@ -76,7 +71,7 @@ graph LR
 
 ## Structure
 
-The tree below is the end state of `template/claude`, which already includes this ticket's docs. `★` marks the files of the `example` slice.
+The tree below is the end state of the ticket branch, which already includes this ticket's docs. `★` marks the files of the `example` slice.
 
 ```text
 .
@@ -441,7 +436,7 @@ App scripts load the root file explicitly:
 - **`pre-commit`:** `bun check` and `bunx biome check --staged --no-errors-on-unmatched`, with no `--write`, so partially staged files are not rewritten.
 - **`pre-push`:** `bun test`.
 - **`ci.yml`** is adapted from kotodama-core:
-  - **triggers:** `pull_request`, plus `push` to `[main, 'template/*']`;
+  - **triggers:** `pull_request`, plus `push` to `main`;
   - **concurrency:** cancels superseded runs of the same workflow and ref;
   - **jobs:**
     - `static` — `biome ci`, then `bun check`;
@@ -458,7 +453,7 @@ App scripts load the root file explicitly:
   - the self-check runs `make check`;
   - the hierarchy check is now `apps → application → infrastructure → domain`, `packages/*` are leaves, and `web` may use only `api-client` and `ui`;
   - the Refs line becomes `Refs: docs/tickets/<ticket>/`.
-- **`PULL_REQUEST_example.md`** is rewritten around this ticket, with the title `:tada: chore(monorepo-setup): Scaffold Bun monorepo`.
+- **`PULL_REQUEST_example.md`** is rewritten around this ticket, with the title `:wrench: chore(monorepo-setup): Scaffold Bun monorepo` (`:tada:` is reserved for the initial commit).
 
 ### `.claude` adaptation from kotodama-core
 
@@ -484,7 +479,7 @@ App scripts load the root file explicitly:
 
 ## Decisions
 
-- **D1 — Template stack cut from ticket-branch commits; the PR is squash-merged.** `main` gets one commit, and the frozen `template/*` branches hold the step history. *Rejected:* rebase-merging only this PR, which would break the one-PR-one-squash rule; building the templates before the ticket PR, which would leave two sources of truth.
+- **D1 — One ticket branch with the full step history; the PR is squash-merged into `main`, and the branch is kept.** `main` gets one commit, and `chore/monorepo-setup` keeps every step commit as the record of how the scaffold was built. *History:* the plan first cut frozen `template/{monorepo,tooling}` branches at layer ends; after run 1 of `/ticket-verify` the user dropped them for a single branch (2026-10-16), and both were deleted (their commits are ancestors of the ticket branch). *Rejected:* cumulative template branches, which multiply what CI and the docs must keep alive; merging without squash, which puts 22 step commits on `main`.
 - **D2 — One workspace per layer** (`@oblik/domain`, …). The entity folders are subpath exports. *Rejected:* a package per layer × entity (dozens of packages); `paths`-only aliases (no dependency graph).
 - **D3 — Root-level config files** (`biome.json` with `"//"` extends, `tsconfig.base.json`). *Rejected:* kotodama's presets package with `--config-path`. Editors and CI would need the flag, and the name would collide with the runtime `packages/config`.
 - **D4 — Project references with `composite` + `emitDeclarationOnly` into `node_modules/.cache/tsc`.** `bun check` is the gate and emits nothing; `tsc -b` stays valid. *Rejected:* `noEmit` (TS6310); a single flat root tsconfig (the user chose references).
@@ -519,7 +514,7 @@ App scripts load the root file explicitly:
 - **D15 — Matt Pocock's skills are referenced through the plugin, never copied or edited (Q63).** The plugin updates itself; the wrappers name its skills. *Rejected:* vendored copies with edits, which fork upstream; `bunx skills add` copies, which pin the version but stop automatic updates. *Trade-off:* behaviour can shift on a plugin update, so `/ticket-verify` Lessons is where such drift surfaces.
 - **D16 — Ticket templates live in `docs/tickets/_template/`**, next to their output (user choice).
 - **D17 — `layer.ts` keeps its name.** The Effect migration then replaces the contents, not the structure.
-- **D18 — This ticket's docs are tracked from the first step.** Every template therefore ships a complete worked example of the SDD flow, and a new project deletes it. *Rejected:* keeping the docs untracked until a final step, which risks losing them and hides the flow's own example.
+- **D18 — This ticket's docs are tracked from the first step.** The scaffold therefore ships a complete worked example of the SDD flow, and a new project deletes it. *Rejected:* keeping the docs untracked until a final step, which risks losing them and hides the flow's own example.
 - **D19 — `apps/web/src/main.ts` may import `@oblik/config`.** The rule protects the *client* bundle from server code, and `main.ts` is the server shell, which needs a validated `WEB_PORT` (R18). The exception is a dedicated Biome override for that single file. *Rejected:* reading `Bun.env` directly, which bypasses validation; serving the HTML from `apps/api`, which couples the two apps.
 
 ## Risks
@@ -530,6 +525,5 @@ App scripts load the root file explicitly:
 | `--env-file` fails when `.env` is missing in CI | Verify early. If it fails, CI writes an empty `.env`, or app scripts are not used in CI (tests don't need them). |
 | Biome `noRestrictedImports` cannot express "allow X, deny the rest" | Use `patterns` with negation. Otherwise enumerate the forbidden packages per override. |
 | TS 7 programmatic API gaps affect editor plugins | No TS plugins are used. `bun check` is independent of the `typescript` package. |
-| The frozen `template/*` branches drift from `main` | They are documented as snapshots. New template versions are cut as new branches, never by rewriting. |
-| Templates carry this Oblik-specific ticket (D18) | `README.md` and `docs/knowledge/sdd.md` say to delete `docs/tickets/2026-10-15_*` when a new project is started. |
+| A project cloned from `main` carries this Oblik-specific ticket (D18) | `README.md` and `docs/knowledge/sdd.md` say to delete `docs/tickets/2026-10-15_*` when a new project is started. |
 | GNU Make 3.81 lacks modern features | Use only POSIX-style recipes. Parallelism is delegated to `bun --filter --parallel`. |

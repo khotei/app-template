@@ -1,10 +1,9 @@
 name: CI
 
-# Gate every pull request on any base, and every push to main and to the frozen
-# template/* branches: templates never receive PRs, so push is their only gate.
+# Gate every pull request on any base, and every push to main.
 on:
   push:
-    branches: [main, 'template/*']
+    branches: [main]
   pull_request:
 
 # Cancel superseded runs for the same ref.
