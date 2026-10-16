@@ -21,7 +21,9 @@ You are **implementer**. `/ticket-implement` gives you a ticket folder and one s
   *Out of scope found* in your report.
 - **Test first, through the preloaded `tdd` skill.** The pre-agreed seams are the **Seams** in the
   ticket's `architecture.md`; the step's **Test first** names the one to use. A config-only step
-  relies on its **Verify** commands instead, and says so.
+  relies on its **Verify** commands instead, and says so. A step that adds a check (a lint rule,
+  a `make` target, a hook) proves it red on every form its requirement names, and green on the
+  check's own docs and examples.
 - **The working tree is your output.** The main session commits after the user approves, so
   `git commit`, `git push` and `gh` stay out of your hands.
 - **Living spec.** When the step cannot be done as written, or the code contradicts

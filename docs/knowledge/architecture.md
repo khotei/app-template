@@ -158,3 +158,17 @@ The Biome overrides are **deny-lists**: each names the workspaces a layer must n
 that match the same file replace each other's options rather than merge, so every override repeats
 the relative-path ban. Symptoms and fixes:
 [tooling.md › Troubleshooting](tooling.md#troubleshooting).
+
+### Known gaps
+
+Two forms pass all three guards. No code uses them; review is what catches them.
+
+- **A type import inside an expression in web client code.** `export type X =
+  import('@oblik/config').Config` in `app/`, `features/` or `shared/` passes Biome, which does not
+  see `import()` inside a type, and `bun check`, because web declares `@oblik/config` for its
+  server entry. The type is erased, so nothing reaches the browser, but the client then depends on
+  the shape of the server config.
+- **A workspace importing itself by name.** `@oblik/application/example` from inside
+  `application/` passes Biome, whose overrides list only other workspaces, and `bun check`, which
+  resolves a package's own `exports`. It skips the `#<workspace>/` convention and can import the
+  file's own barrel, a cycle that shows up as `undefined` while modules initialise.

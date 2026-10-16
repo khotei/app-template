@@ -473,6 +473,7 @@
   - **Run 1 (2026-10-16): fail.** R3/R4 (template strategy), R34, R36 and R40 failed; behaviour passed. Decisions Q70–Q77 answered by the user; fixes are S19a–S19d.
   - The user dropped the `template/*` strategy for one branch with the full history (D1). `template/monorepo` and `template/tooling` were deleted after checking that both are ancestors of the ticket branch.
   - **Run 2 (2026-10-16): fail.** R28 (the S19d id check matches its own example in `docs/knowledge/tooling.md`), R35 and R36 (spec and rule text) failed; behaviour passed, including the browser half of R21. Decisions Q78–Q82 answered by the user; fixes are S19e–S19g. Q82: `ea3d4f3` keeps its `ci` type; the squash replaces it on `main`.
+  - **Run 3 (2026-10-16): fail (one partial).** The verifier passed everything observable before the merge; the Spec axis showed R28 partial (`make ids` misses lists and ranges of ids). The user accepted the two lessons (Q83) and documenting the two guard gaps (Q84 a), both in S19h, and left every other finding of run 3 as it is (Q85, Q86 not taken).
 
 #### S19a — Single-branch delivery
 
@@ -567,6 +568,16 @@
 - **Verify:** `make check` green.
 - **Status:** done
 - **Findings:** the Map repository re-implemented the infrastructure adapter; the `mock()` fakes assert the calls instead, so the save test now checks `upsert` directly (a no-op `save` fails it, where the old round trip needed `get` to notice). 22 tests, up from 21: the round trip became separate save and get tests.
+
+#### S19h — Lessons of run 3
+
+- **Goal:** apply the two lessons of run 3 (Q83) and document the two guard gaps it found (Q84).
+- **Blocked by:** S19g.
+- **Files:** `verification.md` (run 3), this plan, `.claude/agents/implementer.md` (a new check is proven red on every form its requirement names and green on its own docs), `.claude/skills/ticket-verify/SKILL.md` (agents read rules from disk; prefer a new session after rule edits), `docs/knowledge/sdd.md` (a troubleshooting row), `docs/knowledge/architecture.md` (Known gaps: a type import inside an expression in web client code, a workspace importing itself by name).
+- **Test first:** docs only.
+- **Verify:** `make check` green; link scan clean.
+- **Status:** done
+- **Findings:** the first lesson proposed `/ticket-implement`, but the skill only spawns the implementer with pointers; the line went to `implementer.md`, which runs the step test-first.
 
 ## Requirement coverage
 

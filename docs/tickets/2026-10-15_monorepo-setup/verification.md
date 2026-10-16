@@ -206,3 +206,75 @@ Obsession).
 |---|---|---|---|
 | A gate that runs only in CI escapes `make check`, the implementer's hook and pre-commit, so a step reports green while CI is red | S19d reported the id check green after a later edit broke it; lychee is likewise only substituted locally (S18a, S19a) | a check: `make check` runs every offline CI gate (the id grep now) | no |
 | A step that changes what a requirement asks still leaves `feature.md` behind, even with the S19d rule | R35 and R28 drift (S19d), `feature.md:45` (S19a) | `/ticket-implement`: the Spec axis also asks whether the diff changes what a quoted `R…` asks, and then requires the `feature.md` edit | no |
+
+## 2026-10-16 — run 3
+
+Branch `chore/monorepo-setup` at `7f323a4` against `main` at `67f3adc`. Fresh-context `verifier`
+(probes in a scratch clone, working tree left clean), and `code-review` with one `reviewer` agent
+per axis.
+
+**Verdict:** fail (one partial). The verifier passes every requirement observable before the merge,
+and `make check` is green (`ids`, 87 files linted, 53 typechecked, 22 tests). The Spec axis shows
+R28 is partial: `make ids` catches `(D12)` but not a list such as `(D12, R3, Q70)` or a range such
+as `(Q60–Q63)`, and the `Makefile`'s own help line carries such a list outside `docs/tickets/`.
+
+### Requirements
+
+| Req | Result | Evidence |
+|---|---|---|
+| R1 | pass | a fresh `bun init -y` differs only in the directory name and a newer transitive `undici-types` |
+| R2 | pass (local) | 29 commits: 27 map one-to-one to S1–S19g, 2 re-planning docs commits; the squash is not yet observable |
+| R3 | pass | `make check` exits 0 in clean clones at `1ccd0ec`, `2245647`, `3c3e311` |
+| R4 | not verifiable | no remote, no merge |
+| R5–R13 | pass | catalogs, exact pins equal to `latest`, references equal deps, TS2322 probes, `tsc -b` output only in the cache, structure, no Effect |
+| R14, R15 | pass (gap) | 22 forbidden edges fail, 10 allowed pass; `require()` now fails with `noCommonJs`; **gap:** a type-only `import('@oblik/config')` in web client code passes (erased from the bundle) |
+| R14a | pass (gap) | relative paths fail in all 7 workspace types; **gap:** a self-reference `@oblik/application/…` inside `application/` passes (no code uses one) |
+| R16–R22 | pass | root `.env`, one `ConfigError`, `--hot` with the same PID, `--watch` restart, HMR without a reload in headless Chrome, inspector `Runtime.evaluate` |
+| R23–R27 | pass | doc sections; 22 tests without `.env`; Biome style probes; hooks reject a type error, an `any` and a failing push |
+| R28 | **partial** | workflow parses and every CI command exits 0 locally; a `(D99)` probe fails `make ids` and `make check`; lists and ranges of ids pass (Spec axis) |
+| R29–R31 | pass | one comment block per PR file; scripts split; `make help` lists all 17 targets |
+| R32–R36a | pass | agents and plugins as discovered by a fresh `claude -p`; Seams and `Blocked by:` on 29/29 steps; Lessons may be checks; `tooling.md` rule holds imperatives only; map complete |
+| R37–R40 | pass | 29 subjects in format with `Refs:`; no Cyrillic; stubs typecheck; README quick start works in a fresh clone; deleting the ticket keeps links and `make ids` green |
+
+**Not verifiable:** the PR, the squash, a real CI run and lychee itself (substitute scan: 0 broken,
+also with the ticket deleted, and a planted broken link is caught); the `debug.bun.sh` UI; live
+`/ticket-*` runs.
+
+### Review
+
+#### Standards
+
+Hard violations: `issuesOf` in `packages/config/load.test.ts:13` is not verb-first;
+`pollIntervalMs = 1_000` in `apps/worker/src/main.ts:5` lacks `as const`; `d838377` is typed `ci`
+and bundles three changes (as Q82, left for the squash).
+
+Judgement calls: `aa72463`, `bd09b81` and `7b9c57c` exceed ~400 lines; the `.client` row in
+`naming.md` still names `infrastructure/shared`; carried over: `outbox.repository.ts`,
+`randomUUID` in `buildId`, `createExample` for a use case, `ConfigError` without `<Problem>`;
+`render` is not a listed verb; web has two `main.ts` files.
+
+Smells: the same mocked repository in both `application` tests, with differing `selectById`
+signatures (Duplicated Code, new in S19g); `ExampleService.save` and the llm/storage adapters only
+delegate (Middle Man); `env`/`issues` in `load.ts` (Data Clumps); an unchecked `as ExampleId` and a
+`string` stage (Primitive Obsession).
+
+#### Spec
+
+1. **R28 (hard):** the id pattern misses lists and ranges; `Makefile:39` is the live example.
+2. **Deviations not recorded:** `architecture.md:442` still defines `check` without `ids`;
+   `noCommonJs` is not in D10's guards; the `.github/PULL_REQUEST_example.md` exemption is in
+   neither R28 nor `architecture.md`.
+3. **Stale statuses:** S10 and S13 still say `template/*` "cut at this commit".
+4. **R2, R4:** pending the PR, as expected.
+
+### Simplifications
+
+1. `application/example/*.test.ts`: one shared fake repository instead of two diverging copies.
+2. `Makefile`: drop the `.github/PULL_REQUEST_example.md` exemption, which matches nothing.
+
+### Lessons
+
+| Lesson | Evidence | Proposed change | Applied |
+|---|---|---|---|
+| A new check is proven red on one form only, so its own docs or other forms slip past | S19d (its example tripped it), S19f (lists and ranges pass) | `/ticket-implement`: a step that adds a check proves it red on every form its requirement names, and green on the check's own docs | yes, S19h (in `implementer.md`, which runs the step) |
+| Agents spawned from a long session see the rules as they were when it started | the verifier and both reviewers in runs 2 and 3 found stale rules in context | `/ticket-verify`: run it in a new session after rule edits, or tell each agent to read rules from disk | yes, S19h |
