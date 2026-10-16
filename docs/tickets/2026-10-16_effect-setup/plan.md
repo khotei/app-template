@@ -342,7 +342,46 @@
     remove it;
   - **R13 with `it.effect`:** a deliberately failing `it.effect` makes `make test` exit non-zero.
     Then remove it.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - **The gate rejected every unstable import (D19).** `effect/persistence` and all of
+    `@effect/vitest` (`it` included) are `@stability unstable`, and `unstableApiUsage` defaults to
+    `warning`, which fails `tsc -b`. Outside the file list: `tsconfig.base.json` lowers the rule
+    to `suggestion` and sets `includeSuggestionsInTsc: false`; `docs/knowledge/tooling.md ›
+    TypeScript` says so. Recorded in D19 and the Configuration line.
+  - **`QueueClient.make` takes `QueueDefinition<Schema.Codec<A, I>>`**, not `<S extends
+    Schema.Top>`: `PersistedQueue` carries the schema's decoding and encoding services in its `R`,
+    which `JobQueue` has no channel for, and a `Codec` with the default `never` services rejects
+    such a schema at compile time. `QueueDefinition<S extends Schema.Top>` and `satisfies
+    QueueDefinition<typeof Schema>` are unchanged. Contracts updated.
+  - `queue.ts` also exports `layerPersisted` (`QueueClient` over any `PersistedQueueStore`), which
+    `memory.ts` and `sqlite.ts` share; `index.ts` leaves it out, so the engine stays hidden.
+  - **`consume`** wraps every non-interrupt failure of `handle`, defects included, into a private
+    `AttemptFailed` after logging it (`Warn` per attempt, `Error` when `attempts >= maxAttempts`,
+    annotated `queue`, `messageId`, `attempt: n/max`), so the store retries or dead-letters it and
+    the loop then swallows it; an interrupt-only cause re-interrupts, so the store releases the
+    message. A scratch probe (memory, `maxAttempts: 1`, a handler interrupted mid-flight) saw the
+    message delivered again to a second `consume`: the attempt was not counted. Retries, dead-letter
+    logs and the interrupt release stay for S13's seam.
+  - The suite runs under `it.live`: the SQL store polls and refreshes locks on the clock, which
+    `TestClock` would freeze. It runs in ~0.1 s. Each test case was also seen red: dropping the id
+    in `send` fails the dedup case on both stores, dying on `AttemptFailed` fails the loop case, and
+    `:memory:` in place of the file fails the rebuilt-layer case.
+  - Probes, each removed: a top-level `Effect.log('x')` in `queue.ts` failed `make typecheck`
+    with `TS377001 … effect(floatingEffect)` while `bun check` passed; `git commit` of it (only
+    that file staged) exited 1 from `pre-commit`, HEAD unchanged; a failing `it.effect` made
+    `make test` exit 2.
+  - **Known gaps from review, accepted as is:**
+    - a message that fails to decode (api and worker schemas drifted) is dead-lettered inside
+      `PersistedQueue.take` and never reaches `handle`, so it is not logged (R28 and D11 cover only
+      handler failures);
+    - a handler that interrupts itself, while the consumer is not interrupted, releases the
+      message uncounted and then ends `consume`;
+    - the suite uses `it.live`, not `TestClock` (R14), for the reason above; S13 keeps `TestClock`
+      on the memory store.
+  - Review judgement calls left for a later pass: the private marker `AttemptFailed` is not named
+    `<Problem>Error` and its comment is `//`, not TSDoc; `attempt` is logged as the string
+    `n/max`.
 
 #### S9 — Config as services
 

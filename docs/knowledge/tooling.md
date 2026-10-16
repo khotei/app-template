@@ -166,6 +166,11 @@ new version. CI also runs a non-blocking job on Bun `latest`, which shows the ne
   type error, and runs the Effect language service, whose errors and warnings both fail it
   (`ignoreEffectWarningsInTscExitCode` stays `false`). `make typecheck`, `pre-commit` and CI all
   run it. `repos/` is never walked: no reference points into it.
+- **`unstableApiUsage` is a suggestion, and suggestions stay in the editor.** The project uses
+  modules marked `@stability unstable` by choice (`effect/persistence`, the HTTP and AI modules,
+  all of `@effect/vitest`), pinned exactly; at the rule's default `warning`, each import of one
+  fails `tsc -b`. `includeSuggestionsInTsc: false` keeps suggestion-level hints out of the gate's
+  output.
 - **`bun check` is not a gate.** Bun's native typechecker is faster and emits nothing, but it
   ignores tsconfig `plugins`, so it passes an Effect value that is neither yielded nor assigned.
 - **`tsc -b` writes only into `node_modules/.cache/tsc/<workspace>`.** `composite` cannot be

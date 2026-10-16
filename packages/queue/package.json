@@ -3,9 +3,16 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./client.ts"
+    ".": "./index.ts"
   },
   "imports": {
     "#queue/*": "./*.ts"
+  },
+  "dependencies": {
+    "@effect/sql-sqlite-bun": "catalog:effect",
+    "effect": "catalog:effect"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:effect"
   }
 }

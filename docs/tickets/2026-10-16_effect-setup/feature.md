@@ -113,7 +113,8 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
   `node_modules/.bin/tsc --version` SHALL report the patched build.
 - **R8** — WHEN `make check`, the `pre-commit` hook or CI runs, THE SYSTEM SHALL run the patched
   `tsc -b` over the project references and fail on any Effect error or warning, such as an Effect
-  value that is neither yielded nor assigned (architecture D8).
+  value that is neither yielded nor assigned (architecture D8). *Amended in S8: `unstableApiUsage`
+  is an editor-only suggestion, so an unstable module is not a gate failure (D19).*
 - **R9** — WHEN `make typecheck`, `pre-commit` or CI typechecks, THE SYSTEM SHALL use the patched
   `tsc -b` only; `bun check` is not a gate, because it ignores tsconfig plugins.
 

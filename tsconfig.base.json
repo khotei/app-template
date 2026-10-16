@@ -27,7 +27,15 @@
     "noImplicitOverride": true,
 
     // Effect diagnostics, read only by the effect-tsgo binary: the patched tsc and the editor
-    // language server. bun check and a stock tsserver ignore plugins
-    "plugins": [{ "name": "@effect/language-service" }]
+    // language server. bun check and a stock tsserver ignore plugins. unstableApiUsage is an
+    // editor-only suggestion, because unstable modules are used by choice and at warning each
+    // import of one fails tsc -b (docs/knowledge/tooling.md › TypeScript)
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "diagnosticSeverity": { "unstableApiUsage": "suggestion" },
+        "includeSuggestionsInTsc": false
+      }
+    ]
   }
 }

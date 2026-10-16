@@ -244,13 +244,14 @@ export interface JobQueue<A> {
   readonly consume: <E, R>(handle: (message: A) => Effect.Effect<void, E, R>) => Effect.Effect<never, QueueError, R>
 }
 export class QueueClient extends Context.Service<QueueClient, {
-  readonly make: <S extends Schema.Top>(definition: QueueDefinition<S>) => Effect.Effect<JobQueue<S['Type']>>
+  // Codec<A, I> has no decoding or encoding services, which JobQueue could not carry
+  readonly make: <A, I>(definition: QueueDefinition<Schema.Codec<A, I>>) => Effect.Effect<JobQueue<A>>
 }>()('@oblik/queue/QueueClient') {}
 export class QueueError extends Schema.TaggedError<QueueError>()('QueueError', { cause: Schema.Defect() }) {}
-export const QueueClientMemory: Layer.Layer<QueueClient>                    // PersistedQueue.layer + layerStoreMemory
-export const createQueueClientSqlite: (options: {
-  readonly filename: string; readonly lockExpiration: Duration.Input; readonly lockRefreshInterval: Duration.Input
-}) => Layer.Layer<QueueClient, SqlError>                                    // + layerStoreSql + SqliteClient.layer
+// queue.ts also exports layerPersisted: Layer<QueueClient, never, PersistedQueueStore>, kept out of index.ts
+export const QueueClientMemory: Layer.Layer<QueueClient>                    // layerPersisted + layerStoreMemory
+export const createQueueClientSqlite: (options: QueueClientSqliteOptions /* filename, lockExpiration,
+  lockRefreshInterval */) => Layer.Layer<QueueClient, SqlError>              // + layerStoreSql + SqliteClient.layer
 
 // packages/config — one service per area; read only through createConfigLayer
 export class ApiConfig extends Context.Service<ApiConfig, { readonly port: number }>()('@oblik/config/ApiConfig') {
@@ -344,7 +345,8 @@ lands on one file at the root `.data/`, which is gitignored.
 - **Typecheck gate:** `make typecheck` = `bunx tsc -b`, the only typecheck gate. The patched
   `tsc -b` walks the project references, writes declarations to the existing cache, and fails on
   type errors and on Effect errors and warnings (`ignoreEffectWarningsInTscExitCode: false`, the
-  default) (D8). `setup` scaffolds it with
+  default) (D8). `unstableApiUsage` is lowered to `suggestion`, and `includeSuggestionsInTsc` is
+  `false` (D19). `setup` scaffolds it with
   `effect-tsgo setup`, then trims the result.
 - **vitest:** one root `vitest.config.ts` that only adds `repos/**` to the default exclude. There
   are no projects: vitest collects every `*.test.ts` from the root, so a new workspace needs no
@@ -534,6 +536,19 @@ Checked by hand in `/ticket-verify`, not by tests:
   - a v3 ban with a v4-replacement message: it would repeat in the root and every override
     (~116 lines), while TS2307 already fails an uninstalled v3 package and `repos/effect` is the
     reference for the v4 API.
+
+- **D19 — `unstableApiUsage` is an editor-only suggestion, and `tsc -b` prints no suggestions.**
+  Every module this ticket builds on beyond the core is `@stability unstable`: `effect/persistence`,
+  the HTTP and AI modules, and all of `@effect/vitest`, which R14 requires in every Effect test. At
+  the rule's default `warning`, each import fails the gate (found in S8). The choice is already
+  made and mitigated by exact pins and `repos/effect` (see Risks), so the warning carries nothing
+  to act on. `includeSuggestionsInTsc: false` keeps suggestion-level hints, such as
+  `schemaClassMissingBrand`, out of every `make check` and `pre-commit` run; they still show in
+  the editor. *Rejected:*
+  - a `// @effect-diagnostics unstableApiUsage:off` directive per file: every test file and most
+    adapters would carry one;
+  - `off`: it also hides the hint in the editor;
+  - `ignoreEffectWarningsInTscExitCode: true`: it lets every Effect warning through, which R8 forbids.
 
 ## Risks
 
