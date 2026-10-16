@@ -23,5 +23,7 @@ together: [docs/knowledge/architecture.md](docs/knowledge/architecture.md).
 - Conventions live in `.claude/rules/` (naming, comments, commits, pull requests, tooling, SDD).
 - **SDD artifacts live only in `docs/tickets/<YYYY-MM-DD>_<slug>/`.** Ignore artifact paths that
   plugins suggest (`.scratch/`, `docs/superpowers/`). The flow: `.claude/rules/sdd.md`.
+- **The domain glossary is `docs/knowledge/glossary.md`.** Never create `GLOSSARY.md`,
+  `CONTEXT.md` or `docs/adr/`, even when a skill asks for them.
 - **Never commit, amend, push or open a PR without the user's explicit OK.**
 - Code, docs and rules are written in English.

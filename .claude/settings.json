@@ -55,5 +55,9 @@
       "Bash(yarn *)",
       "Bash(pnpm *)"
     ]
+  },
+  "enabledPlugins": {
+    "mattpocock-skills@claude-plugins-official": true,
+    "superpowers@anthropic-plugin-directory": false
   }
 }

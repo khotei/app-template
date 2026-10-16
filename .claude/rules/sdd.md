@@ -1,53 +1,52 @@
 # Spec-driven development
 
-Every change of substance runs **feature → architecture → plan → implement → verify**, and every
-artifact lives in this repository.
+Every change of substance runs **feature → architecture → plan → implement → verify** through the
+`/ticket-*` skills. The procedures live in the skills; this file holds the constraints they share.
 
 ## Artifacts
 
-`docs/tickets/<YYYY-MM-DD>_<slug>/`, created from `docs/tickets/_template/`:
+`docs/tickets/<YYYY-MM-DD>_<slug>/`, started from `docs/tickets/_template/`:
 
-| File | Holds |
-|---|---|
-| `feature.md` | goal, scope, out of scope, requirements `R1…` in EARS, acceptance per requirement |
-| `architecture.md` | structure, contracts, data, decisions `D1…` with the rejected alternative, risks |
-| `plan.md` | steps of ≤ ~400 changed lines, each with goal, files, test first, verify, `Status:` |
-| `verification.md` | a verdict per requirement, plus proposed simplifications |
+| File | Holds | Written by |
+|---|---|---|
+| `feature.md` | goal, scope, out of scope, requirements `R…` in EARS, acceptance per requirement | `/ticket-feature` |
+| `architecture.md` | structure, contracts, **Seams**, decisions `D…` with the rejected alternative, risks | `/ticket-architecture` |
+| `plan.md` | steps with `Blocked by:`, test first, verify, `Status:`, findings; a coverage table | `/ticket-plan`, `/ticket-implement` |
+| `verification.md` | verdict per requirement, review, simplifications, **Lessons** | `/ticket-verify` |
 
-- Never write SDD artifacts anywhere else. Ignore the artifact paths that plugins suggest
-  (`.scratch/`, `docs/superpowers/`, external trackers).
-- `docs/knowledge/` holds living how-it-works docs. Update them in the commit that changes the
+- **These paths override every plugin.** Ignore the artifact paths plugins suggest (`.scratch/`,
+  `docs/superpowers/`, an issue tracker).
+- **The glossary is `docs/knowledge/glossary.md`.** `domain-modeling` writes there; the repository
+  has no `GLOSSARY.md`, `CONTEXT.md` or `docs/adr/`. Decisions go to `architecture.md › Decisions`.
+- `docs/knowledge/` holds the living how-it-works docs. Update them in the commit that changes the
   behaviour they describe.
-
-## Flow
-
-| Command | Runs in | Agent | Writes |
-|---|---|---|---|
-| `/ticket:feature` | main session (grilling) | `researcher` for facts | `feature.md` |
-| `/ticket:architecture` | main session | `researcher` for facts | `architecture.md` |
-| `/ticket:plan` | main session | — | `plan.md`, reviewed by the user before any code |
-| `/ticket:implement` | main session | `implementer`, one step at a time | code + `plan.md` status |
-| `/ticket:verify` | main session | `verifier` | `verification.md` |
 
 ## Gates
 
-- **Requirements are EARS only** (`WHEN … THE SYSTEM SHALL …`; also `WHILE`, `WHERE`, `IF … THEN`),
-  never Given/When/Then.
+- **Requirements are EARS** (`WHEN … THE SYSTEM SHALL …`; also `WHILE`, `WHERE`, `IF … THEN`).
+- **Tests sit at the Seams** agreed in `architecture.md`; a step's *Test first* names one.
 - **The heavy review lands once, on the plan.** Steps then conform to it.
-- **Test first** for every step with behaviour.
-- **Approval gate:** after each step, stop and report the diff stat, the verification output and a
-  proposed commit message. Commit or amend only after the user's explicit OK. Pushing, opening a PR
-  or creating a remote needs its own OK.
-- **One plan step = one commit**; a ticket = one branch = one squash-merged PR.
-- A deviation from the plan is recorded in the same commit, in `plan.md` findings and, when it is a
-  decision, in `architecture.md › Decisions`.
+- **One plan step = one commit**, of ≤ ~400 changed lines, fitting one fresh session. A ticket is
+  one branch `<type>/<slug>` and one squash-merged PR.
+- **Approval gate.** After each step: the implementer's report, the two-axis review, then the
+  user's explicit OK before any commit or amend. Pushing, opening a PR or creating a remote needs
+  its own OK.
+- **Deviations are recorded** in the same commit: `plan.md` findings, and `architecture.md ›
+  Decisions` when it is a decision.
+- **Lessons change a skill, a rule or a check**, never a `CLAUDE.md`, and only on the user's OK.
 
 ## Toolkit layout (the model gets these wrong)
 
-- Commands are flat in `.claude/commands/` with literal-colon filenames (`ticket:plan.md` →
-  `/ticket:plan`). Never nest them in subfolders.
-- Tool boundaries live on the **agent** (`disallowedTools`), never on the command: `researcher`
-  and `verifier` cannot edit files, so the command persists their output.
-- Subagents cannot ask the user anything, so interactive phases (grilling, plan review, commit
-  approval) run in the main session.
-- Templates are `@`-referenced from `docs/tickets/_template/`, never inlined into a command.
+- Procedures are skills in `.claude/skills/ticket-<phase>/SKILL.md` with
+  `disable-model-invocation: true`. A colon is reserved for plugin namespaces, and there is no
+  `.claude/commands/`.
+- The plugin `mattpocock-skills` is referenced by name (`mattpocock-skills:<skill>`), never copied
+  or edited. A wrapper overrides only paths and gates.
+- Each skill and agent declares what it uses in its frontmatter `metadata` (`delegates`, `spawns`,
+  `hooks`, `overrides`, `reads`, `writes`). Keep it true when the file changes.
+- Tool limits live on the agent (`disallowedTools`). `researcher`, `reviewer` and `verifier`
+  cannot edit or spawn agents, so the skill persists their output.
+- Subagents cannot ask the user anything, so grilling, plan review and commit approval run in the
+  main session.
+- `implementer` cannot finish while `make check` is red (`.claude/hooks/make-check.sh`); a final
+  message starting with `BLOCKED:` is its only way out.

@@ -404,7 +404,17 @@
 - **Verify:**
   - a fresh session reports `mattpocock-skills` skills available and `superpowers` skills absent;
   - **live override test (Q64):** a throwaway `/ticket-feature` run in a scratch clone, where one domain term is agreed. The term must land in `docs/knowledge/glossary.md`, with no `GLOSSARY.md` or `docs/adr/`. Record the result; if the override does not hold, stop and ask.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - **Plugins:** a fresh session loads 13 plugins instead of 14. It sees 11 model-invocable `mattpocock-skills:*` skills, no `superpowers:*` skill, and no "You have superpowers" `SessionStart` message. The project's `false` overrides the user-level `true`.
+  - **Live override test (Q64), passed.** `/ticket-feature roster-basics` ran in a scratch clone for three `claude -p --continue` turns, with the user's answers simulated:
+    - grilling ran in numbered rounds with recommendations, and fact questions went to `researcher`;
+    - "employee" vs "user" was challenged and settled. The terms landed in `docs/knowledge/glossary.md` in the plugin's format (Language, Relationships, Flagged ambiguities);
+    - `feature.md` landed in `docs/tickets/2026-10-16_roster-basics/` with EARS requirements;
+    - no `GLOSSARY.md`, `CONTEXT.md`, `docs/adr/` or `.scratch/` was created, and nothing was committed.
+  - **Missing template:** with no `docs/tickets/_template/` yet, the skill produced a sensible structure: Goal, Context, Scope, Out of scope, Requirements. S18b's templates make that structure fixed.
+  - **Scratch clones must live outside `~/.claude/`.** The first clone, in the job's `tmp` under `~/.claude/jobs/`, could not be written to, because Claude Code protects that tree. The test was rerun in a `mktemp -d` directory.
+  - **Untrusted folder:** a `-p` session in a never-trusted folder ignores the project's `permissions.allow` (Claude Code warns about it). Interactive use after the trust dialog is unaffected.
 
 #### S18b — SDD guide, dependency map and ticket templates
 
