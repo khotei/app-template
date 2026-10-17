@@ -44,8 +44,19 @@
   `wc -l .claude/rules/sdd.md .claude/rules/pull-requests.md` ≤ 80 each; the dependency map is
   byte-identical:
   `diff <(git show HEAD:docs/knowledge/sdd.md | sed -n '/^### Dependency map/,/^### What the wrappers/p') <(sed -n '/^### Dependency map/,/^### What the wrappers/p' docs/knowledge/sdd.md)`
-  prints nothing; `grep -lP '\p{Cyrillic}'` on the four files prints nothing.
-- **Status:** todo
+  prints nothing; `grep -lP '\p{Cyrillic}'` on the five files prints nothing.
+- **Status:** done
+- **Findings:**
+  - Review (Standards) found the roadmap-entry fact written three times. The knowledge section now
+    links `roadmap.md`, which owns it, and the rule keeps the imperative.
+  - The skill now guards both roadmap steps with "if the slug has one", matching the rule's "when
+    one exists". It gained a *Paths* row and the re-verification of dated facts that the
+    roadmap's *Facts expire* bullet promised. `architecture.md › Rule and skill text` was updated
+    to the guarded text.
+  - "Never rebase the teaching branch" moved from the knowledge doc into `pull-requests.md`.
+    The knowledge doc keeps only the why.
+  - The `gitGraph` was checked by reading only. A `mermaid` parse probe was denied by the
+    permission system.
 
 #### S2 — Rename `@oblik` → `@app-template`
 

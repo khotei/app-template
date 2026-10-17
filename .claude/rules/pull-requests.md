@@ -16,6 +16,11 @@ The format is owned by `commits.md`; this file only adapts it to the PR surface.
 - **Reviewer-only content lives in ONE `<!-- … -->` block** (title rule, self-check, how to test,
   screenshots), which is stripped at merge. Never nest comments, and never write a literal `-->`
   inside one: it closes the block early and leaks review notes into history.
+- **The teaching branch.** After the squash merge, merge the ticket branch into
+  `chore/enterprise-template` with `--no-ff`, then merge `main` into it, so every plan step stays
+  readable next to `main`'s one commit and the next ticket merges on a common ancestor. Never
+  rebase the teaching branch. The why, the branch picture and the commands:
+  `docs/knowledge/sdd.md › Roadmap and the teaching branch`.
 - Opening a PR, pushing and creating a remote are outward-facing: ask the user first.
 
 Template: `.github/PULL_REQUEST_TEMPLATE.md`. A filled PR and the commit it produces:

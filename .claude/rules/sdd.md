@@ -18,6 +18,9 @@ Every change of substance runs **feature → architecture → plan → implement
   `docs/superpowers/`, an issue tracker).
 - **The glossary is `docs/knowledge/glossary.md`.** `domain-modeling` writes there; the repository
   has no `GLOSSARY.md`, `CONTEXT.md` or `docs/adr/`. Decisions go to `architecture.md › Decisions`.
+- **A ticket that has not started exists only as an entry in `docs/knowledge/roadmap.md`.**
+  `/ticket-feature <slug>` starts from that entry when one exists and replaces its status with a
+  link to the ticket folder.
 - `docs/knowledge/` holds the living how-it-works docs. Update them in the commit that changes the
   behaviour they describe.
 

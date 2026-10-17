@@ -23,11 +23,9 @@ graph LR
 
 - **One ticket = one branch `<type>/<slug>` cut from `main` = one squash-merged PR.** Unchanged
   from `.claude/rules/sdd.md`.
-- **`chore/enterprise-template` is the teaching branch.** After each PR merges, the ticket branch
-  is merged into it with `--no-ff` and `main` is merged after it, so every plan step stays
-  readable as its own commit, next to the squash that `main` keeps. `chore/monorepo-setup` plays
-  the same role for the scaffold ticket. The procedure lives in
-  [.claude/rules/pull-requests.md](../../.claude/rules/pull-requests.md).
+- **`chore/enterprise-template` is the teaching branch:** every plan step stays readable as its own
+  commit next to the squash that `main` keeps; why and how in
+  [sdd.md › Roadmap and the teaching branch](./sdd.md#roadmap-and-the-teaching-branch).
 - **Order below is the default, dependencies are the law.** A ticket may start when every entry in
   its `Depends on` is done. Two independent tickets may run in parallel on separate branches.
 - **Facts expire.** Every `Facts` line carries the date it was checked; `/ticket-feature`

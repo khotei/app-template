@@ -92,7 +92,7 @@ git-subtree-dir: repos/effect
 git-subtree-split: 7f524e25cfb49a71ac39b0f44278d08d40dda5de
 ```
 
-### The teaching branch procedure (text for `pull-requests.md`)
+### The teaching branch procedure (commands for `docs/knowledge/sdd.md`)
 
 After a PR is squash-merged into `main`:
 
@@ -113,10 +113,14 @@ For this ticket the first merge is moot (the branch *is* the teaching branch), s
   replaces its status with a link to the ticket folder."*
 - `pull-requests.md`: *"After the squash merge, merge the ticket branch into
   `chore/enterprise-template` with `--no-ff`, then merge `main` into it, so every plan step stays
-  readable next to `main`'s one commit and the next ticket merges on a common ancestor."*
-- `ticket-feature/SKILL.md` step 1: *"… and the slug's entry in `docs/knowledge/roadmap.md`, whose
-  goal, scope, inherited requirements, open questions and facts seed the grilling."* Step 3 adds:
-  *"Set the roadmap entry's status to a link to the ticket folder."*
+  readable next to `main`'s one commit and the next ticket merges on a common ancestor. Never
+  rebase the teaching branch."*
+- `ticket-feature/SKILL.md` step 1: *"… and the slug's entry in `docs/knowledge/roadmap.md` if the
+  slug has one, whose goal, scope, inherited requirements, open questions and facts seed the
+  grilling; send the entry's dated facts the ticket relies on to the `researcher` agent to
+  re-verify."* Step 3 adds: *"the facts the `researcher` confirmed go into Context. If the slug
+  has a roadmap entry, set the roadmap entry's status to a link to the ticket folder."* The guards
+  match the rule's "when one exists"; the facts clause honours the roadmap's *Facts expire*.
 
 ## Seams
 

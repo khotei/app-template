@@ -129,6 +129,57 @@ A step runs through three stages before anything is committed:
 
 Pushing, opening the PR and creating the remote each need their own OK.
 
+## Roadmap and the teaching branch
+
+A ticket starts as an entry in [the roadmap](./roadmap.md), which says what an entry holds and how
+`/ticket-feature` picks it up, and ends on two branches.
+
+**After the squash merge, the ticket's steps are kept on the teaching branch.** `main` holds one
+commit per ticket: the squash, whose body is the PR description. That is the history to read when
+you want to know *what* the template is and *why*. `chore/enterprise-template` holds every plan
+step as its own commit, grouped by one `--no-ff` merge per ticket (except the bootstrap ticket,
+whose ticket branch *is* the teaching branch): the history to read when you want to know *how* it
+was built, step by step. `chore/monorepo-setup` plays the same role for the scaffold ticket. The
+two branches hold identical trees after each cycle; they differ only in granularity.
+
+```mermaid
+gitGraph
+  commit id: "scaffold (squash)"
+  branch chore/enterprise-template
+  commit id: "effect-setup S1"
+  commit id: "… bootstrap S7"
+  checkout main
+  commit id: "bootstrap (squash)"
+  checkout chore/enterprise-template
+  merge main id: "merge main (bootstrap)"
+  checkout main
+  branch chore/claude-toolkit
+  commit id: "S1"
+  commit id: "S2"
+  checkout main
+  commit id: "claude-toolkit (squash)"
+  checkout chore/enterprise-template
+  merge chore/claude-toolkit id: "no-ff merge"
+  merge main id: "merge main (claude-toolkit)"
+```
+
+After each PR merges, with the user's OK for the push:
+
+```
+git switch chore/enterprise-template
+git merge --no-ff <type>/<slug>        # the ticket's steps, one merge commit
+git merge main                         # records the squash as an ancestor
+git push origin chore/enterprise-template
+```
+
+The second merge is what keeps the procedure conflict-free. Ticket branches are cut from `main`, so
+without it the merge base of the teaching branch and the next ticket would stay at the scaffold
+commit, and the first edit that overlaps an earlier ticket would conflict; with it, the squash is a
+common ancestor and the trees on both sides are identical. A rebase would rewrite the history the
+teaching branch exists to keep, which is why the rule forbids it. The check after each cycle:
+`git merge-base main chore/enterprise-template` equals `git rev-parse main`, and
+`git diff main chore/enterprise-template --stat` prints nothing.
+
 ## Lessons
 
 `/ticket-verify` ends with **Lessons**: mistakes that recurred in two or more steps, each turned into
