@@ -10,9 +10,9 @@
     "#infrastructure/*": "./*.ts"
   },
   "dependencies": {
+    "@oblik/config": "workspace:*",
     "@oblik/domain": "workspace:*",
-    "@oblik/llm": "workspace:*",
-    "@oblik/storage": "workspace:*",
+    "@oblik/queue": "workspace:*",
     "effect": "catalog:effect"
   }
 }

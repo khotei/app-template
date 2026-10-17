@@ -1,7 +1,7 @@
 # packages
 
-Generic, project-agnostic building blocks: `config`, the `db` / `storage` / `queue` / `llm`
-clients, `api-client` and `ui`.
+Generic, project-agnostic building blocks: `config`, the `queue` and `llm` clients, `api-client`
+and `ui`. Objects and rows use effect's `KeyValueStore`, not a package of ours.
 
 - **Never import a layer** (`domain`, `infrastructure`, `application`), an app or `deployment`.
   Packages may import each other.

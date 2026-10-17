@@ -436,7 +436,7 @@
     `ConfigError(SchemaError(Expected string at ["API_PORT"]))`. Bun auto-loads the cwd's `.env`,
     so a probe without `--no-env-file` silently picks up the root file.
   - Not done here: `QueueConfig` does not check that the refresh is shorter than the expiration
-    (R29a); the defaults meet it, and S12 adds the check where the options are built.
+    (R29a); S12 adds the check to `QueueConfig.layer` and its cases to this seam (D20).
   - **Config areas are bundled by their readers (D7, D16).** `MinimumLogLevelFromConfig` provides
     `RuntimeConfig.layer`, so a root no longer lists config areas it does not read itself; S12's
     `QueueClientSqlite` bundles `QueueConfig.layer`. Tests provide the `ConfigProvider` outside
@@ -548,20 +548,56 @@
 
 - **Goal:**
   - `LanguageModelStub` (R20);
-  - `DbClient` and `StorageClient` with `*Memory` layers;
-  - `buildExampleObjectKey`, and `OutboxMessage` as a `Schema.Struct`;
-  - `QueueClientSqlite`, where `QueueConfig` turns into client options and a refresh interval not
-    shorter than the expiration fails the layer; it bundles `QueueConfig.layer` (R23, R29a, D7).
+  - `storage` and `db` give way to effect's `KeyValueStore`: their stubs go, and
+    `packages/{db,storage}` keep only `export {}` until S21 (R20, D21);
+  - `OutboxMessage` as a `Schema.Struct`;
+  - `QueueConfig.layer` fails with `QueueLockRefreshIntervalInvalidError` when the refresh is not
+    shorter than the expiration (R21, R29a, D20);
+  - `QueueClientSqlite`, where `QueueConfig` turns into client options; it bundles
+    `QueueConfig.layer` (R23, D7).
 - **Blocked by:** S8, S9, S11.
 - **Files:**
-  - `packages/{llm,db,storage}/client.ts` and their `package.json` files;
-  - `infrastructure/example/{example.storage,index}.ts`;
+  - `packages/{llm,db,storage}/client.ts` and `packages/llm/package.json`;
+  - `packages/config/{config,config.test}.ts`;
   - `infrastructure/shared/{outbox.repository,queue.client,index}.ts`;
-  - `infrastructure/package.json`.
-- **Test first:** config only. `QueueClientSqlite` and `LanguageModelStub` have no seam: the
-  `ExampleSummaryJob` seam runs on memory and a recording model (D10), so S18 checks them by hand.
+  - `infrastructure/{package,tsconfig}.json`.
+- **Test first:** seam **a service's `layer` under `ConfigProvider.fromUnknown`** for the lock rule:
+  an equal and a longer refresh fail `QueueConfig.layer`, naming both variables and values; the
+  defaults pass (the existing case). The rest is config only: `QueueClientSqlite` and
+  `LanguageModelStub` have no seam, because the `ExampleSummaryJob` seam runs on memory and a
+  recording model (D10), so S18 checks them by hand.
 - **Verify:** `make check`.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - **The lock rule lives in `QueueConfig.layer` (D20, R21 amended).** `Config.all` is followed by
+    `Effect.filterOrFail` with `Duration.isLessThan`, failing with
+    `QueueLockRefreshIntervalInvalidError` from `@oblik/config`. A first pass put the check in
+    `QueueClientSqlite`, where no seam reached it; on review it moved to the config area, so the
+    existing seam covers it and `QueueClientSqlite` is back to `Layer.unwrap(Effect.map(…))` with
+    an explicit layer type. Without a `message` getter `Cause.pretty` printed only the tag, so the
+    message names both variables and values (`QUEUE_LOCK_REFRESH_INTERVAL (1m) must be shorter
+    than QUEUE_LOCK_EXPIRATION (5s)`). The name follows `ExampleNameInvalidError`:
+    `<Entity><Field>InvalidError`, with the field spelled as the variable.
+  - Both new cases were seen red (the layer built), then under mutations: `isLessThanOrEqualTo`
+    turned the equal case red, a swapped value in the message the longer case, and a reversed
+    comparison the defaults case and the longer case.
+  - **Objects and rows use effect's `KeyValueStore` (D21, R20 amended).** A first pass wrote
+    `StorageClient` and `DbClient` on `Ref<HashMap>` and an `ExampleObjectKey`
+    `Schema.TemplateLiteral` key builder; on review all three went, because
+    `KeyValueStore.layerMemory`, `prefix` and `toSchemaStore` already cover them and nothing
+    consumes them. Their `client.ts` is
+    `export {}`: a project with no input fails `tsc -b` (TS18003), and the `exports` entry stays
+    valid.
+    S21 removes both workspaces.
+  - Checked by hand: `LanguageModelStub` answered `generateText` with the canned text and
+    `streamText` with start, delta and end parts. The probe files were removed.
+  - `LanguageModel` lives in `effect/ai` (`repos/effect/packages/effect/src/ai`), not
+    `effect/unstable/ai`; the stub is `Layer.effect(LanguageModel.LanguageModel,
+    LanguageModel.make({ generateText, streamText }))`, as upstream's tests build one.
+  - **`infrastructure` drops `@oblik/llm` and `@oblik/storage`** with their tsconfig references:
+    nothing in it imports them, since `summarizeExample` (S13) uses `effect/ai` and storage is
+    `KeyValueStore`. S18's worker declares `@oblik/llm` for `LanguageModelStub`. It now declares
+    `@oblik/config` and `@oblik/queue`. This reverses S10's note that kept them.
 
 #### S13 — `ExampleSummaryJob`: enqueue, worker, handle
 
@@ -733,12 +769,16 @@
 
 #### S21 — Conventions: naming, tooling and the layer `CLAUDE.md` files
 
-- **Goal:** `naming.md` states every R39 bullet; `tooling.md` and the five layer `CLAUDE.md`
-  files carry the Effect conventions; none restates `effect.md` (R39).
+- **Goal:**
+  - `naming.md` states every R39 bullet; `tooling.md` and the five layer `CLAUDE.md` files carry
+    the Effect conventions; none restates `effect.md` (R39);
+  - remove the empty `packages/db` and `packages/storage` workspaces: the root `workspaces`, the
+    tsconfig references, any declarations (D21).
 - **Blocked by:** S20.
 - **Files:**
   - `.claude/rules/{naming,tooling}.md`;
-  - `{domain,infrastructure,application,packages,apps}/CLAUDE.md`.
+  - `{domain,infrastructure,application,packages,apps}/CLAUDE.md`;
+  - `packages/{db,storage}/` removed; the root `package.json`, `tsconfig.json` and `bun.lock`.
 - **Test first:** config only.
 - **Verify:**
   - each `CLAUDE.md` is ≤ ~40 lines and each rule ≤ ~80;
@@ -784,7 +824,7 @@
 
 | Req | Steps | Req | Steps |
 |---|---|---|---|
-| R1 | S1, S4, S23 | R21 | S9 |
+| R1 | S1, S4, S23 | R21 | S9, S12 |
 | R2 | gates S7, S19, S22 | R22 | S9 |
 | R3 | every step; S4 | R23 | S8, S12 |
 | R4 | S2 | R24 | S13 |

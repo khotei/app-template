@@ -96,7 +96,7 @@ graph LR
 │       ├── example.queue.ts               ✎ SummarizeExample, exampleSummaryQueue (a definition value)
 │       ├── example.prompt.ts              ★ examplePrompt(input)
 │       ├── example.llm.ts                 ✎ summarizeExample (a function, not a service)
-│       └── example.storage.ts             ✎ buildExampleObjectKey (pure stub)
+│       └── example.storage.ts             ✗ keys come from KeyValueStore.prefix where objects are stored (D21)
 ├── application/example/
 │   ├── example.service.ts                 ✎ ExampleService (create, get)
 │   ├── example-summary.job.ts             ★ ExampleSummaryJob.enqueue · ExampleSummaryJob.worker
@@ -106,7 +106,7 @@ graph LR
 │   ├── config/{config,index}.ts           ✎ <Area>Config services, each with a layer · load.ts ✗
 │   ├── queue/{queue,memory,sqlite}.ts     ✎ JobQueue · QueueClient · QueueError · two layers (client.ts ✗)
 │   ├── llm/client.ts                      ✎ LanguageModelStub
-│   ├── db/client.ts · storage/client.ts   ✎ Context.Service stubs + *Memory layers
+│   ├── db/ · storage/                     ✗ effect's KeyValueStore replaces them; the empty workspaces go in S21 (D21)
 │   ├── api-contract/                      ★ @oblik/api-contract
 │   │   ├── api.ts · example.ts · health.ts · validation.ts · index.ts
 │   │   ├── openapi.ts                     ★ writes openapi.json (make openapi)
@@ -261,11 +261,13 @@ export class ApiConfig extends Context.Service<ApiConfig, { readonly port: numbe
 }   // : Layer<ApiConfig, Config.ConfigError> — the error names the first missing or invalid variable
 // WebConfig { port: WEB_PORT } · RuntimeConfig { nodeEnv: NODE_ENV, logLevel: Config.LogLevel(LOG_LEVEL), "Info" }
 // QueueConfig { filename: QUEUE_SQLITE_PATH, lockExpiration: 15 s, lockRefreshInterval: 5 s (QUEUE_LOCK_*) }
+//   : Layer<QueueConfig, ConfigError | QueueLockRefreshIntervalInvalidError> — refresh < expiration (D20)
 export const MinimumLogLevelFromConfig: Layer.Layer<never, ConfigError> // References.MinimumLogLevel; bundles RuntimeConfig.layer
 
 // packages/llm/client.ts
 export const LanguageModelStub: Layer.Layer<LanguageModel.LanguageModel>   // LanguageModel.make, canned text
-// packages/db/client.ts · packages/storage/client.ts: DbClient / StorageClient services + *Memory layers
+// objects and rows: KeyValueStore (effect/persistence) — layerMemory now, layerSql / layerFileSystem later;
+//   KeyValueStore.prefix(store, 'examples/') namespaces keys, toSchemaStore(store, schema) types the values (D21)
 ```
 
 ### HTTP contract and client
@@ -376,7 +378,7 @@ Tests observe behaviour only here. Each row is one test file or suite.
 | `ExampleService.layer` (`create`, `get`) over `ExampleRepositoryMemory`, `QueueClientMemory`, `TestClock`, a fresh `TestCrypto.layer(seed)` per test (`application`) | saves and enqueues once, deterministic UUIDv7 and `createdAt`, job id `example-summary:<id>`, a repeated send deduplicated, a blank name saves and enqueues nothing, not-found | HTTP, the SQLite store |
 | `ExampleSummaryJob.layer` + `ExampleSummaryJob.worker` over `QueueClientMemory`, a recording or failing `LanguageModel`, `TestClock` (`application`) | enqueue → handle round trip, the prompt reaching the model, retries on the queue's schedule, dead-letter and its log after `maxAttempts`, interrupt releasing without counting the attempt | the SQL store and its DB clock, `LanguageModelStub`, two processes |
 | `JobQueue` suite run against `QueueClientMemory` and `createQueueClientSqlite` on a temp file (`packages/queue`) | send and consume, dedup by id, a message surviving a rebuilt layer on the same file ("worker was stopped"), the loop continuing after a failure | lock-expiry timing (real time), SQS |
-| a service's `layer` under `ConfigProvider.fromUnknown` (`packages/config`) | defaults, a `ConfigError` naming the missing variable, the `LOG_LEVEL` literals reaching `MinimumLogLevel` | `--env-file` loading |
+| a service's `layer` under `ConfigProvider.fromUnknown` (`packages/config`) | defaults, a `ConfigError` naming the missing variable, the `LOG_LEVEL` literals reaching `MinimumLogLevel`, a lock refresh not shorter than the expiration failing `QueueConfig.layer` | `--env-file` loading |
 | `HttpRouter.toWebHandler(ApiHttp …)` driven by `createApiClient(url, { fetch })` and raw `Request`s (`apps/api`) | each status and JSON body on the wire, each typed `Result`, a 400 listing every issue, `POST /examples` enqueuing the job, a defect or an unencodable response answering 500 | the Bun socket, `--watch` |
 | `createApiClient` over a fake `fetch`, plus type tests (`packages/api-client`) | the transport error on a refused connection, `SchemaError` / `DecodeError` on a wrong body or status, no rejected promise, an exhaustive `switch` over `error._tag` | a real server |
 | `openapi.test.ts`: `OpenApi.fromApi(Api)` equals the committed `openapi.json` (`packages/api-contract`) | contract drift, the documented 400 and 500 | behaviour the schema does not express |
@@ -448,7 +450,8 @@ Checked by hand in `/ticket-verify`, not by tests:
 - **D7 — Settings are one `Context.Service` per area with `static layer = Layer.effect(this,
   Config.all({...}))`; the layer that reads an area bundles it (D16), and tests swap the
   `ConfigProvider`.** Only Effect's `Config` module is involved, so a startup failure is Effect's
-  `ConfigError`, naming the first missing or invalid variable. A config area has one
+  `ConfigError`, naming the first missing or invalid variable, or, for the one cross-field rule,
+  `QueueLockRefreshIntervalInvalidError` (D20). A config area has one
   implementation, so `QueueClientSqlite` bundles `QueueConfig.layer` and
   `MinimumLogLevelFromConfig` bundles `RuntimeConfig.layer`; a root provides an area itself only
   when it reads it directly (`main.ts`). A bundled area cannot be replaced by a ready value, so a
@@ -556,6 +559,31 @@ Checked by hand in `/ticket-verify`, not by tests:
     adapters would carry one;
   - `off`: it also hides the hint in the editor;
   - `ignoreEffectWarningsInTscExitCode: true`: it lets every Effect warning through, which R8 forbids.
+
+- **D20 — The lock rule of `QueueConfig` (refresh shorter than expiration) is checked in
+  `QueueConfig.layer` and fails it with `QueueLockRefreshIntervalInvalidError`, a
+  `Schema.TaggedError` whose message names both variables and their values.** A cross-field rule
+  belongs to the area that reads both variables, so the config seam covers it and every reader of
+  `QueueConfig` gets valid values. `Config.all` is an `Effect`, so `Effect.filterOrFail` with
+  `Duration.isLessThan` adds the rule without millisecond math. *Rejected:*
+  - the check in `QueueClientSqlite`, where the options are built: untested, because no seam
+    reaches that layer;
+  - Effect's `ConfigError`: its cause is only a `SourceError` or `SchemaError`, so a cross-field
+    rule would need a hand-built `SchemaError` issue, and `Config` has no filter combinator;
+  - `createQueueClientSqlite` checking its own `Duration.Input` options: a decode step and an
+    error type in the generic package; its TSDoc keeps the constraint instead.
+
+- **D21 — Objects and rows go through effect's `KeyValueStore` (`effect/persistence`), not
+  hand-written `storage` and `db` clients.** It is a service with `layerMemory` today and
+  `layerSql` or `layerFileSystem` later, so a real store is one more layer chosen in the roots
+  (D16); `prefix(store, 'examples/')` namespaces keys and `toSchemaStore(store, schema)` decodes
+  typed values. Nothing consumes it yet, so no code of ours wraps it. `packages/db` and
+  `packages/storage` keep a `client.ts` of `export {}` until S21 removes them, because `tsc -b`
+  rejects a project with no inputs (TS18003). *Rejected:*
+  - `StorageClient` and `DbClient` on `Ref<HashMap>`: about 40 lines duplicating an effect
+    primitive, with no consumer;
+  - a `Schema.TemplateLiteral` key builder (`ExampleObjectKey`): `prefix` already namespaces keys
+    where the store is used.
 
 ## Risks
 

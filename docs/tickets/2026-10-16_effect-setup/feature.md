@@ -162,14 +162,22 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
 
 - **R20** — An adapter that implements a port, or that holds a resource or a varying
   implementation, SHALL be a `Layer` that provides a `Context.Service`; any other adapter SHALL
-  be a value or a function with requirements (architecture D17). The repository stays in-memory;
-  `storage` and `db` are `Context.Service` stubs with in-memory layers; `llm` exposes
-  `LanguageModel` from `effect/ai` through a stub layer that returns a canned response.
+  be a value or a function with requirements (architecture D17). The repository stays in-memory.
+  Objects and rows SHALL be stored through effect's `KeyValueStore` (`effect/persistence`), with
+  `layerMemory` now (`prefix` for key namespaces, `toSchemaStore` for typed rows) and real stores
+  (`layerSql`, `layerFileSystem`) later, not through a hand-written `storage` or `db` client;
+  `llm` exposes `LanguageModel` from `effect/ai` through a stub layer that returns a canned
+  response. *Amended in S12: the `storage` and `db` stubs would duplicate `KeyValueStore`
+  (architecture D21).*
 - **R21** — `@oblik/config` SHALL define settings with `effect/Config`: one `Context.Service` per
   area with a `layer`, read through the current `ConfigProvider` (`fromEnv` by default, so tests
-  swap it). WHEN a required variable is missing or invalid, THE SYSTEM SHALL fail at startup with
-  a `ConfigError` naming that variable. *Amended in S9: Effect reports the first offending
-  variable; the earlier "every variable" needed hand-written validation.*
+  swap it). WHEN a required variable is missing or fails to decode, THE SYSTEM SHALL fail at
+  startup with a `ConfigError` naming that variable. IF `QUEUE_LOCK_REFRESH_INTERVAL` is not
+  shorter than `QUEUE_LOCK_EXPIRATION`, THEN THE SYSTEM SHALL fail at startup with
+  `QueueLockRefreshIntervalInvalidError` naming both variables and their values. *Amended in S9:
+  Effect reports the first offending variable; the earlier "every variable" needed hand-written
+  validation. Amended in S12: the cross-field lock rule has its own tagged error, because a
+  `ConfigError` carries only a source or schema failure (architecture D20).*
 - **R22** — `.env.example` SHALL list every variable the code reads, including the queue's SQLite
   path, and the SQLite file SHALL be gitignored.
 
@@ -301,7 +309,7 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
 | R12–R15 | `mv .env .env.bak && make test` passes. A failing test in each workspace makes `make test` exit non-zero (checked from S8 with `it.effect`). `git grep "from 'bun:test'" -- ':!docs/tickets'` finds nothing. |
 | R16 | A commit with a floating Effect is rejected; a push with a failing test is rejected. |
 | R17–R19 | `make lint` fails for `@effect/platform-bun` or `@oblik/config` imported in `domain/`, and passes for `effect`, `vitest` and `@effect/vitest` in a `domain/*.test.ts`. `git grep -E "Date.now|new Date\(|randomUUID" -- 'domain/**/*.ts'` finds nothing. A test fixes time with `TestClock` and ids with `TestCrypto`. |
-| R20–R22 | Removing `API_PORT` gives a startup `ConfigError` naming it. `.env.example` lists every variable read. |
+| R20–R22 | `packages/db` and `packages/storage` hold no code of ours (removed in S21), and nothing hand-writes a key-value stub. Removing `API_PORT` gives a startup `ConfigError` naming it. A lock refresh equal to or longer than the expiration fails `QueueConfig.layer` with `QueueLockRefreshIntervalInvalidError` naming both variables (`packages/config` seam). `.env.example` lists every variable read. |
 | R23–R25 | `example-summary.job.ts` exports `ExampleSummaryJob` with `enqueue` and `ExampleSummaryJob.worker`; `apps/worker/src` holds no job logic and no `handlers/` folder. Swapping the in-memory and SQLite queue layers changes only `apps/*/src/layer.ts`. |
 | R26–R29 | With the worker stopped, three `POST /examples` queue three jobs; starting the worker logs three job results. A job made to fail is retried per the schedule (tested with `TestClock`) and then dead-lettered. SIGTERM during a job leaves it for the next worker at the same attempt. |
 | R30–R33 | `packages/api-contract` imports only `effect`. Editing an endpoint without regenerating fails `make check`; `openapi.json` documents the 400. Through `@oblik/api-client`, an unknown id resolves to `{ ok: false, error: { _tag: <contract 404> } }`, a bad body to the 400's tag, a stopped server to the transport tag, and no call rejects. A `switch` over `error._tag` missing a case fails `make typecheck`. `import 'effect'` in `apps/web/src/features/` fails `make lint`. |

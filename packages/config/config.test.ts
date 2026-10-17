@@ -39,6 +39,29 @@ describe('config layers', () => {
     ),
   )
 
+  it.effect.each([
+    { refresh: '5 seconds', expiration: '5 seconds', printed: '(5s)' },
+    { refresh: '1 minute', expiration: '5 seconds', printed: '(1m)' },
+  ])(
+    'rejects a lock refresh of $refresh against an expiration of $expiration',
+    ({ refresh, expiration, printed }) =>
+      Effect.gen(function* () {
+        const error = yield* Effect.flip(
+          Layer.build(
+            provideVariables(QueueConfig.layer, {
+              QUEUE_SQLITE_PATH: '../../.data/queue.sqlite',
+              QUEUE_LOCK_EXPIRATION: expiration,
+              QUEUE_LOCK_REFRESH_INTERVAL: refresh,
+            }),
+          ),
+        )
+
+        assert.strictEqual(error._tag, 'QueueLockRefreshIntervalInvalidError')
+        assert.include(error.message, `QUEUE_LOCK_REFRESH_INTERVAL ${printed}`)
+        assert.include(error.message, 'QUEUE_LOCK_EXPIRATION (5s)')
+      }),
+  )
+
   it.effect.each(LogLevel.values)('sets the minimum log level to LOG_LEVEL=%s', (level) =>
     Effect.map(References.MinimumLogLevel, (minimum) => assert.strictEqual(minimum, level)).pipe(
       Effect.provide(provideVariables(MinimumLogLevelFromConfig, { LOG_LEVEL: level })),

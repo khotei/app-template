@@ -1,4 +1,4 @@
-import { Config, Context, Duration, Effect, Layer, type LogLevel, References } from 'effect'
+import { Config, Context, Duration, Effect, Layer, type LogLevel, References, Schema } from 'effect'
 
 export class ApiConfig extends Context.Service<ApiConfig, { readonly port: number }>()(
   '@oblik/config/ApiConfig',
@@ -27,6 +27,15 @@ export class RuntimeConfig extends Context.Service<
   )
 }
 
+export class QueueLockRefreshIntervalInvalidError extends Schema.TaggedError<QueueLockRefreshIntervalInvalidError>()(
+  'QueueLockRefreshIntervalInvalidError',
+  { lockExpiration: Schema.Duration, lockRefreshInterval: Schema.Duration },
+) {
+  override get message(): string {
+    return `QUEUE_LOCK_REFRESH_INTERVAL (${Duration.format(this.lockRefreshInterval)}) must be shorter than QUEUE_LOCK_EXPIRATION (${Duration.format(this.lockExpiration)})`
+  }
+}
+
 export class QueueConfig extends Context.Service<
   QueueConfig,
   {
@@ -45,7 +54,14 @@ export class QueueConfig extends Context.Service<
       lockRefreshInterval: Config.Duration('QUEUE_LOCK_REFRESH_INTERVAL').pipe(
         Config.withDefault(Duration.seconds(5)),
       ),
-    }),
+    }).pipe(
+      Effect.filterOrFail(
+        ({ lockExpiration, lockRefreshInterval }) =>
+          Duration.isLessThan(lockRefreshInterval, lockExpiration),
+        ({ lockExpiration, lockRefreshInterval }) =>
+          new QueueLockRefreshIntervalInvalidError({ lockExpiration, lockRefreshInterval }),
+      ),
+    ),
   )
 }
 
