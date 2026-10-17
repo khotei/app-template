@@ -514,8 +514,35 @@
     repository is returned by `get`; an unknown id gives `ExampleNotFoundError`.
 - **Verify:**
   - `make check`;
-  - `git grep -E "Date.now|new Date\(|randomUUID" domain/` finds nothing.
-- **Status:** todo
+  - `git grep -E "Date.now|new Date\(|randomUUID" -- 'domain/**/*.ts'` finds nothing.
+- **Status:** done
+- **Findings:**
+  - Both seams were seen red first on stubs, then again under a mutation per case (no trim, no
+    blank check, a no-op `upsert`, no `None` branch).
+  - **`buildExample` trims with `Str.trim` and `Str.isEmpty`** (`import { String as Str }`), as the
+    Contracts and R37b ask: Biome's `noShadowRestrictedNames` fires only on a binding named
+    `String`, so the alias passes.
+  - **The Verify grep is scoped to `domain/**/*.ts`.** Over all of `domain/` it also matched the
+    prose of `domain/CLAUDE.md`, which names the banned calls plainly.
+  - `ExampleId` checks any UUID version, as the Contracts have it; UUIDv7 comes from `Crypto`
+    where ids are made (S14). The `ExampleError` union is dropped (nothing used it). `save` is
+    gone; the port has `upsert` and `selectById`.
+  - The two `ExampleService` tests each provide their own fresh layer, so they share no memory
+    store; both use the same id, so a shared store would fail the not-found case (probed).
+    `make` returns `{ get }` without `as const`.
+  - `@oblik/infrastructure` is a devDependency of `application` (only the test imports it) with a
+    tsconfig reference; S13 moves it to `dependencies`.
+  - Docs made false by the step: `naming.md` (import example, `create<Thing>` example),
+    `docs/knowledge/tooling.md` (import example), `domain/CLAUDE.md`, and
+    `docs/knowledge/architecture.md` (import example, slice map, *Add a new entity* steps 1–3
+    and 5). **Deduplicated:** among the rules, the branded-id and `_tag` facts live only in
+    `domain/CLAUDE.md` (the knowledge doc still repeats them until S22);
+    `naming.md` keeps the `.error` role ("domain errors") and the `<Entity><Problem>Error` name.
+    `apps/CLAUDE.md` keeps its `_tag`-to-status line, which S17 owns (it adds the rethrow rule,
+    so it is not a copy).
+  - Left for S22 (its Goal names them): the *Effect seam* table, steps 6–8, and *Add a new entity* step 5, which
+    contradicts `infrastructure/CLAUDE.md` ("replace the body, not the signature" against "another
+    layer of the same port").
 
 #### S12 — Stub clients as layers, and the SQLite queue client
 
@@ -545,7 +572,8 @@
   - `example-summary.job.ts` holds `ExampleSummaryJob.enqueue`, `ExampleSummaryJob.layer`,
     `ExampleSummaryJob.worker` and the module's `handle` (R25, D2);
   - the job calls `LanguageModel` and logs the result (R27);
-  - retries, dead-lettering and interrupts follow `consume` (R28, R29, D10).
+  - retries, dead-lettering and interrupts follow `consume` (R28, R29, D10);
+  - `@oblik/infrastructure` moves from `devDependencies` to `dependencies` of `application`.
 - **Blocked by:** S11, S12.
 - **Files:**
   - `infrastructure/example/{example.queue,example.prompt,example.llm,index}.ts`;
@@ -725,7 +753,7 @@
   - `docs/knowledge/tooling.md` covers the commands, gates, LazyVim (the `tsc` LSP) and
     troubleshooting, including a lost patch;
   - `docs/knowledge/architecture.md` replaces "The Effect seam" with how layers compose, and
-    updates "Where things live" and "Add a new entity";
+    updates "Where things live" and "Add a new entity" (steps 5–8, and the S10 transition note);
   - `README.md` links `effect.md` (R38, R40).
 - **Blocked by:** S20.
 - **Files:** `docs/knowledge/{tooling,architecture}.md`, `README.md`, and the link to
@@ -773,7 +801,7 @@
 | R15 | S9 | R34 | S9, S19 |
 | R16 | S5, S6, S8 | R35 | S17, S18 |
 | R17 | S7, S11 | R36 | S17, S18 |
-| R18 | S11 | R37, R37a, R37b | S20 |
+| R18 | S11 | R37, R37a, R37b | S20 (R37b also S11) |
 | R19 | S11, S14 | R38 | S20, S22 |
 | R20 | S11, S12 | R39 | S21 |
 | | | R40 | S20–S22 |

@@ -66,7 +66,7 @@ import { z } from 'zod'                                     // external packages
 
 import { buildExample } from '@oblik/domain/example'         // another workspace
 
-import { createExampleService } from '#application/example/example.service' // this workspace
+import { ExampleService } from '#application/example/example.service' // this workspace
 ```
 
 - **`@oblik/<workspace>[/<entity>]`** reaches another workspace through its `exports`. A layer
@@ -82,11 +82,11 @@ Using the `example` slice as the map:
 
 | What | File | Named |
 |---|---|---|
-| entity type and branded id | `domain/example/example.model.ts` | `Example`, `ExampleId = Id<'Example'>` |
-| domain errors | `domain/example/example.error.ts` | `ExampleNotFoundError`, `_tag` = class name |
-| port and pure operations | `domain/example/example.service.ts` | `ExampleRepository`, `buildExample(name, now)` |
-| adapter implementing the port | `infrastructure/example/example.repository.ts` | `createExampleRepository()` |
-| service over the port | `application/example/example.service.ts` | `createExampleService({ repository })` |
+| entity schema and branded id | `domain/example/example.model.ts` | `Example` (`Schema.Class`), `ExampleId` |
+| domain errors | `domain/example/example.error.ts` | `ExampleNotFoundError` (`Schema.TaggedError`) |
+| port and pure operations | `domain/example/example.service.ts` | `ExampleRepository`, `buildExample({ id, name, createdAt })` |
+| adapter implementing the port | `infrastructure/example/example.repository.ts` | `ExampleRepositoryMemory` (a `Layer`) |
+| service over the port | `application/example/example.service.ts` | `ExampleService`, `ExampleService.layer` |
 | browser feature | `apps/web/src/features/example/health-panel.ts` | `renderHealthPanel(root, apiClient)` |
 
 Every entity folder has an `index.ts` barrel, and tests sit next to their source as `*.test.ts`.
@@ -104,18 +104,19 @@ Follow the `example` slice layer by layer, from the bottom up. Write each test b
 and run `make check` after each layer. `<entity>` is the kebab name (`document`), `<Entity>` the
 Pascal one (`Document`).
 
-1. **Domain model.** `domain/<entity>/<entity>.model.ts`: the `<Entity>` interface with `readonly`
-   fields and `<Entity>Id = Id<'<Entity>'>`.
-2. **Domain errors.** `<entity>.error.ts`: classes extending `DomainError`, named
-   `<Entity><Problem>Error`, with `readonly _tag = '<Entity><Problem>Error'`.
-3. **Port and pure operations.** `<entity>.service.ts`: the `<Entity>Repository` port and pure
-   functions such as `build<Entity>(input, now)`. Time and ids come in as arguments or through
-   `buildId`, never from `Date.now()`. Test them in `<entity>.service.test.ts`.
+1. **Domain model.** `domain/<entity>/<entity>.model.ts`: `<Entity>` as a `Schema.Class` and
+   `<Entity>Id` as a branded `Schema` with a same-named type.
+2. **Domain errors.** `<entity>.error.ts`: `Schema.TaggedError` classes named
+   `<Entity><Problem>Error`, whose tag is the class name.
+3. **Port and operations.** `<entity>.service.ts`: the `<Entity>Repository` port as a
+   `Context.Service` with no layer, and `Effect` functions such as `build<Entity>(input)`. Time and
+   ids come in as input, never from `Date.now()` or `crypto.randomUUID()`. Test them in
+   `<entity>.service.test.ts`.
 4. **Domain exports.** `domain/<entity>/index.ts` re-exports the three files, and
    `domain/package.json` gains `"./<entity>": "./<entity>/index.ts"` in `exports`.
-5. **Adapter.** `infrastructure/<entity>/<entity>.repository.ts`: `create<Entity>Repository()`
-   returning the domain port type. Start in-memory, like the example; a real client later
-   replaces the body, not the signature. Add `index.ts` and the `exports` entry.
+5. **Adapter.** `infrastructure/<entity>/<entity>.repository.ts`: `<Entity>RepositoryMemory`, a
+   `Layer` that provides the domain port. Start in-memory, like the example; a real client later
+   adds another layer of the same port. Add `index.ts` and the `exports` entry.
 6. **Service and use cases.** `application/<entity>/<entity>.service.ts` holds the service, and
    `<verb>.use-case.ts` composes services. A service may import its adapter or receive the port as
    an argument, and may read the time with `new Date()`. Add `index.ts` and the `exports` entry.

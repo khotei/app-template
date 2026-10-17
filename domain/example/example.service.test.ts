@@ -1,27 +1,29 @@
-import { describe, expect, test } from 'vitest'
+import { assert, describe, it } from '@effect/vitest'
+import { DateTime, Effect } from 'effect'
 
-import { ExampleNameInvalidError } from '#domain/example/example.error'
+import { ExampleId } from '#domain/example/example.model'
 import { buildExample } from '#domain/example/example.service'
 
 describe('buildExample', () => {
-  const now = new Date('2026-10-15T00:00:00.000Z')
+  const id = ExampleId.make('0192d4e0-7b3a-7c00-8000-000000000001')
+  const createdAt = DateTime.makeUnsafe('2026-10-15T00:00:00.000Z')
 
-  test('builds an example with a trimmed name and the given creation time', () => {
-    const example = buildExample('  First  ', now)
+  it.effect('trims the name and passes the id and creation time through', () =>
+    Effect.gen(function* () {
+      const example = yield* buildExample({ id, name: '  First  ', createdAt })
 
-    expect(example.name).toBe('First')
-    expect(example.createdAt).toBe(now)
-  })
+      assert.strictEqual(example.name, 'First')
+      assert.strictEqual(example.id, id)
+      assert.strictEqual(example.createdAt, createdAt)
+    }),
+  )
 
-  test('assigns a fresh UUID to every example', () => {
-    const first = buildExample('First', now)
-    const second = buildExample('Second', now)
+  it.effect.each(['', '   '])('rejects the blank name %j', (name) =>
+    Effect.gen(function* () {
+      const error = yield* Effect.flip(buildExample({ id, name, createdAt }))
 
-    expect(first.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
-    expect(first.id).not.toBe(second.id)
-  })
-
-  test.each(['', '   '])('rejects the blank name %p', (name) => {
-    expect(() => buildExample(name, now)).toThrow(ExampleNameInvalidError)
-  })
+      assert.strictEqual(error._tag, 'ExampleNameInvalidError')
+      assert.strictEqual(error.input, name)
+    }),
+  )
 })

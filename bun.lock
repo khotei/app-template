@@ -17,6 +17,11 @@
       "name": "@oblik/application",
       "dependencies": {
         "@oblik/domain": "workspace:*",
+        "effect": "catalog:effect",
+      },
+      "devDependencies": {
+        "@effect/vitest": "catalog:effect",
+        "@oblik/infrastructure": "workspace:*",
       },
     },
     "apps/api": {
@@ -52,6 +57,12 @@
     },
     "domain": {
       "name": "@oblik/domain",
+      "dependencies": {
+        "effect": "catalog:effect",
+      },
+      "devDependencies": {
+        "@effect/vitest": "catalog:effect",
+      },
     },
     "infrastructure": {
       "name": "@oblik/infrastructure",
@@ -59,6 +70,7 @@
         "@oblik/domain": "workspace:*",
         "@oblik/llm": "workspace:*",
         "@oblik/storage": "workspace:*",
+        "effect": "catalog:effect",
       },
     },
     "packages/api-client": {

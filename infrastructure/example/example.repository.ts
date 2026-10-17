@@ -1,13 +1,13 @@
-import type { Example, ExampleId, ExampleRepository } from '@oblik/domain/example'
+import { Effect, HashMap, Layer, Ref } from 'effect'
 
-export const createExampleRepository = (): ExampleRepository => {
-  const examples = new Map<ExampleId, Example>()
-  return {
-    async upsert(example) {
-      examples.set(example.id, example)
-    },
-    async selectById(id) {
-      return examples.get(id)
-    },
-  }
-}
+import { type Example, type ExampleId, ExampleRepository } from '@oblik/domain/example'
+
+export const ExampleRepositoryMemory = Layer.effect(
+  ExampleRepository,
+  Effect.map(Ref.make(HashMap.empty<ExampleId, Example>()), (examples) =>
+    ExampleRepository.of({
+      upsert: (example) => Ref.update(examples, HashMap.set(example.id, example)),
+      selectById: (id) => Effect.map(Ref.get(examples), HashMap.get(id)),
+    }),
+  ),
+)

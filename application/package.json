@@ -9,6 +9,11 @@
     "#application/*": "./*.ts"
   },
   "dependencies": {
-    "@oblik/domain": "workspace:*"
+    "@oblik/domain": "workspace:*",
+    "effect": "catalog:effect"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:effect",
+    "@oblik/infrastructure": "workspace:*"
   }
 }

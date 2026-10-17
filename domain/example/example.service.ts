@@ -1,14 +1,22 @@
+import { Context, type DateTime, Effect, type Option, String as Str } from 'effect'
+
 import { ExampleNameInvalidError } from '#domain/example/example.error'
-import type { Example, ExampleId } from '#domain/example/example.model'
-import { buildId } from '#domain/shared/id'
+import { Example, type ExampleId } from '#domain/example/example.model'
 
-export interface ExampleRepository {
-  upsert(example: Example): Promise<void>
-  selectById(id: ExampleId): Promise<Example | undefined>
-}
+export class ExampleRepository extends Context.Service<
+  ExampleRepository,
+  {
+    readonly upsert: (example: Example) => Effect.Effect<void>
+    readonly selectById: (id: ExampleId) => Effect.Effect<Option.Option<Example>>
+  }
+>()('@oblik/domain/example/ExampleRepository') {}
 
-export const buildExample = (name: string, now: Date): Example => {
-  const trimmed = name.trim()
-  if (trimmed === '') throw new ExampleNameInvalidError(name)
-  return { id: buildId<'Example'>(), name: trimmed, createdAt: now }
-}
+export const buildExample = Effect.fn('buildExample')(function* (input: {
+  readonly id: ExampleId
+  readonly name: string
+  readonly createdAt: DateTime.Utc
+}) {
+  const name = Str.trim(input.name)
+  if (Str.isEmpty(name)) return yield* new ExampleNameInvalidError({ input: input.name })
+  return new Example({ id: input.id, name, createdAt: input.createdAt })
+})

@@ -4,10 +4,12 @@ The pure core. It owns entity models, errors, ports (the interfaces that infrast
 and pure operations.
 
 - **Imports no workspace at all**, not even `packages/*`. Biome rejects any `@oblik/*` import.
-- **No I/O and no ambient state:** no `Bun.env`, no `fetch`, no `Date.now()`. Pass time in as an
-  argument (`buildExample(name, now)`), so operations stay deterministic and testable.
-- Errors extend `DomainError` and set `_tag` to the class name; apps map status codes from `_tag`,
-  and the field is the seam for Effect's `Data.TaggedError`.
-- Persistence ports live in `<entity>.service.ts` next to the pure operations; they become Effect
-  services later without moving files.
+- **No I/O and no ambient state:** no `Bun.env`, no `fetch`, no `Date.now()`, no `new Date()`, no
+  `crypto.randomUUID()`. Pass time and ids in as input (`buildExample({ id, name, createdAt })`),
+  so operations stay deterministic and testable.
+- Models are `Schema.Class`; ids are `Schema` values `<Entity>Id`, branded `'<Entity>Id'`, with a
+  type of the same name.
+- Errors are `Schema.TaggedError` classes whose `_tag` is the class name, and carry no HTTP status.
+- Persistence ports are `Context.Service` declarations with no layer, in `<entity>.service.ts`
+  next to the operations; their layers live in `infrastructure`.
 - Each entity folder exposes itself through `index.ts` (`@oblik/domain/<entity>`).

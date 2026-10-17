@@ -1,20 +1,13 @@
-import type { ExampleId } from '#domain/example/example.model'
-import { DomainError } from '#domain/shared/error'
+import { Schema } from 'effect'
 
-export class ExampleNameInvalidError extends DomainError {
-  readonly _tag = 'ExampleNameInvalidError'
+import { ExampleId } from '#domain/example/example.model'
 
-  constructor(readonly input: string) {
-    super(`Example name must not be blank, got ${JSON.stringify(input)}`)
-  }
-}
+export class ExampleNameInvalidError extends Schema.TaggedError<ExampleNameInvalidError>()(
+  'ExampleNameInvalidError',
+  { input: Schema.String },
+) {}
 
-export class ExampleNotFoundError extends DomainError {
-  readonly _tag = 'ExampleNotFoundError'
-
-  constructor(readonly id: ExampleId) {
-    super(`Example ${id} not found`)
-  }
-}
-
-export type ExampleError = ExampleNameInvalidError | ExampleNotFoundError
+export class ExampleNotFoundError extends Schema.TaggedError<ExampleNotFoundError>()(
+  'ExampleNotFoundError',
+  { id: ExampleId },
+) {}

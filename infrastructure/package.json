@@ -12,6 +12,7 @@
   "dependencies": {
     "@oblik/domain": "workspace:*",
     "@oblik/llm": "workspace:*",
-    "@oblik/storage": "workspace:*"
+    "@oblik/storage": "workspace:*",
+    "effect": "catalog:effect"
   }
 }

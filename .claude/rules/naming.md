@@ -19,7 +19,7 @@ Imports are enforced by Biome; file and symbol names are convention (Biome has n
 ## Imports
 
 - **Inside a workspace:** `#<workspace>/<path>` (declared in its `package.json` `imports`), never
-  `./` or `../`. Example: `#domain/shared/id`, `#api/http`.
+  `./` or `../`. Example: `#domain/example/example.model`, `#api/http`.
 - **Across workspaces:** `@oblik/<workspace>[/<entity>]`, only downward:
   `apps` → `application` → `infrastructure` → `domain`; `packages/*` serve every layer except
   `domain`. The full matrix lives in
@@ -34,7 +34,7 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 | Suffix | Role | Layer |
 |---|---|---|
 | `.model` | entity types and value shapes | domain |
-| `.error` | `DomainError` subclasses | domain |
+| `.error` | domain errors | domain |
 | `.service` | domain: ports + pure operations · application: a service over ports | domain, application |
 | `.use-case` | a flow that composes services | application |
 | `.repository` · `.storage` · `.queue` · `.llm` | an adapter over a client | infrastructure |
@@ -47,10 +47,9 @@ A file with none of these roles keeps a bare kebab name (`layer.ts`, `http.ts`, 
 ## Symbols
 
 - Types are `PascalCase` `<Entity><Role>`: `ExampleRepository`, `ExampleService`.
-- Errors are `<Entity><Problem>Error`, and their `_tag` equals the class name.
-- Branded ids are `Id<'<Entity>'>`, aliased `<Entity>Id`.
+- Errors are `<Entity><Problem>Error`.
 - Functions are verb-first, and the verb marks the kind of work:
-  - `create<Thing>`: a factory that wires dependencies (`createExampleService`);
+  - `create<Thing>`: a factory that wires dependencies (`createQueueClientSqlite`);
   - `build` / `ensure`: a pure function that derives a value, in any layer (`buildExample`);
   - `select` / `insert` / `upsert` / `delete`: persistence (`selectById`).
 - Constants are `camelCase` with `as const` for literals.
