@@ -52,4 +52,4 @@ export class QueueConfig extends Context.Service<
 export const MinimumLogLevelFromConfig = Layer.effect(
   References.MinimumLogLevel,
   Effect.map(RuntimeConfig, (config) => config.logLevel),
-)
+).pipe(Layer.provide(RuntimeConfig.layer))

@@ -3,13 +3,13 @@ import { ConfigProvider, Duration, Effect, Layer, LogLevel, References } from 'e
 
 import { ApiConfig, MinimumLogLevelFromConfig, QueueConfig, RuntimeConfig } from '#config/config'
 
-const fromEnv = <A, E>(layer: Layer.Layer<A, E>, variables: Record<string, string>) =>
+const provideVariables = <A, E>(layer: Layer.Layer<A, E>, variables: Record<string, string>) =>
   layer.pipe(Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(variables))))
 
 describe('config layers', () => {
   it.effect('fails with a ConfigError naming a missing variable', () =>
     Effect.gen(function* () {
-      const error = yield* Effect.flip(Layer.build(fromEnv(ApiConfig.layer, {})))
+      const error = yield* Effect.flip(Layer.build(provideVariables(ApiConfig.layer, {})))
 
       assert.strictEqual(error._tag, 'ConfigError')
       assert.include(error.message, 'API_PORT')
@@ -32,7 +32,7 @@ describe('config layers', () => {
       )
     }).pipe(
       Effect.provide(
-        fromEnv(Layer.mergeAll(RuntimeConfig.layer, QueueConfig.layer), {
+        provideVariables(Layer.mergeAll(RuntimeConfig.layer, QueueConfig.layer), {
           QUEUE_SQLITE_PATH: '../../.data/queue.sqlite',
         }),
       ),
@@ -41,18 +41,14 @@ describe('config layers', () => {
 
   it.effect.each(LogLevel.values)('sets the minimum log level to LOG_LEVEL=%s', (level) =>
     Effect.map(References.MinimumLogLevel, (minimum) => assert.strictEqual(minimum, level)).pipe(
-      Effect.provide(
-        MinimumLogLevelFromConfig.pipe(
-          Layer.provide(fromEnv(RuntimeConfig.layer, { LOG_LEVEL: level })),
-        ),
-      ),
+      Effect.provide(provideVariables(MinimumLogLevelFromConfig, { LOG_LEVEL: level })),
     ),
   )
 
   it.effect('rejects a lower-case LOG_LEVEL', () =>
     Effect.gen(function* () {
       const error = yield* Effect.flip(
-        Layer.build(fromEnv(RuntimeConfig.layer, { LOG_LEVEL: 'info' })),
+        Layer.build(provideVariables(RuntimeConfig.layer, { LOG_LEVEL: 'info' })),
       )
 
       assert.include(error.message, 'LOG_LEVEL')

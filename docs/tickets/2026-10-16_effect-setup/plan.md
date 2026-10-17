@@ -437,6 +437,10 @@
     so a probe without `--no-env-file` silently picks up the root file.
   - Not done here: `QueueConfig` does not check that the refresh is shorter than the expiration
     (R29a); the defaults meet it, and S12 adds the check where the options are built.
+  - **Config areas are bundled by their readers (D7, D16).** `MinimumLogLevelFromConfig` provides
+    `RuntimeConfig.layer`, so a root no longer lists config areas it does not read itself; S12's
+    `QueueClientSqlite` bundles `QueueConfig.layer`. Tests provide the `ConfigProvider` outside
+    the bundle.
   - The suite reads no `.env` (with the file moved aside it still passes). Each case was seen
     red: first on the missing `layer` statics, then by mutation (`Config.String` in place of
     `Config.LogLevel`, a wrong `NODE_ENV` default).
@@ -493,7 +497,7 @@
   - `DbClient` and `StorageClient` with `*Memory` layers;
   - `buildExampleObjectKey`, and `OutboxMessage` as a `Schema.Struct`;
   - `QueueClientSqlite`, where `QueueConfig` turns into client options and a refresh interval not
-    shorter than the expiration fails the layer (R23, R29a).
+    shorter than the expiration fails the layer; it bundles `QueueConfig.layer` (R23, R29a, D7).
 - **Blocked by:** S8, S9, S11.
 - **Files:**
   - `packages/{llm,db,storage}/client.ts` and their `package.json` files;

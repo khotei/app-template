@@ -226,7 +226,9 @@ export const summarizeExample = Effect.fn('summarizeExample')(function* (input: 
 export const ExampleRepositoryMemory: Layer.Layer<ExampleRepository>  // Ref<HashMap<ExampleId, Example>>
 
 // infrastructure/shared/queue.client.ts — config turns into client options here
-export const QueueClientSqlite = Layer.unwrap(Effect.map(QueueConfig, createQueueClientSqlite))
+export const QueueClientSqlite = Layer.unwrap(Effect.map(QueueConfig, createQueueClientSqlite)).pipe(
+  Layer.provide(QueueConfig.layer),
+)
 ```
 
 ### Packages
@@ -259,7 +261,7 @@ export class ApiConfig extends Context.Service<ApiConfig, { readonly port: numbe
 }   // : Layer<ApiConfig, Config.ConfigError> — the error names the first missing or invalid variable
 // WebConfig { port: WEB_PORT } · RuntimeConfig { nodeEnv: NODE_ENV, logLevel: Config.LogLevel(LOG_LEVEL), "Info" }
 // QueueConfig { filename: QUEUE_SQLITE_PATH, lockExpiration: 15 s, lockRefreshInterval: 5 s (QUEUE_LOCK_*) }
-export const MinimumLogLevelFromConfig: Layer.Layer<never, never, RuntimeConfig> // References.MinimumLogLevel
+export const MinimumLogLevelFromConfig: Layer.Layer<never, ConfigError> // References.MinimumLogLevel; bundles RuntimeConfig.layer
 
 // packages/llm/client.ts
 export const LanguageModelStub: Layer.Layer<LanguageModel.LanguageModel>   // LanguageModel.make, canned text
@@ -321,8 +323,8 @@ export const createApiClient: (baseUrl: string, options?: { readonly fetch?: typ
 
 | Process | Entry | Composition root provides |
 |---|---|---|
-| api | `BunRuntime.runMain(Layer.launch(ApiServer))` | `ApiConfig.layer`, `QueueConfig.layer`, `RuntimeConfig.layer`, `MinimumLogLevelFromConfig`, `BunServices.layer` (Crypto), `ExampleRepositoryMemory`, `QueueClientSqlite` |
-| worker | `BunRuntime.runMain(Layer.launch(ExampleSummaryJob.worker.pipe(…)))` | config (`QueueConfig`, `RuntimeConfig`), log level, `QueueClientSqlite`, `LanguageModelStub` |
+| api | `BunRuntime.runMain(Layer.launch(ApiServer))` | `ApiConfig.layer` (it reads the port), `MinimumLogLevelFromConfig`, `BunServices.layer` (Crypto), `ExampleRepositoryMemory`, `QueueClientSqlite`; the last two bundle their config areas |
+| worker | `BunRuntime.runMain(Layer.launch(ExampleSummaryJob.worker.pipe(…)))` | `MinimumLogLevelFromConfig`, `QueueClientSqlite`, `LanguageModelStub` |
 | web | `Bun.serve` with HMR, unchanged shape | reads `WebConfig`, `ApiConfig`, `RuntimeConfig` once, from their merged layers |
 
 `api` and `worker` run in dev with `--watch`; `web` keeps `--hot` (D12). `QUEUE_SQLITE_PATH` in
@@ -444,9 +446,16 @@ Checked by hand in `/ticket-verify`, not by tests:
   - `Model` (`effect/unstable`): unstable;
   - the domain yielding `Clock` and `Crypto`: every domain test would need the test services.
 - **D7 — Settings are one `Context.Service` per area with `static layer = Layer.effect(this,
-  Config.all({...}))`; a composition root `Layer.mergeAll`s the areas it needs, and tests swap the
+  Config.all({...}))`; the layer that reads an area bundles it (D16), and tests swap the
   `ConfigProvider`.** Only Effect's `Config` module is involved, so a startup failure is Effect's
-  `ConfigError`, naming the first missing or invalid variable. *Rejected:*
+  `ConfigError`, naming the first missing or invalid variable. A config area has one
+  implementation, so `QueueClientSqlite` bundles `QueueConfig.layer` and
+  `MinimumLogLevelFromConfig` bundles `RuntimeConfig.layer`; a root provides an area itself only
+  when it reads it directly (`main.ts`). A bundled area cannot be replaced by a ready value, so a
+  test provides `ConfigProvider.layer(ConfigProvider.fromUnknown(…))` outside the whole bundle.
+  *Rejected:*
+  - the roots `Layer.mergeAll` every area: a list that restates which leaf reads what, and a test
+    on `QueueClientMemory` would still need `QueueConfig`;
   - a generic `createConfigLayer` running `Effect.validate` so one error names every variable:
     about 60 lines of type machinery for a dev-time message, and `Context.Key & { config }`
     fights Effect's unify symbol (amends R21);
