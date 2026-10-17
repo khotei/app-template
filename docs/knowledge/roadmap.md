@@ -37,7 +37,7 @@ graph LR
 |---|---|---|---|---|
 | 1 | [`template-bootstrap`](#1-template-bootstrap) | `chore` | — | done: [docs/tickets/2026-10-17_template-bootstrap/](../tickets/2026-10-17_template-bootstrap/feature.md) |
 | 2 | [`claude-toolkit`](#2-claude-toolkit) | `chore` | 1, 3 | planned |
-| 3 | [`chat-core`](#3-chat-core) | `feat` | 1 | planned |
+| 3 | [`chat-core`](#3-chat-core) | `feat` | 1 | in progress: [docs/tickets/2026-10-17_chat-core/](../tickets/2026-10-17_chat-core/feature.md) |
 | 4 | [`postgres-drizzle`](#4-postgres-drizzle) | `feat` | 3 | planned |
 | 5 | [`aws-local`](#5-aws-local) | `feat` | 4 | planned |
 | 6 | [`llm-providers`](#6-llm-providers) | `feat` | 5 | planned |
@@ -129,6 +129,10 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   `effect/ai` streams `Response` parts (`text-delta`, `file`, `tool-call`, …) and takes
   `Prompt.FilePart` for images and PDFs. `@effect/sql-pglite@4.0.5` exists for later in-process
   Postgres tests.
+- **Status.** In progress: [docs/tickets/2026-10-17_chat-core/](../tickets/2026-10-17_chat-core/feature.md).
+  Its grilling departed from this entry: the assistant's message is a worker job polled by the
+  client (no SSE here), the title job starts from the first user message, and `Visitor` became
+  `User`.
 
 ### 4. `postgres-drizzle`
 
