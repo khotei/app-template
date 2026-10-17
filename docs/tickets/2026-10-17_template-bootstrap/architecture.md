@@ -64,7 +64,7 @@ import specifiers and the two string literals named above.
 | topics | `template effect bun typescript tanstack pulumi aws` | `--add-topic` |
 | merges | squash only | `--enable-squash-merge --enable-merge-commit=false --enable-rebase-merge=false` |
 | squash message | PR title and description | `--squash-merge-commit-message pr-title-description` |
-| head branches | deleted on merge | `--delete-branch-on-merge` |
+| head branches | deleted on merge | `--delete-branch-on-merge`, set after the bootstrap PR is merged (D8) |
 | template | yes | `--template` |
 | default branch | `main` | `--default-branch main` (after the push) |
 | wiki, projects | off | `--enable-wiki=false --enable-projects=false` |
@@ -186,6 +186,12 @@ produces three branches; `make dev-api` answers `/health` after the rename.
   nothing was verified against its requirements and the re-homed ones will be verified in their
   new tickets. *Rejected:* a `verification.md` with "superseded" per requirement (ritual without
   evidence); deleting the folder (loses the history the template exists to show).
+- **D8 — Delete-on-merge is enabled after the bootstrap PR, not at creation.** The head of the
+  first PR *is* `chore/enterprise-template`; with the setting on, GitHub deletes the teaching
+  branch at the squash merge. The plan sets every other setting at creation and this one right
+  after the teaching merge is pushed, so R2 holds before the second ticket starts. *Rejected:*
+  enabling it at creation and re-pushing the branch from the clone (a window with no teaching
+  branch, and a step that only works because a local copy happens to exist).
 
 ## Risks
 
