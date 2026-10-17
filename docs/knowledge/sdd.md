@@ -54,7 +54,7 @@ uses updates this map too; the Standards review checks it against `.claude/rules
 
 | Skill or agent | Plugin skills | Spawns | Hook | Writes |
 |---|---|---|---|---|
-| `/ticket-feature` | `grilling`, `domain-modeling` | `researcher` | — | `feature.md`, `docs/knowledge/glossary.md` |
+| `/ticket-feature` | `grilling`, `domain-modeling` | `researcher` | — | `feature.md`, `docs/knowledge/glossary.md`, `docs/knowledge/roadmap.md` |
 | `/ticket-architecture` | `codebase-design`, `grilling` | `researcher` | — | `architecture.md` |
 | `/ticket-plan` | — | — | — | `plan.md` |
 | `/ticket-implement` | `code-review` | `implementer`, `reviewer` | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, one commit per approved step |

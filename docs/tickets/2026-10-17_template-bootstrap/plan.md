@@ -57,6 +57,9 @@
     The knowledge doc keeps only the why.
   - The `gitGraph` was checked by reading only. A `mermaid` parse probe was denied by the
     permission system.
+  - The dependency map held byte-identical, as the R15/R16 acceptance then asked, though
+    `/ticket-feature` had begun to write `docs/knowledge/roadmap.md`. Verification run 1 found the
+    stale *Writes* cell; S6a corrects it.
 
 #### S2 — Rename `@oblik` → `@app-template`
 
@@ -205,15 +208,96 @@
 > `/ticket-verify docs/tickets/2026-10-17_template-bootstrap` runs here, in a new session in
 > `~/lab/app-template`. Accepted fixes become steps before S7.
 
+The run on 2026-10-17 accepted three fixes, S6a–S6c, from `verification.md` (committed in S7):
+*Simplifications* 1–3 and all four *Lessons*. Simplification 4 (drop the unused
+`@effect/platform-bun` pin) was dropped: `chat-core` consumes it through `BunRuntime`
+(`docs/knowledge/roadmap.md › 3. chat-core`), so it would only be added back. The run also moved
+the licence check from S4 to S8's *Verify* (S6a's findings). Ordinary steps, through
+`implementer`, one commit each, in the clone on `chore/enterprise-template`.
+
+#### S6a — Make the spec agree with the rules
+
+- **Goal:** the dependency map tells the truth about `/ticket-feature`, and the bootstrap PR title
+  is a pair from `commits.md` (R15, R16; verification Spec c1, c2).
+- **Blocked by:** none.
+- **Files:** `docs/knowledge/sdd.md` (the map's `/ticket-feature` *Writes* cell gains
+  `docs/knowledge/roadmap.md`); `feature.md` (*Rules this ticket changes*: the map changes in that
+  one cell; the R15/R16 acceptance row: "the dependency map differs only in that cell");
+  `architecture.md` (`docs/knowledge/sdd.md` row of *Structure*; *The bootstrap PR* title; the
+  pair and its reason as [D9](./architecture.md#decisions)); `plan.md` (S1's *Findings* note and
+  S8's `gh pr create` title).
+- **Test first:** `config only` (docs).
+- **Verify:** `make check`; `lychee --offline README.md 'docs/**/*.md' '.claude/**/*.md'`;
+  `git diff HEAD~1 -- docs/knowledge/sdd.md` touches only the `/ticket-feature` map row;
+  `git grep -nE ':memo: chore\(' -- docs/tickets/2026-10-17_template-bootstrap/{architecture,plan}.md`
+  empty; the subject after the prefix is ≤ 50 characters.
+- **Status:** done
+- **Findings:**
+  - D2 and S4's *Verify* assumed GitHub detects MIT at the push. It reads `LICENSE` from the
+    default branch only, and `main` gains the file at the squash, so the licence check moved to
+    S8's *Verify* (verification run 1, R1).
+  - The planned `git grep -n ':memo: chore'` matched its own line in this *Verify*, so it could
+    never be empty. The pattern is now `':memo: chore\('` under `-E`: the backslash in the
+    command's text breaks the self-match, and the real title still matches.
+
+#### S6b — Retire the docs that describe the pre-Effect wiring
+
+- **Goal:** no rule, `CLAUDE.md` or knowledge doc names `src/layer.ts`, `createLayer()` or
+  `statusByTag` as current (verification Standards 1, 2; Simplification 1).
+- **Blocked by:** none.
+- **Files:** `apps/CLAUDE.md` (drop the `src/layer.ts` clause of the `main.ts` bullet and the
+  `_tag` → status bullet; `chat-core` decides error mapping on `HttpApi`); `.claude/rules/naming.md`
+  (drop "its composition root: `src/layer.ts`"; drop `layer.ts` from the bare-name examples);
+  `docs/knowledge/architecture.md` (drop "and composition roots (`layer.ts`)" from the `apps/*`
+  row of the layer table; delete *The Effect seam*, whose content is now false, and its anchor
+  links; the *In transition* box stays as a pointer, now to roadmap ticket `chat-core`, which
+  replaces `example` with `chat` as the worked example, instead of the closed `effect-setup`).
+  Per `claude-md.md`, the lines a refactor made false are deleted, not updated; the box is a
+  pointer to the ticket that rewrites steps 6–8, so only its target changes.
+- **Test first:** Seam `git grep -n -e 'layer\.ts' -e createLayer -e statusByTag -- ':!docs/tickets' ':!repos'`
+  — red: hits in the three files; green: only the *In transition* box and the steps 6–8 it
+  flags, which `chat-core` rewrites.
+- **Verify:** `make check`; `lychee --offline README.md 'docs/**/*.md' '.claude/**/*.md'`;
+  `wc -l apps/CLAUDE.md` ≤ 40; `.claude/rules/naming.md` ≤ 80 lines;
+  `git grep -n 'the-effect-seam'` empty.
+- **Status:** todo
+
+#### S6c — Apply the verification lessons
+
+- **Goal:** the four lessons become one skill line, one agent line and two mechanical checks
+  (verification *Lessons*).
+- **Blocked by:** none.
+- **Files:**
+  - `.claude/skills/ticket-plan/SKILL.md` step 3: "Check every literal the plan fixes (titles,
+    'unchanged' claims, expected outputs) against `.claude/rules/*` and against what exists at
+    that step."
+  - `.claude/agents/implementer.md › Disciplines`: "Before a doc states a fact, `git grep` for it;
+    if another doc owns it, link it (`claude-md.md › One author per fact`)."
+  - `Makefile`: target `english`, added to `check` after `ids`: `perl -CSD` `\p{Cyrillic}` over
+    `git ls-files` minus `repos/`, failing with one line on why. `.github/workflows/ci.yml`
+    `links` job runs `make english` after `make ids`.
+  - `.husky/commit-msg`: fail on a body line over 72 columns; the subject, `#` comments, lines
+    holding a URL and the trailing trailer block are exempt.
+  - `docs/knowledge/tooling.md`: the `make english` row, the `commit-msg` hook row, the `links` job
+    row.
+- **Test first:** Seam `make english` — red on a probe file containing Cyrillic, green on the
+  tree. Seam `.husky/commit-msg <file>` — red on a body line of 73 columns, green on
+  `git log -1 --format=%B aa4cf0f` and on a message whose long line is a URL.
+- **Verify:** `make check`; `lychee --offline README.md 'docs/**/*.md' '.claude/**/*.md'`; both
+  seams red then green, probes deleted; `git log -1 --format=%B 4c8f9cb | .husky/commit-msg
+  /dev/stdin` fails (the known 73-column line); the dependency map is unchanged (no skill, agent
+  or hook gains a dependency).
+- **Status:** todo
+
 #### S7 — Record the verdict and close the roadmap entry
 
 - **Goal:** the ticket's documents say what happened: the verdict, the statuses of S4–S6, the
   roadmap's ticket 1 as *done* (R13; D1).
-- **Blocked by:** S6 and `/ticket-verify`.
+- **Blocked by:** S6, `/ticket-verify`, S6a, S6b, S6c.
 - **Files:** `docs/tickets/2026-10-17_template-bootstrap/verification.md` (written by
-  `/ticket-verify`), `plan.md` (S4–S6 `done` with findings, S8 `blocked: squash merge`),
-  `docs/knowledge/roadmap.md` (ticket table row 1 and the entry's *Status*: `done`, link to the
-  ticket folder). In the clone, on `chore/enterprise-template`, pushed to `origin` after the OK.
+  `/ticket-verify`; *Lessons › Applied* → `yes (S6c)` for the four lessons), `plan.md` (S4–S6
+  `done` with findings, S8 `blocked: squash merge`), `docs/knowledge/roadmap.md` (ticket table
+  row 1 and the entry's *Status*: `done`, link to the ticket folder). In the clone, on `chore/enterprise-template`, pushed to `origin` after the OK.
 - **Test first:** `config only` (docs).
 - **Verify:** `make check`; `lychee --offline README.md 'docs/**/*.md' '.claude/**/*.md'`;
   `make ids`; the roadmap's ticket table still has 12 rows and the re-homing table maps R23–R40;
@@ -227,7 +311,7 @@
   and `chore/enterprise-template` has that squash as an ancestor (R2 delete-on-merge, R6; D3, D4).
 - **Blocked by:** S7.
 - **Files:** none; in `~/lab/app-template`, each after the user's OK:
-  1. `gh pr create --base main --head chore/enterprise-template --title ":memo: chore(template-bootstrap): Cut App Template from the Oblik+ scaffold" --body-file <body>`
+  1. `gh pr create --base main --head chore/enterprise-template --title ":sparkles: feat(template-bootstrap): Cut App Template from the Oblik+ scaffold" --body-file <body>`
      — the body per `.github/PULL_REQUEST_TEMPLATE.md`, plus the paragraph *Carried from
      effect-setup* (S1–S12) and, **outside the HTML comment**, the trailers
      `git-subtree-dir: repos/effect` and
@@ -246,6 +330,8 @@
   trailers and no HTML comment; `git merge-base main chore/enterprise-template` equals
   `git rev-parse main`; `git diff main chore/enterprise-template --stat` empty (identical trees);
   `gh api repos/khotei/app-template --jq .delete_branch_on_merge` is `true`;
+  `gh repo view khotei/app-template --json licenseInfo` is MIT (GitHub reads `LICENSE` from the
+  default branch only, so S4 could not see it; verification run 1);
   `git ls-remote origin` still lists the three branches.
 - **Status:** todo
 
@@ -267,6 +353,6 @@
 | R12 | S2 |
 | R13 | committed in `7bc90c6` before this plan; S7 (ticket 1 status) |
 | R14 | S3 |
-| R15 | S1 |
-| R16 | S1 |
+| R15 | S1, S6a (dependency map) |
+| R16 | S1, S6a (dependency map) |
 | R17 | S1, S2, S3, S7 (Cyrillic check in each *Verify*) |

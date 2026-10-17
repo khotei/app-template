@@ -33,7 +33,8 @@ it and grows on its own.
 - **Rules this ticket changes.** `.claude/rules/sdd.md` (where a future ticket lives before it
   starts), `.claude/rules/pull-requests.md` (the teaching branch), `.claude/skills/ticket-feature/`
   (reads the roadmap entry), `docs/knowledge/sdd.md` (explains both). The dependency map in
-  `docs/knowledge/sdd.md` does not change: no skill gains or loses a plugin skill, agent or hook.
+  `docs/knowledge/sdd.md` changes in one cell: `/ticket-feature` also writes
+  `docs/knowledge/roadmap.md`. No skill gains or loses a plugin skill, agent or hook.
 - **Terms** come from [docs/knowledge/glossary.md](../../knowledge/glossary.md), created by this
   ticket's grilling.
 
@@ -153,7 +154,7 @@ it and grows on its own.
 | R11, R12 | `README.md` and `CLAUDE.md` read as specified; `wc -l CLAUDE.md` ≤ 40; `lychee --offline` on the docs passes (CI `links`). |
 | R13 | Both files exist; the roadmap's ticket table has 12 rows and the re-homing table maps R23–R40; the glossary has the six terms. |
 | R14 | `head -5` of the two `effect-setup` files shows the superseded note; `git diff --stat` of that folder touches only those lines. |
-| R15, R16 | The three rule and skill files contain the stated sentences; `docs/knowledge/sdd.md` shows the branch picture; the dependency map is byte-identical. |
+| R15, R16 | The three rule and skill files contain the stated sentences; `docs/knowledge/sdd.md` shows the branch picture; the dependency map differs only in the `/ticket-feature` *Writes* cell. |
 | R17 | No Cyrillic in the changed files: `git diff main --name-only \| xargs grep -lP '[\p{Cyrillic}]'` prints nothing. |
 
 ## Open questions

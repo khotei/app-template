@@ -34,7 +34,7 @@ Per workspace, what changes. No file is added to any code workspace.
 | `.claude/rules/sdd.md` | one bullet under *Artifacts*: a future ticket is a roadmap entry; `/ticket-feature` starts from it |
 | `.claude/rules/pull-requests.md` | one bullet: the teaching branch procedure after a squash merge |
 | `.claude/skills/ticket-feature/SKILL.md` | step 1 reads the roadmap entry; step 3 sets the entry's status to the ticket link |
-| `docs/knowledge/sdd.md` | a *Roadmap and the teaching branch* section with the branch picture; the dependency map unchanged |
+| `docs/knowledge/sdd.md` | a *Roadmap and the teaching branch* section with the branch picture; the dependency map's `/ticket-feature` *Writes* cell gains `docs/knowledge/roadmap.md` |
 | `docs/knowledge/architecture.md`, `tooling.md` | `@app-template/…` in import examples and troubleshooting |
 | `docs/knowledge/roadmap.md`, `glossary.md` | committed in `7bc90c6`; the roadmap's ticket 1 status set to *done* at the end |
 | `docs/tickets/2026-10-16_effect-setup/{feature,plan}.md` | one superseded line each, under the title |
@@ -83,10 +83,10 @@ git push           template main chore/monorepo-setup chore/effect-setup:chore/e
 
 ### The bootstrap PR
 
-Title: `:memo: chore(template-bootstrap): Cut App Template from the Oblik+ scaffold`. Body per
-`pull-requests.md`, plus one paragraph *Carried from effect-setup* naming S1–S12, and the subtree
-trailers **outside** the HTML comment, because the squash drops the subtree merge's own metadata
-and `make vendor-effect` needs them (`effect-setup` R10):
+Title: `:sparkles: feat(template-bootstrap): Cut App Template from the Oblik+ scaffold` (D9).
+Body per `pull-requests.md`, plus one paragraph *Carried from effect-setup* naming S1–S12, and the
+subtree trailers **outside** the HTML comment, because the squash drops the subtree merge's own
+metadata and `make vendor-effect` needs them (`effect-setup` R10):
 
 ```
 git-subtree-dir: repos/effect
@@ -139,6 +139,9 @@ plan's steps and `/ticket-verify` run.
 | `git merge-base main chore/enterprise-template` = `git rev-parse main` after the teaching merge | the procedure of R6 and R16 applied correctly (rehearsed in a scratch repository on 2026-10-17: three cycles, no conflict, trees equal) | a future ticket skipping the procedure |
 | `make ids`, `lychee --offline docs/**/*.md README.md .claude/**/*.md` (CI `links`) | ticket ids in docs, broken relative links after the README and rules edits | content |
 | `wc -l CLAUDE.md .claude/rules/*.md` | the `claude-md.md` budgets (≤ 40, ≤ 80) | — |
+| `git grep -n -e 'layer\.ts' -e createLayer -e statusByTag -- ':!docs/tickets' ':!repos'` | a rule, `CLAUDE.md` or knowledge doc that still names the pre-Effect wiring as current | a stale description that does not use these names |
+| `make english` (in `make check` and CI `links`) | Cyrillic in any tracked file outside `repos/`, in this commit and every later one (R17) | non-English prose in Latin script |
+| `.husky/commit-msg <file>` | a commit body line over 72 columns (`commits.md › Format`); URLs, `#` comments and trailers are exempt | the other format rules: gitmoji and type pair, subject length, `Refs:` |
 
 Checked by hand in `/ticket-verify`: "Use this template" with *Include all branches* on GitHub
 produces three branches; `make dev-api` answers `/health` after the rename.
@@ -197,6 +200,12 @@ produces three branches; `make dev-api` answers `/health` after the rename.
   after the teaching merge is pushed, so R2 holds before the second ticket starts. *Rejected:*
   enabling it at creation and re-pushing the branch from the clone (a window with no teaching
   branch, and a step that only works because a local copy happens to exist).
+- **D9 — The bootstrap PR is titled `:sparkles: feat`.** Its title becomes the subject of `main`'s
+  only commit after the scaffold, and that squash brings `main` new behaviour: the Effect runtime,
+  the config services and the job queue of `effect-setup` S1–S12. `commits.md › Vocabulary` pairs
+  `:sparkles:` with `feat`. *Rejected:* `:memo: chore`, the plan's first title, which
+  `commits.md` does not pair (`:memo:` is `docs` only; found by verification run 1);
+  `:wrench: chore`, which undersells the code that commit carries.
 
 ## Risks
 
