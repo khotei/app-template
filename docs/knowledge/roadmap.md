@@ -35,9 +35,9 @@ graph LR
 
 | # | Ticket | Type | Depends on | Status |
 |---|---|---|---|---|
-| 1 | [`template-bootstrap`](#1-template-bootstrap) | `chore` | — | in feature: [docs/tickets/2026-10-17_template-bootstrap/](../tickets/2026-10-17_template-bootstrap/feature.md) |
-| 2 | [`claude-toolkit`](#2-claude-toolkit) | `chore` | 1 | planned |
-| 3 | [`chat-core`](#3-chat-core) | `feat` | 2 | planned |
+| 1 | [`template-bootstrap`](#1-template-bootstrap) | `chore` | — | done: [docs/tickets/2026-10-17_template-bootstrap/](../tickets/2026-10-17_template-bootstrap/feature.md) |
+| 2 | [`claude-toolkit`](#2-claude-toolkit) | `chore` | 1, 3 | planned |
+| 3 | [`chat-core`](#3-chat-core) | `feat` | 1 | planned |
 | 4 | [`postgres-drizzle`](#4-postgres-drizzle) | `feat` | 3 | planned |
 | 5 | [`aws-local`](#5-aws-local) | `feat` | 4 | planned |
 | 6 | [`llm-providers`](#6-llm-providers) | `feat` | 5 | planned |
@@ -61,7 +61,7 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   and `CLAUDE.md` as a template's; `effect-setup` marked superseded; the first squash PR.
 - **Out of scope.** Any behaviour change; finishing `effect-setup`; the rename script and the
   "new project" checklist (12).
-- **Status.** In feature: [feature.md](../tickets/2026-10-17_template-bootstrap/feature.md).
+- **Status.** Done: [docs/tickets/2026-10-17_template-bootstrap/](../tickets/2026-10-17_template-bootstrap/feature.md).
 
 ### 2. `claude-toolkit`
 
@@ -70,14 +70,18 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   ticket is built by agents with the right context at the right time, and so that a new project
   inherits the toolkit unchanged.
 - **Scope.** The Effect rule `effect.md` and `docs/knowledge/effect.md` (inherited from
-  `effect-setup` R37–R39, written against the S1–S12 code); naming and layer `CLAUDE.md` updates
+  `effect-setup` R37–R39, written against `chat-core`'s code); naming and layer `CLAUDE.md` updates
   the same requirements ask for; agent frontmatter (`memory`, `effort`, `background`), hooks beyond
   the `Stop` gate (`SessionStart` context, `PostToolUse` format, `PrePermissionRequest` guards),
   the committed `settings.json` versus `settings.local.json` split, plugin pinning, nested
   `<workspace>/.claude/skills/` where a layer deserves one, `claude plugin eval` cases for the
   `ticket-*` skills, `/skill-doctor` as a periodic check; a re-read of `docs/knowledge/sdd.md`.
 - **Out of scope.** Changing the SDD gates themselves; product code.
-- **Inherits.** `effect-setup` R37, R37a, R37b, R38, R39, R40.
+- **Inherits.** `effect-setup` R37, R37a, R37b, R38, R39, R40; three lessons of
+  [`template-bootstrap`](../tickets/2026-10-17_template-bootstrap/verification.md#lessons):
+  - `ticket-plan` step 3 checks every literal the plan fixes against the rules and the tree.
+  - `implementer` greps for a fact before a doc states it, and links the doc that owns it.
+  - A `.husky/commit-msg` hook fails on a body line over 72 columns.
 - **Open questions for its feature phase.** Which rules are conventions Biome or a hook can enforce
   instead (the Lessons mechanism says: mechanical → a check); whether `argument-hint` is still a
   supported skill field; whether an agent `memory` helps the `implementer` across steps or only
@@ -95,6 +99,8 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   as a stream, and lists and reopens their chats. Everything crosses the layers the architecture
   prescribes: `domain` → `infrastructure` → `application` → `apps/api`, a contract-derived client,
   a worker job. The `example` slice is deleted; `chat` is the new worked example.
+- **First Effect rule.** Its first slice ends with a short `.claude/rules/effect.md` drawn from that
+  code, so later steps follow it; `claude-toolkit` (2) polishes it.
 - **Scope.** `domain/chat` (Visitor, Chat, Message, Attachment, Placeholder as `Schema`, errors,
   ports); in-memory adapters on `KeyValueStore`; `application/chat` services and the job;
   `@app-template/api-contract` as an `HttpApi` with the visitor secret as `HttpApiSecurity`, SSE for the

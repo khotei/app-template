@@ -140,7 +140,6 @@ plan's steps and `/ticket-verify` run.
 | `make ids`, `lychee --offline docs/**/*.md README.md .claude/**/*.md` (CI `links`) | ticket ids in docs, broken relative links after the README and rules edits | content |
 | `wc -l CLAUDE.md .claude/rules/*.md` | the `claude-md.md` budgets (≤ 40, ≤ 80) | — |
 | `git grep -n -e 'layer\.ts' -e createLayer -e statusByTag -- ':!docs/tickets' ':!repos'` | a rule, `CLAUDE.md` or knowledge doc that still names the pre-Effect wiring as current | a stale description that does not use these names |
-| `.husky/commit-msg <file>` | a commit body line over 72 columns (`commits.md › Format`); URLs, `#` comments and trailers are exempt | the other format rules: gitmoji and type pair, subject length, `Refs:` |
 
 Checked by hand in `/ticket-verify`: "Use this template" with *Include all branches* on GitHub
 produces three branches; `make dev-api` answers `/health` after the rename.
@@ -205,6 +204,17 @@ produces three branches; `make dev-api` answers `/health` after the rename.
   `:sparkles:` with `feat`. *Rejected:* `:memo: chore`, the plan's first title, which
   `commits.md` does not pair (`:memo:` is `docs` only; found by verification run 1);
   `:wrench: chore`, which undersells the code that commit carries.
+- **D10 — Three verification lessons move to `claude-toolkit`; `make english` is dropped.** That
+  ticket's scope is the rules, agents and hooks, so this one ends at its PR. *Rejected:* applying
+  them here as S6c, which kept a hook and two toolkit lines in a bootstrap ticket; for
+  `make english`, a check whose job review already does.
+- **D11 — `chat-core` runs before `claude-toolkit`.** The Effect rule is written from real code:
+  the S1–S12 slice it would describe is what `chat-core` replaces. `chat-core`'s first slice drafts
+  `effect.md` so later steps follow it. *Rejected:* the roadmap's first order, which writes the
+  rule against code about to be deleted and delays the first product code by a ticket.
+- **D12 — Ticket 1 is marked done in S7, before S8.** S8 writes no commit of its own, so S7 is
+  the last one that reaches `main` in the squash. *Rejected:* a commit after the merge, which
+  `main` would never carry.
 
 ## Risks
 

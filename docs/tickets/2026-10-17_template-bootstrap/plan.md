@@ -173,7 +173,13 @@
   `gh api repos/khotei/app-template --jq '{allow_squash_merge,allow_merge_commit,allow_rebase_merge,squash_merge_commit_title,squash_merge_commit_message,is_template,default_branch}'`
   — `squash_merge_commit_title` must be `PR_TITLE` (V1; else one `gh api -X PATCH`);
   `git ls-remote origin | diff - $CLAUDE_JOB_DIR/tmp/origin-before.txt` empty.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Evidence: [verification.md › run 1](./verification.md#2026-10-17--run-1), rows R1–R5. `chore/enterprise-template`
+    was pushed at `aa4cf0f` (S3), and `origin` of `oblik` was unchanged afterwards.
+  - V1 held: `gh api` shows `squash_merge_commit_title` `PR_TITLE` and
+    `squash_merge_commit_message` `PR_BODY`.
+  - `licenseInfo` was `null`, so the licence check moved to S8 (S6a's findings).
 
 #### S5 — Fresh clone: setup, check, health
 
@@ -189,7 +195,12 @@
   `bun install --frozen-lockfile`; `make dev-api` then `curl -s localhost:3000/health` equals
   `health-before.json`; `git remote -v` in the clone names only `origin` →
   `khotei/app-template`. The Claude session moves to `~/lab/app-template` from here.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Evidence: [verification.md › run 1](./verification.md#2026-10-17--run-1), rows R4 and R9. The clone needed no fix
+    commit; `git remote -v` names only `origin` → `khotei/app-template`.
+  - For `chat-core` (R35–R36, signals): the `bun` process outlived `make dev-api` and was stopped
+    by hand.
 
 #### S6 — Clean up `oblik`
 
@@ -203,7 +214,12 @@
 - **Verify:** `git branch --list 'chore/effect-setup' 'backup/*'` empty; `git remote` prints only
   `origin`; `git status` clean on `main`; `git log origin/main..main` empty;
   `git ls-remote origin | diff - $CLAUDE_JOB_DIR/tmp/origin-before.txt` empty.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Evidence: [verification.md › run 1](./verification.md#2026-10-17--run-1), row R7. The order R7 asks for (the clone's
+    `make check` before the deletions) shows only in the timestamps, 16:28 then 16:30.
+  - `oblik` keeps `stash@{2026-10-17 12:10:18}` (*S14 removal + Docker ticket edits*), older than
+    this ticket and the last trace of `chore/effect-setup`. Keeping it is the user's call.
 
 > `/ticket-verify docs/tickets/2026-10-17_template-bootstrap` runs here, in a new session in
 > `~/lab/app-template`. Accepted fixes become steps before S7.
@@ -295,7 +311,7 @@ it would only be added back. The run also moved the licence check from S4 to S8'
 #### S7 — Record the verdict and close the roadmap entry
 
 - **Goal:** the ticket's documents say what happened: the verdict, the statuses of S4–S6, the
-  roadmap's ticket 1 as *done* (R13; D1).
+  roadmap's ticket 1 as *done* (R13; D1, D12).
 - **Blocked by:** S6, `/ticket-verify`, S6a, S6b.
 - **Files:** `docs/tickets/2026-10-17_template-bootstrap/verification.md` (written by
   `/ticket-verify`; *Lessons › Applied* → `yes (S6c)` for the four lessons), `plan.md` (S4–S6
@@ -305,8 +321,17 @@ it would only be added back. The run also moved the licence check from S4 to S8'
 - **Verify:** `make check`; `lychee --offline README.md 'docs/**/*.md' '.claude/**/*.md'`;
   `make ids`; the roadmap's ticket table still has 12 rows and the re-homing table maps R23–R40;
   `git push origin chore/enterprise-template` then `git ls-remote origin chore/enterprise-template`
-  equals `git rev-parse HEAD`.
-- **Status:** todo
+  equals `git rev-parse HEAD`; the `perl -CSD` Cyrillic check on the changed files prints nothing.
+- **Status:** done
+- **Findings:**
+  - The three remaining lessons read `moved to claude-toolkit`, not `yes (S6c)`, and roadmap
+    ticket 2 inherits them (S6c's status; D10).
+  - The user put `chat-core` before `claude-toolkit`: ticket 3 depends on 1, not 2, because the
+    Effect rules are written from real code. Ticket 2 said its Effect rules were written against
+    the S1–S12 code, which `chat-core` replaces; it now names `chat-core`'s code and depends on
+    1 and 3. `chat-core`'s first slice drafts `effect.md`, which ticket 2 polishes (D11).
+  - The `.husky/commit-msg` Seam left `architecture.md` with S6c.
+  - The push lines of *Verify* are left to the main session, after the user's OK.
 
 #### S8 — The bootstrap PR and the first teaching merge
 
@@ -336,7 +361,7 @@ it would only be added back. The run also moved the licence check from S4 to S8'
   `gh repo view khotei/app-template --json licenseInfo` is MIT (GitHub reads `LICENSE` from the
   default branch only, so S4 could not see it; verification run 1);
   `git ls-remote origin` still lists the three branches.
-- **Status:** todo
+- **Status:** blocked: squash merge
 
 ## Requirement coverage
 
