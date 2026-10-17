@@ -1,5 +1,5 @@
 {
-  "name": "@oblik/deployment",
+  "name": "@app-template/deployment",
   "private": true,
   "type": "module",
   "imports": {

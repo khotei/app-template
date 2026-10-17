@@ -1,5 +1,5 @@
 {
-  "name": "@oblik/infrastructure",
+  "name": "@app-template/infrastructure",
   "private": true,
   "type": "module",
   "exports": {
@@ -10,8 +10,9 @@
     "#infrastructure/*": "./*.ts"
   },
   "dependencies": {
-    "@oblik/domain": "workspace:*",
-    "@oblik/llm": "workspace:*",
-    "@oblik/storage": "workspace:*"
+    "@app-template/config": "workspace:*",
+    "@app-template/domain": "workspace:*",
+    "@app-template/queue": "workspace:*",
+    "effect": "catalog:effect"
   }
 }

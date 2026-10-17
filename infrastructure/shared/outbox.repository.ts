@@ -1,8 +1,11 @@
+import { Schema } from 'effect'
+
 export const outboxTable = 'outbox' as const
 
-export interface OutboxMessage {
-  readonly id: string
-  readonly type: string
-  readonly payload: unknown
-  readonly createdAt: Date
-}
+export const OutboxMessage = Schema.Struct({
+  id: Schema.String,
+  type: Schema.String,
+  payload: Schema.Unknown,
+  createdAt: Schema.DateTimeUtc,
+})
+export type OutboxMessage = typeof OutboxMessage.Type

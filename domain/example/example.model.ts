@@ -1,9 +1,10 @@
-import type { Id } from '#domain/shared/id'
+import { Schema } from 'effect'
 
-export type ExampleId = Id<'Example'>
+export const ExampleId = Schema.String.check(Schema.isUUID()).pipe(Schema.brand('ExampleId'))
+export type ExampleId = typeof ExampleId.Type
 
-export interface Example {
-  readonly id: ExampleId
-  readonly name: string
-  readonly createdAt: Date
-}
+export class Example extends Schema.Class<Example>('Example')({
+  id: ExampleId,
+  name: Schema.String,
+  createdAt: Schema.DateTimeUtc,
+}) {}

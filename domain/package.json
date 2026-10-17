@@ -1,12 +1,17 @@
 {
-  "name": "@oblik/domain",
+  "name": "@app-template/domain",
   "private": true,
   "type": "module",
   "exports": {
-    "./shared": "./shared/index.ts",
     "./example": "./example/index.ts"
   },
   "imports": {
     "#domain/*": "./*.ts"
+  },
+  "dependencies": {
+    "effect": "catalog:effect"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:effect"
   }
 }

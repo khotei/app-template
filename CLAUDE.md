@@ -1,6 +1,6 @@
-# Oblik+
+# App Template
 
-A workstation for a records department: roster, documents, reports and LLM-assisted analysis.
+A chat clone (visitor → message → assistant reply) built as a template for enterprise projects.
 Bun + TypeScript 7 modular monolith; three processes: `apps/api`, `apps/worker`, `apps/web`.
 
 ## Map

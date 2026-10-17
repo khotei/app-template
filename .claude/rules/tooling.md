@@ -9,7 +9,7 @@ Imperatives only. The explanations live in [docs/knowledge/tooling.md](../../doc
 - The root `package.json` holds only `prepare`, `lint`, `format` and `test`. Apps hold `dev`,
   `debug` and `start`. Library workspaces hold no scripts.
 - `make check` must pass before a step is reported.
-- Typecheck with `bun check` and test with `bun test`, never `bun run test`.
+- Typecheck with `make typecheck`; test with `make test`, never `bun test`.
 - Never commit files that `tsc -b` emits.
 - Bun is the only package manager; `npm`, `yarn` and `pnpm` are denied.
 - Never bypass the git hooks with `--no-verify`.
@@ -35,7 +35,7 @@ Create the directory, add its path to the root `workspaces`, add it to the root
   for stubbed services commented out.
 - Double-quote string values; leave numbers bare (`API_PORT=3000`).
 - App scripts load the root file with `--env-file=../../.env`. Read settings only through
-  `loadConfig`. Tests never depend on `.env`.
+  the `@app-template/config` services' layers. Tests never depend on `.env`.
 
 ## Dev modes
 

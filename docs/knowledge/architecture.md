@@ -12,7 +12,7 @@ graph TD
   application --> infrastructure
   infrastructure --> domain
   application --> domain
-  apps --> packages["packages/* (config · db · storage · queue · llm · api-client · ui)"]
+  apps --> packages["packages/* (config · queue · llm · api-client · ui)"]
   application --> packages
   infrastructure --> packages
   web["apps/web client"] --> clientPkgs["api-client · ui"]
@@ -30,7 +30,7 @@ levels: `application` usually imports `domain` directly.
 | `infrastructure/` | adapters that implement domain ports on top of `packages/*` clients | [infrastructure/CLAUDE.md](../../infrastructure/CLAUDE.md) |
 | `application/` | services over ports, and use cases that compose services | [application/CLAUDE.md](../../application/CLAUDE.md) |
 | `packages/*` | generic, project-agnostic clients and libraries | [packages/CLAUDE.md](../../packages/CLAUDE.md) |
-| `apps/*` | entry points (`main.ts`) and composition roots (`layer.ts`) | [apps/CLAUDE.md](../../apps/CLAUDE.md) |
+| `apps/*` | entry points (`main.ts`) | [apps/CLAUDE.md](../../apps/CLAUDE.md) |
 | `deployment/` | local Docker Compose and AWS Pulumi, stubs for now | [deployment/CLAUDE.md](../../deployment/CLAUDE.md) |
 
 ### Dependency rules
@@ -48,28 +48,30 @@ Each row lists what a workspace may import.
 | apps/web/src/main.ts | ✗ | ✗ | ✗ | `api-client`, `ui`, `config` | ✗ |
 | deployment | ✗ | ✗ | ✗ | ✓ | ✗ |
 
-- **`domain` imports nothing,** not even `packages/*`, so it stays pure and testable without fakes.
+- **`domain` imports `effect` and no workspace,** not even `packages/*`, and no `@effect/*`
+  package but the test runner `@effect/vitest`, so it stays pure and testable without fakes.
 - **`apps/web` client code ships to the browser.** Only its server entry `main.ts` may read
   `config`, to get a validated `WEB_PORT`.
 - **A ✓ is permission, not a declaration.** The dependency must also be in the importer's
   `package.json`; see [the three guards](#three-boundary-guards).
 
-## Imports: `#<workspace>/` vs `@oblik/`
+## Imports: `#<workspace>/` vs `@app-template/`
 
 Every import line says where its module lives:
 
 ```ts
-import { describe, expect, test } from 'bun:test'           // Bun and Node built-ins
+import { readFileSync } from 'node:fs'                      // Bun and Node built-ins
 
 import { z } from 'zod'                                     // external packages
 
-import { buildExample } from '@oblik/domain/example'         // another workspace
+import { buildExample } from '@app-template/domain/example'  // another workspace
 
-import { createExampleService } from '#application/example/example.service' // this workspace
+import { ExampleService } from '#application/example/example.service' // this workspace
 ```
 
-- **`@oblik/<workspace>[/<entity>]`** reaches another workspace through its `exports`. A layer
-  exposes each entity as a subpath (`@oblik/domain/example` → `domain/example/index.ts`).
+- **`@app-template/<workspace>[/<entity>]`** reaches another workspace through its `exports`. A
+  layer exposes each entity as a subpath (`@app-template/domain/example` →
+  `domain/example/index.ts`).
 - **`#<workspace>/<path>`** reaches a file inside the same workspace, through the `imports` map in
   its `package.json` (`"#domain/*": "./*.ts"`, `"#api/*": "./src/*.ts"`). Relative `./` and `../`
   paths are banned. A bare `#/` prefix would be shorter, but Bun 1.4.3 cannot resolve it.
@@ -81,16 +83,11 @@ Using the `example` slice as the map:
 
 | What | File | Named |
 |---|---|---|
-| entity type and branded id | `domain/example/example.model.ts` | `Example`, `ExampleId = Id<'Example'>` |
-| domain errors | `domain/example/example.error.ts` | `ExampleNotFoundError`, `_tag` = class name |
-| port and pure operations | `domain/example/example.service.ts` | `ExampleRepository`, `buildExample(name, now)` |
-| adapter implementing the port | `infrastructure/example/example.repository.ts` | `createExampleRepository()` |
-| other adapters | `infrastructure/example/example.{queue,storage,llm}.ts` | `createExampleQueue()` … |
-| service over the port | `application/example/example.service.ts` | `createExampleService({ repository })` |
-| use case | `application/example/create.use-case.ts` | `createExampleUseCase({ exampleService, now })` |
-| wiring | `apps/{api,worker}/src/layer.ts` | `createLayer()` |
-| HTTP routes and error mapping | `apps/api/src/http.ts` | `createRoutes(layer)` |
-| job handler | `apps/worker/src/handlers/example.handler.ts` | `createExampleHandler({ exampleService })` |
+| entity schema and branded id | `domain/example/example.model.ts` | `Example` (`Schema.Class`), `ExampleId` |
+| domain errors | `domain/example/example.error.ts` | `ExampleNotFoundError` (`Schema.TaggedError`) |
+| port and pure operations | `domain/example/example.service.ts` | `ExampleRepository`, `buildExample({ id, name, createdAt })` |
+| adapter implementing the port | `infrastructure/example/example.repository.ts` | `ExampleRepositoryMemory` (a `Layer`) |
+| service over the port | `application/example/example.service.ts` | `ExampleService`, `ExampleService.layer` |
 | browser feature | `apps/web/src/features/example/health-panel.ts` | `renderHealthPanel(root, apiClient)` |
 
 Every entity folder has an `index.ts` barrel, and tests sit next to their source as `*.test.ts`.
@@ -99,22 +96,27 @@ The file suffixes and naming verbs are listed in
 
 ## Add a new entity
 
+> **In transition.** The plain use case, the app wiring (`createLayer()`), the example routes with
+> `statusByTag` and the job handler are retired. Steps 6–8 describe that shape until the roadmap
+> ticket [`chat-core`](roadmap.md#3-chat-core) rewrites them.
+
 Follow the `example` slice layer by layer, from the bottom up. Write each test before its code,
 and run `make check` after each layer. `<entity>` is the kebab name (`document`), `<Entity>` the
 Pascal one (`Document`).
 
-1. **Domain model.** `domain/<entity>/<entity>.model.ts`: the `<Entity>` interface with `readonly`
-   fields and `<Entity>Id = Id<'<Entity>'>`.
-2. **Domain errors.** `<entity>.error.ts`: classes extending `DomainError`, named
-   `<Entity><Problem>Error`, with `readonly _tag = '<Entity><Problem>Error'`.
-3. **Port and pure operations.** `<entity>.service.ts`: the `<Entity>Repository` port and pure
-   functions such as `build<Entity>(input, now)`. Time and ids come in as arguments or through
-   `buildId`, never from `Date.now()`. Test them in `<entity>.service.test.ts`.
+1. **Domain model.** `domain/<entity>/<entity>.model.ts`: `<Entity>` as a `Schema.Class` and
+   `<Entity>Id` as a branded `Schema` with a same-named type.
+2. **Domain errors.** `<entity>.error.ts`: `Schema.TaggedError` classes named
+   `<Entity><Problem>Error`, whose tag is the class name.
+3. **Port and operations.** `<entity>.service.ts`: the `<Entity>Repository` port as a
+   `Context.Service` with no layer, and `Effect` functions such as `build<Entity>(input)`. Time and
+   ids come in as input, never from `Date.now()` or `crypto.randomUUID()`. Test them in
+   `<entity>.service.test.ts`.
 4. **Domain exports.** `domain/<entity>/index.ts` re-exports the three files, and
    `domain/package.json` gains `"./<entity>": "./<entity>/index.ts"` in `exports`.
-5. **Adapter.** `infrastructure/<entity>/<entity>.repository.ts`: `create<Entity>Repository()`
-   returning the domain port type. Start in-memory, like the example; a real client later
-   replaces the body, not the signature. Add `index.ts` and the `exports` entry.
+5. **Adapter.** `infrastructure/<entity>/<entity>.repository.ts`: `<Entity>RepositoryMemory`, a
+   `Layer` that provides the domain port. Start in-memory, like the example; a real client later
+   adds another layer of the same port. Add `index.ts` and the `exports` entry.
 6. **Service and use cases.** `application/<entity>/<entity>.service.ts` holds the service, and
    `<verb>.use-case.ts` composes services. A service may import its adapter or receive the port as
    an argument, and may read the time with `new Date()`. Add `index.ts` and the `exports` entry.
@@ -122,25 +124,13 @@ Pascal one (`Document`).
    and the use cases, with whatever they take as arguments, and return them from `createLayer()`.
 8. **Delivery.** Add routes in `apps/api/src/http.ts`, and map each new error `_tag` to a status in
    `statusByTag`. Extend `apps/api/src/http.test.ts` with a round trip.
-9. **Client, if the browser needs it.** Add a method to `@oblik/api-client`, then a feature folder
-   under `apps/web/src/features/<entity>/`.
+9. **Client, if the browser needs it.** Add a method to `@app-template/api-client`, then a feature
+   folder under `apps/web/src/features/<entity>/`.
 
 A new entity in existing workspaces usually needs no new dependency, because the layers already
 declare each other. Check the importer's `package.json` anyway: `apps/worker`, for one, does not
-declare `@oblik/domain`. A new external client is a new dependency; see
+declare `@app-template/domain`. A new external client is a new dependency; see
 [tooling.md](tooling.md#add-a-dependency).
-
-## The Effect seam
-
-The code is plain TypeScript, but it is shaped so that adopting Effect later replaces bodies, not
-structure:
-
-| Today | Becomes | Why it already fits |
-|---|---|---|
-| `apps/*/src/layer.ts` with `createLayer()` | an Effect `Layer` | the one place where adapters are wired into services |
-| ports in `domain/<entity>/<entity>.service.ts` | `Context.Tag` services | the port already sits where the tag will be declared |
-| `DomainError` subclasses with `_tag` | `Data.TaggedError` | `_tag` already discriminates errors, as in `http.ts` |
-| the example's dependencies passed as arguments (`{ repository }`, `now`) | requirements in the `Effect` type | the example reaches for no global |
 
 ## Three boundary guards
 
@@ -148,26 +138,30 @@ The import rules are enforced three times, each catching what the others miss:
 
 | Guard | Catches | Reports |
 |---|---|---|
-| Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json` | an import that goes up a layer or into a sibling app; any relative path | `make lint`, `pre-commit`, CI `static` |
-| the isolated linker with `bun check` | an allowed import of a workspace that is not declared in `package.json` | TS2307 in `make typecheck` and at runtime |
+| Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json` | an import that goes up a layer or into a sibling app; any relative path; a workspace or an `@effect/*` package other than `@effect/vitest` in `domain`; `effect` in web client code | `make lint`, `pre-commit`, CI `static` |
+| the isolated linker with `tsc -b` | an allowed import of a workspace that is not declared in `package.json` | TS2307 in `make typecheck` and at runtime |
 | `composite` project references (`rootDir: "."`) | a path that reaches into an unreferenced workspace's files | TS6059 / TS6307 in `make typecheck` |
 
 The Biome overrides are **deny-lists**: each names the workspaces a layer must not import. A new
-`packages/*` workspace therefore needs no Biome change, while a new layer or app does. Overrides
-that match the same file replace each other's options rather than merge, so every override repeats
-the relative-path ban. Symptoms and fixes:
+`packages/*` workspace therefore needs no Biome change, while a new layer or app does. Test files
+follow their workspace's override; none has its own. Overrides that match the same file replace
+each other's options rather than merge, so every override repeats the relative-path ban. Symptoms
+and fixes:
 [tooling.md › Troubleshooting](tooling.md#troubleshooting).
 
 ### Known gaps
 
-Two forms pass all three guards. No code uses them; review is what catches them.
+Three forms pass all three guards. No code uses them; review is what catches them.
 
 - **A type import inside an expression in web client code.** `export type X =
-  import('@oblik/config').Config` in `app/`, `features/` or `shared/` passes Biome, which does not
-  see `import()` inside a type, and `bun check`, because web declares `@oblik/config` for its
-  server entry. The type is erased, so nothing reaches the browser, but the client then depends on
-  the shape of the server config.
-- **A workspace importing itself by name.** `@oblik/application/example` from inside
-  `application/` passes Biome, whose overrides list only other workspaces, and `bun check`, which
+  import('@app-template/config').ApiConfig['Service']` in `app/`, `features/` or `shared/` passes
+  Biome, which does not see `import()` inside a type, and `tsc -b`, because web declares
+  `@app-template/config` for its server entry. The type is erased, so nothing reaches the browser,
+  but the client then depends on the shape of the server config.
+- **A workspace importing itself by name.** `@app-template/application/example` from inside
+  `application/` passes Biome, whose overrides list only other workspaces, and `tsc -b`, which
   resolves a package's own `exports`. It skips the `#<workspace>/` convention and can import the
   file's own barrel, a cycle that shows up as `undefined` while modules initialise.
+- **A runtime module or third-party package in `domain`.** `node:crypto` or any npm package passes
+  the domain guard, which bans only workspaces and `@effect/*`. Purity rests on review and on the
+  grep for `Date.now`, `new Date(` and `randomUUID`.

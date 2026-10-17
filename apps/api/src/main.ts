@@ -1,9 +1,10 @@
-import { loadConfig } from '@oblik/config'
+import { Effect } from 'effect'
 
-import { createRoutes } from '#api/http'
-import { createLayer } from '#api/layer'
+import { ApiConfig } from '@app-template/config'
 
-const config = loadConfig()
-const server = Bun.serve({ port: config.api.port, routes: createRoutes(createLayer()) })
+import { routes } from '#api/http'
+
+const config = Effect.runSync(Effect.provide(ApiConfig, ApiConfig.layer))
+const server = Bun.serve({ port: config.port, routes })
 
 console.log(`api listening on ${server.url}`)

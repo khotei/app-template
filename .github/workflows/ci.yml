@@ -50,8 +50,12 @@ jobs:
       - name: Lint
         run: bunx biome ci
 
+      # prepare patches tsc on install; an install without it silently drops Effect diagnostics.
+      - name: Assert the patched tsc
+        run: bunx tsc --version | grep effect-tsgo
+
       - name: Typecheck
-        run: bun check
+        run: make typecheck
 
   test:
     name: test (bun ${{ matrix.bun }})
@@ -88,7 +92,7 @@ jobs:
 
       # Tests pass their env explicitly, so CI needs no .env file.
       - name: Test
-        run: bun test
+        run: bun run test
 
   # Guards the drift vector of a link-don't-restate doc strategy: a renamed target
   # is a broken relative link. --offline checks only links inside the repo.
@@ -108,6 +112,7 @@ jobs:
           args: >-
             --offline
             --no-progress
+            --exclude-path '^repos/'
             README.md
             'docs/**/*.md'
             '.claude/**/*.md'

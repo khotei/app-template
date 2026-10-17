@@ -1,5 +1,5 @@
 {
-  "name": "@oblik/storage",
+  "name": "@app-template/storage",
   "private": true,
   "type": "module",
   "exports": {

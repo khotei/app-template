@@ -1,44 +1,35 @@
-import { describe, expect, mock, test } from 'bun:test'
+import { assert, describe, it } from '@effect/vitest'
+import { DateTime, Effect, Layer } from 'effect'
 
-import {
-  buildExample,
-  type Example,
-  type ExampleId,
-  ExampleNotFoundError,
-  type ExampleRepository,
-} from '@oblik/domain/example'
+import { buildExample, ExampleId, ExampleRepository } from '@app-template/domain/example'
+import { ExampleRepositoryMemory } from '@app-template/infrastructure/example'
 
-import { createExampleService } from '#application/example/example.service'
+import { ExampleService } from '#application/example/example.service'
 
-const example = buildExample('First', new Date('2026-10-15T00:00:00.000Z'))
+const ExampleServiceTest = ExampleService.layer.pipe(Layer.provideMerge(ExampleRepositoryMemory))
 
-const setup = (stored?: Example) => {
-  const repository = {
-    upsert: mock(async (_example: Example) => {}),
-    selectById: mock(async (_id: ExampleId) => stored),
-  } satisfies ExampleRepository
-  return { repository, service: createExampleService({ repository }) }
-}
+describe('ExampleService', () => {
+  it.effect('returns an example upserted through the repository', () =>
+    Effect.gen(function* () {
+      const example = yield* buildExample({
+        id: ExampleId.make('0192d4e0-7b3a-7c00-8000-000000000001'),
+        name: 'First',
+        createdAt: DateTime.makeUnsafe('2026-10-15T00:00:00.000Z'),
+      })
+      yield* (yield* ExampleRepository).upsert(example)
 
-describe('createExampleService', () => {
-  test('saves an example through the repository', async () => {
-    const { repository, service } = setup()
+      assert.deepStrictEqual(yield* (yield* ExampleService).get(example.id), example)
+    }).pipe(Effect.provide(ExampleServiceTest)),
+  )
 
-    await service.save(example)
+  it.effect('fails with ExampleNotFoundError for an unknown id', () =>
+    Effect.gen(function* () {
+      const id = ExampleId.make('0192d4e0-7b3a-7c00-8000-000000000001')
 
-    expect(repository.upsert).toHaveBeenCalledWith(example)
-  })
+      const error = yield* Effect.flip((yield* ExampleService).get(id))
 
-  test('returns the stored example by id', async () => {
-    const { repository, service } = setup(example)
-
-    expect(await service.get(example.id)).toBe(example)
-    expect(repository.selectById).toHaveBeenCalledWith(example.id)
-  })
-
-  test('throws ExampleNotFoundError for an unknown id', async () => {
-    const { service } = setup()
-
-    await expect(service.get('missing' as ExampleId)).rejects.toThrow(ExampleNotFoundError)
-  })
+      assert.strictEqual(error._tag, 'ExampleNotFoundError')
+      assert.strictEqual(error.id, id)
+    }).pipe(Effect.provide(ExampleServiceTest)),
+  )
 })
