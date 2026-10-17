@@ -30,7 +30,7 @@ levels: `application` usually imports `domain` directly.
 | `infrastructure/` | adapters that implement domain ports on top of `packages/*` clients | [infrastructure/CLAUDE.md](../../infrastructure/CLAUDE.md) |
 | `application/` | services over ports, and use cases that compose services | [application/CLAUDE.md](../../application/CLAUDE.md) |
 | `packages/*` | generic, project-agnostic clients and libraries | [packages/CLAUDE.md](../../packages/CLAUDE.md) |
-| `apps/*` | entry points (`main.ts`) and composition roots (`layer.ts`) | [apps/CLAUDE.md](../../apps/CLAUDE.md) |
+| `apps/*` | entry points (`main.ts`) | [apps/CLAUDE.md](../../apps/CLAUDE.md) |
 | `deployment/` | local Docker Compose and AWS Pulumi, stubs for now | [deployment/CLAUDE.md](../../deployment/CLAUDE.md) |
 
 ### Dependency rules
@@ -96,10 +96,9 @@ The file suffixes and naming verbs are listed in
 
 ## Add a new entity
 
-> **In transition.** The [effect-setup](../tickets/2026-10-16_effect-setup/) ticket has retired the
-> plain use case, the app wiring (`createLayer()`), the example routes with `statusByTag` and the
-> job handler. Steps 6–8 and [The Effect seam](#the-effect-seam) describe that retired shape until
-> the ticket rewrites them.
+> **In transition.** The plain use case, the app wiring (`createLayer()`), the example routes with
+> `statusByTag` and the job handler are retired. Steps 6–8 describe that shape until the roadmap
+> ticket [`chat-core`](roadmap.md#3-chat-core) rewrites them.
 
 Follow the `example` slice layer by layer, from the bottom up. Write each test before its code,
 and run `make check` after each layer. `<entity>` is the kebab name (`document`), `<Entity>` the
@@ -132,18 +131,6 @@ A new entity in existing workspaces usually needs no new dependency, because the
 declare each other. Check the importer's `package.json` anyway: `apps/worker`, for one, does not
 declare `@app-template/domain`. A new external client is a new dependency; see
 [tooling.md](tooling.md#add-a-dependency).
-
-## The Effect seam
-
-The code is plain TypeScript, but it is shaped so that adopting Effect later replaces bodies, not
-structure:
-
-| Today | Becomes | Why it already fits |
-|---|---|---|
-| `apps/*/src/layer.ts` with `createLayer()` | an Effect `Layer` | the one place where adapters are wired into services |
-| ports in `domain/<entity>/<entity>.service.ts` | `Context.Tag` services | the port already sits where the tag will be declared |
-| `DomainError` subclasses with `_tag` | `Data.TaggedError` | `_tag` already discriminates errors, as in `http.ts` |
-| the example's dependencies passed as arguments (`{ repository }`, `now`) | requirements in the `Effect` type | the example reaches for no global |
 
 ## Three boundary guards
 

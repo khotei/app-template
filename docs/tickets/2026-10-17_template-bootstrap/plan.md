@@ -209,11 +209,13 @@
 > `~/lab/app-template`. Accepted fixes become steps before S7.
 
 The run on 2026-10-17 accepted three fixes, S6a–S6c, from `verification.md` (committed in S7):
-*Simplifications* 1–3 and all four *Lessons*. Simplification 4 (drop the unused
-`@effect/platform-bun` pin) was dropped: `chat-core` consumes it through `BunRuntime`
-(`docs/knowledge/roadmap.md › 3. chat-core`), so it would only be added back. The run also moved
-the licence check from S4 to S8's *Verify* (S6a's findings). Ordinary steps, through
-`implementer`, one commit each, in the clone on `chore/enterprise-template`.
+*Simplifications* 1–3 and all four *Lessons*. The user later rejected the `make english` lesson
+and moved S6c to roadmap ticket `claude-toolkit`, whose scope is the rules, agents and hooks.
+Simplification 4 (drop the unused `@effect/platform-bun` pin) was dropped:
+`chat-core` consumes it through `BunRuntime` (`docs/knowledge/roadmap.md › 3. chat-core`), so
+it would only be added back. The run also moved the licence check from S4 to S8's *Verify*
+(S6a's findings). Ordinary steps, through `implementer`, one commit each, in the clone on
+`chore/enterprise-template`.
 
 #### S6a — Make the spec agree with the rules
 
@@ -259,13 +261,19 @@ the licence check from S4 to S8's *Verify* (S6a's findings). Ordinary steps, thr
   flags, which `chat-core` rewrites.
 - **Verify:** `make check`; `lychee --offline README.md 'docs/**/*.md' '.claude/**/*.md'`;
   `wc -l apps/CLAUDE.md` ≤ 40; `.claude/rules/naming.md` ≤ 80 lines;
-  `git grep -n 'the-effect-seam'` empty.
-- **Status:** todo
+  `git grep -n 'the-effect-seam' -- ':!docs/tickets' ':!repos'` empty.
+- **Status:** done
+- **Findings:**
+  - The `the-effect-seam` check was unscoped, so it matched its own line here and the closed
+    ticket's history; it now has the seam's two exclusions.
+  - `effect-setup`'s `feature.md` still links the deleted anchor. Repointing it was tried and
+    reverted: R10 and R14 forbid editing that folder, and CI's `lychee --offline` does not
+    check fragments.
 
 #### S6c — Apply the verification lessons
 
-- **Goal:** the four lessons become one skill line, one agent line and two mechanical checks
-  (verification *Lessons*).
+- **Goal:** three of the four lessons become one skill line, one agent line and one mechanical
+  check (verification *Lessons*; the user rejected the `make english` lesson).
 - **Blocked by:** none.
 - **Files:**
   - `.claude/skills/ticket-plan/SKILL.md` step 3: "Check every literal the plan fixes (titles,
@@ -273,27 +281,22 @@ the licence check from S4 to S8's *Verify* (S6a's findings). Ordinary steps, thr
     that step."
   - `.claude/agents/implementer.md › Disciplines`: "Before a doc states a fact, `git grep` for it;
     if another doc owns it, link it (`claude-md.md › One author per fact`)."
-  - `Makefile`: target `english`, added to `check` after `ids`: `perl -CSD` `\p{Cyrillic}` over
-    `git ls-files` minus `repos/`, failing with one line on why. `.github/workflows/ci.yml`
-    `links` job runs `make english` after `make ids`.
   - `.husky/commit-msg`: fail on a body line over 72 columns; the subject, `#` comments, lines
     holding a URL and the trailing trailer block are exempt.
-  - `docs/knowledge/tooling.md`: the `make english` row, the `commit-msg` hook row, the `links` job
-    row.
-- **Test first:** Seam `make english` — red on a probe file containing Cyrillic, green on the
-  tree. Seam `.husky/commit-msg <file>` — red on a body line of 73 columns, green on
+  - `docs/knowledge/tooling.md`: the `commit-msg` hook row.
+- **Test first:** Seam `.husky/commit-msg <file>` — red on a body line of 73 columns, green on
   `git log -1 --format=%B aa4cf0f` and on a message whose long line is a URL.
-- **Verify:** `make check`; `lychee --offline README.md 'docs/**/*.md' '.claude/**/*.md'`; both
-  seams red then green, probes deleted; `git log -1 --format=%B 4c8f9cb | .husky/commit-msg
+- **Verify:** `make check`; `lychee --offline README.md 'docs/**/*.md' '.claude/**/*.md'`; the
+  seam red then green, probes deleted; `git log -1 --format=%B 4c8f9cb | .husky/commit-msg
   /dev/stdin` fails (the known 73-column line); the dependency map is unchanged (no skill, agent
   or hook gains a dependency).
-- **Status:** todo
+- **Status:** moved to roadmap ticket `claude-toolkit` (user, 2026-10-17)
 
 #### S7 — Record the verdict and close the roadmap entry
 
 - **Goal:** the ticket's documents say what happened: the verdict, the statuses of S4–S6, the
   roadmap's ticket 1 as *done* (R13; D1).
-- **Blocked by:** S6, `/ticket-verify`, S6a, S6b, S6c.
+- **Blocked by:** S6, `/ticket-verify`, S6a, S6b.
 - **Files:** `docs/tickets/2026-10-17_template-bootstrap/verification.md` (written by
   `/ticket-verify`; *Lessons › Applied* → `yes (S6c)` for the four lessons), `plan.md` (S4–S6
   `done` with findings, S8 `blocked: squash merge`), `docs/knowledge/roadmap.md` (ticket table

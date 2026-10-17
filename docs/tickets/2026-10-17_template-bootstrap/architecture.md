@@ -140,7 +140,6 @@ plan's steps and `/ticket-verify` run.
 | `make ids`, `lychee --offline docs/**/*.md README.md .claude/**/*.md` (CI `links`) | ticket ids in docs, broken relative links after the README and rules edits | content |
 | `wc -l CLAUDE.md .claude/rules/*.md` | the `claude-md.md` budgets (≤ 40, ≤ 80) | — |
 | `git grep -n -e 'layer\.ts' -e createLayer -e statusByTag -- ':!docs/tickets' ':!repos'` | a rule, `CLAUDE.md` or knowledge doc that still names the pre-Effect wiring as current | a stale description that does not use these names |
-| `make english` (in `make check` and CI `links`) | Cyrillic in any tracked file outside `repos/`, in this commit and every later one (R17) | non-English prose in Latin script |
 | `.husky/commit-msg <file>` | a commit body line over 72 columns (`commits.md › Format`); URLs, `#` comments and trailers are exempt | the other format rules: gitmoji and type pair, subject length, `Refs:` |
 
 Checked by hand in `/ticket-verify`: "Use this template" with *Include all branches* on GitHub

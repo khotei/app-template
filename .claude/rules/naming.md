@@ -15,7 +15,7 @@ Imports are enforced by Biome; file and symbol names are convention (Biome has n
   (`@app-template/config`), apps `@app-template/{api,worker,web}`, `@app-template/deployment`.
 - A layer exposes each entity as a subpath through its barrel: `@app-template/domain/example` →
   `domain/example/index.ts`. A package exposes one entry (`index.ts`, or `client.ts` for clients).
-- App entrypoint: `src/main.ts`; its composition root: `src/layer.ts`.
+- App entrypoint: `src/main.ts`.
 
 ## Imports
 
@@ -43,7 +43,7 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 | `.handler` | a job or request handler | apps |
 | `.test` | a colocated test that mirrors its source name | any |
 
-A file with none of these roles keeps a bare kebab name (`layer.ts`, `http.ts`, `main.ts`).
+A file with none of these roles keeps a bare kebab name (`http.ts`, `main.ts`).
 
 ## Symbols
 
