@@ -462,7 +462,34 @@
 - **Verify:**
   - `make check`;
   - `git grep -nE "createExample(UseCase|Handler|Queue|Llm|Storage)|exampleJobType"` finds nothing.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - **Both `layer.ts` are removed, not shrunk.** With the example routes and the handler gone,
+    neither app wires anything: the api serves only `/health`, and the worker holds a timer at the
+    maximum delay so that it starts and idles. An empty `createLayer()` would be dead code that
+    S17 and S18 replace; they create `layer.ts` as the Effect composition root. `http.ts` exports
+    a `routes` value instead of `createRoutes(layer)`.
+  - **The error mapping goes with the routes.** `statusByTag`, `respondWithDomainError` and the
+    `StatusByTag` exhaustiveness test served only the example routes, and `http.ts` imported
+    `DomainError` from `domain/shared`, which S11 removes. S17 brings the mapping back on the
+    contract.
+  - **The grep is scoped outside `docs/tickets/`.** Run over the whole tree it always matches this
+    plan (its own Verify line and S21's) and the monorepo-setup ticket's history; outside
+    `docs/tickets/` and `repos/` it finds nothing.
+  - **Docs made false by the removal:** the rule examples `ExampleJob`, `buildObjectKey` and
+    `exampleJobType` (`naming.md`, now `outboxTable`), `ExampleQueue` and `ExampleJob` in
+    `infrastructure/CLAUDE.md`, and four rows of the slice map in
+    `docs/knowledge/architecture.md`. The doc's *Add a new entity* steps 6–8 and *The Effect seam*
+    keep their text under a transition note until S22 rewrites them.
+  - Kept on purpose: the plain `ExampleService` and `createExampleRepository` (S11 rewrites them),
+    and the apps' `@oblik/{application,domain,infrastructure}` declarations, which S17 and S18 use
+    again; `infrastructure` keeps `@oblik/llm` and `@oblik/storage` for the same reason.
+  - On review: the `routes` TSDoc went (it restated the body), the `naming.md` constant example
+    was dropped rather than replaced, the knowledge doc's `HTTP routes` row went, and D15 says
+    the example routes, not only `POST /examples`, are absent. `commits.md` gains `:fire: chore`
+    for removing code, which this commit uses. Left for S17, S18 and S21: the `layer.ts`
+    mentions in `naming.md`, `apps/CLAUDE.md` and the knowledge doc, the error-mapping line in
+    `apps/CLAUDE.md`, and the app and infrastructure dependencies that are unused until then.
 
 #### S11 — `domain` on Schema, the memory repository, `ExampleService`
 

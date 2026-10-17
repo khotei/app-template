@@ -2,15 +2,10 @@ import { Effect } from 'effect'
 
 import { RuntimeConfig } from '@oblik/config'
 
-import { createLayer } from '#worker/layer'
-
-const pollIntervalMs = 1_000
+const maxTimerDelayMs = 2_147_483_647
 
 const config = Effect.runSync(Effect.provide(RuntimeConfig, RuntimeConfig.layer))
-const layer = createLayer()
 
-setInterval(() => {
-  layer.pollOnce().catch((error: unknown) => console.error('worker poll failed', error))
-}, pollIntervalMs)
+setInterval(() => {}, maxTimerDelayMs)
 
-console.log(`worker started (${config.nodeEnv}), polling every ${pollIntervalMs} ms`)
+console.log(`worker started (${config.nodeEnv}), idle`)

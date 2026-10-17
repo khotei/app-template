@@ -510,8 +510,8 @@ Checked by hand in `/ticket-verify`, not by tests:
 - **D15 — The slice is rewritten bottom-up, after one step retires the plain code above `domain`
   that the rewrite would break.** A `domain` change breaks `application`, which breaks both apps,
   and the whole chain is far over 400 lines. Removing the plain use case, job adapters, worker
-  handler and example routes first lets each later step write final code only; `POST /examples`
-  is absent between that step and the api step. *Rejected:*
+  handler and example routes first lets each later step write final code only; the example
+  routes are absent between that step and the api step. *Rejected:*
   - bridges (plain code calling Effect through a `ManagedRuntime`, or Effect handlers wrapping
     plain promises): throwaway code in several steps that a reader of the branch must ignore;
   - one big-bang step: well over 1000 lines.

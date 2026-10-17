@@ -1,19 +1,11 @@
 import { afterAll, describe, expect, test } from 'vitest'
 
-import { createRoutes, type StatusByTag } from '#api/http'
-import { createLayer } from '#api/layer'
+import { routes } from '#api/http'
 
-const server = Bun.serve({ port: 0, routes: createRoutes(createLayer()) })
+const server = Bun.serve({ port: 0, routes })
 afterAll(() => server.stop(true))
 
-const request = (path: string, init?: RequestInit) => fetch(new URL(path, server.url), init)
-
-const postExample = (body: unknown) =>
-  request('/examples', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  })
+const request = (path: string) => fetch(new URL(path, server.url))
 
 describe('api routes', () => {
   test('GET /health reports ok', async () => {
@@ -21,41 +13,5 @@ describe('api routes', () => {
 
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ status: 'ok' })
-  })
-
-  test('POST /examples then GET /examples/:id round-trips', async () => {
-    const created = await postExample({ name: 'First' })
-    expect(created.status).toBe(201)
-    const example = (await created.json()) as { id: string; name: string }
-
-    const fetched = await request(`/examples/${example.id}`)
-
-    expect(fetched.status).toBe(200)
-    expect(await fetched.json()).toEqual(example)
-  })
-
-  test('GET /examples/:id answers 404 for an unknown id', async () => {
-    const response = await request('/examples/missing')
-
-    expect(response.status).toBe(404)
-    expect(await response.json()).toMatchObject({ error: 'ExampleNotFoundError' })
-  })
-
-  test('POST /examples answers 422 for a blank name', async () => {
-    const response = await postExample({ name: '   ' })
-
-    expect(response.status).toBe(422)
-    expect(await response.json()).toMatchObject({ error: 'ExampleNameInvalidError' })
-  })
-
-  test('POST /examples answers 400 for a malformed body', async () => {
-    expect((await postExample({ title: 'First' })).status).toBe(400)
-  })
-
-  test('every example error tag needs an HTTP status', () => {
-    // @ts-expect-error ExampleNameInvalidError has no status
-    const incomplete: StatusByTag = { ExampleNotFoundError: 404 }
-
-    expect(Object.keys(incomplete)).toEqual(['ExampleNotFoundError'])
   })
 })

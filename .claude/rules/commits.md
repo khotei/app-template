@@ -29,6 +29,7 @@ Refs: docs/tickets/<YYYY-MM-DD>_<slug>/
 | `:sparkles:` | `feat` | new behaviour |
 | `:bug:` | `fix` | bug fix |
 | `:recycle:` | `refactor` | restructuring without a behaviour change |
+| `:fire:` | `chore` | removing code or files |
 | `:white_check_mark:` | `test` | tests only |
 | `:memo:` | `docs` | docs and rules |
 | `:wrench:` | `chore` | configuration |

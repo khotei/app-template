@@ -86,12 +86,7 @@ Using the `example` slice as the map:
 | domain errors | `domain/example/example.error.ts` | `ExampleNotFoundError`, `_tag` = class name |
 | port and pure operations | `domain/example/example.service.ts` | `ExampleRepository`, `buildExample(name, now)` |
 | adapter implementing the port | `infrastructure/example/example.repository.ts` | `createExampleRepository()` |
-| other adapters | `infrastructure/example/example.{queue,storage,llm}.ts` | `createExampleQueue()` … |
 | service over the port | `application/example/example.service.ts` | `createExampleService({ repository })` |
-| use case | `application/example/create.use-case.ts` | `createExampleUseCase({ exampleService, now })` |
-| wiring | `apps/{api,worker}/src/layer.ts` | `createLayer()` |
-| HTTP routes and error mapping | `apps/api/src/http.ts` | `createRoutes(layer)` |
-| job handler | `apps/worker/src/handlers/example.handler.ts` | `createExampleHandler({ exampleService })` |
 | browser feature | `apps/web/src/features/example/health-panel.ts` | `renderHealthPanel(root, apiClient)` |
 
 Every entity folder has an `index.ts` barrel, and tests sit next to their source as `*.test.ts`.
@@ -99,6 +94,11 @@ The file suffixes and naming verbs are listed in
 [.claude/rules/naming.md](../../.claude/rules/naming.md).
 
 ## Add a new entity
+
+> **In transition.** The [effect-setup](../tickets/2026-10-16_effect-setup/) ticket has retired the
+> plain use case, the app wiring (`createLayer()`), the example routes with `statusByTag` and the
+> job handler. Steps 6–8 and [The Effect seam](#the-effect-seam) describe that retired shape until
+> the ticket rewrites them.
 
 Follow the `example` slice layer by layer, from the bottom up. Write each test before its code,
 and run `make check` after each layer. `<entity>` is the kebab name (`document`), `<Entity>` the
