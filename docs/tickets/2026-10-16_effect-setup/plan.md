@@ -1,5 +1,7 @@
 # Effect setup — plan
 
+> **Superseded at S12.** What remains is re-homed in the [roadmap](../../knowledge/roadmap.md#re-homing-effect-setup).
+
 > Ticket: `2026-10-16_effect-setup` · Requirements: [feature.md](./feature.md) · Design: [architecture.md](./architecture.md)
 
 ## How to run this plan

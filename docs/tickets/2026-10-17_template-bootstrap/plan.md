@@ -133,7 +133,15 @@
   `git diff --stat HEAD -- docs/tickets/2026-10-16_effect-setup` touches only those lines;
   `grep -c 'Vitalii Khotei' LICENSE` is 1; the `perl` Cyrillic check on the changed files prints
   nothing; `git grep -il oblik -- ':!docs/tickets' ':!repos' ':!bun.lock'` still empty.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Review found that the README's *Branches* row for `chore/enterprise-template` claimed a
+    `--no-ff` merge per ticket, which the bootstrap does not have. The row now says only what the
+    branch holds, and the linked `sdd.md` section owns the mechanism.
+  - "Include all branches" copies every branch, not three. The README says so. Whether it works
+    is checked by hand in S8.
+  - The superseded note is one line of 118 characters, because R14 and D7 ask for one line.
+
 
 #### S4 — Create `khotei/app-template` and push the three branches
 
