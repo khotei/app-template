@@ -26,6 +26,7 @@
         "@oblik/config": "workspace:*",
         "@oblik/domain": "workspace:*",
         "@oblik/infrastructure": "workspace:*",
+        "effect": "catalog:effect",
       },
     },
     "apps/web": {
@@ -34,6 +35,7 @@
         "@oblik/api-client": "workspace:*",
         "@oblik/config": "workspace:*",
         "@oblik/ui": "workspace:*",
+        "effect": "catalog:effect",
       },
     },
     "apps/worker": {
@@ -42,6 +44,7 @@
         "@oblik/application": "workspace:*",
         "@oblik/config": "workspace:*",
         "@oblik/infrastructure": "workspace:*",
+        "effect": "catalog:effect",
       },
     },
     "deployment": {
@@ -63,6 +66,12 @@
     },
     "packages/config": {
       "name": "@oblik/config",
+      "dependencies": {
+        "effect": "catalog:effect",
+      },
+      "devDependencies": {
+        "@effect/vitest": "catalog:effect",
+      },
     },
     "packages/db": {
       "name": "@oblik/db",

@@ -7,5 +7,11 @@
   },
   "imports": {
     "#config/*": "./*.ts"
+  },
+  "dependencies": {
+    "effect": "catalog:effect"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:effect"
   }
 }

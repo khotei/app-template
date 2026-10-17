@@ -1,10 +1,12 @@
-import { loadConfig } from '@oblik/config'
+import { Effect } from 'effect'
+
+import { RuntimeConfig } from '@oblik/config'
 
 import { createLayer } from '#worker/layer'
 
 const pollIntervalMs = 1_000
 
-const config = loadConfig()
+const config = Effect.runSync(Effect.provide(RuntimeConfig, RuntimeConfig.layer))
 const layer = createLayer()
 
 setInterval(() => {

@@ -10,6 +10,9 @@ dist
 coverage
 *.lcov
 
+# local data (the queue's SQLite file)
+.data
+
 # logs
 logs
 _.log

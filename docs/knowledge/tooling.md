@@ -84,14 +84,15 @@ server's `Bun.serve({ development })`.
 
 - **One root `.env`**, gitignored. `.env.example` is its template and lists only what the code
   reads. Variables of clients that are still stubs stay commented out.
-- **Quoting.** Strings are double-quoted (`LOG_LEVEL="info"`), numbers are bare (`API_PORT=3000`).
+- **Quoting.** Strings are double-quoted (`LOG_LEVEL="Info"`), numbers are bare (`API_PORT=3000`).
 - **Loading.** Each app script passes `--env-file=../../.env`, a path relative to the app folder.
   This works from `make` at the root and from `bun run dev` inside the app.
-- **A missing `.env`** is ignored by Bun without a warning. The process then fails at startup in
-  `loadConfig`, with one `ConfigError` that lists every missing variable. Variables exported in the
-  shell work without a file, which is how CI runs.
-- **Reading settings.** Only `@oblik/config` reads the environment, through
-  `loadConfig(env = Bun.env)`. Tests pass an explicit object, so they never need `.env`.
+- **A missing `.env`** is ignored by Bun without a warning. The process then fails at startup while
+  building a config layer, with Effect's `ConfigError` naming the first missing or invalid
+  variable. Variables exported in the shell work without a file, which is how CI runs.
+- **Reading settings.** Only `@oblik/config` reads the environment: each area is a
+  `Context.Service` (`ApiConfig`, `QueueConfig`, …) with a `layer` on `effect/Config`. Tests
+  provide a `ConfigProvider.fromUnknown` record, so they never need `.env`.
 
 ## Dependencies
 
@@ -218,5 +219,6 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 | `<file>:<line> - error TS377001: … effect(floatingEffect)`, or another `effect(<rule>)` | the Effect language service flags a misuse; the name in parentheses is the rule | fix the code (here: yield or assign the Effect). A rule's severity is set in the plugin's `diagnosticSeverity` in `tsconfig.base.json` |
 | CI `Assert the patched tsc` fails: `grep` finds no `effect-tsgo` | `tsc` is the stock build, because `bun install` ran without the `prepare` script; it reports no Effect diagnostics | run `bun install`, so `prepare` runs `effect-tsgo patch`; `bunx tsc --version` then reports `+effect-tsgo` |
 | CI `Install`: `lockfile had changes, but lockfile is frozen` | `package.json` or a catalog changed without `bun install` | run `bun install` locally and commit `bun.lock` |
-| an app exits at startup with `ConfigError: Invalid environment` | `.env` is missing or a variable is invalid; Bun ignores a missing `--env-file` without a warning | `make setup`, or fix the listed variables in `.env` |
+| an app exits at startup with `ConfigError: SchemaError(… at ["API_PORT"])` | `.env` is missing or that variable is invalid; Bun ignores a missing `--env-file` without a warning | `make setup`, or fix the named variable in `.env` and rerun until it starts |
+| `… at ["LOG_LEVEL"]` on a `.env` that used to work | `LOG_LEVEL` is case-sensitive since the Effect config: `Info`, not `info` | set `LOG_LEVEL="Info"` (see `.env.example`); `QUEUE_SQLITE_PATH` becomes required once the queue client reads it |
 | `bun install` fails with a workspace path error | an explicit `workspaces` entry points to a folder that does not exist yet | create the folder first, then add the path |

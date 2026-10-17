@@ -306,8 +306,8 @@
     The trade-off: a third-party package or `node:*` in `domain` is no longer caught by lint;
     review and R19's grep cover purity.
   - **Web.** Only client code is banned from `effect` (R33); the server entry `src/main.ts`, whose
-    own override replaces the client one, may import `effect` and needs to from S19, which reads
-    `WEB_PORT` through `createConfigLayer`.
+    own override replaces the client one, may import `effect` and needs to from S9, which reads
+    `WEB_PORT` through `WebConfig.layer`.
   - Outside the file list: `docs/knowledge/architecture.md` (the `domain` bullet and matrix row,
     the guard table and paragraph) and `docs/knowledge/tooling.md` (the `domain` troubleshooting
     row, a web row, and a link instead of restating what each override repeats).
@@ -386,27 +386,60 @@
 #### S9 — Config as services
 
 - **Goal:**
-  - `ApiConfig`, `WebConfig`, `RuntimeConfig` and `QueueConfig` (R29a), with `createConfigLayer`
-    giving one `ConfigInvalidError` that names every bad variable (R21, D7);
+  - `ApiConfig`, `WebConfig`, `RuntimeConfig` and `QueueConfig` (R29a), each a `Context.Service`
+    with a `static layer` on `Config.all` (R21, D7);
   - `MinimumLogLevelFromConfig`;
   - tests on a replacement `ConfigProvider` (R15);
-  - `.env.example` and `.gitignore` for the queue file (R22).
+  - `.env.example` and `.gitignore` for the queue file (R22);
+  - the legacy `loadConfig` removed, so the three `main.ts` read the services' layers in a
+    transitional form until S17–S19 rewrite them on the Effect runtime.
 - **Blocked by:** S5.
 - **Files:**
-  - `packages/config/{config,layer,index}.ts` and `layer.test.ts`;
-  - the legacy `Config` and `ConfigError` move into `load.ts`, which stays until S19 removes it
-    with its last importer;
+  - `packages/config/{config,index}.ts` and `config.test.ts`; `load.ts` and `load.test.ts` are
+    removed;
   - `packages/config/package.json`;
+  - `apps/{api,worker,web}/src/main.ts` and their `package.json` (`effect`);
   - `.env.example` (`QUEUE_SQLITE_PATH`, `QUEUE_LOCK_*`, `LOG_LEVEL`);
-  - `.gitignore` (`.data/`).
-- **Test first:** seam **`createConfigLayer`**:
-  - missing `API_PORT` and `QUEUE_SQLITE_PATH` give one error naming both;
+  - `.gitignore` (`.data/`);
+  - the rule and knowledge lines that named `loadConfig` as the way to read settings.
+- **Test first:** seam **a service's `layer` under `ConfigProvider.fromUnknown`**:
+  - a missing `API_PORT` fails `Layer.build` with a `ConfigError` naming it;
   - the defaults apply;
-  - the `LOG_LEVEL` literals are accepted.
+  - each `LOG_LEVEL` literal reaches `References.MinimumLogLevel` through
+    `MinimumLogLevelFromConfig`; a lower-case value is rejected naming `LOG_LEVEL`.
 - **Verify:**
   - `make check`;
   - **V5:** whether `Config.LogLevel` accepts lower case, settling the `.env.example` value.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - **R21 amended: the error names the first offending variable, not every one.** A first pass
+    built a generic `createConfigLayer` (`Effect.validate` over every field of every area, a
+    structural `Area` type, `Context.makeUnsafe`, `ConfigInvalidError`) to name them all. The
+    user chose Effect's `Config` alone: `Config.all`, `Config.schema(Schema.Struct)` and
+    `Layer.mergeAll` of per-area layers each report only the first failure (probed on
+    effect 4.0.5), so the hand-written machinery was the only way to the old wording. D7 records
+    the rejection; `feature.md` carries the amendment and the new acceptance row.
+  - **V5 settled: lower case is rejected.** `Config.LogLevel` is `Schema.Literals(LogLevel.values)`
+    (`All`, `Fatal`, `Error`, `Warn`, `Info`, `Debug`, `Trace`, `None`). `.env.example` has
+    `LOG_LEVEL="Info"`; the quoting example in `docs/knowledge/tooling.md` follows.
+  - **The legacy loader goes now, not in S19.** Keeping `loadConfig` beside the new layers left a
+    window in which a `.env` copied from the new `.env.example` (`Info`) broke the legacy loader
+    (`info` only). The three `main.ts` keep their shape (`Bun.serve`, the poll loop) and read
+    their services in one `Effect.runSync` over the merged layers; S17–S19 replace them on the
+    full runtime. S19 keeps the web entry, HMR and the modules gate.
+  - **An existing `.env` with `LOG_LEVEL="info"` now fails `make dev-web` and `make dev-worker`
+    at startup** (`dev-api` reads no `RuntimeConfig` yet), and `make setup` copies `.env.example`
+    only when `.env` is missing. The troubleshooting table has the row; the developer's `.env`
+    needs `LOG_LEVEL="Info"` and, from S12, `QUEUE_SQLITE_PATH`.
+  - `ConfigError.message` reads `SchemaError(Expected string\n  at ["API_PORT"])`, so the
+    variable name is in it. A run with no env file (`env -i … bun --no-env-file`) printed
+    `ConfigError(SchemaError(Expected string at ["API_PORT"]))`. Bun auto-loads the cwd's `.env`,
+    so a probe without `--no-env-file` silently picks up the root file.
+  - Not done here: `QueueConfig` does not check that the refresh is shorter than the expiration
+    (R29a); the defaults meet it, and S12 adds the check where the options are built.
+  - The suite reads no `.env` (with the file moved aside it still passes). Each case was seen
+    red: first on the missing `layer` statics, then by mutation (`Config.String` in place of
+    `Config.LogLevel`, a wrong `NODE_ENV` default).
 
 #### S10 — Retire the plain code above `domain`
 
@@ -459,7 +492,8 @@
   - `LanguageModelStub` (R20);
   - `DbClient` and `StorageClient` with `*Memory` layers;
   - `buildExampleObjectKey`, and `OutboxMessage` as a `Schema.Struct`;
-  - `QueueClientSqlite`, where `QueueConfig` turns into client options (R23, R29a).
+  - `QueueClientSqlite`, where `QueueConfig` turns into client options and a refresh interval not
+    shorter than the expiration fails the layer (R23, R29a).
 - **Blocked by:** S8, S9, S11.
 - **Files:**
   - `packages/{llm,db,storage}/client.ts` and their `package.json` files;
@@ -599,20 +633,17 @@
   - editing a file restarts it with one consumer.
 - **Status:** todo
 
-#### S19 — Web server entry on the config layer; `load.ts` removed
+#### S19 — Web server entry on the full runtime
 
-- **Goal:** `apps/web/src/main.ts` stays `Bun.serve` with HMR and reads `WebConfig` through
-  `createConfigLayer` (R34). The last importer of `loadConfig` is gone, so `load.ts` and its test
-  go too (R21).
+- **Goal:** `apps/web/src/main.ts` stays `Bun.serve` with HMR and reads `WebConfig` from its
+  layer on the Effect runtime the other apps use (R34), replacing S9's transitional `runSync`.
 - **Blocked by:** S16, S17, S18.
 - **Files:**
   - `apps/web/src/main.ts`;
-  - `packages/config/{load,load.test,index}.ts`;
   - `apps/web/package.json`.
-- **Test first:** config only. `createConfigLayer` is already covered at its S9 seam.
+- **Test first:** config only. The config layers are covered at their S9 seam.
 - **Verify:**
   - `make dev-web` keeps HMR;
-  - `git grep loadConfig` finds nothing outside the docs;
   - `make check` is green. This is the **`modules` layer gate**.
 - **Status:** todo
 
@@ -694,7 +725,7 @@
 
 | Req | Steps | Req | Steps |
 |---|---|---|---|
-| R1 | S1, S4, S23 | R21 | S9, S19 |
+| R1 | S1, S4, S23 | R21 | S9 |
 | R2 | gates S7, S19, S22 | R22 | S9 |
 | R3 | every step; S4 | R23 | S8, S12 |
 | R4 | S2 | R24 | S13 |
@@ -708,7 +739,7 @@
 | R12 | S5 | R31 | S17 |
 | R13 | S5 | R32 | S15 |
 | R14 | S5, S8, S9, S11, S13–S17 | R33 | S7, S16 |
-| R15 | S9 | R34 | S19 |
+| R15 | S9 | R34 | S9, S19 |
 | R16 | S5, S6, S8 | R35 | S17, S18 |
 | R17 | S7, S11 | R36 | S17, S18 |
 | R18 | S11 | R37, R37a, R37b | S20 |

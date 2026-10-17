@@ -103,7 +103,7 @@ graph LR
 │   ├── create.use-case.ts                 ✗ folded into ExampleService.create
 │   └── example.service.test.ts · example-summary.job.test.ts ✎ ★
 ├── packages/
-│   ├── config/{config,layer,index}.ts     ✎ <Area>Config services · createConfigLayer · load.ts ✗
+│   ├── config/{config,index}.ts           ✎ <Area>Config services, each with a layer · load.ts ✗
 │   ├── queue/{queue,memory,sqlite}.ts     ✎ JobQueue · QueueClient · QueueError · two layers (client.ts ✗)
 │   ├── llm/client.ts                      ✎ LanguageModelStub
 │   ├── db/client.ts · storage/client.ts   ✎ Context.Service stubs + *Memory layers
@@ -253,17 +253,12 @@ export const QueueClientMemory: Layer.Layer<QueueClient>                    // l
 export const createQueueClientSqlite: (options: QueueClientSqliteOptions /* filename, lockExpiration,
   lockRefreshInterval */) => Layer.Layer<QueueClient, SqlError>              // + layerStoreSql + SqliteClient.layer
 
-// packages/config — one service per area; read only through createConfigLayer
+// packages/config — one service per area, each with its layer; a root merges the ones it needs
 export class ApiConfig extends Context.Service<ApiConfig, { readonly port: number }>()('@oblik/config/ApiConfig') {
-  static readonly config = Config.all({ port: Config.Port('API_PORT') })
-}
-// WebConfig { port: WEB_PORT } · RuntimeConfig { nodeEnv: NODE_ENV, logLevel: Config.LogLevel(LOG_LEVEL) }
+  static readonly layer = Layer.effect(this, Config.all({ port: Config.Port('API_PORT') }))
+}   // : Layer<ApiConfig, Config.ConfigError> — the error names the first missing or invalid variable
+// WebConfig { port: WEB_PORT } · RuntimeConfig { nodeEnv: NODE_ENV, logLevel: Config.LogLevel(LOG_LEVEL), "Info" }
 // QueueConfig { filename: QUEUE_SQLITE_PATH, lockExpiration: 15 s, lockRefreshInterval: 5 s (QUEUE_LOCK_*) }
-export class ConfigInvalidError extends Schema.TaggedError<ConfigInvalidError>()(
-  'ConfigInvalidError', { issues: Schema.Array(Schema.String) }) {}         // message lists every variable
-// Effect.validate over every area's `config` first, then provides each service
-export const createConfigLayer: <const Areas extends ReadonlyArray<AreaConfig>>(
-  ...areas: Areas) => Layer.Layer<Services<Areas>, ConfigInvalidError>
 export const MinimumLogLevelFromConfig: Layer.Layer<never, never, RuntimeConfig> // References.MinimumLogLevel
 
 // packages/llm/client.ts
@@ -326,9 +321,9 @@ export const createApiClient: (baseUrl: string, options?: { readonly fetch?: typ
 
 | Process | Entry | Composition root provides |
 |---|---|---|
-| api | `BunRuntime.runMain(Layer.launch(ApiServer))` | `createConfigLayer(ApiConfig, QueueConfig, RuntimeConfig)`, `MinimumLogLevelFromConfig`, `BunServices.layer` (Crypto), `ExampleRepositoryMemory`, `QueueClientSqlite` |
+| api | `BunRuntime.runMain(Layer.launch(ApiServer))` | `ApiConfig.layer`, `QueueConfig.layer`, `RuntimeConfig.layer`, `MinimumLogLevelFromConfig`, `BunServices.layer` (Crypto), `ExampleRepositoryMemory`, `QueueClientSqlite` |
 | worker | `BunRuntime.runMain(Layer.launch(ExampleSummaryJob.worker.pipe(…)))` | config (`QueueConfig`, `RuntimeConfig`), log level, `QueueClientSqlite`, `LanguageModelStub` |
-| web | `Bun.serve` with HMR, unchanged shape | reads `WebConfig`, `ApiConfig`, `RuntimeConfig` once through `createConfigLayer` |
+| web | `Bun.serve` with HMR, unchanged shape | reads `WebConfig`, `ApiConfig`, `RuntimeConfig` once, from their merged layers |
 
 `api` and `worker` run in dev with `--watch`; `web` keeps `--hot` (D12). `QUEUE_SQLITE_PATH` in
 `.env.example` is `"../../.data/queue.sqlite"`: both apps run from `apps/<app>`, so the relative path
@@ -379,7 +374,7 @@ Tests observe behaviour only here. Each row is one test file or suite.
 | `ExampleService.layer` (`create`, `get`) over `ExampleRepositoryMemory`, `QueueClientMemory`, `TestClock`, a fresh `TestCrypto.layer(seed)` per test (`application`) | saves and enqueues once, deterministic UUIDv7 and `createdAt`, job id `example-summary:<id>`, a repeated send deduplicated, a blank name saves and enqueues nothing, not-found | HTTP, the SQLite store |
 | `ExampleSummaryJob.layer` + `ExampleSummaryJob.worker` over `QueueClientMemory`, a recording or failing `LanguageModel`, `TestClock` (`application`) | enqueue → handle round trip, the prompt reaching the model, retries on the queue's schedule, dead-letter and its log after `maxAttempts`, interrupt releasing without counting the attempt | the SQL store and its DB clock, `LanguageModelStub`, two processes |
 | `JobQueue` suite run against `QueueClientMemory` and `createQueueClientSqlite` on a temp file (`packages/queue`) | send and consume, dedup by id, a message surviving a rebuilt layer on the same file ("worker was stopped"), the loop continuing after a failure | lock-expiry timing (real time), SQS |
-| `createConfigLayer(...)` with `ConfigProvider.fromUnknown` (`packages/config`) | defaults, one `ConfigInvalidError` naming every bad variable, `LOG_LEVEL` literals | `--env-file` loading |
+| a service's `layer` under `ConfigProvider.fromUnknown` (`packages/config`) | defaults, a `ConfigError` naming the missing variable, the `LOG_LEVEL` literals reaching `MinimumLogLevel` | `--env-file` loading |
 | `HttpRouter.toWebHandler(ApiHttp …)` driven by `createApiClient(url, { fetch })` and raw `Request`s (`apps/api`) | each status and JSON body on the wire, each typed `Result`, a 400 listing every issue, `POST /examples` enqueuing the job, a defect or an unencodable response answering 500 | the Bun socket, `--watch` |
 | `createApiClient` over a fake `fetch`, plus type tests (`packages/api-client`) | the transport error on a refused connection, `SchemaError` / `DecodeError` on a wrong body or status, no rejected promise, an exhaustive `switch` over `error._tag` | a real server |
 | `openapi.test.ts`: `OpenApi.fromApi(Api)` equals the committed `openapi.json` (`packages/api-contract`) | contract drift, the documented 400 and 500 | behaviour the schema does not express |
@@ -448,10 +443,13 @@ Checked by hand in `/ticket-verify`, not by tests:
   - `Data.TaggedError`: it has no schema, so it cannot cross a process;
   - `Model` (`effect/unstable`): unstable;
   - the domain yielding `Clock` and `Crypto`: every domain test would need the test services.
-- **D7 — Settings are one `Context.Service` per area, read only through `createConfigLayer`,
-  which runs `Effect.validate` over every area before providing any of them.** One startup error
-  names every bad variable, and tests swap the `ConfigProvider`. *Rejected:*
-  - a layer per area, or `Config.all`: both stop at the first failure;
+- **D7 — Settings are one `Context.Service` per area with `static layer = Layer.effect(this,
+  Config.all({...}))`; a composition root `Layer.mergeAll`s the areas it needs, and tests swap the
+  `ConfigProvider`.** Only Effect's `Config` module is involved, so a startup failure is Effect's
+  `ConfigError`, naming the first missing or invalid variable. *Rejected:*
+  - a generic `createConfigLayer` running `Effect.validate` so one error names every variable:
+    about 60 lines of type machinery for a dev-time message, and `Context.Key & { config }`
+    fights Effect's unify symbol (amends R21);
   - a `Schema` over the raw env record: it loses the `ConfigProvider` seam.
 - **D8 — The patched `tsc -b` is the single typecheck gate.** It is TS 7 over the same
   references, so it reports every type error `bun check` does, plus the Effect diagnostics; it
@@ -574,6 +572,6 @@ reporter under an agent; settled in S5: no forced reporter). New:
   declared on the API. A defect's empty 500 body must then decode to `InternalServerError`, not to
   `DecodeError`.
 - **V5** — Whether `Config.LogLevel` accepts lower-case values. If it does not, `.env.example`
-  switches to `LOG_LEVEL="Info"`.
+  switches to `LOG_LEVEL="Info"`. Settled in S9: it does not; `.env.example` has `"Info"`.
 - **V6** — vitest projects given as the root `workspaces` globs, with no config file per directory.
   Moot since S5: the root config declares no projects.

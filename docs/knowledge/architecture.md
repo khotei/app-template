@@ -165,8 +165,8 @@ and fixes:
 Three forms pass all three guards. No code uses them; review is what catches them.
 
 - **A type import inside an expression in web client code.** `export type X =
-  import('@oblik/config').Config` in `app/`, `features/` or `shared/` passes Biome, which does not
-  see `import()` inside a type, and `tsc -b`, because web declares `@oblik/config` for its
+  import('@oblik/config').ApiConfig['Service']` in `app/`, `features/` or `shared/` passes
+  Biome, which does not see `import()` inside a type, and `tsc -b`, because web declares `@oblik/config` for its
   server entry. The type is erased, so nothing reaches the browser, but the client then depends on
   the shape of the server config.
 - **A workspace importing itself by name.** `@oblik/application/example` from inside

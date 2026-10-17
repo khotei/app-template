@@ -165,11 +165,11 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
   be a value or a function with requirements (architecture D17). The repository stays in-memory;
   `storage` and `db` are `Context.Service` stubs with in-memory layers; `llm` exposes
   `LanguageModel` from `effect/ai` through a stub layer that returns a canned response.
-- **R21** — `@oblik/config` SHALL define settings with `effect/Config`, read through
-  `ConfigProvider.fromEnv`. WHEN required variables are missing or invalid, the process SHALL fail at
-  startup with one error that names every offending variable. Effect's `Config.all` stops at the
-  first failure, so the settings SHALL be validated together (`Effect.validate`) before they are
-  read, keeping `ConfigProvider` swappable in tests.
+- **R21** — `@oblik/config` SHALL define settings with `effect/Config`: one `Context.Service` per
+  area with a `layer`, read through the current `ConfigProvider` (`fromEnv` by default, so tests
+  swap it). WHEN a required variable is missing or invalid, THE SYSTEM SHALL fail at startup with
+  a `ConfigError` naming that variable. *Amended in S9: Effect reports the first offending
+  variable; the earlier "every variable" needed hand-written validation.*
 - **R22** — `.env.example` SHALL list every variable the code reads, including the queue's SQLite
   path, and the SQLite file SHALL be gitignored.
 
@@ -301,7 +301,7 @@ The ticket stays a worked example: a future project reads `chore/effect-setup` s
 | R12–R15 | `mv .env .env.bak && make test` passes. A failing test in each workspace makes `make test` exit non-zero (checked from S8 with `it.effect`). `git grep "from 'bun:test'" -- ':!docs/tickets'` finds nothing. |
 | R16 | A commit with a floating Effect is rejected; a push with a failing test is rejected. |
 | R17–R19 | `make lint` fails for `@effect/platform-bun` or `@oblik/config` imported in `domain/`, and passes for `effect`, `vitest` and `@effect/vitest` in a `domain/*.test.ts`. `git grep -E "Date.now|new Date\(|randomUUID" domain/` finds nothing. A test fixes time with `TestClock` and ids with `TestCrypto`. |
-| R20–R22 | Removing `API_PORT` and `QUEUE_SQLITE_PATH` gives one startup error naming both. `.env.example` lists every variable read. |
+| R20–R22 | Removing `API_PORT` gives a startup `ConfigError` naming it. `.env.example` lists every variable read. |
 | R23–R25 | `example-summary.job.ts` exports `ExampleSummaryJob` with `enqueue` and `ExampleSummaryJob.worker`; `apps/worker/src` holds no job logic and no `handlers/` folder. Swapping the in-memory and SQLite queue layers changes only `apps/*/src/layer.ts`. |
 | R26–R29 | With the worker stopped, three `POST /examples` queue three jobs; starting the worker logs three job results. A job made to fail is retried per the schedule (tested with `TestClock`) and then dead-lettered. SIGTERM during a job leaves it for the next worker at the same attempt. |
 | R30–R33 | `packages/api-contract` imports only `effect`. Editing an endpoint without regenerating fails `make check`; `openapi.json` documents the 400. Through `@oblik/api-client`, an unknown id resolves to `{ ok: false, error: { _tag: <contract 404> } }`, a bad body to the 400's tag, a stopped server to the transport tag, and no call rejects. A `switch` over `error._tag` missing a case fails `make typecheck`. `import 'effect'` in `apps/web/src/features/` fails `make lint`. |

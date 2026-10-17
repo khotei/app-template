@@ -42,7 +42,7 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 | `.handler` | a job or request handler | apps |
 | `.test` | a colocated test that mirrors its source name | any |
 
-A file with none of these roles keeps a bare kebab name (`layer.ts`, `http.ts`, `load.ts`).
+A file with none of these roles keeps a bare kebab name (`layer.ts`, `http.ts`, `main.ts`).
 
 ## Symbols
 
@@ -53,6 +53,5 @@ A file with none of these roles keeps a bare kebab name (`layer.ts`, `http.ts`, 
   - `create<Thing>`: a factory that wires dependencies (`createExampleService`);
   - `build` / `ensure`: a pure function that derives a value, in any layer (`buildExample`,
     `buildObjectKey`);
-  - `select` / `insert` / `upsert` / `delete`: persistence (`selectById`);
-  - `load` / `read`: configuration and environment (`loadConfig`).
+  - `select` / `insert` / `upsert` / `delete`: persistence (`selectById`).
 - Constants are `camelCase` with `as const` for literals (`exampleJobType`).
