@@ -9,7 +9,7 @@
 Move this tree into a new public repository, `khotei/app-template`, and make it the base every
 later ticket of the [roadmap](../../knowledge/roadmap.md) starts from: three branches with the
 history that teaches (`main`, `chore/monorepo-setup`, `chore/enterprise-template`), the scope
-renamed from `@oblik` to `@template`, a roadmap and a glossary committed, and the SDD rules
+renamed from `@oblik` to `@app-template`, a roadmap and a glossary committed, and the SDD rules
 extended with the roadmap and the branch model. Oblik+ stays what it is; the template is cut from
 it and grows on its own.
 
@@ -41,7 +41,7 @@ it and grows on its own.
 
 - The GitHub repository: creation, description, topics, licence, template flag, merge settings.
 - The three branches, with the SHAs of `main` and `chore/monorepo-setup` unchanged.
-- The rename `@oblik` → `@template`, `oblik` → `app-template`, `Oblik+` → `App Template`, with the
+- The rename `@oblik` → `@app-template`, `oblik` → `app-template`, `Oblik+` → `App Template`, with the
   product line rewritten for a chat clone.
 - `docs/knowledge/roadmap.md`, `docs/knowledge/glossary.md`, `README.md` and `CLAUDE.md` as a
   template's; `effect-setup` marked superseded.
@@ -66,7 +66,7 @@ it and grows on its own.
   **public** repository with the description *"Effect v4 modular monolith on Bun: a chat clone
   built as a template for enterprise projects"*, the topics `template`, `effect`, `bun`,
   `typescript`, `tanstack`, `pulumi`, `aws`, and a `LICENSE` file holding the MIT licence in the
-  name of the git author of `main`.
+  name of the git author of `main` (`Copyright (c) 2026 Vitalii Khotei`).
 - **R2** — THE repository settings SHALL allow squash merging only (merge commits and rebase
   merging disabled), with the squash message set to *pull request title and description*, and
   SHALL delete head branches on merge, because the step history lives on the teaching branch.
@@ -86,21 +86,23 @@ it and grows on its own.
   that the next ticket branch, cut from `main`, merges into the teaching branch with `main`'s
   squash as a common ancestor.
 - **R7** — WHEN the push is verified (R4 holds and `make check` passes on a fresh clone of
-  `chore/enterprise-template`), THE local branch `chore/effect-setup` in `oblik` SHALL be deleted,
+  `chore/enterprise-template`), THE local branches `chore/effect-setup` and
+  `backup/effect-setup-simplified` in `oblik` SHALL be deleted and the `template` remote removed,
   and `oblik` SHALL receive no other change and no push.
 
 ### Rename
 
 - **R8** — WHEN the rename is done, no tracked file outside `docs/tickets/`, `repos/` and
   `bun.lock` SHALL contain `oblik` or `Oblik` in any case; workspace names SHALL be
-  `@template/<workspace>`, `workspace:*` dependencies and `tsconfig` references SHALL follow, the
-  root package SHALL be named `app-template`, and `bun install` SHALL regenerate `bun.lock`
-  without network changes to versions.
+  `@app-template/<workspace>`, and `workspace:*` dependencies, `.ts` import specifiers, Biome
+  `noRestrictedImports` globs and messages SHALL follow; the within-workspace `#<workspace>/*`
+  imports SHALL stay as they are; the root package SHALL be named `app-template`, and
+  `bun install` SHALL regenerate `bun.lock` without network changes to versions.
 - **R9** — WHEN the rename is done, `make check` SHALL pass, and `make dev-api` SHALL answer
   `curl localhost:3000/health` as before.
 - **R10** — Biome override messages, the `Makefile` help, `deployment/Pulumi.yaml`'s description,
   the web `index.html` title and `.github/PULL_REQUEST_example.md` SHALL name App Template, and
-  the layer `CLAUDE.md` files and `docs/knowledge/*.md` SHALL show `@template/…` in every import
+  the layer `CLAUDE.md` files and `docs/knowledge/*.md` SHALL show `@app-template/…` in every import
   example. `docs/tickets/` is history and SHALL NOT be rewritten.
 
 ### Documents
@@ -144,8 +146,8 @@ it and grows on its own.
 | R3 | `gh api repos/khotei/app-template --jq .is_template` prints `true`. |
 | R4, R5 | `git ls-remote git@github.com:khotei/app-template` lists exactly `main` at `1bbdd1a…`, `chore/monorepo-setup` at `c0bc48f…`, `chore/enterprise-template`, and `HEAD` → `main`; `git log --oneline 1bbdd1a..chore/enterprise-template` begins with the 15 effect-setup commits. |
 | R6 | After merge, `git log -1 main` is the squash with the PR body; `git merge-base main chore/enterprise-template` equals `main`'s tip. |
-| R7 | In `oblik`: `git branch --list chore/effect-setup` is empty, `git status` clean on `main`, `git log origin/main..main` empty. |
-| R8 | `git grep -il oblik -- ':!docs/tickets' ':!repos' ':!bun.lock'` prints nothing; `grep -c '"@template/' bun.lock` is non-zero and `grep -c oblik bun.lock` is zero; `bun install --frozen-lockfile` succeeds. |
+| R7 | In `oblik`: `git branch --list 'chore/effect-setup' 'backup/*'` is empty, `git remote` lists only `origin`, `git status` clean on `main`, `git log origin/main..main` empty. |
+| R8 | `git grep -il oblik -- ':!docs/tickets' ':!repos' ':!bun.lock'` prints nothing; `grep -c '"@app-template/' bun.lock` is non-zero and `grep -c oblik bun.lock` is zero; `bun install --frozen-lockfile` succeeds. |
 | R9 | `make check` passes; `make dev-api` then `curl -s localhost:3000/health` returns the same body as before the rename. |
 | R10 | `git grep -n "Oblik+"` outside `docs/tickets/` prints nothing; `git grep -n "@oblik/" -- '*.md' ':!docs/tickets'` prints nothing. |
 | R11, R12 | `README.md` and `CLAUDE.md` read as specified; `wc -l CLAUDE.md` ≤ 40; `lychee --offline` on the docs passes (CI `links`). |

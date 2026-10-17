@@ -56,7 +56,7 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
 ### 1. `template-bootstrap`
 
 - **Goal.** A public repository `khotei/app-template` with `main`, `chore/monorepo-setup` and
-  `chore/enterprise-template`, the scope renamed to `@template`, this roadmap and the glossary
+  `chore/enterprise-template`, the scope renamed to `@app-template`, this roadmap and the glossary
   committed, and the SDD rules extended with the roadmap and the branch model. Everything after
   this ticket happens in the new repository.
 - **Scope.** Repository creation and settings; branch transfer; rename; `LICENSE`; `README.md`
@@ -99,10 +99,10 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   a worker job. The `example` slice is deleted; `chat` is the new worked example.
 - **Scope.** `domain/chat` (Visitor, Chat, Message, Attachment, Placeholder as `Schema`, errors,
   ports); in-memory adapters on `KeyValueStore`; `application/chat` services and the job;
-  `@template/api-contract` as an `HttpApi` with the visitor secret as `HttpApiSecurity`, SSE for the
+  `@app-template/api-contract` as an `HttpApi` with the visitor secret as `HttpApiSecurity`, SSE for the
   reply (`HttpApiSchema.StreamSse` over `LanguageModel.streamText` from the stub), multipart upload
   for attachments (`asMultipartStream` with limits, stored in `KeyValueStore` for now), committed
-  `openapi.json`; `@template/api-client` as the `Promise<Result>` facade; `apps/api` on
+  `openapi.json`; `@app-template/api-client` as the `Promise<Result>` facade; `apps/api` on
   `HttpApiBuilder` and `BunRuntime`; `apps/worker` running one real job (chat title generation
   after the first reply, as ChatGPT does) on the `PersistedQueue` port; tests at the seams with
   `@effect/vitest`, `TestClock`, `TestCrypto`, `BunHttpServer.layerTest` and the typed client.
@@ -205,7 +205,7 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   and inline placeholders, a chat list, all server-rendered and hydrated.
 - **Scope.** `apps/web` rebuilt on TanStack Start (Vite 8, Nitro `bun` preset in dev); TanStack
   Router, Query and DB where they fit (intent recorded; see the open question); `effect/reactivity`
-  atoms with `AtomHttpApi` over `@template/api-contract` and `HydrationBoundary` for SSR; Chakra
+  atoms with `AtomHttpApi` over `@app-template/api-contract` and `HydrationBoundary` for SSR; Chakra
   UI v3 theme in `packages/ui`; a nested `biome.json` (`"root": false, "extends": "//"`) with the
   `react` domain; the visitor cookie flowing through the Start server; the web `Dockerfile` or
   Nitro output for 9.
@@ -258,7 +258,7 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
 
 ### 10. `client-publishing`
 
-- **Goal.** `@template/api-client` and `@template/api-contract` consumable from any TypeScript
+- **Goal.** `@app-template/api-client` and `@app-template/api-contract` consumable from any TypeScript
   project without the server code, with every type intact.
 - **Scope.** Build and `exports` of the two packages (types from the `HttpApi` definition, no
   `domain` import); versioning; publishing to GitHub Packages or npm from CI on a tag; a consumer
