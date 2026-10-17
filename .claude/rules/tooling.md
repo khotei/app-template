@@ -35,7 +35,7 @@ Create the directory, add its path to the root `workspaces`, add it to the root
   for stubbed services commented out.
 - Double-quote string values; leave numbers bare (`API_PORT=3000`).
 - App scripts load the root file with `--env-file=../../.env`. Read settings only through
-  the `@oblik/config` services' layers. Tests never depend on `.env`.
+  the `@app-template/config` services' layers. Tests never depend on `.env`.
 
 ## Dev modes
 

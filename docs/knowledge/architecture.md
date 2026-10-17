@@ -55,7 +55,7 @@ Each row lists what a workspace may import.
 - **A ✓ is permission, not a declaration.** The dependency must also be in the importer's
   `package.json`; see [the three guards](#three-boundary-guards).
 
-## Imports: `#<workspace>/` vs `@oblik/`
+## Imports: `#<workspace>/` vs `@app-template/`
 
 Every import line says where its module lives:
 
@@ -64,13 +64,14 @@ import { readFileSync } from 'node:fs'                      // Bun and Node buil
 
 import { z } from 'zod'                                     // external packages
 
-import { buildExample } from '@oblik/domain/example'         // another workspace
+import { buildExample } from '@app-template/domain/example'  // another workspace
 
 import { ExampleService } from '#application/example/example.service' // this workspace
 ```
 
-- **`@oblik/<workspace>[/<entity>]`** reaches another workspace through its `exports`. A layer
-  exposes each entity as a subpath (`@oblik/domain/example` → `domain/example/index.ts`).
+- **`@app-template/<workspace>[/<entity>]`** reaches another workspace through its `exports`. A
+  layer exposes each entity as a subpath (`@app-template/domain/example` →
+  `domain/example/index.ts`).
 - **`#<workspace>/<path>`** reaches a file inside the same workspace, through the `imports` map in
   its `package.json` (`"#domain/*": "./*.ts"`, `"#api/*": "./src/*.ts"`). Relative `./` and `../`
   paths are banned. A bare `#/` prefix would be shorter, but Bun 1.4.3 cannot resolve it.
@@ -124,12 +125,12 @@ Pascal one (`Document`).
    and the use cases, with whatever they take as arguments, and return them from `createLayer()`.
 8. **Delivery.** Add routes in `apps/api/src/http.ts`, and map each new error `_tag` to a status in
    `statusByTag`. Extend `apps/api/src/http.test.ts` with a round trip.
-9. **Client, if the browser needs it.** Add a method to `@oblik/api-client`, then a feature folder
-   under `apps/web/src/features/<entity>/`.
+9. **Client, if the browser needs it.** Add a method to `@app-template/api-client`, then a feature
+   folder under `apps/web/src/features/<entity>/`.
 
 A new entity in existing workspaces usually needs no new dependency, because the layers already
 declare each other. Check the importer's `package.json` anyway: `apps/worker`, for one, does not
-declare `@oblik/domain`. A new external client is a new dependency; see
+declare `@app-template/domain`. A new external client is a new dependency; see
 [tooling.md](tooling.md#add-a-dependency).
 
 ## The Effect seam
@@ -166,11 +167,11 @@ and fixes:
 Three forms pass all three guards. No code uses them; review is what catches them.
 
 - **A type import inside an expression in web client code.** `export type X =
-  import('@oblik/config').ApiConfig['Service']` in `app/`, `features/` or `shared/` passes
-  Biome, which does not see `import()` inside a type, and `tsc -b`, because web declares `@oblik/config` for its
-  server entry. The type is erased, so nothing reaches the browser, but the client then depends on
-  the shape of the server config.
-- **A workspace importing itself by name.** `@oblik/application/example` from inside
+  import('@app-template/config').ApiConfig['Service']` in `app/`, `features/` or `shared/` passes
+  Biome, which does not see `import()` inside a type, and `tsc -b`, because web declares
+  `@app-template/config` for its server entry. The type is erased, so nothing reaches the browser,
+  but the client then depends on the shape of the server config.
+- **A workspace importing itself by name.** `@app-template/application/example` from inside
   `application/` passes Biome, whose overrides list only other workspaces, and `tsc -b`, which
   resolves a package's own `exports`. It skips the `#<workspace>/` convention and can import the
   file's own barrel, a cycle that shows up as `undefined` while modules initialise.

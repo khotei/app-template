@@ -10,9 +10,10 @@ Imports are enforced by Biome; file and symbol names are convention (Biome has n
 
 ## Workspaces
 
-- Every workspace is `@oblik/<name>`: layers `@oblik/{domain,application,infrastructure}`,
-  packages `@oblik/<dir>` (`@oblik/config`), apps `@oblik/{api,worker,web}`, `@oblik/deployment`.
-- A layer exposes each entity as a subpath through its barrel: `@oblik/domain/example` →
+- Every workspace is `@app-template/<name>`: layers
+  `@app-template/{domain,application,infrastructure}`, packages `@app-template/<dir>`
+  (`@app-template/config`), apps `@app-template/{api,worker,web}`, `@app-template/deployment`.
+- A layer exposes each entity as a subpath through its barrel: `@app-template/domain/example` →
   `domain/example/index.ts`. A package exposes one entry (`index.ts`, or `client.ts` for clients).
 - App entrypoint: `src/main.ts`; its composition root: `src/layer.ts`.
 
@@ -20,12 +21,12 @@ Imports are enforced by Biome; file and symbol names are convention (Biome has n
 
 - **Inside a workspace:** `#<workspace>/<path>` (declared in its `package.json` `imports`), never
   `./` or `../`. Example: `#domain/example/example.model`, `#api/http`.
-- **Across workspaces:** `@oblik/<workspace>[/<entity>]`, only downward:
+- **Across workspaces:** `@app-template/<workspace>[/<entity>]`, only downward:
   `apps` → `application` → `infrastructure` → `domain`; `packages/*` serve every layer except
   `domain`. The full matrix lives in
   [docs/knowledge/architecture.md](../../docs/knowledge/architecture.md).
-- **Order:** `bun:`/`node:` → external packages → `@oblik/*` → `#…`, one blank line between
-  groups. `make fmt` sorts and groups them.
+- **Order:** `bun:`/`node:` → external packages → `@app-template/*` → `#…`, one blank line
+  between groups. `make fmt` sorts and groups them.
 
 ## Files
 

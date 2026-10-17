@@ -1,9 +1,13 @@
 import { Context, Effect, Layer, Option } from 'effect'
 
-import { type ExampleId, ExampleNotFoundError, ExampleRepository } from '@oblik/domain/example'
+import {
+  type ExampleId,
+  ExampleNotFoundError,
+  ExampleRepository,
+} from '@app-template/domain/example'
 
 export class ExampleService extends Context.Service<ExampleService>()(
-  '@oblik/application/example/ExampleService',
+  '@app-template/application/example/ExampleService',
   {
     make: Effect.gen(function* () {
       const repository = yield* ExampleRepository

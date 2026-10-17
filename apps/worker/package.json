@@ -1,5 +1,5 @@
 {
-  "name": "@oblik/worker",
+  "name": "@app-template/worker",
   "private": true,
   "type": "module",
   "imports": {
@@ -11,9 +11,9 @@
     "start": "bun --env-file=../../.env src/main.ts"
   },
   "dependencies": {
-    "@oblik/application": "workspace:*",
-    "@oblik/config": "workspace:*",
-    "@oblik/infrastructure": "workspace:*",
+    "@app-template/application": "workspace:*",
+    "@app-template/config": "workspace:*",
+    "@app-template/infrastructure": "workspace:*",
     "effect": "catalog:effect"
   }
 }

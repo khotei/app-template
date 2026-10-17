@@ -1,5 +1,5 @@
 {
-  "name": "@oblik/domain",
+  "name": "@app-template/domain",
   "private": true,
   "type": "module",
   "exports": {

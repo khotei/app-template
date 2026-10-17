@@ -9,7 +9,7 @@ export class ExampleRepository extends Context.Service<
     readonly upsert: (example: Example) => Effect.Effect<void>
     readonly selectById: (id: ExampleId) => Effect.Effect<Option.Option<Example>>
   }
->()('@oblik/domain/example/ExampleRepository') {}
+>()('@app-template/domain/example/ExampleRepository') {}
 
 export const buildExample = Effect.fn('buildExample')(function* (input: {
   readonly id: ExampleId

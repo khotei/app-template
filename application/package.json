@@ -1,5 +1,5 @@
 {
-  "name": "@oblik/application",
+  "name": "@app-template/application",
   "private": true,
   "type": "module",
   "exports": {
@@ -9,11 +9,11 @@
     "#application/*": "./*.ts"
   },
   "dependencies": {
-    "@oblik/domain": "workspace:*",
+    "@app-template/domain": "workspace:*",
     "effect": "catalog:effect"
   },
   "devDependencies": {
     "@effect/vitest": "catalog:effect",
-    "@oblik/infrastructure": "workspace:*"
+    "@app-template/infrastructure": "workspace:*"
   }
 }

@@ -93,7 +93,27 @@
   empty (import specifiers and the two literals only; `#<workspace>/*` untouched); `make dev-api`
   then `curl -s localhost:3000/health` equals `health-before.json` (R9); `wc -l CLAUDE.md` ≤ 40;
   `make ids`.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Biome rewrapped the import in `application/example/example.service.ts` past 100 columns, so
+    the `.ts` filter shows four lines of it. The imported names are unchanged.
+  - `bun.lock`: Bun re-sorted the workspace entries and kept the root name `oblik`. That line was
+    edited by hand, and `--frozen-lockfile` passes. The V2 filter shows only moved blank lines.
+  - Seven `Context.Service` keys carry the scope and were renamed, as R8 requires.
+    `architecture.md › Structure › Not touched` now names them.
+  - `deployment/CLAUDE.md` (resource-name pattern) and `README.md` (the old *Starting a new
+    project* line) were renamed too. They were among the 46 files, though not in the hand lists.
+  - `make help` printed no product name, so R10's Makefile clause had nothing to rename. The help
+    target now prints an `App Template: make <target>` header.
+  - The `/health` body is `{"status":"ok"}` before and after.
+  - S2's *Verify* had no Cyrillic check. One was run with `perl`, because macOS `grep` has no
+    `-P`. S3 and S7 use `perl -CSD -ne 'print "$ARGV\n" if /\p{Cyrillic}/'`.
+  - For `postgres-drizzle`: the slug in `.env.example` makes the Postgres user and database
+    `app-template`, a name that SQL must quote. `app_template` avoids that, so decide it there.
+  - For `claude-toolkit`: two layer-doc lines restate code, so the rename forced edits to them
+    (`claude-md.md`: delete such lines). They are `deployment/CLAUDE.md`'s resource-name
+    pattern and `domain/CLAUDE.md`'s Biome sentence. R10 kept them for this ticket.
+
 
 #### S3 — Licence, README, superseded `effect-setup`
 
@@ -111,7 +131,7 @@
 - **Verify:** `make check`; `lychee --offline README.md 'docs/**/*.md' '.claude/**/*.md'`;
   `make ids`; `head -5` of both `effect-setup` files shows the note and
   `git diff --stat HEAD -- docs/tickets/2026-10-16_effect-setup` touches only those lines;
-  `grep -c 'Vitalii Khotei' LICENSE` is 1; `grep -lP '\p{Cyrillic}'` on the changed files prints
+  `grep -c 'Vitalii Khotei' LICENSE` is 1; the `perl` Cyrillic check on the changed files prints
   nothing; `git grep -il oblik -- ':!docs/tickets' ':!repos' ':!bun.lock'` still empty.
 - **Status:** todo
 

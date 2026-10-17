@@ -90,7 +90,7 @@ server's `Bun.serve({ development })`.
 - **A missing `.env`** is ignored by Bun without a warning. The process then fails at startup while
   building a config layer, with Effect's `ConfigError` naming the first missing or invalid
   variable. Variables exported in the shell work without a file, which is how CI runs.
-- **Reading settings.** Only `@oblik/config` reads the environment: each area is a
+- **Reading settings.** Only `@app-template/config` reads the environment: each area is a
   `Context.Service` (`ApiConfig`, `QueueConfig`, …) with a `layer` on `effect/Config`. Tests
   provide a `ConfigProvider.fromUnknown` record, so they never need `.env`.
 
@@ -122,14 +122,14 @@ Bun writes `"zod": "3.25.76"` into the root `catalogs.runtime` and `"zod": "cata
 `packages/config/package.json`. A second workspace that needs the same package declares
 `"zod": "catalog:runtime"` by hand and runs `bun install`.
 
-A dependency on another workspace is declared as `"@oblik/<name>": "workspace:*"`. Also add that
-workspace to the consumer's `tsconfig.json` `references`, so `tsc -b` builds it first. No gate
+A dependency on another workspace is declared as `"@app-template/<name>": "workspace:*"`. Also add
+that workspace to the consumer's `tsconfig.json` `references`, so `tsc -b` builds it first. No gate
 catches a missing reference: TS 7 resolves the workspace through its package symlink and checks
 its sources either way.
 
 ### Add a workspace
 
-1. Create the folder with `package.json` (`"name": "@oblik/<name>"`, `"private": true`,
+1. Create the folder with `package.json` (`"name": "@app-template/<name>"`, `"private": true`,
    `"type": "module"`, an `exports` entry, and `"imports": { "#<name>/*": "./*.ts" }`).
 2. Add `tsconfig.json`: extend `tsconfig.base.json`, set `rootDir: "."` and
    `outDir: "<relative>/node_modules/.cache/tsc/<name>"`, set `include`, and reference the
@@ -208,11 +208,11 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `TS2307: Cannot find module '@oblik/<name>'` from `make typecheck`, or `Cannot find module` at runtime | the import is allowed, but the workspace is not declared in this workspace's `package.json` | add `"@oblik/<name>": "workspace:*"` and a `tsconfig.json` reference, then `bun install` |
-| `TS6059 … is not under 'rootDir'` and `TS6307 … is not listed within the file list of project` | a relative path reaches into another workspace that is not referenced | import it as `@oblik/<name>/…`; relative paths are banned anyway |
+| `TS2307: Cannot find module '@app-template/<name>'` from `make typecheck`, or `Cannot find module` at runtime | the import is allowed, but the workspace is not declared in this workspace's `package.json` | add `"@app-template/<name>": "workspace:*"` and a `tsconfig.json` reference, then `bun install` |
+| `TS6059 … is not under 'rootDir'` and `TS6307 … is not listed within the file list of project` | a relative path reaches into another workspace that is not referenced | import it as `@app-template/<name>/…`; relative paths are banned anyway |
 | Biome `lint/style/noRestrictedImports`: `domain is the pure core…` or `… no upward imports` | the import goes up a layer or into a sibling app, or `domain` imports an `@effect/*` package other than `@effect/vitest` | move the shared code down a layer, or receive it as an argument; in `domain`, use an `effect` module; see [architecture.md](architecture.md#dependency-rules) |
 | Biome `noRestrictedImports`: `… never a relative path` | a `./` or `../` import inside a workspace | use `#<workspace>/<path>`, for example `#domain/example/example.model` |
-| Biome `noRestrictedImports`: `web client code imports no effect…` | `effect` or `@effect/*` in `apps/web` client code, which ships to the browser | call the api through `@oblik/api-client`; only the server entry `src/main.ts` may use `effect` |
+| Biome `noRestrictedImports`: `web client code imports no effect…` | `effect` or `@effect/*` in `apps/web` client code, which ships to the browser | call the api through `@app-template/api-client`; only the server entry `src/main.ts` may use `effect` |
 | Biome `assist/source/organizeImports`: `Sort these imports.` | import groups out of order or without blank lines between them | `make fmt` |
 | a commit is rejected after `tsc` or Biome output | the `pre-commit` hook failed | fix the reported error, `git add`, and commit again |
 | a push is rejected after test output | the `pre-push` hook failed | fix the tests; never use `--no-verify` |

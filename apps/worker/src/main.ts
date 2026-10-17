@@ -1,6 +1,6 @@
 import { Effect } from 'effect'
 
-import { RuntimeConfig } from '@oblik/config'
+import { RuntimeConfig } from '@app-template/config'
 
 const maxTimerDelayMs = 2_147_483_647
 

@@ -1,6 +1,6 @@
 import { Effect, HashMap, Layer, Ref } from 'effect'
 
-import { type Example, type ExampleId, ExampleRepository } from '@oblik/domain/example'
+import { type Example, type ExampleId, ExampleRepository } from '@app-template/domain/example'
 
 export const ExampleRepositoryMemory = Layer.effect(
   ExampleRepository,

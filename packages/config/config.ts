@@ -1,13 +1,13 @@
 import { Config, Context, Duration, Effect, Layer, type LogLevel, References, Schema } from 'effect'
 
 export class ApiConfig extends Context.Service<ApiConfig, { readonly port: number }>()(
-  '@oblik/config/ApiConfig',
+  '@app-template/config/ApiConfig',
 ) {
   static readonly layer = Layer.effect(this, Config.all({ port: Config.Port('API_PORT') }))
 }
 
 export class WebConfig extends Context.Service<WebConfig, { readonly port: number }>()(
-  '@oblik/config/WebConfig',
+  '@app-template/config/WebConfig',
 ) {
   static readonly layer = Layer.effect(this, Config.all({ port: Config.Port('WEB_PORT') }))
 }
@@ -17,7 +17,7 @@ const nodeEnvs = ['development', 'test', 'production'] as const
 export class RuntimeConfig extends Context.Service<
   RuntimeConfig,
   { readonly nodeEnv: (typeof nodeEnvs)[number]; readonly logLevel: LogLevel.LogLevel }
->()('@oblik/config/RuntimeConfig') {
+>()('@app-template/config/RuntimeConfig') {
   static readonly layer = Layer.effect(
     this,
     Config.all({
@@ -43,7 +43,7 @@ export class QueueConfig extends Context.Service<
     readonly lockExpiration: Duration.Duration
     readonly lockRefreshInterval: Duration.Duration
   }
->()('@oblik/config/QueueConfig') {
+>()('@app-template/config/QueueConfig') {
   static readonly layer = Layer.effect(
     this,
     Config.all({

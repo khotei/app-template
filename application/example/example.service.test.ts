@@ -1,8 +1,8 @@
 import { assert, describe, it } from '@effect/vitest'
 import { DateTime, Effect, Layer } from 'effect'
 
-import { buildExample, ExampleId, ExampleRepository } from '@oblik/domain/example'
-import { ExampleRepositoryMemory } from '@oblik/infrastructure/example'
+import { buildExample, ExampleId, ExampleRepository } from '@app-template/domain/example'
+import { ExampleRepositoryMemory } from '@app-template/infrastructure/example'
 
 import { ExampleService } from '#application/example/example.service'
 

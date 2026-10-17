@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "oblik",
+      "name": "app-template",
       "devDependencies": {
         "@biomejs/biome": "catalog:tools",
         "@effect/tsgo": "catalog:typescript",
@@ -14,49 +14,49 @@
       },
     },
     "application": {
-      "name": "@oblik/application",
+      "name": "@app-template/application",
       "dependencies": {
-        "@oblik/domain": "workspace:*",
+        "@app-template/domain": "workspace:*",
         "effect": "catalog:effect",
       },
       "devDependencies": {
+        "@app-template/infrastructure": "workspace:*",
         "@effect/vitest": "catalog:effect",
-        "@oblik/infrastructure": "workspace:*",
       },
     },
     "apps/api": {
-      "name": "@oblik/api",
+      "name": "@app-template/api",
       "dependencies": {
-        "@oblik/application": "workspace:*",
-        "@oblik/config": "workspace:*",
-        "@oblik/domain": "workspace:*",
-        "@oblik/infrastructure": "workspace:*",
+        "@app-template/application": "workspace:*",
+        "@app-template/config": "workspace:*",
+        "@app-template/domain": "workspace:*",
+        "@app-template/infrastructure": "workspace:*",
         "effect": "catalog:effect",
       },
     },
     "apps/web": {
-      "name": "@oblik/web",
+      "name": "@app-template/web",
       "dependencies": {
-        "@oblik/api-client": "workspace:*",
-        "@oblik/config": "workspace:*",
-        "@oblik/ui": "workspace:*",
+        "@app-template/api-client": "workspace:*",
+        "@app-template/config": "workspace:*",
+        "@app-template/ui": "workspace:*",
         "effect": "catalog:effect",
       },
     },
     "apps/worker": {
-      "name": "@oblik/worker",
+      "name": "@app-template/worker",
       "dependencies": {
-        "@oblik/application": "workspace:*",
-        "@oblik/config": "workspace:*",
-        "@oblik/infrastructure": "workspace:*",
+        "@app-template/application": "workspace:*",
+        "@app-template/config": "workspace:*",
+        "@app-template/infrastructure": "workspace:*",
         "effect": "catalog:effect",
       },
     },
     "deployment": {
-      "name": "@oblik/deployment",
+      "name": "@app-template/deployment",
     },
     "domain": {
-      "name": "@oblik/domain",
+      "name": "@app-template/domain",
       "dependencies": {
         "effect": "catalog:effect",
       },
@@ -65,19 +65,19 @@
       },
     },
     "infrastructure": {
-      "name": "@oblik/infrastructure",
+      "name": "@app-template/infrastructure",
       "dependencies": {
-        "@oblik/config": "workspace:*",
-        "@oblik/domain": "workspace:*",
-        "@oblik/queue": "workspace:*",
+        "@app-template/config": "workspace:*",
+        "@app-template/domain": "workspace:*",
+        "@app-template/queue": "workspace:*",
         "effect": "catalog:effect",
       },
     },
     "packages/api-client": {
-      "name": "@oblik/api-client",
+      "name": "@app-template/api-client",
     },
     "packages/config": {
-      "name": "@oblik/config",
+      "name": "@app-template/config",
       "dependencies": {
         "effect": "catalog:effect",
       },
@@ -86,16 +86,16 @@
       },
     },
     "packages/db": {
-      "name": "@oblik/db",
+      "name": "@app-template/db",
     },
     "packages/llm": {
-      "name": "@oblik/llm",
+      "name": "@app-template/llm",
       "dependencies": {
         "effect": "catalog:effect",
       },
     },
     "packages/queue": {
-      "name": "@oblik/queue",
+      "name": "@app-template/queue",
       "dependencies": {
         "@effect/sql-sqlite-bun": "catalog:effect",
         "effect": "catalog:effect",
@@ -105,10 +105,10 @@
       },
     },
     "packages/storage": {
-      "name": "@oblik/storage",
+      "name": "@app-template/storage",
     },
     "packages/ui": {
-      "name": "@oblik/ui",
+      "name": "@app-template/ui",
     },
   },
   "catalogs": {
@@ -132,6 +132,34 @@
     },
   },
   "packages": {
+    "@app-template/api": ["@app-template/api@workspace:apps/api"],
+
+    "@app-template/api-client": ["@app-template/api-client@workspace:packages/api-client"],
+
+    "@app-template/application": ["@app-template/application@workspace:application"],
+
+    "@app-template/config": ["@app-template/config@workspace:packages/config"],
+
+    "@app-template/db": ["@app-template/db@workspace:packages/db"],
+
+    "@app-template/deployment": ["@app-template/deployment@workspace:deployment"],
+
+    "@app-template/domain": ["@app-template/domain@workspace:domain"],
+
+    "@app-template/infrastructure": ["@app-template/infrastructure@workspace:infrastructure"],
+
+    "@app-template/llm": ["@app-template/llm@workspace:packages/llm"],
+
+    "@app-template/queue": ["@app-template/queue@workspace:packages/queue"],
+
+    "@app-template/storage": ["@app-template/storage@workspace:packages/storage"],
+
+    "@app-template/ui": ["@app-template/ui@workspace:packages/ui"],
+
+    "@app-template/web": ["@app-template/web@workspace:apps/web"],
+
+    "@app-template/worker": ["@app-template/worker@workspace:apps/worker"],
+
     "@biomejs/biome": ["@biomejs/biome@2.5.15", "", { "optionalDependencies": { "@biomejs/cli-darwin-arm64": "2.5.15", "@biomejs/cli-darwin-x64": "2.5.15", "@biomejs/cli-linux-arm64": "2.5.15", "@biomejs/cli-linux-arm64-musl": "2.5.15", "@biomejs/cli-linux-x64": "2.5.15", "@biomejs/cli-linux-x64-musl": "2.5.15", "@biomejs/cli-win32-arm64": "2.5.15", "@biomejs/cli-win32-x64": "2.5.15" }, "bin": { "biome": "bin/biome" } }, "sha512-WZTW4slm/pdkh92K6t/3aEN++44JD1PQ7squ7RCMLI1flHGl43DVOIGXvCjHiZgBMO1V4uYxoFNtqrIA4qGuIQ=="],
 
     "@biomejs/cli-darwin-arm64": ["@biomejs/cli-darwin-arm64@2.5.15", "", { "os": "darwin", "cpu": "arm64" }, "sha512-BZVzFhJ/mUvTLMYbc9x6el0o2Uv5zP7bACYyhFb6fSc1giroXm7PL0a5KqMJ9F+/BnkYRjagD/ROSDVOZ6eapg=="],
@@ -175,34 +203,6 @@
     "@jridgewell/sourcemap-codec": ["@jridgewell/sourcemap-codec@1.6.0", "", {}, "sha512-T7jf+5zgsZHwNJ4lvQ7/aezbyk0nNX+zJVWpmHA7VYsEx7a7qr5Rg5IbtJFqkgze5Y2sruq1RUY8Q837Od7iFw=="],
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
-
-    "@oblik/api": ["@oblik/api@workspace:apps/api"],
-
-    "@oblik/api-client": ["@oblik/api-client@workspace:packages/api-client"],
-
-    "@oblik/application": ["@oblik/application@workspace:application"],
-
-    "@oblik/config": ["@oblik/config@workspace:packages/config"],
-
-    "@oblik/db": ["@oblik/db@workspace:packages/db"],
-
-    "@oblik/deployment": ["@oblik/deployment@workspace:deployment"],
-
-    "@oblik/domain": ["@oblik/domain@workspace:domain"],
-
-    "@oblik/infrastructure": ["@oblik/infrastructure@workspace:infrastructure"],
-
-    "@oblik/llm": ["@oblik/llm@workspace:packages/llm"],
-
-    "@oblik/queue": ["@oblik/queue@workspace:packages/queue"],
-
-    "@oblik/storage": ["@oblik/storage@workspace:packages/storage"],
-
-    "@oblik/ui": ["@oblik/ui@workspace:packages/ui"],
-
-    "@oblik/web": ["@oblik/web@workspace:apps/web"],
-
-    "@oblik/worker": ["@oblik/worker@workspace:apps/worker"],
 
     "@oxc-project/types": ["@oxc-project/types@0.154.0", "", {}, "sha512-KYOUGQFlLWR+s4QMV2Q9ko38TZm7EdO87Qm7rvZLqk/webse/cDjtyxKhg/47l0byCbs/k46LT8qc4PKjAikzA=="],
 

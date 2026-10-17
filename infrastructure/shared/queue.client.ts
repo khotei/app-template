@@ -1,8 +1,8 @@
 import { type Config, Effect, Layer } from 'effect'
 import type { SqlError } from 'effect/sql'
 
-import { QueueConfig, type QueueLockRefreshIntervalInvalidError } from '@oblik/config'
-import { createQueueClientSqlite, type QueueClient } from '@oblik/queue'
+import { QueueConfig, type QueueLockRefreshIntervalInvalidError } from '@app-template/config'
+import { createQueueClientSqlite, type QueueClient } from '@app-template/queue'
 
 export const QueueClientSqlite: Layer.Layer<
   QueueClient,

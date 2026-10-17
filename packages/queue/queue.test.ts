@@ -79,7 +79,7 @@ const suite = (name: string, makeClient: MakeClient) =>
 const memory: MakeClient = Effect.succeed(QueueClientMemory)
 
 const tempQueueFile = Effect.acquireRelease(
-  Effect.promise(() => mkdtemp(join(tmpdir(), 'oblik-queue-'))),
+  Effect.promise(() => mkdtemp(join(tmpdir(), 'app-template-queue-'))),
   (dir) => Effect.promise(() => rm(dir, { recursive: true, force: true })),
 ).pipe(Effect.map((dir) => join(dir, 'queue.sqlite')))
 

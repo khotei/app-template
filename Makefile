@@ -6,6 +6,7 @@
   check ids lint fmt typecheck test clean outdated vendor-effect
 
 help: ## List all targets
+	@echo 'App Template: make <target>'
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) \
 		| awk 'BEGIN { FS = ":.*## " } { printf "  %-14s %s\n", $$1, $$2 }'
 
@@ -17,22 +18,22 @@ dev: ## Run api, worker and web together in dev mode
 	bun --filter './apps/*' dev
 
 dev-api: ## Run the api with --hot
-	bun --filter @oblik/api dev
+	bun --filter @app-template/api dev
 
 dev-worker: ## Run the worker with --watch
-	bun --filter @oblik/worker dev
+	bun --filter @app-template/worker dev
 
 dev-web: ## Run the web dev server with HMR
-	bun --filter @oblik/web dev
+	bun --filter @app-template/web dev
 
 debug-api: ## Run the api with --inspect and --hot
-	bun --filter @oblik/api debug
+	bun --filter @app-template/api debug
 
 debug-worker: ## Run the worker with --inspect and --watch
-	bun --filter @oblik/worker debug
+	bun --filter @app-template/worker debug
 
 debug-web: ## Run the web dev server with --inspect
-	bun --filter @oblik/web debug
+	bun --filter @app-template/web debug
 
 check: ids lint typecheck test ## Run every gate: ticket ids, lint, typecheck and tests
 

@@ -1,6 +1,6 @@
 import { Effect, Layer } from 'effect'
 
-import { ApiConfig, RuntimeConfig, WebConfig } from '@oblik/config'
+import { ApiConfig, RuntimeConfig, WebConfig } from '@app-template/config'
 
 import index from '#web/index.html'
 

@@ -1,5 +1,5 @@
 {
-  "name": "@oblik/ui",
+  "name": "@app-template/ui",
   "private": true,
   "type": "module",
   "exports": {

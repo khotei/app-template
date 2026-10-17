@@ -1,6 +1,6 @@
 import { Effect } from 'effect'
 
-import { ApiConfig } from '@oblik/config'
+import { ApiConfig } from '@app-template/config'
 
 import { routes } from '#api/http'
 

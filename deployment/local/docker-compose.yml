@@ -1,3 +1,3 @@
 # Stub: Postgres and MiniStack arrive with the first real db, storage or queue client.
-name: oblik
+name: app-template
 services: {}

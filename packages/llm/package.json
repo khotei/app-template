@@ -1,5 +1,5 @@
 {
-  "name": "@oblik/llm",
+  "name": "@app-template/llm",
   "private": true,
   "type": "module",
   "exports": {

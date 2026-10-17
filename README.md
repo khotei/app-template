@@ -1,6 +1,6 @@
-# Oblik+
+# App Template
 
-A workstation for a records department: roster, documents, reports and LLM-assisted analysis.
+A chat clone (visitor → message → assistant reply) built as a template for enterprise projects.
 Bun + TypeScript 7 modular monolith with three processes: `apps/api`, `apps/worker` and `apps/web`.
 
 ## Quick start
@@ -37,8 +37,8 @@ make dev     # api, worker and web together
 git clone <this repository> <project>
 ```
 
-Then rename the `@oblik` scope everywhere, delete `docs/tickets/2026-10-15_monorepo-setup/` (it is
-this scaffold's own worked ticket), and run `make setup && make check`.
+Then rename the `@app-template` scope everywhere, delete `docs/tickets/2026-10-15_monorepo-setup/`
+(it is this scaffold's own worked ticket), and run `make setup && make check`.
 
 `main` holds the scaffold as one squashed commit. The branch `chore/monorepo-setup` keeps the
 step-by-step history: one commit per plan step, each with its `Decision:` notes.

@@ -33,7 +33,7 @@ export class QueueClient extends Context.Service<
       definition: QueueDefinition<Schema.Codec<A, I>>,
     ) => Effect.Effect<JobQueue<A>>
   }
->()('@oblik/queue/QueueClient') {}
+>()('@app-template/queue/QueueClient') {}
 
 // The store reads only the exit of the take callback: a failure retries or dead-letters the
 // message, an interrupt releases it. This marker carries that failure out of `take` so the loop

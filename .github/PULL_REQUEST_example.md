@@ -39,7 +39,7 @@ it to see the shape end-to-end. Source of truth for the format stays
 
 ## Summary
 
-Scaffold the Oblik+ monorepo on Bun 1.4 and TypeScript 7: one workspace
+Scaffold App Template on Bun 1.4 and TypeScript 7: one workspace
 per layer, an example slice through every layer, and the tooling and
 in-repo SDD flow that every later ticket builds on. No product
 behaviour yet; the slice proves the wiring compiles, runs and is tested.

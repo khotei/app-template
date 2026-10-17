@@ -1,5 +1,5 @@
 {
-  "name": "oblik",
+  "name": "app-template",
   "private": true,
   "type": "module",
   "packageManager": "bun@1.4.3",

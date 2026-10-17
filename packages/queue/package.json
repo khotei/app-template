@@ -1,5 +1,5 @@
 {
-  "name": "@oblik/queue",
+  "name": "@app-template/queue",
   "private": true,
   "type": "module",
   "exports": {
