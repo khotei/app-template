@@ -19,16 +19,7 @@ import {
 import { PersistedQueue } from 'effect/persistence'
 import { TestClock } from 'effect/testing'
 
-import { QueueClientMemory } from '#queue/memory'
-import {
-  type AttemptInfo,
-  layerPersisted,
-  type QueueClient,
-  type QueueDefinition,
-  send,
-  worker,
-} from '#queue/queue'
-import { layerSqlite } from '#queue/sqlite'
+import { type AttemptInfo, QueueClient, type QueueDefinition, send, worker } from '#queue/queue'
 
 class Ping extends Schema.Class<Ping>('Ping')({ id: Schema.String, text: Schema.String }) {}
 
@@ -95,7 +86,7 @@ const suite = (name: string, makeClient: MakeClient) =>
     )
   })
 
-const memory: MakeClient = Effect.succeed(QueueClientMemory)
+const memory: MakeClient = Effect.succeed(QueueClient.layerMemory)
 
 const tempQueueFile = Effect.acquireRelease(
   Effect.promise(() => mkdtemp(join(tmpdir(), 'app-template-queue-'))),
@@ -103,7 +94,7 @@ const tempQueueFile = Effect.acquireRelease(
 ).pipe(Effect.map((dir) => join(dir, 'queue.sqlite')))
 
 const sqliteClient = (filename: string) =>
-  layerSqlite({
+  QueueClient.layerSqlite({
     filename,
     lockExpiration: '15 seconds',
     lockRefreshInterval: '5 seconds',
@@ -111,8 +102,8 @@ const sqliteClient = (filename: string) =>
 
 const sqlite: MakeClient = Effect.map(tempQueueFile, sqliteClient)
 
-suite('send and worker on QueueClientMemory', memory)
-suite('send and worker on layerSqlite', sqlite)
+suite('send and worker on QueueClient.layerMemory', memory)
+suite('send and worker on QueueClient.layerSqlite', sqlite)
 
 const flaky = { ...pings, name: 'flaky', maxAttempts: 3 } satisfies QueueDefinition<typeof Ping>
 
@@ -128,7 +119,7 @@ const recordAttemptsFailingOn =
     )
 
 const layerOverStore = (store: Layer.Layer<PersistedQueue.PersistedQueueStore>) =>
-  layerPersisted.pipe(Layer.provide(store))
+  QueueClient.layer.pipe(Layer.provide(store))
 
 // Advances the clock until the handler records an attempt, so a retry is found whether its delay
 // started before or after the previous advance.
@@ -139,7 +130,7 @@ const awaitNextAttempt = (seen: Queue.Queue<Seen>) =>
     Effect.map(Option.getOrThrow),
   )
 
-describe('worker attempt info on QueueClientMemory', () => {
+describe('worker attempt info on QueueClient.layerMemory', () => {
   it.effect('counts every failed attempt, dead-letters the last and keeps consuming', () => {
     const { logs, recordLogs } = makeLogRecorder()
     return Effect.gen(function* () {
@@ -171,7 +162,7 @@ describe('worker attempt info on QueueClientMemory', () => {
         ['Warn', 'queue message attempt failed', 'flaky'],
         ['Error', 'queue message dead-lettered', 'flaky'],
       ])
-    }).pipe(Effect.provide(Layer.mergeAll(QueueClientMemory, recordLogs)))
+    }).pipe(Effect.provide(Layer.mergeAll(QueueClient.layerMemory, recordLogs)))
   })
 
   it.effect("closing a worker's scope hands its job to the next worker, unlogged", () => {
@@ -197,7 +188,7 @@ describe('worker attempt info on QueueClientMemory', () => {
         ],
       )
       assert.deepStrictEqual(logs, [])
-    }).pipe(Effect.provide(Layer.mergeAll(QueueClientMemory, recordLogs)))
+    }).pipe(Effect.provide(Layer.mergeAll(QueueClient.layerMemory, recordLogs)))
   })
 })
 
@@ -277,7 +268,7 @@ describe('worker on a failing store', () => {
         ],
       )
       assert.deepStrictEqual(logs, [])
-    }).pipe(Effect.provide(Layer.mergeAll(QueueClientMemory, recordLogs)))
+    }).pipe(Effect.provide(Layer.mergeAll(QueueClient.layerMemory, recordLogs)))
   })
 })
 
@@ -325,7 +316,7 @@ describe('worker on a store that dies settling a failed attempt', () => {
   })
 })
 
-describe('layerSqlite', () => {
+describe('QueueClient.layerSqlite', () => {
   it.live('keeps a message for a layer rebuilt on the same file', () =>
     Effect.gen(function* () {
       const filename = yield* tempQueueFile

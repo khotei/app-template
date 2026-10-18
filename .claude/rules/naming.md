@@ -53,13 +53,15 @@ A file with none of these roles keeps a bare kebab name (`http.ts`, `main.ts`).
 - Errors are `<Entity><Problem>Error`.
 - Functions are verb-first, and the verb marks the kind of work:
   - `create<Thing>`: a factory that wires dependencies (`createCollection`);
-  - `layer<Variant>`: a function that builds a client's `Layer` from options (`layerSqlite`),
-    after effect's `SqliteClient.layer`; a combinator that returns a `Layer` is named for what it
-    runs (`worker`, as effect's `DurableQueue.worker`);
+  - `layer<Variant>`: a static that builds the service's `Layer` for one variant, a function when
+    it takes options (`QueueClient.layerSqlite`), after effect's `SqliteClient.layer`; a
+    combinator that returns a `Layer` is named for what it runs (`worker`, as effect's
+    `DurableQueue.worker`);
   - `build` / `ensure`: a pure function that derives a value or guards an invariant, in any layer
     (`buildExample`);
   - a pure transition is named for the stage it moves the entity to (`prepareMessage`);
   - `is`: a predicate (`isActiveMessage`);
   - `select` / `insert` / `update` / `upsert` / `delete`: persistence (`selectById`); `update`
     changes an existing record and never creates one.
-- Constants are `camelCase` with `as const` for literals.
+- Constants are `camelCase` with `as const` for literals. A `Layer` constant for a service
+  declared elsewhere is `PascalCase` `<Service><Variant>` (`ChatRepositoryKv`).

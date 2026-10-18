@@ -40,8 +40,19 @@ in `domain/CLAUDE.md`.
   a test double, or an injected dependency. A rule with one implementation and no dependency is a
   plain function.
 - Key a service `'@app-template/<workspace>/<entity>/<Name>'`.
-- A service with exactly one implementation carries it as `static readonly layer`, so callers
-  provide `<Service>.layer`.
+- A service built in a body beside its declaration is
+  `Context.Service<Self, Shape>()(key, { make })`: the explicit `Shape` keeps the contract and its
+  docs, `make` the body. A one-expression build (`Config.all`) goes straight into `Layer.effect`.
+- Its layers are statics on the class, as in effect's own modules (`SqliteClient.layer`,
+  `KeyValueStore.layerMemory`). `static readonly layer = Layer.effect(this, this.make)` provides
+  every dependency with one implementation and leaves open the leaves that vary (a port, a client,
+  a store, a platform service); there is no `layerNoDeps`. A ready variant that closes such a leaf
+  is `static layer<Variant>`, a function when it takes options (`QueueClient.layerMemory`,
+  `QueueClient.layerSqlite(options)`). A layer for a service declared elsewhere (a domain port,
+  effect's `KeyValueStore`) is a constant in the workspace that implements it (`naming.md`).
+- Chain `Layer.provide` from the nearest dependency outward. `Layer.provide([a, b])` provides
+  siblings that cannot feed each other, and `Layer.provideMerge` publishes internals the caller
+  should not reach.
 
 ## Tests
 
