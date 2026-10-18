@@ -13,14 +13,14 @@ Imports are enforced by Biome; file and symbol names are convention (Biome has n
 - Every workspace is `@app-template/<name>`: layers
   `@app-template/{domain,application,infrastructure}`, packages `@app-template/<dir>`
   (`@app-template/config`), apps `@app-template/{api,worker,web}`, `@app-template/deployment`.
-- A layer exposes each entity as a subpath through its barrel: `@app-template/domain/example` →
-  `domain/example/index.ts`. A package exposes one entry (`index.ts`, or `client.ts` for clients).
+- A layer exposes each entity as a subpath through its barrel: `@app-template/domain/chat` →
+  `domain/chat/index.ts`. A package exposes one entry (`index.ts`, or `client.ts` for clients).
 - App entrypoint: `src/main.ts`.
 
 ## Imports
 
 - **Inside a workspace:** `#<workspace>/<path>` (declared in its `package.json` `imports`), never
-  `./` or `../`. Example: `#domain/example/example.model`, `#api/http`.
+  `./` or `../`. Example: `#domain/chat/chat.model`, `#api/http`.
 - **Across workspaces:** `@app-template/<workspace>[/<entity>]`, only downward:
   `apps` → `application` → `infrastructure` → `domain`; `packages/*` serve every layer except
   `domain`. The full matrix lives in
@@ -49,7 +49,7 @@ A file with none of these roles keeps a bare kebab name (`http.ts`, `main.ts`).
 
 ## Symbols
 
-- Types are `PascalCase` `<Entity><Role>`: `ExampleRepository`, `ExampleService`.
+- Types are `PascalCase` `<Entity><Role>`: `ChatRepository`, `ChatService`.
 - Errors are `<Entity><Problem>Error`.
 - Functions are verb-first, and the verb marks the kind of work:
   - `create<Thing>`: a factory that wires dependencies (`createCollection`);
@@ -58,7 +58,7 @@ A file with none of these roles keeps a bare kebab name (`http.ts`, `main.ts`).
     combinator that returns a `Layer` is named for what it runs (`worker`, as effect's
     `DurableQueue.worker`);
   - `build` / `ensure`: a pure function that derives a value or guards an invariant, in any layer
-    (`buildExample`);
+    (`buildChat`);
   - a pure transition is named for the stage it moves the entity to (`prepareMessage`);
   - `is`: a predicate (`isActiveMessage`);
   - `select` / `insert` / `update` / `upsert` / `delete`: persistence (`selectById`); `update`

@@ -6,7 +6,7 @@ and pure operations.
 - **Imports no workspace at all**, not even `packages/*`. Biome rejects any `@app-template/*`
   import.
 - **No I/O and no ambient state:** no `Bun.env`, no `fetch`, no `Date.now()`, no `new Date()`, no
-  `crypto.randomUUID()`. Pass time and ids in as input (`buildExample({ id, name, createdAt })`),
+  `crypto.randomUUID()`. Pass time and ids in as input (`buildChat({ id, userId, createdAt })`),
   so operations stay deterministic and testable.
 - Models are `Schema.Class`; ids are `Schema` values `<Entity>Id`, branded `'<Entity>Id'`, with a
   type of the same name.

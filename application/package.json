@@ -2,9 +2,7 @@
   "name": "@app-template/application",
   "private": true,
   "type": "module",
-  "exports": {
-    "./example": "./example/index.ts"
-  },
+  "exports": {},
   "imports": {
     "#application/*": "./*.ts"
   },

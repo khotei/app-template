@@ -654,7 +654,17 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
 - **Verify:** `make check`; `git grep -i example -- ':!docs/tickets' ':!repos'` finds no code;
   `bun install` succeeds without `packages/db` and `packages/storage`; `wc -l */CLAUDE.md` within
   budget; the roadmap row 3 still links here.
-- **Status:** todo
+- **Findings:**
+  - The `example` slices of `domain`, `infrastructure` and `application`, their `exports` and the
+    `features/example` folder of `web` (now `features/health`) went early, in the style pass after
+    S6, once the `chat` slice could serve as the map: `domain/CLAUDE.md`, `naming.md` and
+    `architecture.md › Where things live` now point at `chat`. Left for this step: `packages/db`,
+    `packages/storage`, `outbox.repository.ts`, the `Add a new entity` rewrite and the roadmap
+    re-read.
+  - The style pass also split `.claude/rules/effect.md` into `effect.md` (the hub),
+    `effect-schema.md`, `effect-services.md`, `effect-style.md` and `effect-tests.md`
+    (`**/*.test.ts`), each within the ~80-line budget.
+- **Status:** todo (slice removed; docs, stubs and roadmap remain)
 
 ## Requirement coverage
 

@@ -64,14 +64,14 @@ import { readFileSync } from 'node:fs'                      // Bun and Node buil
 
 import { z } from 'zod'                                     // external packages
 
-import { buildExample } from '@app-template/domain/example'  // another workspace
+import { buildChat } from '@app-template/domain/chat'        // another workspace
 
-import { ExampleService } from '#application/example/example.service' // this workspace
+import { ChatService } from '#application/chat/chat.service'     // this workspace
 ```
 
 - **`@app-template/<workspace>[/<entity>]`** reaches another workspace through its `exports`. A
-  layer exposes each entity as a subpath (`@app-template/domain/example` →
-  `domain/example/index.ts`).
+  layer exposes each entity as a subpath (`@app-template/domain/chat` →
+  `domain/chat/index.ts`).
 - **`#<workspace>/<path>`** reaches a file inside the same workspace, through the `imports` map in
   its `package.json` (`"#domain/*": "./*.ts"`, `"#api/*": "./src/*.ts"`). Relative `./` and `../`
   paths are banned. A bare `#/` prefix would be shorter, but Bun 1.4.3 cannot resolve it.
@@ -79,17 +79,17 @@ import { ExampleService } from '#application/example/example.service' // this wo
 
 ## Where things live
 
-Using the `example` slice as the map:
+Using the `chat` slice as the map:
 
 | What | File | Named |
 |---|---|---|
-| branded id | `domain/example/example.id.ts` | `ExampleId` |
-| entity schema | `domain/example/example.model.ts` | `Example` (`Schema.Class`) |
-| domain errors | `domain/example/example.error.ts` | `ExampleNotFoundError` (`Schema.TaggedError`) |
-| port and pure operations | `domain/example/example.service.ts` | `ExampleRepository`, `buildExample({ id, name, createdAt })` |
-| adapter implementing the port | `infrastructure/example/example.repository.ts` | `ExampleRepositoryMemory` (a `Layer`) |
-| service over the port | `application/example/example.service.ts` | `ExampleService`, `ExampleService.layer` |
-| browser feature | `apps/web/src/features/example/health-panel.ts` | `renderHealthPanel(root, apiClient)` |
+| branded id | `domain/chat/chat.id.ts` | `ChatId`, `MessageId` |
+| entity schema | `domain/chat/chat.model.ts` | `Chat`, `Message` (`Schema.Class`) |
+| domain errors | `domain/chat/chat.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
+| port and pure operations | `domain/chat/chat.service.ts` | `ChatRepository`, `buildChat({ id, userId, createdAt })`, `prepareMessage` |
+| adapter implementing the port | `infrastructure/chat/chat.repository.ts` | `ChatRepositoryKv` (a `Layer` over `KeyValueStore`) |
+| service over the port | `application/chat/chat.service.ts` (planned) | `ChatService`, `ChatService.layer` |
+| browser feature | `apps/web/src/features/health/health-panel.ts` | `renderHealthPanel(root, apiClient)` |
 
 Every entity folder has an `index.ts` barrel, and tests sit next to their source as `*.test.ts`.
 The file suffixes and naming verbs are listed in
@@ -101,7 +101,7 @@ The file suffixes and naming verbs are listed in
 > `statusByTag` and the job handler are retired. Steps 6–8 describe that shape until the roadmap
 > ticket [`chat-core`](roadmap.md#3-chat-core) rewrites them.
 
-Follow the `example` slice layer by layer, from the bottom up. Write each test before its code,
+Follow the `chat` slice layer by layer, from the bottom up. Write each test before its code,
 and run `make check` after each layer. `<entity>` is the kebab name (`document`), `<Entity>` the
 Pascal one (`Document`).
 
@@ -116,7 +116,7 @@ Pascal one (`Document`).
 4. **Domain exports.** `domain/<entity>/index.ts` re-exports its files, and
    `domain/package.json` gains `"./<entity>": "./<entity>/index.ts"` in `exports`.
 5. **Adapter.** `infrastructure/<entity>/<entity>.repository.ts`: `<Entity>RepositoryMemory`, a
-   `Layer` that provides the domain port. Start in-memory, like the example; a real client later
+   `Layer` that provides the domain port. Start on `KeyValueStore`, like `chat`; a real client later
    adds another layer of the same port. Add `index.ts` and the `exports` entry.
 6. **Service and use cases.** `application/<entity>/<entity>.service.ts` holds the service, and
    `<verb>.use-case.ts` composes services. A service may import its adapter or receive the port as
@@ -159,7 +159,7 @@ Three forms pass all three guards. No code uses them; review is what catches the
   Biome, which does not see `import()` inside a type, and `tsc -b`, because web declares
   `@app-template/config` for its server entry. The type is erased, so nothing reaches the browser,
   but the client then depends on the shape of the server config.
-- **A workspace importing itself by name.** `@app-template/application/example` from inside
+- **A workspace importing itself by name.** `@app-template/application/chat` from inside
   `application/` passes Biome, whose overrides list only other workspaces, and `tsc -b`, which
   resolves a package's own `exports`. It skips the `#<workspace>/` convention and can import the
   file's own barrel, a cycle that shows up as `undefined` while modules initialise.

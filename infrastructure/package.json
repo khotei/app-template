@@ -7,8 +7,7 @@
     "./kv": "./kv/index.ts",
     "./user": "./user/index.ts",
     "./chat": "./chat/index.ts",
-    "./attachment": "./attachment/index.ts",
-    "./example": "./example/index.ts"
+    "./attachment": "./attachment/index.ts"
   },
   "imports": {
     "#infrastructure/*": "./*.ts"

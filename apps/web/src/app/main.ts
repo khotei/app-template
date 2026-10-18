@@ -1,4 +1,4 @@
-import { renderHealthPanel } from '#web/features/example/health-panel'
+import { renderHealthPanel } from '#web/features/health/health-panel'
 import { apiClient } from '#web/shared/api'
 
 const root = document.getElementById('root')
