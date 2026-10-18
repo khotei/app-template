@@ -42,6 +42,24 @@ export class QueueLockRefreshIntervalInvalidError extends Schema.TaggedError<Que
   }
 }
 
+const queueConfig = Config.all({
+  filename: Config.String('QUEUE_SQLITE_PATH'),
+  lockExpiration: Config.Duration('QUEUE_LOCK_EXPIRATION').pipe(
+    Config.withDefault(Duration.seconds(15)),
+  ),
+  lockRefreshInterval: Config.Duration('QUEUE_LOCK_REFRESH_INTERVAL').pipe(
+    Config.withDefault(Duration.seconds(5)),
+  ),
+})
+
+const ensureLockRefreshBeforeExpiration = Effect.fn('ensureLockRefreshBeforeExpiration')(function* (
+  config: QueueConfig['Service'],
+) {
+  const { lockExpiration, lockRefreshInterval } = config
+  if (Duration.isLessThan(lockRefreshInterval, lockExpiration)) return config
+  return yield* new QueueLockRefreshIntervalInvalidError({ lockExpiration, lockRefreshInterval })
+})
+
 export class QueueConfig extends Context.Service<
   QueueConfig,
   {
@@ -52,22 +70,7 @@ export class QueueConfig extends Context.Service<
 >()('@app-template/config/QueueConfig') {
   static readonly layer = Layer.effect(
     this,
-    Config.all({
-      filename: Config.String('QUEUE_SQLITE_PATH'),
-      lockExpiration: Config.Duration('QUEUE_LOCK_EXPIRATION').pipe(
-        Config.withDefault(Duration.seconds(15)),
-      ),
-      lockRefreshInterval: Config.Duration('QUEUE_LOCK_REFRESH_INTERVAL').pipe(
-        Config.withDefault(Duration.seconds(5)),
-      ),
-    }).pipe(
-      Effect.filterOrFail(
-        ({ lockExpiration, lockRefreshInterval }) =>
-          Duration.isLessThan(lockRefreshInterval, lockExpiration),
-        ({ lockExpiration, lockRefreshInterval }) =>
-          new QueueLockRefreshIntervalInvalidError({ lockExpiration, lockRefreshInterval }),
-      ),
-    ),
+    Effect.flatMap(queueConfig, ensureLockRefreshBeforeExpiration),
   )
 }
 

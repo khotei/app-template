@@ -118,6 +118,18 @@ const flaky = { ...pings, name: 'flaky', maxAttempts: 3 } satisfies QueueDefinit
 
 type Seen = readonly [text: string, attempt: AttemptInfo]
 
+const recordAttempts = (seen: Queue.Queue<Seen>) => (ping: Ping, attempt: AttemptInfo) =>
+  Queue.offer(seen, [ping.text, attempt])
+
+const recordAttemptsFailingOn =
+  (seen: Queue.Queue<Seen>, failOn: string) => (ping: Ping, attempt: AttemptInfo) =>
+    recordAttempts(seen)(ping, attempt).pipe(
+      Effect.andThen(ping.text === failOn ? Effect.fail('handler failed') : Effect.void),
+    )
+
+const layerOverStore = (store: Layer.Layer<PersistedQueue.PersistedQueueStore>) =>
+  layerPersisted.pipe(Layer.provide(store))
+
 // Advances the clock until the handler records an attempt, so a retry is found whether its delay
 // started before or after the previous advance.
 const awaitNextAttempt = (seen: Queue.Queue<Seen>) =>
@@ -128,16 +140,11 @@ const awaitNextAttempt = (seen: Queue.Queue<Seen>) =>
   )
 
 describe('worker attempt info on QueueClientMemory', () => {
-  it.effect('counts every failed attempt, dead-letters the last and keeps consuming', () =>
-    Effect.gen(function* () {
+  it.effect('counts every failed attempt, dead-letters the last and keeps consuming', () => {
+    const { logs, recordLogs } = makeLogRecorder()
+    return Effect.gen(function* () {
       const seen = yield* Queue.unbounded<Seen>()
-      yield* Layer.build(
-        worker(flaky, (ping, attempt) =>
-          Queue.offer(seen, [ping.text, attempt]).pipe(
-            Effect.andThen(ping.text === 'fail' ? Effect.fail('handler failed') : Effect.void),
-          ),
-        ),
-      )
+      yield* Layer.build(worker(flaky, recordAttemptsFailingOn(seen, 'fail')))
 
       yield* send(flaky, new Ping({ id: 'a', text: 'fail' }))
       const attempts = [
@@ -159,8 +166,13 @@ describe('worker attempt info on QueueClientMemory', () => {
         'after',
         { attempt: 1, maxAttempts: 3, isLastAttempt: false },
       ])
-    }).pipe(Effect.provide(QueueClientMemory)),
-  )
+      assert.deepStrictEqual(logs, [
+        ['Warn', 'queue message attempt failed', 'flaky'],
+        ['Warn', 'queue message attempt failed', 'flaky'],
+        ['Error', 'queue message dead-lettered', 'flaky'],
+      ])
+    }).pipe(Effect.provide(Layer.mergeAll(QueueClientMemory, recordLogs)))
+  })
 
   it.effect("closing a worker's scope hands its job to the next worker, unlogged", () => {
     const { logs, recordLogs } = makeLogRecorder()
@@ -206,11 +218,10 @@ const failFirstTake = (failure: Effect.Effect<never, PersistedQueue.PersistedQue
       const failuresLeft = yield* Ref.make(1)
       return PersistedQueue.PersistedQueueStore.of({
         ...store,
-        take: (options) =>
-          Effect.flatMap(
-            Ref.getAndUpdate(failuresLeft, (left) => left - 1),
-            (left) => (left > 0 ? failure : store.take(options)),
-          ),
+        take: Effect.fnUntraced(function* (options) {
+          const left = yield* Ref.getAndUpdate(failuresLeft, (n) => n - 1)
+          return yield* left > 0 ? failure : store.take(options)
+        }),
       })
     }),
   ).pipe(Layer.provide(PersistedQueue.layerStoreMemory))
@@ -226,9 +237,7 @@ describe('worker on a failing store', () => {
       const { logs, recordLogs } = makeLogRecorder()
       return Effect.gen(function* () {
         const seen = yield* Queue.unbounded<Seen>()
-        yield* Layer.build(
-          worker(flaky, (ping, attempt) => Queue.offer(seen, [ping.text, attempt])),
-        )
+        yield* Layer.build(worker(flaky, recordAttempts(seen)))
 
         yield* send(flaky, new Ping({ id: 'a', text: 'after outage' }))
         yield* TestClock.adjust('999 millis')
@@ -240,11 +249,7 @@ describe('worker on a failing store', () => {
           { attempt: 1, maxAttempts: 3, isLastAttempt: false },
         ])
         assert.deepStrictEqual(logs, [['Error', 'queue consumer failed', 'flaky']])
-      }).pipe(
-        Effect.provide(
-          Layer.mergeAll(layerPersisted.pipe(Layer.provide(failFirstTake(failure))), recordLogs),
-        ),
-      )
+      }).pipe(Effect.provide(Layer.mergeAll(layerOverStore(failFirstTake(failure)), recordLogs)))
     })
   }
 
@@ -297,13 +302,7 @@ describe('worker on a store that dies settling a failed attempt', () => {
     const { logs, recordLogs } = makeLogRecorder()
     return Effect.gen(function* () {
       const seen = yield* Queue.unbounded<Seen>()
-      yield* Layer.build(
-        worker(pings, (ping, attempt) =>
-          Queue.offer(seen, [ping.text, attempt]).pipe(
-            Effect.andThen(ping.text === 'fail' ? Effect.fail('handler failed') : Effect.void),
-          ),
-        ),
-      )
+      yield* Layer.build(worker(pings, recordAttemptsFailingOn(seen, 'fail')))
 
       yield* send(pings, new Ping({ id: 'a', text: 'fail' }))
       yield* awaitNextAttempt(seen)
@@ -321,12 +320,7 @@ describe('worker on a store that dies settling a failed attempt', () => {
         ],
       )
     }).pipe(
-      Effect.provide(
-        Layer.mergeAll(
-          layerPersisted.pipe(Layer.provide(dieWhenSettlingAFailedAttempt)),
-          recordLogs,
-        ),
-      ),
+      Effect.provide(Layer.mergeAll(layerOverStore(dieWhenSettlingAFailedAttempt), recordLogs)),
     )
   })
 })

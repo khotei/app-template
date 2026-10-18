@@ -7,7 +7,13 @@ import {
   MessageStageInvalidError,
 } from '#domain/chat/chat.error'
 import type { ChatId, MessageId } from '#domain/chat/chat.id'
-import { ActiveMessageStage, Chat, Message, MessageFailure } from '#domain/chat/chat.model'
+import {
+  ActiveMessageStage,
+  Chat,
+  Message,
+  MessageFailure,
+  type MessageStage,
+} from '#domain/chat/chat.model'
 import type { UserId } from '#domain/user/user.id'
 
 export class ChatRepository extends Context.Service<
@@ -107,17 +113,23 @@ export const ensureMessageInput = Effect.fn('ensureMessageInput')(function* (inp
   }
 })
 
+const isPreparing = (message: Message): boolean =>
+  isActiveMessage(message) && message.stage === 'preparing'
+
+const ensureMovable = Effect.fn('ensureMovable')(function* (
+  message: Message,
+  to: MessageStage,
+  isMovable: (message: Message) => boolean = isActiveMessage,
+) {
+  if (isMovable(message)) return
+  return yield* new MessageStageInvalidError({ id: message.id, from: message.stage, to })
+})
+
 export const prepareMessage = Effect.fn('prepareMessage')(function* (
   message: Message,
   at: DateTime.Utc,
 ) {
-  if (!isActiveMessage(message)) {
-    return yield* new MessageStageInvalidError({
-      id: message.id,
-      from: message.stage,
-      to: 'preparing',
-    })
-  }
+  yield* ensureMovable(message, 'preparing')
   return new Message({
     ...message,
     stage: 'preparing',
@@ -131,13 +143,7 @@ export const generateMessage = Effect.fn('generateMessage')(function* (
   message: Message,
   at: DateTime.Utc,
 ) {
-  if (!isActiveMessage(message) || message.stage !== 'preparing') {
-    return yield* new MessageStageInvalidError({
-      id: message.id,
-      from: message.stage,
-      to: 'generating',
-    })
-  }
+  yield* ensureMovable(message, 'generating', isPreparing)
   return new Message({ ...message, stage: 'generating', updatedAt: at })
 })
 
@@ -146,13 +152,7 @@ export const completeMessage = Effect.fn('completeMessage')(function* (
   text: string,
   at: DateTime.Utc,
 ) {
-  if (!isActiveMessage(message)) {
-    return yield* new MessageStageInvalidError({
-      id: message.id,
-      from: message.stage,
-      to: 'completed',
-    })
-  }
+  yield* ensureMovable(message, 'completed')
   return new Message({ ...message, stage: 'completed', text, error: Option.none(), updatedAt: at })
 })
 
@@ -166,13 +166,7 @@ export const failMessage = Effect.fn('failMessage')(function* (
   cause: string,
   at: DateTime.Utc,
 ) {
-  if (!isActiveMessage(message)) {
-    return yield* new MessageStageInvalidError({
-      id: message.id,
-      from: message.stage,
-      to: 'failed',
-    })
-  }
+  yield* ensureMovable(message, 'failed')
   return new Message({
     ...message,
     stage: 'failed',

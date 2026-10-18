@@ -1,4 +1,4 @@
-import { Cause, Context, Data, Effect, Layer, Schedule, Schema } from 'effect'
+import { Cause, Context, Data, Effect, Layer, Predicate, Schedule, Schema } from 'effect'
 import { PersistedQueue } from 'effect/persistence'
 
 export interface QueueDefinition<S extends Schema.Top> {
@@ -61,15 +61,15 @@ const runAttempt = Effect.fn('runAttempt')(function* <A, I, E, R>(
     maxAttempts: definition.maxAttempts,
     isLastAttempt: metadata.attempts >= definition.maxAttempts,
   }
+  const [level, text] = info.isLastAttempt
+    ? (['Error', 'queue message dead-lettered'] as const)
+    : (['Warn', 'queue message attempt failed'] as const)
   return yield* handle(message, info).pipe(
-    Effect.catchCause(
-      (cause): Effect.Effect<never, AttemptFailed> =>
-        Cause.hasInterruptsOnly(cause)
-          ? Effect.interrupt
-          : (info.isLastAttempt
-              ? Effect.logError('queue message dead-lettered', cause)
-              : Effect.logWarning('queue message attempt failed', cause)
-            ).pipe(Effect.andThen(Effect.fail(new AttemptFailed()))),
+    Effect.tapCauseIf(Predicate.not(Cause.hasInterruptsOnly), (cause) =>
+      Effect.logWithLevel(level)(text, cause),
+    ),
+    Effect.catchCause((cause) =>
+      Cause.hasInterruptsOnly(cause) ? Effect.interrupt : Effect.fail(new AttemptFailed()),
     ),
     Effect.annotateLogs({
       queue: definition.name,
@@ -85,35 +85,39 @@ export const layerPersisted: Layer.Layer<QueueClient, never, PersistedQueue.Pers
     QueueClient,
     Effect.gen(function* () {
       const factory = yield* PersistedQueue.PersistedQueueFactory
-      return QueueClient.of({
-        send: Effect.fn('QueueClient.send')(function* <A, I>(
-          definition: QueueDefinition<Schema.Codec<A, I>>,
-          message: A,
-        ) {
-          const queue = yield* factory.make(definition)
-          yield* queue
-            .offer(message, { id: definition.jobId(message) })
-            .pipe(Effect.mapError((cause) => new QueueError({ cause })))
-        }),
-        consume: (definition, handle) =>
-          factory.make(definition).pipe(
-            Effect.flatMap((queue) =>
-              queue.take((message, metadata) => runAttempt(definition, handle, message, metadata)),
-            ),
-            // A store that dies settling a failed attempt (the SQL `ack`) adds its defect beside
-            // `AttemptFailed`, and `catchTags` below would drop it unseen.
-            Effect.tapCause((cause) =>
-              Cause.hasDies(cause) && Cause.hasFails(cause)
-                ? Effect.logError('queue store failed settling an attempt', cause)
-                : Effect.void,
-            ),
-            Effect.catchTags({
-              AttemptFailed: () => Effect.void,
-              PersistedQueueError: (cause) => Effect.fail(new QueueError({ cause })),
-            }),
-            Effect.forever,
-          ),
+
+      const send = Effect.fn('QueueClient.send')(function* <A, I>(
+        definition: QueueDefinition<Schema.Codec<A, I>>,
+        message: A,
+      ) {
+        const queue = yield* factory.make(definition)
+        yield* queue
+          .offer(message, { id: definition.jobId(message) })
+          .pipe(Effect.mapError((cause) => new QueueError({ cause })))
       })
+
+      const consume = <A, I, E, R>(
+        definition: QueueDefinition<Schema.Codec<A, I>>,
+        handle: Handler<A, E, R>,
+      ) =>
+        factory.make(definition).pipe(
+          Effect.flatMap((queue) =>
+            queue.take((message, metadata) => runAttempt(definition, handle, message, metadata)),
+          ),
+          // A store that dies settling a failed attempt (the SQL `ack`) adds its defect beside
+          // `AttemptFailed`, and `catchTags` below would drop it unseen.
+          Effect.tapCauseIf(
+            (cause) => Cause.hasDies(cause) && Cause.hasFails(cause),
+            (cause) => Effect.logError('queue store failed settling an attempt', cause),
+          ),
+          Effect.catchTags({
+            AttemptFailed: () => Effect.void,
+            PersistedQueueError: (cause) => Effect.fail(new QueueError({ cause })),
+          }),
+          Effect.forever,
+        )
+
+      return QueueClient.of({ send, consume })
     }),
   ).pipe(Layer.provide(PersistedQueue.layer))
 
@@ -136,17 +140,13 @@ export const worker = <A, I, E, R>(
   definition: QueueDefinition<Schema.Codec<A, I>>,
   handle: Handler<A, E, R>,
 ): Layer.Layer<never, never, QueueClient | R> =>
-  Layer.effectDiscard(
-    Effect.forkScoped(
-      QueueClient.use((client) => client.consume(definition, handle)).pipe(
-        Effect.tapCause((cause) =>
-          Cause.hasInterruptsOnly(cause)
-            ? Effect.void
-            : Effect.logError('queue consumer failed', cause),
-        ),
-        Effect.sandbox,
-        Effect.retry(consumerRestart),
-        Effect.annotateLogs({ queue: definition.name }),
-      ),
+  QueueClient.use((client) => client.consume(definition, handle)).pipe(
+    Effect.tapCauseIf(Predicate.not(Cause.hasInterruptsOnly), (cause) =>
+      Effect.logError('queue consumer failed', cause),
     ),
+    Effect.sandbox,
+    Effect.retry(consumerRestart),
+    Effect.annotateLogs({ queue: definition.name }),
+    Effect.forkScoped,
+    Layer.effectDiscard,
   )
