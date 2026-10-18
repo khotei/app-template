@@ -186,10 +186,14 @@ replace one layer later.
   message, cause }`, where `message` is a user-facing sentence for that reason, carrying no
   provider detail, and `cause` keeps the failure's detail for operators and never appears in an
   api response; the chat then has no active message, so the user may send again. *Amended in
-  plan review: the stored failure keeps its cause (D19).*
+  plan review: the stored failure keeps its cause (D19).* *Amended in S8b: "the attempts" are
+  the reply attempts, three of the queue definition's four; the fourth only settles a reply the
+  last one left active, because a worker crash on it otherwise leaves the message active (D23).*
 - **R19** — WHEN the worker starts after jobs were queued while it was stopped, or a job's lock
   expires after a crash, THE SYSTEM SHALL process the job, restarting the generation and
-  overwriting earlier snapshots.
+  overwriting earlier snapshots. *Amended in S8b: a crash on the last reply attempt does not
+  restart the generation; the fourth attempt settles the message as `failed` (R18 amended,
+  D23).*
 
 ### Attachments
 

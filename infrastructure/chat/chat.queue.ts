@@ -8,10 +8,17 @@ export class GenerateAssistantMessage extends Schema.Class<GenerateAssistantMess
 )({ chatId: ChatId, messageId: MessageId }) {}
 
 /** The user is polling this message, so few short retries let it reach `failed` in seconds. */
+export const replyAttempts = 3
+
+/**
+ * The replies, then one attempt that only settles a reply the last one left active: the store
+ * marks a job whose final attempt lost its lock `failed` without calling the handler, which would
+ * leave the message active and the chat busy for good.
+ */
 export const assistantMessageQueue = {
   name: 'assistant-message',
   schema: GenerateAssistantMessage,
-  maxAttempts: 3,
+  maxAttempts: replyAttempts + 1,
   retrySchedule: Schedule.exponential('1 second'),
   jobId: (job) => job.messageId,
 } satisfies QueueDefinition<typeof GenerateAssistantMessage>

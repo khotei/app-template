@@ -301,7 +301,7 @@ The cookie is `Secure` when `RuntimeConfig.nodeEnv === 'production'`. The snapsh
 | 3 repositories and `AttachmentStoreKv` through their ports on `layerMemory` | field mapping, index maintenance (`selectByUser`, `selectActiveByChat`, `deleteByChat` cascade, `deleteByIds`) | the real file store (covered for the module in 2) |
 | 4 `send` and `worker` in `packages/queue` on the memory store under `TestClock` | `AttemptInfo` values per attempt, `isLastAttempt` on the dead-letter attempt and no attempt after it, release when the worker's scope closes, one job per `jobId` | SQLite timing |
 | 5 `UserService`, `ChatService`, `AttachmentService` on memory adapters, `QueueClientMemory`, `TestClock`, `TestCrypto` | ensure/authenticate, send writes two messages and enqueues one or two jobs, `409` while a message is active, bound and foreign attachments, rename rules, delete cascade, title job only on the first message | HTTP statuses, cookies |
-| 6 `AssistantMessageJob.worker` and `ChatTitleJob.worker` with a fake `LanguageModel` under `TestClock` | stage sequence, snapshot cadence and final write, `failed` only on the last attempt, prompt content (history, roles, file parts), title only if `none`, chat deleted meanwhile | a real provider, the SQLite queue |
+| 6 `AssistantMessageJob.worker` and `ChatTitleJob.worker` with a fake `LanguageModel` under `TestClock` | stage sequence, snapshot cadence and final write, `failed` only on the last reply attempt (the third of four, D23), prompt content (history, roles, file parts), title only if `none`, chat deleted meanwhile | a real provider, the SQLite queue |
 | 7 `apps/api` through `BunHttpServer.layerTest` + `@app-template/api-client` with `HttpClient.withCookiesRef` | the whole wire: cookie attributes, `401`/`404`/`409`/`413`/`415`/`400` bodies, multipart limits, download headers, `202` shape, the `Result` facade mapping, a stopped server → transport tag | browser cookie behaviour, the web proxy, `Secure` on http |
 | 8 `make check` drift of `packages/api-contract/openapi.json` | a contract edit without regeneration; the cookie security scheme and every declared error in the spec | semantics |
 
@@ -539,6 +539,33 @@ per the acceptance table, not by a test.
   `{ ...error }` spreads in the tests (treats the symptom in every test and drops the prototype
   check); rerunning a red `make check` (a gate that lies and worsens with each new test).
 
+- **D23 — The assistant-message queue keeps one attempt beyond its replies, and that attempt only
+  settles a reply the last one left active.** *Added in S8b.* The SQL store marks a job whose
+  final attempt lost its lock `failed` without calling the handler, so a crash on the last reply
+  would leave the message active and the chat busy for good, against R18. `chat.queue.ts`
+  exports `replyAttempts = 3`, and `assistantMessageQueue` has `maxAttempts: replyAttempts + 1`:
+  attempts 1–3 reply; the third, the last reply, catches its own failure,
+  writes `failed` with `Cause.pretty` of it, logs `Error` and ends, so the queue never reaches
+  attempt 4 in the normal path. Attempt 4 runs only when attempt 3 did not settle: it writes
+  `failed` with a fixed operator cause and logs `Error` "assistant reply left unsettled by the
+  last reply attempt", without calling the model, or ends with the `Info` "already settled" line
+  when the message is already terminal. An interrupt-only cause on the last reply is neither caught nor
+  logged, so a stopped worker hands the job on at the same attempt (R34). Two paths reach
+  attempt 4 without a dead worker, and the cause names both ("its worker stopped or the store
+  failed"): a store defect in attempt 3 before its reply starts (reading the chat or the message
+  sits outside the reply's catch, and its cause is in the queue's `Warn` line), and a store
+  defect in attempt 3's own `failed` write. A lock that expires on a live worker (a stall longer
+  than the lock expiry) gives the job to a second worker while the first still runs, the
+  duplicate delivery R19 already accepts: attempt 4 may then write `failed` and the live
+  attempt 3 overwrite it with snapshots and `completed`, so the message settles on whichever
+  writes last. The residual window is a crash during attempt 4's single write. *Rejected:* an
+  api-side staleness rule (`ChatService` failing an active message whose `updatedAt` is older
+  than the lock expiry: a reply waiting for its first token writes nothing for that long, so it
+  needs a heartbeat and races a live but slow worker); a generic recovery attempt in
+  `packages/queue` (it changes the dead-letter contract of every queue, and the title job's only
+  casualty is a chat left untitled); moving the reads into the last reply's catch (a store that
+  fails the read fails the `failed` write too, and the attempt 4 cause covers it); accepting the
+  stuck chat (R12 then refuses every send in it).
 - **D24 — The job builds its prompt from the store on every attempt and does not use
   `effect/ai/Chat`.** *Added in S8a.* `Chat` keeps its own history in a `Ref` (or in
   `Chat.Persistence`, keyed by chat id), a second source of truth beside `MessageRepository` that
@@ -567,7 +594,8 @@ per the acceptance table, not by a test.
 | Effect in the browser bundle (~54 KB gzip) | accepted in `feature.md`; measured once in the client step's findings |
 | Unstable modules (`http-api`, `persistence`, `ai`) change in a patch | exact lock-step catalog; seams 2, 4, 6, 7 catch behaviour changes |
 | A step over ~400 lines | `/ticket-plan` cuts by seam: domain per aggregate, kv-collection, repositories, queue change, services, jobs, contract, client, api groups, worker, web, cleanup, docs |
-| A worker crashes on the final attempt: the SQL store's lock-expiry sweep marks the job `failed` without calling the handler (`PersistedQueue.ts`, "Lock expired after final attempt"), so the message stays `preparing` or `generating` and the chat stays busy, against R18 | S8b decides and tests how a stuck active message heals |
+| A worker crashes on the final attempt: the SQL store's lock-expiry sweep marks the job `failed` without calling the handler (`PersistedQueue.ts`, "Lock expired after final attempt"), so the message stays `preparing` or `generating` and the chat stays busy, against R18 | D23: the definition's final attempt only settles a reply the last one left active; what remains is a crash during that attempt's single write, two crashes in a row |
+| A lock expires on a live worker (a stall past the lock expiry): a second worker takes the job while the first still writes, so two attempts interleave snapshots and the settling attempt's `failed` can be overwritten by the live attempt's `completed` | accepted as the duplicate delivery R19 already implies; the message settles on the last writer; Postgres (roadmap 4) can guard the terminal write with `UPDATE … WHERE stage IN (active stages)` |
 | A long chat's history grows without bound: every attempt sends every completed message and its files, until the prompt exceeds the model's context window and every reply fails | none in this ticket; roadmap entry 6 (`llm-providers`) trims the history to the window |
 | Dev store grows with attachment bytes | `.data/` is gitignored; `rm -rf .data` resets both store and queue |
 | An attachment `DELETE` races a `send` that binds the same unbound attachment: both service checks pass on the unbound row (check-then-act in `AttachmentService.delete` and `ChatService.send`) | the atomic `Collection.update` stops the deleted row from being resurrected, but the message may then reference a deleted attachment; Postgres closes it with `UPDATE … WHERE message_id IS NULL` on bind and a delete guarded the same way |

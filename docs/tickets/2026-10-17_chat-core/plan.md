@@ -535,24 +535,58 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
 - **Goal:** the reply's failure policy: a failed attempt retries from `preparing`; the last reply
   attempt writes `failed` with `{ reason: 'ReplyFailed', message, cause }`, the cause as
   `Cause.pretty`; an interrupt-only cause is never caught; `assistantMessageQueue` keeps a fourth
-  attempt that only settles a reply whose worker died (R18, R19; D3, D18, D19, and D23, which
-  S8b adds).
+  attempt that only settles a reply whose worker died (R18, R19, R34; D3, D18, D19, and D23,
+  which S8b adds).
 - **Blocked by:** S8a.
 - **Files:** `application/chat/{assistant-message.job,assistant-message.job.test}.ts`;
-  `infrastructure/chat/chat.queue.ts` (`maxAttempts: 4`); `architecture.md` (D23, Seam 6,
-  Risks); `feature.md` (R18 amended); `docs/knowledge/roadmap.md` (entry 6: the
+  `infrastructure/chat/chat.queue.ts` (`replyAttempts = 3`, `maxAttempts: replyAttempts + 1`);
+  `architecture.md` (D23, Seam 6, Risks); `feature.md` (R18, R19 amended); `docs/knowledge/roadmap.md` (entry 6: the
   `AiError.isRetryable` / `retryAfter` note).
 - **Test first:** Seam 6 — a model that fails on every attempt sets the message back to
   `preparing` on each retry and `failed` with `{ reason: 'ReplyFailed', message, cause }` only on
   the last reply attempt, the model's error in `cause` (`Cause.pretty`) and none of it in
   `message`; a job delivered on the fourth attempt with its message still active (a store wrapper
   reporting that attempt, as the SQL store does after a crash) ends `failed` without calling the
-  model; a last reply that interrupts itself is retaken at the same attempt, not failed.
+  model; an interrupt on the last reply passes through instead of failing the message.
 - **Constraint:** S8b decides and tests how a stuck active message heals when a worker crashes on
   the final attempt and the SQL store's lock-expiry sweep marks the job `failed` without calling
   the handler (`architecture.md › Risks`); the choice is recorded as a new `D…`.
 - **Verify:** `make check`.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Healing (the constraint): D23. The last reply (attempt 3) catches its own failure, writes
+    `failed` with `Cause.pretty`, logs `Error` `assistant reply failed` and ends, so the queue
+    logs two `Warn` attempt lines and no dead letter in the normal path. The fourth attempt's
+    test wraps `PersistedQueue.layerStoreMemory` so every take reports `maxAttempts`, as the SQL
+    store does after attempt 3's lock expired: the message ends `failed` with the fixed cause and
+    the model is never called. R19 still holds: a crash consumes the attempt the store counted at
+    claim, so a crash on the last reply is an exhausted job (R18 amended).
+  - The fourth attempt reads the message once: `findReply` returns it, `isActiveMessage` guards
+    it and `failReply` writes from it. The last reply re-reads (`failStoredReply`), since the
+    message it found on take has moved on. A message already terminal on the fourth attempt ends
+    with the `Info` `already settled` line; the S8a settled test now runs on both deliveries, and
+    dropping the guard turns it red (the job would dead-letter on `MessageStageInvalidError`).
+  - A store defect before attempt 3's reply starts, or in its `failed` write, reaches attempt 4
+    as well, so its cause reads "its worker stopped or the store failed"; a lock expiring on a
+    live worker is the duplicate delivery R19 accepts. Both are in D23 and `Risks`.
+  - The failing-model test expects three model calls and one `failed` write:
+    `[preparing, generating, generating 'Hel'] × 3, failed 'Hel'`. `failMessage` keeps the text
+    stored when it failed, so a failed reply shows its partial text; the contract shows `error`.
+  - An interrupt-only cause on the last reply is neither caught nor logged; the ternary is only
+    observable when the reply interrupts itself (an external interrupt already stops the
+    recovery from running), so the test interrupts the model once on the last reply and sees no
+    `failed` write and no log, then the reply completed. That the store does not count an
+    interrupted attempt is Seam 4's, in `packages/queue`; the test only lets the store retake it.
+  - The chat's `updatedAt` also moves on `failed` (a terminal stage, R16), through `touchChat`.
+  - Roadmap entry 6 gains the `AiError.isRetryable` / `retryAfter` note; the Seam 6 row and R18
+    now name the last reply attempt.
+  - The policy has one source: `chat.queue.ts` exports `replyAttempts = 3` and sets
+    `maxAttempts: replyAttempts + 1`; the job's `roleOf(info)` maps an attempt to `reply`,
+    `lastReply` or `settle`, and the `attemptRoles` table runs it. `writeSettled` is the shared
+    terminal write (the message, then the chat at the message's `updatedAt`) of `completed` and
+    `failed`.
+  - Probes, each red then reverted: no `lastReply` role; no `settle` role; no settling branch; `maxAttempts: 3`; no catch on the last
+    reply; an interrupt caught as a failure; the settling attempt without its terminal guard.
 
 #### S9 — The chat-title job and the dev stub
 
@@ -811,7 +845,7 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
 | R31 | S6, S8a, S9, S16 |
 | R32 | S6, S8a, S9 |
 | R33 | S3, S4, S5, S13, S16 |
-| R34 | S13, S16 |
+| R34 | S8b, S13, S16 |
 | R35 | S1, S7, S10, S13, S16 |
 | R36 | S17 |
 | R37 | S2 |

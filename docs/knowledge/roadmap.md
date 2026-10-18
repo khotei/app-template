@@ -203,7 +203,10 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
 - **Scope.** `@effect/ai-anthropic` and `@effect/ai-openai` layers; provider and model from
   `Config`; `Prompt.FilePart` for images and PDFs from S3; assistant attachments (how they are
   produced is this ticket's first decision: a tool the model calls, a worker job, or both) and
-  the placeholder syntax; retries and budgets as decorator layers with `Schedule`; the
+  the placeholder syntax; retries and budgets as decorator layers with `Schedule`; retries that
+  read `AiError.isRetryable` and `retryAfter`, so a provider error no retry can fix (auth, an
+  invalid request, content policy) stops spending attempts and a rate limit is honoured, which
+  changes the chat's retry requirement and so goes through this ticket's `feature.md`; the
   history trimmed to the model's context window with `Tokenizer.truncate` or an equivalent,
   since today every completed message is sent and a long chat grows without bound; prompt
   provenance (hash of templates stored with the message); tests on a fake `LanguageModel` and

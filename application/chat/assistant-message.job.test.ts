@@ -9,8 +9,8 @@ import {
   Record as Rec,
   Stream,
 } from 'effect'
-import { type AiError, LanguageModel, Prompt, type Response } from 'effect/ai'
-import { KeyValueStore } from 'effect/persistence'
+import { AiError, LanguageModel, Prompt, type Response } from 'effect/ai'
+import { KeyValueStore, PersistedQueue } from 'effect/persistence'
 import { TestClock } from 'effect/testing'
 
 import {
@@ -55,6 +55,7 @@ const layerJob = (options: {
   readonly model: Layer.Layer<LanguageModel.LanguageModel>
   readonly messages: typeof MessageRepositoryKv
   readonly logger: Layer.Layer<never>
+  readonly queue: Layer.Layer<QueueClient>
 }) =>
   Layer.mergeAll(
     AssistantMessageJob.layer,
@@ -64,10 +65,13 @@ const layerJob = (options: {
     AttachmentStoreKv,
     options.model,
     options.logger,
-  ).pipe(Layer.provideMerge(QueueClient.layerMemory), Layer.provide(KeyValueStore.layerMemory))
+  ).pipe(Layer.provideMerge(options.queue), Layer.provide(KeyValueStore.layerMemory))
 
 /** The job over memory adapters, recording its message writes, its prompts and its logs. */
-const makeHarness = (stream: Stream.Stream<Part, AiError.AiError>) => {
+const makeHarness = (
+  stream: Stream.Stream<Part, AiError.AiError>,
+  queue: Layer.Layer<QueueClient> = QueueClient.layerMemory,
+) => {
   const writes: Array<Message> = []
   const prompts: Array<Prompt.Prompt> = []
   const logs: Array<readonly [level: string, message: unknown]> = []
@@ -99,14 +103,52 @@ const makeHarness = (stream: Stream.Stream<Part, AiError.AiError>) => {
       logs.push([logLevel, Array.isArray(message) ? message[0] : message])
     }),
   ])
-  return { writes, prompts, logs, layer: layerJob({ model, messages, logger }) }
+  return { writes, prompts, logs, layer: layerJob({ model, messages, logger, queue }) }
 }
+
+// Reports every take as the attempt `attemptOf(maxAttempts)`, as the SQL store does after the
+// previous attempt's worker died and its lock expired.
+const layerQueueDeliveredOn = (attemptOf: (maxAttempts: number) => number) =>
+  QueueClient.layer.pipe(
+    Layer.provide(
+      Layer.effect(
+        PersistedQueue.PersistedQueueStore,
+        Effect.map(PersistedQueue.PersistedQueueStore, (store) =>
+          PersistedQueue.PersistedQueueStore.of({
+            ...store,
+            take: (options) =>
+              Effect.map(store.take(options), (item) => ({
+                ...item,
+                attempts: attemptOf(options.maxAttempts),
+              })),
+          }),
+        ),
+      ).pipe(Layer.provide(PersistedQueue.layerStoreMemory)),
+    ),
+  )
 
 const delta = (text: string): Part => ({ type: 'text-delta', id: 'reply', delta: text })
 
 // Three deltas 120 ms apart: the default 300 ms snapshot sees the first two.
 const threeDeltas = Stream.make(delta('Hel'), delta('lo, '), delta('world')).pipe(
   Stream.tap(() => Effect.sleep('120 millis')),
+)
+
+const deliveries = {
+  'a reply attempt': QueueClient.layerMemory,
+  'the settling attempt': layerQueueDeliveredOn((max) => max),
+} as const
+
+const providerError = AiError.make({
+  module: 'FakeProvider',
+  method: 'streamText',
+  reason: new AiError.UnknownError({ description: 'provider exploded' }),
+})
+
+// A delta the snapshot writes, then the provider fails.
+const failingMidway = Stream.make(delta('Hel')).pipe(
+  Stream.concat(Stream.fromEffect(Effect.sleep('400 millis')).pipe(Stream.drain)),
+  Stream.concat(Stream.fail(providerError)),
 )
 
 const queuedReply = buildAssistantMessage({ id: replyId, chatId, createdAt: epoch })
@@ -154,6 +196,10 @@ const history = [
   new Message({ ...assistant(4), stage: 'failed', text: 'half', error: Option.some(failure) }),
   user(5, '', [photoId]),
 ]
+
+const selectReply = Effect.flatMap(MessageRepository, (messages) =>
+  messages.selectById(replyId),
+).pipe(Effect.map(Option.getOrThrow))
 
 const selectChat = Effect.flatMap(ChatRepository, (chats) => chats.selectById(chatId)).pipe(
   Effect.map(Option.getOrThrow),
@@ -263,16 +309,19 @@ describe('AssistantMessageJob.worker', () => {
     },
   )
 
-  it.effect('ends without a write when the reply is already settled on take', () => {
-    const { writes, prompts, logs, layer } = makeHarness(threeDeltas)
-    return Effect.gen(function* () {
-      yield* runWorker(yield* arrangeChat(asCompleted(queuedReply, 'Done.')))
+  it.effect.each(Rec.keys(deliveries))(
+    'ends without a write when the reply is already settled on %s',
+    (delivery) => {
+      const { writes, prompts, logs, layer } = makeHarness(threeDeltas, deliveries[delivery])
+      return Effect.gen(function* () {
+        yield* runWorker(yield* arrangeChat(asCompleted(queuedReply, 'Done.')))
 
-      assert.deepStrictEqual(writes, [])
-      assert.deepStrictEqual(prompts, [])
-      assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: already settled']])
-    }).pipe(Effect.provide(layer))
-  })
+        assert.deepStrictEqual(writes, [])
+        assert.deepStrictEqual(prompts, [])
+        assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: already settled']])
+      }).pipe(Effect.provide(layer))
+    },
+  )
 
   it.effect('keeps a rename made while the reply streams when it bumps the chat', () => {
     const { layer } = makeHarness(threeDeltas)
@@ -293,6 +342,86 @@ describe('AssistantMessageJob.worker', () => {
         [chat.title, DateTime.toEpochMillis(chat.updatedAt)],
         [Option.some('Trip'), 360],
       )
+    }).pipe(Effect.provide(layer))
+  })
+
+  it.effect('retries from preparing and fails the message with its cause on the last reply', () => {
+    const { writes, prompts, logs, layer } = makeHarness(failingMidway)
+    return Effect.gen(function* () {
+      yield* runWorker(yield* arrangeChat())
+
+      const attempt = [
+        ['preparing', ''],
+        ['generating', ''],
+        ['generating', 'Hel'],
+      ]
+      assert.deepStrictEqual(stagesOf(writes), [
+        ...attempt,
+        ...attempt,
+        ...attempt,
+        ['failed', 'Hel'],
+      ])
+      assert.strictEqual(prompts.length, 3)
+      const failed = yield* selectReply
+      const error = Option.getOrThrow(failed.error)
+      assert.deepStrictEqual(
+        [error.reason, error.message],
+        ['ReplyFailed', 'The assistant could not reply. Please try again.'],
+      )
+      assert.include(error.cause, 'provider exploded')
+      assert.deepStrictEqual((yield* selectChat).updatedAt, failed.updatedAt)
+      assert.deepStrictEqual(logs, [
+        ['Warn', 'queue message attempt failed'],
+        ['Warn', 'queue message attempt failed'],
+        ['Error', 'assistant reply failed'],
+      ])
+    }).pipe(Effect.provide(layer))
+  })
+
+  it.effect('fails a reply the last reply attempt left active, without calling the model', () => {
+    const { writes, prompts, logs, layer } = makeHarness(
+      threeDeltas,
+      layerQueueDeliveredOn((max) => max),
+    )
+    return Effect.gen(function* () {
+      const abandoned = new Message({ ...queuedReply, stage: 'generating', text: 'Hel' })
+
+      yield* runWorker(yield* arrangeChat(abandoned))
+
+      assert.deepStrictEqual(stagesOf(writes), [['failed', 'Hel']])
+      assert.deepStrictEqual(prompts, [])
+      const failed = yield* selectReply
+      assert.include(Option.getOrThrow(failed.error).cause, 'ended without settling')
+      assert.deepStrictEqual((yield* selectChat).updatedAt, failed.updatedAt)
+      assert.deepStrictEqual(logs, [
+        ['Error', 'assistant reply left unsettled by the last reply attempt'],
+      ])
+    }).pipe(Effect.provide(layer))
+  })
+
+  it.effect('passes an interrupt on the last reply through instead of failing it', () => {
+    let calls = 0
+    const interruptedOnce = Stream.suspend(() =>
+      calls++ === 0
+        ? Stream.concat(Stream.make(delta('Hel')), Stream.fromEffect(Effect.interrupt))
+        : threeDeltas,
+    )
+    const { writes, logs, layer } = makeHarness(
+      interruptedOnce,
+      layerQueueDeliveredOn((max) => max - 1),
+    )
+    return Effect.gen(function* () {
+      yield* runWorker(yield* arrangeChat())
+
+      assert.deepStrictEqual(stagesOf(writes), [
+        ['preparing', ''],
+        ['generating', ''],
+        ['preparing', ''],
+        ['generating', ''],
+        ['generating', 'Hello, '],
+        ['completed', 'Hello, world'],
+      ])
+      assert.deepStrictEqual(logs, [])
     }).pipe(Effect.provide(layer))
   })
 })

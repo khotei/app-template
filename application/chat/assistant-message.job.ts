@@ -1,5 +1,6 @@
 import {
   Array as Arr,
+  Cause,
   Context,
   DateTime,
   Duration,
@@ -7,6 +8,7 @@ import {
   Equal,
   Layer,
   Option,
+  Predicate,
   Ref,
   Schedule,
   Stream,
@@ -18,8 +20,11 @@ import {
   type ChatId,
   ChatRepository,
   completeMessage,
+  failMessage,
   generateMessage,
+  isActiveMessage,
   Message,
+  type MessageId,
   MessageRepository,
   prepareMessage,
 } from '@app-template/domain/chat'
@@ -28,9 +33,10 @@ import {
   buildChatPrompt,
   type ChatTurn,
   GenerateAssistantMessage,
+  replyAttempts,
   streamAssistantText,
 } from '@app-template/infrastructure/chat'
-import { QueueClient, worker } from '@app-template/queue'
+import { type AttemptInfo, QueueClient, worker } from '@app-template/queue'
 
 /** How often a streaming reply's accumulated text is written to its message, at most. */
 export const SnapshotInterval = Context.Reference<Duration.Duration>(
@@ -94,6 +100,12 @@ const alreadySettled = Effect.logInfo('assistant reply skipped: already settled'
 
 const chatDeleted = Effect.logInfo('assistant reply skipped: chat deleted')
 
+const writeSettled = Effect.fnUntraced(function* (settled: Message) {
+  const messages = yield* MessageRepository
+  yield* messages.update(settled)
+  yield* touchChat(settled.chatId, settled.updatedAt)
+})
+
 const reply = Effect.fnUntraced(function* (taken: Message) {
   const messages = yield* MessageRepository
   // Refused only for a terminal message: the reply was written before this take's lock expired.
@@ -105,9 +117,7 @@ const reply = Effect.fnUntraced(function* (taken: Message) {
   const generating = yield* generateMessage(prepared, yield* DateTime.now)
   yield* messages.update(generating)
   const text = yield* streamSnapshots(generating, streamAssistantText(prompt))
-  const at = yield* DateTime.now
-  yield* messages.update(yield* completeMessage(generating, text, at))
-  yield* touchChat(prepared.chatId, at)
+  yield* writeSettled(yield* completeMessage(generating, text, yield* DateTime.now))
 })
 
 const findReply = Effect.fnUntraced(function* (job: GenerateAssistantMessage) {
@@ -117,10 +127,59 @@ const findReply = Effect.fnUntraced(function* (job: GenerateAssistantMessage) {
   return yield* messages.selectById(job.messageId)
 })
 
-const handle = Effect.fn('AssistantMessageJob.handle')(function* (job: GenerateAssistantMessage) {
+const failReply = Effect.fnUntraced(function* (message: Message, cause: string) {
+  yield* writeSettled(yield* failMessage(message, 'ReplyFailed', cause, yield* DateTime.now))
+})
+
+// `failStoredReply` re-reads the message: the one found on take has moved on by the time the
+// last reply fails.
+const failStoredReply = Effect.fnUntraced(function* (messageId: MessageId, cause: string) {
+  const messages = yield* MessageRepository
+  const active = Option.filter(yield* messages.selectById(messageId), isActiveMessage)
+  if (Option.isSome(active)) yield* failReply(active.value, cause)
+})
+
+const unsettledCause =
+  'The last reply attempt ended without settling the message: its worker stopped or the store failed.'
+
+type AttemptRole = 'reply' | 'lastReply' | 'settle'
+
+// The definition's final attempt only settles a reply the last one left active.
+const roleOf = (info: AttemptInfo): AttemptRole => {
+  if (info.isLastAttempt) return 'settle'
+  return info.attempt === replyAttempts ? 'lastReply' : 'reply'
+}
+
+const attemptRoles = {
+  reply,
+  lastReply: (message: Message) =>
+    reply(message).pipe(
+      Effect.tapCauseIf(Predicate.not(Cause.hasInterruptsOnly), (cause) =>
+        Effect.logError('assistant reply failed', cause),
+      ),
+      Effect.catchCause((cause) =>
+        Cause.hasInterruptsOnly(cause)
+          ? Effect.failCause(cause)
+          : failStoredReply(message.id, Cause.pretty(cause)),
+      ),
+    ),
+  settle: Effect.fnUntraced(function* (message: Message) {
+    if (!isActiveMessage(message)) return yield* alreadySettled
+    yield* Effect.logError('assistant reply left unsettled by the last reply attempt')
+    yield* failReply(message, unsettledCause)
+  }),
+} as const satisfies Record<
+  AttemptRole,
+  (message: Message) => Effect.Effect<void, unknown, unknown>
+>
+
+const handle = Effect.fn('AssistantMessageJob.handle')(function* (
+  job: GenerateAssistantMessage,
+  info: AttemptInfo,
+) {
   const message = yield* findReply(job)
   if (Option.isNone(message)) return yield* chatDeleted
-  yield* reply(message.value)
+  return yield* attemptRoles[roleOf(info)](message.value)
 })
 
 export class AssistantMessageJob extends Context.Service<
