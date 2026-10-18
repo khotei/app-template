@@ -12,6 +12,12 @@ export class WebConfig extends Context.Service<WebConfig, { readonly port: numbe
   static readonly layer = Layer.effect(this, Config.all({ port: Config.Port('WEB_PORT') }))
 }
 
+export class StoreConfig extends Context.Service<StoreConfig, { readonly path: string }>()(
+  '@app-template/config/StoreConfig',
+) {
+  static readonly layer = Layer.effect(this, Config.all({ path: Config.String('STORE_PATH') }))
+}
+
 const nodeEnvs = ['development', 'test', 'production'] as const
 
 export class RuntimeConfig extends Context.Service<

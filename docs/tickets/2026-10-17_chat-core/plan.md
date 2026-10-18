@@ -32,7 +32,7 @@
 ```mermaid
 graph LR
   S1[S1 domain/chat] --> S2[S2 domain/user + attachment + effect.md]
-  S3[S3 kv-collection + store]
+  S3[S3 infrastructure/kv + StoreConfig]
   S2 --> S4[S4 user + attachment adapters]
   S3 --> S4
   S1 --> S5[S5 chat + message adapters]
@@ -153,26 +153,58 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
 
 ### Infrastructure
 
-#### S3 — `kv-collection`, the file store and `StoreConfig`
+#### S3 — `infrastructure/kv`: the collection module, the file store and `StoreConfig`
 
 - **Goal:** the deep module every adapter builds on — `createCollection(store, { prefix,
-  schema })` with `get / set / remove / modify` and `createIndex(store, { prefix, id })` with
-  `append / remove / list` behind one per-process `Semaphore(1)` — plus
-  `KeyValueStoreFileSystem` bundling `StoreConfig { path }` from `STORE_PATH` (R33; D2, D4).
+  schema })` with `get / set / modify / delete` and `createIndex(store, { prefix, id })` with
+  `append / remove / list / delete`, the module fully serialised per process by one
+  `Semaphore(1)` — plus `KeyValueStoreFileSystem` bundling `StoreConfig { path }` from
+  `STORE_PATH` (R33; D2, D4).
 - **Blocked by:** none.
-- **Files:** `infrastructure/shared/{kv-collection,kv-collection.test,store}.ts`;
-  `infrastructure/shared/index.ts`; `infrastructure/package.json` (`@effect/platform-bun` and
+- **Files:** `infrastructure/kv/{kv-collection,kv-collection.test,kv-store,index}.ts`;
+  `infrastructure/package.json` (`exports` `./kv`; `@effect/platform-bun` and
   `@effect/vitest` as `devDependencies`, for the file-system test); `packages/config/config.ts`
   (`StoreConfig`) and `config.test.ts`; `.env.example` (`STORE_PATH="../../.data/store"`);
   `.gitignore` (the `.data` comment now covers the store).
 - **Test first:** Seam 2, on `KeyValueStore.layerMemory` and on `layerFileSystem` in a temp
   directory — a key with `/` round-trips; `modify` on a missing key creates it; `append` twice
-  then `remove` once lists one id in insertion order; `list` of an unknown index is `[]`; a value
-  that fails the schema surfaces as a decode error, not `none`; two concurrent `append`s on one
-  index lose nothing.
+  then `remove` once lists one id in insertion order; `list` of an unknown index is `[]`; `delete`
+  drops the whole index; a value that fails the schema dies with a `SchemaError`, not `none`; two
+  concurrent `append`s on one index lose nothing.
 - **Verify:** `make check`; `STORE_PATH` is read only through `StoreConfig`; `mv .env .env.bak &&
   make test` passes.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The module lives in `infrastructure/kv/` with its own barrel
+    (`@app-template/infrastructure/kv`), and the file-store wiring sits beside it as `kv-store.ts`,
+    a bare kebab name: it is part of the kv module, not a client. Recorded as *Amended in S3* on
+    D2 and D4. `shared/queue.client.ts` stays where it is.
+  - The module is fully serialised per process: every collection and index operation, reads
+    included, takes one module-level `Semaphore.makeUnsafe(1)`. A semaphore per store instance was
+    rejected: one store per process makes it the same lock. The concurrent-append test proves the
+    lock on `modify`, red without it on the file store only (the memory store's synchronous
+    get/set never interleaves). The lock on reads and plain writes has no red test: a probe of 50
+    concurrent reads against 50 rewrites of a 200 KB value never tore on Bun.
+  - The module turns a `KeyValueStoreError` or `SchemaError` into a defect once, so no KV adapter
+    repeats `Effect.orDie`; recorded as *Amended in S3* on D17. The test asserts a die whose
+    squashed cause is a `SchemaError`.
+  - `Index.delete(key)` drops an index; S5's `deleteByChat` cascade uses it. An index whose last
+    id is removed holds `[]`.
+  - The module's verbs split by what they touch: whole-key `get / set / modify / delete`,
+    index-member `append / remove / list`. `delete` matches `naming.md`; the ports keep its
+    `select / insert / update / delete`, and S4/S5 map one onto the other without renaming either.
+  - Keys are plain strings relative to `prefix`, for collections and indexes alike: S5 writes
+    `createIndex(store, { prefix: 'users/', id: ChatId })` and `append(\`${userId}/chats\`, id)`.
+    `createIndex` takes `Id extends string`.
+  - Members are `Effect.fn` with the spans `Collection.<method>` and `Index.<method>`.
+  - `modify(key, f: Option<A> → A)` creates a missing key. The round-trip fixture holds
+    `Schema.Option(Schema.DateTimeUtc)`, so a plain `JSON.stringify` codec would fail it.
+  - The tests share one store per `describe.each` row through `@effect/vitest`'s `layer`, with
+    distinct keys per test.
+  - `STORE_PATH` has no default in code: a missing one fails at startup, like
+    `QUEUE_SQLITE_PATH`. `feature.md › R33` said "default `../../.data/store`" and now says the
+    value is set in `.env.example` (*Amended in S3*); its acceptance row names no default.
+  - The local `.env` is untouched: add `STORE_PATH` from `.env.example` before S13's dev run.
 
 #### S4 — User and Attachment adapters on the store
 
@@ -196,7 +228,7 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
 
 - **Goal:** `ChatRepositoryKv` and `MessageRepositoryKv` with the two api-only indexes
   (`users/<id>/chats`, `chats/<id>/messages`), `selectActiveByChat` and the `deleteByChat`
-  cascade (R6, R7, R9, R10, R14, R33; D2).
+  cascade, which drops the message index with `Index.delete` (R6, R7, R9, R10, R14, R33; D2).
 - **Blocked by:** S1, S3.
 - **Files:** `infrastructure/chat/{chat.repository,message.repository,chat.repository.test,
   message.repository.test,index}.ts`; `infrastructure/package.json` (`exports`).

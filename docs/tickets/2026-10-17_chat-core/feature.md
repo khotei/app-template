@@ -255,8 +255,9 @@ replace one layer later.
 - **R33** — THE adapters SHALL store objects and rows through `KeyValueStore` with explicit index
   entries (chats per user, messages per chat; no endpoint lists a user's attachments, so they
   have no index): `layerMemory` in tests;
-  in dev `layerFileSystem` at `STORE_PATH` (default `../../.data/store`, gitignored), listed in
-  `.env.example`, so `apps/api` and `apps/worker` see one state.
+  in dev `layerFileSystem` at `STORE_PATH` (set to `../../.data/store` in `.env.example`,
+  gitignored), so `apps/api` and `apps/worker` see one state. *Amended in S3: no default in code;
+  a missing `STORE_PATH` fails at startup, like `QUEUE_SQLITE_PATH`.*
 - **R34** — `api` and `worker` SHALL log through `Effect.log` at the level from `LOG_LEVEL`, run
   their finalizers on SIGINT and SIGTERM, and run in dev with `--watch`; a worker interrupted during
   a job SHALL release it without counting the attempt (`effect-setup` R29, R35, R36).

@@ -77,8 +77,8 @@ the only file another aggregate's model imports; Biome's `noImportCycles` keeps 
 ### infrastructure
 
 ```
-+ infrastructure/shared/kv-collection.ts     createCollection · createIndex   (the deep module, D2)
-+ infrastructure/shared/store.ts             KeyValueStoreFileSystem (bundles StoreConfig)   (D4)
++ infrastructure/kv/kv-collection.ts         createCollection · createIndex   (the deep module, D2)
++ infrastructure/kv/kv-store.ts              KeyValueStoreFileSystem (bundles StoreConfig)   (D4)
 ~ infrastructure/shared/queue.client.ts      unchanged
 + infrastructure/user/user.repository.ts     UserRepositoryKv
 + infrastructure/chat/chat.repository.ts     ChatRepositoryKv
@@ -216,10 +216,12 @@ error channel: a store failure is a defect (D17).
 | `attachments/<attachmentId>` | `Attachment` | api |
 | `attachments/<attachmentId>/bytes` | `Uint8Array` | api |
 
-`createCollection(store, { prefix, schema })` gives `get / set / remove / modify` over
+`createCollection(store, { prefix, schema })` gives `get / set / modify / delete` over
 `prefix(store, …)` + `toSchemaStore`; `createIndex(store, { prefix, id })` gives
-`append / remove / list` on a JSON array, serialised through one per-process `Semaphore(1)` because
-`KeyValueStore.modify` is get-then-set and skips a missing key.
+`append / remove / list / delete` on a JSON array. Every operation of the module, collection and
+index alike, runs under one per-process `Semaphore(1)`: `KeyValueStore.modify` is get-then-set and
+skips a missing key, the file store writes non-atomically, and a plain `set` must not race a
+`modify` on the same key.
 
 ### Jobs (`packages/queue` definitions in `infrastructure/chat/chat.queue.ts`)
 
@@ -285,7 +287,7 @@ The cookie is `Secure` when `RuntimeConfig.nodeEnv === 'production'`. The snapsh
 | Seam | Catches | Misses |
 |---|---|---|
 | 1 `domain/*` schemas and pure rules | the active-message predicate, message input rule, binding rules, stage transitions, title constraint | persistence, ordering, HTTP |
-| 2 `infrastructure/shared/kv-collection` on `layerMemory` and on `layerFileSystem` in a temp dir | key encoding (`/` in keys), index append and remove, missing-key semantics, JSON codec | cross-process races |
+| 2 `infrastructure/kv/kv-collection` on `layerMemory` and on `layerFileSystem` in a temp dir | key encoding (`/` in keys), index append, remove and delete, missing-key semantics, JSON codec, lost updates under concurrent `modify` | cross-process races |
 | 3 repositories and `AttachmentStoreKv` through their ports on `layerMemory` | field mapping, index maintenance (`selectByUser`, `selectActiveByChat`, `deleteByChat` cascade, `deleteByIds`) | the real file store (covered for the module in 2) |
 | 4 `JobQueue.consume` in `packages/queue` on the memory store under `TestClock` | `AttemptInfo` values per attempt, `isLastAttempt` on the dead-letter attempt, release on interrupt | SQLite timing |
 | 5 `UserService`, `ChatService`, `AttachmentService` on memory adapters, `QueueClientMemory`, `TestClock`, `TestCrypto` | ensure/authenticate, send writes two messages and enqueues one or two jobs, `409` while a message is active, bound and foreign attachments, rename rules, delete cascade, title job only on the first message | HTTP statuses, cookies |
@@ -318,7 +320,15 @@ per the acceptance table, not by a test.
   transaction: a crash between the message's terminal write and the chat's leaves the chat busy
   forever, and R12 then refuses every send); a derived `Chat.status = idle | generating` (a second
   vocabulary whose `generating` also covered `queued` and `preparing`); `EXISTS … SELECT 1` as a
-  boolean port (the client needs the id and the stage).
+  boolean port (the client needs the id and the stage). *Amended in S3:* the module is
+  `infrastructure/kv/` (`kv-collection.ts`, with the file-store wiring beside it as `kv-store.ts`)
+  and is fully serialised per process: every collection and index operation, reads included,
+  takes the one `Semaphore(1)`. Its verbs split by what they touch: whole-key `get / set / modify /
+  delete`, index-member `append / remove / list`; `delete` matches `naming.md`, and the ports keep
+  its `select / insert / update / delete`. *Rejected:* `infrastructure/shared` (a grab bag beside
+  the queue wiring, with no entity barrel of its own); `packages/kv` (packages hold no row
+  abstraction of ours over `KeyValueStore`, and the module carries project policy: failures die,
+  D17).
 - **D3 — The assistant message is produced by `Ref` + `Schedule.spaced` snapshots with an
   explicit final write, and the handler learns the last attempt from `AttemptInfo`.** The worker
   folds `text-delta` parts into a `Ref` and raises a `dirty` flag; a racing
@@ -332,14 +342,15 @@ per the acceptance table, not by a test.
   pipeline (less explicit about the final write); writing `failed` on every attempt (the UI would
   flash `failed` between retries); a dead-letter callback in the store (none exists).
 - **D4 — Dev state is `KeyValueStore.layerFileSystem` at `STORE_PATH`, bundled with
-  `StoreConfig` in `infrastructure/shared/store.ts`; tests use `layerMemory`.** The two processes
-  need one state and the queue already shares `.data/queue.sqlite`. `layerFileSystem` stores keys
-  flat with `encodeURIComponent`, needs `FileSystem | Path` (both in `BunHttpServer.layer` and
+  `StoreConfig` in `infrastructure/kv/kv-store.ts`; tests use `layerMemory`.** The two processes
+  need one state and the queue already shares `.data/queue.sqlite`. `layerFileSystem` stores
+  keys flat with `encodeURIComponent`, needs `FileSystem | Path` (both in `BunHttpServer.layer` and
   `BunServices.layer`), and has no locking: last write wins. D2 keeps every key single-writer except
   `chats/<id>` (title race, see Risks). *Rejected:* `layerSql` over the queue's SQLite file (atomic
   writes and cross-process locking, but a SQL store in the "in-memory" ticket; it remains the
-  one-line switch if the file store proves flaky); `layerMemory` in dev (the worker would never
-  see the api's writes).
+  one-line switch if the file store proves flaky); `layerMemory` in dev (the worker would never see
+  the api's writes). *Amended in S3:* the wiring is `infrastructure/kv/kv-store.ts`, beside the
+  module (D2); `STORE_PATH` has no default in code and is set in `.env.example`.
 - **D5 — Limits are constants in `@app-template/api-contract`, and the declared media type is
   checked with a `Schema`.** `asMultipartStream(withLimits)` fixes its limits at schema
   definition, so they cannot be runtime tunables; the contract is browser-safe, so the UI later
@@ -424,7 +435,9 @@ per the acceptance table, not by a test.
   caller: the request fails with a `500` and the job attempt fails and retries. A typed
   `RepositoryError` on every port would travel through every service signature and handler to
   reach that same outcome. Not-found stays a value (`Option`), never an error. *Rejected:* a typed
-  error per port (noise in every signature for one shared outcome).
+  error per port (noise in every signature for one shared outcome). *Amended in S3:* for the KV
+  adapters the kv module (`infrastructure/kv/kv-collection.ts`) turns a `KeyValueStoreError` or
+  a `SchemaError` into a defect once, so no KV adapter repeats `Effect.orDie`.
 - **D18 — Message transitions are named for their target stage, check their source, and fail a
   typed `MessageStageInvalidError`.** The worker needs four moves, so there are four functions
   instead of one ordered `advance`; `prepareMessage` serves the first attempt, a retry and the

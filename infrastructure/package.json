@@ -4,6 +4,7 @@
   "type": "module",
   "exports": {
     "./shared": "./shared/index.ts",
+    "./kv": "./kv/index.ts",
     "./example": "./example/index.ts"
   },
   "imports": {
@@ -14,5 +15,9 @@
     "@app-template/domain": "workspace:*",
     "@app-template/queue": "workspace:*",
     "effect": "catalog:effect"
+  },
+  "devDependencies": {
+    "@effect/platform-bun": "catalog:effect",
+    "@effect/vitest": "catalog:effect"
   }
 }
