@@ -130,20 +130,24 @@ replace one layer later.
 ### Chat
 
 - **R5** — WHEN `POST /chats` succeeds, THE SYSTEM SHALL create an empty chat with a UUIDv7 id,
-  `title: none`, `status: idle`, `createdAt` and `updatedAt` from `Clock`, and return it.
+  `title: none`, no active message, `createdAt` and `updatedAt` from `Clock`, and return it.
 - **R6** — WHEN `GET /chats` succeeds, THE SYSTEM SHALL return the user's chats as summaries
-  (`id`, `title`, `status`, `createdAt`, `updatedAt`) sorted by `updatedAt` descending, without
+  (`id`, `title`, `activeMessage`, `createdAt`, `updatedAt`) sorted by `updatedAt` descending, without
   messages and without pagination.
 - **R7** — WHEN `GET /chats/:chatId` succeeds, THE SYSTEM SHALL return the chat with every message
-  in creation order, each message with its attachments' metadata.
+  in creation order, each message with its attachments' metadata, and its `activeMessage`.
 - **R8** — WHEN `PATCH /chats/:chatId` carries a `title` that is non-empty after trimming and at
-  most 120 characters, THE SYSTEM SHALL set it, bump `updatedAt` and return the chat; otherwise it
-  SHALL answer `400 RequestInvalid`.
+  most 120 characters, THE SYSTEM SHALL set it trimmed, bump `updatedAt` and return the chat;
+  otherwise it SHALL answer `400 RequestInvalid`. *Amended in plan review: the contract trims the
+  title; the domain's `ChatTitle` accepts only trimmed text.*
 - **R9** — WHEN `DELETE /chats/:chatId` succeeds, THE SYSTEM SHALL remove the chat, its messages
-  and their attachments and answer `204`, in any chat status. IF a job later finds its chat gone,
+  and their attachments and answer `204`, whether or not the chat has an active message. IF a job later finds its chat gone,
   THEN it SHALL end successfully without writing.
-- **R10** — THE SYSTEM SHALL derive `Chat.status`: `generating` while any assistant message of the
-  chat is `queued`, `preparing` or `generating`, otherwise `idle`. No stored field holds it.
+- **R10** — THE SYSTEM SHALL expose a chat's active message, the assistant message of the chat
+  that is `queued`, `preparing` or `generating`, as `activeMessage: { id, stage }`, or `null` when
+  there is none. The repository finds it; no stored chat field holds it. *Amended in plan review:
+  message stages are the one vocabulary; `Chat.status` is gone, because its `generating` meant
+  something other than the message stage of that name.*
 
 ### Message and the assistant's message
 
@@ -154,8 +158,8 @@ replace one layer later.
   assistant`, stage `queued`, empty text), enqueue the assistant-message job with an id derived
   from the assistant message's id, bump the chat's `updatedAt`, and answer `202` with both
   messages.
-- **R12** — IF the chat is `generating`, THEN `POST /chats/:chatId/messages` SHALL answer
-  `409 ChatGenerating` and store nothing.
+- **R12** — IF the chat has an active message, THEN `POST /chats/:chatId/messages` SHALL answer
+  `409 ChatBusy` and store nothing.
 - **R13** — IF an `attachmentId` is unknown, belongs to another user or is already bound, THEN
   THE SYSTEM SHALL answer `404 AttachmentNotFound` or `409 AttachmentBound` and store nothing.
 - **R14** — WHEN `GET /chats/:chatId/messages/:messageId` succeeds, THE SYSTEM SHALL return the
@@ -168,15 +172,19 @@ replace one layer later.
   `preparing` on taking the job; to `generating` when the model request is sent; write the text
   accumulated so far into the message at most once per snapshot interval (a tunable, default
   300 ms) while the model streams; and set `completed` with the final text when the stream ends.
-  Each write bumps the message's and the chat's `updatedAt`.
+  Each write bumps the message's `updatedAt`; the chat's `updatedAt` moves at send and at the
+  terminal stage only. *Amended in architecture: snapshots touch one record (D2).*
 - **R17** — WHEN the worker builds the model prompt, THE SYSTEM SHALL include every `completed`
   message of the chat in creation order as the provider's `user` and `assistant` messages, with
   each user attachment as a `Prompt.FilePart` read from the store; `failed` and non-terminal
   messages are skipped.
 - **R18** — IF an attempt of the assistant-message job fails, THEN THE SYSTEM SHALL retry it on the
   queue definition's `Schedule` with the message back at `preparing`; WHEN the attempts are
-  exhausted, THE SYSTEM SHALL set the message to `failed` with `error: ReplyFailed` carrying no
-  provider detail, and the chat becomes `idle`, so the user may send again.
+  exhausted, THE SYSTEM SHALL set the message to `failed` with `error: { reason: 'ReplyFailed',
+  message, cause }`, where `message` is a user-facing sentence for that reason, carrying no
+  provider detail, and `cause` keeps the failure's detail for operators and never appears in an
+  api response; the chat then has no active message, so the user may send again. *Amended in
+  plan review: the stored failure keeps its cause (D19).*
 - **R19** — WHEN the worker starts after jobs were queued while it was stopped, or a job's lock
   expires after a crash, THE SYSTEM SHALL process the job, restarting the generation and
   overwriting earlier snapshots.
@@ -190,8 +198,9 @@ replace one layer later.
   answer `201` with their metadata.
 - **R21** — IF a file exceeds the size limit, THEN THE SYSTEM SHALL answer `413 AttachmentTooLarge`;
   IF its type is not allowed, `415 AttachmentTypeUnsupported`; IF the body has no file or more than
-  5, `400 RequestInvalid`; in each case nothing is stored. The limits SHALL be tunables
-  (`Context.Reference`), not environment variables.
+  5, `400 RequestInvalid`; in each case nothing is stored. The limits SHALL be constants exported
+  by `@app-template/api-contract`, never environment variables. *Amended in architecture: the
+  multipart limits are fixed at schema definition, so they cannot be runtime tunables (D5).*
 - **R22** — WHEN `GET /attachments/:attachmentId` succeeds, THE SYSTEM SHALL return the metadata;
   WHEN `GET /attachments/:attachmentId/download` succeeds, THE SYSTEM SHALL return the bytes with
   the stored `Content-Type` and `Content-Disposition: inline; filename="…"`, bound or not.
@@ -230,8 +239,9 @@ replace one layer later.
   transport and unexpected-response errors. Multipart endpoints SHALL take a `FormData`. The
   package SHALL import only `effect` and `@app-template/api-contract`.
 - **R30** — `apps/web` client code SHALL call the api only through `@app-template/api-client`, SHALL
-  NOT import `effect` or `@effect/*`, and SHALL keep its health panel working; `apps/web/src/main.ts`
-  SHALL stop importing `effect` so the Biome override holds.
+  NOT import `effect` or `@effect/*`, and SHALL keep its health panel working. *Amended in
+  architecture: the server entry `main.ts` may import `effect`; its Biome override already allows
+  it, and the earlier claim to the contrary was wrong.*
 
 ### Jobs, runtime and dev modes
 
@@ -242,7 +252,8 @@ replace one layer later.
 - **R32** — Job messages SHALL carry ids and the fields the worker cannot read from the shared
   store, and nothing else.
 - **R33** — THE adapters SHALL store objects and rows through `KeyValueStore` with explicit index
-  entries (chats per user, attachments per user, messages per chat): `layerMemory` in tests;
+  entries (chats per user, messages per chat; no endpoint lists a user's attachments, so they
+  have no index): `layerMemory` in tests;
   in dev `layerFileSystem` at `STORE_PATH` (default `../../.data/store`, gitignored), listed in
   `.env.example`, so `apps/api` and `apps/worker` see one state.
 - **R34** — `api` and `worker` SHALL log through `Effect.log` at the level from `LOG_LEVEL`, run
@@ -257,9 +268,10 @@ replace one layer later.
 - **R36** — THE `example` slice SHALL be removed from every layer and app, together with
   `packages/db`, `packages/storage` and `infrastructure/shared/outbox.repository.ts`, their
   workspace entries, references and Biome mentions; `make check` passes after.
-- **R37** — WHEN the first slice (`domain/chat`) is committed, THE SYSTEM SHALL include a first
+- **R37** — WHEN the domain layer of the chat slice is complete, THE SYSTEM SHALL include a first
   `.claude/rules/effect.md` (`paths: **/*.ts`, ≤ ~80 lines) drawn from that code; `claude-toolkit`
-  (2) polishes it.
+  (2) polishes it. *Amended in plan: the domain lands in two steps (`chat`, then `user` and
+  `attachment`), and the rule is drawn from all three folders in the second.*
 - **R38** — `docs/knowledge/architecture.md › Add a new entity` and its "Where things live" table
   SHALL be rewritten on the `chat` slice, in the commits that change what they describe; the
   roadmap entry's status points to this ticket.
@@ -270,12 +282,12 @@ replace one layer later.
 |---|---|
 | R1–R3 | `curl -i -X POST /users` returns a user and a `Set-Cookie` with `HttpOnly; SameSite=Lax; Max-Age=31536000`, no `Secure` in dev; a second call with the cookie returns the same `id`; `GET /chats` without the cookie is `401 UserUnknown`; the store holds a SHA-256, not the secret (adapter test). |
 | R4 | A chat id created under user A fetched with user B's cookie is `404 ChatNotFound`; the same for a message and an attachment. |
-| R5–R7 | Create two chats, send a message in the first: `GET /chats` lists the first one first with `title: null`, `status: generating`, no messages; `GET /chats/:id` returns the messages in order with attachment metadata. |
-| R8–R9 | `PATCH` with `"  "` or 121 characters is `400`; with `"Trip"` the summary shows it. `DELETE` during `generating` is `204`, the job ends with a log line and no write (worker test with a chat removed between enqueue and take). |
-| R10 | A service test: a chat with a `queued` assistant message reads `generating`; after `completed` it reads `idle`; the stored chat has no status field. |
-| R11–R14 | Send returns `202` with a `completed` user message and a `queued` assistant message; a second send during `generating` is `409 ChatGenerating`; an unknown attachment id is `404`, a bound one `409`; polling the assistant message under `TestClock` shows a growing `text` then `completed`. |
+| R5–R7 | Create two chats, send a message in the first: `GET /chats` lists the first one first with `title: null`, `activeMessage: { id, stage: 'queued' }`, no messages; `GET /chats/:id` returns the messages in order with attachment metadata. |
+| R8–R9 | `PATCH` with `"  "` or 121 characters is `400`; with `"Trip"` the summary shows it. `DELETE` while a message is active is `204`, the job ends with a log line and no write (worker test with a chat removed between enqueue and take). |
+| R10 | A repository and a service test: a chat with a `queued` assistant message returns it as `activeMessage`; after `completed` it is `null`; the stored chat has no such field. |
+| R11–R14 | Send returns `202` with a `completed` user message and a `queued` assistant message; a second send while the assistant message is active is `409 ChatBusy`; an unknown attachment id is `404`, a bound one `409`; polling the assistant message under `TestClock` shows a growing `text` then `completed`. |
 | R15 | The `Message` schema test; `git grep -n "'system'\|'tool'" -- domain application` finds nothing. |
-| R16–R19 | A worker test with a fake `LanguageModel` that emits three deltas under `TestClock`: stages `preparing` → `generating` → `completed`, at most one write per snapshot interval, `updatedAt` bumped; the recorded prompt holds the history with a `file` part per attachment and no `failed` message; a failing model goes back to `preparing` per attempt and ends `failed` with `ReplyFailed`; with the worker stopped, three sends queue three jobs that run on start. |
+| R16–R19 | A worker test with a fake `LanguageModel` that emits three deltas under `TestClock`: stages `preparing` → `generating` → `completed`, at most one write per snapshot interval, `updatedAt` bumped; the recorded prompt holds the history with a `file` part per attachment and no `failed` message; a failing model goes back to `preparing` per attempt and ends `failed` with `{ reason: 'ReplyFailed', message, cause }`, no provider text in `message`, and no `cause` in the api's response; with the worker stopped, three sends queue three jobs that run on start. |
 | R20–R23 | Uploading two PNGs returns two unbound attachments; an 11 MB file is `413`, a `.zip` is `415`, six files `400`, and nothing is stored (adapter spy); `GET …/download` returns the bytes with `image/png` and `inline`; `DELETE` on an unbound one is `204`, on a bound one `409`. |
 | R24–R25 | After the first send, the title job is queued with an id derived from the chat id (a second send queues no second title job); the worker sets a title ≤ 120 chars; a `PATCH` made before the job completes wins; a model that always fails leaves `title: null` and a dead-letter log. |
 | R26–R27 | `packages/api-contract` imports only `effect`; editing an endpoint without regenerating fails `make check`; `openapi.json` documents the cookie security scheme and the 400; `GET /docs` serves Scalar. |

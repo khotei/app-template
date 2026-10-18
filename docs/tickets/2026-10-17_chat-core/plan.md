@@ -1,0 +1,469 @@
+# Chat core — plan
+
+> Ticket: `2026-10-17_chat-core` · Requirements: [feature.md](./feature.md) · Design: [architecture.md](./architecture.md)
+
+## How to run this plan
+
+- **Branch and commits.** Work happens on `feat/chat-core`, one commit per step through
+  `/ticket-implement`, made only after the user's OK, with the scope `chat-core`. Before
+  committing, set the step's `Status:` to `done`. The ticket's documents (`architecture.md`, this
+  plan, the amended `feature.md`) are committed together as `:memo: docs(chat-core)` when the
+  plan is approved, before S1.
+- **Green at every commit.** Each step leaves `make check` green; `pre-commit` runs the patched
+  `tsc -b` and `--no-verify` is banned. Nothing is stubbed to get there: a step ships only what it
+  tests, and the api grows one contract group at a time because `HttpApiBuilder.layer` needs
+  every declared group implemented.
+- **Size.** A step changes ≤ ~400 lines, counted without `bun.lock` and the generated
+  `packages/api-contract/openapi.json`. A step that grows past this splits into `Sna`, `Snb`.
+- **Effect APIs are verified against `repos/effect`** (the vendored `4.0.5`), never against
+  memory: `http-api`, `persistence` and `ai` are unstable modules. Read `repos/effect/LLMS.md`
+  before the first Effect file of a session.
+- **Tests only at the Seams** of `architecture.md` (1–8). A step whose behaviour is observed at a
+  later step's seam says `config only` and names that seam. Dev-mode behaviour (two processes on
+  `.data/store`, `--watch`, SIGTERM) is checked by hand in S16, per `feature.md › Acceptance`.
+- **Deviations** are recorded in the step's findings, in `architecture.md › Decisions` when they
+  are decisions, and in `feature.md` when they change what a requirement asks.
+- **Open checks V1–V3** (`architecture.md`) are settled in the step that names them; the outcome
+  goes into that step's findings.
+- **Ticket ids** (`R…`, `D…`) stay out of code, rules and `docs/knowledge/` (`make ids`).
+
+## Dependency graph
+
+```mermaid
+graph LR
+  S1[S1 domain/chat] --> S2[S2 domain/user + attachment + effect.md]
+  S3[S3 kv-collection + store]
+  S2 --> S4[S4 user + attachment adapters]
+  S3 --> S4
+  S1 --> S5[S5 chat + message adapters]
+  S3 --> S5
+  S1 --> S6[S6 queue AttemptInfo + chat queues]
+  S4 --> S7[S7 UserService + AttachmentService]
+  S4 --> S8[S8 assistant-message job]
+  S5 --> S8
+  S6 --> S8
+  S8 --> S9[S9 chat-title job]
+  S9 --> S10[S10 ChatService]
+  S11[S11 api-contract: health + users] --> S12[S12 api-client + web]
+  S3 --> S13[S13 apps/api: health + users]
+  S7 --> S13
+  S12 --> S13
+  S10 --> S14[S14 chats over HTTP]
+  S13 --> S14
+  S14 --> S15[S15 attachments over HTTP]
+  S14 --> S16[S16 apps/worker + dev run]
+  S9 --> S16
+  S15 --> S17[S17 cleanup + knowledge docs]
+  S16 --> S17
+```
+
+Steps with no path between them are independent: S1, S3, S6 and S11 can start at once.
+
+## Steps
+
+### Domain
+
+#### S1 — `domain/chat`: Chat, Message and the pure rules
+
+- **Goal:** the chat aggregate as schemas, errors, ports and pure operations: `ChatId`,
+  `ChatTitle`, `Chat`, `MessageId`, `MessageAuthor`, `MessageStage`, `MessageFailure`,
+  `Message`; `ChatNotFoundError`, `ChatBusyError`, `MessageNotFoundError`,
+  `MessageInputInvalidError`; `ChatRepository`, `MessageRepository` (with
+  `selectActiveByChat`); `buildChat`, `buildUserMessage`, `buildAssistantMessage`,
+  `isActiveMessage`, `ensureMessageInput`, `ensureChatAcceptsMessage`, `prepareMessage`,
+  `generateMessage`, `completeMessage`, `failMessage` with `MessageStageInvalidError`; `UserId` and `AttachmentId`, each alone in
+  its aggregate's model file; the transition verbs and `update` added to `naming.md`
+  (R5, R8, R10, R11, R12, R15, R16, R18, R19, R35; D1, D2, D3, D17, D18, D19).
+- **Blocked by:** none.
+- **Files:** `domain/chat/{chat.model,chat.model.test,chat.error,chat.service,chat.service.test,
+  index}.ts`; `domain/user/{user.model,index}.ts` and `domain/attachment/{attachment.model,
+  index}.ts` (ids only); `domain/package.json` (`exports` `./chat`, `./user`, `./attachment`);
+  `.claude/rules/naming.md`.
+- **Test first:** Seam 1 — `isActiveMessage` holds for an assistant message in `queued |
+  preparing | generating` and not for `completed`, `failed` or a user message;
+  `ensureChatAcceptsMessage` passes `none`, a user message and a terminal assistant message,
+  and fails `ChatBusyError` with the message's `chatId` for an active one;
+  `ensureMessageInput` rejects blank text without attachments and accepts an attachment alone;
+  each transition succeeds from its allowed stages and fails `MessageStageInvalidError { id,
+  from, to }` from every other stage and for a user message; `prepareMessage` clears text and
+  error; `generateMessage` refuses a user message at `preparing`; `failMessage` yields `{
+  reason: 'ReplyFailed', message, cause }` with a fixed user-facing sentence that does not contain
+  the cause; in `chat.model.test.ts`,
+  `ChatTitle` rejects `"  "`, `" Trip"` and 121 characters, and decoding a `Message` whose author
+  is neither `user` nor `assistant` fails.
+- **Verify:** `make check`; `git grep --untracked -nE "Date.now|new Date\(|randomUUID|'system'|'tool'"
+  -- 'domain/**/*.ts'` finds nothing.
+- **Status:** todo
+
+#### S2 — `domain/user`, `domain/attachment` and the first `effect.md`
+
+- **Goal:** the two remaining aggregates — `UserId`, `User`, `Credential`,
+  `UserUnknownError`, `UserRepository`, `buildUser`; `AttachmentId`, `Attachment`,
+  `AttachmentNotFoundError`, `AttachmentBoundError`, `AttachmentRepository`,
+  `AttachmentStore`, `buildAttachment`, `ensureBindable` — and `.claude/rules/effect.md` drawn
+  from the three domain folders (R1, R4, R13, R20, R23, R37; D1, D7, D11).
+- **Blocked by:** S1.
+- **Files:** `domain/user/{user.model,user.error,user.service,user.service.test,index}.ts`;
+  `domain/attachment/{attachment.model,attachment.error,attachment.service,
+  attachment.service.test,index}.ts`; `domain/package.json` (`exports`); `.claude/rules/effect.md`
+  (`paths: **/*.ts`, ≤ ~80 lines: `Schema.Class` models, branded ids, `Schema.TaggedError`,
+  `Context.Service` ports without layers, `Option` over `null`, time and ids as input, `static
+  layer` when one implementation exists, services only when something varies, no ticket ids).
+- **Test first:** Seam 1 — `ensureBindable` fails `AttachmentNotFoundError` for a missing id and
+  for another user's attachment, `AttachmentBoundError` for a bound one, and passes a user's
+  unbound set; `buildAttachment` starts with `messageId: none`; `Credential` is `{ kind:
+  'secret', hash }`.
+- **Verify:** `make check`; `wc -l .claude/rules/effect.md` ≤ ~80; `make ids` passes with the
+  new rule.
+- **Status:** todo
+
+### Infrastructure
+
+#### S3 — `kv-collection`, the file store and `StoreConfig`
+
+- **Goal:** the deep module every adapter builds on — `createCollection(store, { prefix,
+  schema })` with `get / set / remove / modify` and `createIndex(store, { prefix, id })` with
+  `append / remove / list` behind one per-process `Semaphore(1)` — plus
+  `KeyValueStoreFileSystem` bundling `StoreConfig { path }` from `STORE_PATH` (R33; D2, D4).
+- **Blocked by:** none.
+- **Files:** `infrastructure/shared/{kv-collection,kv-collection.test,store}.ts`;
+  `infrastructure/shared/index.ts`; `infrastructure/package.json` (`@effect/platform-bun` and
+  `@effect/vitest` as `devDependencies`, for the file-system test); `packages/config/config.ts`
+  (`StoreConfig`) and `config.test.ts`; `.env.example` (`STORE_PATH="../../.data/store"`);
+  `.gitignore` (the `.data` comment now covers the store).
+- **Test first:** Seam 2, on `KeyValueStore.layerMemory` and on `layerFileSystem` in a temp
+  directory — a key with `/` round-trips; `modify` on a missing key creates it; `append` twice
+  then `remove` once lists one id in insertion order; `list` of an unknown index is `[]`; a value
+  that fails the schema surfaces as a decode error, not `none`; two concurrent `append`s on one
+  index lose nothing.
+- **Verify:** `make check`; `STORE_PATH` is read only through `StoreConfig`; `mv .env .env.bak &&
+  make test` passes.
+- **Status:** todo
+
+#### S4 — User and Attachment adapters on the store
+
+- **Goal:** `UserRepositoryKv`, `AttachmentRepositoryKv` and `AttachmentStoreKv` implementing
+  their ports on the collections of S3, with the key layout of `architecture.md › Store layout`
+  (R1, R20, R22, R23, R33; D2, D7, D11).
+- **Blocked by:** S2, S3.
+- **Files:** `infrastructure/user/{user.repository,user.repository.test,index}.ts`;
+  `infrastructure/attachment/{attachment.repository,attachment.storage,
+  attachment.repository.test,attachment.storage.test,index}.ts`; `infrastructure/package.json`
+  (`exports`).
+- **Test first:** Seam 3, on `layerMemory` — `insert(user, credential)` then
+  `selectByCredential` finds the user and the store holds `credentials/secret/<hex>` with no
+  secret; `selectByIds` keeps the order asked and drops unknown ids; `update` rebinds
+  `messageId`; `deleteByIds` removes rows and `AttachmentStoreKv.remove` the bytes; `get` of
+  unknown bytes is `none`.
+- **Verify:** `make check`.
+- **Status:** todo
+
+#### S5 — Chat and Message adapters on the store
+
+- **Goal:** `ChatRepositoryKv` and `MessageRepositoryKv` with the two api-only indexes
+  (`users/<id>/chats`, `chats/<id>/messages`), `selectActiveByChat` and the `deleteByChat`
+  cascade (R6, R7, R9, R10, R14, R33; D2).
+- **Blocked by:** S1, S3.
+- **Files:** `infrastructure/chat/{chat.repository,message.repository,chat.repository.test,
+  message.repository.test,index}.ts`; `infrastructure/package.json` (`exports`).
+- **Test first:** Seam 3 — `selectByUser` lists only that user's chats; `delete` removes the
+  chat and its index entry; `selectByChat` returns messages in insertion order under one
+  `TestClock` millisecond (V2: never by id order); `selectActiveByChat` returns a `queued`
+  assistant message and `none` once it is `completed` or when the last message is the user's;
+  `deleteByChat` removes every message and the index; `update` of a message never touches the
+  index.
+- **Verify:** `make check`.
+- **Status:** todo
+
+#### S6 — `AttemptInfo` in `packages/queue` and the two chat queues
+
+- **Goal:** `JobQueue.consume` hands `{ attempt, maxAttempts, isLastAttempt }` to its handler,
+  computed from the same condition the loop uses to dead-letter; `infrastructure/chat/
+  chat.queue.ts` defines `assistantMessageQueue` (`GenerateAssistantMessage { chatId,
+  messageId }`) and `chatTitleQueue` (`GenerateChatTitle { chatId, text }`) with `maxAttempts`
+  and a `Schedule` (R18, R19, R31, R32; D3).
+- **Blocked by:** S1.
+- **Files:** `packages/queue/{queue,queue.test}.ts`; `infrastructure/chat/chat.queue.ts`,
+  `infrastructure/chat/index.ts`.
+- **Test first:** Seam 4, on the memory store under `TestClock` — a handler that fails on every
+  attempt sees `attempt` 1…`maxAttempts`, `isLastAttempt` only on the last, and the loop keeps
+  running; an interrupted handler releases the message at the same attempt.
+- **Verify:** `make check`; the existing queue tests still pass unchanged.
+- **Status:** todo
+
+### Application
+
+#### S7 — `UserService` and `AttachmentService`
+
+- **Goal:** `UserService { ensure, authenticate }` issuing a 32-byte base64url secret, storing
+  its hex SHA-256 and recognising it back; `AttachmentService { upload, get, download, delete }`
+  over the two ports, refusing to delete a bound attachment (R1, R2, R4, R20, R22, R23, R35;
+  D7, D11).
+- **Blocked by:** S4.
+- **Files:** `application/user/{user.service,user.service.test,index}.ts`;
+  `application/attachment/{attachment.service,attachment.service.test,index}.ts`;
+  `application/package.json` (`exports`).
+- **Test first:** Seam 5, on memory adapters with `TestClock` and `TestCrypto.layer(seed)` —
+  `ensure(none)` creates a user and a secret; `ensure(some(secret))` returns the same user and no
+  second record; `authenticate` of an unknown secret is `UserUnknownError`; `upload` stores bytes
+  and metadata with `messageId: none`; `get`/`download` of another user's id is
+  `AttachmentNotFoundError`; `delete` of a bound one is `AttachmentBoundError` and leaves bytes.
+- **Verify:** `make check`; ids in the test are the seeded UUIDv7s (V2 noted: no order by id).
+- **Status:** todo
+
+#### S8 — The assistant-message job
+
+- **Goal:** `infrastructure/chat/chat.llm.ts` (`buildChatPrompt`, `streamAssistantText`) and
+  `application/chat/assistant-message.job.ts`: `AssistantMessageJob { enqueue }`,
+  `AssistantMessageJob.worker`, `SnapshotInterval` (`Context.Reference<Duration>`, 300 ms);
+  stages `preparing → generating → completed`, `Ref` + `Schedule.spaced` snapshots with an
+  explicit final write, `failed` only on the last attempt, a silent exit when the chat is gone
+  (R9, R16, R17, R18, R19, R31, R32; D3, D12, D14).
+- **Blocked by:** S4, S5, S6.
+- **Files:** `infrastructure/chat/chat.llm.ts` and `index.ts`;
+  `application/chat/{assistant-message.job,assistant-message.job.test,index}.ts`;
+  `application/package.json` (`exports`; `@app-template/queue`, `@app-template/llm` as needed).
+- **Test first:** Seam 6, with a fake `LanguageModel` that records its prompt and emits three
+  deltas under `TestClock`, and `QueueClientMemory` — the message passes `preparing` then
+  `generating`; at most one write per `SnapshotInterval` while deltas arrive; the final write is
+  `completed` with the whole text and bumps the chat's `updatedAt`; the recorded prompt holds
+  every `completed` message in order as `user`/`assistant` with one `file` part per attachment
+  and skips a `failed` one; a model that fails on every attempt sets the message back to
+  `preparing` on each retry and `failed` with `{ reason: 'ReplyFailed', message, cause }` only on
+  the last, the model's error in `cause` (`Cause.pretty`) and none of it in `message`; a chat
+  deleted between enqueue and take ends the job with a log line and no write; a message found
+  already terminal on take (`prepareMessage` fails `MessageStageInvalidError`) ends the job
+  without a write.
+- **Verify:** `make check`; `git grep -n "'system'\|'tool'" -- domain application` finds
+  nothing.
+- **Status:** todo
+
+#### S9 — The chat-title job and the dev stub
+
+- **Goal:** `generateChatTitle` in `chat.llm.ts`; `application/chat/chat-title.job.ts` with
+  `ChatTitleJob { enqueue }` and `ChatTitleJob.worker`, writing a title ≤ 120 characters only
+  when the chat's title is still `none`, re-read right before the write; `LanguageModelStub`
+  streams about twenty words at 100 ms each and answers `generateText` with a short title
+  (R24, R25, R31, R32; D12, D15).
+- **Blocked by:** S8.
+- **Files:** `infrastructure/chat/chat.llm.ts`; `application/chat/{chat-title.job,
+  chat-title.job.test,index}.ts`; `packages/llm/client.ts`.
+- **Test first:** Seam 6 — the worker sets a title from the fake model's text, truncated and
+  trimmed to the `ChatTitle` constraint; a chat renamed before the job runs keeps the user's
+  title; a chat deleted meanwhile ends the job without a write; a model failing on every attempt
+  leaves `title: none` and the dead-letter log line.
+- **Verify:** `make check`.
+- **Status:** todo
+
+#### S10 — `ChatService`
+
+- **Goal:** `ChatService { create, list, get, rename, delete, send, getMessage }`: `send`
+  validates the input, binds the attachments, writes the user and the `queued` assistant
+  message, enqueues `AssistantMessageJob` and, for the first message, `ChatTitleJob`; `list`
+  sorts by `updatedAt` descending, each chat with its active message; `delete` cascades messages and
+  attachments; every foreign or unknown id is the matching `*NotFoundError` (R4–R14, R24, R35;
+  D1, D2, D12).
+- **Blocked by:** S9 (and S4, S5 through it).
+- **Files:** `application/chat/{chat.service,chat.service.test,index}.ts`.
+- **Test first:** Seam 5, on memory adapters, `QueueClientMemory`, `TestClock`, `TestCrypto` —
+  `send` stores two messages and bumps `updatedAt`; the first `send` enqueues both jobs, the
+  second only the assistant one (title job id derived from the chat id, deduplicated); `send`
+  while a message is active fails `ChatBusyError` and stores nothing; an unknown, foreign or bound
+  attachment id fails and stores nothing; `rename` rejects a blank title; `delete` while a
+  message is active removes chat, messages and attachments; `list` of two chats puts the last
+  sent first with its `queued` active message; `getMessage` of another user's chat is `ChatNotFoundError`.
+- **Verify:** `make check`.
+- **Status:** todo
+
+### Contract, client and api
+
+#### S11 — `@app-template/api-contract` with `health` and `users`
+
+- **Goal:** the new workspace: `limits.ts`, `errors.ts` (every `Schema.TaggedError` with its
+  status, `RequestInvalid` with `issues`), `security.ts` (`CurrentUser`, `Auth` as
+  `HttpApiSecurity.apiKey` in cookie `user_secret`, `SchemaErrors`), `schemas.ts` (`User`),
+  `health.ts`, `users.ts`, `index.ts` (`Api`), `openapi.ts` writing `openapi.json`; `make
+  openapi` and the drift check in `make check` and CI (R26, R27; D5, D6, D16).
+- **Blocked by:** none.
+- **Files:** `packages/api-contract/{package.json,tsconfig.json,index.ts,limits.ts,errors.ts,
+  security.ts,schemas.ts,health.ts,users.ts,openapi.ts,openapi.json}`; root `package.json`
+  (nothing: `packages/*` is already a workspace glob), `tsconfig.json` (reference), `Makefile`
+  (`openapi` target; `check` runs it then `git diff --exit-code packages/api-contract/
+  openapi.json`), `.github/workflows/ci.yml` (same check in the static job).
+- **Test first:** Seam 8 — add a field to `User` in `schemas.ts` without regenerating and see
+  `make check` fail on the diff; then regenerate.
+- **Verify:** `make check`; `openapi.json` documents the `cookie` security scheme on nothing yet
+  and the `400 RequestInvalid` on `POST /users`; `grep -rn "from '" packages/api-contract/*.ts`
+  shows only `effect` imports.
+- **Status:** todo
+
+#### S12 — `@app-template/api-client` facade and the web health panel
+
+- **Goal:** `createApiClient(baseUrl, options?)` as one mapped type over `HttpApiClient` with
+  `FetchHttpClient`, every endpoint returning `Promise<Result>` that never rejects, `error` the
+  `_tag` union of the endpoint's declared errors plus `RequestInvalid`, `UserUnknown`,
+  `HttpClientError` and `SchemaError`; `options.fetch` injects a `fetch` through
+  `FetchHttpClient.Fetch` so tests and non-browser callers can carry a cookie (the browser never
+  passes it); the health panel moves to `features/health/` and renders from the `Result` (R29,
+  R30; D13).
+- **Blocked by:** S11.
+- **Files:** `packages/api-client/{index,package.json}` (`effect`, `@app-template/api-contract`);
+  `apps/web/src/features/health/health-panel.ts` (moved from `features/example/`),
+  `apps/web/src/app/main.ts`, `apps/web/src/shared/api.ts`.
+- **Test first:** `config only` — the facade is observed at Seam 7 from S13 on. A type-level
+  check lives in the package: a `switch` over `error._tag` with a missing case fails `make
+  typecheck`.
+- **Verify:** `make check`; `make dev-api` + `make dev-web` show `API status: ok` at
+  `localhost:3001`; `bun build --minify --target=browser packages/api-client/index.ts | gzip |
+  wc -c` recorded in findings (expected near 54 KB).
+- **Status:** todo
+
+#### S13 — `apps/api` on `HttpApiBuilder`: health and users
+
+- **Goal:** the api process on `HttpApiBuilder.layer(Api)`, `HttpRouter.serve`,
+  `BunHttpServer.layer`, `BunRuntime.runMain`, with `AuthLive` (cookie → `CurrentUser` through
+  `UserService.authenticate`), `SchemaErrorsLive` (`layerSchemaErrorTransform` →
+  `RequestInvalid` with `issues`), Scalar at `/docs`, the file store in dev and the health and
+  users handlers (R1, R2, R27, R28, R34, R35; D4, D6, D9).
+- **Blocked by:** S3, S7, S12.
+- **Files:** `apps/api/src/{main,layer,current-user,health.handler,users.handler,http.test}.ts`;
+  `apps/api/src/http.ts` deleted; `apps/api/package.json` (`@effect/platform-bun`,
+  `@app-template/api-contract`, `@app-template/queue`; `@app-template/api-client` and
+  `@effect/vitest` as `devDependencies`).
+- **Test first:** Seam 7, on `BunHttpServer.layerTest`, `BunServices.layer`,
+  `KeyValueStore.layerMemory`, `QueueClientMemory`, with `HttpApiClient` and
+  `HttpClient.withCookiesRef` — `GET /health` is `{ status: 'ok' }`; `POST /users` is `201` with
+  `Set-Cookie: user_secret=…; HttpOnly; SameSite=Lax; Max-Age=31536000` and no `Secure`; a
+  second call with the jar returns the same `id`; a forged cookie gets a new user; through the
+  facade: `users.ensure()` resolves `{ ok: true }` and a stopped server resolves `{ ok: false,
+  error: { _tag: 'HttpClientError' } }` without rejecting.
+- **Verify:** `make check`; `make dev-api` logs through `Effect.log`, serves `/docs` and stops on
+  SIGTERM with its finalizers; V1 — with `make dev-web` running, `curl -c jar -b jar -X POST
+  localhost:3001/api/users` twice returns one `id`; `.data/store/` appears and is ignored by git.
+- **Status:** todo
+
+#### S14 — Chats over HTTP
+
+- **Goal:** the `chats` group in the contract (`Chat`, `ChatSummary`, `ChatDetail`, `Message`
+  DTOs; `create`, `list`, `get`, `rename`, `delete`, `send` as `202`, `getMessage`) under `Auth`,
+  its handler mapping domain errors to the contract's, and `openapi.json` regenerated
+  (R3–R14, R26, R28, R29; D6, D10).
+- **Blocked by:** S10, S13.
+- **Files:** `packages/api-contract/{chats,schemas,index}.ts`, `openapi.json`;
+  `apps/api/src/{chats.handler,layer,http.test}.ts`.
+- **Test first:** Seam 7 — `GET /chats` without a cookie is `401 UserUnknown`; a chat of user A
+  under user B's cookie is `404 ChatNotFound`, the same for a message; `POST /chats/:id/messages`
+  is `202` with a `completed` user message and a `queued` assistant message, a second send `409
+  ChatBusy`; `PATCH` with `" Trip "` stores `"Trip"`, with `"  "` is `400 RequestInvalid` whose `issues` carry `path` and
+  `message` (V3: a bad `attachmentIds[2]` reports `['attachmentIds', 2]`); `GET /chats` lists the
+  last sent chat first with `activeMessage: { id, stage: 'queued' }` and `title: null`; `DELETE` is `204`; through
+  the facade an unknown chat id resolves to `{ ok: false, error: { _tag: 'ChatNotFound' } }` and a
+  blank title to `RequestInvalid`; a `failed` message's response carries `reason` and `message`
+  and no `cause`.
+- **Verify:** `make check`; `openapi.json` lists every error with its status on each route and
+  the `cookie` scheme on the group.
+- **Status:** todo
+
+#### S15 — Attachments over HTTP
+
+- **Goal:** the `attachments` group (`upload` as `asMultipartStream` with the contract's limits,
+  `get`, `download` as `handleRaw` with the stored `Content-Type` and `Content-Disposition`,
+  `delete`), its handler buffering each part and mapping `MultipartError`s before anything is
+  stored, and `openapi.json` regenerated (R13, R20–R23, R26, R29; D5, D8, D10).
+- **Blocked by:** S14.
+- **Files:** `packages/api-contract/{attachments,schemas,index}.ts`, `openapi.json`;
+  `apps/api/src/{attachments.handler,layer,http.test}.ts`.
+- **Test first:** Seam 7 — two 1 MiB PNGs give `201` with two unbound attachments; an 11 MiB
+  file is `413 AttachmentTooLarge`, a `.zip` `415 AttachmentTypeUnsupported`, six files `400
+  RequestInvalid`, and in each case the store holds nothing new; `GET …/download` returns the
+  bytes with `image/png` and `inline; filename="…"`; `send` with the two ids binds them and the
+  `ChatDetail` shows their metadata; a second `send` with a bound id is `409 AttachmentBound`,
+  a foreign id `404`; `DELETE` on an unbound one is `204`, on a bound one `409`; the facade's
+  `attachments.upload(formData)` resolves `{ ok: true }`.
+- **Verify:** `make check`; `openapi.json` documents `multipart/form-data` on `POST
+  /attachments` and `application/octet-stream` on `download`.
+- **Status:** todo
+
+### Worker, cleanup and docs
+
+#### S16 — `apps/worker` and the two-process dev run
+
+- **Goal:** the worker launches `AssistantMessageJob.worker` and `ChatTitleJob.worker` on the
+  SQLite queue, the file store and `LanguageModelStub`, through `BunRuntime.runMain`; no job
+  logic in the app (R19, R31, R33, R34, R35).
+- **Blocked by:** S9, S14.
+- **Files:** `apps/worker/src/{main,layer}.ts`; `apps/worker/package.json`
+  (`@effect/platform-bun`, `@app-template/domain`, `@app-template/llm`, `@app-template/queue`).
+- **Test first:** `config only` — the jobs are tested at Seam 6 (S8, S9); the process is checked
+  by hand.
+- **Verify:** `make check`; with `make dev-api` and `make dev-worker` running: a `send` is
+  followed by a growing `text` on polls and then `completed`, and the chat gains a title; three
+  sends made while the worker is stopped run on its start; SIGTERM during a generation leaves the
+  message at the same attempt for the restarted worker; `wc -l apps/worker/src/*.ts` stays
+  small; the Findings record what was observed.
+- **Status:** todo
+
+#### S17 — Remove the `example` slice and rewrite the knowledge docs
+
+- **Goal:** `example` gone from every layer and app together with `packages/db`,
+  `packages/storage` and `outbox.repository.ts`; `docs/knowledge/architecture.md › Where things
+  live` and `Add a new entity` rewritten on the `chat` slice; `naming.md` gains the `.job` role
+  and notes that prompt functions live in `.llm`; the `CLAUDE.md` lines the rewrite makes
+  redundant are trimmed; roadmap entries 6 and 7 re-read against the worker-job decision
+  (R36, R38; D14).
+- **Blocked by:** S15, S16.
+- **Files:** `domain/example/`, `infrastructure/example/`, `application/example/`,
+  `infrastructure/shared/outbox.repository.ts`, `packages/db/`, `packages/storage/` deleted;
+  `{domain,infrastructure,application}/package.json` (`exports`), `infrastructure/shared/
+  index.ts`, root `tsconfig.json`; `docs/knowledge/architecture.md`, `docs/knowledge/roadmap.md`
+  (entries 6 and 7 notes); `.claude/rules/naming.md`; `domain/CLAUDE.md` (`buildExample` →
+  `buildChat`), `infrastructure/CLAUDE.md`, `application/CLAUDE.md`, `packages/CLAUDE.md`
+  (`db`, `storage` mentions if any).
+- **Test first:** `config only` — deletions and docs; `make check` is the gate.
+- **Verify:** `make check`; `git grep -i example -- ':!docs/tickets' ':!repos'` finds no code;
+  `bun install` succeeds without `packages/db` and `packages/storage`; `wc -l */CLAUDE.md` within
+  budget; the roadmap row 3 still links here.
+- **Status:** todo
+
+## Requirement coverage
+
+| Req | Steps |
+|---|---|
+| R1 | S2, S4, S7, S13 |
+| R2 | S7, S13 |
+| R3 | S11, S14 |
+| R4 | S2, S7, S10, S14, S15 |
+| R5 | S1, S10, S14 |
+| R6 | S5, S10, S14 |
+| R7 | S5, S10, S14, S15 |
+| R8 | S1, S10, S14 |
+| R9 | S5, S8, S10, S14 |
+| R10 | S1, S5, S10 |
+| R11 | S1, S10, S14, S15 |
+| R12 | S1, S10, S14 |
+| R13 | S2, S10, S15 |
+| R14 | S5, S10, S14 |
+| R15 | S1 |
+| R16 | S1, S8 |
+| R17 | S8 |
+| R18 | S1, S6, S8 |
+| R19 | S6, S8, S16 |
+| R20 | S2, S4, S7, S15 |
+| R21 | S15 |
+| R22 | S4, S7, S15 |
+| R23 | S2, S4, S7, S15 |
+| R24 | S9, S10 |
+| R25 | S9 |
+| R26 | S11, S14, S15 |
+| R27 | S11, S13 |
+| R28 | S13, S14 |
+| R29 | S12, S13, S14, S15 |
+| R30 | S12 |
+| R31 | S6, S8, S9, S16 |
+| R32 | S6, S8, S9 |
+| R33 | S3, S4, S5, S13, S16 |
+| R34 | S13, S16 |
+| R35 | S1, S7, S10, S13, S16 |
+| R36 | S17 |
+| R37 | S2 |
+| R38 | S17 |

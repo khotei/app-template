@@ -18,7 +18,7 @@ _Avoid_: Token, session id, api key, cookie (the cookie carries it; it is not th
 
 **Chat**:
 A conversation between one user and the assistant: an ordered list of messages, with an optional
-title. A chat is `generating` while an assistant message is not yet terminal, otherwise `idle`.
+title. While the chat has an active message, the user cannot send another.
 _Avoid_: Conversation, thread, dialogue, session
 
 **Message**:
@@ -33,6 +33,11 @@ Where an assistant message is in its life: `queued` (the chat has asked for it),
 `completed`, or `failed` (the assistant gave up; the message carries a reason). The last two are
 terminal.
 _Avoid_: State, status, in-progress, pending, streaming
+
+**Active message**:
+The assistant message of a chat that is not yet terminal (`queued`, `preparing` or `generating`).
+A chat has at most one; the chat has no state of its own beyond it.
+_Avoid_: Chat status, pending message, current reply
 
 **Title**:
 The short name of a chat, shown in the user's chat list. The assistant proposes one from the
