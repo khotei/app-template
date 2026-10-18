@@ -2,7 +2,10 @@
   "name": "@app-template/application",
   "private": true,
   "type": "module",
-  "exports": {},
+  "exports": {
+    "./attachment": "./attachment/index.ts",
+    "./user": "./user/index.ts"
+  },
   "imports": {
     "#application/*": "./*.ts"
   },
@@ -11,6 +14,7 @@
     "effect": "catalog:effect"
   },
   "devDependencies": {
+    "@effect/platform-bun": "catalog:effect",
     "@effect/vitest": "catalog:effect",
     "@app-template/infrastructure": "workspace:*"
   }

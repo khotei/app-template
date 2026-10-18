@@ -21,6 +21,7 @@
       },
       "devDependencies": {
         "@app-template/infrastructure": "workspace:*",
+        "@effect/platform-bun": "catalog:effect",
         "@effect/vitest": "catalog:effect",
       },
     },

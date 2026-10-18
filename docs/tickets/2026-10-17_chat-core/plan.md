@@ -142,7 +142,8 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
     digest must produce lower-case hex.
   - `FileName` (non-empty), `MediaType` (`type/subtype`) and `FileSize` (Int ≥ 0) are brands, so
     `buildAttachment` cannot fail; S7 decodes raw upload values and S15's contract answers `400`
-    for a file without a name (R21 amended).
+    for a file without a name (R21 amended). *Amended in S7:* the decode moves to the S15
+    handler (S7 finding on raw upload values, S15 **Constraint**).
   - Tests sit in `user.model.test.ts` and `attachment.model.test.ts` beside the schemas they
     test; `buildUser` has no test, like `buildChat`.
   - `effect.md` carries a fixture rule: `Schema.DateTimeUtc` decodes a `DateTime`, not an ISO
@@ -404,18 +405,55 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
 - **Goal:** `UserService { ensure, authenticate }` issuing a 32-byte base64url secret, storing
   its hex SHA-256 and recognising it back; `AttachmentService { upload, get, download, delete }`
   over the two ports, refusing to delete a bound attachment (R1, R2, R4, R20, R22, R23, R35;
-  D7, D11).
+  D7, D11, D22).
 - **Blocked by:** S4.
 - **Files:** `application/user/{user.service,user.service.test,index}.ts`;
   `application/attachment/{attachment.service,attachment.service.test,index}.ts`;
-  `application/package.json` (`exports`).
+  `application/package.json` (`exports`, `devDependencies`); `patches/effect@4.0.5.patch`; the
+  root `package.json` (`patchedDependencies`); `docs/knowledge/tooling.md`;
+  `.claude/rules/tooling.md` (*Amended in S7*).
 - **Test first:** Seam 5, on memory adapters with `TestClock` and `TestCrypto.layer(seed)` —
   `ensure(none)` creates a user and a secret; `ensure(some(secret))` returns the same user and no
   second record; `authenticate` of an unknown secret is `UserUnknownError`; `upload` stores bytes
   and metadata with `messageId: none`; `get`/`download` of another user's id is
-  `AttachmentNotFoundError`; `delete` of a bound one is `AttachmentBoundError` and leaves bytes.
-- **Verify:** `make check`; ids in the test are the seeded UUIDv7s (V2 noted: no order by id).
-- **Status:** todo
+  `AttachmentNotFoundError`; `delete` of another user's one is `AttachmentNotFoundError`; `delete`
+  of a bound one is `AttachmentBoundError` and leaves bytes.
+- **Verify:** `make check`; the ids the services generate are UUIDv7s from `TestCrypto`,
+  asserted by shape (`Schema.isUUID(7)`), never by value or order (V2), while fixture ids
+  (`owner`, `stranger`, `unknown`) are literals. *Amended in S7.*
+- **Status:** done
+- **Findings:**
+  - The secret crosses the service as `UserSecret = Redacted.Redacted<string>`: the cookie
+    security yields a `Redacted` and `securitySetCookie` accepts one, so the handler passes it
+    through, and a log never prints it. A domain `UserSecret` brand was rejected: the domain
+    stores only the hash (`SecretHash`), and a brand on the plaintext would be checked nowhere
+    (*Amended in S7* on D7).
+  - `ensure(some(secret))` with a secret no user holds creates a new user, as `ensure(none)`
+    does: the requirement reads "without a *valid* secret". `ensure` is `authenticate` with
+    `catchTag('UserUnknownError', registerUser)`.
+  - `Crypto` is a platform service without a default, and `TestCrypto.layer(seed)` keeps the
+    platform `digest`, so the tests provide `BunCrypto.layer` under it: `@effect/platform-bun`
+    joins `application`'s `devDependencies`, as it already is in `infrastructure`'s.
+  - `Crypto`'s `PlatformError` (a bad size, a platform failure) dies in the service, as a store
+    failure does in an adapter: no caller can handle it differently.
+  - `AttachmentService.delete` reuses `ensureBindable`: an attachment is deletable exactly when
+    it is bindable (the user's and unbound), so a second rule would restate the first.
+  - `upload` writes the bytes before the row and `delete` removes the row before the bytes, so a
+    crash between the two writes leaves orphan bytes, never a row whose download fails; a row
+    whose bytes are missing anyway is `AttachmentNotFoundError`, not a defect, per the "not
+    found is a value" rule.
+  - Raw upload values are not decoded here, against the S2 finding ("S7 decodes raw upload
+    values"): `AttachmentUpload` takes the branded `FileName` and `MediaType`, so a plain string
+    cannot reach the service, and the decode moves to the S15 handler, beside the contract's
+    `400` for a nameless file and its `415` for a type outside the limits.
+  - The seeded UUIDv7s are asserted by shape, not by literal: a literal would be a snapshot of
+    the generator and of test order in the shared layer.
+  - **Flake fixed by a patch to `effect`:** `assertEquals` on two equal errors failed at random
+    on Bun (`get … AttachmentNotFoundError`); `patches/effect@4.0.5.patch` fixes it, tests and
+    `effect-tests.md` unchanged, upstream issue to file. Cause, fix and rejected options: D22.
+  - The new `.claude/rules/tooling.md › Dependencies` line (a catalog bump of a patched package
+    redoes or drops its patch) was approved by the user at the S7 approval gate (`sdd.md`: a
+    rule changes only on the user's OK).
 
 #### S8 — The assistant-message job
 
@@ -609,6 +647,9 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
   `ChatDetail` shows their metadata; a second `send` with a bound id is `409 AttachmentBound`,
   a foreign id `404`; `DELETE` on an unbound one is `204`, on a bound one `409`; the facade's
   `attachments.upload(formData)` resolves `{ ok: true }`.
+- **Constraint:** the handler decodes each part's raw file name and media type into
+  `FileName` and `MediaType` before `AttachmentService.upload`, which accepts only the brands
+  (*Amended in S7*, moved from the S2 finding).
 - **Verify:** `make check`; `openapi.json` documents `multipart/form-data` on `POST
   /attachments` and `application/octet-stream` on `download`.
 - **Status:** todo

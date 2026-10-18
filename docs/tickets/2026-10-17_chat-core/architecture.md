@@ -408,7 +408,12 @@ per the acceptance table, not by a test.
   `credentials/<kind>/…` collection and the `Credential { kind, hash }` value leave room for a
   provider identity later (`kind: 'github'`, …) without renaming. *Rejected:* storing the secret
   (a dump is a login); bcrypt or Argon2 (slow hashing protects weak secrets, not random ones);
-  a `user-secrets` collection (names today's only kind).
+  a `user-secrets` collection (names today's only kind). *Amended in S7:* the plaintext secret
+  is `UserSecret = Redacted.Redacted<string>` in `application/user`, the type the cookie
+  security decodes and `securitySetCookie` accepts; `UserService.ensure(secret)` returns
+  `{ user, secret }`, creating a user whenever the secret is absent or unknown, and the
+  `PlatformError` of `Crypto` dies as a store failure does (D17). *Rejected:* a domain brand
+  for the plaintext (no check to carry: the domain knows only the hash).
 - **D8 — Uploads are buffered per part in the handler and handed to `AttachmentService.upload` as
   `{ fileName, mediaType, bytes }`.** `KeyValueStore.set` needs the whole value anyway and the
   cap is 10 MiB; `MultipartError` surfaces inside the handler and is mapped there: `FileTooLarge`
@@ -520,6 +525,14 @@ per the acceptance table, not by a test.
   Effect run under `runMain` (gives up the Layer shape); dying after a bounded retry through a
   `Deferred` the main fiber awaits (coupling for no gain: a restart heals an unavailable store no
   better than a retry).
+- **D22 — `effect` is patched so `Equal.equals` ignores the position keys Bun puts on an
+  `Error`.** *Added in S7.* Without it, `assertEquals` on two equal domain errors fails at random
+  on Bun, so `make check` is not a gate. `patches/effect@4.0.5.patch` lives in the root
+  `patchedDependencies`; tests and `effect-tests.md` stay as they are. The cause, the fix and what
+  a catalog bump must do with it: [tooling.md › Patched
+  dependencies](../../knowledge/tooling.md#patched-dependencies). *Rejected:* comparing
+  `{ ...error }` spreads in the tests (treats the symptom in every test and drops the prototype
+  check); rerunning a red `make check` (a gate that lies and worsens with each new test).
 
 ## Risks
 
