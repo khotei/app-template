@@ -1,0 +1,24 @@
+---
+paths:
+  - "**/*.test.ts"
+---
+
+# Effect: tests
+
+- Write Effect tests with `@effect/vitest`: `it.effect` for an effect, `Effect.flip` to inspect a
+  failure, `assert` from the same package.
+- Compare a failure whole, with `assertEquals(error, new <Entity><Problem>Error({ … }))` from
+  `@effect/vitest/utils`: it uses `Equal.equals` and prints a diff. Never `assert.deepStrictEqual`
+  on an `Error`: chai judges it by its message alone, so two errors with different fields pass.
+- A model fixture passes `DateTime` values: `Schema.DateTimeUtc` decodes a `DateTime`, not an ISO
+  string. Ids in fixtures are `<Entity>Id.make('<uuid>')`.
+- Run the cases of one rule with `it.effect.each` (a name template over `$field` or `%s`), never a
+  `for` loop around `it`.
+- Run one suite over every implementation of a port or store (`describe.each` over layers, or a
+  `suite(name, layer)` function), and share one built layer per suite with
+  `layer(…)((it) => …)`.
+- Name a handler, a layer or a recorder that several tests use once at module level
+  (`recordAttempts`, `layerOverStore`, `makeLogRecorder`); a test body holds only its arrangement
+  and its assertions.
+- When a test checks logging, assert the level with the message.
+- Provide configuration with `ConfigProvider.fromUnknown({ … })` (`tooling.md › Environment`).
