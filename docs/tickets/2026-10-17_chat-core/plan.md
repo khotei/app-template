@@ -93,7 +93,20 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
   is neither `user` nor `assistant` fails.
 - **Verify:** `make check`; `git grep --untracked -nE "Date.now|new Date\(|randomUUID|'system'|'tool'"
   -- 'domain/**/*.ts'` finds nothing.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - At ~600 lines the step split into S1a (model and errors, `make check` green alone) and S1b
+    (ports, rules and their tests). S1b is ~450 lines, 250 of them tests; it was not split
+    further.
+  - `UserId` and `AttachmentId` land here, ahead of S2, because `Chat` and `Message` reference
+    them.
+  - The foreign-author decode test uses `'moderator'`: `'system'` would trip the Verify grep.
+  - The Verify grep needs `--untracked`: a step's files are untracked until it is committed.
+  - `MessageFailure` stores `cause` for operators (D19); S8 fills it with `Cause.pretty`.
+  - `naming.md` also admits `is` for predicates and lets `ensure` guard an invariant
+    (`ensureChatAcceptsMessage`, `ensureMessageInput`).
+  - S5: the KV `selectActiveByChat` reads the chat's last message and must return it only when
+    `isActiveMessage` holds, so a last user or terminal message yields `none`.
 
 #### S2 — `domain/user`, `domain/attachment` and the first `effect.md`
 
