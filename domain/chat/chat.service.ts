@@ -100,6 +100,8 @@ export const buildAssistantMessage = (input: {
     updatedAt: input.createdAt,
   })
 
+export const isTitledChat = (chat: Chat): boolean => Option.isSome(chat.title)
+
 const isActiveStage = Schema.is(ActiveMessageStage)
 
 export const isActiveMessage = (message: Message): boolean =>

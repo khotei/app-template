@@ -9,9 +9,10 @@ import {
   MessageStageInvalidError,
 } from '#domain/chat/chat.error'
 import { ChatId, MessageId } from '#domain/chat/chat.id'
-import { Message, MessageFailure, type MessageStage } from '#domain/chat/chat.model'
+import { Chat, Message, MessageFailure, type MessageStage } from '#domain/chat/chat.model'
 import {
   buildAssistantMessage,
+  buildChat,
   buildUserMessage,
   completeMessage,
   ensureChatAcceptsMessage,
@@ -19,8 +20,10 @@ import {
   failMessage,
   generateMessage,
   isActiveMessage,
+  isTitledChat,
   prepareMessage,
 } from '#domain/chat/chat.service'
+import { UserId } from '#domain/user/user.id'
 
 const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000001')
 const messageId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000002')
@@ -39,6 +42,22 @@ const userMessage = buildUserMessage({
   text: 'Hello',
   attachmentIds: [],
   createdAt,
+})
+
+const untitledChat = buildChat({
+  id: chatId,
+  userId: UserId.make('0192d4e0-7b3a-7c00-8000-000000000004'),
+  createdAt,
+})
+
+describe('isTitledChat', () => {
+  it('holds for a chat with a title', () => {
+    assert.isTrue(isTitledChat(new Chat({ ...untitledChat, title: Option.some('Trip') })))
+  })
+
+  it('does not hold for an untitled chat', () => {
+    assert.isFalse(isTitledChat(untitledChat))
+  })
 })
 
 describe('isActiveMessage', () => {

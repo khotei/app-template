@@ -1,8 +1,8 @@
-import { Array as Arr, String as Str, Stream } from 'effect'
+import { Array as Arr, Effect, Option, Schema, String as Str, Stream } from 'effect'
 import { type AiError, LanguageModel, Prompt } from 'effect/ai'
 
 import type { Attachment } from '@app-template/domain/attachment'
-import type { Message } from '@app-template/domain/chat'
+import { ChatTitle, type Message, maxTitleLength } from '@app-template/domain/chat'
 
 export interface ChatFile {
   readonly attachment: Attachment
@@ -42,3 +42,42 @@ export const streamAssistantText = (
     Stream.filter((part) => part.type === 'text-delta'),
     Stream.map((part) => part.delta),
   )
+
+const titleInstruction =
+  `Write a title of at most ${maxTitleLength} characters for a chat that opens with the next message. Answer with the title alone.` as const
+
+const buildTitlePrompt = (text: string): Prompt.Prompt =>
+  Prompt.make([
+    { role: 'system', content: titleInstruction },
+    { role: 'user', content: [{ type: 'text', text }] },
+  ])
+
+const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+
+// Whole graphemes, so an emoji is never split, while the length stays within the code units
+// `ChatTitle` counts.
+const cutToTitleLength = (text: string): string => {
+  let cut = ''
+  for (const { segment } of graphemes.segment(text)) {
+    if (cut.length + segment.length > maxTitleLength) break
+    cut += segment
+  }
+  return cut
+}
+
+// Trimmed before the cut so the limit counts visible text, and after it so the cut leaves no edge.
+const buildChatTitle = (text: string): Option.Option<ChatTitle> =>
+  Schema.decodeUnknownOption(ChatTitle)(Str.trim(cutToTitleLength(Str.trim(text))))
+
+/**
+ * A title for a chat opened by `text`, or none when the text or the model's answer is blank.
+ *
+ * A blank text never reaches the model: providers reject an empty text block.
+ */
+export const suggestChatTitle = Effect.fn('suggestChatTitle')(function* (
+  text: string,
+): Effect.fn.Return<Option.Option<ChatTitle>, AiError.AiError, LanguageModel.LanguageModel> {
+  if (Str.isEmpty(Str.trim(text))) return Option.none()
+  const response = yield* LanguageModel.generateText({ prompt: buildTitlePrompt(text) })
+  return buildChatTitle(response.text)
+})

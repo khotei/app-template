@@ -223,7 +223,9 @@ replace one layer later.
 - **R25** — WHILE the worker handles the title job, THE SYSTEM SHALL ask `LanguageModel` for a title
   of at most 120 characters and set it only IF the chat's title is still `none`; a title set by the
   user is never overwritten. IF the attempts are exhausted, THEN the chat stays untitled and the
-  failure is logged.
+  failure is logged. *Amended in S9:* IF the first message's text is blank (no text, or
+  whitespace only) or the model's answer is blank, THEN the chat stays untitled, with an `Info`
+  log and no retry.
 
 ### Contract, client and api
 
@@ -299,7 +301,7 @@ replace one layer later.
 | R15 | The `Message` schema test; `git grep -n "'system'\|'tool'" -- domain application` finds nothing. |
 | R16–R19 | A worker test with a fake `LanguageModel` that emits three deltas under `TestClock`: stages `preparing` → `generating` → `completed`, at most one write per snapshot interval, `updatedAt` bumped; the recorded prompt holds the history with a `file` part per attachment and no `failed` message; a failing model goes back to `preparing` per attempt and ends `failed` with `{ reason: 'ReplyFailed', message, cause }`, no provider text in `message`, and no `cause` in the api's response; with the worker stopped, three sends queue three jobs that run on start. |
 | R20–R23 | Uploading two PNGs returns two unbound attachments; an 11 MB file is `413`, a `.zip` is `415`, six files or a nameless file `400`, and nothing is stored (adapter spy); `GET …/download` returns the bytes with `image/png` and `inline`; `DELETE` on an unbound one is `204`, on a bound one `409`. |
-| R24–R25 | After the first send, the title job is queued with an id derived from the chat id (a second send queues no second title job); the worker sets a title ≤ 120 chars; a `PATCH` made before the job completes wins; a model that always fails leaves `title: null` and a dead-letter log. |
+| R24–R25 | After the first send, the title job is queued with an id derived from the chat id (a second send queues no second title job); the worker sets a title ≤ 120 chars; a `PATCH` made before the job completes wins; a model that always fails leaves `title: null` and a dead-letter log; a first message with a blank text (no text, or whitespace only), or a blank answer, leaves `title: null` with an `Info` log and no retry (*Amended in S9*). |
 | R26–R27 | `packages/api-contract` imports only `effect`; editing an endpoint without regenerating fails `make check`; `openapi.json` documents the cookie security scheme and the 400; `GET /docs` serves Scalar. |
 | R28 | A request with a malformed body is `400 RequestInvalid` listing every issue; `make dev-api` starts through `BunRuntime` and logs finalizers on SIGTERM. |
 | R29 | Through the client against the test server: an unknown chat id resolves to `{ ok: false, error: { _tag: 'ChatNotFound' } }`, a malformed body to `RequestInvalid`, a missing cookie to `UserUnknown`, a stopped server to the transport tag, and no call rejects; a `switch` over `error._tag` missing a case fails `make typecheck`; `bun build --minify --target=browser` of the client stays near the measured 54 KB gzip, recorded in the step's findings. |

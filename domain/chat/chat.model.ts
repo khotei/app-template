@@ -4,10 +4,13 @@ import { AttachmentId } from '#domain/attachment/attachment.id'
 import { ChatId, MessageId } from '#domain/chat/chat.id'
 import { UserId } from '#domain/user/user.id'
 
+/** Counted in UTF-16 code units, as `Schema.isMaxLength` counts them. */
+export const maxTitleLength = 120 as const
+
 export const ChatTitle = Schema.String.check(
   Schema.isTrimmed(),
   Schema.isNonEmpty(),
-  Schema.isMaxLength(120),
+  Schema.isMaxLength(maxTitleLength),
 )
 export type ChatTitle = typeof ChatTitle.Type
 

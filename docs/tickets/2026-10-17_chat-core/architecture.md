@@ -54,14 +54,15 @@ New files are marked `+`, removed `−`, changed `~`. Every entity folder keeps 
 + domain/user/user.error.ts          UserUnknownError
 + domain/user/user.service.ts        UserRepository · buildUser
 + domain/chat/chat.id.ts             ChatId · MessageId
-+ domain/chat/chat.model.ts          ChatTitle · Chat · MessageAuthor · MessageStage ·
-                                     ActiveMessageStage · MessageFailure · Message
++ domain/chat/chat.model.ts          maxTitleLength · ChatTitle · Chat · MessageAuthor ·
+                                     MessageStage · ActiveMessageStage · MessageFailure · Message
 + domain/chat/chat.error.ts          ChatNotFoundError · ChatBusyError · MessageNotFoundError ·
                                      MessageInputInvalidError · MessageStageInvalidError
 + domain/chat/chat.service.ts        ChatRepository · MessageRepository · buildChat · buildUserMessage ·
-                                     buildAssistantMessage · isActiveMessage · ensureMessageInput ·
-                                     ensureChatAcceptsMessage · prepareMessage · generateMessage ·
-                                     completeMessage · failMessage
+                                     buildAssistantMessage · isTitledChat · isActiveMessage ·
+                                     ensureMessageInput · ensureChatAcceptsMessage ·
+                                     prepareMessage · generateMessage · completeMessage ·
+                                     failMessage
 + domain/attachment/attachment.id.ts       AttachmentId
 + domain/attachment/attachment.model.ts    FileName · MediaType · FileSize · Attachment
 + domain/attachment/attachment.error.ts    AttachmentNotFoundError · AttachmentBoundError
@@ -84,11 +85,16 @@ the only file another aggregate's model imports; Biome's `noImportCycles` keeps 
 + infrastructure/chat/chat.repository.ts     ChatRepositoryKv
 + infrastructure/chat/message.repository.ts  MessageRepositoryKv
 + infrastructure/chat/chat.queue.ts          assistantMessageQueue · chatTitleQueue · their message schemas
-+ infrastructure/chat/chat.llm.ts            buildChatPrompt · streamAssistantText · generateChatTitle
++ infrastructure/chat/chat.llm.ts            buildChatPrompt · streamAssistantText · suggestChatTitle
 + infrastructure/attachment/attachment.repository.ts  AttachmentRepositoryKv
 + infrastructure/attachment/attachment.storage.ts     AttachmentStoreKv
 − infrastructure/example/*  − infrastructure/shared/outbox.repository.ts
 ```
+
+*Amended in S9:* the title adapter is renamed `suggestChatTitle`: the model proposes a title the
+job may discard, and the plan's name differed only by case from the job's `GenerateChatTitle`
+payload. `maxTitleLength` joins `chat.model.ts` as the one title limit, read by `ChatTitle`,
+the prompt and the cut, and `isTitledChat` joins the domain's predicates.
 
 ### application
 
@@ -301,7 +307,7 @@ The cookie is `Secure` when `RuntimeConfig.nodeEnv === 'production'`. The snapsh
 | 3 repositories and `AttachmentStoreKv` through their ports on `layerMemory` | field mapping, index maintenance (`selectByUser`, `selectActiveByChat`, `deleteByChat` cascade, `deleteByIds`) | the real file store (covered for the module in 2) |
 | 4 `send` and `worker` in `packages/queue` on the memory store under `TestClock` | `AttemptInfo` values per attempt, `isLastAttempt` on the dead-letter attempt and no attempt after it, release when the worker's scope closes, one job per `jobId` | SQLite timing |
 | 5 `UserService`, `ChatService`, `AttachmentService` on memory adapters, `QueueClientMemory`, `TestClock`, `TestCrypto` | ensure/authenticate, send writes two messages and enqueues one or two jobs, `409` while a message is active, bound and foreign attachments, rename rules, delete cascade, title job only on the first message | HTTP statuses, cookies |
-| 6 `AssistantMessageJob.worker` and `ChatTitleJob.worker` with a fake `LanguageModel` under `TestClock` | stage sequence, snapshot cadence and final write, `failed` only on the last reply attempt (the third of four, D23), prompt content (history, roles, file parts), title only if `none`, chat deleted meanwhile | a real provider, the SQLite queue |
+| 6 `AssistantMessageJob.worker` and `ChatTitleJob.worker` with a fake `LanguageModel` under `TestClock` | stage sequence, snapshot cadence and final write, `failed` only on the last reply attempt (the third of four, D23), prompt content (history, roles, file parts), title only if `none`, chat deleted meanwhile, a blank text or answer (D25) | a real provider, the SQLite queue |
 | 7 `apps/api` through `BunHttpServer.layerTest` + `@app-template/api-client` with `HttpClient.withCookiesRef` | the whole wire: cookie attributes, `401`/`404`/`409`/`413`/`415`/`400` bodies, multipart limits, download headers, `202` shape, the `Result` facade mapping, a stopped server → transport tag | browser cookie behaviour, the web proxy, `Secure` on http |
 | 8 `make check` drift of `packages/api-contract/openapi.json` | a contract edit without regeneration; the cookie security scheme and every declared error in the spec | semantics |
 
@@ -578,6 +584,15 @@ per the acceptance table, not by a test.
   `Prompt.make`, `file` parts included. *Rejected:* `Chat.fromPrompt(…)` or `Chat.layerPersisted`
   as the job's history. Where `Chat` would fit: an ephemeral session inside one attempt, built
   from the store's prompt, if the chat ever gets tools and a reply spans several model turns.
+- **D25 — A chat with nothing to title stays untitled: a first message with a blank text (no
+  text, or whitespace only, which `ensureMessageInput` allows beside attachments) never reaches
+  the model, and a blank answer is no title; both end the job with an `Info` log and no retry.**
+  *Added in S9.* Providers reject an empty text block, so a blank text has nothing to ask about;
+  a blank answer decodes to no `ChatTitle`, and the user can still rename the chat. *Rejected:*
+  failing the attempt so the queue retries (a blank text fails the same way five times and ends
+  in a dead letter, an `Error` log for a normal input); a title cut from the message's own text
+  (it repeats the user's words, and the title would then have two sources with different
+  rules).
 
 ## Risks
 

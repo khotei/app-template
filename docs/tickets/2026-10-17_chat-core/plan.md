@@ -590,9 +590,10 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
 
 #### S9 — The chat-title job and the dev stub
 
-- **Goal:** `generateChatTitle` in `chat.llm.ts`; `application/chat/chat-title.job.ts` with
-  `ChatTitleJob { enqueue }` over `send(chatTitleQueue, …)` and `ChatTitleJob.worker` =
-  `worker(chatTitleQueue, …)`, a Layer (*Amended in S6*), writing a title ≤ 120 characters from
+- **Goal:** `suggestChatTitle` in `chat.llm.ts` (*Amended in S9:* renamed, see Findings);
+  `application/chat/chat-title.job.ts` with `ChatTitleJob { enqueue }` over
+  `send(chatTitleQueue, …)` and `ChatTitleJob.worker` = `worker(chatTitleQueue, …)`, a Layer
+  (*Amended in S6*), writing a title ≤ 120 characters from
   the text of the message the job names, read by id from the store (*Amended in S6*), only
   when the chat's title is still `none`, re-read right before the write; `LanguageModelStub`
   streams about twenty words at 100 ms each and answers `generateText` with a short title
@@ -601,13 +602,72 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
   the manifest, not the reply's failure policy; its exhausted attempts are the queue's dead
   letter.
 - **Files:** `infrastructure/chat/chat.llm.ts`; `application/chat/{chat-title.job,
-  chat-title.job.test,index}.ts`; `packages/llm/client.ts`.
+  chat-title.job.test,index}.ts`; `packages/llm/client.ts`; `domain/chat/chat.model.ts`
+  (`maxTitleLength`); `domain/chat/{chat.service,chat.service.test}.ts` (`isTitledChat`);
+  `feature.md` (R25); `architecture.md` (D25, Seam 6, Structure). *Amended in S9.*
 - **Test first:** Seam 6 — the worker sets a title from the fake model's text, truncated and
   trimmed to the `ChatTitle` constraint; a chat renamed before the job runs keeps the user's
   title; a chat deleted meanwhile ends the job without a write; a model failing on every attempt
   leaves `title: none` and the dead-letter log line.
 - **Verify:** `make check`.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The title limit lives once, as `maxTitleLength = 120` in `domain/chat/chat.model.ts`, which
+    the `ChatTitle` schema and `chat.llm.ts` (the instruction and the cut) both read. The domain
+    file was outside the step's original Files; the change was requested at the S9 review.
+  - `buildChatTitle` trims the answer, cuts it by whole graphemes (`Intl.Segmenter`) while the
+    joined length stays within `maxTitleLength`, trims again and decodes with
+    `Schema.decodeUnknownOption(ChatTitle)`: no emoji or surrogate pair is split, and the result
+    always passes `isMaxLength`, which counts UTF-16 code units. The leading trim keeps the
+    limit for visible text.
+  - Nothing to title (D25, R25 amended in S9): a first message with a blank text (no text, or
+    whitespace only) never reaches the model, since providers reject an empty text block, and a
+    blank answer is no title; both log `Info` `chat title skipped: nothing to title`, write
+    nothing and do not retry.
+  - The chat is read twice through `findUntitledChat`: before the model call, so a rename or
+    delete made before the take costs no model call, and right before the write, so one made
+    while the model answers wins. The helper only reads and returns a
+    `Result<Chat, ChatLookupSkip>` (`'chatDeleted' | 'alreadyTitled'`), effect's own
+    success-or-reason type, built with `Result.fromOption` and `Result.filterOrFail`; the
+    bindings `untitledAtTake` and `untitledBeforeWrite` name the lookup, not a chat. `find`
+    follows `findReply`: a read helper over ports, while `select` stays for persistence. All four
+    skips go through one `titleSkipLogs` table (`as const satisfies Record<TitleSkip, …>`, where
+    `TitleSkip` adds `'firstMessageMissing' | 'nothingToTitle'`), each with its own `Info` line:
+    `chat title skipped: chat deleted`, `… already titled`, `… first message missing`,
+    `… nothing to title`.
+  - The title check is the domain predicate `isTitledChat`, beside `isActiveMessage` in
+    `domain/chat/chat.service.ts`, with its unit test; the file was outside the step's original
+    Files, and the change was requested at the S9 review.
+  - The adapter is `suggestChatTitle`: the model proposes a title that the job may still discard
+    (a rename wins), and the Goal's first name differed only by case from the
+    `GenerateChatTitle` payload. `naming.md` has no verb for an LLM call; `suggest` names the
+    outcome, as `stream` does in `streamAssistantText`.
+  - A missing first message while the chat exists ends the job with `chat title skipped: first
+    message missing`, the indirect sign of a delete in progress; S10 gains the constraint that
+    makes that reading right.
+  - The title write keeps the chat's `updatedAt`: a late title does not reorder `list`; only a
+    reply's terminal write moves it. A test writes the title 500 ms after the take and finds
+    `updatedAt` still at the chat's creation.
+  - `ChatTitleJob.enqueue(first)` takes the first user message and dies on `QueueError`, as
+    `AssistantMessageJob.enqueue` does. A model that always fails exhausts the five attempts:
+    four `Warn` lines and one `Error` dead letter, the chat untitled.
+  - `LanguageModelStub` is `config only`, checked by hand with a deleted probe script: 20 deltas
+    over 2044 ms and `generateText` answering `Stub chat title`; S16's dev run observes it.
+  - `suggestChatTitle` is `Effect.fn('suggestChatTitle')`: the provider call is a tracing
+    boundary.
+  - Probes, each red then reverted: no re-read before the write; no read before the model call;
+    the model's failure swallowed; a blank text sent to the model; no trim before or after the
+    cut; no nothing-to-title guard; a cut by code units; a cut by grapheme count without the
+    length check; the instruction without the limit; the blank check without a trim; each of
+    the four skip lines swapped for another (`first message missing` logged as `chat deleted`
+    turns the missing-message case red; `nothing to title` logged as `first message missing`
+    the three nothing-to-title cases; the `chatDeleted` and `alreadyTitled` rows swapped the
+    four rename and delete cases); no title check before the write; `findUntitledChat` ignoring
+    the title; the title write setting `updatedAt` to now (the `updatedAt` test sees 500
+    instead of 0).
+  - Size: the step is ≈587 changed lines (210 in tracked files, 377 in the two new ones), over
+    the ~400 gate, accepted at the approval gate: the only clean seam is the dev stub (~33
+    lines), and the Seam 6 test cannot be split from the job it tests.
 
 #### S10 — `ChatService`
 
@@ -634,6 +694,8 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
   - `delete` runs `selectByChat` to collect the attachment ids, deletes the attachments (rows and
     bytes), then `deleteByChat`, and `ChatRepository.delete` last, so a crashed request can be
     retried: each step still finds what the next one needs.
+  - `delete` removes the messages before the chat, so the title job reads a missing first
+    message as a delete in progress. *Amended in S9.*
   - `send` is serialised per chat in the api process: a per-chat lock in the service (a keyed
     semaphore) makes the "no active message" check and the inserts one critical section (D2,
     *Amended in S5*).
