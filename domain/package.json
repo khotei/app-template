@@ -3,7 +3,10 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./example": "./example/index.ts"
+    "./attachment": "./attachment/index.ts",
+    "./chat": "./chat/index.ts",
+    "./example": "./example/index.ts",
+    "./user": "./user/index.ts"
   },
   "imports": {
     "#domain/*": "./*.ts"
