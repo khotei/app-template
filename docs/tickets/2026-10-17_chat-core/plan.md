@@ -72,7 +72,7 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
   `selectActiveByChat`); `buildChat`, `buildUserMessage`, `buildAssistantMessage`,
   `isActiveMessage`, `ensureMessageInput`, `ensureChatAcceptsMessage`, `prepareMessage`,
   `generateMessage`, `completeMessage`, `failMessage` with `MessageStageInvalidError`; `UserId` and `AttachmentId`, each alone in
-  its aggregate's model file; the transition verbs and `update` added to `naming.md`
+  its aggregate's model file (moved to `.id.ts` files in S2, D20); the transition verbs and `update` added to `naming.md`
   (R5, R8, R10, R11, R12, R15, R16, R18, R19, R35; D1, D2, D3, D17, D18, D19).
 - **Blocked by:** none.
 - **Files:** `domain/chat/{chat.model,chat.model.test,chat.error,chat.service,chat.service.test,
@@ -116,19 +116,40 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
   `AttachmentStore`, `buildAttachment`, `ensureBindable` — and `.claude/rules/effect.md` drawn
   from the three domain folders (R1, R4, R13, R20, R23, R37; D1, D7, D11).
 - **Blocked by:** S1.
-- **Files:** `domain/user/{user.model,user.error,user.service,user.service.test,index}.ts`;
-  `domain/attachment/{attachment.model,attachment.error,attachment.service,
-  attachment.service.test,index}.ts`; `domain/package.json` (`exports`); `.claude/rules/effect.md`
-  (`paths: **/*.ts`, ≤ ~80 lines: `Schema.Class` models, branded ids, `Schema.TaggedError`,
-  `Context.Service` ports without layers, `Option` over `null`, time and ids as input, `static
-  layer` when one implementation exists, services only when something varies, no ticket ids).
+- **Files:** `domain/user/{user.id,user.model,user.model.test,user.error,user.service,index}.ts`;
+  `domain/attachment/{attachment.id,attachment.model,attachment.model.test,attachment.error,
+  attachment.service,attachment.service.test,index}.ts`; `domain/chat/chat.id.ts` and the `chat.*`
+  imports; `domain/example/example.id.ts`; `biome.json` (`noImportCycles`); `.claude/rules/
+  naming.md` (the `.id` role); `.claude/rules/effect.md` (`paths: **/*.ts`, ≤ ~80 lines, the
+  Effect idioms the domain code uses, linking `domain/CLAUDE.md` for what it already states).
 - **Test first:** Seam 1 — `ensureBindable` fails `AttachmentNotFoundError` for a missing id and
   for another user's attachment, `AttachmentBoundError` for a bound one, and passes a user's
   unbound set; `buildAttachment` starts with `messageId: none`; `Credential` is `{ kind:
   'secret', hash }`.
 - **Verify:** `make check`; `wc -l .claude/rules/effect.md` ≤ ~80; `make ids` passes with the
   new rule.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Ids moved to `<aggregate>.id.ts` (S1's model files included) and Biome's `noImportCycles`
+    now fails a cycle; it was red on the chat ↔ attachment model cycle first (D20, amends D1).
+    `Schema.suspend` on both sides worked and was rejected.
+  - `AttachmentStore` uses `insert`/`select`/`delete`, the persistence verbs of `naming.md`.
+  - `ensureBindable(id, found, userId)` checks one attachment found as an `Option` and returns
+    it; S10 traverses the ids with `Effect.forEach` over `selectById`. A batch rule matching
+    `ids` against what `selectByIds` returned was written first and rejected. A repeated id
+    would pass twice; S10 rejects duplicates in `attachmentIds`.
+  - `Credential.hash` is a `SecretHash` brand (lower-case hex SHA-256): S4's key and S7's
+    digest must produce lower-case hex.
+  - `FileName` (non-empty), `MediaType` (`type/subtype`) and `FileSize` (Int ≥ 0) are brands, so
+    `buildAttachment` cannot fail; S7 decodes raw upload values and S15's contract answers `400`
+    for a file without a name (R21 amended).
+  - Tests sit in `user.model.test.ts` and `attachment.model.test.ts` beside the schemas they
+    test; `buildUser` has no test, like `buildChat`.
+  - `effect.md` carries a fixture rule: `Schema.DateTimeUtc` decodes a `DateTime`, not an ISO
+    string, which had made a rejection test pass for the wrong reason.
+  - `ExampleId` moved to `example.id.ts` so the copied pattern matches until S17.
+  - ~445 lines, over the ~400 budget: ~165 are tests and ~60 the id moves in S1 and `example`.
+    Not split.
 
 ### Infrastructure
 
@@ -166,7 +187,7 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
 - **Test first:** Seam 3, on `layerMemory` — `insert(user, credential)` then
   `selectByCredential` finds the user and the store holds `credentials/secret/<hex>` with no
   secret; `selectByIds` keeps the order asked and drops unknown ids; `update` rebinds
-  `messageId`; `deleteByIds` removes rows and `AttachmentStoreKv.remove` the bytes; `get` of
+  `messageId`; `deleteByIds` removes rows and `AttachmentStoreKv.delete` the bytes; `select` of
   unknown bytes is `none`.
 - **Verify:** `make check`.
 - **Status:** todo
@@ -271,7 +292,8 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
 #### S10 — `ChatService`
 
 - **Goal:** `ChatService { create, list, get, rename, delete, send, getMessage }`: `send`
-  validates the input, binds the attachments, writes the user and the `queued` assistant
+  validates the input, binds the attachments (`Effect.forEach` over the ids with `selectById`
+  and `ensureBindable`), writes the user and the `queued` assistant
   message, enqueues `AssistantMessageJob` and, for the first message, `ChatTitleJob`; `list`
   sorts by `updatedAt` descending, each chat with its active message; `delete` cascades messages and
   attachments; every foreign or unknown id is the matching `*NotFoundError` (R4–R14, R24, R35;
@@ -282,7 +304,8 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
   `send` stores two messages and bumps `updatedAt`; the first `send` enqueues both jobs, the
   second only the assistant one (title job id derived from the chat id, deduplicated); `send`
   while a message is active fails `ChatBusyError` and stores nothing; an unknown, foreign or bound
-  attachment id fails and stores nothing; `rename` rejects a blank title; `delete` while a
+  attachment id fails and stores nothing; a repeated attachment id fails
+  `MessageInputInvalidError` (`ensureMessageInput` gains the check); `rename` rejects a blank title; `delete` while a
   message is active removes chat, messages and attachments; `list` of two chats puts the last
   sent first with its `queued` active message; `getMessage` of another user's chat is `ChatNotFoundError`.
 - **Verify:** `make check`.
@@ -387,8 +410,8 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
 - **Files:** `packages/api-contract/{attachments,schemas,index}.ts`, `openapi.json`;
   `apps/api/src/{attachments.handler,layer,http.test}.ts`.
 - **Test first:** Seam 7 — two 1 MiB PNGs give `201` with two unbound attachments; an 11 MiB
-  file is `413 AttachmentTooLarge`, a `.zip` `415 AttachmentTypeUnsupported`, six files `400
-  RequestInvalid`, and in each case the store holds nothing new; `GET …/download` returns the
+  file is `413 AttachmentTooLarge`, a `.zip` `415 AttachmentTypeUnsupported`, six files or a nameless file
+  `400 RequestInvalid`, and in each case the store holds nothing new; `GET …/download` returns the
   bytes with `image/png` and `inline; filename="…"`; `send` with the two ids binds them and the
   `ChatDetail` shows their metadata; a second `send` with a bound id is `409 AttachmentBound`,
   a foreign id `404`; `DELETE` on an unbound one is `204`, on a bound one `409`; the facade's

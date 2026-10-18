@@ -197,10 +197,11 @@ replace one layer later.
   the user (UUIDv7 id, `fileName`, `mediaType`, `size`, `messageId: none`, `createdAt`) and
   answer `201` with their metadata.
 - **R21** — IF a file exceeds the size limit, THEN THE SYSTEM SHALL answer `413 AttachmentTooLarge`;
-  IF its type is not allowed, `415 AttachmentTypeUnsupported`; IF the body has no file or more than
-  5, `400 RequestInvalid`; in each case nothing is stored. The limits SHALL be constants exported
-  by `@app-template/api-contract`, never environment variables. *Amended in architecture: the
-  multipart limits are fixed at schema definition, so they cannot be runtime tunables (D5).*
+  IF its type is not allowed, `415 AttachmentTypeUnsupported`; IF the body has no file, more than
+  5, or a file without a name, `400 RequestInvalid`; in each case nothing is stored. The limits
+  SHALL be constants exported by `@app-template/api-contract`, never environment variables. *Amended in architecture: the
+  multipart limits are fixed at schema definition, so they cannot be runtime tunables (D5). Amended
+  in S2: a file without a name is `400`, since the domain's `FileName` is non-empty.*
 - **R22** — WHEN `GET /attachments/:attachmentId` succeeds, THE SYSTEM SHALL return the metadata;
   WHEN `GET /attachments/:attachmentId/download` succeeds, THE SYSTEM SHALL return the bytes with
   the stored `Content-Type` and `Content-Disposition: inline; filename="…"`, bound or not.
@@ -288,7 +289,7 @@ replace one layer later.
 | R11–R14 | Send returns `202` with a `completed` user message and a `queued` assistant message; a second send while the assistant message is active is `409 ChatBusy`; an unknown attachment id is `404`, a bound one `409`; polling the assistant message under `TestClock` shows a growing `text` then `completed`. |
 | R15 | The `Message` schema test; `git grep -n "'system'\|'tool'" -- domain application` finds nothing. |
 | R16–R19 | A worker test with a fake `LanguageModel` that emits three deltas under `TestClock`: stages `preparing` → `generating` → `completed`, at most one write per snapshot interval, `updatedAt` bumped; the recorded prompt holds the history with a `file` part per attachment and no `failed` message; a failing model goes back to `preparing` per attempt and ends `failed` with `{ reason: 'ReplyFailed', message, cause }`, no provider text in `message`, and no `cause` in the api's response; with the worker stopped, three sends queue three jobs that run on start. |
-| R20–R23 | Uploading two PNGs returns two unbound attachments; an 11 MB file is `413`, a `.zip` is `415`, six files `400`, and nothing is stored (adapter spy); `GET …/download` returns the bytes with `image/png` and `inline`; `DELETE` on an unbound one is `204`, on a bound one `409`. |
+| R20–R23 | Uploading two PNGs returns two unbound attachments; an 11 MB file is `413`, a `.zip` is `415`, six files or a nameless file `400`, and nothing is stored (adapter spy); `GET …/download` returns the bytes with `image/png` and `inline`; `DELETE` on an unbound one is `204`, on a bound one `409`. |
 | R24–R25 | After the first send, the title job is queued with an id derived from the chat id (a second send queues no second title job); the worker sets a title ≤ 120 chars; a `PATCH` made before the job completes wins; a model that always fails leaves `title: null` and a dead-letter log. |
 | R26–R27 | `packages/api-contract` imports only `effect`; editing an endpoint without regenerating fails `make check`; `openapi.json` documents the cookie security scheme and the 400; `GET /docs` serves Scalar. |
 | R28 | A request with a malformed body is `400 RequestInvalid` listing every issue; `make dev-api` starts through `BunRuntime` and logs finalizers on SIGTERM. |

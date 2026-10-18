@@ -1,7 +1,7 @@
 import { assert, describe, it } from '@effect/vitest'
 import { DateTime, Effect } from 'effect'
 
-import { ExampleId } from '#domain/example/example.model'
+import { ExampleId } from '#domain/example/example.id'
 import { buildExample } from '#domain/example/example.service'
 
 describe('buildExample', () => {

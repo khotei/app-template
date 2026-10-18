@@ -1,20 +1,14 @@
 import { Context, type DateTime, Effect, Option, Schema, String as Str } from 'effect'
 
-import type { AttachmentId } from '#domain/attachment/attachment.model'
+import type { AttachmentId } from '#domain/attachment/attachment.id'
 import {
   ChatBusyError,
   MessageInputInvalidError,
   MessageStageInvalidError,
 } from '#domain/chat/chat.error'
-import {
-  ActiveMessageStage,
-  Chat,
-  type ChatId,
-  Message,
-  MessageFailure,
-  type MessageId,
-} from '#domain/chat/chat.model'
-import type { UserId } from '#domain/user/user.model'
+import type { ChatId, MessageId } from '#domain/chat/chat.id'
+import { ActiveMessageStage, Chat, Message, MessageFailure } from '#domain/chat/chat.model'
+import type { UserId } from '#domain/user/user.id'
 
 export class ChatRepository extends Context.Service<
   ChatRepository,

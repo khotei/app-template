@@ -34,6 +34,7 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 
 | Suffix | Role | Layer |
 |---|---|---|
+| `.id` | the aggregate's branded ids, the only file other aggregates' models import | domain |
 | `.model` | entity types and value shapes | domain |
 | `.error` | domain errors | domain |
 | `.service` | domain: ports + pure operations · application: a service over ports | domain, application |

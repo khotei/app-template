@@ -1,7 +1,8 @@
 import { Context, type DateTime, Effect, type Option, String as Str } from 'effect'
 
 import { ExampleNameInvalidError } from '#domain/example/example.error'
-import { Example, type ExampleId } from '#domain/example/example.model'
+import type { ExampleId } from '#domain/example/example.id'
+import { Example } from '#domain/example/example.model'
 
 export class ExampleRepository extends Context.Service<
   ExampleRepository,

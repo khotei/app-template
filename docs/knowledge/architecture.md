@@ -83,7 +83,8 @@ Using the `example` slice as the map:
 
 | What | File | Named |
 |---|---|---|
-| entity schema and branded id | `domain/example/example.model.ts` | `Example` (`Schema.Class`), `ExampleId` |
+| branded id | `domain/example/example.id.ts` | `ExampleId` |
+| entity schema | `domain/example/example.model.ts` | `Example` (`Schema.Class`) |
 | domain errors | `domain/example/example.error.ts` | `ExampleNotFoundError` (`Schema.TaggedError`) |
 | port and pure operations | `domain/example/example.service.ts` | `ExampleRepository`, `buildExample({ id, name, createdAt })` |
 | adapter implementing the port | `infrastructure/example/example.repository.ts` | `ExampleRepositoryMemory` (a `Layer`) |
@@ -104,15 +105,15 @@ Follow the `example` slice layer by layer, from the bottom up. Write each test b
 and run `make check` after each layer. `<entity>` is the kebab name (`document`), `<Entity>` the
 Pascal one (`Document`).
 
-1. **Domain model.** `domain/<entity>/<entity>.model.ts`: `<Entity>` as a `Schema.Class` and
-   `<Entity>Id` as a branded `Schema` with a same-named type.
+1. **Domain model.** `domain/<entity>/<entity>.id.ts`: `<Entity>Id` as a branded `Schema` with a
+   same-named type; `<entity>.model.ts`: `<Entity>` as a `Schema.Class`.
 2. **Domain errors.** `<entity>.error.ts`: `Schema.TaggedError` classes named
    `<Entity><Problem>Error`, whose tag is the class name.
 3. **Port and operations.** `<entity>.service.ts`: the `<Entity>Repository` port as a
-   `Context.Service` with no layer, and `Effect` functions such as `build<Entity>(input)`. Time and
+   `Context.Service` with no layer, and pure operations such as `build<Entity>(input)`. Time and
    ids come in as input, never from `Date.now()` or `crypto.randomUUID()`. Test them in
    `<entity>.service.test.ts`.
-4. **Domain exports.** `domain/<entity>/index.ts` re-exports the three files, and
+4. **Domain exports.** `domain/<entity>/index.ts` re-exports its files, and
    `domain/package.json` gains `"./<entity>": "./<entity>/index.ts"` in `exports`.
 5. **Adapter.** `infrastructure/<entity>/<entity>.repository.ts`: `<Entity>RepositoryMemory`, a
    `Layer` that provides the domain port. Start in-memory, like the example; a real client later

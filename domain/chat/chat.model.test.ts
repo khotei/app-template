@@ -1,7 +1,8 @@
 import { assert, describe, it } from '@effect/vitest'
 import { DateTime, Exit, Option, Schema } from 'effect'
 
-import { ActiveMessageStage, ChatId, ChatTitle, Message, MessageId } from '#domain/chat/chat.model'
+import { ChatId, MessageId } from '#domain/chat/chat.id'
+import { ActiveMessageStage, ChatTitle, Message } from '#domain/chat/chat.model'
 
 describe('ChatTitle', () => {
   it.each(['Trip', 'a'.repeat(120)])('accepts %j', (title) => {

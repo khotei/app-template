@@ -1,14 +1,12 @@
 import { Schema } from 'effect'
 
-import { AttachmentId } from '#domain/attachment/attachment.model'
-import { UserId } from '#domain/user/user.model'
-
-export const ChatId = Schema.String.check(Schema.isUUID()).pipe(Schema.brand('ChatId'))
-export type ChatId = typeof ChatId.Type
+import { AttachmentId } from '#domain/attachment/attachment.id'
+import { ChatId, MessageId } from '#domain/chat/chat.id'
+import { UserId } from '#domain/user/user.id'
 
 export const ChatTitle = Schema.String.check(
   Schema.isTrimmed(),
-  Schema.isMinLength(1),
+  Schema.isNonEmpty(),
   Schema.isMaxLength(120),
 )
 export type ChatTitle = typeof ChatTitle.Type
@@ -20,9 +18,6 @@ export class Chat extends Schema.Class<Chat>('Chat')({
   createdAt: Schema.DateTimeUtc,
   updatedAt: Schema.DateTimeUtc,
 }) {}
-
-export const MessageId = Schema.String.check(Schema.isUUID()).pipe(Schema.brand('MessageId'))
-export type MessageId = typeof MessageId.Type
 
 export const MessageAuthor = Schema.Literals(['user', 'assistant'])
 export type MessageAuthor = typeof MessageAuthor.Type

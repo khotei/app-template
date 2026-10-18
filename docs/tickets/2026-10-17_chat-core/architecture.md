@@ -49,24 +49,30 @@ New files are marked `+`, removed `−`, changed `~`. Every entity folder keeps 
 ### domain
 
 ```
-+ domain/user/user.model.ts          UserId · User · Credential
++ domain/user/user.id.ts             UserId
++ domain/user/user.model.ts          User · SecretHash · Credential
 + domain/user/user.error.ts          UserUnknownError
 + domain/user/user.service.ts        UserRepository · buildUser
-+ domain/chat/chat.model.ts          ChatId · ChatTitle · Chat · MessageId · MessageAuthor ·
-                                     MessageStage · MessageFailure · Message
++ domain/chat/chat.id.ts             ChatId · MessageId
++ domain/chat/chat.model.ts          ChatTitle · Chat · MessageAuthor · MessageStage ·
+                                     ActiveMessageStage · MessageFailure · Message
 + domain/chat/chat.error.ts          ChatNotFoundError · ChatBusyError · MessageNotFoundError ·
                                      MessageInputInvalidError · MessageStageInvalidError
 + domain/chat/chat.service.ts        ChatRepository · MessageRepository · buildChat · buildUserMessage ·
                                      buildAssistantMessage · isActiveMessage · ensureMessageInput ·
                                      ensureChatAcceptsMessage · prepareMessage · generateMessage ·
                                      completeMessage · failMessage
-+ domain/attachment/attachment.model.ts    AttachmentId · Attachment
++ domain/attachment/attachment.id.ts       AttachmentId
++ domain/attachment/attachment.model.ts    FileName · MediaType · FileSize · Attachment
 + domain/attachment/attachment.error.ts    AttachmentNotFoundError · AttachmentBoundError
 + domain/attachment/attachment.service.ts  AttachmentRepository · AttachmentStore · buildAttachment ·
                                            ensureBindable
 − domain/example/*
 ~ domain/package.json                exports ./user ./chat ./attachment
 ```
+
+Each `*.model.ts` and `*.service.ts` has its `*.test.ts` beside it. Ids live in `<aggregate>.id.ts`,
+the only file another aggregate's model imports; Biome's `noImportCycles` keeps it so (D20).
 
 ### infrastructure
 
@@ -141,9 +147,10 @@ New files are marked `+`, removed `−`, changed `~`. Every entity folder keeps 
 ```ts
 UserId · ChatId · MessageId · AttachmentId
             = Schema.String.check(Schema.isUUID()).pipe(Schema.brand('<Entity>Id'))
-Credential  = { kind: 'secret', hash: string }          // hash = hex SHA-256 of the secret
+SecretHash  = lower-case hex SHA-256, brand 'SecretHash'
+Credential  = { kind: 'secret', hash: SecretHash }
 User        = { id, createdAt }
-ChatTitle   = Schema.String.check(trimmed, minLength(1), maxLength(120))
+ChatTitle   = Schema.String.check(trimmed, nonEmpty, maxLength(120))
 Chat        = { id, userId, title: Option<ChatTitle>, createdAt, updatedAt }
 MessageAuthor = 'user' | 'assistant'
 MessageStage  = 'queued' | 'preparing' | 'generating' | 'completed' | 'failed'
@@ -152,7 +159,9 @@ MessageFailure = { reason: 'ReplyFailed', message: string, cause: string }
                  // message: user-safe, fixed per reason · cause: for operators, never leaves the api
 Message     = { id, chatId, author, stage, text, attachmentIds, error: Option<MessageFailure>,
                 createdAt, updatedAt }
-Attachment  = { id, userId, messageId: Option<MessageId>, fileName, mediaType, size, createdAt }
+FileName · MediaType · FileSize = brands: non-empty · type/subtype · Int ≥ 0
+Attachment  = { id, userId, messageId: Option<MessageId>, fileName: FileName,
+                mediaType: MediaType, size: FileSize, createdAt }
 ```
 
 Pure rules: `isActiveMessage(message)` holds for an assistant message in `queued`, `preparing` or
@@ -160,8 +169,9 @@ Pure rules: `isActiveMessage(message)` holds for an assistant message in `queued
 the message's `chatId`) when the chat's current message is active, whatever message the caller
 passes; `ensureMessageInput({ text, attachmentIds })` fails `MessageInputInvalidError` when the
 trimmed text is empty and no attachment is given;
-`ensureBindable(attachments, userId)` fails `AttachmentNotFoundError` for a foreign or missing
-one and `AttachmentBoundError` for a bound one; `isActiveMessage` checks the stage with
+`ensureBindable(id, found: Option<Attachment>, userId)` returns the attachment, or fails
+`AttachmentNotFoundError` when it is missing or foreign and `AttachmentBoundError` when it is
+bound; `send` traverses the ids with `Effect.forEach` over `selectById`; `isActiveMessage` checks the stage with
 `Schema.is(ActiveMessageStage)`.
 
 Transitions are named for the stage they move to, check their source stage, and fail
@@ -183,7 +193,7 @@ ChatRepository       { insert(chat); update(chat); selectById(id); selectByUser(
 MessageRepository    { insert(message); update(message); selectById(id); selectByChat(chatId);
                        selectActiveByChat(chatId); deleteByChat(chatId) }
 AttachmentRepository { insert(a); update(a); selectById(id); selectByIds(ids); deleteByIds(ids) }
-AttachmentStore      { put(id, bytes: Uint8Array); get(id): Option<Uint8Array>; remove(id) }
+AttachmentStore      { insert(id, bytes: Uint8Array); select(id): Option<Uint8Array>; delete(id) }
 ```
 
 Every `select*` returns `Option` or an array in insertion order; none throws a not-found error:
@@ -293,7 +303,7 @@ per the acceptance table, not by a test.
   a model file and a service file; an attachment lives before it is bound, so it stands alone.
   *Rejected:* one `domain/chat` folder for everything (a 200-line model file and one barrel that
   hides the aggregates); a folder per entity including `message` (splits one state machine over
-  two folders and two repositories' tests).
+  two folders and two repositories' tests). *Amended by D20:* ids move to `<aggregate>.id.ts`.
 - **D2 — One collection-and-index module over `KeyValueStore`; indexes written by the api only;
   the active message is found by the repository.** `KeyValueStore` cannot list keys and its `modify` is
   get-then-set that skips a missing key, so every repository would repeat the same index code.
@@ -432,6 +442,13 @@ per the acceptance table, not by a test.
   message itself rather than only by matching log lines. The DTO has no `cause` field, and a seam
   7 test asserts its absence. *Rejected:* the cause in the log only (no link from a message to its
   failure); the cause in the user-facing `message` (leaks provider detail to the user).
+- **D20 — Each aggregate's ids live in `<aggregate>.id.ts`, and Biome's `noImportCycles` fails
+  any import cycle.** `Message.attachmentIds` and `Attachment.messageId` made the chat and
+  attachment models import each other, so in whichever loaded first the other's id was not yet
+  initialised and building the schema threw. An id file imports nothing of its aggregate, so models depend on ids,
+  never on each other, and the lint rule turns the constraint into a check. *Rejected:*
+  `Schema.suspend` on both sides (works, but hides the coupling behind comments with no check);
+  one shared ids file (breaks one folder per aggregate, D1).
 
 ## Risks
 

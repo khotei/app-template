@@ -42,7 +42,8 @@
         }
       },
       "suspicious": {
-        "noExplicitAny": "error"
+        "noExplicitAny": "error",
+        "noImportCycles": "error"
       }
     }
   },

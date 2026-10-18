@@ -1,14 +1,9 @@
 import { assert, describe, it } from '@effect/vitest'
 import { DateTime, Effect, Option } from 'effect'
 
-import { AttachmentId } from '#domain/attachment/attachment.model'
-import {
-  ChatId,
-  Message,
-  MessageFailure,
-  MessageId,
-  type MessageStage,
-} from '#domain/chat/chat.model'
+import { AttachmentId } from '#domain/attachment/attachment.id'
+import { ChatId, MessageId } from '#domain/chat/chat.id'
+import { Message, MessageFailure, type MessageStage } from '#domain/chat/chat.model'
 import {
   buildAssistantMessage,
   buildUserMessage,
