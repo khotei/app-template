@@ -17,10 +17,11 @@
       "name": "@app-template/application",
       "dependencies": {
         "@app-template/domain": "workspace:*",
+        "@app-template/infrastructure": "workspace:*",
+        "@app-template/queue": "workspace:*",
         "effect": "catalog:effect",
       },
       "devDependencies": {
-        "@app-template/infrastructure": "workspace:*",
         "@effect/platform-bun": "catalog:effect",
         "@effect/vitest": "catalog:effect",
       },

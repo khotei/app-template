@@ -4,6 +4,7 @@
   "type": "module",
   "exports": {
     "./attachment": "./attachment/index.ts",
+    "./chat": "./chat/index.ts",
     "./user": "./user/index.ts"
   },
   "imports": {
@@ -11,11 +12,12 @@
   },
   "dependencies": {
     "@app-template/domain": "workspace:*",
+    "@app-template/infrastructure": "workspace:*",
+    "@app-template/queue": "workspace:*",
     "effect": "catalog:effect"
   },
   "devDependencies": {
     "@effect/platform-bun": "catalog:effect",
-    "@effect/vitest": "catalog:effect",
-    "@app-template/infrastructure": "workspace:*"
+    "@effect/vitest": "catalog:effect"
   }
 }

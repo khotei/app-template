@@ -39,10 +39,11 @@ graph LR
   S3 --> S5
   S1 --> S6[S6 queue AttemptInfo + chat queues]
   S4 --> S7[S7 UserService + AttachmentService]
-  S4 --> S8[S8 assistant-message job]
-  S5 --> S8
-  S6 --> S8
-  S8 --> S9[S9 chat-title job]
+  S4 --> S8a[S8a assistant-message job]
+  S5 --> S8a
+  S6 --> S8a
+  S8a --> S8b[S8b reply failure + healing]
+  S8a --> S9[S9 chat-title job]
   S9 --> S10[S10 ChatService]
   S11[S11 api-contract: health + users] --> S12[S12 api-client + web]
   S3 --> S13[S13 apps/api: health + users]
@@ -53,6 +54,7 @@ graph LR
   S14 --> S15[S15 attachments over HTTP]
   S14 --> S16[S16 apps/worker + dev run]
   S9 --> S16
+  S8b --> S16
   S15 --> S17[S17 cleanup + knowledge docs]
   S16 --> S17
 ```
@@ -102,7 +104,7 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
     them.
   - The foreign-author decode test uses `'moderator'`: `'system'` would trip the Verify grep.
   - The Verify grep needs `--untracked`: a step's files are untracked until it is committed.
-  - `MessageFailure` stores `cause` for operators (D19); S8 fills it with `Cause.pretty`.
+  - `MessageFailure` stores `cause` for operators (D19); S8b fills it with `Cause.pretty`.
   - `naming.md` also admits `is` for predicates and lets `ensure` guard an invariant
     (`ensureChatAcceptsMessage`, `ensureMessageInput`).
   - S5: the KV `selectActiveByChat` reads the chat's last message and must return it only when
@@ -379,7 +381,7 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
   - D14 is amended: a `.queue.ts` holds definitions only, and callers use `send` and `worker`.
   - A worker that crashes on the final attempt leaves its message active: the SQL store's
     lock-expiry sweep marks the job `failed` without calling the handler. Added to
-    `architecture.md › Risks`; S8 gains the constraint to decide and test the healing.
+    `architecture.md › Risks`; S8b gains the constraint to decide and test the healing.
   - `feature.md` keeps its requirements: R31 already asks for definition values and a `worker`
     layer. Its context paragraph and open question still name `JobQueue`, as history.
   - `createQueueClientSqlite` is now `layerSqlite`, after effect's `SqliteClient.layer` and
@@ -455,39 +457,101 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
     redoes or drops its patch) was approved by the user at the S7 approval gate (`sdd.md`: a
     rule changes only on the user's OK).
 
-#### S8 — The assistant-message job
+#### S8a — The assistant-message job: the reply
 
-- **Goal:** `infrastructure/chat/chat.llm.ts` (`buildChatPrompt`, `streamAssistantText`) and
-  `application/chat/assistant-message.job.ts`: `AssistantMessageJob { enqueue }` over
-  `send(assistantMessageQueue, …)`, `AssistantMessageJob.worker` = `worker(assistantMessageQueue,
-  …)`, a Layer the worker app merges (*Amended in S6*), `SnapshotInterval`
-  (`Context.Reference<Duration>`, 300 ms);
-  stages `preparing → generating → completed`, `Ref` + `Schedule.spaced` snapshots with an
-  explicit final write, `failed` only on the last attempt, a silent exit when the chat is gone
-  (R9, R16, R17, R18, R19, R31, R32; D3, D12, D14).
+- **Goal:** `infrastructure/chat/chat.llm.ts` (`buildChatPrompt` on `Prompt.make` with `file`
+  parts, `streamAssistantText`) and `application/chat/assistant-message.job.ts`:
+  `AssistantMessageJob { enqueue }` over `send(assistantMessageQueue, …)`,
+  `AssistantMessageJob.worker` = `worker(assistantMessageQueue, …)`, a Layer the worker app
+  merges (*Amended in S6*), `SnapshotInterval` (`Context.Reference<Duration>`, 300 ms); stages
+  `preparing → generating → completed`, `Ref` + `Schedule.spaced` snapshots with an explicit
+  final write, the chat's `updatedAt` bumped after a re-read, a silent exit when the chat is gone
+  or the message already settled; the prompt from the store, never `effect/ai/Chat` (R9, R16,
+  R17, R19, R31, R32; D3, D12, D14, D24). *Amended in S8a:* split into S8a and S8b; failure
+  handling and the healing of a stuck message are S8b.
 - **Blocked by:** S4, S5, S6.
 - **Files:** `infrastructure/chat/chat.llm.ts` and `index.ts`;
   `application/chat/{assistant-message.job,assistant-message.job.test,index}.ts`;
-  `application/package.json` (`exports`; `@app-template/queue`, `@app-template/llm` as needed).
-- **Test first:** Seam 6, with a fake `LanguageModel` that records its prompt and emits three
-  deltas under `TestClock`, and `QueueClientMemory` — the message passes `preparing` then
-  `generating`; at most one write per `SnapshotInterval` while deltas arrive; the final write is
-  `completed` with the whole text and bumps the chat's `updatedAt`; the recorded prompt holds
-  every `completed` message in order as `user`/`assistant` with one `file` part per attachment
-  and skips a `failed` one; a model that fails on every attempt sets the message back to
-  `preparing` on each retry and `failed` with `{ reason: 'ReplyFailed', message, cause }` only on
-  the last, the model's error in `cause` (`Cause.pretty`) and none of it in `message`; a chat
-  deleted between enqueue and take ends the job with a log line and no write; a message found
-  already terminal on take (`prepareMessage` fails `MessageStageInvalidError`) ends the job
-  without a write.
-- **Constraint:** S8 decides and tests how a stuck active message heals when a worker crashes on
-  the final attempt and the SQL store's lock-expiry sweep marks the job `failed` without calling
-  the handler (`architecture.md › Risks`); the choice is recorded as a new `D…`.
+  `application/package.json` (`exports`; `@app-template/infrastructure`, `@app-template/queue`);
+  `application/tsconfig.json`; `.claude/rules/naming.md` (`.job`, `.handler`); `feature.md` (R17); `architecture.md` (D3
+  amended, D24, Risks); `docs/knowledge/roadmap.md` (entry 6). *Amended in S8a.*
+- **Test first:** Seam 6, with a fake `LanguageModel` (`LanguageModel.make`) that records its
+  prompt and emits three deltas under `TestClock`, and `QueueClientMemory` — the message passes
+  `preparing` then `generating`; at most one write per `SnapshotInterval` while deltas arrive;
+  the final write is `completed` with the whole text and bumps the chat's `updatedAt`; the
+  recorded prompt holds every `completed` message in order as `user`/`assistant` with one `file`
+  part per attachment and skips a `failed` one; a chat deleted between enqueue and take ends the
+  job with a log line and no write; a message found already terminal on take (`prepareMessage`
+  fails `MessageStageInvalidError`) ends the job without a write.
 - **Constraint:** the worker re-reads the chat immediately before writing `updatedAt` and never
   writes a chat it read at take time, so a rename during generation survives
   (`architecture.md › Risks`, title race).
 - **Verify:** `make check`; `git grep -n "'system'\|'tool'" -- domain application` finds
   nothing.
+- **Status:** done
+- **Findings:**
+  - `buildChatPrompt(turns)` is pure and builds with `Prompt.make` over encoded messages, `role`
+    being the author; an empty text yields no text part (providers reject an empty block), so a
+    message sent with files only is `file` parts alone. The job keeps the `completed` filter and
+    reads each turn's files through `AttachmentRepository.selectByIds` and
+    `AttachmentStore.select`, one `readTurn` per message. `streamAssistantText(prompt)` keeps
+    the provider's part types in
+    `infrastructure`; the job sees a `Stream<string>`.
+  - `ChatFile { attachment, bytes }` stays in `chat.llm.ts` beside `AttachmentDownload` in
+    `application/attachment`: `infrastructure` cannot import `application`, and moving the pair
+    to `domain/attachment` would change the domain and S7's service and test for a two-field
+    shape.
+  - Snapshots compare with the last written text and run `uninterruptible`: D3, amended in S8a.
+    A probe that always writes turns the cadence test red; the uninterruptible write has no
+    test, since the memory store cannot reorder writes (the race awaits its loser:
+    `internal/effect.ts`, `raceAllFirst`).
+  - A file whose bytes are missing from the store is left out of the prompt and the message's
+    text stays; R17 is amended in S8a, and a seam 6 test covers it.
+  - `prepareMessage` failing at entry is caught with `Effect.option` on that call alone: later
+    transitions act on values the job built and stay in the error channel (D18).
+  - `AssistantMessageJob.enqueue(message)` takes the assistant message and dies on `QueueError`,
+    as a store failure dies in an adapter (D17): `ChatService.send` (S10) has one outcome, a
+    `500`, whatever the queue's failure. Its one-expression build goes straight into
+    `Layer.effect` with `this.of`, the shape staying explicit on the class.
+  - `application` gains `@app-template/infrastructure` as a runtime dependency (it was dev-only)
+    and `@app-template/queue`; `@app-template/llm` is not needed: the tests use their own fake on
+    `LanguageModel.make`, and the dev stub is S9's.
+  - Not using `effect/ai/Chat` is D24, on the user's request after verifying `Chat.ts`.
+    Roadmap entry 6 gains the history-truncation note, and `architecture.md › Risks` the
+    unbounded-history row.
+  - `.claude/rules/naming.md › Files` gains the `.job` row (a queue's producer service and its
+    worker, in `application`), and the `.handler` row narrows to a request handler in `apps`,
+    since a job lives in `.job`. The user approved both rule lines at the S8a review (`sdd.md`:
+    a rule changes only on the user's OK).
+  - The tests share one module-level `makeHarness(stream)` that returns the recorded writes,
+    prompts and logs with the layer. The snapshot test relies on the default `SnapshotInterval`
+    with deltas 120 ms apart, so no snapshot coincides with a delta; the clock advances one
+    second at a time, as the S6 retry tests do. Probes, each red then reverted: snapshots every
+    millisecond; a snapshot without the `Equal` check; no `touchChat`; `failed` messages kept in
+    the history; no file parts; an empty text part; the chat read at take time.
+
+#### S8b — The assistant-message job: failure and healing
+
+- **Goal:** the reply's failure policy: a failed attempt retries from `preparing`; the last reply
+  attempt writes `failed` with `{ reason: 'ReplyFailed', message, cause }`, the cause as
+  `Cause.pretty`; an interrupt-only cause is never caught; `assistantMessageQueue` keeps a fourth
+  attempt that only settles a reply whose worker died (R18, R19; D3, D18, D19, and D23, which
+  S8b adds).
+- **Blocked by:** S8a.
+- **Files:** `application/chat/{assistant-message.job,assistant-message.job.test}.ts`;
+  `infrastructure/chat/chat.queue.ts` (`maxAttempts: 4`); `architecture.md` (D23, Seam 6,
+  Risks); `feature.md` (R18 amended); `docs/knowledge/roadmap.md` (entry 6: the
+  `AiError.isRetryable` / `retryAfter` note).
+- **Test first:** Seam 6 — a model that fails on every attempt sets the message back to
+  `preparing` on each retry and `failed` with `{ reason: 'ReplyFailed', message, cause }` only on
+  the last reply attempt, the model's error in `cause` (`Cause.pretty`) and none of it in
+  `message`; a job delivered on the fourth attempt with its message still active (a store wrapper
+  reporting that attempt, as the SQL store does after a crash) ends `failed` without calling the
+  model; a last reply that interrupts itself is retaken at the same attempt, not failed.
+- **Constraint:** S8b decides and tests how a stuck active message heals when a worker crashes on
+  the final attempt and the SQL store's lock-expiry sweep marks the job `failed` without calling
+  the handler (`architecture.md › Risks`); the choice is recorded as a new `D…`.
+- **Verify:** `make check`.
 - **Status:** todo
 
 #### S9 — The chat-title job and the dev stub
@@ -499,7 +563,9 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
   when the chat's title is still `none`, re-read right before the write; `LanguageModelStub`
   streams about twenty words at 100 ms each and answers `generateText` with a short title
   (R24, R25, R31, R32; D12, D15).
-- **Blocked by:** S8.
+- **Blocked by:** S8a. *Amended in S8a:* the title job needs `chat.llm.ts`, the `.job` shape and
+  the manifest, not the reply's failure policy; its exhausted attempts are the queue's dead
+  letter.
 - **Files:** `infrastructure/chat/chat.llm.ts`; `application/chat/{chat-title.job,
   chat-title.job.test,index}.ts`; `packages/llm/client.ts`.
 - **Test first:** Seam 6 — the worker sets a title from the fake model's text, truncated and
@@ -661,10 +727,11 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
 - **Goal:** the worker launches `AssistantMessageJob.worker` and `ChatTitleJob.worker` on the
   SQLite queue, the file store and `LanguageModelStub`, through `BunRuntime.runMain`; no job
   logic in the app (R19, R31, R33, R34, R35).
-- **Blocked by:** S9, S14.
+- **Blocked by:** S8b, S9, S14. *Amended in S8a:* the worker it launches settles a reply whose
+  worker crashed (S8b).
 - **Files:** `apps/worker/src/{main,layer}.ts`; `apps/worker/package.json`
   (`@effect/platform-bun`, `@app-template/domain`, `@app-template/llm`, `@app-template/queue`).
-- **Test first:** `config only` — the jobs are tested at Seam 6 (S8, S9); the process is checked
+- **Test first:** `config only` — the jobs are tested at Seam 6 (S8a, S8b, S9); the process is checked
   by hand.
 - **Verify:** `make check`; with `make dev-api` and `make dev-worker` running: a `send` is
   followed by a growing `text` on polls and then `completed`, and the chat gains a title; three
@@ -719,17 +786,17 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
 | R6 | S5, S10, S14 |
 | R7 | S5, S10, S14, S15 |
 | R8 | S1, S10, S14 |
-| R9 | S5, S8, S10, S14 |
+| R9 | S5, S8a, S10, S14 |
 | R10 | S1, S5, S10 |
 | R11 | S1, S10, S14, S15 |
 | R12 | S1, S10, S14 |
 | R13 | S2, S10, S15 |
 | R14 | S5, S10, S14 |
 | R15 | S1 |
-| R16 | S1, S8 |
-| R17 | S8 |
-| R18 | S1, S6, S8 |
-| R19 | S6, S8, S16 |
+| R16 | S1, S8a |
+| R17 | S8a |
+| R18 | S1, S6, S8b |
+| R19 | S6, S8a, S8b, S16 |
 | R20 | S2, S4, S7, S15 |
 | R21 | S15 |
 | R22 | S4, S7, S15 |
@@ -741,8 +808,8 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
 | R28 | S13, S14 |
 | R29 | S12, S13, S14, S15 |
 | R30 | S12 |
-| R31 | S6, S8, S9, S16 |
-| R32 | S6, S8, S9 |
+| R31 | S6, S8a, S9, S16 |
+| R32 | S6, S8a, S9 |
 | R33 | S3, S4, S5, S13, S16 |
 | R34 | S13, S16 |
 | R35 | S1, S7, S10, S13, S16 |

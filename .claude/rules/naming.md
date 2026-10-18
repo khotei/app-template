@@ -39,10 +39,11 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 | `.error` | domain errors | domain |
 | `.service` | domain: ports + pure operations · application: a service over ports | domain, application |
 | `.use-case` | a flow that composes services | application |
+| `.job` | a queue's producer service and its worker | application |
 | `.repository` · `.storage` · `.llm` | an adapter over a client | infrastructure |
 | `.queue` | queue definitions | infrastructure |
 | `.client` | client wiring | infrastructure/shared, packages |
-| `.handler` | a job or request handler | apps |
+| `.handler` | a request handler | apps |
 | `.test` | a colocated test that mirrors its source name | any |
 
 A file with none of these roles keeps a bare kebab name (`http.ts`, `main.ts`).

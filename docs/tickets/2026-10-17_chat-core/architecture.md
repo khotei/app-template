@@ -364,7 +364,12 @@ per the acceptance table, not by a test.
   computed from the same condition the store uses to mark `failed`. *Rejected:* a pure `Stream`
   pipeline (less explicit about the final write); writing `failed` on every attempt (the UI would
   flash `failed` between retries); a dead-letter callback in the store (none exists). *Amended in
-  S6:* the handler is the one passed to `worker(definition, handle)` (D21).
+  S6:* the handler is the one passed to `worker(definition, handle)` (D21). *Amended in S8a:* the
+  `dirty` flag became a comparison: a snapshot writes only when the accumulated text differs
+  (`Equal.equals`) from the text it last wrote, so the cadence is the same and a run of empty
+  deltas writes nothing. A snapshot runs `uninterruptible`: the race interrupts the snapshot loop
+  when the stream ends, and a write cut short then could still land after the final one; the
+  race awaits its interrupted loser, so the final write always comes last.
 - **D4 — Dev state is `KeyValueStore.layerFileSystem` at `STORE_PATH`, bundled with
   `StoreConfig` in `infrastructure/kv/kv-store.ts`; tests use `layerMemory`.** The two processes
   need one state and the queue already shares `.data/queue.sqlite`. `layerFileSystem` stores
@@ -534,6 +539,19 @@ per the acceptance table, not by a test.
   `{ ...error }` spreads in the tests (treats the symptom in every test and drops the prototype
   check); rerunning a red `make check` (a gate that lies and worsens with each new test).
 
+- **D24 — The job builds its prompt from the store on every attempt and does not use
+  `effect/ai/Chat`.** *Added in S8a.* `Chat` keeps its own history in a `Ref` (or in
+  `Chat.Persistence`, keyed by chat id), a second source of truth beside `MessageRepository` that
+  drifts on `deleteByChat`, failed messages and the api's writes; `Chat.streamText` appends the
+  partial response to that history in the release phase of `acquireUseRelease`
+  (`repos/effect/packages/effect/src/ai/Chat.ts`, lines 463–486) on failure and interruption too,
+  so a retried attempt would see the previous fragment; and its `Semaphore(1)` is per process,
+  while the job is stateless and exclusion already comes from one active message per chat
+  (`selectActiveByChat`). Seam 6 asserts the prompt that the pure `buildChatPrompt` produces with
+  `Prompt.make`, `file` parts included. *Rejected:* `Chat.fromPrompt(…)` or `Chat.layerPersisted`
+  as the job's history. Where `Chat` would fit: an ephemeral session inside one attempt, built
+  from the store's prompt, if the chat ever gets tools and a reply spans several model turns.
+
 ## Risks
 
 | Risk | Mitigation |
@@ -549,7 +567,8 @@ per the acceptance table, not by a test.
 | Effect in the browser bundle (~54 KB gzip) | accepted in `feature.md`; measured once in the client step's findings |
 | Unstable modules (`http-api`, `persistence`, `ai`) change in a patch | exact lock-step catalog; seams 2, 4, 6, 7 catch behaviour changes |
 | A step over ~400 lines | `/ticket-plan` cuts by seam: domain per aggregate, kv-collection, repositories, queue change, services, jobs, contract, client, api groups, worker, web, cleanup, docs |
-| A worker crashes on the final attempt: the SQL store's lock-expiry sweep marks the job `failed` without calling the handler (`PersistedQueue.ts`, "Lock expired after final attempt"), so the message stays `preparing` or `generating` and the chat stays busy, against R18 | S8 decides and tests how a stuck active message heals |
+| A worker crashes on the final attempt: the SQL store's lock-expiry sweep marks the job `failed` without calling the handler (`PersistedQueue.ts`, "Lock expired after final attempt"), so the message stays `preparing` or `generating` and the chat stays busy, against R18 | S8b decides and tests how a stuck active message heals |
+| A long chat's history grows without bound: every attempt sends every completed message and its files, until the prompt exceeds the model's context window and every reply fails | none in this ticket; roadmap entry 6 (`llm-providers`) trims the history to the window |
 | Dev store grows with attachment bytes | `.data/` is gitignored; `rm -rf .data` resets both store and queue |
 | An attachment `DELETE` races a `send` that binds the same unbound attachment: both service checks pass on the unbound row (check-then-act in `AttachmentService.delete` and `ChatService.send`) | the atomic `Collection.update` stops the deleted row from being resurrected, but the message may then reference a deleted attachment; Postgres closes it with `UPDATE … WHERE message_id IS NULL` on bind and a delete guarded the same way |
 
