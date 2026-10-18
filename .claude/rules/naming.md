@@ -39,7 +39,8 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 | `.error` | domain errors | domain |
 | `.service` | domain: ports + pure operations · application: a service over ports | domain, application |
 | `.use-case` | a flow that composes services | application |
-| `.repository` · `.storage` · `.queue` · `.llm` | an adapter over a client | infrastructure |
+| `.repository` · `.storage` · `.llm` | an adapter over a client | infrastructure |
+| `.queue` | queue definitions | infrastructure |
 | `.client` | client wiring | infrastructure/shared, packages |
 | `.handler` | a job or request handler | apps |
 | `.test` | a colocated test that mirrors its source name | any |
@@ -51,7 +52,10 @@ A file with none of these roles keeps a bare kebab name (`http.ts`, `main.ts`).
 - Types are `PascalCase` `<Entity><Role>`: `ExampleRepository`, `ExampleService`.
 - Errors are `<Entity><Problem>Error`.
 - Functions are verb-first, and the verb marks the kind of work:
-  - `create<Thing>`: a factory that wires dependencies (`createQueueClientSqlite`);
+  - `create<Thing>`: a factory that wires dependencies (`createCollection`);
+  - `layer<Variant>`: a function that builds a client's `Layer` from options (`layerSqlite`),
+    after effect's `SqliteClient.layer`; a combinator that returns a `Layer` is named for what it
+    runs (`worker`, as effect's `DurableQueue.worker`);
   - `build` / `ensure`: a pure function that derives a value or guards an invariant, in any layer
     (`buildExample`);
   - a pure transition is named for the stage it moves the entity to (`prepareMessage`);

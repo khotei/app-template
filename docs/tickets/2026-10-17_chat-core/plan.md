@@ -292,19 +292,110 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
 
 #### S6 — `AttemptInfo` in `packages/queue` and the two chat queues
 
-- **Goal:** `JobQueue.consume` hands `{ attempt, maxAttempts, isLastAttempt }` to its handler,
-  computed from the same condition the loop uses to dead-letter; `infrastructure/chat/
-  chat.queue.ts` defines `assistantMessageQueue` (`GenerateAssistantMessage { chatId,
-  messageId }`) and `chatTitleQueue` (`GenerateChatTitle { chatId, text }`) with `maxAttempts`
-  and a `Schedule` (R18, R19, R31, R32; D3).
+- **Goal:** `packages/queue` exposes `send(definition, message)` and `worker(definition,
+  handle)`, a Layer whose scope owns the consumer fiber; a `QueueDefinition` carries its
+  `jobId`, and the handler receives `{ attempt, maxAttempts, isLastAttempt }`, computed from the
+  same condition the loop uses to dead-letter; `infrastructure/chat/chat.queue.ts` defines
+  `assistantMessageQueue` (`GenerateAssistantMessage { chatId, messageId }`) and
+  `chatTitleQueue` (`GenerateChatTitle { chatId, messageId }`, the first user message) with
+  `maxAttempts`, a `Schedule` and a `jobId` (R18, R19, R31, R32; D3, D21). *Amended in S6:
+  `send` and `worker` replace `QueueClient.make` and `JobQueue`; the title job carries ids.*
 - **Blocked by:** S1.
-- **Files:** `packages/queue/{queue,queue.test}.ts`; `infrastructure/chat/chat.queue.ts`,
-  `infrastructure/chat/index.ts`.
+- **Files:** `packages/queue/{queue,queue.test,index,sqlite}.ts`;
+  `infrastructure/chat/{chat.queue,index}.ts`; `infrastructure/shared/queue.client.ts`;
+  `infrastructure/CLAUDE.md`; `.claude/rules/naming.md`; `docs/knowledge/roadmap.md` (*Amended
+  in S6*).
 - **Test first:** Seam 4, on the memory store under `TestClock` — a handler that fails on every
-  attempt sees `attempt` 1…`maxAttempts`, `isLastAttempt` only on the last, and the loop keeps
-  running; an interrupted handler releases the message at the same attempt.
-- **Verify:** `make check`; the existing queue tests still pass unchanged.
-- **Status:** todo
+  attempt sees `attempt` 1…`maxAttempts`, `isLastAttempt` only on the last, no attempt after it,
+  and the worker keeps running; closing a worker's scope releases its job to the next worker at
+  the same attempt; two sends with one `jobId` deliver the first only (memory and SQLite).
+- **Verify:** `make check`. *Amended in S6:* the existing queue tests move to `send` and
+  `worker`, since `QueueClient.make` is gone; each keeps its assertion.
+- **Status:** done
+- **Findings:**
+  - Variant "static definition + `send` + `worker` Layer", after effect's `DurableQueue` (a
+    definition value with `idempotencyKey`; its `worker` is
+    `Layer.effectDiscard(Effect.forkScoped(…))`), copied in shape only: that module needs
+    `WorkflowEngine` and is request/response (D21).
+    `QueueClient` becomes `{ send(definition, message), consume(definition, handle) }`; resolving
+    the queue per call is free, since `PersistedQueueFactory.make` is `Effect.succeed`
+    (`effect/src/persistence/PersistedQueue.ts:249`). `JobQueue` and `QueueClient.make` are gone.
+  - `jobId` is typed by `satisfies QueueDefinition<typeof X>` (`(ping) => ping.id` infers its
+    parameter), so there is no `define` helper.
+  - `Handler<A, E, R>` names the handler type at its three sites; `queue.ts` exports it but the
+    barrel does not: jobs pass a lambda to `worker`, and `AttemptInfo` types its second argument.
+    One span per enqueue and one per attempt, none on the endless `consume` loop: the service's
+    `send` is `Effect.fn('QueueClient.send')` and the free `send` a plain `QueueClient.use`
+    accessor, as effect's `PersistedQueue.make` is, so no span is doubled; `runAttempt` is
+    `Effect.fn('runAttempt')`, named after itself as `effect.md` asks of a function that is not a
+    service method. A probe confirmed `Effect.fn` keeps a generic body's type parameters.
+    `isLastAttempt` is the same
+    `attempts >= maxAttempts` that picks the dead-letter log, computed once and used for both.
+  - The retry test advances `TestClock` until the next attempt shows up rather than once per
+    retry: whether a retry's delay starts before or after an advance depends on fiber scheduling.
+    After the third attempt it advances a minute and finds no fourth, then the next message is
+    still handled.
+  - Probes, each red then reverted: `send` ignoring `jobId` fails the dedup test on both stores;
+    `forkDetach` for `forkScoped` fails the scope test (the first worker keeps the job); `>` for
+    `>=` in `isLastAttempt` fails the attempt-info assertion; the store dead-lettering one attempt
+    after `maxAttempts` fails the no-fourth assertion. Counting attempts in the consumer instead
+    of the store's count failed the release test in the previous shape.
+  - The memory store drops an offer whose id it has seen (`entries.has(id)`), custom or not, so
+    the dedup test runs on it as on SQLite.
+  - Any cause that ends the consumer is logged at `Error` (annotated with the queue) and the
+    consumer restarts on `Schedule.min([exponential('1 second'), spaced('1 minute')])`, unbounded:
+    `tapCause` (interrupt-only causes unlogged), `Effect.sandbox`, `Effect.retry`, after effect's
+    SQL poll loop (D21). `Effect.orDie` came first and was dropped: a probe showed a defect in a
+    fiber forked by `Layer.effectDiscard(Effect.forkScoped(…))` is not logged and does not end
+    `Layer.launch`. `tapError` + `retry` came next and was dropped: the SQL store's `ack` dies,
+    so a defect slipped past it the same way.
+  - The store-failure test runs twice, over a store whose first `take` fails with a typed error
+    and one whose first `take` dies: nothing is handled before 1 s, the job is handled after it,
+    and one `Error` log names the queue. A handler that interrupts itself is handled again at
+    the same attempt, with no log; before `sandbox` it stopped the worker for good. Closing a
+    worker's scope logs nothing either. Probes, each red then reverted: no `sandbox` (the defect
+    and self-interrupt tests time out), no retry, no log, no annotation, a zero-delay retry,
+    logging interrupt-only causes (the self-interrupt test). The scope-close test stays green
+    under the last probe: an external interrupt never reaches `tapCause`. The cap has no test.
+    The schedule's state never resets while the worker lives (`Schedule` 4.0.5 has no
+    `resetAfter`), so after a run of failures every restart waits the full minute.
+  - A store whose finalizer dies after a failed attempt (the SQL `ack`) adds its defect beside
+    `AttemptFailed`; `catchTags` recovered the attempt and dropped the defect with no log at all,
+    as a probe on a `layerStoreMemory` wrapper showed. `consume` now logs it at `Error` when the
+    cause carries both a failure and a defect (a defect alone reaches the worker's log instead,
+    so nothing is logged twice), and keeps consuming. The test dead-letters one job through that
+    wrapper, then sees the next handled and the two `Error` logs; dropping the new log turns it
+    red.
+  - `GenerateChatTitle` carries ids only, `{ chatId, messageId }` with the first user message's
+    id: the worker reads the text from the store, as `R32` asks, and the user's text never lands
+    in the queue table, where it would outlive the chat's deletion. Amended in `R24`, the
+    `R31–R32` acceptance row, D12 and the Jobs schema line; S9's Goal reads the message by id.
+  - `assistantMessageQueue` retries 3 times and `chatTitleQueue` 5, both on
+    `Schedule.exponential('1 second')` as the `effect-setup` example did: the user polls the
+    reply, nobody waits on the title. Their `jobId`s are `messageId` and `chatId`, unprefixed:
+    the store keys uniqueness on `(id, queue_name)` (SQL unique index, the memory store's
+    entries per queue).
+  - D14 is amended: a `.queue.ts` holds definitions only, and callers use `send` and `worker`.
+  - A worker that crashes on the final attempt leaves its message active: the SQL store's
+    lock-expiry sweep marks the job `failed` without calling the handler. Added to
+    `architecture.md › Risks`; S8 gains the constraint to decide and test the healing.
+  - `feature.md` keeps its requirements: R31 already asks for definition values and a `worker`
+    layer. Its context paragraph and open question still name `JobQueue`, as history.
+  - `createQueueClientSqlite` is now `layerSqlite`, after effect's `SqliteClient.layer` and
+    `PersistedQueue.layerStoreSql`; `QueueClientSqliteOptions` keeps its name, since effect names
+    a config after its subject (`SqliteClientConfig`). `naming.md` takes `createCollection` as the
+    `create<Thing>` example and gains `layer<Variant>` for a function that builds a client's
+    `Layer` from options, so `worker` (named as `DurableQueue.worker`) stays outside it. The
+    closed `effect-setup` ticket keeps the old name.
+  - The `.queue` role is now definitions only: `infrastructure/CLAUDE.md` says no adapter wraps
+    `send` or `worker` (its in-memory queue adapter clause went too), and `naming.md` gives
+    `.queue` its own row. `naming.md` also names a `Layer`-returning combinator for what it runs
+    (`worker`).
+  - `docs/knowledge/roadmap.md`, entry 5, gains the SQS caveat: the port promises one delivery per
+    `jobId`, which standard SQS lacks and FIFO keeps for 5 minutes, and `isLastAttempt` must come
+    from `ApproximateReceiveCount`.
+  - S13 and S16 gain Verify checks: one listener after a `--hot` reload; `Layer.launch` under
+    `runMain` with no `setInterval`, SIGTERM releasing the job in hand.
 
 ### Application
 
@@ -329,8 +420,10 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
 #### S8 — The assistant-message job
 
 - **Goal:** `infrastructure/chat/chat.llm.ts` (`buildChatPrompt`, `streamAssistantText`) and
-  `application/chat/assistant-message.job.ts`: `AssistantMessageJob { enqueue }`,
-  `AssistantMessageJob.worker`, `SnapshotInterval` (`Context.Reference<Duration>`, 300 ms);
+  `application/chat/assistant-message.job.ts`: `AssistantMessageJob { enqueue }` over
+  `send(assistantMessageQueue, …)`, `AssistantMessageJob.worker` = `worker(assistantMessageQueue,
+  …)`, a Layer the worker app merges (*Amended in S6*), `SnapshotInterval`
+  (`Context.Reference<Duration>`, 300 ms);
   stages `preparing → generating → completed`, `Ref` + `Schedule.spaced` snapshots with an
   explicit final write, `failed` only on the last attempt, a silent exit when the chat is gone
   (R9, R16, R17, R18, R19, R31, R32; D3, D12, D14).
@@ -349,6 +442,9 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
   deleted between enqueue and take ends the job with a log line and no write; a message found
   already terminal on take (`prepareMessage` fails `MessageStageInvalidError`) ends the job
   without a write.
+- **Constraint:** S8 decides and tests how a stuck active message heals when a worker crashes on
+  the final attempt and the SQL store's lock-expiry sweep marks the job `failed` without calling
+  the handler (`architecture.md › Risks`); the choice is recorded as a new `D…`.
 - **Constraint:** the worker re-reads the chat immediately before writing `updatedAt` and never
   writes a chat it read at take time, so a rename during generation survives
   (`architecture.md › Risks`, title race).
@@ -359,7 +455,9 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
 #### S9 — The chat-title job and the dev stub
 
 - **Goal:** `generateChatTitle` in `chat.llm.ts`; `application/chat/chat-title.job.ts` with
-  `ChatTitleJob { enqueue }` and `ChatTitleJob.worker`, writing a title ≤ 120 characters only
+  `ChatTitleJob { enqueue }` over `send(chatTitleQueue, …)` and `ChatTitleJob.worker` =
+  `worker(chatTitleQueue, …)`, a Layer (*Amended in S6*), writing a title ≤ 120 characters from
+  the text of the message the job names, read by id from the store (*Amended in S6*), only
   when the chat's title is still `none`, re-read right before the write; `LanguageModelStub`
   streams about twenty words at 100 ms each and answers `generateText` with a short title
   (R24, R25, R31, R32; D12, D15).
@@ -468,7 +566,9 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
   error: { _tag: 'HttpClientError' } }` without rejecting.
 - **Verify:** `make check`; `make dev-api` logs through `Effect.log`, serves `/docs` and stops on
   SIGTERM with its finalizers; V1 — with `make dev-web` running, `curl -c jar -b jar -X POST
-  localhost:3001/api/users` twice returns one `id`; `.data/store/` appears and is ignored by git.
+  localhost:3001/api/users` twice returns one `id`; `.data/store/` appears and is ignored by git;
+  a file edited during `make dev-api` reloads under `--hot` with one listener left on the port
+  (`lsof -i :3000`) and no second server or fiber in the logs (*Added in S6*).
 - **Status:** todo
 
 #### S14 — Chats over HTTP
@@ -529,7 +629,9 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
   followed by a growing `text` on polls and then `completed`, and the chat gains a title; three
   sends made while the worker is stopped run on its start; SIGTERM during a generation leaves the
   message at the same attempt for the restarted worker; `wc -l apps/worker/src/*.ts` stays
-  small; the Findings record what was observed.
+  small; `apps/worker` starts through `Layer.launch` under `BunRuntime.runMain`, with no
+  `setInterval`, and SIGTERM closes the workers' scope, releasing the job in hand (*Added in
+  S6*); the Findings record what was observed.
 - **Status:** todo
 
 #### S17 — Remove the `example` slice and rewrite the knowledge docs

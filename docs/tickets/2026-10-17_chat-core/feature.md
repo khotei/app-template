@@ -212,6 +212,8 @@ replace one layer later.
 
 - **R24** — WHEN the first user message of a chat is stored, THE SYSTEM SHALL enqueue the title
   job with an id derived from the chat's id and a message carrying the chat id and that text.
+  *Amended in S6: the message carries the chat id and the first message's id; the worker reads
+  the text from the store (R32).*
 - **R25** — WHILE the worker handles the title job, THE SYSTEM SHALL ask `LanguageModel` for a title
   of at most 120 characters and set it only IF the chat's title is still `none`; a title set by the
   user is never overwritten. IF the attempts are exhausted, THEN the chat stays untitled and the
@@ -296,7 +298,7 @@ replace one layer later.
 | R28 | A request with a malformed body is `400 RequestInvalid` listing every issue; `make dev-api` starts through `BunRuntime` and logs finalizers on SIGTERM. |
 | R29 | Through the client against the test server: an unknown chat id resolves to `{ ok: false, error: { _tag: 'ChatNotFound' } }`, a malformed body to `RequestInvalid`, a missing cookie to `UserUnknown`, a stopped server to the transport tag, and no call rejects; a `switch` over `error._tag` missing a case fails `make typecheck`; `bun build --minify --target=browser` of the client stays near the measured 54 KB gzip, recorded in the step's findings. |
 | R30 | `import 'effect'` in `apps/web/src/` fails `make lint` with no override gap; the health panel renders `API status: ok`. |
-| R31–R32 | The two `.job.ts` files export `enqueue` and `worker`; `apps/worker/src` holds no job logic; the job schemas carry ids and the first message's text only. |
+| R31–R32 | The two `.job.ts` files export `enqueue` and `worker`; `apps/worker/src` holds no job logic; the job schemas carry ids only. *Amended in S6: the title job carries the first message's id, not its text.* |
 | R33 | `mv .env .env.bak && make test` passes; with `make dev-api` and `make dev-worker` running, a send in one terminal is followed by `completed` on the next poll; `.data/store` exists and is gitignored. |
 | R34–R35 | SIGTERM during a job leaves it at the same attempt for the restarted worker; `git grep -E "Date.now|new Date\(|randomUUID" -- 'domain/**/*.ts'` finds nothing; tests fix ids with `TestCrypto`. |
 | R36–R38 | `git grep -i example -- ':!docs/tickets' ':!repos'` finds no code; `packages/db` and `packages/storage` are gone; `.claude/rules/effect.md` exists within budget after the first slice; `architecture.md` maps the `chat` files; the roadmap row 3 links here. |

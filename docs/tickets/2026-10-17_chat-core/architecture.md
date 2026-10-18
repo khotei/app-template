@@ -15,12 +15,12 @@ sequenceDiagram
   participant W as web (api-client)
   participant A as apps/api
   participant S as KeyValueStore
-  participant Q as JobQueue
+  participant Q as queue (send · worker)
   participant K as apps/worker
   participant M as LanguageModel
   W->>A: POST /chats/:id/messages {text, attachmentIds}
   A->>S: user message (completed) · assistant message (queued) · bind attachments · index
-  A->>Q: GenerateAssistantMessage · GenerateChatTitle (first message only)
+  A->>Q: GenerateAssistantMessage · GenerateChatTitle (first message only), ids only
   A-->>W: 202 {userMessage, assistantMessage}
   K->>Q: take
   K->>S: stage = preparing · read chat, messages, attachment bytes
@@ -108,7 +108,7 @@ the only file another aggregate's model imports; Biome's `noImportCycles` keeps 
     index.ts (Api) · limits.ts · schemas.ts · errors.ts · security.ts (Auth, CurrentUser, SchemaErrors) ·
     health.ts · users.ts · chats.ts · attachments.ts · openapi.ts (writer) · openapi.json (committed)
 ~ packages/api-client/index.ts               createApiClient over HttpApiClient + FetchHttpClient (D13)
-~ packages/queue/queue.ts                    consume handle receives AttemptInfo (D3)
+~ packages/queue/queue.ts                    send · worker Layer · jobId · AttemptInfo (D3, D21)
 ~ packages/llm/client.ts                     stub streams ~20 words at 100 ms; generateText returns a title
 ~ packages/config/config.ts                  + StoreConfig { path } from STORE_PATH
 − packages/db  − packages/storage
@@ -232,11 +232,15 @@ keys out; the repositories' list reads (`selectByUser`, `selectByChat`, `selectB
 ### Jobs (`packages/queue` definitions in `infrastructure/chat/chat.queue.ts`)
 
 ```ts
-GenerateAssistantMessage = { chatId, messageId }   // queue 'assistant-message'
-                                                   // job id `assistant-message:${messageId}`
-GenerateChatTitle        = { chatId, text }        // queue 'chat-title', job id `chat-title:${chatId}`
-AttemptInfo              = { attempt, maxAttempts, isLastAttempt }   // passed to consume's handle
+GenerateAssistantMessage = { chatId, messageId }   // queue 'assistant-message', job id messageId
+GenerateChatTitle        = { chatId, messageId }   // queue 'chat-title', job id chatId
+                                                   // messageId: the first user message
+AttemptInfo              = { attempt, maxAttempts, isLastAttempt }   // the handler's 2nd argument
 ```
+
+Each definition carries its `jobId`; a job sends with `send(definition, message)` and consumes
+with `worker(definition, handle)`, a Layer (D21). A job id needs no queue prefix: the store keys
+uniqueness on `(id, queue_name)`. *Amended in S6.*
 
 ### HTTP contract (`@app-template/api-contract`)
 
@@ -295,7 +299,7 @@ The cookie is `Secure` when `RuntimeConfig.nodeEnv === 'production'`. The snapsh
 | 1 `domain/*` schemas and pure rules | the active-message predicate, message input rule, binding rules, stage transitions, title constraint | persistence, ordering, HTTP |
 | 2 `infrastructure/kv/kv-collection` on `layerMemory` and on `layerFileSystem` in a temp dir | key encoding (`/` in keys), index append, remove and delete, missing-key semantics, JSON codec, lost updates under concurrent `modify` | cross-process races |
 | 3 repositories and `AttachmentStoreKv` through their ports on `layerMemory` | field mapping, index maintenance (`selectByUser`, `selectActiveByChat`, `deleteByChat` cascade, `deleteByIds`) | the real file store (covered for the module in 2) |
-| 4 `JobQueue.consume` in `packages/queue` on the memory store under `TestClock` | `AttemptInfo` values per attempt, `isLastAttempt` on the dead-letter attempt, release on interrupt | SQLite timing |
+| 4 `send` and `worker` in `packages/queue` on the memory store under `TestClock` | `AttemptInfo` values per attempt, `isLastAttempt` on the dead-letter attempt and no attempt after it, release when the worker's scope closes, one job per `jobId` | SQLite timing |
 | 5 `UserService`, `ChatService`, `AttachmentService` on memory adapters, `QueueClientMemory`, `TestClock`, `TestCrypto` | ensure/authenticate, send writes two messages and enqueues one or two jobs, `409` while a message is active, bound and foreign attachments, rename rules, delete cascade, title job only on the first message | HTTP statuses, cookies |
 | 6 `AssistantMessageJob.worker` and `ChatTitleJob.worker` with a fake `LanguageModel` under `TestClock` | stage sequence, snapshot cadence and final write, `failed` only on the last attempt, prompt content (history, roles, file parts), title only if `none`, chat deleted meanwhile | a real provider, the SQLite queue |
 | 7 `apps/api` through `BunHttpServer.layerTest` + `@app-template/api-client` with `HttpClient.withCookiesRef` | the whole wire: cookie attributes, `401`/`404`/`409`/`413`/`415`/`400` bodies, multipart limits, download headers, `202` shape, the `Result` facade mapping, a stopped server → transport tag | browser cookie behaviour, the web proxy, `Secure` on http |
@@ -359,7 +363,8 @@ per the acceptance table, not by a test.
   dead-letter hook, so `JobQueue.consume` now passes `{ attempt, maxAttempts, isLastAttempt }`,
   computed from the same condition the store uses to mark `failed`. *Rejected:* a pure `Stream`
   pipeline (less explicit about the final write); writing `failed` on every attempt (the UI would
-  flash `failed` between retries); a dead-letter callback in the store (none exists).
+  flash `failed` between retries); a dead-letter callback in the store (none exists). *Amended in
+  S6:* the handler is the one passed to `worker(definition, handle)` (D21).
 - **D4 — Dev state is `KeyValueStore.layerFileSystem` at `STORE_PATH`, bundled with
   `StoreConfig` in `infrastructure/kv/kv-store.ts`; tests use `layerMemory`.** The two processes
   need one state and the queue already shares `.data/queue.sqlite`. `layerFileSystem` stores
@@ -431,7 +436,10 @@ per the acceptance table, not by a test.
   is known in `send` (the last message was `none`), the job carries the text so the worker needs
   no history, and a user's rename always wins except for the millisecond race accepted in Risks.
   *Rejected:* titling inside the assistant-message job (couples two outcomes and two retry
-  policies); titling after the first reply (later, and needs the reply).
+  policies); titling after the first reply (later, and needs the reply). *Amended in S6:* the job
+  carries the first message's id, not its text; the worker reads that one message from the store,
+  still without history, and the user's text is never copied into the queue table, where it would
+  outlive the chat's deletion.
 - **D13 — The client is one mapped type over `HttpApiClient` with `FetchHttpClient`, returning
   `Promise<Result>`; it manages no cookies, and takes an optional `fetch`.** The browser sends
   same-origin cookies by itself and the web dev server proxies `/api/`; the `Result` shape and
@@ -443,7 +451,9 @@ per the acceptance table, not by a test.
 - **D14 — `.job` joins `naming.md` as the application role for both sides of a queued job, and
   prompt functions live in the `.llm` adapter.** `effect-setup` D2 placed the job file; the rule
   table never recorded it, and `.prompt` would be a second role for one function. *Rejected:* a
-  `.prompt` role; job files under `.service`.
+  `.prompt` role; job files under `.service`. *Amended in S6:* `infrastructure/<entity>/
+  <entity>.queue.ts` holds only the queue definitions (name, schema, retry policy, `jobId`); jobs
+  call `send` and `worker` from `packages/queue` (D21), so no adapter wraps them a second time.
 - **D15 — The dev `LanguageModelStub` streams about twenty words with a 100 ms delay each and
   answers `generateText` with a short title; tests use their own fake.** The polling demo shows
   snapshots growing without a provider; a test fake controls timing with `TestClock` and records
@@ -484,6 +494,32 @@ per the acceptance table, not by a test.
   never on each other, and the lint rule turns the constraint into a check. *Rejected:*
   `Schema.suspend` on both sides (works, but hides the coupling behind comments with no check);
   one shared ids file (breaks one folder per aggregate, D1).
+- **D21 — A queue is a static definition value carrying its `jobId`; a job sends with
+  `send(definition, message)` and consumes with `worker(definition, handle)`, a Layer whose scope
+  owns the consumer fiber.** The definition already holds everything a queue needs, so the id
+  rule sits beside the schema and no caller passes an id; `worker` is
+  `Layer.effectDiscard(Effect.forkScoped(…))`, so the app merges job layers and closing the scope
+  interrupts the consumer, which releases its job at the same attempt. The shape follows effect's
+  `DurableQueue`. Any cause that ends the consumer, a typed `QueueError` or a defect (the SQL
+  store's `ack` retries, then dies), is logged at `Error` with the queue's name and the consumer
+  restarts after a delay that grows from 1 s and is capped at 1 min, with no limit: `tapCause`,
+  `Effect.sandbox`, `Effect.retry`, as effect's own SQL poll loop does
+  (`Effect.tapCause(Effect.logWarning)`, `Effect.sandbox`, `Effect.retry(Schedule.spaced(500))`).
+  An interrupt-only cause is not logged: a handler that interrupts itself releases its job, and
+  the consumer restarts. A defect the store adds while settling a failed attempt is logged at
+  `Error` before the attempt's failure is recovered, so it is never dropped unseen. The schedule
+  is one constant in `packages/queue`, not a definition field, and its state never resets, so
+  after a run of failures every restart waits the 1-minute cap (`Schedule` 4.0.5 has no
+  `resetAfter`); a restarted consumer still takes the queued jobs, so R19 holds.
+  *Rejected:* `QueueClient.make` at call sites (each job repeats the fork, the lifecycle and the
+  error policy); a `Context.Service` per queue (a middle man around a value that is already
+  static); effect's `DurableQueue` itself (it needs `WorkflowEngine` and is request/response);
+  `Effect.orDie` on a store failure (a probe showed a defect in a `forkScoped` fiber is neither
+  logged nor ends `Layer.launch`, so the process lives on without a consumer); retrying only a
+  typed `QueueError` (the SQL store's defects would end the consumer the same way); a `worker`
+  Effect run under `runMain` (gives up the Layer shape); dying after a bounded retry through a
+  `Deferred` the main fiber awaits (coupling for no gain: a restart heals an unavailable store no
+  better than a retry).
 
 ## Risks
 
@@ -500,6 +536,7 @@ per the acceptance table, not by a test.
 | Effect in the browser bundle (~54 KB gzip) | accepted in `feature.md`; measured once in the client step's findings |
 | Unstable modules (`http-api`, `persistence`, `ai`) change in a patch | exact lock-step catalog; seams 2, 4, 6, 7 catch behaviour changes |
 | A step over ~400 lines | `/ticket-plan` cuts by seam: domain per aggregate, kv-collection, repositories, queue change, services, jobs, contract, client, api groups, worker, web, cleanup, docs |
+| A worker crashes on the final attempt: the SQL store's lock-expiry sweep marks the job `failed` without calling the handler (`PersistedQueue.ts`, "Lock expired after final attempt"), so the message stays `preparing` or `generating` and the chat stays busy, against R18 | S8 decides and tests how a stuck active message heals |
 | Dev store grows with attachment bytes | `.data/` is gitignored; `rm -rf .data` resets both store and queue |
 | An attachment `DELETE` races a `send` that binds the same unbound attachment: both service checks pass on the unbound row (check-then-act in `AttachmentService.delete` and `ChatService.send`) | the atomic `Collection.update` stops the deleted row from being resurrected, but the message may then reference a deleted attachment; Postgres closes it with `UPDATE … WHERE message_id IS NULL` on bind and a delete guarded the same way |
 

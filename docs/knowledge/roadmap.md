@@ -179,6 +179,10 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   Postgres; a plain-data AWS resource inventory and a provisioner; tests against MiniStack through
   Testcontainers with a replacement `ConfigProvider`; `.env.example` for endpoints and credentials.
 - **Out of scope.** Lambda packaging and Pulumi (9); emulated Lambdas (9).
+- **Queue-port caveat.** The port promises one delivery per `jobId` (SQLite and Postgres: a
+  unique `(id, queue_name)`). A standard SQS queue has no dedupe and FIFO dedupes only within
+  5 minutes, and `isLastAttempt` must come from `ApproximateReceiveCount` against the redrive
+  policy's `maxReceiveCount`. Handlers stay idempotent either way.
 - **Open questions for its feature phase.** `@effect-aws/*` 2.0.0 behaviour on Bun (only its
   metadata was checked); whether MiniStack serves presigned URLs and SQS event source mappings
   (undocumented); whether the outbox relay from 4 or the api process publishes to SQS.

@@ -13,7 +13,7 @@ export interface QueueClientSqliteOptions {
 }
 
 /** A queue in one SQLite file, shared by every process that opens the same file. */
-export const createQueueClientSqlite = (
+export const layerSqlite = (
   options: QueueClientSqliteOptions,
 ): Layer.Layer<QueueClient, SqlError.SqlError> =>
   layerPersisted.pipe(
