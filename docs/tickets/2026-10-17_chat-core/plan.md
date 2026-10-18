@@ -262,7 +262,33 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
   `deleteByChat` removes every message and the index; `update` of a message never touches the
   index.
 - **Verify:** `make check`.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - No `TestClock`: the adapters take every timestamp from their input, so the fixtures share one
+    `createdAt` and the ids are given against insertion order. Order comes from the index, never
+    from ids (V2, for the adapter; S10 meets it again with `TestCrypto`).
+  - `selectActiveByChat` reads the last id of `chats/<id>/messages` and returns that message only
+    when `isActiveMessage` holds (D2). Mutating it to the first id, or dropping the predicate,
+    turns its tests red.
+  - Write order keeps a crash recoverable by retry: `insert` writes the row before its index
+    entry; `ChatRepository.delete` removes the index entry before the row; `deleteByChat` deletes
+    the messages before `Index.delete`. A list read drops an id whose row is gone.
+  - `ChatRepository.delete` reads the chat to find its owner's index; an unknown id is a no-op.
+    It does not cascade to messages: `ChatService.delete` (S10) calls `deleteByChat`.
+  - Both `update`s use `Collection.update`, so within one process a write to a message whose
+    chat was deleted never brings it back; each has a "never creates" test beyond the plan's
+    list. Across processes the api's `deleteByChat` can land between the worker's read and write
+    and leave an orphan row (`architecture.md › Risks`, *Amended in S5* on D4).
+  - The kv module gains `Collection.getMany(keys)`, outside this step's Files at the review's
+    request: one permit for the whole read, the order asked, missing keys left out. It replaces
+    the three list-then-get copies (`selectByUser`, `selectByChat` and S4's `selectByIds`);
+    Seam 2 tests it on both stores (*Amended in S5* on D2).
+  - The review moved two constraints into later steps: S8 re-reads the chat before writing
+    `updatedAt`; S10 fixes the delete order and serialises `send` per chat, which makes D2's
+    "sends are refused while a message is active" hold under concurrency (*Amended in S5* on D2).
+  - Two tests read the raw store (`chats/<id>/messages` gone, unchanged by `update`), like S4's
+    credential key: the port drops dangling ids, so an index leak is invisible through it.
+  - `Array` is imported as `Arr` (Biome `noShadowRestrictedNames`), as `String as Str` in domain.
 
 #### S6 — `AttemptInfo` in `packages/queue` and the two chat queues
 
@@ -323,6 +349,9 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
   deleted between enqueue and take ends the job with a log line and no write; a message found
   already terminal on take (`prepareMessage` fails `MessageStageInvalidError`) ends the job
   without a write.
+- **Constraint:** the worker re-reads the chat immediately before writing `updatedAt` and never
+  writes a chat it read at take time, so a rename during generation survives
+  (`architecture.md › Risks`, title race).
 - **Verify:** `make check`; `git grep -n "'system'\|'tool'" -- domain application` finds
   nothing.
 - **Status:** todo
@@ -362,7 +391,16 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
   attachment id fails and stores nothing; a repeated attachment id fails
   `MessageInputInvalidError` (`ensureMessageInput` gains the check); `rename` rejects a blank title; `delete` while a
   message is active removes chat, messages and attachments; `list` of two chats puts the last
-  sent first with its `queued` active message; `getMessage` of another user's chat is `ChatNotFoundError`.
+  sent first with its `queued` active message; `getMessage` of another user's chat is `ChatNotFoundError`;
+  two concurrent `send`s on one chat: exactly one fails `ChatBusyError` and one pair of messages is
+  stored.
+- **Constraints:**
+  - `delete` runs `selectByChat` to collect the attachment ids, deletes the attachments (rows and
+    bytes), then `deleteByChat`, and `ChatRepository.delete` last, so a crashed request can be
+    retried: each step still finds what the next one needs.
+  - `send` is serialised per chat in the api process: a per-chat lock in the service (a keyed
+    semaphore) makes the "no active message" check and the inserts one critical section (D2,
+    *Amended in S5*).
 - **Verify:** `make check`.
 - **Status:** todo
 

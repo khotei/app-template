@@ -3,6 +3,8 @@ import { KeyValueStore } from 'effect/persistence'
 
 export interface Collection<A> {
   readonly get: (key: string) => Effect.Effect<Option.Option<A>>
+  /** Reads the keys under one permit, in the order asked, leaving missing keys out. */
+  readonly getMany: (keys: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<A>>
   readonly set: (key: string, value: A) => Effect.Effect<void>
   /** Creates the key when it is missing. */
   readonly modify: (key: string, f: (current: Option.Option<A>) => A) => Effect.Effect<A>
@@ -43,6 +45,10 @@ export const createCollection = <A>(
   return {
     get: Effect.fn('Collection.get')(function* (key: string) {
       return yield* get(key)
+    }, lock.withPermit),
+    getMany: Effect.fn('Collection.getMany')(function* (keys: ReadonlyArray<string>) {
+      const found = yield* Effect.forEach(keys, get)
+      return found.flatMap(Option.toArray)
     }, lock.withPermit),
     set: Effect.fn('Collection.set')(function* (key: string, value: A) {
       yield* set(key, value)

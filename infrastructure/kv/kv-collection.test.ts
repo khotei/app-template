@@ -96,6 +96,19 @@ describe.each([
       }),
     )
 
+    it.effect('getMany keeps the order asked and leaves missing keys out', () =>
+      Effect.gen(function* () {
+        const collection = yield* notes
+        const first = { title: 'First', pinnedAt: Option.none() }
+        const second = { title: 'Second', pinnedAt: Option.none() }
+        yield* collection.set('6', first)
+        yield* collection.set('7', second)
+
+        assert.deepStrictEqual(yield* collection.getMany(['7', 'missing', '6']), [second, first])
+        assert.deepStrictEqual(yield* collection.getMany([]), [])
+      }),
+    )
+
     it.effect('dies with a schema error on a stored value that no longer decodes', () =>
       Effect.gen(function* () {
         yield* (yield* KeyValueStore.KeyValueStore).set('notes/3', JSON.stringify({ title: 42 }))

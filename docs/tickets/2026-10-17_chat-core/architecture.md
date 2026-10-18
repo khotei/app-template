@@ -211,7 +211,7 @@ error channel: a store failure is a defect (D17).
 | `credentials/secret/<sha256-hex>` | `UserId` | api |
 | `chats/<chatId>` | `Chat` | api (create, rename, send, delete) · worker (title, `updatedAt` at completion) |
 | `users/<userId>/chats` | `ChatId[]` index | api only |
-| `messages/<messageId>` | `Message` | api (insert) · worker (stages, snapshots) |
+| `messages/<messageId>` | `Message` | api (insert, `deleteByChat`) · worker (stages, snapshots): two writers, see Risks |
 | `chats/<chatId>/messages` | `MessageId[]` index | api only |
 | `attachments/<attachmentId>` | `Attachment` | api |
 | `attachments/<attachmentId>/bytes` | `Uint8Array` | api |
@@ -225,7 +225,9 @@ skips a missing key, the file store writes non-atomically, and a plain `set` mus
 under one permit only when the key exists (`none` and no write otherwise), so a port's `update`
 never creates a record; `createBlobs(store, { prefix })` gives `get / set / delete` of raw bytes
 over `getUint8Array` and `set(key, Uint8Array)`, under the same lock and defect policy, so
-`attachments/<id>/bytes` holds the file's bytes, not base64 JSON.
+`attachments/<id>/bytes` holds the file's bytes, not base64 JSON. *Amended in S5:* collections
+gain `getMany(keys)`, which reads every key under one permit, in the order asked, leaving missing
+keys out; the repositories' list reads (`selectByUser`, `selectByChat`, `selectByIds`) use it.
 
 ### Jobs (`packages/queue` definitions in `infrastructure/chat/chat.queue.ts`)
 
@@ -338,6 +340,14 @@ per the acceptance table, not by a test.
   adapter (two permits: a delete between them is undone); `Schema.Uint8Array` in a collection
   (base64 JSON, a third larger); raw `KeyValueStore` calls in the adapter (bypass the lock and
   repeat `Effect.orDie`).
+  *Amended in S5:* collections gain `getMany(keys)` (one permit for the whole read, the order
+  asked, missing keys left out), replacing three list-then-`get` copies in the adapters. The
+  premise "sends are refused while a message is active" is enforced, not assumed: on KV by a
+  per-chat lock in `ChatService.send` that makes the check and the inserts one critical section
+  in the api process; on Postgres by a partial unique index allowing one active message per chat.
+  *Rejected:* a `get` per id (a permit each, so a write lands between reads, and three copies);
+  the unlocked check-then-insert (two concurrent sends both see no active message, and the last
+  message then hides the other active one from `selectActiveByChat`).
 - **D3 — The assistant message is produced by `Ref` + `Schedule.spaced` snapshots with an
   explicit final write, and the handler learns the last attempt from `AttemptInfo`.** The worker
   folds `text-delta` parts into a `Ref` and raises a `dirty` flag; a racing
@@ -354,12 +364,15 @@ per the acceptance table, not by a test.
   `StoreConfig` in `infrastructure/kv/kv-store.ts`; tests use `layerMemory`.** The two processes
   need one state and the queue already shares `.data/queue.sqlite`. `layerFileSystem` stores
   keys flat with `encodeURIComponent`, needs `FileSystem | Path` (both in `BunHttpServer.layer` and
-  `BunServices.layer`), and has no locking: last write wins. D2 keeps every key single-writer except
-  `chats/<id>` (title race, see Risks). *Rejected:* `layerSql` over the queue's SQLite file (atomic
+  `BunServices.layer`), and has no locking: last write wins. D2 keeps every index single-writer;
+  only the rows `chats/<id>` (title race) and `messages/<id>` (delete race) are written from both
+  processes, see Risks. *Rejected:* `layerSql` over the queue's SQLite file (atomic
   writes and cross-process locking, but a SQL store in the "in-memory" ticket; it remains the
   one-line switch if the file store proves flaky); `layerMemory` in dev (the worker would never see
   the api's writes). *Amended in S3:* the wiring is `infrastructure/kv/kv-store.ts`, beside the
-  module (D2); `STORE_PATH` has no default in code and is set in `.env.example`.
+  module (D2); `STORE_PATH` has no default in code and is set in `.env.example`. *Amended in S5:*
+  `messages/<id>` has two writers, the api (insert, `deleteByChat`) and the worker (stages,
+  snapshots); the earlier wording named `chats/<id>` as the only one.
 - **D5 — Limits are constants in `@app-template/api-contract`, and the declared media type is
   checked with a `Schema`.** `asMultipartStream(withLimits)` fixes its limits at schema
   definition, so they cannot be runtime tunables; the contract is browser-safe, so the UI later
@@ -476,8 +489,10 @@ per the acceptance table, not by a test.
 
 | Risk | Mitigation |
 |---|---|
-| Title race: a rename and the worker's write in the same instant on the file store | the worker re-reads just before writing; Postgres (roadmap 4) makes it `UPDATE … WHERE title IS NULL` |
-| `layerFileSystem` has no locking or atomic rename; a crash mid-write leaves a partial file | every key but `chats/<id>` is single-writer (D2); `layerSql` over SQLite is the one-line fallback (D4) |
+| Title race: a rename lands between the worker's re-read of the chat and its write of the title or `updatedAt` on the file store, and is lost | the worker re-reads the chat just before each write, never writing a chat read at take time; Postgres (roadmap 4) makes them `UPDATE … WHERE title IS NULL` and `UPDATE … SET updated_at` |
+| Delete race: the api's `deleteByChat` lands between a worker's read and write of a message | `Collection.update` writes only an existing key, but the two processes hold separate locks, so the worker can rewrite a deleted message: an orphan `messages/<id>` row no index lists, harmless but leaked; Postgres closes it with a foreign key `ON DELETE CASCADE` |
+| Two concurrent `send`s on one chat both pass the "no active message" check | a per-chat lock in `ChatService.send` serialises check and inserts within the api process; it does not span processes, so a second api process needs Postgres's partial unique index (one active message per chat) first |
+| `layerFileSystem` has no locking or atomic rename; a crash mid-write leaves a partial file | every index is single-writer, and only the `chats/<id>` and `messages/<id>` rows have a writer in each process (D2, D4); `layerSql` over SQLite is the one-line fallback (D4) |
 | `@effect/platform-bun` is in the catalog but installed nowhere | declared by `apps/api` and `apps/worker` in the first step that needs it; `make typecheck` catches a missing declaration |
 | `Secure` cookies are dropped by browsers on `http://localhost` | `secure` only when `nodeEnv === 'production'`; verified in `web-app` (7) |
 | `maxFileSize` rejected a 5-byte file at a `'10 B'` limit in an experiment | limits are expressed in MiB; the test uses realistic sizes (1 MiB passes, 11 MiB fails) |

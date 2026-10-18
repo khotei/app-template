@@ -1,4 +1,4 @@
-import { Effect, Layer, Option } from 'effect'
+import { Effect, Layer } from 'effect'
 import { KeyValueStore } from 'effect/persistence'
 
 import { Attachment, AttachmentRepository } from '@app-template/domain/attachment'
@@ -20,8 +20,7 @@ export const AttachmentRepositoryKv = Layer.effect(
         return yield* attachments.get(id)
       }),
       selectByIds: Effect.fn('AttachmentRepository.selectByIds')(function* (ids) {
-        const found = yield* Effect.forEach(ids, (id) => attachments.get(id))
-        return found.flatMap(Option.toArray)
+        return yield* attachments.getMany(ids)
       }),
       deleteByIds: Effect.fn('AttachmentRepository.deleteByIds')(function* (ids) {
         yield* Effect.forEach(ids, (id) => attachments.delete(id), { discard: true })
