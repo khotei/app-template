@@ -17,13 +17,13 @@ export const UserRepositoryKv = Layer.effect(
         yield* users.set(user.id, user)
         yield* credentials.set(credentialKey(credential), user.id)
       }),
-      selectById: Effect.fn('UserRepository.selectById')(function* (id) {
-        return yield* users.get(id)
-      }),
-      selectByCredential: Effect.fn('UserRepository.selectByCredential')(function* (credential) {
-        const id = yield* credentials.get(credentialKey(credential))
-        return Option.isSome(id) ? yield* users.get(id.value) : Option.none()
-      }),
+      selectById: Effect.fn('UserRepository.selectById')(users.get),
+      selectByCredential: Effect.fn('UserRepository.selectByCredential')((credential: Credential) =>
+        Effect.flatMap(
+          credentials.get(credentialKey(credential)),
+          Option.match({ onNone: () => Effect.succeedNone, onSome: users.get }),
+        ),
+      ),
     })
   }),
 )

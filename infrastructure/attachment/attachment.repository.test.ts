@@ -1,5 +1,5 @@
 import { assert, describe, layer } from '@effect/vitest'
-import { DateTime, Effect, Layer, Option } from 'effect'
+import { Array as Arr, DateTime, Effect, Layer, Option } from 'effect'
 import { KeyValueStore } from 'effect/persistence'
 
 import {
@@ -78,11 +78,12 @@ describe('AttachmentRepositoryKv', () => {
           attachment('0192d4e0-7b3a-7c00-8000-000000000024'),
           attachment('0192d4e0-7b3a-7c00-8000-000000000025'),
         ]
-        yield* Effect.forEach([kept, ...dropped], (each) => attachments.insert(each))
+        yield* Effect.forEach(Arr.prepend(dropped, kept), attachments.insert)
 
-        yield* attachments.deleteByIds([...dropped.map((each) => each.id), unknownId])
+        const droppedIds = Arr.map(dropped, (each) => each.id)
+        yield* attachments.deleteByIds(Arr.append(droppedIds, unknownId))
 
-        const ids = [kept.id, ...dropped.map((each) => each.id)]
+        const ids = Arr.prepend(droppedIds, kept.id)
         assert.deepStrictEqual(yield* attachments.selectByIds(ids), [kept])
       }),
     )

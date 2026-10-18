@@ -44,11 +44,8 @@ const receive = (count: number) =>
 
 type MakeClient = Effect.Effect<Layer.Layer<QueueClient, unknown>, never, Scope.Scope>
 
-const sendPings = Effect.fnUntraced(function* (
-  ...messages: ReadonlyArray<[id: string, text: string]>
-) {
-  for (const [id, text] of messages) yield* send(pings, new Ping({ id, text }))
-})
+const sendPings = (...messages: ReadonlyArray<[id: string, text: string]>) =>
+  Effect.forEach(messages, ([id, text]) => send(pings, new Ping({ id, text })), { discard: true })
 
 const suite = (name: string, makeClient: MakeClient) =>
   describe(name, () => {
@@ -218,13 +215,17 @@ const failFirstTake = (failure: Effect.Effect<never, PersistedQueue.PersistedQue
   ).pipe(Layer.provide(PersistedQueue.layerStoreMemory))
 
 const storeFailures = [
-  ['a typed failure', Effect.fail(new PersistedQueue.PersistedQueueError({ message: 'down' }))],
-  ['a defect', Effect.die(new Error('ack failed'))],
-] as const
+  {
+    kind: 'a typed failure',
+    failure: Effect.fail(new PersistedQueue.PersistedQueueError({ message: 'down' })),
+  },
+  { kind: 'a defect', failure: Effect.die(new Error('ack failed')) },
+]
 
 describe('worker on a failing store', () => {
-  for (const [kind, failure] of storeFailures) {
-    it.effect(`logs ${kind} as an error and resumes consuming after a backoff`, () => {
+  it.effect.each(storeFailures)(
+    'logs $kind as an error and resumes consuming after a backoff',
+    ({ failure }) => {
       const { logs, recordLogs } = makeLogRecorder()
       return Effect.gen(function* () {
         const seen = yield* Queue.unbounded<Seen>()
@@ -241,8 +242,8 @@ describe('worker on a failing store', () => {
         ])
         assert.deepStrictEqual(logs, [['Error', 'queue consumer failed', 'flaky']])
       }).pipe(Effect.provide(Layer.mergeAll(layerOverStore(failFirstTake(failure)), recordLogs)))
-    })
-  }
+    },
+  )
 
   it.effect('resumes after a handler interrupts itself, at the same attempt, unlogged', () => {
     const { logs, recordLogs } = makeLogRecorder()

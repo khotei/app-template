@@ -1,6 +1,8 @@
 import { assert, describe, it } from '@effect/vitest'
+import { assertEquals } from '@effect/vitest/utils'
 import { DateTime, Effect, Option } from 'effect'
 
+import { AttachmentBoundError, AttachmentNotFoundError } from '#domain/attachment/attachment.error'
 import { AttachmentId } from '#domain/attachment/attachment.id'
 import { Attachment, FileName, FileSize, MediaType } from '#domain/attachment/attachment.model'
 import { buildAttachment, ensureBindable } from '#domain/attachment/attachment.service'
@@ -47,10 +49,7 @@ describe('ensureBindable', () => {
 
       const error = yield* Effect.flip(ensureBindable(id, Option.none(), userId))
 
-      assert.deepStrictEqual(
-        { _tag: error._tag, id: error.id },
-        { _tag: 'AttachmentNotFoundError', id },
-      )
+      assertEquals(error, new AttachmentNotFoundError({ id }))
     }),
   )
 
@@ -63,10 +62,7 @@ describe('ensureBindable', () => {
 
       const error = yield* Effect.flip(ensureBindable(foreign.id, Option.some(foreign), userId))
 
-      assert.deepStrictEqual(
-        { _tag: error._tag, id: error.id },
-        { _tag: 'AttachmentNotFoundError', id: foreign.id },
-      )
+      assertEquals(error, new AttachmentNotFoundError({ id: foreign.id }))
     }),
   )
 
@@ -79,10 +75,7 @@ describe('ensureBindable', () => {
 
       const error = yield* Effect.flip(ensureBindable(bound.id, Option.some(bound), userId))
 
-      assert.deepStrictEqual(
-        { _tag: error._tag, id: error.id },
-        { _tag: 'AttachmentBoundError', id: bound.id },
-      )
+      assertEquals(error, new AttachmentBoundError({ id: bound.id }))
     }),
   )
 })

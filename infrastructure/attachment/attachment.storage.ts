@@ -12,15 +12,11 @@ export const AttachmentStoreKv = Layer.effect(
   Effect.map(KeyValueStore.KeyValueStore, (store) => {
     const blobs = createBlobs(store, { prefix: 'attachments/' })
     return AttachmentStore.of({
-      insert: Effect.fn('AttachmentStore.insert')(function* (id, bytes) {
-        yield* blobs.set(bytesKey(id), bytes)
-      }),
-      select: Effect.fn('AttachmentStore.select')(function* (id) {
-        return yield* blobs.get(bytesKey(id))
-      }),
-      delete: Effect.fn('AttachmentStore.delete')(function* (id) {
-        yield* blobs.delete(bytesKey(id))
-      }),
+      insert: Effect.fn('AttachmentStore.insert')((id: AttachmentId, bytes: Uint8Array) =>
+        blobs.set(bytesKey(id), bytes),
+      ),
+      select: Effect.fn('AttachmentStore.select')((id: AttachmentId) => blobs.get(bytesKey(id))),
+      delete: Effect.fn('AttachmentStore.delete')((id: AttachmentId) => blobs.delete(bytesKey(id))),
     })
   }),
 )

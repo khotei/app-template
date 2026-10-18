@@ -23,15 +23,13 @@ export const MessageRepositoryKv = Layer.effect(
         yield* messages.set(message.id, message)
         yield* chatMessages.append(chatMessagesKey(message.chatId), message.id)
       }),
-      update: Effect.fn('MessageRepository.update')(function* (message) {
-        yield* messages.update(message.id, () => message)
-      }),
-      selectById: Effect.fn('MessageRepository.selectById')(function* (id) {
-        return yield* messages.get(id)
-      }),
-      selectByChat: Effect.fn('MessageRepository.selectByChat')(function* (chatId) {
-        return yield* messages.getMany(yield* chatMessages.list(chatMessagesKey(chatId)))
-      }),
+      update: Effect.fn('MessageRepository.update')((message: Message) =>
+        messages.update(message.id, () => message),
+      ),
+      selectById: Effect.fn('MessageRepository.selectById')(messages.get),
+      selectByChat: Effect.fn('MessageRepository.selectByChat')((chatId: ChatId) =>
+        Effect.flatMap(chatMessages.list(chatMessagesKey(chatId)), messages.getMany),
+      ),
       // Only the last message can be active: a send is refused while one is.
       selectActiveByChat: Effect.fn('MessageRepository.selectActiveByChat')(function* (chatId) {
         const last = Arr.last(yield* chatMessages.list(chatMessagesKey(chatId)))

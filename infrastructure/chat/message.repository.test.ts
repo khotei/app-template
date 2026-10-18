@@ -1,5 +1,5 @@
 import { assert, describe, layer } from '@effect/vitest'
-import { DateTime, Effect, Layer, Option } from 'effect'
+import { Array as Arr, DateTime, Effect, Layer, Option } from 'effect'
 import { KeyValueStore } from 'effect/persistence'
 
 import {
@@ -80,13 +80,15 @@ describe('MessageRepositoryKv', () => {
           assistantMessage('0192d4e0-7b3a-7c00-8000-000000000057', chatId),
         ]
         const kept = userMessage('0192d4e0-7b3a-7c00-8000-000000000058', other)
-        yield* Effect.forEach([...deleted, kept], (each) => messages.insert(each))
+        yield* Effect.forEach(Arr.append(deleted, kept), messages.insert)
 
         yield* messages.deleteByChat(chatId)
 
-        for (const each of deleted) {
-          assert.deepStrictEqual(yield* messages.selectById(each.id), Option.none())
-        }
+        const afterDelete = yield* Effect.forEach(deleted, (each) => messages.selectById(each.id))
+        assert.deepStrictEqual(
+          afterDelete,
+          Arr.map(deleted, () => Option.none()),
+        )
         assert.isFalse(yield* (yield* KeyValueStore.KeyValueStore).has(`chats/${chatId}/messages`))
         assert.deepStrictEqual(yield* messages.selectByChat(other), [kept])
       }),

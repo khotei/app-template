@@ -1,4 +1,4 @@
-import { Effect, Option, Schema, Semaphore } from 'effect'
+import { Array as Arr, Effect, Option, Schema, Semaphore } from 'effect'
 import { KeyValueStore } from 'effect/persistence'
 
 export interface Collection<A> {
@@ -43,16 +43,12 @@ export const createCollection = <A>(
   const get = (key: string) => Effect.orDie(values.get(key))
   const set = (key: string, value: A) => Effect.orDie(values.set(key, value))
   return {
-    get: Effect.fn('Collection.get')(function* (key: string) {
-      return yield* get(key)
-    }, lock.withPermit),
-    getMany: Effect.fn('Collection.getMany')(function* (keys: ReadonlyArray<string>) {
-      const found = yield* Effect.forEach(keys, get)
-      return found.flatMap(Option.toArray)
-    }, lock.withPermit),
-    set: Effect.fn('Collection.set')(function* (key: string, value: A) {
-      yield* set(key, value)
-    }, lock.withPermit),
+    get: Effect.fn('Collection.get')(get, lock.withPermit),
+    getMany: Effect.fn('Collection.getMany')(
+      (keys: ReadonlyArray<string>) => Effect.map(Effect.forEach(keys, get), Arr.getSomes),
+      lock.withPermit,
+    ),
+    set: Effect.fn('Collection.set')(set, lock.withPermit),
     modify: Effect.fn('Collection.modify')(function* (
       key: string,
       f: (current: Option.Option<A>) => A,
@@ -68,9 +64,10 @@ export const createCollection = <A>(
       yield* set(key, next)
       return Option.some(next)
     }, lock.withPermit),
-    delete: Effect.fn('Collection.delete')(function* (key: string) {
-      yield* Effect.orDie(values.remove(key))
-    }, lock.withPermit),
+    delete: Effect.fn('Collection.delete')(
+      (key: string) => Effect.orDie(values.remove(key)),
+      lock.withPermit,
+    ),
   }
 }
 
@@ -82,20 +79,16 @@ export const createIndex = <Id extends string>(
     prefix: options.prefix,
     schema: Schema.Array(options.id),
   })
-  const orEmpty = Option.getOrElse((): ReadonlyArray<Id> => [])
+  const orEmpty = Option.getOrElse(Arr.empty<Id>)
   return {
-    append: Effect.fn('Index.append')(function* (key: string, id: Id) {
-      yield* lists.modify(key, (ids) => [...orEmpty(ids), id])
-    }),
-    remove: Effect.fn('Index.remove')(function* (key: string, id: Id) {
-      yield* lists.modify(key, (ids) => orEmpty(ids).filter((each) => each !== id))
-    }),
-    list: Effect.fn('Index.list')(function* (key: string) {
-      return orEmpty(yield* lists.get(key))
-    }),
-    delete: Effect.fn('Index.delete')(function* (key: string) {
-      yield* lists.delete(key)
-    }),
+    append: Effect.fn('Index.append')((key: string, id: Id) =>
+      lists.modify(key, (ids) => Arr.append(orEmpty(ids), id)),
+    ),
+    remove: Effect.fn('Index.remove')((key: string, id: Id) =>
+      lists.modify(key, (ids) => Arr.filter(orEmpty(ids), (each) => each !== id)),
+    ),
+    list: Effect.fn('Index.list')((key: string) => Effect.map(lists.get(key), orEmpty)),
+    delete: Effect.fn('Index.delete')(lists.delete),
   }
 }
 
@@ -105,14 +98,17 @@ export const createBlobs = (
 ): Blobs => {
   const blobs = KeyValueStore.prefix(store, options.prefix)
   return {
-    get: Effect.fn('Blobs.get')(function* (key: string) {
-      return Option.fromUndefinedOr(yield* Effect.orDie(blobs.getUint8Array(key)))
-    }, lock.withPermit),
-    set: Effect.fn('Blobs.set')(function* (key: string, bytes: Uint8Array) {
-      yield* Effect.orDie(blobs.set(key, bytes))
-    }, lock.withPermit),
-    delete: Effect.fn('Blobs.delete')(function* (key: string) {
-      yield* Effect.orDie(blobs.remove(key))
-    }, lock.withPermit),
+    get: Effect.fn('Blobs.get')(
+      (key: string) => Effect.map(Effect.orDie(blobs.getUint8Array(key)), Option.fromUndefinedOr),
+      lock.withPermit,
+    ),
+    set: Effect.fn('Blobs.set')(
+      (key: string, bytes: Uint8Array) => Effect.orDie(blobs.set(key, bytes)),
+      lock.withPermit,
+    ),
+    delete: Effect.fn('Blobs.delete')(
+      (key: string) => Effect.orDie(blobs.remove(key)),
+      lock.withPermit,
+    ),
   }
 }

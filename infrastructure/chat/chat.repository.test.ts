@@ -1,5 +1,5 @@
 import { assert, describe, layer } from '@effect/vitest'
-import { DateTime, Effect, Layer, Option } from 'effect'
+import { Array as Arr, DateTime, Effect, Layer, Option, Order } from 'effect'
 import { KeyValueStore } from 'effect/persistence'
 
 import { buildChat, Chat, ChatId, ChatRepository } from '@app-template/domain/chat'
@@ -11,8 +11,7 @@ const createdAt = DateTime.makeUnsafe('2026-10-18T00:00:00.000Z')
 
 const chat = (id: string, userId: UserId) => buildChat({ id: ChatId.make(id), userId, createdAt })
 
-const byId = (left: { readonly id: string }, right: { readonly id: string }) =>
-  left.id.localeCompare(right.id)
+const byId = Order.mapInput(Order.String, (chat: Chat) => chat.id)
 
 describe('ChatRepositoryKv', () => {
   layer(ChatRepositoryKv.pipe(Layer.provideMerge(KeyValueStore.layerMemory)))((it) => {
@@ -26,13 +25,13 @@ describe('ChatRepositoryKv', () => {
           chat('0192d4e0-7b3a-7c00-8000-000000000030', ada),
         ]
         yield* Effect.forEach(
-          [...adas, chat('0192d4e0-7b3a-7c00-8000-000000000032', bob)],
+          Arr.append(adas, chat('0192d4e0-7b3a-7c00-8000-000000000032', bob)),
           (each) => chats.insert(each),
         )
 
         const selected = yield* chats.selectByUser(ada)
 
-        assert.deepStrictEqual([...selected].sort(byId), [...adas].sort(byId))
+        assert.deepStrictEqual(Arr.sort(selected, byId), Arr.sort(adas, byId))
       }),
     )
 

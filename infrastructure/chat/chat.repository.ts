@@ -18,15 +18,11 @@ export const ChatRepositoryKv = Layer.effect(
         yield* chats.set(chat.id, chat)
         yield* userChats.append(userChatsKey(chat.userId), chat.id)
       }),
-      update: Effect.fn('ChatRepository.update')(function* (chat) {
-        yield* chats.update(chat.id, () => chat)
-      }),
-      selectById: Effect.fn('ChatRepository.selectById')(function* (id) {
-        return yield* chats.get(id)
-      }),
-      selectByUser: Effect.fn('ChatRepository.selectByUser')(function* (userId) {
-        return yield* chats.getMany(yield* userChats.list(userChatsKey(userId)))
-      }),
+      update: Effect.fn('ChatRepository.update')((chat: Chat) => chats.update(chat.id, () => chat)),
+      selectById: Effect.fn('ChatRepository.selectById')(chats.get),
+      selectByUser: Effect.fn('ChatRepository.selectByUser')((userId: UserId) =>
+        Effect.flatMap(userChats.list(userChatsKey(userId)), chats.getMany),
+      ),
       // The row goes last, so a retry after a crash still finds the owner whose index lists it.
       delete: Effect.fn('ChatRepository.delete')(function* (id) {
         const chat = yield* chats.get(id)

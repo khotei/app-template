@@ -1,7 +1,13 @@
 import { assert, describe, it } from '@effect/vitest'
+import { assertEquals } from '@effect/vitest/utils'
 import { DateTime, Effect, Option } from 'effect'
 
 import { AttachmentId } from '#domain/attachment/attachment.id'
+import {
+  ChatBusyError,
+  MessageInputInvalidError,
+  MessageStageInvalidError,
+} from '#domain/chat/chat.error'
 import { ChatId, MessageId } from '#domain/chat/chat.id'
 import { Message, MessageFailure, type MessageStage } from '#domain/chat/chat.model'
 import {
@@ -68,8 +74,7 @@ describe('ensureChatAcceptsMessage', () => {
       Effect.gen(function* () {
         const error = yield* Effect.flip(ensureChatAcceptsMessage(Option.some(assistantAt(stage))))
 
-        assert.strictEqual(error._tag, 'ChatBusyError')
-        assert.strictEqual(error.id, chatId)
+        assertEquals(error, new ChatBusyError({ id: chatId }))
       }),
   )
 })
@@ -79,7 +84,7 @@ describe('ensureMessageInput', () => {
     Effect.gen(function* () {
       const error = yield* Effect.flip(ensureMessageInput({ text, attachmentIds: [] }))
 
-      assert.strictEqual(error._tag, 'MessageInputInvalidError')
+      assertEquals(error, new MessageInputInvalidError())
     }),
   )
 
@@ -137,17 +142,14 @@ const withLeftovers = (stage: MessageStage) =>
   })
 
 const expectStageInvalid = (
-  transition: Effect.Effect<Message, { readonly _tag: string }>,
+  transition: Effect.Effect<Message, MessageStageInvalidError>,
   message: Message,
   to: MessageStage,
 ) =>
   Effect.gen(function* () {
     const error = yield* Effect.flip(transition)
 
-    assert.deepStrictEqual(
-      { ...error },
-      { _tag: 'MessageStageInvalidError', id: message.id, from: message.stage, to },
-    )
+    assertEquals(error, new MessageStageInvalidError({ id: message.id, from: message.stage, to }))
   })
 
 describe('prepareMessage', () => {

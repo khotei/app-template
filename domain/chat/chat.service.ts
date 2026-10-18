@@ -1,4 +1,13 @@
-import { Context, type DateTime, Effect, Option, Schema, String as Str } from 'effect'
+import {
+  Array as Arr,
+  Context,
+  type DateTime,
+  Effect,
+  Option,
+  Predicate,
+  Schema,
+  String as Str,
+} from 'effect'
 
 import type { AttachmentId } from '#domain/attachment/attachment.id'
 import {
@@ -99,78 +108,61 @@ export const isActiveMessage = (message: Message): boolean =>
 export const ensureChatAcceptsMessage = Effect.fn('ensureChatAcceptsMessage')(function* (
   current: Option.Option<Message>,
 ) {
-  if (Option.isSome(current) && isActiveMessage(current.value)) {
-    return yield* new ChatBusyError({ id: current.value.chatId })
-  }
+  const active = Option.filter(current, isActiveMessage)
+  if (Option.isSome(active)) return yield* new ChatBusyError({ id: active.value.chatId })
 })
 
 export const ensureMessageInput = Effect.fn('ensureMessageInput')(function* (input: {
   readonly text: string
   readonly attachmentIds: ReadonlyArray<AttachmentId>
 }) {
-  if (Str.isEmpty(Str.trim(input.text)) && input.attachmentIds.length === 0) {
+  if (Str.isEmpty(Str.trim(input.text)) && Arr.isReadonlyArrayEmpty(input.attachmentIds)) {
     return yield* new MessageInputInvalidError()
   }
 })
 
-const isPreparing = (message: Message): boolean =>
-  isActiveMessage(message) && message.stage === 'preparing'
+const isPreparing = Predicate.and(isActiveMessage, (message) => message.stage === 'preparing')
 
-const ensureMovable = Effect.fn('ensureMovable')(function* (
-  message: Message,
-  to: MessageStage,
-  isMovable: (message: Message) => boolean = isActiveMessage,
-) {
-  if (isMovable(message)) return
-  return yield* new MessageStageInvalidError({ id: message.id, from: message.stage, to })
-})
+/** Which messages may enter each stage; `queued` is only ever built, never entered. */
+const transitions = {
+  preparing: isActiveMessage,
+  generating: isPreparing,
+  completed: isActiveMessage,
+  failed: isActiveMessage,
+} as const satisfies Record<Exclude<MessageStage, 'queued'>, Predicate.Predicate<Message>>
 
-export const prepareMessage = Effect.fn('prepareMessage')(function* (
+const move = Effect.fnUntraced(function* (
   message: Message,
+  to: keyof typeof transitions,
   at: DateTime.Utc,
+  patch: Partial<Pick<Message, 'text' | 'error'>> = {},
 ) {
-  yield* ensureMovable(message, 'preparing')
-  return new Message({
-    ...message,
-    stage: 'preparing',
-    text: '',
-    error: Option.none(),
-    updatedAt: at,
-  })
+  if (!transitions[to](message)) {
+    return yield* new MessageStageInvalidError({ id: message.id, from: message.stage, to })
+  }
+  return new Message({ ...message, ...patch, stage: to, updatedAt: at })
 })
 
-export const generateMessage = Effect.fn('generateMessage')(function* (
-  message: Message,
-  at: DateTime.Utc,
-) {
-  yield* ensureMovable(message, 'generating', isPreparing)
-  return new Message({ ...message, stage: 'generating', updatedAt: at })
-})
+export const prepareMessage = Effect.fn('prepareMessage')((message: Message, at: DateTime.Utc) =>
+  move(message, 'preparing', at, { text: '', error: Option.none() }),
+)
 
-export const completeMessage = Effect.fn('completeMessage')(function* (
-  message: Message,
-  text: string,
-  at: DateTime.Utc,
-) {
-  yield* ensureMovable(message, 'completed')
-  return new Message({ ...message, stage: 'completed', text, error: Option.none(), updatedAt: at })
-})
+export const generateMessage = Effect.fn('generateMessage')((message: Message, at: DateTime.Utc) =>
+  move(message, 'generating', at),
+)
+
+export const completeMessage = Effect.fn('completeMessage')(
+  (message: Message, text: string, at: DateTime.Utc) =>
+    move(message, 'completed', at, { text, error: Option.none() }),
+)
 
 const failureMessages = {
   ReplyFailed: 'The assistant could not reply. Please try again.',
 } as const satisfies Record<MessageFailure['reason'], string>
 
-export const failMessage = Effect.fn('failMessage')(function* (
-  message: Message,
-  reason: MessageFailure['reason'],
-  cause: string,
-  at: DateTime.Utc,
-) {
-  yield* ensureMovable(message, 'failed')
-  return new Message({
-    ...message,
-    stage: 'failed',
-    error: Option.some(new MessageFailure({ reason, message: failureMessages[reason], cause })),
-    updatedAt: at,
-  })
-})
+export const failMessage = Effect.fn('failMessage')(
+  (message: Message, reason: MessageFailure['reason'], cause: string, at: DateTime.Utc) =>
+    move(message, 'failed', at, {
+      error: Option.some(new MessageFailure({ reason, message: failureMessages[reason], cause })),
+    }),
+)
