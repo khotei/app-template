@@ -5,6 +5,8 @@
   "exports": {
     "./shared": "./shared/index.ts",
     "./kv": "./kv/index.ts",
+    "./user": "./user/index.ts",
+    "./attachment": "./attachment/index.ts",
     "./example": "./example/index.ts"
   },
   "imports": {

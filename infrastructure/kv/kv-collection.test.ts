@@ -13,7 +13,7 @@ import {
 } from 'effect'
 import { KeyValueStore } from 'effect/persistence'
 
-import { createCollection, createIndex } from '#infrastructure/kv/kv-collection'
+import { createBlobs, createCollection, createIndex } from '#infrastructure/kv/kv-collection'
 import { KeyValueStoreFileSystem } from '#infrastructure/kv/kv-store'
 
 const fileSystemStore = Layer.unwrap(
@@ -35,6 +35,12 @@ const notes = Effect.map(KeyValueStore.KeyValueStore, (store) =>
 const chats = Effect.map(KeyValueStore.KeyValueStore, (store) =>
   createIndex(store, { prefix: 'users/', id: Schema.String }),
 )
+
+const files = Effect.map(KeyValueStore.KeyValueStore, (store) =>
+  createBlobs(store, { prefix: 'files/' }),
+)
+
+const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0xff])
 
 describe.each([
   { name: 'memory', store: KeyValueStore.layerMemory },
@@ -73,6 +79,23 @@ describe.each([
       }),
     )
 
+    it.effect('update applies f to an existing key and writes nothing for a missing one', () =>
+      Effect.gen(function* () {
+        const collection = yield* notes
+        const retitle = (note: typeof Note.Type) => ({ ...note, title: `${note.title}!` })
+        yield* collection.set('4', { title: 'Trip', pinnedAt: Option.none() })
+
+        const updated = yield* collection.update('4', retitle)
+        const missing = yield* collection.update('5', retitle)
+
+        const expected = { title: 'Trip!', pinnedAt: Option.none() }
+        assert.deepStrictEqual(updated, Option.some(expected))
+        assert.deepStrictEqual(yield* collection.get('4'), Option.some(expected))
+        assert.deepStrictEqual(missing, Option.none())
+        assert.deepStrictEqual(yield* collection.get('5'), Option.none())
+      }),
+    )
+
     it.effect('dies with a schema error on a stored value that no longer decodes', () =>
       Effect.gen(function* () {
         yield* (yield* KeyValueStore.KeyValueStore).set('notes/3', JSON.stringify({ title: 42 }))
@@ -80,6 +103,21 @@ describe.each([
         const exit = yield* Effect.exit((yield* notes).get('3'))
 
         assert.isTrue(Exit.hasDies(exit) && Schema.isSchemaError(Cause.squash(exit.cause)))
+      }),
+    )
+
+    it.effect('round-trips bytes under a key with a slash, then deletes them', () =>
+      Effect.gen(function* () {
+        const blobs = yield* files
+
+        yield* blobs.set('1/bytes', png)
+
+        assert.deepStrictEqual(yield* blobs.get('1/bytes'), Option.some(png))
+        assert.deepStrictEqual(yield* blobs.get('2/bytes'), Option.none())
+
+        yield* blobs.delete('1/bytes')
+
+        assert.deepStrictEqual(yield* blobs.get('1/bytes'), Option.none())
       }),
     )
 

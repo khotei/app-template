@@ -222,7 +222,30 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
   `messageId`; `deleteByIds` removes rows and `AttachmentStoreKv.delete` the bytes; `select` of
   unknown bytes is `none`.
 - **Verify:** `make check`.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The kv module (`infrastructure/kv/kv-collection.ts` and its test) was changed though it is not
+    in this step's Files: S4's review asked for both additions below, and each has a Seam 2 test
+    on the memory and the file store (*Amended in S4* on D2 and the Store layout).
+  - `Collection.update(key, f)` reads and writes under one permit and only when the key exists
+    (`none`, no write, otherwise); `AttachmentRepositoryKv.update` uses it, so `update` never
+    creates (`naming.md`) and has no read-then-set window.
+  - `createBlobs(store, { prefix })` stores raw bytes (`getUint8Array`, `set(key, Uint8Array)`,
+    `remove`) under the same lock and defect policy; `AttachmentStoreKv` uses it. A probe on
+    `layerFileSystem` wrote a 4096-byte input as one 4096-byte file
+    (`attachments%2F<id>%2Fbytes`), byte-for-byte equal. A collection over `Schema.Uint8Array`
+    was written first and rejected: its JSON codec is base64, a third larger.
+  - An attachment `DELETE` racing a `send` that binds the same unbound attachment passes both
+    service checks (S7's `delete`, S10's `ensureBindable` read the unbound row before either
+    writes). The atomic `update` stops the deleted row from coming back, but the message may then
+    reference a deleted attachment. Recorded in `architecture.md › Risks`; Postgres closes it
+    with `UPDATE … WHERE message_id IS NULL` and a delete guarded the same way.
+  - `UserRepository.insert` writes `users/<id>` before `credentials/<kind>/<hash>`, so a crash
+    between them leaves an unreachable user, never a credential pointing at nothing;
+    `selectByCredential` still returns `none` for a dangling credential.
+  - Each key shape is written once, in a local builder (`credentialKey`, `bytesKey`); the
+    credential key takes `credential.kind`, so a later kind lands in its own
+    `credentials/<kind>/` space without a second collection.
 
 #### S5 — Chat and Message adapters on the store
 

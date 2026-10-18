@@ -77,7 +77,7 @@ the only file another aggregate's model imports; Biome's `noImportCycles` keeps 
 ### infrastructure
 
 ```
-+ infrastructure/kv/kv-collection.ts         createCollection · createIndex   (the deep module, D2)
++ infrastructure/kv/kv-collection.ts         createCollection · createIndex · createBlobs  (D2)
 + infrastructure/kv/kv-store.ts              KeyValueStoreFileSystem (bundles StoreConfig)   (D4)
 ~ infrastructure/shared/queue.client.ts      unchanged
 + infrastructure/user/user.repository.ts     UserRepositoryKv
@@ -221,7 +221,11 @@ error channel: a store failure is a defect (D17).
 `append / remove / list / delete` on a JSON array. Every operation of the module, collection and
 index alike, runs under one per-process `Semaphore(1)`: `KeyValueStore.modify` is get-then-set and
 skips a missing key, the file store writes non-atomically, and a plain `set` must not race a
-`modify` on the same key.
+`modify` on the same key. *Amended in S4:* collections gain `update(key, f)`, which reads and writes
+under one permit only when the key exists (`none` and no write otherwise), so a port's `update`
+never creates a record; `createBlobs(store, { prefix })` gives `get / set / delete` of raw bytes
+over `getUint8Array` and `set(key, Uint8Array)`, under the same lock and defect policy, so
+`attachments/<id>/bytes` holds the file's bytes, not base64 JSON.
 
 ### Jobs (`packages/queue` definitions in `infrastructure/chat/chat.queue.ts`)
 
@@ -329,6 +333,11 @@ per the acceptance table, not by a test.
   the queue wiring, with no entity barrel of its own); `packages/kv` (packages hold no row
   abstraction of ours over `KeyValueStore`, and the module carries project policy: failures die,
   D17).
+  *Amended in S4:* the module gains `Collection.update` (writes only an existing key, under one
+  permit) and `createBlobs` (raw bytes, same lock and defects). *Rejected:* read-then-`set` in the
+  adapter (two permits: a delete between them is undone); `Schema.Uint8Array` in a collection
+  (base64 JSON, a third larger); raw `KeyValueStore` calls in the adapter (bypass the lock and
+  repeat `Effect.orDie`).
 - **D3 — The assistant message is produced by `Ref` + `Schedule.spaced` snapshots with an
   explicit final write, and the handler learns the last attempt from `AttemptInfo`.** The worker
   folds `text-delta` parts into a `Ref` and raises a `dirty` flag; a racing
@@ -477,6 +486,7 @@ per the acceptance table, not by a test.
 | Unstable modules (`http-api`, `persistence`, `ai`) change in a patch | exact lock-step catalog; seams 2, 4, 6, 7 catch behaviour changes |
 | A step over ~400 lines | `/ticket-plan` cuts by seam: domain per aggregate, kv-collection, repositories, queue change, services, jobs, contract, client, api groups, worker, web, cleanup, docs |
 | Dev store grows with attachment bytes | `.data/` is gitignored; `rm -rf .data` resets both store and queue |
+| An attachment `DELETE` races a `send` that binds the same unbound attachment: both service checks pass on the unbound row (check-then-act in `AttachmentService.delete` and `ChatService.send`) | the atomic `Collection.update` stops the deleted row from being resurrected, but the message may then reference a deleted attachment; Postgres closes it with `UPDATE … WHERE message_id IS NULL` on bind and a delete guarded the same way |
 
 ## To verify during implementation
 

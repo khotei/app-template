@@ -6,6 +6,8 @@ export interface Collection<A> {
   readonly set: (key: string, value: A) => Effect.Effect<void>
   /** Creates the key when it is missing. */
   readonly modify: (key: string, f: (current: Option.Option<A>) => A) => Effect.Effect<A>
+  /** Writes nothing and returns none when the key is missing. */
+  readonly update: (key: string, f: (current: A) => A) => Effect.Effect<Option.Option<A>>
   readonly delete: (key: string) => Effect.Effect<void>
 }
 
@@ -14,6 +16,12 @@ export interface Index<Id extends string> {
   readonly remove: (key: string, id: Id) => Effect.Effect<void>
   /** Lists the ids in insertion order; an unknown index is empty. */
   readonly list: (key: string) => Effect.Effect<ReadonlyArray<Id>>
+  readonly delete: (key: string) => Effect.Effect<void>
+}
+
+export interface Blobs {
+  readonly get: (key: string) => Effect.Effect<Option.Option<Uint8Array>>
+  readonly set: (key: string, bytes: Uint8Array) => Effect.Effect<void>
   readonly delete: (key: string) => Effect.Effect<void>
 }
 
@@ -47,6 +55,13 @@ export const createCollection = <A>(
       yield* set(key, next)
       return next
     }, lock.withPermit),
+    update: Effect.fn('Collection.update')(function* (key: string, f: (current: A) => A) {
+      const current = yield* get(key)
+      if (Option.isNone(current)) return Option.none()
+      const next = f(current.value)
+      yield* set(key, next)
+      return Option.some(next)
+    }, lock.withPermit),
     delete: Effect.fn('Collection.delete')(function* (key: string) {
       yield* Effect.orDie(values.remove(key))
     }, lock.withPermit),
@@ -75,5 +90,23 @@ export const createIndex = <Id extends string>(
     delete: Effect.fn('Index.delete')(function* (key: string) {
       yield* lists.delete(key)
     }),
+  }
+}
+
+export const createBlobs = (
+  store: KeyValueStore.KeyValueStore,
+  options: { readonly prefix: string },
+): Blobs => {
+  const blobs = KeyValueStore.prefix(store, options.prefix)
+  return {
+    get: Effect.fn('Blobs.get')(function* (key: string) {
+      return Option.fromUndefinedOr(yield* Effect.orDie(blobs.getUint8Array(key)))
+    }, lock.withPermit),
+    set: Effect.fn('Blobs.set')(function* (key: string, bytes: Uint8Array) {
+      yield* Effect.orDie(blobs.set(key, bytes))
+    }, lock.withPermit),
+    delete: Effect.fn('Blobs.delete')(function* (key: string) {
+      yield* Effect.orDie(blobs.remove(key))
+    }, lock.withPermit),
   }
 }
