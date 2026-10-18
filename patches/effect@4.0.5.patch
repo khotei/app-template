@@ -1,0 +1,36 @@
+diff --git a/dist/internal/equal.js b/dist/internal/equal.js
+index f7f57f1875769fbd46de5de9ea8ac3acb461a917..10c27c514dd3bcc300e1a403050ed3696562f712 100644
+--- a/dist/internal/equal.js
++++ b/dist/internal/equal.js
+@@ -1,9 +1,11 @@
++const errorPositionKeys = ["stack", "line", "column", "sourceURL", "originalLine", "originalColumn"];
+ /** @internal */
+ export const getAllObjectKeys = obj => {
+   const keys = new Set(Reflect.ownKeys(obj));
+   if (obj.constructor === Object) return keys;
+   if (obj instanceof Error) {
+-    keys.delete("stack");
++    // Bun (JSC) adds own position keys to an Error once its construction site is JIT-compiled.
++    for (const key of errorPositionKeys) keys.delete(key);
+   }
+   const proto = Object.getPrototypeOf(obj);
+   let current = proto;
+diff --git a/src/internal/equal.ts b/src/internal/equal.ts
+index 7003b86b6f0d246d0a2a6befc572ac814513d290..f30f8a3e6b7735b952b5e4551cc779a6424812d8 100644
+--- a/src/internal/equal.ts
++++ b/src/internal/equal.ts
+@@ -1,10 +1,13 @@
++const errorPositionKeys = ["stack", "line", "column", "sourceURL", "originalLine", "originalColumn"]
++
+ /** @internal */
+ export const getAllObjectKeys = (obj: object): Set<PropertyKey> => {
+   const keys = new Set<PropertyKey>(Reflect.ownKeys(obj))
+   if (obj.constructor === Object) return keys
+ 
+   if (obj instanceof Error) {
+-    keys.delete("stack")
++    // Bun (JSC) adds own position keys to an Error once its construction site is JIT-compiled.
++    for (const key of errorPositionKeys) keys.delete(key)
+   }
+ 
+   const proto = Object.getPrototypeOf(obj)

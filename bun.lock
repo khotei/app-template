@@ -115,6 +115,9 @@
       "name": "@app-template/ui",
     },
   },
+  "patchedDependencies": {
+    "effect@4.0.5": "patches/effect@4.0.5.patch",
+  },
   "catalogs": {
     "effect": {
       "@effect/platform-bun": "4.0.5",
