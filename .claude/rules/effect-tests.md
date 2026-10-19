@@ -8,9 +8,12 @@ paths:
 
 - Write Effect tests with `@effect/vitest`: `it.effect` for an effect, `Effect.flip` to inspect a
   failure, `assert` from the same package.
-- Compare a failure whole, with `assertEquals(error, new <Entity><Problem>Error({ … }))` from
-  `@effect/vitest/utils`: it uses `Equal.equals` and prints a diff. Never `assert.deepStrictEqual`
-  on an `Error`: chai judges it by its message alone, so two errors with different fields pass.
+- Compare a failure whole, with `assertSchemaEquals(<Entity><Problem>Error, error,
+  new <Entity><Problem>Error({ … }))` from `@app-template/testing`: the schema is the expected
+  error's own class (`Schema.Array(<Class>)` for a list). It compares encoded forms: Bun puts
+  its own position keys on an `Error`, so `Equal.equals` (`assertEquals`) fails at random on two
+  equal errors. Never `assert.deepStrictEqual` on an `Error`: chai judges it by its message alone,
+  so two errors with different fields pass.
 - A model fixture passes `DateTime` values: `Schema.DateTimeUtc` decodes a `DateTime`, not an ISO
   string. Ids in fixtures are `<Entity>Id.make('<uuid>')`.
 - Run the cases of one rule with `it.effect.each` (a name template over `$field` or `%s`), never a

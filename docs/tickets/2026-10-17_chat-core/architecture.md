@@ -175,7 +175,8 @@ adds `api.client.ts` (`ApiClient`, D29). *Amended in S12b:* `Api` moves from `in
 ~ .claude/rules/naming.md       + `.job` role (application), `.llm` holds prompt functions
 ~ docs/knowledge/architecture.md  "Where things live" and "Add a new entity" on the chat slice;
                                  the layer matrix and graph gain http-api (D29)
-~ biome.json             + the test-support guard override, biome/test-support-imports.grit (D27);
+~ biome.json             + the test-support guard override, biome/test-support-imports.grit (D27),
+                           *removed after S12b*; + the domain test override (D27, after S12b);
                          + the http-api layer guard: effect and domain only; only apps/api and
                            the web client import it (D29); − the web client's effect ban and
                            api-client (S12b)
@@ -626,6 +627,9 @@ per the acceptance table, not by a test.
   dependencies](../../knowledge/tooling.md#patched-dependencies). *Rejected:* comparing
   `{ ...error }` spreads in the tests (treats the symptom in every test and drops the prototype
   check); rerunning a red `make check` (a gate that lies and worsens with each new test).
+  *Superseded after S12b: the patch is dropped; tests compare errors by their schema's encoded
+  form (assertSchemaEquals), which ignores the extra keys.* The cause now lives in [tooling.md ›
+  Tests](../../knowledge/tooling.md#tests).
 
 - **D23 — The assistant-message queue keeps one attempt beyond its replies, and that attempt only
   settles a reply the last one left active.** *Added in S8b.* The SQL store marks a job whose
@@ -723,6 +727,9 @@ per the acceptance table, not by a test.
   replace each other's rule options, so it dropped the layer bans of every file it matched, as a
   probe showed); test support beside the sources as a bare kebab file (no role, and nothing
   stops a source file from importing it); a copy per test file (three harnesses drifting apart).
+  *Amended after S12b: the GritQL guard is removed on the user's review; the `testing/` convention
+  stays, unenforced. `domain` tests now import `@app-template/testing` (`assertSchemaEquals`),
+  allowed by a `domain/**/*.test.ts` override that restates domain's bans.*
 - **D28 — Contract errors are named after their wire tag, without the `Error` suffix.**
   *Added in S11.* The class name is the `_tag` that the client's `Result` exposes and that the
   OpenAPI responses describe (`UserUnknown`, `ChatNotFound`, `RequestInvalid`), so code that

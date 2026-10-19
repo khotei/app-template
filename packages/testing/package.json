@@ -9,6 +9,7 @@
     "#testing/*": "./*.ts"
   },
   "dependencies": {
+    "@effect/vitest": "catalog:effect",
     "effect": "catalog:effect"
   }
 }

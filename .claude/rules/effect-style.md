@@ -47,4 +47,5 @@ The goal is code that reads top to bottom and extends by adding a row, not a bra
 ## Equality
 
 - Compare models and errors with `Equal.equals` (`Schema.Class` and `Schema.TaggedError` are
-  `Data`); use it for "nothing changed" checks before a write or a snapshot.
+  `Data`); use it for "nothing changed" checks before a write or a snapshot. A test compares
+  errors with `assertSchemaEquals` instead (`effect-tests.md`).

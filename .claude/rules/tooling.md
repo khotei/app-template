@@ -22,8 +22,6 @@ Imperatives only. The explanations live in [docs/knowledge/tooling.md](../../doc
   lock-step family its own namespace.
 - Add a dependency with `bun add [-d] --catalog=<namespace> <pkg>@<exact>`, then declare it in each
   consuming workspace.
-- A catalog bump of a package in `patchedDependencies` redoes or drops its patch in the same
-  commit (`docs/knowledge/tooling.md › Patched dependencies`).
 
 ## New workspace
 

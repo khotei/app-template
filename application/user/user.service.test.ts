@@ -10,7 +10,7 @@ import { TestClock, TestCrypto } from 'effect/testing'
 
 import { Credential, SecretHash, UserRepository, UserUnknownError } from '@app-template/domain/user'
 import { UserRepositoryKv } from '@app-template/infrastructure/user'
-import { isUuidV7 } from '@app-template/testing'
+import { assertSchemaEquals, isUuidV7 } from '@app-template/testing'
 
 import { type UserSecret, UserService } from '#application/user/user.service'
 
@@ -93,7 +93,7 @@ describe('UserService', () => {
 
         const error = yield* Effect.flip(service.authenticate(unknownSecret))
 
-        assertEquals(error, new UserUnknownError())
+        assertSchemaEquals(UserUnknownError, error, new UserUnknownError())
       }),
     )
   })

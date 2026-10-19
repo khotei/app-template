@@ -45,8 +45,5 @@
     "husky": "catalog:tools",
     "typescript": "catalog:typescript",
     "vitest": "catalog:tools"
-  },
-  "patchedDependencies": {
-    "effect@4.0.5": "patches/effect@4.0.5.patch"
   }
 }

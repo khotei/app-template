@@ -19,7 +19,7 @@ import {
 } from '@app-template/domain/attachment'
 import type { UserId } from '@app-template/domain/user'
 import { AttachmentRepositoryKv, AttachmentStoreKv } from '@app-template/infrastructure/attachment'
-import { isUuidV7 } from '@app-template/testing'
+import { assertSchemaEquals, isUuidV7 } from '@app-template/testing'
 
 import { AttachmentService } from '#application/attachment/attachment.service'
 import { png, unknownAttachmentId } from '#application/testing/attachment.fixture'
@@ -57,13 +57,13 @@ const selectBytes = (id: AttachmentId) =>
 const unbindable = {
   'an unknown id': {
     arrange: Effect.succeed(unknownAttachmentId),
-    refusal: (id: AttachmentId) => new AttachmentNotFoundError({ id }),
+    refusal: AttachmentNotFoundError,
   },
   "another user's attachment": {
     arrange: Effect.flatMap(AttachmentService, (service) =>
       Effect.map(service.upload(stranger, { ...photo, bytes: png }), (foreign) => foreign.id),
     ),
-    refusal: (id: AttachmentId) => new AttachmentNotFoundError({ id }),
+    refusal: AttachmentNotFoundError,
   },
   'a bound attachment': {
     arrange: Effect.gen(function* () {
@@ -71,7 +71,7 @@ const unbindable = {
       yield* bind(attachment)
       return attachment.id
     }),
-    refusal: (id: AttachmentId) => new AttachmentBoundError({ id }),
+    refusal: AttachmentBoundError,
   },
 } as const
 
@@ -111,8 +111,16 @@ describe('AttachmentService', () => {
           const foreign = yield* Effect.flip(read(stranger, attachment.id))
           const missing = yield* Effect.flip(read(owner, unknownAttachmentId))
 
-          assertEquals(foreign, new AttachmentNotFoundError({ id: attachment.id }))
-          assertEquals(missing, new AttachmentNotFoundError({ id: unknownAttachmentId }))
+          assertSchemaEquals(
+            AttachmentNotFoundError,
+            foreign,
+            new AttachmentNotFoundError({ id: attachment.id }),
+          )
+          assertSchemaEquals(
+            AttachmentNotFoundError,
+            missing,
+            new AttachmentNotFoundError({ id: unknownAttachmentId }),
+          )
         }),
     )
 
@@ -124,7 +132,11 @@ describe('AttachmentService', () => {
         yield* service.delete(owner, attachment.id)
 
         const error = yield* Effect.flip(service.get(owner, attachment.id))
-        assertEquals(error, new AttachmentNotFoundError({ id: attachment.id }))
+        assertSchemaEquals(
+          AttachmentNotFoundError,
+          error,
+          new AttachmentNotFoundError({ id: attachment.id }),
+        )
         assert.deepStrictEqual(yield* (yield* AttachmentStore).select(attachment.id), Option.none())
       }),
     )
@@ -136,7 +148,11 @@ describe('AttachmentService', () => {
 
         const error = yield* Effect.flip(service.delete(stranger, attachment.id))
 
-        assertEquals(error, new AttachmentNotFoundError({ id: attachment.id }))
+        assertSchemaEquals(
+          AttachmentNotFoundError,
+          error,
+          new AttachmentNotFoundError({ id: attachment.id }),
+        )
         assertEquals(yield* service.download(owner, attachment.id), { attachment, bytes: png })
       }),
     )
@@ -149,7 +165,11 @@ describe('AttachmentService', () => {
 
         const error = yield* Effect.flip(service.delete(owner, attachment.id))
 
-        assertEquals(error, new AttachmentBoundError({ id: attachment.id }))
+        assertSchemaEquals(
+          AttachmentBoundError,
+          error,
+          new AttachmentBoundError({ id: attachment.id }),
+        )
         assert.deepStrictEqual(
           yield* Effect.map(service.download(owner, attachment.id), ({ bytes }) => bytes),
           png,
@@ -178,7 +198,7 @@ describe('AttachmentService', () => {
 
         const error = yield* Effect.flip(service.findBindable(owner, [valid.id, refused]))
 
-        assertEquals(error, refusal(refused))
+        assertSchemaEquals(refusal, error, new refusal({ id: refused }))
       }),
     )
 

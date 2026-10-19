@@ -1,6 +1,7 @@
 import { assert, describe, it } from '@effect/vitest'
-import { assertEquals } from '@effect/vitest/utils'
 import { DateTime, Effect, Option } from 'effect'
+
+import { assertSchemaEquals } from '@app-template/testing'
 
 import { AttachmentBoundError, AttachmentNotFoundError } from '#domain/attachment/attachment.error'
 import { AttachmentId } from '#domain/attachment/attachment.id'
@@ -49,7 +50,7 @@ describe('ensureBindable', () => {
 
       const error = yield* Effect.flip(ensureBindable(id, Option.none(), userId))
 
-      assertEquals(error, new AttachmentNotFoundError({ id }))
+      assertSchemaEquals(AttachmentNotFoundError, error, new AttachmentNotFoundError({ id }))
     }),
   )
 
@@ -62,7 +63,11 @@ describe('ensureBindable', () => {
 
       const error = yield* Effect.flip(ensureBindable(foreign.id, Option.some(foreign), userId))
 
-      assertEquals(error, new AttachmentNotFoundError({ id: foreign.id }))
+      assertSchemaEquals(
+        AttachmentNotFoundError,
+        error,
+        new AttachmentNotFoundError({ id: foreign.id }),
+      )
     }),
   )
 
@@ -75,7 +80,7 @@ describe('ensureBindable', () => {
 
       const error = yield* Effect.flip(ensureBindable(bound.id, Option.some(bound), userId))
 
-      assertEquals(error, new AttachmentBoundError({ id: bound.id }))
+      assertSchemaEquals(AttachmentBoundError, error, new AttachmentBoundError({ id: bound.id }))
     }),
   )
 })

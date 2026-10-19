@@ -9,6 +9,5 @@ effect's `KeyValueStore`, not a package of ours.
 - Clients take explicit options; only `@app-template/config` reads the environment
   (`.claude/rules/tooling.md › Environment`).
 - `ui` ships to the browser: no Bun APIs, no `Bun.env`, no Node built-ins.
-- A new package needs no change to the layer guards in `biome.json`; a package of test support
-  needs one more (`docs/knowledge/tooling.md › Add a workspace`). Follow the new-workspace
+- A new package needs no change to the layer guards in `biome.json`. Follow the new-workspace
   checklist in `.claude/rules/tooling.md`.

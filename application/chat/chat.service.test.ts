@@ -12,7 +12,7 @@ import {
   MessageNotFoundError,
 } from '@app-template/domain/chat'
 import type { UserId } from '@app-template/domain/user'
-import { isUuidV7 } from '@app-template/testing'
+import { assertSchemaEquals, isUuidV7 } from '@app-template/testing'
 
 import { ChatService } from '#application/chat/chat.service'
 import { ask, sentAt, unknownChatId, unknownMessageId } from '#application/testing/chat.fixture'
@@ -125,7 +125,7 @@ describe('ChatService', () => {
           service.getMessage(stranger, chat.id, userMessage.message.id),
         )
 
-        assertEquals(error, new ChatNotFoundError({ id: chat.id }))
+        assertSchemaEquals(ChatNotFoundError, error, new ChatNotFoundError({ id: chat.id }))
       }),
     ),
   )
@@ -141,8 +141,16 @@ describe('ChatService', () => {
         )
         const missing = yield* Effect.flip(service.getMessage(owner, chat.id, unknownMessageId))
 
-        assertEquals(elsewhere, new MessageNotFoundError({ id: userMessage.message.id }))
-        assertEquals(missing, new MessageNotFoundError({ id: unknownMessageId }))
+        assertSchemaEquals(
+          MessageNotFoundError,
+          elsewhere,
+          new MessageNotFoundError({ id: userMessage.message.id }),
+        )
+        assertSchemaEquals(
+          MessageNotFoundError,
+          missing,
+          new MessageNotFoundError({ id: unknownMessageId }),
+        )
       }),
     ),
   )
@@ -173,8 +181,12 @@ describe('ChatService', () => {
           const foreign = yield* Effect.flip(call(service, stranger, chat.id))
           const missing = yield* Effect.flip(call(service, owner, unknownChatId))
 
-          assertEquals(foreign, new ChatNotFoundError({ id: chat.id }))
-          assertEquals(missing, new ChatNotFoundError({ id: unknownChatId }))
+          assertSchemaEquals(ChatNotFoundError, foreign, new ChatNotFoundError({ id: chat.id }))
+          assertSchemaEquals(
+            ChatNotFoundError,
+            missing,
+            new ChatNotFoundError({ id: unknownChatId }),
+          )
           assertEquals(yield* service.get(owner, chat.id), {
             chat,
             activeMessage: Option.none(),

@@ -99,6 +99,37 @@
       }
     },
     {
+      "includes": ["domain/**/*.test.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/**",
+                      "!@app-template/testing",
+                      "!@app-template/testing/**",
+                      "@effect/**",
+                      "!@effect/vitest",
+                      "!@effect/vitest/**"
+                    ],
+                    "message": "domain tests import no workspace but the test support @app-template/testing, and no @effect/* package except the test runner @effect/vitest"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["http-api/**"],
       "linter": {
         "rules": {
@@ -402,10 +433,6 @@
           }
         }
       }
-    },
-    {
-      "includes": ["**", "!**/*.test.ts", "!**/testing/**"],
-      "plugins": ["./biome/test-support-imports.grit"]
     }
   ]
 }

@@ -64,6 +64,7 @@
         "effect": "catalog:effect",
       },
       "devDependencies": {
+        "@app-template/testing": "workspace:*",
         "@effect/vitest": "catalog:effect",
       },
     },
@@ -122,15 +123,13 @@
     "packages/testing": {
       "name": "@app-template/testing",
       "dependencies": {
+        "@effect/vitest": "catalog:effect",
         "effect": "catalog:effect",
       },
     },
     "packages/ui": {
       "name": "@app-template/ui",
     },
-  },
-  "patchedDependencies": {
-    "effect@4.0.5": "patches/effect@4.0.5.patch",
   },
   "catalogs": {
     "effect": {

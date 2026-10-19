@@ -1,12 +1,11 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, DateTime, Effect, Exit, Option, Record as Rec } from 'effect'
+import { Array as Arr, DateTime, Effect, Exit, Option, Record as Rec, Schema } from 'effect'
 import { TestClock } from 'effect/testing'
 
 import {
   Attachment,
   AttachmentBoundError,
-  type AttachmentId,
   AttachmentNotFoundError,
 } from '@app-template/domain/attachment'
 import {
@@ -22,7 +21,7 @@ import {
   MessageInputInvalidError,
 } from '@app-template/domain/chat'
 import { GenerateAssistantMessage, GenerateChatTitle } from '@app-template/infrastructure/chat'
-import { isUuidV7 } from '@app-template/testing'
+import { assertSchemaEquals, isUuidV7 } from '@app-template/testing'
 
 import { unknownAttachmentId } from '#application/testing/attachment.fixture'
 import { ask, sentAt, unknownChatId } from '#application/testing/chat.fixture'
@@ -49,15 +48,15 @@ const boundElsewhere = ({ chats, sendMessage }: ChatArranged) =>
 const refusedAttachments = {
   'an unknown attachment': {
     arrange: (_: ChatArranged) => Effect.succeed(unknownAttachmentId),
-    refusal: (id: AttachmentId) => new AttachmentNotFoundError({ id }),
+    refusal: AttachmentNotFoundError,
   },
   "another user's attachment": {
     arrange: (_: ChatArranged) => Effect.map(upload(stranger, 'foreign.png'), (photo) => photo.id),
-    refusal: (id: AttachmentId) => new AttachmentNotFoundError({ id }),
+    refusal: AttachmentNotFoundError,
   },
   'an attachment bound to another message': {
     arrange: boundElsewhere,
-    refusal: (id: AttachmentId) => new AttachmentBoundError({ id }),
+    refusal: AttachmentBoundError,
   },
 } as const
 
@@ -174,7 +173,7 @@ describe('SendMessageUseCase', () => {
 
         const error = yield* Effect.flip(sendMessage.send(owner, chat.id, ask('Hello?')))
 
-        assertEquals(error, new ChatBusyError({ id: chat.id }))
+        assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chat.id }))
         assertEquals(yield* selectMessages(chat.id), [
           first.userMessage.message,
           first.assistantMessage.message,
@@ -216,7 +215,7 @@ describe('SendMessageUseCase', () => {
           sendMessage.send(owner, chat.id, { text: 'Look', attachmentIds: [valid.id, refused] }),
         )
 
-        assertEquals(error, refusal(refused))
+        assertSchemaEquals(refusal, error, new refusal({ id: refused }))
         assertEquals(yield* selectMessages(chat.id), [])
         assertEquals(yield* selectAttachments([valid]), [valid])
         assert.strictEqual(sent.length, jobsBefore)
@@ -233,7 +232,7 @@ describe('SendMessageUseCase', () => {
           sendMessage.send(owner, chat.id, { text: 'Look', attachmentIds: [photo.id, photo.id] }),
         )
 
-        assertEquals(error, new MessageInputInvalidError())
+        assertSchemaEquals(MessageInputInvalidError, error, new MessageInputInvalidError())
         assertEquals(yield* selectMessages(chat.id), [])
         assertEquals(yield* selectAttachments([photo]), [photo])
       }),
@@ -250,9 +249,11 @@ describe('SendMessageUseCase', () => {
         ])
 
         assert.strictEqual(Arr.filter(exits, Exit.isSuccess).length, 1)
-        assertEquals(Arr.getSomes(Arr.map(exits, Exit.findErrorOption)), [
-          new ChatBusyError({ id: chat.id }),
-        ])
+        assertSchemaEquals(
+          Schema.Array(ChatBusyError),
+          Arr.getSomes(Arr.map(exits, Exit.findErrorOption)),
+          [new ChatBusyError({ id: chat.id })],
+        )
         assert.strictEqual((yield* selectMessages(chat.id)).length, 2)
         assert.strictEqual(sent.length, 2)
       }),
@@ -274,9 +275,11 @@ describe('SendMessageUseCase', () => {
 
         const successes = Arr.getSomes(Arr.map(exits, Exit.getSuccess))
         assert.strictEqual(successes.length, 1)
-        assertEquals(Arr.getSomes(Arr.map(exits, Exit.findErrorOption)), [
-          new AttachmentBoundError({ id: photo.id }),
-        ])
+        assertSchemaEquals(
+          Schema.Array(AttachmentBoundError),
+          Arr.getSomes(Arr.map(exits, Exit.findErrorOption)),
+          [new AttachmentBoundError({ id: photo.id })],
+        )
         assertEquals(
           yield* selectAttachments([photo]),
           Arr.flatMap(successes, (sentMessages) => sentMessages.userMessage.attachments),
@@ -291,8 +294,8 @@ describe('SendMessageUseCase', () => {
         const foreign = yield* Effect.flip(sendMessage.send(stranger, chat.id, ask('Hello')))
         const missing = yield* Effect.flip(sendMessage.send(owner, unknownChatId, ask('Hello')))
 
-        assertEquals(foreign, new ChatNotFoundError({ id: chat.id }))
-        assertEquals(missing, new ChatNotFoundError({ id: unknownChatId }))
+        assertSchemaEquals(ChatNotFoundError, foreign, new ChatNotFoundError({ id: chat.id }))
+        assertSchemaEquals(ChatNotFoundError, missing, new ChatNotFoundError({ id: unknownChatId }))
         assertEquals(yield* selectMessages(chat.id), [])
         assert.strictEqual(sent.length, 0)
       }),

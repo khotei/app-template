@@ -2,6 +2,8 @@ import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Array as Arr, DateTime, Effect, Option } from 'effect'
 
+import { assertSchemaEquals } from '@app-template/testing'
+
 import { AttachmentId } from '#domain/attachment/attachment.id'
 import {
   ChatBusyError,
@@ -123,7 +125,7 @@ describe('ensureChatAcceptsMessage', () => {
       Effect.gen(function* () {
         const error = yield* Effect.flip(ensureChatAcceptsMessage(Option.some(assistantAt(stage))))
 
-        assertEquals(error, new ChatBusyError({ id: chatId }))
+        assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chatId }))
       }),
   )
 })
@@ -133,7 +135,7 @@ describe('ensureMessageInput', () => {
     Effect.gen(function* () {
       const error = yield* Effect.flip(ensureMessageInput({ text, attachmentIds: [] }))
 
-      assertEquals(error, new MessageInputInvalidError())
+      assertSchemaEquals(MessageInputInvalidError, error, new MessageInputInvalidError())
     }),
   )
 
@@ -143,7 +145,7 @@ describe('ensureMessageInput', () => {
         ensureMessageInput({ text: 'Look', attachmentIds: [attachmentId, attachmentId] }),
       )
 
-      assertEquals(error, new MessageInputInvalidError())
+      assertSchemaEquals(MessageInputInvalidError, error, new MessageInputInvalidError())
     }),
   )
 
@@ -208,7 +210,11 @@ const expectStageInvalid = (
   Effect.gen(function* () {
     const error = yield* Effect.flip(transition)
 
-    assertEquals(error, new MessageStageInvalidError({ id: message.id, from: message.stage, to }))
+    assertSchemaEquals(
+      MessageStageInvalidError,
+      error,
+      new MessageStageInvalidError({ id: message.id, from: message.stage, to }),
+    )
   })
 
 describe('prepareMessage', () => {

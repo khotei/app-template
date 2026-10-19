@@ -56,7 +56,8 @@ Each row lists what a workspace may import.
 | deployment | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ |
 
 - **`domain` imports `effect` and no workspace,** not even `packages/*`, and no `@effect/*`
-  package but the test runner `@effect/vitest`, so it stays pure and testable without fakes.
+  package but the test runner `@effect/vitest`, so it stays pure and testable without fakes. Its
+  tests alone may also import the test support `@app-template/testing`.
 - **`http-api` imports `effect` and `domain` only.** It is the system's HTTP boundary, shared by
   the api that implements it and the browser that calls it, so it lists the domain's ids, models
   and errors instead of copies, and the wire carries the domain's tags (`UserUnknownError`). The
@@ -66,7 +67,7 @@ Each row lists what a workspace may import.
   `http-api` and runs its Effects itself; only its server entry `main.ts` may read `config`, to
   get a validated `WEB_PORT`.
 - **A ✓ is permission, not a declaration.** The dependency must also be in the importer's
-  `package.json`; see [the four guards](#four-boundary-guards).
+  `package.json`; see [the three guards](#three-boundary-guards).
 
 ## Imports: `#<workspace>/` vs `@app-template/`
 
@@ -150,31 +151,28 @@ declare each other. Check the importer's `package.json` anyway: `apps/worker`, f
 declare `@app-template/domain`. A new external client is a new dependency; see
 [tooling.md](tooling.md#add-a-dependency).
 
-## Four boundary guards
+## Three boundary guards
 
-The import rules are enforced four times, each catching what the others miss:
+The import rules are enforced three times, each catching what the others miss:
 
 | Guard | Catches | Reports |
 |---|---|---|
-| Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json` | an import that goes up a layer or into a sibling app; any relative path; a workspace or an `@effect/*` package other than `@effect/vitest` in `domain`; a workspace other than `domain`, or an `@effect/*` package, in `http-api`; `http-api` in a lower layer, a package, the worker or `deployment` | `make lint`, `pre-commit`, CI `static` |
+| Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json` | an import that goes up a layer or into a sibling app; any relative path; a workspace or an `@effect/*` package other than `@effect/vitest` in `domain` (in its tests, a workspace other than `@app-template/testing`); a workspace other than `domain`, or an `@effect/*` package, in `http-api`; `http-api` in a lower layer, a package, the worker or `deployment` | `make lint`, `pre-commit`, CI `static` |
 | the isolated linker with `tsc -b` | an allowed import of a workspace that is not declared in `package.json` | TS2307 in `make typecheck` and at runtime |
 | `composite` project references (`rootDir: "."`) | a path that reaches into an unreferenced workspace's files | TS6059 / TS6307 in `make typecheck` |
-| the GritQL plugin `biome/test-support-imports.grit`, in one last `overrides` entry for every file but `*.test.ts` and `testing/**` | source code that imports or re-exports `#<workspace>/testing/…` or `@app-template/testing` | `make lint`, `pre-commit`, CI `static` |
 
 The Biome overrides are **deny-lists**: each names the workspaces a layer must not import. A new
-`packages/*` workspace therefore needs no change to them, while a new layer or app does (a
-package of test support: [tooling.md › Add a workspace](tooling.md#add-a-workspace)). Test files
-follow their workspace's override; none has its own. Overrides that match the same file replace
-each other's options rather than merge, so every override repeats the relative-path ban. Symptoms
+`packages/*` workspace therefore needs no change to them, while a new layer or app does. Test
+files follow their workspace's override, save `domain/**/*.test.ts`: its own override, after
+domain's, lets tests import `@app-template/testing`. Overrides that match the same file replace
+each other's options rather than merge, so every override repeats the relative-path ban, and the
+domain test override repeats every domain ban. Symptoms
 and fixes:
 [tooling.md › Troubleshooting](tooling.md#troubleshooting).
 
-The test-support guard is a plugin, not a `noRestrictedImports` pattern, because a second
-override setting that rule would replace the layer bans of every file it matches.
-
 ### Known gaps
 
-Three forms pass all four guards. No code uses them; review is what catches them.
+Three forms pass all three guards. No code uses them; review is what catches them.
 
 - **A type import inside an expression in web client code.** `export type X =
   import('@app-template/config').ApiConfig['Service']` in `app/`, `features/` or `shared/` passes

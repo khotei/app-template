@@ -40,6 +40,12 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
 - **Output.** vitest switches to its `minimal` reporter when it detects an agent (`CLAUDECODE`,
   `AI_AGENT`): failures and a summary only. A terminal without them gets the per-file `default`
   reporter; `bun run test --reporter=default` forces it.
+- **Errors are compared by their encoded form.** JSC gives every `Error` its own `line`, `column`
+  and `sourceURL` keys (`originalLine` and `originalColumn` too, outside vitest), which hold the
+  real position only once the JIT compiles the code that builds the error. `Equal.equals` drops
+  only `stack` from an `Error`, so two errors with equal fields differ at random, more often as the
+  suite grows. Tests therefore compare errors with `assertSchemaEquals` from
+  `@app-template/testing`, which encodes both through the error's schema and sees only its fields.
 
 ## Run and debug
 
@@ -139,11 +145,9 @@ its sources either way.
 4. Add the path to the root `tsconfig.json` `references`.
 5. Run `bun install` and `make check`.
 
-A new `packages/*` workspace needs no change to the layer guards, because they are deny-lists; a
-package of test support, like `packages/testing`, must also be named in the regex of
-`biome/test-support-imports.grit`, or source code may import it. A new layer or app needs its own
-`overrides` entry in `biome.json`; see
-[architecture.md › Four boundary guards](architecture.md#four-boundary-guards) for what each
+A new `packages/*` workspace needs no change to the layer guards, because they are deny-lists. A
+new layer or app needs its own `overrides` entry in `biome.json`; see
+[architecture.md › Three boundary guards](architecture.md#three-boundary-guards) for what each
 entry repeats.
 
 ### Upgrade versions
@@ -155,40 +159,11 @@ entry repeats.
    refuses any uncommitted change, so the bump and the vendoring are two commits of the same PR.
    Copy the squash commit's `git-subtree-dir:` and `git-subtree-split:` trailers into the PR body,
    outside its HTML comment: the squash merge drops them, and the next pull needs them.
-5. A bump of a patched package redoes or drops its patch; see
-   [Patched dependencies](#patched-dependencies).
 
 Another repository vendored under `repos/` gets one more target of the same shape.
 
 Upgrading Bun means bumping `packageManager` and `@types/bun` together, so CI's pinned job uses the
 new version. CI also runs a non-blocking job on Bun `latest`, which shows the next upgrade early.
-
-### Patched dependencies
-
-A fix that upstream has not shipped yet is a `bun patch`: `bun patch <pkg>`, edit the files under
-`node_modules/<pkg>`, then `bun patch --commit 'node_modules/<pkg>'`. Bun writes
-`patches/<pkg>@<version>.patch` and a root `patchedDependencies` entry keyed by that exact version,
-and reapplies the patch on every `bun install`.
-
-The key pins the patch to one version, so a catalog bump leaves it keyed to a version no longer
-installed: the fix stops applying. With the bump, either redo the patch on the new version
-(`bun patch` again, then delete the old file and entry) or drop it once upstream ships the fix,
-and run `make check`.
-
-#### `patches/effect@4.0.5.patch`: `Equal.equals` on a Bun `Error`
-
-- **Symptom.** `assertEquals(error, new <Entity><Problem>Error({ … }))` fails at random on two
-  errors with equal fields, more often as the suite grows; alone, the same test passes.
-- **Cause.** JSC gives every `Error` its own `line`, `column` and `sourceURL` keys
-  (`originalLine` and `originalColumn` too, outside vitest). A fresh error has `line: 0,
-  column: 0` and no `sourceURL`; once the JIT compiles the code that builds the error, the error
-  carries the real position and a `sourceURL`. A `Schema.TaggedError` has no `Equal` method of its
-  own, so `Equal.equals` compares and hashes its keys, and `getAllObjectKeys` (`internal/equal`)
-  drops only `stack` from an `Error`: the two errors then differ. A probe reproduced it at
-  iteration 2440 of an `Effect.fn` that fails with an error, run through `Effect.flip`.
-- **Fix.** `getAllObjectKeys` drops the five position keys next to `stack`, in `dist/` and `src/`.
-  Tests and `effect-tests.md` stay as they are.
-- **Upstream issue:** to file; replace this line with its link.
 
 ## TypeScript
 
@@ -244,7 +219,6 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 | Biome `lint/style/noRestrictedImports`: `domain is the pure core…` or `… no upward imports` | the import goes up a layer or into a sibling app, or `domain` imports an `@effect/*` package other than `@effect/vitest` | move the shared code down a layer, or receive it as an argument; in `domain`, use an `effect` module; see [architecture.md](architecture.md#dependency-rules) |
 | Biome `noRestrictedImports`: `… never a relative path` | a `./` or `../` import inside a workspace | use `#<workspace>/<path>`, for example `#domain/example/example.model` |
 | Biome `lint/suspicious/noImportCycles`: `This import is part of a cycle` | two modules import each other, typically two aggregates' models through their ids | import the other aggregate's id from its `<aggregate>.id.ts`, never its model |
-| Biome `plugin`: `test support … is imported only by tests and other test support` | a source file imports from a `testing/` folder or from `@app-template/testing` | import it from a `*.test.ts` or another `testing/` file; code a source file needs does not belong in `testing/` |
 | Biome `assist/source/organizeImports`: `Sort these imports.` | import groups out of order or without blank lines between them | `make fmt` |
 | a commit is rejected after `tsc` or Biome output | the `pre-commit` hook failed | fix the reported error, `git add`, and commit again |
 | a push is rejected after test output | the `pre-push` hook failed | fix the tests; never use `--no-verify` |

@@ -5,6 +5,7 @@ import { Deferred, Effect, Exit, Fiber, Layer, Option, Ref } from 'effect'
 import { AttachmentStore } from '@app-template/domain/attachment'
 import { ChatNotFoundError, ChatRepository } from '@app-template/domain/chat'
 import { ChatRepositoryKv } from '@app-template/infrastructure/chat'
+import { assertSchemaEquals } from '@app-template/testing'
 
 import { ask, unknownChatId } from '#application/testing/chat.fixture'
 import {
@@ -108,8 +109,8 @@ describe('DeleteChatUseCase', () => {
         const foreign = yield* Effect.flip(deleteChat.delete(stranger, chat.id))
         const missing = yield* Effect.flip(deleteChat.delete(owner, unknownChatId))
 
-        assertEquals(foreign, new ChatNotFoundError({ id: chat.id }))
-        assertEquals(missing, new ChatNotFoundError({ id: unknownChatId }))
+        assertSchemaEquals(ChatNotFoundError, foreign, new ChatNotFoundError({ id: chat.id }))
+        assertSchemaEquals(ChatNotFoundError, missing, new ChatNotFoundError({ id: unknownChatId }))
         assertEquals(yield* selectAttachments([photo]), userMessage.attachments)
         assertEquals((yield* selectMessages(chat.id)).length, 2)
       }),
