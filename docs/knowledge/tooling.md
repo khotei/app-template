@@ -80,7 +80,13 @@ only the new interval ran.
 
 That is why the worker uses `--watch`: its `main.ts` starts a polling `setInterval`, and under
 `--hot` every edit would add another poller. `Bun.serve` handles `--hot` natively by
-swapping its routes, so `api` and `web` keep the faster reload.
+swapping its routes, so `api` and `web` keep the faster reload. An Effect runtime does not:
+each edit re-evaluates `effect` itself and starts a new `runMain` beside the old one, whose scope,
+fibers and finalizers live on. So `apps/api/src/main.ts` keeps a stop handle on `globalThis`
+(the one thing a reload keeps): each evaluation first stops the previous runtime and waits for its
+finalizers, then launches its own. Checked with a probe layer that ticked every second: without
+the handle, two edits left three tickers and SIGTERM ran three finalizers; with it, one ticker at a
+time, each finalized before the next `Listening on`.
 
 Bun has no `--dev` flag. "Development" means two things here: the reload flag in the app's `dev`
 script, and `NODE_ENV="development"`, which turns on HMR and browser console forwarding in the web

@@ -138,10 +138,12 @@ Pascal one (`Document`).
    `application/chat/`. Which flow goes where:
    [.claude/rules/use-cases.md](../../.claude/rules/use-cases.md). Shared test support goes in
    `application/testing/`. Add `index.ts` and the `exports` entry.
-7. **Wiring.** In `apps/api/src/layer.ts` (and the worker's, if it needs it), create the service
-   and the use cases, with whatever they take as arguments, and return them from `createLayer()`.
-8. **Delivery.** Add routes in `apps/api/src/http.ts`, and map each new error `_tag` to a status in
-   `statusByTag`. Extend `apps/api/src/http.test.ts` with a round trip.
+7. **Contract.** Add the group in `http-api/<entity>/<entity>.http.ts`, listing the domain's errors
+   with their statuses (`HttpApiSchema.status`), and add it to `Api` in `http-api/api.ts`.
+8. **Delivery.** Implement the group in `apps/api/src/<entity>/<entity>.handler.ts` with
+   `HttpApiBuilder.group(Api, '<group>', …)`, and provide it and its services in
+   `apps/api/src/layer.ts` (and the worker's layer, if it needs them). Test the round trip through
+   `ApiClient` in `<entity>.handler.test.ts` beside it, on `apps/api/src/testing/api.harness.ts`.
 9. **Client, if the browser needs it.** `ApiClient` from `@app-template/http-api` already has every
    endpoint of the contract; add a feature folder under `apps/web/src/features/<entity>/` whose
    Effect calls it.

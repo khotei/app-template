@@ -1105,33 +1105,91 @@ apart in `apps/api`.
 #### S13 — `apps/api` on `HttpApiBuilder`: health and users
 
 - **Goal:** the api process on `HttpApiBuilder.layer(Api)`, `HttpRouter.serve`,
-  `BunHttpServer.layer`, `BunRuntime.runMain`, with `AuthLive` (cookie → `CurrentUser` through
-  `UserService.authenticate`), `SchemaErrorsLive` (`layerSchemaErrorTransform` →
+  `BunHttpServer.layer`, `BunRuntime.runMain`, with `AuthUserService` (cookie → `CurrentUser`
+  through `UserService.authenticate`), `SchemaErrorsRequestInvalid` (`layerSchemaErrorTransform` →
   `RequestInvalidError` with `issues`), Scalar at `/docs`, `openapiPath: '/openapi.json'`, the file
-  store in dev and the health and users handlers (R1, R2, R27, R28, R34, R35; D4, D6, D9).
+  store in dev and the health and users handlers (R1, R2, R27, R28, R34, R35; D4, D6, D9, D30).
   *Replanned in S12 (D29):* each group's handlers sit in `apps/api/src/<domain>/<domain>.handler.ts`
-  as `HttpApiBuilder.group(Api, '<group>', …)` over the contract's `Api`.
+  as `HttpApiBuilder.group(Api, '<group>', …)` over the contract's `Api`. *Amended in S13:* the
+  middleware layers are named `<Service><Variant>` (`naming.md`), not `…Live`.
 - **Blocked by:** S3, S7, S12b.
-- **Files:** `apps/api/src/{main,layer,current-user,http.test}.ts`, the handlers in
-  `apps/api/src/{health/health,user/user}.handler.ts`; `apps/api/src/http.ts` deleted;
-  `apps/api/package.json` (`@effect/platform-bun`, `@app-template/queue`;
-  `@app-template/http-api`; `@effect/vitest` as a `devDependency`).
-- **Test first:** Seam 7, on `BunHttpServer.layerTest`, `BunServices.layer`,
-  `KeyValueStore.layerMemory`, `QueueClientMemory`, with `HttpApiClient` and
-  `HttpClient.withCookiesRef` — `GET /health` is `{ status: 'ok' }`; `POST /users` is `201` with
-  `Set-Cookie: user_secret=…; HttpOnly; SameSite=Lax; Max-Age=31536000` and no `Secure`; a
-  second call with the jar returns the same `id`; a forged cookie gets a new user; through
-  `ApiClient` from `@app-template/http-api`, `users.ensure()` decodes the domain's `User` (a
-  branded `UserId`) and a malformed body fails with the request-invalid error and its `issues`;
-  `GET /openapi.json` serves `OpenApi.fromApi(Api)`, which lists `400 RequestInvalidError` on
-  `GET /health` and on `POST /users`, and no security on `health` or `users` (*Amended in S12*,
-  from Seam 8).
+- **Files:** `apps/api/src/{main,layer,layer.test}.ts`, `apps/api/src/shared/security.ts`, the
+  handlers and their tests in `apps/api/src/{health/health,user/user}.handler{,.test}.ts`,
+  `apps/api/src/testing/api.harness.ts`; `apps/api/src/{http,http.test}.ts` deleted;
+  `apps/api/package.json` (`@effect/platform-bun`, `@app-template/http-api`; `@effect/vitest` and
+  `@app-template/testing` as `devDependencies`), `apps/api/tsconfig.json`, `bun.lock`.
+  *Amended in S13:* Seam 7 is one file per group beside its handler, over a shared harness;
+  `@app-template/queue` moves to S14.
+- **Test first:** Seam 7, on `BunHttpServer.layerTest`, `BunServices.layer` (the real `Crypto`) and
+  `KeyValueStore.layerMemory`, with `ApiClient.layer` over `HttpClient.withCookiesRef` —
+  `health.handler.test.ts`: `GET /health` is `{ status: 'ok' }` and asks for no credential;
+  `user.handler.test.ts`: `POST /users` is `201` with `Set-Cookie: user_secret=…; HttpOnly;
+  SameSite=Lax; Max-Age=31536000` and no `Secure`; `users.ensure()` decodes the domain's `User` (a
+  branded `UserId`); a second call with the jar returns the same `id` and refreshes the cookie
+  (the same secret, a full `Max-Age`); a forged cookie gets a new user; the operation asks for no
+  credential; `layer.test.ts`: `GET /openapi.json` serves `OpenApi.fromApi(Api)`, `GET /docs`
+  serves Scalar (`200`, `text/html`), the spec lists `400 RequestInvalidError` on every operation,
+  and a stopped server fails `ApiClient` with an `HttpClientError` (*Amended in S12*, from Seam 8;
+  *in S13*, split by group). ~~A malformed body fails with the request-invalid error and its
+  `issues`~~ *moved to S14:* no endpoint of this step decodes a request part.
 - **Verify:** `make check`; `make dev-api` logs through `Effect.log`, serves `/docs` and `/openapi.json` and stops on
   SIGTERM with its finalizers; V1 — with `make dev-web` running, `curl -c jar -b jar -X POST
   localhost:3001/api/users` twice returns one `id`; `.data/store/` appears and is ignored by git;
   a file edited during `make dev-api` reloads under `--hot` with one listener left on the port
   (`lsof -i :3000`) and no second server or fiber in the logs (*Added in S6*).
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - **The malformed-body case moves to S14.** No `health` or `users` endpoint decodes a request
+    part (no payload, params, query or headers; a missing or bad cookie decodes to an empty
+    `Redacted`), so `HttpApiBuilder` never raises a request `HttpApiSchemaError` in this step.
+    `SchemaErrorsRequestInvalid` still ships, because `Api.middleware(SchemaErrors)` makes
+    `HttpApiBuilder.layer` require it; its first wire test is S14's blank title and V3.
+  - `SchemaErrorsRequestInvalid` maps the request kinds (`Params`, `Headers`, `Query`, `Payload`)
+    through a table `satisfies Record<kind, boolean>` and re-fails `Body` and `ResponseHeaders`, so
+    a response that fails to encode stays the built-in `500`.
+  - The middleware layers follow `naming.md`'s `<Service><Variant>`, the variant naming what backs
+    them, as in `UserRepositoryKv`: `AuthUserService`, `SchemaErrorsRequestInvalid`. effect's
+    `ai-docs` names them `<Name>Layer` (`AuthorizationLayer`), which the repo keeps for the apps'
+    roots (`ApiLayer`).
+  - `AuthUserService` ships as planned but runs only from S14 on: no group under `Auth` exists yet.
+  - `@app-template/queue` is not declared yet: nothing in this step uses it; S14 adds it with
+    `QueueClientMemory`.
+  - Seam 7 runs on `BunServices.layer`, the real `Crypto`, so user ids are asserted by shape
+    (`isUuidV7`). `testing/api.harness.ts` gives `makeApiHarness()` (one server and memory store
+    per test file), `withApi(body, cookies?)` (a fresh jar per call, seeded for the forged
+    case) and the shared reads (`readUserSecretCookie`, `spec`, `operations`).
+    `BunHttpServer.layerTest` prepends the server's origin, so `ApiClient.layer('')` needs no URL.
+  - The stopped-server case builds `BunHttpServer.layerServer` on port `0`, reads its address and
+    closes it, then calls `ApiClient.layerFetch` of that URL: an `HttpClientError` whose reason is
+    `TransportError`, with no proxy in between (S12b saw the proxy's `500` instead).
+  - The spec names the error schema `RequestInvalidErrorEncoded`, and an operation without
+    security carries `security: []`, as does the spec itself.
+  - Probes, each red then reverted: `secure: true` always; `Max-Age` of one day; the cookie
+    ignored (`ensure(none)`); the presented secret written back instead of the issued one; the
+    cookie set only on the first call (no refresh); no `openapiPath`; Scalar moved off `/docs`.
+  - **`--hot` left the previous runtime running** (D30): `lsof` showed one listener, but a probe
+    layer ticking every second showed three tickers after two edits and three finalizers on
+    SIGTERM. `main.ts` now stops the previous runtime through a handle on `globalThis` before it
+    launches; with it, one ticker at a time, each finalized before the next `Listening on`.
+    `docs/knowledge/tooling.md` said `Bun.serve` alone made `--hot` safe and is corrected.
+  - `ApiLayer` logs `api stopped` from a finalizer. By hand: one `make dev-api` and SIGTERM logged
+    it once, then `Exited with code 130`; with two `--hot` edits in between, each old runtime
+    logged it once just before the next `Listening on`, SIGTERM once more, and one listener
+    remained throughout.
+  - V1 settled with `curl` through the web proxy: three `POST /api/users` with one jar returned one
+    `id`, also across two `--hot` reloads; the cookie is `Max-Age=31536000; HttpOnly;
+    SameSite=Lax`, without `Secure`.
+  - `.data/store` appears after the first `POST`, holding `users%2F<id>` and
+    `credentials%2Fsecret%2F<hash>`; `git check-ignore -v .data/store` answers
+    `.gitignore:14:.data`.
+  - The local `.env` still lacks `STORE_PATH` (see S3); the dev run passed it inline.
+  - Living docs, not in Files: `.claude/rules/naming.md` (the `#api/http` and `http.ts` examples
+    become `#api/layer` and `layer.ts`) and `docs/knowledge/architecture.md` (steps 7 and 8 of
+    "Add a new entity": contract, handler and test).
+  - Size: the step is ≈579 changed lines without `bun.lock` (230 in tracked files, 349 in new
+    ones), over the ~400 gate, accepted at the approval gate: `HttpApiBuilder.layer(Api)` needs
+    every group and the `SchemaErrors` middleware, so neither group splits off without a stub,
+    and the D30 fix shows only with `runMain`.
 
 #### S14 — Chats over HTTP
 
@@ -1144,19 +1202,20 @@ apart in `apps/api`.
 - **Blocked by:** S10b, S13. *Amended in S10:* the handler calls the `send-message` and
   `delete-chat` use cases.
 - **Files:** `http-api/{chat/chat.http,index}.ts`;
-  `apps/api/src/chat/chat.handler.ts`, `apps/api/src/{layer,http.test}.ts`.
+  `apps/api/src/chat/chat.handler{,.test}.ts`, `apps/api/src/layer.ts`; `apps/api/package.json`
+  (`@app-template/queue`, moved from S13). *Amended in S13:* Seam 7 is one test file per group.
 - **Constraint** (*Amended in S10*): the handler decodes the trimmed `title` payload into the
   domain's `ChatTitle` brand before `ChatService.rename`, which accepts only the brand.
   *Amended in S10b:* the handler sends a message only through `SendMessageUseCase` and deletes a
   chat only through `DeleteChatUseCase`, never `ChatService.delete`, which leaves the attachments.
-- **Test first:** Seam 7 — `GET /chats` without a cookie is `401 UserUnknownError`; a chat of user A
+- **Test first:** Seam 7, in `chat/chat.handler.test.ts` (*Amended in S13*) — `GET /chats` without a cookie is `401 UserUnknownError`; a chat of user A
   under user B's cookie is `404 ChatNotFoundError`, the same for a message; `POST /chats/:id/messages`
   is `202` with a `completed` user message and a `queued` assistant message, a second send `409
   ChatBusyError`; `PATCH` with `" Trip "` stores `"Trip"`, with `"  "` is `400 RequestInvalidError` whose `issues` carry `path` and
   `message` (V3: a bad `attachmentIds[2]` reports `['attachmentIds', 2]`); `GET /chats` lists the
   last sent chat first with `activeMessage: { id, stage: 'queued' }` and `title: null`; `DELETE` is `204`; through
   `ApiClient` an unknown chat id fails with a `ChatNotFoundError` and a
-  blank title to `RequestInvalidError`; a `failed` message's response carries `reason` and `message`
+  blank title to `RequestInvalidError` (the malformed-body case, *moved from S13*); a `failed` message's response carries `reason` and `message`
   and no `cause`; `OpenApi.fromApi(Api)` lists every route's errors with their statuses on the
   `chats` routes (`401`, `404`, `409`, `400` with their tags) and the `cookie` security scheme with a `401 UserUnknownError` on each, the acceptance check for
   R26 and R27 that S11 could not make (*Amended in S11*; *in S12*, moved from Verify's
@@ -1174,8 +1233,9 @@ apart in `apps/api`.
   R26, R29; D5, D8, D10, D29).
 - **Blocked by:** S14.
 - **Files:** `http-api/{attachment/attachment.http,index}.ts`;
-  `apps/api/src/attachment/attachment.handler.ts`, `apps/api/src/{layer,http.test}.ts`.
-- **Test first:** Seam 7 — two 1 MiB PNGs give `201` with two unbound attachments; an 11 MiB
+  `apps/api/src/attachment/attachment.handler{,.test}.ts`, `apps/api/src/layer.ts`. *Amended in
+  S13:* Seam 7 is one test file per group.
+- **Test first:** Seam 7, in `attachment/attachment.handler.test.ts` (*Amended in S13*) — two 1 MiB PNGs give `201` with two unbound attachments; an 11 MiB
   file is `413 AttachmentTooLargeError`, a `.zip` `415 AttachmentTypeUnsupportedError`, six files or a nameless file
   `400 RequestInvalidError`, and in each case the store holds nothing new; `GET …/download` returns the
   bytes with `image/png` and `inline; filename="…"`; `send` with the two ids binds them and the

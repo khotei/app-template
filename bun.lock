@@ -33,8 +33,14 @@
         "@app-template/application": "workspace:*",
         "@app-template/config": "workspace:*",
         "@app-template/domain": "workspace:*",
+        "@app-template/http-api": "workspace:*",
         "@app-template/infrastructure": "workspace:*",
+        "@effect/platform-bun": "catalog:effect",
         "effect": "catalog:effect",
+      },
+      "devDependencies": {
+        "@app-template/testing": "workspace:*",
+        "@effect/vitest": "catalog:effect",
       },
     },
     "apps/web": {

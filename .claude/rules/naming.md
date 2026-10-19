@@ -19,7 +19,7 @@ Imports are enforced by Biome; file and symbol names are convention (Biome has n
 ## Imports
 
 - **Inside a workspace:** `#<workspace>/<path>` (declared in its `package.json` `imports`), never
-  `./` or `../`. Example: `#domain/chat/chat.model`, `#api/http`.
+  `./` or `../`. Example: `#domain/chat/chat.model`, `#api/layer`.
 - **Across workspaces:** `@app-template/<workspace>[/<entity>]`, only downward:
   `apps` → `application` → `infrastructure` → `domain`, and `apps` → `http-api` → `domain`;
   `packages/*` serve every layer except `domain` and `http-api`. Full matrix:
@@ -50,7 +50,7 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 | `.harness` | real services over fakes and the memory store; runner, arrange steps, reads for assertions | `testing/` |
 
 `<entity>` is singular, like its folder (`user/user.http.ts`); a file with no role keeps a bare
-kebab name (`http.ts`, `main.ts`). Test-support roles live only in a `testing/` folder, which no
+kebab name (`layer.ts`, `main.ts`). Test-support roles live only in a `testing/` folder, which no
 barrel or `exports` lists, save the `packages/testing` workspace's `index.ts`.
 
 ## Symbols

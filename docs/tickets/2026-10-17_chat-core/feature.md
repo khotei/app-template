@@ -286,12 +286,15 @@ replace one layer later.
   in dev `layerFileSystem` at `STORE_PATH` (set to `../../.data/store` in `.env.example`,
   gitignored), so `apps/api` and `apps/worker` see one state. *Amended in S3: no default in code;
   a missing `STORE_PATH` fails at startup, like `QUEUE_SQLITE_PATH`.*
-- **R34** — `api` and `worker` SHALL log through `Effect.log` at the level from `LOG_LEVEL`, run
-  their finalizers on SIGINT and SIGTERM, and run in dev with `--watch`; a worker interrupted during
-  a job SHALL release it without counting the attempt (`effect-setup` R29, R35, R36).
+- **R34** — `api` and `worker` SHALL log through `Effect.log` at the level from `LOG_LEVEL` and run
+  their finalizers on SIGINT and SIGTERM; in dev the `worker` SHALL run with `--watch` and the `api`
+  with `--hot`, each reload stopping the previous runtime before it starts; a worker interrupted
+  during a job SHALL release it without counting the attempt (`effect-setup` R29, R35, R36).
+  *Amended in S13 (D30): both ran with `--watch`, against the rule that keeps the api on `--hot`.*
 - **R35** — Ids SHALL be UUIDv7 from `Crypto` and time from `Clock`, provided by
-  `@effect/platform-bun` at runtime and `TestCrypto` and `TestClock` in tests; `domain` SHALL read
-  neither.
+  `@effect/platform-bun` at runtime and `TestCrypto` and `TestClock` in tests, save the api's HTTP
+  tests, which run on the real `Crypto`; `domain` SHALL read neither. *Amended in S13: the HTTP
+  tests assert ids by shape, so a seeded generator adds nothing there.*
 
 ### Cleanup and docs
 
@@ -326,7 +329,7 @@ replace one layer later.
 | R30 | A probe in `apps/web/src/features/` importing `@app-template/config`, `@app-template/domain` or another workspace of ours fails `make lint`, and one importing `effect` or `@app-template/http-api` passes; `make dev-api` and `make dev-web` render `API status: ok` at `localhost:3001` and, with the api stopped, the `HttpClientError` sentence. *Amended in S12b.* |
 | R31–R32 | The two `.job.ts` files export `enqueue` and `worker`; `apps/worker/src` holds no job logic; the job schemas carry ids only. *Amended in S6: the title job carries the first message's id, not its text.* |
 | R33 | `mv .env .env.bak && make test` passes; with `make dev-api` and `make dev-worker` running, a send in one terminal is followed by `completed` on the next poll; `.data/store` exists and is gitignored. |
-| R34–R35 | SIGTERM during a job leaves it at the same attempt for the restarted worker; `git grep -E "Date.now|new Date\(|randomUUID" -- 'domain/**/*.ts'` finds nothing; tests fix ids with `TestCrypto`. |
+| R34–R35 | SIGTERM during a job leaves it at the same attempt for the restarted worker; after two `--hot` edits of the api, one listener remains and each old runtime logs `api stopped` once before the next `Listening on` (*Amended in S13*, D30); `git grep -E "Date.now|new Date\(|randomUUID" -- 'domain/**/*.ts'` finds nothing; tests fix ids with `TestCrypto`, except Seam 7, which runs the api on the real `Crypto` (`BunServices.layer`) and asserts ids by shape (*Amended in S13*). |
 | R36–R38 | `git grep -i example -- ':!docs/tickets' ':!repos'` finds no code; `packages/db` and `packages/storage` are gone; `.claude/rules/effect.md` exists within budget after the first slice; `architecture.md` maps the `chat` files; the roadmap row 3 links here. |
 
 ## Open questions
