@@ -1,4 +1,5 @@
 import { BunHttpServer, BunServices } from '@effect/platform-bun'
+import { assert, it } from '@effect/vitest'
 import { Array as Arr, ConfigProvider, Effect, Layer, Option, Record as Rec, Ref } from 'effect'
 import { Cookies, HttpClient, type HttpClientResponse } from 'effect/http'
 import { OpenApi } from 'effect/http-api'
@@ -66,3 +67,30 @@ export const operations = Arr.flatMap(Rec.toEntries(spec.paths), ([path, item]) 
     ),
   ),
 )
+
+type Method = (typeof methods)[number]
+
+export interface Route {
+  readonly method: Method
+  readonly path: string
+  readonly responses: Record<string, string>
+}
+
+/** The responses every operation under `Auth` lists, before its own. */
+export const underAuth = { 400: 'RequestInvalidError', 401: 'UserUnknownError' } as const
+
+/** Asserts that the spec lists each route under the cookie scheme with exactly these statuses. */
+export const testSpecDocuments = (routes: ReadonlyArray<Route>) =>
+  it.effect.each(routes)(
+    'the spec documents $method $path under the cookie with its statuses',
+    ({ method, path, responses }) =>
+      Effect.sync(() => {
+        const operation = spec.paths[path]?.[method]
+
+        assert.deepStrictEqual(operation?.security, [{ cookie: [] }])
+        assert.deepStrictEqual(
+          Rec.map(operation?.responses ?? {}, ({ description }) => description),
+          responses,
+        )
+      }),
+  )

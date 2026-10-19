@@ -3,6 +3,7 @@ import { Effect, Layer } from 'effect'
 import { HttpRouter } from 'effect/http'
 import { HttpApiBuilder, HttpApiScalar } from 'effect/http-api'
 
+import { AttachmentService } from '@app-template/application/attachment'
 import { ChatService, DeleteChatUseCase, SendMessageUseCase } from '@app-template/application/chat'
 import { UserService } from '@app-template/application/user'
 import { ApiConfig, MinimumLogLevelFromConfig, RuntimeConfig } from '@app-template/config'
@@ -13,6 +14,7 @@ import { KeyValueStoreFileSystem } from '@app-template/infrastructure/kv'
 import { QueueClientSqlite } from '@app-template/infrastructure/shared'
 import { UserRepositoryKv } from '@app-template/infrastructure/user'
 
+import { AttachmentHandler } from '#api/attachment/attachment.handler'
 import { ChatHandler } from '#api/chat/chat.handler'
 import { HealthHandler } from '#api/health/health.handler'
 import { AuthUserService, SchemaErrorsRequestInvalid } from '#api/shared/security'
@@ -20,7 +22,7 @@ import { UserHandler } from '#api/user/user.handler'
 
 const ApiRoutes = Layer.mergeAll(
   HttpApiBuilder.layer(Api, { openapiPath: '/openapi.json' }).pipe(
-    Layer.provide([HealthHandler, UserHandler, ChatHandler]),
+    Layer.provide([HealthHandler, UserHandler, ChatHandler, AttachmentHandler]),
     Layer.provide([AuthUserService, SchemaErrorsRequestInvalid]),
   ),
   HttpApiScalar.layer(Api, { path: '/docs' }),
@@ -34,6 +36,7 @@ export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
   Layer.provide([
     UserService.layer,
     ChatService.layer,
+    AttachmentService.layer,
     SendMessageUseCase.layer,
     DeleteChatUseCase.layer,
     RuntimeConfig.layer,

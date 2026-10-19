@@ -1331,7 +1331,39 @@ apart in `apps/api`.
   `FileName` and `MediaType` before `AttachmentService.upload`, which accepts only the brands
   (*Amended in S7*, moved from the S2 finding).
 - **Verify:** `make check`.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Bun rejects a header value that is not ASCII (`TypeError: Header 'Content-Disposition' has
+    invalid value`, a `500`), so `download` of a Cyrillic file name sends an ASCII fallback beside
+    `filename*=UTF-8''…` (RFC 6266); an ASCII name keeps the bare `inline; filename="…"` (R22,
+    D10 amended).
+  - Every `MultipartError` reason maps through one table, `satisfies Record<reason, …>`:
+    `FileTooLarge` and `BodyTooLarge` → `413`, `TooManyParts`, `FieldTooLarge` and `Parse` →
+    `400`, `InternalError` → a defect; a part that is not a file is `400` too (R21, D8 amended).
+  - The handler checks a part's name, declared type and extension before reading its bytes, and
+    stores nothing until every part is accepted, so a refused later part leaves no earlier one
+    stored and a refused file is never buffered.
+  - `AttachmentService.layer` joins `ApiHttp`; `toAttachment` moves to the attachment handler and
+    the chat handler imports it, so one projection decides the attachment fields on the wire.
+  - Bun percent-encodes a `"` in a part's file name as `%22` (WHATWG), so the quoted-name case
+    checks a backslash instead.
+  - Probes, each red then reverted: `delete` a no-op (3); no extension check (1); the name not
+    decoded into `FileName` (1); an empty body accepted (1); each part stored as it arrives (13,
+    the 11 MiB and the six-file cases among them); no ASCII fallback (2, the Cyrillic request
+    hanging 5 s); `get` without the owner check (1); `bind` a no-op (3); `415` off the contract
+    (3, the spec test among them); the group without `Auth` (21).
+  - The web gzip bundle grows from 57 211 to 57 719 bytes with the group.
+  - Size: ≈620 changed lines without the ticket docs (≈100 in tracked files, 554 in the new
+    handler and its test of 419), over the ~400 gate. A split was declined: binding and
+    `download` are arranged through `upload`, so a step without it would ship untested halves.
+  - At approval (review round): the handler's helpers are verb-first (`buildRequestInvalid`,
+    `decodeDeclaredType`, `buildInlineDisposition`), `filterOrFail` takes the named
+    `matchesExtension`; `underAuth` and the per-route spec check move into `api.harness.ts` as
+    `testSpecDocuments(routes)`, shared by the chat and attachment tests (D32); the first
+    `download` case is a PNG; `FieldTooLarge` reads `Expected a file, not a field`. Accepted as
+    judgement calls: `UploadError` as a `Schema.Union` for the `each` table, and
+    `Route.responses` typed `Record<string, string>`, so a missing status fails at run time, not
+    in typecheck.
 
 ### Worker, cleanup and docs
 

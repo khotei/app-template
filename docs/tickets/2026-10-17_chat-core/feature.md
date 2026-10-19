@@ -211,10 +211,15 @@ replace one layer later.
   5, or a file without a name, `400 RequestInvalidError`; in each case nothing is stored. The limits
   SHALL be constants exported by `@app-template/http-api`, never environment variables. *Amended in architecture: the
   multipart limits are fixed at schema definition, so they cannot be runtime tunables (D5). Amended
-  in S2: a file without a name is `400`, since the domain's `FileName` is non-empty.*
+  in S2: a file without a name is `400`, since the domain's `FileName` is non-empty. Amended in
+  S15: a part that is not a file, or a body that is not multipart, is `400` too; a file whose
+  extension names another type than it declares is `415` (D5).*
 - **R22** — WHEN `GET /attachments/:attachmentId` succeeds, THE SYSTEM SHALL return the metadata;
   WHEN `GET /attachments/:attachmentId/download` succeeds, THE SYSTEM SHALL return the bytes with
   the stored `Content-Type` and `Content-Disposition: inline; filename="…"`, bound or not.
+  *Amended in S15: a name that does not fit an ASCII quoted string travels as
+  `filename*=UTF-8''…` (RFC 6266) beside an ASCII fallback in `filename=`, since Bun rejects a
+  header value that is not ASCII (D10).*
 - **R23** — WHEN `DELETE /attachments/:attachmentId` addresses an unbound attachment of the user,
   THE SYSTEM SHALL remove it and answer `204`; IF it is bound, THEN `409 AttachmentBoundError`.
 

@@ -1,5 +1,5 @@
 import { assert, describe, it, layer } from '@effect/vitest'
-import { Array as Arr, DateTime, Effect, Option, Record as Rec, Schema } from 'effect'
+import { Array as Arr, DateTime, Effect, Option, Schema } from 'effect'
 import { HttpBody, type HttpClientError, type HttpClientResponse } from 'effect/http'
 
 import { AttachmentId } from '@app-template/domain/attachment'
@@ -19,7 +19,15 @@ import { limits, RequestInvalidError } from '@app-template/http-api'
 import { MessageRepositoryKv } from '@app-template/infrastructure/chat'
 import { assertSchemaEquals, isUuidV7 } from '@app-template/testing'
 
-import { makeApiHarness, openChat, spec, withApi } from '#api/testing/api.harness'
+import {
+  makeApiHarness,
+  openChat,
+  type Route,
+  spec,
+  testSpecDocuments,
+  underAuth,
+  withApi,
+} from '#api/testing/api.harness'
 
 const hello = { text: 'Hello', attachmentIds: [] }
 
@@ -52,9 +60,7 @@ const failReply = (id: MessageId) =>
     )
   }).pipe(Effect.orDie, Effect.provide(MessageRepositoryKv))
 
-const underAuth = { 400: 'RequestInvalidError', 401: 'UserUnknownError' } as const
-
-const chatRoutes = [
+const chatRoutes: ReadonlyArray<Route> = [
   { method: 'post', path: '/chats', responses: { ...underAuth, 201: 'Success' } },
   { method: 'get', path: '/chats', responses: { ...underAuth, 200: 'Success' } },
   {
@@ -92,7 +98,7 @@ const chatRoutes = [
       404: 'ChatNotFoundError | MessageNotFoundError',
     },
   },
-] as const
+]
 
 describe('chats', () => {
   layer(makeApiHarness())((it) => {
@@ -431,17 +437,5 @@ describe('chats', () => {
     ),
   )
 
-  it.effect.each(chatRoutes)(
-    'the spec documents $method $path under the cookie with its statuses',
-    ({ method, path, responses }) =>
-      Effect.sync(() => {
-        const operation = spec.paths[path]?.[method]
-
-        assert.deepStrictEqual(operation?.security, [{ cookie: [] }])
-        assert.deepStrictEqual(
-          Rec.map(operation?.responses ?? {}, ({ description }) => description),
-          responses,
-        )
-      }),
-  )
+  testSpecDocuments(chatRoutes)
 })

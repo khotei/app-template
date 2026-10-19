@@ -9,10 +9,11 @@ import {
   type MessageDetail,
   SendMessageUseCase,
 } from '@app-template/application/chat'
-import type { Attachment as AttachmentModel } from '@app-template/domain/attachment'
 import type { Chat as ChatModel } from '@app-template/domain/chat'
 import type * as Wire from '@app-template/http-api'
 import { Api, CurrentUser } from '@app-template/http-api'
+
+import { toAttachment } from '#api/attachment/attachment.handler'
 
 // Each projection names the fields that leave the api, so a model field reaches the wire only
 // once its DTO declares it; relying on the encoder to drop `userId` or `cause` would not say so.
@@ -23,9 +24,6 @@ const toSummary = ({ chat, activeMessage }: ChatSummary): Wire.ChatSummary => ({
   ...toChat(chat),
   activeMessage: Option.map(activeMessage, Struct.pick(['id', 'stage'])),
 })
-
-const toAttachment = (attachment: AttachmentModel): Wire.Attachment =>
-  Struct.pick(attachment, ['id', 'messageId', 'fileName', 'mediaType', 'size', 'createdAt'])
 
 const toMessage = ({ message, attachments }: MessageDetail): Wire.Message => ({
   ...Struct.pick(message, ['id', 'chatId', 'author', 'stage', 'text', 'createdAt', 'updatedAt']),

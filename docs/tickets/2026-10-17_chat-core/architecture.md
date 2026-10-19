@@ -523,9 +523,14 @@ per the acceptance table, not by a test.
   and `BodyTooLarge` → `AttachmentTooLargeError` 413, `TooManyParts` → `RequestInvalidError` 400,
   an unsupported type → `AttachmentTypeUnsupportedError` 415, each before anything is stored
   (*Amended in S12a:* the wire tags take the `Error` suffix, D29). An
-  undeclared error would be a `500`. *Rejected:* streaming parts into the store (no streaming
-  `set`; S3 brings it in roadmap 5); the buffered `asMultipart` (temp files, and the builder
-  `die`s on its errors).
+  undeclared error would be a `500`. *Amended in S15:* every reason maps through one table
+  `satisfies Record<MultipartErrorReason['_tag'], …>`, so a new reason fails typecheck:
+  `FieldTooLarge` and `Parse` → `400`, `InternalError` → a defect; a part that is not a file is
+  `400`. The handler checks a part's name, declared type and extension before reading its
+  bytes, and stores nothing until every part is accepted. *Rejected:* streaming parts into the
+  store (no streaming `set`; S3 brings it in roadmap 5); the buffered `asMultipart` (temp files,
+  and the builder `die`s on its errors); storing each part as it streams (a refused later part
+  would leave the earlier ones stored).
 - **D9 — The api test seam is `BunHttpServer.layerTest` with `HttpApiClient` and a cookie jar.**
   `HttpClient.withCookiesRef` keeps the `Set-Cookie` of `POST /users` for the next calls, and
   `responseMode: 'decoded-and-response'` exposes the cookie attributes; the same server also runs
@@ -537,7 +542,10 @@ per the acceptance table, not by a test.
   contentType, headers })` under a success declared `asUint8Array()`.** The real type travels in
   the header while OpenAPI documents `application/octet-stream`; `204` is
   `HttpApiSchema.NoContent`, `202` is `HttpApiSchema.status(202)` on the success struct.
-  *Rejected:* one success schema per media type (six endpoints' worth of spec for one route).
+  *Amended in S15:* Bun rejects a header value that is not ASCII, so a file name that does not
+  fit a quoted string is sent as `filename*=UTF-8''…` (RFC 6266) beside an ASCII fallback; an
+  ASCII name keeps the bare `inline; filename="…"` (amends feature R22). *Rejected:* one success
+  schema per media type (six endpoints' worth of spec for one route).
 - **D11 — Attachment metadata and bytes are two ports.** `AttachmentRepository` becomes a Postgres
   table and `AttachmentStore` becomes S3, in different tickets; one port would force both to move
   together. *Rejected:* one port with `put`/`get` of bytes alongside rows.
@@ -826,6 +834,15 @@ per the acceptance table, not by a test.
   spreading the records into the response (`...message`), which relies on the same; the
   projection in the application services, which do not import `http-api` and must not know the
   wire's fields.
+- **D32 — The per-route spec check is one harness export, `testSpecDocuments(routes)`, which
+  registers the `it.effect.each` over a group's `Route` table.** *Added in S15.* Every group under
+  `Auth` asserts the same two facts per operation, the `cookie` scheme and the exact status map,
+  so the assertion lives once in `api.harness.ts` and each group test contributes only its table
+  (`underAuth` plus its own statuses). It registers tests, which `naming.md` does not list among a
+  harness's roles; it is accepted since the registration is two lines around one shared read.
+  *Rejected:* a read helper `readSpecOperation(route)` with the `it.effect.each` repeated in each
+  test (the test name and the two asserts would still be copied); the check in `layer.test.ts`
+  over every route (a group's statuses belong next to its handler, Seam 7).
 
 ## Risks
 
