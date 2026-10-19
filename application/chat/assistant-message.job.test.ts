@@ -1,15 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
-import {
-  Array as Arr,
-  DateTime,
-  Effect,
-  Layer,
-  Logger,
-  Option,
-  Record as Rec,
-  Stream,
-} from 'effect'
-import { AiError, LanguageModel, Prompt, type Response } from 'effect/ai'
+import { Array as Arr, DateTime, Effect, Layer, Option, Record as Rec, Stream } from 'effect'
+import { AiError, type LanguageModel, Prompt, type Response } from 'effect/ai'
 import { KeyValueStore, PersistedQueue } from 'effect/persistence'
 import { TestClock } from 'effect/testing'
 
@@ -27,7 +18,6 @@ import {
   buildChat,
   buildUserMessage,
   Chat,
-  ChatId,
   ChatRepository,
   ChatTitle,
   Message,
@@ -35,20 +25,19 @@ import {
   MessageId,
   MessageRepository,
 } from '@app-template/domain/chat'
-import { UserId } from '@app-template/domain/user'
 import { AttachmentRepositoryKv, AttachmentStoreKv } from '@app-template/infrastructure/attachment'
 import { ChatRepositoryKv, MessageRepositoryKv } from '@app-template/infrastructure/chat'
 import { QueueClient } from '@app-template/queue'
+import { recordLogs } from '@app-template/testing'
 
 import { AssistantMessageJob } from '#application/chat/assistant-message.job'
+import { png } from '#application/testing/attachment.fixture'
+import { chatId, epoch, messageId } from '#application/testing/chat.fixture'
+import { recordLanguageModel } from '#application/testing/language-model.fake'
+import { owner } from '#application/testing/user.fixture'
 
-const owner = UserId.make('0192d4e0-7b3a-7c00-8000-000000000010')
-const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000020')
-const replyId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000030')
 const historyId = (n: number) => MessageId.make(`0192d4e0-7b3a-7c00-8000-00000000005${n}`)
 const photoId = AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000040')
-const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47])
-const epoch = DateTime.makeUnsafe(0)
 
 type Part = Response.StreamPartEncoded
 
@@ -69,13 +58,11 @@ const layerJob = (options: {
   ).pipe(Layer.provideMerge(options.queue), Layer.provide(KeyValueStore.layerMemory))
 
 /** The job over memory adapters, recording its message writes, its prompts and its logs. */
-const makeHarness = (
+const makeAssistantMessageHarness = (
   stream: Stream.Stream<Part, AiError.AiError>,
   queue: Layer.Layer<QueueClient> = QueueClient.layerMemory,
 ) => {
   const writes: Array<Message> = []
-  const prompts: Array<Prompt.Prompt> = []
-  const logs: Array<readonly [level: string, message: unknown]> = []
   const messages = Layer.effect(
     MessageRepository,
     Effect.map(MessageRepository, (inner) =>
@@ -89,21 +76,8 @@ const makeHarness = (
       }),
     ),
   ).pipe(Layer.provide(MessageRepositoryKv))
-  const model = Layer.effect(
-    LanguageModel.LanguageModel,
-    LanguageModel.make({
-      generateText: () => Effect.die('generateText is not used by the reply'),
-      streamText: (options) => {
-        prompts.push(options.prompt)
-        return stream
-      },
-    }),
-  )
-  const logger = Logger.layer([
-    Logger.make<unknown, void>(({ logLevel, message }) => {
-      logs.push([logLevel, Array.isArray(message) ? message[0] : message])
-    }),
-  ])
+  const { prompts, layer: model } = recordLanguageModel({ streamText: stream })
+  const { logs, layer: logger } = recordLogs()
   return { writes, prompts, logs, layer: layerJob({ model, messages, logger, queue }) }
 }
 
@@ -152,7 +126,7 @@ const failingMidway = Stream.make(delta('Hel')).pipe(
   Stream.concat(Stream.fail(providerError)),
 )
 
-const queuedReply = buildAssistantMessage({ id: replyId, chatId, createdAt: epoch })
+const queuedReply = buildAssistantMessage({ id: messageId, chatId, createdAt: epoch })
 
 const asCompleted = (message: Message, text: string) =>
   new Message({ ...message, stage: 'completed', text })
@@ -199,7 +173,7 @@ const history = [
 ]
 
 const selectReply = Effect.flatMap(MessageRepository, (messages) =>
-  messages.selectById(replyId),
+  messages.selectById(messageId),
 ).pipe(Effect.map(Option.getOrThrow))
 
 const selectChat = Effect.flatMap(ChatRepository, (chats) => chats.selectById(chatId)).pipe(
@@ -232,7 +206,7 @@ const timesOf = (writes: ReadonlyArray<Message>) =>
 
 describe('AssistantMessageJob.worker', () => {
   it.effect('prepares, generates in throttled snapshots, then completes and bumps the chat', () => {
-    const { writes, layer } = makeHarness(threeDeltas)
+    const { writes, layer } = makeAssistantMessageHarness(threeDeltas)
     return Effect.gen(function* () {
       yield* runWorker(yield* arrangeChat())
 
@@ -250,7 +224,7 @@ describe('AssistantMessageJob.worker', () => {
   it.effect(
     'prompts with every completed message in order, with a file part per attachment',
     () => {
-      const { prompts, layer } = makeHarness(threeDeltas)
+      const { prompts, layer } = makeAssistantMessageHarness(threeDeltas)
       return Effect.gen(function* () {
         yield* arrangePhoto
 
@@ -277,7 +251,7 @@ describe('AssistantMessageJob.worker', () => {
   )
 
   it.effect('prompts with the text alone when an attachment has lost its bytes', () => {
-    const { prompts, layer } = makeHarness(threeDeltas)
+    const { prompts, layer } = makeAssistantMessageHarness(threeDeltas)
     return Effect.gen(function* () {
       yield* (yield* AttachmentRepository).insert(photo)
 
@@ -296,7 +270,7 @@ describe('AssistantMessageJob.worker', () => {
   it.effect.each(Rec.keys(deletions))(
     'ends with a log line and no write when %s is deleted before the take',
     (deleted) => {
-      const { writes, prompts, logs, layer } = makeHarness(threeDeltas)
+      const { writes, prompts, logs, layer } = makeAssistantMessageHarness(threeDeltas)
       return Effect.gen(function* () {
         yield* enqueue(yield* arrangeChat())
         yield* deletions[deleted]
@@ -313,7 +287,10 @@ describe('AssistantMessageJob.worker', () => {
   it.effect.each(Rec.keys(deliveries))(
     'ends without a write when the reply is already settled on %s',
     (delivery) => {
-      const { writes, prompts, logs, layer } = makeHarness(threeDeltas, deliveries[delivery])
+      const { writes, prompts, logs, layer } = makeAssistantMessageHarness(
+        threeDeltas,
+        deliveries[delivery],
+      )
       return Effect.gen(function* () {
         yield* runWorker(yield* arrangeChat(asCompleted(queuedReply, 'Done.')))
 
@@ -325,7 +302,7 @@ describe('AssistantMessageJob.worker', () => {
   )
 
   it.effect('keeps a rename made while the reply streams when it bumps the chat', () => {
-    const { layer } = makeHarness(threeDeltas)
+    const { layer } = makeAssistantMessageHarness(threeDeltas)
     return Effect.gen(function* () {
       const chats = yield* ChatRepository
       const reply = yield* arrangeChat()
@@ -349,7 +326,7 @@ describe('AssistantMessageJob.worker', () => {
   })
 
   it.effect('retries from preparing and fails the message with its cause on the last reply', () => {
-    const { writes, prompts, logs, layer } = makeHarness(failingMidway)
+    const { writes, prompts, logs, layer } = makeAssistantMessageHarness(failingMidway)
     return Effect.gen(function* () {
       yield* runWorker(yield* arrangeChat())
 
@@ -382,7 +359,7 @@ describe('AssistantMessageJob.worker', () => {
   })
 
   it.effect('fails a reply the last reply attempt left active, without calling the model', () => {
-    const { writes, prompts, logs, layer } = makeHarness(
+    const { writes, prompts, logs, layer } = makeAssistantMessageHarness(
       threeDeltas,
       layerQueueDeliveredOn((max) => max),
     )
@@ -409,7 +386,7 @@ describe('AssistantMessageJob.worker', () => {
         ? Stream.concat(Stream.make(delta('Hel')), Stream.fromEffect(Effect.interrupt))
         : threeDeltas,
     )
-    const { writes, logs, layer } = makeHarness(
+    const { writes, logs, layer } = makeAssistantMessageHarness(
       interruptedOnce,
       layerQueueDeliveredOn((max) => max - 1),
     )

@@ -19,9 +19,9 @@ paths:
 
 ## Services
 
-- Add a `Context.Service` only when something varies: the implementation (memory, file, Postgres),
-  a test double, or an injected dependency. A rule with one implementation and no dependency is a
-  plain function.
+- Add a `Context.Service` only when something varies (the implementation: memory, file,
+  Postgres; a test double; an injected dependency) or when several holders must share one state
+  (a lock). A rule with one implementation and no dependency is a plain function.
 - Key a service `'@app-template/<workspace>/<entity>/<Name>'`.
 - A service built in a body beside its declaration is
   `Context.Service<Self, Shape>()(key, { make })`: the explicit `Shape` keeps the contract and its

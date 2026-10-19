@@ -3,13 +3,14 @@ import { createHash } from 'node:crypto'
 import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, layer } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { DateTime, Effect, Layer, Option, Redacted, Result, Schema } from 'effect'
+import { DateTime, Effect, Layer, Option, Redacted, Result } from 'effect'
 import { Base64Url } from 'effect/encoding'
 import { KeyValueStore } from 'effect/persistence'
 import { TestClock, TestCrypto } from 'effect/testing'
 
 import { Credential, SecretHash, UserRepository, UserUnknownError } from '@app-template/domain/user'
 import { UserRepositoryKv } from '@app-template/infrastructure/user'
+import { isUuidV7 } from '@app-template/testing'
 
 import { type UserSecret, UserService } from '#application/user/user.service'
 
@@ -18,8 +19,6 @@ const UserServiceTest = UserService.layer.pipe(
   Layer.provide(TestCrypto.layer('user-service').pipe(Layer.provide(BunCrypto.layer))),
   Layer.provideMerge(KeyValueStore.layerMemory),
 )
-
-const isUuidV7 = Schema.is(Schema.String.check(Schema.isUUID(7)))
 
 const unknownSecret = Redacted.make('q3Jx0V8m2bZ9yT_4kW-1sN7uP5oA6dLcE0fG8hI2jK4')
 

@@ -37,8 +37,8 @@ sequenceDiagram
 
 Dependencies, bottom-up: `domain` holds the schemas, errors, ports and pure rules;
 `infrastructure` implements the ports on `KeyValueStore` through one collection-and-index module,
-defines the two queues and the model adapter; `application` holds the three services and the two
-jobs; `packages/api-contract` is the `HttpApi` with its security middleware declarations;
+defines the two queues and the model adapter; `application` holds the three services, the two
+jobs and the two use cases that compose them (D26); `packages/api-contract` is the `HttpApi` with its security middleware declarations;
 `packages/api-client` is the `Promise<Result>` facade; `apps/api` and `apps/worker` are
 composition roots.
 
@@ -101,12 +101,19 @@ the prompt and the cut, and `isTitledChat` joins the domain's predicates.
 
 ```
 + application/user/user.service.ts           UserService { ensure, authenticate }
-+ application/chat/chat.service.ts           ChatService { create, list, get, rename, delete, send, getMessage } ·
-                                             ChatSummary · ChatDetail · MessageDetail · SentMessages
++ application/user/user-lock.ts              UserLock { withPermit } (workspace-internal, D2, D26)
++ application/chat/chat.service.ts           ChatService { create, list, get, rename, delete, getMessage,
+                                             findSendable, addUserMessage, addAssistantMessage, touch } ·
+                                             ChatSummary · ChatDetail · MessageDetail · SendableChat
++ application/chat/send-message.use-case.ts  SendMessageUseCase { send } · SentMessages          (D26)
++ application/chat/delete-chat.use-case.ts   DeleteChatUseCase { delete }                       (D26)
 + application/chat/touch-chat.ts             touchChat (workspace-internal, shared by ChatService and AssistantMessageJob)
 + application/chat/assistant-message.job.ts  AssistantMessageJob { enqueue } · .worker · SnapshotInterval
 + application/chat/chat-title.job.ts         ChatTitleJob { enqueue } · .worker
-+ application/attachment/attachment.service.ts  AttachmentService { upload, get, download, delete }
++ application/attachment/attachment.service.ts  AttachmentService { upload, get, download, delete,
+                                                findBindable, bind, deleteByIds } · BindableAttachments
++ application/testing/{user,attachment,chat}.fixture.ts · chat.fake.ts · queue.fake.ts ·
+                     language-model.fake.ts · chat.harness.ts   test support, no barrel (D27)
 − application/example/*
 ```
 
@@ -117,6 +124,8 @@ the prompt and the cut, and `isTitledChat` joins the domain's predicates.
     index.ts (Api) · limits.ts · schemas.ts · errors.ts · security.ts (Auth, CurrentUser, SchemaErrors) ·
     health.ts · users.ts · chats.ts · attachments.ts · openapi.ts (writer) · openapi.json (committed)
 ~ packages/api-client/index.ts               createApiClient over HttpApiClient + FetchHttpClient (D13)
++ packages/testing/                          new workspace @app-template/testing, devDependencies only:
+                                             log.fake.ts (recordLogs) · uuid.ts (isUuidV7) (D27)
 ~ packages/queue/queue.ts                    send · worker Layer · jobId · AttemptInfo (D3, D21)
 ~ packages/llm/client.ts                     stub streams ~20 words at 100 ms; generateText returns a title
 ~ packages/config/config.ts                  + StoreConfig { path } from STORE_PATH
@@ -147,6 +156,8 @@ the prompt and the cut, and `isTitledChat` joins the domain's predicates.
 + .claude/rules/effect.md
 ~ .claude/rules/naming.md       + `.job` role (application), `.llm` holds prompt functions
 ~ docs/knowledge/architecture.md  "Where things live" and "Add a new entity" on the chat slice
+~ biome.json             + the test-support guard override, biome/test-support-imports.grit (D27)
++ .claude/rules/use-cases.md    services and use cases (D26)
 ```
 
 ## Contracts
@@ -180,7 +191,7 @@ passes; `ensureMessageInput({ text, attachmentIds })` fails `MessageInputInvalid
 trimmed text is empty and no attachment is given, and when an attachment id repeats;
 `ensureBindable(id, found: Option<Attachment>, userId)` returns the attachment, or fails
 `AttachmentNotFoundError` when it is missing or foreign and `AttachmentBoundError` when it is
-bound; `send` traverses the ids with `Effect.forEach` over `selectById`; `isActiveMessage` checks the stage with
+bound; `AttachmentService.findBindable` traverses the ids with `Effect.forEach` over `selectById`; `isActiveMessage` checks the stage with
 `Schema.is(ActiveMessageStage)`.
 
 Transitions are named for the stage they move to, check their source stage, and fail
@@ -309,7 +320,7 @@ The cookie is `Secure` when `RuntimeConfig.nodeEnv === 'production'`. The snapsh
 | 2 `infrastructure/kv/kv-collection` on `layerMemory` and on `layerFileSystem` in a temp dir | key encoding (`/` in keys), index append, remove and delete, missing-key semantics, JSON codec, lost updates under concurrent `modify` | cross-process races |
 | 3 repositories and `AttachmentStoreKv` through their ports on `layerMemory` | field mapping, index maintenance (`selectByUser`, `selectActiveByChat`, `deleteByChat` cascade, `deleteByIds`) | the real file store (covered for the module in 2) |
 | 4 `send` and `worker` in `packages/queue` on the memory store under `TestClock` | `AttemptInfo` values per attempt, `isLastAttempt` on the dead-letter attempt and no attempt after it, release when the worker's scope closes, one job per `jobId` | SQLite timing |
-| 5 `UserService`, `ChatService`, `AttachmentService` on memory adapters, `QueueClientMemory`, `TestClock`, `TestCrypto` | ensure/authenticate, send writes two messages and enqueues one or two jobs, `409` while a message is active, bound and foreign attachments, rename (a blank title is a type error: `ChatTitle` is a brand, rejected at seams 1 and 7), delete cascade, title job only on the first message, concurrent sends (one chat; one attachment in two chats), a title the worker sets during a send | HTTP statuses, cookies |
+| 5 `UserService`, `ChatService`, `AttachmentService` and the use cases `SendMessageUseCase`, `DeleteChatUseCase` on memory adapters, `QueueClientMemory`, `TestClock`, `TestCrypto` | ensure/authenticate, send writes two messages and enqueues one or two jobs, `409` while a message is active, bound and foreign attachments, rename (a blank title is a type error: `ChatTitle` is a brand, rejected at seams 1 and 7), delete cascade and its retry after a failed chat write, a delete that waits for a send of the same user under the shared lock, title job only on the first message, concurrent sends (one chat; one attachment in two chats), a title the worker sets during a send, `AttachmentService.findBindable`, `bind` and `deleteByIds` | HTTP statuses, cookies |
 | 6 `AssistantMessageJob.worker` and `ChatTitleJob.worker` with a fake `LanguageModel` under `TestClock` | stage sequence, snapshot cadence and final write, `failed` only on the last reply attempt (the third of four, D23), prompt content (history, roles, file parts), title only if `none`, chat deleted meanwhile, a blank text or answer (D25) | a real provider, the SQLite queue |
 | 7 `apps/api` through `BunHttpServer.layerTest` + `@app-template/api-client` with `HttpClient.withCookiesRef` | the whole wire: cookie attributes, `401`/`404`/`409`/`413`/`415`/`400` bodies, multipart limits, download headers, `202` shape, the `Result` facade mapping, a stopped server → transport tag | browser cookie behaviour, the web proxy, `Secure` on http |
 | 8 `make check` drift of `packages/api-contract/openapi.json` | a contract edit without regeneration; the cookie security scheme and every declared error in the spec | semantics |
@@ -366,7 +377,10 @@ per the acceptance table, not by a test.
   `delete` of one user in the api process. It also closes, within that process, the bind of one
   unbound attachment by two sends in two chats, which both pass `ensureBindable`. *Rejected:* a
   per-chat lock (leaves that cross-chat bind open); an unbounded `Map` of semaphores (one per key,
-  never freed).
+  never freed). *Amended in S10b:* the lock leaves `ChatService` for `UserLock`
+  (`application/user/user-lock.ts`), which `SendMessageUseCase.send`, `DeleteChatUseCase.delete`
+  and `ChatService.rename` pass to `Effect.fn` as a pipeable (D26). It is not reentrant, so
+  `ChatService.delete`, which the delete use case calls while holding it, takes none.
 - **D3 — The assistant message is produced by `Ref` + `Schedule.spaced` snapshots with an
   explicit final write, and the handler learns the last attempt from `AttemptInfo`.** The worker
   folds `text-delta` parts into a `Ref` and raises a `dirty` flag; a racing
@@ -464,7 +478,8 @@ per the acceptance table, not by a test.
   policies); titling after the first reply (later, and needs the reply). *Amended in S6:* the job
   carries the first message's id, not its text; the worker reads that one message from the store,
   still without history, and the user's text is never copied into the queue table, where it would
-  outlive the chat's deletion.
+  outlive the chat's deletion. *Amended in S10b:* `SendMessageUseCase.send` enqueues the job, on
+  the `opensChat` that `ChatService.findSendable` reads (D26).
 - **D13 — The client is one mapped type over `HttpApiClient` with `FetchHttpClient`, returning
   `Promise<Result>`; it manages no cookies, and takes an optional `fetch`.** The browser sends
   same-origin cookies by itself and the web dev server proxies `/api/`; the `Result` shape and
@@ -602,6 +617,54 @@ per the acceptance table, not by a test.
   in a dead letter, an `Error` log for a normal input); a title cut from the message's own text
   (it repeats the user's words, and the title would then have two sources with different
   rules).
+- **D26 — Services stay simple and goal-specific; a flow that composes services of one level,
+  `.job` producers included, is a use case.** *Added in S10b.* `ChatService.send` had outgrown a
+  service: it wrote the attachment aggregate through its port and needed an exception in the
+  layer rule to enqueue. `SendMessageUseCase` composes `ChatService` (`findSendable`,
+  `addUserMessage`, `addAssistantMessage`, `touch`), `AttachmentService` (`findBindable`,
+  `bind`) and the two `.job` producers; `DeleteChatUseCase` composes `ChatService.get`,
+  `AttachmentService.deleteByIds` and `ChatService.delete`. `findSendable` returns a
+  `SendableChat`, a proof that the input, the owner and the active-message check passed, which the
+  three write methods take instead of `(chatId, at)`: its class is exported as a type only and
+  carries a private member, so no caller builds or forges one, and no write runs before the check.
+  `AttachmentService.findBindable` returns `BindableAttachments` the same way, the only value
+  `bind` takes. `ChatService.delete` stays a plain step that leaves the attachments: the rule's
+  "every method is safe on its own" exempts a step another aggregate owns, whose doc comment names
+  `DeleteChatUseCase`, and entry points call only the use case (S14's Constraint).
+  `AttachmentService` is the only writer of attachments; `ChatService` still reads their metadata
+  through the port for `MessageDetail`, a port below it, as the rule allows. A use case is a
+  `Context.Service` whose `layer` provides its services and `UserLock`; layers memoize by
+  reference within one build, so every holder of the lock shares one. The write order of `send`
+  is kept: user message, binds, assistant message, chat, then the jobs; the delete cascade
+  removes the attachments while the messages still list them, so a retry finishes it. The
+  lessons are the rule `.claude/rules/use-cases.md`; `application/CLAUDE.md` points to it.
+  *Rejected:* the `.job` exception in `application/CLAUDE.md` (a service composes its own level,
+  and the next exception follows); use cases as plain `Effect.fn`s that read the services from
+  the context (every requirement, the lock included, leaks into the handler's layer); write
+  methods taking `(chatId, at)` (correct only after `findSendable` ran, a trap for the next
+  caller); one `ChatService.addMessages` with the binds after both messages (changes the write
+  order: a crash before the binds leaves a message listing attachments that stay unbound, which
+  the user can then delete under it); reading attachment metadata through `AttachmentService` (a
+  call to a service of the same level where the port below it suffices).
+- **D27 — Shared test support lives in a `testing/` folder by role (`.fixture`, `.fake`,
+  `.harness`), cross-workspace support in `packages/testing`, and a GritQL plugin keeps source
+  code from importing either.** *Added in S10b.* The chat harness, its recording queue and its
+  yielding repositories serve three test files, and the log recorder and `isUuidV7` were copied
+  into three each. `application/testing/` holds one fixture file per aggregate (`user`,
+  `attachment`, `chat`), the chat fakes (`interleaveMessages`, `AttachmentRepositoryYielding`),
+  the generic ones in their own files (`queue.fake.ts`: `recordQueue`; `language-model.fake.ts`:
+  `recordLanguageModel`) and `chat.harness.ts` (`makeChatHarness`, `withChat`, arrange steps,
+  reads for assertions). `@app-template/testing` (`recordLogs`, `isUuidV7`) is a
+  `devDependency` of `application` and `packages/queue`, and `domain` does not use it. No barrel
+  or `exports` lists a `testing/` folder; the `packages/testing` workspace exports its own
+  support through its `index.ts`.
+  The guard is `biome/test-support-imports.grit`, enabled by one last override for every file but
+  `*.test.ts` and `testing/**`. *Rejected:* a proof type for `ChatService.delete` (a type for a
+  step only one use case calls; the rule's cascade exception and the doc comment say it); a
+  `noRestrictedImports` override (Biome overrides
+  replace each other's rule options, so it dropped the layer bans of every file it matched, as a
+  probe showed); test support beside the sources as a bare kebab file (no role, and nothing
+  stops a source file from importing it); a copy per test file (three harnesses drifting apart).
 
 ## Risks
 
@@ -609,7 +672,7 @@ per the acceptance table, not by a test.
 |---|---|
 | Title race: a rename lands between the worker's re-read of the chat and its write of the title or `updatedAt` on the file store, and is lost | the worker re-reads the chat just before each write, never writing a chat read at take time; Postgres (roadmap 4) makes them `UPDATE … WHERE title IS NULL` and `UPDATE … SET updated_at` |
 | Delete race: the api's `deleteByChat` lands between a worker's read and write of a message | `Collection.update` writes only an existing key, but the two processes hold separate locks, so the worker can rewrite a deleted message: an orphan `messages/<id>` row no index lists, harmless but leaked; Postgres closes it with a foreign key `ON DELETE CASCADE` |
-| Two concurrent `send`s on one chat both pass the "no active message" check | a per-user lock in `ChatService` serialises `send`, `rename` and `delete` within the api process (D2, *Amended in S10*); it does not span processes, so a second api process needs Postgres's partial unique index (one active message per chat) first |
+| Two concurrent `send`s on one chat both pass the "no active message" check | the per-user `UserLock` serialises `send`, `rename` and `delete` within the api process (D2, *Amended in S10* and *in S10b*); it does not span processes, so a second api process needs Postgres's partial unique index (one active message per chat) first |
 | Two concurrent `send`s in two chats bind one unbound attachment: both pass `ensureBindable`, and the later bind overwrites the earlier | the per-user lock closes it within one api process; across processes it stays open until Postgres binds with `UPDATE … WHERE message_id IS NULL` |
 | An enqueue dies on a `QueueError` after `send` stored its messages, and the user gets a `500`. Chat busy forever: the reply job is missing, a `queued` assistant message with no job stays, and R12 then refuses every send; only `DELETE` (R9) frees the chat. Chat untitled for good: only the title job, enqueued after the reply job, is missing; the reply proceeds, `opensChat` is false on every later send, so R24 never fires again, and the chat does not look busy | none in this ticket; a later ticket writes both jobs in the messages' transaction (the outbox of roadmap 4) or sweeps `queued` messages and untitled chats that have no job |
 | `layerFileSystem` has no locking or atomic rename; a crash mid-write leaves a partial file | every index is single-writer, and only the `chats/<id>` and `messages/<id>` rows have a writer in each process (D2, D4); `layerSql` over SQLite is the one-line fallback (D4) |
@@ -624,7 +687,7 @@ per the acceptance table, not by a test.
 | A lock expires on a live worker (a stall past the lock expiry): a second worker takes the job while the first still writes, so two attempts interleave snapshots and the settling attempt's `failed` can be overwritten by the live attempt's `completed` | accepted as the duplicate delivery R19 already implies; the message settles on the last writer; Postgres (roadmap 4) can guard the terminal write with `UPDATE … WHERE stage IN (active stages)` |
 | A long chat's history grows without bound: every attempt sends every completed message and its files, until the prompt exceeds the model's context window and every reply fails | none in this ticket; roadmap entry 6 (`llm-providers`) trims the history to the window |
 | Dev store grows with attachment bytes | `.data/` is gitignored; `rm -rf .data` resets both store and queue |
-| An attachment `DELETE` races a `send` that binds the same unbound attachment: both service checks pass on the unbound row (check-then-act in `AttachmentService.delete` and `ChatService.send`) | the atomic `Collection.update` stops the deleted row from being resurrected, but the message may then reference a deleted attachment; Postgres closes it with `UPDATE … WHERE message_id IS NULL` on bind and a delete guarded the same way |
+| An attachment `DELETE` races a `send` that binds the same unbound attachment: both service checks pass on the unbound row (check-then-act in `AttachmentService.delete` and `SendMessageUseCase.send`) | the atomic `Collection.update` stops the deleted row from being resurrected, but the message may then reference a deleted attachment; Postgres closes it with `UPDATE … WHERE message_id IS NULL` on bind and a delete guarded the same way |
 
 ## To verify during implementation
 

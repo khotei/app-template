@@ -53,7 +53,7 @@ Each row lists what a workspace may import.
 - **`apps/web` client code ships to the browser.** Only its server entry `main.ts` may read
   `config`, to get a validated `WEB_PORT`.
 - **A ✓ is permission, not a declaration.** The dependency must also be in the importer's
-  `package.json`; see [the three guards](#three-boundary-guards).
+  `package.json`; see [the four guards](#four-boundary-guards).
 
 ## Imports: `#<workspace>/` vs `@app-template/`
 
@@ -88,7 +88,8 @@ Using the `chat` slice as the map:
 | domain errors | `domain/chat/chat.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
 | port and pure operations | `domain/chat/chat.service.ts` | `ChatRepository`, `buildChat({ id, userId, createdAt })`, `prepareMessage` |
 | adapter implementing the port | `infrastructure/chat/chat.repository.ts` | `ChatRepositoryKv` (a `Layer` over `KeyValueStore`) |
-| service over the port | `application/chat/chat.service.ts` (planned) | `ChatService`, `ChatService.layer` |
+| service over the ports | `application/chat/chat.service.ts` | `ChatService`, `ChatService.layer` |
+| use case composing services | `application/chat/send-message.use-case.ts` | `SendMessageUseCase`, `SendMessageUseCase.layer` |
 | browser feature | `apps/web/src/features/health/health-panel.ts` | `renderHealthPanel(root, apiClient)` |
 
 Every entity folder has an `index.ts` barrel, and tests sit next to their source as `*.test.ts`.
@@ -97,9 +98,9 @@ The file suffixes and naming verbs are listed in
 
 ## Add a new entity
 
-> **In transition.** The plain use case, the app wiring (`createLayer()`), the example routes with
-> `statusByTag` and the job handler are retired. Steps 6–8 describe that shape until the roadmap
-> ticket [`chat-core`](roadmap.md#3-chat-core) rewrites them.
+> **In transition.** The app wiring (`createLayer()`), the example routes with `statusByTag` and
+> the job handler are retired. Steps 7–8 describe that shape until the roadmap ticket
+> [`chat-core`](roadmap.md#3-chat-core) rewrites them.
 
 Follow the `chat` slice layer by layer, from the bottom up. Write each test before its code,
 and run `make check` after each layer. `<entity>` is the kebab name (`document`), `<Entity>` the
@@ -118,9 +119,11 @@ Pascal one (`Document`).
 5. **Adapter.** `infrastructure/<entity>/<entity>.repository.ts`: `<Entity>RepositoryMemory`, a
    `Layer` that provides the domain port. Start on `KeyValueStore`, like `chat`; a real client later
    adds another layer of the same port. Add `index.ts` and the `exports` entry.
-6. **Service and use cases.** `application/<entity>/<entity>.service.ts` holds the service, and
-   `<verb>.use-case.ts` composes services. A service may import its adapter or receive the port as
-   an argument, and may read the time with `new Date()`. Add `index.ts` and the `exports` entry.
+6. **Service and use cases.** `application/<entity>/<entity>.service.ts` holds the service and
+   `<verb>-<object>.use-case.ts` each use case, both a `Context.Service` with a `layer`, like
+   `application/chat/`. Which flow goes where:
+   [.claude/rules/use-cases.md](../../.claude/rules/use-cases.md). Shared test support goes in
+   `application/testing/`. Add `index.ts` and the `exports` entry.
 7. **Wiring.** In `apps/api/src/layer.ts` (and the worker's, if it needs it), create the service
    and the use cases, with whatever they take as arguments, and return them from `createLayer()`.
 8. **Delivery.** Add routes in `apps/api/src/http.ts`, and map each new error `_tag` to a status in
@@ -133,26 +136,31 @@ declare each other. Check the importer's `package.json` anyway: `apps/worker`, f
 declare `@app-template/domain`. A new external client is a new dependency; see
 [tooling.md](tooling.md#add-a-dependency).
 
-## Three boundary guards
+## Four boundary guards
 
-The import rules are enforced three times, each catching what the others miss:
+The import rules are enforced four times, each catching what the others miss:
 
 | Guard | Catches | Reports |
 |---|---|---|
 | Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json` | an import that goes up a layer or into a sibling app; any relative path; a workspace or an `@effect/*` package other than `@effect/vitest` in `domain`; `effect` in web client code | `make lint`, `pre-commit`, CI `static` |
 | the isolated linker with `tsc -b` | an allowed import of a workspace that is not declared in `package.json` | TS2307 in `make typecheck` and at runtime |
 | `composite` project references (`rootDir: "."`) | a path that reaches into an unreferenced workspace's files | TS6059 / TS6307 in `make typecheck` |
+| the GritQL plugin `biome/test-support-imports.grit`, in one last `overrides` entry for every file but `*.test.ts` and `testing/**` | source code that imports or re-exports `#<workspace>/testing/…` or `@app-template/testing` | `make lint`, `pre-commit`, CI `static` |
 
 The Biome overrides are **deny-lists**: each names the workspaces a layer must not import. A new
-`packages/*` workspace therefore needs no Biome change, while a new layer or app does. Test files
+`packages/*` workspace therefore needs no change to them, while a new layer or app does (a
+package of test support: [tooling.md › Add a workspace](tooling.md#add-a-workspace)). Test files
 follow their workspace's override; none has its own. Overrides that match the same file replace
 each other's options rather than merge, so every override repeats the relative-path ban. Symptoms
 and fixes:
 [tooling.md › Troubleshooting](tooling.md#troubleshooting).
 
+The test-support guard is a plugin, not a `noRestrictedImports` pattern, because a second
+override setting that rule would replace the layer bans of every file it matches.
+
 ### Known gaps
 
-Three forms pass all three guards. No code uses them; review is what catches them.
+Three forms pass all four guards. No code uses them; review is what catches them.
 
 - **A type import inside an expression in web client code.** `export type X =
   import('@app-template/config').ApiConfig['Service']` in `app/`, `features/` or `shared/` passes

@@ -139,9 +139,11 @@ its sources either way.
 4. Add the path to the root `tsconfig.json` `references`.
 5. Run `bun install` and `make check`.
 
-A new `packages/*` workspace needs no Biome change, because the layer guards are deny-lists. A new
-layer or app needs its own `overrides` entry in `biome.json`; see
-[architecture.md › Three boundary guards](architecture.md#three-boundary-guards) for what each
+A new `packages/*` workspace needs no change to the layer guards, because they are deny-lists; a
+package of test support, like `packages/testing`, must also be named in the regex of
+`biome/test-support-imports.grit`, or source code may import it. A new layer or app needs its own
+`overrides` entry in `biome.json`; see
+[architecture.md › Four boundary guards](architecture.md#four-boundary-guards) for what each
 entry repeats.
 
 ### Upgrade versions
@@ -243,6 +245,7 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 | Biome `noRestrictedImports`: `… never a relative path` | a `./` or `../` import inside a workspace | use `#<workspace>/<path>`, for example `#domain/example/example.model` |
 | Biome `lint/suspicious/noImportCycles`: `This import is part of a cycle` | two modules import each other, typically two aggregates' models through their ids | import the other aggregate's id from its `<aggregate>.id.ts`, never its model |
 | Biome `noRestrictedImports`: `web client code imports no effect…` | `effect` or `@effect/*` in `apps/web` client code, which ships to the browser | call the api through `@app-template/api-client`; only the server entry `src/main.ts` may use `effect` |
+| Biome `plugin`: `test support … is imported only by tests and other test support` | a source file imports from a `testing/` folder or from `@app-template/testing` | import it from a `*.test.ts` or another `testing/` file; code a source file needs does not belong in `testing/` |
 | Biome `assist/source/organizeImports`: `Sort these imports.` | import groups out of order or without blank lines between them | `make fmt` |
 | a commit is rejected after `tsc` or Biome output | the `pre-commit` hook failed | fix the reported error, `git add`, and commit again |
 | a push is rejected after test output | the `pre-push` hook failed | fix the tests; never use `--no-verify` |

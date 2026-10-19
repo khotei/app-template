@@ -22,6 +22,7 @@
         "effect": "catalog:effect",
       },
       "devDependencies": {
+        "@app-template/testing": "workspace:*",
         "@effect/platform-bun": "catalog:effect",
         "@effect/vitest": "catalog:effect",
       },
@@ -107,11 +108,18 @@
         "effect": "catalog:effect",
       },
       "devDependencies": {
+        "@app-template/testing": "workspace:*",
         "@effect/vitest": "catalog:effect",
       },
     },
     "packages/storage": {
       "name": "@app-template/storage",
+    },
+    "packages/testing": {
+      "name": "@app-template/testing",
+      "dependencies": {
+        "effect": "catalog:effect",
+      },
     },
     "packages/ui": {
       "name": "@app-template/ui",
@@ -162,6 +170,8 @@
     "@app-template/queue": ["@app-template/queue@workspace:packages/queue"],
 
     "@app-template/storage": ["@app-template/storage@workspace:packages/storage"],
+
+    "@app-template/testing": ["@app-template/testing@workspace:packages/testing"],
 
     "@app-template/ui": ["@app-template/ui@workspace:packages/ui"],
 

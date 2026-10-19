@@ -147,7 +147,7 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   `PersistedQueue.layerStoreSql` (or proof that `offer` inside `withTransaction` is the outbox),
   which also closes `chat-core`'s enqueue-after-insert risks (a `queued` message with no job, the
   chat busy for good; or no title job, the chat untitled for good) by committing the jobs with the
-  messages; and the two guards that let a second api process drop `ChatService`'s in-process lock:
+  messages; and the two guards that let a second api process drop the in-process `UserLock`:
   a partial unique index allowing one active message per chat, and the bind as `UPDATE … WHERE
   message_id IS NULL`;
   `FOR UPDATE SKIP LOCKED` where the queue store does not already provide it; the test strategy

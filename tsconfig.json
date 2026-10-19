@@ -9,6 +9,7 @@
     { "path": "./packages/storage" },
     { "path": "./packages/queue" },
     { "path": "./packages/llm" },
+    { "path": "./packages/testing" },
     { "path": "./packages/api-client" },
     { "path": "./packages/ui" },
     { "path": "./apps/api" },

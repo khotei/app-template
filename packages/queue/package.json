@@ -13,6 +13,7 @@
     "effect": "catalog:effect"
   },
   "devDependencies": {
+    "@app-template/testing": "workspace:*",
     "@effect/vitest": "catalog:effect"
   }
 }

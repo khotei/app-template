@@ -38,19 +38,25 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 | `.model` | entity types and value shapes | domain |
 | `.error` | domain errors | domain |
 | `.service` | domain: ports + pure operations · application: a service over ports | domain, application |
-| `.use-case` | a flow that composes services | application |
+| `.use-case` | a flow that composes services: `<verb>-<object>.use-case.ts` | application |
 | `.job` | a queue's producer service and its worker | application |
 | `.repository` · `.storage` · `.llm` | an adapter over a client | infrastructure |
 | `.queue` | queue definitions | infrastructure |
 | `.client` | client wiring | infrastructure/shared, packages |
 | `.handler` | a request handler | apps |
 | `.test` | a colocated test that mirrors its source name | any |
+| `.fixture` | sample values (ids, dates, inputs, bytes); no Effect, no layers | `testing/` |
+| `.fake` | a test implementation or wrapper of a port or service: records, yields, scripts | `testing/` |
+| `.harness` | real services over fakes and the memory store; runner, arrange steps, reads for assertions | `testing/` |
 
-A file with none of these roles keeps a bare kebab name (`http.ts`, `main.ts`).
+A file with none of these roles keeps a bare kebab name (`http.ts`, `main.ts`). The three
+test-support roles live only in a `testing/` folder, which no barrel or `exports` lists, except
+the `packages/testing` workspace, whose `index.ts` exports its support.
 
 ## Symbols
 
-- Types are `PascalCase` `<Entity><Role>`: `ChatRepository`, `ChatService`.
+- Types are `PascalCase` `<Entity><Role>`: `ChatRepository`, `ChatService`; a use case is
+  `<Verb><Object>UseCase` (`SendMessageUseCase`).
 - Errors are `<Entity><Problem>Error`.
 - Functions are verb-first, and the verb marks the kind of work:
   - `create<Thing>`: a factory that wires dependencies (`createCollection`);
@@ -69,3 +75,6 @@ A file with none of these roles keeps a bare kebab name (`http.ts`, `main.ts`).
     changes an existing record and never creates one.
 - Constants are `camelCase` with `as const` for literals. A `Layer` constant for a service
   declared elsewhere is `PascalCase` `<Service><Variant>` (`ChatRepositoryKv`).
+- Test support: a fixed fake layer is `<Service><Variant>` (`AttachmentRepositoryYielding`); a
+  stateful fake `<verb><Thing>()` returns `{ <handle>, layer }` (`recordLogs`,
+  `interleaveMessages`); a harness is `make<Entity>Harness()`, its runner `with<Entity>(body)`.

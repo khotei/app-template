@@ -16,7 +16,6 @@ import {
 
 import { AttachmentRepository, AttachmentStore } from '@app-template/domain/attachment'
 import {
-  Chat,
   type ChatId,
   ChatRepository,
   completeMessage,

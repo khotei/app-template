@@ -1,7 +1,7 @@
-import { Context, Crypto, DateTime, Effect, Layer, Option } from 'effect'
+import { Array as Arr, Context, Crypto, DateTime, Effect, Layer, Option } from 'effect'
 
 import {
-  type Attachment,
+  Attachment,
   type AttachmentBoundError,
   AttachmentId,
   AttachmentNotFoundError,
@@ -13,6 +13,7 @@ import {
   FileSize,
   type MediaType,
 } from '@app-template/domain/attachment'
+import type { MessageId } from '@app-template/domain/chat'
 import { isOwnedBy, type UserId } from '@app-template/domain/user'
 
 export interface AttachmentUpload {
@@ -25,6 +26,23 @@ export interface AttachmentDownload {
   readonly attachment: Attachment
   readonly bytes: Uint8Array
 }
+
+/**
+ * Proof that these attachments may be bound: only `AttachmentService.findBindable` builds one,
+ * after it checked that each is the user's and unbound.
+ *
+ * It holds only while the caller keeps the user's `UserLock` from the check to the bind.
+ */
+class BindableAttachments {
+  declare private readonly proof: never
+
+  constructor(
+    /** In the order of the ids asked for. */
+    readonly attachments: ReadonlyArray<Attachment>,
+  ) {}
+}
+
+export type { BindableAttachments }
 
 export class AttachmentService extends Context.Service<
   AttachmentService,
@@ -44,6 +62,23 @@ export class AttachmentService extends Context.Service<
       userId: UserId,
       id: AttachmentId,
     ) => Effect.Effect<void, AttachmentNotFoundError | AttachmentBoundError>
+    readonly findBindable: (
+      userId: UserId,
+      ids: ReadonlyArray<AttachmentId>,
+    ) => Effect.Effect<BindableAttachments, AttachmentNotFoundError | AttachmentBoundError>
+    /** Binds the attachments to the message, and returns them bound. */
+    readonly bind: (
+      bindable: BindableAttachments,
+      messageId: MessageId,
+    ) => Effect.Effect<ReadonlyArray<Attachment>>
+    /**
+     * Removes these attachments, bound or not; an id already removed is skipped, so a retried
+     * cascade finishes.
+     *
+     * A step of `DeleteChatUseCase`, which found the ids through the user's chat: it checks no
+     * owner, and entry points call the use case, never this.
+     */
+    readonly deleteByIds: (ids: ReadonlyArray<AttachmentId>) => Effect.Effect<void>
   }
 >()('@app-template/application/attachment/AttachmentService', {
   make: Effect.gen(function* () {
@@ -94,7 +129,40 @@ export class AttachmentService extends Context.Service<
       yield* store.delete(id)
     })
 
-    return { upload, get, download, delete: remove }
+    // One batch read; the refusal still names the first bad id in the order asked.
+    const findBindable = Effect.fn('AttachmentService.findBindable')(function* (
+      userId: UserId,
+      ids: ReadonlyArray<AttachmentId>,
+    ) {
+      const found = new Map(
+        Arr.map(yield* attachments.selectByIds(ids), (attachment) => [attachment.id, attachment]),
+      )
+      const bindable = yield* Effect.forEach(ids, (id) =>
+        ensureBindable(id, Option.fromUndefinedOr(found.get(id)), userId),
+      )
+      return new BindableAttachments(bindable)
+    })
+
+    const bind = Effect.fn('AttachmentService.bind')(function* (
+      bindable: BindableAttachments,
+      messageId: MessageId,
+    ) {
+      const bound = Arr.map(
+        bindable.attachments,
+        (attachment) => new Attachment({ ...attachment, messageId: Option.some(messageId) }),
+      )
+      yield* Effect.forEach(bound, attachments.update, { discard: true })
+      return bound
+    })
+
+    const deleteByIds = Effect.fn('AttachmentService.deleteByIds')(function* (
+      ids: ReadonlyArray<AttachmentId>,
+    ) {
+      yield* attachments.deleteByIds(ids)
+      yield* Effect.forEach(ids, store.delete, { discard: true })
+    })
+
+    return { upload, get, download, delete: remove, findBindable, bind, deleteByIds }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

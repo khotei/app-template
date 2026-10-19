@@ -49,7 +49,8 @@ graph LR
   S3 --> S13[S13 apps/api: health + users]
   S7 --> S13
   S12 --> S13
-  S10 --> S14[S14 chats over HTTP]
+  S10 --> S10b[S10b use cases]
+  S10b --> S14[S14 chats over HTTP]
   S13 --> S14
   S14 --> S15[S15 attachments over HTTP]
   S14 --> S16[S16 apps/worker + dev run]
@@ -779,8 +780,10 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
 #### S10b — The `send-message` and `delete-chat` use cases
 
 - **Goal** (*added at the S10 approval gate*): services stay simple, goal-specific and easy to
-  compose; a service may use another only for a simple job, and any hard combination of services
-  is a use case's. `application/chat/send-message.use-case.ts` composes `ChatService`,
+  compose. A service composes what lies below it (domain rules, ports, adapters, packages) and
+  calls a service of its own level only for a simple job with a good reason; composing services
+  of one level, `.job` producers included, is a use case's.
+  `application/chat/send-message.use-case.ts` composes `ChatService`,
   `AttachmentService` and the two `.job` producers (checks, binds, writes, enqueues) and
   `application/chat/delete-chat.use-case.ts` composes the attachment and chat deletions, both
   under the per-user lock, which leaves `ChatService` for a shared lock both use cases (and
@@ -790,18 +793,94 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
   above (approved by the user at the S10 gate); `docs/knowledge/architecture.md › Service and
   use cases` and the ticket's `architecture.md` (a new D…, D2 *Amended in S10b*, Structure)
   record it, and S14's handler calls the use cases (R4, R9, R11–R13, R24; D2, D12).
+  *Amended in S10b:* `findSendable` returns `SendableChat`, a proof the write methods take; the
+  rule lands as `.claude/rules/use-cases.md` with `naming.md` (use cases, test-support roles),
+  `effect-tests.md` and `effect-services.md`; the chat test support moves to
+  `application/testing/`, the shared log recorder and `isUuidV7` to a new `packages/testing`, and
+  a Biome plugin keeps source code from importing either (D26, D27).
 - **Blocked by:** S10.
 - **Files:** `application/chat/{send-message.use-case,send-message.use-case.test,
   delete-chat.use-case,delete-chat.use-case.test,chat.service,chat.service.test,index}.ts`,
   `application/attachment/{attachment.service,attachment.service.test}.ts`, the lock's file,
-  `application/CLAUDE.md`, `docs/knowledge/architecture.md`.
+  `application/chat/assistant-message.job.ts` (the unused `Chat` import S10 left),
+  `application/CLAUDE.md`, `docs/knowledge/architecture.md`. *Amended in S10b:*
+  `application/testing/{chat.fixture,chat.fake,chat.harness}.ts`,
+  `application/chat/{assistant-message.job,chat-title.job}.test.ts`,
+  `application/user/{user-lock,user.service.test}.ts`, `application/{package,tsconfig}.json`;
+  `packages/testing/{package.json,tsconfig.json,index,log.fake,uuid}.ts`,
+  `packages/queue/{queue.test.ts,package.json,tsconfig.json}`, root `tsconfig.json`, `bun.lock`;
+  `biome.json`, `biome/test-support-imports.grit`; `.claude/rules/{use-cases,naming,effect-tests,
+  effect-services}.md`; `docs/knowledge/tooling.md`.
 - **Test first:** Seam 5, behaviour unchanged — the `send` and `delete` cases of S10 move to the
   use cases' tests and stay green (busy, refused attachments, cross-chat bind, concurrency, the
   title set during a send, cascade order); `ChatService`'s tests keep its simple methods; the new
   `AttachmentService` methods get their own cases.
-- **Verify:** `make check`; `git grep -n "attachments.update\|AttachmentRepository" --
-  application/chat` finds nothing.
-- **Status:** todo
+- **Verify:** `make check`; *Amended in S10b:* `git grep --untracked -nE
+  "attachments\.(update|insert|deleteByIds)|[sS]tore\.(insert|delete)" -- application/chat
+  ':!*.test.ts'` finds nothing (no write to the attachment ports), and the same pattern with
+  `HEAD` in place of `--untracked` finds S10's three; a source file importing
+  `#application/testing/…` or `@app-template/testing` fails `make lint`.
+- **Status:** done
+- **Findings:**
+  - The written Verify could not pass: `assistant-message.job.ts` reads attachments for the
+    prompt, and `ChatService` reads their metadata for `MessageDetail` through the port, which
+    the rule allows (a port below it; D26). The Verify is now a writes-only grep, without `\b`,
+    which Apple Git's `-E` lacks (a first version with it found two of the three writes). At
+    `HEAD` it finds `attachments.deleteByIds`, `attachmentStore.delete` and `attachments.update`
+    in `chat.service.ts`; in the working tree, with `--untracked` so the new use cases are
+    searched, it finds nothing.
+  - `SendableChat` is a class exported with `export type` and carrying a `declare private`
+    member: a probe calling `addUserMessage` with a literal, `new SendableChat(…)` and a value
+    import of it fails `make typecheck` (TS2741, TS1362, TS1485). It also carries the send's time,
+    so both messages and the chat's `updatedAt` share one instant, as in S10.
+    `findBindable` returns `BindableAttachments` the same way, the only value `bind` takes: a
+    probe binding a hand-built array, a literal or `new BindableAttachments(…)` fails
+    `make typecheck` (TS2739, TS2741, TS1362, TS1485).
+  - `ChatService.delete` leaves the attachments and takes no proof: `use-cases.md`'s "every method
+    is safe on its own" now exempts a step another aggregate owns, whose doc comment names
+    `DeleteChatUseCase`; S14's Constraint routes the handler through the use case (D26).
+  - The lock is `UserLock` in `application/user/user-lock.ts`, out of the barrel like
+    `touch-chat.ts`. `rename` still takes it: `touch` re-reads the chat and then writes it, and a
+    rename landing between the two would be undone. It is not reentrant, so `ChatService.delete`,
+    called while `DeleteChatUseCase` holds it, takes none.
+  - The layers memoize `UserLock.layer` by reference, so one harness builds one lock: a probe
+    counted 25 builds for 25 harnesses. The shared-lock test forks a delete inside the send's
+    check: it waits for the send, then removes its messages. Red with a `Layer.fresh` lock for
+    the delete use case (the delete runs inside the send's critical section, and the send then
+    writes two orphan messages) and with no lock on `send`.
+  - The cascade test fails the first `ChatRepository.delete` and retries: everything is gone.
+    Red with the chat delete before the attachment delete (the retry finds no message listing
+    the attachments).
+  - `findBindable` reads the attachments with one `selectByIds` and matches them by id in memory,
+    instead of a `selectById` per id (an N+1 over the port). An id the store leaves out fails
+    `AttachmentNotFoundError` as before, and the refusal still names the first bad id in the
+    order asked. The harness's yield point moved from `selectById` to `selectByIds`; the
+    cross-chat race test is still red without the lock (with the one-chat and shared-lock tests).
+    `use-cases.md` gained the batch-read line.
+  - Probes, each red and then reverted: no lock on `send` (both concurrency tests), the
+    attachment check after the first write (the three refused-attachment cases), `bind` without
+    its write, `deleteByIds` without the bytes, `findBindable` without `ensureBindable`.
+  - Test support (D27): `application/testing/` holds `{user,attachment,chat}.fixture.ts` (one
+    `png`, one id per fixture), `chat.fake.ts`, `queue.fake.ts`, `language-model.fake.ts` and
+    `chat.harness.ts`, used by the `ChatService`, `AttachmentService`, use-case and job tests;
+    `withChat` hands each test its services and a chat. The job tests share
+    `recordLanguageModel` and the fixtures; their repository recorders stay local, each used by
+    one file, and their harnesses are `makeAssistantMessageHarness` and `makeChatTitleHarness`.
+    `domain` and `infrastructure` tests keep their own copies of the user ids and `png`: they
+    cannot import `application`. `@app-template/testing` holds `recordLogs(...annotations)`
+    (three recorders before) and `isUuidV7` (three copies), a `devDependency` of `application`
+    and `packages/queue`.
+  - The guard is a GritQL plugin, not `noRestrictedImports`: a probe showed that a second
+    override for that rule replaces the layer bans of every file it matches. It fires on import,
+    type import, side-effect import, re-export, `export *` and dynamic `import()` from source
+    files in `application` and `packages/queue`, and on none from a `*.test.ts` or `testing/` file.
+    Its severity is set to `error` explicitly. It is the fourth boundary guard in
+    `docs/knowledge/architecture.md`.
+  - Size, without a split: code +341/−101 (of which the workspace, Biome and config files ≈ 45);
+    tests +918/−590, of which 450 added lines are S10 or job-test lines moved verbatim, so ≈ 468
+    are new or reshaped; docs and rules +278/−46 with this entry (63 of them
+    `.claude/rules/use-cases.md`, written by the main session). Splitting off the
+    `AttachmentService` methods would have saved ≈ 150 lines from a step that the move dominates.
 
 ### Contract, client and api
 
@@ -884,6 +963,8 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
   `apps/api/src/{chats.handler,layer,http.test}.ts`.
 - **Constraint** (*Amended in S10*): the handler decodes the trimmed `title` payload into the
   domain's `ChatTitle` brand before `ChatService.rename`, which accepts only the brand.
+  *Amended in S10b:* the handler sends a message only through `SendMessageUseCase` and deletes a
+  chat only through `DeleteChatUseCase`, never `ChatService.delete`, which leaves the attachments.
 - **Test first:** Seam 7 — `GET /chats` without a cookie is `401 UserUnknown`; a chat of user A
   under user B's cookie is `404 ChatNotFound`, the same for a message; `POST /chats/:id/messages`
   is `202` with a `completed` user message and a `queued` assistant message, a second send `409

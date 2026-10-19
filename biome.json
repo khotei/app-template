@@ -369,6 +369,10 @@
           }
         }
       }
+    },
+    {
+      "includes": ["**", "!**/*.test.ts", "!**/testing/**"],
+      "plugins": ["./biome/test-support-imports.grit"]
     }
   ]
 }

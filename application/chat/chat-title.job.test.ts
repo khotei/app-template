@@ -1,15 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
-import {
-  Array as Arr,
-  DateTime,
-  Effect,
-  Layer,
-  Logger,
-  Option,
-  Record as Rec,
-  Stream,
-} from 'effect'
-import { AiError, LanguageModel, Prompt, type Response } from 'effect/ai'
+import { Array as Arr, DateTime, Effect, Layer, Option, Record as Rec } from 'effect'
+import { AiError, Prompt, type Response } from 'effect/ai'
 import { KeyValueStore } from 'effect/persistence'
 import { TestClock } from 'effect/testing'
 
@@ -17,31 +8,25 @@ import {
   buildChat,
   buildUserMessage,
   Chat,
-  ChatId,
   ChatRepository,
   ChatTitle,
   type Message,
-  MessageId,
   MessageRepository,
   maxTitleLength,
 } from '@app-template/domain/chat'
-import { UserId } from '@app-template/domain/user'
 import { ChatRepositoryKv, MessageRepositoryKv } from '@app-template/infrastructure/chat'
 import { QueueClient } from '@app-template/queue'
+import { recordLogs } from '@app-template/testing'
 
 import { ChatTitleJob } from '#application/chat/chat-title.job'
-
-const owner = UserId.make('0192d4e0-7b3a-7c00-8000-000000000010')
-const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000020')
-const firstId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000030')
-const epoch = DateTime.makeUnsafe(0)
+import { chatId, epoch, messageId } from '#application/testing/chat.fixture'
+import { recordLanguageModel } from '#application/testing/language-model.fake'
+import { owner } from '#application/testing/user.fixture'
 
 type Answer = Effect.Effect<Array<Response.PartEncoded>, AiError.AiError>
 
-const makeHarness = (answer: Answer) => {
+const makeChatTitleHarness = (answer: Answer) => {
   const writes: Array<Chat> = []
-  const prompts: Array<Prompt.Prompt> = []
-  const logs: Array<readonly [level: string, message: unknown]> = []
   const chats = Layer.effect(
     ChatRepository,
     Effect.map(ChatRepository, (inner) =>
@@ -55,21 +40,8 @@ const makeHarness = (answer: Answer) => {
       }),
     ),
   ).pipe(Layer.provide(ChatRepositoryKv))
-  const model = Layer.effect(
-    LanguageModel.LanguageModel,
-    LanguageModel.make({
-      generateText: (options) => {
-        prompts.push(options.prompt)
-        return answer
-      },
-      streamText: () => Stream.die('streamText is not used by the title'),
-    }),
-  )
-  const logger = Logger.layer([
-    Logger.make<unknown, void>(({ logLevel, message }) => {
-      logs.push([logLevel, Array.isArray(message) ? message[0] : message])
-    }),
-  ])
+  const { prompts, layer: model } = recordLanguageModel({ generateText: answer })
+  const { logs, layer: logger } = recordLogs()
   const layer = Layer.mergeAll(ChatTitleJob.layer, chats, MessageRepositoryKv, model, logger).pipe(
     Layer.provideMerge(QueueClient.layerMemory),
     Layer.provide(KeyValueStore.layerMemory),
@@ -82,7 +54,7 @@ const answering = (text: string): Answer => Effect.succeed([{ type: 'text', text
 const arrangeChat = (text = 'Plan a weekend in Lisbon') =>
   Effect.gen(function* () {
     const first = buildUserMessage({
-      id: firstId,
+      id: messageId,
       chatId,
       text,
       attachmentIds: [],
@@ -182,7 +154,9 @@ const deleteChat = Effect.andThen(
 
 describe('ChatTitleJob.worker', () => {
   it.effect('titles the chat with the model text, trimmed and cut to the title limit', () => {
-    const { prompts, layer } = makeHarness(answering(`  ${filler(maxTitleLength - 1)} and more\n`))
+    const { prompts, layer } = makeChatTitleHarness(
+      answering(`  ${filler(maxTitleLength - 1)} and more\n`),
+    )
     return Effect.gen(function* () {
       yield* runWorker(yield* arrangeChat())
 
@@ -196,7 +170,7 @@ describe('ChatTitleJob.worker', () => {
   })
 
   it.effect('keeps the chat updatedAt when it writes the title', () => {
-    const { writes, layer } = makeHarness(slowAnswer)
+    const { writes, layer } = makeChatTitleHarness(slowAnswer)
     return Effect.gen(function* () {
       yield* runWorker(yield* arrangeChat())
 
@@ -208,7 +182,7 @@ describe('ChatTitleJob.worker', () => {
   })
 
   it.effect.each(Rec.keys(moments))('keeps a title the user set %s', (moment) => {
-    const { prompts, logs, layer } = makeHarness(slowAnswer)
+    const { prompts, logs, layer } = makeChatTitleHarness(slowAnswer)
     return Effect.gen(function* () {
       yield* enqueue(yield* arrangeChat())
 
@@ -223,7 +197,7 @@ describe('ChatTitleJob.worker', () => {
   it.effect.each(Rec.keys(moments))(
     'ends without a write when the chat is deleted %s',
     (moment) => {
-      const { writes, prompts, logs, layer } = makeHarness(slowAnswer)
+      const { writes, prompts, logs, layer } = makeChatTitleHarness(slowAnswer)
       return Effect.gen(function* () {
         yield* enqueue(yield* arrangeChat())
 
@@ -237,7 +211,7 @@ describe('ChatTitleJob.worker', () => {
   )
 
   it.effect('ends without a write when the chat is left without its first message', () => {
-    const { writes, prompts, logs, layer } = makeHarness(answering('Lisbon weekend'))
+    const { writes, prompts, logs, layer } = makeChatTitleHarness(answering('Lisbon weekend'))
     return Effect.gen(function* () {
       yield* enqueue(yield* arrangeChat())
       yield* deleteMessages
@@ -252,7 +226,7 @@ describe('ChatTitleJob.worker', () => {
 
   it.effect.each(Rec.keys(graphemeCuts))('cuts the title at a whole grapheme with %s', (cut) => {
     const { answer, title } = graphemeCuts[cut]
-    const { layer } = makeHarness(answering(answer))
+    const { layer } = makeChatTitleHarness(answering(answer))
     return Effect.gen(function* () {
       yield* runWorker(yield* arrangeChat())
 
@@ -261,7 +235,7 @@ describe('ChatTitleJob.worker', () => {
   })
 
   it.effect('asks the model for a title within the title limit', () => {
-    const { prompts, layer } = makeHarness(answering('Lisbon weekend'))
+    const { prompts, layer } = makeChatTitleHarness(answering('Lisbon weekend'))
     return Effect.gen(function* () {
       yield* runWorker(yield* arrangeChat())
 
@@ -272,7 +246,7 @@ describe('ChatTitleJob.worker', () => {
   })
 
   it.effect('leaves the chat untitled and dead-letters the job when the model always fails', () => {
-    const { writes, logs, layer } = makeHarness(Effect.fail(providerError))
+    const { writes, logs, layer } = makeChatTitleHarness(Effect.fail(providerError))
     return Effect.gen(function* () {
       yield* runWorker(yield* arrangeChat())
 
@@ -290,7 +264,7 @@ describe('ChatTitleJob.worker', () => {
 
   it.effect.each(Rec.keys(untitledOpenings))('leaves the chat untitled after %s', (opening) => {
     const { text, answer, modelCalls } = untitledOpenings[opening]
-    const { writes, prompts, logs, layer } = makeHarness(answer)
+    const { writes, prompts, logs, layer } = makeChatTitleHarness(answer)
     return Effect.gen(function* () {
       yield* runWorker(yield* arrangeChat(text))
 

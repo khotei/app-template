@@ -1,0 +1,14 @@
+{
+  "name": "@app-template/testing",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "imports": {
+    "#testing/*": "./*.ts"
+  },
+  "dependencies": {
+    "effect": "catalog:effect"
+  }
+}

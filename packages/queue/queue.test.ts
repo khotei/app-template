@@ -3,21 +3,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { assert, describe, it } from '@effect/vitest'
-import {
-  Effect,
-  Exit,
-  Layer,
-  Logger,
-  Option,
-  Queue,
-  Ref,
-  References,
-  Schedule,
-  Schema,
-  type Scope,
-} from 'effect'
+import { Effect, Exit, Layer, Option, Queue, Ref, Schedule, Schema, type Scope } from 'effect'
 import { PersistedQueue } from 'effect/persistence'
 import { TestClock } from 'effect/testing'
+
+import { recordLogs } from '@app-template/testing'
 
 import { type AttemptInfo, QueueClient, type QueueDefinition, send, worker } from '#queue/queue'
 
@@ -129,7 +119,7 @@ const awaitNextAttempt = (seen: Queue.Queue<Seen>) =>
 
 describe('worker attempt info on QueueClient.layerMemory', () => {
   it.effect('counts every failed attempt, dead-letters the last and keeps consuming', () => {
-    const { logs, recordLogs } = makeLogRecorder()
+    const { logs, layer: recordedLogs } = recordLogs('queue')
     return Effect.gen(function* () {
       const seen = yield* Queue.unbounded<Seen>()
       yield* Layer.build(worker(flaky, recordAttemptsFailingOn(seen, 'fail')))
@@ -159,11 +149,11 @@ describe('worker attempt info on QueueClient.layerMemory', () => {
         ['Warn', 'queue message attempt failed', 'flaky'],
         ['Error', 'queue message dead-lettered', 'flaky'],
       ])
-    }).pipe(Effect.provide(Layer.mergeAll(QueueClient.layerMemory, recordLogs)))
+    }).pipe(Effect.provide(Layer.mergeAll(QueueClient.layerMemory, recordedLogs)))
   })
 
   it.effect("closing a worker's scope hands its job to the next worker, unlogged", () => {
-    const { logs, recordLogs } = makeLogRecorder()
+    const { logs, layer: recordedLogs } = recordLogs('queue')
     return Effect.gen(function* () {
       const seen = yield* Queue.unbounded<Seen>()
       const hang = worker(flaky, (ping, attempt) =>
@@ -185,18 +175,9 @@ describe('worker attempt info on QueueClient.layerMemory', () => {
         ],
       )
       assert.deepStrictEqual(logs, [])
-    }).pipe(Effect.provide(Layer.mergeAll(QueueClient.layerMemory, recordLogs)))
+    }).pipe(Effect.provide(Layer.mergeAll(QueueClient.layerMemory, recordedLogs)))
   })
 })
-
-const makeLogRecorder = () => {
-  const logs: Array<readonly [level: string, message: unknown, queue: unknown]> = []
-  const logger = Logger.make<unknown, void>(({ logLevel, message, fiber }) => {
-    const first = Array.isArray(message) ? message[0] : message
-    logs.push([logLevel, first, fiber.getRef(References.CurrentLogAnnotations).queue])
-  })
-  return { logs, recordLogs: Logger.layer([logger]) }
-}
 
 const failFirstTake = (failure: Effect.Effect<never, PersistedQueue.PersistedQueueError>) =>
   Layer.effect(
@@ -226,7 +207,7 @@ describe('worker on a failing store', () => {
   it.effect.each(storeFailures)(
     'logs $kind as an error and resumes consuming after a backoff',
     ({ failure }) => {
-      const { logs, recordLogs } = makeLogRecorder()
+      const { logs, layer: recordedLogs } = recordLogs('queue')
       return Effect.gen(function* () {
         const seen = yield* Queue.unbounded<Seen>()
         yield* Layer.build(worker(flaky, recordAttempts(seen)))
@@ -241,12 +222,12 @@ describe('worker on a failing store', () => {
           { attempt: 1, maxAttempts: 3, isLastAttempt: false },
         ])
         assert.deepStrictEqual(logs, [['Error', 'queue consumer failed', 'flaky']])
-      }).pipe(Effect.provide(Layer.mergeAll(layerOverStore(failFirstTake(failure)), recordLogs)))
+      }).pipe(Effect.provide(Layer.mergeAll(layerOverStore(failFirstTake(failure)), recordedLogs)))
     },
   )
 
   it.effect('resumes after a handler interrupts itself, at the same attempt, unlogged', () => {
-    const { logs, recordLogs } = makeLogRecorder()
+    const { logs, layer: recordedLogs } = recordLogs('queue')
     return Effect.gen(function* () {
       const seen = yield* Queue.unbounded<Seen>()
       const calls = yield* Ref.make(0)
@@ -269,7 +250,7 @@ describe('worker on a failing store', () => {
         ],
       )
       assert.deepStrictEqual(logs, [])
-    }).pipe(Effect.provide(Layer.mergeAll(QueueClient.layerMemory, recordLogs)))
+    }).pipe(Effect.provide(Layer.mergeAll(QueueClient.layerMemory, recordedLogs)))
   })
 })
 
@@ -291,7 +272,7 @@ const dieWhenSettlingAFailedAttempt = Layer.effect(
 
 describe('worker on a store that dies settling a failed attempt', () => {
   it.effect('logs the defect as an error and keeps consuming', () => {
-    const { logs, recordLogs } = makeLogRecorder()
+    const { logs, layer: recordedLogs } = recordLogs('queue')
     return Effect.gen(function* () {
       const seen = yield* Queue.unbounded<Seen>()
       yield* Layer.build(worker(pings, recordAttemptsFailingOn(seen, 'fail')))
@@ -312,7 +293,7 @@ describe('worker on a store that dies settling a failed attempt', () => {
         ],
       )
     }).pipe(
-      Effect.provide(Layer.mergeAll(layerOverStore(dieWhenSettlingAFailedAttempt), recordLogs)),
+      Effect.provide(Layer.mergeAll(layerOverStore(dieWhenSettlingAFailedAttempt), recordedLogs)),
     )
   })
 })
