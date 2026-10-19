@@ -1,6 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { DateTime, Effect, Option } from 'effect'
+import { Array as Arr, DateTime, Effect, Option } from 'effect'
 
 import { AttachmentId } from '#domain/attachment/attachment.id'
 import {
@@ -9,17 +9,25 @@ import {
   MessageStageInvalidError,
 } from '#domain/chat/chat.error'
 import { ChatId, MessageId } from '#domain/chat/chat.id'
-import { Chat, Message, MessageFailure, type MessageStage } from '#domain/chat/chat.model'
+import {
+  Chat,
+  ChatTitle,
+  Message,
+  MessageFailure,
+  type MessageStage,
+} from '#domain/chat/chat.model'
 import {
   buildAssistantMessage,
   buildChat,
   buildUserMessage,
+  byLatestUpdate,
   completeMessage,
   ensureChatAcceptsMessage,
   ensureMessageInput,
   failMessage,
   generateMessage,
   isActiveMessage,
+  isInChat,
   isTitledChat,
   prepareMessage,
 } from '#domain/chat/chat.service'
@@ -52,11 +60,33 @@ const untitledChat = buildChat({
 
 describe('isTitledChat', () => {
   it('holds for a chat with a title', () => {
-    assert.isTrue(isTitledChat(new Chat({ ...untitledChat, title: Option.some('Trip') })))
+    assert.isTrue(
+      isTitledChat(new Chat({ ...untitledChat, title: Option.some(ChatTitle.make('Trip')) })),
+    )
   })
 
   it('does not hold for an untitled chat', () => {
     assert.isFalse(isTitledChat(untitledChat))
+  })
+})
+
+describe('byLatestUpdate', () => {
+  it('orders the most recently updated chat first', () => {
+    const updated = new Chat({ ...untitledChat, updatedAt: later })
+
+    assertEquals(Arr.sort([untitledChat, updated], byLatestUpdate), [updated, untitledChat])
+  })
+})
+
+describe('isInChat', () => {
+  it('holds for a message of the chat and not for one of another chat', () => {
+    const elsewhere = new Message({
+      ...userMessage,
+      chatId: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000005'),
+    })
+
+    assert.isTrue(isInChat(chatId)(userMessage))
+    assert.isFalse(isInChat(chatId)(elsewhere))
   })
 })
 
@@ -102,6 +132,16 @@ describe('ensureMessageInput', () => {
   it.effect.each(['', '  \n\t '])('rejects the blank text %j without attachments', (text) =>
     Effect.gen(function* () {
       const error = yield* Effect.flip(ensureMessageInput({ text, attachmentIds: [] }))
+
+      assertEquals(error, new MessageInputInvalidError())
+    }),
+  )
+
+  it.effect('rejects an attachment id given twice', () =>
+    Effect.gen(function* () {
+      const error = yield* Effect.flip(
+        ensureMessageInput({ text: 'Look', attachmentIds: [attachmentId, attachmentId] }),
+      )
 
       assertEquals(error, new MessageInputInvalidError())
     }),

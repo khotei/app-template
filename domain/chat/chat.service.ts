@@ -1,9 +1,10 @@
 import {
   Array as Arr,
   Context,
-  type DateTime,
+  DateTime,
   Effect,
   Option,
+  Order,
   Predicate,
   Schema,
   String as Str,
@@ -102,6 +103,15 @@ export const buildAssistantMessage = (input: {
 
 export const isTitledChat = (chat: Chat): boolean => Option.isSome(chat.title)
 
+export const byLatestUpdate: Order.Order<Chat> = Order.flip(
+  Order.mapInput(DateTime.Order, (chat: Chat) => chat.updatedAt),
+)
+
+export const isInChat =
+  (chatId: ChatId) =>
+  (message: Message): boolean =>
+    message.chatId === chatId
+
 const isActiveStage = Schema.is(ActiveMessageStage)
 
 export const isActiveMessage = (message: Message): boolean =>
@@ -114,11 +124,17 @@ export const ensureChatAcceptsMessage = Effect.fn('ensureChatAcceptsMessage')(fu
   if (Option.isSome(active)) return yield* new ChatBusyError({ id: active.value.chatId })
 })
 
-export const ensureMessageInput = Effect.fn('ensureMessageInput')(function* (input: {
+export interface MessageInput {
   readonly text: string
   readonly attachmentIds: ReadonlyArray<AttachmentId>
-}) {
+}
+
+export const ensureMessageInput = Effect.fn('ensureMessageInput')(function* (input: MessageInput) {
   if (Str.isEmpty(Str.trim(input.text)) && Arr.isReadonlyArrayEmpty(input.attachmentIds)) {
+    return yield* new MessageInputInvalidError()
+  }
+  // A repeated id would pass the bindability check twice and bind one attachment once.
+  if (Arr.dedupe(input.attachmentIds).length < input.attachmentIds.length) {
     return yield* new MessageInputInvalidError()
   }
 })

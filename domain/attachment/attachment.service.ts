@@ -9,6 +9,7 @@ import {
   type MediaType,
 } from '#domain/attachment/attachment.model'
 import type { UserId } from '#domain/user/user.id'
+import { isOwnedBy } from '#domain/user/user.service'
 
 export class AttachmentRepository extends Context.Service<
   AttachmentRepository,
@@ -57,7 +58,7 @@ export const ensureBindable = Effect.fn('ensureBindable')(function* (
   found: Option.Option<Attachment>,
   userId: UserId,
 ) {
-  const owned = Option.filter(found, (attachment) => attachment.userId === userId)
+  const owned = Option.filter(found, isOwnedBy(userId))
   if (Option.isNone(owned)) return yield* new AttachmentNotFoundError({ id })
   if (Option.isSome(owned.value.messageId)) return yield* new AttachmentBoundError({ id })
   return owned.value

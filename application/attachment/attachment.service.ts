@@ -13,7 +13,7 @@ import {
   FileSize,
   type MediaType,
 } from '@app-template/domain/attachment'
-import type { UserId } from '@app-template/domain/user'
+import { isOwnedBy, type UserId } from '@app-template/domain/user'
 
 export interface AttachmentUpload {
   readonly fileName: FileName
@@ -25,8 +25,6 @@ export interface AttachmentDownload {
   readonly attachment: Attachment
   readonly bytes: Uint8Array
 }
-
-const isOwnedBy = (userId: UserId) => (attachment: Attachment) => attachment.userId === userId
 
 export class AttachmentService extends Context.Service<
   AttachmentService,

@@ -685,7 +685,9 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
   second only the assistant one (title job id derived from the chat id, deduplicated); `send`
   while a message is active fails `ChatBusyError` and stores nothing; an unknown, foreign or bound
   attachment id fails and stores nothing; a repeated attachment id fails
-  `MessageInputInvalidError` (`ensureMessageInput` gains the check); `rename` rejects a blank title; `delete` while a
+  `MessageInputInvalidError` (`ensureMessageInput` gains the check); `rename` rejects a blank title
+  (*Amended in S10:* a blank title is a type error, since `rename` takes the `ChatTitle` brand; the
+  rejection is tested at Seam 1 and Seam 7); `delete` while a
   message is active removes chat, messages and attachments; `list` of two chats puts the last
   sent first with its `queued` active message; `getMessage` of another user's chat is `ChatNotFoundError`;
   two concurrent `send`s on one chat: exactly one fails `ChatBusyError` and one pair of messages is
@@ -696,10 +698,109 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
     retried: each step still finds what the next one needs.
   - `delete` removes the messages before the chat, so the title job reads a missing first
     message as a delete in progress. *Amended in S9.*
-  - `send` is serialised per chat in the api process: a per-chat lock in the service (a keyed
-    semaphore) makes the "no active message" check and the inserts one critical section (D2,
-    *Amended in S5*).
+  - `send` is serialised per user in the api process: a per-user lock in the service (a keyed
+    semaphore) makes the "no active message" check, the bindability checks and the writes one
+    critical section, and also covers `rename` and `delete` (D2, *Amended in S5*, *Amended in
+    S10*: per user, not per chat).
 - **Verify:** `make check`.
+- **Status:** done
+- **Findings:**
+  - `ChatTitle` is now a brand (`Schema.brand('ChatTitle')`) and `rename` takes only a `ChatTitle`,
+    as `effect-schema.md` asks of a constrained value a use case accepts and as S7 did for
+    `FileName` and `MediaType`; S14's handler decodes the trimmed payload (its Constraint). A
+    `ChatTitleInvalidError` decoded in the service was rejected: an error the architecture lacks
+    and a plain string at the service boundary. Outside the step's Files: `domain/chat/
+    chat.model.ts` (the brand) and four fixtures that now write `ChatTitle.make('Trip')`
+    (`domain/chat/chat.service.test.ts`, `infrastructure/chat/chat.repository.test.ts`,
+    `application/chat/{assistant-message,chat-title}.job.test.ts`).
+  - The lock is per user (D2, *Amended in S10*): an `RcMap` of `Semaphore(1)` keyed by `UserId`,
+    the pipeable `lockUser` on `send`, `rename` and `delete`. A per-chat lock came first and left
+    two sends in two chats free to bind one unbound attachment. Probes, each red then reverted:
+    no lock (both concurrency tests), a lock keyed by chat (the cross-chat test).
+  - The memory store never yields, so the harness yields after `selectActiveByChat` and
+    `AttachmentRepository.selectById`; without it, one send finished before the other started and
+    both concurrency tests stayed green without the lock. The same hook runs one armed write on
+    the next `selectActiveByChat` of any caller; armed right before the `send` under test, it
+    lands between that send's check and its writes, as the title worker would.
+  - `send` re-reads the chat right before it writes `updatedAt`, so a title set since the send
+    read the chat survives; writing back the chat read at the start turns the title test red. The
+    write still precedes the enqueues, so the send's own title job cannot run before it.
+    `touchChat` moved out of `assistant-message.job.ts` (outside the step's Files) into
+    `application/chat/touch-chat.ts`, a bare kebab file (no role in `naming.md` fits) imported
+    through `#application/chat/touch-chat` and kept out of the barrel; `chat.service.ts` could not
+    host it, since the job would then import the service that imports the job. A probe that drops
+    the stored title in it turns the rename test of the reply job and the title test of `send`
+    red.
+  - Checks precede every write (input, ownership, active message, bindability); the writes run
+    user message, binds, assistant message, chat, then the jobs. A probe that binds during the
+    check turns the three refused-attachment cases red.
+  - `ensureMessageInput` refuses a repeated attachment id, the S2 finding's promise; it takes the
+    domain's `MessageInput`, which the service reuses. The "deduplicated" in this step's Test
+    first is not exercised: the service decides the title job through `opensChat` (the chat had no
+    messages), and the test records `QueueClient.send`, where a second title enqueue would show
+    despite the queue's dedup by `jobId`.
+  - `send` and `getMessage` return each message with its attachments' metadata (`MessageDetail`),
+    the shape of the contract's `Message` DTO, so S14 composes no second service. `ChatSummary`
+    and `ChatDetail` carry `activeMessage` from `selectActiveByChat`.
+  - `isOwnedBy` is now a domain predicate in `domain/user/user.service.ts`, shared by
+    `ensureBindable`, `ChatService` and `AttachmentService`; `isInChat` and `byLatestUpdate` moved
+    to `domain/chat/chat.service.ts` beside `isActiveMessage`, each with a unit test. Outside the
+    step's Files: `domain/user/user.service.ts`, `domain/attachment/attachment.service.ts`,
+    `domain/chat/chat.service.ts` (`MessageInput`, `isInChat`, `byLatestUpdate`, the repeated-id
+    check), `application/attachment/attachment.service.ts`, the new
+    `application/chat/touch-chat.ts`, and the tests added to `domain/chat/chat.service.test.ts`
+    (`isInChat`, `byLatestUpdate`, the repeated attachment id).
+  - The pairing `Option.filter` then `*NotFoundError` repeats in four places (`findOwnedChat` and
+    `getMessage` in `chat.service.ts`, `AttachmentService.get`, `ensureBindable`): a candidate
+    shared domain guard, deferred to S17 (named in its Goal) to keep this step from growing.
+  - R10's second half (no active message once the reply is `completed`) is covered by S5's
+    repository test of `selectActiveByChat`; no service test settles a reply, since the `list`
+    case sends again right away.
+  - At the approval gate the user judged that `send` (and `delete`'s cascade) has outgrown a
+    service: it writes the attachment aggregate through its port and needs the `.job` exception
+    in `application/CLAUDE.md`. Services stay simple, goal-specific and easy to compose; any hard
+    composition is a use case. S10 was committed as reviewed, and S10b extracts the use cases.
+  - `application/CLAUDE.md` now reads "Services never call each other; a service may enqueue
+    through a `.job` producer", and `naming.md › Symbols` gains the verb `find` (a read over
+    ports in a service or job: `findReply`, `findOwnedChat`), both approved by the user at the S10
+    gate.
+  - Risks gained the enqueue-after-insert row (a missing reply job leaves the chat busy for good;
+    a missing title job, enqueued second, leaves it untitled for good, since `opensChat` is false
+    on every later send) and the cross-process remainder of the cross-chat bind. Roadmap entry 4
+    names the outbox for the first and the two Postgres guards (a partial unique index for one
+    active message per chat, the bind as `UPDATE … WHERE message_id IS NULL`) that let a second
+    api process drop the in-process lock.
+  - Size: ≈975 changed lines of code (862 in the three new files, 601 of them the test, and 111
+    in tracked files) plus ≈115 of docs and rules, over the ~400
+    gate, accepted at the approval gate: there is no clean seam, since the `list`, `get`,
+    `delete` and `getMessage` tests arrange through `send`, the lock spans `rename` and `delete`,
+    and a `send`-only half would still be ≈500.
+
+#### S10b — The `send-message` and `delete-chat` use cases
+
+- **Goal** (*added at the S10 approval gate*): services stay simple, goal-specific and easy to
+  compose; a service may use another only for a simple job, and any hard combination of services
+  is a use case's. `application/chat/send-message.use-case.ts` composes `ChatService`,
+  `AttachmentService` and the two `.job` producers (checks, binds, writes, enqueues) and
+  `application/chat/delete-chat.use-case.ts` composes the attachment and chat deletions, both
+  under the per-user lock, which leaves `ChatService` for a shared lock both use cases (and
+  `rename`, if it still needs it) take. `ChatService` keeps simple methods over the chat and
+  message ports; `AttachmentService` becomes the only writer of attachments (bindability check,
+  bind, delete for a chat). `application/CLAUDE.md` replaces the `.job` exception with the rule
+  above (approved by the user at the S10 gate); `docs/knowledge/architecture.md › Service and
+  use cases` and the ticket's `architecture.md` (a new D…, D2 *Amended in S10b*, Structure)
+  record it, and S14's handler calls the use cases (R4, R9, R11–R13, R24; D2, D12).
+- **Blocked by:** S10.
+- **Files:** `application/chat/{send-message.use-case,send-message.use-case.test,
+  delete-chat.use-case,delete-chat.use-case.test,chat.service,chat.service.test,index}.ts`,
+  `application/attachment/{attachment.service,attachment.service.test}.ts`, the lock's file,
+  `application/CLAUDE.md`, `docs/knowledge/architecture.md`.
+- **Test first:** Seam 5, behaviour unchanged — the `send` and `delete` cases of S10 move to the
+  use cases' tests and stay green (busy, refused attachments, cross-chat bind, concurrency, the
+  title set during a send, cascade order); `ChatService`'s tests keep its simple methods; the new
+  `AttachmentService` methods get their own cases.
+- **Verify:** `make check`; `git grep -n "attachments.update\|AttachmentRepository" --
+  application/chat` finds nothing.
 - **Status:** todo
 
 ### Contract, client and api
@@ -777,9 +878,12 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
   DTOs; `create`, `list`, `get`, `rename`, `delete`, `send` as `202`, `getMessage`) under `Auth`,
   its handler mapping domain errors to the contract's, and `openapi.json` regenerated
   (R3–R14, R26, R28, R29; D6, D10).
-- **Blocked by:** S10, S13.
+- **Blocked by:** S10b, S13. *Amended in S10:* the handler calls the `send-message` and
+  `delete-chat` use cases.
 - **Files:** `packages/api-contract/{chats,schemas,index}.ts`, `openapi.json`;
   `apps/api/src/{chats.handler,layer,http.test}.ts`.
+- **Constraint** (*Amended in S10*): the handler decodes the trimmed `title` payload into the
+  domain's `ChatTitle` brand before `ChatService.rename`, which accepts only the brand.
 - **Test first:** Seam 7 — `GET /chats` without a cookie is `401 UserUnknown`; a chat of user A
   under user B's cookie is `404 ChatNotFound`, the same for a message; `POST /chats/:id/messages`
   is `202` with a `completed` user message and a `queued` assistant message, a second send `409
@@ -844,8 +948,9 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
   `packages/storage` and `outbox.repository.ts`; `docs/knowledge/architecture.md › Where things
   live` and `Add a new entity` rewritten on the `chat` slice; `naming.md` gains the `.job` role
   and notes that prompt functions live in `.llm`; the `CLAUDE.md` lines the rewrite makes
-  redundant are trimmed; roadmap entries 6 and 7 re-read against the worker-job decision
-  (R36, R38; D14).
+  redundant are trimmed; roadmap entries 6 and 7 re-read against the worker-job decision; one
+  domain guard for the `Option.filter` then `*NotFoundError` pairing (*Amended in S10*: four
+  sites, listed in S10's findings) (R36, R38; D14).
 - **Blocked by:** S15, S16.
 - **Files:** `domain/example/`, `infrastructure/example/`, `application/example/`,
   `infrastructure/shared/outbox.repository.ts`, `packages/db/`, `packages/storage/` deleted;
@@ -877,16 +982,16 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
 | R1 | S2, S4, S7, S13 |
 | R2 | S7, S13 |
 | R3 | S11, S14 |
-| R4 | S2, S7, S10, S14, S15 |
+| R4 | S2, S7, S10, S10b, S14, S15 |
 | R5 | S1, S10, S14 |
 | R6 | S5, S10, S14 |
 | R7 | S5, S10, S14, S15 |
 | R8 | S1, S10, S14 |
-| R9 | S5, S8a, S10, S14 |
+| R9 | S5, S8a, S10, S10b, S14 |
 | R10 | S1, S5, S10 |
-| R11 | S1, S10, S14, S15 |
-| R12 | S1, S10, S14 |
-| R13 | S2, S10, S15 |
+| R11 | S1, S10, S10b, S14, S15 |
+| R12 | S1, S10, S10b, S14 |
+| R13 | S2, S10, S10b, S15 |
 | R14 | S5, S10, S14 |
 | R15 | S1 |
 | R16 | S1, S8a |
@@ -897,7 +1002,7 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
 | R21 | S15 |
 | R22 | S4, S7, S15 |
 | R23 | S2, S4, S7, S15 |
-| R24 | S9, S10 |
+| R24 | S9, S10, S10b |
 | R25 | S9 |
 | R26 | S11, S14, S15 |
 | R27 | S11, S13 |

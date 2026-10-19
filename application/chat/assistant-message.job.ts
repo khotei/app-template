@@ -38,19 +38,13 @@ import {
 } from '@app-template/infrastructure/chat'
 import { type AttemptInfo, QueueClient, worker } from '@app-template/queue'
 
+import { touchChat } from '#application/chat/touch-chat'
+
 /** How often a streaming reply's accumulated text is written to its message, at most. */
 export const SnapshotInterval = Context.Reference<Duration.Duration>(
   '@app-template/application/chat/SnapshotInterval',
   { defaultValue: () => Duration.millis(300) },
 )
-
-const touchChat = Effect.fnUntraced(function* (chatId: ChatId, at: DateTime.Utc) {
-  const chats = yield* ChatRepository
-  // Re-read right before the write, so a rename made while the reply streamed survives.
-  const chat = yield* chats.selectById(chatId)
-  if (Option.isNone(chat)) return
-  yield* chats.update(new Chat({ ...chat.value, updatedAt: at }))
-})
 
 const readTurn = Effect.fnUntraced(function* (message: Message) {
   const attachments = yield* AttachmentRepository

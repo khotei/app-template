@@ -29,6 +29,7 @@ import {
   Chat,
   ChatId,
   ChatRepository,
+  ChatTitle,
   Message,
   MessageFailure,
   MessageId,
@@ -333,14 +334,16 @@ describe('AssistantMessageJob.worker', () => {
         yield* Layer.build(AssistantMessageJob.worker)
         yield* enqueue(reply)
         yield* TestClock.adjust('200 millis')
-        yield* chats.update(new Chat({ ...(yield* selectChat), title: Option.some('Trip') }))
+        yield* chats.update(
+          new Chat({ ...(yield* selectChat), title: Option.some(ChatTitle.make('Trip')) }),
+        )
         yield* TestClock.adjust('1 second')
       }).pipe(Effect.scoped)
 
       const chat = yield* selectChat
       assert.deepStrictEqual(
         [chat.title, DateTime.toEpochMillis(chat.updatedAt)],
-        [Option.some('Trip'), 360],
+        [Option.some(ChatTitle.make('Trip')), 360],
       )
     }).pipe(Effect.provide(layer))
   })

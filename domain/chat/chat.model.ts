@@ -11,7 +11,7 @@ export const ChatTitle = Schema.String.check(
   Schema.isTrimmed(),
   Schema.isNonEmpty(),
   Schema.isMaxLength(maxTitleLength),
-)
+).pipe(Schema.brand('ChatTitle'))
 export type ChatTitle = typeof ChatTitle.Type
 
 export class Chat extends Schema.Class<Chat>('Chat')({

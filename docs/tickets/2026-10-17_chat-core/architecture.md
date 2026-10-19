@@ -52,14 +52,15 @@ New files are marked `+`, removed `−`, changed `~`. Every entity folder keeps 
 + domain/user/user.id.ts             UserId
 + domain/user/user.model.ts          User · SecretHash · Credential
 + domain/user/user.error.ts          UserUnknownError
-+ domain/user/user.service.ts        UserRepository · buildUser
++ domain/user/user.service.ts        UserRepository · buildUser · isOwnedBy
 + domain/chat/chat.id.ts             ChatId · MessageId
 + domain/chat/chat.model.ts          maxTitleLength · ChatTitle · Chat · MessageAuthor ·
                                      MessageStage · ActiveMessageStage · MessageFailure · Message
 + domain/chat/chat.error.ts          ChatNotFoundError · ChatBusyError · MessageNotFoundError ·
                                      MessageInputInvalidError · MessageStageInvalidError
 + domain/chat/chat.service.ts        ChatRepository · MessageRepository · buildChat · buildUserMessage ·
-                                     buildAssistantMessage · isTitledChat · isActiveMessage ·
+                                     buildAssistantMessage · isTitledChat · byLatestUpdate ·
+                                     isInChat · isActiveMessage · MessageInput ·
                                      ensureMessageInput · ensureChatAcceptsMessage ·
                                      prepareMessage · generateMessage · completeMessage ·
                                      failMessage
@@ -100,7 +101,9 @@ the prompt and the cut, and `isTitledChat` joins the domain's predicates.
 
 ```
 + application/user/user.service.ts           UserService { ensure, authenticate }
-+ application/chat/chat.service.ts           ChatService { create, list, get, rename, delete, send, getMessage }
++ application/chat/chat.service.ts           ChatService { create, list, get, rename, delete, send, getMessage } ·
+                                             ChatSummary · ChatDetail · MessageDetail · SentMessages
++ application/chat/touch-chat.ts             touchChat (workspace-internal, shared by ChatService and AssistantMessageJob)
 + application/chat/assistant-message.job.ts  AssistantMessageJob { enqueue } · .worker · SnapshotInterval
 + application/chat/chat-title.job.ts         ChatTitleJob { enqueue } · .worker
 + application/attachment/attachment.service.ts  AttachmentService { upload, get, download, delete }
@@ -156,7 +159,7 @@ UserId · ChatId · MessageId · AttachmentId
 SecretHash  = lower-case hex SHA-256, brand 'SecretHash'
 Credential  = { kind: 'secret', hash: SecretHash }
 User        = { id, createdAt }
-ChatTitle   = Schema.String.check(trimmed, nonEmpty, maxLength(120))
+ChatTitle   = Schema.String.check(trimmed, nonEmpty, maxLength(120)), brand 'ChatTitle'
 Chat        = { id, userId, title: Option<ChatTitle>, createdAt, updatedAt }
 MessageAuthor = 'user' | 'assistant'
 MessageStage  = 'queued' | 'preparing' | 'generating' | 'completed' | 'failed'
@@ -174,7 +177,7 @@ Pure rules: `isActiveMessage(message)` holds for an assistant message in `queued
 `generating`; `ensureChatAcceptsMessage(current: Option<Message>)` fails `ChatBusyError` (with
 the message's `chatId`) when the chat's current message is active, whatever message the caller
 passes; `ensureMessageInput({ text, attachmentIds })` fails `MessageInputInvalidError` when the
-trimmed text is empty and no attachment is given;
+trimmed text is empty and no attachment is given, and when an attachment id repeats;
 `ensureBindable(id, found: Option<Attachment>, userId)` returns the attachment, or fails
 `AttachmentNotFoundError` when it is missing or foreign and `AttachmentBoundError` when it is
 bound; `send` traverses the ids with `Effect.forEach` over `selectById`; `isActiveMessage` checks the stage with
@@ -306,7 +309,7 @@ The cookie is `Secure` when `RuntimeConfig.nodeEnv === 'production'`. The snapsh
 | 2 `infrastructure/kv/kv-collection` on `layerMemory` and on `layerFileSystem` in a temp dir | key encoding (`/` in keys), index append, remove and delete, missing-key semantics, JSON codec, lost updates under concurrent `modify` | cross-process races |
 | 3 repositories and `AttachmentStoreKv` through their ports on `layerMemory` | field mapping, index maintenance (`selectByUser`, `selectActiveByChat`, `deleteByChat` cascade, `deleteByIds`) | the real file store (covered for the module in 2) |
 | 4 `send` and `worker` in `packages/queue` on the memory store under `TestClock` | `AttemptInfo` values per attempt, `isLastAttempt` on the dead-letter attempt and no attempt after it, release when the worker's scope closes, one job per `jobId` | SQLite timing |
-| 5 `UserService`, `ChatService`, `AttachmentService` on memory adapters, `QueueClientMemory`, `TestClock`, `TestCrypto` | ensure/authenticate, send writes two messages and enqueues one or two jobs, `409` while a message is active, bound and foreign attachments, rename rules, delete cascade, title job only on the first message | HTTP statuses, cookies |
+| 5 `UserService`, `ChatService`, `AttachmentService` on memory adapters, `QueueClientMemory`, `TestClock`, `TestCrypto` | ensure/authenticate, send writes two messages and enqueues one or two jobs, `409` while a message is active, bound and foreign attachments, rename (a blank title is a type error: `ChatTitle` is a brand, rejected at seams 1 and 7), delete cascade, title job only on the first message, concurrent sends (one chat; one attachment in two chats), a title the worker sets during a send | HTTP statuses, cookies |
 | 6 `AssistantMessageJob.worker` and `ChatTitleJob.worker` with a fake `LanguageModel` under `TestClock` | stage sequence, snapshot cadence and final write, `failed` only on the last reply attempt (the third of four, D23), prompt content (history, roles, file parts), title only if `none`, chat deleted meanwhile, a blank text or answer (D25) | a real provider, the SQLite queue |
 | 7 `apps/api` through `BunHttpServer.layerTest` + `@app-template/api-client` with `HttpClient.withCookiesRef` | the whole wire: cookie attributes, `401`/`404`/`409`/`413`/`415`/`400` bodies, multipart limits, download headers, `202` shape, the `Result` facade mapping, a stopped server → transport tag | browser cookie behaviour, the web proxy, `Secure` on http |
 | 8 `make check` drift of `packages/api-contract/openapi.json` | a contract edit without regeneration; the cookie security scheme and every declared error in the spec | semantics |
@@ -358,6 +361,12 @@ per the acceptance table, not by a test.
   *Rejected:* a `get` per id (a permit each, so a write lands between reads, and three copies);
   the unlocked check-then-insert (two concurrent sends both see no active message, and the last
   message then hides the other active one from `selectActiveByChat`).
+  *Amended in S10:* the lock is per user, not per chat: one `Semaphore(1)` per `UserId` in an
+  `RcMap`, held only while a call holds or awaits it, serialises `ChatService.send`, `rename` and
+  `delete` of one user in the api process. It also closes, within that process, the bind of one
+  unbound attachment by two sends in two chats, which both pass `ensureBindable`. *Rejected:* a
+  per-chat lock (leaves that cross-chat bind open); an unbounded `Map` of semaphores (one per key,
+  never freed).
 - **D3 — The assistant message is produced by `Ref` + `Schedule.spaced` snapshots with an
   explicit final write, and the handler learns the last attempt from `AttemptInfo`.** The worker
   folds `text-delta` parts into a `Ref` and raises a `dirty` flag; a racing
@@ -600,7 +609,9 @@ per the acceptance table, not by a test.
 |---|---|
 | Title race: a rename lands between the worker's re-read of the chat and its write of the title or `updatedAt` on the file store, and is lost | the worker re-reads the chat just before each write, never writing a chat read at take time; Postgres (roadmap 4) makes them `UPDATE … WHERE title IS NULL` and `UPDATE … SET updated_at` |
 | Delete race: the api's `deleteByChat` lands between a worker's read and write of a message | `Collection.update` writes only an existing key, but the two processes hold separate locks, so the worker can rewrite a deleted message: an orphan `messages/<id>` row no index lists, harmless but leaked; Postgres closes it with a foreign key `ON DELETE CASCADE` |
-| Two concurrent `send`s on one chat both pass the "no active message" check | a per-chat lock in `ChatService.send` serialises check and inserts within the api process; it does not span processes, so a second api process needs Postgres's partial unique index (one active message per chat) first |
+| Two concurrent `send`s on one chat both pass the "no active message" check | a per-user lock in `ChatService` serialises `send`, `rename` and `delete` within the api process (D2, *Amended in S10*); it does not span processes, so a second api process needs Postgres's partial unique index (one active message per chat) first |
+| Two concurrent `send`s in two chats bind one unbound attachment: both pass `ensureBindable`, and the later bind overwrites the earlier | the per-user lock closes it within one api process; across processes it stays open until Postgres binds with `UPDATE … WHERE message_id IS NULL` |
+| An enqueue dies on a `QueueError` after `send` stored its messages, and the user gets a `500`. Chat busy forever: the reply job is missing, a `queued` assistant message with no job stays, and R12 then refuses every send; only `DELETE` (R9) frees the chat. Chat untitled for good: only the title job, enqueued after the reply job, is missing; the reply proceeds, `opensChat` is false on every later send, so R24 never fires again, and the chat does not look busy | none in this ticket; a later ticket writes both jobs in the messages' transaction (the outbox of roadmap 4) or sweeps `queued` messages and untitled chats that have no job |
 | `layerFileSystem` has no locking or atomic rename; a crash mid-write leaves a partial file | every index is single-writer, and only the `chats/<id>` and `messages/<id>` rows have a writer in each process (D2, D4); `layerSql` over SQLite is the one-line fallback (D4) |
 | `@effect/platform-bun` is in the catalog but installed nowhere | declared by `apps/api` and `apps/worker` in the first step that needs it; `make typecheck` catches a missing declaration |
 | `Secure` cookies are dropped by browsers on `http://localhost` | `secure` only when `nodeEnv === 'production'`; verified in `web-app` (7) |

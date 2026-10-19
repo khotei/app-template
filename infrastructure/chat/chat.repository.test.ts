@@ -2,7 +2,7 @@ import { assert, describe, layer } from '@effect/vitest'
 import { Array as Arr, DateTime, Effect, Layer, Option, Order } from 'effect'
 import { KeyValueStore } from 'effect/persistence'
 
-import { buildChat, Chat, ChatId, ChatRepository } from '@app-template/domain/chat'
+import { buildChat, Chat, ChatId, ChatRepository, ChatTitle } from '@app-template/domain/chat'
 import { UserId } from '@app-template/domain/user'
 
 import { ChatRepositoryKv } from '#infrastructure/chat/chat.repository'
@@ -60,7 +60,7 @@ describe('ChatRepositoryKv', () => {
         const dee = UserId.make('0192d4e0-7b3a-7c00-8000-000000000013')
         const existing = chat('0192d4e0-7b3a-7c00-8000-000000000035', dee)
         const unknown = chat('0192d4e0-7b3a-7c00-8000-000000000036', dee)
-        const renamed = new Chat({ ...existing, title: Option.some('Trip') })
+        const renamed = new Chat({ ...existing, title: Option.some(ChatTitle.make('Trip')) })
         yield* chats.insert(existing)
 
         yield* chats.update(renamed)

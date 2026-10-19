@@ -19,6 +19,7 @@ import {
   Chat,
   ChatId,
   ChatRepository,
+  ChatTitle,
   type Message,
   MessageId,
   MessageRepository,
@@ -165,7 +166,9 @@ const untitledOpenings = {
 
 const renameChat = Effect.gen(function* () {
   const chats = yield* ChatRepository
-  yield* chats.update(new Chat({ ...(yield* selectChat), title: Option.some('Trip') }))
+  yield* chats.update(
+    new Chat({ ...(yield* selectChat), title: Option.some(ChatTitle.make('Trip')) }),
+  )
 })
 
 const deleteMessages = Effect.flatMap(MessageRepository, (messages) =>
@@ -211,7 +214,7 @@ describe('ChatTitleJob.worker', () => {
 
       yield* moments[moment].run(renameChat)
 
-      assert.deepStrictEqual((yield* selectChat).title, Option.some('Trip'))
+      assert.deepStrictEqual((yield* selectChat).title, Option.some(ChatTitle.make('Trip')))
       assert.strictEqual(prompts.length, moments[moment].modelCalls)
       assert.deepStrictEqual(logs, [['Info', 'chat title skipped: already titled']])
     }).pipe(Effect.provide(layer))

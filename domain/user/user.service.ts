@@ -12,5 +12,10 @@ export class UserRepository extends Context.Service<
   }
 >()('@app-template/domain/user/UserRepository') {}
 
+export const isOwnedBy =
+  (userId: UserId) =>
+  (owned: { readonly userId: UserId }): boolean =>
+    owned.userId === userId
+
 export const buildUser = (input: { readonly id: UserId; readonly createdAt: DateTime.Utc }): User =>
   new User({ id: input.id, createdAt: input.createdAt })
