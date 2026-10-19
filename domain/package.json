@@ -2,6 +2,7 @@
   "name": "@app-template/domain",
   "private": true,
   "type": "module",
+  "sideEffects": false,
   "exports": {
     "./attachment": "./attachment/index.ts",
     "./chat": "./chat/index.ts",

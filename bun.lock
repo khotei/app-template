@@ -67,6 +67,13 @@
         "@effect/vitest": "catalog:effect",
       },
     },
+    "http-api": {
+      "name": "@app-template/http-api",
+      "dependencies": {
+        "@app-template/domain": "workspace:*",
+        "effect": "catalog:effect",
+      },
+    },
     "infrastructure": {
       "name": "@app-template/infrastructure",
       "dependencies": {
@@ -82,12 +89,6 @@
     },
     "packages/api-client": {
       "name": "@app-template/api-client",
-    },
-    "packages/api-contract": {
-      "name": "@app-template/api-contract",
-      "dependencies": {
-        "effect": "catalog:effect",
-      },
     },
     "packages/config": {
       "name": "@app-template/config",
@@ -159,8 +160,6 @@
 
     "@app-template/api-client": ["@app-template/api-client@workspace:packages/api-client"],
 
-    "@app-template/api-contract": ["@app-template/api-contract@workspace:packages/api-contract"],
-
     "@app-template/application": ["@app-template/application@workspace:application"],
 
     "@app-template/config": ["@app-template/config@workspace:packages/config"],
@@ -170,6 +169,8 @@
     "@app-template/deployment": ["@app-template/deployment@workspace:deployment"],
 
     "@app-template/domain": ["@app-template/domain@workspace:domain"],
+
+    "@app-template/http-api": ["@app-template/http-api@workspace:http-api"],
 
     "@app-template/infrastructure": ["@app-template/infrastructure@workspace:infrastructure"],
 

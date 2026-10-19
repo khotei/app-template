@@ -1,14 +1,16 @@
 {
-  "name": "@app-template/api-contract",
+  "name": "@app-template/http-api",
   "private": true,
   "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": "./index.ts"
   },
   "imports": {
-    "#api-contract/*": "./*.ts"
+    "#http-api/*": "./*.ts"
   },
   "dependencies": {
+    "@app-template/domain": "workspace:*",
     "effect": "catalog:effect"
   }
 }

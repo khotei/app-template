@@ -13,12 +13,12 @@
   `tsc -b` and `--no-verify` is banned. Nothing is stubbed to get there: a step ships only what it
   tests, and the api grows one contract group at a time because `HttpApiBuilder.layer` needs
   every declared group implemented.
-- **Size.** A step changes ≤ ~400 lines, counted without `bun.lock` and the generated
-  `packages/api-contract/openapi.json`. A step that grows past this splits into `Sna`, `Snb`.
+- **Size.** A step changes ≤ ~400 lines, counted without `bun.lock`. A step that grows past this splits into `Sna`, `Snb`.
 - **Effect APIs are verified against `repos/effect`** (the vendored `4.0.5`), never against
   memory: `http-api`, `persistence` and `ai` are unstable modules. Read `repos/effect/LLMS.md`
   before the first Effect file of a session.
-- **Tests only at the Seams** of `architecture.md` (1–8). A step whose behaviour is observed at a
+- **Tests only at the Seams** of `architecture.md` (1–7; *Replanned in S12:* the facade's Seam 9 is retired, and Seam 8, the spec drift, folds
+  into Seam 7 as assertions on `OpenApi.fromApi(Api)`, D16). A step whose behaviour is observed at a
   later step's seam says `config only` and names that seam. Dev-mode behaviour (two processes on
   `.data/store`, `--watch`, SIGTERM) is checked by hand in S16, per `feature.md › Acceptance`.
 - **Deviations** are recorded in the step's findings, in `architecture.md › Decisions` when they
@@ -45,10 +45,11 @@ graph LR
   S8a --> S8b[S8b reply failure + healing]
   S8a --> S9[S9 chat-title job]
   S9 --> S10[S10 ChatService]
-  S11[S11 api-contract: health + users] --> S12[S12 api-client + web]
+  S11[S11 api-contract: health + users] --> S12a[S12a contract over domain]
+  S12a --> S12b[S12b ApiClient + web on Effect]
   S3 --> S13[S13 apps/api: health + users]
   S7 --> S13
-  S12 --> S13
+  S12b --> S13
   S10 --> S10b[S10b use cases]
   S10b --> S14[S14 chats over HTTP]
   S13 --> S14
@@ -945,47 +946,166 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
     `api-contract`, which ships to the browser. R26 in `feature.md` now puts `Auth` on `chats`
     and `attachments` only, as D6 does; S14's Verify checks the `cookie` scheme on `chats`.
 
-#### S12 — `@app-template/api-client` facade and the web health panel
+#### S12a — The contract over the domain
 
-- **Goal:** `createApiClient(baseUrl, options?)` as one mapped type over `HttpApiClient` with
-  `FetchHttpClient`, every endpoint returning `Promise<Result>` that never rejects, `error` the
-  `_tag` union of the endpoint's declared errors plus `RequestInvalid`, `UserUnknown`,
-  `HttpClientError` and `SchemaError`; `options.fetch` injects a `fetch` through
-  `FetchHttpClient.Fetch` so tests and non-browser callers can carry a cookie (the browser never
-  passes it); the health panel moves to `features/health/` and renders from the `Result` (R29,
-  R30; D13).
+*Replanned in S12 (D29), on the user's review:* the first S12 built a `Promise<Result>` facade,
+and a second plan generated the client from `openapi.json`; both are dropped for the layout the
+effect team recommends: the contract over the domain, shared by server and client, the handlers
+apart in `apps/api`.
+
+- **Goal:** the contract leaves `packages/` and becomes the layer `http-api/`
+  (`@app-template/http-api`, beside `domain/` and `application/`), which imports
+  `@app-template/domain` and reuses its ids,
+  models and errors instead of redeclaring them: `UserId` and `User` come from the domain (a DTO
+  through `mapFields` only where a field is internal or an `Option` must reach the wire as
+  `NullOr`), and `UserUnknownError` carries its status where the contract uses it
+  (`HttpApiSchema.status`), so the wire tag is the domain's. Only HTTP-own things stay declared:
+  `RequestInvalidError` with `issues` (named per `naming.md`, no exception), the multipart
+  limits' `AttachmentTooLargeError` (413) and `AttachmentTypeUnsupportedError` (415), `Auth`,
+  `SchemaErrors` and the limits. The layer mirrors the others' entity folders:
+  `shared/{errors,security,limits}.ts` for what every group uses, one `<entity>/<entity>.http.ts`
+  per group (`health/health.http.ts`, `user/user.http.ts`; the group id stays `users`), no
+  per-entity barrels, and `index.ts` (`Api`) as the one entry; the role `.http` replaces `.api`.
+  A Biome layer guard lets `http-api` import only `effect` and `@app-template/domain`, and only
+  `apps/api` and the web client import `http-api`; `domain/package.json` declares
+  `"sideEffects": false` so the browser bundle drops the ports. *Amended in S12:* no spec file
+  is committed: `openapi.ts`, `openapi.json`, `make openapi`, `make openapi-drift` and the CI step
+  go, and the api serves the spec from S13 on (R26–R28; D6, D16, D29).
 - **Blocked by:** S11.
-- **Files:** `packages/api-client/{index,package.json}` (`effect`, `@app-template/api-contract`);
-  `apps/web/src/features/health/health-panel.ts` (moved from `features/example/`),
-  `apps/web/src/app/main.ts`, `apps/web/src/shared/api.ts`.
-- **Test first:** `config only` — the facade is observed at Seam 7 from S13 on. A type-level
-  check lives in the package: a `switch` over `error._tag` with a missing case fails `make
-  typecheck`.
-- **Verify:** `make check`; `make dev-api` + `make dev-web` show `API status: ok` at
-  `localhost:3001`; `bun build --minify --target=browser packages/api-client/index.ts | gzip |
-  wc -c` recorded in findings (expected near 54 KB).
+- **Files:** `http-api/{index.ts,package.json,tsconfig.json,CLAUDE.md}`,
+  `http-api/shared/{errors,security,limits}.ts`, `http-api/health/health.http.ts`,
+  `http-api/user/user.http.ts` (moved from `packages/api-contract/`, deleted with its
+  `schemas.ts`, `openapi.ts` and `openapi.json`); root `package.json` (`workspaces`), `CLAUDE.md`
+  (the map), `Makefile` (the `openapi` targets go), `.github/workflows/ci.yml` (the drift step
+  goes); `apps/CLAUDE.md`, `docs/knowledge/tooling.md`; `domain/package.json`; `biome.json`; root `tsconfig.json`
+  and `bun.lock`; `.claude/rules/naming.md` (the contract-error exception goes; `.http` replaces
+  `.api`; the entity is singular),
+  `.claude/rules/effect-schema.md`, `packages/CLAUDE.md`, `domain/CLAUDE.md` (the domain now
+  ships to the browser), `docs/knowledge/architecture.md` (the layer matrix).
+- **Test first:** `config only` — the wire is observed at Seam 7 from S13 on. Temporary probe
+  files prove the Biome layer guard red, then green: `http-api` importing `infrastructure`,
+  `config` or `@effect/*` fails `make lint` and importing `@app-template/domain` passes; a lower
+  layer, a package, the worker or `deployment` importing `@app-template/http-api` fails, and
+  `apps/api` and the web client pass (removed after); `make typecheck` passes on the contract
+  over the domain's schemas.
+- **Verify:** `make check`; `grep -rhn "from '" http-api/{,*/}*.ts` shows only `effect*`,
+  `@app-template/domain*` and `#http-api/*`; `bun build --minify --target=browser
+  http-api/index.ts | gzip | wc -c` recorded in findings, with and without
+  `sideEffects`.
+- **Docs in this step:** `feature.md` R26 (the contract reuses the domain; it imports `effect`
+  and `@app-template/domain` and stays browser-safe), R28 if it names wire tags;
+  `architecture.md` D6 (the redeclared `UserId` goes), D28 (superseded by D29), the HTTP
+  contract section, Structure, the layer matrix, the Risks entry about duplication (closed), D16
+  (superseded: no spec file), Seams (Seam 8 retired into Seam 7), Risks (a domain edit can change
+  the wire unseen).
+- **Status:** done
+- **Findings:**
+  - Seam 8, red then green, before the spec went (on the user's review, D16): with the
+    contract on the domain the drift check failed on `RequestInvalid` → `RequestInvalidError`, and
+    after the move to `http-api/` a `name: Schema.String` added to the domain's `User` failed it
+    on `"required": ["id", "createdAt", "name"]`. That is the HTTP effect of a domain edit which
+    no file now shows in a PR; the Risks row in `architecture.md` names it, and Seam 7 asserts
+    the wire.
+  - No group carries `Auth` yet, so `UserUnknownError` is absent from the spec. A throwaway
+    group with `Auth` emitted `401 UserUnknownError` and the `cookie` scheme in
+    `OpenApi.fromApi`: the domain's class
+    reaches the wire through `UserUnknownError.pipe(HttpApiSchema.status(401))`, with no mapping.
+  - Biome, red then green, one probe per form, linted with `HEAD`'s `biome.json` and then with
+    the new one. In `http-api`: `@app-template/domain/user` passes both; `infrastructure/chat`,
+    `config` and `@effect/platform-bun` passed and now fail; a relative path fails both. Importing
+    `@app-template/http-api` from `application`, `infrastructure`, `packages/queue`,
+    `apps/worker` and `deployment` passed and now fails (`domain` failed both); from `apps/api` it
+    passes both, and from the web client it failed and now passes. Probes removed.
+  - `bun build --minify --target=browser http-api/index.ts | gzip | wc -c`: 36 297 bytes with
+    `"sideEffects": false` on `domain`, 40 472 without, where the bundle also holds
+    `UserRepository`, `ChatRepository` and `MessageRepository`. The same flag on `http-api`
+    changes nothing for this entry, which exports everything; it lets a consumer's bundle drop
+    the groups it does not import.
+  - The group classes take `<Entity><Role>`, singular: `HealthHttp`, `UserHttp`; their ids stay
+    `health` and `users`, so the wire is unchanged. `@effect/vitest` is not an exception in the
+    `http-api` guard: a probe importing it fails `make lint`.
+  - `AttachmentTooLargeError` (413) and `AttachmentTypeUnsupportedError` (415) stay in
+    `shared/errors.ts` beside `RequestInvalidError`: they refuse a multipart part against the
+    contract's own `limits.attachment`, and the domain has no such errors. All three take the
+    `Error` suffix, and S13–S15 now name the new tags.
+  - The entity-folder layout, the `.http` role and the move to `http-api/` (on the user's
+    review): the spec stayed byte-identical through the layout change, since operation ids come
+    from the group and endpoint ids, not from file names. The service keys follow the
+    workspace (`@app-template/http-api/shared/Auth`).
+  - `packages/api-client` may not import `http-api`: a package never imports a layer, and
+    `biome.json` bans it. On the user's decision, S12b puts `ApiClient` in
+    `http-api/api.client.ts` and deletes `packages/api-client`. It stays here: `apps/web` still
+    imports its `createApiClient`, and replacing that is S12b's web work.
+  - `schemas.ts` is deleted, since `UserId` and `User` were its only content; S14 puts the DTOs
+    beside their group. `limits.chat.maxTitleLength` is the domain's `maxTitleLength`, the one
+    title limit since S9.
+
+#### S12b — `ApiClient` and the web on Effect
+
+- **Goal:** `http-api/api.client.ts` holds `ApiClient`, a `Context.Service` over
+  `HttpApiClient.ForApi<typeof Api>` whose `layer(baseUrl)` runs `HttpApiClient.make(Api)` over
+  `FetchHttpClient`; `http-api/index.ts` re-exports it beside `Api`. `packages/api-client` is
+  deleted, with its root `workspaces` and `tsconfig.json` entries and every doc mention
+  (*Amended in S12a*, on the user's review: a package may not import the `http-api` layer). There is no facade: web
+  code imports `effect` (the Biome ban goes), and the web's own stack (Effect, `effect` atoms
+  through `AtomHttpApi`, TanStack Query and DB in `web-app`) builds on `Api` directly. The health
+  panel is an Effect program over `ApiClient`, run at the web entry, rendering `API status: ok`
+  or one sentence per error tag from a table `as const satisfies Record<tag, string>` (R29,
+  R30; D29).
+- **Blocked by:** S12a.
+- **Files:** `http-api/{api.client,index}.ts`; `packages/api-client/` deleted, root
+  `package.json` and `tsconfig.json`, `apps/web/{package.json,tsconfig.json}`, `bun.lock`;
+  `biome.json` (the web client's `effect` ban removed, `api-client` dropped); `apps/web/src/features/health/
+  health-panel.ts`, `apps/web/src/app/main.ts`, `apps/web/src/shared/api.ts`; `apps/CLAUDE.md`,
+  `docs/knowledge/architecture.md`.
+- **Test first:** `config only` — the client is observed at Seam 7 from S13 on; the panel's
+  table without one error tag fails `make typecheck`.
+- **Verify:** `make check`; `make dev-api` + `make dev-web` render `API status: ok` at
+  `localhost:3001` and, with the api stopped, the `HttpClientError` sentence (headless Chrome
+  `--dump-dom` when the extension is not connected); `bun build --minify --target=browser
+  apps/web/src/app/main.ts | gzip | wc -c` recorded in findings.
+- **Docs in this step:** `feature.md` R29 and R30 rewritten for `HttpApiClient` with typed
+  Effect errors, with their acceptance; `architecture.md` D13 (superseded by D29), the Client
+  section, the Seams table (Seam 9 retired).
 - **Status:** todo
+- **Findings of the dropped attempts** (kept as evidence for D29):
+  - `HttpApiClient.ForApi` cannot be mapped into a facade: its methods are generic in the
+    response mode, and `infer` widened `users.ensure`'s success to `User | HttpClientResponse |
+    [User, HttpClientResponse]`. `HttpApiClient` has no `Promise`, `signal` or pinned-mode
+    option; cancellation works through `Effect.runPromiseExit(effect, { signal })`.
+  - `@effect/openapi-generator -f httpapi` turns `openapi.json` into an effect-only `HttpApi`
+    with exhaustive `_tag` unions, but brands, dates and classes become `string` and `Struct`,
+    methods carry the group prefix (`usersEnsure`), and it reads only a file, never a URL.
+  - A contract colocated with its handlers needs each group built over a local `HttpApi` of the
+    root's id (the root `Api` in a handler file is an import cycle that fails at runtime), and
+    `SchemaErrors` on the root then never reaches the handlers: a bad body answers an empty
+    `400`, unseen by `tsc` and the spec.
 
 #### S13 — `apps/api` on `HttpApiBuilder`: health and users
 
 - **Goal:** the api process on `HttpApiBuilder.layer(Api)`, `HttpRouter.serve`,
   `BunHttpServer.layer`, `BunRuntime.runMain`, with `AuthLive` (cookie → `CurrentUser` through
   `UserService.authenticate`), `SchemaErrorsLive` (`layerSchemaErrorTransform` →
-  `RequestInvalid` with `issues`), Scalar at `/docs`, the file store in dev and the health and
-  users handlers (R1, R2, R27, R28, R34, R35; D4, D6, D9).
-- **Blocked by:** S3, S7, S12.
-- **Files:** `apps/api/src/{main,layer,current-user,health.handler,users.handler,http.test}.ts`;
-  `apps/api/src/http.ts` deleted; `apps/api/package.json` (`@effect/platform-bun`,
-  `@app-template/api-contract`, `@app-template/queue`; `@app-template/api-client` and
-  `@effect/vitest` as `devDependencies`).
+  `RequestInvalidError` with `issues`), Scalar at `/docs`, `openapiPath: '/openapi.json'`, the file
+  store in dev and the health and users handlers (R1, R2, R27, R28, R34, R35; D4, D6, D9).
+  *Replanned in S12 (D29):* each group's handlers sit in `apps/api/src/<domain>/<domain>.handler.ts`
+  as `HttpApiBuilder.group(Api, '<group>', …)` over the contract's `Api`.
+- **Blocked by:** S3, S7, S12b.
+- **Files:** `apps/api/src/{main,layer,current-user,http.test}.ts`, the handlers in
+  `apps/api/src/{health/health,user/user}.handler.ts`; `apps/api/src/http.ts` deleted;
+  `apps/api/package.json` (`@effect/platform-bun`, `@app-template/queue`;
+  `@app-template/http-api`; `@effect/vitest` as a `devDependency`).
 - **Test first:** Seam 7, on `BunHttpServer.layerTest`, `BunServices.layer`,
   `KeyValueStore.layerMemory`, `QueueClientMemory`, with `HttpApiClient` and
   `HttpClient.withCookiesRef` — `GET /health` is `{ status: 'ok' }`; `POST /users` is `201` with
   `Set-Cookie: user_secret=…; HttpOnly; SameSite=Lax; Max-Age=31536000` and no `Secure`; a
-  second call with the jar returns the same `id`; a forged cookie gets a new user; through the
-  facade: `users.ensure()` resolves `{ ok: true }` and a stopped server resolves `{ ok: false,
-  error: { _tag: 'HttpClientError' } }` without rejecting.
-- **Verify:** `make check`; `make dev-api` logs through `Effect.log`, serves `/docs` and stops on
+  second call with the jar returns the same `id`; a forged cookie gets a new user; through
+  `ApiClient` from `@app-template/http-api`, `users.ensure()` decodes the domain's `User` (a
+  branded `UserId`) and a malformed body fails with the request-invalid error and its `issues`;
+  `GET /openapi.json` serves `OpenApi.fromApi(Api)`, which lists `400 RequestInvalidError` on
+  `GET /health` and on `POST /users`, and no security on `health` or `users` (*Amended in S12*,
+  from Seam 8).
+- **Verify:** `make check`; `make dev-api` logs through `Effect.log`, serves `/docs` and `/openapi.json` and stops on
   SIGTERM with its finalizers; V1 — with `make dev-web` running, `curl -c jar -b jar -X POST
   localhost:3001/api/users` twice returns one `id`; `.data/store/` appears and is ignored by git;
   a file edited during `make dev-api` reloads under `--hot` with one listener left on the port
@@ -994,54 +1114,63 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
 
 #### S14 — Chats over HTTP
 
-- **Goal:** the `chats` group in the contract (`Chat`, `ChatSummary`, `ChatDetail`, `Message`
-  DTOs; `create`, `list`, `get`, `rename`, `delete`, `send` as `202`, `getMessage`) under `Auth`,
-  its handler mapping domain errors to the contract's, and `openapi.json` regenerated
-  (R3–R14, R26, R28, R29; D6, D10).
+- **Goal:** the `chats` group in `http-api/chat/chat.http.ts` (`Chat`, `ChatSummary`,
+  `ChatDetail`, `Message` from the domain models through `mapFields` where a field is internal
+  or an `Option`; `create`, `list`, `get`, `rename`, `delete` as `NoContent`, `send` as `202`,
+  `getMessage`) under `Auth`, the domain errors with their statuses, its handlers in
+  `apps/api/src/chat/chat.handler.ts` (R3–R14, R26, R28, R29; D6,
+  D10, D29).
 - **Blocked by:** S10b, S13. *Amended in S10:* the handler calls the `send-message` and
   `delete-chat` use cases.
-- **Files:** `packages/api-contract/{chats.api,schemas,index}.ts`, `openapi.json`;
-  `apps/api/src/{chats.handler,layer,http.test}.ts`.
+- **Files:** `http-api/{chat/chat.http,index}.ts`;
+  `apps/api/src/chat/chat.handler.ts`, `apps/api/src/{layer,http.test}.ts`.
 - **Constraint** (*Amended in S10*): the handler decodes the trimmed `title` payload into the
   domain's `ChatTitle` brand before `ChatService.rename`, which accepts only the brand.
   *Amended in S10b:* the handler sends a message only through `SendMessageUseCase` and deletes a
   chat only through `DeleteChatUseCase`, never `ChatService.delete`, which leaves the attachments.
-- **Test first:** Seam 7 — `GET /chats` without a cookie is `401 UserUnknown`; a chat of user A
-  under user B's cookie is `404 ChatNotFound`, the same for a message; `POST /chats/:id/messages`
+- **Test first:** Seam 7 — `GET /chats` without a cookie is `401 UserUnknownError`; a chat of user A
+  under user B's cookie is `404 ChatNotFoundError`, the same for a message; `POST /chats/:id/messages`
   is `202` with a `completed` user message and a `queued` assistant message, a second send `409
-  ChatBusy`; `PATCH` with `" Trip "` stores `"Trip"`, with `"  "` is `400 RequestInvalid` whose `issues` carry `path` and
+  ChatBusyError`; `PATCH` with `" Trip "` stores `"Trip"`, with `"  "` is `400 RequestInvalidError` whose `issues` carry `path` and
   `message` (V3: a bad `attachmentIds[2]` reports `['attachmentIds', 2]`); `GET /chats` lists the
   last sent chat first with `activeMessage: { id, stage: 'queued' }` and `title: null`; `DELETE` is `204`; through
-  the facade an unknown chat id resolves to `{ ok: false, error: { _tag: 'ChatNotFound' } }` and a
-  blank title to `RequestInvalid`; a `failed` message's response carries `reason` and `message`
-  and no `cause`.
-- **Verify:** `make check`; `openapi.json` lists every error with its status on each route and
-  documents the `cookie` security scheme on the `chats` operations, the acceptance check for R26
-  and R27 that S11 could not make (*Amended in S11*).
+  `ApiClient` an unknown chat id fails with a `ChatNotFoundError` and a
+  blank title to `RequestInvalidError`; a `failed` message's response carries `reason` and `message`
+  and no `cause`; `OpenApi.fromApi(Api)` lists every route's errors with their statuses on the
+  `chats` routes (`401`, `404`, `409`, `400` with their tags) and the `cookie` security scheme with a `401 UserUnknownError` on each, the acceptance check for
+  R26 and R27 that S11 could not make (*Amended in S11*; *in S12*, moved from Verify's
+  `openapi.json` to Seam 7).
+- **Verify:** `make check`.
 - **Status:** todo
 
 #### S15 — Attachments over HTTP
 
-- **Goal:** the `attachments` group (`upload` as `asMultipartStream` with the contract's limits,
-  `get`, `download` as `handleRaw` with the stored `Content-Type` and `Content-Disposition`,
-  `delete`), its handler buffering each part and mapping `MultipartError`s before anything is
-  stored, and `openapi.json` regenerated (R13, R20–R23, R26, R29; D5, D8, D10).
+- **Goal:** the `attachments` group in `http-api/attachment/attachment.http.ts` (`upload` as
+  `asMultipartStream` with the contract's limits, `get`, `download` as `handleRaw` with the
+  stored `Content-Type` and `Content-Disposition`, `delete` as `NoContent`), its handlers in
+  `apps/api/src/attachment/attachment.handler.ts` buffering each part and mapping
+  `MultipartError`s before anything is stored (R13, R20–R23,
+  R26, R29; D5, D8, D10, D29).
 - **Blocked by:** S14.
-- **Files:** `packages/api-contract/{attachments.api,schemas,index}.ts`, `openapi.json`;
-  `apps/api/src/{attachments.handler,layer,http.test}.ts`.
+- **Files:** `http-api/{attachment/attachment.http,index}.ts`;
+  `apps/api/src/attachment/attachment.handler.ts`, `apps/api/src/{layer,http.test}.ts`.
 - **Test first:** Seam 7 — two 1 MiB PNGs give `201` with two unbound attachments; an 11 MiB
-  file is `413 AttachmentTooLarge`, a `.zip` `415 AttachmentTypeUnsupported`, six files or a nameless file
-  `400 RequestInvalid`, and in each case the store holds nothing new; `GET …/download` returns the
+  file is `413 AttachmentTooLargeError`, a `.zip` `415 AttachmentTypeUnsupportedError`, six files or a nameless file
+  `400 RequestInvalidError`, and in each case the store holds nothing new; `GET …/download` returns the
   bytes with `image/png` and `inline; filename="…"`; `send` with the two ids binds them and the
-  `ChatDetail` shows their metadata; a second `send` with a bound id is `409 AttachmentBound`,
-  a foreign id `404`; `DELETE` on an unbound one is `204`, on a bound one `409`; the facade's
-  `attachments.upload(formData)` resolves `{ ok: true }`.
+  `ChatDetail` shows their metadata; a second `send` with a bound id is `409 AttachmentBoundError`,
+  a foreign id `404`; `DELETE` on an unbound one is `204`, on a bound one `409`; `ApiClient`
+  uploads a `FormData` and decodes the attachments; `OpenApi.fromApi(Api)` lists every route's
+  errors with their statuses on the `attachments` routes (`413 AttachmentTooLargeError`,
+  `415 AttachmentTypeUnsupportedError`, `400 RequestInvalidError`, `404 AttachmentNotFoundError`,
+  `409 AttachmentBoundError`), documents `multipart/form-data` on `POST /attachments` and
+  `application/octet-stream` on `download`, and the `cookie` security scheme with a
+  `401 UserUnknownError` on every `attachments` operation (R26;
+  *Amended in S11*; *in S12*, moved from Verify's `openapi.json` to Seam 7).
 - **Constraint:** the handler decodes each part's raw file name and media type into
   `FileName` and `MediaType` before `AttachmentService.upload`, which accepts only the brands
   (*Amended in S7*, moved from the S2 finding).
-- **Verify:** `make check`; `openapi.json` documents `multipart/form-data` on `POST
-  /attachments` and `application/octet-stream` on `download`, and the `cookie` security scheme
-  with a `401 UserUnknown` on every `attachments` operation (R26; *Amended in S11*).
+- **Verify:** `make check`.
 - **Status:** todo
 
 ### Worker, cleanup and docs
@@ -1128,11 +1257,11 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
 | R23 | S2, S4, S7, S15 |
 | R24 | S9, S10, S10b |
 | R25 | S9 |
-| R26 | S11, S14, S15 |
-| R27 | S11, S13 |
-| R28 | S13, S14 |
-| R29 | S12, S13, S14, S15 |
-| R30 | S12 |
+| R26 | S11, S12a, S14, S15 |
+| R27 | S11, S13 (*Amended in S12:* the spec is served, not committed) |
+| R28 | S12a, S13, S14 |
+| R29 | S12b, S13, S14, S15 |
+| R30 | S12b |
 | R31 | S6, S8a, S9, S16 |
 | R32 | S6, S8a, S9 |
 | R33 | S3, S4, S5, S13, S16 |

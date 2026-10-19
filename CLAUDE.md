@@ -8,14 +8,16 @@ Bun + TypeScript 7 modular monolith; three processes: `apps/api`, `apps/worker`,
 | Workspace | Role | Rules |
 |---|---|---|
 | `domain/` | pure core: models, errors, ports | [domain/CLAUDE.md](domain/CLAUDE.md) |
+| `http-api/` | the HTTP contract (`HttpApi`) over the domain, shared by `api` and `web` | [http-api/CLAUDE.md](http-api/CLAUDE.md) |
 | `infrastructure/` | adapters that implement domain ports | [infrastructure/CLAUDE.md](infrastructure/CLAUDE.md) |
 | `application/` | services and use cases | [application/CLAUDE.md](application/CLAUDE.md) |
 | `packages/*` | generic clients and libraries | [packages/CLAUDE.md](packages/CLAUDE.md) |
 | `apps/*` | thin entry points | [apps/CLAUDE.md](apps/CLAUDE.md) |
 | `deployment/` | local and AWS deployment | [deployment/CLAUDE.md](deployment/CLAUDE.md) |
 
-Imports only go down: `apps` → `application` → `infrastructure` → `domain`. How the layers fit
-together: [docs/knowledge/architecture.md](docs/knowledge/architecture.md).
+Imports only go down: `apps` → `application` → `infrastructure` → `domain`, and `apps` →
+`http-api` → `domain`. How the layers fit together:
+[docs/knowledge/architecture.md](docs/knowledge/architecture.md).
 
 ## Working here
 

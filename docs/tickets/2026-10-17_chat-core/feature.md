@@ -84,8 +84,8 @@ replace one layer later.
   definitions; the prompt functions over `LanguageModel`.
 - `application/chat`: `UserService`, `ChatService`, `AttachmentService`, and the two jobs,
   each holding both sides in one file.
-- `packages/api-contract`: the `HttpApi` with the user secret as cookie security, multipart
-  upload, `openapi.json` committed and drift-checked, Scalar UI.
+- `http-api` (*Amended in S12a:* a layer, no longer `packages/api-contract`): the `HttpApi` with the user secret as cookie security, multipart
+  upload, the spec served at `/openapi.json` (*Amended in S12:* no longer committed), Scalar UI.
 - `packages/api-client`: the `Promise<Result>` facade over `HttpApiClient`, the api's one client
   for the browser, tests and later Effect consumers.
 - `apps/api` on `HttpApiBuilder`, `BunHttpServer` and `BunRuntime`; `apps/worker` running the two
@@ -122,10 +122,10 @@ replace one layer later.
 - **R2** — WHEN `POST /users` arrives with a valid user secret, THE SYSTEM SHALL return the
   same user and refresh the cookie; it SHALL NOT create another user.
 - **R3** — WHEN any other endpoint except `GET /health` arrives without a valid user secret,
-  THE SYSTEM SHALL answer `401 UserUnknown`.
+  THE SYSTEM SHALL answer `401 UserUnknownError`.
 - **R4** — WHEN a user addresses a chat, message or attachment that does not exist or belongs
-  to another user, THE SYSTEM SHALL answer `404 ChatNotFound`, `404 MessageNotFound` or
-  `404 AttachmentNotFound`, without distinguishing the two cases.
+  to another user, THE SYSTEM SHALL answer `404 ChatNotFoundError`, `404 MessageNotFoundError` or
+  `404 AttachmentNotFoundError`, without distinguishing the two cases.
 
 ### Chat
 
@@ -138,7 +138,7 @@ replace one layer later.
   in creation order, each message with its attachments' metadata, and its `activeMessage`.
 - **R8** — WHEN `PATCH /chats/:chatId` carries a `title` that is non-empty after trimming and at
   most 120 characters, THE SYSTEM SHALL set it trimmed, bump `updatedAt` and return the chat;
-  otherwise it SHALL answer `400 RequestInvalid`. *Amended in plan review: the contract trims the
+  otherwise it SHALL answer `400 RequestInvalidError`. *Amended in plan review: the contract trims the
   title; the domain's `ChatTitle` accepts only trimmed text.*
 - **R9** — WHEN `DELETE /chats/:chatId` succeeds, THE SYSTEM SHALL remove the chat, its messages
   and their attachments and answer `204`, whether or not the chat has an active message. IF a job later finds its chat gone,
@@ -159,9 +159,9 @@ replace one layer later.
   from the assistant message's id, bump the chat's `updatedAt`, and answer `202` with both
   messages.
 - **R12** — IF the chat has an active message, THEN `POST /chats/:chatId/messages` SHALL answer
-  `409 ChatBusy` and store nothing.
+  `409 ChatBusyError` and store nothing.
 - **R13** — IF an `attachmentId` is unknown, belongs to another user or is already bound, THEN
-  THE SYSTEM SHALL answer `404 AttachmentNotFound` or `409 AttachmentBound` and store nothing.
+  THE SYSTEM SHALL answer `404 AttachmentNotFoundError` or `409 AttachmentBoundError` and store nothing.
 - **R14** — WHEN `GET /chats/:chatId/messages/:messageId` succeeds, THE SYSTEM SHALL return the
   message as currently stored, including a partial text while it is `generating`.
 - **R15** — A message SHALL carry `id` (UUIDv7), `chatId`, `author` (`user | assistant`),
@@ -202,17 +202,17 @@ replace one layer later.
   `text/plain`, THE SYSTEM SHALL store each file's bytes and metadata as an unbound attachment of
   the user (UUIDv7 id, `fileName`, `mediaType`, `size`, `messageId: none`, `createdAt`) and
   answer `201` with their metadata.
-- **R21** — IF a file exceeds the size limit, THEN THE SYSTEM SHALL answer `413 AttachmentTooLarge`;
-  IF its type is not allowed, `415 AttachmentTypeUnsupported`; IF the body has no file, more than
-  5, or a file without a name, `400 RequestInvalid`; in each case nothing is stored. The limits
-  SHALL be constants exported by `@app-template/api-contract`, never environment variables. *Amended in architecture: the
+- **R21** — IF a file exceeds the size limit, THEN THE SYSTEM SHALL answer `413 AttachmentTooLargeError`;
+  IF its type is not allowed, `415 AttachmentTypeUnsupportedError`; IF the body has no file, more than
+  5, or a file without a name, `400 RequestInvalidError`; in each case nothing is stored. The limits
+  SHALL be constants exported by `@app-template/http-api`, never environment variables. *Amended in architecture: the
   multipart limits are fixed at schema definition, so they cannot be runtime tunables (D5). Amended
   in S2: a file without a name is `400`, since the domain's `FileName` is non-empty.*
 - **R22** — WHEN `GET /attachments/:attachmentId` succeeds, THE SYSTEM SHALL return the metadata;
   WHEN `GET /attachments/:attachmentId/download` succeeds, THE SYSTEM SHALL return the bytes with
   the stored `Content-Type` and `Content-Disposition: inline; filename="…"`, bound or not.
 - **R23** — WHEN `DELETE /attachments/:attachmentId` addresses an unbound attachment of the user,
-  THE SYSTEM SHALL remove it and answer `204`; IF it is bound, THEN `409 AttachmentBound`.
+  THE SYSTEM SHALL remove it and answer `204`; IF it is bound, THEN `409 AttachmentBoundError`.
 
 ### Title
 
@@ -229,21 +229,27 @@ replace one layer later.
 
 ### Contract, client and api
 
-- **R26** — `@app-template/api-contract` SHALL hold the `HttpApi`: groups `health`, `users`,
-  `chats`, `attachments`, request and response schemas of its own (no `domain` import), the user
-  secret as `HttpApiSecurity.apiKey` in a cookie, required through the `Auth` middleware on
-  `chats` and `attachments`; the `users` group SHALL NOT require `Auth` and SHALL read and set
+- **R26** — `@app-template/http-api`, a layer beside `domain`, SHALL hold the `HttpApi`: groups
+  `health`, `users`, `chats`, `attachments`, reusing the domain's ids, models and errors (a DTO only where a field
+  is internal or an `Option` must reach the wire as `null`) and declaring only what is HTTP's own,
+  the user secret as `HttpApiSecurity.apiKey` in a cookie, required through the `Auth` middleware
+  on `chats` and `attachments`; the `users` group SHALL NOT require `Auth` and SHALL read and set
   that cookie itself. The contract SHALL list errors as arrays, each with its status, including
-  the 400 for a body that fails decoding. It SHALL import only `effect` and be safe for the
-  browser. *Amended in S11: the cookie was "on every group but `health`", which contradicted D6.*
-- **R27** — WHEN `make check` runs, THE SYSTEM SHALL regenerate `packages/api-contract/openapi.json`
-  from the contract without a server and fail if the committed file differs. `apps/api` SHALL serve
-  the Scalar UI at `/docs` in every environment.
+  the 400 for a body that fails decoding. It SHALL import only `effect` and
+  `@app-template/domain` and be safe for the browser. *Amended in S11: the cookie was "on every
+  group but `health`", which contradicted D6.* *Amended in S12a (D29): the contract was the
+  package `@app-template/api-contract`, reused no domain schema and imported only `effect`; every
+  wire tag is now the error's class name, so R3, R4, R8, R12, R13, R21, R23 and their
+  acceptance name `…Error` tags.*
+- **R27** — `apps/api` SHALL serve the spec derived from the contract at `/openapi.json` and the
+  Scalar UI at `/docs` in every environment. *Amended in S12 (D16): `make check` regenerated a
+  committed `openapi.json` and failed if it differed; no spec file is committed now.*
 - **R28** — `apps/api` SHALL implement the contract with `HttpApiBuilder`, serve it with
   `BunHttpServer`, start through `BunRuntime.runMain`, resolve the current user in one middleware
-  that provides it to the handlers, map domain errors to the contract's errors, and answer a body
-  that fails decoding with a `400 RequestInvalid` listing every issue (path and message); a failure
-  to encode a response stays a 500.
+  that provides it to the handlers, encode the domain's errors under the contract's statuses, and
+  answer a body that fails decoding with a `400 RequestInvalidError` listing every issue (path and
+  message); a failure to encode a response stays a 500. *Amended in S12a (D29): the handlers
+  mapped domain errors to contract twins, and the 400 was `RequestInvalid`.*
 - **R29** — `@app-template/api-client` SHALL build its client with `HttpApiClient` over
   `FetchHttpClient` from the contract, with no code generation and no server code, and expose one
   function per endpoint returning `Promise<Result>`, a union of `{ ok: true, value }` and
@@ -294,18 +300,18 @@ replace one layer later.
 
 | Req | How to verify |
 |---|---|
-| R1–R3 | `curl -i -X POST /users` returns a user and a `Set-Cookie` with `HttpOnly; SameSite=Lax; Max-Age=31536000`, no `Secure` in dev; a second call with the cookie returns the same `id`; `GET /chats` without the cookie is `401 UserUnknown`; the store holds a SHA-256, not the secret (adapter test). |
-| R4 | A chat id created under user A fetched with user B's cookie is `404 ChatNotFound`; the same for a message and an attachment. |
+| R1–R3 | `curl -i -X POST /users` returns a user and a `Set-Cookie` with `HttpOnly; SameSite=Lax; Max-Age=31536000`, no `Secure` in dev; a second call with the cookie returns the same `id`; `GET /chats` without the cookie is `401 UserUnknownError`; the store holds a SHA-256, not the secret (adapter test). |
+| R4 | A chat id created under user A fetched with user B's cookie is `404 ChatNotFoundError`; the same for a message and an attachment. |
 | R5–R7 | Create two chats, send a message in the first: `GET /chats` lists the first one first with `title: null`, `activeMessage: { id, stage: 'queued' }`, no messages; `GET /chats/:id` returns the messages in order with attachment metadata. |
 | R8–R9 | `PATCH` with `"  "` or 121 characters is `400`; with `"Trip"` the summary shows it. `DELETE` while a message is active is `204`, the job ends with a log line and no write (worker test with a chat removed between enqueue and take). |
 | R10 | A repository and a service test: a chat with a `queued` assistant message returns it as `activeMessage`; after `completed` it is `null`; the stored chat has no such field. |
-| R11–R14 | Send returns `202` with a `completed` user message and a `queued` assistant message; a second send while the assistant message is active is `409 ChatBusy`; an unknown attachment id is `404`, a bound one `409`; polling the assistant message under `TestClock` shows a growing `text` then `completed`. |
+| R11–R14 | Send returns `202` with a `completed` user message and a `queued` assistant message; a second send while the assistant message is active is `409 ChatBusyError`; an unknown attachment id is `404`, a bound one `409`; polling the assistant message under `TestClock` shows a growing `text` then `completed`. |
 | R15 | The `Message` schema test; `git grep -n "'system'\|'tool'" -- domain application` finds nothing. |
 | R16–R19 | A worker test with a fake `LanguageModel` that emits three deltas under `TestClock`: stages `preparing` → `generating` → `completed`, at most one write per snapshot interval, `updatedAt` bumped; the recorded prompt holds the history with a `file` part per attachment and no `failed` message; a failing model goes back to `preparing` per attempt and ends `failed` with `{ reason: 'ReplyFailed', message, cause }`, no provider text in `message`, and no `cause` in the api's response; with the worker stopped, three sends queue three jobs that run on start. |
 | R20–R23 | Uploading two PNGs returns two unbound attachments; an 11 MB file is `413`, a `.zip` is `415`, six files or a nameless file `400`, and nothing is stored (adapter spy); `GET …/download` returns the bytes with `image/png` and `inline`; `DELETE` on an unbound one is `204`, on a bound one `409`. |
 | R24–R25 | After the first send, the title job is queued with an id derived from the chat id (a second send queues no second title job); the worker sets a title ≤ 120 chars; a `PATCH` made before the job completes wins; a model that always fails leaves `title: null` and a dead-letter log; a first message with a blank text (no text, or whitespace only), or a blank answer, leaves `title: null` with an `Info` log and no retry (*Amended in S9*). |
-| R26–R27 | `packages/api-contract` imports only `effect`; editing an endpoint without regenerating fails `make check`; `openapi.json` documents the cookie security scheme and the 400; `GET /docs` serves Scalar. |
-| R28 | A request with a malformed body is `400 RequestInvalid` listing every issue; `make dev-api` starts through `BunRuntime` and logs finalizers on SIGTERM. |
+| R26–R27 | `http-api` imports only `effect` and `@app-template/domain` (a probe importing another workspace fails `make lint`); at Seam 7, `OpenApi.fromApi(Api)` names the domain's tags (`UserUnknownError`) and documents the cookie security scheme and the 400; `GET /openapi.json` serves that spec and `GET /docs` serves Scalar. |
+| R28 | A request with a malformed body is `400 RequestInvalidError` listing every issue; `make dev-api` starts through `BunRuntime` and logs finalizers on SIGTERM. |
 | R29 | Through the client against the test server: an unknown chat id resolves to `{ ok: false, error: { _tag: 'ChatNotFound' } }`, a malformed body to `RequestInvalid`, a missing cookie to `UserUnknown`, a stopped server to the transport tag, and no call rejects; a `switch` over `error._tag` missing a case fails `make typecheck`; `bun build --minify --target=browser` of the client stays near the measured 54 KB gzip, recorded in the step's findings. |
 | R30 | `import 'effect'` in `apps/web/src/` fails `make lint` with no override gap; the health panel renders `API status: ok`. |
 | R31–R32 | The two `.job.ts` files export `enqueue` and `worker`; `apps/worker/src` holds no job logic; the job schemas carry ids only. *Amended in S6: the title job carries the first message's id, not its text.* |

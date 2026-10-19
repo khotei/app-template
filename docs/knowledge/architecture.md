@@ -12,21 +12,26 @@ graph TD
   application --> infrastructure
   infrastructure --> domain
   application --> domain
-  apps --> packages["packages/* (config · queue · llm · api-contract · api-client · ui)"]
+  apps -->|"apps/api only"| httpApi["http-api"]
+  httpApi --> domain
+  apps --> packages["packages/* (config · queue · llm · api-client · ui)"]
   application --> packages
   infrastructure --> packages
-  web["apps/web client"] --> clientPkgs["api-client · ui"]
+  web["apps/web client"] --> httpApi
+  web --> clientPkgs["api-client · ui"]
   webMain["apps/web/src/main.ts"] --> clientPkgs
   webMain --> config["packages/config"]
   deployment --> packages
 ```
 
-Imports only go **down**: `apps` → `application` → `infrastructure` → `domain`. A layer may skip
-levels: `application` usually imports `domain` directly.
+Imports only go **down**: `apps` → `application` → `infrastructure` → `domain`, and `apps/api`
+and `apps/web` → `http-api` → `domain`. A layer may skip levels: `application` usually imports
+`domain` directly.
 
 | Workspace | Holds | Rules |
 |---|---|---|
 | `domain/` | entity models, errors, ports and pure operations; no I/O, no clock | [domain/CLAUDE.md](../../domain/CLAUDE.md) |
+| `http-api/` | the HTTP contract (`HttpApi`) over the domain, shared by `apps/api` and the browser | [http-api/CLAUDE.md](../../http-api/CLAUDE.md) |
 | `infrastructure/` | adapters that implement domain ports on top of `packages/*` clients | [infrastructure/CLAUDE.md](../../infrastructure/CLAUDE.md) |
 | `application/` | services over ports, and use cases that compose services | [application/CLAUDE.md](../../application/CLAUDE.md) |
 | `packages/*` | generic, project-agnostic clients and libraries | [packages/CLAUDE.md](../../packages/CLAUDE.md) |
@@ -37,19 +42,26 @@ levels: `application` usually imports `domain` directly.
 
 Each row lists what a workspace may import.
 
-| From ↓ / may import → | domain | infrastructure | application | packages/* | apps |
-|---|---|---|---|---|---|
-| domain | — | ✗ | ✗ | ✗ | ✗ |
-| infrastructure | ✓ | — | ✗ | ✓ | ✗ |
-| application | ✓ | ✓ | — | ✓ | ✗ |
-| packages/* | ✗ | ✗ | ✗ | ✓ (each other) | ✗ |
-| apps/api · apps/worker | ✓ | ✓ | ✓ | ✓ | ✗ (no sibling app) |
-| apps/web client (`app/`, `features/`, `shared/`) | ✗ | ✗ | ✗ | `api-client`, `ui` only | ✗ |
-| apps/web/src/main.ts | ✗ | ✗ | ✗ | `api-client`, `ui`, `config` | ✗ |
-| deployment | ✗ | ✗ | ✗ | ✓ | ✗ |
+| From ↓ / may import → | domain | http-api | infrastructure | application | packages/* | apps |
+|---|---|---|---|---|---|---|
+| domain | — | ✗ | ✗ | ✗ | ✗ | ✗ |
+| http-api | ✓ | — | ✗ | ✗ | ✗ | ✗ |
+| infrastructure | ✓ | ✗ | — | ✗ | ✓ | ✗ |
+| application | ✓ | ✗ | ✓ | — | ✓ | ✗ |
+| packages/* | ✗ | ✗ | ✗ | ✗ | ✓ (each other) | ✗ |
+| apps/api | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ (no sibling app) |
+| apps/worker | ✓ | ✗ | ✓ | ✓ | ✓ | ✗ (no sibling app) |
+| apps/web client (`app/`, `features/`, `shared/`) | ✗ | ✓ | ✗ | ✗ | `api-client`, `ui` only | ✗ |
+| apps/web/src/main.ts | ✗ | ✗ | ✗ | ✗ | `api-client`, `ui`, `config` | ✗ |
+| deployment | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ |
 
 - **`domain` imports `effect` and no workspace,** not even `packages/*`, and no `@effect/*`
   package but the test runner `@effect/vitest`, so it stays pure and testable without fakes.
+- **`http-api` imports `effect` and `domain` only.** It is the system's HTTP boundary, shared by
+  the api that implements it and the browser that calls it, so it lists the domain's ids, models
+  and errors instead of copies, and the wire carries the domain's tags (`UserUnknownError`). The
+  domain therefore ships to the browser: it declares `"sideEffects": false`, so a bundle keeps
+  only the schemas it uses and drops the ports.
 - **`apps/web` client code ships to the browser.** Only its server entry `main.ts` may read
   `config`, to get a validated `WEB_PORT`.
 - **A ✓ is permission, not a declaration.** The dependency must also be in the importer's
@@ -142,7 +154,7 @@ The import rules are enforced four times, each catching what the others miss:
 
 | Guard | Catches | Reports |
 |---|---|---|
-| Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json` | an import that goes up a layer or into a sibling app; any relative path; a workspace or an `@effect/*` package other than `@effect/vitest` in `domain`; `effect` in web client code | `make lint`, `pre-commit`, CI `static` |
+| Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json` | an import that goes up a layer or into a sibling app; any relative path; a workspace or an `@effect/*` package other than `@effect/vitest` in `domain`; a workspace other than `domain`, or an `@effect/*` package, in `http-api`; `http-api` in a lower layer, a package, the worker or `deployment`; `effect` in web client code | `make lint`, `pre-commit`, CI `static` |
 | the isolated linker with `tsc -b` | an allowed import of a workspace that is not declared in `package.json` | TS2307 in `make typecheck` and at runtime |
 | `composite` project references (`rootDir: "."`) | a path that reaches into an unreferenced workspace's files | TS6059 / TS6307 in `make typecheck` |
 | the GritQL plugin `biome/test-support-imports.grit`, in one last `overrides` entry for every file but `*.test.ts` and `testing/**` | source code that imports or re-exports `#<workspace>/testing/…` or `@app-template/testing` | `make lint`, `pre-commit`, CI `static` |

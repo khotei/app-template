@@ -47,10 +47,6 @@ jobs:
       - name: Install
         run: bun install --frozen-lockfile
 
-      # Before Lint, which then checks the regenerated file's formatting too.
-      - name: OpenAPI drift
-        run: make openapi-drift
-
       - name: Lint
         run: bunx biome ci
 

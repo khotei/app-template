@@ -10,11 +10,10 @@ Imports are enforced by Biome; file and symbol names are convention (Biome has n
 
 ## Workspaces
 
-- Every workspace is `@app-template/<name>`: layers
-  `@app-template/{domain,application,infrastructure}`, packages `@app-template/<dir>`
-  (`@app-template/config`), apps `@app-template/{api,worker,web}`, `@app-template/deployment`.
+- Every workspace is `@app-template/<name>`: layers `{domain,http-api,application,infrastructure}`,
+  packages `<dir>` (`@app-template/config`), apps `{api,worker,web}`, and `deployment`.
 - A layer exposes each entity as a subpath through its barrel: `@app-template/domain/chat` →
-  `domain/chat/index.ts`. A package exposes one entry (`index.ts`, or `client.ts` for clients).
+  `domain/chat/index.ts`. `http-api` and each package have one entry, `index.ts` or `client.ts`.
 - App entrypoint: `src/main.ts`.
 
 ## Imports
@@ -22,8 +21,9 @@ Imports are enforced by Biome; file and symbol names are convention (Biome has n
 - **Inside a workspace:** `#<workspace>/<path>` (declared in its `package.json` `imports`), never
   `./` or `../`. Example: `#domain/chat/chat.model`, `#api/http`.
 - **Across workspaces:** `@app-template/<workspace>[/<entity>]`, only downward:
-  `apps` → `application` → `infrastructure` → `domain`; `packages/*` serve every layer except
-  `domain`. Full matrix: [docs/knowledge/architecture.md](../../docs/knowledge/architecture.md).
+  `apps` → `application` → `infrastructure` → `domain`, and `apps` → `http-api` → `domain`;
+  `packages/*` serve every layer except `domain` and `http-api`. Full matrix:
+  [docs/knowledge/architecture.md](../../docs/knowledge/architecture.md).
 - **Order:** `bun:`/`node:` → external packages → `@app-template/*` → `#…`, one blank line
   between groups. `make fmt` sorts and groups them.
 
@@ -42,22 +42,22 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 | `.repository` · `.storage` · `.llm` | an adapter over a client | infrastructure |
 | `.queue` | queue definitions | infrastructure |
 | `.client` | client wiring | infrastructure/shared, packages |
-| `.api` | an `HttpApiGroup`: one resource's endpoints | packages/api-contract |
+| `.http` | a contract group: one resource's HTTP routes (`HttpApiGroup`) | http-api |
 | `.handler` | a request handler | apps |
 | `.test` | a colocated test that mirrors its source name | any |
 | `.fixture` | sample values (ids, dates, inputs, bytes); no Effect, no layers | `testing/` |
 | `.fake` | a test implementation or wrapper of a port or service: records, yields, scripts | `testing/` |
 | `.harness` | real services over fakes and the memory store; runner, arrange steps, reads for assertions | `testing/` |
 
-A file with none of these roles keeps a bare kebab name (`http.ts`, `main.ts`). The three
-test-support roles live only in a `testing/` folder, which no barrel or `exports` lists, except
-the `packages/testing` workspace, whose `index.ts` exports its support.
+`<entity>` is singular, like its folder (`user/user.http.ts`); a file with no role keeps a bare
+kebab name (`http.ts`, `main.ts`). Test-support roles live only in a `testing/` folder, which no
+barrel or `exports` lists, save the `packages/testing` workspace's `index.ts`.
 
 ## Symbols
 
 - Types are `PascalCase` `<Entity><Role>`: `ChatRepository`, `ChatService`; a use case is
   `<Verb><Object>UseCase` (`SendMessageUseCase`).
-- Errors are `<Entity><Problem>Error`; `api-contract` errors take their wire tag (`UserUnknown`).
+- Errors are `<Entity><Problem>Error`, in every workspace (`RequestInvalidError` in `http-api`).
 - Functions are verb-first, and the verb marks the kind of work:
   - `create<Thing>`: a factory that wires dependencies (`createCollection`);
   - `layer<Variant>`: a static that builds the service's `Layer` for one variant, a function when

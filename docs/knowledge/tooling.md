@@ -15,10 +15,8 @@ Everything runs through the root `Makefile` (GNU Make 3.81, the macOS default). 
 | `make dev` | `bun --filter './apps/*' dev` | all three processes, interleaved output |
 | `make dev-api` · `dev-worker` · `dev-web` | one app's `dev` script | one process |
 | `make debug-api` · `debug-worker` · `debug-web` | one app's `debug` script | the same mode plus `--inspect` |
-| `make check` | `ids`, `openapi-drift`, `lint`, `typecheck`, `test` | the gate before every commit and step report |
+| `make check` | `ids`, `lint`, `typecheck`, `test` | the gate before every commit and step report |
 | `make ids` | `git grep` for ticket ids in parentheses outside `docs/tickets/` and `repos/` | a new project deletes the ticket, so an id elsewhere points nowhere |
-| `make openapi` | `packages/api-contract/openapi.ts` into `openapi.json`, then `biome format --write` | regenerate the committed spec after a contract change |
-| `make openapi-drift` | `openapi`, then `git diff --exit-code` on `openapi.json` | fails while the committed spec differs from the contract; run by `check` and CI |
 | `make lint` | `biome check` | lint, format and import order, without writing |
 | `make fmt` | `biome check --write` | apply formatting, import sorting and safe fixes |
 | `make typecheck` | `bunx tsc -b`, the patched `tsc` | typecheck every workspace through the project references, Effect diagnostics included |

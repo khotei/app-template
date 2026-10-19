@@ -38,7 +38,7 @@ sequenceDiagram
 Dependencies, bottom-up: `domain` holds the schemas, errors, ports and pure rules;
 `infrastructure` implements the ports on `KeyValueStore` through one collection-and-index module,
 defines the two queues and the model adapter; `application` holds the three services, the two
-jobs and the two use cases that compose them (D26); `packages/api-contract` is the `HttpApi` with its security middleware declarations;
+jobs and the two use cases that compose them (D26); `http-api` is the `HttpApi` with its security middleware declarations (a layer, D29);
 `packages/api-client` is the `Promise<Result>` facade; `apps/api` and `apps/worker` are
 composition roots.
 
@@ -70,7 +70,7 @@ New files are marked `+`, removed `−`, changed `~`. Every entity folder keeps 
 + domain/attachment/attachment.service.ts  AttachmentRepository · AttachmentStore · buildAttachment ·
                                            ensureBindable
 − domain/example/*
-~ domain/package.json                exports ./user ./chat ./attachment
+~ domain/package.json                exports ./user ./chat ./attachment · "sideEffects": false (D29)
 ```
 
 Each `*.model.ts` and `*.service.ts` has its `*.test.ts` beside it. Ids live in `<aggregate>.id.ts`,
@@ -117,13 +117,25 @@ the prompt and the cut, and `isTitledChat` joins the domain's predicates.
 − application/example/*
 ```
 
+### http-api
+
+```
++ http-api/                                  new layer @app-template/http-api (imports effect and domain, D29)
+    index.ts (Api, the one entry; re-exports api.client.ts from S12b) · CLAUDE.md
+    shared/errors.ts · shared/security.ts (Auth, CurrentUser, SchemaErrors) · shared/limits.ts
+    health/health.http.ts (HealthHttp) · user/user.http.ts (UserHttp) · chat/chat.http.ts (ChatHttp) ·
+    attachment/attachment.http.ts (AttachmentHttp); group ids stay health, users, chats, attachments
+```
+
+*Amended in S11:* a group file takes a role. *Amended in S12a:* the contract moves from
+`packages/api-contract/` to the layer `http-api/`, in entity folders as in the other layers, with
+no per-entity barrels; the role is `.http`, and `schemas.ts` goes (`User` and `UserId` are the
+domain's). *Amended in S12:* `openapi.ts` and the committed `openapi.json` go (D16); S12b
+adds `api.client.ts` (`ApiClient`, D29).
+
 ### packages
 
 ```
-+ packages/api-contract/                     new workspace @app-template/api-contract (imports only effect)
-    index.ts (Api) · limits.ts · schemas.ts · errors.ts · security.ts (Auth, CurrentUser, SchemaErrors) ·
-    health.api.ts · users.api.ts · chats.api.ts · attachments.api.ts · openapi.ts (writer) ·
-    openapi.json (committed)   *Amended in S11:* a group file takes the .api role
 ~ packages/api-client/index.ts               createApiClient over HttpApiClient + FetchHttpClient (D13)
 + packages/testing/                          new workspace @app-template/testing, devDependencies only:
                                              log.fake.ts (recordLogs) · uuid.ts (isUuidV7) (D27)
@@ -139,25 +151,30 @@ the prompt and the cut, and `isTitledChat` joins the domain's predicates.
 ~ apps/api/src/main.ts                       BunRuntime.runMain(Layer.launch(ApiLayer))
 + apps/api/src/layer.ts                      HttpApiBuilder.layer(Api) + groups + Scalar + HttpRouter.serve + BunHttpServer
 + apps/api/src/current-user.ts               AuthLive (cookie → CurrentUser) · SchemaErrorsLive
-+ apps/api/src/{health,users,chats,attachments}.handler.ts
++ apps/api/src/{health/health,user/user,chat/chat,attachment/attachment}.handler.ts   *Amended in S12a*
 ~ apps/api/src/http.test.ts                  round trips through api-client with a cookie jar (seam 7)
 − apps/api/src/http.ts
 ~ apps/worker/src/main.ts                    BunRuntime.runMain(Layer.launch(WorkerLayer))
 + apps/worker/src/layer.ts                   AssistantMessageJob.worker + ChatTitleJob.worker + leaves
 ~ apps/web/src/features/health/health-panel.ts   moved from features/example, on the new client
-~ apps/{api,worker}/package.json             + @effect/platform-bun, + @app-template/api-contract; api dev: api-client
+~ apps/{api,worker}/package.json             + @effect/platform-bun; api: + @app-template/http-api
 ```
 
 ### root, rules and docs
 
 ```
-~ tsconfig.json          − packages/db, packages/storage; + packages/api-contract
-~ Makefile               + openapi target; check runs it and `git diff --exit-code packages/api-contract/openapi.json`
+~ package.json           workspaces + http-api (D29)
+~ tsconfig.json          − packages/db, packages/storage; + http-api
+~ Makefile               *Amended in S12:* no openapi target and no drift check (D16)
+~ CLAUDE.md              the map + http-api; + http-api/CLAUDE.md (D29)
 ~ .env.example           + STORE_PATH="../../.data/store"
 + .claude/rules/effect.md
 ~ .claude/rules/naming.md       + `.job` role (application), `.llm` holds prompt functions
-~ docs/knowledge/architecture.md  "Where things live" and "Add a new entity" on the chat slice
-~ biome.json             + the test-support guard override, biome/test-support-imports.grit (D27)
+~ docs/knowledge/architecture.md  "Where things live" and "Add a new entity" on the chat slice;
+                                 the layer matrix and graph gain http-api (D29)
+~ biome.json             + the test-support guard override, biome/test-support-imports.grit (D27);
+                         + the http-api layer guard: effect and domain only; only apps/api and
+                           the web client import it (D29)
 + .claude/rules/use-cases.md    services and use cases (D26)
 ```
 
@@ -263,37 +280,45 @@ Each definition carries its `jobId`; a job sends with `send(definition, message)
 with `worker(definition, handle)`, a Layer (D21). A job id needs no queue prefix: the store keys
 uniqueness on `(id, queue_name)`. *Amended in S6.*
 
-### HTTP contract (`@app-template/api-contract`)
+### HTTP contract (`@app-template/http-api`)
 
 | Group · endpoint | Success | Errors |
 |---|---|---|
-| `health` · `GET /health` | `{ status: 'ok' }` | `RequestInvalid` |
-| `users` · `POST /users` | `201 User` + `Set-Cookie: user_secret` | `RequestInvalid` |
-| `chats` · `POST /chats` | `201 Chat` | `UserUnknown` |
-| `chats` · `GET /chats` | `ChatSummary[]` | `UserUnknown` |
-| `chats` · `GET /chats/:chatId` | `ChatDetail` (chat + messages with attachment metadata) | `UserUnknown`, `ChatNotFound` |
-| `chats` · `PATCH /chats/:chatId` `{ title }` | `Chat` | `UserUnknown`, `ChatNotFound`, `RequestInvalid` |
-| `chats` · `DELETE /chats/:chatId` | `204` | `UserUnknown`, `ChatNotFound` |
-| `chats` · `POST /chats/:chatId/messages` `{ text, attachmentIds }` | `202 { userMessage, assistantMessage }` | `UserUnknown`, `ChatNotFound`, `ChatBusy`, `AttachmentNotFound`, `AttachmentBound`, `RequestInvalid` |
-| `chats` · `GET /chats/:chatId/messages/:messageId` | `Message` | `UserUnknown`, `ChatNotFound`, `MessageNotFound` |
-| `attachments` · `POST /attachments` multipart | `201 Attachment[]` | `UserUnknown`, `AttachmentTooLarge` 413, `AttachmentTypeUnsupported` 415, `RequestInvalid` |
-| `attachments` · `GET /attachments/:attachmentId` | `Attachment` | `UserUnknown`, `AttachmentNotFound` |
-| `attachments` · `GET /attachments/:attachmentId/download` | bytes (`asUint8Array`), real `Content-Type` | `UserUnknown`, `AttachmentNotFound` |
-| `attachments` · `DELETE /attachments/:attachmentId` | `204` | `UserUnknown`, `AttachmentNotFound`, `AttachmentBound` |
+| `health` · `GET /health` | `{ status: 'ok' }` | `RequestInvalidError` |
+| `users` · `POST /users` | `201 User` + `Set-Cookie: user_secret` | `RequestInvalidError` |
+| `chats` · `POST /chats` | `201 Chat` | `UserUnknownError` |
+| `chats` · `GET /chats` | `ChatSummary[]` | `UserUnknownError` |
+| `chats` · `GET /chats/:chatId` | `ChatDetail` (chat + messages with attachment metadata) | `UserUnknownError`, `ChatNotFoundError` |
+| `chats` · `PATCH /chats/:chatId` `{ title }` | `Chat` | `UserUnknownError`, `ChatNotFoundError`, `RequestInvalidError` |
+| `chats` · `DELETE /chats/:chatId` | `204` | `UserUnknownError`, `ChatNotFoundError` |
+| `chats` · `POST /chats/:chatId/messages` `{ text, attachmentIds }` | `202 { userMessage, assistantMessage }` | `UserUnknownError`, `ChatNotFoundError`, `ChatBusyError`, `AttachmentNotFoundError`, `AttachmentBoundError`, `RequestInvalidError` |
+| `chats` · `GET /chats/:chatId/messages/:messageId` | `Message` | `UserUnknownError`, `ChatNotFoundError`, `MessageNotFoundError` |
+| `attachments` · `POST /attachments` multipart | `201 Attachment[]` | `UserUnknownError`, `AttachmentTooLargeError` 413, `AttachmentTypeUnsupportedError` 415, `RequestInvalidError` |
+| `attachments` · `GET /attachments/:attachmentId` | `Attachment` | `UserUnknownError`, `AttachmentNotFoundError` |
+| `attachments` · `GET /attachments/:attachmentId/download` | bytes (`asUint8Array`), real `Content-Type` | `UserUnknownError`, `AttachmentNotFoundError` |
+| `attachments` · `DELETE /attachments/:attachmentId` | `204` | `UserUnknownError`, `AttachmentNotFoundError`, `AttachmentBoundError` |
 
-Errors are `Schema.TaggedError` with `httpApiStatus`: `UserUnknown` 401, `*NotFound` 404,
-`ChatBusy` and `AttachmentBound` 409, `RequestInvalid` 400 with
+*Amended in S12a (D29):* every error's wire tag is its class name, `…Error` included. The
+domain's errors are listed as they are, with the status set where the contract uses them
+(`UserUnknownError.pipe(HttpApiSchema.status(401))` in `Auth`): `UserUnknownError` 401,
+`*NotFoundError` 404, `ChatBusyError` and `AttachmentBoundError` 409. Only the errors that are
+HTTP's own live in `shared/errors.ts`, with `httpApiStatus` on the class: `RequestInvalidError` 400 with
 `issues: { path: (string | integer)[], message: string }[]` (*Amended in S11:* the Standard
-Schema formatter reports an array index as a number, as V3 expects). `RequestInvalid` is produced
+Schema formatter reports an array index as a number, as V3 expects), and the multipart limits'
+`AttachmentTooLargeError` 413 and `AttachmentTypeUnsupportedError` 415. `RequestInvalidError` is produced
 by the `SchemaErrors` middleware (`HttpApiMiddleware.layerSchemaErrorTransform`) on the whole api, so
-every endpoint lists it. Each group is an `HttpApiGroup` in `<group>.api.ts`, and `index.ts`
-composes them into `Api` (*Amended in S11*). `limits.ts` exports `attachment = { maxFileSize: '10 MiB', maxFiles: 5,
+every endpoint lists it. Each group is an `HttpApiGroup` in `<entity>/<entity>.http.ts` (the
+group id stays plural: `users`, `chats`), and `index.ts` composes them into `Api` (*Amended in
+S11*, *in S12a*). `shared/limits.ts` exports `attachment = { maxFileSize: '10 MiB', maxFiles: 5,
 mediaTypes: [...] }`, `message = { maxTextLength: 20_000 }`, `chat = { maxTitleLength: 120 }`,
 used by the schemas (`maxLength`, `AttachmentMediaType = Schema.Literals(mediaTypes)`), by
-`asMultipartStream({ maxParts: maxFiles, maxFileSize })` and by the handlers. `security.ts`
-declares `CurrentUser` (`{ id: UserId }`), the `Auth` middleware (`apiKey` in cookie
-`user_secret`, `provides: CurrentUser`, `error: UserUnknown`) attached to `chats` and
-`attachments`, and `SchemaErrors`. DTOs are the contract's own: `User`, `Chat` (`title: string |
+`asMultipartStream({ maxParts: maxFiles, maxFileSize })` and by the handlers;
+`chat.maxTitleLength` is the domain's `maxTitleLength` (*Amended in S12a*). `shared/security.ts` declares
+`CurrentUser` (`{ id: UserId }`, the domain's brand), the `Auth` middleware (`apiKey` in cookie
+`user_secret`, `provides: CurrentUser`, `error: UserUnknownError` at 401) attached to `chats` and
+`attachments`, and `SchemaErrors`. *Amended in S12a (D29):* `User` is the domain's model, and the
+other wire shapes come from the domain's models through `mapFields` only where a field is
+internal or an `Option` must reach the wire as `null`: `Chat` (`title: string |
 null`), `ChatSummary` (+ `activeMessage: { id, stage } | null`), `ChatDetail` (summary + `messages`), `Message` (`attachments:
 Attachment[]`, `error: { reason, message } | null`, never `cause`), `Attachment`. `failMessage` builds the
 failure from a reason: the `message` is a fixed user-facing sentence per reason; the provider's
@@ -325,8 +350,8 @@ The cookie is `Secure` when `RuntimeConfig.nodeEnv === 'production'`. The snapsh
 | 4 `send` and `worker` in `packages/queue` on the memory store under `TestClock` | `AttemptInfo` values per attempt, `isLastAttempt` on the dead-letter attempt and no attempt after it, release when the worker's scope closes, one job per `jobId` | SQLite timing |
 | 5 `UserService`, `ChatService`, `AttachmentService` and the use cases `SendMessageUseCase`, `DeleteChatUseCase` on memory adapters, `QueueClientMemory`, `TestClock`, `TestCrypto` | ensure/authenticate, send writes two messages and enqueues one or two jobs, `409` while a message is active, bound and foreign attachments, rename (a blank title is a type error: `ChatTitle` is a brand, rejected at seams 1 and 7), delete cascade and its retry after a failed chat write, a delete that waits for a send of the same user under the shared lock, title job only on the first message, concurrent sends (one chat; one attachment in two chats), a title the worker sets during a send, `AttachmentService.findBindable`, `bind` and `deleteByIds` | HTTP statuses, cookies |
 | 6 `AssistantMessageJob.worker` and `ChatTitleJob.worker` with a fake `LanguageModel` under `TestClock` | stage sequence, snapshot cadence and final write, `failed` only on the last reply attempt (the third of four, D23), prompt content (history, roles, file parts), title only if `none`, chat deleted meanwhile, a blank text or answer (D25) | a real provider, the SQLite queue |
-| 7 `apps/api` through `BunHttpServer.layerTest` + `@app-template/api-client` with `HttpClient.withCookiesRef` | the whole wire: cookie attributes, `401`/`404`/`409`/`413`/`415`/`400` bodies, multipart limits, download headers, `202` shape, the `Result` facade mapping, a stopped server → transport tag | browser cookie behaviour, the web proxy, `Secure` on http |
-| 8 `make check` drift of `packages/api-contract/openapi.json` | a contract edit without regeneration; the cookie security scheme and every declared error in the spec | semantics |
+| 7 `apps/api` through `BunHttpServer.layerTest` + `ApiClient` from `@app-template/http-api` (*Amended in S12*) with `HttpClient.withCookiesRef` | the whole wire: cookie attributes, `401`/`404`/`409`/`413`/`415`/`400` bodies, multipart limits, download headers, `202` shape, the `Result` facade mapping, a stopped server → transport tag; the spec from `OpenApi.fromApi(Api)`: the `cookie` scheme on `chats` and `attachments`, every route's errors with their statuses, `multipart/form-data` and `application/octet-stream` (*Added in S12*, from Seam 8) | browser cookie behaviour, the web proxy, `Secure` on http |
+| 8 ~~`make check` drift of `openapi.json`~~ *Retired in S12 (D16):* no spec file; its spec assertions move to Seam 7 | — | — |
 
 Dev-mode behaviour (two processes sharing `.data/store`, `--watch`, SIGTERM) is verified by hand
 per the acceptance table, not by a test.
@@ -415,15 +440,17 @@ per the acceptance table, not by a test.
   module (D2); `STORE_PATH` has no default in code and is set in `.env.example`. *Amended in S5:*
   `messages/<id>` has two writers, the api (insert, `deleteByChat`) and the worker (stages,
   snapshots); the earlier wording named `chats/<id>` as the only one.
-- **D5 — Limits are constants in `@app-template/api-contract`, and the declared media type is
+- **D5 — Limits are constants in `@app-template/http-api` (*Amended in S12a*), and the declared media type is
   checked with a `Schema`.** `asMultipartStream(withLimits)` fixes its limits at schema
   definition, so they cannot be runtime tunables; the contract is browser-safe, so the UI later
   reads the same `limits`. The type check decodes each part's `contentType` with
   `AttachmentMediaType = Schema.Literals(mediaTypes)`; `Mime.getType(fileName)` from
   `effect/http` must agree when the extension is known. Effect has no content sniffing; the part's
   `contentType` is client-supplied. *Rejected:* `Context.Reference` tunables (impossible for the
-  transport limits; amends feature R21); limits in `domain` (the contract may not import it, so
-  two copies); magic-byte sniffing (no Effect module; out of scope).
+  transport limits; amends feature R21); the upload limits in `domain` (*Amended in S12a, D29:*
+  they bound a multipart body, which the domain never sees, so they are transport limits; a limit
+  that is a domain rule, the title length, lives in the domain and `http-api` reuses it as
+  `limits.chat.maxTitleLength`); magic-byte sniffing (no Effect module; out of scope).
 - **D6 — `CurrentUser`, `Auth` and `SchemaErrors` are declared in the contract; the `users` group
   has no `Auth`; the cookie is set with `HttpApiBuilder.securitySetCookie`.** `HttpApiGroup
   .middleware(Auth)` is part of the group definition, so the declarations must live where the
@@ -439,7 +466,9 @@ per the acceptance table, not by a test.
   `HttpServerResponse.setCookie` (loses response encoding and the OpenAPI check); the default
   `400`. *Amended in S11:* `packages/api-contract/schemas.ts` redeclares the `UserId` brand,
   because `packages/*` cannot import `domain`; the two declarations share the check and the brand
-  name, which is what lets the types unify.
+  name, which is what lets the types unify. *Amended in S12a (D29):* the redeclared `UserId`
+  goes; `CurrentUser` carries the domain's `UserId`, and `Auth` fails the domain's
+  `UserUnknownError`, whose `401` the contract sets with `HttpApiSchema.status`.
 - **D7 — The user secret is 32 random bytes in base64url; the store keeps its hex SHA-256 under
   `credentials/secret/<hash>`.** `Crypto.randomBytes` and `Crypto.digest('SHA-256')` are platform
   services, so `UserService` does both without an infrastructure adapter. A random 256-bit secret
@@ -456,8 +485,9 @@ per the acceptance table, not by a test.
 - **D8 — Uploads are buffered per part in the handler and handed to `AttachmentService.upload` as
   `{ fileName, mediaType, bytes }`.** `KeyValueStore.set` needs the whole value anyway and the
   cap is 10 MiB; `MultipartError` surfaces inside the handler and is mapped there: `FileTooLarge`
-  and `BodyTooLarge` → `AttachmentTooLarge` 413, `TooManyParts` → `RequestInvalid` 400, an
-  unsupported type → `AttachmentTypeUnsupported` 415, each before anything is stored. An
+  and `BodyTooLarge` → `AttachmentTooLargeError` 413, `TooManyParts` → `RequestInvalidError` 400,
+  an unsupported type → `AttachmentTypeUnsupportedError` 415, each before anything is stored
+  (*Amended in S12a:* the wire tags take the `Error` suffix, D29). An
   undeclared error would be a `500`. *Rejected:* streaming parts into the store (no streaming
   `set`; S3 brings it in roadmap 5); the buffered `asMultipart` (temp files, and the builder
   `die`s on its errors).
@@ -506,7 +536,12 @@ per the acceptance table, not by a test.
 - **D16 — `openapi.json` is written by `make openapi` (a script in `packages/api-contract`) and
   checked by `make check` with `git diff --exit-code`.** Library workspaces hold no scripts and
   every command goes through `make`; `OpenApi.fromApi` is deterministic. *Rejected:* a vitest
-  snapshot (a failing test for a doc file, and `--update` semantics).
+  snapshot (a failing test for a doc file, and `--update` semantics). *Superseded in S12, on the
+  user's review:* no spec is committed. `apps/api` derives it from `Api` at runtime
+  (`HttpApiBuilder.layer(Api, { openapiPath: '/openapi.json' })`, Scalar at `/docs`), and Seam 7
+  asserts on `OpenApi.fromApi(Api)` what the drift check guarded. *Rejected:* the committed
+  snapshot as a wire diff for review: it was the one place a domain edit's HTTP effect showed in
+  a PR, which the user judged not worth a file plus two targets.
 - **D17 — Ports declare no error channel; adapters turn store failures into defects.** A failed
   read or write of the store, or a stored value that no longer decodes, has one outcome for every
   caller: the request fails with a `500` and the job attempt fails and retries. A typed
@@ -677,7 +712,40 @@ per the acceptance table, not by a test.
   maps the domain's `UserUnknownError` to the contract's `UserUnknown` also never imports two
   classes with one name. *Rejected:* `UserUnknownError` in the contract beside the domain error of
   the same name (an import alias in every handler, and a tag that differs from the class or leaks
-  the suffix to the wire).
+  the suffix to the wire). *Superseded in S12 by D29:* from S12a the wire carries the domain's
+  tags (`UserUnknownError`), and the contract's own errors follow `naming.md` without exception.
+- **D29 — The contract is the layer `http-api/`, reuses the domain and is shared by server and
+  client; the handlers live apart in `apps/api`; there is no facade.** *Added in S12, on the
+  user's review; the layer and its name in S12a.* `@app-template/http-api` is a layer beside
+  `domain/` and `application/`, not a package: it is the system's boundary, specific to this
+  app and shared by two apps, so it is neither a generic package nor an app. Its name is effect's
+  own term (`HttpApi` from `effect/http-api`), does not clash with `apps/api`, and `contract` was
+  too generic. It imports `@app-template/domain` (`effect` only, browser-safe) and
+  references its ids, models and errors instead of redeclaring them: statuses are set where the
+  contract uses an error (`HttpApiSchema.status`), the server encodes domain errors without a
+  mapping, and DTOs come from `mapFields` only to drop an internal field or turn an `Option` into
+  `NullOr`. The handlers sit in `apps/api/src/<domain>/<domain>.handler.ts`, and each group in
+  `http-api/<domain>/<domain>.http.ts`, over the contract's `Api`. `ApiClient` in `http-api/api.client.ts`, re-exported from
+  `http-api/index.ts`, runs `HttpApiClient.make(Api)`, so the client
+  decodes with the server's own schemas: brands, `DateTime` and error classes survive. Web code
+  imports `effect` and builds its stack on `Api` (Effect, `effect` atoms through `AtomHttpApi`,
+  TanStack Query and DB in `web-app`). This is the effect team's layout: *"Api definitions
+  should always be separate from the server implementation… Ideally… a separate package"*
+  (`repos/effect/ai-docs/src/51_http-server/10_basics.ts`), its fixtures split into `domain/`,
+  `api/` and `server/`. A Biome layer guard lets `http-api` import `effect` and `@app-template/domain`
+  only, and lets only `apps/api` and the web client import it, and `domain` declares `"sideEffects": false` so its ports leave the
+  browser bundle. *Rejected:*
+  - the contract with its own DTOs and wire twins (D3 of `effect-setup`, S11): duplication
+    beside the domain and a mapping in every handler;
+  - the contract colocated with its handlers and the client generated from `openapi.json` by
+    `@effect/openapi-generator -f httpapi`: brands, dates and classes become `string` and
+    `Struct`, methods carry the group prefix (`usersEnsure`), and a group built over a local
+    `HttpApi` (to avoid the import cycle) silently loses the root's `SchemaErrors`;
+  - generation from a live server's URL: the generator reads only a file, and CI would boot the
+    api;
+  - the `Promise<Result>` facade (D13): it hid Effect from a web that now uses it, and
+    `HttpApiClient` offers no `Promise`, `signal` or pinned response mode to build it on;
+  - `openapi-typescript`, `orval`, `hey-api`, `kubb`: types only, heavy, or no Effect.
 
 ## Risks
 
@@ -699,7 +767,9 @@ per the acceptance table, not by a test.
 | A worker crashes on the final attempt: the SQL store's lock-expiry sweep marks the job `failed` without calling the handler (`PersistedQueue.ts`, "Lock expired after final attempt"), so the message stays `preparing` or `generating` and the chat stays busy, against R18 | D23: the definition's final attempt only settles a reply the last one left active; what remains is a crash during that attempt's single write, two crashes in a row |
 | A lock expires on a live worker (a stall past the lock expiry): a second worker takes the job while the first still writes, so two attempts interleave snapshots and the settling attempt's `failed` can be overwritten by the live attempt's `completed` | accepted as the duplicate delivery R19 already implies; the message settles on the last writer; Postgres (roadmap 4) can guard the terminal write with `UPDATE … WHERE stage IN (active stages)` |
 | A long chat's history grows without bound: every attempt sends every completed message and its files, until the prompt exceeds the model's context window and every reply fails | none in this ticket; roadmap entry 6 (`llm-providers`) trims the history to the window |
-| The contract duplicates the domain's ids, models and errors (`UserId`, `User`, `UserUnknown` beside `UserUnknownError`), so each handler maps between them and the copies can drift | the brands share their checks and names (D6); the alternative, a contract in `apps/api` with the client generated by `@effect/openapi-generator -f httpapi`, is left to the user's study, details in the S11 findings of `plan.md` |
+| The contract duplicates the domain's ids, models and errors (`UserId`, `User`, `UserUnknown` beside `UserUnknownError`), so each handler maps between them and the copies can drift | *Closed in S12a (D29):* `http-api` imports the domain's schemas, and a Biome layer guard keeps every other workspace of ours out of it |
+| A domain edit can change the wire unseen: with no committed spec, nothing in a PR shows the HTTP effect of a change to a domain model or error (D16) | Seam 7 tests assert the wire shapes and, on `OpenApi.fromApi(Api)`, each route's errors and statuses |
+| The domain ships to the browser through the contract, so a Bun or Node API, or a top-level side effect, in any domain module breaks the web bundle or bloats it | `domain/CLAUDE.md` forbids both; `"sideEffects": false` drops the ports; the bundle size is recorded in S12a and S12b's findings |
 | Dev store grows with attachment bytes | `.data/` is gitignored; `rm -rf .data` resets both store and queue |
 | An attachment `DELETE` races a `send` that binds the same unbound attachment: both service checks pass on the unbound row (check-then-act in `AttachmentService.delete` and `SendMessageUseCase.send`) | the atomic `Collection.update` stops the deleted row from being resurrected, but the message may then reference a deleted attachment; Postgres closes it with `UPDATE … WHERE message_id IS NULL` on bind and a delete guarded the same way |
 

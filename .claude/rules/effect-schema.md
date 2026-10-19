@@ -24,12 +24,13 @@ paths:
 
 ## Failures
 
-- Fail with `return yield* new <Entity><Problem>Error({ … })` (an `api-contract` error by its wire
-  tag, `naming.md`); the `return` ends the branch for TypeScript.
+- Fail with `return yield* new <Entity><Problem>Error({ … })`; the `return` ends the branch for
+  TypeScript.
 - A refused operation is a typed failure: never a `throw` (a defect that reads as an infrastructure
   failure) and never an `Option.none` (no detail for the caller or the log).
-- A domain error is `Schema.TaggedError`, so it decodes at the wire. A marker that never leaves its
-  module (a failure carried out of a callback for the loop around it) is `Data.TaggedError`.
+- A domain error is `Schema.TaggedError`, so it decodes at the wire; its HTTP status lives in
+  `http-api/CLAUDE.md`. A marker that never leaves its module (a failure carried out of a callback
+  for the loop around it) is `Data.TaggedError`.
 - Not-found from storage is a value (`Option`, or an id left out of an array); the application turns
   it into the domain's `*NotFoundError`.
 - A port declares no error channel: its adapter turns a store failure or a stored value that no
