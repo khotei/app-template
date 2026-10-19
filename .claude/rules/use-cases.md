@@ -44,7 +44,8 @@ Do not wait for the method to grow: the exception is the signal.
 - **Enqueue after the writes the job reads.** A job lost between insert and enqueue is a known
   risk until an outbox writes both in one transaction.
 - Read a set through the port's batch method (`selectByIds`), never one `select` per id in a loop.
-- Return the contract's shape (each message with its attachments), so the handler composes nothing.
+- Return the contract's shape (each message with its attachments), so the handler only projects
+  each model onto its DTO's fields (`Struct.pick`) and composes nothing.
 
 ## Concurrency
 

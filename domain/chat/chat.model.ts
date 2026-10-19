@@ -56,3 +56,9 @@ export class Message extends Schema.Class<Message>('Message')({
   createdAt: Schema.DateTimeUtc,
   updatedAt: Schema.DateTimeUtc,
 }) {}
+
+/** An assistant message whose reply is still running; `isActiveMessage` narrows to it. */
+export interface ActiveMessage extends Message {
+  readonly author: 'assistant'
+  readonly stage: ActiveMessageStage
+}

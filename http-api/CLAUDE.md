@@ -8,7 +8,11 @@ not a package: it is the system's boundary, specific to this app and used by two
   `@effect/*`.
 - **Browser-safe:** no Bun APIs, no `Bun.env`, no Node built-ins.
 - **Reuse the domain; never redeclare it.** Ids, models and errors come from `@app-template/domain`.
-  A DTO (`mapFields`) only drops an internal field or turns an `Option` into `NullOr`.
+  A DTO (`mapFields`) only drops an internal field, turns an `Option` into `NullOr`, or composes
+  domain models into the shape a service returns (a summary plus `activeMessage`, a message plus
+  its `attachments`).
+- **`index.ts` re-exports each domain schema a payload names** (`ChatTitle`): `web` may not import
+  the domain, so it builds a payload's brand through this entry.
 - **Statuses are set here, never in the domain:** `DomainError.pipe(HttpApiSchema.status(404))`
   where an endpoint or middleware lists the error. Only HTTP's own errors (`shared/errors.ts`)
   carry `httpApiStatus` on the class.

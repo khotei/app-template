@@ -18,9 +18,11 @@ import {
 } from '#domain/chat/chat.error'
 import type { ChatId, MessageId } from '#domain/chat/chat.id'
 import {
+  type ActiveMessage,
   ActiveMessageStage,
   Chat,
   Message,
+  MessageAuthor,
   MessageFailure,
   type MessageStage,
 } from '#domain/chat/chat.model'
@@ -47,7 +49,7 @@ export class MessageRepository extends Context.Service<
     /** Returns the chat's messages in insertion order. */
     readonly selectByChat: (chatId: ChatId) => Effect.Effect<ReadonlyArray<Message>>
     /** Returns the chat's active message, the one `isActiveMessage` holds for, if any. */
-    readonly selectActiveByChat: (chatId: ChatId) => Effect.Effect<Option.Option<Message>>
+    readonly selectActiveByChat: (chatId: ChatId) => Effect.Effect<Option.Option<ActiveMessage>>
     readonly deleteByChat: (chatId: ChatId) => Effect.Effect<void>
   }
 >()('@app-template/domain/chat/MessageRepository') {}
@@ -112,10 +114,13 @@ export const isInChat =
   (message: Message): boolean =>
     message.chatId === chatId
 
-const isActiveStage = Schema.is(ActiveMessageStage)
+const isActiveShape = Predicate.Struct({
+  author: Schema.is(MessageAuthor.pick(['assistant'])),
+  stage: Schema.is(ActiveMessageStage),
+})
 
-export const isActiveMessage = (message: Message): boolean =>
-  message.author === 'assistant' && isActiveStage(message.stage)
+export const isActiveMessage = (message: Message): message is ActiveMessage =>
+  isActiveShape(message)
 
 export const ensureChatAcceptsMessage = Effect.fn('ensureChatAcceptsMessage')(function* (
   current: Option.Option<Message>,

@@ -1206,6 +1206,8 @@ apart in `apps/api`.
   (`@app-template/queue`, moved from S13). *Amended in S13:* Seam 7 is one test file per group.
 - **Constraint** (*Amended in S10*): the handler decodes the trimmed `title` payload into the
   domain's `ChatTitle` brand before `ChatService.rename`, which accepts only the brand.
+  *Amended in S14:* the contract's payload does it (`Schema.Trim.pipe(Schema.decodeTo(ChatTitle))`),
+  so the handler receives the brand.
   *Amended in S10b:* the handler sends a message only through `SendMessageUseCase` and deletes a
   chat only through `DeleteChatUseCase`, never `ChatService.delete`, which leaves the attachments.
 - **Test first:** Seam 7, in `chat/chat.handler.test.ts` (*Amended in S13*) — `GET /chats` without a cookie is `401 UserUnknownError`; a chat of user A
@@ -1215,13 +1217,89 @@ apart in `apps/api`.
   `message` (V3: a bad `attachmentIds[2]` reports `['attachmentIds', 2]`); `GET /chats` lists the
   last sent chat first with `activeMessage: { id, stage: 'queued' }` and `title: null`; `DELETE` is `204`; through
   `ApiClient` an unknown chat id fails with a `ChatNotFoundError` and a
-  blank title to `RequestInvalidError` (the malformed-body case, *moved from S13*); a `failed` message's response carries `reason` and `message`
+  ~~blank title to `RequestInvalidError`~~ *amended in S14:* a blank text without attachments
+  with `MessageInputInvalidError`, since `ApiClient` takes the `ChatTitle` brand and cannot send a
+  blank title by design; the blank title, and a body with two invalid parts listing both issues,
+  go over the raw `HttpClient` (the malformed-body case, *moved from S13*); a `failed` message's response carries `reason` and `message`
   and no `cause`; `OpenApi.fromApi(Api)` lists every route's errors with their statuses on the
   `chats` routes (`401`, `404`, `409`, `400` with their tags) and the `cookie` security scheme with a `401 UserUnknownError` on each, the acceptance check for
   R26 and R27 that S11 could not make (*Amended in S11*; *in S12*, moved from Verify's
   `openapi.json` to Seam 7).
 - **Verify:** `make check`.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - **The `rename` payload decodes `title` into `ChatTitle`:** `Schema.Trim.pipe(Schema.decodeTo(
+    ChatTitle))`, checked in `repos/effect` 4.0.5 (`Schema.Trim` decodes with
+    `SchemaTransformation.trim()` into `Trimmed`; `decodeTo` without a transformation is a
+    passthrough). The server trims, then checks, and a failure is `400 RequestInvalidError` at
+    `['title']` through `SchemaErrors`, with no handler code. `ApiClient`'s payload type is the
+    brand, and its encode checks `Trimmed`, so it sends only a valid title; the untrimmed, blank
+    and 121-character cases go over the raw `HttpClient`.
+  - **`MessageInputInvalidError` is declared on `send` at `400`.** The spec joins it with
+    `RequestInvalidError` under one status (`description: 'MessageInputInvalidError |
+    RequestInvalidError'`, an `anyOf` of both refs), so `layer.test.ts` now checks that every
+    operation's `400` *includes* `RequestInvalidError`. Through `ApiClient`, a blank text without
+    attachments or a repeated id fails with `MessageInputInvalidError`: every schema check also
+    runs on the client's encode, so only a rule the schema does not state reaches the server.
+  - **Every issue, not the first:** with Schema's defaults a body with an overlong `text` and a
+    non-UUID id listed only `['text']`; `Api` now carries `HttpApi.ParseOptions` `{ errors: 'all'
+    }`, and the case lists `['text']` and `['attachmentIds', 0]`. V3 settled on the raw wire: a
+    non-UUID `attachmentIds[2]` reports `['attachmentIds', 2]`.
+  - **`activeMessage.stage` is `ActiveMessageStage` on the wire,** and the spec documents its
+    three values. For the type to reach the projection, `isActiveMessage` is now a refinement to
+    the domain's new `ActiveMessage` (`author: 'assistant'`, `stage: ActiveMessageStage`), and
+    `MessageRepository.selectActiveByChat` and `ChatSummary.activeMessage` carry it; the KV
+    adapter already filtered with `isActiveMessage`, so it narrows without a change. Outside the
+    step's Files: `domain/chat/{chat.model,chat.service}.ts`, `application/chat/chat.service.ts`.
+  - **The handler projects; it composes nothing** (D31). The services already return the
+    contract's composition (`ChatSummary`, `ChatDetail`, `MessageDetail`, `SentMessages`), as
+    `use-cases.md` asks. What remains in `chat.handler.ts` is the projection of each domain model
+    onto its DTO's fields (`toChat`, `toSummary`, `toAttachment`, `toMessage`, `toDetail`), typed
+    to the DTO and built with `Struct.pick`. The services cannot do it: `application` does not
+    import `http-api`, and dropping `userId`, `attachmentIds` and `cause` is the wire's rule. The
+    return type makes every DTO field required; a surplus field such as `cause` is still legal
+    TypeScript, so the `Struct.pick` lists and the wire test of a `failed` reply are what keep it
+    out (a probe that passed `message.error` whole typechecked, and the encoder dropped `cause`).
+  - Wire shapes come from the domain models through `mapFields`: `Chat` drops `userId`;
+    `ChatSummary` adds `activeMessage`; `Message` swaps `attachmentIds` for `attachments` and
+    keeps `error` as `{ reason, message } | null`; `ChatDetail` adds `messages`. The composition
+    is D31 and the amended rule in `http-api/CLAUDE.md`.
+  - Outside the step's Files, besides the domain and application ones above:
+    `http-api/attachment/attachment.http.ts` (the wire `Attachment`, which `Message` carries; S15
+    adds the group beside it), `http-api/api.ts` (`ParseOptions`), `http-api/CLAUDE.md` (the DTO
+    rule), `apps/api/src/layer.test.ts` (the `400` check), `apps/api/src/testing/api.harness.ts`
+    (below) and `apps/api/tsconfig.json` (the `packages/queue` reference).
+  - `ApiHttp` leaves `QueueClient` open: the harness provides `QueueClient.layerMemory`, and
+    `ApiLayer` provides `QueueClientSqlite` from `infrastructure/shared`, so the worker of S16
+    reads the same queue. `@app-template/queue` is a `devDependency` of `apps/api`, since only
+    the harness names it. By hand: `bun src/main.ts` on port 3099 with
+    the local `.env` answered `POST /users` `201`, `POST /chats` `201` with `title: null`, a send
+    `202`, `GET /chats` with `activeMessage: { stage: 'queued' }`, a cookieless `GET /chats`
+    `401`, wrote `.data/queue.sqlite`, and logged `api stopped` on SIGTERM. After it, `PATCH` with
+    `" Trip "` answered `200` with `title: "Trip"`, and a blank send `400 { _tag:
+    'MessageInputInvalidError' }`.
+  - The harness's `withApi` passes a raw `HttpClient` on the same cookie jar as its second
+    argument, gains the arrange step `openChat(api)` (the jar's user and an empty chat), and
+    publishes the memory `KeyValueStore`, so a test settles a reply as `failed` through
+    `MessageRepositoryKv`, the state only the worker writes.
+  - The spec names a `204` response `<No Content>` and a success `Success`; two errors at one
+    status share it as `A | B` over an `anyOf`.
+  - Probes, each red then reverted: `stage` back to `MessageStage` (the spec test); the payload
+    without `Schema.Trim` (trim and blank cases); `MessageInputInvalidError` left off `send` (3);
+    `ParseOptions` removed (the two-issue case); `delete` reading the chat instead of deleting it;
+    `ChatBusyError` at `400` and the group without `Auth` (25 red); in the first round, the active
+    message dropped from the summary and `MessageFailure` with its `cause` on the wire.
+  - Size: ≈770 changed lines of code and tests without `bun.lock` (≈105 in tracked files, 663 in
+    new ones, the test file 447), plus the ticket docs, over the ~400 gate. No clean split exists:
+    `ChatDetail` carries `Message`, and the list's active message, the delete of a busy chat and a
+    failed reply are all arranged through `send`, so a group without `send` would ship untested
+    halves or a stub.
+  - At approval: `http-api/index.ts` re-exports `ChatTitle`, since the `rename` payload names the
+    brand and `web` may not import the domain (rule in `http-api/CLAUDE.md`); the projection rule
+    moves from `http-api/CLAUDE.md` to `use-cases.md`; `isActiveMessage` is a
+    `Predicate.Struct` over `MessageAuthor.pick(['assistant'])` and `ActiveMessageStage`; the
+    over-limit cases read `limits`. A `RequestInvalidError` decoded by `ApiClient` moves to S15:
+    every malformed JSON body fails the client's own encode, a `FormData` does not.
 
 #### S15 — Attachments over HTTP
 
@@ -1237,7 +1315,8 @@ apart in `apps/api`.
   S13:* Seam 7 is one test file per group.
 - **Test first:** Seam 7, in `attachment/attachment.handler.test.ts` (*Amended in S13*) — two 1 MiB PNGs give `201` with two unbound attachments; an 11 MiB
   file is `413 AttachmentTooLargeError`, a `.zip` `415 AttachmentTypeUnsupportedError`, six files or a nameless file
-  `400 RequestInvalidError`, and in each case the store holds nothing new; `GET …/download` returns the
+  `400 RequestInvalidError` (six files through `ApiClient` too, which decodes it: *moved from S14*,
+  where every malformed body fails the client's own encode), and in each case the store holds nothing new; `GET …/download` returns the
   bytes with `image/png` and `inline; filename="…"`; `send` with the two ids binds them and the
   `ChatDetail` shows their metadata; a second `send` with a bound id is `409 AttachmentBoundError`,
   a foreign id `404`; `DELETE` on an unbound one is `204`, on a bound one `409`; `ApiClient`

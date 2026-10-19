@@ -2,6 +2,7 @@ import { Array as Arr, Context, Crypto, DateTime, Effect, Layer, Option } from '
 
 import { type Attachment, AttachmentRepository } from '@app-template/domain/attachment'
 import {
+  type ActiveMessage,
   buildAssistantMessage,
   buildChat,
   buildUserMessage,
@@ -35,7 +36,7 @@ export interface MessageDetail {
 
 export interface ChatSummary {
   readonly chat: Chat
-  readonly activeMessage: Option.Option<Message>
+  readonly activeMessage: Option.Option<ActiveMessage>
 }
 
 export interface ChatDetail extends ChatSummary {

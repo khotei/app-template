@@ -55,7 +55,7 @@ New files are marked `+`, removed `−`, changed `~`. Every entity folder keeps 
 + domain/user/user.service.ts        UserRepository · buildUser · isOwnedBy
 + domain/chat/chat.id.ts             ChatId · MessageId
 + domain/chat/chat.model.ts          maxTitleLength · ChatTitle · Chat · MessageAuthor ·
-                                     MessageStage · ActiveMessageStage · MessageFailure · Message
+                                     MessageStage · ActiveMessageStage · MessageFailure · Message · ActiveMessage
 + domain/chat/chat.error.ts          ChatNotFoundError · ChatBusyError · MessageNotFoundError ·
                                      MessageInputInvalidError · MessageStageInvalidError
 + domain/chat/chat.service.ts        ChatRepository · MessageRepository · buildChat · buildUserMessage ·
@@ -302,7 +302,7 @@ uniqueness on `(id, queue_name)`. *Amended in S6.*
 | `chats` · `GET /chats/:chatId` | `ChatDetail` (chat + messages with attachment metadata) | `UserUnknownError`, `ChatNotFoundError` |
 | `chats` · `PATCH /chats/:chatId` `{ title }` | `Chat` | `UserUnknownError`, `ChatNotFoundError`, `RequestInvalidError` |
 | `chats` · `DELETE /chats/:chatId` | `204` | `UserUnknownError`, `ChatNotFoundError` |
-| `chats` · `POST /chats/:chatId/messages` `{ text, attachmentIds }` | `202 { userMessage, assistantMessage }` | `UserUnknownError`, `ChatNotFoundError`, `ChatBusyError`, `AttachmentNotFoundError`, `AttachmentBoundError`, `RequestInvalidError` |
+| `chats` · `POST /chats/:chatId/messages` `{ text, attachmentIds }` | `202 { userMessage, assistantMessage }` | `UserUnknownError`, `ChatNotFoundError`, `ChatBusyError`, `AttachmentNotFoundError`, `AttachmentBoundError`, `MessageInputInvalidError` 400 (*Added in S14*), `RequestInvalidError` |
 | `chats` · `GET /chats/:chatId/messages/:messageId` | `Message` | `UserUnknownError`, `ChatNotFoundError`, `MessageNotFoundError` |
 | `attachments` · `POST /attachments` multipart | `201 Attachment[]` | `UserUnknownError`, `AttachmentTooLargeError` 413, `AttachmentTypeUnsupportedError` 415, `RequestInvalidError` |
 | `attachments` · `GET /attachments/:attachmentId` | `Attachment` | `UserUnknownError`, `AttachmentNotFoundError` |
@@ -329,12 +329,25 @@ used by the schemas (`maxLength`, `AttachmentMediaType = Schema.Literals(mediaTy
 `user_secret`, `provides: CurrentUser`, `error: UserUnknownError` at 401) attached to `chats` and
 `attachments`, and `SchemaErrors`. *Amended in S12a (D29):* `User` is the domain's model, and the
 other wire shapes come from the domain's models through `mapFields` only where a field is
-internal or an `Option` must reach the wire as `null`: `Chat` (`title: string |
-null`), `ChatSummary` (+ `activeMessage: { id, stage } | null`), `ChatDetail` (summary + `messages`), `Message` (`attachments:
+internal or an `Option` must reach the wire as `null`, and (*Amended in S14*, D31) where they
+compose into the shape a service returns: `Chat` (`title: string |
+null`), `ChatSummary` (+ `activeMessage: { id, stage } | null`, `stage` the `ActiveMessageStage` subset, *Amended in S14*), `ChatDetail` (summary + `messages`), `Message` (`attachments:
 Attachment[]`, `error: { reason, message } | null`, never `cause`), `Attachment`. `failMessage` builds the
 failure from a reason: the `message` is a fixed user-facing sentence per reason; the provider's
-cause is stored beside it for operators (D19). The `rename` payload trims `title` before checking it, so `" Trip"`
-is stored as `"Trip"`; the domain's `ChatTitle` itself accepts only trimmed text.
+cause is stored beside it for operators (D19). *Amended in S14:* the `rename`
+payload is `{ title: Schema.Trim.pipe(Schema.decodeTo(ChatTitle)) }`: the server trims, then
+checks, so `" Trip "` is stored as `"Trip"` and a blank or 121-character title is
+`400 RequestInvalidError` at `['title']` through `SchemaErrors`; the handler receives the brand.
+`ApiClient`'s payload type is the brand and its encode checks `Trimmed`, so it sends only a valid
+title. *Rejected:* a plain-string payload decoded in the handler (a second path to
+`RequestInvalidError` beside `SchemaErrors`, and a spec that documents no title constraint).
+`send` lists the domain's `MessageInputInvalidError` (a blank text without attachments, a
+repeated id) at `400`, beside `RequestInvalidError`; the spec joins the two under one `400` as
+an `anyOf`. *Rejected:* mapping it to `RequestInvalidError` in the handler (a hand-written
+sentence and a domain error the wire no longer names). `Api` carries `HttpApi.ParseOptions`
+`{ errors: 'all' }`, so a `400` lists every issue of a request, not the first. The wire
+`Attachment` (no `userId`, `messageId: MessageId | null`) is declared in
+`attachment/attachment.http.ts` already, since `Message` carries it.
 
 ### Client
 
@@ -783,6 +796,9 @@ per the acceptance table, not by a test.
   the client form an import cycle that Biome's `noImportCycles` rejects. *Rejected:* `ApiClient`
   in `index.ts` beside `Api` (no `.client` file, against `naming.md`); a second entry for the
   client (the layer keeps one).
+  *Amended in S14:* a DTO may also compose domain models into the shape a service returns
+  (D31); otherwise the contract still reuses the domain's ids, models and errors unmapped,
+  `MessageInputInvalidError` included.
   *Also in S12b:* `ApiClient.layer` leaves `HttpClient` open and `layerFetch` closes it over
   `FetchHttpClient`, per `effect-services.md › Layers`, so Seam 7 wraps its own client with a
   cookie jar. *Rejected:* `layer` closed over `FetchHttpClient` (the tests could not attach
@@ -798,6 +814,18 @@ per the acceptance table, not by a test.
   *Rejected:* `--watch` for the api (the rule keeps `api` on `--hot`, and a re-exec drops the
   faster reload); `import.meta.hot.dispose` (undefined under `bun --hot` in Bun 1.4.3); interrupting
   the old fiber (`runMain`'s teardown maps an interrupt to exit code 130 and calls `process.exit`).
+- **D31 — A wire DTO composes domain models into the shape a service returns, and the handler
+  projects each model onto its fields.** *Added in S14.* `ChatSummary` is `Chat` plus
+  `activeMessage`, `ChatDetail` the summary plus `messages`, `Message` a message plus its
+  `attachments`: the compositions `ChatService` and `SendMessageUseCase` already return, flat
+  on the wire as R6 lists the summary's fields. Each part still comes from its model through
+  `mapFields`. The handler's `to<Dto>` functions are typed to the DTO and pick the fields that
+  leave the api (`Struct.pick`), so a new model field reaches the wire only once its DTO declares
+  it. *Rejected:* returning the services' records nested (`{ chat, activeMessage }`), which
+  changes R6's flat summary and relies on the encoder silently dropping `userId` and `cause`;
+  spreading the records into the response (`...message`), which relies on the same; the
+  projection in the application services, which do not import `http-api` and must not know the
+  wire's fields.
 
 ## Risks
 

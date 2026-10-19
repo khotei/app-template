@@ -34,19 +34,19 @@ describe('api routes', () => {
     )
   })
 
+  // An endpoint may list its own errors at 400 too; the spec then joins them in one `anyOf`.
   it.effect.each(operations)(
     'the spec documents 400 RequestInvalidError on $method $path',
     ({ operation }) =>
-      Effect.sync(() =>
-        assert.deepStrictEqual(operation.responses['400'], {
-          description: 'RequestInvalidError',
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/RequestInvalidErrorEncoded' },
-            },
-          },
-        }),
-      ),
+      Effect.sync(() => {
+        const response = operation.responses['400']
+        const schema = response?.content?.['application/json']?.schema
+
+        assert.include(response?.description.split(' | ') ?? [], 'RequestInvalidError')
+        assert.deepInclude(schema?.anyOf ?? [schema], {
+          $ref: '#/components/schemas/RequestInvalidErrorEncoded',
+        })
+      }),
   )
 
   it.effect('a stopped server fails ApiClient with an HttpClientError', () =>

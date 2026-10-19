@@ -1,5 +1,6 @@
 import { HttpApi, OpenApi } from 'effect/http-api'
 
+import { ChatHttp } from '#http-api/chat/chat.http'
 import { HealthHttp } from '#http-api/health/health.http'
 import { SchemaErrors } from '#http-api/shared/security'
 import { UserHttp } from '#http-api/user/user.http'
@@ -8,5 +9,7 @@ import { UserHttp } from '#http-api/user/user.http'
 export class Api extends HttpApi.make('app-template')
   .add(HealthHttp)
   .add(UserHttp)
+  .add(ChatHttp)
   .middleware(SchemaErrors)
+  .annotate(HttpApi.ParseOptions, { errors: 'all' })
   .annotateMerge(OpenApi.annotations({ title: 'App Template API' })) {}
