@@ -23,8 +23,7 @@ Imports are enforced by Biome; file and symbol names are convention (Biome has n
   `./` or `../`. Example: `#domain/chat/chat.model`, `#api/http`.
 - **Across workspaces:** `@app-template/<workspace>[/<entity>]`, only downward:
   `apps` → `application` → `infrastructure` → `domain`; `packages/*` serve every layer except
-  `domain`. The full matrix lives in
-  [docs/knowledge/architecture.md](../../docs/knowledge/architecture.md).
+  `domain`. Full matrix: [docs/knowledge/architecture.md](../../docs/knowledge/architecture.md).
 - **Order:** `bun:`/`node:` → external packages → `@app-template/*` → `#…`, one blank line
   between groups. `make fmt` sorts and groups them.
 
@@ -43,6 +42,7 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 | `.repository` · `.storage` · `.llm` | an adapter over a client | infrastructure |
 | `.queue` | queue definitions | infrastructure |
 | `.client` | client wiring | infrastructure/shared, packages |
+| `.api` | an `HttpApiGroup`: one resource's endpoints | packages/api-contract |
 | `.handler` | a request handler | apps |
 | `.test` | a colocated test that mirrors its source name | any |
 | `.fixture` | sample values (ids, dates, inputs, bytes); no Effect, no layers | `testing/` |
@@ -57,7 +57,7 @@ the `packages/testing` workspace, whose `index.ts` exports its support.
 
 - Types are `PascalCase` `<Entity><Role>`: `ChatRepository`, `ChatService`; a use case is
   `<Verb><Object>UseCase` (`SendMessageUseCase`).
-- Errors are `<Entity><Problem>Error`.
+- Errors are `<Entity><Problem>Error`; `api-contract` errors take their wire tag (`UserUnknown`).
 - Functions are verb-first, and the verb marks the kind of work:
   - `create<Thing>`: a factory that wires dependencies (`createCollection`);
   - `layer<Variant>`: a static that builds the service's `Layer` for one variant, a function when

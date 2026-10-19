@@ -231,9 +231,11 @@ replace one layer later.
 
 - **R26** — `@app-template/api-contract` SHALL hold the `HttpApi`: groups `health`, `users`,
   `chats`, `attachments`, request and response schemas of its own (no `domain` import), the user
-  secret as `HttpApiSecurity.apiKey` in a cookie on every group but `health`, and errors listed as
-  arrays, each with its status, including the 400 for a body that fails decoding. It SHALL import
-  only `effect` and be safe for the browser.
+  secret as `HttpApiSecurity.apiKey` in a cookie, required through the `Auth` middleware on
+  `chats` and `attachments`; the `users` group SHALL NOT require `Auth` and SHALL read and set
+  that cookie itself. The contract SHALL list errors as arrays, each with its status, including
+  the 400 for a body that fails decoding. It SHALL import only `effect` and be safe for the
+  browser. *Amended in S11: the cookie was "on every group but `health`", which contradicted D6.*
 - **R27** — WHEN `make check` runs, THE SYSTEM SHALL regenerate `packages/api-contract/openapi.json`
   from the contract without a server and fail if the committed file differs. `apps/api` SHALL serve
   the Scalar UI at `/docs` in every environment.

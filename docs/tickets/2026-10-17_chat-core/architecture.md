@@ -122,7 +122,8 @@ the prompt and the cut, and `isTitledChat` joins the domain's predicates.
 ```
 + packages/api-contract/                     new workspace @app-template/api-contract (imports only effect)
     index.ts (Api) · limits.ts · schemas.ts · errors.ts · security.ts (Auth, CurrentUser, SchemaErrors) ·
-    health.ts · users.ts · chats.ts · attachments.ts · openapi.ts (writer) · openapi.json (committed)
+    health.api.ts · users.api.ts · chats.api.ts · attachments.api.ts · openapi.ts (writer) ·
+    openapi.json (committed)   *Amended in S11:* a group file takes the .api role
 ~ packages/api-client/index.ts               createApiClient over HttpApiClient + FetchHttpClient (D13)
 + packages/testing/                          new workspace @app-template/testing, devDependencies only:
                                              log.fake.ts (recordLogs) · uuid.ts (isUuidV7) (D27)
@@ -266,8 +267,8 @@ uniqueness on `(id, queue_name)`. *Amended in S6.*
 
 | Group · endpoint | Success | Errors |
 |---|---|---|
-| `health` · `GET /health` | `{ status: 'ok' }` | — |
-| `users` · `POST /users` | `201 User` + `Set-Cookie: user_secret` | — |
+| `health` · `GET /health` | `{ status: 'ok' }` | `RequestInvalid` |
+| `users` · `POST /users` | `201 User` + `Set-Cookie: user_secret` | `RequestInvalid` |
 | `chats` · `POST /chats` | `201 Chat` | `UserUnknown` |
 | `chats` · `GET /chats` | `ChatSummary[]` | `UserUnknown` |
 | `chats` · `GET /chats/:chatId` | `ChatDetail` (chat + messages with attachment metadata) | `UserUnknown`, `ChatNotFound` |
@@ -282,9 +283,11 @@ uniqueness on `(id, queue_name)`. *Amended in S6.*
 
 Errors are `Schema.TaggedError` with `httpApiStatus`: `UserUnknown` 401, `*NotFound` 404,
 `ChatBusy` and `AttachmentBound` 409, `RequestInvalid` 400 with
-`issues: { path: string[], message: string }[]`. `RequestInvalid` is produced by the
-`SchemaErrors` middleware (`HttpApiMiddleware.layerSchemaErrorTransform`) on the whole api, so
-every endpoint lists it. `limits.ts` exports `attachment = { maxFileSize: '10 MiB', maxFiles: 5,
+`issues: { path: (string | integer)[], message: string }[]` (*Amended in S11:* the Standard
+Schema formatter reports an array index as a number, as V3 expects). `RequestInvalid` is produced
+by the `SchemaErrors` middleware (`HttpApiMiddleware.layerSchemaErrorTransform`) on the whole api, so
+every endpoint lists it. Each group is an `HttpApiGroup` in `<group>.api.ts`, and `index.ts`
+composes them into `Api` (*Amended in S11*). `limits.ts` exports `attachment = { maxFileSize: '10 MiB', maxFiles: 5,
 mediaTypes: [...] }`, `message = { maxTextLength: 20_000 }`, `chat = { maxTitleLength: 120 }`,
 used by the schemas (`maxLength`, `AttachmentMediaType = Schema.Literals(mediaTypes)`), by
 `asMultipartStream({ maxParts: maxFiles, maxFileSize })` and by the handlers. `security.ts`
@@ -434,7 +437,9 @@ per the acceptance table, not by a test.
   `RequestInvalid` with issues from `SchemaIssue.makeFormatterStandardSchemaV1`. *Rejected:*
   `Auth` on the whole api with an exemption for `users` (none exists); `handleRaw` +
   `HttpServerResponse.setCookie` (loses response encoding and the OpenAPI check); the default
-  `400`.
+  `400`. *Amended in S11:* `packages/api-contract/schemas.ts` redeclares the `UserId` brand,
+  because `packages/*` cannot import `domain`; the two declarations share the check and the brand
+  name, which is what lets the types unify.
 - **D7 — The user secret is 32 random bytes in base64url; the store keeps its hex SHA-256 under
   `credentials/secret/<hash>`.** `Crypto.randomBytes` and `Crypto.digest('SHA-256')` are platform
   services, so `UserService` does both without an infrastructure adapter. A random 256-bit secret
@@ -665,6 +670,14 @@ per the acceptance table, not by a test.
   replace each other's rule options, so it dropped the layer bans of every file it matched, as a
   probe showed); test support beside the sources as a bare kebab file (no role, and nothing
   stops a source file from importing it); a copy per test file (three harnesses drifting apart).
+- **D28 — Contract errors are named after their wire tag, without the `Error` suffix.**
+  *Added in S11.* The class name is the `_tag` that the client's `Result` exposes and that the
+  OpenAPI responses describe (`UserUnknown`, `ChatNotFound`, `RequestInvalid`), so code that
+  switches on `error._tag` and code that imports the class read the same word. A handler that
+  maps the domain's `UserUnknownError` to the contract's `UserUnknown` also never imports two
+  classes with one name. *Rejected:* `UserUnknownError` in the contract beside the domain error of
+  the same name (an import alias in every handler, and a tag that differs from the class or leaks
+  the suffix to the wire).
 
 ## Risks
 
@@ -686,6 +699,7 @@ per the acceptance table, not by a test.
 | A worker crashes on the final attempt: the SQL store's lock-expiry sweep marks the job `failed` without calling the handler (`PersistedQueue.ts`, "Lock expired after final attempt"), so the message stays `preparing` or `generating` and the chat stays busy, against R18 | D23: the definition's final attempt only settles a reply the last one left active; what remains is a crash during that attempt's single write, two crashes in a row |
 | A lock expires on a live worker (a stall past the lock expiry): a second worker takes the job while the first still writes, so two attempts interleave snapshots and the settling attempt's `failed` can be overwritten by the live attempt's `completed` | accepted as the duplicate delivery R19 already implies; the message settles on the last writer; Postgres (roadmap 4) can guard the terminal write with `UPDATE … WHERE stage IN (active stages)` |
 | A long chat's history grows without bound: every attempt sends every completed message and its files, until the prompt exceeds the model's context window and every reply fails | none in this ticket; roadmap entry 6 (`llm-providers`) trims the history to the window |
+| The contract duplicates the domain's ids, models and errors (`UserId`, `User`, `UserUnknown` beside `UserUnknownError`), so each handler maps between them and the copies can drift | the brands share their checks and names (D6); the alternative, a contract in `apps/api` with the client generated by `@effect/openapi-generator -f httpapi`, is left to the user's study, details in the S11 findings of `plan.md` |
 | Dev store grows with attachment bytes | `.data/` is gitignored; `rm -rf .data` resets both store and queue |
 | An attachment `DELETE` races a `send` that binds the same unbound attachment: both service checks pass on the unbound row (check-then-act in `AttachmentService.delete` and `SendMessageUseCase.send`) | the atomic `Collection.update` stops the deleted row from being resurrected, but the message may then reference a deleted attachment; Postgres closes it with `UPDATE … WHERE message_id IS NULL` on bind and a delete guarded the same way |
 

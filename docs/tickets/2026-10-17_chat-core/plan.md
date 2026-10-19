@@ -889,20 +889,61 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
 - **Goal:** the new workspace: `limits.ts`, `errors.ts` (every `Schema.TaggedError` with its
   status, `RequestInvalid` with `issues`), `security.ts` (`CurrentUser`, `Auth` as
   `HttpApiSecurity.apiKey` in cookie `user_secret`, `SchemaErrors`), `schemas.ts` (`User`),
-  `health.ts`, `users.ts`, `index.ts` (`Api`), `openapi.ts` writing `openapi.json`; `make
+  `health.api.ts`, `users.api.ts`, `index.ts` (`Api`), `openapi.ts` writing `openapi.json`; `make
   openapi` and the drift check in `make check` and CI (R26, R27; D5, D6, D16).
 - **Blocked by:** none.
 - **Files:** `packages/api-contract/{package.json,tsconfig.json,index.ts,limits.ts,errors.ts,
-  security.ts,schemas.ts,health.ts,users.ts,openapi.ts,openapi.json}`; root `package.json`
+  security.ts,schemas.ts,health.api.ts,users.api.ts,openapi.ts,openapi.json}`; root `package.json`
   (nothing: `packages/*` is already a workspace glob), `tsconfig.json` (reference), `Makefile`
-  (`openapi` target; `check` runs it then `git diff --exit-code packages/api-contract/
-  openapi.json`), `.github/workflows/ci.yml` (same check in the static job).
+  (`openapi` writes the file; `openapi-drift` runs it, then `git diff --exit-code
+  packages/api-contract/openapi.json`; `check` depends on `openapi-drift`),
+  `.github/workflows/ci.yml` (`make openapi-drift` in the static job).
 - **Test first:** Seam 8 — add a field to `User` in `schemas.ts` without regenerating and see
   `make check` fail on the diff; then regenerate.
 - **Verify:** `make check`; `openapi.json` documents the `cookie` security scheme on nothing yet
   and the `400 RequestInvalid` on `POST /users`; `grep -rn "from '" packages/api-contract/*.ts`
   shows only `effect` imports.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Seam 8, red then green: with `openapi.json` staged in a throwaway `GIT_INDEX_FILE`, a
+    `name: Schema.String` added to `User` passed `ids`, `lint`, `typecheck` and `test`, then failed
+    `make check` on the diff (`"required": ["id", "createdAt", "name"]`); reverted and regenerated,
+    the same run was green. `git diff --exit-code` ignores an untracked file, so the check guards
+    the spec only from this step's commit on.
+  - `RequestInvalid.issues[].path` is `(string | integer)[]`, not `string[]`:
+    `SchemaIssue.makeFormatterStandardSchemaV1` reports `ReadonlyArray<PropertyKey>`, an array
+    index as a number, and V3 expects `['attachmentIds', 2]`. `Schema.Int` rather than
+    `Schema.Number`, whose JSON encoding also admits `"NaN"` and `"Infinity"` (architecture.md
+    amended).
+  - `make openapi` runs `openapi.ts`, which prints the spec, into the file and then
+    `biome format --write`s it: `JSON.stringify` breaks every array over lines, which
+    `make lint` rejects. Printing keeps the package free of Bun and Node APIs. One target,
+    `openapi-drift`, runs `openapi` and then `git diff --exit-code` on the file; `check` runs it
+    before `lint`, and CI calls it before `Lint`.
+  - The `cookie` scheme is in no operation yet, so `securitySchemes` is `{}`. A probe with `Auth`
+    on a throwaway group emitted `{"cookie":{"type":"apiKey","name":"user_secret","in":"cookie"}}`,
+    the operation's `security: [{"cookie":[]}]` and a `401`.
+  - `HttpApi.middleware` reaches only the groups added before it, so S14 and S15 add `chats` and
+    `attachments` before `.middleware(SchemaErrors)`; `Api` carries the reminder.
+  - The contract's errors carry their wire tag as the class name (`UserUnknown`, no `Error`
+    suffix; D28, with the exception in `naming.md`) and no fields except `RequestInvalid.issues`.
+    `schemas.ts` redeclares the `UserId` brand, since `packages/*` cannot import `domain` (D6).
+  - The contract still duplicates the domain's ids, models and errors (a Risk in
+    `architecture.md`). The alternative, researched on 2026-10-19 and deferred to the user's own
+    study: the contract in `apps/api` reusing the lower layers, with `packages/api-client`
+    generated from `openapi.json` by `@effect/openapi-generator@4.0.5 -f httpapi`. Its probes:
+    exhaustive `_tag` unions and status → error survive the round trip; brands, dates and
+    classes become `string` and `Struct`; `OpenApi.fromApi` distorts `Schema.optional` into
+    `optionalKey(X | Null)`; cookie `Auth` and multipart were not verified.
+  - A file that defines an API takes the role `.api` (`naming.md`, on the user's review): the
+    groups are `health.api.ts` and `users.api.ts`, and S14 and S15 name `chats.api.ts` and
+    `attachments.api.ts`. The root `Api` stays in `index.ts`, the package's single entry, which
+    composes the groups. The endpoints are `health.get` and
+    `users.ensure`; `limits` is a namespace export of the barrel.
+  - Living docs, not in Files: `docs/knowledge/tooling.md` gained the `openapi` and
+    `openapi-drift` rows; `packages/CLAUDE.md` and `docs/knowledge/architecture.md` list
+    `api-contract`, which ships to the browser. R26 in `feature.md` now puts `Auth` on `chats`
+    and `attachments` only, as D6 does; S14's Verify checks the `cookie` scheme on `chats`.
 
 #### S12 — `@app-template/api-client` facade and the web health panel
 
@@ -959,7 +1000,7 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
   (R3–R14, R26, R28, R29; D6, D10).
 - **Blocked by:** S10b, S13. *Amended in S10:* the handler calls the `send-message` and
   `delete-chat` use cases.
-- **Files:** `packages/api-contract/{chats,schemas,index}.ts`, `openapi.json`;
+- **Files:** `packages/api-contract/{chats.api,schemas,index}.ts`, `openapi.json`;
   `apps/api/src/{chats.handler,layer,http.test}.ts`.
 - **Constraint** (*Amended in S10*): the handler decodes the trimmed `title` payload into the
   domain's `ChatTitle` brand before `ChatService.rename`, which accepts only the brand.
@@ -975,7 +1016,8 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
   blank title to `RequestInvalid`; a `failed` message's response carries `reason` and `message`
   and no `cause`.
 - **Verify:** `make check`; `openapi.json` lists every error with its status on each route and
-  the `cookie` scheme on the group.
+  documents the `cookie` security scheme on the `chats` operations, the acceptance check for R26
+  and R27 that S11 could not make (*Amended in S11*).
 - **Status:** todo
 
 #### S15 — Attachments over HTTP
@@ -985,7 +1027,7 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
   `delete`), its handler buffering each part and mapping `MultipartError`s before anything is
   stored, and `openapi.json` regenerated (R13, R20–R23, R26, R29; D5, D8, D10).
 - **Blocked by:** S14.
-- **Files:** `packages/api-contract/{attachments,schemas,index}.ts`, `openapi.json`;
+- **Files:** `packages/api-contract/{attachments.api,schemas,index}.ts`, `openapi.json`;
   `apps/api/src/{attachments.handler,layer,http.test}.ts`.
 - **Test first:** Seam 7 — two 1 MiB PNGs give `201` with two unbound attachments; an 11 MiB
   file is `413 AttachmentTooLarge`, a `.zip` `415 AttachmentTypeUnsupported`, six files or a nameless file
@@ -998,7 +1040,8 @@ Steps with no path between them are independent: S1, S3, S6 and S11 can start at
   `FileName` and `MediaType` before `AttachmentService.upload`, which accepts only the brands
   (*Amended in S7*, moved from the S2 finding).
 - **Verify:** `make check`; `openapi.json` documents `multipart/form-data` on `POST
-  /attachments` and `application/octet-stream` on `download`.
+  /attachments` and `application/octet-stream` on `download`, and the `cookie` security scheme
+  with a `401 UserUnknown` on every `attachments` operation (R26; *Amended in S11*).
 - **Status:** todo
 
 ### Worker, cleanup and docs

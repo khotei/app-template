@@ -83,6 +83,12 @@
     "packages/api-client": {
       "name": "@app-template/api-client",
     },
+    "packages/api-contract": {
+      "name": "@app-template/api-contract",
+      "dependencies": {
+        "effect": "catalog:effect",
+      },
+    },
     "packages/config": {
       "name": "@app-template/config",
       "dependencies": {
@@ -152,6 +158,8 @@
     "@app-template/api": ["@app-template/api@workspace:apps/api"],
 
     "@app-template/api-client": ["@app-template/api-client@workspace:packages/api-client"],
+
+    "@app-template/api-contract": ["@app-template/api-contract@workspace:packages/api-contract"],
 
     "@app-template/application": ["@app-template/application@workspace:application"],
 

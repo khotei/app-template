@@ -12,7 +12,7 @@ graph TD
   application --> infrastructure
   infrastructure --> domain
   application --> domain
-  apps --> packages["packages/* (config · queue · llm · api-client · ui)"]
+  apps --> packages["packages/* (config · queue · llm · api-contract · api-client · ui)"]
   application --> packages
   infrastructure --> packages
   web["apps/web client"] --> clientPkgs["api-client · ui"]

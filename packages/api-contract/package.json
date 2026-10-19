@@ -1,0 +1,14 @@
+{
+  "name": "@app-template/api-contract",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "imports": {
+    "#api-contract/*": "./*.ts"
+  },
+  "dependencies": {
+    "effect": "catalog:effect"
+  }
+}

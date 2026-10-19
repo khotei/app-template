@@ -24,8 +24,8 @@ paths:
 
 ## Failures
 
-- Fail with `return yield* new <Entity><Problem>Error({ … })`; the `return` ends the branch for
-  TypeScript.
+- Fail with `return yield* new <Entity><Problem>Error({ … })` (an `api-contract` error by its wire
+  tag, `naming.md`); the `return` ends the branch for TypeScript.
 - A refused operation is a typed failure: never a `throw` (a defect that reads as an infrastructure
   failure) and never an `Option.none` (no detail for the caller or the log).
 - A domain error is `Schema.TaggedError`, so it decodes at the wire. A marker that never leaves its
