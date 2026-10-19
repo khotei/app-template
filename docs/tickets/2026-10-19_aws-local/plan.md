@@ -61,7 +61,7 @@ S1 and S6 are independent and can start first; S4 and S6 can run in parallel aft
   deleted, `deployment/shared/tags.ts` and `deployment/aws/resource.ts` import from
   `@app-template/aws`, `deployment/package.json`; `infrastructure/chat/chat.queue.ts`,
   `infrastructure/package.json`; `infrastructure/shared/resources.test.ts` (new);
-  `packages/CLAUDE.md` (one line: `aws` is this project's resource data, like `api-contract`);
+  `packages/CLAUDE.md` (one line: `aws` is this project's resource data);
   `deployment/CLAUDE.md` (names come from `@app-template/aws`); `docs/knowledge/architecture.md`
   (the package in the layer diagram and the workspace list).
 - **Test first:** Seam 7 — the agreement test fails red while `chat.queue.ts` still hard-codes its
@@ -173,13 +173,13 @@ S1 and S6 are independent and can start first; S4 and S6 can run in parallel aft
   stored, `url` as a `data:` URL, `keep` a no-op); `AttachmentService.upload` takes the stream and
   `download` returns `{ attachment, url }`; the api passes each multipart file's stream through
   `Multipart.withLimits` instead of buffering it (replacing `chat-core` D8) and answers `download`
-  with `302` (replacing `chat-core` D10); `openapi.json` regenerated (R1–R5, R21; D6).
+  with `302` (replacing `chat-core` D10) (R1–R5, R21; D6).
 - **Blocked by:** none.
 - **Files:** `domain/attachment/attachment.service.ts`;
   `infrastructure/attachment/{attachment.storage.ts,attachment.storage.test.ts}`;
   `application/attachment/{attachment.service.ts,attachment.service.test.ts}`,
-  `application/testing/attachment.fixture.ts`; `packages/api-contract/` (the `download` success
-  as `302` with `Location`), `openapi.json`; `apps/api/src/{attachments.handler,http.test}.ts`.
+  `application/testing/attachment.fixture.ts`; `http-api/attachment/attachment.http.ts` (the
+  `download` success as `302` with `Location`); `apps/api/src/{attachment/attachment.handler,http.test}.ts`.
 - **Test first:** Seam 3 on `AttachmentStoreKv` — red on the old signatures: an inserted stream's
   size is returned and `select` returns its bytes; `fetch(url)` returns the bytes with the media
   type; a stream failing part-way fails `insert` with its error and `select` is `none`; `delete`

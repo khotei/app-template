@@ -316,18 +316,12 @@
                   {
                     "group": [
                       "@app-template/**",
-                      "!@app-template/api-client",
-                      "!@app-template/api-client/**",
-                      "!@app-template/ui",
-                      "!@app-template/ui/**",
                       "!@app-template/http-api",
-                      "!@app-template/http-api/**"
+                      "!@app-template/http-api/**",
+                      "!@app-template/ui",
+                      "!@app-template/ui/**"
                     ],
-                    "message": "web client code may import only @app-template/api-client, @app-template/http-api and @app-template/ui: it ships to the browser"
-                  },
-                  {
-                    "group": ["effect", "effect/**", "@effect/**"],
-                    "message": "web client code imports no effect or @effect/*: it calls the api through the Promise-returning @app-template/api-client"
+                    "message": "web client code may import only @app-template/http-api and @app-template/ui: it ships to the browser"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -352,14 +346,12 @@
                   {
                     "group": [
                       "@app-template/**",
-                      "!@app-template/api-client",
-                      "!@app-template/api-client/**",
                       "!@app-template/ui",
                       "!@app-template/ui/**",
                       "!@app-template/config",
                       "!@app-template/config/**"
                     ],
-                    "message": "the web server entry may additionally import @app-template/config"
+                    "message": "the web server entry imports only @app-template/ui and @app-template/config of our workspaces, never @app-template/http-api"
                   },
                   {
                     "group": ["./**", "../**"],

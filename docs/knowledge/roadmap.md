@@ -104,10 +104,10 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   code, so later steps follow it; `claude-toolkit` (2) polishes it.
 - **Scope.** `domain/chat` (Visitor, Chat, Message, Attachment, Placeholder as `Schema`, errors,
   ports); in-memory adapters on `KeyValueStore`; `application/chat` services and the job;
-  `@app-template/api-contract` as an `HttpApi` with the visitor secret as `HttpApiSecurity`, SSE for the
+  `@app-template/http-api` as an `HttpApi` with the visitor secret as `HttpApiSecurity`, SSE for the
   reply (`HttpApiSchema.StreamSse` over `LanguageModel.streamText` from the stub), multipart upload
-  for attachments (`asMultipartStream` with limits, stored in `KeyValueStore` for now), committed
-  `openapi.json`; `@app-template/api-client` as the `Promise<Result>` facade; `apps/api` on
+  for attachments (`asMultipartStream` with limits, stored in `KeyValueStore` for now), the spec
+  served at `/openapi.json`; its `ApiClient` over `HttpApiClient`, the web on Effect; `apps/api` on
   `HttpApiBuilder` and `BunRuntime`; `apps/worker` running one real job (chat title generation
   after the first reply, as ChatGPT does) on the `PersistedQueue` port; tests at the seams with
   `@effect/vitest`, `TestClock`, `TestCrypto`, `BunHttpServer.layerTest` and the typed client.
@@ -242,7 +242,7 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   and inline placeholders, a chat list, all server-rendered and hydrated.
 - **Scope.** `apps/web` rebuilt on TanStack Start (Vite 8, Nitro `bun` preset in dev); TanStack
   Router, Query and DB where they fit (intent recorded; see the open question); `effect/reactivity`
-  atoms with `AtomHttpApi` over `@app-template/api-contract` and `HydrationBoundary` for SSR; Chakra
+  atoms with `AtomHttpApi` over `@app-template/http-api` and `HydrationBoundary` for SSR; Chakra
   UI v3 theme in `packages/ui`; a nested `biome.json` (`"root": false, "extends": "//"`) with the
   `react` domain; the visitor cookie flowing through the Start server; the web `Dockerfile` or
   Nitro output for 9.
@@ -308,13 +308,13 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
 
 ### 10. `client-publishing`
 
-- **Goal.** `@app-template/api-client` and `@app-template/api-contract` consumable from any TypeScript
+- **Goal.** `@app-template/http-api` and its `ApiClient` consumable from any TypeScript
   project without the server code, with every type intact.
-- **Scope.** Build and `exports` of the two packages (types from the `HttpApi` definition, no
-  `domain` import); versioning; publishing to GitHub Packages or npm from CI on a tag; a consumer
+- **Scope.** Build and `exports` of `http-api` (types from the `HttpApi` definition; the
+  `domain` it imports ships with it); versioning; publishing to GitHub Packages or npm from CI on a tag; a consumer
   smoke test in a scratch project.
-- **Out of scope.** A client for other languages; an SDK generator from `openapi.json`.
-- **Open questions for its feature phase.** Registry; whether `openapi.json` is published too;
+- **Out of scope.** A client for other languages; an SDK generator from the served `/openapi.json`.
+- **Open questions for its feature phase.** Registry; whether the spec is published too;
   how the client's `effect` dependency is declared for consumers that do not use Effect.
 
 ### 11. `workflow-cluster`

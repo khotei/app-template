@@ -12,7 +12,7 @@ Both processes share one `KeyValueStore`: memory in tests, a file on disk in dev
 
 ```mermaid
 sequenceDiagram
-  participant W as web (api-client)
+  participant W as web (ApiClient)
   participant A as apps/api
   participant S as KeyValueStore
   participant Q as queue (send · worker)
@@ -39,7 +39,7 @@ Dependencies, bottom-up: `domain` holds the schemas, errors, ports and pure rule
 `infrastructure` implements the ports on `KeyValueStore` through one collection-and-index module,
 defines the two queues and the model adapter; `application` holds the three services, the two
 jobs and the two use cases that compose them (D26); `http-api` is the `HttpApi` with its security middleware declarations (a layer, D29);
-`packages/api-client` is the `Promise<Result>` facade; `apps/api` and `apps/worker` are
+`ApiClient` beside it is the api's one client (D29); `apps/api` and `apps/worker` are
 composition roots.
 
 ## Structure
@@ -121,7 +121,7 @@ the prompt and the cut, and `isTitledChat` joins the domain's predicates.
 
 ```
 + http-api/                                  new layer @app-template/http-api (imports effect and domain, D29)
-    index.ts (Api, the one entry; re-exports api.client.ts from S12b) · CLAUDE.md
+    index.ts (the one entry) · api.ts (Api) · api.client.ts (ApiClient) · CLAUDE.md
     shared/errors.ts · shared/security.ts (Auth, CurrentUser, SchemaErrors) · shared/limits.ts
     health/health.http.ts (HealthHttp) · user/user.http.ts (UserHttp) · chat/chat.http.ts (ChatHttp) ·
     attachment/attachment.http.ts (AttachmentHttp); group ids stay health, users, chats, attachments
@@ -131,12 +131,13 @@ the prompt and the cut, and `isTitledChat` joins the domain's predicates.
 `packages/api-contract/` to the layer `http-api/`, in entity folders as in the other layers, with
 no per-entity barrels; the role is `.http`, and `schemas.ts` goes (`User` and `UserId` are the
 domain's). *Amended in S12:* `openapi.ts` and the committed `openapi.json` go (D16); S12b
-adds `api.client.ts` (`ApiClient`, D29).
+adds `api.client.ts` (`ApiClient`, D29). *Amended in S12b:* `Api` moves from `index.ts` to
+`api.ts`, since `api.client.ts` imports it and `index.ts` re-exports the client (D29).
 
 ### packages
 
 ```
-~ packages/api-client/index.ts               createApiClient over HttpApiClient + FetchHttpClient (D13)
+− packages/api-client                        *Removed in S12b:* the client is ApiClient in http-api (D29)
 + packages/testing/                          new workspace @app-template/testing, devDependencies only:
                                              log.fake.ts (recordLogs) · uuid.ts (isUuidV7) (D27)
 ~ packages/queue/queue.ts                    send · worker Layer · jobId · AttemptInfo (D3, D21)
@@ -152,11 +153,13 @@ adds `api.client.ts` (`ApiClient`, D29).
 + apps/api/src/layer.ts                      HttpApiBuilder.layer(Api) + groups + Scalar + HttpRouter.serve + BunHttpServer
 + apps/api/src/current-user.ts               AuthLive (cookie → CurrentUser) · SchemaErrorsLive
 + apps/api/src/{health/health,user/user,chat/chat,attachment/attachment}.handler.ts   *Amended in S12a*
-~ apps/api/src/http.test.ts                  round trips through api-client with a cookie jar (seam 7)
+~ apps/api/src/http.test.ts                  round trips through ApiClient with a cookie jar (seam 7)
 − apps/api/src/http.ts
 ~ apps/worker/src/main.ts                    BunRuntime.runMain(Layer.launch(WorkerLayer))
 + apps/worker/src/layer.ts                   AssistantMessageJob.worker + ChatTitleJob.worker + leaves
-~ apps/web/src/features/health/health-panel.ts   moved from features/example, on the new client
+~ apps/web/src/features/health/health-panel.ts   an Effect over ApiClient, one sentence per error tag
+~ apps/web/src/{app/main,shared/api}.ts     runs the panel over ApiClient.layerFetch of the /api proxy (S12b)
+~ apps/web/{package.json,tsconfig.json}     − @app-template/api-client; + @app-template/http-api (S12b)
 ~ apps/{api,worker}/package.json             + @effect/platform-bun; api: + @app-template/http-api
 ```
 
@@ -164,7 +167,7 @@ adds `api.client.ts` (`ApiClient`, D29).
 
 ```
 ~ package.json           workspaces + http-api (D29)
-~ tsconfig.json          − packages/db, packages/storage; + http-api
+~ tsconfig.json          − packages/db, packages/storage, packages/api-client; + http-api
 ~ Makefile               *Amended in S12:* no openapi target and no drift check (D16)
 ~ CLAUDE.md              the map + http-api; + http-api/CLAUDE.md (D29)
 ~ .env.example           + STORE_PATH="../../.data/store"
@@ -174,7 +177,8 @@ adds `api.client.ts` (`ApiClient`, D29).
                                  the layer matrix and graph gain http-api (D29)
 ~ biome.json             + the test-support guard override, biome/test-support-imports.grit (D27);
                          + the http-api layer guard: effect and domain only; only apps/api and
-                           the web client import it (D29)
+                           the web client import it (D29); − the web client's effect ban and
+                           api-client (S12b)
 + .claude/rules/use-cases.md    services and use cases (D26)
 ```
 
@@ -328,11 +332,21 @@ is stored as `"Trip"`; the domain's `ChatTitle` itself accepts only trimmed text
 ### Client
 
 ```ts
-createApiClient(baseUrl: string): ApiClient
-type ApiClient = { [G in groups]: { [E in endpoints]: (input) => Promise<Result<Success, Error>> } }
-type Result<A, E> = { ok: true; value: A } | { ok: false; error: E }
-// E = declared errors | RequestInvalid | UserUnknown | HttpClientError | SchemaError (unexpected response), by _tag
+class ApiClient extends Context.Service<ApiClient, HttpApiClient.ForApi<typeof Api>>
+ApiClient.layer(baseUrl: string): Layer<ApiClient, never, HttpClient>  // HttpApiClient.make(Api, { baseUrl })
+ApiClient.layerFetch(baseUrl: string): Layer<ApiClient>              // layer over FetchHttpClient
+api.<group>.<endpoint>(request): Effect<Success, E>
+// E = the endpoint's declared errors | its middleware's (RequestInvalidError everywhere,
+//     UserUnknownError under Auth only) | HttpClientError | SchemaError (unexpected response), by _tag
 ```
+
+*Replanned in S12b (D29):* `ApiClient` lives in `http-api/api.client.ts` and decodes with the
+contract's own schemas, so brands, `DateTime` and error classes reach the caller. It manages no
+cookies: the browser sends same-origin cookies by itself through the web proxy, and the api
+tests attach theirs with `HttpClient.withCookiesRef` on the `HttpClient` that `layer` leaves open. Web code runs the Effects itself: the
+health panel is `ApiClient.use((api) => api.health.get())`, matched into a view, with a table of
+sentences `as const satisfies Record<tag, string>` over the call's error tags, provided
+`ApiClient.layerFetch` of `/api` at the web entry. The `Promise<Result>` facade goes with D13.
 
 ### Configuration
 
@@ -350,8 +364,9 @@ The cookie is `Secure` when `RuntimeConfig.nodeEnv === 'production'`. The snapsh
 | 4 `send` and `worker` in `packages/queue` on the memory store under `TestClock` | `AttemptInfo` values per attempt, `isLastAttempt` on the dead-letter attempt and no attempt after it, release when the worker's scope closes, one job per `jobId` | SQLite timing |
 | 5 `UserService`, `ChatService`, `AttachmentService` and the use cases `SendMessageUseCase`, `DeleteChatUseCase` on memory adapters, `QueueClientMemory`, `TestClock`, `TestCrypto` | ensure/authenticate, send writes two messages and enqueues one or two jobs, `409` while a message is active, bound and foreign attachments, rename (a blank title is a type error: `ChatTitle` is a brand, rejected at seams 1 and 7), delete cascade and its retry after a failed chat write, a delete that waits for a send of the same user under the shared lock, title job only on the first message, concurrent sends (one chat; one attachment in two chats), a title the worker sets during a send, `AttachmentService.findBindable`, `bind` and `deleteByIds` | HTTP statuses, cookies |
 | 6 `AssistantMessageJob.worker` and `ChatTitleJob.worker` with a fake `LanguageModel` under `TestClock` | stage sequence, snapshot cadence and final write, `failed` only on the last reply attempt (the third of four, D23), prompt content (history, roles, file parts), title only if `none`, chat deleted meanwhile, a blank text or answer (D25) | a real provider, the SQLite queue |
-| 7 `apps/api` through `BunHttpServer.layerTest` + `ApiClient` from `@app-template/http-api` (*Amended in S12*) with `HttpClient.withCookiesRef` | the whole wire: cookie attributes, `401`/`404`/`409`/`413`/`415`/`400` bodies, multipart limits, download headers, `202` shape, the `Result` facade mapping, a stopped server → transport tag; the spec from `OpenApi.fromApi(Api)`: the `cookie` scheme on `chats` and `attachments`, every route's errors with their statuses, `multipart/form-data` and `application/octet-stream` (*Added in S12*, from Seam 8) | browser cookie behaviour, the web proxy, `Secure` on http |
+| 7 `apps/api` through `BunHttpServer.layerTest` + `ApiClient` from `@app-template/http-api` (*Amended in S12*) with `HttpClient.withCookiesRef` | the whole wire: cookie attributes, `401`/`404`/`409`/`413`/`415`/`400` bodies, multipart limits, download headers, `202` shape, the client's typed errors, a stopped server → `HttpClientError` (*Amended in S12b*); the spec from `OpenApi.fromApi(Api)`: the `cookie` scheme on `chats` and `attachments`, every route's errors with their statuses, `multipart/form-data` and `application/octet-stream` (*Added in S12*, from Seam 8) | browser cookie behaviour, the web proxy, `Secure` on http |
 | 8 ~~`make check` drift of `openapi.json`~~ *Retired in S12 (D16):* no spec file; its spec assertions move to Seam 7 | — | — |
+| 9 ~~`createApiClient` over an injected `fetch`~~ *Retired in S12b (D29):* no facade; the client's typed errors are observed at Seam 7, and an error table's completeness at `make typecheck` | — | — |
 
 Dev-mode behaviour (two processes sharing `.data/store`, `--watch`, SIGTERM) is verified by hand
 per the acceptance table, not by a test.
@@ -496,7 +511,8 @@ per the acceptance table, not by a test.
   `responseMode: 'decoded-and-response'` exposes the cookie attributes; the same server also runs
   `@app-template/api-client`, so the facade is covered by the same suite. *Rejected:*
   `HttpApiTest.groups` (no socket, but no `transformClient`, so no cookie); a raw `fetch` test
-  (untyped).
+  (untyped). *Amended in S12b (D29):* the suite's client is `ApiClient` from `http-api`; there is
+  no facade left to cover.
 - **D10 — `download` is a `handleRaw` returning `HttpServerResponse.uint8Array(bytes, {
   contentType, headers })` under a success declared `asUint8Array()`.** The real type travels in
   the header while OpenAPI documents `application/octet-stream`; `204` is
@@ -516,7 +532,9 @@ per the acceptance table, not by a test.
   outlive the chat's deletion. *Amended in S10b:* `SendMessageUseCase.send` enqueues the job, on
   the `opensChat` that `ChatService.findSendable` reads (D26).
 - **D13 — The client is one mapped type over `HttpApiClient` with `FetchHttpClient`, returning
-  `Promise<Result>`; it manages no cookies, and takes an optional `fetch`.** The browser sends
+  `Promise<Result>`; it manages no cookies, and takes an optional `fetch`.** *Superseded in S12b
+  by D29:* `packages/api-client` is deleted, and `ApiClient` in `http-api` is `HttpApiClient`
+  itself; only "it manages no cookies" stands. The browser sends
   same-origin cookies by itself and the web dev server proxies `/api/`; the `Result` shape and
   the `_tag` unions come from `effect-setup` D4. `createApiClient(baseUrl, { fetch })` feeds
   `FetchHttpClient.Fetch`, so the api test suite and a later Node consumer can attach a cookie in
@@ -746,6 +764,16 @@ per the acceptance table, not by a test.
   - the `Promise<Result>` facade (D13): it hid Effect from a web that now uses it, and
     `HttpApiClient` offers no `Promise`, `signal` or pinned response mode to build it on;
   - `openapi-typescript`, `orval`, `hey-api`, `kubb`: types only, heavy, or no Effect.
+
+  *Amended in S12b:* `Api` is declared in `http-api/api.ts`, and `index.ts` re-exports it beside
+  `ApiClient`: with `Api` in `index.ts`, `api.client.ts` importing it and `index.ts` re-exporting
+  the client form an import cycle that Biome's `noImportCycles` rejects. *Rejected:* `ApiClient`
+  in `index.ts` beside `Api` (no `.client` file, against `naming.md`); a second entry for the
+  client (the layer keeps one).
+  *Also in S12b:* `ApiClient.layer` leaves `HttpClient` open and `layerFetch` closes it over
+  `FetchHttpClient`, per `effect-services.md › Layers`, so Seam 7 wraps its own client with a
+  cookie jar. *Rejected:* `layer` closed over `FetchHttpClient` (the tests could not attach
+  cookies).
 
 ## Risks
 

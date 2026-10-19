@@ -10,8 +10,8 @@ Build the example domain end to end, in memory: a user gets a secret, creates a 
 message with optional attachments, and the assistant answers through a worker job whose progress
 the user's client polls; the user lists, reopens, renames and deletes their chats. Every
 piece crosses the layers the architecture prescribes (`domain` → `infrastructure` →
-`application` → `apps/api` and `apps/worker`), the api is an `HttpApi` contract with a committed
-`openapi.json` and a browser client, and the `example` slice is deleted: `chat` becomes the worked
+`application` → `apps/api` and `apps/worker`), the api is an `HttpApi` contract over the domain that
+serves its `/openapi.json` and gives the browser a typed client, and the `example` slice is deleted: `chat` becomes the worked
 example every later ticket and every new project reads. Postgres, S3, SQS and real providers each
 replace one layer later.
 
@@ -61,6 +61,7 @@ replace one layer later.
 
 - **Client routes compared on 2026-10-17** (experiments on a three-endpoint contract, `bun build
   --minify --target=browser`, registry versions of that day). The user chose Effect's own client.
+  *Amended in S12b:* without the facade, which D29 drops; the measured 54 KB is Effect's client.
 
   | Route | Browser gzip | Errors | Cost |
   |---|---|---|---|
@@ -86,8 +87,9 @@ replace one layer later.
   each holding both sides in one file.
 - `http-api` (*Amended in S12a:* a layer, no longer `packages/api-contract`): the `HttpApi` with the user secret as cookie security, multipart
   upload, the spec served at `/openapi.json` (*Amended in S12:* no longer committed), Scalar UI.
-- `packages/api-client`: the `Promise<Result>` facade over `HttpApiClient`, the api's one client
-  for the browser, tests and later Effect consumers.
+- `ApiClient` in `http-api` (*Amended in S12b:* no longer the `Promise<Result>` facade
+  `packages/api-client`): `HttpApiClient` over `FetchHttpClient`, the api's one client for the
+  browser, the api's tests and later Effect consumers.
 - `apps/api` on `HttpApiBuilder`, `BunHttpServer` and `BunRuntime`; `apps/worker` running the two
   jobs on the queue port; dev state shared through a file-system `KeyValueStore`.
 - `apps/web`: the health panel moved to the new client; nothing else.
@@ -250,17 +252,25 @@ replace one layer later.
   answer a body that fails decoding with a `400 RequestInvalidError` listing every issue (path and
   message); a failure to encode a response stays a 500. *Amended in S12a (D29): the handlers
   mapped domain errors to contract twins, and the 400 was `RequestInvalid`.*
-- **R29** — `@app-template/api-client` SHALL build its client with `HttpApiClient` over
-  `FetchHttpClient` from the contract, with no code generation and no server code, and expose one
-  function per endpoint returning `Promise<Result>`, a union of `{ ok: true, value }` and
-  `{ ok: false, error }` that never rejects. `error` SHALL be the `_tag`-discriminated union derived
-  from the contract: the endpoint's declared errors, `RequestInvalid`, `UserUnknown`, and the
-  transport and unexpected-response errors. Multipart endpoints SHALL take a `FormData`. The
-  package SHALL import only `effect` and `@app-template/api-contract`.
-- **R30** — `apps/web` client code SHALL call the api only through `@app-template/api-client`, SHALL
-  NOT import `effect` or `@effect/*`, and SHALL keep its health panel working. *Amended in
-  architecture: the server entry `main.ts` may import `effect`; its Biome override already allows
-  it, and the earlier claim to the contrary was wrong.*
+- **R29** — `@app-template/http-api` SHALL export `ApiClient`, a service over
+  `HttpApiClient.make(Api)` with `FetchHttpClient`, with no code generation and no server code, so
+  the client decodes with the contract's own schemas. Each endpoint SHALL be an `Effect` whose
+  error is the `_tag`-discriminated union derived from the contract: the endpoint's declared
+  errors, its middleware's (`RequestInvalidError` on every endpoint, `UserUnknownError` only under
+  `Auth`), `HttpClientError` (transport failure or an undeclared status) and `SchemaError` (an
+  unexpected response). WHEN the api answers, or the transport fails, THE SYSTEM SHALL succeed
+  with the decoded value or fail with the matching error. Multipart endpoints SHALL take a
+  `FormData`. *Amended in S12b (D29): the client was the package `@app-template/api-client`, a
+  `Promise<Result>` facade that never rejected; `HttpApiClient` offers no `Promise`, `signal` or
+  pinned response mode to build it on, so web code runs the client's Effects itself.*
+- **R30** — `apps/web` client code SHALL call the api only through `http-api` (`ApiClient`, or
+  `Api` for a client built over it), SHALL import no workspace of ours but `@app-template/http-api`
+  and `@app-template/ui`, and SHALL keep its health panel working: WHEN the api answers, THE SYSTEM SHALL render `API status: ok`; IF the call
+  fails, THEN THE SYSTEM SHALL render one sentence per error tag. *Amended in S12b (D29): web
+  client code imported no `effect` or `@effect/*` and called the api through
+  `@app-template/api-client`.* *Amended in architecture: the server entry `main.ts` may import
+  `effect`; its Biome override already allows it, and the earlier claim to the contrary was
+  wrong.*
 
 ### Jobs, runtime and dev modes
 
@@ -312,8 +322,8 @@ replace one layer later.
 | R24–R25 | After the first send, the title job is queued with an id derived from the chat id (a second send queues no second title job); the worker sets a title ≤ 120 chars; a `PATCH` made before the job completes wins; a model that always fails leaves `title: null` and a dead-letter log; a first message with a blank text (no text, or whitespace only), or a blank answer, leaves `title: null` with an `Info` log and no retry (*Amended in S9*). |
 | R26–R27 | `http-api` imports only `effect` and `@app-template/domain` (a probe importing another workspace fails `make lint`); at Seam 7, `OpenApi.fromApi(Api)` names the domain's tags (`UserUnknownError`) and documents the cookie security scheme and the 400; `GET /openapi.json` serves that spec and `GET /docs` serves Scalar. |
 | R28 | A request with a malformed body is `400 RequestInvalidError` listing every issue; `make dev-api` starts through `BunRuntime` and logs finalizers on SIGTERM. |
-| R29 | Through the client against the test server: an unknown chat id resolves to `{ ok: false, error: { _tag: 'ChatNotFound' } }`, a malformed body to `RequestInvalid`, a missing cookie to `UserUnknown`, a stopped server to the transport tag, and no call rejects; a `switch` over `error._tag` missing a case fails `make typecheck`; `bun build --minify --target=browser` of the client stays near the measured 54 KB gzip, recorded in the step's findings. |
-| R30 | `import 'effect'` in `apps/web/src/` fails `make lint` with no override gap; the health panel renders `API status: ok`. |
+| R29 | Through `ApiClient` against the test server (Seam 7): an unknown chat id fails with `ChatNotFoundError`, a malformed body with `RequestInvalidError`, a missing cookie with `UserUnknownError`, a stopped server with `HttpClientError`; a table keyed by an endpoint's error tags (`satisfies Record<tag, …>`) fails `make typecheck` on a missing or an extra tag; `bun build --minify --target=browser apps/web/src/app/main.ts \| gzip` stays near the measured 54 KB, recorded in the step's findings. *Amended in S12b.* |
+| R30 | A probe in `apps/web/src/features/` importing `@app-template/config`, `@app-template/domain` or another workspace of ours fails `make lint`, and one importing `effect` or `@app-template/http-api` passes; `make dev-api` and `make dev-web` render `API status: ok` at `localhost:3001` and, with the api stopped, the `HttpClientError` sentence. *Amended in S12b.* |
 | R31–R32 | The two `.job.ts` files export `enqueue` and `worker`; `apps/worker/src` holds no job logic; the job schemas carry ids only. *Amended in S6: the title job carries the first message's id, not its text.* |
 | R33 | `mv .env .env.bak && make test` passes; with `make dev-api` and `make dev-worker` running, a send in one terminal is followed by `completed` on the next poll; `.data/store` exists and is gitignored. |
 | R34–R35 | SIGTERM during a job leaves it at the same attempt for the restarted worker; `git grep -E "Date.now|new Date\(|randomUUID" -- 'domain/**/*.ts'` finds nothing; tests fix ids with `TestCrypto`. |

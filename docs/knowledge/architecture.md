@@ -14,12 +14,12 @@ graph TD
   application --> domain
   apps -->|"apps/api only"| httpApi["http-api"]
   httpApi --> domain
-  apps --> packages["packages/* (config · queue · llm · api-client · ui)"]
+  apps --> packages["packages/* (config · queue · llm · ui)"]
   application --> packages
   infrastructure --> packages
   web["apps/web client"] --> httpApi
-  web --> clientPkgs["api-client · ui"]
-  webMain["apps/web/src/main.ts"] --> clientPkgs
+  web --> ui["packages/ui"]
+  webMain["apps/web/src/main.ts"] --> ui
   webMain --> config["packages/config"]
   deployment --> packages
 ```
@@ -51,8 +51,8 @@ Each row lists what a workspace may import.
 | packages/* | ✗ | ✗ | ✗ | ✗ | ✓ (each other) | ✗ |
 | apps/api | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ (no sibling app) |
 | apps/worker | ✓ | ✗ | ✓ | ✓ | ✓ | ✗ (no sibling app) |
-| apps/web client (`app/`, `features/`, `shared/`) | ✗ | ✓ | ✗ | ✗ | `api-client`, `ui` only | ✗ |
-| apps/web/src/main.ts | ✗ | ✗ | ✗ | ✗ | `api-client`, `ui`, `config` | ✗ |
+| apps/web client (`app/`, `features/`, `shared/`) | ✗ | ✓ | ✗ | ✗ | `ui` only | ✗ |
+| apps/web/src/main.ts | ✗ | ✗ | ✗ | ✗ | `ui`, `config` | ✗ |
 | deployment | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ |
 
 - **`domain` imports `effect` and no workspace,** not even `packages/*`, and no `@effect/*`
@@ -62,8 +62,9 @@ Each row lists what a workspace may import.
   and errors instead of copies, and the wire carries the domain's tags (`UserUnknownError`). The
   domain therefore ships to the browser: it declares `"sideEffects": false`, so a bundle keeps
   only the schemas it uses and drops the ports.
-- **`apps/web` client code ships to the browser.** Only its server entry `main.ts` may read
-  `config`, to get a validated `WEB_PORT`.
+- **`apps/web` client code ships to the browser.** It calls the api through `ApiClient` from
+  `http-api` and runs its Effects itself; only its server entry `main.ts` may read `config`, to
+  get a validated `WEB_PORT`.
 - **A ✓ is permission, not a declaration.** The dependency must also be in the importer's
   `package.json`; see [the four guards](#four-boundary-guards).
 
@@ -140,8 +141,9 @@ Pascal one (`Document`).
    and the use cases, with whatever they take as arguments, and return them from `createLayer()`.
 8. **Delivery.** Add routes in `apps/api/src/http.ts`, and map each new error `_tag` to a status in
    `statusByTag`. Extend `apps/api/src/http.test.ts` with a round trip.
-9. **Client, if the browser needs it.** Add a method to `@app-template/api-client`, then a feature
-   folder under `apps/web/src/features/<entity>/`.
+9. **Client, if the browser needs it.** `ApiClient` from `@app-template/http-api` already has every
+   endpoint of the contract; add a feature folder under `apps/web/src/features/<entity>/` whose
+   Effect calls it.
 
 A new entity in existing workspaces usually needs no new dependency, because the layers already
 declare each other. Check the importer's `package.json` anyway: `apps/worker`, for one, does not
@@ -154,7 +156,7 @@ The import rules are enforced four times, each catching what the others miss:
 
 | Guard | Catches | Reports |
 |---|---|---|
-| Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json` | an import that goes up a layer or into a sibling app; any relative path; a workspace or an `@effect/*` package other than `@effect/vitest` in `domain`; a workspace other than `domain`, or an `@effect/*` package, in `http-api`; `http-api` in a lower layer, a package, the worker or `deployment`; `effect` in web client code | `make lint`, `pre-commit`, CI `static` |
+| Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json` | an import that goes up a layer or into a sibling app; any relative path; a workspace or an `@effect/*` package other than `@effect/vitest` in `domain`; a workspace other than `domain`, or an `@effect/*` package, in `http-api`; `http-api` in a lower layer, a package, the worker or `deployment` | `make lint`, `pre-commit`, CI `static` |
 | the isolated linker with `tsc -b` | an allowed import of a workspace that is not declared in `package.json` | TS2307 in `make typecheck` and at runtime |
 | `composite` project references (`rootDir: "."`) | a path that reaches into an unreferenced workspace's files | TS6059 / TS6307 in `make typecheck` |
 | the GritQL plugin `biome/test-support-imports.grit`, in one last `overrides` entry for every file but `*.test.ts` and `testing/**` | source code that imports or re-exports `#<workspace>/testing/…` or `@app-template/testing` | `make lint`, `pre-commit`, CI `static` |

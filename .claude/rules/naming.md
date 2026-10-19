@@ -41,7 +41,7 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 | `.job` | a queue's producer service and its worker | application |
 | `.repository` · `.storage` · `.llm` | an adapter over a client | infrastructure |
 | `.queue` | queue definitions | infrastructure |
-| `.client` | client wiring | infrastructure/shared, packages |
+| `.client` | client wiring | infrastructure/shared, http-api, packages |
 | `.http` | a contract group: one resource's HTTP routes (`HttpApiGroup`) | http-api |
 | `.handler` | a request handler | apps |
 | `.test` | a colocated test that mirrors its source name | any |

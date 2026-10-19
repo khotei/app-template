@@ -235,8 +235,8 @@ GET /attachments/:attachmentId/download
   `infrastructure` and the apps may not import `deployment`, so a `deployment/shared/` inventory
   could not name the resources the code uses. Definitions take `name` and `maxAttempts` from
   `resources.queues`, so code and inventory cannot drift on those; the agreement test (seam 7)
-  covers what construction cannot. Like `api-contract`, the package is this project's data, which
-  `packages/CLAUDE.md` notes. *Amends feature R15* (location) *and R17* (the check is the agreement
+  covers what construction cannot. The package is this project's data, which `packages/CLAUDE.md`
+  notes. *Amends feature R15* (location) *and R17* (the check is the agreement
   test plus `verify`, not a separate scan). *Rejected:* `deployment/shared/` (unreachable from the
   layers); names in `.env` (the drift R17 exists to prevent).
 - **D5 — Physical names come from `STAGE`; queue URLs are resolved and cached at first use;

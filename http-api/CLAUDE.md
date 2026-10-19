@@ -1,8 +1,8 @@
 # http-api
 
-The HTTP contract: one `HttpApi` (`index.ts`) over the domain, shared by `apps/api`, which
-implements it, and the browser, which calls it. A layer, not a package: it is the system's
-boundary, specific to this app and used by two apps.
+The HTTP contract: one `HttpApi` (`api.ts`) over the domain, shared by `apps/api`, which
+implements it, and the browser, which calls it through `ApiClient` (`api.client.ts`). A layer,
+not a package: it is the system's boundary, specific to this app and used by two apps.
 
 - **Imports only `effect` and `@app-template/domain`.** Biome rejects every other workspace and
   `@effect/*`.

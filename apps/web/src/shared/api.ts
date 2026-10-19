@@ -1,3 +1,4 @@
-import { createApiClient } from '@app-template/api-client'
+import { ApiClient } from '@app-template/http-api'
 
-export const apiClient = createApiClient(new URL('/api/', window.location.origin).href)
+/** Calls the api through the web server's `/api` proxy, so the browser stays same-origin. */
+export const ApiClientProxied = ApiClient.layerFetch(new URL('/api', window.location.origin).href)

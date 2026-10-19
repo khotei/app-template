@@ -40,8 +40,8 @@
     "apps/web": {
       "name": "@app-template/web",
       "dependencies": {
-        "@app-template/api-client": "workspace:*",
         "@app-template/config": "workspace:*",
+        "@app-template/http-api": "workspace:*",
         "@app-template/ui": "workspace:*",
         "effect": "catalog:effect",
       },
@@ -86,9 +86,6 @@
         "@effect/platform-bun": "catalog:effect",
         "@effect/vitest": "catalog:effect",
       },
-    },
-    "packages/api-client": {
-      "name": "@app-template/api-client",
     },
     "packages/config": {
       "name": "@app-template/config",
@@ -157,8 +154,6 @@
   },
   "packages": {
     "@app-template/api": ["@app-template/api@workspace:apps/api"],
-
-    "@app-template/api-client": ["@app-template/api-client@workspace:packages/api-client"],
 
     "@app-template/application": ["@app-template/application@workspace:application"],
 

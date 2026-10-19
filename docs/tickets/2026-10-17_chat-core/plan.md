@@ -1043,8 +1043,9 @@ apart in `apps/api`.
 #### S12b — `ApiClient` and the web on Effect
 
 - **Goal:** `http-api/api.client.ts` holds `ApiClient`, a `Context.Service` over
-  `HttpApiClient.ForApi<typeof Api>` whose `layer(baseUrl)` runs `HttpApiClient.make(Api)` over
-  `FetchHttpClient`; `http-api/index.ts` re-exports it beside `Api`. `packages/api-client` is
+  `HttpApiClient.ForApi<typeof Api>` whose `layer(baseUrl)` runs `HttpApiClient.make(Api)` and
+  leaves `HttpClient` open, and `layerFetch(baseUrl)` closes it over `FetchHttpClient`;
+  `http-api/index.ts` re-exports it beside `Api`. `packages/api-client` is
   deleted, with its root `workspaces` and `tsconfig.json` entries and every doc mention
   (*Amended in S12a*, on the user's review: a package may not import the `http-api` layer). There is no facade: web
   code imports `effect` (the Biome ban goes), and the web's own stack (Effect, `effect` atoms
@@ -1053,11 +1054,13 @@ apart in `apps/api`.
   or one sentence per error tag from a table `as const satisfies Record<tag, string>` (R29,
   R30; D29).
 - **Blocked by:** S12a.
-- **Files:** `http-api/{api.client,index}.ts`; `packages/api-client/` deleted, root
+- **Files:** `http-api/{api,api.client,index}.ts`, `http-api/CLAUDE.md`; `packages/api-client/` deleted, root
   `package.json` and `tsconfig.json`, `apps/web/{package.json,tsconfig.json}`, `bun.lock`;
   `biome.json` (the web client's `effect` ban removed, `api-client` dropped); `apps/web/src/features/health/
   health-panel.ts`, `apps/web/src/app/main.ts`, `apps/web/src/shared/api.ts`; `apps/CLAUDE.md`,
-  `docs/knowledge/architecture.md`.
+  `packages/CLAUDE.md`, `.claude/rules/naming.md` (`.client` in `http-api`),
+  `.github/PULL_REQUEST_{TEMPLATE,example}.md`, `docs/knowledge/{architecture,tooling,roadmap}.md`;
+  the `aws-local` ticket's stale `api-contract` mentions.
 - **Test first:** `config only` — the client is observed at Seam 7 from S13 on; the panel's
   table without one error tag fails `make typecheck`.
 - **Verify:** `make check`; `make dev-api` + `make dev-web` render `API status: ok` at
@@ -1067,7 +1070,25 @@ apart in `apps/api`.
 - **Docs in this step:** `feature.md` R29 and R30 rewritten for `HttpApiClient` with typed
   Effect errors, with their acceptance; `architecture.md` D13 (superseded by D29), the Client
   section, the Seams table (Seam 9 retired).
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - `Api` moves to `http-api/api.ts`: with `Api` in `index.ts`, `api.client.ts` importing it and
+    `index.ts` re-exporting the client, Biome's `noImportCycles` failed on `index.ts:19`.
+    `index.ts` stays the one entry (D29).
+  - `ApiClient.layer` leaves `HttpClient` open and `layerFetch` closes it, per
+    `effect-services.md › Layers`: a `layer` closed over `FetchHttpClient` would keep Seam 7 from
+    wrapping its client with `HttpClient.withCookiesRef` (D29).
+  - Red then green at `make typecheck`: the panel's table without `SchemaError` failed TS2741;
+    an extra `ChatNotFoundError` row failed TS2353.
+  - Biome, red then green, one probe per form in `apps/web/src/features/`: `effect` and
+    `effect/http-api` failed and now pass; `@app-template/http-api` passes both;
+    `@app-template/config` and `@app-template/domain/user` fail both; `@app-template/api-client`
+    passed and now fails. The server entry still rejects `api-client` and `http-api`. Probes
+    removed.
+  - Headless Chrome on `localhost:3001`: `API status: ok`; with the api stopped, the proxy answers
+    `500` and the panel shows the `HttpClientError` sentence (an undeclared status, not a dropped
+    connection: Seam 7 checks the transport failure without the proxy).
+  - `bun build --minify --target=browser apps/web/src/app/main.ts | gzip | wc -c`: 55 392 bytes.
 - **Findings of the dropped attempts** (kept as evidence for D29):
   - `HttpApiClient.ForApi` cannot be mapped into a facade: its methods are generic in the
     response mode, and `infer` widened `users.ensure`'s success to `User | HttpClientResponse |
