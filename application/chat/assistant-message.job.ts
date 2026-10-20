@@ -48,6 +48,7 @@ export const SnapshotInterval = Context.Reference<Duration.Duration>(
 const readTurn = Effect.fnUntraced(function* (message: Message) {
   const attachments = yield* AttachmentRepository
   const store = yield* AttachmentStore
+
   const found = yield* attachments.selectByIds(message.attachmentIds)
   const files = yield* Effect.forEach(found, (attachment) =>
     Effect.map(
@@ -55,6 +56,7 @@ const readTurn = Effect.fnUntraced(function* (message: Message) {
       Option.map((bytes) => ({ attachment, bytes })),
     ),
   )
+
   return { message, files: Arr.getSomes(files) } satisfies ChatTurn
 })
 
@@ -72,20 +74,26 @@ const streamSnapshots = Effect.fnUntraced(function* <E, R>(
   deltas: Stream.Stream<string, E, R>,
 ) {
   const messages = yield* MessageRepository
+  const interval = yield* SnapshotInterval
   const text = yield* Ref.make(generating.text)
   const written = yield* Ref.make(generating.text)
+
   const snapshot = Effect.gen(function* () {
     const current = yield* Ref.get(text)
-    if (Equal.equals(current, yield* Ref.get(written))) return
+    const last = yield* Ref.get(written)
+    if (Equal.equals(current, last)) return
+
     const at = yield* DateTime.now
     yield* messages.update(new Message({ ...generating, text: current, updatedAt: at }))
     yield* Ref.set(written, current)
   })
+
   yield* Effect.raceFirst(
     Stream.runForEach(deltas, (delta) => Ref.update(text, (accumulated) => accumulated + delta)),
     // A write interrupted mid-flight could land after the final one, so a snapshot runs whole.
-    Effect.repeat(Effect.uninterruptible(snapshot), Schedule.spaced(yield* SnapshotInterval)),
+    Effect.repeat(Effect.uninterruptible(snapshot), Schedule.spaced(interval)),
   )
+
   return yield* Ref.get(text)
 })
 
@@ -101,16 +109,19 @@ const writeSettled = Effect.fnUntraced(function* (settled: Message) {
 
 const reply = Effect.fnUntraced(function* (taken: Message) {
   const messages = yield* MessageRepository
+
   // Refused only for a terminal message: the reply was written before this take's lock expired.
   const takenAt = yield* DateTime.now
   const entry = yield* Effect.option(prepareMessage(taken, takenAt))
   if (Option.isNone(entry)) return yield* alreadySettled
   const prepared = entry.value
   yield* messages.update(prepared)
+
   const history = yield* readHistory(prepared.chatId)
   const generatingAt = yield* DateTime.now
   const generating = yield* generateMessage(prepared, generatingAt)
   yield* messages.update(generating)
+
   const text = yield* streamSnapshots(generating, streamAssistantText(buildChatPrompt(history)))
   const completedAt = yield* DateTime.now
   const completed = yield* completeMessage(generating, text, completedAt)
@@ -120,7 +131,9 @@ const reply = Effect.fnUntraced(function* (taken: Message) {
 const findReply = Effect.fnUntraced(function* (job: GenerateAssistantMessage) {
   const chats = yield* ChatRepository
   const messages = yield* MessageRepository
-  if (Option.isNone(yield* chats.selectById(job.chatId))) return Option.none()
+
+  const chat = yield* chats.selectById(job.chatId)
+  if (Option.isNone(chat)) return Option.none()
   return yield* messages.selectById(job.messageId)
 })
 

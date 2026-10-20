@@ -60,6 +60,7 @@ export const createCollection = <A>(
     update: Effect.fn('Collection.update')(function* (key: string, f: (current: A) => A) {
       const current = yield* get(key)
       if (Option.isNone(current)) return Option.none()
+
       const next = f(current.value)
       yield* set(key, next)
       return Option.some(next)

@@ -90,6 +90,7 @@ export const AttachmentHandler = HttpApiBuilder.group(
         'upload',
         Effect.fn('AttachmentHandler.upload')(function* ({ payload }) {
           const user = yield* CurrentUser
+
           const files = yield* payload.pipe(
             Stream.mapEffect(bufferFile),
             Stream.runCollect,
@@ -102,6 +103,7 @@ export const AttachmentHandler = HttpApiBuilder.group(
               buildRequestInvalid(['files'], 'Expected at least 1 file'),
             ),
           )
+
           const uploaded = yield* Effect.forEach(files, (file) => attachments.upload(user.id, file))
           return Arr.map(uploaded, toAttachment)
         }),

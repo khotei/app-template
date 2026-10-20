@@ -118,7 +118,9 @@ export class ChatService extends Context.Service<
 
     const create = Effect.fn('ChatService.create')(function* (userId: UserId) {
       const id = ChatId.make(yield* randomId)
-      const chat = buildChat({ id, userId, createdAt: yield* DateTime.now })
+      const createdAt = yield* DateTime.now
+      const chat = buildChat({ id, userId, createdAt })
+
       yield* chats.insert(chat)
       return chat
     })
@@ -140,8 +142,10 @@ export class ChatService extends Context.Service<
     const get = Effect.fn('ChatService.get')(function* (userId: UserId, chatId: ChatId) {
       const chat = yield* findOwnedChat(userId, chatId)
       const summary = yield* summarize(chat)
+
       const stored = yield* messages.selectByChat(chatId)
-      return { ...summary, messages: yield* Effect.forEach(stored, withAttachments) }
+      const detailed = yield* Effect.forEach(stored, withAttachments)
+      return { ...summary, messages: detailed }
     })
 
     const rename = Effect.fn('ChatService.rename')(function* (
@@ -150,11 +154,9 @@ export class ChatService extends Context.Service<
       title: ChatTitle,
     ) {
       const chat = yield* findOwnedChat(userId, chatId)
-      const renamed = new Chat({
-        ...chat,
-        title: Option.some(title),
-        updatedAt: yield* DateTime.now,
-      })
+      const updatedAt = yield* DateTime.now
+      const renamed = new Chat({ ...chat, title: Option.some(title), updatedAt })
+
       yield* chats.update(renamed)
       return renamed
     }, userLock.withPermit)
@@ -172,12 +174,14 @@ export class ChatService extends Context.Service<
       messageId: MessageId,
     ) {
       yield* findOwnedChat(userId, chatId)
+
       const found = yield* messages.selectById(messageId)
       const message = yield* ensureFound(
         found,
         isInChat(chatId),
         () => new MessageNotFoundError({ id: messageId }),
       )
+
       return yield* withAttachments(message)
     })
 
@@ -188,8 +192,10 @@ export class ChatService extends Context.Service<
     ) {
       yield* ensureMessageInput(input)
       yield* findOwnedChat(userId, chatId)
+
       const active = yield* messages.selectActiveByChat(chatId)
       yield* ensureChatAcceptsMessage(active)
+
       const stored = yield* messages.selectByChat(chatId)
       const at = yield* DateTime.now
       return new SendableChat(chatId, input, Arr.isReadonlyArrayEmpty(stored), at)
@@ -205,6 +211,7 @@ export class ChatService extends Context.Service<
         attachmentIds: sendable.input.attachmentIds,
         createdAt: sendable.at,
       })
+
       yield* messages.insert(message)
       return message
     })
@@ -217,6 +224,7 @@ export class ChatService extends Context.Service<
         chatId: sendable.chatId,
         createdAt: sendable.at,
       })
+
       yield* messages.insert(message)
       return message
     })

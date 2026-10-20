@@ -112,6 +112,7 @@ export const settle = (message: Message) =>
   Effect.gen(function* () {
     const messages = yield* MessageRepository
     const at = yield* DateTime.now
+
     const prepared = yield* prepareMessage(message, at)
     const completed = yield* completeMessage(prepared, 'Sure.', at)
     yield* messages.update(completed)

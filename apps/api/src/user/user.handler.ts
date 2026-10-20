@@ -22,6 +22,7 @@ export const UserHandler = HttpApiBuilder.group(
         const { user, secret } = yield* users.ensure(
           Option.liftPredicate(presented, (secret) => Redacted.value(secret) !== ''),
         )
+
         yield* HttpApiBuilder.securitySetCookie(Auth.security.cookie, secret, {
           httpOnly: true,
           sameSite: 'lax',

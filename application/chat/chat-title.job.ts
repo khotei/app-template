@@ -37,12 +37,15 @@ const findUntitledChat = Effect.fnUntraced(function* (chatId: ChatId) {
 const handle = Effect.fn('ChatTitleJob.handle')(function* (job: GenerateChatTitle) {
   const chats = yield* ChatRepository
   const messages = yield* MessageRepository
+
   const untitledAtTake = yield* findUntitledChat(job.chatId)
   if (Result.isFailure(untitledAtTake)) return yield* titleSkipLogs[untitledAtTake.failure]
   const first = yield* messages.selectById(job.messageId)
   if (Option.isNone(first)) return yield* titleSkipLogs.firstMessageMissing
+
   const title = yield* suggestChatTitle(first.value.text)
   if (Option.isNone(title)) return yield* titleSkipLogs.nothingToTitle
+
   // Re-read right before the write, so a rename made while the model answered wins.
   const untitledBeforeWrite = yield* findUntitledChat(job.chatId)
   if (Result.isFailure(untitledBeforeWrite)) {

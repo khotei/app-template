@@ -12,6 +12,10 @@ The goal is code that reads top to bottom and extends by adding a row, not a bra
 - Write sequential logic as `Effect.gen` or `Effect.fn`, never `Effect.Do`; a one-step
   transformation is a combinator (`Effect.map`, `Effect.flatMap`).
 - Keep a generator flat: guard clauses, never a nested ternary.
+- One `yield*` per statement: name the intermediate value instead of nesting a `yield*` in an
+  argument, so a body reads top to bottom with every step in view.
+- Separate the paragraphs of a body with one blank line: the services it reads, the reads, the
+  checks, the writes, the result. A body of three statements or fewer stays unbroken.
 - A pipeline reads top to bottom and ends in the combinator that runs it (`Effect.forkScoped`,
   `Effect.forever`, `Layer.effectDiscard`).
 - Read an `Option` through its combinators (`Option.filter`, `Option.match`, `Option.getOrElse`);

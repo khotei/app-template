@@ -64,6 +64,7 @@ const runAttempt = <A, I, E, R>(
     const [level, text] = info.isLastAttempt
       ? (['Error', 'queue message dead-lettered'] as const)
       : (['Warn', 'queue message attempt failed'] as const)
+
     return yield* handle(message, info).pipe(
       Effect.tapCauseIf(Predicate.not(Cause.hasInterruptsOnly), (cause) =>
         Effect.logWithLevel(level)(text, cause),

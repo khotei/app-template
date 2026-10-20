@@ -55,12 +55,15 @@ export class SendMessageUseCase extends Context.Service<
     ) {
       const sendable = yield* chatService.findSendable(userId, chatId, input)
       const bindable = yield* attachmentService.findBindable(userId, input.attachmentIds)
+
       const userMessage = yield* chatService.addUserMessage(sendable)
       const bound = yield* attachmentService.bind(bindable, userMessage.id)
       const assistantMessage = yield* chatService.addAssistantMessage(sendable)
       yield* chatService.touch(sendable)
+
       yield* assistantJob.enqueue(assistantMessage)
       if (sendable.opensChat) yield* titleJob.enqueue(userMessage)
+
       return {
         userMessage: { message: userMessage, attachments: bound },
         assistantMessage: { message: assistantMessage, attachments: [] },

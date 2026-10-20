@@ -92,14 +92,16 @@ export class AttachmentService extends Context.Service<
       input: AttachmentUpload,
     ) {
       const id = AttachmentId.make(yield* Effect.orDie(crypto.randomUUIDv7()))
+      const createdAt = yield* DateTime.now
       const attachment = buildAttachment({
         id,
         userId,
         fileName: input.fileName,
         mediaType: input.mediaType,
         size: FileSize.make(input.bytes.length),
-        createdAt: yield* DateTime.now,
+        createdAt,
       })
+
       yield* store.insert(id, input.bytes)
       yield* attachments.insert(attachment)
       return attachment
@@ -116,6 +118,7 @@ export class AttachmentService extends Context.Service<
     ) {
       const attachment = yield* get(userId, id)
       const bytes = yield* store.select(id)
+
       if (Option.isNone(bytes)) return yield* new AttachmentNotFoundError({ id })
       return { attachment, bytes: bytes.value }
     })
@@ -126,6 +129,7 @@ export class AttachmentService extends Context.Service<
     ) {
       const found = yield* attachments.selectById(id)
       yield* ensureBindable(id, found, userId)
+
       yield* attachments.deleteByIds([id])
       yield* store.delete(id)
     })
@@ -135,9 +139,9 @@ export class AttachmentService extends Context.Service<
       userId: UserId,
       ids: ReadonlyArray<AttachmentId>,
     ) {
-      const found = new Map(
-        Arr.map(yield* attachments.selectByIds(ids), (attachment) => [attachment.id, attachment]),
-      )
+      const stored = yield* attachments.selectByIds(ids)
+      const found = new Map(Arr.map(stored, (attachment) => [attachment.id, attachment]))
+
       const bindable = yield* Effect.forEach(ids, (id) =>
         ensureBindable(id, Option.fromUndefinedOr(found.get(id)), userId),
       )
@@ -152,6 +156,7 @@ export class AttachmentService extends Context.Service<
         bindable.attachments,
         (attachment) => new Attachment({ ...attachment, messageId: Option.some(messageId) }),
       )
+
       yield* Effect.forEach(bound, attachments.update, { discard: true })
       return bound
     })
