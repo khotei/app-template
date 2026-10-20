@@ -156,20 +156,20 @@ const transitions = {
 
 const move = Effect.fnUntraced(function* (
   message: Message,
-  change: {
+  {
+    to,
+    at,
+    patch,
+  }: {
     readonly to: keyof typeof transitions
     readonly at: DateTime.Utc
     readonly patch?: Partial<Pick<Message, 'text' | 'error'>>
   },
 ) {
-  if (!transitions[change.to](message)) {
-    return yield* new MessageStageInvalidError({
-      id: message.id,
-      from: message.stage,
-      to: change.to,
-    })
+  if (!transitions[to](message)) {
+    return yield* new MessageStageInvalidError({ id: message.id, from: message.stage, to })
   }
-  return new Message({ ...message, ...change.patch, stage: change.to, updatedAt: change.at })
+  return new Message({ ...message, ...patch, stage: to, updatedAt: at })
 })
 
 export const prepareMessage = Effect.fn('prepareMessage')((message: Message, at: DateTime.Utc) =>
@@ -181,12 +181,8 @@ export const generateMessage = Effect.fn('generateMessage')((message: Message, a
 )
 
 export const completeMessage = Effect.fn('completeMessage')(
-  (message: Message, result: { readonly text: string; readonly at: DateTime.Utc }) =>
-    move(message, {
-      to: 'completed',
-      at: result.at,
-      patch: { text: result.text, error: Option.none() },
-    }),
+  (message: Message, { text, at }: { readonly text: string; readonly at: DateTime.Utc }) =>
+    move(message, { to: 'completed', at, patch: { text, error: Option.none() } }),
 )
 
 const failureMessages = {
@@ -196,23 +192,13 @@ const failureMessages = {
 export const failMessage = Effect.fn('failMessage')(
   (
     message: Message,
-    failure: {
-      readonly reason: MessageFailure['reason']
-      readonly cause: string
-      readonly at: DateTime.Utc
-    },
+    { reason, cause, at }: Pick<MessageFailure, 'reason' | 'cause'> & { readonly at: DateTime.Utc },
   ) =>
     move(message, {
       to: 'failed',
-      at: failure.at,
+      at,
       patch: {
-        error: Option.some(
-          new MessageFailure({
-            reason: failure.reason,
-            message: failureMessages[failure.reason],
-            cause: failure.cause,
-          }),
-        ),
+        error: Option.some(new MessageFailure({ reason, message: failureMessages[reason], cause })),
       },
     }),
 )

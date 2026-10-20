@@ -10,9 +10,11 @@ The goal is code that reads top to bottom and extends by adding a row, not a bra
 ## Signatures
 
 - A function with three or more parameters, or a boolean one, takes its subject first and the
-  rest as one object, so the call site names what it passes: `move(message, { to, at, patch })`,
-  `failMessage(message, { reason, cause, at })`, `new SendableChat({ chatId, input, opensChat,
-  at })`. A two-parameter function stays positional (`prepareMessage(message, at)`).
+  rest as one object, destructured in the parameter list, so the call site names what it passes:
+  `failMessage(message, { reason, cause, at })`. A two-parameter function stays positional
+  (`prepareMessage(message, at)`); so does a service `Shape` method whose leading parameters are
+  ids (`rename(userId, chatId, title)`), since the branded types tell them apart, and a
+  combinator that takes functions (`ensureFound(found, holds, missing)`).
 
 ## Control flow
 
