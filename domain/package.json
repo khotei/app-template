@@ -2,8 +2,12 @@
   "name": "@app-template/domain",
   "private": true,
   "type": "module",
+  "sideEffects": false,
   "exports": {
-    "./example": "./example/index.ts"
+    "./attachment": "./attachment/index.ts",
+    "./chat": "./chat/index.ts",
+    "./shared": "./shared/index.ts",
+    "./user": "./user/index.ts"
   },
   "imports": {
     "#domain/*": "./*.ts"
@@ -12,6 +16,7 @@
     "effect": "catalog:effect"
   },
   "devDependencies": {
+    "@app-template/testing": "workspace:*",
     "@effect/vitest": "catalog:effect"
   }
 }

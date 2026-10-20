@@ -35,7 +35,7 @@ debug-worker: ## Run the worker with --inspect and --watch
 debug-web: ## Run the web dev server with --inspect
 	bun --filter @app-template/web debug
 
-check: ids lint typecheck test ## Run every gate: ticket ids, lint, typecheck and tests
+check: ids lint typecheck test ## Run every gate: ticket ids, lint, typecheck, tests
 
 ids: ## Fail on ticket ids in parentheses (D12, R3, Q70) outside docs/tickets
 	@if git grep --untracked -nE '\((D|R|Q)[0-9]+[a-z]?\)' -- . ':!docs/tickets' \

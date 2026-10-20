@@ -18,7 +18,7 @@
   │  [ ] Title is a commits.md subject (gitmoji + type(scope) + imperative ≤50)
   │  [ ] `make check` passes (Biome + tsc -b + vitest)                       │
   │  [ ] Imports only go down: apps -> application -> infrastructure -> domain│
-  │  [ ] domain imports no workspace; web client imports only api-client, ui │
+  │  [ ] domain imports no workspace; web client imports only http-api, ui   │
   │  [ ] Inside a workspace: #<workspace>/… imports, no relative paths       │
   │  [ ] New dependency pinned in catalogs.tools or catalogs.runtime         │
   │  [ ] Ticket docs (feature / architecture / plan) and docs/knowledge/     │

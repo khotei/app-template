@@ -4,13 +4,17 @@ The pure core. It owns entity models, errors, ports (the interfaces that infrast
 and pure operations.
 
 - **Imports no workspace at all**, not even `packages/*`. Biome rejects any `@app-template/*`
-  import.
+  import, save `@app-template/testing` in a `*.test.ts`.
 - **No I/O and no ambient state:** no `Bun.env`, no `fetch`, no `Date.now()`, no `new Date()`, no
-  `crypto.randomUUID()`. Pass time and ids in as input (`buildExample({ id, name, createdAt })`),
+  `crypto.randomUUID()`. Pass time and ids in as input (`buildChat({ id, userId, createdAt })`),
   so operations stay deterministic and testable.
 - Models are `Schema.Class`; ids are `Schema` values `<Entity>Id`, branded `'<Entity>Id'`, with a
   type of the same name.
-- Errors are `Schema.TaggedError` classes whose `_tag` is the class name, and carry no HTTP status.
+- Errors are `Schema.TaggedError` classes whose `_tag` is the class name, and carry no HTTP status
+  ([http-api/CLAUDE.md](../http-api/CLAUDE.md) sets it).
+- **The domain ships to the browser** through `http-api`: no Bun APIs and no Node built-ins,
+  and no top-level side effects, since `"sideEffects": false` lets the bundler drop every
+  module the client does not use (the ports among them).
 - Persistence ports are `Context.Service` declarations with no layer, in `<entity>.service.ts`
   next to the operations; their layers live in `infrastructure`.
-- Each entity folder exposes itself through `index.ts` (`@app-template/domain/<entity>`).
+- Each folder (an entity, or `shared`) exposes itself through `index.ts` (`@app-template/domain/<folder>`).

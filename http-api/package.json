@@ -1,0 +1,16 @@
+{
+  "name": "@app-template/http-api",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./index.ts"
+  },
+  "imports": {
+    "#http-api/*": "./*.ts"
+  },
+  "dependencies": {
+    "@app-template/domain": "workspace:*",
+    "effect": "catalog:effect"
+  }
+}

@@ -40,6 +40,12 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
 - **Output.** vitest switches to its `minimal` reporter when it detects an agent (`CLAUDECODE`,
   `AI_AGENT`): failures and a summary only. A terminal without them gets the per-file `default`
   reporter; `bun run test --reporter=default` forces it.
+- **Errors are compared by their encoded form.** JSC gives every `Error` its own `line`, `column`
+  and `sourceURL` keys (`originalLine` and `originalColumn` too, outside vitest), which hold the
+  real position only once the JIT compiles the code that builds the error. `Equal.equals` drops
+  only `stack` from an `Error`, so two errors with equal fields differ at random, more often as the
+  suite grows. Tests therefore compare errors with `assertSchemaEquals` from
+  `@app-template/testing`, which encodes both through the error's schema and sees only its fields.
 
 ## Run and debug
 
@@ -72,9 +78,19 @@ logging it. After one edit under `--hot`, the counter read 2 and **both** interv
 the old code next to the new one, with the PID unchanged. Under `--watch` the counter read 1 and
 only the new interval ran.
 
-That is why the worker uses `--watch`: its `main.ts` starts a polling `setInterval`, and under
-`--hot` every edit would add another poller. `Bun.serve` handles `--hot` natively by
-swapping its routes, so `api` and `web` keep the faster reload.
+That is why the worker uses `--watch`: its queue consumers are fibers of an Effect runtime, and
+under `--hot` every edit would start a second runtime, and a second consumer of each queue, beside
+the old one. A re-exec leaves nothing to stop, so `apps/worker/src/main.ts` is one `runMain` and the
+scope's finalizers (SIGTERM releases the job in hand and logs `worker stopped`) are the whole
+shutdown; an edit runs the same finalizers before the re-exec, so the old runtime logs `worker
+stopped` and releases its job, and the new one takes it at the same attempt. `Bun.serve` handles
+`--hot` natively by swapping its routes, so `api` and `web` keep the faster reload. An Effect
+runtime does not: each edit re-evaluates `effect` itself and starts a new `runMain` beside the old
+one, whose scope, fibers and finalizers live on. So `apps/api/src/main.ts` keeps a stop handle on
+`globalThis` (the one thing a reload keeps): each evaluation first stops the previous runtime and
+waits for its finalizers, then launches its own. Checked with a probe layer that ticked every
+second: without the handle, two edits left three tickers and SIGTERM ran three finalizers; with it,
+one ticker at a time, each finalized before the next `Listening on`.
 
 Bun has no `--dev` flag. "Development" means two things here: the reload flag in the app's `dev`
 script, and `NODE_ENV="development"`, which turns on HMR and browser console forwarding in the web
@@ -139,8 +155,8 @@ its sources either way.
 4. Add the path to the root `tsconfig.json` `references`.
 5. Run `bun install` and `make check`.
 
-A new `packages/*` workspace needs no Biome change, because the layer guards are deny-lists. A new
-layer or app needs its own `overrides` entry in `biome.json`; see
+A new `packages/*` workspace needs no change to the layer guards, because they are deny-lists. A
+new layer or app needs its own `overrides` entry in `biome.json`; see
 [architecture.md › Three boundary guards](architecture.md#three-boundary-guards) for what each
 entry repeats.
 
@@ -211,8 +227,8 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 | `TS2307: Cannot find module '@app-template/<name>'` from `make typecheck`, or `Cannot find module` at runtime | the import is allowed, but the workspace is not declared in this workspace's `package.json` | add `"@app-template/<name>": "workspace:*"` and a `tsconfig.json` reference, then `bun install` |
 | `TS6059 … is not under 'rootDir'` and `TS6307 … is not listed within the file list of project` | a relative path reaches into another workspace that is not referenced | import it as `@app-template/<name>/…`; relative paths are banned anyway |
 | Biome `lint/style/noRestrictedImports`: `domain is the pure core…` or `… no upward imports` | the import goes up a layer or into a sibling app, or `domain` imports an `@effect/*` package other than `@effect/vitest` | move the shared code down a layer, or receive it as an argument; in `domain`, use an `effect` module; see [architecture.md](architecture.md#dependency-rules) |
-| Biome `noRestrictedImports`: `… never a relative path` | a `./` or `../` import inside a workspace | use `#<workspace>/<path>`, for example `#domain/example/example.model` |
-| Biome `noRestrictedImports`: `web client code imports no effect…` | `effect` or `@effect/*` in `apps/web` client code, which ships to the browser | call the api through `@app-template/api-client`; only the server entry `src/main.ts` may use `effect` |
+| Biome `noRestrictedImports`: `… never a relative path` | a `./` or `../` import inside a workspace | use `#<workspace>/<path>`, for example `#domain/chat/chat.model` |
+| Biome `lint/suspicious/noImportCycles`: `This import is part of a cycle` | two modules import each other, typically two aggregates' models through their ids | import the other aggregate's id from its `<aggregate>.id.ts`, never its model |
 | Biome `assist/source/organizeImports`: `Sort these imports.` | import groups out of order or without blank lines between them | `make fmt` |
 | a commit is rejected after `tsc` or Biome output | the `pre-commit` hook failed | fix the reported error, `git add`, and commit again |
 | a push is rejected after test output | the `pre-push` hook failed | fix the tests; never use `--no-verify` |

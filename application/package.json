@@ -3,17 +3,22 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./example": "./example/index.ts"
+    "./attachment": "./attachment/index.ts",
+    "./chat": "./chat/index.ts",
+    "./user": "./user/index.ts"
   },
   "imports": {
     "#application/*": "./*.ts"
   },
   "dependencies": {
     "@app-template/domain": "workspace:*",
+    "@app-template/infrastructure": "workspace:*",
+    "@app-template/queue": "workspace:*",
     "effect": "catalog:effect"
   },
   "devDependencies": {
-    "@effect/vitest": "catalog:effect",
-    "@app-template/infrastructure": "workspace:*"
+    "@app-template/testing": "workspace:*",
+    "@effect/platform-bun": "catalog:effect",
+    "@effect/vitest": "catalog:effect"
   }
 }
