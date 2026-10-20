@@ -31,9 +31,10 @@ Every change of substance runs **feature → architecture → plan → implement
 - **The heavy review lands once, on the plan.** Steps then conform to it.
 - **One plan step = one commit**, of ≤ ~400 changed lines, fitting one fresh session. A ticket is
   one branch `<type>/<slug>` and one squash-merged PR.
-- **A step with numbered sub-steps is committed one sub-step at a time:** the implementer stops
-  after each, the user reads that diff alone and approves its commit, then the next begins. The
-  sub-step's commit names it in the subject.
+- **A step lands in rounds, one commit each.** The implementer's pass is round `S11.1`; before a
+  recommendation of the user's is applied, the main session offers to commit what stands, and the
+  recommendation lands as `S11.2`, so each diff is read alone. The commit body opens with the
+  round id and what it changed; `plan.md` is edited only at the last round.
 - **Approval gate.** After each step: the implementer's report, the two-axis review, then the
   user's explicit OK before any commit or amend. Pushing, opening a PR or creating a remote needs
   its own OK.

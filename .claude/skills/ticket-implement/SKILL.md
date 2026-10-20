@@ -15,8 +15,7 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. G
    shows no uncommitted change to tracked files; otherwise stop and ask.
 2. **Implement.** Spawn the `implementer` agent with pointers only: the ticket folder and the
    step id. Its `make check` hook keeps it working until the gate is green. A report that starts
-   with `BLOCKED:` goes straight to the user. When the step lists numbered sub-steps, the agent
-   does one at a time: after each approval, `SendMessage` it the next sub-step's number.
+   with `BLOCKED:` goes straight to the user.
 3. **Review.** Call the Skill tool with `mattpocock-skills:code-review`, overriding:
 
    | code-review asks for | Use |
@@ -30,12 +29,13 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. G
    code-review aggregates them.
 5. **Approval gate.** Wait for the user's explicit word:
    - **approve:** set the step's `Status: done` (or `blocked: <gate>` while a gate the step
-     names, such as a branch, a push or a CI run, has not run yet; `in progress: <n>/<m>` while
-     sub-steps remain), add its findings to `plan.md` and any new decision to `architecture.md`,
-     stage the step's files, and commit with the proposed message as a command of its own; a
-     sub-step's commit then returns to 2 with the next number;
-   - **feedback:** send it to the same implementer (`SendMessage`), then return to 3;
+     names, such as a branch, a push or a CI run, has not run yet), add its findings to `plan.md`
+     and any new decision to `architecture.md`, stage the step's files, and commit with the
+     proposed message as a command of its own;
+   - **feedback:** first offer to commit the tree as it stands as the current round (`S11.1`,
+     code only, no `plan.md` edit), then send the feedback to the same implementer
+     (`SendMessage`) as the next round, and return to 3;
    - **stop:** leave the working tree as it is.
 6. Name the next unblocked step.
 
-One step, or one sub-step, per approval. Pushing or opening a PR needs its own OK.
+One step, or one round of it, per approval. Pushing or opening a PR needs its own OK.
