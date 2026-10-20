@@ -1,14 +1,9 @@
-import { Array as Arr, Effect, Option, Schema, Stream, Struct } from 'effect'
+import { Array as Arr, Effect, Option, Schema, Stream } from 'effect'
 import { HttpServerResponse, Mime, Multipart } from 'effect/http'
 import { HttpApiBuilder } from 'effect/http-api'
 
 import { AttachmentService } from '@app-template/application/attachment'
-import {
-  type Attachment as AttachmentModel,
-  FileName,
-  type MediaType,
-} from '@app-template/domain/attachment'
-import type * as Wire from '@app-template/http-api'
+import { FileName, type MediaType } from '@app-template/domain/attachment'
 import {
   Api,
   AttachmentMediaType,
@@ -20,8 +15,7 @@ import {
   type RequestIssue,
 } from '@app-template/http-api'
 
-export const toAttachment = (attachment: AttachmentModel): Wire.Attachment =>
-  Struct.pick(attachment, ['id', 'messageId', 'fileName', 'mediaType', 'size', 'createdAt'])
+import { toAttachment } from '#api/shared/projections'
 
 const buildRequestInvalid = (path: RequestIssue['path'], message: string) =>
   new RequestInvalidError({ issues: [{ path, message }] })
@@ -59,7 +53,8 @@ const bufferFile = Effect.fnUntraced(function* (part: Multipart.Part, index: num
     Effect.mapError(() => buildRequestInvalid(['files', index], 'Expected a file name')),
   )
   const mediaType = yield* decodeDeclaredType(part)
-  return { fileName, mediaType, bytes: yield* part.contentEffect }
+  const bytes = yield* part.contentEffect
+  return { fileName, mediaType, bytes }
 })
 
 const unquotable = /[^\x20\x21\x23-\x5b\x5d-\x7e]/g
@@ -112,7 +107,8 @@ export const AttachmentHandler = HttpApiBuilder.group(
         'get',
         Effect.fn('AttachmentHandler.get')(function* ({ params }) {
           const user = yield* CurrentUser
-          return toAttachment(yield* attachments.get(user.id, params.attachmentId))
+          const attachment = yield* attachments.get(user.id, params.attachmentId)
+          return toAttachment(attachment)
         }),
       )
       .handleRaw(

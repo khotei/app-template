@@ -53,7 +53,8 @@ export const createCollection = <A>(
       key: string,
       f: (current: Option.Option<A>) => A,
     ) {
-      const next = f(yield* get(key))
+      const current = yield* get(key)
+      const next = f(current)
       yield* set(key, next)
       return next
     }, lock.withPermit),

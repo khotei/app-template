@@ -3,14 +3,14 @@ import { Effect, Layer } from 'effect'
 
 import { AssistantMessageJob, ChatTitleJob } from '@app-template/application/chat'
 import { MinimumLogLevelFromConfig } from '@app-template/config'
-import { AttachmentRepositoryKv, AttachmentStoreKv } from '@app-template/infrastructure/attachment'
-import { ChatRepositoryKv, MessageRepositoryKv } from '@app-template/infrastructure/chat'
+import { AttachmentKv } from '@app-template/infrastructure/attachment'
+import { ChatKv } from '@app-template/infrastructure/chat'
 import { KeyValueStoreFileSystem } from '@app-template/infrastructure/kv'
 import { QueueClientSqlite } from '@app-template/infrastructure/shared'
 import { LanguageModelStub } from '@app-template/llm'
 
 const WorkerJobs = Layer.mergeAll(AssistantMessageJob.worker, ChatTitleJob.worker).pipe(
-  Layer.provide([ChatRepositoryKv, MessageRepositoryKv, AttachmentRepositoryKv, AttachmentStoreKv]),
+  Layer.provide([ChatKv, AttachmentKv]),
 )
 
 const LogWorkerLifecycle = Effect.logInfo('worker started').pipe(

@@ -1626,7 +1626,9 @@ apart in `apps/api`.
 - **Test first:** none new, a refactor without a behaviour change; every test stays untouched
   and green, except the `send` test that goes with `send` and the harness whose nested `yield*`
   are named.
-- **Verify:** `make check`; the grep in Goal 1 finds nothing; `git grep -n 'limits.chat\|ChatFile\|export const send' -- ':!repos' ':!docs'` finds nothing; `git diff --stat` under ~400 lines.
+- **Verify:** `make check`; the grep in Goal 1 finds nothing;
+  `git grep -n 'limits.chat\|ChatFile\|export const send' -- ':!repos' ':!docs'` finds nothing;
+  `git diff --stat` under ~400 lines.
 - **Findings:**
 - **Status:** todo
 

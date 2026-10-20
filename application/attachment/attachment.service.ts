@@ -3,6 +3,7 @@ import { Array as Arr, Context, Crypto, DateTime, Effect, Layer, Option } from '
 import {
   Attachment,
   type AttachmentBoundError,
+  type AttachmentDownload,
   AttachmentId,
   AttachmentNotFoundError,
   AttachmentRepository,
@@ -20,11 +21,6 @@ import { isOwnedBy, type UserId } from '@app-template/domain/user'
 export interface AttachmentUpload {
   readonly fileName: FileName
   readonly mediaType: MediaType
-  readonly bytes: Uint8Array
-}
-
-export interface AttachmentDownload {
-  readonly attachment: Attachment
   readonly bytes: Uint8Array
 }
 
@@ -86,12 +82,13 @@ export class AttachmentService extends Context.Service<
     const attachments = yield* AttachmentRepository
     const store = yield* AttachmentStore
     const crypto = yield* Crypto.Crypto
+    const randomId = Effect.map(Effect.orDie(crypto.randomUUIDv7()), AttachmentId.make)
 
     const upload = Effect.fn('AttachmentService.upload')(function* (
       userId: UserId,
       input: AttachmentUpload,
     ) {
-      const id = AttachmentId.make(yield* Effect.orDie(crypto.randomUUIDv7()))
+      const id = yield* randomId
       const createdAt = yield* DateTime.now
       const attachment = buildAttachment({
         id,

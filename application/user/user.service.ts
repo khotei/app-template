@@ -31,6 +31,7 @@ export class UserService extends Context.Service<
   make: Effect.gen(function* () {
     const users = yield* UserRepository
     const crypto = yield* Crypto.Crypto
+    const randomId = Effect.map(Effect.orDie(crypto.randomUUIDv7()), UserId.make)
 
     const hashSecret = Effect.fnUntraced(function* (secret: UserSecret) {
       const digest = yield* crypto.digest('SHA-256', encoder.encode(Redacted.value(secret)))
@@ -46,7 +47,7 @@ export class UserService extends Context.Service<
     })
 
     const registerUser = Effect.fnUntraced(function* () {
-      const id = UserId.make(yield* Effect.orDie(crypto.randomUUIDv7()))
+      const id = yield* randomId
       const createdAt = yield* DateTime.now
       const bytes = yield* Effect.orDie(crypto.randomBytes(secretBytes))
       const secret = Redacted.make(Base64Url.encode(bytes))

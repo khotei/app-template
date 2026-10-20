@@ -154,12 +154,6 @@ export class QueueClient extends Context.Service<
     )
 }
 
-export const send = <A, I>(
-  definition: QueueDefinition<Schema.Codec<A, I>>,
-  message: A,
-): Effect.Effect<void, QueueError, QueueClient> =>
-  QueueClient.use((client) => client.send(definition, message))
-
 // Any cause restarts the consumer, logged, with no attempt limit, as effect's own SQL poll loop
 // does: the SQL store dies on a failed ack, and an unrecovered cause would end the forked fiber
 // unlogged while the process runs on. A process restart heals a store no better than waiting does.

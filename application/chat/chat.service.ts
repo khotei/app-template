@@ -108,6 +108,8 @@ export class ChatService extends Context.Service<
     // so a rename landing between the two would be undone.
     const userLock = yield* UserLock
     const randomId = Effect.orDie(crypto.randomUUIDv7())
+    const randomChatId = Effect.map(randomId, ChatId.make)
+    const randomMessageId = Effect.map(randomId, MessageId.make)
 
     const findOwnedChat = Effect.fnUntraced(function* (userId: UserId, id: ChatId) {
       const found = yield* chats.selectById(id)
@@ -115,7 +117,7 @@ export class ChatService extends Context.Service<
     })
 
     const create = Effect.fn('ChatService.create')(function* (userId: UserId) {
-      const id = ChatId.make(yield* randomId)
+      const id = yield* randomChatId
       const createdAt = yield* DateTime.now
       const chat = buildChat({ id, userId, createdAt })
 
@@ -133,7 +135,8 @@ export class ChatService extends Context.Service<
       }))
 
     const list = Effect.fn('ChatService.list')(function* (userId: UserId) {
-      const sorted = Arr.sort(yield* chats.selectByUser(userId), byLatestUpdate)
+      const stored = yield* chats.selectByUser(userId)
+      const sorted = Arr.sort(stored, byLatestUpdate)
       return yield* Effect.forEach(sorted, summarize)
     })
 
@@ -202,8 +205,9 @@ export class ChatService extends Context.Service<
     const addUserMessage = Effect.fn('ChatService.addUserMessage')(function* (
       sendable: SendableChat,
     ) {
+      const id = yield* randomMessageId
       const message = buildUserMessage({
-        id: MessageId.make(yield* randomId),
+        id,
         chatId: sendable.chatId,
         text: sendable.input.text,
         attachmentIds: sendable.input.attachmentIds,
@@ -217,8 +221,9 @@ export class ChatService extends Context.Service<
     const addAssistantMessage = Effect.fn('ChatService.addAssistantMessage')(function* (
       sendable: SendableChat,
     ) {
+      const id = yield* randomMessageId
       const message = buildAssistantMessage({
-        id: MessageId.make(yield* randomId),
+        id,
         chatId: sendable.chatId,
         createdAt: sendable.at,
       })
@@ -228,7 +233,7 @@ export class ChatService extends Context.Service<
     })
 
     const touch = Effect.fn('ChatService.touch')((sendable: SendableChat) =>
-      touchChat(sendable.chatId, sendable.at).pipe(Effect.provideService(ChatRepository, chats)),
+      touchChat(chats, { chatId: sendable.chatId, at: sendable.at }),
     )
 
     return {

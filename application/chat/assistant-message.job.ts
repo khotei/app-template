@@ -104,9 +104,10 @@ const alreadySettled = Effect.logInfo('assistant reply skipped: already settled'
 const chatDeleted = Effect.logInfo('assistant reply skipped: chat deleted')
 
 const writeSettled = Effect.fnUntraced(function* (settled: Message) {
+  const chats = yield* ChatRepository
   const messages = yield* MessageRepository
   yield* messages.update(settled)
-  yield* touchChat(settled.chatId, settled.updatedAt)
+  yield* touchChat(chats, { chatId: settled.chatId, at: settled.updatedAt })
 })
 
 type ReplyError = AiError.AiError | MessageStageInvalidError
@@ -168,7 +169,8 @@ const failStoredReply = Effect.fnUntraced(function* (
   cause: string,
 ): Effect.fn.Return<void, MessageStageInvalidError, ChatRepository | MessageRepository> {
   const messages = yield* MessageRepository
-  const active = Option.filter(yield* messages.selectById(messageId), isActiveMessage)
+  const stored = yield* messages.selectById(messageId)
+  const active = Option.filter(stored, isActiveMessage)
   if (Option.isSome(active)) yield* failReply(active.value, cause)
 })
 

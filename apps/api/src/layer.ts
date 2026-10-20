@@ -8,11 +8,11 @@ import { ChatService, DeleteChatUseCase, SendMessageUseCase } from '@app-templat
 import { UserService } from '@app-template/application/user'
 import { ApiConfig, MinimumLogLevelFromConfig, RuntimeConfig } from '@app-template/config'
 import { Api } from '@app-template/http-api'
-import { AttachmentRepositoryKv, AttachmentStoreKv } from '@app-template/infrastructure/attachment'
-import { ChatRepositoryKv, MessageRepositoryKv } from '@app-template/infrastructure/chat'
+import { AttachmentKv } from '@app-template/infrastructure/attachment'
+import { ChatKv } from '@app-template/infrastructure/chat'
 import { KeyValueStoreFileSystem } from '@app-template/infrastructure/kv'
 import { QueueClientSqlite } from '@app-template/infrastructure/shared'
-import { UserRepositoryKv } from '@app-template/infrastructure/user'
+import { UserKv } from '@app-template/infrastructure/user'
 
 import { AttachmentHandler } from '#api/attachment/attachment.handler'
 import { ChatHandler } from '#api/chat/chat.handler'
@@ -41,13 +41,7 @@ export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
     DeleteChatUseCase.layer,
     RuntimeConfig.layer,
   ]),
-  Layer.provide([
-    UserRepositoryKv,
-    ChatRepositoryKv,
-    MessageRepositoryKv,
-    AttachmentRepositoryKv,
-    AttachmentStoreKv,
-  ]),
+  Layer.provide([UserKv, ChatKv, AttachmentKv]),
 )
 
 const BunHttpServerFromConfig = Layer.unwrap(

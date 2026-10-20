@@ -9,7 +9,7 @@ import { TestClock } from 'effect/testing'
 
 import { recordLogs } from '@app-template/testing'
 
-import { type AttemptInfo, QueueClient, type QueueDefinition, send, worker } from '#queue/queue'
+import { type AttemptInfo, QueueClient, type QueueDefinition, worker } from '#queue/queue'
 
 class Ping extends Schema.Class<Ping>('Ping')({ id: Schema.String, text: Schema.String }) {}
 
@@ -33,6 +33,9 @@ const receive = (count: number) =>
   }).pipe(Effect.scoped)
 
 type MakeClient = Effect.Effect<Layer.Layer<QueueClient, unknown>, never, Scope.Scope>
+
+const send = <A, I>(definition: QueueDefinition<Schema.Codec<A, I>>, message: A) =>
+  QueueClient.use((client) => client.send(definition, message))
 
 const sendPings = (...messages: ReadonlyArray<[id: string, text: string]>) =>
   Effect.forEach(messages, ([id, text]) => send(pings, new Ping({ id, text })), { discard: true })

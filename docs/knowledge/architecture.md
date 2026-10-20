@@ -137,7 +137,9 @@ Pascal one (`Document`).
 5. **Adapter.** `infrastructure/<entity>/<entity>.repository.ts`: `<Entity>RepositoryKv`, a
    `Layer` constant that provides the domain port over `KeyValueStore` through `createCollection`
    and `createIndex` from `infrastructure/kv`; a real client later adds another layer of the same
-   port. Add `index.ts` and the `exports` entry.
+   port. Add `index.ts`, which also exports `<Entity>Kv`, the one layer of every adapter of the
+   aggregate (`ChatKv = Layer.mergeAll(ChatRepositoryKv, MessageRepositoryKv)`), and the
+   `exports` entry.
 6. **Service and use cases.** `application/<entity>/<entity>.service.ts` holds the service and
    `<verb>-<object>.use-case.ts` each use case, both a `Context.Service` with a `layer`, like
    `application/chat/`. Which flow goes where:
@@ -146,15 +148,16 @@ Pascal one (`Document`).
 7. **Job, if the entity has asynchronous work.** `infrastructure/<entity>/<entity>.queue.ts`
    holds the queue definitions (name, job schema, retry policy, `jobId`), and any prompt the model
    needs goes in `<entity>.llm.ts`. Both sides of the job live in
-   `application/<entity>/<object>.job.ts`: the producer service, which calls `send` from
-   `packages/queue`, and the static `worker` layer, which `apps/worker/src/layer.ts` merges.
+   `application/<entity>/<object>.job.ts`: the producer service, which calls `QueueClient.send`
+   from `packages/queue`, and the static `worker` layer, which `apps/worker/src/layer.ts` merges
+   and provides with the `<Entity>Kv` layers the jobs read.
 8. **Contract.** Add the group in `http-api/<entity>/<entity>.http.ts`, listing the domain's errors
    with their statuses (`HttpApiSchema.status`), and add it to `Api` in `http-api/api.ts` before
    `.middleware(SchemaErrors)`.
 9. **Delivery.** Implement the group in `apps/api/src/<entity>/<entity>.handler.ts` with
    `HttpApiBuilder.group(Api, '<group>', …)`: it calls the use cases and services and projects
-   each model onto its DTO (`Struct.pick`). Add it to `ApiRoutes` and its services and adapters to
-   `ApiHttp` in `apps/api/src/layer.ts`. Test the round trip through `ApiClient` in
+   each model onto its DTO through `apps/api/src/shared/projections.ts` (`Struct.pick`). Add it
+   to `ApiRoutes`, and its services and `<Entity>Kv` to `ApiHttp` in `apps/api/src/layer.ts`. Test the round trip through `ApiClient` in
    `<entity>.handler.test.ts` beside it, on `apps/api/src/testing/api.harness.ts`.
 10. **Client, if the browser needs it.** `ApiClient` from `@app-template/http-api` already has
     every endpoint of the contract; add a feature folder under `apps/web/src/features/<entity>/`

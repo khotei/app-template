@@ -4,6 +4,5 @@ export {
   type QueueClientSqliteOptions,
   type QueueDefinition,
   QueueError,
-  send,
   worker,
 } from '#queue/queue'

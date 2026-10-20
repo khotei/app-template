@@ -27,3 +27,8 @@ export class Attachment extends Schema.Class<Attachment>('Attachment')({
   size: FileSize,
   createdAt: Schema.DateTimeUtc,
 }) {}
+
+export interface AttachmentDownload {
+  readonly attachment: Attachment
+  readonly bytes: Uint8Array
+}

@@ -86,15 +86,11 @@ export const withChat = <E>(
   const { sent, interleaving, layer } = makeChatHarness(options)
   return Effect.gen(function* () {
     const chats = yield* ChatService
-    yield* body({
-      chat: yield* chats.create(owner),
-      sent,
-      interleaving,
-      chats,
-      attachments: yield* AttachmentService,
-      sendMessage: yield* SendMessageUseCase,
-      deleteChat: yield* DeleteChatUseCase,
-    })
+    const attachments = yield* AttachmentService
+    const sendMessage = yield* SendMessageUseCase
+    const deleteChat = yield* DeleteChatUseCase
+    const chat = yield* chats.create(owner)
+    yield* body({ chat, sent, interleaving, chats, attachments, sendMessage, deleteChat })
   }).pipe(Effect.provide(layer))
 }
 

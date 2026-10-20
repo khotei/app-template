@@ -32,9 +32,12 @@ export const MessageRepositoryKv = Layer.effect(
       ),
       // Only the last message can be active: a send is refused while one is.
       selectActiveByChat: Effect.fn('MessageRepository.selectActiveByChat')(function* (chatId) {
-        const last = Arr.last(yield* chatMessages.list(chatMessagesKey(chatId)))
+        const ids = yield* chatMessages.list(chatMessagesKey(chatId))
+        const last = Arr.last(ids)
         if (Option.isNone(last)) return Option.none()
-        return Option.filter(yield* messages.get(last.value), isActiveMessage)
+
+        const stored = yield* messages.get(last.value)
+        return Option.filter(stored, isActiveMessage)
       }),
       // The index goes last, so a retry after a crash still finds the messages it lists.
       deleteByChat: Effect.fn('MessageRepository.deleteByChat')(function* (chatId) {
