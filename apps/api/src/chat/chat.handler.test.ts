@@ -56,7 +56,11 @@ const failReply = (id: MessageId) =>
     const messages = yield* MessageRepository
     const reply = yield* Effect.flatMap(messages.selectById(id), Effect.fromOption)
     yield* messages.update(
-      yield* failMessage(reply, 'ReplyFailed', 'the provider timed out', reply.updatedAt),
+      yield* failMessage(reply, {
+        reason: 'ReplyFailed',
+        cause: 'the provider timed out',
+        at: reply.updatedAt,
+      }),
     )
   }).pipe(Effect.orDie, Effect.provide(MessageRepositoryKv))
 

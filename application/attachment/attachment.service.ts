@@ -128,7 +128,7 @@ export class AttachmentService extends Context.Service<
       id: AttachmentId,
     ) {
       const found = yield* attachments.selectById(id)
-      yield* ensureBindable(id, found, userId)
+      yield* ensureBindable(found, { id, userId })
 
       yield* attachments.deleteByIds([id])
       yield* store.delete(id)
@@ -143,7 +143,7 @@ export class AttachmentService extends Context.Service<
       const found = new Map(Arr.map(stored, (attachment) => [attachment.id, attachment]))
 
       const bindable = yield* Effect.forEach(ids, (id) =>
-        ensureBindable(id, Option.fromUndefinedOr(found.get(id)), userId),
+        ensureBindable(Option.fromUndefinedOr(found.get(id)), { id, userId }),
       )
       return new BindableAttachments(bindable)
     })

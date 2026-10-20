@@ -55,15 +55,14 @@ export const buildAttachment = (input: {
 
 /** Returns the attachment when the user may bind it. */
 export const ensureBindable = Effect.fn('ensureBindable')(function* (
-  id: AttachmentId,
   found: Option.Option<Attachment>,
-  userId: UserId,
+  asked: { readonly id: AttachmentId; readonly userId: UserId },
 ) {
   const owned = yield* ensureFound(
     found,
-    isOwnedBy(userId),
-    () => new AttachmentNotFoundError({ id }),
+    isOwnedBy(asked.userId),
+    () => new AttachmentNotFoundError({ id: asked.id }),
   )
-  if (Option.isSome(owned.messageId)) return yield* new AttachmentBoundError({ id })
+  if (Option.isSome(owned.messageId)) return yield* new AttachmentBoundError({ id: asked.id })
   return owned
 })

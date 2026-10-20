@@ -114,7 +114,7 @@ export const settle = (message: Message) =>
     const at = yield* DateTime.now
 
     const prepared = yield* prepareMessage(message, at)
-    const completed = yield* completeMessage(prepared, 'Sure.', at)
+    const completed = yield* completeMessage(prepared, { text: 'Sure.', at })
     yield* messages.update(completed)
   })
 

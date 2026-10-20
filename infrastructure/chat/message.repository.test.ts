@@ -50,7 +50,7 @@ describe('MessageRepositoryKv', () => {
 
         assert.deepStrictEqual(yield* messages.selectActiveByChat(chatId), Option.some(queued))
 
-        yield* messages.update(yield* completeMessage(queued, 'Hello', createdAt))
+        yield* messages.update(yield* completeMessage(queued, { text: 'Hello', at: createdAt }))
 
         assert.deepStrictEqual(yield* messages.selectActiveByChat(chatId), Option.none())
       }),
@@ -101,7 +101,7 @@ describe('MessageRepositoryKv', () => {
         const queued = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000059', chatId)
         const unknown = assistantMessage('0192d4e0-7b3a-7c00-8000-00000000005a', chatId)
         yield* messages.insert(queued)
-        const completed = yield* completeMessage(queued, 'Hello', createdAt)
+        const completed = yield* completeMessage(queued, { text: 'Hello', at: createdAt })
 
         yield* messages.update(completed)
         yield* messages.update(unknown)

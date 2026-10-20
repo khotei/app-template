@@ -261,7 +261,10 @@ describe('completeMessage', () => {
     'moves a %s message to completed with the final text and no error',
     (stage) =>
       Effect.gen(function* () {
-        const completed = yield* completeMessage(withLeftovers(stage), 'Hello there', later)
+        const completed = yield* completeMessage(withLeftovers(stage), {
+          text: 'Hello there',
+          at: later,
+        })
 
         assert.strictEqual(completed.stage, 'completed')
         assert.strictEqual(completed.text, 'Hello there')
@@ -271,7 +274,11 @@ describe('completeMessage', () => {
   )
 
   it.effect.each(inactiveMessages)('fails MessageStageInvalidError for %s', ([, message]) =>
-    expectStageInvalid(completeMessage(message, 'Hello there', later), message, 'completed'),
+    expectStageInvalid(
+      completeMessage(message, { text: 'Hello there', at: later }),
+      message,
+      'completed',
+    ),
   )
 })
 
@@ -282,7 +289,11 @@ describe('failMessage', () => {
     'moves a %s message to failed with the fixed sentence and the cause',
     (stage) =>
       Effect.gen(function* () {
-        const failed = yield* failMessage(assistantAt(stage), 'ReplyFailed', cause, later)
+        const failed = yield* failMessage(assistantAt(stage), {
+          reason: 'ReplyFailed',
+          cause,
+          at: later,
+        })
 
         assert.strictEqual(failed.stage, 'failed')
         assert.strictEqual(failed.updatedAt, later)
@@ -299,7 +310,11 @@ describe('failMessage', () => {
 
   it.effect('keeps the cause out of the user-facing sentence', () =>
     Effect.gen(function* () {
-      const failed = yield* failMessage(assistantAt('generating'), 'ReplyFailed', cause, later)
+      const failed = yield* failMessage(assistantAt('generating'), {
+        reason: 'ReplyFailed',
+        cause,
+        at: later,
+      })
       const error = Option.getOrThrow(failed.error)
 
       assert.notInclude(error.message, cause)
@@ -307,6 +322,10 @@ describe('failMessage', () => {
   )
 
   it.effect.each(inactiveMessages)('fails MessageStageInvalidError for %s', ([, message]) =>
-    expectStageInvalid(failMessage(message, 'ReplyFailed', cause, later), message, 'failed'),
+    expectStageInvalid(
+      failMessage(message, { reason: 'ReplyFailed', cause, at: later }),
+      message,
+      'failed',
+    ),
   )
 })

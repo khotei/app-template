@@ -124,7 +124,7 @@ const reply = Effect.fnUntraced(function* (taken: Message) {
 
   const text = yield* streamSnapshots(generating, streamAssistantText(buildChatPrompt(history)))
   const completedAt = yield* DateTime.now
-  const completed = yield* completeMessage(generating, text, completedAt)
+  const completed = yield* completeMessage(generating, { text, at: completedAt })
   yield* writeSettled(completed)
 })
 
@@ -139,7 +139,7 @@ const findReply = Effect.fnUntraced(function* (job: GenerateAssistantMessage) {
 
 const failReply = Effect.fnUntraced(function* (message: Message, cause: string) {
   const failedAt = yield* DateTime.now
-  const failed = yield* failMessage(message, 'ReplyFailed', cause, failedAt)
+  const failed = yield* failMessage(message, { reason: 'ReplyFailed', cause, at: failedAt })
   yield* writeSettled(failed)
 })
 

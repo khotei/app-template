@@ -1,4 +1,4 @@
-import { Array as Arr, Context, Crypto, DateTime, Effect, Layer, Option } from 'effect'
+import { Array as Arr, Context, Crypto, Data, DateTime, Effect, Layer, Option } from 'effect'
 
 import { type Attachment, AttachmentRepository } from '@app-template/domain/attachment'
 import {
@@ -51,17 +51,15 @@ export interface ChatDetail extends ChatSummary {
  *
  * It holds only while the caller keeps the user's `UserLock` from the check to the last write.
  */
-class SendableChat {
+class SendableChat extends Data.Class<{
+  readonly chatId: ChatId
+  readonly input: MessageInput
+  /** The chat has no message yet, so this send opens it. */
+  readonly opensChat: boolean
+  /** When the send was accepted: the messages' `createdAt` and the chat's `updatedAt`. */
+  readonly at: DateTime.Utc
+}> {
   declare private readonly proof: never
-
-  constructor(
-    readonly chatId: ChatId,
-    readonly input: MessageInput,
-    /** The chat has no message yet, so this send opens it. */
-    readonly opensChat: boolean,
-    /** When the send was accepted: the messages' `createdAt` and the chat's `updatedAt`. */
-    readonly at: DateTime.Utc,
-  ) {}
 }
 
 export type { SendableChat }
@@ -198,7 +196,7 @@ export class ChatService extends Context.Service<
 
       const stored = yield* messages.selectByChat(chatId)
       const at = yield* DateTime.now
-      return new SendableChat(chatId, input, Arr.isReadonlyArrayEmpty(stored), at)
+      return new SendableChat({ chatId, input, opensChat: Arr.isReadonlyArrayEmpty(stored), at })
     })
 
     const addUserMessage = Effect.fn('ChatService.addUserMessage')(function* (

@@ -156,27 +156,37 @@ const transitions = {
 
 const move = Effect.fnUntraced(function* (
   message: Message,
-  to: keyof typeof transitions,
-  at: DateTime.Utc,
-  patch: Partial<Pick<Message, 'text' | 'error'>> = {},
+  change: {
+    readonly to: keyof typeof transitions
+    readonly at: DateTime.Utc
+    readonly patch?: Partial<Pick<Message, 'text' | 'error'>>
+  },
 ) {
-  if (!transitions[to](message)) {
-    return yield* new MessageStageInvalidError({ id: message.id, from: message.stage, to })
+  if (!transitions[change.to](message)) {
+    return yield* new MessageStageInvalidError({
+      id: message.id,
+      from: message.stage,
+      to: change.to,
+    })
   }
-  return new Message({ ...message, ...patch, stage: to, updatedAt: at })
+  return new Message({ ...message, ...change.patch, stage: change.to, updatedAt: change.at })
 })
 
 export const prepareMessage = Effect.fn('prepareMessage')((message: Message, at: DateTime.Utc) =>
-  move(message, 'preparing', at, { text: '', error: Option.none() }),
+  move(message, { to: 'preparing', at, patch: { text: '', error: Option.none() } }),
 )
 
 export const generateMessage = Effect.fn('generateMessage')((message: Message, at: DateTime.Utc) =>
-  move(message, 'generating', at),
+  move(message, { to: 'generating', at }),
 )
 
 export const completeMessage = Effect.fn('completeMessage')(
-  (message: Message, text: string, at: DateTime.Utc) =>
-    move(message, 'completed', at, { text, error: Option.none() }),
+  (message: Message, result: { readonly text: string; readonly at: DateTime.Utc }) =>
+    move(message, {
+      to: 'completed',
+      at: result.at,
+      patch: { text: result.text, error: Option.none() },
+    }),
 )
 
 const failureMessages = {
@@ -184,8 +194,25 @@ const failureMessages = {
 } as const satisfies Record<MessageFailure['reason'], string>
 
 export const failMessage = Effect.fn('failMessage')(
-  (message: Message, reason: MessageFailure['reason'], cause: string, at: DateTime.Utc) =>
-    move(message, 'failed', at, {
-      error: Option.some(new MessageFailure({ reason, message: failureMessages[reason], cause })),
+  (
+    message: Message,
+    failure: {
+      readonly reason: MessageFailure['reason']
+      readonly cause: string
+      readonly at: DateTime.Utc
+    },
+  ) =>
+    move(message, {
+      to: 'failed',
+      at: failure.at,
+      patch: {
+        error: Option.some(
+          new MessageFailure({
+            reason: failure.reason,
+            message: failureMessages[failure.reason],
+            cause: failure.cause,
+          }),
+        ),
+      },
     }),
 )
