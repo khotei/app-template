@@ -214,6 +214,10 @@ const handle = Effect.fn('AssistantMessageJob.handle')(function* (
   return yield* attemptRoles[roleOf(info)](message.value)
 })
 
+/**
+ * Replies in `replyAttempts` tries, then runs one attempt that only settles a reply the last try
+ * left active, so a spent job never leaves its message active and its chat busy.
+ */
 export class AssistantMessageJob extends Context.Service<
   AssistantMessageJob,
   {
