@@ -23,6 +23,7 @@ import {
   MessageNotFoundError,
   MessageRepository,
 } from '@app-template/domain/chat'
+import { ensureFound } from '@app-template/domain/shared'
 import { isOwnedBy, type UserId } from '@app-template/domain/user'
 
 import { touchChat } from '#application/chat/touch-chat'
@@ -111,9 +112,8 @@ export class ChatService extends Context.Service<
     const randomId = Effect.orDie(crypto.randomUUIDv7())
 
     const findOwnedChat = Effect.fnUntraced(function* (userId: UserId, id: ChatId) {
-      const owned = Option.filter(yield* chats.selectById(id), isOwnedBy(userId))
-      if (Option.isNone(owned)) return yield* new ChatNotFoundError({ id })
-      return owned.value
+      const found = yield* chats.selectById(id)
+      return yield* ensureFound(found, isOwnedBy(userId), () => new ChatNotFoundError({ id }))
     })
 
     const create = Effect.fn('ChatService.create')(function* (userId: UserId) {
@@ -171,9 +171,13 @@ export class ChatService extends Context.Service<
       messageId: MessageId,
     ) {
       yield* findOwnedChat(userId, chatId)
-      const found = Option.filter(yield* messages.selectById(messageId), isInChat(chatId))
-      if (Option.isNone(found)) return yield* new MessageNotFoundError({ id: messageId })
-      return yield* withAttachments(found.value)
+      const found = yield* messages.selectById(messageId)
+      const message = yield* ensureFound(
+        found,
+        isInChat(chatId),
+        () => new MessageNotFoundError({ id: messageId }),
+      )
+      return yield* withAttachments(message)
     })
 
     const findSendable = Effect.fn('ChatService.findSendable')(function* (

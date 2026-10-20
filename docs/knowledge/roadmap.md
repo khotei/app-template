@@ -41,7 +41,7 @@ graph LR
 | 4 | [`postgres-drizzle`](#4-postgres-drizzle) | `feat` | 3 | planned |
 | 5 | [`aws-local`](#5-aws-local) | `feat` | 3 | in progress: [docs/tickets/2026-10-19_aws-local/](../tickets/2026-10-19_aws-local/feature.md) |
 | 6 | [`llm-providers`](#6-llm-providers) | `feat` | 5 | planned |
-| 7 | [`web-app`](#7-web-app) | `feat` | 3 (6 for streaming and attachments) | planned |
+| 7 | [`web-app`](#7-web-app) | `feat` | 3 (6 for assistant attachments and an SSE tail) | planned |
 | 8 | [`observability`](#8-observability) | `feat` | 3 | planned |
 | 9 | [`aws-deployment`](#9-aws-deployment) | `feat` | 4, 5 | planned |
 | 10 | [`client-publishing`](#10-client-publishing) | `chore` | 3 | planned |
@@ -231,6 +231,12 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
 - **Open questions for its feature phase.** Placeholder syntax; which model produces files in the
   template demo; token and cost accounting per chat; whether the reply streams through the worker
   (see 3).
+- **Re-read against `chat-core` (2026-10-20).** The reply already runs in a worker job
+  (`AssistantMessageJob`), which writes the growing text into the message as throttled snapshots
+  that the client polls; the question above narrows to whether an SSE tail over the stored message
+  is added. Assistant attachments are therefore produced inside that job: the first decision is
+  whether the model's tool call or a second job writes them, not whether a job exists. Provider
+  layers replace `LanguageModelStub`, which `apps/worker/src/layer.ts` provides today.
 - **Facts (2026-10-17).** `@effect/ai-anthropic@4.0.5` and `@effect/ai-openai@4.0.5` exist;
   `@effect/ai-google` and `@effect/ai-amazon-bedrock` are Effect v3 only. The Anthropic Files API
   is GA; `document` blocks take PDFs up to 32 MB, images by base64, URL or file id.
@@ -251,6 +257,11 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   `AtomHttpApi` and atoms: which owns server state, which owns client state, or whether atoms alone
   suffice and Query/DB stay out; whether web client code may now import `effect` (today it is
   banned by Biome and must change for atoms); SSR of streams.
+- **Re-read against `chat-core` (2026-10-20).** "Streaming replies" means, today, polling the
+  assistant message until its stage is terminal, since the api streams nothing and the worker
+  writes snapshots; an SSE tail is `llm-providers`' (6) open question, so this ticket depends on
+  3 alone for the reply and the upload, and on 6 only for assistant attachments and placeholders.
+  The visitor cookie is the user cookie of `chat-core`'s `CurrentUser` security.
 - **Facts (2026-10-17).** `@tanstack/react-start@1.169.3` (router 1.170, Vite ≥ 8, React 19 for
   the Bun preset, `aws_lambda` preset with streaming); `@chakra-ui/react@3.37.0`; Effect v4 atoms
   are `effect/reactivity/*` in core plus `@effect/atom-react@4.0.5` (React ≥ 19 only) with

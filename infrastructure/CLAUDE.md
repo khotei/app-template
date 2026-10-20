@@ -8,7 +8,7 @@ storage keys, queue names, prompts.
   interface, never the client: a repository returns the domain port; a storage or LLM adapter owns
   its own interface, because the domain knows nothing about object keys or prompts.
 - A `<entity>.queue.ts` holds only queue definitions; no adapter wraps `send` or `worker`.
-- Until a real client exists, an adapter is in-memory (repository) or a typed stub. Replace the
-  body, not the signature.
+- Until a real client exists, a repository or store runs on `KeyValueStore` through `kv/` and the
+  LLM adapter on `packages/llm`'s stub. Replace the body, not the signature.
 - This is where `Config` turns into client options: clients take explicit options and never read
   configuration themselves.

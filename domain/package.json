@@ -6,6 +6,7 @@
   "exports": {
     "./attachment": "./attachment/index.ts",
     "./chat": "./chat/index.ts",
+    "./shared": "./shared/index.ts",
     "./user": "./user/index.ts"
   },
   "imports": {

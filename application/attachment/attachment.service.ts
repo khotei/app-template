@@ -14,6 +14,7 @@ import {
   type MediaType,
 } from '@app-template/domain/attachment'
 import type { MessageId } from '@app-template/domain/chat'
+import { ensureFound } from '@app-template/domain/shared'
 import { isOwnedBy, type UserId } from '@app-template/domain/user'
 
 export interface AttachmentUpload {
@@ -105,9 +106,8 @@ export class AttachmentService extends Context.Service<
     })
 
     const get = Effect.fn('AttachmentService.get')(function* (userId: UserId, id: AttachmentId) {
-      const owned = Option.filter(yield* attachments.selectById(id), isOwnedBy(userId))
-      if (Option.isNone(owned)) return yield* new AttachmentNotFoundError({ id })
-      return owned.value
+      const found = yield* attachments.selectById(id)
+      return yield* ensureFound(found, isOwnedBy(userId), () => new AttachmentNotFoundError({ id }))
     })
 
     const download = Effect.fn('AttachmentService.download')(function* (

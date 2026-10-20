@@ -14,7 +14,7 @@ graph TD
   application --> domain
   apps -->|"apps/api only"| httpApi["http-api"]
   httpApi --> domain
-  apps --> packages["packages/* (config · queue · llm · ui)"]
+  apps --> packages["packages/* (config · queue · llm · testing · ui)"]
   application --> packages
   infrastructure --> packages
   web["apps/web client"] --> httpApi
@@ -101,20 +101,23 @@ Using the `chat` slice as the map:
 | entity schema | `domain/chat/chat.model.ts` | `Chat`, `Message` (`Schema.Class`) |
 | domain errors | `domain/chat/chat.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
 | port and pure operations | `domain/chat/chat.service.ts` | `ChatRepository`, `buildChat({ id, userId, createdAt })`, `prepareMessage` |
+| guard shared by the aggregates | `domain/shared/guard.ts` | `ensureFound(found, holds, missing)` |
 | adapter implementing the port | `infrastructure/chat/chat.repository.ts` | `ChatRepositoryKv` (a `Layer` over `KeyValueStore`) |
+| queue definitions | `infrastructure/chat/chat.queue.ts` | `assistantMessageQueue`, `GenerateAssistantMessage` (the job schema) |
+| prompt functions | `infrastructure/chat/chat.llm.ts` | `buildChatPrompt`, `streamAssistantText` |
 | service over the ports | `application/chat/chat.service.ts` | `ChatService`, `ChatService.layer` |
 | use case composing services | `application/chat/send-message.use-case.ts` | `SendMessageUseCase`, `SendMessageUseCase.layer` |
-| browser feature | `apps/web/src/features/health/health-panel.ts` | `renderHealthPanel(root, apiClient)` |
+| job: producer and worker | `application/chat/assistant-message.job.ts` | `AssistantMessageJob`, `AssistantMessageJob.worker` |
+| test support | `application/testing/chat.harness.ts` | `makeChatHarness()`, `withChat(body)` |
+| contract group | `http-api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`), the DTOs `Chat`, `Message` |
+| handler | `apps/api/src/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
+| browser feature | `apps/web/src/features/health/health-panel.ts` | `renderHealthPanel(root)` |
 
 Every entity folder has an `index.ts` barrel, and tests sit next to their source as `*.test.ts`.
 The file suffixes and naming verbs are listed in
 [.claude/rules/naming.md](../../.claude/rules/naming.md).
 
 ## Add a new entity
-
-> **In transition.** The app wiring (`createLayer()`), the example routes with `statusByTag` and
-> the job handler are retired. Steps 7–8 describe that shape until the roadmap ticket
-> [`chat-core`](roadmap.md#3-chat-core) rewrites them.
 
 Follow the `chat` slice layer by layer, from the bottom up. Write each test before its code,
 and run `make check` after each layer. `<entity>` is the kebab name (`document`), `<Entity>` the
@@ -127,26 +130,35 @@ Pascal one (`Document`).
 3. **Port and operations.** `<entity>.service.ts`: the `<Entity>Repository` port as a
    `Context.Service` with no layer, and pure operations such as `build<Entity>(input)`. Time and
    ids come in as input, never from `Date.now()` or `crypto.randomUUID()`. Test them in
-   `<entity>.service.test.ts`.
+   `<entity>.service.test.ts`. A rule several aggregates share (`ensureFound`, `isOwnedBy`) lives
+   once, in `domain/shared/` or the aggregate that owns it.
 4. **Domain exports.** `domain/<entity>/index.ts` re-exports its files, and
    `domain/package.json` gains `"./<entity>": "./<entity>/index.ts"` in `exports`.
-5. **Adapter.** `infrastructure/<entity>/<entity>.repository.ts`: `<Entity>RepositoryMemory`, a
-   `Layer` that provides the domain port. Start on `KeyValueStore`, like `chat`; a real client later
-   adds another layer of the same port. Add `index.ts` and the `exports` entry.
+5. **Adapter.** `infrastructure/<entity>/<entity>.repository.ts`: `<Entity>RepositoryKv`, a
+   `Layer` constant that provides the domain port over `KeyValueStore` through `createCollection`
+   and `createIndex` from `infrastructure/kv`; a real client later adds another layer of the same
+   port. Add `index.ts` and the `exports` entry.
 6. **Service and use cases.** `application/<entity>/<entity>.service.ts` holds the service and
    `<verb>-<object>.use-case.ts` each use case, both a `Context.Service` with a `layer`, like
    `application/chat/`. Which flow goes where:
    [.claude/rules/use-cases.md](../../.claude/rules/use-cases.md). Shared test support goes in
    `application/testing/`. Add `index.ts` and the `exports` entry.
-7. **Contract.** Add the group in `http-api/<entity>/<entity>.http.ts`, listing the domain's errors
-   with their statuses (`HttpApiSchema.status`), and add it to `Api` in `http-api/api.ts`.
-8. **Delivery.** Implement the group in `apps/api/src/<entity>/<entity>.handler.ts` with
-   `HttpApiBuilder.group(Api, '<group>', …)`, and provide it and its services in
-   `apps/api/src/layer.ts` (and the worker's layer, if it needs them). Test the round trip through
-   `ApiClient` in `<entity>.handler.test.ts` beside it, on `apps/api/src/testing/api.harness.ts`.
-9. **Client, if the browser needs it.** `ApiClient` from `@app-template/http-api` already has every
-   endpoint of the contract; add a feature folder under `apps/web/src/features/<entity>/` whose
-   Effect calls it.
+7. **Job, if the entity has asynchronous work.** `infrastructure/<entity>/<entity>.queue.ts`
+   holds the queue definitions (name, job schema, retry policy, `jobId`), and any prompt the model
+   needs goes in `<entity>.llm.ts`. Both sides of the job live in
+   `application/<entity>/<object>.job.ts`: the producer service, which calls `send` from
+   `packages/queue`, and the static `worker` layer, which `apps/worker/src/layer.ts` merges.
+8. **Contract.** Add the group in `http-api/<entity>/<entity>.http.ts`, listing the domain's errors
+   with their statuses (`HttpApiSchema.status`), and add it to `Api` in `http-api/api.ts` before
+   `.middleware(SchemaErrors)`.
+9. **Delivery.** Implement the group in `apps/api/src/<entity>/<entity>.handler.ts` with
+   `HttpApiBuilder.group(Api, '<group>', …)`: it calls the use cases and services and projects
+   each model onto its DTO (`Struct.pick`). Add it to `ApiRoutes` and its services and adapters to
+   `ApiHttp` in `apps/api/src/layer.ts`. Test the round trip through `ApiClient` in
+   `<entity>.handler.test.ts` beside it, on `apps/api/src/testing/api.harness.ts`.
+10. **Client, if the browser needs it.** `ApiClient` from `@app-template/http-api` already has
+    every endpoint of the contract; add a feature folder under `apps/web/src/features/<entity>/`
+    whose Effect calls it through `ApiClient.use`.
 
 A new entity in existing workspaces usually needs no new dependency, because the layers already
 declare each other. Check the importer's `package.json` anyway: `apps/worker`, for one, does not

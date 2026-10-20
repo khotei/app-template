@@ -17,4 +17,4 @@ and pure operations.
   module the client does not use (the ports among them).
 - Persistence ports are `Context.Service` declarations with no layer, in `<entity>.service.ts`
   next to the operations; their layers live in `infrastructure`.
-- Each entity folder exposes itself through `index.ts` (`@app-template/domain/<entity>`).
+- Each folder (an entity, or `shared`) exposes itself through `index.ts` (`@app-template/domain/<folder>`).

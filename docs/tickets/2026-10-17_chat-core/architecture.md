@@ -69,8 +69,9 @@ New files are marked `+`, removed `−`, changed `~`. Every entity folder keeps 
 + domain/attachment/attachment.error.ts    AttachmentNotFoundError · AttachmentBoundError
 + domain/attachment/attachment.service.ts  AttachmentRepository · AttachmentStore · buildAttachment ·
                                            ensureBindable
++ domain/shared/guard.ts             ensureFound (S17, D33)
 − domain/example/*
-~ domain/package.json                exports ./user ./chat ./attachment · "sideEffects": false (D29)
+~ domain/package.json                exports ./user ./chat ./attachment ./shared · "sideEffects": false (D29)
 ```
 
 Each `*.model.ts` and `*.service.ts` has its `*.test.ts` beside it. Ids live in `<aggregate>.id.ts`,
@@ -844,6 +845,14 @@ per the acceptance table, not by a test.
   *Rejected:* a read helper `readSpecOperation(route)` with the `it.effect.each` repeated in each
   test (the test name and the two asserts would still be copied); the check in `layer.test.ts`
   over every route (a group's statuses belong next to its handler, Seam 7).
+- **D33 — A domain rule several aggregates share lives in `domain/shared/`, exported as
+  `@app-template/domain/shared`.** *Added in S17.* `ensureFound(found, holds, missing)` turns an
+  `Option.filter` then `*NotFoundError` pairing into one call at the four sites S10 listed
+  (`findOwnedChat`, `getMessage`, `AttachmentService.get`, `ensureBindable`), so a record the
+  caller may not see reads as absent and its existence does not leak. `shared/` is a folder
+  without an entity, like `infrastructure/shared`; `domain/CLAUDE.md` says "each folder" for it.
+  *Rejected:* the guard beside `isOwnedBy` in `user/` (the `getMessage` site filters by
+  `isInChat`, not ownership); a copy per aggregate (the drift the step set out to remove).
 
 ## Risks
 

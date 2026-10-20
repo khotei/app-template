@@ -106,9 +106,6 @@
         "@effect/vitest": "catalog:effect",
       },
     },
-    "packages/db": {
-      "name": "@app-template/db",
-    },
     "packages/llm": {
       "name": "@app-template/llm",
       "dependencies": {
@@ -125,9 +122,6 @@
         "@app-template/testing": "workspace:*",
         "@effect/vitest": "catalog:effect",
       },
-    },
-    "packages/storage": {
-      "name": "@app-template/storage",
     },
     "packages/testing": {
       "name": "@app-template/testing",
@@ -167,8 +161,6 @@
 
     "@app-template/config": ["@app-template/config@workspace:packages/config"],
 
-    "@app-template/db": ["@app-template/db@workspace:packages/db"],
-
     "@app-template/deployment": ["@app-template/deployment@workspace:deployment"],
 
     "@app-template/domain": ["@app-template/domain@workspace:domain"],
@@ -180,8 +172,6 @@
     "@app-template/llm": ["@app-template/llm@workspace:packages/llm"],
 
     "@app-template/queue": ["@app-template/queue@workspace:packages/queue"],
-
-    "@app-template/storage": ["@app-template/storage@workspace:packages/storage"],
 
     "@app-template/testing": ["@app-template/testing@workspace:packages/testing"],
 

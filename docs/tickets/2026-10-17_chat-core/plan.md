@@ -1457,7 +1457,8 @@ apart in `apps/api`.
   (entries 6 and 7 notes); `.claude/rules/naming.md`; `domain/CLAUDE.md` (`buildExample` →
   `buildChat`), `infrastructure/CLAUDE.md`, `application/CLAUDE.md`, `packages/CLAUDE.md`
   (`db`, `storage` mentions if any).
-- **Test first:** `config only` — deletions and docs; `make check` is the gate.
+- **Test first:** `config only` — deletions and docs; `make check` is the gate. *Amended in S17:*
+  the guard is code, so it is tested at Seam 1 (`domain/shared/guard.test.ts`).
 - **Verify:** `make check`; `git grep -i example -- ':!docs/tickets' ':!repos'` finds no code;
   `bun install` succeeds without `packages/db` and `packages/storage`; `wc -l */CLAUDE.md` within
   budget; the roadmap row 3 still links here.
@@ -1471,7 +1472,36 @@ apart in `apps/api`.
   - The style pass also split `.claude/rules/effect.md` into `effect.md` (the hub),
     `effect-schema.md`, `effect-services.md`, `effect-style.md` and `effect-tests.md`
     (`**/*.test.ts`), each within the ~80-line budget.
-- **Status:** todo (slice removed; docs, stubs and roadmap remain)
+  - Of the Goal's list, only the leftovers were still in the tree: `packages/db` and
+    `packages/storage` (an `export {}` each), `outbox.repository.ts` with its `export *` in
+    `infrastructure/shared/index.ts`, and the two `tsconfig.json` references; `bun install`
+    removed the two workspaces from `bun.lock`. No Biome override named them. The `example` hits
+    that remain outside `docs/tickets` are prose (`.env.example`, the roadmap's "worked example",
+    `PULL_REQUEST_example.md`).
+  - The domain guard is `ensureFound(found, holds, missing)` in `domain/shared/guard.ts`, exported
+    as `@app-template/domain/shared`: `Effect.fromOption(Option.filter(found, holds), missing)`,
+    tested at Seam 1 (`guard.test.ts`, red first on the missing module). `domain/shared/` is a new
+    folder, since the rule serves three aggregates and `isInChat` keeps it out of `user/`. The four
+    sites now call it; the two `Option.filter` left (`ensureChatAcceptsMessage`, `failStoredReply`)
+    pair with `isActiveMessage`, not a `*NotFoundError`. The site tests stayed green across the
+    change, so the guard's test is the only new one.
+  - `naming.md` already had the `.job` row (added in S6); this step only notes that prompt
+    functions live in `.llm`. `architecture.md › Where things live` gains the `.queue`, `.llm`,
+    `.job`, harness, `.http` and `.handler` rows and loses the "In transition" banner; `Add a new
+    entity` gains the job step and names `ApiRoutes`/`ApiHttp` and `.middleware(SchemaErrors)`;
+    `tooling.md`'s troubleshooting example moved to `#domain/chat/chat.model`. The only
+    `CLAUDE.md` line the rewrite made stale was `infrastructure`'s "typed stub".
+  - Roadmap entries 6 and 7 each gain a "Re-read against `chat-core`" bullet: the reply is a worker
+    job polled by the client, so 6's streaming question narrows to an SSE tail and assistant
+    attachments are produced inside that job; 7 depends on 6 only for assistant attachments and
+    the tail, which the table's `Depends on` cell now says.
+  - At approval (review round): the commit subject shortened to 41 characters; the guard's TSDoc
+    keeps only the why; `infrastructure/CLAUDE.md` names the LLM adapter's stub beside the
+    `KeyValueStore` adapters; `domain/CLAUDE.md` says "each folder (an entity, or `shared`)"
+    (D33). Left as is: the commented `DATABASE_URL` and `S3_*` in `.env.example`, for roadmap 4
+    and 5; `attachment.service.ts`'s `Option.isNone(bytes)` check, a `*NotFoundError` without a
+    predicate, outside S10's list.
+- **Status:** done
 
 ## Requirement coverage
 

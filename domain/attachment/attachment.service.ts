@@ -8,6 +8,7 @@ import {
   type FileSize,
   type MediaType,
 } from '#domain/attachment/attachment.model'
+import { ensureFound } from '#domain/shared/guard'
 import type { UserId } from '#domain/user/user.id'
 import { isOwnedBy } from '#domain/user/user.service'
 
@@ -58,8 +59,11 @@ export const ensureBindable = Effect.fn('ensureBindable')(function* (
   found: Option.Option<Attachment>,
   userId: UserId,
 ) {
-  const owned = Option.filter(found, isOwnedBy(userId))
-  if (Option.isNone(owned)) return yield* new AttachmentNotFoundError({ id })
-  if (Option.isSome(owned.value.messageId)) return yield* new AttachmentBoundError({ id })
-  return owned.value
+  const owned = yield* ensureFound(
+    found,
+    isOwnedBy(userId),
+    () => new AttachmentNotFoundError({ id }),
+  )
+  if (Option.isSome(owned.messageId)) return yield* new AttachmentBoundError({ id })
+  return owned
 })

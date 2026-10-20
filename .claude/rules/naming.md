@@ -39,7 +39,7 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 | `.service` | domain: ports + pure operations · application: a service over ports | domain, application |
 | `.use-case` | a flow that composes services: `<verb>-<object>.use-case.ts` | application |
 | `.job` | a queue's producer service and its worker | application |
-| `.repository` · `.storage` · `.llm` | an adapter over a client | infrastructure |
+| `.repository` · `.storage` · `.llm` | an adapter over a client; prompt functions live in `.llm` | infrastructure |
 | `.queue` | queue definitions | infrastructure |
 | `.client` | client wiring | infrastructure/shared, http-api, packages |
 | `.http` | a contract group: one resource's HTTP routes (`HttpApiGroup`) | http-api |
