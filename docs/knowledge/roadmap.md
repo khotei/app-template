@@ -37,16 +37,17 @@ graph LR
 |---|---|---|---|---|
 | 1 | [`template-bootstrap`](#1-template-bootstrap) | `chore` | — | done: [docs/tickets/2026-10-17_template-bootstrap/](../tickets/2026-10-17_template-bootstrap/feature.md) |
 | 2 | [`claude-toolkit`](#2-claude-toolkit) | `chore` | 1, 3 | planned |
-| 3 | [`chat-core`](#3-chat-core) | `feat` | 1 | planned |
+| 3 | [`chat-core`](#3-chat-core) | `feat` | 1 | in progress: [docs/tickets/2026-10-17_chat-core/](../tickets/2026-10-17_chat-core/feature.md) |
 | 4 | [`postgres-drizzle`](#4-postgres-drizzle) | `feat` | 3 | planned |
-| 5 | [`aws-local`](#5-aws-local) | `feat` | 4 | planned |
+| 5 | [`aws-local`](#5-aws-local) | `feat` | 3 | in progress: [docs/tickets/2026-10-19_aws-local/](../tickets/2026-10-19_aws-local/feature.md) |
 | 6 | [`llm-providers`](#6-llm-providers) | `feat` | 5 | planned |
-| 7 | [`web-app`](#7-web-app) | `feat` | 3 (6 for streaming and attachments) | planned |
+| 7 | [`web-app`](#7-web-app) | `feat` | 3 (6 for assistant attachments and an SSE tail) | planned |
 | 8 | [`observability`](#8-observability) | `feat` | 3 | planned |
-| 9 | [`deployment`](#9-deployment) | `feat` | 5, 7, 8 | planned |
+| 9 | [`aws-deployment`](#9-aws-deployment) | `feat` | 4, 5 | planned |
 | 10 | [`client-publishing`](#10-client-publishing) | `chore` | 3 | planned |
 | 11 | [`workflow-cluster`](#11-workflow-cluster) | `feat` | 4, 8 | planned, exploratory |
 | 12 | [`template-handoff`](#12-template-handoff) | `chore` | all above | planned |
+| 13 | [`ticket-folder-order`](#13-ticket-folder-order) | `chore` | 3 | deferred |
 
 The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining work is re-homed in
 [Re-homing `effect-setup`](#re-homing-effect-setup).
@@ -103,10 +104,10 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   code, so later steps follow it; `claude-toolkit` (2) polishes it.
 - **Scope.** `domain/chat` (Visitor, Chat, Message, Attachment, Placeholder as `Schema`, errors,
   ports); in-memory adapters on `KeyValueStore`; `application/chat` services and the job;
-  `@app-template/api-contract` as an `HttpApi` with the visitor secret as `HttpApiSecurity`, SSE for the
+  `@app-template/http-api` as an `HttpApi` with the visitor secret as `HttpApiSecurity`, SSE for the
   reply (`HttpApiSchema.StreamSse` over `LanguageModel.streamText` from the stub), multipart upload
-  for attachments (`asMultipartStream` with limits, stored in `KeyValueStore` for now), committed
-  `openapi.json`; `@app-template/api-client` as the `Promise<Result>` facade; `apps/api` on
+  for attachments (`asMultipartStream` with limits, stored in `KeyValueStore` for now), the spec
+  served at `/openapi.json`; its `ApiClient` over `HttpApiClient`, the web on Effect; `apps/api` on
   `HttpApiBuilder` and `BunRuntime`; `apps/worker` running one real job (chat title generation
   after the first reply, as ChatGPT does) on the `PersistedQueue` port; tests at the seams with
   `@effect/vitest`, `TestClock`, `TestCrypto`, `BunHttpServer.layerTest` and the typed client.
@@ -129,6 +130,10 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   `effect/ai` streams `Response` parts (`text-delta`, `file`, `tool-call`, …) and takes
   `Prompt.FilePart` for images and PDFs. `@effect/sql-pglite@4.0.5` exists for later in-process
   Postgres tests.
+- **Status.** In progress: [docs/tickets/2026-10-17_chat-core/](../tickets/2026-10-17_chat-core/feature.md).
+  Its grilling departed from this entry: the assistant's message is a worker job polled by the
+  client (no SSE here), the title job starts from the first user message, and `Visitor` became
+  `User`.
 
 ### 4. `postgres-drizzle`
 
@@ -139,12 +144,22 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   and `drizzle-orm/effect-schema` for `Schema` derivation; `drizzle-kit` migrations; `timestamptz`
   and `$onUpdate` columns, UUIDv7 ids, `as const` value lists shared by `Schema.Literals` and
   `pgEnum`; repositories replacing the in-memory adapters; the outbox table and relay into
-  `PersistedQueue.layerStoreSql` (or proof that `offer` inside `withTransaction` is the outbox);
+  `PersistedQueue.layerStoreSql` (or proof that `offer` inside `withTransaction` is the outbox),
+  which also closes `chat-core`'s enqueue-after-insert risks (a `queued` message with no job, the
+  chat busy for good; or no title job, the chat untitled for good) by committing the jobs with the
+  messages; and the two guards that let a second api process drop the in-process `UserLock`:
+  a partial unique index allowing one active message per chat, and the bind as `UPDATE … WHERE
+  message_id IS NULL`;
   `FOR UPDATE SKIP LOCKED` where the queue store does not already provide it; the test strategy
   (per-suite `@effect/sql-pglite` versus Testcontainers with a schema or database per test, with
   a replacement `ConfigProvider` built from the running instance); `docker-compose` Postgres for
   dev; `make` targets for migrate and reset.
-- **Out of scope.** AWS resources (5), Aurora versus RDS (9).
+- **Out of scope.** AWS resources (5), Aurora versus RDS (9). If `aws-local` (5) lands first, the
+  outbox relay publishes to the queue port's SQS layer instead.
+- **Leaning (2026-10-18).** Keys stay UUIDv7 generated by the application, so an id exists
+  before the write; columns are `id uuid PRIMARY KEY DEFAULT uuidv7()` (Postgres 18), the default
+  only a fallback for hand-written SQL and data scripts. A `bigint` identity was set aside: it
+  needs a round trip, invites id guessing and reveals volumes.
 - **Open questions for its feature phase.** Which `drizzle-orm` rc is pinned and whether it
   compiles against `effect@4.0.5` (the donor pinned `rc.3` against `beta.78`); pglite versus
   Testcontainers as the default test database, and whether both are kept (fast local, real CI);
@@ -169,10 +184,23 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   on Effect v4 versus the AWS SDK behind a thin port); MiniStack in `docker-compose` next to
   Postgres; a plain-data AWS resource inventory and a provisioner; tests against MiniStack through
   Testcontainers with a replacement `ConfigProvider`; `.env.example` for endpoints and credentials.
-- **Out of scope.** Lambda packaging and Pulumi (9); emulated Lambdas (9).
-- **Open questions for its feature phase.** `@effect-aws/*` 2.0.0 behaviour on Bun (only its
-  metadata was checked); whether MiniStack serves presigned URLs and SQS event source mappings
-  (undocumented); whether the outbox relay from 4 or the api process publishes to SQS.
+- **Out of scope.** Lambda packaging and Pulumi (9); emulated Lambdas (9); the outbox, so the api
+  sends a job right after its write as it does today, and the enqueue-after-insert risk stays with
+  `postgres-drizzle` (4).
+- **Decided (2026-10-19).** AWS work is two tickets, this one and `aws-deployment` (9), sharing one
+  resource inventory. This ticket depends on `chat-core` (3) only: S3 and SQS need no Postgres.
+  MiniStack emulates the services only; the api and worker keep running on `bun --hot` and
+  `--watch` against it.
+- **Queue-port caveat.** The port promises one delivery per `jobId` (SQLite and Postgres: a
+  unique `(id, queue_name)`). A standard SQS queue has no dedupe and FIFO dedupes only within
+  5 minutes, and `isLastAttempt` must come from `ApproximateReceiveCount` against the redrive
+  policy's `maxReceiveCount`. Handlers stay idempotent either way.
+- **Rechecked (2026-10-19).** MiniStack verifies SigV4 presigned GET and PUT and runs SQS event
+  source mappings (source and tests, not yet run live); it dedupes FIFO messages in a 300 s
+  window; Node.js and `provided.*` Lambdas run as local processes, Docker only for images.
+  `@effect-aws/client-s3` and `client-sqs` 2.0.0 peer `effect >=4.0.0-beta.66 <5.0.0`, install
+  under Bun 1.4.3, type-check under `tsc` 7 and presign on Bun (scratch run, no live endpoint).
+- **Status.** In progress: [docs/tickets/2026-10-19_aws-local/](../tickets/2026-10-19_aws-local/feature.md).
 - **Facts (2026-10-17).** LocalStack's OSS repository was archived on 2026-03-23 and its image
   requires an account; free only for non-commercial use. MiniStack: MIT, Python, images ~110–360 MB,
   4.9k stars, releases every 1–3 days, SQS (DLQ redrive, FIFO attributes stored), S3 (multipart,
@@ -190,7 +218,12 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
 - **Scope.** `@effect/ai-anthropic` and `@effect/ai-openai` layers; provider and model from
   `Config`; `Prompt.FilePart` for images and PDFs from S3; assistant attachments (how they are
   produced is this ticket's first decision: a tool the model calls, a worker job, or both) and
-  the placeholder syntax; retries and budgets as decorator layers with `Schedule`; prompt
+  the placeholder syntax; retries and budgets as decorator layers with `Schedule`; retries that
+  read `AiError.isRetryable` and `retryAfter`, so a provider error no retry can fix (auth, an
+  invalid request, content policy) stops spending attempts and a rate limit is honoured, which
+  changes the chat's retry requirement and so goes through this ticket's `feature.md`; the
+  history trimmed to the model's context window with `Tokenizer.truncate` or an equivalent,
+  since today every completed message is sent and a long chat grows without bound; prompt
   provenance (hash of templates stored with the message); tests on a fake `LanguageModel` and
   one recorded provider round trip.
 - **Out of scope.** Google and Bedrock (v3-only providers); agents and tool-use beyond what
@@ -198,6 +231,12 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
 - **Open questions for its feature phase.** Placeholder syntax; which model produces files in the
   template demo; token and cost accounting per chat; whether the reply streams through the worker
   (see 3).
+- **Re-read against `chat-core` (2026-10-20).** The reply already runs in a worker job
+  (`AssistantMessageJob`), which writes the growing text into the message as throttled snapshots
+  that the client polls; the question above narrows to whether an SSE tail over the stored message
+  is added. Assistant attachments are therefore produced inside that job: the first decision is
+  whether the model's tool call or a second job writes them, not whether a job exists. Provider
+  layers replace `LanguageModelStub`, which `apps/worker/src/layer.ts` provides today.
 - **Facts (2026-10-17).** `@effect/ai-anthropic@4.0.5` and `@effect/ai-openai@4.0.5` exist;
   `@effect/ai-google` and `@effect/ai-amazon-bedrock` are Effect v3 only. The Anthropic Files API
   is GA; `document` blocks take PDFs up to 32 MB, images by base64, URL or file id.
@@ -209,7 +248,7 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   and inline placeholders, a chat list, all server-rendered and hydrated.
 - **Scope.** `apps/web` rebuilt on TanStack Start (Vite 8, Nitro `bun` preset in dev); TanStack
   Router, Query and DB where they fit (intent recorded; see the open question); `effect/reactivity`
-  atoms with `AtomHttpApi` over `@app-template/api-contract` and `HydrationBoundary` for SSR; Chakra
+  atoms with `AtomHttpApi` over `@app-template/http-api` and `HydrationBoundary` for SSR; Chakra
   UI v3 theme in `packages/ui`; a nested `biome.json` (`"root": false, "extends": "//"`) with the
   `react` domain; the visitor cookie flowing through the Start server; the web `Dockerfile` or
   Nitro output for 9.
@@ -218,6 +257,11 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   `AtomHttpApi` and atoms: which owns server state, which owns client state, or whether atoms alone
   suffice and Query/DB stay out; whether web client code may now import `effect` (today it is
   banned by Biome and must change for atoms); SSR of streams.
+- **Re-read against `chat-core` (2026-10-20).** "Streaming replies" means, today, polling the
+  assistant message until its stage is terminal, since the api streams nothing and the worker
+  writes snapshots; an SSE tail is `llm-providers`' (6) open question, so this ticket depends on
+  3 alone for the reply and the upload, and on 6 only for assistant attachments and placeholders.
+  The visitor cookie is the user cookie of `chat-core`'s `CurrentUser` security.
 - **Facts (2026-10-17).** `@tanstack/react-start@1.169.3` (router 1.170, Vite ≥ 8, React 19 for
   the Bun preset, `aws_lambda` preset with streaming); `@chakra-ui/react@3.37.0`; Effect v4 atoms
   are `effect/reactivity/*` in core plus `@effect/atom-react@4.0.5` (React ≥ 19 only) with
@@ -238,10 +282,10 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   OTel SDK (needed only if a vendor SDK is required); which local UI (Jaeger, Grafana LGTM,
   SigNoz).
 
-### 9. `deployment`
+### 9. `aws-deployment`
 
-- **Goal.** One Pulumi program deploys the three processes, Postgres, S3, SQS and observability
-  to AWS, and the same program provisions MiniStack for the "true emulator" local mode, so a new
+- **Goal.** One Pulumi program deploys the api, the worker, Postgres, S3 and SQS to AWS, from the
+  resource inventory `aws-local` (5) introduced, and the same program provisions MiniStack for the "true emulator" local mode, so a new
   project is live in one command.
 - **Scope.** `deployment/` on Pulumi `runtime: bun`; Lambda packaging for api and worker (Lambda
   Web Adapter container is the official Bun path; the `bun-lambda` layer is the alternative), the
@@ -249,7 +293,11 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   versus RDS; SQS event source mapping for the worker; secrets in SSM; the local mode where
   MiniStack runs the Lambdas in Docker from the same artefacts; CI deploying a preview stack;
   `docs/knowledge/deployment.md`.
-- **Out of scope.** Multi-account or multi-region; a custom domain and CDN beyond the minimum.
+- **Out of scope.** Multi-account or multi-region; a custom domain and CDN beyond the minimum; the
+  web and the observability backend while `web-app` (7) and `observability` (8) have not landed:
+  each adds its own resources to this program, and one that lands first is deployed here.
+- **Decided (2026-10-19).** Split from `aws-local` (5); depends on `postgres-drizzle` (4), since
+  the deployed processes need a shared database, and on 5, not on 7 or 8.
 - **Open questions for its feature phase.** Whether Pulumi replaces `docker-compose` entirely
   (with the Docker provider) or complements it; cold starts of `@effect/platform-bun` on Lambda;
   whether `pulumi.dynamic.Resource`, unsupported under `runtime: bun`, is ever needed.
@@ -259,16 +307,25 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   `provided.al2` is deprecated since 2026-07-31. MiniStack has no Lambda hot reload and runs
   non-Python runtimes in Docker, so the emulator mode verifies deployment artefacts; live
   development stays on `bun --watch` against MiniStack's queues and buckets.
+- **Rechecked (2026-10-19).** Pulumi CLI 3.270.0, `@pulumi/aws` 7.51.1. Bun runs the program only
+  under `runtime: bun`; `deployment/Pulumi.yaml` still says `nodejs` with `packagemanager: bun`,
+  which runs it on Node, so its feature phase picks one. Bun's Lambda guide (Lambda Web Adapter
+  1.0.1 in a container; 1.1.0 is current) says nothing about response streaming. `provided.al2023`
+  replaces `provided.al2` (deprecated 2026-07-31). Aurora Serverless v2 pauses at 0 ACU and resumes
+  in about 15 s; Postgres 18 is on RDS and on Aurora (Serverless v2 from 18.3). App Runner has been
+  closed to new customers since 2026-04-30; AWS points to ECS Express Mode. Lambda Web Functions
+  (2026-10-12) serve HTTP without an adapter, but only on `nodejs24.x`, so not under Bun. SQS event
+  source mappings with `ReportBatchItemFailures` remain the recommended worker pattern.
 
 ### 10. `client-publishing`
 
-- **Goal.** `@app-template/api-client` and `@app-template/api-contract` consumable from any TypeScript
+- **Goal.** `@app-template/http-api` and its `ApiClient` consumable from any TypeScript
   project without the server code, with every type intact.
-- **Scope.** Build and `exports` of the two packages (types from the `HttpApi` definition, no
-  `domain` import); versioning; publishing to GitHub Packages or npm from CI on a tag; a consumer
+- **Scope.** Build and `exports` of `http-api` (types from the `HttpApi` definition; the
+  `domain` it imports ships with it); versioning; publishing to GitHub Packages or npm from CI on a tag; a consumer
   smoke test in a scratch project.
-- **Out of scope.** A client for other languages; an SDK generator from `openapi.json`.
-- **Open questions for its feature phase.** Registry; whether `openapi.json` is published too;
+- **Out of scope.** A client for other languages; an SDK generator from the served `/openapi.json`.
+- **Open questions for its feature phase.** Registry; whether the spec is published too;
   how the client's `effect` dependency is declared for consumers that do not use Effect.
 
 ### 11. `workflow-cluster`
@@ -291,6 +348,28 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   skills); a fresh-clone rehearsal in CI; the README's "Starting a new project" rewritten; the
   GitHub template flag verified with all branches.
 - **Out of scope.** A generator or CLI.
+
+### 13. `ticket-folder-order`
+
+- **Goal.** Ticket folders list in the order the tickets started, even two started on the same
+  day: today `2026-10-17_chat-core` sorts above the earlier `2026-10-17_template-bootstrap`.
+- **Scope.** The folder name gains the start time, `docs/tickets/<YYYY-MM-DD-HHmm>_<slug>/`, taken
+  when `/ticket-feature` creates it; every existing folder renamed with `git mv`, its time from the
+  ticket's first commit; the seven places that state the pattern (`CLAUDE.md`, `sdd.md`,
+  `commits.md`, `claude-md.md`, `ticket-feature/SKILL.md`, `PULL_REQUEST_TEMPLATE.md`,
+  `docs/knowledge/sdd.md`); links to ticket folders in `docs/knowledge/`.
+- **Out of scope.** Rewriting pushed history: `Refs:` lines in commits already on `main` and the
+  teaching branch keep the old paths.
+- **Open questions for its feature phase.** Whether a `make` check rejects a folder name without the
+  time; whether `docs/knowledge/sdd.md` says how to follow an old `Refs:` path.
+- **Facts (2026-10-18).**
+  - Renaming only the newer folder does not fix the order: `-` sorts before `_`, so every folder of
+    a day needs the time.
+  - An old `Refs:` path still resolves inside its own commit (`git show <sha>:<path>`), and
+    `git log --follow` finds the rename.
+  - Rewriting `Refs:` is safe only in unpushed commits; on `main` it needs a force-push.
+  - No script parses the folder name.
+- **Status.** Deferred: taken when there is time, after `chat-core` merges.
 
 ## Re-homing `effect-setup`
 

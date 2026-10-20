@@ -12,8 +12,8 @@
     "start": "bun --env-file=../../.env src/main.ts"
   },
   "dependencies": {
-    "@app-template/api-client": "workspace:*",
     "@app-template/config": "workspace:*",
+    "@app-template/http-api": "workspace:*",
     "@app-template/ui": "workspace:*",
     "effect": "catalog:effect"
   }

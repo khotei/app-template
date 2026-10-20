@@ -42,7 +42,8 @@
         }
       },
       "suspicious": {
-        "noExplicitAny": "error"
+        "noExplicitAny": "error",
+        "noImportCycles": "error"
       }
     }
   },
@@ -98,6 +99,66 @@
       }
     },
     {
+      "includes": ["domain/**/*.test.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/**",
+                      "!@app-template/testing",
+                      "!@app-template/testing/**",
+                      "@effect/**",
+                      "!@effect/vitest",
+                      "!@effect/vitest/**"
+                    ],
+                    "message": "domain tests import no workspace but the test support @app-template/testing, and no @effect/* package except the test runner @effect/vitest"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["http-api/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/**",
+                      "!@app-template/domain",
+                      "!@app-template/domain/**",
+                      "@effect/**"
+                    ],
+                    "message": "http-api is the HTTP boundary shared by the apps: it imports only effect and @app-template/domain"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["infrastructure/**"],
       "linter": {
         "rules": {
@@ -117,7 +178,9 @@
                       "@app-template/web",
                       "@app-template/web/**",
                       "@app-template/deployment",
-                      "@app-template/deployment/**"
+                      "@app-template/deployment/**",
+                      "@app-template/http-api",
+                      "@app-template/http-api/**"
                     ],
                     "message": "infrastructure may import only domain and packages/*: no upward imports"
                   },
@@ -150,7 +213,9 @@
                       "@app-template/web",
                       "@app-template/web/**",
                       "@app-template/deployment",
-                      "@app-template/deployment/**"
+                      "@app-template/deployment/**",
+                      "@app-template/http-api",
+                      "@app-template/http-api/**"
                     ],
                     "message": "application may import infrastructure, domain and packages/*: no upward imports"
                   },
@@ -189,9 +254,11 @@
                       "@app-template/web",
                       "@app-template/web/**",
                       "@app-template/deployment",
-                      "@app-template/deployment/**"
+                      "@app-template/deployment/**",
+                      "@app-template/http-api",
+                      "@app-template/http-api/**"
                     ],
-                    "message": "packages/* are generic: they may import each other, but never a layer or an app"
+                    "message": "packages/* are generic: they may import each other, but never a layer (http-api included) or an app"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -251,7 +318,9 @@
                       "@app-template/web",
                       "@app-template/web/**",
                       "@app-template/deployment",
-                      "@app-template/deployment/**"
+                      "@app-template/deployment/**",
+                      "@app-template/http-api",
+                      "@app-template/http-api/**"
                     ],
                     "message": "apps are independent: worker must not import another app"
                   },
@@ -278,16 +347,12 @@
                   {
                     "group": [
                       "@app-template/**",
-                      "!@app-template/api-client",
-                      "!@app-template/api-client/**",
+                      "!@app-template/http-api",
+                      "!@app-template/http-api/**",
                       "!@app-template/ui",
                       "!@app-template/ui/**"
                     ],
-                    "message": "web client code may import only @app-template/api-client and @app-template/ui: it ships to the browser"
-                  },
-                  {
-                    "group": ["effect", "effect/**", "@effect/**"],
-                    "message": "web client code imports no effect or @effect/*: it calls the api through the Promise-returning @app-template/api-client"
+                    "message": "web client code may import only @app-template/http-api and @app-template/ui: it ships to the browser"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -312,14 +377,12 @@
                   {
                     "group": [
                       "@app-template/**",
-                      "!@app-template/api-client",
-                      "!@app-template/api-client/**",
                       "!@app-template/ui",
                       "!@app-template/ui/**",
                       "!@app-template/config",
                       "!@app-template/config/**"
                     ],
-                    "message": "the web server entry may additionally import @app-template/config"
+                    "message": "the web server entry imports only @app-template/ui and @app-template/config of our workspaces, never @app-template/http-api"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -354,7 +417,9 @@
                       "@app-template/worker",
                       "@app-template/worker/**",
                       "@app-template/web",
-                      "@app-template/web/**"
+                      "@app-template/web/**",
+                      "@app-template/http-api",
+                      "@app-template/http-api/**"
                     ],
                     "message": "deployment may import only packages/*"
                   },

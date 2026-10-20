@@ -32,8 +32,10 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. G
      names, such as a branch, a push or a CI run, has not run yet), add its findings to `plan.md`
      and any new decision to `architecture.md`, stage the step's files, and commit with the
      proposed message as a command of its own;
-   - **feedback:** send it to the same implementer (`SendMessage`), then return to 3;
+   - **feedback:** first offer to commit the tree as it stands as the current round (`S11.1`,
+     code only, no `plan.md` edit), then send the feedback to the same implementer
+     (`SendMessage`) as the next round, and return to 3;
    - **stop:** leave the working tree as it is.
 6. Name the next unblocked step.
 
-One step per approval. Pushing or opening a PR needs its own OK.
+One step, or one round of it, per approval. Pushing or opening a PR needs its own OK.

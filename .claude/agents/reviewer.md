@@ -15,5 +15,7 @@ judge the diff, not how it was made.
 - **Read-only.** You report; the main session and the user decide what changes.
 - **Cite everything:** `path:line` and the rule or spec line it breaks. Label each finding a hard
   violation or a judgement call. Skip what Biome, `tsc -b` or the tests already enforce.
-- **Context the diff lacks:** `.claude/rules/naming.md` for names and imports, and
-  `docs/knowledge/architecture.md` for the layers.
+- **Context the diff lacks:** `.claude/rules/naming.md` for names and imports,
+  `.claude/rules/effect.md` and the `effect-*.md` files it maps for any `.ts` in the diff, and
+  `docs/knowledge/architecture.md` for the layers. Read them from disk, even when the brief does
+  not list them.

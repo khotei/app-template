@@ -1,18 +1,27 @@
 import { assert, describe, it } from '@effect/vitest'
-import { ConfigProvider, Duration, Effect, Layer, LogLevel, References } from 'effect'
+import { type Config, ConfigProvider, Duration, Effect, Layer, LogLevel, References } from 'effect'
 
-import { ApiConfig, MinimumLogLevelFromConfig, QueueConfig, RuntimeConfig } from '#config/config'
+import {
+  ApiConfig,
+  MinimumLogLevelFromConfig,
+  QueueConfig,
+  RuntimeConfig,
+  StoreConfig,
+} from '#config/config'
 
 const provideVariables = <A, E>(layer: Layer.Layer<A, E>, variables: Record<string, string>) =>
   layer.pipe(Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(variables))))
 
 describe('config layers', () => {
-  it.effect('fails with a ConfigError naming a missing variable', () =>
+  it.effect.each<{ variable: string; layer: Layer.Layer<never, Config.ConfigError> }>([
+    { variable: 'API_PORT', layer: ApiConfig.layer },
+    { variable: 'STORE_PATH', layer: StoreConfig.layer },
+  ])('fails with a ConfigError naming a missing $variable', ({ variable, layer }) =>
     Effect.gen(function* () {
-      const error = yield* Effect.flip(Layer.build(provideVariables(ApiConfig.layer, {})))
+      const error = yield* Effect.flip(Layer.build(provideVariables(layer, {})))
 
       assert.strictEqual(error._tag, 'ConfigError')
-      assert.include(error.message, 'API_PORT')
+      assert.include(error.message, variable)
     }),
   )
 
