@@ -160,7 +160,7 @@ export class ChatService extends Context.Service<
     }, userLock.withPermit)
 
     // The messages go before the chat, so the title job reads a missing first message as a delete.
-    const deleteChat = Effect.fn('ChatService.delete')(function* (userId: UserId, chatId: ChatId) {
+    const remove = Effect.fn('ChatService.delete')(function* (userId: UserId, chatId: ChatId) {
       yield* findOwnedChat(userId, chatId)
       yield* messages.deleteByChat(chatId)
       yield* chats.delete(chatId)
@@ -236,7 +236,7 @@ export class ChatService extends Context.Service<
       list,
       get,
       rename,
-      delete: deleteChat,
+      delete: remove,
       getMessage,
       findSendable,
       addUserMessage,

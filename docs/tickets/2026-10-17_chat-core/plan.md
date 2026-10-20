@@ -1556,8 +1556,36 @@ apart in `apps/api`.
   nothing; `git grep -n 'const remove = Effect.fn' -- application` finds nothing;
   `git diff --stat` stays under ~400 changed lines (split the rule lines off into a second step if
   not); both rule files stay within ~80 lines.
-- **Findings:**
-- **Status:** todo
+- **Findings:** the step landed in eight rounds, one commit each (`sdd.md › Gates`), none over
+  ~150 changed lines; `make check` green on every round.
+  - *S18.1, habit 1:* `move`, `completeMessage`, `failMessage`, `ensureBindable` and
+    `SendableChat` take an object; `prepareMessage`/`generateMessage` stay positional.
+    `SendableChat extends Data.Class<{…}>`, since TypeScript's parameter properties cannot take
+    one object; `declare private proof` keeps the brand. Rule: `effect-style.md › Signatures`.
+  - *S18.2, review:* the object is destructured in the parameter list, so the bodies are one line
+    again; `failMessage` types it as `Pick<MessageFailure, 'reason' | 'cause'> & { at }`. The
+    rule gained its exceptions instead of the code changing: a `Shape` method whose leading
+    parameters are ids (`rename(userId, chatId, title)`, `send(userId, chatId, input)`) and a
+    combinator over functions (`ensureFound(found, holds, missing)`) stay positional.
+  - *S18.3, the user:* destructure an object whose fields come from different things; keep one
+    entity whole and read its fields through its name.
+  - *S18.4, habit 2:* `attemptRoles` satisfies `Record<AttemptRole, ReplyAttempt>` with the real
+    `E` and `R`, taken from a compiler probe; the test table `chatCalls` names its `E` likewise;
+    `titleSkipLogs` and `refuseMultipart` already did. Rule: the lookup-table bullet.
+  - *S18.5, habit 3:* `Effect.fn.Return` on `reply`, `findReply`, `failReply`,
+    `failStoredReply` and `findUntitledChat`; `ReplyError`/`ReplyServices` are shared with
+    `ReplyAttempt`. Use cases get none: their functions live inside `make` and the `Shape` holds
+    the contract. Rule: `effect-services.md › Functions`.
+  - *S18.6 and S18.8, habit 4:* `remove` → `deleteChat` was reverted by the user: one entity
+    suffix among `list`, `get`, `rename` reads worse than a synonym. The rule now says the
+    reverse: a reserved word gets its plain synonym, never an entity suffix; the span alone
+    carries the method's name. The Verify grep for `const remove` is void. Rule:
+    `effect-services.md › Functions`, since `naming.md` sits at its budget.
+  - *S18.7, habit 5:* one TSDoc sentence on `AssistantMessageJob`, referencing `replyAttempts`;
+    `ChatTitleJob` gets none (its retries are one literal in `chatTitleQueue`). Contrary to the
+    Goal's "No rule", the user asked for every habit as a rule: `comments.md › Gate A` now
+    requires the sentence on an export that carries a policy.
+- **Status:** done
 
 ## Requirement coverage
 

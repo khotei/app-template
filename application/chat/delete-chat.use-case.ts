@@ -21,7 +21,7 @@ export class DeleteChatUseCase extends Context.Service<
 
     // Each step leaves what the next one reads, so a retry after a crash finishes the cascade:
     // the attachments go while the messages still list them.
-    const deleteChat = Effect.fn('DeleteChatUseCase.delete')(function* (
+    const remove = Effect.fn('DeleteChatUseCase.delete')(function* (
       userId: UserId,
       chatId: ChatId,
     ) {
@@ -32,7 +32,7 @@ export class DeleteChatUseCase extends Context.Service<
       yield* chatService.delete(userId, chatId)
     }, userLock.withPermit)
 
-    return { delete: deleteChat }
+    return { delete: remove }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make).pipe(

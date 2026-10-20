@@ -123,7 +123,7 @@ export class AttachmentService extends Context.Service<
       return { attachment, bytes: bytes.value }
     })
 
-    const deleteAttachment = Effect.fn('AttachmentService.delete')(function* (
+    const remove = Effect.fn('AttachmentService.delete')(function* (
       userId: UserId,
       id: AttachmentId,
     ) {
@@ -168,7 +168,7 @@ export class AttachmentService extends Context.Service<
       yield* Effect.forEach(ids, store.delete, { discard: true })
     })
 
-    return { upload, get, download, delete: deleteAttachment, findBindable, bind, deleteByIds }
+    return { upload, get, download, delete: remove, findBindable, bind, deleteByIds }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

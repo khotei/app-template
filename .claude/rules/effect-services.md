@@ -13,9 +13,9 @@ paths:
 - A body that only delegates is passed as is, `Effect.fn('<Service>.<method>')(collection.get)`,
   or as an arrow returning the effect; a generator is for a body with more than one step. Extra
   arguments to `Effect.fn` are the pipeables every call runs through (`lock.withPermit`).
-- The variable holding an `Effect.fn` is named after the span's last segment; when that is a
-  reserved word, suffix the entity (`deleteChat` for `'ChatService.delete'`), so a grep for the
-  method finds its definition.
+- The variable holding an `Effect.fn` is named after the span's last segment; a reserved word
+  gets its plain synonym (`remove` for `'ChatService.delete'`), never an entity suffix, so the
+  siblings (`list`, `get`, `rename`) stay one word and the span alone carries the method's name.
 - A module-level function that a handler, a job's `handle` or an export composes states its
   `Effect.fn.Return<A, E, R>` on the generator (`suggestChatTitle`), so the contract is read in
   one line; a helper used once stays inferred, since the annotation drifts on refactors.
