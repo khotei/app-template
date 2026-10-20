@@ -82,13 +82,14 @@ export class AttachmentService extends Context.Service<
     const attachments = yield* AttachmentRepository
     const store = yield* AttachmentStore
     const crypto = yield* Crypto.Crypto
-    const randomId = Effect.map(Effect.orDie(crypto.randomUUIDv7()), AttachmentId.make)
+    const randomUuid = Effect.orDie(crypto.randomUUIDv7())
+    const randomAttachmentId = Effect.map(randomUuid, AttachmentId.make)
 
     const upload = Effect.fn('AttachmentService.upload')(function* (
       userId: UserId,
       input: AttachmentUpload,
     ) {
-      const id = yield* randomId
+      const id = yield* randomAttachmentId
       const createdAt = yield* DateTime.now
       const attachment = buildAttachment({
         id,

@@ -34,11 +34,13 @@ const receive = (count: number) =>
 
 type MakeClient = Effect.Effect<Layer.Layer<QueueClient, unknown>, never, Scope.Scope>
 
-const send = <A, I>(definition: QueueDefinition<Schema.Codec<A, I>>, message: A) =>
-  QueueClient.use((client) => client.send(definition, message))
+const sendPing = (definition: typeof pings, ping: Ping) =>
+  QueueClient.use((client) => client.send(definition, ping))
 
 const sendPings = (...messages: ReadonlyArray<[id: string, text: string]>) =>
-  Effect.forEach(messages, ([id, text]) => send(pings, new Ping({ id, text })), { discard: true })
+  Effect.forEach(messages, ([id, text]) => sendPing(pings, new Ping({ id, text })), {
+    discard: true,
+  })
 
 const suite = (name: string, makeClient: MakeClient) =>
   describe(name, () => {
@@ -92,8 +94,8 @@ const sqliteClient = (filename: string) =>
 
 const sqlite: MakeClient = Effect.map(tempQueueFile, sqliteClient)
 
-suite('send and worker on QueueClient.layerMemory', memory)
-suite('send and worker on QueueClient.layerSqlite', sqlite)
+suite('QueueClient.send and worker on QueueClient.layerMemory', memory)
+suite('QueueClient.send and worker on QueueClient.layerSqlite', sqlite)
 
 const flaky = { ...pings, name: 'flaky', maxAttempts: 3 } satisfies QueueDefinition<typeof Ping>
 
@@ -127,7 +129,7 @@ describe('worker attempt info on QueueClient.layerMemory', () => {
       const seen = yield* Queue.unbounded<Seen>()
       yield* Layer.build(worker(flaky, recordAttemptsFailingOn(seen, 'fail')))
 
-      yield* send(flaky, new Ping({ id: 'a', text: 'fail' }))
+      yield* sendPing(flaky, new Ping({ id: 'a', text: 'fail' }))
       const attempts = [
         yield* awaitNextAttempt(seen),
         yield* awaitNextAttempt(seen),
@@ -135,7 +137,7 @@ describe('worker attempt info on QueueClient.layerMemory', () => {
       ]
       yield* TestClock.adjust('1 minute')
       const afterLast = yield* Queue.poll(seen)
-      yield* send(flaky, new Ping({ id: 'b', text: 'after' }))
+      yield* sendPing(flaky, new Ping({ id: 'b', text: 'after' }))
 
       assert.deepStrictEqual(attempts, [
         ['fail', { attempt: 1, maxAttempts: 3, isLastAttempt: false }],
@@ -163,7 +165,7 @@ describe('worker attempt info on QueueClient.layerMemory', () => {
         Queue.offer(seen, [ping.text, attempt]).pipe(Effect.andThen(Effect.never)),
       )
 
-      yield* send(flaky, new Ping({ id: 'a', text: 'slow' }))
+      yield* sendPing(flaky, new Ping({ id: 'a', text: 'slow' }))
       const interrupted = yield* Layer.build(hang).pipe(
         Effect.andThen(Queue.take(seen)),
         Effect.scoped,
@@ -215,7 +217,7 @@ describe('worker on a failing store', () => {
         const seen = yield* Queue.unbounded<Seen>()
         yield* Layer.build(worker(flaky, recordAttempts(seen)))
 
-        yield* send(flaky, new Ping({ id: 'a', text: 'after outage' }))
+        yield* sendPing(flaky, new Ping({ id: 'a', text: 'after outage' }))
         yield* TestClock.adjust('999 millis')
         const beforeBackoff = yield* Queue.poll(seen)
 
@@ -243,7 +245,7 @@ describe('worker on a failing store', () => {
         ),
       )
 
-      yield* send(flaky, new Ping({ id: 'a', text: 'gives up' }))
+      yield* sendPing(flaky, new Ping({ id: 'a', text: 'gives up' }))
 
       assert.deepStrictEqual(
         [yield* awaitNextAttempt(seen), yield* awaitNextAttempt(seen)],
@@ -280,9 +282,9 @@ describe('worker on a store that dies settling a failed attempt', () => {
       const seen = yield* Queue.unbounded<Seen>()
       yield* Layer.build(worker(pings, recordAttemptsFailingOn(seen, 'fail')))
 
-      yield* send(pings, new Ping({ id: 'a', text: 'fail' }))
+      yield* sendPing(pings, new Ping({ id: 'a', text: 'fail' }))
       yield* awaitNextAttempt(seen)
-      yield* send(pings, new Ping({ id: 'b', text: 'after' }))
+      yield* sendPing(pings, new Ping({ id: 'b', text: 'after' }))
 
       assert.deepStrictEqual(yield* awaitNextAttempt(seen), [
         'after',

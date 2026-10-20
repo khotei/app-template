@@ -11,7 +11,7 @@ import { Chat, type ChatId, type ChatRepository } from '@app-template/domain/cha
 export const touchChat = Effect.fnUntraced(function* (
   chats: ChatRepository['Service'],
   { chatId, at }: { readonly chatId: ChatId; readonly at: DateTime.Utc },
-) {
+): Effect.fn.Return<void, never, never> {
   const chat = yield* chats.selectById(chatId)
   if (Option.isNone(chat)) return
   yield* chats.update(new Chat({ ...chat.value, updatedAt: at }))

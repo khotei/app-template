@@ -157,8 +157,9 @@ Pascal one (`Document`).
 9. **Delivery.** Implement the group in `apps/api/src/<entity>/<entity>.handler.ts` with
    `HttpApiBuilder.group(Api, '<group>', …)`: it calls the use cases and services and projects
    each model onto its DTO through `apps/api/src/shared/projections.ts` (`Struct.pick`). Add it
-   to `ApiRoutes`, and its services and `<Entity>Kv` to `ApiHttp` in `apps/api/src/layer.ts`. Test the round trip through `ApiClient` in
-   `<entity>.handler.test.ts` beside it, on `apps/api/src/testing/api.harness.ts`.
+   to `ApiRoutes`, and its services and `<Entity>Kv` to `ApiHttp` in `apps/api/src/layer.ts`.
+   Test the round trip through `ApiClient` in `<entity>.handler.test.ts` beside it, on
+   `apps/api/src/testing/api.harness.ts`.
 10. **Client, if the browser needs it.** `ApiClient` from `@app-template/http-api` already has
     every endpoint of the contract; add a feature folder under `apps/web/src/features/<entity>/`
     whose Effect calls it through `ApiClient.use`.

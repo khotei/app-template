@@ -107,9 +107,9 @@ export class ChatService extends Context.Service<
     // `rename` shares the user's lock with the send: `touch` re-reads the chat and then writes it,
     // so a rename landing between the two would be undone.
     const userLock = yield* UserLock
-    const randomId = Effect.orDie(crypto.randomUUIDv7())
-    const randomChatId = Effect.map(randomId, ChatId.make)
-    const randomMessageId = Effect.map(randomId, MessageId.make)
+    const randomUuid = Effect.orDie(crypto.randomUUIDv7())
+    const randomChatId = Effect.map(randomUuid, ChatId.make)
+    const randomMessageId = Effect.map(randomUuid, MessageId.make)
 
     const findOwnedChat = Effect.fnUntraced(function* (userId: UserId, id: ChatId) {
       const found = yield* chats.selectById(id)

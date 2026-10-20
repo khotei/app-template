@@ -5,8 +5,10 @@ import type { Attachment as AttachmentModel } from '@app-template/domain/attachm
 import type { Chat as ChatModel } from '@app-template/domain/chat'
 import type * as Wire from '@app-template/http-api'
 
-// Each projection names the fields that leave the api, so a model field reaches the wire only
-// once its DTO declares it; relying on the encoder to drop `userId` or `cause` would not say so.
+/**
+ * Each projection names the fields that leave the api, so a model field reaches the wire only
+ * once its DTO declares it; relying on the encoder to drop `userId` or `cause` would not say so.
+ */
 export const toChat = (chat: ChatModel): Wire.Chat =>
   Struct.pick(chat, ['id', 'title', 'createdAt', 'updatedAt'])
 

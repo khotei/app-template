@@ -1627,10 +1627,27 @@ apart in `apps/api`.
   and green, except the `send` test that goes with `send` and the harness whose nested `yield*`
   are named.
 - **Verify:** `make check`; the grep in Goal 1 finds nothing;
-  `git grep -n 'limits.chat\|ChatFile\|export const send' -- ':!repos' ':!docs'` finds nothing;
-  `git diff --stat` under ~400 lines.
+  `git grep -n 'ChatFile\|export const send' -- ':!repos' ':!docs'` finds nothing (*Amended in
+  S19:* `limits.chat` keeps its one reader, the api's title-limit test); `git diff --stat` under
+  ~400 lines.
 - **Findings:**
-- **Status:** todo
+  - *S19.1* landed all three goals in one round, 22 files, +107/−113 plus `projections.ts`. The
+    id sites take a one-step combinator instead of a second statement
+    (`randomChatId = Effect.map(randomUuid, ChatId.make)`; `make` is a bound getter in
+    `repos/effect/.../schema/make.ts`).
+  - `limits.chat` stays: `chat.handler.test.ts` reads it as the wire's source of the title
+    limit; the Verify grep is amended above. `queue.send` goes, and the queue test keeps a local
+    producer over `QueueClient.use` for the one queue it drives.
+  - `AttachmentDownload` is an interface in `domain/attachment/attachment.model.ts`, not a
+    `Schema.Class`: bytes never cross the wire or the store as one record. `touchChat(chats,
+    { chatId, at })` follows `effect-style.md › Signatures` and states its `Effect.fn.Return`.
+  - The `<Entity>Kv` bundles live in each aggregate's `index.ts` (D34); `naming.md` names the
+    convention. `docs/knowledge/architecture.md` steps 5, 7 and 9 follow the bundles and
+    `projections.ts`.
+  - *S19.2*, the review: the three bundle TSDoc lines retold the `mergeAll` and went; the raw
+    uuid effect is `randomUuid` in all three services; the queue test's producer is `sendPing`;
+    the projections' module comment is a TSDoc survivor.
+- **Status:** done
 
 ## Requirement coverage
 

@@ -14,7 +14,6 @@ Imports are enforced by Biome; file and symbol names are convention (Biome has n
   packages `<dir>` (`@app-template/config`), apps `{api,worker,web}`, and `deployment`.
 - A layer exposes each entity as a subpath through its barrel: `@app-template/domain/chat` →
   `domain/chat/index.ts`. `http-api` and each package have one entry, `index.ts` or `client.ts`.
-- App entrypoint: `src/main.ts`.
 
 ## Imports
 
@@ -60,10 +59,9 @@ barrel or `exports` lists, save the `packages/testing` workspace's `index.ts`.
 - Errors are `<Entity><Problem>Error`, in every workspace (`RequestInvalidError` in `http-api`).
 - Functions are verb-first, and the verb marks the kind of work:
   - `create<Thing>`: a factory that wires dependencies (`createCollection`);
-  - `layer<Variant>`: a static that builds the service's `Layer` for one variant, a function when
-    it takes options (`QueueClient.layerSqlite`), after effect's `SqliteClient.layer`; a
-    combinator that returns a `Layer` is named for what it runs (`worker`, as effect's
-    `DurableQueue.worker`);
+  - `layer<Variant>`: a static that builds the service's `Layer` for one variant
+    (`effect-services.md › Layers`); a combinator that returns a `Layer` is named for what it
+    runs (`worker`, as effect's `DurableQueue.worker`);
   - `build` / `ensure`: a pure function that derives a value or guards an invariant, in any layer
     (`buildChat`);
   - a pure transition is named for the stage it moves the entity to (`prepareMessage`);
@@ -74,7 +72,9 @@ barrel or `exports` lists, save the `packages/testing` workspace's `index.ts`.
   - `select` / `insert` / `update` / `upsert` / `delete`: persistence (`selectById`); `update`
     changes an existing record and never creates one.
 - Constants are `camelCase` with `as const` for literals. A `Layer` constant for a service
-  declared elsewhere is `PascalCase` `<Service><Variant>` (`ChatRepositoryKv`).
+  declared elsewhere is `PascalCase` `<Service><Variant>` (`ChatRepositoryKv`); `<Entity>Kv` in
+  `infrastructure/<entity>/index.ts` bundles the aggregate's adapters, and a process provides
+  aggregates, not adapters.
 - Test support: a fixed fake layer is `<Service><Variant>` (`AttachmentRepositoryYielding`); a
   stateful fake `<verb><Thing>()` returns `{ <handle>, layer }` (`recordLogs`,
   `interleaveMessages`); a harness is `make<Entity>Harness()`, its runner `with<Entity>(body)`.

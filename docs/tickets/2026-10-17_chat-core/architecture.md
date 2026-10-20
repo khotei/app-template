@@ -853,6 +853,15 @@ per the acceptance table, not by a test.
   without an entity, like `infrastructure/shared`; `domain/CLAUDE.md` says "each folder" for it.
   *Rejected:* the guard beside `isOwnedBy` in `user/` (the `getMessage` site filters by
   `isInChat`, not ownership); a copy per aggregate (the drift the step set out to remove).
+- **D34 — A process provides aggregates, not adapters: `infrastructure/<entity>/index.ts`
+  exports one `<Entity>Kv` layer of the aggregate's adapters.** *Added in S19.* `ChatKv`,
+  `AttachmentKv` and `UserKv` are the units `apps/api` and `apps/worker` compose, so a new
+  adapter of an aggregate edits one file and each process still names the aggregates it uses;
+  swapping the store (roadmap 4) edits the three bundles, never the apps. *Rejected:* one
+  `RepositoriesKv` of every adapter (a common bag that grows with each entity and that the worker
+  would take whole); a service that provides its own adapters, `layer` / `layerNoDeps` as the
+  Effect docs' http fixture does (the adapter choice would move into five services and two
+  jobs, and the harness would need the second name on each).
 
 ## Risks
 
