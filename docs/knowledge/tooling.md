@@ -78,15 +78,19 @@ logging it. After one edit under `--hot`, the counter read 2 and **both** interv
 the old code next to the new one, with the PID unchanged. Under `--watch` the counter read 1 and
 only the new interval ran.
 
-That is why the worker uses `--watch`: its `main.ts` starts a polling `setInterval`, and under
-`--hot` every edit would add another poller. `Bun.serve` handles `--hot` natively by
-swapping its routes, so `api` and `web` keep the faster reload. An Effect runtime does not:
-each edit re-evaluates `effect` itself and starts a new `runMain` beside the old one, whose scope,
-fibers and finalizers live on. So `apps/api/src/main.ts` keeps a stop handle on `globalThis`
-(the one thing a reload keeps): each evaluation first stops the previous runtime and waits for its
-finalizers, then launches its own. Checked with a probe layer that ticked every second: without
-the handle, two edits left three tickers and SIGTERM ran three finalizers; with it, one ticker at a
-time, each finalized before the next `Listening on`.
+That is why the worker uses `--watch`: its queue consumers are fibers of an Effect runtime, and
+under `--hot` every edit would start a second runtime, and a second consumer of each queue, beside
+the old one. A re-exec leaves nothing to stop, so `apps/worker/src/main.ts` is one `runMain` and the
+scope's finalizers (SIGTERM releases the job in hand and logs `worker stopped`) are the whole
+shutdown; an edit runs the same finalizers before the re-exec, so the old runtime logs `worker
+stopped` and releases its job, and the new one takes it at the same attempt. `Bun.serve` handles
+`--hot` natively by swapping its routes, so `api` and `web` keep the faster reload. An Effect
+runtime does not: each edit re-evaluates `effect` itself and starts a new `runMain` beside the old
+one, whose scope, fibers and finalizers live on. So `apps/api/src/main.ts` keeps a stop handle on
+`globalThis` (the one thing a reload keeps): each evaluation first stops the previous runtime and
+waits for its finalizers, then launches its own. Checked with a probe layer that ticked every
+second: without the handle, two edits left three tickers and SIGTERM ran three finalizers; with it,
+one ticker at a time, each finalized before the next `Listening on`.
 
 Bun has no `--dev` flag. "Development" means two things here: the reload flag in the app's `dev`
 script, and `NODE_ENV="development"`, which turns on HMR and browser console forwarding in the web

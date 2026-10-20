@@ -8,6 +8,7 @@
   "references": [
     { "path": "../../application" },
     { "path": "../../infrastructure" },
-    { "path": "../../packages/config" }
+    { "path": "../../packages/config" },
+    { "path": "../../packages/llm" }
   ]
 }

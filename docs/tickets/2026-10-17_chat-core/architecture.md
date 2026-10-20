@@ -162,7 +162,8 @@ adds `api.client.ts` (`ApiClient`, D29). *Amended in S12b:* `Api` moves from `in
                                              withApi (ApiClient.layer over a cookie jar) · shared reads
 − apps/api/src/http.ts  − apps/api/src/http.test.ts
 ~ apps/worker/src/main.ts                    BunRuntime.runMain(Layer.launch(WorkerLayer))
-+ apps/worker/src/layer.ts                   AssistantMessageJob.worker + ChatTitleJob.worker + leaves
++ apps/worker/src/layer.ts                   WorkerLayer: AssistantMessageJob.worker + ChatTitleJob.worker on the kv adapters,
+                                             + SQLite queue, file store, LanguageModelStub, BunServices, 'worker started' / 'worker stopped' log (S16)
 ~ apps/web/src/features/health/health-panel.ts   an Effect over ApiClient, one sentence per error tag
 ~ apps/web/src/{app/main,shared/api}.ts     runs the panel over ApiClient.layerFetch of the /api proxy (S12b)
 ~ apps/web/{package.json,tsconfig.json}     − @app-template/api-client; + @app-template/http-api (S12b)

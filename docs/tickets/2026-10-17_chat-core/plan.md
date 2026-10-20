@@ -1375,7 +1375,9 @@ apart in `apps/api`.
 - **Blocked by:** S8b, S9, S14. *Amended in S8a:* the worker it launches settles a reply whose
   worker crashed (S8b).
 - **Files:** `apps/worker/src/{main,layer}.ts`; `apps/worker/package.json`
-  (`@effect/platform-bun`, `@app-template/domain`, `@app-template/llm`, `@app-template/queue`).
+  (`@effect/platform-bun`, `@app-template/llm`; *Amended in S16:* not `@app-template/domain` or
+  `@app-template/queue`, which nothing in the app imports); `apps/worker/tsconfig.json`;
+  `docs/knowledge/tooling.md` (the worker's `--watch` paragraph).
 - **Test first:** `config only` — the jobs are tested at Seam 6 (S8a, S8b, S9); the process is checked
   by hand.
 - **Verify:** `make check`; with `make dev-api` and `make dev-worker` running: a `send` is
@@ -1385,7 +1387,58 @@ apart in `apps/api`.
   small; `apps/worker` starts through `Layer.launch` under `BunRuntime.runMain`, with no
   `setInterval`, and SIGTERM closes the workers' scope, releasing the job in hand (*Added in
   S6*); the Findings record what was observed.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - `layer.ts` is 25 lines, `main.ts` 6: `WorkerJobs` merges the two `.worker` layers over the
+    four kv adapters, and `WorkerLayer` closes the leaves with `KeyValueStoreFileSystem`,
+    `QueueClientSqlite`, `LanguageModelStub`, `BunServices.layer` (the `FileSystem` and `Path`
+    the file store needs; the api gets them from `BunHttpServer.layer`) and
+    `MinimumLogLevelFromConfig`. `main.ts` is one `BunRuntime.runMain(Layer.launch(WorkerLayer))`:
+    `--watch` re-executes the process, so the api's D30 stop handle has no counterpart here.
+  - A lifecycle layer logs `worker started` on build and `worker stopped` from a finalizer, the
+    worker's counterpart of the api's `Listening on` and `api stopped`, so a hand check sees the
+    scope close.
+  - `@app-template/domain` and `@app-template/queue` are not declared: the app imports neither,
+    and `make typecheck` resolves their types through `application`'s and `infrastructure`'s
+    references; `@app-template/llm` joins the dependencies and the `tsconfig` references.
+  - Dev run, by hand, `STORE_PATH` passed inline as in S13 (the local `.env` still lacks it):
+    a `send` answered `202` with the assistant message `queued`; seven polls 400 ms apart read
+    `queued` → `generating` with `text` lengths 0, 7, 47, 58, 90 → `completed` at 106, the full
+    stub sentence; the chat then had `title: "Stub chat title"`, `activeMessage: null` and an
+    `updatedAt` 2.8 s after its creation. Neither process logged a `WARN` or `ERROR`.
+  - Worker stopped: SIGTERM logged `worker stopped` once and `Exited with code 130`, as the api
+    does. Three sends into three chats stayed `queued` after a second, with six `pending` rows
+    (`attempts = 0`) in `effect_queue`; on `make dev-worker` all three reached `completed` (106
+    characters) within 2.5 s of `worker started`, every row `completed` with `attempts = 1`, and
+    each chat titled.
+  - SIGTERM mid-generation: with the message at `generating` and 28 characters, its row read
+    `pending attempts=1 acquired_by=<worker>`; after `worker stopped` it read `pending attempts=0`
+    with no `acquired_by` and no `last_failure`, the message stayed `generating` at 28 characters
+    with `error: null`, and the chat stayed busy (`activeMessage.stage: "generating"`). The
+    restarted worker logged `worker started` at 19:21:56.8 and the message was `completed` with
+    106 characters at 19:21:58.9, its row `completed attempts=1`: the release did not count the
+    attempt (R19, R34).
+  - `--watch` reload mid-generation (at review): a content edit of `layer.ts` (an appended
+    comment line, reverted after) with the message at `generating` and 28 characters logged
+    `worker stopped` at 19:35:15.959 and `worker started` at 19:35:16.115 under the same PID
+    (Bun re-executes in place), so the scope's finalizers ran before the re-exec. Within 250 ms
+    the row read `pending attempts=1` with a new `acquired_by` and the message `generating` with
+    0 characters (`prepareMessage` cleared the earlier snapshot), then 7, 28, 47, 58, 80, 90 and
+    `completed` at 106 two seconds after the edit, the row `completed attempts=1`: the old runtime
+    released the job on its way out and the new one took it at the same attempt, the R34 path,
+    not a lock expiry (R19). A bare `touch` of the file (mtime only, same content) started no
+    reload: the PID, the logs and the in-flight generation went untouched, so a reload check needs a
+    real edit.
+  - `make check` is green after the step: 25 test files, 287 tests, lint and typecheck clean.
+  - `docs/knowledge/tooling.md` no longer says the worker's `main.ts` starts a `setInterval`: the
+    `--watch` paragraph now names the queue consumers and the scope's finalizers as the reason and
+    the whole shutdown.
+  - `.data/queue.sqlite` appeared beside `.data/store` on the first run and is left in place,
+    gitignored dev state.
+  - At approval (review round): `LogWorkerLifecycle` is a pipeline ending in `Layer.effectDiscard`,
+    `WorkerJobs` is not exported and carries no doc block, `main.ts` carries no comment (the
+    `--watch` reason has one author, `docs/knowledge/tooling.md`, which also records that an edit
+    runs the finalizers before the re-exec); `architecture.md` lists the worker's log layer.
 
 #### S17 — Remove the `example` slice and rewrite the knowledge docs
 
