@@ -1587,6 +1587,49 @@ apart in `apps/api`.
     requires the sentence on an export that carries a policy.
 - **Status:** done
 
+#### S19 — Finish the one-yield pass, group adapters by aggregate, drop the dead code
+
+- **Goal:** the simplifications 1, 3 and 4 of `verification.md › run 1`, no behaviour change:
+  1. *One `yield*` per statement, everywhere:* the 17 sites the Standards review lists
+     (`chat.service.ts:118,136,206,221`, `assistant-message.job.ts:171`,
+     `attachment.service.ts:94`, `user.service.ts:49`, `kv-collection.ts:56`,
+     `message.repository.ts:35,37`, `chat.handler.ts:52,59,66,73,98`,
+     `attachment.handler.ts:62,115`, `chat.harness.ts:90–96`) name the intermediate value; a
+     `git grep -nE '\(yield\*|, yield\*|: yield\*' -- ':!repos' ':!*.test.ts'` then finds nothing.
+  2. *Adapters grouped by aggregate:* each `infrastructure/<entity>/index.ts` exports one layer
+     of its adapters, `ChatKv = Layer.mergeAll(ChatRepositoryKv, MessageRepositoryKv)`,
+     `AttachmentKv = Layer.mergeAll(AttachmentRepositoryKv, AttachmentStoreKv)`,
+     `UserKv = UserRepositoryKv`; `apps/api/src/layer.ts` provides `[UserKv, ChatKv,
+     AttachmentKv]` and `apps/worker/src/layer.ts` `[ChatKv, AttachmentKv]`, so a new adapter of
+     an aggregate edits one file and each process still names the aggregates it uses. Rejected:
+     one `RepositoriesKv` of every adapter (a growing common bag the worker would take whole).
+  3. *Dead code and duplicates:* `limits.chat` in `http-api/shared/limits.ts` goes if
+     `git grep -n 'limits.chat'` finds no reader; `send` in `packages/queue/queue.ts` goes with
+     its test (`QueueClient.send` is the only producer); `ChatFile` in `chat.llm.ts` becomes
+     `AttachmentDownload`, moved to `domain/attachment` so both layers import it; `touchChat`
+     takes the `ChatRepository` as its first parameter instead of reading it from the context,
+     and `ChatService.touch` passes `chats` instead of `Effect.provideService`; `toAttachment`
+     moves from `attachment.handler.ts` to `apps/api/src/shared/projections.ts` beside the other
+     projections. Rejected (the user): a `producer(definition, toJob)` helper replacing the two
+     job `layer`s, which stay as they are.
+- **Out of scope:** the Spec wording notes (R3, R4, R20, R37) and the Risks line; the test
+  spreads and the retelling comments (Standards 2–3); `user.service.test.ts`.
+- **Blocked by:** S18.
+- **Files:** the 17 sites above; `infrastructure/{chat,attachment,user}/index.ts`,
+  `apps/api/src/layer.ts`, `apps/worker/src/layer.ts`; `http-api/shared/limits.ts`,
+  `packages/queue/queue.ts` and its test; `infrastructure/chat/chat.llm.ts`,
+  `domain/attachment/attachment.model.ts` (or wherever `AttachmentDownload` fits),
+  `application/attachment/attachment.service.ts`; `application/chat/touch-chat.ts`,
+  `application/chat/chat.service.ts`, `application/chat/assistant-message.job.ts`;
+  `apps/api/src/attachment/attachment.handler.ts`, `apps/api/src/chat/chat.handler.ts`,
+  `apps/api/src/shared/projections.ts`.
+- **Test first:** none new, a refactor without a behaviour change; every test stays untouched
+  and green, except the `send` test that goes with `send` and the harness whose nested `yield*`
+  are named.
+- **Verify:** `make check`; the grep in Goal 1 finds nothing; `git grep -n 'limits.chat\|ChatFile\|export const send' -- ':!repos' ':!docs'` finds nothing; `git diff --stat` under ~400 lines.
+- **Findings:**
+- **Status:** todo
+
 ## Requirement coverage
 
 | Req | Steps |
