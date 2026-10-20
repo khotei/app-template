@@ -26,7 +26,9 @@ const titleSkipLogs = {
   nothingToTitle: Effect.logInfo('chat title skipped: nothing to title'),
 } as const satisfies Record<TitleSkip, Effect.Effect<void>>
 
-const findUntitledChat = Effect.fnUntraced(function* (chatId: ChatId) {
+const findUntitledChat = Effect.fnUntraced(function* (
+  chatId: ChatId,
+): Effect.fn.Return<Result.Result<Chat, ChatLookupSkip>, never, ChatRepository> {
   const chats = yield* ChatRepository
   return Result.fromOption(
     yield* chats.selectById(chatId),

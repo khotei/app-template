@@ -13,6 +13,9 @@ paths:
 - A body that only delegates is passed as is, `Effect.fn('<Service>.<method>')(collection.get)`,
   or as an arrow returning the effect; a generator is for a body with more than one step. Extra
   arguments to `Effect.fn` are the pipeables every call runs through (`lock.withPermit`).
+- A module-level function that a handler, a job's `handle` or an export composes states its
+  `Effect.fn.Return<A, E, R>` on the generator (`suggestChatTitle`), so the contract is read in
+  one line; a helper used once stays inferred, since the annotation drifts on refactors.
 - A pure builder that cannot fail returns the model itself, not an `Effect`.
 - A pure transition (`naming.md`) checks its source through one shared table of allowed sources and
   fails one `<Entity>StageInvalidError { id, from, to }`; a transition is one row and one call.

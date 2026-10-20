@@ -109,7 +109,18 @@ const writeSettled = Effect.fnUntraced(function* (settled: Message) {
   yield* touchChat(settled.chatId, settled.updatedAt)
 })
 
-const reply = Effect.fnUntraced(function* (taken: Message) {
+type ReplyError = AiError.AiError | MessageStageInvalidError
+
+type ReplyServices =
+  | AttachmentRepository
+  | AttachmentStore
+  | ChatRepository
+  | MessageRepository
+  | LanguageModel.LanguageModel
+
+const reply = Effect.fnUntraced(function* (
+  taken: Message,
+): Effect.fn.Return<void, ReplyError, ReplyServices> {
   const messages = yield* MessageRepository
 
   // Refused only for a terminal message: the reply was written before this take's lock expired.
@@ -130,7 +141,9 @@ const reply = Effect.fnUntraced(function* (taken: Message) {
   yield* writeSettled(completed)
 })
 
-const findReply = Effect.fnUntraced(function* (job: GenerateAssistantMessage) {
+const findReply = Effect.fnUntraced(function* (
+  job: GenerateAssistantMessage,
+): Effect.fn.Return<Option.Option<Message>, never, ChatRepository | MessageRepository> {
   const chats = yield* ChatRepository
   const messages = yield* MessageRepository
 
@@ -139,7 +152,10 @@ const findReply = Effect.fnUntraced(function* (job: GenerateAssistantMessage) {
   return yield* messages.selectById(job.messageId)
 })
 
-const failReply = Effect.fnUntraced(function* (message: Message, cause: string) {
+const failReply = Effect.fnUntraced(function* (
+  message: Message,
+  cause: string,
+): Effect.fn.Return<void, MessageStageInvalidError, ChatRepository | MessageRepository> {
   const failedAt = yield* DateTime.now
   const failed = yield* failMessage(message, { reason: 'ReplyFailed', cause, at: failedAt })
   yield* writeSettled(failed)
@@ -147,7 +163,10 @@ const failReply = Effect.fnUntraced(function* (message: Message, cause: string) 
 
 // `failStoredReply` re-reads the message: the one found on take has moved on by the time the
 // last reply fails.
-const failStoredReply = Effect.fnUntraced(function* (messageId: MessageId, cause: string) {
+const failStoredReply = Effect.fnUntraced(function* (
+  messageId: MessageId,
+  cause: string,
+): Effect.fn.Return<void, MessageStageInvalidError, ChatRepository | MessageRepository> {
   const messages = yield* MessageRepository
   const active = Option.filter(yield* messages.selectById(messageId), isActiveMessage)
   if (Option.isSome(active)) yield* failReply(active.value, cause)
@@ -158,17 +177,7 @@ const unsettledCause =
 
 type AttemptRole = 'reply' | 'lastReply' | 'settle'
 
-type ReplyAttempt = (
-  message: Message,
-) => Effect.Effect<
-  void,
-  AiError.AiError | MessageStageInvalidError,
-  | AttachmentRepository
-  | AttachmentStore
-  | ChatRepository
-  | MessageRepository
-  | LanguageModel.LanguageModel
->
+type ReplyAttempt = (message: Message) => Effect.Effect<void, ReplyError, ReplyServices>
 
 // The definition's final attempt only settles a reply the last one left active.
 const roleOf = (info: AttemptInfo): AttemptRole => {
