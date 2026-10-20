@@ -44,7 +44,9 @@ The goal is code that reads top to bottom and extends by adding a row, not a bra
 
 - When a rule varies by a key (a stage, a reason, a kind), write a lookup table
   `as const satisfies Record<Key, …>` and index it, never a predicate parameter or a chain of `if`s:
-  a new key fails typecheck until its row exists (`transitions`, `failureMessages`).
+  a new key fails typecheck until its row exists (`transitions`, `failureMessages`). The row type
+  of a table of effects names its `E` and `R` (a type alias when the union is long), never
+  `unknown`: the table is where a reader learns what a row can fail with and needs.
 - A closed union with three or more arms read in one place is a `Match`: `Match.typeTags` /
   `Match.valueTags` on `_tag`, `Match.discriminators('<field>')` on another discriminator, ending in
   `Match.exhaustive`. The cases: an error `_tag` to an HTTP status, a stream part by `type`, a stage

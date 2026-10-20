@@ -13,6 +13,7 @@ import {
   Schedule,
   Stream,
 } from 'effect'
+import type { AiError, LanguageModel } from 'effect/ai'
 
 import { AttachmentRepository, AttachmentStore } from '@app-template/domain/attachment'
 import {
@@ -25,6 +26,7 @@ import {
   Message,
   type MessageId,
   MessageRepository,
+  type MessageStageInvalidError,
   prepareMessage,
 } from '@app-template/domain/chat'
 import {
@@ -156,6 +158,18 @@ const unsettledCause =
 
 type AttemptRole = 'reply' | 'lastReply' | 'settle'
 
+type ReplyAttempt = (
+  message: Message,
+) => Effect.Effect<
+  void,
+  AiError.AiError | MessageStageInvalidError,
+  | AttachmentRepository
+  | AttachmentStore
+  | ChatRepository
+  | MessageRepository
+  | LanguageModel.LanguageModel
+>
+
 // The definition's final attempt only settles a reply the last one left active.
 const roleOf = (info: AttemptInfo): AttemptRole => {
   if (info.isLastAttempt) return 'settle'
@@ -180,10 +194,7 @@ const attemptRoles = {
     yield* Effect.logError('assistant reply left unsettled by the last reply attempt')
     yield* failReply(message, unsettledCause)
   }),
-} as const satisfies Record<
-  AttemptRole,
-  (message: Message) => Effect.Effect<void, unknown, unknown>
->
+} as const satisfies Record<AttemptRole, ReplyAttempt>
 
 const handle = Effect.fn('AssistantMessageJob.handle')(function* (
   job: GenerateAssistantMessage,

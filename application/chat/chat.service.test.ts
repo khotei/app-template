@@ -29,7 +29,7 @@ type ChatCall = (
   service: ChatService['Service'],
   userId: UserId,
   chatId: ChatId,
-) => Effect.Effect<unknown, unknown>
+) => Effect.Effect<unknown, ChatNotFoundError | MessageNotFoundError>
 
 const chatCalls = {
   get: (service, userId, chatId) => service.get(userId, chatId),
