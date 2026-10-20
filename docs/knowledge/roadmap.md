@@ -36,8 +36,8 @@ graph LR
 | # | Ticket | Type | Depends on | Status |
 |---|---|---|---|---|
 | 1 | [`template-bootstrap`](#1-template-bootstrap) | `chore` | — | done: [docs/tickets/2026-10-17_template-bootstrap/](../tickets/2026-10-17_template-bootstrap/feature.md) |
-| 2 | [`claude-toolkit`](#2-claude-toolkit) | `chore` | 1, 3 | planned |
-| 3 | [`chat-core`](#3-chat-core) | `feat` | 1 | in progress: [docs/tickets/2026-10-17_chat-core/](../tickets/2026-10-17_chat-core/feature.md) |
+| 2 | [`claude-toolkit`](#2-claude-toolkit) | `chore` | 1, 3 | in progress: [docs/tickets/2026-10-20_claude-toolkit/](../tickets/2026-10-20_claude-toolkit/feature.md) |
+| 3 | [`chat-core`](#3-chat-core) | `feat` | 1 | done: [docs/tickets/2026-10-17_chat-core/](../tickets/2026-10-17_chat-core/feature.md) |
 | 4 | [`postgres-drizzle`](#4-postgres-drizzle) | `feat` | 3 | planned |
 | 5 | [`aws-local`](#5-aws-local) | `feat` | 3 | in progress: [docs/tickets/2026-10-19_aws-local/](../tickets/2026-10-19_aws-local/feature.md) |
 | 6 | [`llm-providers`](#6-llm-providers) | `feat` | 5 | planned |
@@ -92,6 +92,13 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   available: agent `memory`/`effort`/`background`, `SessionStart`/`PostToolUse`/
   `PrePermissionRequest` hooks, nested skills, plugin evals, `/skill-doctor`, output styles,
   Workflow tool, cross-session messaging.
+- **Re-read (2026-10-20).** Most of the Scope landed during `chat-core`: the Effect rule split,
+  `naming.md`, `use-cases.md`, the layer `CLAUDE.md` rewrites, `/explain`, the rounds rule. The
+  ticket is now an audit of the toolkit by evidence (the two verifications, the plan findings, the
+  `Decision:` paragraphs): what stays, what becomes a check, what loads lazily. Evals,
+  `/skill-doctor`, plugin pinning, `skillOverrides`, agent `memory` and the extra hooks move to
+  `template-handoff` (12): nothing recorded would have been prevented by them.
+- **Status.** In progress: [docs/tickets/2026-10-20_claude-toolkit/](../tickets/2026-10-20_claude-toolkit/feature.md).
 
 ### 3. `chat-core`
 
@@ -130,8 +137,8 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   `effect/ai` streams `Response` parts (`text-delta`, `file`, `tool-call`, …) and takes
   `Prompt.FilePart` for images and PDFs. `@effect/sql-pglite@4.0.5` exists for later in-process
   Postgres tests.
-- **Status.** In progress: [docs/tickets/2026-10-17_chat-core/](../tickets/2026-10-17_chat-core/feature.md).
-  Its grilling departed from this entry: the assistant's message is a worker job polled by the
+- **Status.** Done: [docs/tickets/2026-10-17_chat-core/](../tickets/2026-10-17_chat-core/feature.md),
+  merged as `d142143`. Its grilling departed from this entry: the assistant's message is a worker job polled by the
   client (no SSE here), the title job starts from the first user message, and `Visitor` became
   `User`.
 
@@ -346,7 +353,11 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
 - **Scope.** `make rename SCOPE=@acme NAME="Acme"`; a checklist of what to delete (`docs/tickets/`
   of the template, the example domain if unwanted) and what to keep (`docs/knowledge/`, rules,
   skills); a fresh-clone rehearsal in CI; the README's "Starting a new project" rewritten; the
-  GitHub template flag verified with all branches.
+  GitHub template flag verified with all branches; the toolkit items that matter only when the
+  template changes hands, inherited from `claude-toolkit` (2): `claude plugin eval` cases for the
+  `ticket-*` skills (they must be wrapped as a plugin to load), `/skill-doctor` as a periodic
+  check, pinning `mattpocock-skills` by `sha`, `skillOverrides` for the plugin skills the wrappers
+  never use, agent `memory`, `SessionStart` and `PostToolUse` hooks.
 - **Out of scope.** A generator or CLI.
 
 ### 13. `ticket-folder-order`
