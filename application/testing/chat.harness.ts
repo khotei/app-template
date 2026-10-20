@@ -110,9 +110,11 @@ export const upload = (userId: UserId, name: string) =>
 /** Completes an assistant message as the worker would, freeing its chat for the next send. */
 export const settle = (message: Message) =>
   Effect.gen(function* () {
-    const prepared = yield* prepareMessage(message, yield* DateTime.now)
-    const completed = yield* completeMessage(prepared, 'Sure.', yield* DateTime.now)
-    yield* (yield* MessageRepository).update(completed)
+    const messages = yield* MessageRepository
+    const at = yield* DateTime.now
+    const prepared = yield* prepareMessage(message, at)
+    const completed = yield* completeMessage(prepared, 'Sure.', at)
+    yield* messages.update(completed)
   })
 
 export const idsOf = (attachments: ReadonlyArray<Attachment>) =>

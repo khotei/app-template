@@ -138,7 +138,8 @@ export class ChatService extends Context.Service<
     })
 
     const get = Effect.fn('ChatService.get')(function* (userId: UserId, chatId: ChatId) {
-      const summary = yield* summarize(yield* findOwnedChat(userId, chatId))
+      const chat = yield* findOwnedChat(userId, chatId)
+      const summary = yield* summarize(chat)
       const stored = yield* messages.selectByChat(chatId)
       return { ...summary, messages: yield* Effect.forEach(stored, withAttachments) }
     })
@@ -187,9 +188,11 @@ export class ChatService extends Context.Service<
     ) {
       yield* ensureMessageInput(input)
       yield* findOwnedChat(userId, chatId)
-      yield* ensureChatAcceptsMessage(yield* messages.selectActiveByChat(chatId))
-      const opensChat = Arr.isReadonlyArrayEmpty(yield* messages.selectByChat(chatId))
-      return new SendableChat(chatId, input, opensChat, yield* DateTime.now)
+      const active = yield* messages.selectActiveByChat(chatId)
+      yield* ensureChatAcceptsMessage(active)
+      const stored = yield* messages.selectByChat(chatId)
+      const at = yield* DateTime.now
+      return new SendableChat(chatId, input, Arr.isReadonlyArrayEmpty(stored), at)
     })
 
     const addUserMessage = Effect.fn('ChatService.addUserMessage')(function* (

@@ -48,34 +48,36 @@ export interface QueueClientSqliteOptions {
 // can tell it from a store error.
 class AttemptFailed extends Data.TaggedError('AttemptFailed') {}
 
-const runAttempt = Effect.fn('runAttempt')(function* <A, I, E, R>(
+const runAttempt = <A, I, E, R>(
   definition: QueueDefinition<Schema.Codec<A, I>>,
   handle: Handler<A, E, R>,
-  message: A,
-  metadata: { readonly id: string; readonly attempts: number },
-) {
-  const info: AttemptInfo = {
-    attempt: metadata.attempts,
-    maxAttempts: definition.maxAttempts,
-    isLastAttempt: metadata.attempts >= definition.maxAttempts,
-  }
-  const [level, text] = info.isLastAttempt
-    ? (['Error', 'queue message dead-lettered'] as const)
-    : (['Warn', 'queue message attempt failed'] as const)
-  return yield* handle(message, info).pipe(
-    Effect.tapCauseIf(Predicate.not(Cause.hasInterruptsOnly), (cause) =>
-      Effect.logWithLevel(level)(text, cause),
-    ),
-    Effect.catchCause((cause) =>
-      Cause.hasInterruptsOnly(cause) ? Effect.interrupt : Effect.fail(new AttemptFailed()),
-    ),
-    Effect.annotateLogs({
-      queue: definition.name,
-      messageId: metadata.id,
-      attempt: `${info.attempt}/${info.maxAttempts}`,
-    }),
-  )
-})
+) =>
+  Effect.fn('runAttempt')(function* (
+    message: A,
+    metadata: { readonly id: string; readonly attempts: number },
+  ) {
+    const info: AttemptInfo = {
+      attempt: metadata.attempts,
+      maxAttempts: definition.maxAttempts,
+      isLastAttempt: metadata.attempts >= definition.maxAttempts,
+    }
+    const [level, text] = info.isLastAttempt
+      ? (['Error', 'queue message dead-lettered'] as const)
+      : (['Warn', 'queue message attempt failed'] as const)
+    return yield* handle(message, info).pipe(
+      Effect.tapCauseIf(Predicate.not(Cause.hasInterruptsOnly), (cause) =>
+        Effect.logWithLevel(level)(text, cause),
+      ),
+      Effect.catchCause((cause) =>
+        Cause.hasInterruptsOnly(cause) ? Effect.interrupt : Effect.fail(new AttemptFailed()),
+      ),
+      Effect.annotateLogs({
+        queue: definition.name,
+        messageId: metadata.id,
+        attempt: `${info.attempt}/${info.maxAttempts}`,
+      }),
+    )
+  })
 
 export class QueueClient extends Context.Service<
   QueueClient,
@@ -115,9 +117,7 @@ export class QueueClient extends Context.Service<
       handle: Handler<A, E, R>,
     ) =>
       factory.make(definition).pipe(
-        Effect.flatMap((queue) =>
-          queue.take((message, metadata) => runAttempt(definition, handle, message, metadata)),
-        ),
+        Effect.flatMap((queue) => queue.take(runAttempt(definition, handle))),
         // A store that dies settling a failed attempt (the SQL `ack`) adds its defect beside
         // `AttemptFailed`, and `catchTags` below would drop it unseen.
         Effect.tapCauseIf(

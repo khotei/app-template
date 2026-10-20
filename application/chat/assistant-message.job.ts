@@ -102,15 +102,19 @@ const writeSettled = Effect.fnUntraced(function* (settled: Message) {
 const reply = Effect.fnUntraced(function* (taken: Message) {
   const messages = yield* MessageRepository
   // Refused only for a terminal message: the reply was written before this take's lock expired.
-  const entry = yield* Effect.option(prepareMessage(taken, yield* DateTime.now))
+  const takenAt = yield* DateTime.now
+  const entry = yield* Effect.option(prepareMessage(taken, takenAt))
   if (Option.isNone(entry)) return yield* alreadySettled
   const prepared = entry.value
   yield* messages.update(prepared)
-  const prompt = buildChatPrompt(yield* readHistory(prepared.chatId))
-  const generating = yield* generateMessage(prepared, yield* DateTime.now)
+  const history = yield* readHistory(prepared.chatId)
+  const generatingAt = yield* DateTime.now
+  const generating = yield* generateMessage(prepared, generatingAt)
   yield* messages.update(generating)
-  const text = yield* streamSnapshots(generating, streamAssistantText(prompt))
-  yield* writeSettled(yield* completeMessage(generating, text, yield* DateTime.now))
+  const text = yield* streamSnapshots(generating, streamAssistantText(buildChatPrompt(history)))
+  const completedAt = yield* DateTime.now
+  const completed = yield* completeMessage(generating, text, completedAt)
+  yield* writeSettled(completed)
 })
 
 const findReply = Effect.fnUntraced(function* (job: GenerateAssistantMessage) {
@@ -121,7 +125,9 @@ const findReply = Effect.fnUntraced(function* (job: GenerateAssistantMessage) {
 })
 
 const failReply = Effect.fnUntraced(function* (message: Message, cause: string) {
-  yield* writeSettled(yield* failMessage(message, 'ReplyFailed', cause, yield* DateTime.now))
+  const failedAt = yield* DateTime.now
+  const failed = yield* failMessage(message, 'ReplyFailed', cause, failedAt)
+  yield* writeSettled(failed)
 })
 
 // `failStoredReply` re-reads the message: the one found on take has moved on by the time the

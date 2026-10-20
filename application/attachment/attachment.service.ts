@@ -124,7 +124,8 @@ export class AttachmentService extends Context.Service<
       userId: UserId,
       id: AttachmentId,
     ) {
-      yield* ensureBindable(id, yield* attachments.selectById(id), userId)
+      const found = yield* attachments.selectById(id)
+      yield* ensureBindable(id, found, userId)
       yield* attachments.deleteByIds([id])
       yield* store.delete(id)
     })

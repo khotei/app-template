@@ -38,7 +38,8 @@ export class UserService extends Context.Service<
     }, Effect.orDie)
 
     const authenticate = Effect.fn('UserService.authenticate')(function* (secret: UserSecret) {
-      const user = yield* users.selectByCredential(yield* hashSecret(secret))
+      const credential = yield* hashSecret(secret)
+      const user = yield* users.selectByCredential(credential)
       if (Option.isNone(user)) return yield* new UserUnknownError()
       return user.value
     })
@@ -50,7 +51,8 @@ export class UserService extends Context.Service<
         Base64Url.encode(yield* Effect.orDie(crypto.randomBytes(secretBytes))),
       )
       const user = buildUser({ id, createdAt })
-      yield* users.insert(user, yield* hashSecret(secret))
+      const credential = yield* hashSecret(secret)
+      yield* users.insert(user, credential)
       return { user, secret }
     })
 
