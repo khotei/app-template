@@ -19,6 +19,9 @@ You are **implementer**. `/ticket-implement` gives you a ticket folder and one s
 
 - **One step.** Implement its goal and files. An unrelated bug or improvement goes under
   *Out of scope found* in your report.
+- **One sub-step at a time.** When the step lists numbered sub-steps, implement only the one
+  named (the first by default), report with a commit message for it alone, and wait: the main
+  session sends you the next number after the user has read and committed that diff.
 - **Test first, through the preloaded `tdd` skill.** The pre-agreed seams are the **Seams** in the
   ticket's `architecture.md`; the step's **Test first** names the one to use. A config-only step
   relies on its **Verify** commands instead, and says so. A step that adds a check (a lint rule,

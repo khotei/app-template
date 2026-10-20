@@ -1503,6 +1503,62 @@ apart in `apps/api`.
     predicate, outside S10's list.
 - **Status:** done
 
+### Readability
+
+#### S18 — Name what a call passes, type what a table can fail with
+
+- **Goal:** a style pass, no behaviour change, so that a body reads without a jump to the callee
+  or to the type. Five habits, each stated once in a rule:
+  1. *Named arguments.* A function with three or more parameters, or a boolean one, takes its
+     subject first and the rest as one object, so the call site names what it passes:
+     `new SendableChat({ chatId, input, opensChat, at })` (`application/chat/chat.service.ts`),
+     `ensureBindable(found, { id, userId })` (`domain/attachment/attachment.service.ts`),
+     `move(message, { to, at, patch })`, `completeMessage(message, { text, at })`,
+     `failMessage(message, { reason, cause, at })` (`domain/chat/chat.service.ts`). Two-parameter
+     functions (`prepareMessage(message, at)`) stay positional. Rule line in
+     `effect-style.md`, a new `## Signatures` section.
+  2. *Precise row types for tables of effects.* `attemptRoles` in `assistant-message.job.ts`
+     `satisfies Record<AttemptRole, (message: Message) => Effect.Effect<void, unknown, unknown>>`
+     hides what a row can fail with and what it needs; the row type names the real `E` and `R`
+     (a type alias when the union is long). Rule: extend the lookup-table bullet in
+     `effect-style.md › Branching` with "the row type of a table of effects names its `E` and
+     `R`".
+  3. *Explicit `Effect.fn.Return<A, E, R>`* on the module-level functions that `attemptRoles`
+     and `handle` compose directly in `assistant-message.job.ts` (`reply`, `findReply`,
+     `failReply`, and whichever else they call by name), as `suggestChatTitle` already does in
+     `infrastructure/chat/chat.llm.ts`. The helpers those call stay inferred: the annotation
+     drifts on refactors, so it is paid only where the contract is read. Rule line in
+     `effect-services.md`.
+  4. *Variable = span.* `const remove = Effect.fn('ChatService.delete')` (and the
+     `AttachmentService`, `DeleteChatUseCase` twins) names one thing twice because `delete` is
+     reserved; rename the variable to `deleteChat` / `deleteAttachment` so a grep for the method
+     finds its definition. No rule: `naming.md` already asks for one name per thing.
+  5. *One TSDoc sentence on an export whose policy the type cannot show.* `AssistantMessageJob`
+     spreads the attempt policy over `roleOf`, `attemptRoles` and `chat.queue.ts`; its class gets
+     one sentence (three reply attempts, then one that only settles what the last left active).
+     `ChatTitleJob` gets one only if its export hides a policy likewise. No rule: `comments.md`
+     already allows exactly this.
+- **Out of scope** (decided with the user): a return type on every function or method (the
+  `Shape` carries the contract); splitting `ChatService.make`; rewriting generators into `pipe`
+  chains; TSDoc on every export; the tests' nested `yield*`; inlining single-use helpers.
+- **Blocked by:** S17.
+- **Files:** `domain/chat/chat.service.ts`, `domain/attachment/attachment.service.ts` and their
+  tests; `application/chat/chat.service.ts`, `application/attachment/attachment.service.ts`,
+  `application/chat/delete-chat.use-case.ts`, `application/chat/assistant-message.job.ts`,
+  `application/chat/chat-title.job.ts` (TSDoc only, if at all),
+  `application/testing/chat.harness.ts` and every test that calls a renamed signature;
+  `.claude/rules/effect-style.md`, `.claude/rules/effect-services.md`.
+- **Test first:** none new, a refactor without a behaviour change: the Seam 1 tests of
+  `domain/chat/chat.service.test.ts` and `domain/attachment/attachment.service.test.ts` are
+  updated to the object arguments before the signatures change (red on the signature, green after),
+  and every other test stays untouched and green.
+- **Verify:** `make check`; `git grep -n 'Effect<void, unknown, unknown>' -- ':!repos'` finds
+  nothing; `git grep -n 'const remove = Effect.fn' -- application` finds nothing;
+  `git diff --stat` stays under ~400 changed lines (split the rule lines off into a second step if
+  not); both rule files stay within ~80 lines.
+- **Findings:**
+- **Status:** todo
+
 ## Requirement coverage
 
 | Req | Steps |
