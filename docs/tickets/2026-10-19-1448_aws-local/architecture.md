@@ -12,8 +12,8 @@ Two ports change adapters and one package appears:
   `PersistedQueue` and SQLite leave the repository.
 - **`AttachmentStore` gains an S3 adapter** that streams uploads, tags them `unbound`, presigns
   downloads and deletes objects; the KV adapter stays for tests (D6–D9).
-- **`packages/aws`** holds the resource inventory, the naming rule, the provisioner and the
-  startup check, read by the adapters, `make up`, the tests and later Pulumi (D4, D5).
+- **`packages/aws`** holds the resource inventory, the naming rule and the provisioner, read by
+  the adapters, `make up`, the tests and later Pulumi (D4, D5).
 
 ```mermaid
 graph LR
@@ -32,7 +32,7 @@ graph LR
   QC --> T["QueueTransport"]
   T --> Ts["transportSqs"] --> SQS[("SQS queue + DLQ")]
   T -. tests .-> Tm["transportMemory"]
-  inv["packages/aws<br/>inventory · naming · provision · verify"]
+  inv["packages/aws<br/>inventory · naming · provision"]
   S3a --> inv
   Ts --> inv
   make["make up"] --> prov["deployment/local/provision.ts"] --> inv
@@ -51,7 +51,6 @@ graph LR
                                `chat-title`, each with `maxReceiveCount` and a `<name>-dlq`;
                                lifecycle rules                                          (D4)
 + packages/aws/provision.ts    provision(inventory, stage): idempotent create              (D5)
-+ packages/aws/verify.ts       verify(inventory, stage): every resource exists and matches  (D5)
 + packages/aws/*.test.ts       on MiniStack
 ```
 
@@ -93,8 +92,7 @@ and provides its endpoint; `+ stage.fixture.ts`, a fresh `test-<random>` stage p
 applies `isExpired` (D9).
 
 **`apps`**: `api` passes the multipart file stream to `upload` (replacing `chat-core` D8's
-per-part buffer), answers `download` with `302` (replacing `chat-core` D10), and both `api` and
-`worker` run `verify` before they serve or consume (R19).
+per-part buffer), answers `download` with `302` (replacing `chat-core` D10).
 
 **`deployment`**
 
@@ -136,8 +134,8 @@ interface QueueTransport {
   readonly extend: (queue: string, handle: string, visibility: Duration) => Effect<void, QueueError>
   readonly delete: (queue: string, handle: string) => Effect<void, QueueError>
 }
-// transportSqs ignores maxReceiveCount: the queue's RedrivePolicy enforces it, and verify checks
-// that it equals the inventory's.
+// transportSqs ignores maxReceiveCount: the queue's RedrivePolicy, set by provision from the
+// inventory, enforces it.
 
 // QueueClient — interface unchanged; layers:
 QueueClient.layerMemory                                       // transportMemory
@@ -211,7 +209,7 @@ GET /attachments/:attachmentId/download
 | **3. `AttachmentStore` contract suite**, run on `AttachmentStoreKv` and `AttachmentStoreS3` against MiniStack (`infrastructure/attachment`) | streamed insert and its size, nothing left after a failing or interrupted stream (no object, no multipart upload), `select`, `url` fetched with plain `fetch` returning the bytes and media type, `delete`; S3-only cases: two-part upload of 10 MB, `inline` disposition, the tag set by `insert` and cleared by `keep`, expiry `403` (R1–R3, R5, R6) | lifecycle execution (MiniStack never runs it), the 5 MiB part minimum (not enforced by MiniStack) |
 | **4. `AttachmentService` on the memory adapters under `TestClock`** (`application/attachment`) | an unbound attachment refused and its record removed at 24 h, a bound one never; `keep` called before the bind; deletes reaching the store (R4, R5, R7) | S3 (seam 3) |
 | **5. The api over `BunHttpServer.layerTest`** (`apps/api`) | `download` answers `302` with the store's URL for the owner and `404` without `Location` otherwise; upload limits still map to `413`/`415`/`400` with nothing stored when the file is streamed (R2–R4) | following the URL (seam 3) |
-| **6. `provision` and `verify` against MiniStack** (`packages/aws`) | a second `provision` changes nothing; lifecycle and redrive read back as the inventory says; `verify` fails naming the endpoint and the resource when one is missing or its `maxReceiveCount` differs (R15, R16, R19) | IAM and real-account behaviour (ticket 9) |
+| **6. `provision` against MiniStack** (`packages/aws`) | a second `provision` changes nothing; lifecycle and redrive read back as the inventory says (R15, R16) | IAM and real-account behaviour (ticket 9) |
 | **7. The inventory agreement test** (`infrastructure/shared/resources.test.ts`) | every queue definition takes its name and `maxAttempts` from the inventory, every inventory queue has a definition, the bucket's expiration days cover `unboundLifetime` (R15, R17) | names built outside the inventory by hand (review; `git grep` in R20's check) |
 
 `make dev` against MiniStack (R18) is checked by hand, as `chat-core`'s two-process run is.
@@ -247,26 +245,32 @@ GET /attachments/:attachmentId/download
   could not name the resources the code uses. Definitions take `name` and `maxAttempts` from
   `resources.queues`, so code and inventory cannot drift on those; the agreement test (seam 7)
   covers what construction cannot. The package is this project's data, which `packages/CLAUDE.md`
-  notes. *Amends feature R15* (location) *and R17* (the check is the agreement
-  test plus `verify`, not a separate scan). *Rejected:* `deployment/shared/` (unreachable from the
-  layers); names in `.env` (the drift R17 exists to prevent). *Amended in S1:* entries are keyed
-  by an identifier (`assistantMessage`) and carry `name` as a field, since a name-keyed entry can
-  be read only by spelling the literal, the drift the inventory exists to prevent (*rejected:*
+  notes. *Amends feature R15* (location) *and R17* (the check is the agreement test, not a separate
+  scan; *amended in S3:* `verify` dropped, see D5). *Rejected:* `deployment/shared/` (unreachable
+  from the layers); names in `.env` (the drift R17 exists to prevent). *Amended in S1:* entries are
+  keyed by an identifier (`assistantMessage`) and carry `name` as a field, since a name-keyed entry
+  can be read only by spelling the literal, the drift the inventory exists to prevent (*rejected:*
   name keys plus a lookup helper, still a literal at the call site); the agreement test discovers
   definitions with a glob over `infrastructure/**/*.queue.ts`, so a new queue file joins the check
   without editing the test (*rejected:* importing the known definitions, which a new file would
   escape); it lives in `infrastructure/shared/` without a `resources.ts` beside it, because
   `packages/aws` may not import `infrastructure`.
-- **D5 — Physical names come from `STAGE`; queue URLs are resolved and cached at first use;
-  `verify` runs at startup.** `buildResourceName(stage, name)` gives `app-template-<stage>-…`;
-  tests use `test-<random>` per file, dev `local`. `verify` checks every bucket and queue of the
-  inventory and each queue's `maxReceiveCount`, and fails naming the endpoint and the resource
-  (R19). `provision` is idempotent: `BucketAlreadyOwnedByYou` is success, and the redrive JSON has
-  a fixed key order because CreateQueue compares attributes as strings. *Amended in S2:*
-  `provision` reads existence first (`HeadBucket`, `GetQueueUrl`) and reports each resource as
-  `created` or `unchanged`, since a repeated `CreateBucket` answers `200` in `us-east-1` and
-  `make up` must say that its second run changed nothing (R16). *Rejected:* queue URLs
-  from configuration (one variable per queue, and stale after a reprovision).
+- **D5 — Physical names come from `STAGE`; queue URLs are resolved and cached at first use; `verify`
+  runs at startup.** `buildResourceName(stage, name)` gives `app-template-<stage>-…`; tests use
+  `test-<random>` per file, dev `local`. `verify` checks every bucket and queue of the inventory and
+  each queue's `maxReceiveCount`, and fails naming the endpoint and the resource (R19). *Amended in
+  S3: `verify` and R19 are dropped.* The application assumes its resources exist: the infrastructure
+  provides them (`make up` locally, Pulumi in AWS), and a missing one fails the first call that uses
+  it, which telemetry reports. A drifted `maxReceiveCount` already fails `make up`, since
+  CreateQueue refuses an existing queue with other attributes. *Rejected:* the startup check (S3
+  built it: the application re-checking what the infrastructure owns, and a round of AWS calls on
+  every Lambda cold start); a check reduced to existence (the same cost for a clearer message on a
+  mistake `make up` already prevents). `provision` is idempotent: `BucketAlreadyOwnedByYou` is
+  success, and the redrive JSON has a fixed key order because CreateQueue compares attributes as
+  strings. *Amended in S2:* `provision` reads existence first (`HeadBucket`, `GetQueueUrl`) and
+  reports each resource as `created` or `unchanged`, since a repeated `CreateBucket` answers `200`
+  in `us-east-1` and `make up` must say that its second run changed nothing (R16). *Rejected:* queue
+  URLs from configuration (one variable per queue, and stale after a reprovision).
 - **D6 — `AttachmentStore` streams in, hands out a URL, and stays a domain port with two
   adapters; there is no `packages/storage`.** The S3 adapter is deep: the upload sink, abort on
   failure, tagging, presigning and headers live behind five calls. The KV adapter's `data:` URL

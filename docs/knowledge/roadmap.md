@@ -306,7 +306,14 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   each adds its own resources to this program, and one that lands first is deployed here.
 - **Decided (2026-10-19).** Split from `aws-local` (5); depends on `postgres-drizzle` (4), since
   the deployed processes need a shared database, and on 5, not on 7 or 8.
-- **Open questions for its feature phase.** Whether the local Pulumi project of `aws-local` (5)
+- **Decided (2026-10-21).** The applications never check or create their resources: the
+  infrastructure provides them (`aws-local` D5 dropped the startup `verify`). This program also
+  creates the inventory's buckets and queues on MiniStack for `make up`, replacing
+  `deployment/local/provision.ts`; `provision` in `packages/aws` then serves the tests only (each
+  test file creates its own resources in milliseconds, without the Pulumi CLI).
+- **Open questions for its feature phase.** Whether `@pulumi/aws` creates the bucket and the
+  queues on MiniStack (a bucket reads back its ACL, CORS and versioning, which an emulator may not
+  serve): a spike first. Whether the local Pulumi project of `aws-local` (5)
   (the Docker provider runs MiniStack; there is no compose file) and the AWS program become one
   project with two stacks; cold starts of `@effect/platform-bun` on Lambda; whether
   `pulumi.dynamic.Resource`, unsupported under `runtime: bun`, is ever needed.

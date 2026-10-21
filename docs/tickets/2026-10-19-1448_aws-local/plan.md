@@ -32,18 +32,16 @@
 ```mermaid
 graph LR
   S1[S1 packages/aws inventory + naming] --> S2[S2 MiniStack, provision, make up]
-  S2 --> S3[S3 verify]
   S2 --> S4[S4 QueueTransport memory + SQS]
-  S3 --> S5[S5 QueueClient over transport, SQS wired]
-  S4 --> S5
+  S4 --> S5[S5 QueueClient over transport, SQS wired]
   S6[S6 streaming AttachmentStore port, 302 download]
   S2 --> S7[S7 AttachmentStoreS3 wired]
-  S3 --> S7
   S6 --> S7
   S7 --> S8[S8 unbound expiry]
 ```
 
-S1 and S6 are independent and can start first; S4 and S6 can run in parallel after S2.
+S1 and S6 are independent and can start first; S4 and S6 can run in parallel after S2. S3 was
+dropped (D5).
 
 ## Steps
 
@@ -83,7 +81,7 @@ S1 and S6 are independent and can start first; S4 and S6 can run in parallel aft
   - Red was proved by mutation: after the inventory was created the test passed at once, because
     the hard-coded values already matched, so a renamed definition, an orphan inventory queue and
     a changed `maxAttempts` were each shown to fail by name.
-  - Nothing derives `<name>-dlq` yet; `provision` and `verify` (S2, S3) do. Seam 7's check that the
+  - Nothing derives `<name>-dlq` yet; `provision` (S2) does. Seam 7's check that the
     bucket's expiration days cover `unboundLifetime` waits for S8, where the constant appears.
   - Root `package.json` was not touched: the `packages/*` glob already covers the workspace.
 
@@ -201,7 +199,11 @@ S1 and S6 are independent and can start first; S4 and S6 can run in parallel aft
   bucket; with one queue re-created at another `maxReceiveCount`, it names that queue; after
   `provision`, it succeeds.
 - **Verify:** `make check`.
-- **Status:** todo
+- **Status:** dropped
+- **Findings:**
+  - Built and reviewed, then dropped with R19 on the user's call (D5): the application does not
+    re-check what the infrastructure owns. Not committed. The review's other points (one helper
+    for `<name>-dlq`, one MiniStack client layer for the tests) move to S4, where the copies are.
 
 #### S4 — `QueueTransport`: memory and SQS
 
@@ -229,11 +231,10 @@ S1 and S6 are independent and can start first; S4 and S6 can run in parallel aft
   `extend(0)`); `QueueClient.layerMemory` and `QueueClient.layerSqs`; `PersistedQueue`,
   `layerSqlite`, `QueueClientSqliteOptions` and `@effect/sql-sqlite-bun` removed;
   `QueueClientSqs` in `infrastructure/shared/queue.client.ts` over the new
-  `infrastructure/shared/aws.ts` (`SQSService` from `AwsConfig`); api and worker wired to it and
-  running `verify` before they serve or consume; `QueueDefinition.jobId`'s doc says delivery is
-  at-least-once; the `chat.queue.ts` comment explains the settling attempt by redrive
-  (R8–R14, R18, R19, R20; D1–D3, D5).
-- **Blocked by:** S3, S4.
+  `infrastructure/shared/aws.ts` (`SQSService` from `AwsConfig`); api and worker wired to it;
+  `QueueDefinition.jobId`'s doc says delivery is at-least-once; the `chat.queue.ts` comment
+  explains the settling attempt by redrive (R8–R14, R18, R20; D1–D3, D5).
+- **Blocked by:** S4.
 - **Files:** `packages/queue/{queue.ts,queue.test.ts,index.ts,package.json}`;
   `infrastructure/shared/{aws.ts,queue.client.ts,index.ts}`, `infrastructure/package.json`;
   `infrastructure/chat/chat.queue.ts`; `apps/api/src/layer.ts`, `apps/worker/src/layer.ts`,
@@ -252,8 +253,7 @@ S1 and S6 are independent and can start first; S4 and S6 can run in parallel aft
   switched; S5b adds the failing-transport and decode cases.
 - **Verify:** `make check`; by hand, `make up && make dev`: send a message, the reply reaches
   `completed` and the title appears; stop the worker, send three messages, start it, all three
-  run; `.data/` holds no `queue.sqlite`; `make dev` without `make up` exits naming the endpoint
-  and the queue.
+  run; `.data/` holds no `queue.sqlite`.
 - **Status:** todo
 
 #### S6 — A streaming `AttachmentStore` and a redirecting download
@@ -287,8 +287,8 @@ S1 and S6 are independent and can start first; S4 and S6 can run in parallel aft
   5 MiB parts, aborted on failure or interrupt; `select` by `GetObject` (`NoSuchKey` → `none`);
   `url` presigned for 300 s; `keep` clears the tag; `delete` idempotent; `S3Service` from
   `AwsConfig` with `forcePathStyle` when an endpoint is set; api and worker wired to it, and the
-  file store no longer holds bytes (R1–R3, R5, R6, R18, R19, R21; D6–D8, D11).
-- **Blocked by:** S2, S3, S6.
+  file store no longer holds bytes (R1–R3, R5, R6, R18, R21; D6–D8, D11).
+- **Blocked by:** S2, S6.
 - **Files:** `infrastructure/attachment/{attachment.storage.s3.ts,attachment.storage.test.ts,
   index.ts}`; `infrastructure/shared/aws.ts`, `infrastructure/package.json`
   (`@effect-aws/client-s3`); `apps/api/src/layer.ts`, `apps/worker/src/layer.ts`;
@@ -346,7 +346,7 @@ S1 and S6 are independent and can start first; S4 and S6 can run in parallel aft
 | R16 | S2 |
 | R17 | S1, S8 |
 | R18 | S5, S7 (by hand) |
-| R19 | S3, S5, S7 |
+| R19 | dropped in S3 (D5) |
 | R20 | S2, S5, S7 |
 | R21 | S4, S6, S7 |
 | R22 | S2, S5, S7, S8 |

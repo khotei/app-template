@@ -142,8 +142,9 @@ stay in `KeyValueStore` until `postgres-drizzle` (4).
   and an agreement test covers the rest.*
 - **R18** — WHEN `make dev` runs with MiniStack up, THE SYSTEM SHALL serve uploads, downloads and
   both jobs through MiniStack, with no SQLite queue file and no attachment bytes under `.data/`.
-- **R19** — IF the api or the worker cannot reach the bucket or a queue at startup, THEN THE
-  SYSTEM SHALL exit with an error that names the endpoint and the resource.
+- **R19** — *Dropped in plan step S3 (architecture D5):* the api and the worker do not check
+  their resources at startup. The infrastructure (`make up`, later Pulumi) guarantees them, and a
+  missing one fails the first call that uses it.
 - **R20** — THE SYSTEM SHALL read its AWS settings only through `@app-template/config` layers:
   `AWS_REGION`, `STAGE`, and `AWS_ENDPOINT_URL` when set; credentials SHALL come from the SDK's
   default provider chain; bucket and queue names SHALL come from the inventory and the stage.
@@ -183,7 +184,6 @@ stay in `KeyValueStore` until `postgres-drizzle` (4).
 | R16 | `make up` twice: the second run reports no change; `make down` leaves no MiniStack container. |
 | R17 | Adding a queue to the inventory without a definition, or a definition whose name is not in the inventory, makes the agreement test in `make check` fail with the name. |
 | R18 | `make up && make dev`: upload, send, poll to `completed`, title appears; `.data/` holds no `queue.sqlite` and no attachment bytes. |
-| R19 | `make dev` without `make up`: both processes exit with an error naming the endpoint and the resource. |
 | R20 | `git grep` finds no `process.env`, `Bun.env`, bucket or queue name outside config and the inventory; `.env.example` matches R20. |
 | R21 | `make test` runs each contract suite twice (memory, MiniStack) and passes without `.env`; CI runs the same. |
 | R22 | The knowledge doc exists and is linked from `docs/knowledge/architecture.md`; `git grep -i stub deployment/` finds no local-environment stub note. |
