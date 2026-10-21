@@ -8,10 +8,12 @@ import {
   Layer,
   Predicate,
   Schedule,
-  Schema,
+  type Schema,
 } from 'effect'
 import { PersistedQueue } from 'effect/persistence'
 import type { SqlError } from 'effect/sql'
+
+import { QueueError } from '#queue/queue.transport'
 
 export interface QueueDefinition<S extends Schema.Top> {
   readonly name: string
@@ -31,10 +33,6 @@ export interface AttemptInfo {
 }
 
 export type Handler<A, E, R> = (message: A, attempt: AttemptInfo) => Effect.Effect<void, E, R>
-
-export class QueueError extends Schema.TaggedError<QueueError>()('QueueError', {
-  cause: Schema.Defect(),
-}) {}
 
 export interface QueueClientSqliteOptions {
   readonly filename: string

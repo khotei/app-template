@@ -3,6 +3,6 @@ export {
   QueueClient,
   type QueueClientSqliteOptions,
   type QueueDefinition,
-  QueueError,
   worker,
 } from '#queue/queue'
+export { QueueError } from '#queue/queue.transport'
