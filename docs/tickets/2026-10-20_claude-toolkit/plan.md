@@ -140,6 +140,26 @@
   commits made under the old name.
 - **Status:** todo
 
+#### S5 — Permissions ask only before irreversible acts
+
+- **Goal:** read-only commands, web reads and reversible git commands run without a prompt;
+  `ask` keeps commit, push, PR and the commands that discard work. Taken in at the user's request
+  after S3; no `R…`.
+- **Blocked by:** none.
+- **Files:** `.claude/settings.json`.
+- **Test first:** `config only`.
+- **Verify:** `bunx biome check .claude/settings.json`; `ask` lists no `WebFetch` or `WebSearch`.
+- **Status:** done
+- **Findings:**
+  - Rules from every settings file merge and run deny → ask → allow, first match wins, so the
+    project's `ask: WebFetch(*), WebSearch(*)` overrode a user-level `allow` and prompted on
+    every web read; the domain list in `allow` could never help.
+  - `allow` gains the read-only shell and git commands, `git switch`, `mv`, `rm`, `reset` and
+    `stash`; `ask` keeps their destructive forms (`reset --hard`, `switch --discard-changes`,
+    `stash drop`/`clear`, `branch -D`/`-f`, `find -delete`/`-exec`), since ask wins over allow.
+  - `git commit` stays in `ask` at the user's choice: the one mechanical guard behind the
+    approval gate.
+
 ## Requirement coverage
 
 | Req | Steps |

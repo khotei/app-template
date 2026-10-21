@@ -60,6 +60,7 @@ the first is reviewed.
 - `claude-md.md` loads for the living docs and the toolkit, not for ticket artifacts.
 - Roadmap: entry 2 absorbed by this ticket, entry 3 done, the deferred items moved to entry 12.
 - Ticket folders are named `<YYYY-MM-DD-HHmm>_<slug>`; the six existing folders are renamed.
+- `settings.json` asks only before an act that is hard to undo or seen outside the machine.
 
 ## Out of scope
 
