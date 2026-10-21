@@ -61,7 +61,7 @@ report stays in the conversation; `plan.md` records no check.
 
 **Pointer line** (root `CLAUDE.md`; `naming.md` and `README.md` in their own words):
 
-> Imports follow [docs/knowledge/architecture.md › Dependency rules](…#dependency-rules); Biome
+> Imports follow [docs/knowledge/architecture.md › Dependency rules](../../knowledge/architecture.md#dependency-rules); Biome
 > enforces them.
 
 ## Seams
