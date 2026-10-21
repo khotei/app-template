@@ -1,6 +1,6 @@
 ---
 paths:
-  - "**/*.ts"
+  - "{domain,http-api,application,infrastructure,packages,apps,deployment}/**/*.ts"
 ---
 
 # Effect: functions, services and layers

@@ -153,7 +153,10 @@ its sources either way.
 3. Add the path to the root `package.json` `workspaces` if no glob covers it. Bun rejects an
    explicit path that does not exist yet, so create the folder first.
 4. Add the path to the root `tsconfig.json` `references`.
-5. Run `bun install` and `make check`.
+5. For a new top-level directory, add it to the brace list in the `paths:` of
+   `.claude/rules/effect*.md`, `naming.md` and `comments.md`, or those rules never load for its
+   files. A `packages/*` or `apps/*` workspace is already covered.
+6. Run `bun install` and `make check`.
 
 A new `packages/*` workspace needs no change to the layer guards, because they are deny-lists. A
 new layer or app needs its own `overrides` entry in `biome.json`; see

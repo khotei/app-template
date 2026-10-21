@@ -1,7 +1,7 @@
 ---
 paths:
-  - "**/*.test.ts"
-  - "**/testing/**"
+  - "{domain,http-api,application,infrastructure,packages,apps,deployment}/**/*.test.ts"
+  - "{domain,http-api,application,infrastructure,packages,apps,deployment}/**/testing/**"
 ---
 
 # Effect: tests

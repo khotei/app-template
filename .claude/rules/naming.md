@@ -1,7 +1,8 @@
 ---
 paths:
-  - "**/*.ts"
-  - "**/package.json"
+  - "{domain,http-api,application,infrastructure,packages,apps,deployment}/**/*.ts"
+  - "package.json"
+  - "{domain,http-api,application,infrastructure,packages,apps,deployment}/**/package.json"
 ---
 
 # Naming and imports

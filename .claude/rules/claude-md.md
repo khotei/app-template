@@ -2,7 +2,7 @@
 paths:
   - "**/CLAUDE.md"
   - ".claude/**"
-  - "docs/**"
+  - "docs/knowledge/**"
 ---
 
 # Maintaining `CLAUDE.md`, rules and docs
