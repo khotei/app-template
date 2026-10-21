@@ -2,7 +2,7 @@
 
 Where code belongs, what it may import, and how to add a new entity. Each layer's binding rules
 live in its `CLAUDE.md`; the decisions behind them, with the rejected alternatives, live in the
-scaffold ticket's `architecture.md › Decisions` (`docs/tickets/2026-10-15_monorepo-setup/`).
+scaffold ticket's `architecture.md › Decisions` (`docs/tickets/2026-10-16-1433_monorepo-setup/`).
 
 ## Layers
 

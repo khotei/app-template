@@ -36,7 +36,7 @@ update it.
 | Binding constraints of one layer or workspace | `<layer>/CLAUDE.md` |
 | Repo-wide conventions | `.claude/rules/*.md` |
 | How the system works, for humans | `docs/knowledge/*.md` |
-| One ticket's what, why and how | `docs/tickets/<YYYY-MM-DD>_<slug>/` |
+| One ticket's what, why and how | its folder in `docs/tickets/` (`sdd.md`) |
 | What changed and why | `git log` |
 
 ## Belongs

@@ -1,6 +1,6 @@
 # Claude toolkit — architecture
 
-> Ticket: `2026-10-20_claude-toolkit` · Requirements: [feature.md](./feature.md)
+> Ticket: `2026-10-20-2313_claude-toolkit` · Requirements: [feature.md](./feature.md)
 
 ## Overview
 

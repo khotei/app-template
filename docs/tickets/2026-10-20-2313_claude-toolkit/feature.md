@@ -1,6 +1,6 @@
 # Claude toolkit
 
-> Ticket: `2026-10-20_claude-toolkit` · Source: the toolkit audit of 2026-10-20 (conversation)
+> Ticket: `2026-10-20-2313_claude-toolkit` · Source: the toolkit audit of 2026-10-20 (conversation)
 > Related: [architecture.md](./architecture.md) · [plan.md](./plan.md)
 
 ## Goal
@@ -8,8 +8,7 @@
 The toolkit (`CLAUDE.md` files, `.claude/rules/`, skills, agents, hooks) holds only what
 demonstrably changes agent behaviour, costs as little context per session as possible, and turns
 the lessons of the first two tickets into checks or single lines. This ticket lands the first wave,
-the items the audit ranked urgent or always-loaded; later waves join it as new requirements once
-the first is reviewed.
+the items the audit ranked urgent or always-loaded; the second wave is roadmap entry 14.
 
 ## Context
 
@@ -64,9 +63,7 @@ the first is reviewed.
 
 ## Out of scope
 
-- The second wave, settled after this one is reviewed (see Open questions): the single author of
-  the import direction, the `ticket-plan` and `implementer` lines, `make lint-docs`, Biome guards
-  for browser-safe layers and the pure domain, and the small cuts.
+- The second wave: roadmap entry 14 (see Open questions).
 - `claude plugin eval`, `/skill-doctor`, plugin pinning, `skillOverrides`, agent `memory`,
   `SessionStart` and `PostToolUse` hooks: `template-handoff` (roadmap entry 12). No recorded
   mistake would have been prevented by any of them.
@@ -113,27 +110,10 @@ the first is reviewed.
 | R3 | `cat CLAUDE.md $(grep -L '^paths:' .claude/rules/*.md) \| wc -l` ≤ 140; `grep -c '^paths:' .claude/rules/pull-requests.md` is 1; `grep -n 'Toolkit layout' .claude/rules/sdd.md` is empty and `grep -n 'disable-model-invocation' .claude/rules/claude-md.md` is not; `grep -nE 'no-verify\|npm\|bun test\|tsc -b emits\|New workspace\|Double-quote' .claude/rules/tooling.md` is empty |
 | R4 | the frontmatter of `claude-md.md` lists `docs/knowledge/**`, not `docs/**`; `claude --debug` shows no frontmatter parse error for `.claude/rules/*.md` |
 | R5 | `docs/knowledge/roadmap.md`: the table row 2 links this folder, row 3 reads `done`, entry 12's Scope names evals, `/skill-doctor`, pinning, `skillOverrides`, agent memory and the extra hooks; row 13 links this folder |
-| R6 | `ls docs/tickets` lists `2026-10-16-1433_monorepo-setup`, `2026-10-16-1607_effect-setup`, `2026-10-17-1508_template-bootstrap`, `2026-10-17-1748_chat-core`, `2026-10-19-1448_aws-local`, `2026-10-20-2313_claude-toolkit`, `_template` in this order; `git grep -nE '2026-10-(15_monorepo-setup\|16_effect-setup\|17_template-bootstrap\|17_chat-core\|19_aws-local\|20_claude-toolkit)' -- ':!docs/tickets/*claude-toolkit/'` and `git grep -n '<YYYY-MM-DD>_'` are empty |
+| R6 | `ls docs/tickets` lists `2026-10-16-1433_monorepo-setup`, `2026-10-16-1607_effect-setup`, `2026-10-17-1508_template-bootstrap`, `2026-10-17-1748_chat-core`, `2026-10-19-1448_aws-local`, `2026-10-20-2313_claude-toolkit`, `_template` in this order; `git grep -nE '2026-10-(15_monorepo-setup\|16_effect-setup\|17_template-bootstrap\|17_chat-core\|19_aws-local\|20_claude-toolkit)' -- ':!docs/tickets/*claude-toolkit/*'` and `git grep -n '<YYYY-MM-DD>_' -- ':!docs/tickets/*claude-toolkit/*'` are empty |
 
 ## Open questions
 
-Settled with the user after the first wave is reviewed; each accepted one becomes a requirement
-here and a step in `plan.md`:
-
-- The import direction has five authors (`biome.json`, root `CLAUDE.md`, `naming.md`, seven
-  workspace `CLAUDE.md`, `architecture.md`): keep one for agents, or leave the cheap on-directory
-  lines?
-- `ticket-plan`: a step names a file or an API only after `researcher` confirmed it, and every
-  literal the plan fixes is checked against the rules (49 *Amended in* notes in `chat-core`).
-- `implementer`: a rule line added or sharpened comes with a `git grep` for what it forbids.
-- `make lint-docs` on lines over 100 characters in the living docs; whether `docs/tickets/` is in.
-- Biome guards for `node:`/`bun:` imports and `Bun`/`process` globals in the browser-facing layers,
-  and `Date`/`crypto`/`fetch` in `domain`: no recorded agent mistake, but a hand grep in every
-  verification.
-- Agents read their step, not the whole ticket: in `chat-core` the implementer and both
-  reviewers each read about 60k tokens of `feature.md`, `architecture.md` and `plan.md` per step,
-  where the step and the `R…` and `D…` it cites hold 1–2k. A reading rule in `implementer` and
-  `reviewer`, or one file per step: settled in the second wave.
-- Small cuts: `sdd.md` round ids `S11.1` → `<step>.1`; the `http-api/CLAUDE.md` Layout line;
-  three `effect-schema.md` lines that restate `domain/CLAUDE.md`; four `sdd.md` lines that restate
-  `CLAUDE.md`; a `deny` on `--no-verify` instead of a rule line.
+Moved to roadmap entry 14, `toolkit-reading`, which carries them. The small cuts were dropped:
+each saves under 3% of a session's load, below the 20% the user set for a cut made for tokens
+alone, and the `deny` on `--no-verify` landed in S3.

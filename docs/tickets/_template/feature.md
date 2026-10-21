@@ -1,6 +1,6 @@
 # <Title>
 
-> Ticket: `<YYYY-MM-DD>_<slug>` · Source: <link or "conversation">
+> Ticket: `<YYYY-MM-DD-HHmm>_<slug>` · Source: <link or "conversation">
 > Related: [architecture.md](./architecture.md) · [plan.md](./plan.md)
 
 ## Goal

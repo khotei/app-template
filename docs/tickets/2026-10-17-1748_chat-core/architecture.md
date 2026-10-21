@@ -1,6 +1,6 @@
 # Chat core — architecture
 
-> Ticket: `2026-10-17_chat-core` · Requirements: [feature.md](./feature.md)
+> Ticket: `2026-10-17-1748_chat-core` · Requirements: [feature.md](./feature.md)
 
 ## Overview
 

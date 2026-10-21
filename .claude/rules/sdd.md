@@ -5,7 +5,7 @@ Every change of substance runs **feature → architecture → plan → implement
 
 ## Artifacts
 
-`docs/tickets/<YYYY-MM-DD>_<slug>/`, started from `docs/tickets/_template/`:
+`docs/tickets/<YYYY-MM-DD-HHmm>_<slug>/`, started from `docs/tickets/_template/`:
 
 | File | Holds | Written by |
 |---|---|---|

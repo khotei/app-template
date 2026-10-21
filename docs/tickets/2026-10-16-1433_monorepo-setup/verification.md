@@ -1,6 +1,6 @@
 # Monorepo setup — verification
 
-> Ticket: `2026-10-15_monorepo-setup` · Requirements: [feature.md](./feature.md) · Plan: [plan.md](./plan.md)
+> Ticket: `2026-10-16-1433_monorepo-setup` · Requirements: [feature.md](./feature.md) · Plan: [plan.md](./plan.md)
 
 <!-- /ticket-verify appends one dated section per run; earlier runs stay as history. -->
 

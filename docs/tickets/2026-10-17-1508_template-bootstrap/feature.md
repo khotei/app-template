@@ -1,6 +1,6 @@
 # Template bootstrap
 
-> Ticket: `2026-10-17_template-bootstrap` · Source: conversation (grilling on 2026-10-17)
+> Ticket: `2026-10-17-1508_template-bootstrap` · Source: conversation (grilling on 2026-10-17)
 > Related: [architecture.md](./architecture.md) · [plan.md](./plan.md) ·
 > [roadmap](../../knowledge/roadmap.md)
 
@@ -120,7 +120,7 @@ it and grows on its own.
   scope, inherited requirements, open questions and dated facts, the re-homing table for
   `effect-setup`, and cross-ticket facts. `docs/knowledge/glossary.md` SHALL exist with the terms
   Visitor, Chat, Message, Attachment, Placeholder and Assistant.
-- **R14** — `docs/tickets/2026-10-16_effect-setup/plan.md` SHALL state at its top that the ticket
+- **R14** — `docs/tickets/2026-10-16-1607_effect-setup/plan.md` SHALL state at its top that the ticket
   is superseded at S12 and link the roadmap's re-homing table; `feature.md` of that ticket SHALL
   carry the same one-line note under its title. Nothing else in that folder changes.
 

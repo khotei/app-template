@@ -65,4 +65,4 @@ only if the change is genuinely trivial/mechanical.
 
 ## Refs
 
-Refs: docs/tickets/<YYYY-MM-DD>_<slug>/
+Refs: docs/tickets/<YYYY-MM-DD-HHmm>_<slug>/

@@ -1,6 +1,6 @@
 # Effect setup — architecture
 
-> Ticket: `2026-10-16_effect-setup` · Requirements: [feature.md](./feature.md)
+> Ticket: `2026-10-16-1607_effect-setup` · Requirements: [feature.md](./feature.md)
 
 ## Overview
 

@@ -1,6 +1,6 @@
 # Claude toolkit — plan
 
-> Ticket: `2026-10-20_claude-toolkit` · Requirements: [feature.md](./feature.md) · Design: [architecture.md](./architecture.md)
+> Ticket: `2026-10-20-2313_claude-toolkit` · Requirements: [feature.md](./feature.md) · Design: [architecture.md](./architecture.md)
 
 ## How to run this plan
 
@@ -12,8 +12,8 @@
   pointers, and each step's *Verify* holds the acceptance command of its requirement.
 - Every cut line names its owner in the step's findings (`settings.json › deny`, `.gitignore`,
   `docs/knowledge/tooling.md`), so a cut can be traced back.
-- The second wave (`feature.md › Open questions`) joins this plan as further steps once S1–S3 are
-  reviewed; S1–S3 are independent and may run in any order.
+- S1–S3 are independent and may run in any order; S4 and S5 joined after S3, and the second wave
+  went to roadmap entry 14.
 
 ## Steps
 
@@ -138,7 +138,20 @@
   `lychee --offline README.md 'docs/**/*.md' '.claude/**/*.md' '*/CLAUDE.md'` reports 0 errors;
   `git log --follow --oneline -- docs/tickets/2026-10-17-1748_chat-core/feature.md` reaches the
   commits made under the old name.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The R6 pathspec `':!docs/tickets/*claude-toolkit/'` excluded nothing (a trailing `/` matches
+    no file); the acceptance uses `/*`, and the `<YYYY-MM-DD>_` grep takes the same exclusion,
+    since it matched its own line. R6 itself is unchanged.
+  - `monorepo-setup` R33 now names the new pattern, so the closed ticket no longer contradicts
+    its folder; plan and verification lines of closed tickets name the new paths while their
+    commits keep the old ones, which `docs/knowledge/sdd.md` explains in one sentence.
+  - `monorepo-setup` takes 10-16-1433, its squash on the teaching branch; its first commit,
+    `aa72463` (10-15), lives on `chore/monorepo-setup`, outside that history. The order holds.
+  - The pattern is stated by `sdd.md`, `ticket-feature` (which creates the folder, in local time),
+    the PR and ticket templates and `docs/knowledge/sdd.md`; `CLAUDE.md`, `claude-md.md` and
+    `commits.md` now point to the folder instead of restating it. `ticket-feature`'s description
+    named `<date>_<slug>`, which the acceptance grep could not catch.
 
 #### S5 — Permissions ask only before irreversible acts
 

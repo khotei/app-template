@@ -1,6 +1,6 @@
 # Chat core — verification
 
-> Ticket: `2026-10-17_chat-core` · Requirements: [feature.md](./feature.md) · Plan: [plan.md](./plan.md)
+> Ticket: `2026-10-17-1748_chat-core` · Requirements: [feature.md](./feature.md) · Plan: [plan.md](./plan.md)
 
 <!-- /ticket-verify appends one dated section per run; earlier runs stay as history. -->
 
@@ -66,7 +66,7 @@ R17 and R18 at runtime: the stub neither fails nor exposes the prompt; Seam 6 co
 R10, R16, R17, R18/R19 (D23), R21, R22, R24, R25, R26–R29, R30, R33, R34 (D30), R35, R37.
 
 **Beyond feature.md on the branch:** the README rewrite; `/explain` and `explainer`
-(`85709c3`); the `2026-10-19_aws-local` ticket artifacts (`11da5c5`); `sdd.md`, the
+(`85709c3`); the `2026-10-19-1448_aws-local` ticket artifacts (`11da5c5`); `sdd.md`, the
 `/ticket-implement` skill and the `implementer` agent (`0653d14`, `4bd5c8f`); `comments.md`,
 `reviewer.md`; an `effect` patch added and removed; `packages/testing`,
 `domain/shared/guard.ts`, `use-cases.md`; the S18 style pass; `772177e` (roadmap).
@@ -136,7 +136,7 @@ D3, D23, D25, D26, D29/D31, D5/D8/D10 checked line by line). The findings concer
 borders and the record of deviations, not behaviour.
 
 1. **Scope creep, hard (`pull-requests.md` "one ticket = one branch = one PR"):** `/explain` and
-   `explainer` (`85709c3`); the `2026-10-19_aws-local` artifacts (`11da5c5`, 762 lines, against
+   `explainer` (`85709c3`); the `2026-10-19-1448_aws-local` artifacts (`11da5c5`, 762 lines, against
    `sdd.md` "a ticket that has not started exists only as an entry in roadmap.md"); the SDD rule
    and skill edits (`0653d14`, `4bd5c8f`, a judgement call: the user's OK is not visible in the
    diff). All of it becomes part of the one squashed `chat-core` commit.

@@ -14,9 +14,12 @@ graph LR
   V -->|pass| PR[PR · squash merge]
 ```
 
-Every artifact lives in `docs/tickets/<YYYY-MM-DD>_<slug>/`, started from
+Every artifact lives in `docs/tickets/<YYYY-MM-DD-HHmm>_<slug>/`, started from
 [docs/tickets/_template/](../tickets/_template/feature.md). The domain glossary is
 `docs/knowledge/glossary.md`, created when the first term is settled.
+
+An older `Refs:` line may name a folder before its rename: the slug is unchanged, and
+`git log --follow` on a file of the current folder reaches the commits made under the old name.
 
 ## When to run which cycle
 

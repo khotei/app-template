@@ -1,6 +1,6 @@
 # <Title> — verification
 
-> Ticket: `<YYYY-MM-DD>_<slug>` · Requirements: [feature.md](./feature.md) · Plan: [plan.md](./plan.md)
+> Ticket: `<YYYY-MM-DD-HHmm>_<slug>` · Requirements: [feature.md](./feature.md) · Plan: [plan.md](./plan.md)
 
 <!-- /ticket-verify appends one dated section per run; earlier runs stay as history. -->
 
