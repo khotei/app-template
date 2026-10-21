@@ -28,6 +28,9 @@ Everything runs through the root `Makefile` (GNU Make 3.81, the macOS default). 
 `bun run test` runs the root `test` script, while `bun test` would start Bun's own test runner,
 which is denied in `.claude/settings.json`.
 
+Scripts live only where `make` calls them: the root `package.json` holds `prepare`, `lint`,
+`format` and `test`; each app holds `dev`, `debug` and `start`; library workspaces hold none.
+
 ### Tests
 
 Tests run on vitest 5, on the Bun runtime (`bun --bun`), so `Bun.serve` and the other Bun APIs work

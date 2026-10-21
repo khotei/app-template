@@ -100,7 +100,24 @@
   is empty; `grep -n 'no-verify' .claude/settings.json` lists the two `deny` entries;
   `lychee --offline README.md 'docs/**/*.md' '.claude/**/*.md' '*/CLAUDE.md'` reports 0 errors;
   by hand, in a fresh session: `/context` shows the always-loaded set without `pull-requests.md`.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The budget lands at 140, not 138: `CLAUDE.md` line 24 went whole, since its first half
+    repeats `tooling.md › Commands` and keeping it left 141. Measured by `/context`, the
+    always-loaded project files were 4.5k tokens before; characters / 4 had estimated 2.8k.
+  - Owners of the cut lines: `bun test` and `npm`/`yarn`/`pnpm`, `settings.json › deny`;
+    `--no-verify`, `deny` (any position, and `git commit -n`); the `tsc -b` emit, `.gitignore`
+    and the knowledge doc's *TypeScript*; quoting, its *Environment*; *New workspace*, its *Add a
+    workspace*; the scripts lists, its *Commands*, which gained the line in S3.2, as no owner held
+    it; the plugin paths and the glossary, `CLAUDE.md › Working here`; the decisions home,
+    `claude-md.md › Hard limits`.
+  - `docs/knowledge/sdd.md` (the dependency-map guard now names `claude-md.md`) and
+    `docs/knowledge/tooling.md` are outside Files.
+  - `deny` is not a security boundary (`code.claude.com/docs/en/permissions`): it covers the
+    invocations Claude usually produces; CI runs the hooks' checks, so a skipped hook fails there.
+  - S3.2 restored "or spawn agents" in the toolkit line, renamed `claude-md.md` to cover the
+    toolkit, and cut the `biome.json` sentence of `packages/CLAUDE.md`, which restated the doc it
+    points to.
 
 #### S4 — Ticket folders sort by start time
 

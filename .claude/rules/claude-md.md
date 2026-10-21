@@ -5,7 +5,7 @@ paths:
   - "docs/knowledge/**"
 ---
 
-# Maintaining `CLAUDE.md`, rules and docs
+# Maintaining `CLAUDE.md`, rules, docs and the toolkit
 
 A `CLAUDE.md` or rule caches what the **code cannot say**: the *why*, and the constraints that are
 not local to one file. Every line is paid for in every matching session, so a line earns its place
@@ -57,8 +57,8 @@ Refresh a doc only when a real change lands, inside that change's commit. When i
 - **The dependency map in `docs/knowledge/sdd.md` is the only summary** of what each skill and
   agent uses (plugin skills, agents, hooks, overrides). A commit that changes what a skill or agent
   uses updates the map in the same commit.
-- Tool limits live on the agent (`disallowedTools`); an agent that cannot edit has its skill
-  persist its output.
+- Tool limits live on the agent (`disallowedTools`); an agent that cannot edit or spawn
+  agents has its skill persist its output.
 - Subagents cannot ask the user, so grilling, plan review and commit approval run in the main
   session.
 - `implementer` ends only with `make check` green (`.claude/hooks/make-check.sh`) or a final
