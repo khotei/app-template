@@ -1,7 +1,7 @@
 import { Context, Effect, Layer } from 'effect'
 import { GenericContainer, Wait } from 'testcontainers'
 
-/** The image `deployment/local/index.ts` runs for `make up`; bump both together. */
+/** The image `deployment/local/ministack.ts` runs for `make up`; bump both together. */
 const image =
   'ministackorg/ministack:1.5.29@sha256:88f507c57e16f5cac3c58dbdd4d47cfd14d6f870c38461aff7e077908253260b'
 const port = 4566

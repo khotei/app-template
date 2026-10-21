@@ -5,20 +5,21 @@
 .PHONY: help setup stack up down reset dev dev-api dev-worker dev-web debug-api debug-worker \
   debug-web check ids lint fmt typecheck test clean outdated vendor-effect
 
-# The local Pulumi project: file backend and home under .data/, so a clone touches nothing outside
-# the repo; the passphrase is empty because the stack holds no secret.
-PULUMI = PULUMI_HOME=$(CURDIR)/.data/pulumi/home PULUMI_CONFIG_PASSPHRASE= pulumi -C deployment/local
+# The local Pulumi project: the file backend under .data/ and the home (plugins, credentials) under
+# .pulumi/, both in the repo; the home survives `make reset`. The passphrase is empty because the
+# stack holds no secret.
+PULUMI = PULUMI_HOME=$(CURDIR)/.pulumi PULUMI_CONFIG_PASSPHRASE= pulumi -C deployment/local
 
 help: ## List all targets
 	@echo 'App Template: make <target>'
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) \
 		| awk 'BEGIN { FS = ":.*## " } { printf "  %-14s %s\n", $$1, $$2 }'
 
-setup: stack ## Install dependencies, create .env if missing, prepare the local Pulumi stack
+setup: ## Install dependencies and create .env from .env.example if missing
+	bun install
 	@test -f .env || (cp .env.example .env && echo "created .env from .env.example")
 
-stack: ## Log in to the file backend under .data/pulumi and select or create the local stack
-	bun install
+stack: ## Log the Pulumi CLI in to .data/pulumi and select or create the local stack (idempotent)
 	@mkdir -p .data/pulumi
 	@$(PULUMI) login --non-interactive file://$(CURDIR)/.data/pulumi
 	@$(PULUMI) stack select local 2>/dev/null || $(PULUMI) stack init local
@@ -30,7 +31,7 @@ up: stack ## Start MiniStack through Pulumi and provision the inventory on it
 down: stack ## Stop MiniStack
 	$(PULUMI) destroy --yes --skip-preview
 
-reset: down ## Stop MiniStack and remove .data/ (its state, the store, the queue file)
+reset: down ## Stop MiniStack and remove .data/ (its state, the Pulumi stack, the store, the queue file)
 	rm -rf .data
 
 dev: ## Run api, worker and web together in dev mode

@@ -12,8 +12,8 @@ Everything runs through the root `Makefile` (GNU Make 3.81, the macOS default). 
 
 | Target | Runs | Use |
 |---|---|---|
-| `make setup` | `make stack`, then copies `.env.example` to `.env` if missing | first clone; installs the git hooks too |
-| `make stack` | `bun install`, `pulumi login` to the file backend under `.data/pulumi`, `stack select local` or `init` | idempotent; `up` and `down` run it first |
+| `make setup` | `bun install`, then copies `.env.example` to `.env` if missing | first clone; installs the git hooks too; needs no Pulumi CLI |
+| `make stack` | `pulumi login` to the file backend under `.data/pulumi`, `stack select local` or `init` | idempotent; `up` and `down` run it first |
 | `make up` · `down` · `reset` | `pulumi up` / `destroy` on `deployment/local/`, then `deployment/local/provision.ts` | MiniStack for S3 and SQS: [aws.md › The local stand-in](aws.md#the-local-stand-in) |
 | `make dev` | `bun --filter './apps/*' dev` | all three processes, interleaved output |
 | `make dev-api` · `dev-worker` · `dev-web` | one app's `dev` script | one process |
@@ -131,7 +131,7 @@ Workspaces reference it as `catalog:<namespace>`; the unnamed `catalog:` is not 
 |---|---|---|
 | `tools` | developer-workflow tools that never shape types or runtime behaviour | `@biomejs/biome`, `husky`, `vitest` |
 | `runtime` | everything else, including the runtime the code targets | `@types/bun`, `testcontainers` |
-| one per family | packages released in lock-step | `typescript`: `typescript`, `@effect/tsgo` (it embeds one TypeScript version) · `effect`: `effect`, `@effect/*` · `effect-aws`: `@effect-aws/*` (one release train over the AWS SDK; it pins the SDK as a range, so the lockfile holds the SDK version) · `pulumi`: `@pulumi/pulumi` and its providers |
+| one per family | a release train, or a core and the plugins that pin it as a range | `typescript`: `typescript`, `@effect/tsgo` (it embeds one TypeScript version) · `effect`: `effect`, `@effect/*` · `effect-aws`: `@effect-aws/*` (one release train over the AWS SDK; it pins the SDK as a range, so the lockfile holds the SDK version) · `pulumi`: `@pulumi/pulumi` and the providers that pin it as a range (`@pulumi/docker`) |
 
 `bunfig.toml` sets `exact = true`, so `bun add` writes `1.2.3`, never `^1.2.3`.
 

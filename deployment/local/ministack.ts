@@ -12,7 +12,7 @@ const dataDir = fileURLToPath(new URL('../../.data/ministack', import.meta.url))
 
 const remoteImage = new docker.RemoteImage('ministack-image', { name: image, keepLocally: true })
 
-export const ministack = new docker.Container('ministack', {
+new docker.Container('ministack', {
   name: 'app-template-ministack',
   image: remoteImage.imageId,
   ports: [{ internal: port, external: port }],
@@ -42,5 +42,3 @@ export const ministack = new docker.Container('ministack', {
   destroyGraceSeconds: 15,
   stopTimeout: 15,
 })
-
-export const endpoint = `http://localhost:${port}`

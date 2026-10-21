@@ -12,21 +12,22 @@ created and tested. The code: `packages/aws` (the inventory, the naming rule, th
 `@pulumi/docker`'s `Container` with the image by digest, the port, the environment, the bind mount
 of `.data/ministack` and the health check with `wait: true`, so `pulumi up` returns only once
 MiniStack answers. Its state is a file backend under `.data/pulumi` with an empty passphrase
-(nothing secret is stored), and `PULUMI_HOME` sits there too, so a clone touches nothing outside
-the repo. The image is pinned by digest in `deployment/local/index.ts` and in
-`packages/testing/ministack.ts`; bump both together.
+(nothing secret is stored), and `PULUMI_HOME` is the repo's `.pulumi/`, so a clone touches nothing
+outside the repo and `make reset` keeps the provider plugin. The image digest is pinned in
+`deployment/local/ministack.ts` and `packages/testing/ministack.ts`, which name each other.
 
 | Target | Does |
 |---|---|
-| `make stack` | `bun install`, logs in to the file backend, selects the `local` stack or creates it. Idempotent; `setup`, `up` and `down` run it first. |
+| `make stack` | logs the Pulumi CLI in to the file backend and selects the `local` stack or creates it. Idempotent; `up` and `down` run it first. |
 | `make up` | `pulumi up --yes --skip-preview`, then `deployment/local/provision.ts`: creates the inventory under `STAGE` and prints each resource as `created` or `unchanged`. A second run changes nothing in Pulumi and prints `unchanged` for every resource. |
 | `make down` | `pulumi destroy`: removes the container. State survives: MiniStack writes it on shutdown and reads it on start, under `.data/ministack/`. |
-| `make reset` | `make down`, then removes `.data/` whole: MiniStack's state, the Pulumi backend, the key-value store and the queue file. The way back after an inventory change that SQS refuses (below). |
+| `make reset` | `make down`, then removes `.data/` whole: MiniStack's state, the Pulumi stack, the key-value store and the queue file; `.pulumi/` (the provider plugin) stays. The way back after an inventory change that SQS refuses (below). |
 
 An `up` that fails on the health check leaves the container in the stack's state; `make down`
-destroys it, and the next `make up` starts afresh. MiniStack's default region comes from the stack
-config (`$(PULUMI) config set region …` in the Makefile's terms); it defaults to `us-east-1`, the
-value `.env.example` gives `AWS_REGION`.
+destroys it, and the next `make up` starts afresh. MiniStack's default region is the stack config
+`region`, `us-east-1` unless set, the value `.env.example` gives `AWS_REGION`; to change it, run
+the CLI as the Makefile does: `PULUMI_HOME=.pulumi PULUMI_CONFIG_PASSPHRASE= pulumi -C
+deployment/local config set region <region>`.
 
 `AWS_REGION`, `AWS_ENDPOINT_URL` and `STAGE` are read through `AwsConfig` in
 `@app-template/config`; today the provisioner is its only reader, and the apps still run on the

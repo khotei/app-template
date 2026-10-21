@@ -2,8 +2,7 @@
 
 Two Pulumi projects: `local/` runs MiniStack in Docker for `make up` (live), and `aws/` is the
 AWS infrastructure (a typed stub until the deploy ticket lands; it imports no `@pulumi/*` yet).
-How the local one runs, and where its image is pinned: `docs/knowledge/aws.md › The local
-stand-in`.
+How the local one runs: `docs/knowledge/aws.md › The local stand-in`.
 
 - May import `packages/*` only; never a layer or an app.
 - Resource names come from `@app-template/aws` (`buildResourceName`,
