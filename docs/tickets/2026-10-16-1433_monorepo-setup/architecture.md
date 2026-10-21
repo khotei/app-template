@@ -1,6 +1,6 @@
 # Monorepo setup — architecture
 
-> Ticket: `2026-10-15_monorepo-setup` · Requirements: [feature.md](./feature.md)
+> Ticket: `2026-10-16-1433_monorepo-setup` · Requirements: [feature.md](./feature.md)
 
 ## Overview
 
@@ -46,7 +46,7 @@ gitGraph
 
 - **Steps.** Each layer covers one or more `plan.md` steps, one commit per step, and ends with `make check` green.
 - **Merge.** The PR is squash-merged, so `main` receives one commit. `chore/monorepo-setup` is kept after the merge and holds the step history.
-- **Starting a new project:** clone `main`, rename the `@oblik` scope, and delete `docs/tickets/2026-10-15_monorepo-setup/`.
+- **Starting a new project:** clone `main`, rename the `@oblik` scope, and delete `docs/tickets/2026-10-16-1433_monorepo-setup/`.
 
 ### SDD flow
 
@@ -108,7 +108,7 @@ The tree below is the end state of the ticket branch, which already includes thi
 ├── docs/
 │   ├── tickets/
 │   │   ├── _template/{feature,architecture,plan,verification}.md
-│   │   └── 2026-10-15_monorepo-setup/{feature,architecture,plan,verification}.md
+│   │   └── 2026-10-16-1433_monorepo-setup/{feature,architecture,plan,verification}.md
 │   └── knowledge/
 │       ├── tooling.md                   # scripts, Makefile, --hot vs --watch, debug, .env, catalog, references
 │       ├── architecture.md              # layers, dependency rules, Effect seam

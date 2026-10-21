@@ -1,3 +1,8 @@
+---
+paths:
+  - ".github/**"
+---
+
 # Pull requests
 
 PRs are **squash-merged** with GitHub's default message set to *"Pull request title and

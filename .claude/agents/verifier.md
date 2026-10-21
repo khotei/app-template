@@ -14,7 +14,8 @@ parallel by `code-review`; your job is whether the system does what `feature.md`
 ## How you work
 
 1. Read the ticket: `feature.md` (requirements `R…` and the acceptance table), `architecture.md`
-   and `plan.md`. List the branch's changes with `git diff --stat main...HEAD`.
+   and `plan.md`. List the branch's changes with
+   `git diff --stat $(git merge-base HEAD origin/main)...HEAD`.
 2. For each `R…`, run its acceptance check: execute commands, start the apps and send requests,
    read files. Record `pass`, `fail` or `not verifiable`.
 3. Run `make check` and confirm that no probe files are left in the tree.

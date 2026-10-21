@@ -1,6 +1,6 @@
 # AWS local — plan
 
-> Ticket: `2026-10-19_aws-local` · Requirements: [feature.md](./feature.md) · Design: [architecture.md](./architecture.md)
+> Ticket: `2026-10-19-1448_aws-local` · Requirements: [feature.md](./feature.md) · Design: [architecture.md](./architecture.md)
 
 ## How to run this plan
 

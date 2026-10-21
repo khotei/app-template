@@ -1,6 +1,6 @@
 # AWS local
 
-> Ticket: `2026-10-19_aws-local` · Source: [roadmap › 5](../../knowledge/roadmap.md#5-aws-local),
+> Ticket: `2026-10-19-1448_aws-local` · Source: [roadmap › 5](../../knowledge/roadmap.md#5-aws-local),
 > grilling on 2026-10-19
 > Related: [architecture.md](./architecture.md) · [plan.md](./plan.md)
 

@@ -35,11 +35,11 @@ graph LR
 
 | # | Ticket | Type | Depends on | Status |
 |---|---|---|---|---|
-| 1 | [`template-bootstrap`](#1-template-bootstrap) | `chore` | — | done: [docs/tickets/2026-10-17_template-bootstrap/](../tickets/2026-10-17_template-bootstrap/feature.md) |
-| 2 | [`claude-toolkit`](#2-claude-toolkit) | `chore` | 1, 3 | planned |
-| 3 | [`chat-core`](#3-chat-core) | `feat` | 1 | in progress: [docs/tickets/2026-10-17_chat-core/](../tickets/2026-10-17_chat-core/feature.md) |
+| 1 | [`template-bootstrap`](#1-template-bootstrap) | `chore` | — | done: [docs/tickets/2026-10-17-1508_template-bootstrap/](../tickets/2026-10-17-1508_template-bootstrap/feature.md) |
+| 2 | [`claude-toolkit`](#2-claude-toolkit) | `chore` | 1, 3 | in progress: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md) |
+| 3 | [`chat-core`](#3-chat-core) | `feat` | 1 | done: [docs/tickets/2026-10-17-1748_chat-core/](../tickets/2026-10-17-1748_chat-core/feature.md) |
 | 4 | [`postgres-drizzle`](#4-postgres-drizzle) | `feat` | 3 | planned |
-| 5 | [`aws-local`](#5-aws-local) | `feat` | 3 | in progress: [docs/tickets/2026-10-19_aws-local/](../tickets/2026-10-19_aws-local/feature.md) |
+| 5 | [`aws-local`](#5-aws-local) | `feat` | 3 | in progress: [docs/tickets/2026-10-19-1448_aws-local/](../tickets/2026-10-19-1448_aws-local/feature.md) |
 | 6 | [`llm-providers`](#6-llm-providers) | `feat` | 5 | planned |
 | 7 | [`web-app`](#7-web-app) | `feat` | 3 (6 for assistant attachments and an SSE tail) | planned |
 | 8 | [`observability`](#8-observability) | `feat` | 3 | planned |
@@ -47,10 +47,11 @@ graph LR
 | 10 | [`client-publishing`](#10-client-publishing) | `chore` | 3 | planned |
 | 11 | [`workflow-cluster`](#11-workflow-cluster) | `feat` | 4, 8 | planned, exploratory |
 | 12 | [`template-handoff`](#12-template-handoff) | `chore` | all above | planned |
-| 13 | [`ticket-folder-order`](#13-ticket-folder-order) | `chore` | 3 | deferred |
+| 13 | [`ticket-folder-order`](#13-ticket-folder-order) | `chore` | 3 | in progress: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md) |
+| 14 | [`toolkit-reading`](#14-toolkit-reading) | `chore` | 2 | planned |
 
-The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining work is re-homed in
-[Re-homing `effect-setup`](#re-homing-effect-setup).
+The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; its remaining work is re-homed
+in [Re-homing `effect-setup`](#re-homing-effect-setup).
 
 ### 1. `template-bootstrap`
 
@@ -62,7 +63,7 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   and `CLAUDE.md` as a template's; `effect-setup` marked superseded; the first squash PR.
 - **Out of scope.** Any behaviour change; finishing `effect-setup`; the rename script and the
   "new project" checklist (12).
-- **Status.** Done: [docs/tickets/2026-10-17_template-bootstrap/](../tickets/2026-10-17_template-bootstrap/feature.md).
+- **Status.** Done: [docs/tickets/2026-10-17-1508_template-bootstrap/](../tickets/2026-10-17-1508_template-bootstrap/feature.md).
 
 ### 2. `claude-toolkit`
 
@@ -79,7 +80,7 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   `ticket-*` skills, `/skill-doctor` as a periodic check; a re-read of `docs/knowledge/sdd.md`.
 - **Out of scope.** Changing the SDD gates themselves; product code.
 - **Inherits.** `effect-setup` R37, R37a, R37b, R38, R39, R40; three lessons of
-  [`template-bootstrap`](../tickets/2026-10-17_template-bootstrap/verification.md#lessons):
+  [`template-bootstrap`](../tickets/2026-10-17-1508_template-bootstrap/verification.md#lessons):
   - `ticket-plan` step 3 checks every literal the plan fixes against the rules and the tree.
   - `implementer` greps for a fact before a doc states it, and links the doc that owns it.
   - A `.husky/commit-msg` hook fails on a body line over 72 columns.
@@ -92,6 +93,13 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   available: agent `memory`/`effort`/`background`, `SessionStart`/`PostToolUse`/
   `PrePermissionRequest` hooks, nested skills, plugin evals, `/skill-doctor`, output styles,
   Workflow tool, cross-session messaging.
+- **Re-read (2026-10-20).** Most of the Scope landed during `chat-core`: the Effect rule split,
+  `naming.md`, `use-cases.md`, the layer `CLAUDE.md` rewrites, `/explain`, the rounds rule. The
+  ticket is now an audit of the toolkit by evidence (the two verifications, the plan findings, the
+  `Decision:` paragraphs): what stays, what becomes a check, what loads lazily. Evals,
+  `/skill-doctor`, plugin pinning, `skillOverrides`, agent `memory` and the extra hooks move to
+  `template-handoff` (12): nothing recorded would have been prevented by them.
+- **Status.** In progress: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md).
 
 ### 3. `chat-core`
 
@@ -130,8 +138,8 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   `effect/ai` streams `Response` parts (`text-delta`, `file`, `tool-call`, …) and takes
   `Prompt.FilePart` for images and PDFs. `@effect/sql-pglite@4.0.5` exists for later in-process
   Postgres tests.
-- **Status.** In progress: [docs/tickets/2026-10-17_chat-core/](../tickets/2026-10-17_chat-core/feature.md).
-  Its grilling departed from this entry: the assistant's message is a worker job polled by the
+- **Status.** Done: [docs/tickets/2026-10-17-1748_chat-core/](../tickets/2026-10-17-1748_chat-core/feature.md),
+  merged as `d142143`. Its grilling departed from this entry: the assistant's message is a worker job polled by the
   client (no SSE here), the title job starts from the first user message, and `Visitor` became
   `User`.
 
@@ -200,7 +208,7 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
   window; Node.js and `provided.*` Lambdas run as local processes, Docker only for images.
   `@effect-aws/client-s3` and `client-sqs` 2.0.0 peer `effect >=4.0.0-beta.66 <5.0.0`, install
   under Bun 1.4.3, type-check under `tsc` 7 and presign on Bun (scratch run, no live endpoint).
-- **Status.** In progress: [docs/tickets/2026-10-19_aws-local/](../tickets/2026-10-19_aws-local/feature.md).
+- **Status.** In progress: [docs/tickets/2026-10-19-1448_aws-local/](../tickets/2026-10-19-1448_aws-local/feature.md).
 - **Facts (2026-10-17).** LocalStack's OSS repository was archived on 2026-03-23 and its image
   requires an account; free only for non-commercial use. MiniStack: MIT, Python, images ~110–360 MB,
   4.9k stars, releases every 1–3 days, SQS (DLQ redrive, FIFO attributes stored), S3 (multipart,
@@ -346,36 +354,48 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
 - **Scope.** `make rename SCOPE=@acme NAME="Acme"`; a checklist of what to delete (`docs/tickets/`
   of the template, the example domain if unwanted) and what to keep (`docs/knowledge/`, rules,
   skills); a fresh-clone rehearsal in CI; the README's "Starting a new project" rewritten; the
-  GitHub template flag verified with all branches.
+  GitHub template flag verified with all branches; the toolkit items that matter only when the
+  template changes hands, inherited from `claude-toolkit` (2): `claude plugin eval` cases for the
+  `ticket-*` skills (they must be wrapped as a plugin to load), `/skill-doctor` as a periodic
+  check, pinning `mattpocock-skills` by `sha`, `skillOverrides` for the plugin skills the wrappers
+  never use, agent `memory`, `SessionStart` and `PostToolUse` hooks.
 - **Out of scope.** A generator or CLI.
 
 ### 13. `ticket-folder-order`
 
-- **Goal.** Ticket folders list in the order the tickets started, even two started on the same
-  day: today `2026-10-17_chat-core` sorts above the earlier `2026-10-17_template-bootstrap`.
-- **Scope.** The folder name gains the start time, `docs/tickets/<YYYY-MM-DD-HHmm>_<slug>/`, taken
-  when `/ticket-feature` creates it; every existing folder renamed with `git mv`, its time from the
-  ticket's first commit; the seven places that state the pattern (`CLAUDE.md`, `sdd.md`,
-  `commits.md`, `claude-md.md`, `ticket-feature/SKILL.md`, `PULL_REQUEST_TEMPLATE.md`,
-  `docs/knowledge/sdd.md`); links to ticket folders in `docs/knowledge/`.
-- **Out of scope.** Rewriting pushed history: `Refs:` lines in commits already on `main` and the
-  teaching branch keep the old paths.
-- **Open questions for its feature phase.** Whether a `make` check rejects a folder name without the
-  time; whether `docs/knowledge/sdd.md` says how to follow an old `Refs:` path.
-- **Facts (2026-10-18).**
-  - Renaming only the newer folder does not fix the order: `-` sorts before `_`, so every folder of
-    a day needs the time.
-  - An old `Refs:` path still resolves inside its own commit (`git show <sha>:<path>`), and
-    `git log --follow` finds the rename.
-  - Rewriting `Refs:` is safe only in unpushed commits; on `main` it needs a force-push.
-  - No script parses the folder name.
-- **Status.** Deferred: taken when there is time, after `chat-core` merges.
+- **Status.** In progress: taken into `claude-toolkit` (2) as R6,
+  [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md).
+
+### 14. `toolkit-reading`
+
+- **Goal.** The second wave of the `claude-toolkit` audit: agents read only what a step needs, and
+  the lessons of `chat-core` become checks.
+- **Scope.**
+  - Agents read their step, not the whole ticket. In `chat-core` the implementer and both
+    reviewers each read about 60k tokens of `feature.md`, `architecture.md` and `plan.md` per
+    step, where the step and the `R…` and `D…` it cites hold 1–2k: a reading rule in
+    `implementer` and `reviewer`, or one file per step.
+  - The import direction has five authors (`biome.json`, root `CLAUDE.md`, `naming.md`, seven
+    workspace `CLAUDE.md`, `docs/knowledge/architecture.md`): keep one for agents, or leave the
+    cheap on-directory lines.
+  - `ticket-plan`: a step names a file or an API only after `researcher` confirmed it, and every
+    literal the plan fixes is checked against the rules (49 *Amended in* notes in `chat-core`).
+  - `implementer`: a rule line added or sharpened comes with a `git grep` for what it forbids.
+  - `make lint-docs` on lines over 100 characters in the living docs; whether `docs/tickets/` is
+    in.
+  - Biome guards for `node:`/`bun:` imports and `Bun`/`process` globals in the browser-facing
+    layers, and `Date`/`crypto`/`fetch` in `domain`: no recorded agent mistake, but a hand grep in
+    every verification.
+- **Out of scope.** A cut made for tokens alone that saves under 20% of the load it targets.
+- **Facts (2026-10-21).** Rewording four rules without losing a constraint saved 11%; the
+  always-loaded project files measured 4.5k tokens by `/context` before `claude-toolkit`.
+- **Status.** Planned.
 
 ## Re-homing `effect-setup`
 
-`2026-10-16_effect-setup` reached S12 on `chore/effect-setup`, which `template-bootstrap` pushes as
-`chore/enterprise-template`. Its steps S13–S23 are not implemented as written; their requirements
-move to the tickets that will build them on the real domain:
+`2026-10-16-1607_effect-setup` reached S12 on `chore/effect-setup`, which `template-bootstrap`
+pushes as `chore/enterprise-template`. Its steps S13–S23 are not implemented as written; their
+requirements move to the tickets that will build them on the real domain:
 
 | `effect-setup` | Was | Goes to |
 |---|---|---|

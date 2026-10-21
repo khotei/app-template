@@ -9,7 +9,14 @@ prefix=$(printf '%s' "$input" | bun -e '
 ')
 [ "$prefix" = "BLOCKED:" ] && exit 0
 
-cd "${CLAUDE_PROJECT_DIR:-.}" || exit 1
+dir=${CLAUDE_PROJECT_DIR:-.}
+if ! cd "$dir" 2>/dev/null; then
+  {
+    echo "make-check.sh cannot enter CLAUDE_PROJECT_DIR ($dir), so make check did not run."
+    echo "Fix it before finishing, or start your final message with BLOCKED: and explain why."
+  } >&2
+  exit 2
+fi
 if output=$(NO_COLOR=1 FORCE_COLOR=0 make check 2>&1); then
   exit 0
 fi

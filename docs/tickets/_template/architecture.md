@@ -1,6 +1,6 @@
 # <Title> — architecture
 
-> Ticket: `<YYYY-MM-DD>_<slug>` · Requirements: [feature.md](./feature.md)
+> Ticket: `<YYYY-MM-DD-HHmm>_<slug>` · Requirements: [feature.md](./feature.md)
 
 ## Overview
 

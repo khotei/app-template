@@ -2,7 +2,7 @@
 
 This is a **reference**, not a template GitHub offers on PR creation (only
 `PULL_REQUEST_TEMPLATE.md` is). It shows a fully filled PR for a real ticket
-(`2026-10-15_monorepo-setup`) and the exact commit it squash-merges into. Use
+(`2026-10-16-1433_monorepo-setup`) and the exact commit it squash-merges into. Use
 it to see the shape end-to-end. Source of truth for the format stays
 `.claude/rules/commits.md`.
 
@@ -83,7 +83,7 @@ bare #/ prefix type-checks but Bun cannot resolve it.
 
 ## Refs
 
-Refs: docs/tickets/2026-10-15_monorepo-setup/
+Refs: docs/tickets/2026-10-16-1433_monorepo-setup/
 ````
 
 ## 3. The squashed commit it produces

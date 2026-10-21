@@ -1,12 +1,12 @@
 # Monorepo setup — plan
 
-> Ticket: `2026-10-15_monorepo-setup` · Requirements: [feature.md](./feature.md) · Design: [architecture.md](./architecture.md)
+> Ticket: `2026-10-16-1433_monorepo-setup` · Requirements: [feature.md](./feature.md) · Design: [architecture.md](./architecture.md)
 
 ## How to run this plan
 
 - **Bootstrap.** This ticket creates `/ticket-implement` and `/ticket-verify` itself, so the plan runs in the main session. The steps that come after S16 may use the new commands.
 - **Approval gate.** After implementing and verifying a step, stop and report. Commit, or amend, only after the user has reviewed the step and explicitly allowed the commit.
-- **One step, one commit** on `chore/monorepo-setup`. The commit format follows R37: `<gitmoji> <type>(monorepo-setup): <Subject>`, plus `Decision:` lines where a choice is non-obvious, and `Refs: docs/tickets/2026-10-15_monorepo-setup/` last. Before committing, set the step's `Status:` to `done` in this file.
+- **One step, one commit** on `chore/monorepo-setup`. The commit format follows R37: `<gitmoji> <type>(monorepo-setup): <Subject>`, plus `Decision:` lines where a choice is non-obvious, and `Refs: docs/tickets/2026-10-16-1433_monorepo-setup/` last. Before committing, set the step's `Status:` to `done` in this file.
 - **Test first** wherever a step has behaviour: write the test, watch it fail, then implement. Config-only steps are verified by their **Verify** commands instead.
 - **Layer gates.** At the end of each layer, `make check` passes at its last commit (R3). Until 2026-10-16 the gate also cut a `template/<layer>` branch; that strategy was dropped (D1).
 - **Versions.** Re-check every pinned version with `npm view <pkg> version` at S2. If a newer stable version exists, pin it and update `feature.md › Context` (R8).
@@ -36,7 +36,7 @@
 
 - **Goal:** the ticket's documents are tracked from the first branch commit (R2, D18).
 - **Blocked by:** S0.
-- **Files:** `docs/tickets/2026-10-15_monorepo-setup/{feature,architecture,plan}.md`.
+- **Files:** `docs/tickets/2026-10-16-1433_monorepo-setup/{feature,architecture,plan}.md`.
 - **Commit:** `:memo: docs(monorepo-setup): Add ticket docs`.
 - **Status:** done
 
