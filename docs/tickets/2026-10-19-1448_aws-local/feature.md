@@ -65,8 +65,10 @@ stay in `KeyValueStore` until `postgres-drizzle` (4).
   the port changes as far as streaming needs.
 - An SQS layer under `QueueClient`, so the queue definitions and handlers stay as they are.
 - The garbage collection of unbound attachments older than 24 hours.
-- MiniStack in `deployment/local/docker-compose.yml`; `make up` and `make down`; a provisioner
-  that applies the inventory to MiniStack.
+- MiniStack run by a Pulumi program in `deployment/local/` (the Docker provider under
+  `runtime: bun`); `make up` and `make down`; a provisioner that applies the inventory to
+  MiniStack. *Amended in architecture (D13): the compose file the first draft named is replaced
+  before it lands.*
 - The resource inventory in `packages/aws` (D4) and a drift guard.
 - Config areas for AWS in `@app-template/config`; `.env.example` updated.
 - The SQLite queue store and the attachment bytes in the file store removed.
@@ -77,8 +79,8 @@ stay in `KeyValueStore` until `postgres-drizzle` (4).
 
 ## Out of scope
 
-- Pulumi, Lambda packaging, IAM, real AWS accounts, MiniStack running Lambdas: `aws-deployment`
-  (9).
+- Pulumi on AWS, Lambda packaging, IAM, real AWS accounts, MiniStack running Lambdas:
+  `aws-deployment` (9).
 - Postgres, the outbox and the move of chat metadata out of `KeyValueStore`: `postgres-drizzle`
   (4).
 - Presigned uploads from the browser; a CDN in front of downloads.

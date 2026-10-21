@@ -113,7 +113,82 @@ S1 and S6 are independent and can start first; S4 and S6 can run in parallel aft
 - **Verify:** `make check` (with Docker running); `make up` twice, the second without change;
   `make down` leaves no container; `make reset` empties `.data/`. Findings record the container's
   measured start time.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - MiniStack starts in 1.1–1.4 s on this machine (three runs of the `MiniStack` layer: start and
+    `/_ministack/health` 200), and stops in 0.12 s; the whole `provision.test.ts` runs in 2.4 s.
+    `make up` takes 3.4 s cold (the compose health check polls every 2 s) and 0.85 s warm.
+  - `provision` returns `ReadonlyArray<ProvisionedResource>` (`name`, `outcome: created |
+    unchanged`), so `make up` can print "unchanged" for every resource on its second run (the
+    acceptance of R16) and the Seam 6 test can assert it directly. For that, existence is read
+    first: `HeadBucket` before `CreateBucket` (a repeated `CreateBucket` answers by region, `200` in
+    `us-east-1`), `GetQueueUrl` before `CreateQueue`. `BucketAlreadyOwnedByYou` stays a success for
+    the race (*Amended in S2* on D5). Lifecycle rules are re-put on every run (idempotent); a
+    drifted `maxReceiveCount` fails with `QueueNameExists`, documented in `aws.md` with
+    `make reset` as the way back.
+  - `resources.ts` gained the `Resources` interface (the parameter type of `provision`) and
+    `unboundTag = { key: 'unbound', value: 'true' }`, the inventory's own datum for the
+    expiration rule, which `AttachmentStoreS3` (S7) must read rather than respell; the Contracts
+    sketch lists it.
+  - `testcontainers` sits in the `runtime` catalog, not `tools`: `packages/testing/ministack.ts`
+    imports it, so it shapes the test runtime (S2.2).
+  - The S3 and SQS client layers are built twice: in `deployment/local/provision.ts` from
+    `AwsConfig` and in `provision.test.ts` from `MiniStack`. `infrastructure/shared/aws.ts` (S5,
+    S7) cannot serve `deployment`, which may import only `packages/*`; if S5 wants one home for
+    the `AwsConfig` → client options mapping, it is `packages/aws`.
+  - The `MiniStack` service provides `region` and `credentials` beside `endpoint`, so a test file
+    spells neither; the stage fixture is `buildStage()` in `packages/testing/stage.fixture.ts`.
+    The compose service pins the same image by digest; `aws.md` says to bump both together, and
+    `deployment/CLAUDE.md` points there. State persists through `PERSIST_STATE`/`STATE_DIR` (written on
+    shutdown) and `S3_PERSIST`/`S3_DATA_DIR`, both under `.data/ministack`; checked by `make down`
+    then `make up` reporting every resource unchanged.
+  - An existing `.env` does not receive the new variables (`make setup` only creates the file):
+    copy the AWS block from `.env.example`. Lesson, applied on the user's OK in S2.2: the rule
+    `.claude/rules/tooling.md › Environment` now lists in `.env.example` the variables a client
+    SDK reads from the environment itself (the AWS credentials, D10), not only what the code
+    reads; `docs/knowledge/tooling.md` explains why.
+  - S2.3 replaces `docker compose` with the Pulumi project `deployment/local/` (D13): `Pulumi.yaml`
+    (`runtime: bun`) and `index.ts` with `docker.RemoteImage` (`keepLocally`) and
+    `docker.Container` (the digest of `packages/testing/ministack.ts`, port 4566, the environment,
+    the bind mount of the repo's `.data/ministack` resolved from `import.meta.url`, the python
+    healthcheck, `wait: true`, `waitTimeout: 60`). The `Makefile`'s `PULUMI` runs the CLI with
+    `PULUMI_HOME` and the file backend under `.data/pulumi` and an empty passphrase; `make stack`
+    (login, `stack select local || stack init local`) is idempotent and runs before `setup`, `up`
+    and `down`, so a `make up` after `make reset` needs no manual login. Catalog `pulumi`:
+    `@pulumi/pulumi@3.270.0`, `@pulumi/docker@5.2.0`; `bun pm untrusted` lists nothing blocked,
+    and `tsc -b` passes with the real types since `deployment/aws/*` imports no `@pulumi/*`.
+  - The region reaches the program as stack config (`new pulumi.Config().get('region')`, default
+    `us-east-1`), not `process.env`: the Makefile does not read `.env`, and MiniStack's default
+    region only names ARNs for unsigned requests, since the router takes the signed region first.
+  - `Pulumi.local.yaml` (the stack's `encryptionsalt` only) is gitignored: `stack init` generates
+    it per clone, like `.env`, and it holds no secret with the empty passphrase; `.data` already
+    covers the backend and `PULUMI_HOME`.
+  - `docker.Container` sets `destroyGraceSeconds: 15` and `stopTimeout: 15`: the provider's plain
+    remove killed MiniStack mid-save (`scheduler.json.tmp`, no `sqs.json`), so the queues came
+    back as `created` after `make down`; with a graceful stop the state is complete and the next
+    `make up` reports every resource `unchanged`.
+  - Measured with CLI 3.270.0 from the scratchpad: `make setup` 1.1 s (login and `stack init`);
+    `make up` 11.5 s cold (the docker provider plugin downloads, the container is healthy after
+    3 s), 1.6 s as a no-op (`3 unchanged`, five `unchanged`), 5.2–5.5 s after a `make down`;
+    `make down` 1.3 s; `make reset` 1.1 s. The Pulumi CLI is a prerequisite for `stack`, `up` and
+    `down` (`tooling.md`), never for `make check`.
+  - S2.4, on the user's request: the program is `deployment/local/ministack.ts`, not `index.ts`:
+    `deployment/aws/` names files by resource (`queue.ts`, `storage.ts`), `index.ts` is a barrel
+    name in this repo (`naming.md`), and "ministack" now finds exactly the two files that pin the
+    digest. It exports nothing, since nothing reads stack outputs. The root `README.md` gains a
+    Quick-start subsection on the local environment (examples and edge cases, linking `aws.md`).
+  - `make setup` no longer depends on `stack`: a newcomer without the Pulumi CLI still gets
+    `bun install` and `.env` for `make check`; `up` and `down` run `stack` first. `PULUMI_HOME` is
+    the repo's gitignored `.pulumi/`, outside `.data`, so `make reset` keeps the provider plugin
+    (D13 amended by the main session); only the backend lives under `.data/pulumi`. Measured
+    after the move: `make stack` 0.17 s, `make up` 11.2 s with the plugin download into the new
+    home, 1.0 s as a no-op (`3 unchanged`, five `unchanged`), `make down` 0.65 s.
+  - `deployment/Pulumi.yaml` (the AWS stub) still declares `runtime: nodejs` with
+    `packagemanager: bun` while `local/Pulumi.yaml` uses `runtime: bun`; left as is, ticket 9
+    reconciles them.
+  - Red was proved by the missing module, then by mutation: `maxReceiveCount + 1`, a queue
+    reported `created` on the second run, and `unboundExpirationDays + 1` each fail the test that
+    names them.
 
 #### S3 — `verify` at startup
 

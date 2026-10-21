@@ -71,7 +71,7 @@ visibility timeout and its heartbeat) and drops `QUEUE_SQLITE_PATH` (D10).
 
 **`packages/testing`**: `+ ministack.ts`, a `MiniStack` layer that starts the pinned image with
 `testcontainers` (`GenericContainer`, wait on `GET /_ministack/health`) under `acquireRelease`
-and provides its endpoint; `+ stage.ts`, a fresh `test-<random>` stage per file (D12).
+and provides its endpoint; `+ stage.fixture.ts`, a fresh `test-<random>` stage per file (D12).
 
 **`domain/attachment`**: `~ attachment.service.ts`, the new `AttachmentStore` shape (Contracts);
 `+ unboundLifetime = Duration.hours(24)` and `isExpired(attachment, now)`, pure (D9).
@@ -99,18 +99,25 @@ per-part buffer), answers `download` with `302` (replacing `chat-core` D10), and
 **`deployment`**
 
 ```
-~ deployment/local/docker-compose.yml   service `ministack`: ministackorg/ministack:1.5.29@sha256:88f5…,
-                                        port 4566, healthcheck by python urllib, MINISTACK_REGION from
-                                        AWS_REGION, state persisted under .data/ministack
+- deployment/local/docker-compose.yml   replaced by the Pulumi project below (D13)
++ deployment/local/Pulumi.yaml          runtime: bun; a project of its own beside deployment/Pulumi.yaml
++ deployment/local/ministack.ts         docker.Container ministackorg/ministack:1.5.29@sha256:88f5…,
+                                        port 4566, healthcheck by python urllib with wait, MINISTACK_REGION
+                                        from the stack config `region` (default us-east-1), state
+                                        persisted under .data/ministack
 + deployment/local/provision.ts         reads AwsConfig, calls provision(inventory, stage)
 - deployment/shared/naming.ts           moved to packages/aws; tags.ts imports projectName from there
 ~ deployment/CLAUDE.md, deployment/local/README.md   the stub notes go (R22)
 ```
 
-**Root**: `Makefile` gains `up` (`docker compose up -d --wait`, then the provisioner), `down`,
-and `reset` (`down`, then removes `.data/`, MiniStack's state included). Catalogs gain an `effect-aws` namespace
-(`@effect-aws/client-s3`, `@effect-aws/client-sqs`, pinned at 2.0.0) and `testcontainers@12.2.1`
-in `tools`. `.env.example` per R20. `docs/knowledge/aws.md` (new), linked from `architecture.md`.
+**Root**: `Makefile` gains `up` (`pulumi up --yes --skip-preview`, then the provisioner), `down`
+(`pulumi destroy --yes --skip-preview`) and `reset` (`down`, then removes `.data/`, MiniStack's
+state and the Pulumi state included); `stack` (log in to the file backend under `.data/pulumi`,
+select or create the `local` stack) is idempotent and precedes `up` and `down`; `setup` (install,
+`.env`) needs no Pulumi CLI (D13). Catalogs gain an `effect-aws` namespace (`@effect-aws/client-s3`,
+`@effect-aws/client-sqs`, pinned at 2.0.0), a `pulumi` namespace (`@pulumi/pulumi`,
+`@pulumi/docker`) and `testcontainers@12.2.1` in `runtime`. `.env.example` per R20.
+`docs/knowledge/aws.md` (new), linked from `architecture.md`.
 
 ## Contracts
 
@@ -179,6 +186,7 @@ export const resources = {
     chatTitle: { name: 'chat-title', maxReceiveCount: 5 },
   },
 } as const
+export const unboundTag = { key: 'unbound', value: 'true' } as const   // the expiration rule's tag
 // `name` is a field, not the key, so a definition reads it without spelling the literal (D4).
 // physical names: buildResourceName(stage, 'attachments') → app-template-<stage>-attachments;
 //   queue `<name>` and its `<name>-dlq`.
@@ -254,7 +262,10 @@ GET /attachments/:attachmentId/download
   tests use `test-<random>` per file, dev `local`. `verify` checks every bucket and queue of the
   inventory and each queue's `maxReceiveCount`, and fails naming the endpoint and the resource
   (R19). `provision` is idempotent: `BucketAlreadyOwnedByYou` is success, and the redrive JSON has
-  a fixed key order because CreateQueue compares attributes as strings. *Rejected:* queue URLs
+  a fixed key order because CreateQueue compares attributes as strings. *Amended in S2:*
+  `provision` reads existence first (`HeadBucket`, `GetQueueUrl`) and reports each resource as
+  `created` or `unchanged`, since a repeated `CreateBucket` answers `200` in `us-east-1` and
+  `make up` must say that its second run changed nothing (R16). *Rejected:* queue URLs
   from configuration (one variable per queue, and stale after a reprovision).
 - **D6 — `AttachmentStore` streams in, hands out a URL, and stays a domain port with two
   adapters; there is no `packages/storage`.** The S3 adapter is deep: the upload sink, abort on
@@ -300,6 +311,35 @@ GET /attachments/:attachmentId/download
   isolate parallel files without resets. *Rejected:* one container per run in `globalSetup`
   (Docker in every run, even a filtered one, and shared state between files); `POST
   /_ministack/reset` between tests (serialises the files).
+- **D13 — Pulumi runs MiniStack for `make up`; there is no compose file.** `deployment/local/`
+  is a Pulumi project of its own (`runtime: bun`): `@pulumi/docker`'s `Container` with the image
+  by digest, the port, the environment, the `.data/ministack` bind mount and the health check
+  with `wait: true`, so `pulumi up` returns only once MiniStack answers. State lives in a file
+  backend under `.data/pulumi` with an empty passphrase (nothing secret is stored), and
+  `PULUMI_HOME` sits in the repo too, outside `.data` so that `make reset` keeps the provider
+  plugin, and a clone touches nothing outside the repo. The inventory is
+  still applied by `deployment/local/provision.ts` (one engine), and the tests keep
+  `testcontainers` (D12). Measured: cold `up` 4.1 s with the provider plugin cached (the first
+  run downloads it), no-op `up` under 1.3 s, `destroy` 0.5 s. The Pulumi CLI becomes a developer
+  prerequisite beside Docker; `make check` never needs it. *Amends feature Scope and Out of
+  scope; answers roadmap 9's open question.* *Rejected:* `docker compose` (a second tool and
+  format beside the deploy program ticket 9 builds, for 28 lines of YAML); Pulumi applying the
+  inventory through `@pulumi/aws` against the endpoint (83 MB more, and the inventory in two
+  engines since the tests provision with `provision`). *Amended in S2:* the container stops
+  gracefully (`destroyGraceSeconds` and `stopTimeout` of 15 s), since MiniStack writes its state
+  on shutdown and a plain remove left `sqs.json` unwritten, so the queues came back `created`
+  after `make down` (*rejected:* re-creating on every `up`, which loses queued messages between
+  sessions); the region reaches the program as the stack config `region` with a default equal to
+  `.env.example`'s `AWS_REGION`, since the Makefile does not read `.env` and R20 keeps
+  `process.env` out of code (*rejected:* `AWS_REGION` from the shell, a second source beside
+  `.env`; the duplicate default is the accepted cost); `Pulumi.local.yaml` is gitignored, since
+  `stack init` generates it per clone and it holds only the salt of a stack without secrets
+  (*rejected:* committing it, a conflict on every init); `up` and `destroy` run with
+  `--skip-preview`, the diff of a one-container stack being nothing a developer reads; `make
+  stack` precedes `up` and `down`, so `make up` works after `make reset` and on a fresh clone,
+  while `make setup` (install, `.env`) needs no Pulumi CLI, so a checkout runs `make check` with
+  Docker alone; `PULUMI_HOME` is the gitignored `.pulumi/` at the root, a cache that `make reset`
+  keeps.
 
 ## Risks
 

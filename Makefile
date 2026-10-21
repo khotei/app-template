@@ -19,7 +19,7 @@ setup: ## Install dependencies and create .env from .env.example if missing
 	bun install
 	@test -f .env || (cp .env.example .env && echo "created .env from .env.example")
 
-stack: ## Log the Pulumi CLI in to .data/pulumi and select or create the local stack (idempotent)
+stack: ## Log Pulumi in to the file backend and select or create the local stack
 	@mkdir -p .data/pulumi
 	@$(PULUMI) login --non-interactive file://$(CURDIR)/.data/pulumi
 	@$(PULUMI) stack select local 2>/dev/null || $(PULUMI) stack init local
@@ -31,7 +31,7 @@ up: stack ## Start MiniStack through Pulumi and provision the inventory on it
 down: stack ## Stop MiniStack
 	$(PULUMI) destroy --yes --skip-preview
 
-reset: down ## Stop MiniStack and remove .data/ (its state, the Pulumi stack, the store, the queue file)
+reset: down ## Stop MiniStack and remove .data/ whole (its state, the stack, the store, the queue)
 	rm -rf .data
 
 dev: ## Run api, worker and web together in dev mode

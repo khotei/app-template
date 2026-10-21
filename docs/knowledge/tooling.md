@@ -8,7 +8,8 @@ them. Versions: Bun 1.4.3, TypeScript 7.0.2, Biome 2.5.15, husky 9.1.7, vitest 5
 
 Everything runs through the root `Makefile` (GNU Make 3.81, the macOS default). There is no
 `Makefile` in any workspace. Beyond Bun, two tools are prerequisites: Docker, for `make test` and
-`make up`, and the Pulumi CLI, for `make setup`, `up` and `down`; `make check` needs only Docker.
+`make up`, and the Pulumi CLI, for `make up`, `down` and `reset`; `make check` needs only Docker,
+and `make setup` needs neither.
 
 | Target | Runs | Use |
 |---|---|---|

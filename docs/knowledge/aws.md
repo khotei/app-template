@@ -26,8 +26,8 @@ outside the repo and `make reset` keeps the provider plugin. The image digest is
 An `up` that fails on the health check leaves the container in the stack's state; `make down`
 destroys it, and the next `make up` starts afresh. MiniStack's default region is the stack config
 `region`, `us-east-1` unless set, the value `.env.example` gives `AWS_REGION`; to change it, run
-the CLI as the Makefile does: `PULUMI_HOME=.pulumi PULUMI_CONFIG_PASSPHRASE= pulumi -C
-deployment/local config set region <region>`.
+the CLI as the Makefile does: `PULUMI_HOME=$PWD/.pulumi PULUMI_CONFIG_PASSPHRASE= pulumi -C
+deployment/local config set region <region>` (an absolute home, since `-C` changes the cwd).
 
 `AWS_REGION`, `AWS_ENDPOINT_URL` and `STAGE` are read through `AwsConfig` in
 `@app-template/config`; today the provisioner is its only reader, and the apps still run on the
