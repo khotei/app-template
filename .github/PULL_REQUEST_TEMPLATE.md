@@ -1,11 +1,11 @@
 <!--
   ┌──────────────────────────────────────────────────────────────────────────┐
   │  HOW TO USE THIS TEMPLATE — everything in THIS comment is review-only and │
-  │  is STRIPPED from the squashed commit. Text OUTSIDE comments survives.    │
+  │  is LEFT OUT of the squash body (gh pr merge --body-file).               │
   ├──────────────────────────────────────────────────────────────────────────┤
   │  This repo squash-merges with "Pull request title and description", so:  │
   │    • PR TITLE       -> commit SUBJECT                                     │
-  │    • PR DESCRIPTION -> commit BODY  (everything below, comments stripped) │
+  │    • PR DESCRIPTION -> commit BODY  (minus this comment)                 │
   │                                                                          │
   │  TITLE the PR as a commits.md subject line:                              │
   │    <gitmoji> <type>(<scope>): <subject>                                   │

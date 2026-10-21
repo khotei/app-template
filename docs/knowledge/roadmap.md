@@ -36,7 +36,7 @@ graph LR
 | # | Ticket | Type | Depends on | Status |
 |---|---|---|---|---|
 | 1 | [`template-bootstrap`](#1-template-bootstrap) | `chore` | — | done: [docs/tickets/2026-10-17-1508_template-bootstrap/](../tickets/2026-10-17-1508_template-bootstrap/feature.md) |
-| 2 | [`claude-toolkit`](#2-claude-toolkit) | `chore` | 1, 3 | in progress: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md) |
+| 2 | [`claude-toolkit`](#2-claude-toolkit) | `chore` | 1, 3 | done: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md) |
 | 3 | [`chat-core`](#3-chat-core) | `feat` | 1 | done: [docs/tickets/2026-10-17-1748_chat-core/](../tickets/2026-10-17-1748_chat-core/feature.md) |
 | 4 | [`postgres-drizzle`](#4-postgres-drizzle) | `feat` | 3 | planned |
 | 5 | [`aws-local`](#5-aws-local) | `feat` | 3 | in progress: [docs/tickets/2026-10-19-1448_aws-local/](../tickets/2026-10-19-1448_aws-local/feature.md) |
@@ -47,8 +47,8 @@ graph LR
 | 10 | [`client-publishing`](#10-client-publishing) | `chore` | 3 | planned |
 | 11 | [`workflow-cluster`](#11-workflow-cluster) | `feat` | 4, 8 | planned, exploratory |
 | 12 | [`template-handoff`](#12-template-handoff) | `chore` | all above | planned |
-| 13 | [`ticket-folder-order`](#13-ticket-folder-order) | `chore` | 3 | in progress: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md) |
-| 14 | [`toolkit-reading`](#14-toolkit-reading) | `chore` | 2 | in progress: [docs/tickets/2026-10-21-1347_toolkit-reading/](../tickets/2026-10-21-1347_toolkit-reading/feature.md) |
+| 13 | [`ticket-folder-order`](#13-ticket-folder-order) | `chore` | 3 | done: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md) |
+| 14 | [`toolkit-reading`](#14-toolkit-reading) | `chore` | 2 | done: [docs/tickets/2026-10-21-1347_toolkit-reading/](../tickets/2026-10-21-1347_toolkit-reading/feature.md) |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; its remaining work is re-homed
 in [Re-homing `effect-setup`](#re-homing-effect-setup).
@@ -99,7 +99,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   `Decision:` paragraphs): what stays, what becomes a check, what loads lazily. Evals,
   `/skill-doctor`, plugin pinning, `skillOverrides`, agent `memory` and the extra hooks move to
   `template-handoff` (12): nothing recorded would have been prevented by them.
-- **Status.** In progress: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md).
+- **Status.** Done: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md).
 
 ### 3. `chat-core`
 
@@ -363,7 +363,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 
 ### 13. `ticket-folder-order`
 
-- **Status.** In progress: taken into `claude-toolkit` (2) as R6,
+- **Status.** Done: taken into `claude-toolkit` (2) as R6,
   [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md).
 
 ### 14. `toolkit-reading`
@@ -389,7 +389,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Out of scope.** A cut made for tokens alone that saves under 20% of the load it targets.
 - **Facts (2026-10-21).** Rewording four rules without losing a constraint saved 11%; the
   always-loaded project files measured 4.5k tokens by `/context` before `claude-toolkit`.
-- **Status.** In progress: [docs/tickets/2026-10-21-1347_toolkit-reading/](../tickets/2026-10-21-1347_toolkit-reading/feature.md).
+- **Status.** Done: [docs/tickets/2026-10-21-1347_toolkit-reading/](../tickets/2026-10-21-1347_toolkit-reading/feature.md).
 
 ## Re-homing `effect-setup`
 

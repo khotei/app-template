@@ -18,7 +18,7 @@ it to see the shape end-to-end. Source of truth for the format stays
 
 ````markdown
 <!--
-  Review-only — stripped from the squashed commit.
+  Review-only — left out of the squashed commit.
   TITLE = commits.md subject: <gitmoji> <type>(<scope>): <subject> (≤50, imperative).
 
   Author self-check:
@@ -88,7 +88,7 @@ Refs: docs/tickets/2026-10-16-1433_monorepo-setup/
 
 ## 3. The squashed commit it produces
 
-After GitHub strips the HTML comment, the commit on `main` is:
+Merged with the HTML comment left out of `--body-file`, the commit on `main` is:
 
 **Subject** (from the PR title):
 
