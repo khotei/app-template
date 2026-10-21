@@ -363,24 +363,6 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 
 ### 13. `ticket-folder-order`
 
-- **Goal.** Ticket folders list in the order the tickets started, even two started on the same
-  day: named by date alone, `chat-core` sorted above the earlier `template-bootstrap`.
-- **Scope.** The folder name gains the start time, `docs/tickets/<YYYY-MM-DD-HHmm>_<slug>/`, taken
-  when `/ticket-feature` creates it; every existing folder renamed with `git mv`, its time from the
-  ticket's first commit; the seven places that state the pattern (`CLAUDE.md`, `sdd.md`,
-  `commits.md`, `claude-md.md`, `ticket-feature/SKILL.md`, `PULL_REQUEST_TEMPLATE.md`,
-  `docs/knowledge/sdd.md`); links to ticket folders in `docs/knowledge/`.
-- **Out of scope.** Rewriting pushed history: `Refs:` lines in commits already on `main` and the
-  teaching branch keep the old paths.
-- **Open questions for its feature phase.** Whether a `make` check rejects a folder name without the
-  time; whether `docs/knowledge/sdd.md` says how to follow an old `Refs:` path.
-- **Facts (2026-10-18).**
-  - Renaming only the newer folder does not fix the order: `-` sorts before `_`, so every folder of
-    a day needs the time.
-  - An old `Refs:` path still resolves inside its own commit (`git show <sha>:<path>`), and
-    `git log --follow` finds the rename.
-  - Rewriting `Refs:` is safe only in unpushed commits; on `main` it needs a force-push.
-  - No script parses the folder name.
 - **Status.** In progress: taken into `claude-toolkit` (2) as R6,
   [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md).
 

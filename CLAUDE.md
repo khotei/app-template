@@ -22,7 +22,7 @@ Imports only go down: `apps` → `application` → `infrastructure` → `domain`
 ## Working here
 
 - **SDD artifacts live only in `docs/tickets/`.** Ignore artifact paths that plugins suggest
-  (`.scratch/`, `docs/superpowers/`). The flow: `.claude/rules/sdd.md`; the guide:
+  (`.scratch/`, `docs/superpowers/`, an issue tracker). The flow: `.claude/rules/sdd.md`; the guide:
   [docs/knowledge/sdd.md](docs/knowledge/sdd.md).
 - **The domain glossary is `docs/knowledge/glossary.md`.** Never create `GLOSSARY.md`,
   `CONTEXT.md` or `docs/adr/`, even when a skill asks for them.

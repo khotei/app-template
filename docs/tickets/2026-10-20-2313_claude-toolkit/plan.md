@@ -46,6 +46,8 @@
   - `docs/knowledge/sdd.md` (the `/ticket-verify` row) is outside Files: it names `origin/main`
     since S1.2, one commit after the skill changed in S1.1.
   - The cd-failure message names the `BLOCKED:` way out, as the red path does.
+  - Verification: the new branch is unreachable in the case R1 names, since `implementer.md` runs
+    the hook by a path under `CLAUDE_PROJECT_DIR`; kept as harmless, not chased.
 
 #### S2 — `claude-md.md` matches only the living docs
 
@@ -170,8 +172,24 @@
   - `allow` gains the read-only shell and git commands, `git switch`, `mv`, `rm`, `reset` and
     `stash`; `ask` keeps their destructive forms (`reset --hard`, `switch --discard-changes`,
     `stash drop`/`clear`, `branch -D`/`-f`, `find -delete`/`-exec`), since ask wins over allow.
-  - `git commit` stays in `ask` at the user's choice: the one mechanical guard behind the
-    approval gate.
+  - Verification moved `git commit` to `allow` at the user's choice (D6): the approval gate lives
+    in the conversation. `git switch -f`/`-C`, `git rm -f` and `sort -o` also run without a
+    prompt, which the user accepted.
+
+#### S6 — Verification fixes
+
+- **Goal:** the fixes the user accepted from `verification.md › run 1`: D5 and D6 recorded,
+  `git commit` in `allow`, "an issue tracker" back in `CLAUDE.md`, `docs/knowledge/sdd.md` naming
+  the rule instead of the pattern, roadmap entry 13 cut to its Status.
+- **Blocked by:** S1–S5.
+- **Files:** `architecture.md`, `feature.md`, `plan.md`, `verification.md`; `.claude/settings.json`;
+  `CLAUDE.md`; `docs/knowledge/{sdd,roadmap}.md`.
+- **Test first:** `config only`.
+- **Verify:** `make check`; the R3 budget ≤ 140; `lychee` 0 errors.
+- **Status:** done
+- **Findings:**
+  - Declined: returning the `--no-verify` deny to prefix forms. The lessons in
+    `verification.md` wait for the user's OK.
 
 ## Requirement coverage
 

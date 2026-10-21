@@ -33,6 +33,7 @@
       "Bash(git fetch*)",
       "Bash(git branch*)",
       "Bash(git switch *)",
+      "Bash(git commit*)",
       "Bash(git add *)",
       "Bash(git mv *)",
       "Bash(git rm *)",
@@ -50,7 +51,6 @@
       "WebFetch"
     ],
     "ask": [
-      "Bash(git commit*)",
       "Bash(git push*)",
       "Bash(gh pr create*)",
       "Bash(gh pr merge*)",

@@ -14,7 +14,7 @@ graph LR
   V -->|pass| PR[PR · squash merge]
 ```
 
-Every artifact lives in `docs/tickets/<YYYY-MM-DD-HHmm>_<slug>/`, started from
+Every artifact lives in a ticket folder named by `.claude/rules/sdd.md`, started from
 [docs/tickets/_template/](../tickets/_template/feature.md). The domain glossary is
 `docs/knowledge/glossary.md`, created when the first term is settled.
 

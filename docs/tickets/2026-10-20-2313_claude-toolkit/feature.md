@@ -26,7 +26,9 @@ the items the audit ranked urgent or always-loaded; the second wave is roadmap e
   on six rules also matches `node_modules/**/*.d.ts` and `repos/effect`; kept, see D1.
 - **The `Stop` contract** (code.claude.com/docs/en/hooks): only exit 2 blocks; any other non-zero
   code lets the stop proceed. `make-check.sh` exits 1 when `cd` fails, so a wrong
-  `CLAUDE_PROJECT_DIR` releases `implementer` with the gate unrun.
+  `CLAUDE_PROJECT_DIR` releases `implementer` with the gate unrun. Verification found the case
+  unreachable: `implementer` runs the hook by a path under that variable, so a wrong value fails to
+  find the script (exit 127) first; Claude Code sets the variable itself.
 - **Fixed point.** The clone has no local `main`; skills and agents that name `main` fail with
   "ambiguous argument" and were worked around by hand in every run
   (`chat-core/verification.md › Lessons`).

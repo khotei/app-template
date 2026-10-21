@@ -80,6 +80,20 @@ matches none of them.
   `aws-local` the same time; a `make` check on the name, since one skill creates the folders and
   the user declined format gates. `Refs:` in pushed commits keep the old paths, and
   `docs/knowledge/sdd.md` says how to follow one.
+- **D5 — `--no-verify` is refused by `settings.json › deny`, not by a rule line.** The deny
+  matches the flag in any position and `git commit -n`; per the permissions docs it covers the
+  invocations Claude usually produces and is no security boundary, and CI runs the hooks' checks,
+  so a skipped hook still fails there. *Rejected:* keeping the always-loaded rule line, which
+  stated what a mechanical check can hold. The patterns also match the text of a `-m` message; the
+  user kept them.
+- **D6 — `settings.json` asks only before an act seen outside the machine or one that discards
+  work: push, a PR, `gh repo create`, `checkout`, `restore`, `reset --hard`, `rebase`, `clean`,
+  `branch -D`/`-f`, `stash drop`/`clear`.** Read-only commands, web reads and `git commit` run
+  without a prompt; the approval gate before a commit lives in the conversation (`sdd.md`), and a
+  commit is undone locally. Rules from every settings file run deny, ask, allow, first match wins,
+  so the project's old ask on `WebFetch` and `WebSearch` overrode a user-level allow. *Rejected:*
+  a domain list for `WebFetch`, which the ask made moot; `git commit` in ask, a second prompt
+  after the user's OK.
 
 ## Risks
 
