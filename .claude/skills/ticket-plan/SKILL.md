@@ -23,8 +23,17 @@ steps only conform to the plan. Gates: `.claude/rules/sdd.md`.
    - **Status:** `todo`.
    A step that writes or rewrites a `docs/knowledge/` page also trims, in the same step, every
    rule and `CLAUDE.md` line that restates it.
-4. End with a coverage table that maps every `R…` to at least one step.
-5. Present the plan and iterate until the user approves it. Next comes
+4. **Check** the plan: spawn `researcher` once, with two lists.
+   - **Exists**: every existing file path, API, flag or dependency a step names; paths the plan
+     creates are left out. Each comes back `confirmed`, or `wrong` with evidence and the correct
+     value.
+   - **Conforms**: every literal a step fixes (a name, signature, path or message), with the
+     workspace it lands in. Each comes back `conforms`, or with the line (`path:line`) it breaks
+     in `.claude/rules/*.md` or that workspace's `CLAUDE.md`.
+   Fix every `wrong` and every broken rule in `plan.md` before presenting it. The report stays in
+   the conversation; `plan.md` records no check.
+5. End with a coverage table that maps every `R…` to at least one step.
+6. Present the plan and iterate until the user approves it. Next comes
    `/ticket-implement <ticket folder>`.
 
 Commit only on the user's explicit OK.

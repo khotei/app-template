@@ -48,7 +48,7 @@ graph LR
 | 11 | [`workflow-cluster`](#11-workflow-cluster) | `feat` | 4, 8 | planned, exploratory |
 | 12 | [`template-handoff`](#12-template-handoff) | `chore` | all above | planned |
 | 13 | [`ticket-folder-order`](#13-ticket-folder-order) | `chore` | 3 | in progress: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md) |
-| 14 | [`toolkit-reading`](#14-toolkit-reading) | `chore` | 2 | planned |
+| 14 | [`toolkit-reading`](#14-toolkit-reading) | `chore` | 2 | in progress: [docs/tickets/2026-10-21-1347_toolkit-reading/](../tickets/2026-10-21-1347_toolkit-reading/feature.md) |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; its remaining work is re-homed
 in [Re-homing `effect-setup`](#re-homing-effect-setup).
@@ -389,7 +389,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Out of scope.** A cut made for tokens alone that saves under 20% of the load it targets.
 - **Facts (2026-10-21).** Rewording four rules without losing a constraint saved 11%; the
   always-loaded project files measured 4.5k tokens by `/context` before `claude-toolkit`.
-- **Status.** Planned.
+- **Status.** In progress: [docs/tickets/2026-10-21-1347_toolkit-reading/](../tickets/2026-10-21-1347_toolkit-reading/feature.md).
 
 ## Re-homing `effect-setup`
 
