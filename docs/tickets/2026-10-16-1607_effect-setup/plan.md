@@ -2,7 +2,7 @@
 
 > **Superseded at S12.** What remains is re-homed in the [roadmap](../../knowledge/roadmap.md#re-homing-effect-setup).
 
-> Ticket: `2026-10-16_effect-setup` · Requirements: [feature.md](./feature.md) · Design: [architecture.md](./architecture.md)
+> Ticket: `2026-10-16-1607_effect-setup` · Requirements: [feature.md](./feature.md) · Design: [architecture.md](./architecture.md)
 
 ## How to run this plan
 
@@ -45,7 +45,7 @@
 
 - **Goal:** the ticket's documents are tracked first (R1).
 - **Blocked by:** none.
-- **Files:** `docs/tickets/2026-10-16_effect-setup/{architecture,plan}.md`, and the amendments to
+- **Files:** `docs/tickets/2026-10-16-1607_effect-setup/{architecture,plan}.md`, and the amendments to
   `feature.md`.
 - **Test first:** config only.
 - **Verify:** `make check`; `git show --stat HEAD` lists only the ticket folder.

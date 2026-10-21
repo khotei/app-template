@@ -12,7 +12,7 @@ without opening the ticket.
 
 Decision: <non-obvious choice: trade-off, rejected alternative, or downstream implication>
 
-Refs: docs/tickets/<YYYY-MM-DD>_<slug>/
+Refs: docs/tickets/<ticket folder>/
 ```
 
 - **Subject:** imperative, capitalised, no trailing period, ≤ 50 characters after the prefix.

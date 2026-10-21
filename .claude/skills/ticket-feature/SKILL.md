@@ -1,6 +1,6 @@
 ---
 name: ticket-feature
-description: "SDD 1/5: grill an idea into docs/tickets/<date>_<slug>/feature.md"
+description: "SDD 1/5: grill an idea into docs/tickets/<date-time>_<slug>/feature.md"
 argument-hint: "<slug> [idea, notes or link]"
 disable-model-invocation: true
 ---
@@ -12,7 +12,7 @@ user has confirmed. Gates: `.claude/rules/sdd.md`.
 
 | Artifact | Path |
 |---|---|
-| ticket folder | `docs/tickets/<today YYYY-MM-DD>_<slug>/`; an existing folder with this slug is continued |
+| ticket folder | `docs/tickets/<now YYYY-MM-DD-HHmm, local time>_<slug>/`; an existing folder with this slug is continued |
 | requirements | `<ticket>/feature.md`, started from `docs/tickets/_template/feature.md` |
 | glossary | `docs/knowledge/glossary.md`, created when the first term is resolved |
 | roadmap entry | `docs/knowledge/roadmap.md › <slug>`, read in step 1; its status set in step 3 |

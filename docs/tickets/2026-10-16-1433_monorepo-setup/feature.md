@@ -1,6 +1,6 @@
 # Monorepo setup
 
-> Ticket: `2026-10-15_monorepo-setup` · Source: [Notion — Monorepo for Oblik+](https://app.notion.com/p/3fafb28bd5f18000b396d7d348ab3e7d)
+> Ticket: `2026-10-16-1433_monorepo-setup` · Source: [Notion — Monorepo for Oblik+](https://app.notion.com/p/3fafb28bd5f18000b396d7d348ab3e7d)
 > Related: [architecture.md](./architecture.md) · plan.md (next step, `/ticket-plan`)
 
 ## Goal
@@ -145,7 +145,7 @@ Alongside the code, set up an in-repo spec-driven development (SDD) flow (featur
   - agents: `researcher`, `implementer`, `reviewer`, `verifier`;
   - user-invoked wrapper skills (`disable-model-invocation: true`): `ticket-feature`, `ticket-architecture`, `ticket-plan`, `ticket-implement`, `ticket-verify`. There is no `.claude/commands/` folder;
   - `settings.json`, which enables the `mattpocock-skills` plugin and disables `superpowers` for this project.
-- **R33** — SDD artifacts SHALL live only in `docs/tickets/<YYYY-MM-DD>_<slug>/`, as `feature.md`, `architecture.md`, `plan.md` and `verification.md`. Their templates SHALL live in `docs/tickets/_template/`. The domain glossary SHALL live in `docs/knowledge/glossary.md`, created lazily. No `GLOSSARY.md`, `CONTEXT.md` or `docs/adr/` SHALL be created. The root `CLAUDE.md` SHALL tell agents to ignore artifact paths that come from plugins.
+- **R33** — SDD artifacts SHALL live only in `docs/tickets/<YYYY-MM-DD-HHmm>_<slug>/`, as `feature.md`, `architecture.md`, `plan.md` and `verification.md`. Their templates SHALL live in `docs/tickets/_template/`. The domain glossary SHALL live in `docs/knowledge/glossary.md`, created lazily. No `GLOSSARY.md`, `CONTEXT.md` or `docs/adr/` SHALL be created. The root `CLAUDE.md` SHALL tell agents to ignore artifact paths that come from plugins.
 - **R34** — `feature.md` requirements SHALL be written in EARS. Non-obvious choices SHALL be recorded in `architecture.md › Decisions` and in a `Decision:` line in the commit. `architecture.md` SHALL list the **Seams** where tests observe behaviour. Every `plan.md` step SHALL state `Blocked by:` and fit one fresh session.
 - **R35** — `researcher`, `reviewer` and `verifier` SHALL have no file-editing tools (`Edit`, `Write`, `NotebookEdit`) and SHALL NOT spawn agents; they keep `Bash` only to read, run checks and probe outside the working tree. `/ticket-verify` SHALL persist the verifier's report to `verification.md`, ending with a **Lessons** section: each lesson proposes one line in a named skill or rule, or a mechanical check when the mistake is mechanical, applied only after the user's OK.
 - **R35a** — WHEN the implementer finishes a plan step, `/ticket-implement` SHALL present the change summary, its verification results and the reviewer's verdict, and SHALL NOT commit (or amend) until the user explicitly approves that step.

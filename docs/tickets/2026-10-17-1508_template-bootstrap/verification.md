@@ -1,6 +1,6 @@
 # Template bootstrap — verification
 
-> Ticket: `2026-10-17_template-bootstrap` · Requirements: [feature.md](./feature.md) · Plan: [plan.md](./plan.md)
+> Ticket: `2026-10-17-1508_template-bootstrap` · Requirements: [feature.md](./feature.md) · Plan: [plan.md](./plan.md)
 
 <!-- /ticket-verify appends one dated section per run; earlier runs stay as history. -->
 
@@ -30,7 +30,7 @@ point `origin/main` (`1bbdd1a`). S4–S6 ran but are still `todo` in `plan.md`; 
 | R11 | pass | `README.md:1-7` title and one paragraph, `:9-24` Quick start, `:33` Roadmap row, `:38-47` *Branches*, `:49-53` points at `#12-template-handoff`. `lychee --offline` on README, `docs/**`, `.claude/**`: 0 errors. |
 | R12 | pass | `git diff 654bda9 HEAD -- CLAUDE.md` changes lines 1 and 3 only; `wc -l CLAUDE.md` = 28. |
 | R13 | pass | `docs/knowledge/roadmap.md`: *How a ticket flows* (`:13`), 12-row ticket table (`:36-49`), sections 1–12, re-homing table (`:289-303`), *Facts* (`:305`); `docs/knowledge/glossary.md:9-32` defines six terms. Ticket 1's status is still *in feature*; S7 sets it. |
-| R14 | pass | Line 3 of both `docs/tickets/2026-10-16_effect-setup/{feature,plan}.md` is the superseded note; `git diff --stat 654bda9 HEAD` on that folder: 2 files, 4 insertions. |
+| R14 | pass | Line 3 of both `docs/tickets/2026-10-16-1607_effect-setup/{feature,plan}.md` is the superseded note; `git diff --stat 654bda9 HEAD` on that folder: 2 files, 4 insertions. |
 | R15 | pass | `.claude/rules/sdd.md:21-23`; `.claude/skills/ticket-feature/SKILL.md` lines 18, 29-33, 38-39. See Spec c1: the dependency map is unchanged as R15 asks, but that contradicts `sdd.md`. |
 | R16 | pass | `.claude/rules/pull-requests.md:19-23`; `docs/knowledge/sdd.md › Roadmap and the teaching branch` (why, `gitGraph`, commands); dependency map identical to `654bda9`. |
 | R17 | pass | `perl -CSD -ne 'print "$ARGV\n" if /\p{Cyrillic}/'` over every changed file outside `repos/`: nothing (probe string caught). Over all tracked files outside `repos/`: nothing. |

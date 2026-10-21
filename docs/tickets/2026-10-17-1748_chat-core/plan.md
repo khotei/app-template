@@ -1,6 +1,6 @@
 # Chat core — plan
 
-> Ticket: `2026-10-17_chat-core` · Requirements: [feature.md](./feature.md) · Design: [architecture.md](./architecture.md)
+> Ticket: `2026-10-17-1748_chat-core` · Requirements: [feature.md](./feature.md) · Design: [architecture.md](./architecture.md)
 
 ## How to run this plan
 

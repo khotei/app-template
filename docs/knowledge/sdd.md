@@ -14,9 +14,12 @@ graph LR
   V -->|pass| PR[PR · squash merge]
 ```
 
-Every artifact lives in `docs/tickets/<YYYY-MM-DD>_<slug>/`, started from
+Every artifact lives in a ticket folder named by `.claude/rules/sdd.md`, started from
 [docs/tickets/_template/](../tickets/_template/feature.md). The domain glossary is
 `docs/knowledge/glossary.md`, created when the first term is settled.
+
+An older `Refs:` line may name a folder before its rename: the slug is unchanged, and
+`git log --follow` on a file of the current folder reaches the commits made under the old name.
 
 ## When to run which cycle
 
@@ -38,7 +41,7 @@ grilling, plan review and commit approval need you. Each takes the ticket folder
 | `/ticket-architecture <ticket>` | `feature.md` | the Seams and the Decisions | `architecture.md` |
 | `/ticket-plan <ticket>` | `feature.md`, `architecture.md` | the plan as a whole: the heavy review | `plan.md` with steps and coverage |
 | `/ticket-implement <ticket> [step]` | the next unblocked step | approve, give feedback, or stop | one commit per approved step |
-| `/ticket-verify <ticket>` | the branch against `main` | which simplifications and lessons to apply; whether to open the PR | `verification.md` |
+| `/ticket-verify <ticket>` | the branch against `origin/main` | which simplifications and lessons to apply; whether to open the PR | `verification.md` |
 
 ## Under the hood
 
@@ -50,7 +53,7 @@ review. Its skills are referenced by name and never copied, so plugin updates ar
 ### Dependency map
 
 What each skill and agent uses, read from their files. A commit that changes what a skill or agent
-uses updates this map too; the Standards review checks it against `.claude/rules/sdd.md`.
+uses updates this map too; the Standards review checks it against `.claude/rules/claude-md.md`.
 
 | Skill or agent | Plugin skills | Spawns | Hook | Writes |
 |---|---|---|---|---|

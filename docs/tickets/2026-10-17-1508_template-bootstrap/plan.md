@@ -1,6 +1,6 @@
 # Template bootstrap — plan
 
-> Ticket: `2026-10-17_template-bootstrap` · Requirements: [feature.md](./feature.md) · Design: [architecture.md](./architecture.md)
+> Ticket: `2026-10-17-1508_template-bootstrap` · Requirements: [feature.md](./feature.md) · Design: [architecture.md](./architecture.md)
 
 ## How to run this plan
 
@@ -127,13 +127,13 @@
   start*; add *Branches*: what `main`, `chore/monorepo-setup` and `chore/enterprise-template` hold;
   add a *Roadmap* row to *Where to read next* linking `docs/knowledge/roadmap.md`; replace
   *Starting a new project* with a pointer to roadmap entry 12 `template-handoff` and *Use this
-  template → Include all branches*); `docs/tickets/2026-10-16_effect-setup/plan.md` and
+  template → Include all branches*); `docs/tickets/2026-10-16-1607_effect-setup/plan.md` and
   `feature.md` (one line under each title: superseded at S12, link to
   `docs/knowledge/roadmap.md#re-homing-effect-setup`).
 - **Test first:** `config only` (docs).
 - **Verify:** `make check`; `lychee --offline README.md 'docs/**/*.md' '.claude/**/*.md'`;
   `make ids`; `head -5` of both `effect-setup` files shows the note and
-  `git diff --stat HEAD -- docs/tickets/2026-10-16_effect-setup` touches only those lines;
+  `git diff --stat HEAD -- docs/tickets/2026-10-16-1607_effect-setup` touches only those lines;
   `grep -c 'Vitalii Khotei' LICENSE` is 1; the `perl` Cyrillic check on the changed files prints
   nothing; `git grep -il oblik -- ':!docs/tickets' ':!repos' ':!bun.lock'` still empty.
 - **Status:** done
@@ -221,7 +221,7 @@
   - `oblik` keeps `stash@{2026-10-17 12:10:18}` (*S14 removal + Docker ticket edits*), older than
     this ticket and the last trace of `chore/effect-setup`. Keeping it is the user's call.
 
-> `/ticket-verify docs/tickets/2026-10-17_template-bootstrap` runs here, in a new session in
+> `/ticket-verify docs/tickets/2026-10-17-1508_template-bootstrap` runs here, in a new session in
 > `~/lab/app-template`. Accepted fixes become steps before S7.
 
 The run on 2026-10-17 accepted three fixes, S6a–S6c, from `verification.md` (committed in S7):
@@ -247,7 +247,7 @@ it would only be added back. The run also moved the licence check from S4 to S8'
 - **Test first:** `config only` (docs).
 - **Verify:** `make check`; `lychee --offline README.md 'docs/**/*.md' '.claude/**/*.md'`;
   `git diff HEAD~1 -- docs/knowledge/sdd.md` touches only the `/ticket-feature` map row;
-  `git grep -nE ':memo: chore\(' -- docs/tickets/2026-10-17_template-bootstrap/{architecture,plan}.md`
+  `git grep -nE ':memo: chore\(' -- docs/tickets/2026-10-17-1508_template-bootstrap/{architecture,plan}.md`
   empty; the subject after the prefix is ≤ 50 characters.
 - **Status:** done
 - **Findings:**
@@ -313,7 +313,7 @@ it would only be added back. The run also moved the licence check from S4 to S8'
 - **Goal:** the ticket's documents say what happened: the verdict, the statuses of S4–S6, the
   roadmap's ticket 1 as *done* (R13; D1, D12).
 - **Blocked by:** S6, `/ticket-verify`, S6a, S6b.
-- **Files:** `docs/tickets/2026-10-17_template-bootstrap/verification.md` (written by
+- **Files:** `docs/tickets/2026-10-17-1508_template-bootstrap/verification.md` (written by
   `/ticket-verify`; *Lessons › Applied* → `yes (S6c)` for the four lessons), `plan.md` (S4–S6
   `done` with findings, S8 `blocked: squash merge`), `docs/knowledge/roadmap.md` (ticket table
   row 1 and the entry's *Status*: `done`, link to the ticket folder). In the clone, on `chore/enterprise-template`, pushed to `origin` after the OK.

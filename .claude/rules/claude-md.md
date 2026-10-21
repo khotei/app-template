@@ -2,10 +2,10 @@
 paths:
   - "**/CLAUDE.md"
   - ".claude/**"
-  - "docs/**"
+  - "docs/knowledge/**"
 ---
 
-# Maintaining `CLAUDE.md`, rules and docs
+# Maintaining `CLAUDE.md`, rules, docs and the toolkit
 
 A `CLAUDE.md` or rule caches what the **code cannot say**: the *why*, and the constraints that are
 not local to one file. Every line is paid for in every matching session, so a line earns its place
@@ -36,7 +36,7 @@ update it.
 | Binding constraints of one layer or workspace | `<layer>/CLAUDE.md` |
 | Repo-wide conventions | `.claude/rules/*.md` |
 | How the system works, for humans | `docs/knowledge/*.md` |
-| One ticket's what, why and how | `docs/tickets/<YYYY-MM-DD>_<slug>/` |
+| One ticket's what, why and how | its folder in `docs/tickets/` (`sdd.md`) |
 | What changed and why | `git log` |
 
 ## Belongs
@@ -46,3 +46,20 @@ types cannot express · cross-workspace coupling · non-obvious gotchas (orderin
 boundaries (import direction, ownership) · pointers to the file where a surface lives.
 
 Refresh a doc only when a real change lands, inside that change's commit. When in doubt, cut.
+
+## The toolkit
+
+- Procedures are skills in `.claude/skills/ticket-<phase>/SKILL.md` with
+  `disable-model-invocation: true`; a colon is reserved for plugin namespaces, and there is no
+  `.claude/commands/`.
+- `mattpocock-skills` is referenced by name (`mattpocock-skills:<skill>`), never copied or edited;
+  a wrapper overrides only paths and gates.
+- **The dependency map in `docs/knowledge/sdd.md` is the only summary** of what each skill and
+  agent uses (plugin skills, agents, hooks, overrides). A commit that changes what a skill or agent
+  uses updates the map in the same commit.
+- Tool limits live on the agent (`disallowedTools`); an agent that cannot edit or spawn
+  agents has its skill persist its output.
+- Subagents cannot ask the user, so grilling, plan review and commit approval run in the main
+  session.
+- `implementer` ends only with `make check` green (`.claude/hooks/make-check.sh`) or a final
+  message starting with `BLOCKED:`.

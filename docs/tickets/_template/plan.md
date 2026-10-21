@@ -1,6 +1,6 @@
 # <Title> — plan
 
-> Ticket: `<YYYY-MM-DD>_<slug>` · Requirements: [feature.md](./feature.md) · Design: [architecture.md](./architecture.md)
+> Ticket: `<YYYY-MM-DD-HHmm>_<slug>` · Requirements: [feature.md](./feature.md) · Design: [architecture.md](./architecture.md)
 
 ## How to run this plan
 

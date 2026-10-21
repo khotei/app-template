@@ -1,6 +1,6 @@
 # Chat core
 
-> Ticket: `2026-10-17_chat-core` · Source: [roadmap › 3](../../knowledge/roadmap.md#3-chat-core),
+> Ticket: `2026-10-17-1748_chat-core` · Source: [roadmap › 3](../../knowledge/roadmap.md#3-chat-core),
 > grilling on 2026-10-17
 > Related: [architecture.md](./architecture.md) · [plan.md](./plan.md)
 
@@ -109,7 +109,7 @@ replace one layer later.
   ticket, see Open questions.
 - Stopping a generation in flight: the stages leave room for it; the endpoint arrives with the UI.
 - Pagination of the chat list and of messages: arrives with Postgres.
-- Garbage collection of unbound attachments by age: [`aws-local`](../2026-10-19_aws-local/feature.md) (R7).
+- Garbage collection of unbound attachments by age: [`aws-local`](../2026-10-19-1448_aws-local/feature.md) (R7).
 - Rate limits, CORS (the web proxies `/api/`), accounts and sign-in.
 - Publishing the client outside the monorepo: `client-publishing` (10).
 
