@@ -69,7 +69,8 @@ Each line names one choice and where it lives; the rejected alternatives are in 
 
 - **Layers import only downwards:** the matrix is in
   [docs/knowledge/architecture.md › Dependency rules](docs/knowledge/architecture.md#dependency-rules);
-  Biome rejects any import the matrix forbids.
+  Biome rejects most of what it forbids, and
+  [› Known gaps](docs/knowledge/architecture.md#known-gaps) lists the rest.
 - **The domain is pure Effect:** models are `Schema.Class`, ids and constrained values are brands,
   errors are `Schema.TaggedError`, time and ids come in as input, and ports are `Context.Service`
   declarations with no error channel. `domain/`.

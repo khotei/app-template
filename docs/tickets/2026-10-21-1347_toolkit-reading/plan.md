@@ -100,7 +100,14 @@
   - `wc -l < CLAUDE.md` ≤ 40, and `cat CLAUDE.md $(grep -L '^paths:' .claude/rules/*.md) | wc -l`
     ≤ 140;
   - `make check` is green.
-- **Status:** todo
+- **Findings:**
+  - `naming.md` shortens the link text to `architecture.md › Dependency rules`, so its `../../`
+    path fits the line; the other files keep the full path.
+  - S3.2: README's "Biome rejects the rest" lost its antecedent once the chain went. S3.3: its
+    replacement "any import the matrix forbids" overclaimed, since `architecture.md › Known gaps`
+    lists forms that pass every guard; README now says "most" and links Known gaps.
+  - The always-loaded set stays at exactly 140 lines: the pointer line takes the chain's three.
+- **Status:** done
 
 ## Requirement coverage
 
