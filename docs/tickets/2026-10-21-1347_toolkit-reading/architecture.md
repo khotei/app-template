@@ -12,7 +12,7 @@ import direction keeps three authors (Biome, `docs/knowledge/architecture.md`, e
 ```mermaid
 graph LR
   subgraph reading [R1]
-    impl([implementer]) -->|reads first| step["plan.md › step"] & rd["feature.md › R… · architecture.md › D…"] & seam["architecture.md › Seams"]
+    impl([implementer]) -->|reads first| step["plan.md › step"] & rd["feature.md › R… · architecture.md › D…"] & seam["architecture.md › Seams"] & contracts["architecture.md › Contracts"]
   end
   subgraph plan [R3 R4 R5]
     tp["/ticket-plan"] -->|draft| draft[plan.md] -->|paths, APIs, deps, literals| res([researcher]) -->|fixes| draft -->|presented| user((user))
@@ -43,10 +43,10 @@ Untouched: `reviewer.md`, `ticket-implement`, the `plan.md` template, the layer 
 
 **`implementer` › Read the step** (sketch):
 
-> Read the step, not the ticket: the step in `plan.md`, the `R…` in `feature.md` and the `D…` in
-> `architecture.md` it cites, and the Seam its *Test first* names, located with `grep -n` and read
-> with offset and limit. Open the rest of the ticket when the step touches a contract or decision
-> those parts do not quote.
+> Read the step, not the ticket: the step in `plan.md`, the `R…` and `D…` the step cites, the Seam
+> it tests at and the `architecture.md › Contracts` entries for its files, located with `grep -n`
+> and read with offset and limit. Open the rest of the ticket when the step touches a contract or
+> decision those parts do not quote.
 
 **`/ticket-plan` › Check** (sketch). After the plan is written, spawn `researcher` once with two
 lists:
@@ -87,6 +87,12 @@ The change is text read by agents, so the Seams are checks over the tree; there 
   when it needs to, and its report says nothing about it. *Rejected:* a named trigger (a file that
   `architecture.md › Structure` describes), which almost every step meets; a *Read beyond the
   step* line in the report, which the user declined as bookkeeping nobody asked for.
+- **D5 — The `Contracts` entries for the step's files are read up front, and the rest opens
+  "when", not "only when" (R1; S1.2).** A step can rely on a contract without citing the `D…`
+  behind it, the rule's main risk to the quality of a step; the entries are short, so the read
+  stays near the step's size (≈6–11k against the ≈34k median). *Rejected:* `Contracts` only on
+  demand, which leaves that risk to the agent's judgement; "only when", which makes reading
+  beyond the step a breach the agent must justify.
 - **D3 — Root `CLAUDE.md` keeps a pointer line, not the chain (R2).** The main session plans
   before Biome runs, so it needs to know where the matrix lives; it does not need the matrix.
   *Rejected:* correcting the chain in place ("`apps/api` and `apps/web` → `http-api`"), which

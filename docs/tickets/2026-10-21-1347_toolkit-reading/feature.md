@@ -76,10 +76,11 @@ rules. Each item answers a cost or a mistake measured in `chat-core`.
 
 ### Reading
 
-- **R1** — WHEN `implementer` starts a step, THE SYSTEM SHALL have it read the step from
-  `plan.md`, the `R…` and `D…` the step cites and the Seam its *Test first* names, and open any
-  other part of the ticket only when the step touches a contract or decision those parts do not
-  quote.
+- **R1** — WHEN `implementer` starts a step, THE SYSTEM SHALL have it read first the step from
+  `plan.md`, the `R…` and `D…` the step cites, the Seam it tests at and the
+  `architecture.md › Contracts` entries for its files, and open any other part of the ticket when
+  the step touches a contract or decision those parts do not quote. *Amended in S1.2:* Contracts
+  read up front, and "only when" relaxed to "when" (D5).
 
 ### The import direction
 
@@ -109,7 +110,7 @@ rules. Each item answers a cost or a mistake measured in `chat-core`.
 
 | Req | How to verify |
 |---|---|
-| R1 | `.claude/agents/implementer.md` names the step, the cited `R…` and `D…`, and the Seam as what it reads first, and states when it opens the rest; `git grep -niE 'read (the )?(whole\|entire\|all of)' -- .claude/agents/implementer.md .claude/skills/ticket-implement` is empty |
+| R1 | `.claude/agents/implementer.md` names the step, the cited `R…` and `D…`, the Seam and the `architecture.md › Contracts` entries as what it reads first, and states when it opens the rest; `git grep -niE 'read (the )?(whole\|entire\|all of)' -- .claude/agents/implementer.md .claude/skills/ticket-implement` is empty |
 | R2 | `git grep -nE 'application.{1,8}infrastructure.{1,8}domain\|apps.{1,8}http-api' -- ':!docs/tickets' ':!repos'` lists only `docs/knowledge/architecture.md`; root `CLAUDE.md`, `naming.md`, `README.md` and both `.github` PR files link `architecture.md` |
 | R3 | `.claude/skills/ticket-plan/SKILL.md` spawns `researcher` once for the plan's existing paths, APIs and dependencies before the presentation step |
 | R4 | `.claude/skills/ticket-plan/SKILL.md` checks every literal a step fixes against `.claude/rules/*.md` and the target workspace's `CLAUDE.md` before the presentation step |

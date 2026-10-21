@@ -14,9 +14,10 @@
 
 #### S1 — `implementer` reads the step, not the ticket
 
-- **Goal:** `implementer` reads its step, the `R…` and `D…` it cites and the Seam its *Test first*
-  names, and opens the rest of the ticket only when the step touches a contract or decision those
-  parts do not quote; its report says nothing about it (R1, D2).
+- **Goal:** `implementer` reads first its step, the `R…` and `D…` it cites, the Seam it tests at
+  and the `architecture.md › Contracts` entries for its files, and opens the rest of the ticket
+  when the step touches a contract or decision those parts do not quote; its report says nothing
+  about it (R1, D2, D5).
 - **Blocked by:** none.
 - **Files:** `.claude/agents/implementer.md` (a **Read the step** bullet under *Disciplines*, worded
   as `architecture.md › Contracts` sketches it).
@@ -24,13 +25,20 @@
   `git grep -n 'Read the step' -- .claude/agents/implementer.md` is empty before the change.
 - **Verify:**
   - `git grep -n 'Read the step' -- .claude/agents/implementer.md` prints one line;
-  - the bullet names `plan.md`, `R…`, `D…`, the Seam, `grep -n`, offset and limit, and when to open
-    the rest;
+  - the bullet names `plan.md`, `R…`, `D…`, the Seam, `architecture.md › Contracts`, `grep -n`,
+    offset and limit, and when to open the rest;
   - `git grep -niE 'read (the )?(whole|entire|all of)' -- .claude/agents/implementer.md .claude/skills/ticket-implement`
     is empty;
   - the *Report* section is unchanged (`git diff` shows no line under `## Report`);
   - `make check` is green.
-- **Status:** todo
+- **Findings:**
+  - S1.1 review: "it cites" read as `architecture.md` citing; now "the step cites". "the Seam its
+    *Test first* names" repeated the `tdd` bullet; now "the Seam it tests at".
+  - S1.2, on the user's question whether the rule lowers quality: the `Contracts` entries for the
+    step's files are read up front, and "only when" stays "when"; R1 amended, D5 added.
+  - Left as is: `Contracts` entries are keyed by interface, so "for its files" relies on the agent
+    matching them through `Structure`.
+- **Status:** done
 
 #### S2 — `/ticket-plan` checks the plan with `researcher`
 
