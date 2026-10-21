@@ -65,7 +65,13 @@
   - `grep -n '^| `/ticket-plan`' docs/knowledge/sdd.md` shows `researcher` in the agents column;
   - `grep -n 'plan --> researcher' docs/knowledge/sdd.md` prints one line;
   - `make check` is green.
-- **Status:** todo
+- **Findings:**
+  - The check sits before the coverage table, so the table maps the corrected steps;
+    `architecture.md › Contracts` now says "before the plan is presented" instead of a step number.
+  - Left as is on the user's approval: the step does not say what happens to items `researcher`
+    reports as `Unverified` (`architecture.md › Risks` expects a check by hand); `researcher.md`
+    still describes "one concrete question" while the brief sends two lists (D1).
+- **Status:** done
 
 #### S3 — the import direction is linked, not restated
 

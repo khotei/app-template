@@ -56,7 +56,7 @@ lists:
 | **Exists** | an existing file path, API, flag or dependency a step names (paths the plan creates are left out) | `confirmed` or `wrong`, with evidence and the correct value |
 | **Conforms** | a literal a step fixes (a name, signature, path or message), with the workspace it lands in | `conforms` or the rule line (`path:line`) it breaks, in `.claude/rules/*.md` or that workspace's `CLAUDE.md` |
 
-Every `wrong` and every broken rule is fixed in `plan.md` before step 5 presents the plan. The
+Every `wrong` and every broken rule is fixed in `plan.md` before the plan is presented. The
 report stays in the conversation; `plan.md` records no check.
 
 **Pointer line** (root `CLAUDE.md`; `naming.md` and `README.md` in their own words):

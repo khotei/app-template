@@ -59,7 +59,7 @@ uses updates this map too; the Standards review checks it against `.claude/rules
 |---|---|---|---|---|
 | `/ticket-feature` | `grilling`, `domain-modeling` | `researcher` | — | `feature.md`, `docs/knowledge/glossary.md`, `docs/knowledge/roadmap.md` |
 | `/ticket-architecture` | `codebase-design`, `grilling` | `researcher` | — | `architecture.md` |
-| `/ticket-plan` | — | — | — | `plan.md` |
+| `/ticket-plan` | — | `researcher` | — | `plan.md` |
 | `/ticket-implement` | `code-review` | `implementer`, `reviewer` | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, one commit per approved step |
 | `/ticket-verify` | `code-review` | `verifier`, `reviewer` | — | `verification.md` |
 | `/explain` | `codebase-design`, as vocabulary | `explainer` | — | an HTML walkthrough in `$TMPDIR`; nothing in the repo |
@@ -98,6 +98,7 @@ graph LR
   feature --> researcher
   arch -.-> design & grilling
   arch --> researcher
+  plan --> researcher
   impl --> implementer & reviewer
   impl -.-> review
   implementer -.-> tdd
