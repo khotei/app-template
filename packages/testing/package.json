@@ -11,6 +11,6 @@
   "dependencies": {
     "@effect/vitest": "catalog:effect",
     "effect": "catalog:effect",
-    "testcontainers": "catalog:tools"
+    "testcontainers": "catalog:runtime"
   }
 }

@@ -17,7 +17,7 @@ export interface Resources {
   readonly queues: Record<string, QueueResource>
 }
 
-/** The object tag the expiration rule selects; the store sets it on insert and clears it on keep. */
+/** The object tag the bucket's expiration rule selects on. */
 export const unboundTag = { key: 'unbound', value: 'true' } as const
 
 export const resources = {

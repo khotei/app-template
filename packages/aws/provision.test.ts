@@ -1,9 +1,9 @@
 import { assert, describe, layer } from '@effect/vitest'
 import { S3Service } from '@effect-aws/client-s3'
 import { SQSService } from '@effect-aws/client-sqs'
-import { Array as Arr, Effect, Layer, Option } from 'effect'
+import { Array as Arr, Effect, Layer, Option, Predicate } from 'effect'
 
-import { generateStage, MiniStack } from '@app-template/testing'
+import { buildStage, MiniStack } from '@app-template/testing'
 
 import { buildResourceName } from '#aws/naming'
 import { provision } from '#aws/provision'
@@ -18,7 +18,7 @@ const AwsClientsMiniStack = Layer.unwrap(
   ),
 ).pipe(Layer.provide(MiniStack.layer))
 
-const stage = generateStage()
+const stage = buildStage()
 const bucket = resources.buckets.attachments
 const queues = Object.values(resources.queues)
 
@@ -28,6 +28,21 @@ const readLifecycleRules = Effect.fnUntraced(function* (stage: string) {
     Bucket: buildResourceName(stage, bucket.name),
   })
   return Rules ?? []
+})
+
+type LifecycleRule = Effect.Success<ReturnType<typeof readLifecycleRules>>[number]
+
+const hasUnboundTagKey = (rule: LifecycleRule) => rule.Filter?.Tag?.Key === unboundTag.key
+const hasUnboundTagValue = (rule: LifecycleRule) => rule.Filter?.Tag?.Value === unboundTag.value
+const abortsIncompleteUploads = (rule: LifecycleRule) =>
+  rule.AbortIncompleteMultipartUpload !== undefined
+
+const findRule = Effect.fnUntraced(function* (
+  stage: string,
+  holds: Predicate.Predicate<LifecycleRule>,
+) {
+  const rules = yield* readLifecycleRules(stage)
+  return Option.getOrUndefined(Arr.findFirst(rules, holds))
 })
 
 const readQueueAttributes = Effect.fnUntraced(function* (name: string) {
@@ -59,19 +74,11 @@ describe('provision', () => {
       Effect.gen(function* () {
         yield* provision(resources, stage)
 
-        const rules = yield* readLifecycleRules(stage)
-        const rule = Arr.findFirst(
-          rules,
-          (rule) =>
-            rule.Filter?.Tag?.Key === unboundTag.key && rule.Filter.Tag.Value === unboundTag.value,
-        )
+        const rule = yield* findRule(stage, Predicate.and(hasUnboundTagKey, hasUnboundTagValue))
 
-        assert.isTrue(Option.isSome(rule), 'no rule filters on the unbound tag')
-        assert.strictEqual(Option.getOrUndefined(rule)?.Status, 'Enabled')
-        assert.strictEqual(
-          Option.getOrUndefined(rule)?.Expiration?.Days,
-          bucket.lifecycle.unboundExpirationDays,
-        )
+        assert.isDefined(rule, 'no rule filters on the unbound tag')
+        assert.strictEqual(rule.Status, 'Enabled')
+        assert.strictEqual(rule.Expiration?.Days, bucket.lifecycle.unboundExpirationDays)
       }),
     )
 
@@ -79,16 +86,12 @@ describe('provision', () => {
       Effect.gen(function* () {
         yield* provision(resources, stage)
 
-        const rules = yield* readLifecycleRules(stage)
-        const rule = Arr.findFirst(
-          rules,
-          (rule) => rule.AbortIncompleteMultipartUpload !== undefined,
-        )
+        const rule = yield* findRule(stage, abortsIncompleteUploads)
 
-        assert.isTrue(Option.isSome(rule), 'no rule aborts incomplete multipart uploads')
-        assert.strictEqual(Option.getOrUndefined(rule)?.Status, 'Enabled')
+        assert.isDefined(rule, 'no rule aborts incomplete multipart uploads')
+        assert.strictEqual(rule.Status, 'Enabled')
         assert.strictEqual(
-          Option.getOrUndefined(rule)?.AbortIncompleteMultipartUpload?.DaysAfterInitiation,
+          rule.AbortIncompleteMultipartUpload?.DaysAfterInitiation,
           bucket.lifecycle.abortIncompleteUploadDays,
         )
       }),
@@ -109,7 +112,7 @@ describe('provision', () => {
 
     it.effect('a second provision succeeds and changes nothing', () =>
       Effect.gen(function* () {
-        const fresh = generateStage()
+        const fresh = buildStage()
         const first = yield* provision(resources, fresh)
         const before = yield* snapshot(fresh)
 

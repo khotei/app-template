@@ -22,11 +22,11 @@
     "tools": {
       "@biomejs/biome": "2.5.15",
       "husky": "9.1.7",
-      "testcontainers": "12.2.1",
       "vitest": "5.0.5"
     },
     "runtime": {
-      "@types/bun": "1.4.3"
+      "@types/bun": "1.4.3",
+      "testcontainers": "12.2.1"
     },
     "typescript": {
       "@effect/tsgo": "0.53.2",

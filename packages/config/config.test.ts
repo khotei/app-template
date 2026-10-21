@@ -88,9 +88,9 @@ describe('config layers', () => {
   )
 
   it.effect.each([
-    { endpoint: undefined, parsed: Option.none<string>() },
-    { endpoint: 'http://localhost:4566', parsed: Option.some('http://localhost:4566/') },
-  ])('reads AWS settings with AWS_ENDPOINT_URL=$endpoint', ({ endpoint, parsed }) =>
+    { given: undefined, parsed: Option.none<string>() },
+    { given: 'http://localhost:4566', parsed: Option.some('http://localhost:4566/') },
+  ])('reads AWS settings with AWS_ENDPOINT_URL=$given', ({ given, parsed }) =>
     Effect.gen(function* () {
       const { region, endpoint, stage } = yield* AwsConfig
 
@@ -103,7 +103,7 @@ describe('config layers', () => {
         provideVariables(AwsConfig.layer, {
           AWS_REGION: 'eu-central-1',
           STAGE: 'local',
-          ...(endpoint === undefined ? {} : { AWS_ENDPOINT_URL: endpoint }),
+          ...(given === undefined ? {} : { AWS_ENDPOINT_URL: given }),
         }),
       ),
     ),

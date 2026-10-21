@@ -16,8 +16,9 @@ in `packages/testing/ministack.ts`; bump both together.
 | `make down` | stops the container. State survives: MiniStack writes it on shutdown and reads it on start, under `.data/ministack/`. |
 | `make reset` | `make down`, then removes `.data/` whole: MiniStack's state, the key-value store and the queue file. The way back after an inventory change that SQS refuses (below). |
 
-The apps read `AWS_REGION`, `AWS_ENDPOINT_URL` and `STAGE` through `AwsConfig` in
-`@app-template/config`. Credentials never pass through it: the SDK's default provider chain reads
+`AWS_REGION`, `AWS_ENDPOINT_URL` and `STAGE` are read through `AwsConfig` in
+`@app-template/config`; today the provisioner is its only reader, and the apps still run on the
+file store and the SQLite queue without `make up`. Credentials never pass through it: the SDK's default provider chain reads
 `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` from `.env` locally (any value satisfies MiniStack)
 and the role on AWS, whose session token rotates. With an endpoint set, S3 uses path-style
 addressing; without one, the SDK's own endpoints.
@@ -30,7 +31,7 @@ carrying its logical `name`. Physical names are `buildResourceName(stage, name)`
 
 | Resource | Carries | Provisioned as |
 |---|---|---|
-| bucket `attachments` | `lifecycle.unboundExpirationDays`, `lifecycle.abortIncompleteUploadDays` | the bucket and two lifecycle rules: objects tagged `unbound=true` expire; incomplete multipart uploads are aborted. The tag is `unboundTag`, shared with the store adapter. |
+| bucket `attachments` | `lifecycle.unboundExpirationDays`, `lifecycle.abortIncompleteUploadDays` | the bucket and two lifecycle rules: objects carrying `unboundTag` (`unbound=true`) expire; incomplete multipart uploads are aborted. |
 | queue `assistant-message`, `chat-title` | `maxReceiveCount` | `<name>-dlq` first, then `<name>` with a `RedrivePolicy` to it. A queue definition in `infrastructure` reads its `name` and `maxAttempts` from here; `infrastructure/shared/resources.test.ts` fails when they disagree. |
 
 `provision(inventory, stage)` is idempotent: an existing bucket gets its lifecycle rules re-applied,
@@ -50,10 +51,9 @@ reset`; on AWS, Pulumi (the deploy ticket).
 
 ## Tests on Docker
 
-Tests at the AWS boundary (`packages/aws/*.test.ts`, later the SQS transport and the S3 store)
-start one MiniStack container per test file through the `MiniStack` layer in
-`@app-template/testing` (`testcontainers`), provision a fresh `test-<random>` stage from
-`generateStage()`, and stop the container with the suite. So `make test` needs a running Docker
+Tests at the AWS boundary (`packages/aws/*.test.ts`) start one MiniStack container per test file
+through the `MiniStack` layer in `@app-template/testing` (`testcontainers`), provision a fresh
+`test-<random>` stage from `buildStage()`, and stop the container with the suite. So `make test` needs a running Docker
 daemon from now on; the container starts in about two seconds, and the suites pass
 `{ timeout: '60 seconds' }` to `layer(…)` for the pull on a cold machine. Unique stages isolate
 parallel files without resets; nothing cleans a stage up, since the container goes with it.

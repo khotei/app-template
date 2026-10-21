@@ -12,8 +12,8 @@ Everything runs through the root `Makefile` (GNU Make 3.81, the macOS default). 
 | Target | Runs | Use |
 |---|---|---|
 | `make setup` | `bun install`, then copies `.env.example` to `.env` if missing | first clone; installs the git hooks too |
-| `make up` · `down` · `reset` | Docker Compose with `deployment/local/docker-compose.yml`, then `deployment/local/provision.ts` | MiniStack for S3 and SQS, provisioned; `reset` also removes `.data/`. [aws.md](aws.md) |
-| `make dev` | `bun --filter './apps/*' dev` | all three processes, interleaved output; needs `make up` |
+| `make up` · `down` · `reset` | Docker Compose with `deployment/local/docker-compose.yml`, then `deployment/local/provision.ts` | MiniStack for S3 and SQS: [aws.md › The local stand-in](aws.md#the-local-stand-in) |
+| `make dev` | `bun --filter './apps/*' dev` | all three processes, interleaved output |
 | `make dev-api` · `dev-worker` · `dev-web` | one app's `dev` script | one process |
 | `make debug-api` · `debug-worker` · `debug-web` | one app's `debug` script | the same mode plus `--inspect` |
 | `make check` | `ids`, `lint`, `typecheck`, `test` | the gate before every commit and step report |
@@ -123,8 +123,8 @@ Workspaces reference it as `catalog:<namespace>`; the unnamed `catalog:` is not 
 
 | Namespace | Holds | Today |
 |---|---|---|
-| `tools` | developer-workflow tools that never shape types or runtime behaviour | `@biomejs/biome`, `husky`, `testcontainers`, `vitest` |
-| `runtime` | everything else, including the runtime the code targets | `@types/bun` |
+| `tools` | developer-workflow tools that never shape types or runtime behaviour | `@biomejs/biome`, `husky`, `vitest` |
+| `runtime` | everything else, including the runtime the code targets | `@types/bun`, `testcontainers` |
 | one per family | packages released in lock-step | `typescript`: `typescript`, `@effect/tsgo` (it embeds one TypeScript version) · `effect`: `effect`, `@effect/*` · `effect-aws`: `@effect-aws/*` (one release train over the AWS SDK; it pins the SDK as a range, so the lockfile holds the SDK version) |
 
 `bunfig.toml` sets `exact = true`, so `bun add` writes `1.2.3`, never `^1.2.3`.

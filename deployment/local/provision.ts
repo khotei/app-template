@@ -13,9 +13,9 @@ const AwsClientsFromConfig = Layer.unwrap(
       SQSService.layer(shared),
     )
   }),
-).pipe(Layer.provide(AwsConfig.layer))
+).pipe(Layer.provideMerge(AwsConfig.layer))
 
-const report = Effect.gen(function* () {
+const provisionLocal = Effect.gen(function* () {
   const { stage, endpoint } = yield* AwsConfig
   const provisioned = yield* provision(resources, stage)
 
@@ -24,8 +24,4 @@ const report = Effect.gen(function* () {
   yield* Effect.forEach(provisioned, ({ name, outcome }) => Effect.logInfo(`${outcome}: ${name}`))
 })
 
-await report.pipe(
-  Effect.provide([AwsClientsFromConfig, AwsConfig.layer]),
-  Effect.orDie,
-  Effect.runPromise,
-)
+await provisionLocal.pipe(Effect.provide(AwsClientsFromConfig), Effect.orDie, Effect.runPromise)

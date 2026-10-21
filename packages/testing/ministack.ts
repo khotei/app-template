@@ -19,7 +19,7 @@ const start = Effect.acquireRelease(
   (container) => Effect.promise(() => container.stop()),
 )
 
-/** One MiniStack container per test file: the layer starts it and stops it with the scope. */
+/** One MiniStack container per test file. */
 export class MiniStack extends Context.Service<
   MiniStack,
   {

@@ -1,6 +1,22 @@
-import { S3Service } from '@effect-aws/client-s3'
-import { SQSService } from '@effect-aws/client-sqs'
-import { Array as Arr, Effect, Option } from 'effect'
+import {
+  type BucketAlreadyExistsError,
+  S3Service,
+  type S3ServiceError,
+  type SdkError,
+} from '@effect-aws/client-s3'
+import {
+  type InvalidAddressError,
+  type InvalidAttributeNameError,
+  type InvalidAttributeValueError,
+  type InvalidSecurityError,
+  type QueueDeletedRecentlyError,
+  type QueueDoesNotExistError,
+  type QueueNameExistsError,
+  type RequestThrottledError,
+  SQSService,
+  type UnsupportedOperationError,
+} from '@effect-aws/client-sqs'
+import { Array as Arr, type Cause, Effect, Option } from 'effect'
 
 import { buildResourceName } from '#aws/naming'
 import { type BucketResource, type QueueResource, type Resources, unboundTag } from '#aws/resources'
@@ -9,6 +25,22 @@ export interface ProvisionedResource {
   readonly name: string
   readonly outcome: 'created' | 'unchanged'
 }
+
+export type ProvisionError =
+  | Cause.NoSuchElementError
+  | Cause.TimeoutError
+  | SdkError
+  | BucketAlreadyExistsError
+  | S3ServiceError
+  | InvalidAddressError
+  | InvalidAttributeNameError
+  | InvalidAttributeValueError
+  | InvalidSecurityError
+  | QueueDeletedRecentlyError
+  | QueueDoesNotExistError
+  | QueueNameExistsError
+  | RequestThrottledError
+  | UnsupportedOperationError
 
 const buildLifecycleConfiguration = (bucket: BucketResource) => ({
   Rules: [
@@ -29,12 +61,14 @@ const buildLifecycleConfiguration = (bucket: BucketResource) => ({
   ],
 })
 
-// CreateQueue compares a repeated RedrivePolicy as a string, so its key order is fixed here.
+/** The key order is fixed: CreateQueue compares a repeated RedrivePolicy as a string. */
 const buildRedrivePolicy = (deadLetterTargetArn: string, maxReceiveCount: number): string =>
   JSON.stringify({ deadLetterTargetArn, maxReceiveCount })
 
-// A repeated CreateBucket answers by region (us-east-1: success; elsewhere:
-// BucketAlreadyOwnedByYou), so existence is read first and both answers are accepted.
+/**
+ * Existence is read before the create, and both of its answers are accepted: a repeated
+ * CreateBucket answers by region (`us-east-1`: success; elsewhere: BucketAlreadyOwnedByYou).
+ */
 const provisionBucket = Effect.fnUntraced(function* (stage: string, bucket: BucketResource) {
   const s3 = yield* S3Service
   const name = buildResourceName(stage, bucket.name)
@@ -102,7 +136,10 @@ const provisionQueuePair = Effect.fnUntraced(function* (stage: string, queue: Qu
  * A queue whose attributes drifted from the inventory fails with `QueueNameExists`: SQS never
  * updates on create, and `make reset` is the local way back.
  */
-export const provision = Effect.fn('provision')(function* (inventory: Resources, stage: string) {
+export const provision = Effect.fn('provision')(function* (
+  inventory: Resources,
+  stage: string,
+): Effect.fn.Return<ReadonlyArray<ProvisionedResource>, ProvisionError, S3Service | SQSService> {
   const buckets = yield* Effect.forEach(Object.values(inventory.buckets), (bucket) =>
     provisionBucket(stage, bucket),
   )
