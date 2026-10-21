@@ -171,12 +171,15 @@ class AttachmentStore extends Context.Service<AttachmentStore, {
 ```ts
 // packages/aws/resources.ts (D4) — plain data, no Effect
 export const resources = {
-  buckets: { attachments: { lifecycle: { unboundExpirationDays: 1, abortIncompleteUploadDays: 1 } } },
+  buckets: {
+    attachments: { name: 'attachments', lifecycle: { unboundExpirationDays: 1, abortIncompleteUploadDays: 1 } },
+  },
   queues: {
-    'assistant-message': { maxReceiveCount: 4 },
-    'chat-title': { maxReceiveCount: 5 },
+    assistantMessage: { name: 'assistant-message', maxReceiveCount: 4 },
+    chatTitle: { name: 'chat-title', maxReceiveCount: 5 },
   },
 } as const
+// `name` is a field, not the key, so a definition reads it without spelling the literal (D4).
 // physical names: buildResourceName(stage, 'attachments') → app-template-<stage>-attachments;
 //   queue `<name>` and its `<name>-dlq`.
 // Lifecycle: two rules (MiniStack accepts a tag filter combined with AbortIncomplete…, AWS does not):
@@ -238,7 +241,14 @@ GET /attachments/:attachmentId/download
   covers what construction cannot. The package is this project's data, which `packages/CLAUDE.md`
   notes. *Amends feature R15* (location) *and R17* (the check is the agreement
   test plus `verify`, not a separate scan). *Rejected:* `deployment/shared/` (unreachable from the
-  layers); names in `.env` (the drift R17 exists to prevent).
+  layers); names in `.env` (the drift R17 exists to prevent). *Amended in S1:* entries are keyed
+  by an identifier (`assistantMessage`) and carry `name` as a field, since a name-keyed entry can
+  be read only by spelling the literal, the drift the inventory exists to prevent (*rejected:*
+  name keys plus a lookup helper, still a literal at the call site); the agreement test discovers
+  definitions with a glob over `infrastructure/**/*.queue.ts`, so a new queue file joins the check
+  without editing the test (*rejected:* importing the known definitions, which a new file would
+  escape); it lives in `infrastructure/shared/` without a `resources.ts` beside it, because
+  `packages/aws` may not import `infrastructure`.
 - **D5 — Physical names come from `STAGE`; queue URLs are resolved and cached at first use;
   `verify` runs at startup.** `buildResourceName(stage, name)` gives `app-template-<stage>-…`;
   tests use `test-<random>` per file, dev `local`. `verify` checks every bucket and queue of the

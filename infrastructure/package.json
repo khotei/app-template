@@ -13,6 +13,7 @@
     "#infrastructure/*": "./*.ts"
   },
   "dependencies": {
+    "@app-template/aws": "workspace:*",
     "@app-template/config": "workspace:*",
     "@app-template/domain": "workspace:*",
     "@app-template/queue": "workspace:*",

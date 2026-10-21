@@ -66,6 +66,9 @@
     },
     "deployment": {
       "name": "@app-template/deployment",
+      "dependencies": {
+        "@app-template/aws": "workspace:*",
+      },
     },
     "domain": {
       "name": "@app-template/domain",
@@ -87,6 +90,7 @@
     "infrastructure": {
       "name": "@app-template/infrastructure",
       "dependencies": {
+        "@app-template/aws": "workspace:*",
         "@app-template/config": "workspace:*",
         "@app-template/domain": "workspace:*",
         "@app-template/queue": "workspace:*",
@@ -96,6 +100,9 @@
         "@effect/platform-bun": "catalog:effect",
         "@effect/vitest": "catalog:effect",
       },
+    },
+    "packages/aws": {
+      "name": "@app-template/aws",
     },
     "packages/config": {
       "name": "@app-template/config",
@@ -158,6 +165,8 @@
     "@app-template/api": ["@app-template/api@workspace:apps/api"],
 
     "@app-template/application": ["@app-template/application@workspace:application"],
+
+    "@app-template/aws": ["@app-template/aws@workspace:packages/aws"],
 
     "@app-template/config": ["@app-template/config@workspace:packages/config"],
 

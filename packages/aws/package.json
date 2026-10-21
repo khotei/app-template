@@ -1,0 +1,11 @@
+{
+  "name": "@app-template/aws",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "imports": {
+    "#aws/*": "./*.ts"
+  }
+}

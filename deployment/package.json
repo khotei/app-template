@@ -4,5 +4,8 @@
   "type": "module",
   "imports": {
     "#deployment/*": "./*.ts"
+  },
+  "dependencies": {
+    "@app-template/aws": "workspace:*"
   }
 }

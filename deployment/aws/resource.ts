@@ -1,5 +1,6 @@
+import { buildResourceName } from '@app-template/aws'
+
 import { deploymentConfig } from '#deployment/aws/config'
-import { buildResourceName } from '#deployment/shared/naming'
 import { buildTags } from '#deployment/shared/tags'
 
 export interface Resource {

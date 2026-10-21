@@ -5,6 +5,7 @@
     { "path": "./http-api" },
     { "path": "./application" },
     { "path": "./infrastructure" },
+    { "path": "./packages/aws" },
     { "path": "./packages/config" },
     { "path": "./packages/queue" },
     { "path": "./packages/llm" },

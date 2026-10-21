@@ -70,7 +70,22 @@ S1 and S6 are independent and can start first; S4 and S6 can run in parallel aft
   name.
 - **Verify:** `make check`; `git grep -n "'assistant-message'\|'chat-title'"` finds the names only
   in `packages/aws/resources.ts` and tests.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Inventory entries are keyed by an identifier and carry `name` as a field, not the
+    `Contracts` sketch's name keys: a definition could read a name key only by spelling the
+    literal (*Amended in S1* on D4; the sketch is updated).
+  - The agreement test globs `infrastructure/**/*.queue.ts` and filters each module's exports by
+    the `QueueDefinition` shape, so a new queue file cannot escape it; it sits in
+    `infrastructure/shared/` with no `resources.ts` beside it, since `packages/aws` may not import
+    `infrastructure` (D4). Under `vitest`, Bun's `import.meta.dir` is undefined; the test resolves
+    its workspace from `import.meta.url`.
+  - Red was proved by mutation: after the inventory was created the test passed at once, because
+    the hard-coded values already matched, so a renamed definition, an orphan inventory queue and
+    a changed `maxAttempts` were each shown to fail by name.
+  - Nothing derives `<name>-dlq` yet; `provision` and `verify` (S2, S3) do. Seam 7's check that the
+    bucket's expiration days cover `unboundLifetime` waits for S8, where the constant appears.
+  - Root `package.json` was not touched: the `packages/*` glob already covers the workspace.
 
 #### S2 — MiniStack, `AwsConfig`, the provisioner and `make up`
 
