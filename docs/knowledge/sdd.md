@@ -50,7 +50,7 @@ review. Its skills are referenced by name and never copied, so plugin updates ar
 ### Dependency map
 
 What each skill and agent uses, read from their files. A commit that changes what a skill or agent
-uses updates this map too; the Standards review checks it against `.claude/rules/sdd.md`.
+uses updates this map too; the Standards review checks it against `.claude/rules/claude-md.md`.
 
 | Skill or agent | Plugin skills | Spawns | Hook | Writes |
 |---|---|---|---|---|

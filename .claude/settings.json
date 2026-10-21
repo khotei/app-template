@@ -49,6 +49,8 @@
     "deny": [
       "Bash(git push --force*)",
       "Bash(git push -f*)",
+      "Bash(git commit --no-verify*)",
+      "Bash(git push --no-verify*)",
       "Bash(rm -rf *)",
       "Bash(sudo *)",
       "Bash(bun test*)",

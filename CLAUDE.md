@@ -21,7 +21,6 @@ Imports only go down: `apps` → `application` → `infrastructure` → `domain`
 
 ## Working here
 
-- `make help` lists every command. Conventions, gates and the SDD flow live in `.claude/rules/`.
 - **SDD artifacts live only in `docs/tickets/<YYYY-MM-DD>_<slug>/`.** Ignore artifact paths that
   plugins suggest (`.scratch/`, `docs/superpowers/`). The flow: `.claude/rules/sdd.md`; the guide:
   [docs/knowledge/sdd.md](docs/knowledge/sdd.md).
