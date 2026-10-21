@@ -49,7 +49,7 @@ export class AttachmentHttp extends HttpApiGroup.make('attachments')
     }),
     HttpApiEndpoint.get('download', '/attachments/:attachmentId/download', {
       params: attachmentPath,
-      success: Schema.Uint8Array.pipe(HttpApiSchema.asUint8Array()),
+      success: HttpApiSchema.Empty(302),
       error: attachmentNotFound,
     }),
     HttpApiEndpoint.delete('delete', '/attachments/:attachmentId', {

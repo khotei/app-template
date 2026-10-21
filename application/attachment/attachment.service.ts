@@ -1,9 +1,8 @@
-import { Array as Arr, Context, Crypto, DateTime, Effect, Layer, Option } from 'effect'
+import { Array as Arr, Context, Crypto, DateTime, Effect, Layer, Option, type Stream } from 'effect'
 
 import {
   Attachment,
   type AttachmentBoundError,
-  type AttachmentDownload,
   AttachmentId,
   AttachmentNotFoundError,
   AttachmentRepository,
@@ -11,17 +10,16 @@ import {
   buildAttachment,
   ensureBindable,
   type FileName,
-  FileSize,
   type MediaType,
 } from '@app-template/domain/attachment'
 import type { MessageId } from '@app-template/domain/chat'
 import { ensureFound } from '@app-template/domain/shared'
 import { isOwnedBy, type UserId } from '@app-template/domain/user'
 
-export interface AttachmentUpload {
+export interface AttachmentUpload<E> {
   readonly fileName: FileName
   readonly mediaType: MediaType
-  readonly bytes: Uint8Array
+  readonly content: Stream.Stream<Uint8Array, E>
 }
 
 /**
@@ -44,7 +42,8 @@ export type { BindableAttachments }
 export class AttachmentService extends Context.Service<
   AttachmentService,
   {
-    readonly upload: (userId: UserId, input: AttachmentUpload) => Effect.Effect<Attachment>
+    /** Fails with the content's error and leaves neither bytes nor a record behind. */
+    readonly upload: <E>(userId: UserId, input: AttachmentUpload<E>) => Effect.Effect<Attachment, E>
     /** Finds the user's attachment, bound or not. */
     readonly get: (
       userId: UserId,
@@ -53,7 +52,10 @@ export class AttachmentService extends Context.Service<
     readonly download: (
       userId: UserId,
       id: AttachmentId,
-    ) => Effect.Effect<AttachmentDownload, AttachmentNotFoundError>
+    ) => Effect.Effect<
+      { readonly attachment: Attachment; readonly url: URL },
+      AttachmentNotFoundError
+    >
     /** Removes the user's attachment while no message holds it. */
     readonly delete: (
       userId: UserId,
@@ -85,22 +87,26 @@ export class AttachmentService extends Context.Service<
     const randomUuid = Effect.orDie(crypto.randomUUIDv7())
     const randomAttachmentId = Effect.map(randomUuid, AttachmentId.make)
 
-    const upload = Effect.fn('AttachmentService.upload')(function* (
+    const upload = Effect.fn('AttachmentService.upload')(function* <E>(
       userId: UserId,
-      input: AttachmentUpload,
+      input: AttachmentUpload<E>,
     ) {
       const id = yield* randomAttachmentId
       const createdAt = yield* DateTime.now
+
+      const size = yield* store.insert(id, input.content, {
+        mediaType: input.mediaType,
+        fileName: input.fileName,
+      })
       const attachment = buildAttachment({
         id,
         userId,
         fileName: input.fileName,
         mediaType: input.mediaType,
-        size: FileSize.make(input.bytes.length),
+        size,
         createdAt,
       })
 
-      yield* store.insert(id, input.bytes)
       yield* attachments.insert(attachment)
       return attachment
     })
@@ -115,10 +121,8 @@ export class AttachmentService extends Context.Service<
       id: AttachmentId,
     ) {
       const attachment = yield* get(userId, id)
-      const bytes = yield* store.select(id)
-
-      if (Option.isNone(bytes)) return yield* new AttachmentNotFoundError({ id })
-      return { attachment, bytes: bytes.value }
+      const url = yield* store.url(id)
+      return { attachment, url }
     })
 
     const remove = Effect.fn('AttachmentService.delete')(function* (

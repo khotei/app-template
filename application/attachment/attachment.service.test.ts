@@ -1,7 +1,7 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, layer } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, DateTime, Effect, Layer, Option, Record as Rec } from 'effect'
+import { Array as Arr, Data, DateTime, Effect, Layer, Option, Record as Rec, Stream } from 'effect'
 import { KeyValueStore } from 'effect/persistence'
 import { TestClock, TestCrypto } from 'effect/testing'
 
@@ -29,14 +29,24 @@ import { owner, stranger } from '#application/testing/user.fixture'
 const AttachmentServiceTest = AttachmentService.layer.pipe(
   Layer.provideMerge(Layer.mergeAll(AttachmentRepositoryKv, AttachmentStoreKv)),
   Layer.provide(TestCrypto.layer('attachment-service').pipe(Layer.provide(BunCrypto.layer))),
-  Layer.provide(KeyValueStore.layerMemory),
+  Layer.provideMerge(KeyValueStore.layerMemory),
 )
+
+class UploadBrokenError extends Data.TaggedError('UploadBrokenError') {}
 
 const photo = { fileName: FileName.make('photo.png'), mediaType: MediaType.make('image/png') }
 
 const uploadPhoto = Effect.flatMap(AttachmentService, (service) =>
-  service.upload(owner, { ...photo, bytes: png }),
+  service.upload(owner, { ...photo, content: Stream.make(png) }),
 )
+
+const storeSize = Effect.orDie(Effect.flatMap(KeyValueStore.KeyValueStore, (store) => store.size))
+
+const storeHref = (id: AttachmentId) =>
+  Effect.map(
+    Effect.flatMap(AttachmentStore, (store) => store.url(id)),
+    (url) => url.href,
+  )
 
 type Read = (userId: UserId, id: AttachmentId) => Effect.Effect<unknown, AttachmentNotFoundError>
 
@@ -61,7 +71,10 @@ const unbindable = {
   },
   "another user's attachment": {
     arrange: Effect.flatMap(AttachmentService, (service) =>
-      Effect.map(service.upload(stranger, { ...photo, bytes: png }), (foreign) => foreign.id),
+      Effect.map(
+        service.upload(stranger, { ...photo, content: Stream.make(png) }),
+        (foreign) => foreign.id,
+      ),
     ),
     refusal: AttachmentNotFoundError,
   },
@@ -97,7 +110,37 @@ describe('AttachmentService', () => {
           }),
         )
         assertEquals(yield* service.get(owner, attachment.id), attachment)
-        assertEquals(yield* service.download(owner, attachment.id), { attachment, bytes: png })
+        assert.deepStrictEqual(yield* selectBytes(attachment.id), Option.some(png))
+      }),
+    )
+
+    it.effect('upload of a stream failing part-way fails with its error and stores nothing', () =>
+      Effect.gen(function* () {
+        const service = yield* AttachmentService
+        const broken = new UploadBrokenError()
+        const before = yield* storeSize
+
+        const error = yield* Effect.flip(
+          service.upload(owner, {
+            ...photo,
+            content: Stream.concat(Stream.make(png), Stream.fail(broken)),
+          }),
+        )
+
+        assert.strictEqual(error, broken)
+        assert.strictEqual(yield* storeSize, before)
+      }),
+    )
+
+    it.effect("download returns the owner's attachment with the store's URL", () =>
+      Effect.gen(function* () {
+        const service = yield* AttachmentService
+        const attachment = yield* uploadPhoto
+
+        const download = yield* service.download(owner, attachment.id)
+
+        assertEquals(download.attachment, attachment)
+        assert.strictEqual(download.url.href, yield* storeHref(attachment.id))
       }),
     )
 
@@ -153,7 +196,8 @@ describe('AttachmentService', () => {
           error,
           new AttachmentNotFoundError({ id: attachment.id }),
         )
-        assertEquals(yield* service.download(owner, attachment.id), { attachment, bytes: png })
+        assertEquals(yield* service.get(owner, attachment.id), attachment)
+        assert.deepStrictEqual(yield* selectBytes(attachment.id), Option.some(png))
       }),
     )
 
@@ -170,10 +214,7 @@ describe('AttachmentService', () => {
           error,
           new AttachmentBoundError({ id: attachment.id }),
         )
-        assert.deepStrictEqual(
-          yield* Effect.map(service.download(owner, attachment.id), ({ bytes }) => bytes),
-          png,
-        )
+        assert.deepStrictEqual(yield* selectBytes(attachment.id), Option.some(png))
       }),
     )
 

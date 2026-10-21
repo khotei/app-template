@@ -1,4 +1,4 @@
-import { Context, type DateTime, Effect, Option } from 'effect'
+import { Context, type DateTime, Effect, Option, type Stream } from 'effect'
 
 import { AttachmentBoundError, AttachmentNotFoundError } from '#domain/attachment/attachment.error'
 import type { AttachmentId } from '#domain/attachment/attachment.id'
@@ -29,8 +29,18 @@ export class AttachmentRepository extends Context.Service<
 export class AttachmentStore extends Context.Service<
   AttachmentStore,
   {
-    readonly insert: (id: AttachmentId, bytes: Uint8Array) => Effect.Effect<void>
+    /** Writes the bytes marked unbound; fails with the stream's error and leaves nothing behind. */
+    readonly insert: <E>(
+      id: AttachmentId,
+      content: Stream.Stream<Uint8Array, E>,
+      meta: { readonly mediaType: MediaType; readonly fileName: FileName },
+    ) => Effect.Effect<FileSize, E>
     readonly select: (id: AttachmentId) => Effect.Effect<Option.Option<Uint8Array>>
+    /** A URL that serves the bytes with the stored media type and inline disposition. */
+    readonly url: (id: AttachmentId) => Effect.Effect<URL>
+    /** Clears the unbound mark, so lifecycle never collects the bytes; idempotent. */
+    readonly keep: (id: AttachmentId) => Effect.Effect<void>
+    /** Idempotent. */
     readonly delete: (id: AttachmentId) => Effect.Effect<void>
   }
 >()('@app-template/domain/attachment/AttachmentStore') {}

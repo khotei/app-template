@@ -1,5 +1,5 @@
 import { BunCrypto } from '@effect/platform-bun'
-import { Array as Arr, DateTime, Effect, Layer } from 'effect'
+import { Array as Arr, DateTime, Effect, Layer, Stream } from 'effect'
 import { KeyValueStore } from 'effect/persistence'
 import { TestCrypto } from 'effect/testing'
 
@@ -99,7 +99,7 @@ export const upload = (userId: UserId, name: string) =>
     attachments.upload(userId, {
       fileName: FileName.make(name),
       mediaType: MediaType.make('image/png'),
-      bytes: png,
+      content: Stream.make(png),
     }),
   )
 

@@ -1,11 +1,13 @@
 import { assert, describe, it, layer } from '@effect/vitest'
 import { Array as Arr, Effect, Option, Record as Rec, Schema, Struct } from 'effect'
-import { HttpBody } from 'effect/http'
+import { FetchHttpClient, HttpBody, type HttpClient } from 'effect/http'
 import { KeyValueStore } from 'effect/persistence'
 
 import {
   AttachmentBoundError,
+  type AttachmentId,
   AttachmentNotFoundError,
+  AttachmentStore,
   FileName,
   FileSize,
   MediaType,
@@ -17,6 +19,7 @@ import {
   limits,
   RequestInvalidError,
 } from '@app-template/http-api'
+import { AttachmentStoreKv } from '@app-template/infrastructure/attachment'
 import { assertSchemaEquals, isUuidV7 } from '@app-template/testing'
 
 import {
@@ -127,27 +130,19 @@ const uploadOne = (api: ApiClient['Service'], entry: File) =>
     Effect.fromOption(Arr.head(uploaded)),
   ).pipe(Effect.orDie)
 
-const downloads = [
-  {
-    name: 'a PNG',
-    fileName: 'photo.png',
-    mediaType: 'image/png',
-    disposition: 'inline; filename="photo.png"',
-  },
-  {
-    name: 'a Cyrillic name',
-    fileName: 'отчёт.txt',
-    mediaType: 'text/plain',
-    disposition:
-      'inline; filename="_____.txt"; filename*=UTF-8\'\'%D0%BE%D1%82%D1%87%D1%91%D1%82.txt',
-  },
-  {
-    name: 'a name with a backslash',
-    fileName: 'a\\b (1).txt',
-    mediaType: 'text/plain',
-    disposition: 'inline; filename="a_b (1).txt"; filename*=UTF-8\'\'a%5Cb%20%281%29.txt',
-  },
-] as const
+/** Requests the download without following its redirect, as a browser's first hop sees it. */
+const requestDownload = (http: HttpClient.HttpClient, id: AttachmentId) =>
+  http
+    .get(`/attachments/${id}/download`)
+    .pipe(
+      Effect.provideService(FetchHttpClient.RequestInit, { keepalive: false, redirect: 'manual' }),
+    )
+
+const storeHref = (id: AttachmentId) =>
+  Effect.flatMap(AttachmentStore, (store) => store.url(id)).pipe(
+    Effect.map((url) => url.href),
+    Effect.provide(AttachmentStoreKv),
+  )
 
 const attachmentRoutes: ReadonlyArray<Route> = [
   {
@@ -168,7 +163,7 @@ const attachmentRoutes: ReadonlyArray<Route> = [
   {
     method: 'get',
     path: '/attachments/{attachmentId}/download',
-    responses: { ...underAuth, 200: 'Success', 404: 'AttachmentNotFoundError' },
+    responses: { ...underAuth, 302: '<No Content>', 404: 'AttachmentNotFoundError' },
   },
   {
     method: 'delete',
@@ -227,24 +222,44 @@ describe('attachments', () => {
         ),
     )
 
-    it.effect.each(downloads)(
-      'GET /attachments/:attachmentId/download returns $name inline with its type',
-      ({ fileName, mediaType, disposition }) =>
-        withApi((api) =>
-          Effect.gen(function* () {
-            yield* api.users.ensure()
-            const uploaded = yield* uploadOne(api, file(fileName, mediaType))
+    it.effect("GET /attachments/:attachmentId/download is 302 to the store's URL", () =>
+      withApi((api, http) =>
+        Effect.gen(function* () {
+          yield* api.users.ensure()
+          // The memory store's URL carries the bytes, so a mebibyte would overflow the header.
+          const uploaded = yield* uploadOne(api, file('photo.png', 'image/png', 16))
 
-            const [bytes, response] = yield* api.attachments.download({
-              params: { attachmentId: uploaded.id },
-              responseMode: 'decoded-and-response',
-            })
+          const response = yield* requestDownload(http, uploaded.id)
 
-            assert.deepStrictEqual(bytes, new Uint8Array(mebibyte).fill(7))
-            assert.strictEqual(response.headers['content-type'], mediaType)
-            assert.strictEqual(response.headers['content-disposition'], disposition)
-          }),
-        ),
+          assert.strictEqual(response.status, 302)
+          assert.strictEqual(response.headers.location, yield* storeHref(uploaded.id))
+        }),
+      ),
+    )
+
+    it.effect(
+      "GET /attachments/:attachmentId/download of another user's is 404 without Location",
+      () =>
+        Effect.gen(function* () {
+          const foreign = yield* withApi((api) =>
+            Effect.andThen(api.users.ensure(), uploadOne(api, png('photo.png'))),
+          )
+
+          const response = yield* withApi((api, http) =>
+            Effect.andThen(api.users.ensure(), requestDownload(http, foreign.id)),
+          )
+
+          assert.strictEqual(response.status, 404)
+          assert.isUndefined(response.headers.location)
+          assertSchemaEquals(
+            AttachmentNotFoundError,
+            yield* Effect.flatMap(
+              response.json,
+              Schema.decodeUnknownEffect(AttachmentNotFoundError),
+            ),
+            new AttachmentNotFoundError({ id: foreign.id }),
+          )
+        }),
     )
 
     it.effect('a send with two uploaded ids binds them, and the chat shows their metadata', () =>
@@ -402,7 +417,7 @@ describe('attachments', () => {
 
   testSpecDocuments(attachmentRoutes)
 
-  it.effect('the spec documents a multipart upload and an octet-stream download', () =>
+  it.effect('the spec documents a multipart upload and a download without a body', () =>
     Effect.sync(() => {
       assert.deepStrictEqual(
         Rec.keys(spec.paths['/attachments']?.post?.requestBody?.content ?? {}),
@@ -410,9 +425,9 @@ describe('attachments', () => {
       )
       assert.deepStrictEqual(
         Rec.keys(
-          spec.paths['/attachments/{attachmentId}/download']?.get?.responses['200']?.content ?? {},
+          spec.paths['/attachments/{attachmentId}/download']?.get?.responses['302']?.content ?? {},
         ),
-        ['application/octet-stream'],
+        [],
       )
     }),
   )

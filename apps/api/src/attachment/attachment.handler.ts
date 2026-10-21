@@ -1,9 +1,9 @@
-import { Array as Arr, Effect, Option, Schema, Stream } from 'effect'
+import { Array as Arr, Effect, Option, Ref, Schema, Stream } from 'effect'
 import { HttpServerResponse, Mime, Multipart } from 'effect/http'
 import { HttpApiBuilder } from 'effect/http-api'
 
 import { AttachmentService } from '@app-template/application/attachment'
-import { FileName, type MediaType } from '@app-template/domain/attachment'
+import { type Attachment, FileName, type MediaType } from '@app-template/domain/attachment'
 import {
   Api,
   AttachmentMediaType,
@@ -46,33 +46,15 @@ const decodeDeclaredType = (file: Multipart.File) =>
     Effect.mapError(() => new AttachmentTypeUnsupportedError()),
   )
 
-const bufferFile = Effect.fnUntraced(function* (part: Multipart.Part, index: number) {
+const readFile = Effect.fnUntraced(function* (part: Multipart.Part, index: number) {
   if (!Multipart.isFile(part))
     return yield* buildRequestInvalid(['files', index], 'Expected a file')
   const fileName = yield* Schema.decodeUnknownEffect(FileName)(part.name).pipe(
     Effect.mapError(() => buildRequestInvalid(['files', index], 'Expected a file name')),
   )
   const mediaType = yield* decodeDeclaredType(part)
-  const bytes = yield* part.contentEffect
-  return { fileName, mediaType, bytes }
+  return { fileName, mediaType, content: part.content }
 })
-
-const unquotable = /[^\x20\x21\x23-\x5b\x5d-\x7e]/g
-
-const encodeExtValue = (value: string) =>
-  encodeURIComponent(value).replace(
-    /['()*]/g,
-    (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`,
-  )
-
-// A header value must be ASCII (Bun answers 500 otherwise), so a name that does not fit a quoted
-// string travels in `filename*` beside an ASCII fallback.
-const buildInlineDisposition = (fileName: string) => {
-  const fallback = fileName.replace(unquotable, '_')
-  return fallback === fileName
-    ? `inline; filename="${fileName}"`
-    : `inline; filename="${fallback}"; filename*=UTF-8''${encodeExtValue(fileName)}`
-}
 
 export const AttachmentHandler = HttpApiBuilder.group(
   Api,
@@ -85,9 +67,23 @@ export const AttachmentHandler = HttpApiBuilder.group(
         'upload',
         Effect.fn('AttachmentHandler.upload')(function* ({ payload }) {
           const user = yield* CurrentUser
+          const stored = yield* Ref.make(Arr.empty<Attachment>())
 
-          const files = yield* payload.pipe(
-            Stream.mapEffect(bufferFile),
+          // Each part streams into the store before the parser reaches the next one, so a part
+          // refused later finds the earlier ones stored: they are removed, as one request.
+          const discardStored = Effect.flatMap(Ref.get(stored), (earlier) =>
+            Effect.forEach(
+              earlier,
+              (attachment) => Effect.orDie(attachments.delete(user.id, attachment.id)),
+              { discard: true },
+            ),
+          )
+
+          const uploaded = yield* payload.pipe(
+            Stream.mapEffect((part, index) =>
+              Effect.flatMap(readFile(part, index), (file) => attachments.upload(user.id, file)),
+            ),
+            Stream.tap((attachment) => Ref.update(stored, Arr.append(attachment))),
             Stream.runCollect,
             Effect.catchTag(
               'MultipartError',
@@ -97,9 +93,9 @@ export const AttachmentHandler = HttpApiBuilder.group(
             Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty, () =>
               buildRequestInvalid(['files'], 'Expected at least 1 file'),
             ),
+            Effect.onError(() => discardStored),
           )
 
-          const uploaded = yield* Effect.forEach(files, (file) => attachments.upload(user.id, file))
           return Arr.map(uploaded, toAttachment)
         }),
       )
@@ -115,11 +111,8 @@ export const AttachmentHandler = HttpApiBuilder.group(
         'download',
         Effect.fn('AttachmentHandler.download')(function* ({ params }) {
           const user = yield* CurrentUser
-          const { attachment, bytes } = yield* attachments.download(user.id, params.attachmentId)
-          return HttpServerResponse.uint8Array(bytes, {
-            contentType: attachment.mediaType,
-            headers: { 'content-disposition': buildInlineDisposition(attachment.fileName) },
-          })
+          const { url } = yield* attachments.download(user.id, params.attachmentId)
+          return HttpServerResponse.redirect(url)
         }),
       )
       .handle(

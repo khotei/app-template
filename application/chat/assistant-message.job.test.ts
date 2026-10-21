@@ -153,7 +153,7 @@ const arrangePhoto = Effect.gen(function* () {
   const attachments = yield* AttachmentRepository
   const store = yield* AttachmentStore
   yield* attachments.insert(photo)
-  yield* store.insert(photoId, png)
+  yield* store.insert(photoId, Stream.make(png), photo)
 })
 
 const user = (n: number, text: string, attachmentIds: ReadonlyArray<AttachmentId> = []) =>
