@@ -67,9 +67,9 @@ curl -s -b jar localhost:3000/chats/<chatId>/messages/<assistantMessageId>
 Each line names one choice and where it lives; the rejected alternatives are in the tickets'
 `architecture.md › Decisions`.
 
-- **Layers import only downwards:** `apps` → `application` → `infrastructure` → `domain`, and
-  `apps` → `http-api` → `domain`; Biome rejects the rest.
-  [docs/knowledge/architecture.md](docs/knowledge/architecture.md).
+- **Layers import only downwards:** the matrix is in
+  [docs/knowledge/architecture.md › Dependency rules](docs/knowledge/architecture.md#dependency-rules);
+  Biome rejects the rest.
 - **The domain is pure Effect:** models are `Schema.Class`, ids and constrained values are brands,
   errors are `Schema.TaggedError`, time and ids come in as input, and ports are `Context.Service`
   declarations with no error channel. `domain/`.
