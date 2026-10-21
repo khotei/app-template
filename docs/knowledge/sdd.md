@@ -38,7 +38,7 @@ grilling, plan review and commit approval need you. Each takes the ticket folder
 | `/ticket-architecture <ticket>` | `feature.md` | the Seams and the Decisions | `architecture.md` |
 | `/ticket-plan <ticket>` | `feature.md`, `architecture.md` | the plan as a whole: the heavy review | `plan.md` with steps and coverage |
 | `/ticket-implement <ticket> [step]` | the next unblocked step | approve, give feedback, or stop | one commit per approved step |
-| `/ticket-verify <ticket>` | the branch against `main` | which simplifications and lessons to apply; whether to open the PR | `verification.md` |
+| `/ticket-verify <ticket>` | the branch against `origin/main` | which simplifications and lessons to apply; whether to open the PR | `verification.md` |
 
 ## Under the hood
 

@@ -14,9 +14,9 @@ what should the toolkit learn from building it. Gates: `.claude/rules/sdd.md`.
    done:
    - spawn the `verifier` agent with the ticket folder and the branch;
    - call the Skill tool with `mattpocock-skills:code-review` with the fixed point
-     `git merge-base HEAD origin/main` (the clone has no local branch of that name), the spec
-     `feature.md` plus `architecture.md`, the standards `.claude/rules/*.md` plus the touched
-     `CLAUDE.md` files, and the `reviewer` agent as each axis sub-agent.
+     `git merge-base HEAD origin/main`, the spec `feature.md` plus `architecture.md`, the
+     standards `.claude/rules/*.md` plus the touched `CLAUDE.md` files, and the `reviewer` agent
+     as each axis sub-agent.
 
    Tell every agent to read the rules, `CLAUDE.md` files, skills and agents from disk: agents
    spawned in a long session can carry the copies loaded when it started. After rule edits, prefer

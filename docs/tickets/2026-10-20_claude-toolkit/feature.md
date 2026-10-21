@@ -94,7 +94,7 @@ the first is reviewed.
 | Req | How to verify |
 |---|---|
 | R1 | `echo '{}' \| CLAUDE_PROJECT_DIR=/nonexistent sh .claude/hooks/make-check.sh; echo $?` prints a message naming the directory and `2` |
-| R2 | `grep -rnE '(^\|[^a-z/._-])main([^a-z._-]\|$)' .claude/skills .claude/agents \| grep -v 'main session'` is empty; `git grep -n 'merge-base HEAD origin/main' -- .claude` lists `ticket-verify`, `verifier` and `explain` |
+| R2 | `git grep -nE -e '(^\|[^a-z/._<-])main([^a-z_-]\|$)' --and --not -e 'main session' --and --not -e 'no local .main.' -- .claude/skills .claude/agents` is empty; `git grep -n 'merge-base HEAD origin/main' -- .claude` lists `ticket-verify`, `verifier` and `explain` |
 | R3 | `cat CLAUDE.md $(grep -L '^paths:' .claude/rules/*.md) \| wc -l` ≤ 140; `grep -c '^paths:' .claude/rules/pull-requests.md` is 1; `grep -n 'Toolkit layout' .claude/rules/sdd.md` is empty and `grep -n 'disable-model-invocation' .claude/rules/claude-md.md` is not; `grep -nE 'no-verify\|npm\|bun test\|tsc -b emits\|New workspace\|Double-quote' .claude/rules/tooling.md` is empty |
 | R4 | every `paths:` entry of `effect*.md`, `naming.md` and `comments.md` starts with a workspace directory or is a root `package.json`; `claude-md.md` lists `docs/knowledge/**`, not `docs/**`; `claude --debug` shows no frontmatter parse error for `.claude/rules/*.md` |
 | R5 | `docs/knowledge/roadmap.md`: the table row 2 links this folder, row 3 reads `done`, entry 12's Scope names evals, `/skill-doctor`, pinning, `skillOverrides`, agent memory and the extra hooks |

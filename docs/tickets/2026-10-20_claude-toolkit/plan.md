@@ -30,10 +30,22 @@
   `echo '{"last_assistant_message":"BLOCKED: x"}' | sh .claude/hooks/make-check.sh` exits 0, and
   `echo '{}' | CLAUDE_PROJECT_DIR=$PWD sh .claude/hooks/make-check.sh` exits 0 on a green tree.
 - **Verify:** the three commands above; `make check`;
-  `grep -rnE '(^|[^a-z/._-])main([^a-z._-]|$)' .claude/skills .claude/agents | grep -v 'main session'`
+  `git grep -nE -e '(^|[^a-z/._<-])main([^a-z_-]|$)' --and --not -e 'main session' --and --not -e 'no local .main.' -- .claude/skills .claude/agents`
   is empty; `git grep -n 'merge-base HEAD origin/main' -- .claude` lists `ticket-verify`,
   `verifier` and `explain`.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The Bash tool's `grep` is a `ugrep` shim that matches nothing on `(^|…)`, so the first R2
+    command passed vacuously; it also missed `main...HEAD` and flagged prose. The acceptance
+    became one `git grep` in `feature.md` and here (S1.2); R2 itself is unchanged. Verify and
+    Acceptance commands use `git grep` or `command grep`.
+  - Its two exclusions target `explain`: `<` in the leading class skips `<main class=…>` in
+    `REPORT.md`, and `no local .main.` skips the prose of `SKILL.md:15`; rewording either line
+    turns R2 red. Known blind spots: `HEAD..main`, a bare `main` on a line that also says
+    `main session`, and untracked files.
+  - `docs/knowledge/sdd.md` (the `/ticket-verify` row) is outside Files: it names `origin/main`
+    since S1.2, one commit after the skill changed in S1.1.
+  - The cd-failure message names the `BLOCKED:` way out, as the red path does.
 
 #### S2 — `paths:` match only the workspaces and the living docs
 
