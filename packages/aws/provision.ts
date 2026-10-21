@@ -1,8 +1,8 @@
 import {
   type BucketAlreadyExistsError,
+  type SdkError as S3SdkError,
   S3Service,
   type S3ServiceError,
-  type SdkError,
 } from '@effect-aws/client-s3'
 import {
   type InvalidAddressError,
@@ -14,6 +14,7 @@ import {
   type QueueNameExistsError,
   type RequestThrottledError,
   SQSService,
+  type SdkError as SqsSdkError,
   type UnsupportedOperationError,
 } from '@effect-aws/client-sqs'
 import { Array as Arr, type Cause, Effect, Option } from 'effect'
@@ -29,7 +30,8 @@ export interface ProvisionedResource {
 export type ProvisionError =
   | Cause.NoSuchElementError
   | Cause.TimeoutError
-  | SdkError
+  | S3SdkError
+  | SqsSdkError
   | BucketAlreadyExistsError
   | S3ServiceError
   | InvalidAddressError

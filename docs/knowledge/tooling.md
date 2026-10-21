@@ -7,12 +7,14 @@ them. Versions: Bun 1.4.3, TypeScript 7.0.2, Biome 2.5.15, husky 9.1.7, vitest 5
 ## Commands
 
 Everything runs through the root `Makefile` (GNU Make 3.81, the macOS default). There is no
-`Makefile` in any workspace.
+`Makefile` in any workspace. Beyond Bun, two tools are prerequisites: Docker, for `make test` and
+`make up`, and the Pulumi CLI, for `make setup`, `up` and `down`; `make check` needs only Docker.
 
 | Target | Runs | Use |
 |---|---|---|
-| `make setup` | `bun install`, then copies `.env.example` to `.env` if missing | first clone; installs the git hooks too |
-| `make up` · `down` · `reset` | Docker Compose with `deployment/local/docker-compose.yml`, then `deployment/local/provision.ts` | MiniStack for S3 and SQS: [aws.md › The local stand-in](aws.md#the-local-stand-in) |
+| `make setup` | `make stack`, then copies `.env.example` to `.env` if missing | first clone; installs the git hooks too |
+| `make stack` | `bun install`, `pulumi login` to the file backend under `.data/pulumi`, `stack select local` or `init` | idempotent; `up` and `down` run it first |
+| `make up` · `down` · `reset` | `pulumi up` / `destroy` on `deployment/local/`, then `deployment/local/provision.ts` | MiniStack for S3 and SQS: [aws.md › The local stand-in](aws.md#the-local-stand-in) |
 | `make dev` | `bun --filter './apps/*' dev` | all three processes, interleaved output |
 | `make dev-api` · `dev-worker` · `dev-web` | one app's `dev` script | one process |
 | `make debug-api` · `debug-worker` · `debug-web` | one app's `debug` script | the same mode plus `--inspect` |
@@ -102,8 +104,12 @@ server's `Bun.serve({ development })`.
 
 ## Environment
 
-- **One root `.env`**, gitignored. `.env.example` is its template and lists only what the code
-  reads. Variables of clients that are still stubs stay commented out.
+- **One root `.env`**, gitignored. `.env.example` is its template and lists what the code reads,
+  plus the variables a client SDK reads from the environment itself: the AWS SDK's default
+  provider chain takes `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` locally and the role on AWS,
+  whose session token rotates, so credentials never pass through `@app-template/config`
+  ([aws.md](aws.md#the-local-stand-in)). Variables of clients that are still stubs stay commented
+  out.
 - **Quoting.** Strings are double-quoted (`LOG_LEVEL="Info"`), numbers are bare (`API_PORT=3000`).
 - **Loading.** Each app script passes `--env-file=../../.env`, a path relative to the app folder.
   This works from `make` at the root and from `bun run dev` inside the app.
@@ -125,7 +131,7 @@ Workspaces reference it as `catalog:<namespace>`; the unnamed `catalog:` is not 
 |---|---|---|
 | `tools` | developer-workflow tools that never shape types or runtime behaviour | `@biomejs/biome`, `husky`, `vitest` |
 | `runtime` | everything else, including the runtime the code targets | `@types/bun`, `testcontainers` |
-| one per family | packages released in lock-step | `typescript`: `typescript`, `@effect/tsgo` (it embeds one TypeScript version) · `effect`: `effect`, `@effect/*` · `effect-aws`: `@effect-aws/*` (one release train over the AWS SDK; it pins the SDK as a range, so the lockfile holds the SDK version) |
+| one per family | packages released in lock-step | `typescript`: `typescript`, `@effect/tsgo` (it embeds one TypeScript version) · `effect`: `effect`, `@effect/*` · `effect-aws`: `@effect-aws/*` (one release train over the AWS SDK; it pins the SDK as a range, so the lockfile holds the SDK version) · `pulumi`: `@pulumi/pulumi` and its providers |
 
 `bunfig.toml` sets `exact = true`, so `bun add` writes `1.2.3`, never `^1.2.3`.
 

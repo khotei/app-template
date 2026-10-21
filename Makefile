@@ -2,26 +2,33 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help setup up down reset dev dev-api dev-worker dev-web debug-api debug-worker debug-web \
-  check ids lint fmt typecheck test clean outdated vendor-effect
+.PHONY: help setup stack up down reset dev dev-api dev-worker dev-web debug-api debug-worker \
+  debug-web check ids lint fmt typecheck test clean outdated vendor-effect
 
-COMPOSE = docker compose --project-directory . -f deployment/local/docker-compose.yml
+# The local Pulumi project: file backend and home under .data/, so a clone touches nothing outside
+# the repo; the passphrase is empty because the stack holds no secret.
+PULUMI = PULUMI_HOME=$(CURDIR)/.data/pulumi/home PULUMI_CONFIG_PASSPHRASE= pulumi -C deployment/local
 
 help: ## List all targets
 	@echo 'App Template: make <target>'
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) \
 		| awk 'BEGIN { FS = ":.*## " } { printf "  %-14s %s\n", $$1, $$2 }'
 
-setup: ## Install dependencies and create .env from .env.example if missing
-	bun install
+setup: stack ## Install dependencies, create .env if missing, prepare the local Pulumi stack
 	@test -f .env || (cp .env.example .env && echo "created .env from .env.example")
 
-up: ## Start MiniStack and provision the inventory on it
-	$(COMPOSE) up -d --wait
+stack: ## Log in to the file backend under .data/pulumi and select or create the local stack
+	bun install
+	@mkdir -p .data/pulumi
+	@$(PULUMI) login --non-interactive file://$(CURDIR)/.data/pulumi
+	@$(PULUMI) stack select local 2>/dev/null || $(PULUMI) stack init local
+
+up: stack ## Start MiniStack through Pulumi and provision the inventory on it
+	$(PULUMI) up --yes --skip-preview
 	bun --env-file=.env deployment/local/provision.ts
 
-down: ## Stop MiniStack
-	$(COMPOSE) down
+down: stack ## Stop MiniStack
+	$(PULUMI) destroy --yes --skip-preview
 
 reset: down ## Stop MiniStack and remove .data/ (its state, the store, the queue file)
 	rm -rf .data

@@ -41,6 +41,10 @@
     "effect-aws": {
       "@effect-aws/client-s3": "2.0.0",
       "@effect-aws/client-sqs": "2.0.0"
+    },
+    "pulumi": {
+      "@pulumi/docker": "5.2.0",
+      "@pulumi/pulumi": "3.270.0"
     }
   },
   "devDependencies": {

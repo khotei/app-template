@@ -32,9 +32,9 @@ const readLifecycleRules = Effect.fnUntraced(function* (stage: string) {
 
 type LifecycleRule = Effect.Success<ReturnType<typeof readLifecycleRules>>[number]
 
-const hasUnboundTagKey = (rule: LifecycleRule) => rule.Filter?.Tag?.Key === unboundTag.key
-const hasUnboundTagValue = (rule: LifecycleRule) => rule.Filter?.Tag?.Value === unboundTag.value
-const abortsIncompleteUploads = (rule: LifecycleRule) =>
+const isOnUnboundKey = (rule: LifecycleRule) => rule.Filter?.Tag?.Key === unboundTag.key
+const isOnUnboundValue = (rule: LifecycleRule) => rule.Filter?.Tag?.Value === unboundTag.value
+const isAbortingIncompleteUploads = (rule: LifecycleRule) =>
   rule.AbortIncompleteMultipartUpload !== undefined
 
 const findRule = Effect.fnUntraced(function* (
@@ -42,7 +42,7 @@ const findRule = Effect.fnUntraced(function* (
   holds: Predicate.Predicate<LifecycleRule>,
 ) {
   const rules = yield* readLifecycleRules(stage)
-  return Option.getOrUndefined(Arr.findFirst(rules, holds))
+  return Arr.findFirst(rules, holds)
 })
 
 const readQueueAttributes = Effect.fnUntraced(function* (name: string) {
@@ -74,11 +74,11 @@ describe('provision', () => {
       Effect.gen(function* () {
         yield* provision(resources, stage)
 
-        const rule = yield* findRule(stage, Predicate.and(hasUnboundTagKey, hasUnboundTagValue))
+        const rule = yield* findRule(stage, Predicate.and(isOnUnboundKey, isOnUnboundValue))
 
-        assert.isDefined(rule, 'no rule filters on the unbound tag')
-        assert.strictEqual(rule.Status, 'Enabled')
-        assert.strictEqual(rule.Expiration?.Days, bucket.lifecycle.unboundExpirationDays)
+        assert(Option.isSome(rule), 'no rule filters on the unbound tag')
+        assert.strictEqual(rule.value.Status, 'Enabled')
+        assert.strictEqual(rule.value.Expiration?.Days, bucket.lifecycle.unboundExpirationDays)
       }),
     )
 
@@ -86,12 +86,12 @@ describe('provision', () => {
       Effect.gen(function* () {
         yield* provision(resources, stage)
 
-        const rule = yield* findRule(stage, abortsIncompleteUploads)
+        const rule = yield* findRule(stage, isAbortingIncompleteUploads)
 
-        assert.isDefined(rule, 'no rule aborts incomplete multipart uploads')
-        assert.strictEqual(rule.Status, 'Enabled')
+        assert(Option.isSome(rule), 'no rule aborts incomplete multipart uploads')
+        assert.strictEqual(rule.value.Status, 'Enabled')
         assert.strictEqual(
-          rule.AbortIncompleteMultipartUpload?.DaysAfterInitiation,
+          rule.value.AbortIncompleteMultipartUpload?.DaysAfterInitiation,
           bucket.lifecycle.abortIncompleteUploadDays,
         )
       }),

@@ -10,6 +10,8 @@
     "@app-template/config": "workspace:*",
     "@effect-aws/client-s3": "catalog:effect-aws",
     "@effect-aws/client-sqs": "catalog:effect-aws",
+    "@pulumi/docker": "catalog:pulumi",
+    "@pulumi/pulumi": "catalog:pulumi",
     "effect": "catalog:effect"
   }
 }

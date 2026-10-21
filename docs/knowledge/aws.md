@@ -2,26 +2,38 @@
 
 How the app reaches S3 and SQS, locally and on AWS, and how the resources it needs are described,
 created and tested. The code: `packages/aws` (the inventory, the naming rule, the provisioner),
-`deployment/local/` (MiniStack and the local provisioner), `packages/testing/ministack.ts`.
+`deployment/local/` (the Pulumi project that runs MiniStack, and the local provisioner),
+`packages/testing/ministack.ts`.
 
 ## The local stand-in
 
 [MiniStack](https://hub.docker.com/r/ministackorg/ministack) emulates S3 and SQS on
-`http://localhost:4566`. Its image is pinned by digest in `deployment/local/docker-compose.yml` and
-in `packages/testing/ministack.ts`; bump both together.
+`http://localhost:4566`. `deployment/local/` is a Pulumi project of its own (`runtime: bun`):
+`@pulumi/docker`'s `Container` with the image by digest, the port, the environment, the bind mount
+of `.data/ministack` and the health check with `wait: true`, so `pulumi up` returns only once
+MiniStack answers. Its state is a file backend under `.data/pulumi` with an empty passphrase
+(nothing secret is stored), and `PULUMI_HOME` sits there too, so a clone touches nothing outside
+the repo. The image is pinned by digest in `deployment/local/index.ts` and in
+`packages/testing/ministack.ts`; bump both together.
 
 | Target | Does |
 |---|---|
-| `make up` | `docker compose up -d --wait`, then `deployment/local/provision.ts`: creates the inventory under `STAGE` and prints each resource as `created` or `unchanged`. A second run prints `unchanged` for everything. |
-| `make down` | stops the container. State survives: MiniStack writes it on shutdown and reads it on start, under `.data/ministack/`. |
-| `make reset` | `make down`, then removes `.data/` whole: MiniStack's state, the key-value store and the queue file. The way back after an inventory change that SQS refuses (below). |
+| `make stack` | `bun install`, logs in to the file backend, selects the `local` stack or creates it. Idempotent; `setup`, `up` and `down` run it first. |
+| `make up` | `pulumi up --yes --skip-preview`, then `deployment/local/provision.ts`: creates the inventory under `STAGE` and prints each resource as `created` or `unchanged`. A second run changes nothing in Pulumi and prints `unchanged` for every resource. |
+| `make down` | `pulumi destroy`: removes the container. State survives: MiniStack writes it on shutdown and reads it on start, under `.data/ministack/`. |
+| `make reset` | `make down`, then removes `.data/` whole: MiniStack's state, the Pulumi backend, the key-value store and the queue file. The way back after an inventory change that SQS refuses (below). |
+
+An `up` that fails on the health check leaves the container in the stack's state; `make down`
+destroys it, and the next `make up` starts afresh. MiniStack's default region comes from the stack
+config (`$(PULUMI) config set region …` in the Makefile's terms); it defaults to `us-east-1`, the
+value `.env.example` gives `AWS_REGION`.
 
 `AWS_REGION`, `AWS_ENDPOINT_URL` and `STAGE` are read through `AwsConfig` in
 `@app-template/config`; today the provisioner is its only reader, and the apps still run on the
-file store and the SQLite queue without `make up`. Credentials never pass through it: the SDK's default provider chain reads
-`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` from `.env` locally (any value satisfies MiniStack)
-and the role on AWS, whose session token rotates. With an endpoint set, S3 uses path-style
-addressing; without one, the SDK's own endpoints.
+file store and the SQLite queue without `make up`. Credentials never pass through it: the SDK's
+default provider chain reads `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` from `.env` locally
+(any value satisfies MiniStack) and the role on AWS, whose session token rotates. With an endpoint
+set, S3 uses path-style addressing; without one, the SDK's own endpoints.
 
 ## The inventory
 
@@ -53,10 +65,11 @@ reset`; on AWS, Pulumi (the deploy ticket).
 
 Tests at the AWS boundary (`packages/aws/*.test.ts`) start one MiniStack container per test file
 through the `MiniStack` layer in `@app-template/testing` (`testcontainers`), provision a fresh
-`test-<random>` stage from `buildStage()`, and stop the container with the suite. So `make test` needs a running Docker
-daemon from now on; the container starts in about two seconds, and the suites pass
-`{ timeout: '60 seconds' }` to `layer(…)` for the pull on a cold machine. Unique stages isolate
-parallel files without resets; nothing cleans a stage up, since the container goes with it.
+`test-<random>` stage from `buildStage()`, and stop the container with the suite. So `make test`
+needs a running Docker daemon from now on, and nothing else: the Pulumi project is for `make up`
+alone. The container starts in about two seconds, and the suites pass `{ timeout: '60 seconds' }`
+to `layer(…)` for the pull on a cold machine. Unique stages isolate parallel files without resets;
+nothing cleans a stage up, since the container goes with it.
 
 MiniStack differs from AWS in what it never does: lifecycle rules never run, the 5 MiB minimum
 part size is not enforced. What depends on those is checked on real AWS in the deploy ticket.

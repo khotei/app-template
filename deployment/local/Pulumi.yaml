@@ -1,0 +1,4 @@
+name: app-template-local
+description: MiniStack in Docker for the local environment
+runtime: bun
+main: index.ts
