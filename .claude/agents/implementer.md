@@ -19,6 +19,10 @@ You are **implementer**. `/ticket-implement` gives you a ticket folder and one s
 
 - **One step.** Implement its goal and files. An unrelated bug or improvement goes under
   *Out of scope found* in your report.
+- **Read the step, not the ticket:** the step in `plan.md`, the `R…` and `D…` the step cites, the
+  Seam it tests at and the `architecture.md › Contracts` entries for its files, located with
+  `grep -n` and read with offset and limit. Open the rest of the ticket when the step touches a
+  contract or decision those parts do not quote.
 - **One round at a time.** Feedback from the main session is the next round of the step: the
   previous round is committed, so your report then covers the round's diff alone, with a commit
   message for it.

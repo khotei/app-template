@@ -15,9 +15,9 @@ Bun + TypeScript 7 modular monolith; three processes: `apps/api`, `apps/worker`,
 | `apps/*` | thin entry points | [apps/CLAUDE.md](apps/CLAUDE.md) |
 | `deployment/` | local and AWS deployment | [deployment/CLAUDE.md](deployment/CLAUDE.md) |
 
-Imports only go down: `apps` → `application` → `infrastructure` → `domain`, and `apps` →
-`http-api` → `domain`. How the layers fit together:
-[docs/knowledge/architecture.md](docs/knowledge/architecture.md).
+Imports follow
+[docs/knowledge/architecture.md › Dependency rules](docs/knowledge/architecture.md#dependency-rules);
+Biome enforces them.
 
 ## Working here
 

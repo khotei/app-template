@@ -19,10 +19,8 @@ Imports are enforced by Biome; file and symbol names are convention (Biome has n
 
 - **Inside a workspace:** `#<workspace>/<path>` (declared in its `package.json` `imports`), never
   `./` or `../`. Example: `#domain/chat/chat.model`, `#api/layer`.
-- **Across workspaces:** `@app-template/<workspace>[/<entity>]`, only downward:
-  `apps` → `application` → `infrastructure` → `domain`, and `apps` → `http-api` → `domain`;
-  `packages/*` serve every layer except `domain` and `http-api`. Full matrix:
-  [docs/knowledge/architecture.md](../../docs/knowledge/architecture.md).
+- **Across workspaces:** `@app-template/<workspace>[/<entity>]`; which workspace may import which:
+  [architecture.md › Dependency rules](../../docs/knowledge/architecture.md#dependency-rules).
 - **Order:** `bun:`/`node:` → external packages → `@app-template/*` → `#…`, one blank line
   between groups. `make fmt` sorts and groups them.
 
