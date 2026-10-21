@@ -1,3 +1,28 @@
-# Stub: Postgres and MiniStack arrive with the first real db, storage or queue client.
+# Run through `make up`, `make down` and `make reset` from the repository root: the project
+# directory is the root, so `.env` and `.data/` resolve there.
 name: app-template
-services: {}
+services:
+  ministack:
+    # The same image as packages/testing/ministack.ts; bump both together.
+    image: ministackorg/ministack:1.5.29@sha256:88f507c57e16f5cac3c58dbdd4d47cfd14d6f870c38461aff7e077908253260b
+    ports:
+      - '4566:4566'
+    environment:
+      MINISTACK_REGION: ${AWS_REGION:-us-east-1}
+      # Service state is written on shutdown and read on start; S3 bytes are written as they land.
+      PERSIST_STATE: '1'
+      STATE_DIR: /data/state
+      S3_PERSIST: '1'
+      S3_DATA_DIR: /data/s3
+    volumes:
+      - ./.data/ministack:/data
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://localhost:4566/_ministack/health')
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 2s

@@ -3,8 +3,8 @@
 Generic, project-agnostic building blocks: `config`, the `queue` and `llm` clients, `ui`, and
 the test support `testing` (`.claude/rules/effect-tests.md`). Objects and rows use
 effect's `KeyValueStore`, not a package of ours. The one exception is `aws`: this project's
-resource data (the inventory and the naming rule), placed here so every layer and `deployment`
-can read it.
+resource data (the inventory, the naming rule, the provisioner), placed here so every layer and
+`deployment` can read it.
 
 - **Never import a layer** (`domain`, `http-api`, `infrastructure`, `application`), an app or
   `deployment`. Packages may import each other.

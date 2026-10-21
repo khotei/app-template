@@ -1,3 +1,5 @@
 export * from '#testing/log.fake'
+export * from '#testing/ministack'
 export * from '#testing/schema'
+export * from '#testing/stage'
 export * from '#testing/uuid'

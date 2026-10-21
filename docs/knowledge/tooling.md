@@ -12,7 +12,8 @@ Everything runs through the root `Makefile` (GNU Make 3.81, the macOS default). 
 | Target | Runs | Use |
 |---|---|---|
 | `make setup` | `bun install`, then copies `.env.example` to `.env` if missing | first clone; installs the git hooks too |
-| `make dev` | `bun --filter './apps/*' dev` | all three processes, interleaved output |
+| `make up` · `down` · `reset` | Docker Compose with `deployment/local/docker-compose.yml`, then `deployment/local/provision.ts` | MiniStack for S3 and SQS, provisioned; `reset` also removes `.data/`. [aws.md](aws.md) |
+| `make dev` | `bun --filter './apps/*' dev` | all three processes, interleaved output; needs `make up` |
 | `make dev-api` · `dev-worker` · `dev-web` | one app's `dev` script | one process |
 | `make debug-api` · `debug-worker` · `debug-web` | one app's `debug` script | the same mode plus `--inspect` |
 | `make check` | `ids`, `lint`, `typecheck`, `test` | the gate before every commit and step report |
@@ -20,7 +21,7 @@ Everything runs through the root `Makefile` (GNU Make 3.81, the macOS default). 
 | `make lint` | `biome check` | lint, format and import order, without writing |
 | `make fmt` | `biome check --write` | apply formatting, import sorting and safe fixes |
 | `make typecheck` | `bunx tsc -b`, the patched `tsc` | typecheck every workspace through the project references, Effect diagnostics included |
-| `make test` | `bun run test`, which is `bun --bun vitest run` | every colocated `*.test.ts` |
+| `make test` | `bun run test`, which is `bun --bun vitest run` | every colocated `*.test.ts`; the AWS suites need a running Docker daemon ([aws.md › Tests on Docker](aws.md#tests-on-docker)) |
 | `make outdated` | `bun outdated --recursive` | newer versions for every workspace |
 | `make vendor-effect` | `git subtree pull --squash --prefix repos/effect` of the `effect@<pin>` tag | update `repos/effect` to the catalog pin; it commits, so run it on a clean tree. First time: `git subtree add` with the same arguments |
 | `make clean` | removes every `node_modules` and `coverage` | a clean reinstall: follow with `make setup` |
@@ -122,9 +123,9 @@ Workspaces reference it as `catalog:<namespace>`; the unnamed `catalog:` is not 
 
 | Namespace | Holds | Today |
 |---|---|---|
-| `tools` | developer-workflow tools that never shape types or runtime behaviour | `@biomejs/biome`, `husky`, `vitest` |
+| `tools` | developer-workflow tools that never shape types or runtime behaviour | `@biomejs/biome`, `husky`, `testcontainers`, `vitest` |
 | `runtime` | everything else, including the runtime the code targets | `@types/bun` |
-| one per family | packages released in lock-step | `typescript`: `typescript`, `@effect/tsgo` (it embeds one TypeScript version) · `effect`: `effect`, `@effect/*` |
+| one per family | packages released in lock-step | `typescript`: `typescript`, `@effect/tsgo` (it embeds one TypeScript version) · `effect`: `effect`, `@effect/*` · `effect-aws`: `@effect-aws/*` (one release train over the AWS SDK; it pins the SDK as a range, so the lockfile holds the SDK version) |
 
 `bunfig.toml` sets `exact = true`, so `bun add` writes `1.2.3`, never `^1.2.3`.
 

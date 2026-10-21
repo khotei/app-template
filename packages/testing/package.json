@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@effect/vitest": "catalog:effect",
-    "effect": "catalog:effect"
+    "effect": "catalog:effect",
+    "testcontainers": "catalog:tools"
   }
 }

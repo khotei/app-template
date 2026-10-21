@@ -1,8 +1,18 @@
 import { assert, describe, it } from '@effect/vitest'
-import { type Config, ConfigProvider, Duration, Effect, Layer, LogLevel, References } from 'effect'
+import {
+  type Config,
+  ConfigProvider,
+  Duration,
+  Effect,
+  Layer,
+  LogLevel,
+  Option,
+  References,
+} from 'effect'
 
 import {
   ApiConfig,
+  AwsConfig,
   MinimumLogLevelFromConfig,
   QueueConfig,
   RuntimeConfig,
@@ -13,12 +23,18 @@ const provideVariables = <A, E>(layer: Layer.Layer<A, E>, variables: Record<stri
   layer.pipe(Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(variables))))
 
 describe('config layers', () => {
-  it.effect.each<{ variable: string; layer: Layer.Layer<never, Config.ConfigError> }>([
+  it.effect.each<{
+    variable: string
+    layer: Layer.Layer<never, Config.ConfigError>
+    given?: Record<string, string>
+  }>([
     { variable: 'API_PORT', layer: ApiConfig.layer },
     { variable: 'STORE_PATH', layer: StoreConfig.layer },
-  ])('fails with a ConfigError naming a missing $variable', ({ variable, layer }) =>
+    { variable: 'AWS_REGION', layer: AwsConfig.layer },
+    { variable: 'STAGE', layer: AwsConfig.layer, given: { AWS_REGION: 'eu-central-1' } },
+  ])('fails with a ConfigError naming a missing $variable', ({ variable, layer, given }) =>
     Effect.gen(function* () {
-      const error = yield* Effect.flip(Layer.build(provideVariables(layer, {})))
+      const error = yield* Effect.flip(Layer.build(provideVariables(layer, given ?? {})))
 
       assert.strictEqual(error._tag, 'ConfigError')
       assert.include(error.message, variable)
@@ -69,6 +85,44 @@ describe('config layers', () => {
         assert.include(error.message, `QUEUE_LOCK_REFRESH_INTERVAL ${printed}`)
         assert.include(error.message, 'QUEUE_LOCK_EXPIRATION (5s)')
       }),
+  )
+
+  it.effect.each([
+    { endpoint: undefined, parsed: Option.none<string>() },
+    { endpoint: 'http://localhost:4566', parsed: Option.some('http://localhost:4566/') },
+  ])('reads AWS settings with AWS_ENDPOINT_URL=$endpoint', ({ endpoint, parsed }) =>
+    Effect.gen(function* () {
+      const { region, endpoint, stage } = yield* AwsConfig
+
+      assert.deepStrictEqual(
+        { region, endpoint: Option.map(endpoint, String), stage },
+        { region: 'eu-central-1', endpoint: parsed, stage: 'local' },
+      )
+    }).pipe(
+      Effect.provide(
+        provideVariables(AwsConfig.layer, {
+          AWS_REGION: 'eu-central-1',
+          STAGE: 'local',
+          ...(endpoint === undefined ? {} : { AWS_ENDPOINT_URL: endpoint }),
+        }),
+      ),
+    ),
+  )
+
+  it.effect('rejects an AWS_ENDPOINT_URL that is not a URL', () =>
+    Effect.gen(function* () {
+      const error = yield* Effect.flip(
+        Layer.build(
+          provideVariables(AwsConfig.layer, {
+            AWS_REGION: 'eu-central-1',
+            STAGE: 'local',
+            AWS_ENDPOINT_URL: 'not a url',
+          }),
+        ),
+      )
+
+      assert.include(error.message, 'AWS_ENDPOINT_URL')
+    }),
   )
 
   it.effect.each(LogLevel.values)('sets the minimum log level to LOG_LEVEL=%s', (level) =>

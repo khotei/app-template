@@ -1,2 +1,9 @@
 export { buildResourceName, projectName } from '#aws/naming'
-export { type BucketResource, type QueueResource, resources } from '#aws/resources'
+export { type ProvisionedResource, provision } from '#aws/provision'
+export {
+  type BucketResource,
+  type QueueResource,
+  type Resources,
+  resources,
+  unboundTag,
+} from '#aws/resources'

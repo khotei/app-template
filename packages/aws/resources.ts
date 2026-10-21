@@ -12,6 +12,14 @@ export interface QueueResource {
   readonly maxReceiveCount: number
 }
 
+export interface Resources {
+  readonly buckets: Record<string, BucketResource>
+  readonly queues: Record<string, QueueResource>
+}
+
+/** The object tag the expiration rule selects; the store sets it on insert and clears it on keep. */
+export const unboundTag = { key: 'unbound', value: 'true' } as const
+
 export const resources = {
   buckets: {
     attachments: {
@@ -23,7 +31,4 @@ export const resources = {
     assistantMessage: { name: 'assistant-message', maxReceiveCount: 4 },
     chatTitle: { name: 'chat-title', maxReceiveCount: 5 },
   },
-} as const satisfies {
-  readonly buckets: Record<string, BucketResource>
-  readonly queues: Record<string, QueueResource>
-}
+} as const satisfies Resources

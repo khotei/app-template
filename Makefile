@@ -2,8 +2,10 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help setup dev dev-api dev-worker dev-web debug-api debug-worker debug-web \
+.PHONY: help setup up down reset dev dev-api dev-worker dev-web debug-api debug-worker debug-web \
   check ids lint fmt typecheck test clean outdated vendor-effect
+
+COMPOSE = docker compose --project-directory . -f deployment/local/docker-compose.yml
 
 help: ## List all targets
 	@echo 'App Template: make <target>'
@@ -13,6 +15,16 @@ help: ## List all targets
 setup: ## Install dependencies and create .env from .env.example if missing
 	bun install
 	@test -f .env || (cp .env.example .env && echo "created .env from .env.example")
+
+up: ## Start MiniStack and provision the inventory on it
+	$(COMPOSE) up -d --wait
+	bun --env-file=.env deployment/local/provision.ts
+
+down: ## Stop MiniStack
+	$(COMPOSE) down
+
+reset: down ## Stop MiniStack and remove .data/ (its state, the store, the queue file)
+	rm -rf .data
 
 dev: ## Run api, worker and web together in dev mode
 	bun --filter './apps/*' dev

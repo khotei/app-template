@@ -22,6 +22,7 @@
     "tools": {
       "@biomejs/biome": "2.5.15",
       "husky": "9.1.7",
+      "testcontainers": "12.2.1",
       "vitest": "5.0.5"
     },
     "runtime": {
@@ -36,6 +37,10 @@
       "@effect/sql-sqlite-bun": "4.0.5",
       "@effect/vitest": "4.0.5",
       "effect": "4.0.5"
+    },
+    "effect-aws": {
+      "@effect-aws/client-s3": "2.0.0",
+      "@effect-aws/client-sqs": "2.0.0"
     }
   },
   "devDependencies": {

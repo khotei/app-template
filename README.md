@@ -108,6 +108,7 @@ step or module is one `/explain` away (see
 | How do I run, debug, test, add a dependency or a workspace? Why did a check fail? | [docs/knowledge/tooling.md](docs/knowledge/tooling.md) |
 | Which layer does my code belong to, and what may it import? How do I add an entity? | [docs/knowledge/architecture.md](docs/knowledge/architecture.md) |
 | What do the domain words mean? | [docs/knowledge/glossary.md](docs/knowledge/glossary.md) |
+| How do the apps reach S3 and SQS, locally and on AWS? How is a resource added? | [docs/knowledge/aws.md](docs/knowledge/aws.md) |
 | How is a change specified, planned, implemented and verified? What do the `/ticket-*` skills use under the hood? | [docs/knowledge/sdd.md](docs/knowledge/sdd.md) |
 | What is built next, in which order, and what does each ticket inherit? | [docs/knowledge/roadmap.md](docs/knowledge/roadmap.md) |
 | What are the rules for one layer? | its `CLAUDE.md`, listed in [CLAUDE.md](CLAUDE.md) |
