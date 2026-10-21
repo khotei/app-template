@@ -28,7 +28,10 @@ graph LR
 | `.claude/rules/claude-md.md` | six condensed toolkit lines; `docs/**` → `docs/knowledge/**` | R3, R4 |
 | `.claude/rules/tooling.md` | the lines `settings.json`, `.gitignore` and the knowledge doc already own are cut | R3 |
 | `packages/CLAUDE.md` | the new-workspace pointer goes to `docs/knowledge/tooling.md` | R3 |
-| `docs/knowledge/roadmap.md` | entries 2, 3, 12 (landed with `feature.md`) | R5 |
+| `docs/knowledge/roadmap.md` | entries 2, 3, 12 (landed with `feature.md`); entry 13 linked | R5 |
+| `docs/tickets/*/` | renamed `<YYYY-MM-DD-HHmm>_<slug>` with `git mv` | R6 |
+| `CLAUDE.md`, `.claude/rules/{sdd,commits,claude-md}.md`, `ticket-feature/SKILL.md`, `PULL_REQUEST_TEMPLATE.md`, `docs/knowledge/sdd.md`, `docs/tickets/_template/*` | the pattern gains `-HHmm` | R6 |
+| `README.md`, `docs/knowledge/{architecture,roadmap}.md`, `PULL_REQUEST_example.md`, ticket artifacts | old folder names replaced | R6 |
 
 ## Contracts
 
@@ -70,10 +73,19 @@ matches none of them.
   folding the rule into the skill, which would make `commits.md` and the skill two authors of the
   PR body format.
 
+- **D4 — Folders are `<YYYY-MM-DD-HHmm>_<slug>`, in local time at creation; existing folders take
+  the time of their first commit on the teaching branch.** The date stays readable and the name
+  sorts by start. *Rejected:* a compact `YYYYMMDDHHmmss`, as migration tools use, which sorts the
+  same and reads worse; the first commit on `main`, where squash merges give `chat-core` and
+  `aws-local` the same time; a `make` check on the name, since one skill creates the folders and
+  the user declined format gates. `Refs:` in pushed commits keep the old paths, and
+  `docs/knowledge/sdd.md` says how to follow one.
+
 ## Risks
 
 | Risk | Mitigation |
 |---|---|
 | A rule's YAML breaks while editing `paths:` and the rule loads unconditionally without an error | the verification runs `claude --debug` once over `.claude/rules/*.md` |
 | The 140-line budget is met by cutting a line that did change behaviour | every cut names its owner (`settings.json › deny`, `.gitignore`, `docs/knowledge/tooling.md`) in the step's findings |
+| A branch elsewhere still adds files under an old folder name (`aws-local` is in progress) | git reports a file added to a renamed directory as a conflict; that branch moves its files with `git mv` when it merges `main` |
 | A rule moved behind `paths:` is needed by a session that never touches a matching file | `pull-requests.md` is read by name from `/ticket-verify`; the toolkit lines are needed only when `.claude/` is edited, which matches |

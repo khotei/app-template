@@ -45,6 +45,12 @@ the first is reviewed.
   `commit-msg` hook for `commits.md`" is dropped by the user: a format gate on every commit taxes
   work done without a ticket, for 5 misses in 77 commits that the review already caught.
 
+- **Ticket folder order** (roadmap entry 13, taken in on 2026-10-21). `docs/tickets/` lists
+  `2026-10-17_chat-core` above the earlier `2026-10-17_template-bootstrap`. Renaming only the newer
+  folder does not help, since `-` sorts before `_`. On `main` each ticket is one squash commit, so
+  a folder's start time comes from its first commit on the teaching branch. An old `Refs:` path
+  still resolves with `git show <sha>:<path>`, and `git log --follow` finds the rename.
+
 ## Scope
 
 - The `Stop` hook blocks on its own failure.
@@ -53,6 +59,7 @@ the first is reviewed.
   moved into `claude-md.md`, `tooling.md` trimmed to what nothing else enforces.
 - `claude-md.md` loads for the living docs and the toolkit, not for ticket artifacts.
 - Roadmap: entry 2 absorbed by this ticket, entry 3 done, the deferred items moved to entry 12.
+- Ticket folders are named `<YYYY-MM-DD-HHmm>_<slug>`; the six existing folders are renamed.
 
 ## Out of scope
 
@@ -63,6 +70,7 @@ the first is reviewed.
   `SessionStart` and `PostToolUse` hooks: `template-handoff` (roadmap entry 12). No recorded
   mistake would have been prevented by any of them.
 - Product code, and the SDD gates themselves.
+- Rewriting `Refs:` in commits already pushed, and a `make` check on folder names.
 
 ## Requirements
 
@@ -85,7 +93,15 @@ the first is reviewed.
 ### The record
 
 - **R5** — WHEN this ticket starts, THE SYSTEM SHALL link roadmap entry 2 to this folder, mark
-  entry 3 done, and list the deferred toolkit items under entry 12.
+  entry 3 done, and list the deferred toolkit items under entry 12. WHEN it takes in a later
+  roadmap entry, THE SYSTEM SHALL link that entry to this folder.
+
+### The ticket folders
+
+- **R6** — WHEN `/ticket-feature` creates a ticket folder, THE SYSTEM SHALL name it
+  `docs/tickets/<YYYY-MM-DD-HHmm>_<slug>/` with the local start time, so `ls docs/tickets` lists
+  tickets in the order they started; every existing folder SHALL carry the time of its first
+  commit on the teaching branch, and no tracked file SHALL name a folder by its old name.
 
 ## Acceptance
 
@@ -95,7 +111,8 @@ the first is reviewed.
 | R2 | `git grep -nE -e '(^\|[^a-z/._<-])main([^a-z_-]\|$)' --and --not -e 'main session' --and --not -e 'no local .main.' -- .claude/skills .claude/agents` is empty; `git grep -n 'merge-base HEAD origin/main' -- .claude` lists `ticket-verify`, `verifier` and `explain` |
 | R3 | `cat CLAUDE.md $(grep -L '^paths:' .claude/rules/*.md) \| wc -l` ≤ 140; `grep -c '^paths:' .claude/rules/pull-requests.md` is 1; `grep -n 'Toolkit layout' .claude/rules/sdd.md` is empty and `grep -n 'disable-model-invocation' .claude/rules/claude-md.md` is not; `grep -nE 'no-verify\|npm\|bun test\|tsc -b emits\|New workspace\|Double-quote' .claude/rules/tooling.md` is empty |
 | R4 | the frontmatter of `claude-md.md` lists `docs/knowledge/**`, not `docs/**`; `claude --debug` shows no frontmatter parse error for `.claude/rules/*.md` |
-| R5 | `docs/knowledge/roadmap.md`: the table row 2 links this folder, row 3 reads `done`, entry 12's Scope names evals, `/skill-doctor`, pinning, `skillOverrides`, agent memory and the extra hooks |
+| R5 | `docs/knowledge/roadmap.md`: the table row 2 links this folder, row 3 reads `done`, entry 12's Scope names evals, `/skill-doctor`, pinning, `skillOverrides`, agent memory and the extra hooks; row 13 links this folder |
+| R6 | `ls docs/tickets` lists `2026-10-16-1433_monorepo-setup`, `2026-10-16-1607_effect-setup`, `2026-10-17-1508_template-bootstrap`, `2026-10-17-1748_chat-core`, `2026-10-19-1448_aws-local`, `2026-10-20-2313_claude-toolkit`, `_template` in this order; `git grep -nE '2026-10-(15_monorepo-setup\|16_effect-setup\|17_template-bootstrap\|17_chat-core\|19_aws-local\|20_claude-toolkit)' -- ':!docs/tickets/*claude-toolkit/'` and `git grep -n '<YYYY-MM-DD>_'` are empty |
 
 ## Open questions
 
@@ -112,6 +129,10 @@ here and a step in `plan.md`:
 - Biome guards for `node:`/`bun:` imports and `Bun`/`process` globals in the browser-facing layers,
   and `Date`/`crypto`/`fetch` in `domain`: no recorded agent mistake, but a hand grep in every
   verification.
+- Agents read their step, not the whole ticket: in `chat-core` the implementer and both
+  reviewers each read about 60k tokens of `feature.md`, `architecture.md` and `plan.md` per step,
+  where the step and the `R…` and `D…` it cites hold 1–2k. A reading rule in `implementer` and
+  `reviewer`, or one file per step: settled in the second wave.
 - Small cuts: `sdd.md` round ids `S11.1` → `<step>.1`; the `http-api/CLAUDE.md` Layout line;
   three `effect-schema.md` lines that restate `domain/CLAUDE.md`; four `sdd.md` lines that restate
   `CLAUDE.md`; a `deny` on `--no-verify` instead of a rule line.

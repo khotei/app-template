@@ -102,6 +102,27 @@
   by hand, in a fresh session: `/context` shows the always-loaded set without `pull-requests.md`.
 - **Status:** todo
 
+#### S4 — Ticket folders sort by start time
+
+- **Goal:** ticket folders are named `<YYYY-MM-DD-HHmm>_<slug>`, the six existing ones renamed and
+  every pointer updated (R6; D4).
+- **Blocked by:** S3 (both edit `CLAUDE.md`, `sdd.md` and `claude-md.md`).
+- **Files:** `git mv` of `2026-10-15_monorepo-setup` → `2026-10-16-1433_…`, `2026-10-16_effect-setup`
+  → `2026-10-16-1607_…`, `2026-10-17_template-bootstrap` → `2026-10-17-1508_…`,
+  `2026-10-17_chat-core` → `2026-10-17-1748_…`, `2026-10-19_aws-local` → `2026-10-19-1448_…`,
+  `2026-10-20_claude-toolkit` → `2026-10-20-2313_…`; the pattern in `CLAUDE.md`,
+  `.claude/rules/{sdd,commits,claude-md}.md`, `.claude/skills/ticket-feature/SKILL.md` (the
+  folder row: `<now YYYY-MM-DD-HHmm>`), `.github/PULL_REQUEST_TEMPLATE.md`,
+  `docs/tickets/_template/*.md` and `docs/knowledge/sdd.md`, which also gains one line on following
+  an old `Refs:` path; the old names replaced in `README.md`, `docs/knowledge/{architecture,roadmap}.md`,
+  `.github/PULL_REQUEST_example.md` and the ticket artifacts.
+- **Test first:** `config only`.
+- **Verify:** `make check`; R6's acceptance commands;
+  `lychee --offline README.md 'docs/**/*.md' '.claude/**/*.md' '*/CLAUDE.md'` reports 0 errors;
+  `git log --follow --oneline -- docs/tickets/2026-10-17-1748_chat-core/feature.md` reaches the
+  commits made under the old name.
+- **Status:** todo
+
 ## Requirement coverage
 
 | Req | Steps |
@@ -110,4 +131,5 @@
 | R2 | S1 |
 | R3 | S3 |
 | R4 | S2 |
-| R5 | landed with `feature.md` (roadmap entries 2, 3, 12); re-checked at `/ticket-verify` |
+| R5 | landed with `feature.md` (roadmap entries 2, 3, 12) and entry 13 with R6; re-checked at `/ticket-verify` |
+| R6 | S4 |

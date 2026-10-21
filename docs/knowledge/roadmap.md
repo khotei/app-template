@@ -47,7 +47,7 @@ graph LR
 | 10 | [`client-publishing`](#10-client-publishing) | `chore` | 3 | planned |
 | 11 | [`workflow-cluster`](#11-workflow-cluster) | `feat` | 4, 8 | planned, exploratory |
 | 12 | [`template-handoff`](#12-template-handoff) | `chore` | all above | planned |
-| 13 | [`ticket-folder-order`](#13-ticket-folder-order) | `chore` | 3 | deferred |
+| 13 | [`ticket-folder-order`](#13-ticket-folder-order) | `chore` | 3 | in progress: [docs/tickets/2026-10-20_claude-toolkit/](../tickets/2026-10-20_claude-toolkit/feature.md) |
 
 The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining work is re-homed in
 [Re-homing `effect-setup`](#re-homing-effect-setup).
@@ -380,7 +380,8 @@ The ticket `2026-10-16_effect-setup` is **superseded at S12**; its remaining wor
     `git log --follow` finds the rename.
   - Rewriting `Refs:` is safe only in unpushed commits; on `main` it needs a force-push.
   - No script parses the folder name.
-- **Status.** Deferred: taken when there is time, after `chat-core` merges.
+- **Status.** In progress: taken into `claude-toolkit` (2) as R6,
+  [docs/tickets/2026-10-20_claude-toolkit/](../tickets/2026-10-20_claude-toolkit/feature.md).
 
 ## Re-homing `effect-setup`
 
