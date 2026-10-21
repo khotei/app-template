@@ -44,3 +44,6 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Claude Code personal settings
 .claude/settings.local.json
+
+# worktrees of agents started with `isolation: worktree`
+.claude/worktrees
