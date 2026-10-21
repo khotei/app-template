@@ -23,9 +23,8 @@ the first is reviewed.
   `tooling.md › New workspace` checklist only when `.claude/` or a workspace is edited;
   `tooling.md` restates what `settings.json › deny`, `.gitignore` and `docs/knowledge/tooling.md`
   already enforce or own.
-- **`paths:` globs.** `**/*.ts` on six rules also matches `node_modules/**/*.d.ts` and
-  `repos/effect`, so reading a library source loads about 4 400 tokens of our rules;
-  `claude-md.md` matches `docs/**`, so every ticket edit loads it.
+- **`paths:` globs.** `claude-md.md` matches `docs/**`, so every ticket edit loads it. `**/*.ts`
+  on six rules also matches `node_modules/**/*.d.ts` and `repos/effect`; kept, see D1.
 - **The `Stop` contract** (code.claude.com/docs/en/hooks): only exit 2 blocks; any other non-zero
   code lets the stop proceed. `make-check.sh` exits 1 when `cd` fails, so a wrong
   `CLAUDE_PROJECT_DIR` releases `implementer` with the gate unrun.
@@ -52,7 +51,7 @@ the first is reviewed.
 - Skills and agents name the fixed point as `git merge-base HEAD origin/main`.
 - The always-loaded set shrinks: `pull-requests.md` behind `paths:`, `sdd.md › Toolkit layout`
   moved into `claude-md.md`, `tooling.md` trimmed to what nothing else enforces.
-- `paths:` globs match only our workspaces, and `claude-md.md` only the living docs.
+- `claude-md.md` loads for the living docs and the toolkit, not for ticket artifacts.
 - Roadmap: entry 2 absorbed by this ticket, entry 3 done, the deferred items moved to entry 12.
 
 ## Out of scope
@@ -80,9 +79,8 @@ the first is reviewed.
   rules without `paths:`; `pull-requests.md` SHALL load only for `.github/**`; the constraints of
   `sdd.md › Toolkit layout` SHALL live in `claude-md.md`; `tooling.md` SHALL state nothing that
   `settings.json › deny`, `.gitignore` or `docs/knowledge/tooling.md` already enforces or owns.
-- **R4** — WHEN Claude reads or edits a `.ts` file outside the workspaces (`node_modules`,
-  `repos/`), THE SYSTEM SHALL load none of `effect*.md`, `naming.md` and `comments.md`; WHEN it
-  edits a file under `docs/tickets/`, THE SYSTEM SHALL not load `claude-md.md`.
+- **R4** — WHEN Claude edits a file under `docs/tickets/`, THE SYSTEM SHALL not load
+  `claude-md.md`.
 
 ### The record
 
@@ -96,7 +94,7 @@ the first is reviewed.
 | R1 | `echo '{}' \| CLAUDE_PROJECT_DIR=/nonexistent sh .claude/hooks/make-check.sh; echo $?` prints a message naming the directory and `2` |
 | R2 | `git grep -nE -e '(^\|[^a-z/._<-])main([^a-z_-]\|$)' --and --not -e 'main session' --and --not -e 'no local .main.' -- .claude/skills .claude/agents` is empty; `git grep -n 'merge-base HEAD origin/main' -- .claude` lists `ticket-verify`, `verifier` and `explain` |
 | R3 | `cat CLAUDE.md $(grep -L '^paths:' .claude/rules/*.md) \| wc -l` ≤ 140; `grep -c '^paths:' .claude/rules/pull-requests.md` is 1; `grep -n 'Toolkit layout' .claude/rules/sdd.md` is empty and `grep -n 'disable-model-invocation' .claude/rules/claude-md.md` is not; `grep -nE 'no-verify\|npm\|bun test\|tsc -b emits\|New workspace\|Double-quote' .claude/rules/tooling.md` is empty |
-| R4 | every `paths:` entry of `effect*.md`, `naming.md` and `comments.md` starts with a workspace directory or is a root `package.json`; `claude-md.md` lists `docs/knowledge/**`, not `docs/**`; `claude --debug` shows no frontmatter parse error for `.claude/rules/*.md` |
+| R4 | the frontmatter of `claude-md.md` lists `docs/knowledge/**`, not `docs/**`; `claude --debug` shows no frontmatter parse error for `.claude/rules/*.md` |
 | R5 | `docs/knowledge/roadmap.md`: the table row 2 links this folder, row 3 reads `done`, entry 12's Scope names evals, `/skill-doctor`, pinning, `skillOverrides`, agent memory and the extra hooks |
 
 ## Open questions

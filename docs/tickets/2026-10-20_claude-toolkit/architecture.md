@@ -12,7 +12,7 @@ hook by hand.
 ```mermaid
 graph LR
   session[session start] --> always["CLAUDE.md + rules without paths:<br/>202 → ≤ 140 lines"]
-  edit["read or edit a file"] -->|"&lt;workspace&gt;/**/*.ts"| effect["effect*.md, naming.md,<br/>comments.md"]
+  edit["read or edit a file"] -->|"**/*.ts"| effect["effect*.md, naming.md,<br/>comments.md"]
   edit -->|".github/**"| pr["pull-requests.md"]
   edit -->|".claude/**, docs/knowledge/**, CLAUDE.md"| cm["claude-md.md + toolkit layout"]
 ```
@@ -28,8 +28,6 @@ graph LR
 | `.claude/rules/claude-md.md` | six condensed toolkit lines; `docs/**` → `docs/knowledge/**` | R3, R4 |
 | `.claude/rules/tooling.md` | the lines `settings.json`, `.gitignore` and the knowledge doc already own are cut | R3 |
 | `packages/CLAUDE.md` | the new-workspace pointer goes to `docs/knowledge/tooling.md` | R3 |
-| `.claude/rules/{effect,effect-schema,effect-services,effect-style,effect-tests,naming,comments,use-cases}.md` | `paths:` enumerate the workspace directories | R4 |
-| `docs/knowledge/tooling.md` | a `paths:` step in *Add a workspace* | R4 |
 | `docs/knowledge/roadmap.md` | entries 2, 3, 12 (landed with `feature.md`) | R5 |
 
 ## Contracts
@@ -37,10 +35,9 @@ graph LR
 **`make-check.sh`.** Unchanged input (the `Stop` JSON on stdin) and outputs; the one new path:
 `cd` fails → a message on stderr naming the directory, exit 2.
 
-**Rule frontmatter.** `paths:` lists only; a glob is `<dir>/**/*.ts` for each top-level workspace
-directory, or `{a,b}/**/*.ts` as one line. The seven directories are the root `package.json`
-`workspaces` with the `/*` suffix dropped: `domain`, `http-api`, `application`, `infrastructure`,
-`packages`, `apps`, `deployment`.
+**Rule frontmatter.** `paths:` lists only. The code rules keep `**/*.ts`; `claude-md.md` lists
+`**/CLAUDE.md`, `.claude/**` and `docs/knowledge/**`, so a ticket artifact under `docs/tickets/`
+matches none of them.
 
 **Always-loaded budget.** Root `CLAUDE.md` plus every rule without `paths:` is at most 140 lines.
 
@@ -54,11 +51,14 @@ directory, or `{a,b}/**/*.ts` as one line. The seven directories are the root `p
 
 ## Decisions
 
-- **D1 — `paths:` enumerate the workspace directories instead of `**/*.ts`.** Reading a library
-  source in `node_modules` or `repos/effect` then loads no rule of ours. *Rejected:* keeping
-  `**/*.ts`, since `paths:` has no negation; a `claudeMdExcludes` setting, which excludes
-  `CLAUDE.md` files, not rules. The cost, six frontmatters to edit when a new top-level layer
-  appears, is one step in `docs/knowledge/tooling.md › Add a workspace`.
+- **D1 — The code rules keep `**/*.ts`; only `claude-md.md` narrows, from `docs/**` to
+  `docs/knowledge/**`.** Editing a ticket artifact then loads no `claude-md.md`, and the rules a
+  library read pulls in are the ones almost every session loads anyway. *Rejected:* enumerating
+  the workspace directories (`{domain,…,deployment}/**/*.ts`), tried and reverted within this
+  ticket: the workspace-local `node_modules` symlinks still matched it and `paths:` has no
+  negation, almost every session touches a workspace `.ts` file anyway, and it cost a list
+  repeated 9 times plus an *Add a workspace* step for every new top-level directory. Also
+  rejected: a `claudeMdExcludes` setting, which excludes `CLAUDE.md` files, not rules.
 - **D2 — The toolkit-layout constraints move to `claude-md.md`, condensed, rather than being
   deleted or kept in `sdd.md`.** They bind only when `.claude/` is edited, which is what
   `claude-md.md`'s `paths:` already express; the one with a recorded violation (the dependency

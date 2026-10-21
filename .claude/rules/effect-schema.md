@@ -1,6 +1,6 @@
 ---
 paths:
-  - "{domain,http-api,application,infrastructure,packages,apps,deployment}/**/*.ts"
+  - "**/*.ts"
 ---
 
 # Effect: schemas and failures

@@ -47,28 +47,27 @@
     since S1.2, one commit after the skill changed in S1.1.
   - The cd-failure message names the `BLOCKED:` way out, as the red path does.
 
-#### S2 — `paths:` match only the workspaces and the living docs
+#### S2 — `claude-md.md` matches only the living docs
 
-- **Goal:** reading `node_modules/**/*.d.ts` or `repos/effect` loads none of the Effect, naming
-  or comments rules, and editing a ticket artifact loads no `claude-md.md` (R4; D1).
+- **Goal:** editing a ticket artifact loads no `claude-md.md`; the code rules keep `**/*.ts`
+  (R4; D1).
 - **Blocked by:** none.
-- **Files:** `.claude/rules/{effect,effect-schema,effect-services,effect-style,naming,comments}.md`
-  (`**/*.ts` → `{domain,http-api,application,infrastructure,packages,apps,deployment}/**/*.ts`;
-  `naming.md` keeps `package.json` as the root file plus the same directories);
-  `.claude/rules/effect-tests.md` (`**/*.test.ts`, `**/testing/**` → the same prefix);
-  `.claude/rules/claude-md.md` (`docs/**` → `docs/knowledge/**`);
-  `docs/knowledge/tooling.md › Add a workspace` (a new top-level layer adds its directory to the
-  `paths:` of those rules; `packages/*` and `apps/*` are covered). `use-cases.md` is already
-  scoped and does not change.
+- **Files:** `.claude/rules/claude-md.md` (`docs/**` → `docs/knowledge/**`).
 - **Test first:** `config only`.
-- **Verify:** `make check`; every `paths:` entry of `effect*.md`, `naming.md` and `comments.md`
-  starts with a workspace directory or a brace list of them, or is `package.json`;
-  `grep -n 'docs/' .claude/rules/claude-md.md` shows `docs/knowledge/**` only; each edited
-  frontmatter still opens and closes with `---` and parses as a YAML list (`bun -e` over the
-  file, or `claude --debug` in a fresh session, which must report no frontmatter error);
-  by hand, in a fresh session: read `node_modules/effect/package.json`, then `/context` lists no
-  rule of ours.
-- **Status:** todo
+- **Verify:** `make check`;
+  `awk '/^---$/{n++; next} n==1' .claude/rules/claude-md.md | command grep -n 'docs/'` shows
+  `docs/knowledge/**` only; the edited frontmatter still opens and closes with `---` and parses as
+  a YAML list (`bun -e` over the file, or `claude --debug` in a fresh session, which must report
+  no frontmatter error).
+- **Status:** done
+- **Findings:**
+  - S2.1 enumerated the workspace directories in the code rules' `paths:`; S2.2 reverted to
+    `**/*.ts` (D1). The workspace-local `node_modules` are symlinks into `node_modules/.bun`
+    (there is no root `node_modules/effect`), so the enumeration still matched library sources,
+    and `paths:` has no negation. R4 shrank to its `docs/tickets/` half; Goal, Files and Verify
+    followed.
+  - The first Verify grep over `claude-md.md` also matched the rule's body table; the check now
+    reads the frontmatter only.
 
 #### S3 — The always-loaded set shrinks to what every session needs
 
