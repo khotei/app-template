@@ -21,13 +21,13 @@ sequenceDiagram
   participant W as apps/web (ApiClient)
   participant A as apps/api
   participant S as KeyValueStore (.data/store)
-  participant Q as queue (.data/queue.sqlite)
+  participant Q as SQS (MiniStack)
   participant K as apps/worker
   W->>A: POST /chats/:id/messages
   A->>S: user message + queued assistant message
   A->>Q: assistant-message job (+ chat-title job on the first message)
   A-->>W: 202
-  K->>Q: take
+  K->>Q: receive
   K->>S: preparing → generating → text snapshots → completed | failed
   W->>A: GET /chats/:id/messages/:messageId (poll)
 ```
@@ -87,7 +87,7 @@ make reset   # make down, then removes .data/ whole
 | the first `make up` takes about ten seconds | it downloads the Docker provider plugin into `.pulumi/`; later runs take a few seconds |
 | port 4566 is taken | the container fails to start; free the port (a leftover `app-template-ministack-4566`, or another emulator) |
 | `make up` failed midway | the container stays in the stack; `make down`, then `make up` again |
-| you want a clean slate | `make reset` also wipes the key-value store and the queue file in `.data/`, not only MiniStack |
+| you want a clean slate | `make reset` also wipes the key-value store in `.data/`, not only MiniStack |
 | an inventory change that SQS refuses on an existing queue (`QueueNameExists`) | `make reset`, then `make up` |
 
 ## How it is built

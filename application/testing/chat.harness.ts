@@ -33,6 +33,7 @@ import {
   interleaveMessages,
 } from '#application/testing/chat.fake'
 import { recordQueue, type SentJob } from '#application/testing/queue.fake'
+import { provisionQueues } from '#application/testing/queue.harness'
 import { owner } from '#application/testing/user.fixture'
 
 export interface ChatHarnessOptions {
@@ -59,6 +60,7 @@ export const makeChatHarness = (options: ChatHarnessOptions = {}) => {
       ),
     ),
     Layer.provide(queue.layer),
+    Layer.provide(provisionQueues().layer),
     Layer.provide(TestCrypto.layer('chat-service').pipe(Layer.provide(BunCrypto.layer))),
     Layer.provide(KeyValueStore.layerMemory),
   )

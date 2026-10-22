@@ -54,11 +54,15 @@ const definitions = Record.map(
     }) satisfies QueueDefinition<typeof Ping>,
 )
 
-type PingQueue = (typeof definitions)[keyof typeof definitions]
+type PingQueue = QueueDefinition<Schema.Codec<Ping, typeof Ping.Encoded>>
 
 const queueName = (name: string) => buildResourceName(stage, name)
 
 const lockExpiration = Duration.seconds(2)
+
+// Retries after 2 s, then 4 s: the second outlasts the visibility timeout, so only the delay
+// replayed for that attempt can space it.
+const exhausted = { ...definitions.exhausted, retrySchedule: Schedule.exponential(lockExpiration) }
 
 const QueueClientMiniStack = QueueClient.layer({
   queueName,
@@ -81,7 +85,7 @@ const recordAttempts = (seen: Queue.Queue<Seen>) => (ping: Ping, attempt: Attemp
 const sendPing = (definition: PingQueue, text: string) =>
   QueueClient.use((client) => client.send(definition, new Ping({ id: text, text })))
 
-const attemptOf = (attempt: number): AttemptInfo => ({
+const buildAttemptInfo = (attempt: number): AttemptInfo => ({
   attempt,
   maxAttempts,
   isLastAttempt: attempt >= maxAttempts,
@@ -104,7 +108,7 @@ describe('QueueClient.send and worker on QueueClient.layerSqs against MiniStack'
 
         yield* sendPing(definitions.consumed, 'hello')
 
-        assert.deepStrictEqual(yield* Queue.take(seen), ['hello', attemptOf(1)])
+        assert.deepStrictEqual(yield* Queue.take(seen), ['hello', buildAttemptInfo(1)])
       }),
     )
 
@@ -115,7 +119,7 @@ describe('QueueClient.send and worker on QueueClient.layerSqs against MiniStack'
         return Effect.gen(function* () {
           const seen = yield* Queue.unbounded<readonly [Seen, number]>()
           yield* Layer.build(
-            worker(definitions.exhausted, (ping, attempt) =>
+            worker(exhausted, (ping, attempt) =>
               Clock.currentTimeMillis.pipe(
                 Effect.flatMap((at) => Queue.offer(seen, [[ping.text, attempt], at])),
                 Effect.andThen(ping.text === 'fail' ? Effect.fail('handler failed') : Effect.void),
@@ -123,25 +127,25 @@ describe('QueueClient.send and worker on QueueClient.layerSqs against MiniStack'
             ),
           )
 
-          yield* sendPing(definitions.exhausted, 'fail')
+          yield* sendPing(exhausted, 'fail')
           const attempts = yield* Queue.takeN(seen, maxAttempts)
-          const deadLettered = yield* receiveDeadLettered(definitions.exhausted)
-          yield* sendPing(definitions.exhausted, 'after')
+          const deadLettered = yield* receiveDeadLettered(exhausted)
+          yield* sendPing(exhausted, 'after')
           const [after] = yield* Queue.take(seen)
 
           assert.deepStrictEqual(
             Arr.map(attempts, ([attempt]) => attempt),
             [
-              ['fail', attemptOf(1)],
-              ['fail', attemptOf(2)],
-              ['fail', attemptOf(3)],
+              ['fail', buildAttemptInfo(1)],
+              ['fail', buildAttemptInfo(2)],
+              ['fail', buildAttemptInfo(3)],
             ],
           )
           const times = Arr.map(attempts, ([, at]) => at)
-          assert.isAtLeast((times[1] ?? 0) - (times[0] ?? 0), 1000)
-          assert.isAtLeast((times[2] ?? 0) - (times[1] ?? 0), 1000)
+          assert.isAtLeast((times[1] ?? 0) - (times[0] ?? 0), 2000)
+          assert.isAtLeast((times[2] ?? 0) - (times[1] ?? 0), 4000)
           assert.deepStrictEqual(JSON.parse(deadLettered.body), { id: 'fail', text: 'fail' })
-          assert.deepStrictEqual(after, ['after', attemptOf(1)])
+          assert.deepStrictEqual(after, ['after', buildAttemptInfo(1)])
           assert.deepStrictEqual(logs, [
             ['Warn', 'queue message attempt failed', 'exhausted'],
             ['Warn', 'queue message attempt failed', 'exhausted'],
@@ -169,7 +173,7 @@ describe('QueueClient.send and worker on QueueClient.layerSqs against MiniStack'
           const first = yield* Queue.take(seen)
           yield* Effect.sleep(Duration.sum(lockExpiration, Duration.seconds(2)))
 
-          assert.deepStrictEqual(first, ['slow', attemptOf(1)])
+          assert.deepStrictEqual(first, ['slow', buildAttemptInfo(1)])
           assert.deepStrictEqual(yield* Queue.poll(seen), Option.none())
         }),
       realTime,
@@ -196,8 +200,8 @@ describe('QueueClient.send and worker on QueueClient.layerSqs against MiniStack'
           assert.deepStrictEqual(
             [interrupted, next],
             [
-              ['slow', attemptOf(1)],
-              ['slow', attemptOf(2)],
+              ['slow', buildAttemptInfo(1)],
+              ['slow', buildAttemptInfo(2)],
             ],
           )
           assert.isBelow(Duration.toMillis(elapsed), Duration.toMillis(lockExpiration) / 2)
@@ -226,8 +230,8 @@ describe('QueueClient.send and worker on QueueClient.layerSqs against MiniStack'
           yield* sendPing(definitions.interrupted, 'gives up')
 
           assert.deepStrictEqual(yield* Queue.takeN(seen, 2), [
-            ['gives up', attemptOf(1)],
-            ['gives up', attemptOf(2)],
+            ['gives up', buildAttemptInfo(1)],
+            ['gives up', buildAttemptInfo(2)],
           ])
           assert.deepStrictEqual(logs, [])
         }).pipe(Effect.provide(recordedLogs))

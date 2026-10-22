@@ -43,7 +43,7 @@ import {
   pollUntil,
   provisionQueues,
   runUntilDrained,
-} from '#application/testing/queue.fake'
+} from '#application/testing/queue.harness'
 import { owner } from '#application/testing/user.fixture'
 
 const historyId = (n: number) => MessageId.make(`0192d4e0-7b3a-7c00-8000-00000000005${n}`)
@@ -201,7 +201,6 @@ const deletions = {
 const stagesOf = (writes: ReadonlyArray<Message>) =>
   Arr.map(writes, (message) => [message.stage, message.text])
 
-// SQS decides when the take lands on the test clock, so times count from the first write.
 const sinceFirstWrite = (writes: ReadonlyArray<Message>, at: DateTime.Utc) =>
   DateTime.toEpochMillis(at) - DateTime.toEpochMillis(writes[0]?.updatedAt ?? epoch)
 

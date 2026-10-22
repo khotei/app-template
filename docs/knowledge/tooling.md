@@ -91,7 +91,8 @@ under `--hot` every edit would start a second runtime, and a second consumer of 
 the old one. A re-exec leaves nothing to stop, so `apps/worker/src/main.ts` is one `runMain` and the
 scope's finalizers (SIGTERM releases the job in hand and logs `worker stopped`) are the whole
 shutdown; an edit runs the same finalizers before the re-exec, so the old runtime logs `worker
-stopped` and releases its job, and the new one takes it at the same attempt. `Bun.serve` handles
+stopped` and releases its job, and the new one takes it as its next attempt ([aws.md ›
+Queues](aws.md#queues)). `Bun.serve` handles
 `--hot` natively by swapping its routes, so `api` and `web` keep the faster reload. An Effect
 runtime does not: each edit re-evaluates `effect` itself and starts a new `runMain` beside the old
 one, whose scope, fibers and finalizers live on. So `apps/api/src/main.ts` keeps a stop handle on

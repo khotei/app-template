@@ -33,7 +33,7 @@ up: stack ## Start MiniStack through Pulumi and provision the inventory on it
 down: stack ## Stop MiniStack
 	$(PULUMI) destroy --yes --skip-preview
 
-reset: down ## Stop MiniStack and remove .data/ whole (its state, the stack, the store, the queue)
+reset: down ## Stop MiniStack and remove .data/ whole (its state, the stack, the store)
 	rm -rf .data
 
 dev: ## Run api, worker and web together in dev mode

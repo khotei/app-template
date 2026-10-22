@@ -45,12 +45,11 @@ export interface QueueClientOptions {
   readonly lockRefreshInterval: Duration.Input
 }
 
-/** SQS's longest long-poll. */
 const receiveWait = Duration.seconds(20)
 
 // Replays the schedule up to `attempt` from a fresh step, as effect's `PersistedQueue` does: the
 // attempt is the receive count, so a retry handled by another process gets the same delay.
-const retryDelay = Effect.fnUntraced(function* (
+const buildRetryDelay = Effect.fnUntraced(function* (
   schedule: Schedule.Schedule<unknown, number>,
   attempt: number,
 ) {
@@ -66,13 +65,13 @@ const retryDelay = Effect.fnUntraced(function* (
   return delay
 })
 
-const attemptOf = (received: Received, maxAttempts: number): AttemptInfo => ({
+const buildAttemptInfo = (received: Received, maxAttempts: number): AttemptInfo => ({
   attempt: received.receiveCount,
   maxAttempts,
   isLastAttempt: received.receiveCount >= maxAttempts,
 })
 
-const codecOf = <A, I>(schema: Schema.Codec<A, I>) =>
+const buildJsonCodec = <A, I>(schema: Schema.Codec<A, I>) =>
   Schema.fromJsonString(Schema.toCodecJson(schema))
 
 const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueClientOptions) =>
@@ -83,7 +82,7 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
       definition: QueueDefinition<Schema.Codec<A, I>>,
       message: A,
     ) {
-      const body = yield* Schema.encodeEffect(codecOf(definition.schema))(message).pipe(
+      const body = yield* Schema.encodeEffect(buildJsonCodec(definition.schema))(message).pipe(
         Effect.mapError((cause) => new QueueError({ cause })),
       )
       yield* transport.send(queueName(definition.name), body, {
@@ -96,7 +95,7 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
       handle: Handler<A, E, R>,
     ) => {
       const queue = queueName(definition.name)
-      const decode = Schema.decodeEffect(codecOf(definition.schema))
+      const decode = Schema.decodeEffect(buildJsonCodec(definition.schema))
       const extend = (received: Received, visibility: Duration.Input) =>
         transport.extend(queue, received.handle, visibility)
 
@@ -122,7 +121,7 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
           return yield* extend(received, 0)
         }
         yield* Effect.logWarning('queue message attempt failed', exit.cause)
-        const delay = yield* retryDelay(definition.retrySchedule, info.attempt)
+        const delay = yield* buildRetryDelay(definition.retrySchedule, info.attempt)
         yield* extend(received, delay)
       })
 
@@ -134,7 +133,7 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
             return yield* extend(received, 0)
           }
 
-          const info = attemptOf(received, definition.maxAttempts)
+          const info = buildAttemptInfo(received, definition.maxAttempts)
           const exit = yield* Effect.raceFirst(
             Effect.exit(handle(decoded.success, info)),
             heartbeat(received),

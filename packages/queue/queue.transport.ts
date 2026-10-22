@@ -113,7 +113,6 @@ const makeSqs = Effect.gen(function* () {
 export class QueueTransport extends Context.Service<
   QueueTransport,
   {
-    /** `jobId` travels for logs only: nothing deduplicates on it. */
     readonly send: (
       queue: string,
       body: string,

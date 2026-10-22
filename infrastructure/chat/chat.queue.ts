@@ -12,9 +12,9 @@ export class GenerateAssistantMessage extends Schema.Class<GenerateAssistantMess
 
 /**
  * The user is polling this message, so few short retries let it reach `failed` in seconds. The
- * inventory allows one receive more than the replies: a worker that stops during the last reply
- * leaves the message active, and redrive would move it to the dead-letter queue unsettled, so the
- * extra receive only settles that reply and never calls the model.
+ * inventory allows one receive more: a worker that stops during the last reply leaves the message
+ * active, and redrive would move the job to the dead-letter queue with nothing to settle it
+ * (`AssistantMessageJob`).
  */
 export const replyAttempts = assistantMessage.maxReceiveCount - 1
 

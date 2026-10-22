@@ -28,7 +28,7 @@ import {
   pollUntil,
   provisionQueues,
   runUntilDrained,
-} from '#application/testing/queue.fake'
+} from '#application/testing/queue.harness'
 import { owner } from '#application/testing/user.fixture'
 
 type Answer = Effect.Effect<Array<Response.PartEncoded>, AiError.AiError>
