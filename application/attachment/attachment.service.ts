@@ -83,8 +83,8 @@ export class AttachmentService extends Context.Service<
       id: AttachmentId,
     ) => Effect.Effect<void, AttachmentNotFoundError | AttachmentBoundError>
     /**
-     * Run it under the user's `UserLock`; an expired attachment of another user is refused but
-     * left for its owner's next request.
+     * An expired attachment of another user is refused but left: deleting it needs its owner's
+     * lock, and two sends could each wait for the other's.
      */
     readonly findBindable: (
       userId: UserId,
@@ -109,7 +109,6 @@ export class AttachmentService extends Context.Service<
     const attachments = yield* AttachmentRepository
     const store = yield* AttachmentStore
     const crypto = yield* Crypto.Crypto
-    // Shared with the send, so an expired attachment is never deleted while a send binds it.
     const userLock = yield* UserLock
     const randomUuid = Effect.orDie(crypto.randomUUIDv7())
     const randomAttachmentId = Effect.map(randomUuid, AttachmentId.make)
@@ -153,7 +152,6 @@ export class AttachmentService extends Context.Service<
       )
     })
 
-    // Re-read under the owner's lock, which a send holds while it binds: a bound survivor wins.
     const deleteIfStillExpired = Effect.fnUntraced(
       function* (attachment: Attachment) {
         const found = yield* attachments.selectById(attachment.id)
@@ -166,7 +164,7 @@ export class AttachmentService extends Context.Service<
       (effect, attachment) => userLock.withPermit(effect, attachment.userId),
     )
 
-    const findOrExpire = Effect.fnUntraced(function* (id: AttachmentId) {
+    const findOrDeleteExpired = Effect.fnUntraced(function* (id: AttachmentId) {
       const found = yield* attachments.selectById(id)
       const now = yield* DateTime.now
 
@@ -176,7 +174,7 @@ export class AttachmentService extends Context.Service<
     })
 
     const get = Effect.fn('AttachmentService.get')(function* (userId: UserId, id: AttachmentId) {
-      const found = yield* findOrExpire(id)
+      const found = yield* findOrDeleteExpired(id)
       return yield* ensureFound(found, isOwnedBy(userId), () => new AttachmentNotFoundError({ id }))
     })
 
@@ -195,16 +193,14 @@ export class AttachmentService extends Context.Service<
       userId: UserId,
       id: AttachmentId,
     ) {
-      const found = yield* findOrExpire(id)
+      const found = yield* findOrDeleteExpired(id)
       yield* ensureBindable(found, { id, userId })
 
       yield* attachments.deleteByIds([id])
       yield* store.delete(id)
     })
 
-    // One batch read; the refusal still names the first bad id in the order asked. The caller
-    // holds the user's lock, which is not reentrant: the user's expired attachments are deleted
-    // without taking it, and another user's are left, as taking a second lock could deadlock.
+    // One batch read; the refusal still names the first bad id in the order asked.
     const findBindable = Effect.fn('AttachmentService.findBindable')(function* (
       userId: UserId,
       ids: ReadonlyArray<AttachmentId>,

@@ -212,6 +212,8 @@ describe('AttachmentService', () => {
         yield* TestClock.setTime(DateTime.toEpochMillis(now))
 
         const attachment = yield* uploadPhoto
+        const found = yield* service.get(owner, attachment.id)
+        const bytes = yield* selectBytes(attachment.id)
 
         assert.isTrue(isUuidV7(attachment.id))
         assertEquals(
@@ -224,8 +226,8 @@ describe('AttachmentService', () => {
             createdAt: now,
           }),
         )
-        assertEquals(yield* service.get(owner, attachment.id), attachment)
-        assert.deepStrictEqual(yield* selectBytes(attachment.id), Option.some(png))
+        assertEquals(found, attachment)
+        assert.deepStrictEqual(bytes, Option.some(png))
       }),
     )
 
@@ -259,9 +261,10 @@ describe('AttachmentService', () => {
           const before = yield* storeSize
 
           const error = yield* Effect.flip(service.upload(owner, brokenUploads[name](broken)))
+          const after = yield* storeSize
 
           assert.strictEqual(error, broken)
-          assert.strictEqual(yield* storeSize, before)
+          assert.strictEqual(after, before)
         }),
     )
 
@@ -271,9 +274,10 @@ describe('AttachmentService', () => {
         const attachment = yield* uploadPhoto
 
         const download = yield* service.download(owner, attachment.id)
+        const href = yield* storeHref(attachment.id)
 
         assertEquals(download.attachment, attachment)
-        assert.deepStrictEqual(Option.some(download.url.href), yield* storeHref(attachment.id))
+        assert.deepStrictEqual(Option.some(download.url.href), href)
       }),
     )
 
@@ -341,14 +345,16 @@ describe('AttachmentService', () => {
         const attachment = yield* uploadPhoto
 
         const error = yield* Effect.flip(service.delete(stranger, attachment.id))
+        const found = yield* service.get(owner, attachment.id)
+        const bytes = yield* selectBytes(attachment.id)
 
         assertSchemaEquals(
           AttachmentNotFoundError,
           error,
           new AttachmentNotFoundError({ id: attachment.id }),
         )
-        assertEquals(yield* service.get(owner, attachment.id), attachment)
-        assert.deepStrictEqual(yield* selectBytes(attachment.id), Option.some(png))
+        assertEquals(found, attachment)
+        assert.deepStrictEqual(bytes, Option.some(png))
       }),
     )
 
@@ -359,13 +365,14 @@ describe('AttachmentService', () => {
         yield* bind(attachment)
 
         const error = yield* Effect.flip(service.delete(owner, attachment.id))
+        const bytes = yield* selectBytes(attachment.id)
 
         assertSchemaEquals(
           AttachmentBoundError,
           error,
           new AttachmentBoundError({ id: attachment.id }),
         )
-        assert.deepStrictEqual(yield* selectBytes(attachment.id), Option.some(png))
+        assert.deepStrictEqual(bytes, Option.some(png))
       }),
     )
 
@@ -518,9 +525,10 @@ describe('AttachmentService', () => {
         const before = yield* storeSize
 
         const exit = yield* Effect.exit(service.upload(owner, Stream.make(photoUpload)))
+        const after = yield* storeSize
 
         assert.isTrue(Exit.hasDies(exit))
-        assert.strictEqual(yield* storeSize, before)
+        assert.strictEqual(after, before)
       }),
     )
   })
