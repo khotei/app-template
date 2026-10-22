@@ -56,11 +56,7 @@ describe('config layers', () => {
         },
       )
     }).pipe(
-      Effect.provide(
-        provideVariables(Layer.mergeAll(RuntimeConfig.layer, QueueConfig.layer), {
-          QUEUE_SQLITE_PATH: '../../.data/queue.sqlite',
-        }),
-      ),
+      Effect.provide(provideVariables(Layer.mergeAll(RuntimeConfig.layer, QueueConfig.layer), {})),
     ),
   )
 
@@ -74,7 +70,6 @@ describe('config layers', () => {
         const error = yield* Effect.flip(
           Layer.build(
             provideVariables(QueueConfig.layer, {
-              QUEUE_SQLITE_PATH: '../../.data/queue.sqlite',
               QUEUE_LOCK_EXPIRATION: expiration,
               QUEUE_LOCK_REFRESH_INTERVAL: refresh,
             }),

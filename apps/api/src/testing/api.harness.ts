@@ -5,27 +5,38 @@ import { Cookies, HttpClient, type HttpClientResponse } from 'effect/http'
 import { OpenApi } from 'effect/http-api'
 import { KeyValueStore } from 'effect/persistence'
 
+import { buildResourceName, provision, resources } from '@app-template/aws'
 import { Api, ApiClient } from '@app-template/http-api'
 import { AttachmentKv } from '@app-template/infrastructure/attachment'
 import { QueueClient } from '@app-template/queue'
+import { AwsClientsMiniStack, buildStage } from '@app-template/testing'
 
 import { ApiHttp } from '#api/layer'
 
 /**
- * The api on an ephemeral port over the memory store and the memory queue; its `HttpClient`
- * targets that port, and its `KeyValueStore` is open for arranging what only the worker writes.
+ * The api on an ephemeral port over the memory store and the inventory's queues, provisioned
+ * under a fresh stage on the test file's MiniStack; its `HttpClient` targets that port, and its
+ * `KeyValueStore` is open for arranging what only the worker writes.
  */
-export const makeApiHarness = () =>
-  ApiHttp.pipe(
+export const makeApiHarness = () => {
+  const stage = buildStage()
+  return ApiHttp.pipe(
     Layer.provide(AttachmentKv),
     Layer.provideMerge(BunHttpServer.layerTest),
     Layer.provideMerge(KeyValueStore.layerMemory),
     Layer.provide([
-      QueueClient.layerMemory,
+      QueueClient.layerSqs({
+        queueName: (name) => buildResourceName(stage, name),
+        lockExpiration: '30 seconds',
+        lockRefreshInterval: '10 seconds',
+      }),
       BunServices.layer,
       ConfigProvider.layer(ConfigProvider.fromUnknown({})),
     ]),
+    Layer.provide(Layer.effectDiscard(Effect.orDie(provision(resources, stage)))),
+    Layer.provide(AwsClientsMiniStack),
   )
+}
 
 const apiClientWithJar = (cookies: Cookies.Cookies) =>
   ApiClient.layer('').pipe(

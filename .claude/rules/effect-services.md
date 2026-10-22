@@ -42,8 +42,8 @@ paths:
   `KeyValueStore.layerMemory`). `static readonly layer = Layer.effect(this, this.make)` provides
   every dependency with one implementation and leaves open the leaves that vary (a port, a client,
   a store, a platform service); there is no `layerNoDeps`. A ready variant that closes such a leaf
-  is `static layer<Variant>`, a function when it takes options (`QueueClient.layerMemory`,
-  `QueueClient.layerSqlite(options)`). A layer for a service declared elsewhere (a domain port,
+  is `static layer<Variant>`, a function when it takes options (`QueueTransport.layerSqs`,
+  `QueueClient.layerSqs(options)`). A layer for a service declared elsewhere (a domain port,
   effect's `KeyValueStore`) is a constant in the workspace that implements it (`naming.md`).
 - Variants live in the service's file: a separate file would import the class while the class
   referenced it, a cycle.

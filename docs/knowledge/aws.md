@@ -90,6 +90,41 @@ api's test harness keeps `AttachmentKv`, whose download is a `data:` URL.
   MiniStack is published on the host. An api running inside Docker would sign with a host the
   browser cannot reach; that needs a presign-only client on the public endpoint.
 
+## Queues
+
+`QueueClient` (`packages/queue`) sends and consumes jobs over `QueueTransport`, four SQS calls
+(`send`, `receive`, `extend`, `delete`). `QueueClientSqs` in `infrastructure/shared` wires it for
+the apps from `QueueConfig` and `AwsConfig`: a definition's queue is
+`buildResourceName(STAGE, definition.name)`.
+
+- **Delivery is at-least-once.** Nothing deduplicates; `jobId` travels as a message attribute for
+  the logs. A handler must leave the same state when a job comes twice: the jobs skip a settled
+  reply and a titled chat.
+- **An attempt is a receive.** A worker takes one message at a time, long-polling 20 s, and the
+  message stays hidden for `QUEUE_LOCK_EXPIRATION`; a heartbeat extends that every
+  `QUEUE_LOCK_REFRESH_INTERVAL` while the handler runs. The attempt number is SQS's
+  `ApproximateReceiveCount`, and the last attempt is the definition's `maxAttempts`, which is the
+  inventory's `maxReceiveCount`.
+- **Every outcome is a visibility.** Success deletes the message. A failure with attempts left
+  hides it for the retry delay that `retrySchedule` gives that attempt, rounded up to whole
+  seconds. The last failure, a body that does not decode and an interrupt (a worker stopping, a
+  handler interrupting itself) make it visible at once, so an interrupt spends its attempt.
+- **Redrive is the only way to the dead-letter queue.** The receive after the
+  `maxReceiveCount`-th moves the message to `<queue>-dlq` instead of returning it; the client never
+  sends there itself. A worker that dies mid-attempt leaves its message hidden until the
+  visibility runs out; it then comes back as the next attempt, or goes to the dead-letter queue.
+  That is why `assistant-message` has one receive more than its replies: the extra attempt only
+  settles a reply that the last one left active.
+- **A stopped worker's long poll can outlive it.** Interrupting a receive aborts its HTTP request,
+  but MiniStack keeps the poll open and hides the next message it finds for its visibility
+  timeout; that message returns after `QUEUE_LOCK_EXPIRATION` with an attempt spent.
+
+Every test that touches a queue runs on MiniStack in real time: the queue's own suite, the job
+suites, and the api and chat harnesses, each provisioning the inventory under a fresh stage. The
+job suites keep the handlers' own sleeps on the `TestClock` and wait for SQS in real time
+(`runUntilDrained` in `application/testing/queue.fake.ts`), so they count times from a handler's
+first write.
+
 ## Tests on Docker
 
 Tests at the AWS boundary (`packages/aws/*.test.ts`, `packages/queue/queue.transport.test.ts`,

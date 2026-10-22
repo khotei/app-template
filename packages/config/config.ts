@@ -71,7 +71,6 @@ const isLockRefreshBeforeExpiration = (config: QueueConfig['Service']) =>
   Duration.isLessThan(config.lockRefreshInterval, config.lockExpiration)
 
 const queueConfig = Config.all({
-  filename: Config.String('QUEUE_SQLITE_PATH'),
   lockExpiration: Config.Duration('QUEUE_LOCK_EXPIRATION').pipe(
     Config.withDefault(Duration.seconds(15)),
   ),
@@ -89,7 +88,6 @@ const queueConfig = Config.all({
 export class QueueConfig extends Context.Service<
   QueueConfig,
   {
-    readonly filename: string
     readonly lockExpiration: Duration.Duration
     readonly lockRefreshInterval: Duration.Duration
   }

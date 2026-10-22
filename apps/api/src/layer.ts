@@ -11,7 +11,7 @@ import { Api } from '@app-template/http-api'
 import { AttachmentKvS3 } from '@app-template/infrastructure/attachment'
 import { ChatKv } from '@app-template/infrastructure/chat'
 import { KeyValueStoreFileSystem } from '@app-template/infrastructure/kv'
-import { QueueClientSqlite } from '@app-template/infrastructure/shared'
+import { QueueClientSqs } from '@app-template/infrastructure/shared'
 import { UserKv } from '@app-template/infrastructure/user'
 
 import { AttachmentHandler } from '#api/attachment/attachment.handler'
@@ -48,7 +48,7 @@ const LogApiStopped = Layer.effectDiscard(Effect.addFinalizer(() => Effect.logIn
 
 export const ApiLayer = Layer.merge(ApiHttp, LogApiStopped).pipe(
   Layer.provide(AttachmentKvS3),
-  Layer.provide([KeyValueStoreFileSystem, QueueClientSqlite]),
+  Layer.provide([KeyValueStoreFileSystem, QueueClientSqs]),
   Layer.provide(BunHttpServerFromConfig),
   Layer.provide(MinimumLogLevelFromConfig),
 )

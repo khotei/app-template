@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@effect-aws/client-sqs": "catalog:effect-aws",
-    "@effect/sql-sqlite-bun": "catalog:effect",
     "effect": "catalog:effect"
   },
   "devDependencies": {

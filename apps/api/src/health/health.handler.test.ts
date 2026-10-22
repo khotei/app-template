@@ -4,7 +4,7 @@ import { Effect } from 'effect'
 import { makeApiHarness, spec, withApi } from '#api/testing/api.harness'
 
 describe('health', () => {
-  layer(makeApiHarness())((it) => {
+  layer(makeApiHarness(), { timeout: '60 seconds' })((it) => {
     it.effect('GET /health is ok', () =>
       withApi((api) =>
         Effect.gen(function* () {
