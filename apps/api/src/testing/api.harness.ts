@@ -6,6 +6,7 @@ import { OpenApi } from 'effect/http-api'
 import { KeyValueStore } from 'effect/persistence'
 
 import { Api, ApiClient } from '@app-template/http-api'
+import { AttachmentKv } from '@app-template/infrastructure/attachment'
 import { QueueClient } from '@app-template/queue'
 
 import { ApiHttp } from '#api/layer'
@@ -16,6 +17,7 @@ import { ApiHttp } from '#api/layer'
  */
 export const makeApiHarness = () =>
   ApiHttp.pipe(
+    Layer.provide(AttachmentKv),
     Layer.provideMerge(BunHttpServer.layerTest),
     Layer.provideMerge(KeyValueStore.layerMemory),
     Layer.provide([

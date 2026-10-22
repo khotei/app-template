@@ -1,8 +1,22 @@
-import { assert, describe, layer } from '@effect/vitest'
-import { Effect, Layer, Option, Stream } from 'effect'
+import { assert, describe, layer, type Vitest } from '@effect/vitest'
+import { S3Service } from '@effect-aws/client-s3'
+import {
+  Clock,
+  ConfigProvider,
+  Deferred,
+  Duration,
+  Effect,
+  Fiber,
+  Layer,
+  Option,
+  Stream,
+} from 'effect'
 import { FetchHttpClient, HttpClient } from 'effect/http'
 import { KeyValueStore } from 'effect/persistence'
+import { TestClock } from 'effect/testing'
 
+import { buildResourceName, provision, resources } from '@app-template/aws'
+import { AwsConfig } from '@app-template/config'
 import {
   AttachmentId,
   AttachmentStore,
@@ -10,9 +24,15 @@ import {
   FileSize,
   MediaType,
 } from '@app-template/domain/attachment'
-import { breakAfter, StreamBrokenError } from '@app-template/testing'
+import {
+  AwsClientsMiniStack,
+  breakAfter,
+  buildStage,
+  StreamBrokenError,
+} from '@app-template/testing'
 
 import { AttachmentStoreKv } from '#infrastructure/attachment/attachment.storage'
+import { AttachmentStoreS3 } from '#infrastructure/attachment/attachment.storage.s3'
 
 const id = AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000020')
 const unknown = AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000029')
@@ -27,81 +47,236 @@ const fetchUrl = Effect.fnUntraced(function* (url: Option.Option<URL>) {
   const found = yield* Effect.fromOption(url)
   const response = yield* HttpClient.get(found)
   const body = yield* response.arrayBuffer
-  return { contentType: response.headers['content-type'], bytes: new Uint8Array(body) }
+  return {
+    status: response.status,
+    contentType: response.headers['content-type'],
+    contentDisposition: response.headers['content-disposition'],
+    bytes: new Uint8Array(body),
+  }
 }, Effect.provide(FetchHttpClient.layer))
 
-describe.each([
-  {
-    name: 'AttachmentStoreKv',
-    store: AttachmentStoreKv.pipe(Layer.provide(KeyValueStore.layerMemory)),
-  },
-])('$name', ({ store }) => {
-  layer(store)((it) => {
-    it.effect('insert returns the size of the streamed bytes, and select returns them', () =>
+/** Sets the test clock to the wall clock minus `ago`: an S3 URL is signed at the clock's time. */
+const setClockAgo = (ago: Duration.Input) =>
+  TestClock.withLive(Clock.currentTimeMillis).pipe(
+    Effect.flatMap((now) => TestClock.setTime(now - Duration.toMillis(ago))),
+  )
+
+const contractSuite = (it: Vitest.MethodsNonLive<AttachmentStore>) => {
+  it.effect('insert returns the size of the streamed bytes, and select returns them', () =>
+    Effect.gen(function* () {
+      const attachments = yield* AttachmentStore
+
+      const size = yield* attachments.insert(id, inTwoChunks(png), photo)
+
+      assert.strictEqual(size, FileSize.make(png.length))
+      assert.deepStrictEqual(yield* attachments.select(id), Option.some(png))
+    }),
+  )
+
+  it.effect('url serves the bytes with the media type', () =>
+    Effect.gen(function* () {
+      const attachments = yield* AttachmentStore
+      yield* attachments.insert(id, inTwoChunks(png), photo)
+      yield* setClockAgo(Duration.zero)
+
+      const url = yield* attachments.url(id)
+
+      const { contentType, bytes } = yield* fetchUrl(url)
+      assert.deepStrictEqual({ contentType, bytes }, { contentType: 'image/png', bytes: png })
+    }),
+  )
+
+  it.effect('a stream failing part-way fails insert with its error and stores nothing', () =>
+    Effect.gen(function* () {
+      const attachments = yield* AttachmentStore
+      const broken = new StreamBrokenError()
+
+      const error = yield* Effect.flip(
+        attachments.insert(unknown, breakAfter([png.subarray(0, 4)], broken), photo),
+      )
+
+      assert.strictEqual(error, broken)
+      assert.deepStrictEqual(yield* attachments.select(unknown), Option.none())
+    }),
+  )
+
+  it.effect('delete removes the bytes and succeeds again on a deleted id', () =>
+    Effect.gen(function* () {
+      const attachments = yield* AttachmentStore
+      yield* attachments.insert(id, inTwoChunks(png), photo)
+
+      yield* attachments.delete(id)
+      yield* attachments.delete(id)
+
+      assert.deepStrictEqual(yield* attachments.select(id), Option.none())
+    }),
+  )
+
+  it.effect('keep leaves the bytes in place', () =>
+    Effect.gen(function* () {
+      const attachments = yield* AttachmentStore
+      yield* attachments.insert(id, inTwoChunks(png), photo)
+
+      yield* attachments.keep(id)
+      yield* attachments.keep(id)
+
+      assert.deepStrictEqual(yield* attachments.select(id), Option.some(png))
+    }),
+  )
+
+  it.effect('select and url are none and keep succeeds for bytes never stored', () =>
+    Effect.gen(function* () {
+      const attachments = yield* AttachmentStore
+
+      yield* attachments.keep(unknown)
+
+      assert.deepStrictEqual(yield* attachments.select(unknown), Option.none())
+      assert.deepStrictEqual(yield* attachments.url(unknown), Option.none())
+    }),
+  )
+}
+
+describe('AttachmentStoreKv', () => {
+  layer(AttachmentStoreKv.pipe(Layer.provide(KeyValueStore.layerMemory)))((it) => {
+    contractSuite(it)
+  })
+})
+
+const stage = buildStage()
+const bucket = buildResourceName(stage, resources.buckets.attachments.name)
+const locate = (attachmentId: AttachmentId) => ({
+  Bucket: bucket,
+  Key: `attachments/${attachmentId}`,
+})
+
+const mebibytes = (count: number) => new Uint8Array(count * 1024 * 1024).map((_, i) => i % 251)
+const tenMebibytes = mebibytes(10)
+
+const AttachmentStoreS3MiniStack = Layer.mergeAll(
+  AttachmentStoreS3,
+  Layer.effectDiscard(provision(resources, stage)),
+).pipe(
+  Layer.provide(
+    AwsConfig.layer.pipe(
+      Layer.provide(
+        ConfigProvider.layer(ConfigProvider.fromUnknown({ AWS_REGION: 'us-east-1', STAGE: stage })),
+      ),
+    ),
+  ),
+  Layer.provideMerge(AwsClientsMiniStack),
+)
+
+const listLeftovers = Effect.fnUntraced(function* (attachmentId: AttachmentId) {
+  const s3 = yield* S3Service
+  const { Bucket, Key } = locate(attachmentId)
+  const objects = yield* s3.listObjectsV2({ Bucket, Prefix: Key })
+  const uploads = yield* s3.listMultipartUploads({ Bucket, Prefix: Key })
+  return { objects: objects.Contents ?? [], uploads: uploads.Uploads ?? [] }
+})
+
+const readTags = Effect.fnUntraced(function* (attachmentId: AttachmentId) {
+  const s3 = yield* S3Service
+  const { TagSet } = yield* s3.getObjectTagging(locate(attachmentId))
+  return TagSet ?? []
+})
+
+describe('AttachmentStoreS3', () => {
+  layer(AttachmentStoreS3MiniStack, { timeout: '60 seconds' })((it) => {
+    contractSuite(it)
+
+    it.effect('a 10 MiB stream is stored by a two-part multipart upload with the same bytes', () =>
       Effect.gen(function* () {
         const attachments = yield* AttachmentStore
+        const s3 = yield* S3Service
 
-        const size = yield* attachments.insert(id, inTwoChunks(png), photo)
+        const size = yield* attachments.insert(id, Stream.make(tenMebibytes), photo)
 
-        assert.strictEqual(size, FileSize.make(png.length))
-        assert.deepStrictEqual(yield* attachments.select(id), Option.some(png))
+        const { ETag } = yield* s3.headObject(locate(id))
+        assert.strictEqual(size, FileSize.make(tenMebibytes.length))
+        assert.match(ETag ?? '', /-2"$/)
+        assert.deepStrictEqual(yield* attachments.select(id), Option.some(tenMebibytes))
       }),
     )
 
-    it.effect('url serves the bytes with the media type', () =>
-      Effect.gen(function* () {
-        const attachments = yield* AttachmentStore
-        yield* attachments.insert(id, inTwoChunks(png), photo)
-
-        const url = yield* attachments.url(id)
-
-        assert.deepStrictEqual(yield* fetchUrl(url), { contentType: 'image/png', bytes: png })
-      }),
-    )
-
-    it.effect('a stream failing part-way fails insert with its error and stores nothing', () =>
+    it.effect('a stream failing after the first part leaves no object and no upload', () =>
       Effect.gen(function* () {
         const attachments = yield* AttachmentStore
         const broken = new StreamBrokenError()
 
         const error = yield* Effect.flip(
-          attachments.insert(unknown, breakAfter([png.subarray(0, 4)], broken), photo),
+          attachments.insert(unknown, breakAfter([mebibytes(6)], broken), photo),
         )
 
         assert.strictEqual(error, broken)
-        assert.deepStrictEqual(yield* attachments.select(unknown), Option.none())
+        assert.deepStrictEqual(yield* listLeftovers(unknown), { objects: [], uploads: [] })
       }),
     )
 
-    it.effect('delete removes the bytes and succeeds again on a deleted id', () =>
+    it.effect('an insert interrupted after the first part leaves no object and no upload', () =>
       Effect.gen(function* () {
         const attachments = yield* AttachmentStore
-        yield* attachments.insert(id, inTwoChunks(png), photo)
+        const firstPartSent = yield* Deferred.make<void>()
+        const stalled = Stream.make(mebibytes(6)).pipe(
+          Stream.concat(
+            Stream.drain(Stream.fromEffect(Deferred.succeed(firstPartSent, undefined))),
+          ),
+          Stream.concat(Stream.never),
+        )
 
-        yield* attachments.delete(id)
-        yield* attachments.delete(id)
+        const fiber = yield* Effect.forkChild(attachments.insert(unknown, stalled, photo))
+        yield* Deferred.await(firstPartSent)
+        yield* Fiber.interrupt(fiber)
 
-        assert.deepStrictEqual(yield* attachments.select(id), Option.none())
+        assert.deepStrictEqual(yield* listLeftovers(unknown), { objects: [], uploads: [] })
       }),
     )
 
-    it.effect('keep leaves the bytes in place', () =>
+    it.effect.each([
+      { name: 'a single put', content: Stream.make(png) },
+      { name: 'a multipart upload', content: Stream.make(tenMebibytes) },
+    ])('insert by $name marks the object unbound, and keep clears it', ({ content }) =>
       Effect.gen(function* () {
         const attachments = yield* AttachmentStore
-        yield* attachments.insert(id, inTwoChunks(png), photo)
+        yield* attachments.insert(id, content, photo)
 
+        const inserted = yield* readTags(id)
         yield* attachments.keep(id)
 
-        assert.deepStrictEqual(yield* attachments.select(id), Option.some(png))
+        assert.deepStrictEqual(inserted, [{ Key: 'unbound', Value: 'true' }])
+        assert.deepStrictEqual(yield* readTags(id), [])
       }),
     )
 
-    it.effect('select and url are none for bytes never stored', () =>
+    it.effect('url serves the bytes inline under the percent-encoded file name', () =>
       Effect.gen(function* () {
         const attachments = yield* AttachmentStore
+        const report = { mediaType: photo.mediaType, fileName: FileName.make('отчёт (1).png') }
+        yield* attachments.insert(id, Stream.make(png), report)
+        yield* setClockAgo(Duration.zero)
 
-        assert.deepStrictEqual(yield* attachments.select(unknown), Option.none())
-        assert.deepStrictEqual(yield* attachments.url(unknown), Option.none())
+        const url = yield* attachments.url(id)
+
+        const { contentDisposition } = yield* fetchUrl(url)
+        assert.strictEqual(
+          contentDisposition,
+          "inline; filename*=UTF-8''%D0%BE%D1%82%D1%87%D1%91%D1%82%20%281%29.png",
+        )
+      }),
+    )
+
+    it.effect.each([
+      { seconds: 290, status: 200 },
+      { seconds: 310, status: 403 },
+    ])('a URL signed $seconds s ago answers $status', ({ seconds, status }) =>
+      Effect.gen(function* () {
+        const attachments = yield* AttachmentStore
+        yield* attachments.insert(id, Stream.make(png), photo)
+        yield* setClockAgo(Duration.seconds(seconds))
+
+        const url = yield* attachments.url(id)
+
+        const response = yield* fetchUrl(url)
+        assert.strictEqual(response.status, status)
       }),
     )
   })
