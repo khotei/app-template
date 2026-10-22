@@ -6,11 +6,12 @@ import {
   Effect,
   Layer,
   Option,
-  Predicate,
   Ref,
+  Result,
   Stream,
   Struct,
 } from 'effect'
+import { identity } from 'effect/Function'
 
 import {
   Attachment,
@@ -28,6 +29,8 @@ import {
 import type { MessageId } from '@app-template/domain/chat'
 import { ensureFound } from '@app-template/domain/shared'
 import { isOwnedBy, type UserId } from '@app-template/domain/user'
+
+import { UserLock } from '#application/user/user-lock'
 
 export interface AttachmentUpload<E> extends AttachmentMeta {
   readonly content: Stream.Stream<Uint8Array, E>
@@ -61,20 +64,38 @@ export class AttachmentService extends Context.Service<
       userId: UserId,
       files: Stream.Stream<AttachmentUpload<E>, E>,
     ) => Effect.Effect<ReadonlyArray<Attachment>, E>
-    /** Finds the user's attachment, bound or not. */
+    /**
+     * Finds the user's attachment, bound or not.
+     *
+     * An attachment unbound for `unboundLifetime` is not found, and is deleted under its owner's
+     * `UserLock`, so the caller must not hold it.
+     */
     readonly get: (
       userId: UserId,
       id: AttachmentId,
     ) => Effect.Effect<Attachment, AttachmentNotFoundError>
+    /**
+     * An attachment unbound for `unboundLifetime` is not found, and is deleted under its owner's
+     * `UserLock`, so the caller must not hold it.
+     */
     readonly download: (
       userId: UserId,
       id: AttachmentId,
     ) => Effect.Effect<AttachmentDownload, AttachmentNotFoundError>
-    /** Removes the user's attachment while no message holds it. */
+    /**
+     * Removes the user's attachment while no message holds it.
+     *
+     * An attachment unbound for `unboundLifetime` is not found, and is deleted under its owner's
+     * `UserLock`, so the caller must not hold it.
+     */
     readonly delete: (
       userId: UserId,
       id: AttachmentId,
     ) => Effect.Effect<void, AttachmentNotFoundError | AttachmentBoundError>
+    /**
+     * Run it under the user's `UserLock`. An attachment unbound for `unboundLifetime` is not
+     * found; the user's own is deleted, another user's is left for its owner's next request.
+     */
     readonly findBindable: (
       userId: UserId,
       ids: ReadonlyArray<AttachmentId>,
@@ -98,6 +119,8 @@ export class AttachmentService extends Context.Service<
     const attachments = yield* AttachmentRepository
     const store = yield* AttachmentStore
     const crypto = yield* Crypto.Crypto
+    // Shared with the send, so an expired attachment is never deleted while a send binds it.
+    const userLock = yield* UserLock
     const randomUuid = Effect.orDie(crypto.randomUUIDv7())
     const randomAttachmentId = Effect.map(randomUuid, AttachmentId.make)
 
@@ -140,26 +163,47 @@ export class AttachmentService extends Context.Service<
       )
     })
 
-    // An expired attachment reads as absent and is removed when met: no sweep reaches it.
-    const selectLive = Effect.fnUntraced(function* (ids: ReadonlyArray<AttachmentId>) {
+    // Expired attachments read as absent and are deleted when met, since no sweep reaches them.
+    const findRemovingExpired = Effect.fnUntraced(function* (
+      ids: ReadonlyArray<AttachmentId>,
+      deleteExpired: (expired: Arr.NonEmptyReadonlyArray<Attachment>) => Effect.Effect<void>,
+    ) {
       const found = yield* attachments.selectByIds(ids)
       const now = yield* DateTime.now
 
-      const isExpiredNow = (attachment: Attachment) => isExpired(attachment, now)
-      const expired = Arr.filter(found, isExpiredNow)
-      if (Arr.isReadonlyArrayNonEmpty(expired)) {
-        yield* deleteByIds(Arr.map(expired, (attachment) => attachment.id))
-      }
-      return Arr.filter(found, Predicate.not(isExpiredNow))
+      const [expired, live] = Arr.partition(
+        found,
+        Result.liftPredicate((attachment: Attachment) => isExpired(attachment, now), identity),
+      )
+      if (Arr.isReadonlyArrayNonEmpty(expired)) yield* deleteExpired(expired)
+      return live
     })
 
-    const get = Effect.fn('AttachmentService.get')(function* (userId: UserId, id: AttachmentId) {
-      const found = yield* selectLive([id])
-      return yield* ensureFound(
-        Arr.head(found),
-        isOwnedBy(userId),
-        () => new AttachmentNotFoundError({ id }),
+    // Re-read under the owner's lock: a send holding it may have bound the attachment since.
+    const deleteIfExpired = (attachment: Attachment) =>
+      userLock.withPermit(
+        Effect.gen(function* () {
+          const found = yield* attachments.selectById(attachment.id)
+          const now = yield* DateTime.now
+
+          if (Option.exists(found, (current) => isExpired(current, now))) {
+            yield* deleteByIds([attachment.id])
+          }
+        }),
+        attachment.userId,
       )
+
+    const findOneRemovingExpired = (id: AttachmentId) =>
+      Effect.map(
+        findRemovingExpired([id], (expired) =>
+          Effect.forEach(expired, deleteIfExpired, { discard: true }),
+        ),
+        Arr.head,
+      )
+
+    const get = Effect.fn('AttachmentService.get')(function* (userId: UserId, id: AttachmentId) {
+      const found = yield* findOneRemovingExpired(id)
+      return yield* ensureFound(found, isOwnedBy(userId), () => new AttachmentNotFoundError({ id }))
     })
 
     const download = Effect.fn('AttachmentService.download')(function* (
@@ -177,19 +221,23 @@ export class AttachmentService extends Context.Service<
       userId: UserId,
       id: AttachmentId,
     ) {
-      const found = yield* selectLive([id])
-      yield* ensureBindable(Arr.head(found), { id, userId })
+      const found = yield* findOneRemovingExpired(id)
+      yield* ensureBindable(found, { id, userId })
 
       yield* attachments.deleteByIds([id])
       yield* store.delete(id)
     })
 
-    // One batch read; the refusal still names the first bad id in the order asked.
+    // One batch read; the refusal still names the first bad id in the order asked. The caller
+    // holds the user's lock, which is not reentrant: the user's expired attachments are deleted
+    // without taking it, and another user's are left, as taking a second lock could deadlock.
     const findBindable = Effect.fn('AttachmentService.findBindable')(function* (
       userId: UserId,
       ids: ReadonlyArray<AttachmentId>,
     ) {
-      const stored = yield* selectLive(ids)
+      const stored = yield* findRemovingExpired(ids, (expired) =>
+        deleteByIds(Arr.map(Arr.filter(expired, isOwnedBy(userId)), (attachment) => attachment.id)),
+      )
       const found = new Map(Arr.map(stored, (attachment) => [attachment.id, attachment]))
 
       const bindable = yield* Effect.forEach(ids, (id) =>
@@ -217,5 +265,5 @@ export class AttachmentService extends Context.Service<
     return { upload, get, download, delete: remove, findBindable, bind, deleteByIds }
   }),
 }) {
-  static readonly layer = Layer.effect(this, this.make)
+  static readonly layer = Layer.effect(this, this.make).pipe(Layer.provide(UserLock.layer))
 }

@@ -7,6 +7,7 @@ import {
   Duration,
   Effect,
   Exit,
+  Fiber,
   Layer,
   Option,
   Record as Rec,
@@ -36,10 +37,12 @@ import { png, unknownAttachmentId } from '#application/testing/attachment.fixtur
 import { messageId } from '#application/testing/chat.fixture'
 import { upload } from '#application/testing/chat.harness'
 import { owner, stranger } from '#application/testing/user.fixture'
+import { UserLock } from '#application/user/user-lock'
 
 const CryptoTest = TestCrypto.layer('attachment-service').pipe(Layer.provide(BunCrypto.layer))
 
-const AttachmentServiceTest = AttachmentService.layer.pipe(
+// `UserLock.layer` is the instance the service holds: a layer is built once per build.
+const AttachmentServiceTest = Layer.merge(AttachmentService.layer, UserLock.layer).pipe(
   Layer.provideMerge(Layer.mergeAll(AttachmentRepositoryKv, AttachmentStoreKv)),
   Layer.provide(CryptoTest),
   Layer.provideMerge(KeyValueStore.layerMemory),
@@ -124,22 +127,18 @@ const brokenUploads = {
     breakAfter([photoUpload], broken),
 } as const
 
-type Read = (userId: UserId, id: AttachmentId) => Effect.Effect<unknown, AttachmentNotFoundError>
-
-const pickReader = (service: AttachmentService['Service'], method: 'get' | 'download'): Read =>
-  ({ get: service.get, download: service.download })[method]
-
 type Address = (
   service: AttachmentService['Service'],
+  userId: UserId,
   id: AttachmentId,
-) => Effect.Effect<unknown, AttachmentNotFoundError | AttachmentBoundError>
+) => Effect.Effect<void, AttachmentNotFoundError | AttachmentBoundError>
 
-const addressers: Readonly<Record<'get' | 'download' | 'delete' | 'findBindable', Address>> = {
-  get: (service, id) => service.get(owner, id),
-  download: (service, id) => service.download(owner, id),
-  delete: (service, id) => service.delete(owner, id),
-  findBindable: (service, id) => service.findBindable(owner, [id]),
-}
+const addressers = {
+  get: (service, userId, id) => Effect.asVoid(service.get(userId, id)),
+  download: (service, userId, id) => Effect.asVoid(service.download(userId, id)),
+  delete: (service, userId, id) => service.delete(userId, id),
+  findBindable: (service, userId, id) => Effect.asVoid(service.findBindable(userId, [id])),
+} as const satisfies Record<string, Address>
 
 const bind = (attachment: Attachment) =>
   Effect.flatMap(AttachmentRepository, (attachments) =>
@@ -265,11 +264,13 @@ describe('AttachmentService', () => {
       "%s of another user's id or of an unknown id is AttachmentNotFoundError",
       (method) =>
         Effect.gen(function* () {
-          const read = pickReader(yield* AttachmentService, method)
+          const service = yield* AttachmentService
           const attachment = yield* uploadPhoto
 
-          const foreign = yield* Effect.flip(read(stranger, attachment.id))
-          const missing = yield* Effect.flip(read(owner, unknownAttachmentId))
+          const foreign = yield* Effect.flip(addressers[method](service, stranger, attachment.id))
+          const missing = yield* Effect.flip(
+            addressers[method](service, owner, unknownAttachmentId),
+          )
 
           assertSchemaEquals(
             AttachmentNotFoundError,
@@ -412,7 +413,7 @@ describe('AttachmentService', () => {
           const attachment = yield* uploadPhoto
           yield* TestClock.adjust(Duration.hours(24))
 
-          const error = yield* Effect.flip(addressers[method](service, attachment.id))
+          const error = yield* Effect.flip(addressers[method](service, owner, attachment.id))
 
           assertSchemaEquals(
             AttachmentNotFoundError,
@@ -432,9 +433,7 @@ describe('AttachmentService', () => {
           const attachment = yield* uploadPhoto
           yield* TestClock.adjust(Duration.sum(Duration.hours(23), Duration.minutes(59)))
 
-          const exit = yield* Effect.exit(addressers[method](service, attachment.id))
-
-          assert.isTrue(Exit.isSuccess(exit))
+          yield* addressers[method](service, owner, attachment.id)
         }),
     )
 
@@ -447,10 +446,41 @@ describe('AttachmentService', () => {
           yield* bind(attachment)
           yield* TestClock.adjust(Duration.hours(48))
 
-          const exit = yield* Effect.exit(addressers[method](service, attachment.id))
+          yield* addressers[method](service, owner, attachment.id)
 
-          assert.isTrue(Exit.isSuccess(exit))
           assert.strictEqual(Arr.length(yield* selectStored([attachment.id])), 1)
+        }),
+    )
+
+    it.effect(
+      'a get meeting an expired attachment while a send binds it keeps the record and its bytes',
+      () =>
+        Effect.gen(function* () {
+          const service = yield* AttachmentService
+          const userLock = yield* UserLock
+          const attachment = yield* uploadPhoto
+          yield* TestClock.adjust(Duration.sum(Duration.hours(23), Duration.minutes(59)))
+
+          const getting = yield* userLock.withPermit(
+            Effect.gen(function* () {
+              const bindable = yield* service.findBindable(owner, [attachment.id])
+              yield* TestClock.adjust(Duration.minutes(1))
+              const getting = yield* Effect.forkDetach(
+                Effect.ignore(service.get(owner, attachment.id)),
+              )
+              // Turns enough for a get that does not wait to delete before the send binds.
+              yield* Effect.repeat(Effect.yieldNow, { times: 9 })
+              yield* service.bind(bindable, messageId)
+              return getting
+            }),
+            owner,
+          )
+          yield* Fiber.join(getting)
+
+          assertEquals(yield* selectStored([attachment.id]), [
+            new Attachment({ ...attachment, messageId: Option.some(messageId) }),
+          ])
+          assert.deepStrictEqual(yield* selectBytes(attachment.id), Option.some(png))
         }),
     )
   })
