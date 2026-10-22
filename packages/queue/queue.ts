@@ -1,24 +1,29 @@
-import { SqliteClient } from '@effect/sql-sqlite-bun'
 import {
   Cause,
   Context,
-  Data,
-  type Duration,
+  Duration,
   Effect,
+  Exit,
   Layer,
+  Option,
   Predicate,
+  Result,
   Schedule,
   Schema,
 } from 'effect'
-import { PersistedQueue } from 'effect/persistence'
-import type { SqlError } from 'effect/sql'
+
+import { QueueError, QueueTransport, type Received } from '#queue/queue.transport'
 
 export interface QueueDefinition<S extends Schema.Top> {
   readonly name: string
   readonly schema: S
   readonly maxAttempts: number
-  readonly retrySchedule: Schedule.Schedule<unknown, number>
-  /** Messages that share an id are delivered once: the first one sent. */
+  /** How long a message waits after a failed `attempt`. */
+  readonly retryDelay: (attempt: number) => Duration.Input
+  /**
+   * Travels with the message for logs only: delivery is at-least-once, so a handler must leave
+   * the same state when a job comes twice.
+   */
   readonly jobId: (message: S['Type']) => string
 }
 
@@ -32,52 +37,122 @@ export interface AttemptInfo {
 
 export type Handler<A, E, R> = (message: A, attempt: AttemptInfo) => Effect.Effect<void, E, R>
 
-export class QueueError extends Schema.TaggedError<QueueError>()('QueueError', {
-  cause: Schema.Defect(),
-}) {}
-
-export interface QueueClientSqliteOptions {
-  readonly filename: string
-  /** How long a crashed worker's lock holds its message; keep it above `lockRefreshInterval`. */
+export interface QueueClientOptions {
+  /** The physical queue that holds a definition's `name`. */
+  readonly queueName: (name: string) => string
+  /** How long a received message stays hidden from other workers; keep it above `lockRefreshInterval`. */
   readonly lockExpiration: Duration.Input
   readonly lockRefreshInterval: Duration.Input
 }
 
-// The store reads only the exit of the take callback: a failure retries or dead-letters the
-// message, an interrupt releases it. This marker carries that failure out of `take` so the loop
-// can tell it from a store error.
-class AttemptFailed extends Data.TaggedError('AttemptFailed') {}
+const receiveWait = Duration.seconds(20)
 
-const runAttempt = <A, I, E, R>(
-  definition: QueueDefinition<Schema.Codec<A, I>>,
-  handle: Handler<A, E, R>,
-) =>
-  Effect.fn('runAttempt')(function* (
-    message: A,
-    metadata: { readonly id: string; readonly attempts: number },
-  ) {
-    const info: AttemptInfo = {
-      attempt: metadata.attempts,
-      maxAttempts: definition.maxAttempts,
-      isLastAttempt: metadata.attempts >= definition.maxAttempts,
+type Restore = <A, E, R>(effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>
+
+const buildAttemptInfo = (received: Received, maxAttempts: number): AttemptInfo => ({
+  attempt: received.receiveCount,
+  maxAttempts,
+  isLastAttempt: received.receiveCount >= maxAttempts,
+})
+
+const buildJsonCodec = <A, I>(schema: Schema.Codec<A, I>) =>
+  Schema.fromJsonString(Schema.toCodecJson(schema))
+
+export const encodeBody = <A, I>(definition: QueueDefinition<Schema.Codec<A, I>>, message: A) =>
+  Schema.encodeEffect(buildJsonCodec(definition.schema))(message).pipe(
+    Effect.mapError((cause) => new QueueError({ cause })),
+  )
+
+const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueClientOptions) =>
+  Effect.gen(function* () {
+    const transport = yield* QueueTransport
+
+    const send = Effect.fn('QueueClient.send')(function* <A, I>(
+      definition: QueueDefinition<Schema.Codec<A, I>>,
+      message: A,
+    ) {
+      const body = yield* encodeBody(definition, message)
+      yield* transport.send(queueName(definition.name), {
+        body,
+        attributes: { jobId: definition.jobId(message) },
+      })
+    })
+
+    const consume = <A, I, E, R>(
+      definition: QueueDefinition<Schema.Codec<A, I>>,
+      handle: Handler<A, E, R>,
+    ) => {
+      const queue = queueName(definition.name)
+      const decode = Schema.decodeEffect(buildJsonCodec(definition.schema))
+      const extend = (received: Received, visibility: Duration.Input) =>
+        transport.extend(queue, { handle: received.handle, visibility })
+      const release = (received: Received) => extend(received, 0)
+
+      const heartbeat = (received: Received) =>
+        Effect.sleep(lockRefreshInterval).pipe(
+          Effect.andThen(extend(received, lockExpiration)),
+          Effect.tapCause((cause) => Effect.logWarning('queue heartbeat failed', cause)),
+          Effect.ignore,
+          Effect.forever,
+        )
+
+      // Visibility settles every outcome: `delete` on success, a retry delay, or 0 so that the
+      // next receive redrives a spent message to the dead-letter queue.
+      const settle = Effect.fnUntraced(function* (
+        received: Received,
+        { info, exit }: { readonly info: AttemptInfo; readonly exit: Exit.Exit<void, E> },
+      ) {
+        if (Exit.isSuccess(exit)) return yield* transport.delete(queue, received.handle)
+        if (Cause.hasInterruptsOnly(exit.cause)) return yield* release(received)
+
+        if (info.isLastAttempt) {
+          yield* Effect.logError('queue message dead-lettered', exit.cause)
+          return yield* release(received)
+        }
+        yield* Effect.logWarning('queue message attempt failed', exit.cause)
+        yield* extend(received, definition.retryDelay(info.attempt))
+      })
+
+      // Runs masked from the receive on, so no interrupt finds the message unreleased: `restore`
+      // lets one reach the decode and the handler only, releasing the message at once.
+      const run = Effect.fnUntraced(
+        function* (received: Received, restore: Restore) {
+          const releasing = <A, E2, R2>(effect: Effect.Effect<A, E2, R2>) =>
+            restore(effect).pipe(Effect.onInterrupt(() => Effect.ignore(release(received))))
+
+          const decoded = yield* releasing(Effect.result(decode(received.body)))
+          if (Result.isFailure(decoded)) {
+            yield* Effect.logError('queue message does not decode', decoded.failure)
+            return yield* release(received)
+          }
+
+          const info = buildAttemptInfo(received, definition.maxAttempts)
+          const exit = yield* releasing(
+            Effect.raceFirst(Effect.exit(handle(decoded.success, info)), heartbeat(received)),
+          )
+          yield* settle(received, { info, exit })
+        },
+        (effect, received) =>
+          Effect.annotateLogs(effect, {
+            jobId: received.attributes.jobId,
+            attempt: `${received.receiveCount}/${definition.maxAttempts}`,
+          }),
+      )
+
+      const receiveAndRun = Effect.uninterruptibleMask((restore) =>
+        Effect.gen(function* () {
+          const next = yield* restore(
+            transport.receive(queue, { visibility: lockExpiration, wait: receiveWait }),
+          )
+          if (Option.isNone(next)) return
+          yield* run(next.value, restore)
+        }),
+      )
+
+      return Effect.forever(receiveAndRun)
     }
-    const [level, text] = info.isLastAttempt
-      ? (['Error', 'queue message dead-lettered'] as const)
-      : (['Warn', 'queue message attempt failed'] as const)
 
-    return yield* handle(message, info).pipe(
-      Effect.tapCauseIf(Predicate.not(Cause.hasInterruptsOnly), (cause) =>
-        Effect.logWithLevel(level)(text, cause),
-      ),
-      Effect.catchCause((cause) =>
-        Cause.hasInterruptsOnly(cause) ? Effect.interrupt : Effect.fail(new AttemptFailed()),
-      ),
-      Effect.annotateLogs({
-        queue: definition.name,
-        messageId: metadata.id,
-        attempt: `${info.attempt}/${info.maxAttempts}`,
-      }),
-    )
+    return QueueClient.of({ send, consume })
   })
 
 export class QueueClient extends Context.Service<
@@ -88,81 +163,33 @@ export class QueueClient extends Context.Service<
       message: A,
     ) => Effect.Effect<void, QueueError>
     /**
-     * Runs `handle` on each message, forever.
+     * Runs `handle` on each message forever, the attempt being its receive count: success deletes
+     * it, a failure hides it for `retryDelay`, and a last failure, an undecodable body or an
+     * interrupt makes it visible at once for its next attempt or the dead-letter queue.
      *
-     * A failed attempt is logged and retried on the definition's schedule, the last one is logged
-     * as dead-lettered, and neither ends the loop. An interrupt releases the in-flight message
-     * without counting the attempt.
+     * An interrupt waits for the settle under way, so a retry keeps its delay and a delete is
+     * not lost.
      */
     readonly consume: <A, I, E, R>(
       definition: QueueDefinition<Schema.Codec<A, I>>,
       handle: Handler<A, E, R>,
     ) => Effect.Effect<never, QueueError, R>
   }
->()('@app-template/queue/QueueClient', {
-  make: Effect.gen(function* () {
-    const factory = yield* PersistedQueue.PersistedQueueFactory
-
-    const send = Effect.fn('QueueClient.send')(function* <A, I>(
-      definition: QueueDefinition<Schema.Codec<A, I>>,
-      message: A,
-    ) {
-      const queue = yield* factory.make(definition)
-      yield* queue
-        .offer(message, { id: definition.jobId(message) })
-        .pipe(Effect.mapError((cause) => new QueueError({ cause })))
-    })
-
-    const consume = <A, I, E, R>(
-      definition: QueueDefinition<Schema.Codec<A, I>>,
-      handle: Handler<A, E, R>,
-    ) =>
-      factory.make(definition).pipe(
-        Effect.flatMap((queue) => queue.take(runAttempt(definition, handle))),
-        // A store that dies settling a failed attempt (the SQL `ack`) adds its defect beside
-        // `AttemptFailed`, and `catchTags` below would drop it unseen.
-        Effect.tapCauseIf(
-          (cause) => Cause.hasDies(cause) && Cause.hasFails(cause),
-          (cause) => Effect.logError('queue store failed settling an attempt', cause),
-        ),
-        Effect.catchTags({
-          AttemptFailed: () => Effect.void,
-          PersistedQueueError: (cause) => Effect.fail(new QueueError({ cause })),
-        }),
-        Effect.forever,
-      )
-
-    return { send, consume }
-  }),
-}) {
-  static readonly layer: Layer.Layer<QueueClient, never, PersistedQueue.PersistedQueueStore> =
-    Layer.effect(this, this.make).pipe(Layer.provide(PersistedQueue.layer))
-
-  /** A process-local, volatile queue for tests and single-process development. */
-  static readonly layerMemory: Layer.Layer<QueueClient> = this.layer.pipe(
-    Layer.provide(PersistedQueue.layerStoreMemory),
-  )
-
-  /** A queue in one SQLite file, shared by every process that opens the same file. */
-  static readonly layerSqlite = ({
-    filename,
-    ...locks
-  }: QueueClientSqliteOptions): Layer.Layer<QueueClient, SqlError.SqlError> =>
-    this.layer.pipe(
-      Layer.provide(PersistedQueue.layerStoreSql(locks)),
-      Layer.provide(SqliteClient.layer({ filename })),
-    )
+>()('@app-template/queue/QueueClient') {
+  static readonly layer = (
+    options: QueueClientOptions,
+  ): Layer.Layer<QueueClient, never, QueueTransport> => Layer.effect(this, makeClient(options))
 }
 
-// Any cause restarts the consumer, logged, with no attempt limit, as effect's own SQL poll loop
-// does: the SQL store dies on a failed ack, and an unrecovered cause would end the forked fiber
-// unlogged while the process runs on. A process restart heals a store no better than waiting does.
+// Any cause restarts the consumer, logged, with no attempt limit: an unrecovered cause would end
+// the forked fiber unlogged while the process runs on, and a process restart heals the transport
+// no better than waiting does.
 const consumerRestart = Schedule.min([
   Schedule.exponential('1 second'),
   Schedule.spaced('1 minute'),
 ])
 
-/** Consumes `definition` in a fiber the layer's scope owns; closing it releases the job in hand. */
+/** Consumes `definition` in a fiber the layer's scope owns; closing it returns the job in hand. */
 export const worker = <A, I, E, R>(
   definition: QueueDefinition<Schema.Codec<A, I>>,
   handle: Handler<A, E, R>,

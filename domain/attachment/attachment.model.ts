@@ -28,7 +28,13 @@ export class Attachment extends Schema.Class<Attachment>('Attachment')({
   createdAt: Schema.DateTimeUtc,
 }) {}
 
+/** What the store keeps beside the bytes. */
+export interface AttachmentMeta {
+  readonly mediaType: MediaType
+  readonly fileName: FileName
+}
+
 export interface AttachmentDownload {
   readonly attachment: Attachment
-  readonly bytes: Uint8Array
+  readonly url: URL
 }

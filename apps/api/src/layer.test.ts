@@ -1,16 +1,8 @@
-import { BunHttpServer } from '@effect/platform-bun'
 import { assert, describe, it, layer } from '@effect/vitest'
-import { assertTrue } from '@effect/vitest/utils'
 import { Effect } from 'effect'
-import { HttpClient, HttpServer } from 'effect/http'
-
-import { ApiClient } from '@app-template/http-api'
+import { HttpClient } from 'effect/http'
 
 import { makeApiHarness, operations, spec } from '#api/testing/api.harness'
-
-const stoppedServerUrl = HttpServer.addressFormattedWith(Effect.succeed).pipe(
-  Effect.provide(BunHttpServer.layerServer({ hostname: '127.0.0.1', port: 0 })),
-)
 
 describe('api routes', () => {
   layer(makeApiHarness())((it) => {
@@ -47,20 +39,5 @@ describe('api routes', () => {
           $ref: '#/components/schemas/RequestInvalidErrorEncoded',
         })
       }),
-  )
-
-  it.effect('a stopped server fails ApiClient with an HttpClientError', () =>
-    Effect.gen(function* () {
-      const url = yield* stoppedServerUrl
-
-      const error = yield* Effect.flip(
-        Effect.flatMap(ApiClient, (api) => api.health.get()).pipe(
-          Effect.provide(ApiClient.layerFetch(url)),
-        ),
-      )
-
-      assertTrue(error._tag === 'HttpClientError')
-      assert.strictEqual(error.reason._tag, 'TransportError')
-    }),
   )
 })

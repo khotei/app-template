@@ -3,16 +3,18 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./index.ts"
+    ".": "./index.ts",
+    "./testing": "./testing/queue.fake.ts"
   },
   "imports": {
     "#queue/*": "./*.ts"
   },
   "dependencies": {
-    "@effect/sql-sqlite-bun": "catalog:effect",
+    "@effect-aws/client-sqs": "catalog:effect-aws",
     "effect": "catalog:effect"
   },
   "devDependencies": {
+    "@app-template/aws": "workspace:*",
     "@app-template/testing": "workspace:*",
     "@effect/vitest": "catalog:effect"
   }

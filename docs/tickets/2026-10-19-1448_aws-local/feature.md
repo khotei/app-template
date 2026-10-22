@@ -37,9 +37,13 @@ stay in `KeyValueStore` until `postgres-drizzle` (4).
   - Uploads still go through the api, streamed to S3; downloads become a redirect to a presigned
     URL.
   - Unbound attachments are collected by age here, as `chat-core` deferred ("arrives with S3").
+    *Amended in S8: here they expire by age (the record reads as not found, the bytes go by the
+    bucket's rule); deleting expired records waits for ticket 4's SQL sweep.*
   - MiniStack becomes required for `make dev`; the SQLite queue store and the attachment bytes in
     the file store are removed. Tests keep the in-memory layers, and the AWS adapters are tested
-    against MiniStack in `make test` and CI.
+    against MiniStack in `make test` and CI. *Amended in architecture (D1, S4): the queue keeps no
+    in-memory layer; tests that need one run on MiniStack.* *Amended in S5c: tests that only send
+    record with `recordQueue()`, a send-only fake; every test that consumes runs on MiniStack.*
   - Bucket and queue names come from the inventory and the stage, never from `.env`.
 - **Facts verified on 2026-10-19.**
 
@@ -64,21 +68,24 @@ stay in `KeyValueStore` until `postgres-drizzle` (4).
 - An S3 adapter of `AttachmentStore` that streams uploads, presigns downloads and deletes objects;
   the port changes as far as streaming needs.
 - An SQS layer under `QueueClient`, so the queue definitions and handlers stay as they are.
-- The garbage collection of unbound attachments older than 24 hours.
-- MiniStack in `deployment/local/docker-compose.yml`; `make up` and `make down`; a provisioner
-  that applies the inventory to MiniStack.
+- The garbage collection of unbound attachments older than 24 hours. *Amended in S8: they
+  expire, and their records wait for ticket 4's sweep.*
+- MiniStack run by a Pulumi program in `deployment/local/` (the Docker provider under
+  `runtime: bun`); `make up` and `make down`; a provisioner that applies the inventory to
+  MiniStack. *Amended in architecture (D13): the compose file the first draft named is replaced
+  before it lands.*
 - The resource inventory in `packages/aws` (D4) and a drift guard.
 - Config areas for AWS in `@app-template/config`; `.env.example` updated.
 - The SQLite queue store and the attachment bytes in the file store removed.
-- Contract tests of both ports run on the in-memory and the AWS adapters; AWS adapters against
-  MiniStack through Testcontainers.
+- Contract tests of both ports run on the in-memory and the AWS adapters (the queue on its AWS
+  adapter alone, D1); AWS adapters against MiniStack through Testcontainers.
 - `docs/knowledge/` updated: how local AWS works, and the stub notes in `deployment/CLAUDE.md` and
   `deployment/local/README.md`.
 
 ## Out of scope
 
-- Pulumi, Lambda packaging, IAM, real AWS accounts, MiniStack running Lambdas: `aws-deployment`
-  (9).
+- Pulumi on AWS, Lambda packaging, IAM, real AWS accounts, MiniStack running Lambdas:
+  `aws-deployment` (9).
 - Postgres, the outbox and the move of chat metadata out of `KeyValueStore`: `postgres-drizzle`
   (4).
 - Presigned uploads from the browser; a CDN in front of downloads.
@@ -107,7 +114,9 @@ stay in `KeyValueStore` until `postgres-drizzle` (4).
   found, delete its record when it is next addressed, and leave its object to a bucket lifecycle
   rule that expires unbound objects after one day; a bound attachment SHALL never be collected.
   *Amended in architecture (D9): `KeyValueStore` cannot list, so a sweep of untouched records
-  waits for ticket 4; MiniStack stores lifecycle rules but never runs them.*
+  waits for ticket 4; MiniStack stores lifecycle rules but never runs them.* *Amended in S8
+  (D9): no read deletes the record; it stays, read as not found, until ticket 4's SQL sweep,
+  since a delete on read would race a send binding it.*
 
 ### Jobs on SQS
 
@@ -120,7 +129,13 @@ stay in `KeyValueStore` until `postgres-drizzle` (4).
 - **R11** — IF an attempt fails and attempts remain, THEN THE SYSTEM SHALL make the job visible
   again after the definition's retry delay.
 - **R12** — THE SYSTEM SHALL give each handler its attempt number and whether it is the last one,
-  counted from the queue's receive count against the definition's `maxAttempts`.
+  counted from the queue's receive count against the definition's `maxAttempts`; IF a worker is
+  interrupted during a job (a stop, a `--watch` reload, a handler that interrupts itself), THEN
+  THE SYSTEM SHALL make the job visible again at once, counting that receive as an attempt.
+  *Replaces `chat-core` R34's "a worker interrupted during a job SHALL release it without
+  counting the attempt" (aws-local D2): SQS counts every receive.* *Clarified in S5b:* "during a
+  job" is the decode and the handler; the settle after them (the delete, or the retry delay of
+  R11) runs to its end.
 - **R13** — IF a job has been received `maxAttempts` times and is still not complete, THEN THE
   SYSTEM SHALL move it to the definition's dead-letter queue without calling the handler again.
 - **R14** — IF a message on a queue does not decode as its definition's job, THEN THE SYSTEM SHALL
@@ -137,11 +152,14 @@ stay in `KeyValueStore` until `postgres-drizzle` (4).
 - **R17** — IF a queue definition or the bucket adapter names a resource that the inventory does
   not describe, or the inventory describes one no code addresses, THEN `make check` SHALL fail.
   *Amended in architecture (D4): definitions read their name and `maxAttempts` from the inventory,
-  and an agreement test covers the rest.*
+  and an agreement test covers the rest.* *Amended in S13: the "no code addresses" half is
+  dropped; an unused resource only costs its place, and code reading names and settings from the
+  inventory makes a missing one fail typecheck, which `make check` runs.*
 - **R18** — WHEN `make dev` runs with MiniStack up, THE SYSTEM SHALL serve uploads, downloads and
   both jobs through MiniStack, with no SQLite queue file and no attachment bytes under `.data/`.
-- **R19** — IF the api or the worker cannot reach the bucket or a queue at startup, THEN THE
-  SYSTEM SHALL exit with an error that names the endpoint and the resource.
+- **R19** — *Dropped in plan step S3 (architecture D5):* the api and the worker do not check
+  their resources at startup. The infrastructure (`make up`, later Pulumi) guarantees them, and a
+  missing one fails the first call that uses it.
 - **R20** — THE SYSTEM SHALL read its AWS settings only through `@app-template/config` layers:
   `AWS_REGION`, `STAGE`, and `AWS_ENDPOINT_URL` when set; credentials SHALL come from the SDK's
   default provider chain; bucket and queue names SHALL come from the inventory and the stage.
@@ -154,7 +172,10 @@ stay in `KeyValueStore` until `postgres-drizzle` (4).
 
 - **R21** — THE SYSTEM SHALL run one contract suite per port (`AttachmentStore`, `QueueTransport`)
   against both the in-memory and the AWS adapter; the AWS run SHALL start MiniStack through
-  Testcontainers, need no `.env`, and run in `make test` and CI.
+  Testcontainers, need no `.env`, and run in `make test` and CI. *Amended in architecture (D1,
+  S4): the queue has no in-memory adapter, so `QueueTransport`'s suite runs on MiniStack alone, as
+  does every test that needs a queue.* *Amended in S5c: a test that only sends records with
+  `recordQueue()`; every test that consumes runs on MiniStack.*
 - **R22** — WHEN this ticket lands, `docs/knowledge/` SHALL explain the local AWS environment
   (start, reset, inventory, how a new bucket or queue is added), and `deployment/CLAUDE.md` and
   `deployment/local/README.md` SHALL no longer call the local environment a stub.
@@ -169,21 +190,20 @@ stay in `KeyValueStore` until `postgres-drizzle` (4).
 | R4 | The same id under another user's cookie is `404 AttachmentNotFound` with no `Location`. |
 | R5 | Deleting a chat with two attachments, and deleting an unbound attachment, leave no object behind. |
 | R6 | A worker test against MiniStack: the recorded prompt holds a `file` part with the uploaded bytes. |
-| R7 | Under `TestClock`, an unbound attachment aged 24 h is `404` and its record is gone; a bound one of the same age stays; on MiniStack the object carries the `unbound` tag until `keep`, and the bucket's lifecycle rules read back as the inventory states. |
+| R7 | Under `TestClock`, an unbound attachment aged 24 h is `404` and its record stays; a bound one of the same age stays; on MiniStack an object stored by a single put carries the `unbound` tag until `keep` (a multipart object's tag is checked on AWS by ticket 9), and the bucket's lifecycle rules read back as the inventory states. |
 | R8 | Sending each job puts one message on `app-template-<stage>-assistant-message` or `-chat-title`. |
 | R9 | Delivering the same assistant-message and chat-title job twice leaves the message and the title as one delivery does. |
 | R10 | A handler that runs longer than the visibility timeout is not received by a second consumer. |
 | R11 | A handler failing once is received again no earlier than the definition's first retry delay. |
-| R12 | A handler failing every time sees attempts `1…maxAttempts`, `isLastAttempt` only on the last. |
+| R12 | A handler failing every time sees attempts `1…maxAttempts`, `isLastAttempt` only on the last; a job whose worker is stopped mid-handler, or whose handler interrupts itself, comes back at once as the next attempt; an interrupt during the last reply attempt ends with the reply `failed` (`chat-core` R18, R19, as amended in S5d). |
 | R13 | After `maxAttempts` failures the message is on the dead-letter queue and the handler was called exactly `maxAttempts` times. |
 | R14 | A malformed message is on the dead-letter queue and the handler was never called. |
-| R15 | The inventory module lists the bucket, two queues and two dead-letter queues with `maxReceiveCount` equal to each definition's `maxAttempts`. |
-| R16 | `make up` twice: the second run reports no change; `make down` leaves no MiniStack container. |
-| R17 | Adding a queue to the inventory without a definition, or a definition whose name is not in the inventory, makes the agreement test in `make check` fail with the name. |
+| R15 | The inventory module lists the bucket and two queues with `maxReceiveCount` equal to each definition's `maxAttempts`; each queue's dead-letter queue and redrive policy are derived from its entry (`buildDeadLetterName`), and `make up` reads them back. |
+| R16 | `make up` twice: the second run reports no change (the bucket's lifecycle rules are written again with the same content); `make down` leaves no MiniStack container. |
+| R17 | A queue definition or the S3 adapter reading an entry the inventory lacks fails `make check` at typecheck (`TS2339`); no definition or adapter spells a resource name or `maxAttempts` as a literal. *Amended in S13.* |
 | R18 | `make up && make dev`: upload, send, poll to `completed`, title appears; `.data/` holds no `queue.sqlite` and no attachment bytes. |
-| R19 | `make dev` without `make up`: both processes exit with an error naming the endpoint and the resource. |
-| R20 | `git grep` finds no `process.env`, `Bun.env`, bucket or queue name outside config and the inventory; `.env.example` matches R20. |
-| R21 | `make test` runs each contract suite twice (memory, MiniStack) and passes without `.env`; CI runs the same. |
+| R20 | `git grep -- '*.ts' ':!repos' ':!*.test.ts'` finds no `process.env`, `Bun.env`, bucket or queue name outside config and the inventory; `.env.example` matches R20. |
+| R21 | `make test` runs the `AttachmentStore` suite twice (memory, MiniStack) and the `QueueTransport` suite on MiniStack, and passes without `.env`; CI runs the same. |
 | R22 | The knowledge doc exists and is linked from `docs/knowledge/architecture.md`; `git grep -i stub deployment/` finds no local-environment stub note. |
 
 ## Open questions

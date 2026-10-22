@@ -46,33 +46,15 @@ const decodeDeclaredType = (file: Multipart.File) =>
     Effect.mapError(() => new AttachmentTypeUnsupportedError()),
   )
 
-const bufferFile = Effect.fnUntraced(function* (part: Multipart.Part, index: number) {
+const decodeUpload = Effect.fnUntraced(function* (part: Multipart.Part, index: number) {
   if (!Multipart.isFile(part))
     return yield* buildRequestInvalid(['files', index], 'Expected a file')
   const fileName = yield* Schema.decodeUnknownEffect(FileName)(part.name).pipe(
     Effect.mapError(() => buildRequestInvalid(['files', index], 'Expected a file name')),
   )
   const mediaType = yield* decodeDeclaredType(part)
-  const bytes = yield* part.contentEffect
-  return { fileName, mediaType, bytes }
+  return { fileName, mediaType, content: part.content }
 })
-
-const unquotable = /[^\x20\x21\x23-\x5b\x5d-\x7e]/g
-
-const encodeExtValue = (value: string) =>
-  encodeURIComponent(value).replace(
-    /['()*]/g,
-    (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`,
-  )
-
-// A header value must be ASCII (Bun answers 500 otherwise), so a name that does not fit a quoted
-// string travels in `filename*` beside an ASCII fallback.
-const buildInlineDisposition = (fileName: string) => {
-  const fallback = fileName.replace(unquotable, '_')
-  return fallback === fileName
-    ? `inline; filename="${fileName}"`
-    : `inline; filename="${fallback}"; filename*=UTF-8''${encodeExtValue(fileName)}`
-}
 
 export const AttachmentHandler = HttpApiBuilder.group(
   Api,
@@ -86,20 +68,19 @@ export const AttachmentHandler = HttpApiBuilder.group(
         Effect.fn('AttachmentHandler.upload')(function* ({ payload }) {
           const user = yield* CurrentUser
 
-          const files = yield* payload.pipe(
-            Stream.mapEffect(bufferFile),
-            Stream.runCollect,
-            Effect.catchTag(
-              'MultipartError',
-              (error): Effect.Effect<never, UploadRefusal> =>
-                refuseMultipart[error.reason._tag](error),
-            ),
-            Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty, () =>
-              buildRequestInvalid(['files'], 'Expected at least 1 file'),
-            ),
-          )
+          const uploaded = yield* attachments
+            .upload(user.id, Stream.mapEffect(payload, decodeUpload))
+            .pipe(
+              Effect.catchTag(
+                'MultipartError',
+                (error): Effect.Effect<never, UploadRefusal> =>
+                  refuseMultipart[error.reason._tag](error),
+              ),
+              Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty, () =>
+                buildRequestInvalid(['files'], 'Expected at least 1 file'),
+              ),
+            )
 
-          const uploaded = yield* Effect.forEach(files, (file) => attachments.upload(user.id, file))
           return Arr.map(uploaded, toAttachment)
         }),
       )
@@ -115,11 +96,8 @@ export const AttachmentHandler = HttpApiBuilder.group(
         'download',
         Effect.fn('AttachmentHandler.download')(function* ({ params }) {
           const user = yield* CurrentUser
-          const { attachment, bytes } = yield* attachments.download(user.id, params.attachmentId)
-          return HttpServerResponse.uint8Array(bytes, {
-            contentType: attachment.mediaType,
-            headers: { 'content-disposition': buildInlineDisposition(attachment.fileName) },
-          })
+          const { url } = yield* attachments.download(user.id, params.attachmentId)
+          return HttpServerResponse.redirect(url)
         }),
       )
       .handle(

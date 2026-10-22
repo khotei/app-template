@@ -79,5 +79,7 @@ export class ChatTitleJob extends Context.Service<
     ),
   )
 
+  static readonly handle = handle
+
   static readonly worker = worker(chatTitleQueue, handle)
 }

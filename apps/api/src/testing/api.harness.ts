@@ -6,20 +6,23 @@ import { OpenApi } from 'effect/http-api'
 import { KeyValueStore } from 'effect/persistence'
 
 import { Api, ApiClient } from '@app-template/http-api'
-import { QueueClient } from '@app-template/queue'
+import { AttachmentKv } from '@app-template/infrastructure/attachment'
+import { recordQueue } from '@app-template/queue/testing'
 
 import { ApiHttp } from '#api/layer'
 
 /**
- * The api on an ephemeral port over the memory store and the memory queue; its `HttpClient`
- * targets that port, and its `KeyValueStore` is open for arranging what only the worker writes.
+ * The api on an ephemeral port over the memory store and a queue that records what it is sent;
+ * its `HttpClient` targets that port, and its `KeyValueStore` is open for arranging what only the
+ * worker writes.
  */
 export const makeApiHarness = () =>
   ApiHttp.pipe(
+    Layer.provide(AttachmentKv),
     Layer.provideMerge(BunHttpServer.layerTest),
     Layer.provideMerge(KeyValueStore.layerMemory),
     Layer.provide([
-      QueueClient.layerMemory,
+      recordQueue().layer,
       BunServices.layer,
       ConfigProvider.layer(ConfigProvider.fromUnknown({})),
     ]),

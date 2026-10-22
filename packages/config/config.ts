@@ -1,4 +1,14 @@
-import { Config, Context, Duration, Effect, Layer, type LogLevel, References, Schema } from 'effect'
+import {
+  Config,
+  Context,
+  Duration,
+  Effect,
+  Layer,
+  type LogLevel,
+  type Option,
+  References,
+  Schema,
+} from 'effect'
 
 export class ApiConfig extends Context.Service<ApiConfig, { readonly port: number }>()(
   '@app-template/config/ApiConfig',
@@ -16,6 +26,21 @@ export class StoreConfig extends Context.Service<StoreConfig, { readonly path: s
   '@app-template/config/StoreConfig',
 ) {
   static readonly layer = Layer.effect(this, Config.all({ path: Config.String('STORE_PATH') }))
+}
+
+/** `endpoint` is set for MiniStack and absent on AWS; credentials stay with the SDK's own chain. */
+export class AwsConfig extends Context.Service<
+  AwsConfig,
+  { readonly region: string; readonly endpoint: Option.Option<URL>; readonly stage: string }
+>()('@app-template/config/AwsConfig') {
+  static readonly layer = Layer.effect(
+    this,
+    Config.all({
+      region: Config.String('AWS_REGION'),
+      endpoint: Config.option(Config.URL('AWS_ENDPOINT_URL')),
+      stage: Config.String('STAGE'),
+    }),
+  )
 }
 
 const nodeEnvs = ['development', 'test', 'production'] as const
@@ -46,7 +71,6 @@ const isLockRefreshBeforeExpiration = (config: QueueConfig['Service']) =>
   Duration.isLessThan(config.lockRefreshInterval, config.lockExpiration)
 
 const queueConfig = Config.all({
-  filename: Config.String('QUEUE_SQLITE_PATH'),
   lockExpiration: Config.Duration('QUEUE_LOCK_EXPIRATION').pipe(
     Config.withDefault(Duration.seconds(15)),
   ),
@@ -64,7 +88,6 @@ const queueConfig = Config.all({
 export class QueueConfig extends Context.Service<
   QueueConfig,
   {
-    readonly filename: string
     readonly lockExpiration: Duration.Duration
     readonly lockRefreshInterval: Duration.Duration
   }

@@ -6,9 +6,9 @@ import {
   Duration,
   Effect,
   Equal,
+  Exit,
   Layer,
   Option,
-  Predicate,
   Ref,
   Schedule,
   Stream,
@@ -34,18 +34,13 @@ import {
   buildChatPrompt,
   type ChatTurn,
   GenerateAssistantMessage,
-  replyAttempts,
   streamAssistantText,
 } from '@app-template/infrastructure/chat'
 import { type AttemptInfo, QueueClient, worker } from '@app-template/queue'
 
 import { touchChat } from '#application/chat/touch-chat'
 
-/** How often a streaming reply's accumulated text is written to its message, at most. */
-export const SnapshotInterval = Context.Reference<Duration.Duration>(
-  '@app-template/application/chat/SnapshotInterval',
-  { defaultValue: () => Duration.millis(300) },
-)
+const snapshotInterval = Duration.millis(300)
 
 const readTurn = Effect.fnUntraced(function* (message: Message) {
   const attachments = yield* AttachmentRepository
@@ -76,7 +71,6 @@ const streamSnapshots = Effect.fnUntraced(function* <E, R>(
   deltas: Stream.Stream<string, E, R>,
 ) {
   const messages = yield* MessageRepository
-  const interval = yield* SnapshotInterval
   const text = yield* Ref.make(generating.text)
   const written = yield* Ref.make(generating.text)
 
@@ -93,7 +87,7 @@ const streamSnapshots = Effect.fnUntraced(function* <E, R>(
   yield* Effect.raceFirst(
     Stream.runForEach(deltas, (delta) => Ref.update(text, (accumulated) => accumulated + delta)),
     // A write interrupted mid-flight could land after the final one, so a snapshot runs whole.
-    Effect.repeat(Effect.uninterruptible(snapshot), Schedule.spaced(interval)),
+    Effect.repeat(Effect.uninterruptible(snapshot), Schedule.spaced(snapshotInterval)),
   )
 
   return yield* Ref.get(text)
@@ -154,72 +148,44 @@ const findReply = Effect.fnUntraced(function* (
 })
 
 const failReply = Effect.fnUntraced(function* (
-  message: Message,
-  cause: string,
+  messageId: MessageId,
+  cause: Cause.Cause<unknown>,
 ): Effect.fn.Return<void, MessageStageInvalidError, ChatRepository | MessageRepository> {
+  const messages = yield* MessageRepository
+
+  const stored = yield* messages.selectById(messageId)
+  const active = Option.filter(stored, isActiveMessage)
+  if (Option.isNone(active)) return
+
   const failedAt = yield* DateTime.now
-  const failed = yield* failMessage(message, { reason: 'ReplyFailed', cause, at: failedAt })
+  const failed = yield* failMessage(active.value, {
+    reason: 'ReplyFailed',
+    cause: Cause.pretty(cause),
+    at: failedAt,
+  })
   yield* writeSettled(failed)
 })
 
-// `failStoredReply` re-reads the message: the one found on take has moved on by the time the
-// last reply fails.
-const failStoredReply = Effect.fnUntraced(function* (
-  messageId: MessageId,
-  cause: string,
-): Effect.fn.Return<void, MessageStageInvalidError, ChatRepository | MessageRepository> {
-  const messages = yield* MessageRepository
-  const stored = yield* messages.selectById(messageId)
-  const active = Option.filter(stored, isActiveMessage)
-  if (Option.isSome(active)) yield* failReply(active.value, cause)
+const findAndReply = Effect.fnUntraced(function* (
+  job: GenerateAssistantMessage,
+): Effect.fn.Return<void, ReplyError, ReplyServices> {
+  const message = yield* findReply(job)
+  if (Option.isNone(message)) return yield* chatDeleted
+  yield* reply(message.value)
 })
-
-const unsettledCause =
-  'The last reply attempt ended without settling the message: its worker stopped or the store failed.'
-
-type AttemptRole = 'reply' | 'lastReply' | 'settle'
-
-type ReplyAttempt = (message: Message) => Effect.Effect<void, ReplyError, ReplyServices>
-
-// The definition's final attempt only settles a reply the last one left active.
-const roleOf = (info: AttemptInfo): AttemptRole => {
-  if (info.isLastAttempt) return 'settle'
-  return info.attempt === replyAttempts ? 'lastReply' : 'reply'
-}
-
-const attemptRoles = {
-  reply,
-  lastReply: (message: Message) =>
-    reply(message).pipe(
-      Effect.tapCauseIf(Predicate.not(Cause.hasInterruptsOnly), (cause) =>
-        Effect.logError('assistant reply failed', cause),
-      ),
-      Effect.catchCause((cause) =>
-        Cause.hasInterruptsOnly(cause)
-          ? Effect.failCause(cause)
-          : failStoredReply(message.id, Cause.pretty(cause)),
-      ),
-    ),
-  settle: Effect.fnUntraced(function* (message: Message) {
-    if (!isActiveMessage(message)) return yield* alreadySettled
-    yield* Effect.logError('assistant reply left unsettled by the last reply attempt')
-    yield* failReply(message, unsettledCause)
-  }),
-} as const satisfies Record<AttemptRole, ReplyAttempt>
 
 const handle = Effect.fn('AssistantMessageJob.handle')(function* (
   job: GenerateAssistantMessage,
   info: AttemptInfo,
 ) {
-  const message = yield* findReply(job)
-  if (Option.isNone(message)) return yield* chatDeleted
-  return yield* attemptRoles[roleOf(info)](message.value)
+  if (!info.isLastAttempt) return yield* findAndReply(job)
+  // An exit handler runs uninterruptibly, so a stopping worker waits for the `failed` write.
+  yield* Effect.onExit(findAndReply(job), (exit) =>
+    Exit.isSuccess(exit) ? Effect.void : failReply(job.messageId, exit.cause),
+  )
 })
 
-/**
- * Replies in `replyAttempts` tries, then runs one attempt that only settles a reply the last try
- * left active, so a spent job never leaves its message active and its chat busy.
- */
+/** The last attempt fails the reply on any outcome but success, an interrupt included. */
 export class AssistantMessageJob extends Context.Service<
   AssistantMessageJob,
   {
@@ -242,6 +208,8 @@ export class AssistantMessageJob extends Context.Service<
       }),
     ),
   )
+
+  static readonly handle = handle
 
   static readonly worker = worker(assistantMessageQueue, handle)
 }

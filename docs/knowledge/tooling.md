@@ -7,11 +7,15 @@ them. Versions: Bun 1.4.3, TypeScript 7.0.2, Biome 2.5.15, husky 9.1.7, vitest 5
 ## Commands
 
 Everything runs through the root `Makefile` (GNU Make 3.81, the macOS default). There is no
-`Makefile` in any workspace.
+`Makefile` in any workspace. Beyond Bun, two tools are prerequisites: Docker, for `make test` and
+`make up`, and the Pulumi CLI, for `make up`, `down` and `reset`; `make check` needs only Docker,
+and `make setup` needs neither.
 
 | Target | Runs | Use |
 |---|---|---|
-| `make setup` | `bun install`, then copies `.env.example` to `.env` if missing | first clone; installs the git hooks too |
+| `make setup` | `bun install`, then copies `.env.example` to `.env` if missing | first clone; installs the git hooks too; needs no Pulumi CLI |
+| `make stack` | `pulumi login` to the file backend under `.data/pulumi`, `stack select local` or `init` | idempotent; `up` and `down` run it first |
+| `make up` · `down` · `reset` | `pulumi up` / `destroy` on `deployment/local/`, then `deployment/local/provision.ts` | MiniStack for S3 and SQS: [aws.md › The local stand-in](aws.md#the-local-stand-in) |
 | `make dev` | `bun --filter './apps/*' dev` | all three processes, interleaved output |
 | `make dev-api` · `dev-worker` · `dev-web` | one app's `dev` script | one process |
 | `make debug-api` · `debug-worker` · `debug-web` | one app's `debug` script | the same mode plus `--inspect` |
@@ -20,7 +24,7 @@ Everything runs through the root `Makefile` (GNU Make 3.81, the macOS default). 
 | `make lint` | `biome check` | lint, format and import order, without writing |
 | `make fmt` | `biome check --write` | apply formatting, import sorting and safe fixes |
 | `make typecheck` | `bunx tsc -b`, the patched `tsc` | typecheck every workspace through the project references, Effect diagnostics included |
-| `make test` | `bun run test`, which is `bun --bun vitest run` | every colocated `*.test.ts` |
+| `make test` | `bun run test`, which is `bun --bun vitest run` | every colocated `*.test.ts`; the AWS suites need a running Docker daemon ([aws.md › Tests on Docker](aws.md#tests-on-docker)) |
 | `make outdated` | `bun outdated --recursive` | newer versions for every workspace |
 | `make vendor-effect` | `git subtree pull --squash --prefix repos/effect` of the `effect@<pin>` tag | update `repos/effect` to the catalog pin; it commits, so run it on a clean tree. First time: `git subtree add` with the same arguments |
 | `make clean` | removes every `node_modules` and `coverage` | a clean reinstall: follow with `make setup` |
@@ -52,8 +56,9 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
 
 ## Run and debug
 
-- **Ports.** `API_PORT` (3000) and `WEB_PORT` (3001) come from `.env`. The web server proxies
-  `/api/*` to `localhost:${API_PORT}`, so the browser stays same-origin and the api needs no CORS.
+- **Ports.** `API_PORT` (3000) and `WEB_PORT` (3001) come from `.env`, others in a
+  [worktree](#worktrees). The web server proxies `/api/*` to `localhost:${API_PORT}`, so the
+  browser stays same-origin and the api needs no CORS.
 - **A single app.** `make dev-api`, or `cd apps/api && bun run dev`. Both read the same root `.env`.
 - **Debugging.** `make debug-api` prints an inspector block:
 
@@ -84,9 +89,9 @@ only the new interval ran.
 That is why the worker uses `--watch`: its queue consumers are fibers of an Effect runtime, and
 under `--hot` every edit would start a second runtime, and a second consumer of each queue, beside
 the old one. A re-exec leaves nothing to stop, so `apps/worker/src/main.ts` is one `runMain` and the
-scope's finalizers (SIGTERM releases the job in hand and logs `worker stopped`) are the whole
+scope's finalizers (SIGTERM hands back the job in hand and logs `worker stopped`) are the whole
 shutdown; an edit runs the same finalizers before the re-exec, so the old runtime logs `worker
-stopped` and releases its job, and the new one takes it at the same attempt. `Bun.serve` handles
+stopped` ([aws.md › Queues](aws.md#queues)). `Bun.serve` handles
 `--hot` natively by swapping its routes, so `api` and `web` keep the faster reload. An Effect
 runtime does not: each edit re-evaluates `effect` itself and starts a new `runMain` beside the old
 one, whose scope, fibers and finalizers live on. So `apps/api/src/main.ts` keeps a stop handle on
@@ -99,13 +104,37 @@ Bun has no `--dev` flag. "Development" means two things here: the reload flag in
 script, and `NODE_ENV="development"`, which turns on HMR and browser console forwarding in the web
 server's `Bun.serve({ development })`.
 
+### Worktrees
+
+A worktree is a full copy of the environment, so trees run `make up` and `make dev` side by side.
+Each gets a number `N`, the main tree 0, and owns its `node_modules` (`bun install`), `.data/`,
+`.pulumi/` and MiniStack container; its `.env` is the main tree's with three ports moved:
+
+| Variable | Port | Main tree | `N=1` |
+|---|---|---|---|
+| `API_PORT` | `3000 + 10N` | 3000 | 3010 |
+| `WEB_PORT` | `3001 + 10N` | 3001 | 3011 |
+| `AWS_ENDPOINT_URL` | `4566 + 10N` | 4566 | 4576 |
+
+The commands that write it:
+[`ticket-implement` › Parallel steps](../../.claude/skills/ticket-implement/SKILL.md#parallel-steps).
+Run `make down` in a worktree before it is removed, or its container outlives it and keeps the
+port.
+
 ## Environment
 
-- **One root `.env`**, gitignored. `.env.example` is its template and lists only what the code
-  reads. Variables of clients that are still stubs stay commented out.
+- **One root `.env`**, gitignored. `.env.example` is its template and lists what the code reads,
+  plus the variables a client SDK reads from the environment itself: the AWS SDK's default
+  provider chain takes `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` locally and the role on AWS,
+  whose session token rotates, so credentials never pass through `@app-template/config`
+  ([aws.md](aws.md#the-local-stand-in)). Variables of clients that are still stubs stay commented
+  out.
 - **Quoting.** Strings are double-quoted (`LOG_LEVEL="Info"`), numbers are bare (`API_PORT=3000`).
 - **Loading.** Each app script passes `--env-file=../../.env`, a path relative to the app folder.
-  This works from `make` at the root and from `bun run dev` inside the app.
+  This works from `make` at the root and from `bun run dev` inside the app. The one exception is
+  `make up`: Pulumi starts `deployment/local/ministack.ts` itself, so no `--env-file` reaches it,
+  and the recipe loads `.env` into the shell's environment instead. The shell reads the file as
+  its own syntax, so a value with a space must be quoted.
 - **A missing `.env`** is ignored by Bun without a warning. The process then fails at startup while
   building a config layer, with Effect's `ConfigError` naming the first missing or invalid
   variable. Variables exported in the shell work without a file, which is how CI runs.
@@ -123,8 +152,8 @@ Workspaces reference it as `catalog:<namespace>`; the unnamed `catalog:` is not 
 | Namespace | Holds | Today |
 |---|---|---|
 | `tools` | developer-workflow tools that never shape types or runtime behaviour | `@biomejs/biome`, `husky`, `vitest` |
-| `runtime` | everything else, including the runtime the code targets | `@types/bun` |
-| one per family | packages released in lock-step | `typescript`: `typescript`, `@effect/tsgo` (it embeds one TypeScript version) · `effect`: `effect`, `@effect/*` |
+| `runtime` | everything else, including the runtime the code targets | `@types/bun`, `testcontainers` |
+| one per family | a release train, or a core and the plugins that pin it as a range | `typescript`: `typescript`, `@effect/tsgo` (it embeds one TypeScript version) · `effect`: `effect`, `@effect/*` · `effect-aws`: `@effect-aws/*` (one release train over the AWS SDK; it pins the SDK as a range, so the lockfile holds the SDK version) · `pulumi`: `@pulumi/pulumi` and the providers that pin it as a range (`@pulumi/docker`) |
 
 `bunfig.toml` sets `exact = true`, so `bun add` writes `1.2.3`, never `^1.2.3`.
 
@@ -239,5 +268,5 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 | CI `Assert the patched tsc` fails: `grep` finds no `effect-tsgo` | `tsc` is the stock build, because `bun install` ran without the `prepare` script; it reports no Effect diagnostics | run `bun install`, so `prepare` runs `effect-tsgo patch`; `bunx tsc --version` then reports `+effect-tsgo` |
 | CI `Install`: `lockfile had changes, but lockfile is frozen` | `package.json` or a catalog changed without `bun install` | run `bun install` locally and commit `bun.lock` |
 | an app exits at startup with `ConfigError: SchemaError(… at ["API_PORT"])` | `.env` is missing or that variable is invalid; Bun ignores a missing `--env-file` without a warning | `make setup`, or fix the named variable in `.env` and rerun until it starts |
-| `… at ["LOG_LEVEL"]` on a `.env` that used to work | `LOG_LEVEL` is case-sensitive since the Effect config: `Info`, not `info` | set `LOG_LEVEL="Info"` (see `.env.example`); `QUEUE_SQLITE_PATH` becomes required once the queue client reads it |
+| `… at ["LOG_LEVEL"]` on a `.env` that used to work | `LOG_LEVEL` is case-sensitive since the Effect config: `Info`, not `info` | set `LOG_LEVEL="Info"` (see `.env.example`) |
 | `bun install` fails with a workspace path error | an explicit `workspaces` entry points to a folder that does not exist yet | create the folder first, then add the path |

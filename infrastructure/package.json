@@ -13,12 +13,16 @@
     "#infrastructure/*": "./*.ts"
   },
   "dependencies": {
+    "@app-template/aws": "workspace:*",
     "@app-template/config": "workspace:*",
     "@app-template/domain": "workspace:*",
     "@app-template/queue": "workspace:*",
+    "@effect-aws/client-s3": "catalog:effect-aws",
+    "@effect-aws/client-sqs": "catalog:effect-aws",
     "effect": "catalog:effect"
   },
   "devDependencies": {
+    "@app-template/testing": "workspace:*",
     "@effect/platform-bun": "catalog:effect",
     "@effect/vitest": "catalog:effect"
   }
