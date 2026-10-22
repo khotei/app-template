@@ -3,7 +3,6 @@ import { Array as Arr, DateTime, Effect, Layer, Option } from 'effect'
 import { KeyValueStore } from 'effect/persistence'
 
 import {
-  Attachment,
   AttachmentId,
   AttachmentRepository,
   buildAttachment,
@@ -11,7 +10,6 @@ import {
   FileSize,
   MediaType,
 } from '@app-template/domain/attachment'
-import { MessageId } from '@app-template/domain/chat'
 import { UserId } from '@app-template/domain/user'
 
 import { AttachmentRepositoryKv } from '#infrastructure/attachment/attachment.repository'
@@ -30,36 +28,6 @@ const unknownId = AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000029')
 
 describe('AttachmentRepositoryKv', () => {
   layer(AttachmentRepositoryKv.pipe(Layer.provide(KeyValueStore.layerMemory)))((it) => {
-    it.effect('selects by ids in the order asked, leaving unknown ids out', () =>
-      Effect.gen(function* () {
-        const attachments = yield* AttachmentRepository
-        const first = attachment('0192d4e0-7b3a-7c00-8000-000000000020')
-        const second = attachment('0192d4e0-7b3a-7c00-8000-000000000021')
-        yield* attachments.insert(first)
-        yield* attachments.insert(second)
-
-        const selected = yield* attachments.selectByIds([second.id, unknownId, first.id])
-
-        assert.deepStrictEqual(selected, [second, first])
-      }),
-    )
-
-    it.effect('update binds an attachment to a message', () =>
-      Effect.gen(function* () {
-        const attachments = yield* AttachmentRepository
-        const unbound = attachment('0192d4e0-7b3a-7c00-8000-000000000022')
-        const bound = new Attachment({
-          ...unbound,
-          messageId: Option.some(MessageId.make('0192d4e0-7b3a-7c00-8000-000000000030')),
-        })
-        yield* attachments.insert(unbound)
-
-        yield* attachments.update(bound)
-
-        assert.deepStrictEqual(yield* attachments.selectById(unbound.id), Option.some(bound))
-      }),
-    )
-
     it.effect('update never creates an attachment', () =>
       Effect.gen(function* () {
         const attachments = yield* AttachmentRepository

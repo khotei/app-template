@@ -131,23 +131,21 @@ the apps from `QueueConfig` and `AwsConfig`: a definition's queue is
   timeout; that message returns after `QUEUE_LOCK_EXPIRATION` with an attempt spent.
 
 The queue's own suite checks those rules on MiniStack in real time. A job suite calls the job's
-`handle` with plain `AttemptInfo` values under the `TestClock`, and keeps one case that runs its
-worker on MiniStack. Tests that only send (the api and chat harnesses) use `recordQueue` from
-`@app-template/queue/testing`, which encodes each job as the client does, records it and starts
-no container.
+`handle` with plain `AttemptInfo` values under the `TestClock`. Tests that only send (the api
+and chat harnesses) use `recordQueue` from `@app-template/queue/testing`, which encodes each job
+as the client does, records it and starts no container.
 
 ## Tests on Docker
 
 Tests at the AWS boundary (`packages/aws/*.test.ts`, `packages/queue/queue.transport.test.ts`,
 `infrastructure/attachment/attachment.storage.test.ts`) start one MiniStack container per test
-file through the `MiniStack` layer in `@app-template/testing` (`testcontainers`), reach it through
-`AwsClientsMiniStack` from the same package (S3 and SQS clients on that container), provision a
-fresh `test-<random>` stage from `buildStage()`, and stop the container with the suite. So
-`make test` needs a running Docker daemon from now on, and nothing else: the Pulumi project is for
-`make up` alone. The container starts in about two seconds, and the suites pass
-`{ timeout: '60 seconds' }` to `layer(…)` for the pull on a cold machine; a suite that starts no
-container keeps the default. Unique stages isolate parallel files without resets; nothing cleans
-a stage up, since the container goes with it.
+file through `AwsClientsMiniStack` in `@app-template/testing` (`testcontainers`; S3 and SQS
+clients on that container), provision a fresh `test-<random>` stage from `buildStage()`, and stop
+the container with the suite. So `make test` needs a running Docker daemon from now on, and
+nothing else: the Pulumi project is for `make up` alone. The container starts in about two
+seconds, and the suites pass `{ timeout: '60 seconds' }` to `layer(…)` for the pull on a cold
+machine; a suite that starts no container keeps the default. Unique stages isolate parallel files
+without resets; nothing cleans a stage up, since the container goes with it.
 
 MiniStack differs from AWS in what it never does: lifecycle rules never run, the 5 MiB minimum
 part size is not enforced, and the `Tagging` sent with `CreateMultipartUpload` is dropped. What

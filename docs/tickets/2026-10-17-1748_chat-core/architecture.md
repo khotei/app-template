@@ -109,7 +109,7 @@ the prompt and the cut, and `isTitledChat` joins the domain's predicates.
 + application/chat/send-message.use-case.ts  SendMessageUseCase { send } · SentMessages          (D26)
 + application/chat/delete-chat.use-case.ts   DeleteChatUseCase { delete }                       (D26)
 + application/chat/touch-chat.ts             touchChat (workspace-internal, shared by ChatService and AssistantMessageJob)
-+ application/chat/assistant-message.job.ts  AssistantMessageJob { enqueue } · .worker · SnapshotInterval
++ application/chat/assistant-message.job.ts  AssistantMessageJob { enqueue } · .worker · snapshotInterval
 + application/chat/chat-title.job.ts         ChatTitleJob { enqueue } · .worker
 + application/attachment/attachment.service.ts  AttachmentService { upload, get, download, delete,
                                                 findBindable, bind, deleteByIds } · BindableAttachments
@@ -374,7 +374,7 @@ sentences `as const satisfies Record<tag, string>` over the call's error tags, p
 
 `StoreConfig { path }` from `STORE_PATH`; `ApiConfig`, `RuntimeConfig`, `QueueConfig` unchanged.
 The cookie is `Secure` when `RuntimeConfig.nodeEnv === 'production'`. The snapshot interval is
-`SnapshotInterval`, a `Context.Reference<Duration>` in `assistant-message.job.ts`, default 300 ms.
+`snapshotInterval`, a 300 ms module constant in `assistant-message.job.ts` (a `Context.Reference` until aws-local's test pruning: nothing overrode it).
 
 ## Seams
 
@@ -449,7 +449,7 @@ per the acceptance table, not by a test.
 - **D3 — The assistant message is produced by `Ref` + `Schedule.spaced` snapshots with an
   explicit final write, and the handler learns the last attempt from `AttemptInfo`.** The worker
   folds `text-delta` parts into a `Ref` and raises a `dirty` flag; a racing
-  `Effect.repeat(snapshot, Schedule.spaced(SnapshotInterval))` writes the accumulated text while
+  `Effect.repeat(snapshot, Schedule.spaced(snapshotInterval))` writes the accumulated text while
   the flag is up; when the stream ends the job writes `completed` itself, and `onExit` handles the
   failure path. Experiments showed `Stream.throttle('enforce')` drops the final delta,
   `debounce` emits no intermediate state, and `aggregateWithin(Sink.last)` writes twice at the

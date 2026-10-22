@@ -73,7 +73,6 @@ export interface ChatArranged {
   readonly sent: ReadonlyArray<SentJob>
   readonly interleaving: Interleaving
   readonly chats: ChatService['Service']
-  readonly attachments: AttachmentService['Service']
   readonly sendMessage: SendMessageUseCase['Service']
   readonly deleteChat: DeleteChatUseCase['Service']
 }
@@ -86,11 +85,10 @@ export const withChat = <E>(
   const { sent, interleaving, layer } = makeChatHarness(options)
   return Effect.gen(function* () {
     const chats = yield* ChatService
-    const attachments = yield* AttachmentService
     const sendMessage = yield* SendMessageUseCase
     const deleteChat = yield* DeleteChatUseCase
     const chat = yield* chats.create(owner)
-    yield* body({ chat, sent, interleaving, chats, attachments, sendMessage, deleteChat })
+    yield* body({ chat, sent, interleaving, chats, sendMessage, deleteChat })
   }).pipe(Effect.provide(layer))
 }
 

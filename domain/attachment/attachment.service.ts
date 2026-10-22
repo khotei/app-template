@@ -73,7 +73,7 @@ export const buildAttachment = (input: {
 
 export const unboundLifetime = Duration.hours(24)
 
-export const isExpired = (attachment: Attachment, now: DateTime.Utc): boolean =>
+const isExpired = (attachment: Attachment, now: DateTime.Utc): boolean =>
   Option.isNone(attachment.messageId) &&
   DateTime.isGreaterThanOrEqualTo(now, DateTime.addDuration(attachment.createdAt, unboundLifetime))
 

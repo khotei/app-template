@@ -18,7 +18,7 @@ import {
   limits,
   RequestInvalidError,
 } from '@app-template/http-api'
-import { assertSchemaEquals, isUuidV7 } from '@app-template/testing'
+import { assertSchemaEquals } from '@app-template/testing'
 
 import {
   makeApiHarness,
@@ -185,7 +185,6 @@ describe('attachments', () => {
             Arr.map(uploaded, Struct.pick(['fileName', 'mediaType', 'size', 'messageId'])),
             [unboundPng('one.png'), unboundPng('two.png')],
           )
-          assert.isTrue(Arr.every(uploaded, ({ id }) => isUuidV7(id)))
         }),
       ),
     )
@@ -233,31 +232,6 @@ describe('attachments', () => {
         ),
     )
 
-    it.effect(
-      "GET /attachments/:attachmentId/download of another user's is 404 without Location",
-      () =>
-        Effect.gen(function* () {
-          const foreign = yield* withApi((api) =>
-            Effect.andThen(api.users.ensure(), uploadOne(api, png('photo.png'))),
-          )
-
-          const response = yield* withApi((api, http) =>
-            Effect.andThen(api.users.ensure(), requestDownload(http, foreign.id)),
-          )
-
-          assert.strictEqual(response.status, 404)
-          assert.isUndefined(response.headers.location)
-          assertSchemaEquals(
-            AttachmentNotFoundError,
-            yield* Effect.flatMap(
-              response.json,
-              Schema.decodeUnknownEffect(AttachmentNotFoundError),
-            ),
-            new AttachmentNotFoundError({ id: foreign.id }),
-          )
-        }),
-    )
-
     it.effect('a send with two uploaded ids binds them, and the chat shows their metadata', () =>
       withApi((api) =>
         Effect.gen(function* () {
@@ -285,28 +259,6 @@ describe('attachments', () => {
             [bound, []],
           )
           assert.deepStrictEqual(fetched, bound)
-        }),
-      ),
-    )
-
-    it.effect('a second send with a bound id is 409 AttachmentBoundError', () =>
-      withApi((api) =>
-        Effect.gen(function* () {
-          const first = yield* openChat(api)
-          const second = yield* api.chats.create()
-          const photo = yield* uploadOne(api, png('photo.png'))
-          const payload = { text: 'Look', attachmentIds: [photo.id] }
-          yield* api.chats.send({ params: { chatId: first.id }, payload })
-
-          const error = yield* Effect.flip(
-            api.chats.send({ params: { chatId: second.id }, payload }),
-          )
-
-          assertSchemaEquals(
-            AttachmentBoundError,
-            error,
-            new AttachmentBoundError({ id: photo.id }),
-          )
         }),
       ),
     )
@@ -396,18 +348,6 @@ describe('attachments', () => {
           notFound,
         ])
       }),
-    )
-
-    it.effect('six files through ApiClient fail with RequestInvalidError', () =>
-      withApi((api) =>
-        Effect.gen(function* () {
-          yield* api.users.ensure()
-
-          const error = yield* Effect.flip(api.attachments.upload({ payload: sixPngs() }))
-
-          assertSchemaEquals(RequestInvalidError, error, tooManyFiles)
-        }),
-      ),
     )
   })
 

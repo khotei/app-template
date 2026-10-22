@@ -1,7 +1,6 @@
 export {
   type AttemptInfo,
   QueueClient,
-  type QueueClientOptions,
   type QueueDefinition,
   worker,
 } from '#queue/queue'

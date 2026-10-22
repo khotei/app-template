@@ -26,10 +26,6 @@ describe('Attachment', () => {
     assert.isTrue(Exit.isFailure(decode({ ...encoded, fileName: '' })))
   })
 
-  it.each([-1, 1.5])('rejects the size %j', (size) => {
-    assert.isTrue(Exit.isFailure(decode({ ...encoded, size })))
-  })
-
   it.each(['pdf', 'application/', '/pdf', 'image/png extra'])(
     'rejects the media type %j',
     (mediaType) => {

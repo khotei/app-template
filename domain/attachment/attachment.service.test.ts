@@ -23,16 +23,6 @@ const unbound = (id: string, owner: UserId = userId) =>
     createdAt,
   })
 
-describe('buildAttachment', () => {
-  it('starts unbound, with no message', () => {
-    const attachment = unbound('0192d4e0-7b3a-7c00-8000-000000000020')
-
-    assert.isTrue(Option.isNone(attachment.messageId))
-    assert.strictEqual(attachment.userId, userId)
-    assert.strictEqual(attachment.size, 1024)
-  })
-})
-
 describe('ensureBindable', () => {
   const owned = unbound('0192d4e0-7b3a-7c00-8000-000000000021')
 

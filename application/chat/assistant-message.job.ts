@@ -40,11 +40,7 @@ import { type AttemptInfo, QueueClient, worker } from '@app-template/queue'
 
 import { touchChat } from '#application/chat/touch-chat'
 
-/** How often a streaming reply's accumulated text is written to its message, at most. */
-export const SnapshotInterval = Context.Reference<Duration.Duration>(
-  '@app-template/application/chat/SnapshotInterval',
-  { defaultValue: () => Duration.millis(300) },
-)
+const snapshotInterval = Duration.millis(300)
 
 const readTurn = Effect.fnUntraced(function* (message: Message) {
   const attachments = yield* AttachmentRepository
@@ -75,7 +71,6 @@ const streamSnapshots = Effect.fnUntraced(function* <E, R>(
   deltas: Stream.Stream<string, E, R>,
 ) {
   const messages = yield* MessageRepository
-  const interval = yield* SnapshotInterval
   const text = yield* Ref.make(generating.text)
   const written = yield* Ref.make(generating.text)
 
@@ -92,7 +87,7 @@ const streamSnapshots = Effect.fnUntraced(function* <E, R>(
   yield* Effect.raceFirst(
     Stream.runForEach(deltas, (delta) => Ref.update(text, (accumulated) => accumulated + delta)),
     // A write interrupted mid-flight could land after the final one, so a snapshot runs whole.
-    Effect.repeat(Effect.uninterruptible(snapshot), Schedule.spaced(interval)),
+    Effect.repeat(Effect.uninterruptible(snapshot), Schedule.spaced(snapshotInterval)),
   )
 
   return yield* Ref.get(text)

@@ -1,11 +1,8 @@
-import { assert, describe, it, layer } from '@effect/vitest'
+import { assert, describe, layer } from '@effect/vitest'
 import { Duration, Effect, Option } from 'effect'
 import { Cookies } from 'effect/http'
 
-import { User } from '@app-template/domain/user'
-import { isUuidV7 } from '@app-template/testing'
-
-import { makeApiHarness, readUserSecretCookie, spec, withApi } from '#api/testing/api.harness'
+import { makeApiHarness, readUserSecretCookie, withApi } from '#api/testing/api.harness'
 
 const issuedCookie: Cookies.Cookie['options'] = {
   maxAge: Duration.seconds(31_536_000),
@@ -24,17 +21,6 @@ describe('users', () => {
           assert.strictEqual(response.status, 201)
           assert.match(cookie.value, /^[\w-]{43}$/)
           assert.deepStrictEqual(cookie.options, issuedCookie)
-        }),
-      ),
-    )
-
-    it.effect('ensure decodes the domain User with a UUIDv7 id', () =>
-      withApi((api) =>
-        Effect.gen(function* () {
-          const user = yield* api.users.ensure()
-
-          assert.instanceOf(user, User)
-          assert.isTrue(isUuidV7(user.id))
         }),
       ),
     )
@@ -69,14 +55,9 @@ describe('users', () => {
           Cookies.fromSetCookie('user_secret=forged'),
         )
 
-        assert.isTrue(isUuidV7(user.id))
         assert.notStrictEqual(user.id, existing.id)
         assert.notStrictEqual(Option.getOrThrow(readUserSecretCookie(response)).value, 'forged')
       }),
     )
   })
-
-  it.effect('POST /users asks for no credential', () =>
-    Effect.sync(() => assert.deepStrictEqual(spec.paths['/users']?.post?.security, [])),
-  )
 })

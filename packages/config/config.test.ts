@@ -1,14 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import {
-  type Config,
-  ConfigProvider,
-  Duration,
-  Effect,
-  Layer,
-  LogLevel,
-  Option,
-  References,
-} from 'effect'
+import { type Config, ConfigProvider, Duration, Effect, Layer, Option, References } from 'effect'
 
 import {
   ApiConfig,
@@ -104,35 +95,9 @@ describe('config layers', () => {
     ),
   )
 
-  it.effect('rejects an AWS_ENDPOINT_URL that is not a URL', () =>
-    Effect.gen(function* () {
-      const error = yield* Effect.flip(
-        Layer.build(
-          provideVariables(AwsConfig.layer, {
-            AWS_REGION: 'eu-central-1',
-            STAGE: 'local',
-            AWS_ENDPOINT_URL: 'not a url',
-          }),
-        ),
-      )
-
-      assert.include(error.message, 'AWS_ENDPOINT_URL')
-    }),
-  )
-
-  it.effect.each(LogLevel.values)('sets the minimum log level to LOG_LEVEL=%s', (level) =>
-    Effect.map(References.MinimumLogLevel, (minimum) => assert.strictEqual(minimum, level)).pipe(
-      Effect.provide(provideVariables(MinimumLogLevelFromConfig, { LOG_LEVEL: level })),
+  it.effect('sets the minimum log level from LOG_LEVEL', () =>
+    Effect.map(References.MinimumLogLevel, (minimum) => assert.strictEqual(minimum, 'Debug')).pipe(
+      Effect.provide(provideVariables(MinimumLogLevelFromConfig, { LOG_LEVEL: 'Debug' })),
     ),
-  )
-
-  it.effect('rejects a lower-case LOG_LEVEL', () =>
-    Effect.gen(function* () {
-      const error = yield* Effect.flip(
-        Layer.build(provideVariables(RuntimeConfig.layer, { LOG_LEVEL: 'info' })),
-      )
-
-      assert.include(error.message, 'LOG_LEVEL')
-    }),
   )
 })

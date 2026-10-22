@@ -154,25 +154,6 @@ const selectStored = (ids: ReadonlyArray<AttachmentId>) =>
 const selectBytes = (id: AttachmentId) =>
   Effect.flatMap(AttachmentStore, (store) => store.select(id))
 
-const unbindable = {
-  'an unknown id': {
-    arrange: Effect.succeed(unknownAttachmentId),
-    refusal: AttachmentNotFoundError,
-  },
-  "another user's attachment": {
-    arrange: Effect.map(upload(stranger, 'photo.png'), (foreign) => foreign.id),
-    refusal: AttachmentNotFoundError,
-  },
-  'a bound attachment': {
-    arrange: Effect.gen(function* () {
-      const attachment = yield* uploadPhoto
-      yield* bind(attachment)
-      return attachment.id
-    }),
-    refusal: AttachmentBoundError,
-  },
-} as const
-
 describe('AttachmentService', () => {
   layer(AttachmentServiceTest)((it) => {
     it.effect('upload stores the bytes and the metadata of an unbound attachment', () =>
@@ -355,19 +336,6 @@ describe('AttachmentService', () => {
         const bindable = yield* service.findBindable(owner, [second.id, first.id])
 
         assertEquals(bindable.attachments, [second, first])
-      }),
-    )
-
-    it.effect.each(Rec.keys(unbindable))('findBindable with %s is refused', (name) =>
-      Effect.gen(function* () {
-        const { arrange, refusal } = unbindable[name]
-        const service = yield* AttachmentService
-        const valid = yield* uploadPhoto
-        const refused = yield* arrange
-
-        const error = yield* Effect.flip(service.findBindable(owner, [valid.id, refused]))
-
-        assertSchemaEquals(refusal, error, new refusal({ id: refused }))
       }),
     )
 

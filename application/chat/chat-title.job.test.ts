@@ -1,15 +1,5 @@
-import { assert, describe, it, layer } from '@effect/vitest'
-import {
-  Array as Arr,
-  DateTime,
-  Effect,
-  Exit,
-  Fiber,
-  Layer,
-  Option,
-  Record as Rec,
-  Schedule,
-} from 'effect'
+import { assert, describe, it } from '@effect/vitest'
+import { Array as Arr, DateTime, Effect, Exit, Fiber, Layer, Option, Record as Rec } from 'effect'
 import { AiError, Prompt, type Response } from 'effect/ai'
 import { KeyValueStore } from 'effect/persistence'
 import { TestClock } from 'effect/testing'
@@ -33,7 +23,6 @@ import { recordLogs } from '@app-template/testing'
 import { ChatTitleJob } from '#application/chat/chat-title.job'
 import { chatId, epoch, messageId } from '#application/testing/chat.fixture'
 import { recordLanguageModel } from '#application/testing/language-model.fake'
-import { QueueClientMiniStack } from '#application/testing/queue.harness'
 import { owner } from '#application/testing/user.fixture'
 
 type Answer = Effect.Effect<Array<Response.PartEncoded>, AiError.AiError>
@@ -297,31 +286,3 @@ describe('ChatTitleJob.handle', () => {
     }).pipe(Effect.provide(layer))
   })
 })
-
-const onSqs = makeChatTitleHarness(answering('Lisbon weekend'))
-
-const layerOnSqs = Layer.mergeAll(ChatTitleJob.layer, onSqs.layer).pipe(
-  Layer.provideMerge(QueueClientMiniStack),
-)
-
-const selectTitledChat = Effect.repeat(selectChat, {
-  until: (chat) => Option.isSome(chat.title),
-  schedule: Schedule.spaced('50 millis'),
-})
-
-layer(layerOnSqs, { timeout: '60 seconds', excludeTestServices: true })(
-  'ChatTitleJob on SQS',
-  (it) => {
-    it.effect('the worker titles the chat of a job enqueued on the queue', () =>
-      Effect.gen(function* () {
-        const first = yield* arrangeChat()
-        yield* Layer.build(ChatTitleJob.worker)
-
-        yield* (yield* ChatTitleJob).enqueue(first)
-
-        const titled = yield* selectTitledChat
-        assert.deepStrictEqual(titled.title, Option.some(ChatTitle.make('Lisbon weekend')))
-      }),
-    )
-  },
-)

@@ -62,7 +62,6 @@ graph LR
 ~ packages/queue/queue.test.ts       QueueClient suite on MiniStack, in real time
 + packages/queue/queue.transport.test.ts   the SQS transport's suite on MiniStack
 + packages/queue/testing/queue.fake.ts     recordQueue(), a send-only QueueClient (S5c)
-+ application/testing/queue.harness.ts     QueueClientMiniStack for the job suites (S5c)
 - @effect/sql-sqlite-bun dependency, QueueClient.layerSqlite, QueueClientSqliteOptions,
   QueueClient.layerMemory
 ```
@@ -72,9 +71,9 @@ stage: STAGE }`; `QueueConfig` keeps `lockExpiration` and `lockRefreshInterval` 
 visibility timeout and its heartbeat) and drops `QUEUE_SQLITE_PATH` (D10); `+ ministack.ts`,
 `ministackImage`, the pinned image `deployment/local` and `packages/testing` both run (S12).
 
-**`packages/testing`**: `+ ministack.ts`, a `MiniStack` layer that starts the pinned image with
-`testcontainers` (`GenericContainer`, wait on `GET /_ministack/health`) under `acquireRelease`
-and provides its endpoint; `+ stage.fixture.ts`, a fresh `test-<random>` stage per file (D12).
+**`packages/testing`**: `+ ministack.ts`, `AwsClientsMiniStack`, S3 and SQS clients on a
+container of the pinned image that `testcontainers` starts (`GenericContainer`, wait on
+`GET /_ministack/health`) under `acquireRelease`, one per test file; `+ stage.fixture.ts`, a fresh `test-<random>` stage per file (D12).
 
 **`domain/attachment`**: `~ attachment.service.ts`, the new `AttachmentStore` shape (Contracts);
 `+ unboundLifetime = Duration.hours(24)` and `isExpired(attachment, now)`, pure (D9).
@@ -261,8 +260,8 @@ GET /attachments/:attachmentId/download
   could not swap the transport without a second client). *Amended in S5c:* tests that never consume
   take `recordQueue()`, a send-only fake exported as `@app-template/queue/testing` that encodes with
   the client's codec, so the chat and api harnesses run without Docker; the job suites call each
-  job's `handle` under `TestClock`, with one MiniStack case per job; Seam 1 alone checks
-  consumption. `QueueClient.layerSqs` folds into `QueueClientSqs` (`QueueClient.layer` over
+  job's `handle` under `TestClock`; Seam 1 alone checks consumption (the per-job MiniStack case
+  went in the test pruning before merge). `QueueClient.layerSqs` folds into `QueueClientSqs` (`QueueClient.layer` over
   `QueueTransport.layerSqs`). This takes the fake rejected above: the one queue behaviour that
   choice kept is consumption, which those tests never reach. *Rejected:* the fake in
   `packages/testing` (`packages/queue`'s tests import it, a cycle of project references). *Amended

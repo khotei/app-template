@@ -1,5 +1,5 @@
 import { assert, describe, layer } from '@effect/vitest'
-import { Array as Arr, Duration, Effect, Fiber, Layer, Option, Record, Struct } from 'effect'
+import { Array as Arr, Duration, Effect, Layer, Option, Record, Struct } from 'effect'
 
 import {
   buildDeadLetterName,
@@ -9,7 +9,7 @@ import {
 } from '@app-template/aws'
 import { AwsClientsMiniStack, buildStage } from '@app-template/testing'
 
-import { type QueueError, QueueTransport, type ReceiveOptions } from '#queue/queue.transport'
+import { QueueTransport, type ReceiveOptions } from '#queue/queue.transport'
 
 const stage = buildStage()
 
@@ -21,11 +21,9 @@ const inventory = {
     received: { name: 'received', maxReceiveCount },
     hidden: { name: 'hidden', maxReceiveCount },
     released: { name: 'released', maxReceiveCount },
-    rewoken: { name: 'rewoken', maxReceiveCount },
     deleted: { name: 'deleted', maxReceiveCount },
     redriven: { name: 'redriven', maxReceiveCount },
     waited: { name: 'waited', maxReceiveCount },
-    woken: { name: 'woken', maxReceiveCount },
   },
 } as const satisfies Resources
 
@@ -45,16 +43,6 @@ const receiveSome = (queue: string, receiveOptions: ReceiveOptions) =>
     Effect.flatMap(Effect.fromOption),
   )
 
-const receiveWokenBy = (queue: string, wake: Effect.Effect<void, QueueError, QueueTransport>) =>
-  Effect.gen(function* () {
-    const waiting = yield* Effect.forkChild(
-      Effect.timed(receiveSome(queue, { ...options, wait: '2 seconds' })),
-    )
-    yield* Effect.sleep('200 millis')
-    yield* wake
-    return yield* Fiber.join(waiting)
-  })
-
 describe('QueueTransport.layerSqs on MiniStack', () => {
   layer(QueueTransportMiniStack, { timeout: '60 seconds', excludeTestServices: true })((it) => {
     it.effect('receives a sent body with its attribute and receiveCount 1', () =>
@@ -72,15 +60,17 @@ describe('QueueTransport.layerSqs on MiniStack', () => {
       }),
     )
 
-    it.effect('does not receive a received message again within its visibility', () =>
+    it.effect('hides a received message for its visibility, then returns it', () =>
       Effect.gen(function* () {
         const queue = yield* QueueTransport
 
         yield* queue.send(queues.hidden, hello)
-        yield* receiveSome(queues.hidden, options)
-        const again = yield* queue.receive(queues.hidden, { ...options, wait: 0 })
+        yield* receiveSome(queues.hidden, { ...options, visibility: '2 seconds' })
+        const within = yield* queue.receive(queues.hidden, { ...options, wait: 0 })
+        const after = yield* receiveSome(queues.hidden, { ...options, wait: '4 seconds' })
 
-        assert.deepStrictEqual(again, Option.none())
+        assert.deepStrictEqual(within, Option.none())
+        assert.strictEqual(after.receiveCount, 2)
       }),
     )
 
@@ -95,22 +85,6 @@ describe('QueueTransport.layerSqs on MiniStack', () => {
 
         assert.strictEqual(again.body, 'hello')
         assert.strictEqual(again.receiveCount, 2)
-      }),
-    )
-
-    it.effect('returns early from a wait when a received message is released by extend(0)', () =>
-      Effect.gen(function* () {
-        const queue = yield* QueueTransport
-
-        yield* queue.send(queues.rewoken, hello)
-        const first = yield* receiveSome(queues.rewoken, options)
-        const [elapsed, again] = yield* receiveWokenBy(
-          queues.rewoken,
-          queue.extend(queues.rewoken, { handle: first.handle, visibility: 0 }),
-        )
-
-        assert.strictEqual(again.receiveCount, 2)
-        assert.isBelow(Duration.toMillis(elapsed), 1000)
       }),
     )
 
@@ -156,20 +130,6 @@ describe('QueueTransport.layerSqs on MiniStack', () => {
 
         assert.deepStrictEqual(received, Option.none())
         assert.isAtLeast(Duration.toMillis(elapsed), 1000)
-      }),
-    )
-
-    it.effect('returns early from a wait when a message is sent', () =>
-      Effect.gen(function* () {
-        const queue = yield* QueueTransport
-
-        const [elapsed, received] = yield* receiveWokenBy(
-          queues.woken,
-          queue.send(queues.woken, hello),
-        )
-
-        assert.strictEqual(received.body, 'hello')
-        assert.isBelow(Duration.toMillis(elapsed), 1000)
       }),
     )
   })

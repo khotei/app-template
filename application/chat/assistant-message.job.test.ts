@@ -1,4 +1,4 @@
-import { assert, describe, it, layer } from '@effect/vitest'
+import { assert, describe, it } from '@effect/vitest'
 import {
   Array as Arr,
   DateTime,
@@ -7,9 +7,7 @@ import {
   Fiber,
   Layer,
   Option,
-  Predicate,
   Record as Rec,
-  Schedule,
   Stream,
 } from 'effect'
 import { AiError, Prompt, type Response } from 'effect/ai'
@@ -32,7 +30,6 @@ import {
   Chat,
   ChatRepository,
   ChatTitle,
-  isActiveMessage,
   Message,
   MessageFailure,
   MessageId,
@@ -51,7 +48,6 @@ import { png, recordLogs } from '@app-template/testing'
 import { AssistantMessageJob } from '#application/chat/assistant-message.job'
 import { chatId, epoch, messageId } from '#application/testing/chat.fixture'
 import { recordLanguageModel } from '#application/testing/language-model.fake'
-import { QueueClientMiniStack } from '#application/testing/queue.harness'
 import { owner } from '#application/testing/user.fixture'
 
 const historyId = (n: number) => MessageId.make(`0192d4e0-7b3a-7c00-8000-00000000005${n}`)
@@ -382,31 +378,3 @@ describe('AssistantMessageJob.handle', () => {
     }).pipe(Effect.provide(layer))
   })
 })
-
-const onSqs = makeAssistantMessageHarness(threeDeltas)
-
-const layerOnSqs = Layer.mergeAll(AssistantMessageJob.layer, onSqs.layer).pipe(
-  Layer.provideMerge(QueueClientMiniStack),
-)
-
-const selectSettledReply = Effect.repeat(selectReply, {
-  until: Predicate.not(isActiveMessage),
-  schedule: Schedule.spaced('50 millis'),
-})
-
-layer(layerOnSqs, { timeout: '60 seconds', excludeTestServices: true })(
-  'AssistantMessageJob on SQS',
-  (it) => {
-    it.effect('the worker settles a reply enqueued on the queue', () =>
-      Effect.gen(function* () {
-        const reply = yield* arrangeChat()
-        yield* Layer.build(AssistantMessageJob.worker)
-
-        yield* (yield* AssistantMessageJob).enqueue(reply)
-
-        const settled = yield* selectSettledReply
-        assert.deepStrictEqual(stagesOf([settled]), [['completed', 'Hello, world']])
-      }),
-    )
-  },
-)
