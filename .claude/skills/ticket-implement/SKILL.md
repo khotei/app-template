@@ -39,3 +39,19 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. G
 6. Name the next unblocked step.
 
 One step, or one round of it, per approval. Pushing or opening a PR needs its own OK.
+
+## Parallel steps
+
+On the user's word, steps whose `Blocked by` are all `done` and whose `Files` do not overlap run at
+once, one worktree each:
+
+- Spawn each `implementer` with `isolation: "worktree"`; beside the pointers, tell it to run
+  `bun install`, copy the root `.env`, leave `plan.md` and `architecture.md` alone, and never run
+  `make up` or `make dev` (their ports are shared).
+- Name the worktree at once, `<slug>-<step>-<topic>`: a symlink of that name to the agent's folder
+  in `.claude/worktrees/`, and `git branch -m` to `wt/<slug>-<step>-<topic>`. Never move a folder
+  an agent works in.
+- Rounds commit in the worktree; rebase its branch onto the ticket branch before the next round.
+- Reviews and approvals stay one step at a time. On approve, cherry-pick the step's rounds onto
+  the ticket branch, the last with `--no-commit` so the `plan.md` and `architecture.md` edits join
+  it, and run `make check` after each pick. Then remove the worktree, its symlink and its branch.
