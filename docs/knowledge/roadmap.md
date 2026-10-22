@@ -38,7 +38,7 @@ graph LR
 | 1 | [`template-bootstrap`](#1-template-bootstrap) | `chore` | — | done: [docs/tickets/2026-10-17-1508_template-bootstrap/](../tickets/2026-10-17-1508_template-bootstrap/feature.md) |
 | 2 | [`claude-toolkit`](#2-claude-toolkit) | `chore` | 1, 3 | done: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md) |
 | 3 | [`chat-core`](#3-chat-core) | `feat` | 1 | done: [docs/tickets/2026-10-17-1748_chat-core/](../tickets/2026-10-17-1748_chat-core/feature.md) |
-| 4 | [`postgres-drizzle`](#4-postgres-drizzle) | `feat` | 3 | planned |
+| 4 | [`postgres-drizzle`](#4-postgres-drizzle) | `feat` | 3 | in progress: [docs/tickets/2026-10-22-1915_postgres-drizzle/](../tickets/2026-10-22-1915_postgres-drizzle/feature.md) |
 | 5 | [`aws-local`](#5-aws-local) | `feat` | 3 | done: [docs/tickets/2026-10-19-1448_aws-local/](../tickets/2026-10-19-1448_aws-local/feature.md) |
 | 6 | [`llm-providers`](#6-llm-providers) | `feat` | 5 | planned |
 | 7 | [`web-app`](#7-web-app) | `feat` | 3 (6 for assistant attachments and an SSE tail) | planned |
@@ -186,6 +186,12 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   consumer or sweep for replies left active in the dead-letter queue (a killed worker, a failed
   `failed` write, a stopped worker's long poll); a `WHERE stage IN (…)` guard on the reply's
   terminal write.
+- **Status.** In progress: [docs/tickets/2026-10-22-1915_postgres-drizzle/](../tickets/2026-10-22-1915_postgres-drizzle/feature.md).
+  Its grilling departed from this entry: the outbox relays to SQS (there is no SQL queue store any
+  more); `$onUpdate` is dropped, timestamps and ids stay the domain's; tests run on Testcontainers
+  only, one Postgres per `vitest` run with a database per file, PGlite rejected as a second
+  driver; the local database is an RDS instance on MiniStack created by `@pulumi/aws`, with a
+  plain container as the fallback; the attachment record sweep was declined.
 
 ### 5. `aws-local`
 
@@ -343,6 +349,12 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   `unbound` tag sent with `CreateMultipartUpload` and the lifecycle deletion it drives. Share one
   AWS client builder between `infrastructure/shared/aws.client.ts` and
   `deployment/local/provision.ts`, and brand `Stage`.
+- **Inherits from `postgres-drizzle` (2026-10-22).** That ticket brings `@pulumi/aws` to the
+  local stand first, for an RDS instance on MiniStack (`rds.Instance`, the Docker socket mounted
+  into MiniStack, `RDS_BASE_PORT`, `RDS_PERSIST`); its spike answers whether the instance lives in
+  this program's `local` stack and what MiniStack needs beyond `endpoints.rds`. The production
+  database then reuses that resource with Aurora or RDS settings, and this ticket adds the
+  migration command for a deployed stage.
 
 ### 10. `client-publishing`
 
