@@ -1,15 +1,20 @@
 import { Array as Arr, Effect, Option, Schema, String as Str, Stream } from 'effect'
 import { type AiError, LanguageModel, Prompt } from 'effect/ai'
 
-import type { AttachmentDownload } from '@app-template/domain/attachment'
+import type { Attachment } from '@app-template/domain/attachment'
 import { ChatTitle, type Message, maxTitleLength } from '@app-template/domain/chat'
+
+export interface ChatFile {
+  readonly attachment: Attachment
+  readonly bytes: Uint8Array
+}
 
 export interface ChatTurn {
   readonly message: Message
-  readonly files: ReadonlyArray<AttachmentDownload>
+  readonly files: ReadonlyArray<ChatFile>
 }
 
-const toFilePart = ({ attachment, bytes }: AttachmentDownload): Prompt.FilePartEncoded => ({
+const toFilePart = ({ attachment, bytes }: ChatFile): Prompt.FilePartEncoded => ({
   type: 'file',
   mediaType: attachment.mediaType,
   fileName: attachment.fileName,

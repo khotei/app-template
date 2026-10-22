@@ -7,7 +7,9 @@
   "include": ["**/*.ts"],
   "references": [
     { "path": "../domain" },
+    { "path": "../packages/aws" },
     { "path": "../packages/config" },
-    { "path": "../packages/queue" }
+    { "path": "../packages/queue" },
+    { "path": "../packages/testing" }
   ]
 }

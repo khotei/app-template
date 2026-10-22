@@ -8,10 +8,10 @@ import { ChatService, DeleteChatUseCase, SendMessageUseCase } from '@app-templat
 import { UserService } from '@app-template/application/user'
 import { ApiConfig, MinimumLogLevelFromConfig, RuntimeConfig } from '@app-template/config'
 import { Api } from '@app-template/http-api'
-import { AttachmentKv } from '@app-template/infrastructure/attachment'
+import { AttachmentKvS3 } from '@app-template/infrastructure/attachment'
 import { ChatKv } from '@app-template/infrastructure/chat'
 import { KeyValueStoreFileSystem } from '@app-template/infrastructure/kv'
-import { QueueClientSqlite } from '@app-template/infrastructure/shared'
+import { QueueClientSqs } from '@app-template/infrastructure/shared'
 import { UserKv } from '@app-template/infrastructure/user'
 
 import { AttachmentHandler } from '#api/attachment/attachment.handler'
@@ -28,10 +28,6 @@ const ApiRoutes = Layer.mergeAll(
   HttpApiScalar.layer(Api, { path: '/docs' }),
 )
 
-/**
- * The api's routes, served on an open `HttpServer`, `KeyValueStore`, `QueueClient` and platform
- * services.
- */
 export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
   Layer.provide([
     UserService.layer,
@@ -41,7 +37,7 @@ export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
     DeleteChatUseCase.layer,
     RuntimeConfig.layer,
   ]),
-  Layer.provide([UserKv, ChatKv, AttachmentKv]),
+  Layer.provide([UserKv, ChatKv]),
 )
 
 const BunHttpServerFromConfig = Layer.unwrap(
@@ -51,7 +47,8 @@ const BunHttpServerFromConfig = Layer.unwrap(
 const LogApiStopped = Layer.effectDiscard(Effect.addFinalizer(() => Effect.logInfo('api stopped')))
 
 export const ApiLayer = Layer.merge(ApiHttp, LogApiStopped).pipe(
-  Layer.provide([KeyValueStoreFileSystem, QueueClientSqlite]),
+  Layer.provide(AttachmentKvS3),
+  Layer.provide([KeyValueStoreFileSystem, QueueClientSqs]),
   Layer.provide(BunHttpServerFromConfig),
   Layer.provide(MinimumLogLevelFromConfig),
 )

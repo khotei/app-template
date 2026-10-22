@@ -1,8 +1,7 @@
 export {
   type AttemptInfo,
   QueueClient,
-  type QueueClientSqliteOptions,
   type QueueDefinition,
-  QueueError,
   worker,
 } from '#queue/queue'
+export { QueueError, QueueTransport } from '#queue/queue.transport'

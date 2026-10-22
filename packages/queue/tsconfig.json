@@ -5,5 +5,5 @@
     "outDir": "../../node_modules/.cache/tsc/queue"
   },
   "include": ["**/*.ts"],
-  "references": [{ "path": "../testing" }]
+  "references": [{ "path": "../aws" }, { "path": "../testing" }]
 }

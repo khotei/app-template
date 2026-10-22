@@ -12,22 +12,22 @@ An anonymous user gets a secret in a cookie, creates chats, sends messages with 
 the assistant answers. The api stores the user's message and a `queued` assistant message, enqueues
 a job and answers `202`; the worker streams the model's reply into that one message as snapshots
 and titles the chat from its first message; the client polls the message until it is `completed`
-or `failed`. State is in memory for now: a key-value store on disk shared by both processes, a
-SQLite job queue, and a stub language model. Postgres, S3, SQS and a real provider each replace one
-layer later.
+or `failed`. Attachment bytes live in S3 and jobs go through SQS (MiniStack locally); the rest is
+local for now: a key-value store on disk shared by both processes and a stub language model.
+Postgres and a real provider each replace one layer later.
 
 ```mermaid
 sequenceDiagram
   participant W as apps/web (ApiClient)
   participant A as apps/api
   participant S as KeyValueStore (.data/store)
-  participant Q as queue (.data/queue.sqlite)
+  participant Q as SQS (MiniStack)
   participant K as apps/worker
   W->>A: POST /chats/:id/messages
   A->>S: user message + queued assistant message
   A->>Q: assistant-message job (+ chat-title job on the first message)
   A-->>W: 202
-  K->>Q: take
+  K->>Q: receive
   K->>S: preparing → generating → text snapshots → completed | failed
   W->>A: GET /chats/:id/messages/:messageId (poll)
 ```
@@ -62,6 +62,34 @@ curl -s -b jar localhost:3000/chats/<chatId>/messages/<assistantMessageId>
 
 `make check` runs every gate (Biome, `tsc -b`, vitest); `make help` lists the rest.
 
+### The local AWS environment
+
+MiniStack stands in for S3 and SQS on `localhost:4566`; a Pulumi project in `deployment/local/`
+runs it in Docker, and the provisioner creates the bucket and the queues on it. The apps do not
+use it yet: `make dev` runs without `make up`, and `make check` needs Docker only. The design and
+the resource inventory: [docs/knowledge/aws.md](docs/knowledge/aws.md).
+
+```sh
+make setup   # once; then add Docker and the Pulumi CLI (https://www.pulumi.com/docs/install/)
+make up      # starts MiniStack, then logs one line per resource:
+             #   INFO (#1): created: app-template-local-attachments      (first run)
+             #   INFO (#1): unchanged: app-template-local-chat-title     (every run after)
+make dev
+make down    # stops it; the bucket, the queues and their messages survive under .data/ministack
+make reset   # make down, then removes .data/ whole
+```
+
+| When | Then |
+|---|---|
+| Docker is not running | `make up` fails in the Docker provider; start Docker and run it again |
+| the Pulumi CLI is missing | `make up`, `down`, `reset` and `stack` fail at `pulumi`; install it from the link above. `make check` does not need it |
+| an older `.env` lacks `AWS_*` and `STAGE` | the provisioner fails with a `ConfigError` naming `AWS_REGION`; `make setup` leaves an existing `.env` alone, so copy the AWS block from `.env.example` |
+| the first `make up` takes about ten seconds | it downloads the Docker provider plugin into `.pulumi/`; later runs take a few seconds |
+| port 4566 is taken | the container fails to start; free the port (a leftover `app-template-ministack-4566`, or another emulator) |
+| `make up` failed midway | the container stays in the stack; `make down`, then `make up` again |
+| you want a clean slate | `make reset` also wipes the key-value store in `.data/`, not only MiniStack |
+| an inventory change that SQS refuses on an existing queue (`QueueNameExists`) | `make reset`, then `make up` |
+
 ## How it is built
 
 Each line names one choice and where it lives; the rejected alternatives are in the tickets'
@@ -86,8 +114,7 @@ Each line names one choice and where it lives; the rejected alternatives are in 
   collections, indexes and blobs with a process-wide lock, and turns a store failure into a defect
   once. `infrastructure/kv/`.
 - **Jobs live in one file, both sides:** a `.job` service enqueues, its `worker` is a `Layer` that
-  consumes in a fiber the layer's scope owns. The reply job gets three attempts plus one that only
-  settles a message the last attempt left active. `application/chat/*.job.ts`, `packages/queue`.
+  consumes in a fiber the layer's scope owns. `application/chat/*.job.ts`, `packages/queue`.
 - **A process is one `Layer`:** `apps/api/src/layer.ts` and `apps/worker/src/layer.ts` close the
   leaves (store, queue, platform) with `Layer.provide` and `main.ts` is
   `BunRuntime.runMain(Layer.launch(...))`; stopping closes one scope.
@@ -108,6 +135,7 @@ step or module is one `/explain` away (see
 | How do I run, debug, test, add a dependency or a workspace? Why did a check fail? | [docs/knowledge/tooling.md](docs/knowledge/tooling.md) |
 | Which layer does my code belong to, and what may it import? How do I add an entity? | [docs/knowledge/architecture.md](docs/knowledge/architecture.md) |
 | What do the domain words mean? | [docs/knowledge/glossary.md](docs/knowledge/glossary.md) |
+| How do the apps reach S3 and SQS, locally and on AWS? How is a resource added? | [docs/knowledge/aws.md](docs/knowledge/aws.md) |
 | How is a change specified, planned, implemented and verified? What do the `/ticket-*` skills use under the hood? | [docs/knowledge/sdd.md](docs/knowledge/sdd.md) |
 | What is built next, in which order, and what does each ticket inherit? | [docs/knowledge/roadmap.md](docs/knowledge/roadmap.md) |
 | What are the rules for one layer? | its `CLAUDE.md`, listed in [CLAUDE.md](CLAUDE.md) |

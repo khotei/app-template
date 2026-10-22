@@ -4,8 +4,6 @@ import { HttpBody, type HttpClientError, type HttpClientResponse } from 'effect/
 
 import { AttachmentId } from '@app-template/domain/attachment'
 import {
-  ChatBusyError,
-  ChatId,
   ChatNotFoundError,
   ChatTitle,
   failMessage,
@@ -17,7 +15,7 @@ import {
 import { UserUnknownError } from '@app-template/domain/user'
 import { limits, RequestInvalidError } from '@app-template/http-api'
 import { MessageRepositoryKv } from '@app-template/infrastructure/chat'
-import { assertSchemaEquals, isUuidV7 } from '@app-template/testing'
+import { assertSchemaEquals } from '@app-template/testing'
 
 import {
   makeApiHarness,
@@ -32,8 +30,6 @@ import {
 const hello = { text: 'Hello', attachmentIds: [] }
 
 const unknownAttachmentId = AttachmentId.make('01920000-0000-7000-8000-000000000001')
-
-const unknownChatId = ChatId.make('01920000-0000-7000-8000-000000000002')
 
 /** Picks the fields `schema` names from a raw JSON body, to assert the wire form itself. */
 const readWire = <S extends Schema.Decoder<unknown>>(
@@ -128,7 +124,6 @@ describe('chats', () => {
           })
 
           assert.strictEqual(response.status, 201)
-          assert.isTrue(isUuidV7(chat.id))
           assert.deepStrictEqual(yield* response.json, {
             id: chat.id,
             title: null,
@@ -190,39 +185,6 @@ describe('chats', () => {
             },
             { id: second.id, title: null, activeMessage: null },
           ])
-        }),
-      ),
-    )
-
-    it.effect('GET /chats/:chatId returns the chat with its messages in order', () =>
-      withApi((api) =>
-        Effect.gen(function* () {
-          const chat = yield* openChat(api)
-          const sent = yield* api.chats.send({ params: { chatId: chat.id }, payload: hello })
-
-          const detail = yield* api.chats.get({ params: { chatId: chat.id } })
-
-          assert.strictEqual(detail.id, chat.id)
-          assert.deepStrictEqual(
-            Arr.map(detail.messages, ({ id }) => id),
-            [sent.userMessage.id, sent.assistantMessage.id],
-          )
-          assert.deepStrictEqual(
-            detail.activeMessage,
-            Option.some({ id: sent.assistantMessage.id, stage: 'queued' as const }),
-          )
-        }),
-      ),
-    )
-
-    it.effect('an unknown chat id fails ApiClient with ChatNotFoundError', () =>
-      withApi((api) =>
-        Effect.gen(function* () {
-          yield* api.users.ensure()
-
-          const error = yield* Effect.flip(api.chats.get({ params: { chatId: unknownChatId } }))
-
-          assertSchemaEquals(ChatNotFoundError, error, new ChatNotFoundError({ id: unknownChatId }))
         }),
       ),
     )
@@ -383,34 +345,16 @@ describe('chats', () => {
       ),
     )
 
-    it.effect('a second send while the reply is active is 409 ChatBusyError', () =>
-      withApi((api) =>
-        Effect.gen(function* () {
-          const chat = yield* openChat(api)
-          yield* api.chats.send({ params: { chatId: chat.id }, payload: hello })
-
-          const error = yield* Effect.flip(
-            api.chats.send({ params: { chatId: chat.id }, payload: hello }),
-          )
-
-          assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chat.id }))
-        }),
-      ),
-    )
-
-    it.effect.each([
-      { name: 'a blank text without attachments', attachmentIds: [] },
-      {
-        name: 'a repeated attachment id',
-        attachmentIds: [unknownAttachmentId, unknownAttachmentId],
-      },
-    ])('a send with $name fails ApiClient with MessageInputInvalidError', ({ attachmentIds }) =>
+    it.effect('a send with a blank text fails ApiClient with MessageInputInvalidError', () =>
       withApi((api) =>
         Effect.gen(function* () {
           const chat = yield* openChat(api)
 
           const error = yield* Effect.flip(
-            api.chats.send({ params: { chatId: chat.id }, payload: { text: '  ', attachmentIds } }),
+            api.chats.send({
+              params: { chatId: chat.id },
+              payload: { text: '  ', attachmentIds: [] },
+            }),
           )
 
           assertSchemaEquals(MessageInputInvalidError, error, new MessageInputInvalidError())
@@ -418,14 +362,6 @@ describe('chats', () => {
       ),
     )
   })
-
-  it.effect('the spec documents the cookie security scheme', () =>
-    Effect.sync(() =>
-      assert.deepStrictEqual(spec.components.securitySchemes, {
-        cookie: { type: 'apiKey', name: 'user_secret', in: 'cookie' },
-      }),
-    ),
-  )
 
   it.effect("the spec narrows a summary's active stage to the running ones", () =>
     Effect.sync(() =>

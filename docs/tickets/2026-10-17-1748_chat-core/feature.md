@@ -193,11 +193,19 @@ replace one layer later.
   plan review: the stored failure keeps its cause (D19).* *Amended in S8b: "the attempts" are
   the reply attempts, three of the queue definition's four; the fourth only settles a reply the
   last one left active, because a worker crash on it otherwise leaves the message active (D23).*
+  *Amended in [`aws-local`](../2026-10-19-1448_aws-local/feature.md) S5d: the retry waits the
+  queue definition's `retryDelay` for that attempt (1 s, then 2 s); the attempts are the
+  definition's three, and the last writes `failed` on any outcome but success, an interrupt
+  included (D23).*
 - **R19** — WHEN the worker starts after jobs were queued while it was stopped, or a job's lock
   expires after a crash, THE SYSTEM SHALL process the job, restarting the generation and
   overwriting earlier snapshots. *Amended in S8b: a crash on the last reply attempt does not
   restart the generation; the fourth attempt settles the message as `failed` (R18 amended,
-  D23).*
+  D23).* *Amended in [`aws-local`](../2026-10-19-1448_aws-local/feature.md) S5d: a worker that
+  stops during the last attempt sets the message `failed` instead of restarting it. The message
+  stays active, and its job goes to the dead-letter queue, only when that write never happens: a
+  killed process, a store failing the write, or a stopped worker's long poll spending the last
+  attempt. Accepted; a sweep belongs to ticket 4 or 9 (D23).*
 
 ### Attachments
 
@@ -298,6 +306,8 @@ replace one layer later.
   with `--hot`, each reload stopping the previous runtime before it starts; a worker interrupted
   during a job SHALL release it without counting the attempt (`effect-setup` R29, R35, R36).
   *Amended in S13 (D30): both ran with `--watch`, against the rule that keeps the api on `--hot`.*
+  *Amended in [`aws-local`](../2026-10-19-1448_aws-local/feature.md) R12 (aws-local D2): on SQS
+  an interrupted job comes back at once as its next attempt; the interrupt is counted.*
 - **R35** — Ids SHALL be UUIDv7 from `Crypto` and time from `Clock`, provided by
   `@effect/platform-bun` at runtime and `TestCrypto` and `TestClock` in tests, save the api's HTTP
   tests, which run on the real `Crypto`; `domain` SHALL read neither. *Amended in S13: the HTTP
@@ -329,14 +339,14 @@ replace one layer later.
 | R15 | The `Message` schema test; `git grep -n "'system'\|'tool'" -- domain application` finds nothing. |
 | R16–R19 | A worker test with a fake `LanguageModel` that emits three deltas under `TestClock`: stages `preparing` → `generating` → `completed`, at most one write per snapshot interval, `updatedAt` bumped; the recorded prompt holds the history with a `file` part per attachment and no `failed` message; a failing model goes back to `preparing` per attempt and ends `failed` with `{ reason: 'ReplyFailed', message, cause }`, no provider text in `message`, and no `cause` in the api's response; with the worker stopped, three sends queue three jobs that run on start. |
 | R20–R23 | Uploading two PNGs returns two unbound attachments; an 11 MB file is `413`, a `.zip` is `415`, six files or a nameless file `400`, and nothing is stored (adapter spy); `GET …/download` returns the bytes with `image/png` and `inline`; `DELETE` on an unbound one is `204`, on a bound one `409`. |
-| R24–R25 | After the first send, the title job is queued with an id derived from the chat id (a second send queues no second title job); the worker sets a title ≤ 120 chars; a `PATCH` made before the job completes wins; a model that always fails leaves `title: null` and a dead-letter log; a first message with a blank text (no text, or whitespace only), or a blank answer, leaves `title: null` with an `Info` log and no retry (*Amended in S9*). |
-| R26–R27 | `http-api` imports only `effect` and `@app-template/domain` (a probe importing another workspace fails `make lint`); at Seam 7, `OpenApi.fromApi(Api)` names the domain's tags (`UserUnknownError`) and documents the cookie security scheme and the 400; `GET /openapi.json` serves that spec and `GET /docs` serves Scalar. |
+| R24–R25 | After the first send, the title job is queued with an id derived from the chat id (a second send queues no second title job); the worker sets a title ≤ 120 chars; a `PATCH` made before the job completes wins; a model that always fails leaves `title: null` and a dead-letter log (*Amended in [`aws-local`](../2026-10-19-1448_aws-local/feature.md) S5c:* the job test shows `title: null` after a failing last attempt; the dead-letter log is the queue's, shown by its own suite); a first message with a blank text (no text, or whitespace only), or a blank answer, leaves `title: null` with an `Info` log and no retry (*Amended in S9*). |
+| R26–R27 | `http-api` imports only `effect` and `@app-template/domain` (a probe importing another workspace fails `make lint`); at Seam 7, `OpenApi.fromApi(Api)` names the domain's tags (`UserUnknownError`) and documents the cookie security scheme and the 400; `GET /openapi.json` serves that spec and `GET /docs` serves Scalar. *Amended in aws-local's test pruning:* the cookie scheme and `security: []` are shown by live requests (a route without the cookie passes or gets 401), not by the spec. |
 | R28 | A request with a malformed body is `400 RequestInvalidError` listing every issue; `make dev-api` starts through `BunRuntime` and logs finalizers on SIGTERM. |
-| R29 | Through `ApiClient` against the test server (Seam 7): an unknown chat id fails with `ChatNotFoundError`, a malformed body with `RequestInvalidError`, a missing cookie with `UserUnknownError`, a stopped server with `HttpClientError` (*Amended in S14:* `ApiClient` runs every schema check on its own encode, so a malformed body cannot leave it; the body that fails decoding is sent over a raw client, and through `ApiClient` the domain's refusal of a blank message fails with `MessageInputInvalidError`; a `FormData` is not checked on encode, so S15 sends six files through `ApiClient` and sees it decode `RequestInvalidError`); a table keyed by an endpoint's error tags (`satisfies Record<tag, …>`) fails `make typecheck` on a missing or an extra tag; `bun build --minify --target=browser apps/web/src/app/main.ts \| gzip` stays near the measured 54 KB, recorded in the step's findings. *Amended in S12b.* |
+| R29 | Through `ApiClient` against the test server (Seam 7): an unknown chat id fails with `ChatNotFoundError`, a malformed body with `RequestInvalidError`, a missing cookie with `UserUnknownError`, a stopped server with `HttpClientError` (*Amended in S14:* `ApiClient` runs every schema check on its own encode, so a malformed body cannot leave it; the body that fails decoding is sent over a raw client, and through `ApiClient` the domain's refusal of a blank message fails with `MessageInputInvalidError`; a `FormData` is not checked on encode, so S15 sends six files through `ApiClient` and sees it decode `RequestInvalidError`); a table keyed by an endpoint's error tags (`satisfies Record<tag, …>`) fails `make typecheck` on a missing or an extra tag; `bun build --minify --target=browser apps/web/src/app/main.ts \| gzip` stays near the measured 54 KB, recorded in the step's findings. *Amended in S12b.* *Amended in aws-local's test pruning:* the unknown chat id is checked once, and the stopped-server `HttpClientError` (effect's fetch transport) is no longer tested; `ApiClient.layerFetch`'s type and the web's error table cover the wiring. |
 | R30 | A probe in `apps/web/src/features/` importing `@app-template/config`, `@app-template/domain` or another workspace of ours fails `make lint`, and one importing `effect` or `@app-template/http-api` passes; `make dev-api` and `make dev-web` render `API status: ok` at `localhost:3001` and, with the api stopped, the `HttpClientError` sentence. *Amended in S12b.* |
 | R31–R32 | The two `.job.ts` files export `enqueue` and `worker`; `apps/worker/src` holds no job logic; the job schemas carry ids only. *Amended in S6: the title job carries the first message's id, not its text.* |
 | R33 | `mv .env .env.bak && make test` passes; with `make dev-api` and `make dev-worker` running, a send in one terminal is followed by `completed` on the next poll; `.data/store` exists and is gitignored. |
-| R34–R35 | SIGTERM during a job leaves it at the same attempt for the restarted worker; after two `--hot` edits of the api, one listener remains and each old runtime logs `api stopped` once before the next `Listening on` (*Amended in S13*, D30); `git grep -E "Date.now|new Date\(|randomUUID" -- 'domain/**/*.ts'` finds nothing; tests fix ids with `TestCrypto`, except Seam 7, which runs the api on the real `Crypto` (`BunServices.layer`) and asserts ids by shape (*Amended in S13*). |
+| R34–R35 | SIGTERM during a job leaves it at the same attempt for the restarted worker (*Amended in [`aws-local`](../2026-10-19-1448_aws-local/feature.md) R12*, aws-local D2: it comes back as the next attempt); after two `--hot` edits of the api, one listener remains and each old runtime logs `api stopped` once before the next `Listening on` (*Amended in S13*, D30); `git grep -E "Date.now|new Date\(|randomUUID" -- 'domain/**/*.ts'` finds nothing; tests fix ids with `TestCrypto`, except Seam 7, which runs the api on the real `Crypto` (`BunServices.layer`) and asserts ids by shape (*Amended in S13*; *amended in aws-local's test pruning:* the shape is asserted in the service suites, not at Seam 7). |
 | R36–R38 | `git grep -i example -- ':!docs/tickets' ':!repos'` finds no code; `packages/db` and `packages/storage` are gone; `.claude/rules/effect.md` exists within budget after the first slice; `architecture.md` maps the `chat` files; the roadmap row 3 links here. |
 
 ## Open questions

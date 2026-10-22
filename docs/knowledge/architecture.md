@@ -14,7 +14,7 @@ graph TD
   application --> domain
   apps -->|"apps/api only"| httpApi["http-api"]
   httpApi --> domain
-  apps --> packages["packages/* (config · queue · llm · testing · ui)"]
+  apps --> packages["packages/* (aws · config · queue · llm · testing · ui)"]
   application --> packages
   infrastructure --> packages
   web["apps/web client"] --> httpApi
@@ -34,9 +34,9 @@ and `apps/web` → `http-api` → `domain`. A layer may skip levels: `applicatio
 | `http-api/` | the HTTP contract (`HttpApi`) over the domain, shared by `apps/api` and the browser | [http-api/CLAUDE.md](../../http-api/CLAUDE.md) |
 | `infrastructure/` | adapters that implement domain ports on top of `packages/*` clients | [infrastructure/CLAUDE.md](../../infrastructure/CLAUDE.md) |
 | `application/` | services over ports, and use cases that compose services | [application/CLAUDE.md](../../application/CLAUDE.md) |
-| `packages/*` | generic, project-agnostic clients and libraries | [packages/CLAUDE.md](../../packages/CLAUDE.md) |
+| `packages/*` | generic, project-agnostic clients and libraries, with the one exception its rules name | [packages/CLAUDE.md](../../packages/CLAUDE.md) |
 | `apps/*` | entry points (`main.ts`) | [apps/CLAUDE.md](../../apps/CLAUDE.md) |
-| `deployment/` | local Docker Compose and AWS Pulumi, stubs for now | [deployment/CLAUDE.md](../../deployment/CLAUDE.md) |
+| `deployment/` | `local/`, a Pulumi project running MiniStack, with the provisioner ([aws.md](aws.md)); `aws/`, the AWS Pulumi program, a stub for now | [deployment/CLAUDE.md](../../deployment/CLAUDE.md) |
 
 ### Dependency rules
 
@@ -157,7 +157,8 @@ Pascal one (`Document`).
 9. **Delivery.** Implement the group in `apps/api/src/<entity>/<entity>.handler.ts` with
    `HttpApiBuilder.group(Api, '<group>', …)`: it calls the use cases and services and projects
    each model onto its DTO through `apps/api/src/shared/projections.ts` (`Struct.pick`). Add it
-   to `ApiRoutes`, and its services and `<Entity>Kv` to `ApiHttp` in `apps/api/src/layer.ts`.
+   to `ApiRoutes`, and its services and `<Entity>Kv` to `ApiHttp` in `apps/api/src/layer.ts`; an
+   entity with an AWS adapter goes to `ApiLayer` instead, and the api harness provides its KV.
    Test the round trip through `ApiClient` in `<entity>.handler.test.ts` beside it, on
    `apps/api/src/testing/api.harness.ts`.
 10. **Client, if the browser needs it.** `ApiClient` from `@app-template/http-api` already has

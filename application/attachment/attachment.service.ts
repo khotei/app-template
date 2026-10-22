@@ -1,32 +1,40 @@
-import { Array as Arr, Context, Crypto, DateTime, Effect, Layer, Option } from 'effect'
+import {
+  Array as Arr,
+  Context,
+  Crypto,
+  DateTime,
+  Effect,
+  Layer,
+  Option,
+  Ref,
+  Stream,
+  Struct,
+} from 'effect'
 
 import {
   Attachment,
   type AttachmentBoundError,
   type AttachmentDownload,
   AttachmentId,
+  type AttachmentMeta,
   AttachmentNotFoundError,
   AttachmentRepository,
   AttachmentStore,
   buildAttachment,
   ensureBindable,
-  type FileName,
-  FileSize,
-  type MediaType,
+  isVisibleTo,
 } from '@app-template/domain/attachment'
 import type { MessageId } from '@app-template/domain/chat'
 import { ensureFound } from '@app-template/domain/shared'
-import { isOwnedBy, type UserId } from '@app-template/domain/user'
+import type { UserId } from '@app-template/domain/user'
 
-export interface AttachmentUpload {
-  readonly fileName: FileName
-  readonly mediaType: MediaType
-  readonly bytes: Uint8Array
+export interface AttachmentUpload<E> extends AttachmentMeta {
+  readonly content: Stream.Stream<Uint8Array, E>
 }
 
 /**
  * Proof that these attachments may be bound: only `AttachmentService.findBindable` builds one,
- * after it checked that each is the user's and unbound.
+ * after it checked that each is visible to the user and unbound.
  *
  * It holds only while the caller keeps the user's `UserLock` from the check to the bind.
  */
@@ -41,11 +49,18 @@ class BindableAttachments {
 
 export type { BindableAttachments }
 
+/** An attachment unbound for `unboundLifetime` reads as not found; no read deletes it. */
 export class AttachmentService extends Context.Service<
   AttachmentService,
   {
-    readonly upload: (userId: UserId, input: AttachmentUpload) => Effect.Effect<Attachment>
-    /** Finds the user's attachment, bound or not. */
+    /**
+     * Stores each file in order, all or none: a failure of the files or of one file's content
+     * removes the files already stored.
+     */
+    readonly upload: <E>(
+      userId: UserId,
+      files: Stream.Stream<AttachmentUpload<E>, E>,
+    ) => Effect.Effect<ReadonlyArray<Attachment>, E>
     readonly get: (
       userId: UserId,
       id: AttachmentId,
@@ -85,29 +100,54 @@ export class AttachmentService extends Context.Service<
     const randomUuid = Effect.orDie(crypto.randomUUIDv7())
     const randomAttachmentId = Effect.map(randomUuid, AttachmentId.make)
 
-    const upload = Effect.fn('AttachmentService.upload')(function* (
-      userId: UserId,
-      input: AttachmentUpload,
+    const deleteByIds = Effect.fn('AttachmentService.deleteByIds')(function* (
+      ids: ReadonlyArray<AttachmentId>,
     ) {
-      const id = yield* randomAttachmentId
-      const createdAt = yield* DateTime.now
-      const attachment = buildAttachment({
-        id,
-        userId,
-        fileName: input.fileName,
-        mediaType: input.mediaType,
-        size: FileSize.make(input.bytes.length),
-        createdAt,
-      })
+      yield* attachments.deleteByIds(ids)
+      yield* Effect.forEach(ids, store.delete, { discard: true })
+    })
 
-      yield* store.insert(id, input.bytes)
+    const uploadFile = Effect.fnUntraced(function* <E>(
+      file: AttachmentUpload<E>,
+      { id, userId }: { readonly id: AttachmentId; readonly userId: UserId },
+    ) {
+      const createdAt = yield* DateTime.now
+
+      const meta = Struct.pick(file, ['mediaType', 'fileName'])
+      const size = yield* store.insert(id, file.content, meta)
+      const attachment = buildAttachment({ ...meta, id, userId, size, createdAt })
+
       yield* attachments.insert(attachment)
       return attachment
     })
 
+    const upload = Effect.fn('AttachmentService.upload')(function* <E>(
+      userId: UserId,
+      files: Stream.Stream<AttachmentUpload<E>, E>,
+    ) {
+      const tracked = yield* Ref.make(Arr.empty<AttachmentId>())
+      // Tracked before the write, not after the insert: a lost record still deletes the bytes.
+      const trackId = Effect.tap(randomAttachmentId, (id) => Ref.update(tracked, Arr.append(id)))
+      const deleteTracked = Effect.flatMap(Ref.get(tracked), deleteByIds)
+
+      return yield* files.pipe(
+        Stream.mapEffect((file) =>
+          Effect.flatMap(trackId, (id) => uploadFile(file, { id, userId })),
+        ),
+        Stream.runCollect,
+        Effect.onError(() => deleteTracked),
+      )
+    })
+
     const get = Effect.fn('AttachmentService.get')(function* (userId: UserId, id: AttachmentId) {
       const found = yield* attachments.selectById(id)
-      return yield* ensureFound(found, isOwnedBy(userId), () => new AttachmentNotFoundError({ id }))
+      const now = yield* DateTime.now
+
+      return yield* ensureFound(
+        found,
+        isVisibleTo(userId, now),
+        () => new AttachmentNotFoundError({ id }),
+      )
     })
 
     const download = Effect.fn('AttachmentService.download')(function* (
@@ -115,10 +155,10 @@ export class AttachmentService extends Context.Service<
       id: AttachmentId,
     ) {
       const attachment = yield* get(userId, id)
-      const bytes = yield* store.select(id)
+      const url = yield* store.url(id)
 
-      if (Option.isNone(bytes)) return yield* new AttachmentNotFoundError({ id })
-      return { attachment, bytes: bytes.value }
+      if (Option.isNone(url)) return yield* new AttachmentNotFoundError({ id })
+      return { attachment, url: url.value }
     })
 
     const remove = Effect.fn('AttachmentService.delete')(function* (
@@ -126,7 +166,8 @@ export class AttachmentService extends Context.Service<
       id: AttachmentId,
     ) {
       const found = yield* attachments.selectById(id)
-      yield* ensureBindable(found, { id, userId })
+      const now = yield* DateTime.now
+      yield* ensureBindable(found, { id, userId, now })
 
       yield* attachments.deleteByIds([id])
       yield* store.delete(id)
@@ -138,10 +179,11 @@ export class AttachmentService extends Context.Service<
       ids: ReadonlyArray<AttachmentId>,
     ) {
       const stored = yield* attachments.selectByIds(ids)
+      const now = yield* DateTime.now
       const found = new Map(Arr.map(stored, (attachment) => [attachment.id, attachment]))
 
       const bindable = yield* Effect.forEach(ids, (id) =>
-        ensureBindable(Option.fromUndefinedOr(found.get(id)), { id, userId }),
+        ensureBindable(Option.fromUndefinedOr(found.get(id)), { id, userId, now }),
       )
       return new BindableAttachments(bindable)
     })
@@ -155,15 +197,9 @@ export class AttachmentService extends Context.Service<
         (attachment) => new Attachment({ ...attachment, messageId: Option.some(messageId) }),
       )
 
+      yield* Effect.forEach(bound, (attachment) => store.keep(attachment.id), { discard: true })
       yield* Effect.forEach(bound, attachments.update, { discard: true })
       return bound
-    })
-
-    const deleteByIds = Effect.fn('AttachmentService.deleteByIds')(function* (
-      ids: ReadonlyArray<AttachmentId>,
-    ) {
-      yield* attachments.deleteByIds(ids)
-      yield* Effect.forEach(ids, store.delete, { discard: true })
     })
 
     return { upload, get, download, delete: remove, findBindable, bind, deleteByIds }

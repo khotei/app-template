@@ -2,8 +2,13 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help setup dev dev-api dev-worker dev-web debug-api debug-worker debug-web \
-  check ids lint fmt typecheck test clean outdated vendor-effect
+.PHONY: help setup stack up down reset dev dev-api dev-worker dev-web debug-api debug-worker \
+  debug-web check ids lint fmt typecheck test clean outdated vendor-effect
+
+# The local Pulumi project: the file backend under .data/ and the home (plugins, credentials) under
+# .pulumi/, both in the repo; the home survives `make reset`. The passphrase is empty because the
+# stack holds no secret.
+PULUMI = PULUMI_HOME=$(CURDIR)/.pulumi PULUMI_CONFIG_PASSPHRASE= pulumi -C deployment/local
 
 help: ## List all targets
 	@echo 'App Template: make <target>'
@@ -13,6 +18,23 @@ help: ## List all targets
 setup: ## Install dependencies and create .env from .env.example if missing
 	bun install
 	@test -f .env || (cp .env.example .env && echo "created .env from .env.example")
+
+stack: ## Log Pulumi in to the file backend and select or create the local stack
+	@mkdir -p .data/pulumi
+	@$(PULUMI) login --non-interactive file://$(CURDIR)/.data/pulumi
+	@$(PULUMI) stack select local 2>/dev/null || $(PULUMI) stack init local
+
+# The program reads AWS_ENDPOINT_URL through AwsConfig, so `up` exports .env to it; `destroy` runs
+# no program.
+up: stack ## Start MiniStack through Pulumi and provision the inventory on it
+	set -a && . ./.env && set +a && $(PULUMI) up --yes --skip-preview
+	bun --env-file=.env deployment/local/provision.ts
+
+down: stack ## Stop MiniStack
+	$(PULUMI) destroy --yes --skip-preview
+
+reset: down ## Stop MiniStack and remove .data/ whole (its state, the stack, the store)
+	rm -rf .data
 
 dev: ## Run api, worker and web together in dev mode
 	bun --filter './apps/*' dev

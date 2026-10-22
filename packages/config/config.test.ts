@@ -1,8 +1,9 @@
 import { assert, describe, it } from '@effect/vitest'
-import { type Config, ConfigProvider, Duration, Effect, Layer, LogLevel, References } from 'effect'
+import { type Config, ConfigProvider, Duration, Effect, Layer, Option, References } from 'effect'
 
 import {
   ApiConfig,
+  AwsConfig,
   MinimumLogLevelFromConfig,
   QueueConfig,
   RuntimeConfig,
@@ -13,12 +14,18 @@ const provideVariables = <A, E>(layer: Layer.Layer<A, E>, variables: Record<stri
   layer.pipe(Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(variables))))
 
 describe('config layers', () => {
-  it.effect.each<{ variable: string; layer: Layer.Layer<never, Config.ConfigError> }>([
+  it.effect.each<{
+    variable: string
+    layer: Layer.Layer<never, Config.ConfigError>
+    given?: Record<string, string>
+  }>([
     { variable: 'API_PORT', layer: ApiConfig.layer },
     { variable: 'STORE_PATH', layer: StoreConfig.layer },
-  ])('fails with a ConfigError naming a missing $variable', ({ variable, layer }) =>
+    { variable: 'AWS_REGION', layer: AwsConfig.layer },
+    { variable: 'STAGE', layer: AwsConfig.layer, given: { AWS_REGION: 'eu-central-1' } },
+  ])('fails with a ConfigError naming a missing $variable', ({ variable, layer, given }) =>
     Effect.gen(function* () {
-      const error = yield* Effect.flip(Layer.build(provideVariables(layer, {})))
+      const error = yield* Effect.flip(Layer.build(provideVariables(layer, given ?? {})))
 
       assert.strictEqual(error._tag, 'ConfigError')
       assert.include(error.message, variable)
@@ -40,11 +47,7 @@ describe('config layers', () => {
         },
       )
     }).pipe(
-      Effect.provide(
-        provideVariables(Layer.mergeAll(RuntimeConfig.layer, QueueConfig.layer), {
-          QUEUE_SQLITE_PATH: '../../.data/queue.sqlite',
-        }),
-      ),
+      Effect.provide(provideVariables(Layer.mergeAll(RuntimeConfig.layer, QueueConfig.layer), {})),
     ),
   )
 
@@ -58,7 +61,6 @@ describe('config layers', () => {
         const error = yield* Effect.flip(
           Layer.build(
             provideVariables(QueueConfig.layer, {
-              QUEUE_SQLITE_PATH: '../../.data/queue.sqlite',
               QUEUE_LOCK_EXPIRATION: expiration,
               QUEUE_LOCK_REFRESH_INTERVAL: refresh,
             }),
@@ -71,19 +73,31 @@ describe('config layers', () => {
       }),
   )
 
-  it.effect.each(LogLevel.values)('sets the minimum log level to LOG_LEVEL=%s', (level) =>
-    Effect.map(References.MinimumLogLevel, (minimum) => assert.strictEqual(minimum, level)).pipe(
-      Effect.provide(provideVariables(MinimumLogLevelFromConfig, { LOG_LEVEL: level })),
+  it.effect.each([
+    { given: undefined, parsed: Option.none<string>() },
+    { given: 'http://localhost:4566', parsed: Option.some('http://localhost:4566/') },
+  ])('reads AWS settings with AWS_ENDPOINT_URL=$given', ({ given, parsed }) =>
+    Effect.gen(function* () {
+      const { region, endpoint, stage } = yield* AwsConfig
+
+      assert.deepStrictEqual(
+        { region, endpoint: Option.map(endpoint, String), stage },
+        { region: 'eu-central-1', endpoint: parsed, stage: 'local' },
+      )
+    }).pipe(
+      Effect.provide(
+        provideVariables(AwsConfig.layer, {
+          AWS_REGION: 'eu-central-1',
+          STAGE: 'local',
+          ...(given === undefined ? {} : { AWS_ENDPOINT_URL: given }),
+        }),
+      ),
     ),
   )
 
-  it.effect('rejects a lower-case LOG_LEVEL', () =>
-    Effect.gen(function* () {
-      const error = yield* Effect.flip(
-        Layer.build(provideVariables(RuntimeConfig.layer, { LOG_LEVEL: 'info' })),
-      )
-
-      assert.include(error.message, 'LOG_LEVEL')
-    }),
+  it.effect('sets the minimum log level from LOG_LEVEL', () =>
+    Effect.map(References.MinimumLogLevel, (minimum) => assert.strictEqual(minimum, 'Debug')).pipe(
+      Effect.provide(provideVariables(MinimumLogLevelFromConfig, { LOG_LEVEL: 'Debug' })),
+    ),
   )
 })

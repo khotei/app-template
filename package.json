@@ -25,7 +25,8 @@
       "vitest": "5.0.5"
     },
     "runtime": {
-      "@types/bun": "1.4.3"
+      "@types/bun": "1.4.3",
+      "testcontainers": "12.2.1"
     },
     "typescript": {
       "@effect/tsgo": "0.53.2",
@@ -33,9 +34,16 @@
     },
     "effect": {
       "@effect/platform-bun": "4.0.5",
-      "@effect/sql-sqlite-bun": "4.0.5",
       "@effect/vitest": "4.0.5",
       "effect": "4.0.5"
+    },
+    "effect-aws": {
+      "@effect-aws/client-s3": "2.0.0",
+      "@effect-aws/client-sqs": "2.0.0"
+    },
+    "pulumi": {
+      "@pulumi/docker": "5.2.0",
+      "@pulumi/pulumi": "3.270.0"
     }
   },
   "devDependencies": {

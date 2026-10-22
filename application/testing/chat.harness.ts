@@ -1,5 +1,5 @@
 import { BunCrypto } from '@effect/platform-bun'
-import { Array as Arr, DateTime, Effect, Layer } from 'effect'
+import { Array as Arr, DateTime, Effect, Layer, Stream } from 'effect'
 import { KeyValueStore } from 'effect/persistence'
 import { TestCrypto } from 'effect/testing'
 
@@ -21,18 +21,18 @@ import {
 import type { UserId } from '@app-template/domain/user'
 import { AttachmentStoreKv } from '@app-template/infrastructure/attachment'
 import { ChatRepositoryKv } from '@app-template/infrastructure/chat'
+import { recordQueue, type SentJob } from '@app-template/queue/testing'
+import { png } from '@app-template/testing'
 
 import { AttachmentService } from '#application/attachment/attachment.service'
 import { ChatService } from '#application/chat/chat.service'
 import { DeleteChatUseCase } from '#application/chat/delete-chat.use-case'
 import { SendMessageUseCase } from '#application/chat/send-message.use-case'
-import { png } from '#application/testing/attachment.fixture'
 import {
   AttachmentRepositoryYielding,
   type Interleaving,
   interleaveMessages,
 } from '#application/testing/chat.fake'
-import { recordQueue, type SentJob } from '#application/testing/queue.fake'
 import { owner } from '#application/testing/user.fixture'
 
 export interface ChatHarnessOptions {
@@ -73,7 +73,6 @@ export interface ChatArranged {
   readonly sent: ReadonlyArray<SentJob>
   readonly interleaving: Interleaving
   readonly chats: ChatService['Service']
-  readonly attachments: AttachmentService['Service']
   readonly sendMessage: SendMessageUseCase['Service']
   readonly deleteChat: DeleteChatUseCase['Service']
 }
@@ -86,21 +85,26 @@ export const withChat = <E>(
   const { sent, interleaving, layer } = makeChatHarness(options)
   return Effect.gen(function* () {
     const chats = yield* ChatService
-    const attachments = yield* AttachmentService
     const sendMessage = yield* SendMessageUseCase
     const deleteChat = yield* DeleteChatUseCase
     const chat = yield* chats.create(owner)
-    yield* body({ chat, sent, interleaving, chats, attachments, sendMessage, deleteChat })
+    yield* body({ chat, sent, interleaving, chats, sendMessage, deleteChat })
   }).pipe(Effect.provide(layer))
 }
 
 export const upload = (userId: UserId, name: string) =>
   Effect.flatMap(AttachmentService, (attachments) =>
-    attachments.upload(userId, {
-      fileName: FileName.make(name),
-      mediaType: MediaType.make('image/png'),
-      bytes: png,
-    }),
+    attachments.upload(
+      userId,
+      Stream.make({
+        fileName: FileName.make(name),
+        mediaType: MediaType.make('image/png'),
+        content: Stream.make(png),
+      }),
+    ),
+  ).pipe(
+    Effect.flatMap((uploaded) => Effect.fromOption(Arr.head(uploaded))),
+    Effect.orDie,
   )
 
 /** Completes an assistant message as the worker would, freeing its chat for the next send. */

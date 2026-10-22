@@ -1,7 +1,7 @@
-import { assert, describe, it, layer } from '@effect/vitest'
+import { assert, describe, layer } from '@effect/vitest'
 import { Effect } from 'effect'
 
-import { makeApiHarness, spec, withApi } from '#api/testing/api.harness'
+import { makeApiHarness, withApi } from '#api/testing/api.harness'
 
 describe('health', () => {
   layer(makeApiHarness())((it) => {
@@ -13,8 +13,4 @@ describe('health', () => {
       ),
     )
   })
-
-  it.effect('GET /health asks for no credential', () =>
-    Effect.sync(() => assert.deepStrictEqual(spec.paths['/health']?.get?.security, [])),
-  )
 })

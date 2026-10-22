@@ -13,6 +13,8 @@ import {
 } from 'effect'
 import { KeyValueStore } from 'effect/persistence'
 
+import { png } from '@app-template/testing'
+
 import { createBlobs, createCollection, createIndex } from '#infrastructure/kv/kv-collection'
 import { KeyValueStoreFileSystem } from '#infrastructure/kv/kv-store'
 
@@ -39,8 +41,6 @@ const chats = Effect.map(KeyValueStore.KeyValueStore, (store) =>
 const files = Effect.map(KeyValueStore.KeyValueStore, (store) =>
   createBlobs(store, { prefix: 'files/' }),
 )
-
-const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0xff])
 
 describe.each([
   { name: 'memory', store: KeyValueStore.layerMemory },
