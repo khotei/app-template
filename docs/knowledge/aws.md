@@ -113,10 +113,9 @@ the apps from `QueueConfig` and `AwsConfig`: a definition's queue is
   `QUEUE_LOCK_REFRESH_INTERVAL` while the handler runs. The attempt number is SQS's
   `ApproximateReceiveCount`, and the last attempt is the definition's `maxAttempts`, which is the
   inventory's `maxReceiveCount`.
-- **Every outcome is a visibility.** Success deletes the message. A failure with attempts left
-  hides it for the retry delay that `retrySchedule` gives that attempt, rounded up to whole
-  seconds. The last failure, a body that does not decode and an interrupt (a worker stopping, a
-  handler interrupting itself) make it visible at once, so an interrupt spends its attempt.
+- **Every outcome is a visibility**, as the `QueueClient.consume` doc in
+  `packages/queue/queue.ts` lists them; SQS rounds a retry delay up to whole seconds, and an
+  interrupt (a worker stopping, a handler interrupting itself) spends its attempt.
 - **Redrive is the only way to the dead-letter queue.** The receive after the
   `maxReceiveCount`-th moves the message to `<queue>-dlq` instead of returning it; the client never
   sends there itself. A worker that dies mid-attempt leaves its message hidden until the
@@ -126,10 +125,11 @@ the apps from `QueueConfig` and `AwsConfig`: a definition's queue is
   but MiniStack keeps the poll open and hides the next message it finds for its visibility
   timeout; that message returns after `QUEUE_LOCK_EXPIRATION` with an attempt spent.
 
-Every test that touches a queue runs on MiniStack in real time: the queue's own suite, the job
-suites, and the api and chat harnesses, each provisioning the inventory under a fresh stage. The
-job suites keep the handlers' own sleeps on the `TestClock` and wait for SQS in real time
-(`runUntilDrained` in `application/testing/queue.harness.ts`).
+The queue's own suite checks those rules on MiniStack in real time. A job suite calls the job's
+`handle` with plain `AttemptInfo` values under the `TestClock`, and keeps one case that runs its
+worker on MiniStack. Tests that only send (the api and chat harnesses) use `recordQueue` from
+`@app-template/queue/testing`, which encodes each job as the client does, records it and starts
+no container.
 
 ## Tests on Docker
 

@@ -27,5 +27,7 @@ paths:
 - Test support that several test files share lives in `<workspace>/testing/` (or
   `packages/testing` when several workspaces share it, `@app-template/testing`, declared in
   `devDependencies`); tests stay colocated with their source. Roles: `naming.md › Files`.
+- A package exports a test double of its own service as `<package>/testing` (`recordQueue`), not
+  through `packages/testing`, which cannot import a package whose tests import it.
 - When a test checks logging, assert the level with the message.
 - Provide configuration with `ConfigProvider.fromUnknown({ … })` (`tooling.md › Environment`).

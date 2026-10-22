@@ -24,7 +24,6 @@
       "devDependencies": {
         "@app-template/aws": "workspace:*",
         "@app-template/testing": "workspace:*",
-        "@effect-aws/client-sqs": "catalog:effect-aws",
         "@effect/platform-bun": "catalog:effect",
         "@effect/vitest": "catalog:effect",
       },
@@ -41,7 +40,6 @@
         "effect": "catalog:effect",
       },
       "devDependencies": {
-        "@app-template/aws": "workspace:*",
         "@app-template/queue": "workspace:*",
         "@app-template/testing": "workspace:*",
         "@effect/vitest": "catalog:effect",

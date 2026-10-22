@@ -243,5 +243,7 @@ export class AssistantMessageJob extends Context.Service<
     ),
   )
 
+  static readonly handle = handle
+
   static readonly worker = worker(assistantMessageQueue, handle)
 }

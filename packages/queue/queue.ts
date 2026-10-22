@@ -78,6 +78,12 @@ const buildAttemptInfo = (received: Received, maxAttempts: number): AttemptInfo 
 const buildJsonCodec = <A, I>(schema: Schema.Codec<A, I>) =>
   Schema.fromJsonString(Schema.toCodecJson(schema))
 
+/** The body `send` puts on the queue. */
+export const encodeBody = <A, I>(definition: QueueDefinition<Schema.Codec<A, I>>, message: A) =>
+  Schema.encodeEffect(buildJsonCodec(definition.schema))(message).pipe(
+    Effect.mapError((cause) => new QueueError({ cause })),
+  )
+
 const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueClientOptions) =>
   Effect.gen(function* () {
     const transport = yield* QueueTransport
@@ -86,9 +92,7 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
       definition: QueueDefinition<Schema.Codec<A, I>>,
       message: A,
     ) {
-      const body = yield* Schema.encodeEffect(buildJsonCodec(definition.schema))(message).pipe(
-        Effect.mapError((cause) => new QueueError({ cause })),
-      )
+      const body = yield* encodeBody(definition, message)
       yield* transport.send(queueName(definition.name), body, {
         jobId: definition.jobId(message),
       })
@@ -181,11 +185,13 @@ export class QueueClient extends Context.Service<
       message: A,
     ) => Effect.Effect<void, QueueError>
     /**
-     * Runs `handle` on each message, forever.
+     * Runs `handle` on each message, forever; the attempt is the message's receive count.
      *
-     * A failed attempt is logged and retried on the definition's schedule, the last one is logged
-     * as dead-lettered, and neither ends the loop. An interrupt returns the in-flight message at
-     * once, and its next receive counts as the next attempt.
+     * Success deletes the message. A failed attempt is logged and hides it for the delay
+     * `retrySchedule` gives that attempt. The last failed attempt (logged as dead-lettered), a
+     * body that does not decode (logged) and an interrupt make it visible at once: its next
+     * receive is the next attempt or, after the last, moves it to the dead-letter queue. No
+     * outcome ends the loop, and an interrupt waits for the settle under way.
      */
     readonly consume: <A, I, E, R>(
       definition: QueueDefinition<Schema.Codec<A, I>>,
@@ -196,10 +202,6 @@ export class QueueClient extends Context.Service<
   static readonly layer = (
     options: QueueClientOptions,
   ): Layer.Layer<QueueClient, never, QueueTransport> => Layer.effect(this, makeClient(options))
-
-  /** Queues on SQS, whose redrive policy moves a spent message to its dead-letter queue. */
-  static readonly layerSqs = (options: QueueClientOptions) =>
-    this.layer(options).pipe(Layer.provide(QueueTransport.layerSqs))
 }
 
 // Any cause restarts the consumer, logged, with no attempt limit: an unrecovered cause would end

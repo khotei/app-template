@@ -172,7 +172,7 @@ const receiveDeadLettered = (definition: PingQueue) =>
     }),
   ).pipe(Effect.flatMap(Effect.fromOption))
 
-describe('QueueClient.send and worker on QueueClient.layerSqs against MiniStack', () => {
+describe('QueueClient.send and worker over QueueTransport.layerSqs against MiniStack', () => {
   layer(QueueClientMiniStack, { timeout: '60 seconds', excludeTestServices: true })((it) => {
     it.effect('consumes a sent message as its first attempt', () =>
       Effect.gen(function* () {

@@ -21,6 +21,7 @@ import {
 import type { UserId } from '@app-template/domain/user'
 import { AttachmentStoreKv } from '@app-template/infrastructure/attachment'
 import { ChatRepositoryKv } from '@app-template/infrastructure/chat'
+import { recordQueue, type SentJob } from '@app-template/queue/testing'
 
 import { AttachmentService } from '#application/attachment/attachment.service'
 import { ChatService } from '#application/chat/chat.service'
@@ -32,8 +33,6 @@ import {
   type Interleaving,
   interleaveMessages,
 } from '#application/testing/chat.fake'
-import { recordQueue, type SentJob } from '#application/testing/queue.fake'
-import { provisionQueues } from '#application/testing/queue.harness'
 import { owner } from '#application/testing/user.fixture'
 
 export interface ChatHarnessOptions {
@@ -60,7 +59,6 @@ export const makeChatHarness = (options: ChatHarnessOptions = {}) => {
       ),
     ),
     Layer.provide(queue.layer),
-    Layer.provide(provisionQueues().layer),
     Layer.provide(TestCrypto.layer('chat-service').pipe(Layer.provide(BunCrypto.layer))),
     Layer.provide(KeyValueStore.layerMemory),
   )

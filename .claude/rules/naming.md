@@ -48,7 +48,8 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 
 `<entity>` is singular, like its folder (`user/user.http.ts`); a file with no role keeps a bare
 kebab name (`layer.ts`, `main.ts`). Test-support roles live only in a `testing/` folder, which no
-barrel or `exports` lists, save the `packages/testing` workspace's `index.ts`.
+barrel or `exports` lists, save the `packages/testing` workspace's `index.ts` and a package's
+`./testing` export of a test double of its own service (`@app-template/queue/testing`).
 
 ## Symbols
 

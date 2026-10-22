@@ -20,7 +20,6 @@
     "effect": "catalog:effect"
   },
   "devDependencies": {
-    "@app-template/aws": "workspace:*",
     "@app-template/queue": "workspace:*",
     "@app-template/testing": "workspace:*",
     "@effect/vitest": "catalog:effect"
