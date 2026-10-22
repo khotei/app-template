@@ -22,8 +22,7 @@ Imports are enforced by Biome; file and symbol names are convention (Biome has n
   `./` or `../`. Example: `#domain/chat/chat.model`, `#api/layer`.
 - **Across workspaces:** `@app-template/<workspace>[/<entity>]`; which workspace may import which:
   [architecture.md › Dependency rules](../../docs/knowledge/architecture.md#dependency-rules).
-- **Order:** `bun:`/`node:` → external packages → `@app-template/*` → `#…`, one blank line
-  between groups. `make fmt` sorts and groups them.
+- **Order:** `bun:`/`node:` → external → `@app-template/*` → `#…`, a blank line between groups.
 
 ## Files
 

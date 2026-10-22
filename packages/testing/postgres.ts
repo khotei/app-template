@@ -1,18 +1,17 @@
 import { PgClient } from '@effect/sql-pg'
 import { Effect, Layer, Redacted } from 'effect'
 import { inject } from 'vitest'
+import type { TestProject } from 'vitest/node'
 
 declare module 'vitest' {
   export interface ProvidedContext {
-    /** The run's Postgres container, on a database that is not the template. */
     readonly databaseUrl: string
   }
 }
 
-/** The database vitest's `globalSetup` migrates once per run and marks a template. */
-export const templateDatabase = 'template'
+const templateDatabase = 'template'
 
-export const buildDatabaseUrl = (url: string, database: string) => {
+const buildDatabaseUrl = (url: string, database: string) => {
   const target = new URL(url)
   target.pathname = `/${database}`
   return Redacted.make(target.href)
@@ -24,8 +23,32 @@ const runAdmin = (url: string, statement: string) =>
   )
 
 /**
- * A `PgClient` on a database of its own, copied from the migrated template and dropped when the
- * layer's scope closes: build it once per test file.
+ * Creates the template database on the server of `adminUrl`, migrates it, marks it a template and
+ * hands `adminUrl` to `PgClientTest`: the run-wide half, for vitest's `globalSetup`.
+ *
+ * `migrate` must close its connections before it returns: `CREATE DATABASE … TEMPLATE` refuses a
+ * template that still has a session.
+ */
+export const prepareTemplateDatabase = Effect.fn('prepareTemplateDatabase')(function* <E>(
+  project: TestProject,
+  {
+    adminUrl,
+    migrate,
+  }: {
+    readonly adminUrl: string
+    readonly migrate: (url: Redacted.Redacted) => Effect.Effect<unknown, E>
+  },
+) {
+  yield* runAdmin(adminUrl, `CREATE DATABASE ${templateDatabase}`)
+  yield* migrate(buildDatabaseUrl(adminUrl, templateDatabase))
+  yield* runAdmin(adminUrl, `ALTER DATABASE ${templateDatabase} IS_TEMPLATE true`)
+
+  project.provide('databaseUrl', adminUrl)
+})
+
+/**
+ * A `PgClient` on a fresh database copied from the migrated template, dropped when the layer's
+ * scope closes: provide it per test, so no test sees another's rows.
  */
 export const PgClientTest = Layer.unwrap(
   Effect.gen(function* () {

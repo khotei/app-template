@@ -4,8 +4,8 @@ Generic, project-agnostic building blocks: `config`, the `queue` and `llm` clien
 the test support `testing` (`.claude/rules/effect-tests.md`). Objects and rows use
 effect's `KeyValueStore`, not a package of ours. The exceptions hold this project's data: `aws`
 its resources (the inventory, the naming rule, the provisioner), so every layer and `deployment`
-can read them, and `config` the pinned MiniStack and Postgres images, which `deployment` and the
-tests both read.
+can read them, and `config` the pinned images: MiniStack, which `deployment` and the tests both
+read, and Postgres, for the tests.
 
 - **Never import a layer** (`domain`, `http-api`, `infrastructure`, `application`), an app or
   `deployment`. Packages may import each other.

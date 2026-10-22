@@ -46,13 +46,13 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
 - **One root `vitest.config.ts`**, which adds `repos/**` to the default exclude and sets the
   `globalSetup`: every colocated `*.test.ts` runs, a new workspace needs no test config, and the
   vendored suites stay out.
-- **One Postgres per run.** `infrastructure/db/testing/postgres.setup.ts` starts one
-  `postgres:18.6-alpine` container (about 1.2 s), migrates a `template` database with the program
-  `make migrate` runs, marks it a template and provides the admin URL. A suite builds
-  `PgClientTest` from `@app-template/testing` once per file: a database of its own, copied from
-  the template (about 15 ms) and dropped when the file ends, so files run in parallel without
-  sharing rows. Tests need Docker and nothing else: no `.env`, no `make up`. The template is closed
-  before the first copy, because `CREATE DATABASE … TEMPLATE` refuses a template with a session.
+- **One Postgres per run, a database per test.** `infrastructure/db/testing/postgres.setup.ts`
+  starts one `postgres:18.6-alpine` container (about 1.2 s) and has `prepareTemplateDatabase`
+  migrate a template database with the program `make migrate` runs. Each test provides
+  `PgClientTest` from `@app-template/testing`: a fresh database copied from the template and
+  dropped when the test ends, about 40 ms in all. A test therefore sees only its own rows, even
+  through a query that reads a whole table, and files run in parallel. Tests need Docker and
+  nothing else: no `.env`, no `make up`.
 - **Output.** vitest switches to its `minimal` reporter when it detects an agent (`CLAUDECODE`,
   `AI_AGENT`): failures and a summary only. A terminal without them gets the per-file `default`
   reporter; `bun run test --reporter=default` forces it.

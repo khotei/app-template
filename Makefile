@@ -37,7 +37,7 @@ down: stack ## Stop MiniStack
 reset: down ## Stop MiniStack and remove .data/ whole (its state, the stack, the store)
 	rm -rf .data
 
-migrate: ## Apply the pending migrations to the database of DATABASE_URL
+migrate: ## Apply the pending migrations to the database in .env
 	bun --env-file=.env infrastructure/db/migrate.ts
 
 dev: ## Run api, worker and web together in dev mode

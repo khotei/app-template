@@ -86,7 +86,9 @@ graph LR
 ```
 + infrastructure/db/db.client.ts        Db (Context.Service over EffectPgDatabase), Db.layer (needs PgClient;
                                         provides the Debug EffectLogger and EffectCache.Default),
-                                        PgClientFromConfig (DatabaseConfig → PgClient.layer), Db.layerFromConfig  (D1, D12)
+                                        Db.layerFromConfig over PgClientFromConfig (DatabaseConfig → PgClient.layer);
+                                        layerFromConfig also publishes PgClient, so SqlClient.withTransaction
+                                        runs on Db's connection, see D3                                    (D1, D3, D12)
 + infrastructure/db/columns.ts          shared column sets: id (uuid pk DEFAULT uuidv7()), timestamps        (D9)
 + infrastructure/db/relations.ts        defineRelations over every .entity.ts table                          (D6)
 + infrastructure/db/migrate.ts          the migrate program: DatabaseConfig → PgClient → migrate(db, …)     (D13)
@@ -137,7 +139,8 @@ graph LR
                                 QueueConfig + outboxPollInterval (OUTBOX_POLL_INTERVAL, default 1 s);
                                 - StoreConfig                                                               (D15)
 + packages/config/postgres.ts   postgresImage: postgres:18.6-alpine by digest (tests; the fallback container)
-+ packages/testing/postgres.ts  PgClientTest: a database per test file from the template, PgClient on it   (D10)
++ packages/testing/postgres.ts  prepareTemplateDatabase (the setup's half); PgClientTest: a fresh database
+                               per test from the template, PgClient on it                                (D10)
 ~ packages/testing/package.json  + @effect/sql-pg
 ```
 
@@ -178,7 +181,6 @@ graph LR
 ~ .claude/rules/effect.md        Drizzle APIs checked against repos/drizzle/drizzle-orm/src
 ~ .claude/rules/use-cases.md     Concurrency: the transaction and the database guards replace the lock lines
 ~ infrastructure/CLAUDE.md       the KV placeholder line → Db and .entity
-~ docs/knowledge/sdd.md          dependency map: repos/drizzle
 ```
 
 ## Contracts
@@ -328,12 +330,16 @@ same file backend under `.data/pulumi`, so `make reset` drops both stacks' state
 
 ### Tests (D10)
 
-- `postgres.setup.ts` (`globalSetup`): `new PostgreSqlContainer(postgresImage).start()`, migrate
-  the `template` database with the same program as `make migrate`, `ALTER DATABASE … is_template`,
-  close the client, `provide('databaseUrl', <admin url>)`; teardown stops the container.
+- `postgres.setup.ts` (`globalSetup`): `new PostgreSqlContainer(postgresImage).start()`, then
+  `prepareTemplateDatabase` from `@app-template/testing`, given the same program as `make migrate`:
+  create the `template` database, migrate it and close the client, `ALTER DATABASE … is_template`,
+  `provide('databaseUrl', <admin url>)`; the container stops on teardown and when the template
+  fails. Every name of the protocol (the template, the key, the `test_` prefix) lives in
+  `@app-template/testing`.
 - `PgClientTest` (`@app-template/testing`): `inject('databaseUrl')`, `CREATE DATABASE test_<random>
-  TEMPLATE template`, `PgClient.layer({ url })` for it; the scope's release drops the database.
-  A suite builds `Db.layer` over it once per file.
+  TEMPLATE template`, `PgClient.layer({ url })` for it; the scope's release drops the database
+  `WITH (FORCE)`. Each test provides its stack over it (`Effect.provide`), about 40 ms for the
+  create, the connection and the drop.
 - `recordQueue` stays in `packages/queue/testing` for suites with no database; the harnesses read
   `outbox` rows instead.
 
@@ -342,7 +348,7 @@ same file backend under `.data/pulumi`, so `make reset` drops both stacks' state
 | Seam | Catches | Misses |
 |---|---|---|
 | 1 `domain/*` schemas and pure rules (unchanged) | input and binding rules, stage transitions, read-model shapes | persistence |
-| 2 `infrastructure/db` on `PgClientTest`: `migrate`, `Db.layer`, the codecs of every `.entity.ts` | migrations apply to an empty database and are a no-op the second time; a row encodes and decodes back to an equal model (`Option`, `DateTime.Utc`, brands, `jsonb` error, `uuid[]`); SQL logged at `Debug` with `query` and `params`, nothing at `Info` | drift between entities and the committed migrations (Seam 9) |
+| 2 `infrastructure/db` on `PgClientTest`: `migrate`, `Db.layer`, the codecs of every `.entity.ts` | migrations apply to an empty database and are a no-op the second time; each test runs on a fresh database, so a table one test writes is absent from the next; a row encodes and decodes back to an equal model (`Option`, `DateTime.Utc`, brands, `jsonb` error, `uuid[]`); SQL logged at `Debug` with `query` and `params`, nothing at `Info` | drift between entities and the committed migrations (Seam 9) |
 | 3 repositories through their ports on `PgClientTest` (one suite per port) | field mapping, `selectSummaries` order and active message, `selectDetail` nesting and order, `insert` false on an active message, `update` false on a stale `from`, `bind` partial result, `updateTitle` false when titled, `touch` keeps the title, the cascade from `chats.delete`, `RESTRICT` on a bound attachment, the check constraints reject what the brands reject | cross-process timing |
 | 4 `QueueClientOutbox` and `OutboxRelay` on `PgClientTest` + MiniStack | a `send` inside a failed transaction leaves no row; a row is published to its queue with its `jobId` and deleted; two relays over one database publish each row once; a failing transport keeps the row; the poll interval under `TestClock` | SQS outages longer than a test |
 | 5 services and use cases on `ChatPg`, `AttachmentPg`, `QueueClientOutbox`, `TestCrypto` | a send writes two messages, the binds, the touch and one or two outbox rows in one transaction, and nothing on a failing step; two concurrent sends to one chat → one `ChatBusyError`; two concurrent binds of one attachment → one `AttachmentBoundError`; rename beside a send keeps both; delete cascade and the attachments' removal; `addAssistantMessage` alone is refused on a busy chat | HTTP statuses |
@@ -418,14 +424,21 @@ same file backend under `.data/pulumi`, so `make reset` drops both stacks' state
   driver returns `timestamptz` as a `Date` at millisecond precision, which is the precision the
   domain writes. *Rejected:* `$onUpdate` (a second clock, divergent from `TestClock`);
   `mode: 'string'` columns with a string codec (microseconds the domain never produces).
-- **D10 — Tests share one Postgres per run and take a database each from a migrated template.**
-  The `globalSetup` lives in `infrastructure/db/testing` because it runs the migrator; the
-  per-file layer lives in `@app-template/testing` because every workspace's tests use it and it
-  needs only `@effect/sql-pg`. The template is closed before the first copy (`CREATE DATABASE …
-  TEMPLATE` refuses while a session holds it). MiniStack keeps its container per file.
-  *Rejected:* a container per file (2 s plus migrations per file); PGlite (a second driver and
-  database type, the production path untested); `withReuse()` (a container that outlives
-  `make test`).
+- **D10 — Tests share one Postgres per run, and each test takes a fresh database from a migrated
+  template.** A test sees only the rows it wrote, also through readers of a whole table (the
+  relay, the dead-letter consumers, later reports), at about 40 ms per test (create, connect,
+  drop; the container starts once in about 1.2 s). The `globalSetup` lives in
+  `infrastructure/db/testing` because it runs the migrator; the protocol and the per-test layer
+  live in `@app-template/testing` because every workspace's tests use them and they need only
+  `@effect/sql-pg`. The template is closed before the first copy (`CREATE DATABASE … TEMPLATE`
+  refuses while a session holds it). MiniStack keeps its container per file.
+  *Rejected:* a database per file with rows scoped by owner (breaks on whole-table readers, and
+  the boundary rests on discipline); `TRUNCATE` between tests (a table list to maintain, skipped
+  when a test crashes, longer with every table); a rolled-back transaction per test (turns the
+  real transactions and the concurrency tests into savepoints, and hides uncommitted rows from a
+  second connection); a container per file (2 s plus migrations per file); PGlite (a second
+  driver and database type, the production path untested); `withReuse()` (a container that
+  outlives `make test`).
 - **D11 — The local database is an RDS instance on MiniStack, in the `local` stack of
   `deployment/aws`.** The Docker project only runs MiniStack (now with the host's Docker socket
   and the RDS variables), so `make down` can destroy it alone while the instance stays in the
@@ -477,11 +490,11 @@ same file backend under `.data/pulumi`, so `make reset` drops both stacks' state
 | Two worktrees share the host's Docker, and MiniStack names the RDS container by account, region and identifier | each worktree sets its own `STAGE`, which the identifier carries |
 | The named volume survives `destroy` and resurrects data under the same identifier (and skips `initdb`, so a changed password would not apply) | `make reset` removes the volume; the password lives in `DATABASE_URL` and changes with a reset |
 | ~80 s per provider operation on the instance | paid once per `make up` from a clean state and once per `make reset`; a no-op `make up` runs no refresh |
-| `CREATE DATABASE … TEMPLATE` fails while the setup's pool is open | the setup closes its `PgClient` scope before `provide`; Seam 2 covers a first copy |
+| `CREATE DATABASE … TEMPLATE` fails while the setup's pool is open | `prepareTemplateDatabase` requires its `migrate` to close its client before it returns; Seam 2 covers a first copy |
 | `provide`/`inject` typing (`ProvidedContext` augmentation) under the patched `tsc` was not checked | S1 adds the augmentation in `packages/testing` and `make typecheck` decides |
 | The Drizzle monorepo is large (size unknown; the clone was denied) | S1 measures `du -sh repos/drizzle`; above several times `repos/effect`, the user decides |
 | The `skipLibCheck: false` path fails on Drizzle's `.d.ts` under `exactOptionalPropertyTypes` | `tsconfig.base.json` keeps `skipLibCheck: true`, as today |
-| Application tests on a real database are slower than on memory | a database per file costs ~20 ms; the container starts once; `make test` stays under Docker as it is |
+| Application tests on a real database are slower than on memory | a database per test costs ~40 ms (create, connect, drop; measured in S1); the container starts once in ~1.2 s; `make test` stays under Docker as it is |
 
 ## To verify during implementation
 

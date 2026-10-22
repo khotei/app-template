@@ -20,7 +20,8 @@ paths:
   `for` loop around `it`.
 - Run one suite over every implementation of a port or store (`describe.each` over layers, or a
   `suite(name, layer)` function), and share one built layer per suite with
-  `layer(…)((it) => …)`.
+  `layer(…)((it) => …)`. A suite on Postgres instead provides its stack over `PgClientTest` in
+  each test, so every test gets a fresh database and reads only the rows it wrote.
 - Name a handler, a layer or a recorder that several tests use once at module level
   (`recordAttempts`, `layerOverStore`, `recordLogs`); a test body holds only its arrangement
   and its assertions.

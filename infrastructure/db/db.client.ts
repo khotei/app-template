@@ -17,7 +17,7 @@ const EffectLoggerDebug = Layer.succeed(EffectLogger, {
   logQuery: (query, params) => Effect.logDebug('sql').pipe(Effect.annotateLogs({ query, params })),
 })
 
-export const PgClientFromConfig = Layer.unwrap(
+const PgClientFromConfig = Layer.unwrap(
   Effect.map(DatabaseConfig, ({ url }) => PgClient.layer({ url })),
 ).pipe(Layer.provide(DatabaseConfig.layer))
 
