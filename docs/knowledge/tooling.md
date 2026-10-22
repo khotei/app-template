@@ -24,9 +24,11 @@ and `make setup` needs neither.
 | `make lint` | `biome check` | lint, format and import order, without writing |
 | `make fmt` | `biome check --write` | apply formatting, import sorting and safe fixes |
 | `make typecheck` | `bunx tsc -b`, the patched `tsc` | typecheck every workspace through the project references, Effect diagnostics included |
-| `make test` | `bun run test`, which is `bun --bun vitest run` | every colocated `*.test.ts`; the AWS suites need a running Docker daemon ([aws.md › Tests on Docker](aws.md#tests-on-docker)) |
+| `make migrate` | `bun --env-file=.env infrastructure/db/migrate.ts` | apply the pending migrations of `infrastructure/db/migrations/` to `DATABASE_URL`; none pending changes nothing |
+| `make test` | `bun run test`, which is `bun --bun vitest run` | every colocated `*.test.ts`; needs a running Docker daemon for the run's Postgres container ([Tests](#tests)) and the AWS suites' MiniStack ([aws.md › Tests on Docker](aws.md#tests-on-docker)) |
 | `make outdated` | `bun outdated --recursive` | newer versions for every workspace |
 | `make vendor-effect` | `git subtree pull --squash --prefix repos/effect` of the `effect@<pin>` tag | update `repos/effect` to the catalog pin; it commits, so run it on a clean tree. First time: `git subtree add` with the same arguments |
+| `make vendor-drizzle` | `git subtree add`, then `pull`, `--squash --prefix repos/drizzle` of the `v<pin>` tag of `drizzle-orm` | the same for `repos/drizzle`: the whole Drizzle monorepo, since `git subtree` takes no subfolder; the source is under `repos/drizzle/drizzle-orm/src` |
 | `make clean` | removes every `node_modules` and `coverage` | a clean reinstall: follow with `make setup` |
 
 `bun run test` runs the root `test` script, while `bun test` would start Bun's own test runner,
@@ -41,9 +43,16 @@ Tests run on vitest 5, on the Bun runtime (`bun --bun`), so `Bun.serve` and the 
 inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`, `it.layer`,
 `TestClock`) needs vitest.
 
-- **One root `vitest.config.ts`**, which only adds `repos/**` to the default exclude: every
-  colocated `*.test.ts` runs, a new workspace needs no test config, and Effect's own suites stay
-  out.
+- **One root `vitest.config.ts`**, which adds `repos/**` to the default exclude and sets the
+  `globalSetup`: every colocated `*.test.ts` runs, a new workspace needs no test config, and the
+  vendored suites stay out.
+- **One Postgres per run.** `infrastructure/db/testing/postgres.setup.ts` starts one
+  `postgres:18.6-alpine` container (about 1.2 s), migrates a `template` database with the program
+  `make migrate` runs, marks it a template and provides the admin URL. A suite builds
+  `PgClientTest` from `@app-template/testing` once per file: a database of its own, copied from
+  the template (about 15 ms) and dropped when the file ends, so files run in parallel without
+  sharing rows. Tests need Docker and nothing else: no `.env`, no `make up`. The template is closed
+  before the first copy, because `CREATE DATABASE … TEMPLATE` refuses a template with a session.
 - **Output.** vitest switches to its `minimal` reporter when it detects an agent (`CLAUDECODE`,
   `AI_AGENT`): failures and a summary only. A terminal without them gets the per-file `default`
   reporter; `bun run test --reporter=default` forces it.
@@ -152,8 +161,8 @@ Workspaces reference it as `catalog:<namespace>`; the unnamed `catalog:` is not 
 | Namespace | Holds | Today |
 |---|---|---|
 | `tools` | developer-workflow tools that never shape types or runtime behaviour | `@biomejs/biome`, `husky`, `vitest` |
-| `runtime` | everything else, including the runtime the code targets | `@types/bun`, `testcontainers` |
-| one per family | a release train, or a core and the plugins that pin it as a range | `typescript`: `typescript`, `@effect/tsgo` (it embeds one TypeScript version) · `effect`: `effect`, `@effect/*` · `effect-aws`: `@effect-aws/*` (one release train over the AWS SDK; it pins the SDK as a range, so the lockfile holds the SDK version) · `pulumi`: `@pulumi/pulumi` and the providers that pin it as a range (`@pulumi/docker`) |
+| `runtime` | everything else, including the runtime the code targets | `@types/bun`, `testcontainers`, `@testcontainers/postgresql` |
+| one per family | a release train, or a core and the plugins that pin it as a range | `typescript`: `typescript`, `@effect/tsgo` (it embeds one TypeScript version) · `effect`: `effect`, `@effect/*` · `effect-aws`: `@effect-aws/*` (one release train over the AWS SDK; it pins the SDK as a range, so the lockfile holds the SDK version) · `pulumi`: `@pulumi/pulumi` and the providers that pin it as a range (`@pulumi/docker`) · `drizzle`: `drizzle-orm` and `drizzle-kit` (`drizzle-kit` peers the orm at the same rc, and it shapes the migrations, so it is not a `tools` entry) |
 
 `bunfig.toml` sets `exact = true`, so `bun add` writes `1.2.3`, never `^1.2.3`.
 
@@ -197,8 +206,9 @@ entry repeats.
 1. `make outdated` lists what is behind.
 2. Edit the version in the root `catalogs`. It is the only place a version lives.
 3. Run `bun install`, then `make check`, and commit `package.json` with `bun.lock`.
-4. After an `effect` catalog bump, run `make vendor-effect` on the now clean tree. `git subtree`
-   refuses any uncommitted change, so the bump and the vendoring are two commits of the same PR.
+4. After an `effect` or `drizzle` catalog bump, run `make vendor-effect` or `make vendor-drizzle`
+   on the now clean tree. `git subtree` refuses any uncommitted change, so the bump and the
+   vendoring are two commits of the same PR.
    Copy the squash commit's `git-subtree-dir:` and `git-subtree-split:` trailers into the PR body,
    outside its HTML comment: the squash merge drops them, and the next pull needs them.
 

@@ -38,13 +38,14 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 | `.job` | a queue's producer service and its worker | application |
 | `.repository` · `.storage` · `.llm` | an adapter over a client; prompt functions live in `.llm` | infrastructure |
 | `.queue` | queue definitions | infrastructure |
-| `.client` · `.transport` | client wiring · the service a package's client runs over (`QueueTransport`) | infrastructure/shared, http-api, packages |
+| `.client` · `.transport` | client wiring · the service a package's client runs over (`QueueTransport`) | infrastructure/shared, infrastructure/db, http-api, packages |
 | `.http` | a contract group: one resource's HTTP routes (`HttpApiGroup`) | http-api |
 | `.handler` | a request handler | apps |
 | `.test` | a colocated test that mirrors its source name, or names what it checks against (`resources.test.ts`: the inventory in `packages/aws`) | any |
 | `.fixture` | sample values (ids, dates, inputs, bytes); no Effect, no layers | `testing/` |
 | `.fake` | a test implementation or wrapper of a port or service: records, yields, scripts | `testing/` |
 | `.harness` | real services over fakes and the memory store; runner, arrange steps, reads for assertions | `testing/` |
+| `.setup` | a vitest `globalSetup` module: run-wide resources, handed to tests through `provide` | `testing/` |
 
 `<entity>` is singular, like its folder (`user/user.http.ts`); a file with no role keeps a bare
 kebab name (`layer.ts`, `main.ts`). Test-support roles live only in a `testing/` folder, which no

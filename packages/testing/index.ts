@@ -1,6 +1,7 @@
 export * from '#testing/log.fake'
 export * from '#testing/ministack'
 export * from '#testing/png.fixture'
+export * from '#testing/postgres'
 export * from '#testing/schema'
 export * from '#testing/stage.fixture'
 export * from '#testing/stream'

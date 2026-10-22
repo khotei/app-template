@@ -12,8 +12,10 @@
     "@app-template/config": "workspace:*",
     "@effect-aws/client-s3": "catalog:effect-aws",
     "@effect-aws/client-sqs": "catalog:effect-aws",
+    "@effect/sql-pg": "catalog:effect",
     "@effect/vitest": "catalog:effect",
     "effect": "catalog:effect",
-    "testcontainers": "catalog:runtime"
+    "testcontainers": "catalog:runtime",
+    "vitest": "catalog:tools"
   }
 }

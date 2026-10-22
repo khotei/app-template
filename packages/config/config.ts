@@ -6,6 +6,7 @@ import {
   Layer,
   type LogLevel,
   type Option,
+  type Redacted,
   References,
   Schema,
 } from 'effect'
@@ -26,6 +27,13 @@ export class StoreConfig extends Context.Service<StoreConfig, { readonly path: s
   '@app-template/config/StoreConfig',
 ) {
   static readonly layer = Layer.effect(this, Config.all({ path: Config.String('STORE_PATH') }))
+}
+
+export class DatabaseConfig extends Context.Service<
+  DatabaseConfig,
+  { readonly url: Redacted.Redacted }
+>()('@app-template/config/DatabaseConfig') {
+  static readonly layer = Layer.effect(this, Config.all({ url: Config.Redacted('DATABASE_URL') }))
 }
 
 /** `endpoint` is set for MiniStack and absent on AWS; credentials stay with the SDK's own chain. */

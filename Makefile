@@ -3,7 +3,8 @@
 .DEFAULT_GOAL := help
 
 .PHONY: help setup stack up down reset dev dev-api dev-worker dev-web debug-api debug-worker \
-  debug-web check ids lint fmt typecheck test clean outdated vendor-effect
+  debug-web check ids lint fmt typecheck test clean outdated vendor-effect \
+  vendor-drizzle migrate
 
 # The local Pulumi project: the file backend under .data/ and the home (plugins, credentials) under
 # .pulumi/, both in the repo; the home survives `make reset`. The passphrase is empty because the
@@ -35,6 +36,9 @@ down: stack ## Stop MiniStack
 
 reset: down ## Stop MiniStack and remove .data/ whole (its state, the stack, the store)
 	rm -rf .data
+
+migrate: ## Apply the pending migrations to the database of DATABASE_URL
+	bun --env-file=.env infrastructure/db/migrate.ts
 
 dev: ## Run api, worker and web together in dev mode
 	bun --filter './apps/*' dev
@@ -91,3 +95,10 @@ vendor-effect: EFFECT_TAG = effect@$(shell bun pm pkg get catalogs.effect.effect
 vendor-effect: ## Pull Effect-TS/effect at the catalog pin into repos/effect (commits)
 	git subtree pull --squash --prefix repos/effect https://github.com/Effect-TS/effect.git \
 		$(EFFECT_TAG) -m ':wrench: chore(deps): Vendor effect at $(EFFECT_TAG)'
+
+# The first run adds the subtree, later runs pull it.
+vendor-drizzle: DRIZZLE_TAG = v$(shell bun pm pkg get catalogs.drizzle.drizzle-orm 2>/dev/null | tr -d '"')
+vendor-drizzle: ## Pull drizzle-team/drizzle-orm at the catalog pin into repos/drizzle (commits)
+	git subtree $(if $(wildcard repos/drizzle),pull,add) --squash --prefix repos/drizzle \
+		https://github.com/drizzle-team/drizzle-orm.git $(DRIZZLE_TAG) \
+		-m ':wrench: chore(deps): Vendor drizzle-orm at $(DRIZZLE_TAG)'

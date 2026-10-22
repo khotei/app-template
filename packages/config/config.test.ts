@@ -1,9 +1,19 @@
 import { assert, describe, it } from '@effect/vitest'
-import { type Config, ConfigProvider, Duration, Effect, Layer, Option, References } from 'effect'
+import {
+  type Config,
+  ConfigProvider,
+  Duration,
+  Effect,
+  Layer,
+  Option,
+  Redacted,
+  References,
+} from 'effect'
 
 import {
   ApiConfig,
   AwsConfig,
+  DatabaseConfig,
   MinimumLogLevelFromConfig,
   QueueConfig,
   RuntimeConfig,
@@ -21,6 +31,7 @@ describe('config layers', () => {
   }>([
     { variable: 'API_PORT', layer: ApiConfig.layer },
     { variable: 'STORE_PATH', layer: StoreConfig.layer },
+    { variable: 'DATABASE_URL', layer: DatabaseConfig.layer },
     { variable: 'AWS_REGION', layer: AwsConfig.layer },
     { variable: 'STAGE', layer: AwsConfig.layer, given: { AWS_REGION: 'eu-central-1' } },
   ])('fails with a ConfigError naming a missing $variable', ({ variable, layer, given }) =>
@@ -90,6 +101,21 @@ describe('config layers', () => {
           AWS_REGION: 'eu-central-1',
           STAGE: 'local',
           ...(given === undefined ? {} : { AWS_ENDPOINT_URL: given }),
+        }),
+      ),
+    ),
+  )
+
+  it.effect('reads DATABASE_URL as a Redacted', () =>
+    Effect.gen(function* () {
+      const { url } = yield* DatabaseConfig
+
+      assert.isTrue(Redacted.isRedacted(url))
+      assert.strictEqual(Redacted.value(url), 'postgres://app:secret@localhost:15432/app_template')
+    }).pipe(
+      Effect.provide(
+        provideVariables(DatabaseConfig.layer, {
+          DATABASE_URL: 'postgres://app:secret@localhost:15432/app_template',
         }),
       ),
     ),

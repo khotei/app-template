@@ -10,5 +10,7 @@ storage keys, queue names, prompts.
 - A `<entity>.queue.ts` holds only queue definitions; no adapter wraps `send` or `worker`.
 - Until a real client exists, a repository or store runs on `KeyValueStore` through `kv/` and the
   LLM adapter on `packages/llm`'s stub. Replace the body, not the signature.
+- `db/` holds the Postgres client (`Db`, a Drizzle database on `@effect/sql-pg`), the migrations
+  and the tests' `globalSetup`; Drizzle is reached only through Effect, never through a promise.
 - This is where `Config` turns into client options: clients take explicit options and never read
   configuration themselves.
