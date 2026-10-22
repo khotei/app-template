@@ -101,9 +101,9 @@ per-part buffer), answers `download` with `302` (replacing `chat-core` D10).
 - deployment/local/docker-compose.yml   replaced by the Pulumi project below (D13)
 + deployment/local/Pulumi.yaml          runtime: bun; a project of its own beside deployment/Pulumi.yaml
 + deployment/local/ministack.ts         docker.Container ministackorg/ministack:1.5.29@sha256:88f5…,
-                                        port 4566, healthcheck by python urllib with wait, MINISTACK_REGION
-                                        from the stack config `region` (default us-east-1), state
-                                        persisted under .data/ministack
+                                        on the port of AWS_ENDPOINT_URL, named after it, healthcheck
+                                        by python urllib with wait, MINISTACK_REGION from AWS_REGION
+                                        (both through AwsConfig), state persisted under .data/ministack
 + deployment/local/provision.ts         reads AwsConfig, calls provision(inventory, stage)
 - deployment/shared/naming.ts           moved to packages/aws; tags.ts imports projectName from there
 ~ deployment/CLAUDE.md, deployment/local/README.md   the stub notes go (R22)
@@ -375,7 +375,12 @@ GET /attachments/:attachmentId/download
   stack` precedes `up` and `down`, so `make up` works after `make reset` and on a fresh clone,
   while `make setup` (install, `.env`) needs no Pulumi CLI, so a checkout runs `make check` with
   Docker alone; `PULUMI_HOME` is the gitignored `.pulumi/` at the root, a cache that `make reset`
-  keeps.
+  keeps. *Amended in S9:* a worktree runs its own MiniStack, so the program takes the host port
+  from `AWS_ENDPOINT_URL` and names the container after it, and `make up` exports `.env` to the
+  program; with `.env` in reach, the region comes from `AWS_REGION` through `AwsConfig`, which
+  reverses the stack-config route above and removes its duplicate default (*rejected:* one shared
+  MiniStack with a stage per worktree, which ties each worktree to the main tree's `make down`
+  and `make reset`).
 
 ## Risks
 

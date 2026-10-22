@@ -57,11 +57,11 @@ contract. What a worktree owns and its ports:
   (
     cd "$(git rev-parse --show-toplevel)" || exit 1
     N=<n>
-    bun install || exit 1
     main=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
     [ "$N" -ge 1 ] || { echo 'refused: N counts worktrees from 1; the main tree is 0' >&2; exit 1; }
     [ "$(git rev-parse --path-format=absolute --git-dir)" != "$main/.git" ] ||
       { echo 'refused: this is the main tree, the source of every .env' >&2; exit 1; }
+    bun install || exit 1
     sed -E -e "s/^API_PORT=.*/API_PORT=$((3000 + 10 * N))/" \
       -e "s/^WEB_PORT=.*/WEB_PORT=$((3001 + 10 * N))/" \
       -e "s/^(AWS_ENDPOINT_URL=.*:)[0-9]+/\1$((4566 + 10 * N))/" "$main/.env" > .env.new
@@ -87,6 +87,6 @@ contract. What a worktree owns and its ports:
 - Reviews and approvals stay one step at a time. On approve, cherry-pick the step's rounds onto
   the ticket branch, the last with `--no-commit` so the `plan.md` and `architecture.md` edits join
   it, and run `make check` after each pick.
-- On stop, run only `make down` in the worktree and keep it, its symlink and its branch. Remove
-  all three, after `make down`, only once the step is approved and picked, or when the user drops
-  the step, a `BLOCKED:` one included.
+- On step 5's **stop**, also run `make down` in the worktree, and keep it, its symlink and its
+  branch. Remove all three, after `make down`, only once the step is approved and picked, or when
+  the user drops the step, a `BLOCKED:` one included.

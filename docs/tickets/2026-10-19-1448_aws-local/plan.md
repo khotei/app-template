@@ -396,30 +396,61 @@ checking `make dev` by hand in its own worktree.
   main tree is 0) and its own `node_modules`, `.env`, `.data/`, `.pulumi/` and MiniStack: the
   worktree's `.env` is the main tree's (found through `git rev-parse --git-common-dir`) with
   `API_PORT=3000+10N`, `WEB_PORT=3001+10N` and `AWS_ENDPOINT_URL` on port `4566+10N`, written by
-  the agent from a guide in the skill, with no `make` target or script;
-  `deployment/local/ministack.ts` publishes MiniStack on
-  the endpoint's port, read through `AwsConfig`, and names the container after it
-  (`app-template-ministack-<port>`), so two stacks share no port, container or state. The main
-  tree keeps today's ports. `ticket-implement › Parallel steps` changes with it:
+  a setup block in the skill, with no `make` target or script; `deployment/local/ministack.ts`
+  publishes MiniStack on the endpoint's port and takes its region from `AWS_REGION`, both read
+  through `AwsConfig`, and names the container after the port (`<projectName>-ministack-<port>`),
+  so two stacks share no port, container or state. The main tree keeps today's ports.
+  `ticket-implement › Parallel steps` changes with it:
   - steps run in parallel when their overlap is mechanical only (a line added to a shared list
     or `package.json`, separate sections of one doc, `bun.lock`), never when both create one new
     file or change one function or contract;
-  - the main session gives each worktree its `N`; the agent runs `bun install`, writes its
-    `.env` and may run `make up` and `make dev` for its *Verify*;
-  - before a worktree is removed, `make down` runs in it;
+  - the main session's prompt carries `N` and the setup block, which refuses the main tree, an
+    `N` below 1 and a main `.env` lacking a port line, then runs `bun install` and writes the
+    `.env`; the agent may then run `make up` and `make dev` for its *Verify*;
+  - a `bun.lock` conflict is resolved by `bun install`, never by hand; a rebase is followed by
+    `bun install`;
+  - `make down` runs in a worktree on stop and before it is removed; a stopped worktree is kept;
   - every status names a worktree's path, `N` and ports.
 - **Blocked by:** S2.
-- **Files:** `Makefile` (`up` and `down` only, if Pulumi's program needs `.env`);
-  `deployment/local/{ministack.ts,README.md}`; `.claude/skills/ticket-implement/SKILL.md` (the
-  guide); `docs/knowledge/aws.md` (the local stand-in on any port), `docs/knowledge/tooling.md`
-  (worktrees: the port table for a worktree made by hand), `docs/knowledge/sdd.md` (the map row).
+- **Files:** `Makefile` (`up` exports `.env` to the Pulumi program); `deployment/local/
+  ministack.ts`, `deployment/CLAUDE.md`; `.claude/skills/ticket-implement/SKILL.md` (the setup
+  block); `.claude/rules/tooling.md`; `docs/knowledge/aws.md` (the local stand-in on any port),
+  `docs/knowledge/tooling.md` (worktrees: the port table for a worktree made by hand),
+  `docs/knowledge/sdd.md` (the map row); `README.md` (the container's name).
 - **Test first:** none; no Seam covers the tooling, so *Verify* checks it by hand.
 - **Verify:** `make check`; by hand: with the main tree's `make up` running, a scratch worktree
-  whose `.env` is written by the guide for `N=1` holds ports 3010, 3011 and 4576 and every other
-  line of the main `.env`; its `make up` starts a second container (`docker ps` lists both); `make dev` in both
-  trees, and `curl` on each api's health route answers; `make down` in the worktree leaves the
-  main stack up.
-- **Status:** todo
+  whose `.env` is written by the setup block for `N=1` holds ports 3010, 3011 and 4576 and every
+  other line of the main `.env`; its `make up` starts a second container (`docker ps` lists
+  both); `make dev` in both trees, and `curl` on each api's health route answers; `make down` in
+  the worktree leaves the main stack up. The block refuses the main tree, leaving its `.env`
+  byte-identical, and run from a subfolder writes the worktree root's `.env`; `make up` sets
+  `MINISTACK_REGION` from `AWS_REGION`.
+- **Status:** done
+- **Findings:**
+  - Added to the plan after S4 and S6 closed, on the user's call, so S5 and S7 run in parallel
+    and check `make dev` by hand, which S6 had to skip. Landed in four rounds (S9.1–S9.4);
+    `make check`: 321 tests. Verified by hand as above, both stacks side by side.
+  - **No `make worktree-env` target** (the user's call): the setup block lives in the skill, the
+    port table for humans in `tooling.md › Worktrees`.
+  - **Each worktree runs its own MiniStack**, not the main tree's with a stage per worktree
+    (weighed with the user): a shared container would tie every worktree to the main tree's
+    `make down` and `make reset`, keep dropped stages in the main tree's state, and test a
+    change to `ministack.ts` on the old container. The cost is a container per worktree and a
+    one-time download of the Docker provider (about 10 s), since `.pulumi/` is per tree too.
+  - **The region moved from the stack config to `AWS_REGION` (D13 amended):** once `make up`
+    exported `.env`, the reason for the stack config was gone, and two sources could disagree.
+  - The first block wrote `sed … "$main/.env" > .env`, which truncates the main `.env` when run
+    there; the review caught it. The block now refuses the main tree (its git dir equals the
+    common one, so a symlink cannot fool it), writes `.env.new` and keeps it only when the three
+    ports are in it, and runs its checks before `bun install`.
+  - `deleteBeforeReplace` on the container: the rename would otherwise start the new container
+    beside the old one, which still holds the port. Not exercised by hand.
+  - `make up` loads `.env` through the shell, since Pulumi starts the program itself and
+    `--env-file` cannot reach it; the rule now asks for quotes around a value with a space.
+  - Out of scope, open: `make debug-<app>` uses bun's default inspector port in every tree, so
+    two debuggers would collide; `make down` removed the container in under 0.2 s although
+    `destroyGraceSeconds` is 15, so the graceful stop D13 relies on may not happen (it predates
+    S9).
 
 #### S10 — AWS clients from `AwsConfig`
 
