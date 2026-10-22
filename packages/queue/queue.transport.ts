@@ -15,6 +15,8 @@ import {
   Schema,
 } from 'effect'
 
+import { buildDeadLetterName } from '@app-template/aws'
+
 export class QueueError extends Schema.TaggedError<QueueError>()('QueueError', {
   cause: Schema.Defect(),
 }) {}
@@ -37,14 +39,13 @@ export interface ReceiveOptions {
   readonly maxReceiveCount: number
 }
 
-const deadLetterQueue = (queue: string): string => `${queue}-dlq`
-
 interface StoredMessage {
+  readonly id: string
   readonly body: string
   readonly attributes: MessageAttributes
-  receiveCount: number
-  visibleAt: number
-  handle: string
+  readonly receiveCount: number
+  readonly visibleAt: number
+  readonly handle: Option.Option<string>
 }
 
 const isVisibleAt =
@@ -57,6 +58,11 @@ const isExhausted =
   (message) =>
     message.receiveCount >= maxReceiveCount
 
+const hasHandle =
+  (handle: string): Predicate.Predicate<StoredMessage> =>
+  (message) =>
+    Option.contains(message.handle, handle)
+
 const makeMemory = Effect.gen(function* () {
   const queues = new Map<string, ReadonlyArray<StoredMessage>>()
   const firstArrival = yield* Deferred.make<void>()
@@ -64,29 +70,55 @@ const makeMemory = Effect.gen(function* () {
 
   const messagesOf = (queue: string) => queues.get(queue) ?? []
 
+  const updateWhere = (
+    queue: string,
+    holds: Predicate.Predicate<StoredMessage>,
+    change: (message: StoredMessage) => StoredMessage,
+  ) =>
+    queues.set(
+      queue,
+      Arr.map(messagesOf(queue), (message) => (holds(message) ? change(message) : message)),
+    )
+
+  const wakeReceivers = Effect.gen(function* () {
+    const next = yield* Deferred.make<void>()
+    const arrived = yield* Ref.getAndSet(arrival, next)
+    yield* Deferred.succeed(arrived, undefined)
+  })
+
   const redrive = (queue: string, { maxReceiveCount }: ReceiveOptions, now: number) => {
     const isDue = Predicate.and(isVisibleAt(now), isExhausted(maxReceiveCount))
+    const deadLetter = buildDeadLetterName(queue)
     // Counted afresh, or a receive from the dead-letter queue would move it on again.
     const moved = Arr.map(Arr.filter(messagesOf(queue), isDue), (message) => ({
       ...message,
       receiveCount: 0,
-      handle: '',
+      handle: Option.none(),
     }))
     queues.set(queue, Arr.filter(messagesOf(queue), Predicate.not(isDue)))
-    queues.set(deadLetterQueue(queue), Arr.appendAll(messagesOf(deadLetterQueue(queue)), moved))
+    queues.set(deadLetter, Arr.appendAll(messagesOf(deadLetter), moved))
   }
 
   const take = (queue: string, options: ReceiveOptions, now: number): Option.Option<Received> => {
     redrive(queue, options, now)
-    const message = messagesOf(queue).find(isVisibleAt(now))
-    if (message === undefined) {
+    const found = Arr.findFirst(messagesOf(queue), isVisibleAt(now))
+    if (Option.isNone(found)) {
       return Option.none()
     }
 
-    message.receiveCount += 1
-    message.visibleAt = now + Duration.toMillis(options.visibility)
-    message.handle = crypto.randomUUID()
-    const { handle, body, receiveCount, attributes } = message
+    const handle = crypto.randomUUID()
+    const taken = {
+      ...found.value,
+      receiveCount: found.value.receiveCount + 1,
+      visibleAt: now + Duration.toMillis(options.visibility),
+      handle: Option.some(handle),
+    }
+    updateWhere(
+      queue,
+      (message) => message.id === taken.id,
+      () => taken,
+    )
+    const { body, receiveCount, attributes } = taken
     return Option.some({ handle, body, receiveCount, attributes })
   }
 
@@ -95,24 +127,23 @@ const makeMemory = Effect.gen(function* () {
     return Math.min(deadline, ...Arr.map(hidden, (message) => message.visibleAt))
   }
 
-  const poll = (
+  const poll = Effect.fnUntraced(function* (
     queue: string,
     options: ReceiveOptions,
     deadline: number,
-  ): Effect.Effect<Option.Option<Received>> =>
-    Effect.gen(function* () {
-      const arrived = yield* Ref.get(arrival)
-      const now = yield* Clock.currentTimeMillis
-      const received = yield* Effect.sync(() => take(queue, options, now))
+  ): Effect.fn.Return<Option.Option<Received>> {
+    const arrived = yield* Ref.get(arrival)
+    const now = yield* Clock.currentTimeMillis
+    const received = yield* Effect.sync(() => take(queue, options, now))
 
-      if (Option.isSome(received) || now >= deadline) {
-        return received
-      }
+    if (Option.isSome(received) || now >= deadline) {
+      return received
+    }
 
-      const wake = yield* Effect.sync(() => nextWake(queue, now, deadline))
-      yield* Effect.raceFirst(Deferred.await(arrived), Effect.sleep(wake - now))
-      return yield* poll(queue, options, deadline)
-    })
+    const wake = yield* Effect.sync(() => nextWake(queue, now, deadline))
+    yield* Effect.raceFirst(Deferred.await(arrived), Effect.sleep(wake - now))
+    return yield* poll(queue, options, deadline)
+  })
 
   const send = Effect.fn('QueueTransport.send')(function* (
     queue: string,
@@ -120,22 +151,17 @@ const makeMemory = Effect.gen(function* () {
     attributes: MessageAttributes,
   ) {
     const now = yield* Clock.currentTimeMillis
-    const next = yield* Deferred.make<void>()
+    const message: StoredMessage = {
+      id: crypto.randomUUID(),
+      body,
+      attributes,
+      receiveCount: 0,
+      visibleAt: now,
+      handle: Option.none(),
+    }
 
-    yield* Effect.sync(() =>
-      queues.set(
-        queue,
-        Arr.append(messagesOf(queue), {
-          body,
-          attributes,
-          receiveCount: 0,
-          visibleAt: now,
-          handle: '',
-        }),
-      ),
-    )
-    const arrived = yield* Ref.getAndSet(arrival, next)
-    yield* Deferred.succeed(arrived, undefined)
+    yield* Effect.sync(() => queues.set(queue, Arr.append(messagesOf(queue), message)))
+    yield* wakeReceivers
   })
 
   const receive = Effect.fn('QueueTransport.receive')(function* (
@@ -152,20 +178,17 @@ const makeMemory = Effect.gen(function* () {
     visibility: Duration.Input,
   ) {
     const now = yield* Clock.currentTimeMillis
-    yield* Effect.sync(() => {
-      const message = messagesOf(queue).find((stored) => stored.handle === handle)
-      if (message !== undefined) {
-        message.visibleAt = now + Duration.toMillis(visibility)
-      }
-    })
+    const visibleAt = now + Duration.toMillis(visibility)
+
+    yield* Effect.sync(() =>
+      updateWhere(queue, hasHandle(handle), (message) => ({ ...message, visibleAt })),
+    )
+    yield* wakeReceivers
   })
 
   const remove = Effect.fn('QueueTransport.delete')((queue: string, handle: string) =>
     Effect.sync(() =>
-      queues.set(
-        queue,
-        Arr.filter(messagesOf(queue), (message) => message.handle !== handle),
-      ),
+      queues.set(queue, Arr.filter(messagesOf(queue), Predicate.not(hasHandle(handle)))),
     ),
   )
 
@@ -271,7 +294,8 @@ export class QueueTransport extends Context.Service<
     ) => Effect.Effect<void, QueueError>
     /**
      * Long-polls up to `wait`; a message received is hidden for `visibility`. A message already
-     * received `maxReceiveCount` times is moved to `<queue>-dlq` instead of returned.
+     * received `maxReceiveCount` times is moved to `buildDeadLetterName(queue)` instead of
+     * returned.
      */
     readonly receive: (
       queue: string,

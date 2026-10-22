@@ -1,4 +1,4 @@
-export { buildResourceName, projectName } from '#aws/naming'
+export { buildDeadLetterName, buildResourceName, projectName } from '#aws/naming'
 export { type ProvisionedResource, provision } from '#aws/provision'
 export {
   type BucketResource,

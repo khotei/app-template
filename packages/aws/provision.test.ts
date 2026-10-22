@@ -1,22 +1,13 @@
 import { assert, describe, layer } from '@effect/vitest'
 import { S3Service } from '@effect-aws/client-s3'
 import { SQSService } from '@effect-aws/client-sqs'
-import { Array as Arr, Effect, Layer, Option, Predicate } from 'effect'
+import { Array as Arr, Effect, Option, Predicate } from 'effect'
 
-import { buildStage, MiniStack } from '@app-template/testing'
+import { AwsClientsMiniStack, buildStage } from '@app-template/testing'
 
-import { buildResourceName } from '#aws/naming'
+import { buildDeadLetterName, buildResourceName } from '#aws/naming'
 import { provision } from '#aws/provision'
 import { type QueueResource, resources, unboundTag } from '#aws/resources'
-
-const AwsClientsMiniStack = Layer.unwrap(
-  Effect.map(MiniStack, ({ endpoint, region, credentials }) =>
-    Layer.mergeAll(
-      S3Service.layer({ endpoint: endpoint.href, region, credentials, forcePathStyle: true }),
-      SQSService.layer({ endpoint: endpoint.href, region, credentials }),
-    ),
-  ),
-).pipe(Layer.provide(MiniStack.layer))
 
 const stage = buildStage()
 const bucket = resources.buckets.attachments
@@ -58,7 +49,7 @@ const readQueueAttributes = Effect.fnUntraced(function* (name: string) {
 const readRedrive = Effect.fnUntraced(function* (stage: string, queue: QueueResource) {
   const name = buildResourceName(stage, queue.name)
   const main = yield* readQueueAttributes(name)
-  const deadLetter = yield* readQueueAttributes(`${name}-dlq`)
+  const deadLetter = yield* readQueueAttributes(buildDeadLetterName(name))
   return { policy: JSON.parse(main.RedrivePolicy ?? '{}'), deadLetterArn: deadLetter.QueueArn }
 })
 

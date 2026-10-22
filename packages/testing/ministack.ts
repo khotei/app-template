@@ -1,3 +1,5 @@
+import { S3Service } from '@effect-aws/client-s3'
+import { SQSService } from '@effect-aws/client-sqs'
 import { Context, Effect, Layer } from 'effect'
 import { GenericContainer, Wait } from 'testcontainers'
 
@@ -37,3 +39,13 @@ export class MiniStack extends Context.Service<
     })),
   )
 }
+
+/** S3 and SQS clients on this file's MiniStack container. */
+export const AwsClientsMiniStack = Layer.unwrap(
+  Effect.map(MiniStack, ({ endpoint, region, credentials }) =>
+    Layer.mergeAll(
+      S3Service.layer({ endpoint: endpoint.href, region, credentials, forcePathStyle: true }),
+      SQSService.layer({ endpoint: endpoint.href, region, credentials }),
+    ),
+  ),
+).pipe(Layer.provide(MiniStack.layer))

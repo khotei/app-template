@@ -138,20 +138,21 @@
     "packages/queue": {
       "name": "@app-template/queue",
       "dependencies": {
+        "@app-template/aws": "workspace:*",
         "@effect-aws/client-sqs": "catalog:effect-aws",
         "@effect/sql-sqlite-bun": "catalog:effect",
         "effect": "catalog:effect",
       },
       "devDependencies": {
-        "@app-template/aws": "workspace:*",
         "@app-template/testing": "workspace:*",
-        "@effect-aws/client-s3": "catalog:effect-aws",
         "@effect/vitest": "catalog:effect",
       },
     },
     "packages/testing": {
       "name": "@app-template/testing",
       "dependencies": {
+        "@effect-aws/client-s3": "catalog:effect-aws",
+        "@effect-aws/client-sqs": "catalog:effect-aws",
         "@effect/vitest": "catalog:effect",
         "effect": "catalog:effect",
         "testcontainers": "catalog:runtime",

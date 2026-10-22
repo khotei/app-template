@@ -1,10 +1,13 @@
 import { assert, describe, layer } from '@effect/vitest'
-import { S3Service } from '@effect-aws/client-s3'
-import { SQSService } from '@effect-aws/client-sqs'
 import { Array as Arr, Duration, Effect, Fiber, Layer, Option, Record, Struct } from 'effect'
 
-import { buildResourceName, provision, type Resources } from '@app-template/aws'
-import { buildStage, MiniStack } from '@app-template/testing'
+import {
+  buildDeadLetterName,
+  buildResourceName,
+  provision,
+  type Resources,
+} from '@app-template/aws'
+import { AwsClientsMiniStack, buildStage } from '@app-template/testing'
 
 import { QueueTransport, type ReceiveOptions } from '#queue/queue.transport'
 
@@ -18,6 +21,7 @@ const inventory = {
     received: { name: 'received', maxReceiveCount },
     hidden: { name: 'hidden', maxReceiveCount },
     released: { name: 'released', maxReceiveCount },
+    rewoken: { name: 'rewoken', maxReceiveCount },
     deleted: { name: 'deleted', maxReceiveCount },
     redriven: { name: 'redriven', maxReceiveCount },
     waited: { name: 'waited', maxReceiveCount },
@@ -29,18 +33,10 @@ const queues = Record.map(inventory.queues, (queue) => buildResourceName(stage, 
 
 const options = { visibility: '30 seconds', wait: '1 second', maxReceiveCount } as const
 
-const QueueTransportMiniStack = Layer.unwrap(
-  Effect.map(MiniStack, ({ endpoint, region, credentials }) => {
-    const clients = Layer.mergeAll(
-      S3Service.layer({ endpoint: endpoint.href, region, credentials }),
-      SQSService.layer({ endpoint: endpoint.href, region, credentials }),
-    )
-    return Layer.mergeAll(
-      QueueTransport.layerSqs,
-      Layer.effectDiscard(provision(inventory, stage)),
-    ).pipe(Layer.provide(clients))
-  }),
-).pipe(Layer.provide(MiniStack.layer))
+const QueueTransportMiniStack = Layer.mergeAll(
+  QueueTransport.layerSqs,
+  Layer.effectDiscard(provision(inventory, stage)),
+).pipe(Layer.provide(AwsClientsMiniStack))
 
 const receiveSome = (queue: string, receiveOptions: ReceiveOptions) =>
   QueueTransport.use((transport) => transport.receive(queue, receiveOptions)).pipe(
@@ -93,6 +89,24 @@ describe.each([
       }),
     )
 
+    it.effect('returns early from a wait when a received message is released by extend(0)', () =>
+      Effect.gen(function* () {
+        const queue = yield* QueueTransport
+
+        yield* queue.send(queues.rewoken, 'hello', { jobId: 'job-1' })
+        const first = yield* receiveSome(queues.rewoken, options)
+        const waiting = yield* Effect.forkChild(
+          Effect.timed(receiveSome(queues.rewoken, { ...options, wait: '3 seconds' })),
+        )
+        yield* Effect.sleep('200 millis')
+        yield* queue.extend(queues.rewoken, first.handle, 0)
+        const [elapsed, again] = yield* Fiber.join(waiting)
+
+        assert.strictEqual(again.receiveCount, 2)
+        assert.isBelow(Duration.toMillis(elapsed), 2000)
+      }),
+    )
+
     it.effect('removes a deleted message', () =>
       Effect.gen(function* () {
         const queue = yield* QueueTransport
@@ -117,7 +131,7 @@ describe.each([
           ),
         )
         const after = yield* queue.receive(queues.redriven, { ...options, wait: 0 })
-        const deadLettered = yield* receiveSome(`${queues.redriven}-dlq`, options)
+        const deadLettered = yield* receiveSome(buildDeadLetterName(queues.redriven), options)
 
         assert.deepStrictEqual(counts, Arr.range(1, maxReceiveCount))
         assert.deepStrictEqual(after, Option.none())
@@ -143,14 +157,14 @@ describe.each([
         const queue = yield* QueueTransport
 
         const waiting = yield* Effect.forkChild(
-          Effect.timed(receiveSome(queues.woken, { ...options, wait: '10 seconds' })),
+          Effect.timed(receiveSome(queues.woken, { ...options, wait: '3 seconds' })),
         )
         yield* Effect.sleep('200 millis')
         yield* queue.send(queues.woken, 'hello', { jobId: 'job-1' })
         const [elapsed, received] = yield* Fiber.join(waiting)
 
         assert.strictEqual(received.body, 'hello')
-        assert.isBelow(Duration.toMillis(elapsed), 5000)
+        assert.isBelow(Duration.toMillis(elapsed), 2000)
       }),
     )
   })

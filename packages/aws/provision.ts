@@ -19,7 +19,7 @@ import {
 } from '@effect-aws/client-sqs'
 import { Array as Arr, type Cause, Effect, Option } from 'effect'
 
-import { buildResourceName } from '#aws/naming'
+import { buildDeadLetterName, buildResourceName } from '#aws/naming'
 import { type BucketResource, type QueueResource, type Resources, unboundTag } from '#aws/resources'
 
 export interface ProvisionedResource {
@@ -118,7 +118,7 @@ const provisionQueuePair = Effect.fnUntraced(function* (stage: string, queue: Qu
   const sqs = yield* SQSService
   const name = buildResourceName(stage, queue.name)
 
-  const deadLetter = yield* provisionQueue(`${name}-dlq`, {})
+  const deadLetter = yield* provisionQueue(buildDeadLetterName(name), {})
   const { Attributes } = yield* sqs.getQueueAttributes({
     QueueUrl: deadLetter.url,
     AttributeNames: ['QueueArn'],
