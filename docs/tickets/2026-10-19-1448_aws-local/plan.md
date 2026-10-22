@@ -524,7 +524,7 @@ checking `make dev` by hand in its own worktree.
   - A multipart upload is tagged at the create and again after the complete, outside the upload's
     scope; a failing second tag deletes the object (D9 amended). MiniStack ignores the first, so
     only ticket 9's run on AWS shows the atomic tag. Three narrower windows where an object can
-    outlive a failed `insert` are in Risks with what covers them.
+    outlive a failed `insert` are in Risks with what covers them. S7b removed the second tag.
   - `keep` is a no-op for an id without bytes, as on KV, so S8's bind cannot fail on a record
     without bytes; the port doc and Contracts say so.
   - `ApiHttp` no longer provides attachments: `ApiLayer` provides `AttachmentKvS3` and
@@ -710,7 +710,22 @@ checking `make dev` by hand in its own worktree.
   that no `infrastructure` code addresses fails it, with a message naming the bucket; the
   attachments bucket passes.
 - **Verify:** `make check`; the probe bucket shown red, then removed.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Landed in two rounds (S11.1, S11.2), built in its own worktree (N=1). `make check`: 346
+    tests. A probe `reports` bucket in the inventory failed with "bucket 'reports' is addressed by
+    no code"; the queue cases still fail by name after the predicate rewrite.
+  - A bucket counts as addressed when a non-test `infrastructure` source contains
+    `resources.buckets.<key>`: a mention in a comment passes, destructuring fails loudly.
+    *Rejected:* each storage adapter exporting its bucket entry (edits every adapter), a
+    TypeScript AST walk (heavy for one check).
+  - S11.1 renamed the test after `aws.client.ts`; S11.2 moved it back, and `naming.md`'s `.test`
+    row now lets a test with no source of its own be named after what it checks against.
+  - The stale ticket text the verification listed is rewritten in place (lesson 2): the overview
+    and D1–D3 lose the memory transport and the settling attempt, D9 no longer deletes on read,
+    `feature.md`'s scope and R21 name `recordQueue()` and S8's expiry, R12 cites S5d, R20's grep
+    skips `repos/`, and R17 and Seam 7 gain the bucket case.
+  - Files beyond the list: `.claude/rules/naming.md`, `docs/knowledge/aws.md`.
 
 #### S12 — Review fixes after verification
 

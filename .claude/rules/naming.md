@@ -42,7 +42,7 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 | `.client` | client wiring | infrastructure/shared, http-api, packages |
 | `.http` | a contract group: one resource's HTTP routes (`HttpApiGroup`) | http-api |
 | `.handler` | a request handler | apps |
-| `.test` | a colocated test that mirrors its source name | any |
+| `.test` | a colocated test that mirrors its source name, or names what it checks against (`resources.test.ts`: the inventory in `packages/aws`) | any |
 | `.fixture` | sample values (ids, dates, inputs, bytes); no Effect, no layers | `testing/` |
 | `.fake` | a test implementation or wrapper of a port or service: records, yields, scripts | `testing/` |
 | `.harness` | real services over fakes and the memory store; runner, arrange steps, reads for assertions | `testing/` |

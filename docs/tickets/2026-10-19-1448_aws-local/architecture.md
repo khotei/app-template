@@ -7,9 +7,10 @@
 Two ports change adapters and one package appears:
 
 - **`QueueClient` is rebuilt over a four-call `QueueTransport`** shaped like SQS, with an SQS
-  adapter only. Retry, visibility heartbeat and attempt info are written once above the
-  transport; redelivery and dead-lettering stay AWS's job, and every test that needs a queue runs
-  on MiniStack (D1–D3). `PersistedQueue` and SQLite leave the repository.
+  adapter only. Retry, visibility heartbeat and attempt info are written once above the transport;
+  redelivery and dead-lettering stay AWS's job. Every test that consumes runs on MiniStack; tests
+  that only send record with `recordQueue()` (D1–D3). `PersistedQueue` and SQLite leave the
+  repository.
 - **`AttachmentStore` gains an S3 adapter** that streams uploads, tags them `unbound`, presigns
   downloads and deletes objects; the KV adapter stays for tests (D6–D9).
 - **`packages/aws`** holds the resource inventory, the naming rule and the provisioner, read by
@@ -225,69 +226,65 @@ GET /attachments/:attachmentId/download
 | **4. `AttachmentService` on the memory adapters under `TestClock`** (`application/attachment`) | an unbound attachment refused at 24 h with its record and bytes kept, a bound one never; `keep` called before the bind; deletes reaching the store (R4, R5, R7) | S3 (seam 3) |
 | **5. The api over `BunHttpServer.layerTest`** (`apps/api`) | `download` answers `302` with the store's URL for the owner and `404` without `Location` otherwise; upload limits still map to `413`/`415`/`400` with nothing stored when the file is streamed (R2–R4) | following the URL (seam 3) |
 | **6. `provision` against MiniStack** (`packages/aws`) | a second `provision` changes nothing; lifecycle and redrive read back as the inventory says (R15, R16) | IAM and real-account behaviour (ticket 9) |
-| **7. The inventory agreement test** (`infrastructure/shared/resources.test.ts`) | every queue definition takes its name and `maxAttempts` from the inventory, every inventory queue has a definition, the bucket's expiration days cover `unboundLifetime` (R15, R17) | names built outside the inventory by hand (review; `git grep` in R20's check) |
+| **7. The inventory agreement test** (`infrastructure/shared/resources.test.ts`) | every queue definition takes its name and `maxAttempts` from the inventory, every inventory queue has a definition, every inventory bucket is read by an `infrastructure` source as `resources.buckets.<key>` (S11), the bucket's expiration days cover `unboundLifetime` (R15, R17) | names built outside the inventory by hand (review; `git grep` in R20's check); a bucket mentioned only in a comment |
 
 `make dev` against MiniStack (R18) is checked by hand, as `chat-core`'s two-process run is.
 
 ## Decisions
 
-- **D1 — `QueueClient` is built once over a five-call `QueueTransport`; `PersistedQueue` goes.**
-  The transport has SQS's shape (`send`, `receive` with visibility and long-poll, `extend`,
-  `delete`, redrive on receive), so the memory adapter has the same semantics as production and
-  the logic above it (decode, heartbeat, attempt info, retry delay, dead-lettering, logs) exists
-  once. The retry delay replays `retrySchedule` with `Schedule.toStep`, as effect's unexported
-  `PersistedQueue.retryDelay` does, without a clock. Ticket 9's Lambda edge reuses the same
-  per-message step. *Rejected:* an SQS `PersistedQueueStore` (the store contract promises
-  dedupe and free interrupts that SQS cannot keep, so memory and production would differ under
-  one interface); a second `QueueClient` implementation beside the `PersistedQueue` one (two
+- **D1 — `QueueClient` is built once over a four-call `QueueTransport`; `PersistedQueue` goes.** The
+  transport has SQS's shape (`send`, `receive` with visibility and long-poll, `extend`, `delete`),
+  so the logic above it (decode, heartbeat, attempt info, retry delay, dead-lettering, logs) exists
+  once. The retry delay is the definition's `retryDelay(attempt)`, which ticket 9's Lambda edge
+  computes the same way per message. *Rejected:* an SQS `PersistedQueueStore` (the store contract
+  promises dedupe and free interrupts that SQS cannot keep, so memory and production would differ
+  under one interface); a second `QueueClient` implementation beside the `PersistedQueue` one (two
   copies of retry and attempt logic, still two semantics). *Amended in S4:* the memory transport
-  goes, and with it `QueueClient.layerMemory` (S5). Redelivery and dead-lettering are AWS's job:
-  a memory imitation had to learn the dead-letter queue's name, which tied the generic package
-  to this project's naming, and its fidelity was a second implementation to keep true. Every test
-  that needs a queue (`packages/queue`, the jobs, the api and chat harnesses) runs on MiniStack in
-  real time; `make test` already needs Docker (D12). The transport stays as the seam between the
-  queue logic and the SQS calls, and `receive` loses `maxReceiveCount`, which only the imitation
-  read. *Rejected:* a memory transport with the dead-letter rule as an option (the option spreads
-  to every memory `QueueClient`); one that drops an exhausted message instead of moving it (tests
-  in memory then prove less than they seem); a plain test fake of `QueueClient` for the tests
-  above the queue (kept fast, but the user chose one queue behaviour everywhere over speed).
-  *Amended in S5:* `QueueClient.layer(options)` leaves `QueueTransport` open beside `layerSqs`,
-  which closes it, so S5b's tests put a failing transport under the one client. *Rejected:* only
-  `layerSqs` (a test could not swap the transport without a second client). *Amended in S5c:*
-  tests that never consume take `recordQueue()`, a send-only fake exported as
-  `@app-template/queue/testing` that encodes with the client's codec, so the chat and api
-  harnesses run without Docker; the job suites call each job's `handle` under `TestClock`, with
-  one MiniStack case per job; Seam 1 alone checks consumption. `layerSqs` folds into
-  `QueueClientSqs`. This takes the fake rejected above: the one queue behaviour that choice kept
-  is consumption, which those tests never reach. *Rejected:* the fake in `packages/testing`
-  (`packages/queue`'s tests import it, a cycle of project references). *Amended in S5d:* a
-  definition gives `retryDelay(attempt)`, a plain function; both chat queues double from 1 s.
-  *Rejected:* keeping `retrySchedule` (replaying a `Schedule` from a fresh step per attempt is
+  goes, and with it `QueueClient.layerMemory` (S5). Redelivery and dead-lettering are AWS's job: a
+  memory imitation had to learn the dead-letter queue's name, which tied the generic package to this
+  project's naming, and its fidelity was a second implementation to keep true. Every test that needs
+  a queue (`packages/queue`, the jobs, the api and chat harnesses) runs on MiniStack in real time;
+  `make test` already needs Docker (D12). The transport stays as the seam between the queue logic
+  and the SQS calls, and `receive` loses `maxReceiveCount`, which only the imitation read.
+  *Rejected:* a memory transport with the dead-letter rule as an option (the option spreads to every
+  memory `QueueClient`); one that drops an exhausted message instead of moving it (tests in memory
+  then prove less than they seem); a plain test fake of `QueueClient` for the tests above the queue
+  (kept fast, but the user chose one queue behaviour everywhere over speed). *Amended in S5:*
+  `QueueClient.layer(options)` leaves `QueueTransport` open beside `layerSqs`, which closes it, so
+  S5b's tests put a failing transport under the one client. *Rejected:* only `layerSqs` (a test
+  could not swap the transport without a second client). *Amended in S5c:* tests that never consume
+  take `recordQueue()`, a send-only fake exported as `@app-template/queue/testing` that encodes with
+  the client's codec, so the chat and api harnesses run without Docker; the job suites call each
+  job's `handle` under `TestClock`, with one MiniStack case per job; Seam 1 alone checks
+  consumption. `QueueClient.layerSqs` folds into `QueueClientSqs` (`QueueClient.layer` over
+  `QueueTransport.layerSqs`). This takes the fake rejected above: the one queue behaviour that
+  choice kept is consumption, which those tests never reach. *Rejected:* the fake in
+  `packages/testing` (`packages/queue`'s tests import it, a cycle of project references). *Amended
+  in S5d:* a definition gives `retryDelay(attempt)`, a plain function; both chat queues double from
+  1 s. *Rejected:* keeping `retrySchedule` (replaying a `Schedule` from a fresh step per attempt is
   machinery for one curve).
 - **D2 — Delivery is at-least-once everywhere; an interrupt costs an attempt; `jobId` is an
-  attribute.** `receiveCount` is the attempt, and a receive cannot be undone, so the memory
-  transport counts the same way. `jobId` travels as a message attribute for logs; no layer
-  deduplicates, and `QueueDefinition.jobId`'s doc says so. Handlers already skip a settled
-  message or a titled chat (R9). A process restart costs the job in hand one of its 3 or 5
-  attempts. *Rejected:* FIFO queues (dedupe for 5 minutes only, ordering not needed); a dedupe
-  table (needs a database: ticket 4). *Amended in S5:* this reverses `chat-core` R34 (an
-  interrupt kept its attempt); feature R12 records it, and `chat-core`'s R34, D21 and D23 point
-  back here. *Amended in S5b:* the release covers the decode and the handler only; the settle
-  runs uninterruptibly, so a retry keeps its delay and a finished job is not run again, and a
-  worker stop may wait for that one SQS call.
-- **D3 — Redrive is the only way to the dead-letter queue.** A last failed attempt, a message
-  that does not decode, and a crash during the last attempt all end the same way: `extend(0)` or
-  an expired visibility, then the next receive finds `receiveCount > maxReceiveCount` and moves
-  the message without returning it. `assistant-message` keeps its extra settling attempt
-  (`replyAttempts + 1`), now justified by redrive instead of the SQL store's lock expiry.
-  *Rejected:* `SendMessage` to the DLQ then `DeleteMessage` (two calls, not atomic: a crash
-  between them duplicates or loses the message, and a decode failure needs no faster path).
-  *Amended in S5d:* `assistant-message` has no settling attempt; its `maxReceiveCount` is 3, and
-  the last attempt writes `failed` on any outcome but success, an interrupt included, in an exit
-  handler that runs uninterruptibly. Its failure is not caught: the queue logs it as
-  dead-lettered and redrive moves the job, as for `chat-title`. *Rejected:* the settling attempt
-  (a fourth receive and three attempt roles to cover what the exit handler covers, except the
-  cases in Risks); catching the last failure in the job (a second log line for a spent job).
+  attribute.** `receiveCount` is the attempt, and a receive cannot be undone. `jobId` travels as a
+  message attribute for logs; no layer deduplicates, and `QueueDefinition.jobId`'s doc says so.
+  Handlers already skip a settled message or a titled chat (R9). A process restart costs the job in
+  hand one of its 3 or 5 attempts. *Rejected:* FIFO queues (dedupe for 5 minutes only, ordering not
+  needed); a dedupe table (needs a database: ticket 4). *Amended in S5:* this reverses `chat-core`
+  R34 (an interrupt kept its attempt); feature R12 records it, and `chat-core`'s R34, D21 and D23
+  point back here. *Amended in S5b:* the release covers the decode and the handler only; the settle
+  runs uninterruptibly, so a retry keeps its delay and a finished job is not run again, and a worker
+  stop may wait for that one SQS call.
+- **D3 — Redrive is the only way to the dead-letter queue.** A last failed attempt, a message that
+  does not decode, and a crash during the last attempt all end the same way: `extend(0)` or an
+  expired visibility, then the next receive finds `receiveCount > maxReceiveCount` and moves the
+  message without returning it. *Rejected:* `SendMessage` to the DLQ then `DeleteMessage` (two
+  calls, not atomic: a crash between them duplicates or loses the message, and a decode failure
+  needs no faster path). *Amended in S5d:* `assistant-message` has no settling attempt; its
+  `maxReceiveCount` is 3, and the last attempt writes `failed` on any outcome but success, an
+  interrupt included, in an exit handler that runs uninterruptibly. Its failure is not caught: the
+  queue logs it as dead-lettered and redrive moves the job, as for `chat-title`. *Rejected:* the
+  settling attempt (a fourth receive and three attempt roles to cover what the exit handler covers,
+  except the cases in Risks); catching the last failure in the job (a second log line for a spent
+  job).
 - **D4 — The inventory is plain data in `packages/aws`, and queue definitions read it.**
   `infrastructure` and the apps may not import `deployment`, so a `deployment/shared/` inventory
   could not name the resources the code uses. Definitions take `name` and `maxAttempts` from
@@ -352,7 +349,7 @@ GET /attachments/:attachmentId/download
 - **D9 — Unbound bytes expire by an S3 lifecycle rule on the `unbound` tag; unbound records expire
   in `AttachmentService`.** `insert` tags the object, `keep` clears the tag before the bind is
   written (a crash between leaves an orphaned object, never a bound attachment without bytes). A
-  record unbound for `unboundLifetime` (24 h) reads as not found and is deleted when met; S3's
+  record unbound for `unboundLifetime` (24 h) reads as not found; S3's
   1-day rule acts no earlier, so nothing bindable loses its bytes. A second rule aborts multipart
   uploads left by a crash. A sweep of untouched records waits for SQL in ticket 4: `KeyValueStore`
   cannot list. MiniStack stores lifecycle rules but never runs them, so locally the rules are
