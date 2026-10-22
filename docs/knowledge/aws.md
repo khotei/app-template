@@ -65,13 +65,14 @@ reset`; on AWS, Pulumi (the deploy ticket).
 ## Tests on Docker
 
 Tests at the AWS boundary (`packages/aws/*.test.ts`, `packages/queue/queue.transport.test.ts`)
-start one MiniStack container per test file through the `MiniStack` layer in `@app-template/testing`
-(`testcontainers`), reach it through `AwsClientsMiniStack` from the same package (S3 and SQS
-clients on that container), provision a fresh `test-<random>` stage from `buildStage()`, and stop the container with the suite. So `make test`
-needs a running Docker daemon from now on, and nothing else: the Pulumi project is for `make up`
-alone. The container starts in about two seconds, and the suites pass `{ timeout: '60 seconds' }`
-to `layer(…)` for the pull on a cold machine. Unique stages isolate parallel files without resets;
-nothing cleans a stage up, since the container goes with it.
+start one MiniStack container per test file through the `MiniStack` layer in
+`@app-template/testing` (`testcontainers`), reach it through `AwsClientsMiniStack` from the same
+package (S3 and SQS clients on that container), provision a fresh `test-<random>` stage from
+`buildStage()`, and stop the container with the suite. So `make test` needs a running Docker
+daemon from now on, and nothing else: the Pulumi project is for `make up` alone. The container
+starts in about two seconds, and the suites pass `{ timeout: '60 seconds' }` to `layer(…)` for the
+pull on a cold machine. Unique stages isolate parallel files without resets; nothing cleans a stage
+up, since the container goes with it.
 
 MiniStack differs from AWS in what it never does: lifecycle rules never run, the 5 MiB minimum
 part size is not enforced. What depends on those is checked on real AWS in the deploy ticket.

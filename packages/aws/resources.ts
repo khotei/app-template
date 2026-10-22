@@ -6,10 +6,7 @@ export interface BucketResource {
   }
 }
 
-/**
- * A queue's dead-letter queue is `buildDeadLetterName` of its physical name; `maxReceiveCount`
- * equals its definition's `maxAttempts`.
- */
+/** `maxReceiveCount` equals its definition's `maxAttempts`. */
 export interface QueueResource {
   readonly name: string
   readonly maxReceiveCount: number

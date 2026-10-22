@@ -1,20 +1,5 @@
 import { SQSService } from '@effect-aws/client-sqs'
-import {
-  Array as Arr,
-  Cache,
-  Clock,
-  Context,
-  Deferred,
-  Duration,
-  Effect,
-  Exit,
-  Layer,
-  Option,
-  Predicate,
-  Ref,
-  Result,
-  Schema,
-} from 'effect'
+import { Array as Arr, Cache, Context, Duration, Effect, Exit, Layer, Option, Schema } from 'effect'
 
 export class QueueError extends Schema.TaggedError<QueueError>()('QueueError', {
   cause: Schema.Defect(),
@@ -35,170 +20,7 @@ export interface ReceiveOptions {
   readonly visibility: Duration.Input
   /** At most 20 seconds, SQS's long-poll limit. */
   readonly wait: Duration.Input
-  readonly maxReceiveCount: number
 }
-
-export interface QueueTransportMemoryOptions {
-  /** The queue a message moves to after `maxReceiveCount` receives, as the SQS redrive names it. */
-  readonly deadLetterName: (queue: string) => string
-}
-
-interface StoredMessage {
-  readonly id: string
-  readonly body: string
-  readonly attributes: MessageAttributes
-  readonly receiveCount: number
-  readonly visibleAt: number
-  readonly handle: Option.Option<string>
-}
-
-const isVisibleAt =
-  (now: number): Predicate.Predicate<StoredMessage> =>
-  (message) =>
-    message.visibleAt <= now
-
-const isExhausted =
-  (maxReceiveCount: number): Predicate.Predicate<StoredMessage> =>
-  (message) =>
-    message.receiveCount >= maxReceiveCount
-
-const hasHandle =
-  (handle: string): Predicate.Predicate<StoredMessage> =>
-  (message) =>
-    Option.contains(message.handle, handle)
-
-const hasId =
-  (id: string): Predicate.Predicate<StoredMessage> =>
-  (message) =>
-    message.id === id
-
-const makeMemory = Effect.fnUntraced(function* ({ deadLetterName }: QueueTransportMemoryOptions) {
-  const queues = new Map<string, ReadonlyArray<StoredMessage>>()
-  const firstArrival = yield* Deferred.make<void>()
-  const arrival = yield* Ref.make(firstArrival)
-
-  const messagesOf = (queue: string) => queues.get(queue) ?? []
-
-  const updateWhere = (
-    queue: string,
-    holds: Predicate.Predicate<StoredMessage>,
-    change: (message: StoredMessage) => StoredMessage,
-  ) =>
-    queues.set(
-      queue,
-      Arr.map(messagesOf(queue), (message) => (holds(message) ? change(message) : message)),
-    )
-
-  const wakeReceivers = Effect.gen(function* () {
-    const next = yield* Deferred.make<void>()
-    const arrived = yield* Ref.getAndSet(arrival, next)
-    yield* Deferred.succeed(arrived, undefined)
-  })
-
-  const redrive = (queue: string, { maxReceiveCount }: ReceiveOptions, now: number) => {
-    const isDue = Predicate.and(isVisibleAt(now), isExhausted(maxReceiveCount))
-    const deadLetter = deadLetterName(queue)
-    // Counted afresh, or a receive from the dead-letter queue would move it on again.
-    const [moved, kept] = Arr.partition(messagesOf(queue), (message) =>
-      isDue(message)
-        ? Result.succeed({ ...message, receiveCount: 0, handle: Option.none() })
-        : Result.fail(message),
-    )
-    queues.set(queue, kept)
-    queues.set(deadLetter, Arr.appendAll(messagesOf(deadLetter), moved))
-  }
-
-  const take = (queue: string, options: ReceiveOptions, now: number): Option.Option<Received> => {
-    redrive(queue, options, now)
-    const found = Arr.findFirst(messagesOf(queue), isVisibleAt(now))
-    if (Option.isNone(found)) {
-      return Option.none()
-    }
-
-    const handle = crypto.randomUUID()
-    const taken = {
-      ...found.value,
-      receiveCount: found.value.receiveCount + 1,
-      visibleAt: now + Duration.toMillis(options.visibility),
-      handle: Option.some(handle),
-    }
-    updateWhere(queue, hasId(taken.id), () => taken)
-    const { body, receiveCount, attributes } = taken
-    return Option.some({ handle, body, receiveCount, attributes })
-  }
-
-  const nextWake = (queue: string, now: number, deadline: number): number => {
-    const hidden = Arr.filter(messagesOf(queue), Predicate.not(isVisibleAt(now)))
-    return Math.min(deadline, ...Arr.map(hidden, (message) => message.visibleAt))
-  }
-
-  const poll = Effect.fnUntraced(function* (
-    queue: string,
-    options: ReceiveOptions,
-    deadline: number,
-  ): Effect.fn.Return<Option.Option<Received>> {
-    const arrived = yield* Ref.get(arrival)
-    const now = yield* Clock.currentTimeMillis
-    const received = yield* Effect.sync(() => take(queue, options, now))
-
-    if (Option.isSome(received) || now >= deadline) {
-      return received
-    }
-
-    const wake = yield* Effect.sync(() => nextWake(queue, now, deadline))
-    yield* Effect.raceFirst(Deferred.await(arrived), Effect.sleep(wake - now))
-    return yield* poll(queue, options, deadline)
-  })
-
-  const send = Effect.fn('QueueTransport.send')(function* (
-    queue: string,
-    body: string,
-    attributes: MessageAttributes,
-  ) {
-    const now = yield* Clock.currentTimeMillis
-    const message: StoredMessage = {
-      id: crypto.randomUUID(),
-      body,
-      attributes,
-      receiveCount: 0,
-      visibleAt: now,
-      handle: Option.none(),
-    }
-
-    yield* Effect.sync(() => queues.set(queue, Arr.append(messagesOf(queue), message)))
-    yield* wakeReceivers
-  })
-
-  const receive = Effect.fn('QueueTransport.receive')(function* (
-    queue: string,
-    options: ReceiveOptions,
-  ) {
-    const now = yield* Clock.currentTimeMillis
-    return yield* poll(queue, options, now + Duration.toMillis(options.wait))
-  })
-
-  const extend = Effect.fn('QueueTransport.extend')(function* (
-    queue: string,
-    handle: string,
-    visibility: Duration.Input,
-  ) {
-    const now = yield* Clock.currentTimeMillis
-    const visibleAt = now + Duration.toMillis(visibility)
-
-    yield* Effect.sync(() =>
-      updateWhere(queue, hasHandle(handle), (message) => ({ ...message, visibleAt })),
-    )
-    yield* wakeReceivers
-  })
-
-  const remove = Effect.fn('QueueTransport.delete')((queue: string, handle: string) =>
-    Effect.sync(() =>
-      queues.set(queue, Arr.filter(messagesOf(queue), Predicate.not(hasHandle(handle)))),
-    ),
-  )
-
-  return { send, receive, extend, delete: remove }
-})
 
 const SqsMessage = Schema.Struct({
   ReceiptHandle: Schema.String,
@@ -299,8 +121,8 @@ export class QueueTransport extends Context.Service<
     ) => Effect.Effect<void, QueueError>
     /**
      * Long-polls up to `wait`; a message received is hidden for `visibility`. A message already
-     * received `maxReceiveCount` times is moved to the queue's dead-letter queue instead of
-     * returned.
+     * received the `maxReceiveCount` of the queue's `RedrivePolicy` is moved to its dead-letter
+     * queue instead of returned.
      */
     readonly receive: (
       queue: string,
@@ -315,12 +137,6 @@ export class QueueTransport extends Context.Service<
     readonly delete: (queue: string, handle: string) => Effect.Effect<void, QueueError>
   }
 >()('@app-template/queue/QueueTransport') {
-  /** A process-local transport whose waits and visibility run on `Clock`. */
-  static readonly layerMemory = (
-    options: QueueTransportMemoryOptions,
-  ): Layer.Layer<QueueTransport> => Layer.effect(this, makeMemory(options))
-
-  /** Ignores `maxReceiveCount`: the queue's `RedrivePolicy` enforces it. */
   static readonly layerSqs: Layer.Layer<QueueTransport, never, SQSService> = Layer.effect(
     this,
     makeSqs,

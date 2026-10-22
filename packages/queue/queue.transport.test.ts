@@ -9,7 +9,7 @@ import {
 } from '@app-template/aws'
 import { AwsClientsMiniStack, buildStage } from '@app-template/testing'
 
-import { QueueTransport, type ReceiveOptions } from '#queue/queue.transport'
+import { type QueueError, QueueTransport, type ReceiveOptions } from '#queue/queue.transport'
 
 const stage = buildStage()
 
@@ -31,7 +31,7 @@ const inventory = {
 
 const queues = Record.map(inventory.queues, (queue) => buildResourceName(stage, queue.name))
 
-const options = { visibility: '30 seconds', wait: '1 second', maxReceiveCount } as const
+const options = { visibility: '30 seconds', wait: '1 second' } as const
 
 const QueueTransportMiniStack = Layer.mergeAll(
   QueueTransport.layerSqs,
@@ -43,25 +43,18 @@ const receiveSome = (queue: string, receiveOptions: ReceiveOptions) =>
     Effect.flatMap(Effect.fromOption),
   )
 
-/** Receives with a 3 s wait, running `wake` once the receive has been waiting for 200 ms. */
-const receiveWokenBy = <E>(queue: string, wake: Effect.Effect<void, E, QueueTransport>) =>
+const receiveWokenBy = (queue: string, wake: Effect.Effect<void, QueueError, QueueTransport>) =>
   Effect.gen(function* () {
     const waiting = yield* Effect.forkChild(
-      Effect.timed(receiveSome(queue, { ...options, wait: '3 seconds' })),
+      Effect.timed(receiveSome(queue, { ...options, wait: '2 seconds' })),
     )
     yield* Effect.sleep('200 millis')
     yield* wake
     return yield* Fiber.join(waiting)
   })
 
-describe.each([
-  {
-    name: 'memory',
-    transport: QueueTransport.layerMemory({ deadLetterName: buildDeadLetterName }),
-  },
-  { name: 'SQS on MiniStack', transport: QueueTransportMiniStack },
-])('QueueTransport on $name', ({ transport }) => {
-  layer(transport, { timeout: '60 seconds', excludeTestServices: true })((it) => {
+describe('QueueTransport.layerSqs on MiniStack', () => {
+  layer(QueueTransportMiniStack, { timeout: '60 seconds', excludeTestServices: true })((it) => {
     it.effect('receives a sent body with its attribute and receiveCount 1', () =>
       Effect.gen(function* () {
         const queue = yield* QueueTransport
@@ -115,7 +108,7 @@ describe.each([
         )
 
         assert.strictEqual(again.receiveCount, 2)
-        assert.isBelow(Duration.toMillis(elapsed), 2000)
+        assert.isBelow(Duration.toMillis(elapsed), 1000)
       }),
     )
 
@@ -174,7 +167,7 @@ describe.each([
         )
 
         assert.strictEqual(received.body, 'hello')
-        assert.isBelow(Duration.toMillis(elapsed), 2000)
+        assert.isBelow(Duration.toMillis(elapsed), 1000)
       }),
     )
   })

@@ -39,7 +39,8 @@ stay in `KeyValueStore` until `postgres-drizzle` (4).
   - Unbound attachments are collected by age here, as `chat-core` deferred ("arrives with S3").
   - MiniStack becomes required for `make dev`; the SQLite queue store and the attachment bytes in
     the file store are removed. Tests keep the in-memory layers, and the AWS adapters are tested
-    against MiniStack in `make test` and CI.
+    against MiniStack in `make test` and CI. *Amended in architecture (D1, S4): the queue keeps no
+    in-memory layer; tests that need one run on MiniStack.*
   - Bucket and queue names come from the inventory and the stage, never from `.env`.
 - **Facts verified on 2026-10-19.**
 
@@ -72,8 +73,8 @@ stay in `KeyValueStore` until `postgres-drizzle` (4).
 - The resource inventory in `packages/aws` (D4) and a drift guard.
 - Config areas for AWS in `@app-template/config`; `.env.example` updated.
 - The SQLite queue store and the attachment bytes in the file store removed.
-- Contract tests of both ports run on the in-memory and the AWS adapters; AWS adapters against
-  MiniStack through Testcontainers.
+- Contract tests of both ports run on the in-memory and the AWS adapters (the queue on its AWS
+  adapter alone, D1); AWS adapters against MiniStack through Testcontainers.
 - `docs/knowledge/` updated: how local AWS works, and the stub notes in `deployment/CLAUDE.md` and
   `deployment/local/README.md`.
 
@@ -157,7 +158,9 @@ stay in `KeyValueStore` until `postgres-drizzle` (4).
 
 - **R21** — THE SYSTEM SHALL run one contract suite per port (`AttachmentStore`, `QueueTransport`)
   against both the in-memory and the AWS adapter; the AWS run SHALL start MiniStack through
-  Testcontainers, need no `.env`, and run in `make test` and CI.
+  Testcontainers, need no `.env`, and run in `make test` and CI. *Amended in architecture (D1,
+  S4): the queue has no in-memory adapter, so `QueueTransport`'s suite runs on MiniStack alone, as
+  does every test that needs a queue.*
 - **R22** — WHEN this ticket lands, `docs/knowledge/` SHALL explain the local AWS environment
   (start, reset, inventory, how a new bucket or queue is added), and `deployment/CLAUDE.md` and
   `deployment/local/README.md` SHALL no longer call the local environment a stub.
@@ -185,7 +188,7 @@ stay in `KeyValueStore` until `postgres-drizzle` (4).
 | R17 | Adding a queue to the inventory without a definition, or a definition whose name is not in the inventory, makes the agreement test in `make check` fail with the name. |
 | R18 | `make up && make dev`: upload, send, poll to `completed`, title appears; `.data/` holds no `queue.sqlite` and no attachment bytes. |
 | R20 | `git grep` finds no `process.env`, `Bun.env`, bucket or queue name outside config and the inventory; `.env.example` matches R20. |
-| R21 | `make test` runs each contract suite twice (memory, MiniStack) and passes without `.env`; CI runs the same. |
+| R21 | `make test` runs the `AttachmentStore` suite twice (memory, MiniStack) and the `QueueTransport` suite on MiniStack, and passes without `.env`; CI runs the same. |
 | R22 | The knowledge doc exists and is linked from `docs/knowledge/architecture.md`; `git grep -i stub deployment/` finds no local-environment stub note. |
 
 ## Open questions

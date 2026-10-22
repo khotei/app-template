@@ -6,10 +6,10 @@
 
 Two ports change adapters and one package appears:
 
-- **`QueueClient` is rebuilt over a five-call `QueueTransport`** shaped like SQS, with a memory and
-  an SQS adapter. Retry, visibility heartbeat, attempt info and dead-lettering are written once
-  above the transport, so a memory test under `TestClock` proves what SQS will do (D1–D3).
-  `PersistedQueue` and SQLite leave the repository.
+- **`QueueClient` is rebuilt over a four-call `QueueTransport`** shaped like SQS, with an SQS
+  adapter only. Retry, visibility heartbeat and attempt info are written once above the
+  transport; redelivery and dead-lettering stay AWS's job, and every test that needs a queue runs
+  on MiniStack (D1–D3). `PersistedQueue` and SQLite leave the repository.
 - **`AttachmentStore` gains an S3 adapter** that streams uploads, tags them `unbound`, presigns
   downloads and deletes objects; the KV adapter stays for tests (D6–D9).
 - **`packages/aws`** holds the resource inventory, the naming rule and the provisioner, read by
@@ -30,8 +30,7 @@ graph LR
   store --> S3a["AttachmentStoreS3"] --> S3[("S3 bucket")]
   store -. tests .-> KVa["AttachmentStoreKv"]
   QC --> T["QueueTransport"]
-  T --> Ts["transportSqs"] --> SQS[("SQS queue + DLQ")]
-  T -. tests .-> Tm["transportMemory"]
+  T --> Ts["QueueTransport.layerSqs"] --> SQS[("SQS queue + DLQ")]
   inv["packages/aws<br/>inventory · naming · provision"]
   S3a --> inv
   Ts --> inv
@@ -48,8 +47,8 @@ graph LR
 ```
 + packages/aws/naming.ts       buildResourceName, projectName (moved from deployment/shared/naming.ts)
 + packages/aws/resources.ts    the inventory: bucket `attachments`, queues `assistant-message`,
-                               `chat-title`, each with `maxReceiveCount` and a `<name>-dlq`;
-                               lifecycle rules                                          (D4)
+                               `chat-title`, each with `maxReceiveCount` and a dead-letter
+                               queue named by `buildDeadLetterName`; lifecycle rules     (D4)
 + packages/aws/provision.ts    provision(inventory, stage): idempotent create              (D5)
 + packages/aws/*.test.ts       on MiniStack
 ```
@@ -58,10 +57,11 @@ graph LR
 
 ```
 ~ packages/queue/queue.ts            QueueClient over QueueTransport; send, worker unchanged   (D1)
-+ packages/queue/queue.transport.ts  QueueTransport, transportMemory, transportSqs             (D1)
-~ packages/queue/queue.test.ts       QueueClient suite on transportMemory under TestClock
-+ packages/queue/queue.transport.test.ts   one contract suite: memory, MiniStack
-- @effect/sql-sqlite-bun dependency, QueueClient.layerSqlite, QueueClientSqliteOptions
++ packages/queue/queue.transport.ts  QueueTransport, QueueTransport.layerSqs                   (D1)
+~ packages/queue/queue.test.ts       QueueClient suite on MiniStack, in real time
++ packages/queue/queue.transport.test.ts   the SQS transport's suite on MiniStack
+- @effect/sql-sqlite-bun dependency, QueueClient.layerSqlite, QueueClientSqliteOptions,
+  QueueClient.layerMemory
 ```
 
 **`packages/config`**: `AwsConfig { region: AWS_REGION, endpoint: Option<URL> AWS_ENDPOINT_URL,
@@ -122,24 +122,27 @@ select or create the `local` stack) is idempotent and precedes `up` and `down`; 
 
 ```ts
 // packages/queue/queue.transport.ts — the internal seam (D1)
-interface Received { readonly handle: string; readonly body: string; readonly receiveCount: number }
+interface Received {
+  readonly handle: string; readonly body: string; readonly receiveCount: number
+  readonly attributes: { jobId: string }
+}
 
 interface QueueTransport {
   readonly send: (queue: string, body: string, attributes: { jobId: string }) => Effect<void, QueueError>
-  /** Long-polls up to `wait`; a message received is invisible for `visibility`. A message received
-   *  more than `maxReceiveCount` times is moved to `<queue>-dlq` instead of returned. */
-  readonly receive: (queue: string, options: {
-    visibility: Duration; wait: Duration; maxReceiveCount: number
-  }) => Effect<Option<Received>, QueueError>
+  /** Long-polls up to `wait`; a message received is invisible for `visibility`. A message already
+   *  received the `maxReceiveCount` of the queue's RedrivePolicy is moved to its dead-letter queue
+   *  instead of returned. */
+  readonly receive: (queue: string, options: { visibility: Duration; wait: Duration })
+    => Effect<Option<Received>, QueueError>
   /** Visible again after `visibility`: the heartbeat, a retry delay, or 0 to release at once. */
   readonly extend: (queue: string, handle: string, visibility: Duration) => Effect<void, QueueError>
   readonly delete: (queue: string, handle: string) => Effect<void, QueueError>
 }
-// transportSqs ignores maxReceiveCount: the queue's RedrivePolicy, set by provision from the
-// inventory, enforces it.
+QueueTransport.layerSqs                                       // needs SQSService
+// The RedrivePolicy, set by provision from the inventory, enforces maxReceiveCount; the
+// transport never reads it.
 
-// QueueClient — interface unchanged; layers:
-QueueClient.layerMemory                                       // transportMemory
+// QueueClient — interface unchanged; one layer, no memory variant (D1):
 QueueClient.layerSqs({ queueName, lockExpiration, lockRefreshInterval }) // needs SQSService
 //   queueName: (definition.name) => physical name; URL from GetQueueUrl, cached per queue (D5)
 
@@ -194,7 +197,7 @@ export const resources = {
 export const unboundTag = { key: 'unbound', value: 'true' } as const   // the expiration rule's tag
 // `name` is a field, not the key, so a definition reads it without spelling the literal (D4).
 // physical names: buildResourceName(stage, 'attachments') → app-template-<stage>-attachments;
-//   queue `<name>` and its `<name>-dlq`.
+//   queue `<name>` and its dead-letter queue buildDeadLetterName(<physical name>) (`…-dlq`).
 // Lifecycle: two rules (MiniStack accepts a tag filter combined with AbortIncomplete…, AWS does not):
 //   { Filter: { Tag: unbound=true }, Expiration: { Days } } and { Filter: { Prefix: '' },
 //   AbortIncompleteMultipartUpload: { DaysAfterInitiation } }.
@@ -211,8 +214,8 @@ GET /attachments/:attachmentId/download
 
 | Seam | Catches | Misses |
 |---|---|---|
-| **1. `QueueClient` (`send`, `worker`) on `transportMemory` under `TestClock`** (`packages/queue/queue.test.ts`) | attempt numbers and `isLastAttempt`, retry delays from `retrySchedule`, the heartbeat keeping a long handler's job from a second consumer, dead-lettering after `maxAttempts`, decode failures, interrupts, a failing transport not ending the loop (R9–R14) | whether SQS behaves like the memory transport (seam 2) |
-| **2. `QueueTransport` contract suite**, run on `transportMemory` and on `transportSqs` against MiniStack (`queue.transport.test.ts`) | the fake's fidelity: visibility, `receiveCount`, `extend(0)`, redrive to `<queue>-dlq` at the next receive, long-poll wait, attributes (R8, R10, R13) | real AWS differences from MiniStack (Risks) |
+| **1. `QueueClient` (`send`, `worker`) on `QueueClient.layerSqs` against MiniStack, in real time** (`packages/queue/queue.test.ts`) | attempt numbers and `isLastAttempt`, retry delays from `retrySchedule`, the heartbeat keeping a long handler's job from a second consumer, dead-lettering after `maxAttempts`, decode failures, interrupts, a failing transport not ending the loop (R9–R14) | real AWS differences from MiniStack (Risks); SQS's whole seconds bound how short a case can be |
+| **2. `QueueTransport` suite** on `QueueTransport.layerSqs` against MiniStack (`queue.transport.test.ts`) | the SQS calls: visibility, `receiveCount`, `extend(0)`, redrive to the dead-letter queue at the next receive, long-poll wait, attributes (R8, R10, R13) | real AWS differences from MiniStack (Risks) |
 | **3. `AttachmentStore` contract suite**, run on `AttachmentStoreKv` and `AttachmentStoreS3` against MiniStack (`infrastructure/attachment`) | streamed insert and its size, nothing left after a failing or interrupted stream (no object, no multipart upload), `select`, `url` fetched with plain `fetch` returning the bytes and media type, `delete`; S3-only cases: two-part upload of 10 MB, `inline` disposition, the tag set by `insert` and cleared by `keep`, expiry `403` (R1–R3, R5, R6) | lifecycle execution (MiniStack never runs it), the 5 MiB part minimum (not enforced by MiniStack) |
 | **4. `AttachmentService` on the memory adapters under `TestClock`** (`application/attachment`) | an unbound attachment refused and its record removed at 24 h, a bound one never; `keep` called before the bind; deletes reaching the store (R4, R5, R7) | S3 (seam 3) |
 | **5. The api over `BunHttpServer.layerTest`** (`apps/api`) | `download` answers `302` with the store's URL for the owner and `404` without `Location` otherwise; upload limits still map to `413`/`415`/`400` with nothing stored when the file is streamed (R2–R4) | following the URL (seam 3) |
@@ -232,7 +235,17 @@ GET /attachments/:attachmentId/download
   per-message step. *Rejected:* an SQS `PersistedQueueStore` (the store contract promises
   dedupe and free interrupts that SQS cannot keep, so memory and production would differ under
   one interface); a second `QueueClient` implementation beside the `PersistedQueue` one (two
-  copies of retry and attempt logic, still two semantics).
+  copies of retry and attempt logic, still two semantics). *Amended in S4:* the memory transport
+  goes, and with it `QueueClient.layerMemory` (S5). Redelivery and dead-lettering are AWS's job:
+  a memory imitation had to learn the dead-letter queue's name, which tied the generic package
+  to this project's naming, and its fidelity was a second implementation to keep true. Every test
+  that needs a queue (`packages/queue`, the jobs, the api and chat harnesses) runs on MiniStack in
+  real time; `make test` already needs Docker (D12). The transport stays as the seam between the
+  queue logic and the SQS calls, and `receive` loses `maxReceiveCount`, which only the imitation
+  read. *Rejected:* a memory transport with the dead-letter rule as an option (the option spreads
+  to every memory `QueueClient`); one that drops an exhausted message instead of moving it (tests
+  in memory then prove less than they seem); a plain test fake of `QueueClient` for the tests
+  above the queue (kept fast, but the user chose one queue behaviour everywhere over speed).
 - **D2 — Delivery is at-least-once everywhere; an interrupt costs an attempt; `jobId` is an
   attribute.** `receiveCount` is the attempt, and a receive cannot be undone, so the memory
   transport counts the same way. `jobId` travels as a message attribute for logs; no layer
@@ -372,7 +385,7 @@ GET /attachments/:attachmentId/download
 | An S3 error outside `@effect-aws`'s tagged list (`EntityTooSmall`, `InvalidPart`) arrives as a bare `SdkError` | store failures die (D6), so the cause is logged whole; no branch depends on those codes |
 | The api later runs inside Docker and signs with `http://ministack:4566`, which the browser cannot reach (D11) | out of scope here; ticket 9 or a compose-run api adds a presign-only S3 layer on the public endpoint |
 | Restarts and deploys spend attempts (D2) | 4 and 5 attempts; the heartbeat keeps long handlers alive; `assistant-message` keeps its settling attempt |
-| The memory transport drifts from SQS | seam 2 runs one suite on both |
+| Every test that needs a queue now needs Docker and runs in real time: the jobs, the api and chat harnesses, `packages/queue` (D1) | one container per file (D12); SQS's whole-second waits kept to 1–2 s; retry schedules shortened in tests |
 | Between S6 and S7 the dev download redirects to a `data:` URL, which browsers do not follow | dev only, for one step; `curl -i` shows the `302`; S7 redirects to MiniStack |
 | A record whose bytes are gone can still be bound; the worker skips its file | `download` answers `404` (D6); S8's expiry removes unbound records |
 | An expired unbound record that is never touched stays in the dev store | dev only (the store is `.data/`, reset by `make reset`); ticket 4 sweeps with SQL |

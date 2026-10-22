@@ -32,7 +32,7 @@
 ```mermaid
 graph LR
   S1[S1 packages/aws inventory + naming] --> S2[S2 MiniStack, provision, make up]
-  S2 --> S4[S4 QueueTransport memory + SQS]
+  S2 --> S4[S4 QueueTransport over SQS]
   S4 --> S5[S5 QueueClient over transport, SQS wired]
   S6[S6 streaming AttachmentStore port, 302 download]
   S2 --> S7[S7 AttachmentStoreS3 wired]
@@ -205,7 +205,7 @@ dropped (D5).
     re-check what the infrastructure owns. Not committed. The review's other points (one helper
     for `<name>-dlq`, one MiniStack client layer for the tests) move to S4, where the copies are.
 
-#### S4 — `QueueTransport`: memory and SQS
+#### S4 — `QueueTransport` over SQS
 
 - **Goal:** `packages/queue/queue.transport.ts` with the `QueueTransport` interface,
   `transportMemory` (visibility, `receiveCount`, redrive to `<queue>-dlq` at receive, long-poll on
@@ -221,14 +221,36 @@ dropped (D5).
   `maxReceiveCount` receives the next receive is empty and the message is on `<queue>-dlq`; an
   empty receive waits for `wait` and returns early when a message is sent.
 - **Verify:** `make check`.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Landed in four rounds (S4.1–S4.4), +359 / −32 lines without `bun.lock`. `make check`: 321
+    tests; the transport's suite is 8 cases on MiniStack, about 4 s.
+  - **The memory transport was built, then removed on the user's call (D1 amended).** It had to
+    know each queue's dead-letter name to imitate redrive, which made `packages/queue` import
+    `@app-template/aws` at runtime; passing the rule as an option would have spread to every
+    memory `QueueClient`. Redelivery and dead-lettering stay AWS's job, and every test that needs
+    a queue runs on MiniStack (S5 carries that out). `ReceiveOptions` drops `maxReceiveCount`,
+    which only the imitation read; `QueueClient` still derives `isLastAttempt` from
+    `receiveCount`.
+  - The suite is the SQS transport's own: a sent body with its attribute and `receiveCount: 1`;
+    hidden within its visibility; `extend(0)` returns it, and wakes a waiting receive; `delete`;
+    redrive to `buildDeadLetterName(queue)` after `maxReceiveCount` receives; a full wait on an
+    empty queue; an early return on `send`. SQS takes whole seconds, rounded up, so the long-poll
+    cases wait 2 s.
+  - `Received` carries `attributes` (`jobId`); `QueueError` moves to `queue.transport.ts` so
+    `queue.ts` imports it without a cycle; queue URLs come from `GetQueueUrl`, cached per queue
+    while the lookups succeed.
+  - The review's points from S3 landed here: `buildDeadLetterName` in `packages/aws/naming.ts`
+    (used by `provision`, its test and the transport's suite), and `AwsClientsMiniStack` in
+    `packages/testing/ministack.ts` (the S3 and SQS clients on a test file's container).
+  - `@app-template/aws` and `@app-template/testing` are dev dependencies of `packages/queue`.
 
 #### S5 — `QueueClient` over the transport; SQS in the apps
 
 - **Goal:** `QueueClient` rebuilt over `QueueTransport` per `architecture.md › Contracts` (decode;
   heartbeat every `lockRefreshInterval`; `attempt = receiveCount`; retry delay replayed from
   `retrySchedule` with `Schedule.toStep`; last failure, decode failure and interrupt as
-  `extend(0)`); `QueueClient.layerMemory` and `QueueClient.layerSqs`; `PersistedQueue`,
+  `extend(0)`); `QueueClient.layerSqs` only (D1 amended in S4: no memory layer); `PersistedQueue`,
   `layerSqlite`, `QueueClientSqliteOptions` and `@effect/sql-sqlite-bun` removed;
   `QueueClientSqs` in `infrastructure/shared/queue.client.ts` over the new
   `infrastructure/shared/aws.ts` (`SQSService` from `AwsConfig`); api and worker wired to it;
@@ -241,16 +263,25 @@ dropped (D5).
   `apps/*/src/main.ts`; `packages/config/{config.ts,config.test.ts}` (`QUEUE_SQLITE_PATH` out);
   `.env.example`, `.gitignore` (`queue.sqlite`); `application/testing/queue.fake.ts` if its
   wrapping needs it; `docs/knowledge/aws.md` (queues: delivery, attempts, dead letters).
-- **Test first:** Seam 1 on `transportMemory` under `TestClock`, rewriting the existing suite —
-  red while `QueueClient` still runs on `PersistedQueue`: a handler failing every time sees
-  attempts `1…maxAttempts` with `isLastAttempt` only on the last, retries no earlier than each
-  schedule delay, and the message then sits on the DLQ; a handler running past the visibility
-  timeout is not handed to a second worker; a malformed body reaches the DLQ and the handler never
-  runs; an interrupted handler's job comes back with the next attempt number; a transport that
-  fails does not end the worker. The "one job per jobId" and "interrupt keeps the attempt" cases
-  are deleted.
+- **Tests on MiniStack (D1 amended in S4).** Every test that uses `QueueClient.layerMemory` today
+  moves to `QueueClient.layerSqs` on a MiniStack container with provisioned queues: the api
+  harness (`apps/api/src/testing/api.harness.ts`), the chat harness and `queue.fake.ts` in
+  `application/testing`, and the job tests (`assistant-message.job.test.ts`,
+  `chat-title.job.test.ts`), 11 files and about 90 tests in all. They run in real time, so test
+  definitions shorten their retry schedules; SQS counts whole seconds. Files gain those tests,
+  the harnesses and `apps/api/package.json` / `application/package.json` (`@app-template/aws` and
+  `@app-template/testing` as dev).
+- **Test first:** Seam 1 on `QueueClient.layerSqs` against MiniStack, rewriting the existing suite —
+  red while `QueueClient` still runs on `PersistedQueue`: a handler failing every time sees attempts
+  `1…maxAttempts` with `isLastAttempt` only on the last, retries no earlier than each schedule
+  delay, and the message then sits on the DLQ; a handler running past the visibility timeout is not
+  handed to a second worker; a malformed body reaches the DLQ and the handler never runs; an
+  interrupted handler's job comes back with the next attempt number; a transport that fails does not
+  end the worker. The "one job per jobId" and "interrupt keeps the attempt" cases are deleted.
 - **Split if over ~400 lines:** S5a ends after `queue.ts` and the cases above with the apps
-  switched; S5b adds the failing-transport and decode cases.
+  switched; S5b adds the failing-transport and decode cases. Moving the harnesses and job tests
+  to MiniStack (S4's amendment) belongs to S5a, since `QueueClient.layerMemory` goes with it;
+  expect S5a over the limit and agree its size before it starts.
 - **Verify:** `make check`; by hand, `make up && make dev`: send a message, the reply reaches
   `completed` and the title appears; stop the worker, send three messages, start it, all three
   run; `.data/` holds no `queue.sqlite`.
