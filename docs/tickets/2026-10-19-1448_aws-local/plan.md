@@ -35,6 +35,8 @@ graph LR
   S2 --> S4[S4 QueueTransport over SQS]
   S4 --> S5[S5 QueueClient over transport, SQS wired]
   S5 --> S5b[S5b failing transport, decode cases]
+  S5b --> S5c[S5c job tests without a queue]
+  S5c --> S5d[S5d retry delay by attempt, no settling attempt]
   S6[S6 streaming AttachmentStore port, 302 download]
   S2 --> S7[S7 AttachmentStoreS3 wired]
   S6 --> S7
@@ -350,6 +352,48 @@ checking `make dev` by hand in its own worktree.
     attempt settles (red at 8 ms against the 4 s delay). R12 says so (*Clarified in S5b*) and D2
     is amended. A hung SQS call during the settle holds a worker stop until the SDK's timeout.
 
+#### S5c — Job tests without a queue; a recording queue for the harnesses
+
+- **Goal:** the job suites call each job's handler directly with plain `AttemptInfo` values under
+  `TestClock`, and keep one MiniStack test per job (enqueue, worker, settled); a recording
+  `QueueClient` for tests (in `packages/testing`) records each job and encodes it with its schema,
+  forwarding nothing, and the chat and api harnesses use it, so their tests need no Docker;
+  `QueueClient.layerSqs` folds into `QueueClientSqs` (`QueueClient.layer` over
+  `QueueTransport.layerSqs`); `application/testing/queue.harness.ts`, `abandonAttempts`,
+  `runUntilDrained` and `application`'s SQS dev dependency go; the per-message outcome rules keep
+  one author, the `consume` doc, which `aws.md › Queues` points to (D1 amended: a send-only
+  fake serves tests that never consume).
+- **Blocked by:** S5b.
+- **Files:** `application/chat/{assistant-message.job,chat-title.job}{,.test}.ts`;
+  `application/testing/{queue.harness.ts,queue.fake.ts,chat.harness.ts}`,
+  `application/package.json`;
+  `packages/testing/*`; `apps/api/src/testing/api.harness.ts`, `apps/api/package.json`;
+  `packages/queue/{queue.ts,index.ts}`; `infrastructure/shared/queue.client.ts`;
+  `.claude/rules/effect-services.md` (its `layerSqs` example); `docs/knowledge/aws.md` (Queues).
+- **Test first:** the job suites on the handler with `AttemptInfo` under `TestClock` — red until
+  the handler is reachable without a queue; the recording queue fails a job that does not encode.
+- **Verify:** `make check`; the chat, delete-chat, send-message and api test files start no
+  container.
+- **Status:** todo
+
+#### S5d — Retry delay by attempt; no settling attempt
+
+- **Goal:** `QueueDefinition.retryDelay: (attempt) => Duration.Input` replaces `retrySchedule` and
+  `replayRetryDelay`; `assistant-message` drops its settling attempt: the last reply attempt
+  writes `failed` on any outcome but success, an interrupt included, in an exit handler that
+  runs to its end, and its `maxReceiveCount` goes from 4 to 3 in the inventory; the attempt roles,
+  `failStoredReply` and `replyAttempts` go (amends `chat-core` R18, R19 and D23; D1, D3 and the
+  settling-attempt row of Risks).
+- **Blocked by:** S5c.
+- **Files:** `packages/queue/{queue.ts,queue.test.ts}`; `infrastructure/chat/chat.queue.ts`;
+  `packages/aws` (the inventory's `maxReceiveCount`); `application/chat/{assistant-message.job,
+  chat-title.job}{,.test}.ts`; `docs/knowledge/aws.md` (Queues).
+- **Test first:** Seam 1 — a failing handler retries after `retryDelay(attempt)` for each attempt;
+  the `assistant-message` handler on its last attempt failing, or interrupted, leaves the reply
+  `failed`; the inventory agreement test with `maxReceiveCount` 3.
+- **Verify:** `make check`.
+- **Status:** todo
+
 #### S6 — A streaming `AttachmentStore` and a redirecting download
 
 - **Goal:** the port of `architecture.md › Contracts` (`insert` from a `Stream` returning
@@ -569,11 +613,11 @@ checking `make dev` by hand in its own worktree.
 | R6 | S7 |
 | R7 | S2 (rules), S7 (tag, `keep`), S8 |
 | R8 | S4, S5 |
-| R9 | S5 |
+| R9 | S5, S5c |
 | R10 | S4, S5 |
-| R11 | S5 |
-| R12 | S5, S5b |
-| R13 | S4, S5 |
+| R11 | S5, S5d |
+| R12 | S5, S5b, S5d |
+| R13 | S4, S5, S5d |
 | R14 | S5, S5b |
 | R15 | S1, S2 |
 | R16 | S2 |
