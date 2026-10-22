@@ -46,6 +46,8 @@ graph LR
   S7b --> S11
   S5d --> S12[S12 review fixes after verification]
   S7b --> S12
+  S11 --> S13[S13 polish after verification run 2]
+  S12 --> S13
   S2 --> S9[S9 isolated worktrees run the stack]
   S2 --> S10[S10 AWS clients from AwsConfig]
   S9 --> S5
@@ -761,6 +763,25 @@ checking `make dev` by hand in its own worktree.
     testcontainers. `application/testing/queue.harness.ts` and the queue suite's layer stay.
   - Files beyond the list: `packages/CLAUDE.md`, `packages/config/{ministack.ts,index.ts}`,
     `packages/testing/{package.json,tsconfig.json}`, `bun.lock`.
+
+#### S13 — Polish after verification run 2
+
+- **Goal:** the judgement calls of `/ticket-verify` run 2's Standards review, each fixed or
+  declined with a one-line reason in the report: `run` and `settle` build the attempt info once;
+  `Received extends OutgoingMessage` gets a base name that reads both ways; `resources.test.ts`
+  names its source filter for what it matches, uses `String` helpers and no nested `await`; the
+  repeated "a retry keeps its delay" sentence has one author; `packages/CLAUDE.md` states the
+  constraint without the rejected alternative. Run 1's six open calls (`queue.harness.ts`'s
+  shape, `buildStage`'s verb, `AttachmentKvS3`, `static readonly handle`, `QueueClient.layer`
+  outside `{ make }`, the top-level throw in `deployment/local/ministack.ts`) get the same
+  treatment.
+- **Blocked by:** S11, S12.
+- **Files:** `packages/queue/{queue.ts,queue.transport.ts}`,
+  `infrastructure/shared/resources.test.ts`, `packages/CLAUDE.md`, and whichever of run 1's six
+  the step fixes.
+- **Test first:** none at a Seam: a refactor under the existing suites.
+- **Verify:** `make check`.
+- **Status:** todo
 
 ## Requirement coverage
 
