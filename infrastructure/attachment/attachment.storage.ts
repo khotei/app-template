@@ -225,8 +225,9 @@ export const AttachmentStoreS3 = Layer.effect(
     )
 
     const tagCompleted = (id: AttachmentId) =>
-      // MiniStack ignores `Tagging` on the create; outside the upload's scope, since an abort
-      // cannot remove a completed object.
+      // AWS applies `Tagging` on `CreateMultipartUpload` atomically, MiniStack ignores it, so this
+      // repeats the tag. Outside the upload's scope, since an abort cannot remove a completed
+      // object.
       s3.putObjectTagging({ ...buildObjectRef(id), Tagging: { TagSet: unboundTagSet } }).pipe(
         Effect.orDie,
         Effect.onError(() => remove(id)),

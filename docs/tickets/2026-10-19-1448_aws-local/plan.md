@@ -366,7 +366,30 @@ checking `make dev` by hand in its own worktree.
 - **Verify:** `make check`; by hand, `make up && make dev`: upload, open the image (the browser
   follows the `302` to `localhost:4566`), send it, the worker's prompt holds it; delete the chat
   and `aws s3 ls` (or the SDK) shows no object; `.data/store` holds no attachment bytes.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Landed in five rounds (S7.1–S7.5), built in its own worktree (N=2) beside S5. `make check`:
+    336 tests. About 550 changed lines, over the ~400 limit; the user agreed to keep one step.
+    By hand on MiniStack: a 9 MiB upload, the `302` followed to the bucket with the bytes, media
+    type and `filename*` disposition, a message with the file reaching `completed`, and an empty
+    bucket and a `404` after the delete. Not checked: opening the URL in a real browser (`curl -L`
+    followed it), and the worker's prompt itself (the stub model hides it; the adapter read the
+    bytes back with the same `.env`).
+  - `AttachmentStoreS3` lives in `attachment.storage.ts` beside the KV adapter, not in
+    `attachment.storage.s3.ts`: `naming.md` allows one role suffix, and the test file then mirrors
+    one source.
+  - `url` heads the object before presigning (D6 amended), closing S6's open question.
+  - A multipart upload is tagged at the create and again after the complete, outside the upload's
+    scope; a failing second tag deletes the object (D9 amended). MiniStack ignores the first, so
+    only ticket 9's run on AWS shows the atomic tag. Three narrower windows where an object can
+    outlive a failed `insert` are in Risks with what covers them.
+  - `keep` is a no-op for an id without bytes, as on KV, so S8's bind cannot fail on a record
+    without bytes; the port doc and Contracts say so.
+  - `ApiHttp` no longer provides attachments: `ApiLayer` provides `AttachmentKvS3` and
+    `apps/api/src/testing/api.harness.ts` (beyond the file list) `AttachmentKv`, so the api tests
+    stay off Docker.
+  - Left to `/ticket-verify`: R1's "no single 10 MB buffer" (the test streams 64 KiB chunks but
+    does not measure memory) and R6's worker test with a recorded `file` part.
 
 #### S8 — Unbound attachments expire
 

@@ -81,8 +81,8 @@ and provides its endpoint; `+ stage.fixture.ts`, a fresh `test-<random>` stage p
 + infrastructure/shared/aws.client.ts        S3Service and SQSService layers from AwsConfig
                                              (forcePathStyle when an endpoint is set)  (D11)
 ~ infrastructure/shared/queue.client.ts      QueueClientSqs replaces QueueClientSqlite
-+ infrastructure/attachment/attachment.storage.s3.ts   AttachmentStoreS3            (D6–D8)
-~ infrastructure/attachment/attachment.storage.ts      AttachmentStoreKv on the new port
+~ infrastructure/attachment/attachment.storage.ts      AttachmentStoreKv on the new port;
+                                                       AttachmentStoreS3 beside it (D6–D8)
 ~ infrastructure/chat/chat.queue.ts          name and maxAttempts from the inventory     (D4)
 + infrastructure/shared/resources.test.ts       the inventory agreement test               (D4)
 ```
@@ -167,7 +167,8 @@ class AttachmentStore extends Context.Service<AttachmentStore, {
   /** A URL that serves the bytes with the stored media type and inline disposition; none for an
    *  id without bytes. */
   readonly url: (id: AttachmentId) => Effect<Option<URL>>
-  /** Clears the unbound mark, so lifecycle never collects it; idempotent. */
+  /** Clears the unbound mark, so lifecycle never collects it; idempotent, and a no-op for an id
+   *  without bytes. */
   readonly keep: (id: AttachmentId) => Effect<void>
   readonly delete: (id: AttachmentId) => Effect<void>                 // idempotent
 }>() {}
@@ -300,7 +301,10 @@ GET /attachments/:attachmentId/download
   URL (two download paths). *Amended in S6:* `url` returns `Option<URL>`, `none` for an id without
   bytes, so `download` answers `404` rather than a URL to nothing; the S3 adapter (S7) needs a
   `HeadObject` for it or a looser promise, decided there. Browsers refuse to follow a redirect to
-  a `data:` URL, so between S6 and S7 a download opens only through `curl` (Risks).
+  a `data:` URL, so between S6 and S7 a download opens only through `curl` (Risks). *Amended in
+  S7:* the S3 adapter heads the object (`HeadObject`) before presigning, one request per
+  download, so the promise holds; the adapter sits in `attachment.storage.ts` beside the KV one,
+  and the api harness keeps `AttachmentKv` while `ApiLayer` provides `AttachmentKvS3`.
 - **D14 — An upload request is all or nothing: a failing file deletes the ones stored before it.**
   Streaming writes each file before the next part is read, so a refusal of a later part (`413`,
   `415`, `400`) or a failed write finds earlier files stored; `chat-core` D8 buffered every part
@@ -330,6 +334,9 @@ GET /attachments/:attachmentId/download
   (round 3, C1).* *Amends feature R7 and its acceptance.* *Rejected:* a sweeper job (needs a time
   index, and SQS delays stop at 15 min); copying to a `bound/` prefix at bind (up to 10 MB copied
   per attachment); a local byte sweeper (lists and reads tags of every object to imitate S3).
+  *Amended in S7:* a multipart upload carries `Tagging` on `CreateMultipartUpload` (atomic on AWS)
+  and is tagged again by `PutObjectTagging` after the complete, since MiniStack ignores the first;
+  that second call runs outside the upload's scope, and its failure deletes the object.
 - **D10 — Credentials come from the SDK's default provider chain, not from `Config`.** On Lambda
   or ECS that is the role, whose session token rotates; locally `.env` holds
   `AWS_ACCESS_KEY_ID="test"` and `AWS_SECRET_ACCESS_KEY="test"`, which MiniStack accepts. Only our
@@ -394,6 +401,7 @@ GET /attachments/:attachmentId/download
 | Between S6 and S7 the dev download redirects to a `data:` URL, which browsers do not follow | dev only, for one step; `curl -i` shows the `302`; S7 redirects to MiniStack |
 | A record whose bytes are gone can still be bound; the worker skips its file | `download` answers `404` (D6); S8's expiry removes unbound records |
 | An expired unbound record that is never touched stays in the dev store | dev only (the store is `.data/`, reset by `make reset`); ticket 4 sweeps with SQL |
+| An S3 object can outlive a failed `insert`: an interrupt after the multipart complete and before the second tag call starts, an interrupt during `CompleteMultipartUpload` (the abort then finds no upload), or a failing delete after a failed tag (which also yields two defects) | `AttachmentService.upload` deletes every tracked id on any failure (D14); on AWS the object is tagged `unbound` from `CreateMultipartUpload`, so the lifecycle rule collects it (D9) |
 | A crash between `keep` and the bind leaves an untagged, unbound object forever | costs storage only; ticket 4's sweep can list orphans by key against the table |
 | `make test` and CI now need Docker | CI's `ubuntu-latest` has Docker 28; `docs/knowledge/aws.md` says so; non-AWS files run without it when filtered |
 | The enqueue-after-insert gap of `chat-core` remains (a job lost if `send` fails after the write) | inherited, owned by ticket 4's outbox, which publishes through the SQS layer |

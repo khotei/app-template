@@ -35,8 +35,8 @@ An `up` that fails on the health check leaves the container in the stack's state
 destroys it, and the next `make up` starts afresh.
 
 `AWS_REGION`, `AWS_ENDPOINT_URL` and `STAGE` are read through `AwsConfig` in
-`@app-template/config`; today the provisioner and `ministack.ts` are its only readers, and the
-apps still run on the file store and the SQLite queue without `make up`. Credentials never pass
+`@app-template/config`; the provisioner, `ministack.ts` and the apps' S3 client read it, so the
+apps need `make up` for attachments, while the queue still runs on SQLite. Credentials never pass
 through it: the SDK's default provider chain reads `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
 from `.env` locally (any value satisfies MiniStack) and the role on AWS, whose session token
 rotates. With an endpoint set, S3 uses path-style addressing; without one, the SDK's own

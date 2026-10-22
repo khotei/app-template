@@ -271,7 +271,7 @@ describe('AttachmentStoreS3', () => {
         )
 
         assert.strictEqual(Result.getOrUndefined(Cause.findDefect(cause)), taggingBroken)
-        assert.strictEqual(Cause.prettyErrors(cause).length, 1)
+        assert.lengthOf(cause.reasons, 1)
         assert.deepStrictEqual(yield* listLeftovers(unknown), { objects: [], uploads: [] })
       }),
     )
