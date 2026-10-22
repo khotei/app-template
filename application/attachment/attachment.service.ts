@@ -53,6 +53,10 @@ class BindableAttachments {
 
 export type { BindableAttachments }
 
+/**
+ * An attachment unbound for `unboundLifetime` is not found, and is deleted when met; `get`,
+ * `download` and `delete` delete it under its owner's `UserLock`, so their caller must not hold it.
+ */
 export class AttachmentService extends Context.Service<
   AttachmentService,
   {
@@ -64,37 +68,23 @@ export class AttachmentService extends Context.Service<
       userId: UserId,
       files: Stream.Stream<AttachmentUpload<E>, E>,
     ) => Effect.Effect<ReadonlyArray<Attachment>, E>
-    /**
-     * Finds the user's attachment, bound or not.
-     *
-     * An attachment unbound for `unboundLifetime` is not found, and is deleted under its owner's
-     * `UserLock`, so the caller must not hold it.
-     */
+    /** Finds the user's attachment, bound or not. */
     readonly get: (
       userId: UserId,
       id: AttachmentId,
     ) => Effect.Effect<Attachment, AttachmentNotFoundError>
-    /**
-     * An attachment unbound for `unboundLifetime` is not found, and is deleted under its owner's
-     * `UserLock`, so the caller must not hold it.
-     */
     readonly download: (
       userId: UserId,
       id: AttachmentId,
     ) => Effect.Effect<AttachmentDownload, AttachmentNotFoundError>
-    /**
-     * Removes the user's attachment while no message holds it.
-     *
-     * An attachment unbound for `unboundLifetime` is not found, and is deleted under its owner's
-     * `UserLock`, so the caller must not hold it.
-     */
+    /** Removes the user's attachment while no message holds it. */
     readonly delete: (
       userId: UserId,
       id: AttachmentId,
     ) => Effect.Effect<void, AttachmentNotFoundError | AttachmentBoundError>
     /**
-     * Run it under the user's `UserLock`. An attachment unbound for `unboundLifetime` is not
-     * found; the user's own is deleted, another user's is left for its owner's next request.
+     * Run it under the user's `UserLock`; an expired attachment of another user is refused but
+     * left for its owner's next request.
      */
     readonly findBindable: (
       userId: UserId,
@@ -163,46 +153,30 @@ export class AttachmentService extends Context.Service<
       )
     })
 
-    // Expired attachments read as absent and are deleted when met, since no sweep reaches them.
-    const findRemovingExpired = Effect.fnUntraced(function* (
-      ids: ReadonlyArray<AttachmentId>,
-      deleteExpired: (expired: Arr.NonEmptyReadonlyArray<Attachment>) => Effect.Effect<void>,
-    ) {
-      const found = yield* attachments.selectByIds(ids)
+    // Re-read under the owner's lock, which a send holds while it binds: a bound survivor wins.
+    const deleteIfStillExpired = Effect.fnUntraced(
+      function* (attachment: Attachment) {
+        const found = yield* attachments.selectById(attachment.id)
+        const now = yield* DateTime.now
+
+        if (!Option.exists(found, (current) => isExpired(current, now))) return found
+        yield* deleteByIds([attachment.id])
+        return Option.none<Attachment>()
+      },
+      (effect, attachment) => userLock.withPermit(effect, attachment.userId),
+    )
+
+    const findOrExpire = Effect.fnUntraced(function* (id: AttachmentId) {
+      const found = yield* attachments.selectById(id)
       const now = yield* DateTime.now
 
-      const [expired, live] = Arr.partition(
-        found,
-        Result.liftPredicate((attachment: Attachment) => isExpired(attachment, now), identity),
-      )
-      if (Arr.isReadonlyArrayNonEmpty(expired)) yield* deleteExpired(expired)
-      return live
+      const expired = Option.filter(found, (attachment) => isExpired(attachment, now))
+      if (Option.isNone(expired)) return found
+      return yield* deleteIfStillExpired(expired.value)
     })
 
-    // Re-read under the owner's lock: a send holding it may have bound the attachment since.
-    const deleteIfExpired = (attachment: Attachment) =>
-      userLock.withPermit(
-        Effect.gen(function* () {
-          const found = yield* attachments.selectById(attachment.id)
-          const now = yield* DateTime.now
-
-          if (Option.exists(found, (current) => isExpired(current, now))) {
-            yield* deleteByIds([attachment.id])
-          }
-        }),
-        attachment.userId,
-      )
-
-    const findOneRemovingExpired = (id: AttachmentId) =>
-      Effect.map(
-        findRemovingExpired([id], (expired) =>
-          Effect.forEach(expired, deleteIfExpired, { discard: true }),
-        ),
-        Arr.head,
-      )
-
     const get = Effect.fn('AttachmentService.get')(function* (userId: UserId, id: AttachmentId) {
-      const found = yield* findOneRemovingExpired(id)
+      const found = yield* findOrExpire(id)
       return yield* ensureFound(found, isOwnedBy(userId), () => new AttachmentNotFoundError({ id }))
     })
 
@@ -221,7 +195,7 @@ export class AttachmentService extends Context.Service<
       userId: UserId,
       id: AttachmentId,
     ) {
-      const found = yield* findOneRemovingExpired(id)
+      const found = yield* findOrExpire(id)
       yield* ensureBindable(found, { id, userId })
 
       yield* attachments.deleteByIds([id])
@@ -235,10 +209,19 @@ export class AttachmentService extends Context.Service<
       userId: UserId,
       ids: ReadonlyArray<AttachmentId>,
     ) {
-      const stored = yield* findRemovingExpired(ids, (expired) =>
-        deleteByIds(Arr.map(Arr.filter(expired, isOwnedBy(userId)), (attachment) => attachment.id)),
+      const stored = yield* attachments.selectByIds(ids)
+      const now = yield* DateTime.now
+
+      const [expired, live] = Arr.partition(
+        stored,
+        Result.liftPredicate((attachment: Attachment) => isExpired(attachment, now), identity),
       )
-      const found = new Map(Arr.map(stored, (attachment) => [attachment.id, attachment]))
+      const ownExpired = Arr.filter(expired, isOwnedBy(userId))
+      if (Arr.isReadonlyArrayNonEmpty(ownExpired)) {
+        yield* deleteByIds(Arr.map(ownExpired, (attachment) => attachment.id))
+      }
+
+      const found = new Map(Arr.map(live, (attachment) => [attachment.id, attachment]))
 
       const bindable = yield* Effect.forEach(ids, (id) =>
         ensureBindable(Option.fromUndefinedOr(found.get(id)), { id, userId }),
