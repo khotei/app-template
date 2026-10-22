@@ -3,30 +3,48 @@ import { fileURLToPath } from 'node:url'
 import { Glob } from 'bun'
 
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, Duration, Option, Predicate, type Schema } from 'effect'
+import { Array as Arr, Duration, Option, Predicate, Record as Rec } from 'effect'
 
 import { resources } from '@app-template/aws'
 import { unboundLifetime } from '@app-template/domain/attachment'
-import type { QueueDefinition } from '@app-template/queue'
 
 const workspace = resolve(fileURLToPath(import.meta.url), '../..')
 
-const isQueueDefinition = (value: unknown): value is QueueDefinition<Schema.Top> =>
-  Predicate.isReadonlyObject(value) &&
-  Predicate.isString(value.name) &&
-  Predicate.isNumber(value.maxAttempts) &&
-  Predicate.hasProperty(value, 'schema')
+const scanWorkspace = (pattern: string) =>
+  Array.fromAsync(new Glob(pattern).scan({ cwd: workspace, absolute: true }))
 
-const loadDefinitions = async (): Promise<ReadonlyArray<QueueDefinition<Schema.Top>>> => {
-  const files = await Array.fromAsync(
-    new Glob('**/*.queue.ts').scan({ cwd: workspace, absolute: true }),
+const hasDefinitionKeys = Predicate.and(
+  Predicate.hasProperty('name'),
+  Predicate.and(Predicate.hasProperty('maxAttempts'), Predicate.hasProperty('schema')),
+)
+
+const isQueueDefinition = Predicate.compose(
+  hasDefinitionKeys,
+  Predicate.Struct({ name: Predicate.isString, maxAttempts: Predicate.isNumber }),
+)
+
+const loadDefinitions = async () => {
+  const modules = await Promise.all(
+    Arr.map(await scanWorkspace('**/*.queue.ts'), (file) => import(file)),
   )
-  const modules = await Promise.all(files.map((file) => import(file)))
   return Arr.flatMap(modules, (module) => Arr.filter(Object.values(module), isQueueDefinition))
 }
 
+const isTest = (file: string) => file.endsWith('.test.ts')
+const isDependency = (file: string) => file.includes('/node_modules/')
+const isAdapterSource = Predicate.not(Predicate.or(isTest, isDependency))
+
+const loadAdapterSources = async () =>
+  Promise.all(
+    Arr.map(Arr.filter(await scanWorkspace('**/*.ts'), isAdapterSource), (file) =>
+      Bun.file(file).text(),
+    ),
+  )
+
 const definitions = await loadDefinitions()
+const adapterSources = await loadAdapterSources()
 const inventory = Object.values(resources.queues)
+const buckets = Arr.map(Rec.toEntries(resources.buckets), ([key, { name }]) => ({ key, name }))
 
 describe('the inventory and the queue definitions agree', () => {
   it.each(definitions)(
@@ -48,6 +66,18 @@ describe('the inventory and the queue definitions agree', () => {
     assert.isTrue(
       Arr.some(definitions, (definition) => definition.name === queue.name),
       `queue '${queue.name}' has no definition in infrastructure/**/*.queue.ts`,
+    )
+  })
+})
+
+describe('the inventory and the bucket adapters agree', () => {
+  it.each(buckets)('inventory bucket $name is addressed by an adapter', ({ key, name }) => {
+    const address = new RegExp(String.raw`\bresources\.buckets\.${key}\b`)
+
+    assert.isTrue(
+      Arr.some(adapterSources, (source) => address.test(source)),
+      `bucket '${name}' is addressed by no code: no infrastructure source reads ` +
+        `resources.buckets.${key}`,
     )
   })
 })

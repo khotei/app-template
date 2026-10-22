@@ -50,7 +50,7 @@ carrying its logical `name`. Physical names are `buildResourceName(stage, name)`
 | Resource | Carries | Provisioned as |
 |---|---|---|
 | bucket `attachments` | `lifecycle.unboundExpirationDays`, `lifecycle.abortIncompleteUploadDays` | the bucket and two lifecycle rules: objects carrying `unboundTag` (`unbound=true`) expire; incomplete multipart uploads are aborted. |
-| queue `assistant-message`, `chat-title` | `maxReceiveCount` | its dead-letter queue first, named by `buildDeadLetterName` from the physical name (`app-template-<stage>-<name>-dlq`), then the queue with a `RedrivePolicy` to it. A queue definition in `infrastructure` reads its `name` and `maxAttempts` from here; `infrastructure/shared/resources.test.ts` fails when they disagree. |
+| queue `assistant-message`, `chat-title` | `maxReceiveCount` | its dead-letter queue first, named by `buildDeadLetterName` from the physical name (`app-template-<stage>-<name>-dlq`), then the queue with a `RedrivePolicy` to it. A queue definition in `infrastructure` reads its `name` and `maxAttempts` from here; `infrastructure/shared/aws.client.test.ts` fails when they disagree. |
 
 `provision(inventory, stage)` is idempotent: an existing bucket gets its lifecycle rules re-applied,
 and `CreateQueue` on an identical queue succeeds. Two AWS behaviours shape it: a repeated
@@ -64,7 +64,9 @@ reset`; on AWS, Pulumi (the deploy ticket).
 
 1. Add the entry to `resources.ts`; a queue's dead-letter queue is derived, not listed.
 2. For a queue, add its definition in `infrastructure/<entity>/<entity>.queue.ts`, reading `name`
-   and `maxAttempts` from the entry (`make test` fails until both sides agree).
+   and `maxAttempts` from the entry (`make test` fails until both sides agree). For a bucket, the
+   adapter that uses it reads it as `resources.buckets.<key>`; `make test` fails while no
+   `infrastructure` source does.
 3. `make up` creates it locally; `provision.test.ts` reads it back.
 
 ## Attachments
@@ -89,7 +91,7 @@ The api and the worker run on `AttachmentKvS3`, so `.data/store` holds no attach
   `domain/attachment`) reads as not found everywhere; no read deletes it, since a delete on read
   would race a send binding it. Its object goes by the bucket's rule, which acts after
   `unboundExpirationDays` (S3 rounds up to the next midnight UTC);
-  `infrastructure/shared/resources.test.ts` keeps those days no shorter than `unboundLifetime`, so
+  `infrastructure/shared/aws.client.test.ts` keeps those days no shorter than `unboundLifetime`, so
   nothing still bindable loses its bytes. Its record stays in the key-value store, which cannot be
   listed, until records move to SQL and a sweep removes it. Locally the object stays as well, since
   MiniStack never runs the rule ([Tests on Docker](#tests-on-docker)).
