@@ -276,9 +276,37 @@ dropped (D5).
   twice succeeds. Seam 5 — `download` for the owner is `302` with the store's `Location`, for
   another user `404 AttachmentNotFound` without `Location`; an 11 MB streamed file is `413` and
   nothing is stored.
-- **Verify:** `make check`; by hand, `make dev`: an uploaded image opens in the browser through
-  the `data:` redirect (dev still runs the KV store until S7).
-- **Status:** todo
+- **Verify:** `make check`; by hand, `make dev`: `curl -i` on an uploaded image's download shows
+  `302` with a `data:` `Location` (browsers refuse to follow a redirect to `data:`, so opening it
+  in the browser waits for S7).
+- **Status:** done
+- **Findings:**
+  - Landed in four rounds (S6.1–S6.4). `make check`: 313 tests. The by-hand check was not run:
+    the step was built in a parallel worktree, where `make dev` is off limits (shared ports);
+    Seam 5 covers the `302` and its `Location`.
+  - Streaming stores a file before the next part of the request is read, so a later refusal
+    (`413`, `415`, `400`) now finds earlier files already stored. `AttachmentService.upload` takes
+    the request's files as one `Stream` and is all or nothing: the ids are tracked before each
+    write, and any failure or interrupt deletes every tracked id (D14, replacing `chat-core` D8's
+    buffer-first order). A test with a repository whose `insert` dies proves the bytes go too.
+  - `AttachmentStore.url` returns `Option<URL>`, `none` for an id without bytes, so `download`
+    answers `404` instead of a URL to nothing (D6 amended). A record without bytes can still be
+    bound and is skipped by the worker; S8's expiry is where such records go.
+  - New shapes: `AttachmentMeta` (`mediaType`, `fileName`, all the store gets beside the bytes),
+    `AttachmentDownload { attachment, url }`, `ChatFile` in `infrastructure/chat/chat.llm.ts` for
+    the prompt's files; `decodeUpload` in the api replaces `bufferFile`.
+  - The api's `inline` `Content-Disposition` builder goes: the store writes the disposition
+    (D8), so S7 owns it and its non-ASCII case (`filename*`); S7's test first adds a non-ASCII
+    name.
+  - S7 must answer `url` with `none` for a missing object: presigning does not look, so the S3
+    adapter needs a `HeadObject` first or the contract a looser promise; decided there.
+  - The api's download test compares `Location` with a literal `data:` URL, an independent
+    expectation that breaks if the KV adapter's encoding changes.
+  - Files beyond the list: `infrastructure/chat/chat.llm.ts`, `infrastructure/{package.json,
+    tsconfig.json}` (`@app-template/testing` as dev), `packages/testing/{stream.ts,index.ts}`
+    (`breakAfter`, a stream cut part-way), `application/testing/chat.harness.ts` (the shared
+    `upload` helper), `application/chat/assistant-message.job.test.ts`, and
+    `domain/attachment/attachment.model.ts`; `apps/api/src/http.test.ts` was not touched.
 
 #### S7 — `AttachmentStoreS3` in the apps
 

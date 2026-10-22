@@ -23,6 +23,7 @@ export class AttachmentRepository extends Context.Service<
     readonly selectByIds: (
       ids: ReadonlyArray<AttachmentId>,
     ) => Effect.Effect<ReadonlyArray<Attachment>>
+    /** Deletes the attachments found; unknown ids are skipped. */
     readonly deleteByIds: (ids: ReadonlyArray<AttachmentId>) => Effect.Effect<void>
   }
 >()('@app-template/domain/attachment/AttachmentRepository') {}

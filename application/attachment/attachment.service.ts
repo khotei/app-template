@@ -124,18 +124,17 @@ export class AttachmentService extends Context.Service<
       userId: UserId,
       files: Stream.Stream<AttachmentUpload<E>, E>,
     ) {
-      const reserved = yield* Ref.make(Arr.empty<AttachmentId>())
-      // An id is reserved before its bytes are written, so a failure or an interrupt at any point
-      // after that finds it; deleting an id that has no bytes yet is a no-op.
-      const reserveId = Effect.tap(randomAttachmentId, (id) => Ref.update(reserved, Arr.append(id)))
-      const deleteReserved = Effect.flatMap(Ref.get(reserved), deleteByIds)
+      const tracked = yield* Ref.make(Arr.empty<AttachmentId>())
+      // Tracked before the write, not after the insert: a lost record still deletes the bytes.
+      const trackId = Effect.tap(randomAttachmentId, (id) => Ref.update(tracked, Arr.append(id)))
+      const deleteTracked = Effect.flatMap(Ref.get(tracked), deleteByIds)
 
       return yield* files.pipe(
         Stream.mapEffect((file) =>
-          Effect.flatMap(reserveId, (id) => uploadFile(file, { id, userId })),
+          Effect.flatMap(trackId, (id) => uploadFile(file, { id, userId })),
         ),
         Stream.runCollect,
-        Effect.onError(() => deleteReserved),
+        Effect.onError(() => deleteTracked),
       )
     })
 

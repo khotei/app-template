@@ -87,7 +87,8 @@ and provides its endpoint; `+ stage.fixture.ts`, a fresh `test-<random>` stage p
 + infrastructure/shared/resources.test.ts       the inventory agreement test               (D4)
 ```
 
-**`application/attachment`**: `upload` takes a `Stream`; `download` returns `{ attachment, url }`;
+**`application/attachment`**: `upload` takes the request's files as one `Stream`, all or nothing
+(D14); `download` returns `{ attachment, url }`;
 `bind` calls `store.keep` before the repository update; every read of an unbound attachment
 applies `isExpired` (D9).
 
@@ -158,14 +159,20 @@ QueueClient.layerSqs({ queueName, lockExpiration, lockRefreshInterval }) // need
 class AttachmentStore extends Context.Service<AttachmentStore, {
   /** Writes the bytes marked unbound; fails with the stream's error and leaves nothing behind. */
   readonly insert: <E>(id: AttachmentId, content: Stream<Uint8Array, E>,
-    meta: { mediaType: MediaType; fileName: FileName }) => Effect<FileSize, E>
+    meta: AttachmentMeta /* { mediaType, fileName } */) => Effect<FileSize, E>
   readonly select: (id: AttachmentId) => Effect<Option<Uint8Array>>   // the worker's prompt
-  /** A URL that serves the bytes with the stored media type and inline disposition. */
-  readonly url: (id: AttachmentId) => Effect<URL>
+  /** A URL that serves the bytes with the stored media type and inline disposition; none for an
+   *  id without bytes. */
+  readonly url: (id: AttachmentId) => Effect<Option<URL>>
   /** Clears the unbound mark, so lifecycle never collects it; idempotent. */
   readonly keep: (id: AttachmentId) => Effect<void>
   readonly delete: (id: AttachmentId) => Effect<void>                 // idempotent
 }>() {}
+// AttachmentRepository.deleteByIds skips unknown ids (the upload's cleanup relies on it).
+// AttachmentService.upload(userId, files: Stream<AttachmentUpload<E>, E>)
+//   → Effect<ReadonlyArray<Attachment>, E>: all or nothing (D14).
+// AttachmentService.download(userId, id) → AttachmentDownload { attachment, url };
+//   AttachmentNotFound when the store has no URL.
 // Store failures die, as in chat-core (the KV policy); only the stream's E is typed.
 // AttachmentStoreS3: key `attachments/<id>`; Tagging `unbound=true`; ContentType;
 //   ContentDisposition `inline; filename*=UTF-8''<percent-encoded>`; url = presigned GetObject,
@@ -277,7 +284,19 @@ GET /attachments/:attachmentId/download
   serves the bytes and media type through `fetch` too, so one contract suite holds both honestly.
   *Rejected:* a generic blob package (one real user: a hypothetical seam); presigning in
   `application` (puts S3 into the service); an api route that serves bytes when the store has no
-  URL (two download paths).
+  URL (two download paths). *Amended in S6:* `url` returns `Option<URL>`, `none` for an id without
+  bytes, so `download` answers `404` rather than a URL to nothing; the S3 adapter (S7) needs a
+  `HeadObject` for it or a looser promise, decided there. Browsers refuse to follow a redirect to
+  a `data:` URL, so between S6 and S7 a download opens only through `curl` (Risks).
+- **D14 — An upload request is all or nothing: a failing file deletes the ones stored before it.**
+  Streaming writes each file before the next part is read, so a refusal of a later part (`413`,
+  `415`, `400`) or a failed write finds earlier files stored; `chat-core` D8 buffered every part
+  first, so a refusal stored nothing. `AttachmentService.upload` takes the request's files as one
+  `Stream`, tracks each id before its bytes are written, and on any failure or interrupt deletes
+  every tracked id through `deleteByIds`; deleting an id without bytes or record is a no-op.
+  *Replaces `chat-core` D8.* *Rejected:* keeping the earlier files (a refused request leaves attachments the
+  client never learns of, against R2); tracking an id after its record is written (a failure
+  between the byte write and the record leaves bytes no cleanup knows).
 - **D7 — The upload sink is our own: one `PutObject` up to 5 MiB, otherwise multipart in 5 MiB
   parts, aborted on failure or interrupt.** With the 10 MiB cap that is at most two parts. *Your
   OK pending (round 3, C2).* *Rejected:* `MultipartUpload.uploadObject` from `@effect-aws/s3@1.0.0`
@@ -354,6 +373,8 @@ GET /attachments/:attachmentId/download
 | The api later runs inside Docker and signs with `http://ministack:4566`, which the browser cannot reach (D11) | out of scope here; ticket 9 or a compose-run api adds a presign-only S3 layer on the public endpoint |
 | Restarts and deploys spend attempts (D2) | 4 and 5 attempts; the heartbeat keeps long handlers alive; `assistant-message` keeps its settling attempt |
 | The memory transport drifts from SQS | seam 2 runs one suite on both |
+| Between S6 and S7 the dev download redirects to a `data:` URL, which browsers do not follow | dev only, for one step; `curl -i` shows the `302`; S7 redirects to MiniStack |
+| A record whose bytes are gone can still be bound; the worker skips its file | `download` answers `404` (D6); S8's expiry removes unbound records |
 | An expired unbound record that is never touched stays in the dev store | dev only (the store is `.data/`, reset by `make reset`); ticket 4 sweeps with SQL |
 | A crash between `keep` and the bind leaves an untagged, unbound object forever | costs storage only; ticket 4's sweep can list orphans by key against the table |
 | `make test` and CI now need Docker | CI's `ubuntu-latest` has Docker 28; `docs/knowledge/aws.md` says so; non-AWS files run without it when filtered |

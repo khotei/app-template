@@ -43,7 +43,7 @@ const AttachmentRepositoryInsertDying = Layer.effect(
 ).pipe(Layer.provide(AttachmentRepositoryKv))
 
 const AttachmentServiceRecordLost = AttachmentService.layer.pipe(
-  Layer.provide(Layer.mergeAll(AttachmentRepositoryInsertDying, AttachmentStoreKv)),
+  Layer.provide([AttachmentRepositoryInsertDying, AttachmentStoreKv]),
   Layer.provide(CryptoTest),
   Layer.provideMerge(KeyValueStore.layerMemory),
 )
