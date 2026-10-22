@@ -70,42 +70,30 @@ reset`; on AWS, Pulumi (the deploy ticket).
 
 ## Attachments
 
-The bytes of an attachment live in the `attachments` bucket under `attachments/<id>`, written and
-served by `AttachmentStoreS3` (`infrastructure/attachment/attachment.storage.s3.ts`); its record
-stays in the key-value store. `AttachmentKvS3` bundles the two and builds the S3 client from
-`AwsConfig`, so the api and the worker run on it, and `.data/store` holds no attachment bytes. The
-api's test harness keeps `AttachmentKv`, whose `AttachmentStoreKv` keeps the bytes beside the
-record and answers `url` with a `data:` URL.
+An attachment's record stays in the key-value store; its bytes live in the `attachments` bucket
+under `attachments/<id>` (`AttachmentStoreS3` in `infrastructure/attachment/attachment.storage.ts`).
+The api and the worker run on `AttachmentKvS3`, so `.data/store` holds no attachment bytes; the
+api's test harness keeps `AttachmentKv`, whose download is a `data:` URL.
 
-- **Upload.** The request's file arrives as a stream and is never buffered whole. A file of up to
-  5 MiB is one `PutObject`; a larger one is a multipart upload in 5 MiB parts (two at most under
-  the 10 MiB cap). A part is sent only once a byte beyond it has arrived, so the last part is
-  whatever the stream ends with. A stream that fails, or an insert that is interrupted, aborts the
-  multipart upload, so neither an object nor a stray upload is left; the bucket's second lifecycle
-  rule is only the backstop for a crashed process.
-- **Headers on the object.** `ContentType` is the attachment's media type and
-  `ContentDisposition` is `inline; filename*=UTF-8''<percent-encoded name>` (RFC 8187), so any file
-  name survives and the browser shows the file rather than saving it. The download URL carries no
-  overrides: the object already says how it is served.
-- **The unbound tag.** Every new object carries `unbound=true`, the tag the expiration rule
-  matches; `keep` removes it when the attachment is bound. `PutObject` sets it with `Tagging`; a
-  multipart upload sets it with `PutObjectTagging` after the complete, because MiniStack ignores
-  `Tagging` on `CreateMultipartUpload`.
-- **Download.** `url` heads the object first, since presigning never looks and the port answers
-  none for an id without bytes; then it presigns a `GetObject` for 300 seconds, signed at the
-  Effect clock's time (so a test can sign in the past). The api answers `302` to it.
+- **Upload.** The file streams in and is never buffered whole: up to 5 MiB it is one `PutObject`,
+  above that a multipart upload in 5 MiB parts. A failing or interrupted upload is aborted, so it
+  leaves neither an object nor a stray upload; the bucket's rule that aborts incomplete uploads is
+  the backstop for a crashed process.
+- **The object says how it is served.** Its media type and an `inline` disposition with the file
+  name are written at upload, so the download URL is signed without overrides.
+- **The unbound tag.** A new object carries `unbound=true`, the tag the expiration rule matches;
+  binding the attachment removes it.
+- **Download.** The api answers `302` to a `GetObject` URL presigned for 300 seconds.
 - **The signed host.** The host is part of the signature, so the browser must reach the host the
   api signs with. With an endpoint set, S3 uses path-style addressing and the URL is
   `http://localhost:<port>/<bucket>/attachments/<id>?X-Amz-…`, which the browser reaches because
   MiniStack is published on the host. An api running inside Docker would sign with a host the
   browser cannot reach; that needs a presign-only client on the public endpoint.
-- **Failures.** An S3 failure dies, as every store failure does: only the stream's own error is
-  typed. A missing key is a value: `select` and `url` answer none, `keep` and `delete` succeed.
 
 ## Tests on Docker
 
-Tests at the AWS boundary (`packages/aws/*.test.ts`, `packages/queue/queue.transport.test.ts`)
-start one MiniStack container per test file through the `MiniStack` layer in
+Tests at the AWS boundary (`packages/aws/*.test.ts`, `packages/queue/queue.transport.test.ts`,
+`infrastructure/attachment/attachment.storage.test.ts`) start one MiniStack container per test file through the `MiniStack` layer in
 `@app-template/testing` (`testcontainers`), reach it through `AwsClientsMiniStack` from the same
 package (S3 and SQS clients on that container), provision a fresh `test-<random>` stage from
 `buildStage()`, and stop the container with the suite. So `make test` needs a running Docker

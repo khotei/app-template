@@ -1,6 +1,7 @@
 import { assert, describe, layer, type Vitest } from '@effect/vitest'
 import { S3Service } from '@effect-aws/client-s3'
 import {
+  Array as Arr,
   Clock,
   ConfigProvider,
   Deferred,
@@ -31,8 +32,11 @@ import {
   StreamBrokenError,
 } from '@app-template/testing'
 
-import { AttachmentStoreKv } from '#infrastructure/attachment/attachment.storage'
-import { AttachmentStoreS3 } from '#infrastructure/attachment/attachment.storage.s3'
+import {
+  AttachmentStoreKv,
+  AttachmentStoreS3,
+  buildObjectKey,
+} from '#infrastructure/attachment/attachment.storage'
 
 const id = AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000020')
 const unknown = AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000029')
@@ -41,7 +45,12 @@ const photo = { mediaType: MediaType.make('image/png'), fileName: FileName.make(
 /** A PNG signature followed by a zero and a 0xff byte, so a text round trip would corrupt it. */
 const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0xff])
 
-const inTwoChunks = (bytes: Uint8Array) => Stream.make(bytes.subarray(0, 4), bytes.subarray(4))
+const streamInChunks = (bytes: Uint8Array, chunkSize: number) =>
+  Stream.fromIterable(
+    Arr.makeBy(Math.ceil(bytes.length / chunkSize), (index) =>
+      bytes.subarray(index * chunkSize, (index + 1) * chunkSize),
+    ),
+  )
 
 const fetchUrl = Effect.fnUntraced(function* (url: Option.Option<URL>) {
   const found = yield* Effect.fromOption(url)
@@ -61,12 +70,12 @@ const setClockAgo = (ago: Duration.Input) =>
     Effect.flatMap((now) => TestClock.setTime(now - Duration.toMillis(ago))),
   )
 
-const contractSuite = (it: Vitest.MethodsNonLive<AttachmentStore>) => {
+const runContractSuite = (it: Vitest.MethodsNonLive<AttachmentStore>) => {
   it.effect('insert returns the size of the streamed bytes, and select returns them', () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentStore
 
-      const size = yield* attachments.insert(id, inTwoChunks(png), photo)
+      const size = yield* attachments.insert(id, streamInChunks(png, 4), photo)
 
       assert.strictEqual(size, FileSize.make(png.length))
       assert.deepStrictEqual(yield* attachments.select(id), Option.some(png))
@@ -76,7 +85,7 @@ const contractSuite = (it: Vitest.MethodsNonLive<AttachmentStore>) => {
   it.effect('url serves the bytes with the media type', () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentStore
-      yield* attachments.insert(id, inTwoChunks(png), photo)
+      yield* attachments.insert(id, streamInChunks(png, 4), photo)
       yield* setClockAgo(Duration.zero)
 
       const url = yield* attachments.url(id)
@@ -103,7 +112,7 @@ const contractSuite = (it: Vitest.MethodsNonLive<AttachmentStore>) => {
   it.effect('delete removes the bytes and succeeds again on a deleted id', () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentStore
-      yield* attachments.insert(id, inTwoChunks(png), photo)
+      yield* attachments.insert(id, streamInChunks(png, 4), photo)
 
       yield* attachments.delete(id)
       yield* attachments.delete(id)
@@ -115,7 +124,7 @@ const contractSuite = (it: Vitest.MethodsNonLive<AttachmentStore>) => {
   it.effect('keep leaves the bytes in place', () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentStore
-      yield* attachments.insert(id, inTwoChunks(png), photo)
+      yield* attachments.insert(id, streamInChunks(png, 4), photo)
 
       yield* attachments.keep(id)
       yield* attachments.keep(id)
@@ -138,19 +147,21 @@ const contractSuite = (it: Vitest.MethodsNonLive<AttachmentStore>) => {
 
 describe('AttachmentStoreKv', () => {
   layer(AttachmentStoreKv.pipe(Layer.provide(KeyValueStore.layerMemory)))((it) => {
-    contractSuite(it)
+    runContractSuite(it)
   })
 })
 
 const stage = buildStage()
 const bucket = buildResourceName(stage, resources.buckets.attachments.name)
-const locate = (attachmentId: AttachmentId) => ({
+const buildObjectRef = (attachmentId: AttachmentId) => ({
   Bucket: bucket,
-  Key: `attachments/${attachmentId}`,
+  Key: buildObjectKey(attachmentId),
 })
 
-const mebibytes = (count: number) => new Uint8Array(count * 1024 * 1024).map((_, i) => i % 251)
-const tenMebibytes = mebibytes(10)
+const buildMebibytes = (count: number) => new Uint8Array(count * 1024 * 1024).map((_, i) => i % 251)
+const tenMebibytes = buildMebibytes(10)
+/** Small chunks, so no single buffer of the file's size ever reaches the store. */
+const tenMebibytesStream = streamInChunks(tenMebibytes, 64 * 1024)
 
 const AttachmentStoreS3MiniStack = Layer.mergeAll(
   AttachmentStoreS3,
@@ -168,7 +179,7 @@ const AttachmentStoreS3MiniStack = Layer.mergeAll(
 
 const listLeftovers = Effect.fnUntraced(function* (attachmentId: AttachmentId) {
   const s3 = yield* S3Service
-  const { Bucket, Key } = locate(attachmentId)
+  const { Bucket, Key } = buildObjectRef(attachmentId)
   const objects = yield* s3.listObjectsV2({ Bucket, Prefix: Key })
   const uploads = yield* s3.listMultipartUploads({ Bucket, Prefix: Key })
   return { objects: objects.Contents ?? [], uploads: uploads.Uploads ?? [] }
@@ -176,22 +187,22 @@ const listLeftovers = Effect.fnUntraced(function* (attachmentId: AttachmentId) {
 
 const readTags = Effect.fnUntraced(function* (attachmentId: AttachmentId) {
   const s3 = yield* S3Service
-  const { TagSet } = yield* s3.getObjectTagging(locate(attachmentId))
+  const { TagSet } = yield* s3.getObjectTagging(buildObjectRef(attachmentId))
   return TagSet ?? []
 })
 
 describe('AttachmentStoreS3', () => {
   layer(AttachmentStoreS3MiniStack, { timeout: '60 seconds' })((it) => {
-    contractSuite(it)
+    runContractSuite(it)
 
-    it.effect('a 10 MiB stream is stored by a two-part multipart upload with the same bytes', () =>
+    it.effect('10 MiB in 64 KiB chunks are stored by a two-part upload with the same bytes', () =>
       Effect.gen(function* () {
         const attachments = yield* AttachmentStore
         const s3 = yield* S3Service
 
-        const size = yield* attachments.insert(id, Stream.make(tenMebibytes), photo)
+        const size = yield* attachments.insert(id, tenMebibytesStream, photo)
 
-        const { ETag } = yield* s3.headObject(locate(id))
+        const { ETag } = yield* s3.headObject(buildObjectRef(id))
         assert.strictEqual(size, FileSize.make(tenMebibytes.length))
         assert.match(ETag ?? '', /-2"$/)
         assert.deepStrictEqual(yield* attachments.select(id), Option.some(tenMebibytes))
@@ -204,7 +215,7 @@ describe('AttachmentStoreS3', () => {
         const broken = new StreamBrokenError()
 
         const error = yield* Effect.flip(
-          attachments.insert(unknown, breakAfter([mebibytes(6)], broken), photo),
+          attachments.insert(unknown, breakAfter([buildMebibytes(6)], broken), photo),
         )
 
         assert.strictEqual(error, broken)
@@ -216,7 +227,7 @@ describe('AttachmentStoreS3', () => {
       Effect.gen(function* () {
         const attachments = yield* AttachmentStore
         const firstPartSent = yield* Deferred.make<void>()
-        const stalled = Stream.make(mebibytes(6)).pipe(
+        const stalled = Stream.make(buildMebibytes(6)).pipe(
           Stream.concat(
             Stream.drain(Stream.fromEffect(Deferred.succeed(firstPartSent, undefined))),
           ),
@@ -233,7 +244,7 @@ describe('AttachmentStoreS3', () => {
 
     it.effect.each([
       { name: 'a single put', content: Stream.make(png) },
-      { name: 'a multipart upload', content: Stream.make(tenMebibytes) },
+      { name: 'a multipart upload', content: tenMebibytesStream },
     ])('insert by $name marks the object unbound, and keep clears it', ({ content }) =>
       Effect.gen(function* () {
         const attachments = yield* AttachmentStore

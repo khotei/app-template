@@ -43,7 +43,10 @@ export class AttachmentStore extends Context.Service<
      * an id without bytes.
      */
     readonly url: (id: AttachmentId) => Effect.Effect<Option.Option<URL>>
-    /** Clears the unbound mark, so lifecycle never collects the bytes; idempotent. */
+    /**
+     * Clears the unbound mark, so lifecycle never collects the bytes; idempotent, and a no-op for
+     * an id without bytes.
+     */
     readonly keep: (id: AttachmentId) => Effect.Effect<void>
     /** Idempotent. */
     readonly delete: (id: AttachmentId) => Effect.Effect<void>

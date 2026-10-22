@@ -28,10 +28,6 @@ const ApiRoutes = Layer.mergeAll(
   HttpApiScalar.layer(Api, { path: '/docs' }),
 )
 
-/**
- * The api's routes, served on an open `HttpServer`, `KeyValueStore`, `QueueClient`, attachment
- * aggregate and platform services.
- */
 export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
   Layer.provide([
     UserService.layer,
