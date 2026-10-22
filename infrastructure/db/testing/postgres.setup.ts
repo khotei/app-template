@@ -4,7 +4,7 @@ import { Effect, Layer, type Redacted } from 'effect'
 import type { TestProject } from 'vitest/node'
 
 import { postgresImage } from '@app-template/config'
-import { prepareTemplateDatabase } from '@app-template/testing'
+import { setupTemplateDatabase } from '@app-template/testing'
 
 import { Db } from '#infrastructure/db/db.client'
 import { migrateDatabase } from '#infrastructure/db/migrate'
@@ -16,7 +16,7 @@ const migrateTemplate = (url: Redacted.Redacted) =>
 export default async function setup(project: TestProject) {
   const container = await new PostgreSqlContainer(postgresImage).start()
 
-  await prepareTemplateDatabase(project, {
+  await setupTemplateDatabase(project, {
     adminUrl: container.getConnectionUri(),
     migrate: migrateTemplate,
   }).pipe(

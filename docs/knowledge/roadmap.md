@@ -189,7 +189,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Status.** In progress: [docs/tickets/2026-10-22-1915_postgres-drizzle/](../tickets/2026-10-22-1915_postgres-drizzle/feature.md).
   Its grilling departed from this entry: the outbox relays to SQS (there is no SQL queue store any
   more); `$onUpdate` is dropped, timestamps and ids stay the domain's; tests run on Testcontainers
-  only, one Postgres per `vitest` run with a database per file, PGlite rejected as a second
+  only, one Postgres per `vitest` run with a database per test, PGlite rejected as a second
   driver; the local database is an RDS instance on MiniStack created by `@pulumi/aws`, with a
   plain container as the fallback; the attachment record sweep was declined.
 

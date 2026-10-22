@@ -37,12 +37,18 @@ export const migrateDatabase = Effect.gen(function* () {
   return after - before
 })
 
-const logMigrated = (applied: number) =>
-  Effect.logInfo(applied === 0 ? 'nothing to apply' : `applied ${applied} migrations`)
+const describeApplied = (applied: number) => {
+  if (applied === 0) return 'nothing to apply'
+  return `applied ${applied} migration${applied === 1 ? '' : 's'}`
+}
+
+/** `migrateDatabase`, then one `Info` line that says how many migrations it applied. */
+export const applyMigrations = Effect.flatMap(migrateDatabase, (applied) =>
+  Effect.logInfo(describeApplied(applied)),
+)
 
 if (import.meta.main) {
-  await migrateDatabase.pipe(
-    Effect.flatMap(logMigrated),
+  await applyMigrations.pipe(
     Effect.provide([Db.layerFromConfig, MinimumLogLevelFromConfig]),
     Effect.orDie,
     Effect.runPromise,

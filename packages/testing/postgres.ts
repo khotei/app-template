@@ -29,7 +29,7 @@ const runAdmin = (url: string, statement: string) =>
  * `migrate` must close its connections before it returns: `CREATE DATABASE … TEMPLATE` refuses a
  * template that still has a session.
  */
-export const prepareTemplateDatabase = Effect.fn('prepareTemplateDatabase')(function* <E>(
+export const setupTemplateDatabase = Effect.fn('setupTemplateDatabase')(function* <E>(
   project: TestProject,
   {
     adminUrl,

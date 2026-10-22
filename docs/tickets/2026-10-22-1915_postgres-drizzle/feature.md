@@ -76,8 +76,8 @@ Postgres, one container per run.
     included. So the `rds.Instance` resource is not destroyed by `make down`.
   - SQL is logged at `Debug` only, through a small `EffectLogger` layer of our own (Drizzle's
     `EffectLogger.layer` logs at `Info`); Drizzle's cache stays `EffectCache.Default`.
-  - Tests: one Postgres container per `vitest` run, a template database migrated once, a database
-    per test file created from the template; MiniStack suites keep their container per file.
+  - Tests: one Postgres container per `vitest` run, a template database migrated once, a fresh
+    database per test created from the template; MiniStack suites keep their container per file.
   - Catalogs: `drizzle-orm` and `drizzle-kit` `1.0.0-rc.5` in a new `drizzle` namespace (one
     release train); `@effect/sql-pg` in `effect`; `@testcontainers/postgresql` in `runtime`.
 - **Facts verified on 2026-10-22.**
@@ -106,7 +106,7 @@ Postgres, one container per run.
 - The local database: `@pulumi/aws` `rds.Instance` on MiniStack with a Docker socket,
   `RDS_BASE_PORT`, `RDS_PERSIST`, a pre-pulled image, the endpoint check in `make up`;
   `make migrate`, `make migration NAME=<name>`, `make reset` extended.
-- Tests on Postgres: the shared container, the template database, a database per file.
+- Tests on Postgres: the shared container, the template database, a database per test.
 - Removal of `infrastructure/kv`, `UserLock`, `STORE_PATH`; `docs/knowledge/database.md`.
 
 ## Out of scope
@@ -217,9 +217,10 @@ Postgres, one container per run.
 ### Tests
 
 - **R20** — WHEN `make test` runs, THE SYSTEM SHALL start one Postgres container for the run,
-  migrate one template database once, and give every test file that needs a database its own
-  database created from the template, so that files run in parallel without sharing rows and no
-  test depends on `.env` or on `make up`; `make test` SHALL need Docker and nothing else.
+  migrate one template database once, and give every test that needs a database a fresh database
+  created from the template and dropped when the test ends, so that no test sees another's rows
+  and files run in parallel, and no test depends on `.env` or on `make up`; `make test` SHALL need
+  Docker and nothing else.
 - **R21** — THE repository, service, use case, job and api suites SHALL run on the Postgres
   layers the apps use, with no in-memory repository, and SHALL cover R5–R13 at the seams
   `architecture.md` names.
@@ -255,7 +256,7 @@ Postgres, one container per run.
 | R17 | insert a row, `make down`, `make up`: the row is there; `make reset`: `docker ps -a` and `docker volume ls` show no Postgres container or volume of this tree, `.data/` is gone. |
 | R18 | a worktree with `N=1`: `DATABASE_URL` on `15442`, its own container; both trees run `make dev` and send messages at once. |
 | R19 | `LOG_LEVEL="Debug" make dev-api`, one request: the log holds the SQL with `query` and `params` annotations; at `Info` the same request logs no SQL. |
-| R20 | `make test` from a shell without `.env`: one Postgres container in `docker ps` during the run, none after; the files that need a database create their own; the run passes with files in parallel. |
+| R20 | `make test` from a shell without `.env`: one Postgres container in `docker ps` during the run, none after; each test that needs a database creates its own; the run passes with files in parallel. |
 | R21 | `git grep -l layerMemory` outside `repos/` is empty; `architecture.md › Seams` names the suite for each of R5–R13 and each exists. |
 | R22 | `docs/knowledge/database.md` exists and `architecture.md` links it; `lychee --offline` passes; `naming.md › Files` lists `.entity`. |
 
@@ -283,8 +284,8 @@ Postgres, one container per run.
 - **Deleting a chat.** Foreign keys with `ON DELETE CASCADE` or the explicit steps of today
   (attachments first, so a retry finishes the cascade), given the bytes in S3 are not in the
   transaction.
-- **The test database plumbing.** How the per-file `DATABASE_URL` reaches a test under vitest 5 on
-  Bun (`globalSetup` with `provide`, or an environment variable), and how the template database
-  is built once per run.
+- **The test database plumbing.** How the URL of each test's own database reaches the test under
+  vitest 5 on Bun (`globalSetup` with `provide`, or an environment variable), and how the template
+  database is built once per run.
 - **Repository ports.** Whether `selectByUser` returns sorted (`ORDER BY updated_at DESC`) and
   `selectActiveByChat` uses the partial index, which changes the ports' doc comments.

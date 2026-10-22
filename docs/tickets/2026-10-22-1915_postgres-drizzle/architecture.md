@@ -139,7 +139,7 @@ graph LR
                                 QueueConfig + outboxPollInterval (OUTBOX_POLL_INTERVAL, default 1 s);
                                 - StoreConfig                                                               (D15)
 + packages/config/postgres.ts   postgresImage: postgres:18.6-alpine by digest (tests; the fallback container)
-+ packages/testing/postgres.ts  prepareTemplateDatabase (the setup's half); PgClientTest: a fresh database
++ packages/testing/postgres.ts  setupTemplateDatabase (the setup's half); PgClientTest: a fresh database
                                per test from the template, PgClient on it                                (D10)
 ~ packages/testing/package.json  + @effect/sql-pg
 ```
@@ -331,7 +331,7 @@ same file backend under `.data/pulumi`, so `make reset` drops both stacks' state
 ### Tests (D10)
 
 - `postgres.setup.ts` (`globalSetup`): `new PostgreSqlContainer(postgresImage).start()`, then
-  `prepareTemplateDatabase` from `@app-template/testing`, given the same program as `make migrate`:
+  `setupTemplateDatabase` from `@app-template/testing`, given the same program as `make migrate`:
   create the `template` database, migrate it and close the client, `ALTER DATABASE … is_template`,
   `provide('databaseUrl', <admin url>)`; the container stops on teardown and when the template
   fails. Every name of the protocol (the template, the key, the `test_` prefix) lives in
@@ -430,8 +430,8 @@ same file backend under `.data/pulumi`, so `make reset` drops both stacks' state
   drop; the container starts once in about 1.2 s). The `globalSetup` lives in
   `infrastructure/db/testing` because it runs the migrator; the protocol and the per-test layer
   live in `@app-template/testing` because every workspace's tests use them and they need only
-  `@effect/sql-pg`. The template is closed before the first copy (`CREATE DATABASE … TEMPLATE`
-  refuses while a session holds it). MiniStack keeps its container per file.
+  `@effect/sql-pg`; `setupTemplateDatabase`'s TSDoc states what the template needs before its
+  first copy. MiniStack keeps its container per file.
   *Rejected:* a database per file with rows scoped by owner (breaks on whole-table readers, and
   the boundary rests on discipline); `TRUNCATE` between tests (a table list to maintain, skipped
   when a test crashes, longer with every table); a rolled-back transaction per test (turns the
@@ -490,7 +490,7 @@ same file backend under `.data/pulumi`, so `make reset` drops both stacks' state
 | Two worktrees share the host's Docker, and MiniStack names the RDS container by account, region and identifier | each worktree sets its own `STAGE`, which the identifier carries |
 | The named volume survives `destroy` and resurrects data under the same identifier (and skips `initdb`, so a changed password would not apply) | `make reset` removes the volume; the password lives in `DATABASE_URL` and changes with a reset |
 | ~80 s per provider operation on the instance | paid once per `make up` from a clean state and once per `make reset`; a no-op `make up` runs no refresh |
-| `CREATE DATABASE … TEMPLATE` fails while the setup's pool is open | `prepareTemplateDatabase` requires its `migrate` to close its client before it returns; Seam 2 covers a first copy |
+| `CREATE DATABASE … TEMPLATE` fails while the setup's pool is open | `setupTemplateDatabase` requires its `migrate` to close its client before it returns; Seam 2 covers a first copy |
 | `provide`/`inject` typing (`ProvidedContext` augmentation) under the patched `tsc` was not checked | S1 adds the augmentation in `packages/testing` and `make typecheck` decides |
 | The Drizzle monorepo is large (size unknown; the clone was denied) | S1 measures `du -sh repos/drizzle`; above several times `repos/effect`, the user decides |
 | The `skipLibCheck: false` path fails on Drizzle's `.d.ts` under `exactOptionalPropertyTypes` | `tsconfig.base.json` keeps `skipLibCheck: true`, as today |

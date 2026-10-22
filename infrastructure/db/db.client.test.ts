@@ -1,12 +1,11 @@
 import { assert, describe, it } from '@effect/vitest'
 import { sql } from 'drizzle-orm'
-import { Array as Arr, Effect, Layer, type LogLevel, Option, References } from 'effect'
+import { Array as Arr, Effect, type LogLevel, Option, References } from 'effect'
 
-import { PgClientTest, recordLogs } from '@app-template/testing'
+import { recordLogs } from '@app-template/testing'
 
 import { Db } from '#infrastructure/db/db.client'
-
-const DbTest = Db.layer.pipe(Layer.provide(PgClientTest))
+import { DbTest } from '#infrastructure/db/testing/db.harness'
 
 const greet = Effect.flatMap(Db, (db) =>
   db.execute<{ greeting: string }>(sql`select ${'hello'}::text as greeting`, 'objects'),

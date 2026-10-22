@@ -49,7 +49,7 @@ paths:
   referenced it, a cycle.
 - Chain `Layer.provide` from the nearest dependency outward. `Layer.provide([a, b])` provides
   siblings that cannot feed each other, and `Layer.provideMerge` publishes internals the caller
-  should not reach.
+  should not reach, save the client a caller opens transactions on (`Db.layerFromConfig`).
 - A client never reads the environment (`SqliteClient.layerConfig` is rejected): `Config` turns
   into options in `infrastructure`, and only `@app-template/config` reads variables.
 - A combinator that returns a `Layer` runs its effect in a fiber the layer's scope owns:
