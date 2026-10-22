@@ -31,7 +31,9 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. G
    - **approve:** set the step's `Status: done` (or `blocked: <gate>` while a gate the step
      names, such as a branch, a push or a CI run, has not run yet), add its findings to `plan.md`
      and any new decision to `architecture.md`, stage the step's files, and commit with the
-     proposed message as a command of its own;
+     proposed message as a command of its own. An amendment also rewrites the decision's body,
+     Contract, Seam or Risks row it makes wrong; its note keeps only what changed and the
+     rejected alternative;
    - **feedback:** first offer to commit the tree as it stands as the current round (`S11.1`,
      code only, no `plan.md` edit), then send the feedback to the same implementer
      (`SendMessage`) as the next round, and return to 3;
@@ -95,4 +97,6 @@ contract. What a worktree owns and its ports:
   it, and run `make check` after each pick.
 - On step 5's **stop**, also run `make down` in the worktree, and keep it, its symlink and its
   branch. Remove all three, after `make down`, only once the step is approved and picked, or when
-  the user drops the step, a `BLOCKED:` one included.
+  the user drops the step, a `BLOCKED:` one included. Remove them in a command of their own,
+  never chained after a commit, and only when `git log` shows the rounds on the ticket branch and
+  the worktree's `git status --short` is empty.
