@@ -38,10 +38,17 @@ graph LR
   S2 --> S7[S7 AttachmentStoreS3 wired]
   S6 --> S7
   S7 --> S8[S8 unbound expiry]
+  S2 --> S9[S9 isolated worktrees run the stack]
+  S2 --> S10[S10 AWS clients from AwsConfig]
+  S9 --> S5
+  S9 --> S7
+  S10 --> S5
+  S10 --> S7
 ```
 
 S1 and S6 are independent and can start first; S4 and S6 can run in parallel after S2. S3 was
-dropped (D5).
+dropped (D5). S9 and S10 were added after S4 and S6 closed, so S5 and S7 run in parallel, each
+checking `make dev` by hand in its own worktree.
 
 ## Steps
 
@@ -253,12 +260,12 @@ dropped (D5).
   `extend(0)`); `QueueClient.layerSqs` only (D1 amended in S4: no memory layer); `PersistedQueue`,
   `layerSqlite`, `QueueClientSqliteOptions` and `@effect/sql-sqlite-bun` removed;
   `QueueClientSqs` in `infrastructure/shared/queue.client.ts` over the new
-  `infrastructure/shared/aws.ts` (`SQSService` from `AwsConfig`); api and worker wired to it;
+  `infrastructure/shared/aws.ts` (S10); api and worker wired to it;
   `QueueDefinition.jobId`'s doc says delivery is at-least-once; the `chat.queue.ts` comment
   explains the settling attempt by redrive (R8–R14, R18, R20; D1–D3, D5).
-- **Blocked by:** S4.
+- **Blocked by:** S4, S9, S10.
 - **Files:** `packages/queue/{queue.ts,queue.test.ts,index.ts,package.json}`;
-  `infrastructure/shared/{aws.ts,queue.client.ts,index.ts}`, `infrastructure/package.json`;
+  `infrastructure/shared/{queue.client.ts,index.ts}`, `infrastructure/package.json`;
   `infrastructure/chat/chat.queue.ts`; `apps/api/src/layer.ts`, `apps/worker/src/layer.ts`,
   `apps/*/src/main.ts`; `packages/config/{config.ts,config.test.ts}` (`QUEUE_SQLITE_PATH` out);
   `.env.example`, `.gitignore` (`queue.sqlite`); `application/testing/queue.fake.ts` if its
@@ -347,10 +354,9 @@ dropped (D5).
   `url` presigned for 300 s; `keep` clears the tag; `delete` idempotent; `S3Service` from
   `AwsConfig` with `forcePathStyle` when an endpoint is set; api and worker wired to it, and the
   file store no longer holds bytes (R1–R3, R5, R6, R18, R21; D6–D8, D11).
-- **Blocked by:** S2, S6.
+- **Blocked by:** S2, S6, S9, S10.
 - **Files:** `infrastructure/attachment/{attachment.storage.s3.ts,attachment.storage.test.ts,
-  index.ts}`; `infrastructure/shared/aws.ts`, `infrastructure/package.json`
-  (`@effect-aws/client-s3`); `apps/api/src/layer.ts`, `apps/worker/src/layer.ts`;
+  index.ts}`; `apps/api/src/layer.ts`, `apps/worker/src/layer.ts`;
   `docs/knowledge/aws.md` (attachments: upload, presigned download, the signed host).
 - **Test first:** Seam 3, the S6 suite now also on `AttachmentStoreS3` against MiniStack, plus the
   S3-only cases — a 10 MB stream is stored by a two-part multipart upload with identical bytes; a
@@ -380,6 +386,50 @@ dropped (D5).
   at 48 h is found; `bind` reaches the store's `keep` before the repository's `update` (a recording
   store and repository). Seam 7 — lowering the lifecycle days below the lifetime fails the
   agreement test.
+- **Verify:** `make check`.
+- **Status:** todo
+
+#### S9 — Isolated worktrees run the stack
+
+- **Goal:** a worktree is a full copy of the environment, so steps in parallel worktrees each run
+  `make up` and `make dev` beside the main tree and each other. A worktree has a number `N` (the
+  main tree is 0) and its own `node_modules`, `.env`, `.data/`, `.pulumi/` and MiniStack: the
+  worktree's `.env` is the main tree's (found through `git rev-parse --git-common-dir`) with
+  `API_PORT=3000+10N`, `WEB_PORT=3001+10N` and `AWS_ENDPOINT_URL` on port `4566+10N`, written by
+  the agent from a guide in the skill, with no `make` target or script;
+  `deployment/local/ministack.ts` publishes MiniStack on
+  the endpoint's port, read through `AwsConfig`, and names the container after it
+  (`app-template-ministack-<port>`), so two stacks share no port, container or state. The main
+  tree keeps today's ports. `ticket-implement › Parallel steps` changes with it:
+  - steps run in parallel when their overlap is mechanical only (a line added to a shared list
+    or `package.json`, separate sections of one doc, `bun.lock`), never when both create one new
+    file or change one function or contract;
+  - the main session gives each worktree its `N`; the agent runs `bun install`, writes its
+    `.env` and may run `make up` and `make dev` for its *Verify*;
+  - before a worktree is removed, `make down` runs in it;
+  - every status names a worktree's path, `N` and ports.
+- **Blocked by:** S2.
+- **Files:** `Makefile` (`up` and `down` only, if Pulumi's program needs `.env`);
+  `deployment/local/{ministack.ts,README.md}`; `.claude/skills/ticket-implement/SKILL.md` (the
+  guide); `docs/knowledge/aws.md` (the local stand-in on any port), `docs/knowledge/tooling.md`
+  (worktrees: the port table for a worktree made by hand), `docs/knowledge/sdd.md` (the map row).
+- **Test first:** none; no Seam covers the tooling, so *Verify* checks it by hand.
+- **Verify:** `make check`; by hand: with the main tree's `make up` running, a scratch worktree
+  whose `.env` is written by the guide for `N=1` holds ports 3010, 3011 and 4576 and every other
+  line of the main `.env`; its `make up` starts a second container (`docker ps` lists both); `make dev` in both
+  trees, and `curl` on each api's health route answers; `make down` in the worktree leaves the
+  main stack up.
+- **Status:** todo
+
+#### S10 — AWS clients from `AwsConfig`
+
+- **Goal:** `infrastructure/shared/aws.ts` builds `S3Service` and `SQSService` from `AwsConfig`
+  (region; the endpoint when set, with S3 path-style then), so S5 and S7 wire the same clients
+  and neither invents its own; no app uses them until S5 and S7 (D10, D11).
+- **Blocked by:** S2.
+- **Files:** `infrastructure/shared/{aws.ts,index.ts}`, `infrastructure/package.json`
+  (`@effect-aws/client-s3`, `@effect-aws/client-sqs`).
+- **Test first:** none at a Seam; S5's and S7's tests reach the clients through the apps.
 - **Verify:** `make check`.
 - **Status:** todo
 
