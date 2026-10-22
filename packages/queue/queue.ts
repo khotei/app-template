@@ -98,11 +98,13 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
 
       // Visibility settles every outcome: `delete` on success, a retry delay, or 0 so that the
       // next receive redrives a spent message to the dead-letter queue.
-      const settle = Effect.fnUntraced(function* (received: Received, exit: Exit.Exit<void, E>) {
+      const settle = Effect.fnUntraced(function* (
+        received: Received,
+        { info, exit }: { readonly info: AttemptInfo; readonly exit: Exit.Exit<void, E> },
+      ) {
         if (Exit.isSuccess(exit)) return yield* transport.delete(queue, received.handle)
         if (Cause.hasInterruptsOnly(exit.cause)) return yield* release(received)
 
-        const info = buildAttemptInfo(received, definition.maxAttempts)
         if (info.isLastAttempt) {
           yield* Effect.logError('queue message dead-lettered', exit.cause)
           return yield* release(received)
@@ -112,8 +114,7 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
       })
 
       // Runs masked from the receive on, so no interrupt finds the message unreleased: `restore`
-      // lets one reach the decode and the handler only, releasing the message at once; the
-      // settle is never cut short, so a retry keeps its delay and a delete is not lost.
+      // lets one reach the decode and the handler only, releasing the message at once.
       const run = Effect.fnUntraced(
         function* (received: Received, restore: Restore) {
           const releasing = <A, E2, R2>(effect: Effect.Effect<A, E2, R2>) =>
@@ -129,7 +130,7 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
           const exit = yield* releasing(
             Effect.raceFirst(Effect.exit(handle(decoded.success, info)), heartbeat(received)),
           )
-          yield* settle(received, exit)
+          yield* settle(received, { info, exit })
         },
         (effect, received) =>
           Effect.annotateLogs(effect, {

@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { Glob } from 'bun'
 
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, Duration, Option, Predicate, Record as Rec } from 'effect'
+import { Array as Arr, Duration, Option, Predicate, Record as Rec, String as Str } from 'effect'
 
 import { resources } from '@app-template/aws'
 import { unboundLifetime } from '@app-template/domain/attachment'
@@ -24,25 +24,23 @@ const isQueueDefinition = Predicate.compose(
 )
 
 const loadDefinitions = async () => {
-  const modules = await Promise.all(
-    Arr.map(await scanWorkspace('**/*.queue.ts'), (file) => import(file)),
-  )
+  const files = await scanWorkspace('**/*.queue.ts')
+  const modules = await Promise.all(Arr.map(files, (file) => import(file)))
   return Arr.flatMap(modules, (module) => Arr.filter(Object.values(module), isQueueDefinition))
 }
 
-const isTest = (file: string) => file.endsWith('.test.ts')
-const isDependency = (file: string) => file.includes('/node_modules/')
-const isAdapterSource = Predicate.not(Predicate.or(isTest, isDependency))
+const isTest = Str.endsWith('.test.ts')
+const isDependency = Str.includes('/node_modules/')
+const isInfrastructureSource = Predicate.not(Predicate.or(isTest, isDependency))
 
-const loadAdapterSources = async () =>
-  Promise.all(
-    Arr.map(Arr.filter(await scanWorkspace('**/*.ts'), isAdapterSource), (file) =>
-      Bun.file(file).text(),
-    ),
-  )
+const loadInfrastructureSources = async () => {
+  const files = await scanWorkspace('**/*.ts')
+  const sources = Arr.filter(files, isInfrastructureSource)
+  return Promise.all(Arr.map(sources, (file) => Bun.file(file).text()))
+}
 
 const definitions = await loadDefinitions()
-const adapterSources = await loadAdapterSources()
+const infrastructureSources = await loadInfrastructureSources()
 const inventory = Object.values(resources.queues)
 const buckets = Arr.map(Rec.toEntries(resources.buckets), ([key, { name }]) => ({ key, name }))
 
@@ -70,16 +68,19 @@ describe('the inventory and the queue definitions agree', () => {
   })
 })
 
-describe('the inventory and the bucket adapters agree', () => {
-  it.each(buckets)('inventory bucket $name is addressed by an adapter', ({ key, name }) => {
-    const address = new RegExp(String.raw`\bresources\.buckets\.${key}\b`)
+describe('the inventory and the infrastructure sources agree', () => {
+  it.each(buckets)(
+    'inventory bucket $name is read by an infrastructure source',
+    ({ key, name }) => {
+      const address = new RegExp(String.raw`\bresources\.buckets\.${key}\b`)
 
-    assert.isTrue(
-      Arr.some(adapterSources, (source) => address.test(source)),
-      `bucket '${name}' is addressed by no code: no infrastructure source reads ` +
-        `resources.buckets.${key}`,
-    )
-  })
+      assert.isTrue(
+        Arr.some(infrastructureSources, (source) => address.test(source)),
+        `bucket '${name}' is addressed by no code: no infrastructure source reads ` +
+          `resources.buckets.${key}`,
+      )
+    },
+  )
 })
 
 describe('the inventory and the attachment lifetime agree', () => {

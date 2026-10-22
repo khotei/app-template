@@ -9,12 +9,12 @@ export interface MessageAttributes {
   readonly jobId: string
 }
 
-export interface OutgoingMessage {
+export interface MessageContent {
   readonly body: string
   readonly attributes: MessageAttributes
 }
 
-export interface Received extends OutgoingMessage {
+export interface Received extends MessageContent {
   readonly handle: string
   readonly receiveCount: number
 }
@@ -66,10 +66,7 @@ const makeSqs = Effect.gen(function* () {
     },
   )
 
-  const send = Effect.fn('QueueTransport.send')(function* (
-    queue: string,
-    message: OutgoingMessage,
-  ) {
+  const send = Effect.fn('QueueTransport.send')(function* (queue: string, message: MessageContent) {
     const url = yield* Cache.get(urls, queue)
     yield* sqs.sendMessage({
       QueueUrl: url,
@@ -119,7 +116,7 @@ const makeSqs = Effect.gen(function* () {
 export class QueueTransport extends Context.Service<
   QueueTransport,
   {
-    readonly send: (queue: string, message: OutgoingMessage) => Effect.Effect<void, QueueError>
+    readonly send: (queue: string, message: MessageContent) => Effect.Effect<void, QueueError>
     /**
      * Long-polls up to `wait`; a message received is hidden for `visibility`. A message already
      * received the `maxReceiveCount` of the queue's `RedrivePolicy` is moved to its dead-letter
