@@ -12,9 +12,9 @@ An anonymous user gets a secret in a cookie, creates chats, sends messages with 
 the assistant answers. The api stores the user's message and a `queued` assistant message, enqueues
 a job and answers `202`; the worker streams the model's reply into that one message as snapshots
 and titles the chat from its first message; the client polls the message until it is `completed`
-or `failed`. Attachment bytes live in S3 (MiniStack locally); the rest is local for now: a
-key-value store on disk shared by both processes, a SQLite job queue, and a stub language model.
-Postgres, SQS and a real provider each replace one layer later.
+or `failed`. Attachment bytes live in S3 and jobs go through SQS (MiniStack locally); the rest is
+local for now: a key-value store on disk shared by both processes and a stub language model.
+Postgres and a real provider each replace one layer later.
 
 ```mermaid
 sequenceDiagram

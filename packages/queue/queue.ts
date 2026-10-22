@@ -47,8 +47,10 @@ export interface QueueClientOptions {
 
 const receiveWait = Duration.seconds(20)
 
-// From a fresh step, as effect's `PersistedQueue` does: the attempt is the receive count, so a
-// retry handled by another process gets the same delay.
+/**
+ * The attempt is the receive count, so the schedule is replayed from a fresh step and another
+ * process retrying the job gets the same delay, as effect's `PersistedQueue` does.
+ */
 const replayRetryDelay = Effect.fnUntraced(function* (
   schedule: Schedule.Schedule<unknown, number>,
   attempt: number,

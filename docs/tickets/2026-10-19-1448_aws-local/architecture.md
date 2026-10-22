@@ -142,7 +142,8 @@ QueueTransport.layerSqs                                       // needs SQSServic
 // The RedrivePolicy, set by provision from the inventory, enforces maxReceiveCount; the
 // transport never reads it.
 
-// QueueClient — interface unchanged; one layer, no memory variant (D1):
+// QueueClient — interface unchanged; no memory variant (D1, amended in S5):
+QueueClient.layer({ queueName, lockExpiration, lockRefreshInterval })    // needs QueueTransport
 QueueClient.layerSqs({ queueName, lockExpiration, lockRefreshInterval }) // needs SQSService
 //   queueName: (definition.name) => physical name; URL from GetQueueUrl, cached per queue (D5)
 
@@ -247,13 +248,18 @@ GET /attachments/:attachmentId/download
   to every memory `QueueClient`); one that drops an exhausted message instead of moving it (tests
   in memory then prove less than they seem); a plain test fake of `QueueClient` for the tests
   above the queue (kept fast, but the user chose one queue behaviour everywhere over speed).
+  *Amended in S5:* `QueueClient.layer(options)` leaves `QueueTransport` open beside `layerSqs`,
+  which closes it, so S5b's tests put a failing transport under the one client. *Rejected:* only
+  `layerSqs` (a test could not swap the transport without a second client).
 - **D2 — Delivery is at-least-once everywhere; an interrupt costs an attempt; `jobId` is an
   attribute.** `receiveCount` is the attempt, and a receive cannot be undone, so the memory
   transport counts the same way. `jobId` travels as a message attribute for logs; no layer
   deduplicates, and `QueueDefinition.jobId`'s doc says so. Handlers already skip a settled
   message or a titled chat (R9). A process restart costs the job in hand one of its 4 or 5
   attempts. *Rejected:* FIFO queues (dedupe for 5 minutes only, ordering not needed); a dedupe
-  table (needs a database: ticket 4).
+  table (needs a database: ticket 4). *Amended in S5:* this reverses `chat-core` R34 (an
+  interrupt kept its attempt); feature R12 records it, and `chat-core`'s R34, D21 and D23 point
+  back here.
 - **D3 — Redrive is the only way to the dead-letter queue.** A last failed attempt, a message
   that does not decode, and a crash during the last attempt all end the same way: `extend(0)` or
   an expired visibility, then the next receive finds `receiveCount > maxReceiveCount` and moves
@@ -397,6 +403,8 @@ GET /attachments/:attachmentId/download
 | An S3 error outside `@effect-aws`'s tagged list (`EntityTooSmall`, `InvalidPart`) arrives as a bare `SdkError` | store failures die (D6), so the cause is logged whole; no branch depends on those codes |
 | The api later runs inside Docker and signs with `http://ministack:4566`, which the browser cannot reach (D11) | out of scope here; ticket 9 or a compose-run api adds a presign-only S3 layer on the public endpoint |
 | Restarts and deploys spend attempts (D2) | 4 and 5 attempts; the heartbeat keeps long handlers alive; `assistant-message` keeps its settling attempt |
+| The settling attempt of `assistant-message` can itself be spent, by an interrupt during it or by a stopped worker's long poll; the job then goes to the dead-letter queue, the reply stays active and the chat busy | rare outside dev, where `--watch` reloads make it likely; nothing consumes the dead-letter queue yet: a consumer or a sweep belongs to ticket 4 or 9 |
+| A stopped worker's long poll outlives it: MiniStack keeps the aborted receive open and hides the next message for `QUEUE_LOCK_EXPIRATION`, spending its attempt (AWS may do the same) | costs one attempt and 15 s per worker stop; a shorter receive wait narrows it at the cost of more calls |
 | Every test that needs a queue now needs Docker and runs in real time: the jobs, the api and chat harnesses, `packages/queue` (D1) | one container per file (D12); SQS's whole-second waits kept to 1–2 s; retry schedules shortened in tests |
 | Between S6 and S7 the dev download redirects to a `data:` URL, which browsers do not follow | dev only, for one step; `curl -i` shows the `302`; S7 redirects to MiniStack |
 | A record whose bytes are gone can still be bound; the worker skips its file | `download` answers `404` (D6); S8's expiry removes unbound records |

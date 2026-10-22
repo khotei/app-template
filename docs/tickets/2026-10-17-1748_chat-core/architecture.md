@@ -647,7 +647,9 @@ per the acceptance table, not by a test.
   typed `QueueError` (the SQL store's defects would end the consumer the same way); a `worker`
   Effect run under `runMain` (gives up the Layer shape); dying after a bounded retry through a
   `Deferred` the main fiber awaits (coupling for no gain: a restart heals an unavailable store no
-  better than a retry).
+  better than a retry). *Amended in [`aws-local`](../2026-10-19-1448_aws-local/feature.md) R12
+  (aws-local D2):* on SQS an interrupt spends the attempt, and the job returns at once as the next
+  one.
 - **D22 — `effect` is patched so `Equal.equals` ignores the position keys Bun puts on an
   `Error`.** *Added in S7.* Without it, `assertEquals` on two equal domain errors fails at random
   on Bun, so `make check` is not a gate. `patches/effect@4.0.5.patch` lives in the root
@@ -686,7 +688,10 @@ per the acceptance table, not by a test.
   `packages/queue` (it changes the dead-letter contract of every queue, and the title job's only
   casualty is a chat left untitled); moving the reads into the last reply's catch (a store that
   fails the read fails the `failed` write too, and the attempt 4 cause covers it); accepting the
-  stuck chat (R12 then refuses every send in it).
+  stuck chat (R12 then refuses every send in it). *Amended in
+  [`aws-local`](../2026-10-19-1448_aws-local/feature.md) R12 (aws-local D2):* on SQS an interrupt
+  on the last reply spends that attempt, and the job returns at once as attempt 4, which settles
+  the reply.
 - **D24 — The job builds its prompt from the store on every attempt and does not use
   `effect/ai/Chat`.** *Added in S8a.* `Chat` keeps its own history in a `Ref` (or in
   `Chat.Persistence`, keyed by chat id), a second source of truth beside `MessageRepository` that

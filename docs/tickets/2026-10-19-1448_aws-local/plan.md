@@ -34,6 +34,7 @@ graph LR
   S1[S1 packages/aws inventory + naming] --> S2[S2 MiniStack, provision, make up]
   S2 --> S4[S4 QueueTransport over SQS]
   S4 --> S5[S5 QueueClient over transport, SQS wired]
+  S5 --> S5b[S5b failing transport, decode cases]
   S6[S6 streaming AttachmentStore port, 302 download]
   S2 --> S7[S7 AttachmentStoreS3 wired]
   S6 --> S7
@@ -292,6 +293,49 @@ checking `make dev` by hand in its own worktree.
 - **Verify:** `make check`; by hand, `make up && make dev`: send a message, the reply reaches
   `completed` and the title appears; stop the worker, send three messages, start it, all three
   run; `.data/` holds no `queue.sqlite`.
+- **Status:** done (as S5a; S5b below)
+- **Findings:**
+  - Landed as S5a in five rounds (S5a.1–S5a.5), built in its own worktree (N=1) beside S7.
+    `make check`: 328 tests with S7 (313 alone; the memory and SQLite duplicates went). About
+    1400 changed lines without `bun.lock`, over the 600–800 agreed before the step; the queue
+    rewrite and the move of every queue test to MiniStack could not land apart and keep
+    `make check` green, and the user accepted the size. By hand on MiniStack: a reply reached
+    `completed` with its title; with the worker stopped, three messages waited and all ran once
+    it started; `.data/` holds no `queue.sqlite`.
+  - `QueueClient.layer(options)` beside `layerSqs` (D1 amended), so S5b swaps the transport.
+  - An interrupt now spends its attempt (D2), reversing `chat-core` R34: feature R12 states it
+    as an EARS clause, and `chat-core`'s R34, its acceptance row, D21 and D23 carry amendment
+    notes. The job test for an interrupt on the last reply now expects the settling attempt to
+    fail the reply, where it was retried before.
+  - The job suites keep the handlers' sleeps on the `TestClock` and wait for SQS in real time
+    (`runUntilDrained`), counting times from a handler's first write; earlier attempts are
+    simulated by receiving with visibility 0 (`abandonAttempts`), so the chat-title dead-letter
+    case starts at its last attempt. Those helpers live in `application/testing/queue.harness.ts`;
+    `queue.fake.ts` keeps only `recordQueue`.
+  - The retry case runs on `Schedule.exponential` (2 s, then 4 s, past the 2 s visibility) and
+    asserts each gap; a constant delay passed even with the replayed delay removed.
+  - Files beyond the list: `.claude/rules/effect-services.md` (its example named the removed
+    layers), `docs/knowledge/tooling.md`, `README.md`, `Makefile`, the chat-core ticket's
+    `feature.md` and `architecture.md`, more tests wrapped on MiniStack, `tsconfig` references
+    and dev dependencies (`@app-template/aws`, `@effect-aws/client-sqs`).
+  - A stopped worker's long poll can hide the next message for 15 s and spend its attempt, and
+    the settling attempt can itself be spent; both are in Risks.
+  - Interrupting during the decode, between the receive and the handler, has no `onInterrupt`,
+    so the job returns after `lockExpiration` rather than at once as R12 says; S5b closes it.
+
+#### S5b — The failing-transport and decode cases
+
+- **Goal:** Seam 1 gains the cases S5a left: a transport that fails does not end the worker, and
+  a body that does not decode reaches the dead-letter queue without the handler running; an
+  interrupt between the receive and the handler (during the decode) makes the job visible at
+  once, as R12 says (R12, R14; D1, D3).
+- **Blocked by:** S5.
+- **Files:** `packages/queue/{queue.ts,queue.test.ts}`.
+- **Test first:** Seam 1 on `QueueClient.layer` over a wrapped `QueueTransport` on MiniStack: a
+  `receive` that fails once, then succeeds, still hands the next job to the handler; a malformed
+  body sent straight to the queue reaches `<queue>-dlq` and the handler never runs; a worker
+  interrupted while a message decodes leaves it visible at once with the next attempt number.
+- **Verify:** `make check`.
 - **Status:** todo
 
 #### S6 — A streaming `AttachmentStore` and a redirecting download
@@ -516,9 +560,9 @@ checking `make dev` by hand in its own worktree.
 | R9 | S5 |
 | R10 | S4, S5 |
 | R11 | S5 |
-| R12 | S5 |
+| R12 | S5, S5b |
 | R13 | S4, S5 |
-| R14 | S5 |
+| R14 | S5, S5b |
 | R15 | S1, S2 |
 | R16 | S2 |
 | R17 | S1, S8 |
