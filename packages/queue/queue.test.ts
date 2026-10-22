@@ -2,6 +2,7 @@ import { assert, describe, layer } from '@effect/vitest'
 import {
   Array as Arr,
   Clock,
+  Deferred,
   Duration,
   Effect,
   Layer,
@@ -11,6 +12,7 @@ import {
   Ref,
   Schedule,
   Schema,
+  SchemaGetter,
 } from 'effect'
 
 import {
@@ -22,7 +24,7 @@ import {
 import { AwsClientsMiniStack, buildStage, recordLogs } from '@app-template/testing'
 
 import { type AttemptInfo, QueueClient, type QueueDefinition, worker } from '#queue/queue'
-import { QueueTransport } from '#queue/queue.transport'
+import { QueueError, QueueTransport } from '#queue/queue.transport'
 
 class Ping extends Schema.Class<Ping>('Ping')({ id: Schema.String, text: Schema.String }) {}
 
@@ -38,6 +40,9 @@ const inventory = {
     heartbeat: { name: 'heartbeat', maxReceiveCount: maxAttempts },
     released: { name: 'released', maxReceiveCount: maxAttempts },
     interrupted: { name: 'interrupted', maxReceiveCount: maxAttempts },
+    recovered: { name: 'recovered', maxReceiveCount: maxAttempts },
+    malformed: { name: 'malformed', maxReceiveCount: maxAttempts },
+    decoding: { name: 'decoding', maxReceiveCount: maxAttempts },
   },
 } as const satisfies Resources
 
@@ -56,6 +61,16 @@ const definitions = Record.map(
 
 type PingQueue = QueueDefinition<Schema.Codec<Ping, typeof Ping.Encoded>>
 
+const stallDecode = (decoding: Deferred.Deferred<void>) =>
+  Ping.pipe(
+    Schema.decode({
+      decode: SchemaGetter.checkEffect(() =>
+        Deferred.succeed(decoding, undefined).pipe(Effect.andThen(Effect.never)),
+      ),
+      encode: SchemaGetter.passthrough(),
+    }),
+  )
+
 const queueName = (name: string) => buildResourceName(stage, name)
 
 const lockExpiration = Duration.seconds(2)
@@ -64,14 +79,36 @@ const lockExpiration = Duration.seconds(2)
 // replayed for that attempt can space it.
 const exhausted = { ...definitions.exhausted, retrySchedule: Schedule.exponential(lockExpiration) }
 
-const QueueClientMiniStack = QueueClient.layer({
-  queueName,
-  lockExpiration,
-  lockRefreshInterval: '500 millis',
-}).pipe(
+const clientOptions = { queueName, lockExpiration, lockRefreshInterval: '500 millis' } as const
+
+const QueueClientMiniStack = QueueClient.layer(clientOptions).pipe(
   Layer.provideMerge(QueueTransport.layerSqs),
   Layer.provide(Layer.effectDiscard(provision(inventory, stage))),
   Layer.provide(AwsClientsMiniStack),
+)
+
+// Over the suite's SQS transport; only the first `receive` fails.
+const QueueClientFailingOnce = QueueClient.layer(clientOptions).pipe(
+  Layer.provide(
+    Layer.effect(
+      QueueTransport,
+      Effect.gen(function* () {
+        const transport = yield* QueueTransport
+        const failed = yield* Ref.make(false)
+        return QueueTransport.of({
+          ...transport,
+          receive: (queue, options) =>
+            Ref.getAndSet(failed, true).pipe(
+              Effect.flatMap((once) =>
+                once
+                  ? transport.receive(queue, options)
+                  : Effect.fail(new QueueError({ cause: 'receive refused' })),
+              ),
+            ),
+        })
+      }),
+    ),
+  ),
 )
 
 // Each case waits on SQS in real time: retry delays and visibility timeouts of whole seconds.
@@ -236,6 +273,75 @@ describe('QueueClient.send and worker on QueueClient.layerSqs against MiniStack'
           assert.deepStrictEqual(logs, [])
         }).pipe(Effect.provide(recordedLogs))
       },
+      realTime,
+    )
+
+    it.effect(
+      'keeps consuming after the transport fails a receive, logging the failure',
+      () => {
+        const { logs, layer: recordedLogs } = recordLogs('queue')
+        return Effect.gen(function* () {
+          const seen = yield* Queue.unbounded<Seen>()
+          yield* Layer.build(
+            worker(definitions.recovered, recordAttempts(seen)).pipe(
+              Layer.provide(QueueClientFailingOnce),
+            ),
+          )
+
+          yield* sendPing(definitions.recovered, 'after failure')
+
+          assert.deepStrictEqual(yield* Queue.take(seen), ['after failure', buildAttemptInfo(1)])
+          assert.deepStrictEqual(logs, [['Error', 'queue consumer failed', 'recovered']])
+        }).pipe(Effect.provide(recordedLogs))
+      },
+      realTime,
+    )
+
+    it.effect(
+      'dead-letters a body that does not decode without calling the handler',
+      () => {
+        const { logs, layer: recordedLogs } = recordLogs('queue')
+        return Effect.gen(function* () {
+          const seen = yield* Queue.unbounded<Seen>()
+          yield* Layer.build(worker(definitions.malformed, recordAttempts(seen)))
+
+          yield* QueueTransport.use((transport) =>
+            transport.send(queueName(definitions.malformed.name), '{"id":"no text"}', {
+              jobId: 'malformed',
+            }),
+          )
+          const deadLettered = yield* receiveDeadLettered(definitions.malformed)
+
+          assert.strictEqual(deadLettered.body, '{"id":"no text"}')
+          assert.deepStrictEqual(yield* Queue.poll(seen), Option.none())
+          assert.deepStrictEqual(
+            logs,
+            Arr.replicate(['Error', 'queue message does not decode', 'malformed'], maxAttempts),
+          )
+        }).pipe(Effect.provide(recordedLogs))
+      },
+      realTime,
+    )
+
+    it.effect(
+      'returns a job at once as the next attempt when its worker stops while the body decodes',
+      () =>
+        Effect.gen(function* () {
+          const seen = yield* Queue.unbounded<Seen>()
+          const decoding = yield* Deferred.make<void>()
+          const stalling = { ...definitions.decoding, schema: stallDecode(decoding) }
+
+          yield* sendPing(definitions.decoding, 'stalls')
+          yield* Layer.build(worker(stalling, recordAttempts(seen))).pipe(
+            Effect.andThen(Deferred.await(decoding)),
+            Effect.scoped,
+          )
+          yield* Layer.build(worker(definitions.decoding, recordAttempts(seen)))
+          const [elapsed, next] = yield* Effect.timed(Queue.take(seen))
+
+          assert.deepStrictEqual(next, ['stalls', buildAttemptInfo(2)])
+          assert.isBelow(Duration.toMillis(elapsed), Duration.toMillis(lockExpiration) / 2)
+        }),
       realTime,
     )
   })

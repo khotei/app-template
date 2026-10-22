@@ -139,7 +139,7 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
           const exit = yield* Effect.raceFirst(
             Effect.exit(handle(decoded.success, info)),
             heartbeat(received),
-          ).pipe(Effect.onInterrupt(() => Effect.ignore(extend(received, 0))))
+          )
           yield* settle(received, info, exit)
         },
         (effect, received) =>
@@ -149,12 +149,23 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
           }),
       )
 
-      return transport
-        .receive(queue, { visibility: lockExpiration, wait: receiveWait })
-        .pipe(
-          Effect.flatMap(Option.match({ onNone: () => Effect.void, onSome: run })),
-          Effect.forever,
-        )
+      // Masked so that no step after the receive, the decode included, can be interrupted
+      // without releasing the message: a missed release hides it until `lockExpiration`.
+      const receiveAndRun = Effect.uninterruptibleMask((restore) =>
+        restore(transport.receive(queue, { visibility: lockExpiration, wait: receiveWait })).pipe(
+          Effect.flatMap(
+            Option.match({
+              onNone: () => Effect.void,
+              onSome: (received) =>
+                restore(run(received)).pipe(
+                  Effect.onInterrupt(() => Effect.ignore(extend(received, 0))),
+                ),
+            }),
+          ),
+        ),
+      )
+
+      return Effect.forever(receiveAndRun)
     }
 
     return QueueClient.of({ send, consume })
