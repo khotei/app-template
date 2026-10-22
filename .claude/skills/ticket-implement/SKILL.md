@@ -48,19 +48,25 @@ sections of one doc, `bun.lock`. Never when both create one new file or change o
 contract. What a worktree owns and its ports:
 [tooling.md › Worktrees](../../../docs/knowledge/tooling.md#worktrees).
 
-- Give each worktree a number `N` from 1, unique among the live ones. Spawn each `implementer`
-  with `isolation: "worktree"`; beside the pointers, its prompt carries `N`, the order to leave
-  `plan.md` and `architecture.md` alone, and this block with `N` filled in, to run before anything
-  else; after it, the agent may run `make up` and `make dev` for its *Verify*.
+- Give each worktree a number `N` from 1, unique among the live ones, and a name
+  `<slug>-<step>-<topic>`. Spawn each `implementer` with `isolation: "worktree"`; beside the
+  pointers, its prompt carries `N`, the name, the order to leave `plan.md` and `architecture.md`
+  alone, the order to write every path, in commands and file tools alike, through
+  `.claude/worktrees/<name>` and never through the `agent-<id>` folder, and this block with `N`
+  and the name filled in, to run before anything else; after it, the agent may run `make up` and
+  `make dev` for its *Verify*.
 
   ```sh
   (
     cd "$(git rev-parse --show-toplevel)" || exit 1
     N=<n>
+    NAME=<slug>-<step>-<topic>
     main=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
     [ "$N" -ge 1 ] || { echo 'refused: N counts worktrees from 1; the main tree is 0' >&2; exit 1; }
     [ "$(git rev-parse --path-format=absolute --git-dir)" != "$main/.git" ] ||
       { echo 'refused: this is the main tree, the source of every .env' >&2; exit 1; }
+    ln -sfn "$(basename "$PWD")" "$(dirname "$PWD")/$NAME" || exit 1
+    git branch -m "wt/$NAME" || exit 1
     bun install || exit 1
     sed -E -e "s/^API_PORT=.*/API_PORT=$((3000 + 10 * N))/" \
       -e "s/^WEB_PORT=.*/WEB_PORT=$((3001 + 10 * N))/" \
@@ -76,9 +82,9 @@ contract. What a worktree owns and its ports:
   )
   ```
 
-- Name the worktree at once, `<slug>-<step>-<topic>`: a symlink of that name to the agent's folder
-  in `.claude/worktrees/`, and `git branch -m` to `wt/<slug>-<step>-<topic>`. Never move a folder
-  an agent works in.
+- The block names the worktree before the agent's first real command: a symlink `<name>` to the
+  agent's folder in `.claude/worktrees/`, and the branch `wt/<name>`. Check both with
+  `git worktree list` once the agent has started. Never move a folder an agent works in.
 - Every status names each worktree by its full path, its `N` and its ports.
 - Rounds commit in the worktree; rebase its branch onto the ticket branch before the next round,
   then run `bun install` in it.
