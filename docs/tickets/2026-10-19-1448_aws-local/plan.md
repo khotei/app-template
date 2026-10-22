@@ -781,7 +781,22 @@ checking `make dev` by hand in its own worktree.
   the step fixes.
 - **Test first:** none at a Seam: a refactor under the existing suites.
 - **Verify:** `make check`.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Landed in two rounds (S13.1 by the implementer, S13.2 by the main session). `make check`: 341
+    tests.
+  - S13.1: `settle(received, { info, exit })` takes the attempt info `run` built;
+    `MessageContent` is the transport's base type; the "a retry keeps its delay" sentence lives
+    only in `consume`'s TSDoc; `packages/CLAUDE.md` keeps the binding constraint alone.
+  - Run 1's six open calls stay: `queue.harness.ts` exports a fixed `<Service><Variant>` layer;
+    `buildStage` has no fitting verb and a rename touches six files; `AttachmentKvS3` names both
+    stores; `static readonly handle` would only move to a module export; `QueueClient.layer` takes
+    options, which `{ make }` cannot; a Pulumi program fails only by throwing at load.
+  - S13.2, the user's call: `resources.test.ts` keeps only the lifetime check. Names and
+    `maxAttempts` agree by construction and typecheck, and an unused resource only costs its
+    place, so S11's bucket scan and the queue glob go; R17's "no code addresses" half is dropped
+    (D4 amended).
+  - Files beyond the list: `docs/knowledge/aws.md`.
 
 ## Requirement coverage
 

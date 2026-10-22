@@ -61,6 +61,8 @@ graph LR
 + packages/queue/queue.transport.ts  QueueTransport, QueueTransport.layerSqs                   (D1)
 ~ packages/queue/queue.test.ts       QueueClient suite on MiniStack, in real time
 + packages/queue/queue.transport.test.ts   the SQS transport's suite on MiniStack
++ packages/queue/testing/queue.fake.ts     recordQueue(), a send-only QueueClient (S5c)
++ application/testing/queue.harness.ts     QueueClientMiniStack for the job suites (S5c)
 - @effect/sql-sqlite-bun dependency, QueueClient.layerSqlite, QueueClientSqliteOptions,
   QueueClient.layerMemory
 ```
@@ -102,7 +104,7 @@ per-part buffer), answers `download` with `302` (replacing `chat-core` D10).
 ```
 - deployment/local/docker-compose.yml   replaced by the Pulumi project below (D13)
 + deployment/local/Pulumi.yaml          runtime: bun; a project of its own beside deployment/Pulumi.yaml
-+ deployment/local/ministack.ts         docker.Container ministackorg/ministack:1.5.29@sha256:88f5…,
++ deployment/local/ministack.ts         docker.Container of ministackImage (@app-template/config),
                                         on the port of AWS_ENDPOINT_URL, named after it, healthcheck
                                         by python urllib with wait, MINISTACK_REGION from AWS_REGION
                                         (both through AwsConfig), state persisted under .data/ministack
@@ -231,7 +233,7 @@ GET /attachments/:attachmentId/download
 | **4. `AttachmentService` on the memory adapters under `TestClock`** (`application/attachment`) | an unbound attachment refused at 24 h with its record and bytes kept, a bound one never; `keep` called before the bind; deletes reaching the store (R4, R5, R7) | S3 (seam 3) |
 | **5. The api over `BunHttpServer.layerTest`** (`apps/api`) | `download` answers `302` with the store's URL for the owner and `404` without `Location` otherwise; upload limits still map to `413`/`415`/`400` with nothing stored when the file is streamed (R2–R4) | following the URL (seam 3) |
 | **6. `provision` against MiniStack** (`packages/aws`) | a second `provision` changes nothing; lifecycle and redrive read back as the inventory says (R15, R16) | IAM and real-account behaviour (ticket 9) |
-| **7. The inventory agreement test** (`infrastructure/shared/resources.test.ts`) | every queue definition takes its name and `maxAttempts` from the inventory, every inventory queue has a definition, every inventory bucket is read by an `infrastructure` source as `resources.buckets.<key>` (S11), the bucket's expiration days cover `unboundLifetime` (R15, R17) | names built outside the inventory by hand (review; `git grep` in R20's check); a bucket mentioned only in a comment |
+| **7. The inventory agreement test** (`infrastructure/shared/resources.test.ts`) | the bucket's expiration days cover `unboundLifetime` (R7, R15); names and `maxAttempts` agree by construction and typecheck (D4, amended in S13) | names built outside the inventory by hand (review; `git grep` in R20's check); a resource no code uses |
 
 `make dev` against MiniStack (R18) is checked by hand, as `chat-core`'s two-process run is.
 
@@ -247,9 +249,8 @@ GET /attachments/:attachmentId/download
   copies of retry and attempt logic, still two semantics). *Amended in S4:* the memory transport
   goes, and with it `QueueClient.layerMemory` (S5). Redelivery and dead-lettering are AWS's job: a
   memory imitation had to learn the dead-letter queue's name, which tied the generic package to this
-  project's naming, and its fidelity was a second implementation to keep true. Every test that needs
-  a queue (`packages/queue`, the jobs, the api and chat harnesses) runs on MiniStack in real time;
-  `make test` already needs Docker (D12). The transport stays as the seam between the queue logic
+  project's naming, and its fidelity was a second implementation to keep true. Every test that consumes
+  a queue runs on MiniStack in real time; `make test` already needs Docker (D12). The transport stays as the seam between the queue logic
   and the SQS calls, and `receive` loses `maxReceiveCount`, which only the imitation read.
   *Rejected:* a memory transport with the dead-letter rule as an option (the option spreads to every
   memory `QueueClient`); one that drops an exhausted message instead of moving it (tests in memory
@@ -304,7 +305,11 @@ GET /attachments/:attachmentId/download
   definitions with a glob over `infrastructure/**/*.queue.ts`, so a new queue file joins the check
   without editing the test (*rejected:* importing the known definitions, which a new file would
   escape); it lives in `infrastructure/shared/` without a `resources.ts` beside it, because
-  `packages/aws` may not import `infrastructure`.
+  `packages/aws` may not import `infrastructure`. *Amended in S13:* the test keeps only the
+  lifetime check, two numbers in two workspaces that no type relates; the queue glob and S11's
+  bucket scan go, since reading from the inventory already makes a missing entry fail typecheck.
+  *Rejected:* checking that every entry is used (S11; a text scan for a resource that would only
+  cost its place).
 - **D5 — Physical names come from `STAGE`; queue URLs are resolved and cached at first use; `verify`
   runs at startup.** `buildResourceName(stage, name)` gives `app-template-<stage>-…`; tests use
   `test-<random>` per file, dev `local`. `verify` checks every bucket and queue of the inventory and
@@ -361,14 +366,11 @@ GET /attachments/:attachmentId/download
   checked by reading them back, and the deletion itself only on AWS (ticket 9). *Amends feature R7 and its acceptance.* *Rejected:* a sweeper job (needs a time
   index, and SQS delays stop at 15 min); copying to a `bound/` prefix at bind (up to 10 MB copied
   per attachment); a local byte sweeper (lists and reads tags of every object to imitate S3).
-  *Amended in S7:* a multipart upload carries `Tagging` on `CreateMultipartUpload` (atomic on AWS)
-  and is tagged again by `PutObjectTagging` after the complete, since MiniStack ignores the first;
-  that second call runs outside the upload's scope, and its failure deletes the object.
-  *Amended in S7b:* the tag on `CreateMultipartUpload` is the only one; the second
-  `PutObjectTagging`, the delete on its failure and its test go, so locally an object over 5 MiB
-  stays untagged and ticket 9 checks the multipart tag on AWS. *Rejected:* keeping the second
-  call (a delete on failure, a failure-path test and a wider window for an untagged object, for
-  a tag nothing local reads, since MiniStack never runs the lifecycle rule).
+  *Amended in S7 and S7b:* a multipart upload carries `Tagging` on `CreateMultipartUpload`, atomic
+  on AWS; MiniStack drops it, so locally an object over 5 MiB stays untagged and ticket 9 checks
+  the multipart tag on AWS. *Rejected:* a second `PutObjectTagging` after the complete (S7, removed
+  in S7b: it needed a delete on failure, a failure-path test and a wider window for an untagged
+  object, for a tag nothing local reads, since MiniStack never runs the lifecycle rule).
   *Amended in S8:* no read deletes an expired record: `get`, `download`, `delete` and
   `findBindable` read it as not found through the domain's `isVisibleTo(userId, now)`, and every
   expired record waits for ticket 4's sweep. *Rejected:* deleting it when met (S8.2–S8.4), which

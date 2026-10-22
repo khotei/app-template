@@ -122,3 +122,65 @@ simplifications 1 and 4 wait for ticket 9. D7's and D9's pending-OK markers were
 | A change left text describing the old behaviour in comments, `README.md`, `docs/knowledge` or the ticket's own docs | S5d.1 (`README.md`, a `queue.ts` comment), S7b.1 (`aws.md` MiniStack list), S8 (a comments-only round), this run's Spec list (eight stale passages) | `implementer.md`: before the report, `git grep` every removed or renamed identifier and every changed number across code, `README.md`, `docs/knowledge` and the ticket folder, and list each hit fixed or left | yes |
 | Ticket docs were amended by appending notes, so a decision's body kept the superseded design and readers met two truths | D1, D2 (memory transport), D9 (second tag), `chat-core` D23 | `ticket-implement/SKILL.md` step 5: an amendment also edits the decision's body where it now misleads, and the note keeps only the rejected alternative | yes |
 | A chained cleanup ran after a failed git command and removed a worktree; `index.lock` broke commits twice while another session ran git | S8 cleanup, S5c and S7b commits | `ticket-implement/SKILL.md › Parallel steps`: remove a worktree only after `git log` shows its rounds on the ticket branch and its status is clean, never in the same chained command as the commit | yes |
+
+## 2026-10-22 — run 2
+
+**Verdict:** pass
+
+Branch `feat/aws-local` at `acb62f3`, after S11 (the bucket agreement check, the stale ticket
+text) and S12 (run 1's Standards fixes). `make check`: Biome 176 files, `tsc -b` clean, vitest 30
+files / 346 tests. Live probes ran in a scratch clone (api `:3090`, web `:3091`, MiniStack
+`:4656`); the main tree's data was not touched. Requirements whose code did not change since run
+1 rest on run 1's evidence plus a green `make check`.
+
+### Requirements
+
+| Req | Result | Evidence |
+|---|---|---|
+| R1, R2, R6, R7, R15 | pass | unchanged since run 1; its evidence stands; a 6,002,523-byte PNG uploaded live (`201`) |
+| R3 | pass | `302` to `http://localhost:4656/app-template-local-attachments/attachments/<id>?X-Amz-…`; fetching it → `200 image/png`, `inline; filename*=UTF-8''small.png`, identical bytes (`cmp`) |
+| R4 | pass | another user's cookie → `404 AttachmentNotFoundError`, no `Location` |
+| R5 | pass | deleting the chat → `204`; the earlier presigned URL → `404` |
+| R8 | pass | with the worker frozen, one send left one message on each of `app-template-local-assistant-message` and `-chat-title`, none on the dead-letter queues |
+| R9 | pass | the same two jobs sent again: `already settled`, `already titled`; message and chat JSON byte-identical |
+| R10–R13 | pass | `queue.test.ts:229` (hidden past the visibility timeout), `:213-216` (gaps ≥ 2 s and < 3.5 s, then ≥ 4 s), `:204-211`, `:252`, `:284` (attempts, release on interrupt), `:199-218` (dead-lettered after `maxAttempts`) |
+| R14 | pass | live: `{"oops":true}` and `not json` each reached their dead-letter queue; the worker logged only `queue message does not decode`, no handler ran |
+| R16 | pass | first `make up` created 3 resources and all 5 queues and buckets; the second `3 unchanged` and all 5 `unchanged`; the container runs digest `88f507c5…`; `make down` left no container |
+| R17 | pass (was fail; narrowed after the run, see below) | an unused `reports` bucket → `bucket 'reports' is addressed by no code`; an orphan queue and a renamed definition fail by name; `resources.buckets.uploads` → `TS2339`; a real reader passes. Soft spot: a comment naming the bucket also passes (S11's recorded trade-off) |
+| R18 | pass | `make dev`: upload, send, `completed` in ~3 s, title `Stub chat title`; no `*sqlite*` in `.data/` |
+| R20 | pass | no `process.env` or `Bun.env` outside `packages/config`; names only in `packages/aws/resources.ts` |
+| R21 | pass (local) | without `.env` or AWS variables, `make test` 346/346 |
+| R22 | pass | `docs/knowledge/architecture.md:39` links `aws.md` |
+
+**After the run (S13):** at the user's call, R17's "no code addresses" half was dropped and the
+bucket scan S11 added was removed with it; names and `maxAttempts` agree by construction and
+typecheck, and the agreement test keeps the lifetime check alone.
+
+**Not verifiable:** CI on `acb62f3` (`origin/feat/aws-local` is at `071abfd`); lifecycle deletion
+and the multipart tag (ticket 9); a real browser; R13 live (the stub model never fails).
+
+### Review
+
+#### Standards
+
+Run 1's four hard violations are fixed; no new one. Open judgement calls became S13: the attempt
+info built twice (`queue.ts:105`, `:128`); `Received extends OutgoingMessage`; the agreement
+test's filter names, native string checks and nested `await`; one repeated sentence in
+`queue.ts`; a rejected alternative in `packages/CLAUDE.md`; and run 1's six calls with no
+recorded reason.
+
+#### Spec
+
+R17 and run 1's stale text are fixed, and Contracts match the code. Remaining text, fixed with
+S13: D1's S4 note and D9's S7 note kept the superseded design; Structure named the image in
+`deployment/local/ministack.ts` and missed the two queue test files; R15's and R16's acceptance
+rows did not say the dead-letter queues are derived and the lifecycle rules rewritten; R20's grep
+matched test assertions.
+
+### Simplifications
+
+None new; run 1's 1 and 4 wait for ticket 9, 3 was declined in S12.
+
+### Lessons
+
+None new: run 2's findings repeat run 1's lessons 1 and 2, applied after the steps they cover.

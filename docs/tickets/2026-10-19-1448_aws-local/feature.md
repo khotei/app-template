@@ -152,7 +152,9 @@ stay in `KeyValueStore` until `postgres-drizzle` (4).
 - **R17** — IF a queue definition or the bucket adapter names a resource that the inventory does
   not describe, or the inventory describes one no code addresses, THEN `make check` SHALL fail.
   *Amended in architecture (D4): definitions read their name and `maxAttempts` from the inventory,
-  and an agreement test covers the rest.*
+  and an agreement test covers the rest.* *Amended in S13: the "no code addresses" half is
+  dropped; an unused resource only costs its place, and code reading names and settings from the
+  inventory makes a missing one fail typecheck, which `make check` runs.*
 - **R18** — WHEN `make dev` runs with MiniStack up, THE SYSTEM SHALL serve uploads, downloads and
   both jobs through MiniStack, with no SQLite queue file and no attachment bytes under `.data/`.
 - **R19** — *Dropped in plan step S3 (architecture D5):* the api and the worker do not check
@@ -196,11 +198,11 @@ stay in `KeyValueStore` until `postgres-drizzle` (4).
 | R12 | A handler failing every time sees attempts `1…maxAttempts`, `isLastAttempt` only on the last; a job whose worker is stopped mid-handler, or whose handler interrupts itself, comes back at once as the next attempt; an interrupt during the last reply attempt ends with the reply `failed` (`chat-core` R18, R19, as amended in S5d). |
 | R13 | After `maxAttempts` failures the message is on the dead-letter queue and the handler was called exactly `maxAttempts` times. |
 | R14 | A malformed message is on the dead-letter queue and the handler was never called. |
-| R15 | The inventory module lists the bucket, two queues and two dead-letter queues with `maxReceiveCount` equal to each definition's `maxAttempts`. |
-| R16 | `make up` twice: the second run reports no change; `make down` leaves no MiniStack container. |
-| R17 | Adding a queue to the inventory without a definition, a definition whose name is not in the inventory, or a bucket no code reads, makes the agreement test in `make check` fail with the name (the bucket case added in S11). |
+| R15 | The inventory module lists the bucket and two queues with `maxReceiveCount` equal to each definition's `maxAttempts`; each queue's dead-letter queue and redrive policy are derived from its entry (`buildDeadLetterName`), and `make up` reads them back. |
+| R16 | `make up` twice: the second run reports no change (the bucket's lifecycle rules are written again with the same content); `make down` leaves no MiniStack container. |
+| R17 | A queue definition or the S3 adapter reading an entry the inventory lacks fails `make check` at typecheck (`TS2339`); no definition or adapter spells a resource name or `maxAttempts` as a literal. *Amended in S13.* |
 | R18 | `make up && make dev`: upload, send, poll to `completed`, title appears; `.data/` holds no `queue.sqlite` and no attachment bytes. |
-| R20 | `git grep -- '*.ts' ':!repos'` finds no `process.env`, `Bun.env`, bucket or queue name outside config and the inventory; `.env.example` matches R20. |
+| R20 | `git grep -- '*.ts' ':!repos' ':!*.test.ts'` finds no `process.env`, `Bun.env`, bucket or queue name outside config and the inventory; `.env.example` matches R20. |
 | R21 | `make test` runs the `AttachmentStore` suite twice (memory, MiniStack) and the `QueueTransport` suite on MiniStack, and passes without `.env`; CI runs the same. |
 | R22 | The knowledge doc exists and is linked from `docs/knowledge/architecture.md`; `git grep -i stub deployment/` finds no local-environment stub note. |
 
