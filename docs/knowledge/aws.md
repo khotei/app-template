@@ -12,10 +12,11 @@ created and tested. The code: `packages/aws` (the inventory, the naming rule, th
 ([tooling.md › Worktrees](tooling.md#worktrees)). `deployment/local/` is a Pulumi project of its
 own (`runtime: bun`): `@pulumi/docker`'s `Container` with the image by digest, the environment,
 the bind mount of `.data/ministack` and the health check with `wait: true`, so `pulumi up` returns
-only once MiniStack answers. The program reads the endpoint through `AwsConfig` (`make up` exports
-`.env` to it), publishes MiniStack's 4566 on the endpoint's port and names the container
-`app-template-ministack-<port>`, so the stacks of several trees share no port, container or state.
-A new name or image replaces the container, the old one deleted first because it holds the port.
+only once MiniStack answers. The program reads `AwsConfig` (`make up` exports `.env` to it):
+MiniStack's default region is `AWS_REGION`, its 4566 is published on the endpoint's port, and the
+container is named `app-template-ministack-<port>`, so the stacks of several trees share no port,
+container or state. A new name or image replaces the container, the old one deleted first because
+it holds the port.
 
 The Pulumi state is a file backend under `.data/pulumi` with an empty passphrase (nothing secret
 is stored), and `PULUMI_HOME` is the tree's `.pulumi/`, so a clone touches nothing outside the
@@ -31,10 +32,7 @@ repo, `make reset` keeps the provider plugin, and each worktree downloads its ow
 | `make reset` | `make down`, then removes `.data/` whole: MiniStack's state, the Pulumi stack, the key-value store and the queue file; `.pulumi/` (the provider plugin) stays. The way back after an inventory change that SQS refuses (below). |
 
 An `up` that fails on the health check leaves the container in the stack's state; `make down`
-destroys it, and the next `make up` starts afresh. MiniStack's default region is the stack config
-`region`, `us-east-1` unless set, the value `.env.example` gives `AWS_REGION`; to change it, run
-the CLI as the Makefile does: `PULUMI_HOME=$PWD/.pulumi PULUMI_CONFIG_PASSPHRASE= pulumi -C
-deployment/local config set region <region>` (an absolute home, since `-C` changes the cwd).
+destroys it, and the next `make up` starts afresh.
 
 `AWS_REGION`, `AWS_ENDPOINT_URL` and `STAGE` are read through `AwsConfig` in
 `@app-template/config`; today the provisioner and `ministack.ts` are its only readers, and the

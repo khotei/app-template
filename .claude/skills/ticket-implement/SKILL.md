@@ -45,30 +45,46 @@ One step, or one round of it, per approval. Pushing or opening a PR needs its ow
 On the user's word, steps whose `Blocked by` are all `done` run at once, one worktree each, when
 their overlap is mechanical only: a line added to a shared list or a `package.json`, separate
 sections of one doc, `bun.lock`. Never when both create one new file or change one function or
-contract.
+contract. What a worktree owns and its ports:
+[tooling.md › Worktrees](../../../docs/knowledge/tooling.md#worktrees).
 
-- Give each worktree a number `N`, unique among the live ones; the main tree is 0. Spawn each
-  `implementer` with `isolation: "worktree"`; beside the pointers, give it `N`, tell it to leave
-  `plan.md` and `architecture.md` alone, and to set its tree up first: the main tree's `.env` with
-  its own ports.
+- Give each worktree a number `N` from 1, unique among the live ones. Spawn each `implementer`
+  with `isolation: "worktree"`; beside the pointers, its prompt carries `N`, the order to leave
+  `plan.md` and `architecture.md` alone, and this block with `N` filled in, to run before anything
+  else; after it, the agent may run `make up` and `make dev` for its *Verify*.
 
   ```sh
-  N=<n>
   bun install
-  main=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
-  sed -E -e "s/^API_PORT=.*/API_PORT=$((3000 + 10 * N))/" \
-    -e "s/^WEB_PORT=.*/WEB_PORT=$((3001 + 10 * N))/" \
-    -e "s/^(AWS_ENDPOINT_URL=.*:)[0-9]+/\1$((4566 + 10 * N))/" "$main/.env" > .env
+  (
+    N=<n>
+    main=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
+    [ "$N" -ge 1 ] || { echo 'refused: N counts worktrees from 1; the main tree is 0' >&2; exit 1; }
+    [ "$(git rev-parse --path-format=absolute --git-dir)" != "$main/.git" ] ||
+      { echo 'refused: this is the main tree, the source of every .env' >&2; exit 1; }
+    sed -E -e "s/^API_PORT=.*/API_PORT=$((3000 + 10 * N))/" \
+      -e "s/^WEB_PORT=.*/WEB_PORT=$((3001 + 10 * N))/" \
+      -e "s/^(AWS_ENDPOINT_URL=.*:)[0-9]+/\1$((4566 + 10 * N))/" "$main/.env" > .env.new
+    grep -qx "API_PORT=$((3000 + 10 * N))" .env.new &&
+      grep -qx "WEB_PORT=$((3001 + 10 * N))" .env.new &&
+      grep -qE "^AWS_ENDPOINT_URL=\"?[a-z]+://[^/]+:$((4566 + 10 * N))([/\"]|$)" .env.new || {
+      rm .env.new
+      echo "refused: $main/.env lacks API_PORT, WEB_PORT or the port of AWS_ENDPOINT_URL" >&2
+      exit 1
+    }
+    mv .env.new .env
+  )
   ```
 
-  The tree then holds its own `node_modules`, `.env`, `.data/`, `.pulumi/` and MiniStack, so the
-  agent may run `make up` and `make dev` for its *Verify*.
 - Name the worktree at once, `<slug>-<step>-<topic>`: a symlink of that name to the agent's folder
   in `.claude/worktrees/`, and `git branch -m` to `wt/<slug>-<step>-<topic>`. Never move a folder
   an agent works in.
 - Every status names each worktree by its full path, its `N` and its ports.
-- Rounds commit in the worktree; rebase its branch onto the ticket branch before the next round.
+- Rounds commit in the worktree; rebase its branch onto the ticket branch before the next round,
+  then run `bun install` in it.
+- A `bun.lock` conflict, in a rebase or a cherry-pick, is never merged by hand: take either side
+  (`git checkout --ours bun.lock`), run `bun install`, and stage the lockfile it writes.
 - Reviews and approvals stay one step at a time. On approve, cherry-pick the step's rounds onto
   the ticket branch, the last with `--no-commit` so the `plan.md` and `architecture.md` edits join
-  it, and run `make check` after each pick. Then run `make down` in the worktree, and remove the
-  worktree, its symlink and its branch.
+  it, and run `make check` after each pick.
+- A worktree is dropped once its step is approved and picked, stopped, or ends `BLOCKED:` and is
+  not resumed: run `make down` in it, then remove the worktree, its symlink and its branch.

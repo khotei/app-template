@@ -1,25 +1,25 @@
 import { fileURLToPath } from 'node:url'
 
 import * as docker from '@pulumi/docker'
-import * as pulumi from '@pulumi/pulumi'
 import { Effect, Option } from 'effect'
 
+import { projectName } from '@app-template/aws'
 import { AwsConfig } from '@app-template/config'
 
 /** The image `packages/testing/ministack.ts` starts for the tests; bump both together. */
 const image =
   'ministackorg/ministack:1.5.29@sha256:88f507c57e16f5cac3c58dbdd4d47cfd14d6f870c38461aff7e077908253260b'
-/** MiniStack's own port, inside the container. */
 const internalPort = 4566
 /**
  * The host port is the one in `AWS_ENDPOINT_URL`, and the container is named after it, so a
  * worktree's MiniStack runs beside the main tree's without sharing a port, a name or a state.
  */
-const { endpoint } = Effect.runSync(Effect.provide(AwsConfig, AwsConfig.layer))
-const endpointUrl = Option.getOrThrowWith(endpoint, () => new Error('AWS_ENDPOINT_URL is unset'))
-if (endpointUrl.port === '') throw new Error(`AWS_ENDPOINT_URL names no port: ${endpointUrl.href}`)
+const { region, endpoint } = Effect.runSync(Effect.provide(AwsConfig, AwsConfig.layer))
+const endpointUrl = Option.getOrThrowWith(
+  Option.filter(endpoint, (url) => url.port !== ''),
+  () => new Error('AWS_ENDPOINT_URL must name MiniStack with a port, as http://localhost:4566'),
+)
 const port = Number(endpointUrl.port)
-const region = new pulumi.Config().get('region') ?? 'us-east-1'
 const dataDir = fileURLToPath(new URL('../../.data/ministack', import.meta.url))
 
 const remoteImage = new docker.RemoteImage('ministack-image', { name: image, keepLocally: true })
@@ -27,7 +27,7 @@ const remoteImage = new docker.RemoteImage('ministack-image', { name: image, kee
 new docker.Container(
   'ministack',
   {
-    name: `app-template-ministack-${port}`,
+    name: `${projectName}-ministack-${port}`,
     image: remoteImage.imageId,
     ports: [{ internal: internalPort, external: port }],
     envs: [

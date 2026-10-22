@@ -56,9 +56,9 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
 
 ## Run and debug
 
-- **Ports.** `API_PORT` (3000) and `WEB_PORT` (3001; others in a [worktree](#worktrees)) come
-  from `.env`. The web server proxies `/api/*` to `localhost:${API_PORT}`, so the browser stays
-  same-origin and the api needs no CORS.
+- **Ports.** `API_PORT` (3000) and `WEB_PORT` (3001) come from `.env`, others in a
+  [worktree](#worktrees). The web server proxies `/api/*` to `localhost:${API_PORT}`, so the
+  browser stays same-origin and the api needs no CORS.
 - **A single app.** `make dev-api`, or `cd apps/api && bun run dev`. Both read the same root `.env`.
 - **Debugging.** `make debug-api` prints an inspector block:
 
@@ -107,7 +107,7 @@ server's `Bun.serve({ development })`.
 ### Worktrees
 
 A worktree is a full copy of the environment, so trees run `make up` and `make dev` side by side.
-Each gets a number `N`, the main tree 0, and its own `node_modules` (`bun install`), `.data/`,
+Each gets a number `N`, the main tree 0, and owns its `node_modules` (`bun install`), `.data/`,
 `.pulumi/` and MiniStack container; its `.env` is the main tree's with three ports moved:
 
 | Variable | Port | Main tree | `N=1` |
@@ -116,9 +116,10 @@ Each gets a number `N`, the main tree 0, and its own `node_modules` (`bun instal
 | `WEB_PORT` | `3001 + 10N` | 3001 | 3011 |
 | `AWS_ENDPOINT_URL` | `4566 + 10N` | 4566 | 4576 |
 
-The commands that write it:
+The commands that write it, refusing the main tree and an `.env` without those lines:
 [`ticket-implement` › Parallel steps](../../.claude/skills/ticket-implement/SKILL.md#parallel-steps).
-Run `make down` in a worktree before removing it, or its container outlives it.
+Run `make down` in a worktree before it is removed, whatever ends its work (merged, stopped or
+abandoned), or its container outlives it and keeps the port.
 
 ## Environment
 
@@ -129,8 +130,11 @@ Run `make down` in a worktree before removing it, or its container outlives it.
   ([aws.md](aws.md#the-local-stand-in)). Variables of clients that are still stubs stay commented
   out.
 - **Quoting.** Strings are double-quoted (`LOG_LEVEL="Info"`), numbers are bare (`API_PORT=3000`).
+  A value with a space must be quoted, since `make up` reads the file as shell.
 - **Loading.** Each app script passes `--env-file=../../.env`, a path relative to the app folder.
-  This works from `make` at the root and from `bun run dev` inside the app.
+  This works from `make` at the root and from `bun run dev` inside the app. The one exception is
+  `make up`: Pulumi starts `deployment/local/ministack.ts` itself, so no `--env-file` reaches it,
+  and the recipe exports `.env` into the shell first (`set -a && . ./.env`).
 - **A missing `.env`** is ignored by Bun without a warning. The process then fails at startup while
   building a config layer, with Effect's `ConfigError` naming the first missing or invalid
   variable. Variables exported in the shell work without a file, which is how CI runs.
