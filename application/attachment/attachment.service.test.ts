@@ -1,7 +1,7 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, layer } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, DateTime, Effect, Layer, Option, Record as Rec, Stream } from 'effect'
+import { Array as Arr, DateTime, Effect, Exit, Layer, Option, Record as Rec, Stream } from 'effect'
 import { KeyValueStore } from 'effect/persistence'
 import { TestClock, TestCrypto } from 'effect/testing'
 
@@ -24,11 +24,27 @@ import { assertSchemaEquals, breakAfter, isUuidV7, StreamBrokenError } from '@ap
 import { AttachmentService } from '#application/attachment/attachment.service'
 import { png, unknownAttachmentId } from '#application/testing/attachment.fixture'
 import { messageId } from '#application/testing/chat.fixture'
+import { upload } from '#application/testing/chat.harness'
 import { owner, stranger } from '#application/testing/user.fixture'
+
+const CryptoTest = TestCrypto.layer('attachment-service').pipe(Layer.provide(BunCrypto.layer))
 
 const AttachmentServiceTest = AttachmentService.layer.pipe(
   Layer.provideMerge(Layer.mergeAll(AttachmentRepositoryKv, AttachmentStoreKv)),
-  Layer.provide(TestCrypto.layer('attachment-service').pipe(Layer.provide(BunCrypto.layer))),
+  Layer.provide(CryptoTest),
+  Layer.provideMerge(KeyValueStore.layerMemory),
+)
+
+const AttachmentRepositoryInsertDying = Layer.effect(
+  AttachmentRepository,
+  Effect.map(AttachmentRepository, (inner) =>
+    AttachmentRepository.of({ ...inner, insert: () => Effect.die('the record write was lost') }),
+  ),
+).pipe(Layer.provide(AttachmentRepositoryKv))
+
+const AttachmentServiceRecordLost = AttachmentService.layer.pipe(
+  Layer.provide(Layer.mergeAll(AttachmentRepositoryInsertDying, AttachmentStoreKv)),
+  Layer.provide(CryptoTest),
   Layer.provideMerge(KeyValueStore.layerMemory),
 )
 
@@ -36,14 +52,7 @@ const photo = { fileName: FileName.make('photo.png'), mediaType: MediaType.make(
 
 const photoUpload = { ...photo, content: Stream.make(png) }
 
-const uploadOne = (userId: UserId) =>
-  Effect.flatMap(AttachmentService, (service) =>
-    Effect.flatMap(service.upload(userId, Stream.make(photoUpload)), (uploaded) =>
-      Effect.fromOption(Arr.head(uploaded)),
-    ),
-  ).pipe(Effect.orDie)
-
-const uploadPhoto = uploadOne(owner)
+const uploadPhoto = upload(owner, 'photo.png')
 
 const storeSize = Effect.orDie(Effect.flatMap(KeyValueStore.KeyValueStore, (store) => store.size))
 
@@ -82,7 +91,7 @@ const unbindable = {
     refusal: AttachmentNotFoundError,
   },
   "another user's attachment": {
-    arrange: Effect.map(uploadOne(stranger), (foreign) => foreign.id),
+    arrange: Effect.map(upload(stranger, 'photo.png'), (foreign) => foreign.id),
     refusal: AttachmentNotFoundError,
   },
   'a bound attachment': {
@@ -326,6 +335,20 @@ describe('AttachmentService', () => {
           assert.deepStrictEqual(yield* selectBytes(bound.id), Option.none())
           assert.deepStrictEqual(yield* selectBytes(kept.id), Option.some(png))
         }),
+    )
+  })
+
+  layer(AttachmentServiceRecordLost)((it) => {
+    it.effect('upload aborted after the bytes were written leaves neither bytes nor a record', () =>
+      Effect.gen(function* () {
+        const service = yield* AttachmentService
+        const before = yield* storeSize
+
+        const exit = yield* Effect.exit(service.upload(owner, Stream.make(photoUpload)))
+
+        assert.isTrue(Exit.hasDies(exit))
+        assert.strictEqual(yield* storeSize, before)
+      }),
     )
   })
 })

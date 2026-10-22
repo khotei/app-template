@@ -1,4 +1,15 @@
-import { Array as Arr, Context, Crypto, DateTime, Effect, Layer, Option, Ref, Stream } from 'effect'
+import {
+  Array as Arr,
+  Context,
+  Crypto,
+  DateTime,
+  Effect,
+  Layer,
+  Option,
+  Ref,
+  Stream,
+  Struct,
+} from 'effect'
 
 import {
   Attachment,
@@ -88,41 +99,43 @@ export class AttachmentService extends Context.Service<
     const randomUuid = Effect.orDie(crypto.randomUUIDv7())
     const randomAttachmentId = Effect.map(randomUuid, AttachmentId.make)
 
-    const uploadFile = Effect.fnUntraced(function* <E>(userId: UserId, input: AttachmentUpload<E>) {
-      const id = yield* randomAttachmentId
+    const deleteByIds = Effect.fn('AttachmentService.deleteByIds')(function* (
+      ids: ReadonlyArray<AttachmentId>,
+    ) {
+      yield* attachments.deleteByIds(ids)
+      yield* Effect.forEach(ids, store.delete, { discard: true })
+    })
+
+    const uploadFile = Effect.fnUntraced(function* <E>(
+      file: AttachmentUpload<E>,
+      { id, userId }: { readonly id: AttachmentId; readonly userId: UserId },
+    ) {
       const createdAt = yield* DateTime.now
 
-      const size = yield* store.insert(id, input.content, input)
-      const attachment = buildAttachment({
-        id,
-        userId,
-        fileName: input.fileName,
-        mediaType: input.mediaType,
-        size,
-        createdAt,
-      })
+      const meta = Struct.pick(file, ['mediaType', 'fileName'])
+      const size = yield* store.insert(id, file.content, meta)
+      const attachment = buildAttachment({ ...meta, id, userId, size, createdAt })
 
       yield* attachments.insert(attachment)
       return attachment
-    })
-
-    const removeByIds = Effect.fnUntraced(function* (ids: ReadonlyArray<AttachmentId>) {
-      yield* attachments.deleteByIds(ids)
-      yield* Effect.forEach(ids, store.delete, { discard: true })
     })
 
     const upload = Effect.fn('AttachmentService.upload')(function* <E>(
       userId: UserId,
       files: Stream.Stream<AttachmentUpload<E>, E>,
     ) {
-      const stored = yield* Ref.make(Arr.empty<AttachmentId>())
-      const removeStored = Effect.flatMap(Ref.get(stored), removeByIds)
+      const reserved = yield* Ref.make(Arr.empty<AttachmentId>())
+      // An id is reserved before its bytes are written, so a failure or an interrupt at any point
+      // after that finds it; deleting an id that has no bytes yet is a no-op.
+      const reserveId = Effect.tap(randomAttachmentId, (id) => Ref.update(reserved, Arr.append(id)))
+      const deleteReserved = Effect.flatMap(Ref.get(reserved), deleteByIds)
 
       return yield* files.pipe(
-        Stream.mapEffect((file) => uploadFile(userId, file)),
-        Stream.tap((attachment) => Ref.update(stored, Arr.append(attachment.id))),
+        Stream.mapEffect((file) =>
+          Effect.flatMap(reserveId, (id) => uploadFile(file, { id, userId })),
+        ),
         Stream.runCollect,
-        Effect.onError(() => removeStored),
+        Effect.onError(() => deleteReserved),
       )
     })
 
@@ -179,8 +192,6 @@ export class AttachmentService extends Context.Service<
       yield* Effect.forEach(bound, attachments.update, { discard: true })
       return bound
     })
-
-    const deleteByIds = Effect.fn('AttachmentService.deleteByIds')(removeByIds)
 
     return { upload, get, download, delete: remove, findBindable, bind, deleteByIds }
   }),
