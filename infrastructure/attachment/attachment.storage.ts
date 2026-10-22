@@ -202,31 +202,31 @@ export const AttachmentStoreS3 = Layer.effect(
       const last = buildBytes(state.held)
 
       if (Option.isNone(state.upload)) {
-        return yield* s3.putObject({
+        yield* s3.putObject({
           ...buildObjectRef(state.id),
           ...buildObjectHeaders(state.meta),
           Body: last,
         })
+        return { size: state.size, isTagPending: false }
       }
 
       const { UploadId } = state.upload.value
       const sent = yield* sendPart(state, last)
-      return yield* s3.completeMultipartUpload({
+      yield* s3.completeMultipartUpload({
         ...buildObjectRef(state.id),
         UploadId,
         MultipartUpload: { Parts: [...sent.parts] },
       })
+      return { size: state.size, isTagPending: true }
     }, Effect.orDie)
 
     const remove = Effect.fn('AttachmentStore.delete')((id: AttachmentId) =>
       s3.deleteObject(buildObjectRef(id)).pipe(Effect.asVoid, Effect.orDie),
     )
 
-    /**
-     * AWS tags at the create, atomically; MiniStack ignores `Tagging` there and needs this. It
-     * runs outside the upload's scope, since aborting a completed upload would not remove the object.
-     */
     const tagCompleted = (id: AttachmentId) =>
+      // MiniStack ignores `Tagging` on the create; outside the upload's scope, since an abort
+      // cannot remove a completed object.
       s3.putObjectTagging({ ...buildObjectRef(id), Tagging: { TagSet: unboundTagSet } }).pipe(
         Effect.orDie,
         Effect.onError(() => remove(id)),
@@ -237,14 +237,13 @@ export const AttachmentStoreS3 = Layer.effect(
       content: Stream.Stream<Uint8Array, E>,
       meta: AttachmentMeta,
     ) {
-      const state = yield* Stream.runFoldEffect(
+      const written = yield* Stream.runFoldEffect(
         content,
         () => buildUploadState(id, meta),
         receive,
-      ).pipe(Effect.tap(finish), Effect.scoped)
-
-      if (Option.isSome(state.upload)) yield* tagCompleted(id)
-      return FileSize.make(state.size)
+      ).pipe(Effect.flatMap(finish), Effect.scoped)
+      if (written.isTagPending) yield* tagCompleted(id)
+      return FileSize.make(written.size)
     })
 
     const select = Effect.fn('AttachmentStore.select')(function* (id: AttachmentId) {

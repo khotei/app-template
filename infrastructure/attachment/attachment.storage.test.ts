@@ -9,10 +9,10 @@ import {
   Deferred,
   Duration,
   Effect,
-  Exit,
   Fiber,
   Layer,
   Option,
+  Result,
   Stream,
 } from 'effect'
 import { FetchHttpClient, HttpClient } from 'effect/http'
@@ -194,13 +194,6 @@ const AttachmentStoreS3TaggingBroken = Layer.fresh(AttachmentStoreS3).pipe(
   Layer.provide(AwsConfigTest),
 )
 
-const listDefects = <A, E>(exit: Exit.Exit<A, E>): ReadonlyArray<unknown> =>
-  Exit.match(exit, {
-    onSuccess: () => [],
-    onFailure: (cause) =>
-      Arr.map(Arr.filter(cause.reasons, Cause.isDieReason), (reason) => reason.defect),
-  })
-
 const listLeftovers = Effect.fnUntraced(function* (attachmentId: AttachmentId) {
   const s3 = yield* S3Service
   const { Bucket, Key } = buildObjectRef(attachmentId)
@@ -272,11 +265,13 @@ describe('AttachmentStoreS3', () => {
           attachments.insert(unknown, tenMebibytesStream, photo),
         )
 
-        const exit = yield* Effect.exit(Effect.provide(insert, AttachmentStoreS3TaggingBroken))
+        const cause = yield* Effect.provide(insert, AttachmentStoreS3TaggingBroken).pipe(
+          Effect.sandbox,
+          Effect.flip,
+        )
 
-        const defects = listDefects(exit)
-        assert.strictEqual(defects.length, 1)
-        assert.strictEqual(defects[0], taggingBroken)
+        assert.strictEqual(Result.getOrUndefined(Cause.findDefect(cause)), taggingBroken)
+        assert.strictEqual(Cause.prettyErrors(cause).length, 1)
         assert.deepStrictEqual(yield* listLeftovers(unknown), { objects: [], uploads: [] })
       }),
     )
