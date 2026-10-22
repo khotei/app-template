@@ -356,8 +356,10 @@ checking `make dev` by hand in its own worktree.
 
 - **Goal:** the job suites call each job's handler directly with plain `AttemptInfo` values under
   `TestClock`, and keep one MiniStack test per job (enqueue, worker, settled); a recording
-  `QueueClient` for tests (in `packages/testing`) records each job and encodes it with its schema,
-  forwarding nothing, and the chat and api harnesses use it, so their tests need no Docker;
+  `QueueClient` for tests records each job and encodes it with the client's own codec, forwarding
+  nothing; it lives in `packages/queue/testing` and is imported as `@app-template/queue/testing`,
+  since `packages/testing` cannot import `queue` (a cycle of project references); the chat and api
+  harnesses use it, so their tests need no Docker;
   `QueueClient.layerSqs` folds into `QueueClientSqs` (`QueueClient.layer` over
   `QueueTransport.layerSqs`); `application/testing/queue.harness.ts`, `abandonAttempts`,
   `runUntilDrained` and `application`'s SQS dev dependency go; the per-message outcome rules keep
@@ -367,9 +369,11 @@ checking `make dev` by hand in its own worktree.
 - **Files:** `application/chat/{assistant-message.job,chat-title.job}{,.test}.ts`;
   `application/testing/{queue.harness.ts,queue.fake.ts,chat.harness.ts}`,
   `application/package.json`;
-  `packages/testing/*`; `apps/api/src/testing/api.harness.ts`, `apps/api/package.json`;
-  `packages/queue/{queue.ts,index.ts}`; `infrastructure/shared/queue.client.ts`;
-  `.claude/rules/effect-services.md` (its `layerSqs` example); `docs/knowledge/aws.md` (Queues).
+  `packages/queue/{queue.ts,index.ts,package.json,testing/queue.fake.ts}`;
+  `apps/api/src/testing/api.harness.ts`, `apps/api/package.json`;
+  `infrastructure/shared/queue.client.ts`; `.claude/rules/effect-services.md` (its `layerSqs`
+  example); `.claude/rules/{naming.md,effect-tests.md}` (a package may export a test double of its
+  own service as `<package>/testing`); `docs/knowledge/aws.md` (Queues).
 - **Test first:** the job suites on the handler with `AttemptInfo` under `TestClock` — red until
   the handler is reachable without a queue; the recording queue fails a job that does not encode.
 - **Verify:** `make check`; the chat, delete-chat, send-message and api test files start no
