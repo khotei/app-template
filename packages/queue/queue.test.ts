@@ -83,9 +83,9 @@ const exhausted = {
 }
 
 // Longer than the visibility timeout, so only the settle's retry delay can space two attempts.
-const retryDelay = Duration.seconds(4)
+const settleDelay = Duration.seconds(4)
 
-const settling = { ...definitions.settling, retryDelay: () => retryDelay }
+const settling = { ...definitions.settling, retryDelay: () => settleDelay }
 
 const clientOptions = { queueName, lockExpiration, lockRefreshInterval: '500 millis' } as const
 
@@ -211,6 +211,8 @@ describe('QueueClient.send and worker over QueueTransport.layerSqs against MiniS
           )
           const times = Arr.map(attempts, ([, at]) => at)
           assert.isAtLeast((times[1] ?? 0) - (times[0] ?? 0), 2000)
+          // Below the next attempt's delay, so only `retryDelay(1)` spaces the first retry.
+          assert.isBelow((times[1] ?? 0) - (times[0] ?? 0), 3500)
           assert.isAtLeast((times[2] ?? 0) - (times[1] ?? 0), 4000)
           assert.deepStrictEqual(JSON.parse(deadLettered.body), { id: 'fail', text: 'fail' })
           assert.deepStrictEqual(after, ['after', buildAttemptInfo(1)])
@@ -398,7 +400,7 @@ describe('QueueClient.send and worker over QueueTransport.layerSqs against MiniS
             ],
           )
           const [failedAt = 0, retriedAt = 0] = Arr.map(attempts, ([, at]) => at)
-          assert.isAtLeast(retriedAt - failedAt, Duration.toMillis(retryDelay))
+          assert.isAtLeast(retriedAt - failedAt, Duration.toMillis(settleDelay))
         }),
       realTime,
     )

@@ -18,7 +18,7 @@ export interface QueueDefinition<S extends Schema.Top> {
   readonly name: string
   readonly schema: S
   readonly maxAttempts: number
-  /** How long a message waits after a failed `attempt`; SQS rounds it up to whole seconds. */
+  /** How long a message waits after a failed `attempt`. */
   readonly retryDelay: (attempt: number) => Duration.Input
   /**
    * Travels with the message for logs only: delivery is at-least-once, so a handler must leave

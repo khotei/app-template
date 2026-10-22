@@ -6,7 +6,7 @@ import type { QueueDefinition } from '@app-template/queue'
 
 const { assistantMessage, chatTitle } = resources.queues
 
-const doublingDelay = (attempt: number) => Duration.seconds(2 ** (attempt - 1))
+const buildDoublingDelay = (attempt: number) => Duration.seconds(2 ** (attempt - 1))
 
 export class GenerateAssistantMessage extends Schema.Class<GenerateAssistantMessage>(
   'GenerateAssistantMessage',
@@ -17,7 +17,7 @@ export const assistantMessageQueue = {
   name: assistantMessage.name,
   schema: GenerateAssistantMessage,
   maxAttempts: assistantMessage.maxReceiveCount,
-  retryDelay: doublingDelay,
+  retryDelay: buildDoublingDelay,
   jobId: (job) => job.messageId,
 } satisfies QueueDefinition<typeof GenerateAssistantMessage>
 
@@ -31,6 +31,6 @@ export const chatTitleQueue = {
   name: chatTitle.name,
   schema: GenerateChatTitle,
   maxAttempts: chatTitle.maxReceiveCount,
-  retryDelay: doublingDelay,
+  retryDelay: buildDoublingDelay,
   jobId: (job) => job.chatId,
 } satisfies QueueDefinition<typeof GenerateChatTitle>

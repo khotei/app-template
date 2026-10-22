@@ -193,11 +193,19 @@ replace one layer later.
   plan review: the stored failure keeps its cause (D19).* *Amended in S8b: "the attempts" are
   the reply attempts, three of the queue definition's four; the fourth only settles a reply the
   last one left active, because a worker crash on it otherwise leaves the message active (D23).*
+  *Amended in [`aws-local`](../2026-10-19-1448_aws-local/feature.md) S5d: the retry waits the
+  queue definition's `retryDelay` for that attempt (1 s, then 2 s); the attempts are the
+  definition's three, and the last writes `failed` on any outcome but success, an interrupt
+  included (D23).*
 - **R19** — WHEN the worker starts after jobs were queued while it was stopped, or a job's lock
   expires after a crash, THE SYSTEM SHALL process the job, restarting the generation and
   overwriting earlier snapshots. *Amended in S8b: a crash on the last reply attempt does not
   restart the generation; the fourth attempt settles the message as `failed` (R18 amended,
-  D23).*
+  D23).* *Amended in [`aws-local`](../2026-10-19-1448_aws-local/feature.md) S5d: a worker that
+  stops during the last attempt sets the message `failed` instead of restarting it. The message
+  stays active, and its job goes to the dead-letter queue, only when that write never happens: a
+  killed process, a store failing the write, or a stopped worker's long poll spending the last
+  attempt. Accepted; a sweep belongs to ticket 4 or 9 (D23).*
 
 ### Attachments
 

@@ -120,8 +120,10 @@ the apps from `QueueConfig` and `AwsConfig`: a definition's queue is
   `maxReceiveCount`-th moves the message to `<queue>-dlq` instead of returning it; the client never
   sends there itself. A worker that dies mid-attempt leaves its message hidden until the
   visibility runs out; it then comes back as the next attempt, or goes to the dead-letter queue.
-  A reply's last attempt writes `failed` on every other outcome, a stopping worker included
-  (`AssistantMessageJob`), so only a killed process leaves a reply active.
+  A reply's last attempt writes `failed` on any outcome but success, a stopping worker included
+  (`AssistantMessageJob`). A reply stays active, its job in the dead-letter queue, only when that
+  write never happens: a killed process, a store failing the write, or a stopped worker's leftover
+  long poll spending the last attempt.
 - **A stopped worker's long poll can outlive it.** Interrupting a receive aborts its HTTP request,
   but MiniStack keeps the poll open and hides the next message it finds for its visibility
   timeout; that message returns after `QUEUE_LOCK_EXPIRATION` with an attempt spent.

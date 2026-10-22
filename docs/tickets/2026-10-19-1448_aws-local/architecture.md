@@ -154,7 +154,7 @@ QueueClient.layer({ queueName, lockExpiration, lockRefreshInterval })    // need
 //     decode fails      → log error, extend(0)           (redrive dead-letters it, D3)
 //     run handler, heartbeat extend(lockExpiration) every lockRefreshInterval
 //       success         → delete
-//       failure, attempt < max → extend(retryDelay(retrySchedule, attempt))
+//       failure, attempt < max → extend(definition.retryDelay(attempt))
 //       failure, last   → log "dead-lettered", extend(0) (redrive, D3)
 //       interrupt       → extend(0)                      (costs the attempt, D2)
 //     an interrupt in the decode or the handler releases; the settle (delete, extend) runs whole
@@ -195,7 +195,7 @@ export const resources = {
     attachments: { name: 'attachments', lifecycle: { unboundExpirationDays: 1, abortIncompleteUploadDays: 1 } },
   },
   queues: {
-    assistantMessage: { name: 'assistant-message', maxReceiveCount: 4 },
+    assistantMessage: { name: 'assistant-message', maxReceiveCount: 3 },
     chatTitle: { name: 'chat-title', maxReceiveCount: 5 },
   },
 } as const
@@ -219,7 +219,7 @@ GET /attachments/:attachmentId/download
 
 | Seam | Catches | Misses |
 |---|---|---|
-| **1. `QueueClient` (`send`, `worker`) on `QueueClient.layer` over `QueueTransport.layerSqs` against MiniStack, in real time** (`packages/queue/queue.test.ts`) | attempt numbers and `isLastAttempt`, retry delays from `retrySchedule`, the heartbeat keeping a long handler's job from a second consumer, dead-lettering after `maxAttempts`, decode failures, interrupts, a failing transport not ending the loop (R9–R14) | real AWS differences from MiniStack (Risks); SQS's whole seconds bound how short a case can be |
+| **1. `QueueClient` (`send`, `worker`) on `QueueClient.layer` over `QueueTransport.layerSqs` against MiniStack, in real time** (`packages/queue/queue.test.ts`) | attempt numbers and `isLastAttempt`, retry delays from `retryDelay(attempt)`, the heartbeat keeping a long handler's job from a second consumer, dead-lettering after `maxAttempts`, decode failures, interrupts, a failing transport not ending the loop (R9–R14) | real AWS differences from MiniStack (Risks); SQS's whole seconds bound how short a case can be |
 | **2. `QueueTransport` suite** on `QueueTransport.layerSqs` against MiniStack (`queue.transport.test.ts`) | the SQS calls: visibility, `receiveCount`, `extend(0)`, redrive to the dead-letter queue at the next receive, long-poll wait, attributes (R8, R10, R13) | real AWS differences from MiniStack (Risks) |
 | **3. `AttachmentStore` contract suite**, run on `AttachmentStoreKv` and `AttachmentStoreS3` against MiniStack (`infrastructure/attachment`) | streamed insert and its size, nothing left after a failing or interrupted stream (no object, no multipart upload), `select`, `url` fetched with plain `fetch` returning the bytes and media type, `delete`; S3-only cases: two-part upload of 10 MB, `inline` disposition, the tag set by `insert` and cleared by `keep`, expiry `403` (R1–R3, R5, R6) | lifecycle execution (MiniStack never runs it), the 5 MiB part minimum (not enforced by MiniStack) |
 | **4. `AttachmentService` on the memory adapters under `TestClock`** (`application/attachment`) | an unbound attachment refused at 24 h with its record and bytes kept, a bound one never; `keep` called before the bind; deletes reaching the store (R4, R5, R7) | S3 (seam 3) |
@@ -260,12 +260,15 @@ GET /attachments/:attachmentId/download
   one MiniStack case per job; Seam 1 alone checks consumption. `layerSqs` folds into
   `QueueClientSqs`. This takes the fake rejected above: the one queue behaviour that choice kept
   is consumption, which those tests never reach. *Rejected:* the fake in `packages/testing`
-  (`packages/queue`'s tests import it, a cycle of project references).
+  (`packages/queue`'s tests import it, a cycle of project references). *Amended in S5d:* a
+  definition gives `retryDelay(attempt)`, a plain function; both chat queues double from 1 s.
+  *Rejected:* keeping `retrySchedule` (replaying a `Schedule` from a fresh step per attempt is
+  machinery for one curve).
 - **D2 — Delivery is at-least-once everywhere; an interrupt costs an attempt; `jobId` is an
   attribute.** `receiveCount` is the attempt, and a receive cannot be undone, so the memory
   transport counts the same way. `jobId` travels as a message attribute for logs; no layer
   deduplicates, and `QueueDefinition.jobId`'s doc says so. Handlers already skip a settled
-  message or a titled chat (R9). A process restart costs the job in hand one of its 4 or 5
+  message or a titled chat (R9). A process restart costs the job in hand one of its 3 or 5
   attempts. *Rejected:* FIFO queues (dedupe for 5 minutes only, ordering not needed); a dedupe
   table (needs a database: ticket 4). *Amended in S5:* this reverses `chat-core` R34 (an
   interrupt kept its attempt); feature R12 records it, and `chat-core`'s R34, D21 and D23 point
@@ -279,6 +282,12 @@ GET /attachments/:attachmentId/download
   (`replyAttempts + 1`), now justified by redrive instead of the SQL store's lock expiry.
   *Rejected:* `SendMessage` to the DLQ then `DeleteMessage` (two calls, not atomic: a crash
   between them duplicates or loses the message, and a decode failure needs no faster path).
+  *Amended in S5d:* `assistant-message` has no settling attempt; its `maxReceiveCount` is 3, and
+  the last attempt writes `failed` on any outcome but success, an interrupt included, in an exit
+  handler that runs uninterruptibly. Its failure is not caught: the queue logs it as
+  dead-lettered and redrive moves the job, as for `chat-title`. *Rejected:* the settling attempt
+  (a fourth receive and three attempt roles to cover what the exit handler covers, except the
+  cases in Risks); catching the last failure in the job (a second log line for a spent job).
 - **D4 — The inventory is plain data in `packages/aws`, and queue definitions read it.**
   `infrastructure` and the apps may not import `deployment`, so a `deployment/shared/` inventory
   could not name the resources the code uses. Definitions take `name` and `maxAttempts` from
@@ -419,8 +428,8 @@ GET /attachments/:attachmentId/download
 | MiniStack differs from AWS: it never runs lifecycle rules, does not enforce the 5 MiB part minimum, compares `RedrivePolicy` as a string, and answers a repeated `CreateBucket` by region | D7 fixes the part size in one constant with an S3-adapter test at the boundary; D5's fixed key order and `BucketAlreadyOwnedByYou` handling; ticket 9 adds a smoke run on real AWS, where lifecycle deletion is checked |
 | An S3 error outside `@effect-aws`'s tagged list (`EntityTooSmall`, `InvalidPart`) arrives as a bare `SdkError` | store failures die (D6), so the cause is logged whole; no branch depends on those codes |
 | The api later runs inside Docker and signs with `http://ministack:4566`, which the browser cannot reach (D11) | out of scope here; ticket 9 or a compose-run api adds a presign-only S3 layer on the public endpoint |
-| Restarts and deploys spend attempts (D2) | 4 and 5 attempts; the heartbeat keeps long handlers alive; `assistant-message` keeps its settling attempt |
-| The settling attempt of `assistant-message` can itself be spent, by an interrupt during it or by a stopped worker's long poll; the job then goes to the dead-letter queue, the reply stays active and the chat busy | rare outside dev, where `--watch` reloads make it likely; nothing consumes the dead-letter queue yet: a consumer or a sweep belongs to ticket 4 or 9 |
+| Restarts and deploys spend attempts (D2) | 3 and 5 attempts; the heartbeat keeps long handlers alive; the last reply attempt writes `failed` even when interrupted (D3) |
+| A reply stays active and the chat busy when its last attempt never writes `failed`: the process is killed (kill, OOM), the store fails that write, or a stopped worker's long poll spends that attempt; the job goes to the dead-letter queue (D3, amended in S5d; accepted by the user) | rare outside dev, where `--watch` reloads make it likely; nothing consumes the dead-letter queue yet: a consumer or a sweep belongs to ticket 4 or 9 |
 | A stopped worker's long poll outlives it: MiniStack keeps the aborted receive open and hides the next message for `QUEUE_LOCK_EXPIRATION`, spending its attempt (AWS may do the same) | costs one attempt and 15 s per worker stop; a shorter receive wait narrows it at the cost of more calls |
 | Tests that consume a queue need Docker and run in real time: `packages/queue` and one case per job suite (D1, amended in S5c) | one container per file (D12); SQS's whole-second waits kept to 1–2 s; the api and chat harnesses and the job handlers run without Docker on `recordQueue()` and `TestClock` |
 | Between S6 and S7 the dev download redirects to a `data:` URL, which browsers do not follow | dev only, for one step; `curl -i` shows the `302`; S7 redirects to MiniStack |

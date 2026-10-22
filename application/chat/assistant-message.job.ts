@@ -152,7 +152,6 @@ const findReply = Effect.fnUntraced(function* (
   return yield* messages.selectById(job.messageId)
 })
 
-// Re-reads the message: the one found on take has moved on by the time the attempt ends.
 const failReply = Effect.fnUntraced(function* (
   messageId: MessageId,
   cause: Cause.Cause<unknown>,
@@ -172,7 +171,7 @@ const failReply = Effect.fnUntraced(function* (
   yield* writeSettled(failed)
 })
 
-const replyTo = Effect.fnUntraced(function* (
+const findAndReply = Effect.fnUntraced(function* (
   job: GenerateAssistantMessage,
 ): Effect.fn.Return<void, ReplyError, ReplyServices> {
   const message = yield* findReply(job)
@@ -184,9 +183,9 @@ const handle = Effect.fn('AssistantMessageJob.handle')(function* (
   job: GenerateAssistantMessage,
   info: AttemptInfo,
 ) {
-  if (!info.isLastAttempt) return yield* replyTo(job)
+  if (!info.isLastAttempt) return yield* findAndReply(job)
   // An exit handler runs uninterruptibly, so a stopping worker waits for the `failed` write.
-  yield* Effect.onExit(replyTo(job), (exit) =>
+  yield* Effect.onExit(findAndReply(job), (exit) =>
     Exit.isSuccess(exit) ? Effect.void : failReply(job.messageId, exit.cause),
   )
 })

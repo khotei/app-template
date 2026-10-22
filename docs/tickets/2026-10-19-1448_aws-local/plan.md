@@ -415,7 +415,22 @@ checking `make dev` by hand in its own worktree.
   the `assistant-message` handler on its last attempt failing, or interrupted, leaves the reply
   `failed`; the inventory agreement test with `maxReceiveCount` 3.
 - **Verify:** `make check`.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Landed in two rounds (S5d.1, S5d.2), built in its own worktree (N=1). `make check`: 347
+    tests; about 85 lines added and 165 removed.
+  - The last attempt's failure is no longer caught: the queue logs it as dead-lettered and
+    redrive moves the job, as for `chat-title` (D3 amended). The job's own `Error` line goes.
+  - Without the settling attempt a reply also stays active when the store fails the `failed`
+    write or a stopped worker's long poll spends the last attempt, one event where two were
+    needed before. The user accepted it; `chat-core` R19 and both Risks tables name the three
+    cases, and a dead-letter consumer or sweep belongs to ticket 4 or 9.
+  - Seam 1's retry case bounds its first gap below 3.5 s, so `retryDelay(attempt + 1)` fails it
+    (a probe gave 4030 ms).
+  - A local stack made with `maxReceiveCount` 4 needs one `make reset`: SQS does not update an
+    existing queue on create, so `make up` fails with `QueueNameExists`.
+  - Files beyond the list: `README.md` (a line on the reply's attempts dropped),
+    `packages/queue/testing/queue.fake.test.ts` (a type change).
 
 #### S6 — A streaming `AttachmentStore` and a redirecting download
 

@@ -114,8 +114,7 @@ Each line names one choice and where it lives; the rejected alternatives are in 
   collections, indexes and blobs with a process-wide lock, and turns a store failure into a defect
   once. `infrastructure/kv/`.
 - **Jobs live in one file, both sides:** a `.job` service enqueues, its `worker` is a `Layer` that
-  consumes in a fiber the layer's scope owns. The reply job gets three attempts plus one that only
-  settles a message the last attempt left active. `application/chat/*.job.ts`, `packages/queue`.
+  consumes in a fiber the layer's scope owns. `application/chat/*.job.ts`, `packages/queue`.
 - **A process is one `Layer`:** `apps/api/src/layer.ts` and `apps/worker/src/layer.ts` close the
   leaves (store, queue, platform) with `Layer.provide` and `main.ts` is
   `BunRuntime.runMain(Layer.launch(...))`; stopping closes one scope.
