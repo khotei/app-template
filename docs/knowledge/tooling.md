@@ -56,8 +56,9 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
 
 ## Run and debug
 
-- **Ports.** `API_PORT` (3000) and `WEB_PORT` (3001) come from `.env`. The web server proxies
-  `/api/*` to `localhost:${API_PORT}`, so the browser stays same-origin and the api needs no CORS.
+- **Ports.** `API_PORT` (3000) and `WEB_PORT` (3001; others in a [worktree](#worktrees)) come
+  from `.env`. The web server proxies `/api/*` to `localhost:${API_PORT}`, so the browser stays
+  same-origin and the api needs no CORS.
 - **A single app.** `make dev-api`, or `cd apps/api && bun run dev`. Both read the same root `.env`.
 - **Debugging.** `make debug-api` prints an inspector block:
 
@@ -102,6 +103,22 @@ one ticker at a time, each finalized before the next `Listening on`.
 Bun has no `--dev` flag. "Development" means two things here: the reload flag in the app's `dev`
 script, and `NODE_ENV="development"`, which turns on HMR and browser console forwarding in the web
 server's `Bun.serve({ development })`.
+
+### Worktrees
+
+A worktree is a full copy of the environment, so trees run `make up` and `make dev` side by side.
+Each gets a number `N`, the main tree 0, and its own `node_modules` (`bun install`), `.data/`,
+`.pulumi/` and MiniStack container; its `.env` is the main tree's with three ports moved:
+
+| Variable | Port | Main tree | `N=1` |
+|---|---|---|---|
+| `API_PORT` | `3000 + 10N` | 3000 | 3010 |
+| `WEB_PORT` | `3001 + 10N` | 3001 | 3011 |
+| `AWS_ENDPOINT_URL` | `4566 + 10N` | 4566 | 4576 |
+
+The commands that write it:
+[`ticket-implement` › Parallel steps](../../.claude/skills/ticket-implement/SKILL.md#parallel-steps).
+Run `make down` in a worktree before removing it, or its container outlives it.
 
 ## Environment
 

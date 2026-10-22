@@ -24,8 +24,10 @@ stack: ## Log Pulumi in to the file backend and select or create the local stack
 	@$(PULUMI) login --non-interactive file://$(CURDIR)/.data/pulumi
 	@$(PULUMI) stack select local 2>/dev/null || $(PULUMI) stack init local
 
+# The program reads AWS_ENDPOINT_URL through AwsConfig, so `up` exports .env to it; `destroy` runs
+# no program.
 up: stack ## Start MiniStack through Pulumi and provision the inventory on it
-	$(PULUMI) up --yes --skip-preview
+	set -a && . ./.env && set +a && $(PULUMI) up --yes --skip-preview
 	bun --env-file=.env deployment/local/provision.ts
 
 down: stack ## Stop MiniStack

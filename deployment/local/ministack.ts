@@ -2,43 +2,62 @@ import { fileURLToPath } from 'node:url'
 
 import * as docker from '@pulumi/docker'
 import * as pulumi from '@pulumi/pulumi'
+import { Effect, Option } from 'effect'
+
+import { AwsConfig } from '@app-template/config'
 
 /** The image `packages/testing/ministack.ts` starts for the tests; bump both together. */
 const image =
   'ministackorg/ministack:1.5.29@sha256:88f507c57e16f5cac3c58dbdd4d47cfd14d6f870c38461aff7e077908253260b'
-const port = 4566
+/** MiniStack's own port, inside the container. */
+const internalPort = 4566
+/**
+ * The host port is the one in `AWS_ENDPOINT_URL`, and the container is named after it, so a
+ * worktree's MiniStack runs beside the main tree's without sharing a port, a name or a state.
+ */
+const { endpoint } = Effect.runSync(Effect.provide(AwsConfig, AwsConfig.layer))
+const endpointUrl = Option.getOrThrowWith(endpoint, () => new Error('AWS_ENDPOINT_URL is unset'))
+if (endpointUrl.port === '') throw new Error(`AWS_ENDPOINT_URL names no port: ${endpointUrl.href}`)
+const port = Number(endpointUrl.port)
 const region = new pulumi.Config().get('region') ?? 'us-east-1'
 const dataDir = fileURLToPath(new URL('../../.data/ministack', import.meta.url))
 
 const remoteImage = new docker.RemoteImage('ministack-image', { name: image, keepLocally: true })
 
-new docker.Container('ministack', {
-  name: 'app-template-ministack',
-  image: remoteImage.imageId,
-  ports: [{ internal: port, external: port }],
-  envs: [
-    `MINISTACK_REGION=${region}`,
-    'PERSIST_STATE=1',
-    'STATE_DIR=/data/state',
-    'S3_PERSIST=1',
-    'S3_DATA_DIR=/data/s3',
-  ],
-  volumes: [{ hostPath: dataDir, containerPath: '/data' }],
-  healthcheck: {
-    tests: [
-      'CMD',
-      'python',
-      '-c',
-      `import urllib.request; urllib.request.urlopen('http://localhost:${port}/_ministack/health')`,
+new docker.Container(
+  'ministack',
+  {
+    name: `app-template-ministack-${port}`,
+    image: remoteImage.imageId,
+    ports: [{ internal: internalPort, external: port }],
+    envs: [
+      `MINISTACK_REGION=${region}`,
+      'PERSIST_STATE=1',
+      'STATE_DIR=/data/state',
+      'S3_PERSIST=1',
+      'S3_DATA_DIR=/data/s3',
     ],
-    interval: '2s',
-    timeout: '3s',
-    retries: 15,
-    startPeriod: '2s',
+    volumes: [{ hostPath: dataDir, containerPath: '/data' }],
+    healthcheck: {
+      tests: [
+        'CMD',
+        'python',
+        '-c',
+        `import urllib.request; urllib.request.urlopen('http://localhost:${internalPort}/_ministack/health')`,
+      ],
+      interval: '2s',
+      timeout: '3s',
+      retries: 15,
+      startPeriod: '2s',
+    },
+    wait: true,
+    waitTimeout: 60,
+    // A plain remove kills MiniStack mid-save; a stop lets it write its state first.
+    destroyGraceSeconds: 15,
+    stopTimeout: 15,
   },
-  wait: true,
-  waitTimeout: 60,
-  // A plain remove kills MiniStack mid-save; a stop lets it write its state first.
-  destroyGraceSeconds: 15,
-  stopTimeout: 15,
-})
+  {
+    // A new name or image replaces the container; the old one holds the port until it is deleted.
+    deleteBeforeReplace: true,
+  },
+)

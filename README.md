@@ -85,7 +85,7 @@ make reset   # make down, then removes .data/ whole
 | the Pulumi CLI is missing | `make up`, `down`, `reset` and `stack` fail at `pulumi`; install it from the link above. `make check` does not need it |
 | an older `.env` lacks `AWS_*` and `STAGE` | the provisioner fails with a `ConfigError` naming `AWS_REGION`; `make setup` leaves an existing `.env` alone, so copy the AWS block from `.env.example` |
 | the first `make up` takes about ten seconds | it downloads the Docker provider plugin into `.pulumi/`; later runs take a few seconds |
-| port 4566 is taken | the container fails to start; free the port (a leftover `app-template-ministack`, or another emulator) |
+| port 4566 is taken | the container fails to start; free the port (a leftover `app-template-ministack-4566`, or another emulator) |
 | `make up` failed midway | the container stays in the stack; `make down`, then `make up` again |
 | you want a clean slate | `make reset` also wipes the key-value store and the queue file in `.data/`, not only MiniStack |
 | an inventory change that SQS refuses on an existing queue (`QueueNameExists`) | `make reset`, then `make up` |

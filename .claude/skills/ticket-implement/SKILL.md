@@ -42,16 +42,33 @@ One step, or one round of it, per approval. Pushing or opening a PR needs its ow
 
 ## Parallel steps
 
-On the user's word, steps whose `Blocked by` are all `done` and whose `Files` do not overlap run at
-once, one worktree each:
+On the user's word, steps whose `Blocked by` are all `done` run at once, one worktree each, when
+their overlap is mechanical only: a line added to a shared list or a `package.json`, separate
+sections of one doc, `bun.lock`. Never when both create one new file or change one function or
+contract.
 
-- Spawn each `implementer` with `isolation: "worktree"`; beside the pointers, tell it to run
-  `bun install`, copy the root `.env`, leave `plan.md` and `architecture.md` alone, and never run
-  `make up` or `make dev` (their ports are shared).
+- Give each worktree a number `N`, unique among the live ones; the main tree is 0. Spawn each
+  `implementer` with `isolation: "worktree"`; beside the pointers, give it `N`, tell it to leave
+  `plan.md` and `architecture.md` alone, and to set its tree up first: the main tree's `.env` with
+  its own ports.
+
+  ```sh
+  N=<n>
+  bun install
+  main=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
+  sed -E -e "s/^API_PORT=.*/API_PORT=$((3000 + 10 * N))/" \
+    -e "s/^WEB_PORT=.*/WEB_PORT=$((3001 + 10 * N))/" \
+    -e "s/^(AWS_ENDPOINT_URL=.*:)[0-9]+/\1$((4566 + 10 * N))/" "$main/.env" > .env
+  ```
+
+  The tree then holds its own `node_modules`, `.env`, `.data/`, `.pulumi/` and MiniStack, so the
+  agent may run `make up` and `make dev` for its *Verify*.
 - Name the worktree at once, `<slug>-<step>-<topic>`: a symlink of that name to the agent's folder
   in `.claude/worktrees/`, and `git branch -m` to `wt/<slug>-<step>-<topic>`. Never move a folder
   an agent works in.
+- Every status names each worktree by its full path, its `N` and its ports.
 - Rounds commit in the worktree; rebase its branch onto the ticket branch before the next round.
 - Reviews and approvals stay one step at a time. On approve, cherry-pick the step's rounds onto
   the ticket branch, the last with `--no-commit` so the `plan.md` and `architecture.md` edits join
-  it, and run `make check` after each pick. Then remove the worktree, its symlink and its branch.
+  it, and run `make check` after each pick. Then run `make down` in the worktree, and remove the
+  worktree, its symlink and its branch.
