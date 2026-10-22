@@ -745,7 +745,22 @@ checking `make dev` by hand in its own worktree.
 - **Test first:** none at a Seam: a refactor under the existing Seam 1 and job suites, which stay
   green unchanged in what they assert.
 - **Verify:** `make check`; `git grep` finds the MiniStack image tag once.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Landed in two rounds (S12.1, S12.2), built in its own worktree (N=2). `make check`: 346
+    tests, no assertion changed; the image tag appears in code once.
+  - `QueueTransport.send(queue, message)` and `extend(queue, { handle, visibility })`; `Received`
+    extends `OutgoingMessage`; the client's `settle(received, exit)` derives the attempt itself.
+    `naming.md` lists `.transport` beside `.client`, two row pairs merged to keep the budget.
+  - `ministackImage` lives in `@app-template/config`: `aws` would close a reference cycle (its
+    tests import `testing`), `deployment` cannot import `testing`, and a package for one string
+    was rejected. `packages/CLAUDE.md` names it as the second project-data exception.
+  - The shared `QueueClientMiniStack` in `@app-template/queue/testing` (simplification 3) was
+    tried in S12.1 and declined in S12.2: a real client over a container is not a `.fake`, it
+    widened the `./testing` exception, and every `recordQueue` user loaded `aws` and
+    testcontainers. `application/testing/queue.harness.ts` and the queue suite's layer stay.
+  - Files beyond the list: `packages/CLAUDE.md`, `packages/config/{ministack.ts,index.ts}`,
+    `packages/testing/{package.json,tsconfig.json}`, `bun.lock`.
 
 ## Requirement coverage
 

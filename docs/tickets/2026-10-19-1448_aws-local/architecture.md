@@ -67,7 +67,8 @@ graph LR
 
 **`packages/config`**: `AwsConfig { region: AWS_REGION, endpoint: Option<URL> AWS_ENDPOINT_URL,
 stage: STAGE }`; `QueueConfig` keeps `lockExpiration` and `lockRefreshInterval` (now the
-visibility timeout and its heartbeat) and drops `QUEUE_SQLITE_PATH` (D10).
+visibility timeout and its heartbeat) and drops `QUEUE_SQLITE_PATH` (D10); `+ ministack.ts`,
+`ministackImage`, the pinned image `deployment/local` and `packages/testing` both run (S12).
 
 **`packages/testing`**: `+ ministack.ts`, a `MiniStack` layer that starts the pinned image with
 `testcontainers` (`GenericContainer`, wait on `GET /_ministack/health`) under `acquireRelease`
@@ -123,20 +124,24 @@ select or create the `local` stack) is idempotent and precedes `up` and `down`; 
 
 ```ts
 // packages/queue/queue.transport.ts — the internal seam (D1)
-interface Received {
-  readonly handle: string; readonly body: string; readonly receiveCount: number
-  readonly attributes: { jobId: string }
+interface OutgoingMessage {
+  readonly body: string; readonly attributes: { jobId: string }
+}
+
+interface Received extends OutgoingMessage {
+  readonly handle: string; readonly receiveCount: number
 }
 
 interface QueueTransport {
-  readonly send: (queue: string, body: string, attributes: { jobId: string }) => Effect<void, QueueError>
+  readonly send: (queue: string, message: OutgoingMessage) => Effect<void, QueueError>
   /** Long-polls up to `wait`; a message received is invisible for `visibility`. A message already
    *  received the `maxReceiveCount` of the queue's RedrivePolicy is moved to its dead-letter queue
    *  instead of returned. */
   readonly receive: (queue: string, options: { visibility: Duration; wait: Duration })
     => Effect<Option<Received>, QueueError>
   /** Visible again after `visibility`: the heartbeat, a retry delay, or 0 to release at once. */
-  readonly extend: (queue: string, handle: string, visibility: Duration) => Effect<void, QueueError>
+  readonly extend: (queue: string, change: { handle: string; visibility: Duration })
+    => Effect<void, QueueError>
   readonly delete: (queue: string, handle: string) => Effect<void, QueueError>
 }
 QueueTransport.layerSqs                                       // needs SQSService

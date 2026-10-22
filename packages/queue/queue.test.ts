@@ -14,12 +14,16 @@ import {
   SchemaGetter,
 } from 'effect'
 
-import { buildDeadLetterName, buildResourceName, type Resources } from '@app-template/aws'
-import { buildStage, recordLogs } from '@app-template/testing'
+import {
+  buildDeadLetterName,
+  buildResourceName,
+  provision,
+  type Resources,
+} from '@app-template/aws'
+import { AwsClientsMiniStack, buildStage, recordLogs } from '@app-template/testing'
 
 import { type AttemptInfo, QueueClient, type QueueDefinition, worker } from '#queue/queue'
 import { QueueError, QueueTransport } from '#queue/queue.transport'
-import { QueueClientMiniStack } from '#queue/testing/queue.fake'
 
 class Ping extends Schema.Class<Ping>('Ping')({ id: Schema.String, text: Schema.String }) {}
 
@@ -83,9 +87,13 @@ const settleDelay = Duration.seconds(4)
 
 const settling = { ...definitions.settling, retryDelay: () => settleDelay }
 
-const lockOptions = { lockExpiration, lockRefreshInterval: '500 millis' } as const
+const clientOptions = { queueName, lockExpiration, lockRefreshInterval: '500 millis' } as const
 
-const clientOptions = { queueName, ...lockOptions } as const
+const QueueClientMiniStack = QueueClient.layer(clientOptions).pipe(
+  Layer.provideMerge(QueueTransport.layerSqs),
+  Layer.provide(Layer.effectDiscard(provision(inventory, stage))),
+  Layer.provide(AwsClientsMiniStack),
+)
 
 const wrapTransport = (
   wrap: (transport: QueueTransport['Service']) => Effect.Effect<QueueTransport['Service']>,
@@ -167,10 +175,7 @@ const receiveDeadLettered = (definition: PingQueue) =>
   ).pipe(Effect.flatMap(Effect.fromOption))
 
 describe('QueueClient.send and worker over QueueTransport.layerSqs against MiniStack', () => {
-  layer(QueueClientMiniStack(stage, { resources: inventory, ...lockOptions }), {
-    timeout: '60 seconds',
-    excludeTestServices: true,
-  })((it) => {
+  layer(QueueClientMiniStack, { timeout: '60 seconds', excludeTestServices: true })((it) => {
     it.effect('consumes a sent message as its first attempt', () =>
       Effect.gen(function* () {
         const seen = yield* Queue.unbounded<Seen>()

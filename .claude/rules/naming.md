@@ -32,15 +32,13 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 | Suffix | Role | Layer |
 |---|---|---|
 | `.id` | the aggregate's branded ids, the only file other aggregates' models import | domain |
-| `.model` | entity types and value shapes | domain |
-| `.error` | domain errors | domain |
+| `.model` · `.error` | entity types and value shapes · domain errors | domain |
 | `.service` | domain: ports + pure operations · application: a service over ports | domain, application |
 | `.use-case` | a flow that composes services: `<verb>-<object>.use-case.ts` | application |
 | `.job` | a queue's producer service and its worker | application |
 | `.repository` · `.storage` · `.llm` | an adapter over a client; prompt functions live in `.llm` | infrastructure |
 | `.queue` | queue definitions | infrastructure |
-| `.client` | client wiring | infrastructure/shared, http-api, packages |
-| `.transport` | the service a client runs over: one backend's wire calls (`QueueTransport`) | packages |
+| `.client` · `.transport` | client wiring · the service a package's client runs over (`QueueTransport`) | infrastructure/shared, http-api, packages |
 | `.http` | a contract group: one resource's HTTP routes (`HttpApiGroup`) | http-api |
 | `.handler` | a request handler | apps |
 | `.test` | a colocated test that mirrors its source name, or names what it checks against (`resources.test.ts`: the inventory in `packages/aws`) | any |

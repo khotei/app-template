@@ -22,8 +22,7 @@ The Pulumi state is a file backend under `.data/pulumi` with an empty passphrase
 is stored), and `PULUMI_HOME` is the tree's `.pulumi/`, so a clone touches nothing outside the
 repo, `make reset` keeps the provider plugin, and each worktree downloads its own on its first
 `make up`. The image digest is pinned once, as `ministackImage` in `@app-template/config`, which
-`deployment/local/ministack.ts` and the tests' container both read: `@app-template/aws` cannot
-hold it, since its tests import `@app-template/testing`.
+`deployment/local/ministack.ts` and the tests' container both read.
 
 | Target | Does |
 |---|---|
@@ -134,8 +133,7 @@ the apps from `QueueConfig` and `AwsConfig`: a definition's queue is
 
 The queue's own suite checks those rules on MiniStack in real time. A job suite calls the job's
 `handle` with plain `AttemptInfo` values under the `TestClock`, and keeps one case that runs its
-worker on MiniStack through `QueueClientMiniStack` from `@app-template/queue/testing`, the layer
-the queue's suite runs on too. Tests that only send (the api and chat harnesses) use `recordQueue` from
+worker on MiniStack. Tests that only send (the api and chat harnesses) use `recordQueue` from
 `@app-template/queue/testing`, which encodes each job as the client does, records it and starts
 no container.
 
@@ -149,8 +147,8 @@ fresh `test-<random>` stage from `buildStage()`, and stop the container with the
 `make test` needs a running Docker daemon from now on, and nothing else: the Pulumi project is for
 `make up` alone. The container starts in about two seconds, and the suites pass
 `{ timeout: '60 seconds' }` to `layer(…)` for the pull on a cold machine; a suite that starts no
-container keeps the default. Unique stages isolate
-parallel files without resets; nothing cleans a stage up, since the container goes with it.
+container keeps the default. Unique stages isolate parallel files without resets; nothing cleans
+a stage up, since the container goes with it.
 
 MiniStack differs from AWS in what it never does: lifecycle rules never run, the 5 MiB minimum
 part size is not enforced, and the `Tagging` sent with `CreateMultipartUpload` is dropped. What

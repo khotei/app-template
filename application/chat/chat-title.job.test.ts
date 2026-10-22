@@ -14,7 +14,6 @@ import { AiError, Prompt, type Response } from 'effect/ai'
 import { KeyValueStore } from 'effect/persistence'
 import { TestClock } from 'effect/testing'
 
-import { resources } from '@app-template/aws'
 import {
   buildChat,
   buildUserMessage,
@@ -29,12 +28,12 @@ import {
   GenerateChatTitle,
   MessageRepositoryKv,
 } from '@app-template/infrastructure/chat'
-import { QueueClientMiniStack } from '@app-template/queue/testing'
-import { buildStage, recordLogs } from '@app-template/testing'
+import { recordLogs } from '@app-template/testing'
 
 import { ChatTitleJob } from '#application/chat/chat-title.job'
 import { chatId, epoch, messageId } from '#application/testing/chat.fixture'
 import { recordLanguageModel } from '#application/testing/language-model.fake'
+import { QueueClientMiniStack } from '#application/testing/queue.harness'
 import { owner } from '#application/testing/user.fixture'
 
 type Answer = Effect.Effect<Array<Response.PartEncoded>, AiError.AiError>
@@ -302,13 +301,7 @@ describe('ChatTitleJob.handle', () => {
 const onSqs = makeChatTitleHarness(answering('Lisbon weekend'))
 
 const layerOnSqs = Layer.mergeAll(ChatTitleJob.layer, onSqs.layer).pipe(
-  Layer.provideMerge(
-    QueueClientMiniStack(buildStage(), {
-      resources,
-      lockExpiration: '30 seconds',
-      lockRefreshInterval: '10 seconds',
-    }),
-  ),
+  Layer.provideMerge(QueueClientMiniStack),
 )
 
 const selectTitledChat = Effect.repeat(selectChat, {

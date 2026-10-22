@@ -9,16 +9,14 @@ export interface MessageAttributes {
   readonly jobId: string
 }
 
-export interface Received {
-  readonly handle: string
-  readonly body: string
-  readonly receiveCount: number
-  readonly attributes: MessageAttributes
-}
-
 export interface OutgoingMessage {
   readonly body: string
   readonly attributes: MessageAttributes
+}
+
+export interface Received extends OutgoingMessage {
+  readonly handle: string
+  readonly receiveCount: number
 }
 
 export interface ReceiveOptions {
@@ -70,13 +68,13 @@ const makeSqs = Effect.gen(function* () {
 
   const send = Effect.fn('QueueTransport.send')(function* (
     queue: string,
-    { body, attributes }: OutgoingMessage,
+    message: OutgoingMessage,
   ) {
     const url = yield* Cache.get(urls, queue)
     yield* sqs.sendMessage({
       QueueUrl: url,
-      MessageBody: body,
-      MessageAttributes: { jobId: { DataType: 'String', StringValue: attributes.jobId } },
+      MessageBody: message.body,
+      MessageAttributes: { jobId: { DataType: 'String', StringValue: message.attributes.jobId } },
     })
   }, failQueue)
 

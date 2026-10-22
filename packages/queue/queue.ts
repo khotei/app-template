@@ -164,7 +164,10 @@ export class QueueClient extends Context.Service<
     /**
      * Runs `handle` on each message forever, the attempt being its receive count: success deletes
      * it, a failure hides it for `retryDelay`, and a last failure, an undecodable body or an
-     * interrupt free it at once for its next attempt or the dead-letter queue.
+     * interrupt makes it visible at once for its next attempt or the dead-letter queue.
+     *
+     * An interrupt waits for the settle under way, so a retry keeps its delay and a delete is
+     * not lost.
      */
     readonly consume: <A, I, E, R>(
       definition: QueueDefinition<Schema.Codec<A, I>>,

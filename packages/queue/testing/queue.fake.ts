@@ -1,10 +1,6 @@
-import { type Duration, Effect, Layer } from 'effect'
-
-import { buildResourceName, provision, type Resources } from '@app-template/aws'
-import { AwsClientsMiniStack } from '@app-template/testing'
+import { Effect, Layer } from 'effect'
 
 import { encodeBody, QueueClient } from '#queue/queue'
-import { QueueTransport } from '#queue/queue.transport'
 
 export interface SentJob {
   readonly queue: string
@@ -35,27 +31,3 @@ export const recordQueue = () => {
   )
   return { sent, layer }
 }
-
-export interface QueueClientMiniStackOptions {
-  readonly resources: Resources
-  readonly lockExpiration: Duration.Input
-  readonly lockRefreshInterval: Duration.Input
-}
-
-/**
- * `QueueClient` and its SQS transport on the test file's MiniStack, with `resources` provisioned
- * under `stage`.
- */
-export const QueueClientMiniStack = (
-  stage: string,
-  { resources, lockExpiration, lockRefreshInterval }: QueueClientMiniStackOptions,
-) =>
-  QueueClient.layer({
-    queueName: (name) => buildResourceName(stage, name),
-    lockExpiration,
-    lockRefreshInterval,
-  }).pipe(
-    Layer.provideMerge(QueueTransport.layerSqs),
-    Layer.provide(Layer.effectDiscard(Effect.orDie(provision(resources, stage)))),
-    Layer.provide(AwsClientsMiniStack),
-  )
