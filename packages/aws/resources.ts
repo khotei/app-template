@@ -28,7 +28,7 @@ export const resources = {
     },
   },
   queues: {
-    assistantMessage: { name: 'assistant-message', maxReceiveCount: 4 },
+    assistantMessage: { name: 'assistant-message', maxReceiveCount: 3 },
     chatTitle: { name: 'chat-title', maxReceiveCount: 5 },
   },
 } as const satisfies Resources

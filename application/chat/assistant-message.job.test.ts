@@ -44,7 +44,6 @@ import {
   ChatRepositoryKv,
   GenerateAssistantMessage,
   MessageRepositoryKv,
-  replyAttempts,
 } from '@app-template/infrastructure/chat'
 import type { AttemptInfo } from '@app-template/queue'
 import { recordLogs } from '@app-template/testing'
@@ -100,11 +99,11 @@ const threeDeltas = Stream.make(delta('Hel'), delta('lo, '), delta('world')).pip
   Stream.tap(() => Effect.sleep('120 millis')),
 )
 
-const settlingAttempt = assistantMessageQueue.maxAttempts
+const lastAttempt = assistantMessageQueue.maxAttempts
 
 const attempts = {
-  'a reply attempt': 1,
-  'the settling attempt': settlingAttempt,
+  'an attempt': 1,
+  'the last attempt': lastAttempt,
 } as const
 
 const providerError = AiError.make({
@@ -332,14 +331,14 @@ describe('AssistantMessageJob.handle', () => {
     }).pipe(Effect.provide(layer))
   })
 
-  it.effect('fails each reply attempt but the last, which fails the message with its cause', () => {
+  it.effect('fails every attempt and, on the last, fails the message with its cause', () => {
     const { writes, prompts, logs, layer } = makeAssistantMessageHarness(failingMidway)
     return Effect.gen(function* () {
       yield* arrangeChat()
 
-      const exits = yield* Effect.forEach(Arr.range(1, replyAttempts), runAttempt)
+      const exits = yield* Effect.forEach(Arr.range(1, lastAttempt), runAttempt)
 
-      assert.deepStrictEqual(Arr.map(exits, Exit.isSuccess), [false, false, true])
+      assert.deepStrictEqual(Arr.map(exits, Exit.isSuccess), [false, false, false])
       const attempt = [
         ['preparing', ''],
         ['generating', ''],
@@ -360,56 +359,29 @@ describe('AssistantMessageJob.handle', () => {
       )
       assert.include(error.cause, 'provider exploded')
       assert.deepStrictEqual((yield* selectChat).updatedAt, failed.updatedAt)
-      assert.deepStrictEqual(logs, [['Error', 'assistant reply failed']])
+      assert.deepStrictEqual(logs, [])
     }).pipe(Effect.provide(layer))
   })
 
-  it.effect('fails a reply the last reply attempt left active, without calling the model', () => {
-    const { writes, prompts, logs, layer } = makeAssistantMessageHarness(threeDeltas)
+  it.effect('fails the reply when its worker stops during the last attempt', () => {
+    const { writes, layer } = makeAssistantMessageHarness(threeDeltas)
     return Effect.gen(function* () {
-      yield* arrangeChat(new Message({ ...queuedReply, stage: 'generating', text: 'Hel' }))
+      yield* arrangeChat()
 
-      yield* runAttempt(settlingAttempt)
+      const running = yield* startAttempt(lastAttempt)
+      yield* TestClock.adjust('200 millis')
+      yield* Fiber.interrupt(running)
 
-      assert.deepStrictEqual(stagesOf(writes), [['failed', 'Hel']])
-      assert.deepStrictEqual(prompts, [])
-      const failed = yield* selectReply
-      assert.include(Option.getOrThrow(failed.error).cause, 'ended without settling')
-      assert.deepStrictEqual((yield* selectChat).updatedAt, failed.updatedAt)
-      assert.deepStrictEqual(logs, [
-        ['Error', 'assistant reply left unsettled by the last reply attempt'],
+      assert.deepStrictEqual(stagesOf(writes), [
+        ['preparing', ''],
+        ['generating', ''],
+        ['failed', ''],
       ])
+      const failed = yield* selectReply
+      assert.strictEqual(Option.getOrThrow(failed.error).reason, 'ReplyFailed')
+      assert.deepStrictEqual((yield* selectChat).updatedAt, failed.updatedAt)
     }).pipe(Effect.provide(layer))
   })
-
-  it.effect(
-    'passes an interrupt on the last reply through, so the settling attempt fails the reply',
-    () => {
-      const interrupted = Stream.concat(
-        Stream.make(delta('Hel')),
-        Stream.fromEffect(Effect.interrupt),
-      )
-      const { writes, logs, layer } = makeAssistantMessageHarness(interrupted)
-      return Effect.gen(function* () {
-        yield* arrangeChat()
-
-        const lastReply = yield* runAttempt(replyAttempts)
-        yield* runAttempt(settlingAttempt)
-
-        assert.isTrue(Exit.hasInterrupts(lastReply))
-        assert.deepStrictEqual(stagesOf(writes), [
-          ['preparing', ''],
-          ['generating', ''],
-          ['failed', ''],
-        ])
-        const failed = yield* selectReply
-        assert.include(Option.getOrThrow(failed.error).cause, 'ended without settling')
-        assert.deepStrictEqual(logs, [
-          ['Error', 'assistant reply left unsettled by the last reply attempt'],
-        ])
-      }).pipe(Effect.provide(layer))
-    },
-  )
 })
 
 const onSqs = makeAssistantMessageHarness(threeDeltas)

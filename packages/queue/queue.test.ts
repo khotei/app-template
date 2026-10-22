@@ -10,7 +10,6 @@ import {
   Queue,
   Record,
   Ref,
-  Schedule,
   Schema,
   SchemaGetter,
 } from 'effect'
@@ -55,7 +54,7 @@ const definitions = Record.map(
       name,
       schema: Ping,
       maxAttempts,
-      retrySchedule: Schedule.spaced('1 second'),
+      retryDelay: () => '1 second',
       jobId: (ping) => ping.id,
     }) satisfies QueueDefinition<typeof Ping>,
 )
@@ -77,13 +76,16 @@ const queueName = (name: string) => buildResourceName(stage, name)
 const lockExpiration = Duration.seconds(2)
 
 // Retries after 2 s, then 4 s: the second outlasts the visibility timeout, so only the delay
-// replayed for that attempt can space it.
-const exhausted = { ...definitions.exhausted, retrySchedule: Schedule.exponential(lockExpiration) }
+// for that attempt can space it.
+const exhausted = {
+  ...definitions.exhausted,
+  retryDelay: (attempt: number) => Duration.times(lockExpiration, attempt),
+}
 
 // Longer than the visibility timeout, so only the settle's retry delay can space two attempts.
 const retryDelay = Duration.seconds(4)
 
-const settling = { ...definitions.settling, retrySchedule: Schedule.spaced(retryDelay) }
+const settling = { ...definitions.settling, retryDelay: () => retryDelay }
 
 const clientOptions = { queueName, lockExpiration, lockRefreshInterval: '500 millis' } as const
 

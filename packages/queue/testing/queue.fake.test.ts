@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Schedule, Schema } from 'effect'
+import { Effect, Schema } from 'effect'
 
 import { QueueClient, type QueueDefinition } from '#queue/queue'
 import { QueueError } from '#queue/queue.transport'
@@ -11,7 +11,7 @@ const pings = {
   name: 'pings',
   schema: Ping,
   maxAttempts: 3,
-  retrySchedule: Schedule.spaced('1 second'),
+  retryDelay: () => '1 second',
   jobId: (ping) => ping.id,
 } satisfies QueueDefinition<typeof Ping>
 

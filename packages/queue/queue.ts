@@ -7,7 +7,6 @@ import {
   Layer,
   Option,
   Predicate,
-  Pull,
   Result,
   Schedule,
   Schema,
@@ -19,7 +18,8 @@ export interface QueueDefinition<S extends Schema.Top> {
   readonly name: string
   readonly schema: S
   readonly maxAttempts: number
-  readonly retrySchedule: Schedule.Schedule<unknown, number>
+  /** How long a message waits after a failed `attempt`; SQS rounds it up to whole seconds. */
+  readonly retryDelay: (attempt: number) => Duration.Input
   /**
    * Travels with the message for logs only: delivery is at-least-once, so a handler must leave
    * the same state when a job comes twice.
@@ -48,26 +48,6 @@ export interface QueueClientOptions {
 const receiveWait = Duration.seconds(20)
 
 type Restore = <A, E, R>(effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>
-
-/**
- * The attempt is the receive count, so the schedule is replayed from a fresh step and another
- * process retrying the job gets the same delay, as effect's `PersistedQueue` does.
- */
-const replayRetryDelay = Effect.fnUntraced(function* (
-  schedule: Schedule.Schedule<unknown, number>,
-  attempt: number,
-) {
-  const step = yield* Schedule.toStep(schedule)
-  let elapsed = 0
-  let delay = Duration.zero
-  for (let input = 1; input <= attempt; input++) {
-    const next = yield* Pull.catchDone(step(elapsed, input), () => Effect.undefined)
-    if (next === undefined) break
-    delay = next[1]
-    elapsed += Duration.toMillis(delay)
-  }
-  return delay
-})
 
 const buildAttemptInfo = (received: Received, maxAttempts: number): AttemptInfo => ({
   attempt: received.receiveCount,
@@ -129,8 +109,7 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
           return yield* release(received)
         }
         yield* Effect.logWarning('queue message attempt failed', exit.cause)
-        const delay = yield* replayRetryDelay(definition.retrySchedule, info.attempt)
-        yield* extend(received, delay)
+        yield* extend(received, definition.retryDelay(info.attempt))
       })
 
       // Runs masked from the receive on, so no interrupt finds the message unreleased: `restore`
@@ -186,8 +165,8 @@ export class QueueClient extends Context.Service<
     /**
      * Runs `handle` on each message, forever; the attempt is the message's receive count.
      *
-     * Success deletes the message. A failed attempt is logged and hides it for the delay
-     * `retrySchedule` gives that attempt. The last failed attempt (logged as dead-lettered), a
+     * Success deletes the message. A failed attempt is logged and hides it for the definition's
+     * `retryDelay` of that attempt. The last failed attempt (logged as dead-lettered), a
      * body that does not decode (logged) and an interrupt make it visible at once: its next
      * receive is the next attempt or, after the last, moves it to the dead-letter queue. No
      * outcome ends the loop, and an interrupt waits for the settle under way.

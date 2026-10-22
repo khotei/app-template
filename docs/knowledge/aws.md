@@ -119,8 +119,9 @@ the apps from `QueueConfig` and `AwsConfig`: a definition's queue is
 - **Redrive is the only way to the dead-letter queue.** The receive after the
   `maxReceiveCount`-th moves the message to `<queue>-dlq` instead of returning it; the client never
   sends there itself. A worker that dies mid-attempt leaves its message hidden until the
-  visibility runs out; it then comes back as the next attempt, or goes to the dead-letter queue
-  (`replyAttempts` in `infrastructure/chat/chat.queue.ts` says what that means for a reply).
+  visibility runs out; it then comes back as the next attempt, or goes to the dead-letter queue.
+  A reply's last attempt writes `failed` on every other outcome, a stopping worker included
+  (`AssistantMessageJob`), so only a killed process leaves a reply active.
 - **A stopped worker's long poll can outlive it.** Interrupting a receive aborts its HTTP request,
   but MiniStack keeps the poll open and hides the next message it finds for its visibility
   timeout; that message returns after `QUEUE_LOCK_EXPIRATION` with an attempt spent.
