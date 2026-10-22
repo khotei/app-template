@@ -8,7 +8,6 @@ export interface SentJob {
   readonly job: unknown
 }
 
-/** Wraps the `QueueClient` beneath it, recording every job sent through it. */
 export const recordQueue = () => {
   const sent: Array<SentJob> = []
   const layer = Layer.effect(

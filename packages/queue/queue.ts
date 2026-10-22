@@ -49,7 +49,7 @@ const receiveWait = Duration.seconds(20)
 
 // Replays the schedule up to `attempt` from a fresh step, as effect's `PersistedQueue` does: the
 // attempt is the receive count, so a retry handled by another process gets the same delay.
-const buildRetryDelay = Effect.fnUntraced(function* (
+const replayRetryDelay = Effect.fnUntraced(function* (
   schedule: Schedule.Schedule<unknown, number>,
   attempt: number,
 ) {
@@ -121,7 +121,7 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
           return yield* extend(received, 0)
         }
         yield* Effect.logWarning('queue message attempt failed', exit.cause)
-        const delay = yield* buildRetryDelay(definition.retrySchedule, info.attempt)
+        const delay = yield* replayRetryDelay(definition.retrySchedule, info.attempt)
         yield* extend(received, delay)
       })
 

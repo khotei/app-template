@@ -298,6 +298,8 @@ replace one layer later.
   with `--hot`, each reload stopping the previous runtime before it starts; a worker interrupted
   during a job SHALL release it without counting the attempt (`effect-setup` R29, R35, R36).
   *Amended in S13 (D30): both ran with `--watch`, against the rule that keeps the api on `--hot`.*
+  *Amended in [`aws-local`](../2026-10-19-1448_aws-local/feature.md) R12: on SQS an interrupted
+  job comes back at once as its next attempt; the interrupt is counted.*
 - **R35** — Ids SHALL be UUIDv7 from `Crypto` and time from `Clock`, provided by
   `@effect/platform-bun` at runtime and `TestCrypto` and `TestClock` in tests, save the api's HTTP
   tests, which run on the real `Crypto`; `domain` SHALL read neither. *Amended in S13: the HTTP

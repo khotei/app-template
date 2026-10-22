@@ -218,7 +218,7 @@ const handle = Effect.fn('AssistantMessageJob.handle')(function* (
 
 /**
  * Replies in `replyAttempts` tries, then runs one attempt that only settles a reply the last try
- * left active, so a spent job never leaves its message active and its chat busy.
+ * left active.
  */
 export class AssistantMessageJob extends Context.Service<
   AssistantMessageJob,

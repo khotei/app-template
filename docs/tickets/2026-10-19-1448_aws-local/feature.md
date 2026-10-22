@@ -123,12 +123,11 @@ stay in `KeyValueStore` until `postgres-drizzle` (4).
 - **R11** — IF an attempt fails and attempts remain, THEN THE SYSTEM SHALL make the job visible
   again after the definition's retry delay.
 - **R12** — THE SYSTEM SHALL give each handler its attempt number and whether it is the last one,
-  counted from the queue's receive count against the definition's `maxAttempts`. *Amends
-  `chat-core` R34 (architecture D2): a worker interrupted during a job (a stop, a `--watch`
-  reload, a handler that interrupts itself) returns it at once, and the next receive counts as
-  the next attempt instead of repeating the interrupted one; an interrupt during the last reply
-  attempt of `assistant-message` therefore leaves the reply to the settling attempt, which fails
-  it.*
+  counted from the queue's receive count against the definition's `maxAttempts`; IF a worker is
+  interrupted during a job (a stop, a `--watch` reload, a handler that interrupts itself), THEN
+  THE SYSTEM SHALL make the job visible again at once, counting that receive as an attempt.
+  *Replaces `chat-core` R34's "a worker interrupted during a job SHALL release it without
+  counting the attempt" (architecture D2): SQS counts every receive.*
 - **R13** — IF a job has been received `maxAttempts` times and is still not complete, THEN THE
   SYSTEM SHALL move it to the definition's dead-letter queue without calling the handler again.
 - **R14** — IF a message on a queue does not decode as its definition's job, THEN THE SYSTEM SHALL
@@ -185,7 +184,7 @@ stay in `KeyValueStore` until `postgres-drizzle` (4).
 | R9 | Delivering the same assistant-message and chat-title job twice leaves the message and the title as one delivery does. |
 | R10 | A handler that runs longer than the visibility timeout is not received by a second consumer. |
 | R11 | A handler failing once is received again no earlier than the definition's first retry delay. |
-| R12 | A handler failing every time sees attempts `1…maxAttempts`, `isLastAttempt` only on the last; a job whose worker is stopped mid-handler, or whose handler interrupts itself, comes back at once as the next attempt; an interrupt during the last reply attempt ends with the reply `failed`. *Replaces `chat-core` R34's "SIGTERM during a job leaves it at the same attempt".* |
+| R12 | A handler failing every time sees attempts `1…maxAttempts`, `isLastAttempt` only on the last; a job whose worker is stopped mid-handler, or whose handler interrupts itself, comes back at once as the next attempt; an interrupt during the last reply attempt ends with the reply `failed`. |
 | R13 | After `maxAttempts` failures the message is on the dead-letter queue and the handler was called exactly `maxAttempts` times. |
 | R14 | A malformed message is on the dead-letter queue and the handler was never called. |
 | R15 | The inventory module lists the bucket, two queues and two dead-letter queues with `maxReceiveCount` equal to each definition's `maxAttempts`. |
