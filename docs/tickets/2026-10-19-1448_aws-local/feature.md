@@ -110,7 +110,9 @@ stay in `KeyValueStore` until `postgres-drizzle` (4).
   found, delete its record when it is next addressed, and leave its object to a bucket lifecycle
   rule that expires unbound objects after one day; a bound attachment SHALL never be collected.
   *Amended in architecture (D9): `KeyValueStore` cannot list, so a sweep of untouched records
-  waits for ticket 4; MiniStack stores lifecycle rules but never runs them.*
+  waits for ticket 4; MiniStack stores lifecycle rules but never runs them.* *Amended in S8
+  (D9): no read deletes the record; it stays, read as not found, until ticket 4's SQL sweep,
+  since a delete on read would race a send binding it.*
 
 ### Jobs on SQS
 
@@ -181,7 +183,7 @@ stay in `KeyValueStore` until `postgres-drizzle` (4).
 | R4 | The same id under another user's cookie is `404 AttachmentNotFound` with no `Location`. |
 | R5 | Deleting a chat with two attachments, and deleting an unbound attachment, leave no object behind. |
 | R6 | A worker test against MiniStack: the recorded prompt holds a `file` part with the uploaded bytes. |
-| R7 | Under `TestClock`, an unbound attachment aged 24 h is `404` and its record is gone; a bound one of the same age stays; on MiniStack the object carries the `unbound` tag until `keep`, and the bucket's lifecycle rules read back as the inventory states. |
+| R7 | Under `TestClock`, an unbound attachment aged 24 h is `404` and its record stays; a bound one of the same age stays; on MiniStack the object carries the `unbound` tag until `keep`, and the bucket's lifecycle rules read back as the inventory states. |
 | R8 | Sending each job puts one message on `app-template-<stage>-assistant-message` or `-chat-title`. |
 | R9 | Delivering the same assistant-message and chat-title job twice leaves the message and the title as one delivery does. |
 | R10 | A handler that runs longer than the visibility timeout is not received by a second consumer. |

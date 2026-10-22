@@ -34,7 +34,7 @@ export interface AttachmentUpload<E> extends AttachmentMeta {
 
 /**
  * Proof that these attachments may be bound: only `AttachmentService.findBindable` builds one,
- * after it checked that each is the user's and unbound.
+ * after it checked that each is visible to the user and unbound.
  *
  * It holds only while the caller keeps the user's `UserLock` from the check to the bind.
  */
@@ -61,7 +61,6 @@ export class AttachmentService extends Context.Service<
       userId: UserId,
       files: Stream.Stream<AttachmentUpload<E>, E>,
     ) => Effect.Effect<ReadonlyArray<Attachment>, E>
-    /** Finds the user's attachment, bound or not. */
     readonly get: (
       userId: UserId,
       id: AttachmentId,
@@ -189,8 +188,6 @@ export class AttachmentService extends Context.Service<
       return new BindableAttachments(bindable)
     })
 
-    // The bytes are kept first: a crash between leaves an orphaned object, never a bound
-    // attachment whose bytes the bucket's expiration rule removed.
     const bind = Effect.fn('AttachmentService.bind')(function* (
       bindable: BindableAttachments,
       messageId: MessageId,
@@ -200,6 +197,8 @@ export class AttachmentService extends Context.Service<
         (attachment) => new Attachment({ ...attachment, messageId: Option.some(messageId) }),
       )
 
+      // Kept before the bind: a crash between leaves an orphaned object, never a bound
+      // attachment without bytes.
       yield* Effect.forEach(bound, (attachment) => store.keep(attachment.id), { discard: true })
       yield* Effect.forEach(bound, attachments.update, { discard: true })
       return bound

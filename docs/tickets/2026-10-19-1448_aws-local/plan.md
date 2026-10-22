@@ -429,7 +429,7 @@ checking `make dev` by hand in its own worktree.
     buffer-first order). A test with a repository whose `insert` dies proves the bytes go too.
   - `AttachmentStore.url` returns `Option<URL>`, `none` for an id without bytes, so `download`
     answers `404` instead of a URL to nothing (D6 amended). A record without bytes can still be
-    bound and is skipped by the worker; S8's expiry is where such records go.
+    bound and is skipped by the worker; after 24 h S8 reads such a record as not found.
   - New shapes: `AttachmentMeta` (`mediaType`, `fileName`, all the store gets beside the bytes),
     `AttachmentDownload { attachment, url }`, `ChatFile` in `infrastructure/chat/chat.llm.ts` for
     the prompt's files; `decodeUpload` in the api replaces `bufferFile`.
@@ -510,7 +510,25 @@ checking `make dev` by hand in its own worktree.
   store and repository). Seam 7 — lowering the lifecycle days below the lifetime fails the
   agreement test.
 - **Verify:** `make check`.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Landed in six rounds (S8.1–S8.6), built in its own worktree (N=2) beside S5b and S5c.
+    `make check`: 344 tests. Net change about 250 lines.
+  - The rule changed during the step (D9 and R7 amended): no read deletes an expired record.
+    S8.1 deleted it when met; review found a race in which a read deleted an attachment a
+    concurrent send had just bound (against R7's "never collected"). S8.2–S8.4 fixed it with the
+    owner's `UserLock`, a locked re-read, and `findBindable` leaving another user's expired
+    attachment to avoid a deadlock; the user then asked for the simpler shape, and S8.5 replaced
+    it: the domain's `isVisibleTo(userId, now)` (owned and not expired) serves `get` and
+    `ensureBindable`, which now takes `now`, so `download`, `delete` and `findBindable` follow.
+  - Seam 4 covers 24 h (not found, record and bytes kept), 23 h 59 min and bound at 48 h for all
+    four methods, and `keep` before `update` with a recording store and repository kept in the
+    test file, its only user. Seam 7's agreement test was green at once (the constant existed);
+    lowering the days to 0, or the lifetime to 25 h, turned it red.
+  - No domain test for `isExpired`: the boundary cases live at Seam 4. `domain`'s
+    `ensureBindable` tests gained the `now` argument only.
+  - `AttachmentRepository.selectById` stays (the user's call, like the other repositories).
+  - Out of scope: three chat-core tests in `attachment.service.test.ts` still nest a `yield*`.
 
 #### S9 — Isolated worktrees run the stack
 

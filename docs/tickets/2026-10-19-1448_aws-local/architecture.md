@@ -220,7 +220,7 @@ GET /attachments/:attachmentId/download
 | **1. `QueueClient` (`send`, `worker`) on `QueueClient.layerSqs` against MiniStack, in real time** (`packages/queue/queue.test.ts`) | attempt numbers and `isLastAttempt`, retry delays from `retrySchedule`, the heartbeat keeping a long handler's job from a second consumer, dead-lettering after `maxAttempts`, decode failures, interrupts, a failing transport not ending the loop (R9–R14) | real AWS differences from MiniStack (Risks); SQS's whole seconds bound how short a case can be |
 | **2. `QueueTransport` suite** on `QueueTransport.layerSqs` against MiniStack (`queue.transport.test.ts`) | the SQS calls: visibility, `receiveCount`, `extend(0)`, redrive to the dead-letter queue at the next receive, long-poll wait, attributes (R8, R10, R13) | real AWS differences from MiniStack (Risks) |
 | **3. `AttachmentStore` contract suite**, run on `AttachmentStoreKv` and `AttachmentStoreS3` against MiniStack (`infrastructure/attachment`) | streamed insert and its size, nothing left after a failing or interrupted stream (no object, no multipart upload), `select`, `url` fetched with plain `fetch` returning the bytes and media type, `delete`; S3-only cases: two-part upload of 10 MB, `inline` disposition, the tag set by `insert` and cleared by `keep`, expiry `403` (R1–R3, R5, R6) | lifecycle execution (MiniStack never runs it), the 5 MiB part minimum (not enforced by MiniStack) |
-| **4. `AttachmentService` on the memory adapters under `TestClock`** (`application/attachment`) | an unbound attachment refused and its record removed at 24 h, a bound one never; `keep` called before the bind; deletes reaching the store (R4, R5, R7) | S3 (seam 3) |
+| **4. `AttachmentService` on the memory adapters under `TestClock`** (`application/attachment`) | an unbound attachment refused at 24 h with its record and bytes kept, a bound one never; `keep` called before the bind; deletes reaching the store (R4, R5, R7) | S3 (seam 3) |
 | **5. The api over `BunHttpServer.layerTest`** (`apps/api`) | `download` answers `302` with the store's URL for the owner and `404` without `Location` otherwise; upload limits still map to `413`/`415`/`400` with nothing stored when the file is streamed (R2–R4) | following the URL (seam 3) |
 | **6. `provision` against MiniStack** (`packages/aws`) | a second `provision` changes nothing; lifecycle and redrive read back as the inventory says (R15, R16) | IAM and real-account behaviour (ticket 9) |
 | **7. The inventory agreement test** (`infrastructure/shared/resources.test.ts`) | every queue definition takes its name and `maxAttempts` from the inventory, every inventory queue has a definition, the bucket's expiration days cover `unboundLifetime` (R15, R17) | names built outside the inventory by hand (review; `git grep` in R20's check) |
@@ -346,6 +346,11 @@ GET /attachments/:attachmentId/download
   *Amended in S7:* a multipart upload carries `Tagging` on `CreateMultipartUpload` (atomic on AWS)
   and is tagged again by `PutObjectTagging` after the complete, since MiniStack ignores the first;
   that second call runs outside the upload's scope, and its failure deletes the object.
+  *Amended in S8:* no read deletes an expired record: `get`, `download`, `delete` and
+  `findBindable` read it as not found through the domain's `isVisibleTo(userId, now)`, and every
+  expired record waits for ticket 4's sweep. *Rejected:* deleting it when met (S8.2–S8.4), which
+  made reads write, so each needed the owner's `UserLock`, a locked re-read and a cross-user
+  exception in `findBindable` against a send binding the same attachment.
 - **D10 — Credentials come from the SDK's default provider chain, not from `Config`.** On Lambda
   or ECS that is the role, whose session token rotates; locally `.env` holds
   `AWS_ACCESS_KEY_ID="test"` and `AWS_SECRET_ACCESS_KEY="test"`, which MiniStack accepts. Only our
@@ -410,8 +415,9 @@ GET /attachments/:attachmentId/download
 | A stopped worker's long poll outlives it: MiniStack keeps the aborted receive open and hides the next message for `QUEUE_LOCK_EXPIRATION`, spending its attempt (AWS may do the same) | costs one attempt and 15 s per worker stop; a shorter receive wait narrows it at the cost of more calls |
 | Every test that needs a queue now needs Docker and runs in real time: the jobs, the api and chat harnesses, `packages/queue` (D1) | one container per file (D12); SQS's whole-second waits kept to 1–2 s; retry schedules shortened in tests |
 | Between S6 and S7 the dev download redirects to a `data:` URL, which browsers do not follow | dev only, for one step; `curl -i` shows the `302`; S7 redirects to MiniStack |
-| A record whose bytes are gone can still be bound; the worker skips its file | `download` answers `404` (D6); S8's expiry removes unbound records |
-| An expired unbound record that is never touched stays in the dev store | dev only (the store is `.data/`, reset by `make reset`); ticket 4 sweeps with SQL |
+| A record whose bytes are gone can still be bound; the worker skips its file | `download` answers `404` (D6); after 24 h an unbound record reads as not found (S8) |
+| Every expired unbound record stays in the dev store, read as not found (D9 amended in S8) | dev only (the store is `.data/`, reset by `make reset`); ticket 4 sweeps with SQL |
+| No margin at the 24 h boundary: S3's 1-day rule rounds up to midnight UTC, so an object created exactly at midnight can go the moment its record expires; a send that passed `findBindable` just before and runs `keep` just after binds an attachment without bytes | S3 deletes asynchronously, often hours late; the worker skips a file without bytes; a longer `unboundExpirationDays` adds margin if it ever matters |
 | An S3 object can outlive a failed `insert`: an interrupt after the multipart complete and before the second tag call starts, an interrupt during `CompleteMultipartUpload` (the abort then finds no upload), or a failing delete after a failed tag (which also yields two defects) | `AttachmentService.upload` deletes every tracked id on any failure (D14); on AWS the object is tagged `unbound` from `CreateMultipartUpload`, so the lifecycle rule collects it (D9) |
 | A crash between `keep` and the bind leaves an untagged, unbound object forever | costs storage only; ticket 4's sweep can list orphans by key against the table |
 | `make test` and CI now need Docker | CI's `ubuntu-latest` has Docker 28; `docs/knowledge/aws.md` says so; non-AWS files run without it when filtered |
