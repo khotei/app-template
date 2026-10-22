@@ -155,6 +155,7 @@ QueueClient.layerSqs({ queueName, lockExpiration, lockRefreshInterval }) // need
 //       failure, attempt < max → extend(retryDelay(retrySchedule, attempt))
 //       failure, last   → log "dead-lettered", extend(0) (redrive, D3)
 //       interrupt       → extend(0)                      (costs the attempt, D2)
+//     an interrupt in the decode or the handler releases; the settle (delete, extend) runs whole
 //   attempt = receiveCount; isLastAttempt = receiveCount >= maxAttempts
 ```
 
@@ -259,7 +260,9 @@ GET /attachments/:attachmentId/download
   attempts. *Rejected:* FIFO queues (dedupe for 5 minutes only, ordering not needed); a dedupe
   table (needs a database: ticket 4). *Amended in S5:* this reverses `chat-core` R34 (an
   interrupt kept its attempt); feature R12 records it, and `chat-core`'s R34, D21 and D23 point
-  back here.
+  back here. *Amended in S5b:* the release covers the decode and the handler only; the settle
+  runs uninterruptibly, so a retry keeps its delay and a finished job is not run again, and a
+  worker stop may wait for that one SQS call.
 - **D3 — Redrive is the only way to the dead-letter queue.** A last failed attempt, a message
   that does not decode, and a crash during the last attempt all end the same way: `extend(0)` or
   an expired visibility, then the next receive finds `receiveCount > maxReceiveCount` and moves

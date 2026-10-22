@@ -47,6 +47,8 @@ export interface QueueClientOptions {
 
 const receiveWait = Duration.seconds(20)
 
+type Restore = <A, E, R>(effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>
+
 /**
  * The attempt is the receive count, so the schedule is replayed from a fresh step and another
  * process retrying the job gets the same delay, as effect's `PersistedQueue` does.
@@ -100,6 +102,7 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
       const decode = Schema.decodeEffect(buildJsonCodec(definition.schema))
       const extend = (received: Received, visibility: Duration.Input) =>
         transport.extend(queue, received.handle, visibility)
+      const release = (received: Received) => extend(received, 0)
 
       const heartbeat = (received: Received) =>
         Effect.sleep(lockRefreshInterval).pipe(
@@ -117,28 +120,33 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
         exit: Exit.Exit<void, E>,
       ) {
         if (Exit.isSuccess(exit)) return yield* transport.delete(queue, received.handle)
-        if (Cause.hasInterruptsOnly(exit.cause)) return yield* extend(received, 0)
+        if (Cause.hasInterruptsOnly(exit.cause)) return yield* release(received)
         if (info.isLastAttempt) {
           yield* Effect.logError('queue message dead-lettered', exit.cause)
-          return yield* extend(received, 0)
+          return yield* release(received)
         }
         yield* Effect.logWarning('queue message attempt failed', exit.cause)
         const delay = yield* replayRetryDelay(definition.retrySchedule, info.attempt)
         yield* extend(received, delay)
       })
 
+      // Runs masked from the receive on, so no interrupt finds the message unreleased: `restore`
+      // lets one reach the decode and the handler only, releasing the message at once; the
+      // settle is never cut short, so a retry keeps its delay and a delete is not lost.
       const run = Effect.fnUntraced(
-        function* (received: Received) {
-          const decoded = yield* Effect.result(decode(received.body))
+        function* (received: Received, restore: Restore) {
+          const releasing = <A, E2, R2>(effect: Effect.Effect<A, E2, R2>) =>
+            restore(effect).pipe(Effect.onInterrupt(() => Effect.ignore(release(received))))
+
+          const decoded = yield* releasing(Effect.result(decode(received.body)))
           if (Result.isFailure(decoded)) {
             yield* Effect.logError('queue message does not decode', decoded.failure)
-            return yield* extend(received, 0)
+            return yield* release(received)
           }
 
           const info = buildAttemptInfo(received, definition.maxAttempts)
-          const exit = yield* Effect.raceFirst(
-            Effect.exit(handle(decoded.success, info)),
-            heartbeat(received),
+          const exit = yield* releasing(
+            Effect.raceFirst(Effect.exit(handle(decoded.success, info)), heartbeat(received)),
           )
           yield* settle(received, info, exit)
         },
@@ -149,20 +157,14 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
           }),
       )
 
-      // Masked so that no step after the receive, the decode included, can be interrupted
-      // without releasing the message: a missed release hides it until `lockExpiration`.
       const receiveAndRun = Effect.uninterruptibleMask((restore) =>
-        restore(transport.receive(queue, { visibility: lockExpiration, wait: receiveWait })).pipe(
-          Effect.flatMap(
-            Option.match({
-              onNone: () => Effect.void,
-              onSome: (received) =>
-                restore(run(received)).pipe(
-                  Effect.onInterrupt(() => Effect.ignore(extend(received, 0))),
-                ),
-            }),
-          ),
-        ),
+        Effect.gen(function* () {
+          const next = yield* restore(
+            transport.receive(queue, { visibility: lockExpiration, wait: receiveWait }),
+          )
+          if (Option.isNone(next)) return
+          yield* run(next.value, restore)
+        }),
       )
 
       return Effect.forever(receiveAndRun)

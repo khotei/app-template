@@ -336,7 +336,19 @@ checking `make dev` by hand in its own worktree.
   body sent straight to the queue reaches `<queue>-dlq` and the handler never runs; a worker
   interrupted while a message decodes leaves it visible at once with the next attempt number.
 - **Verify:** `make check`.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Landed in two rounds (S5b.1, S5b.2), built in its own worktree (N=1) beside S8. `make check`:
+    332 tests with S5b alone; about 300 changed lines.
+  - The decode case was red: only the handler race released on an interrupt, so a stop during
+    the decode hid the job until `lockExpiration` (2.07 s against a 1 s bound). The receive loop
+    now runs under `uninterruptibleMask`, releasing on an interrupt in the decode and the handler.
+  - The failing-transport and malformed-body cases were green before the change; each was shown
+    red by a mutation (no consumer restart; a decode failure that deletes).
+  - S5b.1 released during the settle too, which skipped R11's retry delay and returned a finished
+    job; S5b.2 runs the settle uninterruptibly, with a case that stops a worker while a failed
+    attempt settles (red at 8 ms against the 4 s delay). R12 says so (*Clarified in S5b*) and D2
+    is amended. A hung SQS call during the settle holds a worker stop until the SDK's timeout.
 
 #### S6 — A streaming `AttachmentStore` and a redirecting download
 

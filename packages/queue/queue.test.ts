@@ -43,6 +43,7 @@ const inventory = {
     recovered: { name: 'recovered', maxReceiveCount: maxAttempts },
     malformed: { name: 'malformed', maxReceiveCount: maxAttempts },
     decoding: { name: 'decoding', maxReceiveCount: maxAttempts },
+    settling: { name: 'settling', maxReceiveCount: maxAttempts },
   },
 } as const satisfies Resources
 
@@ -79,6 +80,11 @@ const lockExpiration = Duration.seconds(2)
 // replayed for that attempt can space it.
 const exhausted = { ...definitions.exhausted, retrySchedule: Schedule.exponential(lockExpiration) }
 
+// Longer than the visibility timeout, so only the settle's retry delay can space two attempts.
+const retryDelay = Duration.seconds(4)
+
+const settling = { ...definitions.settling, retrySchedule: Schedule.spaced(retryDelay) }
+
 const clientOptions = { queueName, lockExpiration, lockRefreshInterval: '500 millis' } as const
 
 const QueueClientMiniStack = QueueClient.layer(clientOptions).pipe(
@@ -87,29 +93,50 @@ const QueueClientMiniStack = QueueClient.layer(clientOptions).pipe(
   Layer.provide(AwsClientsMiniStack),
 )
 
+const wrapTransport = (
+  wrap: (transport: QueueTransport['Service']) => Effect.Effect<QueueTransport['Service']>,
+) =>
+  QueueClient.layer(clientOptions).pipe(
+    Layer.provide(Layer.effect(QueueTransport, QueueTransport.use(wrap))),
+  )
+
 // Over the suite's SQS transport; only the first `receive` fails.
-const QueueClientFailingOnce = QueueClient.layer(clientOptions).pipe(
-  Layer.provide(
-    Layer.effect(
-      QueueTransport,
-      Effect.gen(function* () {
-        const transport = yield* QueueTransport
-        const failed = yield* Ref.make(false)
-        return QueueTransport.of({
-          ...transport,
-          receive: (queue, options) =>
-            Ref.getAndSet(failed, true).pipe(
-              Effect.flatMap((once) =>
-                once
-                  ? transport.receive(queue, options)
-                  : Effect.fail(new QueueError({ cause: 'receive refused' })),
-              ),
-            ),
-        })
+const QueueClientFailingOnce = wrapTransport((transport) =>
+  Effect.gen(function* () {
+    const hasFailed = yield* Ref.make(false)
+    return QueueTransport.of({
+      ...transport,
+      receive: (queue, options) =>
+        Ref.getAndSet(hasFailed, true).pipe(
+          Effect.flatMap((alreadyFailed) =>
+            alreadyFailed
+              ? transport.receive(queue, options)
+              : Effect.fail(new QueueError({ cause: 'receive refused' })),
+          ),
+        ),
+    })
+  }),
+)
+
+// Over the suite's SQS transport; the first `extend` completes `extending`, then waits a second.
+const slowFirstExtend = () => {
+  const extending = Deferred.makeUnsafe<void>()
+  const layer = wrapTransport((transport) =>
+    Effect.succeed(
+      QueueTransport.of({
+        ...transport,
+        extend: (queue, handle, visibility) =>
+          Deferred.succeed(extending, undefined).pipe(
+            Effect.flatMap((isFirst) => (isFirst ? Effect.sleep('1 second') : Effect.void)),
+            Effect.andThen(transport.extend(queue, handle, visibility)),
+          ),
       }),
     ),
-  ),
-)
+  )
+  return { extending, layer }
+}
+
+const malformedBody = '{"id":"no text"}'
 
 // Each case waits on SQS in real time: retry delays and visibility timeouts of whole seconds.
 const realTime = 30_000
@@ -118,6 +145,15 @@ type Seen = readonly [text: string, attempt: AttemptInfo]
 
 const recordAttempts = (seen: Queue.Queue<Seen>) => (ping: Ping, attempt: AttemptInfo) =>
   Queue.offer(seen, [ping.text, attempt])
+
+type TimedSeen = readonly [seen: Seen, at: number]
+
+/** Records each attempt with its time, then fails it when the text is `fail`. */
+const recordTimedAttempts = (seen: Queue.Queue<TimedSeen>) => (ping: Ping, attempt: AttemptInfo) =>
+  Clock.currentTimeMillis.pipe(
+    Effect.flatMap((at) => Queue.offer(seen, [[ping.text, attempt], at])),
+    Effect.andThen(ping.text === 'fail' ? Effect.fail('handler failed') : Effect.void),
+  )
 
 const sendPing = (definition: PingQueue, text: string) =>
   QueueClient.use((client) => client.send(definition, new Ping({ id: text, text })))
@@ -154,15 +190,8 @@ describe('QueueClient.send and worker on QueueClient.layerSqs against MiniStack'
       () => {
         const { logs, layer: recordedLogs } = recordLogs('queue')
         return Effect.gen(function* () {
-          const seen = yield* Queue.unbounded<readonly [Seen, number]>()
-          yield* Layer.build(
-            worker(exhausted, (ping, attempt) =>
-              Clock.currentTimeMillis.pipe(
-                Effect.flatMap((at) => Queue.offer(seen, [[ping.text, attempt], at])),
-                Effect.andThen(ping.text === 'fail' ? Effect.fail('handler failed') : Effect.void),
-              ),
-            ),
-          )
+          const seen = yield* Queue.unbounded<TimedSeen>()
+          yield* Layer.build(worker(exhausted, recordTimedAttempts(seen)))
 
           yield* sendPing(exhausted, 'fail')
           const attempts = yield* Queue.takeN(seen, maxAttempts)
@@ -306,13 +335,13 @@ describe('QueueClient.send and worker on QueueClient.layerSqs against MiniStack'
           yield* Layer.build(worker(definitions.malformed, recordAttempts(seen)))
 
           yield* QueueTransport.use((transport) =>
-            transport.send(queueName(definitions.malformed.name), '{"id":"no text"}', {
+            transport.send(queueName(definitions.malformed.name), malformedBody, {
               jobId: 'malformed',
             }),
           )
           const deadLettered = yield* receiveDeadLettered(definitions.malformed)
 
-          assert.strictEqual(deadLettered.body, '{"id":"no text"}')
+          assert.strictEqual(deadLettered.body, malformedBody)
           assert.deepStrictEqual(yield* Queue.poll(seen), Option.none())
           assert.deepStrictEqual(
             logs,
@@ -341,6 +370,33 @@ describe('QueueClient.send and worker on QueueClient.layerSqs against MiniStack'
 
           assert.deepStrictEqual(next, ['stalls', buildAttemptInfo(2)])
           assert.isBelow(Duration.toMillis(elapsed), Duration.toMillis(lockExpiration) / 2)
+        }),
+      realTime,
+    )
+
+    it.effect(
+      'keeps the retry delay when its worker stops while a failed attempt settles',
+      () =>
+        Effect.gen(function* () {
+          const seen = yield* Queue.unbounded<TimedSeen>()
+          const { extending, layer: slowExtend } = slowFirstExtend()
+
+          yield* sendPing(settling, 'fail')
+          yield* Layer.build(
+            worker(settling, recordTimedAttempts(seen)).pipe(Layer.provide(slowExtend)),
+          ).pipe(Effect.andThen(Deferred.await(extending)), Effect.scoped)
+          yield* Layer.build(worker(settling, recordTimedAttempts(seen)))
+          const attempts = yield* Queue.takeN(seen, 2)
+
+          assert.deepStrictEqual(
+            Arr.map(attempts, ([attempt]) => attempt),
+            [
+              ['fail', buildAttemptInfo(1)],
+              ['fail', buildAttemptInfo(2)],
+            ],
+          )
+          const [failedAt = 0, retriedAt = 0] = Arr.map(attempts, ([, at]) => at)
+          assert.isAtLeast(retriedAt - failedAt, Duration.toMillis(retryDelay))
         }),
       realTime,
     )

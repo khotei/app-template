@@ -127,7 +127,9 @@ stay in `KeyValueStore` until `postgres-drizzle` (4).
   interrupted during a job (a stop, a `--watch` reload, a handler that interrupts itself), THEN
   THE SYSTEM SHALL make the job visible again at once, counting that receive as an attempt.
   *Replaces `chat-core` R34's "a worker interrupted during a job SHALL release it without
-  counting the attempt" (aws-local D2): SQS counts every receive.*
+  counting the attempt" (aws-local D2): SQS counts every receive.* *Clarified in S5b:* "during a
+  job" is the decode and the handler; the settle after them (the delete, or the retry delay of
+  R11) runs to its end.
 - **R13** — IF a job has been received `maxAttempts` times and is still not complete, THEN THE
   SYSTEM SHALL move it to the definition's dead-letter queue without calling the handler again.
 - **R14** — IF a message on a queue does not decode as its definition's job, THEN THE SYSTEM SHALL
