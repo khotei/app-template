@@ -48,8 +48,8 @@ paths:
 - Variants live in the service's file: a separate file would import the class while the class
   referenced it, a cycle.
 - Chain `Layer.provide` from the nearest dependency outward. `Layer.provide([a, b])` provides
-  siblings that cannot feed each other, and `Layer.provideMerge` publishes internals the caller
-  should not reach, save the client a caller opens transactions on (`Db.layerFromConfig`).
+  siblings that cannot feed each other. Never publish internals with `Layer.provideMerge`; the
+  exception is the client a caller opens transactions on (`Db.layerFromConfig`, `DbTest`).
 - A client never reads the environment (`SqliteClient.layerConfig` is rejected): `Config` turns
   into options in `infrastructure`, and only `@app-template/config` reads variables.
 - A combinator that returns a `Layer` runs its effect in a fiber the layer's scope owns:

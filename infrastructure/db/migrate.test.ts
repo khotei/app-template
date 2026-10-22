@@ -4,7 +4,7 @@ import { Effect } from 'effect'
 import { recordLogs } from '@app-template/testing'
 
 import { applyMigrations, migrateDatabase } from '#infrastructure/db/migrate'
-import { DbTest } from '#infrastructure/db/testing/db.harness'
+import { DbTest } from '#infrastructure/db/testing/db'
 
 describe('migrateDatabase', () => {
   it.effect('applies nothing to a database copied from the migrated template', () =>

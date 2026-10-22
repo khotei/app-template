@@ -70,7 +70,7 @@ methods; running it after S9 avoids merge work.
 
 ## Steps
 
-#### S1 — Drizzle and `@effect/sql-pg`, the `Db` service, the test database per file
+#### S1 — Drizzle and `@effect/sql-pg`, the `Db` service, a test database per test
 
 - **Goal:** the dependencies and the two layers every later step builds on. Catalogs: `drizzle`
   (`drizzle-orm`, `drizzle-kit` `1.0.0-rc.5`), `@effect/sql-pg@4.0.5` in `effect`,
@@ -82,44 +82,78 @@ methods; running it after S9 avoids merge work.
   `EffectCache.Default` and our `EffectLogger`, which logs each statement at `Debug` with the SQL
   and the parameters as `query` and `params` log annotations (`Effect.annotateLogs`, so
   `recordLogs` reads them); `PgClientFromConfig` (`DatabaseConfig` → `PgClient.layer({ url })`)
-  and `Db.layerFromConfig` over it. `infrastructure/db/migrate.ts`, the program `make migrate` runs
+  and `Db.layerFromConfig` over it, which also publishes `PgClient` for transactions (D3).
+  `infrastructure/db/migrate.ts`, the program `make migrate` runs
   (`DatabaseConfig` → `PgClient` → `migrate(db, { migrationsFolder })` from
   `drizzle-orm/effect-postgres/migrator`), with the folder `infrastructure/db/migrations/` present
   and empty (`.gitkeep`; the migrator reads the folder's subfolders and creates
-  `drizzle.__drizzle_migrations` when there are none), and `make migrate` in the `Makefile`.
+  `drizzle.__drizzle_migrations` when there are none); `migrateDatabase` returns the count it
+  applied and `applyMigrations` logs `nothing to apply` or `applied N migration(s)`; `make migrate`
+  in the `Makefile`.
   Tests: `infrastructure/db/testing/postgres.setup.ts` as vitest's `globalSetup` (one
   `PostgreSqlContainer(postgresImage)` per run; the `template` database migrated by the same
-  program and marked `IS_TEMPLATE`; its client closed; `project.provide('databaseUrl', <admin
-  url>)`; teardown stops the container) and `PgClientTest` in `packages/testing/postgres.ts`
+  program through `setupTemplateDatabase` and marked `IS_TEMPLATE`; its client closed;
+  `project.provide('databaseUrl', <admin url>)`; teardown, or a failed template, stops the
+  container) and `PgClientTest` in `packages/testing/postgres.ts`, provided per test
   (`inject('databaseUrl')`, `CREATE DATABASE test_<random> TEMPLATE template`, `PgClient.layer` on
-  it, the scope's release drops it `WITH (FORCE)`), with the `ProvidedContext` augmentation beside
-  it (R15, R19, R20; D1, D10, D12, D14, D15, D16).
+  it, the scope's release drops it `WITH (FORCE)`), with the `ProvidedContext` augmentation and
+  every name of the protocol beside it; `DbTest` in `infrastructure/db/testing/db.ts` is `Db.layer`
+  over it and publishes `PgClient` (R15, R19, R20; D1, D3, D10, D12, D14, D15, D16).
 - **Blocked by:** none.
 - **Files:** root `package.json` (catalogs), `Makefile` (`vendor-drizzle`, `migrate`),
   `vitest.config.ts` (`globalSetup`), `.env.example` (`DATABASE_URL="postgres://app:app@localhost:15432/app_template"`
   replacing the commented stub); `packages/config/{config.ts,config.test.ts,postgres.ts,index.ts}`;
-  `packages/testing/{postgres.ts,index.ts,package.json}` (`@effect/sql-pg`, `vitest`);
-  `infrastructure/db/{db.client.ts,db.client.test.ts,migrate.ts,migrations/.gitkeep}`,
-  `infrastructure/db/testing/postgres.setup.ts`, `infrastructure/package.json` (`drizzle-orm`,
+  `packages/testing/{postgres.ts,postgres.test.ts,index.ts,package.json}` (`@effect/sql-pg`,
+  `vitest`); `infrastructure/db/{db.client.ts,db.client.test.ts,migrate.ts,migrate.test.ts,migrations/.gitkeep}`,
+  `infrastructure/db/testing/{postgres.setup.ts,db.ts}`, `infrastructure/package.json` (`drizzle-orm`,
   `@effect/sql-pg`; dev `drizzle-kit`, `@testcontainers/postgresql`); `.claude/rules/effect.md`
   (Drizzle APIs are checked against `repos/drizzle/drizzle-orm/src`), `.claude/rules/naming.md`
   (`.client` also in `infrastructure/db`; `.setup`: a vitest `globalSetup` module, in `testing/`),
-  `docs/knowledge/sdd.md` (dependency map: `repos/drizzle`), `docs/knowledge/tooling.md` (the
-  `drizzle` namespace, `vendor-drizzle`, Docker and the Postgres container under Tests),
+  `.claude/rules/effect-tests.md` (a database suite provides its stack per test),
+  `.claude/rules/effect-services.md` (the `provideMerge` exception), `docs/knowledge/tooling.md`
+  (the `drizzle` namespace, `vendor-drizzle`, `make migrate`, Docker and the Postgres container
+  under Tests), `docs/knowledge/roadmap.md` (a database per test), this ticket's `feature.md` (R20)
+  and `architecture.md` (D10),
   `infrastructure/CLAUDE.md` (`db/` holds the client, the migrations and the test setup),
   `packages/CLAUDE.md` (`config` holds the pinned MiniStack and Postgres images).
-- **Test first:** Seam 2 — `db.client.test.ts` on `PgClientTest` + `Db.layer`: `select 1` through
-  `Db` returns one row; the layer's database is not the admin's (`current_database()` starts with
-  `test_`); with `MinimumLogLevel` at `Debug` and `recordLogs('query', 'params')`, one statement
+- **Test first:** Seam 2 — `db.client.test.ts` on `DbTest`: `select 1` through `Db` returns one
+  row; the layer's database is not the admin's (`current_database()` starts with `test_`); a table
+  created on one provided `DbTest` is absent from the next; with `MinimumLogLevel` at `Debug` and `recordLogs('query', 'params')`, one statement
   logs one `Debug` line carrying its SQL and its parameters; at `Info` the same statement logs
-  nothing. `config.test.ts` gains the `DATABASE_URL` row (a `Redacted`).
+  nothing. `migrate.test.ts`: on a copy of the migrated template `migrateDatabase` returns `0`
+  and `applyMigrations` logs one `Info` line, `nothing to apply`. `postgres.test.ts`: the test's
+  `test_…` database is gone from `pg_database` once its scope closes. `config.test.ts` gains the
+  `DATABASE_URL` row (a `Redacted`).
 - **Verify:** `make check` with Docker running; `docker ps` during `make test` shows one
   `postgres:18.6-alpine` container and none after; `make test` from a shell without `.env` passes;
   `make migrate` against a reachable Postgres (a Testcontainers one from the scratchpad) creates
   `drizzle.__drizzle_migrations` and applies nothing. Findings record the container's measured
   start time, the template copy's time and `du -sh repos/drizzle`; if the subtree is several times
   `repos/effect`, the user decides before the commit.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Measured: the container starts in 1204 ms; a copy of the template takes 12–22 ms; a test's
+    own database (create, connect, drop) costs a median of 40 ms (34–43 ms over 20 runs).
+    `repos/drizzle` at `v1.0.0-rc.5` is about 36M on a shallow clone, against 53M for
+    `repos/effect`, so no decision was needed. `make vendor-drizzle` makes its own commit on a
+    clean tree, so it runs right after S1's commit; until then `effect.md` points at a
+    `repos/drizzle` that does not exist.
+  - **A database per test, not per file** (S1.2, the user's call on review). Within a file the
+    tests shared rows, so a test that reads a whole table (`select * from messages`, the relay,
+    the dead-letter consumers, a future admin view) saw an earlier test's rows. R20, its
+    acceptance row and D10 now say per test, with TRUNCATE, a rolled-back transaction per
+    test and owner-scoped rows rejected there. `effect-tests.md` gains the per-test rule.
+  - `DbTest` is built with `Layer.provideMerge`, as `Db.layerFromConfig` is, so a suite can open
+    `SqlClient.withTransaction`; `effect-services.md` states that exception. No test exercises
+    the published `PgClient` yet: S9's transaction suite is the first.
+  - `make migrate` landed here, not in S2, since its target exists from S1; S2's Files no
+    longer list it. `migrateDatabase` counts the ledger rows before and after, because
+    Drizzle's Effect migrator returns `void`.
+  - `docs/knowledge/sdd.md` was not edited: its dependency map lists skills and agents, not the
+    vendored repositories (`repos/effect` is not there either).
+  - The test-database protocol (the template's name, the `databaseUrl` key, the `test_` prefix,
+    the admin client) lives only in `@app-template/testing`; the `globalSetup` imports it, so
+    no name is spelled twice across the two workspaces.
 
 #### S2 — `users` and `credentials`: the first entity, the migrations, `UserRepositoryPg`
 
@@ -147,13 +181,13 @@ methods; running it after S9 avoids merge work.
   `Makefile` (`migration`, `migration-check`, `check`); `docs/knowledge/database.md` (new),
   `docs/knowledge/architecture.md` (the `infrastructure/db` row and `.entity` under "Where things
   live"; links `database.md`), `docs/knowledge/tooling.md` (`make migration`, `make
-  migration-check`, `make migrate`), `.claude/rules/naming.md` (`.entity`: an entity's Drizzle
+  migration-check`), `.claude/rules/naming.md` (`.entity`: an entity's Drizzle
   tables and row codecs, infrastructure; `<Entity>Kv` and `<Entity>Pg` bundles; a tool's config
   file keeps the tool's name, as `vitest.config.ts` and `drizzle.config.ts`),
   `infrastructure/CLAUDE.md` (the "Until a real client exists" line names Postgres through `db/`
   and `.entity`).
 - **Test first:** Seam 3 — `user.repository.test.ts` becomes one suite run over
-  `UserRepositoryKv` and `UserRepositoryPg` (`PgClientTest` + `Db.layer`): insert, select by id
+  `UserRepositoryKv` and `UserRepositoryPg` (on `DbTest`): insert, select by id
   and by credential round-trip equal models (`assertSchemaEquals`), an unknown credential is
   `none`; on Postgres only: `users.created_at` has no default (`information_schema.columns`), and
   `credentials.hash` rejects a non-hex value through the check. Seam 2 — the migration applies to

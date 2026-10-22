@@ -256,7 +256,7 @@ Postgres, one container per run.
 | R17 | insert a row, `make down`, `make up`: the row is there; `make reset`: `docker ps -a` and `docker volume ls` show no Postgres container or volume of this tree, `.data/` is gone. |
 | R18 | a worktree with `N=1`: `DATABASE_URL` on `15442`, its own container; both trees run `make dev` and send messages at once. |
 | R19 | `LOG_LEVEL="Debug" make dev-api`, one request: the log holds the SQL with `query` and `params` annotations; at `Info` the same request logs no SQL. |
-| R20 | `make test` from a shell without `.env`: one Postgres container in `docker ps` during the run, none after; each test that needs a database creates its own; the run passes with files in parallel. |
+| R20 | `make test` from a shell without `.env`: one Postgres container in `docker ps` during the run, none after; each test that needs a database creates its own, and its `test_…` database is gone once the test ends; the run passes with files in parallel. |
 | R21 | `git grep -l layerMemory` outside `repos/` is empty; `architecture.md › Seams` names the suite for each of R5–R13 and each exists. |
 | R22 | `docs/knowledge/database.md` exists and `architecture.md` links it; `lychee --offline` passes; `naming.md › Files` lists `.entity`. |
 
