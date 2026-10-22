@@ -45,7 +45,7 @@ carrying its logical `name`. Physical names are `buildResourceName(stage, name)`
 | Resource | Carries | Provisioned as |
 |---|---|---|
 | bucket `attachments` | `lifecycle.unboundExpirationDays`, `lifecycle.abortIncompleteUploadDays` | the bucket and two lifecycle rules: objects carrying `unboundTag` (`unbound=true`) expire; incomplete multipart uploads are aborted. |
-| queue `assistant-message`, `chat-title` | `maxReceiveCount` | `<name>-dlq` first, then `<name>` with a `RedrivePolicy` to it. A queue definition in `infrastructure` reads its `name` and `maxAttempts` from here; `infrastructure/shared/resources.test.ts` fails when they disagree. |
+| queue `assistant-message`, `chat-title` | `maxReceiveCount` | its dead-letter queue first, named by `buildDeadLetterName` from the physical name (`app-template-<stage>-<name>-dlq`), then the queue with a `RedrivePolicy` to it. A queue definition in `infrastructure` reads its `name` and `maxAttempts` from here; `infrastructure/shared/resources.test.ts` fails when they disagree. |
 
 `provision(inventory, stage)` is idempotent: an existing bucket gets its lifecycle rules re-applied,
 and `CreateQueue` on an identical queue succeeds. Two AWS behaviours shape it: a repeated
@@ -64,9 +64,10 @@ reset`; on AWS, Pulumi (the deploy ticket).
 
 ## Tests on Docker
 
-Tests at the AWS boundary (`packages/aws/*.test.ts`) start one MiniStack container per test file
-through the `MiniStack` layer in `@app-template/testing` (`testcontainers`), provision a fresh
-`test-<random>` stage from `buildStage()`, and stop the container with the suite. So `make test`
+Tests at the AWS boundary (`packages/aws/*.test.ts`, `packages/queue/queue.transport.test.ts`)
+start one MiniStack container per test file through the `MiniStack` layer in `@app-template/testing`
+(`testcontainers`), reach it through `AwsClientsMiniStack` from the same package (S3 and SQS
+clients on that container), provision a fresh `test-<random>` stage from `buildStage()`, and stop the container with the suite. So `make test`
 needs a running Docker daemon from now on, and nothing else: the Pulumi project is for `make up`
 alone. The container starts in about two seconds, and the suites pass `{ timeout: '60 seconds' }`
 to `layer(…)` for the pull on a cold machine. Unique stages isolate parallel files without resets;

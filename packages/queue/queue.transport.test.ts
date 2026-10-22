@@ -43,8 +43,22 @@ const receiveSome = (queue: string, receiveOptions: ReceiveOptions) =>
     Effect.flatMap(Effect.fromOption),
   )
 
+/** Receives with a 3 s wait, running `wake` once the receive has been waiting for 200 ms. */
+const receiveWokenBy = <E>(queue: string, wake: Effect.Effect<void, E, QueueTransport>) =>
+  Effect.gen(function* () {
+    const waiting = yield* Effect.forkChild(
+      Effect.timed(receiveSome(queue, { ...options, wait: '3 seconds' })),
+    )
+    yield* Effect.sleep('200 millis')
+    yield* wake
+    return yield* Fiber.join(waiting)
+  })
+
 describe.each([
-  { name: 'memory', transport: QueueTransport.layerMemory },
+  {
+    name: 'memory',
+    transport: QueueTransport.layerMemory({ deadLetterName: buildDeadLetterName }),
+  },
   { name: 'SQS on MiniStack', transport: QueueTransportMiniStack },
 ])('QueueTransport on $name', ({ transport }) => {
   layer(transport, { timeout: '60 seconds', excludeTestServices: true })((it) => {
@@ -95,12 +109,10 @@ describe.each([
 
         yield* queue.send(queues.rewoken, 'hello', { jobId: 'job-1' })
         const first = yield* receiveSome(queues.rewoken, options)
-        const waiting = yield* Effect.forkChild(
-          Effect.timed(receiveSome(queues.rewoken, { ...options, wait: '3 seconds' })),
+        const [elapsed, again] = yield* receiveWokenBy(
+          queues.rewoken,
+          queue.extend(queues.rewoken, first.handle, 0),
         )
-        yield* Effect.sleep('200 millis')
-        yield* queue.extend(queues.rewoken, first.handle, 0)
-        const [elapsed, again] = yield* Fiber.join(waiting)
 
         assert.strictEqual(again.receiveCount, 2)
         assert.isBelow(Duration.toMillis(elapsed), 2000)
@@ -120,7 +132,7 @@ describe.each([
       }),
     )
 
-    it.effect('moves a message received maxReceiveCount times to <queue>-dlq', () =>
+    it.effect('moves a message received maxReceiveCount times to its dead-letter queue', () =>
       Effect.gen(function* () {
         const queue = yield* QueueTransport
 
@@ -156,12 +168,10 @@ describe.each([
       Effect.gen(function* () {
         const queue = yield* QueueTransport
 
-        const waiting = yield* Effect.forkChild(
-          Effect.timed(receiveSome(queues.woken, { ...options, wait: '3 seconds' })),
+        const [elapsed, received] = yield* receiveWokenBy(
+          queues.woken,
+          queue.send(queues.woken, 'hello', { jobId: 'job-1' }),
         )
-        yield* Effect.sleep('200 millis')
-        yield* queue.send(queues.woken, 'hello', { jobId: 'job-1' })
-        const [elapsed, received] = yield* Fiber.join(waiting)
 
         assert.strictEqual(received.body, 'hello')
         assert.isBelow(Duration.toMillis(elapsed), 2000)

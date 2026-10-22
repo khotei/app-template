@@ -12,10 +12,9 @@ import {
   Option,
   Predicate,
   Ref,
+  Result,
   Schema,
 } from 'effect'
-
-import { buildDeadLetterName } from '@app-template/aws'
 
 export class QueueError extends Schema.TaggedError<QueueError>()('QueueError', {
   cause: Schema.Defect(),
@@ -37,6 +36,11 @@ export interface ReceiveOptions {
   /** At most 20 seconds, SQS's long-poll limit. */
   readonly wait: Duration.Input
   readonly maxReceiveCount: number
+}
+
+export interface QueueTransportMemoryOptions {
+  /** The queue a message moves to after `maxReceiveCount` receives, as the SQS redrive names it. */
+  readonly deadLetterName: (queue: string) => string
 }
 
 interface StoredMessage {
@@ -63,7 +67,12 @@ const hasHandle =
   (message) =>
     Option.contains(message.handle, handle)
 
-const makeMemory = Effect.gen(function* () {
+const hasId =
+  (id: string): Predicate.Predicate<StoredMessage> =>
+  (message) =>
+    message.id === id
+
+const makeMemory = Effect.fnUntraced(function* ({ deadLetterName }: QueueTransportMemoryOptions) {
   const queues = new Map<string, ReadonlyArray<StoredMessage>>()
   const firstArrival = yield* Deferred.make<void>()
   const arrival = yield* Ref.make(firstArrival)
@@ -88,14 +97,14 @@ const makeMemory = Effect.gen(function* () {
 
   const redrive = (queue: string, { maxReceiveCount }: ReceiveOptions, now: number) => {
     const isDue = Predicate.and(isVisibleAt(now), isExhausted(maxReceiveCount))
-    const deadLetter = buildDeadLetterName(queue)
+    const deadLetter = deadLetterName(queue)
     // Counted afresh, or a receive from the dead-letter queue would move it on again.
-    const moved = Arr.map(Arr.filter(messagesOf(queue), isDue), (message) => ({
-      ...message,
-      receiveCount: 0,
-      handle: Option.none(),
-    }))
-    queues.set(queue, Arr.filter(messagesOf(queue), Predicate.not(isDue)))
+    const [moved, kept] = Arr.partition(messagesOf(queue), (message) =>
+      isDue(message)
+        ? Result.succeed({ ...message, receiveCount: 0, handle: Option.none() })
+        : Result.fail(message),
+    )
+    queues.set(queue, kept)
     queues.set(deadLetter, Arr.appendAll(messagesOf(deadLetter), moved))
   }
 
@@ -113,11 +122,7 @@ const makeMemory = Effect.gen(function* () {
       visibleAt: now + Duration.toMillis(options.visibility),
       handle: Option.some(handle),
     }
-    updateWhere(
-      queue,
-      (message) => message.id === taken.id,
-      () => taken,
-    )
+    updateWhere(queue, hasId(taken.id), () => taken)
     const { body, receiveCount, attributes } = taken
     return Option.some({ handle, body, receiveCount, attributes })
   }
@@ -294,7 +299,7 @@ export class QueueTransport extends Context.Service<
     ) => Effect.Effect<void, QueueError>
     /**
      * Long-polls up to `wait`; a message received is hidden for `visibility`. A message already
-     * received `maxReceiveCount` times is moved to `buildDeadLetterName(queue)` instead of
+     * received `maxReceiveCount` times is moved to the queue's dead-letter queue instead of
      * returned.
      */
     readonly receive: (
@@ -311,7 +316,9 @@ export class QueueTransport extends Context.Service<
   }
 >()('@app-template/queue/QueueTransport') {
   /** A process-local transport whose waits and visibility run on `Clock`. */
-  static readonly layerMemory: Layer.Layer<QueueTransport> = Layer.effect(this, makeMemory)
+  static readonly layerMemory = (
+    options: QueueTransportMemoryOptions,
+  ): Layer.Layer<QueueTransport> => Layer.effect(this, makeMemory(options))
 
   /** Ignores `maxReceiveCount`: the queue's `RedrivePolicy` enforces it. */
   static readonly layerSqs: Layer.Layer<QueueTransport, never, SQSService> = Layer.effect(

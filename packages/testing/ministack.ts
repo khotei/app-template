@@ -40,7 +40,7 @@ export class MiniStack extends Context.Service<
   )
 }
 
-/** S3 and SQS clients on this file's MiniStack container. */
+/** S3 and SQS clients on the MiniStack container of the test file that provides this layer. */
 export const AwsClientsMiniStack = Layer.unwrap(
   Effect.map(MiniStack, ({ endpoint, region, credentials }) =>
     Layer.mergeAll(

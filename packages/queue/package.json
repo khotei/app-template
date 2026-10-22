@@ -9,12 +9,12 @@
     "#queue/*": "./*.ts"
   },
   "dependencies": {
-    "@app-template/aws": "workspace:*",
     "@effect-aws/client-sqs": "catalog:effect-aws",
     "@effect/sql-sqlite-bun": "catalog:effect",
     "effect": "catalog:effect"
   },
   "devDependencies": {
+    "@app-template/aws": "workspace:*",
     "@app-template/testing": "workspace:*",
     "@effect/vitest": "catalog:effect"
   }
