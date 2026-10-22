@@ -71,7 +71,6 @@ export const buildAttachment = (input: {
     createdAt: input.createdAt,
   })
 
-/** The bucket's expiration rule for unbound objects must not act sooner. */
 export const unboundLifetime = Duration.hours(24)
 
 export const isExpired = (attachment: Attachment, now: DateTime.Utc): boolean =>

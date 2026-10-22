@@ -197,8 +197,6 @@ export class AttachmentService extends Context.Service<
         (attachment) => new Attachment({ ...attachment, messageId: Option.some(messageId) }),
       )
 
-      // Kept before the bind: a crash between leaves an orphaned object, never a bound
-      // attachment without bytes.
       yield* Effect.forEach(bound, (attachment) => store.keep(attachment.id), { discard: true })
       yield* Effect.forEach(bound, attachments.update, { discard: true })
       return bound

@@ -71,19 +71,20 @@ reset`; on AWS, Pulumi (the deploy ticket).
 
 An attachment's record stays in the key-value store; its bytes live in the `attachments` bucket
 under `attachments/<id>` (`AttachmentStoreS3` in `infrastructure/attachment/attachment.storage.ts`).
-The api and the worker run on `AttachmentKvS3`, so `.data/store` holds no attachment bytes; the
-api's test harness keeps `AttachmentKv`, whose download is a `data:` URL.
+The api and the worker run on `AttachmentKvS3`, so `.data/store` holds no attachment bytes.
 
 - **Upload.** The file streams in and is never buffered whole: up to 5 MiB it is one `PutObject`,
-  above that a multipart upload in 5 MiB parts. A failing or interrupted upload is aborted, so it
-  leaves neither an object nor a stray upload; the bucket's rule that aborts incomplete uploads is
-  the backstop for a crashed process.
+  above that a multipart upload in 5 MiB parts, so a file under the 10 MiB cap takes two at most.
+  A failing or interrupted upload is aborted, so it leaves neither an object nor a stray upload;
+  the bucket's rule that aborts incomplete uploads is the backstop for a crashed process.
 - **The object says how it is served.** Its media type and an `inline` disposition with the file
   name are written at upload, so the download URL is signed without overrides.
-- **The unbound tag.** A new object carries `unbound=true`, which the bucket's expiration rule
-  ([The inventory](#the-inventory)) acts on. Binding the attachment removes the tag before the
-  bind is written, so a crash between leaves an orphaned object, never a bound attachment without
-  bytes.
+- **The unbound tag.** A new object carries `unbound=true`, sent with the `PutObject` or
+  `CreateMultipartUpload` that writes it, and the bucket's expiration rule
+  ([The inventory](#the-inventory)) acts on the tag. MiniStack drops the tag sent with
+  `CreateMultipartUpload`, so locally a file over 5 MiB stays untagged; the deploy ticket checks
+  the tag on AWS. Binding the attachment removes the tag before the bind is written, so a crash
+  between leaves an orphaned object, never a bound attachment without bytes.
 - **Expiry.** An attachment still unbound 24 hours after its upload (`unboundLifetime` in
   `domain/attachment`) reads as not found everywhere; no read deletes it, since a delete on read
   would race a send binding it. Its object goes by the bucket's rule, which acts after

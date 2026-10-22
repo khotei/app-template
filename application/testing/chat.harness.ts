@@ -22,12 +22,12 @@ import type { UserId } from '@app-template/domain/user'
 import { AttachmentStoreKv } from '@app-template/infrastructure/attachment'
 import { ChatRepositoryKv } from '@app-template/infrastructure/chat'
 import { recordQueue, type SentJob } from '@app-template/queue/testing'
+import { png } from '@app-template/testing'
 
 import { AttachmentService } from '#application/attachment/attachment.service'
 import { ChatService } from '#application/chat/chat.service'
 import { DeleteChatUseCase } from '#application/chat/delete-chat.use-case'
 import { SendMessageUseCase } from '#application/chat/send-message.use-case'
-import { png } from '#application/testing/attachment.fixture'
 import {
   AttachmentRepositoryYielding,
   type Interleaving,

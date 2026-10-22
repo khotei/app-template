@@ -2,17 +2,14 @@ import { assert, describe, layer, type Vitest } from '@effect/vitest'
 import { S3Service } from '@effect-aws/client-s3'
 import {
   Array as Arr,
-  Cause,
   Clock,
   ConfigProvider,
-  Data,
   Deferred,
   Duration,
   Effect,
   Fiber,
   Layer,
   Option,
-  Result,
   Stream,
 } from 'effect'
 import { FetchHttpClient, HttpClient } from 'effect/http'
@@ -32,6 +29,7 @@ import {
   AwsClientsMiniStack,
   breakAfter,
   buildStage,
+  png,
   StreamBrokenError,
 } from '@app-template/testing'
 
@@ -44,9 +42,6 @@ import {
 const id = AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000020')
 const unknown = AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000029')
 const photo = { mediaType: MediaType.make('image/png'), fileName: FileName.make('photo.png') }
-
-/** A PNG signature followed by a zero and a 0xff byte, so a text round trip would corrupt it. */
-const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0xff])
 
 const buildChunkedStream = (bytes: Uint8Array, chunkSize: number) =>
   Stream.fromIterable(
@@ -177,23 +172,6 @@ const AttachmentStoreS3MiniStack = Layer.mergeAll(
   Layer.effectDiscard(provision(resources, stage)),
 ).pipe(Layer.provide(AwsConfigTest), Layer.provideMerge(AwsClientsMiniStack))
 
-class TaggingBrokenError extends Data.TaggedError('TaggingBrokenError') {}
-
-const taggingBroken = new TaggingBrokenError()
-
-// Fresh: the suite's layer already memoized `AttachmentStoreS3` over the real client.
-const AttachmentStoreS3TaggingBroken = Layer.fresh(AttachmentStoreS3).pipe(
-  Layer.provide(
-    Layer.effect(
-      S3Service,
-      Effect.map(S3Service, (s3) =>
-        S3Service.of({ ...s3, putObjectTagging: () => Effect.die(taggingBroken) }),
-      ),
-    ),
-  ),
-  Layer.provide(AwsConfigTest),
-)
-
 const listLeftovers = Effect.fnUntraced(function* (attachmentId: AttachmentId) {
   const s3 = yield* S3Service
   const { Bucket, Key } = buildObjectRef(attachmentId)
@@ -259,30 +237,10 @@ describe('AttachmentStoreS3', () => {
       }),
     )
 
-    it.effect('a tagging failing after the complete fails insert with it and leaves nothing', () =>
-      Effect.gen(function* () {
-        const insert = Effect.flatMap(AttachmentStore, (attachments) =>
-          attachments.insert(unknown, tenMebibytesStream, photo),
-        )
-
-        const cause = yield* Effect.provide(insert, AttachmentStoreS3TaggingBroken).pipe(
-          Effect.sandbox,
-          Effect.flip,
-        )
-
-        assert.strictEqual(Result.getOrUndefined(Cause.findDefect(cause)), taggingBroken)
-        assert.lengthOf(cause.reasons, 1)
-        assert.deepStrictEqual(yield* listLeftovers(unknown), { objects: [], uploads: [] })
-      }),
-    )
-
-    it.effect.each([
-      { name: 'a single put', content: Stream.make(png) },
-      { name: 'a multipart upload', content: tenMebibytesStream },
-    ])('insert by $name marks the object unbound, and keep clears it', ({ content }) =>
+    it.effect('insert marks the object unbound, and keep clears it', () =>
       Effect.gen(function* () {
         const attachments = yield* AttachmentStore
-        yield* attachments.insert(id, content, photo)
+        yield* attachments.insert(id, Stream.make(png), photo)
 
         const inserted = yield* readTags(id)
         yield* attachments.keep(id)

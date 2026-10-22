@@ -29,10 +29,16 @@ import {
 } from '@app-template/domain/attachment'
 import type { UserId } from '@app-template/domain/user'
 import { AttachmentRepositoryKv, AttachmentStoreKv } from '@app-template/infrastructure/attachment'
-import { assertSchemaEquals, breakAfter, isUuidV7, StreamBrokenError } from '@app-template/testing'
+import {
+  assertSchemaEquals,
+  breakAfter,
+  isUuidV7,
+  png,
+  StreamBrokenError,
+} from '@app-template/testing'
 
 import { AttachmentService } from '#application/attachment/attachment.service'
-import { png, unknownAttachmentId } from '#application/testing/attachment.fixture'
+import { unknownAttachmentId } from '#application/testing/attachment.fixture'
 import { messageId } from '#application/testing/chat.fixture'
 import { upload } from '#application/testing/chat.harness'
 import { owner, stranger } from '#application/testing/user.fixture'

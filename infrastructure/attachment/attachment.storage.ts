@@ -72,10 +72,9 @@ export const AttachmentStoreKv = Layer.effect(
   }),
 )
 
-/** The S3 minimum for every part but the last; with the 10 MiB cap a file takes two at most. */
+/** The S3 minimum for every part but the last. */
 const partSize = 5 * 1024 * 1024
 const urlLifetime = Duration.minutes(5)
-const unboundTagSet = [{ Key: unboundTag.key, Value: unboundTag.value }]
 const unboundTagging = `${unboundTag.key}=${unboundTag.value}`
 
 export const buildObjectKey = (id: AttachmentId): string => `attachments/${id}`
@@ -207,7 +206,7 @@ export const AttachmentStoreS3 = Layer.effect(
           ...buildObjectHeaders(state.meta),
           Body: last,
         })
-        return { size: state.size, isTagPending: false }
+        return FileSize.make(state.size)
       }
 
       const { UploadId } = state.upload.value
@@ -217,35 +216,20 @@ export const AttachmentStoreS3 = Layer.effect(
         UploadId,
         MultipartUpload: { Parts: [...sent.parts] },
       })
-      return { size: state.size, isTagPending: true }
+      return FileSize.make(state.size)
     }, Effect.orDie)
 
     const remove = Effect.fn('AttachmentStore.delete')((id: AttachmentId) =>
       s3.deleteObject(buildObjectRef(id)).pipe(Effect.asVoid, Effect.orDie),
     )
 
-    const tagCompleted = (id: AttachmentId) =>
-      // AWS applies `Tagging` on `CreateMultipartUpload` atomically, MiniStack ignores it, so this
-      // repeats the tag. Outside the upload's scope, since an abort cannot remove a completed
-      // object.
-      s3.putObjectTagging({ ...buildObjectRef(id), Tagging: { TagSet: unboundTagSet } }).pipe(
-        Effect.orDie,
-        Effect.onError(() => remove(id)),
-      )
-
-    const insert = Effect.fn('AttachmentStore.insert')(function* <E>(
-      id: AttachmentId,
-      content: Stream.Stream<Uint8Array, E>,
-      meta: AttachmentMeta,
-    ) {
-      const written = yield* Stream.runFoldEffect(
-        content,
-        () => buildUploadState(id, meta),
-        receive,
-      ).pipe(Effect.flatMap(finish), Effect.scoped)
-      if (written.isTagPending) yield* tagCompleted(id)
-      return FileSize.make(written.size)
-    })
+    const insert = Effect.fn('AttachmentStore.insert')(
+      <E>(id: AttachmentId, content: Stream.Stream<Uint8Array, E>, meta: AttachmentMeta) =>
+        Stream.runFoldEffect(content, () => buildUploadState(id, meta), receive).pipe(
+          Effect.flatMap(finish),
+          Effect.scoped,
+        ),
+    )
 
     const select = Effect.fn('AttachmentStore.select')(function* (id: AttachmentId) {
       const found = yield* s3.getObject(buildObjectRef(id)).pipe(
