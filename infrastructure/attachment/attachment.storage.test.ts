@@ -237,7 +237,7 @@ describe('AttachmentStoreS3', () => {
       }),
     )
 
-    it.effect('insert marks the object unbound, and keep clears it', () =>
+    it.effect('insert by a single put marks the object unbound, and keep clears it', () =>
       Effect.gen(function* () {
         const attachments = yield* AttachmentStore
         yield* attachments.insert(id, Stream.make(png), photo)

@@ -206,7 +206,7 @@ export const AttachmentStoreS3 = Layer.effect(
           ...buildObjectHeaders(state.meta),
           Body: last,
         })
-        return FileSize.make(state.size)
+        return state.size
       }
 
       const { UploadId } = state.upload.value
@@ -216,7 +216,7 @@ export const AttachmentStoreS3 = Layer.effect(
         UploadId,
         MultipartUpload: { Parts: [...sent.parts] },
       })
-      return FileSize.make(state.size)
+      return state.size
     }, Effect.orDie)
 
     const remove = Effect.fn('AttachmentStore.delete')((id: AttachmentId) =>
@@ -228,6 +228,7 @@ export const AttachmentStoreS3 = Layer.effect(
         Stream.runFoldEffect(content, () => buildUploadState(id, meta), receive).pipe(
           Effect.flatMap(finish),
           Effect.scoped,
+          Effect.map(FileSize.make),
         ),
     )
 

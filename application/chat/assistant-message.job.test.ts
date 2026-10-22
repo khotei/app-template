@@ -46,10 +46,9 @@ import {
   MessageRepositoryKv,
 } from '@app-template/infrastructure/chat'
 import type { AttemptInfo } from '@app-template/queue'
-import { recordLogs } from '@app-template/testing'
+import { png, recordLogs } from '@app-template/testing'
 
 import { AssistantMessageJob } from '#application/chat/assistant-message.job'
-import { png } from '#application/testing/attachment.fixture'
 import { chatId, epoch, messageId } from '#application/testing/chat.fixture'
 import { recordLanguageModel } from '#application/testing/language-model.fake'
 import { QueueClientMiniStack } from '#application/testing/queue.harness'

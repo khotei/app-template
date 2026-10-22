@@ -183,7 +183,7 @@ stay in `KeyValueStore` until `postgres-drizzle` (4).
 | R4 | The same id under another user's cookie is `404 AttachmentNotFound` with no `Location`. |
 | R5 | Deleting a chat with two attachments, and deleting an unbound attachment, leave no object behind. |
 | R6 | A worker test against MiniStack: the recorded prompt holds a `file` part with the uploaded bytes. |
-| R7 | Under `TestClock`, an unbound attachment aged 24 h is `404` and its record stays; a bound one of the same age stays; on MiniStack the object carries the `unbound` tag until `keep`, and the bucket's lifecycle rules read back as the inventory states. |
+| R7 | Under `TestClock`, an unbound attachment aged 24 h is `404` and its record stays; a bound one of the same age stays; on MiniStack an object stored by a single put carries the `unbound` tag until `keep` (a multipart object's tag is checked on AWS by ticket 9), and the bucket's lifecycle rules read back as the inventory states. |
 | R8 | Sending each job puts one message on `app-template-<stage>-assistant-message` or `-chat-title`. |
 | R9 | Delivering the same assistant-message and chat-title job twice leaves the message and the title as one delivery does. |
 | R10 | A handler that runs longer than the visibility timeout is not received by a second consumer. |

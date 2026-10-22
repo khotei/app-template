@@ -546,7 +546,20 @@ checking `make dev` by hand in its own worktree.
 - **Test first:** none new at a Seam: Seam 3 loses the failing-tagging case and the multipart
   row of the tag case, and stays green; the single-put tag case still runs on MiniStack.
 - **Verify:** `make check`.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Landed in two rounds (S7b.1, S7b.2), built in its own worktree (N=2). `make check`: 345
+    tests (the failing-tagging case and the multipart tag row went); about 50 lines added and
+    100 removed.
+  - A probe confirmed the gap: with the second call removed and the tests unchanged, the
+    multipart tag row failed (`expected [] to deeply equal [ { Key: 'unbound', … } ]`), so
+    MiniStack drops `Tagging` on `CreateMultipartUpload`; `aws.md` lists it with MiniStack's
+    other gaps, and ticket 9 checks the multipart tag on AWS.
+  - The PNG's last copies (`application/testing/attachment.fixture.ts`,
+    `infrastructure/kv/kv-collection.test.ts`) import `png` from `@app-template/testing`; the
+    re-export kept while S5d edited the job test went when both landed.
+  - Files beyond the list: `infrastructure/kv/kv-collection.test.ts`,
+    `application/chat/assistant-message.job.test.ts` (the `png` import).
 
 #### S8 — Unbound attachments expire
 

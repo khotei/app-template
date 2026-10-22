@@ -74,17 +74,17 @@ under `attachments/<id>` (`AttachmentStoreS3` in `infrastructure/attachment/atta
 The api and the worker run on `AttachmentKvS3`, so `.data/store` holds no attachment bytes.
 
 - **Upload.** The file streams in and is never buffered whole: up to 5 MiB it is one `PutObject`,
-  above that a multipart upload in 5 MiB parts, so a file under the 10 MiB cap takes two at most.
+  above that a multipart upload in 5 MiB parts, so a file within `maxFileSize` takes two at most.
   A failing or interrupted upload is aborted, so it leaves neither an object nor a stray upload;
   the bucket's rule that aborts incomplete uploads is the backstop for a crashed process.
 - **The object says how it is served.** Its media type and an `inline` disposition with the file
   name are written at upload, so the download URL is signed without overrides.
 - **The unbound tag.** A new object carries `unbound=true`, sent with the `PutObject` or
   `CreateMultipartUpload` that writes it, and the bucket's expiration rule
-  ([The inventory](#the-inventory)) acts on the tag. MiniStack drops the tag sent with
-  `CreateMultipartUpload`, so locally a file over 5 MiB stays untagged; the deploy ticket checks
-  the tag on AWS. Binding the attachment removes the tag before the bind is written, so a crash
-  between leaves an orphaned object, never a bound attachment without bytes.
+  ([The inventory](#the-inventory)) acts on the tag; locally a file over 5 MiB stays untagged
+  ([Tests on Docker](#tests-on-docker)). Binding the attachment removes the tag before the bind
+  is written, so a crash between leaves an orphaned object, never a bound attachment without
+  bytes.
 - **Expiry.** An attachment still unbound 24 hours after its upload (`unboundLifetime` in
   `domain/attachment`) reads as not found everywhere; no read deletes it, since a delete on read
   would race a send binding it. Its object goes by the bucket's rule, which acts after
@@ -148,4 +148,5 @@ fresh `test-<random>` stage from `buildStage()`, and stop the container with the
 parallel files without resets; nothing cleans a stage up, since the container goes with it.
 
 MiniStack differs from AWS in what it never does: lifecycle rules never run, the 5 MiB minimum
-part size is not enforced. What depends on those is checked on real AWS in the deploy ticket.
+part size is not enforced, and the `Tagging` sent with `CreateMultipartUpload` is dropped. What
+depends on those is checked on real AWS in the deploy ticket.
