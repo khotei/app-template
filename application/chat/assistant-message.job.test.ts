@@ -16,7 +16,6 @@ import { AiError, Prompt, type Response } from 'effect/ai'
 import { KeyValueStore } from 'effect/persistence'
 import { TestClock } from 'effect/testing'
 
-import { buildResourceName, provision, resources } from '@app-template/aws'
 import {
   AttachmentId,
   AttachmentRepository,
@@ -47,13 +46,14 @@ import {
   MessageRepositoryKv,
   replyAttempts,
 } from '@app-template/infrastructure/chat'
-import { type AttemptInfo, QueueClient, QueueTransport } from '@app-template/queue'
-import { AwsClientsMiniStack, buildStage, recordLogs } from '@app-template/testing'
+import type { AttemptInfo } from '@app-template/queue'
+import { recordLogs } from '@app-template/testing'
 
 import { AssistantMessageJob } from '#application/chat/assistant-message.job'
 import { png } from '#application/testing/attachment.fixture'
 import { chatId, epoch, messageId } from '#application/testing/chat.fixture'
 import { recordLanguageModel } from '#application/testing/language-model.fake'
+import { QueueClientMiniStack } from '#application/testing/queue.harness'
 import { owner } from '#application/testing/user.fixture'
 
 const historyId = (n: number) => MessageId.make(`0192d4e0-7b3a-7c00-8000-00000000005${n}`)
@@ -307,13 +307,17 @@ describe('AssistantMessageJob.handle', () => {
   )
 
   it.effect('keeps a rename made while the reply streams when it bumps the chat', () => {
-    const { layer } = makeAssistantMessageHarness(threeDeltas)
+    const { writes, layer } = makeAssistantMessageHarness(threeDeltas)
     return Effect.gen(function* () {
       const chats = yield* ChatRepository
       yield* arrangeChat()
 
       const running = yield* startAttempt(1)
       yield* TestClock.adjust('200 millis')
+      assert.deepStrictEqual(stagesOf(writes), [
+        ['preparing', ''],
+        ['generating', ''],
+      ])
       yield* chats.update(
         new Chat({ ...(yield* selectChat), title: Option.some(ChatTitle.make('Trip')) }),
       )
@@ -408,40 +412,30 @@ describe('AssistantMessageJob.handle', () => {
   )
 })
 
-const stage = buildStage()
+const onSqs = makeAssistantMessageHarness(threeDeltas)
 
-const QueueClientMiniStack = QueueClient.layer({
-  queueName: (name) => buildResourceName(stage, name),
-  lockExpiration: '30 seconds',
-  lockRefreshInterval: '10 seconds',
-}).pipe(
-  Layer.provide(QueueTransport.layerSqs),
-  Layer.provide(Layer.effectDiscard(Effect.orDie(provision(resources, stage)))),
+const layerOnSqs = Layer.mergeAll(AssistantMessageJob.layer, onSqs.layer).pipe(
+  Layer.provideMerge(QueueClientMiniStack),
 )
 
-layer(AwsClientsMiniStack, { timeout: '60 seconds' })('AssistantMessageJob on SQS', (it) => {
-  it.effect('the worker settles a reply enqueued on the queue', () => {
-    const harness = makeAssistantMessageHarness(threeDeltas)
-    return Effect.gen(function* () {
-      const reply = yield* arrangeChat()
-
-      const settled = yield* Effect.gen(function* () {
-        yield* Layer.build(AssistantMessageJob.worker)
-        yield* (yield* AssistantMessageJob).enqueue(reply)
-        return yield* Effect.repeat(selectReply, {
-          until: Predicate.not(isActiveMessage),
-          schedule: Schedule.spaced('50 millis'),
-        })
-      }).pipe(Effect.scoped)
-
-      assert.deepStrictEqual(stagesOf([settled]), [['completed', 'Hello, world']])
-    }).pipe(
-      TestClock.withLive,
-      Effect.provide(
-        Layer.mergeAll(AssistantMessageJob.layer, harness.layer).pipe(
-          Layer.provideMerge(QueueClientMiniStack),
-        ),
-      ),
-    )
-  })
+const selectSettledReply = Effect.repeat(selectReply, {
+  until: Predicate.not(isActiveMessage),
+  schedule: Schedule.spaced('50 millis'),
 })
+
+layer(layerOnSqs, { timeout: '60 seconds', excludeTestServices: true })(
+  'AssistantMessageJob on SQS',
+  (it) => {
+    it.effect('the worker settles a reply enqueued on the queue', () =>
+      Effect.gen(function* () {
+        const reply = yield* arrangeChat()
+        yield* Layer.build(AssistantMessageJob.worker)
+
+        yield* (yield* AssistantMessageJob).enqueue(reply)
+
+        const settled = yield* selectSettledReply
+        assert.deepStrictEqual(stagesOf([settled]), [['completed', 'Hello, world']])
+      }),
+    )
+  },
+)

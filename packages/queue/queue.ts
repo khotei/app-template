@@ -78,7 +78,6 @@ const buildAttemptInfo = (received: Received, maxAttempts: number): AttemptInfo 
 const buildJsonCodec = <A, I>(schema: Schema.Codec<A, I>) =>
   Schema.fromJsonString(Schema.toCodecJson(schema))
 
-/** The body `send` puts on the queue. */
 export const encodeBody = <A, I>(definition: QueueDefinition<Schema.Codec<A, I>>, message: A) =>
   Schema.encodeEffect(buildJsonCodec(definition.schema))(message).pipe(
     Effect.mapError((cause) => new QueueError({ cause })),

@@ -142,9 +142,11 @@ QueueTransport.layerSqs                                       // needs SQSServic
 // The RedrivePolicy, set by provision from the inventory, enforces maxReceiveCount; the
 // transport never reads it.
 
-// QueueClient — interface unchanged; no memory variant (D1, amended in S5):
+// QueueClient — interface unchanged; no memory variant (D1, amended in S5 and S5c):
 QueueClient.layer({ queueName, lockExpiration, lockRefreshInterval })    // needs QueueTransport
-QueueClient.layerSqs({ queueName, lockExpiration, lockRefreshInterval }) // needs SQSService
+// QueueClientSqs (infrastructure/shared) = QueueClient.layer over QueueTransport.layerSqs
+// recordQueue() (@app-template/queue/testing): a send-only QueueClient for tests; it encodes
+//   with the client's codec and records; consume dies.
 //   queueName: (definition.name) => physical name; URL from GetQueueUrl, cached per queue (D5)
 
 // consume, per message:
@@ -217,7 +219,7 @@ GET /attachments/:attachmentId/download
 
 | Seam | Catches | Misses |
 |---|---|---|
-| **1. `QueueClient` (`send`, `worker`) on `QueueClient.layerSqs` against MiniStack, in real time** (`packages/queue/queue.test.ts`) | attempt numbers and `isLastAttempt`, retry delays from `retrySchedule`, the heartbeat keeping a long handler's job from a second consumer, dead-lettering after `maxAttempts`, decode failures, interrupts, a failing transport not ending the loop (R9–R14) | real AWS differences from MiniStack (Risks); SQS's whole seconds bound how short a case can be |
+| **1. `QueueClient` (`send`, `worker`) on `QueueClient.layer` over `QueueTransport.layerSqs` against MiniStack, in real time** (`packages/queue/queue.test.ts`) | attempt numbers and `isLastAttempt`, retry delays from `retrySchedule`, the heartbeat keeping a long handler's job from a second consumer, dead-lettering after `maxAttempts`, decode failures, interrupts, a failing transport not ending the loop (R9–R14) | real AWS differences from MiniStack (Risks); SQS's whole seconds bound how short a case can be |
 | **2. `QueueTransport` suite** on `QueueTransport.layerSqs` against MiniStack (`queue.transport.test.ts`) | the SQS calls: visibility, `receiveCount`, `extend(0)`, redrive to the dead-letter queue at the next receive, long-poll wait, attributes (R8, R10, R13) | real AWS differences from MiniStack (Risks) |
 | **3. `AttachmentStore` contract suite**, run on `AttachmentStoreKv` and `AttachmentStoreS3` against MiniStack (`infrastructure/attachment`) | streamed insert and its size, nothing left after a failing or interrupted stream (no object, no multipart upload), `select`, `url` fetched with plain `fetch` returning the bytes and media type, `delete`; S3-only cases: two-part upload of 10 MB, `inline` disposition, the tag set by `insert` and cleared by `keep`, expiry `403` (R1–R3, R5, R6) | lifecycle execution (MiniStack never runs it), the 5 MiB part minimum (not enforced by MiniStack) |
 | **4. `AttachmentService` on the memory adapters under `TestClock`** (`application/attachment`) | an unbound attachment refused at 24 h with its record and bytes kept, a bound one never; `keep` called before the bind; deletes reaching the store (R4, R5, R7) | S3 (seam 3) |
@@ -251,7 +253,14 @@ GET /attachments/:attachmentId/download
   above the queue (kept fast, but the user chose one queue behaviour everywhere over speed).
   *Amended in S5:* `QueueClient.layer(options)` leaves `QueueTransport` open beside `layerSqs`,
   which closes it, so S5b's tests put a failing transport under the one client. *Rejected:* only
-  `layerSqs` (a test could not swap the transport without a second client).
+  `layerSqs` (a test could not swap the transport without a second client). *Amended in S5c:*
+  tests that never consume take `recordQueue()`, a send-only fake exported as
+  `@app-template/queue/testing` that encodes with the client's codec, so the chat and api
+  harnesses run without Docker; the job suites call each job's `handle` under `TestClock`, with
+  one MiniStack case per job; Seam 1 alone checks consumption. `layerSqs` folds into
+  `QueueClientSqs`. This takes the fake rejected above: the one queue behaviour that choice kept
+  is consumption, which those tests never reach. *Rejected:* the fake in `packages/testing`
+  (`packages/queue`'s tests import it, a cycle of project references).
 - **D2 — Delivery is at-least-once everywhere; an interrupt costs an attempt; `jobId` is an
   attribute.** `receiveCount` is the attempt, and a receive cannot be undone, so the memory
   transport counts the same way. `jobId` travels as a message attribute for logs; no layer
@@ -413,7 +422,7 @@ GET /attachments/:attachmentId/download
 | Restarts and deploys spend attempts (D2) | 4 and 5 attempts; the heartbeat keeps long handlers alive; `assistant-message` keeps its settling attempt |
 | The settling attempt of `assistant-message` can itself be spent, by an interrupt during it or by a stopped worker's long poll; the job then goes to the dead-letter queue, the reply stays active and the chat busy | rare outside dev, where `--watch` reloads make it likely; nothing consumes the dead-letter queue yet: a consumer or a sweep belongs to ticket 4 or 9 |
 | A stopped worker's long poll outlives it: MiniStack keeps the aborted receive open and hides the next message for `QUEUE_LOCK_EXPIRATION`, spending its attempt (AWS may do the same) | costs one attempt and 15 s per worker stop; a shorter receive wait narrows it at the cost of more calls |
-| Every test that needs a queue now needs Docker and runs in real time: the jobs, the api and chat harnesses, `packages/queue` (D1) | one container per file (D12); SQS's whole-second waits kept to 1–2 s; retry schedules shortened in tests |
+| Tests that consume a queue need Docker and run in real time: `packages/queue` and one case per job suite (D1, amended in S5c) | one container per file (D12); SQS's whole-second waits kept to 1–2 s; the api and chat harnesses and the job handlers run without Docker on `recordQueue()` and `TestClock` |
 | Between S6 and S7 the dev download redirects to a `data:` URL, which browsers do not follow | dev only, for one step; `curl -i` shows the `302`; S7 redirects to MiniStack |
 | A record whose bytes are gone can still be bound; the worker skips its file | `download` answers `404` (D6); after 24 h an unbound record reads as not found (S8) |
 | Every expired unbound record stays in the dev store, read as not found (D9 amended in S8) | dev only (the store is `.data/`, reset by `make reset`); ticket 4 sweeps with SQL |

@@ -378,7 +378,25 @@ checking `make dev` by hand in its own worktree.
   the handler is reachable without a queue; the recording queue fails a job that does not encode.
 - **Verify:** `make check`; the chat, delete-chat, send-message and api test files start no
   container.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Landed in two rounds (S5c.1, S5c.2), built in its own worktree (N=1). `make check`: 348
+    tests in about 20 s; the chat, delete-chat, send-message and api files (97 tests) pass with
+    Docker unreachable. About 770 changed lines, over the ~400 limit, almost all the rewritten
+    job suites (net about +30 there); kept as one step, as the ticket squash-merges.
+  - A first attempt stopped (`BLOCKED:`): `packages/testing` cannot import `queue`, a cycle of
+    project references (TS6202). The user chose `packages/queue/testing`, exported as
+    `@app-template/queue/testing`; `naming.md › Files` states that allowance once.
+  - Each job exposes `static readonly handle`; `encodeBody` is shared by the client and the
+    fake and stays out of `index.ts`. The job suites' MiniStack case takes `QueueClientMiniStack`
+    from a slim `application/testing/queue.harness.ts`, built as `packages/queue`'s suite is.
+  - Two checks are now indirect: an interrupt on the last reply attempt failing the reply is
+    shown by the job test (the interrupt escapes) with Seam 1 (an interrupted job returns as the
+    next attempt); chat-title's dead-letter log is the queue's, shown by its own suite
+    (`chat-core` R24–R25's acceptance amended). Queue log lines left the job suites.
+  - Files beyond the list: `application/chat/{chat.service,delete-chat.use-case,
+    send-message.use-case}.test.ts`, `apps/api/tsconfig.json`, `packages/queue/queue.test.ts`,
+    `packages/queue/testing/queue.fake.test.ts`, `application/testing/queue.harness.ts`.
 
 #### S5d — Retry delay by attempt; no settling attempt
 

@@ -14,7 +14,6 @@ import { AiError, Prompt, type Response } from 'effect/ai'
 import { KeyValueStore } from 'effect/persistence'
 import { TestClock } from 'effect/testing'
 
-import { buildResourceName, provision, resources } from '@app-template/aws'
 import {
   buildChat,
   buildUserMessage,
@@ -29,12 +28,12 @@ import {
   GenerateChatTitle,
   MessageRepositoryKv,
 } from '@app-template/infrastructure/chat'
-import { QueueClient, QueueTransport } from '@app-template/queue'
-import { AwsClientsMiniStack, buildStage, recordLogs } from '@app-template/testing'
+import { recordLogs } from '@app-template/testing'
 
 import { ChatTitleJob } from '#application/chat/chat-title.job'
 import { chatId, epoch, messageId } from '#application/testing/chat.fixture'
 import { recordLanguageModel } from '#application/testing/language-model.fake'
+import { QueueClientMiniStack } from '#application/testing/queue.harness'
 import { owner } from '#application/testing/user.fixture'
 
 type Answer = Effect.Effect<Array<Response.PartEncoded>, AiError.AiError>
@@ -299,40 +298,30 @@ describe('ChatTitleJob.handle', () => {
   })
 })
 
-const stage = buildStage()
+const onSqs = makeChatTitleHarness(answering('Lisbon weekend'))
 
-const QueueClientMiniStack = QueueClient.layer({
-  queueName: (name) => buildResourceName(stage, name),
-  lockExpiration: '30 seconds',
-  lockRefreshInterval: '10 seconds',
-}).pipe(
-  Layer.provide(QueueTransport.layerSqs),
-  Layer.provide(Layer.effectDiscard(Effect.orDie(provision(resources, stage)))),
+const layerOnSqs = Layer.mergeAll(ChatTitleJob.layer, onSqs.layer).pipe(
+  Layer.provideMerge(QueueClientMiniStack),
 )
 
-layer(AwsClientsMiniStack, { timeout: '60 seconds' })('ChatTitleJob on SQS', (it) => {
-  it.effect('the worker titles the chat of a job enqueued on the queue', () => {
-    const harness = makeChatTitleHarness(answering('Lisbon weekend'))
-    return Effect.gen(function* () {
-      const first = yield* arrangeChat()
-
-      const titled = yield* Effect.gen(function* () {
-        yield* Layer.build(ChatTitleJob.worker)
-        yield* (yield* ChatTitleJob).enqueue(first)
-        return yield* Effect.repeat(selectChat, {
-          until: (chat) => Option.isSome(chat.title),
-          schedule: Schedule.spaced('50 millis'),
-        })
-      }).pipe(Effect.scoped)
-
-      assert.deepStrictEqual(titled.title, Option.some(ChatTitle.make('Lisbon weekend')))
-    }).pipe(
-      TestClock.withLive,
-      Effect.provide(
-        Layer.mergeAll(ChatTitleJob.layer, harness.layer).pipe(
-          Layer.provideMerge(QueueClientMiniStack),
-        ),
-      ),
-    )
-  })
+const selectTitledChat = Effect.repeat(selectChat, {
+  until: (chat) => Option.isSome(chat.title),
+  schedule: Schedule.spaced('50 millis'),
 })
+
+layer(layerOnSqs, { timeout: '60 seconds', excludeTestServices: true })(
+  'ChatTitleJob on SQS',
+  (it) => {
+    it.effect('the worker titles the chat of a job enqueued on the queue', () =>
+      Effect.gen(function* () {
+        const first = yield* arrangeChat()
+        yield* Layer.build(ChatTitleJob.worker)
+
+        yield* (yield* ChatTitleJob).enqueue(first)
+
+        const titled = yield* selectTitledChat
+        assert.deepStrictEqual(titled.title, Option.some(ChatTitle.make('Lisbon weekend')))
+      }),
+    )
+  },
+)
