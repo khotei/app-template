@@ -7,7 +7,6 @@ import {
   AttachmentBoundError,
   type AttachmentId,
   AttachmentNotFoundError,
-  AttachmentStore,
   FileName,
   FileSize,
   MediaType,
@@ -19,7 +18,6 @@ import {
   limits,
   RequestInvalidError,
 } from '@app-template/http-api'
-import { AttachmentStoreKv } from '@app-template/infrastructure/attachment'
 import { assertSchemaEquals, isUuidV7 } from '@app-template/testing'
 
 import {
@@ -130,19 +128,12 @@ const uploadOne = (api: ApiClient['Service'], entry: File) =>
     Effect.fromOption(Arr.head(uploaded)),
   ).pipe(Effect.orDie)
 
-/** Requests the download without following its redirect, as a browser's first hop sees it. */
 const requestDownload = (http: HttpClient.HttpClient, id: AttachmentId) =>
   http
     .get(`/attachments/${id}/download`)
     .pipe(
       Effect.provideService(FetchHttpClient.RequestInit, { keepalive: false, redirect: 'manual' }),
     )
-
-const storeHref = (id: AttachmentId) =>
-  Effect.flatMap(AttachmentStore, (store) => store.url(id)).pipe(
-    Effect.map((url) => url.href),
-    Effect.provide(AttachmentStoreKv),
-  )
 
 const attachmentRoutes: ReadonlyArray<Route> = [
   {
@@ -222,19 +213,24 @@ describe('attachments', () => {
         ),
     )
 
-    it.effect("GET /attachments/:attachmentId/download is 302 to the store's URL", () =>
-      withApi((api, http) =>
-        Effect.gen(function* () {
-          yield* api.users.ensure()
-          // The memory store's URL carries the bytes, so a mebibyte would overflow the header.
-          const uploaded = yield* uploadOne(api, file('photo.png', 'image/png', 16))
+    it.effect(
+      "GET /attachments/:attachmentId/download is 302 to the memory store's data: URL",
+      () =>
+        withApi((api, http) =>
+          Effect.gen(function* () {
+            yield* api.users.ensure()
+            // The memory store's URL carries the bytes, so a mebibyte would overflow the header.
+            const uploaded = yield* uploadOne(api, file('photo.png', 'image/png', 16))
 
-          const response = yield* requestDownload(http, uploaded.id)
+            const response = yield* requestDownload(http, uploaded.id)
 
-          assert.strictEqual(response.status, 302)
-          assert.strictEqual(response.headers.location, yield* storeHref(uploaded.id))
-        }),
-      ),
+            assert.strictEqual(response.status, 302)
+            assert.strictEqual(
+              response.headers.location,
+              'data:image/png;base64,BwcHBwcHBwcHBwcHBwcHBw==',
+            )
+          }),
+        ),
     )
 
     it.effect(

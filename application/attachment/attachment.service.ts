@@ -1,24 +1,22 @@
-import { Array as Arr, Context, Crypto, DateTime, Effect, Layer, Option, type Stream } from 'effect'
+import { Array as Arr, Context, Crypto, DateTime, Effect, Layer, Option, Ref, Stream } from 'effect'
 
 import {
   Attachment,
   type AttachmentBoundError,
+  type AttachmentDownload,
   AttachmentId,
+  type AttachmentMeta,
   AttachmentNotFoundError,
   AttachmentRepository,
   AttachmentStore,
   buildAttachment,
   ensureBindable,
-  type FileName,
-  type MediaType,
 } from '@app-template/domain/attachment'
 import type { MessageId } from '@app-template/domain/chat'
 import { ensureFound } from '@app-template/domain/shared'
 import { isOwnedBy, type UserId } from '@app-template/domain/user'
 
-export interface AttachmentUpload<E> {
-  readonly fileName: FileName
-  readonly mediaType: MediaType
+export interface AttachmentUpload<E> extends AttachmentMeta {
   readonly content: Stream.Stream<Uint8Array, E>
 }
 
@@ -42,8 +40,14 @@ export type { BindableAttachments }
 export class AttachmentService extends Context.Service<
   AttachmentService,
   {
-    /** Fails with the content's error and leaves neither bytes nor a record behind. */
-    readonly upload: <E>(userId: UserId, input: AttachmentUpload<E>) => Effect.Effect<Attachment, E>
+    /**
+     * Stores each file in order, all or none: a failure of the files or of one file's content
+     * removes the files already stored.
+     */
+    readonly upload: <E>(
+      userId: UserId,
+      files: Stream.Stream<AttachmentUpload<E>, E>,
+    ) => Effect.Effect<ReadonlyArray<Attachment>, E>
     /** Finds the user's attachment, bound or not. */
     readonly get: (
       userId: UserId,
@@ -52,10 +56,7 @@ export class AttachmentService extends Context.Service<
     readonly download: (
       userId: UserId,
       id: AttachmentId,
-    ) => Effect.Effect<
-      { readonly attachment: Attachment; readonly url: URL },
-      AttachmentNotFoundError
-    >
+    ) => Effect.Effect<AttachmentDownload, AttachmentNotFoundError>
     /** Removes the user's attachment while no message holds it. */
     readonly delete: (
       userId: UserId,
@@ -87,17 +88,11 @@ export class AttachmentService extends Context.Service<
     const randomUuid = Effect.orDie(crypto.randomUUIDv7())
     const randomAttachmentId = Effect.map(randomUuid, AttachmentId.make)
 
-    const upload = Effect.fn('AttachmentService.upload')(function* <E>(
-      userId: UserId,
-      input: AttachmentUpload<E>,
-    ) {
+    const uploadFile = Effect.fnUntraced(function* <E>(userId: UserId, input: AttachmentUpload<E>) {
       const id = yield* randomAttachmentId
       const createdAt = yield* DateTime.now
 
-      const size = yield* store.insert(id, input.content, {
-        mediaType: input.mediaType,
-        fileName: input.fileName,
-      })
+      const size = yield* store.insert(id, input.content, input)
       const attachment = buildAttachment({
         id,
         userId,
@@ -111,6 +106,26 @@ export class AttachmentService extends Context.Service<
       return attachment
     })
 
+    const removeByIds = Effect.fnUntraced(function* (ids: ReadonlyArray<AttachmentId>) {
+      yield* attachments.deleteByIds(ids)
+      yield* Effect.forEach(ids, store.delete, { discard: true })
+    })
+
+    const upload = Effect.fn('AttachmentService.upload')(function* <E>(
+      userId: UserId,
+      files: Stream.Stream<AttachmentUpload<E>, E>,
+    ) {
+      const stored = yield* Ref.make(Arr.empty<AttachmentId>())
+      const removeStored = Effect.flatMap(Ref.get(stored), removeByIds)
+
+      return yield* files.pipe(
+        Stream.mapEffect((file) => uploadFile(userId, file)),
+        Stream.tap((attachment) => Ref.update(stored, Arr.append(attachment.id))),
+        Stream.runCollect,
+        Effect.onError(() => removeStored),
+      )
+    })
+
     const get = Effect.fn('AttachmentService.get')(function* (userId: UserId, id: AttachmentId) {
       const found = yield* attachments.selectById(id)
       return yield* ensureFound(found, isOwnedBy(userId), () => new AttachmentNotFoundError({ id }))
@@ -122,7 +137,9 @@ export class AttachmentService extends Context.Service<
     ) {
       const attachment = yield* get(userId, id)
       const url = yield* store.url(id)
-      return { attachment, url }
+
+      if (Option.isNone(url)) return yield* new AttachmentNotFoundError({ id })
+      return { attachment, url: url.value }
     })
 
     const remove = Effect.fn('AttachmentService.delete')(function* (
@@ -163,12 +180,7 @@ export class AttachmentService extends Context.Service<
       return bound
     })
 
-    const deleteByIds = Effect.fn('AttachmentService.deleteByIds')(function* (
-      ids: ReadonlyArray<AttachmentId>,
-    ) {
-      yield* attachments.deleteByIds(ids)
-      yield* Effect.forEach(ids, store.delete, { discard: true })
-    })
+    const deleteByIds = Effect.fn('AttachmentService.deleteByIds')(removeByIds)
 
     return { upload, get, download, delete: remove, findBindable, bind, deleteByIds }
   }),

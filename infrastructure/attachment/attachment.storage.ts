@@ -4,8 +4,8 @@ import { KeyValueStore } from 'effect/persistence'
 
 import {
   type AttachmentId,
+  type AttachmentMeta,
   AttachmentStore,
-  type FileName,
   FileSize,
   MediaType,
 } from '@app-template/domain/attachment'
@@ -27,7 +27,7 @@ export const AttachmentStoreKv = Layer.effect(
     const insert = Effect.fn('AttachmentStore.insert')(function* <E>(
       id: AttachmentId,
       content: Stream.Stream<Uint8Array, E>,
-      meta: { readonly mediaType: MediaType; readonly fileName: FileName },
+      meta: AttachmentMeta,
     ) {
       const bytes = yield* Stream.mkUint8Array(content)
 
@@ -40,8 +40,7 @@ export const AttachmentStoreKv = Layer.effect(
       const bytes = yield* blobs.get(bytesKey(id))
       const mediaType = yield* mediaTypes.get(mediaTypeKey(id))
 
-      const stored = yield* Effect.orDie(Effect.fromOption(Option.all({ bytes, mediaType })))
-      return toDataUrl(stored)
+      return Option.map(Option.all({ bytes, mediaType }), toDataUrl)
     })
 
     const remove = Effect.fn('AttachmentStore.delete')(function* (id: AttachmentId) {

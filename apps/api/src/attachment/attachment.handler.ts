@@ -1,9 +1,9 @@
-import { Array as Arr, Effect, Option, Ref, Schema, Stream } from 'effect'
+import { Array as Arr, Effect, Option, Schema, Stream } from 'effect'
 import { HttpServerResponse, Mime, Multipart } from 'effect/http'
 import { HttpApiBuilder } from 'effect/http-api'
 
 import { AttachmentService } from '@app-template/application/attachment'
-import { type Attachment, FileName, type MediaType } from '@app-template/domain/attachment'
+import { FileName, type MediaType } from '@app-template/domain/attachment'
 import {
   Api,
   AttachmentMediaType,
@@ -46,7 +46,7 @@ const decodeDeclaredType = (file: Multipart.File) =>
     Effect.mapError(() => new AttachmentTypeUnsupportedError()),
   )
 
-const readFile = Effect.fnUntraced(function* (part: Multipart.Part, index: number) {
+const decodeUpload = Effect.fnUntraced(function* (part: Multipart.Part, index: number) {
   if (!Multipart.isFile(part))
     return yield* buildRequestInvalid(['files', index], 'Expected a file')
   const fileName = yield* Schema.decodeUnknownEffect(FileName)(part.name).pipe(
@@ -67,34 +67,19 @@ export const AttachmentHandler = HttpApiBuilder.group(
         'upload',
         Effect.fn('AttachmentHandler.upload')(function* ({ payload }) {
           const user = yield* CurrentUser
-          const stored = yield* Ref.make(Arr.empty<Attachment>())
 
-          // Each part streams into the store before the parser reaches the next one, so a part
-          // refused later finds the earlier ones stored: they are removed, as one request.
-          const discardStored = Effect.flatMap(Ref.get(stored), (earlier) =>
-            Effect.forEach(
-              earlier,
-              (attachment) => Effect.orDie(attachments.delete(user.id, attachment.id)),
-              { discard: true },
-            ),
-          )
-
-          const uploaded = yield* payload.pipe(
-            Stream.mapEffect((part, index) =>
-              Effect.flatMap(readFile(part, index), (file) => attachments.upload(user.id, file)),
-            ),
-            Stream.tap((attachment) => Ref.update(stored, Arr.append(attachment))),
-            Stream.runCollect,
-            Effect.catchTag(
-              'MultipartError',
-              (error): Effect.Effect<never, UploadRefusal> =>
-                refuseMultipart[error.reason._tag](error),
-            ),
-            Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty, () =>
-              buildRequestInvalid(['files'], 'Expected at least 1 file'),
-            ),
-            Effect.onError(() => discardStored),
-          )
+          const uploaded = yield* attachments
+            .upload(user.id, Stream.mapEffect(payload, decodeUpload))
+            .pipe(
+              Effect.catchTag(
+                'MultipartError',
+                (error): Effect.Effect<never, UploadRefusal> =>
+                  refuseMultipart[error.reason._tag](error),
+              ),
+              Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty, () =>
+                buildRequestInvalid(['files'], 'Expected at least 1 file'),
+              ),
+            )
 
           return Arr.map(uploaded, toAttachment)
         }),

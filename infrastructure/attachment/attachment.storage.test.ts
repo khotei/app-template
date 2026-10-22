@@ -1,5 +1,6 @@
 import { assert, describe, layer } from '@effect/vitest'
-import { Data, Effect, Layer, Option, Stream } from 'effect'
+import { Effect, Layer, Option, Stream } from 'effect'
+import { FetchHttpClient, HttpClient } from 'effect/http'
 import { KeyValueStore } from 'effect/persistence'
 
 import {
@@ -9,10 +10,9 @@ import {
   FileSize,
   MediaType,
 } from '@app-template/domain/attachment'
+import { breakAfter, StreamBrokenError } from '@app-template/testing'
 
 import { AttachmentStoreKv } from '#infrastructure/attachment/attachment.storage'
-
-class UploadBrokenError extends Data.TaggedError('UploadBrokenError') {}
 
 const id = AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000020')
 const unknown = AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000029')
@@ -23,17 +23,12 @@ const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00
 
 const inTwoChunks = (bytes: Uint8Array) => Stream.make(bytes.subarray(0, 4), bytes.subarray(4))
 
-const failingAfterFirstChunk = (error: UploadBrokenError) =>
-  Stream.concat(Stream.make(png.subarray(0, 4)), Stream.fail(error))
-
-const fetchUrl = (url: URL) =>
-  Effect.promise(async () => {
-    const response = await fetch(url)
-    return {
-      contentType: response.headers.get('content-type'),
-      bytes: new Uint8Array(await response.arrayBuffer()),
-    }
-  })
+const fetchUrl = Effect.fnUntraced(function* (url: Option.Option<URL>) {
+  const found = yield* Effect.fromOption(url)
+  const response = yield* HttpClient.get(found)
+  const body = yield* response.arrayBuffer
+  return { contentType: response.headers['content-type'], bytes: new Uint8Array(body) }
+}, Effect.provide(FetchHttpClient.layer))
 
 describe.each([
   {
@@ -67,10 +62,10 @@ describe.each([
     it.effect('a stream failing part-way fails insert with its error and stores nothing', () =>
       Effect.gen(function* () {
         const attachments = yield* AttachmentStore
-        const broken = new UploadBrokenError()
+        const broken = new StreamBrokenError()
 
         const error = yield* Effect.flip(
-          attachments.insert(unknown, failingAfterFirstChunk(broken), photo),
+          attachments.insert(unknown, breakAfter([png.subarray(0, 4)], broken), photo),
         )
 
         assert.strictEqual(error, broken)
@@ -101,11 +96,12 @@ describe.each([
       }),
     )
 
-    it.effect('select is none for bytes never stored', () =>
+    it.effect('select and url are none for bytes never stored', () =>
       Effect.gen(function* () {
         const attachments = yield* AttachmentStore
 
         assert.deepStrictEqual(yield* attachments.select(unknown), Option.none())
+        assert.deepStrictEqual(yield* attachments.url(unknown), Option.none())
       }),
     )
   })

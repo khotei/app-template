@@ -1,7 +1,7 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, layer } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, Data, DateTime, Effect, Layer, Option, Record as Rec, Stream } from 'effect'
+import { Array as Arr, DateTime, Effect, Layer, Option, Record as Rec, Stream } from 'effect'
 import { KeyValueStore } from 'effect/persistence'
 import { TestClock, TestCrypto } from 'effect/testing'
 
@@ -19,7 +19,7 @@ import {
 } from '@app-template/domain/attachment'
 import type { UserId } from '@app-template/domain/user'
 import { AttachmentRepositoryKv, AttachmentStoreKv } from '@app-template/infrastructure/attachment'
-import { assertSchemaEquals, isUuidV7 } from '@app-template/testing'
+import { assertSchemaEquals, breakAfter, isUuidV7, StreamBrokenError } from '@app-template/testing'
 
 import { AttachmentService } from '#application/attachment/attachment.service'
 import { png, unknownAttachmentId } from '#application/testing/attachment.fixture'
@@ -32,21 +32,33 @@ const AttachmentServiceTest = AttachmentService.layer.pipe(
   Layer.provideMerge(KeyValueStore.layerMemory),
 )
 
-class UploadBrokenError extends Data.TaggedError('UploadBrokenError') {}
-
 const photo = { fileName: FileName.make('photo.png'), mediaType: MediaType.make('image/png') }
 
-const uploadPhoto = Effect.flatMap(AttachmentService, (service) =>
-  service.upload(owner, { ...photo, content: Stream.make(png) }),
-)
+const photoUpload = { ...photo, content: Stream.make(png) }
+
+const uploadOne = (userId: UserId) =>
+  Effect.flatMap(AttachmentService, (service) =>
+    Effect.flatMap(service.upload(userId, Stream.make(photoUpload)), (uploaded) =>
+      Effect.fromOption(Arr.head(uploaded)),
+    ),
+  ).pipe(Effect.orDie)
+
+const uploadPhoto = uploadOne(owner)
 
 const storeSize = Effect.orDie(Effect.flatMap(KeyValueStore.KeyValueStore, (store) => store.size))
 
 const storeHref = (id: AttachmentId) =>
   Effect.map(
     Effect.flatMap(AttachmentStore, (store) => store.url(id)),
-    (url) => url.href,
+    Option.map((url) => url.href),
   )
+
+const brokenUploads = {
+  "a later file's content breaking part-way": (broken: StreamBrokenError) =>
+    Stream.make(photoUpload, { ...photo, content: breakAfter([png], broken) }),
+  'the files breaking after the first one': (broken: StreamBrokenError) =>
+    breakAfter([photoUpload], broken),
+} as const
 
 type Read = (userId: UserId, id: AttachmentId) => Effect.Effect<unknown, AttachmentNotFoundError>
 
@@ -70,12 +82,7 @@ const unbindable = {
     refusal: AttachmentNotFoundError,
   },
   "another user's attachment": {
-    arrange: Effect.flatMap(AttachmentService, (service) =>
-      Effect.map(
-        service.upload(stranger, { ...photo, content: Stream.make(png) }),
-        (foreign) => foreign.id,
-      ),
-    ),
+    arrange: Effect.map(uploadOne(stranger), (foreign) => foreign.id),
     refusal: AttachmentNotFoundError,
   },
   'a bound attachment': {
@@ -114,22 +121,40 @@ describe('AttachmentService', () => {
       }),
     )
 
-    it.effect('upload of a stream failing part-way fails with its error and stores nothing', () =>
+    it.effect('upload stores each file of the stream, in order', () =>
       Effect.gen(function* () {
         const service = yield* AttachmentService
-        const broken = new UploadBrokenError()
-        const before = yield* storeSize
+        const second = { ...photo, fileName: FileName.make('second.png') }
 
-        const error = yield* Effect.flip(
-          service.upload(owner, {
-            ...photo,
-            content: Stream.concat(Stream.make(png), Stream.fail(broken)),
-          }),
+        const uploaded = yield* service.upload(
+          owner,
+          Stream.make(photoUpload, { ...second, content: Stream.make(png) }),
         )
 
-        assert.strictEqual(error, broken)
-        assert.strictEqual(yield* storeSize, before)
+        assert.deepStrictEqual(
+          Arr.map(uploaded, (attachment) => attachment.fileName),
+          [photo.fileName, second.fileName],
+        )
+        assertEquals(
+          yield* selectStored(Arr.map(uploaded, (attachment) => attachment.id)),
+          uploaded,
+        )
       }),
+    )
+
+    it.effect.each(Rec.keys(brokenUploads))(
+      'upload with %s fails with its error and stores none of the files',
+      (name) =>
+        Effect.gen(function* () {
+          const service = yield* AttachmentService
+          const broken = new StreamBrokenError()
+          const before = yield* storeSize
+
+          const error = yield* Effect.flip(service.upload(owner, brokenUploads[name](broken)))
+
+          assert.strictEqual(error, broken)
+          assert.strictEqual(yield* storeSize, before)
+        }),
     )
 
     it.effect("download returns the owner's attachment with the store's URL", () =>
@@ -140,7 +165,23 @@ describe('AttachmentService', () => {
         const download = yield* service.download(owner, attachment.id)
 
         assertEquals(download.attachment, attachment)
-        assert.strictEqual(download.url.href, yield* storeHref(attachment.id))
+        assert.deepStrictEqual(Option.some(download.url.href), yield* storeHref(attachment.id))
+      }),
+    )
+
+    it.effect('download of an attachment whose bytes are gone is AttachmentNotFoundError', () =>
+      Effect.gen(function* () {
+        const service = yield* AttachmentService
+        const attachment = yield* uploadPhoto
+        yield* Effect.flatMap(AttachmentStore, (store) => store.delete(attachment.id))
+
+        const error = yield* Effect.flip(service.download(owner, attachment.id))
+
+        assertSchemaEquals(
+          AttachmentNotFoundError,
+          error,
+          new AttachmentNotFoundError({ id: attachment.id }),
+        )
       }),
     )
 

@@ -96,11 +96,17 @@ export const withChat = <E>(
 
 export const upload = (userId: UserId, name: string) =>
   Effect.flatMap(AttachmentService, (attachments) =>
-    attachments.upload(userId, {
-      fileName: FileName.make(name),
-      mediaType: MediaType.make('image/png'),
-      content: Stream.make(png),
-    }),
+    attachments.upload(
+      userId,
+      Stream.make({
+        fileName: FileName.make(name),
+        mediaType: MediaType.make('image/png'),
+        content: Stream.make(png),
+      }),
+    ),
+  ).pipe(
+    Effect.flatMap((uploaded) => Effect.fromOption(Arr.head(uploaded))),
+    Effect.orDie,
   )
 
 /** Completes an assistant message as the worker would, freeing its chat for the next send. */

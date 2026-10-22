@@ -4,6 +4,7 @@ import { AttachmentBoundError, AttachmentNotFoundError } from '#domain/attachmen
 import type { AttachmentId } from '#domain/attachment/attachment.id'
 import {
   Attachment,
+  type AttachmentMeta,
   type FileName,
   type FileSize,
   type MediaType,
@@ -33,11 +34,14 @@ export class AttachmentStore extends Context.Service<
     readonly insert: <E>(
       id: AttachmentId,
       content: Stream.Stream<Uint8Array, E>,
-      meta: { readonly mediaType: MediaType; readonly fileName: FileName },
+      meta: AttachmentMeta,
     ) => Effect.Effect<FileSize, E>
     readonly select: (id: AttachmentId) => Effect.Effect<Option.Option<Uint8Array>>
-    /** A URL that serves the bytes with the stored media type and inline disposition. */
-    readonly url: (id: AttachmentId) => Effect.Effect<URL>
+    /**
+     * A URL that serves the bytes with the stored media type and inline disposition; none for
+     * an id without bytes.
+     */
+    readonly url: (id: AttachmentId) => Effect.Effect<Option.Option<URL>>
     /** Clears the unbound mark, so lifecycle never collects the bytes; idempotent. */
     readonly keep: (id: AttachmentId) => Effect.Effect<void>
     /** Idempotent. */
