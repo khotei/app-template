@@ -14,7 +14,7 @@ const issuedCookie: Cookies.Cookie['options'] = {
 }
 
 describe('users', () => {
-  layer(makeApiHarness(), { timeout: '60 seconds' })((it) => {
+  layer(makeApiHarness())((it) => {
     it.effect('POST /users is 201 with an HttpOnly, Lax, one-year cookie and no Secure', () =>
       withApi((api) =>
         Effect.gen(function* () {

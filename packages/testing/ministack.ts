@@ -3,16 +3,15 @@ import { SQSService } from '@effect-aws/client-sqs'
 import { Context, Effect, Layer } from 'effect'
 import { GenericContainer, Wait } from 'testcontainers'
 
-/** The image `deployment/local/ministack.ts` runs for `make up`; bump both together. */
-const image =
-  'ministackorg/ministack:1.5.29@sha256:88f507c57e16f5cac3c58dbdd4d47cfd14d6f870c38461aff7e077908253260b'
+import { ministackImage } from '@app-template/config'
+
 const port = 4566
 const region = 'us-east-1'
 const credentials = { accessKeyId: 'test', secretAccessKey: 'test' } as const
 
 const start = Effect.acquireRelease(
   Effect.promise(() =>
-    new GenericContainer(image)
+    new GenericContainer(ministackImage)
       .withExposedPorts(port)
       .withEnvironment({ MINISTACK_REGION: region })
       .withWaitStrategy(Wait.forHttp('/_ministack/health', port))

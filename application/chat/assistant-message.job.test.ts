@@ -16,6 +16,7 @@ import { AiError, Prompt, type Response } from 'effect/ai'
 import { KeyValueStore } from 'effect/persistence'
 import { TestClock } from 'effect/testing'
 
+import { resources } from '@app-template/aws'
 import {
   AttachmentId,
   AttachmentRepository,
@@ -46,12 +47,12 @@ import {
   MessageRepositoryKv,
 } from '@app-template/infrastructure/chat'
 import type { AttemptInfo } from '@app-template/queue'
-import { png, recordLogs } from '@app-template/testing'
+import { QueueClientMiniStack } from '@app-template/queue/testing'
+import { buildStage, png, recordLogs } from '@app-template/testing'
 
 import { AssistantMessageJob } from '#application/chat/assistant-message.job'
 import { chatId, epoch, messageId } from '#application/testing/chat.fixture'
 import { recordLanguageModel } from '#application/testing/language-model.fake'
-import { QueueClientMiniStack } from '#application/testing/queue.harness'
 import { owner } from '#application/testing/user.fixture'
 
 const historyId = (n: number) => MessageId.make(`0192d4e0-7b3a-7c00-8000-00000000005${n}`)
@@ -386,7 +387,13 @@ describe('AssistantMessageJob.handle', () => {
 const onSqs = makeAssistantMessageHarness(threeDeltas)
 
 const layerOnSqs = Layer.mergeAll(AssistantMessageJob.layer, onSqs.layer).pipe(
-  Layer.provideMerge(QueueClientMiniStack),
+  Layer.provideMerge(
+    QueueClientMiniStack(buildStage(), {
+      resources,
+      lockExpiration: '30 seconds',
+      lockRefreshInterval: '10 seconds',
+    }),
+  ),
 )
 
 const selectSettledReply = Effect.repeat(selectReply, {

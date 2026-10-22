@@ -4,11 +4,8 @@ import * as docker from '@pulumi/docker'
 import { Effect, Option } from 'effect'
 
 import { projectName } from '@app-template/aws'
-import { AwsConfig } from '@app-template/config'
+import { AwsConfig, ministackImage } from '@app-template/config'
 
-/** The image `packages/testing/ministack.ts` starts for the tests; bump both together. */
-const image =
-  'ministackorg/ministack:1.5.29@sha256:88f507c57e16f5cac3c58dbdd4d47cfd14d6f870c38461aff7e077908253260b'
 const internalPort = 4566
 /**
  * The host port is the one in `AWS_ENDPOINT_URL`, and the container is named after it, so a
@@ -22,7 +19,10 @@ const endpointUrl = Option.getOrThrowWith(
 const port = Number(endpointUrl.port)
 const dataDir = fileURLToPath(new URL('../../.data/ministack', import.meta.url))
 
-const remoteImage = new docker.RemoteImage('ministack-image', { name: image, keepLocally: true })
+const remoteImage = new docker.RemoteImage('ministack-image', {
+  name: ministackImage,
+  keepLocally: true,
+})
 
 new docker.Container(
   'ministack',

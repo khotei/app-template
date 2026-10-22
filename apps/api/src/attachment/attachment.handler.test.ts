@@ -169,7 +169,7 @@ const attachmentRoutes: ReadonlyArray<Route> = [
 ]
 
 describe('attachments', () => {
-  layer(makeApiHarness(), { timeout: '60 seconds' })((it) => {
+  layer(makeApiHarness())((it) => {
     it.effect('POST /attachments with two PNGs is 201 with two unbound attachments', () =>
       withApi((api) =>
         Effect.gen(function* () {

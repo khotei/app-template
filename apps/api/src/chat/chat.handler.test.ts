@@ -105,7 +105,7 @@ const chatRoutes: ReadonlyArray<Route> = [
 ]
 
 describe('chats', () => {
-  layer(makeApiHarness(), { timeout: '60 seconds' })((it) => {
+  layer(makeApiHarness())((it) => {
     it.effect('GET /chats without a cookie is 401 UserUnknownError', () =>
       withApi((api, http) =>
         Effect.gen(function* () {

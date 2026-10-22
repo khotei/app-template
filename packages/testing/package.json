@@ -9,6 +9,7 @@
     "#testing/*": "./*.ts"
   },
   "dependencies": {
+    "@app-template/config": "workspace:*",
     "@effect-aws/client-s3": "catalog:effect-aws",
     "@effect-aws/client-sqs": "catalog:effect-aws",
     "@effect/vitest": "catalog:effect",

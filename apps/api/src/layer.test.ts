@@ -13,7 +13,7 @@ const stoppedServerUrl = HttpServer.addressFormattedWith(Effect.succeed).pipe(
 )
 
 describe('api routes', () => {
-  layer(makeApiHarness(), { timeout: '60 seconds' })((it) => {
+  layer(makeApiHarness())((it) => {
     it.effect('GET /openapi.json serves the spec derived from Api', () =>
       Effect.gen(function* () {
         const response = yield* HttpClient.get('/openapi.json')

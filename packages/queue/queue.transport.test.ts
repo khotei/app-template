@@ -33,6 +33,8 @@ const queues = Record.map(inventory.queues, (queue) => buildResourceName(stage, 
 
 const options = { visibility: '30 seconds', wait: '1 second' } as const
 
+const hello = { body: 'hello', attributes: { jobId: 'job-1' } } as const
+
 const QueueTransportMiniStack = Layer.mergeAll(
   QueueTransport.layerSqs,
   Layer.effectDiscard(provision(inventory, stage)),
@@ -59,7 +61,7 @@ describe('QueueTransport.layerSqs on MiniStack', () => {
       Effect.gen(function* () {
         const queue = yield* QueueTransport
 
-        yield* queue.send(queues.received, 'hello', { jobId: 'job-1' })
+        yield* queue.send(queues.received, hello)
         const received = yield* receiveSome(queues.received, options)
 
         assert.deepStrictEqual(Struct.omit(received, ['handle']), {
@@ -74,7 +76,7 @@ describe('QueueTransport.layerSqs on MiniStack', () => {
       Effect.gen(function* () {
         const queue = yield* QueueTransport
 
-        yield* queue.send(queues.hidden, 'hello', { jobId: 'job-1' })
+        yield* queue.send(queues.hidden, hello)
         yield* receiveSome(queues.hidden, options)
         const again = yield* queue.receive(queues.hidden, { ...options, wait: 0 })
 
@@ -86,9 +88,9 @@ describe('QueueTransport.layerSqs on MiniStack', () => {
       Effect.gen(function* () {
         const queue = yield* QueueTransport
 
-        yield* queue.send(queues.released, 'hello', { jobId: 'job-1' })
+        yield* queue.send(queues.released, hello)
         const first = yield* receiveSome(queues.released, options)
-        yield* queue.extend(queues.released, first.handle, 0)
+        yield* queue.extend(queues.released, { handle: first.handle, visibility: 0 })
         const again = yield* receiveSome(queues.released, { ...options, wait: 0 })
 
         assert.strictEqual(again.body, 'hello')
@@ -100,11 +102,11 @@ describe('QueueTransport.layerSqs on MiniStack', () => {
       Effect.gen(function* () {
         const queue = yield* QueueTransport
 
-        yield* queue.send(queues.rewoken, 'hello', { jobId: 'job-1' })
+        yield* queue.send(queues.rewoken, hello)
         const first = yield* receiveSome(queues.rewoken, options)
         const [elapsed, again] = yield* receiveWokenBy(
           queues.rewoken,
-          queue.extend(queues.rewoken, first.handle, 0),
+          queue.extend(queues.rewoken, { handle: first.handle, visibility: 0 }),
         )
 
         assert.strictEqual(again.receiveCount, 2)
@@ -116,7 +118,7 @@ describe('QueueTransport.layerSqs on MiniStack', () => {
       Effect.gen(function* () {
         const queue = yield* QueueTransport
 
-        yield* queue.send(queues.deleted, 'hello', { jobId: 'job-1' })
+        yield* queue.send(queues.deleted, hello)
         const received = yield* receiveSome(queues.deleted, { ...options, visibility: 0 })
         yield* queue.delete(queues.deleted, received.handle)
         const again = yield* queue.receive(queues.deleted, { ...options, wait: 0 })
@@ -129,7 +131,7 @@ describe('QueueTransport.layerSqs on MiniStack', () => {
       Effect.gen(function* () {
         const queue = yield* QueueTransport
 
-        yield* queue.send(queues.redriven, 'hello', { jobId: 'job-1' })
+        yield* queue.send(queues.redriven, hello)
         const counts = yield* Effect.forEach(Arr.range(1, maxReceiveCount), () =>
           receiveSome(queues.redriven, { ...options, visibility: 0 }).pipe(
             Effect.map((received) => received.receiveCount),
@@ -163,7 +165,7 @@ describe('QueueTransport.layerSqs on MiniStack', () => {
 
         const [elapsed, received] = yield* receiveWokenBy(
           queues.woken,
-          queue.send(queues.woken, 'hello', { jobId: 'job-1' }),
+          queue.send(queues.woken, hello),
         )
 
         assert.strictEqual(received.body, 'hello')

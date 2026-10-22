@@ -40,6 +40,7 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 | `.repository` · `.storage` · `.llm` | an adapter over a client; prompt functions live in `.llm` | infrastructure |
 | `.queue` | queue definitions | infrastructure |
 | `.client` | client wiring | infrastructure/shared, http-api, packages |
+| `.transport` | the service a client runs over: one backend's wire calls (`QueueTransport`) | packages |
 | `.http` | a contract group: one resource's HTTP routes (`HttpApiGroup`) | http-api |
 | `.handler` | a request handler | apps |
 | `.test` | a colocated test that mirrors its source name, or names what it checks against (`resources.test.ts`: the inventory in `packages/aws`) | any |

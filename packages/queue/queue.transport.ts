@@ -16,10 +16,20 @@ export interface Received {
   readonly attributes: MessageAttributes
 }
 
+export interface OutgoingMessage {
+  readonly body: string
+  readonly attributes: MessageAttributes
+}
+
 export interface ReceiveOptions {
   readonly visibility: Duration.Input
   /** At most 20 seconds, SQS's long-poll limit. */
   readonly wait: Duration.Input
+}
+
+export interface VisibilityChange {
+  readonly handle: string
+  readonly visibility: Duration.Input
 }
 
 const SqsMessage = Schema.Struct({
@@ -60,8 +70,7 @@ const makeSqs = Effect.gen(function* () {
 
   const send = Effect.fn('QueueTransport.send')(function* (
     queue: string,
-    body: string,
-    attributes: MessageAttributes,
+    { body, attributes }: OutgoingMessage,
   ) {
     const url = yield* Cache.get(urls, queue)
     yield* sqs.sendMessage({
@@ -91,8 +100,7 @@ const makeSqs = Effect.gen(function* () {
 
   const extend = Effect.fn('QueueTransport.extend')(function* (
     queue: string,
-    handle: string,
-    visibility: Duration.Input,
+    { handle, visibility }: VisibilityChange,
   ) {
     const url = yield* Cache.get(urls, queue)
     yield* sqs.changeMessageVisibility({
@@ -113,11 +121,7 @@ const makeSqs = Effect.gen(function* () {
 export class QueueTransport extends Context.Service<
   QueueTransport,
   {
-    readonly send: (
-      queue: string,
-      body: string,
-      attributes: MessageAttributes,
-    ) => Effect.Effect<void, QueueError>
+    readonly send: (queue: string, message: OutgoingMessage) => Effect.Effect<void, QueueError>
     /**
      * Long-polls up to `wait`; a message received is hidden for `visibility`. A message already
      * received the `maxReceiveCount` of the queue's `RedrivePolicy` is moved to its dead-letter
@@ -128,11 +132,7 @@ export class QueueTransport extends Context.Service<
       options: ReceiveOptions,
     ) => Effect.Effect<Option.Option<Received>, QueueError>
     /** Visible again after `visibility`: the heartbeat, a retry delay, or 0 to release at once. */
-    readonly extend: (
-      queue: string,
-      handle: string,
-      visibility: Duration.Input,
-    ) => Effect.Effect<void, QueueError>
+    readonly extend: (queue: string, change: VisibilityChange) => Effect.Effect<void, QueueError>
     readonly delete: (queue: string, handle: string) => Effect.Effect<void, QueueError>
   }
 >()('@app-template/queue/QueueTransport') {

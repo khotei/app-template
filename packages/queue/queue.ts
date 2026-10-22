@@ -72,8 +72,9 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
       message: A,
     ) {
       const body = yield* encodeBody(definition, message)
-      yield* transport.send(queueName(definition.name), body, {
-        jobId: definition.jobId(message),
+      yield* transport.send(queueName(definition.name), {
+        body,
+        attributes: { jobId: definition.jobId(message) },
       })
     })
 
@@ -84,7 +85,7 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
       const queue = queueName(definition.name)
       const decode = Schema.decodeEffect(buildJsonCodec(definition.schema))
       const extend = (received: Received, visibility: Duration.Input) =>
-        transport.extend(queue, received.handle, visibility)
+        transport.extend(queue, { handle: received.handle, visibility })
       const release = (received: Received) => extend(received, 0)
 
       const heartbeat = (received: Received) =>
@@ -97,13 +98,11 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
 
       // Visibility settles every outcome: `delete` on success, a retry delay, or 0 so that the
       // next receive redrives a spent message to the dead-letter queue.
-      const settle = Effect.fnUntraced(function* (
-        received: Received,
-        info: AttemptInfo,
-        exit: Exit.Exit<void, E>,
-      ) {
+      const settle = Effect.fnUntraced(function* (received: Received, exit: Exit.Exit<void, E>) {
         if (Exit.isSuccess(exit)) return yield* transport.delete(queue, received.handle)
         if (Cause.hasInterruptsOnly(exit.cause)) return yield* release(received)
+
+        const info = buildAttemptInfo(received, definition.maxAttempts)
         if (info.isLastAttempt) {
           yield* Effect.logError('queue message dead-lettered', exit.cause)
           return yield* release(received)
@@ -130,7 +129,7 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
           const exit = yield* releasing(
             Effect.raceFirst(Effect.exit(handle(decoded.success, info)), heartbeat(received)),
           )
-          yield* settle(received, info, exit)
+          yield* settle(received, exit)
         },
         (effect, received) =>
           Effect.annotateLogs(effect, {
@@ -163,13 +162,9 @@ export class QueueClient extends Context.Service<
       message: A,
     ) => Effect.Effect<void, QueueError>
     /**
-     * Runs `handle` on each message, forever; the attempt is the message's receive count.
-     *
-     * Success deletes the message. A failed attempt is logged and hides it for the definition's
-     * `retryDelay` of that attempt. The last failed attempt (logged as dead-lettered), a
-     * body that does not decode (logged) and an interrupt make it visible at once: its next
-     * receive is the next attempt or, after the last, moves it to the dead-letter queue. No
-     * outcome ends the loop, and an interrupt waits for the settle under way.
+     * Runs `handle` on each message forever, the attempt being its receive count: success deletes
+     * it, a failure hides it for `retryDelay`, and a last failure, an undecodable body or an
+     * interrupt free it at once for its next attempt or the dead-letter queue.
      */
     readonly consume: <A, I, E, R>(
       definition: QueueDefinition<Schema.Codec<A, I>>,
