@@ -211,28 +211,41 @@ export const AttachmentStoreS3 = Layer.effect(
 
       const { UploadId } = state.upload.value
       const sent = yield* sendPart(state, last)
-      yield* s3.completeMultipartUpload({
+      return yield* s3.completeMultipartUpload({
         ...buildObjectRef(state.id),
         UploadId,
         MultipartUpload: { Parts: [...sent.parts] },
       })
-      // AWS tags at the create, atomically; MiniStack ignores `Tagging` there and needs this.
-      return yield* s3.putObjectTagging({
-        ...buildObjectRef(state.id),
-        Tagging: { TagSet: unboundTagSet },
-      })
     }, Effect.orDie)
+
+    const remove = Effect.fn('AttachmentStore.delete')((id: AttachmentId) =>
+      s3.deleteObject(buildObjectRef(id)).pipe(Effect.asVoid, Effect.orDie),
+    )
+
+    /**
+     * AWS tags at the create, atomically; MiniStack ignores `Tagging` there and needs this. It
+     * runs outside the upload's scope, since aborting a completed upload would not remove the object.
+     */
+    const tagCompleted = (id: AttachmentId) =>
+      s3.putObjectTagging({ ...buildObjectRef(id), Tagging: { TagSet: unboundTagSet } }).pipe(
+        Effect.orDie,
+        Effect.onError(() => remove(id)),
+      )
 
     const insert = Effect.fn('AttachmentStore.insert')(function* <E>(
       id: AttachmentId,
       content: Stream.Stream<Uint8Array, E>,
       meta: AttachmentMeta,
     ) {
-      const state = yield* Stream.runFoldEffect(content, () => buildUploadState(id, meta), receive)
+      const state = yield* Stream.runFoldEffect(
+        content,
+        () => buildUploadState(id, meta),
+        receive,
+      ).pipe(Effect.tap(finish), Effect.scoped)
 
-      yield* finish(state)
+      if (Option.isSome(state.upload)) yield* tagCompleted(id)
       return FileSize.make(state.size)
-    }, Effect.scoped)
+    })
 
     const select = Effect.fn('AttachmentStore.select')(function* (id: AttachmentId) {
       const found = yield* s3.getObject(buildObjectRef(id)).pipe(
@@ -246,7 +259,7 @@ export const AttachmentStoreS3 = Layer.effect(
       return yield* Effect.transposeOption(read)
     })
 
-    /** Heads the object first: presigning never looks, and the port answers none for no bytes. */
+    // Presigning never checks that the object exists.
     const url = Effect.fn('AttachmentStore.url')(function* (id: AttachmentId) {
       const exists = yield* s3.headObject(buildObjectRef(id)).pipe(
         Effect.as(true),
@@ -272,10 +285,6 @@ export const AttachmentStoreS3 = Layer.effect(
         Effect.asVoid,
         Effect.orDie,
       ),
-    )
-
-    const remove = Effect.fn('AttachmentStore.delete')((id: AttachmentId) =>
-      s3.deleteObject(buildObjectRef(id)).pipe(Effect.asVoid, Effect.orDie),
     )
 
     return AttachmentStore.of({ insert, select, url, keep, delete: remove })

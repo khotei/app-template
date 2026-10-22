@@ -6,8 +6,8 @@ import { AttachmentRepositoryKv } from '#infrastructure/attachment/attachment.re
 import { AttachmentStoreKv, AttachmentStoreS3 } from '#infrastructure/attachment/attachment.storage'
 import { S3ServiceFromConfig } from '#infrastructure/shared/aws.client'
 
-export * from '#infrastructure/attachment/attachment.repository'
-export * from '#infrastructure/attachment/attachment.storage'
+export { AttachmentRepositoryKv } from '#infrastructure/attachment/attachment.repository'
+export { AttachmentStoreKv, AttachmentStoreS3 } from '#infrastructure/attachment/attachment.storage'
 
 export const AttachmentKv = Layer.mergeAll(AttachmentRepositoryKv, AttachmentStoreKv)
 

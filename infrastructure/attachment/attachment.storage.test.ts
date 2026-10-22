@@ -2,11 +2,14 @@ import { assert, describe, layer, type Vitest } from '@effect/vitest'
 import { S3Service } from '@effect-aws/client-s3'
 import {
   Array as Arr,
+  Cause,
   Clock,
   ConfigProvider,
+  Data,
   Deferred,
   Duration,
   Effect,
+  Exit,
   Fiber,
   Layer,
   Option,
@@ -45,7 +48,7 @@ const photo = { mediaType: MediaType.make('image/png'), fileName: FileName.make(
 /** A PNG signature followed by a zero and a 0xff byte, so a text round trip would corrupt it. */
 const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0xff])
 
-const streamInChunks = (bytes: Uint8Array, chunkSize: number) =>
+const buildChunkedStream = (bytes: Uint8Array, chunkSize: number) =>
   Stream.fromIterable(
     Arr.makeBy(Math.ceil(bytes.length / chunkSize), (index) =>
       bytes.subarray(index * chunkSize, (index + 1) * chunkSize),
@@ -75,7 +78,7 @@ const runContractSuite = (it: Vitest.MethodsNonLive<AttachmentStore>) => {
     Effect.gen(function* () {
       const attachments = yield* AttachmentStore
 
-      const size = yield* attachments.insert(id, streamInChunks(png, 4), photo)
+      const size = yield* attachments.insert(id, buildChunkedStream(png, 4), photo)
 
       assert.strictEqual(size, FileSize.make(png.length))
       assert.deepStrictEqual(yield* attachments.select(id), Option.some(png))
@@ -85,7 +88,7 @@ const runContractSuite = (it: Vitest.MethodsNonLive<AttachmentStore>) => {
   it.effect('url serves the bytes with the media type', () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentStore
-      yield* attachments.insert(id, streamInChunks(png, 4), photo)
+      yield* attachments.insert(id, buildChunkedStream(png, 4), photo)
       yield* setClockAgo(Duration.zero)
 
       const url = yield* attachments.url(id)
@@ -112,7 +115,7 @@ const runContractSuite = (it: Vitest.MethodsNonLive<AttachmentStore>) => {
   it.effect('delete removes the bytes and succeeds again on a deleted id', () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentStore
-      yield* attachments.insert(id, streamInChunks(png, 4), photo)
+      yield* attachments.insert(id, buildChunkedStream(png, 4), photo)
 
       yield* attachments.delete(id)
       yield* attachments.delete(id)
@@ -124,7 +127,7 @@ const runContractSuite = (it: Vitest.MethodsNonLive<AttachmentStore>) => {
   it.effect('keep leaves the bytes in place', () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentStore
-      yield* attachments.insert(id, streamInChunks(png, 4), photo)
+      yield* attachments.insert(id, buildChunkedStream(png, 4), photo)
 
       yield* attachments.keep(id)
       yield* attachments.keep(id)
@@ -161,21 +164,42 @@ const buildObjectRef = (attachmentId: AttachmentId) => ({
 const buildMebibytes = (count: number) => new Uint8Array(count * 1024 * 1024).map((_, i) => i % 251)
 const tenMebibytes = buildMebibytes(10)
 /** Small chunks, so no single buffer of the file's size ever reaches the store. */
-const tenMebibytesStream = streamInChunks(tenMebibytes, 64 * 1024)
+const tenMebibytesStream = buildChunkedStream(tenMebibytes, 64 * 1024)
+
+const AwsConfigTest = AwsConfig.layer.pipe(
+  Layer.provide(
+    ConfigProvider.layer(ConfigProvider.fromUnknown({ AWS_REGION: 'us-east-1', STAGE: stage })),
+  ),
+)
 
 const AttachmentStoreS3MiniStack = Layer.mergeAll(
   AttachmentStoreS3,
   Layer.effectDiscard(provision(resources, stage)),
-).pipe(
+).pipe(Layer.provide(AwsConfigTest), Layer.provideMerge(AwsClientsMiniStack))
+
+class TaggingBrokenError extends Data.TaggedError('TaggingBrokenError') {}
+
+const taggingBroken = new TaggingBrokenError()
+
+// Fresh: the suite's layer already memoized `AttachmentStoreS3` over the real client.
+const AttachmentStoreS3TaggingBroken = Layer.fresh(AttachmentStoreS3).pipe(
   Layer.provide(
-    AwsConfig.layer.pipe(
-      Layer.provide(
-        ConfigProvider.layer(ConfigProvider.fromUnknown({ AWS_REGION: 'us-east-1', STAGE: stage })),
+    Layer.effect(
+      S3Service,
+      Effect.map(S3Service, (s3) =>
+        S3Service.of({ ...s3, putObjectTagging: () => Effect.die(taggingBroken) }),
       ),
     ),
   ),
-  Layer.provideMerge(AwsClientsMiniStack),
+  Layer.provide(AwsConfigTest),
 )
+
+const listDefects = <A, E>(exit: Exit.Exit<A, E>): ReadonlyArray<unknown> =>
+  Exit.match(exit, {
+    onSuccess: () => [],
+    onFailure: (cause) =>
+      Arr.map(Arr.filter(cause.reasons, Cause.isDieReason), (reason) => reason.defect),
+  })
 
 const listLeftovers = Effect.fnUntraced(function* (attachmentId: AttachmentId) {
   const s3 = yield* S3Service
@@ -238,6 +262,21 @@ describe('AttachmentStoreS3', () => {
         yield* Deferred.await(firstPartSent)
         yield* Fiber.interrupt(fiber)
 
+        assert.deepStrictEqual(yield* listLeftovers(unknown), { objects: [], uploads: [] })
+      }),
+    )
+
+    it.effect('a tagging failing after the complete fails insert with it and leaves nothing', () =>
+      Effect.gen(function* () {
+        const insert = Effect.flatMap(AttachmentStore, (attachments) =>
+          attachments.insert(unknown, tenMebibytesStream, photo),
+        )
+
+        const exit = yield* Effect.exit(Effect.provide(insert, AttachmentStoreS3TaggingBroken))
+
+        const defects = listDefects(exit)
+        assert.strictEqual(defects.length, 1)
+        assert.strictEqual(defects[0], taggingBroken)
         assert.deepStrictEqual(yield* listLeftovers(unknown), { objects: [], uploads: [] })
       }),
     )
