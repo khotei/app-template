@@ -7,11 +7,9 @@ import {
   Layer,
   Option,
   Ref,
-  Result,
   Stream,
   Struct,
 } from 'effect'
-import { identity } from 'effect/Function'
 
 import {
   Attachment,
@@ -24,13 +22,11 @@ import {
   AttachmentStore,
   buildAttachment,
   ensureBindable,
-  isExpired,
+  isVisibleTo,
 } from '@app-template/domain/attachment'
 import type { MessageId } from '@app-template/domain/chat'
 import { ensureFound } from '@app-template/domain/shared'
-import { isOwnedBy, type UserId } from '@app-template/domain/user'
-
-import { UserLock } from '#application/user/user-lock'
+import type { UserId } from '@app-template/domain/user'
 
 export interface AttachmentUpload<E> extends AttachmentMeta {
   readonly content: Stream.Stream<Uint8Array, E>
@@ -53,10 +49,7 @@ class BindableAttachments {
 
 export type { BindableAttachments }
 
-/**
- * An attachment unbound for `unboundLifetime` is not found, and is deleted when met; `get`,
- * `download` and `delete` delete it under its owner's `UserLock`, so their caller must not hold it.
- */
+/** An attachment unbound for `unboundLifetime` reads as not found; no read deletes it. */
 export class AttachmentService extends Context.Service<
   AttachmentService,
   {
@@ -82,10 +75,6 @@ export class AttachmentService extends Context.Service<
       userId: UserId,
       id: AttachmentId,
     ) => Effect.Effect<void, AttachmentNotFoundError | AttachmentBoundError>
-    /**
-     * An expired attachment of another user is refused but left: deleting it needs its owner's
-     * lock, and two sends could each wait for the other's.
-     */
     readonly findBindable: (
       userId: UserId,
       ids: ReadonlyArray<AttachmentId>,
@@ -109,7 +98,6 @@ export class AttachmentService extends Context.Service<
     const attachments = yield* AttachmentRepository
     const store = yield* AttachmentStore
     const crypto = yield* Crypto.Crypto
-    const userLock = yield* UserLock
     const randomUuid = Effect.orDie(crypto.randomUUIDv7())
     const randomAttachmentId = Effect.map(randomUuid, AttachmentId.make)
 
@@ -152,30 +140,15 @@ export class AttachmentService extends Context.Service<
       )
     })
 
-    const deleteIfStillExpired = Effect.fnUntraced(
-      function* (attachment: Attachment) {
-        const found = yield* attachments.selectById(attachment.id)
-        const now = yield* DateTime.now
-
-        if (!Option.exists(found, (current) => isExpired(current, now))) return found
-        yield* deleteByIds([attachment.id])
-        return Option.none<Attachment>()
-      },
-      (effect, attachment) => userLock.withPermit(effect, attachment.userId),
-    )
-
-    const findOrDeleteExpired = Effect.fnUntraced(function* (id: AttachmentId) {
+    const get = Effect.fn('AttachmentService.get')(function* (userId: UserId, id: AttachmentId) {
       const found = yield* attachments.selectById(id)
       const now = yield* DateTime.now
 
-      const expired = Option.filter(found, (attachment) => isExpired(attachment, now))
-      if (Option.isNone(expired)) return found
-      return yield* deleteIfStillExpired(expired.value)
-    })
-
-    const get = Effect.fn('AttachmentService.get')(function* (userId: UserId, id: AttachmentId) {
-      const found = yield* findOrDeleteExpired(id)
-      return yield* ensureFound(found, isOwnedBy(userId), () => new AttachmentNotFoundError({ id }))
+      return yield* ensureFound(
+        found,
+        isVisibleTo(userId, now),
+        () => new AttachmentNotFoundError({ id }),
+      )
     })
 
     const download = Effect.fn('AttachmentService.download')(function* (
@@ -193,8 +166,9 @@ export class AttachmentService extends Context.Service<
       userId: UserId,
       id: AttachmentId,
     ) {
-      const found = yield* findOrDeleteExpired(id)
-      yield* ensureBindable(found, { id, userId })
+      const found = yield* attachments.selectById(id)
+      const now = yield* DateTime.now
+      yield* ensureBindable(found, { id, userId, now })
 
       yield* attachments.deleteByIds([id])
       yield* store.delete(id)
@@ -207,20 +181,10 @@ export class AttachmentService extends Context.Service<
     ) {
       const stored = yield* attachments.selectByIds(ids)
       const now = yield* DateTime.now
-
-      const [expired, live] = Arr.partition(
-        stored,
-        Result.liftPredicate((attachment: Attachment) => isExpired(attachment, now), identity),
-      )
-      const ownExpired = Arr.filter(expired, isOwnedBy(userId))
-      if (Arr.isReadonlyArrayNonEmpty(ownExpired)) {
-        yield* deleteByIds(Arr.map(ownExpired, (attachment) => attachment.id))
-      }
-
-      const found = new Map(Arr.map(live, (attachment) => [attachment.id, attachment]))
+      const found = new Map(Arr.map(stored, (attachment) => [attachment.id, attachment]))
 
       const bindable = yield* Effect.forEach(ids, (id) =>
-        ensureBindable(Option.fromUndefinedOr(found.get(id)), { id, userId }),
+        ensureBindable(Option.fromUndefinedOr(found.get(id)), { id, userId, now }),
       )
       return new BindableAttachments(bindable)
     })
@@ -244,5 +208,5 @@ export class AttachmentService extends Context.Service<
     return { upload, get, download, delete: remove, findBindable, bind, deleteByIds }
   }),
 }) {
-  static readonly layer = Layer.effect(this, this.make).pipe(Layer.provide(UserLock.layer))
+  static readonly layer = Layer.effect(this, this.make)
 }

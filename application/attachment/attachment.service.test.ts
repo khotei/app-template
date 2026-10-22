@@ -4,11 +4,9 @@ import { assertEquals } from '@effect/vitest/utils'
 import {
   Array as Arr,
   DateTime,
-  Deferred,
   Duration,
   Effect,
   Exit,
-  Fiber,
   Layer,
   Option,
   Record as Rec,
@@ -35,11 +33,9 @@ import { assertSchemaEquals, breakAfter, isUuidV7, StreamBrokenError } from '@ap
 
 import { AttachmentService } from '#application/attachment/attachment.service'
 import { png, unknownAttachmentId } from '#application/testing/attachment.fixture'
-import type { Interleaving } from '#application/testing/chat.fake'
 import { messageId } from '#application/testing/chat.fixture'
 import { upload } from '#application/testing/chat.harness'
 import { owner, stranger } from '#application/testing/user.fixture'
-import { UserLock } from '#application/user/user-lock'
 
 const CryptoTest = TestCrypto.layer('attachment-service').pipe(Layer.provide(BunCrypto.layer))
 
@@ -103,38 +99,6 @@ const writesTo = (id: AttachmentId) =>
 
 const AttachmentServiceRecorded = AttachmentService.layer.pipe(
   Layer.provideMerge(recorded.layer),
-  Layer.provide(CryptoTest),
-  Layer.provideMerge(KeyValueStore.layerMemory),
-)
-
-/** `UserLock`, running the armed write once, on the next `withPermit`, before the permit. */
-const interleaveUserLock = () => {
-  const interleaving: Interleaving = { write: Effect.void }
-  const takeInterleaving = Effect.suspend(() => {
-    const { write } = interleaving
-    interleaving.write = Effect.void
-    return write
-  })
-  const layer = Layer.effect(
-    UserLock,
-    Effect.map(UserLock, (inner) =>
-      UserLock.of({
-        withPermit: (effect, userId) =>
-          Effect.andThen(takeInterleaving, inner.withPermit(effect, userId)),
-      }),
-    ),
-  ).pipe(Layer.provide(UserLock.layer))
-  return { interleaving, layer }
-}
-
-const lock = interleaveUserLock()
-
-// Built from `make`: `AttachmentService.layer` provides its own `UserLock`.
-const AttachmentServiceLockInterleaved = Layer.effect(
-  AttachmentService,
-  AttachmentService.make,
-).pipe(
-  Layer.provideMerge(Layer.mergeAll(lock.layer, AttachmentRepositoryKv, AttachmentStoreKv)),
   Layer.provide(CryptoTest),
   Layer.provideMerge(KeyValueStore.layerMemory),
 )
@@ -446,7 +410,7 @@ describe('AttachmentService', () => {
     )
 
     it.effect.each(Rec.keys(addressers))(
-      '%s of an attachment unbound for 24 h is AttachmentNotFoundError and removes it',
+      '%s of an attachment unbound for 24 h is AttachmentNotFoundError and deletes nothing',
       (method) =>
         Effect.gen(function* () {
           const service = yield* AttachmentService
@@ -462,8 +426,8 @@ describe('AttachmentService', () => {
             error,
             new AttachmentNotFoundError({ id: attachment.id }),
           )
-          assertEquals(stored, [])
-          assert.deepStrictEqual(bytes, Option.none())
+          assertEquals(stored, [attachment])
+          assert.deepStrictEqual(bytes, Option.some(png))
         }),
     )
 
@@ -492,28 +456,6 @@ describe('AttachmentService', () => {
           const stored = yield* selectStored([attachment.id])
 
           assert.strictEqual(Arr.length(stored), 1)
-        }),
-    )
-
-    it.effect(
-      "findBindable of another user's expired attachment is AttachmentNotFoundError and leaves it",
-      () =>
-        Effect.gen(function* () {
-          const service = yield* AttachmentService
-          const foreign = yield* upload(stranger, 'photo.png')
-          yield* TestClock.adjust(Duration.hours(24))
-
-          const error = yield* Effect.flip(service.findBindable(owner, [foreign.id]))
-          const stored = yield* selectStored([foreign.id])
-          const bytes = yield* selectBytes(foreign.id)
-
-          assertSchemaEquals(
-            AttachmentNotFoundError,
-            error,
-            new AttachmentNotFoundError({ id: foreign.id }),
-          )
-          assertEquals(stored, [foreign])
-          assert.deepStrictEqual(bytes, Option.some(png))
         }),
     )
   })
@@ -554,39 +496,6 @@ describe('AttachmentService', () => {
             ['store.keep', 'repository.update'],
           ],
         )
-      }),
-    )
-  })
-  layer(AttachmentServiceLockInterleaved)((it) => {
-    it.effect('a get meeting an expired attachment while a send binds it returns it bound', () =>
-      Effect.gen(function* () {
-        const service = yield* AttachmentService
-        const userLock = yield* UserLock
-        const attachment = yield* uploadPhoto
-        const getAsksLock = yield* Deferred.make<void>()
-        yield* TestClock.adjust(Duration.sum(Duration.hours(23), Duration.minutes(59)))
-
-        const getting = yield* userLock.withPermit(
-          Effect.gen(function* () {
-            const bindable = yield* service.findBindable(owner, [attachment.id])
-            yield* TestClock.adjust(Duration.minutes(1))
-            lock.interleaving.write = Effect.asVoid(Deferred.succeed(getAsksLock, undefined))
-            const forked = yield* Effect.forkDetach(service.get(owner, attachment.id))
-            // A get that takes no lock deletes without waiting, so the bind follows its end.
-            yield* Effect.raceFirst(Deferred.await(getAsksLock), Fiber.await(forked))
-            yield* service.bind(bindable, messageId)
-            return forked
-          }),
-          owner,
-        )
-        const got = yield* Fiber.join(getting)
-        const stored = yield* selectStored([attachment.id])
-        const bytes = yield* selectBytes(attachment.id)
-
-        const bound = new Attachment({ ...attachment, messageId: Option.some(messageId) })
-        assertEquals(got, bound)
-        assertEquals(stored, [bound])
-        assert.deepStrictEqual(bytes, Option.some(png))
       }),
     )
   })

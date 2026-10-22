@@ -38,7 +38,11 @@ describe('ensureBindable', () => {
 
   it.effect("returns the user's unbound attachment", () =>
     Effect.gen(function* () {
-      const attachment = yield* ensureBindable(Option.some(owned), { id: owned.id, userId })
+      const attachment = yield* ensureBindable(Option.some(owned), {
+        id: owned.id,
+        userId,
+        now: createdAt,
+      })
 
       assert.strictEqual(attachment, owned)
     }),
@@ -48,7 +52,9 @@ describe('ensureBindable', () => {
     Effect.gen(function* () {
       const id = AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000029')
 
-      const error = yield* Effect.flip(ensureBindable(Option.none(), { id, userId }))
+      const error = yield* Effect.flip(
+        ensureBindable(Option.none(), { id, userId, now: createdAt }),
+      )
 
       assertSchemaEquals(AttachmentNotFoundError, error, new AttachmentNotFoundError({ id }))
     }),
@@ -62,7 +68,7 @@ describe('ensureBindable', () => {
       )
 
       const error = yield* Effect.flip(
-        ensureBindable(Option.some(foreign), { id: foreign.id, userId }),
+        ensureBindable(Option.some(foreign), { id: foreign.id, userId, now: createdAt }),
       )
 
       assertSchemaEquals(
@@ -80,7 +86,9 @@ describe('ensureBindable', () => {
         messageId: Option.some(MessageId.make('0192d4e0-7b3a-7c00-8000-000000000030')),
       })
 
-      const error = yield* Effect.flip(ensureBindable(Option.some(bound), { id: bound.id, userId }))
+      const error = yield* Effect.flip(
+        ensureBindable(Option.some(bound), { id: bound.id, userId, now: createdAt }),
+      )
 
       assertSchemaEquals(AttachmentBoundError, error, new AttachmentBoundError({ id: bound.id }))
     }),
