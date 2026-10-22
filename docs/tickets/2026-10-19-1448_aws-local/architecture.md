@@ -78,7 +78,7 @@ and provides its endpoint; `+ stage.fixture.ts`, a fresh `test-<random>` stage p
 **`infrastructure`**
 
 ```
-+ infrastructure/shared/aws.ts               S3Service and SQSService layers from AwsConfig
++ infrastructure/shared/aws.client.ts        S3Service and SQSService layers from AwsConfig
                                              (forcePathStyle when an endpoint is set)  (D11)
 ~ infrastructure/shared/queue.client.ts      QueueClientSqs replaces QueueClientSqlite
 + infrastructure/attachment/attachment.storage.s3.ts   AttachmentStoreS3            (D6–D8)

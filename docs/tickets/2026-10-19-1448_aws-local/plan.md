@@ -260,7 +260,7 @@ checking `make dev` by hand in its own worktree.
   `extend(0)`); `QueueClient.layerSqs` only (D1 amended in S4: no memory layer); `PersistedQueue`,
   `layerSqlite`, `QueueClientSqliteOptions` and `@effect/sql-sqlite-bun` removed;
   `QueueClientSqs` in `infrastructure/shared/queue.client.ts` over the new
-  `infrastructure/shared/aws.ts` (S10); api and worker wired to it;
+  `infrastructure/shared/aws.client.ts` (S10); api and worker wired to it;
   `QueueDefinition.jobId`'s doc says delivery is at-least-once; the `chat.queue.ts` comment
   explains the settling attempt by redrive (R8–R14, R18, R20; D1–D3, D5).
 - **Blocked by:** S4, S9, S10.
@@ -454,15 +454,29 @@ checking `make dev` by hand in its own worktree.
 
 #### S10 — AWS clients from `AwsConfig`
 
-- **Goal:** `infrastructure/shared/aws.ts` builds `S3Service` and `SQSService` from `AwsConfig`
+- **Goal:** `infrastructure/shared/aws.client.ts` builds `S3Service` and `SQSService` from `AwsConfig`
   (region; the endpoint when set, with S3 path-style then), so S5 and S7 wire the same clients
   and neither invents its own; no app uses them until S5 and S7 (D10, D11).
 - **Blocked by:** S2.
-- **Files:** `infrastructure/shared/{aws.ts,index.ts}`, `infrastructure/package.json`
+- **Files:** `infrastructure/shared/{aws.client.ts,index.ts}`, `infrastructure/package.json`
   (`@effect-aws/client-s3`, `@effect-aws/client-sqs`).
 - **Test first:** none at a Seam; S5's and S7's tests reach the clients through the apps.
 - **Verify:** `make check`.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Landed in one round, +29 lines with `bun.lock`; `make check`: 321 tests. Checked by hand with
+    a probe: with an endpoint the presigned S3 URL is `http://localhost:<port>/<bucket>/<key>` and
+    SQS calls the endpoint; without one the URL is AWS's virtual-host form; without `AWS_REGION`
+    the layer fails with a `ConfigError`.
+  - The file is `aws.client.ts`, not the planned `aws.ts`: `naming.md` gives the `.client` role
+    to client wiring in `infrastructure/shared`, beside `queue.client.ts`.
+  - Two layers, `S3ServiceFromConfig` and `SQSServiceFromConfig`, not one bundle: S5 needs only
+    SQS and S7 only S3; `AwsConfig.layer` is shared, so Effect builds it once. `FromConfig`
+    follows `MinimumLogLevelFromConfig`; `S3ServiceConfig` is already a module of
+    `@effect-aws/client-s3`.
+  - The `AwsConfig` → client options mapping now lives here and in
+    `deployment/local/provision.ts`, which may not import `infrastructure`; kept twice, as S2's
+    finding foresaw.
 
 ## Requirement coverage
 
