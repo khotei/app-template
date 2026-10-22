@@ -116,10 +116,10 @@ Each gets a number `N`, the main tree 0, and owns its `node_modules` (`bun insta
 | `WEB_PORT` | `3001 + 10N` | 3001 | 3011 |
 | `AWS_ENDPOINT_URL` | `4566 + 10N` | 4566 | 4576 |
 
-The commands that write it, refusing the main tree and an `.env` without those lines:
+The commands that write it:
 [`ticket-implement` › Parallel steps](../../.claude/skills/ticket-implement/SKILL.md#parallel-steps).
-Run `make down` in a worktree before it is removed, whatever ends its work (merged, stopped or
-abandoned), or its container outlives it and keeps the port.
+Run `make down` in a worktree before it is removed, or its container outlives it and keeps the
+port.
 
 ## Environment
 
@@ -130,11 +130,11 @@ abandoned), or its container outlives it and keeps the port.
   ([aws.md](aws.md#the-local-stand-in)). Variables of clients that are still stubs stay commented
   out.
 - **Quoting.** Strings are double-quoted (`LOG_LEVEL="Info"`), numbers are bare (`API_PORT=3000`).
-  A value with a space must be quoted, since `make up` reads the file as shell.
 - **Loading.** Each app script passes `--env-file=../../.env`, a path relative to the app folder.
   This works from `make` at the root and from `bun run dev` inside the app. The one exception is
   `make up`: Pulumi starts `deployment/local/ministack.ts` itself, so no `--env-file` reaches it,
-  and the recipe exports `.env` into the shell first (`set -a && . ./.env`).
+  and the recipe loads `.env` into the shell's environment instead. The shell reads the file as
+  its own syntax, so a value with a space must be quoted.
 - **A missing `.env`** is ignored by Bun without a warning. The process then fails at startup while
   building a config layer, with Effect's `ConfigError` naming the first missing or invalid
   variable. Variables exported in the shell work without a file, which is how CI runs.

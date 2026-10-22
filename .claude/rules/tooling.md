@@ -22,9 +22,9 @@ Imperatives only. The explanations live in [docs/knowledge/tooling.md](../../doc
 
 - Keep one root `.env`. List in `.env.example` only the variables the code reads, plus the ones a
   client SDK reads from the environment itself; keep values for stubbed services commented out.
-- App scripts load the root file with `--env-file=../../.env`; only `make up` sources it in the
-  shell, for the Pulumi program, so quote every value that holds a space. Read settings only
-  through the `@app-template/config` services' layers. Tests never depend on `.env`.
+- App scripts load the root file with `--env-file=../../.env`. Quote every `.env` value that
+  holds a space. Read settings only through the `@app-template/config` services' layers. Tests
+  never depend on `.env`.
 
 ## Dev modes
 

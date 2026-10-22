@@ -8,3 +8,5 @@ How the local one runs: `docs/knowledge/aws.md › The local stand-in`.
 - Resource names come from `@app-template/aws` (`buildResourceName`,
   `app-template-<stage>-<resource>`) and tags from `shared/tags.ts`; never hard-code either in a
   resource file.
+- Keep `@pulumi/pulumi` in `package.json` though no file imports it: Pulumi loads it to run the
+  program.

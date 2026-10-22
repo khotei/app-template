@@ -12,11 +12,11 @@ created and tested. The code: `packages/aws` (the inventory, the naming rule, th
 ([tooling.md › Worktrees](tooling.md#worktrees)). `deployment/local/` is a Pulumi project of its
 own (`runtime: bun`): `@pulumi/docker`'s `Container` with the image by digest, the environment,
 the bind mount of `.data/ministack` and the health check with `wait: true`, so `pulumi up` returns
-only once MiniStack answers. The program reads `AwsConfig` (`make up` exports `.env` to it):
-MiniStack's default region is `AWS_REGION`, its 4566 is published on the endpoint's port, and the
-container is named `app-template-ministack-<port>`, so the stacks of several trees share no port,
-container or state. A new name or image replaces the container, the old one deleted first because
-it holds the port.
+only once MiniStack answers. The program reads `AwsConfig` from `.env` (how `make up` passes it:
+[tooling.md › Environment](tooling.md#environment)): MiniStack's default region is `AWS_REGION`,
+its 4566 is published on the endpoint's port, and the container is named
+`app-template-ministack-<port>`, so the stacks of several trees share no port, container or state.
+A new name or image replaces the container, the old one deleted first because it holds the port.
 
 The Pulumi state is a file backend under `.data/pulumi` with an empty passphrase (nothing secret
 is stored), and `PULUMI_HOME` is the tree's `.pulumi/`, so a clone touches nothing outside the

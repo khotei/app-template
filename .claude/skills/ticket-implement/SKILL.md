@@ -54,9 +54,10 @@ contract. What a worktree owns and its ports:
   else; after it, the agent may run `make up` and `make dev` for its *Verify*.
 
   ```sh
-  bun install
   (
+    cd "$(git rev-parse --show-toplevel)" || exit 1
     N=<n>
+    bun install || exit 1
     main=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
     [ "$N" -ge 1 ] || { echo 'refused: N counts worktrees from 1; the main tree is 0' >&2; exit 1; }
     [ "$(git rev-parse --path-format=absolute --git-dir)" != "$main/.git" ] ||
@@ -86,5 +87,6 @@ contract. What a worktree owns and its ports:
 - Reviews and approvals stay one step at a time. On approve, cherry-pick the step's rounds onto
   the ticket branch, the last with `--no-commit` so the `plan.md` and `architecture.md` edits join
   it, and run `make check` after each pick.
-- A worktree is dropped once its step is approved and picked, stopped, or ends `BLOCKED:` and is
-  not resumed: run `make down` in it, then remove the worktree, its symlink and its branch.
+- On stop, run only `make down` in the worktree and keep it, its symlink and its branch. Remove
+  all three, after `make down`, only once the step is approved and picked, or when the user drops
+  the step, a `BLOCKED:` one included.
