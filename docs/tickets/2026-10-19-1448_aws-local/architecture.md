@@ -342,8 +342,7 @@ GET /attachments/:attachmentId/download
   client never learns of, against R2); tracking an id after its record is written (a failure
   between the byte write and the record leaves bytes no cleanup knows).
 - **D7 — The upload sink is our own: one `PutObject` up to 5 MiB, otherwise multipart in 5 MiB
-  parts, aborted on failure or interrupt.** With the 10 MiB cap that is at most two parts. *Your
-  OK pending (round 3, C2).* *Rejected:* `MultipartUpload.uploadObject` from `@effect-aws/s3@1.0.0`
+  parts, aborted on failure or interrupt.** With the 10 MiB cap that is at most two parts. *Rejected:* `MultipartUpload.uploadObject` from `@effect-aws/s3@1.0.0`
   (unverified on `effect@4.0.5`, README still on `@effect/platform`); buffering the whole file
   (breaks R1).
 - **D8 — Media type and `inline` disposition are written on the object at upload; the URL is
@@ -357,8 +356,7 @@ GET /attachments/:attachmentId/download
   1-day rule acts no earlier, so nothing bindable loses its bytes. A second rule aborts multipart
   uploads left by a crash. A sweep of untouched records waits for SQL in ticket 4: `KeyValueStore`
   cannot list. MiniStack stores lifecycle rules but never runs them, so locally the rules are
-  checked by reading them back, and the deletion itself only on AWS (ticket 9). *Your OK pending
-  (round 3, C1).* *Amends feature R7 and its acceptance.* *Rejected:* a sweeper job (needs a time
+  checked by reading them back, and the deletion itself only on AWS (ticket 9). *Amends feature R7 and its acceptance.* *Rejected:* a sweeper job (needs a time
   index, and SQS delays stop at 15 min); copying to a `bound/` prefix at bind (up to 10 MB copied
   per attachment); a local byte sweeper (lists and reads tags of every object to imitate S3).
   *Amended in S7:* a multipart upload carries `Tagging` on `CreateMultipartUpload` (atomic on AWS)

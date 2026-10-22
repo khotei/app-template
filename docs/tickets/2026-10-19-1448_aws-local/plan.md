@@ -42,6 +42,10 @@ graph LR
   S6 --> S7
   S7 --> S8[S8 unbound expiry]
   S8 --> S7b[S7b one tag call, attachment docs]
+  S5d --> S11[S11 bucket agreement, stale ticket text]
+  S7b --> S11
+  S5d --> S12[S12 review fixes after verification]
+  S7b --> S12
   S2 --> S9[S9 isolated worktrees run the stack]
   S2 --> S10[S10 AWS clients from AwsConfig]
   S9 --> S5
@@ -689,6 +693,45 @@ checking `make dev` by hand in its own worktree.
     `deployment/local/provision.ts`, which may not import `infrastructure`; kept twice, as S2's
     finding foresaw.
 
+#### S11 — Every inventory bucket is used; the ticket's text matches the code
+
+- **Goal:** close the R17 gap `/ticket-verify` run 1 found: `make check` fails when the inventory
+  names a bucket no adapter addresses, as it already does for queues. The agreement test also
+  meets the standards the review cited: its file name mirrors a source or takes a role
+  `naming.md` lists, and its predicate composes with `Predicate.and`. At approval the main
+  session rewrites the ticket text the Spec review listed as stale (the memory transport in
+  `architecture.md`'s overview, D1 and D2; "every queue test on MiniStack" beside
+  `recordQueue()`; D1's ambiguous `layerSqs`; D9's body after S8 and S7b; `feature.md`'s promise
+  of collection; R12's acceptance citing S8b; R20's `git grep` pathspec; S7's findings).
+- **Blocked by:** S5d, S7b.
+- **Files:** `infrastructure/shared/resources.test.ts` (or its renamed file); the ticket's
+  `feature.md`, `architecture.md`, `plan.md` (main session).
+- **Test first:** the inventory agreement test — a bucket added to `packages/aws/resources.ts`
+  that no `infrastructure` code addresses fails it, with a message naming the bucket; the
+  attachments bucket passes.
+- **Verify:** `make check`; the probe bucket shown red, then removed.
+- **Status:** todo
+
+#### S12 — Review fixes after verification
+
+- **Goal:** the Standards findings of `/ticket-verify` run 1 that cost one step:
+  `queue.transport.ts` takes a suffix `naming.md › Files` lists, or the table gains `.transport`;
+  `QueueTransport.send`, `extend` and the client's `settle` stop taking three plain positional
+  values (`effect-style.md › Signatures`); `consume`'s doc meets `comments.md › Gate B`; the
+  MiniStack image is pinned once; one `QueueClientMiniStack` in `@app-template/queue/testing`
+  replaces the copies in `packages/queue/queue.test.ts` and `application/testing/queue.harness.ts`;
+  the api handler tests lose the 60-second timeouts no container needs. The shared AWS client
+  builder and a branded `Stage` wait for ticket 9, which reshapes both.
+- **Blocked by:** S5d, S7b.
+- **Files:** `packages/queue/{queue.ts,queue.transport.ts,queue.test.ts,testing/*}`,
+  `.claude/rules/naming.md` (if the suffix joins the table), `deployment/local/ministack.ts`,
+  `packages/testing/ministack.ts`, `application/testing/queue.harness.ts` and its users,
+  `apps/api/**/*.test.ts`, `docs/knowledge/{aws,tooling}.md` where they name a moved symbol.
+- **Test first:** none at a Seam: a refactor under the existing Seam 1 and job suites, which stay
+  green unchanged in what they assert.
+- **Verify:** `make check`; `git grep` finds the MiniStack image tag once.
+- **Status:** todo
+
 ## Requirement coverage
 
 | Req | Steps |
@@ -709,7 +752,7 @@ checking `make dev` by hand in its own worktree.
 | R14 | S5, S5b |
 | R15 | S1, S2 |
 | R16 | S2 |
-| R17 | S1, S8 |
+| R17 | S1, S8, S11 |
 | R18 | S5, S7 (by hand) |
 | R19 | dropped in S3 (D5) |
 | R20 | S2, S5, S7 |
