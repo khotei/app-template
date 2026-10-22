@@ -39,7 +39,7 @@ graph LR
 | 2 | [`claude-toolkit`](#2-claude-toolkit) | `chore` | 1, 3 | done: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md) |
 | 3 | [`chat-core`](#3-chat-core) | `feat` | 1 | done: [docs/tickets/2026-10-17-1748_chat-core/](../tickets/2026-10-17-1748_chat-core/feature.md) |
 | 4 | [`postgres-drizzle`](#4-postgres-drizzle) | `feat` | 3 | planned |
-| 5 | [`aws-local`](#5-aws-local) | `feat` | 3 | in progress: [docs/tickets/2026-10-19-1448_aws-local/](../tickets/2026-10-19-1448_aws-local/feature.md) |
+| 5 | [`aws-local`](#5-aws-local) | `feat` | 3 | done: [docs/tickets/2026-10-19-1448_aws-local/](../tickets/2026-10-19-1448_aws-local/feature.md) |
 | 6 | [`llm-providers`](#6-llm-providers) | `feat` | 5 | planned |
 | 7 | [`web-app`](#7-web-app) | `feat` | 3 (6 for assistant attachments and an SSE tail) | planned |
 | 8 | [`observability`](#8-observability) | `feat` | 3 | planned |
@@ -181,6 +181,11 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   `PersistedQueue.layerStoreSql` implements polling with `SKIP LOCKED`, lock refresh and lock
   expiration. The donor isolates tests by one container per file plus `TRUNCATE` at the top of
   each test, which forbids parallel tests inside a file.
+- **Inherits from `aws-local` (2026-10-22).** A sweep of unbound attachment records past
+  `unboundLifetime` (the key-value store cannot list them; they read as not found until then); a
+  consumer or sweep for replies left active in the dead-letter queue (a killed worker, a failed
+  `failed` write, a stopped worker's long poll); a `WHERE stage IN (…)` guard on the reply's
+  terminal write.
 
 ### 5. `aws-local`
 
@@ -208,7 +213,9 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   window; Node.js and `provided.*` Lambdas run as local processes, Docker only for images.
   `@effect-aws/client-s3` and `client-sqs` 2.0.0 peer `effect >=4.0.0-beta.66 <5.0.0`, install
   under Bun 1.4.3, type-check under `tsc` 7 and presign on Bun (scratch run, no live endpoint).
-- **Status.** In progress: [docs/tickets/2026-10-19-1448_aws-local/](../tickets/2026-10-19-1448_aws-local/feature.md).
+- **Status.** Done: [docs/tickets/2026-10-19-1448_aws-local/](../tickets/2026-10-19-1448_aws-local/feature.md),
+  merged as `30fa816`. The settling attempt of the reply job and the startup `verify` went; an
+  expired attachment reads as not found, and no read deletes it.
 - **Facts (2026-10-17).** LocalStack's OSS repository was archived on 2026-03-23 and its image
   requires an account; free only for non-commercial use. MiniStack: MIT, Python, images ~110–360 MB,
   4.9k stars, releases every 1–3 days, SQS (DLQ redrive, FIFO attributes stored), S3 (multipart,
@@ -332,6 +339,10 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   closed to new customers since 2026-04-30; AWS points to ECS Express Mode. Lambda Web Functions
   (2026-10-12) serve HTTP without an adapter, but only on `nodejs24.x`, so not under Bun. SQS event
   source mappings with `ReportBatchItemFailures` remain the recommended worker pattern.
+- **Inherits from `aws-local` (2026-10-22).** Check on AWS what MiniStack cannot show: the
+  `unbound` tag sent with `CreateMultipartUpload` and the lifecycle deletion it drives. Share one
+  AWS client builder between `infrastructure/shared/aws.client.ts` and
+  `deployment/local/provision.ts`, and brand `Stage`.
 
 ### 10. `client-publishing`
 
