@@ -41,6 +41,7 @@ graph LR
   S2 --> S7[S7 AttachmentStoreS3 wired]
   S6 --> S7
   S7 --> S8[S8 unbound expiry]
+  S8 --> S7b[S7b one tag call, attachment docs]
   S2 --> S9[S9 isolated worktrees run the stack]
   S2 --> S10[S10 AWS clients from AwsConfig]
   S9 --> S5
@@ -513,6 +514,25 @@ checking `make dev` by hand in its own worktree.
   - Left to `/ticket-verify`: R1's "no single 10 MB buffer" (the test streams 64 KiB chunks but
     does not measure memory) and R6's worker test with a recorded `file` part.
 
+#### S7b — One tag call; one author for attachment facts
+
+- **Goal:** a multipart upload is tagged `unbound` only on `CreateMultipartUpload`; the
+  `PutObjectTagging` after the complete, `isTagPending`, the object delete on a tagging failure
+  and their test go (MiniStack ignores that tag and never runs lifecycle rules, so nothing local
+  depends on it; ticket 9 checks the tag on AWS, beside the lifecycle deletion); the shared test
+  PNG moves to `packages/testing`; `docs/knowledge/aws.md › Attachments` becomes the one author of
+  how storage behaves, keeping no test wiring, and code comments keep only gotchas (D9 amended;
+  R7's acceptance checks the tag on the single-put object).
+- **Blocked by:** S8.
+- **Files:** `infrastructure/attachment/{attachment.storage.ts,attachment.storage.test.ts}`;
+  `application/testing/attachment.fixture.ts`; `packages/testing/*`;
+  `application/attachment/attachment.service.ts`, `domain/attachment/attachment.service.ts`
+  (comments only); `docs/knowledge/aws.md` (Attachments).
+- **Test first:** none new at a Seam: Seam 3 loses the failing-tagging case and the multipart
+  row of the tag case, and stays green; the single-put tag case still runs on MiniStack.
+- **Verify:** `make check`.
+- **Status:** todo
+
 #### S8 — Unbound attachments expire
 
 - **Goal:** `unboundLifetime` (24 h) and `isExpired(attachment, now)` in `domain/attachment`;
@@ -651,7 +671,7 @@ checking `make dev` by hand in its own worktree.
 | R4 | S6, S8 |
 | R5 | S6, S7 |
 | R6 | S7 |
-| R7 | S2 (rules), S7 (tag, `keep`), S8 |
+| R7 | S2 (rules), S7 (tag, `keep`), S8, S7b |
 | R8 | S4, S5 |
 | R9 | S5, S5c |
 | R10 | S4, S5 |
