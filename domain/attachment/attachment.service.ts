@@ -1,4 +1,4 @@
-import { Context, type DateTime, Effect, Option, type Stream } from 'effect'
+import { Context, DateTime, Duration, Effect, Option, type Stream } from 'effect'
 
 import { AttachmentBoundError, AttachmentNotFoundError } from '#domain/attachment/attachment.error'
 import type { AttachmentId } from '#domain/attachment/attachment.id'
@@ -70,6 +70,13 @@ export const buildAttachment = (input: {
     size: input.size,
     createdAt: input.createdAt,
   })
+
+/** The bucket's expiration rule for unbound objects must not act sooner. */
+export const unboundLifetime = Duration.hours(24)
+
+export const isExpired = (attachment: Attachment, now: DateTime.Utc): boolean =>
+  Option.isNone(attachment.messageId) &&
+  DateTime.isGreaterThanOrEqualTo(now, DateTime.addDuration(attachment.createdAt, unboundLifetime))
 
 /** Returns the attachment when the user may bind it. */
 export const ensureBindable = Effect.fn('ensureBindable')(function* (

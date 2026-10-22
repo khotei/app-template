@@ -81,7 +81,17 @@ api's test harness keeps `AttachmentKv`, whose download is a `data:` URL.
 - **The object says how it is served.** Its media type and an `inline` disposition with the file
   name are written at upload, so the download URL is signed without overrides.
 - **The unbound tag.** A new object carries `unbound=true`, which the bucket's expiration rule
-  ([The inventory](#the-inventory)) acts on; binding the attachment removes it.
+  ([The inventory](#the-inventory)) acts on. Binding the attachment removes the tag before the
+  bind is written, so a crash between leaves an orphaned object, never a bound attachment without
+  bytes.
+- **Expiry.** An attachment still unbound 24 hours after its upload (`unboundLifetime` in
+  `domain/attachment`) is answered as not found by `AttachmentService`, which deletes its record
+  and its object the first time a request names it. An unbound object that no request names again
+  is left to the bucket's rule, which acts after `unboundExpirationDays` (S3 rounds up to the next
+  midnight UTC); `infrastructure/shared/resources.test.ts` keeps those days no shorter than
+  `unboundLifetime`, so nothing still bindable loses its bytes. Its record stays in the key-value
+  store, which cannot be listed, so no sweep reaches it until records move to SQL. Locally the
+  object stays as well, since MiniStack never runs the rule ([Tests on Docker](#tests-on-docker)).
 - **Download.** The api answers `302` to a `GetObject` URL presigned for 300 seconds.
 - **The signed host.** The host is part of the signature, so the browser must reach the host the
   api signs with. With an endpoint set, S3 uses path-style addressing and the URL is

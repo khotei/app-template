@@ -3,9 +3,10 @@ import { fileURLToPath } from 'node:url'
 import { Glob } from 'bun'
 
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, Option, Predicate, type Schema } from 'effect'
+import { Array as Arr, Duration, Option, Predicate, type Schema } from 'effect'
 
 import { resources } from '@app-template/aws'
+import { unboundLifetime } from '@app-template/domain/attachment'
 import type { QueueDefinition } from '@app-template/queue'
 
 const workspace = resolve(fileURLToPath(import.meta.url), '../..')
@@ -47,6 +48,18 @@ describe('the inventory and the queue definitions agree', () => {
     assert.isTrue(
       Arr.some(definitions, (definition) => definition.name === queue.name),
       `queue '${queue.name}' has no definition in infrastructure/**/*.queue.ts`,
+    )
+  })
+})
+
+describe('the inventory and the attachment lifetime agree', () => {
+  it('the attachments bucket expires unbound objects no sooner than unboundLifetime', () => {
+    const { unboundExpirationDays } = resources.buckets.attachments.lifecycle
+
+    assert.isTrue(
+      Duration.isGreaterThanOrEqualTo(Duration.days(unboundExpirationDays), unboundLifetime),
+      `bucket 'attachments': unboundExpirationDays (${unboundExpirationDays}) is shorter than ` +
+        `unboundLifetime (${Duration.format(unboundLifetime)})`,
     )
   })
 })

@@ -6,6 +6,7 @@ import {
   Effect,
   Layer,
   Option,
+  Predicate,
   Ref,
   Stream,
   Struct,
@@ -22,6 +23,7 @@ import {
   AttachmentStore,
   buildAttachment,
   ensureBindable,
+  isExpired,
 } from '@app-template/domain/attachment'
 import type { MessageId } from '@app-template/domain/chat'
 import { ensureFound } from '@app-template/domain/shared'
@@ -138,9 +140,26 @@ export class AttachmentService extends Context.Service<
       )
     })
 
+    // An expired attachment reads as absent and is removed when met: no sweep reaches it.
+    const selectLive = Effect.fnUntraced(function* (ids: ReadonlyArray<AttachmentId>) {
+      const found = yield* attachments.selectByIds(ids)
+      const now = yield* DateTime.now
+
+      const isExpiredNow = (attachment: Attachment) => isExpired(attachment, now)
+      const expired = Arr.filter(found, isExpiredNow)
+      if (Arr.isReadonlyArrayNonEmpty(expired)) {
+        yield* deleteByIds(Arr.map(expired, (attachment) => attachment.id))
+      }
+      return Arr.filter(found, Predicate.not(isExpiredNow))
+    })
+
     const get = Effect.fn('AttachmentService.get')(function* (userId: UserId, id: AttachmentId) {
-      const found = yield* attachments.selectById(id)
-      return yield* ensureFound(found, isOwnedBy(userId), () => new AttachmentNotFoundError({ id }))
+      const found = yield* selectLive([id])
+      return yield* ensureFound(
+        Arr.head(found),
+        isOwnedBy(userId),
+        () => new AttachmentNotFoundError({ id }),
+      )
     })
 
     const download = Effect.fn('AttachmentService.download')(function* (
@@ -158,8 +177,8 @@ export class AttachmentService extends Context.Service<
       userId: UserId,
       id: AttachmentId,
     ) {
-      const found = yield* attachments.selectById(id)
-      yield* ensureBindable(found, { id, userId })
+      const found = yield* selectLive([id])
+      yield* ensureBindable(Arr.head(found), { id, userId })
 
       yield* attachments.deleteByIds([id])
       yield* store.delete(id)
@@ -170,7 +189,7 @@ export class AttachmentService extends Context.Service<
       userId: UserId,
       ids: ReadonlyArray<AttachmentId>,
     ) {
-      const stored = yield* attachments.selectByIds(ids)
+      const stored = yield* selectLive(ids)
       const found = new Map(Arr.map(stored, (attachment) => [attachment.id, attachment]))
 
       const bindable = yield* Effect.forEach(ids, (id) =>
@@ -179,6 +198,8 @@ export class AttachmentService extends Context.Service<
       return new BindableAttachments(bindable)
     })
 
+    // The bytes are kept first: a crash between leaves an orphaned object, never a bound
+    // attachment whose bytes the bucket's expiration rule removed.
     const bind = Effect.fn('AttachmentService.bind')(function* (
       bindable: BindableAttachments,
       messageId: MessageId,
@@ -188,6 +209,7 @@ export class AttachmentService extends Context.Service<
         (attachment) => new Attachment({ ...attachment, messageId: Option.some(messageId) }),
       )
 
+      yield* Effect.forEach(bound, (attachment) => store.keep(attachment.id), { discard: true })
       yield* Effect.forEach(bound, attachments.update, { discard: true })
       return bound
     })
