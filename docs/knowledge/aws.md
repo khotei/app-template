@@ -25,7 +25,8 @@ provider, so the AWS stacks call it without an endpoint. MiniStack runs the inst
 Postgres container on the host's Docker (its socket is mounted), on the host port `RDS_BASE_PORT`
 (`MINISTACK_RDS_PUBLIC_ENDPOINT=1` reports `localhost`), with its data in a named volume
 (`RDS_PERSIST=1`). The program exports `DATABASE_URL`, built from the instance's endpoint, and
-`make up` writes it to `.env.pulumi`, which the apps and `make migrate` load after `.env`. The
+`make up` writes it to `.env.pulumi` (how it loads:
+[tooling.md › Environment](tooling.md#environment)). The
 local credentials are fixed in `deployment/local/settings.ts`, the one module that reads the
 configuration. MiniStack names the instance's container and volume after the identifier, so each
 worktree has its own `STAGE` and `RDS_BASE_PORT` ([tooling.md › Worktrees](tooling.md#worktrees)).
@@ -34,8 +35,8 @@ worktree has its own `STAGE` and `RDS_BASE_PORT` ([tooling.md › Worktrees](too
 its fixed waits (a queue 25 s, a lifecycle rule 55 s, an instance 80 s): a cold `up` takes about
 10 s instead of 90. A provider release without it makes `up` slow, never wrong.
 
-The Pulumi state is a file backend under `.data/pulumi` with an empty passphrase (nothing secret
-is stored), and `PULUMI_HOME` is the tree's `.pulumi/`, so a clone touches nothing outside the
+The Pulumi state is a file backend under `.data/pulumi` with an empty passphrase: its one secret
+is the local database's password, a constant in `settings.ts`. And `PULUMI_HOME` is the tree's `.pulumi/`, so a clone touches nothing outside the
 repo, `make reset` keeps the provider plugin, and each worktree downloads its own on its first
 `make up`. The image digest is pinned once, as `ministackImage` in `@app-template/config`, which
 `deployment/local/ministack.ts` and the tests' container both read.
@@ -43,9 +44,9 @@ repo, `make reset` keeps the provider plugin, and each worktree downloads its ow
 | Target | Does |
 |---|---|
 | `make stack` | logs the Pulumi CLI in to the file backend and selects the `local` stack or creates it. Idempotent; `up` runs it first. |
-| `make up` | refreshes the MiniStack container alone, so a stopped one starts again (a full refresh while MiniStack is down would drop the bucket from the state); `pulumi up`; `.env.pulumi`; `make migrate`. A second run changes nothing. |
+| `make up` | refreshes the MiniStack container alone, once it is in the state, so a stopped one starts again; a full refresh, or `up --refresh`, while MiniStack is down would drop the bucket from the state. Then `pulumi up`, `.env.pulumi` and `make migrate`, which waits for a database MiniStack is still respawning ([database.md › Migrations](database.md#migrations)). A second run changes nothing. |
 | `make down` | `docker stop` of MiniStack, which saves its state under `.data/ministack/` and stops the instance's container; the stack keeps every resource. |
-| `make reset` | `docker rm -f` of MiniStack and of the instance's container, `docker volume rm` of its volume, then removes `.data/` (MiniStack's state, the Pulumi stack, the key-value store) and `.env.pulumi`; no `pulumi destroy`. `.pulumi/` (the provider plugins) stays. |
+| `make reset` | `docker rm -f` of MiniStack and of the instance's container, `docker volume rm` of its volume, then removes `.data/` (MiniStack's state, the Pulumi stack, the key-value store) and `.env.pulumi`. No `pulumi destroy` runs: every resource lives in what these commands remove, and the stack's state goes with `.data/`. `.pulumi/` (the provider plugins) stays. |
 
 An `up` that fails midway keeps what it created in the stack's state; the next `make up` goes on
 from there, and `make reset` starts afresh.

@@ -3,11 +3,11 @@ import { fileURLToPath } from 'node:url'
 import { BunRuntime } from '@effect/platform-bun'
 import { sql } from 'drizzle-orm'
 import { migrate } from 'drizzle-orm/effect-postgres/migrator'
-import { Array as Arr, Effect, Option } from 'effect'
+import { Array as Arr, Effect, Option, Predicate, Schedule } from 'effect'
 
 import { MinimumLogLevelFromConfig } from '@app-template/config'
 
-import { Db, unwrapQueryError } from '#infrastructure/db/db.client'
+import { Db, isSqlError, unwrapQueryError } from '#infrastructure/db/db.client'
 
 const migrationsFolder = fileURLToPath(new URL('migrations', import.meta.url))
 
@@ -48,8 +48,39 @@ export const applyMigrations = Effect.flatMap(migrateDatabase, (applied) =>
   Effect.logInfo(describeApplied(applied)),
 )
 
+// 57P03: Postgres accepts the connection but is still starting up.
+const isDatabaseUnreachable = (error: unknown) =>
+  isSqlError(error) &&
+  (error.reason._tag === 'ConnectionError' ||
+    (Predicate.hasProperty(error.reason.cause, 'code') && error.reason.cause.code === '57P03'))
+
+/**
+ * Retries `self` once a second, for up to 30 seconds, while the database refuses connections;
+ * any other failure, a refused password or a failed migration, ends it at once.
+ *
+ * A MiniStack started by `make up` respawns its database in the background, so the first
+ * connection can come before the database listens.
+ */
+export const retryWhileUnreachable = <A, E, R>(self: Effect.Effect<A, E, R>) =>
+  self.pipe(
+    Effect.tapError((error) =>
+      isDatabaseUnreachable(error)
+        ? Effect.logInfo('database not reachable yet, retrying')
+        : Effect.void,
+    ),
+    Effect.retry({
+      while: isDatabaseUnreachable,
+      schedule: Schedule.spaced('1 second'),
+      times: 30,
+    }),
+  )
+
 if (import.meta.main) {
   BunRuntime.runMain(
-    applyMigrations.pipe(Effect.provide([Db.layerFromConfig, MinimumLogLevelFromConfig])),
+    applyMigrations.pipe(
+      Effect.provide(Db.layerFromConfig),
+      retryWhileUnreachable,
+      Effect.provide(MinimumLogLevelFromConfig),
+    ),
   )
 }

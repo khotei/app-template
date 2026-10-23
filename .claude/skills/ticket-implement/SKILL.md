@@ -100,7 +100,7 @@ contract. What a worktree owns and its ports:
   the ticket branch, the last with `--no-commit` so the `plan.md` and `architecture.md` edits join
   it, and run `make check` after each pick.
 - On step 5's **stop**, also run `make down` in the worktree, and keep it, its symlink and its
-  branch. Remove all three, after `make down`, only once the step is approved and picked, or when
+  branch. Remove all three, after `make reset`, only once the step is approved and picked, or when
   the user drops the step, a `BLOCKED:` one included. Remove them in a command of their own,
   never chained after a commit, and only when `git log` shows the rounds on the ticket branch and
   the worktree's `git status --short` is empty.

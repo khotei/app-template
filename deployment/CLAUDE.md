@@ -5,9 +5,8 @@
 bucket, the queues), so an AWS stack calls the same code; its other files are stubs until the
 deploy ticket lands. How it runs: `docs/knowledge/aws.md › The local stand-in`.
 
-- Never run `pulumi destroy` or `up --refresh` on the local stack: Pulumi cannot remove the
-  container before what lives in it, and a refresh while MiniStack is down drops the bucket from
-  the state. `make down` and `make reset` work through Docker.
+- Never run `pulumi destroy` or `up --refresh` on the local stack; `make down` and `make reset`
+  work through Docker (why: `docs/knowledge/aws.md › The local stand-in`).
 
 - May import `packages/*` only; never a layer or an app.
 - Resource names come from `@app-template/aws` (`buildResourceName`,

@@ -7,21 +7,23 @@
   vendor-drizzle migrate migration migration-check
 
 # The local Pulumi project: the file backend under .data/ and the home (plugins, credentials) under
-# .pulumi/, both in the repo; the home survives `make reset`. The passphrase is empty: the one
-# secret, the local database's password, is a fixed value in deployment/local/settings.ts.
+# .pulumi/, both in the repo; the home survives `make reset`. The passphrase is empty: the stack's
+# one secret is the local database's password, a constant in deployment/local/settings.ts.
 PULUMI = PULUMI_HOME=$(CURDIR)/.pulumi PULUMI_CONFIG_PASSPHRASE= pulumi -C deployment/local
-MINISTACK_URN = urn:pulumi:local::app-template-local::docker:index/container:Container::ministack
+PROJECT := $(shell sed -n 's/^name: //p' deployment/local/Pulumi.yaml)
+MINISTACK_URN = urn:pulumi:local::$(PROJECT)::docker:index/container:Container::ministack
 
-# A switch of the AWS provider's own test harness (terraform-provider-aws): in replay mode it skips
-# the fixed waits around RDS, SQS and S3 lifecycle calls, 86 s down to 7 s on a cold `up`. VCR_PATH
-# only has to be non-empty: nothing is recorded or replayed. Without it `up` is slow, never wrong.
-# For the local stack only.
+# A switch of the AWS provider's own test harness that skips its fixed waits; VCR_PATH only has to
+# be non-empty, nothing is recorded or replayed. Local stack only: docs/knowledge/aws.md.
 FAST_PROVIDER = VCR_MODE=REPLAY_ONLY VCR_PATH=unused
 
-# Exports .env, since Pulumi starts the program itself, and names the MiniStack container after the
-# port of AWS_ENDPOINT_URL, as deployment/local/ministack.ts does.
-STAND = set -a && . ./.env && set +a && \
-	ministack=app-template-ministack-$$(echo "$$AWS_ENDPOINT_URL" | sed -E 's/.*:([0-9]+).*/\1/')
+# Why the recipes export .env: docs/knowledge/tooling.md › Environment.
+EXPORT_ENV = set -a && . ./.env && set +a
+# The pair of the container name in deployment/local/ministack.ts; a stack output would not do,
+# since `make reset` deletes the state.
+NAME_MINISTACK = ministack=app-template-ministack-$$(echo "$$AWS_ENDPOINT_URL" | sed -E 's/.*:([0-9]+).*/\1/')
+# The pair of the identifier in deployment/aws/database.ts, for the same reason.
+NAME_DATABASE = database=app-template-$$STAGE-database
 
 help: ## List all targets
 	@echo 'App Template: make <target>'
@@ -37,25 +39,23 @@ stack: ## Log Pulumi in to the file backend and select or create the local stack
 	@$(PULUMI) login --non-interactive file://$(CURDIR)/.data/pulumi
 	@$(PULUMI) stack select local 2>/dev/null || $(PULUMI) stack init local
 
-# The container alone is refreshed, once it is in the state, so a MiniStack stopped by `make down`
-# starts again; a full refresh while it is down would drop the bucket from the state.
+# Refreshes the MiniStack container alone, once it is in the state: docs/knowledge/aws.md.
 up: stack ## Start MiniStack, create the database, bucket and queues in it, migrate
 	if $(PULUMI) stack export | grep -qF '$(MINISTACK_URN)'; then \
 		$(PULUMI) refresh --yes --skip-preview --target '$(MINISTACK_URN)'; fi
-	$(STAND) && $(FAST_PROVIDER) $(PULUMI) up --yes --skip-preview
+	$(EXPORT_ENV) && $(FAST_PROVIDER) $(PULUMI) up --yes --skip-preview
 	$(PULUMI) stack output --shell > .env.pulumi
 	$(MAKE) migrate
 
 down: ## Stop MiniStack, which stops the database's container; every resource keeps its data
-	$(STAND) && docker ps -q --filter "name=^$$ministack$$" | xargs -r docker stop
+	$(EXPORT_ENV) && $(NAME_MINISTACK) && docker ps -q --filter "name=^$$ministack$$" | xargs -r docker stop
 
-# A killed MiniStack leaves the instance's container running, and MiniStack names it and its volume
-# after the identifier, app-template-<STAGE>-database; no destroy runs, since .data/ holds the
-# Pulumi state.
+# A killed MiniStack leaves the database's container running; why no destroy runs:
+# docs/knowledge/aws.md.
 reset: ## Remove MiniStack, the database's container and volume, and .data/ whole
-	$(STAND) && id=app-template-$$STAGE-database && \
-		docker rm -f "$$ministack" $$(docker ps -aq --filter label=ministack=rds --filter "label=db_id=$$id") && \
-		docker volume ls -q --filter "name=instance-$$id-data" | xargs -r docker volume rm
+	$(EXPORT_ENV) && $(NAME_MINISTACK) && $(NAME_DATABASE) && \
+		docker rm -f "$$ministack" $$(docker ps -aq --filter label=ministack=rds --filter "label=db_id=$$database") && \
+		docker volume ls -q --filter "name=instance-$$database-data" | xargs -r docker volume rm
 	rm -rf .data .env.pulumi
 
 migrate: ## Apply the pending migrations to the database in .env.pulumi

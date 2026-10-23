@@ -8,7 +8,7 @@ them. Versions: Bun 1.4.3, TypeScript 7.0.2, Biome 2.5.15, husky 9.1.7, vitest 5
 
 Everything runs through the root `Makefile` (GNU Make 3.81, the macOS default). There is no
 `Makefile` in any workspace. Beyond Bun, two tools are prerequisites: Docker, for `make test` and
-`make up`, and the Pulumi CLI, for `make up`, `down` and `reset`; `make check` needs only Docker,
+`make up`, and the Pulumi CLI, for `make up`; `make check` needs only Docker,
 and `make setup` needs neither.
 
 | Target | Runs | Use |
@@ -137,18 +137,18 @@ ports, and the database's volume stays.
 ## Environment
 
 - **One root `.env`**, gitignored, written by hand; beside it `make up` writes `.env.pulumi`, the
-  stack's outputs (`DATABASE_URL`), which the app scripts and `make migrate` load after it. `.env.example` is its template and lists what the code reads,
-  plus the variables a client SDK reads from the environment itself: the AWS SDK's default
+  stack's outputs (`DATABASE_URL`). `.env.example` is the template of `.env` and lists what the
+  code reads from it, plus the variables a client SDK reads from the environment itself: the AWS SDK's default
   provider chain takes `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` locally and the role on AWS,
   whose session token rotates, so credentials never pass through `@app-template/config`
   ([aws.md](aws.md#the-local-stand-in)). Variables of clients that are still stubs stay commented
   out.
 - **Quoting.** Strings are double-quoted (`LOG_LEVEL="Info"`), numbers are bare (`API_PORT=3000`).
 - **Loading.** Each app script passes `--env-file=../../.env --env-file=../../.env.pulumi`, paths
-  relative to the app folder; Bun skips a missing file. This works from `make` at the root and
-  from `bun run dev` inside the app. The one exception is `make up`: Pulumi starts
-  `deployment/local/index.ts` itself, so no `--env-file` reaches it,
-  and the recipe loads `.env` into the shell's environment instead. The shell reads the file as
+  relative to the app folder, and `make migrate` the same two files; the second wins, and Bun
+  skips a missing one. This works from `make` at the root and from `bun run dev` inside the app.
+  The one exception is `make up`: Pulumi starts `deployment/local/index.ts` itself, so no
+  `--env-file` reaches it, and the recipe loads `.env` into the shell's environment instead. The shell reads the file as
   its own syntax, so a value with a space must be quoted.
 - **A missing `.env`** is ignored by Bun without a warning. The process then fails at startup while
   building a config layer, with Effect's `ConfigError` naming the first missing or invalid

@@ -4,8 +4,7 @@ import { buildResourceName, resources, unboundTag } from '@app-template/aws'
 
 import { buildTags } from '#deployment/shared/tags'
 
-/** The inventory's buckets, each with the rule that expires unbound objects. */
-export const createStorage = (provider: aws.Provider, stage: string) =>
+export const createStorage = (provider: aws.Provider, { stage }: { readonly stage: string }) =>
   Object.values(resources.buckets).map(({ name, lifecycle }) => {
     const bucket = new aws.s3.Bucket(
       name,

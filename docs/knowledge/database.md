@@ -65,7 +65,7 @@ and that are committed.
 | Command | Does |
 |---|---|
 | `make migration NAME=<name>` | `drizzle-kit generate` in `infrastructure/`: compares the entity files with the last snapshot and writes `infrastructure/db/migrations/<timestamp>_<name>/` (`migration.sql`, `snapshot.json`); needs no database |
-| `make migrate` | applies the pending migrations to `DATABASE_URL` through an Effect program on `DatabaseConfig`; with none pending it logs `nothing to apply`; a failed connection or query logs its cause |
+| `make migrate` | applies the pending migrations to `DATABASE_URL` through an Effect program on `DatabaseConfig`; with none pending it logs `nothing to apply`; while the database refuses connections it retries once a second for up to 30 s, logging `database not reachable yet, retrying`; any other failed connection or query logs its cause at once |
 | `make migration-check` | generates into the folder and fails, printing the missing SQL, if a new folder appeared; it removes that folder |
 
 - **`make migration-check` is soft locally and strict in CI.** In `make check` it counts every
@@ -82,6 +82,11 @@ and that are committed.
   setup apply migrations.
 - Biome skips `infrastructure/db/migrations/`: the files are drizzle-kit's output, and a
   reformatted snapshot would differ from the next one it writes.
+
+## The local database
+
+`make up` creates it as an RDS instance inside MiniStack and writes its `DATABASE_URL` to
+`.env.pulumi`: [aws.md › The local stand-in](aws.md#the-local-stand-in).
 
 ## Tests
 

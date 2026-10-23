@@ -7,7 +7,7 @@ import { Array as Arr, Effect, Layer } from 'effect'
 import { PgClientUnauthenticated, recordLogs } from '@app-template/testing'
 
 import { Db } from '#infrastructure/db/db.client'
-import { applyMigrations, migrateDatabase } from '#infrastructure/db/migrate'
+import { applyMigrations, migrateDatabase, retryWhileUnreachable } from '#infrastructure/db/migrate'
 import { DbTest } from '#infrastructure/db/testing/db'
 
 const DbUnauthenticated = Db.layer.pipe(Layer.provide(PgClientUnauthenticated))
@@ -38,6 +38,16 @@ describe('migrateDatabase', () => {
   it.effect("fails with the driver's reason when the database refuses the connection", () =>
     Effect.gen(function* () {
       const error = yield* Effect.flip(migrateDatabase)
+
+      if (error._tag !== 'SqlError') return assert.fail(`expected a SqlError, got ${error._tag}`)
+      assert.strictEqual(error.reason._tag, 'AuthenticationError')
+    }).pipe(Effect.provide(DbUnauthenticated)),
+  )
+
+  // Under the TestClock a retry would wait forever, so a test that ends shows none was made.
+  it.effect('gives up at once when the database refuses the password', () =>
+    Effect.gen(function* () {
+      const error = yield* Effect.flip(retryWhileUnreachable(migrateDatabase))
 
       if (error._tag !== 'SqlError') return assert.fail(`expected a SqlError, got ${error._tag}`)
       assert.strictEqual(error.reason._tag, 'AuthenticationError')

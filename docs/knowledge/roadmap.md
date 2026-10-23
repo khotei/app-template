@@ -332,8 +332,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   non-Python runtimes in Docker, so the emulator mode verifies deployment artefacts; live
   development stays on `bun --watch` against MiniStack's queues and buckets.
 - **Rechecked (2026-10-19).** Pulumi CLI 3.270.0, `@pulumi/aws` 7.51.1. Bun runs the program only
-  under `runtime: bun`; `deployment/Pulumi.yaml` still says `nodejs` with `packagemanager: bun`,
-  which runs it on Node, so its feature phase picks one. Bun's Lambda guide (Lambda Web Adapter
+  under `runtime: bun`, as `deployment/local` runs; the AWS stack has no project file yet. Bun's Lambda guide (Lambda Web Adapter
   1.0.1 in a container; 1.1.0 is current) says nothing about response streaming. `provided.al2023`
   replaces `provided.al2` (deprecated 2026-07-31). Aurora Serverless v2 pauses at 0 ACU and resumes
   in about 15 s; Postgres 18 is on RDS and on Aurora (Serverless v2 from 18.3). App Runner has been

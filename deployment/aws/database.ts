@@ -15,6 +15,7 @@ export const createDatabase = (provider: aws.Provider, settings: DatabaseSetting
   new aws.rds.Instance(
     'database',
     {
+      // The Makefile rebuilds the identifier (`NAME_DATABASE`); change both together.
       identifier: buildResourceName(settings.stage, 'database'),
       engine: 'postgres',
       engineVersion: '18',

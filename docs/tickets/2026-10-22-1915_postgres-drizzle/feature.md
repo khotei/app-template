@@ -187,17 +187,18 @@ Postgres, one container per run.
   change nothing when none is pending; the apps SHALL neither migrate nor check the schema at
   startup.
 - **R15** — THE SYSTEM SHALL read the database settings only through `DatabaseConfig` in
-  `@app-template/config`, from the single variable `DATABASE_URL`, listed in `.env.example`;
-  `STORE_PATH` SHALL be gone from code, `.env.example` and docs.
+  `@app-template/config`, from the single variable `DATABASE_URL`, which `make up` writes to
+  `.env.pulumi` as a stack output and which `.env.example` does not list; `STORE_PATH` SHALL be
+  gone from code, `.env.example` and docs.
 
 ### The local stand
 
 - **R16** — WHEN `make up` runs, THE SYSTEM SHALL provide a Postgres 18 database as an RDS
   instance that the Pulumi program of `deployment/local/` creates inside MiniStack through
   `@pulumi/aws`, beside the inventory's bucket and queues, on the host port `RDS_BASE_PORT`
-  (`15432 + 10N` for worktree `N`), and SHALL write its `DATABASE_URL`, a stack output, to
-  `.env.pulumi`, which the apps and `make migrate` load after `.env`, with the migrations
-  applied. A second `make up` SHALL change nothing.
+  (`15432 + 10N` for worktree `N`), SHALL write its `DATABASE_URL`, a stack output, to
+  `.env.pulumi`, which the apps and `make migrate` load after `.env`, and SHALL apply the
+  migrations to it. A second `make up` SHALL change nothing.
 - **R17** — WHEN `make down` runs, THE SYSTEM SHALL stop the stand and keep the database's data
   and port for the next `make up`; WHEN `make reset` runs, THE SYSTEM SHALL remove the data, the
   database container and its volume together with `.data/` and `.env.pulumi`.
@@ -247,7 +248,7 @@ Postgres, one container per run.
 | R12 | job suite: a message set `completed` by another writer while the job runs leaves the job's `generating` write unapplied and the job logging `already settled`. |
 | R13 | job suite: a `GenerateAssistantMessage` from the dead-letter queue sets the active message `failed` with `ReplyFailed` and a cause naming the dead-letter queue; a terminal message and a deleted chat are logged and untouched; a `GenerateChatTitle` from its dead-letter queue is logged only. Live: with the worker stopped and a job redriven after `maxReceiveCount` receives, the restarted worker fails the message within seconds. |
 | R14 | `make migration NAME=probe` with MiniStack down writes a folder with `migration.sql`; `make migrate` applies it and prints nothing to apply on a second run; `git grep -n migrate apps/` finds no call. |
-| R15 | `git grep DATABASE_URL` hits only `packages/config`, `.env.example`, `deployment/` and docs; `git grep STORE_PATH` is empty. |
+| R15 | `git grep DATABASE_URL` hits only `packages/config`, `deployment/`, `.gitignore` and docs, not `.env.example`; `git grep STORE_PATH` is empty. |
 | R16 | clean state: `make up` creates the instance, the bucket and the queues; `.env.pulumi` holds `DATABASE_URL` on `localhost:15432`; `psql "$DATABASE_URL" -c 'select 1'` works, the migrations table lists every migration; the bucket's lifecycle rule and each queue's redrive read back as `packages/aws` says; a second `make up` reports no change. |
 | R17 | insert a row, `make down`, `make up`: the row is there, on the same port; `make reset`: `docker ps -a` and `docker volume ls` show no container or volume of this tree, `.data/` and `.env.pulumi` are gone. |
 | R18 | a worktree with `N=1` (`STAGE="local1"`, `RDS_BASE_PORT=15442`): its `DATABASE_URL` on `15442`, its own containers; both trees run `make dev` and send messages at once. |
@@ -263,11 +264,9 @@ Postgres, one container per run.
   Postgres layer is `SqlClient.withTransaction`, relying on `@effect/sql` carrying the
   transaction in the Effect context so the repositories join it; and whether Drizzle's
   `db.transaction` or `SqlClient.withTransaction` is the one the adapters use.
-- **Where the `rds.Instance` lives.** `make down` must not destroy it (R17), so it cannot share
-  the Docker project's `pulumi destroy`: a second project (`deployment/aws` with a `local` stack
-  against MiniStack endpoints, the direction of ticket 9) or one project with two stacks; which
-  skip flags `@pulumi/aws` needs, and what MiniStack requires beyond `endpoints.rds` (a subnet
-  group, security groups). The spike answers this.
+- **Where the `rds.Instance` lives.** Closed in S3: in the one program of `deployment/local`,
+  beside MiniStack; `make down` is `docker stop`, so no destroy reaches it (`architecture.md ›
+  D11`). The provider needs `endpoints` and the three skip flags, and MiniStack nothing more.
 - **Where the outbox lives.** Its entity and the relay: `infrastructure/outbox/` with the relay
   as a worker layer in `application/`, or beside the jobs; how a job's `enqueue` becomes an
   outbox insert inside the send's transaction while the job class keeps its `worker`.

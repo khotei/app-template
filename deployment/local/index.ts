@@ -10,12 +10,9 @@ import { localDatabase, settings } from '#deployment/local/settings'
 const { stage } = settings.aws
 const provider = createProvider(settings.aws, { dependsOn: [ministack] })
 
-createStorage(provider, stage)
-createQueues(provider, stage)
+createStorage(provider, { stage })
+createQueues(provider, { stage })
 const database = createDatabase(provider, { stage, ...localDatabase })
 
-/**
- * `make up` writes the outputs to `.env.pulumi`, which the apps load after `.env`. The password
- * is URL-encoded, since Bun expands `$` in an env file even inside single quotes.
- */
+// The password is URL-encoded, since Bun expands `$` in an env file even inside single quotes.
 export const DATABASE_URL = pulumi.interpolate`postgres://${localDatabase.user}:${encodeURIComponent(localDatabase.password)}@${database.address}:${database.port}/${localDatabase.name}`

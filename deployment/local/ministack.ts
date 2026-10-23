@@ -12,9 +12,10 @@ const internalPort = 4566
 /**
  * The host port is the one in `AWS_ENDPOINT_URL`, and the container is named after it, so a
  * worktree's MiniStack runs beside the main tree's without sharing a port, a name or a state.
+ * The Makefile rebuilds the name (`NAME_MINISTACK`); change both together.
  */
 const { region, endpoint } = settings.aws
-export const endpointUrl = Option.getOrThrowWith(
+const endpointUrl = Option.getOrThrowWith(
   Option.filter(endpoint, (url) => url.port !== ''),
   () => new Error('AWS_ENDPOINT_URL must name MiniStack with a port, as http://localhost:4566'),
 )
