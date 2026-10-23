@@ -36,7 +36,7 @@ and `apps/web` → `http-api` → `domain`. A layer may skip levels: `applicatio
 | `application/` | services over ports, and use cases that compose services | [application/CLAUDE.md](../../application/CLAUDE.md) |
 | `packages/*` | generic, project-agnostic clients and libraries, with the one exception its rules name | [packages/CLAUDE.md](../../packages/CLAUDE.md) |
 | `apps/*` | entry points (`main.ts`) | [apps/CLAUDE.md](../../apps/CLAUDE.md) |
-| `deployment/` | `local/`, a Pulumi project running MiniStack and Postgres, with the provisioner ([aws.md](aws.md)); `aws/`, the AWS Pulumi program, a stub for now | [deployment/CLAUDE.md](../../deployment/CLAUDE.md) |
+| `deployment/` | `local/`, the Pulumi program of the local stand: MiniStack and the resources inside it ([aws.md](aws.md)); `aws/`, the resource code as functions of a provider, the rest a stub for now | [deployment/CLAUDE.md](../../deployment/CLAUDE.md) |
 
 ### Dependency rules
 

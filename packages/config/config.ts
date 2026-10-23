@@ -51,6 +51,17 @@ export class AwsConfig extends Context.Service<
   )
 }
 
+/** The local stand only: the host port MiniStack gives its first RDS instance. */
+export class MiniStackConfig extends Context.Service<
+  MiniStackConfig,
+  { readonly rdsBasePort: number }
+>()('@app-template/config/MiniStackConfig') {
+  static readonly layer = Layer.effect(
+    this,
+    Config.all({ rdsBasePort: Config.Port('RDS_BASE_PORT') }),
+  )
+}
+
 const nodeEnvs = ['development', 'test', 'production'] as const
 
 export class RuntimeConfig extends Context.Service<

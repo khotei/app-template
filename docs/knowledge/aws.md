@@ -2,13 +2,12 @@
 
 How the app reaches S3 and SQS, locally and on AWS, and how the resources it needs are described,
 created and tested. The code: `packages/aws` (the inventory, the naming rule, the provisioner),
-`deployment/local/` (the Pulumi project that runs MiniStack and the local Postgres, and the local
-provisioner),
+`deployment/local/` (the Pulumi program of the local stand), `deployment/aws/` (its resources),
 `packages/testing/ministack.ts`.
 
 ## The local stand-in
 
-[MiniStack](https://hub.docker.com/r/ministackorg/ministack) emulates S3 and SQS on the port of
+[MiniStack](https://hub.docker.com/r/ministackorg/ministack) emulates S3, SQS and RDS on the port of
 `AWS_ENDPOINT_URL`: `http://localhost:4566` in the main tree, another port in each worktree
 ([tooling.md › Worktrees](tooling.md#worktrees)). `deployment/local/` is a Pulumi project of its
 own (`runtime: bun`): `@pulumi/docker`'s `Container` with the image by digest, the environment,
@@ -19,17 +18,21 @@ its 4566 is published on the endpoint's port, and the container is named
 `app-template-ministack-<port>`, so the stacks of several trees share no port, container or state.
 A new name or image replaces the container, the old one deleted first because it holds the port.
 
-The same project runs the local database, a plain Postgres container beside MiniStack
-(`deployment/local/postgres.ts`), since MiniStack's RDS would only start the same container behind
-an emulated API, with none of RDS's instance classes, storage or parameters. The image is
-`postgresImage` from `@app-template/config`, the one the tests' container runs. Everything else
-comes from `DATABASE_URL` through `DatabaseConfig`: the host port, the user, the password and the
-database name, so `.env` holds the database once. The container is named
-`app-template-postgres-<port>`, and its data is a bind mount of `.data/postgres`; a `pg_isready`
-health check over TCP with `wait: true` makes `pulumi up` return only once Postgres accepts
-connections, so `make migrate` can follow at once. The image creates the user and the database
-only into an empty data folder: a user, password or database name changed in `DATABASE_URL`
-applies after `make reset`, while a changed port only renames and moves the container.
+Through an `aws.Provider` that waits for the healthy container, the same program creates inside
+MiniStack the inventory (below) and the database: an `aws.rds.Instance`, Postgres 18, named
+`app-template-<STAGE>-database`. The resource code lives in `deployment/aws/` as functions of a
+provider, so the AWS stacks call it without an endpoint. MiniStack runs the instance as a real
+Postgres container on the host's Docker (its socket is mounted), on the host port `RDS_BASE_PORT`
+(`MINISTACK_RDS_PUBLIC_ENDPOINT=1` reports `localhost`), with its data in a named volume
+(`RDS_PERSIST=1`). The program exports `DATABASE_URL`, built from the instance's endpoint, and
+`make up` writes it to `.env.pulumi`, which the apps and `make migrate` load after `.env`. The
+local credentials are fixed in `deployment/local/settings.ts`, the one module that reads the
+configuration. MiniStack names the instance's container and volume after the identifier, so each
+worktree has its own `STAGE` and `RDS_BASE_PORT` ([tooling.md › Worktrees](tooling.md#worktrees)).
+
+`make up` sets `VCR_MODE=REPLAY_ONLY`, a switch of the provider's own test harness that skips
+its fixed waits (a queue 25 s, a lifecycle rule 55 s, an instance 80 s): a cold `up` takes about
+10 s instead of 90. A provider release without it makes `up` slow, never wrong.
 
 The Pulumi state is a file backend under `.data/pulumi` with an empty passphrase (nothing secret
 is stored), and `PULUMI_HOME` is the tree's `.pulumi/`, so a clone touches nothing outside the
@@ -39,17 +42,16 @@ repo, `make reset` keeps the provider plugin, and each worktree downloads its ow
 
 | Target | Does |
 |---|---|
-| `make stack` | logs the Pulumi CLI in to the file backend and selects the `local` stack or creates it. Idempotent; `up` and `down` run it first. |
-| `make up` | `pulumi up --yes --skip-preview` (MiniStack and Postgres), then `make migrate`, then `deployment/local/provision.ts`: creates the inventory under `STAGE` and prints each resource as `created` or `unchanged`. A second run changes nothing in Pulumi, applies no migration and prints `unchanged` for every resource. |
-| `make down` | `pulumi destroy`: stops and removes both containers. State survives: MiniStack writes it on shutdown and reads it on start, under `.data/ministack/`; Postgres keeps its data under `.data/postgres/`. |
-| `make reset` | `make down`, then removes `.data/` whole: MiniStack's state, the database, the Pulumi stack and the key-value store; `.pulumi/` (the provider plugin) stays. The way back after an inventory change that SQS refuses (below), or after a change of the database's user, password or name. |
+| `make stack` | logs the Pulumi CLI in to the file backend and selects the `local` stack or creates it. Idempotent; `up` runs it first. |
+| `make up` | refreshes the MiniStack container alone, so a stopped one starts again (a full refresh while MiniStack is down would drop the bucket from the state); `pulumi up`; `.env.pulumi`; `make migrate`. A second run changes nothing. |
+| `make down` | `docker stop` of MiniStack, which saves its state under `.data/ministack/` and stops the instance's container; the stack keeps every resource. |
+| `make reset` | `docker rm -f` of MiniStack and of the instance's container, `docker volume rm` of its volume, then removes `.data/` (MiniStack's state, the Pulumi stack, the key-value store) and `.env.pulumi`; no `pulumi destroy`. `.pulumi/` (the provider plugins) stays. |
 
-An `up` that fails on a health check leaves the container in the stack's state; `make down`
-destroys it, and the next `make up` starts afresh. A host port that is taken fails `make up` in
-the Docker provider with `Bind for 0.0.0.0:<port> failed: port is already allocated`.
+An `up` that fails midway keeps what it created in the stack's state; the next `make up` goes on
+from there, and `make reset` starts afresh.
 
 `AWS_REGION`, `AWS_ENDPOINT_URL` and `STAGE` are read through `AwsConfig` in
-`@app-template/config`; the provisioner, `ministack.ts` and the apps' S3 and SQS clients read it,
+`@app-template/config`; the Pulumi program and the apps' S3 and SQS clients read it,
 so the apps need `make up`. Credentials never pass through it: the SDK's default provider chain
 reads `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` from `.env` locally (any value satisfies
 MiniStack) and the role on AWS, whose session token rotates. With an endpoint set, S3 uses
@@ -66,13 +68,15 @@ carrying its logical `name`. Physical names are `buildResourceName(stage, name)`
 | bucket `attachments` | `lifecycle.unboundExpirationDays`, `lifecycle.abortIncompleteUploadDays` | the bucket and two lifecycle rules: objects carrying `unboundTag` (`unbound=true`) expire; incomplete multipart uploads are aborted. |
 | queue `assistant-message`, `chat-title` | `maxReceiveCount` | its dead-letter queue first, named by `buildDeadLetterName` from the physical name (`app-template-<stage>-<name>-dlq`), then the queue with a `RedrivePolicy` to it. A queue definition in `infrastructure` reads its `name` and `maxAttempts` from here, so the two cannot disagree. |
 
-`provision(inventory, stage)` is idempotent: an existing bucket gets its lifecycle rules re-applied,
+`make up` creates the inventory through Pulumi (`deployment/aws/storage.ts`, `queue.ts`); the
+tests create theirs with `provision` from `packages/aws`, in milliseconds and without the Pulumi
+CLI. `provision(inventory, stage)` is idempotent: an existing bucket gets its lifecycle rules re-applied,
 and `CreateQueue` on an identical queue succeeds. Two AWS behaviours shape it: a repeated
 `CreateBucket` answers by region (`us-east-1` succeeds, elsewhere `BucketAlreadyOwnedByYou`), so
 existence is read with `HeadBucket` first; and `CreateQueue` compares a repeated `RedrivePolicy` as
 a string, so its JSON is built with a fixed key order. A queue whose `maxReceiveCount` changed in
-the inventory fails with `QueueNameExists`, because SQS never updates on create: locally, `make
-reset`; on AWS, Pulumi (the deploy ticket).
+the inventory fails with `QueueNameExists`, because SQS never updates on create; Pulumi updates
+the queue in place.
 
 ### Adding a resource
 

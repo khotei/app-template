@@ -190,9 +190,8 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   Its grilling departed from this entry: the outbox relays to SQS (there is no SQL queue store any
   more); `$onUpdate` is dropped, timestamps and ids stay the domain's; tests run on Testcontainers
   only, one Postgres per `vitest` run with a database per test, PGlite rejected as a second
-  driver; the local database is a plain Postgres container in `deployment/local/`, after an RDS
-  instance on MiniStack proved to be the same container behind an emulated API; the attachment
-  record sweep was declined.
+  driver; the local stand is one Pulumi program, MiniStack with the RDS instance, the bucket and
+  the queues inside it; the attachment record sweep was declined.
 
 ### 5. `aws-local`
 
@@ -321,15 +320,10 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Decided (2026-10-19).** Split from `aws-local` (5); depends on `postgres-drizzle` (4), since
   the deployed processes need a shared database, and on 5, not on 7 or 8.
 - **Decided (2026-10-21).** The applications never check or create their resources: the
-  infrastructure provides them (`aws-local` D5 dropped the startup `verify`). This program also
-  creates the inventory's buckets and queues on MiniStack for `make up`, replacing
-  `deployment/local/provision.ts`; `provision` in `packages/aws` then serves the tests only (each
-  test file creates its own resources in milliseconds, without the Pulumi CLI).
-- **Open questions for its feature phase.** Whether `@pulumi/aws` creates the bucket and the
-  queues on MiniStack (a bucket reads back its ACL, CORS and versioning, which an emulator may not
-  serve): a spike first. Whether the local Pulumi project of `aws-local` (5)
-  (the Docker provider runs MiniStack; there is no compose file) and the AWS program become one
-  project with two stacks; cold starts of `@effect/platform-bun` on Lambda; whether
+  infrastructure provides them (`aws-local` D5 dropped the startup `verify`); `provision` in
+  `packages/aws` serves the tests only (each test file creates its own resources in milliseconds,
+  without the Pulumi CLI).
+- **Open questions for its feature phase.** Cold starts of `@effect/platform-bun` on Lambda; whether
   `pulumi.dynamic.Resource`, unsupported under `runtime: bun`, is ever needed.
 - **Facts (2026-10-17).** Pulumi ≥ 3.227 runs TypeScript under `runtime: bun` (no function
   serialisation, no dynamic providers); CLI 3.270, `@pulumi/aws` 7.51. Bun on Lambda: the official
@@ -348,14 +342,15 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   source mappings with `ReportBatchItemFailures` remain the recommended worker pattern.
 - **Inherits from `aws-local` (2026-10-22).** Check on AWS what MiniStack cannot show: the
   `unbound` tag sent with `CreateMultipartUpload` and the lifecycle deletion it drives. Share one
-  AWS client builder between `infrastructure/shared/aws.client.ts` and
-  `deployment/local/provision.ts`, and brand `Stage`.
-- **Inherits from `postgres-drizzle` (2026-10-23).** The local database stays a plain Postgres
-  container in `deployment/local/`, on the `DATABASE_URL` of `.env`; this ticket writes the RDS or
-  Aurora resource with the rest of AWS, and adds the migration command for a deployed stage. That
-  ticket's spike found `aws.rds.Instance` works on MiniStack (the Docker socket mounted into it,
-  `RDS_BASE_PORT`, `RDS_PERSIST`, `MINISTACK_RDS_PUBLIC_ENDPOINT=1`, the provider's three `skip…`
-  flags), but MiniStack emulates no instance class, storage or parameters, so it was dropped.
+  AWS client builder between `infrastructure/shared/aws.client.ts` and the tests' clients, and
+  brand `Stage`.
+- **Inherits from `postgres-drizzle` (2026-10-23).** The bucket with its lifecycle rule, the
+  queues with their dead-letter queues and the RDS instance are already Pulumi resources, created
+  on MiniStack by `deployment/local` (`provision.ts` is gone): `deployment/aws/{provider,database,
+  storage,queue}.ts` take an `aws.Provider`, so the prod stack calls them without an endpoint,
+  with Aurora or RDS settings and a managed password for the database. This ticket adds the
+  migration command for a deployed stage. Locally `make up` sets `VCR_MODE=REPLAY_ONLY` to skip
+  the provider's fixed waits; never on AWS.
 
 ### 10. `client-publishing`
 

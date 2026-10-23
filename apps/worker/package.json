@@ -6,9 +6,9 @@
     "#worker/*": "./src/*.ts"
   },
   "scripts": {
-    "dev": "bun --env-file=../../.env --watch src/main.ts",
-    "debug": "bun --env-file=../../.env --inspect --watch src/main.ts",
-    "start": "bun --env-file=../../.env src/main.ts"
+    "dev": "bun --env-file=../../.env --env-file=../../.env.pulumi --watch src/main.ts",
+    "debug": "bun --env-file=../../.env --env-file=../../.env.pulumi --inspect --watch src/main.ts",
+    "start": "bun --env-file=../../.env --env-file=../../.env.pulumi src/main.ts"
   },
   "dependencies": {
     "@app-template/application": "workspace:*",

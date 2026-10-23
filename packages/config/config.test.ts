@@ -15,6 +15,7 @@ import {
   AwsConfig,
   DatabaseConfig,
   MinimumLogLevelFromConfig,
+  MiniStackConfig,
   QueueConfig,
   RuntimeConfig,
   StoreConfig,
@@ -34,6 +35,7 @@ describe('config layers', () => {
     { variable: 'DATABASE_URL', layer: DatabaseConfig.layer },
     { variable: 'AWS_REGION', layer: AwsConfig.layer },
     { variable: 'STAGE', layer: AwsConfig.layer, given: { AWS_REGION: 'eu-central-1' } },
+    { variable: 'RDS_BASE_PORT', layer: MiniStackConfig.layer },
   ])('fails with a ConfigError naming a missing $variable', ({ variable, layer, given }) =>
     Effect.gen(function* () {
       const error = yield* Effect.flip(Layer.build(provideVariables(layer, given ?? {})))

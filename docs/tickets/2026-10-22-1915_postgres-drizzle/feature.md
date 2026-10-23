@@ -12,8 +12,9 @@ worker share one database and a second api process is safe. A send becomes one t
 also writes its jobs to an outbox, which the worker relays to SQS: a message can no longer exist
 without its job, and a chat can no longer stay busy or untitled because an enqueue failed after a
 write. The database's own guards (a partial unique index, conditional updates) replace the
-in-process `UserLock`. Locally the database is a plain Postgres container beside MiniStack in
-the local Pulumi project; tests run on a real Postgres, one container per run.
+in-process `UserLock`. Locally the database is an RDS instance on MiniStack created by
+`@pulumi/aws`, the first use of the AWS provider against the local stand; tests run on a real
+Postgres, one container per run.
 
 ## Context
 
@@ -66,16 +67,13 @@ the local Pulumi project; tests run on a real Postgres, one container per run.
     apps never migrate or check the schema at startup. `drizzle.config.ts` holds `dialect`,
     `schema` and `out` only; `drizzle-kit push`, `migrate` and `studio` are not used. The
     production migration command waits for `aws-deployment` (9).
-  - The local database is a plain `postgres:18.6-alpine` container (by digest, the tests'
-    image) in `deployment/local/`, beside MiniStack. An RDS instance on MiniStack was built and
-    worked, but MiniStack's RDS is the same container behind an emulated API (no instance class,
-    storage or parameters), so it bought no parity with AWS for its glue (a port check, a hand
-    cleanup in `make reset`, the Docker socket, ~80 s on a cold `make up`); `aws-deployment` (9)
-    writes the RDS resource with the rest of AWS.
-  - `DATABASE_URL` is static in `.env`, with a port per worktree; the container takes its host
-    port, user, password and database name from it.
-  - `make down` keeps the data (a bind mount under `.data/`); `make reset` removes it with
-    `.data/`.
+  - The local database is an RDS instance on MiniStack created with `@pulumi/aws`, since that
+    is the direction of `aws-deployment` (9); the bucket and the queues move into the same
+    Pulumi program, which replaces `deployment/local/provision.ts`.
+  - `DATABASE_URL` is a stack output in `.env.pulumi`, not in `.env`; a worktree sets its own
+    `RDS_BASE_PORT` and `STAGE`.
+  - `make down` keeps the data (`RDS_PERSIST=1`); `make reset` removes it, container and volume
+    included. Neither runs `pulumi destroy`.
   - SQL is logged at `Debug` only, through a small `EffectLogger` layer of our own (Drizzle's
     `EffectLogger.layer` logs at `Info`); Drizzle's cache stays `EffectCache.Default`.
   - Tests: one Postgres container per `vitest` run, a template database migrated once, a fresh
@@ -105,8 +103,9 @@ the local Pulumi project; tests run on a real Postgres, one container per run.
 - The database guards that replace `UserLock`: one active message per chat, a bind only while
   unbound, single-statement `touch` and `rename`; conditional stage writes.
 - The dead-letter consumer for replies.
-- The local database: a Postgres container in `deployment/local/` with a health check and its
-  data under `.data/`; `make migrate`, `make migration NAME=<name>`, `make up` extended.
+- The local stand on Pulumi: `@pulumi/aws` `rds.Instance`, the bucket and the queues inside
+  MiniStack (the Docker socket, `RDS_BASE_PORT`, `RDS_PERSIST`), `DATABASE_URL` in `.env.pulumi`;
+  `make migrate`, `make migration NAME=<name>`, `make up`, `down`, `reset` reworked.
 - Tests on Postgres: the shared container, the template database, a database per test.
 - Removal of `infrastructure/kv`, `UserLock`, `STORE_PATH`; `docs/knowledge/database.md`.
 
@@ -193,15 +192,15 @@ the local Pulumi project; tests run on a real Postgres, one container per run.
 
 ### The local stand
 
-- **R16** — WHEN `make up` runs, THE SYSTEM SHALL provide a Postgres 18 database as a
-  `postgres:18.6-alpine` container (by digest) declared in the Pulumi project
-  `deployment/local/`, reachable at the `DATABASE_URL` of `.env` (host port `15432 + 10N` for
-  worktree `N`; user, password and database name from the same URL), and SHALL return only once
-  the database accepts connections, with the migrations applied. IF the host port is taken,
-  THEN `make up` SHALL fail naming the port. A second `make up` SHALL change nothing.
+- **R16** — WHEN `make up` runs, THE SYSTEM SHALL provide a Postgres 18 database as an RDS
+  instance that the Pulumi program of `deployment/local/` creates inside MiniStack through
+  `@pulumi/aws`, beside the inventory's bucket and queues, on the host port `RDS_BASE_PORT`
+  (`15432 + 10N` for worktree `N`), and SHALL write its `DATABASE_URL`, a stack output, to
+  `.env.pulumi`, which the apps and `make migrate` load after `.env`, with the migrations
+  applied. A second `make up` SHALL change nothing.
 - **R17** — WHEN `make down` runs, THE SYSTEM SHALL stop the stand and keep the database's data
-  for the next `make up`; WHEN `make reset` runs, THE SYSTEM SHALL remove the database container
-  and its data together with `.data/`.
+  and port for the next `make up`; WHEN `make reset` runs, THE SYSTEM SHALL remove the data, the
+  database container and its volume together with `.data/` and `.env.pulumi`.
 - **R18** — WHILE several worktrees run, THE SYSTEM SHALL keep their databases apart: a different
   port and container per tree, as for MiniStack today.
 
@@ -224,9 +223,10 @@ the local Pulumi project; tests run on a real Postgres, one container per run.
 ### Documentation
 
 - **R22** — THE SYSTEM SHALL document the database in `docs/knowledge/database.md` (schema and
-  entity files, the transaction and the outbox, the guards, migrations, the local database,
-  tests), link it from `architecture.md`, and update `tooling.md` (targets, catalogs, worktree
-  ports), `aws.md` (the Postgres container of the local stand) and
+  entity files, the transaction and the outbox, the guards, migrations, the local RDS, tests),
+  link it from `architecture.md`, and update `tooling.md` (targets, catalogs, worktree ports,
+  `.env.pulumi`), `aws.md` (the local stand on Pulumi: MiniStack, the RDS instance, the bucket
+  and the queues) and
   `naming.md` (`.entity`).
 
 ## Acceptance
@@ -248,9 +248,9 @@ the local Pulumi project; tests run on a real Postgres, one container per run.
 | R13 | job suite: a `GenerateAssistantMessage` from the dead-letter queue sets the active message `failed` with `ReplyFailed` and a cause naming the dead-letter queue; a terminal message and a deleted chat are logged and untouched; a `GenerateChatTitle` from its dead-letter queue is logged only. Live: with the worker stopped and a job redriven after `maxReceiveCount` receives, the restarted worker fails the message within seconds. |
 | R14 | `make migration NAME=probe` with MiniStack down writes a folder with `migration.sql`; `make migrate` applies it and prints nothing to apply on a second run; `git grep -n migrate apps/` finds no call. |
 | R15 | `git grep DATABASE_URL` hits only `packages/config`, `.env.example`, `deployment/` and docs; `git grep STORE_PATH` is empty. |
-| R16 | clean state: `make up` creates the container `app-template-postgres-15432` and returns once it is healthy, `psql "$DATABASE_URL" -c 'select 1'` works, the migrations table lists every migration; a second `make up` reports no change; with `DATABASE_URL` on a port another container holds, `make up` fails with Docker's `Bind for 0.0.0.0:<port> failed: port is already allocated`. |
-| R17 | insert a row, `make down`, `make up`: the row is there; `make reset`: `docker ps -a` shows no Postgres container of this tree, `.data/` is gone. |
-| R18 | a worktree with `N=1`: `DATABASE_URL` on `15442`, its own container; both trees run `make dev` and send messages at once. |
+| R16 | clean state: `make up` creates the instance, the bucket and the queues; `.env.pulumi` holds `DATABASE_URL` on `localhost:15432`; `psql "$DATABASE_URL" -c 'select 1'` works, the migrations table lists every migration; the bucket's lifecycle rule and each queue's redrive read back as `packages/aws` says; a second `make up` reports no change. |
+| R17 | insert a row, `make down`, `make up`: the row is there, on the same port; `make reset`: `docker ps -a` and `docker volume ls` show no container or volume of this tree, `.data/` and `.env.pulumi` are gone. |
+| R18 | a worktree with `N=1` (`STAGE="local1"`, `RDS_BASE_PORT=15442`): its `DATABASE_URL` on `15442`, its own containers; both trees run `make dev` and send messages at once. |
 | R19 | `LOG_LEVEL="Debug" make dev-api`, one request: the log holds the SQL with `query` and `params` annotations; at `Info` the same request logs no SQL. |
 | R20 | `make test` from a shell without `.env`: one Postgres container in `docker ps` during the run, none after; each test that needs a database creates its own, and its `test_…` database is gone once the test ends; the run passes with files in parallel. |
 | R21 | `git grep -l layerMemory` outside `repos/` is empty; `architecture.md › Seams` names the suite for each of R5–R13 and each exists. |

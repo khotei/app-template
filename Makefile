@@ -7,9 +7,21 @@
   vendor-drizzle migrate migration migration-check
 
 # The local Pulumi project: the file backend under .data/ and the home (plugins, credentials) under
-# .pulumi/, both in the repo; the home survives `make reset`. The passphrase is empty because the
-# stack holds no secret.
+# .pulumi/, both in the repo; the home survives `make reset`. The passphrase is empty: the one
+# secret, the local database's password, is a fixed value in deployment/local/settings.ts.
 PULUMI = PULUMI_HOME=$(CURDIR)/.pulumi PULUMI_CONFIG_PASSPHRASE= pulumi -C deployment/local
+MINISTACK_URN = urn:pulumi:local::app-template-local::docker:index/container:Container::ministack
+
+# A switch of the AWS provider's own test harness (terraform-provider-aws): in replay mode it skips
+# the fixed waits around RDS, SQS and S3 lifecycle calls, 86 s down to 7 s on a cold `up`. VCR_PATH
+# only has to be non-empty: nothing is recorded or replayed. Without it `up` is slow, never wrong.
+# For the local stack only.
+FAST_PROVIDER = VCR_MODE=REPLAY_ONLY VCR_PATH=unused
+
+# Exports .env, since Pulumi starts the program itself, and names the MiniStack container after the
+# port of AWS_ENDPOINT_URL, as deployment/local/ministack.ts does.
+STAND = set -a && . ./.env && set +a && \
+	ministack=app-template-ministack-$$(echo "$$AWS_ENDPOINT_URL" | sed -E 's/.*:([0-9]+).*/\1/')
 
 help: ## List all targets
 	@echo 'App Template: make <target>'
@@ -25,21 +37,29 @@ stack: ## Log Pulumi in to the file backend and select or create the local stack
 	@$(PULUMI) login --non-interactive file://$(CURDIR)/.data/pulumi
 	@$(PULUMI) stack select local 2>/dev/null || $(PULUMI) stack init local
 
-# The program reads AWS_ENDPOINT_URL and DATABASE_URL through @app-template/config, so `up` exports
-# .env to it; `destroy` runs no program.
-up: stack ## Start MiniStack and Postgres, migrate the database, provision the inventory
-	set -a && . ./.env && set +a && $(PULUMI) up --yes --skip-preview
+# The container alone is refreshed, once it is in the state, so a MiniStack stopped by `make down`
+# starts again; a full refresh while it is down would drop the bucket from the state.
+up: stack ## Start MiniStack, create the database, bucket and queues in it, migrate
+	if $(PULUMI) stack export | grep -qF '$(MINISTACK_URN)'; then \
+		$(PULUMI) refresh --yes --skip-preview --target '$(MINISTACK_URN)'; fi
+	$(STAND) && $(FAST_PROVIDER) $(PULUMI) up --yes --skip-preview
+	$(PULUMI) stack output --shell > .env.pulumi
 	$(MAKE) migrate
-	bun --env-file=.env deployment/local/provision.ts
 
-down: stack ## Stop MiniStack and Postgres; their data stays under .data/
-	$(PULUMI) destroy --yes --skip-preview
+down: ## Stop MiniStack, which stops the database's container; every resource keeps its data
+	$(STAND) && docker ps -q --filter "name=^$$ministack$$" | xargs -r docker stop
 
-reset: down ## Stop both and remove .data/ whole (their data, the stack, the store)
-	rm -rf .data
+# A killed MiniStack leaves the instance's container running, and MiniStack names it and its volume
+# after the identifier, app-template-<STAGE>-database; no destroy runs, since .data/ holds the
+# Pulumi state.
+reset: ## Remove MiniStack, the database's container and volume, and .data/ whole
+	$(STAND) && id=app-template-$$STAGE-database && \
+		docker rm -f "$$ministack" $$(docker ps -aq --filter label=ministack=rds --filter "label=db_id=$$id") && \
+		docker volume ls -q --filter "name=instance-$$id-data" | xargs -r docker volume rm
+	rm -rf .data .env.pulumi
 
-migrate: ## Apply the pending migrations to the database in .env
-	bun --env-file=.env infrastructure/db/migrate.ts
+migrate: ## Apply the pending migrations to the database in .env.pulumi
+	bun --env-file=.env --env-file=.env.pulumi infrastructure/db/migrate.ts
 
 # drizzle-kit runs from infrastructure/: the pinned binary is that workspace's devDependency, and
 # the config's paths resolve against the working directory, not the config file.

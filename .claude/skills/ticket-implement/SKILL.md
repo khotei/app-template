@@ -72,12 +72,16 @@ contract. What a worktree owns and its ports:
     bun install || exit 1
     sed -E -e "s/^API_PORT=.*/API_PORT=$((3000 + 10 * N))/" \
       -e "s/^WEB_PORT=.*/WEB_PORT=$((3001 + 10 * N))/" \
-      -e "s/^(AWS_ENDPOINT_URL=.*:)[0-9]+/\1$((4566 + 10 * N))/" "$main/.env" > .env.new
+      -e "s/^(AWS_ENDPOINT_URL=.*:)[0-9]+/\1$((4566 + 10 * N))/" \
+      -e "s/^STAGE=.*/STAGE=\"local$N\"/" \
+      -e "s/^RDS_BASE_PORT=.*/RDS_BASE_PORT=$((15432 + 10 * N))/" "$main/.env" > .env.new
     grep -qx "API_PORT=$((3000 + 10 * N))" .env.new &&
       grep -qx "WEB_PORT=$((3001 + 10 * N))" .env.new &&
-      grep -qE "^AWS_ENDPOINT_URL=\"?[a-z]+://[^/]+:$((4566 + 10 * N))([/\"]|$)" .env.new || {
+      grep -qE "^AWS_ENDPOINT_URL=\"?[a-z]+://[^/]+:$((4566 + 10 * N))([/\"]|$)" .env.new &&
+      grep -qx "STAGE=\"local$N\"" .env.new &&
+      grep -qx "RDS_BASE_PORT=$((15432 + 10 * N))" .env.new || {
       rm .env.new
-      echo "refused: $main/.env lacks API_PORT, WEB_PORT or the port of AWS_ENDPOINT_URL" >&2
+      echo "refused: $main/.env lacks API_PORT, WEB_PORT, the port of AWS_ENDPOINT_URL, STAGE or RDS_BASE_PORT" >&2
       exit 1
     }
     mv .env.new .env
