@@ -1,7 +1,7 @@
 import { PgClient } from '@effect/sql-pg'
 import { EffectCache } from 'drizzle-orm/cache/core/cache-effect'
 import { EffectLogger } from 'drizzle-orm/effect-core'
-import type { EffectDrizzleQueryError } from 'drizzle-orm/effect-core/errors'
+import { EffectDrizzleQueryError } from 'drizzle-orm/effect-core/errors'
 import * as PgDrizzle from 'drizzle-orm/effect-postgres'
 import { Cause, Context, Effect, Layer, Schema } from 'effect'
 import { SqlError } from 'effect/sql'
@@ -35,14 +35,32 @@ export class Db extends Context.Service<Db, PgDrizzle.EffectPgDatabase>()(
   static readonly layerFromConfig = this.layer.pipe(Layer.provideMerge(PgClientFromConfig))
 }
 
-const isSqlError = Schema.is(SqlError.SqlError)
+export const isSqlError = Schema.is(SqlError.SqlError)
 
 /**
  * Fails with the `SqlError` a Drizzle query error wraps, whose reason and driver message
- * (`password authentication failed for user …`) the wrapper's own message leaves out; pass it to
+ * (`password authentication failed for user …`) the wrapper's own message leaves out, and dies
+ * with the query error when what it wraps is not a `SqlError`; pass it to
  * `Effect.catchTag('EffectDrizzleQueryError', …)`.
+ *
+ * Drizzle types the wrapped cause `unknown`, but its Effect driver only wraps a `SqlError`, so
+ * anything else is a bug: `migrateDatabase` dies on it rather than fail with a type no caller
+ * handles.
  */
 export const unwrapQueryError = (error: EffectDrizzleQueryError) => {
   const cause = Cause.isCause(error.cause) ? Cause.squash(error.cause) : error.cause
   return isSqlError(cause) ? Effect.fail(cause) : Effect.die(error)
 }
+
+/**
+ * Turns every failure into a defect, a Drizzle query error as the `SqlError` it wraps: the last
+ * pipeable of a repository method, since the ports declare no error channel.
+ */
+export const orDieWithSqlError = <A, E, R>(
+  self: Effect.Effect<A, E, R>,
+): Effect.Effect<A, never, R> =>
+  Effect.catch(self, (error) =>
+    error instanceof EffectDrizzleQueryError
+      ? Effect.orDie(unwrapQueryError(error))
+      : Effect.die(error),
+  )

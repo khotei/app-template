@@ -2,7 +2,6 @@ import { assert, describe, it } from '@effect/vitest'
 import { sql } from 'drizzle-orm'
 import { Cause, DateTime, Effect, Exit, Layer, Option, Schema } from 'effect'
 import { KeyValueStore } from 'effect/persistence'
-import { SqlError } from 'effect/sql'
 
 import {
   buildUser,
@@ -14,15 +13,10 @@ import {
 } from '@app-template/domain/user'
 import { assertSchemaEquals } from '@app-template/testing'
 
-import { Db, unwrapQueryError } from '#infrastructure/db/db.client'
+import { Db, isSqlError, unwrapQueryError } from '#infrastructure/db/db.client'
 import { DbTest } from '#infrastructure/db/testing/db'
 import { credentials, users } from '#infrastructure/user/user.entity'
-import {
-  credentialKey,
-  credentialsPrefix,
-  UserRepositoryKv,
-  UserRepositoryPg,
-} from '#infrastructure/user/user.repository'
+import { UserRepositoryKv, UserRepositoryPg } from '#infrastructure/user/user.repository'
 
 const createdAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')
 
@@ -32,8 +26,6 @@ const credential = (hex: string) =>
   new Credential({ kind: 'secret', hash: SecretHash.make(hex.repeat(64)) })
 
 const SelectedUser = Schema.Option(User)
-
-const isSqlError = Schema.is(SqlError.SqlError)
 
 const UserRepositoryKvMemory = UserRepositoryKv.pipe(Layer.provide(KeyValueStore.layerMemory))
 
@@ -84,7 +76,7 @@ describe('UserRepositoryKv', () => {
       const ada = user('0192d4e0-7b3a-7c00-8000-000000000015')
 
       yield* insertThroughKv(ada, credential('a'))
-      const stored = yield* store.get(`${credentialsPrefix}${credentialKey(credential('a'))}`)
+      const stored = yield* store.get(`credentials/secret/${'a'.repeat(64)}`)
 
       assert.strictEqual(stored, JSON.stringify(ada.id))
     }).pipe(Effect.provide(KeyValueStore.layerMemory)),
@@ -103,6 +95,7 @@ describe('UserRepositoryPg', () => {
         const inserted = yield* Effect.exit(users.insert(bob, credential('a')))
         const selected = yield* users.selectById(bob.id)
 
+        assert.isTrue(Exit.hasDies(inserted))
         const defect = Exit.isFailure(inserted) ? Cause.squash(inserted.cause) : undefined
         if (!isSqlError(defect)) return assert.fail(`expected a SqlError defect, got ${defect}`)
         assert.strictEqual(defect.reason._tag, 'UniqueViolation')
@@ -136,7 +129,7 @@ describe('UserRepositoryPg', () => {
       )
 
       assert.strictEqual(error.reason._tag, 'ConstraintError')
-      assert.include(Cause.pretty(Cause.fail(error)), 'credentials_hash_check')
+      assert.include(String(error.reason.cause), 'credentials_hash_check')
     }).pipe(Effect.provide(DbTest)),
   )
 })

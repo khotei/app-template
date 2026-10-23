@@ -1,10 +1,8 @@
 import { sql } from 'drizzle-orm'
 import { timestamp, uuid } from 'drizzle-orm/pg-core'
 
-/**
- * Each helper returns a fresh builder: a table names a builder's column the first time it sees it,
- * so one builder shared under two keys would keep the first name.
- */
+/** A fresh `uuid` primary key builder, `DEFAULT uuidv7()`. */
 export const id = () => uuid().primaryKey().default(sql`uuidv7()`)
 
+/** A fresh `timestamptz` builder, not null, with no default. */
 export const createdAt = () => timestamp({ withTimezone: true }).notNull()

@@ -68,7 +68,11 @@ export const PgClientTest = Layer.unwrap(
   }),
 )
 
-/** A `PgClient` on the test server with a wrong password: every statement fails to connect. */
+/**
+ * A `PgClient` on the test server with a wrong password: every statement fails to connect.
+ *
+ * It names the template database only because a URL needs one; authentication fails first.
+ */
 export const PgClientUnauthenticated = Layer.unwrap(
   Effect.sync(() =>
     PgClient.layer({

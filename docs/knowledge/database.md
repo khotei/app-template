@@ -20,7 +20,9 @@ row codecs derived from them.
 - **Shared columns** come from `infrastructure/db/columns.ts`: `id()`, a `uuid` primary key with
   `DEFAULT uuidv7()`, and `createdAt()`, a `timestamptz` column with no default. The domain writes
   every id and every timestamp with its own clock, so `TestClock` holds and there is no second
-  clock; the `uuidv7()` default serves only hand-written SQL.
+  clock; the `uuidv7()` default serves only hand-written SQL. Each helper returns a fresh
+  builder, because a table names a builder's column the first time it sees it: one builder shared
+  under two keys would keep the first name.
 - **Enums and checks read the domain.** An enum takes its values from the domain's literal
   (`pgEnum('credential_kind', [Credential.fields.kind.literal])`), and a check reads the
   constant its brand checks with (`credentials_hash_check` matches `secretHashPattern.source`, as
@@ -47,11 +49,6 @@ export const UserInsert = createInsertSchema(users, userFields)
   encodes the model to the row it inserts. A row whose values are already the domain's (brands,
   literals) is written as is: `credentials` takes `{ hash, kind, userId }` from the credential
   and the user, with no codec.
-- The ports declare no error channel, so a repository turns a `SqlError` and a row that no
-  longer decodes into a defect (`Effect.orDie` as the last pipeable of each method).
-- Before that `Effect.orDie`, each method passes Drizzle's `EffectDrizzleQueryError` to
-  `unwrapQueryError` from `db.client.ts`, so a defect carries the driver's reason, not only the
-  failed query's SQL.
 
 ## Repositories
 
@@ -60,7 +57,7 @@ A Postgres adapter is a `Layer` over `Db` and `SqlClient`, beside the key-value 
 that writes several tables runs them in one `sql.withTransaction`, passed to `Effect.fn` as a
 pipeable: `UserRepositoryPg.insert` writes the user and its credential, or neither. `SqlClient`
 is the `PgClient` that `Db.layerFromConfig` and `DbTest` publish, so the transaction runs on the
-connection `Db` uses.
+connection `Db` uses. Every method ends with `orDieWithSqlError` from `db.client.ts`.
 
 ## Migrations
 
