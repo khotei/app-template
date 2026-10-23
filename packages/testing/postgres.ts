@@ -11,9 +11,13 @@ declare module 'vitest' {
 
 const templateDatabase = 'template'
 
-const buildDatabaseUrl = (url: string, database: string) => {
+const buildDatabaseUrl = (
+  url: string,
+  { database, password }: { readonly database: string; readonly password?: string },
+) => {
   const target = new URL(url)
   target.pathname = `/${database}`
+  if (password !== undefined) target.password = password
   return Redacted.make(target.href)
 }
 
@@ -40,7 +44,7 @@ export const setupTemplateDatabase = Effect.fn('setupTemplateDatabase')(function
   },
 ) {
   yield* runAdmin(adminUrl, `CREATE DATABASE ${templateDatabase}`)
-  yield* migrate(buildDatabaseUrl(adminUrl, templateDatabase))
+  yield* migrate(buildDatabaseUrl(adminUrl, { database: templateDatabase }))
   yield* runAdmin(adminUrl, `ALTER DATABASE ${templateDatabase} IS_TEMPLATE true`)
 
   project.provide('databaseUrl', adminUrl)
@@ -60,15 +64,18 @@ export const PgClientTest = Layer.unwrap(
       () => Effect.orDie(runAdmin(adminUrl, `DROP DATABASE ${database} WITH (FORCE)`)),
     )
 
-    return PgClient.layer({ url: buildDatabaseUrl(adminUrl, database) })
+    return PgClient.layer({ url: buildDatabaseUrl(adminUrl, { database }) })
   }),
 )
 
 /** A `PgClient` on the test server with a wrong password: every statement fails to connect. */
 export const PgClientUnauthenticated = Layer.unwrap(
-  Effect.sync(() => {
-    const url = new URL(inject('databaseUrl'))
-    url.password = 'wrong'
-    return PgClient.layer({ url: Redacted.make(url.href) })
-  }),
+  Effect.sync(() =>
+    PgClient.layer({
+      url: buildDatabaseUrl(inject('databaseUrl'), {
+        database: templateDatabase,
+        password: 'wrong',
+      }),
+    }),
+  ),
 )

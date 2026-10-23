@@ -39,10 +39,8 @@ describe('migrateDatabase', () => {
     Effect.gen(function* () {
       const error = yield* Effect.flip(migrateDatabase)
 
-      assert.strictEqual(
-        error._tag === 'SqlError' ? error.reason._tag : error._tag,
-        'AuthenticationError',
-      )
+      if (error._tag !== 'SqlError') return assert.fail(`expected a SqlError, got ${error._tag}`)
+      assert.strictEqual(error.reason._tag, 'AuthenticationError')
     }).pipe(Effect.provide(DbUnauthenticated)),
   )
 

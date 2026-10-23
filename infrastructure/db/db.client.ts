@@ -1,8 +1,10 @@
 import { PgClient } from '@effect/sql-pg'
 import { EffectCache } from 'drizzle-orm/cache/core/cache-effect'
 import { EffectLogger } from 'drizzle-orm/effect-core'
+import type { EffectDrizzleQueryError } from 'drizzle-orm/effect-core/errors'
 import * as PgDrizzle from 'drizzle-orm/effect-postgres'
-import { Context, Effect, Layer } from 'effect'
+import { Cause, Context, Effect, Layer, Schema } from 'effect'
+import { SqlError } from 'effect/sql'
 
 import { DatabaseConfig } from '@app-template/config'
 
@@ -31,4 +33,16 @@ export class Db extends Context.Service<Db, PgDrizzle.EffectPgDatabase>()(
 
   /** Publishes the `PgClient` too, so callers open transactions on the connection `Db` uses. */
   static readonly layerFromConfig = this.layer.pipe(Layer.provideMerge(PgClientFromConfig))
+}
+
+const isSqlError = Schema.is(SqlError.SqlError)
+
+/**
+ * Fails with the `SqlError` a Drizzle query error wraps, whose reason and driver message
+ * (`password authentication failed for user …`) the wrapper's own message leaves out; pass it to
+ * `Effect.catchTag('EffectDrizzleQueryError', …)`.
+ */
+export const unwrapQueryError = (error: EffectDrizzleQueryError) => {
+  const cause = Cause.isCause(error.cause) ? Cause.squash(error.cause) : error.cause
+  return isSqlError(cause) ? Effect.fail(cause) : Effect.die(error)
 }

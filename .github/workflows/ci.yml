@@ -57,8 +57,7 @@ jobs:
       - name: Typecheck
         run: make typecheck
 
-      # A fresh checkout holds only committed migrations, so here the check fails on an entity
-      # changed without a committed one.
+      # Strict here: docs/knowledge/database.md › Migrations.
       - name: Migrations match the entities
         run: make migration-check
 

@@ -46,9 +46,8 @@ migration: ## Generate a migration from the entities, with no database: NAME=<na
 	@test -n "$(NAME)" || { echo 'usage: make migration NAME=<name>'; exit 1; }
 	cd infrastructure && bunx drizzle-kit generate --name $(NAME)
 
-# Compares folder listings, not git, so a migration not committed yet counts locally; CI runs it
-# on a fresh checkout (docs/knowledge/database.md › Migrations). Closed stdin makes a rename
-# prompt fail the target instead of hanging it.
+# Compares folder listings, not git; soft here, strict in CI (docs/knowledge/database.md ›
+# Migrations). Closed stdin makes a rename prompt fail the target instead of hanging it.
 migration-check: ## Fail when an entity changed without a migration
 	@dir=infrastructure/db/migrations; before=$$(ls $$dir); \
 	out=$$(cd infrastructure && bunx drizzle-kit generate --name unmigrated </dev/null 2>&1) || \

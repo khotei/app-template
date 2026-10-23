@@ -120,7 +120,7 @@ side:
 |---|---|---|
 | database client and migrations | `infrastructure/db/` | `Db`, `Db.layerFromConfig`, `migrations/`, the shared columns in `columns.ts` |
 | tables and row codecs | `infrastructure/user/user.entity.ts` | `users`, `credentials` (`snakeCase.table`), `UserRow`, `UserInsert` |
-| adapter on Postgres | `infrastructure/user/user.repository.ts` | `UserRepositoryPg` (a `Layer` over `Db`), beside `UserRepositoryKv` |
+| adapter on Postgres | `infrastructure/user/user.repository.ts` | `UserRepositoryPg` (a `Layer` over `Db` and `SqlClient`), beside `UserRepositoryKv` |
 
 Every entity folder has an `index.ts` barrel, and tests sit next to their source as `*.test.ts`.
 The file suffixes and naming verbs are listed in

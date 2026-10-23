@@ -74,7 +74,7 @@ Test-support roles live only in a `testing/` folder, which no barrel or `exports
     changes an existing record and never creates one.
 - Constants are `camelCase` with `as const` for literals. A `Layer` constant for a service
   declared elsewhere is `PascalCase` `<Service><Variant>` (`ChatRepositoryKv`); `<Entity>Kv` or
-  `<Entity>Pg` in `<entity>/index.ts` bundles the aggregate's adapters, and a process provides it.
+  `<Entity>Pg` in `<entity>/index.ts` bundles the aggregate's adapters, which a process provides.
 - Test support: a fixed fake layer is `<Service><Variant>` (`AttachmentRepositoryYielding`); a
   stateful fake `<verb><Thing>()` returns `{ <handle>, layer }` (`recordLogs`,
   `interleaveMessages`); a harness is `make<Entity>Harness()`, its runner `with<Entity>(body)`.

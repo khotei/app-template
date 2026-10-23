@@ -8,10 +8,8 @@ export class User extends Schema.Class<User>('User')({
 }) {}
 
 /**
- * What a `SecretHash` matches.
- *
- * A database check reads its `source` too, so keep to the syntax JavaScript and Postgres regular
- * expressions read alike.
+ * The pattern a `SecretHash` matches, which a database check also reads as SQL, so it uses only
+ * syntax that JavaScript and Postgres regular expressions read alike.
  */
 export const secretHashPattern = /^[0-9a-f]{64}$/
 

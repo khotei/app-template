@@ -49,6 +49,9 @@ export const UserInsert = createInsertSchema(users, userFields)
   and the user, with no codec.
 - The ports declare no error channel, so a repository turns a `SqlError` and a row that no
   longer decodes into a defect (`Effect.orDie` as the last pipeable of each method).
+- Before that `Effect.orDie`, each method passes Drizzle's `EffectDrizzleQueryError` to
+  `unwrapQueryError` from `db.client.ts`, so a defect carries the driver's reason, not only the
+  failed query's SQL.
 
 ## Repositories
 
