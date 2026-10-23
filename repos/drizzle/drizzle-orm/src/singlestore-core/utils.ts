@@ -1,0 +1,63 @@
+import { is } from '~/entity.ts';
+import type { AnyRelations } from '~/relations.ts';
+import { Table } from '~/table.ts';
+import { throwUnknownExtraConfigValue } from '~/table.utils.ts';
+import type { DrizzleConfig } from '~/utils.ts';
+import type { SingleStoreCodecs } from './codecs.ts';
+import type { Index } from './indexes.ts';
+import { IndexBuilder } from './indexes.ts';
+import type { PrimaryKey } from './primary-keys.ts';
+import { PrimaryKeyBuilder } from './primary-keys.ts';
+import { SingleStoreTable } from './table.ts';
+import { type UniqueConstraint, UniqueConstraintBuilder } from './unique-constraint.ts';
+/* import { SingleStoreViewConfig } from './view-common.ts';
+import type { SingleStoreView } from './view.ts'; */
+
+export function getTableConfig(table: SingleStoreTable) {
+	const columns = Object.values(table[SingleStoreTable.Symbol.Columns]);
+	const indexes: Index[] = [];
+	const primaryKeys: PrimaryKey[] = [];
+	const uniqueConstraints: UniqueConstraint[] = [];
+	const name = table[Table.Symbol.Name];
+	const schema = table[Table.Symbol.Schema];
+	const baseName = table[Table.Symbol.BaseName];
+
+	const extraConfigBuilder = table[SingleStoreTable.Symbol.ExtraConfigBuilder];
+
+	if (extraConfigBuilder !== undefined) {
+		const extraConfig = extraConfigBuilder(table[SingleStoreTable.Symbol.Columns]);
+		const extraValues = Array.isArray(extraConfig) ? extraConfig.flat(1) as any[] : Object.values(extraConfig);
+		for (const builder of Object.values(extraValues)) {
+			if (is(builder, IndexBuilder)) {
+				indexes.push(builder.build(table));
+			} else if (is(builder, UniqueConstraintBuilder)) {
+				uniqueConstraints.push(builder.build(table));
+			} else if (is(builder, PrimaryKeyBuilder)) {
+				primaryKeys.push(builder.build(table));
+			} else {
+				throwUnknownExtraConfigValue(name, builder);
+			}
+		}
+	}
+
+	return {
+		columns,
+		indexes,
+		primaryKeys,
+		uniqueConstraints,
+		name,
+		schema,
+		baseName,
+	};
+}
+
+/* export function getViewConfig<T extends ViewConfig = ViewConfig>(view: SingleStoreView<T>) {
+	return {
+		...view[ViewBaseConfig],
+		...view[SingleStoreViewConfig],
+	};
+} */
+
+export type DrizzleSingleStoreConfig<TRelations extends AnyRelations> =
+	& DrizzleConfig<TRelations>
+	& { codecs?: SingleStoreCodecs | undefined };

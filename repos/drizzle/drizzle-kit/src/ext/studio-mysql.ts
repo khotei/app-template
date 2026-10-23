@@ -1,0 +1,159 @@
+import type {
+	CheckConstraint,
+	Column,
+	ForeignKey,
+	Index,
+	InterimColumn,
+	InterimSchema,
+	MysqlDDL,
+	MysqlEntities,
+	PrimaryKey,
+	View,
+	ViewColumn,
+} from '../dialects/mysql/ddl';
+import { interimToDDL } from '../dialects/mysql/ddl';
+import { ddlDiff } from '../dialects/mysql/diff';
+import { fromDatabase as fd } from '../dialects/mysql/introspect';
+// import { ddlToTypeScript as dtt } from '../dialects/mysql/typescript';
+import { mockResolver } from '../utils/mocks';
+
+export type Interim<T> = Omit<T, 'entityType'>;
+
+export type InterimTable = {
+	name: string;
+	columns: Interim<InterimColumn>[];
+	indexes: Interim<Index>[];
+	checks: Interim<CheckConstraint>[];
+	pks: Interim<PrimaryKey>[];
+	fks: Interim<ForeignKey>[];
+};
+
+export type InterimView = {
+	name: string;
+	columns: Interim<Column>[];
+	definition: string;
+	algorithm: 'undefined' | 'merge' | 'temptable';
+	sqlSecurity: 'definer' | 'invoker';
+	withCheckOption: 'local' | 'cascaded' | null;
+};
+
+export type InterimStudioSchema = {
+	tables: InterimTable[];
+	views: InterimView[];
+};
+
+const fromInterims = ({
+	tables,
+	views,
+}: InterimStudioSchema): InterimSchema => {
+	const tbls: MysqlEntities['tables'][] = tables.map((it) => ({
+		entityType: 'tables',
+		name: it.name,
+	}));
+	const columns: InterimColumn[] = tables
+		.map((table) => {
+			return table.columns.map((it) => {
+				return {
+					entityType: 'columns',
+					...it,
+				} satisfies InterimColumn;
+			});
+		})
+		.flat(1);
+
+	const indexes: Index[] = tables
+		.map((table) => {
+			return table.indexes.map((it) => {
+				return { entityType: 'indexes', ...it } satisfies Index;
+			});
+		})
+		.flat(1);
+
+	const checks: CheckConstraint[] = tables
+		.map((table) => {
+			return table.checks.map((it) => {
+				return { entityType: 'checks', ...it } satisfies CheckConstraint;
+			});
+		})
+		.flat(1);
+	const fks: ForeignKey[] = tables
+		.map((table) => {
+			return table.fks.map((it) => {
+				return { entityType: 'fks', ...it } satisfies ForeignKey;
+			});
+		})
+		.flat(1);
+	const pks: PrimaryKey[] = tables
+		.map((table) => {
+			return table.pks.map((it) => {
+				return { entityType: 'pks', ...it } satisfies PrimaryKey;
+			});
+		})
+		.flat(1);
+
+	const vws: View[] = views.map(({ columns: _, ...it }) => {
+		return {
+			entityType: 'views',
+			algorithm: it.algorithm,
+			definition: it.definition,
+			name: it.name,
+			sqlSecurity: it.sqlSecurity,
+			withCheckOption: it.withCheckOption,
+		};
+	});
+	const viewColumns: ViewColumn[] = views
+		.map((table) => {
+			return table.columns.map((it) => {
+				return {
+					view: table.name,
+					...it,
+				} satisfies ViewColumn;
+			});
+		})
+		.flat(1);
+
+	return {
+		tables: tbls,
+		columns: columns,
+		pks,
+		fks,
+		checks,
+		indexes,
+		views: vws,
+		viewColumns,
+	};
+};
+
+export const studioSchemaToDDL = (schema: InterimStudioSchema) => {
+	const interimSchema = fromInterims(schema);
+	const { ddl, errors } = interimToDDL(interimSchema);
+
+	if (errors.length > 0) {
+		throw new Error(errors.map((it) => JSON.stringify(it)).join('\n'));
+	}
+
+	return ddl;
+};
+
+export const diffMySql = async (ddl1: MysqlDDL, ddl2: MysqlDDL, renamesArr: string[]) => {
+	const renames = new Set(renamesArr);
+
+	const { sqlStatements, groupedStatements, statements } = await ddlDiff(
+		ddl1,
+		ddl2,
+		mockResolver(renames),
+		mockResolver(renames),
+		mockResolver(renames),
+		'default',
+	);
+
+	return { sqlStatements, groupedStatements, statements };
+};
+
+export const fromDatabase = fd;
+
+// export const ddlToTypeScript = (schema: InterimStudioSchema) => {
+// 	const interimSchema = fromInterims(schema);
+// 	const { ddl } = interimToDDL(interimSchema);
+// 	return dtt(ddl, interimSchema.viewColumns, 'camel', 'mysql');
+// };
