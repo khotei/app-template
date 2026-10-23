@@ -157,47 +157,82 @@ methods; running it after S9 avoids merge work.
 
 #### S2 — `users` and `credentials`: the first entity, the migrations, `UserRepositoryPg`
 
-- **Goal:** the pattern every entity follows. `infrastructure/db/columns.ts` (the shared `id`
-  column with `DEFAULT uuidv7()` and the `createdAt`/`updatedAt` `timestamptz` columns without
-  defaults); `infrastructure/drizzle.config.ts` (`dialect: 'postgresql'`, `schema:
-  './*/*.entity.ts'`, `out: './db/migrations'`, no credentials); tables are declared with
-  `snakeCase.table` from `drizzle-orm/pg-core`, which is what maps `camelCase` columns to
-  `snake_case` names. `infrastructure/user/user.entity.ts` (`users`, `credentials` with the
-  `credential_kind` enum from the domain literal, the hash check, the cascade; `UserRow`,
-  `UserInsert`, `CredentialInsert` from `createSelectSchema`/`createInsertSchema` refined with
-  `UserId`, `SecretHash`, `Schema.DateTimeUtcFromDate`); the first migration folder from `make
-  migration NAME=users`; `make migration` (`bunx drizzle-kit generate --config
-  infrastructure/drizzle.config.ts --name $(NAME)`) and `make migration-check` (fail if
-  `infrastructure/db/migrations` has uncommitted changes before it starts, naming them; generate;
-  fail if a folder appeared, remove it), `migration-check` in `make check`. `UserRepositoryPg`
-  beside `UserRepositoryKv` in `user.repository.ts`: `insert` writes the two tables in one
-  `sql.withTransaction`, `selectByCredential` joins; `UserPg` beside `UserKv` in
-  `infrastructure/user/index.ts`. `docs/knowledge/database.md` is created (schema and entity files,
-  codecs, migrations, tests) (R3, R4, R14; D2, D9, D13).
+- **Goal:** the pattern every entity follows. `infrastructure/db/columns.ts` (`id()`, a `uuid`
+  primary key with `DEFAULT uuidv7()`, and `createdAt()`, a `timestamptz` column with no default;
+  each a fresh builder; `updatedAt()` lands with the first table that needs it, in S4);
+  `infrastructure/drizzle.config.ts` (`dialect: 'postgresql'`, `schema: './*/*.entity.ts'`, `out:
+  './db/migrations'`, no credentials); tables are declared with `snakeCase.table` from
+  `drizzle-orm/pg-core`, which is what maps `camelCase` columns to `snake_case` names.
+  `infrastructure/user/user.entity.ts` (`users`, `credentials` with the `credential_kind` enum
+  from `Credential.fields.kind.literal`, the hash check on `secretHashPattern`, which `domain/user`
+  exports for `SecretHash` and the check alike, the cascade; `UserRow` and `UserInsert` from
+  `createSelectSchema`/`createInsertSchema` refined with `UserId` and `Schema.DateTimeUtcFromDate`;
+  the credential row is written from the domain's values with no codec); the first migration
+  folder from `make migration NAME=users`; `make migration` (`cd infrastructure && bunx
+  drizzle-kit generate --name $(NAME)`) and `make migration-check` (generate with stdin closed;
+  fail, printing the SQL, if a new folder appeared, and remove it; folder listings, not git),
+  `migration-check` in `make check` and as a step of CI's `static` job. `UserRepositoryPg` beside
+  `UserRepositoryKv` in `user.repository.ts`: `insert` writes the two tables in one
+  `sql.withTransaction`, `selectByCredential` joins, every method ends with `orDieWithSqlError`;
+  `UserPg` beside `UserKv` in `infrastructure/user/index.ts`. `infrastructure/db/db.client.ts`
+  gains `isSqlError`, `unwrapQueryError` (a Drizzle query error's own `SqlError`) and
+  `orDieWithSqlError`; `migrateDatabase` fails with the `SqlError` and the `make migrate` program
+  runs through `BunRuntime.runMain`. `docs/knowledge/database.md` is created (schema and entity
+  files, codecs, repositories, migrations, tests) (R3, R4, R14; D2, D9, D13).
 - **Blocked by:** S1.
-- **Files:** `infrastructure/db/columns.ts`, `infrastructure/drizzle.config.ts`,
-  `infrastructure/db/migrations/<ts>_users/{migration.sql,snapshot.json}`,
+- **Files:** `infrastructure/db/{columns.ts,db.client.ts,migrate.ts,migrate.test.ts}`,
+  `infrastructure/db/migrations/<ts>_users/{migration.sql,snapshot.json}` (the S1 `.gitkeep`
+  removed), `infrastructure/drizzle.config.ts`,
   `infrastructure/user/{user.entity.ts,user.repository.ts,user.repository.test.ts,index.ts}`,
-  `Makefile` (`migration`, `migration-check`, `check`); `docs/knowledge/database.md` (new),
-  `docs/knowledge/architecture.md` (the `infrastructure/db` row and `.entity` under "Where things
-  live"; links `database.md`), `docs/knowledge/tooling.md` (`make migration`, `make
-  migration-check`), `.claude/rules/naming.md` (`.entity`: an entity's Drizzle
-  tables and row codecs, infrastructure; `<Entity>Kv` and `<Entity>Pg` bundles; a tool's config
-  file keeps the tool's name, as `vitest.config.ts` and `drizzle.config.ts`),
-  `infrastructure/CLAUDE.md` (the "Until a real client exists" line names Postgres through `db/`
-  and `.entity`).
+  `infrastructure/package.json` (`@effect/platform-bun` to `dependencies`), `bun.lock`,
+  `domain/user/user.model.ts` (`secretHashPattern`), `packages/testing/postgres.ts`
+  (`PgClientUnauthenticated`; `buildDatabaseUrl` takes `{ database, password? }`), `Makefile`
+  (`migration`, `migration-check`, `check`, the `help` column), `biome.json` (skips
+  `infrastructure/db/migrations`), `.github/workflows/ci.yml` (`make migration-check` in `static`);
+  `docs/knowledge/database.md` (new), `docs/knowledge/architecture.md` (a Postgres table on the
+  `user` slice under "Where things live"; links `database.md`), `docs/knowledge/tooling.md` (the
+  migration targets, `migration-check` in CI), `.claude/rules/naming.md` (`.entity`;
+  `<Entity>Kv` and `<Entity>Pg` bundles; a tool's config file keeps the name its tool reads),
+  `infrastructure/CLAUDE.md` (a repository runs on Postgres through `db/` and its `.entity.ts`).
 - **Test first:** Seam 3 — `user.repository.test.ts` becomes one suite run over
   `UserRepositoryKv` and `UserRepositoryPg` (on `DbTest`): insert, select by id
   and by credential round-trip equal models (`assertSchemaEquals`), an unknown credential is
   `none`; on Postgres only: `users.created_at` has no default (`information_schema.columns`), and
   `credentials.hash` rejects a non-hex value through the check. Seam 2 — the migration applies to
   the template, and `make migrate` on the test database is a no-op the second time.
-- **Verify:** `make check`; `make migration NAME=probe` with Docker down writes a folder, which
-  is then removed; `make migration-check` fails after a column is added to `user.entity.ts`
-  without a migration and passes once it is reverted, and fails naming the folder when an
-  uncommitted migration lies in the tree; `psql` against a migrated database: `\d users` shows
-  `id uuid DEFAULT uuidv7()`, `created_at timestamptz` with no default.
-- **Status:** todo
+- **Verify:** `make check`; `make migration NAME=probe` with no database reachable writes a
+  folder, which is then removed; `make migration-check` fails, printing the missing SQL, after a
+  column is added to `user.entity.ts` without a migration, and after `secretHashPattern` changes,
+  passes once each is reverted, passes with an uncommitted migration that matches the entities,
+  and fails with drizzle-kit's `--hints` instead of hanging on a rename; `make migrate` with a
+  wrong password logs the `AuthenticationError` and `password authentication failed`, exit 1;
+  `psql` against a migrated database: `\d users` shows `id uuid DEFAULT uuidv7()`, `created_at
+  timestamptz` with no default, `\d credentials` the hash check.
+- **Status:** done
+- **Findings:**
+  - `make migration-check` is soft in `make check` and strict in CI (D13, Seam 9): failing on
+    uncommitted migrations, as planned, would turn the pre-commit gate red on every step that
+    adds one. It compares folder listings, so it never removes a folder it did not write.
+  - drizzle-kit runs from `infrastructure/`: from the root, `bunx` missed the workspace's pinned
+    binary and fetched another, and the schema glob resolves against the working directory.
+    In a non-TTY it does not prompt on a rename; it exits 2 naming the `--hints` it needs.
+  - Biome skips `infrastructure/db/migrations/`, drizzle-kit's output.
+  - drizzle-kit inlines `${secretHashPattern.source}` into the check's DDL; a changed pattern
+    needs a migration.
+  - The credential row needs no codec (D2): its values are already the domain's.
+  - `updatedAt()` moves to S4, the first step with a table that has the column.
+  - `sql.withTransaction` covers Drizzle's queries on `DbTest`: the duplicate-credential test
+    fails without it. It is the first test of the published `PgClient` (S1's finding).
+  - Drizzle's `EffectDrizzleQueryError` hides the driver's reason (`Failed query: …` only);
+    `unwrapQueryError` and `orDieWithSqlError` in `db.client.ts` surface the `SqlError`, and every
+    Postgres repository method ends with the latter (S5 follows it).
+  - `make migrate` runs through `BunRuntime.runMain`, so `@effect/platform-bun` is a runtime
+    dependency of `infrastructure`.
+  - Tests beyond the plan: the duplicate credential (transaction, `UniqueViolation` defect), the
+    template's ledger counts every migration folder, `migrateDatabase` on a wrong password fails
+    with `AuthenticationError` (`PgClientUnauthenticated`), the Kv key test kept in a suite of
+    its own.
+  - The step landed in five rounds, S2.1–S2.5, after three reviews.
 
 #### S3 — The local database: an RDS instance on MiniStack, `make up`, `down`, `reset`
 

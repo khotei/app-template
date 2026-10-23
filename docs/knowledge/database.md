@@ -20,9 +20,7 @@ row codecs derived from them.
 - **Shared columns** come from `infrastructure/db/columns.ts`: `id()`, a `uuid` primary key with
   `DEFAULT uuidv7()`, and `createdAt()`, a `timestamptz` column with no default. The domain writes
   every id and every timestamp with its own clock, so `TestClock` holds and there is no second
-  clock; the `uuidv7()` default serves only hand-written SQL. Each helper returns a fresh
-  builder, because a table names a builder's column the first time it sees it: one builder shared
-  under two keys would keep the first name.
+  clock; the `uuidv7()` default serves only hand-written SQL.
 - **Enums and checks read the domain.** An enum takes its values from the domain's literal
   (`pgEnum('credential_kind', [Credential.fields.kind.literal])`), and a check reads the
   constant its brand checks with (`credentials_hash_check` matches `secretHashPattern.source`, as

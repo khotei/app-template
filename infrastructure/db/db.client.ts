@@ -38,29 +38,21 @@ export class Db extends Context.Service<Db, PgDrizzle.EffectPgDatabase>()(
 export const isSqlError = Schema.is(SqlError.SqlError)
 
 /**
- * Fails with the `SqlError` a Drizzle query error wraps, whose reason and driver message
- * (`password authentication failed for user …`) the wrapper's own message leaves out, and dies
- * with the query error when what it wraps is not a `SqlError`; pass it to
- * `Effect.catchTag('EffectDrizzleQueryError', …)`.
+ * Fails with the `SqlError` a Drizzle query error wraps, whose reason and driver message the
+ * wrapper's own message leaves out.
  *
- * Drizzle types the wrapped cause `unknown`, but its Effect driver only wraps a `SqlError`, so
- * anything else is a bug: `migrateDatabase` dies on it rather than fail with a type no caller
- * handles.
+ * Drizzle types the wrapped cause `unknown`, but its Effect driver only ever wraps a `SqlError`,
+ * so anything else is a bug and dies.
  */
 export const unwrapQueryError = (error: EffectDrizzleQueryError) => {
   const cause = Cause.isCause(error.cause) ? Cause.squash(error.cause) : error.cause
   return isSqlError(cause) ? Effect.fail(cause) : Effect.die(error)
 }
 
-/**
- * Turns every failure into a defect, a Drizzle query error as the `SqlError` it wraps: the last
- * pipeable of a repository method, since the ports declare no error channel.
- */
+const isQueryError = Schema.is(EffectDrizzleQueryError)
+
+/** Turns every failure into a defect, a Drizzle query error as the `SqlError` it wraps. */
 export const orDieWithSqlError = <A, E, R>(
-  self: Effect.Effect<A, E, R>,
+  self: Effect.Effect<A, E | EffectDrizzleQueryError, R>,
 ): Effect.Effect<A, never, R> =>
-  Effect.catch(self, (error) =>
-    error instanceof EffectDrizzleQueryError
-      ? Effect.orDie(unwrapQueryError(error))
-      : Effect.die(error),
-  )
+  self.pipe(Effect.catchIf(isQueryError, unwrapQueryError), Effect.orDie)

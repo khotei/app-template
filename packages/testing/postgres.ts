@@ -68,15 +68,12 @@ export const PgClientTest = Layer.unwrap(
   }),
 )
 
-/**
- * A `PgClient` on the test server with a wrong password: every statement fails to connect.
- *
- * It names the template database only because a URL needs one; authentication fails first.
- */
+/** A `PgClient` on the test server with a wrong password: every statement fails to connect. */
 export const PgClientUnauthenticated = Layer.unwrap(
   Effect.sync(() =>
     PgClient.layer({
       url: buildDatabaseUrl(inject('databaseUrl'), {
+        // Any database will do: authentication fails before Postgres opens it.
         database: templateDatabase,
         password: 'wrong',
       }),

@@ -63,10 +63,11 @@ graph LR
 + repos/drizzle        git subtree of drizzle-team/drizzle-orm at v<catalogs.drizzle.drizzle-orm>  (D14)
 + make vendor-drizzle  the subtree pull (add on the first run), beside vendor-effect
 + make migrate         bun --env-file=.env infrastructure/db/migrate.ts                        (D13)
-+ make migration       NAME=<name>: bunx drizzle-kit generate --config infrastructure/drizzle.config.ts --name $(NAME)
-+ make migration-check generate into the committed folder and fail if a new folder appeared  (D13)
++ make migration       NAME=<name>: cd infrastructure && bunx drizzle-kit generate --name $(NAME)
++ make migration-check generate (stdin closed), fail and remove if a new folder appeared; soft locally, strict in CI  (D13)
 ~ make up · down · reset   the two Pulumi projects, the port check, migrate                   (D11)
 ~ make check           + migration-check
+~ .github/workflows/ci.yml   static job + make migration-check                                  (D13)
 - STORE_PATH, .data/store    from .env.example, tooling.md, the Makefile comment on reset
 + DATABASE_URL, OUTBOX_POLL_INTERVAL   in .env.example
 ~ vitest.config.ts     globalSetup: infrastructure/db/testing/postgres.setup.ts               (D10)
@@ -78,6 +79,7 @@ graph LR
 ~ domain/chat/chat.model.ts     + MessageDetail, ChatSummary, ChatDetail (moved from application) (D6)
 ~ domain/chat/chat.service.ts   ChatRepository, MessageRepository: Contracts › Ports             (D5, D6)
 ~ domain/attachment/attachment.service.ts   AttachmentRepository.bind replaces update          (D5)
+~ domain/user/user.model.ts     + secretHashPattern, read by SecretHash and the credentials check
 ~ domain/chat/chat.service.ts   SendableChat doc: holds inside the send's transaction, the index is the backstop
 ```
 
@@ -88,15 +90,19 @@ graph LR
                                         provides the Debug EffectLogger and EffectCache.Default),
                                         Db.layerFromConfig over PgClientFromConfig (DatabaseConfig → PgClient.layer);
                                         layerFromConfig also publishes PgClient, so SqlClient.withTransaction
-                                        runs on Db's connection, see D3                                    (D1, D3, D12)
-+ infrastructure/db/columns.ts          shared column sets: id (uuid pk DEFAULT uuidv7()), timestamps        (D9)
+                                        runs on Db's connection, see D3; isSqlError; unwrapQueryError (a Drizzle
+                                        query error's own SqlError, a defect if it wraps anything else);
+                                        orDieWithSqlError (catchIf on the query error, then Effect.orDie), the last
+                                        pipeable of every Postgres repository method                       (D1, D3, D12)
++ infrastructure/db/columns.ts          fresh builders: id() (uuid pk DEFAULT uuidv7()), createdAt() (timestamptz, no default); updatedAt() with its first table  (D9)
 + infrastructure/db/relations.ts        defineRelations over every .entity.ts table                          (D6)
-+ infrastructure/db/migrate.ts          the migrate program: DatabaseConfig → PgClient → migrate(db, …)     (D13)
++ infrastructure/db/migrate.ts          the migrate program: DatabaseConfig → PgClient → migrate(db, …), failing with
+                                        the SqlError (unwrapQueryError); the CLI runs through BunRuntime.runMain  (D13)
 + infrastructure/db/migrations/         drizzle-kit output, committed
 + infrastructure/db/testing/postgres.setup.ts   vitest globalSetup: container, template, provide           (D10)
 + infrastructure/db/testing/db.ts       DbTest: Db over PgClientTest, publishes PgClient for transactions   (D3, D10)
 + infrastructure/drizzle.config.ts      dialect, schema glob ./*/*.entity.ts, out ./db/migrations; no credentials
-+ infrastructure/user/user.entity.ts    users, credentials; UserRow, UserInsert, CredentialInsert codecs    (D2)
++ infrastructure/user/user.entity.ts    users, credentials; UserRow, UserInsert codecs (the credential row needs none)  (D2)
 + infrastructure/chat/chat.entity.ts    chats, the title check, its index; ChatRow, ChatInsert
 + infrastructure/chat/message.entity.ts messages, the enums, the partial unique index, checks; MessageRow, MessageInsert
                                         (one entity file per entity, as the folder's repositories are split)
@@ -141,7 +147,8 @@ graph LR
                                 - StoreConfig                                                               (D15)
 + packages/config/postgres.ts   postgresImage: postgres:18.6-alpine by digest (tests; the fallback container)
 + packages/testing/postgres.ts  setupTemplateDatabase (the setup's half); PgClientTest: a fresh database
-                               per test from the template, PgClient on it                                (D10)
+                               per test from the template, PgClient on it; PgClientUnauthenticated: a PgClient
+                               with a wrong password, for the failed-connection tests                    (D10)
 + packages/testing/postgres.test.ts  a test's database is gone from pg_database once its scope closes   (D10)
 ~ packages/testing/package.json  + @effect/sql-pg
 ```
@@ -191,7 +198,7 @@ graph LR
 
 ```
 users        id uuid pk default uuidv7() · created_at timestamptz
-credentials  hash text pk check (64 hex) · kind credential_kind ('secret') · user_id → users on delete cascade
+credentials  hash text pk check (~ secretHashPattern) · kind credential_kind ('secret') · user_id → users on delete cascade
 chats        id · user_id → users · title text null check (trimmed, 1..maxTitleLength) · created_at · updated_at
              index (user_id, updated_at desc)
 messages     id · chat_id → chats on delete cascade · author message_author · stage message_stage ·
@@ -207,8 +214,9 @@ outbox       id uuid pk default uuidv7() · queue text · job_id text · body te
 ```
 
 Enums come from the domain literals (`pgEnum('message_stage', MessageStage.literals)`); the
-checks read the same constants as the brands (`maxTitleLength`). `created_at` and `updated_at`
-have no default: the domain writes them (D9).
+checks read the same constants as the brands (`maxTitleLength`, `secretHashPattern.source`, which
+drizzle-kit inlines into the DDL). `created_at` and `updated_at` have no default: the domain
+writes them (D9).
 
 ### Codecs (per `.entity.ts`, from `drizzle-orm/effect-schema`)
 
@@ -358,7 +366,7 @@ same file backend under `.data/pulumi`, so `make reset` drops both stacks' state
 | 6 jobs with the fake `LanguageModel` on Postgres under `TestClock` | the stage sequence through `update(…, { from })`; a message settled by another writer stops the job with `already settled`; the dead-letter handler fails an active message with `ReplyFailed` and a dead-letter cause, leaves a terminal one, logs for a deleted chat; the title dead-letter handler only logs; `updateTitle` skips a titled chat | a real provider |
 | 7 `apps/api` through `BunHttpServer.layerTest` + `ApiClient` on `PgClientTest` | the wire unchanged (`/openapi.json` equal to `main`'s), `202` with outbox rows, `409` on a busy chat across two concurrent requests | the worker, the relay |
 | 8 `apps/worker` layer build on `PgClientTest` + MiniStack (`layer.test.ts`) | the relay, the four workers and the Db compose and start | live SQS timing |
-| 9 `make migration-check` | an entity change without a committed migration | a migration edited by hand |
+| 9 `make migration-check` (local in `make check`; strict in CI on a fresh checkout) | an entity change without a committed migration (CI), or without any migration in the tree (local); a changed domain literal or pattern that an enum or check reads | a migration edited by hand; locally, a migration not yet committed |
 | 10 by hand (acceptance R16–R18): `make up`, `down`, `reset`, worktree `N=1` | the RDS instance, the port, persistence, the volume, the fallback criteria | — |
 
 ## Decisions
@@ -371,7 +379,9 @@ same file backend under `.data/pulumi`, so `make reset` drops both stacks' state
   `pg` driver (a second connection pool beside Effect's, and no shared transaction).
 - **D2 — The table is the one declaration; the codecs are derived.** `createSelectSchema` and
   `createInsertSchema` with a refine of the columns that carry a domain type (ids, `DateTime`,
-  `Option`, `jsonb`) give the row codecs; the repository decodes to the model's fields and encodes
+  `Option`, `jsonb`) give the row codecs, and only for a table whose columns differ from the
+  model's fields; a row whose values are already the domain's (brands, literals) is written as is,
+  as `credentials` is from the credential and the user. The repository decodes to the model's fields and encodes
   the model to a row, with no mapping function. The domain stays the source of truth: its
   `Schema.Class` models, literals and brands are unchanged and the enums and checks read its
   constants. *Rejected:* `$type` and `customType` columns with hand-built models (a mapping
@@ -399,8 +409,7 @@ same file backend under `.data/pulumi`, so `make reset` drops both stacks' state
   each one `UPDATE` whose row count is the answer. The application raises the domain error, so
   ports keep no error channel, and the "re-read before write" pattern (`touchChat`, the title
   job's second read) disappears. Two api processes are safe without any shared lock. *Rejected:*
-  catching `UniqueViolation` by constraint name in the adapter (a port with a domain error, five
-  lines to unwrap `EffectDrizzleQueryError`); `SERIALIZABLE` isolation (retries on every
+  catching `UniqueViolation` by constraint name in the adapter (a port with a domain error); `SERIALIZABLE` isolation (retries on every
   conflict, including unrelated ones); advisory locks (a lock again, now in the database).
 - **D6 — Read models live in the domain; the adapter answers them with relational queries.**
   `MessageDetail`, `ChatSummary` and `ChatDetail` move to `domain/chat`; `ChatRepository` gains
@@ -461,9 +470,14 @@ same file backend under `.data/pulumi`, so `make reset` drops both stacks' state
 - **D13 — Migrations are drizzle-kit SQL applied by Drizzle's Effect migrator, never by the apps.**
   `make migration NAME=…` generates with no database, `make migrate` applies through an Effect
   program on `DatabaseConfig`, the test setup applies the same way, and `make migration-check`
-  fails `make check` when an entity changed without a migration. *Rejected:* Effect's
+  fails when an entity changed without a migration. It runs twice: in `make check` it counts
+  every folder in the tree, committed or not, so a step that adds a migration stays green before
+  its commit; CI runs it on a fresh checkout, which holds only committed migrations, so there an
+  entity changed without a committed migration fails the build. *Rejected:* Effect's
   `PgMigrator` (loads `.ts` modules, so each SQL file needs a wrapper and a second ledger);
-  `drizzle-kit push` or `migrate` (reads credentials outside `@app-template/config`).
+  `drizzle-kit push` or `migrate` (reads credentials outside `@app-template/config`); failing
+  `make check` on uncommitted files under `infrastructure/db/migrations` (every step that adds a
+  migration would be red at the gate, which runs before the commit). *Amended in S2.*
 - **D14 — Drizzle's source is a subtree in `repos/drizzle`, pinned to the catalog.** Agents check
   APIs against `repos/drizzle/drizzle-orm/src`, as `effect.md` has them do for Effect; the rc line
   changes between releases and the docs lag. The subtree is the whole monorepo (kit, zod,
@@ -481,7 +495,7 @@ same file backend under `.data/pulumi`, so `make reset` drops both stacks' state
 
 | Risk | Mitigation |
 |---|---|
-| `drizzle-orm@1.0.0-rc.*` moves between rcs (`EffectDrizzleQueryError.cause` is typed `unknown`, `defineRelations` is the rc relations API) | pinned exactly; every API checked in `repos/drizzle` at the step that uses it; D5 avoids unwrapping errors |
+| `drizzle-orm@1.0.0-rc.*` moves between rcs (`EffectDrizzleQueryError.cause` is typed `unknown`, `defineRelations` is the rc relations API) | pinned exactly; every API checked in `repos/drizzle` at the step that uses it; `unwrapQueryError` reads `cause` once, in `db.client.ts`, and dies if it is not a `SqlError` |
 | `defineRelations` and the relational `db.query` on the Effect driver are read from source, not run | S4 runs a relational query live before any repository is written; if it fails, `selectDetail` is a join query behind the same port |
 | `ON CONFLICT (chat_id) WHERE <predicate>` must match the partial index's predicate exactly, or Postgres finds no arbiter | the predicate is one `sql` constant used by both the index and the insert; Seam 3 inserts two active messages |
 | A transaction that holds the `FOR UPDATE SKIP LOCKED` rows while SQS is slow blocks nothing but delays the batch | batch of 10, the transport's own timeout; a failed send fails the batch and the rows stay |
