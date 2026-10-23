@@ -4,7 +4,7 @@
 
 .PHONY: help setup stack up down reset dev dev-api dev-worker dev-web debug-api debug-worker \
   debug-web check ids lint fmt typecheck test clean outdated vendor-effect \
-  vendor-drizzle migrate
+  vendor-drizzle migrate migration migration-check
 
 # The local Pulumi project: the file backend under .data/ and the home (plugins, credentials) under
 # .pulumi/, both in the repo; the home survives `make reset`. The passphrase is empty because the
@@ -14,7 +14,7 @@ PULUMI = PULUMI_HOME=$(CURDIR)/.pulumi PULUMI_CONFIG_PASSPHRASE= pulumi -C deplo
 help: ## List all targets
 	@echo 'App Template: make <target>'
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) \
-		| awk 'BEGIN { FS = ":.*## " } { printf "  %-14s %s\n", $$1, $$2 }'
+		| awk 'BEGIN { FS = ":.*## " } { printf "  %-16s %s\n", $$1, $$2 }'
 
 setup: ## Install dependencies and create .env from .env.example if missing
 	bun install
@@ -40,6 +40,27 @@ reset: down ## Stop MiniStack and remove .data/ whole (its state, the stack, the
 migrate: ## Apply the pending migrations to the database in .env
 	bun --env-file=.env infrastructure/db/migrate.ts
 
+# drizzle-kit runs from infrastructure/: the pinned binary is that workspace's devDependency, and
+# the config's paths resolve against the working directory, not the config file.
+migration: ## Generate a migration from the entities, with no database: NAME=<name>
+	@test -n "$(NAME)" || { echo 'usage: make migration NAME=<name>'; exit 1; }
+	cd infrastructure && bunx drizzle-kit generate --name $(NAME)
+
+# Generates into the migrations folder and fails if a new folder appeared, which it then removes.
+# It compares folder listings, not git: a migration not committed yet is part of the folder, and
+# stdin is closed so a rename prompt fails the target instead of hanging it.
+migration-check: ## Fail when an entity changed without a migration
+	@dir=infrastructure/db/migrations; before=$$(ls $$dir); \
+	out=$$(cd infrastructure && bunx drizzle-kit generate --name unmigrated </dev/null 2>&1) || \
+		{ echo "$$out"; exit 1; }; \
+	new=$$(ls $$dir | grep -vxF "$$before"); \
+	if [ -n "$$new" ]; then \
+		cat $$dir/$$new/migration.sql; rm -rf $$dir/$$new; \
+		echo; echo "The entities differ from $$dir (above: the missing SQL)."; \
+		echo 'Run make migration NAME=<name> and commit the folder.'; \
+		exit 1; \
+	fi
+
 dev: ## Run api, worker and web together in dev mode
 	bun --filter './apps/*' dev
 
@@ -61,7 +82,7 @@ debug-worker: ## Run the worker with --inspect and --watch
 debug-web: ## Run the web dev server with --inspect
 	bun --filter @app-template/web debug
 
-check: ids lint typecheck test ## Run every gate: ticket ids, lint, typecheck, tests
+check: ids lint typecheck migration-check test ## Run every gate: ids, lint, types, migrations, tests
 
 ids: ## Fail on ticket ids in parentheses (D12, R3, Q70) outside docs/tickets
 	@if git grep --untracked -nE '\((D|R|Q)[0-9]+[a-z]?\)' -- . ':!docs/tickets' \

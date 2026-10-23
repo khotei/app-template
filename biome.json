@@ -8,7 +8,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!bun.lock", "!repos"]
+    "includes": ["**", "!bun.lock", "!repos", "!infrastructure/db/migrations"]
   },
   "formatter": {
     "enabled": true,

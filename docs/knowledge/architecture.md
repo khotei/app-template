@@ -103,6 +103,8 @@ Using the `chat` slice as the map:
 | port and pure operations | `domain/chat/chat.service.ts` | `ChatRepository`, `buildChat({ id, userId, createdAt })`, `prepareMessage` |
 | guard shared by the aggregates | `domain/shared/guard.ts` | `ensureFound(found, holds, missing)` |
 | adapter implementing the port | `infrastructure/chat/chat.repository.ts` | `ChatRepositoryKv` (a `Layer` over `KeyValueStore`) |
+| tables and row codecs | `infrastructure/user/user.entity.ts` | `users`, `credentials` (`snakeCase.table`), `UserRow`, `UserInsert` |
+| database client and migrations | `infrastructure/db/` | `Db`, `Db.layerFromConfig`, `migrations/`, the shared columns in `columns.ts` |
 | queue definitions | `infrastructure/chat/chat.queue.ts` | `assistantMessageQueue`, `GenerateAssistantMessage` (the job schema) |
 | prompt functions | `infrastructure/chat/chat.llm.ts` | `buildChatPrompt`, `streamAssistantText` |
 | service over the ports | `application/chat/chat.service.ts` | `ChatService`, `ChatService.layer` |
@@ -115,7 +117,8 @@ Using the `chat` slice as the map:
 
 Every entity folder has an `index.ts` barrel, and tests sit next to their source as `*.test.ts`.
 The file suffixes and naming verbs are listed in
-[.claude/rules/naming.md](../../.claude/rules/naming.md).
+[.claude/rules/naming.md](../../.claude/rules/naming.md). How the tables, codecs and migrations
+work: [database.md](database.md).
 
 ## Add a new entity
 

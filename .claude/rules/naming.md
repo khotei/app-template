@@ -36,6 +36,7 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 | `.use-case` | a flow that composes services: `<verb>-<object>.use-case.ts` | application |
 | `.job` | a queue's producer service and its worker | application |
 | `.repository` · `.storage` · `.llm` | an adapter over a client; prompt functions live in `.llm` | infrastructure |
+| `.entity` | an entity's Drizzle tables and their row codecs, one file per entity | infrastructure |
 | `.queue` | queue definitions | infrastructure |
 | `.client` · `.transport` | client wiring · the service a package's client runs over (`QueueTransport`) | infrastructure/shared, infrastructure/db, http-api, packages |
 | `.http` | a contract group: one resource's HTTP routes (`HttpApiGroup`) | http-api |
@@ -47,10 +48,11 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 | `.setup` | a vitest `globalSetup` module: run-wide resources, handed to tests through `provide` | `testing/` |
 
 `<entity>` is singular, like its folder (`user/user.http.ts`); a file with no role keeps a bare
-kebab name (`layer.ts`, `main.ts`). Test-support roles live only in a `testing/` folder, which no
-barrel or `exports` lists, save the `packages/testing` workspace's `index.ts` and a package's
-`./testing` export of a test double of its own service (`@app-template/queue/testing`):
-`packages/testing` cannot hold it, since it cannot import a package whose tests import it.
+kebab name (`layer.ts`, `main.ts`), and a tool's config its tool's (`drizzle.config.ts`).
+Test-support roles live only in a `testing/` folder, which no barrel or `exports` lists, save the
+`packages/testing` workspace's `index.ts` and a package's `./testing` export of a test double of
+its own service (`@app-template/queue/testing`): `packages/testing` cannot hold it, since it
+cannot import a package whose tests import it.
 
 ## Symbols
 
@@ -72,9 +74,9 @@ barrel or `exports` lists, save the `packages/testing` workspace's `index.ts` an
   - `select` / `insert` / `update` / `upsert` / `delete`: persistence (`selectById`); `update`
     changes an existing record and never creates one.
 - Constants are `camelCase` with `as const` for literals. A `Layer` constant for a service
-  declared elsewhere is `PascalCase` `<Service><Variant>` (`ChatRepositoryKv`); `<Entity>Kv` in
-  `infrastructure/<entity>/index.ts` bundles the aggregate's adapters, and a process provides
-  aggregates, not adapters.
+  declared elsewhere is `PascalCase` `<Service><Variant>` (`ChatRepositoryKv`); `<Entity>Kv` and
+  `<Entity>Pg` in `infrastructure/<entity>/index.ts` bundle the aggregate's adapters on one store,
+  and a process provides aggregates, not adapters.
 - Test support: a fixed fake layer is `<Service><Variant>` (`AttachmentRepositoryYielding`); a
   stateful fake `<verb><Thing>()` returns `{ <handle>, layer }` (`recordLogs`,
   `interleaveMessages`); a harness is `make<Entity>Harness()`, its runner `with<Entity>(body)`.

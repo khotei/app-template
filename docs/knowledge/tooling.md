@@ -19,12 +19,14 @@ and `make setup` needs neither.
 | `make dev` | `bun --filter './apps/*' dev` | all three processes, interleaved output |
 | `make dev-api` · `dev-worker` · `dev-web` | one app's `dev` script | one process |
 | `make debug-api` · `debug-worker` · `debug-web` | one app's `debug` script | the same mode plus `--inspect` |
-| `make check` | `ids`, `lint`, `typecheck`, `test` | the gate before every commit and step report |
+| `make check` | `ids`, `lint`, `typecheck`, `migration-check`, `test` | the gate before every commit and step report |
 | `make ids` | `git grep` for ticket ids in parentheses outside `docs/tickets/` and `repos/` | a new project deletes the ticket, so an id elsewhere points nowhere |
 | `make lint` | `biome check` | lint, format and import order, without writing |
 | `make fmt` | `biome check --write` | apply formatting, import sorting and safe fixes |
 | `make typecheck` | `bunx tsc -b`, the patched `tsc` | typecheck every workspace through the project references, Effect diagnostics included |
 | `make migrate` | `bun --env-file=.env infrastructure/db/migrate.ts` | apply the pending migrations of `infrastructure/db/migrations/` to `DATABASE_URL`; none pending changes nothing |
+| `make migration NAME=<name>` | `bunx drizzle-kit generate --name <name>` in `infrastructure/` | write a migration folder from the entity files; needs no database ([database.md › Migrations](database.md#migrations)) |
+| `make migration-check` | the same generate, then a comparison of the folder listings | fail, printing the missing SQL, when an entity changed without a migration; it removes the folder it wrote |
 | `make test` | `bun run test`, which is `bun --bun vitest run` | every colocated `*.test.ts`; needs a running Docker daemon for the run's Postgres container ([Tests](#tests)) and the AWS suites' MiniStack ([aws.md › Tests on Docker](aws.md#tests-on-docker)) |
 | `make outdated` | `bun outdated --recursive` | newer versions for every workspace |
 | `make vendor-effect` | `git subtree pull --squash --prefix repos/effect` of the `effect@<pin>` tag | update `repos/effect` to the catalog pin; it commits, so run it on a clean tree. First time: `git subtree add` with the same arguments |
