@@ -1,8 +1,10 @@
 import { fileURLToPath } from 'node:url'
 
 import { sql } from 'drizzle-orm'
+import type { EffectDrizzleQueryError } from 'drizzle-orm/effect-core/errors'
 import { migrate } from 'drizzle-orm/effect-postgres/migrator'
-import { Array as Arr, Effect, Option } from 'effect'
+import { Array as Arr, Cause, Effect, Exit, Option, Schema } from 'effect'
+import { SqlError } from 'effect/sql'
 
 import { MinimumLogLevelFromConfig } from '@app-template/config'
 
@@ -25,6 +27,15 @@ const selectAppliedCount = Effect.fnUntraced(function* (db: Db['Service']) {
   return Option.match(Arr.head(counted), { onNone: () => 0, onSome: ({ applied }) => applied })
 })
 
+const isSqlError = Schema.is(SqlError.SqlError)
+
+// Drizzle's error names only the failed query; the `SqlError` it wraps holds the reason and the
+// driver's message (`password authentication failed for user …`).
+const surfaceSqlError = (error: EffectDrizzleQueryError) => {
+  const cause = Cause.isCause(error.cause) ? Cause.squash(error.cause) : error.cause
+  return Effect.fail(isSqlError(cause) ? cause : error)
+}
+
 /** Applies the pending migrations of `migrations/` and returns how many it applied. */
 export const migrateDatabase = Effect.gen(function* () {
   const db = yield* Db
@@ -35,7 +46,7 @@ export const migrateDatabase = Effect.gen(function* () {
 
   const after = yield* selectAppliedCount(db)
   return after - before
-})
+}).pipe(Effect.catchTag('EffectDrizzleQueryError', surfaceSqlError))
 
 const describeApplied = (applied: number) => {
   if (applied === 0) return 'nothing to apply'
@@ -48,9 +59,10 @@ export const applyMigrations = Effect.flatMap(migrateDatabase, (applied) =>
 )
 
 if (import.meta.main) {
-  await applyMigrations.pipe(
+  const exit = await applyMigrations.pipe(
     Effect.provide([Db.layerFromConfig, MinimumLogLevelFromConfig]),
-    Effect.orDie,
-    Effect.runPromise,
+    Effect.tapCause(Effect.logError),
+    Effect.runPromiseExit,
   )
+  if (Exit.isFailure(exit)) process.exitCode = 1
 }

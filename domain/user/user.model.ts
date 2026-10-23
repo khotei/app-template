@@ -7,8 +7,16 @@ export class User extends Schema.Class<User>('User')({
   createdAt: Schema.DateTimeUtc,
 }) {}
 
+/**
+ * What a `SecretHash` matches.
+ *
+ * A database check reads its `source` too, so keep to the syntax JavaScript and Postgres regular
+ * expressions read alike.
+ */
+export const secretHashPattern = /^[0-9a-f]{64}$/
+
 /** The lower-case hex SHA-256 of a user secret; the secret itself is never stored. */
-export const SecretHash = Schema.String.check(Schema.isPattern(/^[0-9a-f]{64}$/)).pipe(
+export const SecretHash = Schema.String.check(Schema.isPattern(secretHashPattern)).pipe(
   Schema.brand('SecretHash'),
 )
 export type SecretHash = typeof SecretHash.Type

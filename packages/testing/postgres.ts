@@ -63,3 +63,12 @@ export const PgClientTest = Layer.unwrap(
     return PgClient.layer({ url: buildDatabaseUrl(adminUrl, database) })
   }),
 )
+
+/** A `PgClient` on the test server with a wrong password: every statement fails to connect. */
+export const PgClientUnauthenticated = Layer.unwrap(
+  Effect.sync(() => {
+    const url = new URL(inject('databaseUrl'))
+    url.password = 'wrong'
+    return PgClient.layer({ url: Redacted.make(url.href) })
+  }),
+)

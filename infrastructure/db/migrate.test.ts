@@ -2,13 +2,15 @@ import { readdirSync } from 'node:fs'
 
 import { assert, describe, it } from '@effect/vitest'
 import { sql } from 'drizzle-orm'
-import { Array as Arr, Effect } from 'effect'
+import { Array as Arr, Effect, Layer } from 'effect'
 
-import { recordLogs } from '@app-template/testing'
+import { PgClientUnauthenticated, recordLogs } from '@app-template/testing'
 
 import { Db } from '#infrastructure/db/db.client'
 import { applyMigrations, migrateDatabase } from '#infrastructure/db/migrate'
 import { DbTest } from '#infrastructure/db/testing/db'
+
+const DbUnauthenticated = Db.layer.pipe(Layer.provide(PgClientUnauthenticated))
 
 const migrationFolders = Arr.filter(
   readdirSync(new URL('migrations', import.meta.url), { withFileTypes: true }),
@@ -31,6 +33,17 @@ describe('migrateDatabase', () => {
     Effect.map(migrateDatabase, (applied) => assert.strictEqual(applied, 0)).pipe(
       Effect.provide(DbTest),
     ),
+  )
+
+  it.effect("fails with the driver's reason when the database refuses the connection", () =>
+    Effect.gen(function* () {
+      const error = yield* Effect.flip(migrateDatabase)
+
+      assert.strictEqual(
+        error._tag === 'SqlError' ? error.reason._tag : error._tag,
+        'AuthenticationError',
+      )
+    }).pipe(Effect.provide(DbUnauthenticated)),
   )
 
   it.effect('logs that there is nothing to apply', () => {

@@ -7,13 +7,7 @@ import { type Credential, User, UserId, UserRepository } from '@app-template/dom
 
 import { Db } from '#infrastructure/db/db.client'
 import { createCollection } from '#infrastructure/kv/kv-collection'
-import {
-  CredentialInsert,
-  credentials,
-  UserInsert,
-  UserRow,
-  users,
-} from '#infrastructure/user/user.entity'
+import { credentials, UserInsert, UserRow, users } from '#infrastructure/user/user.entity'
 
 const credentialKey = (credential: Credential) => `${credential.kind}/${credential.hash}`
 
@@ -39,14 +33,12 @@ export const UserRepositoryKv = Layer.effect(
 )
 
 const encodeUser = Schema.encodeEffect(UserInsert)
-const encodeCredential = Schema.encodeEffect(CredentialInsert)
+const decodeUser = Schema.decodeEffect(UserRow)
 
-const decodeFirstUser = (rows: ReadonlyArray<typeof UserRow.Encoded>) =>
-  Effect.transposeOption(
-    Option.map(Arr.head(rows), (row) =>
-      Effect.map(Schema.decodeEffect(UserRow)(row), (fields) => new User(fields)),
-    ),
-  )
+const decodeFirstUser = Effect.fnUntraced(function* (rows: ReadonlyArray<typeof UserRow.Encoded>) {
+  const fields = yield* Effect.transposeOption(Option.map(Arr.head(rows), decodeUser))
+  return Option.map(fields, (decoded) => new User(decoded))
+})
 
 export const UserRepositoryPg = Layer.effect(
   UserRepository,
@@ -56,15 +48,12 @@ export const UserRepositoryPg = Layer.effect(
     return UserRepository.of({
       insert: Effect.fn('UserRepository.insert')(
         function* (user, credential) {
-          const userRow = yield* encodeUser(user)
-          const credentialRow = yield* encodeCredential({
-            hash: credential.hash,
-            kind: credential.kind,
-            userId: user.id,
-          })
+          const row = yield* encodeUser(user)
 
-          yield* db.insert(users).values(userRow)
-          yield* db.insert(credentials).values(credentialRow)
+          yield* db.insert(users).values(row)
+          yield* db
+            .insert(credentials)
+            .values({ hash: credential.hash, kind: credential.kind, userId: user.id })
         },
         sql.withTransaction,
         Effect.orDie,

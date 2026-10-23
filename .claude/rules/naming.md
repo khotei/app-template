@@ -48,11 +48,10 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 | `.setup` | a vitest `globalSetup` module: run-wide resources, handed to tests through `provide` | `testing/` |
 
 `<entity>` is singular, like its folder (`user/user.http.ts`); a file with no role keeps a bare
-kebab name (`layer.ts`, `main.ts`), and a tool's config its tool's (`drizzle.config.ts`).
+kebab name (`layer.ts`), and a tool's config file the name its tool reads (`drizzle.config.ts`).
 Test-support roles live only in a `testing/` folder, which no barrel or `exports` lists, save the
-`packages/testing` workspace's `index.ts` and a package's `./testing` export of a test double of
-its own service (`@app-template/queue/testing`): `packages/testing` cannot hold it, since it
-cannot import a package whose tests import it.
+`packages/testing` index and a package's `./testing` export of a test double of its own service
+(`@app-template/queue/testing`), which `packages/testing` cannot hold without an import cycle.
 
 ## Symbols
 
@@ -74,9 +73,8 @@ cannot import a package whose tests import it.
   - `select` / `insert` / `update` / `upsert` / `delete`: persistence (`selectById`); `update`
     changes an existing record and never creates one.
 - Constants are `camelCase` with `as const` for literals. A `Layer` constant for a service
-  declared elsewhere is `PascalCase` `<Service><Variant>` (`ChatRepositoryKv`); `<Entity>Kv` and
-  `<Entity>Pg` in `infrastructure/<entity>/index.ts` bundle the aggregate's adapters on one store,
-  and a process provides aggregates, not adapters.
+  declared elsewhere is `PascalCase` `<Service><Variant>` (`ChatRepositoryKv`); `<Entity>Kv` or
+  `<Entity>Pg` in `<entity>/index.ts` bundles the aggregate's adapters, and a process provides it.
 - Test support: a fixed fake layer is `<Service><Variant>` (`AttachmentRepositoryYielding`); a
   stateful fake `<verb><Thing>()` returns `{ <handle>, layer }` (`recordLogs`,
   `interleaveMessages`); a harness is `make<Entity>Harness()`, its runner `with<Entity>(body)`.
