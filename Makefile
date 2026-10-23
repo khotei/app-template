@@ -6,15 +6,10 @@
   debug-web check ids lint fmt typecheck test clean outdated vendor-effect \
   vendor-drizzle migrate migration migration-check
 
-# Both Pulumi projects, `$(call PULUMI,local)` and `$(call PULUMI,aws)`: one file backend under
-# .data/ and one home (plugins, credentials) under .pulumi/, both in the repo; the home survives
-# `make reset`. The passphrase is empty: the only secret, the database password, is DATABASE_URL's
-# in .env.
-PULUMI = PULUMI_HOME=$(CURDIR)/.pulumi PULUMI_CONFIG_PASSPHRASE= pulumi -C deployment/$(1)
-
-# The programs read .env through @app-template/config, and Pulumi starts them itself, so a recipe
-# exports .env to the shell first.
-ENV = set -a && . ./.env && set +a
+# The local Pulumi project: the file backend under .data/ and the home (plugins, credentials) under
+# .pulumi/, both in the repo; the home survives `make reset`. The passphrase is empty because the
+# stack holds no secret.
+PULUMI = PULUMI_HOME=$(CURDIR)/.pulumi PULUMI_CONFIG_PASSPHRASE= pulumi -C deployment/local
 
 help: ## List all targets
 	@echo 'App Template: make <target>'
@@ -25,32 +20,22 @@ setup: ## Install dependencies and create .env from .env.example if missing
 	bun install
 	@test -f .env || (cp .env.example .env && echo "created .env from .env.example")
 
-stack: ## Log Pulumi in to the file backend and select or create both local stacks
+stack: ## Log Pulumi in to the file backend and select or create the local stack
 	@mkdir -p .data/pulumi
-	@$(call PULUMI,local) login --non-interactive file://$(CURDIR)/.data/pulumi
-	@$(call PULUMI,local) stack select local 2>/dev/null || $(call PULUMI,local) stack init local
-	@$(call PULUMI,aws) stack select local 2>/dev/null || $(call PULUMI,aws) stack init local
+	@$(PULUMI) login --non-interactive file://$(CURDIR)/.data/pulumi
+	@$(PULUMI) stack select local 2>/dev/null || $(PULUMI) stack init local
 
-up: stack ## Start MiniStack, create the database instance on it, migrate and provision
-	$(ENV) && $(call PULUMI,local) up --yes --skip-preview
-	$(ENV) && $(call PULUMI,aws) up --yes --skip-preview
-	bun --env-file=.env deployment/local/check-database.ts
+# The program reads AWS_ENDPOINT_URL and DATABASE_URL through @app-template/config, so `up` exports
+# .env to it; `destroy` runs no program.
+up: stack ## Start MiniStack and Postgres, migrate the database, provision the inventory
+	set -a && . ./.env && set +a && $(PULUMI) up --yes --skip-preview
 	$(MAKE) migrate
 	bun --env-file=.env deployment/local/provision.ts
 
-# The instance stays in the aws stack, so its data respawns with MiniStack on the next `up`.
-down: stack ## Stop MiniStack; the database keeps its data
-	$(call PULUMI,local) destroy --yes --skip-preview
+down: stack ## Stop MiniStack and Postgres; their data stays under .data/
+	$(PULUMI) destroy --yes --skip-preview
 
-# The aws destroy needs MiniStack, so it runs only while MiniStack answers; the container and the
-# volume MiniStack names after the instance go by hand, as do any a killed MiniStack orphaned.
-reset: stack ## Remove the database, stop MiniStack, and remove .data/ whole
-	$(ENV) && if curl -sf "$$AWS_ENDPOINT_URL/_ministack/health" >/dev/null; then \
-		$(call PULUMI,aws) destroy --yes --skip-preview; fi
-	$(call PULUMI,local) destroy --yes --skip-preview
-	$(ENV) && id="app-template-$$STAGE-database" && \
-		docker ps -aq --filter label=ministack=rds --filter "label=db_id=$$id" | xargs -r docker rm -f && \
-		docker volume ls -q --filter "name=instance-$$id-data" | xargs -r docker volume rm
+reset: down ## Stop both and remove .data/ whole (their data, the stack, the store)
 	rm -rf .data
 
 migrate: ## Apply the pending migrations to the database in .env

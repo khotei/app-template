@@ -1,10 +1,10 @@
 import { fileURLToPath } from 'node:url'
 
 import * as docker from '@pulumi/docker'
-import { Effect, Option, Redacted } from 'effect'
+import { Effect, Option } from 'effect'
 
 import { projectName } from '@app-template/aws'
-import { AwsConfig, DatabaseConfig, ministackImage } from '@app-template/config'
+import { AwsConfig, ministackImage } from '@app-template/config'
 
 const internalPort = 4566
 /**
@@ -17,23 +17,10 @@ const endpointUrl = Option.getOrThrowWith(
   () => new Error('AWS_ENDPOINT_URL must name MiniStack with a port, as http://localhost:4566'),
 )
 const port = Number(endpointUrl.port)
-/**
- * MiniStack gives the first RDS instance it creates this host port, so `DATABASE_URL` is static:
- * `make reset` wipes its state, and with it the counter that moves the port past a deleted one.
- */
-const { url } = Effect.runSync(Effect.provide(DatabaseConfig, DatabaseConfig.layer))
-const databasePort = new URL(Redacted.value(url)).port
 const dataDir = fileURLToPath(new URL('../../.data/ministack', import.meta.url))
 
 const remoteImage = new docker.RemoteImage('ministack-image', {
   name: ministackImage,
-  keepLocally: true,
-})
-
-// MiniStack runs RDS instances as containers of this image on the host's Docker and picks only the
-// major version; pulled here, the first instance starts in seconds instead of after a long pull.
-const postgresImage = new docker.RemoteImage('postgres-image', {
-  name: 'postgres:18-alpine',
   keepLocally: true,
 })
 
@@ -49,14 +36,8 @@ new docker.Container(
       'STATE_DIR=/data/state',
       'S3_PERSIST=1',
       'S3_DATA_DIR=/data/s3',
-      'MINISTACK_RDS_PUBLIC_ENDPOINT=1',
-      'RDS_PERSIST=1',
-      `RDS_BASE_PORT=${databasePort}`,
     ],
-    volumes: [
-      { hostPath: dataDir, containerPath: '/data' },
-      { hostPath: '/var/run/docker.sock', containerPath: '/var/run/docker.sock' },
-    ],
+    volumes: [{ hostPath: dataDir, containerPath: '/data' }],
     healthcheck: {
       tests: [
         'CMD',
@@ -78,6 +59,5 @@ new docker.Container(
   {
     // A new name or image replaces the container; the old one holds the port until it is deleted.
     deleteBeforeReplace: true,
-    dependsOn: [postgresImage],
   },
 )

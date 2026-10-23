@@ -1,0 +1,8 @@
+# Stub: no @pulumi/* dependencies are installed yet. The AWS deploy ticket fills this in.
+name: app-template
+description: App Template infrastructure on AWS
+runtime:
+  name: nodejs
+  options:
+    packagemanager: bun
+main: aws/index.ts

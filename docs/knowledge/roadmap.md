@@ -190,8 +190,9 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   Its grilling departed from this entry: the outbox relays to SQS (there is no SQL queue store any
   more); `$onUpdate` is dropped, timestamps and ids stay the domain's; tests run on Testcontainers
   only, one Postgres per `vitest` run with a database per test, PGlite rejected as a second
-  driver; the local database is an RDS instance on MiniStack created by `@pulumi/aws`, with a
-  plain container as the fallback; the attachment record sweep was declined.
+  driver; the local database is a plain Postgres container in `deployment/local/`, after an RDS
+  instance on MiniStack proved to be the same container behind an emulated API; the attachment
+  record sweep was declined.
 
 ### 5. `aws-local`
 
@@ -349,12 +350,12 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   `unbound` tag sent with `CreateMultipartUpload` and the lifecycle deletion it drives. Share one
   AWS client builder between `infrastructure/shared/aws.client.ts` and
   `deployment/local/provision.ts`, and brand `Stage`.
-- **Inherits from `postgres-drizzle` (2026-10-22).** That ticket brings `@pulumi/aws` to the
-  local stand first, for an RDS instance on MiniStack (`rds.Instance`, the Docker socket mounted
-  into MiniStack, `RDS_BASE_PORT`, `RDS_PERSIST`); its spike answers whether the instance lives in
-  this program's `local` stack and what MiniStack needs beyond `endpoints.rds`. The production
-  database then reuses that resource with Aurora or RDS settings, and this ticket adds the
-  migration command for a deployed stage.
+- **Inherits from `postgres-drizzle` (2026-10-23).** The local database stays a plain Postgres
+  container in `deployment/local/`, on the `DATABASE_URL` of `.env`; this ticket writes the RDS or
+  Aurora resource with the rest of AWS, and adds the migration command for a deployed stage. That
+  ticket's spike found `aws.rds.Instance` works on MiniStack (the Docker socket mounted into it,
+  `RDS_BASE_PORT`, `RDS_PERSIST`, `MINISTACK_RDS_PUBLIC_ENDPOINT=1`, the provider's three `skip…`
+  flags), but MiniStack emulates no instance class, storage or parameters, so it was dropped.
 
 ### 10. `client-publishing`
 

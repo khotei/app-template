@@ -1,1 +1,7 @@
-export { endpoint } from '#deployment/aws/database'
+export { api } from '#deployment/aws/api'
+export { database } from '#deployment/aws/database'
+export { iam } from '#deployment/aws/iam'
+export { queue } from '#deployment/aws/queue'
+export { storage } from '#deployment/aws/storage'
+export { web } from '#deployment/aws/web'
+export { worker } from '#deployment/aws/worker'
