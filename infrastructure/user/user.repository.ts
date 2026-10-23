@@ -59,7 +59,7 @@ export const UserRepositoryPg = Layer.effect(
         orDieWithSqlError,
       ),
       selectById: Effect.fn('UserRepository.selectById')(function* (id) {
-        const rows = yield* db.select().from(users).where(eq(users.id, id))
+        const rows = yield* db.select().from(users).where(eq(users.id, id)).limit(1)
         return yield* decodeFirstUser(rows)
       }, orDieWithSqlError),
       selectByCredential: Effect.fn('UserRepository.selectByCredential')(function* (credential) {
@@ -68,6 +68,7 @@ export const UserRepositoryPg = Layer.effect(
           .from(credentials)
           .innerJoin(users, eq(users.id, credentials.userId))
           .where(and(eq(credentials.kind, credential.kind), eq(credentials.hash, credential.hash)))
+          .limit(1)
         return yield* decodeFirstUser(rows)
       }, orDieWithSqlError),
     })

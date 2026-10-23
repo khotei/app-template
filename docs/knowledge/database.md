@@ -10,23 +10,40 @@ Effect: every query is an `Effect`, never a promise.
 ## Schema and entity files
 
 Each entity declares its tables in one file beside its repository,
-`infrastructure/<aggregate>/<entity>.entity.ts` (`user/user.entity.ts`: `users`, `credentials`).
-The tables are the one declaration of the schema: the migrations are generated from them and the
-row codecs derived from them.
+`infrastructure/<aggregate>/<entity>.entity.ts`, one file per entity as the aggregate's
+repositories are split (`user/user.entity.ts`: `users`, `credentials`; `chat/chat.entity.ts`:
+`chats`; `chat/message.entity.ts`: `messages`; `attachment/attachment.entity.ts`:
+`attachments`). The tables are the one declaration of the schema: the migrations are generated
+from them and the row codecs derived from them.
 
 - **Names.** A table is declared with `snakeCase.table` from `drizzle-orm/pg-core`, so the
   `camelCase` keys in code (`createdAt`) become `snake_case` columns (`created_at`) with no name
   spelled twice.
 - **Shared columns** come from `infrastructure/db/columns.ts`: `id()`, a `uuid` primary key with
-  `DEFAULT uuidv7()`, and `createdAt()`, a `timestamptz` column with no default. The domain writes
-  every id and every timestamp with its own clock, so `TestClock` holds and there is no second
-  clock; the `uuidv7()` default serves only hand-written SQL.
+  `DEFAULT uuidv7()`, and `createdAt()` and `updatedAt()`, `timestamptz` columns with no default
+  and no `$onUpdate`. The domain writes every id and every timestamp with its own clock, so
+  `TestClock` holds and there is no second clock; the `uuidv7()` default serves only
+  hand-written SQL.
 - **Enums and checks read the domain.** An enum takes its values from the domain's literal
-  (`pgEnum('credential_kind', [Credential.fields.kind.literal])`), and a check reads the
-  constant its brand checks with (`credentials_hash_check` matches `secretHashPattern.source`, as
-  `SecretHash` does), so a row written by hand cannot hold what the domain rejects. A changed
-  literal or pattern changes the schema, and `make migration-check` fails until a migration
-  exists.
+  (`pgEnum('message_stage', MessageStage.literals)`), and a check reads the constant its brand
+  checks with (`credentials_hash_check` matches `secretHashPattern.source`, as `SecretHash` does;
+  `chats_title_check` caps the length at `maxTitleLength`), so a row written by hand cannot hold
+  what the domain rejects. drizzle-kit inlines the constants into the DDL, so a changed literal,
+  pattern or limit changes the schema, and `make migration-check` fails until a migration exists.
+- **A check is a backstop, never stricter than the brand.** It may let through what the brand
+  refuses, never the reverse: `chats_title_check` trims spaces only and counts code points, where
+  `ChatTitle` trims every whitespace and counts UTF-16 units. Checks are named
+  `<table>_<column>_check` and indexes `<table>_<columns>_index`.
+- **A rule across rows is a partial unique index.** `messages_one_active_per_chat` allows one
+  active assistant message per chat; its predicate is `activeMessage`, exported from
+  `message.entity.ts` beside the table, so a query for the active message and the index read one
+  condition. The predicate takes the stages from `ActiveMessageStage.literals`.
+- **A descending index states its null order.** Drizzle's `desc()` indexes nulls last while
+  Postgres's `ORDER BY … DESC` sorts them first, so an index for that order is
+  `.desc().nullsFirst()` (`chats_user_id_updated_at_index`).
+- **Foreign keys say what a delete does.** `credentials` and `messages` cascade from their parent;
+  `attachments.message_id` restricts, so a message with a bound attachment cannot be deleted
+  before it.
 
 ## Codecs
 
@@ -47,6 +64,25 @@ export const UserInsert = createInsertSchema(users, userFields)
   encodes the model to the row it inserts. A row whose values are already the domain's (brands,
   literals) is written as is: `credentials` takes `{ hash, kind, userId }` from the credential
   and the user, with no codec.
+- A `jsonb` column carries the encoded type of its schema (`jsonb().$type<typeof
+  MessageFailure.Encoded>()`), so the row Drizzle returns fits the codec; the refinement
+  (`Schema.OptionFromNullOr(MessageFailure)`) is what decodes it.
+- An array column takes a mutable array, so its refinement encodes to one:
+  `Schema.Array(AttachmentId).pipe(Schema.encodeTo(Schema.mutable(Schema.Array(Schema.String))))`.
+
+## Relations
+
+`infrastructure/db/relations.ts` declares the relations once, with `defineRelations` over every
+table, and `Db` is built with them (`PgDrizzle.make({ relations })`), so `db.query.<table>` is
+typed. A relation names its columns (`from`, `to`) and joins on their equality only: a message's
+attachments follow `attachments.message_id`, not the order of `messages.attachment_ids`, which a
+reader restores. A relational query returns nested rows of the same shape as a `select`, so they
+decode with the same codecs:
+
+```ts
+const rows = yield* db.query.chats.findMany({ with: { messages: { orderBy: { id: 'asc' } } } })
+// rows: [{ id, userId, title, createdAt, updatedAt, messages: [{ id, chatId, … }] }]
+```
 
 ## Repositories
 
@@ -55,7 +91,9 @@ A Postgres adapter is a `Layer` over `Db` and `SqlClient`, beside the key-value 
 that writes several tables runs them in one `sql.withTransaction`, passed to `Effect.fn` as a
 pipeable: `UserRepositoryPg.insert` writes the user and its credential, or neither. `SqlClient`
 is the `PgClient` that `Db.layerFromConfig` and `DbTest` publish, so the transaction runs on the
-connection `Db` uses. Every method ends with `orDieWithSqlError` from `db.client.ts`.
+connection `Db` uses. Every method ends with `orDieWithSqlError` from `db.client.ts`. A query
+that expects one row ends with `.limit(1)` (`selectById`, `selectByCredential`), so it stops
+at the first match and states its intent, even where a key already makes the row unique.
 
 ## Migrations
 

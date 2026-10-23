@@ -8,6 +8,8 @@ import { SqlError } from 'effect/sql'
 
 import { DatabaseConfig } from '@app-template/config'
 
+import { relations } from '#infrastructure/db/relations'
+
 /**
  * Logs each statement at `Debug`, with its SQL and parameters as the `query` and `params`
  * annotations.
@@ -23,9 +25,9 @@ const PgClientFromConfig = Layer.unwrap(
   Effect.map(DatabaseConfig, ({ url }) => PgClient.layer({ url })),
 ).pipe(Layer.provide(DatabaseConfig.layer))
 
-export class Db extends Context.Service<Db, PgDrizzle.EffectPgDatabase>()(
+export class Db extends Context.Service<Db, PgDrizzle.EffectPgDatabase<typeof relations>>()(
   '@app-template/infrastructure/db/Db',
-  { make: PgDrizzle.make() },
+  { make: PgDrizzle.make({ relations }) },
 ) {
   static readonly layer = Layer.effect(this, this.make).pipe(
     Layer.provide([EffectCache.Default, EffectLoggerDebug]),

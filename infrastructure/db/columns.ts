@@ -8,3 +8,5 @@ import { timestamp, uuid } from 'drizzle-orm/pg-core'
 export const id = () => uuid().primaryKey().default(sql`uuidv7()`)
 
 export const createdAt = () => timestamp({ withTimezone: true }).notNull()
+
+export const updatedAt = () => timestamp({ withTimezone: true }).notNull()
