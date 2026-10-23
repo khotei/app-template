@@ -1,6 +1,11 @@
-export interface DeploymentConfig {
-  readonly stage: string
-  readonly region: string
-}
+import { Effect } from 'effect'
 
-export const deploymentConfig: DeploymentConfig = { stage: 'dev', region: 'eu-central-1' }
+import { AwsConfig, DatabaseConfig } from '@app-template/config'
+
+export const deploymentConfig: AwsConfig['Service'] = Effect.runSync(
+  Effect.provide(AwsConfig, AwsConfig.layer),
+)
+
+export const databaseConfig: DatabaseConfig['Service'] = Effect.runSync(
+  Effect.provide(DatabaseConfig, DatabaseConfig.layer),
+)

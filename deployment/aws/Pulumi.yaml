@@ -1,0 +1,4 @@
+name: app-template
+description: App Template infrastructure on AWS; its local stack runs against MiniStack
+runtime: bun
+main: index.ts

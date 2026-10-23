@@ -64,9 +64,10 @@ curl -s -b jar localhost:3000/chats/<chatId>/messages/<assistantMessageId>
 
 ### The local AWS environment
 
-MiniStack stands in for S3 and SQS on `localhost:4566`; a Pulumi project in `deployment/local/`
-runs it in Docker, and the provisioner creates the bucket and the queues on it. The apps do not
-use it yet: `make dev` runs without `make up`, and `make check` needs Docker only. The design and
+MiniStack stands in for S3, SQS and RDS on `localhost:4566`; a Pulumi project in
+`deployment/local/` runs it in Docker, a second one in `deployment/aws/` creates the Postgres
+instance on it (at the `DATABASE_URL` of `.env`, `localhost:15432`), and the provisioner creates
+the bucket and the queues. The apps do not use it yet: `make dev` runs without `make up`, and `make check` needs Docker only. The design and
 the resource inventory: [docs/knowledge/aws.md](docs/knowledge/aws.md).
 
 ```sh
@@ -75,8 +76,9 @@ make up      # starts MiniStack, then logs one line per resource:
              #   INFO (#1): created: app-template-local-attachments      (first run)
              #   INFO (#1): unchanged: app-template-local-chat-title     (every run after)
 make dev
-make down    # stops it; the bucket, the queues and their messages survive under .data/ministack
-make reset   # make down, then removes .data/ whole
+make down    # stops it; the bucket, the queues and their messages survive under .data/ministack,
+             # the database in a Docker volume
+make reset   # removes the database, its container and volume, stops MiniStack, removes .data/
 ```
 
 | When | Then |
@@ -84,10 +86,11 @@ make reset   # make down, then removes .data/ whole
 | Docker is not running | `make up` fails in the Docker provider; start Docker and run it again |
 | the Pulumi CLI is missing | `make up`, `down`, `reset` and `stack` fail at `pulumi`; install it from the link above. `make check` does not need it |
 | an older `.env` lacks `AWS_*` and `STAGE` | the provisioner fails with a `ConfigError` naming `AWS_REGION`; `make setup` leaves an existing `.env` alone, so copy the AWS block from `.env.example` |
-| the first `make up` takes about ten seconds | it downloads the Docker provider plugin into `.pulumi/`; later runs take a few seconds |
+| the first `make up` takes about two minutes | it downloads the Docker and AWS provider plugins into `.pulumi/` and creates the database instance (about 80 seconds); later runs take a few seconds |
 | port 4566 is taken | the container fails to start; free the port (a leftover `app-template-ministack-4566`, or another emulator) |
+| `make up` fails with `DATABASE_URL names port …, the instance publishes …` | another container held the port, or `DATABASE_URL` changed after the instance was created; free the port or restore `DATABASE_URL`, else `make reset` |
 | `make up` failed midway | the container stays in the stack; `make down`, then `make up` again |
-| you want a clean slate | `make reset` also wipes the key-value store in `.data/`, not only MiniStack |
+| you want a clean slate | `make reset` also wipes the database and the key-value store in `.data/`, not only MiniStack |
 | an inventory change that SQS refuses on an existing queue (`QueueNameExists`) | `make reset`, then `make up` |
 
 ## How it is built

@@ -2,42 +2,72 @@
 
 How the app reaches S3 and SQS, locally and on AWS, and how the resources it needs are described,
 created and tested. The code: `packages/aws` (the inventory, the naming rule, the provisioner),
-`deployment/local/` (the Pulumi project that runs MiniStack, and the local provisioner),
-`packages/testing/ministack.ts`.
+`deployment/local/` (the Pulumi project that runs MiniStack, the port check and the local
+provisioner), `deployment/aws/` (the database instance), `packages/testing/ministack.ts`.
 
 ## The local stand-in
 
-[MiniStack](https://hub.docker.com/r/ministackorg/ministack) emulates S3 and SQS on the port of
-`AWS_ENDPOINT_URL`: `http://localhost:4566` in the main tree, another port in each worktree
-([tooling.md › Worktrees](tooling.md#worktrees)). `deployment/local/` is a Pulumi project of its
-own (`runtime: bun`): `@pulumi/docker`'s `Container` with the image by digest, the environment,
-the bind mount of `.data/ministack` and the health check with `wait: true`, so `pulumi up` returns
-only once MiniStack answers. The program reads `AwsConfig` from `.env` (how `make up` passes it:
-[tooling.md › Environment](tooling.md#environment)): MiniStack's default region is `AWS_REGION`,
-its 4566 is published on the endpoint's port, and the container is named
-`app-template-ministack-<port>`, so the stacks of several trees share no port, container or state.
-A new name or image replaces the container, the old one deleted first because it holds the port.
+[MiniStack](https://hub.docker.com/r/ministackorg/ministack) emulates S3, SQS and RDS on the port
+of `AWS_ENDPOINT_URL`: `http://localhost:4566` in the main tree, another port in each worktree
+([tooling.md › Worktrees](tooling.md#worktrees)). Two Pulumi projects (`runtime: bun`) run it, so
+`make down` can stop MiniStack while the database instance stays:
 
-The Pulumi state is a file backend under `.data/pulumi` with an empty passphrase (nothing secret
-is stored), and `PULUMI_HOME` is the tree's `.pulumi/`, so a clone touches nothing outside the
-repo, `make reset` keeps the provider plugin, and each worktree downloads its own on its first
-`make up`. The image digest is pinned once, as `ministackImage` in `@app-template/config`, which
+- **`deployment/local/`** runs MiniStack: `@pulumi/docker`'s `Container` with the image by
+  digest, the environment, the bind mount of `.data/ministack`, the host's Docker socket, and the
+  health check with `wait: true`, so `pulumi up` returns only once MiniStack answers. Its 4566 is
+  published on the endpoint's port and the container is named `app-template-ministack-<port>`, so
+  the stacks of several trees share no port, container or state. A new name or image replaces the
+  container, the old one deleted first because it holds the port.
+- **`deployment/aws/`**, stack `local`, declares the database: an `aws.rds.Instance` named
+  `app-template-<STAGE>-database` (Postgres 18), its user, password and database name taken from
+  `DATABASE_URL`. `provider.ts` points `@pulumi/aws` at MiniStack when `AWS_ENDPOINT_URL` is set
+  (`endpoints` for RDS, S3 and SQS, and the three `skip…` flags that keep it off STS and the
+  instance metadata service); without the variable it targets AWS.
+
+Both programs read `AwsConfig` and `DatabaseConfig` from `.env` (how `make up` passes it:
+[tooling.md › Environment](tooling.md#environment)).
+
+**RDS on MiniStack.** An instance is a real `postgres:<major>-alpine` container that MiniStack
+starts on the host's Docker through the mounted socket, labelled `ministack=rds` and
+`db_id=<identifier>`; without the socket `CreateDBInstance` succeeds and no container starts.
+MiniStack picks the major version only, and the first create would pull the image while the
+instance sits in `creating`, so `deployment/local/` pulls `postgres:18-alpine` ahead with a
+`RemoteImage`. Three variables on the MiniStack container shape the instance:
+
+| Variable | Effect |
+|---|---|
+| `RDS_BASE_PORT` | the host port of the first instance MiniStack creates, set to `DATABASE_URL`'s port. MiniStack counts ports up from it and keeps the counter in its state, so a re-created instance moves to the next port unless `make reset` wiped the state first. |
+| `MINISTACK_RDS_PUBLIC_ENDPOINT=1` | `DescribeDBInstances` returns `localhost:<host port>`, the address the apps reach, instead of the container's own. |
+| `RDS_PERSIST=1` | the data lives in a named Docker volume, `ministack-rds-<hash of account and region>-instance-<identifier>-data`, outside `.data/`; without it, in the container's tmpfs. |
+
+On a graceful stop MiniStack saves the instance and removes its container; on start it respawns
+the container on the same volume and port. MiniStack reports an instance `available` even when
+another container holds its port, so `deployment/local/check-database.ts` asks Docker which port
+the instance's own container publishes and fails `make up` unless it is `DATABASE_URL`'s, naming
+both. The container lives on the host's Docker and its name carries the identifier, so each
+worktree runs its own `STAGE`.
+
+The Pulumi state of both projects is one file backend under `.data/pulumi` with an empty
+passphrase (the one secret, the database password, is `DATABASE_URL`'s in `.env`), and
+`PULUMI_HOME` is the tree's `.pulumi/`, so a clone touches nothing outside the repo, `make reset`
+keeps the provider plugins, and each worktree downloads its own on its first `make up`. The
+MiniStack digest is pinned once, as `ministackImage` in `@app-template/config`, which
 `deployment/local/ministack.ts` and the tests' container both read.
 
 | Target | Does |
 |---|---|
-| `make stack` | logs the Pulumi CLI in to the file backend and selects the `local` stack or creates it. Idempotent; `up` and `down` run it first. |
-| `make up` | `pulumi up --yes --skip-preview`, then `deployment/local/provision.ts`: creates the inventory under `STAGE` and prints each resource as `created` or `unchanged`. A second run changes nothing in Pulumi and prints `unchanged` for every resource. |
-| `make down` | `pulumi destroy`: removes the container. State survives: MiniStack writes it on shutdown and reads it on start, under `.data/ministack/`. |
-| `make reset` | `make down`, then removes `.data/` whole: MiniStack's state, the Pulumi stack and the key-value store; `.pulumi/` (the provider plugin) stays. The way back after an inventory change that SQS refuses (below). |
+| `make stack` | logs the Pulumi CLI in to the file backend and selects the `local` stack of both projects or creates it. Idempotent; `up`, `down` and `reset` run it first. |
+| `make up` | `pulumi up` on `deployment/local/` (MiniStack), then on `deployment/aws/` (the instance: about 80 seconds the first time), then `check-database.ts`, `make migrate` and `deployment/local/provision.ts`, which creates the inventory under `STAGE` and prints each resource as `created` or `unchanged`. A second run changes nothing in either stack, prints `unchanged` for every resource, and takes a few seconds. |
+| `make down` | `pulumi destroy` on `deployment/local/` only: MiniStack stops and saves its state under `.data/ministack/`, the instance's container goes with it; the instance stays in the `aws` stack, and its data in its volume. |
+| `make reset` | `pulumi destroy` on `deployment/aws/` while MiniStack answers, then on `deployment/local/`; then removes the instance's containers and volume by its label and name (also those a killed MiniStack orphaned), and `.data/` whole: MiniStack's state and port counter, both stacks and the key-value store; `.pulumi/` stays. The way back after an inventory change that SQS refuses (below), or after a port mismatch. |
 
 An `up` that fails on the health check leaves the container in the stack's state; `make down`
 destroys it, and the next `make up` starts afresh.
 
 `AWS_REGION`, `AWS_ENDPOINT_URL` and `STAGE` are read through `AwsConfig` in
-`@app-template/config`; the provisioner, `ministack.ts` and the apps' S3 and SQS clients read it,
-so the apps need `make up`. Credentials never pass through it: the SDK's default provider chain
-reads `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` from `.env` locally (any value satisfies
+`@app-template/config`; the provisioner, both Pulumi programs and the apps' S3 and SQS clients
+read it, so the apps need `make up`. Credentials never pass through it: the SDK's default provider
+chain, and `@pulumi/aws`'s, reads `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` from `.env` locally (any value satisfies
 MiniStack) and the role on AWS, whose session token rotates. With an endpoint set, S3 uses
 path-style addressing; without one, the SDK's own endpoints.
 

@@ -14,8 +14,8 @@ and `make setup` needs neither.
 | Target | Runs | Use |
 |---|---|---|
 | `make setup` | `bun install`, then copies `.env.example` to `.env` if missing | first clone; installs the git hooks too; needs no Pulumi CLI |
-| `make stack` | `pulumi login` to the file backend under `.data/pulumi`, `stack select local` or `init` | idempotent; `up` and `down` run it first |
-| `make up` · `down` · `reset` | `pulumi up` / `destroy` on `deployment/local/`, then `deployment/local/provision.ts` | MiniStack for S3 and SQS: [aws.md › The local stand-in](aws.md#the-local-stand-in) |
+| `make stack` | `pulumi login` to the file backend under `.data/pulumi`, `stack select local` or `init` in `deployment/local/` and `deployment/aws/` | idempotent; `up`, `down` and `reset` run it first |
+| `make up` · `down` · `reset` | `pulumi up` / `destroy` on `deployment/local/` and `deployment/aws/`, the port check, `make migrate`, `deployment/local/provision.ts` | MiniStack for S3, SQS and the RDS database: [aws.md › The local stand-in](aws.md#the-local-stand-in) |
 | `make dev` | `bun --filter './apps/*' dev` | all three processes, interleaved output |
 | `make dev-api` · `dev-worker` · `dev-web` | one app's `dev` script | one process |
 | `make debug-api` · `debug-worker` · `debug-web` | one app's `debug` script | the same mode plus `--inspect` |
@@ -117,18 +117,25 @@ server's `Bun.serve({ development })`.
 
 A worktree is a full copy of the environment, so trees run `make up` and `make dev` side by side.
 Each gets a number `N`, the main tree 0, and owns its `node_modules` (`bun install`), `.data/`,
-`.pulumi/` and MiniStack container; its `.env` is the main tree's with three ports moved:
+`.pulumi/`, MiniStack container and database container; its `.env` is the main tree's with four
+ports and the stage moved:
 
-| Variable | Port | Main tree | `N=1` |
+| Variable | Value | Main tree | `N=1` |
 |---|---|---|---|
 | `API_PORT` | `3000 + 10N` | 3000 | 3010 |
 | `WEB_PORT` | `3001 + 10N` | 3001 | 3011 |
-| `AWS_ENDPOINT_URL` | `4566 + 10N` | 4566 | 4576 |
+| `AWS_ENDPOINT_URL` | port `4566 + 10N` | 4566 | 4576 |
+| `DATABASE_URL` | port `15432 + 10N` | 15432 | 15442 |
+| `STAGE` | `local<N>` | `local` | `local1` |
+
+The database container runs on the host's Docker under a name MiniStack derives from the instance
+identifier, `app-template-<STAGE>-database`, so two trees on one `STAGE` would claim the same
+container and volume.
 
 The commands that write it:
 [`ticket-implement` › Parallel steps](../../.claude/skills/ticket-implement/SKILL.md#parallel-steps).
 Run `make down` in a worktree before it is removed, or its container outlives it and keeps the
-port.
+port; `make reset` also removes its database volume, which `make down` keeps.
 
 ## Environment
 
@@ -141,8 +148,9 @@ port.
 - **Quoting.** Strings are double-quoted (`LOG_LEVEL="Info"`), numbers are bare (`API_PORT=3000`).
 - **Loading.** Each app script passes `--env-file=../../.env`, a path relative to the app folder.
   This works from `make` at the root and from `bun run dev` inside the app. The one exception is
-  `make up`: Pulumi starts `deployment/local/ministack.ts` itself, so no `--env-file` reaches it,
-  and the recipe loads `.env` into the shell's environment instead. The shell reads the file as
+  the Pulumi programs: Pulumi starts `deployment/local/ministack.ts` and `deployment/aws/index.ts`
+  itself, so no `--env-file` reaches them, and the recipes load `.env` into the shell's
+  environment instead. The shell reads the file as
   its own syntax, so a value with a space must be quoted.
 - **A missing `.env`** is ignored by Bun without a warning. The process then fails at startup while
   building a config layer, with Effect's `ConfigError` naming the first missing or invalid
