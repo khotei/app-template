@@ -1,75 +1,146 @@
-import { assert, describe, layer } from '@effect/vitest'
-import { Array as Arr, DateTime, Effect, Layer, Option, Order } from 'effect'
+import { assert, describe, it } from '@effect/vitest'
+import { Array as Arr, DateTime, Effect, Layer, Option, Order, Schema } from 'effect'
 import { KeyValueStore } from 'effect/persistence'
 
 import { buildChat, Chat, ChatId, ChatRepository, ChatTitle } from '@app-template/domain/chat'
-import { UserId } from '@app-template/domain/user'
+import {
+  buildUser,
+  Credential,
+  SecretHash,
+  UserId,
+  UserRepository,
+} from '@app-template/domain/user'
+import { assertSchemaEquals } from '@app-template/testing'
 
-import { ChatRepositoryKv } from '#infrastructure/chat/chat.repository'
+import { ChatRepositoryKv, ChatRepositoryPg } from '#infrastructure/chat/chat.repository'
+import { DbTest } from '#infrastructure/db/testing/db'
+import { UserRepositoryKv, UserRepositoryPg } from '#infrastructure/user/user.repository'
 
-const createdAt = DateTime.makeUnsafe('2026-10-18T00:00:00.000Z')
+const createdAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')
 
 const chat = (id: string, userId: UserId) => buildChat({ id: ChatId.make(id), userId, createdAt })
 
 const byId = Order.mapInput(Order.String, (chat: Chat) => chat.id)
 
+const SelectedChat = Schema.Option(Chat)
+
+const Chats = Schema.Array(Chat)
+
+/** Writes the owner a chat's foreign key needs, with a credential of its own. */
+const insertUser = (id: UserId) =>
+  Effect.flatMap(UserRepository, (users) =>
+    users.insert(
+      buildUser({ id, createdAt }),
+      new Credential({ kind: 'secret', hash: SecretHash.make(id.replaceAll('-', '').repeat(2)) }),
+    ),
+  )
+
+const ChatRepositoryKvMemory = Layer.mergeAll(ChatRepositoryKv, UserRepositoryKv).pipe(
+  Layer.provideMerge(KeyValueStore.layerMemory),
+)
+
+const ChatRepositoryPgTest = Layer.mergeAll(ChatRepositoryPg, UserRepositoryPg).pipe(
+  Layer.provide(DbTest),
+)
+
+describe.each([
+  { name: 'the key-value store', repository: ChatRepositoryKvMemory },
+  { name: 'Postgres', repository: ChatRepositoryPgTest },
+])('ChatRepository on $name', ({ repository }) => {
+  it.effect('selects an inserted chat back, untitled and titled', () =>
+    Effect.gen(function* () {
+      const chats = yield* ChatRepository
+      const ada = UserId.make('0192d4e0-7b3a-7c00-8000-000000000010')
+      const untitled = chat('0192d4e0-7b3a-7c00-8000-000000000030', ada)
+      const titled = new Chat({
+        ...chat('0192d4e0-7b3a-7c00-8000-000000000031', ada),
+        title: Option.some(ChatTitle.make('Trip')),
+        updatedAt: DateTime.makeUnsafe('2026-10-18T00:00:01.456Z'),
+      })
+      yield* insertUser(ada)
+
+      yield* chats.insert(untitled)
+      yield* chats.insert(titled)
+
+      assertSchemaEquals(SelectedChat, yield* chats.selectById(untitled.id), Option.some(untitled))
+      assertSchemaEquals(SelectedChat, yield* chats.selectById(titled.id), Option.some(titled))
+    }).pipe(Effect.provide(repository)),
+  )
+
+  it.effect("selects only the user's chats", () =>
+    Effect.gen(function* () {
+      const chats = yield* ChatRepository
+      const ada = UserId.make('0192d4e0-7b3a-7c00-8000-000000000010')
+      const bob = UserId.make('0192d4e0-7b3a-7c00-8000-000000000011')
+      const adas = [
+        chat('0192d4e0-7b3a-7c00-8000-000000000031', ada),
+        chat('0192d4e0-7b3a-7c00-8000-000000000030', ada),
+      ]
+      yield* Effect.forEach([ada, bob], insertUser)
+      yield* Effect.forEach(
+        Arr.append(adas, chat('0192d4e0-7b3a-7c00-8000-000000000032', bob)),
+        (each) => chats.insert(each),
+      )
+
+      const selected = yield* chats.selectByUser(ada)
+
+      assertSchemaEquals(Chats, Arr.sort(selected, byId), Arr.sort(adas, byId))
+    }).pipe(Effect.provide(repository)),
+  )
+
+  it.effect("delete removes the chat and keeps the user's others", () =>
+    Effect.gen(function* () {
+      const chats = yield* ChatRepository
+      const cy = UserId.make('0192d4e0-7b3a-7c00-8000-000000000012')
+      const kept = chat('0192d4e0-7b3a-7c00-8000-000000000033', cy)
+      const deleted = chat('0192d4e0-7b3a-7c00-8000-000000000034', cy)
+      yield* insertUser(cy)
+      yield* chats.insert(kept)
+      yield* chats.insert(deleted)
+
+      yield* chats.delete(deleted.id)
+
+      assert.deepStrictEqual(yield* chats.selectById(deleted.id), Option.none())
+      assertSchemaEquals(Chats, yield* chats.selectByUser(cy), [kept])
+    }).pipe(Effect.provide(repository)),
+  )
+
+  it.effect('update renames an existing chat and never creates one', () =>
+    Effect.gen(function* () {
+      const chats = yield* ChatRepository
+      const dee = UserId.make('0192d4e0-7b3a-7c00-8000-000000000013')
+      const existing = chat('0192d4e0-7b3a-7c00-8000-000000000035', dee)
+      const unknown = chat('0192d4e0-7b3a-7c00-8000-000000000036', dee)
+      const renamed = new Chat({ ...existing, title: Option.some(ChatTitle.make('Trip')) })
+      yield* insertUser(dee)
+      yield* chats.insert(existing)
+
+      yield* chats.update(renamed)
+      yield* chats.update(unknown)
+
+      assertSchemaEquals(SelectedChat, yield* chats.selectById(existing.id), Option.some(renamed))
+      assert.deepStrictEqual(yield* chats.selectById(unknown.id), Option.none())
+      assertSchemaEquals(Chats, yield* chats.selectByUser(dee), [renamed])
+    }).pipe(Effect.provide(repository)),
+  )
+})
+
 describe('ChatRepositoryKv', () => {
-  layer(ChatRepositoryKv.pipe(Layer.provideMerge(KeyValueStore.layerMemory)))((it) => {
-    it.effect("selects only the user's chats", () =>
-      Effect.gen(function* () {
-        const chats = yield* ChatRepository
-        const ada = UserId.make('0192d4e0-7b3a-7c00-8000-000000000010')
-        const bob = UserId.make('0192d4e0-7b3a-7c00-8000-000000000011')
-        const adas = [
-          chat('0192d4e0-7b3a-7c00-8000-000000000031', ada),
-          chat('0192d4e0-7b3a-7c00-8000-000000000030', ada),
-        ]
-        yield* Effect.forEach(
-          Arr.append(adas, chat('0192d4e0-7b3a-7c00-8000-000000000032', bob)),
-          (each) => chats.insert(each),
-        )
+  it.effect("delete removes the chat's entry in the user's index", () =>
+    Effect.gen(function* () {
+      const chats = yield* ChatRepository
+      const cy = UserId.make('0192d4e0-7b3a-7c00-8000-000000000012')
+      const kept = chat('0192d4e0-7b3a-7c00-8000-000000000033', cy)
+      const deleted = chat('0192d4e0-7b3a-7c00-8000-000000000034', cy)
+      yield* chats.insert(kept)
+      yield* chats.insert(deleted)
 
-        const selected = yield* chats.selectByUser(ada)
+      yield* chats.delete(deleted.id)
 
-        assert.deepStrictEqual(Arr.sort(selected, byId), Arr.sort(adas, byId))
-      }),
-    )
-
-    it.effect("delete removes the chat and its entry in the user's index", () =>
-      Effect.gen(function* () {
-        const chats = yield* ChatRepository
-        const cy = UserId.make('0192d4e0-7b3a-7c00-8000-000000000012')
-        const kept = chat('0192d4e0-7b3a-7c00-8000-000000000033', cy)
-        const deleted = chat('0192d4e0-7b3a-7c00-8000-000000000034', cy)
-        yield* chats.insert(kept)
-        yield* chats.insert(deleted)
-
-        yield* chats.delete(deleted.id)
-
-        assert.deepStrictEqual(yield* chats.selectById(deleted.id), Option.none())
-        assert.deepStrictEqual(
-          yield* (yield* KeyValueStore.KeyValueStore).get(`users/${cy}/chats`),
-          JSON.stringify([kept.id]),
-        )
-      }),
-    )
-
-    it.effect('update renames an existing chat and never creates one', () =>
-      Effect.gen(function* () {
-        const chats = yield* ChatRepository
-        const dee = UserId.make('0192d4e0-7b3a-7c00-8000-000000000013')
-        const existing = chat('0192d4e0-7b3a-7c00-8000-000000000035', dee)
-        const unknown = chat('0192d4e0-7b3a-7c00-8000-000000000036', dee)
-        const renamed = new Chat({ ...existing, title: Option.some(ChatTitle.make('Trip')) })
-        yield* chats.insert(existing)
-
-        yield* chats.update(renamed)
-        yield* chats.update(unknown)
-
-        assert.deepStrictEqual(yield* chats.selectById(existing.id), Option.some(renamed))
-        assert.deepStrictEqual(yield* chats.selectById(unknown.id), Option.none())
-        assert.deepStrictEqual(yield* chats.selectByUser(dee), [renamed])
-      }),
-    )
-  })
+      assert.deepStrictEqual(
+        yield* (yield* KeyValueStore.KeyValueStore).get(`users/${cy}/chats`),
+        JSON.stringify([kept.id]),
+      )
+    }).pipe(Effect.provide(ChatRepositoryKvMemory)),
+  )
 })
