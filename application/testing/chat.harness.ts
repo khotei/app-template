@@ -30,7 +30,7 @@ import { ChatRepositoryPg } from '@app-template/infrastructure/chat'
 import { Db } from '@app-template/infrastructure/db'
 import { UserPg } from '@app-template/infrastructure/user'
 import { recordQueue, type SentJob } from '@app-template/queue/testing'
-import { idsOf, PgClientTest, png } from '@app-template/testing'
+import { mapIds, PgClientTest, png } from '@app-template/testing'
 
 import { AttachmentService } from '#application/attachment/attachment.service'
 import { ChatService } from '#application/chat/chat.service'
@@ -159,4 +159,4 @@ export const selectMessages = (chatId: ChatId) =>
   Effect.flatMap(MessageRepository, (messages) => messages.selectByChat(chatId))
 
 export const selectAttachments = (attachments: ReadonlyArray<Attachment>) =>
-  Effect.flatMap(AttachmentRepository, (repository) => repository.selectByIds(idsOf(attachments)))
+  Effect.flatMap(AttachmentRepository, (repository) => repository.selectByIds(mapIds(attachments)))

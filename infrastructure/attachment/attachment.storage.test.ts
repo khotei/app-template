@@ -66,6 +66,8 @@ const runContractSuite = <E, R>(
   it: Vitest.MethodsNonLive<R>,
   store: Layer.Layer<AttachmentStore, E, R>,
 ) => {
+  const onStore = Effect.provide(store)
+
   it.effect('insert returns the size of the streamed bytes, and select returns them', () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentStore
@@ -74,7 +76,7 @@ const runContractSuite = <E, R>(
 
       assert.strictEqual(size, FileSize.make(png.length))
       assert.deepStrictEqual(yield* attachments.select(id), Option.some(png))
-    }).pipe(Effect.provide(store)),
+    }).pipe(onStore),
   )
 
   it.effect('url serves the bytes with the media type', () =>
@@ -87,7 +89,7 @@ const runContractSuite = <E, R>(
 
       const { contentType, bytes } = yield* fetchUrl(url)
       assert.deepStrictEqual({ contentType, bytes }, { contentType: 'image/png', bytes: png })
-    }).pipe(Effect.provide(store)),
+    }).pipe(onStore),
   )
 
   it.effect('a stream failing part-way fails insert with its error and stores nothing', () =>
@@ -101,7 +103,7 @@ const runContractSuite = <E, R>(
 
       assert.strictEqual(error, broken)
       assert.deepStrictEqual(yield* attachments.select(unknown), Option.none())
-    }).pipe(Effect.provide(store)),
+    }).pipe(onStore),
   )
 
   it.effect('delete removes the bytes and succeeds again on a deleted id', () =>
@@ -113,7 +115,7 @@ const runContractSuite = <E, R>(
       yield* attachments.delete(id)
 
       assert.deepStrictEqual(yield* attachments.select(id), Option.none())
-    }).pipe(Effect.provide(store)),
+    }).pipe(onStore),
   )
 
   it.effect('keep leaves the bytes in place', () =>
@@ -125,7 +127,7 @@ const runContractSuite = <E, R>(
       yield* attachments.keep(id)
 
       assert.deepStrictEqual(yield* attachments.select(id), Option.some(png))
-    }).pipe(Effect.provide(store)),
+    }).pipe(onStore),
   )
 
   it.effect('select and url are none and keep succeeds for bytes never stored', () =>
@@ -136,7 +138,7 @@ const runContractSuite = <E, R>(
 
       assert.deepStrictEqual(yield* attachments.select(unknown), Option.none())
       assert.deepStrictEqual(yield* attachments.url(unknown), Option.none())
-    }).pipe(Effect.provide(store)),
+    }).pipe(onStore),
   )
 }
 
@@ -156,6 +158,8 @@ const tenMebibytes = buildMebibytes(10)
 const tenMebibytesStream = buildChunkedStream(tenMebibytes, 64 * 1024)
 
 const AttachmentStoreOwnBucket = AttachmentStoreS3.pipe(Layer.provideMerge(AwsConfigOwnBucket))
+
+const onOwnBucket = Effect.provide(AttachmentStoreOwnBucket)
 
 const listLeftovers = Effect.fnUntraced(function* (attachmentId: AttachmentId) {
   const s3 = yield* S3Service
@@ -187,7 +191,7 @@ describeOnMiniStack('AttachmentStoreS3', (it) => {
       assert.strictEqual(size, FileSize.make(tenMebibytes.length))
       assert.match(ETag ?? '', /-2"$/)
       assert.deepStrictEqual(yield* attachments.select(id), Option.some(tenMebibytes))
-    }).pipe(Effect.provide(AttachmentStoreOwnBucket)),
+    }).pipe(onOwnBucket),
   )
 
   it.effect('a stream failing after the first part leaves no object and no upload', () =>
@@ -201,7 +205,7 @@ describeOnMiniStack('AttachmentStoreS3', (it) => {
 
       assert.strictEqual(error, broken)
       assert.deepStrictEqual(yield* listLeftovers(unknown), { objects: [], uploads: [] })
-    }).pipe(Effect.provide(AttachmentStoreOwnBucket)),
+    }).pipe(onOwnBucket),
   )
 
   it.effect('an insert interrupted after the first part leaves no object and no upload', () =>
@@ -218,7 +222,7 @@ describeOnMiniStack('AttachmentStoreS3', (it) => {
       yield* Fiber.interrupt(fiber)
 
       assert.deepStrictEqual(yield* listLeftovers(unknown), { objects: [], uploads: [] })
-    }).pipe(Effect.provide(AttachmentStoreOwnBucket)),
+    }).pipe(onOwnBucket),
   )
 
   it.effect('insert by a single put marks the object unbound, and keep clears it', () =>
@@ -231,7 +235,7 @@ describeOnMiniStack('AttachmentStoreS3', (it) => {
 
       assert.deepStrictEqual(inserted, [{ Key: 'unbound', Value: 'true' }])
       assert.deepStrictEqual(yield* readTags(id), [])
-    }).pipe(Effect.provide(AttachmentStoreOwnBucket)),
+    }).pipe(onOwnBucket),
   )
 
   it.effect('url serves the bytes inline under the percent-encoded file name', () =>
@@ -248,7 +252,7 @@ describeOnMiniStack('AttachmentStoreS3', (it) => {
         contentDisposition,
         "inline; filename*=UTF-8''%D0%BE%D1%82%D1%87%D1%91%D1%82%20%281%29.png",
       )
-    }).pipe(Effect.provide(AttachmentStoreOwnBucket)),
+    }).pipe(onOwnBucket),
   )
 
   it.effect.each([
@@ -264,6 +268,6 @@ describeOnMiniStack('AttachmentStoreS3', (it) => {
 
       const response = yield* fetchUrl(url)
       assert.strictEqual(response.status, status)
-    }).pipe(Effect.provide(AttachmentStoreOwnBucket)),
+    }).pipe(onOwnBucket),
   )
 })

@@ -24,8 +24,8 @@ import { GenerateAssistantMessage, GenerateChatTitle } from '@app-template/infra
 import {
   assertSchemaEquals,
   describeOnMiniStack,
-  idsOf,
   isUuidV7,
+  mapIds,
   sortById,
 } from '@app-template/testing'
 
@@ -191,7 +191,7 @@ describeOnMiniStack('SendMessageUseCase', (it) => {
     withChat(({ chat, sendMessage }) =>
       Effect.gen(function* () {
         const photos = [yield* upload(owner, 'a.png'), yield* upload(owner, 'b.png')]
-        const attachmentIds = idsOf(photos)
+        const attachmentIds = mapIds(photos)
 
         const { userMessage } = yield* sendMessage.send(owner, chat.id, { text: '', attachmentIds })
 

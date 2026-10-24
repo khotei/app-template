@@ -36,7 +36,7 @@ export const AwsClientsMiniStack = Layer.unwrap(
 
 /**
  * Describes a suite whose tests reach S3 and SQS on the suite's MiniStack; each test takes its
- * own stage there (`AwsConfigOwnStage`).
+ * own stage there (`layerOwnStage`).
  */
 export const describeOnMiniStack = layer(AwsClientsMiniStack, { timeout: '60 seconds' })
 
@@ -45,9 +45,7 @@ export const describeOnMiniStack = layer(AwsClientsMiniStack, { timeout: '60 sec
  * has created the resources the test uses under it: provide it per test, so its buckets and
  * queues are its own and nothing needs cleaning.
  */
-export const AwsConfigOwnStage = <E, R>(
-  provision: (stage: string) => Effect.Effect<unknown, E, R>,
-) =>
+export const layerOwnStage = <E, R>(provision: (stage: string) => Effect.Effect<unknown, E, R>) =>
   Layer.unwrap(
     Effect.gen(function* () {
       const stage = buildStage()

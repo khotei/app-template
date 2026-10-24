@@ -3,7 +3,6 @@ import { assert, it } from '@effect/vitest'
 import { Array as Arr, ConfigProvider, Effect, Layer, Option, Record as Rec, Ref } from 'effect'
 import { Cookies, HttpClient, type HttpClientResponse } from 'effect/http'
 import { OpenApi } from 'effect/http-api'
-import { SqlClient } from 'effect/sql'
 
 import { buildResourceName, resources } from '@app-template/aws'
 import { AwsConfigOwnBucket } from '@app-template/aws/testing'
@@ -41,13 +40,9 @@ export const countStoredObjects = Effect.flatMap(AwsConfig, ({ stage }) =>
   countObjects(buildResourceName(stage, resources.buckets.attachments.name)),
 )
 
-export const countStoredRows = Effect.flatMap(
-  SqlClient.SqlClient,
-  (sql) => sql<{ readonly count: number }>`select count(*)::int as count from attachments`,
-).pipe(
-  Effect.map((rows) => rows[0]?.count ?? 0),
-  Effect.orDie,
-)
+export const countStoredRows = Effect.flatMap(Db, (db) =>
+  db.query.attachments.findMany({ columns: { id: true } }),
+).pipe(Effect.map(Arr.length), Effect.orDie)
 
 const apiClientWithJar = (cookies: Cookies.Cookies) =>
   ApiClient.layer('').pipe(

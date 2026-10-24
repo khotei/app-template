@@ -159,15 +159,19 @@ as the client does, records it and starts no container.
 
 ## Tests on Docker
 
-Tests at the AWS boundary (`packages/aws/*.test.ts`, `packages/queue/queue.transport.test.ts`,
-`infrastructure/attachment/attachment.storage.test.ts`) start one MiniStack container per test
-file through `AwsClientsMiniStack` in `@app-template/testing` (`testcontainers`; S3 and SQS
-clients on that container), provision a fresh `test-<random>` stage from `buildStage()`, and stop
-the container with the suite. So `make test` needs a running Docker daemon from now on, and
-nothing else: the Pulumi project is for `make up` alone. The container starts in about two
-seconds, and the suites pass `{ timeout: '60 seconds' }` to `layer(…)` for the pull on a cold
-machine; a suite that starts no container keeps the default. Unique stages isolate parallel files
-without resets; nothing cleans a stage up, since the container goes with it.
+Tests at the AWS boundary start one MiniStack container per test file through
+`AwsClientsMiniStack` in `@app-template/testing` (`testcontainers`; S3 and SQS clients on that
+container) and stop it with the suite. `packages/aws/*.test.ts` and
+`packages/queue/queue.transport.test.ts` provision one fresh `test-<random>` stage per file from
+`buildStage()` and pass `{ timeout: '60 seconds' }` to `layer(…)`.
+`infrastructure/attachment/attachment.storage.test.ts` runs in `describeOnMiniStack` (the same
+container and timeout), and each of its tests takes a stage of its own where only the
+attachments bucket exists (`AwsConfigOwnBucket` from `@app-template/aws/testing`), so no test
+reads another's objects. So `make test` needs a running Docker daemon from now on, and nothing
+else: the Pulumi project is for `make up` alone. The container starts in about two seconds; the
+timeout covers the pull on a cold machine, and a suite that starts no container keeps the
+default. Unique stages isolate parallel files and tests without resets; nothing cleans a stage
+up, since the container goes with it.
 
 MiniStack differs from AWS in what it never does: lifecycle rules never run, the 5 MiB minimum
 part size is not enforced, and the `Tagging` sent with `CreateMultipartUpload` is dropped. What

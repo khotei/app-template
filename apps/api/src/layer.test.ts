@@ -1,4 +1,4 @@
-import { assert } from '@effect/vitest'
+import { assert, describe, it } from '@effect/vitest'
 import { Effect } from 'effect'
 
 import { describeOnMiniStack } from '@app-template/testing'
@@ -28,7 +28,9 @@ describeOnMiniStack('api routes', (it) => {
       }),
     ),
   )
+})
 
+describe('api spec', () => {
   // An endpoint may list its own errors at 400 too; the spec then joins them in one `anyOf`.
   it.effect.each(operations)(
     'the spec documents 400 RequestInvalidError on $method $path',

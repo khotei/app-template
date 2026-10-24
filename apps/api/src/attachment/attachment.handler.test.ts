@@ -1,4 +1,4 @@
-import { assert } from '@effect/vitest'
+import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Array as Arr, Effect, Option, Record as Rec, Schema, Struct } from 'effect'
 import { FetchHttpClient, HttpBody, type HttpClient } from 'effect/http'
@@ -342,7 +342,9 @@ describeOnMiniStack('attachments', (it) => {
       }),
     ),
   )
+})
 
+describe('attachments spec', () => {
   testSpecDocuments(attachmentRoutes)
 
   it.effect('the spec documents a multipart upload and a download without a body', () =>

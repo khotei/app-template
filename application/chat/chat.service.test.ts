@@ -15,8 +15,8 @@ import type { UserId } from '@app-template/domain/user'
 import {
   assertSchemaEquals,
   describeOnMiniStack,
-  idsOf,
   isUuidV7,
+  mapIds,
   sortById,
 } from '@app-template/testing'
 
@@ -99,12 +99,12 @@ describeOnMiniStack('ChatService', (it) => {
           2,
         )
         assertEquals(
-          idsOf(sortById(earlier)),
-          idsOf(sortById([first.userMessage.message, first.assistantMessage.message])),
+          mapIds(sortById(earlier)),
+          mapIds(sortById([first.userMessage.message, first.assistantMessage.message])),
         )
         assertEquals(
-          idsOf(sortById(later)),
-          idsOf(sortById([second.userMessage.message, second.assistantMessage.message])),
+          mapIds(sortById(later)),
+          mapIds(sortById([second.userMessage.message, second.assistantMessage.message])),
         )
         assertEquals(
           Rec.fromEntries(

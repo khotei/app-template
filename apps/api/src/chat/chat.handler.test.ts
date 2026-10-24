@@ -1,4 +1,4 @@
-import { assert } from '@effect/vitest'
+import { assert, describe, it } from '@effect/vitest'
 import { Array as Arr, DateTime, Effect, Option, Schema } from 'effect'
 import { HttpBody, type HttpClientError, type HttpClientResponse } from 'effect/http'
 import { TestClock } from 'effect/testing'
@@ -361,7 +361,9 @@ describeOnMiniStack('chats', (it) => {
       }),
     ),
   )
+})
 
+describe('chats spec', () => {
   it.effect("the spec narrows a summary's active stage to the running ones", () =>
     Effect.sync(() =>
       assert.deepNestedInclude(
