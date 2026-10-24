@@ -59,6 +59,6 @@ Do not wait for the method to grow: the exception is the signal.
 
 ## Tests
 
-- Test a use case at its Seam on the memory store through a `testing/` harness. The memory store
-  never yields, so a concurrency test needs the harness's yield points, and a probe that removes
-  the lock must turn it red.
+- Test a use case at its Seam on the test database through the `testing/` test layer. A
+  concurrency test forces the interleaving with a yielding fake of the port, and a probe that
+  removes the lock must turn it red.

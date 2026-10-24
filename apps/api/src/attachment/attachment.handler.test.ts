@@ -1,9 +1,7 @@
-import { assert } from '@effect/vitest'
-import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, Effect, Option, Schema } from 'effect'
+import { assert, describe, it } from '@effect/vitest'
+import { Array as Arr, Effect, Schema } from 'effect'
 import { FetchHttpClient, HttpBody, HttpClient } from 'effect/http'
 
-import { AttachmentStore } from '@app-template/domain/attachment'
 import {
   ApiClient,
   AttachmentTooLargeError,
@@ -11,7 +9,7 @@ import {
   limits,
   RequestInvalidError,
 } from '@app-template/http-api'
-import { assertSchemaEquals, describeOnMiniStack } from '@app-template/testing'
+import { assertSchemaEquals } from '@app-template/testing'
 
 import { ApiTest } from '#api/testing/api.harness'
 
@@ -91,7 +89,7 @@ const refusedUploads = [
   },
 ] as const
 
-describeOnMiniStack('attachments', (it) => {
+describe('attachments', () => {
   it.effect.each(refusedUploads)(
     'POST /attachments with $name is $status',
     ({ form, status, error }) =>
@@ -125,10 +123,9 @@ describeOnMiniStack('attachments', (it) => {
           redirect: 'manual',
         }),
       )
-      const url = yield* Effect.flatMap(AttachmentStore, (store) => store.url(uploaded.id))
 
       assert.strictEqual(response.status, 302)
-      assertEquals(Option.some(response.headers.location), Option.map(url, String))
+      assert.strictEqual(response.headers.location, `memory:attachments/${uploaded.id}`)
     }).pipe(Effect.provide(ApiTest)),
   )
 })

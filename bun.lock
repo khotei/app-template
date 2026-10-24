@@ -39,7 +39,6 @@
         "effect": "catalog:effect",
       },
       "devDependencies": {
-        "@app-template/aws": "workspace:*",
         "@app-template/queue": "workspace:*",
         "@app-template/testing": "workspace:*",
         "@effect/vitest": "catalog:effect",
@@ -117,13 +116,8 @@
     "packages/aws": {
       "name": "@app-template/aws",
       "dependencies": {
-        "@effect-aws/client-s3": "catalog:effect-aws",
         "@effect-aws/client-sqs": "catalog:effect-aws",
         "effect": "catalog:effect",
-      },
-      "devDependencies": {
-        "@app-template/config": "workspace:*",
-        "@app-template/testing": "workspace:*",
       },
     },
     "packages/config": {
@@ -157,7 +151,6 @@
       "name": "@app-template/testing",
       "dependencies": {
         "@app-template/config": "workspace:*",
-        "@effect-aws/client-s3": "catalog:effect-aws",
         "@effect-aws/client-sqs": "catalog:effect-aws",
         "@effect/sql-pg": "catalog:effect",
         "@effect/vitest": "catalog:effect",

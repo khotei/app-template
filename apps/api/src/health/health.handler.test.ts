@@ -1,12 +1,11 @@
-import { assert } from '@effect/vitest'
+import { assert, describe, it } from '@effect/vitest'
 import { Effect } from 'effect'
 
 import { ApiClient } from '@app-template/http-api'
-import { describeOnMiniStack } from '@app-template/testing'
 
 import { ApiTest } from '#api/testing/api.harness'
 
-describeOnMiniStack('health', (it) => {
+describe('health', () => {
   it.effect('GET /health is ok', () =>
     Effect.gen(function* () {
       const api = yield* ApiClient

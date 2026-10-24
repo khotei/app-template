@@ -14,7 +14,7 @@ Imports are enforced by Biome; file and symbol names are convention (Biome has n
   packages `<dir>` (`@app-template/config`), apps `{api,worker,web}`, and `deployment`.
 - A layer exposes each entity as a subpath through its barrel: `@app-template/domain/chat` →
   `domain/chat/index.ts`. `http-api` and each package have one entry, `index.ts` or `client.ts`;
-  a package may add `./testing` (`Files` below).
+  a package and `application` may add `./testing` (`Files` below).
 
 ## Imports
 
@@ -44,14 +44,15 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 | `.test` | a colocated test that mirrors its source name, or names what it checks against (`resources.test.ts`: the inventory in `packages/aws`) | any |
 | `.fixture` | sample values (ids, dates, inputs, bytes); no Effect, no layers | `testing/` |
 | `.fake` | a test implementation or wrapper of a port or service: records, yields, scripts | `testing/` |
-| `.harness` | real services over fakes and the memory store; runner, arrange steps, reads for assertions | `testing/` |
+| `.harness` | a test layer (real services over fakes, the fixtures it inserts), its arrange and read steps | `testing/` |
 | `.setup` | a vitest `globalSetup` module: run-wide resources, handed to tests through `provide` | `testing/` |
 
 `<entity>` is singular, like its folder (`user/user.http.ts`); a file with no role keeps a bare
 kebab name (`layer.ts`), and a tool's config file the name its tool reads (`drizzle.config.ts`).
-Test-support roles live only in a `testing/` folder, which no barrel or `exports` lists, save the
-`packages/testing` index and a package's `./testing` export of a test double of its own service
-(`@app-template/queue/testing`), which `packages/testing` cannot hold without an import cycle.
+Test-support roles live only in `testing/`, listed by no barrel or `exports` save: the
+`packages/testing` index; a package's `./testing` for a double or test layer of its own
+(`@app-template/queue/testing`; `packages/testing` would form an import cycle); and
+`@app-template/application/testing`, which the apps' suites compose instead of copying.
 
 ## Symbols
 
@@ -73,8 +74,9 @@ Test-support roles live only in a `testing/` folder, which no barrel or `exports
   - `select` / `insert` / `update` / `upsert` / `delete`: persistence (`selectById`); `update`
     changes an existing record and never creates one.
 - Constants are `camelCase` with `as const` for literals. A `Layer` constant for a service
-  declared elsewhere is `PascalCase` `<Service><Variant>` (`ChatRepositoryKv`); `<Entity>Kv` or
-  `<Entity>Pg` in `<entity>/index.ts` bundles the aggregate's adapters, which a process provides.
+  declared elsewhere is `PascalCase` `<Service><Variant>` (`ChatRepositoryPg`); `<Entity>Pg` in
+  `<entity>/index.ts` bundles the aggregate's adapters, which a process provides.
 - Test support: a fixed fake layer is `<Service><Variant>` (`AttachmentRepositoryYielding`); a
   stateful fake `<verb><Thing>()` returns `{ <handle>, layer }` (`recordLogs`,
-  `interleaveMessages`); a harness is `make<Entity>Harness()`, its runner `with<Entity>(body)`.
+  `interleaveMessages`); a test layer is `<Entity>Test` (`ChatTest`), `layer<Entity>Test(…)` when it
+  takes options.

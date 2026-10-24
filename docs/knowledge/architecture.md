@@ -168,8 +168,8 @@ Pascal one (`Document`).
    `HttpApiBuilder.group(Api, '<group>', …)`: it calls the use cases and services and projects
    each model onto its DTO through `apps/api/src/shared/projections.ts` (`Struct.pick`). Add it
    to `ApiRoutes`, and its services and `<Entity>Pg` to `ApiHttp` in `apps/api/src/layer.ts`; an
-   entity with an AWS adapter goes to `ApiLayer` instead, and the api harness provides it over the
-   test database and a bucket of its own.
+   entity with an AWS adapter goes to `ApiLayer` instead, and the api harness provides the memory
+   layer from `@app-template/application/testing` in its place.
    Test in `<entity>.handler.test.ts` beside it, on `apps/api/src/testing/api.harness.ts`, only
    what HTTP adds (statuses, cookies, the wire shape); the rules stay in the application suites.
 10. **Client, if the browser needs it.** `ApiClient` from `@app-template/http-api` already has

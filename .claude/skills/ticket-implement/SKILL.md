@@ -26,7 +26,9 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. G
    | the sub-agents | the `reviewer` agent, once per axis, in parallel |
 
 4. **Present** the implementer's report, then the `## Standards` and `## Spec` reports as
-   code-review aggregates them.
+   code-review aggregates them, then the fixes you recommend. Filter the findings first: a fix
+   that adds test support (a helper, a fake, a wrapper) is never forwarded as routine; offer the
+   user a plainer test instead, or the finding as a choice of its own.
 5. **Approval gate.** Wait for the user's explicit word:
    - **approve:** set the step's `Status: done` (or `blocked: <gate>` while a gate the step
      names, such as a branch, a push or a CI run, has not run yet), add its findings to `plan.md`

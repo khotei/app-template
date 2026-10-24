@@ -31,24 +31,21 @@ const stage = 'test'
 
 const maxAttempts = 3
 
-const inventory = {
-  buckets: {},
-  queues: {
-    consumed: { name: 'consumed', maxReceiveCount: maxAttempts },
-    exhausted: { name: 'exhausted', maxReceiveCount: maxAttempts },
-    heartbeat: { name: 'heartbeat', maxReceiveCount: maxAttempts },
-    released: { name: 'released', maxReceiveCount: maxAttempts },
-    interrupted: { name: 'interrupted', maxReceiveCount: maxAttempts },
-    recovered: { name: 'recovered', maxReceiveCount: maxAttempts },
-    malformed: { name: 'malformed', maxReceiveCount: maxAttempts },
-    decoding: { name: 'decoding', maxReceiveCount: maxAttempts },
-    settling: { name: 'settling', maxReceiveCount: maxAttempts },
-  },
-} as const satisfies Resources
+const queues = {
+  consumed: { name: 'consumed', maxReceiveCount: maxAttempts },
+  exhausted: { name: 'exhausted', maxReceiveCount: maxAttempts },
+  heartbeat: { name: 'heartbeat', maxReceiveCount: maxAttempts },
+  released: { name: 'released', maxReceiveCount: maxAttempts },
+  interrupted: { name: 'interrupted', maxReceiveCount: maxAttempts },
+  recovered: { name: 'recovered', maxReceiveCount: maxAttempts },
+  malformed: { name: 'malformed', maxReceiveCount: maxAttempts },
+  decoding: { name: 'decoding', maxReceiveCount: maxAttempts },
+  settling: { name: 'settling', maxReceiveCount: maxAttempts },
+} as const satisfies Resources['queues']
 
 // SQS counts visibility in whole seconds, so one second is the shortest retry delay.
 const definitions = Record.map(
-  inventory.queues,
+  queues,
   ({ name }) =>
     ({
       name,
@@ -91,7 +88,7 @@ const clientOptions = { queueName, lockExpiration, lockRefreshInterval: '500 mil
 
 const QueueClientMiniStack = QueueClient.layer(clientOptions).pipe(
   Layer.provideMerge(QueueTransport.layerSqs),
-  Layer.provide(Layer.effectDiscard(provision(inventory, stage))),
+  Layer.provide(Layer.effectDiscard(provision(queues, stage))),
   Layer.provide(AwsClientsMiniStack),
 )
 

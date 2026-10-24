@@ -1,9 +1,8 @@
-import { assert } from '@effect/vitest'
+import { assert, describe, it } from '@effect/vitest'
 import { Duration, Effect, Layer, Option } from 'effect'
 import { Cookies, type HttpClientResponse } from 'effect/http'
 
 import { ApiClient } from '@app-template/http-api'
-import { describeOnMiniStack } from '@app-template/testing'
 
 import { ApiServerTest, ApiTest, layerApiClient } from '#api/testing/api.harness'
 
@@ -16,7 +15,7 @@ const issuedCookie: Cookies.Cookie['options'] = {
 const readUserSecretCookie = (response: HttpClientResponse.HttpClientResponse) =>
   Cookies.get(response.cookies, 'user_secret')
 
-describeOnMiniStack('users', (it) => {
+describe('users', () => {
   it.effect('POST /users is 201 with an HttpOnly, Lax, one-year cookie and no Secure', () =>
     Effect.gen(function* () {
       const api = yield* ApiClient

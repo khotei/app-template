@@ -72,15 +72,13 @@ carrying its logical `name`. Physical names are `buildResourceName(stage, name)`
 | bucket `attachments` | `lifecycle.unboundExpirationDays`, `lifecycle.abortIncompleteUploadDays` | the bucket and two lifecycle rules: objects carrying `unboundTag` (`unbound=true`) expire; incomplete multipart uploads are aborted. |
 | queue `assistant-message`, `chat-title` | `maxReceiveCount` | its dead-letter queue first, named by `buildDeadLetterName` from the physical name (`app-template-<stage>-<name>-dlq`), then the queue with a `RedrivePolicy` to it. A queue definition in `infrastructure` reads its `name` and `maxAttempts` from here, so the two cannot disagree. |
 
-`make up` creates the inventory through Pulumi (`deployment/aws/storage.ts`, `queue.ts`); the tests
-create theirs with `provision` from `packages/aws`, in milliseconds and without the Pulumi CLI.
-`provision(inventory, stage)` is idempotent: an existing bucket gets its lifecycle rules re-applied,
-and `CreateQueue` on an identical queue succeeds. Two AWS behaviours shape it: a repeated
-`CreateBucket` answers by region (`us-east-1` succeeds, elsewhere `BucketAlreadyOwnedByYou`), so
-existence is read with `HeadBucket` first; and `CreateQueue` compares a repeated `RedrivePolicy` as
-a string, so its JSON is built with a fixed key order. A queue whose `maxReceiveCount` changed in
-the inventory fails with `QueueNameExists`, because SQS never updates on create; Pulumi updates the
-queue in place.
+`make up` creates the inventory through Pulumi (`deployment/aws/storage.ts`, `queue.ts`); the
+queue's suite creates its queues with `provision` from `packages/aws`, in milliseconds and without
+the Pulumi CLI. `provision(queues, stage)` creates queues only and is idempotent: `CreateQueue` on
+an identical queue succeeds. `CreateQueue` compares a repeated `RedrivePolicy` as a string, so its
+JSON is built with a fixed key order. A queue whose `maxReceiveCount` changed in the inventory
+fails with `QueueNameExists`, because SQS never updates on create; Pulumi updates the queue in
+place.
 
 ### Adding a resource
 
@@ -159,16 +157,14 @@ as the client does, records it and starts no container.
 
 ## Tests on Docker
 
-Tests at the AWS boundary start one MiniStack container per test file through
-`AwsClientsMiniStack` in `@app-template/testing` (`testcontainers`; S3 and SQS clients on that
-container) and stop it with the suite, so files never share a resource.
-`packages/queue/queue.test.ts` provisions its queues under the fixed stage `test` and passes
-`{ timeout: '60 seconds' }` to `layer(…)`. A suite in `describeOnMiniStack` (the same container and timeout) gives each test a
-stage of its own where only the attachments bucket exists (`AwsConfigOwnBucket` from
-`@app-template/aws/testing`), so no test reads another's objects. So `make test` needs a running
-Docker daemon from now on, and nothing else: the Pulumi project is for `make up` alone. The
-container starts in about two seconds; the timeout covers the pull on a cold machine, and a suite
-that starts no container keeps the default. Nothing cleans a stage up, since the container goes
+Only the queue's own suite starts MiniStack: `packages/queue/queue.test.ts` starts one container
+through `AwsClientsMiniStack` in `@app-template/testing` (`testcontainers`; an SQS client on that
+container) and stops it with the suite; it provisions its queues under the fixed stage `test`
+and passes `{ timeout: '60 seconds' }` to `layer(…)`. The application and api suites test
+our code, not S3: they provide `AttachmentStoreMemory` and `recordQueue` instead
+([tooling.md › Tests](tooling.md#tests)). So `make test` needs a running Docker daemon and nothing
+else: the Pulumi project is for `make up` alone. The container starts in about two seconds; the
+timeout covers the pull on a cold machine. Nothing cleans the stage up, since the container goes
 with it.
 
 MiniStack differs from AWS in what it never does: lifecycle rules never run, the 5 MiB minimum

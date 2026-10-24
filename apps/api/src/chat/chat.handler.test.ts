@@ -1,4 +1,4 @@
-import { assert } from '@effect/vitest'
+import { assert, describe, it } from '@effect/vitest'
 import { Effect, Schema } from 'effect'
 import { HttpClient } from 'effect/http'
 
@@ -11,7 +11,7 @@ import {
 import { UserUnknownError } from '@app-template/domain/user'
 import { ApiClient } from '@app-template/http-api'
 import { MessageRepositoryPg } from '@app-template/infrastructure/chat'
-import { assertSchemaEquals, describeOnMiniStack } from '@app-template/testing'
+import { assertSchemaEquals } from '@app-template/testing'
 
 import { ApiServerTest, ApiTest, layerApiClient } from '#api/testing/api.harness'
 
@@ -36,7 +36,7 @@ const failReply = (id: MessageId) =>
     )
   }).pipe(Effect.orDie, Effect.provide(MessageRepositoryPg))
 
-describeOnMiniStack('chats', (it) => {
+describe('chats', () => {
   it.effect('GET /chats without a cookie is 401 UserUnknownError', () =>
     Effect.gen(function* () {
       const api = yield* ApiClient
