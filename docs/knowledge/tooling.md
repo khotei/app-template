@@ -47,8 +47,8 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   `globalSetup`: every colocated `*.test.ts` runs, a new workspace needs no test config, and the
   vendored suites stay out.
 - **One Postgres per run, a database per test.** `infrastructure/db/testing/postgres.setup.ts`
-  starts one `postgres:18.6-alpine` container (about 1.2 s) and has `setupTemplateDatabase`
-  migrate a template database with the program `make migrate` runs. Each test provides
+  starts one `postgres:18.6-alpine` container (about 1.2 s) and migrates a template database in
+  it with the program `make migrate` runs. Each test provides
   `PgClientTest` from `@app-template/testing`: a fresh database copied from the template and
   dropped when the test ends, about 40 ms in all. A test therefore sees only its own rows, even
   through a query that reads a whole table, and files run in parallel. Tests need Docker and

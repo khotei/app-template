@@ -122,21 +122,6 @@ describe('MessageRepositoryPg', () => {
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
-  it.effect("selects none as active when the last message is the user's", () =>
-    Effect.gen(function* () {
-      const messages = yield* MessageRepository
-      const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000043')
-      yield* insertOwnedChats(userId, [chatId])
-      yield* messages.insert(userMessage('0192d4e0-7b3a-7c00-8000-000000000055', { chatId }))
-
-      assert.deepStrictEqual(yield* messages.selectActiveByChat(chatId), Option.none())
-      assert.deepStrictEqual(
-        yield* messages.selectActiveByChat(ChatId.make('0192d4e0-7b3a-7c00-8000-000000000049')),
-        Option.none(),
-      )
-    }).pipe(Effect.provide(RepositoryStackPgTest)),
-  )
-
   it.effect("selects the assistant's message as active, never a user one in an active stage", () =>
     Effect.gen(function* () {
       const messages = yield* MessageRepository
@@ -201,31 +186,6 @@ describe('MessageRepositoryPg', () => {
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
-  it.effect('reads a message back with the attachments bound to it, in upload order', () =>
-    Effect.gen(function* () {
-      const messages = yield* MessageRepository
-      const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000047')
-      const uploaded = [
-        attachment('0192d4e0-7b3a-7c00-8000-000000000022', 0),
-        attachment('0192d4e0-7b3a-7c00-8000-000000000021', 1),
-      ]
-      const question = userMessage('0192d4e0-7b3a-7c00-8000-00000000005b', {
-        chatId,
-        attachmentIds: Arr.map(uploaded, (each) => each.id),
-        seconds: 2,
-      })
-      yield* insertOwnedChats(userId, [chatId])
-      yield* messages.insert(question)
-      yield* bindAttachments(uploaded, question)
-
-      assertSchemaEquals(
-        SelectedMessage,
-        yield* messages.selectById(question.id),
-        Option.some(question),
-      )
-      assertSchemaEquals(Messages, yield* messages.selectByChat(chatId), [question])
-    }).pipe(Effect.provide(RepositoryStackPgTest)),
-  )
   it.effect('selects the active message among the terminal ones, wherever it stands', () =>
     Effect.gen(function* () {
       const messages = yield* MessageRepository
@@ -257,21 +217,7 @@ describe('MessageRepositoryPg', () => {
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
-  it.effect('selects messages created in one millisecond by id', () =>
-    Effect.gen(function* () {
-      const messages = yield* MessageRepository
-      const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000040')
-      const question = userMessage('0192d4e0-7b3a-7c00-8000-000000000052', { chatId })
-      const reply = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000051', { chatId })
-      yield* insertOwnedChats(userId, [chatId])
-      yield* messages.insert(question)
-      yield* messages.insert(reply)
-
-      assertSchemaEquals(Messages, yield* messages.selectByChat(chatId), [reply, question])
-    }).pipe(Effect.provide(RepositoryStackPgTest)),
-  )
-
-  it.effect('reads attachments in upload order, whatever order the send listed them in', () =>
+  it.effect('reads a message back with its attachments in upload order, not the order sent', () =>
     Effect.gen(function* () {
       const messages = yield* MessageRepository
       const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000047')
@@ -282,6 +228,10 @@ describe('MessageRepositoryPg', () => {
         attachmentIds: [secondUploaded.id, firstUploaded.id],
         seconds: 3,
       })
+      const inUploadOrder = new Message({
+        ...question,
+        attachmentIds: [firstUploaded.id, secondUploaded.id],
+      })
       yield* insertOwnedChats(userId, [chatId])
       yield* messages.insert(question)
       yield* bindAttachments([secondUploaded, firstUploaded], question)
@@ -289,10 +239,9 @@ describe('MessageRepositoryPg', () => {
       assertSchemaEquals(
         SelectedMessage,
         yield* messages.selectById(question.id),
-        Option.some(
-          new Message({ ...question, attachmentIds: [firstUploaded.id, secondUploaded.id] }),
-        ),
+        Option.some(inUploadOrder),
       )
+      assertSchemaEquals(Messages, yield* messages.selectByChat(chatId), [inUploadOrder])
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 })

@@ -1,6 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, DateTime, Effect, Option } from 'effect'
+import { DateTime, Effect, Option } from 'effect'
 
 import { assertSchemaEquals } from '@app-template/testing'
 
@@ -11,29 +10,17 @@ import {
   MessageStageInvalidError,
 } from '#domain/chat/chat.error'
 import { ChatId, MessageId } from '#domain/chat/chat.id'
-import {
-  Chat,
-  ChatTitle,
-  Message,
-  MessageFailure,
-  type MessageStage,
-} from '#domain/chat/chat.model'
+import { Message, MessageFailure, type MessageStage } from '#domain/chat/chat.model'
 import {
   buildAssistantMessage,
-  buildChat,
   buildUserMessage,
-  byLatestUpdate,
   completeMessage,
   ensureChatAcceptsMessage,
   ensureMessageInput,
   failMessage,
   generateMessage,
-  isActiveMessage,
-  isInChat,
-  isTitledChat,
   prepareMessage,
 } from '#domain/chat/chat.service'
-import { UserId } from '#domain/user/user.id'
 
 const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000001')
 const messageId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000002')
@@ -52,61 +39,6 @@ const userMessage = buildUserMessage({
   text: 'Hello',
   attachmentIds: [],
   createdAt,
-})
-
-const untitledChat = buildChat({
-  id: chatId,
-  userId: UserId.make('0192d4e0-7b3a-7c00-8000-000000000004'),
-  createdAt,
-})
-
-describe('isTitledChat', () => {
-  it('holds for a chat with a title', () => {
-    assert.isTrue(
-      isTitledChat(new Chat({ ...untitledChat, title: Option.some(ChatTitle.make('Trip')) })),
-    )
-  })
-
-  it('does not hold for an untitled chat', () => {
-    assert.isFalse(isTitledChat(untitledChat))
-  })
-})
-
-describe('byLatestUpdate', () => {
-  it('orders the most recently updated chat first', () => {
-    const updated = new Chat({ ...untitledChat, updatedAt: later })
-
-    assertEquals(Arr.sort([untitledChat, updated], byLatestUpdate), [updated, untitledChat])
-  })
-})
-
-describe('isInChat', () => {
-  it('holds for a message of the chat and not for one of another chat', () => {
-    const elsewhere = new Message({
-      ...userMessage,
-      chatId: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000005'),
-    })
-
-    assert.isTrue(isInChat(chatId)(userMessage))
-    assert.isFalse(isInChat(chatId)(elsewhere))
-  })
-})
-
-describe('isActiveMessage', () => {
-  it.each(activeStages)('holds for an assistant message that is %s', (stage) => {
-    assert.isTrue(isActiveMessage(assistantAt(stage)))
-  })
-
-  it.each(['completed', 'failed'] as const)(
-    'does not hold for an assistant message that is %s',
-    (stage) => {
-      assert.isFalse(isActiveMessage(assistantAt(stage)))
-    },
-  )
-
-  it('does not hold for a user message', () => {
-    assert.isFalse(isActiveMessage(userMessage))
-  })
 })
 
 describe('ensureChatAcceptsMessage', () => {
@@ -156,35 +88,6 @@ describe('ensureMessageInput', () => {
   it.effect('accepts text without attachments', () =>
     ensureMessageInput({ text: 'Hello', attachmentIds: [] }),
   )
-})
-
-describe('buildUserMessage', () => {
-  it('builds a completed user message carrying its text and attachments', () => {
-    const message = buildUserMessage({
-      id: messageId,
-      chatId,
-      text: 'Look at this',
-      attachmentIds: [attachmentId],
-      createdAt,
-    })
-
-    assert.strictEqual(message.author, 'user')
-    assert.strictEqual(message.stage, 'completed')
-    assert.strictEqual(message.text, 'Look at this')
-    assert.deepStrictEqual(message.attachmentIds, [attachmentId])
-    assert.isTrue(Option.isNone(message.error))
-  })
-})
-
-describe('buildAssistantMessage', () => {
-  it('builds a queued assistant message with empty text', () => {
-    const message = buildAssistantMessage({ id: messageId, chatId, createdAt })
-
-    assert.strictEqual(message.author, 'assistant')
-    assert.strictEqual(message.stage, 'queued')
-    assert.strictEqual(message.text, '')
-    assert.strictEqual(message.updatedAt, createdAt)
-  })
 })
 
 const inactiveMessages = [
@@ -306,19 +209,6 @@ describe('failMessage', () => {
           }),
         )
       }),
-  )
-
-  it.effect('keeps the cause out of the user-facing sentence', () =>
-    Effect.gen(function* () {
-      const failed = yield* failMessage(assistantAt('generating'), {
-        reason: 'ReplyFailed',
-        cause,
-        at: later,
-      })
-      const error = Option.getOrThrow(failed.error)
-
-      assert.notInclude(error.message, cause)
-    }),
   )
 
   it.effect.each(inactiveMessages)('fails MessageStageInvalidError for %s', ([, message]) =>

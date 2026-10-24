@@ -1,7 +1,6 @@
 import { PgClient } from '@effect/sql-pg'
 import { Clock, Effect, Layer, Redacted } from 'effect'
 import { inject } from 'vitest'
-import type { TestProject } from 'vitest/node'
 
 declare module 'vitest' {
   export interface ProvidedContext {
@@ -9,7 +8,8 @@ declare module 'vitest' {
   }
 }
 
-const templateDatabase = 'template'
+/** The migrated database the `globalSetup` creates; `PgClientTest` copies it for each test. */
+export const templateDatabase = 'template'
 
 const buildDatabaseUrl = (
   url: string,
@@ -25,30 +25,6 @@ const runAdmin = (url: string, statement: string) =>
   Effect.flatMap(PgClient.PgClient, (client) => client.unsafe(statement)).pipe(
     Effect.provide(PgClient.layer({ url: Redacted.make(url) })),
   )
-
-/**
- * Creates the template database on the server of `adminUrl`, migrates it, marks it a template and
- * hands `adminUrl` to `PgClientTest`: the run-wide half, for vitest's `globalSetup`.
- *
- * `migrate` must close its connections before it returns: `CREATE DATABASE … TEMPLATE` refuses a
- * template that still has a session.
- */
-export const setupTemplateDatabase = Effect.fn('setupTemplateDatabase')(function* <E>(
-  project: TestProject,
-  {
-    adminUrl,
-    migrate,
-  }: {
-    readonly adminUrl: string
-    readonly migrate: (url: Redacted.Redacted) => Effect.Effect<unknown, E>
-  },
-) {
-  yield* runAdmin(adminUrl, `CREATE DATABASE ${templateDatabase}`)
-  yield* migrate(buildDatabaseUrl(adminUrl, { database: templateDatabase }))
-  yield* runAdmin(adminUrl, `ALTER DATABASE ${templateDatabase} IS_TEMPLATE true`)
-
-  project.provide('databaseUrl', adminUrl)
-})
 
 /**
  * `@effect/sql-pg`'s pool reads `Clock` once, when built, and times its connections by it; on a

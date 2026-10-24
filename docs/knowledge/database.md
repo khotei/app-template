@@ -153,9 +153,8 @@ Each test runs on a database of its own, copied from a template that the run's s
 with the `make migrate` program ([tooling.md › Tests](tooling.md#tests)). A repository suite runs
 one body over every implementation of its port and provides the layer per test
 ([effect-tests.md](../../.claude/rules/effect-tests.md)); the facts only Postgres has (a check, a
-missing default, a transaction) sit in a suite of their own. The suites share the stacks of
-every repository and arrange the parent rows through the ports, with
-`infrastructure/testing/repository-stacks.ts`. An `.entity.test.ts` writes a model through its
-insert codec and reads it back through its row codec; it arranges the parent rows with
-`infrastructure/testing/rows.ts` and reads the `SqlError` of a refused statement with
-`flipSqlError` from `infrastructure/testing/db-test.ts`.
+partial unique index, a transaction) sit in a suite of their own. The suites share the stacks of
+every repository from `infrastructure/testing/repository-stacks.ts` and insert the parent rows
+with `insertUser` and its siblings from `infrastructure/testing/rows.ts`. An `.entity.test.ts`
+checks what the schema itself refuses (a check, a partial unique index) and reads the `SqlError`
+of a refused statement with `flipSqlError` from `infrastructure/testing/db-test.ts`.

@@ -16,7 +16,6 @@
   },
   "devDependencies": {
     "@app-template/config": "workspace:*",
-    "@app-template/testing": "workspace:*",
-    "@effect/vitest": "catalog:effect"
+    "@app-template/testing": "workspace:*"
   }
 }

@@ -6,7 +6,7 @@ import { assertSchemaEquals } from '@app-template/testing'
 import { AttachmentBoundError, AttachmentNotFoundError } from '#domain/attachment/attachment.error'
 import { AttachmentId } from '#domain/attachment/attachment.id'
 import { Attachment, FileName, FileSize, MediaType } from '#domain/attachment/attachment.model'
-import { buildAttachment, ensureBindable } from '#domain/attachment/attachment.service'
+import { buildAttachment, ensureBindable, isVisibleTo } from '#domain/attachment/attachment.service'
 import { MessageId } from '#domain/chat/chat.id'
 import { UserId } from '#domain/user/user.id'
 
@@ -22,6 +22,29 @@ const unbound = (id: string, owner: UserId = userId) =>
     size: FileSize.make(1024),
     createdAt,
   })
+
+describe('isVisibleTo', () => {
+  const owned = unbound('0192d4e0-7b3a-7c00-8000-000000000024')
+
+  it.each([
+    { now: '2026-10-18T23:59:59.999Z', visible: true },
+    { now: '2026-10-19T00:00:00.000Z', visible: false },
+  ])(
+    'shows an unbound attachment made at 2026-10-18T00:00Z at $now: $visible',
+    ({ now, visible }) => {
+      assert.strictEqual(isVisibleTo(userId, DateTime.makeUnsafe(now))(owned), visible)
+    },
+  )
+
+  it('shows a bound attachment however old it is', () => {
+    const bound = new Attachment({
+      ...owned,
+      messageId: Option.some(MessageId.make('0192d4e0-7b3a-7c00-8000-000000000031')),
+    })
+
+    assert.isTrue(isVisibleTo(userId, DateTime.makeUnsafe('2027-10-18T00:00:00.000Z'))(bound))
+  })
+})
 
 describe('ensureBindable', () => {
   const owned = unbound('0192d4e0-7b3a-7c00-8000-000000000021')

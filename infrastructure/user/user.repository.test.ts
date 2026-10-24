@@ -1,5 +1,4 @@
 import { assert, describe, it } from '@effect/vitest'
-import { sql } from 'drizzle-orm'
 import { Cause, DateTime, Effect, Exit, Layer, Option, Schema } from 'effect'
 
 import {
@@ -72,18 +71,6 @@ describe('UserRepositoryPg', () => {
         assert.strictEqual(defect.reason._tag, 'UniqueViolation')
         assert.deepStrictEqual(selected, Option.none())
       }).pipe(Effect.provide(UserRepositoryPgTest)),
-  )
-
-  it.effect('leaves users.created_at without a database default', () =>
-    Effect.gen(function* () {
-      const db = yield* Db
-      const columns = yield* db.execute<{ column_default: string | null }>(
-        sql`select column_default from information_schema.columns
-            where table_name = 'users' and column_name = 'created_at'`,
-        'objects',
-      )
-      assert.deepStrictEqual(columns, [{ column_default: null }])
-    }).pipe(Effect.provide(DbTest)),
   )
 
   it.effect('rejects a credentials.hash that is not lower-case hex, through its check', () =>

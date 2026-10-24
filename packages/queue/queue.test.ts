@@ -20,14 +20,14 @@ import {
   provision,
   type Resources,
 } from '@app-template/aws'
-import { AwsClientsMiniStack, buildStage, recordLogs } from '@app-template/testing'
+import { AwsClientsMiniStack, recordLogs } from '@app-template/testing'
 
 import { type AttemptInfo, QueueClient, type QueueDefinition, worker } from '#queue/queue'
 import { QueueError, QueueTransport } from '#queue/queue.transport'
 
 class Ping extends Schema.Class<Ping>('Ping')({ id: Schema.String, text: Schema.String }) {}
 
-const stage = buildStage()
+const stage = 'test'
 
 const maxAttempts = 3
 

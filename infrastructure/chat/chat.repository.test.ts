@@ -5,7 +5,8 @@ import { buildChat, Chat, ChatId, ChatRepository, ChatTitle } from '@app-templat
 import { UserId } from '@app-template/domain/user'
 import { assertSchemaEquals } from '@app-template/testing'
 
-import { insertOwner, RepositoryStackPgTest } from '#infrastructure/testing/repository-stacks'
+import { RepositoryStackPgTest } from '#infrastructure/testing/repository-stacks'
+import { insertUser } from '#infrastructure/testing/rows'
 
 const createdAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')
 
@@ -28,7 +29,7 @@ describe('ChatRepositoryPg', () => {
         title: Option.some(ChatTitle.make('Trip')),
         updatedAt: DateTime.makeUnsafe('2026-10-18T00:00:01.456Z'),
       })
-      yield* insertOwner(ada)
+      yield* insertUser(ada)
 
       yield* chats.insert(untitled)
       yield* chats.insert(titled)
@@ -47,7 +48,7 @@ describe('ChatRepositoryPg', () => {
         chat('0192d4e0-7b3a-7c00-8000-000000000031', ada),
         chat('0192d4e0-7b3a-7c00-8000-000000000030', ada),
       ]
-      yield* Effect.forEach([ada, bob], insertOwner)
+      yield* Effect.forEach([ada, bob], insertUser)
       yield* Effect.forEach(
         Arr.append(adas, chat('0192d4e0-7b3a-7c00-8000-000000000032', bob)),
         (each) => chats.insert(each),
@@ -65,7 +66,7 @@ describe('ChatRepositoryPg', () => {
       const cy = UserId.make('0192d4e0-7b3a-7c00-8000-000000000012')
       const kept = chat('0192d4e0-7b3a-7c00-8000-000000000033', cy)
       const deleted = chat('0192d4e0-7b3a-7c00-8000-000000000034', cy)
-      yield* insertOwner(cy)
+      yield* insertUser(cy)
       yield* chats.insert(kept)
       yield* chats.insert(deleted)
 
@@ -83,7 +84,7 @@ describe('ChatRepositoryPg', () => {
       const existing = chat('0192d4e0-7b3a-7c00-8000-000000000035', dee)
       const unknown = chat('0192d4e0-7b3a-7c00-8000-000000000036', dee)
       const renamed = new Chat({ ...existing, title: Option.some(ChatTitle.make('Trip')) })
-      yield* insertOwner(dee)
+      yield* insertUser(dee)
       yield* chats.insert(existing)
 
       yield* chats.update(renamed)

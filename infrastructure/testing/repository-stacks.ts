@@ -1,18 +1,13 @@
 import { DateTime, Effect, Layer } from 'effect'
 
 import { buildChat, type ChatId, ChatRepository } from '@app-template/domain/chat'
-import {
-  buildUser,
-  Credential,
-  SecretHash,
-  type UserId,
-  UserRepository,
-} from '@app-template/domain/user'
+import type { UserId } from '@app-template/domain/user'
 
 import { AttachmentRepositoryPg } from '#infrastructure/attachment/attachment.repository'
 import { ChatRepositoryPg } from '#infrastructure/chat/chat.repository'
 import { MessageRepositoryPg } from '#infrastructure/chat/message.repository'
 import { DbTest } from '#infrastructure/testing/db-test'
+import { insertUser } from '#infrastructure/testing/rows'
 import { UserRepositoryPg } from '#infrastructure/user/user.repository'
 
 export const RepositoryStackPgTest = Layer.mergeAll(
@@ -20,27 +15,16 @@ export const RepositoryStackPgTest = Layer.mergeAll(
   ChatRepositoryPg,
   MessageRepositoryPg,
   AttachmentRepositoryPg,
-).pipe(Layer.provide(DbTest))
-
-const parentCreatedAt = DateTime.makeUnsafe(0)
-
-/** Gives each user a credential of its own, since a credential's hash is a primary key. */
-export const insertOwner = (id: UserId) =>
-  Effect.flatMap(UserRepository, (users) =>
-    users.insert(
-      buildUser({ id, createdAt: parentCreatedAt }),
-      new Credential({ kind: 'secret', hash: SecretHash.make(id.replaceAll('-', '').repeat(2)) }),
-    ),
-  )
+).pipe(Layer.provideMerge(DbTest))
 
 export const insertOwnedChats = (userId: UserId, chatIds: ReadonlyArray<ChatId>) =>
   Effect.gen(function* () {
     const chats = yield* ChatRepository
 
-    yield* insertOwner(userId)
+    yield* insertUser(userId)
     yield* Effect.forEach(
       chatIds,
-      (id) => chats.insert(buildChat({ id, userId, createdAt: parentCreatedAt })),
+      (id) => chats.insert(buildChat({ id, userId, createdAt: DateTime.makeUnsafe(0) })),
       { discard: true },
     )
   })

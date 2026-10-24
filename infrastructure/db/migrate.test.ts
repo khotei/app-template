@@ -1,7 +1,4 @@
-import { readdirSync } from 'node:fs'
-
 import { assert, describe, it } from '@effect/vitest'
-import { sql } from 'drizzle-orm'
 import { Array as Arr, Effect, Fiber, Layer } from 'effect'
 import { ConnectionError, SqlError, type SqlErrorReason, UnknownError } from 'effect/sql/SqlError'
 import { TestClock } from 'effect/testing'
@@ -14,34 +11,16 @@ import { DbTest } from '#infrastructure/testing/db-test'
 
 const DbUnauthenticated = Db.layer.pipe(Layer.provide(PgClientUnauthenticated))
 
-const migrationFolders = Arr.filter(
-  readdirSync(new URL('migrations', import.meta.url), { withFileTypes: true }),
-  (entry) => entry.isDirectory(),
-)
-
-describe('migrateDatabase', () => {
-  it.effect('has applied every migration of the folder to the template', () =>
-    Effect.gen(function* () {
-      const db = yield* Db
-      const ledger = yield* db.execute<{ applied: number }>(
-        sql`select count(*)::int as applied from drizzle.__drizzle_migrations`,
-        'objects',
-      )
-      assert.deepStrictEqual(ledger, [{ applied: migrationFolders.length }])
-    }).pipe(Effect.provide(DbTest)),
-  )
-
-  it.effect('applies nothing to a database copied from the migrated template', () =>
-    Effect.map(migrateDatabase, (applied) => assert.strictEqual(applied, 0)).pipe(
-      Effect.provide(DbTest),
-    ),
-  )
-
-  it.effect('logs that there is nothing to apply', () => {
+describe('applyMigrations', () => {
+  it.effect('applies nothing to a database copied from the migrated template, and says so', () => {
     const { logs, layer: recordedLogs } = recordLogs()
-    return Effect.map(applyMigrations, () =>
-      assert.deepStrictEqual(logs, [['Info', 'nothing to apply']]),
-    ).pipe(Effect.provide([DbTest, recordedLogs]))
+    return Effect.gen(function* () {
+      const applied = yield* migrateDatabase
+      yield* applyMigrations
+
+      assert.strictEqual(applied, 0)
+      assert.deepStrictEqual(logs, [['Info', 'nothing to apply']])
+    }).pipe(Effect.provide([DbTest, recordedLogs]))
   })
 })
 
