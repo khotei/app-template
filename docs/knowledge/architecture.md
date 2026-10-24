@@ -108,7 +108,7 @@ Using the `chat` slice as the map:
 | service over the ports | `application/chat/chat.service.ts` | `ChatService`, `ChatService.layer` |
 | use case composing services | `application/chat/send-message.use-case.ts` | `SendMessageUseCase`, `SendMessageUseCase.layer` |
 | job: producer and worker | `application/chat/assistant-message.job.ts` | `AssistantMessageJob`, `AssistantMessageJob.worker` |
-| test support | `application/testing/chat.harness.ts` | `makeChatHarness()`, `withChat(body)` |
+| test support | `application/testing/chat.harness.ts` | `ChatTest`, `layerChatTest(chats)` |
 | contract group | `http-api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`), the DTOs `Chat`, `Message` |
 | handler | `apps/api/src/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
 | browser feature | `apps/web/src/features/health/health-panel.ts` | `renderHealthPanel(root)` |

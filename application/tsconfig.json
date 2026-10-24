@@ -8,8 +8,6 @@
   "references": [
     { "path": "../domain" },
     { "path": "../infrastructure" },
-    { "path": "../packages/aws" },
-    { "path": "../packages/config" },
     { "path": "../packages/queue" },
     { "path": "../packages/testing" }
   ]

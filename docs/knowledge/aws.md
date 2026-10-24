@@ -153,8 +153,8 @@ the apps from `QueueConfig` and `AwsConfig`: a definition's queue is
   timeout; that message returns after `QUEUE_LOCK_EXPIRATION` with an attempt spent.
 
 The queue's own suite checks those rules on MiniStack in real time. A job suite calls the job's
-`handle` with plain `AttemptInfo` values under the `TestClock`. Tests that only send (the api
-and chat harnesses) use `recordQueue` from `@app-template/queue/testing`, which encodes each job
+`handle` with plain `AttemptInfo` values; a test of a moved `updatedAt` runs on the live clock,
+and only the snapshot-timing block steps the `TestClock`. Tests that only send (the api and chat harnesses) use `recordQueue` from `@app-template/queue/testing`, which encodes each job
 as the client does, records it and starts no container.
 
 ## Tests on Docker

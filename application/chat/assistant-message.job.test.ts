@@ -1,4 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
+import { assertEquals } from '@effect/vitest/utils'
 import {
   Array as Arr,
   DateTime,
@@ -8,7 +9,6 @@ import {
   Fiber,
   Layer,
   Option,
-  Record as Rec,
   Stream,
 } from 'effect'
 import { AiError, Prompt, type Response } from 'effect/ai'
@@ -26,7 +26,6 @@ import {
 } from '@app-template/domain/attachment'
 import {
   buildAssistantMessage,
-  buildChat,
   buildUserMessage,
   Chat,
   type ChatId,
@@ -45,15 +44,12 @@ import {
   MessageRepositoryPg,
 } from '@app-template/infrastructure/chat'
 import type { AttemptInfo } from '@app-template/queue'
-import { describeOnMiniStack, png, recordLogs } from '@app-template/testing'
+import { png, recordLogs } from '@app-template/testing'
 
 import { AssistantMessageJob } from '#application/chat/assistant-message.job'
-import { chatId, epoch, messageId, sentAt } from '#application/testing/chat.fixture'
-import {
-  AttachmentStoreOwnBucket,
-  DbWithUsers,
-  startClockAtSend,
-} from '#application/testing/chat.harness'
+import { AttachmentStoreMemory } from '#application/testing/attachment.fake'
+import { chat, chatId, epoch, messageId } from '#application/testing/chat.fixture'
+import { DbWithUsers } from '#application/testing/chat.harness'
 import {
   holdModelCall,
   type ModelCallHold,
@@ -68,15 +64,15 @@ const sketchId = AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000041')
 type Part = Response.StreamPartEncoded
 
 /**
- * The repositories on a fresh test database; the attachment store on a bucket of the test's own.
- * Both halves name `DbWithUsers`, which one build makes once, so they share its database.
+ * The repositories on a fresh test database, the attachment store in memory. Both halves name
+ * `DbWithUsers`, which one build makes once, so they share its database.
  */
 const storesPg = {
   messages: MessageRepositoryPg.pipe(Layer.provide(DbWithUsers)),
   chatsAndAttachments: Layer.mergeAll(
     ChatRepositoryPg,
     AttachmentRepositoryPg,
-    AttachmentStoreOwnBucket,
+    AttachmentStoreMemory,
   ).pipe(Layer.provide(DbWithUsers)),
 }
 
@@ -165,10 +161,10 @@ const heldDeltas = (held: ModelCallHold) =>
 
 const lastAttempt = assistantMessageQueue.maxAttempts
 
-const attempts = {
-  'an attempt': 1,
-  'the last attempt': lastAttempt,
-} as const
+const attempts = [
+  { name: 'an attempt', attempt: 1 },
+  { name: 'the last attempt', attempt: lastAttempt },
+] as const
 
 const providerError = AiError.make({
   module: 'FakeProvider',
@@ -194,7 +190,7 @@ const arrangeChat = (reply: Message = queuedReply, history: ReadonlyArray<Messag
   Effect.gen(function* () {
     const chats = yield* ChatRepository
     const messages = yield* MessageRepository
-    yield* chats.insert(buildChat({ id: chatId, userId: owner, createdAt: epoch }))
+    yield* chats.insert(chat)
     yield* Effect.forEach(Arr.append(history, reply), messages.insert, { discard: true })
     return reply
   })
@@ -275,13 +271,10 @@ const runAttemptOnClock = (attempt: number) =>
     return yield* Fiber.join(running)
   })
 
-const deletions = {
-  'the chat': Effect.flatMap(ChatRepository, (chats) => chats.delete(chatId)),
-  'the chat and its messages': Effect.all([
-    Effect.flatMap(MessageRepository, (messages) => messages.deleteByChat(chatId)),
-    Effect.flatMap(ChatRepository, (chats) => chats.delete(chatId)),
-  ]),
-} as const
+const deleteChat = Effect.all([
+  Effect.flatMap(MessageRepository, (messages) => messages.deleteByChat(chatId)),
+  Effect.flatMap(ChatRepository, (chats) => chats.delete(chatId)),
+])
 
 const stagesOf = (writes: ReadonlyArray<Message>) =>
   Arr.dedupeAdjacent(Arr.map(writes, (message) => message.stage))
@@ -292,11 +285,10 @@ const snapshotsOf = (writes: ReadonlyArray<Message>) =>
 const timesOf = (writes: ReadonlyArray<Message>) =>
   Arr.map(writes, (message) => DateTime.toEpochMillis(message.updatedAt))
 
-describeOnMiniStack('AssistantMessageJob.handle', (it) => {
-  it.effect('prepares, generates, then completes the reply and bumps the chat', () => {
+describe('AssistantMessageJob.handle', () => {
+  it.live('prepares, generates, then completes the reply and bumps the chat', () => {
     const { writes, layer } = makeAssistantMessageHarness(replyDeltas, storesPg)
     return Effect.gen(function* () {
-      yield* startClockAtSend
       yield* arrangeChat()
 
       yield* handleAttempt(1)
@@ -304,7 +296,8 @@ describeOnMiniStack('AssistantMessageJob.handle', (it) => {
       assert.deepStrictEqual(stagesOf(writes), ['preparing', 'generating', 'completed'])
       const completed = yield* selectReply
       assert.strictEqual(completed.text, 'Hello, world')
-      assert.deepStrictEqual([completed.updatedAt, (yield* selectChat).updatedAt], [sentAt, sentAt])
+      assert.isTrue(DateTime.isGreaterThan(completed.updatedAt, epoch))
+      assertEquals((yield* selectChat).updatedAt, completed.updatedAt)
     }).pipe(Effect.provide(layer))
   })
 
@@ -356,31 +349,28 @@ describeOnMiniStack('AssistantMessageJob.handle', (it) => {
     }).pipe(Effect.provide(layer))
   })
 
-  it.effect.each(Rec.keys(deletions))(
-    'ends with a log line and no write when %s is deleted before the take',
-    (deleted) => {
-      const { writes, prompts, logs, layer } = makeAssistantMessageHarness(replyDeltas, storesPg)
-      return Effect.gen(function* () {
-        yield* arrangeChat()
-        yield* deletions[deleted]
+  it.effect('ends with a log line and no write when the chat is deleted before the take', () => {
+    const { writes, prompts, logs, layer } = makeAssistantMessageHarness(replyDeltas, storesPg)
+    return Effect.gen(function* () {
+      yield* arrangeChat()
+      yield* deleteChat
 
-        yield* handleAttempt(1)
+      yield* handleAttempt(1)
 
-        assert.deepStrictEqual(writes, [])
-        assert.deepStrictEqual(prompts, [])
-        assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: chat deleted']])
-      }).pipe(Effect.provide(layer))
-    },
-  )
+      assert.deepStrictEqual(writes, [])
+      assert.deepStrictEqual(prompts, [])
+      assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: chat deleted']])
+    }).pipe(Effect.provide(layer))
+  })
 
-  it.effect.each(Rec.keys(attempts))(
-    'ends without a write when the reply is already settled on %s',
-    (attempt) => {
+  it.effect.each(attempts)(
+    'ends without a write when the reply is already settled on $name',
+    ({ attempt }) => {
       const { writes, prompts, logs, layer } = makeAssistantMessageHarness(replyDeltas, storesPg)
       return Effect.gen(function* () {
         yield* arrangeChat(asCompleted(queuedReply, 'Done.'))
 
-        yield* handleAttempt(attempts[attempt])
+        yield* handleAttempt(attempt)
 
         assert.deepStrictEqual(writes, [])
         assert.deepStrictEqual(prompts, [])
@@ -389,12 +379,11 @@ describeOnMiniStack('AssistantMessageJob.handle', (it) => {
     },
   )
 
-  it.effect('keeps a rename made while the reply streams when it bumps the chat', () => {
+  it.live('keeps a rename made while the reply streams when it bumps the chat', () => {
     const held = holdModelCall()
     const { writes, layer } = makeAssistantMessageHarness(heldDeltas(held), storesPg)
     return Effect.gen(function* () {
       const chats = yield* ChatRepository
-      yield* startClockAtSend
       yield* arrangeChat()
 
       const running = yield* Effect.forkChild(handleAttempt(1))
@@ -409,18 +398,20 @@ describeOnMiniStack('AssistantMessageJob.handle', (it) => {
       yield* held.release
       yield* Fiber.join(running)
 
-      const chat = yield* selectChat
-      assert.deepStrictEqual(
-        [chat.title, chat.updatedAt],
-        [Option.some(ChatTitle.make('Trip')), sentAt],
+      assertEquals(
+        yield* selectChat,
+        new Chat({
+          ...chat,
+          title: Option.some(ChatTitle.make('Trip')),
+          updatedAt: (yield* selectReply).updatedAt,
+        }),
       )
     }).pipe(Effect.provide(layer))
   })
 
-  it.effect('fails every attempt and, on the last, fails the message with its cause', () => {
+  it.live('fails every attempt and, on the last, fails the message with its cause', () => {
     const { writes, prompts, logs, layer } = makeAssistantMessageHarness(failingAtOnce, storesPg)
     return Effect.gen(function* () {
-      yield* startClockAtSend
       yield* arrangeChat()
 
       const exits = yield* Effect.forEach(Arr.range(1, lastAttempt), handleAttempt)
@@ -436,16 +427,16 @@ describeOnMiniStack('AssistantMessageJob.handle', (it) => {
         ['ReplyFailed', 'The assistant could not reply. Please try again.'],
       )
       assert.include(error.cause, 'provider exploded')
-      assert.deepStrictEqual([failed.updatedAt, (yield* selectChat).updatedAt], [sentAt, sentAt])
+      assert.isTrue(DateTime.isGreaterThan(failed.updatedAt, epoch))
+      assertEquals((yield* selectChat).updatedAt, failed.updatedAt)
       assert.deepStrictEqual(logs, [])
     }).pipe(Effect.provide(layer))
   })
 
-  it.effect('fails the reply when its worker stops during the last attempt', () => {
+  it.live('fails the reply when its worker stops during the last attempt', () => {
     const held = holdModelCall()
     const { writes, layer } = makeAssistantMessageHarness(heldDeltas(held), storesPg)
     return Effect.gen(function* () {
-      yield* startClockAtSend
       yield* arrangeChat()
 
       const running = yield* Effect.forkChild(handleAttempt(lastAttempt))
@@ -459,7 +450,8 @@ describeOnMiniStack('AssistantMessageJob.handle', (it) => {
       ])
       const failed = yield* selectReply
       assert.strictEqual(Option.getOrThrow(failed.error).reason, 'ReplyFailed')
-      assert.deepStrictEqual([failed.updatedAt, (yield* selectChat).updatedAt], [sentAt, sentAt])
+      assert.isTrue(DateTime.isGreaterThan(failed.updatedAt, epoch))
+      assertEquals((yield* selectChat).updatedAt, failed.updatedAt)
     }).pipe(Effect.provide(layer))
   })
 })

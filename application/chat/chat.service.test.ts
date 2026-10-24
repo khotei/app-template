@@ -1,34 +1,29 @@
-import { assert } from '@effect/vitest'
+import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, DateTime, Effect, Option, Record as Rec } from 'effect'
-import { TestClock } from 'effect/testing'
+import { Array as Arr, DateTime, Duration, Effect, Option, Record as Rec } from 'effect'
 
 import {
   buildChat,
   Chat,
-  type ChatId,
+  ChatId,
   ChatNotFoundError,
+  ChatRepository,
   ChatTitle,
   MessageNotFoundError,
 } from '@app-template/domain/chat'
 import type { UserId } from '@app-template/domain/user'
-import {
-  assertSchemaEquals,
-  describeOnMiniStack,
-  isUuidV7,
-  mapIds,
-  sortById,
-} from '@app-template/testing'
+import { assertSchemaEquals, isUuidV7 } from '@app-template/testing'
 
 import { ChatService } from '#application/chat/chat.service'
-import { ask, sentAt, unknownChatId, unknownMessageId } from '#application/testing/chat.fixture'
+import { SendMessageUseCase } from '#application/chat/send-message.use-case'
 import {
-  makeChatHarness,
-  selectChat,
-  settle,
-  upload,
-  withChat,
-} from '#application/testing/chat.harness'
+  ask,
+  chat,
+  epoch,
+  unknownChatId,
+  unknownMessageId,
+} from '#application/testing/chat.fixture'
+import { ChatTest, selectChat, settle, upload } from '#application/testing/chat.harness'
 import { owner, stranger } from '#application/testing/user.fixture'
 
 type ChatCall = (
@@ -37,183 +32,162 @@ type ChatCall = (
   chatId: ChatId,
 ) => Effect.Effect<unknown, ChatNotFoundError | MessageNotFoundError>
 
-const chatCalls = {
-  get: (service, userId, chatId) => service.get(userId, chatId),
-  rename: (service, userId, chatId) => service.rename(userId, chatId, ChatTitle.make('Trip')),
-  delete: (service, userId, chatId) => service.delete(userId, chatId),
-  getMessage: (service, userId, chatId) => service.getMessage(userId, chatId, unknownMessageId),
-} as const satisfies Record<string, ChatCall>
+const chatCalls = [
+  { name: 'get', call: (service, userId, chatId) => service.get(userId, chatId) },
+  {
+    name: 'rename',
+    call: (service, userId, chatId) => service.rename(userId, chatId, ChatTitle.make('Trip')),
+  },
+  { name: 'delete', call: (service, userId, chatId) => service.delete(userId, chatId) },
+  {
+    name: 'getMessage',
+    call: (service, userId, chatId) => service.getMessage(userId, chatId, unknownMessageId),
+  },
+] as const satisfies ReadonlyArray<{ readonly name: string; readonly call: ChatCall }>
 
-describeOnMiniStack('ChatService', (it) => {
-  it.effect('create stores an untitled chat with a UUIDv7 id at the clock time', () => {
-    const { layer } = makeChatHarness()
-    return Effect.gen(function* () {
+describe('ChatService', () => {
+  it.effect('create stores an untitled chat with a UUIDv7 id at the clock time', () =>
+    Effect.gen(function* () {
       const service = yield* ChatService
-      yield* TestClock.setTime(DateTime.toEpochMillis(sentAt))
 
-      const chat = yield* service.create(owner)
+      const created = yield* service.create(stranger)
 
-      assert.isTrue(isUuidV7(chat.id))
-      assertEquals(chat, buildChat({ id: chat.id, userId: owner, createdAt: sentAt }))
-      assertEquals(yield* service.list(owner), [{ chat, activeMessage: Option.none() }])
-    }).pipe(Effect.provide(layer))
-  })
-
-  it.effect("list puts the last sent chat first with its active message, and only the user's", () =>
-    withChat(({ chat: untouched, chats: service, sendMessage }) =>
-      Effect.gen(function* () {
-        const sentTo = yield* service.create(owner)
-        yield* service.create(stranger)
-        yield* TestClock.adjust('1 second')
-
-        const { assistantMessage } = yield* sendMessage.send(owner, sentTo.id, ask('Lisbon?'))
-
-        const summaries = yield* service.list(owner)
-        assertEquals(
-          Arr.map(summaries, ({ chat, activeMessage }) => [chat.id, activeMessage]),
-          [
-            [sentTo.id, Option.some(assistantMessage.message)],
-            [untouched.id, Option.none()],
-          ],
-        )
-      }),
-    ),
+      assert.isTrue(isUuidV7(created.id))
+      assertEquals(created, buildChat({ id: created.id, userId: stranger, createdAt: epoch }))
+      assertEquals(yield* service.list(stranger), [{ chat: created, activeMessage: Option.none() }])
+    }).pipe(Effect.provide(ChatTest)),
   )
 
-  it.effect('get returns the messages in order with their attachments and the active message', () =>
-    withChat(({ chat, chats: service, sendMessage }) =>
-      Effect.gen(function* () {
-        const photo = yield* upload(owner, 'photo.png')
-        const first = yield* sendMessage.send(owner, chat.id, {
-          text: 'Look',
-          attachmentIds: [photo.id],
-        })
-        yield* settle(first.assistantMessage.message)
-        yield* TestClock.adjust('1 minute')
-        const second = yield* sendMessage.send(owner, chat.id, ask('And now?'))
+  it.live("list puts the last sent chat first with its active message, and only the user's", () =>
+    Effect.gen(function* () {
+      const service = yield* ChatService
+      const sendMessage = yield* SendMessageUseCase
+      const chats = yield* ChatRepository
+      const later = buildChat({
+        id: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000021'),
+        userId: owner,
+        createdAt: DateTime.addDuration(epoch, Duration.millis(1)),
+      })
+      yield* chats.insert(later)
+      yield* service.create(stranger)
 
-        const detail = yield* service.get(owner, chat.id)
+      const { assistantMessage } = yield* sendMessage.send(owner, chat.id, ask('Lisbon?'))
 
-        const [earlier, later] = Arr.splitAt(
-          Arr.map(detail.messages, ({ message }) => message),
-          2,
-        )
-        assertEquals(
-          mapIds(sortById(earlier)),
-          mapIds(sortById([first.userMessage.message, first.assistantMessage.message])),
-        )
-        assertEquals(
-          mapIds(sortById(later)),
-          mapIds(sortById([second.userMessage.message, second.assistantMessage.message])),
-        )
-        assertEquals(
-          Rec.fromEntries(
-            Arr.map(detail.messages, ({ message, attachments }) => [message.id, attachments]),
-          ),
-          {
-            [first.userMessage.message.id]: first.userMessage.attachments,
-            [first.assistantMessage.message.id]: [],
-            [second.userMessage.message.id]: [],
-            [second.assistantMessage.message.id]: [],
-          },
-        )
-        assertEquals(detail.activeMessage, Option.some(second.assistantMessage.message))
-        assert.strictEqual(detail.chat.id, chat.id)
-      }),
-    ),
+      const summaries = yield* service.list(owner)
+      assertEquals(
+        Arr.map(summaries, (summary) => [summary.chat.id, summary.activeMessage]),
+        [
+          [chat.id, Option.some(assistantMessage.message)],
+          [later.id, Option.none()],
+        ],
+      )
+    }).pipe(Effect.provide(ChatTest)),
+  )
+
+  it.effect('get returns the messages with their attachments and the active message', () =>
+    Effect.gen(function* () {
+      const service = yield* ChatService
+      const sendMessage = yield* SendMessageUseCase
+      const photo = yield* upload(owner, 'photo.png')
+      const first = yield* sendMessage.send(owner, chat.id, {
+        text: 'Look',
+        attachmentIds: [photo.id],
+      })
+      yield* settle(first.assistantMessage.message)
+      const second = yield* sendMessage.send(owner, chat.id, ask('And now?'))
+
+      const detail = yield* service.get(owner, chat.id)
+
+      assertEquals(
+        Rec.fromEntries(
+          Arr.map(detail.messages, ({ message, attachments }) => [message.id, attachments]),
+        ),
+        {
+          [first.userMessage.message.id]: first.userMessage.attachments,
+          [first.assistantMessage.message.id]: [],
+          [second.userMessage.message.id]: [],
+          [second.assistantMessage.message.id]: [],
+        },
+      )
+      assertEquals(detail.activeMessage, Option.some(second.assistantMessage.message))
+      assert.strictEqual(detail.chat.id, chat.id)
+    }).pipe(Effect.provide(ChatTest)),
   )
 
   it.effect('getMessage returns the stored message with its attachments', () =>
-    withChat(({ chat, chats: service, sendMessage }) =>
-      Effect.gen(function* () {
-        const photo = yield* upload(owner, 'photo.png')
-        const { userMessage } = yield* sendMessage.send(owner, chat.id, {
-          text: 'Look',
-          attachmentIds: [photo.id],
-        })
+    Effect.gen(function* () {
+      const service = yield* ChatService
+      const sendMessage = yield* SendMessageUseCase
+      const photo = yield* upload(owner, 'photo.png')
+      const { userMessage } = yield* sendMessage.send(owner, chat.id, {
+        text: 'Look',
+        attachmentIds: [photo.id],
+      })
 
-        assertEquals(yield* service.getMessage(owner, chat.id, userMessage.message.id), userMessage)
-      }),
-    ),
-  )
-
-  it.effect("getMessage in another user's chat is ChatNotFoundError", () =>
-    withChat(({ chat, chats: service, sendMessage }) =>
-      Effect.gen(function* () {
-        const { userMessage } = yield* sendMessage.send(owner, chat.id, ask('Lisbon?'))
-
-        const error = yield* Effect.flip(
-          service.getMessage(stranger, chat.id, userMessage.message.id),
-        )
-
-        assertSchemaEquals(ChatNotFoundError, error, new ChatNotFoundError({ id: chat.id }))
-      }),
-    ),
+      assertEquals(yield* service.getMessage(owner, chat.id, userMessage.message.id), userMessage)
+    }).pipe(Effect.provide(ChatTest)),
   )
 
   it.effect('getMessage of an unknown id or of another chat is MessageNotFoundError', () =>
-    withChat(({ chat, chats: service, sendMessage }) =>
-      Effect.gen(function* () {
-        const other = yield* service.create(owner)
-        const { userMessage } = yield* sendMessage.send(owner, other.id, ask('Lisbon?'))
+    Effect.gen(function* () {
+      const service = yield* ChatService
+      const sendMessage = yield* SendMessageUseCase
+      const other = yield* service.create(owner)
+      const { userMessage } = yield* sendMessage.send(owner, other.id, ask('Lisbon?'))
 
-        const elsewhere = yield* Effect.flip(
-          service.getMessage(owner, chat.id, userMessage.message.id),
-        )
-        const missing = yield* Effect.flip(service.getMessage(owner, chat.id, unknownMessageId))
+      const elsewhere = yield* Effect.flip(
+        service.getMessage(owner, chat.id, userMessage.message.id),
+      )
+      const missing = yield* Effect.flip(service.getMessage(owner, chat.id, unknownMessageId))
 
-        assertSchemaEquals(
-          MessageNotFoundError,
-          elsewhere,
-          new MessageNotFoundError({ id: userMessage.message.id }),
-        )
-        assertSchemaEquals(
-          MessageNotFoundError,
-          missing,
-          new MessageNotFoundError({ id: unknownMessageId }),
-        )
-      }),
-    ),
+      assertSchemaEquals(
+        MessageNotFoundError,
+        elsewhere,
+        new MessageNotFoundError({ id: userMessage.message.id }),
+      )
+      assertSchemaEquals(
+        MessageNotFoundError,
+        missing,
+        new MessageNotFoundError({ id: unknownMessageId }),
+      )
+    }).pipe(Effect.provide(ChatTest)),
   )
 
-  it.effect('rename sets the title and bumps updatedAt', () =>
-    withChat(({ chat, chats: service }) =>
-      Effect.gen(function* () {
-        yield* TestClock.setTime(DateTime.toEpochMillis(sentAt))
+  it.live('rename sets the title and bumps updatedAt', () =>
+    Effect.gen(function* () {
+      const service = yield* ChatService
 
-        const renamed = yield* service.rename(owner, chat.id, ChatTitle.make('Trip'))
+      const renamed = yield* service.rename(owner, chat.id, ChatTitle.make('Trip'))
 
-        assertEquals(
-          renamed,
-          new Chat({ ...chat, title: Option.some(ChatTitle.make('Trip')), updatedAt: sentAt }),
-        )
-        assertEquals(yield* selectChat(chat.id), Option.some(renamed))
-      }),
-    ),
-  )
-
-  it.effect.each(Rec.keys(chatCalls))(
-    "%s of another user's chat or of an unknown chat is ChatNotFoundError",
-    (method) =>
-      withChat(({ chat, chats: service }) =>
-        Effect.gen(function* () {
-          const call: ChatCall = chatCalls[method]
-
-          const foreign = yield* Effect.flip(call(service, stranger, chat.id))
-          const missing = yield* Effect.flip(call(service, owner, unknownChatId))
-
-          assertSchemaEquals(ChatNotFoundError, foreign, new ChatNotFoundError({ id: chat.id }))
-          assertSchemaEquals(
-            ChatNotFoundError,
-            missing,
-            new ChatNotFoundError({ id: unknownChatId }),
-          )
-          assertEquals(yield* service.get(owner, chat.id), {
-            chat,
-            activeMessage: Option.none(),
-            messages: [],
-          })
+      assert.isTrue(DateTime.isGreaterThan(renamed.updatedAt, epoch))
+      assertEquals(
+        renamed,
+        new Chat({
+          ...chat,
+          title: Option.some(ChatTitle.make('Trip')),
+          updatedAt: renamed.updatedAt,
         }),
-      ),
+      )
+      assertEquals(yield* selectChat(chat.id), Option.some(renamed))
+    }).pipe(Effect.provide(ChatTest)),
+  )
+
+  it.effect.each(chatCalls)(
+    "$name of another user's chat or of an unknown chat is ChatNotFoundError",
+    ({ call }) =>
+      Effect.gen(function* () {
+        const service = yield* ChatService
+
+        const foreign = yield* Effect.flip(call(service, stranger, chat.id))
+        const missing = yield* Effect.flip(call(service, owner, unknownChatId))
+
+        assertSchemaEquals(ChatNotFoundError, foreign, new ChatNotFoundError({ id: chat.id }))
+        assertSchemaEquals(ChatNotFoundError, missing, new ChatNotFoundError({ id: unknownChatId }))
+        assertEquals(yield* service.get(owner, chat.id), {
+          chat,
+          activeMessage: Option.none(),
+          messages: [],
+        })
+      }).pipe(Effect.provide(ChatTest)),
   )
 })

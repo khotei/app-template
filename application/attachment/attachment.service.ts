@@ -197,6 +197,7 @@ export class AttachmentService extends Context.Service<
         (attachment) => new Attachment({ ...attachment, messageId: Option.some(messageId) }),
       )
 
+      // Keep first: unbound bytes expire, so a crash must never leave a bound row over them.
       yield* Effect.forEach(bound, (attachment) => store.keep(attachment.id), { discard: true })
       yield* Effect.forEach(bound, attachments.update, { discard: true })
       return bound

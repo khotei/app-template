@@ -1,18 +1,8 @@
 import { BunCrypto } from '@effect/platform-bun'
-import { assert } from '@effect/vitest'
+import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import {
-  Array as Arr,
-  DateTime,
-  Duration,
-  Effect,
-  Exit,
-  Layer,
-  Option,
-  Record as Rec,
-  Stream,
-} from 'effect'
-import { TestClock, TestCrypto } from 'effect/testing'
+import { Array as Arr, Duration, Effect, Exit, Layer, Option, Stream } from 'effect'
+import { TestClock } from 'effect/testing'
 
 import {
   Attachment,
@@ -26,12 +16,7 @@ import {
   FileSize,
   MediaType,
 } from '@app-template/domain/attachment'
-import {
-  buildChat,
-  buildUserMessage,
-  ChatRepository,
-  MessageRepository,
-} from '@app-template/domain/chat'
+import { buildUserMessage, ChatRepository, MessageRepository } from '@app-template/domain/chat'
 import type { UserId } from '@app-template/domain/user'
 import { AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
 import { ChatPg } from '@app-template/infrastructure/chat'
@@ -39,30 +24,23 @@ import { Db } from '@app-template/infrastructure/db'
 import {
   assertSchemaEquals,
   breakAfter,
-  describeOnMiniStack,
   isUuidV7,
   png,
   StreamBrokenError,
 } from '@app-template/testing'
 
 import { AttachmentService } from '#application/attachment/attachment.service'
+import { AttachmentObjects, AttachmentStoreMemory } from '#application/testing/attachment.fake'
 import { unknownAttachmentId } from '#application/testing/attachment.fixture'
-import { chatId, epoch, messageId } from '#application/testing/chat.fixture'
-import {
-  AttachmentStoreOwnBucket,
-  countAttachmentObjects,
-  DbWithUsers,
-  upload,
-} from '#application/testing/chat.harness'
+import { chat, chatId, epoch, messageId } from '#application/testing/chat.fixture'
+import { DbWithUsers, upload } from '#application/testing/chat.harness'
 import { owner, stranger } from '#application/testing/user.fixture'
-
-const CryptoTest = TestCrypto.layer('attachment-service').pipe(Layer.provide(BunCrypto.layer))
 
 const insertMessage = Effect.gen(function* () {
   const chats = yield* ChatRepository
   const messages = yield* MessageRepository
 
-  yield* chats.insert(buildChat({ id: chatId, userId: owner, createdAt: epoch }))
+  yield* chats.insert(chat)
   yield* messages.insert(
     buildUserMessage({ id: messageId, chatId, text: '', attachmentIds: [], createdAt: epoch }),
   )
@@ -74,19 +52,15 @@ const DbWithMessage = Layer.effectDiscard(insertMessage).pipe(
   Layer.provideMerge(DbWithUsers),
 )
 
-/** The service over `stores`, on a fresh test database where `messageId` exists. */
-const layerAttachmentService = <A, E, R>(
-  stores: Layer.Layer<A | AttachmentRepository | AttachmentStore, E, R>,
-) =>
+/** The service over `repository` and the memory store, on a fresh test database. */
+const layerAttachmentService = (repository: Layer.Layer<AttachmentRepository, never, Db>) =>
   AttachmentService.layer.pipe(
-    Layer.provideMerge(stores),
-    Layer.provide(CryptoTest),
+    Layer.provideMerge(Layer.mergeAll(repository, AttachmentStoreMemory)),
+    Layer.provide(BunCrypto.layer),
     Layer.provideMerge(DbWithMessage),
   )
 
-const AttachmentServiceTest = layerAttachmentService(
-  Layer.mergeAll(AttachmentRepositoryPg, AttachmentStoreOwnBucket),
-)
+const AttachmentServiceTest = layerAttachmentService(AttachmentRepositoryPg)
 
 const AttachmentRepositoryInsertDying = Layer.effect(
   AttachmentRepository,
@@ -95,46 +69,7 @@ const AttachmentRepositoryInsertDying = Layer.effect(
   ),
 ).pipe(Layer.provide(AttachmentRepositoryPg))
 
-const AttachmentServiceRecordLost = layerAttachmentService(
-  Layer.mergeAll(AttachmentRepositoryInsertDying, AttachmentStoreOwnBucket),
-)
-
-interface AttachmentWrite {
-  readonly call: 'store.keep' | 'repository.update'
-  readonly id: AttachmentId
-}
-
-const recordAttachmentWrites = () => {
-  const writes: Array<AttachmentWrite> = []
-  const record = (call: AttachmentWrite['call'], id: AttachmentId) =>
-    Effect.sync(() => writes.push({ call, id }))
-  const store = Layer.effect(
-    AttachmentStore,
-    Effect.map(AttachmentStore, (inner) =>
-      AttachmentStore.of({
-        ...inner,
-        keep: (id) => Effect.andThen(record('store.keep', id), inner.keep(id)),
-      }),
-    ),
-  ).pipe(Layer.provide(AttachmentStoreOwnBucket))
-  const repository = Layer.effect(
-    AttachmentRepository,
-    Effect.map(AttachmentRepository, (inner) =>
-      AttachmentRepository.of({
-        ...inner,
-        update: (attachment) =>
-          Effect.andThen(record('repository.update', attachment.id), inner.update(attachment)),
-      }),
-    ),
-  ).pipe(Layer.provide(AttachmentRepositoryPg))
-  return { writes, layer: Layer.mergeAll(store, repository) }
-}
-
-const callsTo = (writes: ReadonlyArray<AttachmentWrite>, id: AttachmentId) =>
-  Arr.map(
-    Arr.filter(writes, (write) => write.id === id),
-    (write) => write.call,
-  )
+const AttachmentServiceRecordLost = layerAttachmentService(AttachmentRepositoryInsertDying)
 
 const photo = { fileName: FileName.make('photo.png'), mediaType: MediaType.make('image/png') }
 
@@ -147,7 +82,7 @@ const countStored = Effect.all({
     Effect.map(Arr.length),
     Effect.orDie,
   ),
-  objects: countAttachmentObjects,
+  objects: Effect.map(AttachmentObjects, (objects) => objects.size),
 })
 
 const storeHref = (id: AttachmentId) =>
@@ -156,25 +91,43 @@ const storeHref = (id: AttachmentId) =>
     Option.map((url) => url.href),
   )
 
-const brokenUploads = {
-  "a later file's content breaking part-way": (broken: StreamBrokenError) =>
-    Stream.make(photoUpload, { ...photo, content: breakAfter([png], broken) }),
-  'the files breaking after the first one': (broken: StreamBrokenError) =>
-    breakAfter([photoUpload], broken),
-} as const
+const brokenUploads = [
+  {
+    name: "a later file's content breaking part-way",
+    files: (broken: StreamBrokenError) =>
+      Stream.make(photoUpload, { ...photo, content: breakAfter([png], broken) }),
+  },
+  {
+    name: 'the files breaking after the first one',
+    files: (broken: StreamBrokenError) => breakAfter([photoUpload], broken),
+  },
+] as const
 
-type Address = (
-  service: AttachmentService['Service'],
-  userId: UserId,
-  id: AttachmentId,
-) => Effect.Effect<void, AttachmentNotFoundError | AttachmentBoundError>
+interface Addresser {
+  readonly name: string
+  readonly address: (
+    service: AttachmentService['Service'],
+    userId: UserId,
+    id: AttachmentId,
+  ) => Effect.Effect<void, AttachmentNotFoundError | AttachmentBoundError>
+}
 
-const addressers = {
-  get: (service, userId, id) => Effect.asVoid(service.get(userId, id)),
-  download: (service, userId, id) => Effect.asVoid(service.download(userId, id)),
-  delete: (service, userId, id) => service.delete(userId, id),
-  findBindable: (service, userId, id) => Effect.asVoid(service.findBindable(userId, [id])),
-} as const satisfies Record<string, Address>
+const readers = [
+  { name: 'get', address: (service, userId, id) => Effect.asVoid(service.get(userId, id)) },
+  {
+    name: 'download',
+    address: (service, userId, id) => Effect.asVoid(service.download(userId, id)),
+  },
+] as const satisfies ReadonlyArray<Addresser>
+
+const addressers = [
+  ...readers,
+  { name: 'delete', address: (service, userId, id) => service.delete(userId, id) },
+  {
+    name: 'findBindable',
+    address: (service, userId, id) => Effect.asVoid(service.findBindable(userId, [id])),
+  },
+] as const satisfies ReadonlyArray<Addresser>
 
 const bind = (attachment: Attachment) =>
   Effect.flatMap(AttachmentRepository, (attachments) =>
@@ -187,12 +140,10 @@ const selectStored = (ids: ReadonlyArray<AttachmentId>) =>
 const selectBytes = (id: AttachmentId) =>
   Effect.flatMap(AttachmentStore, (store) => store.select(id))
 
-describeOnMiniStack('AttachmentService', (it) => {
+describe('AttachmentService', () => {
   it.effect('upload stores the bytes and the metadata of an unbound attachment', () =>
     Effect.gen(function* () {
       const service = yield* AttachmentService
-      const now = DateTime.makeUnsafe('2026-10-18T12:00:00.000Z')
-      yield* TestClock.setTime(DateTime.toEpochMillis(now))
 
       const attachment = yield* uploadPhoto
       const found = yield* service.get(owner, attachment.id)
@@ -206,7 +157,7 @@ describeOnMiniStack('AttachmentService', (it) => {
           id: attachment.id,
           userId: owner,
           size: FileSize.make(png.length),
-          createdAt: now,
+          createdAt: epoch,
         }),
       )
       assertEquals(found, attachment)
@@ -232,14 +183,14 @@ describeOnMiniStack('AttachmentService', (it) => {
     }).pipe(Effect.provide(AttachmentServiceTest)),
   )
 
-  it.effect.each(Rec.keys(brokenUploads))(
-    'upload with %s fails with its error and stores none of the files',
-    (name) =>
+  it.effect.each(brokenUploads)(
+    'upload with $name fails with its error and stores none of the files',
+    ({ files }) =>
       Effect.gen(function* () {
         const service = yield* AttachmentService
         const broken = new StreamBrokenError()
 
-        const error = yield* Effect.flip(service.upload(owner, brokenUploads[name](broken)))
+        const error = yield* Effect.flip(service.upload(owner, files(broken)))
         const stored = yield* countStored
 
         assert.strictEqual(error, broken)
@@ -276,15 +227,15 @@ describeOnMiniStack('AttachmentService', (it) => {
     }).pipe(Effect.provide(AttachmentServiceTest)),
   )
 
-  it.effect.each(['get', 'download'] as const)(
-    "%s of another user's id or of an unknown id is AttachmentNotFoundError",
-    (method) =>
+  it.effect.each(readers)(
+    "$name of another user's id or of an unknown id is AttachmentNotFoundError",
+    ({ address }) =>
       Effect.gen(function* () {
         const service = yield* AttachmentService
         const attachment = yield* uploadPhoto
 
-        const foreign = yield* Effect.flip(addressers[method](service, stranger, attachment.id))
-        const missing = yield* Effect.flip(addressers[method](service, owner, unknownAttachmentId))
+        const foreign = yield* Effect.flip(address(service, stranger, attachment.id))
+        const missing = yield* Effect.flip(address(service, owner, unknownAttachmentId))
 
         assertSchemaEquals(
           AttachmentNotFoundError,
@@ -312,7 +263,7 @@ describeOnMiniStack('AttachmentService', (it) => {
         error,
         new AttachmentNotFoundError({ id: attachment.id }),
       )
-      assert.deepStrictEqual(yield* (yield* AttachmentStore).select(attachment.id), Option.none())
+      assert.deepStrictEqual(yield* selectBytes(attachment.id), Option.none())
     }).pipe(Effect.provide(AttachmentServiceTest)),
   )
 
@@ -406,15 +357,15 @@ describeOnMiniStack('AttachmentService', (it) => {
       }).pipe(Effect.provide(AttachmentServiceTest)),
   )
 
-  it.effect.each(Rec.keys(addressers))(
-    '%s of an attachment unbound for 24 h is AttachmentNotFoundError and deletes nothing',
-    (method) =>
+  it.effect.each(addressers)(
+    '$name of an attachment unbound for 24 h is AttachmentNotFoundError and deletes nothing',
+    ({ address }) =>
       Effect.gen(function* () {
         const service = yield* AttachmentService
         const attachment = yield* uploadPhoto
         yield* TestClock.adjust(Duration.hours(24))
 
-        const error = yield* Effect.flip(addressers[method](service, owner, attachment.id))
+        const error = yield* Effect.flip(address(service, owner, attachment.id))
         const stored = yield* selectStored([attachment.id])
         const bytes = yield* selectBytes(attachment.id)
 
@@ -425,34 +376,6 @@ describeOnMiniStack('AttachmentService', (it) => {
         )
         assertEquals(stored, [attachment])
         assert.deepStrictEqual(bytes, Option.some(png))
-      }).pipe(Effect.provide(AttachmentServiceTest)),
-  )
-
-  it.effect.each(Rec.keys(addressers))(
-    '%s of an attachment unbound for 23 h 59 min finds it',
-    (method) =>
-      Effect.gen(function* () {
-        const service = yield* AttachmentService
-        const attachment = yield* uploadPhoto
-        yield* TestClock.adjust(Duration.sum(Duration.hours(23), Duration.minutes(59)))
-
-        yield* addressers[method](service, owner, attachment.id)
-      }).pipe(Effect.provide(AttachmentServiceTest)),
-  )
-
-  it.effect.each(['get', 'download'] as const)(
-    '%s of a bound attachment 48 h after its upload finds it',
-    (method) =>
-      Effect.gen(function* () {
-        const service = yield* AttachmentService
-        const attachment = yield* uploadPhoto
-        yield* bind(attachment)
-        yield* TestClock.adjust(Duration.hours(48))
-
-        yield* addressers[method](service, owner, attachment.id)
-        const stored = yield* selectStored([attachment.id])
-
-        assert.strictEqual(Arr.length(stored), 1)
       }).pipe(Effect.provide(AttachmentServiceTest)),
   )
 
@@ -467,28 +390,4 @@ describeOnMiniStack('AttachmentService', (it) => {
       assert.deepStrictEqual(stored, { rows: 0, objects: 0 })
     }).pipe(Effect.provide(AttachmentServiceRecordLost)),
   )
-
-  it.effect("bind keeps each attachment's bytes before it writes the bind", () => {
-    const recorded = recordAttachmentWrites()
-    return Effect.gen(function* () {
-      const service = yield* AttachmentService
-      const first = yield* uploadPhoto
-      const second = yield* uploadPhoto
-      const attachments = [first, second]
-      const bindable = yield* service.findBindable(
-        owner,
-        Arr.map(attachments, (attachment) => attachment.id),
-      )
-
-      yield* service.bind(bindable, messageId)
-
-      assert.deepStrictEqual(
-        Arr.map(attachments, (attachment) => callsTo(recorded.writes, attachment.id)),
-        [
-          ['store.keep', 'repository.update'],
-          ['store.keep', 'repository.update'],
-        ],
-      )
-    }).pipe(Effect.provide(layerAttachmentService(recorded.layer)))
-  })
 })

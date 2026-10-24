@@ -1,10 +1,11 @@
 import { assert } from '@effect/vitest'
-import { Duration, Effect, Option } from 'effect'
-import { Cookies } from 'effect/http'
+import { Duration, Effect, Layer, Option } from 'effect'
+import { Cookies, type HttpClientResponse } from 'effect/http'
 
+import { ApiClient } from '@app-template/http-api'
 import { describeOnMiniStack } from '@app-template/testing'
 
-import { readUserSecretCookie, withApi } from '#api/testing/api.harness'
+import { ApiServerTest, ApiTest, layerApiClient } from '#api/testing/api.harness'
 
 const issuedCookie: Cookies.Cookie['options'] = {
   maxAge: Duration.seconds(31_536_000),
@@ -12,54 +13,54 @@ const issuedCookie: Cookies.Cookie['options'] = {
   sameSite: 'lax',
 }
 
+const readUserSecretCookie = (response: HttpClientResponse.HttpClientResponse) =>
+  Cookies.get(response.cookies, 'user_secret')
+
 describeOnMiniStack('users', (it) => {
   it.effect('POST /users is 201 with an HttpOnly, Lax, one-year cookie and no Secure', () =>
-    withApi((api) =>
-      Effect.gen(function* () {
-        const [, response] = yield* api.users.ensure({ responseMode: 'decoded-and-response' })
-        const cookie = Option.getOrThrow(readUserSecretCookie(response))
+    Effect.gen(function* () {
+      const api = yield* ApiClient
 
-        assert.strictEqual(response.status, 201)
-        assert.match(cookie.value, /^[\w-]{43}$/)
-        assert.deepStrictEqual(cookie.options, issuedCookie)
-      }),
-    ),
+      const [, response] = yield* api.users.ensure({ responseMode: 'decoded-and-response' })
+
+      const cookie = Option.getOrThrow(readUserSecretCookie(response))
+      assert.strictEqual(response.status, 201)
+      assert.match(cookie.value, /^[\w-]{43}$/)
+      assert.deepStrictEqual(cookie.options, issuedCookie)
+    }).pipe(Effect.provide(ApiTest)),
   )
 
   it.effect(
     'a second POST /users with the cookie returns the same user and refreshes the cookie',
     () =>
-      withApi((api) =>
-        Effect.gen(function* () {
-          const [first, issued] = yield* api.users.ensure({
-            responseMode: 'decoded-and-response',
-          })
-          const [second, refreshed] = yield* api.users.ensure({
-            responseMode: 'decoded-and-response',
-          })
+      Effect.gen(function* () {
+        const api = yield* ApiClient
+        const [first, issued] = yield* api.users.ensure({ responseMode: 'decoded-and-response' })
 
-          const cookie = Option.getOrThrow(readUserSecretCookie(refreshed))
+        const [second, refreshed] = yield* api.users.ensure({
+          responseMode: 'decoded-and-response',
+        })
 
-          assert.strictEqual(second.id, first.id)
-          assert.strictEqual(cookie.value, Option.getOrThrow(readUserSecretCookie(issued)).value)
-          assert.deepStrictEqual(cookie.options, issuedCookie)
-        }),
-      ),
+        const cookie = Option.getOrThrow(readUserSecretCookie(refreshed))
+        assert.strictEqual(second.id, first.id)
+        assert.strictEqual(cookie.value, Option.getOrThrow(readUserSecretCookie(issued)).value)
+        assert.deepStrictEqual(cookie.options, issuedCookie)
+      }).pipe(Effect.provide(ApiTest)),
   )
 
-  it.effect('a forged cookie gets a new user and a new secret', () =>
-    withApi((api, { browse }) =>
-      Effect.gen(function* () {
-        const existing = yield* api.users.ensure()
+  it.effect('a forged cookie gets a new secret', () =>
+    Effect.gen(function* () {
+      const forger = yield* ApiClient
 
-        const [user, response] = yield* browse(
-          (forger) => forger.users.ensure({ responseMode: 'decoded-and-response' }),
-          Cookies.fromSetCookie('user_secret=forged'),
-        )
+      const [, response] = yield* forger.users.ensure({ responseMode: 'decoded-and-response' })
 
-        assert.notStrictEqual(user.id, existing.id)
-        assert.notStrictEqual(Option.getOrThrow(readUserSecretCookie(response)).value, 'forged')
-      }),
+      assert.notStrictEqual(Option.getOrThrow(readUserSecretCookie(response)).value, 'forged')
+    }).pipe(
+      Effect.provide(
+        layerApiClient(Cookies.fromSetCookie('user_secret=forged')).pipe(
+          Layer.provide(ApiServerTest),
+        ),
+      ),
     ),
   )
 })

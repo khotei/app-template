@@ -3,21 +3,21 @@ import { createHash } from 'node:crypto'
 import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { DateTime, Effect, Layer, Option, Redacted, Result } from 'effect'
+import { Effect, Layer, Option, Redacted, Result } from 'effect'
 import { Base64Url } from 'effect/encoding'
-import { TestClock, TestCrypto } from 'effect/testing'
 
 import { Credential, SecretHash, UserRepository, UserUnknownError } from '@app-template/domain/user'
 import { Db } from '@app-template/infrastructure/db'
 import { UserPg } from '@app-template/infrastructure/user'
 import { assertSchemaEquals, isUuidV7 } from '@app-template/testing'
 
+import { epoch } from '#application/testing/chat.fixture'
 import { DbTest } from '#application/testing/chat.harness'
 import { type UserSecret, UserService } from '#application/user/user.service'
 
 const UserServiceTest = UserService.layer.pipe(
   Layer.provideMerge(UserPg),
-  Layer.provide(TestCrypto.layer('user-service').pipe(Layer.provide(BunCrypto.layer))),
+  Layer.provide(BunCrypto.layer),
   Layer.provideMerge(DbTest),
 )
 
@@ -43,13 +43,11 @@ describe('UserService', () => {
   it.effect('ensure(none) creates a user with a UUIDv7 id at the clock time and a secret', () =>
     Effect.gen(function* () {
       const service = yield* UserService
-      const now = DateTime.makeUnsafe('2026-10-18T12:00:00.000Z')
-      yield* TestClock.setTime(DateTime.toEpochMillis(now))
 
       const { user, secret } = yield* service.ensure(Option.none())
 
       assert.isTrue(isUuidV7(user.id))
-      assertEquals(user.createdAt, now)
+      assertEquals(user.createdAt, epoch)
       assert.match(Redacted.value(secret), /^[A-Za-z0-9_-]{43}$/)
       assert.deepStrictEqual(
         Result.map(Base64Url.decode(Redacted.value(secret)), (bytes) => bytes.length),
@@ -71,12 +69,11 @@ describe('UserService', () => {
     }).pipe(Effect.provide(UserServiceTest)),
   )
 
-  it.effect('ensure(some(secret)) returns the same user and secret without a second record', () =>
+  it.live('ensure(some(secret)) returns the same user and secret without a second record', () =>
     Effect.gen(function* () {
       const service = yield* UserService
       const first = yield* service.ensure(Option.none())
       const stored = yield* countStoredRows
-      yield* TestClock.adjust('1 minute')
 
       const second = yield* service.ensure(Option.some(first.secret))
 

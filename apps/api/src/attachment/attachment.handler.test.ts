@@ -1,10 +1,11 @@
 import { assert } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Array as Arr, Effect, Option, Schema } from 'effect'
-import { FetchHttpClient, HttpBody } from 'effect/http'
+import { FetchHttpClient, HttpBody, HttpClient } from 'effect/http'
 
 import { AttachmentStore } from '@app-template/domain/attachment'
 import {
+  ApiClient,
   AttachmentTooLargeError,
   AttachmentTypeUnsupportedError,
   limits,
@@ -12,7 +13,7 @@ import {
 } from '@app-template/http-api'
 import { assertSchemaEquals, describeOnMiniStack } from '@app-template/testing'
 
-import { withApi } from '#api/testing/api.harness'
+import { ApiTest } from '#api/testing/api.harness'
 
 const mebibyte = 1024 * 1024
 
@@ -94,42 +95,40 @@ describeOnMiniStack('attachments', (it) => {
   it.effect.each(refusedUploads)(
     'POST /attachments with $name is $status',
     ({ form, status, error }) =>
-      withApi((api, { http }) =>
-        Effect.gen(function* () {
-          yield* api.users.ensure()
+      Effect.gen(function* () {
+        const api = yield* ApiClient
+        const http = yield* HttpClient.HttpClient
+        yield* api.users.ensure()
 
-          const response = yield* http.post('/attachments', {
-            body: HttpBody.formData(form()),
-          })
+        const response = yield* http.post('/attachments', { body: HttpBody.formData(form()) })
 
-          assert.strictEqual(response.status, status)
-          assertSchemaEquals(
-            UploadError,
-            yield* Effect.flatMap(response.json, Schema.decodeUnknownEffect(UploadError)),
-            error,
-          )
-        }),
-      ),
+        assert.strictEqual(response.status, status)
+        assertSchemaEquals(
+          UploadError,
+          yield* Effect.flatMap(response.json, Schema.decodeUnknownEffect(UploadError)),
+          error,
+        )
+      }).pipe(Effect.provide(ApiTest)),
   )
 
   it.effect("GET /attachments/:attachmentId/download is 302 to the store's URL", () =>
-    withApi((api, { http }) =>
-      Effect.gen(function* () {
-        yield* api.users.ensure()
-        const uploads = yield* api.attachments.upload({ payload: formOf(png('photo.png')) })
-        const uploaded = yield* Effect.fromOption(Arr.head(uploads))
+    Effect.gen(function* () {
+      const api = yield* ApiClient
+      const http = yield* HttpClient.HttpClient
+      yield* api.users.ensure()
+      const uploads = yield* api.attachments.upload({ payload: formOf(png('photo.png')) })
+      const uploaded = yield* Effect.fromOption(Arr.head(uploads))
 
-        const response = yield* http.get(`/attachments/${uploaded.id}/download`).pipe(
-          Effect.provideService(FetchHttpClient.RequestInit, {
-            keepalive: false,
-            redirect: 'manual',
-          }),
-        )
-        const url = yield* Effect.flatMap(AttachmentStore, (store) => store.url(uploaded.id))
+      const response = yield* http.get(`/attachments/${uploaded.id}/download`).pipe(
+        Effect.provideService(FetchHttpClient.RequestInit, {
+          keepalive: false,
+          redirect: 'manual',
+        }),
+      )
+      const url = yield* Effect.flatMap(AttachmentStore, (store) => store.url(uploaded.id))
 
-        assert.strictEqual(response.status, 302)
-        assertEquals(Option.some(response.headers.location), Option.map(url, String))
-      }),
-    ),
+      assert.strictEqual(response.status, 302)
+      assertEquals(Option.some(response.headers.location), Option.map(url, String))
+    }).pipe(Effect.provide(ApiTest)),
   )
 })

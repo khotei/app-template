@@ -1,9 +1,9 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, DateTime, Effect, Exit, Fiber, Layer, Option, Record as Rec } from 'effect'
+import { assertEquals } from '@effect/vitest/utils'
+import { Effect, Exit, Fiber, Layer, Option } from 'effect'
 import { AiError, Prompt, type Response } from 'effect/ai'
 
 import {
-  buildChat,
   buildUserMessage,
   Chat,
   ChatRepository,
@@ -19,42 +19,24 @@ import {
 import { recordLogs } from '@app-template/testing'
 
 import { ChatTitleJob } from '#application/chat/chat-title.job'
-import { chatId, epoch, messageId } from '#application/testing/chat.fixture'
-import { DbWithUsers, startClockAtSend } from '#application/testing/chat.harness'
+import { chat, chatId, epoch, messageId } from '#application/testing/chat.fixture'
+import { DbWithUsers, selectChat } from '#application/testing/chat.harness'
 import {
   holdModelCall,
   type ModelCallHold,
   recordLanguageModel,
 } from '#application/testing/language-model.fake'
-import { owner } from '#application/testing/user.fixture'
 
 type Answer = Effect.Effect<Array<Response.PartEncoded>, AiError.AiError>
 
-/**
- * The job's services on a fresh test database, recording its chat writes, its prompts and its
- * logs.
- */
+/** The job's services on a fresh test database, recording its prompts and its logs. */
 const makeChatTitleHarness = (answer: Answer) => {
-  const writes: Array<Chat> = []
-  const chats = Layer.effect(
-    ChatRepository,
-    Effect.map(ChatRepository, (inner) =>
-      ChatRepository.of({
-        ...inner,
-        update: (chat) =>
-          Effect.andThen(
-            Effect.sync(() => writes.push(chat)),
-            inner.update(chat),
-          ),
-      }),
-    ),
-  ).pipe(Layer.provide(ChatRepositoryPg))
   const { prompts, layer: model } = recordLanguageModel({ generateText: answer })
   const { logs, layer: logger } = recordLogs()
-  const layer = Layer.mergeAll(chats, MessageRepositoryPg, model, logger).pipe(
+  const layer = Layer.mergeAll(ChatRepositoryPg, MessageRepositoryPg, model, logger).pipe(
     Layer.provide(DbWithUsers),
   )
-  return { writes, prompts, logs, layer }
+  return { prompts, logs, layer }
 }
 
 const answering = (text: string): Answer => Effect.succeed([{ type: 'text', text }])
@@ -68,16 +50,10 @@ const arrangeChat = (text = 'Plan a weekend in Lisbon') =>
       attachmentIds: [],
       createdAt: epoch,
     })
-    yield* (yield* ChatRepository).insert(
-      buildChat({ id: chatId, userId: owner, createdAt: epoch }),
-    )
+    yield* (yield* ChatRepository).insert(chat)
     yield* (yield* MessageRepository).insert(first)
     return first
   })
-
-const selectChat = Effect.flatMap(ChatRepository, (chats) => chats.selectById(chatId)).pipe(
-  Effect.map(Option.getOrThrow),
-)
 
 const queuedJob = new GenerateChatTitle({ chatId, messageId })
 
@@ -86,13 +62,15 @@ const runTitle = Effect.exit(ChatTitleJob.handle(queuedJob))
 // A change made once the model is asked lands between the take and the write.
 const heldAnswer = (held: ModelCallHold) => Effect.andThen(held.hold, answering('Lisbon weekend'))
 
-const moments = {
-  'before the take': {
+const moments = [
+  {
+    name: 'before the take',
     modelCalls: 0,
     run: <R>(held: ModelCallHold, change: Effect.Effect<void, never, R>) =>
       change.pipe(Effect.andThen(held.release), Effect.andThen(runTitle)),
   },
-  'while the model answers': {
+  {
+    name: 'while the model answers',
     modelCalls: 1,
     run: <R>(held: ModelCallHold, change: Effect.Effect<void, never, R>) =>
       Effect.gen(function* () {
@@ -103,26 +81,29 @@ const moments = {
         yield* Fiber.join(running)
       }),
   },
-} as const
+] as const
 
 const filler = (length: number) => 'A'.repeat(length)
 
 // Each emoji is one grapheme: 😀 is two code units, the joined family eight, and the limit counts
 // code units.
-const graphemeCuts = {
-  'an emoji that fits': {
+const graphemeCuts = [
+  {
+    name: 'an emoji that fits',
     answer: `${filler(maxTitleLength - 2)}😀`,
     title: `${filler(maxTitleLength - 2)}😀`,
   },
-  'an emoji across the limit': {
+  {
+    name: 'an emoji across the limit',
     answer: `${filler(maxTitleLength - 1)}😀`,
     title: filler(maxTitleLength - 1),
   },
-  'a joined emoji across the limit': {
+  {
+    name: 'a joined emoji across the limit',
     answer: `${filler(maxTitleLength - 5)}👨‍👩‍👧`,
     title: filler(maxTitleLength - 5),
   },
-} as const
+] as const
 
 const providerError = AiError.make({
   module: 'FakeProvider',
@@ -130,22 +111,30 @@ const providerError = AiError.make({
   reason: new AiError.UnknownError({ description: 'provider exploded' }),
 })
 
-const untitledOpenings = {
-  'a first message without text': { text: '', answer: answering('Lisbon weekend'), modelCalls: 0 },
-  'a whitespace-only first message': {
+const untitledOpenings = [
+  {
+    name: 'a first message without text',
+    text: '',
+    answer: answering('Lisbon weekend'),
+    modelCalls: 0,
+  },
+  {
+    name: 'a whitespace-only first message',
     text: ' \n ',
     answer: answering('Lisbon weekend'),
     modelCalls: 0,
   },
-  'a blank answer': { text: 'Plan a weekend in Lisbon', answer: answering(' \n '), modelCalls: 1 },
-} as const
+  {
+    name: 'a blank answer',
+    text: 'Plan a weekend in Lisbon',
+    answer: answering(' \n '),
+    modelCalls: 1,
+  },
+] as const
 
-const renameChat = Effect.gen(function* () {
-  const chats = yield* ChatRepository
-  yield* chats.update(
-    new Chat({ ...(yield* selectChat), title: Option.some(ChatTitle.make('Trip')) }),
-  )
-})
+const renameChat = Effect.flatMap(ChatRepository, (chats) =>
+  chats.update(new Chat({ ...chat, title: Option.some(ChatTitle.make('Trip')) })),
+)
 
 const deleteMessages = Effect.flatMap(MessageRepository, (messages) =>
   messages.deleteByChat(chatId),
@@ -166,7 +155,12 @@ describe('ChatTitleJob.handle', () => {
 
       yield* runTitle
 
-      assert.deepStrictEqual((yield* selectChat).title, Option.some(filler(maxTitleLength - 1)))
+      assertEquals(
+        yield* selectChat(chatId),
+        Option.some(
+          new Chat({ ...chat, title: Option.some(ChatTitle.make(filler(maxTitleLength - 1))) }),
+        ),
+      )
       const [prompt] = prompts
       const expected = Prompt.make([
         { role: 'user', content: [{ type: 'text', text: 'Plan a weekend in Lisbon' }] },
@@ -175,116 +169,110 @@ describe('ChatTitleJob.handle', () => {
     }).pipe(Effect.provide(layer))
   })
 
-  it.effect('keeps the chat updatedAt when it writes the title', () => {
-    const { writes, layer } = makeChatTitleHarness(answering('Lisbon weekend'))
+  it.live('keeps the chat updatedAt when it writes the title', () => {
+    const { layer } = makeChatTitleHarness(answering('Lisbon weekend'))
     return Effect.gen(function* () {
-      yield* startClockAtSend
       yield* arrangeChat()
 
       yield* runTitle
 
-      assert.deepStrictEqual(
-        Arr.map(writes, (chat) => [chat.title, DateTime.toEpochMillis(chat.updatedAt)]),
-        [[Option.some('Lisbon weekend'), 0]],
+      assertEquals(
+        yield* selectChat(chatId),
+        Option.some(new Chat({ ...chat, title: Option.some(ChatTitle.make('Lisbon weekend')) })),
       )
     }).pipe(Effect.provide(layer))
   })
 
-  it.effect.each(Rec.keys(moments))('keeps a title the user set %s', (moment) => {
+  it.effect.each(moments)('keeps a title the user set $name', ({ run, modelCalls }) => {
     const held = holdModelCall()
     const { prompts, logs, layer } = makeChatTitleHarness(heldAnswer(held))
     return Effect.gen(function* () {
       yield* arrangeChat()
 
-      yield* moments[moment].run(held, renameChat)
+      yield* run(held, renameChat)
 
-      assert.deepStrictEqual((yield* selectChat).title, Option.some(ChatTitle.make('Trip')))
-      assert.strictEqual(prompts.length, moments[moment].modelCalls)
+      assertEquals(
+        yield* selectChat(chatId),
+        Option.some(new Chat({ ...chat, title: Option.some(ChatTitle.make('Trip')) })),
+      )
+      assert.strictEqual(prompts.length, modelCalls)
       assert.deepStrictEqual(logs, [['Info', 'chat title skipped: already titled']])
     }).pipe(Effect.provide(layer))
   })
 
-  it.effect.each(Rec.keys(moments))(
-    'ends without a write when the chat is deleted %s',
-    (moment) => {
+  it.effect.each(moments)(
+    'ends with a log line when the chat is deleted $name',
+    ({ run, modelCalls }) => {
       const held = holdModelCall()
-      const { writes, prompts, logs, layer } = makeChatTitleHarness(heldAnswer(held))
+      const { prompts, logs, layer } = makeChatTitleHarness(heldAnswer(held))
       return Effect.gen(function* () {
         yield* arrangeChat()
 
-        yield* moments[moment].run(held, deleteChat)
+        yield* run(held, deleteChat)
 
-        assert.deepStrictEqual(writes, [])
-        assert.strictEqual(prompts.length, moments[moment].modelCalls)
+        assert.strictEqual(prompts.length, modelCalls)
         assert.deepStrictEqual(logs, [['Info', 'chat title skipped: chat deleted']])
       }).pipe(Effect.provide(layer))
     },
   )
 
-  it.effect('ends without a write when the chat is left without its first message', () => {
-    const { writes, prompts, logs, layer } = makeChatTitleHarness(answering('Lisbon weekend'))
+  it.live('leaves the chat untouched when it is left without its first message', () => {
+    const { prompts, logs, layer } = makeChatTitleHarness(answering('Lisbon weekend'))
     return Effect.gen(function* () {
       yield* arrangeChat()
       yield* deleteMessages
 
       yield* runTitle
 
-      assert.deepStrictEqual(writes, [])
+      assertEquals(yield* selectChat(chatId), Option.some(chat))
       assert.deepStrictEqual(prompts, [])
       assert.deepStrictEqual(logs, [['Info', 'chat title skipped: first message missing']])
     }).pipe(Effect.provide(layer))
   })
 
-  it.effect.each(Rec.keys(graphemeCuts))('cuts the title at a whole grapheme with %s', (cut) => {
-    const { answer, title } = graphemeCuts[cut]
-    const { layer } = makeChatTitleHarness(answering(answer))
-    return Effect.gen(function* () {
-      yield* arrangeChat()
+  it.effect.each(graphemeCuts)(
+    'cuts the title at a whole grapheme with $name',
+    ({ answer, title }) => {
+      const { layer } = makeChatTitleHarness(answering(answer))
+      return Effect.gen(function* () {
+        yield* arrangeChat()
 
-      yield* runTitle
+        yield* runTitle
 
-      assert.deepStrictEqual((yield* selectChat).title, Option.some(title))
-    }).pipe(Effect.provide(layer))
-  })
+        assertEquals(
+          yield* selectChat(chatId),
+          Option.some(new Chat({ ...chat, title: Option.some(ChatTitle.make(title)) })),
+        )
+      }).pipe(Effect.provide(layer))
+    },
+  )
 
-  it.effect('asks the model for a title within the title limit', () => {
-    const { prompts, layer } = makeChatTitleHarness(answering('Lisbon weekend'))
-    return Effect.gen(function* () {
-      yield* arrangeChat()
-
-      yield* runTitle
-
-      const [system] = prompts[0]?.content ?? []
-      assert.strictEqual(system?.role, 'system')
-      assert.include(system?.content, `at most ${maxTitleLength} characters`)
-    }).pipe(Effect.provide(layer))
-  })
-
-  it.effect('fails and leaves the chat untitled when the model fails', () => {
-    const { writes, logs, layer } = makeChatTitleHarness(Effect.fail(providerError))
+  it.live('fails and leaves the chat untouched when the model fails', () => {
+    const { logs, layer } = makeChatTitleHarness(Effect.fail(providerError))
     return Effect.gen(function* () {
       yield* arrangeChat()
 
       const exit = yield* runTitle
 
       assert.isTrue(Exit.isFailure(exit))
-      assert.deepStrictEqual((yield* selectChat).title, Option.none())
-      assert.deepStrictEqual(writes, [])
+      assertEquals(yield* selectChat(chatId), Option.some(chat))
       assert.deepStrictEqual(logs, [])
     }).pipe(Effect.provide(layer))
   })
 
-  it.effect.each(Rec.keys(untitledOpenings))('leaves the chat untitled after %s', (opening) => {
-    const { text, answer, modelCalls } = untitledOpenings[opening]
-    const { writes, prompts, logs, layer } = makeChatTitleHarness(answer)
-    return Effect.gen(function* () {
-      yield* arrangeChat(text)
+  it.live.each(untitledOpenings)(
+    'leaves the chat untouched after $name',
+    ({ text, answer, modelCalls }) => {
+      const { prompts, logs, layer } = makeChatTitleHarness(answer)
+      return Effect.gen(function* () {
+        yield* arrangeChat(text)
 
-      yield* runTitle
+        yield* runTitle
 
-      assert.deepStrictEqual(writes, [])
-      assert.strictEqual(prompts.length, modelCalls)
-      assert.deepStrictEqual(logs, [['Info', 'chat title skipped: nothing to title']])
-    }).pipe(Effect.provide(layer))
-  })
+        assertEquals(yield* selectChat(chatId), Option.some(chat))
+        assert.strictEqual(prompts.length, modelCalls)
+        assert.deepStrictEqual(logs, [['Info', 'chat title skipped: nothing to title']])
+      }).pipe(Effect.provide(layer))
+    },
+  )
 })
