@@ -395,16 +395,24 @@ methods; running it after S9 avoids merge work.
 
 - **Goal:** `ChatRepositoryPg`, `MessageRepositoryPg` and `AttachmentRepositoryPg` beside the
   `Kv` ones, implementing the ports as they are today (`insert`, `update`, `selectById`,
-  `selectByUser`, `delete`; `selectByChat` in creation order, `selectActiveByChat` through the
-  partial index's predicate, `deleteByChat`; `selectByIds` in the order asked, `deleteByIds`), each
-  method one Drizzle statement with the codecs of S4; `MessageRepositoryPg` fills
-  `Message.attachmentIds` from the message's attachments in upload order (D17); `ChatPg` and
+  `selectByUser`, `delete`; `selectByChat` in creation order, `selectActiveByChat` with the
+  active condition as a relational object filter, `deleteByChat`; `selectByIds` in the order
+  asked, `deleteByIds`), each method one Drizzle statement with the codecs of S4: every read a
+  relational query (`db.query…findFirst`/`findMany`), every write the core builder, which also
+  moves `UserRepositoryPg`'s reads onto `db.query`; `MessageRepositoryPg` nests the message's
+  attachment ids in upload order and fills `Message.attachmentIds` from them (D17); `ChatPg` and
   `AttachmentPgS3` in the aggregates' `index.ts` beside `ChatKv`, `AttachmentKv`,
   `AttachmentKvS3`, and no bundle pairs the Postgres repository with `AttachmentStoreKv`
-  (R1, R4; D1, D2).
+  (R1, R4; D1, D2, D6).
 - **Blocked by:** S4.
 - **Files:** `infrastructure/chat/{chat.repository.ts,chat.repository.test.ts,message.repository.ts,message.repository.test.ts,index.ts}`,
-  `infrastructure/attachment/{attachment.repository.ts,attachment.repository.test.ts,index.ts}`.
+  `infrastructure/attachment/{attachment.repository.ts,attachment.repository.test.ts,index.ts}`,
+  `infrastructure/user/{user.repository.ts,user.repository.test.ts,user.entity.ts}`,
+  `infrastructure/{chat,attachment}/*.entity.ts` and their tests (one decoder each),
+  `infrastructure/db/{db.client.ts,relations.ts}` (`decodeFound`, `users → credentials`),
+  `infrastructure/testing/{db-test.ts,rows.ts,repository-stacks.ts}` (moved from
+  `db/testing/`), `infrastructure/CLAUDE.md`, `docs/knowledge/database.md` (the read/write
+  split, the relational filter, test support).
 - **Test first:** Seam 3 — each of the three suites becomes one suite run over its `Kv` and `Pg`
   layers, red on `Pg` until the adapter exists: the existing cases, plus on Postgres
   `selectActiveByChat` finds the active message among terminal ones, `selectByChat` returns
@@ -412,7 +420,36 @@ methods; running it after S9 avoids merge work.
   A shared case with attachments binds them in upload order, so `Kv` and `Pg` agree; upload order
   against a different send order is a `Pg` case.
 - **Verify:** `make check`; the three suites each list both layers in their output.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Every Postgres repository reads through `db.query` and writes through the core builder;
+    `findFirst` emits `limit 1` itself, so this supersedes S4's "queries that expect one row end
+    with `.limit(1)`". `decodeFound` (in `db.client.ts`) decodes a single-record read. A message's
+    attachment ids arrive as a `json_agg` array inside its row, so a `limit` never cuts them.
+  - `selectActiveByChat` filters with the object filter `{ author: 'assistant', stage: { in:
+    ActiveMessageStage.literals } }` (D18), not `activeMessage`: a relational query aliases its
+    tables, and the user chose the readable filter over a `RAW` callback. `activeMessage` stays
+    the index's predicate. A shared case keeps a user message in an active stage beside the
+    active reply, since `Option.filter(isActiveMessage)` hides a user message read alone.
+  - `selectByCredential` filters on the `users → credentials` relation, which Drizzle renders as
+    `exists (…)`; a relational `in` with an empty list renders `1 = 0`, as `inArray` does.
+  - Each entity file exports one decoder beside its codec; repositories and entity tests share
+    it. Shared test support moved to `infrastructure/testing/` (`db-test.ts`, `rows.ts`,
+    `repository-stacks.ts`, the stacks of every repository on each store); `db/testing/` keeps
+    only the vitest `globalSetup`. S4's file list names the old paths.
+  - `selectByChat` breaks equal `createdAt` by id on Postgres; the key-value case that read one
+    millisecond's messages in insertion order is a `Kv`-only case until S6. A user message and
+    its reply share `createdAt` in `SendMessageUseCase`, so their order rests on UUIDv7 ids
+    rising; S6 checks it on Postgres.
+  - S5.1 changed ~720 lines (~190 adapters, the rest the suites over both stores), above the
+    ~400 guide: the suites arrange each other's foreign keys through the Postgres adapters.
+  - Running the tests of one file concurrently (`--sequence.concurrent`) passed every Postgres
+    suite, since each test owns its database, and cut `make test` from 21.7 s to 11.3 s, almost
+    all of it `packages/queue/queue.test.ts` (19.3 s → 9 s of real SQS waits). Three files that
+    share one built layer failed; S6 takes this on. One MiniStack per test run instead of one
+    per file (S6 adds MiniStack to every harness suite) is weighed at the ticket's end, by the
+    user's call, from a measurement of solo, concurrent and two-tree runs.
+  - The step landed in five rounds, S5.1–S5.5, after four reviews.
 
 #### S6 — The apps and the harnesses on Postgres; the key-value store removed
 
@@ -425,8 +462,11 @@ methods; running it after S9 avoids merge work.
   job and api suites run on Postgres and keep attachment bytes in S3; `AttachmentStoreKv` goes,
   and the tests that counted the store's keys count the bucket's objects. Removed: `infrastructure/kv/` and its tests, every `*Kv` layer and bundle,
   `StoreConfig`, `STORE_PATH` (code, `.env.example`, docs), the `.data/store` mention in the
-  `Makefile`. The suites of S2 and S5 drop their `Kv` layer and run on `Pg` alone (R1, R2, R15,
-  R20, R21).
+  `Makefile`. The suites of S2 and S5 drop their `Kv` layer and run on `Pg` alone
+  (`repository-stacks.ts` keeps one stack). The tests of a file run concurrently
+  (`sequence: { concurrent: true }` in `vitest.config.ts`): each test owns what it writes (its
+  database, its bucket objects and queue names under a unique prefix), and a suite that must
+  share one built layer is `describe.sequential` (R1, R2, R15, R20, R21).
 - **Blocked by:** S3, S5.
 - **Files:** `apps/api/src/{layer.ts,layer.test.ts,testing/api.harness.ts}`,
   `apps/worker/src/layer.ts`, `apps/api/package.json`, `apps/worker/package.json`,
@@ -447,7 +487,10 @@ methods; running it after S9 avoids merge work.
   `application/chat/{assistant-message.job.test.ts,chat-title.job.test.ts}`,
   `application/user/user.service.test.ts`, `apps/api/src/attachment/attachment.handler.test.ts`),
   `README.md` (the key-value store in the diagram and the adapters), `.gitignore`,
-  `.claude/rules/effect-services.md` (the `KeyValueStore` layer examples).
+  `.claude/rules/effect-services.md` (the `KeyValueStore` layer examples),
+  `infrastructure/testing/repository-stacks.ts`, `vitest.config.ts` (concurrent tests),
+  `.claude/rules/effect-tests.md` (each test owns its resources; a shared layer runs
+  sequentially), `docs/knowledge/tooling.md` (Tests: concurrency).
 - **Test first:** Seam 7 — `apps/api/src/layer.test.ts` builds `ApiHttp` over `PgClientTest`;
   the handler suites pass unchanged on the Postgres harness (their red is the harness failing to
   build before the layers switch). Seam 5 and 6 — the application suites pass on the Postgres
@@ -458,7 +501,7 @@ methods; running it after S9 avoids merge work.
   with an attachment, `psql` shows the rows in the five tables and `.data/` has no `store/`;
   `curl localhost:3000/openapi.json` saved from `main` before the switch and after it: `diff`
   empty; `LOG_LEVEL="Debug" make dev-api` and one request print the SQL with `query` and `params`;
-  at `Info` none.
+  at `Info` none; `make test` three times in a row green, and its wall time against S5's 21.7 s.
 - **Status:** todo
 
 #### S7 — One active message per chat, stage guards and the cascade
@@ -628,9 +671,8 @@ methods; running it after S9 avoids merge work.
   `AttachmentRepository.selectByIds` and the `attachmentIds` omit in `http-api` go. Also from the
   key-value era: `findSendable` asks whether the chat has a message with `exists` instead of
   reading them all; `byLatestUpdate` and its test go, since the query orders the summaries; the
-  active message in `selectSummaries` is the relational query's own filter, as `activeMessage`
-  names an unaliased table; the `selectByChat` comment says creation order, not insertion
-  order.
+  active message in `selectSummaries` takes the object filter of `selectActiveByChat` (D18); the
+  `selectByChat` comment says creation order, not insertion order.
 - **Blocked by:** S6 (and, to avoid merge work in `chat.service.ts`, run after S9).
 - **Files:** `domain/chat/{chat.model.ts,chat.model.test.ts,chat.service.ts,index.ts}`,
   `infrastructure/chat/{chat.repository.ts,chat.repository.test.ts}`,

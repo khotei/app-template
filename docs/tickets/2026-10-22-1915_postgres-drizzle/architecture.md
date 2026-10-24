@@ -103,7 +103,8 @@ graph LR
                                         retryWhileUnreachable (ConnectionError or cannot_connect_now only)  (D13)
 + infrastructure/db/migrations/         drizzle-kit output, committed
 + infrastructure/db/testing/postgres.setup.ts   vitest globalSetup: container, template, provide           (D10)
-+ infrastructure/db/testing/db.ts       DbTest: Db over PgClientTest, publishes PgClient for transactions   (D3, D10)
++ infrastructure/testing/db-test.ts     DbTest: Db over PgClientTest, publishes PgClient for transactions   (D3, D10)
++ infrastructure/testing/{rows,repository-stacks}.ts   rows written directly; every repository on each store
 + infrastructure/drizzle.config.ts      dialect, schema glob ./*/*.entity.ts, out ./db/migrations; no credentials
 + infrastructure/user/user.entity.ts    users, credentials; UserRow, UserInsert codecs (the credential row needs none)  (D2)
 + infrastructure/chat/chat.entity.ts    chats, the title check, its index; ChatRow, ChatInsert
@@ -429,9 +430,13 @@ build them with `buildResourceName` as the program does.
   `MessageDetail`, `ChatSummary` and `ChatDetail` move to `domain/chat`; `ChatRepository` gains
   `selectSummaries` and `selectDetail`, which `ChatRepositoryPg` runs as one `db.query` each over
   the relations declared once in `infrastructure/db/relations.ts`. The service becomes one port
-  call, and the port stays the seam. *Rejected:* composing the detail in the service from three
-  port reads (N+1 reads, the shapes in the wrong layer); exposing `db.query` to the service
-  (the adapter leaks).
+  call, and the port stays the seam. Every repository read is a relational query, not only the
+  read models (amended in S5): `findFirst` emits the limit, nested rows arrive inside their
+  parent, and a reader meets one shape; writes stay on the core builder, which `db.query` lacks.
+  *Rejected:* composing the detail in the service from three port reads (N+1 reads, the shapes in
+  the wrong layer); exposing `db.query` to the service (the adapter leaks); single-table reads on
+  the core builder with `.limit(1)` (two read styles side by side; a join that nests rows needs
+  hand-written grouping).
 - **D7 — The cascade is the database's.** `messages.chat_id` cascades, `attachments.message_id`
   restricts, so `ChatService.delete` is one `delete` and a wrong order (a chat before its
   attachments) fails instead of leaving rows. The use case still removes the attachments first,
@@ -522,15 +527,26 @@ build them with `buildResourceName` as the program does.
   array beside the key (a copy of the bind that Postgres cannot check, since a foreign key cannot
   cover array elements); a `position` column the bind fills (keeps the send's order, at the cost
   of a column only the send uses); the array alone (no `RESTRICT`, no index).
+- **D18 — A relational read states the active message as an object filter.**
+  `selectActiveByChat` filters `{ chatId, author: 'assistant', stage: { in:
+  ActiveMessageStage.literals } }`; `activeMessage` stays the partial index's predicate and the
+  one an `ON CONFLICT … WHERE` takes. Both read their stages from the same domain literals, and a
+  shared case with a user message in an active stage guards the author. The read may not use the
+  partial index once a prepared statement turns generic; it falls back to the
+  `(chat_id, created_at)` index, enough for one chat. *Rejected:* `activeMessage` in the relational
+  `where` (it names `"messages"`, while the query aliases the table as `d0`); a
+  `RAW: (table) => …` callback over a shared `activeMessageOf(table)` (one condition, but raw SQL
+  in a read, chosen against for readability); a join on the core builder (rows per attachment,
+  grouped by hand).
 
 ## Risks
 
 | Risk | Mitigation |
 |---|---|
 | `drizzle-orm@1.0.0-rc.*` moves between rcs (`EffectDrizzleQueryError.cause` is typed `unknown`, `defineRelations` is the rc relations API) | pinned exactly; every API checked in `repos/drizzle` at the step that uses it; `unwrapQueryError` reads `cause` once, in `db.client.ts`, and dies if it is not a `SqlError` |
-| `defineRelations` and the relational `db.query` on the Effect driver are read from source, not run | S4 ran `findMany({ with: { … orderBy } })` live (chats with messages, messages with attachments); `where` and `limit` stay for S12; if one fails, `selectDetail` is a join query behind the same port |
+| `defineRelations` and the relational `db.query` on the Effect driver are read from source, not run | S4 ran `findMany({ with: { … orderBy } })` live (chats with messages, messages with attachments); S5 runs every repository read on it: `where` with `in` and a relation filter (`exists`), `findFirst`'s limit; if one fails, `selectDetail` is a join query behind the same port |
 | `ON CONFLICT (chat_id) WHERE <predicate>` must match the partial index's predicate exactly, or Postgres finds no arbiter; a prepared statement switches to a generic plan after five runs, which cannot prove a predicate from bound parameters | the predicate is one `sql` constant, `activeMessage`, rendered with `.inlineParams()` and used by both the index and the insert; a test checks the rendered query binds only the chat id; Seam 3 inserts two active messages |
-| A relational query aliases its tables (`d0`, `d1`), while `activeMessage` names `"messages"` | `activeMessage` serves the core query builder and `ON CONFLICT` only; S12 states the active message in the relational query's own filter |
+| A relational query aliases its tables (`d0`, `d1`), while `activeMessage` names `"messages"` | `activeMessage` serves the index and `ON CONFLICT` only; a relational read states the active message as an object filter (D18, since S5) |
 | A transaction that holds the `FOR UPDATE SKIP LOCKED` rows while SQS is slow blocks nothing but delays the batch | batch of 10, the transport's own timeout; a failed send fails the batch and the rows stay |
 | The relay republishes after a crash between send and commit | at-least-once as before; handlers skip settled replies and titled chats |
 | A dead-letter handler that keeps failing loops every 5 minutes forever | logged each attempt; `OUTBOX`-style sweeps are out of scope; ticket 8 makes it visible |
@@ -552,8 +568,8 @@ build them with `buildResourceName` as the program does.
 
 - `defineRelations` and `db.query.<table>.findMany({ with, where, orderBy, limit })` on
   `drizzle-orm/effect-postgres` rc.5, and the shape of nested rows for the codecs (S4): `with`
-  and a nested `orderBy` verified in S4, nested rows decode with the entity codecs; `where` and
-  `limit` stay for S12.
+  and a nested `orderBy` verified in S4, nested rows decode with the entity codecs; `where`
+  (object, `in`, relation filter) and `findFirst`'s limit verified in S5.
 - `onConflictDoNothing({ target, where })` on the partial index through Drizzle, or `sql` for
   that one insert (S7).
 - `createSelectSchema` with a refine of `jsonb` to `Schema.OptionFromNullOr(MessageFailure)`
