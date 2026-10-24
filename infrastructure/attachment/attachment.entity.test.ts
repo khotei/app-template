@@ -19,8 +19,8 @@ import {
 } from '#infrastructure/attachment/attachment.entity'
 import { decodeMessage } from '#infrastructure/chat/message.entity'
 import { Db } from '#infrastructure/db/db.client'
-import { DbTest, flipSqlError } from '#infrastructure/db/testing/db'
-import { insertChat, insertMessage, insertUser } from '#infrastructure/db/testing/rows'
+import { DbTest, flipSqlError } from '#infrastructure/testing/db-test'
+import { insertChat, insertMessage, insertUser } from '#infrastructure/testing/rows'
 
 const chatCreatedAt = DateTime.makeUnsafe('2026-10-18T00:00:00.000Z')
 const uploadedAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')

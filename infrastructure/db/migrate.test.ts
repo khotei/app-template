@@ -10,7 +10,7 @@ import { PgClientUnauthenticated, recordLogs } from '@app-template/testing'
 
 import { Db } from '#infrastructure/db/db.client'
 import { applyMigrations, migrateDatabase, retryWhileUnreachable } from '#infrastructure/db/migrate'
-import { DbTest } from '#infrastructure/db/testing/db'
+import { DbTest } from '#infrastructure/testing/db-test'
 
 const DbUnauthenticated = Db.layer.pipe(Layer.provide(PgClientUnauthenticated))
 

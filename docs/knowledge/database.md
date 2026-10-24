@@ -38,11 +38,10 @@ from them and the row codecs derived from them.
   `<table>_<columns>_<predicate>_index` (`messages_chat_id_active_index`).
 - **A rule across rows is a partial unique index.** `messages_chat_id_active_index` allows one
   active assistant message per chat; its predicate is `activeMessage`, exported from
-  `message.entity.ts` beside the table for the index. The predicate takes the stages from
-  `ActiveMessageStage.literals` and renders them as literals (`.inlineParams()`), as in the
-  index's DDL: `ON CONFLICT … WHERE` must prove the index predicate when the statement is
-  planned, and a generic plan, which Postgres switches a prepared statement to after five runs,
-  cannot prove it from parameters.
+  `message.entity.ts` beside the table, with the stages from `ActiveMessageStage.literals`. An
+  `ON CONFLICT … WHERE` that targets the index takes its predicate from this constant, which
+  renders as literals (`.inlineParams()`): a generic plan, which Postgres switches a prepared
+  statement to after five runs, cannot prove the index predicate from bound parameters.
 - **A relational read filters with an object, not the predicate.** A relational query aliases
   its tables (`d0`, `d1`), while `activeMessage` names `"messages"."author"`, so the read of
   the active message states the same condition as an object filter (`{ author: 'assistant',
@@ -91,8 +90,8 @@ export const UserInsert = createInsertSchema(users, userFields)
 `infrastructure/db/relations.ts` declares the relations once, with `defineRelations` over every
 table, and `Db` is built with them (`PgDrizzle.make({ relations })`), so `db.query.<table>` is
 typed. A relation names its columns (`from`, `to`) and joins on their equality only, and holds
-no order: a query states it with `orderBy`. A relational query
-returns nested rows of the same shape as a `select`, so they decode with the same codecs:
+no order: a query states it with `orderBy`. A relational query returns nested rows of the same
+shape as a `select`, so they decode with the same codecs:
 
 ```ts
 const rows = yield* db.query.messages.findMany({
@@ -156,7 +155,7 @@ one body over every implementation of its port and provides the layer per test
 ([effect-tests.md](../../.claude/rules/effect-tests.md)); the facts only Postgres has (a check, a
 missing default, a transaction) sit in a suite of their own. The suites share the stacks of
 every repository and arrange the parent rows through the ports, with
-`infrastructure/testing/repository.harness.ts`. An `.entity.test.ts` writes a model
+`infrastructure/testing/repository-stacks.ts`. An `.entity.test.ts` writes a model
 through its insert codec and reads it back through its row codec; it arranges the parent rows
-with `infrastructure/db/testing/rows.ts` and reads the `SqlError` of a refused statement with
-`flipSqlError` from `infrastructure/db/testing/db.ts`.
+with `infrastructure/testing/rows.ts` and reads the `SqlError` of a refused statement with
+`flipSqlError` from `infrastructure/testing/db-test.ts`.

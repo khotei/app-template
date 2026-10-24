@@ -7,8 +7,8 @@ import { assertSchemaEquals } from '@app-template/testing'
 
 import { ChatInsert, chats, decodeChat } from '#infrastructure/chat/chat.entity'
 import { Db } from '#infrastructure/db/db.client'
-import { DbTest, flipSqlError } from '#infrastructure/db/testing/db'
-import { insertChat, insertUser } from '#infrastructure/db/testing/rows'
+import { DbTest, flipSqlError } from '#infrastructure/testing/db-test'
+import { insertChat, insertUser } from '#infrastructure/testing/rows'
 
 const userId = UserId.make('0192d4e0-7b3a-7c00-8000-000000000060')
 

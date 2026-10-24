@@ -31,7 +31,7 @@ import {
   RepositoryStackKvMemory,
   RepositoryStackPgTest,
   repositoryStacks,
-} from '#infrastructure/testing/repository.harness'
+} from '#infrastructure/testing/repository-stacks'
 
 const createdAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')
 

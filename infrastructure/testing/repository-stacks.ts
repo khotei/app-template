@@ -16,7 +16,7 @@ import {
 } from '#infrastructure/attachment/attachment.repository'
 import { ChatRepositoryKv, ChatRepositoryPg } from '#infrastructure/chat/chat.repository'
 import { MessageRepositoryKv, MessageRepositoryPg } from '#infrastructure/chat/message.repository'
-import { DbTest } from '#infrastructure/db/testing/db'
+import { DbTest } from '#infrastructure/testing/db-test'
 import { UserRepositoryKv, UserRepositoryPg } from '#infrastructure/user/user.repository'
 
 /** Publishes the store too, so a key-value-only test reads the keys it wrote. */

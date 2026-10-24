@@ -5,7 +5,7 @@ import { Array as Arr, Effect, type LogLevel, Option, References } from 'effect'
 import { recordLogs } from '@app-template/testing'
 
 import { Db } from '#infrastructure/db/db.client'
-import { DbTest } from '#infrastructure/db/testing/db'
+import { DbTest } from '#infrastructure/testing/db-test'
 
 const greet = Effect.flatMap(Db, (db) =>
   db.execute<{ greeting: string }>(sql`select ${'hello'}::text as greeting`, 'objects'),
