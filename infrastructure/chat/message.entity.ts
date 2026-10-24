@@ -42,9 +42,10 @@ export const messages = snakeCase.table(
 )
 
 /**
- * Holds for a row `isActiveMessage` holds for: the predicate of `messages_chat_id_active_index`,
- * rendered with literals in every query, never with bound parameters
- * ([database.md › Schema](../../docs/knowledge/database.md#schema-and-entity-files)).
+ * Holds for a row `isActiveMessage` holds for: the predicate of `messages_chat_id_active_index`.
+ *
+ * Do not remove `.inlineParams()`: with bound parameters `ON CONFLICT … WHERE` stops matching
+ * the index. Why: `docs/knowledge/database.md` › "Schema and entity files".
  */
 export const activeMessage: SQL =
   sql`${eq(messages.author, 'assistant')} and ${inArray(messages.stage, ActiveMessageStage.literals)}`.inlineParams()

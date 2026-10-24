@@ -34,14 +34,20 @@ from them and the row codecs derived from them.
 - **A check is a backstop, never stricter than the brand.** It may let through what the brand
   refuses, never the reverse: `chats_title_check` trims spaces only and counts code points, where
   `ChatTitle` trims every whitespace and counts UTF-16 units. Checks are named
-  `<table>_<column>_check` and indexes `<table>_<columns>_index`.
+  `<table>_<column>_check` and indexes `<table>_<columns>_index`; a partial index ends its name
+  with the name of its predicate (`messages_chat_id_active_index`, where `active` names the
+  predicate, not a column).
 - **A rule across rows is a partial unique index.** `messages_chat_id_active_index` allows one
   active assistant message per chat; its predicate is `activeMessage`, exported from
   `message.entity.ts` beside the table, so a query for the active message and the index read one
   condition. The predicate takes the stages from `ActiveMessageStage.literals` and renders them
-  as literals (`.inlineParams()`) in every query, as in the index's DDL: `ON CONFLICT … WHERE`
-  must prove the index predicate when the statement is planned, and a generic plan, which
-  Postgres switches a prepared statement to after five runs, cannot prove it from parameters.
+  as literals (`.inlineParams()`), as in the index's DDL: `ON CONFLICT … WHERE` must prove the
+  index predicate when the statement is planned, and a generic plan, which Postgres switches a
+  prepared statement to after five runs, cannot prove it from parameters.
+- **The predicate fits the core query builder only.** `activeMessage` serves `db.select()…where`
+  and `ON CONFLICT … WHERE`, but not a relational query (`db.query.….findMany({ where })`):
+  Drizzle aliases the tables there (`d0`, `d1`), while the predicate names
+  `"messages"."author"`. A form that takes the aliased table is left for the relational reads.
 - **A descending index states its null order.** Drizzle's `desc()` indexes nulls last while
   Postgres's `ORDER BY … DESC` sorts them first, so an index for that order is
   `.desc().nullsFirst()` (`chats_user_id_updated_at_index`).
@@ -139,4 +145,4 @@ one body over every implementation of its port and provides the layer per test
 missing default, a transaction) sit in a suite of their own. An `.entity.test.ts` writes a model
 through its insert codec and reads it back through its row codec; it arranges the parent rows
 with `infrastructure/db/testing/rows.ts` and reads the `SqlError` of a refused statement with
-`flipSqlError` from `db/testing/db.ts`.
+`flipSqlError` from `infrastructure/db/testing/db.ts`.
