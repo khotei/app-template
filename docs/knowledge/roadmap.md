@@ -358,9 +358,10 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Scope.** Build and `exports` of `http-api` (types from the `HttpApi` definition; the
   `domain` it imports ships with it); versioning; publishing to GitHub Packages or npm from CI on a tag; a consumer
   smoke test in a scratch project.
-- **Out of scope.** A client for other languages; an SDK generator from the served `/openapi.json`.
-- **Open questions for its feature phase.** Registry; whether the spec is published too;
-  how the client's `effect` dependency is declared for consumers that do not use Effect.
+- **Out of scope.** A client for other languages; an SDK generator, which would need an OpenAPI
+  spec the api does not serve.
+- **Open questions for its feature phase.** Registry; how the client's `effect` dependency is
+  declared for consumers that do not use Effect.
 
 ### 11. `workflow-cluster`
 

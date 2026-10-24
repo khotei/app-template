@@ -19,5 +19,6 @@ not a package: it is the system's boundary, specific to this app and used by two
 - **No handlers.** They are `apps/api/src/<entity>/<entity>.handler.ts`.
 - Layout: `shared/` for what every group uses, one `<entity>/<entity>.http.ts` per group, no
   per-entity barrels.
-- **Commit no spec file.** The spec is derived from `Api` at runtime, so a domain edit can change
-  the wire unseen: the api's HTTP tests assert the wire shapes.
+- **A domain schema edit is a contract edit.** DTOs reuse the domain's schemas, so the change
+  reaches the wire unseen: the api's handler tests check only what HTTP adds (statuses, the cookie,
+  the failed-reply wire shape).

@@ -1,7 +1,7 @@
 import { BunHttpServer } from '@effect/platform-bun'
 import { Effect, Layer } from 'effect'
 import { HttpRouter } from 'effect/http'
-import { HttpApiBuilder, HttpApiScalar } from 'effect/http-api'
+import { HttpApiBuilder } from 'effect/http-api'
 
 import { AttachmentService } from '@app-template/application/attachment'
 import { ChatService, DeleteChatUseCase, SendMessageUseCase } from '@app-template/application/chat'
@@ -20,12 +20,9 @@ import { HealthHandler } from '#api/health/health.handler'
 import { AuthUserService, SchemaErrorsRequestInvalid } from '#api/shared/security'
 import { UserHandler } from '#api/user/user.handler'
 
-const ApiRoutes = Layer.mergeAll(
-  HttpApiBuilder.layer(Api, { openapiPath: '/openapi.json' }).pipe(
-    Layer.provide([HealthHandler, UserHandler, ChatHandler, AttachmentHandler]),
-    Layer.provide([AuthUserService, SchemaErrorsRequestInvalid]),
-  ),
-  HttpApiScalar.layer(Api, { path: '/docs' }),
+const ApiRoutes = HttpApiBuilder.layer(Api).pipe(
+  Layer.provide([HealthHandler, UserHandler, ChatHandler, AttachmentHandler]),
+  Layer.provide([AuthUserService, SchemaErrorsRequestInvalid]),
 )
 
 export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(

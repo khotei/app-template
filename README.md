@@ -45,7 +45,7 @@ make dev     # api, worker and web together
 
 | Process | URL | Try |
 |---|---|---|
-| `apps/api` | <http://localhost:3000> | `/docs` (Scalar over the contract), `/openapi.json`, `/health` |
+| `apps/api` | <http://localhost:3000> | `/health` |
 | `apps/web` | <http://localhost:3001> | the health panel; `/api/*` is proxied to the api |
 | `apps/worker` | — | logs `worker started` and consumes the two queues |
 
@@ -100,10 +100,9 @@ Each line names one choice and where it lives; the rejected alternatives are in 
 - **The domain is pure Effect:** models are `Schema.Class`, ids and constrained values are brands,
   errors are `Schema.TaggedError`, time and ids come in as input, and ports are `Context.Service`
   declarations with no error channel. `domain/`.
-- **One HTTP contract, three consumers.** `http-api/` declares the `HttpApi` over the domain's
-  schemas; `apps/api` implements it with `HttpApiBuilder`, the browser calls it through
-  `ApiClient`, and `/openapi.json` is derived from it, never committed. A domain error becomes a
-  status through one annotation in the contract.
+- **One HTTP contract, two consumers.** `http-api/` declares the `HttpApi` over the domain's
+  schemas; `apps/api` implements it with `HttpApiBuilder`, and the browser calls it through
+  `ApiClient`. A domain error becomes a status through one annotation in the contract.
 - **Services are simple, use cases compose them.** A service owns one aggregate's writes; a flow
   across aggregates or a critical section is a use case under the user's lock, and the checks hand
   the writes a proof value (`SendableChat`, `BindableAttachments`) so the order cannot be skipped.
