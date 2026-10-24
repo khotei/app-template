@@ -2,7 +2,6 @@ import { assert, describe, it } from '@effect/vitest'
 import {
   Array as Arr,
   DateTime,
-  Deferred,
   Duration,
   Effect,
   Exit,
@@ -30,6 +29,7 @@ import {
   buildChat,
   buildUserMessage,
   Chat,
+  type ChatId,
   ChatRepository,
   ChatTitle,
   Message,
@@ -48,10 +48,17 @@ import type { AttemptInfo } from '@app-template/queue'
 import { describeOnMiniStack, png, recordLogs } from '@app-template/testing'
 
 import { AssistantMessageJob } from '#application/chat/assistant-message.job'
-import { ChatRepositoryMemory, MessageRepositoryMemory } from '#application/testing/chat.fake'
 import { chatId, epoch, messageId, sentAt } from '#application/testing/chat.fixture'
-import { AttachmentStoreOwnBucket, DbWithUsers } from '#application/testing/chat.harness'
-import { recordLanguageModel } from '#application/testing/language-model.fake'
+import {
+  AttachmentStoreOwnBucket,
+  DbWithUsers,
+  startClockAtSend,
+} from '#application/testing/chat.harness'
+import {
+  holdModelCall,
+  type ModelCallHold,
+  recordLanguageModel,
+} from '#application/testing/language-model.fake'
 import { owner } from '#application/testing/user.fixture'
 
 const historyId = (n: number) => MessageId.make(`0192d4e0-7b3a-7c00-8000-00000000005${n}`)
@@ -66,19 +73,48 @@ type Part = Response.StreamPartEncoded
  */
 const storesPg = {
   messages: MessageRepositoryPg.pipe(Layer.provide(DbWithUsers)),
-  others: Layer.mergeAll(ChatRepositoryPg, AttachmentRepositoryPg, AttachmentStoreOwnBucket).pipe(
-    Layer.provide(DbWithUsers),
-  ),
+  chatsAndAttachments: Layer.mergeAll(
+    ChatRepositoryPg,
+    AttachmentRepositoryPg,
+    AttachmentStoreOwnBucket,
+  ).pipe(Layer.provide(DbWithUsers)),
 }
 
-/** The repositories in memory, so the `TestClock` can step the job; it reads no attachment. */
-const storesMemory = {
-  messages: MessageRepositoryMemory,
-  others: Layer.mergeAll(
-    ChatRepositoryMemory,
-    Layer.mock(AttachmentRepository, {}),
-    Layer.mock(AttachmentStore, {}),
-  ),
+/**
+ * The repositories in maps, so the `TestClock` can step the job: only the methods a reply that
+ * reads no attachment calls.
+ */
+const makeStoresMemory = () => {
+  const chats = new Map<ChatId, Chat>()
+  const messages = new Map<MessageId, Message>()
+  const putChat = (chat: Chat) =>
+    Effect.sync(() => {
+      chats.set(chat.id, chat)
+    })
+  const putMessage = (message: Message) =>
+    Effect.sync(() => {
+      messages.set(message.id, message)
+    })
+  return {
+    messages: Layer.mock(MessageRepository, {
+      insert: putMessage,
+      update: putMessage,
+      selectById: (id) => Effect.sync(() => Option.fromUndefinedOr(messages.get(id))),
+      selectByChat: (chatId) =>
+        Effect.sync(() =>
+          Arr.filter([...messages.values()], (message) => message.chatId === chatId),
+        ),
+    }),
+    chatsAndAttachments: Layer.mergeAll(
+      Layer.mock(ChatRepository, {
+        insert: putChat,
+        update: putChat,
+        selectById: (id) => Effect.sync(() => Option.fromUndefinedOr(chats.get(id))),
+      }),
+      Layer.mock(AttachmentRepository, {}),
+      Layer.mock(AttachmentStore, {}),
+    ),
+  }
 }
 
 /** The job's services over `stores`, recording its message writes, its prompts and its logs. */
@@ -86,7 +122,11 @@ const makeAssistantMessageHarness = <E, R>(
   stream: Stream.Stream<Part, AiError.AiError>,
   stores: {
     readonly messages: Layer.Layer<MessageRepository, E, R>
-    readonly others: Layer.Layer<ChatRepository | AttachmentRepository | AttachmentStore, E, R>
+    readonly chatsAndAttachments: Layer.Layer<
+      ChatRepository | AttachmentRepository | AttachmentStore,
+      E,
+      R
+    >
   },
 ) => {
   const writes: Array<Message> = []
@@ -105,7 +145,7 @@ const makeAssistantMessageHarness = <E, R>(
   ).pipe(Layer.provide(stores.messages))
   const { prompts, layer: model } = recordLanguageModel({ streamText: stream })
   const { logs, layer: logger } = recordLogs()
-  const layer = Layer.mergeAll(messages, stores.others, model, logger)
+  const layer = Layer.mergeAll(messages, stores.chatsAndAttachments, model, logger)
   return { writes, prompts, logs, layer }
 }
 
@@ -119,22 +159,9 @@ const threeDeltas = Stream.make(delta('Hel'), delta('lo, '), delta('world')).pip
   Stream.tap(() => Effect.sleep('120 millis')),
 )
 
-/**
- * `replyDeltas`, held back until `release` runs; `streaming` waits until the job asks for them,
- * after its `generating` write.
- */
-const holdReply = () => {
-  const asked = Deferred.makeUnsafe<void>()
-  const released = Deferred.makeUnsafe<void>()
-  const stream = Stream.fromEffect(
-    Effect.andThen(Deferred.succeed(asked, undefined), Deferred.await(released)),
-  ).pipe(Stream.drain, Stream.concat(replyDeltas))
-  return {
-    stream,
-    streaming: Deferred.await(asked),
-    release: Deferred.succeed(released, undefined),
-  }
-}
+// The job asks for the stream after its `generating` write.
+const heldDeltas = (held: ModelCallHold) =>
+  Stream.fromEffect(held.hold).pipe(Stream.drain, Stream.concat(replyDeltas))
 
 const lastAttempt = assistantMessageQueue.maxAttempts
 
@@ -151,8 +178,9 @@ const providerError = AiError.make({
 
 const failingAtOnce = Stream.make(delta('Hel')).pipe(Stream.concat(Stream.fail(providerError)))
 
-// A delta the snapshot writes, then the provider fails.
+// A delta at 120 ms, which the 300 ms snapshot writes, then the provider fails at 520 ms.
 const failingMidway = Stream.make(delta('Hel')).pipe(
+  Stream.tap(() => Effect.sleep('120 millis')),
   Stream.concat(Stream.fromEffect(Effect.sleep('400 millis')).pipe(Stream.drain)),
   Stream.concat(Stream.fail(providerError)),
 )
@@ -171,7 +199,10 @@ const arrangeChat = (reply: Message = queuedReply, history: ReadonlyArray<Messag
     return reply
   })
 
-const buildImage = (id: AttachmentId, name: string, n: number) =>
+const buildImage = (
+  id: AttachmentId,
+  { name, boundTo }: { readonly name: string; readonly boundTo: MessageId },
+) =>
   new Attachment({
     ...buildAttachment({
       id,
@@ -181,19 +212,21 @@ const buildImage = (id: AttachmentId, name: string, n: number) =>
       size: FileSize.make(png.length),
       createdAt: epoch,
     }),
-    messageId: Option.some(historyId(n)),
+    messageId: Option.some(boundTo),
   })
 
-const photo = buildImage(photoId, 'photo.png', 1)
+const photo = buildImage(photoId, { name: 'photo.png', boundTo: historyId(1) })
 
-const sketch = buildImage(sketchId, 'sketch.png', 5)
+const sketch = buildImage(sketchId, { name: 'sketch.png', boundTo: historyId(5) })
 
-/** Stores the attachment bound to its history message, with its bytes unless they are lost. */
 const arrangeAttachment = (attachment: Attachment, bytes: 'stored' | 'lost' = 'stored') =>
   Effect.gen(function* () {
-    yield* (yield* AttachmentRepository).insert(attachment)
+    const attachments = yield* AttachmentRepository
+    const store = yield* AttachmentStore
+
+    yield* attachments.insert(attachment)
     if (bytes === 'lost') return
-    yield* (yield* AttachmentStore).insert(attachment.id, Stream.make(png), attachment)
+    yield* store.insert(attachment.id, Stream.make(png), attachment)
   })
 
 // A second apart: messages sharing a `createdAt` come back in no defined order.
@@ -242,9 +275,6 @@ const runAttemptOnClock = (attempt: number) =>
     return yield* Fiber.join(running)
   })
 
-// Later than the chat's `updatedAt`, so a bump shows.
-const startClockAtSend = TestClock.setTime(DateTime.toEpochMillis(sentAt))
-
 const deletions = {
   'the chat': Effect.flatMap(ChatRepository, (chats) => chats.delete(chatId)),
   'the chat and its messages': Effect.all([
@@ -253,7 +283,6 @@ const deletions = {
   ]),
 } as const
 
-/** The stages the reply went through, a run of writes in one stage counted once. */
 const stagesOf = (writes: ReadonlyArray<Message>) =>
   Arr.dedupeAdjacent(Arr.map(writes, (message) => message.stage))
 
@@ -361,15 +390,15 @@ describeOnMiniStack('AssistantMessageJob.handle', (it) => {
   )
 
   it.effect('keeps a rename made while the reply streams when it bumps the chat', () => {
-    const reply = holdReply()
-    const { writes, layer } = makeAssistantMessageHarness(reply.stream, storesPg)
+    const held = holdModelCall()
+    const { writes, layer } = makeAssistantMessageHarness(heldDeltas(held), storesPg)
     return Effect.gen(function* () {
       const chats = yield* ChatRepository
       yield* startClockAtSend
       yield* arrangeChat()
 
       const running = yield* Effect.forkChild(handleAttempt(1))
-      yield* reply.streaming
+      yield* held.asked
       assert.deepStrictEqual(snapshotsOf(writes), [
         ['preparing', ''],
         ['generating', ''],
@@ -377,7 +406,7 @@ describeOnMiniStack('AssistantMessageJob.handle', (it) => {
       yield* chats.update(
         new Chat({ ...(yield* selectChat), title: Option.some(ChatTitle.make('Trip')) }),
       )
-      yield* reply.release
+      yield* held.release
       yield* Fiber.join(running)
 
       const chat = yield* selectChat
@@ -413,14 +442,14 @@ describeOnMiniStack('AssistantMessageJob.handle', (it) => {
   })
 
   it.effect('fails the reply when its worker stops during the last attempt', () => {
-    const reply = holdReply()
-    const { writes, layer } = makeAssistantMessageHarness(reply.stream, storesPg)
+    const held = holdModelCall()
+    const { writes, layer } = makeAssistantMessageHarness(heldDeltas(held), storesPg)
     return Effect.gen(function* () {
       yield* startClockAtSend
       yield* arrangeChat()
 
       const running = yield* Effect.forkChild(handleAttempt(lastAttempt))
-      yield* reply.streaming
+      yield* held.asked
       yield* Fiber.interrupt(running)
 
       assert.deepStrictEqual(snapshotsOf(writes), [
@@ -437,7 +466,7 @@ describeOnMiniStack('AssistantMessageJob.handle', (it) => {
 
 describe('AssistantMessageJob.handle on the TestClock', () => {
   it.effect('writes a snapshot every 300 ms and completes and bumps the chat at the end', () => {
-    const { writes, layer } = makeAssistantMessageHarness(threeDeltas, storesMemory)
+    const { writes, layer } = makeAssistantMessageHarness(threeDeltas, makeStoresMemory())
     return Effect.gen(function* () {
       yield* arrangeChat()
 
@@ -454,24 +483,34 @@ describe('AssistantMessageJob.handle on the TestClock', () => {
     }).pipe(Effect.provide(layer))
   })
 
-  it.effect('fails the message with the text of its last snapshot', () => {
-    const { writes, layer } = makeAssistantMessageHarness(failingMidway, storesMemory)
-    return Effect.gen(function* () {
-      yield* arrangeChat()
+  it.effect(
+    'fails the message with its last snapshot text and bumps the chat at that write',
+    () => {
+      const { writes, layer } = makeAssistantMessageHarness(failingMidway, makeStoresMemory())
+      return Effect.gen(function* () {
+        yield* arrangeChat()
 
-      yield* Effect.forEach(Arr.range(1, lastAttempt), runAttemptOnClock)
+        yield* Effect.forEach(Arr.range(1, lastAttempt), runAttemptOnClock)
 
-      const attempt = [
-        ['preparing', ''],
-        ['generating', ''],
-        ['generating', 'Hel'],
-      ]
-      assert.deepStrictEqual(snapshotsOf(writes), [
-        ...attempt,
-        ...attempt,
-        ...attempt,
-        ['failed', 'Hel'],
-      ])
-    }).pipe(Effect.provide(layer))
-  })
+        const attempt = [
+          ['preparing', ''],
+          ['generating', ''],
+          ['generating', 'Hel'],
+        ]
+        assert.deepStrictEqual(snapshotsOf(writes), [
+          ...attempt,
+          ...attempt,
+          ...attempt,
+          ['failed', 'Hel'],
+        ])
+        // Each attempt starts a minute after the last.
+        assert.deepStrictEqual(
+          timesOf(writes),
+          [0, 0, 300, 60_000, 60_000, 60_300, 120_000, 120_000, 120_300, 120_520],
+        )
+        const chat = yield* selectChat
+        assert.strictEqual(DateTime.toEpochMillis(chat.updatedAt), 120_520)
+      }).pipe(Effect.provide(layer))
+    },
+  )
 })

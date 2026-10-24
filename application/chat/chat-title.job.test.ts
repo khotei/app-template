@@ -1,17 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
-import {
-  Array as Arr,
-  DateTime,
-  Deferred,
-  Effect,
-  Exit,
-  Fiber,
-  Layer,
-  Option,
-  Record as Rec,
-} from 'effect'
+import { Array as Arr, DateTime, Effect, Exit, Fiber, Layer, Option, Record as Rec } from 'effect'
 import { AiError, Prompt, type Response } from 'effect/ai'
-import { TestClock } from 'effect/testing'
 
 import {
   buildChat,
@@ -30,9 +19,13 @@ import {
 import { recordLogs } from '@app-template/testing'
 
 import { ChatTitleJob } from '#application/chat/chat-title.job'
-import { chatId, epoch, messageId, sentAt } from '#application/testing/chat.fixture'
-import { DbWithUsers } from '#application/testing/chat.harness'
-import { recordLanguageModel } from '#application/testing/language-model.fake'
+import { chatId, epoch, messageId } from '#application/testing/chat.fixture'
+import { DbWithUsers, startClockAtSend } from '#application/testing/chat.harness'
+import {
+  holdModelCall,
+  type ModelCallHold,
+  recordLanguageModel,
+} from '#application/testing/language-model.fake'
 import { owner } from '#application/testing/user.fixture'
 
 type Answer = Effect.Effect<Array<Response.PartEncoded>, AiError.AiError>
@@ -90,34 +83,18 @@ const queuedJob = new GenerateChatTitle({ chatId, messageId })
 
 const runTitle = Effect.exit(ChatTitleJob.handle(queuedJob))
 
-/**
- * An answer held back until `release` runs, so a change made once `asked` returns lands between
- * the take and the write.
- */
-const holdAnswer = (text: string) => {
-  const asked = Deferred.makeUnsafe<void>()
-  const released = Deferred.makeUnsafe<void>()
-  return {
-    answer: Deferred.succeed(asked, undefined).pipe(
-      Effect.andThen(Deferred.await(released)),
-      Effect.andThen(answering(text)),
-    ),
-    asked: Deferred.await(asked),
-    release: Deferred.succeed(released, undefined),
-  }
-}
-
-type HeldAnswer = ReturnType<typeof holdAnswer>
+// A change made once the model is asked lands between the take and the write.
+const heldAnswer = (held: ModelCallHold) => Effect.andThen(held.hold, answering('Lisbon weekend'))
 
 const moments = {
   'before the take': {
     modelCalls: 0,
-    run: <R>(held: HeldAnswer, change: Effect.Effect<void, never, R>) =>
+    run: <R>(held: ModelCallHold, change: Effect.Effect<void, never, R>) =>
       change.pipe(Effect.andThen(held.release), Effect.andThen(runTitle)),
   },
   'while the model answers': {
     modelCalls: 1,
-    run: <R>(held: HeldAnswer, change: Effect.Effect<void, never, R>) =>
+    run: <R>(held: ModelCallHold, change: Effect.Effect<void, never, R>) =>
       Effect.gen(function* () {
         const running = yield* Effect.forkChild(runTitle)
         yield* held.asked
@@ -201,7 +178,7 @@ describe('ChatTitleJob.handle', () => {
   it.effect('keeps the chat updatedAt when it writes the title', () => {
     const { writes, layer } = makeChatTitleHarness(answering('Lisbon weekend'))
     return Effect.gen(function* () {
-      yield* TestClock.setTime(DateTime.toEpochMillis(sentAt))
+      yield* startClockAtSend
       yield* arrangeChat()
 
       yield* runTitle
@@ -214,8 +191,8 @@ describe('ChatTitleJob.handle', () => {
   })
 
   it.effect.each(Rec.keys(moments))('keeps a title the user set %s', (moment) => {
-    const held = holdAnswer('Lisbon weekend')
-    const { prompts, logs, layer } = makeChatTitleHarness(held.answer)
+    const held = holdModelCall()
+    const { prompts, logs, layer } = makeChatTitleHarness(heldAnswer(held))
     return Effect.gen(function* () {
       yield* arrangeChat()
 
@@ -230,8 +207,8 @@ describe('ChatTitleJob.handle', () => {
   it.effect.each(Rec.keys(moments))(
     'ends without a write when the chat is deleted %s',
     (moment) => {
-      const held = holdAnswer('Lisbon weekend')
-      const { writes, prompts, logs, layer } = makeChatTitleHarness(held.answer)
+      const held = holdModelCall()
+      const { writes, prompts, logs, layer } = makeChatTitleHarness(heldAnswer(held))
       return Effect.gen(function* () {
         yield* arrangeChat()
 

@@ -1,15 +1,7 @@
-import { Array as Arr, Effect, Layer, Option } from 'effect'
+import { Effect, Layer } from 'effect'
 
 import { AttachmentRepository } from '@app-template/domain/attachment'
-import {
-  type Chat,
-  type ChatId,
-  ChatRepository,
-  isActiveMessage,
-  type Message,
-  type MessageId,
-  MessageRepository,
-} from '@app-template/domain/chat'
+import { MessageRepository } from '@app-template/domain/chat'
 import { AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
 import { MessageRepositoryPg } from '@app-template/infrastructure/chat'
 
@@ -60,53 +52,3 @@ export const AttachmentRepositoryYielding = Layer.effect(
     }),
   ),
 ).pipe(Layer.provide(AttachmentRepositoryPg))
-
-/**
- * Chats in a map of the layer's own, for a test that steps the `TestClock`, which a database's
- * I/O would outrun. No foreign key: deleting a chat leaves its messages.
- */
-export const ChatRepositoryMemory = Layer.sync(ChatRepository, () => {
-  const rows = new Map<ChatId, Chat>()
-  return ChatRepository.of({
-    insert: (chat) =>
-      Effect.sync(() => {
-        rows.set(chat.id, chat)
-      }),
-    update: (chat) =>
-      Effect.sync(() => {
-        if (rows.has(chat.id)) rows.set(chat.id, chat)
-      }),
-    selectById: (id) => Effect.sync(() => Option.fromUndefinedOr(rows.get(id))),
-    selectByUser: (userId) =>
-      Effect.sync(() => Arr.filter([...rows.values()], (chat) => chat.userId === userId)),
-    delete: (id) =>
-      Effect.sync(() => {
-        rows.delete(id)
-      }),
-  })
-})
-
-/** Messages in a map of the layer's own, in insertion order; see `ChatRepositoryMemory`. */
-export const MessageRepositoryMemory = Layer.sync(MessageRepository, () => {
-  const rows = new Map<MessageId, Message>()
-  const inChat = (chatId: ChatId) =>
-    Arr.filter([...rows.values()], (message) => message.chatId === chatId)
-  return MessageRepository.of({
-    insert: (message) =>
-      Effect.sync(() => {
-        rows.set(message.id, message)
-      }),
-    update: (message) =>
-      Effect.sync(() => {
-        if (rows.has(message.id)) rows.set(message.id, message)
-      }),
-    selectById: (id) => Effect.sync(() => Option.fromUndefinedOr(rows.get(id))),
-    selectByChat: (chatId) => Effect.sync(() => inChat(chatId)),
-    selectActiveByChat: (chatId) =>
-      Effect.sync(() => Arr.findFirst(inChat(chatId), isActiveMessage)),
-    deleteByChat: (chatId) =>
-      Effect.sync(() => {
-        for (const message of inChat(chatId)) rows.delete(message.id)
-      }),
-  })
-})

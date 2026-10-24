@@ -1,6 +1,6 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { Array as Arr, DateTime, Effect, Layer, Stream } from 'effect'
-import { TestCrypto } from 'effect/testing'
+import { TestClock, TestCrypto } from 'effect/testing'
 
 import { AwsConfigOwnBucket } from '@app-template/aws/testing'
 import {
@@ -41,7 +41,7 @@ import {
   type Interleaving,
   interleaveMessages,
 } from '#application/testing/chat.fake'
-import { epoch } from '#application/testing/chat.fixture'
+import { epoch, sentAt } from '#application/testing/chat.fixture'
 import { owner, stranger } from '#application/testing/user.fixture'
 
 /** Gives each user a credential of its own, since a credential's hash is a primary key. */
@@ -151,6 +151,9 @@ export const settle = (message: Message) =>
     const completed = yield* completeMessage(prepared, { text: 'Sure.', at })
     yield* messages.update(completed)
   })
+
+/** Starts the `TestClock` at `sentAt`, past the fixtures' `epoch`, so a moved `updatedAt` shows. */
+export const startClockAtSend = TestClock.setTime(DateTime.toEpochMillis(sentAt))
 
 export const selectChat = (chatId: ChatId) =>
   Effect.flatMap(ChatRepository, (chats) => chats.selectById(chatId))
