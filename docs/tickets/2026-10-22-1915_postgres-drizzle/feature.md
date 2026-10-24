@@ -50,8 +50,10 @@ Postgres, one container per run.
     domain takes from `Clock`, with no `$onUpdate` and no `DEFAULT now()`; ids stay UUIDv7 from
     `Crypto`, and `DEFAULT uuidv7()` on `id` is a fallback for hand-written SQL only. The
     roadmap's `$onUpdate` item is dropped.
-  - A message's attachment list stays on the message (`attachmentIds`, ordered) and the bind
-    stays on the attachment (`messageId`); the transaction keeps them consistent.
+  - The bind is the only link between a message and its attachments (`attachments.message_id`,
+    a foreign key); the message keeps no copy of the list. A message's attachments read in
+    upload order (`created_at`, then `id`), not in the order the send listed them: a send of
+    `[C, A]` after uploading A, B, C reads back as `[A, C]`.
   - Outbox with a relay only: no eager publish from the api. The relay runs in the worker and
     polls at a configurable interval, default 1 s.
   - `UserLock` is removed; the transaction, a partial unique index and conditional updates are
@@ -138,7 +140,7 @@ Postgres, one container per run.
   columns written with the domain's values, never by a database default or trigger.
 - **R4** — WHEN a record is read back, THE SYSTEM SHALL return the domain model it was written
   from (`Option`, `DateTime.Utc`, brands and literals intact), including `MessageFailure` with
-  its `cause`.
+  its `cause`, save that a message's `attachmentIds` read in upload order.
 
 ### The transactional send
 
@@ -237,7 +239,7 @@ Postgres, one container per run.
 | R1 | `make up`, `make dev`: create a user, a chat, send a message with an attachment; `psql` shows the rows in `users`, `credentials`, `chats`, `messages`, `attachments`; `.data/` holds no `store/`; `git grep -l KeyValueStore` outside `repos/` and `docs/tickets/` is empty. |
 | R2 | `curl /openapi.json` before and after the branch: `diff` empty; `make check` green with the `chat-core` and `aws-local` suites. |
 | R3 | `\d messages` shows `snake_case` columns, `id uuid DEFAULT uuidv7()`, `created_at timestamptz` with no default; `message_stage` enum lists the five domain literals; `infrastructure/*/*.entity.ts` exist, one per entity (`user`, `chat`, `message`, `attachment`, `outbox`). |
-| R4 | repository suite: insert each model, select it back, `assertSchemaEquals`; a `failed` message round-trips its `error` with `cause`. |
+| R4 | repository suite: insert each model, select it back, `assertSchemaEquals`; a `failed` message round-trips its `error` with `cause`; a message sent with its attachments out of upload order reads them back by `created_at`, then `id`. |
 | R5 | use-case suite: after `send`, one transaction committed both messages, the binds, the chat's `updatedAt` and the outbox rows; `psql` after a live send shows the two outbox rows marked sent within a second. |
 | R6 | use-case suite with a repository that fails on the assistant message insert: no message, no bind, unchanged chat, empty outbox, `recordQueue` empty. |
 | R7 | relay suite on MiniStack: a pending row reaches its queue and is marked sent; with SQS failing, the row stays pending and is published on the next poll once SQS answers. |

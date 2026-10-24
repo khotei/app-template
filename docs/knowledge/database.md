@@ -54,6 +54,11 @@ from them and the row codecs derived from them.
 - **Foreign keys say what a delete does.** `credentials` and `messages` cascade from their parent;
   `attachments.message_id` restricts, so a message with a bound attachment cannot be deleted
   before it.
+- **A link lives in one foreign key, never in an array beside it.** Postgres cannot hold a
+  foreign key on array elements, so a copy would drift: a message's attachments are the rows
+  whose `attachments.message_id` names it, and `messages` keeps no list of them. They read in
+  upload order, `created_at` then `id`, which `attachments_message_id_created_at_id_index`
+  serves; a send that lists them in another order reads back in upload order.
 
 ## Codecs
 
@@ -77,21 +82,23 @@ export const UserInsert = createInsertSchema(users, userFields)
 - A `jsonb` column carries the encoded type of its schema (`jsonb().$type<typeof
   MessageFailure.Encoded>()`), so the row Drizzle returns fits the codec; the refinement
   (`Schema.OptionFromNullOr(MessageFailure)`) is what decodes it.
-- An array column takes a mutable array, so its refinement encodes to one:
-  `Schema.Array(AttachmentId).pipe(Schema.encodeTo(Schema.mutable(Schema.Array(Schema.String))))`.
+- A model field that another table holds is not a column, so the codec leaves it out and the
+  reader adds it: `MessageRow` decodes no `attachmentIds`, and the reader fills them from the
+  message's attachments, in upload order.
 
 ## Relations
 
 `infrastructure/db/relations.ts` declares the relations once, with `defineRelations` over every
 table, and `Db` is built with them (`PgDrizzle.make({ relations })`), so `db.query.<table>` is
-typed. A relation names its columns (`from`, `to`) and joins on their equality only: a message's
-attachments follow `attachments.message_id`, not the order of `messages.attachment_ids`, which a
-reader restores. A relational query returns nested rows of the same shape as a `select`, so they
-decode with the same codecs:
+typed. A relation names its columns (`from`, `to`) and joins on their equality only, and holds
+no order: a query states it, as a message's attachments in upload order. A relational query
+returns nested rows of the same shape as a `select`, so they decode with the same codecs:
 
 ```ts
-const rows = yield* db.query.chats.findMany({ with: { messages: { orderBy: { id: 'asc' } } } })
-// rows: [{ id, userId, title, createdAt, updatedAt, messages: [{ id, chatId, … }] }]
+const rows = yield* db.query.messages.findMany({
+  with: { attachments: { orderBy: { createdAt: 'asc', id: 'asc' } } },
+})
+// rows: [{ id, chatId, …, attachments: [{ id, userId, messageId, … }] }]
 ```
 
 ## Repositories

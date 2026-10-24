@@ -28,13 +28,12 @@ CREATE TABLE "messages" (
 	"author" "message_author" NOT NULL,
 	"stage" "message_stage" NOT NULL,
 	"text" text NOT NULL,
-	"attachment_ids" uuid[] NOT NULL,
 	"error" jsonb,
 	"created_at" timestamp with time zone NOT NULL,
 	"updated_at" timestamp with time zone NOT NULL
 );
 --> statement-breakpoint
-CREATE INDEX "attachments_message_id_index" ON "attachments" ("message_id");--> statement-breakpoint
+CREATE INDEX "attachments_message_id_created_at_id_index" ON "attachments" ("message_id","created_at","id");--> statement-breakpoint
 CREATE INDEX "chats_user_id_updated_at_index" ON "chats" ("user_id","updated_at" DESC);--> statement-breakpoint
 CREATE INDEX "messages_chat_id_created_at_index" ON "messages" ("chat_id","created_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "messages_chat_id_active_index" ON "messages" ("chat_id") WHERE "author" = 'assistant' and "stage" in ('queued', 'preparing', 'generating');--> statement-breakpoint

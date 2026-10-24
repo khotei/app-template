@@ -34,7 +34,11 @@ export const attachments = snakeCase.table(
     check('attachments_file_name_check', sql`${table.fileName} <> ''`),
     check('attachments_media_type_check', sql`${table.mediaType} ~* ${mediaTypePattern.source}`),
     check('attachments_size_check', sql`${table.size} >= 0`),
-    index('attachments_message_id_index').on(table.messageId),
+    index('attachments_message_id_created_at_id_index').on(
+      table.messageId,
+      table.createdAt,
+      table.id,
+    ),
   ],
 )
 

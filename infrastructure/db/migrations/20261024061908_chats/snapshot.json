@@ -2,7 +2,7 @@
   "type": "diff",
   "version": "9",
   "dialect": "postgres",
-  "id": "2faebbf9-f404-49e4-b60e-20bd27113f88",
+  "id": "d44887b8-d91a-402e-a454-b4198ada9232",
   "prevIds": [
     "6ae212ac-5d51-4ba4-b923-de8706fe30eb"
   ],
@@ -106,18 +106,20 @@
         "index",
         "public",
         "attachments",
-        "attachments_message_id_index"
+        "attachments_message_id_created_at_id_index"
       ],
       "writes": [
-        "s|idx|public.attachments_message_id_index",
-        "n|idx|public.attachments_message_id_index",
-        "e|idx|public.attachments_message_id_index",
-        "n|rel|public.attachments_message_id_index"
+        "s|idx|public.attachments_message_id_created_at_id_index",
+        "n|idx|public.attachments_message_id_created_at_id_index",
+        "e|idx|public.attachments_message_id_created_at_id_index",
+        "n|rel|public.attachments_message_id_created_at_id_index"
       ],
       "reads": [
         "n|tbl|public.attachments",
         "n|sch|public",
-        "n|col|public.attachments.message_id"
+        "n|col|public.attachments.message_id",
+        "n|col|public.attachments.created_at",
+        "n|col|public.attachments.id"
       ]
     },
     {
@@ -607,22 +609,6 @@
       "row": {
         "schema": "public",
         "table": "messages",
-        "name": "attachment_ids",
-        "type": "uuid",
-        "typeSchema": null,
-        "notNull": true,
-        "dimensions": 1,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "public",
-        "table": "messages",
         "name": "error",
         "type": "jsonb",
         "typeSchema": null,
@@ -671,11 +657,25 @@
       "row": {
         "schema": "public",
         "table": "attachments",
-        "name": "attachments_message_id_index",
+        "name": "attachments_message_id_created_at_id_index",
         "nameExplicit": true,
         "columns": [
           {
             "value": "message_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "created_at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "id",
             "isExpression": false,
             "asc": true,
             "nullsFirst": false,

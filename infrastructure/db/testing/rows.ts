@@ -1,5 +1,6 @@
 import { Effect, Schema } from 'effect'
 
+import type { AttachmentId } from '@app-template/domain/attachment'
 import { Chat, Message } from '@app-template/domain/chat'
 import type { UserId } from '@app-template/domain/user'
 
@@ -20,5 +21,12 @@ export const insertMessage = (message: Message) =>
 export const decodeChat = (row: typeof ChatRow.Encoded) =>
   Effect.map(Schema.decodeEffect(ChatRow)(row), (fields) => new Chat(fields))
 
-export const decodeMessage = (row: typeof MessageRow.Encoded) =>
-  Effect.map(Schema.decodeEffect(MessageRow)(row), (fields) => new Message(fields))
+/** The row holds no attachment ids: the caller reads them from `attachments`, in upload order. */
+export const decodeMessage = (
+  row: typeof MessageRow.Encoded,
+  attachmentIds: ReadonlyArray<AttachmentId>,
+) =>
+  Effect.map(
+    Schema.decodeEffect(MessageRow)(row),
+    (fields) => new Message({ ...fields, attachmentIds }),
+  )

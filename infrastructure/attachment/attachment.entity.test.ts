@@ -26,24 +26,29 @@ import {
   insertUser,
 } from '#infrastructure/db/testing/rows'
 
-const createdAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')
+const uploadedAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')
+const laterUploadedAt = DateTime.makeUnsafe('2026-10-18T00:00:01.456Z')
+const sentAt = DateTime.makeUnsafe('2026-10-18T00:00:02.789Z')
 
 const userId = UserId.make('0192d4e0-7b3a-7c00-8000-000000000090')
 const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000091')
 const messageId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000092')
-const attachmentId = AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000093')
 
-const question = buildUserMessage({
-  id: messageId,
-  chatId,
-  text: 'What is in this file?',
-  attachmentIds: [attachmentId],
-  createdAt,
-})
+const question = (attachmentIds: ReadonlyArray<AttachmentId>) =>
+  buildUserMessage({
+    id: messageId,
+    chatId,
+    text: 'What is in these files?',
+    attachmentIds,
+    createdAt: sentAt,
+  })
 
-const attachment = (messageId: Option.Option<MessageId>) =>
+const attachment = (
+  id: AttachmentId,
+  { messageId, createdAt }: { messageId: Option.Option<MessageId>; createdAt: DateTime.Utc },
+) =>
   new Attachment({
-    id: attachmentId,
+    id,
     userId,
     messageId,
     fileName: FileName.make('notes.txt'),
@@ -52,10 +57,16 @@ const attachment = (messageId: Option.Option<MessageId>) =>
     createdAt,
   })
 
-const insertQuestion = Effect.gen(function* () {
+const notes = (messageId: Option.Option<MessageId>) =>
+  attachment(AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000093'), {
+    messageId,
+    createdAt: uploadedAt,
+  })
+
+const insertQuestion = Effect.fn(function* (attachmentIds: ReadonlyArray<AttachmentId>) {
   yield* insertUser(userId)
-  yield* insertChat(buildChat({ id: chatId, userId, createdAt }))
-  yield* insertMessage(question)
+  yield* insertChat(buildChat({ id: chatId, userId, createdAt: uploadedAt }))
+  yield* insertMessage(question(attachmentIds))
 })
 
 const insertAttachment = (attachment: Attachment) =>
@@ -83,11 +94,11 @@ describe('attachments', () => {
     { name: 'bound to a message', messageId: Option.some(messageId) },
   ])('reads an attachment $name back as the model it was written from', ({ messageId }) =>
     Effect.gen(function* () {
-      yield* insertQuestion
-      yield* insertAttachment(attachment(messageId))
+      yield* insertQuestion([])
+      yield* insertAttachment(notes(messageId))
       const selected = yield* selectAttachments
 
-      assertSchemaEquals(Schema.Array(Attachment), selected, [attachment(messageId)])
+      assertSchemaEquals(Schema.Array(Attachment), selected, [notes(messageId)])
     }).pipe(Effect.provide(DbTest)),
   )
 
@@ -102,9 +113,9 @@ describe('attachments', () => {
   ])('refuses $name through its check', ({ check, fields }) =>
     Effect.gen(function* () {
       const db = yield* Db
-      const row = Schema.encodeSync(AttachmentInsert)(attachment(Option.none()))
+      const row = Schema.encodeSync(AttachmentInsert)(notes(Option.none()))
 
-      yield* insertQuestion
+      yield* insertQuestion([])
       const error = yield* flipSqlError(db.insert(attachments).values({ ...row, ...fields }))
 
       assert.strictEqual(error.reason._tag, 'ConstraintError')
@@ -112,22 +123,43 @@ describe('attachments', () => {
     }).pipe(Effect.provide(DbTest)),
   )
 
-  it.effect('nests a message’s bound attachments under it in a relational query', () =>
+  it.effect('nests a message’s attachments in upload order, ties broken by id', () =>
     Effect.gen(function* () {
       const db = yield* Db
+      const bound = { messageId: Option.some(messageId) }
+      const first = attachment(AttachmentId.make('0192d4e0-7b3a-7c00-8000-0000000000a2'), {
+        ...bound,
+        createdAt: uploadedAt,
+      })
+      const second = attachment(AttachmentId.make('0192d4e0-7b3a-7c00-8000-0000000000a1'), {
+        ...bound,
+        createdAt: laterUploadedAt,
+      })
+      const third = attachment(AttachmentId.make('0192d4e0-7b3a-7c00-8000-0000000000a3'), {
+        ...bound,
+        createdAt: laterUploadedAt,
+      })
 
-      yield* insertQuestion
-      yield* insertAttachment(attachment(Option.some(messageId)))
-      const rows = yield* db.query.messages.findMany({ with: { attachments: true } })
+      yield* insertQuestion([third.id, first.id, second.id])
+      yield* Effect.forEach([third, first, second], insertAttachment, { discard: true })
+      const rows = yield* db.query.messages.findMany({
+        with: { attachments: { orderBy: { createdAt: 'asc', id: 'asc' } } },
+      })
       const found = yield* Effect.forEach(rows, ({ attachments, ...row }) =>
         Effect.all({
-          message: decodeMessage(row),
+          message: decodeMessage(
+            row,
+            attachments.map(({ id }) => AttachmentId.make(id)),
+          ),
           attachments: Effect.forEach(attachments, decodeAttachment),
         }),
       )
 
       assertSchemaEquals(Schema.Array(MessageWithAttachments), found, [
-        { message: question, attachments: [attachment(Option.some(messageId))] },
+        {
+          message: question([first.id, second.id, third.id]),
+          attachments: [first, second, third],
+        },
       ])
     }).pipe(Effect.provide(DbTest)),
   )

@@ -3,7 +3,6 @@ import { createInsertSchema, createSelectSchema } from 'drizzle-orm/effect-schem
 import { index, jsonb, pgEnum, snakeCase, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
 import { Schema } from 'effect'
 
-import { AttachmentId } from '@app-template/domain/attachment'
 import {
   ActiveMessageStage,
   ChatId,
@@ -30,7 +29,6 @@ export const messages = snakeCase.table(
     author: messageAuthor().notNull(),
     stage: messageStage().notNull(),
     text: text().notNull(),
-    attachmentIds: uuid().array().notNull(),
     error: jsonb().$type<typeof MessageFailure.Encoded>(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -50,14 +48,9 @@ export const messages = snakeCase.table(
 export const activeMessage: SQL =
   sql`${eq(messages.author, 'assistant')} and ${inArray(messages.stage, ActiveMessageStage.literals)}`.inlineParams()
 
-const AttachmentIds = Schema.Array(AttachmentId).pipe(
-  Schema.encodeTo(Schema.mutable(Schema.Array(Schema.String))),
-)
-
 const messageFields = {
   id: MessageId,
   chatId: ChatId,
-  attachmentIds: AttachmentIds,
   error: Schema.OptionFromNullOr(MessageFailure),
   createdAt: Schema.DateTimeUtcFromDate,
   updatedAt: Schema.DateTimeUtcFromDate,

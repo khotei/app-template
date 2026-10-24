@@ -2,7 +2,6 @@ import { assert, describe, it } from '@effect/vitest'
 import { and, asc, eq } from 'drizzle-orm'
 import { DateTime, Effect, Option, Schema } from 'effect'
 
-import { AttachmentId } from '@app-template/domain/attachment'
 import { Chat, ChatId, Message, MessageFailure, MessageId } from '@app-template/domain/chat'
 import { UserId } from '@app-template/domain/user'
 import { assertSchemaEquals } from '@app-template/testing'
@@ -28,7 +27,7 @@ const chat = new Chat({ id: chatId, userId, title: Option.none(), createdAt, upd
 
 const message = (
   id: MessageId,
-  fields: Partial<Pick<Message, 'author' | 'stage' | 'text' | 'attachmentIds' | 'error'>>,
+  fields: Partial<Pick<Message, 'author' | 'stage' | 'text' | 'error'>>,
 ) =>
   new Message({
     id,
@@ -54,7 +53,7 @@ const insertChatOfUser = Effect.andThen(insertUser(userId), insertChat(chat))
 const selectMessages = Effect.gen(function* () {
   const db = yield* Db
   const rows = yield* db.select().from(messages).orderBy(asc(messages.id))
-  return yield* Effect.forEach(rows, decodeMessage)
+  return yield* Effect.forEach(rows, (row) => decodeMessage(row, []))
 })
 
 const ChatWithMessages = Schema.Struct({ chat: Chat, messages: Schema.Array(Message) })
@@ -93,15 +92,11 @@ describe('messages', () => {
       }),
     },
     {
-      name: 'a user message with two attachments',
+      name: 'a user message',
       message: message(MessageId.make('0192d4e0-7b3a-7c00-8000-000000000075'), {
         author: 'user',
         stage: 'completed',
         text: 'Plan a trip',
-        attachmentIds: [
-          AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000081'),
-          AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000080'),
-        ],
       }),
     },
   ])('reads $name back as the model it was written from', ({ message }) =>
@@ -181,7 +176,10 @@ describe('messages', () => {
         with: { messages: { orderBy: { id: 'asc' } } },
       })
       const found = yield* Effect.forEach(rows, ({ messages, ...row }) =>
-        Effect.all({ chat: decodeChat(row), messages: Effect.forEach(messages, decodeMessage) }),
+        Effect.all({
+          chat: decodeChat(row),
+          messages: Effect.forEach(messages, (message) => decodeMessage(message, [])),
+        }),
       )
 
       assertSchemaEquals(Schema.Array(ChatWithMessages), found, [
