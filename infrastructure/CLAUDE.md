@@ -12,7 +12,8 @@ storage keys, queue names, prompts.
   ([database.md](../docs/knowledge/database.md)); until its Postgres layer exists it runs on
   `KeyValueStore` through `kv/`, and the LLM adapter on `packages/llm`'s stub. Replace the body,
   not the signature.
-- `db/` holds the Postgres client (`Db`, a Drizzle database on `@effect/sql-pg`), the migrations
-  and the tests' `globalSetup`; Drizzle is reached only through Effect, never through a promise.
+- `db/` holds the Postgres client (`Db`, a Drizzle database on `@effect/sql-pg`), the relations
+  every table shares (`relations.ts`), the migrations and the tests' `globalSetup`; Drizzle is
+  reached only through Effect, never through a promise.
 - This is where `Config` turns into client options: clients take explicit options and never read
   configuration themselves.

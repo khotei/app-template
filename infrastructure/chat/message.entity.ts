@@ -37,16 +37,18 @@ export const messages = snakeCase.table(
   },
   (table) => [
     index('messages_chat_id_created_at_index').on(table.chatId, table.createdAt),
-    uniqueIndex('messages_one_active_per_chat').on(table.chatId).where(activeMessage),
+    uniqueIndex('messages_chat_id_active_index').on(table.chatId).where(activeMessage),
   ],
 )
 
-const isActiveStage = inArray(messages.stage, ActiveMessageStage.literals)
+/**
+ * Holds for a row `isActiveMessage` holds for: the predicate of `messages_chat_id_active_index`,
+ * rendered with literals in every query, never with bound parameters
+ * ([database.md › Schema](../../docs/knowledge/database.md#schema-and-entity-files)).
+ */
+export const activeMessage: SQL =
+  sql`${eq(messages.author, 'assistant')} and ${inArray(messages.stage, ActiveMessageStage.literals)}`.inlineParams()
 
-/** Holds for a row `isActiveMessage` holds for; the predicate of `messages_one_active_per_chat`. */
-export const activeMessage: SQL = sql`${eq(messages.author, 'assistant')} and ${isActiveStage}`
-
-// Drizzle's insert takes a mutable array, the model holds a readonly one.
 const AttachmentIds = Schema.Array(AttachmentId).pipe(
   Schema.encodeTo(Schema.mutable(Schema.Array(Schema.String))),
 )

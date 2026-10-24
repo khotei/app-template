@@ -21,13 +21,10 @@ export const chats = snakeCase.table(
     updatedAt: updatedAt(),
   },
   (table) => [
-    // Looser than `ChatTitle` (spaces only, code points): it never refuses a title the brand takes.
     check(
       'chats_title_check',
       sql`${table.title} = btrim(${table.title}) and char_length(${table.title}) between 1 and ${maxTitleLength}`,
     ),
-    // Drizzle's `desc()` indexes nulls last, Postgres's `ORDER BY … DESC` sorts them first, and an
-    // index in the other null order cannot serve that sort.
     index('chats_user_id_updated_at_index').on(table.userId, table.updatedAt.desc().nullsFirst()),
   ],
 )

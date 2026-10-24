@@ -3,7 +3,13 @@ import { createInsertSchema, createSelectSchema } from 'drizzle-orm/effect-schem
 import { check, index, integer, snakeCase, text, uuid } from 'drizzle-orm/pg-core'
 import { Schema } from 'effect'
 
-import { AttachmentId, FileName, FileSize, MediaType } from '@app-template/domain/attachment'
+import {
+  AttachmentId,
+  FileName,
+  FileSize,
+  MediaType,
+  mediaTypePattern,
+} from '@app-template/domain/attachment'
 import { MessageId } from '@app-template/domain/chat'
 import { UserId } from '@app-template/domain/user'
 
@@ -26,6 +32,7 @@ export const attachments = snakeCase.table(
   },
   (table) => [
     check('attachments_file_name_check', sql`${table.fileName} <> ''`),
+    check('attachments_media_type_check', sql`${table.mediaType} ~* ${mediaTypePattern.source}`),
     check('attachments_size_check', sql`${table.size} >= 0`),
     index('attachments_message_id_index').on(table.messageId),
   ],

@@ -13,8 +13,8 @@ import {
 } from '@app-template/domain/user'
 import { assertSchemaEquals } from '@app-template/testing'
 
-import { Db, isSqlError, unwrapQueryError } from '#infrastructure/db/db.client'
-import { DbTest } from '#infrastructure/db/testing/db'
+import { Db, isSqlError } from '#infrastructure/db/db.client'
+import { DbTest, flipSqlError } from '#infrastructure/db/testing/db'
 import { credentials, users } from '#infrastructure/user/user.entity'
 import { UserRepositoryKv, UserRepositoryPg } from '#infrastructure/user/user.repository'
 
@@ -121,11 +121,8 @@ describe('UserRepositoryPg', () => {
       const ada = user('0192d4e0-7b3a-7c00-8000-000000000012')
 
       yield* db.insert(users).values({ id: ada.id, createdAt: new Date(0) })
-      const error = yield* Effect.flip(
-        db
-          .insert(credentials)
-          .values({ hash: 'A'.repeat(64), kind: 'secret', userId: ada.id })
-          .pipe(Effect.catchTag('EffectDrizzleQueryError', unwrapQueryError)),
+      const error = yield* flipSqlError(
+        db.insert(credentials).values({ hash: 'A'.repeat(64), kind: 'secret', userId: ada.id }),
       )
 
       assert.strictEqual(error.reason._tag, 'ConstraintError')

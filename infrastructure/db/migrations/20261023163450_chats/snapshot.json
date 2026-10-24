@@ -2,7 +2,7 @@
   "type": "diff",
   "version": "9",
   "dialect": "postgres",
-  "id": "3796f1be-53eb-4744-93a5-ffab84f6d715",
+  "id": "2faebbf9-f404-49e4-b60e-20bd27113f88",
   "prevIds": [
     "6ae212ac-5d51-4ba4-b923-de8706fe30eb"
   ],
@@ -168,13 +168,13 @@
         "index",
         "public",
         "messages",
-        "messages_one_active_per_chat"
+        "messages_chat_id_active_index"
       ],
       "writes": [
-        "s|idx|public.messages_one_active_per_chat",
-        "n|idx|public.messages_one_active_per_chat",
-        "e|idx|public.messages_one_active_per_chat",
-        "n|rel|public.messages_one_active_per_chat"
+        "s|idx|public.messages_chat_id_active_index",
+        "n|idx|public.messages_chat_id_active_index",
+        "e|idx|public.messages_chat_id_active_index",
+        "n|rel|public.messages_chat_id_active_index"
       ],
       "reads": [
         "n|tbl|public.messages",
@@ -757,7 +757,7 @@
       "row": {
         "schema": "public",
         "table": "messages",
-        "name": "messages_one_active_per_chat",
+        "name": "messages_chat_id_active_index",
         "nameExplicit": true,
         "columns": [
           {
@@ -902,6 +902,16 @@
         "table": "attachments",
         "name": "attachments_file_name_check",
         "value": "\"file_name\" <> ''",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachments",
+        "name": "attachments_media_type_check",
+        "value": "\"media_type\" ~* '^[a-z0-9][a-z0-9!#$&^_.+-]*\\/[a-z0-9][a-z0-9!#$&^_.+-]*$'",
         "entityType": "checks"
       }
     },

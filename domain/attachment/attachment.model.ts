@@ -7,10 +7,16 @@ import { UserId } from '#domain/user/user.id'
 export const FileName = Schema.String.check(Schema.isNonEmpty()).pipe(Schema.brand('FileName'))
 export type FileName = typeof FileName.Type
 
+/**
+ * The pattern a `MediaType` matches, which a database check also reads as SQL with `~*` for its
+ * `i` flag, so it uses only syntax that JavaScript and Postgres regular expressions read alike.
+ */
+export const mediaTypePattern = /^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/i
+
 /** A `type/subtype` pair of RFC 6838 restricted-name characters, without parameters. */
-export const MediaType = Schema.String.check(
-  Schema.isPattern(/^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/i),
-).pipe(Schema.brand('MediaType'))
+export const MediaType = Schema.String.check(Schema.isPattern(mediaTypePattern)).pipe(
+  Schema.brand('MediaType'),
+)
 export type MediaType = typeof MediaType.Type
 
 export const FileSize = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)).pipe(

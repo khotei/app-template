@@ -9,6 +9,7 @@ CREATE TABLE "attachments" (
 	"size" integer NOT NULL,
 	"created_at" timestamp with time zone NOT NULL,
 	CONSTRAINT "attachments_file_name_check" CHECK ("file_name" <> ''),
+	CONSTRAINT "attachments_media_type_check" CHECK ("media_type" ~* '^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$'),
 	CONSTRAINT "attachments_size_check" CHECK ("size" >= 0)
 );
 --> statement-breakpoint
@@ -36,7 +37,7 @@ CREATE TABLE "messages" (
 CREATE INDEX "attachments_message_id_index" ON "attachments" ("message_id");--> statement-breakpoint
 CREATE INDEX "chats_user_id_updated_at_index" ON "chats" ("user_id","updated_at" DESC);--> statement-breakpoint
 CREATE INDEX "messages_chat_id_created_at_index" ON "messages" ("chat_id","created_at");--> statement-breakpoint
-CREATE UNIQUE INDEX "messages_one_active_per_chat" ON "messages" ("chat_id") WHERE "author" = 'assistant' and "stage" in ('queued', 'preparing', 'generating');--> statement-breakpoint
+CREATE UNIQUE INDEX "messages_chat_id_active_index" ON "messages" ("chat_id") WHERE "author" = 'assistant' and "stage" in ('queued', 'preparing', 'generating');--> statement-breakpoint
 ALTER TABLE "attachments" ADD CONSTRAINT "attachments_user_id_users_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id");--> statement-breakpoint
 ALTER TABLE "attachments" ADD CONSTRAINT "attachments_message_id_messages_id_fkey" FOREIGN KEY ("message_id") REFERENCES "messages"("id") ON DELETE RESTRICT;--> statement-breakpoint
 ALTER TABLE "chats" ADD CONSTRAINT "chats_user_id_users_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id");--> statement-breakpoint

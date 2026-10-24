@@ -118,7 +118,7 @@ side:
 
 | What | File | Named |
 |---|---|---|
-| database client and migrations | `infrastructure/db/` | `Db`, `Db.layerFromConfig`, `migrations/`, the shared columns in `columns.ts` |
+| database client and migrations | `infrastructure/db/` | `Db`, `Db.layerFromConfig`, `migrations/`, the shared columns in `columns.ts`, the relations in `relations.ts` |
 | tables and row codecs | `infrastructure/user/user.entity.ts` | `users`, `credentials` (`snakeCase.table`), `UserRow`, `UserInsert` |
 | adapter on Postgres | `infrastructure/user/user.repository.ts` | `UserRepositoryPg`, beside `UserRepositoryKv` |
 

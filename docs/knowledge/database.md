@@ -2,8 +2,8 @@
 
 How the app stores its records in Postgres: where the tables are declared, how a row becomes a
 domain model, how the schema changes, and how tests get a database. The code:
-`infrastructure/db/` (the client `Db`, the shared columns, the migrations and the migrate
-program), `infrastructure/<aggregate>/<entity>.entity.ts` (the tables) and
+`infrastructure/db/` (the client `Db`, the shared columns, the relations, the migrations and the
+migrate program), `infrastructure/<aggregate>/<entity>.entity.ts` (the tables) and
 `infrastructure/drizzle.config.ts`. Drizzle runs on `@effect/sql-pg` and is reached only through
 Effect: every query is an `Effect`, never a promise.
 
@@ -27,6 +27,7 @@ from them and the row codecs derived from them.
 - **Enums and checks read the domain.** An enum takes its values from the domain's literal
   (`pgEnum('message_stage', MessageStage.literals)`), and a check reads the constant its brand
   checks with (`credentials_hash_check` matches `secretHashPattern.source`, as `SecretHash` does;
+  `attachments_media_type_check` matches `mediaTypePattern.source` with `~*`, for its `i` flag;
   `chats_title_check` caps the length at `maxTitleLength`), so a row written by hand cannot hold
   what the domain rejects. drizzle-kit inlines the constants into the DDL, so a changed literal,
   pattern or limit changes the schema, and `make migration-check` fails until a migration exists.
@@ -34,10 +35,13 @@ from them and the row codecs derived from them.
   refuses, never the reverse: `chats_title_check` trims spaces only and counts code points, where
   `ChatTitle` trims every whitespace and counts UTF-16 units. Checks are named
   `<table>_<column>_check` and indexes `<table>_<columns>_index`.
-- **A rule across rows is a partial unique index.** `messages_one_active_per_chat` allows one
+- **A rule across rows is a partial unique index.** `messages_chat_id_active_index` allows one
   active assistant message per chat; its predicate is `activeMessage`, exported from
   `message.entity.ts` beside the table, so a query for the active message and the index read one
-  condition. The predicate takes the stages from `ActiveMessageStage.literals`.
+  condition. The predicate takes the stages from `ActiveMessageStage.literals` and renders them
+  as literals (`.inlineParams()`) in every query, as in the index's DDL: `ON CONFLICT … WHERE`
+  must prove the index predicate when the statement is planned, and a generic plan, which
+  Postgres switches a prepared statement to after five runs, cannot prove it from parameters.
 - **A descending index states its null order.** Drizzle's `desc()` indexes nulls last while
   Postgres's `ORDER BY … DESC` sorts them first, so an index for that order is
   `.desc().nullsFirst()` (`chats_user_id_updated_at_index`).
@@ -92,8 +96,8 @@ that writes several tables runs them in one `sql.withTransaction`, passed to `Ef
 pipeable: `UserRepositoryPg.insert` writes the user and its credential, or neither. `SqlClient`
 is the `PgClient` that `Db.layerFromConfig` and `DbTest` publish, so the transaction runs on the
 connection `Db` uses. Every method ends with `orDieWithSqlError` from `db.client.ts`. A query
-that expects one row ends with `.limit(1)` (`selectById`, `selectByCredential`), so it stops
-at the first match and states its intent, even where a key already makes the row unique.
+that reads at most one row ends with `.limit(1)`, even where a key makes the row unique, so the
+query states its intent.
 
 ## Migrations
 
@@ -132,4 +136,7 @@ Each test runs on a database of its own, copied from a template that the run's s
 with the `make migrate` program ([tooling.md › Tests](tooling.md#tests)). A repository suite runs
 one body over every implementation of its port and provides the layer per test
 ([effect-tests.md](../../.claude/rules/effect-tests.md)); the facts only Postgres has (a check, a
-missing default, a transaction) sit in a suite of their own.
+missing default, a transaction) sit in a suite of their own. An `.entity.test.ts` writes a model
+through its insert codec and reads it back through its row codec; it arranges the parent rows
+with `infrastructure/db/testing/rows.ts` and reads the `SqlError` of a refused statement with
+`flipSqlError` from `db/testing/db.ts`.
