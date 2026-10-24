@@ -21,7 +21,7 @@
   S11 beside S10 (then S13 once S7 and S10 are in) and beside S12. A worktree runs its own ports
   and `STAGE` ([tooling.md › Worktrees](../../knowledge/tooling.md#worktrees), extended in S3).
 - **Docker.** `make test` needs a running Docker daemon from S1 on: the `globalSetup` starts one
-  Postgres container per run and the MiniStack suites keep theirs per file. `make dev` needs
+  Postgres container per run and the queue suite its own MiniStack (D21). `make dev` needs
   `make up` from S6 on, which from S3 on creates the RDS instance, the bucket and the queues.
 - **APIs are checked, not remembered.** Effect against `repos/effect`; Drizzle against
   `repos/drizzle/drizzle-orm/src` (vendored in S1); `@effect/sql-pg` against its installed sources;
@@ -439,8 +439,8 @@ methods; running it after S9 avoids merge work.
     only the vitest `globalSetup`. S4's file list names the old paths.
   - `selectByChat` breaks equal `createdAt` by id on Postgres; the key-value case that read one
     millisecond's messages in insertion order is a `Kv`-only case until S6. A user message and
-    its reply share `createdAt` in `SendMessageUseCase`, so their order rests on UUIDv7 ids
-    rising; S6 checks it on Postgres.
+    its reply share `createdAt` in `SendMessageUseCase`, and UUIDv7 ends in random bits within a
+    millisecond, so the pair reads back in either order (D19, settled in S6).
   - S5.1 changed ~720 lines (~190 adapters, the rest the suites over both stores), above the
     ~400 guide: the suites arrange each other's foreign keys through the Postgres adapters.
   - Running the tests of one file concurrently (`--sequence.concurrent`) passed every Postgres
@@ -497,12 +497,53 @@ methods; running it after S9 avoids merge work.
   harness with no `layerMemory` left; the `interleaveMessages` and `AttachmentRepositoryYielding`
   cases keep passing here and are rewritten in S9.
 - **Verify:** `make check`; `git grep -l KeyValueStore -- . ':!repos' ':!docs/tickets'` and
-  `git grep -n STORE_PATH` are empty; `make up`, `make dev`: create a user, a chat, send a message
+  `git grep -n STORE_PATH -- . ':!repos' ':!docs/tickets'` are empty; `make up`, `make dev`: create a user, a chat, send a message
   with an attachment, `psql` shows the rows in the five tables and `.data/` has no `store/`;
   `curl localhost:3000/openapi.json` saved from `main` before the switch and after it: `diff`
   empty; `LOG_LEVEL="Debug" make dev-api` and one request print the SQL with `query` and `params`;
   at `Info` none; `make test` three times in a row green, and its wall time against S5's 21.7 s.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The step landed in thirteen rounds:
+    - S6.1: the apps and both harnesses on `UserPg`, `ChatPg`, `AttachmentPgS3`; each test its
+      own database, stage and bucket.
+    - S6.2: one runner per harness; a second user browses with its own cookie jar, since a
+      nested client would send the first user's cookie.
+    - S6.3: a shared MiniStack suite and a bucket per test.
+    - S6.4: the test helpers tidied after review.
+    - S6.5: the job suites on Postgres, held at a model call, since `TestClock.adjust` returns
+      before the job's socket I/O does.
+    - S6.6: the memory repositories deleted; the timed block mocks only what the job calls.
+    - S6.7: the key-value store removed: `infrastructure/kv`, every `*Kv` layer,
+      `AttachmentStoreKv`, `StoreConfig`, `STORE_PATH`.
+    - S6.8: the tests of a file run concurrently (`sequence.concurrent`).
+    - S6.9: `/openapi.json` and `/docs` removed (D20); the handler tests keep only what HTTP adds.
+    - S6.10: only the tests of our own code kept (D21).
+    - S6.11: the application suites on native layers: `AttachmentStoreMemory`, the live clock
+      where time must move, `ChatTest` and `ApiTest` in place of the `withChat` and `withApi`
+      runners.
+    - S6.12: `apps/api` composes `@app-template/application/testing`; MiniStack runs only in
+      `packages/queue/queue.test.ts`; `provision` creates queues only; the test rules rewritten.
+    - S6.13: the key-value leftovers out of the docs; `PgClientUnauthenticated` deleted;
+      `AwsClientsMiniStack` renamed `SqsClientMiniStack`.
+  - S6.1–S6.8 built a MiniStack stage, a bucket and a `TestClock` per test, each helper patching
+    another; S6.9–S6.12 removed them for in-memory S3 and queue layers (D21). This settles S5's
+    open question of one MiniStack per run: one suite is left on it.
+  - Deviations from the Goal: attachment bytes sit in `AttachmentStoreMemory`, not S3, so "stores
+    nothing" counts rows, not the bucket's objects (D21); vitest 5 has no `describe.sequential`,
+    so the queue suite opts out with `{ concurrent: false }`; the `/openapi.json` diff of Verify
+    gave way to D20, and R2's acceptance is the diff of `http-api/` against `main`.
+  - A send's user message and its reply share `createdAt` and read back in either order (D19,
+    the user's call); R2 is amended. The S5 finding that UUIDv7 kept them ordered was wrong.
+  - Tests of done steps that S6.10 and S6.13 deleted or replaced, since they tested Drizzle, the
+    driver or test support rather than our code (D21): S1's `select 1`, the `test_` database name
+    and the fresh-database case, and `postgres.test.ts`; S2's wrong-password case through `PgClientUnauthenticated`, now an
+    `AuthenticationError` reason given to `retryWhileUnreachable`, with `buildDatabaseUrl`'s
+    password option gone; S4's entity round trips, the `activeMessage` literals and the nested
+    `db.query` cases, which the repository suites exercise. `setupTemplateDatabase` moved whole
+    into `postgres.setup.ts`.
+  - `make test`: 321 tests before S6.10, 207 after S6.12, ~21 s wall time, almost all of it
+    `queue.test.ts`'s real SQS delays.
 
 #### S7 — One active message per chat, stage guards and the cascade
 
@@ -571,7 +612,8 @@ methods; running it after S9 avoids merge work.
   `PgClient`); `DeleteChatUseCase` likewise; `UserLock` and its `withPermit` are deleted;
   `application/testing/chat.fake.ts` loses `interleaveMessages` and `AttachmentRepositoryYielding`
   and keeps one wrapper, `MessageRepositoryFailingInsert`, a `MessageRepository` layer that fails
-  the assistant message's insert, for the rollback case. The concurrency tests run real concurrency
+  the assistant message's insert, for the rollback case; if a real database refusal can fail that
+  insert instead, the file goes whole. The concurrency tests run real concurrency
   on the test database. Rules: `use-cases.md › Concurrency` and `› Tests` are rewritten for the
   transaction and the database guards (R6 in part, R9, R10, R11; D3, D5).
 - **Blocked by:** S8.
@@ -620,18 +662,18 @@ methods; running it after S9 avoids merge work.
   `infrastructure/package.json` (`./outbox` export), `packages/queue/{queue.ts,index.ts}`
   (`consumerRestart` exported; `encodeBody` added to the barrel), `packages/config/{config.ts,config.test.ts}`
   (`outboxPollInterval`), `.env.example` (`OUTBOX_POLL_INTERVAL="1 second"`),
-  `apps/worker/src/{layer.ts,layer.test.ts}` (the test is new), `apps/worker/package.json`,
+  `apps/worker/src/layer.ts`, `apps/worker/package.json`,
   `.claude/rules/naming.md`, `docs/knowledge/aws.md` (Queues: the relay publishes the outbox),
   `docs/knowledge/database.md` (the outbox), `docs/knowledge/architecture.md` ("Where things live":
   `.relay`).
 - **Test first:** Seam 4 — `queue.client.test.ts`: `QueueClientOutbox.send` inside a transaction
   that then fails leaves no row; a committed send leaves one row with the queue's name, the
-  `jobId` and the body `QueueClientSqs` would send. `outbox.relay.test.ts` on `PgClientTest` +
-  `AwsClientsMiniStack` with a provisioned `buildStage()` stage: a pending row reaches its SQS
-  queue with its `jobId` attribute and is deleted; two relays over one database publish five rows
-  once each; a transport whose `send` fails keeps the rows and the next poll publishes them once
-  it answers; under `TestClock`, an empty poll waits `outboxPollInterval`. Seam 8 —
-  `apps/worker/src/layer.test.ts` builds `WorkerLayer` over `PgClientTest` and MiniStack.
+  `jobId` and the body `QueueClientSqs` would send. `outbox.relay.test.ts` on `PgClientTest` and
+  a plain `QueueTransport` layer over an array that refuses while the test says so, no MiniStack
+  (D21): a pending row is sent to its queue's name with its `jobId` attribute and is deleted; two
+  relays over one database send five rows once each; while the transport refuses, the rows stay
+  and the next poll sends them once it answers; under `TestClock`, an empty poll waits
+  `outboxPollInterval`.
 - **Verify:** `make check`; `make up`, `make dev-worker`, a row inserted into `outbox` by `psql`
   with a valid job body reaches its queue within a second and the row is gone.
 - **Status:** todo
@@ -685,8 +727,8 @@ methods; running it after S9 avoids merge work.
   each with its active message or `none`, and none of another user's; `selectDetail` returns the
   messages in creation order, each with its attachments in upload order, and `none` for an
   unknown chat. Seam 5 — `ChatService.list` and `get` return the same shapes as before.
-- **Verify:** `make check`; `git grep -n selectByUser` is empty; `curl /openapi.json` unchanged
-  against the S6 copy.
+- **Verify:** `make check`; `git grep -n selectByUser` is empty; `git diff main -- http-api/`
+  changes no route, schema or error (D20).
 - **Status:** todo
 
 #### S13 — The dead-letter consumers
@@ -704,14 +746,14 @@ methods; running it after S9 avoids merge work.
 - **Blocked by:** S7, S10.
 - **Files:** `infrastructure/chat/chat.queue.ts`,
   `application/chat/{assistant-message.job.ts,assistant-message.job.test.ts,chat-title.job.ts,chat-title.job.test.ts}`,
-  `apps/worker/src/{layer.ts,layer.test.ts}`, `docs/knowledge/aws.md` (Queues: the dead-letter
+  `apps/worker/src/layer.ts`, `docs/knowledge/aws.md` (Queues: the dead-letter
   consumers; the "A reply stays active" sentence names the consumer), `docs/knowledge/database.md`
   (stuck replies).
 - **Test first:** Seam 6 — a `GenerateAssistantMessage` handled by the dead-letter handler with
   `attempt: 4` sets the active message `failed` with `ReplyFailed` and a cause naming the
   dead-letter queue and the attempts, and moves the chat's `updated_at`; a terminal message and a
   deleted chat are logged and untouched; a `GenerateChatTitle` from its dead-letter queue is logged
-  only. Seam 8 — `WorkerLayer` builds with the four workers.
+  only.
 - **Verify:** `make check`; live: `make up`, `make dev-api`, send with the worker stopped, redrive
   the job by receiving it `maxReceiveCount` times with `aws sqs receive-message --visibility-timeout
   0`, start the worker: the message is `failed` within seconds and the log names the dead-letter

@@ -81,7 +81,8 @@ Postgres, one container per run.
   - SQL is logged at `Debug` only, through a small `EffectLogger` layer of our own (Drizzle's
     `EffectLogger.layer` logs at `Info`); Drizzle's cache stays `EffectCache.Default`.
   - Tests: one Postgres container per `vitest` run, a template database migrated once, a fresh
-    database per test created from the template; MiniStack suites keep their container per file.
+    database per test created from the template; only the queue suite runs on MiniStack, in a
+    container of its own (`architecture.md › D21`).
   - Catalogs: `drizzle-orm` and `drizzle-kit` `1.0.0-rc.5` in a new `drizzle` namespace (one
     release train); `@effect/sql-pg` in `effect`; `@testcontainers/postgresql` in `runtime`.
 - **Facts verified on 2026-10-22.**
@@ -131,9 +132,13 @@ Postgres, one container per run.
 - **R1** — WHEN the api or the worker starts, THE SYSTEM SHALL read and write users,
   credentials, chats, messages and attachment records in the Postgres database at
   `DATABASE_URL`, and SHALL hold no record in a key-value store.
-- **R2** — THE SYSTEM SHALL serve the same HTTP contract as before: `/openapi.json` is
-  byte-identical, and every `chat-core` and `aws-local` requirement that the api and the worker
-  meet today still holds.
+- **R2** — THE SYSTEM SHALL serve the same HTTP contract as before: the routes, statuses and
+  bodies of the `HttpApi` in `http-api/` are unchanged, and every `chat-core` and `aws-local`
+  requirement that the api and the worker meet today still holds, save that a send's user message
+  and its reply, which share `createdAt`, read back in either order (`chat-core` R7, R17).
+  *Amended in S6:* the api no longer serves `/openapi.json` or `/docs`, which no client reads, so
+  the contract is the `HttpApi`, not a byte-identical document (D20); the pair's order is left
+  undefined (D19).
 - **R3** — THE database SHALL name tables and columns in `snake_case` while code uses `camelCase`;
   each aggregate's tables SHALL be declared in `infrastructure/<aggregate>/<entity>.entity.ts`
   (one file per entity, as its repositories are split: `chat.entity.ts`, `message.entity.ts`) from
@@ -239,12 +244,12 @@ Postgres, one container per run.
 | Req | How to verify |
 |---|---|
 | R1 | `make up`, `make dev`: create a user, a chat, send a message with an attachment; `psql` shows the rows in `users`, `credentials`, `chats`, `messages`, `attachments`; `.data/` holds no `store/`; `git grep -l KeyValueStore` outside `repos/` and `docs/tickets/` is empty. |
-| R2 | `curl /openapi.json` before and after the branch: `diff` empty; `make check` green with the `chat-core` and `aws-local` suites. |
+| R2 | `git diff main -- http-api/` changes no route, schema or error; `make check` green with the `chat-core` and `aws-local` suites. |
 | R3 | `\d messages` shows `snake_case` columns, `id uuid DEFAULT uuidv7()`, `created_at timestamptz` with no default; `message_stage` enum lists the five domain literals; `infrastructure/*/*.entity.ts` exist, one per entity (`user`, `chat`, `message`, `attachment`, `outbox`). |
 | R4 | repository suite: insert each model, select it back, `assertSchemaEquals`; a `failed` message round-trips its `error` with `cause`; a message sent with its attachments out of upload order reads them back by `created_at`, then `id`. |
 | R5 | use-case suite: after `send`, one transaction committed both messages, the binds, the chat's `updatedAt` and the outbox rows; `psql` after a live send shows the two outbox rows marked sent within a second. |
 | R6 | use-case suite with a repository that fails on the assistant message insert: no message, no bind, unchanged chat, empty outbox, `recordQueue` empty. |
-| R7 | relay suite on MiniStack: a pending row reaches its queue and is marked sent; with SQS failing, the row stays pending and is published on the next poll once SQS answers. |
+| R7 | relay suite on the test database with a recording queue transport (D21): a pending row reaches its queue and is marked sent; with the transport failing, the row stays pending and is published on the next poll once the transport answers. |
 | R8 | two relays over one database: each pending row is published once in the normal case; a relay killed between publish and mark leads to a second publish and a handler that skips (`already settled`). |
 | R9 | use-case suite: two concurrent sends to one chat, one `ChatBusyError`; live: two `curl` in parallel against two api processes on one database, one `202`, one `409`, one assistant message in `messages`. |
 | R10 | use-case suite: two concurrent sends in two chats binding the same attachment, one `AttachmentBoundError`, the attachment bound once. |

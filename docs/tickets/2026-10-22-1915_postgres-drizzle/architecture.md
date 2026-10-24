@@ -104,7 +104,7 @@ graph LR
 + infrastructure/db/migrations/         drizzle-kit output, committed
 + infrastructure/db/testing/postgres.setup.ts   vitest globalSetup: container, template, provide           (D10)
 + infrastructure/testing/db-test.ts     DbTest: Db over PgClientTest, publishes PgClient for transactions   (D3, D10)
-+ infrastructure/testing/{rows,repository-stacks}.ts   rows written directly; every repository on each store
++ infrastructure/testing/{rows,repository-stacks}.ts   rows written directly; every repository on Postgres
 + infrastructure/drizzle.config.ts      dialect, schema glob ./*/*.entity.ts, out ./db/migrations; no credentials
 + infrastructure/user/user.entity.ts    users, credentials; UserRow, UserInsert codecs (the credential row needs none)  (D2)
 + infrastructure/chat/chat.entity.ts    chats, the title check, its index; ChatRow, ChatInsert
@@ -137,10 +137,13 @@ graph LR
 ~ application/chat/chat-title.job.ts            updateTitle(id, title); + deadLetterWorker (log)
 - application/chat/touch-chat.ts                replaced by ChatRepository.touch
 - application/user/user-lock.ts
-~ application/testing/chat.harness.ts           services on ChatPg · AttachmentPgS3 · QueueClientOutbox over PgClientTest + MiniStack;
-                                                 reads the outbox table in place of recordQueue
+~ application/testing/chat.harness.ts           ChatTest: services on the Pg repositories over DbTest, AttachmentStoreMemory,
+                                                 QueueClientOutbox; reads the outbox table in place of recordQueue (S11)   (D21)
++ application/testing/{attachment.fake,db.harness,index}.ts   AttachmentStoreMemory, DbTest, DbWithUsers; the ./testing
+                                                 export the api's harness composes                                 (D21)
 ~ application/testing/chat.fake.ts              interleaveMessages and AttachmentRepositoryYielding go (real concurrency now);
-                                                 keeps one MessageRepository wrapper that fails the assistant insert (the rollback case)
+                                                 the file goes too if a real database refusal can fail the assistant insert
+                                                 (the rollback case)
 ```
 
 **`packages`**
@@ -151,19 +154,23 @@ graph LR
                                 - StoreConfig; + MiniStackConfig { rdsBasePort } from RDS_BASE_PORT          (D11, D15)
 ~ packages/config/ministack.ts  ministackImage → MiniStack 1.5.31 by digest
 + packages/config/postgres.ts   postgresImage: postgres:18.6-alpine by digest (tests)
-+ packages/testing/postgres.ts  setupTemplateDatabase (the setup's half); PgClientTest: a fresh database
-                               per test from the template, PgClient on it; PgClientUnauthenticated: a PgClient
-                               with a wrong password, for the failed-connection tests                    (D10)
-+ packages/testing/postgres.test.ts  a test's database is gone from pg_database once its scope closes   (D10)
++ packages/testing/postgres.ts  templateDatabase; PgClientTest: a fresh database per test from the template,
+                               PgClient on it                                                            (D10)
+~ packages/testing/ministack.ts  SqsClientMiniStack: the queue suite's own container (was AwsClientsMiniStack) (D21)
 ~ packages/testing/package.json  + @effect/sql-pg
+~ packages/aws/provision.ts     queues only, for the queue suite; the ./testing export goes                (D21)
 ```
 
 **`apps`**
 
 ```
-~ apps/api/src/layer.ts         UserPg, ChatPg, AttachmentPgS3; QueueClientOutbox; Db.layerFromConfig
+~ apps/api/src/layer.ts         UserPg, ChatPg, AttachmentPgS3; QueueClientOutbox; Db.layerFromConfig; no /openapi.json,
+                                no /docs                                                                  (D20)
+~ http-api/api.ts               no OpenApi annotation                                                     (D20)
 ~ apps/worker/src/layer.ts      ChatPg, AttachmentPgS3; QueueClientSqs; OutboxRelay; the four workers; Db.layerFromConfig
-~ apps/api/src/testing/api.harness.ts   ApiHttp over PgClientTest and QueueClientOutbox
+~ apps/api/src/testing/api.harness.ts   ApiTest: ApiHttp over DbTest, AttachmentRepositoryPg and AttachmentStoreMemory from
+                                @app-template/application/testing, QueueClientOutbox                       (D21)
+- apps/api/src/layer.test.ts                                                                              (D21)
 ```
 
 **`deployment`**
@@ -175,7 +182,7 @@ graph LR
 + deployment/local/settings.ts    the one Effect: AwsConfig and MiniStackConfig; the fixed local credentials
 - deployment/Pulumi.yaml          the nodejs stub
 ~ deployment/local/ministack.ts   + /var/run/docker.sock, MINISTACK_RDS_PUBLIC_ENDPOINT=1, RDS_PERSIST=1, RDS_BASE_PORT
-- deployment/local/provision.ts   the bucket and the queues come from the program; provision stays for the tests
+- deployment/local/provision.ts   the bucket and the queues come from the program; provision stays for the queue suite
 + deployment/aws/provider.ts      aws.Provider: endpoint set → endpoints: [{ rds, s3, sqs }], the three skip flags,
                                   s3UsePathStyle; unset → defaults (ticket 9)
 ~ deployment/aws/database.ts      createDatabase(provider, settings): aws.rds.Instance, identifier
@@ -355,12 +362,11 @@ build them with `buildResourceName` as the program does.
 
 ### Tests (D10)
 
-- `postgres.setup.ts` (`globalSetup`): `new PostgreSqlContainer(postgresImage).start()`, then
-  `setupTemplateDatabase` from `@app-template/testing`, given the same program as `make migrate`:
-  create the `template` database, migrate it (`setupTemplateDatabase`'s TSDoc states what the template
-  needs before the first copy), `ALTER DATABASE … is_template`,
-  `provide('databaseUrl', <admin url>)`; the container stops on teardown and when the template
-  fails. Every name of the protocol (the template, the key, the `test_` prefix) lives in
+- `postgres.setup.ts` (`globalSetup`): `new PostgreSqlContainer(postgresImage).start()`, create
+  the `template` database, migrate it with the program `make migrate` runs and close that pool
+  (`CREATE DATABASE … TEMPLATE` refuses a template with a session), `ALTER DATABASE …
+  is_template`, `provide('databaseUrl', <admin url>)`; the container stops on teardown and when
+  the template fails. The template's name, the key and the `test_` prefix live in
   `@app-template/testing`.
 - `PgClientTest` (`@app-template/testing`): `inject('databaseUrl')`, `CREATE DATABASE test_<random>
   TEMPLATE template`, `PgClient.layer({ url })` for it; the scope's release drops the database
@@ -368,19 +374,22 @@ build them with `buildResourceName` as the program does.
   `DbTest`), about 40 ms for the create, the connection and the drop.
 - `recordQueue` stays in `packages/queue/testing` for suites with no database; the harnesses read
   `outbox` rows instead.
+- S3 and SQS stay out of the application and api suites (D21): they take `AttachmentStoreMemory`,
+  and `recordQueue` until S11. `it.effect` gives each test its own `TestClock` at epoch, `it.live` runs
+  where time must move, and the tests of a file run concurrently.
 
 ## Seams
 
 | Seam | Catches | Misses |
 |---|---|---|
 | 1 `domain/*` schemas and pure rules (unchanged) | input and binding rules, stage transitions, read-model shapes | persistence |
-| 2 `infrastructure/db` on `PgClientTest`: `migrate`, `Db.layer`, the codecs of every `.entity.ts`; the test-database protocol of `@app-template/testing` | migrations apply to an empty database and are a no-op the second time; each test runs on a fresh database, so a table one test writes is absent from the next, and the database is dropped once the test ends; a row encodes and decodes back to an equal model (`Option`, `DateTime.Utc`, brands, `jsonb` error); a relational query nests a message's attachments in upload order; the active predicate renders as literals; SQL logged at `Debug` with `query` and `params`, nothing at `Info`; `make migrate`'s retry repeats while the database refuses connections, stops after its bound, and gives up at once on a refused password | drift between entities and the committed migrations (Seam 9) |
+| 2 `infrastructure/db` and the constraints of every `.entity.ts` on `PgClientTest` | migrations apply to the template and are a no-op the second time; SQL logged at `Debug` with `query` and `params`, nothing at `Info`; `make migrate`'s retry repeats while the database refuses connections, stops after its bound, and gives up at once on any other refusal; the partial unique index refuses a second active reply; the checks refuse what the brands refuse | drift between entities and the committed migrations (Seam 9); Drizzle's rendering and the codecs, which only the repository suites exercise (D21) |
 | 3 repositories through their ports on `PgClientTest` (one suite per port) | field mapping, `selectSummaries` order and active message, `selectDetail` nesting and order, `insert` false on an active message, `update` false on a stale `from`, `bind` partial result, `updateTitle` false when titled, `touch` keeps the title, the cascade from `chats.delete`, `RESTRICT` on a bound attachment, the check constraints reject what the brands reject | cross-process timing |
-| 4 `QueueClientOutbox` and `OutboxRelay` on `PgClientTest` + MiniStack | a `send` inside a failed transaction leaves no row; a row is published to its queue with its `jobId` and deleted; two relays over one database publish each row once; a failing transport keeps the row; the poll interval under `TestClock` | SQS outages longer than a test |
-| 5 services and use cases on `ChatPg`, `AttachmentPgS3` over MiniStack, `QueueClientOutbox`, `TestCrypto` | a send writes two messages, the binds, the touch and one or two outbox rows in one transaction, and nothing on a failing step; two concurrent sends to one chat → one `ChatBusyError`; two concurrent binds of one attachment → one `AttachmentBoundError`; rename beside a send keeps both; delete cascade and the attachments' removal; `addAssistantMessage` alone is refused on a busy chat | HTTP statuses |
-| 6 jobs with the fake `LanguageModel` on Postgres under `TestClock` | the stage sequence through `update(…, { from })`; a message settled by another writer stops the job with `already settled`; the dead-letter handler fails an active message with `ReplyFailed` and a dead-letter cause, leaves a terminal one, logs for a deleted chat; the title dead-letter handler only logs; `updateTitle` skips a titled chat | a real provider |
-| 7 `apps/api` through `BunHttpServer.layerTest` + `ApiClient` on `PgClientTest` | the wire unchanged (`/openapi.json` equal to `main`'s), `202` with outbox rows, `409` on a busy chat across two concurrent requests | the worker, the relay |
-| 8 `apps/worker` layer build on `PgClientTest` + MiniStack (`layer.test.ts`) | the relay, the four workers and the Db compose and start | live SQS timing |
+| 4 `QueueClientOutbox` and `OutboxRelay` on `PgClientTest` + a recording `QueueTransport` (D21) | a `send` inside a failed transaction leaves no row; a row is published to its queue with its `jobId` and deleted; two relays over one database publish each row once; a failing transport keeps the row; the poll interval under `TestClock` | SQS outages longer than a test |
+| 5 services and use cases on `ChatTest`: the Pg repositories over `DbTest`, `AttachmentStoreMemory`, `QueueClientOutbox`, `BunCrypto` (D21) | a send writes two messages, the binds, the touch and one or two outbox rows in one transaction, and nothing on a failing step; two concurrent sends to one chat → one `ChatBusyError`; two concurrent binds of one attachment → one `AttachmentBoundError`; rename beside a send keeps both; delete cascade and the attachments' removal; `addAssistantMessage` alone is refused on a busy chat | HTTP statuses; S3 and SQS (D21) |
+| 6 jobs with the fake `LanguageModel`: on Postgres the stages a job writes, held at a model call, never stepped by the clock; the timings in a block with no database, on `TestClock` (D21) | the stage sequence through `update(…, { from })`; a snapshot every 300 ms; a message settled by another writer stops the job with `already settled`; the dead-letter handler fails an active message with `ReplyFailed` and a dead-letter cause, leaves a terminal one, logs for a deleted chat; the title dead-letter handler only logs; `updateTitle` skips a titled chat | a real provider |
+| 7 `apps/api` through `BunHttpServer.layerTest` + `ApiClient` on `ApiTest` (D21) | what HTTP adds: `401` without a cookie, `202` with outbox rows, the failed-reply wire shape, the download redirect, the upload refusals, `404` on a stranger's chat, `409` on a busy chat across two concurrent requests | the worker, the relay; the business rules (Seam 5); a changed contract, which shows as a diff of `http-api/` (D20) |
+| 8 `apps/worker` layer build — *dropped in S6 (D21)* | a layer build test checks the framework, as the api's did; `make dev-worker` starts the relay and the four workers | — |
 | 9 `make migration-check` (local in `make check`; strict in CI on a fresh checkout) | an entity change without a committed migration (CI), or without any migration in the tree (local); a changed domain literal or pattern that an enum or check reads | a migration edited by hand; locally, a migration not yet committed |
 | 10 by hand (acceptance R16–R18): `make up`, `down`, `reset`, worktree `N=1` | the instance, the bucket and the queues created by Pulumi, `DATABASE_URL` in `.env.pulumi`, persistence across `down`, the volume on `reset`, two trees side by side | the prod stack (ticket 9) |
 
@@ -459,10 +468,10 @@ build them with `buildResourceName` as the program does.
   template.** A test sees only the rows it wrote, also through readers of a whole table (the
   relay, the dead-letter consumers, later reports), at about 40 ms per test (create, connect,
   drop; the container starts once in about 1.2 s). The `globalSetup` lives in
-  `infrastructure/db/testing` because it runs the migrator; the protocol and the per-test layer
-  live in `@app-template/testing` because every workspace's tests use them and they need only
-  `@effect/sql-pg`; `setupTemplateDatabase`'s TSDoc states what the template needs before its
-  first copy. MiniStack keeps its container per file.
+  `infrastructure/db/testing` because it runs the migrator; `PgClientTest` and the template's
+  name live in `@app-template/testing` because every workspace's tests use them and they need
+  only `@effect/sql-pg`. *Amended in S6:* the template's setup moved whole into the `globalSetup`,
+  and MiniStack keeps a container in the queue suite only (D21).
   *Rejected:* a database per file with rows scoped by owner (breaks on whole-table readers, and
   the boundary rests on discipline); `TRUNCATE` between tests (a table list to maintain, skipped
   when a test crashes, longer with every table); a rolled-back transaction per test (turns the
@@ -481,8 +490,8 @@ build them with `buildResourceName` as the program does.
   `make up` takes 8 s instead of 87 s, and a release that drops it makes `make up` slow, never
   wrong. `make down` is `docker stop`, since Pulumi cannot destroy the container without its
   dependents; `make up` refreshes the container alone first, and never `up --refresh`, which
-  drops the bucket from the state while MiniStack is down. The tests keep Testcontainers and
-  `provision` (D10): Pulumi there costs its CLI start per stack. *Rejected:* a plain Postgres
+  drops the bucket from the state while MiniStack is down. The queue suite keeps Testcontainers
+  and `provision`, queues only (D21): Pulumi there costs its CLI start per stack. *Rejected:* a plain Postgres
   container beside MiniStack (built in S3.2; the user wants every resource inside MiniStack and
   created by Pulumi); two projects, `local` for MiniStack and `aws` for the instance (built in
   S3.1; needed only while `make down` destroyed a stack); `provision.ts` for `make up` (a second
@@ -538,6 +547,29 @@ build them with `buildResourceName` as the program does.
   `RAW: (table) => …` callback over a shared `activeMessageOf(table)` (one condition, but raw SQL
   in a read, chosen against for readability); a join on the core builder (rows per attachment,
   grouped by hand).
+- **D19 — A send's user message and its reply share `createdAt`; their order stays undefined.**
+  Both carry the send's one time, and `Crypto.randomUUIDv7` ends in random bits within a
+  millisecond, so `GET /chats/:chatId` and the reply job's prompt history may return the pair
+  either way round. Tests compare such a pair as a set and give messages whose order they check
+  different times. *Rejected:* a sequence column, monotonic ids, the reply 1 ms after the user
+  message (each a column, a generator or a time of our own for one tie the user accepts).
+- **D20 — The api serves no OpenAPI document.** `/openapi.json`, the Scalar page at `/docs` and
+  the `OpenApi` annotation go: no client reads them, since the web calls the typed `ApiClient`
+  built from the same `HttpApi`. The contract is `http-api/`, so R2 holds while its diff against
+  `main` changes no route, schema or error. *Rejected:* keeping the document with a snapshot test
+  (a file and a suite to keep in step for no reader).
+- **D21 — Tests cover our code, not AWS or the framework.** The application and api suites take
+  in-memory layers for S3 and the queue, `AttachmentStoreMemory` and `recordQueue`, which
+  `@app-template/application/testing` exports so `ApiTest` composes the application's own.
+  MiniStack runs only `packages/queue/queue.test.ts`, the worker's retry, heartbeat and
+  dead-letter logic, in a container of its own; the S3 adapter, `provision` and the SQS transport
+  have no suite, since `make up` and `make dev` exercise them. Suites of Drizzle's rendering, codec
+  round trips, the test-database protocol and test support are gone. The job suites check the
+  stage sequence on Postgres and the exact timings in a block with no database, on `TestClock`;
+  `it.effect` gives each test its own `TestClock` at epoch, `it.live` runs where time must move.
+  *Rejected:* a MiniStack container per test file with a stage, a bucket and a `TestClock` per
+  test (each needed a helper that patched another: a stage per test, a bucket per test, an object
+  counter, a clock per test).
 
 ## Risks
 
@@ -545,7 +577,7 @@ build them with `buildResourceName` as the program does.
 |---|---|
 | `drizzle-orm@1.0.0-rc.*` moves between rcs (`EffectDrizzleQueryError.cause` is typed `unknown`, `defineRelations` is the rc relations API) | pinned exactly; every API checked in `repos/drizzle` at the step that uses it; `unwrapQueryError` reads `cause` once, in `db.client.ts`, and dies if it is not a `SqlError` |
 | `defineRelations` and the relational `db.query` on the Effect driver are read from source, not run | S4 ran `findMany({ with: { … orderBy } })` live (chats with messages, messages with attachments); S5 runs every repository read on it: `where` with `in` and a relation filter (`exists`), `findFirst`'s limit; if one fails, `selectDetail` is a join query behind the same port |
-| `ON CONFLICT (chat_id) WHERE <predicate>` must match the partial index's predicate exactly, or Postgres finds no arbiter; a prepared statement switches to a generic plan after five runs, which cannot prove a predicate from bound parameters | the predicate is one `sql` constant, `activeMessage`, rendered with `.inlineParams()` and used by both the index and the insert; a test checks the rendered query binds only the chat id; Seam 3 inserts two active messages |
+| `ON CONFLICT (chat_id) WHERE <predicate>` must match the partial index's predicate exactly, or Postgres finds no arbiter; a prepared statement switches to a generic plan after five runs, which cannot prove a predicate from bound parameters | the predicate is one `sql` constant, `activeMessage`, rendered with `.inlineParams()` and used by both the index and the insert; Seam 2 refuses a second active reply on the index; Seam 3 inserts two active messages (S7) |
 | A relational query aliases its tables (`d0`, `d1`), while `activeMessage` names `"messages"` | `activeMessage` serves the index and `ON CONFLICT` only; a relational read states the active message as an object filter (D18, since S5) |
 | A transaction that holds the `FOR UPDATE SKIP LOCKED` rows while SQS is slow blocks nothing but delays the batch | batch of 10, the transport's own timeout; a failed send fails the batch and the rows stay |
 | The relay republishes after a crash between send and commit | at-least-once as before; handlers skip settled replies and titled chats |
@@ -558,7 +590,7 @@ build them with `buildResourceName` as the program does.
 | `VCR_MODE` is a test switch of terraform-provider-aws, not a documented setting | local stack only; without it `make up` waits ~87 s from a clean state, nothing breaks |
 | After `make down`, `make up` changes nothing in Pulumi but the MiniStack container while MiniStack respawns the database in the background, so `make migrate` can connect before it listens | `make migrate` retries on `ConnectionError` or `cannot_connect_now` only, within a bound |
 | `pulumi up --refresh` while MiniStack is stopped drops the bucket from the state | `make up` refreshes the container alone, then runs a plain `up` |
-| `CREATE DATABASE … TEMPLATE` fails while the setup's pool is open | `setupTemplateDatabase`'s TSDoc states the condition; Seam 2 covers a first copy |
+| `CREATE DATABASE … TEMPLATE` fails while the setup's pool is open | the `globalSetup` closes the migration's pool first, and a comment there says why; every test's database is a first copy |
 | `provide`/`inject` typing (`ProvidedContext` augmentation) under the patched `tsc` was not checked | S1 adds the augmentation in `packages/testing` and `make typecheck` decides |
 | The Drizzle monorepo is large (size unknown; the clone was denied) | S1 measures `du -sh repos/drizzle`; above several times `repos/effect`, the user decides |
 | The `skipLibCheck: false` path fails on Drizzle's `.d.ts` under `exactOptionalPropertyTypes` | `tsconfig.base.json` keeps `skipLibCheck: true`, as today |

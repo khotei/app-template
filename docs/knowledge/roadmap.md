@@ -182,7 +182,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   expiration. The donor isolates tests by one container per file plus `TRUNCATE` at the top of
   each test, which forbids parallel tests inside a file.
 - **Inherits from `aws-local` (2026-10-22).** A sweep of unbound attachment records past
-  `unboundLifetime` (the key-value store cannot list them; they read as not found until then); a
+  `unboundLifetime` (expired unbound records read as not found, and no sweep deletes them yet); a
   consumer or sweep for replies left active in the dead-letter queue (a killed worker, a failed
   `failed` write, a stopped worker's long poll); a `WHERE stage IN (…)` guard on the reply's
   terminal write.
