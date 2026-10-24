@@ -1,7 +1,16 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, DateTime, Effect, Exit, Fiber, Layer, Option, Record as Rec } from 'effect'
+import {
+  Array as Arr,
+  DateTime,
+  Deferred,
+  Effect,
+  Exit,
+  Fiber,
+  Layer,
+  Option,
+  Record as Rec,
+} from 'effect'
 import { AiError, Prompt, type Response } from 'effect/ai'
-import { KeyValueStore } from 'effect/persistence'
 import { TestClock } from 'effect/testing'
 
 import {
@@ -14,20 +23,24 @@ import {
   maxTitleLength,
 } from '@app-template/domain/chat'
 import {
-  ChatRepositoryKv,
+  ChatRepositoryPg,
   GenerateChatTitle,
-  MessageRepositoryKv,
+  MessageRepositoryPg,
 } from '@app-template/infrastructure/chat'
 import { recordLogs } from '@app-template/testing'
 
 import { ChatTitleJob } from '#application/chat/chat-title.job'
-import { chatId, epoch, messageId } from '#application/testing/chat.fixture'
+import { chatId, epoch, messageId, sentAt } from '#application/testing/chat.fixture'
+import { DbWithUsers } from '#application/testing/chat.harness'
 import { recordLanguageModel } from '#application/testing/language-model.fake'
 import { owner } from '#application/testing/user.fixture'
 
 type Answer = Effect.Effect<Array<Response.PartEncoded>, AiError.AiError>
 
-/** The job's services over memory adapters, recording its chat writes, its prompts and its logs. */
+/**
+ * The job's services on a fresh test database, recording its chat writes, its prompts and its
+ * logs.
+ */
 const makeChatTitleHarness = (answer: Answer) => {
   const writes: Array<Chat> = []
   const chats = Layer.effect(
@@ -42,11 +55,11 @@ const makeChatTitleHarness = (answer: Answer) => {
           ),
       }),
     ),
-  ).pipe(Layer.provide(ChatRepositoryKv))
+  ).pipe(Layer.provide(ChatRepositoryPg))
   const { prompts, layer: model } = recordLanguageModel({ generateText: answer })
   const { logs, layer: logger } = recordLogs()
-  const layer = Layer.mergeAll(chats, MessageRepositoryKv, model, logger).pipe(
-    Layer.provide(KeyValueStore.layerMemory),
+  const layer = Layer.mergeAll(chats, MessageRepositoryPg, model, logger).pipe(
+    Layer.provide(DbWithUsers),
   )
   return { writes, prompts, logs, layer }
 }
@@ -75,32 +88,41 @@ const selectChat = Effect.flatMap(ChatRepository, (chats) => chats.selectById(ch
 
 const queuedJob = new GenerateChatTitle({ chatId, messageId })
 
-const startTitle = Effect.forkChild(Effect.exit(ChatTitleJob.handle(queuedJob)))
+const runTitle = Effect.exit(ChatTitleJob.handle(queuedJob))
 
-/** Runs the handler to its end, the `TestClock` moving its sleeps along. */
-const runTitle = Effect.gen(function* () {
-  const running = yield* startTitle
-  yield* TestClock.adjust('1 minute')
-  return yield* Fiber.join(running)
-})
+/**
+ * An answer held back until `release` runs, so a change made once `asked` returns lands between
+ * the take and the write.
+ */
+const holdAnswer = (text: string) => {
+  const asked = Deferred.makeUnsafe<void>()
+  const released = Deferred.makeUnsafe<void>()
+  return {
+    answer: Deferred.succeed(asked, undefined).pipe(
+      Effect.andThen(Deferred.await(released)),
+      Effect.andThen(answering(text)),
+    ),
+    asked: Deferred.await(asked),
+    release: Deferred.succeed(released, undefined),
+  }
+}
 
-// The model answers after 500 ms, so a change made once it is asked lands between the take and
-// the write.
-const slowAnswer = Effect.delay(answering('Lisbon weekend'), '500 millis')
+type HeldAnswer = ReturnType<typeof holdAnswer>
 
 const moments = {
   'before the take': {
     modelCalls: 0,
-    run: <R>(change: Effect.Effect<void, never, R>) => Effect.andThen(change, runTitle),
+    run: <R>(held: HeldAnswer, change: Effect.Effect<void, never, R>) =>
+      change.pipe(Effect.andThen(held.release), Effect.andThen(runTitle)),
   },
   'while the model answers': {
     modelCalls: 1,
-    run: <R>(change: Effect.Effect<void, never, R>) =>
+    run: <R>(held: HeldAnswer, change: Effect.Effect<void, never, R>) =>
       Effect.gen(function* () {
-        const running = yield* startTitle
-        yield* TestClock.adjust('100 millis')
+        const running = yield* Effect.forkChild(runTitle)
+        yield* held.asked
         yield* change
-        yield* TestClock.adjust('1 minute')
+        yield* held.release
         yield* Fiber.join(running)
       }),
   },
@@ -177,8 +199,9 @@ describe('ChatTitleJob.handle', () => {
   })
 
   it.effect('keeps the chat updatedAt when it writes the title', () => {
-    const { writes, layer } = makeChatTitleHarness(slowAnswer)
+    const { writes, layer } = makeChatTitleHarness(answering('Lisbon weekend'))
     return Effect.gen(function* () {
+      yield* TestClock.setTime(DateTime.toEpochMillis(sentAt))
       yield* arrangeChat()
 
       yield* runTitle
@@ -191,11 +214,12 @@ describe('ChatTitleJob.handle', () => {
   })
 
   it.effect.each(Rec.keys(moments))('keeps a title the user set %s', (moment) => {
-    const { prompts, logs, layer } = makeChatTitleHarness(slowAnswer)
+    const held = holdAnswer('Lisbon weekend')
+    const { prompts, logs, layer } = makeChatTitleHarness(held.answer)
     return Effect.gen(function* () {
       yield* arrangeChat()
 
-      yield* moments[moment].run(renameChat)
+      yield* moments[moment].run(held, renameChat)
 
       assert.deepStrictEqual((yield* selectChat).title, Option.some(ChatTitle.make('Trip')))
       assert.strictEqual(prompts.length, moments[moment].modelCalls)
@@ -206,11 +230,12 @@ describe('ChatTitleJob.handle', () => {
   it.effect.each(Rec.keys(moments))(
     'ends without a write when the chat is deleted %s',
     (moment) => {
-      const { writes, prompts, logs, layer } = makeChatTitleHarness(slowAnswer)
+      const held = holdAnswer('Lisbon weekend')
+      const { writes, prompts, logs, layer } = makeChatTitleHarness(held.answer)
       return Effect.gen(function* () {
         yield* arrangeChat()
 
-        yield* moments[moment].run(deleteChat)
+        yield* moments[moment].run(held, deleteChat)
 
         assert.deepStrictEqual(writes, [])
         assert.strictEqual(prompts.length, moments[moment].modelCalls)
