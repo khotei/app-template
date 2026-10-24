@@ -5,5 +5,5 @@
     "outDir": "../../node_modules/.cache/tsc/aws"
   },
   "include": ["**/*.ts"],
-  "references": [{ "path": "../testing" }]
+  "references": [{ "path": "../config" }, { "path": "../testing" }]
 }

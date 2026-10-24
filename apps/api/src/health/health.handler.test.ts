@@ -1,16 +1,16 @@
-import { assert, describe } from '@effect/vitest'
+import { assert } from '@effect/vitest'
 import { Effect } from 'effect'
 
-import { apiSuite, withApi } from '#api/testing/api.harness'
+import { describeOnMiniStack } from '@app-template/testing'
 
-describe('health', () => {
-  apiSuite((it) => {
-    it.effect('GET /health is ok', () =>
-      withApi((api) =>
-        Effect.gen(function* () {
-          assert.deepStrictEqual(yield* api.health.get(), { status: 'ok' })
-        }),
-      ),
-    )
-  })
+import { withApi } from '#api/testing/api.harness'
+
+describeOnMiniStack('health', (it) => {
+  it.effect('GET /health is ok', () =>
+    withApi((api) =>
+      Effect.gen(function* () {
+        assert.deepStrictEqual(yield* api.health.get(), { status: 'ok' })
+      }),
+    ),
+  )
 })

@@ -1,33 +1,33 @@
-import { assert, describe, it } from '@effect/vitest'
+import { assert } from '@effect/vitest'
 import { Effect } from 'effect'
 
-import { apiSuite, operations, spec, withApi } from '#api/testing/api.harness'
+import { describeOnMiniStack } from '@app-template/testing'
 
-describe('api routes', () => {
-  apiSuite((it) => {
-    it.effect('GET /openapi.json serves the spec derived from Api', () =>
-      withApi((_, http) =>
-        Effect.gen(function* () {
-          const response = yield* http.get('/openapi.json')
+import { operations, spec, withApi } from '#api/testing/api.harness'
 
-          assert.strictEqual(response.status, 200)
-          assert.deepStrictEqual(yield* response.json, JSON.parse(JSON.stringify(spec)))
-        }),
-      ),
-    )
+describeOnMiniStack('api routes', (it) => {
+  it.effect('GET /openapi.json serves the spec derived from Api', () =>
+    withApi((_, { http }) =>
+      Effect.gen(function* () {
+        const response = yield* http.get('/openapi.json')
 
-    it.effect('GET /docs serves the Scalar page', () =>
-      withApi((_, http) =>
-        Effect.gen(function* () {
-          const response = yield* http.get('/docs')
+        assert.strictEqual(response.status, 200)
+        assert.deepStrictEqual(yield* response.json, JSON.parse(JSON.stringify(spec)))
+      }),
+    ),
+  )
 
-          assert.strictEqual(response.status, 200)
-          assert.match(response.headers['content-type'] ?? '', /^text\/html/)
-          assert.include(yield* response.text, 'scalar')
-        }),
-      ),
-    )
-  })
+  it.effect('GET /docs serves the Scalar page', () =>
+    withApi((_, { http }) =>
+      Effect.gen(function* () {
+        const response = yield* http.get('/docs')
+
+        assert.strictEqual(response.status, 200)
+        assert.match(response.headers['content-type'] ?? '', /^text\/html/)
+        assert.include(yield* response.text, 'scalar')
+      }),
+    ),
+  )
 
   // An endpoint may list its own errors at 400 too; the spec then joins them in one `anyOf`.
   it.effect.each(operations)(

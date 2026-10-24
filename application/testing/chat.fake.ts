@@ -18,7 +18,7 @@ export interface Interleaving {
  * write.
  *
  * The yield hands the turn to a concurrent send or delete between this send's check and its
- * writes, where the armed write lands too.
+ * writes.
  */
 export const interleaveMessages = () => {
   const interleaving: Interleaving = { write: Effect.void }

@@ -1,3 +1,4 @@
+import { layer } from '@effect/vitest'
 import { S3Service } from '@effect-aws/client-s3'
 import { SQSService } from '@effect-aws/client-sqs'
 import { ConfigProvider, Effect, Layer } from 'effect'
@@ -34,11 +35,19 @@ export const AwsClientsMiniStack = Layer.unwrap(
 )
 
 /**
+ * Describes a suite whose tests reach S3 and SQS on the suite's MiniStack; each test takes its
+ * own stage there (`AwsConfigOwnStage`).
+ */
+export const describeOnMiniStack = layer(AwsClientsMiniStack, { timeout: '60 seconds' })
+
+/**
  * `AwsConfig` on a stage no other test shares, read through a `ConfigProvider` once `provision`
  * has created the resources the test uses under it: provide it per test, so its buckets and
  * queues are its own and nothing needs cleaning.
  */
-export const ownStage = <E, R>(provision: (stage: string) => Effect.Effect<unknown, E, R>) =>
+export const AwsConfigOwnStage = <E, R>(
+  provision: (stage: string) => Effect.Effect<unknown, E, R>,
+) =>
   Layer.unwrap(
     Effect.gen(function* () {
       const stage = buildStage()

@@ -12,13 +12,17 @@ import {
   MessageNotFoundError,
 } from '@app-template/domain/chat'
 import type { UserId } from '@app-template/domain/user'
-import { assertSchemaEquals, isUuidV7, sortById } from '@app-template/testing'
+import {
+  assertSchemaEquals,
+  describeOnMiniStack,
+  idsOf,
+  isUuidV7,
+  sortById,
+} from '@app-template/testing'
 
 import { ChatService } from '#application/chat/chat.service'
 import { ask, sentAt, unknownChatId, unknownMessageId } from '#application/testing/chat.fixture'
 import {
-  chatSuite,
-  idsOf,
   makeChatHarness,
   selectChat,
   settle,
@@ -40,7 +44,7 @@ const chatCalls = {
   getMessage: (service, userId, chatId) => service.getMessage(userId, chatId, unknownMessageId),
 } as const satisfies Record<string, ChatCall>
 
-chatSuite('ChatService', (it) => {
+describeOnMiniStack('ChatService', (it) => {
   it.effect('create stores an untitled chat with a UUIDv7 id at the clock time', () => {
     const { layer } = makeChatHarness()
     return Effect.gen(function* () {

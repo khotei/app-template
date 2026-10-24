@@ -1,9 +1,8 @@
 import { BunCrypto } from '@effect/platform-bun'
-import { layer } from '@effect/vitest'
 import { Array as Arr, DateTime, Effect, Layer, Stream } from 'effect'
 import { TestCrypto } from 'effect/testing'
 
-import { provision, type Resources, resources } from '@app-template/aws'
+import { AwsConfigOwnBucket } from '@app-template/aws/testing'
 import {
   type Attachment,
   AttachmentRepository,
@@ -31,7 +30,7 @@ import { ChatRepositoryPg } from '@app-template/infrastructure/chat'
 import { Db } from '@app-template/infrastructure/db'
 import { UserPg } from '@app-template/infrastructure/user'
 import { recordQueue, type SentJob } from '@app-template/queue/testing'
-import { AwsClientsMiniStack, ownStage, PgClientTest, png } from '@app-template/testing'
+import { idsOf, PgClientTest, png } from '@app-template/testing'
 
 import { AttachmentService } from '#application/attachment/attachment.service'
 import { ChatService } from '#application/chat/chat.service'
@@ -62,15 +61,10 @@ export const DbWithUsers = Layer.effectDiscard(
   Layer.provideMerge(Db.layer.pipe(Layer.provideMerge(PgClientTest))),
 )
 
-const attachmentsBucket = { buckets: resources.buckets, queues: {} } satisfies Resources
-
-/** The S3 attachment store on a bucket of the test's own, over the file's MiniStack clients. */
+/** The S3 attachment store on a bucket of the test's own, over the suite's MiniStack clients. */
 export const AttachmentStoreOwnBucket = AttachmentStoreS3.pipe(
-  Layer.provideMerge(ownStage((stage) => Effect.orDie(provision(attachmentsBucket, stage)))),
+  Layer.provideMerge(AwsConfigOwnBucket),
 )
-
-/** The suite every chat test runs in: the MiniStack its harnesses take their own bucket from. */
-export const chatSuite = layer(AwsClientsMiniStack, { timeout: '60 seconds' })
 
 export interface ChatHarnessOptions {
   /** Replaces the Postgres chat repository, to fail or script one of its calls. */
@@ -157,9 +151,6 @@ export const settle = (message: Message) =>
     const completed = yield* completeMessage(prepared, { text: 'Sure.', at })
     yield* messages.update(completed)
   })
-
-export const idsOf = <A extends { readonly id: string }>(items: ReadonlyArray<A>): Array<A['id']> =>
-  Arr.map(items, (item) => item.id)
 
 export const selectChat = (chatId: ChatId) =>
   Effect.flatMap(ChatRepository, (chats) => chats.selectById(chatId))

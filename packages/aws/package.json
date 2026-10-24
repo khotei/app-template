@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./index.ts"
+    ".": "./index.ts",
+    "./testing": "./testing/aws.fake.ts"
   },
   "imports": {
     "#aws/*": "./*.ts"
@@ -14,6 +15,7 @@
     "effect": "catalog:effect"
   },
   "devDependencies": {
+    "@app-template/config": "workspace:*",
     "@app-template/testing": "workspace:*",
     "@effect/vitest": "catalog:effect"
   }

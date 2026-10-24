@@ -1,23 +1,23 @@
 import { BunHttpServer, BunServices } from '@effect/platform-bun'
-import { assert, it, layer } from '@effect/vitest'
+import { assert, it } from '@effect/vitest'
 import { Array as Arr, ConfigProvider, Effect, Layer, Option, Record as Rec, Ref } from 'effect'
 import { Cookies, HttpClient, type HttpClientResponse } from 'effect/http'
 import { OpenApi } from 'effect/http-api'
+import { SqlClient } from 'effect/sql'
 
-import { buildResourceName, provision, type Resources, resources } from '@app-template/aws'
+import { buildResourceName, resources } from '@app-template/aws'
+import { AwsConfigOwnBucket } from '@app-template/aws/testing'
 import { AwsConfig } from '@app-template/config'
 import { Api, ApiClient } from '@app-template/http-api'
 import { AttachmentRepositoryPg, AttachmentStoreS3 } from '@app-template/infrastructure/attachment'
 import { Db } from '@app-template/infrastructure/db'
 import { recordQueue } from '@app-template/queue/testing'
-import { AwsClientsMiniStack, countObjects, ownStage, PgClientTest } from '@app-template/testing'
+import { countObjects, PgClientTest } from '@app-template/testing'
 
 import { ApiHttp } from '#api/layer'
 
-const attachmentsBucket = { buckets: resources.buckets, queues: {} } satisfies Resources
-
 const AttachmentPgOwnBucket = Layer.mergeAll(AttachmentRepositoryPg, AttachmentStoreS3).pipe(
-  Layer.provideMerge(ownStage((stage) => Effect.orDie(provision(attachmentsBucket, stage)))),
+  Layer.provideMerge(AwsConfigOwnBucket),
 )
 
 /**
@@ -37,11 +37,16 @@ const makeApiHarness = () =>
     ]),
   )
 
-/** The suite every api test runs in: the MiniStack its harnesses take their own bucket from. */
-export const apiSuite = layer(AwsClientsMiniStack, { timeout: '60 seconds' })
-
 export const countStoredObjects = Effect.flatMap(AwsConfig, ({ stage }) =>
   countObjects(buildResourceName(stage, resources.buckets.attachments.name)),
+)
+
+export const countStoredRows = Effect.flatMap(
+  SqlClient.SqlClient,
+  (sql) => sql<{ readonly count: number }>`select count(*)::int as count from attachments`,
+).pipe(
+  Effect.map((rows) => rows[0]?.count ?? 0),
+  Effect.orDie,
 )
 
 const apiClientWithJar = (cookies: Cookies.Cookies) =>
@@ -56,35 +61,36 @@ const apiClientWithJar = (cookies: Cookies.Cookies) =>
     ),
   )
 
+interface Browser {
+  /** A raw client on the browser's cookie jar, for what `ApiClient` cannot express. */
+  readonly http: HttpClient.HttpClient
+  /** Opens another browser, with a jar of its own, on the same api. */
+  readonly browse: Browse
+}
+
 type Browse = <A, E, R>(
-  body: (api: ApiClient['Service'], http: HttpClient.HttpClient) => Effect.Effect<A, E, R>,
+  body: (api: ApiClient['Service'], browser: Browser) => Effect.Effect<A, E, R>,
   cookies?: Cookies.Cookies,
 ) => Effect.Effect<A, E, Exclude<R, ApiClient | HttpClient.HttpClient>>
 
 /**
  * Runs `body` on an api of the test's own (no row, object or server is shared with another
- * test), with an `ApiClient` whose cookie jar starts from `cookies`, as a browser's would, and a
- * raw `HttpClient` on the same jar, for the requests and bodies the client cannot express.
- * `browse` opens another browser, with a jar of its own, on the same api.
+ * test), with an `ApiClient` whose cookie jar starts from `cookies`, as a browser's would.
  */
 export const withApi = <A, E, R>(
-  body: (
-    api: ApiClient['Service'],
-    http: HttpClient.HttpClient,
-    browse: Browse,
-  ) => Effect.Effect<A, E, R>,
+  body: (api: ApiClient['Service'], browser: Browser) => Effect.Effect<A, E, R>,
   cookies: Cookies.Cookies = Cookies.empty,
 ) =>
   Effect.gen(function* () {
     const server = yield* HttpClient.HttpClient
     const browse: Browse = (inner, jar = Cookies.empty) =>
       Effect.flatMap(Effect.zip(ApiClient, HttpClient.HttpClient), ([api, http]) =>
-        inner(api, http),
+        inner(api, { http, browse }),
       ).pipe(
         Effect.provide(apiClientWithJar(jar)),
         Effect.provideService(HttpClient.HttpClient, server),
       )
-    return yield* browse((api, http) => body(api, http, browse), cookies)
+    return yield* browse(body, cookies)
   }).pipe(Effect.provide(makeApiHarness()))
 
 /** Registers the jar's user and opens an empty chat of theirs. */

@@ -21,14 +21,18 @@ import {
   MessageInputInvalidError,
 } from '@app-template/domain/chat'
 import { GenerateAssistantMessage, GenerateChatTitle } from '@app-template/infrastructure/chat'
-import { assertSchemaEquals, isUuidV7, sortById } from '@app-template/testing'
+import {
+  assertSchemaEquals,
+  describeOnMiniStack,
+  idsOf,
+  isUuidV7,
+  sortById,
+} from '@app-template/testing'
 
 import { unknownAttachmentId } from '#application/testing/attachment.fixture'
 import { ask, sentAt, unknownChatId } from '#application/testing/chat.fixture'
 import {
   type ChatArranged,
-  chatSuite,
-  idsOf,
   selectAttachments,
   selectChat,
   selectMessages,
@@ -70,7 +74,7 @@ const sendConcurrently = (
     { concurrency: 'unbounded' },
   )
 
-chatSuite('SendMessageUseCase', (it) => {
+describeOnMiniStack('SendMessageUseCase', (it) => {
   it.effect('send stores the user message and a queued assistant message and bumps the chat', () =>
     withChat(({ chat, sendMessage }) =>
       Effect.gen(function* () {
