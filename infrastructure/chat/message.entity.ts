@@ -1,11 +1,13 @@
 import { eq, inArray, type SQL, sql } from 'drizzle-orm'
 import { createInsertSchema, createSelectSchema } from 'drizzle-orm/effect-schema'
 import { index, jsonb, pgEnum, snakeCase, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
-import { Schema } from 'effect'
+import { Array as Arr, Effect, Schema } from 'effect'
 
+import { AttachmentId } from '@app-template/domain/attachment'
 import {
   ActiveMessageStage,
   ChatId,
+  Message,
   MessageAuthor,
   MessageFailure,
   MessageId,
@@ -59,3 +61,18 @@ const messageFields = {
 export const MessageRow = createSelectSchema(messages, messageFields)
 
 export const MessageInsert = createInsertSchema(messages, messageFields)
+
+const MessageWithAttachmentsRow = Schema.Struct({
+  ...MessageRow.fields,
+  attachments: Schema.Array(Schema.Struct({ id: AttachmentId })),
+})
+
+export const decodeMessage = (row: typeof MessageWithAttachmentsRow.Encoded) =>
+  Effect.map(
+    Schema.decodeEffect(MessageWithAttachmentsRow)(row),
+    ({ attachments, ...fields }) =>
+      new Message({
+        ...fields,
+        attachmentIds: Arr.map(attachments, (attachment) => attachment.id),
+      }),
+  )

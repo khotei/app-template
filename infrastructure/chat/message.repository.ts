@@ -1,9 +1,9 @@
-import { and, eq, type SQL } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { Array as Arr, Effect, Layer, Option, Schema } from 'effect'
 import { KeyValueStore } from 'effect/persistence'
 
-import { AttachmentId } from '@app-template/domain/attachment'
 import {
+  ActiveMessageStage,
   type ChatId,
   isActiveMessage,
   Message,
@@ -11,13 +11,7 @@ import {
   MessageRepository,
 } from '@app-template/domain/chat'
 
-import { attachments } from '#infrastructure/attachment/attachment.entity'
-import {
-  activeMessage,
-  MessageInsert,
-  MessageRow,
-  messages,
-} from '#infrastructure/chat/message.entity'
+import { decodeMessage, MessageInsert, messages } from '#infrastructure/chat/message.entity'
 import { Db, orDieWithSqlError } from '#infrastructure/db/db.client'
 import { createCollection, createIndex } from '#infrastructure/kv/kv-collection'
 
@@ -61,50 +55,14 @@ export const MessageRepositoryKv = Layer.effect(
 
 const encodeMessage = Schema.encodeEffect(MessageInsert)
 
-const decodeMessageRow = Schema.decodeEffect(MessageRow)
-
-const decodeAttachmentIds = Schema.decodeEffect(Schema.Array(AttachmentId))
-
-interface MessageAttachmentRow {
-  readonly message: typeof MessageRow.Encoded
-  readonly attachmentId: string | null
-}
-
-const decodeMessage = Effect.fnUntraced(function* (
-  rows: Arr.NonEmptyReadonlyArray<MessageAttachmentRow>,
-) {
-  const fields = yield* decodeMessageRow(Arr.headNonEmpty(rows).message)
-  const attachmentIds = yield* decodeAttachmentIds(
-    Arr.flatMapNullishOr(rows, (row) => row.attachmentId),
-  )
-  return new Message({ ...fields, attachmentIds })
-})
-
-/** Folds the joined rows into messages; a message's rows must be adjacent. */
-const decodeMessages = (rows: ReadonlyArray<MessageAttachmentRow>) =>
-  Arr.isReadonlyArrayNonEmpty(rows)
-    ? Effect.forEach(
-        Arr.groupWith(rows, (self, that) => self.message.id === that.message.id),
-        decodeMessage,
-      )
-    : Effect.succeed([])
+const withAttachmentIds = {
+  attachments: { columns: { id: true }, orderBy: { createdAt: 'asc', id: 'asc' } },
+} as const
 
 export const MessageRepositoryPg = Layer.effect(
   MessageRepository,
-  Effect.map(Db, (db) => {
-    // A join, not a relational query, so the active read can use `activeMessage`, which names
-    // the unaliased table. A message spans one row per attachment, hence no `.limit(1)`.
-    const selectMessages = Effect.fnUntraced(function* (where: SQL | undefined) {
-      const rows = yield* db
-        .select({ message: messages, attachmentId: attachments.id })
-        .from(messages)
-        .leftJoin(attachments, eq(attachments.messageId, messages.id))
-        .where(where)
-        .orderBy(messages.createdAt, messages.id, attachments.createdAt, attachments.id)
-      return yield* decodeMessages(rows)
-    })
-
-    return MessageRepository.of({
+  Effect.map(Db, (db) =>
+    MessageRepository.of({
       insert: Effect.fn('MessageRepository.insert')(function* (message) {
         const row = yield* encodeMessage(message)
         yield* db.insert(messages).values(row)
@@ -113,25 +71,36 @@ export const MessageRepositoryPg = Layer.effect(
         const row = yield* encodeMessage(message)
         yield* db.update(messages).set(row).where(eq(messages.id, message.id))
       }, orDieWithSqlError),
-      selectById: Effect.fn('MessageRepository.selectById')(
-        (id: MessageId) => Effect.map(selectMessages(eq(messages.id, id)), Arr.head),
-        orDieWithSqlError,
-      ),
-      selectByChat: Effect.fn('MessageRepository.selectByChat')(
-        (chatId: ChatId) => selectMessages(eq(messages.chatId, chatId)),
-        orDieWithSqlError,
-      ),
-      selectActiveByChat: Effect.fn('MessageRepository.selectActiveByChat')(
-        (chatId: ChatId) =>
-          Effect.map(selectMessages(and(eq(messages.chatId, chatId), activeMessage)), (found) =>
-            Option.filter(Arr.head(found), isActiveMessage),
-          ),
-        orDieWithSqlError,
-      ),
+      selectById: Effect.fn('MessageRepository.selectById')(function* (id) {
+        const row = yield* db.query.messages.findFirst({ where: { id }, with: withAttachmentIds })
+        return yield* Effect.transposeOption(Option.map(Option.fromNullishOr(row), decodeMessage))
+      }, orDieWithSqlError),
+      selectByChat: Effect.fn('MessageRepository.selectByChat')(function* (chatId) {
+        const rows = yield* db.query.messages.findMany({
+          where: { chatId },
+          orderBy: { createdAt: 'asc', id: 'asc' },
+          with: withAttachmentIds,
+        })
+        return yield* Effect.forEach(rows, decodeMessage)
+      }, orDieWithSqlError),
+      selectActiveByChat: Effect.fn('MessageRepository.selectActiveByChat')(function* (chatId) {
+        const row = yield* db.query.messages.findFirst({
+          where: {
+            chatId,
+            author: 'assistant',
+            stage: { in: Arr.copy(ActiveMessageStage.literals) },
+          },
+          with: withAttachmentIds,
+        })
+        const found = yield* Effect.transposeOption(
+          Option.map(Option.fromNullishOr(row), decodeMessage),
+        )
+        return Option.filter(found, isActiveMessage)
+      }, orDieWithSqlError),
       deleteByChat: Effect.fn('MessageRepository.deleteByChat')(
         (chatId: ChatId) => db.delete(messages).where(eq(messages.chatId, chatId)),
         orDieWithSqlError,
       ),
-    })
-  }),
+    }),
+  ),
 )

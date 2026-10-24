@@ -1,9 +1,10 @@
 import { sql } from 'drizzle-orm'
 import { createInsertSchema, createSelectSchema } from 'drizzle-orm/effect-schema'
 import { check, index, integer, snakeCase, text, uuid } from 'drizzle-orm/pg-core'
-import { Schema } from 'effect'
+import { Effect, Schema } from 'effect'
 
 import {
+  Attachment,
   AttachmentId,
   FileName,
   FileSize,
@@ -55,3 +56,6 @@ const attachmentFields = {
 export const AttachmentRow = createSelectSchema(attachments, attachmentFields)
 
 export const AttachmentInsert = createInsertSchema(attachments, attachmentFields)
+
+export const decodeAttachment = (row: typeof AttachmentRow.Encoded) =>
+  Effect.map(Schema.decodeEffect(AttachmentRow)(row), (fields) => new Attachment(fields))

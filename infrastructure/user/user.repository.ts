@@ -7,7 +7,7 @@ import { type Credential, User, UserId, UserRepository } from '@app-template/dom
 
 import { Db, orDieWithSqlError } from '#infrastructure/db/db.client'
 import { createCollection } from '#infrastructure/kv/kv-collection'
-import { credentials, UserInsert, UserRow, users } from '#infrastructure/user/user.entity'
+import { credentials, decodeUser, UserInsert, users } from '#infrastructure/user/user.entity'
 
 const credentialKey = (credential: Credential) => `${credential.kind}/${credential.hash}`
 
@@ -33,12 +33,6 @@ export const UserRepositoryKv = Layer.effect(
 )
 
 const encodeUser = Schema.encodeEffect(UserInsert)
-const decodeUser = Schema.decodeEffect(UserRow)
-
-const decodeFirstUser = Effect.fnUntraced(function* (rows: ReadonlyArray<typeof UserRow.Encoded>) {
-  const decodedRow = yield* Effect.transposeOption(Option.map(Arr.head(rows), decodeUser))
-  return Option.map(decodedRow, (fields) => new User(fields))
-})
 
 export const UserRepositoryPg = Layer.effect(
   UserRepository,
@@ -60,7 +54,7 @@ export const UserRepositoryPg = Layer.effect(
       ),
       selectById: Effect.fn('UserRepository.selectById')(function* (id) {
         const rows = yield* db.select().from(users).where(eq(users.id, id)).limit(1)
-        return yield* decodeFirstUser(rows)
+        return yield* Effect.transposeOption(Option.map(Arr.head(rows), decodeUser))
       }, orDieWithSqlError),
       selectByCredential: Effect.fn('UserRepository.selectByCredential')(function* (credential) {
         const rows = yield* db
@@ -69,7 +63,7 @@ export const UserRepositoryPg = Layer.effect(
           .innerJoin(users, eq(users.id, credentials.userId))
           .where(and(eq(credentials.kind, credential.kind), eq(credentials.hash, credential.hash)))
           .limit(1)
-        return yield* decodeFirstUser(rows)
+        return yield* Effect.transposeOption(Option.map(Arr.head(rows), decodeUser))
       }, orDieWithSqlError),
     })
   }),

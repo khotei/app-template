@@ -6,16 +6,11 @@ import { Chat, ChatId, Message, MessageFailure, MessageId } from '@app-template/
 import { UserId } from '@app-template/domain/user'
 import { assertSchemaEquals } from '@app-template/testing'
 
-import { activeMessage, messages } from '#infrastructure/chat/message.entity'
+import { decodeChat } from '#infrastructure/chat/chat.entity'
+import { activeMessage, decodeMessage, messages } from '#infrastructure/chat/message.entity'
 import { Db } from '#infrastructure/db/db.client'
 import { DbTest, flipSqlError } from '#infrastructure/db/testing/db'
-import {
-  decodeChat,
-  decodeMessage,
-  insertChat,
-  insertMessage,
-  insertUser,
-} from '#infrastructure/db/testing/rows'
+import { insertChat, insertMessage, insertUser } from '#infrastructure/db/testing/rows'
 
 const createdAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')
 const updatedAt = DateTime.makeUnsafe('2026-10-18T00:00:01.456Z')
@@ -53,7 +48,7 @@ const insertChatOfUser = Effect.andThen(insertUser(userId), insertChat(chat))
 const selectMessages = Effect.gen(function* () {
   const db = yield* Db
   const rows = yield* db.select().from(messages).orderBy(asc(messages.id))
-  return yield* Effect.forEach(rows, (row) => decodeMessage(row, []))
+  return yield* Effect.forEach(rows, (row) => decodeMessage({ ...row, attachments: [] }))
 })
 
 const ChatWithMessages = Schema.Struct({ chat: Chat, messages: Schema.Array(Message) })
@@ -178,7 +173,9 @@ describe('messages', () => {
       const found = yield* Effect.forEach(rows, ({ messages, ...row }) =>
         Effect.all({
           chat: decodeChat(row),
-          messages: Effect.forEach(messages, (message) => decodeMessage(message, [])),
+          messages: Effect.forEach(messages, (message) =>
+            decodeMessage({ ...message, attachments: [] }),
+          ),
         }),
       )
 

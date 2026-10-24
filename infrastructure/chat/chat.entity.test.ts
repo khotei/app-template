@@ -5,10 +5,10 @@ import { Chat, ChatId, ChatTitle, maxTitleLength } from '@app-template/domain/ch
 import { UserId } from '@app-template/domain/user'
 import { assertSchemaEquals } from '@app-template/testing'
 
-import { ChatInsert, chats } from '#infrastructure/chat/chat.entity'
+import { ChatInsert, chats, decodeChat } from '#infrastructure/chat/chat.entity'
 import { Db } from '#infrastructure/db/db.client'
 import { DbTest, flipSqlError } from '#infrastructure/db/testing/db'
-import { decodeChat, insertChat, insertUser } from '#infrastructure/db/testing/rows'
+import { insertChat, insertUser } from '#infrastructure/db/testing/rows'
 
 const userId = UserId.make('0192d4e0-7b3a-7c00-8000-000000000060')
 

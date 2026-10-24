@@ -1,20 +1,16 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, DateTime, Effect, Layer, Option, Order, Schema } from 'effect'
+import { Array as Arr, DateTime, Effect, Option, Order, Schema } from 'effect'
 import { KeyValueStore } from 'effect/persistence'
 
 import { buildChat, Chat, ChatId, ChatRepository, ChatTitle } from '@app-template/domain/chat'
-import {
-  buildUser,
-  Credential,
-  SecretHash,
-  UserId,
-  UserRepository,
-} from '@app-template/domain/user'
+import { UserId } from '@app-template/domain/user'
 import { assertSchemaEquals } from '@app-template/testing'
 
-import { ChatRepositoryKv, ChatRepositoryPg } from '#infrastructure/chat/chat.repository'
-import { DbTest } from '#infrastructure/db/testing/db'
-import { UserRepositoryKv, UserRepositoryPg } from '#infrastructure/user/user.repository'
+import {
+  insertOwner,
+  RepositoryStackKvMemory,
+  repositoryStacks,
+} from '#infrastructure/db/testing/repositories'
 
 const createdAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')
 
@@ -26,27 +22,7 @@ const SelectedChat = Schema.Option(Chat)
 
 const Chats = Schema.Array(Chat)
 
-/** Writes the owner a chat's foreign key needs, with a credential of its own. */
-const insertUser = (id: UserId) =>
-  Effect.flatMap(UserRepository, (users) =>
-    users.insert(
-      buildUser({ id, createdAt }),
-      new Credential({ kind: 'secret', hash: SecretHash.make(id.replaceAll('-', '').repeat(2)) }),
-    ),
-  )
-
-const ChatRepositoryKvMemory = Layer.mergeAll(ChatRepositoryKv, UserRepositoryKv).pipe(
-  Layer.provideMerge(KeyValueStore.layerMemory),
-)
-
-const ChatRepositoryPgTest = Layer.mergeAll(ChatRepositoryPg, UserRepositoryPg).pipe(
-  Layer.provide(DbTest),
-)
-
-describe.each([
-  { name: 'the key-value store', repository: ChatRepositoryKvMemory },
-  { name: 'Postgres', repository: ChatRepositoryPgTest },
-])('ChatRepository on $name', ({ repository }) => {
+describe.each(repositoryStacks)('ChatRepository on $name', ({ stack }) => {
   it.effect('selects an inserted chat back, untitled and titled', () =>
     Effect.gen(function* () {
       const chats = yield* ChatRepository
@@ -57,14 +33,14 @@ describe.each([
         title: Option.some(ChatTitle.make('Trip')),
         updatedAt: DateTime.makeUnsafe('2026-10-18T00:00:01.456Z'),
       })
-      yield* insertUser(ada)
+      yield* insertOwner(ada)
 
       yield* chats.insert(untitled)
       yield* chats.insert(titled)
 
       assertSchemaEquals(SelectedChat, yield* chats.selectById(untitled.id), Option.some(untitled))
       assertSchemaEquals(SelectedChat, yield* chats.selectById(titled.id), Option.some(titled))
-    }).pipe(Effect.provide(repository)),
+    }).pipe(Effect.provide(stack)),
   )
 
   it.effect("selects only the user's chats", () =>
@@ -76,7 +52,7 @@ describe.each([
         chat('0192d4e0-7b3a-7c00-8000-000000000031', ada),
         chat('0192d4e0-7b3a-7c00-8000-000000000030', ada),
       ]
-      yield* Effect.forEach([ada, bob], insertUser)
+      yield* Effect.forEach([ada, bob], insertOwner)
       yield* Effect.forEach(
         Arr.append(adas, chat('0192d4e0-7b3a-7c00-8000-000000000032', bob)),
         (each) => chats.insert(each),
@@ -85,7 +61,7 @@ describe.each([
       const selected = yield* chats.selectByUser(ada)
 
       assertSchemaEquals(Chats, Arr.sort(selected, byId), Arr.sort(adas, byId))
-    }).pipe(Effect.provide(repository)),
+    }).pipe(Effect.provide(stack)),
   )
 
   it.effect("delete removes the chat and keeps the user's others", () =>
@@ -94,7 +70,7 @@ describe.each([
       const cy = UserId.make('0192d4e0-7b3a-7c00-8000-000000000012')
       const kept = chat('0192d4e0-7b3a-7c00-8000-000000000033', cy)
       const deleted = chat('0192d4e0-7b3a-7c00-8000-000000000034', cy)
-      yield* insertUser(cy)
+      yield* insertOwner(cy)
       yield* chats.insert(kept)
       yield* chats.insert(deleted)
 
@@ -102,7 +78,7 @@ describe.each([
 
       assert.deepStrictEqual(yield* chats.selectById(deleted.id), Option.none())
       assertSchemaEquals(Chats, yield* chats.selectByUser(cy), [kept])
-    }).pipe(Effect.provide(repository)),
+    }).pipe(Effect.provide(stack)),
   )
 
   it.effect('update renames an existing chat and never creates one', () =>
@@ -112,7 +88,7 @@ describe.each([
       const existing = chat('0192d4e0-7b3a-7c00-8000-000000000035', dee)
       const unknown = chat('0192d4e0-7b3a-7c00-8000-000000000036', dee)
       const renamed = new Chat({ ...existing, title: Option.some(ChatTitle.make('Trip')) })
-      yield* insertUser(dee)
+      yield* insertOwner(dee)
       yield* chats.insert(existing)
 
       yield* chats.update(renamed)
@@ -121,7 +97,7 @@ describe.each([
       assertSchemaEquals(SelectedChat, yield* chats.selectById(existing.id), Option.some(renamed))
       assert.deepStrictEqual(yield* chats.selectById(unknown.id), Option.none())
       assertSchemaEquals(Chats, yield* chats.selectByUser(dee), [renamed])
-    }).pipe(Effect.provide(repository)),
+    }).pipe(Effect.provide(stack)),
   )
 })
 
@@ -129,6 +105,7 @@ describe('ChatRepositoryKv', () => {
   it.effect("delete removes the chat's entry in the user's index", () =>
     Effect.gen(function* () {
       const chats = yield* ChatRepository
+      const store = yield* KeyValueStore.KeyValueStore
       const cy = UserId.make('0192d4e0-7b3a-7c00-8000-000000000012')
       const kept = chat('0192d4e0-7b3a-7c00-8000-000000000033', cy)
       const deleted = chat('0192d4e0-7b3a-7c00-8000-000000000034', cy)
@@ -137,10 +114,7 @@ describe('ChatRepositoryKv', () => {
 
       yield* chats.delete(deleted.id)
 
-      assert.deepStrictEqual(
-        yield* (yield* KeyValueStore.KeyValueStore).get(`users/${cy}/chats`),
-        JSON.stringify([kept.id]),
-      )
-    }).pipe(Effect.provide(ChatRepositoryKvMemory)),
+      assert.deepStrictEqual(yield* store.get(`users/${cy}/chats`), JSON.stringify([kept.id]))
+    }).pipe(Effect.provide(RepositoryStackKvMemory)),
   )
 })

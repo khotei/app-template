@@ -10,8 +10,8 @@ import {
 
 import {
   AttachmentInsert,
-  AttachmentRow,
   attachments,
+  decodeAttachment,
 } from '#infrastructure/attachment/attachment.entity'
 import { Db, orDieWithSqlError } from '#infrastructure/db/db.client'
 import { createCollection } from '#infrastructure/kv/kv-collection'
@@ -38,9 +38,6 @@ export const AttachmentRepositoryKv = Layer.effect(
 )
 
 const encodeAttachment = Schema.encodeEffect(AttachmentInsert)
-
-const decodeAttachment = (row: typeof AttachmentRow.Encoded) =>
-  Effect.map(Schema.decodeEffect(AttachmentRow)(row), (fields) => new Attachment(fields))
 
 export const AttachmentRepositoryPg = Layer.effect(
   AttachmentRepository,

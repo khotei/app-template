@@ -38,15 +38,15 @@ from them and the row codecs derived from them.
   `<table>_<columns>_<predicate>_index` (`messages_chat_id_active_index`).
 - **A rule across rows is a partial unique index.** `messages_chat_id_active_index` allows one
   active assistant message per chat; its predicate is `activeMessage`, exported from
-  `message.entity.ts` beside the table, so a query for the active message and the index read one
-  condition. The predicate takes the stages from `ActiveMessageStage.literals` and renders them
+  `message.entity.ts` beside the table, for the index and the `ON CONFLICT` that relies on it.
+  The predicate takes the stages from `ActiveMessageStage.literals` and renders them
   as literals (`.inlineParams()`), as in the index's DDL: `ON CONFLICT … WHERE` must prove the
   index predicate when the statement is planned, and a generic plan, which Postgres switches a
   prepared statement to after five runs, cannot prove it from parameters.
-- **The predicate fits the core query builder only.** `activeMessage` serves `db.select()…where`
-  and `ON CONFLICT … WHERE`, but not a relational query (`db.query.….findMany({ where })`):
-  Drizzle aliases the tables there (`d0`, `d1`), while the predicate names
-  `"messages"."author"`.
+- **A relational read filters with an object, not the predicate.** A relational query aliases
+  its tables (`d0`, `d1`), while `activeMessage` names `"messages"."author"`, so the read of
+  the active message states the same condition as an object filter (`{ author: 'assistant',
+  stage: { in: … } }`), its stages from the same `ActiveMessageStage.literals`.
 - **A descending index states its null order.** Drizzle's `desc()` indexes nulls last while
   Postgres's `ORDER BY … DESC` sorts them first, so an index for that order is
   `.desc().nullsFirst()` (`chats_user_id_updated_at_index`).
@@ -74,16 +74,17 @@ export const UserInsert = createInsertSchema(users, userFields)
 - A refinement given as a schema replaces the column's schema whole: nothing adds `NullOr` or
   makes it optional, so a nullable column is refined to `Schema.OptionFromNullOr(…)` and a column
   with a default becomes required, as the domain always writes it.
-- A repository decodes a row and builds the model from the fields (`new User(fields)`), and
-  encodes the model to the row it inserts. A row whose values are already the domain's (brands,
+- Each entity file exports one decoder beside its codec (`decodeUser`, `decodeChat`), which
+  decodes a row and builds the model from the fields (`new User(fields)`); repositories and
+  tests share it. A repository encodes the model to the row it inserts. A row whose values are already the domain's (brands,
   literals) is written as is: `credentials` takes `{ hash, kind, userId }` from the credential
   and the user, with no codec.
 - A `jsonb` column carries the encoded type of its schema (`jsonb().$type<typeof
   MessageFailure.Encoded>()`), so the row Drizzle returns fits the codec; the refinement
   (`Schema.OptionFromNullOr(MessageFailure)`) is what decodes it.
 - A model field that another table holds is not a column, so the codec leaves it out and the
-  reader adds it: `MessageRow` decodes no `attachmentIds`, and the reader fills them from the
-  message's attachments.
+  reader adds it: `MessageRow` decodes no `attachmentIds`, and `decodeMessage` takes them from
+  the attachments a relational read nests in the message, in upload order.
 
 ## Relations
 
@@ -148,7 +149,9 @@ Each test runs on a database of its own, copied from a template that the run's s
 with the `make migrate` program ([tooling.md › Tests](tooling.md#tests)). A repository suite runs
 one body over every implementation of its port and provides the layer per test
 ([effect-tests.md](../../.claude/rules/effect-tests.md)); the facts only Postgres has (a check, a
-missing default, a transaction) sit in a suite of their own. An `.entity.test.ts` writes a model
+missing default, a transaction) sit in a suite of their own. The suites share the stacks of
+every repository and arrange the parent rows through the ports, with
+`infrastructure/db/testing/repositories.ts`. An `.entity.test.ts` writes a model
 through its insert codec and reads it back through its row codec; it arranges the parent rows
 with `infrastructure/db/testing/rows.ts` and reads the `SqlError` of a refused statement with
 `flipSqlError` from `infrastructure/db/testing/db.ts`.

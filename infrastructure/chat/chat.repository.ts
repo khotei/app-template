@@ -5,7 +5,7 @@ import { KeyValueStore } from 'effect/persistence'
 import { Chat, ChatId, ChatRepository } from '@app-template/domain/chat'
 import type { UserId } from '@app-template/domain/user'
 
-import { ChatInsert, ChatRow, chats } from '#infrastructure/chat/chat.entity'
+import { ChatInsert, chats, decodeChat } from '#infrastructure/chat/chat.entity'
 import { Db, orDieWithSqlError } from '#infrastructure/db/db.client'
 import { createCollection, createIndex } from '#infrastructure/kv/kv-collection'
 
@@ -38,9 +38,6 @@ export const ChatRepositoryKv = Layer.effect(
 )
 
 const encodeChat = Schema.encodeEffect(ChatInsert)
-
-const decodeChat = (row: typeof ChatRow.Encoded) =>
-  Effect.map(Schema.decodeEffect(ChatRow)(row), (fields) => new Chat(fields))
 
 export const ChatRepositoryPg = Layer.effect(
   ChatRepository,

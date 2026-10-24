@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, DateTime, Effect, Option, Schema } from 'effect'
+import { DateTime, Effect, Option, Schema } from 'effect'
 
 import {
   Attachment,
@@ -14,17 +14,13 @@ import { assertSchemaEquals } from '@app-template/testing'
 
 import {
   AttachmentInsert,
-  AttachmentRow,
   attachments,
+  decodeAttachment,
 } from '#infrastructure/attachment/attachment.entity'
+import { decodeMessage } from '#infrastructure/chat/message.entity'
 import { Db } from '#infrastructure/db/db.client'
 import { DbTest, flipSqlError } from '#infrastructure/db/testing/db'
-import {
-  decodeMessage,
-  insertChat,
-  insertMessage,
-  insertUser,
-} from '#infrastructure/db/testing/rows'
+import { insertChat, insertMessage, insertUser } from '#infrastructure/db/testing/rows'
 
 const chatCreatedAt = DateTime.makeUnsafe('2026-10-18T00:00:00.000Z')
 const uploadedAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')
@@ -74,9 +70,6 @@ const insertAttachment = (attachment: Attachment) =>
   Effect.flatMap(Db, (db) =>
     db.insert(attachments).values(Schema.encodeSync(AttachmentInsert)(attachment)),
   )
-
-const decodeAttachment = (row: typeof AttachmentRow.Encoded) =>
-  Effect.map(Schema.decodeEffect(AttachmentRow)(row), (fields) => new Attachment(fields))
 
 const selectAttachments = Effect.gen(function* () {
   const db = yield* Db
@@ -148,15 +141,10 @@ describe('attachments', () => {
       const rows = yield* db.query.messages.findMany({
         with: { attachments: { orderBy: { createdAt: 'asc', id: 'asc' } } },
       })
-      const found = yield* Effect.forEach(
-        rows,
-        Effect.fnUntraced(function* ({ attachments, ...row }) {
-          const decoded = yield* Effect.forEach(attachments, decodeAttachment)
-          const message = yield* decodeMessage(
-            row,
-            Arr.map(decoded, ({ id }) => id),
-          )
-          return { message, attachments: decoded }
+      const found = yield* Effect.forEach(rows, (row) =>
+        Effect.all({
+          message: decodeMessage(row),
+          attachments: Effect.forEach(row.attachments, decodeAttachment),
         }),
       )
 

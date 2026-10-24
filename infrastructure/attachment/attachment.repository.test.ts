@@ -1,6 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, DateTime, Effect, Layer, Option, Schema } from 'effect'
-import { KeyValueStore } from 'effect/persistence'
+import { Array as Arr, DateTime, Effect, Option, Schema } from 'effect'
 
 import {
   Attachment,
@@ -11,31 +10,11 @@ import {
   FileSize,
   MediaType,
 } from '@app-template/domain/attachment'
-import {
-  buildChat,
-  buildUserMessage,
-  ChatId,
-  ChatRepository,
-  MessageId,
-  MessageRepository,
-} from '@app-template/domain/chat'
-import {
-  buildUser,
-  Credential,
-  SecretHash,
-  UserId,
-  UserRepository,
-} from '@app-template/domain/user'
+import { buildUserMessage, ChatId, MessageId, MessageRepository } from '@app-template/domain/chat'
+import { UserId } from '@app-template/domain/user'
 import { assertSchemaEquals } from '@app-template/testing'
 
-import {
-  AttachmentRepositoryKv,
-  AttachmentRepositoryPg,
-} from '#infrastructure/attachment/attachment.repository'
-import { ChatRepositoryKv, ChatRepositoryPg } from '#infrastructure/chat/chat.repository'
-import { MessageRepositoryKv, MessageRepositoryPg } from '#infrastructure/chat/message.repository'
-import { DbTest } from '#infrastructure/db/testing/db'
-import { UserRepositoryKv, UserRepositoryPg } from '#infrastructure/user/user.repository'
+import { insertOwnedChats, repositoryStacks } from '#infrastructure/db/testing/repositories'
 
 const createdAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')
 
@@ -61,40 +40,16 @@ const SelectedAttachment = Schema.Option(Attachment)
 
 const Attachments = Schema.Array(Attachment)
 
-/** Writes the user, and the chat and message a bound attachment's foreign key needs. */
 const insertMessage = Effect.gen(function* () {
-  const users = yield* UserRepository
-  const chats = yield* ChatRepository
   const messages = yield* MessageRepository
 
-  yield* users.insert(
-    buildUser({ id: userId, createdAt }),
-    new Credential({ kind: 'secret', hash: SecretHash.make('a'.repeat(64)) }),
-  )
-  yield* chats.insert(buildChat({ id: chatId, userId, createdAt }))
+  yield* insertOwnedChats(userId, [chatId])
   yield* messages.insert(
     buildUserMessage({ id: messageId, chatId, text: 'Hi', attachmentIds: [], createdAt }),
   )
 })
 
-const AttachmentRepositoryKvMemory = Layer.mergeAll(
-  AttachmentRepositoryKv,
-  MessageRepositoryKv,
-  ChatRepositoryKv,
-  UserRepositoryKv,
-).pipe(Layer.provide(KeyValueStore.layerMemory))
-
-const AttachmentRepositoryPgTest = Layer.mergeAll(
-  AttachmentRepositoryPg,
-  MessageRepositoryPg,
-  ChatRepositoryPg,
-  UserRepositoryPg,
-).pipe(Layer.provide(DbTest))
-
-describe.each([
-  { name: 'the key-value store', repository: AttachmentRepositoryKvMemory },
-  { name: 'Postgres', repository: AttachmentRepositoryPgTest },
-])('AttachmentRepository on $name', ({ repository }) => {
+describe.each(repositoryStacks)('AttachmentRepository on $name', ({ stack }) => {
   it.effect('selects an attachment back, unbound and once bound', () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentRepository
@@ -109,7 +64,7 @@ describe.each([
 
       assertSchemaEquals(SelectedAttachment, beforeBind, Option.some(unbound))
       assertSchemaEquals(SelectedAttachment, afterBind, Option.some(bound))
-    }).pipe(Effect.provide(repository)),
+    }).pipe(Effect.provide(stack)),
   )
 
   it.effect('update never creates an attachment', () =>
@@ -120,7 +75,7 @@ describe.each([
       yield* attachments.update(attachment(unknownId))
 
       assert.deepStrictEqual(yield* attachments.selectById(unknownId), Option.none())
-    }).pipe(Effect.provide(repository)),
+    }).pipe(Effect.provide(stack)),
   )
 
   it.effect('selects the attachments found in the order asked, leaving out unknown ids', () =>
@@ -135,7 +90,7 @@ describe.each([
 
       assertSchemaEquals(Attachments, selected, [second, first])
       assert.deepStrictEqual(yield* attachments.selectByIds([]), [])
-    }).pipe(Effect.provide(repository)),
+    }).pipe(Effect.provide(stack)),
   )
 
   it.effect('deletes the attachments asked for and keeps the rest', () =>
@@ -155,6 +110,6 @@ describe.each([
 
       const ids = Arr.prepend(droppedIds, kept.id)
       assertSchemaEquals(Attachments, yield* attachments.selectByIds(ids), [kept])
-    }).pipe(Effect.provide(repository)),
+    }).pipe(Effect.provide(stack)),
   )
 })
