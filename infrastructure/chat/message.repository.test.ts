@@ -31,7 +31,7 @@ import {
   RepositoryStackKvMemory,
   RepositoryStackPgTest,
   repositoryStacks,
-} from '#infrastructure/db/testing/repositories'
+} from '#infrastructure/testing/repository.harness'
 
 const createdAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')
 
@@ -41,11 +41,11 @@ const userId = UserId.make('0192d4e0-7b3a-7c00-8000-000000000010')
 
 const userMessage = (
   id: string,
-  chatId: ChatId,
   {
+    chatId,
     attachmentIds = [],
     seconds = 0,
-  }: { attachmentIds?: ReadonlyArray<AttachmentId>; seconds?: number } = {},
+  }: { chatId: ChatId; attachmentIds?: ReadonlyArray<AttachmentId>; seconds?: number },
 ) =>
   buildUserMessage({
     id: MessageId.make(id),
@@ -55,8 +55,10 @@ const userMessage = (
     createdAt: at(seconds),
   })
 
-const assistantMessage = (id: string, chatId: ChatId, { seconds = 0 }: { seconds?: number } = {}) =>
-  buildAssistantMessage({ id: MessageId.make(id), chatId, createdAt: at(seconds) })
+const assistantMessage = (
+  id: string,
+  { chatId, seconds = 0 }: { chatId: ChatId; seconds?: number },
+) => buildAssistantMessage({ id: MessageId.make(id), chatId, createdAt: at(seconds) })
 
 const attachment = (id: string, seconds: number) =>
   buildAttachment({
@@ -92,11 +94,11 @@ describe.each(repositoryStacks)('MessageRepository on $name', ({ stack }) => {
       const messages = yield* MessageRepository
       const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000040')
       const other = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000041')
-      const question = userMessage('0192d4e0-7b3a-7c00-8000-000000000052', chatId)
-      const reply = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000051', chatId, { seconds: 1 })
+      const question = userMessage('0192d4e0-7b3a-7c00-8000-000000000052', { chatId })
+      const reply = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000051', { chatId, seconds: 1 })
       yield* insertOwnedChats(userId, [chatId, other])
       yield* Effect.forEach(
-        [question, userMessage('0192d4e0-7b3a-7c00-8000-000000000050', other), reply],
+        [question, userMessage('0192d4e0-7b3a-7c00-8000-000000000050', { chatId: other }), reply],
         (each) => messages.insert(each),
       )
 
@@ -108,9 +110,9 @@ describe.each(repositoryStacks)('MessageRepository on $name', ({ stack }) => {
     Effect.gen(function* () {
       const messages = yield* MessageRepository
       const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000042')
-      const queued = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000054', chatId)
+      const queued = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000054', { chatId })
       yield* insertOwnedChats(userId, [chatId])
-      yield* messages.insert(userMessage('0192d4e0-7b3a-7c00-8000-000000000053', chatId))
+      yield* messages.insert(userMessage('0192d4e0-7b3a-7c00-8000-000000000053', { chatId }))
       yield* messages.insert(queued)
 
       assertSchemaEquals(
@@ -131,7 +133,7 @@ describe.each(repositoryStacks)('MessageRepository on $name', ({ stack }) => {
       const messages = yield* MessageRepository
       const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000043')
       yield* insertOwnedChats(userId, [chatId])
-      yield* messages.insert(userMessage('0192d4e0-7b3a-7c00-8000-000000000055', chatId))
+      yield* messages.insert(userMessage('0192d4e0-7b3a-7c00-8000-000000000055', { chatId }))
 
       assert.deepStrictEqual(yield* messages.selectActiveByChat(chatId), Option.none())
       assert.deepStrictEqual(
@@ -145,8 +147,9 @@ describe.each(repositoryStacks)('MessageRepository on $name', ({ stack }) => {
     Effect.gen(function* () {
       const messages = yield* MessageRepository
       const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000043')
-      const question = userMessage('0192d4e0-7b3a-7c00-8000-000000000055', chatId)
-      const queued = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000056', chatId, {
+      const question = userMessage('0192d4e0-7b3a-7c00-8000-000000000055', { chatId })
+      const queued = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000056', {
+        chatId,
         seconds: 1,
       })
       yield* insertOwnedChats(userId, [chatId])
@@ -167,10 +170,10 @@ describe.each(repositoryStacks)('MessageRepository on $name', ({ stack }) => {
       const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000044')
       const other = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000045')
       const deleted = [
-        userMessage('0192d4e0-7b3a-7c00-8000-000000000056', chatId),
-        assistantMessage('0192d4e0-7b3a-7c00-8000-000000000057', chatId, { seconds: 1 }),
+        userMessage('0192d4e0-7b3a-7c00-8000-000000000056', { chatId }),
+        assistantMessage('0192d4e0-7b3a-7c00-8000-000000000057', { chatId, seconds: 1 }),
       ]
-      const kept = userMessage('0192d4e0-7b3a-7c00-8000-000000000058', other)
+      const kept = userMessage('0192d4e0-7b3a-7c00-8000-000000000058', { chatId: other })
       yield* insertOwnedChats(userId, [chatId, other])
       yield* Effect.forEach(Arr.append(deleted, kept), messages.insert)
 
@@ -190,8 +193,8 @@ describe.each(repositoryStacks)('MessageRepository on $name', ({ stack }) => {
     Effect.gen(function* () {
       const messages = yield* MessageRepository
       const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000046')
-      const queued = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000059', chatId)
-      const unknown = assistantMessage('0192d4e0-7b3a-7c00-8000-00000000005a', chatId)
+      const queued = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000059', { chatId })
+      const unknown = assistantMessage('0192d4e0-7b3a-7c00-8000-00000000005a', { chatId })
       yield* insertOwnedChats(userId, [chatId])
       yield* messages.insert(queued)
       const completed = yield* completeMessage(queued, { text: 'Hello', at: at(1) })
@@ -212,7 +215,8 @@ describe.each(repositoryStacks)('MessageRepository on $name', ({ stack }) => {
         attachment('0192d4e0-7b3a-7c00-8000-000000000022', 0),
         attachment('0192d4e0-7b3a-7c00-8000-000000000021', 1),
       ]
-      const question = userMessage('0192d4e0-7b3a-7c00-8000-00000000005b', chatId, {
+      const question = userMessage('0192d4e0-7b3a-7c00-8000-00000000005b', {
+        chatId,
         attachmentIds: Arr.map(uploaded, (each) => each.id),
         seconds: 2,
       })
@@ -237,9 +241,9 @@ describe('MessageRepositoryKv', () => {
       const store = yield* KeyValueStore.KeyValueStore
       const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000044')
       const other = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000045')
-      const queued = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000059', other)
+      const queued = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000059', { chatId: other })
       const completed = yield* completeMessage(queued, { text: 'Hello', at: at(1) })
-      yield* messages.insert(userMessage('0192d4e0-7b3a-7c00-8000-000000000056', chatId))
+      yield* messages.insert(userMessage('0192d4e0-7b3a-7c00-8000-000000000056', { chatId }))
       yield* messages.insert(queued)
 
       yield* messages.deleteByChat(chatId)
@@ -254,8 +258,8 @@ describe('MessageRepositoryKv', () => {
     Effect.gen(function* () {
       const messages = yield* MessageRepository
       const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000040')
-      const question = userMessage('0192d4e0-7b3a-7c00-8000-000000000052', chatId)
-      const reply = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000051', chatId)
+      const question = userMessage('0192d4e0-7b3a-7c00-8000-000000000052', { chatId })
+      const reply = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000051', { chatId })
       yield* messages.insert(question)
       yield* messages.insert(reply)
 
@@ -269,15 +273,15 @@ describe('MessageRepositoryPg', () => {
     Effect.gen(function* () {
       const messages = yield* MessageRepository
       const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000048')
-      const queued = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000060', chatId)
+      const queued = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000060', { chatId })
       const preparing = yield* prepareMessage(queued, at(1))
       const generating = yield* generateMessage(preparing, at(2))
       const failed = yield* failMessage(
-        assistantMessage('0192d4e0-7b3a-7c00-8000-000000000061', chatId, { seconds: 3 }),
+        assistantMessage('0192d4e0-7b3a-7c00-8000-000000000061', { chatId, seconds: 3 }),
         { reason: 'ReplyFailed', cause: 'provider timeout after 30s', at: at(4) },
       )
       const completed = yield* completeMessage(
-        assistantMessage('0192d4e0-7b3a-7c00-8000-000000000062', chatId, { seconds: 5 }),
+        assistantMessage('0192d4e0-7b3a-7c00-8000-000000000062', { chatId, seconds: 5 }),
         { text: 'Hello', at: at(6) },
       )
       yield* insertOwnedChats(userId, [chatId])
@@ -300,8 +304,8 @@ describe('MessageRepositoryPg', () => {
     Effect.gen(function* () {
       const messages = yield* MessageRepository
       const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000040')
-      const question = userMessage('0192d4e0-7b3a-7c00-8000-000000000052', chatId)
-      const reply = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000051', chatId)
+      const question = userMessage('0192d4e0-7b3a-7c00-8000-000000000052', { chatId })
+      const reply = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000051', { chatId })
       yield* insertOwnedChats(userId, [chatId])
       yield* messages.insert(question)
       yield* messages.insert(reply)
@@ -316,7 +320,8 @@ describe('MessageRepositoryPg', () => {
       const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000047')
       const firstUploaded = attachment('0192d4e0-7b3a-7c00-8000-000000000023', 0)
       const secondUploaded = attachment('0192d4e0-7b3a-7c00-8000-000000000021', 1)
-      const question = userMessage('0192d4e0-7b3a-7c00-8000-00000000005c', chatId, {
+      const question = userMessage('0192d4e0-7b3a-7c00-8000-00000000005c', {
+        chatId,
         attachmentIds: [secondUploaded.id, firstUploaded.id],
         seconds: 3,
       })

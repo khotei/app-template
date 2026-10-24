@@ -1,11 +1,10 @@
-import { and, eq, getColumns } from 'drizzle-orm'
-import { Array as Arr, Effect, Layer, Option, Schema } from 'effect'
+import { Effect, Layer, Option, Schema } from 'effect'
 import { KeyValueStore } from 'effect/persistence'
 import { SqlClient } from 'effect/sql'
 
 import { type Credential, User, UserId, UserRepository } from '@app-template/domain/user'
 
-import { Db, orDieWithSqlError } from '#infrastructure/db/db.client'
+import { Db, decodeFound, orDieWithSqlError } from '#infrastructure/db/db.client'
 import { createCollection } from '#infrastructure/kv/kv-collection'
 import { credentials, decodeUser, UserInsert, users } from '#infrastructure/user/user.entity'
 
@@ -53,17 +52,14 @@ export const UserRepositoryPg = Layer.effect(
         orDieWithSqlError,
       ),
       selectById: Effect.fn('UserRepository.selectById')(function* (id) {
-        const rows = yield* db.select().from(users).where(eq(users.id, id)).limit(1)
-        return yield* Effect.transposeOption(Option.map(Arr.head(rows), decodeUser))
+        const row = yield* db.query.users.findFirst({ where: { id } })
+        return yield* decodeFound(row, decodeUser)
       }, orDieWithSqlError),
       selectByCredential: Effect.fn('UserRepository.selectByCredential')(function* (credential) {
-        const rows = yield* db
-          .select(getColumns(users))
-          .from(credentials)
-          .innerJoin(users, eq(users.id, credentials.userId))
-          .where(and(eq(credentials.kind, credential.kind), eq(credentials.hash, credential.hash)))
-          .limit(1)
-        return yield* Effect.transposeOption(Option.map(Arr.head(rows), decodeUser))
+        const row = yield* db.query.users.findFirst({
+          where: { credentials: { kind: credential.kind, hash: credential.hash } },
+        })
+        return yield* decodeFound(row, decodeUser)
       }, orDieWithSqlError),
     })
   }),

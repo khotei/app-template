@@ -10,7 +10,7 @@ import {
   insertOwner,
   RepositoryStackKvMemory,
   repositoryStacks,
-} from '#infrastructure/db/testing/repositories'
+} from '#infrastructure/testing/repository.harness'
 
 const createdAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')
 

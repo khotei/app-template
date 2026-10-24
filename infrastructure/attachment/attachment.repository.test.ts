@@ -14,7 +14,7 @@ import { buildUserMessage, ChatId, MessageId, MessageRepository } from '@app-tem
 import { UserId } from '@app-template/domain/user'
 import { assertSchemaEquals } from '@app-template/testing'
 
-import { insertOwnedChats, repositoryStacks } from '#infrastructure/db/testing/repositories'
+import { insertOwnedChats, repositoryStacks } from '#infrastructure/testing/repository.harness'
 
 const createdAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')
 

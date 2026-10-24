@@ -12,7 +12,7 @@ import {
 } from '@app-template/domain/chat'
 
 import { decodeMessage, MessageInsert, messages } from '#infrastructure/chat/message.entity'
-import { Db, orDieWithSqlError } from '#infrastructure/db/db.client'
+import { Db, decodeFound, orDieWithSqlError } from '#infrastructure/db/db.client'
 import { createCollection, createIndex } from '#infrastructure/kv/kv-collection'
 
 const chatMessagesKey = (chatId: ChatId) => `${chatId}/messages`
@@ -73,7 +73,7 @@ export const MessageRepositoryPg = Layer.effect(
       }, orDieWithSqlError),
       selectById: Effect.fn('MessageRepository.selectById')(function* (id) {
         const row = yield* db.query.messages.findFirst({ where: { id }, with: withAttachmentIds })
-        return yield* Effect.transposeOption(Option.map(Option.fromNullishOr(row), decodeMessage))
+        return yield* decodeFound(row, decodeMessage)
       }, orDieWithSqlError),
       selectByChat: Effect.fn('MessageRepository.selectByChat')(function* (chatId) {
         const rows = yield* db.query.messages.findMany({
@@ -92,9 +92,7 @@ export const MessageRepositoryPg = Layer.effect(
           },
           with: withAttachmentIds,
         })
-        const found = yield* Effect.transposeOption(
-          Option.map(Option.fromNullishOr(row), decodeMessage),
-        )
+        const found = yield* decodeFound(row, decodeMessage)
         return Option.filter(found, isActiveMessage)
       }, orDieWithSqlError),
       deleteByChat: Effect.fn('MessageRepository.deleteByChat')(

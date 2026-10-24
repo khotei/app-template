@@ -1,12 +1,12 @@
 import { eq } from 'drizzle-orm'
-import { Array as Arr, Effect, Layer, Option, Schema } from 'effect'
+import { Effect, Layer, Option, Schema } from 'effect'
 import { KeyValueStore } from 'effect/persistence'
 
 import { Chat, ChatId, ChatRepository } from '@app-template/domain/chat'
 import type { UserId } from '@app-template/domain/user'
 
 import { ChatInsert, chats, decodeChat } from '#infrastructure/chat/chat.entity'
-import { Db, orDieWithSqlError } from '#infrastructure/db/db.client'
+import { Db, decodeFound, orDieWithSqlError } from '#infrastructure/db/db.client'
 import { createCollection, createIndex } from '#infrastructure/kv/kv-collection'
 
 const userChatsKey = (userId: UserId) => `${userId}/chats`
@@ -52,11 +52,11 @@ export const ChatRepositoryPg = Layer.effect(
         yield* db.update(chats).set(row).where(eq(chats.id, chat.id))
       }, orDieWithSqlError),
       selectById: Effect.fn('ChatRepository.selectById')(function* (id) {
-        const rows = yield* db.select().from(chats).where(eq(chats.id, id)).limit(1)
-        return yield* Effect.transposeOption(Option.map(Arr.head(rows), decodeChat))
+        const row = yield* db.query.chats.findFirst({ where: { id } })
+        return yield* decodeFound(row, decodeChat)
       }, orDieWithSqlError),
       selectByUser: Effect.fn('ChatRepository.selectByUser')(function* (userId) {
-        const rows = yield* db.select().from(chats).where(eq(chats.userId, userId))
+        const rows = yield* db.query.chats.findMany({ where: { userId } })
         return yield* Effect.forEach(rows, decodeChat)
       }, orDieWithSqlError),
       delete: Effect.fn('ChatRepository.delete')(

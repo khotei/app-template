@@ -1,5 +1,5 @@
 import { eq, inArray } from 'drizzle-orm'
-import { Array as Arr, Effect, Layer, Option, Schema } from 'effect'
+import { Array as Arr, Effect, Layer, Schema } from 'effect'
 import { KeyValueStore } from 'effect/persistence'
 
 import {
@@ -13,7 +13,7 @@ import {
   attachments,
   decodeAttachment,
 } from '#infrastructure/attachment/attachment.entity'
-import { Db, orDieWithSqlError } from '#infrastructure/db/db.client'
+import { Db, decodeFound, orDieWithSqlError } from '#infrastructure/db/db.client'
 import { createCollection } from '#infrastructure/kv/kv-collection'
 
 export const AttachmentRepositoryKv = Layer.effect(
@@ -52,11 +52,11 @@ export const AttachmentRepositoryPg = Layer.effect(
         yield* db.update(attachments).set(row).where(eq(attachments.id, attachment.id))
       }, orDieWithSqlError),
       selectById: Effect.fn('AttachmentRepository.selectById')(function* (id) {
-        const rows = yield* db.select().from(attachments).where(eq(attachments.id, id)).limit(1)
-        return yield* Effect.transposeOption(Option.map(Arr.head(rows), decodeAttachment))
+        const row = yield* db.query.attachments.findFirst({ where: { id } })
+        return yield* decodeFound(row, decodeAttachment)
       }, orDieWithSqlError),
       selectByIds: Effect.fn('AttachmentRepository.selectByIds')(function* (ids) {
-        const rows = yield* db.select().from(attachments).where(inArray(attachments.id, ids))
+        const rows = yield* db.query.attachments.findMany({ where: { id: { in: Arr.copy(ids) } } })
         const found = yield* Effect.forEach(rows, decodeAttachment)
         return Arr.getSomes(Arr.map(ids, (id) => Arr.findFirst(found, (each) => each.id === id)))
       }, orDieWithSqlError),

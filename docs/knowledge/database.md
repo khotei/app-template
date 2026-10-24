@@ -38,11 +38,11 @@ from them and the row codecs derived from them.
   `<table>_<columns>_<predicate>_index` (`messages_chat_id_active_index`).
 - **A rule across rows is a partial unique index.** `messages_chat_id_active_index` allows one
   active assistant message per chat; its predicate is `activeMessage`, exported from
-  `message.entity.ts` beside the table, for the index and the `ON CONFLICT` that relies on it.
-  The predicate takes the stages from `ActiveMessageStage.literals` and renders them
-  as literals (`.inlineParams()`), as in the index's DDL: `ON CONFLICT … WHERE` must prove the
-  index predicate when the statement is planned, and a generic plan, which Postgres switches a
-  prepared statement to after five runs, cannot prove it from parameters.
+  `message.entity.ts` beside the table for the index. The predicate takes the stages from
+  `ActiveMessageStage.literals` and renders them as literals (`.inlineParams()`), as in the
+  index's DDL: `ON CONFLICT … WHERE` must prove the index predicate when the statement is
+  planned, and a generic plan, which Postgres switches a prepared statement to after five runs,
+  cannot prove it from parameters.
 - **A relational read filters with an object, not the predicate.** A relational query aliases
   its tables (`d0`, `d1`), while `activeMessage` names `"messages"."author"`, so the read of
   the active message states the same condition as an object filter (`{ author: 'assistant',
@@ -76,9 +76,9 @@ export const UserInsert = createInsertSchema(users, userFields)
   with a default becomes required, as the domain always writes it.
 - Each entity file exports one decoder beside its codec (`decodeUser`, `decodeChat`), which
   decodes a row and builds the model from the fields (`new User(fields)`); repositories and
-  tests share it. A repository encodes the model to the row it inserts. A row whose values are already the domain's (brands,
-  literals) is written as is: `credentials` takes `{ hash, kind, userId }` from the credential
-  and the user, with no codec.
+  tests share it. A repository encodes the model to the row it inserts. A row whose values are
+  already the domain's (brands, literals) is written as is: `credentials` takes
+  `{ hash, kind, userId }` from the credential and the user, with no codec.
 - A `jsonb` column carries the encoded type of its schema (`jsonb().$type<typeof
   MessageFailure.Encoded>()`), so the row Drizzle returns fits the codec; the refinement
   (`Schema.OptionFromNullOr(MessageFailure)`) is what decodes it.
@@ -108,9 +108,14 @@ A Postgres adapter is a `Layer` over `Db` and `SqlClient`, beside the key-value 
 that writes several tables runs them in one `sql.withTransaction`, passed to `Effect.fn` as a
 pipeable: `UserRepositoryPg.insert` writes the user and its credential, or neither. `SqlClient`
 is the `PgClient` that `Db.layerFromConfig` and `DbTest` publish, so the transaction runs on the
-connection `Db` uses. Every method ends with `orDieWithSqlError` from `db.client.ts`. A query
-that reads at most one row ends with `.limit(1)`, even where a key makes the row unique, so the
-query states its intent.
+connection `Db` uses. Every method ends with `orDieWithSqlError` from `db.client.ts`.
+
+Reads go through relational queries (`db.query.<table>.findFirst` and `findMany`), writes
+through the core builder (`db.insert`, `db.update`, `db.delete`). A read of at most one row is a
+`findFirst`, which emits the `limit 1` itself, even where a key makes the row unique, so the
+query states its intent; `decodeFound` from `db.client.ts` decodes the row it found, or answers
+`Option.none()`. A filter on a relation (`{ credentials: { kind, hash } }`) renders as
+`exists (…)`.
 
 ## Migrations
 
@@ -151,7 +156,7 @@ one body over every implementation of its port and provides the layer per test
 ([effect-tests.md](../../.claude/rules/effect-tests.md)); the facts only Postgres has (a check, a
 missing default, a transaction) sit in a suite of their own. The suites share the stacks of
 every repository and arrange the parent rows through the ports, with
-`infrastructure/db/testing/repositories.ts`. An `.entity.test.ts` writes a model
+`infrastructure/testing/repository.harness.ts`. An `.entity.test.ts` writes a model
 through its insert codec and reads it back through its row codec; it arranges the parent rows
 with `infrastructure/db/testing/rows.ts` and reads the `SqlError` of a refused statement with
 `flipSqlError` from `infrastructure/db/testing/db.ts`.
