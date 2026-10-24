@@ -21,7 +21,6 @@ export const insertMessage = (message: Message) =>
 export const decodeChat = (row: typeof ChatRow.Encoded) =>
   Effect.map(Schema.decodeEffect(ChatRow)(row), (fields) => new Chat(fields))
 
-/** The row holds no attachment ids: the caller reads them from `attachments`, in upload order. */
 export const decodeMessage = (
   row: typeof MessageRow.Encoded,
   attachmentIds: ReadonlyArray<AttachmentId>,

@@ -116,7 +116,7 @@ graph LR
 ~ infrastructure/chat/chat.repository.ts        ChatRepositoryPg (relational reads, touch, updateTitle)
 ~ infrastructure/chat/message.repository.ts     MessageRepositoryPg (insert → boolean, update from)
 ~ infrastructure/attachment/attachment.repository.ts   AttachmentRepositoryPg (bind)
-~ infrastructure/*/index.ts             UserPg, ChatPg, AttachmentPg, AttachmentPgS3 (replacing *Kv)
+~ infrastructure/*/index.ts             UserPg, ChatPg, AttachmentPgS3 (replacing *Kv; no bundle keeps AttachmentStoreKv)
 ~ infrastructure/shared/queue.client.ts   + QueueClientOutbox                                               (D4)
 ~ infrastructure/chat/chat.queue.ts     + assistantMessageDeadLetterQueue, chatTitleDeadLetterQueue         (D8)
 ~ infrastructure/package.json           + drizzle-orm, @effect/sql-pg; devDependencies + drizzle-kit, @testcontainers/postgresql
@@ -136,7 +136,7 @@ graph LR
 ~ application/chat/chat-title.job.ts            updateTitle(id, title); + deadLetterWorker (log)
 - application/chat/touch-chat.ts                replaced by ChatRepository.touch
 - application/user/user-lock.ts
-~ application/testing/chat.harness.ts           services on ChatPg · AttachmentPg · QueueClientOutbox over PgClientTest;
+~ application/testing/chat.harness.ts           services on ChatPg · AttachmentPgS3 · QueueClientOutbox over PgClientTest + MiniStack;
                                                  reads the outbox table in place of recordQueue
 ~ application/testing/chat.fake.ts              interleaveMessages and AttachmentRepositoryYielding go (real concurrency now);
                                                  keeps one MessageRepository wrapper that fails the assistant insert (the rollback case)
@@ -213,13 +213,13 @@ credentials  hash text pk check (~ secretHashPattern) · kind credential_kind ('
 chats        id · user_id → users · title text null check (trimmed, 1..maxTitleLength) · created_at · updated_at
              index (user_id, updated_at desc)
 messages     id · chat_id → chats on delete cascade · author message_author · stage message_stage ·
-             text text · attachment_ids uuid[] · error jsonb null · created_at · updated_at
+             text text · error jsonb null · created_at · updated_at
              index (chat_id, created_at)
-             unique index messages_one_active_per_chat (chat_id)
+             unique index messages_chat_id_active_index (chat_id)
                where author = 'assistant' and stage in ('queued', 'preparing', 'generating')
 attachments  id · user_id → users · message_id uuid null → messages (restrict) · file_name text check (non-empty) ·
-             media_type text · size integer check (>= 0) · created_at
-             index (message_id)
+             media_type text check (~* mediaTypePattern) · size integer check (>= 0) · created_at
+             index (message_id, created_at, id)
 outbox       id uuid pk default uuidv7() · queue text · job_id text · body text · created_at
              index (created_at)
 ```
@@ -227,7 +227,8 @@ outbox       id uuid pk default uuidv7() · queue text · job_id text · body te
 Enums come from the domain literals (`pgEnum('message_stage', MessageStage.literals)`); the
 checks read the same constants as the brands (`maxTitleLength`, `secretHashPattern.source`, which
 drizzle-kit inlines into the DDL). `created_at` and `updated_at` have no default: the domain
-writes them (D9).
+writes them (D9). `attachments.message_id` is the only link between a message and its
+attachments, which read in upload order, `created_at` then `id` (D17).
 
 ### Codecs (per `.entity.ts`, from `drizzle-orm/effect-schema`)
 
@@ -245,7 +246,8 @@ export const ChatInsert = createInsertSchema(chats, { /* the same overrides */ }
 
 `error` on `messages` is `Schema.OptionFromNullOr(MessageFailure)` (the derived `jsonb` schema
 loses `$type`, so the override is what types it). Relational reads decode each nested row with
-the same codecs.
+the same codecs. `Message.attachmentIds` has no column: until S12 drops it from the domain, the
+reader fills it from the message's attachments.
 
 ### Ports (domain, `Context.Service`, no layer; changes only)
 
@@ -268,7 +270,8 @@ MessageRepository {
   selectActiveByChat(chatId): Option<ActiveMessage>
 }
 AttachmentRepository {
-  insert · selectById · selectByIds · deleteByIds      // unchanged
+  insert · selectById · deleteByIds                     // unchanged
+  selectByIds                                          // goes in S12, with Message.attachmentIds
   bind(ids, messageId): ReadonlyArray<Attachment>      // the ones bound now: WHERE message_id IS NULL
 }
 UserRepository                                         // unchanged; insert writes two tables in one transaction
@@ -370,10 +373,10 @@ build them with `buildResourceName` as the program does.
 | Seam | Catches | Misses |
 |---|---|---|
 | 1 `domain/*` schemas and pure rules (unchanged) | input and binding rules, stage transitions, read-model shapes | persistence |
-| 2 `infrastructure/db` on `PgClientTest`: `migrate`, `Db.layer`, the codecs of every `.entity.ts`; the test-database protocol of `@app-template/testing` | migrations apply to an empty database and are a no-op the second time; each test runs on a fresh database, so a table one test writes is absent from the next, and the database is dropped once the test ends; a row encodes and decodes back to an equal model (`Option`, `DateTime.Utc`, brands, `jsonb` error, `uuid[]`); SQL logged at `Debug` with `query` and `params`, nothing at `Info`; `make migrate`'s retry repeats while the database refuses connections, stops after its bound, and gives up at once on a refused password | drift between entities and the committed migrations (Seam 9) |
+| 2 `infrastructure/db` on `PgClientTest`: `migrate`, `Db.layer`, the codecs of every `.entity.ts`; the test-database protocol of `@app-template/testing` | migrations apply to an empty database and are a no-op the second time; each test runs on a fresh database, so a table one test writes is absent from the next, and the database is dropped once the test ends; a row encodes and decodes back to an equal model (`Option`, `DateTime.Utc`, brands, `jsonb` error); a relational query nests a message's attachments in upload order; the active predicate renders as literals; SQL logged at `Debug` with `query` and `params`, nothing at `Info`; `make migrate`'s retry repeats while the database refuses connections, stops after its bound, and gives up at once on a refused password | drift between entities and the committed migrations (Seam 9) |
 | 3 repositories through their ports on `PgClientTest` (one suite per port) | field mapping, `selectSummaries` order and active message, `selectDetail` nesting and order, `insert` false on an active message, `update` false on a stale `from`, `bind` partial result, `updateTitle` false when titled, `touch` keeps the title, the cascade from `chats.delete`, `RESTRICT` on a bound attachment, the check constraints reject what the brands reject | cross-process timing |
 | 4 `QueueClientOutbox` and `OutboxRelay` on `PgClientTest` + MiniStack | a `send` inside a failed transaction leaves no row; a row is published to its queue with its `jobId` and deleted; two relays over one database publish each row once; a failing transport keeps the row; the poll interval under `TestClock` | SQS outages longer than a test |
-| 5 services and use cases on `ChatPg`, `AttachmentPg`, `QueueClientOutbox`, `TestCrypto` | a send writes two messages, the binds, the touch and one or two outbox rows in one transaction, and nothing on a failing step; two concurrent sends to one chat → one `ChatBusyError`; two concurrent binds of one attachment → one `AttachmentBoundError`; rename beside a send keeps both; delete cascade and the attachments' removal; `addAssistantMessage` alone is refused on a busy chat | HTTP statuses |
+| 5 services and use cases on `ChatPg`, `AttachmentPgS3` over MiniStack, `QueueClientOutbox`, `TestCrypto` | a send writes two messages, the binds, the touch and one or two outbox rows in one transaction, and nothing on a failing step; two concurrent sends to one chat → one `ChatBusyError`; two concurrent binds of one attachment → one `AttachmentBoundError`; rename beside a send keeps both; delete cascade and the attachments' removal; `addAssistantMessage` alone is refused on a busy chat | HTTP statuses |
 | 6 jobs with the fake `LanguageModel` on Postgres under `TestClock` | the stage sequence through `update(…, { from })`; a message settled by another writer stops the job with `already settled`; the dead-letter handler fails an active message with `ReplyFailed` and a dead-letter cause, leaves a terminal one, logs for a deleted chat; the title dead-letter handler only logs; `updateTitle` skips a titled chat | a real provider |
 | 7 `apps/api` through `BunHttpServer.layerTest` + `ApiClient` on `PgClientTest` | the wire unchanged (`/openapi.json` equal to `main`'s), `202` with outbox rows, `409` on a busy chat across two concurrent requests | the worker, the relay |
 | 8 `apps/worker` layer build on `PgClientTest` + MiniStack (`layer.test.ts`) | the relay, the four workers and the Db compose and start | live SQS timing |
@@ -511,13 +514,23 @@ build them with `buildResourceName` as the program does.
   peers `drizzle-orm >=1.0.0-rc.5`: one release train, bumped together. *Rejected:* `drizzle-kit`
   in `tools` (it shapes the migrations, and lags the orm by hours).
 
+- **D17 — A message's attachments hang off one foreign key and read in upload order.**
+  `attachments.message_id` is the only link; `messages` keeps no `attachment_ids` array, and a
+  message's attachments read by `created_at`, then `id`, which the `(message_id, created_at, id)`
+  index serves. A send of `[C, A]` after uploading A, B, C reads back `[A, C]`.
+  `Message.attachmentIds` stays in the domain until S12, filled by the reader. *Rejected:* the
+  array beside the key (a copy of the bind that Postgres cannot check, since a foreign key cannot
+  cover array elements); a `position` column the bind fills (keeps the send's order, at the cost
+  of a column only the send uses); the array alone (no `RESTRICT`, no index).
+
 ## Risks
 
 | Risk | Mitigation |
 |---|---|
 | `drizzle-orm@1.0.0-rc.*` moves between rcs (`EffectDrizzleQueryError.cause` is typed `unknown`, `defineRelations` is the rc relations API) | pinned exactly; every API checked in `repos/drizzle` at the step that uses it; `unwrapQueryError` reads `cause` once, in `db.client.ts`, and dies if it is not a `SqlError` |
-| `defineRelations` and the relational `db.query` on the Effect driver are read from source, not run | S4 runs a relational query live before any repository is written; if it fails, `selectDetail` is a join query behind the same port |
-| `ON CONFLICT (chat_id) WHERE <predicate>` must match the partial index's predicate exactly, or Postgres finds no arbiter | the predicate is one `sql` constant used by both the index and the insert; Seam 3 inserts two active messages |
+| `defineRelations` and the relational `db.query` on the Effect driver are read from source, not run | S4 ran `findMany({ with: { … orderBy } })` live (chats with messages, messages with attachments); `where` and `limit` stay for S12; if one fails, `selectDetail` is a join query behind the same port |
+| `ON CONFLICT (chat_id) WHERE <predicate>` must match the partial index's predicate exactly, or Postgres finds no arbiter; a prepared statement switches to a generic plan after five runs, which cannot prove a predicate from bound parameters | the predicate is one `sql` constant, `activeMessage`, rendered with `.inlineParams()` and used by both the index and the insert; a test checks the rendered query binds only the chat id; Seam 3 inserts two active messages |
+| A relational query aliases its tables (`d0`, `d1`), while `activeMessage` names `"messages"` | `activeMessage` serves the core query builder and `ON CONFLICT` only; S12 states the active message in the relational query's own filter |
 | A transaction that holds the `FOR UPDATE SKIP LOCKED` rows while SQS is slow blocks nothing but delays the batch | batch of 10, the transport's own timeout; a failed send fails the batch and the rows stay |
 | The relay republishes after a crash between send and commit | at-least-once as before; handlers skip settled replies and titled chats |
 | A dead-letter handler that keeps failing loops every 5 minutes forever | logged each attempt; `OUTBOX`-style sweeps are out of scope; ticket 8 makes it visible |
@@ -538,11 +551,13 @@ build them with `buildResourceName` as the program does.
 ## To verify during implementation
 
 - `defineRelations` and `db.query.<table>.findMany({ with, where, orderBy, limit })` on
-  `drizzle-orm/effect-postgres` rc.5, and the shape of nested rows for the codecs (S4).
+  `drizzle-orm/effect-postgres` rc.5, and the shape of nested rows for the codecs (S4): `with`
+  and a nested `orderBy` verified in S4, nested rows decode with the entity codecs; `where` and
+  `limit` stay for S12.
 - `onConflictDoNothing({ target, where })` on the partial index through Drizzle, or `sql` for
   that one insert (S7).
-- `createSelectSchema` with a refine of `uuid[]` to `Schema.Array(AttachmentId)` and of `jsonb`
-  to `Schema.OptionFromNullOr(MessageFailure)` (S4).
+- `createSelectSchema` with a refine of `jsonb` to `Schema.OptionFromNullOr(MessageFailure)`
+  (S4): verified.
 - `PgClient.layer({ url })` from a `Redacted` (S1) and the Debug `EffectLogger` annotations in
   the output of `make dev-api` (S6).
 - `make down` then `make up` with the bucket and queues in the stack (S3): verified; the

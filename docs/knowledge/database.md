@@ -34,9 +34,8 @@ from them and the row codecs derived from them.
 - **A check is a backstop, never stricter than the brand.** It may let through what the brand
   refuses, never the reverse: `chats_title_check` trims spaces only and counts code points, where
   `ChatTitle` trims every whitespace and counts UTF-16 units. Checks are named
-  `<table>_<column>_check` and indexes `<table>_<columns>_index`; a partial index ends its name
-  with the name of its predicate (`messages_chat_id_active_index`, where `active` names the
-  predicate, not a column).
+  `<table>_<column>_check`, indexes `<table>_<columns>_index` and partial indexes
+  `<table>_<columns>_<predicate>_index` (`messages_chat_id_active_index`).
 - **A rule across rows is a partial unique index.** `messages_chat_id_active_index` allows one
   active assistant message per chat; its predicate is `activeMessage`, exported from
   `message.entity.ts` beside the table, so a query for the active message and the index read one
@@ -47,7 +46,7 @@ from them and the row codecs derived from them.
 - **The predicate fits the core query builder only.** `activeMessage` serves `db.select()…where`
   and `ON CONFLICT … WHERE`, but not a relational query (`db.query.….findMany({ where })`):
   Drizzle aliases the tables there (`d0`, `d1`), while the predicate names
-  `"messages"."author"`. A form that takes the aliased table is left for the relational reads.
+  `"messages"."author"`.
 - **A descending index states its null order.** Drizzle's `desc()` indexes nulls last while
   Postgres's `ORDER BY … DESC` sorts them first, so an index for that order is
   `.desc().nullsFirst()` (`chats_user_id_updated_at_index`).
@@ -57,8 +56,8 @@ from them and the row codecs derived from them.
 - **A link lives in one foreign key, never in an array beside it.** Postgres cannot hold a
   foreign key on array elements, so a copy would drift: a message's attachments are the rows
   whose `attachments.message_id` names it, and `messages` keeps no list of them. They read in
-  upload order, `created_at` then `id`, which `attachments_message_id_created_at_id_index`
-  serves; a send that lists them in another order reads back in upload order.
+  upload order, `created_at` then `id`, whatever order the send listed them in;
+  `attachments_message_id_created_at_id_index` serves that order.
 
 ## Codecs
 
@@ -84,14 +83,14 @@ export const UserInsert = createInsertSchema(users, userFields)
   (`Schema.OptionFromNullOr(MessageFailure)`) is what decodes it.
 - A model field that another table holds is not a column, so the codec leaves it out and the
   reader adds it: `MessageRow` decodes no `attachmentIds`, and the reader fills them from the
-  message's attachments, in upload order.
+  message's attachments.
 
 ## Relations
 
 `infrastructure/db/relations.ts` declares the relations once, with `defineRelations` over every
 table, and `Db` is built with them (`PgDrizzle.make({ relations })`), so `db.query.<table>` is
 typed. A relation names its columns (`from`, `to`) and joins on their equality only, and holds
-no order: a query states it, as a message's attachments in upload order. A relational query
+no order: a query states it with `orderBy`. A relational query
 returns nested rows of the same shape as a `select`, so they decode with the same codecs:
 
 ```ts

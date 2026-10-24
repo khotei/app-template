@@ -336,33 +336,56 @@ methods; running it after S9 avoids merge work.
   entity as the folder's repositories are split. `chat.entity.ts`: `chats` (the `title` check from
   `maxTitleLength`, the `(user_id, updated_at desc)` index), `ChatRow`, `ChatInsert`;
   `message.entity.ts`: `messages` (`message_author` and `message_stage` enums from the domain
-  literals, `attachment_ids uuid[]`, `error jsonb`, the `(chat_id, created_at)` index, the partial
-  unique index `messages_one_active_per_chat` whose predicate is one exported `sql` constant),
-  `MessageRow`, `MessageInsert` with `attachmentIds` refined to `Schema.Array(AttachmentId)` and
-  `error` to `Schema.OptionFromNullOr(MessageFailure)`; `attachment.entity.ts`: `attachments`
-  (`message_id` → `messages` with `RESTRICT`, the file-name and size checks, the `(message_id)`
-  index), `AttachmentRow`, `AttachmentInsert`; `infrastructure/db/relations.ts`: `defineRelations`
-  over every table (user → chats, chat → messages, message → attachments by `attachmentIds`);
-  `PgDrizzle.make({ relations })` in `Db` so `db.query` is typed; the migration from `make
-  migration NAME=chats`. A relational query runs live here, before any repository uses one (R3,
-  R4; D2, D6, D9).
+  literals, `error jsonb`, the `(chat_id, created_at)` index, the partial unique index
+  `messages_chat_id_active_index` whose predicate is one exported `sql` constant, `activeMessage`,
+  rendered with `.inlineParams()`), `MessageRow`, `MessageInsert` with `error` refined to
+  `Schema.OptionFromNullOr(MessageFailure)`; `attachment.entity.ts`: `attachments` (`message_id` →
+  `messages` with `RESTRICT`, the file-name, media-type (`~*` on `mediaTypePattern`) and size
+  checks, the `(message_id, created_at, id)` index), `AttachmentRow`, `AttachmentInsert`;
+  `infrastructure/db/relations.ts`: `defineRelations` over every table (user → chats, chat →
+  messages, message → attachments by `attachments.message_id`); `PgDrizzle.make({ relations })` in
+  `Db` so `db.query` is typed; the migration from `make migration NAME=chats`. The foreign key is
+  the only link between a message and its attachments, which read in upload order. A relational
+  query runs live here, before any repository uses one (R3, R4; D2, D6, D9, D17).
 - **Blocked by:** S2.
-- **Files:** `infrastructure/chat/{chat.entity.ts,message.entity.ts,message.entity.test.ts}`,
+- **Files:** `infrastructure/chat/{chat.entity.ts,chat.entity.test.ts,message.entity.ts,message.entity.test.ts}`,
   `infrastructure/attachment/{attachment.entity.ts,attachment.entity.test.ts}`,
-  `infrastructure/db/{relations.ts,db.client.ts}`, `infrastructure/db/migrations/<ts>_chats/`,
+  `infrastructure/db/{relations.ts,db.client.ts,columns.ts}` (`updatedAt()`),
+  `infrastructure/db/testing/{db.ts,rows.ts}`, `infrastructure/db/migrations/<ts>_chats/`,
+  `domain/attachment/attachment.model.ts` (`mediaTypePattern`),
+  `infrastructure/user/{user.repository.ts,user.repository.test.ts}` (`.limit(1)`),
+  `infrastructure/CLAUDE.md`, `docs/knowledge/architecture.md` (`relations.ts`),
   `docs/knowledge/database.md` (the schema section grows: the partial index, the enums, the
-  checks, relations).
-- **Test first:** Seam 2 — `message.entity.test.ts` on `PgClientTest`: a `Chat` with and without
-  a title and a `Message` of each stage, a `failed` one with `MessageFailure` and `cause` and one
-  with two `attachmentIds`, encode through the insert codec, insert, select, decode through the
-  row codec to an equal model (`assertSchemaEquals`); two active assistant messages in one chat
-  fail on `messages_one_active_per_chat` while a `completed` one beside an active one is accepted;
-  a title over `maxTitleLength` and a negative size are refused by the checks;
-  `db.query.chats.findMany({ with: { messages: true } })` returns the chat with its messages
-  nested. `attachment.entity.test.ts`: the round-trip with `messageId` `none` and `some`.
+  checks, relations, one link and upload order, `.limit(1)`), `feature.md` (R4: upload order).
+- **Test first:** Seam 2 on `PgClientTest`: `chat.entity.test.ts` reads a `Chat` with and without
+  a title back as the model it was written from and refuses a title over `maxTitleLength`;
+  `message.entity.test.ts` does the same for a `Message` of each stage, a `failed` one with
+  `MessageFailure` and `cause`, refuses two active assistant messages in one chat on
+  `messages_chat_id_active_index` while an active one beside a `completed` one is accepted, checks
+  that `activeMessage` renders as literals so the query binds only the chat id, and nests a chat's
+  messages through `db.query.chats.findMany({ with })`; `attachment.entity.test.ts` reads an
+  attachment back with `messageId` `none` and `some`, refuses an empty file name, a bad media type
+  and a negative size, and nests a message's attachments by `created_at` then `id`, not by insert
+  order.
 - **Verify:** `make check`; `make migration-check` passes; `psql`: `\d messages` lists the
   `snake_case` columns and the partial index with its predicate.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - `messages.attachment_ids` went in S4.4 (D17): the bind's foreign key is the only link, and a
+    message's attachments read in upload order. `feature.md` R4 says so; the `202` of a send still
+    lists them in the request's order, since the bind returns them that way.
+  - The predicate of the partial index is rendered with `.inlineParams()`: with bound parameters,
+    `ON CONFLICT … WHERE` matches the index until a prepared statement switches to its generic
+    plan, after five runs. A relational query aliases its tables, so `activeMessage` serves the
+    core query builder only; S12 needs the relational filter.
+  - The chats migration was regenerated in place twice (S4.2, S4.4): it never reached the ticket
+    branch. A local database that applied an earlier S4 round needs `make reset`.
+  - `attachments_media_type_check` matches `mediaTypePattern` with `~*`, its `i` flag; Postgres and
+    JavaScript agreed on nine probe values.
+  - Queries that expect one row end with `.limit(1)`; `UserRepositoryPg` follows it, and
+    `database.md` states the rule.
+  - A partial index is named `<table>_<columns>_<predicate>_index`.
+  - The step landed in five rounds, S4.1–S4.5, after three reviews.
 
 #### S5 — The Postgres repositories on today's ports
 
@@ -370,9 +393,11 @@ methods; running it after S9 avoids merge work.
   `Kv` ones, implementing the ports as they are today (`insert`, `update`, `selectById`,
   `selectByUser`, `delete`; `selectByChat` in creation order, `selectActiveByChat` through the
   partial index's predicate, `deleteByChat`; `selectByIds` in the order asked, `deleteByIds`), each
-  method one Drizzle statement with the codecs of S4; `ChatPg`, `AttachmentPg` and
+  method one Drizzle statement with the codecs of S4; `MessageRepositoryPg` fills
+  `Message.attachmentIds` from the message's attachments in upload order (D17); `ChatPg` and
   `AttachmentPgS3` in the aggregates' `index.ts` beside `ChatKv`, `AttachmentKv`,
-  `AttachmentKvS3` (R1, R4; D1, D2).
+  `AttachmentKvS3`, and no bundle pairs the Postgres repository with `AttachmentStoreKv`
+  (R1, R4; D1, D2).
 - **Blocked by:** S4.
 - **Files:** `infrastructure/chat/{chat.repository.ts,chat.repository.test.ts,message.repository.ts,message.repository.test.ts,index.ts}`,
   `infrastructure/attachment/{attachment.repository.ts,attachment.repository.test.ts,index.ts}`.
@@ -380,6 +405,8 @@ methods; running it after S9 avoids merge work.
   layers, red on `Pg` until the adapter exists: the existing cases, plus on Postgres
   `selectActiveByChat` finds the active message among terminal ones, `selectByChat` returns
   creation order with equal `createdAt` broken by id, `deleteByIds` with an unknown id skips it.
+  A shared case with attachments binds them in upload order, so `Kv` and `Pg` agree; upload order
+  against a different send order is a `Pg` case.
 - **Verify:** `make check`; the three suites each list both layers in their output.
 - **Status:** todo
 
@@ -389,9 +416,10 @@ methods; running it after S9 avoids merge work.
   store. `apps/api/src/layer.ts` provides `UserPg`, `ChatPg`, `AttachmentPgS3` and
   `Db.layerFromConfig` in place of `UserKv`, `ChatKv`, `AttachmentKvS3`, `KeyValueStoreFileSystem`;
   `apps/worker/src/layer.ts` likewise. `application/testing/chat.harness.ts` and
-  `apps/api/src/testing/api.harness.ts` build their services on `ChatPg`, `AttachmentPg`,
-  `UserPg` over `PgClientTest` + `Db.layer`, so the service, use case, job and api suites run on
-  Postgres. Removed: `infrastructure/kv/` and its tests, every `*Kv` layer and bundle,
+  `apps/api/src/testing/api.harness.ts` build their services on `ChatPg`, `AttachmentPgS3`,
+  `UserPg` over `PgClientTest` + `Db.layer` and the tests' MiniStack, so the service, use case,
+  job and api suites run on Postgres and keep attachment bytes in S3; `AttachmentStoreKv` goes,
+  and the tests that counted the store's keys count the bucket's objects. Removed: `infrastructure/kv/` and its tests, every `*Kv` layer and bundle,
   `StoreConfig`, `STORE_PATH` (code, `.env.example`, docs), the `.data/store` mention in the
   `Makefile`. The suites of S2 and S5 drop their `Kv` layer and run on `Pg` alone (R1, R2, R15,
   R20, R21).
@@ -409,7 +437,13 @@ methods; running it after S9 avoids merge work.
   repository on `Db`), `docs/knowledge/tooling.md` (Environment: `STORE_PATH` gone; Tests: every
   suite that touches a repository needs Docker), `docs/knowledge/aws.md` (Attachments: "An
   attachment's record stays in the key-value store" → the `attachments` table),
-  `docs/knowledge/database.md` (the apps' layers, the harnesses).
+  `docs/knowledge/database.md` (the apps' layers, the harnesses),
+  `infrastructure/attachment/{attachment.storage.ts,attachment.storage.test.ts}` (`AttachmentStoreKv`
+  goes), the suites that read the store (`application/attachment/attachment.service.test.ts`,
+  `application/chat/{assistant-message.job.test.ts,chat-title.job.test.ts}`,
+  `application/user/user.service.test.ts`, `apps/api/src/attachment/attachment.handler.test.ts`),
+  `README.md` (the key-value store in the diagram and the adapters), `.gitignore`,
+  `.claude/rules/effect-services.md` (the `KeyValueStore` layer examples).
 - **Test first:** Seam 7 — `apps/api/src/layer.test.ts` builds `ApiHttp` over `PgClientTest`;
   the handler suites pass unchanged on the Postgres harness (their red is the harness failing to
   build before the layers switch). Seam 5 and 6 — the application suites pass on the Postgres
@@ -497,7 +531,9 @@ methods; running it after S9 avoids merge work.
 - **Files:** `application/chat/{send-message.use-case.ts,send-message.use-case.test.ts,delete-chat.use-case.ts,chat.service.ts}`,
   `application/user/{user-lock.ts (deleted),index.ts}`, `application/testing/chat.fake.ts`,
   `application/testing/chat.harness.ts`, `apps/api/src/chat/chat.handler.test.ts`,
-  `.claude/rules/use-cases.md`, `docs/knowledge/database.md` (the transaction),
+  `.claude/rules/use-cases.md` (the transaction; the "order the writes so a crash and a retry"
+  and "enqueue after the writes" rules, written for a store without transactions, go or narrow to
+  the S3 bytes), `docs/knowledge/database.md` (the transaction),
   `docs/knowledge/architecture.md` (Seams: the use case suites run on the database).
 - **Test first:** Seam 5 — two concurrent sends to one chat (`Effect.all` with unbounded
   concurrency, both inside the harness) complete exactly one and fail the other `ChatBusyError`,
@@ -581,16 +617,27 @@ methods; running it after S9 avoids merge work.
   updated first, each with its active message) and `selectDetail(id)` (messages in creation order,
   each with its attachments) and loses `selectByUser`; `ChatRepositoryPg` answers each with one
   `db.query` over the relations of S4 and decodes the nested rows with the entity codecs;
-  `ChatService.list` and `get` become one port call each (D6).
+  `ChatService.list` and `get` become one port call each (D6). `Message.attachmentIds` leaves the
+  domain (D17): `MessageDetail` carries the attachments, read through the relation in upload
+  order; the assistant job reads its history (completed messages with their attachments) in one
+  relational query; `DeleteChatUseCase` takes the chat's attachment ids by `message_id`;
+  `AttachmentRepository.selectByIds` and the `attachmentIds` omit in `http-api` go. Also from the
+  key-value era: `findSendable` asks whether the chat has a message with `exists` instead of
+  reading them all; `byLatestUpdate` and its test go, since the query orders the summaries; the
+  active message in `selectSummaries` is the relational query's own filter, as `activeMessage`
+  names an unaliased table; the `selectByChat` comment says creation order, not insertion
+  order.
 - **Blocked by:** S6 (and, to avoid merge work in `chat.service.ts`, run after S9).
 - **Files:** `domain/chat/{chat.model.ts,chat.model.test.ts,chat.service.ts,index.ts}`,
   `infrastructure/chat/{chat.repository.ts,chat.repository.test.ts}`,
-  `application/chat/{chat.service.ts,chat.service.test.ts,index.ts}`, `apps/api/src/chat/chat.handler.ts`
+  `application/chat/{chat.service.ts,chat.service.test.ts,index.ts,assistant-message.job.ts,delete-chat.use-case.ts}`,
+  `domain/attachment/attachment.service.ts` (`selectByIds` goes), `http-api/chat/chat.http.ts`,
+  `infrastructure/attachment/attachment.repository.ts`, `apps/api/src/chat/chat.handler.ts`
   (imports only), `docs/knowledge/database.md` (relational reads), `docs/knowledge/architecture.md`
   ("Where things live": read models in `domain`).
 - **Test first:** Seam 3 — `selectSummaries` returns the user's chats most recently updated first,
   each with its active message or `none`, and none of another user's; `selectDetail` returns the
-  messages in creation order, each with its attachments in `attachmentIds` order, and `none` for an
+  messages in creation order, each with its attachments in upload order, and `none` for an
   unknown chat. Seam 5 — `ChatService.list` and `get` return the same shapes as before.
 - **Verify:** `make check`; `git grep -n selectByUser` is empty; `curl /openapi.json` unchanged
   against the S6 copy.

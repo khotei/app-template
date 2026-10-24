@@ -53,7 +53,9 @@ Postgres, one container per run.
   - The bind is the only link between a message and its attachments (`attachments.message_id`,
     a foreign key); the message keeps no copy of the list. A message's attachments read in
     upload order (`created_at`, then `id`), not in the order the send listed them: a send of
-    `[C, A]` after uploading A, B, C reads back as `[A, C]`.
+    `[C, A]` after uploading A, B, C reads back as `[A, C]`. The `202` of
+    `POST /chats/:chatId/messages` lists the attachments the bind returns, in the request's
+    order, while a later read returns upload order.
   - Outbox with a relay only: no eager publish from the api. The relay runs in the worker and
     polls at a configurable interval, default 1 s.
   - `UserLock` is removed; the transaction, a partial unique index and conditional updates are
