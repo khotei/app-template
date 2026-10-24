@@ -137,10 +137,10 @@ ports, and the database's volume stays.
 ## Environment
 
 - **One root `.env`**, gitignored, written by hand; beside it `make up` writes `.env.pulumi`, the
-  stack's outputs (`DATABASE_URL`). `.env.example` is the template of `.env` and lists what the
-  code reads from it, plus the variables a client SDK reads from the environment itself: the AWS SDK's default
-  provider chain takes `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` locally and the role on AWS,
-  whose session token rotates, so credentials never pass through `@app-template/config`
+  stack's outputs (`DATABASE_URL`). `.env.example` is the template of `.env` and lists what the code
+  reads from it, plus the variables a client SDK reads from the environment itself: the AWS SDK's
+  default provider chain takes `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` locally and the role
+  on AWS, whose session token rotates, so credentials never pass through `@app-template/config`
   ([aws.md](aws.md#the-local-stand-in)). Variables of clients that are still stubs stay commented
   out.
 - **Quoting.** Strings are double-quoted (`LOG_LEVEL="Info"`), numbers are bare (`API_PORT=3000`).
@@ -148,8 +148,8 @@ ports, and the database's volume stays.
   relative to the app folder, and `make migrate` the same two files; the second wins, and Bun
   skips a missing one. This works from `make` at the root and from `bun run dev` inside the app.
   The one exception is `make up`: Pulumi starts `deployment/local/index.ts` itself, so no
-  `--env-file` reaches it, and the recipe loads `.env` into the shell's environment instead. The shell reads the file as
-  its own syntax, so a value with a space must be quoted.
+  `--env-file` reaches it, and the recipe loads `.env` into the shell's environment instead. The
+  shell reads the file as its own syntax, so a value with a space must be quoted.
 - **A missing `.env`** is ignored by Bun without a warning. The process then fails at startup while
   building a config layer, with Effect's `ConfigError` naming the first missing or invalid
   variable. Variables exported in the shell work without a file, which is how CI runs.

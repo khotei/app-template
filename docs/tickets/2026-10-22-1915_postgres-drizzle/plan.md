@@ -22,7 +22,7 @@
   and `STAGE` ([tooling.md › Worktrees](../../knowledge/tooling.md#worktrees), extended in S3).
 - **Docker.** `make test` needs a running Docker daemon from S1 on: the `globalSetup` starts one
   Postgres container per run and the MiniStack suites keep theirs per file. `make dev` needs
-  `make up` from S6 on, which from S3 on creates the RDS instance (~80 s the first time).
+  `make up` from S6 on, which from S3 on creates the RDS instance, the bucket and the queues.
 - **APIs are checked, not remembered.** Effect against `repos/effect`; Drizzle against
   `repos/drizzle/drizzle-orm/src` (vendored in S1); `@effect/sql-pg` against its installed sources;
   MiniStack and `@pulumi/aws` against the live experiments recorded in `architecture.md`. The
@@ -35,10 +35,6 @@
 - **Living docs move with behaviour.** `docs/knowledge/database.md` is created in S2 and grows in
   S3, S6, S7, S8, S9, S10, S11, S12 and S13; each step that writes a knowledge page trims any rule
   or `CLAUDE.md` line that would restate it.
-- **The fallback of R16.** If S3 meets a fallback criterion, S3 itself delivers the plain
-  `postgres:18.6-alpine` container in `deployment/local/` on the same `DATABASE_URL` and records the
-  reason in its findings, in `architecture.md › D11` and in roadmap entry 9; every later step is
-  unchanged.
 - **Deviations** go into the step's findings, `architecture.md › Decisions` when they are
   decisions, and `feature.md` when they change a requirement. Ticket ids stay out of code, rules
   and `docs/knowledge/` (`make ids`).
@@ -48,7 +44,7 @@
 ```mermaid
 graph LR
   S1[S1 Drizzle, PgClient, Db, the test database] --> S2[S2 users: entity, migrations, make migrate]
-  S1 --> S3[S3 the local RDS instance: make up, down, reset]
+  S1 --> S3[S3 the local stand on Pulumi: make up, down, reset]
   S2 --> S4[S4 chats, messages, attachments: entities, relations]
   S4 --> S5[S5 Postgres repositories on today's ports]
   S3 --> S6[S6 the apps and the harnesses on Postgres; KV removed]
@@ -234,53 +230,105 @@ methods; running it after S9 avoids merge work.
     its own.
   - The step landed in five rounds, S2.1–S2.5, after three reviews.
 
-#### S3 — The local database: an RDS instance on MiniStack, `make up`, `down`, `reset`
+#### S3 — The local stand on Pulumi: MiniStack with the database, the bucket and the queues
 
-- **Goal:** `deployment/aws` becomes a real Pulumi program with a `local` stack against MiniStack:
-  `deployment/aws/Pulumi.yaml` (`runtime: bun`, `main: index.ts`) replaces `deployment/Pulumi.yaml`;
-  `deployment/aws/config.ts` reads `AwsConfig` (`stage`, `region`, `endpoint`) as
-  `deployment/local/ministack.ts` does; `deployment/aws/provider.ts` builds `aws.Provider` with
-  `endpoints: [{ rds, s3, sqs }]`, `skipCredentialsValidation`, `skipRequestingAccountId`,
-  `skipMetadataApiCheck` when the endpoint is set, defaults otherwise; `deployment/aws/database.ts`
-  declares `aws.rds.Instance` (`identifier` from `buildResource('database').name`, `engine:
-  'postgres'`, `engineVersion: '18'`, `instanceClass: 'db.t4g.micro'`, `allocatedStorage` and
-  `maxAllocatedStorage` 20, `username`, `password` and `dbName` parsed from `DatabaseConfig.url`,
-  `skipFinalSnapshot`, `publiclyAccessible`) and exports the endpoint. `deployment/local/ministack.ts`
-  mounts `/var/run/docker.sock`, pre-pulls `postgres:18-alpine` with a `docker.RemoteImage`, and
-  sets `MINISTACK_RDS_PUBLIC_ENDPOINT=1`, `RDS_PERSIST=1`, `RDS_BASE_PORT=<port of DATABASE_URL>`.
-  `deployment/local/check-database.ts` runs `docker ps` through `Bun.$` for the container
-  MiniStack labels `ministack=rds` and `db_id=<identifier>` and fails unless it publishes
-  `DATABASE_URL`'s port, naming both ports. `Makefile`: `PULUMI` becomes a function of the project
-  directory; `make stack` logs both projects in and selects both `local` stacks; `make up` = local
-  up → aws up → `check-database.ts` → `make migrate` → `provision.ts`; `make down` = local destroy
-  only; `make reset` = aws destroy → local destroy → `docker volume rm` of the volumes
-  `docker volume ls -q --filter name=instance-<identifier>-data` lists (MiniStack names them
-  `ministack-rds-<hash of account and region>-instance-<identifier>-data`) → `rm -rf .data`. The
-  identifier is `app-template-<STAGE>-database`, and the RDS container lives on the host's Docker,
-  so a worktree needs its own `STAGE` (`local<N>`); the worktree table gains `STAGE` and
-  `DATABASE_URL`. Then the fallback criteria of R16 are applied one by one (R16, R17, R18; D11,
-  D15).
+- **Goal:** one Pulumi program in `deployment/local` (`runtime: bun`) creates the whole local
+  stand, and nothing else creates resources for `make up`. It runs the MiniStack container
+  (`@pulumi/docker`; image `ministackImage` bumped to MiniStack 1.5.31 by digest; the Docker
+  socket, `MINISTACK_RDS_PUBLIC_ENDPOINT=1`, `RDS_PERSIST=1`, `RDS_BASE_PORT` from `.env`, the
+  persistence variables as today) and, through an `aws.Provider` that `dependsOn` the healthy
+  container (`endpoints: [{ rds, s3, sqs }]`, the three skip flags, `s3UsePathStyle`), creates
+  inside it: the RDS Postgres 18 instance (`identifier`
+  `buildResourceName(STAGE, 'database')`, credentials and database name fixed in
+  `deployment/local/settings.ts`, `skipFinalSnapshot`, `publiclyAccessible`,
+  `maxAllocatedStorage` = `allocatedStorage`), the inventory's bucket with its lifecycle rule and
+  its queues with their dead-letter queues and `RedrivePolicy`, all read from `packages/aws`
+  (names by `buildResourceName(STAGE, …)`, the rule the apps use). The resource code lives in
+  `deployment/aws/{database,storage,queue}.ts` as functions of a provider, so ticket 9's prod
+  stack calls the same code without an endpoint. The program exports `DATABASE_URL` (host port
+  from the instance's endpoint, not a secret); `make up` writes `pulumi stack output --shell` to
+  `.env.pulumi` (gitignored), and the app scripts and `make migrate` load it as a second
+  `--env-file` after `.env`. Configuration is read once, in `deployment/local/settings.ts`, from
+  the `@app-template/config` layers. `make up` = refresh of the MiniStack container alone, once it is in the state →
+  `pulumi up` with `VCR_MODE=REPLAY_ONLY` and a non-empty `VCR_PATH` (the provider's own switch
+  that drops its fixed waits: 8 s instead of 87 s cold; local stack only; if a provider release
+  drops it, `make up` is slow again, never wrong) → `.env.pulumi` → `make migrate`, which retries while the database refuses connections
+  (`ConnectionError`, `cannot_connect_now`) and gives up at once otherwise; `make down` =
+  `docker stop` of the MiniStack container (MiniStack removes the instance's container and keeps
+  its volume and state); `make reset` = `docker rm -f` of the MiniStack container and of the instance's container (its
+  MiniStack labels) → `docker volume rm` of
+  the instance's volume (MiniStack keeps it after `DeleteDBInstance`) → `rm -rf .data .env.pulumi`, no
+  `pulumi destroy`. `deployment/local/provision.ts` and `check-database.ts` go; `provision` in
+  `packages/aws` stays for the tests. A worktree sets its own `STAGE` (`local<N>`) and
+  `RDS_BASE_PORT` (`15432 + 10N`): MiniStack names the instance's container and volume by the
+  identifier, not by the port; the worktree block of `.claude/skills/ticket-implement/SKILL.md`
+  writes both (R15, R16, R17, R18; D11, D15).
 - **Blocked by:** S1.
-- **Files:** `deployment/aws/{Pulumi.yaml,index.ts,config.ts,provider.ts,database.ts}`,
-  `deployment/Pulumi.yaml` (deleted), `deployment/local/{ministack.ts,check-database.ts,README.md}`,
-  `deployment/package.json` (`@pulumi/aws`, `@app-template/aws` already there), root
-  `package.json` (`pulumi` catalog: `@pulumi/aws@7.51.1`), `Makefile`, `deployment/CLAUDE.md`
-  (`aws/` is live for the `local` stack; the stub note goes), `docs/knowledge/aws.md` (The local
-  stand-in: the socket, the RDS variables, the two projects, the targets table, the volume on
-  reset), `docs/knowledge/tooling.md` (Worktrees: `STAGE="local<N>"`, `DATABASE_URL` port `15432 +
-  10N`), `docs/knowledge/database.md` (the local RDS and the fallback).
-- **Test first:** `config only` — Seam 10 is by hand.
-- **Verify:** from `make reset`: `make up` creates the instance (findings record the time),
-  `aws rds describe-db-instances --endpoint-url $AWS_ENDPOINT_URL` returns `localhost:15432`,
-  `psql "$DATABASE_URL" -c 'select 1'` works, `drizzle.__drizzle_migrations` exists (and lists
-  `users` once S2 is merged); a second `make up` reports no change and finishes in seconds; `.env`
-  with `DATABASE_URL` on another port makes `make up` fail naming both ports; a row inserted by
-  hand survives `make down` then `make up`; `make reset` leaves `docker ps -a` and `docker volume
-  ls` without a Postgres container or volume of this tree and no `.data/`; a worktree with `N=1`
-  (`STAGE="local1"`, `AWS_ENDPOINT_URL` on 4576, `DATABASE_URL` on 15442) runs `make up` beside the
-  main tree. Each fallback criterion of R16 is ticked in the findings; if one holds, the step
-  delivers the fallback instead (How to run this plan).
-- **Status:** todo
+- **Files:** `deployment/local/{Pulumi.yaml,index.ts,settings.ts,ministack.ts,README.md}`,
+  `deployment/local/{provision,check-database,postgres}.ts` and `deployment/Pulumi.yaml` (deleted),
+  `deployment/aws/{provider,database,storage,queue,index}.ts`, `deployment/package.json` and the
+  root `package.json` (`pulumi` catalog: `@pulumi/aws`), `packages/config` (`ministackImage`, `MiniStackConfig`, `config.test.ts`),
+  `infrastructure/db/{migrate,migrate.test}.ts` (the connection retry),
+  `Makefile`, `.gitignore` (`.env.pulumi`), `.env.example` (`RDS_BASE_PORT`; `DATABASE_URL`
+  leaves it), `apps/*/package.json` scripts (the second `--env-file`), `.claude/rules/tooling.md`
+  (one hand-written `.env` plus the generated `.env.pulumi`),
+  `.claude/skills/ticket-implement/SKILL.md` (the worktree block), `deployment/CLAUDE.md`,
+  `docs/knowledge/aws.md` (The local stand-in), `docs/knowledge/tooling.md` (Worktrees, .env),
+  `docs/knowledge/roadmap.md` (entry 9: the bucket and queues are in Pulumi already),
+  `docs/knowledge/database.md` (The local database, the `make migrate` row),
+  `docs/knowledge/architecture.md` (the deployment row), `README.md`, `feature.md` (R15, R16, R17,
+  R18, R22; the `rds.Instance` question closed).
+- **Test first:** Seam 2 — `retryWhileUnreachable` retries a closed port and a starting database
+  until they answer, gives up after its bound, and fails at once on a refused password;
+  `config.test.ts`: a missing `RDS_BASE_PORT` fails. Seam 10 is by hand.
+- **Verify:** from `make reset`: `make up` creates the instance, the bucket and the queues
+  (findings record the time with and without `VCR_MODE`); `.env.pulumi` holds `DATABASE_URL`;
+  `select 1` through it works and `drizzle.__drizzle_migrations` exists; the bucket's lifecycle
+  rule and each queue's redrive read back as the inventory says; a second `make up` changes
+  nothing and finishes in seconds; `make down` then `make up` migrates once the respawned database
+  listens; a row inserted by hand survives `make down` then `make up`
+  with the same port; `make reset` leaves no container or volume of this tree and no `.data/` or `.env.pulumi`;
+  a worktree with `N=1` (`STAGE="local1"`, ports 3010/3011/4576, `RDS_BASE_PORT=15442`) runs
+  `make up` beside the main tree; `make check` is green.
+- **Status:** done
+- **Findings:**
+  - Measured on 2026-10-24, the main tree (`N=0`) and a worktree (`N=2`) side by side, each phase
+    started in both at once, with `VCR_MODE`:
+
+    | Phase | Main | Worktree |
+    |---|---|---|
+    | `make up` from `make reset` | 8.3 s | 8.4 s |
+    | `make up` on a running stand | 2.9 s | 2.9 s |
+    | `make down` | 0.5 s | 0.4 s |
+    | `make up` after `make down` | 6.1 s | 6.1 s |
+    | `make reset` | 0.3 s | 0.3 s |
+
+    Of a cold 8 s, Pulumi spends ~3.3 s creating the MiniStack container, ~0.5 s on the bucket
+    and the queues and ~2 s on the RDS instance; `make migrate` takes ~0.2 s. Without `VCR_MODE`
+    a cold `make up` took 87 s (S3.3). `select 1` through `.env.pulumi` answers in ~10 ms in both
+    trees, each on its own port (15432, 15452).
+  - The first `make up` in a fresh tree also downloads the AWS provider plugin, 858 MB, into
+    that tree's `.pulumi/` (`PULUMI_HOME` is per tree): 44 s instead of 8 s, once per tree.
+  - `make down` makes MiniStack remove the instance's container, not stop it; the volume keeps
+    the data. The next `make up` recreates the MiniStack container, since the refresh sees it
+    stopped (`~ports`), and MiniStack recreates the instance's container on the same port; the
+    other 10 resources are unchanged, a hand-inserted row survives, and `make migrate` found the
+    database listening in every run (no retry logged).
+  - The bucket's lifecycle rules (`expire-unbound` on the tag, `abort-incomplete-uploads`) and
+    each queue's redrive (`maxReceiveCount` 3 and 5) read back from MiniStack as the inventory
+    says. `make reset` leaves no container or volume of the tree.
+  - Deviations from the plan as written before S3: the database credentials and name are
+    constants in `deployment/local/settings.ts`, not stack config; `MiniStackConfig` in
+    `packages/config` carries the image and `RDS_BASE_PORT`; `make reset` also removes the
+    instance's container by its MiniStack labels; `make up` refreshes the MiniStack container
+    alone and only once it is in the state, since `up --refresh` with MiniStack stopped drops the
+    bucket from the state; `make migrate` retries while the database is unreachable.
+  - The worktree check ran with `N=2` (`STAGE="local2"`, MiniStack on 4586, the database on
+    15452) instead of `N=1`, which the S4 worktree held.
+  - The step landed in five rounds, S3.1–S3.5. S3.1 ran the database on MiniStack through
+    `provision.ts`, and S3.2 replaced it with a plain Postgres container; both were rejected for
+    one Pulumi program (S3.3, D11). S3.4 is ~700 changed lines, kept as one commit by the user's
+    choice.
 
 #### S4 — `chats`, `messages` and `attachments`: the entities, the relations, the migration
 
@@ -595,7 +643,7 @@ methods; running it after S9 avoids merge work.
 | R12 | S7 |
 | R13 | S13 |
 | R14 | S1, S2 |
-| R15 | S1, S6 |
+| R15 | S1, S3, S6 |
 | R16 | S3 |
 | R17 | S3 |
 | R18 | S3 |

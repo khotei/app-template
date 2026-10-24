@@ -4,6 +4,7 @@ import { BunRuntime } from '@effect/platform-bun'
 import { sql } from 'drizzle-orm'
 import { migrate } from 'drizzle-orm/effect-postgres/migrator'
 import { Array as Arr, Effect, Option, Predicate, Schedule } from 'effect'
+import type { SqlError } from 'effect/sql'
 
 import { MinimumLogLevelFromConfig } from '@app-template/config'
 
@@ -48,11 +49,24 @@ export const applyMigrations = Effect.flatMap(migrateDatabase, (applied) =>
   Effect.logInfo(describeApplied(applied)),
 )
 
-// 57P03: Postgres accepts the connection but is still starting up.
-const isDatabaseUnreachable = (error: unknown) =>
-  isSqlError(error) &&
-  (error.reason._tag === 'ConnectionError' ||
-    (Predicate.hasProperty(error.reason.cause, 'code') && error.reason.cause.code === '57P03'))
+/** Postgres's `cannot_connect_now`: it takes the connection, but is still starting up. */
+const cannotConnectNow = '57P03'
+const maxRetries = 30
+
+const isConnectionError = (reason: SqlError.SqlErrorReason) => reason._tag === 'ConnectionError'
+const isStartingUp = (reason: SqlError.SqlErrorReason) =>
+  Predicate.hasProperty(reason.cause, 'code') && reason.cause.code === cannotConnectNow
+const isUnreachable = Predicate.or(isConnectionError, isStartingUp)
+
+const isRetryable = Predicate.and(
+  ({ attempt }: Schedule.InputMetadata<unknown>) => attempt <= maxRetries,
+  ({ input }: Schedule.InputMetadata<unknown>) => isSqlError(input) && isUnreachable(input.reason),
+)
+
+const unreachableRetries = Schedule.spaced('1 second').pipe(
+  Schedule.while(isRetryable),
+  Schedule.tap(() => Effect.logInfo('database not reachable yet, retrying')),
+)
 
 /**
  * Retries `self` once a second, for up to 30 seconds, while the database refuses connections;
@@ -62,23 +76,13 @@ const isDatabaseUnreachable = (error: unknown) =>
  * connection can come before the database listens.
  */
 export const retryWhileUnreachable = <A, E, R>(self: Effect.Effect<A, E, R>) =>
-  self.pipe(
-    Effect.tapError((error) =>
-      isDatabaseUnreachable(error)
-        ? Effect.logInfo('database not reachable yet, retrying')
-        : Effect.void,
-    ),
-    Effect.retry({
-      while: isDatabaseUnreachable,
-      schedule: Schedule.spaced('1 second'),
-      times: 30,
-    }),
-  )
+  Effect.retry(self, unreachableRetries)
 
 if (import.meta.main) {
   BunRuntime.runMain(
     applyMigrations.pipe(
       Effect.provide(Db.layerFromConfig),
+      // Outside the provide, so each attempt builds the layer and opens a fresh connection.
       retryWhileUnreachable,
       Effect.provide(MinimumLogLevelFromConfig),
     ),

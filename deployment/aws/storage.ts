@@ -4,7 +4,7 @@ import { buildResourceName, resources, unboundTag } from '@app-template/aws'
 
 import { buildTags } from '#deployment/shared/tags'
 
-export const createStorage = (provider: aws.Provider, { stage }: { readonly stage: string }) =>
+export const createStorage = (provider: aws.Provider, stage: string) =>
   Object.values(resources.buckets).map(({ name, lifecycle }) => {
     const bucket = new aws.s3.Bucket(
       name,

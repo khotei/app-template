@@ -22,8 +22,8 @@ database:
   `WHERE message_id IS NULL`, `WHERE stage = $from`, `WHERE title IS NULL`) return whether they
   applied, and the application raises the domain error (D5).
 - **Stuck replies** are settled by a consumer of the assistant message's dead-letter queue (D8).
-- **Locally the database is an RDS instance on MiniStack**, created by `@pulumi/aws` from a
-  `local` stack of `deployment/aws`; **tests** share one Postgres container per run and take a
+- **Locally the database is an RDS instance on MiniStack**, created by `@pulumi/aws` in the one
+  Pulumi program of `deployment/local`, beside the bucket and the queues; **tests** share one Postgres container per run and take a
   database each from a migrated template (D10, D11).
 - **Drizzle's source is vendored** in `repos/drizzle`, as Effect's is (D14).
 
@@ -45,8 +45,8 @@ graph LR
   relay --> T["QueueTransport.layerSqs"] --> SQS[("SQS queues + DLQs")]
   worker --> W["job workers · dead-letter workers"] --> QCs["QueueClientSqs"] --> SQS
   W --> CR
-  mk["make up"] --> local["deployment/local<br/>MiniStack + docker.sock"]
-  mk --> aws["deployment/aws · stack local<br/>rds.Instance"] --> MS[("MiniStack RDS")]
+  mk["make up"] --> local["deployment/local<br/>MiniStack + docker.sock"] --> MS[("MiniStack: RDS, S3, SQS")]
+  local -.-> env[".env.pulumi · DATABASE_URL"]
   DB --- MS
   mk --> mig["make migrate"] --> DB
 ```
@@ -62,14 +62,16 @@ graph LR
 ~ catalogs.pulumi      + @pulumi/aws 7.51.1
 + repos/drizzle        git subtree of drizzle-team/drizzle-orm at v<catalogs.drizzle.drizzle-orm>  (D14)
 + make vendor-drizzle  the subtree pull (add on the first run), beside vendor-effect
-+ make migrate         bun --env-file=.env infrastructure/db/migrate.ts                        (D13)
++ make migrate         bun --env-file=.env --env-file=.env.pulumi infrastructure/db/migrate.ts; retries while
+                       the database refuses connections                                          (D13)
 + make migration       NAME=<name>: cd infrastructure && bunx drizzle-kit generate --name $(NAME)
 + make migration-check generate (stdin closed), fail and remove if a new folder appeared; soft locally, strict in CI  (D13)
-~ make up · down · reset   the two Pulumi projects, the port check, migrate                   (D11)
+~ make up · down · reset   one program on deployment/local, .env.pulumi, migrate; down and reset through Docker  (D11)
 ~ make check           + migration-check
 ~ .github/workflows/ci.yml   static job + make migration-check                                  (D13)
 - STORE_PATH, .data/store    from .env.example, tooling.md, the Makefile comment on reset
-+ DATABASE_URL, OUTBOX_POLL_INTERVAL   in .env.example
++ RDS_BASE_PORT, OUTBOX_POLL_INTERVAL   in .env.example; DATABASE_URL in .env.pulumi (gitignored, the apps'
+                       second --env-file)
 ~ vitest.config.ts     globalSetup: infrastructure/db/testing/postgres.setup.ts               (D10)
 ```
 
@@ -97,7 +99,8 @@ graph LR
 + infrastructure/db/columns.ts          fresh builders: id() (uuid pk DEFAULT uuidv7()), createdAt() (timestamptz, no default); updatedAt() with its first table  (D9)
 + infrastructure/db/relations.ts        defineRelations over every .entity.ts table                          (D6)
 + infrastructure/db/migrate.ts          the migrate program: DatabaseConfig → PgClient → migrate(db, …), failing with
-                                        the SqlError (unwrapQueryError); the CLI runs through BunRuntime.runMain  (D13)
+                                        the SqlError (unwrapQueryError); the CLI runs through BunRuntime.runMain and
+                                        retryWhileUnreachable (ConnectionError or cannot_connect_now only)  (D13)
 + infrastructure/db/migrations/         drizzle-kit output, committed
 + infrastructure/db/testing/postgres.setup.ts   vitest globalSetup: container, template, provide           (D10)
 + infrastructure/db/testing/db.ts       DbTest: Db over PgClientTest, publishes PgClient for transactions   (D3, D10)
@@ -144,8 +147,9 @@ graph LR
 ```
 ~ packages/config/config.ts     + DatabaseConfig { url: Redacted } from DATABASE_URL;
                                 QueueConfig + outboxPollInterval (OUTBOX_POLL_INTERVAL, default 1 s);
-                                - StoreConfig                                                               (D15)
-+ packages/config/postgres.ts   postgresImage: postgres:18.6-alpine by digest (tests; the fallback container)
+                                - StoreConfig; + MiniStackConfig { rdsBasePort } from RDS_BASE_PORT          (D11, D15)
+~ packages/config/ministack.ts  ministackImage → MiniStack 1.5.31 by digest
++ packages/config/postgres.ts   postgresImage: postgres:18.6-alpine by digest (tests)
 + packages/testing/postgres.ts  setupTemplateDatabase (the setup's half); PgClientTest: a fresh database
                                per test from the template, PgClient on it; PgClientUnauthenticated: a PgClient
                                with a wrong password, for the failed-connection tests                    (D10)
@@ -164,16 +168,23 @@ graph LR
 **`deployment`**
 
 ```
-~ deployment/local/ministack.ts   + /var/run/docker.sock mount, MINISTACK_RDS_PUBLIC_ENDPOINT=1, RDS_PERSIST=1,
-                                  RDS_BASE_PORT=<port of DATABASE_URL>; docker.RemoteImage postgres:18-alpine  (D11)
-+ deployment/aws/Pulumi.yaml      runtime: bun, main: index.ts (replaces the nodejs stub project file)
-~ deployment/aws/index.ts         the program: provider + database
-+ deployment/aws/provider.ts      aws.Provider from AwsConfig: endpoint set → endpoints: [{ rds, s3, sqs }] and the
-                                  three skip flags; unset → defaults (ticket 9)
-~ deployment/aws/database.ts      aws.rds.Instance: identifier from buildResource('database'), postgres 18,
-                                  db.t4g.micro, allocatedStorage = maxAllocatedStorage = 20, credentials and
-                                  dbName from DATABASE_URL, skipFinalSnapshot, publiclyAccessible; exports endpoint
-+ deployment/local/check-database.ts   fails unless a container labelled ministack=rds publishes DATABASE_URL's port
+~ deployment/local/index.ts       the program: MiniStack, the provider on it, the database, the bucket, the queues;
+                                  exports DATABASE_URL, built from the instance's endpoint                    (D11)
+~ deployment/local/Pulumi.yaml    main: index.ts
++ deployment/local/settings.ts    the one Effect: AwsConfig and MiniStackConfig; the fixed local credentials
+- deployment/Pulumi.yaml          the nodejs stub
+~ deployment/local/ministack.ts   + /var/run/docker.sock, MINISTACK_RDS_PUBLIC_ENDPOINT=1, RDS_PERSIST=1, RDS_BASE_PORT
+- deployment/local/provision.ts   the bucket and the queues come from the program; provision stays for the tests
++ deployment/aws/provider.ts      aws.Provider: endpoint set → endpoints: [{ rds, s3, sqs }], the three skip flags,
+                                  s3UsePathStyle; unset → defaults (ticket 9)
+~ deployment/aws/database.ts      createDatabase(provider, settings): aws.rds.Instance, identifier
+                                  buildResourceName(stage, 'database'), postgres 18, db.t4g.micro,
+                                  allocatedStorage = maxAllocatedStorage = 20, user, password and dbName from its
+                                  settings, skipFinalSnapshot, publiclyAccessible; returns the instance
+~ deployment/aws/storage.ts, queue.ts   createStorage(provider, stage), createQueues(provider, stage): the
+                                  inventory's bucket with its lifecycle rule, the queues with their dead-letter
+                                  queues and RedrivePolicy
+~ deployment/aws/index.ts         exports the create functions
 ~ deployment/package.json         + @pulumi/aws
 ```
 
@@ -181,11 +192,11 @@ graph LR
 
 ```
 + docs/knowledge/database.md     schema and entity files, codecs, the transaction and the outbox, the guards,
-                                 migrations, the local RDS and the fallback, tests, Debug logging
+                                 migrations, the local database, tests, Debug logging
 ~ docs/knowledge/architecture.md  table row for infrastructure/db, "Where things live" (+ .entity, + .relay),
                                  "Add a new entity" step 5 on Postgres, Seams; links database.md
-~ docs/knowledge/aws.md          RDS on MiniStack: the socket, RDS_BASE_PORT, RDS_PERSIST, the volume on reset
-~ docs/knowledge/tooling.md      targets, catalogs, worktree ports (+ DATABASE_URL port), vendor-drizzle, tests
+~ docs/knowledge/aws.md          The local stand-in: one program, the socket, RDS_BASE_PORT, VCR_MODE, the targets
+~ docs/knowledge/tooling.md      targets, catalogs, worktree ports (+ RDS_BASE_PORT, STAGE), .env and .env.pulumi, vendor-drizzle, tests
 ~ .claude/rules/naming.md        .entity, .relay roles; <Entity>Pg bundles; the harness line (no memory store)
 ~ .claude/rules/effect.md        Drizzle APIs checked against repos/drizzle/drizzle-orm/src
 ~ .claude/rules/use-cases.md     Concurrency: the transaction and the database guards replace the lock lines
@@ -318,25 +329,25 @@ A dead-letter queue has no redrive, so a handler failure must never spend a "las
 
 | Service | Variable | Default |
 |---|---|---|
-| `DatabaseConfig.url` (`Redacted`) | `DATABASE_URL` | — (`postgres://app:app@localhost:15432/app_template` in `.env.example`) |
+| `DatabaseConfig.url` (`Redacted`) | `DATABASE_URL` | — (written to `.env.pulumi` by `make up`; not in `.env.example`) |
 | `QueueConfig.outboxPollInterval` | `OUTBOX_POLL_INTERVAL` | `1 second` |
 
 `PgClientFromConfig = Layer.unwrap(Effect.map(DatabaseConfig, ({ url }) => PgClient.layer({ url })))`.
-The worktree table gains `DATABASE_URL`'s port, `15432 + 10N`.
+The worktree table gains `RDS_BASE_PORT` (`15432 + 10N`) and `STAGE` (`local<N>`).
 
 ### The local stand (D11)
 
 | Target | Does |
 |---|---|
-| `make up` | `deployment/local` up (MiniStack with the socket and the RDS variables, `postgres:18-alpine` pulled first) → `deployment/aws` `local` up (the instance; ~80 s the first time, seconds after) → `check-database.ts` → `make migrate` → `provision.ts` |
-| `make down` | `deployment/local` destroy only: MiniStack stops gracefully, saves its state, the instance's container goes with it and respawns on the next `up`; the `aws` stack keeps the instance |
-| `make reset` | `deployment/aws` destroy → `deployment/local` destroy → `docker volume rm` of the volumes named `…-instance-<identifier>-data` (MiniStack names the container and the volume `ministack-rds-<hash of account and region>-instance-<identifier>[-data]`) → `rm -rf .data` |
+| `make up` | `pulumi refresh` of the MiniStack container alone, once it is in the state → `pulumi up` on `deployment/local` with `VCR_MODE=REPLAY_ONLY` (MiniStack with the socket and the RDS variables; through the provider on it, the RDS instance, the bucket with its lifecycle rule, the queues with their dead-letter queues) → `pulumi stack output --shell > .env.pulumi` → `make migrate`, which retries while the respawned database refuses connections |
+| `make down` | `docker stop` of the MiniStack container: MiniStack saves its state and removes the instance's container, whose volume keeps the data; the next `up` recreates the MiniStack container (the refresh sees it stopped), MiniStack recreates the instance's container from the volume on the same port, and every other resource is unchanged |
+| `make reset` | `docker rm -f` of the MiniStack container and of the instance's container (labels `ministack=rds`, `db_id=<identifier>`) → `docker volume rm` of the instance's volume (`ministack-rds-<hash of account and region>-instance-<identifier>-data`, kept by `DeleteDBInstance`) → `rm -rf .data .env.pulumi`; `.data` holds the Pulumi state; no `pulumi destroy` |
 
-The identifier is `app-template-<STAGE>-database` and the container lives on the host's Docker, so
-each worktree sets its own `STAGE` (`local<N>`) beside its ports.
-
-`PULUMI` in the Makefile becomes a function of the project directory; both projects log in to the
-same file backend under `.data/pulumi`, so `make reset` drops both stacks' state.
+The identifier is `app-template-<STAGE>-database` and MiniStack names the instance's container
+and volume by it, so each worktree sets its own `STAGE` (`local<N>`) and `RDS_BASE_PORT`
+(`15432 + 10N`) beside its ports. The apps read `DATABASE_URL` from `.env.pulumi`, loaded as a
+second `--env-file` after `.env`; the bucket's and queues' names need no output, since the apps
+build them with `buildResourceName` as the program does.
 
 ### Tests (D10)
 
@@ -359,7 +370,7 @@ same file backend under `.data/pulumi`, so `make reset` drops both stacks' state
 | Seam | Catches | Misses |
 |---|---|---|
 | 1 `domain/*` schemas and pure rules (unchanged) | input and binding rules, stage transitions, read-model shapes | persistence |
-| 2 `infrastructure/db` on `PgClientTest`: `migrate`, `Db.layer`, the codecs of every `.entity.ts`; the test-database protocol of `@app-template/testing` | migrations apply to an empty database and are a no-op the second time; each test runs on a fresh database, so a table one test writes is absent from the next, and the database is dropped once the test ends; a row encodes and decodes back to an equal model (`Option`, `DateTime.Utc`, brands, `jsonb` error, `uuid[]`); SQL logged at `Debug` with `query` and `params`, nothing at `Info` | drift between entities and the committed migrations (Seam 9) |
+| 2 `infrastructure/db` on `PgClientTest`: `migrate`, `Db.layer`, the codecs of every `.entity.ts`; the test-database protocol of `@app-template/testing` | migrations apply to an empty database and are a no-op the second time; each test runs on a fresh database, so a table one test writes is absent from the next, and the database is dropped once the test ends; a row encodes and decodes back to an equal model (`Option`, `DateTime.Utc`, brands, `jsonb` error, `uuid[]`); SQL logged at `Debug` with `query` and `params`, nothing at `Info`; `make migrate`'s retry repeats while the database refuses connections, stops after its bound, and gives up at once on a refused password | drift between entities and the committed migrations (Seam 9) |
 | 3 repositories through their ports on `PgClientTest` (one suite per port) | field mapping, `selectSummaries` order and active message, `selectDetail` nesting and order, `insert` false on an active message, `update` false on a stale `from`, `bind` partial result, `updateTitle` false when titled, `touch` keeps the title, the cascade from `chats.delete`, `RESTRICT` on a bound attachment, the check constraints reject what the brands reject | cross-process timing |
 | 4 `QueueClientOutbox` and `OutboxRelay` on `PgClientTest` + MiniStack | a `send` inside a failed transaction leaves no row; a row is published to its queue with its `jobId` and deleted; two relays over one database publish each row once; a failing transport keeps the row; the poll interval under `TestClock` | SQS outages longer than a test |
 | 5 services and use cases on `ChatPg`, `AttachmentPg`, `QueueClientOutbox`, `TestCrypto` | a send writes two messages, the binds, the touch and one or two outbox rows in one transaction, and nothing on a failing step; two concurrent sends to one chat → one `ChatBusyError`; two concurrent binds of one attachment → one `AttachmentBoundError`; rename beside a send keeps both; delete cascade and the attachments' removal; `addAssistantMessage` alone is refused on a busy chat | HTTP statuses |
@@ -367,7 +378,7 @@ same file backend under `.data/pulumi`, so `make reset` drops both stacks' state
 | 7 `apps/api` through `BunHttpServer.layerTest` + `ApiClient` on `PgClientTest` | the wire unchanged (`/openapi.json` equal to `main`'s), `202` with outbox rows, `409` on a busy chat across two concurrent requests | the worker, the relay |
 | 8 `apps/worker` layer build on `PgClientTest` + MiniStack (`layer.test.ts`) | the relay, the four workers and the Db compose and start | live SQS timing |
 | 9 `make migration-check` (local in `make check`; strict in CI on a fresh checkout) | an entity change without a committed migration (CI), or without any migration in the tree (local); a changed domain literal or pattern that an enum or check reads | a migration edited by hand; locally, a migration not yet committed |
-| 10 by hand (acceptance R16–R18): `make up`, `down`, `reset`, worktree `N=1` | the RDS instance, the port, persistence, the volume, the fallback criteria | — |
+| 10 by hand (acceptance R16–R18): `make up`, `down`, `reset`, worktree `N=1` | the instance, the bucket and the queues created by Pulumi, `DATABASE_URL` in `.env.pulumi`, persistence across `down`, the volume on `reset`, two trees side by side | the prod stack (ticket 9) |
 
 ## Decisions
 
@@ -451,18 +462,25 @@ same file backend under `.data/pulumi`, so `make reset` drops both stacks' state
   second connection); a container per file (2 s plus migrations per file); PGlite (a second
   driver and database type, the production path untested); `withReuse()` (a container that
   outlives `make test`).
-- **D11 — The local database is an RDS instance on MiniStack, in the `local` stack of
-  `deployment/aws`.** The Docker project only runs MiniStack (now with the host's Docker socket
-  and the RDS variables), so `make down` can destroy it alone while the instance stays in the
-  `aws` stack's state and respawns with its named volume. `make reset` destroys the instance, then
-  removes the volume MiniStack leaves behind, then wipes `.data`, which also resets MiniStack's
-  port counter, so `RDS_BASE_PORT` is the instance's port whenever it is created. `make up`
-  verifies that the container MiniStack labels `ministack=rds` and `db_id=<identifier>` publishes `DATABASE_URL`'s port, since
-  MiniStack reports `available` even when the host port was taken. `maxAllocatedStorage` is set
-  to stop a refresh drift. The fallback of `feature.md` R16 stands: a plain `postgres:18.6-alpine`
-  container in `deployment/local` on the same `DATABASE_URL`. *Rejected:* one project with two
-  stacks (`make down` would destroy the instance and its data, as on AWS); reading the endpoint
-  from `pulumi stack output` at startup (runtime discovery).
+- **D11 — The local stand is one Pulumi program: MiniStack, and inside it the RDS instance, the
+  bucket and the queues.** `deployment/local` runs the MiniStack container and, through an
+  `aws.Provider` on its endpoint, creates every resource of the inventory and the database; the
+  resource code in `deployment/aws` takes the provider, so ticket 9's prod stack reuses it. The
+  database's URL is a stack output written to `.env.pulumi`, so MiniStack's choice of port needs
+  no check of our own. The provider's fixed waits (RDS 60 s then three polls 10 s apart; a queue
+  25 s; a lifecycle rule 55 s; in terraform-provider-aws, which `@pulumi/aws` 7.51.1 embeds) are
+  dropped locally by `VCR_MODE=REPLAY_ONLY`, a switch of the provider's own test harness: a cold
+  `make up` takes 8 s instead of 87 s, and a release that drops it makes `make up` slow, never
+  wrong. `make down` is `docker stop`, since Pulumi cannot destroy the container without its
+  dependents; `make up` refreshes the container alone first, and never `up --refresh`, which
+  drops the bucket from the state while MiniStack is down. The tests keep Testcontainers and
+  `provision` (D10): Pulumi there costs its CLI start per stack. *Rejected:* a plain Postgres
+  container beside MiniStack (built in S3.2; the user wants every resource inside MiniStack and
+  created by Pulumi); two projects, `local` for MiniStack and `aws` for the instance (built in
+  S3.1; needed only while `make down` destroyed a stack); `provision.ts` for `make up` (a second
+  engine); a static `DATABASE_URL` with a port check (`check-database.ts` in S3.1); a Pulumi
+  stack per test file (56–85 s of provider waits per stack, measured); Effect around the
+  program's resources (they are synchronous `pulumi.Output`s; one module reads the config).
 - **D12 — SQL is logged at `Debug` by our own `EffectLogger` layer.** Drizzle's `EffectLogger.layer`
   logs with `Effect.log()`, that is at `Info`, which would print every statement in production.
   *Rejected:* Drizzle's layer gated by `LOG_LEVEL` in the composition root (two places decide one
@@ -483,8 +501,10 @@ same file backend under `.data/pulumi`, so `make reset` drops both stacks' state
   changes between releases and the docs lag. The subtree is the whole monorepo (kit, zod,
   integration tests), since `git subtree` takes no subfolder. *Rejected:* `node_modules` `.d.ts`
   only (no implementation to read, and `drizzle-orm/effect-postgres` is thinly documented).
-- **D15 — One `DATABASE_URL`, read as `Redacted` by `DatabaseConfig`.** The Pulumi program and the
-  instance's credentials derive from the same URL, so `.env` holds the database once.
+- **D15 — One `DATABASE_URL`, read as `Redacted` by `DatabaseConfig`.** The Pulumi program builds
+  it from the instance's endpoint and the fixed local credentials, and `make up` writes it to
+  `.env.pulumi`, so the database is named once. *Amended in S3:* the URL derives from the
+  instance, not the instance from a URL in `.env`.
   *Rejected:* host, port, user, password, name as five variables (five places to keep in step
   with the instance).
 - **D16 — `drizzle-orm` and `drizzle-kit` share the `drizzle` catalog namespace.** `drizzle-kit`
@@ -501,12 +521,14 @@ same file backend under `.data/pulumi`, so `make reset` drops both stacks' state
 | A transaction that holds the `FOR UPDATE SKIP LOCKED` rows while SQS is slow blocks nothing but delays the batch | batch of 10, the transport's own timeout; a failed send fails the batch and the rows stay |
 | The relay republishes after a crash between send and commit | at-least-once as before; handlers skip settled replies and titled chats |
 | A dead-letter handler that keeps failing loops every 5 minutes forever | logged each attempt; `OUTBOX`-style sweeps are out of scope; ticket 8 makes it visible |
-| MiniStack's port counter moves if the instance is re-created without a reset | `make down` never destroys the instance; `make reset` wipes the state; `check-database.ts` fails `make up` on a mismatch |
-| MiniStack reports `available` when the host port is taken by another container | `check-database.ts` looks for the `ministack=rds` container publishing the port |
-| MiniStack writes its RDS state only on a graceful stop; a killed MiniStack orphans the instance's container | `make down` stops through Pulumi with a grace period; `make reset` removes the `ministack-rds-*` container and volume of this tree's identifier |
-| Two worktrees share the host's Docker, and MiniStack names the RDS container by account, region and identifier | each worktree sets its own `STAGE`, which the identifier carries |
-| The named volume survives `destroy` and resurrects data under the same identifier (and skips `initdb`, so a changed password would not apply) | `make reset` removes the volume; the password lives in `DATABASE_URL` and changes with a reset |
-| ~80 s per provider operation on the instance | paid once per `make up` from a clean state and once per `make reset`; a no-op `make up` runs no refresh |
+| MiniStack's port counter moves if the instance is re-created without a reset | the port is a stack output, so `.env.pulumi` follows it |
+| MiniStack reports `available` when the host port is taken by another container | each worktree has its own `RDS_BASE_PORT`; `make migrate` fails on a wrong database at once |
+| MiniStack writes its state only on a graceful stop | `make down` is `docker stop` with MiniStack's stop timeout; `make reset` removes the instance's volume |
+| Two worktrees share the host's Docker, and MiniStack names the RDS container by account, region and identifier | each worktree sets its own `STAGE`, which the identifier carries, and its own `RDS_BASE_PORT` |
+| The named volume survives `destroy` and resurrects data under the same identifier (and skips `initdb`, so a changed password would not apply) | `make reset` removes the volume; the local password is a constant in `deployment/local/settings.ts`, and changing it needs `make reset` |
+| `VCR_MODE` is a test switch of terraform-provider-aws, not a documented setting | local stack only; without it `make up` waits ~87 s from a clean state, nothing breaks |
+| After `make down`, `make up` changes nothing in Pulumi but the MiniStack container while MiniStack respawns the database in the background, so `make migrate` can connect before it listens | `make migrate` retries on `ConnectionError` or `cannot_connect_now` only, within a bound |
+| `pulumi up --refresh` while MiniStack is stopped drops the bucket from the state | `make up` refreshes the container alone, then runs a plain `up` |
 | `CREATE DATABASE … TEMPLATE` fails while the setup's pool is open | `setupTemplateDatabase`'s TSDoc states the condition; Seam 2 covers a first copy |
 | `provide`/`inject` typing (`ProvidedContext` augmentation) under the patched `tsc` was not checked | S1 adds the augmentation in `packages/testing` and `make typecheck` decides |
 | The Drizzle monorepo is large (size unknown; the clone was denied) | S1 measures `du -sh repos/drizzle`; above several times `repos/effect`, the user decides |
@@ -523,5 +545,6 @@ same file backend under `.data/pulumi`, so `make reset` drops both stacks' state
   to `Schema.OptionFromNullOr(MessageFailure)` (S4).
 - `PgClient.layer({ url })` from a `Redacted` (S1) and the Debug `EffectLogger` annotations in
   the output of `make dev-api` (S6).
-- The Docker socket mount through `@pulumi/docker` (`volumes: [{ hostPath: '/var/run/docker.sock',
-  containerPath: '/var/run/docker.sock' }]`) on Docker Desktop (S3).
+- `make down` then `make up` with the bucket and queues in the stack (S3): verified; the
+  MiniStack container is recreated, the other 10 resources are unchanged, and the port and a
+  hand-inserted row survive.

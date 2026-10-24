@@ -32,14 +32,16 @@ configuration. MiniStack names the instance's container and volume after the ide
 worktree has its own `STAGE` and `RDS_BASE_PORT` ([tooling.md › Worktrees](tooling.md#worktrees)).
 
 `make up` sets `VCR_MODE=REPLAY_ONLY`, a switch of the provider's own test harness that skips
-its fixed waits (a queue 25 s, a lifecycle rule 55 s, an instance 80 s): a cold `up` takes about
-10 s instead of 90. A provider release without it makes `up` slow, never wrong.
+its fixed waits around queues, lifecycle rules and instances: measured from `make reset`, a cold
+`make up` takes 8 s with it and 87 s without. A provider release without it makes `up` slow,
+never wrong.
 
-The Pulumi state is a file backend under `.data/pulumi` with an empty passphrase: its one secret
-is the local database's password, a constant in `settings.ts`. And `PULUMI_HOME` is the tree's `.pulumi/`, so a clone touches nothing outside the
-repo, `make reset` keeps the provider plugin, and each worktree downloads its own on its first
-`make up`. The image digest is pinned once, as `ministackImage` in `@app-template/config`, which
-`deployment/local/ministack.ts` and the tests' container both read.
+The Pulumi state is a file backend under `.data/pulumi` with an empty passphrase: its one secret is
+the local database's password, a constant in `settings.ts`. `PULUMI_HOME` is the tree's `.pulumi/`,
+so a clone touches nothing outside the repo, `make reset` keeps the provider plugins, and each
+worktree downloads its own on its first `make up`. The image digest is pinned once, as
+`ministackImage` in `@app-template/config`, which `deployment/local/ministack.ts` and the tests'
+container both read.
 
 | Target | Does |
 |---|---|
@@ -69,15 +71,15 @@ carrying its logical `name`. Physical names are `buildResourceName(stage, name)`
 | bucket `attachments` | `lifecycle.unboundExpirationDays`, `lifecycle.abortIncompleteUploadDays` | the bucket and two lifecycle rules: objects carrying `unboundTag` (`unbound=true`) expire; incomplete multipart uploads are aborted. |
 | queue `assistant-message`, `chat-title` | `maxReceiveCount` | its dead-letter queue first, named by `buildDeadLetterName` from the physical name (`app-template-<stage>-<name>-dlq`), then the queue with a `RedrivePolicy` to it. A queue definition in `infrastructure` reads its `name` and `maxAttempts` from here, so the two cannot disagree. |
 
-`make up` creates the inventory through Pulumi (`deployment/aws/storage.ts`, `queue.ts`); the
-tests create theirs with `provision` from `packages/aws`, in milliseconds and without the Pulumi
-CLI. `provision(inventory, stage)` is idempotent: an existing bucket gets its lifecycle rules re-applied,
+`make up` creates the inventory through Pulumi (`deployment/aws/storage.ts`, `queue.ts`); the tests
+create theirs with `provision` from `packages/aws`, in milliseconds and without the Pulumi CLI.
+`provision(inventory, stage)` is idempotent: an existing bucket gets its lifecycle rules re-applied,
 and `CreateQueue` on an identical queue succeeds. Two AWS behaviours shape it: a repeated
 `CreateBucket` answers by region (`us-east-1` succeeds, elsewhere `BucketAlreadyOwnedByYou`), so
 existence is read with `HeadBucket` first; and `CreateQueue` compares a repeated `RedrivePolicy` as
 a string, so its JSON is built with a fixed key order. A queue whose `maxReceiveCount` changed in
-the inventory fails with `QueueNameExists`, because SQS never updates on create; Pulumi updates
-the queue in place.
+the inventory fails with `QueueNameExists`, because SQS never updates on create; Pulumi updates the
+queue in place.
 
 ### Adding a resource
 

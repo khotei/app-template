@@ -10,8 +10,8 @@ import { localDatabase, settings } from '#deployment/local/settings'
 const { stage } = settings.aws
 const provider = createProvider(settings.aws, { dependsOn: [ministack] })
 
-createStorage(provider, { stage })
-createQueues(provider, { stage })
+createStorage(provider, stage)
+createQueues(provider, stage)
 const database = createDatabase(provider, { stage, ...localDatabase })
 
 // The password is URL-encoded, since Bun expands `$` in an env file even inside single quotes.

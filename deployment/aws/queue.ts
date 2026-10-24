@@ -5,7 +5,7 @@ import { buildDeadLetterName, buildResourceName, resources } from '@app-template
 
 import { buildTags } from '#deployment/shared/tags'
 
-export const createQueues = (provider: aws.Provider, { stage }: { readonly stage: string }) =>
+export const createQueues = (provider: aws.Provider, stage: string) =>
   Object.values(resources.queues).map(({ name, maxReceiveCount }) => {
     const tags = buildTags(stage)
     const queueName = buildResourceName(stage, name)

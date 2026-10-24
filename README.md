@@ -64,10 +64,11 @@ curl -s -b jar localhost:3000/chats/<chatId>/messages/<assistantMessageId>
 
 ### The local AWS environment
 
-MiniStack stands in for S3, SQS and RDS on `localhost:4566`; a Pulumi program in
-`deployment/local/` runs it in Docker and creates inside it the bucket, the queues and the Postgres
-instance, whose `DATABASE_URL` it writes to `.env.pulumi`. The apps do not use it yet: `make dev` runs without `make up`, and `make check` needs Docker only. The design and
-the resource inventory: [docs/knowledge/aws.md](docs/knowledge/aws.md).
+MiniStack stands in for S3, SQS and RDS on `localhost:4566`; a Pulumi program in `deployment/local/`
+runs it in Docker and creates inside it the bucket, the queues and the Postgres instance, whose
+`DATABASE_URL` it writes to `.env.pulumi`. The apps do not use it yet: `make dev` runs without
+`make up`, and `make check` needs Docker only. The design and the resource inventory:
+[docs/knowledge/aws.md](docs/knowledge/aws.md).
 
 ```sh
 make setup   # once; then add Docker and the Pulumi CLI (https://www.pulumi.com/docs/install/)
@@ -82,7 +83,7 @@ make reset   # removes MiniStack, the database's container and volume, and .data
 | Docker is not running | `make up` fails in the Docker provider; start Docker and run it again |
 | the Pulumi CLI is missing | `make up`, `down`, `reset` and `stack` fail at `pulumi`; install it from the link above. `make check` does not need it |
 | an older `.env` lacks `AWS_*`, `STAGE` or `RDS_BASE_PORT` | `make up` fails with a `ConfigError` naming the variable; `make setup` leaves an existing `.env` alone, so copy the block from `.env.example` |
-| the first `make up` takes a minute | it downloads the Docker and AWS provider plugins into `.pulumi/`; later runs from a clean state take about ten seconds |
+| the first `make up` takes longer | it downloads the Docker and AWS provider plugins into `.pulumi/` once |
 | port 4566 is taken | the container fails to start; free the port (a leftover `app-template-ministack-4566`, or another emulator) |
 | `make up` failed midway | run it again; it goes on from what it created |
 | you want a clean slate | `make reset` also wipes the database and the key-value store, not only MiniStack |
