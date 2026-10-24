@@ -10,7 +10,7 @@ paths:
 - An effectful function at a tracing boundary is `Effect.fn('<name>')(function* (…) { … })`,
   named after its export; a service method is named `'<Service>.<method>'`. An internal helper
   that marks no useful tracing boundary is `Effect.fnUntraced`.
-- A body that only delegates is passed as is, `Effect.fn('<Service>.<method>')(collection.get)`,
+- A body that only delegates is passed as is, `Effect.fn('<Service>.<method>')(chats.selectById)`,
   or as an arrow returning the effect; a generator is for a body with more than one step. Extra
   arguments to `Effect.fn` are the pipeables every call runs through (`lock.withPermit`).
 - The variable holding an `Effect.fn` is named after the span's last segment; a reserved word
@@ -26,8 +26,8 @@ paths:
 
 ## Services
 
-- Add a `Context.Service` only when something varies (the implementation: memory, file,
-  Postgres; a test double; an injected dependency) or when several holders must share one state
+- Add a `Context.Service` only when something varies (the implementation: Postgres, S3,
+  memory; a test double; an injected dependency) or when several holders must share one state
   (a lock). A rule with one implementation and no dependency is a plain function.
 - Key a service `'@app-template/<workspace>/<entity>/<Name>'`.
 - A service built in a body beside its declaration is
@@ -38,13 +38,13 @@ paths:
 
 ## Layers
 
-- A service's layers are statics on the class, as in effect's own modules (`SqliteClient.layer`,
-  `KeyValueStore.layerMemory`). `static readonly layer = Layer.effect(this, this.make)` provides
+- A service's layers are statics on the class, as in effect's own modules (`PgClient.layer`,
+  `BunHttpServer.layerTest`). `static readonly layer = Layer.effect(this, this.make)` provides
   every dependency with one implementation and leaves open the leaves that vary (a port, a client,
   a store, a platform service); there is no `layerNoDeps`. A ready variant that closes such a leaf
   is `static layer<Variant>`, a function when it takes options (`QueueTransport.layerSqs`,
-  `KeyValueStore.layerFileSystem(directory)`). A layer for a service declared elsewhere (a domain
-  port, effect's `KeyValueStore`) is a constant in the workspace that implements it (`naming.md`).
+  `ApiClient.layerFetch(baseUrl)`). A layer for a service declared elsewhere (a domain port) is a
+  constant in the workspace that implements it (`ChatRepositoryPg`, `naming.md`).
 - Variants live in the service's file: a separate file would import the class while the class
   referenced it, a cycle.
 - Chain `Layer.provide` from the nearest dependency outward. `Layer.provide([a, b])` provides

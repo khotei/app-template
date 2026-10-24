@@ -60,7 +60,7 @@ Test-support roles live only in `testing/`, listed by no barrel or `exports` sav
   `<Verb><Object>UseCase` (`SendMessageUseCase`).
 - Errors are `<Entity><Problem>Error`, in every workspace (`RequestInvalidError` in `http-api`).
 - Functions are verb-first, and the verb marks the kind of work:
-  - `create<Thing>`: a factory that wires dependencies (`createCollection`);
+  - `create<Thing>`: a factory that wires dependencies;
   - `layer<Variant>`: a static that builds the service's `Layer` for one variant
     (`effect-services.md › Layers`); a combinator that returns a `Layer` is named for what it
     runs (`worker`, as effect's `DurableQueue.worker`);

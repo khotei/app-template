@@ -102,11 +102,11 @@ const rows = yield* db.query.messages.findMany({
 
 ## Repositories
 
-A Postgres adapter is a `Layer` over `Db` and `SqlClient`, beside the key-value one in the same
-`.repository.ts` (names: [naming.md › Symbols](../../.claude/rules/naming.md#symbols)). A method
-that writes several tables runs them in one `sql.withTransaction`, passed to `Effect.fn` as a
-pipeable: `UserRepositoryPg.insert` writes the user and its credential, or neither. `SqlClient`
-is the `PgClient` that `Db.layerFromConfig` and `DbTest` publish, so the transaction runs on the
+A repository is a `Layer` over `Db` and `SqlClient` in its entity's `.repository.ts` (names:
+[naming.md › Symbols](../../.claude/rules/naming.md#symbols)). A method that writes several tables
+runs them in one `sql.withTransaction`, passed to `Effect.fn` as a pipeable:
+`UserRepositoryPg.insert` writes the user and its credential, or neither. `SqlClient` is the
+`PgClient` that `Db.layerFromConfig` and `DbTest` publish, so the transaction runs on the
 connection `Db` uses. Every method ends with `orDieWithSqlError` from `db.client.ts`.
 
 Reads go through relational queries (`db.query.<table>.findFirst` and `findMany`), writes

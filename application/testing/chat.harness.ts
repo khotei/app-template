@@ -15,18 +15,11 @@ import {
   MessageRepository,
   prepareMessage,
 } from '@app-template/domain/chat'
-import {
-  buildUser,
-  Credential,
-  SecretHash,
-  type UserId,
-  UserRepository,
-} from '@app-template/domain/user'
+import type { UserId } from '@app-template/domain/user'
 import { ChatRepositoryPg } from '@app-template/infrastructure/chat'
-import { Db } from '@app-template/infrastructure/db'
-import { UserPg } from '@app-template/infrastructure/user'
+import type { Db } from '@app-template/infrastructure/db'
 import { recordQueue, type SentJob } from '@app-template/queue/testing'
-import { PgClientTest, png } from '@app-template/testing'
+import { png } from '@app-template/testing'
 
 import { AttachmentService } from '#application/attachment/attachment.service'
 import { ChatService } from '#application/chat/chat.service'
@@ -38,25 +31,8 @@ import {
   type Interleaving,
   interleaveMessages,
 } from '#application/testing/chat.fake'
-import { chat, epoch } from '#application/testing/chat.fixture'
-import { owner, stranger } from '#application/testing/user.fixture'
-
-/** Gives each user a credential of its own, since a credential's hash is a primary key. */
-const insertUser = (id: UserId) =>
-  Effect.flatMap(UserRepository, (users) =>
-    users.insert(
-      buildUser({ id, createdAt: epoch }),
-      new Credential({ kind: 'secret', hash: SecretHash.make(id.replaceAll('-', '').repeat(2)) }),
-    ),
-  )
-
-/** `Db` on a fresh test database, dropped when the test ends. */
-export const DbTest = Db.layer.pipe(Layer.provideMerge(PgClientTest))
-
-/** `DbTest` where `owner` and `stranger` exist, so their rows can refer to them. */
-export const DbWithUsers = Layer.effectDiscard(
-  Effect.forEach([owner, stranger], insertUser, { discard: true }),
-).pipe(Layer.provideMerge(UserPg), Layer.provideMerge(DbTest))
+import { chat } from '#application/testing/chat.fixture'
+import { DbWithUsers } from '#application/testing/db.harness'
 
 /** The handles of the fakes under `ChatTest`: the jobs sent, and a write armed for the next send. */
 export class ChatFakes extends Context.Service<

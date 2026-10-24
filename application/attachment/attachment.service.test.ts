@@ -33,7 +33,8 @@ import { AttachmentService } from '#application/attachment/attachment.service'
 import { AttachmentObjects, AttachmentStoreMemory } from '#application/testing/attachment.fake'
 import { unknownAttachmentId } from '#application/testing/attachment.fixture'
 import { chat, chatId, epoch, messageId } from '#application/testing/chat.fixture'
-import { DbWithUsers, upload } from '#application/testing/chat.harness'
+import { upload } from '#application/testing/chat.harness'
+import { DbWithUsers } from '#application/testing/db.harness'
 import { owner, stranger } from '#application/testing/user.fixture'
 
 const insertMessage = Effect.gen(function* () {
@@ -52,7 +53,7 @@ const DbWithMessage = Layer.effectDiscard(insertMessage).pipe(
   Layer.provideMerge(DbWithUsers),
 )
 
-/** The service over `repository` and the memory store, on a fresh test database. */
+/** The service over `repository` and `AttachmentStoreMemory`, on a fresh test database. */
 const layerAttachmentService = (repository: Layer.Layer<AttachmentRepository, never, Db>) =>
   AttachmentService.layer.pipe(
     Layer.provideMerge(Layer.mergeAll(repository, AttachmentStoreMemory)),

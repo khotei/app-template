@@ -20,7 +20,8 @@ import { recordLogs } from '@app-template/testing'
 
 import { ChatTitleJob } from '#application/chat/chat-title.job'
 import { chat, chatId, epoch, messageId } from '#application/testing/chat.fixture'
-import { DbWithUsers, selectChat } from '#application/testing/chat.harness'
+import { selectChat } from '#application/testing/chat.harness'
+import { DbWithUsers } from '#application/testing/db.harness'
 import {
   holdModelCall,
   type ModelCallHold,

@@ -11,13 +11,9 @@ declare module 'vitest' {
 /** The migrated database the `globalSetup` creates; `PgClientTest` copies it for each test. */
 export const templateDatabase = 'template'
 
-const buildDatabaseUrl = (
-  url: string,
-  { database, password }: { readonly database: string; readonly password?: string },
-) => {
+const buildDatabaseUrl = (url: string, database: string) => {
   const target = new URL(url)
   target.pathname = `/${database}`
-  if (password !== undefined) target.password = password
   return Redacted.make(target.href)
 }
 
@@ -47,21 +43,8 @@ export const PgClientTest = Layer.unwrap(
       () => Effect.orDie(runAdmin(adminUrl, `DROP DATABASE ${database} WITH (FORCE)`)),
     )
 
-    return PgClient.layer({ url: buildDatabaseUrl(adminUrl, { database }) }).pipe(
+    return PgClient.layer({ url: buildDatabaseUrl(adminUrl, database) }).pipe(
       Layer.provide(LiveClock),
     )
   }),
-)
-
-/** A `PgClient` on the test server with a wrong password: every statement fails to connect. */
-export const PgClientUnauthenticated = Layer.unwrap(
-  Effect.sync(() =>
-    PgClient.layer({
-      url: buildDatabaseUrl(inject('databaseUrl'), {
-        // Any database will do: authentication fails before Postgres opens it.
-        database: templateDatabase,
-        password: 'wrong',
-      }),
-    }),
-  ),
 )

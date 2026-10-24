@@ -12,15 +12,14 @@ An anonymous user gets a secret in a cookie, creates chats, sends messages with 
 the assistant answers. The api stores the user's message and a `queued` assistant message, enqueues
 a job and answers `202`; the worker streams the model's reply into that one message as snapshots
 and titles the chat from its first message; the client polls the message until it is `completed`
-or `failed`. Attachment bytes live in S3 and jobs go through SQS (MiniStack locally); the rest is
-local for now: a key-value store on disk shared by both processes and a stub language model.
-Postgres and a real provider each replace one layer later.
+or `failed`. Records live in Postgres, attachment bytes in S3, and jobs go through SQS (MiniStack
+locally); the language model is a stub that a real provider replaces later.
 
 ```mermaid
 sequenceDiagram
   participant W as apps/web (ApiClient)
   participant A as apps/api
-  participant S as KeyValueStore (.data/store)
+  participant S as Postgres
   participant Q as SQS (MiniStack)
   participant K as apps/worker
   W->>A: POST /chats/:id/messages
@@ -86,7 +85,7 @@ make reset   # removes MiniStack, the database's container and volume, and .data
 | the first `make up` takes longer | it downloads the Docker and AWS provider plugins into `.pulumi/` once; worktrees reuse them |
 | port 4566 is taken | the container fails to start; free the port (a leftover `app-template-ministack-4566`, or another emulator) |
 | `make up` failed midway | run it again; it goes on from what it created |
-| you want a clean slate | `make reset` also wipes the database and the key-value store, not only MiniStack |
+| you want a clean slate | `make reset` also wipes the database, not only MiniStack |
 
 ## How it is built
 
@@ -107,16 +106,17 @@ Each line names one choice and where it lives; the rejected alternatives are in 
   across aggregates or a critical section is a use case under the user's lock, and the checks hand
   the writes a proof value (`SendableChat`, `BindableAttachments`) so the order cannot be skipped.
   [.claude/rules/use-cases.md](.claude/rules/use-cases.md).
-- **Adapters are `Layer`s over effect's `KeyValueStore`:** one module gives every repository
-  collections, indexes and blobs with a process-wide lock, and turns a store failure into a defect
-  once. `infrastructure/kv/`.
+- **Repositories are `Layer`s over Drizzle on `@effect/sql-pg`:** each entity declares its tables
+  once, the row codecs and migrations derive from them, and a write across tables runs in one
+  transaction. [docs/knowledge/database.md](docs/knowledge/database.md).
 - **Jobs live in one file, both sides:** a `.job` service enqueues, its `worker` is a `Layer` that
   consumes in a fiber the layer's scope owns. `application/chat/*.job.ts`, `packages/queue`.
 - **A process is one `Layer`:** `apps/api/src/layer.ts` and `apps/worker/src/layer.ts` close the
-  leaves (store, queue, platform) with `Layer.provide` and `main.ts` is
+  leaves (database, S3, queue, platform) with `Layer.provide` and `main.ts` is
   `BunRuntime.runMain(Layer.launch(...))`; stopping closes one scope.
-- **Tests sit at agreed seams** with `@effect/vitest`: domain rules, the kv module on both stores,
-  services on memory adapters under `TestClock`, jobs with a fake model, the api through
+- **Tests sit at agreed seams** with `@effect/vitest`: domain rules, repositories on a Postgres
+  database of their own per test, services over the memory attachment store and a recording queue
+  under `TestClock`, jobs with a fake model, the queue client on MiniStack, the api through
   `BunHttpServer.layerTest` and the real `ApiClient`.
 - **Configuration is read once,** in `packages/config`, and reaches clients as options; the root
   `.env` is the only environment file.

@@ -1,15 +1,18 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, Effect, Fiber, Layer } from 'effect'
-import { ConnectionError, SqlError, type SqlErrorReason, UnknownError } from 'effect/sql/SqlError'
+import { Array as Arr, Effect, Fiber } from 'effect'
+import {
+  AuthenticationError,
+  ConnectionError,
+  SqlError,
+  type SqlErrorReason,
+  UnknownError,
+} from 'effect/sql/SqlError'
 import { TestClock } from 'effect/testing'
 
-import { PgClientUnauthenticated, recordLogs } from '@app-template/testing'
+import { recordLogs } from '@app-template/testing'
 
-import { Db } from '#infrastructure/db/db.client'
 import { applyMigrations, migrateDatabase, retryWhileUnreachable } from '#infrastructure/db/migrate'
 import { DbTest } from '#infrastructure/testing/db-test'
-
-const DbUnauthenticated = Db.layer.pipe(Layer.provide(PgClientUnauthenticated))
 
 describe('applyMigrations', () => {
   it.effect('applies nothing to a database copied from the migrated template, and says so', () => {
@@ -79,13 +82,20 @@ describe('retryWhileUnreachable', () => {
     }),
   )
 
-  // Under the TestClock a retry would wait forever, so a test that ends shows none was made.
-  it.effect("fails at once with the driver's reason when the database refuses the password", () =>
+  it.effect('fails at once on a refusal other than unreachable, such as a wrong password', () =>
     Effect.gen(function* () {
-      const error = yield* Effect.flip(retryWhileUnreachable(migrateDatabase))
+      const { connect, attempts } = refuseConnections(
+        new AuthenticationError({
+          cause: new Error('password authentication failed'),
+          operation: 'connect',
+        }),
+        Infinity,
+      )
 
-      if (error._tag !== 'SqlError') return assert.fail(`expected a SqlError, got ${error._tag}`)
+      const error = yield* Effect.flip(retryWhileUnreachable(connect))
+
       assert.strictEqual(error.reason._tag, 'AuthenticationError')
-    }).pipe(Effect.provide(DbUnauthenticated)),
+      assert.strictEqual(attempts(), 1)
+    }),
   )
 })

@@ -102,7 +102,9 @@ Using the `chat` slice as the map:
 | domain errors | `domain/chat/chat.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
 | port and pure operations | `domain/chat/chat.service.ts` | `ChatRepository`, `buildChat({ id, userId, createdAt })`, `prepareMessage` |
 | guard shared by the aggregates | `domain/shared/guard.ts` | `ensureFound(found, holds, missing)` |
-| adapter implementing the port | `infrastructure/chat/chat.repository.ts` | `ChatRepositoryKv` (a `Layer` over `KeyValueStore`) |
+| database client and migrations | `infrastructure/db/` | `Db`, `Db.layerFromConfig`, `migrations/`, the shared columns in `columns.ts`, the relations in `relations.ts` |
+| tables and row codecs | `infrastructure/chat/chat.entity.ts` | `chats` (`snakeCase.table`), `ChatRow`, `ChatInsert` |
+| adapter implementing the port | `infrastructure/chat/chat.repository.ts` | `ChatRepositoryPg` (a `Layer` over `Db`) |
 | queue definitions | `infrastructure/chat/chat.queue.ts` | `assistantMessageQueue`, `GenerateAssistantMessage` (the job schema) |
 | prompt functions | `infrastructure/chat/chat.llm.ts` | `buildChatPrompt`, `streamAssistantText` |
 | service over the ports | `application/chat/chat.service.ts` | `ChatService`, `ChatService.layer` |
@@ -112,15 +114,6 @@ Using the `chat` slice as the map:
 | contract group | `http-api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`), the DTOs `Chat`, `Message` |
 | handler | `apps/api/src/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
 | browser feature | `apps/web/src/features/health/health-panel.ts` | `renderHealthPanel(root)` |
-
-The `chat` slice still stores through `KeyValueStore`; the `user` slice is the map of the Postgres
-side:
-
-| What | File | Named |
-|---|---|---|
-| database client and migrations | `infrastructure/db/` | `Db`, `Db.layerFromConfig`, `migrations/`, the shared columns in `columns.ts`, the relations in `relations.ts` |
-| tables and row codecs | `infrastructure/user/user.entity.ts` | `users`, `credentials` (`snakeCase.table`), `UserRow`, `UserInsert` |
-| adapter on Postgres | `infrastructure/user/user.repository.ts` | `UserRepositoryPg`, beside `UserRepositoryKv` |
 
 Every entity folder has an `index.ts` barrel, and tests sit next to their source as `*.test.ts`.
 The file suffixes and naming verbs are listed in
@@ -144,12 +137,12 @@ Pascal one (`Document`).
    once, in `domain/shared/` or the aggregate that owns it.
 4. **Domain exports.** `domain/<entity>/index.ts` re-exports its files, and
    `domain/package.json` gains `"./<entity>": "./<entity>/index.ts"` in `exports`.
-5. **Adapter.** `infrastructure/<entity>/<entity>.repository.ts`: `<Entity>RepositoryKv`, a
-   `Layer` constant that provides the domain port over `KeyValueStore` through `createCollection`
-   and `createIndex` from `infrastructure/kv`; a real client later adds another layer of the same
-   port. Add `index.ts`, which also exports `<Entity>Kv`, the one layer of every adapter of the
-   aggregate (`ChatKv = Layer.mergeAll(ChatRepositoryKv, MessageRepositoryKv)`), and the
-   `exports` entry.
+5. **Tables and adapter.** `infrastructure/<entity>/<entity>.entity.ts` declares the tables and
+   their row codecs, `infrastructure/db/relations.ts` gains them, and `make migration` writes the
+   migration ([database.md](database.md)). `<entity>.repository.ts`: `<Entity>RepositoryPg`, a
+   `Layer` constant that provides the domain port over `Db`. Add `index.ts`, which also exports
+   `<Entity>Pg`, the one layer of every adapter of the aggregate
+   (`ChatPg = Layer.mergeAll(ChatRepositoryPg, MessageRepositoryPg)`), and the `exports` entry.
 6. **Service and use cases.** `application/<entity>/<entity>.service.ts` holds the service and
    `<verb>-<object>.use-case.ts` each use case, both a `Context.Service` with a `layer`, like
    `application/chat/`. Which flow goes where:
@@ -160,7 +153,7 @@ Pascal one (`Document`).
    needs goes in `<entity>.llm.ts`. Both sides of the job live in
    `application/<entity>/<object>.job.ts`: the producer service, which calls `QueueClient.send`
    from `packages/queue`, and the static `worker` layer, which `apps/worker/src/layer.ts` merges
-   and provides with the `<Entity>Kv` layers the jobs read.
+   and provides with the `<Entity>Pg` layers the jobs read.
 8. **Contract.** Add the group in `http-api/<entity>/<entity>.http.ts`, listing the domain's errors
    with their statuses (`HttpApiSchema.status`), and add it to `Api` in `http-api/api.ts` before
    `.middleware(SchemaErrors)`.

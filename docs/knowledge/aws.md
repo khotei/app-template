@@ -49,7 +49,7 @@ image digest is pinned once, as `ministackImage` in `@app-template/config`, whic
 | `make stack` | logs the Pulumi CLI in to the file backend and selects the `local` stack or creates it. Idempotent; `up` runs it first. |
 | `make up` | refreshes the MiniStack container alone, once it is in the state, so a stopped one starts again; a full refresh, or `up --refresh`, while MiniStack is down would drop the bucket from the state. Then `pulumi up`, `.env.pulumi` and `make migrate`, which waits for a database MiniStack is still respawning ([database.md › Migrations](database.md#migrations)). A second run changes nothing. |
 | `make down` | `docker stop` of MiniStack, which saves its state under `.data/ministack/` and stops the instance's container; the stack keeps every resource. |
-| `make reset` | `docker rm -f` of MiniStack and of the instance's container, `docker volume rm` of its volume, then removes `.data/` (MiniStack's state, the Pulumi stack, the key-value store) and `.env.pulumi`. No `pulumi destroy` runs: every resource lives in what these commands remove, and the stack's state goes with `.data/`. `.pulumi/` (the provider plugins) stays. |
+| `make reset` | `docker rm -f` of MiniStack and of the instance's container, `docker volume rm` of its volume, then removes `.data/` (MiniStack's state and the Pulumi stack) and `.env.pulumi`. No `pulumi destroy` runs: every resource lives in what these commands remove, and the stack's state goes with `.data/`. `.pulumi/` (the provider plugins) stays. |
 
 An `up` that fails midway keeps what it created in the stack's state; the next `make up` goes on
 from there, and `make reset` starts afresh.
@@ -90,9 +90,9 @@ place.
 
 ## Attachments
 
-An attachment's record stays in the key-value store; its bytes live in the `attachments` bucket
-under `attachments/<id>` (`AttachmentStoreS3` in `infrastructure/attachment/attachment.storage.ts`).
-The api and the worker run on `AttachmentKvS3`, so `.data/store` holds no attachment bytes.
+An attachment's record lives in Postgres; its bytes live in the `attachments` bucket under
+`attachments/<id>` (`AttachmentStoreS3` in `infrastructure/attachment/attachment.storage.ts`).
+The api and the worker run on `AttachmentPgS3`.
 
 - **Upload.** The file streams in and is never buffered whole: up to 5 MiB it is one `PutObject`,
   above that a multipart upload in 5 MiB parts, so a file within `maxFileSize` takes two at most.
@@ -111,9 +111,9 @@ The api and the worker run on `AttachmentKvS3`, so `.data/store` holds no attach
   would race a send binding it. Its object goes by the bucket's rule, which acts after
   `unboundExpirationDays` (S3 rounds up to the next midnight UTC);
   `infrastructure/shared/resources.test.ts` keeps those days no shorter than `unboundLifetime`, so
-  nothing still bindable loses its bytes. Its record stays in the key-value store, which cannot be
-  listed, until records move to SQL and a sweep removes it. Locally the object stays as well, since
-  MiniStack never runs the rule ([Tests on Docker](#tests-on-docker)).
+  nothing still bindable loses its bytes. Its row stays, since no sweep removes expired rows.
+  Locally the object stays as well, since MiniStack never runs the rule
+  ([Tests on Docker](#tests-on-docker)).
 - **Download.** The api answers `302` to a `GetObject` URL presigned for 300 seconds.
 - **The signed host.** The host is part of the signature, so the browser must reach the host the
   api signs with. With an endpoint set, S3 uses path-style addressing and the URL is
@@ -158,7 +158,7 @@ as the client does, records it and starts no container.
 ## Tests on Docker
 
 Only the queue's own suite starts MiniStack: `packages/queue/queue.test.ts` starts one container
-through `AwsClientsMiniStack` in `@app-template/testing` (`testcontainers`; an SQS client on that
+through `SqsClientMiniStack` in `@app-template/testing` (`testcontainers`; an SQS client on that
 container) and stops it with the suite; it provisions its queues under the fixed stage `test`
 and passes `{ timeout: '60 seconds' }` to `layer(…)`. The application and api suites test
 our code, not S3: they provide `AttachmentStoreMemory` and `recordQueue` instead

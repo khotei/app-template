@@ -49,7 +49,7 @@ import { png, recordLogs } from '@app-template/testing'
 import { AssistantMessageJob } from '#application/chat/assistant-message.job'
 import { AttachmentStoreMemory } from '#application/testing/attachment.fake'
 import { chat, chatId, epoch, messageId } from '#application/testing/chat.fixture'
-import { DbWithUsers } from '#application/testing/chat.harness'
+import { DbWithUsers } from '#application/testing/db.harness'
 import {
   holdModelCall,
   type ModelCallHold,

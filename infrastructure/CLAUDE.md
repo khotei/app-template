@@ -9,9 +9,8 @@ storage keys, queue names, prompts.
   its own interface, because the domain knows nothing about object keys or prompts.
 - A `<entity>.queue.ts` holds only queue definitions; no adapter wraps `send` or `worker`.
 - A repository runs on Postgres through `db/`, over the tables its `<entity>.entity.ts` declares
-  ([database.md](../docs/knowledge/database.md)); until its Postgres layer exists it runs on
-  `KeyValueStore` through `kv/`, and the LLM adapter on `packages/llm`'s stub. Replace the body,
-  not the signature.
+  ([database.md](../docs/knowledge/database.md)). The LLM adapter runs on `packages/llm`'s stub
+  until a real provider replaces its body, not its signature.
 - `db/` holds the Postgres client (`Db`, a Drizzle database on `@effect/sql-pg`), the relations
   every table shares (`relations.ts`), the migrations and the tests' `globalSetup` (the rest of
   the test support lives in `testing/`); Drizzle is reached only through Effect, never through a

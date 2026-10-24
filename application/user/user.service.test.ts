@@ -12,7 +12,7 @@ import { UserPg } from '@app-template/infrastructure/user'
 import { assertSchemaEquals, isUuidV7 } from '@app-template/testing'
 
 import { epoch } from '#application/testing/chat.fixture'
-import { DbTest } from '#application/testing/chat.harness'
+import { DbTest } from '#application/testing/db.harness'
 import { type UserSecret, UserService } from '#application/user/user.service'
 
 const UserServiceTest = UserService.layer.pipe(
