@@ -1,6 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Array as Arr, DateTime, Effect, Option, Schema } from 'effect'
-import { KeyValueStore } from 'effect/persistence'
 
 import {
   Attachment,
@@ -26,12 +25,7 @@ import {
 import { UserId } from '@app-template/domain/user'
 import { assertSchemaEquals } from '@app-template/testing'
 
-import {
-  insertOwnedChats,
-  RepositoryStackKvMemory,
-  RepositoryStackPgTest,
-  repositoryStacks,
-} from '#infrastructure/testing/repository-stacks'
+import { insertOwnedChats, RepositoryStackPgTest } from '#infrastructure/testing/repository-stacks'
 
 const createdAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')
 
@@ -88,7 +82,7 @@ const bindAttachments = (attachments: ReadonlyArray<Attachment>, message: Messag
     )
   })
 
-describe.each(repositoryStacks)('MessageRepository on $name', ({ stack }) => {
+describe('MessageRepositoryPg', () => {
   it.effect("selects the chat's messages in creation order, not id order", () =>
     Effect.gen(function* () {
       const messages = yield* MessageRepository
@@ -103,7 +97,7 @@ describe.each(repositoryStacks)('MessageRepository on $name', ({ stack }) => {
       )
 
       assertSchemaEquals(Messages, yield* messages.selectByChat(chatId), [question, reply])
-    }).pipe(Effect.provide(stack)),
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
   it.effect('selects a queued assistant message as active, and none once it completes', () =>
@@ -125,7 +119,7 @@ describe.each(repositoryStacks)('MessageRepository on $name', ({ stack }) => {
       yield* messages.update(completed)
 
       assert.deepStrictEqual(yield* messages.selectActiveByChat(chatId), Option.none())
-    }).pipe(Effect.provide(stack)),
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
   it.effect("selects none as active when the last message is the user's", () =>
@@ -140,7 +134,7 @@ describe.each(repositoryStacks)('MessageRepository on $name', ({ stack }) => {
         yield* messages.selectActiveByChat(ChatId.make('0192d4e0-7b3a-7c00-8000-000000000049')),
         Option.none(),
       )
-    }).pipe(Effect.provide(stack)),
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
   it.effect("selects the assistant's message as active, never a user one in an active stage", () =>
@@ -161,7 +155,7 @@ describe.each(repositoryStacks)('MessageRepository on $name', ({ stack }) => {
         yield* messages.selectActiveByChat(chatId),
         Option.some(queued),
       )
-    }).pipe(Effect.provide(stack)),
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
   it.effect('deleteByChat removes every message of the chat and keeps the others', () =>
@@ -186,7 +180,7 @@ describe.each(repositoryStacks)('MessageRepository on $name', ({ stack }) => {
       )
       assert.deepStrictEqual(yield* messages.selectByChat(chatId), [])
       assertSchemaEquals(Messages, yield* messages.selectByChat(other), [kept])
-    }).pipe(Effect.provide(stack)),
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
   it.effect('update rewrites a message in place and never creates one', () =>
@@ -204,7 +198,7 @@ describe.each(repositoryStacks)('MessageRepository on $name', ({ stack }) => {
 
       assertSchemaEquals(Messages, yield* messages.selectByChat(chatId), [completed])
       assert.deepStrictEqual(yield* messages.selectById(unknown.id), Option.none())
-    }).pipe(Effect.provide(stack)),
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
   it.effect('reads a message back with the attachments bound to it, in upload order', () =>
@@ -230,45 +224,8 @@ describe.each(repositoryStacks)('MessageRepository on $name', ({ stack }) => {
         Option.some(question),
       )
       assertSchemaEquals(Messages, yield* messages.selectByChat(chatId), [question])
-    }).pipe(Effect.provide(stack)),
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
-})
-
-describe('MessageRepositoryKv', () => {
-  it.effect("deleteByChat removes the chat's index, and update leaves it alone", () =>
-    Effect.gen(function* () {
-      const messages = yield* MessageRepository
-      const store = yield* KeyValueStore.KeyValueStore
-      const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000044')
-      const other = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000045')
-      const queued = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000059', { chatId: other })
-      const completed = yield* completeMessage(queued, { text: 'Hello', at: at(1) })
-      yield* messages.insert(userMessage('0192d4e0-7b3a-7c00-8000-000000000056', { chatId }))
-      yield* messages.insert(queued)
-
-      yield* messages.deleteByChat(chatId)
-      yield* messages.update(completed)
-
-      assert.isFalse(yield* store.has(`chats/${chatId}/messages`))
-      assert.strictEqual(yield* store.get(`chats/${other}/messages`), JSON.stringify([queued.id]))
-    }).pipe(Effect.provide(RepositoryStackKvMemory)),
-  )
-
-  it.effect('selects messages created in one millisecond in insertion order', () =>
-    Effect.gen(function* () {
-      const messages = yield* MessageRepository
-      const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000040')
-      const question = userMessage('0192d4e0-7b3a-7c00-8000-000000000052', { chatId })
-      const reply = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000051', { chatId })
-      yield* messages.insert(question)
-      yield* messages.insert(reply)
-
-      assertSchemaEquals(Messages, yield* messages.selectByChat(chatId), [question, reply])
-    }).pipe(Effect.provide(RepositoryStackKvMemory)),
-  )
-})
-
-describe('MessageRepositoryPg', () => {
   it.effect('selects the active message among the terminal ones, wherever it stands', () =>
     Effect.gen(function* () {
       const messages = yield* MessageRepository

@@ -1,4 +1,4 @@
-import { assert, describe, it, type Vitest } from '@effect/vitest'
+import { assert, type Vitest } from '@effect/vitest'
 import { S3Service } from '@effect-aws/client-s3'
 import {
   Array as Arr,
@@ -12,7 +12,6 @@ import {
   Stream,
 } from 'effect'
 import { FetchHttpClient, HttpClient } from 'effect/http'
-import { KeyValueStore } from 'effect/persistence'
 import { TestClock } from 'effect/testing'
 
 import { buildResourceName, resources } from '@app-template/aws'
@@ -27,11 +26,7 @@ import {
 } from '@app-template/domain/attachment'
 import { breakAfter, describeOnMiniStack, png, StreamBrokenError } from '@app-template/testing'
 
-import {
-  AttachmentStoreKv,
-  AttachmentStoreS3,
-  buildObjectKey,
-} from '#infrastructure/attachment/attachment.storage'
+import { AttachmentStoreS3, buildObjectKey } from '#infrastructure/attachment/attachment.storage'
 
 const id = AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000020')
 const unknown = AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000029')
@@ -141,10 +136,6 @@ const runContractSuite = <E, R>(
     }).pipe(onStore),
   )
 }
-
-describe('AttachmentStoreKv', () => {
-  runContractSuite(it, AttachmentStoreKv.pipe(Layer.provide(KeyValueStore.layerMemory)))
-})
 
 const buildObjectRef = (attachmentId: AttachmentId) =>
   Effect.map(AwsConfig, ({ stage }) => ({

@@ -18,7 +18,6 @@ import {
   MiniStackConfig,
   QueueConfig,
   RuntimeConfig,
-  StoreConfig,
 } from '#config/config'
 
 const provideVariables = <A, E>(layer: Layer.Layer<A, E>, variables: Record<string, string>) =>
@@ -31,7 +30,6 @@ describe('config layers', () => {
     given?: Record<string, string>
   }>([
     { variable: 'API_PORT', layer: ApiConfig.layer },
-    { variable: 'STORE_PATH', layer: StoreConfig.layer },
     { variable: 'DATABASE_URL', layer: DatabaseConfig.layer },
     { variable: 'AWS_REGION', layer: AwsConfig.layer },
     { variable: 'STAGE', layer: AwsConfig.layer, given: { AWS_REGION: 'eu-central-1' } },

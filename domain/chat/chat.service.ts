@@ -46,7 +46,7 @@ export class MessageRepository extends Context.Service<
     readonly insert: (message: Message) => Effect.Effect<void>
     readonly update: (message: Message) => Effect.Effect<void>
     readonly selectById: (id: MessageId) => Effect.Effect<Option.Option<Message>>
-    /** Returns the chat's messages in insertion order. */
+    /** Returns the chat's messages by `createdAt`, a tie broken by id. */
     readonly selectByChat: (chatId: ChatId) => Effect.Effect<ReadonlyArray<Message>>
     /** Returns the chat's active message, the one `isActiveMessage` holds for, if any. */
     readonly selectActiveByChat: (chatId: ChatId) => Effect.Effect<Option.Option<ActiveMessage>>

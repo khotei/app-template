@@ -14,7 +14,7 @@ import { buildUserMessage, ChatId, MessageId, MessageRepository } from '@app-tem
 import { UserId } from '@app-template/domain/user'
 import { assertSchemaEquals } from '@app-template/testing'
 
-import { insertOwnedChats, repositoryStacks } from '#infrastructure/testing/repository-stacks'
+import { insertOwnedChats, RepositoryStackPgTest } from '#infrastructure/testing/repository-stacks'
 
 const createdAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')
 
@@ -49,7 +49,7 @@ const insertMessage = Effect.gen(function* () {
   )
 })
 
-describe.each(repositoryStacks)('AttachmentRepository on $name', ({ stack }) => {
+describe('AttachmentRepositoryPg', () => {
   it.effect('selects an attachment back, unbound and once bound', () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentRepository
@@ -64,7 +64,7 @@ describe.each(repositoryStacks)('AttachmentRepository on $name', ({ stack }) => 
 
       assertSchemaEquals(SelectedAttachment, beforeBind, Option.some(unbound))
       assertSchemaEquals(SelectedAttachment, afterBind, Option.some(bound))
-    }).pipe(Effect.provide(stack)),
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
   it.effect('update never creates an attachment', () =>
@@ -75,7 +75,7 @@ describe.each(repositoryStacks)('AttachmentRepository on $name', ({ stack }) => 
       yield* attachments.update(attachment(unknownId))
 
       assert.deepStrictEqual(yield* attachments.selectById(unknownId), Option.none())
-    }).pipe(Effect.provide(stack)),
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
   it.effect('selects the attachments found in the order asked, leaving out unknown ids', () =>
@@ -90,7 +90,7 @@ describe.each(repositoryStacks)('AttachmentRepository on $name', ({ stack }) => 
 
       assertSchemaEquals(Attachments, selected, [second, first])
       assert.deepStrictEqual(yield* attachments.selectByIds([]), [])
-    }).pipe(Effect.provide(stack)),
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
   it.effect('deletes the attachments asked for and keeps the rest', () =>
@@ -110,6 +110,6 @@ describe.each(repositoryStacks)('AttachmentRepository on $name', ({ stack }) => 
 
       const ids = Arr.prepend(droppedIds, kept.id)
       assertSchemaEquals(Attachments, yield* attachments.selectByIds(ids), [kept])
-    }).pipe(Effect.provide(stack)),
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 })

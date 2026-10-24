@@ -1,5 +1,4 @@
 import { DateTime, Effect, Layer } from 'effect'
-import { KeyValueStore } from 'effect/persistence'
 
 import { buildChat, type ChatId, ChatRepository } from '@app-template/domain/chat'
 import {
@@ -10,22 +9,11 @@ import {
   UserRepository,
 } from '@app-template/domain/user'
 
-import {
-  AttachmentRepositoryKv,
-  AttachmentRepositoryPg,
-} from '#infrastructure/attachment/attachment.repository'
-import { ChatRepositoryKv, ChatRepositoryPg } from '#infrastructure/chat/chat.repository'
-import { MessageRepositoryKv, MessageRepositoryPg } from '#infrastructure/chat/message.repository'
+import { AttachmentRepositoryPg } from '#infrastructure/attachment/attachment.repository'
+import { ChatRepositoryPg } from '#infrastructure/chat/chat.repository'
+import { MessageRepositoryPg } from '#infrastructure/chat/message.repository'
 import { DbTest } from '#infrastructure/testing/db-test'
-import { UserRepositoryKv, UserRepositoryPg } from '#infrastructure/user/user.repository'
-
-/** Publishes the store too, so a key-value-only test reads the keys it wrote. */
-export const RepositoryStackKvMemory = Layer.mergeAll(
-  UserRepositoryKv,
-  ChatRepositoryKv,
-  MessageRepositoryKv,
-  AttachmentRepositoryKv,
-).pipe(Layer.provideMerge(KeyValueStore.layerMemory))
+import { UserRepositoryPg } from '#infrastructure/user/user.repository'
 
 export const RepositoryStackPgTest = Layer.mergeAll(
   UserRepositoryPg,
@@ -33,11 +21,6 @@ export const RepositoryStackPgTest = Layer.mergeAll(
   MessageRepositoryPg,
   AttachmentRepositoryPg,
 ).pipe(Layer.provide(DbTest))
-
-export const repositoryStacks = [
-  { name: 'the key-value store', stack: RepositoryStackKvMemory },
-  { name: 'Postgres', stack: RepositoryStackPgTest },
-]
 
 const parentCreatedAt = DateTime.makeUnsafe(0)
 

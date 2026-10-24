@@ -1,7 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { sql } from 'drizzle-orm'
 import { Cause, DateTime, Effect, Exit, Layer, Option, Schema } from 'effect'
-import { KeyValueStore } from 'effect/persistence'
 
 import {
   buildUser,
@@ -16,7 +15,7 @@ import { assertSchemaEquals } from '@app-template/testing'
 import { Db, isSqlError } from '#infrastructure/db/db.client'
 import { DbTest, flipSqlError } from '#infrastructure/testing/db-test'
 import { credentials, users } from '#infrastructure/user/user.entity'
-import { UserRepositoryKv, UserRepositoryPg } from '#infrastructure/user/user.repository'
+import { UserRepositoryPg } from '#infrastructure/user/user.repository'
 
 const createdAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')
 
@@ -27,14 +26,9 @@ const credential = (hex: string) =>
 
 const SelectedUser = Schema.Option(User)
 
-const UserRepositoryKvMemory = UserRepositoryKv.pipe(Layer.provide(KeyValueStore.layerMemory))
-
 const UserRepositoryPgTest = UserRepositoryPg.pipe(Layer.provide(DbTest))
 
-describe.each([
-  { name: 'the key-value store', repository: UserRepositoryKvMemory },
-  { name: 'Postgres', repository: UserRepositoryPgTest },
-])('UserRepository on $name', ({ repository }) => {
+describe('UserRepositoryPg', () => {
   it.effect('selects an inserted user back by its id and by its credential', () =>
     Effect.gen(function* () {
       const users = yield* UserRepository
@@ -46,7 +40,7 @@ describe.each([
 
       assertSchemaEquals(SelectedUser, byId, Option.some(ada))
       assertSchemaEquals(SelectedUser, byCredential, Option.some(ada))
-    }).pipe(Effect.provide(repository)),
+    }).pipe(Effect.provide(UserRepositoryPgTest)),
   )
 
   it.effect('selects none for an unknown credential or id', () =>
@@ -59,31 +53,8 @@ describe.each([
 
       assert.deepStrictEqual(byCredential, Option.none())
       assert.deepStrictEqual(byId, Option.none())
-    }).pipe(Effect.provide(repository)),
+    }).pipe(Effect.provide(UserRepositoryPgTest)),
   )
-})
-
-/** Inserts through `UserRepositoryKv` on the test's own store, which the shared suite never sees. */
-const insertThroughKv = (user: User, credential: Credential) =>
-  Effect.flatMap(UserRepository, (users) => users.insert(user, credential)).pipe(
-    Effect.provide(UserRepositoryKv),
-  )
-
-describe('UserRepositoryKv', () => {
-  it.effect('keys a credential by its kind and hash alone', () =>
-    Effect.gen(function* () {
-      const store = yield* KeyValueStore.KeyValueStore
-      const ada = user('0192d4e0-7b3a-7c00-8000-000000000015')
-
-      yield* insertThroughKv(ada, credential('a'))
-      const stored = yield* store.get(`credentials/secret/${'a'.repeat(64)}`)
-
-      assert.strictEqual(stored, JSON.stringify(ada.id))
-    }).pipe(Effect.provide(KeyValueStore.layerMemory)),
-  )
-})
-
-describe('UserRepositoryPg', () => {
   it.effect(
     'writes no user when its credential is taken, since both rows share a transaction',
     () =>
