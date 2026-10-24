@@ -1,5 +1,6 @@
-import { assert, describe, it, layer } from '@effect/vitest'
-import { Array as Arr, Effect, Option, Order, Record as Rec, Schema, Struct } from 'effect'
+import { assert, describe, it } from '@effect/vitest'
+import { assertEquals } from '@effect/vitest/utils'
+import { Array as Arr, Effect, Option, Record as Rec, Schema, Struct } from 'effect'
 import { FetchHttpClient, HttpBody, type HttpClient } from 'effect/http'
 
 import {
@@ -18,9 +19,10 @@ import {
   limits,
   RequestInvalidError,
 } from '@app-template/http-api'
-import { AwsClientsMiniStack, assertSchemaEquals } from '@app-template/testing'
+import { assertSchemaEquals, sortById } from '@app-template/testing'
 
 import {
+  apiSuite,
   countStoredObjects,
   openChat,
   type Route,
@@ -28,7 +30,6 @@ import {
   testSpecDocuments,
   underAuth,
   withApi,
-  withOwnApi,
 } from '#api/testing/api.harness'
 
 const mebibyte = 1024 * 1024
@@ -50,13 +51,6 @@ const formOf = (...files: ReadonlyArray<File>) => {
 }
 
 const png = (name: string) => file(name, 'image/png')
-
-/**
- * Sorts by id, to compare as a set what shares a `createdAt` (a send's two messages, one
- * request's uploads): the store leaves their relative order open.
- */
-const sortById = <A extends { readonly id: string }>(items: ReadonlyArray<A>) =>
-  Arr.sortWith(items, (item) => item.id, Order.String)
 
 const UploadError = Schema.Union([
   AttachmentTooLargeError,
@@ -173,7 +167,7 @@ const attachmentRoutes: ReadonlyArray<Route> = [
 ]
 
 describe('attachments', () => {
-  layer(AwsClientsMiniStack, { timeout: '60 seconds' })((it) => {
+  apiSuite((it) => {
     it.effect('POST /attachments with two PNGs is 201 with two unbound attachments', () =>
       withApi((api) =>
         Effect.gen(function* () {
@@ -190,7 +184,7 @@ describe('attachments', () => {
             [unboundPng('one.png'), unboundPng('two.png')],
           )
         }),
-      ).pipe(withOwnApi),
+      ),
     )
 
     it.effect.each(refusedUploads)(
@@ -212,7 +206,7 @@ describe('attachments', () => {
             )
             assert.strictEqual(yield* countStoredObjects, 0)
           }),
-        ).pipe(withOwnApi),
+        ),
     )
 
     it.effect("GET /attachments/:attachmentId/download is 302 to the store's URL", () =>
@@ -225,9 +219,9 @@ describe('attachments', () => {
           const url = yield* Effect.flatMap(AttachmentStore, (store) => store.url(uploaded.id))
 
           assert.strictEqual(response.status, 302)
-          assert.deepStrictEqual(Option.some(response.headers.location), Option.map(url, String))
+          assertEquals(Option.some(response.headers.location), Option.map(url, String))
         }),
-      ).pipe(withOwnApi),
+      ),
     )
 
     it.effect('a send with two uploaded ids binds them, and the chat shows their metadata', () =>
@@ -260,7 +254,7 @@ describe('attachments', () => {
           )
           assert.deepStrictEqual(fetched, bound)
         }),
-      ).pipe(withOwnApi),
+      ),
     )
 
     it.effect('DELETE /attachments/:attachmentId is 204 while unbound, then 404', () =>
@@ -283,7 +277,7 @@ describe('attachments', () => {
             new AttachmentNotFoundError({ id: photo.id }),
           )
         }),
-      ).pipe(withOwnApi),
+      ),
     )
 
     it.effect('DELETE /attachments/:attachmentId on a bound one is 409 AttachmentBoundError', () =>
@@ -310,44 +304,45 @@ describe('attachments', () => {
             ),
           )
         }),
-      ).pipe(withOwnApi),
+      ),
     )
 
     it.effect("another user's attachment is 404 AttachmentNotFoundError on every route", () =>
-      Effect.gen(function* () {
-        const foreign = yield* withApi((api) =>
-          Effect.andThen(api.users.ensure(), uploadOne(api, png('photo.png'))),
-        )
-        const params = { attachmentId: foreign.id }
-        const notFound = new AttachmentNotFoundError({ id: foreign.id })
+      withApi((api, _http, browse) =>
+        Effect.gen(function* () {
+          yield* api.users.ensure()
+          const foreign = yield* uploadOne(api, png('photo.png'))
+          const params = { attachmentId: foreign.id }
+          const notFound = new AttachmentNotFoundError({ id: foreign.id })
 
-        const errors = yield* withApi((api) =>
-          Effect.gen(function* () {
-            const chat = yield* openChat(api)
-            return yield* Effect.all(
-              Arr.map(
-                [
-                  api.chats.send({
-                    params: { chatId: chat.id },
-                    payload: { text: 'Look', attachmentIds: [foreign.id] },
-                  }),
-                  api.attachments.get({ params }),
-                  api.attachments.download({ params }),
-                  api.attachments.delete({ params }),
-                ],
-                Effect.flip,
-              ),
-            )
-          }),
-        )
+          const errors = yield* browse((stranger) =>
+            Effect.gen(function* () {
+              const chat = yield* openChat(stranger)
+              return yield* Effect.all(
+                Arr.map(
+                  [
+                    stranger.chats.send({
+                      params: { chatId: chat.id },
+                      payload: { text: 'Look', attachmentIds: [foreign.id] },
+                    }),
+                    stranger.attachments.get({ params }),
+                    stranger.attachments.download({ params }),
+                    stranger.attachments.delete({ params }),
+                  ],
+                  Effect.flip,
+                ),
+              )
+            }),
+          )
 
-        assertSchemaEquals(Schema.Array(AttachmentNotFoundError), errors, [
-          notFound,
-          notFound,
-          notFound,
-          notFound,
-        ])
-      }).pipe(withOwnApi),
+          assertSchemaEquals(Schema.Array(AttachmentNotFoundError), errors, [
+            notFound,
+            notFound,
+            notFound,
+            notFound,
+          ])
+        }),
+      ),
     )
   })
 

@@ -1,5 +1,6 @@
 export * from '#testing/log.fake'
 export * from '#testing/ministack'
+export * from '#testing/order'
 export * from '#testing/png.fixture'
 export * from '#testing/postgres'
 export * from '#testing/schema'

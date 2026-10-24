@@ -1,10 +1,8 @@
-import { assert, describe, layer } from '@effect/vitest'
+import { assert, describe } from '@effect/vitest'
 import { Duration, Effect, Option } from 'effect'
 import { Cookies } from 'effect/http'
 
-import { AwsClientsMiniStack } from '@app-template/testing'
-
-import { readUserSecretCookie, withApi, withOwnApi } from '#api/testing/api.harness'
+import { apiSuite, readUserSecretCookie, withApi } from '#api/testing/api.harness'
 
 const issuedCookie: Cookies.Cookie['options'] = {
   maxAge: Duration.seconds(31_536_000),
@@ -13,7 +11,7 @@ const issuedCookie: Cookies.Cookie['options'] = {
 }
 
 describe('users', () => {
-  layer(AwsClientsMiniStack, { timeout: '60 seconds' })((it) => {
+  apiSuite((it) => {
     it.effect('POST /users is 201 with an HttpOnly, Lax, one-year cookie and no Secure', () =>
       withApi((api) =>
         Effect.gen(function* () {
@@ -24,7 +22,7 @@ describe('users', () => {
           assert.match(cookie.value, /^[\w-]{43}$/)
           assert.deepStrictEqual(cookie.options, issuedCookie)
         }),
-      ).pipe(withOwnApi),
+      ),
     )
 
     it.effect(
@@ -45,21 +43,23 @@ describe('users', () => {
             assert.strictEqual(cookie.value, Option.getOrThrow(readUserSecretCookie(issued)).value)
             assert.deepStrictEqual(cookie.options, issuedCookie)
           }),
-        ).pipe(withOwnApi),
+        ),
     )
 
     it.effect('a forged cookie gets a new user and a new secret', () =>
-      Effect.gen(function* () {
-        const existing = yield* withApi((api) => api.users.ensure())
+      withApi((api, _http, browse) =>
+        Effect.gen(function* () {
+          const existing = yield* api.users.ensure()
 
-        const [user, response] = yield* withApi(
-          (api) => api.users.ensure({ responseMode: 'decoded-and-response' }),
-          Cookies.fromSetCookie('user_secret=forged'),
-        )
+          const [user, response] = yield* browse(
+            (forger) => forger.users.ensure({ responseMode: 'decoded-and-response' }),
+            Cookies.fromSetCookie('user_secret=forged'),
+          )
 
-        assert.notStrictEqual(user.id, existing.id)
-        assert.notStrictEqual(Option.getOrThrow(readUserSecretCookie(response)).value, 'forged')
-      }).pipe(withOwnApi),
+          assert.notStrictEqual(user.id, existing.id)
+          assert.notStrictEqual(Option.getOrThrow(readUserSecretCookie(response)).value, 'forged')
+        }),
+      ),
     )
   })
 })

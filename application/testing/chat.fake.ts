@@ -16,6 +16,9 @@ export interface Interleaving {
 /**
  * The Postgres message repository, yielding after `selectActiveByChat`, then running the armed
  * write.
+ *
+ * The yield hands the turn to a concurrent send or delete between this send's check and its
+ * writes, where the armed write lands too.
  */
 export const interleaveMessages = () => {
   const interleaving: Interleaving = { write: Effect.void }

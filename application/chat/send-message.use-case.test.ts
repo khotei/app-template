@@ -1,4 +1,4 @@
-import { assert, layer } from '@effect/vitest'
+import { assert } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Array as Arr, DateTime, Effect, Exit, Option, Record as Rec, Schema } from 'effect'
 import { TestClock } from 'effect/testing'
@@ -21,18 +21,18 @@ import {
   MessageInputInvalidError,
 } from '@app-template/domain/chat'
 import { GenerateAssistantMessage, GenerateChatTitle } from '@app-template/infrastructure/chat'
-import { AwsClientsMiniStack, assertSchemaEquals, isUuidV7 } from '@app-template/testing'
+import { assertSchemaEquals, isUuidV7, sortById } from '@app-template/testing'
 
 import { unknownAttachmentId } from '#application/testing/attachment.fixture'
 import { ask, sentAt, unknownChatId } from '#application/testing/chat.fixture'
 import {
   type ChatArranged,
+  chatSuite,
   idsOf,
   selectAttachments,
   selectChat,
   selectMessages,
   settle,
-  sortById,
   upload,
   withChat,
 } from '#application/testing/chat.harness'
@@ -70,7 +70,7 @@ const sendConcurrently = (
     { concurrency: 'unbounded' },
   )
 
-layer(AwsClientsMiniStack, { timeout: '60 seconds' })('SendMessageUseCase', (it) => {
+chatSuite('SendMessageUseCase', (it) => {
   it.effect('send stores the user message and a queued assistant message and bumps the chat', () =>
     withChat(({ chat, sendMessage }) =>
       Effect.gen(function* () {

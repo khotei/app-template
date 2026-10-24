@@ -38,11 +38,10 @@ export const AwsClientsMiniStack = Layer.unwrap(
  * has created the resources the test uses under it: provide it per test, so its buckets and
  * queues are its own and nothing needs cleaning.
  */
-export const prepareOwnStage = <E, R>(provision: (stage: string) => Effect.Effect<unknown, E, R>) =>
+export const ownStage = <E, R>(provision: (stage: string) => Effect.Effect<unknown, E, R>) =>
   Layer.unwrap(
     Effect.gen(function* () {
       const stage = buildStage()
-
       yield* provision(stage)
       return AwsConfig.layer.pipe(
         Layer.provide(
@@ -52,7 +51,6 @@ export const prepareOwnStage = <E, R>(provision: (stage: string) => Effect.Effec
     }),
   )
 
-/** The number of objects in `bucket`, for a test that checks what its own bucket holds. */
 export const countObjects = (bucket: string) =>
   Effect.flatMap(S3Service, (s3) => s3.listObjectsV2({ Bucket: bucket })).pipe(
     Effect.map(({ Contents }) => Contents?.length ?? 0),

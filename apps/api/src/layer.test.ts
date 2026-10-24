@@ -1,30 +1,31 @@
-import { assert, describe, it, layer } from '@effect/vitest'
+import { assert, describe, it } from '@effect/vitest'
 import { Effect } from 'effect'
-import { HttpClient } from 'effect/http'
 
-import { AwsClientsMiniStack } from '@app-template/testing'
-
-import { operations, spec, withOwnApi } from '#api/testing/api.harness'
+import { apiSuite, operations, spec, withApi } from '#api/testing/api.harness'
 
 describe('api routes', () => {
-  layer(AwsClientsMiniStack, { timeout: '60 seconds' })((it) => {
+  apiSuite((it) => {
     it.effect('GET /openapi.json serves the spec derived from Api', () =>
-      Effect.gen(function* () {
-        const response = yield* HttpClient.get('/openapi.json')
+      withApi((_, http) =>
+        Effect.gen(function* () {
+          const response = yield* http.get('/openapi.json')
 
-        assert.strictEqual(response.status, 200)
-        assert.deepStrictEqual(yield* response.json, JSON.parse(JSON.stringify(spec)))
-      }).pipe(withOwnApi),
+          assert.strictEqual(response.status, 200)
+          assert.deepStrictEqual(yield* response.json, JSON.parse(JSON.stringify(spec)))
+        }),
+      ),
     )
 
     it.effect('GET /docs serves the Scalar page', () =>
-      Effect.gen(function* () {
-        const response = yield* HttpClient.get('/docs')
+      withApi((_, http) =>
+        Effect.gen(function* () {
+          const response = yield* http.get('/docs')
 
-        assert.strictEqual(response.status, 200)
-        assert.match(response.headers['content-type'] ?? '', /^text\/html/)
-        assert.include(yield* response.text, 'scalar')
-      }).pipe(withOwnApi),
+          assert.strictEqual(response.status, 200)
+          assert.match(response.headers['content-type'] ?? '', /^text\/html/)
+          assert.include(yield* response.text, 'scalar')
+        }),
+      ),
     )
   })
 

@@ -1,14 +1,15 @@
-import { assert, layer } from '@effect/vitest'
+import { assert } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Deferred, Effect, Exit, Fiber, Layer, Option, Ref } from 'effect'
 
 import { AttachmentStore } from '@app-template/domain/attachment'
 import { ChatNotFoundError, ChatRepository } from '@app-template/domain/chat'
 import { ChatRepositoryPg } from '@app-template/infrastructure/chat'
-import { AwsClientsMiniStack, assertSchemaEquals } from '@app-template/testing'
+import { assertSchemaEquals } from '@app-template/testing'
 
 import { ask, unknownChatId } from '#application/testing/chat.fixture'
 import {
+  chatSuite,
   selectAttachments,
   selectChat,
   selectMessages,
@@ -34,7 +35,7 @@ const ChatRepositoryDeleteFailingOnce = Layer.effect(
   }),
 ).pipe(Layer.provide(ChatRepositoryPg))
 
-layer(AwsClientsMiniStack, { timeout: '60 seconds' })('DeleteChatUseCase', (it) => {
+chatSuite('DeleteChatUseCase', (it) => {
   it.effect('delete while a message is active removes the chat, its messages and attachments', () =>
     withChat(({ chat, chats, sendMessage, deleteChat }) =>
       Effect.gen(function* () {

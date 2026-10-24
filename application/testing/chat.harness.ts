@@ -1,5 +1,6 @@
 import { BunCrypto } from '@effect/platform-bun'
-import { Array as Arr, DateTime, Effect, Layer, Order, Stream } from 'effect'
+import { layer } from '@effect/vitest'
+import { Array as Arr, DateTime, Effect, Layer, Stream } from 'effect'
 import { TestCrypto } from 'effect/testing'
 
 import { provision, type Resources, resources } from '@app-template/aws'
@@ -30,7 +31,7 @@ import { ChatRepositoryPg } from '@app-template/infrastructure/chat'
 import { Db } from '@app-template/infrastructure/db'
 import { UserPg } from '@app-template/infrastructure/user'
 import { recordQueue, type SentJob } from '@app-template/queue/testing'
-import { PgClientTest, png, prepareOwnStage } from '@app-template/testing'
+import { AwsClientsMiniStack, ownStage, PgClientTest, png } from '@app-template/testing'
 
 import { AttachmentService } from '#application/attachment/attachment.service'
 import { ChatService } from '#application/chat/chat.service'
@@ -45,7 +46,7 @@ import { epoch } from '#application/testing/chat.fixture'
 import { owner, stranger } from '#application/testing/user.fixture'
 
 /** Gives each user a credential of its own, since a credential's hash is a primary key. */
-const registerUser = (id: UserId) =>
+const insertUser = (id: UserId) =>
   Effect.flatMap(UserRepository, (users) =>
     users.insert(
       buildUser({ id, createdAt: epoch }),
@@ -55,7 +56,7 @@ const registerUser = (id: UserId) =>
 
 /** `Db` on a fresh test database where `owner` and `stranger` exist, so their rows can refer to them. */
 export const DbWithUsers = Layer.effectDiscard(
-  Effect.forEach([owner, stranger], registerUser, { discard: true }),
+  Effect.forEach([owner, stranger], insertUser, { discard: true }),
 ).pipe(
   Layer.provideMerge(UserPg),
   Layer.provideMerge(Db.layer.pipe(Layer.provideMerge(PgClientTest))),
@@ -65,8 +66,11 @@ const attachmentsBucket = { buckets: resources.buckets, queues: {} } satisfies R
 
 /** The S3 attachment store on a bucket of the test's own, over the file's MiniStack clients. */
 export const AttachmentStoreOwnBucket = AttachmentStoreS3.pipe(
-  Layer.provideMerge(prepareOwnStage((stage) => Effect.orDie(provision(attachmentsBucket, stage)))),
+  Layer.provideMerge(ownStage((stage) => Effect.orDie(provision(attachmentsBucket, stage)))),
 )
+
+/** The suite every chat test runs in: the MiniStack its harnesses take their own bucket from. */
+export const chatSuite = layer(AwsClientsMiniStack, { timeout: '60 seconds' })
 
 export interface ChatHarnessOptions {
   /** Replaces the Postgres chat repository, to fail or script one of its calls. */
@@ -154,18 +158,11 @@ export const settle = (message: Message) =>
     yield* messages.update(completed)
   })
 
-export const idsOf = (attachments: ReadonlyArray<Attachment>) =>
-  Arr.map(attachments, (attachment) => attachment.id)
+export const idsOf = <A extends { readonly id: string }>(items: ReadonlyArray<A>): Array<A['id']> =>
+  Arr.map(items, (item) => item.id)
 
 export const selectChat = (chatId: ChatId) =>
   Effect.flatMap(ChatRepository, (chats) => chats.selectById(chatId))
-
-/**
- * Sorts messages by id, to compare a send's two as a set: they share a `createdAt`, and the
- * store leaves their relative order open.
- */
-export const sortById = (messages: ReadonlyArray<Message>) =>
-  Arr.sortWith(messages, (message) => message.id, Order.String)
 
 export const selectMessages = (chatId: ChatId) =>
   Effect.flatMap(MessageRepository, (messages) => messages.selectByChat(chatId))

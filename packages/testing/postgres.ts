@@ -51,8 +51,9 @@ export const setupTemplateDatabase = Effect.fn('setupTemplateDatabase')(function
 })
 
 /**
- * The pool times its connections by the clock it is built with. On a test's `TestClock`, a
- * `setTime` far ahead hangs the next statement, so the pool keeps the live clock.
+ * `@effect/sql-pg`'s pool reads `Clock` once, when built, and times its connections by it; on a
+ * test's `TestClock` a `setTime` far ahead hangs the next statement, so the pool gets the live
+ * clock.
  */
 const LiveClock = Layer.sync(Clock.Clock, () => Clock.Clock.defaultValue())
 

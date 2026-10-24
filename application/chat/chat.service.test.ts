@@ -1,6 +1,6 @@
-import { assert, layer } from '@effect/vitest'
+import { assert } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, DateTime, Effect, Option, Order, Record as Rec } from 'effect'
+import { Array as Arr, DateTime, Effect, Option, Record as Rec } from 'effect'
 import { TestClock } from 'effect/testing'
 
 import {
@@ -12,11 +12,13 @@ import {
   MessageNotFoundError,
 } from '@app-template/domain/chat'
 import type { UserId } from '@app-template/domain/user'
-import { AwsClientsMiniStack, assertSchemaEquals, isUuidV7 } from '@app-template/testing'
+import { assertSchemaEquals, isUuidV7, sortById } from '@app-template/testing'
 
 import { ChatService } from '#application/chat/chat.service'
 import { ask, sentAt, unknownChatId, unknownMessageId } from '#application/testing/chat.fixture'
 import {
+  chatSuite,
+  idsOf,
   makeChatHarness,
   selectChat,
   settle,
@@ -38,7 +40,7 @@ const chatCalls = {
   getMessage: (service, userId, chatId) => service.getMessage(userId, chatId, unknownMessageId),
 } as const satisfies Record<string, ChatCall>
 
-layer(AwsClientsMiniStack, { timeout: '60 seconds' })('ChatService', (it) => {
+chatSuite('ChatService', (it) => {
   it.effect('create stores an untitled chat with a UUIDv7 id at the clock time', () => {
     const { layer } = makeChatHarness()
     return Effect.gen(function* () {
@@ -89,19 +91,16 @@ layer(AwsClientsMiniStack, { timeout: '60 seconds' })('ChatService', (it) => {
         const detail = yield* service.get(owner, chat.id)
 
         const [earlier, later] = Arr.splitAt(
-          Arr.map(detail.messages, ({ message }) => message.id),
+          Arr.map(detail.messages, ({ message }) => message),
           2,
         )
         assertEquals(
-          Arr.sort(earlier, Order.String),
-          Arr.sort([first.userMessage.message.id, first.assistantMessage.message.id], Order.String),
+          idsOf(sortById(earlier)),
+          idsOf(sortById([first.userMessage.message, first.assistantMessage.message])),
         )
         assertEquals(
-          Arr.sort(later, Order.String),
-          Arr.sort(
-            [second.userMessage.message.id, second.assistantMessage.message.id],
-            Order.String,
-          ),
+          idsOf(sortById(later)),
+          idsOf(sortById([second.userMessage.message, second.assistantMessage.message])),
         )
         assertEquals(
           Rec.fromEntries(
