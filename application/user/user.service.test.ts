@@ -10,14 +10,15 @@ import { TestClock, TestCrypto } from 'effect/testing'
 import { Credential, SecretHash, UserRepository, UserUnknownError } from '@app-template/domain/user'
 import { Db } from '@app-template/infrastructure/db'
 import { UserPg } from '@app-template/infrastructure/user'
-import { assertSchemaEquals, isUuidV7, PgClientTest } from '@app-template/testing'
+import { assertSchemaEquals, isUuidV7 } from '@app-template/testing'
 
+import { DbTest } from '#application/testing/chat.harness'
 import { type UserSecret, UserService } from '#application/user/user.service'
 
 const UserServiceTest = UserService.layer.pipe(
   Layer.provideMerge(UserPg),
   Layer.provide(TestCrypto.layer('user-service').pipe(Layer.provide(BunCrypto.layer))),
-  Layer.provideMerge(Db.layer.pipe(Layer.provideMerge(PgClientTest))),
+  Layer.provideMerge(DbTest),
 )
 
 const countStoredRows = Effect.flatMap(Db, (db) =>
@@ -26,7 +27,7 @@ const countStoredRows = Effect.flatMap(Db, (db) =>
     db.query.credentials.findMany({ columns: { hash: true } }),
   ]),
 ).pipe(
-  Effect.map(([users, credentials]) => [users.length, credentials.length]),
+  Effect.map(([users, credentials]) => ({ users: users.length, credentials: credentials.length })),
   Effect.orDie,
 )
 

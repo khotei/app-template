@@ -2,7 +2,9 @@ import { BunCrypto } from '@effect/platform-bun'
 import { Array as Arr, DateTime, Effect, Layer, Stream } from 'effect'
 import { TestClock, TestCrypto } from 'effect/testing'
 
+import { buildResourceName, resources } from '@app-template/aws'
 import { AwsConfigOwnBucket } from '@app-template/aws/testing'
+import { AwsConfig } from '@app-template/config'
 import {
   type Attachment,
   AttachmentRepository,
@@ -30,7 +32,7 @@ import { ChatRepositoryPg } from '@app-template/infrastructure/chat'
 import { Db } from '@app-template/infrastructure/db'
 import { UserPg } from '@app-template/infrastructure/user'
 import { recordQueue, type SentJob } from '@app-template/queue/testing'
-import { mapIds, PgClientTest, png } from '@app-template/testing'
+import { countObjects, mapIds, PgClientTest, png } from '@app-template/testing'
 
 import { AttachmentService } from '#application/attachment/attachment.service'
 import { ChatService } from '#application/chat/chat.service'
@@ -53,13 +55,15 @@ const insertUser = (id: UserId) =>
     ),
   )
 
-/** `Db` on a fresh test database where `owner` and `stranger` exist, so their rows can refer to them. */
+/** `Db` on a fresh test database, dropped when the test ends. */
+export const DbTest = Db.layer.pipe(Layer.provideMerge(PgClientTest))
+
+/**
+ * `DbTest` where `owner` and `stranger` exist, so their rows can refer to them.
+ */
 export const DbWithUsers = Layer.effectDiscard(
   Effect.forEach([owner, stranger], insertUser, { discard: true }),
-).pipe(
-  Layer.provideMerge(UserPg),
-  Layer.provideMerge(Db.layer.pipe(Layer.provideMerge(PgClientTest))),
-)
+).pipe(Layer.provideMerge(UserPg), Layer.provideMerge(DbTest))
 
 /** The S3 attachment store on a bucket of the test's own, over the suite's MiniStack clients. */
 export const AttachmentStoreOwnBucket = AttachmentStoreS3.pipe(
@@ -154,6 +158,10 @@ export const settle = (message: Message) =>
 
 /** Starts the `TestClock` at `sentAt`, past the fixtures' `epoch`, so a moved `updatedAt` shows. */
 export const startClockAtSend = TestClock.setTime(DateTime.toEpochMillis(sentAt))
+
+export const countAttachmentObjects = Effect.flatMap(AwsConfig, ({ stage }) =>
+  countObjects(buildResourceName(stage, resources.buckets.attachments.name)),
+)
 
 export const selectChat = (chatId: ChatId) =>
   Effect.flatMap(ChatRepository, (chats) => chats.selectById(chatId))

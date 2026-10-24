@@ -18,6 +18,7 @@
   },
   "devDependencies": {
     "@app-template/aws": "workspace:*",
+    "@app-template/config": "workspace:*",
     "@app-template/testing": "workspace:*",
     "@effect/platform-bun": "catalog:effect",
     "@effect/vitest": "catalog:effect"

@@ -1,8 +1,10 @@
-import { layer } from '@effect/vitest'
+import { layer, type Vitest } from '@effect/vitest'
 import { S3Service } from '@effect-aws/client-s3'
 import { SQSService } from '@effect-aws/client-sqs'
-import { ConfigProvider, Effect, Layer } from 'effect'
+import { ConfigProvider, Effect, Layer, type Scope } from 'effect'
+import { TestClock } from 'effect/testing'
 import { GenericContainer, Wait } from 'testcontainers'
+import type { TestContext, TestOptions } from 'vitest'
 
 import { AwsConfig, ministackImage } from '@app-template/config'
 
@@ -34,11 +36,51 @@ export const AwsClientsMiniStack = Layer.unwrap(
   }),
 )
 
+const withOwnClock =
+  <R>(test: Vitest.Test<R>): Vitest.Test<R> =>
+  (name, self, timeout) =>
+    test(name, (...args) => Effect.provide(self(...args), TestClock.layer()), timeout)
+
+/**
+ * `it` with a `TestClock` of each test's own: a `layer` suite shares one, so a concurrent test's
+ * `adjust` would move another's time.
+ */
+const giveEachTestItsClock = <R>(it: Vitest.MethodsNonLive<R>): Vitest.MethodsNonLive<R> => {
+  const tester = it.effect
+  const effect: typeof tester = Object.assign(withOwnClock(tester), {
+    skip: withOwnClock(tester.skip),
+    only: withOwnClock(tester.only),
+    fails: withOwnClock(tester.fails),
+    skipIf: (condition: unknown) => withOwnClock(tester.skipIf(condition)),
+    runIf: (condition: unknown) => withOwnClock(tester.runIf(condition)),
+    each:
+      <T>(cases: ReadonlyArray<T>) =>
+      <A, E>(
+        name: string,
+        self: Vitest.TestFunction<A, E, R | Scope.Scope, [T, TestContext]>,
+        timeout?: number | TestOptions,
+      ) =>
+        tester.each(cases)(
+          name,
+          (...args) => Effect.provide(self(...args), TestClock.layer()),
+          timeout,
+        ),
+    prop: tester.prop,
+  })
+  return new Proxy(it, {
+    get: (target, key) => (key === 'effect' ? effect : Reflect.get(target, key)),
+  })
+}
+
 /**
  * Describes a suite whose tests reach S3 and SQS on the suite's MiniStack; each test takes its
- * own stage there (`layerOwnStage`).
+ * own stage there (`layerOwnStage`) and runs on its own `TestClock`.
  */
-export const describeOnMiniStack = layer(AwsClientsMiniStack, { timeout: '60 seconds' })
+export const describeOnMiniStack = (
+  name: string,
+  f: (it: Vitest.MethodsNonLive<S3Service | SQSService>) => void,
+) =>
+  layer(AwsClientsMiniStack, { timeout: '60 seconds' })(name, (it) => f(giveEachTestItsClock(it)))
 
 /**
  * `AwsConfig` on a stage no other test shares, read through a `ConfigProvider` once `provision`

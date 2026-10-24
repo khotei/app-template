@@ -59,7 +59,8 @@ const snapshot = Effect.fnUntraced(function* (stage: string) {
   return { rules, redrives }
 })
 
-describe('provision', () => {
+// The tests provision one stage of the file's, so they run one at a time.
+describe('provision', { concurrent: false }, () => {
   layer(AwsClientsMiniStack, { timeout: '60 seconds' })((it) => {
     it.effect('creates the bucket with the expiration rule on the unbound tag', () =>
       Effect.gen(function* () {

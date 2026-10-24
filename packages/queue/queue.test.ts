@@ -174,7 +174,10 @@ const receiveDeadLettered = (definition: PingQueue) =>
     }),
   ).pipe(Effect.flatMap(Effect.fromOption))
 
-describe('QueueClient.send and worker over QueueTransport.layerSqs against MiniStack', () => {
+// The tests share the file's stage and its queues, so they run one at a time.
+describe('QueueClient.send and worker over QueueTransport.layerSqs against MiniStack', {
+  concurrent: false,
+}, () => {
   layer(QueueClientMiniStack, { timeout: '60 seconds', excludeTestServices: true })((it) => {
     it.effect('consumes a sent message as its first attempt', () =>
       Effect.gen(function* () {

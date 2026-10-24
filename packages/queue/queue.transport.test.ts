@@ -43,7 +43,8 @@ const receiveSome = (queue: string, receiveOptions: ReceiveOptions) =>
     Effect.flatMap(Effect.fromOption),
   )
 
-describe('QueueTransport.layerSqs on MiniStack', () => {
+// The tests share the file's stage and its queues, so they run one at a time.
+describe('QueueTransport.layerSqs on MiniStack', { concurrent: false }, () => {
   layer(QueueTransportMiniStack, { timeout: '60 seconds', excludeTestServices: true })((it) => {
     it.effect('receives a sent body with its attribute and receiveCount 1', () =>
       Effect.gen(function* () {

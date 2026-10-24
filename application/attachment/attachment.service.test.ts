@@ -14,7 +14,6 @@ import {
 } from 'effect'
 import { TestClock, TestCrypto } from 'effect/testing'
 
-import { countAttachmentObjects } from '@app-template/aws/testing'
 import {
   Attachment,
   AttachmentBoundError,
@@ -49,7 +48,12 @@ import {
 import { AttachmentService } from '#application/attachment/attachment.service'
 import { unknownAttachmentId } from '#application/testing/attachment.fixture'
 import { chatId, epoch, messageId } from '#application/testing/chat.fixture'
-import { AttachmentStoreOwnBucket, DbWithUsers, upload } from '#application/testing/chat.harness'
+import {
+  AttachmentStoreOwnBucket,
+  countAttachmentObjects,
+  DbWithUsers,
+  upload,
+} from '#application/testing/chat.harness'
 import { owner, stranger } from '#application/testing/user.fixture'
 
 const CryptoTest = TestCrypto.layer('attachment-service').pipe(Layer.provide(BunCrypto.layer))
