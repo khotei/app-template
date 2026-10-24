@@ -42,12 +42,11 @@ export const messages = snakeCase.table(
 )
 
 /**
- * The predicate of `messages_chat_id_active_index`; an `ON CONFLICT … WHERE` that targets the
- * index takes its predicate from this constant.
+ * Holds for exactly the rows `isActiveMessage` holds for: the predicate of
+ * `messages_chat_id_active_index`.
  *
- * It renders as literals (`.inlineParams()`) because Postgres must prove the index predicate
- * from the statement, and a generic plan, which a prepared statement switches to after five
- * runs, cannot prove it from bound parameters.
+ * An `ON CONFLICT … WHERE` that targets the index takes its predicate from this constant. Do not
+ * remove `.inlineParams()`; why: `docs/knowledge/database.md` › "Schema and entity files".
  */
 export const activeMessage: SQL =
   sql`${eq(messages.author, 'assistant')} and ${inArray(messages.stage, ActiveMessageStage.literals)}`.inlineParams()

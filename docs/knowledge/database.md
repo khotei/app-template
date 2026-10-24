@@ -155,7 +155,7 @@ one body over every implementation of its port and provides the layer per test
 ([effect-tests.md](../../.claude/rules/effect-tests.md)); the facts only Postgres has (a check, a
 missing default, a transaction) sit in a suite of their own. The suites share the stacks of
 every repository and arrange the parent rows through the ports, with
-`infrastructure/testing/repository-stacks.ts`. An `.entity.test.ts` writes a model
-through its insert codec and reads it back through its row codec; it arranges the parent rows
-with `infrastructure/testing/rows.ts` and reads the `SqlError` of a refused statement with
+`infrastructure/testing/repository-stacks.ts`. An `.entity.test.ts` writes a model through its
+insert codec and reads it back through its row codec; it arranges the parent rows with
+`infrastructure/testing/rows.ts` and reads the `SqlError` of a refused statement with
 `flipSqlError` from `infrastructure/testing/db-test.ts`.
