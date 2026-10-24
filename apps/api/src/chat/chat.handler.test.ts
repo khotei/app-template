@@ -1,6 +1,7 @@
 import { assert, describe, it, layer } from '@effect/vitest'
 import { Array as Arr, DateTime, Effect, Option, Schema } from 'effect'
 import { HttpBody, type HttpClientError, type HttpClientResponse } from 'effect/http'
+import { TestClock } from 'effect/testing'
 
 import { AttachmentId } from '@app-template/domain/attachment'
 import {
@@ -14,17 +15,17 @@ import {
 } from '@app-template/domain/chat'
 import { UserUnknownError } from '@app-template/domain/user'
 import { limits, RequestInvalidError } from '@app-template/http-api'
-import { MessageRepositoryKv } from '@app-template/infrastructure/chat'
-import { assertSchemaEquals } from '@app-template/testing'
+import { MessageRepositoryPg } from '@app-template/infrastructure/chat'
+import { AwsClientsMiniStack, assertSchemaEquals } from '@app-template/testing'
 
 import {
-  makeApiHarness,
   openChat,
   type Route,
   spec,
   testSpecDocuments,
   underAuth,
   withApi,
+  withOwnApi,
 } from '#api/testing/api.harness'
 
 const hello = { text: 'Hello', attachmentIds: [] }
@@ -58,7 +59,7 @@ const failReply = (id: MessageId) =>
         at: reply.updatedAt,
       }),
     )
-  }).pipe(Effect.orDie, Effect.provide(MessageRepositoryKv))
+  }).pipe(Effect.orDie, Effect.provide(MessageRepositoryPg))
 
 const chatRoutes: ReadonlyArray<Route> = [
   { method: 'post', path: '/chats', responses: { ...underAuth, 201: 'Success' } },
@@ -101,7 +102,7 @@ const chatRoutes: ReadonlyArray<Route> = [
 ]
 
 describe('chats', () => {
-  layer(makeApiHarness())((it) => {
+  layer(AwsClientsMiniStack, { timeout: '60 seconds' })((it) => {
     it.effect('GET /chats without a cookie is 401 UserUnknownError', () =>
       withApi((api, http) =>
         Effect.gen(function* () {
@@ -112,7 +113,7 @@ describe('chats', () => {
           assert.deepStrictEqual(yield* response.json, { _tag: 'UserUnknownError' })
           assertSchemaEquals(UserUnknownError, error, new UserUnknownError())
         }),
-      ),
+      ).pipe(withOwnApi),
     )
 
     it.effect('POST /chats is 201 with an untitled chat and no owner on the wire', () =>
@@ -131,7 +132,7 @@ describe('chats', () => {
             updatedAt: DateTime.formatIso(chat.createdAt),
           })
         }),
-      ),
+      ).pipe(withOwnApi),
     )
 
     it.effect(
@@ -162,7 +163,7 @@ describe('chats', () => {
               attachments: [],
             })
           }),
-        ),
+        ).pipe(withOwnApi),
     )
 
     it.effect('GET /chats lists the last sent chat first with its queued reply as active', () =>
@@ -170,6 +171,7 @@ describe('chats', () => {
         Effect.gen(function* () {
           const first = yield* openChat(api)
           const second = yield* api.chats.create()
+          yield* TestClock.adjust('1 second')
           const { assistantMessage } = yield* api.chats.send({
             params: { chatId: first.id },
             payload: hello,
@@ -186,7 +188,7 @@ describe('chats', () => {
             { id: second.id, title: null, activeMessage: null },
           ])
         }),
-      ),
+      ).pipe(withOwnApi),
     )
 
     it.effect("another user's chat and message are 404, as if they did not exist", () =>
@@ -222,7 +224,7 @@ describe('chats', () => {
             )
           }),
         )
-      }),
+      }).pipe(withOwnApi),
     )
 
     it.effect('PATCH /chats/:chatId stores the title trimmed', () =>
@@ -239,7 +241,7 @@ describe('chats', () => {
           assert.deepStrictEqual(renamed, { title: 'Trip' })
           assert.deepStrictEqual(detail.title, Option.some(ChatTitle.make('Trip')))
         }),
-      ),
+      ).pipe(withOwnApi),
     )
 
     it.effect.each([
@@ -269,7 +271,7 @@ describe('chats', () => {
             new RequestInvalidError({ issues: [{ path: ['title'], message }] }),
           )
         }),
-      ),
+      ).pipe(withOwnApi),
     )
 
     it.effect('DELETE /chats/:chatId is 204 while a reply is active, and the chat is gone', () =>
@@ -287,7 +289,7 @@ describe('chats', () => {
           assert.strictEqual(response.status, 204)
           assertSchemaEquals(ChatNotFoundError, error, new ChatNotFoundError({ id: chat.id }))
         }),
-      ),
+      ).pipe(withOwnApi),
     )
 
     it.effect.each([
@@ -316,7 +318,7 @@ describe('chats', () => {
             paths,
           )
         }),
-      ),
+      ).pipe(withOwnApi),
     )
 
     it.effect('a failed reply carries its reason and message on the wire, never its cause', () =>
@@ -342,7 +344,7 @@ describe('chats', () => {
             },
           })
         }),
-      ),
+      ).pipe(withOwnApi),
     )
 
     it.effect('a send with a blank text fails ApiClient with MessageInputInvalidError', () =>
@@ -359,7 +361,7 @@ describe('chats', () => {
 
           assertSchemaEquals(MessageInputInvalidError, error, new MessageInputInvalidError())
         }),
-      ),
+      ).pipe(withOwnApi),
     )
   })
 

@@ -1,4 +1,4 @@
-import { assert, describe, it } from '@effect/vitest'
+import { assert, layer } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Array as Arr, DateTime, Effect, Exit, Option, Record as Rec, Schema } from 'effect'
 import { TestClock } from 'effect/testing'
@@ -21,7 +21,7 @@ import {
   MessageInputInvalidError,
 } from '@app-template/domain/chat'
 import { GenerateAssistantMessage, GenerateChatTitle } from '@app-template/infrastructure/chat'
-import { assertSchemaEquals, isUuidV7 } from '@app-template/testing'
+import { AwsClientsMiniStack, assertSchemaEquals, isUuidV7 } from '@app-template/testing'
 
 import { unknownAttachmentId } from '#application/testing/attachment.fixture'
 import { ask, sentAt, unknownChatId } from '#application/testing/chat.fixture'
@@ -32,6 +32,7 @@ import {
   selectChat,
   selectMessages,
   settle,
+  sortById,
   upload,
   withChat,
 } from '#application/testing/chat.harness'
@@ -69,7 +70,7 @@ const sendConcurrently = (
     { concurrency: 'unbounded' },
   )
 
-describe('SendMessageUseCase', () => {
+layer(AwsClientsMiniStack, { timeout: '60 seconds' })('SendMessageUseCase', (it) => {
   it.effect('send stores the user message and a queued assistant message and bumps the chat', () =>
     withChat(({ chat, sendMessage }) =>
       Effect.gen(function* () {
@@ -99,10 +100,8 @@ describe('SendMessageUseCase', () => {
             }),
           ],
         )
-        assertEquals(yield* selectMessages(chat.id), [
-          userMessage.message,
-          assistantMessage.message,
-        ])
+        const stored = yield* selectMessages(chat.id)
+        assertEquals(sortById(stored), sortById([userMessage.message, assistantMessage.message]))
         assertEquals(
           yield* selectChat(chat.id),
           Option.some(new Chat({ ...chat, updatedAt: sentAt })),
@@ -173,11 +172,12 @@ describe('SendMessageUseCase', () => {
 
         const error = yield* Effect.flip(sendMessage.send(owner, chat.id, ask('Hello?')))
 
+        const stored = yield* selectMessages(chat.id)
         assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chat.id }))
-        assertEquals(yield* selectMessages(chat.id), [
-          first.userMessage.message,
-          first.assistantMessage.message,
-        ])
+        assertEquals(
+          sortById(stored),
+          sortById([first.userMessage.message, first.assistantMessage.message]),
+        )
         assert.strictEqual(sent.length, 2)
       }),
     ),

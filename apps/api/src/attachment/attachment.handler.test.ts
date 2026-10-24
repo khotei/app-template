@@ -1,12 +1,12 @@
 import { assert, describe, it, layer } from '@effect/vitest'
-import { Array as Arr, Effect, Option, Record as Rec, Schema, Struct } from 'effect'
+import { Array as Arr, Effect, Option, Order, Record as Rec, Schema, Struct } from 'effect'
 import { FetchHttpClient, HttpBody, type HttpClient } from 'effect/http'
-import { KeyValueStore } from 'effect/persistence'
 
 import {
   AttachmentBoundError,
   type AttachmentId,
   AttachmentNotFoundError,
+  AttachmentStore,
   FileName,
   FileSize,
   MediaType,
@@ -18,16 +18,17 @@ import {
   limits,
   RequestInvalidError,
 } from '@app-template/http-api'
-import { assertSchemaEquals } from '@app-template/testing'
+import { AwsClientsMiniStack, assertSchemaEquals } from '@app-template/testing'
 
 import {
-  makeApiHarness,
+  countStoredObjects,
   openChat,
   type Route,
   spec,
   testSpecDocuments,
   underAuth,
   withApi,
+  withOwnApi,
 } from '#api/testing/api.harness'
 
 const mebibyte = 1024 * 1024
@@ -50,15 +51,18 @@ const formOf = (...files: ReadonlyArray<File>) => {
 
 const png = (name: string) => file(name, 'image/png')
 
+/**
+ * Sorts by id, to compare as a set what shares a `createdAt` (a send's two messages, one
+ * request's uploads): the store leaves their relative order open.
+ */
+const sortById = <A extends { readonly id: string }>(items: ReadonlyArray<A>) =>
+  Arr.sortWith(items, (item) => item.id, Order.String)
+
 const UploadError = Schema.Union([
   AttachmentTooLargeError,
   AttachmentTypeUnsupportedError,
   RequestInvalidError,
 ])
-
-const storeSize = Effect.flatMap(KeyValueStore.KeyValueStore, (store) => store.size).pipe(
-  Effect.orDie,
-)
 
 const fieldOnly = () => {
   const form = new FormData()
@@ -169,7 +173,7 @@ const attachmentRoutes: ReadonlyArray<Route> = [
 ]
 
 describe('attachments', () => {
-  layer(makeApiHarness())((it) => {
+  layer(AwsClientsMiniStack, { timeout: '60 seconds' })((it) => {
     it.effect('POST /attachments with two PNGs is 201 with two unbound attachments', () =>
       withApi((api) =>
         Effect.gen(function* () {
@@ -186,7 +190,7 @@ describe('attachments', () => {
             [unboundPng('one.png'), unboundPng('two.png')],
           )
         }),
-      ),
+      ).pipe(withOwnApi),
     )
 
     it.effect.each(refusedUploads)(
@@ -195,7 +199,6 @@ describe('attachments', () => {
         withApi((api, http) =>
           Effect.gen(function* () {
             yield* api.users.ensure()
-            const before = yield* storeSize
 
             const response = yield* http.post('/attachments', {
               body: HttpBody.formData(form()),
@@ -207,29 +210,24 @@ describe('attachments', () => {
               yield* Effect.flatMap(response.json, Schema.decodeUnknownEffect(UploadError)),
               error,
             )
-            assert.strictEqual(yield* storeSize, before)
+            assert.strictEqual(yield* countStoredObjects, 0)
           }),
-        ),
+        ).pipe(withOwnApi),
     )
 
-    it.effect(
-      "GET /attachments/:attachmentId/download is 302 to the memory store's data: URL",
-      () =>
-        withApi((api, http) =>
-          Effect.gen(function* () {
-            yield* api.users.ensure()
-            // The memory store's URL carries the bytes, so a mebibyte would overflow the header.
-            const uploaded = yield* uploadOne(api, file('photo.png', 'image/png', 16))
+    it.effect("GET /attachments/:attachmentId/download is 302 to the store's URL", () =>
+      withApi((api, http) =>
+        Effect.gen(function* () {
+          yield* api.users.ensure()
+          const uploaded = yield* uploadOne(api, png('photo.png'))
 
-            const response = yield* requestDownload(http, uploaded.id)
+          const response = yield* requestDownload(http, uploaded.id)
+          const url = yield* Effect.flatMap(AttachmentStore, (store) => store.url(uploaded.id))
 
-            assert.strictEqual(response.status, 302)
-            assert.strictEqual(
-              response.headers.location,
-              'data:image/png;base64,BwcHBwcHBwcHBwcHBwcHBw==',
-            )
-          }),
-        ),
+          assert.strictEqual(response.status, 302)
+          assert.deepStrictEqual(Option.some(response.headers.location), Option.map(url, String))
+        }),
+      ).pipe(withOwnApi),
     )
 
     it.effect('a send with two uploaded ids binds them, and the chat shows their metadata', () =>
@@ -240,7 +238,7 @@ describe('attachments', () => {
             payload: formOf(png('one.png'), png('two.png')),
           })
 
-          const { userMessage } = yield* api.chats.send({
+          const { userMessage, assistantMessage } = yield* api.chats.send({
             params: { chatId: chat.id },
             payload: { text: 'Look', attachmentIds: Arr.map(uploaded, ({ id }) => id) },
           })
@@ -255,12 +253,14 @@ describe('attachments', () => {
           }))
           assert.deepStrictEqual(userMessage.attachments, bound)
           assert.deepStrictEqual(
-            Arr.map(detail.messages, ({ attachments }) => attachments),
-            [bound, []],
+            Rec.fromEntries(
+              Arr.map(detail.messages, ({ id, attachments }) => [id, sortById(attachments)]),
+            ),
+            { [userMessage.id]: sortById(bound), [assistantMessage.id]: [] },
           )
           assert.deepStrictEqual(fetched, bound)
         }),
-      ),
+      ).pipe(withOwnApi),
     )
 
     it.effect('DELETE /attachments/:attachmentId is 204 while unbound, then 404', () =>
@@ -283,7 +283,7 @@ describe('attachments', () => {
             new AttachmentNotFoundError({ id: photo.id }),
           )
         }),
-      ),
+      ).pipe(withOwnApi),
     )
 
     it.effect('DELETE /attachments/:attachmentId on a bound one is 409 AttachmentBoundError', () =>
@@ -310,7 +310,7 @@ describe('attachments', () => {
             ),
           )
         }),
-      ),
+      ).pipe(withOwnApi),
     )
 
     it.effect("another user's attachment is 404 AttachmentNotFoundError on every route", () =>
@@ -347,7 +347,7 @@ describe('attachments', () => {
           notFound,
           notFound,
         ])
-      }),
+      }).pipe(withOwnApi),
     )
   })
 

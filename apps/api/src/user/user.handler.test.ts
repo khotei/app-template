@@ -2,7 +2,9 @@ import { assert, describe, layer } from '@effect/vitest'
 import { Duration, Effect, Option } from 'effect'
 import { Cookies } from 'effect/http'
 
-import { makeApiHarness, readUserSecretCookie, withApi } from '#api/testing/api.harness'
+import { AwsClientsMiniStack } from '@app-template/testing'
+
+import { readUserSecretCookie, withApi, withOwnApi } from '#api/testing/api.harness'
 
 const issuedCookie: Cookies.Cookie['options'] = {
   maxAge: Duration.seconds(31_536_000),
@@ -11,7 +13,7 @@ const issuedCookie: Cookies.Cookie['options'] = {
 }
 
 describe('users', () => {
-  layer(makeApiHarness())((it) => {
+  layer(AwsClientsMiniStack, { timeout: '60 seconds' })((it) => {
     it.effect('POST /users is 201 with an HttpOnly, Lax, one-year cookie and no Secure', () =>
       withApi((api) =>
         Effect.gen(function* () {
@@ -22,7 +24,7 @@ describe('users', () => {
           assert.match(cookie.value, /^[\w-]{43}$/)
           assert.deepStrictEqual(cookie.options, issuedCookie)
         }),
-      ),
+      ).pipe(withOwnApi),
     )
 
     it.effect(
@@ -43,7 +45,7 @@ describe('users', () => {
             assert.strictEqual(cookie.value, Option.getOrThrow(readUserSecretCookie(issued)).value)
             assert.deepStrictEqual(cookie.options, issuedCookie)
           }),
-        ),
+        ).pipe(withOwnApi),
     )
 
     it.effect('a forged cookie gets a new user and a new secret', () =>
@@ -57,7 +59,7 @@ describe('users', () => {
 
         assert.notStrictEqual(user.id, existing.id)
         assert.notStrictEqual(Option.getOrThrow(readUserSecretCookie(response)).value, 'forged')
-      }),
+      }).pipe(withOwnApi),
     )
   })
 })

@@ -1,6 +1,6 @@
-import { assert, describe, it } from '@effect/vitest'
+import { assert, layer } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, DateTime, Effect, Option, Record as Rec } from 'effect'
+import { Array as Arr, DateTime, Effect, Option, Order, Record as Rec } from 'effect'
 import { TestClock } from 'effect/testing'
 
 import {
@@ -12,7 +12,7 @@ import {
   MessageNotFoundError,
 } from '@app-template/domain/chat'
 import type { UserId } from '@app-template/domain/user'
-import { assertSchemaEquals, isUuidV7 } from '@app-template/testing'
+import { AwsClientsMiniStack, assertSchemaEquals, isUuidV7 } from '@app-template/testing'
 
 import { ChatService } from '#application/chat/chat.service'
 import { ask, sentAt, unknownChatId, unknownMessageId } from '#application/testing/chat.fixture'
@@ -38,7 +38,7 @@ const chatCalls = {
   getMessage: (service, userId, chatId) => service.getMessage(userId, chatId, unknownMessageId),
 } as const satisfies Record<string, ChatCall>
 
-describe('ChatService', () => {
+layer(AwsClientsMiniStack, { timeout: '60 seconds' })('ChatService', (it) => {
   it.effect('create stores an untitled chat with a UUIDv7 id at the clock time', () => {
     const { layer } = makeChatHarness()
     return Effect.gen(function* () {
@@ -83,18 +83,36 @@ describe('ChatService', () => {
           attachmentIds: [photo.id],
         })
         yield* settle(first.assistantMessage.message)
+        yield* TestClock.adjust('1 minute')
         const second = yield* sendMessage.send(owner, chat.id, ask('And now?'))
 
         const detail = yield* service.get(owner, chat.id)
 
+        const [earlier, later] = Arr.splitAt(
+          Arr.map(detail.messages, ({ message }) => message.id),
+          2,
+        )
         assertEquals(
-          Arr.map(detail.messages, ({ message, attachments }) => [message.id, attachments]),
-          [
-            [first.userMessage.message.id, first.userMessage.attachments],
-            [first.assistantMessage.message.id, []],
-            [second.userMessage.message.id, []],
-            [second.assistantMessage.message.id, []],
-          ],
+          Arr.sort(earlier, Order.String),
+          Arr.sort([first.userMessage.message.id, first.assistantMessage.message.id], Order.String),
+        )
+        assertEquals(
+          Arr.sort(later, Order.String),
+          Arr.sort(
+            [second.userMessage.message.id, second.assistantMessage.message.id],
+            Order.String,
+          ),
+        )
+        assertEquals(
+          Rec.fromEntries(
+            Arr.map(detail.messages, ({ message, attachments }) => [message.id, attachments]),
+          ),
+          {
+            [first.userMessage.message.id]: first.userMessage.attachments,
+            [first.assistantMessage.message.id]: [],
+            [second.userMessage.message.id]: [],
+            [second.assistantMessage.message.id]: [],
+          },
         )
         assertEquals(detail.activeMessage, Option.some(second.assistantMessage.message))
         assert.strictEqual(detail.chat.id, chat.id)

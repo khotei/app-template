@@ -1,9 +1,11 @@
 import { S3Service } from '@effect-aws/client-s3'
 import { SQSService } from '@effect-aws/client-sqs'
-import { Effect, Layer } from 'effect'
+import { ConfigProvider, Effect, Layer } from 'effect'
 import { GenericContainer, Wait } from 'testcontainers'
 
-import { ministackImage } from '@app-template/config'
+import { AwsConfig, ministackImage } from '@app-template/config'
+
+import { buildStage } from '#testing/stage.fixture'
 
 const port = 4566
 const region = 'us-east-1'
@@ -30,3 +32,29 @@ export const AwsClientsMiniStack = Layer.unwrap(
     )
   }),
 )
+
+/**
+ * `AwsConfig` on a stage no other test shares, read through a `ConfigProvider` once `provision`
+ * has created the resources the test uses under it: provide it per test, so its buckets and
+ * queues are its own and nothing needs cleaning.
+ */
+export const prepareOwnStage = <E, R>(provision: (stage: string) => Effect.Effect<unknown, E, R>) =>
+  Layer.unwrap(
+    Effect.gen(function* () {
+      const stage = buildStage()
+
+      yield* provision(stage)
+      return AwsConfig.layer.pipe(
+        Layer.provide(
+          ConfigProvider.layer(ConfigProvider.fromUnknown({ AWS_REGION: region, STAGE: stage })),
+        ),
+      )
+    }),
+  )
+
+/** The number of objects in `bucket`, for a test that checks what its own bucket holds. */
+export const countObjects = (bucket: string) =>
+  Effect.flatMap(S3Service, (s3) => s3.listObjectsV2({ Bucket: bucket })).pipe(
+    Effect.map(({ Contents }) => Contents?.length ?? 0),
+    Effect.orDie,
+  )

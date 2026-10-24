@@ -1,6 +1,7 @@
 import { PgClient } from '@effect/sql-pg'
 import { assert, describe, it } from '@effect/vitest'
 import { Array as Arr, Effect, Layer, Option, Redacted } from 'effect'
+import { TestClock } from 'effect/testing'
 import { inject } from 'vitest'
 
 import { PgClientTest } from '#testing/postgres'
@@ -31,5 +32,16 @@ describe('PgClientTest', () => {
       assert.match(name, /^test_/)
       assert.deepStrictEqual(left, [])
     }),
+  )
+
+  it.effect('keeps answering after the test clock is set years ahead', () =>
+    Effect.gen(function* () {
+      yield* selectCurrentDatabase
+      yield* TestClock.setTime(Date.parse('2026-10-18T12:00:00.000Z'))
+
+      const rows = yield* selectCurrentDatabase
+
+      assert.strictEqual(rows.length, 1)
+    }).pipe(Effect.provide(PgClientTest)),
   )
 })

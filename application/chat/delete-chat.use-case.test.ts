@@ -1,11 +1,11 @@
-import { assert, describe, it } from '@effect/vitest'
+import { assert, layer } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Deferred, Effect, Exit, Fiber, Layer, Option, Ref } from 'effect'
 
 import { AttachmentStore } from '@app-template/domain/attachment'
 import { ChatNotFoundError, ChatRepository } from '@app-template/domain/chat'
-import { ChatRepositoryKv } from '@app-template/infrastructure/chat'
-import { assertSchemaEquals } from '@app-template/testing'
+import { ChatRepositoryPg } from '@app-template/infrastructure/chat'
+import { AwsClientsMiniStack, assertSchemaEquals } from '@app-template/testing'
 
 import { ask, unknownChatId } from '#application/testing/chat.fixture'
 import {
@@ -17,7 +17,7 @@ import {
 } from '#application/testing/chat.harness'
 import { owner, stranger } from '#application/testing/user.fixture'
 
-/** The KV chat repository whose first `delete` dies, as a store failure would. */
+/** The Postgres chat repository whose first `delete` dies, as a store failure would. */
 const ChatRepositoryDeleteFailingOnce = Layer.effect(
   ChatRepository,
   Effect.gen(function* () {
@@ -32,9 +32,9 @@ const ChatRepositoryDeleteFailingOnce = Layer.effect(
         ),
     })
   }),
-).pipe(Layer.provide(ChatRepositoryKv))
+).pipe(Layer.provide(ChatRepositoryPg))
 
-describe('DeleteChatUseCase', () => {
+layer(AwsClientsMiniStack, { timeout: '60 seconds' })('DeleteChatUseCase', (it) => {
   it.effect('delete while a message is active removes the chat, its messages and attachments', () =>
     withChat(({ chat, chats, sendMessage, deleteChat }) =>
       Effect.gen(function* () {

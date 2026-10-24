@@ -4,6 +4,7 @@
   "type": "module",
   "exports": {
     "./shared": "./shared/index.ts",
+    "./db": "./db/index.ts",
     "./kv": "./kv/index.ts",
     "./user": "./user/index.ts",
     "./chat": "./chat/index.ts",

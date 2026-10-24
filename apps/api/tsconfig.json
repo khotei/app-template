@@ -10,6 +10,7 @@
     { "path": "../../domain" },
     { "path": "../../http-api" },
     { "path": "../../infrastructure" },
+    { "path": "../../packages/aws" },
     { "path": "../../packages/config" },
     { "path": "../../packages/queue" },
     { "path": "../../packages/testing" }

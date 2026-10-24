@@ -2,8 +2,8 @@ import { Effect, Layer } from 'effect'
 
 import { AttachmentRepository } from '@app-template/domain/attachment'
 import { MessageRepository } from '@app-template/domain/chat'
-import { AttachmentRepositoryKv } from '@app-template/infrastructure/attachment'
-import { MessageRepositoryKv } from '@app-template/infrastructure/chat'
+import { AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
+import { MessageRepositoryPg } from '@app-template/infrastructure/chat'
 
 /**
  * A write that runs once, on the next `selectActiveByChat` of any caller. Armed right before the
@@ -14,10 +14,8 @@ export interface Interleaving {
 }
 
 /**
- * The KV message repository, yielding after `selectActiveByChat` and then running the armed write.
- *
- * The memory store never yields, so a fiber would finish its send before the next one starts;
- * the yield after each check lets two concurrent sends interleave between check and write.
+ * The Postgres message repository, yielding after `selectActiveByChat`, then running the armed
+ * write.
  */
 export const interleaveMessages = () => {
   const interleaving: Interleaving = { write: Effect.void }
@@ -37,11 +35,11 @@ export const interleaveMessages = () => {
           ),
       }),
     ),
-  ).pipe(Layer.provide(MessageRepositoryKv))
+  ).pipe(Layer.provide(MessageRepositoryPg))
   return { interleaving, layer }
 }
 
-/** The KV attachment repository, yielding after each `selectByIds`. */
+/** The Postgres attachment repository, yielding after each `selectByIds`. */
 export const AttachmentRepositoryYielding = Layer.effect(
   AttachmentRepository,
   Effect.map(AttachmentRepository, (inner) =>
@@ -50,4 +48,4 @@ export const AttachmentRepositoryYielding = Layer.effect(
       selectByIds: (ids) => Effect.tap(inner.selectByIds(ids), Effect.yieldNow),
     }),
   ),
-).pipe(Layer.provide(AttachmentRepositoryKv))
+).pipe(Layer.provide(AttachmentRepositoryPg))

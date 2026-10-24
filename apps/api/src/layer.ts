@@ -8,11 +8,11 @@ import { ChatService, DeleteChatUseCase, SendMessageUseCase } from '@app-templat
 import { UserService } from '@app-template/application/user'
 import { ApiConfig, MinimumLogLevelFromConfig, RuntimeConfig } from '@app-template/config'
 import { Api } from '@app-template/http-api'
-import { AttachmentKvS3 } from '@app-template/infrastructure/attachment'
-import { ChatKv } from '@app-template/infrastructure/chat'
-import { KeyValueStoreFileSystem } from '@app-template/infrastructure/kv'
+import { AttachmentPgS3 } from '@app-template/infrastructure/attachment'
+import { ChatPg } from '@app-template/infrastructure/chat'
+import { Db } from '@app-template/infrastructure/db'
 import { QueueClientSqs } from '@app-template/infrastructure/shared'
-import { UserKv } from '@app-template/infrastructure/user'
+import { UserPg } from '@app-template/infrastructure/user'
 
 import { AttachmentHandler } from '#api/attachment/attachment.handler'
 import { ChatHandler } from '#api/chat/chat.handler'
@@ -37,7 +37,7 @@ export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
     DeleteChatUseCase.layer,
     RuntimeConfig.layer,
   ]),
-  Layer.provide([UserKv, ChatKv]),
+  Layer.provide([UserPg, ChatPg]),
 )
 
 const BunHttpServerFromConfig = Layer.unwrap(
@@ -47,8 +47,8 @@ const BunHttpServerFromConfig = Layer.unwrap(
 const LogApiStopped = Layer.effectDiscard(Effect.addFinalizer(() => Effect.logInfo('api stopped')))
 
 export const ApiLayer = Layer.merge(ApiHttp, LogApiStopped).pipe(
-  Layer.provide(AttachmentKvS3),
-  Layer.provide([KeyValueStoreFileSystem, QueueClientSqs]),
+  Layer.provide(AttachmentPgS3),
+  Layer.provide([Db.layerFromConfig, QueueClientSqs]),
   Layer.provide(BunHttpServerFromConfig),
   Layer.provide(MinimumLogLevelFromConfig),
 )

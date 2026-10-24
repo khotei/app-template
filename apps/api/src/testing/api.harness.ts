@@ -3,30 +3,48 @@ import { assert, it } from '@effect/vitest'
 import { Array as Arr, ConfigProvider, Effect, Layer, Option, Record as Rec, Ref } from 'effect'
 import { Cookies, HttpClient, type HttpClientResponse } from 'effect/http'
 import { OpenApi } from 'effect/http-api'
-import { KeyValueStore } from 'effect/persistence'
 
+import { buildResourceName, provision, type Resources, resources } from '@app-template/aws'
+import { AwsConfig } from '@app-template/config'
 import { Api, ApiClient } from '@app-template/http-api'
-import { AttachmentKv } from '@app-template/infrastructure/attachment'
+import { AttachmentRepositoryPg, AttachmentStoreS3 } from '@app-template/infrastructure/attachment'
+import { Db } from '@app-template/infrastructure/db'
 import { recordQueue } from '@app-template/queue/testing'
+import { countObjects, PgClientTest, prepareOwnStage } from '@app-template/testing'
 
 import { ApiHttp } from '#api/layer'
 
+const attachmentsBucket = { buckets: resources.buckets, queues: {} } satisfies Resources
+
+const AttachmentPgOwnBucket = Layer.mergeAll(AttachmentRepositoryPg, AttachmentStoreS3).pipe(
+  Layer.provideMerge(prepareOwnStage((stage) => Effect.orDie(provision(attachmentsBucket, stage)))),
+)
+
 /**
- * The api on an ephemeral port over the memory store and a queue that records what it is sent;
- * its `HttpClient` targets that port, and its `KeyValueStore` is open for arranging what only the
- * worker writes.
+ * The api on an ephemeral port over a fresh database, a bucket of its own on the file's MiniStack
+ * and a queue that records what it is sent; its `HttpClient` targets that port, and its `Db` is
+ * open for arranging what only the worker writes.
  */
 export const makeApiHarness = () =>
   ApiHttp.pipe(
-    Layer.provide(AttachmentKv),
+    Layer.provideMerge(AttachmentPgOwnBucket),
     Layer.provideMerge(BunHttpServer.layerTest),
-    Layer.provideMerge(KeyValueStore.layerMemory),
+    Layer.provideMerge(Db.layer.pipe(Layer.provideMerge(PgClientTest))),
     Layer.provide([
       recordQueue().layer,
       BunServices.layer,
       ConfigProvider.layer(ConfigProvider.fromUnknown({})),
     ]),
   )
+
+/** Runs `test` on an api of its own, so it shares no row, object or server with another test. */
+export const withOwnApi = <A, E, R>(test: Effect.Effect<A, E, R>) =>
+  Effect.provide(test, makeApiHarness())
+
+/** The number of objects in the test's own attachments bucket. */
+export const countStoredObjects = Effect.flatMap(AwsConfig, ({ stage }) =>
+  countObjects(buildResourceName(stage, resources.buckets.attachments.name)),
+)
 
 const apiClientWithJar = (cookies: Cookies.Cookies) =>
   ApiClient.layer('').pipe(

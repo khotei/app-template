@@ -1,8 +1,8 @@
 import { BunCrypto } from '@effect/platform-bun'
-import { Array as Arr, DateTime, Effect, Layer, Stream } from 'effect'
-import { KeyValueStore } from 'effect/persistence'
+import { Array as Arr, DateTime, Effect, Layer, Order, Stream } from 'effect'
 import { TestCrypto } from 'effect/testing'
 
+import { provision, type Resources, resources } from '@app-template/aws'
 import {
   type Attachment,
   AttachmentRepository,
@@ -18,11 +18,19 @@ import {
   MessageRepository,
   prepareMessage,
 } from '@app-template/domain/chat'
-import type { UserId } from '@app-template/domain/user'
-import { AttachmentStoreKv } from '@app-template/infrastructure/attachment'
-import { ChatRepositoryKv } from '@app-template/infrastructure/chat'
+import {
+  buildUser,
+  Credential,
+  SecretHash,
+  type UserId,
+  UserRepository,
+} from '@app-template/domain/user'
+import { AttachmentStoreS3 } from '@app-template/infrastructure/attachment'
+import { ChatRepositoryPg } from '@app-template/infrastructure/chat'
+import { Db } from '@app-template/infrastructure/db'
+import { UserPg } from '@app-template/infrastructure/user'
 import { recordQueue, type SentJob } from '@app-template/queue/testing'
-import { png } from '@app-template/testing'
+import { PgClientTest, png, prepareOwnStage } from '@app-template/testing'
 
 import { AttachmentService } from '#application/attachment/attachment.service'
 import { ChatService } from '#application/chat/chat.service'
@@ -33,14 +41,42 @@ import {
   type Interleaving,
   interleaveMessages,
 } from '#application/testing/chat.fake'
-import { owner } from '#application/testing/user.fixture'
+import { epoch } from '#application/testing/chat.fixture'
+import { owner, stranger } from '#application/testing/user.fixture'
+
+/** Gives each user a credential of its own, since a credential's hash is a primary key. */
+const registerUser = (id: UserId) =>
+  Effect.flatMap(UserRepository, (users) =>
+    users.insert(
+      buildUser({ id, createdAt: epoch }),
+      new Credential({ kind: 'secret', hash: SecretHash.make(id.replaceAll('-', '').repeat(2)) }),
+    ),
+  )
+
+/** `Db` on a fresh test database where `owner` and `stranger` exist, so their rows can refer to them. */
+export const DbWithUsers = Layer.effectDiscard(
+  Effect.forEach([owner, stranger], registerUser, { discard: true }),
+).pipe(
+  Layer.provideMerge(UserPg),
+  Layer.provideMerge(Db.layer.pipe(Layer.provideMerge(PgClientTest))),
+)
+
+const attachmentsBucket = { buckets: resources.buckets, queues: {} } satisfies Resources
+
+/** The S3 attachment store on a bucket of the test's own, over the file's MiniStack clients. */
+export const AttachmentStoreOwnBucket = AttachmentStoreS3.pipe(
+  Layer.provideMerge(prepareOwnStage((stage) => Effect.orDie(provision(attachmentsBucket, stage)))),
+)
 
 export interface ChatHarnessOptions {
-  /** Replaces the KV chat repository, to fail or script one of its calls. */
-  readonly chats?: Layer.Layer<ChatRepository, never, KeyValueStore.KeyValueStore>
+  /** Replaces the Postgres chat repository, to fail or script one of its calls. */
+  readonly chats?: Layer.Layer<ChatRepository, never, Db>
 }
 
-/** The chat services and use cases on the memory store, over the recording and yielding fakes. */
+/**
+ * The chat services and use cases on a fresh test database and a bucket of their own, over the
+ * recording and yielding fakes.
+ */
 export const makeChatHarness = (options: ChatHarnessOptions = {}) => {
   const queue = recordQueue()
   const messages = interleaveMessages()
@@ -52,15 +88,15 @@ export const makeChatHarness = (options: ChatHarnessOptions = {}) => {
   ).pipe(
     Layer.provideMerge(
       Layer.mergeAll(
-        options.chats ?? ChatRepositoryKv,
+        options.chats ?? ChatRepositoryPg,
         messages.layer,
         AttachmentRepositoryYielding,
-        AttachmentStoreKv,
+        AttachmentStoreOwnBucket,
       ),
     ),
+    Layer.provideMerge(DbWithUsers),
     Layer.provide(queue.layer),
     Layer.provide(TestCrypto.layer('chat-service').pipe(Layer.provide(BunCrypto.layer))),
-    Layer.provide(KeyValueStore.layerMemory),
   )
   return { sent: queue.sent, interleaving: messages.interleaving, layer }
 }
@@ -123,6 +159,13 @@ export const idsOf = (attachments: ReadonlyArray<Attachment>) =>
 
 export const selectChat = (chatId: ChatId) =>
   Effect.flatMap(ChatRepository, (chats) => chats.selectById(chatId))
+
+/**
+ * Sorts messages by id, to compare a send's two as a set: they share a `createdAt`, and the
+ * store leaves their relative order open.
+ */
+export const sortById = (messages: ReadonlyArray<Message>) =>
+  Arr.sortWith(messages, (message) => message.id, Order.String)
 
 export const selectMessages = (chatId: ChatId) =>
   Effect.flatMap(MessageRepository, (messages) => messages.selectByChat(chatId))

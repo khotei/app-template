@@ -1,5 +1,5 @@
 import { PgClient } from '@effect/sql-pg'
-import { Effect, Layer, Redacted } from 'effect'
+import { Clock, Effect, Layer, Redacted } from 'effect'
 import { inject } from 'vitest'
 import type { TestProject } from 'vitest/node'
 
@@ -51,6 +51,12 @@ export const setupTemplateDatabase = Effect.fn('setupTemplateDatabase')(function
 })
 
 /**
+ * The pool times its connections by the clock it is built with. On a test's `TestClock`, a
+ * `setTime` far ahead hangs the next statement, so the pool keeps the live clock.
+ */
+const LiveClock = Layer.sync(Clock.Clock, () => Clock.Clock.defaultValue())
+
+/**
  * A `PgClient` on a fresh database copied from the migrated template, dropped when the layer's
  * scope closes: provide it per test, so no test sees another's rows.
  */
@@ -64,7 +70,9 @@ export const PgClientTest = Layer.unwrap(
       () => Effect.orDie(runAdmin(adminUrl, `DROP DATABASE ${database} WITH (FORCE)`)),
     )
 
-    return PgClient.layer({ url: buildDatabaseUrl(adminUrl, { database }) })
+    return PgClient.layer({ url: buildDatabaseUrl(adminUrl, { database }) }).pipe(
+      Layer.provide(LiveClock),
+    )
   }),
 )
 
