@@ -307,8 +307,12 @@ methods; running it after S9 avoids merge work.
     and the queues and ~2 s on the RDS instance; `make migrate` takes ~0.2 s. Without `VCR_MODE`
     a cold `make up` took 87 s (S3.3). `select 1` through `.env.pulumi` answers in ~10 ms in both
     trees, each on its own port (15432, 15452).
-  - The first `make up` in a fresh tree also downloads the AWS provider plugin, 858 MB, into
-    that tree's `.pulumi/` (`PULUMI_HOME` is per tree): 44 s instead of 8 s, once per tree.
+  - The first `make up` in a fresh tree also downloaded the AWS provider plugin, 858 MB, into
+    that tree's `.pulumi/`: 44 s instead of 8 s, once per tree. After S4, every tree's
+    `PULUMI_HOME` became the main tree's `.pulumi/`, and `PULUMI_BACKEND_URL` names each tree's
+    backend per command in place of `pulumi login`, so a shared home stores no tree's login. A
+    worktree with no `.pulumi/` then ran its first `make up` in 9 s, beside the main tree's,
+    downloading nothing.
   - `make down` makes MiniStack remove the instance's container, not stop it; the volume keeps
     the data. The next `make up` recreates the MiniStack container, since the refresh sees it
     stopped (`~ports`), and MiniStack recreates the instance's container on the same port; the

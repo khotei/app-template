@@ -83,7 +83,7 @@ make reset   # removes MiniStack, the database's container and volume, and .data
 | Docker is not running | `make up` fails in the Docker provider; start Docker and run it again |
 | the Pulumi CLI is missing | `make up`, `down`, `reset` and `stack` fail at `pulumi`; install it from the link above. `make check` does not need it |
 | an older `.env` lacks `AWS_*`, `STAGE` or `RDS_BASE_PORT` | `make up` fails with a `ConfigError` naming the variable; `make setup` leaves an existing `.env` alone, so copy the block from `.env.example` |
-| the first `make up` takes longer | it downloads the Docker and AWS provider plugins into `.pulumi/` once |
+| the first `make up` takes longer | it downloads the Docker and AWS provider plugins into `.pulumi/` once; worktrees reuse them |
 | port 4566 is taken | the container fails to start; free the port (a leftover `app-template-ministack-4566`, or another emulator) |
 | `make up` failed midway | run it again; it goes on from what it created |
 | you want a clean slate | `make reset` also wipes the database and the key-value store, not only MiniStack |

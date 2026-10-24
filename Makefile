@@ -6,10 +6,13 @@
   debug-web check ids lint fmt typecheck test clean outdated vendor-effect \
   vendor-drizzle migrate migration migration-check
 
-# The local Pulumi project: the file backend under .data/ and the home (plugins, credentials) under
-# .pulumi/, both in the repo; the home survives `make reset`. The passphrase is empty: the stack's
-# one secret is the local database's password, a constant in deployment/local/settings.ts.
-PULUMI = PULUMI_HOME=$(CURDIR)/.pulumi PULUMI_CONFIG_PASSPHRASE= pulumi -C deployment/local
+# The local Pulumi project: each tree's file backend under its .data/, named per command, so no
+# login is stored; the home (the provider plugins) is the main tree's .pulumi/, shared by every
+# worktree and kept by `make reset`. The passphrase is empty: the stack's one secret is the local
+# database's password, a constant in deployment/local/settings.ts.
+MAIN_TREE := $(shell dirname "$$(git rev-parse --path-format=absolute --git-common-dir)")
+PULUMI = PULUMI_HOME=$(MAIN_TREE)/.pulumi PULUMI_BACKEND_URL=file://$(CURDIR)/.data/pulumi \
+  PULUMI_CONFIG_PASSPHRASE= pulumi -C deployment/local
 PROJECT := $(shell sed -n 's/^name: //p' deployment/local/Pulumi.yaml)
 MINISTACK_URN = urn:pulumi:local::$(PROJECT)::docker:index/container:Container::ministack
 
@@ -34,9 +37,8 @@ setup: ## Install dependencies and create .env from .env.example if missing
 	bun install
 	@test -f .env || (cp .env.example .env && echo "created .env from .env.example")
 
-stack: ## Log Pulumi in to the file backend and select or create the local stack
+stack: ## Create the tree's Pulumi file backend and select or create the local stack
 	@mkdir -p .data/pulumi
-	@$(PULUMI) login --non-interactive file://$(CURDIR)/.data/pulumi
 	@$(PULUMI) stack select local 2>/dev/null || $(PULUMI) stack init local
 
 # Refreshes the MiniStack container alone, once it is in the state: docs/knowledge/aws.md.

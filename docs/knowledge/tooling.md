@@ -14,7 +14,7 @@ and `make setup` needs neither.
 | Target | Runs | Use |
 |---|---|---|
 | `make setup` | `bun install`, then copies `.env.example` to `.env` if missing | first clone; installs the git hooks too; needs no Pulumi CLI |
-| `make stack` | `pulumi login` to the file backend under `.data/pulumi`, `stack select local` or `init` | idempotent; `up` runs it first |
+| `make stack` | `stack select local` or `init` on the tree's file backend under `.data/pulumi` | idempotent; `up` runs it first |
 | `make up` · `down` · `reset` | `pulumi up` on `deployment/local/`, `.env.pulumi`, `make migrate` · `docker stop` · `docker rm -f`, `rm -rf .data` | MiniStack with the database, the bucket and the queues: [aws.md › The local stand-in](aws.md#the-local-stand-in) |
 | `make dev` | `bun --filter './apps/*' dev` | all three processes, interleaved output |
 | `make dev-api` · `dev-worker` · `dev-web` | one app's `dev` script | one process |
@@ -116,10 +116,11 @@ server's `Bun.serve({ development })`.
 ### Worktrees
 
 A worktree is a full copy of the environment, so trees run `make up` and `make dev` side by side.
-Each gets a number `N`, the main tree 0, and owns its `node_modules` (`bun install`), `.data/`,
-`.pulumi/`, MiniStack container and database container; its `.env` is the main tree's with four
-ports and the stage moved, since MiniStack names the database's container and volume after the
-stage:
+Each gets a number `N`, the main tree 0, and owns its `node_modules` (`bun install`), `.data/`
+(with the Pulumi state), MiniStack container and database container. It shares only the Pulumi
+provider plugins, the main tree's `.pulumi/`, which never change once installed. Its `.env` is
+the main tree's with four ports and the stage moved, since MiniStack names the database's
+container and volume after the stage:
 
 | Variable | Value | Main tree | `N=1` |
 |---|---|---|---|

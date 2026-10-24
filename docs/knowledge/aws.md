@@ -37,11 +37,12 @@ its fixed waits around queues, lifecycle rules and instances: measured from `mak
 never wrong.
 
 The Pulumi state is a file backend under `.data/pulumi` with an empty passphrase: its one secret is
-the local database's password, a constant in `settings.ts`. `PULUMI_HOME` is the tree's `.pulumi/`,
-so a clone touches nothing outside the repo, `make reset` keeps the provider plugins, and each
-worktree downloads its own on its first `make up`. The image digest is pinned once, as
-`ministackImage` in `@app-template/config`, which `deployment/local/ministack.ts` and the tests'
-container both read.
+the local database's password, a constant in `settings.ts`. Each command names the tree's backend
+in `PULUMI_BACKEND_URL`, so no login is stored. `PULUMI_HOME` is the main tree's `.pulumi/`, so a
+clone touches nothing outside the repo, `make reset` keeps the provider plugins, and a worktree
+reuses them: its first `make up` takes 9 s, not the 44 s of a download (858 MB for AWS). The
+image digest is pinned once, as `ministackImage` in `@app-template/config`, which
+`deployment/local/ministack.ts` and the tests' container both read.
 
 | Target | Does |
 |---|---|
