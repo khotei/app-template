@@ -134,12 +134,15 @@ describe('OutboxRelay', () => {
 
       yield* Layer.build(OutboxRelay.pipe(Layer.provide(layer)))
       yield* Queue.take(attempts)
+      const refusedAt = yield* Clock.currentTimeMillis
       yield* Ref.set(refusing, false)
       const kept = yield* lockOutbox
       const sent = yield* Queue.take(attempts)
+      const sentAt = yield* Clock.currentTimeMillis
 
       assert.deepStrictEqual(kept, [{ jobId: jobId(1) }])
       assert.strictEqual(sent.jobId, jobId(1))
+      assert.isAtLeast(sentAt - refusedAt, pollInterval)
       assert.deepStrictEqual(yield* lockOutbox, [])
       assert.deepStrictEqual(logs, [['Error', 'outbox relay failed']])
     }).pipe(Effect.provide([OutboxTest, recordedLogs]))

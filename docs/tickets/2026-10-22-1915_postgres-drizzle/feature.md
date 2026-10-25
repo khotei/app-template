@@ -157,10 +157,11 @@ Postgres, one container per run.
 - **R6** — IF any write of the send fails, THEN THE SYSTEM SHALL leave no message, bind, chat
   change or outbox entry behind, and no job SHALL reach SQS.
 - **R7** — WHILE outbox entries are pending, THE worker SHALL publish each to the SQS queue of
-  its definition within the relay interval (`OUTBOX_POLL_INTERVAL`, default 1 s) and mark it
-  sent; IF a publish fails, THEN the entry SHALL stay pending and be retried on the next poll.
+  its definition within the relay interval (`OUTBOX_POLL_INTERVAL`, default 1 s) and delete it;
+  IF a publish fails, THEN the entry SHALL stay pending and be retried on the next poll.
+  *Amended in S10:* a sent entry is deleted, not marked (D4).
 - **R8** — WHEN several relays run (two worker processes), THE SYSTEM SHALL hand a pending entry
-  to one of them at a time (`FOR UPDATE SKIP LOCKED`); a crash between the publish and the mark
+  to one of them at a time (`FOR UPDATE SKIP LOCKED`); a crash between the publish and the commit
   MAY publish the entry once more, which the idempotent handlers absorb (`aws-local` R9).
 
 ### Guards in place of `UserLock`
@@ -249,10 +250,10 @@ Postgres, one container per run.
 | R2 | `git diff main -- http-api/` changes no route, schema or error; `make check` green with the `chat-core` and `aws-local` suites. |
 | R3 | `\d messages` shows `snake_case` columns, `id uuid DEFAULT uuidv7()`, `created_at timestamptz` with no default; `message_stage` enum lists the five domain literals; `infrastructure/*/*.entity.ts` exist, one per entity (`user`, `chat`, `message`, `attachment`, `outbox`). |
 | R4 | repository suite: insert each model, select it back, `assertSchemaEquals`; a `failed` message round-trips its `error` with `cause`; a message sent with its attachments out of upload order reads them back by `created_at`, then `id`. |
-| R5 | use-case suite: after `send`, one transaction committed both messages, the binds, the chat's `updatedAt` and the outbox rows; `psql` after a live send shows the two outbox rows marked sent within a second. |
+| R5 | use-case suite: after `send`, one transaction committed both messages, the binds, the chat's `updatedAt` and the outbox rows; `psql` after a live send shows the two outbox rows gone within a second. |
 | R6 | use-case suite with a repository that fails on the assistant message insert: no message, no bind, unchanged chat, empty outbox, `recordQueue` empty. |
-| R7 | relay suite on the test database with a recording queue transport (D21): a pending row reaches its queue and is marked sent; with the transport failing, the row stays pending and is published on the next poll once the transport answers. |
-| R8 | two relays over one database: each pending row is published once in the normal case; a relay killed between publish and mark leads to a second publish and a handler that skips (`already settled`). |
+| R7 | relay suite on the test database with a recording queue transport (D21): a pending row reaches its queue and is deleted; with the transport failing, the row stays pending and is published on a poll no sooner than the interval once the transport answers. |
+| R8 | two relays over one database publish each pending row once; the republish after a crash between publish and commit is absorbed by the handlers' idempotence, tested in their own suites (`already settled`, `already titled`). |
 | R9 | use-case suite: two concurrent sends to one chat, one `ChatBusyError`; live: two `curl` in parallel against two api processes on one database, one `202`, one `409`, one assistant message in `messages`. |
 | R10 | use-case suite: two concurrent sends in two chats binding the same attachment, one `AttachmentBoundError`, the attachment bound once. |
 | R11 | use-case suite: a rename interleaved with a send keeps the title and moves `updatedAt`; the title job writing during a send keeps both. `git grep UserLock` is empty. |

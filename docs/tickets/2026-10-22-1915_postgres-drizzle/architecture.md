@@ -316,9 +316,9 @@ update skipped (a concurrent bind).
 - `OutboxRelay` (worker layer, `Effect.forkScoped` under `Layer.effectDiscard`): in a
   transaction, `select … order by created_at, id limit 10 for update skip locked`; for each row
   `QueueTransport.send(buildResourceName(stage, queue), { body, attributes: { jobId } })`, then
-  `delete`; commit. An empty batch sleeps `outboxPollInterval`; a full one polls again at once.
-  A failed send fails the transaction: the rows stay and the next poll retries; the loop
-  restarts on any cause with the queue consumers' `consumerRestart` schedule.
+  `delete`; commit. A batch shorter than the limit sleeps `outboxPollInterval`; a full one polls
+  again at once. A failed send fails the transaction: the rows stay, the relay logs `outbox relay
+  failed` and the next poll, after `outboxPollInterval`, retries; an interrupt ends the loop.
 - Delivery is at-least-once: a crash between the SQS send and the commit republishes; the
   handlers are idempotent (`aws-local` R9).
 
@@ -385,7 +385,7 @@ build them with `buildResourceName` as the program does.
 | 1 `domain/*` schemas and pure rules (unchanged) | input and binding rules, stage transitions, read-model shapes | persistence |
 | 2 `infrastructure/db` and the constraints of every `.entity.ts` on `PgClientTest` | migrations apply to the template and are a no-op the second time; SQL logged at `Debug` with `query` and `params`, nothing at `Info`; `make migrate`'s retry repeats while the database refuses connections, stops after its bound, and gives up at once on any other refusal; the partial unique index refuses a second active reply; the checks refuse what the brands refuse | drift between entities and the committed migrations (Seam 9); Drizzle's rendering and the codecs, which only the repository suites exercise (D21) |
 | 3 repositories through their ports on `PgClientTest` (one suite per port) | field mapping, `selectSummaries` order and active message, `selectDetail` nesting and order, `insert` false on an active message, `update` false on a stale `where` stage, `bind` partial result, `selectById` with `forUpdate` holds a concurrent write until commit, `touch` keeps the title, the cascade from `chats.delete`, `RESTRICT` on a bound attachment, the check constraints reject what the brands reject | cross-process timing |
-| 4 `QueueClientOutbox` and `OutboxRelay` on `PgClientTest` + a recording `QueueTransport` (D21) | a `send` inside a failed transaction leaves no row; a row is published to its queue with its `jobId` and deleted; two relays over one database publish each row once; a failing transport keeps the row; the poll interval under `TestClock` | SQS outages longer than a test |
+| 4 `QueueClientOutbox` and `OutboxRelay` on `PgClientTest` + a recording `QueueTransport` (D21) | a `send` inside a failed transaction leaves no row; a row is published to its queue with its `jobId` and deleted; two relays over one database publish each row once; a failing transport keeps the row; the poll interval and the retry after a refusal on the live clock, since a relay waiting on Postgres registers its sleep at a moment a `TestClock` cannot observe | SQS outages longer than a test |
 | 5 services and use cases on `ChatTest`: the Pg repositories over `DbTest`, `AttachmentStoreMemory`, `QueueClientOutbox`, `BunCrypto` (D21) | a send writes two messages, the binds, the touch and one or two outbox rows in one transaction, and nothing on a failing step; two concurrent sends to one chat → one `ChatBusyError`; two concurrent binds of one attachment → one `AttachmentBoundError`; rename beside a send keeps both; `ChatService.updateTitle` refuses a titled chat (`ChatTitledError`) and loses to a rename; delete cascade and the attachments' removal; `addAssistantMessage` alone is refused on a busy chat | HTTP statuses; S3 and SQS (D21) |
 | 6 jobs with the fake `LanguageModel`: on Postgres the stages a job writes, held at a model call, never stepped by the clock; the timings in a block with no database, on `TestClock` (D21) | the stage sequence through `update(…, { stage })`; a snapshot every 300 ms; a message settled by another writer stops the job with `already settled`; the dead-letter handler fails an active message with `ReplyFailed` and a dead-letter cause, leaves a terminal one, logs for a deleted chat; the title dead-letter handler only logs; the title job logs `ChatTitledError` as already titled | a real provider |
 | 7 `apps/api` through `BunHttpServer.layerTest` + `ApiClient` on `ApiTest` (D21) | what HTTP adds: `401` without a cookie, `202` with outbox rows, the failed-reply wire shape, the download redirect, the upload refusals, `404` on a stranger's chat, `409` on a busy chat across two concurrent requests | the worker, the relay; the business rules (Seam 5); a changed contract, which shows as a diff of `http-api/` (D20) |
@@ -425,7 +425,12 @@ build them with `buildResourceName` as the program does.
   eager publish from the api after commit with the relay as a backstop (two paths, systematic
   duplicates); a `sent_at` mark (a second table to sweep); a domain `Outbox` port written beside
   `enqueue` (two concepts, every job changed); `LISTEN`/`NOTIFY` to wake the relay (a polling
-  interval of a second is enough and needs no second connection).
+  interval of a second is enough and needs no second connection). *Amended in S10:* a failed
+  batch is logged and retried on the next poll, after `outboxPollInterval`, as R7 asks; the
+  relay requires `QueueTransport`, and `OutboxRelaySqs` beside it closes it over SQS for the
+  worker. *Rejected then:* restarting on the queue consumers' `consumerRestart`, whose schedule
+  never resets inside one retry, so a few transient failures stretch every later one to a
+  minute.
 - **D5 — Guards are single statements that answer with a value; `UserLock` goes.** The partial
   unique index holds "one active message per chat"; `insert` uses `ON CONFLICT (chat_id) WHERE
   <active> DO NOTHING RETURNING id` and answers `false`; `update(message, { stage })`, `bind`
@@ -586,6 +591,7 @@ build them with `buildResourceName` as the program does.
 
 | Risk | Mitigation |
 |---|---|
+| A row SQS always refuses (a missing queue, denied access) rolls its whole batch back, so every row behind it waits | the relay logs `outbox relay failed` with the cause on every poll; a fix of the configuration drains the outbox; per-row attempts and a skip are left until it happens |
 | `drizzle-orm@1.0.0-rc.*` moves between rcs (`EffectDrizzleQueryError.cause` is typed `unknown`, `defineRelations` is the rc relations API) | pinned exactly; every API checked in `repos/drizzle` at the step that uses it; `unwrapQueryError` reads `cause` once, in `db.client.ts`, and dies if it is not a `SqlError` |
 | `defineRelations` and the relational `db.query` on the Effect driver are read from source, not run | S4 ran `findMany({ with: { … orderBy } })` live (chats with messages, messages with attachments); S5 runs every repository read on it: `where` with `in` and a relation filter (`exists`), `findFirst`'s limit; if one fails, `selectDetail` is a join query behind the same port |
 | `ON CONFLICT (chat_id) WHERE <predicate>` must match the partial index's predicate exactly, or Postgres finds no arbiter; a prepared statement switches to a generic plan after five runs, which cannot prove a predicate from bound parameters | the predicate is one `sql` constant, `activeMessage`, rendered with `.inlineParams()` and used by both the index and the insert; Seam 2 refuses a second active reply on the index; Seam 3 inserts two active messages (S7) |

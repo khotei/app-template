@@ -71,9 +71,9 @@ Test-support roles live only in `testing/`, listed by no barrel or `exports` sav
     `findOwnedChat`, `findBindable`); a port method never uses it;
   - `select` / `insert` / `update` / `upsert` / `delete`: persistence (`selectById`); `update`
     changes an existing record and never creates one.
-- Constants are `camelCase` with `as const` for literals. A `Layer` constant for a service
-  declared elsewhere is `PascalCase` `<Service><Variant>` (`ChatRepositoryPg`); `<Entity>Pg` in
-  `<entity>/index.ts` bundles the aggregate's adapters, which a process provides.
+- Constants are `camelCase` with `as const` for literals; a `Layer` constant is `PascalCase`.
+  One for a service declared elsewhere is `<Service><Variant>` (`ChatRepositoryPg`); `<Entity>Pg`
+  in `<entity>/index.ts` bundles the aggregate's adapters, which a process provides.
 - Test support: a fixed fake layer is `<Service><Variant>` (`AttachmentRepositoryYielding`); a
   stateful fake `<verb><Thing>()` returns `{ <handle>, layer }` (`recordLogs`,
   `interleaveMessages`); a test layer is `<Entity>Test` (`ChatTest`), `layer<Entity>Test(…)` when it

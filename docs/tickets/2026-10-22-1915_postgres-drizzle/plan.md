@@ -678,7 +678,7 @@ methods; running it after S9 avoids merge work.
 
 - **Goal:** the outbox exists and the worker relays it; nothing writes to it yet but its tests.
   `infrastructure/outbox/outbox.entity.ts` (`outbox`: `id`, `queue`, `job_id`, `body`,
-  `created_at`, the `(created_at)` index; `OutboxRow`, `OutboxInsert`) and its migration
+  `created_at`, the `(created_at)` index) and its migration
   (`make migration NAME=outbox`). `QueueClientOutbox` in `infrastructure/shared/queue.client.ts`:
   `send` encodes the job with `packages/queue`'s `encodeBody` (exported from its `index.ts`) and
   inserts a row, joining the caller's transaction; `consume` dies with a message naming the api.
@@ -686,17 +686,17 @@ methods; running it after S9 avoids merge work.
   in the worker (`Effect.forkScoped` under `Layer.effectDiscard`): in a transaction it selects
   `ORDER BY created_at, id LIMIT 10 FOR UPDATE SKIP LOCKED`, sends each row through
   `QueueTransport.send(buildResourceName(stage, queue), { body, attributes: { jobId } })`, deletes
-  it and commits; an empty batch sleeps `QueueConfig.outboxPollInterval` (`OUTBOX_POLL_INTERVAL`,
-  default 1 s), a full one polls again at once; a failed send fails the batch; the loop restarts
-  on any cause with `consumerRestart`, exported from `packages/queue` for it. `apps/worker` adds
-  `OutboxRelay` beside `QueueClientSqs`. `naming.md`: the `.relay` role, and a `Layer` constant
+  it and commits; a batch shorter than the limit sleeps `QueueConfig.outboxPollInterval`
+  (`OUTBOX_POLL_INTERVAL`, default 1 s), a full one polls again at once; a failed send fails the
+  batch, which is logged and retried on the next poll. `OutboxRelaySqs` closes the relay over SQS,
+  and `apps/worker` adds it beside `QueueClientSqs`. `naming.md`: the `.relay` role, and a `Layer` constant
   that runs work and provides no service is PascalCase named for what it runs (`OutboxRelay`, as
   `LogWorkerLifecycle` in `apps/worker`) (R7, R8; D4).
 - **Blocked by:** S6.
 - **Files:** `infrastructure/outbox/{outbox.entity.ts,outbox.relay.ts,outbox.relay.test.ts,index.ts}`,
   `infrastructure/db/migrations/<ts>_outbox/`, `infrastructure/shared/{queue.client.ts,queue.client.test.ts}`,
   `infrastructure/package.json` (`./outbox` export), `packages/queue/{queue.ts,index.ts}`
-  (`consumerRestart` exported; `encodeBody` added to the barrel), `packages/config/{config.ts,config.test.ts}`
+  (`encodeBody` added to the barrel), `packages/config/{config.ts,config.test.ts}`
   (`outboxPollInterval`), `.env.example` (`OUTBOX_POLL_INTERVAL="1 second"`),
   `apps/worker/src/layer.ts`, `apps/worker/package.json`,
   `.claude/rules/naming.md`, `docs/knowledge/aws.md` (Queues: the relay publishes the outbox),
@@ -707,12 +707,40 @@ methods; running it after S9 avoids merge work.
   `jobId` and the body `QueueClientSqs` would send. `outbox.relay.test.ts` on `PgClientTest` and
   a plain `QueueTransport` layer over an array that refuses while the test says so, no MiniStack
   (D21): a pending row is sent to its queue's name with its `jobId` attribute and is deleted; two
-  relays over one database send five rows once each; while the transport refuses, the rows stay
-  and the next poll sends them once it answers; under `TestClock`, an empty poll waits
-  `outboxPollInterval`.
+  relays over one database send 25 rows, more than a batch, once each; while the transport
+  refuses, the rows stay and a poll no sooner than `outboxPollInterval` sends them once it
+  answers; a short poll waits `outboxPollInterval` (both on the live clock).
 - **Verify:** `make check`; `make up`, `make dev-worker`, a row inserted into `outbox` by `psql`
   with a valid job body reaches its queue within a second and the row is gone.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The poll interval and the retry after a refusal are timed on the live clock (`it.live`), not
+    under `TestClock`: a `TestClock` wakes only sleeps already registered, and a relay registers
+    its sleep after Postgres answers the commit, which a test cannot observe; adjusting earlier
+    hangs. Each costs one test interval (300 ms) of real time. Seam 4 amended.
+  - The two-relays test sends 25 rows, more than a batch of 10, so it also proves a full batch
+    polls again at once: with the clock still, a relay that slept would leave rows unsent.
+  - No `OutboxRow`/`OutboxInsert` codecs: no model maps the table, and `database.md › Codecs`
+    allows a codec only where columns differ from a model's fields; the relay reads the row as
+    stored.
+  - A batch is deleted with one `delete … where id in (…)` after all sends, in the same
+    transaction.
+  - `body` stays `text`: it is the SQS body `encodeBody` produced, passed through untouched; a
+    `jsonb` column would reorder keys and force a re-serialisation, and one table holds every
+    queue's body, so no row type fits it (user's call). No `status`, `error` or `attempts`
+    columns (D4); the risk of a row SQS always refuses is in Risks.
+  - A failed batch is retried after `outboxPollInterval` instead of `consumerRestart` (D4,
+    amended): that schedule never resets inside one `Effect.retry`, so a few transient failures
+    would delay every later one by a minute. The same holds for `worker` in `packages/queue`,
+    untouched here.
+  - `naming.md` stays at 80 lines: the layer-naming rule merged into the combinator bullet, and
+    the import-order line went, since `biome.json`'s `organizeImports` groups enforce it.
+  - R5, R7 and R8 said "marked sent"; D4 deletes a sent row, so `feature.md` is amended. R8's
+    acceptance names the two-relay suite; the republish after a crash rests on the handlers'
+    idempotence, tested in their suites.
+  - About 420 changed lines without the snapshot and `bun.lock`, at the ~400 guide.
+  - The step landed in three rounds, S10.1–S10.3, after two reviews, in a worktree beside S7 and
+    S8; its rebase onto S7 met S7 only in `database.md`, where both sections stay.
 
 #### S11 — The outbox in the send
 
