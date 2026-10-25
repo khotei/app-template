@@ -14,7 +14,9 @@ The goal is code that reads top to bottom and extends by adding a row, not a bra
   `failMessage(message, { reason, cause, at })`. A two-parameter function stays positional
   (`prepareMessage(message, at)`); so does a service `Shape` method whose leading parameters are
   ids (`rename(userId, chatId, title)`), since the branded types tell them apart, and a
-  combinator that takes functions (`ensureFound(found, holds, missing)`).
+  combinator that takes functions (`ensureFound(found, holds, missing)`). A conditional write
+  takes its condition as an object of the model's fields, so the call names it:
+  `messages.update(generating, { stage: prepared.stage })` (`MessageWhere`).
 - Destructure an object whose fields come from different things (`{ reason, cause, at }`: the
   failure and the clock) in the parameter list; keep one entity whole (`message`, a proof value)
   and read its fields through its name, so the reader sees whose field it is.

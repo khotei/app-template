@@ -50,7 +50,7 @@ graph LR
   S3 --> S6[S6 the apps and the harnesses on Postgres; KV removed]
   S5 --> S6
   S6 --> S7[S7 one active message per chat, stage guards, the cascade]
-  S7 --> S8[S8 bind, touch, updateTitle]
+  S7 --> S8[S8 bind, touch, ChatService.updateTitle]
   S8 --> S9[S9 the transaction; UserLock removed]
   S6 --> S10[S10 the outbox table, QueueClientOutbox, the relay]
   S9 --> S11[S11 the outbox in the send]
@@ -550,10 +550,11 @@ methods; running it after S9 avoids merge work.
 - **Goal:** the first database guards behind value-returning port methods. `MessageRepository`:
   `insert(message): boolean` (`ON CONFLICT (chat_id) WHERE <active> DO NOTHING RETURNING id`
   through Drizzle's `onConflictDoNothing({ target, where })`; `false` when the chat already has an
-  active message), `update(message, { from }): boolean` (`WHERE stage = $from`); `deleteByChat`
-  goes. `ChatRepository.delete` relies on the cascade from `chats` to `messages`, and a bound
-  attachment makes it fail (`RESTRICT`). Application: `ChatService.addAssistantMessage` raises
-  `ChatBusyError` on `false`; `AssistantMessageJob` passes `{ from }` on every stage write and
+  active message), `update(message, where: MessageWhere): boolean` (`MessageWhere = Pick<Message,
+  'stage'>`, `WHERE id = … AND stage = …`); `deleteByChat` goes. `ChatRepository.delete` relies on
+  the cascade from `chats` to `messages`, and a bound attachment makes it die (`RESTRICT`).
+  Application: `ChatService.addAssistantMessage` raises `ChatBusyError` on `false`;
+  `AssistantMessageJob` passes `{ stage }` (the stage it read) on every stage write and
   treats `false` as settled by someone else, with the existing log `assistant reply skipped:
   already settled`; `ChatService.delete` is one `delete`; `DeleteChatUseCase` keeps the
   attachments-first order (their bytes are outside the transaction). `UserLock` stays until S9 (R9
@@ -562,33 +563,66 @@ methods; running it after S9 avoids merge work.
 - **Files:** `domain/chat/chat.service.ts` (the two port signatures and their doc comments),
   `infrastructure/chat/{message.repository.ts,message.repository.test.ts,chat.repository.ts,chat.repository.test.ts}`,
   `application/chat/{chat.service.ts,chat.service.test.ts,assistant-message.job.ts,assistant-message.job.test.ts,delete-chat.use-case.ts,delete-chat.use-case.test.ts}`,
-  `docs/knowledge/database.md` (the guards: the partial index and the conditional writes).
+  `docs/knowledge/database.md` (the guards: the partial index and the conditional writes); the
+  callers of the changed ports: `application/testing/chat.harness.ts`,
+  `apps/api/src/chat/chat.handler.test.ts`, `application/chat/chat-title.job.test.ts`.
 - **Test first:** Seam 3 — `insert` of a second active assistant message answers `false` and
-  leaves one row; a `completed` message beside an active one is inserted; `update(…, { from:
+  leaves one row; a `completed` message beside an active one is inserted; `update(…, { stage:
   'preparing' })` on a `generating` row answers `false` and changes nothing; `chats.delete` removes
-  the chat's messages; `chats.delete` with a bound attachment fails. Seam 6 — a message set
-  `completed` by another writer while the job runs leaves the job's `generating` write unapplied
-  and the job logs `assistant reply skipped: already settled`. Seam 5 — `addAssistantMessage`
-  alone on a busy chat fails with `ChatBusyError`.
-- **Verify:** `make check`; `git grep -n deleteByChat` is empty.
-- **Status:** todo
+  the chat's messages; `chats.delete` with a bound attachment dies. Seam 6 — a message set
+  `completed` by another writer while the job waits on the model leaves the job's next stage write
+  (from `generating`) unapplied and the job logs `assistant reply skipped: already settled`.
+  Seam 5 — `addAssistantMessage` alone on a busy chat fails with `ChatBusyError`.
+- **Verify:** `make check`; `git grep -n deleteByChat -- ':!docs/tickets'` is empty.
+- **Status:** done
+- **Findings:**
+  - No migration: the partial index, the cascade and `RESTRICT` were already in S4's
+    `20261024061908_chats`, so S7 and S10 do not meet on a migration snapshot.
+  - The condition is a `where` object, a `Pick` of the model's fields (user's call over `{ from }`,
+    `update(current, next)`, a `version` column and a generic `where` with `RequireAtLeastOne`):
+    the call names the condition, and the adapter builds it from a `whereColumns` table, one row
+    per key, walking the table's keys so a new key cannot be ignored and extra fields on `where`
+    (a whole `Message` fits the type) are dropped. `effect-style.md › Signatures` gains the
+    exception.
+  - A lost stage write fails a module-private `MessageStageMovedError` that `findAndReply` and
+    `failReply` catch into the existing log, so the snapshot loop stops the stream the same way.
+  - The stage guard does not tell two live attempts apart: one stalled past its lock and a
+    redelivery that took the reply on, both in `generating`, interleave their writes and a stale
+    `failed` lands. A `version` column (or `updated_at` in `where`) closes it without changing the
+    port; deferred, as R12 asks only for a stale write after a settle.
+  - The title job's "first message missing" test now names a message never stored: with the
+    cascade a chat without its messages cannot be arranged. `firstMessageMissing` is now reachable
+    only by a delete between two reads; S8, which rewrites the job's reads, folds it into
+    `chatDeleted`.
+  - `delete-chat.use-case.test.ts` is unchanged: its suites already check the cascade and the
+    attachments' removal on Postgres.
+  - Outside the step: `AttachmentService.deleteByIds` deletes the rows before the bytes, so a crash
+    between them leaves bytes no retry finds; the behaviour predates the ticket.
+  - The step landed in three rounds, S7.1–S7.3, after two reviews; S7 ran in a worktree beside
+    S10.
 
-#### S8 — `bind`, `touch` and `updateTitle`
+#### S8 — `bind`, `touch` and `ChatService.updateTitle`
 
 - **Goal:** the remaining guards. `AttachmentRepository.bind(ids, messageId): ReadonlyArray<Attachment>`
   (one `UPDATE … WHERE id IN (…) AND message_id IS NULL RETURNING *`) replaces `update`;
-  `ChatRepository.touch(id, at)` writes `updated_at` only; `ChatRepository.updateTitle(id,
-  title): boolean` writes `WHERE title IS NULL` and its doc comment says so (`false`: titled
-  meanwhile); `ChatRepository.update(chat)` stays for the rename. Application:
+  `ChatRepository.touch(id, at)` writes `updated_at` only; `ChatRepository.selectById(id, {
+  forUpdate })` locks the chat's row until the caller's transaction ends (`.for('update')`; its
+  doc comment says a lock outside a transaction holds nothing); `ChatRepository.update(chat)`
+  stays for the rename and the title. Application: `ChatService.updateTitle(chatId, title)` runs
+  in `sql.withTransaction`, reads with `{ forUpdate: true }`, fails `ChatNotFoundError` or the new
+  `ChatTitledError` (`domain/chat/chat.error.ts`) and writes `update(chat)`; a rename or a touch
+  waits on the row lock (D5, amended in S7).
   `AttachmentService.bind(userId, ids, messageId)` selects, checks each with `ensureBindable`, runs
   `bind` and raises `AttachmentBoundError` for an id the update skipped; `findBindable` and the
   proof type `BindableAttachments` go; `SendMessageUseCase.send` calls `bind`; `ChatService.touch`
-  replaces `touch-chat.ts`; `ChatTitleJob` writes through `updateTitle` and drops its re-read,
-  keeping the log `chat title skipped: already titled`. `naming.md` gains the two verbs: `bind`
+  replaces `touch-chat.ts`; `ChatTitleJob` calls `ChatService.updateTitle` and drops both of its
+  chat reads, catching `ChatNotFoundError` into `chat title skipped: chat deleted` and
+  `ChatTitledError` into `chat title skipped: already titled`; `firstMessageMissing` folds into
+  `chatDeleted` (S7 finding). `naming.md` gains the two verbs: `bind`
   and `touch` are conditional single-statement writes that answer with what they changed (R10 in
   part, R11 in part; D5).
 - **Blocked by:** S7.
-- **Files:** `domain/attachment/attachment.service.ts`, `domain/chat/chat.service.ts`,
+- **Files:** `domain/attachment/attachment.service.ts`, `domain/chat/{chat.service.ts,chat.error.ts}`,
   `infrastructure/attachment/{attachment.repository.ts,attachment.repository.test.ts}`,
   `infrastructure/chat/{chat.repository.ts,chat.repository.test.ts}`,
   `application/attachment/{attachment.service.ts,attachment.service.test.ts}`,
@@ -597,7 +631,9 @@ methods; running it after S9 avoids merge work.
   `docs/knowledge/database.md` (the guards section grows).
 - **Test first:** Seam 3 — `bind` of three ids where one is already bound returns the two it
   bound and leaves the third's `message_id`; `touch` moves `updated_at` and keeps a title set
-  meanwhile; `updateTitle` answers `false` on a titled chat and changes nothing. Seam 5 —
+  meanwhile; `selectById(id, { forUpdate: true })` in a transaction holds a concurrent `update`
+  until it commits. Seam 5 — `ChatService.updateTitle` on a titled chat fails `ChatTitledError`
+  and on a deleted one `ChatNotFoundError`, writing nothing; beside a rename the rename wins;
   `AttachmentService.bind` with a bound id fails `AttachmentBoundError` and binds nothing else
   (the statement is one). Seam 6 — the title job on a chat titled meanwhile logs `chat title
   skipped: already titled` and writes nothing.
@@ -738,7 +774,7 @@ methods; running it after S9 avoids merge work.
   buildDeadLetterName(<queue>.name)`, the job's schema and `jobId`, `maxAttempts:
   Number.MAX_SAFE_INTEGER`, a capped doubling `retryDelay` with a 5-minute ceiling).
   `AssistantMessageJob.deadLetterWorker`: `selectById`; if active, `failMessage(ReplyFailed,
-  cause 'dead-lettered after <attempts> attempts on <queue>')`, `update(failed, { from:
+  cause 'dead-lettered after <attempts> attempts on <queue>')`, `update(failed, { stage:
   active.stage })`, `touch`; else the existing logs `assistant reply skipped: already settled` or
   `assistant reply skipped: chat deleted`. `ChatTitleJob.deadLetterWorker` logs `chat title
   dead-lettered` (as `queue message dead-lettered` in `packages/queue`). `apps/worker` runs the

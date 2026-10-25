@@ -30,7 +30,7 @@ Postgres, one container per run.
   stand is the Pulumi project `deployment/local/` (Docker provider, MiniStack by digest, `.data/`
   for state); `deployment/aws/` is a stub.
 - **Inherited from `aws-local`** ([roadmap › 4 › Inherits](../../knowledge/roadmap.md#4-postgres-drizzle)):
-  - a `WHERE stage IN (…)` guard on the reply's terminal write: taken (R12);
+  - a guard on the reply's stage writes: taken as `WHERE stage = <the stage read>` (R12);
   - a consumer or sweep for replies left active in the dead-letter queue: taken as a consumer of
     `assistant-message-dlq` (R13);
   - a sweep of expired unbound attachment records: declined (see Out of scope); the rows stay,
@@ -179,9 +179,11 @@ Postgres, one container per run.
 ### Stage writes and stuck replies
 
 - **R12** — WHEN the worker moves an assistant message to another stage, THE SYSTEM SHALL write
-  it only where the stored stage is one the transition allows (`WHERE stage IN (…)`); IF no row
-  matches, THEN the job SHALL treat the message as settled by someone else and skip, as it does
-  today for a terminal message.
+  it only where the stored stage is still the one the job read (`WHERE id = … AND stage = …`); IF
+  no row matches, THEN the job SHALL treat the message as settled by someone else and skip, as it
+  does today for a terminal message. *Amended in S7:* the guard is the stage read, not the stages
+  the transition allows, which would let a stale attempt fail a reply another attempt is writing;
+  two attempts both in `generating` are not told apart (D5).
 - **R13** — WHEN a reply job arrives on `assistant-message-dlq`, THE worker SHALL consume it and,
   IF the message is still active, write it `failed` with reason `ReplyFailed` and a cause naming
   the dead-letter queue and the attempts spent, and move the chat's `updatedAt`; IF the message is
@@ -254,7 +256,7 @@ Postgres, one container per run.
 | R9 | use-case suite: two concurrent sends to one chat, one `ChatBusyError`; live: two `curl` in parallel against two api processes on one database, one `202`, one `409`, one assistant message in `messages`. |
 | R10 | use-case suite: two concurrent sends in two chats binding the same attachment, one `AttachmentBoundError`, the attachment bound once. |
 | R11 | use-case suite: a rename interleaved with a send keeps the title and moves `updatedAt`; the title job writing during a send keeps both. `git grep UserLock` is empty. |
-| R12 | job suite: a message set `completed` by another writer while the job runs leaves the job's `generating` write unapplied and the job logging `already settled`. |
+| R12 | job suite: a message set `completed` by another writer while the job waits on the model leaves the job's next stage write (from `generating`) unapplied, the other writer's reply in place, and the job logging `already settled`. |
 | R13 | job suite: a `GenerateAssistantMessage` from the dead-letter queue sets the active message `failed` with `ReplyFailed` and a cause naming the dead-letter queue; a terminal message and a deleted chat are logged and untouched; a `GenerateChatTitle` from its dead-letter queue is logged only. Live: with the worker stopped and a job redriven after `maxReceiveCount` receives, the restarted worker fails the message within seconds. |
 | R14 | `make migration NAME=probe` with MiniStack down writes a folder with `migration.sql`; `make migrate` applies it and prints nothing to apply on a second run; `git grep -n migrate apps/` finds no call. |
 | R15 | `git grep DATABASE_URL` hits only `packages/config`, `deployment/`, `.gitignore` and docs, not `.env.example`; `git grep STORE_PATH` is empty. |

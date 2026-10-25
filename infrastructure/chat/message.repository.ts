@@ -1,11 +1,10 @@
 import { and, eq, type SQL } from 'drizzle-orm'
-import { Array as Arr, Effect, Layer, Option, Schema } from 'effect'
+import { Array as Arr, Effect, Layer, Option, Schema, Struct } from 'effect'
 
 import {
   ActiveMessageStage,
   isActiveMessage,
   MessageRepository,
-  type MessageStage,
   type MessageWhere,
 } from '@app-template/domain/chat'
 
@@ -20,7 +19,7 @@ import { Db, decodeFound, orDieWithSqlError } from '#infrastructure/db/db.client
 const encodeMessage = Schema.encodeEffect(MessageInsert)
 
 const whereColumns = {
-  stage: (stage: MessageStage) => eq(messages.stage, stage),
+  stage: (stage) => eq(messages.stage, stage),
 } as const satisfies { readonly [K in keyof MessageWhere]: (value: MessageWhere[K]) => SQL }
 
 const withAttachmentIds = {
@@ -45,7 +44,12 @@ export const MessageRepositoryPg = Layer.effect(
         const updated = yield* db
           .update(messages)
           .set(row)
-          .where(and(eq(messages.id, message.id), whereColumns.stage(where.stage)))
+          .where(
+            and(
+              eq(messages.id, message.id),
+              ...Arr.map(Struct.keys(whereColumns), (key) => whereColumns[key](where[key])),
+            ),
+          )
           .returning({ id: messages.id })
         return Arr.isReadonlyArrayNonEmpty(updated)
       }, orDieWithSqlError),

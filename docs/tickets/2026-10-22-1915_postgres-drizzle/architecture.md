@@ -114,7 +114,7 @@ graph LR
 + infrastructure/outbox/outbox.entity.ts   outbox
 + infrastructure/outbox/outbox.relay.ts    OutboxRelay, a worker layer                                      (D4)
 ~ infrastructure/user/user.repository.ts        UserRepositoryPg
-~ infrastructure/chat/chat.repository.ts        ChatRepositoryPg (relational reads, touch, updateTitle)
+~ infrastructure/chat/chat.repository.ts        ChatRepositoryPg (relational reads, touch, selectById forUpdate)
 ~ infrastructure/chat/message.repository.ts     MessageRepositoryPg (insert → boolean, update from)
 ~ infrastructure/attachment/attachment.repository.ts   AttachmentRepositoryPg (bind)
 ~ infrastructure/*/index.ts             UserPg, ChatPg, AttachmentPgS3 (replacing *Kv; no bundle keeps AttachmentStoreKv)
@@ -133,8 +133,8 @@ graph LR
 ~ application/chat/send-message.use-case.ts     Effect.fn(…, sql.withTransaction); bind(userId, ids, messageId) (D3)
 ~ application/chat/delete-chat.use-case.ts      no lock; attachments, then the chat (the cascade does the messages)
 ~ application/attachment/attachment.service.ts  bind replaces findBindable + bind; BindableAttachments goes (D5)
-~ application/chat/assistant-message.job.ts     update(message, { from }); + deadLetterWorker (failReply)   (D8)
-~ application/chat/chat-title.job.ts            updateTitle(id, title); + deadLetterWorker (log)
+~ application/chat/assistant-message.job.ts     update(message, { stage }); + deadLetterWorker (failReply)  (D8)
+~ application/chat/chat-title.job.ts            ChatService.updateTitle; + deadLetterWorker (log)
 - application/chat/touch-chat.ts                replaced by ChatRepository.touch
 - application/user/user-lock.ts
 ~ application/testing/chat.harness.ts           ChatTest: services on the Pg repositories over DbTest, AttachmentStoreMemory,
@@ -262,17 +262,16 @@ reader fills it from the message's attachments.
 ```ts
 ChatRepository {
   insert(chat): void
-  update(chat): void                                   // rename: title and updatedAt
+  update(chat): void                                   // rename, and the title under the row lock
   touch(id, at): void                                  // updated_at only
-  updateTitle(id, title): boolean                      // writes only while untitled; false: titled meanwhile
-  selectById(id): Option<Chat>
+  selectById(id, { forUpdate? }): Option<Chat>        // forUpdate: locks the row until the caller's transaction ends
   selectSummaries(userId): ReadonlyArray<ChatSummary>   // most recently updated first, with the active message
   selectDetail(id): Option<ChatDetail>                  // messages in creation order, each with its attachments
   delete(id): void                                      // the messages go by the cascade
 }
 MessageRepository {
   insert(message): boolean      // false: the chat already has an active message (the partial index)
-  update(message, { from: MessageStage }): boolean   // false: the stored stage is not `from`
+  update(message, where: MessageWhere): boolean      // MessageWhere = Pick<Message, 'stage'>; false: stored stage differs
   selectById(id): Option<Message>
   selectByChat(chatId): ReadonlyArray<Message>       // the job's history
   selectActiveByChat(chatId): Option<ActiveMessage>
@@ -286,7 +285,8 @@ UserRepository                                         // unchanged; insert writ
 ```
 
 Ports keep no error channel: a conditional write answers with a value, and the application
-raises `ChatBusyError`, `AttachmentBoundError` or skips (D5). `selectByUser`, `deleteByChat`,
+raises `ChatBusyError`, `AttachmentBoundError` or skips (D5); `ChatService.updateTitle` raises
+`ChatTitledError` from a locked read. `selectByUser`, `deleteByChat`,
 `AttachmentRepository.update` and the read models in `application` go.
 
 ### The send (use case)
@@ -329,7 +329,7 @@ assistantMessageDeadLetterQueue = { name: buildDeadLetterName(assistantMessage.n
   maxAttempts: Number.MAX_SAFE_INTEGER, retryDelay: capped doubling (max 5 min), jobId }
 AssistantMessageJob.deadLetterWorker = worker(assistantMessageDeadLetterQueue, failDeadLettered)
   // failDeadLettered: selectById → if active: failMessage(ReplyFailed, cause 'dead-lettered after N attempts')
-  //                   → update(failed, { from: active.stage }) → touch; else log 'already settled' / 'chat deleted'
+  //                   → update(failed, { stage: active.stage }) → touch; else log 'already settled' / 'chat deleted'
 ChatTitleJob.deadLetterWorker = worker(chatTitleDeadLetterQueue, log 'chat title dead-lettered')
 ```
 
@@ -384,10 +384,10 @@ build them with `buildResourceName` as the program does.
 |---|---|---|
 | 1 `domain/*` schemas and pure rules (unchanged) | input and binding rules, stage transitions, read-model shapes | persistence |
 | 2 `infrastructure/db` and the constraints of every `.entity.ts` on `PgClientTest` | migrations apply to the template and are a no-op the second time; SQL logged at `Debug` with `query` and `params`, nothing at `Info`; `make migrate`'s retry repeats while the database refuses connections, stops after its bound, and gives up at once on any other refusal; the partial unique index refuses a second active reply; the checks refuse what the brands refuse | drift between entities and the committed migrations (Seam 9); Drizzle's rendering and the codecs, which only the repository suites exercise (D21) |
-| 3 repositories through their ports on `PgClientTest` (one suite per port) | field mapping, `selectSummaries` order and active message, `selectDetail` nesting and order, `insert` false on an active message, `update` false on a stale `from`, `bind` partial result, `updateTitle` false when titled, `touch` keeps the title, the cascade from `chats.delete`, `RESTRICT` on a bound attachment, the check constraints reject what the brands reject | cross-process timing |
+| 3 repositories through their ports on `PgClientTest` (one suite per port) | field mapping, `selectSummaries` order and active message, `selectDetail` nesting and order, `insert` false on an active message, `update` false on a stale `where` stage, `bind` partial result, `selectById` with `forUpdate` holds a concurrent write until commit, `touch` keeps the title, the cascade from `chats.delete`, `RESTRICT` on a bound attachment, the check constraints reject what the brands reject | cross-process timing |
 | 4 `QueueClientOutbox` and `OutboxRelay` on `PgClientTest` + a recording `QueueTransport` (D21) | a `send` inside a failed transaction leaves no row; a row is published to its queue with its `jobId` and deleted; two relays over one database publish each row once; a failing transport keeps the row; the poll interval under `TestClock` | SQS outages longer than a test |
-| 5 services and use cases on `ChatTest`: the Pg repositories over `DbTest`, `AttachmentStoreMemory`, `QueueClientOutbox`, `BunCrypto` (D21) | a send writes two messages, the binds, the touch and one or two outbox rows in one transaction, and nothing on a failing step; two concurrent sends to one chat → one `ChatBusyError`; two concurrent binds of one attachment → one `AttachmentBoundError`; rename beside a send keeps both; delete cascade and the attachments' removal; `addAssistantMessage` alone is refused on a busy chat | HTTP statuses; S3 and SQS (D21) |
-| 6 jobs with the fake `LanguageModel`: on Postgres the stages a job writes, held at a model call, never stepped by the clock; the timings in a block with no database, on `TestClock` (D21) | the stage sequence through `update(…, { from })`; a snapshot every 300 ms; a message settled by another writer stops the job with `already settled`; the dead-letter handler fails an active message with `ReplyFailed` and a dead-letter cause, leaves a terminal one, logs for a deleted chat; the title dead-letter handler only logs; `updateTitle` skips a titled chat | a real provider |
+| 5 services and use cases on `ChatTest`: the Pg repositories over `DbTest`, `AttachmentStoreMemory`, `QueueClientOutbox`, `BunCrypto` (D21) | a send writes two messages, the binds, the touch and one or two outbox rows in one transaction, and nothing on a failing step; two concurrent sends to one chat → one `ChatBusyError`; two concurrent binds of one attachment → one `AttachmentBoundError`; rename beside a send keeps both; `ChatService.updateTitle` refuses a titled chat (`ChatTitledError`) and loses to a rename; delete cascade and the attachments' removal; `addAssistantMessage` alone is refused on a busy chat | HTTP statuses; S3 and SQS (D21) |
+| 6 jobs with the fake `LanguageModel`: on Postgres the stages a job writes, held at a model call, never stepped by the clock; the timings in a block with no database, on `TestClock` (D21) | the stage sequence through `update(…, { stage })`; a snapshot every 300 ms; a message settled by another writer stops the job with `already settled`; the dead-letter handler fails an active message with `ReplyFailed` and a dead-letter cause, leaves a terminal one, logs for a deleted chat; the title dead-letter handler only logs; the title job logs `ChatTitledError` as already titled | a real provider |
 | 7 `apps/api` through `BunHttpServer.layerTest` + `ApiClient` on `ApiTest` (D21) | what HTTP adds: `401` without a cookie, `202` with outbox rows, the failed-reply wire shape, the download redirect, the upload refusals, `404` on a stranger's chat, `409` on a busy chat across two concurrent requests | the worker, the relay; the business rules (Seam 5); a changed contract, which shows as a diff of `http-api/` (D20) |
 | 8 `apps/worker` layer build — *dropped in S6 (D21)* | a layer build test checks the framework, as the api's did; `make dev-worker` starts the relay and the four workers | — |
 | 9 `make migration-check` (local in `make check`; strict in CI on a fresh checkout) | an entity change without a committed migration (CI), or without any migration in the tree (local); a changed domain literal or pattern that an enum or check reads | a migration edited by hand; locally, a migration not yet committed |
@@ -428,11 +428,22 @@ build them with `buildResourceName` as the program does.
   interval of a second is enough and needs no second connection).
 - **D5 — Guards are single statements that answer with a value; `UserLock` goes.** The partial
   unique index holds "one active message per chat"; `insert` uses `ON CONFLICT (chat_id) WHERE
-  <active> DO NOTHING RETURNING id` and answers `false`; `update(…, { from })`, `bind` (`WHERE
-  message_id IS NULL`), `updateTitle` (`WHERE title IS NULL`) and `touch` (`updated_at` only) are
-  each one `UPDATE` whose row count is the answer. The application raises the domain error, so
-  ports keep no error channel, and the "re-read before write" pattern (`touchChat`, the title
-  job's second read) disappears. Two api processes are safe without any shared lock. *Rejected:*
+  <active> DO NOTHING RETURNING id` and answers `false`; `update(message, { stage })`, `bind`
+  (`WHERE message_id IS NULL`) and `touch` (`updated_at` only) are each one `UPDATE` whose
+  `RETURNING` is the answer. `update`'s condition is a `where` object, a `Pick` of the model's
+  fields that the adapter turns into SQL through a `whereColumns` table, one row per key; it holds
+  the stage the job read, so a stale attempt cannot fail a reply another attempt is writing. The
+  title is the exception: `ChatService.updateTitle` reads the chat with `selectById(id, {
+  forUpdate: true })` in `sql.withTransaction`, refuses a titled one (`ChatTitledError`) and
+  writes `update(chat)`, while a rename or a touch waits on the row lock. The application raises
+  the domain error, so ports keep no error channel, and the "re-read before write" pattern
+  (`touchChat`, the title job's second read) disappears. *Amended in S7:* the stage guard was
+  `update(…, { from })` and the title `updateTitle(id, title)` with `WHERE title IS NULL`; the
+  user chose a condition named in the call and the title rule in the service. Rejected then:
+  `WHERE stage IN (<the transition's sources>)` (a stale `failed` lands), `update(current, next)`
+  (both copies always), a `version` column (a migration and a domain field for two live attempts
+  in `generating`, which the stage guard leaves apart, deferred) and a generic `where` over any
+  field (the rules move into every call). Two api processes are safe without any shared lock. *Rejected:*
   catching `UniqueViolation` by constraint name in the adapter (a port with a domain error); `SERIALIZABLE` isolation (retries on every
   conflict, including unrelated ones); advisory locks (a lock again, now in the database).
 - **D6 — Read models live in the domain; the adapter answers them with relational queries.**
@@ -448,14 +459,14 @@ build them with `buildResourceName` as the program does.
   hand-written grouping).
 - **D7 — The cascade is the database's.** `messages.chat_id` cascades, `attachments.message_id`
   restricts, so `ChatService.delete` is one `delete` and a wrong order (a chat before its
-  attachments) fails instead of leaving rows. The use case still removes the attachments first,
+  attachments) dies instead of leaving rows. The use case still removes the attachments first,
   since their bytes in S3 are outside the transaction. *Rejected:* explicit deletes per aggregate
   with the "retry finishes the cascade" ordering (three statements, and no guard against the
   wrong order).
 - **D8 — Stuck replies are settled by a consumer of the dead-letter queue, defined as a queue
   with no last attempt.** Every path that leaves a reply active ends with its job in
   `assistant-message-dlq` (`aws-local`), so a `worker()` over a definition for that queue closes
-  them with the same `failReply` the job uses, guarded by `update(…, { from })`. The definition's
+  them with the same `failReply` the job uses, guarded by `update(…, { stage })`. The definition's
   `maxAttempts` is unreachable and its delay capped, because a dead-letter queue has no redrive.
   The title dead-letter consumer only logs. *Rejected:* a time-based sweep of active messages (it
   cannot tell a dead reply from a backlog); a dead-letter queue for the dead-letter queue.

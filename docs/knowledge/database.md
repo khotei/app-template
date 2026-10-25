@@ -126,9 +126,9 @@ statement that writes. A conditional write answers whether it wrote:
   target, where })`), so a second active reply in a chat writes nothing and answers `false`;
   the application turns that into `ChatBusyError`. Any other message inserts.
 - **Update under a `where`.** `MessageRepository.update(message, where)` runs `WHERE id = …
-  AND <where fields>`, its `where` a `MessageWhere` of the model's fields (`{ stage }`), so a
-  write whose expected stage another writer has left changes nothing and answers `false`; the
-  reply job then stops as settled by someone else.
+  AND <where fields>`, its `where` (`MessageWhere`, the stored fields to match: `{ stage }`),
+  so a write whose expected stage another writer has left changes nothing and answers `false`;
+  the reply job then stops as settled by someone else.
 
 A delete needs no answer: `ChatRepository.delete` is one statement, the messages go by `ON
 DELETE CASCADE`, and a message with an attachment makes it die (`RESTRICT`), so the attachments
