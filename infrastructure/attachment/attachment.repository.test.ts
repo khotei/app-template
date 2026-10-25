@@ -59,7 +59,7 @@ describe('AttachmentRepositoryPg', () => {
       yield* attachments.insert(unbound)
 
       const beforeBind = yield* attachments.selectById(unbound.id)
-      yield* attachments.bind([unbound.id], messageId)
+      yield* attachments.update({ messageId: Option.some(messageId) }, { id: [unbound.id] })
       const afterBind = yield* attachments.selectById(unbound.id)
 
       assertSchemaEquals(SelectedAttachment, beforeBind, Option.some(unbound))
@@ -67,7 +67,7 @@ describe('AttachmentRepositoryPg', () => {
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
-  it.effect('bind returns the attachments it bound and leaves one bound before', () =>
+  it.effect('update where unbound returns the ones it bound and leaves one bound before', () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentRepository
       const messages = yield* MessageRepository
@@ -85,9 +85,9 @@ describe('AttachmentRepositoryPg', () => {
       )
       yield* Effect.forEach(Arr.append(free, boundBefore), attachments.insert)
 
-      const bound = yield* attachments.bind(
-        [first.id, boundBefore.id, unknownId, second.id],
-        nextMessageId,
+      const bound = yield* attachments.update(
+        { messageId: Option.some(nextMessageId) },
+        { id: [first.id, boundBefore.id, unknownId, second.id], messageId: Option.none() },
       )
 
       const boundNow = Arr.map(

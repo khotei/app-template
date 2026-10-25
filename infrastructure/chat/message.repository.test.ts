@@ -74,9 +74,9 @@ const bindAttachments = (attachments: ReadonlyArray<Attachment>, message: Messag
     const repository = yield* AttachmentRepository
 
     yield* Effect.forEach(attachments, repository.insert, { discard: true })
-    yield* repository.bind(
-      Arr.map(attachments, (each) => each.id),
-      message.id,
+    yield* repository.update(
+      { messageId: Option.some(message.id) },
+      { id: Arr.map(attachments, (each) => each.id) },
     )
   })
 

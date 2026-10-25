@@ -56,8 +56,9 @@ Each row lists what a workspace may import.
 | deployment | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ |
 
 - **`domain` imports `effect` and no workspace,** not even `packages/*`, and no `@effect/*`
-  package but the test runner `@effect/vitest`, so it stays pure and testable without fakes. Its
-  tests alone may also import the test support `@app-template/testing`.
+  package but the test runner `@effect/vitest`, so it stays pure and testable without fakes;
+  `type-fest` it imports for types only (`RequireAtLeastOne`). Its tests alone may also import
+  the test support `@app-template/testing`.
 - **`http-api` imports `effect` and `domain` only.** It is the system's HTTP boundary, shared by
   the api that implements it and the browser that calls it, so it lists the domain's ids, models
   and errors instead of copies, and the wire carries the domain's tags (`UserUnknownError`). The

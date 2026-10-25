@@ -180,7 +180,7 @@ Workspaces reference it as `catalog:<namespace>`; the unnamed `catalog:` is not 
 | Namespace | Holds | Today |
 |---|---|---|
 | `tools` | developer-workflow tools that never shape types or runtime behaviour | `@biomejs/biome`, `husky`, `vitest` |
-| `runtime` | everything else, including the runtime the code targets | `@types/bun`, `testcontainers`, `@testcontainers/postgresql` |
+| `runtime` | everything else, including the runtime the code targets | `@types/bun`, `testcontainers`, `@testcontainers/postgresql`, `type-fest` |
 | one per family | a release train, or a core and the plugins that pin it as a range | `typescript`: `typescript`, `@effect/tsgo` (it embeds one TypeScript version) · `effect`: `effect`, `@effect/*` · `effect-aws`: `@effect-aws/*` (one release train over the AWS SDK; it pins the SDK as a range, so the lockfile holds the SDK version) · `pulumi`: `@pulumi/pulumi` and the providers that pin it as a range (`@pulumi/docker`) · `drizzle`: `drizzle-orm` and `drizzle-kit` (`drizzle-kit` peers the orm at the same rc, and it shapes the migrations, so it is not a `tools` entry) |
 
 `bunfig.toml` sets `exact = true`, so `bun add` writes `1.2.3`, never `^1.2.3`.

@@ -1,4 +1,5 @@
 import { Context, DateTime, Duration, Effect, Option, Predicate, type Stream } from 'effect'
+import type { RequireAtLeastOne } from 'type-fest'
 
 import { AttachmentBoundError, AttachmentNotFoundError } from '#domain/attachment/attachment.error'
 import type { AttachmentId } from '#domain/attachment/attachment.id'
@@ -9,22 +10,26 @@ import {
   type FileSize,
   type MediaType,
 } from '#domain/attachment/attachment.model'
-import type { MessageId } from '#domain/chat/chat.id'
 import { ensureFound } from '#domain/shared/guard'
 import type { UserId } from '#domain/user/user.id'
 import { isOwnedBy } from '#domain/user/user.service'
+
+/** The fields a write may change. */
+export type AttachmentSet = RequireAtLeastOne<Pick<Attachment, 'messageId'>>
+
+/** The rows are found by `id`; any other field must still hold its value. */
+export type AttachmentWhere = { readonly id: ReadonlyArray<AttachmentId> } & Partial<
+  Pick<Attachment, 'messageId'>
+>
 
 export class AttachmentRepository extends Context.Service<
   AttachmentRepository,
   {
     readonly insert: (attachment: Attachment) => Effect.Effect<void>
-    /**
-     * Binds to the message each of these attachments that no message holds, in one statement;
-     * returns the ones it bound, unordered, leaving out a bound or unknown id.
-     */
-    readonly bind: (
-      ids: ReadonlyArray<AttachmentId>,
-      messageId: MessageId,
+    /** Writes `set` where `where` holds, in one statement; returns the attachments it wrote, unordered. */
+    readonly update: (
+      set: AttachmentSet,
+      where: AttachmentWhere,
     ) => Effect.Effect<ReadonlyArray<Attachment>>
     readonly selectById: (id: AttachmentId) => Effect.Effect<Option.Option<Attachment>>
     /** Returns the attachments found, in the order asked; unknown ids are left out. */

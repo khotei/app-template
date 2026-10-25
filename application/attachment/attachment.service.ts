@@ -173,11 +173,14 @@ export class AttachmentService extends Context.Service<
 
       // Keep first: unbound bytes expire, so a crash must never leave a bound row over them.
       yield* Effect.forEach(ids, store.keep, { discard: true })
-      const boundNow = yield* attachments.bind(ids, messageId)
-      const bound = new Map(Arr.map(boundNow, (attachment) => [attachment.id, attachment]))
+      const bound = yield* attachments.update(
+        { messageId: Option.some(messageId) },
+        { id: ids, messageId: Option.none() },
+      )
+      const byId = new Map(Arr.map(bound, (attachment) => [attachment.id, attachment]))
       return yield* Effect.forEach(ids, (id) =>
         Effect.fromOption(
-          Option.fromUndefinedOr(bound.get(id)),
+          Option.fromUndefinedOr(byId.get(id)),
           () => new AttachmentBoundError({ id }),
         ),
       )

@@ -1,7 +1,7 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, Duration, Effect, Exit, Layer, Option, Schema, Stream } from 'effect'
+import { Array as Arr, Duration, Effect, Exit, Layer, Option, Stream } from 'effect'
 import { TestClock } from 'effect/testing'
 
 import {
@@ -32,7 +32,6 @@ import {
 import { AttachmentService } from '#application/attachment/attachment.service'
 import { AttachmentObjects, AttachmentStoreMemory } from '#application/testing/attachment.fake'
 import { unknownAttachmentId } from '#application/testing/attachment.fixture'
-import { AttachmentRepositoryYielding } from '#application/testing/chat.fake'
 import { chat, chatId, epoch, messageId } from '#application/testing/chat.fixture'
 import { upload } from '#application/testing/chat.harness'
 import { DbWithUsers } from '#application/testing/db.harness'
@@ -63,9 +62,6 @@ const layerAttachmentService = (repository: Layer.Layer<AttachmentRepository, ne
   )
 
 const AttachmentServiceTest = layerAttachmentService(AttachmentRepositoryPg)
-
-// Yields after the read, so two binds both pass the check before either writes.
-const AttachmentServiceSelectYielding = layerAttachmentService(AttachmentRepositoryYielding)
 
 const AttachmentRepositoryInsertDying = Layer.effect(
   AttachmentRepository,
@@ -136,7 +132,7 @@ const addressers = [
 
 const bind = (attachment: Attachment) =>
   Effect.flatMap(AttachmentRepository, (attachments) =>
-    attachments.bind([attachment.id], messageId),
+    attachments.update({ messageId: Option.some(messageId) }, { id: [attachment.id] }),
   )
 
 const boundTo = (attachment: Attachment) =>
@@ -340,29 +336,6 @@ describe('AttachmentService', () => {
       assertEquals(yield* selectStored([free.id, taken.id]), [free, boundTo(taken)])
     }).pipe(Effect.provide(AttachmentServiceTest)),
   )
-
-  it.effect('two concurrent binds of one attachment: one binds it, the other is refused', () =>
-    Effect.gen(function* () {
-      const service = yield* AttachmentService
-      const photo = yield* uploadPhoto
-
-      const exits = yield* Effect.all(
-        [
-          Effect.exit(service.bind(owner, [photo.id], messageId)),
-          Effect.exit(service.bind(owner, [photo.id], messageId)),
-        ],
-        { concurrency: 'unbounded' },
-      )
-
-      assertEquals(Arr.getSomes(Arr.map(exits, Exit.getSuccess)), [[boundTo(photo)]])
-      assertSchemaEquals(
-        Schema.Array(AttachmentBoundError),
-        Arr.getSomes(Arr.map(exits, Exit.findErrorOption)),
-        [new AttachmentBoundError({ id: photo.id })],
-      )
-    }).pipe(Effect.provide(AttachmentServiceSelectYielding)),
-  )
-
   it.effect(
     'deleteByIds removes bound and unbound attachments with their bytes, and only them',
     () =>

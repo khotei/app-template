@@ -1,16 +1,36 @@
-import { and, inArray, isNull } from 'drizzle-orm'
-import { Array as Arr, Effect, Layer, Schema } from 'effect'
+import { and, eq, inArray, isNull } from 'drizzle-orm'
+import { Array as Arr, Effect, Layer, Option, Schema, Struct } from 'effect'
 
-import { type AttachmentId, AttachmentRepository } from '@app-template/domain/attachment'
+import {
+  type AttachmentId,
+  AttachmentRepository,
+  type AttachmentSet,
+  type AttachmentWhere,
+} from '@app-template/domain/attachment'
+import type { MessageId } from '@app-template/domain/chat'
 
 import {
   AttachmentInsert,
   attachments,
   decodeAttachment,
 } from '#infrastructure/attachment/attachment.entity'
-import { Db, decodeFound, orDieWithSqlError } from '#infrastructure/db/db.client'
+import { Db, decodeFound, orDieWithSqlError, whenPresent } from '#infrastructure/db/db.client'
 
 const encodeAttachment = Schema.encodeEffect(AttachmentInsert)
+
+const setColumns = {
+  messageId: whenPresent(Option.getOrNull<MessageId>),
+} as const satisfies { readonly [K in keyof Required<AttachmentSet>]: unknown }
+
+const whereColumns = {
+  id: (ids: ReadonlyArray<AttachmentId>) => inArray(attachments.id, ids),
+  messageId: whenPresent(
+    Option.match({
+      onNone: () => isNull(attachments.messageId),
+      onSome: (messageId: MessageId) => eq(attachments.messageId, messageId),
+    }),
+  ),
+} as const satisfies { readonly [K in keyof Required<AttachmentWhere>]: unknown }
 
 export const AttachmentRepositoryPg = Layer.effect(
   AttachmentRepository,
@@ -20,11 +40,17 @@ export const AttachmentRepositoryPg = Layer.effect(
         const row = yield* encodeAttachment(attachment)
         yield* db.insert(attachments).values(row)
       }, orDieWithSqlError),
-      bind: Effect.fn('AttachmentRepository.bind')(function* (ids, messageId) {
+      update: Effect.fn('AttachmentRepository.update')(function* (set, where) {
+        const row = Struct.evolve(set, setColumns)
+        const conditions = Struct.evolve(
+          Struct.pick(where, Struct.keys(whereColumns)),
+          whereColumns,
+        )
+
         const rows = yield* db
           .update(attachments)
-          .set({ messageId })
-          .where(and(inArray(attachments.id, ids), isNull(attachments.messageId)))
+          .set(row)
+          .where(and(...Object.values(conditions)))
           .returning()
         return yield* Effect.forEach(rows, decodeAttachment)
       }, orDieWithSqlError),

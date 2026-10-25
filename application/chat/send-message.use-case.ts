@@ -48,9 +48,7 @@ export class SendMessageUseCase extends Context.Service<
     const userLock = yield* UserLock
     const sql = yield* SqlClient.SqlClient
 
-    // The chat's `updatedAt` is written before the enqueues, so the send's own title job cannot
-    // run before it.
-    const send = Effect.fn('SendMessageUseCase.send')(
+    const writeMessages = Effect.fnUntraced(
       function* (userId: UserId, chatId: ChatId, input: MessageInput) {
         const sendable = yield* chatService.findSendable(userId, chatId, input)
 
@@ -58,19 +56,27 @@ export class SendMessageUseCase extends Context.Service<
         const bound = yield* attachmentService.bind(userId, input.attachmentIds, userMessage.id)
         const assistantMessage = yield* chatService.addAssistantMessage(sendable)
         yield* chatService.touch(sendable)
-
-        yield* assistantJob.enqueue(assistantMessage)
-        if (sendable.opensChat) yield* titleJob.enqueue(userMessage)
-
-        return {
-          userMessage: { message: userMessage, attachments: bound },
-          assistantMessage: { message: assistantMessage, attachments: [] },
-        }
+        return { sendable, userMessage, bound, assistantMessage }
       },
       sql.withTransaction,
       Effect.catchTag('SqlError', Effect.die),
-      userLock.withPermit,
     )
+
+    const send = Effect.fn('SendMessageUseCase.send')(function* (
+      userId: UserId,
+      chatId: ChatId,
+      input: MessageInput,
+    ) {
+      const written = yield* writeMessages(userId, chatId, input)
+
+      yield* assistantJob.enqueue(written.assistantMessage)
+      if (written.sendable.opensChat) yield* titleJob.enqueue(written.userMessage)
+
+      return {
+        userMessage: { message: written.userMessage, attachments: written.bound },
+        assistantMessage: { message: written.assistantMessage, attachments: [] },
+      }
+    }, userLock.withPermit)
 
     return { send }
   }),

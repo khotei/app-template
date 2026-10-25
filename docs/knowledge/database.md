@@ -130,19 +130,22 @@ statement that writes. A conditional write answers whether it wrote:
   AND <where fields>`, its `where` (`MessageWhere`, the stored fields to match: `{ stage }`),
   so a write whose expected stage another writer has left changes nothing and answers `false`;
   the reply job then stops as settled by someone else.
-- **Update of some fields under a `where`.** `ChatRepository.update(set, where)` writes only the
-  fields of `set` (`ChatSet`: at least one of `title` and `updatedAt`, so an empty write fails
-  typecheck) where the row matches `where` (`ChatWhere`: `id`, and optionally the `title` it must
-  still hold, `Option.none()` rendering `IS NULL`). The adapter turns both through a
-  `setColumns` and a `whereColumns` table, one row per field, walking the table's keys and
-  skipping a field the value leaves out. The send's touch sets `updatedAt` alone, so a title
-  written meanwhile survives; `ChatService.updateTitle` writes `where` the title is still
-  `none` and, on `false`, reads the chat only to name the refusal (`ChatNotFoundError` or
-  `ChatTitledError`), so a rename always wins.
-- **Bind under a free foreign key.** `AttachmentRepository.bind(ids, messageId)` is one `UPDATE …
-  WHERE id IN (…) AND message_id IS NULL RETURNING *` and answers with the attachments it bound;
-  `AttachmentService.bind` checks each id first and raises `AttachmentBoundError` for one the
-  statement skipped, because another bind took it in between.
+- **Update of some fields under a `where`.** `ChatRepository.update(set, where)` and
+  `AttachmentRepository.update(set, where)` write only the fields of `set` (`ChatSet`,
+  `AttachmentSet`: `RequireAtLeastOne` from `type-fest`, so an empty write fails typecheck) where
+  the rows match `where` (`ChatWhere`, `AttachmentWhere`: the `id`, an array of them for
+  attachments, and optionally a field the row must still hold, `Option.none()` rendering `IS
+  NULL`). The adapter maps `set` with `Struct.evolve` over a `setColumns` table and `where` over
+  a `whereColumns` table, picking only the table's keys, so a field the type gains fails
+  typecheck until it has a row. The chat's update answers whether it wrote, the attachments'
+  with the rows it wrote (`RETURNING *`).
+  - The send's touch sets `updatedAt` alone, so a title written meanwhile survives.
+  - `ChatService.updateTitle` writes `where` the title is still `none` and, on `false`, reads
+    the chat only to name the refusal (`ChatNotFoundError` or `ChatTitledError`), so a rename
+    always wins.
+  - `AttachmentService.bind` checks each id, then writes the message `where` `messageId` is
+    still `none`, and raises `AttachmentBoundError` for an id the statement skipped because
+    another send took it in between.
 
 A delete needs no answer: `ChatRepository.delete` is one statement, the messages go by `ON
 DELETE CASCADE`, and a message with an attachment makes it die (`RESTRICT`), so the attachments

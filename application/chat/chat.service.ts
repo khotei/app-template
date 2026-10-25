@@ -74,7 +74,7 @@ export class ChatService extends Context.Service<
       chatId: ChatId,
       title: ChatTitle,
     ) => Effect.Effect<Chat, ChatNotFoundError>
-    /** Titles a chat no one has titled yet, in one conditional write, keeping its `updatedAt`. */
+    /** Titles a chat no one has titled yet, keeping its `updatedAt`. */
     readonly updateTitle: (
       chatId: ChatId,
       title: ChatTitle,
