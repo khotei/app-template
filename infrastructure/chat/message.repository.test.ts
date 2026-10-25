@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, DateTime, Effect, Option, Schema } from 'effect'
+import { DateTime, Effect, Option, Schema } from 'effect'
 
 import {
   Attachment,
@@ -116,7 +116,7 @@ describe('MessageRepositoryPg', () => {
       )
 
       const completed = yield* completeMessage(queued, { text: 'Hello', at: at(1) })
-      yield* messages.update(completed)
+      yield* messages.update(completed, { from: 'queued' })
 
       assert.deepStrictEqual(yield* messages.selectActiveByChat(chatId), Option.none())
     }).pipe(Effect.provide(RepositoryStackPgTest)),
@@ -143,28 +143,64 @@ describe('MessageRepositoryPg', () => {
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
-  it.effect('deleteByChat removes every message of the chat and keeps the others', () =>
+  it.effect('insert refuses a second active reply in a chat and keeps the first', () =>
     Effect.gen(function* () {
       const messages = yield* MessageRepository
       const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000044')
-      const other = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000045')
-      const deleted = [
-        userMessage('0192d4e0-7b3a-7c00-8000-000000000056', { chatId }),
-        assistantMessage('0192d4e0-7b3a-7c00-8000-000000000057', { chatId, seconds: 1 }),
-      ]
-      const kept = userMessage('0192d4e0-7b3a-7c00-8000-000000000058', { chatId: other })
-      yield* insertOwnedChats(userId, [chatId, other])
-      yield* Effect.forEach(Arr.append(deleted, kept), messages.insert)
+      const queued = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000056', { chatId })
+      const second = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000057', {
+        chatId,
+        seconds: 1,
+      })
+      yield* insertOwnedChats(userId, [chatId])
 
-      yield* messages.deleteByChat(chatId)
+      const inserted = yield* messages.insert(queued)
+      const refused = yield* messages.insert(second)
 
-      const afterDelete = yield* Effect.forEach(deleted, (each) => messages.selectById(each.id))
-      assert.deepStrictEqual(
-        afterDelete,
-        Arr.map(deleted, () => Option.none()),
+      assert.deepStrictEqual([inserted, refused], [true, false])
+      assertSchemaEquals(Messages, yield* messages.selectByChat(chatId), [queued])
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
+  )
+
+  it.effect('insert accepts a completed reply beside an active one', () =>
+    Effect.gen(function* () {
+      const messages = yield* MessageRepository
+      const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000045')
+      const queued = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000058', { chatId })
+      const completed = yield* completeMessage(
+        assistantMessage('0192d4e0-7b3a-7c00-8000-000000000059', { chatId, seconds: 1 }),
+        { text: 'Hello', at: at(2) },
       )
-      assert.deepStrictEqual(yield* messages.selectByChat(chatId), [])
-      assertSchemaEquals(Messages, yield* messages.selectByChat(other), [kept])
+      yield* insertOwnedChats(userId, [chatId])
+
+      const inserted = yield* Effect.forEach([queued, completed], messages.insert)
+
+      assert.deepStrictEqual(inserted, [true, true])
+      assertSchemaEquals(Messages, yield* messages.selectByChat(chatId), [queued, completed])
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
+  )
+
+  it.effect('update from a stage the message has left answers false and changes nothing', () =>
+    Effect.gen(function* () {
+      const messages = yield* MessageRepository
+      const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000049')
+      const preparing = yield* prepareMessage(
+        assistantMessage('0192d4e0-7b3a-7c00-8000-00000000005b', { chatId }),
+        at(1),
+      )
+      const generating = yield* generateMessage(preparing, at(2))
+      const completed = yield* completeMessage(generating, { text: 'Hello', at: at(3) })
+      yield* insertOwnedChats(userId, [chatId])
+      yield* messages.insert(generating)
+
+      const updated = yield* messages.update(completed, { from: 'preparing' })
+
+      assert.isFalse(updated)
+      assertSchemaEquals(
+        SelectedMessage,
+        yield* messages.selectById(generating.id),
+        Option.some(generating),
+      )
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
@@ -178,9 +214,11 @@ describe('MessageRepositoryPg', () => {
       yield* messages.insert(queued)
       const completed = yield* completeMessage(queued, { text: 'Hello', at: at(1) })
 
-      yield* messages.update(completed)
-      yield* messages.update(unknown)
+      const updated = yield* Effect.forEach([completed, unknown], (each) =>
+        messages.update(each, { from: 'queued' }),
+      )
 
+      assert.deepStrictEqual(updated, [true, false])
       assertSchemaEquals(Messages, yield* messages.selectByChat(chatId), [completed])
       assert.deepStrictEqual(yield* messages.selectById(unknown.id), Option.none())
     }).pipe(Effect.provide(RepositoryStackPgTest)),

@@ -90,6 +90,7 @@ const makeStoresMemory = () => {
   const putMessage = (message: Message) =>
     Effect.sync(() => {
       messages.set(message.id, message)
+      return true
     })
   return {
     messages: Layer.mock(MessageRepository, {
@@ -131,10 +132,10 @@ const makeAssistantMessageHarness = <E, R>(
     Effect.map(MessageRepository, (inner) =>
       MessageRepository.of({
         ...inner,
-        update: (message) =>
+        update: (message, options) =>
           Effect.andThen(
             Effect.sync(() => writes.push(message)),
-            inner.update(message),
+            inner.update(message, options),
           ),
       }),
     ),
@@ -271,10 +272,7 @@ const runAttemptOnClock = (attempt: number) =>
     return yield* Fiber.join(running)
   })
 
-const deleteChat = Effect.all([
-  Effect.flatMap(MessageRepository, (messages) => messages.deleteByChat(chatId)),
-  Effect.flatMap(ChatRepository, (chats) => chats.delete(chatId)),
-])
+const deleteChat = Effect.flatMap(ChatRepository, (chats) => chats.delete(chatId))
 
 const stagesOf = (writes: ReadonlyArray<Message>) =>
   Arr.dedupeAdjacent(Arr.map(writes, (message) => message.stage))
@@ -408,6 +406,31 @@ describe('AssistantMessageJob.handle', () => {
       )
     }).pipe(Effect.provide(layer))
   })
+
+  it.live(
+    'stops with already settled when another writer settles the reply while it streams',
+    () => {
+      const held = holdModelCall()
+      const { logs, layer } = makeAssistantMessageHarness(heldDeltas(held), storesPg)
+      return Effect.gen(function* () {
+        const messages = yield* MessageRepository
+        yield* arrangeChat()
+
+        const running = yield* Effect.forkChild(handleAttempt(1))
+        yield* held.asked
+        const generating = yield* selectReply
+        const settledElsewhere = asCompleted(generating, 'Done elsewhere.')
+        yield* messages.update(settledElsewhere, { from: 'generating' })
+        yield* held.release
+        const exit = yield* Fiber.join(running)
+
+        assert.isTrue(Exit.isSuccess(exit))
+        assertEquals(yield* selectReply, settledElsewhere)
+        assertEquals(yield* selectChat, chat)
+        assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: already settled']])
+      }).pipe(Effect.provide(layer))
+    },
+  )
 
   it.live('fails every attempt and, on the last, fails the message with its cause', () => {
     const { writes, prompts, logs, layer } = makeAssistantMessageHarness(failingAtOnce, storesPg)

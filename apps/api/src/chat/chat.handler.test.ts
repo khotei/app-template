@@ -33,6 +33,7 @@ const failReply = (id: MessageId) =>
         cause: 'the provider timed out',
         at: reply.updatedAt,
       }),
+      { from: reply.stage },
     )
   }).pipe(Effect.orDie, Effect.provide(MessageRepositoryPg))
 

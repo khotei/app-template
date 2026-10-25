@@ -1,7 +1,27 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, DateTime, Effect, Option, Order, Schema } from 'effect'
+import { Array as Arr, DateTime, Effect, Exit, Option, Order, Schema } from 'effect'
 
-import { buildChat, Chat, ChatId, ChatRepository, ChatTitle } from '@app-template/domain/chat'
+import {
+  Attachment,
+  AttachmentId,
+  AttachmentRepository,
+  buildAttachment,
+  FileName,
+  FileSize,
+  MediaType,
+} from '@app-template/domain/attachment'
+import {
+  buildAssistantMessage,
+  buildChat,
+  buildUserMessage,
+  Chat,
+  ChatId,
+  ChatRepository,
+  ChatTitle,
+  Message,
+  MessageId,
+  MessageRepository,
+} from '@app-template/domain/chat'
 import { UserId } from '@app-template/domain/user'
 import { assertSchemaEquals } from '@app-template/testing'
 
@@ -12,11 +32,16 @@ const createdAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')
 
 const chat = (id: string, userId: UserId) => buildChat({ id: ChatId.make(id), userId, createdAt })
 
+const question = (id: string, chatId: ChatId) =>
+  buildUserMessage({ id: MessageId.make(id), chatId, text: 'Hi', attachmentIds: [], createdAt })
+
 const byId = Order.mapInput(Order.String, (chat: Chat) => chat.id)
 
 const SelectedChat = Schema.Option(Chat)
 
 const Chats = Schema.Array(Chat)
+
+const Messages = Schema.Array(Message)
 
 describe('ChatRepositoryPg', () => {
   it.effect('selects an inserted chat back, untitled and titled', () =>
@@ -60,20 +85,65 @@ describe('ChatRepositoryPg', () => {
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
-  it.effect("delete removes the chat and keeps the user's others", () =>
+  it.effect("delete removes the chat with its messages and keeps the user's other chats", () =>
     Effect.gen(function* () {
       const chats = yield* ChatRepository
+      const messages = yield* MessageRepository
       const cy = UserId.make('0192d4e0-7b3a-7c00-8000-000000000012')
       const kept = chat('0192d4e0-7b3a-7c00-8000-000000000033', cy)
       const deleted = chat('0192d4e0-7b3a-7c00-8000-000000000034', cy)
+      const keptQuestion = question('0192d4e0-7b3a-7c00-8000-000000000050', kept.id)
+      const deletedReply = buildAssistantMessage({
+        id: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000051'),
+        chatId: deleted.id,
+        createdAt,
+      })
       yield* insertUser(cy)
-      yield* chats.insert(kept)
-      yield* chats.insert(deleted)
+      yield* Effect.forEach([kept, deleted], chats.insert)
+      yield* Effect.forEach([keptQuestion, deletedReply], messages.insert)
 
       yield* chats.delete(deleted.id)
 
       assert.deepStrictEqual(yield* chats.selectById(deleted.id), Option.none())
+      assert.deepStrictEqual(yield* messages.selectById(deletedReply.id), Option.none())
       assertSchemaEquals(Chats, yield* chats.selectByUser(cy), [kept])
+      assertSchemaEquals(Messages, yield* messages.selectByChat(kept.id), [keptQuestion])
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
+  )
+
+  it.effect('delete fails and removes nothing while a message of the chat has an attachment', () =>
+    Effect.gen(function* () {
+      const chats = yield* ChatRepository
+      const messages = yield* MessageRepository
+      const attachments = yield* AttachmentRepository
+      const eve = UserId.make('0192d4e0-7b3a-7c00-8000-000000000014')
+      const stored = chat('0192d4e0-7b3a-7c00-8000-000000000037', eve)
+      const photoId = AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000020')
+      const withPhoto = new Message({
+        ...question('0192d4e0-7b3a-7c00-8000-000000000052', stored.id),
+        attachmentIds: [photoId],
+      })
+      const photo = new Attachment({
+        ...buildAttachment({
+          id: photoId,
+          userId: eve,
+          fileName: FileName.make('photo.png'),
+          mediaType: MediaType.make('image/png'),
+          size: FileSize.make(1024),
+          createdAt,
+        }),
+        messageId: Option.some(withPhoto.id),
+      })
+      yield* insertUser(eve)
+      yield* chats.insert(stored)
+      yield* messages.insert(withPhoto)
+      yield* attachments.insert(photo)
+
+      const exit = yield* Effect.exit(chats.delete(stored.id))
+
+      assert.isTrue(Exit.hasDies(exit))
+      assertSchemaEquals(SelectedChat, yield* chats.selectById(stored.id), Option.some(stored))
+      assertSchemaEquals(Messages, yield* messages.selectByChat(stored.id), [withPhoto])
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 

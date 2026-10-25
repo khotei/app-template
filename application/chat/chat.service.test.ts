@@ -5,6 +5,7 @@ import { Array as Arr, DateTime, Duration, Effect, Option, Record as Rec } from 
 import {
   buildChat,
   Chat,
+  ChatBusyError,
   ChatId,
   ChatNotFoundError,
   ChatRepository,
@@ -23,7 +24,13 @@ import {
   unknownChatId,
   unknownMessageId,
 } from '#application/testing/chat.fixture'
-import { ChatTest, selectChat, settle, upload } from '#application/testing/chat.harness'
+import {
+  ChatTest,
+  selectChat,
+  selectMessages,
+  settle,
+  upload,
+} from '#application/testing/chat.harness'
 import { owner, stranger } from '#application/testing/user.fixture'
 
 type ChatCall = (
@@ -150,6 +157,19 @@ describe('ChatService', () => {
         missing,
         new MessageNotFoundError({ id: unknownMessageId }),
       )
+    }).pipe(Effect.provide(ChatTest)),
+  )
+
+  it.effect('addAssistantMessage on a chat that has an active message is ChatBusyError', () =>
+    Effect.gen(function* () {
+      const service = yield* ChatService
+      const sendable = yield* service.findSendable(owner, chat.id, ask('Lisbon?'))
+      const first = yield* service.addAssistantMessage(sendable)
+
+      const busy = yield* Effect.flip(service.addAssistantMessage(sendable))
+
+      assertSchemaEquals(ChatBusyError, busy, new ChatBusyError({ id: chat.id }))
+      assertEquals(yield* selectMessages(chat.id), [first])
     }).pipe(Effect.provide(ChatTest)),
   )
 

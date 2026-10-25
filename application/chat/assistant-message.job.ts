@@ -2,6 +2,7 @@ import {
   Array as Arr,
   Cause,
   Context,
+  Data,
   DateTime,
   Duration,
   Effect,
@@ -26,6 +27,7 @@ import {
   Message,
   type MessageId,
   MessageRepository,
+  type MessageStage,
   type MessageStageInvalidError,
   prepareMessage,
 } from '@app-template/domain/chat'
@@ -66,11 +68,19 @@ const readHistory = Effect.fnUntraced(function* (chatId: ChatId) {
   return yield* Effect.forEach(completed, readTurn)
 })
 
+/** Another writer moved the message out of the stage this job read it in. */
+class MessageSettledError extends Data.TaggedError('MessageSettledError') {}
+
+const writeStage = Effect.fnUntraced(function* (message: Message, from: MessageStage) {
+  const messages = yield* MessageRepository
+  const updated = yield* messages.update(message, { from })
+  if (!updated) return yield* new MessageSettledError()
+})
+
 const streamSnapshots = Effect.fnUntraced(function* <E, R>(
   generating: Message,
   deltas: Stream.Stream<string, E, R>,
 ) {
-  const messages = yield* MessageRepository
   const text = yield* Ref.make(generating.text)
   const written = yield* Ref.make(generating.text)
 
@@ -80,7 +90,10 @@ const streamSnapshots = Effect.fnUntraced(function* <E, R>(
     if (Equal.equals(current, last)) return
 
     const at = yield* DateTime.now
-    yield* messages.update(new Message({ ...generating, text: current, updatedAt: at }))
+    yield* writeStage(
+      new Message({ ...generating, text: current, updatedAt: at }),
+      generating.stage,
+    )
     yield* Ref.set(written, current)
   })
 
@@ -97,10 +110,9 @@ const alreadySettled = Effect.logInfo('assistant reply skipped: already settled'
 
 const chatDeleted = Effect.logInfo('assistant reply skipped: chat deleted')
 
-const writeSettled = Effect.fnUntraced(function* (settled: Message) {
+const writeSettled = Effect.fnUntraced(function* (settled: Message, from: MessageStage) {
   const chats = yield* ChatRepository
-  const messages = yield* MessageRepository
-  yield* messages.update(settled)
+  yield* writeStage(settled, from)
   yield* touchChat(chats, { chatId: settled.chatId, at: settled.updatedAt })
 })
 
@@ -115,25 +127,23 @@ type ReplyServices =
 
 const reply = Effect.fnUntraced(function* (
   taken: Message,
-): Effect.fn.Return<void, ReplyError, ReplyServices> {
-  const messages = yield* MessageRepository
-
+): Effect.fn.Return<void, ReplyError | MessageSettledError, ReplyServices> {
   // Refused only for a terminal message: the reply was written before this take's lock expired.
   const takenAt = yield* DateTime.now
   const entry = yield* Effect.option(prepareMessage(taken, takenAt))
   if (Option.isNone(entry)) return yield* alreadySettled
   const prepared = entry.value
-  yield* messages.update(prepared)
+  yield* writeStage(prepared, taken.stage)
 
   const history = yield* readHistory(prepared.chatId)
   const generatingAt = yield* DateTime.now
   const generating = yield* generateMessage(prepared, generatingAt)
-  yield* messages.update(generating)
+  yield* writeStage(generating, prepared.stage)
 
   const text = yield* streamSnapshots(generating, streamAssistantText(buildChatPrompt(history)))
   const completedAt = yield* DateTime.now
   const completed = yield* completeMessage(generating, { text, at: completedAt })
-  yield* writeSettled(completed)
+  yield* writeSettled(completed, generating.stage)
 })
 
 const findReply = Effect.fnUntraced(function* (
@@ -163,7 +173,8 @@ const failReply = Effect.fnUntraced(function* (
     cause: Cause.pretty(cause),
     at: failedAt,
   })
-  yield* writeSettled(failed)
+  const settled = writeSettled(failed, active.value.stage)
+  yield* Effect.catchTag(settled, 'MessageSettledError', () => alreadySettled)
 })
 
 const findAndReply = Effect.fnUntraced(function* (
@@ -171,7 +182,8 @@ const findAndReply = Effect.fnUntraced(function* (
 ): Effect.fn.Return<void, ReplyError, ReplyServices> {
   const message = yield* findReply(job)
   if (Option.isNone(message)) return yield* chatDeleted
-  yield* reply(message.value)
+  const replied = reply(message.value)
+  yield* Effect.catchTag(replied, 'MessageSettledError', () => alreadySettled)
 })
 
 const handle = Effect.fn('AssistantMessageJob.handle')(function* (

@@ -19,8 +19,8 @@ export class DeleteChatUseCase extends Context.Service<
     const attachmentService = yield* AttachmentService
     const userLock = yield* UserLock
 
-    // Each step leaves what the next one reads, so a retry after a crash finishes the cascade:
-    // the attachments go while the messages still list them.
+    // The attachments go first, while the messages still list them: a bound attachment makes the
+    // chat's delete die, and the cascade from the chat cannot reach their bytes.
     const remove = Effect.fn('DeleteChatUseCase.delete')(function* (
       userId: UserId,
       chatId: ChatId,

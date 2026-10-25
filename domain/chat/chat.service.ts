@@ -36,6 +36,7 @@ export class ChatRepository extends Context.Service<
     readonly selectById: (id: ChatId) => Effect.Effect<Option.Option<Chat>>
     /** Returns the user's chats unordered. */
     readonly selectByUser: (userId: UserId) => Effect.Effect<ReadonlyArray<Chat>>
+    /** Removes the chat with its messages; dies while one of them has an attachment. */
     readonly delete: (id: ChatId) => Effect.Effect<void>
   }
 >()('@app-template/domain/chat/ChatRepository') {}
@@ -43,14 +44,18 @@ export class ChatRepository extends Context.Service<
 export class MessageRepository extends Context.Service<
   MessageRepository,
   {
-    readonly insert: (message: Message) => Effect.Effect<void>
-    readonly update: (message: Message) => Effect.Effect<void>
+    /** Answers `false` and writes nothing when the message is active and its chat has one. */
+    readonly insert: (message: Message) => Effect.Effect<boolean>
+    /** Answers `false` and writes nothing unless the stored message is in stage `from`. */
+    readonly update: (
+      message: Message,
+      options: { readonly from: MessageStage },
+    ) => Effect.Effect<boolean>
     readonly selectById: (id: MessageId) => Effect.Effect<Option.Option<Message>>
     /** Returns the chat's messages by `createdAt`, a tie broken by id. */
     readonly selectByChat: (chatId: ChatId) => Effect.Effect<ReadonlyArray<Message>>
     /** Returns the chat's active message, the one `isActiveMessage` holds for, if any. */
     readonly selectActiveByChat: (chatId: ChatId) => Effect.Effect<Option.Option<ActiveMessage>>
-    readonly deleteByChat: (chatId: ChatId) => Effect.Effect<void>
   }
 >()('@app-template/domain/chat/MessageRepository') {}
 

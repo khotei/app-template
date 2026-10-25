@@ -137,14 +137,7 @@ const renameChat = Effect.flatMap(ChatRepository, (chats) =>
   chats.update(new Chat({ ...chat, title: Option.some(ChatTitle.make('Trip')) })),
 )
 
-const deleteMessages = Effect.flatMap(MessageRepository, (messages) =>
-  messages.deleteByChat(chatId),
-)
-
-const deleteChat = Effect.andThen(
-  deleteMessages,
-  Effect.flatMap(ChatRepository, (chats) => chats.delete(chatId)),
-)
+const deleteChat = Effect.flatMap(ChatRepository, (chats) => chats.delete(chatId))
 
 describe('ChatTitleJob.handle', () => {
   it.effect('titles the chat with the model text, trimmed and cut to the title limit', () => {
@@ -217,11 +210,11 @@ describe('ChatTitleJob.handle', () => {
     },
   )
 
-  it.live('leaves the chat untouched when it is left without its first message', () => {
+  it.live('leaves the chat untouched when its first message is missing', () => {
     const { prompts, logs, layer } = makeChatTitleHarness(answering('Lisbon weekend'))
     return Effect.gen(function* () {
-      yield* arrangeChat()
-      yield* deleteMessages
+      const chats = yield* ChatRepository
+      yield* chats.insert(chat)
 
       yield* runTitle
 

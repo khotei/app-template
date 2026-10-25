@@ -8,7 +8,7 @@ import {
   buildUserMessage,
   byLatestUpdate,
   Chat,
-  type ChatBusyError,
+  ChatBusyError,
   ChatId,
   ChatNotFoundError,
   ChatRepository,
@@ -94,7 +94,7 @@ export class ChatService extends Context.Service<
       input: MessageInput,
     ) => Effect.Effect<SendableChat, MessageInputInvalidError | ChatNotFoundError | ChatBusyError>
     readonly addUserMessage: (sendable: SendableChat) => Effect.Effect<Message>
-    readonly addAssistantMessage: (sendable: SendableChat) => Effect.Effect<Message>
+    readonly addAssistantMessage: (sendable: SendableChat) => Effect.Effect<Message, ChatBusyError>
     /** Moves the chat's `updatedAt` to the send's time, keeping a title written since the check. */
     readonly touch: (sendable: SendableChat) => Effect.Effect<void>
   }
@@ -162,10 +162,8 @@ export class ChatService extends Context.Service<
       return renamed
     }, userLock.withPermit)
 
-    // The messages go before the chat, so the title job reads a missing first message as a delete.
     const remove = Effect.fn('ChatService.delete')(function* (userId: UserId, chatId: ChatId) {
       yield* findOwnedChat(userId, chatId)
-      yield* messages.deleteByChat(chatId)
       yield* chats.delete(chatId)
     })
 
@@ -228,7 +226,8 @@ export class ChatService extends Context.Service<
         createdAt: sendable.at,
       })
 
-      yield* messages.insert(message)
+      const inserted = yield* messages.insert(message)
+      if (!inserted) return yield* new ChatBusyError({ id: sendable.chatId })
       return message
     })
 

@@ -1,14 +1,14 @@
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { Array as Arr, Effect, Layer, Option, Schema } from 'effect'
 
-import {
-  ActiveMessageStage,
-  type ChatId,
-  isActiveMessage,
-  MessageRepository,
-} from '@app-template/domain/chat'
+import { ActiveMessageStage, isActiveMessage, MessageRepository } from '@app-template/domain/chat'
 
-import { decodeMessage, MessageInsert, messages } from '#infrastructure/chat/message.entity'
+import {
+  activeMessage,
+  decodeMessage,
+  MessageInsert,
+  messages,
+} from '#infrastructure/chat/message.entity'
 import { Db, decodeFound, orDieWithSqlError } from '#infrastructure/db/db.client'
 
 const encodeMessage = Schema.encodeEffect(MessageInsert)
@@ -23,11 +23,23 @@ export const MessageRepositoryPg = Layer.effect(
     MessageRepository.of({
       insert: Effect.fn('MessageRepository.insert')(function* (message) {
         const row = yield* encodeMessage(message)
-        yield* db.insert(messages).values(row)
+
+        const inserted = yield* db
+          .insert(messages)
+          .values(row)
+          .onConflictDoNothing({ target: messages.chatId, where: activeMessage })
+          .returning({ id: messages.id })
+        return Arr.isReadonlyArrayNonEmpty(inserted)
       }, orDieWithSqlError),
-      update: Effect.fn('MessageRepository.update')(function* (message) {
+      update: Effect.fn('MessageRepository.update')(function* (message, { from }) {
         const row = yield* encodeMessage(message)
-        yield* db.update(messages).set(row).where(eq(messages.id, message.id))
+
+        const updated = yield* db
+          .update(messages)
+          .set(row)
+          .where(and(eq(messages.id, message.id), eq(messages.stage, from)))
+          .returning({ id: messages.id })
+        return Arr.isReadonlyArrayNonEmpty(updated)
       }, orDieWithSqlError),
       selectById: Effect.fn('MessageRepository.selectById')(function* (id) {
         const row = yield* db.query.messages.findFirst({ where: { id }, with: withAttachmentIds })
@@ -53,10 +65,6 @@ export const MessageRepositoryPg = Layer.effect(
         const found = yield* decodeFound(row, decodeMessage)
         return Option.filter(found, isActiveMessage)
       }, orDieWithSqlError),
-      deleteByChat: Effect.fn('MessageRepository.deleteByChat')(
-        (chatId: ChatId) => db.delete(messages).where(eq(messages.chatId, chatId)),
-        orDieWithSqlError,
-      ),
     }),
   ),
 )
