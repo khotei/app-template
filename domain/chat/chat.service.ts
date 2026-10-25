@@ -41,16 +41,16 @@ export class ChatRepository extends Context.Service<
   }
 >()('@app-template/domain/chat/ChatRepository') {}
 
+/** The stored fields a conditional write requires; the row is always found by the message's id. */
+export type MessageWhere = Pick<Message, 'stage'>
+
 export class MessageRepository extends Context.Service<
   MessageRepository,
   {
     /** Answers `false` and writes nothing when the message is active and its chat has one. */
     readonly insert: (message: Message) => Effect.Effect<boolean>
-    /** Answers `false` and writes nothing unless the stored message is in stage `from`. */
-    readonly update: (
-      message: Message,
-      options: { readonly from: MessageStage },
-    ) => Effect.Effect<boolean>
+    /** Writes `message` only while the stored one matches `where`; answers whether it wrote. */
+    readonly update: (message: Message, where: MessageWhere) => Effect.Effect<boolean>
     readonly selectById: (id: MessageId) => Effect.Effect<Option.Option<Message>>
     /** Returns the chat's messages by `createdAt`, a tie broken by id. */
     readonly selectByChat: (chatId: ChatId) => Effect.Effect<ReadonlyArray<Message>>

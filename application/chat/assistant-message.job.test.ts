@@ -132,10 +132,10 @@ const makeAssistantMessageHarness = <E, R>(
     Effect.map(MessageRepository, (inner) =>
       MessageRepository.of({
         ...inner,
-        update: (message, options) =>
+        update: (message, where) =>
           Effect.andThen(
             Effect.sync(() => writes.push(message)),
-            inner.update(message, options),
+            inner.update(message, where),
           ),
       }),
     ),
@@ -420,7 +420,7 @@ describe('AssistantMessageJob.handle', () => {
         yield* held.asked
         const generating = yield* selectReply
         const settledElsewhere = asCompleted(generating, 'Done elsewhere.')
-        yield* messages.update(settledElsewhere, { from: 'generating' })
+        yield* messages.update(settledElsewhere, { stage: 'generating' })
         yield* held.release
         const exit = yield* Fiber.join(running)
 

@@ -119,21 +119,20 @@ query states its intent; `decodeFound` from `db.client.ts` decodes the row it fo
 ## Guards
 
 A rule that two writers could break between a read and a write is held by the database, in the
-statement that writes, and the port answers whether it wrote:
+statement that writes. A conditional write answers whether it wrote:
 
 - **Insert under a partial unique index.** `MessageRepository.insert` adds `ON CONFLICT
   (chat_id) WHERE <activeMessage> DO NOTHING RETURNING id` (Drizzle's `onConflictDoNothing({
   target, where })`), so a second active reply in a chat writes nothing and answers `false`;
   the application turns that into `ChatBusyError`. Any other message inserts.
-- **Update from a stage.** `MessageRepository.update(message, { from })` adds `WHERE stage =
-  from`, so a write whose source stage another writer has left changes nothing and answers
-  `false`; the reply job then stops as settled by someone else.
-- **Delete by the cascade.** `ChatRepository.delete` is one statement: the messages go by
-  `ON DELETE CASCADE`, and a message with an attachment stops it (`RESTRICT`), so the
-  attachments are removed first.
+- **Update under a `where`.** `MessageRepository.update(message, where)` runs `WHERE id = …
+  AND <where fields>`, its `where` a `MessageWhere` of the model's fields (`{ stage }`), so a
+  write whose expected stage another writer has left changes nothing and answers `false`; the
+  reply job then stops as settled by someone else.
 
-A port answers with a value and keeps no error channel; the application raises the domain error
-or skips.
+A delete needs no answer: `ChatRepository.delete` is one statement, the messages go by `ON
+DELETE CASCADE`, and a message with an attachment makes it die (`RESTRICT`), so the attachments
+are removed first.
 
 ## Migrations
 

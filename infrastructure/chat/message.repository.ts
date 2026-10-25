@@ -1,7 +1,13 @@
-import { and, eq } from 'drizzle-orm'
+import { and, eq, type SQL } from 'drizzle-orm'
 import { Array as Arr, Effect, Layer, Option, Schema } from 'effect'
 
-import { ActiveMessageStage, isActiveMessage, MessageRepository } from '@app-template/domain/chat'
+import {
+  ActiveMessageStage,
+  isActiveMessage,
+  MessageRepository,
+  type MessageStage,
+  type MessageWhere,
+} from '@app-template/domain/chat'
 
 import {
   activeMessage,
@@ -13,6 +19,10 @@ import { Db, decodeFound, orDieWithSqlError } from '#infrastructure/db/db.client
 
 const encodeMessage = Schema.encodeEffect(MessageInsert)
 
+const whereColumns = {
+  stage: (stage: MessageStage) => eq(messages.stage, stage),
+} as const satisfies { readonly [K in keyof MessageWhere]: (value: MessageWhere[K]) => SQL }
+
 const withAttachmentIds = {
   attachments: { columns: { id: true }, orderBy: { createdAt: 'asc', id: 'asc' } },
 } as const
@@ -23,7 +33,6 @@ export const MessageRepositoryPg = Layer.effect(
     MessageRepository.of({
       insert: Effect.fn('MessageRepository.insert')(function* (message) {
         const row = yield* encodeMessage(message)
-
         const inserted = yield* db
           .insert(messages)
           .values(row)
@@ -31,13 +40,12 @@ export const MessageRepositoryPg = Layer.effect(
           .returning({ id: messages.id })
         return Arr.isReadonlyArrayNonEmpty(inserted)
       }, orDieWithSqlError),
-      update: Effect.fn('MessageRepository.update')(function* (message, { from }) {
+      update: Effect.fn('MessageRepository.update')(function* (message, where) {
         const row = yield* encodeMessage(message)
-
         const updated = yield* db
           .update(messages)
           .set(row)
-          .where(and(eq(messages.id, message.id), eq(messages.stage, from)))
+          .where(and(eq(messages.id, message.id), whereColumns.stage(where.stage)))
           .returning({ id: messages.id })
         return Arr.isReadonlyArrayNonEmpty(updated)
       }, orDieWithSqlError),

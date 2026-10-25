@@ -116,7 +116,7 @@ describe('MessageRepositoryPg', () => {
       )
 
       const completed = yield* completeMessage(queued, { text: 'Hello', at: at(1) })
-      yield* messages.update(completed, { from: 'queued' })
+      yield* messages.update(completed, { stage: 'queued' })
 
       assert.deepStrictEqual(yield* messages.selectActiveByChat(chatId), Option.none())
     }).pipe(Effect.provide(RepositoryStackPgTest)),
@@ -193,7 +193,7 @@ describe('MessageRepositoryPg', () => {
       yield* insertOwnedChats(userId, [chatId])
       yield* messages.insert(generating)
 
-      const updated = yield* messages.update(completed, { from: 'preparing' })
+      const updated = yield* messages.update(completed, { stage: 'preparing' })
 
       assert.isFalse(updated)
       assertSchemaEquals(
@@ -215,7 +215,7 @@ describe('MessageRepositoryPg', () => {
       const completed = yield* completeMessage(queued, { text: 'Hello', at: at(1) })
 
       const updated = yield* Effect.forEach([completed, unknown], (each) =>
-        messages.update(each, { from: 'queued' }),
+        messages.update(each, { stage: 'queued' }),
       )
 
       assert.deepStrictEqual(updated, [true, false])

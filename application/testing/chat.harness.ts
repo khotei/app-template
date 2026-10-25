@@ -101,7 +101,7 @@ export const settle = (message: Message) =>
 
     const prepared = yield* prepareMessage(message, at)
     const completed = yield* completeMessage(prepared, { text: 'Sure.', at })
-    yield* messages.update(completed, { from: message.stage })
+    yield* messages.update(completed, { stage: message.stage })
   })
 
 export const selectChat = (chatId: ChatId) =>

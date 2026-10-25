@@ -111,7 +111,7 @@ describe('ChatRepositoryPg', () => {
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
-  it.effect('delete fails and removes nothing while a message of the chat has an attachment', () =>
+  it.effect('delete dies and removes nothing while a message of the chat has an attachment', () =>
     Effect.gen(function* () {
       const chats = yield* ChatRepository
       const messages = yield* MessageRepository
