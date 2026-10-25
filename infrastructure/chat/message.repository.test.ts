@@ -1,8 +1,8 @@
 import { assert, describe, it } from '@effect/vitest'
-import { DateTime, Effect, Option, Schema } from 'effect'
+import { Array as Arr, DateTime, Effect, Option, Schema } from 'effect'
 
 import {
-  Attachment,
+  type Attachment,
   AttachmentId,
   AttachmentRepository,
   buildAttachment,
@@ -72,13 +72,11 @@ const Messages = Schema.Array(Message)
 const bindAttachments = (attachments: ReadonlyArray<Attachment>, message: Message) =>
   Effect.gen(function* () {
     const repository = yield* AttachmentRepository
-    const messageId = Option.some(message.id)
 
     yield* Effect.forEach(attachments, repository.insert, { discard: true })
-    yield* Effect.forEach(
-      attachments,
-      (each) => repository.update(new Attachment({ ...each, messageId })),
-      { discard: true },
+    yield* repository.bind(
+      Arr.map(attachments, (each) => each.id),
+      message.id,
     )
   })
 

@@ -13,6 +13,7 @@ import {
   ChatNotFoundError,
   ChatRepository,
   type ChatTitle,
+  ChatTitledError,
   ensureChatAcceptsMessage,
   ensureMessageInput,
   isInChat,
@@ -25,9 +26,6 @@ import {
 } from '@app-template/domain/chat'
 import { ensureFound } from '@app-template/domain/shared'
 import { isOwnedBy, type UserId } from '@app-template/domain/user'
-
-import { touchChat } from '#application/chat/touch-chat'
-import { UserLock } from '#application/user/user-lock'
 
 export interface MessageDetail {
   readonly message: Message
@@ -76,6 +74,11 @@ export class ChatService extends Context.Service<
       chatId: ChatId,
       title: ChatTitle,
     ) => Effect.Effect<Chat, ChatNotFoundError>
+    /** Titles a chat no one has titled yet, in one conditional write, keeping its `updatedAt`. */
+    readonly updateTitle: (
+      chatId: ChatId,
+      title: ChatTitle,
+    ) => Effect.Effect<void, ChatNotFoundError | ChatTitledError>
     /**
      * Removes the chat with its messages, whether or not a reply runs.
      *
@@ -104,9 +107,6 @@ export class ChatService extends Context.Service<
     const messages = yield* MessageRepository
     const attachments = yield* AttachmentRepository
     const crypto = yield* Crypto.Crypto
-    // `rename` shares the user's lock with the send: `touch` re-reads the chat and then writes it,
-    // so a rename landing between the two would be undone.
-    const userLock = yield* UserLock
     const randomUuid = Effect.orDie(crypto.randomUUIDv7())
     const randomChatId = Effect.map(randomUuid, ChatId.make)
     const randomMessageId = Effect.map(randomUuid, MessageId.make)
@@ -158,9 +158,28 @@ export class ChatService extends Context.Service<
       const updatedAt = yield* DateTime.now
       const renamed = new Chat({ ...chat, title: Option.some(title), updatedAt })
 
-      yield* chats.update(renamed)
+      const written = yield* chats.update({ title: renamed.title, updatedAt }, { id: chatId })
+      if (!written) return yield* new ChatNotFoundError({ id: chatId })
       return renamed
-    }, userLock.withPermit)
+    })
+
+    const updateTitle = Effect.fn('ChatService.updateTitle')(function* (
+      chatId: ChatId,
+      title: ChatTitle,
+    ) {
+      const written = yield* chats.update(
+        { title: Option.some(title) },
+        { id: chatId, title: Option.none() },
+      )
+      if (written) return
+
+      // Read only to name the refusal: the write above already decided it.
+      const found = yield* chats.selectById(chatId)
+      return yield* Option.match(found, {
+        onNone: () => new ChatNotFoundError({ id: chatId }),
+        onSome: () => new ChatTitledError({ id: chatId }),
+      })
+    })
 
     const remove = Effect.fn('ChatService.delete')(function* (userId: UserId, chatId: ChatId) {
       yield* findOwnedChat(userId, chatId)
@@ -232,7 +251,7 @@ export class ChatService extends Context.Service<
     })
 
     const touch = Effect.fn('ChatService.touch')((sendable: SendableChat) =>
-      touchChat(chats, { chatId: sendable.chatId, at: sendable.at }),
+      Effect.asVoid(chats.update({ updatedAt: sendable.at }, { id: sendable.chatId })),
     )
 
     return {
@@ -240,6 +259,7 @@ export class ChatService extends Context.Service<
       list,
       get,
       rename,
+      updateTitle,
       delete: remove,
       getMessage,
       findSendable,
@@ -249,5 +269,5 @@ export class ChatService extends Context.Service<
     }
   }),
 }) {
-  static readonly layer = Layer.effect(this, this.make).pipe(Layer.provide(UserLock.layer))
+  static readonly layer = Layer.effect(this, this.make)
 }

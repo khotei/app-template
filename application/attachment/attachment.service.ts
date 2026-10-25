@@ -12,8 +12,8 @@ import {
 } from 'effect'
 
 import {
-  Attachment,
-  type AttachmentBoundError,
+  type Attachment,
+  AttachmentBoundError,
   type AttachmentDownload,
   AttachmentId,
   type AttachmentMeta,
@@ -31,23 +31,6 @@ import type { UserId } from '@app-template/domain/user'
 export interface AttachmentUpload<E> extends AttachmentMeta {
   readonly content: Stream.Stream<Uint8Array, E>
 }
-
-/**
- * Proof that these attachments may be bound: only `AttachmentService.findBindable` builds one,
- * after it checked that each is visible to the user and unbound.
- *
- * It holds only while the caller keeps the user's `UserLock` from the check to the bind.
- */
-class BindableAttachments {
-  declare private readonly proof: never
-
-  constructor(
-    /** In the order of the ids asked for. */
-    readonly attachments: ReadonlyArray<Attachment>,
-  ) {}
-}
-
-export type { BindableAttachments }
 
 /** An attachment unbound for `unboundLifetime` reads as not found; no read deletes it. */
 export class AttachmentService extends Context.Service<
@@ -74,15 +57,16 @@ export class AttachmentService extends Context.Service<
       userId: UserId,
       id: AttachmentId,
     ) => Effect.Effect<void, AttachmentNotFoundError | AttachmentBoundError>
-    readonly findBindable: (
+    /**
+     * Binds the user's attachments to the message and returns them bound, in the order asked; an
+     * id another bind took since the check fails `AttachmentBoundError`, the others staying bound
+     * unless the caller's transaction rolls back.
+     */
+    readonly bind: (
       userId: UserId,
       ids: ReadonlyArray<AttachmentId>,
-    ) => Effect.Effect<BindableAttachments, AttachmentNotFoundError | AttachmentBoundError>
-    /** Binds the attachments to the message, and returns them bound. */
-    readonly bind: (
-      bindable: BindableAttachments,
       messageId: MessageId,
-    ) => Effect.Effect<ReadonlyArray<Attachment>>
+    ) => Effect.Effect<ReadonlyArray<Attachment>, AttachmentNotFoundError | AttachmentBoundError>
     /**
      * Removes these attachments, bound or not; an id already removed is skipped, so a retried
      * cascade finishes.
@@ -174,36 +158,32 @@ export class AttachmentService extends Context.Service<
     })
 
     // One batch read; the refusal still names the first bad id in the order asked.
-    const findBindable = Effect.fn('AttachmentService.findBindable')(function* (
+    const bind = Effect.fn('AttachmentService.bind')(function* (
       userId: UserId,
       ids: ReadonlyArray<AttachmentId>,
+      messageId: MessageId,
     ) {
       const stored = yield* attachments.selectByIds(ids)
       const now = yield* DateTime.now
       const found = new Map(Arr.map(stored, (attachment) => [attachment.id, attachment]))
 
-      const bindable = yield* Effect.forEach(ids, (id) =>
+      yield* Effect.forEach(ids, (id) =>
         ensureBindable(Option.fromUndefinedOr(found.get(id)), { id, userId, now }),
-      )
-      return new BindableAttachments(bindable)
-    })
-
-    const bind = Effect.fn('AttachmentService.bind')(function* (
-      bindable: BindableAttachments,
-      messageId: MessageId,
-    ) {
-      const bound = Arr.map(
-        bindable.attachments,
-        (attachment) => new Attachment({ ...attachment, messageId: Option.some(messageId) }),
       )
 
       // Keep first: unbound bytes expire, so a crash must never leave a bound row over them.
-      yield* Effect.forEach(bound, (attachment) => store.keep(attachment.id), { discard: true })
-      yield* Effect.forEach(bound, attachments.update, { discard: true })
-      return bound
+      yield* Effect.forEach(ids, store.keep, { discard: true })
+      const boundNow = yield* attachments.bind(ids, messageId)
+      const bound = new Map(Arr.map(boundNow, (attachment) => [attachment.id, attachment]))
+      return yield* Effect.forEach(ids, (id) =>
+        Effect.fromOption(
+          Option.fromUndefinedOr(bound.get(id)),
+          () => new AttachmentBoundError({ id }),
+        ),
+      )
     })
 
-    return { upload, get, download, delete: remove, findBindable, bind, deleteByIds }
+    return { upload, get, download, delete: remove, bind, deleteByIds }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

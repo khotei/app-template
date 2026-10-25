@@ -1,7 +1,7 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, Duration, Effect, Exit, Layer, Option, Stream } from 'effect'
+import { Array as Arr, Duration, Effect, Exit, Layer, Option, Schema, Stream } from 'effect'
 import { TestClock } from 'effect/testing'
 
 import {
@@ -32,6 +32,7 @@ import {
 import { AttachmentService } from '#application/attachment/attachment.service'
 import { AttachmentObjects, AttachmentStoreMemory } from '#application/testing/attachment.fake'
 import { unknownAttachmentId } from '#application/testing/attachment.fixture'
+import { AttachmentRepositoryYielding } from '#application/testing/chat.fake'
 import { chat, chatId, epoch, messageId } from '#application/testing/chat.fixture'
 import { upload } from '#application/testing/chat.harness'
 import { DbWithUsers } from '#application/testing/db.harness'
@@ -62,6 +63,9 @@ const layerAttachmentService = (repository: Layer.Layer<AttachmentRepository, ne
   )
 
 const AttachmentServiceTest = layerAttachmentService(AttachmentRepositoryPg)
+
+// Yields after the read, so two binds both pass the check before either writes.
+const AttachmentServiceSelectYielding = layerAttachmentService(AttachmentRepositoryYielding)
 
 const AttachmentRepositoryInsertDying = Layer.effect(
   AttachmentRepository,
@@ -125,15 +129,18 @@ const addressers = [
   ...readers,
   { name: 'delete', address: (service, userId, id) => service.delete(userId, id) },
   {
-    name: 'findBindable',
-    address: (service, userId, id) => Effect.asVoid(service.findBindable(userId, [id])),
+    name: 'bind',
+    address: (service, userId, id) => Effect.asVoid(service.bind(userId, [id], messageId)),
   },
 ] as const satisfies ReadonlyArray<Addresser>
 
 const bind = (attachment: Attachment) =>
   Effect.flatMap(AttachmentRepository, (attachments) =>
-    attachments.update(new Attachment({ ...attachment, messageId: Option.some(messageId) })),
+    attachments.bind([attachment.id], messageId),
   )
+
+const boundTo = (attachment: Attachment) =>
+  new Attachment({ ...attachment, messageId: Option.some(messageId) })
 
 const selectStored = (ids: ReadonlyArray<AttachmentId>) =>
   Effect.flatMap(AttachmentRepository, (attachments) => attachments.selectByIds(ids))
@@ -305,38 +312,55 @@ describe('AttachmentService', () => {
     }).pipe(Effect.provide(AttachmentServiceTest)),
   )
 
-  it.effect("findBindable returns the user's unbound attachments in the order asked", () =>
+  it.effect(
+    "bind binds the user's attachments to the message and returns them in the order asked",
+    () =>
+      Effect.gen(function* () {
+        const service = yield* AttachmentService
+        const first = yield* uploadPhoto
+        const second = yield* uploadPhoto
+
+        const bound = yield* service.bind(owner, [second.id, first.id], messageId)
+
+        assertEquals(bound, [boundTo(second), boundTo(first)])
+        assertEquals(yield* selectStored([second.id, first.id]), bound)
+      }).pipe(Effect.provide(AttachmentServiceTest)),
+  )
+
+  it.effect('bind with a bound attachment is AttachmentBoundError and binds nothing else', () =>
     Effect.gen(function* () {
       const service = yield* AttachmentService
-      const first = yield* uploadPhoto
-      const second = yield* uploadPhoto
+      const free = yield* uploadPhoto
+      const taken = yield* uploadPhoto
+      yield* bind(taken)
 
-      const bindable = yield* service.findBindable(owner, [second.id, first.id])
+      const error = yield* Effect.flip(service.bind(owner, [free.id, taken.id], messageId))
 
-      assertEquals(bindable.attachments, [second, first])
+      assertSchemaEquals(AttachmentBoundError, error, new AttachmentBoundError({ id: taken.id }))
+      assertEquals(yield* selectStored([free.id, taken.id]), [free, boundTo(taken)])
     }).pipe(Effect.provide(AttachmentServiceTest)),
   )
 
-  it.effect('bind stores the attachments bound to the message and returns them', () =>
+  it.effect('two concurrent binds of one attachment: one binds it, the other is refused', () =>
     Effect.gen(function* () {
       const service = yield* AttachmentService
-      const attachments = [yield* uploadPhoto, yield* uploadPhoto]
-      const bindable = yield* service.findBindable(
-        owner,
-        Arr.map(attachments, (attachment) => attachment.id),
+      const photo = yield* uploadPhoto
+
+      const exits = yield* Effect.all(
+        [
+          Effect.exit(service.bind(owner, [photo.id], messageId)),
+          Effect.exit(service.bind(owner, [photo.id], messageId)),
+        ],
+        { concurrency: 'unbounded' },
       )
 
-      const bound = yield* service.bind(bindable, messageId)
-
-      assertEquals(
-        bound,
-        Arr.map(
-          attachments,
-          (attachment) => new Attachment({ ...attachment, messageId: Option.some(messageId) }),
-        ),
+      assertEquals(Arr.getSomes(Arr.map(exits, Exit.getSuccess)), [[boundTo(photo)]])
+      assertSchemaEquals(
+        Schema.Array(AttachmentBoundError),
+        Arr.getSomes(Arr.map(exits, Exit.findErrorOption)),
+        [new AttachmentBoundError({ id: photo.id })],
       )
-      assertEquals(yield* selectStored(Arr.map(attachments, (attachment) => attachment.id)), bound)
-    }).pipe(Effect.provide(AttachmentServiceTest)),
+    }).pipe(Effect.provide(AttachmentServiceSelectYielding)),
   )
 
   it.effect(

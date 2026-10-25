@@ -9,6 +9,7 @@ import {
   type FileSize,
   type MediaType,
 } from '#domain/attachment/attachment.model'
+import type { MessageId } from '#domain/chat/chat.id'
 import { ensureFound } from '#domain/shared/guard'
 import type { UserId } from '#domain/user/user.id'
 import { isOwnedBy } from '#domain/user/user.service'
@@ -17,7 +18,14 @@ export class AttachmentRepository extends Context.Service<
   AttachmentRepository,
   {
     readonly insert: (attachment: Attachment) => Effect.Effect<void>
-    readonly update: (attachment: Attachment) => Effect.Effect<void>
+    /**
+     * Binds to the message each of these attachments that no message holds, in one statement;
+     * returns the ones it bound, unordered, leaving out a bound or unknown id.
+     */
+    readonly bind: (
+      ids: ReadonlyArray<AttachmentId>,
+      messageId: MessageId,
+    ) => Effect.Effect<ReadonlyArray<Attachment>>
     readonly selectById: (id: AttachmentId) => Effect.Effect<Option.Option<Attachment>>
     /** Returns the attachments found, in the order asked; unknown ids are left out. */
     readonly selectByIds: (

@@ -1,3 +1,4 @@
+import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Exit, Fiber, Layer, Option } from 'effect'
@@ -11,13 +12,11 @@ import {
   MessageRepository,
   maxTitleLength,
 } from '@app-template/domain/chat'
-import {
-  ChatRepositoryPg,
-  GenerateChatTitle,
-  MessageRepositoryPg,
-} from '@app-template/infrastructure/chat'
+import { AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
+import { ChatPg, GenerateChatTitle } from '@app-template/infrastructure/chat'
 import { recordLogs } from '@app-template/testing'
 
+import { ChatService } from '#application/chat/chat.service'
 import { ChatTitleJob } from '#application/chat/chat-title.job'
 import { chat, chatId, epoch, messageId } from '#application/testing/chat.fixture'
 import { selectChat } from '#application/testing/chat.harness'
@@ -34,8 +33,9 @@ type Answer = Effect.Effect<Array<Response.PartEncoded>, AiError.AiError>
 const makeChatTitleHarness = (answer: Answer) => {
   const { prompts, layer: model } = recordLanguageModel({ generateText: answer })
   const { logs, layer: logger } = recordLogs()
-  const layer = Layer.mergeAll(ChatRepositoryPg, MessageRepositoryPg, model, logger).pipe(
-    Layer.provide(DbWithUsers),
+  const layer = Layer.mergeAll(ChatService.layer, model, logger).pipe(
+    Layer.provideMerge(Layer.merge(ChatPg, AttachmentRepositoryPg)),
+    Layer.provide([DbWithUsers, BunCrypto.layer]),
   )
   return { prompts, logs, layer }
 }
@@ -66,13 +66,13 @@ const heldAnswer = (held: ModelCallHold) => Effect.andThen(held.hold, answering(
 const moments = [
   {
     name: 'before the take',
-    modelCalls: 0,
+    modelCallsAfterDelete: 0,
     run: <R>(held: ModelCallHold, change: Effect.Effect<void, never, R>) =>
       change.pipe(Effect.andThen(held.release), Effect.andThen(runTitle)),
   },
   {
     name: 'while the model answers',
-    modelCalls: 1,
+    modelCallsAfterDelete: 1,
     run: <R>(held: ModelCallHold, change: Effect.Effect<void, never, R>) =>
       Effect.gen(function* () {
         const running = yield* Effect.forkChild(runTitle)
@@ -134,7 +134,7 @@ const untitledOpenings = [
 ] as const
 
 const renameChat = Effect.flatMap(ChatRepository, (chats) =>
-  chats.update(new Chat({ ...chat, title: Option.some(ChatTitle.make('Trip')) })),
+  Effect.asVoid(chats.update({ title: Option.some(ChatTitle.make('Trip')) }, { id: chatId })),
 )
 
 const deleteChat = Effect.flatMap(ChatRepository, (chats) => chats.delete(chatId))
@@ -177,7 +177,7 @@ describe('ChatTitleJob.handle', () => {
     }).pipe(Effect.provide(layer))
   })
 
-  it.effect.each(moments)('keeps a title the user set $name', ({ run, modelCalls }) => {
+  it.effect.each(moments)('keeps a title the user set $name', ({ run }) => {
     const held = holdModelCall()
     const { prompts, logs, layer } = makeChatTitleHarness(heldAnswer(held))
     return Effect.gen(function* () {
@@ -189,14 +189,14 @@ describe('ChatTitleJob.handle', () => {
         yield* selectChat(chatId),
         Option.some(new Chat({ ...chat, title: Option.some(ChatTitle.make('Trip')) })),
       )
-      assert.strictEqual(prompts.length, modelCalls)
+      assert.strictEqual(prompts.length, 1)
       assert.deepStrictEqual(logs, [['Info', 'chat title skipped: already titled']])
     }).pipe(Effect.provide(layer))
   })
 
   it.effect.each(moments)(
     'ends with a log line when the chat is deleted $name',
-    ({ run, modelCalls }) => {
+    ({ run, modelCallsAfterDelete }) => {
       const held = holdModelCall()
       const { prompts, logs, layer } = makeChatTitleHarness(heldAnswer(held))
       return Effect.gen(function* () {
@@ -204,25 +204,11 @@ describe('ChatTitleJob.handle', () => {
 
         yield* run(held, deleteChat)
 
-        assert.strictEqual(prompts.length, modelCalls)
+        assert.strictEqual(prompts.length, modelCallsAfterDelete)
         assert.deepStrictEqual(logs, [['Info', 'chat title skipped: chat deleted']])
       }).pipe(Effect.provide(layer))
     },
   )
-
-  it.live('leaves the chat untouched when its first message is missing', () => {
-    const { prompts, logs, layer } = makeChatTitleHarness(answering('Lisbon weekend'))
-    return Effect.gen(function* () {
-      const chats = yield* ChatRepository
-      yield* chats.insert(chat)
-
-      yield* runTitle
-
-      assertEquals(yield* selectChat(chatId), Option.some(chat))
-      assert.deepStrictEqual(prompts, [])
-      assert.deepStrictEqual(logs, [['Info', 'chat title skipped: first message missing']])
-    }).pipe(Effect.provide(layer))
-  })
 
   it.effect.each(graphemeCuts)(
     'cuts the title at a whole grapheme with $name',

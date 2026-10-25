@@ -1,4 +1,5 @@
 import { Context, Effect, Layer } from 'effect'
+import { SqlClient } from 'effect/sql'
 
 import type { AttachmentBoundError, AttachmentNotFoundError } from '@app-template/domain/attachment'
 import type {
@@ -45,30 +46,31 @@ export class SendMessageUseCase extends Context.Service<
     const assistantJob = yield* AssistantMessageJob
     const titleJob = yield* ChatTitleJob
     const userLock = yield* UserLock
+    const sql = yield* SqlClient.SqlClient
 
     // The chat's `updatedAt` is written before the enqueues, so the send's own title job cannot
     // run before it.
-    const send = Effect.fn('SendMessageUseCase.send')(function* (
-      userId: UserId,
-      chatId: ChatId,
-      input: MessageInput,
-    ) {
-      const sendable = yield* chatService.findSendable(userId, chatId, input)
-      const bindable = yield* attachmentService.findBindable(userId, input.attachmentIds)
+    const send = Effect.fn('SendMessageUseCase.send')(
+      function* (userId: UserId, chatId: ChatId, input: MessageInput) {
+        const sendable = yield* chatService.findSendable(userId, chatId, input)
 
-      const userMessage = yield* chatService.addUserMessage(sendable)
-      const bound = yield* attachmentService.bind(bindable, userMessage.id)
-      const assistantMessage = yield* chatService.addAssistantMessage(sendable)
-      yield* chatService.touch(sendable)
+        const userMessage = yield* chatService.addUserMessage(sendable)
+        const bound = yield* attachmentService.bind(userId, input.attachmentIds, userMessage.id)
+        const assistantMessage = yield* chatService.addAssistantMessage(sendable)
+        yield* chatService.touch(sendable)
 
-      yield* assistantJob.enqueue(assistantMessage)
-      if (sendable.opensChat) yield* titleJob.enqueue(userMessage)
+        yield* assistantJob.enqueue(assistantMessage)
+        if (sendable.opensChat) yield* titleJob.enqueue(userMessage)
 
-      return {
-        userMessage: { message: userMessage, attachments: bound },
-        assistantMessage: { message: assistantMessage, attachments: [] },
-      }
-    }, userLock.withPermit)
+        return {
+          userMessage: { message: userMessage, attachments: bound },
+          assistantMessage: { message: assistantMessage, attachments: [] },
+        }
+      },
+      sql.withTransaction,
+      Effect.catchTag('SqlError', Effect.die),
+      userLock.withPermit,
+    )
 
     return { send }
   }),

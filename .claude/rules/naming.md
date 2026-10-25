@@ -68,7 +68,7 @@ Test-support roles live only in `testing/`, listed by no barrel or `exports` sav
   - `is`: a predicate (`isActiveMessage`);
   - `find`: a read over ports in a service or job that returns the record (as an `Option`, or
     failing with its `*NotFoundError` or a refusal) or a lookup result (`findReply`,
-    `findOwnedChat`, `findBindable`); a port method never uses it;
+    `findOwnedChat`, `findSendable`); a port method never uses it;
   - `select` / `insert` / `update` / `upsert` / `delete`: persistence (`selectById`); `update`
     changes an existing record and never creates one.
 - Constants are `camelCase` with `as const` for literals; a `Layer` constant is `PascalCase`.

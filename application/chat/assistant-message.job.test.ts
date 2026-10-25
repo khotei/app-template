@@ -105,7 +105,12 @@ const makeStoresMemory = () => {
     chatsAndAttachments: Layer.mergeAll(
       Layer.mock(ChatRepository, {
         insert: putChat,
-        update: putChat,
+        update: (set, where) =>
+          Effect.sync(() => {
+            const chat = chats.get(where.id)
+            if (chat) chats.set(where.id, new Chat({ ...chat, ...set }))
+            return chat !== undefined
+          }),
         selectById: (id) => Effect.sync(() => Option.fromUndefinedOr(chats.get(id))),
       }),
       Layer.mock(AttachmentRepository, {}),
@@ -390,9 +395,7 @@ describe('AssistantMessageJob.handle', () => {
         ['preparing', ''],
         ['generating', ''],
       ])
-      yield* chats.update(
-        new Chat({ ...(yield* selectChat), title: Option.some(ChatTitle.make('Trip')) }),
-      )
+      yield* chats.update({ title: Option.some(ChatTitle.make('Trip')) }, { id: chatId })
       yield* held.release
       yield* Fiber.join(running)
 

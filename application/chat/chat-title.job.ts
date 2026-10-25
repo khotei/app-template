@@ -1,13 +1,6 @@
-import { Context, Effect, Layer, Option, Predicate, Result } from 'effect'
+import { Context, Effect, Layer, Option } from 'effect'
 
-import {
-  Chat,
-  type ChatId,
-  ChatRepository,
-  isTitledChat,
-  type Message,
-  MessageRepository,
-} from '@app-template/domain/chat'
+import { type Message, MessageRepository } from '@app-template/domain/chat'
 import {
   chatTitleQueue,
   GenerateChatTitle,
@@ -15,45 +8,33 @@ import {
 } from '@app-template/infrastructure/chat'
 import { QueueClient, worker } from '@app-template/queue'
 
-type ChatLookupSkip = 'chatDeleted' | 'alreadyTitled'
+import { ChatService } from '#application/chat/chat.service'
 
-type TitleSkip = ChatLookupSkip | 'firstMessageMissing' | 'nothingToTitle'
+type TitleSkip = 'chatDeleted' | 'alreadyTitled' | 'nothingToTitle'
 
 const titleSkipLogs = {
   chatDeleted: Effect.logInfo('chat title skipped: chat deleted'),
   alreadyTitled: Effect.logInfo('chat title skipped: already titled'),
-  firstMessageMissing: Effect.logInfo('chat title skipped: first message missing'),
   nothingToTitle: Effect.logInfo('chat title skipped: nothing to title'),
 } as const satisfies Record<TitleSkip, Effect.Effect<void>>
 
-const findUntitledChat = Effect.fnUntraced(function* (
-  chatId: ChatId,
-): Effect.fn.Return<Result.Result<Chat, ChatLookupSkip>, never, ChatRepository> {
-  const chats = yield* ChatRepository
-  return Result.fromOption(
-    yield* chats.selectById(chatId),
-    (): ChatLookupSkip => 'chatDeleted',
-  ).pipe(Result.filterOrFail(Predicate.not(isTitledChat), (): ChatLookupSkip => 'alreadyTitled'))
-})
-
 const handle = Effect.fn('ChatTitleJob.handle')(function* (job: GenerateChatTitle) {
-  const chats = yield* ChatRepository
+  const chatService = yield* ChatService
   const messages = yield* MessageRepository
 
-  const untitledAtTake = yield* findUntitledChat(job.chatId)
-  if (Result.isFailure(untitledAtTake)) return yield* titleSkipLogs[untitledAtTake.failure]
+  // The cascade takes the first message with its chat, so a missing one means a deleted chat.
   const first = yield* messages.selectById(job.messageId)
-  if (Option.isNone(first)) return yield* titleSkipLogs.firstMessageMissing
+  if (Option.isNone(first)) return yield* titleSkipLogs.chatDeleted
 
   const title = yield* suggestChatTitle(first.value.text)
   if (Option.isNone(title)) return yield* titleSkipLogs.nothingToTitle
 
-  // Re-read right before the write, so a rename made while the model answered wins.
-  const untitledBeforeWrite = yield* findUntitledChat(job.chatId)
-  if (Result.isFailure(untitledBeforeWrite)) {
-    return yield* titleSkipLogs[untitledBeforeWrite.failure]
-  }
-  yield* chats.update(new Chat({ ...untitledBeforeWrite.success, title }))
+  yield* chatService.updateTitle(job.chatId, title.value).pipe(
+    Effect.catchTags({
+      ChatNotFoundError: () => titleSkipLogs.chatDeleted,
+      ChatTitledError: () => titleSkipLogs.alreadyTitled,
+    }),
+  )
 })
 
 export class ChatTitleJob extends Context.Service<
@@ -81,5 +62,5 @@ export class ChatTitleJob extends Context.Service<
 
   static readonly handle = handle
 
-  static readonly worker = worker(chatTitleQueue, handle)
+  static readonly worker = worker(chatTitleQueue, handle).pipe(Layer.provide(ChatService.layer))
 }

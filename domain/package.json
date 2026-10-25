@@ -13,7 +13,8 @@
     "#domain/*": "./*.ts"
   },
   "dependencies": {
-    "effect": "catalog:effect"
+    "effect": "catalog:effect",
+    "type-fest": "catalog:runtime"
   },
   "devDependencies": {
     "@app-template/testing": "workspace:*",

@@ -10,6 +10,7 @@ import {
   ChatNotFoundError,
   ChatRepository,
   ChatTitle,
+  ChatTitledError,
   MessageNotFoundError,
 } from '@app-template/domain/chat'
 import type { UserId } from '@app-template/domain/user'
@@ -188,6 +189,54 @@ describe('ChatService', () => {
           updatedAt: renamed.updatedAt,
         }),
       )
+      assertEquals(yield* selectChat(chat.id), Option.some(renamed))
+    }).pipe(Effect.provide(ChatTest)),
+  )
+
+  it.effect('updateTitle titles an untitled chat and keeps its updatedAt', () =>
+    Effect.gen(function* () {
+      const service = yield* ChatService
+
+      yield* service.updateTitle(chat.id, ChatTitle.make('Lisbon weekend'))
+
+      assertEquals(
+        yield* selectChat(chat.id),
+        Option.some(new Chat({ ...chat, title: Option.some(ChatTitle.make('Lisbon weekend')) })),
+      )
+    }).pipe(Effect.provide(ChatTest)),
+  )
+
+  it.effect('updateTitle of a titled chat is ChatTitledError and keeps the title', () =>
+    Effect.gen(function* () {
+      const service = yield* ChatService
+      const renamed = yield* service.rename(owner, chat.id, ChatTitle.make('Trip'))
+
+      const error = yield* Effect.flip(service.updateTitle(chat.id, ChatTitle.make('Lisbon')))
+
+      assertSchemaEquals(ChatTitledError, error, new ChatTitledError({ id: chat.id }))
+      assertEquals(yield* selectChat(chat.id), Option.some(renamed))
+    }).pipe(Effect.provide(ChatTest)),
+  )
+
+  it.effect('updateTitle of a deleted chat is ChatNotFoundError and writes nothing', () =>
+    Effect.gen(function* () {
+      const service = yield* ChatService
+      yield* service.delete(owner, chat.id)
+
+      const error = yield* Effect.flip(service.updateTitle(chat.id, ChatTitle.make('Lisbon')))
+
+      assertSchemaEquals(ChatNotFoundError, error, new ChatNotFoundError({ id: chat.id }))
+      assert.deepStrictEqual(yield* selectChat(chat.id), Option.none())
+    }).pipe(Effect.provide(ChatTest)),
+  )
+
+  it.effect('a rename after updateTitle replaces the generated title', () =>
+    Effect.gen(function* () {
+      const service = yield* ChatService
+      yield* service.updateTitle(chat.id, ChatTitle.make('Lisbon weekend'))
+
+      const renamed = yield* service.rename(owner, chat.id, ChatTitle.make('Trip'))
+
       assertEquals(yield* selectChat(chat.id), Option.some(renamed))
     }).pipe(Effect.provide(ChatTest)),
   )

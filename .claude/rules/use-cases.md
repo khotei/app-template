@@ -54,8 +54,9 @@ Do not wait for the method to grow: the exception is the signal.
 - A lock is not reentrant: the outermost holder takes it, the methods it calls do not.
 - It spans one process. Name the database guard that replaces it (a partial unique index, an
   `UPDATE … WHERE` on the free state) in the Risks of the ticket that adds it.
-- **Re-read before you write a record another process also writes,** and write only the fields you
-  own (`touchChat` writes `updatedAt`, never the title a worker set).
+- **Write only the fields you own of a record another process also writes,** and hold a rule in
+  the write's `where`, not in a read before it: the send's touch sets `updatedAt` alone, and the
+  title job writes only `where` the chat is still untitled.
 
 ## Tests
 

@@ -1,6 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Deferred, Effect, Exit, Fiber, Layer, Option, Ref } from 'effect'
+import { Deferred, Effect, Exit, Layer, Option, Ref } from 'effect'
 
 import { AttachmentStore } from '@app-template/domain/attachment'
 import { ChatNotFoundError, ChatRepository } from '@app-template/domain/chat'
@@ -92,18 +92,21 @@ describe('DeleteChatUseCase', () => {
       const sendMessage = yield* SendMessageUseCase
       const deleteChat = yield* DeleteChatUseCase
       const { interleaving } = yield* ChatFakes
-      const started = yield* Deferred.make<Fiber.Fiber<void, ChatNotFoundError>>()
-      interleaving.write = Effect.gen(function* () {
-        yield* Deferred.succeed(
-          started,
-          yield* Effect.forkDetach(deleteChat.delete(owner, chat.id)),
-        )
-        // Turns enough for a delete that does not wait to finish before the send writes.
-        yield* Effect.repeat(Effect.yieldNow, { times: 9 })
-      })
+      const checked = yield* Deferred.make<void>()
+      // Turns enough for a delete that does not wait to finish before the send writes.
+      interleaving.write = Effect.andThen(
+        Deferred.succeed(checked, undefined),
+        Effect.repeat(Effect.yieldNow, { times: 9 }),
+      )
 
-      yield* sendMessage.send(owner, chat.id, ask('Lisbon?'))
-      yield* Effect.flatMap(Deferred.await(started), Fiber.join)
+      // Started from the test's fiber: one forked inside the send would share its transaction.
+      yield* Effect.all(
+        [
+          sendMessage.send(owner, chat.id, ask('Lisbon?')),
+          Effect.andThen(Deferred.await(checked), deleteChat.delete(owner, chat.id)),
+        ],
+        { concurrency: 'unbounded', discard: true },
+      )
 
       assertEquals(yield* selectChat(chat.id), Option.none())
       assertEquals(yield* selectMessages(chat.id), [])

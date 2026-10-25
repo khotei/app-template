@@ -40,8 +40,6 @@ import {
 } from '@app-template/infrastructure/chat'
 import { type AttemptInfo, QueueClient, worker } from '@app-template/queue'
 
-import { touchChat } from '#application/chat/touch-chat'
-
 const snapshotInterval = Duration.millis(300)
 
 const readTurn = Effect.fnUntraced(function* (message: Message) {
@@ -111,7 +109,7 @@ const chatDeleted = Effect.logInfo('assistant reply skipped: chat deleted')
 const writeSettled = Effect.fnUntraced(function* (settled: Message, where: MessageWhere) {
   const chats = yield* ChatRepository
   yield* writeStage(settled, where)
-  yield* touchChat(chats, { chatId: settled.chatId, at: settled.updatedAt })
+  yield* chats.update({ updatedAt: settled.updatedAt }, { id: settled.chatId })
 })
 
 type ReplyError = AiError.AiError | MessageStageInvalidError

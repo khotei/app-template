@@ -12,7 +12,7 @@ import {
 } from '@app-template/domain/attachment'
 import { buildUserMessage, ChatId, MessageId, MessageRepository } from '@app-template/domain/chat'
 import { UserId } from '@app-template/domain/user'
-import { assertSchemaEquals } from '@app-template/testing'
+import { assertSchemaEquals, sortById } from '@app-template/testing'
 
 import { insertOwnedChats, RepositoryStackPgTest } from '#infrastructure/testing/repository-stacks'
 
@@ -59,7 +59,7 @@ describe('AttachmentRepositoryPg', () => {
       yield* attachments.insert(unbound)
 
       const beforeBind = yield* attachments.selectById(unbound.id)
-      yield* attachments.update(bound)
+      yield* attachments.bind([unbound.id], messageId)
       const afterBind = yield* attachments.selectById(unbound.id)
 
       assertSchemaEquals(SelectedAttachment, beforeBind, Option.some(unbound))
@@ -67,14 +67,39 @@ describe('AttachmentRepositoryPg', () => {
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
-  it.effect('update never creates an attachment', () =>
+  it.effect('bind returns the attachments it bound and leaves one bound before', () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentRepository
+      const messages = yield* MessageRepository
+      const nextMessageId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000051')
+      const first = attachment('0192d4e0-7b3a-7c00-8000-000000000021')
+      const second = attachment('0192d4e0-7b3a-7c00-8000-000000000022')
+      const free = [first, second]
+      const boundBefore = new Attachment({
+        ...attachment('0192d4e0-7b3a-7c00-8000-000000000023'),
+        messageId: Option.some(messageId),
+      })
       yield* insertMessage
+      yield* messages.insert(
+        buildUserMessage({ id: nextMessageId, chatId, text: 'Hi', attachmentIds: [], createdAt }),
+      )
+      yield* Effect.forEach(Arr.append(free, boundBefore), attachments.insert)
 
-      yield* attachments.update(attachment(unknownId))
+      const bound = yield* attachments.bind(
+        [first.id, boundBefore.id, unknownId, second.id],
+        nextMessageId,
+      )
 
-      assert.deepStrictEqual(yield* attachments.selectById(unknownId), Option.none())
+      const boundNow = Arr.map(
+        free,
+        (each) => new Attachment({ ...each, messageId: Option.some(nextMessageId) }),
+      )
+      assertSchemaEquals(Attachments, sortById(bound), boundNow)
+      assertSchemaEquals(
+        Attachments,
+        yield* attachments.selectByIds(Arr.map(Arr.append(free, boundBefore), (each) => each.id)),
+        Arr.append(boundNow, boundBefore),
+      )
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 

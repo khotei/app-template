@@ -1,3 +1,4 @@
+import { BunCrypto } from '@effect/platform-bun'
 import { Effect, Layer } from 'effect'
 
 import { AssistantMessageJob, ChatTitleJob } from '@app-template/application/chat'
@@ -19,6 +20,6 @@ const LogWorkerLifecycle = Effect.logInfo('worker started').pipe(
 )
 
 export const WorkerLayer = Layer.mergeAll(WorkerJobs, OutboxRelaySqs, LogWorkerLifecycle).pipe(
-  Layer.provide([Db.layerFromConfig, QueueClientSqs, LanguageModelStub]),
+  Layer.provide([Db.layerFromConfig, QueueClientSqs, LanguageModelStub, BunCrypto.layer]),
   Layer.provide(MinimumLogLevelFromConfig),
 )

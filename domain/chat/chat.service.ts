@@ -9,6 +9,7 @@ import {
   Schema,
   String as Str,
 } from 'effect'
+import type { RequireAtLeastOne } from 'type-fest'
 
 import type { AttachmentId } from '#domain/attachment/attachment.id'
 import {
@@ -28,11 +29,18 @@ import {
 } from '#domain/chat/chat.model'
 import type { UserId } from '#domain/user/user.id'
 
+/** The fields a write may change; `userId` and `createdAt` never change. */
+export type ChatSet = RequireAtLeastOne<Pick<Chat, 'title' | 'updatedAt'>>
+
+/** The row is found by `id`; any other field must still hold its value. */
+export type ChatWhere = { readonly id: ChatId } & Partial<Pick<Chat, 'title'>>
+
 export class ChatRepository extends Context.Service<
   ChatRepository,
   {
     readonly insert: (chat: Chat) => Effect.Effect<void>
-    readonly update: (chat: Chat) => Effect.Effect<void>
+    /** Writes `set` where `where` holds; answers whether it wrote. */
+    readonly update: (set: ChatSet, where: ChatWhere) => Effect.Effect<boolean>
     readonly selectById: (id: ChatId) => Effect.Effect<Option.Option<Chat>>
     /** Returns the user's chats unordered. */
     readonly selectByUser: (userId: UserId) => Effect.Effect<ReadonlyArray<Chat>>

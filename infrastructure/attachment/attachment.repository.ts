@@ -1,4 +1,4 @@
-import { eq, inArray } from 'drizzle-orm'
+import { and, inArray, isNull } from 'drizzle-orm'
 import { Array as Arr, Effect, Layer, Schema } from 'effect'
 
 import { type AttachmentId, AttachmentRepository } from '@app-template/domain/attachment'
@@ -20,9 +20,13 @@ export const AttachmentRepositoryPg = Layer.effect(
         const row = yield* encodeAttachment(attachment)
         yield* db.insert(attachments).values(row)
       }, orDieWithSqlError),
-      update: Effect.fn('AttachmentRepository.update')(function* (attachment) {
-        const row = yield* encodeAttachment(attachment)
-        yield* db.update(attachments).set(row).where(eq(attachments.id, attachment.id))
+      bind: Effect.fn('AttachmentRepository.bind')(function* (ids, messageId) {
+        const rows = yield* db
+          .update(attachments)
+          .set({ messageId })
+          .where(and(inArray(attachments.id, ids), isNull(attachments.messageId)))
+          .returning()
+        return yield* Effect.forEach(rows, decodeAttachment)
       }, orDieWithSqlError),
       selectById: Effect.fn('AttachmentRepository.selectById')(function* (id) {
         const row = yield* db.query.attachments.findFirst({ where: { id } })

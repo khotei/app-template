@@ -118,7 +118,9 @@ describe('SendMessageUseCase', () => {
       const sendMessage = yield* SendMessageUseCase
       const { interleaving } = yield* ChatFakes
       const titled = new Chat({ ...chat, title: Option.some(ChatTitle.make('Lisbon weekend')) })
-      interleaving.write = (yield* ChatRepository).update(titled)
+      interleaving.write = Effect.asVoid(
+        (yield* ChatRepository).update({ title: titled.title }, { id: chat.id }),
+      )
 
       const { userMessage } = yield* sendMessage.send(
         owner,
