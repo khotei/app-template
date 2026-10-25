@@ -1,5 +1,5 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm'
-import { Array as Arr, Effect, Layer, Option, Schema, Struct } from 'effect'
+import { Array as Arr, Effect, Layer, Option, Schema, Struct, UndefinedOr } from 'effect'
 
 import {
   type AttachmentId,
@@ -7,30 +7,33 @@ import {
   type AttachmentSet,
   type AttachmentWhere,
 } from '@app-template/domain/attachment'
-import type { MessageId } from '@app-template/domain/chat'
 
 import {
   AttachmentInsert,
   attachments,
   decodeAttachment,
 } from '#infrastructure/attachment/attachment.entity'
-import { Db, decodeFound, orDieWithSqlError, whenPresent } from '#infrastructure/db/db.client'
+import { Db, decodeFound, orDieWithSqlError } from '#infrastructure/db/db.client'
 
 const encodeAttachment = Schema.encodeEffect(AttachmentInsert)
 
 const setColumns = {
-  messageId: whenPresent(Option.getOrNull<MessageId>),
-} as const satisfies { readonly [K in keyof Required<AttachmentSet>]: unknown }
+  messageId: UndefinedOr.map(Option.getOrNull),
+} as const satisfies {
+  readonly [K in keyof Required<AttachmentSet>]: (value: AttachmentSet[K]) => unknown
+}
 
 const whereColumns = {
-  id: (ids: ReadonlyArray<AttachmentId>) => inArray(attachments.id, ids),
-  messageId: whenPresent(
+  id: (ids) => inArray(attachments.id, ids),
+  messageId: UndefinedOr.map(
     Option.match({
       onNone: () => isNull(attachments.messageId),
-      onSome: (messageId: MessageId) => eq(attachments.messageId, messageId),
+      onSome: (messageId) => eq(attachments.messageId, messageId),
     }),
   ),
-} as const satisfies { readonly [K in keyof Required<AttachmentWhere>]: unknown }
+} as const satisfies {
+  readonly [K in keyof Required<AttachmentWhere>]: (value: AttachmentWhere[K]) => unknown
+}
 
 export const AttachmentRepositoryPg = Layer.effect(
   AttachmentRepository,
@@ -41,7 +44,7 @@ export const AttachmentRepositoryPg = Layer.effect(
         yield* db.insert(attachments).values(row)
       }, orDieWithSqlError),
       update: Effect.fn('AttachmentRepository.update')(function* (set, where) {
-        const row = Struct.evolve(set, setColumns)
+        const row = Struct.evolve(Struct.pick(set, Struct.keys(setColumns)), setColumns)
         const conditions = Struct.evolve(
           Struct.pick(where, Struct.keys(whereColumns)),
           whereColumns,

@@ -80,7 +80,9 @@ graph LR
 ```
 ~ domain/chat/chat.model.ts     + MessageDetail, ChatSummary, ChatDetail (moved from application) (D6)
 ~ domain/chat/chat.service.ts   ChatRepository, MessageRepository: Contracts › Ports             (D5, D6)
-~ domain/attachment/attachment.service.ts   AttachmentRepository.bind replaces update          (D5)
+~ domain/attachment/attachment.service.ts   AttachmentRepository.update(set, where) replaces update(attachment) (D5)
+~ domain/chat/chat.error.ts     + ChatTitledError                                                  (D5)
+~ domain/package.json           + type-fest (RequireAtLeastOne for ChatSet, AttachmentSet)
 ~ domain/user/user.model.ts     + secretHashPattern, read by SecretHash and the credentials check
 ~ domain/chat/chat.service.ts   SendableChat doc: holds inside the send's transaction, the index is the backstop
 ```
@@ -114,9 +116,9 @@ graph LR
 + infrastructure/outbox/outbox.entity.ts   outbox
 + infrastructure/outbox/outbox.relay.ts    OutboxRelay, a worker layer                                      (D4)
 ~ infrastructure/user/user.repository.ts        UserRepositoryPg
-~ infrastructure/chat/chat.repository.ts        ChatRepositoryPg (relational reads, touch, selectById forUpdate)
+~ infrastructure/chat/chat.repository.ts        ChatRepositoryPg (relational reads, update(set, where))
 ~ infrastructure/chat/message.repository.ts     MessageRepositoryPg (insert → boolean, update from)
-~ infrastructure/attachment/attachment.repository.ts   AttachmentRepositoryPg (bind)
+~ infrastructure/attachment/attachment.repository.ts   AttachmentRepositoryPg (update(set, where))
 ~ infrastructure/*/index.ts             UserPg, ChatPg, AttachmentPgS3 (replacing *Kv; no bundle keeps AttachmentStoreKv)
 ~ infrastructure/shared/queue.client.ts   + QueueClientOutbox                                               (D4)
 ~ infrastructure/chat/chat.queue.ts     + assistantMessageDeadLetterQueue, chatTitleDeadLetterQueue         (D8)
@@ -128,14 +130,15 @@ graph LR
 
 ```
 ~ application/chat/chat.service.ts              no UserLock; list → selectSummaries, get → selectDetail,
-                                                 rename → update, delete → chats.delete, touch → chats.touch,
+                                                 rename, touch, updateTitle → update(set, where), delete → chats.delete,
                                                  addAssistantMessage: insert false → ChatBusyError          (D5, D6)
-~ application/chat/send-message.use-case.ts     Effect.fn(…, sql.withTransaction); bind(userId, ids, messageId) (D3)
+~ application/chat/send-message.use-case.ts     the writes in sql.withTransaction, the enqueues joining it in S11;
+                                                 bind(userId, ids, messageId)                                 (D3)
 ~ application/chat/delete-chat.use-case.ts      no lock; attachments, then the chat (the cascade does the messages)
-~ application/attachment/attachment.service.ts  bind replaces findBindable + bind; BindableAttachments goes (D5)
+~ application/attachment/attachment.service.ts  bind: check, update(set, where), AttachmentBoundError; findBindable, BindableAttachments go (D5)
 ~ application/chat/assistant-message.job.ts     update(message, { stage }); + deadLetterWorker (failReply)  (D8)
 ~ application/chat/chat-title.job.ts            ChatService.updateTitle; + deadLetterWorker (log)
-- application/chat/touch-chat.ts                replaced by ChatRepository.touch
+- application/chat/touch-chat.ts                replaced by ChatService.touch
 - application/user/user-lock.ts
 ~ application/testing/chat.harness.ts           ChatTest: services on the Pg repositories over DbTest, AttachmentStoreMemory,
                                                  QueueClientOutbox; reads the outbox table in place of recordQueue (S11)   (D21)
@@ -262,9 +265,8 @@ reader fills it from the message's attachments.
 ```ts
 ChatRepository {
   insert(chat): void
-  update(chat): void                                   // rename, and the title under the row lock
-  touch(id, at): void                                  // updated_at only
-  selectById(id, { forUpdate? }): Option<Chat>        // forUpdate: locks the row until the caller's transaction ends
+  update(set: ChatSet, where: ChatWhere): boolean     // ChatSet: RequireAtLeastOne<Pick<Chat, 'title' | 'updatedAt'>>;
+                                                       // ChatWhere: { id } & Partial<Pick<Chat, 'title'>>; false: no row held
   selectSummaries(userId): ReadonlyArray<ChatSummary>   // most recently updated first, with the active message
   selectDetail(id): Option<ChatDetail>                  // messages in creation order, each with its attachments
   delete(id): void                                      // the messages go by the cascade
@@ -279,15 +281,19 @@ MessageRepository {
 AttachmentRepository {
   insert · selectById · deleteByIds                     // unchanged
   selectByIds                                          // goes in S12, with Message.attachmentIds
-  bind(ids, messageId): ReadonlyArray<Attachment>      // the ones bound now: WHERE message_id IS NULL
+  update(set: AttachmentSet, where: AttachmentWhere): ReadonlyArray<Attachment>
+                                                       // AttachmentSet: RequireAtLeastOne<Pick<Attachment, 'messageId'>>;
+                                                       // AttachmentWhere: { id: ids } & Partial<Pick<Attachment, 'messageId'>>;
+                                                       // the rows written, an id the where refused left out
 }
 UserRepository                                         // unchanged; insert writes two tables in one transaction
 ```
 
 Ports keep no error channel: a conditional write answers with a value, and the application
 raises `ChatBusyError`, `AttachmentBoundError` or skips (D5); `ChatService.updateTitle` raises
-`ChatTitledError` from a locked read. `selectByUser`, `deleteByChat`,
-`AttachmentRepository.update` and the read models in `application` go.
+`ChatTitledError` when the write `where` the title is still `none` answers `false` and the chat
+exists. `selectByUser`, `deleteByChat`, `update(entity)` on chats and attachments and the read
+models in `application` go.
 
 ### The send (use case)
 
@@ -384,7 +390,7 @@ build them with `buildResourceName` as the program does.
 |---|---|---|
 | 1 `domain/*` schemas and pure rules (unchanged) | input and binding rules, stage transitions, read-model shapes | persistence |
 | 2 `infrastructure/db` and the constraints of every `.entity.ts` on `PgClientTest` | migrations apply to the template and are a no-op the second time; SQL logged at `Debug` with `query` and `params`, nothing at `Info`; `make migrate`'s retry repeats while the database refuses connections, stops after its bound, and gives up at once on any other refusal; the partial unique index refuses a second active reply; the checks refuse what the brands refuse | drift between entities and the committed migrations (Seam 9); Drizzle's rendering and the codecs, which only the repository suites exercise (D21) |
-| 3 repositories through their ports on `PgClientTest` (one suite per port) | field mapping, `selectSummaries` order and active message, `selectDetail` nesting and order, `insert` false on an active message, `update` false on a stale `where` stage, `bind` partial result, `selectById` with `forUpdate` holds a concurrent write until commit, `touch` keeps the title, the cascade from `chats.delete`, `RESTRICT` on a bound attachment, the check constraints reject what the brands reject | cross-process timing |
+| 3 repositories through their ports on `PgClientTest` (one suite per port) | field mapping, `selectSummaries` order and active message, `selectDetail` nesting and order, `insert` false on an active message, `update` false on a stale `where` stage, `update(set, where)` on attachments returns only the rows the `where` held, on chats `false` on a held title, a set writes only its fields (a title set meanwhile and a whole entity's other fields stay), the cascade from `chats.delete`, `RESTRICT` on a bound attachment, the check constraints reject what the brands reject | cross-process timing |
 | 4 `QueueClientOutbox` and `OutboxRelay` on `PgClientTest` + a recording `QueueTransport` (D21) | a `send` inside a failed transaction leaves no row; a row is published to its queue with its `jobId` and deleted; two relays over one database publish each row once; a failing transport keeps the row; the poll interval and the retry after a refusal on the live clock, since a relay waiting on Postgres registers its sleep at a moment a `TestClock` cannot observe | SQS outages longer than a test |
 | 5 services and use cases on `ChatTest`: the Pg repositories over `DbTest`, `AttachmentStoreMemory`, `QueueClientOutbox`, `BunCrypto` (D21) | a send writes two messages, the binds, the touch and one or two outbox rows in one transaction, and nothing on a failing step; two concurrent sends to one chat → one `ChatBusyError`; two concurrent binds of one attachment → one `AttachmentBoundError`; rename beside a send keeps both; `ChatService.updateTitle` refuses a titled chat (`ChatTitledError`) and loses to a rename; delete cascade and the attachments' removal; `addAssistantMessage` alone is refused on a busy chat | HTTP statuses; S3 and SQS (D21) |
 | 6 jobs with the fake `LanguageModel`: on Postgres the stages a job writes, held at a model call, never stepped by the clock; the timings in a block with no database, on `TestClock` (D21) | the stage sequence through `update(…, { stage })`; a snapshot every 300 ms; a message settled by another writer stops the job with `already settled`; the dead-letter handler fails an active message with `ReplyFailed` and a dead-letter cause, leaves a terminal one, logs for a deleted chat; the title dead-letter handler only logs; the title job logs `ChatTitledError` as already titled | a real provider |
@@ -433,14 +439,18 @@ build them with `buildResourceName` as the program does.
   minute.
 - **D5 — Guards are single statements that answer with a value; `UserLock` goes.** The partial
   unique index holds "one active message per chat"; `insert` uses `ON CONFLICT (chat_id) WHERE
-  <active> DO NOTHING RETURNING id` and answers `false`; `update(message, { stage })`, `bind`
-  (`WHERE message_id IS NULL`) and `touch` (`updated_at` only) are each one `UPDATE` whose
-  `RETURNING` is the answer. `update`'s condition is a `where` object, a `Pick` of the model's
+  <active> DO NOTHING RETURNING id` and answers `false`; `update(message, { stage })`, the bind
+  (`attachments.update({ messageId }, { id: ids, messageId: none })`, `WHERE message_id IS NULL`)
+  and the touch (`chats.update({ updatedAt }, { id })`, `updated_at` only) are each one `UPDATE`
+  whose `RETURNING` is the answer. `update`'s condition is a `where` object, a `Pick` of the model's
   fields that the adapter turns into SQL through a `whereColumns` table, one row per key; it holds
-  the stage the job read, so a stale attempt cannot fail a reply another attempt is writing. The
-  title is the exception: `ChatService.updateTitle` reads the chat with `selectById(id, {
-  forUpdate: true })` in `sql.withTransaction`, refuses a titled one (`ChatTitledError`) and
-  writes `update(chat)`, while a rename or a touch waits on the row lock. The application raises
+  the stage the job read, so a stale attempt cannot fail a reply another attempt is writing. A
+  write of chats and attachments is `update(set, where)`: an `<Entity>Set` of the fields it
+  changes (type-fest's `RequireAtLeastOne`, so an empty write fails typecheck) and an
+  `<Entity>Where` of the id and the fields the row must still hold, each mapped by a table of one
+  row per field after `Struct.pick` by the table's keys. `ChatService.updateTitle` writes `where`
+  the title is still `none` and, on `false`, reads the chat only to name the refusal
+  (`ChatNotFoundError` or `ChatTitledError`); a rename always wins. The application raises
   the domain error, so ports keep no error channel, and the "re-read before write" pattern
   (`touchChat`, the title job's second read) disappears. *Amended in S7:* the stage guard was
   `update(…, { from })` and the title `updateTitle(id, title)` with `WHERE title IS NULL`; the
@@ -448,7 +458,12 @@ build them with `buildResourceName` as the program does.
   `WHERE stage IN (<the transition's sources>)` (a stale `failed` lands), `update(current, next)`
   (both copies always), a `version` column (a migration and a domain field for two live attempts
   in `generating`, which the stage guard leaves apart, deferred) and a generic `where` over any
-  field (the rules move into every call). Two api processes are safe without any shared lock. *Rejected:*
+  field (the rules move into every call). *Amended in S8:* the title was a locked read,
+  `selectById(id, { forUpdate: true })` in a transaction, beside `touch(id, at)` and `bind(ids,
+  messageId)` ports; the user chose one flexible `update(set, where)` per repository with the rule
+  in the service. Rejected then: the row lock (a lock again, and a rename waits on it), one port
+  method per write (`touch`, `bind`, `updateTitle`), a hand-written `AtLeastOne` and an effect
+  `Schema` derivation for the set (nothing decodes it). Two api processes are safe without any shared lock. *Rejected:*
   catching `UniqueViolation` by constraint name in the adapter (a port with a domain error); `SERIALIZABLE` isolation (retries on every
   conflict, including unrelated ones); advisory locks (a lock again, now in the database).
 - **D6 — Read models live in the domain; the adapter answers them with relational queries.**

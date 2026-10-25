@@ -192,6 +192,28 @@ describe('ChatRepositoryPg', () => {
       }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
+  it.effect('update given a whole chat writes only the fields a set may change', () =>
+    Effect.gen(function* () {
+      const chats = yield* ChatRepository
+      const hal = UserId.make('0192d4e0-7b3a-7c00-8000-000000000017')
+      const stored = chat('0192d4e0-7b3a-7c00-8000-00000000003a', hal)
+      const later = DateTime.makeUnsafe('2026-10-18T00:00:09.000Z')
+      const title = Option.some(ChatTitle.make('Trip'))
+      yield* insertUser(hal)
+      yield* chats.insert(stored)
+
+      yield* chats.update(new Chat({ ...stored, title, createdAt: later, updatedAt: later }), {
+        id: stored.id,
+      })
+
+      assertSchemaEquals(
+        SelectedChat,
+        yield* chats.selectById(stored.id),
+        Option.some(new Chat({ ...stored, title, updatedAt: later })),
+      )
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
+  )
+
   it.effect('update renames an existing chat and never creates one', () =>
     Effect.gen(function* () {
       const chats = yield* ChatRepository

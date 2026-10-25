@@ -9,14 +9,17 @@ The goal is code that reads top to bottom and extends by adding a row, not a bra
 
 ## Signatures
 
-- A function with three or more parameters, or a boolean one, takes its subject first and the
-  rest as one object, so the call site names what it passes:
-  `failMessage(message, { reason, cause, at })`. A two-parameter function stays positional
-  (`prepareMessage(message, at)`); so does a service `Shape` method whose leading parameters are
-  ids (`rename(userId, chatId, title)`), since the branded types tell them apart, and a
-  combinator that takes functions (`ensureFound(found, holds, missing)`). A conditional write
-  takes its condition as an object of the model's fields, so the call names it:
-  `messages.update(generating, { stage: prepared.stage })` (`MessageWhere`).
+- Up to two parameters stay positional (`prepareMessage(message, at)`). A third one, or a
+  boolean, moves into one trailing object with named fields after the subject:
+  `failMessage(message, { reason, cause, at })`.
+- More than two stay positional only where the types tell them apart: a service `Shape` method
+  whose leading parameters are branded ids (`rename(userId, chatId, title)`), and a combinator
+  that takes functions (`ensureFound(found, holds, missing)`).
+- A repository write takes what it writes, then where: the whole entity or an `<Entity>Set` of
+  the fields it changes, then an `<Entity>Where` of the fields the stored row must still hold,
+  both typed from the model (`chats.update({ updatedAt: at }, { id })`,
+  `messages.update(generating, { stage: prepared.stage })`). They are values, not an options
+  bag: the call reads as the SQL it runs.
 - Destructure an object whose fields come from different things (`{ reason, cause, at }`: the
   failure and the clock) in the parameter list; keep one entity whole (`message`, a proof value)
   and read its fields through its name, so the reader sees whose field it is.

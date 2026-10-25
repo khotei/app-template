@@ -43,15 +43,6 @@ export const decodeFound = <Row, A, E, R>(
 ): Effect.Effect<Option.Option<A>, E, R> =>
   Effect.transposeOption(Option.map(Option.fromNullishOr(row), decode))
 
-/**
- * Runs `f` on a field that is there, for `Struct.evolve` over a `Partial` value; an `undefined`
- * stays one, which Drizzle's `set` and `and` both skip.
- */
-export const whenPresent =
-  <A, B>(f: (value: A) => B) =>
-  (value: A | undefined): B | undefined =>
-    value === undefined ? undefined : f(value)
-
 export const isSqlError = Schema.is(SqlError.SqlError)
 
 /**

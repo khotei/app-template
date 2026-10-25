@@ -1,33 +1,32 @@
 import { and, eq, isNull } from 'drizzle-orm'
-import { Array as Arr, DateTime, Effect, Layer, Option, Schema, Struct } from 'effect'
+import { Array as Arr, DateTime, Effect, Layer, Option, Schema, Struct, UndefinedOr } from 'effect'
 
 import {
   type ChatId,
   ChatRepository,
   type ChatSet,
-  type ChatTitle,
   type ChatWhere,
 } from '@app-template/domain/chat'
 
 import { ChatInsert, chats, decodeChat } from '#infrastructure/chat/chat.entity'
-import { Db, decodeFound, orDieWithSqlError, whenPresent } from '#infrastructure/db/db.client'
+import { Db, decodeFound, orDieWithSqlError } from '#infrastructure/db/db.client'
 
 const encodeChat = Schema.encodeEffect(ChatInsert)
 
 const setColumns = {
-  title: whenPresent(Option.getOrNull<ChatTitle>),
-  updatedAt: whenPresent(DateTime.toDateUtc),
-} as const satisfies { readonly [K in keyof Required<ChatSet>]: unknown }
+  title: UndefinedOr.map(Option.getOrNull),
+  updatedAt: UndefinedOr.map(DateTime.toDateUtc),
+} as const satisfies { readonly [K in keyof Required<ChatSet>]: (value: ChatSet[K]) => unknown }
 
 const whereColumns = {
-  id: (id: ChatId) => eq(chats.id, id),
-  title: whenPresent(
+  id: (id) => eq(chats.id, id),
+  title: UndefinedOr.map(
     Option.match({
       onNone: () => isNull(chats.title),
-      onSome: (title: ChatTitle) => eq(chats.title, title),
+      onSome: (title) => eq(chats.title, title),
     }),
   ),
-} as const satisfies { readonly [K in keyof Required<ChatWhere>]: unknown }
+} as const satisfies { readonly [K in keyof Required<ChatWhere>]: (value: ChatWhere[K]) => unknown }
 
 export const ChatRepositoryPg = Layer.effect(
   ChatRepository,
@@ -38,7 +37,7 @@ export const ChatRepositoryPg = Layer.effect(
         yield* db.insert(chats).values(row)
       }, orDieWithSqlError),
       update: Effect.fn('ChatRepository.update')(function* (set, where) {
-        const row = Struct.evolve(set, setColumns)
+        const row = Struct.evolve(Struct.pick(set, Struct.keys(setColumns)), setColumns)
         const conditions = Struct.evolve(
           Struct.pick(where, Struct.keys(whereColumns)),
           whereColumns,

@@ -135,10 +135,12 @@ statement that writes. A conditional write answers whether it wrote:
   `AttachmentSet`: `RequireAtLeastOne` from `type-fest`, so an empty write fails typecheck) where
   the rows match `where` (`ChatWhere`, `AttachmentWhere`: the `id`, an array of them for
   attachments, and optionally a field the row must still hold, `Option.none()` rendering `IS
-  NULL`). The adapter maps `set` with `Struct.evolve` over a `setColumns` table and `where` over
-  a `whereColumns` table, picking only the table's keys, so a field the type gains fails
-  typecheck until it has a row. The chat's update answers whether it wrote, the attachments'
-  with the rows it wrote (`RETURNING *`).
+  NULL`). The adapter maps each side with `Struct.evolve` over a table, `setColumns` and
+  `whereColumns`, after `Struct.pick` by the table's keys, so a whole entity passed as a set
+  writes only the fields it may change. Each table `satisfies` a row per field of its type, so a
+  field the type gains fails typecheck until its row exists, and a row for no field fails too;
+  an absent field stays `undefined`, which Drizzle's `set` and `and` skip. The chat's update
+  answers whether it wrote, the attachments' with the rows it wrote (`RETURNING *`).
   - The send's touch sets `updatedAt` alone, so a title written meanwhile survives.
   - `ChatService.updateTitle` writes `where` the title is still `none` and, on `false`, reads
     the chat only to name the refusal (`ChatNotFoundError` or `ChatTitledError`), so a rename

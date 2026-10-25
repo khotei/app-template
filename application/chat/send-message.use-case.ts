@@ -56,6 +56,7 @@ export class SendMessageUseCase extends Context.Service<
         const bound = yield* attachmentService.bind(userId, input.attachmentIds, userMessage.id)
         const assistantMessage = yield* chatService.addAssistantMessage(sendable)
         yield* chatService.touch(sendable)
+
         return { sendable, userMessage, bound, assistantMessage }
       },
       sql.withTransaction,
@@ -67,14 +68,18 @@ export class SendMessageUseCase extends Context.Service<
       chatId: ChatId,
       input: MessageInput,
     ) {
-      const written = yield* writeMessages(userId, chatId, input)
+      const { sendable, userMessage, bound, assistantMessage } = yield* writeMessages(
+        userId,
+        chatId,
+        input,
+      )
 
-      yield* assistantJob.enqueue(written.assistantMessage)
-      if (written.sendable.opensChat) yield* titleJob.enqueue(written.userMessage)
+      yield* assistantJob.enqueue(assistantMessage)
+      if (sendable.opensChat) yield* titleJob.enqueue(userMessage)
 
       return {
-        userMessage: { message: written.userMessage, attachments: written.bound },
-        assistantMessage: { message: written.assistantMessage, attachments: [] },
+        userMessage: { message: userMessage, attachments: bound },
+        assistantMessage: { message: assistantMessage, attachments: [] },
       }
     }, userLock.withPermit)
 

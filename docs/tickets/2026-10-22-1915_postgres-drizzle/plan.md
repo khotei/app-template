@@ -50,7 +50,7 @@ graph LR
   S3 --> S6[S6 the apps and the harnesses on Postgres; KV removed]
   S5 --> S6
   S6 --> S7[S7 one active message per chat, stage guards, the cascade]
-  S7 --> S8[S8 bind, touch, ChatService.updateTitle]
+  S7 --> S8[S8 update(set, where), ChatService.updateTitle]
   S8 --> S9[S9 the transaction; UserLock removed]
   S6 --> S10[S10 the outbox table, QueueClientOutbox, the relay]
   S9 --> S11[S11 the outbox in the send]
@@ -601,51 +601,86 @@ methods; running it after S9 avoids merge work.
   - The step landed in three rounds, S7.1–S7.3, after two reviews; S7 ran in a worktree beside
     S10.
 
-#### S8 — `bind`, `touch` and `ChatService.updateTitle`
+#### S8 — `update(set, where)` for chats and attachments; `ChatService.updateTitle`
 
-- **Goal:** the remaining guards. `AttachmentRepository.bind(ids, messageId): ReadonlyArray<Attachment>`
-  (one `UPDATE … WHERE id IN (…) AND message_id IS NULL RETURNING *`) replaces `update`;
-  `ChatRepository.touch(id, at)` writes `updated_at` only; `ChatRepository.selectById(id, {
-  forUpdate })` locks the chat's row until the caller's transaction ends (`.for('update')`; its
-  doc comment says a lock outside a transaction holds nothing); `ChatRepository.update(chat)`
-  stays for the rename and the title. Application: `ChatService.updateTitle(chatId, title)` runs
-  in `sql.withTransaction`, reads with `{ forUpdate: true }`, fails `ChatNotFoundError` or the new
-  `ChatTitledError` (`domain/chat/chat.error.ts`) and writes `update(chat)`; a rename or a touch
-  waits on the row lock (D5, amended in S7).
-  `AttachmentService.bind(userId, ids, messageId)` selects, checks each with `ensureBindable`, runs
-  `bind` and raises `AttachmentBoundError` for an id the update skipped; `findBindable` and the
-  proof type `BindableAttachments` go; `SendMessageUseCase.send` calls `bind`; `ChatService.touch`
-  replaces `touch-chat.ts`; `ChatTitleJob` calls `ChatService.updateTitle` and drops both of its
-  chat reads, catching `ChatNotFoundError` into `chat title skipped: chat deleted` and
-  `ChatTitledError` into `chat title skipped: already titled`; `firstMessageMissing` folds into
-  `chatDeleted` (S7 finding). `naming.md` gains the two verbs: `bind`
-  and `touch` are conditional single-statement writes that answer with what they changed (R10 in
-  part, R11 in part; D5).
+- **Goal:** the remaining guards, in one flexible write per repository (D5, amended in S8).
+  `ChatRepository.update(set: ChatSet, where: ChatWhere): boolean` replaces `update(chat)`:
+  `ChatSet = RequireAtLeastOne<Pick<Chat, 'title' | 'updatedAt'>>` (type-fest), `ChatWhere = {
+  readonly id: ChatId } & Partial<Pick<Chat, 'title'>>`, one `UPDATE … WHERE id = … [AND title IS
+  NULL] RETURNING id`. `AttachmentRepository.update(set: AttachmentSet, where: AttachmentWhere):
+  ReadonlyArray<Attachment>` replaces `update(attachment)` the same way, `AttachmentWhere` holding
+  the ids (`IN (…)`) and optionally the `messageId` they must still hold (`Option.none()` renders
+  `IS NULL`); it returns the rows written. The adapters map each side through a table of one row
+  per field, typed by that field (`satisfies`), after `Struct.pick` by the table's keys, with
+  `Struct.evolve` and `UndefinedOr.map`. Application: `ChatService.touch` (`update({ updatedAt },
+  { id })`) replaces `touch-chat.ts`; `rename` writes `{ title, updatedAt }` without `UserLock`;
+  `ChatService.updateTitle(chatId, title)` writes `where` the title is still `none` and, on
+  `false`, reads the chat to fail `ChatNotFoundError` or the new `ChatTitledError`
+  (`domain/chat/chat.error.ts`); `ChatTitleJob` calls it, logging `chat title skipped: chat
+  deleted` and `chat title skipped: already titled`, and `firstMessageMissing` folds into
+  `chatDeleted` (S7 finding). `AttachmentService.bind(userId, ids, messageId)` selects, checks
+  each with `ensureBindable`, keeps the bytes, writes `update({ messageId: some }, { id: ids,
+  messageId: none })` and raises `AttachmentBoundError` for an id missing from the rows;
+  `findBindable` and `BindableAttachments` go. `SendMessageUseCase.send` runs its writes in
+  `sql.withTransaction` and enqueues after the commit. `effect-style.md › Signatures` names the
+  repository write; `effect.md` looks for a utility type in `Types`, then `type-fest` (R10 in part,
+  R11 in part; D5).
 - **Blocked by:** S7.
 - **Files:** `domain/attachment/attachment.service.ts`, `domain/chat/{chat.service.ts,chat.error.ts}`,
+  `domain/package.json`, `package.json` (type-fest in `runtime`),
   `infrastructure/attachment/{attachment.repository.ts,attachment.repository.test.ts}`,
-  `infrastructure/chat/{chat.repository.ts,chat.repository.test.ts}`,
+  `infrastructure/chat/{chat.repository.ts,chat.repository.test.ts,message.repository.test.ts}`,
   `application/attachment/{attachment.service.ts,attachment.service.test.ts}`,
   `application/chat/{chat.service.ts,chat.service.test.ts,send-message.use-case.ts,chat-title.job.ts,chat-title.job.test.ts}`,
-  `application/chat/touch-chat.ts` (deleted), `.claude/rules/naming.md` (the verbs),
-  `docs/knowledge/database.md` (the guards section grows).
-- **Test first:** Seam 3 — `bind` of three ids where one is already bound returns the two it
-  bound and leaves the third's `message_id`; `touch` moves `updated_at` and keeps a title set
-  meanwhile; `selectById(id, { forUpdate: true })` in a transaction holds a concurrent `update`
-  until it commits. Seam 5 — `ChatService.updateTitle` on a titled chat fails `ChatTitledError`
-  and on a deleted one `ChatNotFoundError`, writing nothing; beside a rename the rename wins;
-  `AttachmentService.bind` with a bound id fails `AttachmentBoundError` and binds nothing else
-  (the statement is one). Seam 6 — the title job on a chat titled meanwhile logs `chat title
+  `application/chat/touch-chat.ts` (deleted), `apps/worker/src/layer.ts` (`BunCrypto.layer`),
+  `.claude/rules/{effect-style.md,effect.md,use-cases.md,naming.md}`, `README.md`,
+  `docs/knowledge/{database.md,architecture.md,tooling.md}`.
+- **Test first:** Seam 3 — `attachments.update` over three ids where one is bound returns the two
+  it wrote and leaves the third's `message_id`; `chats.update` `where` the title is `none` on a
+  titled chat answers `false` and writes nothing; a touch keeps a title set meanwhile; a whole
+  `Chat` passed as a set writes only `title` and `updatedAt`. Seam 5 —
+  `ChatService.updateTitle` on a titled chat fails `ChatTitledError` and on a deleted one
+  `ChatNotFoundError`, writing nothing; `AttachmentService.bind` with a bound id fails
+  `AttachmentBoundError`. Seam 6 — the title job on a chat titled meanwhile logs `chat title
   skipped: already titled` and writes nothing.
-- **Verify:** `make check`; `git grep -n -E 'findBindable|BindableAttachments|touchChat'` is empty.
-- **Status:** todo
+- **Verify:** `make check`; `git grep -n -E 'findBindable|BindableAttachments|touchChat|attachments\.bind|forUpdate'
+  -- ':!docs/tickets'` is empty.
+- **Status:** done
+- **Findings:**
+  - The design changed from the plan's (user's call): no `touch`, `bind` or `selectById(id, {
+    forUpdate })` ports and no row lock for the title, but one `update(set, where)` per
+    repository with the rule in the service. A rename always wins over the title job, and the
+    read after a `false` only names the error. D5 amended.
+  - `ChatSet` and `AttachmentSet` use type-fest's `RequireAtLeastOne`, in the `runtime` catalog
+    (it shapes types the domain exports); the domain may import external packages, not
+    workspaces. Rejected: a hand-written `AtLeastOne` and an effect `Schema` derivation, since
+    nothing decodes a set.
+  - Without `exactOptionalPropertyTypes` `Struct.evolve` types a `Partial` key as possibly
+    `undefined`, so each row is lifted with effect's `UndefinedOr.map`; an absent field stays
+    `undefined`, which Drizzle's `set` and `and` skip. Enabling the flag breaks unrelated code
+    (`aws.client.ts`).
+  - Both sides pick the table's keys before `Struct.evolve`: a whole entity fits a set type, and
+    without the pick its `id`, `userId` and `createdAt` reach `SET` unencoded.
+  - The send's writes run in `sql.withTransaction` ahead of S9: the bind check follows the user
+    message, so a refused attachment would otherwise leave it stored. The enqueues run after the
+    commit, since the api still sends to SQS; S11 moves them back inside, where the outbox rows
+    join the transaction. `UserLock` still wraps the send until S9.
+  - The concurrent-binds service test went: its yielding fake never forced the race. The
+    repository's `IS NULL` test proves the guard; S9 adds the real race (Seam 5).
+  - Not fixed, outside the step: the title job calls the model before it learns the chat is
+    titled; a rename between `findSendable` and the touch can move `updatedAt` back by the
+    send's duration; the reply job writes `ChatRepository` directly instead of through
+    `ChatService` (predates the ticket).
+  - About 700 changed lines without `bun.lock` and the ticket, over the ~400 guide; not split,
+    since each round reads alone.
+  - The step landed in three rounds, S8.1–S8.3, after two reviews, in a worktree beside S10.
 
 #### S9 — The transaction; `UserLock` removed
 
 - **Goal:** the send and the delete commit as one transaction and the in-process lock goes.
-  `SendMessageUseCase.send` is `Effect.fn('SendMessageUseCase.send')(function* …, sql.withTransaction)`
-  with `SqlClient` from `effect/sql` in the use case's layer requirements (provided by
-  `PgClient`); `DeleteChatUseCase` likewise; `UserLock` and its `withPermit` are deleted;
+  `SendMessageUseCase.send` already runs its writes in `sql.withTransaction` (S8), with
+  `SqlClient` from `effect/sql` in the use case's layer requirements; `DeleteChatUseCase` gains
+  the same; `UserLock` and its `withPermit` are deleted;
   `application/testing/chat.fake.ts` loses `interleaveMessages` and `AttachmentRepositoryYielding`
   and keeps one wrapper, `MessageRepositoryFailingInsert`, a `MessageRepository` layer that fails
   the assistant message's insert, for the rollback case; if a real database refusal can fail that
@@ -744,7 +779,9 @@ methods; running it after S9 avoids merge work.
 
 #### S11 — The outbox in the send
 
-- **Goal:** jobs are written in the send's transaction. `apps/api` provides `QueueClientOutbox`
+- **Goal:** jobs are written in the send's transaction. `SendMessageUseCase.send` moves its two
+  enqueues back inside `sql.withTransaction`, merging `writeMessages` into `send` (S8 enqueues
+  after the commit while the api sends to SQS). `apps/api` provides `QueueClientOutbox`
   in place of `QueueClientSqs`; the harnesses (`chat.harness.ts`, `api.harness.ts`) provide
   `QueueClientOutbox` and read `outbox` rows in place of `recordQueue`, which stays in
   `packages/queue/testing` for suites without a database. `use-cases.md` replaces "Enqueue after

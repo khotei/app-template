@@ -14,7 +14,6 @@ import { ensureFound } from '#domain/shared/guard'
 import type { UserId } from '#domain/user/user.id'
 import { isOwnedBy } from '#domain/user/user.service'
 
-/** The fields a write may change. */
 export type AttachmentSet = RequireAtLeastOne<Pick<Attachment, 'messageId'>>
 
 /** The rows are found by `id`; any other field must still hold its value. */
