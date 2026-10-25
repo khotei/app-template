@@ -13,7 +13,8 @@ Each entity declares its tables in one file beside its repository,
 `infrastructure/<aggregate>/<entity>.entity.ts`, one file per entity as the aggregate's
 repositories are split (`user/user.entity.ts`: `users`, `credentials`; `chat/chat.entity.ts`:
 `chats`; `chat/message.entity.ts`: `messages`; `attachment/attachment.entity.ts`:
-`attachments`). The tables are the one declaration of the schema: the migrations are generated
+`attachments`; `outbox/outbox.entity.ts`: `outbox`, which no model maps, so it has no codec).
+The tables are the one declaration of the schema: the migrations are generated
 from them and the row codecs derived from them.
 
 - **Names.** A table is declared with `snakeCase.table` from `drizzle-orm/pg-core`, so the
@@ -133,6 +134,32 @@ statement that writes. A conditional write answers whether it wrote:
 A delete needs no answer: `ChatRepository.delete` is one statement, the messages go by `ON
 DELETE CASCADE`, and a message with an attachment makes it die (`RESTRICT`), so the attachments
 are removed first.
+
+## The outbox
+
+A job reaches SQS through the `outbox` table, so it commits or rolls back with the writes that
+enqueue it.
+
+- **`QueueClientOutbox`** (`infrastructure/shared/queue.client.ts`) is a `QueueClient` whose
+  `send` encodes the job as the SQS client does (`encodeBody`) and inserts a row: the
+  definition's `name` as `queue` (the stage is added on the way out), the `jobId` and the body.
+  The insert joins the caller's `sql.withTransaction`; outside one it commits alone. Its
+  `consume` dies: the api never consumes.
+- **`OutboxRelay`** (`infrastructure/outbox/outbox.relay.ts`), a layer the worker provides, polls
+  in one transaction: it selects up to 10 rows `ORDER BY created_at, id` `FOR UPDATE SKIP
+  LOCKED`, sends each over `QueueTransport` to `buildResourceName(STAGE, queue)` with its
+  `jobId`, deletes them and commits. A full batch polls again at once; a shorter one waits
+  `OUTBOX_POLL_INTERVAL` (1 second by default).
+- **Several relays share the table.** `SKIP LOCKED` hands a row to one relay at a time, and the
+  others take the next rows or none.
+- **A failed send rolls the batch back,** so its rows stay for the next poll; the relay logs
+  `outbox relay failed` and restarts on the queue consumers' `consumerRestart` schedule. Rows
+  sent before the failure in the same batch are sent again, as is a batch whose commit a crash
+  cuts off: delivery is at-least-once.
+- **The relay suite runs on the test database** with a plain `QueueTransport` over a queue of
+  its own, which refuses while the test says so; a read `FOR UPDATE` waits for the relays'
+  transactions, so it sees the outbox as they left it. The poll interval is timed on the live
+  clock: a `TestClock` cannot tell when a relay waiting on Postgres has reached its sleep.
 
 ## Migrations
 

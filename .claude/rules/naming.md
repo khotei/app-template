@@ -38,6 +38,7 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 | `.repository` · `.storage` · `.llm` | an adapter over a client; prompt functions live in `.llm` | infrastructure |
 | `.entity` | an entity's Drizzle tables and their row codecs, one file per entity | infrastructure |
 | `.queue` | queue definitions | infrastructure |
+| `.relay` | a layer that moves records from the database to a queue (`OutboxRelay`) | infrastructure |
 | `.client` · `.transport` | client wiring · the service a package's client runs over (`QueueTransport`) | infrastructure/shared, infrastructure/db, http-api, packages |
 | `.http` | a contract group: one resource's HTTP routes (`HttpApiGroup`) | http-api |
 | `.handler` | a request handler | apps |
@@ -76,6 +77,8 @@ Test-support roles live only in `testing/`, listed by no barrel or `exports` sav
 - Constants are `camelCase` with `as const` for literals. A `Layer` constant for a service
   declared elsewhere is `PascalCase` `<Service><Variant>` (`ChatRepositoryPg`); `<Entity>Pg` in
   `<entity>/index.ts` bundles the aggregate's adapters, which a process provides.
+  A `Layer` constant that runs work and provides no service is `PascalCase`, named for what it
+  runs (`OutboxRelay`, `LogWorkerLifecycle`).
 - Test support: a fixed fake layer is `<Service><Variant>` (`AttachmentRepositoryYielding`); a
   stateful fake `<verb><Thing>()` returns `{ <handle>, layer }` (`recordLogs`,
   `interleaveMessages`); a test layer is `<Entity>Test` (`ChatTest`), `layer<Entity>Test(…)` when it

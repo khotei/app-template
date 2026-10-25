@@ -149,6 +149,11 @@ the apps from `QueueConfig` and `AwsConfig`: a definition's queue is
 - **A stopped worker's long poll can outlive it.** Interrupting a receive aborts its HTTP request,
   but MiniStack keeps the poll open and hides the next message it finds for its visibility
   timeout; that message returns after `QUEUE_LOCK_EXPIRATION` with an attempt spent.
+- **The worker relays the outbox.** `QueueClientOutbox` writes a job as an `outbox` row instead
+  of sending it, and `OutboxRelay` in the worker sends the rows to
+  `buildResourceName(STAGE, queue)` over the same `QueueTransport`
+  ([database.md › The outbox](database.md#the-outbox)). A row the relay sent and could not
+  delete is sent again, which the at-least-once handlers absorb.
 
 The queue's own suite checks those rules on MiniStack in real time. A job suite calls the job's
 `handle` with plain `AttemptInfo` values; a test of a moved `updatedAt` runs on the live clock,

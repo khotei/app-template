@@ -15,6 +15,7 @@
     "@app-template/config": "workspace:*",
     "@app-template/infrastructure": "workspace:*",
     "@app-template/llm": "workspace:*",
+    "@app-template/queue": "workspace:*",
     "@effect/platform-bun": "catalog:effect",
     "effect": "catalog:effect"
   }

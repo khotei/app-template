@@ -37,15 +37,16 @@ describe('config layers', () => {
   it.effect('applies the defaults', () =>
     Effect.gen(function* () {
       const { nodeEnv, logLevel } = yield* RuntimeConfig
-      const { lockExpiration, lockRefreshInterval } = yield* QueueConfig
+      const { lockExpiration, lockRefreshInterval, outboxPollInterval } = yield* QueueConfig
 
       assert.deepStrictEqual(
-        { nodeEnv, logLevel, lockExpiration, lockRefreshInterval },
+        { nodeEnv, logLevel, lockExpiration, lockRefreshInterval, outboxPollInterval },
         {
           nodeEnv: 'development',
           logLevel: 'Info',
           lockExpiration: Duration.seconds(15),
           lockRefreshInterval: Duration.seconds(5),
+          outboxPollInterval: Duration.seconds(1),
         },
       )
     }).pipe(

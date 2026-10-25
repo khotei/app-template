@@ -106,6 +106,7 @@ Using the `chat` slice as the map:
 | tables and row codecs | `infrastructure/chat/chat.entity.ts` | `chats` (`snakeCase.table`), `ChatRow`, `ChatInsert` |
 | adapter implementing the port | `infrastructure/chat/chat.repository.ts` | `ChatRepositoryPg` (a `Layer` over `Db`) |
 | queue definitions | `infrastructure/chat/chat.queue.ts` | `assistantMessageQueue`, `GenerateAssistantMessage` (the job schema) |
+| relay from the database to a queue | `infrastructure/outbox/outbox.relay.ts` | `OutboxRelay` (a worker `Layer` that runs a fiber and provides nothing) |
 | prompt functions | `infrastructure/chat/chat.llm.ts` | `buildChatPrompt`, `streamAssistantText` |
 | service over the ports | `application/chat/chat.service.ts` | `ChatService`, `ChatService.layer` |
 | use case composing services | `application/chat/send-message.use-case.ts` | `SendMessageUseCase`, `SendMessageUseCase.layer` |

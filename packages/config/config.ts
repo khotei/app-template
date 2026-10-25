@@ -90,6 +90,9 @@ const queueConfig = Config.all({
   lockRefreshInterval: Config.Duration('QUEUE_LOCK_REFRESH_INTERVAL').pipe(
     Config.withDefault(Duration.seconds(5)),
   ),
+  outboxPollInterval: Config.Duration('OUTBOX_POLL_INTERVAL').pipe(
+    Config.withDefault(Duration.seconds(1)),
+  ),
 }).pipe(
   Effect.filterOrFail(
     isLockRefreshBeforeExpiration,
@@ -103,6 +106,11 @@ export class QueueConfig extends Context.Service<
   {
     readonly lockExpiration: Duration.Duration
     readonly lockRefreshInterval: Duration.Duration
+    /**
+     * How long the outbox relay waits after a batch shorter than its limit; a full batch polls
+     * again at once.
+     */
+    readonly outboxPollInterval: Duration.Duration
   }
 >()('@app-template/config/QueueConfig') {
   static readonly layer = Layer.effect(this, queueConfig)
