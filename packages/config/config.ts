@@ -106,10 +106,6 @@ export class QueueConfig extends Context.Service<
   {
     readonly lockExpiration: Duration.Duration
     readonly lockRefreshInterval: Duration.Duration
-    /**
-     * How long the outbox relay waits after a batch shorter than its limit; a full batch polls
-     * again at once.
-     */
     readonly outboxPollInterval: Duration.Duration
   }
 >()('@app-template/config/QueueConfig') {

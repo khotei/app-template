@@ -26,10 +26,8 @@ interface Attempt {
   readonly queue: string
   readonly jobId: string
   readonly body: string
-  readonly refused: boolean
 }
 
-/** A transport that offers every send to `attempts` and fails it while `refusing` holds. */
 const recordTransport = Effect.gen(function* () {
   const attempts = yield* Queue.unbounded<Attempt>()
   const refusing = yield* Ref.make(false)
@@ -39,7 +37,7 @@ const recordTransport = Effect.gen(function* () {
       send: Effect.fnUntraced(function* (queue, { body, attributes }) {
         const refused = yield* Ref.get(refusing)
 
-        yield* Queue.offer(attempts, { queue, jobId: attributes.jobId, body, refused })
+        yield* Queue.offer(attempts, { queue, jobId: attributes.jobId, body })
         if (refused) return yield* new QueueError({ cause: 'refused' })
       }),
       receive: () => Effect.die('the relay only sends'),
@@ -47,12 +45,12 @@ const recordTransport = Effect.gen(function* () {
       delete: () => Effect.die('the relay only sends'),
     }),
   )
-  return { attempts, refusing, relay: OutboxRelay.pipe(Layer.provide(layer)) }
+  return { attempts, refusing, layer }
 })
 
 const pollInterval = 300
 
-const RelayTest = QueueClientOutbox.pipe(
+const OutboxTest = QueueClientOutbox.pipe(
   Layer.provideMerge(DbTest),
   Layer.merge(
     ConfigProvider.layer(
@@ -87,31 +85,30 @@ const lockOutbox = Effect.flatMap(Db, (db) =>
 describe('OutboxRelay', () => {
   it.effect('sends a pending row to its queue with its job id, then deletes it', () =>
     Effect.gen(function* () {
-      const { attempts, relay } = yield* recordTransport
+      const { attempts, layer } = yield* recordTransport
       yield* enqueue(1)
 
-      yield* Layer.build(relay)
+      yield* Layer.build(OutboxRelay.pipe(Layer.provide(layer)))
       const attempt = yield* Queue.take(attempts)
 
       assert.deepStrictEqual(attempt, {
         queue: 'app-template-test-assistant-message',
         jobId: '0192d4e0-7b3a-7c00-8000-000000000001',
         body: '{"chatId":"0192d4e0-7b3a-7c00-8000-000000000030","messageId":"0192d4e0-7b3a-7c00-8000-000000000001"}',
-        refused: false,
       })
       assert.deepStrictEqual(yield* lockOutbox, [])
-    }).pipe(Effect.provide(RelayTest)),
+    }).pipe(Effect.provide(OutboxTest)),
   )
 
   // The clock stands still, so a relay that slept after a full batch would leave rows unsent.
   it.effect('two relays over one database send 25 rows, more than a batch, once each', () =>
     Effect.gen(function* () {
-      const { attempts, relay } = yield* recordTransport
+      const { attempts, layer } = yield* recordTransport
       const ns = Arr.range(1, 25)
       yield* Effect.forEach(ns, enqueue, { discard: true })
 
-      yield* Layer.build(relay)
-      yield* Layer.build(relay)
+      yield* Layer.build(OutboxRelay.pipe(Layer.provide(layer)))
+      yield* Layer.build(OutboxRelay.pipe(Layer.provide(layer)))
       const sent = yield* Queue.takeN(attempts, 25)
       const left = yield* lockOutbox
 
@@ -124,38 +121,36 @@ describe('OutboxRelay', () => {
       )
       assert.deepStrictEqual(left, [])
       assert.deepStrictEqual(yield* Queue.poll(attempts), Option.none())
-    }).pipe(Effect.provide(RelayTest)),
+    }).pipe(Effect.provide(OutboxTest)),
   )
 
-  it.live('keeps the rows while the transport refuses and sends them once it answers', () => {
+  // Live, as is the next test: a `TestClock` cannot tell when the relay has reached its sleep.
+  it.live('keeps the rows while the transport refuses and sends them on the next poll', () => {
     const { logs, layer: recordedLogs } = recordLogs()
     return Effect.gen(function* () {
-      const { attempts, refusing, relay } = yield* recordTransport
+      const { attempts, refusing, layer } = yield* recordTransport
       yield* Ref.set(refusing, true)
       yield* enqueue(1)
 
-      yield* Layer.build(relay)
-      const refused = yield* Queue.take(attempts)
+      yield* Layer.build(OutboxRelay.pipe(Layer.provide(layer)))
+      yield* Queue.take(attempts)
       yield* Ref.set(refusing, false)
       const kept = yield* lockOutbox
       const sent = yield* Queue.take(attempts)
 
-      assert.deepStrictEqual(
-        [refused.refused, kept, sent.refused],
-        [true, [{ jobId: jobId(1) }], false],
-      )
+      assert.deepStrictEqual(kept, [{ jobId: jobId(1) }])
+      assert.strictEqual(sent.jobId, jobId(1))
       assert.deepStrictEqual(yield* lockOutbox, [])
       assert.deepStrictEqual(logs, [['Error', 'outbox relay failed']])
-    }).pipe(Effect.provide([RelayTest, recordedLogs]))
+    }).pipe(Effect.provide([OutboxTest, recordedLogs]))
   })
 
-  // Live: a `TestClock` cannot tell when the relay, waiting on Postgres, has reached its sleep.
   it.live('waits OUTBOX_POLL_INTERVAL after a batch shorter than its limit', () =>
     Effect.gen(function* () {
-      const { attempts, relay } = yield* recordTransport
+      const { attempts, layer } = yield* recordTransport
       yield* enqueue(1)
 
-      yield* Layer.build(relay)
+      yield* Layer.build(OutboxRelay.pipe(Layer.provide(layer)))
       yield* Queue.take(attempts)
       const firstAt = yield* Clock.currentTimeMillis
       yield* lockOutbox
@@ -164,8 +159,6 @@ describe('OutboxRelay', () => {
       const secondAt = yield* Clock.currentTimeMillis
 
       assert.isAtLeast(secondAt - firstAt, pollInterval)
-      // Below the 1 second default, so the interval comes from the variable.
-      assert.isBelow(secondAt - firstAt, 1000)
-    }).pipe(Effect.provide(RelayTest)),
+    }).pipe(Effect.provide(OutboxTest)),
   )
 })

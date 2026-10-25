@@ -1,6 +1,5 @@
 export {
   type AttemptInfo,
-  consumerRestart,
   encodeBody,
   QueueClient,
   type QueueDefinition,

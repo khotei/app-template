@@ -27,7 +27,7 @@ export const QueueClientSqs: Layer.Layer<
 
 /**
  * Writes each job to the `outbox` table, joining the caller's transaction, for `OutboxRelay` to
- * send to SQS; it never consumes.
+ * send to SQS.
  */
 export const QueueClientOutbox: Layer.Layer<QueueClient, never, Db> = Layer.effect(
   QueueClient,

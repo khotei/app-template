@@ -4,16 +4,17 @@ import { SqlClient } from 'effect/sql'
 
 import { buildResourceName } from '@app-template/aws'
 import { AwsConfig, QueueConfig } from '@app-template/config'
-import { consumerRestart, QueueTransport } from '@app-template/queue'
+import { QueueTransport } from '@app-template/queue'
 
 import { Db, unwrapQueryError } from '#infrastructure/db/db.client'
 import { outbox } from '#infrastructure/outbox/outbox.entity'
+import { SQSServiceFromConfig } from '#infrastructure/shared/aws.client'
 
 const batchLimit = 10
 
 /**
- * Sends the outbox to SQS in a fiber the layer's scope owns: each batch is locked, sent and
- * deleted in one transaction, so a failed send leaves its rows for the next poll.
+ * Sends the outbox to SQS: each batch is locked, sent and deleted in one transaction, so a failed
+ * send leaves its rows for the next poll.
  *
  * Delivery is at-least-once: a crash between a send and the commit sends the row again.
  */
@@ -51,16 +52,22 @@ export const OutboxRelay = Effect.gen(function* () {
     return rows
   }).pipe(Effect.catchTag('EffectDrizzleQueryError', unwrapQueryError), sql.withTransaction)
 
-  const poll = Effect.flatMap(relayBatch, (rows) =>
-    rows.length < batchLimit ? Effect.sleep(outboxPollInterval) : Effect.void,
-  )
-
-  yield* Effect.forever(poll).pipe(
+  const poll = relayBatch.pipe(
     Effect.tapCauseIf(Predicate.not(Cause.hasInterruptsOnly), (cause) =>
       Effect.logError('outbox relay failed', cause),
     ),
-    Effect.sandbox,
-    Effect.retry(consumerRestart),
-    Effect.forkScoped,
+    Effect.catchCause((cause) =>
+      Cause.hasInterruptsOnly(cause) ? Effect.failCause(cause) : Effect.succeed([]),
+    ),
+    Effect.flatMap((rows) =>
+      rows.length < batchLimit ? Effect.sleep(outboxPollInterval) : Effect.void,
+    ),
   )
+
+  yield* Effect.forever(poll).pipe(Effect.forkScoped)
 }).pipe(Layer.effectDiscard, Layer.provide([QueueConfig.layer, AwsConfig.layer]))
+
+export const OutboxRelaySqs = OutboxRelay.pipe(
+  Layer.provide(QueueTransport.layerSqs),
+  Layer.provide(SQSServiceFromConfig),
+)

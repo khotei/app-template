@@ -152,14 +152,10 @@ enqueue it.
   `OUTBOX_POLL_INTERVAL` (1 second by default).
 - **Several relays share the table.** `SKIP LOCKED` hands a row to one relay at a time, and the
   others take the next rows or none.
-- **A failed send rolls the batch back,** so its rows stay for the next poll; the relay logs
-  `outbox relay failed` and restarts on the queue consumers' `consumerRestart` schedule. Rows
-  sent before the failure in the same batch are sent again, as is a batch whose commit a crash
-  cuts off: delivery is at-least-once.
-- **The relay suite runs on the test database** with a plain `QueueTransport` over a queue of
-  its own, which refuses while the test says so; a read `FOR UPDATE` waits for the relays'
-  transactions, so it sees the outbox as they left it. The poll interval is timed on the live
-  clock: a `TestClock` cannot tell when a relay waiting on Postgres has reached its sleep.
+- **A failed batch rolls back,** so its rows stay: the relay logs `outbox relay failed` with
+  the cause and polls again after `OUTBOX_POLL_INTERVAL`. Rows sent before the failure in the
+  same batch are sent again, as is a batch whose commit a crash cuts off: delivery is
+  at-least-once.
 
 ## Migrations
 

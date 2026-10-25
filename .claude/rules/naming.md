@@ -6,8 +6,6 @@ paths:
 
 # Naming and imports
 
-Imports are enforced by Biome; file and symbol names are convention (Biome has no rule for them).
-
 ## Workspaces
 
 - Every workspace is `@app-template/<name>`: layers `{domain,http-api,application,infrastructure}`,
@@ -22,7 +20,6 @@ Imports are enforced by Biome; file and symbol names are convention (Biome has n
   `./` or `../`. Example: `#domain/chat/chat.model`, `#api/layer`.
 - **Across workspaces:** `@app-template/<workspace>[/<entity>]`; which workspace may import which:
   [architecture.md › Dependency rules](../../docs/knowledge/architecture.md#dependency-rules).
-- **Order:** `bun:`/`node:` → external → `@app-template/*` → `#…`, a blank line between groups.
 
 ## Files
 
@@ -63,8 +60,8 @@ Test-support roles live only in `testing/`, listed by no barrel or `exports` sav
 - Functions are verb-first, and the verb marks the kind of work:
   - `create<Thing>`: a factory that wires dependencies;
   - `layer<Variant>`: a static that builds the service's `Layer` for one variant
-    (`effect-services.md › Layers`); a combinator that returns a `Layer` is named for what it
-    runs (`worker`, as effect's `DurableQueue.worker`);
+    (`effect-services.md › Layers`); a combinator or constant that returns a `Layer` running
+    work is named for what it runs (`worker`, `OutboxRelay`);
   - `build` / `ensure`: a pure function that derives a value or guards an invariant, in any layer
     (`buildChat`);
   - a pure transition is named for the stage it moves the entity to (`prepareMessage`);
@@ -77,8 +74,6 @@ Test-support roles live only in `testing/`, listed by no barrel or `exports` sav
 - Constants are `camelCase` with `as const` for literals. A `Layer` constant for a service
   declared elsewhere is `PascalCase` `<Service><Variant>` (`ChatRepositoryPg`); `<Entity>Pg` in
   `<entity>/index.ts` bundles the aggregate's adapters, which a process provides.
-  A `Layer` constant that runs work and provides no service is `PascalCase`, named for what it
-  runs (`OutboxRelay`, `LogWorkerLifecycle`).
 - Test support: a fixed fake layer is `<Service><Variant>` (`AttachmentRepositoryYielding`); a
   stateful fake `<verb><Thing>()` returns `{ <handle>, layer }` (`recordLogs`,
   `interleaveMessages`); a test layer is `<Entity>Test` (`ChatTest`), `layer<Entity>Test(…)` when it

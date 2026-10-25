@@ -184,7 +184,7 @@ export class QueueClient extends Context.Service<
 // Any cause restarts the consumer, logged, with no attempt limit: an unrecovered cause would end
 // the forked fiber unlogged while the process runs on, and a process restart heals the transport
 // no better than waiting does.
-export const consumerRestart = Schedule.min([
+const consumerRestart = Schedule.min([
   Schedule.exponential('1 second'),
   Schedule.spaced('1 minute'),
 ])
