@@ -3,9 +3,8 @@ import { DateTime, Duration, Effect, Option, Predicate, Schema } from 'effect'
 import { AttachmentBoundError, AttachmentNotFoundError } from '#domain/attachment/attachment.error'
 import { AttachmentId } from '#domain/attachment/attachment.id'
 import { MessageId } from '#domain/chat/chat.id'
-import { ensureFound } from '#domain/shared/guard'
+import { ensureFound, isOwnedBy } from '#domain/shared/guard'
 import { UserId } from '#domain/user/user.id'
-import { isOwnedBy } from '#domain/user/user.model'
 
 export const FileName = Schema.String.check(Schema.isNonEmpty()).pipe(Schema.brand('FileName'))
 export type FileName = typeof FileName.Type
@@ -78,7 +77,6 @@ export const isVisibleTo = (userId: UserId, now: DateTime.Utc): Predicate.Predic
     Predicate.not((attachment: Attachment) => isExpired(attachment, now)),
   )
 
-/** Returns the attachment when the user may bind it. */
 export const ensureBindable = Effect.fn('ensureBindable')(function* (
   found: Option.Option<Attachment>,
   {

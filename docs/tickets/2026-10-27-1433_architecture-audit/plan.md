@@ -242,7 +242,21 @@
 - **Verify:** `ls domain/*/*.port.ts` lists chat, message, assistant, attachment, user;
   `grep -rn "Context.Service" domain/*/*.model.ts` is empty; `make check`.
 - **Model:** opus medium
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - `message.model.ts` and `message.error.ts` would import each other (the transitions fail with
+    `MessageStageInvalidError`, whose `from`/`to` are `MessageStage`), so the stage schemas sit
+    in `domain/chat/message-stage.model.ts`, on the user's choice; D2 and Structure say so.
+  - `attachment.model.test.ts` already existed, so the `isVisibleTo` and `ensureBindable` cases
+    were appended to it and `attachment.service.test.ts` removed. `chat.service.test.ts` held
+    message cases only and moved whole to `message.model.test.ts`; `chat.model.test.ts` is
+    unchanged. `isTitledChat` sits in `chat.model.ts`, `isInChat` in `message.model.ts`.
+  - `isOwnedBy` sits in `domain/shared/guard.ts` until S10: in `user.model.ts` it made
+    `attachment.model.ts` import another aggregate's model, which `naming.md`'s `.id` row
+    forbids. `application/chat/chat.service.ts` changed one import line for it.
+  - The `Attachment` type in `MessageDetail` predates S6 (it was in `chat.model.ts`); S23 states
+    whether a model may name another aggregate's model type.
+  - ~470 changed lines, ~50 of them new (`assistant.port.ts`, barrels, docs); the rest moved.
 
 #### S7 — Memory layers and fixtures in `domain/testing`
 

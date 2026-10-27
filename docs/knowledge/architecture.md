@@ -99,9 +99,9 @@ Using the `chat` slice as the map:
 | What | File | Named |
 |---|---|---|
 | branded id | `domain/chat/chat.id.ts` | `ChatId`, `MessageId` |
-| entity schema | `domain/chat/chat.model.ts` | `Chat`, `Message` (`Schema.Class`) |
-| read model a port answers | `domain/chat/chat.model.ts` | `ChatSummary`, `ChatDetail`, `MessageDetail` |
-| domain errors | `domain/chat/chat.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
+| entity schema | `domain/chat/chat.model.ts`, `message.model.ts` | `Chat`, `Message` (`Schema.Class`) |
+| read model a port answers | `domain/chat/chat.model.ts`, `message.model.ts` | `ChatSummary`, `ChatDetail`, `MessageDetail` |
+| domain errors | `domain/chat/chat.error.ts`, `message.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
 | port and pure operations | `domain/chat/chat.port.ts`, `chat.model.ts`, `message.model.ts` | `ChatRepository`, `buildChat({ id, userId, createdAt })`, `prepareMessage` |
 | guard shared by the aggregates | `domain/shared/guard.ts` | `ensureFound(found, holds, missing)` |
 | database client and migrations | `infrastructure/db/` | `Db`, `Db.layerFromConfig`, `migrations/`, the shared columns in `columns.ts`, the relations in `relations.ts` |
@@ -134,11 +134,12 @@ Pascal one (`Document`).
    same-named type; `<entity>.model.ts`: `<Entity>` as a `Schema.Class`.
 2. **Domain errors.** `<entity>.error.ts`: `Schema.TaggedError` classes named
    `<Entity><Problem>Error`, whose tag is the class name.
-3. **Port and operations.** `<entity>.service.ts`: the `<Entity>Repository` port as a
-   `Context.Service` with no layer, and pure operations such as `build<Entity>(input)`. Time and
-   ids come in as input, never from `Date.now()` or `crypto.randomUUID()`. Test them in
-   `domain/tests/<entity>/<entity>.service.test.ts`. A rule several aggregates share (`ensureFound`, `isOwnedBy`) lives
-   once, in `domain/shared/` or the aggregate that owns it.
+3. **Port and operations.** `<entity>.port.ts`: the `<Entity>Repository` port as a
+   `Context.Service` with no layer; `<entity>.model.ts`: pure operations such as
+   `build<Entity>(input)`. Time and ids come in as input, never from `Date.now()` or
+   `crypto.randomUUID()`. Test them in `domain/tests/<entity>/<entity>.model.test.ts`. A rule
+   several aggregates share (`ensureFound`, `isOwnedBy`) lives once, in `domain/shared/` or the
+   aggregate that owns it.
 4. **Domain exports.** `domain/<entity>/index.ts` re-exports its files, and
    `domain/package.json` gains `"./<entity>": "./<entity>/index.ts"` in `exports`.
 5. **Tables and adapter.** `infrastructure/<entity>/<entity>.entity.ts` declares the tables and

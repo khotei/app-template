@@ -65,7 +65,7 @@ Every `tests/` and `e2e/` file mirrors the source path; test support lives only 
 | `chat/chat.service.ts` | `ChatService` (domain), `SendableChat` |
 | `chat/message.service.ts` **new** | `MessageService` |
 | `attachment/attachment.port.ts` **new** | `AttachmentRepository`, `AttachmentBucket`, `AttachmentSet`, `AttachmentWhere` |
-| `attachment/attachment.model.ts` | model, `buildAttachment`, `unboundLifetime`, `isExpired`, `ensureBindable` |
+| `attachment/attachment.model.ts` | model, `buildAttachment`, `unboundLifetime`, `isVisibleTo`, `ensureBindable` |
 | `attachment/attachment.service.ts` | `AttachmentService` (domain) |
 | `user/user.port.ts` **new** · `user/user.service.ts` | `UserRepository` · `UserService` (domain), `UserSecret` |
 | `shared/` *gone* | `ensureFound` and the `./shared` export |
@@ -483,8 +483,9 @@ export const AwsTest = Layer.unwrap(Effect.gen(function* () {
   that neither reaches the browser. A file that outgrows a screen splits by value type
   (`message-stage.model.ts`), never into a `.rule` suffix. The stage schemas sit apart from
   `message.model.ts` because `MessageStageInvalidError` reads them while the transitions fail
-  with it: in one file the model and the error would import each other, a cycle Biome rejects. *Rejected:* rules in `.service.ts`
-  next to the service, which drags a `Context.Service` into every barrel the browser imports.
+  with it: in one file the model and the error would import each other, a cycle Biome
+  rejects. *Rejected:* rules in `.service.ts` next to the service, which drags a
+  `Context.Service` into every barrel the browser imports.
 - **D3 — The `Assistant` port declares no error.** Every caller treats a model failure alike:
   retry, and fail the message on the last attempt with the cause kept for the log. The adapter
   turns `AiError` into a defect. The path when a rule starts to care: the port declares a domain

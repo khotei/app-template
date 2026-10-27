@@ -29,7 +29,7 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 |---|---|---|
 | `.id` | the aggregate's branded ids, the only file other aggregates' models import | domain |
 | `.model` · `.error` | entity types and value shapes, with the pure operations on them (builders, predicates, guards, transitions) · domain errors | domain |
-| `.port` | an entity's ports: `Context.Service` declarations with no layer, and their `Set`/`Where` types | domain |
+| `.port` | an entity's ports: `Context.Service` declarations with no layer, beside the value types they take and answer (`Set`/`Where`, `AssistantTurn`) | domain |
 | `.service` | domain: the aggregate's domain service over its ports · application: a service over ports | domain, application |
 | `.use-case` | a flow that composes services: `<verb>-<object>.use-case.ts` | application |
 | `.job` | a queue's producer service and its worker | application |

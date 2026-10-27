@@ -1,5 +1,6 @@
 import { Schema } from 'effect'
 
+// message.error.ts reads these, the transitions fail with its error: one file is an import cycle.
 export const MessageStage = Schema.Literals([
   'queued',
   'preparing',

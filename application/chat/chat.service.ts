@@ -25,8 +25,8 @@ import {
   MessageRepository,
   type MessageWhere,
 } from '@app-template/domain/chat'
-import { ensureFound } from '@app-template/domain/shared'
-import { isOwnedBy, type UserId } from '@app-template/domain/user'
+import { ensureFound, isOwnedBy } from '@app-template/domain/shared'
+import type { UserId } from '@app-template/domain/user'
 
 /**
  * Proof that a send may write to this chat: only `ChatService.findSendable` builds one, after it
