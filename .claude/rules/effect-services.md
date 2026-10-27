@@ -12,7 +12,7 @@ paths:
   that marks no useful tracing boundary is `Effect.fnUntraced`.
 - A body that only delegates is passed as is, `Effect.fn('<Service>.<method>')(chats.selectById)`,
   or as an arrow returning the effect; a generator is for a body with more than one step. Extra
-  arguments to `Effect.fn` are the pipeables every call runs through (`lock.withPermit`).
+  arguments to `Effect.fn` are the pipeables every call runs through (`sql.withTransaction`).
 - The variable holding an `Effect.fn` is named after the span's last segment; a reserved word
   gets its plain synonym (`remove` for `'ChatService.delete'`), never an entity suffix, since
   `'<Service>.<method>'` already names the entity. A method that needs the entity in its name

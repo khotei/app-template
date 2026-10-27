@@ -15,7 +15,6 @@ import { AttachmentService } from '#application/attachment/attachment.service'
 import { AssistantMessageJob } from '#application/chat/assistant-message.job'
 import { ChatService, type MessageDetail } from '#application/chat/chat.service'
 import { ChatTitleJob } from '#application/chat/chat-title.job'
-import { UserLock } from '#application/user/user-lock'
 
 export interface SentMessages {
   readonly userMessage: MessageDetail
@@ -45,7 +44,6 @@ export class SendMessageUseCase extends Context.Service<
     const attachmentService = yield* AttachmentService
     const assistantJob = yield* AssistantMessageJob
     const titleJob = yield* ChatTitleJob
-    const userLock = yield* UserLock
     const sql = yield* SqlClient.SqlClient
 
     const writeMessages = Effect.fnUntraced(
@@ -81,7 +79,7 @@ export class SendMessageUseCase extends Context.Service<
         userMessage: { message: userMessage, attachments: bound },
         assistantMessage: { message: assistantMessage, attachments: [] },
       }
-    }, userLock.withPermit)
+    })
 
     return { send }
   }),
@@ -92,7 +90,6 @@ export class SendMessageUseCase extends Context.Service<
       AttachmentService.layer,
       AssistantMessageJob.layer,
       ChatTitleJob.layer,
-      UserLock.layer,
     ]),
   )
 }

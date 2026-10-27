@@ -1,6 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Deferred, Effect, Exit, Layer, Option, Ref } from 'effect'
+import { Effect, Exit, Layer, Option, Ref } from 'effect'
 
 import { AttachmentStore } from '@app-template/domain/attachment'
 import { ChatNotFoundError, ChatRepository } from '@app-template/domain/chat'
@@ -12,7 +12,6 @@ import { DeleteChatUseCase } from '#application/chat/delete-chat.use-case'
 import { SendMessageUseCase } from '#application/chat/send-message.use-case'
 import { ask, chat, unknownChatId } from '#application/testing/chat.fixture'
 import {
-  ChatFakes,
   ChatTest,
   layerChatTest,
   selectAttachments,
@@ -71,15 +70,20 @@ describe('DeleteChatUseCase', () => {
     }).pipe(Effect.provide(ChatTest)),
   )
 
-  it.effect('a delete retried after the chat write failed still removes everything', () =>
+  it.effect('a delete whose chat write fails keeps every row, and a retry removes them', () =>
     Effect.gen(function* () {
       const deleteChat = yield* DeleteChatUseCase
-      const { photo } = yield* sendPhoto
+      const { photo, userMessage } = yield* sendPhoto
 
       const failed = yield* Effect.exit(deleteChat.delete(owner, chat.id))
-      yield* deleteChat.delete(owner, chat.id)
 
       assert.isTrue(Exit.hasDies(failed))
+      assert.isTrue(Option.isSome(yield* selectChat(chat.id)))
+      assertEquals((yield* selectMessages(chat.id)).length, 2)
+      assertEquals(yield* selectAttachments([photo]), userMessage.attachments)
+
+      yield* deleteChat.delete(owner, chat.id)
+
       assertEquals(yield* selectChat(chat.id), Option.none())
       assertEquals(yield* selectMessages(chat.id), [])
       assertEquals(yield* selectAttachments([photo]), [])
@@ -87,23 +91,15 @@ describe('DeleteChatUseCase', () => {
     }).pipe(Effect.provide(layerChatTest(ChatRepositoryDeleteFailingOnce))),
   )
 
-  it.effect('a delete during a send of the same user waits for it, then removes its messages', () =>
+  it.effect('a delete beside a send of the same chat leaves no chat and no message', () =>
     Effect.gen(function* () {
       const sendMessage = yield* SendMessageUseCase
       const deleteChat = yield* DeleteChatUseCase
-      const { interleaving } = yield* ChatFakes
-      const checked = yield* Deferred.make<void>()
-      // Turns enough for a delete that does not wait to finish before the send writes.
-      interleaving.write = Effect.andThen(
-        Deferred.succeed(checked, undefined),
-        Effect.repeat(Effect.yieldNow, { times: 9 }),
-      )
 
-      // Started from the test's fiber: one forked inside the send would share its transaction.
       yield* Effect.all(
         [
-          sendMessage.send(owner, chat.id, ask('Lisbon?')),
-          Effect.andThen(Deferred.await(checked), deleteChat.delete(owner, chat.id)),
+          Effect.exit(sendMessage.send(owner, chat.id, ask('Lisbon?'))),
+          deleteChat.delete(owner, chat.id),
         ],
         { concurrency: 'unbounded', discard: true },
       )

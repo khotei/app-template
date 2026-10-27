@@ -1,11 +1,11 @@
 import { Array as Arr, Context, Effect, Layer } from 'effect'
+import { SqlClient } from 'effect/sql'
 
 import type { ChatId, ChatNotFoundError } from '@app-template/domain/chat'
 import type { UserId } from '@app-template/domain/user'
 
 import { AttachmentService } from '#application/attachment/attachment.service'
 import { ChatService } from '#application/chat/chat.service'
-import { UserLock } from '#application/user/user-lock'
 
 export class DeleteChatUseCase extends Context.Service<
   DeleteChatUseCase,
@@ -17,24 +17,25 @@ export class DeleteChatUseCase extends Context.Service<
   make: Effect.gen(function* () {
     const chatService = yield* ChatService
     const attachmentService = yield* AttachmentService
-    const userLock = yield* UserLock
+    const sql = yield* SqlClient.SqlClient
 
     // The cascade from the chat cannot reach the attachments' bytes.
-    const remove = Effect.fn('DeleteChatUseCase.delete')(function* (
-      userId: UserId,
-      chatId: ChatId,
-    ) {
-      const { messages } = yield* chatService.get(userId, chatId)
-      yield* attachmentService.deleteByIds(
-        Arr.flatMap(messages, ({ message }) => message.attachmentIds),
-      )
-      yield* chatService.delete(userId, chatId)
-    }, userLock.withPermit)
+    const remove = Effect.fn('DeleteChatUseCase.delete')(
+      function* (userId: UserId, chatId: ChatId) {
+        const { messages } = yield* chatService.get(userId, chatId)
+        yield* attachmentService.deleteByIds(
+          Arr.flatMap(messages, ({ message }) => message.attachmentIds),
+        )
+        yield* chatService.delete(userId, chatId)
+      },
+      sql.withTransaction,
+      Effect.catchTag('SqlError', Effect.die),
+    )
 
     return { delete: remove }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make).pipe(
-    Layer.provide([ChatService.layer, AttachmentService.layer, UserLock.layer]),
+    Layer.provide([ChatService.layer, AttachmentService.layer]),
   )
 }

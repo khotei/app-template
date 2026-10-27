@@ -46,8 +46,6 @@ export interface ChatDetail extends ChatSummary {
 /**
  * Proof that a send may write to this chat: only `ChatService.findSendable` builds one, after it
  * checked the input, the owner and that no message in the chat is active.
- *
- * It holds only while the caller keeps the user's `UserLock` from the check to the last write.
  */
 class SendableChat extends Data.Class<{
   readonly chatId: ChatId

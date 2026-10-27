@@ -103,8 +103,9 @@ Each line names one choice and where it lives; the rejected alternatives are in 
   schemas; `apps/api` implements it with `HttpApiBuilder`, and the browser calls it through
   `ApiClient`. A domain error becomes a status through one annotation in the contract.
 - **Services are simple, use cases compose them.** A service owns one aggregate's writes; a flow
-  across aggregates or a critical section is a use case under the user's lock, and the checks hand
-  the writes a proof value (`SendableChat`) so the order cannot be skipped.
+  across aggregates is a use case whose writes commit in one transaction, guarded by the database
+  rather than a lock, and the checks hand the writes a proof value (`SendableChat`) so the order
+  cannot be skipped.
   [.claude/rules/use-cases.md](.claude/rules/use-cases.md).
 - **Repositories are `Layer`s over Drizzle on `@effect/sql-pg`:** each entity declares its tables
   once, the row codecs and migrations derive from them, and a write across tables runs in one

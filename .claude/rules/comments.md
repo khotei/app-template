@@ -17,7 +17,7 @@ flow, a test name, a rule or `CLAUDE.md`)? Yes → delete it on sight. Only four
 - a **gotcha or non-local coupling** that is surprising from a distance;
 - an **invariant or policy the type cannot express**: an export that carries one (an attempt
   count, an ordering, a lock) gets exactly one TSDoc sentence stating it, since the reader
-  otherwise reconstructs it from the helpers (`AssistantMessageJob`, `UserLock`);
+  otherwise reconstructs it from the helpers (`AssistantMessageJob`, `SendableChat`);
 - a usage **constraint on an exported symbol** ("keep `lockRefreshInterval` below `lockExpiration`").
 
 Never write line narration, step markers, a doc block that repeats the function name, a `@param`

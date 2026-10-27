@@ -148,8 +148,8 @@ Pascal one (`Document`).
 6. **Service and use cases.** `application/<entity>/<entity>.service.ts` holds the service and
    `<verb>-<object>.use-case.ts` each use case, both a `Context.Service` with a `layer`, like
    `application/chat/`. Which flow goes where:
-   [.claude/rules/use-cases.md](../../.claude/rules/use-cases.md). Shared test support goes in
-   `application/testing/`. Add `index.ts` and the `exports` entry.
+   [.claude/rules/use-cases.md](../../.claude/rules/use-cases.md). Test them on the test database
+   through the harness, races included. Shared test support goes in `application/testing/`. Add `index.ts` and the `exports` entry.
 7. **Job, if the entity has asynchronous work.** `infrastructure/<entity>/<entity>.queue.ts`
    holds the queue definitions (name, job schema, retry policy, `jobId`), and any prompt the model
    needs goes in `<entity>.llm.ts`. Both sides of the job live in

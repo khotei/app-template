@@ -1,6 +1,7 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Array as Arr, DateTime, Effect, Exit, Option, Schema } from 'effect'
+import { SqlClient } from 'effect/sql'
 
 import {
   Attachment,
@@ -14,7 +15,6 @@ import {
   ChatBusyError,
   type ChatId,
   ChatNotFoundError,
-  ChatRepository,
   ChatTitle,
   type MessageInput,
 } from '@app-template/domain/chat'
@@ -113,25 +113,23 @@ describe('SendMessageUseCase', () => {
     }).pipe(Effect.provide(ChatTest)),
   )
 
-  it.live('send keeps a title set between its read of the chat and its write', () =>
+  it.live('a rename beside a send keeps the title and moves updatedAt', () =>
     Effect.gen(function* () {
+      const chats = yield* ChatService
       const sendMessage = yield* SendMessageUseCase
-      const { interleaving } = yield* ChatFakes
-      const titled = new Chat({ ...chat, title: Option.some(ChatTitle.make('Lisbon weekend')) })
-      interleaving.write = Effect.asVoid(
-        (yield* ChatRepository).update({ title: titled.title }, { id: chat.id }),
+      const title = ChatTitle.make('Lisbon weekend')
+
+      yield* Effect.all(
+        [
+          sendMessage.send(owner, chat.id, ask('Plan a weekend in Lisbon')),
+          chats.rename(owner, chat.id, title),
+        ],
+        { concurrency: 'unbounded', discard: true },
       )
 
-      const { userMessage } = yield* sendMessage.send(
-        owner,
-        chat.id,
-        ask('Plan a weekend in Lisbon'),
-      )
-
-      assertEquals(
-        yield* selectChat(chat.id),
-        Option.some(new Chat({ ...titled, updatedAt: userMessage.message.createdAt })),
-      )
+      const stored = yield* Effect.flatMap(selectChat(chat.id), Effect.fromOption)
+      assertEquals(stored.title, Option.some(title))
+      assert.isTrue(DateTime.isGreaterThan(stored.updatedAt, epoch))
     }).pipe(Effect.provide(ChatTest)),
   )
 
@@ -185,6 +183,28 @@ describe('SendMessageUseCase', () => {
         sortById([first.userMessage.message, first.assistantMessage.message]),
       )
       assert.strictEqual(sent.length, 2)
+    }).pipe(Effect.provide(ChatTest)),
+  )
+
+  it.live('send whose reply insert fails leaves no message, no bind, no touch and no job', () =>
+    Effect.gen(function* () {
+      const sendMessage = yield* SendMessageUseCase
+      const { sent } = yield* ChatFakes
+      const sql = yield* SqlClient.SqlClient
+      const photo = yield* upload(owner, 'photo.png')
+      yield* Effect.orDie(
+        sql`ALTER TABLE messages ADD CONSTRAINT refuse_reply CHECK (author <> 'assistant')`,
+      )
+
+      const exit = yield* Effect.exit(
+        sendMessage.send(owner, chat.id, { text: 'Look', attachmentIds: [photo.id] }),
+      )
+
+      assert.isTrue(Exit.hasDies(exit))
+      assertEquals(yield* selectMessages(chat.id), [])
+      assertEquals(yield* selectAttachments([photo]), [photo])
+      assertEquals(yield* selectChat(chat.id), Option.some(chat))
+      assertEquals(sent, [])
     }).pipe(Effect.provide(ChatTest)),
   )
 

@@ -153,6 +153,20 @@ A delete needs no answer: `ChatRepository.delete` is one statement, the messages
 DELETE CASCADE`, and a message with an attachment makes it die (`RESTRICT`), so the attachments
 are removed first.
 
+## Transactions
+
+A use case that writes several aggregates commits them together: `sql.withTransaction` is a
+pipeable of its `Effect.fn`, and every repository call inside joins the transaction through the
+connection `@effect/sql` keeps in the fiber's context, so no port takes a transaction parameter.
+`SendMessageUseCase.send` writes the user message, the binds, the reply and the touch, or none
+of them; `DeleteChatUseCase.delete` removes the attachments' rows and the chat, or neither. The
+guards above then decide every race inside Postgres, with no lock in the process: of two sends
+to one chat the second's reply insert waits on the first's uncommitted row and answers `false`
+once it commits, and of two binds of one attachment the second's `UPDATE` waits on the row and
+skips it. Two api processes behave as two fibers. S3 and SQS stay outside the transaction: the
+bytes are kept before the bind and deleted before the commit, and the send enqueues its jobs
+after the commit.
+
 ## The outbox
 
 A job reaches SQS through the `outbox` table, so it commits or rolls back with the writes that
@@ -212,7 +226,9 @@ Each test runs on a database of its own, copied from a template that the run's s
 with the `make migrate` program ([tooling.md › Tests](tooling.md#tests)). A repository suite runs
 one body over every implementation of its port and provides the layer per test
 ([effect-tests.md](../../.claude/rules/effect-tests.md)); the facts only Postgres has (a check, a
-partial unique index, a transaction) sit in a suite of their own. The suites share the stacks of
+partial unique index, a transaction) sit in a suite of their own. The service and use case
+suites run on the test database too, and a race there runs the rival calls concurrently on the
+real repositories, with no fake between them. The suites share the stacks of
 every repository from `infrastructure/testing/repository-stacks.ts` and insert the parent rows
 with `insertUser` and its siblings from `infrastructure/testing/rows.ts`. An `.entity.test.ts`
 checks what the schema itself refuses (a check, a partial unique index) and reads the `SqlError`

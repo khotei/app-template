@@ -12,8 +12,8 @@ Where a flow lives in `application`. Names: `naming.md`; Effect shapes: `effect-
 
 - **A service is simple, goal-specific and easy to compose.** It composes what lies below it:
   domain rules, ports, adapters, packages.
-- **It calls a service of its own level only for shared state** (`UserLock`) or a trivial task,
-  and the call says why. A `.job` producer is a service of the same level: a service never enqueues.
+- **It calls a service of its own level only for shared state or a trivial task,** and the call
+  says why. A `.job` producer is a service of the same level: a service never enqueues.
 - **One writer per aggregate.** Only an aggregate's own service writes its records; another
   service may read that port for a view (`MessageDetail`), never write through it.
 - **Every method is safe on its own,** except a step another aggregate owns (a cascade): its doc
@@ -39,27 +39,33 @@ Do not wait for the method to grow: the exception is the signal.
   service methods it orchestrates: `ChatService.delete` is a step of `DeleteChatUseCase`, which
   removes the attachments first.
 - **All checks precede every write;** a step's own guard may repeat a check the use case already
-  made under its lock. Order the writes so a crash and a retry still find what the next write needs
-  (attachments while the messages still list them, the chat last).
-- **Enqueue after the writes the job reads.** A job lost between insert and enqueue is a known
-  risk until an outbox writes both in one transaction.
+  made, since only the guard holds against a concurrent writer.
+- **The writes commit in one transaction:** `sql.withTransaction` as a pipeable of the use case's
+  `Effect.fn`, then `Effect.catchTag('SqlError', Effect.die)` for its own statements. S3 stays
+  outside it, so order the bytes for a rollback: keep them before the row that binds them, and
+  delete them before the commit, so a rollback restores rows that a retry still finds.
+- **Enqueue after the commit of the writes the job reads.** A job lost between the commit and the
+  enqueue is a known risk while the queue is not the outbox, whose rows join the transaction.
 - Read a set through the port's batch method (`selectByIds`), never one `select` per id in a loop.
 - Return the contract's shape (each message with its attachments), so the handler only projects
   each model onto its DTO's fields (`Struct.pick`) and composes nothing.
 
 ## Concurrency
 
-- **Lock on the key the invariant spans:** per user when one attachment can reach two chats, not
-  per chat. A lock is a service several holders share (`UserLock`), not a private field.
-- A lock is not reentrant: the outermost holder takes it, the methods it calls do not.
-- It spans one process. Name the database guard that replaces it (a partial unique index, an
-  `UPDATE … WHERE` on the free state) in the Risks of the ticket that adds it.
+- **Hold no lock in the process.** A rule two writers could break between a read and a write is
+  a database guard in the write itself (a partial unique index, an `UPDATE … WHERE` on the free
+  state), and the application turns its answer into the domain error: the reply's insert answers
+  `false` (`ChatBusyError`), the bind skips a taken id (`AttachmentBoundError`). A second process
+  is then as safe as a second fiber.
 - **Write only the fields you own of a record another process also writes,** and hold a rule in
   the write's `where`, not in a read before it: the send's touch sets `updatedAt` alone, and the
   title job writes only `where` the chat is still untitled.
 
 ## Tests
 
-- Test a use case at its Seam on the test database through the `testing/` test layer. A
-  concurrency test forces the interleaving with a yielding fake of the port, and a probe that
-  removes the lock must turn it red.
+- Test a use case at its Seam on the test database through the `testing/` test layer.
+- A concurrency test runs the rival calls with `Effect.all(…, { concurrency: 'unbounded' })` on
+  the real repositories and asserts an outcome that holds whichever call wins; a probe that
+  removes the transaction or the guard must turn it red.
+- A rollback test has the database refuse one write of the flow (a constraint the test adds), not
+  a fake of the port.

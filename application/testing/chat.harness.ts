@@ -16,7 +16,8 @@ import {
   prepareMessage,
 } from '@app-template/domain/chat'
 import type { UserId } from '@app-template/domain/user'
-import { ChatRepositoryPg } from '@app-template/infrastructure/chat'
+import { AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
+import { ChatRepositoryPg, MessageRepositoryPg } from '@app-template/infrastructure/chat'
 import type { Db } from '@app-template/infrastructure/db'
 import { recordQueue, type SentJob } from '@app-template/queue/testing'
 import { png } from '@app-template/testing'
@@ -26,28 +27,18 @@ import { ChatService } from '#application/chat/chat.service'
 import { DeleteChatUseCase } from '#application/chat/delete-chat.use-case'
 import { SendMessageUseCase } from '#application/chat/send-message.use-case'
 import { AttachmentStoreMemory } from '#application/testing/attachment.fake'
-import {
-  AttachmentRepositoryYielding,
-  type Interleaving,
-  interleaveMessages,
-} from '#application/testing/chat.fake'
 import { chat } from '#application/testing/chat.fixture'
 import { DbWithUsers } from '#application/testing/db.harness'
 
-/** The handles of the fakes under `ChatTest`: the jobs sent, and a write armed for the next send. */
+/** The handle of the fake under `ChatTest`: the jobs sent. */
 export class ChatFakes extends Context.Service<
   ChatFakes,
-  { readonly sent: ReadonlyArray<SentJob>; readonly interleaving: Interleaving }
+  { readonly sent: ReadonlyArray<SentJob> }
 >()('@app-template/application/chat/ChatFakes') {
   static readonly layer = Layer.unwrap(
     Effect.sync(() => {
       const queue = recordQueue()
-      const messages = interleaveMessages()
-      return Layer.mergeAll(
-        queue.layer,
-        messages.layer,
-        Layer.succeed(ChatFakes, { sent: queue.sent, interleaving: messages.interleaving }),
-      )
+      return Layer.merge(queue.layer, Layer.succeed(ChatFakes, { sent: queue.sent }))
     }),
   )
 }
@@ -58,8 +49,7 @@ const insertChat = Layer.effectDiscard(
 
 /**
  * The chat services and use cases on a fresh test database where `chat` exists, over the memory
- * attachment store and the recording and yielding fakes; `chats` replaces the Postgres chat
- * repository.
+ * attachment store and the recording queue; `chats` replaces the Postgres chat repository.
  */
 export const layerChatTest = (chats: Layer.Layer<ChatRepository, never, Db> = ChatRepositoryPg) =>
   Layer.mergeAll(
@@ -70,7 +60,13 @@ export const layerChatTest = (chats: Layer.Layer<ChatRepository, never, Db> = Ch
   ).pipe(
     Layer.provideMerge(insertChat),
     Layer.provideMerge(
-      Layer.mergeAll(chats, AttachmentRepositoryYielding, AttachmentStoreMemory, ChatFakes.layer),
+      Layer.mergeAll(
+        chats,
+        MessageRepositoryPg,
+        AttachmentRepositoryPg,
+        AttachmentStoreMemory,
+        ChatFakes.layer,
+      ),
     ),
     Layer.provideMerge(DbWithUsers),
     Layer.provide(BunCrypto.layer),

@@ -1,8 +1,9 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Schema } from 'effect'
+import { Array as Arr, Effect, Order, Schema } from 'effect'
 import { HttpClient } from 'effect/http'
 
 import {
+  ChatBusyError,
   ChatNotFoundError,
   failMessage,
   type MessageId,
@@ -81,6 +82,31 @@ describe('chats', () => {
           attachments: [],
         })
       }).pipe(Effect.provide(ApiTest)),
+  )
+
+  it.effect('two concurrent sends to one chat answer one 202 and one 409 ChatBusyError', () =>
+    Effect.gen(function* () {
+      const api = yield* ApiClient
+      const chat = yield* openChat
+      const send = api.chats.send({
+        params: { chatId: chat.id },
+        payload: hello,
+        responseMode: 'response-only',
+      })
+
+      const responses = yield* Effect.all([send, send], { concurrency: 'unbounded' })
+
+      const statuses = Arr.map(responses, (response) => response.status)
+      const busy = yield* Effect.fromOption(
+        Arr.findFirst(responses, (response) => response.status === 409),
+      )
+      assert.deepStrictEqual(Arr.sort(statuses, Order.Number), [202, 409])
+      assertSchemaEquals(
+        ChatBusyError,
+        yield* Effect.flatMap(busy.json, Schema.decodeUnknownEffect(ChatBusyError)),
+        new ChatBusyError({ id: chat.id }),
+      )
+    }).pipe(Effect.provide(ApiTest)),
   )
 
   it.effect("another user's chat is 404 ChatNotFoundError, as if it did not exist", () =>
