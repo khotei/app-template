@@ -62,8 +62,9 @@ The goal is code that reads top to bottom and extends by adding a row, not a bra
 
 - One job per combinator: log in `Effect.tapCauseIf` / `Effect.tapError`, recover in `catch*`,
   annotate in `Effect.annotateLogs`.
-- `Effect.catchCause` keeps one ternary for an interrupt-only cause: `catchCauseIf` would leak the
-  handler's error type, since types cannot tell a cause the predicate rejected holds interrupts only.
+- An interrupt-only cause is let through with
+  `Effect.catchCauseIf(Predicate.not(Cause.hasInterruptsOnly), …)`, paired with the `tapCauseIf`
+  that logs every other cause; keep a ternary in `catchCause` only when the handler itself can fail.
 - A `Cause` is inspected with `Cause.hasInterruptsOnly`, `Cause.hasDies`, `Cause.hasFails`, never by
   walking it.
 

@@ -65,7 +65,9 @@ export const encodeJob = <A, I>(definition: QueueDefinition<Schema.Codec<A, I>>,
   )
 
 const encodeBody = <A, I>(definition: QueueDefinition<Schema.Codec<A, I>>, message: A) =>
-  Effect.map(encodeJob(definition, message), (job) => JSON.stringify(job))
+  Schema.encodeEffect(buildJsonCodec(definition.schema))(message).pipe(
+    Effect.mapError((cause) => new QueueError({ cause })),
+  )
 
 const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueClientOptions) =>
   Effect.gen(function* () {
