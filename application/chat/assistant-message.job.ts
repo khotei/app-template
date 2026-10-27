@@ -154,7 +154,10 @@ const findReply = Effect.fnUntraced(function* (
   return yield* messages.selectById(job.messageId)
 })
 
-const failActive = Effect.fnUntraced(function* (active: Message, cause: string) {
+const failActive = Effect.fnUntraced(function* (
+  active: Message,
+  cause: string,
+): Effect.fn.Return<void, MessageStageInvalidError, ChatRepository | MessageRepository> {
   const failedAt = yield* DateTime.now
   const failed = yield* failMessage(active, { reason: 'ReplyFailed', cause, at: failedAt })
   const settled = writeSettled(failed, { stage: active.stage })

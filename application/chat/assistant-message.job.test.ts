@@ -483,10 +483,9 @@ describe('AssistantMessageJob.handle', () => {
   })
 })
 
-// The receive count carries over from the main queue, so the first dead-letter receive is 4.
-const handleDeadLettered = Effect.exit(
+const runDeadLettered = Effect.exit(
   AssistantMessageJob.handleDeadLettered(queuedJob, {
-    attempt: 4,
+    attempt: assistantMessageQueue.maxAttempts + 1,
     maxAttempts: assistantMessageDeadLetterQueue.maxAttempts,
     isLastAttempt: false,
   }),
@@ -508,7 +507,7 @@ describe('AssistantMessageJob.handleDeadLettered', () => {
       return Effect.gen(function* () {
         yield* arrangeChat(reply)
 
-        const exit = yield* handleDeadLettered
+        const exit = yield* runDeadLettered
 
         assert.isTrue(Exit.isSuccess(exit))
         assert.deepStrictEqual(snapshotsOf(writes), [['failed', reply.text]])
@@ -531,7 +530,7 @@ describe('AssistantMessageJob.handleDeadLettered', () => {
     return Effect.gen(function* () {
       const completed = yield* arrangeChat(asCompleted(queuedReply, 'Done.'))
 
-      yield* handleDeadLettered
+      yield* runDeadLettered
 
       assert.deepStrictEqual(writes, [])
       assertEquals(yield* selectReply, completed)
@@ -546,7 +545,7 @@ describe('AssistantMessageJob.handleDeadLettered', () => {
       yield* arrangeChat()
       yield* deleteChat
 
-      yield* handleDeadLettered
+      yield* runDeadLettered
 
       assert.deepStrictEqual(writes, [])
       assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: chat deleted']])

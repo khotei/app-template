@@ -240,19 +240,6 @@ describe('ChatTitleJob.handle', () => {
     }).pipe(Effect.provide(layer))
   })
 
-  it.effect('only logs a job from the dead-letter queue', () => {
-    const { prompts, logs, layer } = makeChatTitleHarness(answering('Lisbon weekend'))
-    return Effect.gen(function* () {
-      yield* arrangeChat()
-
-      yield* ChatTitleJob.handleDeadLettered()
-
-      assertEquals(yield* selectChat(chatId), Option.some(chat))
-      assert.deepStrictEqual(prompts, [])
-      assert.deepStrictEqual(logs, [['Error', 'chat title dead-lettered']])
-    }).pipe(Effect.provide(layer))
-  })
-
   it.live.each(untitledOpenings)(
     'leaves the chat untouched after $name',
     ({ text, answer, modelCalls }) => {
@@ -268,4 +255,15 @@ describe('ChatTitleJob.handle', () => {
       }).pipe(Effect.provide(layer))
     },
   )
+})
+
+describe('ChatTitleJob.handleDeadLettered', () => {
+  it.effect('logs the job at Error', () => {
+    const { logs, layer } = recordLogs()
+    return Effect.gen(function* () {
+      yield* ChatTitleJob.handleDeadLettered()
+
+      assert.deepStrictEqual(logs, [['Error', 'chat title dead-lettered']])
+    }).pipe(Effect.provide(layer))
+  })
 })

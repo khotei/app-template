@@ -38,9 +38,9 @@ const handle = Effect.fn('ChatTitleJob.handle')(function* (job: GenerateChatTitl
   )
 })
 
-const handleDeadLettered = Effect.fn('ChatTitleJob.handleDeadLettered')(function* () {
-  yield* Effect.logError('chat title dead-lettered')
-})
+const handleDeadLettered = Effect.fn('ChatTitleJob.handleDeadLettered')(() =>
+  Effect.logError('chat title dead-lettered'),
+)
 
 export class ChatTitleJob extends Context.Service<
   ChatTitleJob,
@@ -71,6 +71,5 @@ export class ChatTitleJob extends Context.Service<
 
   static readonly handleDeadLettered = handleDeadLettered
 
-  /** Logs a title job that reached the dead-letter queue; an untitled chat is no harm. */
   static readonly deadLetterWorker = worker(chatTitleDeadLetterQueue, handleDeadLettered)
 }

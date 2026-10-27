@@ -8,8 +8,14 @@ const { assistantMessage, chatTitle } = resources.queues
 
 const buildDoublingDelay = (attempt: number) => Duration.seconds(2 ** (attempt - 1))
 
-const buildCappedDoublingDelay = (attempt: number) =>
-  Duration.min(buildDoublingDelay(attempt), Duration.minutes(5))
+/**
+ * A dead-letter queue has no redrive, so its attempts never run out and a failing handler retries
+ * at most five minutes apart.
+ */
+const deadLetterRetries = {
+  maxAttempts: Number.MAX_SAFE_INTEGER,
+  retryDelay: (attempt: number) => Duration.min(buildDoublingDelay(attempt), Duration.minutes(5)),
+}
 
 export class GenerateAssistantMessage extends Schema.Class<GenerateAssistantMessage>(
   'GenerateAssistantMessage',
@@ -24,16 +30,10 @@ export const assistantMessageQueue = {
   jobId: (job) => job.messageId,
 } satisfies QueueDefinition<typeof GenerateAssistantMessage>
 
-/**
- * A dead-letter queue has no redrive, so its attempts never run out and a failing handler retries
- * at most five minutes apart.
- */
 export const assistantMessageDeadLetterQueue = {
-  name: buildDeadLetterName(assistantMessage.name),
-  schema: GenerateAssistantMessage,
-  maxAttempts: Number.MAX_SAFE_INTEGER,
-  retryDelay: buildCappedDoublingDelay,
-  jobId: (job) => job.messageId,
+  ...assistantMessageQueue,
+  ...deadLetterRetries,
+  name: buildDeadLetterName(assistantMessageQueue.name),
 } satisfies QueueDefinition<typeof GenerateAssistantMessage>
 
 /** `messageId` is the chat's first user message; the worker reads its text from the store. */
@@ -51,9 +51,7 @@ export const chatTitleQueue = {
 } satisfies QueueDefinition<typeof GenerateChatTitle>
 
 export const chatTitleDeadLetterQueue = {
-  name: buildDeadLetterName(chatTitle.name),
-  schema: GenerateChatTitle,
-  maxAttempts: Number.MAX_SAFE_INTEGER,
-  retryDelay: buildCappedDoublingDelay,
-  jobId: (job) => job.chatId,
+  ...chatTitleQueue,
+  ...deadLetterRetries,
+  name: buildDeadLetterName(chatTitleQueue.name),
 } satisfies QueueDefinition<typeof GenerateChatTitle>

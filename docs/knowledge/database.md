@@ -174,9 +174,7 @@ its jobs after the commit.
 ## Stuck replies
 
 A reply that no attempt settles stays active, so the partial unique index refuses every next send
-to its chat with `ChatBusyError`. Each such reply ends with its job in the dead-letter queue,
-whose consumer in the worker writes it `failed` through the same `MessageRepository.update(message,
-{ stage })` the job uses, so a reply another writer settled meanwhile stays as it is
+to its chat with `ChatBusyError` until the worker fails it from the dead-letter queue
 ([aws.md › Queues](aws.md#queues)). No sweep over active messages exists: by age alone it could
 not tell a dead reply from one waiting in a backlog.
 

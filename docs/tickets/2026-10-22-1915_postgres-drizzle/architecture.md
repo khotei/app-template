@@ -331,16 +331,21 @@ update skipped (a concurrent bind).
 ### Dead-letter consumers
 
 ```ts
-assistantMessageDeadLetterQueue = { name: buildDeadLetterName(assistantMessage.name), schema: GenerateAssistantMessage,
-  maxAttempts: Number.MAX_SAFE_INTEGER, retryDelay: capped doubling (max 5 min), jobId }
-AssistantMessageJob.deadLetterWorker = worker(assistantMessageDeadLetterQueue, failDeadLettered)
-  // failDeadLettered: selectById → if active: failMessage(ReplyFailed, cause 'dead-lettered after N attempts')
-  //                   → update(failed, { stage: active.stage }) → touch; else log 'already settled' / 'chat deleted'
+deadLetterRetries = { maxAttempts: Number.MAX_SAFE_INTEGER, retryDelay: capped doubling (max 5 min) }
+assistantMessageDeadLetterQueue = { ...assistantMessageQueue, ...deadLetterRetries,
+  name: buildDeadLetterName(assistantMessageQueue.name) }
+AssistantMessageJob.deadLetterWorker = worker(assistantMessageDeadLetterQueue, handleDeadLettered)
+  // handleDeadLettered: findReply → if active: log 'assistant reply dead-lettered'
+  //   → failActive: failMessage(ReplyFailed, cause 'dead-lettered after <receive count> attempts on <queue>')
+  //   → update(failed, { stage: active.stage }) → chats.update({ updatedAt }, { id });
+  //   else log 'already settled' / 'chat deleted'
 ChatTitleJob.deadLetterWorker = worker(chatTitleDeadLetterQueue, log 'chat title dead-lettered')
 ```
 
 A dead-letter queue has no redrive, so a handler failure must never spend a "last attempt":
-`maxAttempts` is unreachable and the retry delay is capped.
+`maxAttempts` is unreachable and the retry delay is capped. SQS carries the receive count through
+the redrive (checked on MiniStack), so the first dead-letter receive is attempt `maxReceiveCount +
+1`, and the cause counts that attempt too.
 
 ### Configuration
 

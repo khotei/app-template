@@ -865,10 +865,12 @@ methods; running it after S9 avoids merge work.
 - **Goal:** stuck replies are settled. `infrastructure/chat/chat.queue.ts` gains
   `assistantMessageDeadLetterQueue` and `chatTitleDeadLetterQueue` (`name:
   buildDeadLetterName(<queue>.name)`, the job's schema and `jobId`, `maxAttempts:
-  Number.MAX_SAFE_INTEGER`, a capped doubling `retryDelay` with a 5-minute ceiling).
+  Number.MAX_SAFE_INTEGER`, a capped doubling `retryDelay` with a 5-minute ceiling), each
+  spreading its main definition with one shared `deadLetterRetries`.
   `AssistantMessageJob.deadLetterWorker`: `selectById`; if active, `failMessage(ReplyFailed,
   cause 'dead-lettered after <attempts> attempts on <queue>')`, `update(failed, { stage:
-  active.stage })`, `touch`; else the existing logs `assistant reply skipped: already settled` or
+  active.stage })`, `chats.update({ updatedAt }, { id })`, after the log `assistant reply
+  dead-lettered`; else the existing logs `assistant reply skipped: already settled` or
   `assistant reply skipped: chat deleted`. `ChatTitleJob.deadLetterWorker` logs `chat title
   dead-lettered` (as `queue message dead-lettered` in `packages/queue`). `apps/worker` runs the
   four workers (R13; D8).
@@ -887,7 +889,25 @@ methods; running it after S9 avoids merge work.
   the job by receiving it `maxReceiveCount` times with `aws sqs receive-message --visibility-timeout
   0`, start the worker: the message is `failed` within seconds and the log names the dead-letter
   queue.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The reply consumer logs `assistant reply dead-lettered` at Error before it fails the reply:
+    the plan named only the skip logs, and without it a stuck reply settled from the dead-letter
+    queue leaves no trace, and *Verify* had no line naming the queue.
+  - The cause counts SQS's receive count, which carries over through the redrive (checked on
+    MiniStack): with `maxReceiveCount` 3 the first dead-letter receive reads "after 4
+    attempts", though the model ran three times. Kept, as *Test first* asks for attempt 4.
+  - `ChatService.touch` went in S9; the consumer moves `updatedAt` through the job's
+    `writeSettled`, the same `chats.update` path the reply job already had. That path breaks
+    `use-cases.md`'s one writer per aggregate (`ChatService` owns the chat), as before the
+    ticket; S13 adds a second entry to it. Not fixed here; S12, which rewrites the job's reads,
+    is the place to route it through `ChatService`.
+  - `failActive` is shared by `failReply` and the consumer, so both settle a reply alike (D8).
+  - The `attempt` log annotation prints the unreachable `maxAttempts` (`4/9007199254740991`);
+    left in `packages/queue`, outside the step.
+  - Live: no `aws` CLI on the machine, so the redrive ran through MiniStack's SQS JSON API with
+    `curl`; the reply was `failed` 50 ms after the worker started.
+  - The step landed in two rounds, S13.1–S13.2, after one review, in a worktree beside S11.
 
 ## Requirement coverage
 

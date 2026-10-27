@@ -152,12 +152,11 @@ the apps from `QueueConfig` and `AwsConfig`: a definition's queue is
   `maxAttempts` at `Number.MAX_SAFE_INTEGER` and a retry delay that doubles up to 5 minutes:
   nothing redrives a dead-letter queue, so a failing handler must never reach a last attempt.
   The receive count carries over through the redrive (checked on MiniStack), so the first
-  receive there is attempt `maxReceiveCount + 1`. The reply's consumer logs `assistant reply
-  dead-lettered` and writes an active reply `failed` with `ReplyFailed` and the cause
-  `dead-lettered after <attempt> attempts on assistant-message-dlq`, moving the chat's
-  `updatedAt`, under the stage guard the job uses; a settled reply or a deleted chat gets the
-  job's skip log. The title's consumer only logs `chat title dead-lettered`, since an untitled
-  chat is harmless.
+  receive there is attempt `maxReceiveCount + 1`. The reply's consumer logs the stuck reply and
+  writes it `failed` with `ReplyFailed`, a cause naming the queue and the attempts, and the
+  chat's `updatedAt`, under the stage guard the job uses, so a reply settled meanwhile or a
+  deleted chat is only logged. The title's consumer only logs, since an untitled chat is
+  harmless.
 - **A stopped worker's long poll can outlive it.** Interrupting a receive aborts its HTTP request,
   but MiniStack keeps the poll open and hides the next message it finds for its visibility
   timeout; that message returns after `QUEUE_LOCK_EXPIRATION` with an attempt spent.
