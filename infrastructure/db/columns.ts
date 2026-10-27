@@ -34,12 +34,13 @@ type SetRow<Fields, Table extends PgTable> = {
 export const buildSet =
   <Fields extends object, Table extends PgTable>(columns: SetColumns<Fields, Table>) =>
   (set: Fields): SetRow<Fields, Table> =>
+    // Not `Struct.pick` + `Struct.evolve` (`Pick<Fields>` is no `Fields` to tsc) nor a spread
+    // (quadratic, flagged by Biome): the mutation never leaves the builder.
     pipe(
       Struct.keys(columns),
-      Arr.reduce({}, (row: SetRow<Fields, Table>, key) => ({
-        ...row,
-        [key]: columns[key](set[key]),
-      })),
+      Arr.reduce({}, (row: SetRow<Fields, Table>, key) =>
+        Object.assign(row, { [key]: columns[key](set[key]) }),
+      ),
     )
 
 /**

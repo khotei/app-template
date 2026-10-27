@@ -16,6 +16,8 @@
   when their only overlap is a line in a manifest, `biome.json` or `bun.lock`.
 - The e2e steps need Docker running; the user starts it by hand. The local stand (`make up`)
   is needed only where a *Verify* says `make dev-*`.
+- Every step writes its code by `.claude/rules/effect-style.md › Composition`: business logic in
+  `Effect.gen` / `Effect.fn`, plumbing in `pipe`; the review checks it.
 
 ## Steps
 
@@ -162,6 +164,40 @@
   column is `text` and the entity says `jsonb`, through `make migration-check`.
 - **Verify:** `make migration-check`; `make test-e2e`; `grep -n jsonb
   infrastructure/outbox/outbox.entity.ts`; `make check`.
+- **Model:** fable high
+- **Status:** done
+- **Findings:**
+  - The migration keeps drizzle-kit's text (`SET DATA TYPE jsonb USING "body"::jsonb`), the
+    statement the Files spell as `TYPE jsonb`. `infrastructure/e2e/shared/queue.client.e2e.ts`
+    asserted the stored body as a string and now expects the JSON value.
+  - One codec: `packages/queue` exports `encodeJob` (the JSON value an outbox row stores) and
+    keeps `encodeBody` private, both `pipe(message, encodeWith(<codec>))`; `encodeBody` encodes
+    through `buildJsonCodec`, the codec `consume` decodes with. The relay keeps `JSON.stringify`,
+    since its input is already a `Schema.Json`.
+  - The relay e2e asserts the sent body parses to the job: `jsonb` stores keys in its own order,
+    so the string equalled the encoded job only by chance.
+  - R12: `poll` lets an interrupt-only cause through with `catchCauseIf`, paired with
+    `tapCauseIf`; `effect-style.md › Errors and logs` now says so, on the user's OK. The delete of
+    a non-empty batch is `Arr.match`, its query ending in `Effect.asVoid`, without which
+    `Effect.tap` cannot infer one type from the two arms.
+  - On the user's OK, `effect-style.md` gained `## Composition` (business logic in gen, plumbing
+    in pipe, flat, data-last, subject-last arity); the file is 91 lines, past the ~80 guide,
+    until S23. `columns.ts` (S4) follows it: `buildSet` folds with `Object.assign` on a fresh
+    row, since `Struct.pick` + `Struct.evolve` and `Record.fromEntries` do not typecheck under the
+    generic `Fields` and the spread is quadratic.
+  - For S7, S10 and S11: wrap the `Where` and `Set` types in `Types.Simplify` so a compiler
+    error shows one flat object, and use `Types.Mutable` for the memory fakes' rows.
+
+#### S5b — Compose the modules no later step rewrites
+
+- **Goal:** the code no later step rewrites reads by `effect-style.md › Composition` (R12).
+- **Blocked by:** S5.
+- **Files:** `packages/queue/queue.ts` (`consume`, `heartbeat`, `settle`, `run`, `worker`),
+  `packages/config`, `packages/llm`, `packages/aws`, `http-api`, the handlers of `apps/api` and
+  `apps/web`, `infrastructure/user/user.repository.ts`, `deployment`. No behaviour changes; past
+  ~400 lines the step splits into S5b (packages) and S5c (`http-api`, apps, `deployment`).
+- **Test first:** `config only` — the existing suites over these modules stay green unchanged.
+- **Verify:** `make check`; `git diff --stat` shows no test file changed.
 - **Model:** fable high
 - **Status:** todo
 
@@ -682,7 +718,7 @@
 | R9 | S5 |
 | R10 | S6, S11 |
 | R11 | S9, S10 |
-| R12 | S5, S9, S15, S19 |
+| R12 | S5, S5b, S9, S15, S19 |
 | R13 | S4 |
 | R14 | S1 |
 | R15 | S19, S20 |

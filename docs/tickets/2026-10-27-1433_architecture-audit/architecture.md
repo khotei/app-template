@@ -327,10 +327,9 @@ export const buildSet =
   (set: Fields): SetRow<Fields, Table> =>
     pipe(
       Struct.keys(columns),
-      Arr.reduce({}, (row: SetRow<Fields, Table>, key) => ({
-        ...row,
-        [key]: columns[key](set[key]),
-      })),
+      Arr.reduce({}, (row: SetRow<Fields, Table>, key) =>
+        Object.assign(row, { [key]: columns[key](set[key]) }),
+      ),
     )
 export const buildWhere =
   <Fields extends object>(columns: WhereColumns<Fields>) =>

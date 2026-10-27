@@ -42,7 +42,7 @@ export const OutboxRelay = Effect.gen(function* () {
       attributes: { jobId: row.jobId },
     })
 
-  // `asVoid` gives the delete the type of `Effect.void`, the other arm of the match below.
+  // `asVoid` gives the delete the type of `Effect.void`, the match's other arm.
   const deleteRows = (rows: Arr.NonEmptyReadonlyArray<OutboxRow>) =>
     db
       .delete(outbox)
