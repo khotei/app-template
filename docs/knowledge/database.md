@@ -161,15 +161,15 @@ are removed first.
 A use case that writes several aggregates commits them together: `sql.withTransaction` is a pipeable
 of the `Effect.fn` that holds the writes, and every repository call inside joins the transaction
 through the connection `@effect/sql` keeps in the fiber's context, so no port takes a transaction
-parameter. `SendMessageUseCase.send` writes the user message with the chat's `updatedAt`, the binds
-and the reply, or none of them; `DeleteChatUseCase.delete` removes the attachments' rows and the
-chat, or neither. The guards above then decide every race inside Postgres, with no lock in the
-process: of two sends to one chat the second waits on the first's writes and its reply insert
-answers `false` once the first commits, and of two binds of one attachment the second's `UPDATE`
-waits on the row and skips it. Two api processes behave as two fibers. S3 and SQS stay outside the
-transaction: the bytes are kept before the bind, so no bound row sits over expiring bytes, and
-deleted before the commit, so a rollback restores rows that a retry still finds; the send enqueues
-its jobs after the commit.
+parameter. `SendMessageUseCase.send` writes the user message with the chat's `updatedAt`, the
+binds, the reply and its jobs' outbox rows, or none of them; `DeleteChatUseCase.delete` removes
+the attachments' rows and the chat, or neither. The guards above then decide every race inside
+Postgres, with no lock in the process: of two sends to one chat the second waits on the first's
+writes and its reply insert answers `false` once the first commits, and of two binds of one
+attachment the second's `UPDATE` waits on the row and skips it. Two api processes behave as two
+fibers. S3 stays outside the transaction: the bytes are kept before the bind, so no bound row sits
+over expiring bytes, and deleted before the commit, so a rollback restores rows that a retry still
+finds. SQS is reached only through the outbox, whose rows join it.
 
 ## Stuck replies
 
@@ -181,7 +181,8 @@ not tell a dead reply from one waiting in a backlog.
 ## The outbox
 
 A job reaches SQS through the `outbox` table, so it commits or rolls back with the writes that
-enqueue it.
+enqueue it: `apps/api` provides `QueueClientOutbox` as its `QueueClient` and never sends to SQS,
+and `apps/worker` consumes through `QueueClientSqs` beside the relay.
 
 - **`QueueClientOutbox`** (`infrastructure/shared/queue.client.ts`) is a `QueueClient` whose
   `send` encodes the job as the SQS client does (`encodeBody`) and inserts a row: the
@@ -241,6 +242,9 @@ partial unique index, a transaction) sit in a suite of their own. The service an
 suites run on the test database too, and a race there runs the rival calls concurrently on the
 real repositories, with no fake between them. The suites share the stacks of
 every repository from `infrastructure/testing/repository-stacks.ts` and insert the parent rows
-with `insertUser` and its siblings from `infrastructure/testing/rows.ts`. An `.entity.test.ts`
-checks what the schema itself refuses (a check, a partial unique index) and reads the `SqlError`
-of a refused statement with `flipSqlError` from `infrastructure/testing/db-test.ts`.
+with `insertUser` and its siblings from `infrastructure/testing/rows.ts`. The chat and api
+harnesses provide `QueueClientOutbox` and read the jobs back with `selectOutbox` from
+`application/testing/db.harness.ts`, each body parsed by Postgres (`body::json`). An
+`.entity.test.ts` checks what the schema itself refuses (a check, a partial unique index) and
+reads the `SqlError` of a refused statement with `flipSqlError` from
+`infrastructure/testing/db-test.ts`.

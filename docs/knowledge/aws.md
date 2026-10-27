@@ -125,7 +125,7 @@ The api and the worker run on `AttachmentPgS3`.
 
 `QueueClient` (`packages/queue`) sends and consumes jobs over `QueueTransport`, four SQS calls
 (`send`, `receive`, `extend`, `delete`). `QueueClientSqs` in `infrastructure/shared` wires it for
-the apps from `QueueConfig` and `AwsConfig`: a definition's queue is
+the worker from `QueueConfig` and `AwsConfig`: a definition's queue is
 `buildResourceName(STAGE, definition.name)`.
 
 - **Delivery is at-least-once** (`QueueDefinition.jobId` in `packages/queue/queue.ts`): the jobs
@@ -160,16 +160,19 @@ the apps from `QueueConfig` and `AwsConfig`: a definition's queue is
 - **A stopped worker's long poll can outlive it.** Interrupting a receive aborts its HTTP request,
   but MiniStack keeps the poll open and hides the next message it finds for its visibility
   timeout; that message returns after `QUEUE_LOCK_EXPIRATION` with an attempt spent.
-- **The worker relays the outbox.** `QueueClientOutbox` writes a job as an `outbox` row instead
-  of sending it, and `OutboxRelay` in the worker sends the rows to
+- **The api never sends to SQS; the worker relays the outbox.** The api's `QueueClient` is
+  `QueueClientOutbox`, which writes a job as an `outbox` row instead of sending it, and
+  `OutboxRelay` in the worker sends the rows to
   `buildResourceName(STAGE, queue)` over the same `QueueTransport`
   ([database.md › The outbox](database.md#the-outbox)). A row the relay sent and could not
   delete is sent again, which the at-least-once handlers absorb.
 
 The queue's own suite checks those rules on MiniStack in real time. A job suite calls the job's
 `handle` with plain `AttemptInfo` values; a test of a moved `updatedAt` runs on the live clock,
-and only the snapshot-timing block steps the `TestClock`. Tests that only send (the api and chat harnesses) use `recordQueue` from `@app-template/queue/testing`, which encodes each job
-as the client does, records it and starts no container.
+and only the snapshot-timing block steps the `TestClock`. The api and chat harnesses send to the
+outbox of their test database and read its rows; `recordQueue` from
+`@app-template/queue/testing`, which encodes each job as the client does, records it and starts no
+container, is for a suite with no database.
 
 ## Tests on Docker
 
@@ -177,7 +180,7 @@ Only the queue's own suite starts MiniStack: `packages/queue/queue.test.ts` star
 through `SqsClientMiniStack` in `@app-template/testing` (`testcontainers`; an SQS client on that
 container) and stops it with the suite; it provisions its queues under the fixed stage `test`
 and passes `{ timeout: '60 seconds' }` to `layer(…)`. The application and api suites test
-our code, not S3: they provide `AttachmentStoreMemory` and `recordQueue` instead
+our code, not S3: they provide `AttachmentStoreMemory` and the outbox instead
 ([tooling.md › Tests](tooling.md#tests)). So `make test` needs a running Docker daemon and nothing
 else: the Pulumi project is for `make up` alone. The container starts in about two seconds; the
 timeout covers the pull on a cold machine. Nothing cleans the stage up, since the container goes

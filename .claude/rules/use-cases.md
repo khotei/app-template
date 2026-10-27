@@ -44,8 +44,9 @@ Do not wait for the method to grow: the exception is the signal.
   that holds the writes, then `Effect.catchTag('SqlError', Effect.die)` for its own statements.
   `AttachmentStore` stays outside it: keep the bytes before the row that binds them, and delete
   them before the commit.
-- **Enqueue after the commit of the writes the job reads.** A job lost between the commit and the
-  enqueue is a known risk while the queue is not the outbox, whose rows join the transaction.
+- **Enqueue inside the transaction of the writes the job reads:** the api's `QueueClient` is the
+  outbox, so a job commits or rolls back with them
+  ([database.md › The outbox](../../docs/knowledge/database.md#the-outbox)).
 - Read a set through the port's batch method (`selectByIds`), never one `select` per id in a loop.
 - Return the contract's shape (each message with its attachments), so the handler only projects
   each model onto its DTO's fields (`Struct.pick`) and composes nothing.

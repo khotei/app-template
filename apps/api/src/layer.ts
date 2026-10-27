@@ -11,7 +11,7 @@ import { Api } from '@app-template/http-api'
 import { AttachmentPgS3 } from '@app-template/infrastructure/attachment'
 import { ChatPg } from '@app-template/infrastructure/chat'
 import { Db } from '@app-template/infrastructure/db'
-import { QueueClientSqs } from '@app-template/infrastructure/shared'
+import { QueueClientOutbox } from '@app-template/infrastructure/shared'
 import { UserPg } from '@app-template/infrastructure/user'
 
 import { AttachmentHandler } from '#api/attachment/attachment.handler'
@@ -44,8 +44,8 @@ const BunHttpServerFromConfig = Layer.unwrap(
 const LogApiStopped = Layer.effectDiscard(Effect.addFinalizer(() => Effect.logInfo('api stopped')))
 
 export const ApiLayer = Layer.merge(ApiHttp, LogApiStopped).pipe(
-  Layer.provide(AttachmentPgS3),
-  Layer.provide([Db.layerFromConfig, QueueClientSqs]),
+  Layer.provide([AttachmentPgS3, QueueClientOutbox]),
+  Layer.provide(Db.layerFromConfig),
   Layer.provide(BunHttpServerFromConfig),
   Layer.provide(MinimumLogLevelFromConfig),
 )

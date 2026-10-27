@@ -15,9 +15,9 @@ import {
   ChatBusyError,
   type ChatId,
   ChatNotFoundError,
+  type MessageId,
   type MessageInput,
 } from '@app-template/domain/chat'
-import { GenerateAssistantMessage, GenerateChatTitle } from '@app-template/infrastructure/chat'
 import { assertSchemaEquals, isUuidV7, sortById } from '@app-template/testing'
 
 import { ChatService } from '#application/chat/chat.service'
@@ -25,7 +25,6 @@ import { SendMessageUseCase } from '#application/chat/send-message.use-case'
 import { unknownAttachmentId } from '#application/testing/attachment.fixture'
 import { ask, chat, epoch, unknownChatId } from '#application/testing/chat.fixture'
 import {
-  ChatFakes,
   ChatTest,
   selectAttachments,
   selectChat,
@@ -33,6 +32,7 @@ import {
   settle,
   upload,
 } from '#application/testing/chat.harness'
+import { selectOutbox } from '#application/testing/db.harness'
 import { owner, stranger } from '#application/testing/user.fixture'
 
 const boundElsewhere = Effect.gen(function* () {
@@ -112,37 +112,27 @@ describe('SendMessageUseCase', () => {
     }).pipe(Effect.provide(ChatTest)),
   )
 
-  it.effect('the first send enqueues the reply and the title, a later one the reply only', () =>
+  it.effect('the first send writes the reply and the title jobs, a later one the reply only', () =>
     Effect.gen(function* () {
       const sendMessage = yield* SendMessageUseCase
-      const { sent } = yield* ChatFakes
 
       const first = yield* sendMessage.send(owner, chat.id, ask('Plan a weekend in Lisbon'))
       yield* settle(first.assistantMessage.message)
       const second = yield* sendMessage.send(owner, chat.id, ask('And in Porto?'))
 
-      assertEquals(sent, [
-        {
-          queue: 'assistant-message',
-          jobId: first.assistantMessage.message.id,
-          job: new GenerateAssistantMessage({
-            chatId: chat.id,
-            messageId: first.assistantMessage.message.id,
-          }),
-        },
+      const reply = (id: MessageId) => ({
+        queue: 'assistant-message',
+        jobId: id,
+        job: { chatId: chat.id, messageId: id },
+      })
+      assert.deepStrictEqual(yield* selectOutbox, [
+        reply(first.assistantMessage.message.id),
         {
           queue: 'chat-title',
           jobId: chat.id,
-          job: new GenerateChatTitle({ chatId: chat.id, messageId: first.userMessage.message.id }),
+          job: { chatId: chat.id, messageId: first.userMessage.message.id },
         },
-        {
-          queue: 'assistant-message',
-          jobId: second.assistantMessage.message.id,
-          job: new GenerateAssistantMessage({
-            chatId: chat.id,
-            messageId: second.assistantMessage.message.id,
-          }),
-        },
+        reply(second.assistantMessage.message.id),
       ])
     }).pipe(Effect.provide(ChatTest)),
   )
@@ -150,7 +140,6 @@ describe('SendMessageUseCase', () => {
   it.effect('send while a message is active fails ChatBusyError and stores nothing', () =>
     Effect.gen(function* () {
       const sendMessage = yield* SendMessageUseCase
-      const { sent } = yield* ChatFakes
       const first = yield* sendMessage.send(owner, chat.id, ask('Plan a weekend in Lisbon'))
 
       const error = yield* Effect.flip(sendMessage.send(owner, chat.id, ask('Hello?')))
@@ -161,7 +150,7 @@ describe('SendMessageUseCase', () => {
         sortById(stored),
         sortById([first.userMessage.message, first.assistantMessage.message]),
       )
-      assert.strictEqual(sent.length, 2)
+      assert.strictEqual((yield* selectOutbox).length, 2)
     }).pipe(Effect.provide(ChatTest)),
   )
 
@@ -170,7 +159,6 @@ describe('SendMessageUseCase', () => {
     () =>
       Effect.gen(function* () {
         const sendMessage = yield* SendMessageUseCase
-        const { sent } = yield* ChatFakes
         const sql = yield* SqlClient.SqlClient
         const photo = yield* upload(owner, 'photo.png')
         yield* Effect.orDie(
@@ -185,7 +173,30 @@ describe('SendMessageUseCase', () => {
         assertEquals(yield* selectMessages(chat.id), [])
         assertEquals(yield* selectAttachments([photo]), [photo])
         assertEquals(yield* selectChat(chat.id), Option.some(chat))
-        assertEquals(sent, [])
+        assert.deepStrictEqual(yield* selectOutbox, [])
+      }).pipe(Effect.provide(ChatTest)),
+  )
+
+  it.live(
+    'send whose title job insert fails leaves no message, no bind, no chat change and no job',
+    () =>
+      Effect.gen(function* () {
+        const sendMessage = yield* SendMessageUseCase
+        const sql = yield* SqlClient.SqlClient
+        const photo = yield* upload(owner, 'photo.png')
+        yield* Effect.orDie(
+          sql`ALTER TABLE outbox ADD CONSTRAINT refuse_title CHECK (queue <> 'chat-title')`,
+        )
+
+        const exit = yield* Effect.exit(
+          sendMessage.send(owner, chat.id, { text: 'Look', attachmentIds: [photo.id] }),
+        )
+
+        assert.isTrue(Exit.hasDies(exit))
+        assertEquals(yield* selectMessages(chat.id), [])
+        assertEquals(yield* selectAttachments([photo]), [photo])
+        assertEquals(yield* selectChat(chat.id), Option.some(chat))
+        assert.deepStrictEqual(yield* selectOutbox, [])
       }).pipe(Effect.provide(ChatTest)),
   )
 
@@ -212,10 +223,9 @@ describe('SendMessageUseCase', () => {
     ({ arrange, refusal }) =>
       Effect.gen(function* () {
         const sendMessage = yield* SendMessageUseCase
-        const { sent } = yield* ChatFakes
         const valid = yield* upload(owner, 'valid.png')
         const refused = yield* arrange
-        const jobsBefore = sent.length
+        const jobsBefore = (yield* selectOutbox).length
 
         const error = yield* Effect.flip(
           sendMessage.send(owner, chat.id, { text: 'Look', attachmentIds: [valid.id, refused] }),
@@ -224,14 +234,12 @@ describe('SendMessageUseCase', () => {
         assertSchemaEquals(refusal, error, new refusal({ id: refused }))
         assertEquals(yield* selectMessages(chat.id), [])
         assertEquals(yield* selectAttachments([valid]), [valid])
-        assert.strictEqual(sent.length, jobsBefore)
+        assert.strictEqual((yield* selectOutbox).length, jobsBefore)
       }).pipe(Effect.provide(ChatTest)),
   )
 
   it.effect('two concurrent sends on one chat: one is stored, the other fails ChatBusyError', () =>
     Effect.gen(function* () {
-      const { sent } = yield* ChatFakes
-
       const exits = yield* sendConcurrently([
         [chat.id, ask('Lisbon?')],
         [chat.id, ask('Porto?')],
@@ -244,7 +252,7 @@ describe('SendMessageUseCase', () => {
         [new ChatBusyError({ id: chat.id })],
       )
       assert.strictEqual((yield* selectMessages(chat.id)).length, 2)
-      assert.strictEqual(sent.length, 2)
+      assert.strictEqual((yield* selectOutbox).length, 2)
     }).pipe(Effect.provide(ChatTest)),
   )
 
@@ -277,7 +285,6 @@ describe('SendMessageUseCase', () => {
   it.effect("send in another user's chat or in an unknown chat is ChatNotFoundError", () =>
     Effect.gen(function* () {
       const sendMessage = yield* SendMessageUseCase
-      const { sent } = yield* ChatFakes
 
       const foreign = yield* Effect.flip(sendMessage.send(stranger, chat.id, ask('Hello')))
       const missing = yield* Effect.flip(sendMessage.send(owner, unknownChatId, ask('Hello')))
@@ -285,7 +292,7 @@ describe('SendMessageUseCase', () => {
       assertSchemaEquals(ChatNotFoundError, foreign, new ChatNotFoundError({ id: chat.id }))
       assertSchemaEquals(ChatNotFoundError, missing, new ChatNotFoundError({ id: unknownChatId }))
       assertEquals(yield* selectMessages(chat.id), [])
-      assert.strictEqual(sent.length, 0)
+      assert.deepStrictEqual(yield* selectOutbox, [])
     }).pipe(Effect.provide(ChatTest)),
   )
 })

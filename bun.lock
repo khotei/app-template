@@ -39,7 +39,6 @@
         "effect": "catalog:effect",
       },
       "devDependencies": {
-        "@app-template/queue": "workspace:*",
         "@app-template/testing": "workspace:*",
         "@effect/vitest": "catalog:effect",
       },

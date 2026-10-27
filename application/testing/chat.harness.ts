@@ -1,5 +1,5 @@
 import { BunCrypto } from '@effect/platform-bun'
-import { Array as Arr, Context, DateTime, Effect, Layer, Stream } from 'effect'
+import { Array as Arr, DateTime, Effect, Layer, Stream } from 'effect'
 
 import {
   type Attachment,
@@ -19,7 +19,7 @@ import type { UserId } from '@app-template/domain/user'
 import { AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
 import { ChatRepositoryPg, MessageRepositoryPg } from '@app-template/infrastructure/chat'
 import type { Db } from '@app-template/infrastructure/db'
-import { recordQueue, type SentJob } from '@app-template/queue/testing'
+import { QueueClientOutbox } from '@app-template/infrastructure/shared'
 import { png } from '@app-template/testing'
 
 import { AttachmentService } from '#application/attachment/attachment.service'
@@ -30,26 +30,13 @@ import { AttachmentStoreMemory } from '#application/testing/attachment.fake'
 import { chat } from '#application/testing/chat.fixture'
 import { DbWithUsers } from '#application/testing/db.harness'
 
-/** The handle of the fake under `ChatTest`: the jobs sent. */
-export class ChatFakes extends Context.Service<
-  ChatFakes,
-  { readonly sent: ReadonlyArray<SentJob> }
->()('@app-template/application/chat/ChatFakes') {
-  static readonly layer = Layer.unwrap(
-    Effect.sync(() => {
-      const queue = recordQueue()
-      return Layer.merge(queue.layer, Layer.succeed(ChatFakes, { sent: queue.sent }))
-    }),
-  )
-}
-
 const insertChat = Layer.effectDiscard(
   Effect.flatMap(ChatRepository, (chats) => chats.insert(chat)),
 )
 
 /**
  * The chat services and use cases on a fresh test database where `chat` exists, over the memory
- * attachment store and the recording queue; `chats` replaces the Postgres chat repository.
+ * attachment store and the outbox; `chats` replaces the Postgres chat repository.
  */
 export const layerChatTest = (chats: Layer.Layer<ChatRepository, never, Db> = ChatRepositoryPg) =>
   Layer.mergeAll(
@@ -65,7 +52,7 @@ export const layerChatTest = (chats: Layer.Layer<ChatRepository, never, Db> = Ch
         MessageRepositoryPg,
         AttachmentRepositoryPg,
         AttachmentStoreMemory,
-        ChatFakes.layer,
+        QueueClientOutbox,
       ),
     ),
     Layer.provideMerge(DbWithUsers),

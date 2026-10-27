@@ -46,39 +46,24 @@ export class SendMessageUseCase extends Context.Service<
     const titleJob = yield* ChatTitleJob
     const sql = yield* SqlClient.SqlClient
 
-    const writeMessages = Effect.fnUntraced(
+    const send = Effect.fn('SendMessageUseCase.send')(
       function* (userId: UserId, chatId: ChatId, input: MessageInput) {
         const sendable = yield* chatService.findSendable(userId, chatId, input)
 
         const userMessage = yield* chatService.addUserMessage(sendable)
         const bound = yield* attachmentService.bind(userId, input.attachmentIds, userMessage.id)
         const assistantMessage = yield* chatService.addAssistantMessage(sendable)
+        yield* assistantJob.enqueue(assistantMessage)
+        if (sendable.opensChat) yield* titleJob.enqueue(userMessage)
 
-        return { sendable, userMessage, bound, assistantMessage }
+        return {
+          userMessage: { message: userMessage, attachments: bound },
+          assistantMessage: { message: assistantMessage, attachments: [] },
+        }
       },
       sql.withTransaction,
       Effect.catchTag('SqlError', Effect.die),
     )
-
-    const send = Effect.fn('SendMessageUseCase.send')(function* (
-      userId: UserId,
-      chatId: ChatId,
-      input: MessageInput,
-    ) {
-      const { sendable, userMessage, bound, assistantMessage } = yield* writeMessages(
-        userId,
-        chatId,
-        input,
-      )
-
-      yield* assistantJob.enqueue(assistantMessage)
-      if (sendable.opensChat) yield* titleJob.enqueue(userMessage)
-
-      return {
-        userMessage: { message: userMessage, attachments: bound },
-        assistantMessage: { message: assistantMessage, attachments: [] },
-      }
-    })
 
     return { send }
   }),

@@ -11,7 +11,6 @@
     { "path": "../../http-api" },
     { "path": "../../infrastructure" },
     { "path": "../../packages/config" },
-    { "path": "../../packages/queue" },
     { "path": "../../packages/testing" }
   ]
 }

@@ -5,24 +5,20 @@ import { Cookies, HttpClient } from 'effect/http'
 import { AttachmentStoreMemory, DbTest } from '@app-template/application/testing'
 import { ApiClient } from '@app-template/http-api'
 import { AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
-import { recordQueue } from '@app-template/queue/testing'
+import { QueueClientOutbox } from '@app-template/infrastructure/shared'
 
 import { ApiHttp } from '#api/layer'
 
 /**
- * The api on an ephemeral port over a fresh database, the memory attachment store and a queue
- * that records what it is sent; its `HttpClient` targets that port, and its `Db` is open for
- * arranging what only the worker writes.
+ * The api on an ephemeral port over a fresh database, the memory attachment store and the outbox;
+ * its `HttpClient` targets that port, and its `Db` is open for arranging what only the worker
+ * writes and for reading the outbox.
  */
 export const ApiServerTest = ApiHttp.pipe(
-  Layer.provide([AttachmentRepositoryPg, AttachmentStoreMemory]),
+  Layer.provide([AttachmentRepositoryPg, AttachmentStoreMemory, QueueClientOutbox]),
   Layer.provideMerge(BunHttpServer.layerTest),
   Layer.provideMerge(DbTest),
-  Layer.provide([
-    recordQueue().layer,
-    BunServices.layer,
-    ConfigProvider.layer(ConfigProvider.fromUnknown({})),
-  ]),
+  Layer.provide([BunServices.layer, ConfigProvider.layer(ConfigProvider.fromUnknown({}))]),
 )
 
 /**
