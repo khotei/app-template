@@ -58,10 +58,14 @@ const buildAttemptInfo = (received: Received, maxAttempts: number): AttemptInfo 
 const buildJsonCodec = <A, I>(schema: Schema.Codec<A, I>) =>
   Schema.fromJsonString(Schema.toCodecJson(schema))
 
-export const encodeBody = <A, I>(definition: QueueDefinition<Schema.Codec<A, I>>, message: A) =>
-  Schema.encodeEffect(buildJsonCodec(definition.schema))(message).pipe(
+/** The job as its definition's schema encodes it to JSON: the value an outbox row stores. */
+export const encodeJob = <A, I>(definition: QueueDefinition<Schema.Codec<A, I>>, message: A) =>
+  Schema.encodeEffect(Schema.toCodecJson(definition.schema))(message).pipe(
     Effect.mapError((cause) => new QueueError({ cause })),
   )
+
+const encodeBody = <A, I>(definition: QueueDefinition<Schema.Codec<A, I>>, message: A) =>
+  Effect.map(encodeJob(definition, message), (job) => JSON.stringify(job))
 
 const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueClientOptions) =>
   Effect.gen(function* () {

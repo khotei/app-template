@@ -63,9 +63,7 @@ export const OutboxRelay = Effect.gen(function* () {
     Effect.tapCauseIf(Predicate.not(Cause.hasInterruptsOnly), (cause) =>
       Effect.logError('outbox relay failed', cause),
     ),
-    Effect.catchCause((cause) =>
-      Cause.hasInterruptsOnly(cause) ? Effect.failCause(cause) : Effect.succeed([]),
-    ),
+    Effect.catchCauseIf(Predicate.not(Cause.hasInterruptsOnly), () => Effect.succeed([])),
     Effect.tap((rows) =>
       Effect.when(Effect.sleep(outboxPollInterval), Effect.succeed(isShortBatch(rows))),
     ),

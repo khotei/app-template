@@ -1,6 +1,6 @@
 export {
   type AttemptInfo,
-  encodeBody,
+  encodeJob,
   QueueClient,
   type QueueDefinition,
   worker,

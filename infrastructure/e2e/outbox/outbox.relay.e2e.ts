@@ -83,8 +83,6 @@ const lockOutbox = Effect.flatMap(Db, (db) =>
 )
 
 describe('OutboxRelay', () => {
-  // The body is the `jsonb` row stringified, so its keys come in Postgres's order (by length,
-  // then by bytes), not the job's.
   it.effect('sends a pending row to its queue with its job id and JSON body, then deletes it', () =>
     Effect.gen(function* () {
       const { attempts, layer } = yield* recordTransport
@@ -93,10 +91,11 @@ describe('OutboxRelay', () => {
       yield* Layer.build(OutboxRelay.pipe(Layer.provide(layer)))
       const attempt = yield* Queue.take(attempts)
 
-      assert.deepStrictEqual(attempt, {
-        queue: 'app-template-test-assistant-message',
-        jobId: '0192d4e0-7b3a-7c00-8000-000000000001',
-        body: '{"chatId":"0192d4e0-7b3a-7c00-8000-000000000030","messageId":"0192d4e0-7b3a-7c00-8000-000000000001"}',
+      assert.strictEqual(attempt.queue, 'app-template-test-assistant-message')
+      assert.strictEqual(attempt.jobId, '0192d4e0-7b3a-7c00-8000-000000000001')
+      assert.deepStrictEqual(JSON.parse(attempt.body), {
+        chatId: '0192d4e0-7b3a-7c00-8000-000000000030',
+        messageId: '0192d4e0-7b3a-7c00-8000-000000000001',
       })
       assert.deepStrictEqual(yield* lockOutbox, [])
     }).pipe(Effect.provide(OutboxTest)),

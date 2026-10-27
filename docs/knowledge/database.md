@@ -204,9 +204,8 @@ and `apps/worker` consumes through `QueueClientSqs` beside the relay.
   consumes.
 - **`body` is `jsonb`, with no index on it.** Nothing queries the body: the column holds the
   value for the relay alone, and `jsonb` keeps it a value a query can read by hand
-  (`body->>'chatId'`) instead of a string to parse. Postgres stores `jsonb` keys in its own
-  order (by length, then by bytes), so the string the relay sends is the row's, not the
-  sender's; the worker decodes it by schema and never compares strings.
+  (`body->>'chatId'`) instead of a string to parse. `jsonb` stores keys in its own order, so
+  the string the relay sends is the row's, not the sender's.
 - **`OutboxRelay`** (`infrastructure/outbox/outbox.relay.ts`), a layer the worker provides, polls
   in one transaction: it selects up to 10 rows `ORDER BY created_at, id` `FOR UPDATE SKIP
   LOCKED`, sends each over `QueueTransport` to `buildResourceName(STAGE, queue)` with its

@@ -5,8 +5,8 @@ import { createdAt, id } from '#infrastructure/db/columns'
 
 /**
  * Jobs a transaction wrote for the relay to send: `queue` is a definition's name, before the
- * stage; `body` is the job encoded through its definition's schema, a JSON value the relay
- * stringifies on the way out. No index on `body`: nothing queries it.
+ * stage; `body` is the job encoded through its definition's schema. No index on `body`: nothing
+ * queries it.
  */
 export const outbox = snakeCase.table(
   'outbox',
