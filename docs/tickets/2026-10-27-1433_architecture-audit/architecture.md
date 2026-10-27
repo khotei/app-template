@@ -389,9 +389,9 @@ export default defineConfig({
 
 ```make
 test-unit: ## Run the unit tests (no Docker)
-	bun run vitest run --project unit
+	bun --bun vitest run --project unit
 test-e2e: ## Run the e2e tests on their own containers (Docker running)
-	bun run vitest run --project e2e
+	bun --bun vitest run --project e2e
 test: test-unit test-e2e
 bundle-check: ## Fail when a domain service, port or adapter reaches the web bundle
 	bun build apps/web/app/main.ts --outdir node_modules/.cache/web-bundle --target browser

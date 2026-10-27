@@ -118,7 +118,8 @@ Using the `chat` slice as the map:
 | handler | `apps/api/src/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
 | browser feature | `apps/web/src/features/health/health-panel.ts` | `renderHealthPanel(root)` |
 
-Every entity folder has an `index.ts` barrel, and tests sit next to their source as `*.test.ts`.
+Every entity folder has an `index.ts` barrel. Tests sit at the workspace's top and mirror the
+source path: `tests/**/*.test.ts` need no Docker, `e2e/**/*.e2e.ts` do.
 The file suffixes and naming verbs are listed in
 [.claude/rules/naming.md](../../.claude/rules/naming.md). How the tables, codecs and migrations
 work: [database.md](database.md).
@@ -136,7 +137,7 @@ Pascal one (`Document`).
 3. **Port and operations.** `<entity>.service.ts`: the `<Entity>Repository` port as a
    `Context.Service` with no layer, and pure operations such as `build<Entity>(input)`. Time and
    ids come in as input, never from `Date.now()` or `crypto.randomUUID()`. Test them in
-   `<entity>.service.test.ts`. A rule several aggregates share (`ensureFound`, `isOwnedBy`) lives
+   `domain/tests/<entity>/<entity>.service.test.ts`. A rule several aggregates share (`ensureFound`, `isOwnedBy`) lives
    once, in `domain/shared/` or the aggregate that owns it.
 4. **Domain exports.** `domain/<entity>/index.ts` re-exports its files, and
    `domain/package.json` gains `"./<entity>": "./<entity>/index.ts"` in `exports`.
@@ -167,7 +168,7 @@ Pascal one (`Document`).
    to `ApiRoutes`, and its services and `<Entity>Pg` to `ApiHttp` in `apps/api/src/layer.ts`; an
    entity with an AWS adapter goes to `ApiLayer` instead, and the api harness provides the memory
    layer from `@app-template/application/testing` in its place.
-   Test in `<entity>.handler.test.ts` beside it, on `apps/api/src/testing/api.harness.ts`, only
+   Test in `apps/api/e2e/<entity>/<entity>.handler.e2e.ts`, on `apps/api/src/testing/api.harness.ts`, only
    what HTTP adds (statuses, cookies, the wire shape); the rules stay in the application suites.
 10. **Client, if the browser needs it.** `ApiClient` from `@app-template/http-api` already has
     every endpoint of the contract; add a feature folder under `apps/web/src/features/<entity>/`
@@ -190,7 +191,7 @@ The import rules are enforced three times, each catching what the others miss:
 
 The Biome overrides are **deny-lists**: each names the workspaces a layer must not import. A new
 `packages/*` workspace therefore needs no change to them, while a new layer or app does. Test
-files follow their workspace's override, save `domain/**/*.test.ts`: its own override, after
+files follow their workspace's override, save `domain/tests/**`: its own override, after
 domain's, lets tests import `@app-template/testing`. Overrides that match the same file replace
 each other's options rather than merge, so every override repeats the relative-path ban, and the
 domain test override repeats every domain ban. Symptoms

@@ -3,7 +3,7 @@
 .DEFAULT_GOAL := help
 
 .PHONY: help setup stack up down reset dev dev-api dev-worker dev-web debug-api debug-worker \
-  debug-web check ids lint fmt typecheck test clean outdated vendor-effect \
+  debug-web check ids lint fmt typecheck test test-unit test-e2e clean outdated vendor-effect \
   vendor-drizzle migrate migration migration-check
 
 # The local Pulumi project: each tree's file backend under its .data/, named per command, so no
@@ -30,7 +30,7 @@ NAME_DATABASE = database=app-template-$$STAGE-database
 
 help: ## List all targets
 	@echo 'App Template: make <target>'
-	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) \
+	@grep -E '^[a-zA-Z0-9_-]+:.*## ' $(MAKEFILE_LIST) \
 		| awk 'BEGIN { FS = ":.*## " } { printf "  %-16s %s\n", $$1, $$2 }'
 
 setup: ## Install dependencies and create .env from .env.example if missing
@@ -124,8 +124,13 @@ fmt: ## Apply Biome formatting and safe fixes
 typecheck: ## Typecheck every workspace with Effect diagnostics
 	bunx tsc -b
 
-test: ## Run all tests with vitest on the Bun runtime
-	bun run test
+test: test-unit test-e2e ## Run the unit and the e2e tests
+
+test-unit: ## Run the unit tests under tests/ (no Docker)
+	bun --bun vitest run --project unit
+
+test-e2e: ## Run the e2e tests under e2e/ on their own containers (Docker running)
+	bun --bun vitest run --project e2e
 
 clean: ## Remove installed dependencies, build caches and coverage
 	find . -name node_modules -type d -prune -exec rm -rf {} +

@@ -58,7 +58,10 @@
   `tests/` and `e2e/` folders); `.claude/rules/effect-tests.md` (its `paths:` gain
   `**/*.e2e.ts`, `**/tests/**` and `**/e2e/**`; the "colocated" line says the two folders);
   `infrastructure/CLAUDE.md` (`db/` no longer holds the `globalSetup`);
-  `docs/knowledge/tooling.md › Tests` (the commands, the two projects, the setup's new path).
+  `docs/knowledge/tooling.md › Tests` (the commands, the two projects, the setup's new path);
+  the `help` target pattern in `Makefile` admits digits; `apps/api/tsconfig.json` (`include`
+  gains `e2e/**/*.ts`); the moved paths in `domain/CLAUDE.md`,
+  `docs/knowledge/architecture.md`, `aws.md` and `database.md`.
   Moves, pure suites to `<ws>/tests/<path>/<name>.test.ts`: `domain/chat/chat.model`,
   `domain/chat/chat.service`, `domain/attachment/attachment.model`,
   `domain/attachment/attachment.service`, `domain/user/user.model`,
@@ -78,7 +81,18 @@
   `find . -name "*.test.ts" -not -path "*/tests/*" -not -path "*/node_modules/*" -not -path
   "./repos/*"` is empty; `make help` lists the three targets; `make check`.
 - **Model:** opus medium
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - `make help` matched `^[a-zA-Z_-]+:`, so `test-e2e` was missing; the pattern now admits
+    digits. `apps/api/tsconfig.json` needed `e2e/**/*.ts` or the moved api suites fell out of
+    `tsc -b`; S3 rewrites the line. Four docs named the old test paths; only the paths changed,
+    S23 and S24 rewrite the sections.
+  - `architecture.md › Contracts` and `feature.md › Acceptance › R19` said `bun run vitest
+    run`; both now say `bun --bun vitest run`, as the plan and `tooling.md` do.
+  - "With Docker stopped" was not run: the implementer may not stop Docker. In its place, the
+    `unit` project has no `globalSetup` and no file under `tests/` names a container helper.
+  - `effect-tests.md` keeps only the folder globs; `**/*.test.ts` and `**/*.e2e.ts` fell
+    under `**/tests/**` and `**/e2e/**`. `naming.md` is 83 lines; S23 trims it.
 
 #### S3 — Drop `src/` from the three apps
 

@@ -7,9 +7,9 @@ them. Versions: Bun 1.4.3, TypeScript 7.0.2, Biome 2.5.15, husky 9.1.7, vitest 5
 ## Commands
 
 Everything runs through the root `Makefile` (GNU Make 3.81, the macOS default). There is no
-`Makefile` in any workspace. Beyond Bun, two tools are prerequisites: Docker, for `make test` and
-`make up`, and the Pulumi CLI, for `make up`; `make check` needs only Docker,
-and `make setup` needs neither.
+`Makefile` in any workspace. Beyond Bun, two tools are prerequisites: Docker, for `make test-e2e`
+and `make up`, and the Pulumi CLI, for `make up`; `make check` needs only Docker,
+and `make setup` and `make test-unit` need neither.
 
 | Target | Runs | Use |
 |---|---|---|
@@ -25,14 +25,16 @@ and `make setup` needs neither.
 | `make fmt` | `biome check --write` | apply formatting, import sorting and safe fixes |
 | `make typecheck` | `bunx tsc -b`, the patched `tsc` | typecheck every workspace through the project references, Effect diagnostics included |
 | `make migrate` · `migration NAME=<name>` · `migration-check` | `migrate`: `bun --env-file=.env infrastructure/db/migrate.ts`; `migration` and `migration-check`: `bunx drizzle-kit generate` in `infrastructure/` | apply, generate and check migrations: [database.md › Migrations](database.md#migrations) |
-| `make test` | `bun run test`, which is `bun --bun vitest run` | every colocated `*.test.ts`; needs a running Docker daemon for the run's Postgres container ([Tests](#tests)) and the queue suite's MiniStack ([aws.md › Tests on Docker](aws.md#tests-on-docker)) |
+| `make test-unit` | `bun --bun vitest run --project unit` | every `tests/**/*.test.ts`; no Docker ([Tests](#tests)) |
+| `make test-e2e` | `bun --bun vitest run --project e2e` | every `e2e/**/*.e2e.ts`; needs a running Docker daemon for the run's Postgres container ([Tests](#tests)) and the queue suite's MiniStack ([aws.md › Tests on Docker](aws.md#tests-on-docker)) |
+| `make test` | `test-unit`, then `test-e2e` | both projects |
 | `make outdated` | `bun outdated --recursive` | newer versions for every workspace |
 | `make vendor-effect` | `git subtree pull --squash --prefix repos/effect` of the `effect@<pin>` tag | update `repos/effect` to the catalog pin; it commits, so run it on a clean tree. First time: `git subtree add` with the same arguments |
 | `make vendor-drizzle` | `git subtree add`, then `pull`, `--squash --prefix repos/drizzle` of the `v<pin>` tag of `drizzle-orm` | the same for `repos/drizzle`: the whole Drizzle monorepo, since `git subtree` takes no subfolder; the source is under `repos/drizzle/drizzle-orm/src` |
 | `make clean` | removes every `node_modules` and `coverage` | a clean reinstall: follow with `make setup` |
 
-`bun run test` runs the root `test` script, while `bun test` would start Bun's own test runner,
-which is denied in `.claude/settings.json`.
+The root `test` script, `bun --bun vitest run`, runs both projects at once (CI's `bun run test`);
+`bun test` would instead start Bun's own test runner, which is denied in `.claude/settings.json`.
 
 Scripts live only where `make` calls them: the root `package.json` holds `prepare`, `lint`,
 `format` and `test`; each app holds `dev`, `debug` and `start`; library workspaces hold none.
@@ -43,18 +45,21 @@ Tests run on vitest 5, on the Bun runtime (`bun --bun`), so `Bun.serve` and the 
 inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`, `it.layer`,
 `TestClock`) needs vitest.
 
-- **One root `vitest.config.ts`**, which adds `repos/**` to the default exclude and sets the
-  `globalSetup`: every colocated `*.test.ts` runs, a new workspace needs no test config, and the
-  vendored suites stay out.
-- **One Postgres per run, a database per test.** `infrastructure/db/testing/postgres.setup.ts`
+- **One root `vitest.config.ts`, two projects,** chosen by `--project`: `unit` runs
+  `tests/**/*.test.ts`, which need no process outside vitest; `e2e` runs `e2e/**/*.e2e.ts`, on
+  Docker, and alone has the `globalSetup`. Both sit at the top of their workspace and mirror the
+  source path. Each project lists the shared `exclude` (`repos/**` added to the default) and
+  `sequence` itself, and the root sets no `globalSetup`, so a unit run starts no container. A new
+  workspace needs no test config, and the vendored suites stay out.
+- **One Postgres per e2e run, a database per test.** `infrastructure/testing/e2e.setup.ts`
   starts one `postgres:18.6-alpine` container (about 1.2 s) and migrates a template database in
   it with the program `make migrate` runs. Each test provides
   `PgClientTest` from `@app-template/testing`: a fresh database copied from the template and
   dropped when the test ends, about 40 ms in all. A test therefore sees only its own rows, even
-  through a query that reads a whole table, and files run in parallel. Tests need Docker and
+  through a query that reads a whole table, and files run in parallel. E2e tests need Docker and
   nothing else: no `.env`, no `make up`.
-- **Concurrent within a file.** `vitest.config.ts` sets `sequence: { concurrent: true }`; since
-  every test owns its database, nothing is shared between tests.
+- **Concurrent within a file.** Both projects set `sequence: { concurrent: true }`; since every
+  test owns its database, nothing is shared between tests.
 - **Time.** `it.effect` provides a fresh `TestClock` per test, so time stands still unless the
   test moves it; `it.live` runs on the real clock. `@effect/vitest`'s `layer(…)` instead builds
   one `TestClock` for its whole block, so under concurrency one test's `adjust` would move its

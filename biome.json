@@ -99,7 +99,7 @@
       }
     },
     {
-      "includes": ["domain/**/*.test.ts"],
+      "includes": ["domain/tests/**"],
       "linter": {
         "rules": {
           "style": {

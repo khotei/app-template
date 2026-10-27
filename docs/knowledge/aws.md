@@ -110,7 +110,7 @@ The api and the worker run on `AttachmentPgS3`.
   `domain/attachment`) reads as not found everywhere; no read deletes it, since a delete on read
   would race a send binding it. Its object goes by the bucket's rule, which acts after
   `unboundExpirationDays` (S3 rounds up to the next midnight UTC);
-  `infrastructure/shared/resources.test.ts` keeps those days no shorter than `unboundLifetime`, so
+  `infrastructure/tests/shared/resources.test.ts` keeps those days no shorter than `unboundLifetime`, so
   nothing still bindable loses its bytes. Its row stays, since no sweep removes expired rows.
   Locally the object stays as well, since MiniStack never runs the rule
   ([Tests on Docker](#tests-on-docker)).
@@ -171,7 +171,7 @@ and only the snapshot-timing block steps the `TestClock`.
 
 ## Tests on Docker
 
-Only the queue's own suite starts MiniStack: `packages/queue/queue.test.ts` starts one container
+Only the queue's own suite starts MiniStack: `packages/queue/e2e/queue.e2e.ts` starts one container
 through `SqsClientMiniStack` in `@app-template/testing` (`testcontainers`; an SQS client on that
 container) and stops it with the suite; it provisions its queues under the fixed stage `test`
 and passes `{ timeout: '60 seconds' }` to `layer(…)`. The application and api suites test

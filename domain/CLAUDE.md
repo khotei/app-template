@@ -4,7 +4,7 @@ The pure core. It owns entity models, errors, ports (the interfaces that infrast
 and pure operations.
 
 - **Imports no workspace at all**, not even `packages/*`. Biome rejects any `@app-template/*`
-  import, save `@app-template/testing` in a `*.test.ts`.
+  import, save `@app-template/testing` in `domain/tests/`.
 - **No I/O and no ambient state:** no `Bun.env`, no `fetch`, no `Date.now()`, no `new Date()`, no
   `crypto.randomUUID()`. Pass time and ids in as input (`buildChat({ id, userId, createdAt })`),
   so operations stay deterministic and testable.

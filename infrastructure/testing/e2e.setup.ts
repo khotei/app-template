@@ -9,7 +9,7 @@ import { templateDatabase } from '@app-template/testing'
 import { Db } from '#infrastructure/db/db.client'
 import { migrateDatabase } from '#infrastructure/db/migrate'
 
-/** One Postgres container per `make test` run, with a migrated template each test copies. */
+/** One Postgres container per e2e run, with a migrated template each test copies. */
 export default async function setup(project: TestProject) {
   const container = await new PostgreSqlContainer(postgresImage).start()
   const onDatabase = (database: string) =>

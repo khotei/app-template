@@ -1,6 +1,7 @@
 ---
 paths:
-  - "**/*.test.ts"
+  - "**/tests/**"
+  - "**/e2e/**"
   - "**/testing/**"
 ---
 
@@ -29,7 +30,8 @@ paths:
   (`Effect.provide(ChatTest)`), never through a callback runner.
 - Test support that several test files share lives in `<workspace>/testing/` (or
   `packages/testing` when several workspaces share it, `@app-template/testing`, declared in
-  `devDependencies`); tests stay colocated with their source. Roles: `naming.md › Files`.
+  `devDependencies`); the tests sit at the workspace's top, in `tests/` (no Docker) or `e2e/`
+  (Docker). Roles: `naming.md › Files`.
 
 ## Resources and time
 

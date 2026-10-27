@@ -12,8 +12,7 @@ storage keys, queue names, prompts.
   ([database.md](../docs/knowledge/database.md)). The LLM adapter runs on `packages/llm`'s stub
   until a real provider replaces its body, not its signature.
 - `db/` holds the Postgres client (`Db`, a Drizzle database on `@effect/sql-pg`), the relations
-  every table shares (`relations.ts`), the migrations and the tests' `globalSetup` (the rest of
-  the test support lives in `testing/`); Drizzle is reached only through Effect, never through a
-  promise.
+  every table shares (`relations.ts`) and the migrations; the test support, the e2e `globalSetup`
+  included, lives in `testing/`. Drizzle is reached only through Effect, never through a promise.
 - This is where `Config` turns into client options: clients take explicit options and never read
   configuration themselves.

@@ -250,6 +250,6 @@ real repositories, with no fake between them. The suites share the stacks of
 every repository from `infrastructure/testing/repository-stacks.ts` and insert the parent rows
 with `insertUser` and its siblings from `infrastructure/testing/rows.ts`. The chat and api
 harnesses provide `QueueClientOutbox`, so a send's jobs land in the test database's outbox. An
-`.entity.test.ts` checks what the schema itself refuses (a check, a partial unique index) and
+`.entity.e2e.ts` checks what the schema itself refuses (a check, a partial unique index) and
 reads the `SqlError` of a refused statement with `flipSqlError` from
 `infrastructure/testing/db-test.ts`.
