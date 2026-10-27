@@ -37,7 +37,6 @@ const userMessage = buildUserMessage({
   id: messageId,
   chatId,
   text: 'Hello',
-  attachmentIds: [],
   createdAt,
 })
 

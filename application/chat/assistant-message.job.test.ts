@@ -1,3 +1,4 @@
+import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import {
@@ -48,6 +49,7 @@ import type { AttemptInfo } from '@app-template/queue'
 import { png, recordLogs } from '@app-template/testing'
 
 import { AssistantMessageJob } from '#application/chat/assistant-message.job'
+import { ChatService } from '#application/chat/chat.service'
 import { AttachmentStoreMemory } from '#application/testing/attachment.fake'
 import { chat, chatId, epoch, messageId } from '#application/testing/chat.fixture'
 import { DbWithUsers } from '#application/testing/db.harness'
@@ -100,7 +102,10 @@ const makeStoresMemory = () => {
       selectById: (id) => Effect.sync(() => Option.fromUndefinedOr(messages.get(id))),
       selectByChat: (chatId) =>
         Effect.sync(() =>
-          Arr.filter([...messages.values()], (message) => message.chatId === chatId),
+          Arr.map(
+            Arr.filter([...messages.values()], (message) => message.chatId === chatId),
+            (message) => ({ message, attachments: [] }),
+          ),
         ),
     }),
     chatsAndAttachments: Layer.mergeAll(
@@ -148,7 +153,10 @@ const makeAssistantMessageHarness = <E, R>(
   ).pipe(Layer.provide(stores.messages))
   const { prompts, layer: model } = recordLanguageModel({ streamText: stream })
   const { logs, layer: logger } = recordLogs()
-  const layer = Layer.mergeAll(messages, stores.chatsAndAttachments, model, logger)
+  const layer = Layer.mergeAll(ChatService.layer, model, logger).pipe(
+    Layer.provideMerge(Layer.merge(messages, stores.chatsAndAttachments)),
+    Layer.provide(BunCrypto.layer),
+  )
   return { writes, prompts, logs, layer }
 }
 
@@ -235,8 +243,8 @@ const arrangeAttachment = (attachment: Attachment, bytes: 'stored' | 'lost' = 's
 // A second apart: messages sharing a `createdAt` come back in no defined order.
 const sentAfter = (n: number) => DateTime.addDuration(epoch, Duration.seconds(n))
 
-const user = (n: number, text: string, attachmentIds: ReadonlyArray<AttachmentId> = []) =>
-  buildUserMessage({ id: historyId(n), chatId, text, attachmentIds, createdAt: sentAfter(n) })
+const user = (n: number, text: string) =>
+  buildUserMessage({ id: historyId(n), chatId, text, createdAt: sentAfter(n) })
 
 const assistant = (n: number) =>
   buildAssistantMessage({ id: historyId(n), chatId, createdAt: sentAfter(n) })
@@ -244,11 +252,11 @@ const assistant = (n: number) =>
 const failure = new MessageFailure({ reason: 'ReplyFailed', message: 'Sorry.', cause: 'boom' })
 
 const history = [
-  user(1, 'What is this?', [photoId]),
+  user(1, 'What is this?'),
   asCompleted(assistant(2), 'A photo.'),
   user(3, 'And again?'),
   new Message({ ...assistant(4), stage: 'failed', text: 'half', error: Option.some(failure) }),
-  user(5, '', [sketchId]),
+  user(5, ''),
 ]
 
 const selectReply = Effect.flatMap(MessageRepository, (messages) =>
@@ -338,7 +346,7 @@ describe('AssistantMessageJob.handle', () => {
   it.effect('prompts with the text alone when an attachment has lost its bytes', () => {
     const { prompts, layer } = makeAssistantMessageHarness(replyDeltas, storesPg)
     return Effect.gen(function* () {
-      yield* arrangeChat(queuedReply, [user(1, 'What is this?', [photoId])])
+      yield* arrangeChat(queuedReply, [user(1, 'What is this?')])
       yield* arrangeAttachment(photo, 'lost')
 
       yield* handleAttempt(1)

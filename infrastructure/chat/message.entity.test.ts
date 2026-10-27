@@ -26,7 +26,6 @@ const message = (id: MessageId, fields: Partial<Pick<Message, 'stage'>>) =>
     author: 'assistant',
     stage: 'queued',
     text: '',
-    attachmentIds: [],
     error: Option.none(),
     createdAt,
     updatedAt,
@@ -38,7 +37,7 @@ const insertChatOfUser = Effect.andThen(insertUser(userId), insertChat(chat))
 const selectMessages = Effect.gen(function* () {
   const db = yield* Db
   const rows = yield* db.select().from(messages).orderBy(asc(messages.id))
-  return yield* Effect.forEach(rows, (row) => decodeMessage({ ...row, attachments: [] }))
+  return yield* Effect.forEach(rows, (row) => decodeMessage(row))
 })
 
 describe('messages', () => {

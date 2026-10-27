@@ -2,7 +2,7 @@ import { assert, describe, it } from '@effect/vitest'
 import { Array as Arr, DateTime, Effect, Option, Schema } from 'effect'
 
 import {
-  type Attachment,
+  Attachment,
   AttachmentId,
   AttachmentRepository,
   buildAttachment,
@@ -33,21 +33,8 @@ const at = (seconds: number) => DateTime.add(createdAt, { seconds })
 
 const userId = UserId.make('0192d4e0-7b3a-7c00-8000-000000000010')
 
-const userMessage = (
-  id: string,
-  {
-    chatId,
-    attachmentIds = [],
-    seconds = 0,
-  }: { chatId: ChatId; attachmentIds?: ReadonlyArray<AttachmentId>; seconds?: number },
-) =>
-  buildUserMessage({
-    id: MessageId.make(id),
-    chatId,
-    text: 'Hi',
-    attachmentIds,
-    createdAt: at(seconds),
-  })
+const userMessage = (id: string, { chatId, seconds = 0 }: { chatId: ChatId; seconds?: number }) =>
+  buildUserMessage({ id: MessageId.make(id), chatId, text: 'Hi', createdAt: at(seconds) })
 
 const assistantMessage = (
   id: string,
@@ -67,6 +54,13 @@ const attachment = (id: string, seconds: number) =>
 const SelectedMessage = Schema.Option(Message)
 
 const Messages = Schema.Array(Message)
+
+const MessageDetail = Schema.Struct({ message: Message, attachments: Schema.Array(Attachment) })
+
+const selectMessages = (chatId: ChatId) =>
+  Effect.flatMap(MessageRepository, (messages) => messages.selectByChat(chatId)).pipe(
+    Effect.map(Arr.map(({ message }) => message)),
+  )
 
 /** Uploads the attachments, then binds them to the message, as a send does. */
 const bindAttachments = (attachments: ReadonlyArray<Attachment>, message: Message) =>
@@ -94,7 +88,22 @@ describe('MessageRepositoryPg', () => {
         (each) => messages.insert(each),
       )
 
-      assertSchemaEquals(Messages, yield* messages.selectByChat(chatId), [question, reply])
+      assertSchemaEquals(Messages, yield* selectMessages(chatId), [question, reply])
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
+  )
+
+  it.effect('existsByChat answers whether the chat has a message', () =>
+    Effect.gen(function* () {
+      const messages = yield* MessageRepository
+      const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-00000000004a')
+      const empty = ChatId.make('0192d4e0-7b3a-7c00-8000-00000000004b')
+      yield* insertOwnedChats(userId, [chatId, empty])
+      yield* messages.insert(userMessage('0192d4e0-7b3a-7c00-8000-00000000005d', { chatId }))
+
+      assert.deepStrictEqual(
+        [yield* messages.existsByChat(chatId), yield* messages.existsByChat(empty)],
+        [true, false],
+      )
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
@@ -156,7 +165,7 @@ describe('MessageRepositoryPg', () => {
       const refused = yield* messages.insert(second)
 
       assert.deepStrictEqual([inserted, refused], [true, false])
-      assertSchemaEquals(Messages, yield* messages.selectByChat(chatId), [queued])
+      assertSchemaEquals(Messages, yield* selectMessages(chatId), [queued])
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
@@ -174,7 +183,7 @@ describe('MessageRepositoryPg', () => {
       const inserted = yield* Effect.forEach([queued, completed], messages.insert)
 
       assert.deepStrictEqual(inserted, [true, true])
-      assertSchemaEquals(Messages, yield* messages.selectByChat(chatId), [queued, completed])
+      assertSchemaEquals(Messages, yield* selectMessages(chatId), [queued, completed])
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
@@ -217,7 +226,7 @@ describe('MessageRepositoryPg', () => {
       )
 
       assert.deepStrictEqual(updated, [true, false])
-      assertSchemaEquals(Messages, yield* messages.selectByChat(chatId), [completed])
+      assertSchemaEquals(Messages, yield* selectMessages(chatId), [completed])
       assert.deepStrictEqual(yield* messages.selectById(unknown.id), Option.none())
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
@@ -245,11 +254,7 @@ describe('MessageRepositoryPg', () => {
         yield* messages.selectActiveByChat(chatId),
         Option.some(generating),
       )
-      assertSchemaEquals(Messages, yield* messages.selectByChat(chatId), [
-        generating,
-        failed,
-        completed,
-      ])
+      assertSchemaEquals(Messages, yield* selectMessages(chatId), [generating, failed, completed])
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
@@ -259,25 +264,25 @@ describe('MessageRepositoryPg', () => {
       const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000047')
       const firstUploaded = attachment('0192d4e0-7b3a-7c00-8000-000000000023', 0)
       const secondUploaded = attachment('0192d4e0-7b3a-7c00-8000-000000000021', 1)
-      const question = userMessage('0192d4e0-7b3a-7c00-8000-00000000005c', {
-        chatId,
-        attachmentIds: [secondUploaded.id, firstUploaded.id],
-        seconds: 3,
-      })
-      const inUploadOrder = new Message({
-        ...question,
-        attachmentIds: [firstUploaded.id, secondUploaded.id],
-      })
+      const question = userMessage('0192d4e0-7b3a-7c00-8000-00000000005c', { chatId, seconds: 3 })
+      const bound = (each: Attachment) =>
+        new Attachment({ ...each, messageId: Option.some(question.id) })
+      const inUploadOrder = {
+        message: question,
+        attachments: [bound(firstUploaded), bound(secondUploaded)],
+      }
       yield* insertOwnedChats(userId, [chatId])
       yield* messages.insert(question)
       yield* bindAttachments([secondUploaded, firstUploaded], question)
 
       assertSchemaEquals(
-        SelectedMessage,
-        yield* messages.selectById(question.id),
+        Schema.Option(MessageDetail),
+        yield* messages.selectDetail(question.id),
         Option.some(inUploadOrder),
       )
-      assertSchemaEquals(Messages, yield* messages.selectByChat(chatId), [inUploadOrder])
+      assertSchemaEquals(Schema.Array(MessageDetail), yield* messages.selectByChat(chatId), [
+        inUploadOrder,
+      ])
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 })

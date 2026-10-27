@@ -24,7 +24,7 @@ export class DeleteChatUseCase extends Context.Service<
       function* (userId: UserId, chatId: ChatId) {
         const { messages } = yield* chatService.get(userId, chatId)
         yield* attachmentService.deleteByIds(
-          Arr.flatMap(messages, ({ message }) => message.attachmentIds),
+          Arr.flatMap(messages, ({ attachments }) => Arr.map(attachments, ({ id }) => id)),
         )
         yield* chatService.delete(userId, chatId)
       },

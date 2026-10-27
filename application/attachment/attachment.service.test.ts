@@ -42,9 +42,7 @@ const insertMessage = Effect.gen(function* () {
   const messages = yield* MessageRepository
 
   yield* chats.insert(chat)
-  yield* messages.insert(
-    buildUserMessage({ id: messageId, chatId, text: '', attachmentIds: [], createdAt: epoch }),
-  )
+  yield* messages.insert(buildUserMessage({ id: messageId, chatId, text: '', createdAt: epoch }))
 })
 
 /** `DbWithUsers` where `messageId` exists in a chat of `owner`, so an attachment can bind to it. */

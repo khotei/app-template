@@ -107,7 +107,6 @@ describe('SendMessageUseCase', () => {
             id: userMessage.message.id,
             chatId: chat.id,
             text: 'Plan a weekend in Lisbon',
-            attachmentIds: [],
             createdAt: sentAt,
           }),
           buildAssistantMessage({
@@ -203,7 +202,6 @@ describe('SendMessageUseCase', () => {
         photos,
         (photo) => new Attachment({ ...photo, messageId: Option.some(userMessage.message.id) }),
       )
-      assertEquals(userMessage.message.attachmentIds, attachmentIds)
       assertEquals(userMessage.attachments, bound)
       assertEquals(yield* selectAttachments(photos), bound)
     }).pipe(Effect.provide(ChatTest)),

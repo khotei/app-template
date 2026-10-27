@@ -48,7 +48,6 @@ const arrangeChat = (text = 'Plan a weekend in Lisbon') =>
       id: messageId,
       chatId,
       text,
-      attachmentIds: [],
       createdAt: epoch,
     })
     yield* (yield* ChatRepository).insert(chat)

@@ -1,6 +1,6 @@
-import { Schema } from 'effect'
+import { type Option, Schema } from 'effect'
 
-import { AttachmentId } from '#domain/attachment/attachment.id'
+import type { Attachment } from '#domain/attachment/attachment.model'
 import { ChatId, MessageId } from '#domain/chat/chat.id'
 import { UserId } from '#domain/user/user.id'
 
@@ -51,7 +51,6 @@ export class Message extends Schema.Class<Message>('Message')({
   author: MessageAuthor,
   stage: MessageStage,
   text: Schema.String,
-  attachmentIds: Schema.Array(AttachmentId),
   error: Schema.Option(MessageFailure),
   createdAt: Schema.DateTimeUtc,
   updatedAt: Schema.DateTimeUtc,
@@ -61,4 +60,20 @@ export class Message extends Schema.Class<Message>('Message')({
 export interface ActiveMessage extends Message {
   readonly author: 'assistant'
   readonly stage: ActiveMessageStage
+}
+
+export interface MessageDetail {
+  readonly message: Message
+  /** The attachments bound to the message, in upload order. */
+  readonly attachments: ReadonlyArray<Attachment>
+}
+
+export interface ChatSummary {
+  readonly chat: Chat
+  readonly activeMessage: Option.Option<ActiveMessage>
+}
+
+export interface ChatDetail extends ChatSummary {
+  /** Every message of the chat, in creation order. */
+  readonly messages: ReadonlyArray<MessageDetail>
 }

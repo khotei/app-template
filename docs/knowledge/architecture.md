@@ -100,6 +100,7 @@ Using the `chat` slice as the map:
 |---|---|---|
 | branded id | `domain/chat/chat.id.ts` | `ChatId`, `MessageId` |
 | entity schema | `domain/chat/chat.model.ts` | `Chat`, `Message` (`Schema.Class`) |
+| read model a port answers | `domain/chat/chat.model.ts` | `ChatSummary`, `ChatDetail`, `MessageDetail` |
 | domain errors | `domain/chat/chat.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
 | port and pure operations | `domain/chat/chat.service.ts` | `ChatRepository`, `buildChat({ id, userId, createdAt })`, `prepareMessage` |
 | guard shared by the aggregates | `domain/shared/guard.ts` | `ensureFound(found, holds, missing)` |

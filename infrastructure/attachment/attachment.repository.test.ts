@@ -44,9 +44,7 @@ const insertMessage = Effect.gen(function* () {
   const messages = yield* MessageRepository
 
   yield* insertOwnedChats(userId, [chatId])
-  yield* messages.insert(
-    buildUserMessage({ id: messageId, chatId, text: 'Hi', attachmentIds: [], createdAt }),
-  )
+  yield* messages.insert(buildUserMessage({ id: messageId, chatId, text: 'Hi', createdAt }))
 })
 
 describe('AttachmentRepositoryPg', () => {
@@ -80,9 +78,7 @@ describe('AttachmentRepositoryPg', () => {
         messageId: Option.some(messageId),
       })
       yield* insertMessage
-      yield* messages.insert(
-        buildUserMessage({ id: nextMessageId, chatId, text: 'Hi', attachmentIds: [], createdAt }),
-      )
+      yield* messages.insert(buildUserMessage({ id: nextMessageId, chatId, text: 'Hi', createdAt }))
       yield* Effect.forEach(Arr.append(free, boundBefore), attachments.insert)
 
       const bound = yield* attachments.update(

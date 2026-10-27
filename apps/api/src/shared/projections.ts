@@ -1,8 +1,12 @@
 import { Array as Arr, Option, Struct } from 'effect'
 
-import type { ChatDetail, ChatSummary, MessageDetail } from '@app-template/application/chat'
 import type { Attachment as AttachmentModel } from '@app-template/domain/attachment'
-import type { Chat as ChatModel } from '@app-template/domain/chat'
+import type {
+  ChatDetail,
+  Chat as ChatModel,
+  ChatSummary,
+  MessageDetail,
+} from '@app-template/domain/chat'
 import type * as Wire from '@app-template/http-api'
 
 /**

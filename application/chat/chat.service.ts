@@ -1,47 +1,32 @@
-import { Array as Arr, Context, Crypto, Data, DateTime, Effect, Layer, Option } from 'effect'
+import { Context, Crypto, Data, DateTime, Effect, Layer, Option } from 'effect'
 
-import { type Attachment, AttachmentRepository } from '@app-template/domain/attachment'
 import {
-  type ActiveMessage,
   buildAssistantMessage,
   buildChat,
   buildUserMessage,
-  byLatestUpdate,
   Chat,
   ChatBusyError,
+  type ChatDetail,
   ChatId,
   ChatNotFoundError,
   ChatRepository,
+  type ChatSummary,
   type ChatTitle,
   ChatTitledError,
   ensureChatAcceptsMessage,
   ensureMessageInput,
   isInChat,
   type Message,
+  type MessageDetail,
   MessageId,
   type MessageInput,
   type MessageInputInvalidError,
   MessageNotFoundError,
   MessageRepository,
+  type MessageWhere,
 } from '@app-template/domain/chat'
 import { ensureFound } from '@app-template/domain/shared'
 import { isOwnedBy, type UserId } from '@app-template/domain/user'
-
-export interface MessageDetail {
-  readonly message: Message
-  /** The metadata of the message's attachments, in the order the message lists them. */
-  readonly attachments: ReadonlyArray<Attachment>
-}
-
-export interface ChatSummary {
-  readonly chat: Chat
-  readonly activeMessage: Option.Option<ActiveMessage>
-}
-
-export interface ChatDetail extends ChatSummary {
-  /** Every message of the chat, in creation order. */
-  readonly messages: ReadonlyArray<MessageDetail>
-}
 
 /**
  * Proof that a send may write to this chat: only `ChatService.findSendable` builds one, after it
@@ -80,8 +65,9 @@ export class ChatService extends Context.Service<
     /**
      * Removes the chat with its messages, whether or not a reply runs.
      *
-     * A step of `DeleteChatUseCase`, which removes their attachments first, while the messages
-     * still list them: entry points call the use case, never this.
+     * A step of `DeleteChatUseCase`, which removes their attachments first, since a bound
+     * attachment holds its message back from the cascade: entry points call the use case, never
+     * this.
      */
     readonly delete: (userId: UserId, chatId: ChatId) => Effect.Effect<void, ChatNotFoundError>
     readonly getMessage: (
@@ -100,12 +86,16 @@ export class ChatService extends Context.Service<
      */
     readonly addUserMessage: (sendable: SendableChat) => Effect.Effect<Message, ChatNotFoundError>
     readonly addAssistantMessage: (sendable: SendableChat) => Effect.Effect<Message, ChatBusyError>
+    /**
+     * Stores a settled reply while the stored one still matches `where`, then moves the chat's
+     * `updatedAt` alone to the reply's; answers whether it wrote.
+     */
+    readonly settleReply: (settled: Message, where: MessageWhere) => Effect.Effect<boolean>
   }
 >()('@app-template/application/chat/ChatService', {
   make: Effect.gen(function* () {
     const chats = yield* ChatRepository
     const messages = yield* MessageRepository
-    const attachments = yield* AttachmentRepository
     const crypto = yield* Crypto.Crypto
     const randomUuid = Effect.orDie(crypto.randomUUIDv7())
     const randomChatId = Effect.map(randomUuid, ChatId.make)
@@ -125,28 +115,15 @@ export class ChatService extends Context.Service<
       return chat
     })
 
-    const summarize = (chat: Chat): Effect.Effect<ChatSummary> =>
-      Effect.map(messages.selectActiveByChat(chat.id), (activeMessage) => ({ chat, activeMessage }))
-
-    const withAttachments = (message: Message): Effect.Effect<MessageDetail> =>
-      Effect.map(attachments.selectByIds(message.attachmentIds), (found) => ({
-        message,
-        attachments: found,
-      }))
-
-    const list = Effect.fn('ChatService.list')(function* (userId: UserId) {
-      const stored = yield* chats.selectByUser(userId)
-      const sorted = Arr.sort(stored, byLatestUpdate)
-      return yield* Effect.forEach(sorted, summarize)
-    })
+    const list = Effect.fn('ChatService.list')(chats.selectSummaries)
 
     const get = Effect.fn('ChatService.get')(function* (userId: UserId, chatId: ChatId) {
-      const chat = yield* findOwnedChat(userId, chatId)
-      const summary = yield* summarize(chat)
-
-      const stored = yield* messages.selectByChat(chatId)
-      const detailed = yield* Effect.forEach(stored, withAttachments)
-      return { ...summary, messages: detailed }
+      const found = yield* chats.selectDetail(chatId)
+      return yield* ensureFound(
+        found,
+        (detail) => isOwnedBy(userId)(detail.chat),
+        () => new ChatNotFoundError({ id: chatId }),
+      )
     })
 
     const rename = Effect.fn('ChatService.rename')(function* (
@@ -193,14 +170,12 @@ export class ChatService extends Context.Service<
     ) {
       yield* findOwnedChat(userId, chatId)
 
-      const found = yield* messages.selectById(messageId)
-      const message = yield* ensureFound(
+      const found = yield* messages.selectDetail(messageId)
+      return yield* ensureFound(
         found,
-        isInChat(chatId),
+        (detail) => isInChat(chatId)(detail.message),
         () => new MessageNotFoundError({ id: messageId }),
       )
-
-      return yield* withAttachments(message)
     })
 
     const findSendable = Effect.fn('ChatService.findSendable')(function* (
@@ -214,9 +189,9 @@ export class ChatService extends Context.Service<
       const active = yield* messages.selectActiveByChat(chatId)
       yield* ensureChatAcceptsMessage(active)
 
-      const stored = yield* messages.selectByChat(chatId)
+      const opened = yield* messages.existsByChat(chatId)
       const at = yield* DateTime.now
-      return new SendableChat({ chatId, input, opensChat: Arr.isReadonlyArrayEmpty(stored), at })
+      return new SendableChat({ chatId, input, opensChat: !opened, at })
     })
 
     const addUserMessage = Effect.fn('ChatService.addUserMessage')(function* (
@@ -227,7 +202,6 @@ export class ChatService extends Context.Service<
         id,
         chatId: sendable.chatId,
         text: sendable.input.text,
-        attachmentIds: sendable.input.attachmentIds,
         createdAt: sendable.at,
       })
 
@@ -253,6 +227,17 @@ export class ChatService extends Context.Service<
       return message
     })
 
+    const settleReply = Effect.fn('ChatService.settleReply')(function* (
+      settled: Message,
+      where: MessageWhere,
+    ) {
+      const written = yield* messages.update(settled, where)
+      if (!written) return false
+
+      yield* chats.update({ updatedAt: settled.updatedAt }, { id: settled.chatId })
+      return true
+    })
+
     return {
       create,
       list,
@@ -264,6 +249,7 @@ export class ChatService extends Context.Service<
       findSendable,
       addUserMessage,
       addAssistantMessage,
+      settleReply,
     }
   }),
 }) {

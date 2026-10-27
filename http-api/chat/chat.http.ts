@@ -41,7 +41,7 @@ export type ChatSummary = typeof ChatSummary.Type
 
 /** Carries the failure's user-facing sentence, never its cause. */
 export const Message = MessageModel.mapFields((fields) => ({
-  ...Struct.omit(fields, ['attachmentIds']),
+  ...fields,
   attachments: Schema.Array(Attachment),
   error: Schema.OptionFromNullOr(MessageFailure.mapFields(Struct.pick(['reason', 'message']))),
 }))

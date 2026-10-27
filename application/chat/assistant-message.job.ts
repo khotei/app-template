@@ -16,7 +16,7 @@ import {
 } from 'effect'
 import type { AiError, LanguageModel } from 'effect/ai'
 
-import { AttachmentRepository, AttachmentStore } from '@app-template/domain/attachment'
+import { AttachmentStore } from '@app-template/domain/attachment'
 import {
   type ChatId,
   ChatRepository,
@@ -25,6 +25,7 @@ import {
   generateMessage,
   isActiveMessage,
   Message,
+  type MessageDetail,
   type MessageId,
   MessageRepository,
   type MessageStageInvalidError,
@@ -41,14 +42,14 @@ import {
 } from '@app-template/infrastructure/chat'
 import { type AttemptInfo, QueueClient, worker } from '@app-template/queue'
 
+import { ChatService } from '#application/chat/chat.service'
+
 const snapshotInterval = Duration.millis(300)
 
-const readTurn = Effect.fnUntraced(function* (message: Message) {
-  const attachments = yield* AttachmentRepository
+const readTurn = Effect.fnUntraced(function* ({ message, attachments }: MessageDetail) {
   const store = yield* AttachmentStore
 
-  const found = yield* attachments.selectByIds(message.attachmentIds)
-  const files = yield* Effect.forEach(found, (attachment) =>
+  const files = yield* Effect.forEach(attachments, (attachment) =>
     Effect.map(
       store.select(attachment.id),
       Option.map((bytes) => ({ attachment, bytes })),
@@ -60,10 +61,8 @@ const readTurn = Effect.fnUntraced(function* (message: Message) {
 
 const readHistory = Effect.fnUntraced(function* (chatId: ChatId) {
   const messages = yield* MessageRepository
-  const completed = Arr.filter(
-    yield* messages.selectByChat(chatId),
-    (message) => message.stage === 'completed',
-  )
+  const stored = yield* messages.selectByChat(chatId)
+  const completed = Arr.filter(stored, ({ message }) => message.stage === 'completed')
   return yield* Effect.forEach(completed, readTurn)
 })
 
@@ -108,17 +107,17 @@ const alreadySettled = Effect.logInfo('assistant reply skipped: already settled'
 const chatDeleted = Effect.logInfo('assistant reply skipped: chat deleted')
 
 const writeSettled = Effect.fnUntraced(function* (settled: Message, where: MessageWhere) {
-  const chats = yield* ChatRepository
-  yield* writeStage(settled, where)
-  yield* chats.update({ updatedAt: settled.updatedAt }, { id: settled.chatId })
+  const chatService = yield* ChatService
+  const written = yield* chatService.settleReply(settled, where)
+  if (!written) return yield* new MessageStageMovedError()
 })
 
 type ReplyError = AiError.AiError | MessageStageInvalidError
 
 type ReplyServices =
-  | AttachmentRepository
   | AttachmentStore
   | ChatRepository
+  | ChatService
   | MessageRepository
   | LanguageModel.LanguageModel
 
@@ -157,7 +156,7 @@ const findReply = Effect.fnUntraced(function* (
 const failActive = Effect.fnUntraced(function* (
   active: Message,
   cause: string,
-): Effect.fn.Return<void, MessageStageInvalidError, ChatRepository | MessageRepository> {
+): Effect.fn.Return<void, MessageStageInvalidError, ChatService> {
   const failedAt = yield* DateTime.now
   const failed = yield* failMessage(active, { reason: 'ReplyFailed', cause, at: failedAt })
   const settled = writeSettled(failed, { stage: active.stage })
@@ -167,7 +166,7 @@ const failActive = Effect.fnUntraced(function* (
 const failReply = Effect.fnUntraced(function* (
   messageId: MessageId,
   cause: Cause.Cause<unknown>,
-): Effect.fn.Return<void, MessageStageInvalidError, ChatRepository | MessageRepository> {
+): Effect.fn.Return<void, MessageStageInvalidError, ChatService | MessageRepository> {
   const messages = yield* MessageRepository
 
   const stored = yield* messages.selectById(messageId)
@@ -237,9 +236,14 @@ export class AssistantMessageJob extends Context.Service<
 
   static readonly handle = handle
 
-  static readonly worker = worker(assistantMessageQueue, handle)
+  static readonly worker = worker(assistantMessageQueue, handle).pipe(
+    Layer.provide(ChatService.layer),
+  )
 
   static readonly handleDeadLettered = handleDeadLettered
 
-  static readonly deadLetterWorker = worker(assistantMessageDeadLetterQueue, handleDeadLettered)
+  static readonly deadLetterWorker = worker(
+    assistantMessageDeadLetterQueue,
+    handleDeadLettered,
+  ).pipe(Layer.provide(ChatService.layer))
 }

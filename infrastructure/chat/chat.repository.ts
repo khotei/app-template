@@ -6,9 +6,21 @@ import {
   ChatRepository,
   type ChatSet,
   type ChatWhere,
+  isActiveMessage,
 } from '@app-template/domain/chat'
 
-import { ChatInsert, chats, decodeChat } from '#infrastructure/chat/chat.entity'
+import { ChatInsert, type ChatRow, chats, decodeChat } from '#infrastructure/chat/chat.entity'
+import {
+  activeMessageFilter,
+  decodeMessage,
+  type MessageRow,
+} from '#infrastructure/chat/message.entity'
+import {
+  decodeMessageDetail,
+  inCreationOrder,
+  type MessageDetailRow,
+  withAttachments,
+} from '#infrastructure/chat/message.repository'
 import { Db, decodeFound, orDieWithSqlError } from '#infrastructure/db/db.client'
 
 const encodeChat = Schema.encodeEffect(ChatInsert)
@@ -27,6 +39,32 @@ const whereColumns = {
     }),
   ),
 } as const satisfies { readonly [K in keyof Required<ChatWhere>]: (value: ChatWhere[K]) => unknown }
+
+const decodeSummary = ({
+  messages,
+  ...row
+}: typeof ChatRow.Encoded & { readonly messages: ReadonlyArray<typeof MessageRow.Encoded> }) =>
+  Effect.all({
+    chat: decodeChat(row),
+    activeMessage: Effect.map(
+      Effect.transposeOption(Option.map(Arr.head(messages), decodeMessage)),
+      Option.filter(isActiveMessage),
+    ),
+  })
+
+const decodeDetail = ({
+  messages,
+  ...row
+}: typeof ChatRow.Encoded & { readonly messages: ReadonlyArray<MessageDetailRow> }) =>
+  Effect.gen(function* () {
+    const chat = yield* decodeChat(row)
+    const details = yield* Effect.forEach(messages, decodeMessageDetail)
+    const activeMessage = Arr.findFirst(
+      Arr.map(details, (detail) => detail.message),
+      isActiveMessage,
+    )
+    return { chat, activeMessage, messages: details }
+  })
 
 export const ChatRepositoryPg = Layer.effect(
   ChatRepository,
@@ -54,9 +92,20 @@ export const ChatRepositoryPg = Layer.effect(
         const row = yield* db.query.chats.findFirst({ where: { id } })
         return yield* decodeFound(row, decodeChat)
       }, orDieWithSqlError),
-      selectByUser: Effect.fn('ChatRepository.selectByUser')(function* (userId) {
-        const rows = yield* db.query.chats.findMany({ where: { userId } })
-        return yield* Effect.forEach(rows, decodeChat)
+      selectSummaries: Effect.fn('ChatRepository.selectSummaries')(function* (userId) {
+        const rows = yield* db.query.chats.findMany({
+          where: { userId },
+          orderBy: { updatedAt: 'desc' },
+          with: { messages: { where: activeMessageFilter, limit: 1 } },
+        })
+        return yield* Effect.forEach(rows, decodeSummary)
+      }, orDieWithSqlError),
+      selectDetail: Effect.fn('ChatRepository.selectDetail')(function* (id) {
+        const row = yield* db.query.chats.findFirst({
+          where: { id },
+          with: { messages: { orderBy: inCreationOrder, with: withAttachments } },
+        })
+        return yield* decodeFound(row, decodeDetail)
       }, orDieWithSqlError),
       delete: Effect.fn('ChatRepository.delete')(
         (id: ChatId) => db.delete(chats).where(eq(chats.id, id)),

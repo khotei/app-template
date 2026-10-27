@@ -91,7 +91,9 @@ export const selectChat = (chatId: ChatId) =>
   Effect.flatMap(ChatRepository, (chats) => chats.selectById(chatId))
 
 export const selectMessages = (chatId: ChatId) =>
-  Effect.flatMap(MessageRepository, (messages) => messages.selectByChat(chatId))
+  Effect.flatMap(MessageRepository, (messages) => messages.selectByChat(chatId)).pipe(
+    Effect.map(Arr.map(({ message }) => message)),
+  )
 
 export const selectAttachments = (attachments: ReadonlyArray<Attachment>) =>
   Effect.flatMap(AttachmentRepository, (repository) =>

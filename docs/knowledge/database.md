@@ -45,8 +45,9 @@ from them and the row codecs derived from them.
   statement to after five runs, cannot prove the index predicate from bound parameters.
 - **A relational read filters with an object, not the predicate.** A relational query aliases
   its tables (`d0`, `d1`), while `activeMessage` names `"messages"."author"`, so the read of
-  the active message states the same condition as an object filter (`{ author: 'assistant',
-  stage: { in: … } }`), its stages from the same `ActiveMessageStage.literals`.
+  the active message states the same condition as an object filter, `activeMessageFilter`
+  beside it (`{ author: 'assistant', stage: { in: … } }`), its stages from the same
+  `ActiveMessageStage.literals`; every read of the active message spreads it.
 - **A descending index states its null order.** Drizzle's `desc()` indexes nulls last while
   Postgres's `ORDER BY … DESC` sorts them first, so an index for that order is
   `.desc().nullsFirst()` (`chats_user_id_updated_at_index`).
@@ -82,9 +83,6 @@ export const UserInsert = createInsertSchema(users, userFields)
 - A `jsonb` column carries the encoded type of its schema (`jsonb().$type<typeof
   MessageFailure.Encoded>()`), so the row Drizzle returns fits the codec; the refinement
   (`Schema.OptionFromNullOr(MessageFailure)`) is what decodes it.
-- A model field that another table holds is not a column, so the codec leaves it out and the
-  reader adds it: `MessageRow` decodes no `attachmentIds`, and `decodeMessage` takes them from
-  the attachments a relational read nests in the message, in upload order.
 
 ## Relations
 
@@ -100,6 +98,14 @@ const rows = yield* db.query.messages.findMany({
 })
 // rows: [{ id, chatId, …, attachments: [{ id, userId, messageId, … }] }]
 ```
+
+A read model is one relational query. The domain declares the shapes the ports answer
+(`ChatSummary`, `ChatDetail`, `MessageDetail` in `chat.model.ts`), and the repository reads each
+in one `db.query`, decoding every level with its entity's decoder: `selectSummaries` nests the
+active message (`limit: 1`) under each chat, most recently updated first; `selectDetail` nests
+the messages in creation order and, under each, its attachments in upload order, and takes the
+active message from the messages it read. A model holds no field that another table holds:
+`Message` has no attachments, which reach the reader as a `MessageDetail`.
 
 ## Repositories
 

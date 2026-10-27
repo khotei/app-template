@@ -1,10 +1,9 @@
 import {
   Array as Arr,
   Context,
-  DateTime,
+  type DateTime,
   Effect,
   Option,
-  Order,
   Predicate,
   Schema,
   String as Str,
@@ -22,8 +21,11 @@ import {
   type ActiveMessage,
   ActiveMessageStage,
   Chat,
+  type ChatDetail,
+  type ChatSummary,
   Message,
   MessageAuthor,
+  type MessageDetail,
   MessageFailure,
   type MessageStage,
 } from '#domain/chat/chat.model'
@@ -42,8 +44,9 @@ export class ChatRepository extends Context.Service<
     /** Writes `set` where `where` holds; answers whether it wrote. */
     readonly update: (set: ChatSet, where: ChatWhere) => Effect.Effect<boolean>
     readonly selectById: (id: ChatId) => Effect.Effect<Option.Option<Chat>>
-    /** Returns the user's chats unordered. */
-    readonly selectByUser: (userId: UserId) => Effect.Effect<ReadonlyArray<Chat>>
+    /** Returns the user's chats, the most recently updated first. */
+    readonly selectSummaries: (userId: UserId) => Effect.Effect<ReadonlyArray<ChatSummary>>
+    readonly selectDetail: (id: ChatId) => Effect.Effect<Option.Option<ChatDetail>>
     /** Removes the chat with its messages; dies while one of them has an attachment. */
     readonly delete: (id: ChatId) => Effect.Effect<void>
   }
@@ -60,8 +63,10 @@ export class MessageRepository extends Context.Service<
     /** Writes `message` only while the stored one matches `where`; answers whether it wrote. */
     readonly update: (message: Message, where: MessageWhere) => Effect.Effect<boolean>
     readonly selectById: (id: MessageId) => Effect.Effect<Option.Option<Message>>
-    /** Returns the chat's messages by `createdAt`, a tie broken by id. */
-    readonly selectByChat: (chatId: ChatId) => Effect.Effect<ReadonlyArray<Message>>
+    readonly selectDetail: (id: MessageId) => Effect.Effect<Option.Option<MessageDetail>>
+    /** Returns the chat's messages in creation order, a tie broken by id. */
+    readonly selectByChat: (chatId: ChatId) => Effect.Effect<ReadonlyArray<MessageDetail>>
+    readonly existsByChat: (chatId: ChatId) => Effect.Effect<boolean>
     /** Returns the chat's active message, the one `isActiveMessage` holds for, if any. */
     readonly selectActiveByChat: (chatId: ChatId) => Effect.Effect<Option.Option<ActiveMessage>>
   }
@@ -84,7 +89,6 @@ export const buildUserMessage = (input: {
   readonly id: MessageId
   readonly chatId: ChatId
   readonly text: string
-  readonly attachmentIds: ReadonlyArray<AttachmentId>
   readonly createdAt: DateTime.Utc
 }): Message =>
   new Message({
@@ -93,7 +97,6 @@ export const buildUserMessage = (input: {
     author: 'user',
     stage: 'completed',
     text: input.text,
-    attachmentIds: input.attachmentIds,
     error: Option.none(),
     createdAt: input.createdAt,
     updatedAt: input.createdAt,
@@ -110,17 +113,12 @@ export const buildAssistantMessage = (input: {
     author: 'assistant',
     stage: 'queued',
     text: '',
-    attachmentIds: [],
     error: Option.none(),
     createdAt: input.createdAt,
     updatedAt: input.createdAt,
   })
 
 export const isTitledChat = (chat: Chat): boolean => Option.isSome(chat.title)
-
-export const byLatestUpdate: Order.Order<Chat> = Order.flip(
-  Order.mapInput(DateTime.Order, (chat: Chat) => chat.updatedAt),
-)
 
 export const isInChat =
   (chatId: ChatId) =>

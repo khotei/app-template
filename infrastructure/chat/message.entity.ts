@@ -3,7 +3,6 @@ import { createInsertSchema, createSelectSchema } from 'drizzle-orm/effect-schem
 import { index, jsonb, pgEnum, snakeCase, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
 import { Array as Arr, Effect, Schema } from 'effect'
 
-import { AttachmentId } from '@app-template/domain/attachment'
 import {
   ActiveMessageStage,
   ChatId,
@@ -51,6 +50,16 @@ export const messages = snakeCase.table(
 export const activeMessage: SQL =
   sql`${eq(messages.author, 'assistant')} and ${inArray(messages.stage, ActiveMessageStage.literals)}`.inlineParams()
 
+/**
+ * Holds for the rows `activeMessage` holds for, as a relational query's `where`.
+ *
+ * A relational query aliases the table, while `activeMessage` names `"messages"`.
+ */
+export const activeMessageFilter = {
+  author: 'assistant' as const,
+  stage: { in: Arr.copy(ActiveMessageStage.literals) },
+}
+
 const messageFields = {
   id: MessageId,
   chatId: ChatId,
@@ -63,17 +72,5 @@ export const MessageRow = createSelectSchema(messages, messageFields)
 
 export const MessageInsert = createInsertSchema(messages, messageFields)
 
-const MessageWithAttachmentsRow = Schema.Struct({
-  ...MessageRow.fields,
-  attachments: Schema.Array(Schema.Struct({ id: AttachmentId })),
-})
-
-export const decodeMessage = (row: typeof MessageWithAttachmentsRow.Encoded) =>
-  Effect.map(
-    Schema.decodeEffect(MessageWithAttachmentsRow)(row),
-    ({ attachments, ...fields }) =>
-      new Message({
-        ...fields,
-        attachmentIds: Arr.map(attachments, (attachment) => attachment.id),
-      }),
-  )
+export const decodeMessage = (row: typeof MessageRow.Encoded) =>
+  Effect.map(Schema.decodeEffect(MessageRow)(row), (fields) => new Message(fields))
