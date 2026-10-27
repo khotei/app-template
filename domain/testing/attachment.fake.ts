@@ -41,18 +41,19 @@ export const AttachmentRepositoryMemory = Layer.effect(
     AttachmentRepository.of({
       insert: (attachment) => Ref.update(rows, HashMap.set(attachment.id, attachment)),
       update: (set, where) =>
-        Ref.modify(rows, (map) => {
-          const written = pipe(
+        Ref.modify(rows, (map) =>
+          pipe(
             map,
             HashMap.filter(holdsWhere(where)),
             HashMap.map((attachment) => new Attachment({ ...attachment, ...set })),
-          )
-          return [HashMap.toValues(written), HashMap.union(map, written)]
-        }),
+            (written) => [HashMap.toValues(written), HashMap.union(map, written)] as const,
+          ),
+        ),
       selectById: (id) => Effect.map(Ref.get(rows), HashMap.get(id)),
       selectByIds: (ids) =>
-        Effect.map(Ref.get(rows), (map) =>
-          Arr.getSomes(Arr.map(ids, (id) => HashMap.get(map, id))),
+        Ref.get(rows).pipe(
+          Effect.map((map) => Arr.map(ids, (id) => HashMap.get(map, id))),
+          Effect.map(Arr.getSomes),
         ),
       deleteByIds: (ids) => Ref.update(rows, HashMap.removeMany(ids)),
     }),

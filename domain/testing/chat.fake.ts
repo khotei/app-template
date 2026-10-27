@@ -3,6 +3,7 @@ import {
   Context,
   DateTime,
   Effect,
+  flow,
   HashMap,
   Layer,
   Option,
@@ -84,6 +85,28 @@ const detailOf =
     ),
   })
 
+const summaryOf =
+  (messages: Messages) =>
+  (chat: Chat): ChatSummary => ({ chat, activeMessage: activeOf(messages, chat.id) })
+
+/** One read of the rows a relational read joins, so a detail never mixes two states. */
+interface Tables {
+  readonly messages: Messages
+  readonly attachments: Attachments
+}
+
+const chatDetailOf =
+  (tables: Tables) =>
+  (chat: Chat): ChatDetail => ({
+    ...summaryOf(tables.messages)(chat),
+    messages: Arr.map(messagesOf(tables.messages, chat.id), detailOf(tables.attachments)),
+  })
+
+const hasBoundAttachment = (tables: Tables, chatId: ChatId): boolean =>
+  Arr.some(messagesOf(tables.messages, chatId), (message) =>
+    HashMap.some(tables.attachments, isBoundTo(message.id)),
+  )
+
 export const ChatRepositoryMemory = Layer.effect(
   ChatRepository,
   Effect.gen(function* () {
@@ -91,29 +114,14 @@ export const ChatRepositoryMemory = Layer.effect(
     const messages = yield* MessageRows
     const attachments = yield* AttachmentRows
 
-    const summaryOf = (chat: Chat) =>
-      Effect.map(
-        Ref.get(messages),
-        (rows): ChatSummary => ({ chat, activeMessage: activeOf(rows, chat.id) }),
-      )
+    const tables = Effect.all({
+      chats: Ref.get(chats),
+      messages: Ref.get(messages),
+      attachments: Ref.get(attachments),
+    })
 
-    const chatDetailOf = (chat: Chat) =>
-      Effect.gen(function* () {
-        const summary = yield* summaryOf(chat)
-        const messageRows = yield* Ref.get(messages)
-        const attachmentRows = yield* Ref.get(attachments)
-        const details = Arr.map(messagesOf(messageRows, chat.id), detailOf(attachmentRows))
-        return { ...summary, messages: details } satisfies ChatDetail
-      })
-
-    const hasBoundAttachment = (chatId: ChatId) =>
-      Effect.gen(function* () {
-        const messageRows = yield* Ref.get(messages)
-        const attachmentRows = yield* Ref.get(attachments)
-        return Arr.some(messagesOf(messageRows, chatId), (message) =>
-          HashMap.some(attachmentRows, isBoundTo(message.id)),
-        )
-      })
+    const withActiveMessage = (found: ReadonlyArray<Chat>) =>
+      Effect.map(Ref.get(messages), (rows) => Arr.map(found, summaryOf(rows)))
 
     return ChatRepository.of({
       insert: (chat) => Ref.update(chats, HashMap.set(chat.id, chat)),
@@ -131,26 +139,18 @@ export const ChatRepositoryMemory = Layer.effect(
         ),
       selectById: (id) => Effect.map(Ref.get(chats), HashMap.get(id)),
       selectSummaries: (userId) =>
-        Effect.flatMap(Ref.get(chats), (rows) =>
-          pipe(
-            rows,
-            HashMap.filter(isOwnedBy(userId)),
-            HashMap.toValues,
-            Arr.sort(byLatestActivity),
-            Effect.forEach(summaryOf),
+        Ref.get(chats).pipe(
+          Effect.map(
+            flow(HashMap.filter(isOwnedBy(userId)), HashMap.toValues, Arr.sort(byLatestActivity)),
           ),
+          Effect.flatMap(withActiveMessage),
         ),
       selectDetail: (id) =>
-        Effect.flatMap(Ref.get(chats), (rows) =>
-          Option.match(HashMap.get(rows, id), {
-            onNone: () => Effect.succeedNone,
-            onSome: (chat) => Effect.map(chatDetailOf(chat), Option.some),
-          }),
-        ),
+        Effect.map(tables, (rows) => Option.map(HashMap.get(rows.chats, id), chatDetailOf(rows))),
       delete: (id) =>
         Effect.gen(function* () {
-          const bound = yield* hasBoundAttachment(id)
-          if (bound) {
+          const rows = yield* tables
+          if (hasBoundAttachment(rows, id)) {
             return yield* Effect.die(new Error(`chat ${id} has a message with a bound attachment`))
           }
           yield* Ref.update(chats, HashMap.remove(id))
@@ -166,8 +166,7 @@ export const MessageRepositoryMemory = Layer.effect(
     const messages = yield* MessageRows
     const attachments = yield* AttachmentRows
 
-    const withAttachments = (found: ReadonlyArray<Message>) =>
-      Effect.map(Ref.get(attachments), (rows) => Arr.map(found, detailOf(rows)))
+    const tables = Effect.all({ messages: Ref.get(messages), attachments: Ref.get(attachments) })
 
     return MessageRepository.of({
       insert: (message) =>
@@ -190,11 +189,13 @@ export const MessageRepositoryMemory = Layer.effect(
         ),
       selectById: (id) => Effect.map(Ref.get(messages), HashMap.get(id)),
       selectDetail: (id) =>
-        Effect.flatMap(Ref.get(messages), (rows) =>
-          Effect.map(withAttachments(Arr.fromOption(HashMap.get(rows, id))), Arr.head),
+        Effect.map(tables, (rows) =>
+          Option.map(HashMap.get(rows.messages, id), detailOf(rows.attachments)),
         ),
       selectByChat: (chatId) =>
-        Effect.flatMap(Ref.get(messages), (rows) => withAttachments(messagesOf(rows, chatId))),
+        Effect.map(tables, (rows) =>
+          Arr.map(messagesOf(rows.messages, chatId), detailOf(rows.attachments)),
+        ),
       existsByChat: (chatId) => Effect.map(Ref.get(messages), HashMap.some(isInChat(chatId))),
       selectActiveByChat: (chatId) =>
         Effect.map(Ref.get(messages), (rows) => activeOf(rows, chatId)),

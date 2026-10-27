@@ -24,13 +24,11 @@ export const UserRepositoryMemory = Layer.effect(
     UserRepository.of({
       insert: (user, credential) => Ref.update(rows, HashMap.set(user.id, { user, credential })),
       selectById: (id) =>
-        Effect.map(Ref.get(rows), (map) => Option.map(HashMap.get(map, id), (row) => row.user)),
+        Ref.get(rows).pipe(Effect.map(HashMap.get(id)), Effect.map(Option.map((row) => row.user))),
       selectByCredential: (credential) =>
-        Effect.map(Ref.get(rows), (map) =>
-          Option.map(
-            HashMap.findFirst(map, (row) => Equal.equals(row.credential, credential)),
-            ([, row]) => row.user,
-          ),
+        Ref.get(rows).pipe(
+          Effect.map(HashMap.findFirst((row) => Equal.equals(row.credential, credential))),
+          Effect.map(Option.map(([, row]) => row.user)),
         ),
     }),
   ),
