@@ -1,5 +1,5 @@
 import { inArray } from 'drizzle-orm'
-import { Array as Arr, Cause, Effect, Layer, Predicate } from 'effect'
+import { Array as Arr, Cause, Effect, Layer, Predicate, Struct } from 'effect'
 import { SqlClient } from 'effect/sql'
 
 import { buildResourceName } from '@app-template/aws'
@@ -42,19 +42,16 @@ export const OutboxRelay = Effect.gen(function* () {
       attributes: { jobId: row.jobId },
     })
 
-  const deleteRows = (rows: ReadonlyArray<OutboxRow>) =>
-    db.delete(outbox).where(
-      inArray(
-        outbox.id,
-        Arr.map(rows, (row) => row.id),
-      ),
-    )
+  // `asVoid` gives the delete the type of `Effect.void`, the other arm of the match below.
+  const deleteRows = (rows: Arr.NonEmptyReadonlyArray<OutboxRow>) =>
+    db
+      .delete(outbox)
+      .where(inArray(outbox.id, Arr.map(rows, Struct.get('id'))))
+      .pipe(Effect.asVoid)
 
   const relayBatch = selectBatch.pipe(
-    Effect.tap((rows) => Effect.forEach(rows, sendRow, { discard: true })),
-    Effect.tap((rows) =>
-      Effect.when(deleteRows(rows), Effect.succeed(Arr.isReadonlyArrayNonEmpty(rows))),
-    ),
+    Effect.tap(Effect.forEach(sendRow, { discard: true })),
+    Effect.tap(Arr.match({ onEmpty: () => Effect.void, onNonEmpty: deleteRows })),
     Effect.catchTag('EffectDrizzleQueryError', unwrapQueryError),
     sql.withTransaction,
   )

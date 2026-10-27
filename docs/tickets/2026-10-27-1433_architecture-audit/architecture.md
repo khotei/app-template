@@ -325,14 +325,21 @@ type SetRow<Fields, Table extends PgTable> = { [K in keyof Required<Fields>]?: S
 export const buildSet =
   <Fields extends object, Table extends PgTable>(columns: SetColumns<Fields, Table>) =>
   (set: Fields): SetRow<Fields, Table> =>
-    Arr.reduce(Struct.keys(columns), {}, (row: SetRow<Fields, Table>, key) => ({
-      ...row,
-      [key]: columns[key](set[key]),
-    }))
+    pipe(
+      Struct.keys(columns),
+      Arr.reduce({}, (row: SetRow<Fields, Table>, key) => ({
+        ...row,
+        [key]: columns[key](set[key]),
+      })),
+    )
 export const buildWhere =
   <Fields extends object>(columns: WhereColumns<Fields>) =>
   (where: Fields) =>
-    and(...Arr.map(Struct.keys(columns), (key) => columns[key](where[key])))
+    pipe(
+      Struct.keys(columns),
+      Arr.map((key) => columns[key](where[key])),
+      (conditions) => and(...conditions),
+    )
 
 // infrastructure/chat/chat.repository.ts
 const encodeSet = buildSet<ChatSet, typeof chats>({

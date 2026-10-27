@@ -4,9 +4,11 @@ import {
   Duration,
   Effect,
   Exit,
+  flow,
   Layer,
   Option,
   Predicate,
+  pipe,
   Result,
   Schedule,
   Schema,
@@ -58,16 +60,18 @@ const buildAttemptInfo = (received: Received, maxAttempts: number): AttemptInfo 
 const buildJsonCodec = <A, I>(schema: Schema.Codec<A, I>) =>
   Schema.fromJsonString(Schema.toCodecJson(schema))
 
-/** The job as its definition's schema encodes it to JSON: the value an outbox row stores. */
-export const encodeJob = <A, I>(definition: QueueDefinition<Schema.Codec<A, I>>, message: A) =>
-  Schema.encodeEffect(Schema.toCodecJson(definition.schema))(message).pipe(
+const encodeWith = <A, I>(codec: Schema.Codec<A, I>) =>
+  flow(
+    Schema.encodeEffect(codec),
     Effect.mapError((cause) => new QueueError({ cause })),
   )
 
+/** The job as its definition's schema encodes it to JSON: the value an outbox row stores. */
+export const encodeJob = <A, I>(definition: QueueDefinition<Schema.Codec<A, I>>, message: A) =>
+  pipe(message, encodeWith(Schema.toCodecJson(definition.schema)))
+
 const encodeBody = <A, I>(definition: QueueDefinition<Schema.Codec<A, I>>, message: A) =>
-  Schema.encodeEffect(buildJsonCodec(definition.schema))(message).pipe(
-    Effect.mapError((cause) => new QueueError({ cause })),
-  )
+  pipe(message, encodeWith(buildJsonCodec(definition.schema)))
 
 const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueClientOptions) =>
   Effect.gen(function* () {

@@ -1,6 +1,6 @@
 import { and, type SQL, sql } from 'drizzle-orm'
 import { type PgTable, type PgUpdateSetSource, timestamp, uuid } from 'drizzle-orm/pg-core'
-import { Array as Arr, Struct } from 'effect'
+import { Array as Arr, pipe, Struct } from 'effect'
 
 // Functions, not shared constants: each call returns a fresh builder, because a table names a
 // builder's column the first time it sees it, so a constant reused under another key would keep
@@ -34,10 +34,13 @@ type SetRow<Fields, Table extends PgTable> = {
 export const buildSet =
   <Fields extends object, Table extends PgTable>(columns: SetColumns<Fields, Table>) =>
   (set: Fields): SetRow<Fields, Table> =>
-    Arr.reduce(Struct.keys(columns), {}, (row: SetRow<Fields, Table>, key) => ({
-      ...row,
-      [key]: columns[key](set[key]),
-    }))
+    pipe(
+      Struct.keys(columns),
+      Arr.reduce({}, (row: SetRow<Fields, Table>, key) => ({
+        ...row,
+        [key]: columns[key](set[key]),
+      })),
+    )
 
 /**
  * Joins the conditions of the fields `columns` names with `and`: an absent field answers
@@ -47,4 +50,8 @@ export const buildSet =
 export const buildWhere =
   <Fields extends object>(columns: WhereColumns<Fields>) =>
   (where: Fields) =>
-    and(...Arr.map(Struct.keys(columns), (key) => columns[key](where[key])))
+    pipe(
+      Struct.keys(columns),
+      Arr.map((key) => columns[key](where[key])),
+      (conditions) => and(...conditions),
+    )
