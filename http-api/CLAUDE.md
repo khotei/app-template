@@ -16,7 +16,7 @@ not a package: it is the system's boundary, specific to this app and used by two
 - **Statuses are set here, never in the domain:** `DomainError.pipe(HttpApiSchema.status(404))`
   where an endpoint or middleware lists the error. Only HTTP's own errors (`shared/errors.ts`)
   carry `httpApiStatus` on the class.
-- **No handlers.** They are `apps/api/src/<entity>/<entity>.handler.ts`.
+- **No handlers.** They are `apps/api/<entity>/<entity>.handler.ts`.
 - Layout: `shared/` for what every group uses, one `<entity>/<entity>.http.ts` per group, no
   per-entity barrels.
 - **A domain schema edit is a contract edit.** DTOs reuse the domain's schemas, so the change

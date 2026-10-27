@@ -366,7 +366,7 @@
       }
     },
     {
-      "includes": ["apps/web/src/main.ts"],
+      "includes": ["apps/web/main.ts"],
       "linter": {
         "rules": {
           "style": {

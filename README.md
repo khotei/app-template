@@ -112,7 +112,7 @@ Each line names one choice and where it lives; the rejected alternatives are in 
   transaction. [docs/knowledge/database.md](docs/knowledge/database.md).
 - **Jobs live in one file, both sides:** a `.job` service enqueues, its `worker` is a `Layer` that
   consumes in a fiber the layer's scope owns. `application/chat/*.job.ts`, `packages/queue`.
-- **A process is one `Layer`:** `apps/api/src/layer.ts` and `apps/worker/src/layer.ts` close the
+- **A process is one `Layer`:** `apps/api/layer.ts` and `apps/worker/layer.ts` close the
   leaves (database, S3, queue, platform) with `Layer.provide` and `main.ts` is
   `BunRuntime.runMain(Layer.launch(...))`; stopping closes one scope.
 - **Tests sit at agreed seams** with `@effect/vitest`: domain rules, repositories on a Postgres

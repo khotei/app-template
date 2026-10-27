@@ -4,7 +4,7 @@
     "rootDir": ".",
     "outDir": "../../node_modules/.cache/tsc/worker"
   },
-  "include": ["src/**/*.ts"],
+  "include": ["**/*.ts"],
   "references": [
     { "path": "../../application" },
     { "path": "../../infrastructure" },

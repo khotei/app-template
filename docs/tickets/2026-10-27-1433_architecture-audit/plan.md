@@ -110,7 +110,11 @@
   biome.json Makefile` finds nothing for the three apps; `make check`; with the stand up,
   `make dev-api`, `make dev-worker` and `make dev-web` start and answer `GET /health`.
 - **Model:** opus medium
-- **Status:** todo
+- **Status:** done
+- **Findings:** `README.md`, `docs/knowledge/roadmap.md`, `tooling.md` and `http-api/CLAUDE.md`
+  named `apps/<app>/src/` paths too; only the paths changed. The api's `include` collapsed to
+  `**/*.ts`, which covers the `e2e/` line S2 added. `make dev-api` answered `GET /health` 200
+  and `make dev-worker` logged `worker started` on the local stand.
 
 #### S4 — Type the repositories' write mapping once
 

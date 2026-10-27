@@ -19,7 +19,7 @@ graph TD
   infrastructure --> packages
   web["apps/web client"] --> httpApi
   web --> ui["packages/ui"]
-  webMain["apps/web/src/main.ts"] --> ui
+  webMain["apps/web/main.ts"] --> ui
   webMain --> config["packages/config"]
   deployment --> packages
 ```
@@ -52,7 +52,7 @@ Each row lists what a workspace may import.
 | apps/api | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ (no sibling app) |
 | apps/worker | ✓ | ✗ | ✓ | ✓ | ✓ | ✗ (no sibling app) |
 | apps/web client (`app/`, `features/`, `shared/`) | ✗ | ✓ | ✗ | ✗ | `ui` only | ✗ |
-| apps/web/src/main.ts | ✗ | ✗ | ✗ | ✗ | `ui`, `config` | ✗ |
+| apps/web/main.ts | ✗ | ✗ | ✗ | ✗ | `ui`, `config` | ✗ |
 | deployment | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ |
 
 - **`domain` imports `effect` and no workspace,** not even `packages/*`, and no `@effect/*`
@@ -88,7 +88,7 @@ import { ChatService } from '#application/chat/chat.service'     // this workspa
   layer exposes each entity as a subpath (`@app-template/domain/chat` →
   `domain/chat/index.ts`).
 - **`#<workspace>/<path>`** reaches a file inside the same workspace, through the `imports` map in
-  its `package.json` (`"#domain/*": "./*.ts"`, `"#api/*": "./src/*.ts"`). Relative `./` and `../`
+  its `package.json` (`"#domain/*": "./*.ts"`, `"#api/*": "./*.ts"`). Relative `./` and `../`
   paths are banned. A bare `#/` prefix would be shorter, but Bun 1.4.3 cannot resolve it.
 - **Order** is the four groups above, separated by blank lines. `make fmt` sorts them.
 
@@ -115,8 +115,8 @@ Using the `chat` slice as the map:
 | job: producer and worker | `application/chat/assistant-message.job.ts` | `AssistantMessageJob`, `AssistantMessageJob.worker` |
 | test support | `application/testing/chat.harness.ts` | `ChatTest`, `layerChatTest(chats)` |
 | contract group | `http-api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`), the DTOs `Chat`, `Message` |
-| handler | `apps/api/src/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
-| browser feature | `apps/web/src/features/health/health-panel.ts` | `renderHealthPanel(root)` |
+| handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
+| browser feature | `apps/web/features/health/health-panel.ts` | `renderHealthPanel(root)` |
 
 Every entity folder has an `index.ts` barrel. Tests sit at the workspace's top and mirror the
 source path: `tests/**/*.test.ts` need no Docker, `e2e/**/*.e2e.ts` do.
@@ -157,21 +157,21 @@ Pascal one (`Document`).
    holds the queue definitions (name, job schema, retry policy, `jobId`), and any prompt the model
    needs goes in `<entity>.llm.ts`. Both sides of the job live in
    `application/<entity>/<object>.job.ts`: the producer service, which calls `QueueClient.send`
-   from `packages/queue`, and the static `worker` layer, which `apps/worker/src/layer.ts` merges
+   from `packages/queue`, and the static `worker` layer, which `apps/worker/layer.ts` merges
    and provides with the `<Entity>Pg` layers the jobs read.
 8. **Contract.** Add the group in `http-api/<entity>/<entity>.http.ts`, listing the domain's errors
    with their statuses (`HttpApiSchema.status`), and add it to `Api` in `http-api/api.ts` before
    `.middleware(SchemaErrors)`.
-9. **Delivery.** Implement the group in `apps/api/src/<entity>/<entity>.handler.ts` with
+9. **Delivery.** Implement the group in `apps/api/<entity>/<entity>.handler.ts` with
    `HttpApiBuilder.group(Api, '<group>', …)`: it calls the use cases and services and projects
-   each model onto its DTO through `apps/api/src/shared/projections.ts` (`Struct.pick`). Add it
-   to `ApiRoutes`, and its services and `<Entity>Pg` to `ApiHttp` in `apps/api/src/layer.ts`; an
+   each model onto its DTO through `apps/api/shared/projections.ts` (`Struct.pick`). Add it
+   to `ApiRoutes`, and its services and `<Entity>Pg` to `ApiHttp` in `apps/api/layer.ts`; an
    entity with an AWS adapter goes to `ApiLayer` instead, and the api harness provides the memory
    layer from `@app-template/application/testing` in its place.
-   Test in `apps/api/e2e/<entity>/<entity>.handler.e2e.ts`, on `apps/api/src/testing/api.harness.ts`, only
+   Test in `apps/api/e2e/<entity>/<entity>.handler.e2e.ts`, on `apps/api/testing/api.harness.ts`, only
    what HTTP adds (statuses, cookies, the wire shape); the rules stay in the application suites.
 10. **Client, if the browser needs it.** `ApiClient` from `@app-template/http-api` already has
-    every endpoint of the contract; add a feature folder under `apps/web/src/features/<entity>/`
+    every endpoint of the contract; add a feature folder under `apps/web/features/<entity>/`
     whose Effect calls it through `ApiClient.use`.
 
 A new entity in existing workspaces usually needs no new dependency, because the layers already

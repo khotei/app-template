@@ -3,13 +3,13 @@
   "private": true,
   "type": "module",
   "imports": {
-    "#web/index.html": "./src/index.html",
-    "#web/*": "./src/*.ts"
+    "#web/index.html": "./index.html",
+    "#web/*": "./*.ts"
   },
   "scripts": {
-    "dev": "bun --env-file=../../.env --env-file=../../.env.pulumi --hot src/main.ts",
-    "debug": "bun --env-file=../../.env --env-file=../../.env.pulumi --inspect --hot src/main.ts",
-    "start": "bun --env-file=../../.env --env-file=../../.env.pulumi src/main.ts"
+    "dev": "bun --env-file=../../.env --env-file=../../.env.pulumi --hot main.ts",
+    "debug": "bun --env-file=../../.env --env-file=../../.env.pulumi --inspect --hot main.ts",
+    "start": "bun --env-file=../../.env --env-file=../../.env.pulumi main.ts"
   },
   "dependencies": {
     "@app-template/config": "workspace:*",
