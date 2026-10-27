@@ -260,7 +260,7 @@
 
 #### S7 — Memory layers and fixtures in `domain/testing`
 
-- **Goal:** one memory layer per port over a `Ref<Map>`, mirroring the port's contract and the
+- **Goal:** one memory layer per port over a `Ref<HashMap>`, mirroring the port's contract and the
   index, exported as `@app-template/domain/testing` with the fixtures (R17, D6, D13).
 - **Blocked by:** S6.
 - **Files:** `domain/testing/chat.fake.ts` (`ChatRepositoryMemory`, `MessageRepositoryMemory`:
@@ -283,13 +283,73 @@
 - **Verify:** `ls domain/testing` shows the three `.fake.ts`, the three `.fixture.ts` and
   `index.ts`; `make check`.
 - **Model:** fable high
+- **Status:** done
+- **Findings:**
+  - The maps are `Ref<HashMap>`, not `Ref<Map>`: a write is one `Ref.modify` that replaces the
+    row (`new Chat({ ...row, ...set })`), so `Types.Mutable` from S5's finding goes unused. D6
+    says so; R17 reads "map" as the kind, so `feature.md` is unchanged. `AttachmentObjects`
+    moved to a `Ref<HashMap>` too, and its `Buffer.concat` to `Stream.mkUint8Array` (no Node
+    API in `domain/`).
+  - The bucket layer kept the name `AttachmentStoreMemory`, since the port is still
+    `AttachmentStore` and no step renamed it while S9, S10, S16 and S20 already wrote
+    `AttachmentBucket`; the new S7c renames the port.
+  - `Types.Simplify` wraps `ChatSet`, `ChatWhere`, `AttachmentSet`, `AttachmentWhere`
+    (`chat.port.ts`, `attachment.port.ts`), per S5's finding.
+  - Beyond **Files**: `domain/testing/rows.ts` (`matches(where)`, shared by three fakes, as
+    `infrastructure/testing/rows.ts`); the seven `application/e2e/**` suites that imported the
+    moved fixtures by path.
+  - `MessageRepositoryMemory.update` does not check the one-active-message index. Unreachable:
+    every transition in `message.model.ts` starts from an active message, so an `update` never
+    turns an inactive one active.
+  - The fakes read by `› Composition` (round S7.2): one snapshot of the joined rows per read,
+    flat pipes. Probe suites, deleted after, checked each rule; the first real consumers are S8–S10.
+  - On the user's OK, two rename steps follow: S7b (test-support files `<entity>.test-<role>.ts`,
+    `<Port>Memory` → `<Port>Test`) and S7c (`AttachmentStore` → `AttachmentBucket`). Later steps
+    still say `…Memory` and `AttachmentBucketMemory`; S7b rewrites those names in this plan and
+    `architecture.md`.
+
+#### S7b — Test-support names searchable as test-only
+
+- **Goal:** every test-support file is `<entity>.test-<role>.ts` and every test-only layer ends in
+  `Test`, so `**/*.test-*.ts` and `\w+Test\b` find them all (R17, R21).
+- **Blocked by:** S7.
+- **Files:** `git mv` every `testing/**` file: `.fake` → `.test-fake`, `.fixture` →
+  `.test-fixture`, `.harness` → `.test-layer`, `.setup` → `.test-setup`; the imports, `vitest.config.ts`
+  (`globalSetup`) and `Makefile` that name them; the layers `<Port>Memory` → `<Port>Test`
+  (`ChatRepositoryTest`, `MessageRepositoryTest`, `AttachmentRepositoryTest`, `UserRepositoryTest`,
+  `AttachmentStoreTest`, `RepositoryStackTest`); `.claude/rules/naming.md › Files` and `› Symbols`,
+  `.claude/rules/effect-tests.md` (the roles and the two globs); the `…Memory` names and the four
+  role suffixes in this plan's later steps and in `architecture.md` (`TransactionMemory` →
+  `TransactionTest`). `record<Thing>()` and `<Entity>Rows` keep their names.
+- **Test first:** `config only` — the suites stay green unchanged but for imports.
+- **Verify:** `git ls-files '*/testing/*' | grep -vE '\.test-(fake|fixture|layer|setup)\.ts$|/(index|rows)\.ts$'`
+  is empty; `git grep -nE '\b[A-Z]\w+Memory\b' -- ':!repos' ':!docs/tickets/*/verification.md'`
+  is empty; `make check`.
+- **Model:** opus medium
+- **Status:** todo
+
+#### S7c — The port `AttachmentStore` is `AttachmentBucket`
+
+- **Goal:** the attachment's bytes port carries the name the later steps use: `AttachmentBucket`,
+  its adapter `AttachmentBucketS3`, its fake `AttachmentBucketTest` (R17, D9).
+- **Blocked by:** S7b.
+- **Files:** `domain/attachment/attachment.port.ts`; `git mv
+  infrastructure/attachment/attachment.storage.ts infrastructure/attachment/attachment.bucket.ts`,
+  `infrastructure/attachment/index.ts`; `domain/testing/attachment.test-fake.ts`
+  (`AttachmentObjects` named for the bucket); its users in `application/` and
+  `apps/api/testing`; `.claude/rules/naming.md` (`.storage` → `.bucket`),
+  `.claude/rules/use-cases.md`; `docs/knowledge/aws.md`, `docs/knowledge/glossary.md`.
+- **Test first:** `config only` — a rename; the suites stay green.
+- **Verify:** `git grep -n 'AttachmentStore\|\.storage\b' -- ':!repos' ':!docs/tickets'` is empty;
+  `make check`.
+- **Model:** opus medium
 - **Status:** todo
 
 #### S8 — `UserService` to the domain
 
 - **Goal:** the user's rules in `domain/user/user.service.ts`, with a unit suite over
   `UserRepositoryMemory`; `application/user` gone (R2, R17).
-- **Blocked by:** S7.
+- **Blocked by:** S7c.
 - **Files:** `git mv application/user/user.service.ts domain/user/user.service.ts` (key
   `@app-template/domain/user/UserService`; `isOwnedBy` stays in `user.model.ts` until S10);
   `domain/user/index.ts`; `application/user/index.ts` *gone*, `application/package.json`
@@ -747,11 +807,11 @@
 | R14 | S1 |
 | R15 | S19, S20 |
 | R16 | S5 |
-| R17 | S2, S7, S8, S9, S10, S11, S12, S14, S15, S16, S17 |
+| R17 | S2, S7, S7b, S7c, S8, S9, S10, S11, S12, S14, S15, S16, S17 |
 | R18 | S2, S18, S19, S20, S21 |
 | R19 | S2 |
 | R20 | S23 |
-| R21 | S23, S24 |
+| R21 | S7b, S23, S24 |
 | R22 | S3 |
 | R23 | S22 |
 

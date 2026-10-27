@@ -504,7 +504,8 @@ export const AwsTest = Layer.unwrap(Effect.gen(function* () {
   combinator); a `Transaction` declared in `application`, which would need its adapter there
   too, since `infrastructure` cannot import `application`.
 - **D6 — The memory layers live in `domain/testing` and mirror the port's contract, index
-  included.** One layer per port over a `Ref<Map>`, exported as `@app-template/domain/testing`
+  included.** One layer per port over a `Ref<HashMap>` (a write replaces the row,
+  never mutates it), exported as `@app-template/domain/testing`
   so `application` and the apps reuse them; `MessageRepositoryMemory.insert` answers `false` on a
   second active message, `update` honours its `Where`, `ChatRepositoryMemory.delete` dies on a
   bound attachment. Each such rule has its e2e twin on the Pg repository. *Rejected:* a fake per

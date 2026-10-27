@@ -89,7 +89,6 @@ const summaryOf =
   (messages: Messages) =>
   (chat: Chat): ChatSummary => ({ chat, activeMessage: activeOf(messages, chat.id) })
 
-/** One read of the rows a relational read joins, so a detail never mixes two states. */
 interface Tables {
   readonly messages: Messages
   readonly attachments: Attachments
@@ -114,7 +113,7 @@ export const ChatRepositoryMemory = Layer.effect(
     const messages = yield* MessageRows
     const attachments = yield* AttachmentRows
 
-    const tables = Effect.all({
+    const readTables = Effect.all({
       chats: Ref.get(chats),
       messages: Ref.get(messages),
       attachments: Ref.get(attachments),
@@ -146,11 +145,13 @@ export const ChatRepositoryMemory = Layer.effect(
           Effect.flatMap(withActiveMessage),
         ),
       selectDetail: (id) =>
-        Effect.map(tables, (rows) => Option.map(HashMap.get(rows.chats, id), chatDetailOf(rows))),
+        Effect.map(readTables, (tables) =>
+          Option.map(HashMap.get(tables.chats, id), chatDetailOf(tables)),
+        ),
       delete: (id) =>
         Effect.gen(function* () {
-          const rows = yield* tables
-          if (hasBoundAttachment(rows, id)) {
+          const tables = yield* readTables
+          if (hasBoundAttachment(tables, id)) {
             return yield* Effect.die(new Error(`chat ${id} has a message with a bound attachment`))
           }
           yield* Ref.update(chats, HashMap.remove(id))
@@ -166,7 +167,10 @@ export const MessageRepositoryMemory = Layer.effect(
     const messages = yield* MessageRows
     const attachments = yield* AttachmentRows
 
-    const tables = Effect.all({ messages: Ref.get(messages), attachments: Ref.get(attachments) })
+    const readTables = Effect.all({
+      messages: Ref.get(messages),
+      attachments: Ref.get(attachments),
+    })
 
     return MessageRepository.of({
       insert: (message) =>
@@ -189,12 +193,12 @@ export const MessageRepositoryMemory = Layer.effect(
         ),
       selectById: (id) => Effect.map(Ref.get(messages), HashMap.get(id)),
       selectDetail: (id) =>
-        Effect.map(tables, (rows) =>
-          Option.map(HashMap.get(rows.messages, id), detailOf(rows.attachments)),
+        Effect.map(readTables, (tables) =>
+          Option.map(HashMap.get(tables.messages, id), detailOf(tables.attachments)),
         ),
       selectByChat: (chatId) =>
-        Effect.map(tables, (rows) =>
-          Arr.map(messagesOf(rows.messages, chatId), detailOf(rows.attachments)),
+        Effect.map(readTables, (tables) =>
+          Arr.map(messagesOf(tables.messages, chatId), detailOf(tables.attachments)),
         ),
       existsByChat: (chatId) => Effect.map(Ref.get(messages), HashMap.some(isInChat(chatId))),
       selectActiveByChat: (chatId) =>
