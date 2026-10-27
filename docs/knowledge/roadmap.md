@@ -49,6 +49,8 @@ graph LR
 | 12 | [`template-handoff`](#12-template-handoff) | `chore` | all above | planned |
 | 13 | [`ticket-folder-order`](#13-ticket-folder-order) | `chore` | 3 | done: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md) |
 | 14 | [`toolkit-reading`](#14-toolkit-reading) | `chore` | 2 | done: [docs/tickets/2026-10-21-1347_toolkit-reading/](../tickets/2026-10-21-1347_toolkit-reading/feature.md) |
+| 15 | [`architecture-audit`](#15-architecture-audit) | `refactor` | 4 | in progress: [docs/tickets/2026-10-27-1433_architecture-audit/](../tickets/2026-10-27-1433_architecture-audit/feature.md) |
+| 16 | [`shared-files`](#16-shared-files) | `feat` | 15 | planned |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; its remaining work is re-homed
 in [Re-homing `effect-setup`](#re-homing-effect-setup).
@@ -417,6 +419,31 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Facts (2026-10-21).** Rewording four rules without losing a constraint saved 11%; the
   always-loaded project files measured 4.5k tokens by `/context` before `claude-toolkit`.
 - **Status.** Done: [docs/tickets/2026-10-21-1347_toolkit-reading/](../tickets/2026-10-21-1347_toolkit-reading/feature.md).
+
+### 15. `architecture-audit`
+
+- **Goal.** One layering model: domain services and ports in `domain`, use cases only in
+  `application`, handlers in the apps (the worker like the api), tests in `tests/` over memory
+  ports and `e2e/` over the real infrastructure, the architecture language in the
+  glossary.
+- **Status.** In progress:
+  [docs/tickets/2026-10-27-1433_architecture-audit/](../tickets/2026-10-27-1433_architecture-audit/feature.md).
+  Its branch is cut from `feat/postgres-drizzle`; its PR waits for that merge.
+
+### 16. `shared-files`
+
+- **Goal.** A user uploads files to a pool of their own and links them to a message or a chat
+  later, instead of uploading for one message.
+- **Scope.** The pool and the link as domain concepts (the glossary bans "File" for an attachment
+  today, so the words come first); upload, list and delete of pool files; linking at send and to
+  a chat; what the reply reads when a chat has linked files; the `shared-files` migration of
+  today's `attachments` rows.
+- **Out of scope.** Sharing between users; assistant-produced files (`llm-providers`, 6).
+- **Inherits from `architecture-audit` (2026-10-27).** A file lives as long as its owner needs it:
+  no expiry of unlinked files, so the 24-hour unbound lifetime and the `unbound` S3 tag go.
+- **Open questions for its feature phase.** Whether one file may be linked to several messages;
+  whether deleting a chat deletes its linked files or only the links; the quota per user.
+- **Status.** Planned.
 
 ## Re-homing `effect-setup`
 
