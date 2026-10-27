@@ -10,9 +10,12 @@ import { OutboxRelaySqs } from '@app-template/infrastructure/outbox'
 import { QueueClientSqs } from '@app-template/infrastructure/shared'
 import { LanguageModelStub } from '@app-template/llm'
 
-const WorkerJobs = Layer.mergeAll(AssistantMessageJob.worker, ChatTitleJob.worker).pipe(
-  Layer.provide([ChatPg, AttachmentPgS3]),
-)
+const WorkerJobs = Layer.mergeAll(
+  AssistantMessageJob.worker,
+  AssistantMessageJob.deadLetterWorker,
+  ChatTitleJob.worker,
+  ChatTitleJob.deadLetterWorker,
+).pipe(Layer.provide([ChatPg, AttachmentPgS3]))
 
 const LogWorkerLifecycle = Effect.logInfo('worker started').pipe(
   Effect.andThen(Effect.addFinalizer(() => Effect.logInfo('worker stopped'))),

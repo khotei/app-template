@@ -32,6 +32,7 @@ import {
   prepareMessage,
 } from '@app-template/domain/chat'
 import {
+  assistantMessageDeadLetterQueue,
   assistantMessageQueue,
   buildChatPrompt,
   type ChatTurn,
@@ -153,6 +154,13 @@ const findReply = Effect.fnUntraced(function* (
   return yield* messages.selectById(job.messageId)
 })
 
+const failActive = Effect.fnUntraced(function* (active: Message, cause: string) {
+  const failedAt = yield* DateTime.now
+  const failed = yield* failMessage(active, { reason: 'ReplyFailed', cause, at: failedAt })
+  const settled = writeSettled(failed, { stage: active.stage })
+  yield* Effect.catchTag(settled, 'MessageStageMovedError', () => alreadySettled)
+})
+
 const failReply = Effect.fnUntraced(function* (
   messageId: MessageId,
   cause: Cause.Cause<unknown>,
@@ -163,14 +171,7 @@ const failReply = Effect.fnUntraced(function* (
   const active = Option.filter(stored, isActiveMessage)
   if (Option.isNone(active)) return
 
-  const failedAt = yield* DateTime.now
-  const failed = yield* failMessage(active.value, {
-    reason: 'ReplyFailed',
-    cause: Cause.pretty(cause),
-    at: failedAt,
-  })
-  const settled = writeSettled(failed, { stage: active.value.stage })
-  yield* Effect.catchTag(settled, 'MessageStageMovedError', () => alreadySettled)
+  yield* failActive(active.value, Cause.pretty(cause))
 })
 
 const findAndReply = Effect.fnUntraced(function* (
@@ -191,6 +192,20 @@ const handle = Effect.fn('AssistantMessageJob.handle')(function* (
   yield* Effect.onExit(findAndReply(job), (exit) =>
     Exit.isSuccess(exit) ? Effect.void : failReply(job.messageId, exit.cause),
   )
+})
+
+const handleDeadLettered = Effect.fn('AssistantMessageJob.handleDeadLettered')(function* (
+  job: GenerateAssistantMessage,
+  info: AttemptInfo,
+) {
+  const message = yield* findReply(job)
+  if (Option.isNone(message)) return yield* chatDeleted
+  const active = Option.filter(message, isActiveMessage)
+  if (Option.isNone(active)) return yield* alreadySettled
+
+  yield* Effect.logError('assistant reply dead-lettered')
+  const cause = `dead-lettered after ${info.attempt} attempts on ${assistantMessageDeadLetterQueue.name}`
+  yield* failActive(active.value, cause)
 })
 
 /** The last attempt fails the reply on any outcome but success, an interrupt included. */
@@ -220,4 +235,8 @@ export class AssistantMessageJob extends Context.Service<
   static readonly handle = handle
 
   static readonly worker = worker(assistantMessageQueue, handle)
+
+  static readonly handleDeadLettered = handleDeadLettered
+
+  static readonly deadLetterWorker = worker(assistantMessageDeadLetterQueue, handleDeadLettered)
 }

@@ -143,9 +143,21 @@ the apps from `QueueConfig` and `AwsConfig`: a definition's queue is
   sends there itself. A worker that dies mid-attempt leaves its message hidden until the
   visibility runs out; it then comes back as the next attempt, or goes to the dead-letter queue.
   A reply's last attempt writes `failed` on any outcome but success, a stopping worker included
-  (`AssistantMessageJob`). A reply stays active, its job in the dead-letter queue, only when that
-  write never happens: a killed process, a store failing the write, or a stopped worker's leftover
-  long poll spending the last attempt.
+  (`AssistantMessageJob`). That write never happens after a killed process, a store failing the
+  write, or a stopped worker's leftover long poll spending the last attempt: the reply stays
+  active with its job in the dead-letter queue, until `AssistantMessageJob.deadLetterWorker`
+  fails it (below).
+- **The worker consumes both dead-letter queues.** `assistantMessageDeadLetterQueue` and
+  `chatTitleDeadLetterQueue` (`infrastructure/chat/chat.queue.ts`) define `<queue>-dlq` with
+  `maxAttempts` at `Number.MAX_SAFE_INTEGER` and a retry delay that doubles up to 5 minutes:
+  nothing redrives a dead-letter queue, so a failing handler must never reach a last attempt.
+  The receive count carries over through the redrive (checked on MiniStack), so the first
+  receive there is attempt `maxReceiveCount + 1`. The reply's consumer logs `assistant reply
+  dead-lettered` and writes an active reply `failed` with `ReplyFailed` and the cause
+  `dead-lettered after <attempt> attempts on assistant-message-dlq`, moving the chat's
+  `updatedAt`, under the stage guard the job uses; a settled reply or a deleted chat gets the
+  job's skip log. The title's consumer only logs `chat title dead-lettered`, since an untitled
+  chat is harmless.
 - **A stopped worker's long poll can outlive it.** Interrupting a receive aborts its HTTP request,
   but MiniStack keeps the poll open and hides the next message it finds for its visibility
   timeout; that message returns after `QUEUE_LOCK_EXPIRATION` with an attempt spent.

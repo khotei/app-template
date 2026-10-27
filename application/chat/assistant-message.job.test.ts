@@ -38,6 +38,7 @@ import {
 } from '@app-template/domain/chat'
 import { AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
 import {
+  assistantMessageDeadLetterQueue,
   assistantMessageQueue,
   ChatRepositoryPg,
   GenerateAssistantMessage,
@@ -478,6 +479,77 @@ describe('AssistantMessageJob.handle', () => {
       assert.strictEqual(Option.getOrThrow(failed.error).reason, 'ReplyFailed')
       assert.isTrue(DateTime.isGreaterThan(failed.updatedAt, epoch))
       assertEquals((yield* selectChat).updatedAt, failed.updatedAt)
+    }).pipe(Effect.provide(layer))
+  })
+})
+
+// The receive count carries over from the main queue, so the first dead-letter receive is 4.
+const handleDeadLettered = Effect.exit(
+  AssistantMessageJob.handleDeadLettered(queuedJob, {
+    attempt: 4,
+    maxAttempts: assistantMessageDeadLetterQueue.maxAttempts,
+    isLastAttempt: false,
+  }),
+)
+
+const stuckReplies = [
+  { name: 'a queued reply', reply: queuedReply },
+  {
+    name: 'a generating reply',
+    reply: new Message({ ...queuedReply, stage: 'generating', text: 'Hel' }),
+  },
+] as const
+
+describe('AssistantMessageJob.handleDeadLettered', () => {
+  it.live.each(stuckReplies)(
+    'fails $name with a dead-letter cause and bumps the chat',
+    ({ reply }) => {
+      const { writes, prompts, logs, layer } = makeAssistantMessageHarness(replyDeltas, storesPg)
+      return Effect.gen(function* () {
+        yield* arrangeChat(reply)
+
+        const exit = yield* handleDeadLettered
+
+        assert.isTrue(Exit.isSuccess(exit))
+        assert.deepStrictEqual(snapshotsOf(writes), [['failed', reply.text]])
+        assert.deepStrictEqual(prompts, [])
+        const failed = yield* selectReply
+        const error = Option.getOrThrow(failed.error)
+        assert.deepStrictEqual(
+          [error.reason, error.cause],
+          ['ReplyFailed', 'dead-lettered after 4 attempts on assistant-message-dlq'],
+        )
+        assert.isTrue(DateTime.isGreaterThan(failed.updatedAt, epoch))
+        assertEquals((yield* selectChat).updatedAt, failed.updatedAt)
+        assert.deepStrictEqual(logs, [['Error', 'assistant reply dead-lettered']])
+      }).pipe(Effect.provide(layer))
+    },
+  )
+
+  it.effect('leaves a settled reply and logs already settled', () => {
+    const { writes, logs, layer } = makeAssistantMessageHarness(replyDeltas, storesPg)
+    return Effect.gen(function* () {
+      const completed = yield* arrangeChat(asCompleted(queuedReply, 'Done.'))
+
+      yield* handleDeadLettered
+
+      assert.deepStrictEqual(writes, [])
+      assertEquals(yield* selectReply, completed)
+      assertEquals(yield* selectChat, chat)
+      assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: already settled']])
+    }).pipe(Effect.provide(layer))
+  })
+
+  it.effect('logs chat deleted and writes nothing for a deleted chat', () => {
+    const { writes, logs, layer } = makeAssistantMessageHarness(replyDeltas, storesPg)
+    return Effect.gen(function* () {
+      yield* arrangeChat()
+      yield* deleteChat
+
+      yield* handleDeadLettered
+
+      assert.deepStrictEqual(writes, [])
+      assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: chat deleted']])
     }).pipe(Effect.provide(layer))
   })
 })
