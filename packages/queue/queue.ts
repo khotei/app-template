@@ -107,7 +107,7 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
         )
 
       // `restore` lets an interrupt reach the effect, which then releases the message at once.
-      const releasing =
+      const releaseOnInterrupt =
         (received: Received, restore: Restore) =>
         <B, E2, R2>(effect: Effect.Effect<B, E2, R2>) =>
           restore(effect).pipe(Effect.onInterrupt(() => Effect.ignore(release(received))))
@@ -130,12 +130,12 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
       })
 
       // Runs masked from the receive on, so no interrupt finds the message unreleased: only the
-      // decode and the handler are `releasing`.
+      // decode and the handler `releaseOnInterrupt`.
       const run = Effect.fnUntraced(
         function* (received: Received, restore: Restore) {
           const decoded = yield* decode(received.body).pipe(
             Effect.result,
-            releasing(received, restore),
+            releaseOnInterrupt(received, restore),
           )
           if (Result.isFailure(decoded)) {
             yield* Effect.logError('queue message does not decode', decoded.failure)
@@ -146,7 +146,7 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
           const exit = yield* handle(decoded.success, info).pipe(
             Effect.exit,
             Effect.raceFirst(heartbeat(received)),
-            releasing(received, restore),
+            releaseOnInterrupt(received, restore),
           )
           yield* settle(received, { info, exit })
         },
@@ -157,19 +157,15 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
           }),
       )
 
-      const receiveAndRun = Effect.uninterruptibleMask((restore) =>
-        transport.receive(queue, { visibility: lockExpiration, wait: receiveWait }).pipe(
-          restore,
-          Effect.flatMap(
-            Option.match({
-              onNone: () => Effect.void,
-              onSome: (received) => run(received, restore),
-            }),
-          ),
-        ),
-      )
+      const receiveAndRun = Effect.fnUntraced(function* (restore: Restore) {
+        const next = yield* restore(
+          transport.receive(queue, { visibility: lockExpiration, wait: receiveWait }),
+        )
+        if (Option.isNone(next)) return
+        yield* run(next.value, restore)
+      })
 
-      return Effect.forever(receiveAndRun)
+      return Effect.forever(Effect.uninterruptibleMask(receiveAndRun))
     }
 
     return QueueClient.of({ send, consume })

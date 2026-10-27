@@ -199,7 +199,17 @@
 - **Test first:** `config only` — the existing suites over these modules stay green unchanged.
 - **Verify:** `make check`; `git diff --stat` shows no test file changed.
 - **Model:** fable high
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The step fit one commit of ~150 lines; S5c is not created.
+  - `http-api` (declarations only), `infrastructure/user/user.repository.ts`, and `settle` and
+    `consume` in `packages/queue` were checked and already read by the rule; `deployment/aws`
+    stays flat Pulumi code.
+  - The stub's split `/(?= )/` drops the empty first delta the old code sent for a text that
+    starts with a space; the stub only streams `cannedReply`, which does not.
+  - Left for `/ticket-verify`: `heartbeat` logs through `Effect.tapCause`, not `tapCauseIf`
+    (changing it changes what is logged when the handler wins the race), and
+    `packages/queue/queue.transport.ts › makeSqs` keeps a ternary and a lambda holding a `.pipe`.
 
 ### The domain
 

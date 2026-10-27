@@ -11,7 +11,7 @@ import {
   SQSService,
   type UnsupportedOperationError,
 } from '@effect-aws/client-sqs'
-import { type Cause, Effect, pipe, Record } from 'effect'
+import { type Cause, Effect, pipe, Record as Rec } from 'effect'
 
 import { buildDeadLetterName, buildResourceName } from '#aws/naming'
 import type { QueueResource, Resources } from '#aws/resources'
@@ -60,5 +60,5 @@ const provisionQueuePair = (stage: string) =>
  */
 export const provision = Effect.fn('provision')(
   (queues: Resources['queues'], stage: string): Effect.Effect<void, ProvisionError, SQSService> =>
-    pipe(queues, Record.values, Effect.forEach(provisionQueuePair(stage), { discard: true })),
+    pipe(queues, Rec.values, Effect.forEach(provisionQueuePair(stage), { discard: true })),
 )

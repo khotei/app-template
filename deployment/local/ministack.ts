@@ -15,9 +15,9 @@ const internalPort = 4566
  * The Makefile rebuilds the name (`NAME_MINISTACK`); change both together.
  */
 const { region, endpoint } = settings.aws
-const hasPort = (url: URL) => url.port !== ''
+const isPortSet = (url: URL) => url.port !== ''
 const endpointUrl = endpoint.pipe(
-  Option.filter(hasPort),
+  Option.filter(isPortSet),
   Option.getOrThrowWith(
     () => new Error('AWS_ENDPOINT_URL must name MiniStack with a port, as http://localhost:4566'),
   ),
