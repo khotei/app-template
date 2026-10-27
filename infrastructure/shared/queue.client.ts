@@ -1,4 +1,4 @@
-import { type Config, DateTime, Effect, Layer, type Schema } from 'effect'
+import { type Config, DateTime, Effect, Layer, Schema } from 'effect'
 
 import { buildResourceName } from '@app-template/aws'
 import {
@@ -6,7 +6,7 @@ import {
   QueueConfig,
   type QueueLockRefreshIntervalInvalidError,
 } from '@app-template/config'
-import { encodeBody, QueueClient, type QueueDefinition, QueueTransport } from '@app-template/queue'
+import { QueueClient, type QueueDefinition, QueueError, QueueTransport } from '@app-template/queue'
 
 import { Db, orDieWithSqlError } from '#infrastructure/db/db.client'
 import { outbox } from '#infrastructure/outbox/outbox.entity'
@@ -25,6 +25,12 @@ export const QueueClientSqs: Layer.Layer<
   Layer.provide([QueueConfig.layer, AwsConfig.layer, SQSServiceFromConfig]),
 )
 
+/** The job as its definition's schema encodes it to JSON: the value the `outbox` row stores. */
+const encodeJob = <A, I>(definition: QueueDefinition<Schema.Codec<A, I>>, message: A) =>
+  Schema.encodeEffect(Schema.toCodecJson(definition.schema))(message).pipe(
+    Effect.mapError((cause) => new QueueError({ cause })),
+  )
+
 /**
  * Writes each job to the `outbox` table, joining the caller's transaction, for `OutboxRelay` to
  * send to SQS.
@@ -36,7 +42,7 @@ export const QueueClientOutbox: Layer.Layer<QueueClient, never, Db> = Layer.effe
       definition: QueueDefinition<Schema.Codec<A, I>>,
       message: A,
     ) {
-      const body = yield* encodeBody(definition, message)
+      const body = yield* encodeJob(definition, message)
       const now = yield* DateTime.now
 
       yield* orDieWithSqlError(

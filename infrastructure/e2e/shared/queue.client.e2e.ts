@@ -23,7 +23,7 @@ const selectOutbox = Effect.flatMap(Db, (db) =>
 )
 
 describe('QueueClientOutbox', () => {
-  it.effect('a committed send leaves one row with the queue, the job id and the encoded job', () =>
+  it.effect('a committed send leaves one row with the queue, the job id and the JSON job', () =>
     Effect.gen(function* () {
       const queue = yield* QueueClient
       const sql = yield* SqlClient.SqlClient
@@ -34,7 +34,10 @@ describe('QueueClientOutbox', () => {
         {
           queue: 'assistant-message',
           jobId: '0192d4e0-7b3a-7c00-8000-000000000040',
-          body: '{"chatId":"0192d4e0-7b3a-7c00-8000-000000000030","messageId":"0192d4e0-7b3a-7c00-8000-000000000040"}',
+          body: {
+            chatId: '0192d4e0-7b3a-7c00-8000-000000000030',
+            messageId: '0192d4e0-7b3a-7c00-8000-000000000040',
+          },
         },
       ])
     }).pipe(Effect.provide(QueueClientOutboxTest)),

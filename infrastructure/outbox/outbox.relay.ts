@@ -12,6 +12,10 @@ import { SQSServiceFromConfig } from '#infrastructure/shared/aws.client'
 
 const batchLimit = 10
 
+type OutboxRow = typeof outbox.$inferSelect
+
+const isShortBatch = (rows: ReadonlyArray<OutboxRow>) => rows.length < batchLimit
+
 /**
  * Sends the outbox to SQS: each batch is locked, sent and deleted in one transaction, so a failed
  * send leaves its rows for the next poll.
@@ -25,32 +29,35 @@ export const OutboxRelay = Effect.gen(function* () {
   const { stage } = yield* AwsConfig
   const { outboxPollInterval } = yield* QueueConfig
 
-  const relayBatch = Effect.gen(function* () {
-    const rows = yield* db
-      .select()
-      .from(outbox)
-      .orderBy(outbox.createdAt, outbox.id)
-      .limit(batchLimit)
-      .for('update', { skipLocked: true })
-    if (Arr.isReadonlyArrayEmpty(rows)) return rows
+  const selectBatch = db
+    .select()
+    .from(outbox)
+    .orderBy(outbox.createdAt, outbox.id)
+    .limit(batchLimit)
+    .for('update', { skipLocked: true })
 
-    yield* Effect.forEach(
-      rows,
-      (row) =>
-        transport.send(buildResourceName(stage, row.queue), {
-          body: row.body,
-          attributes: { jobId: row.jobId },
-        }),
-      { discard: true },
-    )
-    yield* db.delete(outbox).where(
+  const sendRow = (row: OutboxRow) =>
+    transport.send(buildResourceName(stage, row.queue), {
+      body: JSON.stringify(row.body),
+      attributes: { jobId: row.jobId },
+    })
+
+  const deleteRows = (rows: ReadonlyArray<OutboxRow>) =>
+    db.delete(outbox).where(
       inArray(
         outbox.id,
         Arr.map(rows, (row) => row.id),
       ),
     )
-    return rows
-  }).pipe(Effect.catchTag('EffectDrizzleQueryError', unwrapQueryError), sql.withTransaction)
+
+  const relayBatch = selectBatch.pipe(
+    Effect.tap((rows) => Effect.forEach(rows, sendRow, { discard: true })),
+    Effect.tap((rows) =>
+      Effect.when(deleteRows(rows), Effect.succeed(Arr.isReadonlyArrayNonEmpty(rows))),
+    ),
+    Effect.catchTag('EffectDrizzleQueryError', unwrapQueryError),
+    sql.withTransaction,
+  )
 
   const poll = relayBatch.pipe(
     Effect.tapCauseIf(Predicate.not(Cause.hasInterruptsOnly), (cause) =>
@@ -59,8 +66,8 @@ export const OutboxRelay = Effect.gen(function* () {
     Effect.catchCause((cause) =>
       Cause.hasInterruptsOnly(cause) ? Effect.failCause(cause) : Effect.succeed([]),
     ),
-    Effect.flatMap((rows) =>
-      rows.length < batchLimit ? Effect.sleep(outboxPollInterval) : Effect.void,
+    Effect.tap((rows) =>
+      Effect.when(Effect.sleep(outboxPollInterval), Effect.succeed(isShortBatch(rows))),
     ),
   )
 

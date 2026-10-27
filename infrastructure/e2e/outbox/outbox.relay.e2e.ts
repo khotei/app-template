@@ -83,7 +83,9 @@ const lockOutbox = Effect.flatMap(Db, (db) =>
 )
 
 describe('OutboxRelay', () => {
-  it.effect('sends a pending row to its queue with its job id, then deletes it', () =>
+  // The body is the `jsonb` row stringified, so its keys come in Postgres's order (by length,
+  // then by bytes), not the job's.
+  it.effect('sends a pending row to its queue with its job id and JSON body, then deletes it', () =>
     Effect.gen(function* () {
       const { attempts, layer } = yield* recordTransport
       yield* enqueue(1)
