@@ -1,5 +1,5 @@
-import { and, eq, inArray, isNull } from 'drizzle-orm'
-import { Array as Arr, Effect, Layer, Option, Schema, Struct, UndefinedOr } from 'effect'
+import { eq, inArray, isNull } from 'drizzle-orm'
+import { Array as Arr, Effect, Layer, Option, Schema, UndefinedOr } from 'effect'
 
 import {
   type AttachmentId,
@@ -13,17 +13,16 @@ import {
   attachments,
   decodeAttachment,
 } from '#infrastructure/attachment/attachment.entity'
+import { buildSet, buildWhere } from '#infrastructure/db/columns'
 import { Db, decodeFound, orDieWithSqlError } from '#infrastructure/db/db.client'
 
 const encodeAttachment = Schema.encodeEffect(AttachmentInsert)
 
-const setColumns = {
+const encodeSet = buildSet<AttachmentSet, typeof attachments>({
   messageId: UndefinedOr.map(Option.getOrNull),
-} as const satisfies {
-  readonly [K in keyof Required<AttachmentSet>]: (value: AttachmentSet[K]) => unknown
-}
+})
 
-const whereColumns = {
+const encodeWhere = buildWhere<AttachmentWhere>({
   id: (ids) => inArray(attachments.id, ids),
   messageId: UndefinedOr.map(
     Option.match({
@@ -31,9 +30,7 @@ const whereColumns = {
       onSome: (messageId) => eq(attachments.messageId, messageId),
     }),
   ),
-} as const satisfies {
-  readonly [K in keyof Required<AttachmentWhere>]: (value: AttachmentWhere[K]) => unknown
-}
+})
 
 export const AttachmentRepositoryPg = Layer.effect(
   AttachmentRepository,
@@ -44,16 +41,10 @@ export const AttachmentRepositoryPg = Layer.effect(
         yield* db.insert(attachments).values(row)
       }, orDieWithSqlError),
       update: Effect.fn('AttachmentRepository.update')(function* (set, where) {
-        const row = Struct.evolve(Struct.pick(set, Struct.keys(setColumns)), setColumns)
-        const conditions = Struct.evolve(
-          Struct.pick(where, Struct.keys(whereColumns)),
-          whereColumns,
-        )
-
         const rows = yield* db
           .update(attachments)
-          .set(row)
-          .where(and(...Object.values(conditions)))
+          .set(encodeSet(set))
+          .where(encodeWhere(where))
           .returning()
         return yield* Effect.forEach(rows, decodeAttachment)
       }, orDieWithSqlError),

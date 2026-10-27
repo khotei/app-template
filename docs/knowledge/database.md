@@ -123,6 +123,16 @@ query states its intent; `decodeFound` from `db.client.ts` decodes the row it fo
 `Option.none()`. A filter on a relation (`{ credentials: { kind, hash } }`) renders as
 `exists (…)`.
 
+A write of some fields under a condition maps its `<Entity>Set` and `<Entity>Where` onto the
+table through `db/columns.ts`, one mapper per field. `buildSet<Set, Table>(columns)` takes a
+`SetColumns<Set, Table>`, each mapper typed by the table's column (`PgUpdateSetSource<Table>`),
+and answers the row Drizzle's `set` takes; `buildWhere<Where>(columns)` takes a
+`WhereColumns<Where>`, each mapper answering `SQL | undefined`, and joins them with `and`. A
+mapper answering the wrong shape, a field the type gains without a mapper, and a mapper for a
+field the table has no column for all fail typecheck. The builders walk the mapper table's keys,
+so a whole entity passed as a set writes only the fields it may change; an absent field maps to
+`undefined` (`UndefinedOr.map`), which Drizzle's `set` and `and` skip.
+
 ## Guards
 
 A rule that two writers could break between a read and a write is held by the database, in the
@@ -141,12 +151,8 @@ statement that writes. A conditional write answers whether it wrote:
   `AttachmentSet`: `RequireAtLeastOne` from `type-fest`, so an empty write fails typecheck) where
   the rows match `where` (`ChatWhere`, `AttachmentWhere`: the `id`, an array of them for
   attachments, and optionally a field the row must still hold, `Option.none()` rendering `IS
-  NULL`). The adapter maps each side with `Struct.evolve` over a table, `setColumns` and
-  `whereColumns`, after `Struct.pick` by the table's keys, so a whole entity passed as a set
-  writes only the fields it may change. Each table `satisfies` a row per field of its type, so a
-  field the type gains fails typecheck until its row exists, and a row for no field fails too;
-  an absent field stays `undefined`, which Drizzle's `set` and `and` skip. The chat's update
-  answers whether it wrote, the attachments' with the rows it wrote (`RETURNING *`).
+  NULL`). The adapter maps each side through `buildSet` and `buildWhere` (above). The chat's
+  update answers whether it wrote, the attachments' with the rows it wrote (`RETURNING *`).
   - `ChatService.addUserMessage` sets the chat's `updatedAt` alone, so a title written
     meanwhile survives. It writes the chat before the message: a chat deleted since the check
     answers `false`, which the service turns into `ChatNotFoundError` instead of a foreign-key

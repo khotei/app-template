@@ -1,5 +1,5 @@
-import { and, eq, type SQL } from 'drizzle-orm'
-import { Array as Arr, Effect, Layer, Option, Schema, Struct } from 'effect'
+import { and, eq } from 'drizzle-orm'
+import { Array as Arr, Effect, Layer, Option, Schema } from 'effect'
 
 import { isActiveMessage, MessageRepository, type MessageWhere } from '@app-template/domain/chat'
 
@@ -13,13 +13,14 @@ import {
   messages,
   withAttachments,
 } from '#infrastructure/chat/message.entity'
+import { buildWhere } from '#infrastructure/db/columns'
 import { Db, decodeFound, orDieWithSqlError } from '#infrastructure/db/db.client'
 
 const encodeMessage = Schema.encodeEffect(MessageInsert)
 
-const whereColumns = {
+const encodeWhere = buildWhere<MessageWhere>({
   stage: (stage) => eq(messages.stage, stage),
-} as const satisfies { readonly [K in keyof MessageWhere]: (value: MessageWhere[K]) => SQL }
+})
 
 export const MessageRepositoryPg = Layer.effect(
   MessageRepository,
@@ -39,12 +40,7 @@ export const MessageRepositoryPg = Layer.effect(
         const updated = yield* db
           .update(messages)
           .set(row)
-          .where(
-            and(
-              eq(messages.id, message.id),
-              ...Arr.map(Struct.keys(whereColumns), (key) => whereColumns[key](where[key])),
-            ),
-          )
+          .where(and(eq(messages.id, message.id), encodeWhere(where)))
           .returning({ id: messages.id })
         return Arr.isReadonlyArrayNonEmpty(updated)
       }, orDieWithSqlError),

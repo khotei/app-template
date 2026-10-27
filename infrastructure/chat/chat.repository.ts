@@ -1,5 +1,5 @@
-import { and, eq, isNull } from 'drizzle-orm'
-import { Array as Arr, DateTime, Effect, Layer, Option, Schema, Struct, UndefinedOr } from 'effect'
+import { eq, isNull } from 'drizzle-orm'
+import { Array as Arr, DateTime, Effect, Layer, Option, Schema, UndefinedOr } from 'effect'
 
 import {
   type ChatId,
@@ -21,16 +21,17 @@ import {
   type MessageRow,
   withAttachments,
 } from '#infrastructure/chat/message.entity'
+import { buildSet, buildWhere } from '#infrastructure/db/columns'
 import { Db, decodeFound, orDieWithSqlError } from '#infrastructure/db/db.client'
 
 const encodeChat = Schema.encodeEffect(ChatInsert)
 
-const setColumns = {
+const encodeSet = buildSet<ChatSet, typeof chats>({
   title: UndefinedOr.map(Option.getOrNull),
   updatedAt: UndefinedOr.map(DateTime.toDateUtc),
-} as const satisfies { readonly [K in keyof Required<ChatSet>]: (value: ChatSet[K]) => unknown }
+})
 
-const whereColumns = {
+const encodeWhere = buildWhere<ChatWhere>({
   id: (id) => eq(chats.id, id),
   title: UndefinedOr.map(
     Option.match({
@@ -38,7 +39,7 @@ const whereColumns = {
       onSome: (title) => eq(chats.title, title),
     }),
   ),
-} as const satisfies { readonly [K in keyof Required<ChatWhere>]: (value: ChatWhere[K]) => unknown }
+})
 
 const decodeSummary = ({
   messages,
@@ -75,16 +76,10 @@ export const ChatRepositoryPg = Layer.effect(
         yield* db.insert(chats).values(row)
       }, orDieWithSqlError),
       update: Effect.fn('ChatRepository.update')(function* (set, where) {
-        const row = Struct.evolve(Struct.pick(set, Struct.keys(setColumns)), setColumns)
-        const conditions = Struct.evolve(
-          Struct.pick(where, Struct.keys(whereColumns)),
-          whereColumns,
-        )
-
         const updated = yield* db
           .update(chats)
-          .set(row)
-          .where(and(...Object.values(conditions)))
+          .set(encodeSet(set))
+          .where(encodeWhere(where))
           .returning({ id: chats.id })
         return Arr.isReadonlyArrayNonEmpty(updated)
       }, orDieWithSqlError),
