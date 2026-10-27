@@ -99,12 +99,18 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
       const release = (received: Received) => extend(received, 0)
 
       const heartbeat = (received: Received) =>
-        Effect.sleep(lockRefreshInterval).pipe(
-          Effect.andThen(extend(received, lockExpiration)),
+        extend(received, lockExpiration).pipe(
+          Effect.delay(lockRefreshInterval),
           Effect.tapCause((cause) => Effect.logWarning('queue heartbeat failed', cause)),
           Effect.ignore,
           Effect.forever,
         )
+
+      // `restore` lets an interrupt reach the effect, which then releases the message at once.
+      const releasing =
+        (received: Received, restore: Restore) =>
+        <B, E2, R2>(effect: Effect.Effect<B, E2, R2>) =>
+          restore(effect).pipe(Effect.onInterrupt(() => Effect.ignore(release(received))))
 
       // Visibility settles every outcome: `delete` on success, a retry delay, or 0 so that the
       // next receive redrives a spent message to the dead-letter queue.
@@ -123,22 +129,24 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
         yield* extend(received, definition.retryDelay(info.attempt))
       })
 
-      // Runs masked from the receive on, so no interrupt finds the message unreleased: `restore`
-      // lets one reach the decode and the handler only, releasing the message at once.
+      // Runs masked from the receive on, so no interrupt finds the message unreleased: only the
+      // decode and the handler are `releasing`.
       const run = Effect.fnUntraced(
         function* (received: Received, restore: Restore) {
-          const releasing = <A, E2, R2>(effect: Effect.Effect<A, E2, R2>) =>
-            restore(effect).pipe(Effect.onInterrupt(() => Effect.ignore(release(received))))
-
-          const decoded = yield* releasing(Effect.result(decode(received.body)))
+          const decoded = yield* decode(received.body).pipe(
+            Effect.result,
+            releasing(received, restore),
+          )
           if (Result.isFailure(decoded)) {
             yield* Effect.logError('queue message does not decode', decoded.failure)
             return yield* release(received)
           }
 
           const info = buildAttemptInfo(received, definition.maxAttempts)
-          const exit = yield* releasing(
-            Effect.raceFirst(Effect.exit(handle(decoded.success, info)), heartbeat(received)),
+          const exit = yield* handle(decoded.success, info).pipe(
+            Effect.exit,
+            Effect.raceFirst(heartbeat(received)),
+            releasing(received, restore),
           )
           yield* settle(received, { info, exit })
         },
@@ -150,13 +158,15 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
       )
 
       const receiveAndRun = Effect.uninterruptibleMask((restore) =>
-        Effect.gen(function* () {
-          const next = yield* restore(
-            transport.receive(queue, { visibility: lockExpiration, wait: receiveWait }),
-          )
-          if (Option.isNone(next)) return
-          yield* run(next.value, restore)
-        }),
+        transport.receive(queue, { visibility: lockExpiration, wait: receiveWait }).pipe(
+          restore,
+          Effect.flatMap(
+            Option.match({
+              onNone: () => Effect.void,
+              onSome: (received) => run(received, restore),
+            }),
+          ),
+        ),
       )
 
       return Effect.forever(receiveAndRun)

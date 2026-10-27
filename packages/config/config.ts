@@ -9,6 +9,7 @@ import {
   type Redacted,
   References,
   Schema,
+  Struct,
 } from 'effect'
 
 export class ApiConfig extends Context.Service<ApiConfig, { readonly port: number }>()(
@@ -112,7 +113,8 @@ export class QueueConfig extends Context.Service<
   static readonly layer = Layer.effect(this, queueConfig)
 }
 
-export const MinimumLogLevelFromConfig = Layer.effect(
-  References.MinimumLogLevel,
-  Effect.map(RuntimeConfig, (config) => config.logLevel),
-).pipe(Layer.provide(RuntimeConfig.layer))
+export const MinimumLogLevelFromConfig = RuntimeConfig.pipe(
+  Effect.map(Struct.get('logLevel')),
+  Layer.effect(References.MinimumLogLevel),
+  Layer.provide(RuntimeConfig.layer),
+)

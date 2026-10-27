@@ -1,4 +1,4 @@
-import { Effect, Layer, String as Str, Stream } from 'effect'
+import { Effect, Layer, pipe, String as Str, Stream } from 'effect'
 import { LanguageModel, type Response } from 'effect/ai'
 
 const cannedReply =
@@ -9,16 +9,20 @@ const cannedTitle = 'Stub chat title' as const
 // Slow enough that a dev poll sees the reply grow instead of finding it already completed.
 const wordDelay = '100 millis' as const
 
+const toDelta = (delta: string): Response.StreamPartEncoded => ({
+  type: 'text-delta',
+  id: 'stub',
+  delta,
+})
+
+// Splits before each space, so every word after the first carries the space that joins it.
 const streamWords = (text: string): Stream.Stream<Response.StreamPartEncoded> =>
-  Stream.fromIterable(Str.split(text, ' ')).pipe(
+  pipe(
+    text,
+    Str.split(/(?= )/),
+    Stream.fromIterable,
     Stream.tap(() => Effect.sleep(wordDelay)),
-    Stream.map(
-      (word, i): Response.StreamPartEncoded => ({
-        type: 'text-delta',
-        id: 'stub',
-        delta: i === 0 ? word : ` ${word}`,
-      }),
-    ),
+    Stream.map(toDelta),
   )
 
 export const LanguageModelStub: Layer.Layer<LanguageModel.LanguageModel> = Layer.effect(

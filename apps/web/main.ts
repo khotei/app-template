@@ -4,10 +4,13 @@ import { ApiConfig, RuntimeConfig, WebConfig } from '@app-template/config'
 
 import index from '#web/index.html'
 
-const { api, web, runtime } = Effect.runSync(
-  Effect.all({ api: ApiConfig, web: WebConfig, runtime: RuntimeConfig }).pipe(
-    Effect.provide(Layer.mergeAll(ApiConfig.layer, WebConfig.layer, RuntimeConfig.layer)),
-  ),
+const { api, web, runtime } = Effect.all({
+  api: ApiConfig,
+  web: WebConfig,
+  runtime: RuntimeConfig,
+}).pipe(
+  Effect.provide(Layer.mergeAll(ApiConfig.layer, WebConfig.layer, RuntimeConfig.layer)),
+  Effect.runSync,
 )
 const apiOrigin = `http://localhost:${api.port}`
 
