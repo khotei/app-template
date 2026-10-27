@@ -85,8 +85,9 @@ the glossary, so the rules point at one definition of each word.
 - **Decided on the open questions (2026-10-27).** `isOwnedBy` goes: Effect has no `propEq`, and
   the nearest form (`Predicate.Struct({ userId: … })`) still spells the lambda, while a `userId`
   field in the `Where` of `selectOne` needs no predicate at all. Domain tests may import
-  `@effect/platform-bun` for `BunCrypto.layer` (a Biome override on `domain/tests/**`); the
-  `TestCrypto` the old rule names never existed. The `Sink.fold` boundary is not a question: the
+  `@effect/platform-bun` for `BunCrypto.layer` (a Biome override on `domain/tests/**`);
+  `TestCrypto.layer(seed)` in `effect/testing` seeds the random bytes over a real `Crypto` and
+  serves only a test that asserts an id. The `Sink.fold` boundary is not a question: the
   three cases (0 bytes, exactly 5 MiB, 5 MiB plus one byte) are e2e tests of `S3File`. E2E tests
   run on their own Testcontainers, never on the local stand: a Postgres and a MiniStack per
   vitest run, so a worktree's run owns its containers and no test reads `.env`; a database per
@@ -94,7 +95,8 @@ the glossary, so the rules point at one definition of each word.
   are real in e2e, the memory layers serve unit tests only; one `vitest.config.ts` with two
   `projects`, chosen by `--project`, where the `e2e` project's one `globalSetup` starts both
   containers once per run and hands their addresses to the tests through `inject`, since a
-  container per file would pay a MiniStack and a Postgres start for each of some 25 files. The web app imports `ApiClient` from `http-api`, which
+  container per file would pay a MiniStack and a Postgres start for each of some 25 files. The
+  web app imports `ApiClient` from `http-api`, which
   lists the domain's ids, models and errors, so the domain does ship to the browser today:
   `"sideEffects": false` stays, one barrel per entity, and a check on the web bundle guards that
   no service, port or adapter reaches it; a client package consumable without the server code is
@@ -109,9 +111,11 @@ the glossary, so the rules point at one definition of each word.
 - The repositories' write mapping typed once, in `infrastructure/db`.
 - `packages/s3` with `S3File`; `effect` and `@effect/*` at 4.0.6; the outbox body as `jsonb`.
 - One `tests/` and one `e2e/` at the top of each workspace, mirroring the source
-  paths; memory layers in `testing/`; vitest `projects`; `make test-unit` and `make test-e2e`.
+  paths; memory layers in `domain/testing`; vitest `projects`; `make test-unit` and
+  `make test-e2e`.
 - E2E tests on a Postgres and a MiniStack of their own per run: S3 and SQS real, so
-  `AttachmentStoreS3` and the relay get their first real tests.
+  `AttachmentStoreS3` and the relay get their first real tests; a root `e2e/` workspace with
+  one journey through both apps.
 - No `src/` in the three apps, so every workspace has the same shape.
 - The architecture language in the glossary; the rules, the layer `CLAUDE.md` files and the
   knowledge docs rewritten to the new model.
@@ -139,8 +143,10 @@ the glossary, so the rules point at one definition of each word.
   domain's words, with no layer; its adapter lives in `infrastructure`.
 - **R2** — WHILE an aggregate has rules, THE SYSTEM SHALL hold them in one domain service in
   `domain` (`ChatService`, `MessageService`, `AttachmentService`, `UserService`), a
-  `Context.Service` over its ports, `DateTime.now` and `Crypto`, and the only writer of its
-  records; `application` holds no service.
+  `Context.Service` over its ports, `DateTime.now` and `Crypto`; every write with a
+  precondition, a transition, a second field or a domain error beyond not-found goes through
+  it, and a use case writes through a repository only a rule-free field (one `set`, one
+  `where`, the row gone as the only refusal); `application` holds no service.
 - **R3** — WHEN a flow composes the store, the queue, the assistant, more than one domain service
   or one transaction, THE SYSTEM SHALL hold it in a use case in
   `application/<entity>/<verb>-<object>.use-case.ts`; the handler calls the use case.
@@ -150,7 +156,7 @@ the glossary, so the rules point at one definition of each word.
   generating, a text snapshot, completed, failed), THE SYSTEM SHALL write it through the
   message's domain service, never through `MessageRepository`.
 - **R6** — WHEN the worker consumes a queue, THE SYSTEM SHALL run a handler in
-  `apps/worker/src/<entity>/<object>.handler.ts` that decodes the job, calls one use case and maps
+  `apps/worker/<entity>/<object>.handler.ts` that decodes the job, calls one use case and maps
   the outcome to an acknowledgement or the dead-letter path; no `.job` file remains.
 - **R7** — WHEN a use case enqueues a job, THE SYSTEM SHALL call `QueueClient.send` with the
   definition from `infrastructure/<entity>/<entity>.queue.ts` inside the transaction of the
@@ -190,34 +196,42 @@ the glossary, so the rules point at one definition of each word.
   `put(key, content, { contentType, fileName, tags })` uploads one `PutObject` while the content
   fits one part and a multipart upload otherwise, cutting parts of at least 5 MiB with
   `Stream.transduce(Sink.fold(…))`, `Stream.zipWithNext` and `Bytes.concat`, and aborts the
-  upload on failure; `url`, `delete`, `untag` and `exists` complete it. `AttachmentStoreS3` holds
-  only the keys and the mapping to the domain's types.
+  upload on failure; `get`, `url`, `delete`, `untag` and `exists` complete it, the bucket being
+  an option of its layer. `AttachmentStoreS3` holds only the keys and the mapping to the
+  domain's types.
 - **R16** — WHEN a job is written to the outbox, THE SYSTEM SHALL store its body as `jsonb`, with
   no index on it.
 
 ### Tests
 
 - **R17** — WHILE a workspace has unit tests, THE SYSTEM SHALL keep them in one `tests/` at
-  the workspace's top, mirroring the source path
-  (`domain/tests/chat/chat.service.test.ts`), over memory layers of the ports from the
-  workspace's `testing/` (one layer per port over a `Ref<Map>`, shared by every suite), needing
-  no process outside vitest; a module folder holds no test; repositories have no unit tests.
-- **R18** — WHILE a workspace has e2e tests, THE SYSTEM SHALL keep them in one `e2e/` at
-  the workspace's top, mirroring the source path, over a Postgres and a MiniStack the run
-  starts for itself with Testcontainers, never the local stand or `.env`: repositories, the
-  relay, the migrations, `S3File` and `AttachmentStoreS3`, use cases, api handlers over HTTP and
-  worker handlers through the queue; S3 and SQS are real, the assistant stays the stub, no
-  memory layer of a port. The `e2e` project's one `globalSetup` starts both containers once per
-  run and passes their addresses through `inject`; each test gets its own database copied from
-  a migrated template and its own names on MiniStack. Test support stays in the workspace's `testing/` (`.fixture`,
-  `.fake`, `.harness`, `.setup`), shared by both kinds and still exported as
-  `@app-template/application/testing`.
+  the workspace's top as `<path>/<name>.test.ts`, mirroring the source path
+  (`domain/tests/chat/chat.service.test.ts`), over the memory layers of the ports from
+  `domain/testing` (one layer per port over a `Ref<Map>`, exported as
+  `@app-template/domain/testing`, mirroring the port's contract, the index included), the
+  identity `Transaction` from `infrastructure/testing` and the recording queue from
+  `packages/testing`, needing no process outside vitest; a module folder holds no test;
+  domain services, use cases and handlers each have a unit suite; repositories have none.
+- **R18** — WHILE a workspace has adapters, THE SYSTEM SHALL test them in one `e2e/` at the
+  workspace's top as `<path>/<name>.e2e.ts`, mirroring the source path, over a Postgres and a
+  MiniStack the run starts for itself with Testcontainers, never the local stand or `.env`:
+  the repositories, the relay, the migrations, `S3File`, `AttachmentStoreS3` and the queue;
+  S3 and SQS are real, no memory layer of a port. One journey in a root workspace `e2e/`
+  runs `ApiLayer` and `WorkerLayer` in one process over the same containers and the model
+  stub, from HTTP through the outbox, SQS and the worker back to HTTP; the apps have no
+  `e2e/` of their own. The `e2e` project's one `globalSetup` starts both containers once per
+  run and passes their addresses through `inject`; each test gets its own database copied
+  from a migrated template and its own stage on MiniStack, whose bucket and queues it
+  provisions. Test support lives only in a `testing/`: the workspace's, or a module's own when
+  it serves that module alone (`infrastructure/db/testing`); `domain`, `infrastructure` and
+  `application` export theirs as `@app-template/<workspace>/testing`.
 - **R19** — WHEN tests are run, THE SYSTEM SHALL offer `make test-unit` (no Docker), `make
   test-e2e` (Docker running), and `make test` for both, from one `vitest.config.ts` with two
-  `projects` split by folder and chosen by `--project`; `make check` runs both.
+  `projects` split by folder and suffix (`tests/**/*.test.ts`, `e2e/**/*.e2e.ts`) and chosen
+  by `--project`; `make check` runs both.
 - **R22** — WHEN the ticket lands, THE SYSTEM SHALL have no `src/` folder in `apps/api`,
-  `apps/worker` or `apps/web`: their modules, `layer.ts`, `main.ts`, `testing/`, `tests/` and
-  `e2e/` sit at the workspace's top like every other workspace's, with the `#api/*`,
+  `apps/worker` or `apps/web`: their modules, `layer.ts`, `main.ts`, `testing/` and `tests/`
+  sit at the workspace's top like every other workspace's, with the `#api/*`,
   `#web/*` import maps, the `tsconfig` includes, the run scripts, the `make dev-*` targets and
   the Biome overrides moved with them.
 - **R23** — WHEN `apps/web` is bundled, THE SYSTEM SHALL ship no domain service, port or adapter
@@ -232,7 +246,8 @@ the glossary, so the rules point at one definition of each word.
   the words to avoid, and the rules refer to those words.
 - **R21** — WHEN the ticket lands, THE SYSTEM SHALL have rewritten to the new model
   `.claude/rules/use-cases.md` (as the layering rule), `naming.md` (`.port`; the `tests/` and
-  `e2e/` folders and their mirror rule; `.job` and `.llm` dropped), `effect-tests.md`,
+  `e2e/` folders, the `.test` and `.e2e` suffixes and their mirror rule; the three `./testing`
+  exports; `.job` and `.llm` dropped), `effect-tests.md`,
   `effect-services.md`, the `CLAUDE.md` of `domain`, `application`, `infrastructure` and `apps`,
   the Biome override that lets `domain/tests/**` import `@effect/platform-bun`, and the
   knowledge docs `architecture.md` and `tooling.md`, with no line that restates the old model.
@@ -242,11 +257,11 @@ the glossary, so the rules point at one definition of each word.
 | Req | How to verify |
 |---|---|
 | R1 | `ls domain/*/*.port.ts` lists chat, message, assistant, attachment and user ports; `grep -rn "Context.Service" infrastructure/` finds only adapters' own services (`Db`, `QueueTransport`), no port declaration |
-| R2 | `ls application/*/*.service.ts` is empty; `grep -rln "DateTime.now\|Crypto.Crypto" domain/*/*.service.ts` lists the four services; `grep -rn "Repository\b" application/ apps/` finds no write call (`insert`, `update`, `delete`) |
+| R2 | `ls application/*/*.service.ts` is empty; `grep -rln "DateTime.now\|Crypto.Crypto" domain/*/*.service.ts` lists the four services; `grep -rn "\.\(insert\|update\|delete\)(" application/ apps/` finds only the chat's `updatedAt` writes of the send and the settle, each one `set` and one `where`; review confirms no other repository write there |
 | R3 | each `application/**/*.use-case.ts` imports at least two of: a second domain service, `AttachmentStore`, `QueueClient`, `Assistant`, `sql.withTransaction` |
-| R4 | `apps/api/src/chat/chat.handler.ts`: `list`, `get`, `rename`, `create` call `ChatService`; no use case of one call exists |
+| R4 | `apps/api/chat/chat.handler.ts`: `list`, `get`, `rename`, `create` call `ChatService`; no use case of one call exists |
 | R5 | `grep -rn "messages\.\(update\|insert\)" application/ apps/` is empty; the reply e2e test still shows the stages and snapshots |
-| R6 | `ls apps/worker/src/chat/` shows `assistant-message.handler.ts`, `chat-title.handler.ts`; `find . -name "*.job.ts" -not -path "*/node_modules/*"` is empty |
+| R6 | `ls apps/worker/chat/` shows `assistant-message.handler.ts`, `chat-title.handler.ts`; `find . -name "*.job.ts" -not -path "*/node_modules/*"` is empty |
 | R7 | the send e2e test: after a send, the outbox holds both jobs in the send's transaction (a failed send writes none) |
 | R8 | a unit test of `buildChatTitle` on a 300-grapheme text and on blank text; `ls infrastructure/chat/chat.llm.ts` fails; `AssistantLlm` holds the only prompt strings (`grep -rn "Suggest a title" .`) |
 | R9 | `infrastructure/outbox/outbox.relay.ts` exports a `Layer` and imports no domain service or use case |
@@ -255,11 +270,11 @@ the glossary, so the rules point at one definition of each word.
 | R12 | `make lint` green with a Biome `noNestedGen`-style check if one exists, else review: the five spots named read as one pipeline each |
 | R13 | `grep -rn "unknown\|Struct.evolve" infrastructure/*/*.repository.ts` is empty; `infrastructure/db/columns.ts` exports the two types and the builder, used by chat, attachment and message repositories |
 | R14 | `bun pm ls | grep -E "effect@|@effect/"` shows 4.0.6 everywhere; `make check` green |
-| R15 | e2e on MiniStack: a 1 KiB file uploads as one `PutObject`; a 12 MiB file uploads as three parts and a `HeadObject` reads 12 MiB; a stream that fails mid-way leaves no object and no open multipart upload; `wc -l infrastructure/attachment/attachment.storage.ts` under 80 |
+| R15 | e2e on MiniStack: 0 bytes, exactly 5 MiB and 5 MiB + 1 upload as one `PutObject`, one `PutObject` and two parts; a 12 MiB file uploads as three parts and `get` reads 12 MiB; a stream that fails mid-way leaves no object and no open multipart upload; `wc -l infrastructure/attachment/attachment.storage.ts` under 80 |
 | R16 | the migration alters `outbox.body` to `jsonb`; the relay e2e test still delivers the job |
-| R17 | with Docker stopped, `make test-unit` passes; `find . -path "*/tests/*.test.ts" -not -path "*/node_modules/*"` lists a suite per domain service, use case and handler, each under `<workspace>/tests/<module>/`; `find . -name "*.test.ts" -not -path "*/tests/*" -not -path "*/e2e/*" -not -path "*/node_modules/*"` is empty |
-| R18 | with Docker running and the local stand down, `make test-e2e` passes; `find . -path "*/e2e/*.test.ts"` lists the repositories, the relay, the migrations, `S3File`, `AttachmentStoreS3`, the use cases and the handlers, each under `<workspace>/e2e/<module>/`; `grep -rln "Memory\b" --include=*.test.ts */e2e` is empty; two e2e runs in two worktrees at once both pass |
-| R19 | `make help` lists the three test targets; one `vitest.config.ts` declares two `projects`; `bun run vitest run --project unit` runs only `tests/`; `make check` runs `test` |
+| R17 | with Docker stopped, `make test-unit` passes; `find . -path "*/tests/*.test.ts" -not -path "*/node_modules/*"` lists a suite per domain service, use case and handler, each under `<workspace>/tests/<module>/`; `find . -name "*.test.ts" -not -path "*/tests/*" -not -path "*/node_modules/*"` is empty; `ls domain/testing` shows one `.fake.ts` per entity plus the fixtures |
+| R18 | with Docker running and the local stand down, `make test-e2e` passes; `find . -name "*.e2e.ts" -not -path "*/node_modules/*"` lists the repositories, the relay, the migrations, the queue, `S3File` and `AttachmentStoreS3` under `<workspace>/e2e/<module>/` and `e2e/chat.e2e.ts` at the root, nothing under `apps/`; `grep -rln "Memory\b" --include=*.e2e.ts .` is empty; `find . -name "*.harness.ts" -o -name "*.fake.ts" -o -name "*.fixture.ts" -o -name "*.setup.ts"` lists only paths with a `testing/` segment; two e2e runs in two worktrees at once both pass |
+| R19 | `make help` lists the three test targets; one `vitest.config.ts` declares two `projects`; `bun run vitest run --project unit` runs only `*.test.ts` under `tests/`; `make check` runs `test` |
 | R22 | `ls apps/*/src` fails; `make dev-api`, `make dev-worker`, `make dev-web` start; `make check` green; `grep -rn "src/" apps/*/package.json apps/*/tsconfig.json biome.json Makefile` finds nothing for the three apps |
 | R23 | `make check` runs the bundle check; a probe that imports `ChatService` from a web feature turns it red; `grep -n sideEffects domain/package.json` shows `false` |
 | R20 | `docs/knowledge/glossary.md` has the section with the fifteen terms; `grep -rn "interactor\|orchestrator\|controller" .claude/rules/` is empty |
@@ -267,6 +282,5 @@ the glossary, so the rules point at one definition of each word.
 
 ## Open questions
 
-- Per-test isolation on MiniStack: a bucket and queues per test (provisioned by the test layer
-  through `packages/aws`) or one bucket per run with a key prefix and queue names per test.
-- Whether any test needs deterministic ids (a seeded `Crypto`) or `isUuidV7` stays enough.
+None. The two the feature phase left (per-test isolation on MiniStack, deterministic ids) are
+settled in [architecture.md › Decisions](./architecture.md#decisions) (D8, D13).
