@@ -30,9 +30,13 @@
   `repos/effect` is vendored at 4.0.5; `make vendor-effect` pulls 4.0.6 and makes a squash
   commit of its own, so it runs after this step's commit, on the user's OK.
 - **Test first:** `config only`.
-- **Verify:** `bun pm ls | grep -E "effect@|@effect/"` shows 4.0.6 everywhere; `make check`.
+- **Verify:** `bun pm ls --all | grep -E "── (effect|@effect/(platform|sql|vitest))[^@]*@"` shows 4.0.6 everywhere; `make check`.
 - **Model:** opus medium
-- **Status:** todo
+- **Status:** done
+- **Findings:** the Verify check was wrong twice: `bun pm ls` without `--all` lists no effect
+  package, and the pattern `@effect/` also caught `@effect/tsgo@0.53.2`, which versions apart
+  and R14 does not name. The check now reads `--all` with the four packages' pattern, here and
+  in `feature.md › Acceptance › R14`. No source change was needed for 4.0.6.
 
 #### S2 — Split the suites into `tests/` and `e2e/`, two vitest projects, three make targets
 

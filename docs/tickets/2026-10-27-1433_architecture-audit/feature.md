@@ -269,7 +269,7 @@ the glossary, so the rules point at one definition of each word.
 | R11 | `grep -rn "ensureFound\|isInChat\|isTitledChat\|isOwnedBy" --include=*.ts .` is empty; `grep -rn "selectOne" domain/*/*.port.ts` lists chat, message and attachment |
 | R12 | `make lint` green with a Biome `noNestedGen`-style check if one exists, else review: the five spots named read as one pipeline each |
 | R13 | `grep -rn "unknown\|Struct.evolve" infrastructure/*/*.repository.ts` is empty; `infrastructure/db/columns.ts` exports the two types and the builder, used by chat, attachment and message repositories |
-| R14 | `bun pm ls | grep -E "effect@|@effect/"` shows 4.0.6 everywhere; `make check` green |
+| R14 | `bun pm ls --all | grep -E "── (effect|@effect/(platform|sql|vitest))[^@]*@"` shows 4.0.6 everywhere; `make check` green |
 | R15 | e2e on MiniStack: 0 bytes, exactly 5 MiB and 5 MiB + 1 upload as one `PutObject`, one `PutObject` and two parts; a 12 MiB file uploads as three parts and `get` reads 12 MiB; a stream that fails mid-way leaves no object and no open multipart upload; `wc -l infrastructure/attachment/attachment.bucket.ts` under 80 |
 | R16 | the migration alters `outbox.body` to `jsonb`; the relay e2e test still delivers the job |
 | R17 | with Docker stopped, `make test-unit` passes; `find . -path "*/tests/*.test.ts" -not -path "*/node_modules/*"` lists a suite per domain service, use case and handler, each under `<workspace>/tests/<module>/`; `find . -name "*.test.ts" -not -path "*/tests/*" -not -path "*/node_modules/*"` is empty; `ls domain/testing` shows one `.fake.ts` per entity plus the fixtures |
