@@ -260,7 +260,7 @@ partial unique index, a transaction) sit in a suite of their own. The service an
 suites run on the test database too, and a race there runs the rival calls concurrently on the
 real repositories, with no fake between them. The suites share the stacks of every repository
 from `infrastructure/testing/repository-stack.test-layer.ts` and insert the parent rows with
-`insertUser` and its siblings from `infrastructure/testing/rows.ts`. The chat and api
+`insertUser` and its siblings from `infrastructure/testing/rows.test-util.ts`. The chat and api
 test layers provide `QueueClientOutbox`, so a send's jobs land in the test database's outbox. An
 `.entity.e2e.ts` checks what the schema itself refuses (a check, a partial unique index) and
 reads the `SqlError` of a refused statement with `flipSqlError` from

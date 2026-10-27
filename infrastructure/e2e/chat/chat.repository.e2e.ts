@@ -27,7 +27,7 @@ import { UserId } from '@app-template/domain/user'
 import { assertSchemaEquals } from '@app-template/testing'
 
 import { RepositoryStackPgTest } from '#infrastructure/testing/repository-stack.test-layer'
-import { insertUser } from '#infrastructure/testing/rows'
+import { insertUser } from '#infrastructure/testing/rows.test-util'
 
 const createdAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')
 

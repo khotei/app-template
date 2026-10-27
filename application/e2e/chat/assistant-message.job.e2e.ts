@@ -88,7 +88,7 @@ const storesPg = {
  * The repositories in maps, so the `TestClock` can step the job: only the methods a reply that
  * reads no attachment calls.
  */
-const makeStoresMemory = () => {
+const makeStoresTest = () => {
   const chats = new Map<ChatId, Chat>()
   const messages = new Map<MessageId, Message>()
   const putChat = (chat: Chat) =>
@@ -131,7 +131,7 @@ const makeStoresMemory = () => {
 }
 
 /** The job's services over `stores`, recording its message writes, its prompts and its logs. */
-const makeAssistantMessageHarness = <E, R>(
+const recordAssistantMessage = <E, R>(
   stream: Stream.Stream<Part, AiError.AiError>,
   stores: {
     readonly messages: Layer.Layer<MessageRepository, E, R>
@@ -304,7 +304,7 @@ const timesOf = (writes: ReadonlyArray<Message>) =>
 
 describe('AssistantMessageJob.handle', () => {
   it.live('prepares, generates, then completes the reply and bumps the chat', () => {
-    const { writes, layer } = makeAssistantMessageHarness(replyDeltas, storesPg)
+    const { writes, layer } = recordAssistantMessage(replyDeltas, storesPg)
     return Effect.gen(function* () {
       yield* arrangeChat()
 
@@ -321,7 +321,7 @@ describe('AssistantMessageJob.handle', () => {
   it.effect(
     'prompts with every completed message in order, with a file part per attachment',
     () => {
-      const { prompts, layer } = makeAssistantMessageHarness(replyDeltas, storesPg)
+      const { prompts, layer } = recordAssistantMessage(replyDeltas, storesPg)
       return Effect.gen(function* () {
         yield* arrangeChat(queuedReply, history)
         yield* arrangeAttachment(photo)
@@ -349,7 +349,7 @@ describe('AssistantMessageJob.handle', () => {
   )
 
   it.effect('prompts with the text alone when an attachment has lost its bytes', () => {
-    const { prompts, layer } = makeAssistantMessageHarness(replyDeltas, storesPg)
+    const { prompts, layer } = recordAssistantMessage(replyDeltas, storesPg)
     return Effect.gen(function* () {
       yield* arrangeChat(queuedReply, [user(1, 'What is this?')])
       yield* arrangeAttachment(photo, 'lost')
@@ -367,7 +367,7 @@ describe('AssistantMessageJob.handle', () => {
   })
 
   it.effect('ends with a log line and no write when the chat is deleted before the take', () => {
-    const { writes, prompts, logs, layer } = makeAssistantMessageHarness(replyDeltas, storesPg)
+    const { writes, prompts, logs, layer } = recordAssistantMessage(replyDeltas, storesPg)
     return Effect.gen(function* () {
       yield* arrangeChat()
       yield* deleteChat
@@ -383,7 +383,7 @@ describe('AssistantMessageJob.handle', () => {
   it.effect.each(attempts)(
     'ends without a write when the reply is already settled on $name',
     ({ attempt }) => {
-      const { writes, prompts, logs, layer } = makeAssistantMessageHarness(replyDeltas, storesPg)
+      const { writes, prompts, logs, layer } = recordAssistantMessage(replyDeltas, storesPg)
       return Effect.gen(function* () {
         yield* arrangeChat(asCompleted(queuedReply, 'Done.'))
 
@@ -398,7 +398,7 @@ describe('AssistantMessageJob.handle', () => {
 
   it.live('keeps a rename made while the reply streams when it bumps the chat', () => {
     const held = holdModelCall()
-    const { writes, layer } = makeAssistantMessageHarness(heldDeltas(held), storesPg)
+    const { writes, layer } = recordAssistantMessage(heldDeltas(held), storesPg)
     return Effect.gen(function* () {
       const chats = yield* ChatRepository
       yield* arrangeChat()
@@ -428,7 +428,7 @@ describe('AssistantMessageJob.handle', () => {
     'stops with already settled when another writer settles the reply while it streams',
     () => {
       const held = holdModelCall()
-      const { logs, layer } = makeAssistantMessageHarness(heldDeltas(held), storesPg)
+      const { logs, layer } = recordAssistantMessage(heldDeltas(held), storesPg)
       return Effect.gen(function* () {
         const messages = yield* MessageRepository
         yield* arrangeChat()
@@ -450,7 +450,7 @@ describe('AssistantMessageJob.handle', () => {
   )
 
   it.live('fails every attempt and, on the last, fails the message with its cause', () => {
-    const { writes, prompts, logs, layer } = makeAssistantMessageHarness(failingAtOnce, storesPg)
+    const { writes, prompts, logs, layer } = recordAssistantMessage(failingAtOnce, storesPg)
     return Effect.gen(function* () {
       yield* arrangeChat()
 
@@ -475,7 +475,7 @@ describe('AssistantMessageJob.handle', () => {
 
   it.live('fails the reply when its worker stops during the last attempt', () => {
     const held = holdModelCall()
-    const { writes, layer } = makeAssistantMessageHarness(heldDeltas(held), storesPg)
+    const { writes, layer } = recordAssistantMessage(heldDeltas(held), storesPg)
     return Effect.gen(function* () {
       yield* arrangeChat()
 
@@ -516,7 +516,7 @@ describe('AssistantMessageJob.handleDeadLettered', () => {
   it.live.each(stuckReplies)(
     'fails $name with a dead-letter cause and bumps the chat',
     ({ reply }) => {
-      const { writes, prompts, logs, layer } = makeAssistantMessageHarness(replyDeltas, storesPg)
+      const { writes, prompts, logs, layer } = recordAssistantMessage(replyDeltas, storesPg)
       return Effect.gen(function* () {
         yield* arrangeChat(reply)
 
@@ -539,7 +539,7 @@ describe('AssistantMessageJob.handleDeadLettered', () => {
   )
 
   it.effect('leaves a settled reply and logs already settled', () => {
-    const { writes, logs, layer } = makeAssistantMessageHarness(replyDeltas, storesPg)
+    const { writes, logs, layer } = recordAssistantMessage(replyDeltas, storesPg)
     return Effect.gen(function* () {
       const completed = yield* arrangeChat(asCompleted(queuedReply, 'Done.'))
 
@@ -553,7 +553,7 @@ describe('AssistantMessageJob.handleDeadLettered', () => {
   })
 
   it.effect('logs chat deleted and writes nothing for a deleted chat', () => {
-    const { writes, logs, layer } = makeAssistantMessageHarness(replyDeltas, storesPg)
+    const { writes, logs, layer } = recordAssistantMessage(replyDeltas, storesPg)
     return Effect.gen(function* () {
       yield* arrangeChat()
       yield* deleteChat
@@ -568,7 +568,7 @@ describe('AssistantMessageJob.handleDeadLettered', () => {
 
 describe('AssistantMessageJob.handle on the TestClock', () => {
   it.effect('writes a snapshot every 300 ms and completes and bumps the chat at the end', () => {
-    const { writes, layer } = makeAssistantMessageHarness(threeDeltas, makeStoresMemory())
+    const { writes, layer } = recordAssistantMessage(threeDeltas, makeStoresTest())
     return Effect.gen(function* () {
       yield* arrangeChat()
 
@@ -588,7 +588,7 @@ describe('AssistantMessageJob.handle on the TestClock', () => {
   it.effect(
     'fails the message with its last snapshot text and bumps the chat at that write',
     () => {
-      const { writes, layer } = makeAssistantMessageHarness(failingMidway, makeStoresMemory())
+      const { writes, layer } = recordAssistantMessage(failingMidway, makeStoresTest())
       return Effect.gen(function* () {
         yield* arrangeChat()
 

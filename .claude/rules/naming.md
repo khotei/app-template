@@ -81,8 +81,8 @@ live only in `testing/`, listed by no barrel or `exports` save the `packages/tes
 - Constants are `camelCase` with `as const` for literals; a `Layer` constant is `PascalCase`.
   One for a service declared elsewhere is `<Service><Variant>` (`ChatRepositoryPg`); `<Entity>Pg`
   in `<entity>/index.ts` bundles the aggregate's adapters, which a process provides.
-- Test support: every test-only layer ends in `Test`; a fixed fake layer is `<Service>Test`
-  (`AttachmentStoreTest`); a stateful fake `<verb><Thing>()` returns `{ <handle>, layer }`
-  (`recordLogs`, `recordLanguageModel`); `<Entity>Rows` is the map service a memory layer keeps
-  its rows in (`ChatRows`), which a test reads or arranges through; a test layer is
-  `<Entity>Test` (`ChatTest`), `layer<Entity>Test(…)` when it takes options.
+- Test support: every test-only layer ends in `Test`. A port's fake is `<Port>Test`, the
+  `<Service><Variant>` form (`AttachmentStoreTest`); a test layer is `<Entity>Test`, the entity's
+  real services over fakes, not a variant of a service (`ChatTest`; `layer<Entity>Test(…)` with
+  options). A stateful fake `<verb><Thing>()` returns `{ <handle>, layer }` (`recordLogs`);
+  `<Entity>Rows` is the map service a memory layer keeps its rows in (`ChatRows`).

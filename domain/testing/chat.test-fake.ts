@@ -27,7 +27,7 @@ import {
 import { MessageRepository } from '#domain/chat/message.port'
 import { isOwnedBy } from '#domain/shared/guard'
 import { AttachmentRows } from '#domain/testing/attachment.test-fake'
-import { matches } from '#domain/testing/rows'
+import { matches } from '#domain/testing/rows.test-util'
 
 /** The rows `ChatRepositoryTest` keeps, by id, for a test to arrange or read. */
 export class ChatRows extends Context.Service<ChatRows, Ref.Ref<HashMap.HashMap<ChatId, Chat>>>()(

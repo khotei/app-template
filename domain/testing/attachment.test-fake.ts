@@ -19,7 +19,7 @@ import {
   AttachmentStore,
   type AttachmentWhere,
 } from '#domain/attachment/attachment.port'
-import { matches } from '#domain/testing/rows'
+import { matches } from '#domain/testing/rows.test-util'
 
 /** The rows `AttachmentRepositoryTest` keeps, by id, for a test to arrange or read. */
 export class AttachmentRows extends Context.Service<

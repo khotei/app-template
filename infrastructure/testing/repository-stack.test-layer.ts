@@ -7,7 +7,7 @@ import { AttachmentRepositoryPg } from '#infrastructure/attachment/attachment.re
 import { ChatRepositoryPg } from '#infrastructure/chat/chat.repository'
 import { MessageRepositoryPg } from '#infrastructure/chat/message.repository'
 import { DbTest } from '#infrastructure/testing/db.test-layer'
-import { insertUser } from '#infrastructure/testing/rows'
+import { insertUser } from '#infrastructure/testing/rows.test-util'
 import { UserRepositoryPg } from '#infrastructure/user/user.repository'
 
 export const RepositoryStackPgTest = Layer.mergeAll(

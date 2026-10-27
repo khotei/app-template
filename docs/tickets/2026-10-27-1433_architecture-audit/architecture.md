@@ -100,7 +100,7 @@ sits beside never reach the browser.
 | `shared/queue.client.ts` · `outbox/outbox.entity.ts` · `outbox/outbox.relay.ts` | `body` as `jsonb` (the job's encoded JSON value); the relay's loop as one pipeline |
 | `testing/e2e.test-setup.ts` **new** | the e2e `globalSetup`: Postgres + migrated template, MiniStack; `provide('databaseUrl')`, `provide('awsEndpoint')` |
 | `testing/aws.test-layer.ts` **new** | `AwsTest`: a stage per test, `provision(resources, stage)`, `AwsConfig` over `inject('awsEndpoint')` |
-| `testing/rows.ts`, `testing/repository-stack.test-layer.ts` | as today |
+| `testing/rows.test-util.ts`, `testing/repository-stack.test-layer.ts` | as today |
 | `tests/shared/resources.test.ts` | the only pure suite |
 | `e2e/` **new** | `chat/chat.entity.e2e.ts`, `chat/message.entity.e2e.ts`, `chat/chat.repository.e2e.ts`, `chat/message.repository.e2e.ts`, `attachment/attachment.entity.e2e.ts`, `attachment/attachment.repository.e2e.ts`, `attachment/attachment.bucket.e2e.ts` **new**, `user/user.repository.e2e.ts`, `db/db.client.e2e.ts`, `db/migrate.e2e.ts`, `outbox/outbox.relay.e2e.ts`, `shared/queue.client.e2e.ts` |
 | `package.json` | `exports["./testing"]` (one `index.ts` over `testing/` and `db/testing/`) |
@@ -126,7 +126,7 @@ sits beside never reach the browser.
 | `chat/generate-chat-title.use-case.ts` **new** | `GenerateChatTitleUseCase`: `generate(job)` |
 | `chat/chat.service.ts`, `chat/*.job.ts`, `attachment/attachment.service.ts`, `user/user.service.ts` *gone* | moved to `domain` or split into the use cases |
 | `testing/chat.test-layer.ts` | `ChatTest`: the use cases over the memory layers, `TransactionTest`, `recordQueue()`; the arrange and read steps over the memory ports |
-| `testing/db.test-layer.ts`, `testing/attachment.test-fake.ts`, `testing/language-model.test-fake.ts`, the fixtures *gone* | moved to `domain/testing` and `infrastructure/db/testing` |
+| `testing/db.test-layer.ts`, `testing/attachment.fake.ts`, `testing/language-model.test-fake.ts`, the fixtures *gone* | moved to `domain/testing` and `infrastructure/db/testing` |
 | `tests/chat/*.use-case.test.ts` | one suite per use case |
 
 ### `apps` (no `src/`)

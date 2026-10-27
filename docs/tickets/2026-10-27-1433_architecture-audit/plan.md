@@ -323,13 +323,27 @@
   `TransactionTest`). `record<Thing>()` and `<Entity>Rows` keep their names.
 - **Test first:** `config only` — the suites stay green unchanged but for imports.
 - **Verify:** `git ls-files -- '*/testing/*.ts' ':!repos' | grep -vE
-  '\.test-(fake|fixture|layer|setup|util)\.ts$|/(index|rows)\.ts$'` is empty;
+  '\.test-(fake|fixture|layer|setup|util)\.ts$|/index\.ts$'` is empty;
   `git grep -nP '\b[A-Z]\w+Memory\b' -- ':!repos' ':!docs/tickets'` is empty; `git grep -nP
   '\b[A-Z]\w+Memory\b' -- docs/tickets/2026-10-27-1433_architecture-audit/architecture.md` is
   empty; `sed -n '/^#### S7c/,$p' docs/tickets/2026-10-27-1433_architecture-audit/plan.md | grep
   -P '\b[A-Z]\w+Memory\b'` is empty; `make check`.
 - **Model:** opus medium
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - On the user's OK, beyond **Files**: a fifth role `.test-util` (`assertSchemaEquals`,
+    `sortById`, `breakAfter`, `isUuidV7`, the `rows` helpers); the four bare-named layers take
+    `.test-layer` (`postgres`, `ministack`, `db` from `db-test.ts`, `repository-stack`);
+    `SqsClientMiniStack` is `SqsClientTest`, `DbWithUsers` is `DbWithUsersTest`, and the
+    assistant-message suite's helpers are `makeStoresTest` and `recordAssistantMessage`.
+  - Verify was rewritten: the old first grep walked `repos/` and non-`.ts` files, and macOS
+    `git grep -E` ignores `\b`, so the second always came back empty; it now uses `-P` and leaves
+    closed tickets out, whose history keeps the old names.
+  - `feature.md`: R17's and R18's acceptance read the new suffixes; R18's memory-layer grep
+    names the `Test` layers, since `Memory\b` would pass by construction, and its `find` skips
+    `repos/`. The requirements' text is unchanged.
+  - `naming.md › Symbols` tells `<Port>Test` (a port's fake) from `<Entity>Test` (real
+    services over fakes); the file is 88 lines, past the ~80 guide, until S23.
 
 #### S7c — The port `AttachmentStore` is `AttachmentBucket`
 
