@@ -96,14 +96,21 @@ describe('DeleteChatUseCase', () => {
       const sendMessage = yield* SendMessageUseCase
       const deleteChat = yield* DeleteChatUseCase
 
-      yield* Effect.all(
+      const [, sent] = yield* Effect.all(
         [
-          Effect.exit(sendMessage.send(owner, chat.id, ask('Lisbon?'))),
           deleteChat.delete(owner, chat.id),
+          Effect.exit(sendMessage.send(owner, chat.id, ask('Lisbon?'))),
         ],
-        { concurrency: 'unbounded', discard: true },
+        { concurrency: 'unbounded' },
       )
 
+      if (Exit.isFailure(sent)) {
+        assertSchemaEquals(
+          ChatNotFoundError,
+          yield* Effect.fromOption(Exit.findErrorOption(sent)),
+          new ChatNotFoundError({ id: chat.id }),
+        )
+      }
       assertEquals(yield* selectChat(chat.id), Option.none())
       assertEquals(yield* selectMessages(chat.id), [])
     }).pipe(Effect.provide(ChatTest)),

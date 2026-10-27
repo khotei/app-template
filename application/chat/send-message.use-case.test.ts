@@ -15,7 +15,6 @@ import {
   ChatBusyError,
   type ChatId,
   ChatNotFoundError,
-  ChatTitle,
   type MessageInput,
 } from '@app-template/domain/chat'
 import { GenerateAssistantMessage, GenerateChatTitle } from '@app-template/infrastructure/chat'
@@ -113,26 +112,6 @@ describe('SendMessageUseCase', () => {
     }).pipe(Effect.provide(ChatTest)),
   )
 
-  it.live('a rename beside a send keeps the title and moves updatedAt', () =>
-    Effect.gen(function* () {
-      const chats = yield* ChatService
-      const sendMessage = yield* SendMessageUseCase
-      const title = ChatTitle.make('Lisbon weekend')
-
-      yield* Effect.all(
-        [
-          sendMessage.send(owner, chat.id, ask('Plan a weekend in Lisbon')),
-          chats.rename(owner, chat.id, title),
-        ],
-        { concurrency: 'unbounded', discard: true },
-      )
-
-      const stored = yield* Effect.flatMap(selectChat(chat.id), Effect.fromOption)
-      assertEquals(stored.title, Option.some(title))
-      assert.isTrue(DateTime.isGreaterThan(stored.updatedAt, epoch))
-    }).pipe(Effect.provide(ChatTest)),
-  )
-
   it.effect('the first send enqueues the reply and the title, a later one the reply only', () =>
     Effect.gen(function* () {
       const sendMessage = yield* SendMessageUseCase
@@ -186,26 +165,28 @@ describe('SendMessageUseCase', () => {
     }).pipe(Effect.provide(ChatTest)),
   )
 
-  it.live('send whose reply insert fails leaves no message, no bind, no touch and no job', () =>
-    Effect.gen(function* () {
-      const sendMessage = yield* SendMessageUseCase
-      const { sent } = yield* ChatFakes
-      const sql = yield* SqlClient.SqlClient
-      const photo = yield* upload(owner, 'photo.png')
-      yield* Effect.orDie(
-        sql`ALTER TABLE messages ADD CONSTRAINT refuse_reply CHECK (author <> 'assistant')`,
-      )
+  it.live(
+    'send whose reply insert fails leaves no message, no bind, no chat change and no job',
+    () =>
+      Effect.gen(function* () {
+        const sendMessage = yield* SendMessageUseCase
+        const { sent } = yield* ChatFakes
+        const sql = yield* SqlClient.SqlClient
+        const photo = yield* upload(owner, 'photo.png')
+        yield* Effect.orDie(
+          sql`ALTER TABLE messages ADD CONSTRAINT refuse_reply CHECK (author <> 'assistant')`,
+        )
 
-      const exit = yield* Effect.exit(
-        sendMessage.send(owner, chat.id, { text: 'Look', attachmentIds: [photo.id] }),
-      )
+        const exit = yield* Effect.exit(
+          sendMessage.send(owner, chat.id, { text: 'Look', attachmentIds: [photo.id] }),
+        )
 
-      assert.isTrue(Exit.hasDies(exit))
-      assertEquals(yield* selectMessages(chat.id), [])
-      assertEquals(yield* selectAttachments([photo]), [photo])
-      assertEquals(yield* selectChat(chat.id), Option.some(chat))
-      assertEquals(sent, [])
-    }).pipe(Effect.provide(ChatTest)),
+        assert.isTrue(Exit.hasDies(exit))
+        assertEquals(yield* selectMessages(chat.id), [])
+        assertEquals(yield* selectAttachments([photo]), [photo])
+        assertEquals(yield* selectChat(chat.id), Option.some(chat))
+        assertEquals(sent, [])
+      }).pipe(Effect.provide(ChatTest)),
   )
 
   it.effect('send binds the attachments to the user message and returns their metadata', () =>

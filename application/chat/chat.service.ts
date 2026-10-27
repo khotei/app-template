@@ -94,10 +94,12 @@ export class ChatService extends Context.Service<
       chatId: ChatId,
       input: MessageInput,
     ) => Effect.Effect<SendableChat, MessageInputInvalidError | ChatNotFoundError | ChatBusyError>
-    readonly addUserMessage: (sendable: SendableChat) => Effect.Effect<Message>
+    /**
+     * Moves the chat's `updatedAt` alone to the send's time, then stores the message; a chat
+     * deleted since the check is `ChatNotFoundError`.
+     */
+    readonly addUserMessage: (sendable: SendableChat) => Effect.Effect<Message, ChatNotFoundError>
     readonly addAssistantMessage: (sendable: SendableChat) => Effect.Effect<Message, ChatBusyError>
-    /** Moves the chat's `updatedAt` to the send's time, keeping a title written since the check. */
-    readonly touch: (sendable: SendableChat) => Effect.Effect<void>
   }
 >()('@app-template/application/chat/ChatService', {
   make: Effect.gen(function* () {
@@ -229,6 +231,9 @@ export class ChatService extends Context.Service<
         createdAt: sendable.at,
       })
 
+      const written = yield* chats.update({ updatedAt: sendable.at }, { id: sendable.chatId })
+      if (!written) return yield* new ChatNotFoundError({ id: sendable.chatId })
+
       yield* messages.insert(message)
       return message
     })
@@ -248,10 +253,6 @@ export class ChatService extends Context.Service<
       return message
     })
 
-    const touch = Effect.fn('ChatService.touch')((sendable: SendableChat) =>
-      Effect.asVoid(chats.update({ updatedAt: sendable.at }, { id: sendable.chatId })),
-    )
-
     return {
       create,
       list,
@@ -263,7 +264,6 @@ export class ChatService extends Context.Service<
       findSendable,
       addUserMessage,
       addAssistantMessage,
-      touch,
     }
   }),
 }) {

@@ -141,7 +141,10 @@ statement that writes. A conditional write answers whether it wrote:
   field the type gains fails typecheck until its row exists, and a row for no field fails too;
   an absent field stays `undefined`, which Drizzle's `set` and `and` skip. The chat's update
   answers whether it wrote, the attachments' with the rows it wrote (`RETURNING *`).
-  - The send's touch sets `updatedAt` alone, so a title written meanwhile survives.
+  - `ChatService.addUserMessage` sets the chat's `updatedAt` alone, so a title written
+    meanwhile survives. It writes the chat before the message: a chat deleted since the check
+    answers `false`, which the service turns into `ChatNotFoundError` instead of a foreign-key
+    failure, and the written row stays held until the send commits, so a concurrent delete waits.
   - `ChatService.updateTitle` writes `where` the title is still `none` and, on `false`, reads
     the chat only to name the refusal (`ChatNotFoundError` or `ChatTitledError`), so a rename
     always wins.
@@ -155,17 +158,18 @@ are removed first.
 
 ## Transactions
 
-A use case that writes several aggregates commits them together: `sql.withTransaction` is a
-pipeable of its `Effect.fn`, and every repository call inside joins the transaction through the
-connection `@effect/sql` keeps in the fiber's context, so no port takes a transaction parameter.
-`SendMessageUseCase.send` writes the user message, the binds, the reply and the touch, or none
-of them; `DeleteChatUseCase.delete` removes the attachments' rows and the chat, or neither. The
-guards above then decide every race inside Postgres, with no lock in the process: of two sends
-to one chat the second's reply insert waits on the first's uncommitted row and answers `false`
-once it commits, and of two binds of one attachment the second's `UPDATE` waits on the row and
-skips it. Two api processes behave as two fibers. S3 and SQS stay outside the transaction: the
-bytes are kept before the bind and deleted before the commit, and the send enqueues its jobs
-after the commit.
+A use case that writes several aggregates commits them together: `sql.withTransaction` is a pipeable
+of the `Effect.fn` that holds the writes, and every repository call inside joins the transaction
+through the connection `@effect/sql` keeps in the fiber's context, so no port takes a transaction
+parameter. `SendMessageUseCase.send` writes the user message with the chat's `updatedAt`, the binds
+and the reply, or none of them; `DeleteChatUseCase.delete` removes the attachments' rows and the
+chat, or neither. The guards above then decide every race inside Postgres, with no lock in the
+process: of two sends to one chat the second waits on the first's writes and its reply insert
+answers `false` once the first commits, and of two binds of one attachment the second's `UPDATE`
+waits on the row and skips it. Two api processes behave as two fibers. S3 and SQS stay outside the
+transaction: the bytes are kept before the bind, so no bound row sits over expiring bytes, and
+deleted before the commit, so a rollback restores rows that a retry still finds; the send enqueues
+its jobs after the commit.
 
 ## The outbox
 

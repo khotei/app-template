@@ -193,6 +193,33 @@ describe('ChatService', () => {
     }).pipe(Effect.provide(ChatTest)),
   )
 
+  it.effect('addUserMessage on a chat deleted since findSendable is ChatNotFoundError', () =>
+    Effect.gen(function* () {
+      const service = yield* ChatService
+      const sendable = yield* service.findSendable(owner, chat.id, ask('Lisbon?'))
+      yield* service.delete(owner, chat.id)
+
+      const error = yield* Effect.flip(service.addUserMessage(sendable))
+
+      assertSchemaEquals(ChatNotFoundError, error, new ChatNotFoundError({ id: chat.id }))
+      assertEquals(yield* selectMessages(chat.id), [])
+    }).pipe(Effect.provide(ChatTest)),
+  )
+
+  it.effect('addUserMessage after a rename keeps the title the rename wrote', () =>
+    Effect.gen(function* () {
+      const service = yield* ChatService
+      const title = ChatTitle.make('Lisbon weekend')
+      const sendable = yield* service.findSendable(owner, chat.id, ask('Lisbon?'))
+      yield* service.rename(owner, chat.id, title)
+
+      yield* service.addUserMessage(sendable)
+
+      const stored = yield* Effect.flatMap(selectChat(chat.id), Effect.fromOption)
+      assertEquals(stored.title, Option.some(title))
+    }).pipe(Effect.provide(ChatTest)),
+  )
+
   it.effect('updateTitle titles an untitled chat and keeps its updatedAt', () =>
     Effect.gen(function* () {
       const service = yield* ChatService

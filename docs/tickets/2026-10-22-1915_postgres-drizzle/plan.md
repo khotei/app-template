@@ -681,33 +681,61 @@ methods; running it after S9 avoids merge work.
   `SendMessageUseCase.send` already runs its writes in `sql.withTransaction` (S8), with
   `SqlClient` from `effect/sql` in the use case's layer requirements; `DeleteChatUseCase` gains
   the same; `UserLock` and its `withPermit` are deleted;
-  `application/testing/chat.fake.ts` loses `interleaveMessages` and `AttachmentRepositoryYielding`
-  and keeps one wrapper, `MessageRepositoryFailingInsert`, a `MessageRepository` layer that fails
-  the assistant message's insert, for the rollback case; if a real database refusal can fail that
-  insert instead, the file goes whole. The concurrency tests run real concurrency
+  `application/testing/chat.fake.ts` goes whole, the rollback case having the database refuse
+  the assistant message's insert. `ChatService.touch` goes: `addUserMessage` writes the chat's
+  `updatedAt` first and fails `ChatNotFoundError` when the chat is gone. The concurrency tests run real concurrency
   on the test database. Rules: `use-cases.md › Concurrency` and `› Tests` are rewritten for the
   transaction and the database guards (R6 in part, R9, R10, R11; D3, D5).
 - **Blocked by:** S8.
-- **Files:** `application/chat/{send-message.use-case.ts,send-message.use-case.test.ts,delete-chat.use-case.ts,chat.service.ts}`,
+- **Files:** `application/chat/{send-message.use-case.ts,send-message.use-case.test.ts,delete-chat.use-case.ts,delete-chat.use-case.test.ts,chat.service.ts,chat.service.test.ts}`,
   `application/user/{user-lock.ts (deleted),index.ts}`, `application/testing/chat.fake.ts`,
   `application/testing/chat.harness.ts`, `apps/api/src/chat/chat.handler.test.ts`,
   `.claude/rules/use-cases.md` (the transaction; the "order the writes so a crash and a retry"
   and "enqueue after the writes" rules, written for a store without transactions, go or narrow to
   the S3 bytes), `docs/knowledge/database.md` (the transaction),
-  `docs/knowledge/architecture.md` (Seams: the use case suites run on the database).
+  `docs/knowledge/architecture.md` (the use case suites run on the database),
+  `.claude/rules/{comments.md,effect-services.md,naming.md}` (examples naming the lock), `README.md`.
 - **Test first:** Seam 5 — two concurrent sends to one chat (`Effect.all` with unbounded
   concurrency, both inside the harness) complete exactly one and fail the other `ChatBusyError`,
   with one assistant message in the table and nothing from the loser; two concurrent sends in two
   chats binding one attachment complete one and fail the other `AttachmentBoundError`, the
-  attachment bound once; a rename interleaved with a send keeps the title and moves `updated_at`;
+  attachment bound once; a delete beside a send leaves the send a success or `ChatNotFoundError`
+  and no chat; `addUserMessage` after a delete fails `ChatNotFoundError` and writes nothing; a
+  rename between `findSendable` and `addUserMessage` keeps the title;
   a send whose assistant insert fails leaves no message, no bind and an unchanged chat. Seam 7 —
   two concurrent `POST /chats/:id/messages` through the api harness answer one `202` and one
   `409`.
 - **Verify:** `make check` three times (the concurrency cases are deterministic in outcome, not
-  in winner); `git grep -n -E 'UserLock|withPermit|interleaveMessages|Yielding'` is empty; live
+  in winner); `git grep -n -E 'UserLock|withPermit|interleaveMessages|Yielding' -- ':!docs/tickets' ':!repos'
+  ':!docs/knowledge/roadmap.md'` is empty; live
   with `make dev` and a second api on `API_PORT=3002`: two `curl` in parallel against the two
   processes, one `202`, one `409`, one assistant message in `messages`.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The rollback case adds `CHECK (author <> 'assistant')` to its own test database, so Postgres
+    refuses the reply's insert and `chat.fake.ts` went whole. The delete-retry case keeps
+    `ChatRepositoryDeleteFailingOnce`, since no constraint refuses a delete on demand;
+    `use-cases.md › Tests` allows a fake of the port there.
+  - `ChatService.touch` went (user's call: no wrapper over `update`). `addUserMessage` writes the
+    chat before the message: a delete committed earlier is `ChatNotFoundError` (404, not a
+    foreign-key 500), and a later one waits on the row until the send commits. Probes over 100
+    runs with the delete started first: the old order died on the foreign key 91 times, the new
+    one never. With the send started first the race never opened, so the test starts the delete
+    first. D5 amended.
+  - The rename beside a send is a sequential `ChatService` test (`findSendable`, `rename`,
+    `addUserMessage`): `rename` moves `updatedAt` itself, so a concurrent version proved nothing.
+  - Probe of the two concurrent sends: with the partial index's refusal removed the test fails 20
+    of 20 runs, so both rivals pass the read check and the index decides.
+  - The delete deletes the bytes inside its transaction, before the commit: a failed delete keeps
+    attachment rows without bytes, which a retry removes (D7, amended).
+  - Recorded risk: a delete that read the messages before a concurrent send bound an attachment
+    dies on `RESTRICT` (Risks).
+  - `docs/knowledge/architecture.md` has no Seams section; the line on the use case suites sits
+    in its "Service and use cases" part, the details in `database.md › Tests`. The grep of
+    *Verify* leaves out the ticket docs, `repos/` and `roadmap.md`'s history of the ticket.
+  - Live: two api processes on one database, two parallel `curl` per chat over three chats,
+    answered one `202` and one `409` each, one assistant message per chat.
+  - The step landed in two rounds, S9.1–S9.2, after two reviews.
 
 #### S10 — The outbox table, `QueueClientOutbox` and the relay
 

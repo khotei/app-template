@@ -27,7 +27,7 @@ Move it to `<verb>-<object>.use-case.ts` as soon as one holds:
 
 - it composes two services of one level, a `.job` producer included;
 - it writes a second aggregate (binds attachments, cascades a delete);
-- it needs a critical section across aggregates or one ordering of writes across them;
+- it needs one transaction across aggregates or one ordering of writes across them;
 - keeping it in the service needs an exception to a rule.
 
 Do not wait for the method to grow: the exception is the signal.
@@ -39,11 +39,11 @@ Do not wait for the method to grow: the exception is the signal.
   service methods it orchestrates: `ChatService.delete` is a step of `DeleteChatUseCase`, which
   removes the attachments first.
 - **All checks precede every write;** a step's own guard may repeat a check the use case already
-  made, since only the guard holds against a concurrent writer.
-- **The writes commit in one transaction:** `sql.withTransaction` as a pipeable of the use case's
-  `Effect.fn`, then `Effect.catchTag('SqlError', Effect.die)` for its own statements. S3 stays
-  outside it, so order the bytes for a rollback: keep them before the row that binds them, and
-  delete them before the commit, so a rollback restores rows that a retry still finds.
+  made.
+- **The writes commit in one transaction:** `sql.withTransaction` as a pipeable of the `Effect.fn`
+  that holds the writes, then `Effect.catchTag('SqlError', Effect.die)` for its own statements.
+  `AttachmentStore` stays outside it: keep the bytes before the row that binds them, and delete
+  them before the commit.
 - **Enqueue after the commit of the writes the job reads.** A job lost between the commit and the
   enqueue is a known risk while the queue is not the outbox, whose rows join the transaction.
 - Read a set through the port's batch method (`selectByIds`), never one `select` per id in a loop.
@@ -55,10 +55,9 @@ Do not wait for the method to grow: the exception is the signal.
 - **Hold no lock in the process.** A rule two writers could break between a read and a write is
   a database guard in the write itself (a partial unique index, an `UPDATE … WHERE` on the free
   state), and the application turns its answer into the domain error: the reply's insert answers
-  `false` (`ChatBusyError`), the bind skips a taken id (`AttachmentBoundError`). A second process
-  is then as safe as a second fiber.
+  `false` (`ChatBusyError`), the bind skips a taken id (`AttachmentBoundError`).
 - **Write only the fields you own of a record another process also writes,** and hold a rule in
-  the write's `where`, not in a read before it: the send's touch sets `updatedAt` alone, and the
+  the write's `where`, not in a read before it: the send sets the chat's `updatedAt` alone, and the
   title job writes only `where` the chat is still untitled.
 
 ## Tests
@@ -67,5 +66,5 @@ Do not wait for the method to grow: the exception is the signal.
 - A concurrency test runs the rival calls with `Effect.all(…, { concurrency: 'unbounded' })` on
   the real repositories and asserts an outcome that holds whichever call wins; a probe that
   removes the transaction or the guard must turn it red.
-- A rollback test has the database refuse one write of the flow (a constraint the test adds), not
-  a fake of the port.
+- A rollback test has the database refuse one write of the flow (a constraint the test adds)
+  where it can, else a fake of the port (`effect-tests.md › Test support`).

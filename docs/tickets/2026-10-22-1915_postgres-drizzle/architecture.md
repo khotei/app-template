@@ -130,7 +130,8 @@ graph LR
 
 ```
 ~ application/chat/chat.service.ts              no UserLock; list → selectSummaries, get → selectDetail,
-                                                 rename, touch, updateTitle → update(set, where), delete → chats.delete,
+                                                 rename, updateTitle → update(set, where), delete → chats.delete,
+                                                 addUserMessage writes the chat's updatedAt first (ChatNotFoundError),
                                                  addAssistantMessage: insert false → ChatBusyError          (D5, D6)
 ~ application/chat/send-message.use-case.ts     the writes in sql.withTransaction, the enqueues joining it in S11;
                                                  bind(userId, ids, messageId)                                 (D3)
@@ -138,7 +139,7 @@ graph LR
 ~ application/attachment/attachment.service.ts  bind: check, update(set, where), AttachmentBoundError; findBindable, BindableAttachments go (D5)
 ~ application/chat/assistant-message.job.ts     update(message, { stage }); + deadLetterWorker (failReply)  (D8)
 ~ application/chat/chat-title.job.ts            ChatService.updateTitle; + deadLetterWorker (log)
-- application/chat/touch-chat.ts                replaced by ChatService.touch
+- application/chat/touch-chat.ts                replaced by the chat write in ChatService.addUserMessage
 - application/user/user-lock.ts
 ~ application/testing/chat.harness.ts           ChatTest: services on the Pg repositories over DbTest, AttachmentStoreMemory,
                                                  QueueClientOutbox; reads the outbox table in place of recordQueue (S11)   (D21)
@@ -300,10 +301,9 @@ models in `application` go.
 ```ts
 const send = Effect.fn('SendMessageUseCase.send')(function* (userId, chatId, input) {
   const sendable = yield* chatService.findSendable(userId, chatId, input)
-  const userMessage = yield* chatService.addUserMessage(sendable)
+  const userMessage = yield* chatService.addUserMessage(sendable)            // the chat's updatedAt first: false → ChatNotFoundError
   const bound = yield* attachmentService.bind(userId, input.attachmentIds, userMessage.id)
   const assistantMessage = yield* chatService.addAssistantMessage(sendable)   // insert false → ChatBusyError
-  yield* chatService.touch(sendable)
   yield* assistantJob.enqueue(assistantMessage)                               // an outbox row
   if (sendable.opensChat) yield* titleJob.enqueue(userMessage)
   return …
@@ -392,7 +392,7 @@ build them with `buildResourceName` as the program does.
 | 2 `infrastructure/db` and the constraints of every `.entity.ts` on `PgClientTest` | migrations apply to the template and are a no-op the second time; SQL logged at `Debug` with `query` and `params`, nothing at `Info`; `make migrate`'s retry repeats while the database refuses connections, stops after its bound, and gives up at once on any other refusal; the partial unique index refuses a second active reply; the checks refuse what the brands refuse | drift between entities and the committed migrations (Seam 9); Drizzle's rendering and the codecs, which only the repository suites exercise (D21) |
 | 3 repositories through their ports on `PgClientTest` (one suite per port) | field mapping, `selectSummaries` order and active message, `selectDetail` nesting and order, `insert` false on an active message, `update` false on a stale `where` stage, `update(set, where)` on attachments returns only the rows the `where` held, on chats `false` on a held title, a set writes only its fields (a title set meanwhile and a whole entity's other fields stay), the cascade from `chats.delete`, `RESTRICT` on a bound attachment, the check constraints reject what the brands reject | cross-process timing |
 | 4 `QueueClientOutbox` and `OutboxRelay` on `PgClientTest` + a recording `QueueTransport` (D21) | a `send` inside a failed transaction leaves no row; a row is published to its queue with its `jobId` and deleted; two relays over one database publish each row once; a failing transport keeps the row; the poll interval and the retry after a refusal on the live clock, since a relay waiting on Postgres registers its sleep at a moment a `TestClock` cannot observe | SQS outages longer than a test |
-| 5 services and use cases on `ChatTest`: the Pg repositories over `DbTest`, `AttachmentStoreMemory`, `QueueClientOutbox`, `BunCrypto` (D21) | a send writes two messages, the binds, the touch and one or two outbox rows in one transaction, and nothing on a failing step; two concurrent sends to one chat → one `ChatBusyError`; two concurrent binds of one attachment → one `AttachmentBoundError`; rename beside a send keeps both; `ChatService.updateTitle` refuses a titled chat (`ChatTitledError`) and loses to a rename; delete cascade and the attachments' removal; `addAssistantMessage` alone is refused on a busy chat | HTTP statuses; S3 and SQS (D21) |
+| 5 services and use cases on `ChatTest`: the Pg repositories over `DbTest`, `AttachmentStoreMemory`, `QueueClientOutbox`, `BunCrypto` (D21) | a send writes the chat's `updatedAt`, two messages, the binds and one or two outbox rows in one transaction, and nothing on a failing step; two concurrent sends to one chat → one `ChatBusyError`; two concurrent binds of one attachment → one `AttachmentBoundError`; rename beside a send keeps both; a delete beside a send leaves the send a success or `ChatNotFoundError`; `ChatService.updateTitle` refuses a titled chat (`ChatTitledError`) and loses to a rename; delete cascade and the attachments' removal; `addAssistantMessage` alone is refused on a busy chat | HTTP statuses; S3 and SQS (D21) |
 | 6 jobs with the fake `LanguageModel`: on Postgres the stages a job writes, held at a model call, never stepped by the clock; the timings in a block with no database, on `TestClock` (D21) | the stage sequence through `update(…, { stage })`; a snapshot every 300 ms; a message settled by another writer stops the job with `already settled`; the dead-letter handler fails an active message with `ReplyFailed` and a dead-letter cause, leaves a terminal one, logs for a deleted chat; the title dead-letter handler only logs; the title job logs `ChatTitledError` as already titled | a real provider |
 | 7 `apps/api` through `BunHttpServer.layerTest` + `ApiClient` on `ApiTest` (D21) | what HTTP adds: `401` without a cookie, `202` with outbox rows, the failed-reply wire shape, the download redirect, the upload refusals, `404` on a stranger's chat, `409` on a busy chat across two concurrent requests | the worker, the relay; the business rules (Seam 5); a changed contract, which shows as a diff of `http-api/` (D20) |
 | 8 `apps/worker` layer build — *dropped in S6 (D21)* | a layer build test checks the framework, as the api's did; `make dev-worker` starts the relay and the four workers | — |
@@ -441,8 +441,11 @@ build them with `buildResourceName` as the program does.
   unique index holds "one active message per chat"; `insert` uses `ON CONFLICT (chat_id) WHERE
   <active> DO NOTHING RETURNING id` and answers `false`; `update(message, { stage })`, the bind
   (`attachments.update({ messageId }, { id: ids, messageId: none })`, `WHERE message_id IS NULL`)
-  and the touch (`chats.update({ updatedAt }, { id })`, `updated_at` only) are each one `UPDATE`
-  whose `RETURNING` is the answer. `update`'s condition is a `where` object, a `Pick` of the model's
+  and the send's chat write (`chats.update({ updatedAt }, { id })`, `updated_at` only) are each
+  one `UPDATE` whose `RETURNING` is the answer. `addUserMessage` writes the chat before the
+  message: a delete committed earlier makes it `ChatNotFoundError`, and a later one waits on the
+  row the update holds until the send commits (*amended in S9*: `ChatService.touch` wrote it
+  last, so a send losing to a delete died on the foreign key). `update`'s condition is a `where` object, a `Pick` of the model's
   fields that the adapter turns into SQL through a `whereColumns` table, one row per key; it holds
   the stage the job read, so a stale attempt cannot fail a reply another attempt is writing. A
   write of chats and attachments is `update(set, where)`: an `<Entity>Set` of the fields it
@@ -480,7 +483,11 @@ build them with `buildResourceName` as the program does.
 - **D7 — The cascade is the database's.** `messages.chat_id` cascades, `attachments.message_id`
   restricts, so `ChatService.delete` is one `delete` and a wrong order (a chat before its
   attachments) dies instead of leaving rows. The use case still removes the attachments first,
-  since their bytes in S3 are outside the transaction. *Rejected:* explicit deletes per aggregate
+  since their bytes in S3 are outside the transaction; the delete runs in `sql.withTransaction`
+  and deletes the bytes before the commit, so a rollback restores rows a retry finds again, at
+  the cost of attachments without bytes in a chat whose delete failed (*amended in S9*;
+  rejected then: deleting the bytes after the commit, which leaves bytes no retry finds).
+  *Rejected:* explicit deletes per aggregate
   with the "retry finishes the cascade" ordering (three statements, and no guard against the
   wrong order).
 - **D8 — Stuck replies are settled by a consumer of the dead-letter queue, defined as a queue
@@ -606,6 +613,7 @@ build them with `buildResourceName` as the program does.
 
 | Risk | Mitigation |
 |---|---|
+| A delete that read the chat's messages before a concurrent send bound an attachment dies on `RESTRICT` (a 500) | the send's chat write makes a later delete wait for its commit, so only a delete whose read came first meets it; rare, and the retry deletes the chat |
 | A row SQS always refuses (a missing queue, denied access) rolls its whole batch back, so every row behind it waits | the relay logs `outbox relay failed` with the cause on every poll; a fix of the configuration drains the outbox; per-row attempts and a skip are left until it happens |
 | `drizzle-orm@1.0.0-rc.*` moves between rcs (`EffectDrizzleQueryError.cause` is typed `unknown`, `defineRelations` is the rc relations API) | pinned exactly; every API checked in `repos/drizzle` at the step that uses it; `unwrapQueryError` reads `cause` once, in `db.client.ts`, and dies if it is not a `SqlError` |
 | `defineRelations` and the relational `db.query` on the Effect driver are read from source, not run | S4 ran `findMany({ with: { … orderBy } })` live (chats with messages, messages with attachments); S5 runs every repository read on it: `where` with `in` and a relation filter (`exists`), `findFirst`'s limit; if one fails, `selectDetail` is a join query behind the same port |

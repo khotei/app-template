@@ -53,7 +53,6 @@ export class SendMessageUseCase extends Context.Service<
         const userMessage = yield* chatService.addUserMessage(sendable)
         const bound = yield* attachmentService.bind(userId, input.attachmentIds, userMessage.id)
         const assistantMessage = yield* chatService.addAssistantMessage(sendable)
-        yield* chatService.touch(sendable)
 
         return { sendable, userMessage, bound, assistantMessage }
       },
