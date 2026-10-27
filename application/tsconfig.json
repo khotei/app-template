@@ -1,9 +1,0 @@
-{
-  "extends": "../tsconfig.base.json",
-  "compilerOptions": {
-    "rootDir": ".",
-    "outDir": "../node_modules/.cache/tsc/application"
-  },
-  "include": ["**/*.ts"],
-  "references": [{ "path": "../domain" }, { "path": "../infrastructure" }]
-}

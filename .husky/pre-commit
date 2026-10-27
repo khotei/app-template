@@ -1,2 +1,0 @@
-make typecheck
-bunx biome check --staged --no-errors-on-unmatched

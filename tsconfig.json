@@ -1,19 +1,8 @@
 {
-  "files": [],
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "include": [],
   "references": [
-    { "path": "./domain" },
-    { "path": "./application" },
-    { "path": "./infrastructure" },
-    { "path": "./packages/config" },
-    { "path": "./packages/db" },
-    { "path": "./packages/storage" },
-    { "path": "./packages/queue" },
-    { "path": "./packages/llm" },
-    { "path": "./packages/api-client" },
-    { "path": "./packages/ui" },
-    { "path": "./apps/api" },
-    { "path": "./apps/worker" },
-    { "path": "./apps/web" },
-    { "path": "./deployment" }
+    { "path": "tsconfig.packages.json" },
+    { "path": "tsconfig.tests.json" }
   ]
 }
