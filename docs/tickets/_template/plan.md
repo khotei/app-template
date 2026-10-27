@@ -18,6 +18,7 @@
 - **Files:** <paths>.
 - **Test first:** <Seam from architecture.md> — <behaviour to see red>. Or `config only`.
 - **Verify:** <commands and manual checks>.
+- **Model:** <opus medium | fable high>
 - **Status:** todo
 
 ## Requirement coverage

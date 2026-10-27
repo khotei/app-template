@@ -20,6 +20,8 @@ steps only conform to the plan. Gates: `.claude/rules/sdd.md`.
    - **Files**;
    - **Test first**: the Seam from `architecture.md` and the behaviour to see red, or `config only`;
    - **Verify**: commands and manual checks;
+   - **Model**: `opus medium` for a move, rename or config step, `fable high` for a step that
+     writes behaviour; `/ticket-implement` spawns the implementer on it;
    - **Status:** `todo`.
    A step that writes or rewrites a `docs/knowledge/` page also trims, in the same step, every
    rule and `CLAUDE.md` line that restates it.

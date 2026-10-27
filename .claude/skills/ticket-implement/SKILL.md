@@ -14,8 +14,10 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. G
    `done`. Check that the branch is the ticket branch (`<type>/<slug>`) and that `git status`
    shows no uncommitted change to tracked files; otherwise stop and ask.
 2. **Implement.** Spawn the `implementer` agent with pointers only: the ticket folder and the
-   step id. Its `make check` hook keeps it working until the gate is green. A report that starts
-   with `BLOCKED:` goes straight to the user.
+   step id, on the `model` and `effort` the step's **Model** line names (`opus medium` for a
+   move, rename or config step; `fable high` for one that writes behaviour). Its `make check`
+   hook keeps it working until the gate is green. A report that starts with `BLOCKED:` goes
+   straight to the user.
 3. **Review.** Call the Skill tool with `mattpocock-skills:code-review`, overriding:
 
    | code-review asks for | Use |
@@ -23,7 +25,7 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. G
    | the fixed point and diff | `HEAD`; the diff is `git diff HEAD` plus every untracked file in `git status --short`, so the uncommitted step is reviewed |
    | the spec | the step in `plan.md`, and the `R…` it cites from `feature.md`; the Spec axis also reports whether the diff changes what a quoted `R…` asks, which then requires the `feature.md` edit in the same diff |
    | the standards | `.claude/rules/*.md` and the `CLAUDE.md` of every touched workspace |
-   | the sub-agents | the `reviewer` agent, once per axis, in parallel |
+   | the sub-agents | the `reviewer` agent, once per axis, in parallel; the Standards axis on `model: sonnet`, the Spec axis on the agent's own |
 
 4. **Present** the implementer's report, then the `## Standards` and `## Spec` reports as
    code-review aggregates them, then the fixes you recommend. Filter the findings first: a fix

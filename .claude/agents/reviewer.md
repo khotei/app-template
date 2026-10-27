@@ -3,6 +3,8 @@ name: reviewer
 description: >-
   Read-only reviewer for one axis (Standards or Spec) of a code-review. Spawned as the axis
   sub-agent of mattpocock-skills:code-review by /ticket-implement and /ticket-verify. Never edits.
+model: opus
+effort: medium
 disallowedTools: Edit, Write, NotebookEdit, Agent
 ---
 
