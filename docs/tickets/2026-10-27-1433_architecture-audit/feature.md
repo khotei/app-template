@@ -82,6 +82,23 @@ the glossary, so the rules point at one definition of each word.
   holds source only; the support stays in `testing/`, since fixtures serve both kinds and the
   apps import `application/testing`. Shared
   files are a later ticket, where a file lives as long as its owner needs it.
+- **Decided on the open questions (2026-10-27).** `isOwnedBy` goes: Effect has no `propEq`, and
+  the nearest form (`Predicate.Struct({ userId: … })`) still spells the lambda, while a `userId`
+  field in the `Where` of `selectOne` needs no predicate at all. Domain tests may import
+  `@effect/platform-bun` for `BunCrypto.layer` (a Biome override on `domain/tests/**`); the
+  `TestCrypto` the old rule names never existed. The `Sink.fold` boundary is not a question: the
+  three cases (0 bytes, exactly 5 MiB, 5 MiB plus one byte) are e2e tests of `S3File`. E2E tests
+  run on their own Testcontainers, never on the local stand: a Postgres and a MiniStack per
+  vitest run, so a worktree's run owns its containers and no test reads `.env`; a database per
+  test copied from a migrated template, as today, and per-test names on MiniStack; S3 and SQS
+  are real in e2e, the memory layers serve unit tests only; one `vitest.config.ts` with two
+  `projects`, chosen by `--project`, where the `e2e` project's one `globalSetup` starts both
+  containers once per run and hands their addresses to the tests through `inject`, since a
+  container per file would pay a MiniStack and a Postgres start for each of some 25 files. The web app imports `ApiClient` from `http-api`, which
+  lists the domain's ids, models and errors, so the domain does ship to the browser today:
+  `"sideEffects": false` stays, one barrel per entity, and a check on the web bundle guards that
+  no service, port or adapter reaches it; a client package consumable without the server code is
+  `client-publishing` (10).
 
 ## Scope
 
@@ -93,6 +110,8 @@ the glossary, so the rules point at one definition of each word.
 - `packages/s3` with `S3File`; `effect` and `@effect/*` at 4.0.6; the outbox body as `jsonb`.
 - One `tests/` and one `e2e/` at the top of each workspace, mirroring the source
   paths; memory layers in `testing/`; vitest `projects`; `make test-unit` and `make test-e2e`.
+- E2E tests on a Postgres and a MiniStack of their own per run: S3 and SQS real, so
+  `AttachmentStoreS3` and the relay get their first real tests.
 - No `src/` in the three apps, so every workspace has the same shape.
 - The architecture language in the glossary; the rules, the layer `CLAUDE.md` files and the
   knowledge docs rewritten to the new model.
@@ -104,6 +123,8 @@ the glossary, so the rules point at one definition of each word.
 - `isOwnedBy`: kept as the one shape contract `{ userId }` until the user reviews it (open
   question).
 - Browser e2e tests: `web-app` (7).
+- A client package the browser or another project consumes without the server code:
+  `client-publishing` (10); here only the bundle guard (R23).
 - Any new `jsonb` column or index on messages or attachments: no query reads a nested field.
 - The HTTP contract (`http-api`) and the web client: unchanged.
 - The behaviour of any flow: the send, the reply, the title, the bind, the delete and the
@@ -147,7 +168,11 @@ the glossary, so the rules point at one definition of each word.
   `chat.error.ts`, `message.error.ts`, `chat.port.ts`, `message.port.ts`, `assistant.port.ts`,
   `chat.service.ts`, `message.service.ts`), and no `message/` folder.
 - **R11** — WHEN the audit lands, THE SYSTEM SHALL have no `ensureFound`, `isInChat` or
-  `isTitledChat`; `isOwnedBy` stays as the shape contract `{ userId }`.
+  `isTitledChat` or `isOwnedBy`: ownership is a field of the `<Entity>Where` a repository's
+  `selectOne(where)` takes (`chats.selectOne({ id, userId })`), so the database answers "not
+  yours" and "not found" alike, as today. Where a field check on a value in hand remains, it is
+  `Predicate.Struct({ userId: (id) => id === userId })` inline, wrapped only if several places
+  repeat it.
 - **R12** — WHERE this ticket touches an Effect body, THE SYSTEM SHALL have no `Effect.gen` inside
   another, no callback inside a callback deeper than one level, and no ternary inside a
   combinator; the five nested spots found (`streamSnapshots`, the relay's loop, the upload's
@@ -178,19 +203,26 @@ the glossary, so the rules point at one definition of each word.
   workspace's `testing/` (one layer per port over a `Ref<Map>`, shared by every suite), needing
   no process outside vitest; a module folder holds no test; repositories have no unit tests.
 - **R18** — WHILE a workspace has e2e tests, THE SYSTEM SHALL keep them in one `e2e/` at
-  the workspace's top, mirroring the source path, over the real Postgres and
-  MiniStack: repositories, the relay, the migrations, use cases, api handlers over HTTP and
-  worker handlers through the queue; the assistant stays the stub. Test support stays in the
-  workspace's `testing/` (`.fixture`, `.fake`, `.harness`, `.setup`), shared by both kinds and
-  still exported as `@app-template/application/testing`.
+  the workspace's top, mirroring the source path, over a Postgres and a MiniStack the run
+  starts for itself with Testcontainers, never the local stand or `.env`: repositories, the
+  relay, the migrations, `S3File` and `AttachmentStoreS3`, use cases, api handlers over HTTP and
+  worker handlers through the queue; S3 and SQS are real, the assistant stays the stub, no
+  memory layer of a port. The `e2e` project's one `globalSetup` starts both containers once per
+  run and passes their addresses through `inject`; each test gets its own database copied from
+  a migrated template and its own names on MiniStack. Test support stays in the workspace's `testing/` (`.fixture`,
+  `.fake`, `.harness`, `.setup`), shared by both kinds and still exported as
+  `@app-template/application/testing`.
 - **R19** — WHEN tests are run, THE SYSTEM SHALL offer `make test-unit` (no Docker), `make
-  test-e2e`, and `make test` for both, as vitest `projects` split by folder; `make check` runs
-  both.
+  test-e2e` (Docker running), and `make test` for both, from one `vitest.config.ts` with two
+  `projects` split by folder and chosen by `--project`; `make check` runs both.
 - **R22** — WHEN the ticket lands, THE SYSTEM SHALL have no `src/` folder in `apps/api`,
   `apps/worker` or `apps/web`: their modules, `layer.ts`, `main.ts`, `testing/`, `tests/` and
   `e2e/` sit at the workspace's top like every other workspace's, with the `#api/*`,
   `#web/*` import maps, the `tsconfig` includes, the run scripts, the `make dev-*` targets and
   the Biome overrides moved with them.
+- **R23** — WHEN `apps/web` is bundled, THE SYSTEM SHALL ship no domain service, port or adapter
+  to the browser: `domain` keeps `"sideEffects": false` and one barrel per entity, and a check in
+  `make check` builds the web bundle and fails on a service or port name in it.
 
 ### Language and rules
 
@@ -202,8 +234,8 @@ the glossary, so the rules point at one definition of each word.
   `.claude/rules/use-cases.md` (as the layering rule), `naming.md` (`.port`; the `tests/` and
   `e2e/` folders and their mirror rule; `.job` and `.llm` dropped), `effect-tests.md`,
   `effect-services.md`, the `CLAUDE.md` of `domain`, `application`, `infrastructure` and `apps`,
-  and the knowledge docs
-  `architecture.md` and `tooling.md`, with no line that restates the old model.
+  the Biome override that lets `domain/tests/**` import `@effect/platform-bun`, and the
+  knowledge docs `architecture.md` and `tooling.md`, with no line that restates the old model.
 
 ## Acceptance
 
@@ -219,31 +251,22 @@ the glossary, so the rules point at one definition of each word.
 | R8 | a unit test of `buildChatTitle` on a 300-grapheme text and on blank text; `ls infrastructure/chat/chat.llm.ts` fails; `AssistantLlm` holds the only prompt strings (`grep -rn "Suggest a title" .`) |
 | R9 | `infrastructure/outbox/outbox.relay.ts` exports a `Layer` and imports no domain service or use case |
 | R10 | `ls domain/chat application/chat` shows the files named; `find . -type d -name message` is empty |
-| R11 | `grep -rn "ensureFound\|isInChat\|isTitledChat" --include=*.ts .` is empty |
+| R11 | `grep -rn "ensureFound\|isInChat\|isTitledChat\|isOwnedBy" --include=*.ts .` is empty; `grep -rn "selectOne" domain/*/*.port.ts` lists chat, message and attachment |
 | R12 | `make lint` green with a Biome `noNestedGen`-style check if one exists, else review: the five spots named read as one pipeline each |
 | R13 | `grep -rn "unknown\|Struct.evolve" infrastructure/*/*.repository.ts` is empty; `infrastructure/db/columns.ts` exports the two types and the builder, used by chat, attachment and message repositories |
 | R14 | `bun pm ls | grep -E "effect@|@effect/"` shows 4.0.6 everywhere; `make check` green |
 | R15 | e2e on MiniStack: a 1 KiB file uploads as one `PutObject`; a 12 MiB file uploads as three parts and a `HeadObject` reads 12 MiB; a stream that fails mid-way leaves no object and no open multipart upload; `wc -l infrastructure/attachment/attachment.storage.ts` under 80 |
 | R16 | the migration alters `outbox.body` to `jsonb`; the relay e2e test still delivers the job |
 | R17 | with Docker stopped, `make test-unit` passes; `find . -path "*/tests/*.test.ts" -not -path "*/node_modules/*"` lists a suite per domain service, use case and handler, each under `<workspace>/tests/<module>/`; `find . -name "*.test.ts" -not -path "*/tests/*" -not -path "*/e2e/*" -not -path "*/node_modules/*"` is empty |
-| R18 | with Docker running, `make test-e2e` passes; `find . -path "*/e2e/*.test.ts"` lists the repositories, the relay, the migrations, the use cases and the handlers, each under `<workspace>/e2e/<module>/` |
-| R19 | `make help` lists the three test targets; `vitest.config.ts` declares two `projects`; `make check` runs `test` |
+| R18 | with Docker running and the local stand down, `make test-e2e` passes; `find . -path "*/e2e/*.test.ts"` lists the repositories, the relay, the migrations, `S3File`, `AttachmentStoreS3`, the use cases and the handlers, each under `<workspace>/e2e/<module>/`; `grep -rln "Memory\b" --include=*.test.ts */e2e` is empty; two e2e runs in two worktrees at once both pass |
+| R19 | `make help` lists the three test targets; one `vitest.config.ts` declares two `projects`; `bun run vitest run --project unit` runs only `tests/`; `make check` runs `test` |
 | R22 | `ls apps/*/src` fails; `make dev-api`, `make dev-worker`, `make dev-web` start; `make check` green; `grep -rn "src/" apps/*/package.json apps/*/tsconfig.json biome.json Makefile` finds nothing for the three apps |
+| R23 | `make check` runs the bundle check; a probe that imports `ChatService` from a web feature turns it red; `grep -n sideEffects domain/package.json` shows `false` |
 | R20 | `docs/knowledge/glossary.md` has the section with the fifteen terms; `grep -rn "interactor\|orchestrator\|controller" .claude/rules/` is empty |
 | R21 | `grep -rn "application.*service\|\.job\b\|chat.llm" .claude/rules/ */CLAUDE.md docs/knowledge/` finds only the glossary's `_Avoid_` lines |
 
 ## Open questions
 
-- `isOwnedBy`: stays as the shape contract `{ userId }` or becomes a method of each domain
-  service (`findOwned`); the user reviews it once the services are in `domain`.
-- Domain unit tests need a `Crypto` layer: `TestCrypto` from `@app-template/testing` is allowed in
-  domain tests; `/ticket-architecture` confirms it covers `randomUUIDv7` and the user secret's
-  digest.
-- `Sink.fold` returns leftovers element by element, so a part is "at least 5 MiB" rather than
-  exactly; `/ticket-architecture` runs a small experiment on the boundary (a stream whose last
-  chunk crosses the limit) before fixing the `S3File` contract.
-- The vitest `projects` shape: two inline projects over folder globs sharing `globalSetup` for
-  e2e only, or two config files.
-- Service keys of the moved services (`@app-template/domain/chat/ChatService`) and the `index.ts`
-  barrels: whether `domain/<entity>` keeps one barrel or exports ports and services separately,
-  since `domain` ships to the browser and `"sideEffects": false` drops unused modules.
+- Per-test isolation on MiniStack: a bucket and queues per test (provisioned by the test layer
+  through `packages/aws`) or one bucket per run with a key prefix and queue names per test.
+- Whether any test needs deterministic ids (a seeded `Crypto`) or `isUuidV7` stays enough.
