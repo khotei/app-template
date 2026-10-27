@@ -314,31 +314,49 @@ export const TransactionMemory = Layer.succeed(Transaction, { run: identity })
 
 ```ts
 // infrastructure/db/columns.ts
-export type SetColumns<Set, Table extends PgTable> = {
-  readonly [K in keyof Required<Set>]: (value: Set[K]) => PgUpdateSetSource<Table>[K]
+type SetColumn<Table extends PgTable, K> = PgUpdateSetSource<Table>[K & keyof PgUpdateSetSource<Table>]
+export type SetColumns<Fields, Table extends PgTable> = {
+  readonly [K in keyof Required<Fields>]: (value: Fields[K]) => SetColumn<Table, K>
 }
-export type WhereColumns<Where> = {
-  readonly [K in keyof Required<Where>]: (value: Where[K]) => SQL | undefined
+export type WhereColumns<Fields> = {
+  readonly [K in keyof Required<Fields>]: (value: Fields[K]) => SQL | undefined
 }
-export const buildSet = <Set extends object, Table extends PgTable>(columns: SetColumns<Set, Table>) =>
-  (set: Set): PgUpdateSetSource<Table> => Record.map(columns, (toColumn, key) => toColumn(set[key]))
-export const buildWhere = <Where extends object>(columns: WhereColumns<Where>) =>
-  (where: Where): SQL | undefined => and(...Record.values(Record.map(columns, (toSql, key) => toSql(where[key]))))
+type SetRow<Fields, Table extends PgTable> = { [K in keyof Required<Fields>]?: SetColumn<Table, K> }
+export const buildSet =
+  <Fields extends object, Table extends PgTable>(columns: SetColumns<Fields, Table>) =>
+  (set: Fields): SetRow<Fields, Table> =>
+    Arr.reduce(Struct.keys(columns), {}, (row: SetRow<Fields, Table>, key) => ({
+      ...row,
+      [key]: columns[key](set[key]),
+    }))
+export const buildWhere =
+  <Fields extends object>(columns: WhereColumns<Fields>) =>
+  (where: Fields) =>
+    and(...Arr.map(Struct.keys(columns), (key) => columns[key](where[key])))
 
 // infrastructure/chat/chat.repository.ts
-const set = buildSet<ChatSet, typeof chats>({
+const encodeSet = buildSet<ChatSet, typeof chats>({
   title: UndefinedOr.map(Option.getOrNull),
   updatedAt: UndefinedOr.map(DateTime.toDateUtc),
 })
-const where = buildWhere<ChatWhere>({
+const encodeWhere = buildWhere<ChatWhere>({
   id: (id) => eq(chats.id, id),
-  userId: UndefinedOr.map((userId) => eq(chats.userId, userId)),
   title: UndefinedOr.map(Option.match({ onNone: () => isNull(chats.title), onSome: (t) => eq(chats.title, t) })),
 })
+// update: db.update(chats).set(encodeSet(set)).where(encodeWhere(where))
 ```
 
-`PgUpdateSetSource<Table>[K]` is Drizzle's own type for `set` (`GetColumnData | SQL | undefined`),
-so a mapper that returns the wrong shape fails typecheck instead of hiding behind `unknown`.
+`PgUpdateSetSource<Table>[K & keyof PgUpdateSetSource<Table>]` is Drizzle's own type for `set`
+(`GetColumnData | SQL | undefined`), so a mapper that returns the wrong shape fails typecheck
+instead of hiding behind `unknown`; a `Fields` key the table has no column for demands `never`,
+so its mapper fails too, and a key without a mapper is a missing property. The builders walk
+`Struct.keys(columns)` instead of `Record.map(columns, …)`: `Record.map` collapses the
+mappers into one value type, which loses the per-key correlation between `columns[key]` and
+`set[key]`, and the record it answers cannot be related to Drizzle's row under generics without an
+`as unknown as`. `buildSet` answers `SetRow`, a mapped type over `Fields`, which resolves to a
+concrete row at the call site that `.set()` accepts. The module-level constants are
+`encodeSet`/`encodeWhere`, beside `encodeChat`: `set`/`where` would shadow the parameters of
+`update(set, where)`.
 
 ### `S3Bucket`
 

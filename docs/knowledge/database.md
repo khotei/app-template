@@ -124,10 +124,10 @@ query states its intent; `decodeFound` from `db.client.ts` decodes the row it fo
 `exists (…)`.
 
 A write of some fields under a condition maps its `<Entity>Set` and `<Entity>Where` onto the
-table through `db/columns.ts`, one mapper per field. `buildSet<Set, Table>(columns)` takes a
-`SetColumns<Set, Table>`, each mapper typed by the table's column (`PgUpdateSetSource<Table>`),
-and answers the row Drizzle's `set` takes; `buildWhere<Where>(columns)` takes a
-`WhereColumns<Where>`, each mapper answering `SQL | undefined`, and joins them with `and`. A
+table through `db/columns.ts`, one mapper per field. `buildSet<Fields, Table>(columns)` takes a
+`SetColumns<Fields, Table>`, each mapper typed by the table's column (`PgUpdateSetSource<Table>`),
+and answers the row Drizzle's `set` takes; `buildWhere<Fields>(columns)` takes a
+`WhereColumns<Fields>`, each mapper answering `SQL | undefined`, and joins them with `and`. A
 mapper answering the wrong shape, a field the type gains without a mapper, and a mapper for a
 field the table has no column for all fail typecheck. The builders walk the mapper table's keys,
 so a whole entity passed as a set writes only the fields it may change; an absent field maps to

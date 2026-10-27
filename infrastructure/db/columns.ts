@@ -15,27 +15,36 @@ export const updatedAt = () => timestamp({ withTimezone: true }).notNull()
 type SetColumn<Table extends PgTable, K> = PgUpdateSetSource<Table>[K &
   keyof PgUpdateSetSource<Table>]
 
-/** One mapper per field of `Set`, each answering what Drizzle's `set` takes for that column. */
-export type SetColumns<Set, Table extends PgTable> = {
-  readonly [K in keyof Required<Set>]: (value: Set[K]) => SetColumn<Table, K>
+export type SetColumns<Fields, Table extends PgTable> = {
+  readonly [K in keyof Required<Fields>]: (value: Fields[K]) => SetColumn<Table, K>
 }
 
-/** One mapper per field of `Where`, each answering a condition, or `undefined` for an absent field. */
-export type WhereColumns<Where> = {
-  readonly [K in keyof Required<Where>]: (value: Where[K]) => SQL | undefined
+export type WhereColumns<Fields> = {
+  readonly [K in keyof Required<Fields>]: (value: Fields[K]) => SQL | undefined
 }
 
-type SetRow<Set, Table extends PgTable> = { [K in keyof Required<Set>]?: SetColumn<Table, K> }
+type SetRow<Fields, Table extends PgTable> = {
+  [K in keyof Required<Fields>]?: SetColumn<Table, K>
+}
 
+/**
+ * Builds the row Drizzle's `set` takes from the fields `columns` names: a field of `set` outside
+ * `columns` is dropped, and an absent field answers `undefined`, which `set` skips.
+ */
 export const buildSet =
-  <Set extends object, Table extends PgTable>(columns: SetColumns<Set, Table>) =>
-  (set: Set) => {
-    const row: SetRow<Set, Table> = {}
-    for (const key of Struct.keys(columns)) row[key] = columns[key](set[key])
-    return row
-  }
+  <Fields extends object, Table extends PgTable>(columns: SetColumns<Fields, Table>) =>
+  (set: Fields): SetRow<Fields, Table> =>
+    Arr.reduce(Struct.keys(columns), {}, (row: SetRow<Fields, Table>, key) => ({
+      ...row,
+      [key]: columns[key](set[key]),
+    }))
 
+/**
+ * Joins the conditions of the fields `columns` names with `and`: an absent field answers
+ * `undefined`, which `and` skips, so a `Where` whose every field is absent yields no condition;
+ * every `Where` keeps one required field.
+ */
 export const buildWhere =
-  <Where extends object>(columns: WhereColumns<Where>) =>
-  (where: Where) =>
+  <Fields extends object>(columns: WhereColumns<Fields>) =>
+  (where: Fields) =>
     and(...Arr.map(Struct.keys(columns), (key) => columns[key](where[key])))

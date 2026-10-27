@@ -123,7 +123,7 @@
   `unknown`, no `Struct.evolve(Struct.pick(…))` (R13).
 - **Blocked by:** S2. *Parallel* with S3, S5, S6.
 - **Files:** `infrastructure/db/columns.ts` (the two types over `PgUpdateSetSource<Table>[K]`
-  and `SQL | undefined`, the two builders over `Record.map`), `infrastructure/chat/chat.repository.ts`,
+  and `SQL | undefined`, the two builders over `Arr.reduce`), `infrastructure/chat/chat.repository.ts`,
   `infrastructure/chat/message.repository.ts`, `infrastructure/attachment/attachment.repository.ts`;
   `docs/knowledge/database.md › Repositories`.
 - **Test first:** each `*RepositoryPg` on `DbTest` (`infrastructure/e2e/chat/chat.repository.e2e.ts`,
@@ -133,7 +133,16 @@
 - **Verify:** `grep -rn "unknown\|Struct.evolve" infrastructure/*/*.repository.ts` is empty;
   `make check`.
 - **Model:** fable high
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - `Record.map` collapses the mappers into one value type, so the builders fold
+    `Struct.keys(columns)` with `Arr.reduce` into a row typed `SetRow`; it is the one cast-free
+    effect form that typechecks. Neither form checks a value inside the generic builder: the
+    checks live in `SetColumns` at the call site, where the `title: () => 42` probe fails.
+  - A set column is `PgUpdateSetSource<Table>[K & keyof PgUpdateSetSource<Table>]`, so a field
+    the table has no column for demands `never` and fails at its mapper.
+  - The repositories name the builders' results `encodeSet` and `encodeWhere`; `set` and
+    `where` would shadow `update(set, where)`. The type parameter is `Fields`, not `Set`.
 
 #### S5 — The outbox body as `jsonb`, the relay's loop as one pipeline
 
