@@ -15,8 +15,8 @@ import {
 import type { AttachmentId } from '#domain/attachment/attachment.id'
 import { Attachment, FileSize } from '#domain/attachment/attachment.model'
 import {
+  AttachmentBucket,
   AttachmentRepository,
-  AttachmentStore,
   type AttachmentWhere,
 } from '#domain/attachment/attachment.port'
 import { matches } from '#domain/testing/rows.test-util'
@@ -60,20 +60,20 @@ export const AttachmentRepositoryTest = Layer.effect(
   ),
 )
 
-/** The bytes `AttachmentStoreTest` holds, by id, for a test to read. */
-export class AttachmentObjects extends Context.Service<
-  AttachmentObjects,
+/** The bytes `AttachmentBucketTest` holds, by id, for a test to read. */
+export class AttachmentBucketObjects extends Context.Service<
+  AttachmentBucketObjects,
   Ref.Ref<HashMap.HashMap<AttachmentId, Uint8Array>>
->()('@app-template/domain/testing/AttachmentObjects') {
+>()('@app-template/domain/testing/AttachmentBucketObjects') {
   static readonly layer = Layer.effect(this, Ref.make(HashMap.empty<AttachmentId, Uint8Array>()))
 }
 
-/** The attachment store over a map; `keep` is a no-op, since nothing here expires. */
-export const AttachmentStoreTest = Layer.effect(
-  AttachmentStore,
-  Effect.map(AttachmentObjects, (objects) => {
+/** The attachment bucket over a map; `keep` is a no-op, since nothing here expires. */
+export const AttachmentBucketTest = Layer.effect(
+  AttachmentBucket,
+  Effect.map(AttachmentBucketObjects, (objects) => {
     const select = (id: AttachmentId) => Effect.map(Ref.get(objects), HashMap.get(id))
-    return AttachmentStore.of({
+    return AttachmentBucket.of({
       insert: (id, content) =>
         Effect.gen(function* () {
           const bytes = yield* Stream.mkUint8Array(content)
@@ -86,4 +86,4 @@ export const AttachmentStoreTest = Layer.effect(
       delete: (id) => Ref.update(objects, HashMap.remove(id)),
     })
   }),
-).pipe(Layer.provideMerge(AttachmentObjects.layer))
+).pipe(Layer.provideMerge(AttachmentBucketObjects.layer))

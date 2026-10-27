@@ -14,9 +14,9 @@ import {
 import { buildResourceName, resources, unboundTag } from '@app-template/aws'
 import { AwsConfig } from '@app-template/config'
 import {
+  AttachmentBucket,
   type AttachmentId,
   type AttachmentMeta,
-  AttachmentStore,
   type FileName,
   FileSize,
 } from '@app-template/domain/attachment'
@@ -94,8 +94,8 @@ const buildObjectHeaders = (meta: AttachmentMeta) => ({
 /** Typed as a bare `S3ServiceError`, a missing key still arrives tagged `NoSuchKey`. */
 const isNoSuchKey = (error: unknown): boolean => Predicate.isTagged(error, 'NoSuchKey')
 
-export const AttachmentStoreS3 = Layer.effect(
-  AttachmentStore,
+export const AttachmentBucketS3 = Layer.effect(
+  AttachmentBucket,
   Effect.gen(function* () {
     const s3 = yield* S3Service
     const { stage } = yield* AwsConfig
@@ -168,11 +168,11 @@ export const AttachmentStoreS3 = Layer.effect(
       return state.size
     }, Effect.orDie)
 
-    const remove = Effect.fn('AttachmentStore.delete')((id: AttachmentId) =>
+    const remove = Effect.fn('AttachmentBucket.delete')((id: AttachmentId) =>
       s3.deleteObject(buildObjectRef(id)).pipe(Effect.asVoid, Effect.orDie),
     )
 
-    const insert = Effect.fn('AttachmentStore.insert')(
+    const insert = Effect.fn('AttachmentBucket.insert')(
       <E>(id: AttachmentId, content: Stream.Stream<Uint8Array, E>, meta: AttachmentMeta) =>
         Stream.runFoldEffect(content, () => buildUploadState(id, meta), receive).pipe(
           Effect.flatMap(finish),
@@ -181,7 +181,7 @@ export const AttachmentStoreS3 = Layer.effect(
         ),
     )
 
-    const select = Effect.fn('AttachmentStore.select')(function* (id: AttachmentId) {
+    const select = Effect.fn('AttachmentBucket.select')(function* (id: AttachmentId) {
       const found = yield* s3.getObject(buildObjectRef(id)).pipe(
         Effect.map(Option.some),
         Effect.catchTag('NoSuchKey', () => Effect.succeedNone),
@@ -194,7 +194,7 @@ export const AttachmentStoreS3 = Layer.effect(
     })
 
     // Presigning never checks that the object exists.
-    const url = Effect.fn('AttachmentStore.url')(function* (id: AttachmentId) {
+    const url = Effect.fn('AttachmentBucket.url')(function* (id: AttachmentId) {
       const exists = yield* s3.headObject(buildObjectRef(id)).pipe(
         Effect.as(true),
         Effect.catchTag('NotFound', () => Effect.succeed(false)),
@@ -213,7 +213,7 @@ export const AttachmentStoreS3 = Layer.effect(
       return Option.some(new URL(signed))
     })
 
-    const keep = Effect.fn('AttachmentStore.keep')((id: AttachmentId) =>
+    const keep = Effect.fn('AttachmentBucket.keep')((id: AttachmentId) =>
       s3.deleteObjectTagging(buildObjectRef(id)).pipe(
         Effect.catchIf(isNoSuchKey, () => Effect.void),
         Effect.asVoid,
@@ -221,6 +221,6 @@ export const AttachmentStoreS3 = Layer.effect(
       ),
     )
 
-    return AttachmentStore.of({ insert, select, url, keep, delete: remove })
+    return AttachmentBucket.of({ insert, select, url, keep, delete: remove })
   }),
 )

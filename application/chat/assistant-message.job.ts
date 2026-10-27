@@ -16,7 +16,7 @@ import {
 } from 'effect'
 import type { AiError, LanguageModel } from 'effect/ai'
 
-import { AttachmentStore } from '@app-template/domain/attachment'
+import { AttachmentBucket } from '@app-template/domain/attachment'
 import {
   type ChatId,
   ChatRepository,
@@ -47,11 +47,11 @@ import { ChatService } from '#application/chat/chat.service'
 const snapshotInterval = Duration.millis(300)
 
 const readTurn = Effect.fnUntraced(function* ({ message, attachments }: MessageDetail) {
-  const store = yield* AttachmentStore
+  const bucket = yield* AttachmentBucket
 
   const files = yield* Effect.forEach(attachments, (attachment) =>
     Effect.map(
-      store.select(attachment.id),
+      bucket.select(attachment.id),
       Option.map((bytes) => ({ attachment, bytes })),
     ),
   )
@@ -115,7 +115,7 @@ const writeSettled = Effect.fnUntraced(function* (settled: Message, where: Messa
 type ReplyError = AiError.AiError | MessageStageInvalidError
 
 type ReplyServices =
-  | AttachmentStore
+  | AttachmentBucket
   | ChatRepository
   | ChatService
   | MessageRepository

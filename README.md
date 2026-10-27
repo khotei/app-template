@@ -116,7 +116,7 @@ Each line names one choice and where it lives; the rejected alternatives are in 
   leaves (database, S3, queue, platform) with `Layer.provide` and `main.ts` is
   `BunRuntime.runMain(Layer.launch(...))`; stopping closes one scope.
 - **Tests sit at agreed seams** with `@effect/vitest`: domain rules, repositories on a Postgres
-  database of their own per test, services over the memory attachment store and a recording queue
+  database of their own per test, services over the memory attachment bucket and a recording queue
   under `TestClock`, jobs with a fake model, the queue client on MiniStack, the api through
   `BunHttpServer.layerTest` and the real `ApiClient`.
 - **Configuration is read once,** in `packages/config`, and reaches clients as options; the root

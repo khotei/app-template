@@ -14,12 +14,12 @@ import {
 import {
   type Attachment,
   AttachmentBoundError,
+  AttachmentBucket,
   type AttachmentDownload,
   AttachmentId,
   type AttachmentMeta,
   AttachmentNotFoundError,
   AttachmentRepository,
-  AttachmentStore,
   buildAttachment,
   ensureBindable,
   isVisibleTo,
@@ -79,7 +79,7 @@ export class AttachmentService extends Context.Service<
 >()('@app-template/application/attachment/AttachmentService', {
   make: Effect.gen(function* () {
     const attachments = yield* AttachmentRepository
-    const store = yield* AttachmentStore
+    const bucket = yield* AttachmentBucket
     const crypto = yield* Crypto.Crypto
     const randomUuid = Effect.orDie(crypto.randomUUIDv7())
     const randomAttachmentId = Effect.map(randomUuid, AttachmentId.make)
@@ -88,7 +88,7 @@ export class AttachmentService extends Context.Service<
       ids: ReadonlyArray<AttachmentId>,
     ) {
       yield* attachments.deleteByIds(ids)
-      yield* Effect.forEach(ids, store.delete, { discard: true })
+      yield* Effect.forEach(ids, bucket.delete, { discard: true })
     })
 
     const uploadFile = Effect.fnUntraced(function* <E>(
@@ -98,7 +98,7 @@ export class AttachmentService extends Context.Service<
       const createdAt = yield* DateTime.now
 
       const meta = Struct.pick(file, ['mediaType', 'fileName'])
-      const size = yield* store.insert(id, file.content, meta)
+      const size = yield* bucket.insert(id, file.content, meta)
       const attachment = buildAttachment({ ...meta, id, userId, size, createdAt })
 
       yield* attachments.insert(attachment)
@@ -139,7 +139,7 @@ export class AttachmentService extends Context.Service<
       id: AttachmentId,
     ) {
       const attachment = yield* get(userId, id)
-      const url = yield* store.url(id)
+      const url = yield* bucket.url(id)
 
       if (Option.isNone(url)) return yield* new AttachmentNotFoundError({ id })
       return { attachment, url: url.value }
@@ -154,7 +154,7 @@ export class AttachmentService extends Context.Service<
       yield* ensureBindable(found, { id, userId, now })
 
       yield* attachments.deleteByIds([id])
-      yield* store.delete(id)
+      yield* bucket.delete(id)
     })
 
     // One batch read; the refusal still names the first bad id in the order asked.
@@ -172,7 +172,7 @@ export class AttachmentService extends Context.Service<
       )
 
       // Keep first: unbound bytes expire, so a crash must never leave a bound row over them.
-      yield* Effect.forEach(ids, store.keep, { discard: true })
+      yield* Effect.forEach(ids, bucket.keep, { discard: true })
       const bound = yield* attachments.update(
         { messageId: Option.some(messageId) },
         { id: ids, messageId: Option.none() },

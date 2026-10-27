@@ -34,7 +34,7 @@ test-support role starts with `test-` (the globs: `effect-tests.md › Test supp
 | `.service` | domain: the aggregate's domain service over its ports · application: a service over ports | domain, application |
 | `.use-case` | a flow that composes services: `<verb>-<object>.use-case.ts` | application |
 | `.job` | a queue's producer service and its worker | application |
-| `.repository` · `.storage` · `.llm` | an adapter over a client; prompt functions live in `.llm` | infrastructure |
+| `.repository` · `.bucket` · `.llm` | an adapter over a client; prompt functions live in `.llm` | infrastructure |
 | `.entity` | an entity's Drizzle tables and their row codecs, one file per entity | infrastructure |
 | `.queue` | queue definitions | infrastructure |
 | `.relay` | a layer that moves records from the database to a queue (`OutboxRelay`) | infrastructure |
@@ -82,7 +82,7 @@ live only in `testing/`, listed by no barrel or `exports` save the `packages/tes
   One for a service declared elsewhere is `<Service><Variant>` (`ChatRepositoryPg`); `<Entity>Pg`
   in `<entity>/index.ts` bundles the aggregate's adapters, which a process provides.
 - Test support: every test-only layer ends in `Test`. A port's fake is `<Port>Test`, the
-  `<Service><Variant>` form (`AttachmentStoreTest`); a test layer is `<Entity>Test`, the entity's
+  `<Service><Variant>` form (`AttachmentBucketTest`); a test layer is `<Entity>Test`, the entity's
   real services over fakes, not a variant of a service (`ChatTest`; `layer<Entity>Test(…)` with
   options). A stateful fake `<verb><Thing>()` returns `{ <handle>, layer }` (`recordLogs`);
   `<Entity>Rows` is the map service a memory layer keeps its rows in (`ChatRows`).

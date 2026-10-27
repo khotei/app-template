@@ -2,7 +2,7 @@ import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Exit, Layer, Option, Ref } from 'effect'
 
-import { AttachmentStore } from '@app-template/domain/attachment'
+import { AttachmentBucket } from '@app-template/domain/attachment'
 import { ChatNotFoundError, ChatRepository } from '@app-template/domain/chat'
 import { ask, chat, owner, stranger, unknownChatId } from '@app-template/domain/testing'
 import { ChatRepositoryPg } from '@app-template/infrastructure/chat'
@@ -65,7 +65,7 @@ describe('DeleteChatUseCase', () => {
       assertEquals(yield* chats.list(owner), [])
       assertEquals(yield* selectMessages(chat.id), [])
       assertEquals(yield* selectAttachments([photo]), [])
-      assertEquals(yield* (yield* AttachmentStore).select(photo.id), Option.none())
+      assertEquals(yield* (yield* AttachmentBucket).select(photo.id), Option.none())
     }).pipe(Effect.provide(ChatTest)),
   )
 
@@ -86,7 +86,7 @@ describe('DeleteChatUseCase', () => {
       assertEquals(yield* selectChat(chat.id), Option.none())
       assertEquals(yield* selectMessages(chat.id), [])
       assertEquals(yield* selectAttachments([photo]), [])
-      assertEquals(yield* (yield* AttachmentStore).select(photo.id), Option.none())
+      assertEquals(yield* (yield* AttachmentBucket).select(photo.id), Option.none())
     }).pipe(Effect.provide(layerChatTest(ChatRepositoryDeleteFailingOnce))),
   )
 

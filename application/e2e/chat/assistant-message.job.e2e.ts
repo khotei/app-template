@@ -17,9 +17,9 @@ import { TestClock } from 'effect/testing'
 
 import {
   Attachment,
+  AttachmentBucket,
   AttachmentId,
   AttachmentRepository,
-  AttachmentStore,
   buildAttachment,
   FileName,
   FileSize,
@@ -38,7 +38,7 @@ import {
   MessageRepository,
 } from '@app-template/domain/chat'
 import {
-  AttachmentStoreTest,
+  AttachmentBucketTest,
   chat,
   chatId,
   epoch,
@@ -72,7 +72,7 @@ const sketchId = AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000041')
 type Part = Response.StreamPartEncoded
 
 /**
- * The repositories on a fresh test database, the attachment store in memory. Both halves name
+ * The repositories on a fresh test database, the attachment bucket in memory. Both halves name
  * `DbWithUsersTest`, which one build makes once, so they share its database.
  */
 const storesPg = {
@@ -80,7 +80,7 @@ const storesPg = {
   chatsAndAttachments: Layer.mergeAll(
     ChatRepositoryPg,
     AttachmentRepositoryPg,
-    AttachmentStoreTest,
+    AttachmentBucketTest,
   ).pipe(Layer.provide(DbWithUsersTest)),
 }
 
@@ -125,7 +125,7 @@ const makeStoresTest = () => {
         selectById: (id) => Effect.sync(() => Option.fromUndefinedOr(chats.get(id))),
       }),
       Layer.mock(AttachmentRepository, {}),
-      Layer.mock(AttachmentStore, {}),
+      Layer.mock(AttachmentBucket, {}),
     ),
   }
 }
@@ -136,7 +136,7 @@ const recordAssistantMessage = <E, R>(
   stores: {
     readonly messages: Layer.Layer<MessageRepository, E, R>
     readonly chatsAndAttachments: Layer.Layer<
-      ChatRepository | AttachmentRepository | AttachmentStore,
+      ChatRepository | AttachmentRepository | AttachmentBucket,
       E,
       R
     >
@@ -238,11 +238,11 @@ const sketch = buildImage(sketchId, { name: 'sketch.png', boundTo: historyId(5) 
 const arrangeAttachment = (attachment: Attachment, bytes: 'stored' | 'lost' = 'stored') =>
   Effect.gen(function* () {
     const attachments = yield* AttachmentRepository
-    const store = yield* AttachmentStore
+    const bucket = yield* AttachmentBucket
 
     yield* attachments.insert(attachment)
     if (bytes === 'lost') return
-    yield* store.insert(attachment.id, Stream.make(png), attachment)
+    yield* bucket.insert(attachment.id, Stream.make(png), attachment)
   })
 
 // A second apart: messages sharing a `createdAt` come back in no defined order.

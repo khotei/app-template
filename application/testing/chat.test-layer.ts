@@ -15,7 +15,7 @@ import {
   MessageRepository,
   prepareMessage,
 } from '@app-template/domain/chat'
-import { AttachmentStoreTest, chat } from '@app-template/domain/testing'
+import { AttachmentBucketTest, chat } from '@app-template/domain/testing'
 import type { UserId } from '@app-template/domain/user'
 import { AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
 import { ChatRepositoryPg, MessageRepositoryPg } from '@app-template/infrastructure/chat'
@@ -35,7 +35,7 @@ const insertChat = Layer.effectDiscard(
 
 /**
  * The chat services and use cases on a fresh test database where `chat` exists, over the memory
- * attachment store and the outbox; `chats` replaces the Postgres chat repository.
+ * attachment bucket and the outbox; `chats` replaces the Postgres chat repository.
  */
 export const layerChatTest = (chats: Layer.Layer<ChatRepository, never, Db> = ChatRepositoryPg) =>
   Layer.mergeAll(
@@ -50,7 +50,7 @@ export const layerChatTest = (chats: Layer.Layer<ChatRepository, never, Db> = Ch
         chats,
         MessageRepositoryPg,
         AttachmentRepositoryPg,
-        AttachmentStoreTest,
+        AttachmentBucketTest,
         QueueClientOutbox,
       ),
     ),

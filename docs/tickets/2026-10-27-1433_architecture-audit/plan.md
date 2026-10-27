@@ -360,7 +360,15 @@
 - **Verify:** `git grep -n 'AttachmentStore\|\.storage\b' -- ':!repos' ':!docs/tickets'` is empty;
   `make check`.
 - **Model:** opus medium
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Beyond **Files**: `infrastructure/CLAUDE.md` (the `.storage.ts` role, which the Verify grep
+    finds; its stale "a bucket adapter owns its own interface" line is left to S23), `README.md`
+    (the memory bucket), and the `store` locals, comments and `storeHref` of the suites.
+  - The fake's byte map is `AttachmentBucketObjects`, not `AttachmentBucketRows`: a bucket holds
+    objects, and `<Entity>Rows` stays the name of a repository fake's table.
+  - The service key is `@app-template/domain/attachment/AttachmentBucket` and the spans
+    `AttachmentBucket.<method>`; S20 rewrites the now existing `attachment.bucket.ts`.
 
 #### S8 — `UserService` to the domain
 

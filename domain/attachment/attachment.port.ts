@@ -30,8 +30,8 @@ export class AttachmentRepository extends Context.Service<
   }
 >()('@app-template/domain/attachment/AttachmentRepository') {}
 
-export class AttachmentStore extends Context.Service<
-  AttachmentStore,
+export class AttachmentBucket extends Context.Service<
+  AttachmentBucket,
   {
     /** Writes the bytes marked unbound; fails with the stream's error and leaves nothing behind. */
     readonly insert: <E>(
@@ -53,4 +53,4 @@ export class AttachmentStore extends Context.Service<
     /** Idempotent. */
     readonly delete: (id: AttachmentId) => Effect.Effect<void>
   }
->()('@app-template/domain/attachment/AttachmentStore') {}
+>()('@app-template/domain/attachment/AttachmentBucket') {}

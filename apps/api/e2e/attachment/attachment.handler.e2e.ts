@@ -109,7 +109,7 @@ describe('attachments', () => {
       }).pipe(Effect.provide(ApiTest)),
   )
 
-  it.effect("GET /attachments/:attachmentId/download is 302 to the store's URL", () =>
+  it.effect("GET /attachments/:attachmentId/download is 302 to the bucket's URL", () =>
     Effect.gen(function* () {
       const api = yield* ApiClient
       const http = yield* HttpClient.HttpClient

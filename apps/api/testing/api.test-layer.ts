@@ -2,7 +2,7 @@ import { BunHttpServer, BunServices } from '@effect/platform-bun'
 import { ConfigProvider, Effect, Layer, Ref } from 'effect'
 import { Cookies, HttpClient } from 'effect/http'
 
-import { AttachmentStoreTest, DbTest } from '@app-template/application/testing'
+import { AttachmentBucketTest, DbTest } from '@app-template/application/testing'
 import { ApiClient } from '@app-template/http-api'
 import { AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
 import { QueueClientOutbox } from '@app-template/infrastructure/shared'
@@ -10,12 +10,12 @@ import { QueueClientOutbox } from '@app-template/infrastructure/shared'
 import { ApiHttp } from '#api/layer'
 
 /**
- * The api on an ephemeral port over a fresh database, the memory attachment store and the outbox;
+ * The api on an ephemeral port over a fresh database, the memory attachment bucket and the outbox;
  * its `HttpClient` targets that port, and its `Db` is open for arranging what only the worker
  * writes.
  */
 export const ApiServerTest = ApiHttp.pipe(
-  Layer.provide([AttachmentRepositoryPg, AttachmentStoreTest, QueueClientOutbox]),
+  Layer.provide([AttachmentRepositoryPg, AttachmentBucketTest, QueueClientOutbox]),
   Layer.provideMerge(BunHttpServer.layerTest),
   Layer.provideMerge(DbTest),
   Layer.provide([BunServices.layer, ConfigProvider.layer(ConfigProvider.fromUnknown({}))]),

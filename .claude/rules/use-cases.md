@@ -42,7 +42,7 @@ Do not wait for the method to grow: the exception is the signal.
   made.
 - **The writes commit in one transaction:** `sql.withTransaction` as a pipeable of the `Effect.fn`
   that holds the writes, then `Effect.catchTag('SqlError', Effect.die)` for its own statements.
-  `AttachmentStore` stays outside it: keep the bytes before the row that binds them, and delete
+  `AttachmentBucket` stays outside it: keep the bytes before the row that binds them, and delete
   them before the commit.
 - **Enqueue inside the transaction of the writes the job reads**
   ([database.md › The outbox](../../docs/knowledge/database.md#the-outbox)).

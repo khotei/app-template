@@ -7,10 +7,10 @@ import { TestClock } from 'effect/testing'
 import {
   Attachment,
   AttachmentBoundError,
+  AttachmentBucket,
   type AttachmentId,
   AttachmentNotFoundError,
   AttachmentRepository,
-  AttachmentStore,
   buildAttachment,
   FileName,
   FileSize,
@@ -18,8 +18,8 @@ import {
 } from '@app-template/domain/attachment'
 import { buildUserMessage, ChatRepository, MessageRepository } from '@app-template/domain/chat'
 import {
-  AttachmentObjects,
-  AttachmentStoreTest,
+  AttachmentBucketObjects,
+  AttachmentBucketTest,
   chat,
   chatId,
   epoch,
@@ -58,10 +58,10 @@ const DbWithMessage = Layer.effectDiscard(insertMessage).pipe(
   Layer.provideMerge(DbWithUsersTest),
 )
 
-/** The service over `repository` and `AttachmentStoreTest`, on a fresh test database. */
+/** The service over `repository` and `AttachmentBucketTest`, on a fresh test database. */
 const layerAttachmentService = (repository: Layer.Layer<AttachmentRepository, never, Db>) =>
   AttachmentService.layer.pipe(
-    Layer.provideMerge(Layer.mergeAll(repository, AttachmentStoreTest)),
+    Layer.provideMerge(Layer.mergeAll(repository, AttachmentBucketTest)),
     Layer.provide(BunCrypto.layer),
     Layer.provideMerge(DbWithMessage),
   )
@@ -88,12 +88,12 @@ const countStored = Effect.all({
     Effect.map(Arr.length),
     Effect.orDie,
   ),
-  objects: Effect.flatMap(AttachmentObjects, Ref.get).pipe(Effect.map(HashMap.size)),
+  objects: Effect.flatMap(AttachmentBucketObjects, Ref.get).pipe(Effect.map(HashMap.size)),
 })
 
-const storeHref = (id: AttachmentId) =>
+const bucketHref = (id: AttachmentId) =>
   Effect.map(
-    Effect.flatMap(AttachmentStore, (store) => store.url(id)),
+    Effect.flatMap(AttachmentBucket, (bucket) => bucket.url(id)),
     Option.map((url) => url.href),
   )
 
@@ -147,7 +147,7 @@ const selectStored = (ids: ReadonlyArray<AttachmentId>) =>
   Effect.flatMap(AttachmentRepository, (attachments) => attachments.selectByIds(ids))
 
 const selectBytes = (id: AttachmentId) =>
-  Effect.flatMap(AttachmentStore, (store) => store.select(id))
+  Effect.flatMap(AttachmentBucket, (bucket) => bucket.select(id))
 
 describe('AttachmentService', () => {
   it.effect('upload stores the bytes and the metadata of an unbound attachment', () =>
@@ -207,13 +207,13 @@ describe('AttachmentService', () => {
       }).pipe(Effect.provide(AttachmentServiceTest)),
   )
 
-  it.effect("download returns the owner's attachment with the store's URL", () =>
+  it.effect("download returns the owner's attachment with the bucket's URL", () =>
     Effect.gen(function* () {
       const service = yield* AttachmentService
       const attachment = yield* uploadPhoto
 
       const download = yield* service.download(owner, attachment.id)
-      const href = yield* storeHref(attachment.id)
+      const href = yield* bucketHref(attachment.id)
 
       assertEquals(download.attachment, attachment)
       assert.deepStrictEqual(Option.some(download.url.href), href)
@@ -224,7 +224,7 @@ describe('AttachmentService', () => {
     Effect.gen(function* () {
       const service = yield* AttachmentService
       const attachment = yield* uploadPhoto
-      yield* Effect.flatMap(AttachmentStore, (store) => store.delete(attachment.id))
+      yield* Effect.flatMap(AttachmentBucket, (bucket) => bucket.delete(attachment.id))
 
       const error = yield* Effect.flip(service.download(owner, attachment.id))
 

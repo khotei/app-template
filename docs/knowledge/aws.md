@@ -91,7 +91,7 @@ place.
 ## Attachments
 
 An attachment's record lives in Postgres; its bytes live in the `attachments` bucket under
-`attachments/<id>` (`AttachmentStoreS3` in `infrastructure/attachment/attachment.storage.ts`).
+`attachments/<id>` (`AttachmentBucketS3` in `infrastructure/attachment/attachment.bucket.ts`).
 The api and the worker run on `AttachmentPgS3`.
 
 - **Upload.** The file streams in and is never buffered whole: up to 5 MiB it is one `PutObject`,
@@ -175,7 +175,7 @@ Only the queue's own suite starts MiniStack: `packages/queue/e2e/queue.e2e.ts` s
 through `SqsClientTest` in `@app-template/testing` (`testcontainers`; an SQS client on that
 container) and stops it with the suite; it provisions its queues under the fixed stage `test`
 and passes `{ timeout: '60 seconds' }` to `layer(…)`. The application and api suites test
-our code, not S3 or SQS: they provide `AttachmentStoreTest`
+our code, not S3 or SQS: they provide `AttachmentBucketTest`
 ([tooling.md › Tests](tooling.md#tests)) and send jobs to the outbox
 ([database.md › Tests](database.md#tests)). So `make test` needs a running Docker daemon and nothing
 else: the Pulumi project is for `make up` alone. The container starts in about two seconds; the

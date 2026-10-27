@@ -90,7 +90,7 @@ _Avoid_: Interface, client, gateway, driver
 
 **Adapter**:
 An implementation of a port over a client, in `infrastructure` (`ChatRepositoryPg`,
-`AttachmentStoreS3`, `AssistantLlm`).
+`AttachmentBucketS3`, `AssistantLlm`).
 _Avoid_: Implementation, provider, DAO
 
 **Domain service**:
