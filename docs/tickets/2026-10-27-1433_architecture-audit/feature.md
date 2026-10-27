@@ -8,7 +8,7 @@
 The layering is audited horizontally (what each layer holds) and vertically (how one flow crosses
 the layers) and reset to one model: `domain` holds the models, the ports and the domain services
 that own the rules; `application` holds only use cases, which compose domain services with the
-store, the queue, the assistant and a transaction; the apps hold thin handlers, in the worker as
+bucket, the queue, the assistant and a transaction; the apps hold thin handlers, in the worker as
 in the api. The audit removes what does not earn its place (one-line helpers, a `.job` file that
 is producer and worker at once, hand-rolled byte chunking before S3, an `unknown` in the
 repositories' write mapping) and gives the tests one layout: unit tests over memory ports beside
@@ -70,12 +70,12 @@ the glossary, so the rules point at one definition of each word.
 - **Decided in grilling (2026-10-27).** The ticket is its own, not a step of `postgres-drizzle`.
   Services move to `domain` and take time and ids from `DateTime.now` and `Crypto`; `application`
   keeps use cases only; a handler calls a domain service directly when the flow is one method.
-  Ports for the store and the assistant are the domain's; the queue is not a port, since no rule
+  Ports for the bucket and the assistant are the domain's; the queue is not a port, since no rule
   speaks of queues. The `.job` files go: worker handlers in `apps/worker`, the reply and the title
   as use cases. One `chat` component with files per entity; a `message/` folder would cycle on
   `ChatSummary`, the ids and `relations.ts`. The generic `<Entity>Set`/`<Entity>Where` ports stay,
   typed through shared types, over intention-named methods, because the generic write is the deep
-  abstraction the next entity reuses. `S3File` is written on the libraries already present, no
+  abstraction the next entity reuses. `S3Bucket` is written on the libraries already present, no
   `lib-storage`, no `Bun.S3Client`. Unit tests mock the ports with memory layers and never start
   Docker; e2e tests inject the whole infrastructure; `make check` keeps running both. Both kinds
   sit in one folder each at the top of the workspace, not beside the module, so a module folder
@@ -88,7 +88,7 @@ the glossary, so the rules point at one definition of each word.
   `@effect/platform-bun` for `BunCrypto.layer` (a Biome override on `domain/tests/**`);
   `TestCrypto.layer(seed)` in `effect/testing` seeds the random bytes over a real `Crypto` and
   serves only a test that asserts an id. The `Sink.fold` boundary is not a question: the
-  three cases (0 bytes, exactly 5 MiB, 5 MiB plus one byte) are e2e tests of `S3File`. E2E tests
+  three cases (0 bytes, exactly 5 MiB, 5 MiB plus one byte) are e2e tests of `S3Bucket`. E2E tests
   run on their own Testcontainers, never on the local stand: a Postgres and a MiniStack per
   vitest run, so a worktree's run owns its containers and no test reads `.env`; a database per
   test copied from a migrated template, as today, and per-test names on MiniStack; S3 and SQS
@@ -104,17 +104,17 @@ the glossary, so the rules point at one definition of each word.
 
 ## Scope
 
-- Ports in `domain` for repositories, the store and the assistant; domain services over them.
+- Ports in `domain` for repositories, the bucket and the assistant; domain services over them.
 - Use cases as the only `application` members; worker handlers in `apps/worker`.
 - The `chat` component split into `chat.*` and `message.*` files in every layer.
 - The one-line helpers removed; the nested bodies straightened.
 - The repositories' write mapping typed once, in `infrastructure/db`.
-- `packages/s3` with `S3File`; `effect` and `@effect/*` at 4.0.6; the outbox body as `jsonb`.
+- `packages/s3` with `S3Bucket`; `effect` and `@effect/*` at 4.0.6; the outbox body as `jsonb`.
 - One `tests/` and one `e2e/` at the top of each workspace, mirroring the source
   paths; memory layers in `domain/testing`; vitest `projects`; `make test-unit` and
   `make test-e2e`.
 - E2E tests on a Postgres and a MiniStack of their own per run: S3 and SQS real, so
-  `AttachmentStoreS3` and the relay get their first real tests; a root `e2e/` workspace with
+  `AttachmentBucketS3` and the relay get their first real tests; a root `e2e/` workspace with
   one journey through both apps.
 - No `src/` in the three apps, so every workspace has the same shape.
 - The architecture language in the glossary; the rules, the layer `CLAUDE.md` files and the
@@ -147,7 +147,7 @@ the glossary, so the rules point at one definition of each word.
   precondition, a transition, a second field or a domain error beyond not-found goes through
   it, and a use case writes through a repository only a rule-free field (one `set`, one
   `where`, the row gone as the only refusal); `application` holds no service.
-- **R3** — WHEN a flow composes the store, the queue, the assistant, more than one domain service
+- **R3** — WHEN a flow composes the bucket, the queue, the assistant, more than one domain service
   or one transaction, THE SYSTEM SHALL hold it in a use case in
   `application/<entity>/<verb>-<object>.use-case.ts`; the handler calls the use case.
 - **R4** — WHILE a flow is one domain service method, THE SYSTEM SHALL have the handler call the
@@ -192,12 +192,12 @@ the glossary, so the rules point at one definition of each word.
 
 ### Storage
 
-- **R15** — WHEN bytes are put to S3, THE SYSTEM SHALL do it through `S3File` in `packages/s3`:
+- **R15** — WHEN bytes are put to S3, THE SYSTEM SHALL do it through `S3Bucket` in `packages/s3`:
   `put(key, content, { contentType, fileName, tags })` uploads one `PutObject` while the content
   fits one part and a multipart upload otherwise, cutting parts of at least 5 MiB with
   `Stream.transduce(Sink.fold(…))`, `Stream.zipWithNext` and `Bytes.concat`, and aborts the
   upload on failure; `get`, `url`, `delete`, `untag` and `exists` complete it, the bucket being
-  an option of its layer. `AttachmentStoreS3` holds only the keys and the mapping to the
+  an option of its layer. `AttachmentBucketS3` holds only the keys and the mapping to the
   domain's types.
 - **R16** — WHEN a job is written to the outbox, THE SYSTEM SHALL store its body as `jsonb`, with
   no index on it.
@@ -215,7 +215,7 @@ the glossary, so the rules point at one definition of each word.
 - **R18** — WHILE a workspace has adapters, THE SYSTEM SHALL test them in one `e2e/` at the
   workspace's top as `<path>/<name>.e2e.ts`, mirroring the source path, over a Postgres and a
   MiniStack the run starts for itself with Testcontainers, never the local stand or `.env`:
-  the repositories, the relay, the migrations, `S3File`, `AttachmentStoreS3` and the queue;
+  the repositories, the relay, the migrations, `S3Bucket`, `AttachmentBucketS3` and the queue;
   S3 and SQS are real, no memory layer of a port. One journey in a root workspace `e2e/`
   runs `ApiLayer` and `WorkerLayer` in one process over the same containers and the model
   stub, from HTTP through the outbox, SQS and the worker back to HTTP; the apps have no
@@ -258,7 +258,7 @@ the glossary, so the rules point at one definition of each word.
 |---|---|
 | R1 | `ls domain/*/*.port.ts` lists chat, message, assistant, attachment and user ports; `grep -rn "Context.Service" infrastructure/` finds only adapters' own services (`Db`, `QueueTransport`), no port declaration |
 | R2 | `ls application/*/*.service.ts` is empty; `grep -rln "DateTime.now\|Crypto.Crypto" domain/*/*.service.ts` lists the four services; `grep -rn "\.\(insert\|update\|delete\)(" application/ apps/` finds only the chat's `updatedAt` writes of the send and the settle, each one `set` and one `where`; review confirms no other repository write there |
-| R3 | each `application/**/*.use-case.ts` imports at least two of: a second domain service, `AttachmentStore`, `QueueClient`, `Assistant`, `sql.withTransaction` |
+| R3 | each `application/**/*.use-case.ts` imports at least two of: a second domain service, `AttachmentBucket`, `QueueClient`, `Assistant`, `sql.withTransaction` |
 | R4 | `apps/api/chat/chat.handler.ts`: `list`, `get`, `rename`, `create` call `ChatService`; no use case of one call exists |
 | R5 | `grep -rn "messages\.\(update\|insert\)" application/ apps/` is empty; the reply e2e test still shows the stages and snapshots |
 | R6 | `ls apps/worker/chat/` shows `assistant-message.handler.ts`, `chat-title.handler.ts`; `find . -name "*.job.ts" -not -path "*/node_modules/*"` is empty |
@@ -270,10 +270,10 @@ the glossary, so the rules point at one definition of each word.
 | R12 | `make lint` green with a Biome `noNestedGen`-style check if one exists, else review: the five spots named read as one pipeline each |
 | R13 | `grep -rn "unknown\|Struct.evolve" infrastructure/*/*.repository.ts` is empty; `infrastructure/db/columns.ts` exports the two types and the builder, used by chat, attachment and message repositories |
 | R14 | `bun pm ls | grep -E "effect@|@effect/"` shows 4.0.6 everywhere; `make check` green |
-| R15 | e2e on MiniStack: 0 bytes, exactly 5 MiB and 5 MiB + 1 upload as one `PutObject`, one `PutObject` and two parts; a 12 MiB file uploads as three parts and `get` reads 12 MiB; a stream that fails mid-way leaves no object and no open multipart upload; `wc -l infrastructure/attachment/attachment.storage.ts` under 80 |
+| R15 | e2e on MiniStack: 0 bytes, exactly 5 MiB and 5 MiB + 1 upload as one `PutObject`, one `PutObject` and two parts; a 12 MiB file uploads as three parts and `get` reads 12 MiB; a stream that fails mid-way leaves no object and no open multipart upload; `wc -l infrastructure/attachment/attachment.bucket.ts` under 80 |
 | R16 | the migration alters `outbox.body` to `jsonb`; the relay e2e test still delivers the job |
 | R17 | with Docker stopped, `make test-unit` passes; `find . -path "*/tests/*.test.ts" -not -path "*/node_modules/*"` lists a suite per domain service, use case and handler, each under `<workspace>/tests/<module>/`; `find . -name "*.test.ts" -not -path "*/tests/*" -not -path "*/node_modules/*"` is empty; `ls domain/testing` shows one `.fake.ts` per entity plus the fixtures |
-| R18 | with Docker running and the local stand down, `make test-e2e` passes; `find . -name "*.e2e.ts" -not -path "*/node_modules/*"` lists the repositories, the relay, the migrations, the queue, `S3File` and `AttachmentStoreS3` under `<workspace>/e2e/<module>/` and `e2e/chat.e2e.ts` at the root, nothing under `apps/`; `grep -rln "Memory\b" --include=*.e2e.ts .` is empty; `find . -name "*.harness.ts" -o -name "*.fake.ts" -o -name "*.fixture.ts" -o -name "*.setup.ts"` lists only paths with a `testing/` segment; two e2e runs in two worktrees at once both pass |
+| R18 | with Docker running and the local stand down, `make test-e2e` passes; `find . -name "*.e2e.ts" -not -path "*/node_modules/*"` lists the repositories, the relay, the migrations, the queue, `S3Bucket` and `AttachmentBucketS3` under `<workspace>/e2e/<module>/` and `e2e/chat.e2e.ts` at the root, nothing under `apps/`; `grep -rln "Memory\b" --include=*.e2e.ts .` is empty; `find . -name "*.harness.ts" -o -name "*.fake.ts" -o -name "*.fixture.ts" -o -name "*.setup.ts"` lists only paths with a `testing/` segment; two e2e runs in two worktrees at once both pass |
 | R19 | `make help` lists the three test targets; one `vitest.config.ts` declares two `projects`; `bun run vitest run --project unit` runs only `*.test.ts` under `tests/`; `make check` runs `test` |
 | R22 | `ls apps/*/src` fails; `make dev-api`, `make dev-worker`, `make dev-web` start; `make check` green; `grep -rn "src/" apps/*/package.json apps/*/tsconfig.json biome.json Makefile` finds nothing for the three apps |
 | R23 | `make check` runs the bundle check; a probe that imports `ChatService` from a web feature turns it red; `grep -n sideEffects domain/package.json` shows `false` |

@@ -5,10 +5,10 @@
 ## Overview
 
 One model for every flow: a handler (api route or worker queue) calls one domain service method,
-or one use case when the flow composes several services, a transaction, the queue or the store.
+or one use case when the flow composes several services, a transaction, the queue or the bucket.
 Domain services own the rules and are the only writers of their records; they see ports, the
 clock and `Crypto`. Adapters implement the ports in `infrastructure`; `packages/s3` gains the
-generic `S3File` the attachment store runs on. Tests split by what they need: unit tests in
+generic `S3Bucket` the attachment bucket runs on. Tests split by what they need: unit tests in
 `tests/` over memory layers of the ports, e2e tests in `e2e/` over containers the run starts for
 itself, and one journey in a root `e2e/` workspace that drives both app layers in one process.
 
@@ -28,7 +28,7 @@ graph LR
   subgraph infrastructure
     tx["Transaction"]
     repo["*RepositoryPg"]
-    store["AttachmentStoreS3"] --> s3["packages/s3 · S3File"]
+    bucket["AttachmentBucketS3"] --> s3["packages/s3 · S3Bucket"]
     llm["AssistantLlm"]
     outbox["QueueClientOutbox"] --> relay["OutboxRelay"]
   end
@@ -39,7 +39,7 @@ graph LR
   uc --> tx
   uc --> outbox
   repo -. implements .-> port
-  store -. implements .-> port
+  bucket -. implements .-> port
   llm -. implements .-> port
 ```
 
@@ -64,12 +64,12 @@ Every `tests/` and `e2e/` file mirrors the source path; test support lives only 
 | `chat/assistant.port.ts` **new** | `Assistant`, `AssistantTurn` |
 | `chat/chat.service.ts` | `ChatService` (domain), `SendableChat` |
 | `chat/message.service.ts` **new** | `MessageService` |
-| `attachment/attachment.port.ts` **new** | `AttachmentRepository`, `AttachmentStore`, `AttachmentSet`, `AttachmentWhere` |
+| `attachment/attachment.port.ts` **new** | `AttachmentRepository`, `AttachmentBucket`, `AttachmentSet`, `AttachmentWhere` |
 | `attachment/attachment.model.ts` | model, `buildAttachment`, `unboundLifetime`, `isExpired`, `ensureBindable` |
 | `attachment/attachment.service.ts` | `AttachmentService` (domain) |
 | `user/user.port.ts` **new** · `user/user.service.ts` | `UserRepository` · `UserService` (domain), `UserSecret` |
 | `shared/` *gone* | `ensureFound` and the `./shared` export |
-| `testing/` **new** | `chat.fixture.ts`, `user.fixture.ts`, `attachment.fixture.ts` (from `application/testing`); `chat.fake.ts`: `ChatRepositoryMemory`, `MessageRepositoryMemory`; `attachment.fake.ts`: `AttachmentRepositoryMemory`, `AttachmentStoreMemory`; `user.fake.ts`: `UserRepositoryMemory`; `assistant.fake.ts`: `recordAssistant(script)`, `holdAssistantCall()`; `index.ts` |
+| `testing/` **new** | `chat.fixture.ts`, `user.fixture.ts`, `attachment.fixture.ts` (from `application/testing`); `chat.fake.ts`: `ChatRepositoryMemory`, `MessageRepositoryMemory`; `attachment.fake.ts`: `AttachmentRepositoryMemory`, `AttachmentBucketMemory`; `user.fake.ts`: `UserRepositoryMemory`; `assistant.fake.ts`: `recordAssistant(script)`, `holdAssistantCall()`; `index.ts` |
 | `tests/` **new** | `chat/chat.model.test.ts`, `chat/message.model.test.ts`, `chat/chat.service.test.ts`, `chat/message.service.test.ts`, `attachment/…`, `user/…` |
 | `package.json` | `exports["./testing"]`; `@effect/platform-bun` in `devDependencies` (`BunCrypto.layer` in tests) |
 
@@ -94,21 +94,21 @@ sits beside never reach the browser.
 | `db/testing/postgres.setup.ts` *gone* | replaced by `testing/e2e.setup.ts` |
 | `chat/chat.repository.ts`, `chat/message.repository.ts`, `attachment/attachment.repository.ts`, `user/user.repository.ts` | `selectOne(where)`, the shared builders, no `unknown` |
 | `chat/assistant.llm.ts` **new** · `chat/chat.llm.ts` *gone* | `AssistantLlm`: the prompts, `streamText`, `suggestTitle` over `LanguageModel` |
-| `attachment/attachment.storage.ts` | `AttachmentStoreS3` over `S3File`: keys, headers, the domain mapping; under 80 lines |
-| `shared/aws.client.ts` | `SQSServiceFromConfig`, `S3ServiceFromConfig`, **new** `S3FileFromConfig` (bucket from `AwsConfig.stage`) |
+| `attachment/attachment.bucket.ts` | `AttachmentBucketS3` over `S3Bucket`: keys, headers, the domain mapping; under 80 lines |
+| `shared/aws.client.ts` | `SQSServiceFromConfig`, `S3ServiceFromConfig`, **new** `S3BucketFromConfig` (bucket from `AwsConfig.stage`) |
 | `shared/queue.client.ts` · `outbox/outbox.entity.ts` · `outbox/outbox.relay.ts` | `body` as `jsonb` (the job's encoded JSON value); the relay's loop as one pipeline |
 | `testing/e2e.setup.ts` **new** | the e2e `globalSetup`: Postgres + migrated template, MiniStack; `provide('databaseUrl')`, `provide('awsEndpoint')` |
 | `testing/aws.harness.ts` **new** | `AwsTest`: a stage per test, `provision(resources, stage)`, `AwsConfig` over `inject('awsEndpoint')` |
 | `testing/rows.ts`, `testing/repository-stacks.ts` | as today |
 | `tests/shared/resources.test.ts` | the only pure suite |
-| `e2e/` **new** | `chat/chat.entity.e2e.ts`, `chat/message.entity.e2e.ts`, `chat/chat.repository.e2e.ts`, `chat/message.repository.e2e.ts`, `attachment/attachment.entity.e2e.ts`, `attachment/attachment.repository.e2e.ts`, `attachment/attachment.storage.e2e.ts` **new**, `user/user.repository.e2e.ts`, `db/db.client.e2e.ts`, `db/migrate.e2e.ts`, `outbox/outbox.relay.e2e.ts`, `shared/queue.client.e2e.ts` |
+| `e2e/` **new** | `chat/chat.entity.e2e.ts`, `chat/message.entity.e2e.ts`, `chat/chat.repository.e2e.ts`, `chat/message.repository.e2e.ts`, `attachment/attachment.entity.e2e.ts`, `attachment/attachment.repository.e2e.ts`, `attachment/attachment.bucket.e2e.ts` **new**, `user/user.repository.e2e.ts`, `db/db.client.e2e.ts`, `db/migrate.e2e.ts`, `outbox/outbox.relay.e2e.ts`, `shared/queue.client.e2e.ts` |
 | `package.json` | `exports["./testing"]` (one `index.ts` over `testing/` and `db/testing/`) |
 
 ### `packages`
 
 | File | Holds |
 |---|---|
-| `s3/s3.file.ts` **new** · `s3/index.ts` · `s3/package.json` | `S3File`, `S3File.layer({ bucket })` over `S3Service`; `e2e/s3.file.e2e.ts` |
+| `s3/bucket.ts` **new** · `s3/index.ts` · `s3/package.json` | `S3Bucket`, `S3Bucket.layer({ bucket })` over `S3Service`; `e2e/bucket.e2e.ts` |
 | `aws/provision.ts` | `provision(resources, stage)` creates the bucket too, idempotent like the queues |
 | `queue/e2e/queue.e2e.ts` | from `queue.test.ts`, on the run's MiniStack through `AwsTest` |
 | `testing/aws.ts` **new** · `testing/ministack.ts` *gone* | `SqsClientTest`, `S3ClientTest` over `inject('awsEndpoint')`; `ProvidedContext` gains `awsEndpoint` |
@@ -208,7 +208,7 @@ export class Assistant extends Context.Service<Assistant, {
 }>()('@app-template/domain/chat/Assistant') {}
 ```
 
-`AttachmentWhere` gains `userId` the same way (`selectOne({ id, userId })`); `AttachmentStore`
+`AttachmentWhere` gains `userId` the same way (`selectOne({ id, userId })`); `AttachmentBucket`
 and `UserRepository` keep today's methods.
 
 ### Domain services
@@ -273,7 +273,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<…, {
   readonly generate: (job: GenerateAssistantMessage) => Effect.Effect<void, MessageStageInvalidError>
   /** Fails the message while it is active, with `cause` kept out of the user's sight. */
   readonly fail: (messageId: MessageId, cause: Cause.Cause<unknown>) => Effect.Effect<void, MessageStageInvalidError>
-}>()(…) {}   // needs ChatRepository (the `updatedAt` write), MessageService, AttachmentStore (reads), Assistant
+}>()(…) {}   // needs ChatRepository (the `updatedAt` write), MessageService, AttachmentBucket (reads), Assistant
 
 // apps/worker/chat/assistant-message.handler.ts
 export const handle = Effect.fn('AssistantMessageHandler.handle')(function* (job, info: AttemptInfo) {
@@ -340,16 +340,16 @@ const where = buildWhere<ChatWhere>({
 `PgUpdateSetSource<Table>[K]` is Drizzle's own type for `set` (`GetColumnData | SQL | undefined`),
 so a mapper that returns the wrong shape fails typecheck instead of hiding behind `unknown`.
 
-### `S3File`
+### `S3Bucket`
 
 ```ts
-// packages/s3/s3.file.ts
+// packages/s3/bucket.ts
 export interface PutOptions {
   readonly contentType: string
   readonly fileName?: string           // Content-Disposition: inline; filename*=UTF-8''…
   readonly tags?: Record<string, string>
 }
-export class S3File extends Context.Service<S3File, {
+export class S3Bucket extends Context.Service<S3Bucket, {
   /** One PutObject below `partSize`, else a multipart upload; a failed stream leaves no object. */
   readonly put: <E>(key: string, content: Stream.Stream<Uint8Array, E>, options: PutOptions) => Effect.Effect<number, E>
   readonly get: (key: string) => Effect.Effect<Option.Option<Uint8Array>>
@@ -360,7 +360,7 @@ export class S3File extends Context.Service<S3File, {
   readonly untag: (key: string) => Effect.Effect<void>
   /** Idempotent. */
   readonly delete: (key: string) => Effect.Effect<void>
-}>()('@app-template/s3/S3File') {
+}>()('@app-template/s3/S3Bucket') {
   static readonly layer = (options: { readonly bucket: string; readonly partSize?: ByteSize.ByteSize }) =>
     Layer.effect(this, …)   // needs S3Service
 }
@@ -395,7 +395,7 @@ test-e2e: ## Run the e2e tests on their own containers (Docker running)
 test: test-unit test-e2e
 bundle-check: ## Fail when a domain service, port or adapter reaches the web bundle
 	bun build apps/web/app/main.ts --outdir node_modules/.cache/web-bundle --target browser
-	! grep -rE '@app-template/(domain|infrastructure)/[a-z-]+/[A-Za-z]+(Service|Repository|Store|Assistant)' node_modules/.cache/web-bundle
+	! grep -rE '@app-template/(domain|infrastructure)/[a-z-]+/[A-Za-z]+(Service|Repository|Bucket|Assistant)' node_modules/.cache/web-bundle
 check: ids lint typecheck migration-check test bundle-check
 ```
 
@@ -430,8 +430,8 @@ export const AwsTest = Layer.unwrap(Effect.gen(function* () {
 | `ApiTest` over the memory layers (`apps/api/tests`) | statuses, the cookie, the wire shape, multipart limits | the database, S3 |
 | each `*RepositoryPg` on `DbTest` (`infrastructure/e2e`) | the `Where` as SQL (an owner mismatch reads as absent), the builders, the unique index on the active message, the relational reads, the cascade refusing a bound attachment | the rules above |
 | `OutboxRelay` on `DbTest` + `AwsTest` (`infrastructure/e2e`) | a batch locked, sent to SQS and deleted; a failed send keeps its rows; the `jsonb` body round trip | what the worker does with the job |
-| `S3File` on `AwsTest` (`packages/s3/e2e`) | 0 bytes, exactly 5 MiB and 5 MiB + 1 as one `PutObject`, one part or two; a failed stream leaves no object and no open upload; `url`, `exists`, `untag`, `delete` on a missing key | the attachment keys and the domain mapping |
-| `AttachmentStoreS3` on `AwsTest` (`infrastructure/e2e`) | the key, the headers (type, disposition), the `unbound` tag on a `PutObject`, `keep` as `untag` | the tag on a multipart upload (MiniStack drops it) |
+| `S3Bucket` on `AwsTest` (`packages/s3/e2e`) | 0 bytes, exactly 5 MiB and 5 MiB + 1 as one `PutObject`, one part or two; a failed stream leaves no object and no open upload; `url`, `exists`, `untag`, `delete` on a missing key | the attachment keys and the domain mapping |
+| `AttachmentBucketS3` on `AwsTest` (`infrastructure/e2e`) | the key, the headers (type, disposition), the `unbound` tag on a `PutObject`, `keep` as `untag` | the tag on a multipart upload (MiniStack drops it) |
 | the journey over `StandTest` (`e2e/chat.e2e.ts`) | the wiring of both apps: HTTP → outbox → relay → SQS → worker → the stages and the title read back over HTTP; the delete that removes the objects | any rule (each has a lower seam); the production config |
 | `make bundle-check` | a service, port or adapter name in the web bundle | a type-only import that is erased |
 
@@ -491,10 +491,10 @@ export const AwsTest = Layer.unwrap(Effect.gen(function* () {
 - **D8 — E2E isolation is a stage per test on one MiniStack per run.** `provision(resources,
   stage)` learns to create the bucket, and `AwsTest` gives each test a stage `e2e<8 hex>` so
   the adapters build their names as in production. *Rejected:* a bucket per run with a key
-  prefix per test (the prefix is a test notion the store would have to know); a MiniStack per
+  prefix per test (the prefix is a test notion the bucket adapter would have to know); a MiniStack per
   file (1.1–1.4 s per start, 25 files).
-- **D9 — `S3File` is bound to one bucket per layer and gains `get`.** The bucket is an option of
-  `S3File.layer`, resolved once in `S3FileFromConfig`; `get` serves the assistant's read of the
+- **D9 — `S3Bucket` is bound to one bucket per layer and gains `get`.** The bucket is an option of
+  `S3Bucket.layer`, resolved once in `S3BucketFromConfig`; `get` serves the assistant's read of the
   attachments' bytes, which R15's list left out. *Rejected:* a bucket per call.
 - **D10 — Ownership is a `Where` field, not a predicate.** `selectOne({ id, userId })` lets the
   database answer "not yours" and "not found" alike; for messages the chat's `userId` is a
@@ -510,6 +510,19 @@ export const AwsTest = Layer.unwrap(Effect.gen(function* () {
 - **D13 — Ids come from `BunCrypto.layer` everywhere; `TestCrypto.layer(seed)` only for a test
   that asserts an id.** `effect/testing` has the seeded layer (`feature.md` said it did not;
   corrected). No test today asserts an id: it reads it from the model returned.
+- **D14 — A domain service that owns all of an aggregate's rules is named by the aggregate;
+  one that holds a single operation belonging to no entity is named by the operation.**
+  `ChatService`, `MessageService`, `AttachmentService` and `UserService` are the aggregates'
+  rule owners over the ports, the clock and `Crypto`, one per aggregate in `<entity>.service.ts`;
+  the operations that belong to an entity stay on it as pure functions named by the operation
+  (`prepareMessage`, `buildChatTitle`, `ensureBindable`), as Evans asks. A service for one
+  operation that belongs to no entity, if one appears, is named by that operation in the
+  ubiquitous language without the `Service` suffix (`FundsTransfer`), in `<operation>.service.ts`;
+  none exists today. Use cases already carry their goal (`SendMessageUseCase`). *Rejected:*
+  operation names for the four services now (`UserAuthentication`, `MessageStaging`): two of
+  the four have no single operation to be named by, and splitting them to find one gives
+  shallow modules; a kind word on every name (`ChatRulesService`), which would distinguish
+  nothing once `application` holds no service.
 
 ## Risks
 
@@ -517,7 +530,7 @@ export const AwsTest = Layer.unwrap(Effect.gen(function* () {
 |---|---|
 | effect 4.0.6 memoizes layers by identity in `Layer.provide`/`mergeAll`, which can change which instance a test layer shares | the upgrade is the first step, alone, with `make check`; a layer built twice in one test (`DbTest` for two runtimes) is built through one constant |
 | A memory layer drifts from the database's behaviour, so a unit test passes on a rule the real store refuses | each memory rule in D6 names its e2e twin; the plan's coverage table lists both |
-| MiniStack drops `Tagging` on `CreateMultipartUpload`, so the `unbound` tag of a large upload is untestable locally | `attachment.storage.e2e.ts` asserts the tag on the `PutObject` path only and says so; `aws.md` keeps the gap |
+| MiniStack drops `Tagging` on `CreateMultipartUpload`, so the `unbound` tag of a large upload is untestable locally | `attachment.bucket.e2e.ts` asserts the tag on the `PutObject` path only and says so; `aws.md` keeps the gap |
 | The journey polls a message to `completed` through a real queue and can be slow or flaky | a bounded `Effect.repeat` with `Schedule.spaced(100 ms)` under a 15 s `Effect.timeout`; the stub model answers at once |
 | The move touches some 60 files; a step over 400 lines or a step that breaks `make check` midway | the plan separates `git mv` steps (no behaviour) from behaviour steps, and does the test split before the service move, so every step is green |
 | Bun ignores `sideEffects` for a symlinked workspace, and the whole `domain` is bundled | the guard is a grep of the bundle, so it fails loudly; the fix would be an explicit `sideEffects` list, a later step |
