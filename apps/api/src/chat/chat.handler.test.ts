@@ -2,7 +2,6 @@ import { assert, describe, it } from '@effect/vitest'
 import { Array as Arr, Effect, Order, Schema } from 'effect'
 import { HttpClient } from 'effect/http'
 
-import { selectOutbox } from '@app-template/application/testing'
 import {
   ChatBusyError,
   ChatNotFoundError,
@@ -55,7 +54,7 @@ describe('chats', () => {
   )
 
   it.effect(
-    'POST /chats/:chatId/messages is 202 with a completed user message, a queued reply and its jobs',
+    'POST /chats/:chatId/messages is 202 with a completed user message and a queued reply',
     () =>
       Effect.gen(function* () {
         const api = yield* ApiClient
@@ -82,13 +81,6 @@ describe('chats', () => {
           text: '',
           attachments: [],
         })
-        assert.deepStrictEqual(
-          Arr.map(yield* selectOutbox, ({ queue, jobId }) => ({ queue, jobId })),
-          [
-            { queue: 'assistant-message', jobId: sent.assistantMessage.id },
-            { queue: 'chat-title', jobId: chat.id },
-          ],
-        )
       }).pipe(Effect.provide(ApiTest)),
   )
 

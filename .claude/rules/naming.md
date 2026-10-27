@@ -12,7 +12,7 @@ paths:
   packages `<dir>` (`@app-template/config`), apps `{api,worker,web}`, and `deployment`.
 - A layer exposes each entity as a subpath through its barrel: `@app-template/domain/chat` →
   `domain/chat/index.ts`. `http-api` and each package have one entry, `index.ts` or `client.ts`;
-  a package and `application` may add `./testing` (`Files` below).
+  `application` may add `./testing` (`Files` below).
 
 ## Imports
 
@@ -47,10 +47,9 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 
 `<entity>` is singular, like its folder (`user/user.http.ts`); a file with no role keeps a bare
 kebab name (`layer.ts`), and a tool's config file the name its tool reads (`drizzle.config.ts`).
-Test-support roles live only in `testing/`, listed by no barrel or `exports` save: the
-`packages/testing` index; a package's `./testing` for a double or test layer of its own
-(`@app-template/queue/testing`; `packages/testing` would form an import cycle); and
-`@app-template/application/testing`, which the apps' suites compose instead of copying.
+Test-support roles live only in `testing/`, listed by no barrel or `exports` save the
+`packages/testing` index and `@app-template/application/testing`, which the apps' suites compose
+instead of copying.
 
 ## Symbols
 
@@ -76,5 +75,5 @@ Test-support roles live only in `testing/`, listed by no barrel or `exports` sav
   in `<entity>/index.ts` bundles the aggregate's adapters, which a process provides.
 - Test support: a fixed fake layer is `<Service><Variant>` (`AttachmentStoreMemory`); a
   stateful fake `<verb><Thing>()` returns `{ <handle>, layer }` (`recordLogs`,
-  `recordQueue`); a test layer is `<Entity>Test` (`ChatTest`), `layer<Entity>Test(…)` when it
+  `recordLanguageModel`); a test layer is `<Entity>Test` (`ChatTest`), `layer<Entity>Test(…)` when it
   takes options.

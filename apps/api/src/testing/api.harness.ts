@@ -12,7 +12,7 @@ import { ApiHttp } from '#api/layer'
 /**
  * The api on an ephemeral port over a fresh database, the memory attachment store and the outbox;
  * its `HttpClient` targets that port, and its `Db` is open for arranging what only the worker
- * writes and for reading the outbox.
+ * writes.
  */
 export const ApiServerTest = ApiHttp.pipe(
   Layer.provide([AttachmentRepositoryPg, AttachmentStoreMemory, QueueClientOutbox]),

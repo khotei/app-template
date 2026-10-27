@@ -243,8 +243,7 @@ suites run on the test database too, and a race there runs the rival calls concu
 real repositories, with no fake between them. The suites share the stacks of
 every repository from `infrastructure/testing/repository-stacks.ts` and insert the parent rows
 with `insertUser` and its siblings from `infrastructure/testing/rows.ts`. The chat and api
-harnesses provide `QueueClientOutbox` and read the jobs back with `selectOutbox` from
-`application/testing/db.harness.ts`, each body parsed by Postgres (`body::json`). An
+harnesses provide `QueueClientOutbox`, so a send's jobs land in the test database's outbox. An
 `.entity.test.ts` checks what the schema itself refuses (a check, a partial unique index) and
 reads the `SqlError` of a refused statement with `flipSqlError` from
 `infrastructure/testing/db-test.ts`.

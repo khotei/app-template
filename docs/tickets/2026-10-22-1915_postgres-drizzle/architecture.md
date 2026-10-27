@@ -142,7 +142,7 @@ graph LR
 - application/chat/touch-chat.ts                replaced by the chat write in ChatService.addUserMessage
 - application/user/user-lock.ts
 ~ application/testing/chat.harness.ts           ChatTest: services on the Pg repositories over DbTest, AttachmentStoreMemory,
-                                                 QueueClientOutbox; reads the outbox table in place of recordQueue (S11)   (D21)
+                                                 QueueClientOutbox; its suite reads the outbox table, recordQueue goes (S11) (D21)
 + application/testing/{attachment.fake,db.harness,index}.ts   AttachmentStoreMemory, DbTest, DbWithUsers; the ./testing
                                                  export the api's harness composes                                 (D21)
 ~ application/testing/chat.fake.ts              interleaveMessages and AttachmentRepositoryYielding go (real concurrency now);
@@ -383,10 +383,10 @@ build them with `buildResourceName` as the program does.
   TEMPLATE template`, `PgClient.layer({ url })` for it; the scope's release drops the database
   `WITH (FORCE)`. Each test provides its stack over it (`Effect.provide`, usually through
   `DbTest`), about 40 ms for the create, the connection and the drop.
-- `recordQueue` stays in `packages/queue/testing` for suites with no database; the harnesses read
-  `outbox` rows instead.
-- S3 and SQS stay out of the application and api suites (D21): they take `AttachmentStoreMemory`,
-  and `recordQueue` until S11. `it.effect` gives each test its own `TestClock` at epoch, `it.live` runs
+- The harnesses provide `QueueClientOutbox` on the test database; the send's suite reads the
+  `outbox` rows, and `recordQueue` went in S11 with no caller left.
+- S3 and SQS stay out of the application and api suites (D21): they take `AttachmentStoreMemory`
+  and the outbox. `it.effect` gives each test its own `TestClock` at epoch, `it.live` runs
   where time must move, and the tests of a file run concurrently.
 
 ## Seams
@@ -399,7 +399,7 @@ build them with `buildResourceName` as the program does.
 | 4 `QueueClientOutbox` and `OutboxRelay` on `PgClientTest` + a recording `QueueTransport` (D21) | a `send` inside a failed transaction leaves no row; a row is published to its queue with its `jobId` and deleted; two relays over one database publish each row once; a failing transport keeps the row; the poll interval and the retry after a refusal on the live clock, since a relay waiting on Postgres registers its sleep at a moment a `TestClock` cannot observe | SQS outages longer than a test |
 | 5 services and use cases on `ChatTest`: the Pg repositories over `DbTest`, `AttachmentStoreMemory`, `QueueClientOutbox`, `BunCrypto` (D21) | a send writes the chat's `updatedAt`, two messages, the binds and one or two outbox rows in one transaction, and nothing on a failing step; two concurrent sends to one chat → one `ChatBusyError`; two concurrent binds of one attachment → one `AttachmentBoundError`; rename beside a send keeps both; a delete beside a send leaves the send a success or `ChatNotFoundError`; `ChatService.updateTitle` refuses a titled chat (`ChatTitledError`) and loses to a rename; delete cascade and the attachments' removal; `addAssistantMessage` alone is refused on a busy chat | HTTP statuses; S3 and SQS (D21) |
 | 6 jobs with the fake `LanguageModel`: on Postgres the stages a job writes, held at a model call, never stepped by the clock; the timings in a block with no database, on `TestClock` (D21) | the stage sequence through `update(…, { stage })`; a snapshot every 300 ms; a message settled by another writer stops the job with `already settled`; the dead-letter handler fails an active message with `ReplyFailed` and a dead-letter cause, leaves a terminal one, logs for a deleted chat; the title dead-letter handler only logs; the title job logs `ChatTitledError` as already titled | a real provider |
-| 7 `apps/api` through `BunHttpServer.layerTest` + `ApiClient` on `ApiTest` (D21) | what HTTP adds: `401` without a cookie, `202` with outbox rows, the failed-reply wire shape, the download redirect, the upload refusals, `404` on a stranger's chat, `409` on a busy chat across two concurrent requests | the worker, the relay; the business rules (Seam 5); a changed contract, which shows as a diff of `http-api/` (D20) |
+| 7 `apps/api` through `BunHttpServer.layerTest` + `ApiClient` on `ApiTest` (D21) | what HTTP adds: `401` without a cookie, `202`, the failed-reply wire shape, the download redirect, the upload refusals, `404` on a stranger's chat, `409` on a busy chat across two concurrent requests | the worker, the relay; the business rules (Seam 5); a changed contract, which shows as a diff of `http-api/` (D20) |
 | 8 `apps/worker` layer build — *dropped in S6 (D21)* | a layer build test checks the framework, as the api's did; `make dev-worker` starts the relay and the four workers | — |
 | 9 `make migration-check` (local in `make check`; strict in CI on a fresh checkout) | an entity change without a committed migration (CI), or without any migration in the tree (local); a changed domain literal or pattern that an enum or check reads | a migration edited by hand; locally, a migration not yet committed |
 | 10 by hand (acceptance R16–R18): `make up`, `down`, `reset`, worktree `N=1` | the instance, the bucket and the queues created by Pulumi, `DATABASE_URL` in `.env.pulumi`, persistence across `down`, the volume on `reset`, two trees side by side | the prod stack (ticket 9) |
@@ -602,7 +602,8 @@ build them with `buildResourceName` as the program does.
   `main` changes no route, schema or error. *Rejected:* keeping the document with a snapshot test
   (a file and a suite to keep in step for no reader).
 - **D21 — Tests cover our code, not AWS or the framework.** The application and api suites take
-  in-memory layers for S3 and the queue, `AttachmentStoreMemory` and `recordQueue`, which
+  an in-memory layer for S3, `AttachmentStoreMemory`, and the outbox on the test database for the
+  queue (`recordQueue` until S11, amended then), which
   `@app-template/application/testing` exports so `ApiTest` composes the application's own.
   MiniStack runs only `packages/queue/queue.test.ts`, the worker's retry, heartbeat and
   dead-letter logic, in a container of its own; the S3 adapter, `provision` and the SQS transport

@@ -32,7 +32,6 @@ import {
   settle,
   upload,
 } from '#application/testing/chat.harness'
-import { selectOutbox } from '#application/testing/db.harness'
 import { owner, stranger } from '#application/testing/user.fixture'
 
 const boundElsewhere = Effect.gen(function* () {
@@ -62,6 +61,22 @@ const refusedAttachments = [
     refusal: AttachmentBoundError,
   },
 ] as const
+
+const refusedWrites = [
+  {
+    name: 'reply insert',
+    constraint: `ALTER TABLE messages ADD CONSTRAINT refuse_reply CHECK (author <> 'assistant')`,
+  },
+  {
+    name: 'title job insert',
+    constraint: `ALTER TABLE outbox ADD CONSTRAINT refuse_title CHECK (queue <> 'chat-title')`,
+  },
+] as const
+
+const selectOutbox = Effect.flatMap(
+  SqlClient.SqlClient,
+  (sql) => sql`SELECT queue, job_id AS "jobId", body::json AS job FROM outbox`,
+).pipe(Effect.orDie)
 
 const sendConcurrently = (sends: ReadonlyArray<readonly [ChatId, MessageInput]>) =>
   Effect.flatMap(SendMessageUseCase, (sendMessage) =>
@@ -120,12 +135,13 @@ describe('SendMessageUseCase', () => {
       yield* settle(first.assistantMessage.message)
       const second = yield* sendMessage.send(owner, chat.id, ask('And in Porto?'))
 
+      const jobs = yield* selectOutbox
       const reply = (id: MessageId) => ({
         queue: 'assistant-message',
         jobId: id,
         job: { chatId: chat.id, messageId: id },
       })
-      assert.deepStrictEqual(yield* selectOutbox, [
+      assert.sameDeepMembers(Arr.copy(jobs), [
         reply(first.assistantMessage.message.id),
         {
           queue: 'chat-title',
@@ -154,39 +170,14 @@ describe('SendMessageUseCase', () => {
     }).pipe(Effect.provide(ChatTest)),
   )
 
-  it.live(
-    'send whose reply insert fails leaves no message, no bind, no chat change and no job',
-    () =>
+  it.live.each(refusedWrites)(
+    'send whose $name fails leaves no message, no bind, no chat change and no job',
+    ({ constraint }) =>
       Effect.gen(function* () {
         const sendMessage = yield* SendMessageUseCase
         const sql = yield* SqlClient.SqlClient
         const photo = yield* upload(owner, 'photo.png')
-        yield* Effect.orDie(
-          sql`ALTER TABLE messages ADD CONSTRAINT refuse_reply CHECK (author <> 'assistant')`,
-        )
-
-        const exit = yield* Effect.exit(
-          sendMessage.send(owner, chat.id, { text: 'Look', attachmentIds: [photo.id] }),
-        )
-
-        assert.isTrue(Exit.hasDies(exit))
-        assertEquals(yield* selectMessages(chat.id), [])
-        assertEquals(yield* selectAttachments([photo]), [photo])
-        assertEquals(yield* selectChat(chat.id), Option.some(chat))
-        assert.deepStrictEqual(yield* selectOutbox, [])
-      }).pipe(Effect.provide(ChatTest)),
-  )
-
-  it.live(
-    'send whose title job insert fails leaves no message, no bind, no chat change and no job',
-    () =>
-      Effect.gen(function* () {
-        const sendMessage = yield* SendMessageUseCase
-        const sql = yield* SqlClient.SqlClient
-        const photo = yield* upload(owner, 'photo.png')
-        yield* Effect.orDie(
-          sql`ALTER TABLE outbox ADD CONSTRAINT refuse_title CHECK (queue <> 'chat-title')`,
-        )
+        yield* Effect.orDie(sql.unsafe(constraint))
 
         const exit = yield* Effect.exit(
           sendMessage.send(owner, chat.id, { text: 'Look', attachmentIds: [photo.id] }),

@@ -29,8 +29,7 @@ paths:
   (`Effect.provide(ChatTest)`), never through a callback runner.
 - Test support that several test files share lives in `<workspace>/testing/` (or
   `packages/testing` when several workspaces share it, `@app-template/testing`, declared in
-  `devDependencies`); tests stay colocated with their source. Roles, and a package's own
-  `<package>/testing`: `naming.md › Files`.
+  `devDependencies`); tests stay colocated with their source. Roles: `naming.md › Files`.
 
 ## Resources and time
 

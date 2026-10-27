@@ -811,22 +811,43 @@ methods; running it after S9 avoids merge work.
   enqueues back inside `sql.withTransaction`, merging `writeMessages` into `send` (S8 enqueues
   after the commit while the api sends to SQS). `apps/api` provides `QueueClientOutbox`
   in place of `QueueClientSqs`; the harnesses (`chat.harness.ts`, `api.harness.ts`) provide
-  `QueueClientOutbox` and read `outbox` rows in place of `recordQueue`, which stays in
-  `packages/queue/testing` for suites without a database. `use-cases.md` replaces "Enqueue after
+  `QueueClientOutbox`, the send's suite reads `outbox` rows, and `recordQueue` goes with its
+  `./testing` export, no caller left. `use-cases.md` replaces "Enqueue after
   the writes the job reads" with the outbox rule (R5, R6; D4).
 - **Blocked by:** S9, S10.
-- **Files:** `apps/api/src/layer.ts`, `apps/api/package.json`,
+- **Files:** `application/chat/send-message.use-case.ts`, `apps/api/src/layer.ts`,
+  `apps/api/{package.json,tsconfig.json}`, `application/testing/{db.harness.ts,index.ts}`,
+  `packages/queue/{package.json,testing/queue.fake.ts (deleted)}`,
+  `.claude/rules/{naming.md,effect-tests.md}`,
   `application/testing/chat.harness.ts`, `apps/api/src/testing/api.harness.ts`,
   `application/chat/send-message.use-case.test.ts`, `apps/api/src/chat/chat.handler.test.ts`,
   `.claude/rules/use-cases.md`, `docs/knowledge/aws.md` (Queues: the api never sends to SQS),
   `docs/knowledge/database.md` (the send and the outbox).
 - **Test first:** Seam 5 — `send` leaves one outbox row (two when the message opens the chat) in
   the same transaction as the messages, with the bodies the jobs decode; the failing insert of S9
-  leaves the outbox empty. Seam 7 — a `202` leaves its outbox rows.
+  leaves the outbox empty, and so does a refused title job row. Seam 7 — a `202`.
 - **Verify:** `make check`; `make up`, `make dev`, one send: `psql` shows the two outbox rows
-  gone within a second and the worker log shows the reply job; with the worker stopped the rows
+  gone within a second, the reply `completed` and the chat titled; with the worker stopped the rows
   stay; `git grep -n recordQueue -- application apps` is empty.
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - A second rollback case has the outbox refuse the title job's row (a check the test adds):
+    S9's refused reply insert fails before any enqueue, so it passes whether or not the jobs are
+    in the transaction, and only the refused job proves R5 and R6. Both cases are one
+    `it.live.each`; without `sql.withTransaction` both turn red.
+  - The jobs are checked once, at Seam 5: the api handler test keeps only its `202`, since the
+    harness provides `QueueClientOutbox` itself and the rows are the use case's rule. Seam 7
+    amended. `selectOutbox` then serves one file and lives in it, reading `body::json` so a job
+    compares with a plain object.
+  - The suite compares the jobs as a set: under `TestClock` every `created_at` is equal, so the
+    rows have no defined order.
+  - `recordQueue` and `@app-template/queue/testing` went with no caller left, and with them the
+    rules' allowance for a package's own `./testing` (user's call: no package needs one).
+    `apps/api` drops its `@app-template/queue` dev dependency. R6's acceptance and D21 amended.
+  - *Verify*'s "the worker log shows the reply job" could not hold: a job that succeeds logs
+    nothing at Info; the reply `completed` and the chat's title show it instead.
+  - The step landed in two rounds, S11.1–S11.2, after one review, in a worktree beside S13,
+    rebased onto it with no conflict.
 
 #### S12 — Read models as relational queries
 
