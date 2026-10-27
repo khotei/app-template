@@ -7,6 +7,7 @@
     "./attachment": "./attachment/index.ts",
     "./chat": "./chat/index.ts",
     "./shared": "./shared/index.ts",
+    "./testing": "./testing/index.ts",
     "./user": "./user/index.ts"
   },
   "imports": {
@@ -18,6 +19,7 @@
   },
   "devDependencies": {
     "@app-template/testing": "workspace:*",
+    "@effect/platform-bun": "catalog:effect",
     "@effect/vitest": "catalog:effect"
   }
 }

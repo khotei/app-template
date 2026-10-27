@@ -4,13 +4,13 @@ import { Effect, Exit, Layer, Option, Ref } from 'effect'
 
 import { AttachmentStore } from '@app-template/domain/attachment'
 import { ChatNotFoundError, ChatRepository } from '@app-template/domain/chat'
+import { ask, chat, owner, stranger, unknownChatId } from '@app-template/domain/testing'
 import { ChatRepositoryPg } from '@app-template/infrastructure/chat'
 import { assertSchemaEquals } from '@app-template/testing'
 
 import { ChatService } from '#application/chat/chat.service'
 import { DeleteChatUseCase } from '#application/chat/delete-chat.use-case'
 import { SendMessageUseCase } from '#application/chat/send-message.use-case'
-import { ask, chat, unknownChatId } from '#application/testing/chat.fixture'
 import {
   ChatTest,
   layerChatTest,
@@ -19,7 +19,6 @@ import {
   selectMessages,
   upload,
 } from '#application/testing/chat.harness'
-import { owner, stranger } from '#application/testing/user.fixture'
 
 /** The Postgres chat repository whose first `delete` dies, as a store failure would. */
 const ChatRepositoryDeleteFailingOnce = Layer.effect(

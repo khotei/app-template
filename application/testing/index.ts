@@ -1,2 +1,3 @@
-export { AttachmentStoreMemory } from '#application/testing/attachment.fake'
+export { AttachmentStoreMemory } from '@app-template/domain/testing'
+
 export { DbTest } from '#application/testing/db.harness'

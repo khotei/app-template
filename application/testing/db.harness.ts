@@ -1,5 +1,6 @@
 import { Effect, Layer } from 'effect'
 
+import { epoch, owner, stranger } from '@app-template/domain/testing'
 import {
   buildUser,
   Credential,
@@ -10,9 +11,6 @@ import {
 import { Db } from '@app-template/infrastructure/db'
 import { UserPg } from '@app-template/infrastructure/user'
 import { PgClientTest } from '@app-template/testing'
-
-import { epoch } from '#application/testing/chat.fixture'
-import { owner, stranger } from '#application/testing/user.fixture'
 
 /** Gives each user a credential of its own, since a credential's hash is a primary key. */
 const insertUser = (id: UserId) =>

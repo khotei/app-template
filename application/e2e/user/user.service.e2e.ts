@@ -6,12 +6,12 @@ import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Layer, Option, Redacted, Result } from 'effect'
 import { Base64Url } from 'effect/encoding'
 
+import { epoch } from '@app-template/domain/testing'
 import { Credential, SecretHash, UserRepository, UserUnknownError } from '@app-template/domain/user'
 import { Db } from '@app-template/infrastructure/db'
 import { UserPg } from '@app-template/infrastructure/user'
 import { assertSchemaEquals, isUuidV7 } from '@app-template/testing'
 
-import { epoch } from '#application/testing/chat.fixture'
 import { DbTest } from '#application/testing/db.harness'
 import { type UserSecret, UserService } from '#application/user/user.service'
 

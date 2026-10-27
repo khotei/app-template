@@ -15,6 +15,7 @@ import {
   MessageRepository,
   prepareMessage,
 } from '@app-template/domain/chat'
+import { AttachmentStoreMemory, chat } from '@app-template/domain/testing'
 import type { UserId } from '@app-template/domain/user'
 import { AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
 import { ChatRepositoryPg, MessageRepositoryPg } from '@app-template/infrastructure/chat'
@@ -26,8 +27,6 @@ import { AttachmentService } from '#application/attachment/attachment.service'
 import { ChatService } from '#application/chat/chat.service'
 import { DeleteChatUseCase } from '#application/chat/delete-chat.use-case'
 import { SendMessageUseCase } from '#application/chat/send-message.use-case'
-import { AttachmentStoreMemory } from '#application/testing/attachment.fake'
-import { chat } from '#application/testing/chat.fixture'
 import { DbWithUsers } from '#application/testing/db.harness'
 
 const insertChat = Layer.effectDiscard(

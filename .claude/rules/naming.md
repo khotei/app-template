@@ -51,7 +51,8 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 kebab name (`layer.ts`), and a tool's config file the name its tool reads (`drizzle.config.ts`).
 `tests/` and `e2e/` sit at the workspace's top and mirror the source path
 (`domain/tests/chat/message.model.test.ts`); a module folder holds no test. Test-support roles
-live only in `testing/`, listed by no barrel or `exports` save the `packages/testing` index and
+live only in `testing/`, listed by no barrel or `exports` save the `packages/testing` index,
+`@app-template/domain/testing` (the memory layers and the fixtures) and
 `@app-template/application/testing`, which the apps' suites compose instead of copying.
 
 ## Symbols
@@ -80,5 +81,6 @@ live only in `testing/`, listed by no barrel or `exports` save the `packages/tes
   in `<entity>/index.ts` bundles the aggregate's adapters, which a process provides.
 - Test support: a fixed fake layer is `<Service><Variant>` (`AttachmentStoreMemory`); a
   stateful fake `<verb><Thing>()` returns `{ <handle>, layer }` (`recordLogs`,
-  `recordLanguageModel`); a test layer is `<Entity>Test` (`ChatTest`), `layer<Entity>Test(…)` when it
-  takes options.
+  `recordLanguageModel`); `<Entity>Rows` is the map service a memory layer keeps its rows in
+  (`ChatRows`), which a test reads or arranges through; a test layer is `<Entity>Test`
+  (`ChatTest`), `layer<Entity>Test(…)` when it takes options.

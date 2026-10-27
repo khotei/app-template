@@ -13,18 +13,20 @@ import {
   ChatTitledError,
   MessageNotFoundError,
 } from '@app-template/domain/chat'
+import {
+  ask,
+  chat,
+  epoch,
+  owner,
+  stranger,
+  unknownChatId,
+  unknownMessageId,
+} from '@app-template/domain/testing'
 import type { UserId } from '@app-template/domain/user'
 import { assertSchemaEquals, isUuidV7 } from '@app-template/testing'
 
 import { ChatService } from '#application/chat/chat.service'
 import { SendMessageUseCase } from '#application/chat/send-message.use-case'
-import {
-  ask,
-  chat,
-  epoch,
-  unknownChatId,
-  unknownMessageId,
-} from '#application/testing/chat.fixture'
 import {
   ChatTest,
   selectChat,
@@ -32,7 +34,6 @@ import {
   settle,
   upload,
 } from '#application/testing/chat.harness'
-import { owner, stranger } from '#application/testing/user.fixture'
 
 type ChatCall = (
   service: ChatService['Service'],

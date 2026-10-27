@@ -1,8 +1,9 @@
 import { DateTime } from 'effect'
 
-import { buildChat, ChatId, MessageId, type MessageInput } from '@app-template/domain/chat'
-
-import { owner } from '#application/testing/user.fixture'
+import { ChatId, MessageId } from '#domain/chat/chat.id'
+import { buildChat } from '#domain/chat/chat.model'
+import type { MessageInput } from '#domain/chat/message.model'
+import { owner } from '#domain/testing/user.fixture'
 
 export const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000020')
 export const messageId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000030')

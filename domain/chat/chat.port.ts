@@ -1,4 +1,4 @@
-import { Context, type Effect, type Option } from 'effect'
+import { Context, type Effect, type Option, type Types } from 'effect'
 import type { RequireAtLeastOne } from 'type-fest'
 
 import type { ChatId } from '#domain/chat/chat.id'
@@ -6,10 +6,10 @@ import type { Chat, ChatDetail, ChatSummary } from '#domain/chat/chat.model'
 import type { UserId } from '#domain/user/user.id'
 
 /** The fields a write may change; `userId` and `createdAt` never change. */
-export type ChatSet = RequireAtLeastOne<Pick<Chat, 'title' | 'updatedAt'>>
+export type ChatSet = Types.Simplify<RequireAtLeastOne<Pick<Chat, 'title' | 'updatedAt'>>>
 
 /** The row is found by `id`; any other field must still hold its value. */
-export type ChatWhere = { readonly id: ChatId } & Partial<Pick<Chat, 'title'>>
+export type ChatWhere = Types.Simplify<{ readonly id: ChatId } & Partial<Pick<Chat, 'title'>>>
 
 export class ChatRepository extends Context.Service<
   ChatRepository,

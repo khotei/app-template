@@ -114,9 +114,11 @@
                       "!@app-template/testing/**",
                       "@effect/**",
                       "!@effect/vitest",
-                      "!@effect/vitest/**"
+                      "!@effect/vitest/**",
+                      "!@effect/platform-bun",
+                      "!@effect/platform-bun/**"
                     ],
-                    "message": "domain tests import no workspace but the test support @app-template/testing, and no @effect/* package except the test runner @effect/vitest"
+                    "message": "domain tests import no workspace but the test support @app-template/testing, and no @effect/* package except the test runner @effect/vitest and @effect/platform-bun for BunCrypto.layer"
                   },
                   {
                     "group": ["./**", "../**"],

@@ -37,6 +37,14 @@ import {
   MessageId,
   MessageRepository,
 } from '@app-template/domain/chat'
+import {
+  AttachmentStoreMemory,
+  chat,
+  chatId,
+  epoch,
+  messageId,
+  owner,
+} from '@app-template/domain/testing'
 import { AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
 import {
   assistantMessageDeadLetterQueue,
@@ -50,15 +58,12 @@ import { png, recordLogs } from '@app-template/testing'
 
 import { AssistantMessageJob } from '#application/chat/assistant-message.job'
 import { ChatService } from '#application/chat/chat.service'
-import { AttachmentStoreMemory } from '#application/testing/attachment.fake'
-import { chat, chatId, epoch, messageId } from '#application/testing/chat.fixture'
 import { DbWithUsers } from '#application/testing/db.harness'
 import {
   holdModelCall,
   type ModelCallHold,
   recordLanguageModel,
 } from '#application/testing/language-model.fake'
-import { owner } from '#application/testing/user.fixture'
 
 const historyId = (n: number) => MessageId.make(`0192d4e0-7b3a-7c00-8000-00000000005${n}`)
 const photoId = AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000040')

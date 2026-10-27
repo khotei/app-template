@@ -18,12 +18,19 @@ import {
   type MessageId,
   type MessageInput,
 } from '@app-template/domain/chat'
+import {
+  ask,
+  chat,
+  epoch,
+  owner,
+  stranger,
+  unknownAttachmentId,
+  unknownChatId,
+} from '@app-template/domain/testing'
 import { assertSchemaEquals, isUuidV7, sortById } from '@app-template/testing'
 
 import { ChatService } from '#application/chat/chat.service'
 import { SendMessageUseCase } from '#application/chat/send-message.use-case'
-import { unknownAttachmentId } from '#application/testing/attachment.fixture'
-import { ask, chat, epoch, unknownChatId } from '#application/testing/chat.fixture'
 import {
   ChatTest,
   selectAttachments,
@@ -32,7 +39,6 @@ import {
   settle,
   upload,
 } from '#application/testing/chat.harness'
-import { owner, stranger } from '#application/testing/user.fixture'
 
 const boundElsewhere = Effect.gen(function* () {
   const chats = yield* ChatService

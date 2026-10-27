@@ -1,7 +1,7 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, Duration, Effect, Exit, Layer, Option, Stream } from 'effect'
+import { Array as Arr, Duration, Effect, Exit, HashMap, Layer, Option, Ref, Stream } from 'effect'
 import { TestClock } from 'effect/testing'
 
 import {
@@ -17,6 +17,17 @@ import {
   MediaType,
 } from '@app-template/domain/attachment'
 import { buildUserMessage, ChatRepository, MessageRepository } from '@app-template/domain/chat'
+import {
+  AttachmentObjects,
+  AttachmentStoreMemory,
+  chat,
+  chatId,
+  epoch,
+  messageId,
+  owner,
+  stranger,
+  unknownAttachmentId,
+} from '@app-template/domain/testing'
 import type { UserId } from '@app-template/domain/user'
 import { AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
 import { ChatPg } from '@app-template/infrastructure/chat'
@@ -30,12 +41,8 @@ import {
 } from '@app-template/testing'
 
 import { AttachmentService } from '#application/attachment/attachment.service'
-import { AttachmentObjects, AttachmentStoreMemory } from '#application/testing/attachment.fake'
-import { unknownAttachmentId } from '#application/testing/attachment.fixture'
-import { chat, chatId, epoch, messageId } from '#application/testing/chat.fixture'
 import { upload } from '#application/testing/chat.harness'
 import { DbWithUsers } from '#application/testing/db.harness'
-import { owner, stranger } from '#application/testing/user.fixture'
 
 const insertMessage = Effect.gen(function* () {
   const chats = yield* ChatRepository
@@ -81,7 +88,7 @@ const countStored = Effect.all({
     Effect.map(Arr.length),
     Effect.orDie,
   ),
-  objects: Effect.map(AttachmentObjects, (objects) => objects.size),
+  objects: Effect.flatMap(AttachmentObjects, Ref.get).pipe(Effect.map(HashMap.size)),
 })
 
 const storeHref = (id: AttachmentId) =>

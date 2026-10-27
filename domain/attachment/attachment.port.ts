@@ -1,14 +1,14 @@
-import { Context, type Effect, type Option, type Stream } from 'effect'
+import { Context, type Effect, type Option, type Stream, type Types } from 'effect'
 import type { RequireAtLeastOne } from 'type-fest'
 
 import type { AttachmentId } from '#domain/attachment/attachment.id'
 import type { Attachment, AttachmentMeta, FileSize } from '#domain/attachment/attachment.model'
 
-export type AttachmentSet = RequireAtLeastOne<Pick<Attachment, 'messageId'>>
+export type AttachmentSet = Types.Simplify<RequireAtLeastOne<Pick<Attachment, 'messageId'>>>
 
 /** The rows are found by `id`; any other field must still hold its value. */
-export type AttachmentWhere = { readonly id: ReadonlyArray<AttachmentId> } & Partial<
-  Pick<Attachment, 'messageId'>
+export type AttachmentWhere = Types.Simplify<
+  { readonly id: ReadonlyArray<AttachmentId> } & Partial<Pick<Attachment, 'messageId'>>
 >
 
 export class AttachmentRepository extends Context.Service<

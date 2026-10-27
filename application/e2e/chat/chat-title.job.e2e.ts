@@ -12,13 +12,13 @@ import {
   MessageRepository,
   maxTitleLength,
 } from '@app-template/domain/chat'
+import { chat, chatId, epoch, messageId } from '@app-template/domain/testing'
 import { AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
 import { ChatPg, GenerateChatTitle } from '@app-template/infrastructure/chat'
 import { recordLogs } from '@app-template/testing'
 
 import { ChatService } from '#application/chat/chat.service'
 import { ChatTitleJob } from '#application/chat/chat-title.job'
-import { chat, chatId, epoch, messageId } from '#application/testing/chat.fixture'
 import { selectChat } from '#application/testing/chat.harness'
 import { DbWithUsers } from '#application/testing/db.harness'
 import {
