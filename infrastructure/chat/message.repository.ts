@@ -3,14 +3,15 @@ import { Array as Arr, Effect, Layer, Option, Schema, Struct } from 'effect'
 
 import { isActiveMessage, MessageRepository, type MessageWhere } from '@app-template/domain/chat'
 
-import { type AttachmentRow, decodeAttachment } from '#infrastructure/attachment/attachment.entity'
+import { decodeMessageDetail } from '#infrastructure/attachment/attachment.entity'
 import {
   activeMessage,
   activeMessageFilter,
   decodeMessage,
+  inCreationOrder,
   MessageInsert,
-  type MessageRow,
   messages,
+  withAttachments,
 } from '#infrastructure/chat/message.entity'
 import { Db, decodeFound, orDieWithSqlError } from '#infrastructure/db/db.client'
 
@@ -19,22 +20,6 @@ const encodeMessage = Schema.encodeEffect(MessageInsert)
 const whereColumns = {
   stage: (stage) => eq(messages.stage, stage),
 } as const satisfies { readonly [K in keyof MessageWhere]: (value: MessageWhere[K]) => SQL }
-
-export const inCreationOrder = { createdAt: 'asc', id: 'asc' } as const
-
-export const withAttachments = {
-  attachments: { orderBy: { createdAt: 'asc', id: 'asc' } },
-} as const
-
-export type MessageDetailRow = typeof MessageRow.Encoded & {
-  readonly attachments: ReadonlyArray<typeof AttachmentRow.Encoded>
-}
-
-export const decodeMessageDetail = ({ attachments, ...row }: MessageDetailRow) =>
-  Effect.all({
-    message: decodeMessage(row),
-    attachments: Effect.forEach(attachments, decodeAttachment),
-  })
 
 export const MessageRepositoryPg = Layer.effect(
   MessageRepository,
@@ -80,8 +65,8 @@ export const MessageRepositoryPg = Layer.effect(
         return yield* Effect.forEach(rows, decodeMessageDetail)
       }, orDieWithSqlError),
       existsByChat: Effect.fn('MessageRepository.existsByChat')(function* (chatId) {
-        const row = yield* db.query.chats.findFirst({
-          where: { id: chatId, messages: true },
+        const row = yield* db.query.messages.findFirst({
+          where: { chatId },
           columns: { id: true },
         })
         return row !== undefined

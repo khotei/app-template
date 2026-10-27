@@ -53,14 +53,9 @@ const attachment = (id: string, seconds: number) =>
 
 const SelectedMessage = Schema.Option(Message)
 
-const Messages = Schema.Array(Message)
+const Detail = Schema.Struct({ message: Message, attachments: Schema.Array(Attachment) })
 
-const MessageDetail = Schema.Struct({ message: Message, attachments: Schema.Array(Attachment) })
-
-const selectMessages = (chatId: ChatId) =>
-  Effect.flatMap(MessageRepository, (messages) => messages.selectByChat(chatId)).pipe(
-    Effect.map(Arr.map(({ message }) => message)),
-  )
+const Details = Schema.Array(Detail)
 
 /** Uploads the attachments, then binds them to the message, as a send does. */
 const bindAttachments = (attachments: ReadonlyArray<Attachment>, message: Message) =>
@@ -88,7 +83,10 @@ describe('MessageRepositoryPg', () => {
         (each) => messages.insert(each),
       )
 
-      assertSchemaEquals(Messages, yield* selectMessages(chatId), [question, reply])
+      assertSchemaEquals(Details, yield* messages.selectByChat(chatId), [
+        { message: question, attachments: [] },
+        { message: reply, attachments: [] },
+      ])
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
@@ -165,7 +163,9 @@ describe('MessageRepositoryPg', () => {
       const refused = yield* messages.insert(second)
 
       assert.deepStrictEqual([inserted, refused], [true, false])
-      assertSchemaEquals(Messages, yield* selectMessages(chatId), [queued])
+      assertSchemaEquals(Details, yield* messages.selectByChat(chatId), [
+        { message: queued, attachments: [] },
+      ])
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
@@ -183,7 +183,10 @@ describe('MessageRepositoryPg', () => {
       const inserted = yield* Effect.forEach([queued, completed], messages.insert)
 
       assert.deepStrictEqual(inserted, [true, true])
-      assertSchemaEquals(Messages, yield* selectMessages(chatId), [queued, completed])
+      assertSchemaEquals(Details, yield* messages.selectByChat(chatId), [
+        { message: queued, attachments: [] },
+        { message: completed, attachments: [] },
+      ])
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
@@ -226,7 +229,9 @@ describe('MessageRepositoryPg', () => {
       )
 
       assert.deepStrictEqual(updated, [true, false])
-      assertSchemaEquals(Messages, yield* selectMessages(chatId), [completed])
+      assertSchemaEquals(Details, yield* messages.selectByChat(chatId), [
+        { message: completed, attachments: [] },
+      ])
       assert.deepStrictEqual(yield* messages.selectById(unknown.id), Option.none())
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
@@ -254,7 +259,11 @@ describe('MessageRepositoryPg', () => {
         yield* messages.selectActiveByChat(chatId),
         Option.some(generating),
       )
-      assertSchemaEquals(Messages, yield* selectMessages(chatId), [generating, failed, completed])
+      assertSchemaEquals(Details, yield* messages.selectByChat(chatId), [
+        { message: generating, attachments: [] },
+        { message: failed, attachments: [] },
+        { message: completed, attachments: [] },
+      ])
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
@@ -276,13 +285,11 @@ describe('MessageRepositoryPg', () => {
       yield* bindAttachments([secondUploaded, firstUploaded], question)
 
       assertSchemaEquals(
-        Schema.Option(MessageDetail),
+        Schema.Option(Detail),
         yield* messages.selectDetail(question.id),
         Option.some(inUploadOrder),
       )
-      assertSchemaEquals(Schema.Array(MessageDetail), yield* messages.selectByChat(chatId), [
-        inUploadOrder,
-      ])
+      assertSchemaEquals(Details, yield* messages.selectByChat(chatId), [inUploadOrder])
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 })

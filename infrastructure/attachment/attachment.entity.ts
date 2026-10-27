@@ -14,7 +14,7 @@ import {
 import { MessageId } from '@app-template/domain/chat'
 import { UserId } from '@app-template/domain/user'
 
-import { messages } from '#infrastructure/chat/message.entity'
+import { decodeMessage, type MessageRow, messages } from '#infrastructure/chat/message.entity'
 import { createdAt, id } from '#infrastructure/db/columns'
 import { users } from '#infrastructure/user/user.entity'
 
@@ -59,3 +59,13 @@ export const AttachmentInsert = createInsertSchema(attachments, attachmentFields
 
 export const decodeAttachment = (row: typeof AttachmentRow.Encoded) =>
   Effect.map(Schema.decodeEffect(AttachmentRow)(row), (fields) => new Attachment(fields))
+
+export type MessageDetailRow = typeof MessageRow.Encoded & {
+  readonly attachments: ReadonlyArray<typeof AttachmentRow.Encoded>
+}
+
+export const decodeMessageDetail = ({ attachments, ...row }: MessageDetailRow) =>
+  Effect.all({
+    message: decodeMessage(row),
+    attachments: Effect.forEach(attachments, decodeAttachment),
+  })

@@ -69,7 +69,9 @@ instead of copying.
     failing with its `*NotFoundError` or a refusal) or a lookup result (`findReply`,
     `findOwnedChat`, `findSendable`); a port method never uses it;
   - `select` / `insert` / `update` / `upsert` / `delete`: persistence (`selectById`); `update`
-    changes an existing record and never creates one.
+    changes an existing record and never creates one;
+  - `exists`: a persistence question whether a record exists, answering `boolean`
+    (`existsByChat`).
 - Constants are `camelCase` with `as const` for literals; a `Layer` constant is `PascalCase`.
   One for a service declared elsewhere is `<Service><Variant>` (`ChatRepositoryPg`); `<Entity>Pg`
   in `<entity>/index.ts` bundles the aggregate's adapters, which a process provides.

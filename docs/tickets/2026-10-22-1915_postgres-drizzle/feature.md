@@ -147,7 +147,7 @@ Postgres, one container per run.
   columns written with the domain's values, never by a database default or trigger.
 - **R4** — WHEN a record is read back, THE SYSTEM SHALL return the domain model it was written
   from (`Option`, `DateTime.Utc`, brands and literals intact), including `MessageFailure` with
-  its `cause`, save that a message's `attachmentIds` read in upload order.
+  its `cause`; a message's attachments read with it, in upload order.
 
 ### The transactional send
 

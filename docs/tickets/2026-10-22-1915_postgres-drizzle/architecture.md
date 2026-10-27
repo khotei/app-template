@@ -137,7 +137,8 @@ graph LR
                                                  bind(userId, ids, messageId)                                 (D3)
 ~ application/chat/delete-chat.use-case.ts      no lock; attachments, then the chat (the cascade does the messages)
 ~ application/attachment/attachment.service.ts  bind: check, update(set, where), AttachmentBoundError; findBindable, BindableAttachments go (D5)
-~ application/chat/assistant-message.job.ts     update(message, { stage }); + deadLetterWorker (failReply)  (D8)
+~ application/chat/assistant-message.job.ts     update(message, { stage }); settles through ChatService.settleReply;
+                                                 + deadLetterWorker (failReply)                               (D8)
 ~ application/chat/chat-title.job.ts            ChatService.updateTitle; + deadLetterWorker (log)
 - application/chat/touch-chat.ts                replaced by the chat write in ChatService.addUserMessage
 - application/user/user-lock.ts
@@ -258,8 +259,9 @@ export const ChatInsert = createInsertSchema(chats, { /* the same overrides */ }
 
 `error` on `messages` is `Schema.OptionFromNullOr(MessageFailure)` (the derived `jsonb` schema
 loses `$type`, so the override is what types it). Relational reads decode each nested row with
-the same codecs. `Message.attachmentIds` has no column: until S12 drops it from the domain, the
-reader fills it from the message's attachments.
+the same codecs; `decodeMessageDetail`, which spans two entities, lives in `attachment.entity.ts`,
+the file that already imports `messages` (in `message.entity.ts` it would close an import cycle).
+`Message` holds no attachments: they reach a reader as a `MessageDetail`.
 
 ### Ports (domain, `Context.Service`, no layer; changes only)
 
@@ -276,12 +278,14 @@ MessageRepository {
   insert(message): boolean      // false: the chat already has an active message (the partial index)
   update(message, where: MessageWhere): boolean      // MessageWhere = Pick<Message, 'stage'>; false: stored stage differs
   selectById(id): Option<Message>
-  selectByChat(chatId): ReadonlyArray<Message>       // the job's history
+  selectDetail(id): Option<MessageDetail>            // the message a client polls, with its attachments
+  selectByChat(chatId): ReadonlyArray<MessageDetail> // the job's history, in creation order
+  existsByChat(chatId): boolean                      // findSendable: whether the send opens the chat
   selectActiveByChat(chatId): Option<ActiveMessage>
 }
 AttachmentRepository {
   insert · selectById · deleteByIds                     // unchanged
-  selectByIds                                          // goes in S12, with Message.attachmentIds
+  selectByIds                                          // stays: bind checks its ids in one batch read (amended in S12)
   update(set: AttachmentSet, where: AttachmentWhere): ReadonlyArray<Attachment>
                                                        // AttachmentSet: RequireAtLeastOne<Pick<Attachment, 'messageId'>>;
                                                        // AttachmentWhere: { id: ids } & Partial<Pick<Attachment, 'messageId'>>;
@@ -293,8 +297,10 @@ UserRepository                                         // unchanged; insert writ
 Ports keep no error channel: a conditional write answers with a value, and the application
 raises `ChatBusyError`, `AttachmentBoundError` or skips (D5); `ChatService.updateTitle` raises
 `ChatTitledError` when the write `where` the title is still `none` answers `false` and the chat
-exists. `selectByUser`, `deleteByChat`, `update(entity)` on chats and attachments and the read
-models in `application` go.
+exists. `ChatService.settleReply(settled, where)` writes a reply where its stage holds, then the
+chat's `updatedAt` alone, so the reply job writes the chat only through `ChatService`.
+`selectByUser`, `deleteByChat`, `update(entity)` on chats and attachments and the read models in
+`application` go.
 
 ### The send (use case)
 
@@ -575,7 +581,7 @@ build them with `buildResourceName` as the program does.
   `attachments.message_id` is the only link; `messages` keeps no `attachment_ids` array, and a
   message's attachments read by `created_at`, then `id`, which the `(message_id, created_at, id)`
   index serves. A send of `[C, A]` after uploading A, B, C reads back `[A, C]`.
-  `Message.attachmentIds` stays in the domain until S12, filled by the reader. *Rejected:* the
+  `Message` carries no attachments; a reader gets them as a `MessageDetail`. *Rejected:* the
   array beside the key (a copy of the bind that Postgres cannot check, since a foreign key cannot
   cover array elements); a `position` column the bind fills (keeps the send's order, at the cost
   of a column only the send uses); the array alone (no `RESTRICT`, no index).

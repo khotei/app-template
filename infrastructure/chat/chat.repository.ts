@@ -9,18 +9,18 @@ import {
   isActiveMessage,
 } from '@app-template/domain/chat'
 
+import {
+  decodeMessageDetail,
+  type MessageDetailRow,
+} from '#infrastructure/attachment/attachment.entity'
 import { ChatInsert, type ChatRow, chats, decodeChat } from '#infrastructure/chat/chat.entity'
 import {
   activeMessageFilter,
   decodeMessage,
-  type MessageRow,
-} from '#infrastructure/chat/message.entity'
-import {
-  decodeMessageDetail,
   inCreationOrder,
-  type MessageDetailRow,
+  type MessageRow,
   withAttachments,
-} from '#infrastructure/chat/message.repository'
+} from '#infrastructure/chat/message.entity'
 import { Db, decodeFound, orDieWithSqlError } from '#infrastructure/db/db.client'
 
 const encodeChat = Schema.encodeEffect(ChatInsert)
@@ -47,7 +47,7 @@ const decodeSummary = ({
   Effect.all({
     chat: decodeChat(row),
     activeMessage: Effect.map(
-      Effect.transposeOption(Option.map(Arr.head(messages), decodeMessage)),
+      decodeFound(messages[0], decodeMessage),
       Option.filter(isActiveMessage),
     ),
   })

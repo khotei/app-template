@@ -59,15 +59,13 @@ const photo = (
 
 const SelectedChat = Schema.Option(Chat)
 
-const ChatSummary = Schema.Struct({ chat: Chat, activeMessage: Schema.Option(Message) })
+const Summary = Schema.Struct({ chat: Chat, activeMessage: Schema.Option(Message) })
 
 const MessageDetails = Schema.Array(
   Schema.Struct({ message: Message, attachments: Schema.Array(Attachment) }),
 )
 
-const SelectedDetail = Schema.Option(
-  Schema.Struct({ ...ChatSummary.fields, messages: MessageDetails }),
-)
+const SelectedDetail = Schema.Option(Schema.Struct({ ...Summary.fields, messages: MessageDetails }))
 
 describe('ChatRepositoryPg', () => {
   it.effect('selects an inserted chat back, untitled and titled', () =>
@@ -121,7 +119,7 @@ describe('ChatRepositoryPg', () => {
           messages.insert,
         )
 
-        assertSchemaEquals(Schema.Array(ChatSummary), yield* chats.selectSummaries(ada), [
+        assertSchemaEquals(Schema.Array(Summary), yield* chats.selectSummaries(ada), [
           { chat: newer, activeMessage: Option.none() },
           { chat: older, activeMessage: Option.some(queued) },
         ])

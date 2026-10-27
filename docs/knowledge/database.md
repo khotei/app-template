@@ -47,7 +47,8 @@ from them and the row codecs derived from them.
   its tables (`d0`, `d1`), while `activeMessage` names `"messages"."author"`, so the read of
   the active message states the same condition as an object filter, `activeMessageFilter`
   beside it (`{ author: 'assistant', stage: { in: … } }`), its stages from the same
-  `ActiveMessageStage.literals`; every read of the active message spreads it.
+  `ActiveMessageStage.literals`; a query that filters for the active message spreads it, and
+  a read that already holds the chat's messages picks it with `isActiveMessage`.
 - **A descending index states its null order.** Drizzle's `desc()` indexes nulls last while
   Postgres's `ORDER BY … DESC` sorts them first, so an index for that order is
   `.desc().nullsFirst()` (`chats_user_id_updated_at_index`).
@@ -77,7 +78,9 @@ export const UserInsert = createInsertSchema(users, userFields)
   with a default becomes required, as the domain always writes it.
 - Each entity file exports one decoder beside its codec (`decodeUser`, `decodeChat`), which
   decodes a row and builds the model from the fields (`new User(fields)`); repositories and
-  tests share it. A repository encodes the model to the row it inserts. A row whose values are
+  tests share it. A decoder of rows nested across two entities lives in the entity file that
+  already imports the other (`decodeMessageDetail` in `attachment.entity.ts`), since the reverse
+  import closes a cycle Biome rejects. A repository encodes the model to the row it inserts. A row whose values are
   already the domain's (brands, literals) is written as is: `credentials` takes
   `{ hash, kind, userId }` from the credential and the user, with no codec.
 - A `jsonb` column carries the encoded type of its schema (`jsonb().$type<typeof
@@ -99,13 +102,10 @@ const rows = yield* db.query.messages.findMany({
 // rows: [{ id, chatId, …, attachments: [{ id, userId, messageId, … }] }]
 ```
 
-A read model is one relational query. The domain declares the shapes the ports answer
+A read model is one relational query: the domain declares the shapes the ports answer
 (`ChatSummary`, `ChatDetail`, `MessageDetail` in `chat.model.ts`), and the repository reads each
-in one `db.query`, decoding every level with its entity's decoder: `selectSummaries` nests the
-active message (`limit: 1`) under each chat, most recently updated first; `selectDetail` nests
-the messages in creation order and, under each, its attachments in upload order, and takes the
-active message from the messages it read. A model holds no field that another table holds:
-`Message` has no attachments, which reach the reader as a `MessageDetail`.
+in one `db.query`, decoding every level with its entity's decoder. A model holds no field that
+another table holds: `Message` has no attachments, which reach the reader as a `MessageDetail`.
 
 ## Repositories
 

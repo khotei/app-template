@@ -74,3 +74,7 @@ export const MessageInsert = createInsertSchema(messages, messageFields)
 
 export const decodeMessage = (row: typeof MessageRow.Encoded) =>
   Effect.map(Schema.decodeEffect(MessageRow)(row), (fields) => new Message(fields))
+
+export const inCreationOrder = { createdAt: 'asc', id: 'asc' } as const
+
+export const withAttachments = { attachments: { orderBy: inCreationOrder } } as const

@@ -879,7 +879,42 @@ methods; running it after S9 avoids merge work.
   unknown chat. Seam 5 — `ChatService.list` and `get` return the same shapes as before.
 - **Verify:** `make check`; `git grep -n selectByUser` is empty; `git diff main -- http-api/`
   changes no route, schema or error (D20).
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - `AttachmentRepository.selectByIds` stays, against the *Goal*: `AttachmentService.bind`
+    (S8) checks every id in one batch read through it, and dropping it means one `select` per
+    id, which `use-cases.md` forbids. The plan was wrong, not the code.
+  - `MessageRepository` gains two methods the plan did not name: `selectDetail(id)` for
+    `getMessage`, the endpoint a client polls while a reply runs (reading it from the chat's
+    detail would load the whole chat on every poll), and `existsByChat` for `findSendable`.
+    `selectByChat` answers `MessageDetail`, so the job's history reads in one query; its
+    `completed` filter stays in memory.
+  - `naming.md` gains the `exists` verb (a persistence question answering `boolean`), approved by
+    the user: the vocabulary had no word for it.
+  - The S13 finding is fixed here: the reply job settles through `ChatService.settleReply`
+    (the reply where its stage holds, then the chat's `updatedAt` alone), so `ChatService` is the
+    chat's only writer. The job's intermediate stage writes (preparing, generating, the 300 ms
+    snapshots) still go through `MessageRepository.update`, as before the ticket: the same
+    one-writer breach for messages, left for a ticket of its own.
+  - `selectDetail` picks the active message from the messages it read with `isActiveMessage`;
+    nesting the relation twice would need a second relation in `relations.ts` for this read alone.
+  - `decodeMessageDetail` lives in `attachment.entity.ts`: in `message.entity.ts` it would close
+    an import cycle (`attachment.entity` imports `messages` for its foreign key), which Biome
+    rejects. `inCreationOrder` and `withAttachments`, query options rather than codecs, sit in
+    `message.entity.ts` beside `activeMessageFilter`.
+  - `chat.model.ts` imports `type Attachment` from `attachment.model` for `MessageDetail`, past
+    `naming.md`'s rule that a model imports only another aggregate's `.id`; D6 puts the read
+    models in this file, and the import is type-only.
+  - Files beyond the list: `message.entity.ts`, `message.repository.ts` and their tests,
+    `send-message.use-case.ts`, `chat.harness.ts`, the attachment tests, `naming.md`;
+    `apps/api/src/shared/projections.ts` instead of `chat.handler.ts`, which imports no read
+    model. `byLatestUpdate` had no test to remove.
+  - The step changed about 750 lines over two rounds (S12.1 636, S12.2 118), past the ~400 budget,
+    about 270 of them tests; kept whole, since the settle and the reads share the new
+    `selectByChat` type.
+  - *Verify*: `git grep -n selectByUser` is empty outside `docs/tickets` (the chat-core ticket
+    and this one name it); `git diff main -- http-api/` drops only the `attachmentIds` omit
+    beside S6's OpenAPI removal, the wire fields unchanged.
 
 #### S13 — The dead-letter consumers
 
