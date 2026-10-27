@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { type DateTime, Schema } from 'effect'
 
 import { UserId } from '#domain/user/user.id'
 
@@ -23,3 +23,11 @@ export class Credential extends Schema.Class<Credential>('Credential')({
   kind: Schema.Literal('secret'),
   hash: SecretHash,
 }) {}
+
+export const isOwnedBy =
+  (userId: UserId) =>
+  (owned: { readonly userId: UserId }): boolean =>
+    owned.userId === userId
+
+export const buildUser = (input: { readonly id: UserId; readonly createdAt: DateTime.Utc }): User =>
+  new User({ id: input.id, createdAt: input.createdAt })

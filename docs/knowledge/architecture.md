@@ -102,7 +102,7 @@ Using the `chat` slice as the map:
 | entity schema | `domain/chat/chat.model.ts` | `Chat`, `Message` (`Schema.Class`) |
 | read model a port answers | `domain/chat/chat.model.ts` | `ChatSummary`, `ChatDetail`, `MessageDetail` |
 | domain errors | `domain/chat/chat.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
-| port and pure operations | `domain/chat/chat.service.ts` | `ChatRepository`, `buildChat({ id, userId, createdAt })`, `prepareMessage` |
+| port and pure operations | `domain/chat/chat.port.ts`, `chat.model.ts`, `message.model.ts` | `ChatRepository`, `buildChat({ id, userId, createdAt })`, `prepareMessage` |
 | guard shared by the aggregates | `domain/shared/guard.ts` | `ensureFound(found, holds, missing)` |
 | database client and migrations | `infrastructure/db/` | `Db`, `Db.layerFromConfig`, `migrations/`, the shared columns in `columns.ts`, the relations in `relations.ts` |
 | tables and row codecs | `infrastructure/chat/chat.entity.ts` | `chats` (`snakeCase.table`), `ChatRow`, `ChatInsert` |

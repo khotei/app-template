@@ -1,7 +1,7 @@
-import { Context, type DateTime, type Effect, type Option } from 'effect'
+import { Context, type Effect, type Option } from 'effect'
 
 import type { UserId } from '#domain/user/user.id'
-import { type Credential, User } from '#domain/user/user.model'
+import type { Credential, User } from '#domain/user/user.model'
 
 export class UserRepository extends Context.Service<
   UserRepository,
@@ -11,11 +11,3 @@ export class UserRepository extends Context.Service<
     readonly selectByCredential: (credential: Credential) => Effect.Effect<Option.Option<User>>
   }
 >()('@app-template/domain/user/UserRepository') {}
-
-export const isOwnedBy =
-  (userId: UserId) =>
-  (owned: { readonly userId: UserId }): boolean =>
-    owned.userId === userId
-
-export const buildUser = (input: { readonly id: UserId; readonly createdAt: DateTime.Utc }): User =>
-  new User({ id: input.id, createdAt: input.createdAt })

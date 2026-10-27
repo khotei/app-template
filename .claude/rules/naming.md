@@ -28,8 +28,9 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 | Suffix | Role | Layer |
 |---|---|---|
 | `.id` | the aggregate's branded ids, the only file other aggregates' models import | domain |
-| `.model` · `.error` | entity types and value shapes · domain errors | domain |
-| `.service` | domain: ports + pure operations · application: a service over ports | domain, application |
+| `.model` · `.error` | entity types and value shapes, with the pure operations on them (builders, predicates, guards, transitions) · domain errors | domain |
+| `.port` | an entity's ports: `Context.Service` declarations with no layer, and their `Set`/`Where` types | domain |
+| `.service` | domain: the aggregate's domain service over its ports · application: a service over ports | domain, application |
 | `.use-case` | a flow that composes services: `<verb>-<object>.use-case.ts` | application |
 | `.job` | a queue's producer service and its worker | application |
 | `.repository` · `.storage` · `.llm` | an adapter over a client; prompt functions live in `.llm` | infrastructure |
@@ -49,7 +50,7 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 `<entity>` is singular, like its folder (`user/user.http.ts`); a file with no role keeps a bare
 kebab name (`layer.ts`), and a tool's config file the name its tool reads (`drizzle.config.ts`).
 `tests/` and `e2e/` sit at the workspace's top and mirror the source path
-(`domain/tests/chat/chat.service.test.ts`); a module folder holds no test. Test-support roles
+(`domain/tests/chat/message.model.test.ts`); a module folder holds no test. Test-support roles
 live only in `testing/`, listed by no barrel or `exports` save the `packages/testing` index and
 `@app-template/application/testing`, which the apps' suites compose instead of copying.
 

@@ -4,13 +4,9 @@ import { DateTime, Effect, Option } from 'effect'
 import { assertSchemaEquals } from '@app-template/testing'
 
 import { AttachmentId } from '#domain/attachment/attachment.id'
-import {
-  ChatBusyError,
-  MessageInputInvalidError,
-  MessageStageInvalidError,
-} from '#domain/chat/chat.error'
+import { ChatBusyError } from '#domain/chat/chat.error'
 import { ChatId, MessageId } from '#domain/chat/chat.id'
-import { Message, MessageFailure, type MessageStage } from '#domain/chat/chat.model'
+import { MessageInputInvalidError, MessageStageInvalidError } from '#domain/chat/message.error'
 import {
   buildAssistantMessage,
   buildUserMessage,
@@ -19,8 +15,11 @@ import {
   ensureMessageInput,
   failMessage,
   generateMessage,
+  Message,
+  MessageFailure,
   prepareMessage,
-} from '#domain/chat/chat.service'
+} from '#domain/chat/message.model'
+import type { MessageStage } from '#domain/chat/message-stage.model'
 
 const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000001')
 const messageId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000002')

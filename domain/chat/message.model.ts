@@ -1,6 +1,5 @@
 import {
   Array as Arr,
-  Context,
   type DateTime,
   Effect,
   Option,
@@ -8,82 +7,52 @@ import {
   Schema,
   String as Str,
 } from 'effect'
-import type { RequireAtLeastOne } from 'type-fest'
 
 import type { AttachmentId } from '#domain/attachment/attachment.id'
-import {
-  ChatBusyError,
-  MessageInputInvalidError,
-  MessageStageInvalidError,
-} from '#domain/chat/chat.error'
-import type { ChatId, MessageId } from '#domain/chat/chat.id'
-import {
-  type ActiveMessage,
-  ActiveMessageStage,
-  Chat,
-  type ChatDetail,
-  type ChatSummary,
-  Message,
-  MessageAuthor,
-  type MessageDetail,
-  MessageFailure,
-  type MessageStage,
-} from '#domain/chat/chat.model'
-import type { UserId } from '#domain/user/user.id'
+import type { Attachment } from '#domain/attachment/attachment.model'
+import { ChatBusyError } from '#domain/chat/chat.error'
+import { ChatId, MessageId } from '#domain/chat/chat.id'
+import { MessageInputInvalidError, MessageStageInvalidError } from '#domain/chat/message.error'
+import { ActiveMessageStage, MessageStage } from '#domain/chat/message-stage.model'
 
-/** The fields a write may change; `userId` and `createdAt` never change. */
-export type ChatSet = RequireAtLeastOne<Pick<Chat, 'title' | 'updatedAt'>>
+export const MessageAuthor = Schema.Literals(['user', 'assistant'])
+export type MessageAuthor = typeof MessageAuthor.Type
 
-/** The row is found by `id`; any other field must still hold its value. */
-export type ChatWhere = { readonly id: ChatId } & Partial<Pick<Chat, 'title'>>
+export class MessageFailure extends Schema.Class<MessageFailure>('MessageFailure')({
+  reason: Schema.Literal('ReplyFailed'),
+  /** A user-facing sentence fixed per reason; it never quotes the cause. */
+  message: Schema.String,
+  /** Diagnostic detail for operators; it never leaves the api. */
+  cause: Schema.String,
+}) {}
 
-export class ChatRepository extends Context.Service<
-  ChatRepository,
-  {
-    readonly insert: (chat: Chat) => Effect.Effect<void>
-    /** Writes `set` where `where` holds; answers whether it wrote. */
-    readonly update: (set: ChatSet, where: ChatWhere) => Effect.Effect<boolean>
-    readonly selectById: (id: ChatId) => Effect.Effect<Option.Option<Chat>>
-    /** Returns the user's chats, the most recently updated first. */
-    readonly selectSummaries: (userId: UserId) => Effect.Effect<ReadonlyArray<ChatSummary>>
-    readonly selectDetail: (id: ChatId) => Effect.Effect<Option.Option<ChatDetail>>
-    /** Removes the chat with its messages; dies while one of them has an attachment. */
-    readonly delete: (id: ChatId) => Effect.Effect<void>
-  }
->()('@app-template/domain/chat/ChatRepository') {}
+export class Message extends Schema.Class<Message>('Message')({
+  id: MessageId,
+  chatId: ChatId,
+  author: MessageAuthor,
+  stage: MessageStage,
+  text: Schema.String,
+  error: Schema.Option(MessageFailure),
+  createdAt: Schema.DateTimeUtc,
+  updatedAt: Schema.DateTimeUtc,
+}) {}
 
-/** The stored fields a conditional write requires; the row is always found by the message's id. */
-export type MessageWhere = Pick<Message, 'stage'>
+/** An assistant message whose reply is still running; `isActiveMessage` narrows to it. */
+export interface ActiveMessage extends Message {
+  readonly author: 'assistant'
+  readonly stage: ActiveMessageStage
+}
 
-export class MessageRepository extends Context.Service<
-  MessageRepository,
-  {
-    /** Answers `false` and writes nothing when the message is active and its chat has one. */
-    readonly insert: (message: Message) => Effect.Effect<boolean>
-    /** Writes `message` only while the stored one matches `where`; answers whether it wrote. */
-    readonly update: (message: Message, where: MessageWhere) => Effect.Effect<boolean>
-    readonly selectById: (id: MessageId) => Effect.Effect<Option.Option<Message>>
-    readonly selectDetail: (id: MessageId) => Effect.Effect<Option.Option<MessageDetail>>
-    /** Returns the chat's messages in creation order, a tie broken by id. */
-    readonly selectByChat: (chatId: ChatId) => Effect.Effect<ReadonlyArray<MessageDetail>>
-    readonly existsByChat: (chatId: ChatId) => Effect.Effect<boolean>
-    /** Returns the chat's active message, the one `isActiveMessage` holds for, if any. */
-    readonly selectActiveByChat: (chatId: ChatId) => Effect.Effect<Option.Option<ActiveMessage>>
-  }
->()('@app-template/domain/chat/MessageRepository') {}
+export interface MessageDetail {
+  readonly message: Message
+  /** The attachments bound to the message, in upload order. */
+  readonly attachments: ReadonlyArray<Attachment>
+}
 
-export const buildChat = (input: {
-  readonly id: ChatId
-  readonly userId: UserId
-  readonly createdAt: DateTime.Utc
-}): Chat =>
-  new Chat({
-    id: input.id,
-    userId: input.userId,
-    title: Option.none(),
-    createdAt: input.createdAt,
-    updatedAt: input.createdAt,
-  })
+export interface MessageInput {
+  readonly text: string
+  readonly attachmentIds: ReadonlyArray<AttachmentId>
+}
 
 export const buildUserMessage = (input: {
   readonly id: MessageId
@@ -118,8 +87,6 @@ export const buildAssistantMessage = (input: {
     updatedAt: input.createdAt,
   })
 
-export const isTitledChat = (chat: Chat): boolean => Option.isSome(chat.title)
-
 export const isInChat =
   (chatId: ChatId) =>
   (message: Message): boolean =>
@@ -139,11 +106,6 @@ export const ensureChatAcceptsMessage = Effect.fn('ensureChatAcceptsMessage')(fu
   const active = Option.filter(current, isActiveMessage)
   if (Option.isSome(active)) return yield* new ChatBusyError({ id: active.value.chatId })
 })
-
-export interface MessageInput {
-  readonly text: string
-  readonly attachmentIds: ReadonlyArray<AttachmentId>
-}
 
 export const ensureMessageInput = Effect.fn('ensureMessageInput')(function* (input: MessageInput) {
   if (Str.isEmpty(Str.trim(input.text)) && Arr.isReadonlyArrayEmpty(input.attachmentIds)) {

@@ -1,4 +1,4 @@
 export * from '#domain/user/user.error'
 export * from '#domain/user/user.id'
 export * from '#domain/user/user.model'
-export * from '#domain/user/user.service'
+export * from '#domain/user/user.port'

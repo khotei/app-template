@@ -15,6 +15,7 @@ and pure operations.
 - **The domain ships to the browser** through `http-api`: no Bun APIs and no Node built-ins,
   and no top-level side effects, since `"sideEffects": false` lets the bundler drop every
   module the client does not use (the ports among them).
-- Persistence ports are `Context.Service` declarations with no layer, in `<entity>.service.ts`
-  next to the operations; their layers live in `infrastructure`.
+- Ports are `Context.Service` declarations with no layer, in `<entity>.port.ts`, never in
+  `.service.ts`; their layers live in `infrastructure`. Pure operations sit in the `.model.ts`
+  of the value they act on.
 - Each folder (an entity, or `shared`) exposes itself through `index.ts` (`@app-template/domain/<folder>`).

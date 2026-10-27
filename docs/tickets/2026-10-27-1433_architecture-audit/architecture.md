@@ -73,9 +73,10 @@ Every `tests/` and `e2e/` file mirrors the source path; test support lives only 
 | `tests/` **new** | `chat/chat.model.test.ts`, `chat/message.model.test.ts`, `chat/chat.service.test.ts`, `chat/message.service.test.ts`, `attachment/…`, `user/…` |
 | `package.json` | `exports["./testing"]`; `@effect/platform-bun` in `devDependencies` (`BunCrypto.layer` in tests) |
 
-When a `.model.ts` outgrows one screen of rules, the rules move with the value they act on
-(`message-stage.model.ts`: the stage, `ActiveMessage`, the transitions); `.model` stays the one
-suffix.
+`chat/message-stage.model.ts` **new** holds only the stage schemas, `MessageStage` and
+`ActiveMessageStage`, which `message.model.ts` and `message.error.ts` both import. When a
+`.model.ts` outgrows one screen of rules, the rules move with the value they act on; `.model`
+stays the one suffix.
 
 ### `http-api`
 
@@ -480,7 +481,9 @@ export const AwsTest = Layer.unwrap(Effect.gen(function* () {
   predicates, `buildChatTitle` and the transitions sit beside the `Schema.Class` they produce;
   `.service.ts` holds only the service, `.port.ts` only the port, so the bundle guard can prove
   that neither reaches the browser. A file that outgrows a screen splits by value type
-  (`message-stage.model.ts`), never into a `.rule` suffix. *Rejected:* rules in `.service.ts`
+  (`message-stage.model.ts`), never into a `.rule` suffix. The stage schemas sit apart from
+  `message.model.ts` because `MessageStageInvalidError` reads them while the transitions fail
+  with it: in one file the model and the error would import each other, a cycle Biome rejects. *Rejected:* rules in `.service.ts`
   next to the service, which drags a `Context.Service` into every barrel the browser imports.
 - **D3 — The `Assistant` port declares no error.** Every caller treats a model failure alike:
   retry, and fail the message on the last attempt with the cause kept for the log. The adapter

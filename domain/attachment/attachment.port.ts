@@ -1,18 +1,8 @@
-import { Context, DateTime, Duration, Effect, Option, Predicate, type Stream } from 'effect'
+import { Context, type Effect, type Option, type Stream } from 'effect'
 import type { RequireAtLeastOne } from 'type-fest'
 
-import { AttachmentBoundError, AttachmentNotFoundError } from '#domain/attachment/attachment.error'
 import type { AttachmentId } from '#domain/attachment/attachment.id'
-import {
-  Attachment,
-  type AttachmentMeta,
-  type FileName,
-  type FileSize,
-  type MediaType,
-} from '#domain/attachment/attachment.model'
-import { ensureFound } from '#domain/shared/guard'
-import type { UserId } from '#domain/user/user.id'
-import { isOwnedBy } from '#domain/user/user.service'
+import type { Attachment, AttachmentMeta, FileSize } from '#domain/attachment/attachment.model'
 
 export type AttachmentSet = RequireAtLeastOne<Pick<Attachment, 'messageId'>>
 
@@ -64,51 +54,3 @@ export class AttachmentStore extends Context.Service<
     readonly delete: (id: AttachmentId) => Effect.Effect<void>
   }
 >()('@app-template/domain/attachment/AttachmentStore') {}
-
-export const buildAttachment = (input: {
-  readonly id: AttachmentId
-  readonly userId: UserId
-  readonly fileName: FileName
-  readonly mediaType: MediaType
-  readonly size: FileSize
-  readonly createdAt: DateTime.Utc
-}): Attachment =>
-  new Attachment({
-    id: input.id,
-    userId: input.userId,
-    messageId: Option.none(),
-    fileName: input.fileName,
-    mediaType: input.mediaType,
-    size: input.size,
-    createdAt: input.createdAt,
-  })
-
-export const unboundLifetime = Duration.hours(24)
-
-const isExpired = (attachment: Attachment, now: DateTime.Utc): boolean =>
-  Option.isNone(attachment.messageId) &&
-  DateTime.isGreaterThanOrEqualTo(now, DateTime.addDuration(attachment.createdAt, unboundLifetime))
-
-export const isVisibleTo = (userId: UserId, now: DateTime.Utc): Predicate.Predicate<Attachment> =>
-  Predicate.and(
-    isOwnedBy(userId),
-    Predicate.not((attachment: Attachment) => isExpired(attachment, now)),
-  )
-
-/** Returns the attachment when the user may bind it. */
-export const ensureBindable = Effect.fn('ensureBindable')(function* (
-  found: Option.Option<Attachment>,
-  {
-    id,
-    userId,
-    now,
-  }: { readonly id: AttachmentId; readonly userId: UserId; readonly now: DateTime.Utc },
-) {
-  const owned = yield* ensureFound(
-    found,
-    isVisibleTo(userId, now),
-    () => new AttachmentNotFoundError({ id }),
-  )
-  if (Option.isSome(owned.messageId)) return yield* new AttachmentBoundError({ id })
-  return owned
-})

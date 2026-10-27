@@ -1,7 +1,7 @@
-import { type Option, Schema } from 'effect'
+import { type DateTime, Option, Schema } from 'effect'
 
-import type { Attachment } from '#domain/attachment/attachment.model'
-import { ChatId, MessageId } from '#domain/chat/chat.id'
+import { ChatId } from '#domain/chat/chat.id'
+import type { ActiveMessage, MessageDetail } from '#domain/chat/message.model'
 import { UserId } from '#domain/user/user.id'
 
 /** Counted in UTF-16 code units, as `Schema.isMaxLength` counts them. */
@@ -22,52 +22,6 @@ export class Chat extends Schema.Class<Chat>('Chat')({
   updatedAt: Schema.DateTimeUtc,
 }) {}
 
-export const MessageAuthor = Schema.Literals(['user', 'assistant'])
-export type MessageAuthor = typeof MessageAuthor.Type
-
-export const MessageStage = Schema.Literals([
-  'queued',
-  'preparing',
-  'generating',
-  'completed',
-  'failed',
-])
-export type MessageStage = typeof MessageStage.Type
-
-export const ActiveMessageStage = MessageStage.pick(['queued', 'preparing', 'generating'])
-export type ActiveMessageStage = typeof ActiveMessageStage.Type
-
-export class MessageFailure extends Schema.Class<MessageFailure>('MessageFailure')({
-  reason: Schema.Literal('ReplyFailed'),
-  /** A user-facing sentence fixed per reason; it never quotes the cause. */
-  message: Schema.String,
-  /** Diagnostic detail for operators; it never leaves the api. */
-  cause: Schema.String,
-}) {}
-
-export class Message extends Schema.Class<Message>('Message')({
-  id: MessageId,
-  chatId: ChatId,
-  author: MessageAuthor,
-  stage: MessageStage,
-  text: Schema.String,
-  error: Schema.Option(MessageFailure),
-  createdAt: Schema.DateTimeUtc,
-  updatedAt: Schema.DateTimeUtc,
-}) {}
-
-/** An assistant message whose reply is still running; `isActiveMessage` narrows to it. */
-export interface ActiveMessage extends Message {
-  readonly author: 'assistant'
-  readonly stage: ActiveMessageStage
-}
-
-export interface MessageDetail {
-  readonly message: Message
-  /** The attachments bound to the message, in upload order. */
-  readonly attachments: ReadonlyArray<Attachment>
-}
-
 export interface ChatSummary {
   readonly chat: Chat
   readonly activeMessage: Option.Option<ActiveMessage>
@@ -77,3 +31,18 @@ export interface ChatDetail extends ChatSummary {
   /** Every message of the chat, in creation order. */
   readonly messages: ReadonlyArray<MessageDetail>
 }
+
+export const buildChat = (input: {
+  readonly id: ChatId
+  readonly userId: UserId
+  readonly createdAt: DateTime.Utc
+}): Chat =>
+  new Chat({
+    id: input.id,
+    userId: input.userId,
+    title: Option.none(),
+    createdAt: input.createdAt,
+    updatedAt: input.createdAt,
+  })
+
+export const isTitledChat = (chat: Chat): boolean => Option.isSome(chat.title)
