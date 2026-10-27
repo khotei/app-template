@@ -23,7 +23,8 @@ paths:
 
 ## Files
 
-All source files are `kebab-case` with at most one dotted role suffix, `<entity>.<role>.ts`:
+All source files are `kebab-case` with at most one dotted role suffix, `<entity>.<role>.ts`; a
+test-support role starts with `test-` (the globs: `effect-tests.md › Test support`):
 
 | Suffix | Role | Layer |
 |---|---|---|
@@ -42,10 +43,11 @@ All source files are `kebab-case` with at most one dotted role suffix, `<entity>
 | `.handler` | a request handler | apps |
 | `.test` | a unit test: no process outside vitest; mirrors its source name, or names what it checks against (`resources.test.ts`: the inventory in `packages/aws`) | `tests/` |
 | `.e2e` | a test on Docker (Postgres, MiniStack) that mirrors its source name | `e2e/` |
-| `.fixture` | sample values (ids, dates, inputs, bytes); no Effect, no layers | `testing/` |
-| `.fake` | a test implementation or wrapper of a port or service: records, yields, scripts | `testing/` |
-| `.harness` | a test layer (real services over fakes, the fixtures it inserts), its arrange and read steps | `testing/` |
-| `.setup` | a vitest `globalSetup` module: run-wide resources, handed to tests through `provide` | `testing/` |
+| `.test-fixture` | sample values (ids, dates, inputs, bytes); no Effect, no layers | `testing/` |
+| `.test-fake` | a test implementation or wrapper of a port or service: records, yields, scripts | `testing/` |
+| `.test-layer` | a test layer (real services over fakes or containers, the fixtures it inserts), its arrange and read steps | `testing/` |
+| `.test-setup` | a vitest `globalSetup` module: run-wide resources, handed to tests through `provide` | `testing/` |
+| `.test-util` | an assertion or a small value helper with no layer (`assertSchemaEquals`, `sortById`) | `testing/` |
 
 `<entity>` is singular, like its folder (`user/user.http.ts`); a file with no role keeps a bare
 kebab name (`layer.ts`), and a tool's config file the name its tool reads (`drizzle.config.ts`).
@@ -79,8 +81,8 @@ live only in `testing/`, listed by no barrel or `exports` save the `packages/tes
 - Constants are `camelCase` with `as const` for literals; a `Layer` constant is `PascalCase`.
   One for a service declared elsewhere is `<Service><Variant>` (`ChatRepositoryPg`); `<Entity>Pg`
   in `<entity>/index.ts` bundles the aggregate's adapters, which a process provides.
-- Test support: a fixed fake layer is `<Service><Variant>` (`AttachmentStoreMemory`); a
-  stateful fake `<verb><Thing>()` returns `{ <handle>, layer }` (`recordLogs`,
-  `recordLanguageModel`); `<Entity>Rows` is the map service a memory layer keeps its rows in
-  (`ChatRows`), which a test reads or arranges through; a test layer is `<Entity>Test`
-  (`ChatTest`), `layer<Entity>Test(…)` when it takes options.
+- Test support: every test-only layer ends in `Test`; a fixed fake layer is `<Service>Test`
+  (`AttachmentStoreTest`); a stateful fake `<verb><Thing>()` returns `{ <handle>, layer }`
+  (`recordLogs`, `recordLanguageModel`); `<Entity>Rows` is the map service a memory layer keeps
+  its rows in (`ChatRows`), which a test reads or arranges through; a test layer is
+  `<Entity>Test` (`ChatTest`), `layer<Entity>Test(…)` when it takes options.

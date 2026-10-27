@@ -19,7 +19,7 @@ import {
 import { buildUserMessage, ChatRepository, MessageRepository } from '@app-template/domain/chat'
 import {
   AttachmentObjects,
-  AttachmentStoreMemory,
+  AttachmentStoreTest,
   chat,
   chatId,
   epoch,
@@ -41,8 +41,8 @@ import {
 } from '@app-template/testing'
 
 import { AttachmentService } from '#application/attachment/attachment.service'
-import { upload } from '#application/testing/chat.harness'
-import { DbWithUsers } from '#application/testing/db.harness'
+import { upload } from '#application/testing/chat.test-layer'
+import { DbWithUsersTest } from '#application/testing/db.test-layer'
 
 const insertMessage = Effect.gen(function* () {
   const chats = yield* ChatRepository
@@ -52,16 +52,16 @@ const insertMessage = Effect.gen(function* () {
   yield* messages.insert(buildUserMessage({ id: messageId, chatId, text: '', createdAt: epoch }))
 })
 
-/** `DbWithUsers` where `messageId` exists in a chat of `owner`, so an attachment can bind to it. */
+/** `DbWithUsersTest` where `messageId` exists in a chat of `owner`, so an attachment can bind to it. */
 const DbWithMessage = Layer.effectDiscard(insertMessage).pipe(
   Layer.provide(ChatPg),
-  Layer.provideMerge(DbWithUsers),
+  Layer.provideMerge(DbWithUsersTest),
 )
 
-/** The service over `repository` and `AttachmentStoreMemory`, on a fresh test database. */
+/** The service over `repository` and `AttachmentStoreTest`, on a fresh test database. */
 const layerAttachmentService = (repository: Layer.Layer<AttachmentRepository, never, Db>) =>
   AttachmentService.layer.pipe(
-    Layer.provideMerge(Layer.mergeAll(repository, AttachmentStoreMemory)),
+    Layer.provideMerge(Layer.mergeAll(repository, AttachmentStoreTest)),
     Layer.provide(BunCrypto.layer),
     Layer.provideMerge(DbWithMessage),
   )

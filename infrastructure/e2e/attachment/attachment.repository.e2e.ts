@@ -14,7 +14,10 @@ import { buildUserMessage, ChatId, MessageId, MessageRepository } from '@app-tem
 import { UserId } from '@app-template/domain/user'
 import { assertSchemaEquals, sortById } from '@app-template/testing'
 
-import { insertOwnedChats, RepositoryStackPgTest } from '#infrastructure/testing/repository-stacks'
+import {
+  insertOwnedChats,
+  RepositoryStackPgTest,
+} from '#infrastructure/testing/repository-stack.test-layer'
 
 const createdAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')
 

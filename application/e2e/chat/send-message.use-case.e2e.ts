@@ -38,7 +38,7 @@ import {
   selectMessages,
   settle,
   upload,
-} from '#application/testing/chat.harness'
+} from '#application/testing/chat.test-layer'
 
 const boundElsewhere = Effect.gen(function* () {
   const chats = yield* ChatService

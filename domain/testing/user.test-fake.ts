@@ -10,7 +10,7 @@ export interface UserRow {
   readonly credential: Credential
 }
 
-/** The rows `UserRepositoryMemory` keeps, by user id, for a test to arrange or read. */
+/** The rows `UserRepositoryTest` keeps, by user id, for a test to arrange or read. */
 export class UserRows extends Context.Service<
   UserRows,
   Ref.Ref<HashMap.HashMap<UserId, UserRow>>
@@ -18,7 +18,7 @@ export class UserRows extends Context.Service<
   static readonly layer = Layer.effect(this, Ref.make(HashMap.empty<UserId, UserRow>()))
 }
 
-export const UserRepositoryMemory = Layer.effect(
+export const UserRepositoryTest = Layer.effect(
   UserRepository,
   Effect.map(UserRows, (rows) =>
     UserRepository.of({

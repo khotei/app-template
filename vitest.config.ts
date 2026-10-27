@@ -12,7 +12,7 @@ export default defineConfig({
           name: 'e2e',
           include: ['**/e2e/**/*.e2e.ts'],
           exclude,
-          globalSetup: ['infrastructure/testing/e2e.setup.ts'],
+          globalSetup: ['infrastructure/testing/e2e.test-setup.ts'],
           sequence,
         },
       },

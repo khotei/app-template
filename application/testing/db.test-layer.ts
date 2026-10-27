@@ -25,6 +25,6 @@ const insertUser = (id: UserId) =>
 export const DbTest = Db.layer.pipe(Layer.provideMerge(PgClientTest))
 
 /** `DbTest` where `owner` and `stranger` exist, so their rows can refer to them. */
-export const DbWithUsers = Layer.effectDiscard(
+export const DbWithUsersTest = Layer.effectDiscard(
   Effect.forEach([owner, stranger], insertUser, { discard: true }),
 ).pipe(Layer.provideMerge(UserPg), Layer.provideMerge(DbTest))

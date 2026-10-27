@@ -26,17 +26,17 @@ import {
 } from '#domain/chat/message.model'
 import { MessageRepository } from '#domain/chat/message.port'
 import { isOwnedBy } from '#domain/shared/guard'
-import { AttachmentRows } from '#domain/testing/attachment.fake'
+import { AttachmentRows } from '#domain/testing/attachment.test-fake'
 import { matches } from '#domain/testing/rows'
 
-/** The rows `ChatRepositoryMemory` keeps, by id, for a test to arrange or read. */
+/** The rows `ChatRepositoryTest` keeps, by id, for a test to arrange or read. */
 export class ChatRows extends Context.Service<ChatRows, Ref.Ref<HashMap.HashMap<ChatId, Chat>>>()(
   '@app-template/domain/testing/ChatRows',
 ) {
   static readonly layer = Layer.effect(this, Ref.make(HashMap.empty<ChatId, Chat>()))
 }
 
-/** The rows `MessageRepositoryMemory` keeps, by id, for a test to arrange or read. */
+/** The rows `MessageRepositoryTest` keeps, by id, for a test to arrange or read. */
 export class MessageRows extends Context.Service<
   MessageRows,
   Ref.Ref<HashMap.HashMap<MessageId, Message>>
@@ -106,7 +106,7 @@ const hasBoundAttachment = (tables: Tables, chatId: ChatId): boolean =>
     HashMap.some(tables.attachments, isBoundTo(message.id)),
   )
 
-export const ChatRepositoryMemory = Layer.effect(
+export const ChatRepositoryTest = Layer.effect(
   ChatRepository,
   Effect.gen(function* () {
     const chats = yield* ChatRows
@@ -161,7 +161,7 @@ export const ChatRepositoryMemory = Layer.effect(
   }),
 )
 
-export const MessageRepositoryMemory = Layer.effect(
+export const MessageRepositoryTest = Layer.effect(
   MessageRepository,
   Effect.gen(function* () {
     const messages = yield* MessageRows

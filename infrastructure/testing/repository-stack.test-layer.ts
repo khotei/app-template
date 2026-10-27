@@ -6,7 +6,7 @@ import type { UserId } from '@app-template/domain/user'
 import { AttachmentRepositoryPg } from '#infrastructure/attachment/attachment.repository'
 import { ChatRepositoryPg } from '#infrastructure/chat/chat.repository'
 import { MessageRepositoryPg } from '#infrastructure/chat/message.repository'
-import { DbTest } from '#infrastructure/testing/db-test'
+import { DbTest } from '#infrastructure/testing/db.test-layer'
 import { insertUser } from '#infrastructure/testing/rows'
 import { UserRepositoryPg } from '#infrastructure/user/user.repository'
 

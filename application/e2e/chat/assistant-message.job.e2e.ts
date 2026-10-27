@@ -38,7 +38,7 @@ import {
   MessageRepository,
 } from '@app-template/domain/chat'
 import {
-  AttachmentStoreMemory,
+  AttachmentStoreTest,
   chat,
   chatId,
   epoch,
@@ -58,12 +58,12 @@ import { png, recordLogs } from '@app-template/testing'
 
 import { AssistantMessageJob } from '#application/chat/assistant-message.job'
 import { ChatService } from '#application/chat/chat.service'
-import { DbWithUsers } from '#application/testing/db.harness'
+import { DbWithUsersTest } from '#application/testing/db.test-layer'
 import {
   holdModelCall,
   type ModelCallHold,
   recordLanguageModel,
-} from '#application/testing/language-model.fake'
+} from '#application/testing/language-model.test-fake'
 
 const historyId = (n: number) => MessageId.make(`0192d4e0-7b3a-7c00-8000-00000000005${n}`)
 const photoId = AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000040')
@@ -73,15 +73,15 @@ type Part = Response.StreamPartEncoded
 
 /**
  * The repositories on a fresh test database, the attachment store in memory. Both halves name
- * `DbWithUsers`, which one build makes once, so they share its database.
+ * `DbWithUsersTest`, which one build makes once, so they share its database.
  */
 const storesPg = {
-  messages: MessageRepositoryPg.pipe(Layer.provide(DbWithUsers)),
+  messages: MessageRepositoryPg.pipe(Layer.provide(DbWithUsersTest)),
   chatsAndAttachments: Layer.mergeAll(
     ChatRepositoryPg,
     AttachmentRepositoryPg,
-    AttachmentStoreMemory,
-  ).pipe(Layer.provide(DbWithUsers)),
+    AttachmentStoreTest,
+  ).pipe(Layer.provide(DbWithUsersTest)),
 }
 
 /**

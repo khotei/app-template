@@ -19,13 +19,13 @@ import { recordLogs } from '@app-template/testing'
 
 import { ChatService } from '#application/chat/chat.service'
 import { ChatTitleJob } from '#application/chat/chat-title.job'
-import { selectChat } from '#application/testing/chat.harness'
-import { DbWithUsers } from '#application/testing/db.harness'
+import { selectChat } from '#application/testing/chat.test-layer'
+import { DbWithUsersTest } from '#application/testing/db.test-layer'
 import {
   holdModelCall,
   type ModelCallHold,
   recordLanguageModel,
-} from '#application/testing/language-model.fake'
+} from '#application/testing/language-model.test-fake'
 
 type Answer = Effect.Effect<Array<Response.PartEncoded>, AiError.AiError>
 
@@ -35,7 +35,7 @@ const makeChatTitleHarness = (answer: Answer) => {
   const { logs, layer: logger } = recordLogs()
   const layer = Layer.mergeAll(ChatService.layer, model, logger).pipe(
     Layer.provideMerge(Layer.merge(ChatPg, AttachmentRepositoryPg)),
-    Layer.provide([DbWithUsers, BunCrypto.layer]),
+    Layer.provide([DbWithUsersTest, BunCrypto.layer]),
   )
   return { prompts, logs, layer }
 }

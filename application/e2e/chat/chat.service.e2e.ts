@@ -33,7 +33,7 @@ import {
   selectMessages,
   settle,
   upload,
-} from '#application/testing/chat.harness'
+} from '#application/testing/chat.test-layer'
 
 type ChatCall = (
   service: ChatService['Service'],

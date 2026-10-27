@@ -9,7 +9,7 @@ import { assistantMessageQueue, GenerateAssistantMessage } from '#infrastructure
 import { Db } from '#infrastructure/db/db.client'
 import { outbox } from '#infrastructure/outbox/outbox.entity'
 import { QueueClientOutbox } from '#infrastructure/shared/queue.client'
-import { DbTest } from '#infrastructure/testing/db-test'
+import { DbTest } from '#infrastructure/testing/db.test-layer'
 
 const QueueClientOutboxTest = QueueClientOutbox.pipe(Layer.provideMerge(DbTest))
 

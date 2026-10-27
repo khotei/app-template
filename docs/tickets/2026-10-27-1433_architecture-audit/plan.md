@@ -322,9 +322,12 @@
   role suffixes in this plan's later steps and in `architecture.md` (`TransactionMemory` →
   `TransactionTest`). `record<Thing>()` and `<Entity>Rows` keep their names.
 - **Test first:** `config only` — the suites stay green unchanged but for imports.
-- **Verify:** `git ls-files '*/testing/*' | grep -vE '\.test-(fake|fixture|layer|setup)\.ts$|/(index|rows)\.ts$'`
-  is empty; `git grep -nE '\b[A-Z]\w+Memory\b' -- ':!repos' ':!docs/tickets/*/verification.md'`
-  is empty; `make check`.
+- **Verify:** `git ls-files -- '*/testing/*.ts' ':!repos' | grep -vE
+  '\.test-(fake|fixture|layer|setup|util)\.ts$|/(index|rows)\.ts$'` is empty;
+  `git grep -nP '\b[A-Z]\w+Memory\b' -- ':!repos' ':!docs/tickets'` is empty; `git grep -nP
+  '\b[A-Z]\w+Memory\b' -- docs/tickets/2026-10-27-1433_architecture-audit/architecture.md` is
+  empty; `sed -n '/^#### S7c/,$p' docs/tickets/2026-10-27-1433_architecture-audit/plan.md | grep
+  -P '\b[A-Z]\w+Memory\b'` is empty; `make check`.
 - **Model:** opus medium
 - **Status:** todo
 
@@ -348,14 +351,14 @@
 #### S8 — `UserService` to the domain
 
 - **Goal:** the user's rules in `domain/user/user.service.ts`, with a unit suite over
-  `UserRepositoryMemory`; `application/user` gone (R2, R17).
+  `UserRepositoryTest`; `application/user` gone (R2, R17).
 - **Blocked by:** S7c.
 - **Files:** `git mv application/user/user.service.ts domain/user/user.service.ts` (key
   `@app-template/domain/user/UserService`; `isOwnedBy` stays in `user.model.ts` until S10);
   `domain/user/index.ts`; `application/user/index.ts` *gone*, `application/package.json`
   (`exports["./user"]` gone); `apps/api/layer.ts`, `apps/api/shared/security.ts` (import from
   `@app-template/domain/user`); `git mv application/e2e/user/user.service.e2e.ts
-  domain/tests/user/user.service.test.ts` over `UserRepositoryMemory` and `BunCrypto.layer`.
+  domain/tests/user/user.service.test.ts` over `UserRepositoryTest` and `BunCrypto.layer`.
 - **Test first:** `UserService` over the memory layer (`domain/tests/user/user.service.test.ts`):
   `ensure` with no secret creates a user and a secret; a valid secret returns its user;
   `authenticate` on an unknown secret fails `UserUnknownError`. Red: `@app-template/domain/user`
@@ -377,13 +380,13 @@
   (`isVisibleTo` and `ensureBindable` go: `get` reads `selectOne({ id, userId })` and filters
   `isExpired`; `bind` checks the values in hand with `Predicate.Struct({ userId: … })` inline, the
   first missing id in the order asked); `infrastructure/attachment/attachment.repository.ts`
-  (`selectOne` through `buildWhere`); `domain/testing/attachment.fake.ts` (the same `Where`);
+  (`selectOne` through `buildWhere`); `domain/testing/attachment.test-fake.ts` (the same `Where`);
   `application/attachment/index.ts` *gone*, `application/package.json`; `apps/api/layer.ts`,
   `apps/api/attachment/attachment.handler.ts`, `application/chat/delete-chat.use-case.ts`,
-  `send-message.use-case.ts`, `application/testing/chat.harness.ts` (imports);
+  `send-message.use-case.ts`, `application/testing/chat.test-layer.ts` (imports);
   `git mv application/e2e/attachment/attachment.service.e2e.ts
-  domain/tests/attachment/attachment.service.test.ts` over `AttachmentRepositoryMemory` and
-  `AttachmentBucketMemory`; `infrastructure/e2e/attachment/attachment.repository.e2e.ts` gains
+  domain/tests/attachment/attachment.service.test.ts` over `AttachmentRepositoryTest` and
+  `AttachmentBucketTest`; `infrastructure/e2e/attachment/attachment.repository.e2e.ts` gains
   the twin: `selectOne({ id, userId })` of a stranger's attachment is none.
 - **Test first:** `AttachmentService` over the memory layers: `get` of a stranger's attachment
   and of an expired unbound one is `AttachmentNotFoundError`; `bind` names the first missing id
@@ -411,8 +414,8 @@
   `domain/user/user.model.ts` (`isOwnedBy` gone), `domain/shared/` *gone* with its export;
   `infrastructure/chat/chat.repository.ts`, `message.repository.ts` (`userId` as the nested
   relation filter `{ chat: { userId } }`, `chatId` as a column, through `buildWhere`);
-  `domain/testing/chat.fake.ts`; `application/chat/*.use-case.ts`, `*.job.ts`,
-  `application/chat/index.ts`, `application/testing/chat.harness.ts`, `apps/api/chat/chat.handler.ts`,
+  `domain/testing/chat.test-fake.ts`; `application/chat/*.use-case.ts`, `*.job.ts`,
+  `application/chat/index.ts`, `application/testing/chat.test-layer.ts`, `apps/api/chat/chat.handler.ts`,
   `apps/api/layer.ts`, `apps/worker/layer.ts` (imports, `ChatService.layer` from the domain);
   `git mv application/e2e/chat/chat.service.e2e.ts domain/tests/chat/chat.service.test.ts` over
   the memory layers; the twins in `infrastructure/e2e/chat/chat.repository.e2e.ts` and
@@ -455,24 +458,24 @@
 #### S12 — `Transaction` and the use cases' unit suites
 
 - **Goal:** use cases run their writes through `Transaction.run` and have unit suites over the
-  memory layers, `TransactionMemory` and a recording queue (R3, R17, D5).
+  memory layers, `TransactionTest` and a recording queue (R3, R17, D5).
 - **Blocked by:** S11.
 - **Files:** `infrastructure/db/db.client.ts` (`Transaction`, `Transaction.layer` over
   `SqlClient`, `SqlError` a defect); `infrastructure/db/index.ts`;
-  `infrastructure/db/testing/transaction.fake.ts` (`TransactionMemory = Layer.succeed(Transaction,
-  { run: identity })`); `git mv infrastructure/testing/db-test.ts
-  infrastructure/db/testing/db.harness.ts` (`DbTest`, `flipSqlError`; the e2e suites' imports);
+  `infrastructure/db/testing/transaction.test-fake.ts` (`TransactionTest = Layer.succeed(Transaction,
+  { run: identity })`); `git mv infrastructure/testing/db.test-layer.ts
+  infrastructure/db/testing/db.test-layer.ts` (`DbTest`, `flipSqlError`; the e2e suites' imports);
   `infrastructure/testing/index.ts` and `infrastructure/package.json` `exports["./testing"]`
-  (`DbTest`, `TransactionMemory`); `packages/testing/queue.fake.ts` (`recordQueue()` →
+  (`DbTest`, `TransactionTest`); `packages/testing/queue.test-fake.ts` (`recordQueue()` →
   `{ sent, layer }`, a `QueueTransport` over a `Ref`) and `packages/testing/index.ts`;
   `application/chat/send-message.use-case.ts`, `delete-chat.use-case.ts` (`Transaction.run` as
   the `Effect.fn` pipeable, no `sql.withTransaction`, no `catchTag('SqlError')`);
-  `application/testing/chat.harness.ts` (`ChatTest`: the use cases over `RepositoryStackMemory`,
-  `AttachmentBucketMemory`, `TransactionMemory`, `QueueClient.layer` over `recordQueue()`,
+  `application/testing/chat.test-layer.ts` (`ChatTest`: the use cases over `RepositoryStackTest`,
+  `AttachmentBucketTest`, `TransactionTest`, `QueueClient.layer` over `recordQueue()`,
   `BunCrypto.layer`; `chat` and the users arranged through the memory ports);
-  `application/testing/db.harness.ts` *gone*; `application/testing/index.ts`;
-  `apps/api/testing/api.harness.ts` (`DbTest` from `@app-template/infrastructure/testing`,
-  `AttachmentBucketMemory` from `@app-template/domain/testing`); `apps/api/layer.ts`,
+  `application/testing/db.test-layer.ts` *gone*; `application/testing/index.ts`;
+  `apps/api/testing/api.test-layer.ts` (`DbTest` from `@app-template/infrastructure/testing`,
+  `AttachmentBucketTest` from `@app-template/domain/testing`); `apps/api/layer.ts`,
   `apps/worker/layer.ts` (`Transaction.layer`); `git mv
   application/e2e/chat/send-message.use-case.e2e.ts
   application/tests/chat/send-message.use-case.test.ts`, the same for `delete-chat`;
@@ -497,7 +500,7 @@
   `buildChatPrompt`, `suggestTitle(text)` none for blank text without a model call, else the
   model's answer through `buildChatTitle`); `infrastructure/chat/chat.llm.ts` *gone*;
   `infrastructure/chat/index.ts`; `domain/chat/chat.model.ts` (`buildChatTitle(text):
-  Option<ChatTitle>`, the grapheme cut and the blank refusal); `domain/testing/assistant.fake.ts`
+  Option<ChatTitle>`, the grapheme cut and the blank refusal); `domain/testing/assistant.test-fake.ts`
   (`recordAssistant(script)` → `{ calls, layer }`; `holdAssistantCall()`) and
   `domain/testing/index.ts`; `application/chat/assistant-message.job.ts`, `chat-title.job.ts`
   (call the `Assistant` port); `apps/worker/layer.ts` (`AssistantLlm` over `LanguageModelStub`);
@@ -562,7 +565,7 @@
   application/e2e/chat/assistant-message.job.e2e.ts
   application/tests/chat/generate-assistant-message.use-case.test.ts` over the memory layers,
   `recordAssistant` and `holdAssistantCall` (a race is arranged by writing `MessageRows` between
-  hold and release); `application/testing/language-model.fake.ts` *gone*.
+  hold and release); `application/testing/language-model.test-fake.ts` *gone*.
 - **Test first:** the use case over the memory layers: the stages `preparing`, `generating`, a
   snapshot, `completed`, and the chat's `updatedAt` at the completion; a message moved during
   the hold is skipped; a deleted chat is skipped; `fail` writes `failed` with the reason and
@@ -598,8 +601,8 @@
 - **Goal:** `ApiTest` needs no database; the four handler suites run under `make test-unit`
   (R17, R4).
 - **Blocked by:** S16.
-- **Files:** `apps/api/testing/api.harness.ts` (`ApiServerTest`: `ApiHttp` over
-  `RepositoryStackMemory`, `AttachmentBucketMemory`, `TransactionMemory`, `QueueClient.layer` over
+- **Files:** `apps/api/testing/api.test-layer.ts` (`ApiServerTest`: `ApiHttp` over
+  `RepositoryStackTest`, `AttachmentBucketTest`, `TransactionTest`, `QueueClient.layer` over
   `recordQueue()`, `BunCrypto.layer`, `BunHttpServer.layerTest`); `git mv
   apps/api/e2e/<entity>/<entity>.handler.e2e.ts apps/api/tests/<entity>/<entity>.handler.test.ts`
   for `attachment`, `chat`, `health`, `user` (what they arranged through `Db` they arrange
@@ -621,14 +624,14 @@
   suite and the relay run on it (R18, D8).
 - **Blocked by:** S5. *Parallel* with S7–S17 (its one shared file is
   `infrastructure/testing/index.ts`, a line each).
-- **Files:** `infrastructure/testing/e2e.setup.ts` (starts both containers with `Promise.all`,
+- **Files:** `infrastructure/testing/e2e.test-setup.ts` (starts both containers with `Promise.all`,
   `provide('awsEndpoint')`; `infrastructure/package.json` gains `testcontainers` in
-  `devDependencies`); `packages/testing/aws.ts` (`SqsClientTest`, `S3ClientTest` over
+  `devDependencies`); `packages/testing/aws.test-layer.ts` (`SqsClientTest`, `S3ClientTest` over
   `inject('awsEndpoint')`, the region and credentials; `ProvidedContext` gains `awsEndpoint`);
-  `packages/testing/ministack.ts` *gone*; `packages/testing/index.ts`, `packages/testing/package.json`
+  `packages/testing/ministack.test-layer.ts` *gone*; `packages/testing/index.ts`, `packages/testing/package.json`
   (`@effect-aws/client-s3`); `packages/aws/provision.ts` (`provision(resources, stage)` creates
   the bucket too, idempotent; `packages/aws/package.json` gains `@effect-aws/client-s3`);
-  `infrastructure/testing/aws.harness.ts` (`AwsTest`: a stage `e2e<8 hex>`, `provision`,
+  `infrastructure/testing/aws.test-layer.ts` (`AwsTest`: a stage `e2e<8 hex>`, `provision`,
   `AwsConfig` over the endpoint); `infrastructure/testing/index.ts`;
   `packages/queue/e2e/queue.e2e.ts` (on `SqsClientTest`, a stage of its own per `layer` block
   instead of `'test'`); `infrastructure/e2e/outbox/outbox.relay.e2e.ts` (one case on
@@ -703,7 +706,7 @@
   `@effect/vitest`, `@effect/platform-bun`; `imports` `#e2e/*`), `e2e/tsconfig.json`; root
   `package.json` (`workspaces` gains `e2e`), root `tsconfig.json` (the reference);
   `apps/api/package.json`, `apps/worker/package.json` (`exports["./layer"]`);
-  `e2e/testing/stand.harness.ts` (`StandTest`: `ApiHttp` over `BunHttpServer.layerTest` and the
+  `e2e/testing/stand.test-layer.ts` (`StandTest`: `ApiHttp` over `BunHttpServer.layerTest` and the
   api's config-fed adapters, merged with `WorkerLayer`, under one `ConfigProvider.fromUnknown`
   of `DATABASE_URL` and `AWS_ENDPOINT_URL` from `inject`, `STAGE` from the test, and
   `AWS_REGION`, `API_PORT`, `NODE_ENV`, `LOG_LEVEL`, `QUEUE_LOCK_EXPIRATION`,
@@ -815,8 +818,8 @@
 | R22 | S3 |
 | R23 | S22 |
 
-Memory rules and their e2e twins (D6): the second active message (`MessageRepositoryMemory.insert`
+Memory rules and their e2e twins (D6): the second active message (`MessageRepositoryTest.insert`
 ↔ `message.repository.e2e.ts`), the stage condition of `update` (↔ the same), the owner mismatch
-as none (`ChatRepositoryMemory.selectOne` ↔ `chat.repository.e2e.ts`, `AttachmentRepositoryMemory`
+as none (`ChatRepositoryTest.selectOne` ↔ `chat.repository.e2e.ts`, `AttachmentRepositoryTest`
 ↔ `attachment.repository.e2e.ts`), the bound attachment refusing the cascade
-(`ChatRepositoryMemory.delete` ↔ `chat.repository.e2e.ts`).
+(`ChatRepositoryTest.delete` ↔ `chat.repository.e2e.ts`).

@@ -69,7 +69,7 @@ Every `tests/` and `e2e/` file mirrors the source path; test support lives only 
 | `attachment/attachment.service.ts` | `AttachmentService` (domain) |
 | `user/user.port.ts` **new** · `user/user.service.ts` | `UserRepository` · `UserService` (domain), `UserSecret` |
 | `shared/` *gone* | `ensureFound` and the `./shared` export |
-| `testing/` **new** | `chat.fixture.ts`, `user.fixture.ts`, `attachment.fixture.ts` (from `application/testing`); `chat.fake.ts`: `ChatRepositoryMemory`, `MessageRepositoryMemory`; `attachment.fake.ts`: `AttachmentRepositoryMemory`, `AttachmentBucketMemory`; `user.fake.ts`: `UserRepositoryMemory`; `assistant.fake.ts`: `recordAssistant(script)`, `holdAssistantCall()`; `index.ts` |
+| `testing/` **new** | `chat.test-fixture.ts`, `user.test-fixture.ts`, `attachment.test-fixture.ts` (from `application/testing`); `chat.test-fake.ts`: `ChatRepositoryTest`, `MessageRepositoryTest`; `attachment.test-fake.ts`: `AttachmentRepositoryTest`, `AttachmentBucketTest`; `user.test-fake.ts`: `UserRepositoryTest`; `assistant.test-fake.ts`: `recordAssistant(script)`, `holdAssistantCall()`; `index.ts` |
 | `tests/` **new** | `chat/chat.model.test.ts`, `chat/message.model.test.ts`, `chat/chat.service.test.ts`, `chat/message.service.test.ts`, `attachment/…`, `user/…` |
 | `package.json` | `exports["./testing"]`; `@effect/platform-bun` in `devDependencies` (`BunCrypto.layer` in tests) |
 
@@ -90,17 +90,17 @@ sits beside never reach the browser.
 | `db/db.client.ts` | `Db`; **new** `Transaction` (`run`) with `Transaction.layer` over `SqlClient` |
 | `db/columns.ts` | the column defaults; **new** `SetColumns`, `WhereColumns`, `buildSet`, `buildWhere` |
 | `db/migrations/<n>_outbox_body_jsonb.sql` **new** | `ALTER TABLE outbox ALTER COLUMN body TYPE jsonb USING body::jsonb` |
-| `db/testing/db.harness.ts` **new** | `DbTest`, `flipSqlError` (from `testing/db-test.ts`) |
-| `db/testing/transaction.fake.ts` **new** | `TransactionMemory` (identity) |
-| `db/testing/postgres.setup.ts` *gone* | replaced by `testing/e2e.setup.ts` |
+| `db/testing/db.test-layer.ts` **new** | `DbTest`, `flipSqlError` (from `testing/db.test-layer.ts`) |
+| `db/testing/transaction.test-fake.ts` **new** | `TransactionTest` (identity) |
+| `db/testing/postgres.setup.ts` *gone* | replaced by `testing/e2e.test-setup.ts` |
 | `chat/chat.repository.ts`, `chat/message.repository.ts`, `attachment/attachment.repository.ts`, `user/user.repository.ts` | `selectOne(where)`, the shared builders, no `unknown` |
 | `chat/assistant.llm.ts` **new** · `chat/chat.llm.ts` *gone* | `AssistantLlm`: the prompts, `streamText`, `suggestTitle` over `LanguageModel` |
 | `attachment/attachment.bucket.ts` | `AttachmentBucketS3` over `S3Bucket`: keys, headers, the domain mapping; under 80 lines |
 | `shared/aws.client.ts` | `SQSServiceFromConfig`, `S3ServiceFromConfig`, **new** `S3BucketFromConfig` (bucket from `AwsConfig.stage`) |
 | `shared/queue.client.ts` · `outbox/outbox.entity.ts` · `outbox/outbox.relay.ts` | `body` as `jsonb` (the job's encoded JSON value); the relay's loop as one pipeline |
-| `testing/e2e.setup.ts` **new** | the e2e `globalSetup`: Postgres + migrated template, MiniStack; `provide('databaseUrl')`, `provide('awsEndpoint')` |
-| `testing/aws.harness.ts` **new** | `AwsTest`: a stage per test, `provision(resources, stage)`, `AwsConfig` over `inject('awsEndpoint')` |
-| `testing/rows.ts`, `testing/repository-stacks.ts` | as today |
+| `testing/e2e.test-setup.ts` **new** | the e2e `globalSetup`: Postgres + migrated template, MiniStack; `provide('databaseUrl')`, `provide('awsEndpoint')` |
+| `testing/aws.test-layer.ts` **new** | `AwsTest`: a stage per test, `provision(resources, stage)`, `AwsConfig` over `inject('awsEndpoint')` |
+| `testing/rows.ts`, `testing/repository-stack.test-layer.ts` | as today |
 | `tests/shared/resources.test.ts` | the only pure suite |
 | `e2e/` **new** | `chat/chat.entity.e2e.ts`, `chat/message.entity.e2e.ts`, `chat/chat.repository.e2e.ts`, `chat/message.repository.e2e.ts`, `attachment/attachment.entity.e2e.ts`, `attachment/attachment.repository.e2e.ts`, `attachment/attachment.bucket.e2e.ts` **new**, `user/user.repository.e2e.ts`, `db/db.client.e2e.ts`, `db/migrate.e2e.ts`, `outbox/outbox.relay.e2e.ts`, `shared/queue.client.e2e.ts` |
 | `package.json` | `exports["./testing"]` (one `index.ts` over `testing/` and `db/testing/`) |
@@ -112,9 +112,9 @@ sits beside never reach the browser.
 | `s3/bucket.ts` **new** · `s3/index.ts` · `s3/package.json` | `S3Bucket`, `S3Bucket.layer({ bucket })` over `S3Service`; `e2e/bucket.e2e.ts` |
 | `aws/provision.ts` | `provision(resources, stage)` creates the bucket too, idempotent like the queues |
 | `queue/e2e/queue.e2e.ts` | from `queue.test.ts`, on the run's MiniStack through `AwsTest` |
-| `testing/aws.ts` **new** · `testing/ministack.ts` *gone* | `SqsClientTest`, `S3ClientTest` over `inject('awsEndpoint')`; `ProvidedContext` gains `awsEndpoint` |
-| `testing/queue.fake.ts` **new** | `recordQueue()` → `{ sent, layer }`: a `QueueTransport` over a `Ref` |
-| `testing/postgres.ts` | `PgClientTest`, as today |
+| `testing/aws.test-layer.ts` **new** · `testing/ministack.test-layer.ts` *gone* | `SqsClientTest`, `S3ClientTest` over `inject('awsEndpoint')`; `ProvidedContext` gains `awsEndpoint` |
+| `testing/queue.test-fake.ts` **new** | `recordQueue()` → `{ sent, layer }`: a `QueueTransport` over a `Ref` |
+| `testing/postgres.test-layer.ts` | `PgClientTest`, as today |
 
 ### `application`
 
@@ -125,8 +125,8 @@ sits beside never reach the browser.
 | `chat/generate-assistant-message.use-case.ts` **new** | `GenerateAssistantMessageUseCase`: `generate(job)`, `fail(messageId, cause)` |
 | `chat/generate-chat-title.use-case.ts` **new** | `GenerateChatTitleUseCase`: `generate(job)` |
 | `chat/chat.service.ts`, `chat/*.job.ts`, `attachment/attachment.service.ts`, `user/user.service.ts` *gone* | moved to `domain` or split into the use cases |
-| `testing/chat.harness.ts` | `ChatTest`: the use cases over the memory layers, `TransactionMemory`, `recordQueue()`; the arrange and read steps over the memory ports |
-| `testing/db.harness.ts`, `testing/attachment.fake.ts`, `testing/language-model.fake.ts`, the fixtures *gone* | moved to `domain/testing` and `infrastructure/db/testing` |
+| `testing/chat.test-layer.ts` | `ChatTest`: the use cases over the memory layers, `TransactionTest`, `recordQueue()`; the arrange and read steps over the memory ports |
+| `testing/db.test-layer.ts`, `testing/attachment.test-fake.ts`, `testing/language-model.test-fake.ts`, the fixtures *gone* | moved to `domain/testing` and `infrastructure/db/testing` |
 | `tests/chat/*.use-case.test.ts` | one suite per use case |
 
 ### `apps` (no `src/`)
@@ -134,7 +134,7 @@ sits beside never reach the browser.
 | File | Holds |
 |---|---|
 | `api/layer.ts`, `api/main.ts`, `api/<entity>/<entity>.handler.ts`, `api/shared/…` | handlers call `ChatService`, `AttachmentService`, `UserService` from `domain` and the use cases; `exports["./layer"]` |
-| `api/testing/api.harness.ts` | `ApiTest`: `ApiHttp` over the memory layers and `BunHttpServer.layerTest`; no database |
+| `api/testing/api.test-layer.ts` | `ApiTest`: `ApiHttp` over the memory layers and `BunHttpServer.layerTest`; no database |
 | `api/tests/<entity>/<entity>.handler.test.ts` | statuses, cookies, the wire shape |
 | `worker/layer.ts`, `worker/main.ts` | `WorkerLayer`; `exports["./layer"]` |
 | `worker/chat/assistant-message.handler.ts` **new** · `worker/chat/chat-title.handler.ts` **new** | `handle`, `handleDeadLettered` exported; `AssistantMessageHandler`, `ChatTitleHandler` layers (`worker(queue, handle)` + dead-letter) |
@@ -147,7 +147,7 @@ sits beside never reach the browser.
 | File | Holds |
 |---|---|
 | `package.json`, `tsconfig.json` | `devDependencies` only: `@app-template/api`, `worker`, `http-api`, `infrastructure`, `testing`, `config`, `effect`, `@effect/vitest`, `@effect/platform-bun` |
-| `testing/stand.harness.ts` | `StandTest`: `ApiLayer` and `WorkerLayer` in one runtime over `DbTest`, `AwsTest`, `LanguageModelStub` and a `ConfigProvider.fromUnknown` of the containers' addresses; `ApiClient` on the api's port |
+| `testing/stand.test-layer.ts` | `StandTest`: `ApiLayer` and `WorkerLayer` in one runtime over `DbTest`, `AwsTest`, `LanguageModelStub` and a `ConfigProvider.fromUnknown` of the containers' addresses; `ApiClient` on the api's port |
 | `chat.e2e.ts` | the journey: a user, a chat, an upload, a send, the message polled to `completed`, the title, the delete with its attachments |
 
 ### Root
@@ -307,8 +307,8 @@ export class Transaction extends Context.Service<Transaction, {
   static readonly layer = Layer.effect(this, Effect.map(SqlClient.SqlClient, (sql) =>
     this.of({ run: (self) => sql.withTransaction(self).pipe(Effect.catchTag('SqlError', Effect.die)) })))
 }
-// infrastructure/db/testing/transaction.fake.ts
-export const TransactionMemory = Layer.succeed(Transaction, { run: identity })
+// infrastructure/db/testing/transaction.test-fake.ts
+export const TransactionTest = Layer.succeed(Transaction, { run: identity })
 ```
 
 ### Repository write mapping
@@ -406,7 +406,7 @@ export default defineConfig({
     projects: [
       { test: { name: 'unit', include: ['**/tests/**/*.test.ts'], exclude, sequence: { concurrent: true } } },
       { test: { name: 'e2e', include: ['**/e2e/**/*.e2e.ts'], exclude,
-                globalSetup: ['infrastructure/testing/e2e.setup.ts'], sequence: { concurrent: true } } },
+                globalSetup: ['infrastructure/testing/e2e.test-setup.ts'], sequence: { concurrent: true } } },
     ],
   },
 })
@@ -428,14 +428,14 @@ The guard greps the service keys (`'@app-template/domain/chat/ChatService'`), wh
 string literals and survive minification; it needs no knowledge of how Bun tree-shakes.
 
 ```ts
-// infrastructure/testing/e2e.setup.ts
+// infrastructure/testing/e2e.test-setup.ts
 export default async function setup(project: TestProject) {
   const [postgres, ministack] = await Promise.all([startPostgresWithTemplate(), startMiniStack()])
   project.provide('databaseUrl', postgres.getConnectionUri())
   project.provide('awsEndpoint', ministack.endpoint)
   return () => Promise.all([postgres.stop(), ministack.stop()])
 }
-// infrastructure/testing/aws.harness.ts
+// infrastructure/testing/aws.test-layer.ts
 /** A stage of its own per test on the run's MiniStack: the bucket and the queues provisioned fresh. */
 export const AwsTest = Layer.unwrap(Effect.gen(function* () {
   const stage = `e2e${crypto.randomUUID().slice(0, 8)}`
@@ -450,7 +450,7 @@ export const AwsTest = Layer.unwrap(Effect.gen(function* () {
 |---|---|---|
 | `ChatService`, `MessageService`, `AttachmentService`, `UserService` over the memory layers (`domain/tests`) | every rule: ownership through `Where`, the busy chat, the stage transitions and the lost race (`MessageMovedError`), the bind order, the expiry, the title cut | what the database enforces (the partial unique index, the cascade), the SQL the `Where` becomes |
 | `buildChatTitle`, the transitions, `ensureMessageInput` (`domain/tests/chat/*.model.test.ts`) | the grapheme cut, blank text, duplicate ids, the transition table | nothing stored |
-| the use cases over the memory layers, `TransactionMemory`, `recordQueue()`, `recordAssistant()` (`application/tests`) | the order of steps, the jobs sent and when, the chat's `updatedAt` after a send and a settle, the snapshots and the settle, the skip on a moved message, the fail on the last attempt's cause | the transaction's atomicity, a real race between two sends, the outbox |
+| the use cases over the memory layers, `TransactionTest`, `recordQueue()`, `recordAssistant()` (`application/tests`) | the order of steps, the jobs sent and when, the chat's `updatedAt` after a send and a settle, the snapshots and the settle, the skip on a moved message, the fail on the last attempt's cause | the transaction's atomicity, a real race between two sends, the outbox |
 | `handle(job, info)` of each worker handler (`apps/worker/tests`) | the last-attempt policy, the dead-letter log and fail | the queue loop, redrive |
 | `ApiTest` over the memory layers (`apps/api/tests`) | statuses, the cookie, the wire shape, multipart limits | the database, S3 |
 | each `*RepositoryPg` on `DbTest` (`infrastructure/e2e`) | the `Where` as SQL (an owner mismatch reads as absent), the builders, the unique index on the active message, the relational reads, the cascade refusing a bound attachment | the rules above |
@@ -498,7 +498,7 @@ export const AwsTest = Layer.unwrap(Effect.gen(function* () {
   into the use case.
 - **D5 — `Transaction` is an infrastructure service with a memory variant.** A use case runs
   its writes through `Transaction.run`; `Transaction.layer` wraps `SqlClient.withTransaction`,
-  `TransactionMemory` is the identity, so a use case has a unit test over memory ports.
+  `TransactionTest` is the identity, so a use case has a unit test over memory ports.
   `application` keeps no service of its own. *Rejected:* use cases tested only e2e (R17 asks
   for a unit suite per use case); SQLite in memory for `BEGIN`/`COMMIT` (a dependency for one
   combinator); a `Transaction` declared in `application`, which would need its adapter there
@@ -506,8 +506,8 @@ export const AwsTest = Layer.unwrap(Effect.gen(function* () {
 - **D6 — The memory layers live in `domain/testing` and mirror the port's contract, index
   included.** One layer per port over a `Ref<HashMap>` (a write replaces the row,
   never mutates it), exported as `@app-template/domain/testing`
-  so `application` and the apps reuse them; `MessageRepositoryMemory.insert` answers `false` on a
-  second active message, `update` honours its `Where`, `ChatRepositoryMemory.delete` dies on a
+  so `application` and the apps reuse them; `MessageRepositoryTest.insert` answers `false` on a
+  second active message, `update` honours its `Where`, `ChatRepositoryTest.delete` dies on a
   bound attachment. Each such rule has its e2e twin on the Pg repository. *Rejected:* a fake per
   suite (the rules drift apart), a shared "database in memory" (a second ORM).
 - **D7 — One journey in a root `e2e` workspace, both app layers in one process.**

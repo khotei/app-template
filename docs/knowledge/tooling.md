@@ -51,7 +51,7 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   source path. Each project lists the shared `exclude` (`repos/**` added to the default) and
   `sequence` itself, and the root sets no `globalSetup`, so a unit run starts no container. A new
   workspace needs no test config, and the vendored suites stay out.
-- **One Postgres per e2e run, a database per test.** `infrastructure/testing/e2e.setup.ts`
+- **One Postgres per e2e run, a database per test.** `infrastructure/testing/e2e.test-setup.ts`
   starts one `postgres:18.6-alpine` container (about 1.2 s) and migrates a template database in
   it with the program `make migrate` runs. Each test provides
   `PgClientTest` from `@app-template/testing`: a fresh database copied from the template and

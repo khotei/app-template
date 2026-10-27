@@ -12,7 +12,7 @@ import { TestClock } from 'effect/testing'
 import { recordLogs } from '@app-template/testing'
 
 import { applyMigrations, migrateDatabase, retryWhileUnreachable } from '#infrastructure/db/migrate'
-import { DbTest } from '#infrastructure/testing/db-test'
+import { DbTest } from '#infrastructure/testing/db.test-layer'
 
 describe('applyMigrations', () => {
   it.effect('applies nothing to a database copied from the migrated template, and says so', () => {

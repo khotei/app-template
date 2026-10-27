@@ -12,7 +12,7 @@ import { UserId } from '@app-template/domain/user'
 
 import { AttachmentInsert, attachments } from '#infrastructure/attachment/attachment.entity'
 import { Db } from '#infrastructure/db/db.client'
-import { DbTest, flipSqlError } from '#infrastructure/testing/db-test'
+import { DbTest, flipSqlError } from '#infrastructure/testing/db.test-layer'
 import { insertUser } from '#infrastructure/testing/rows'
 
 const userId = UserId.make('0192d4e0-7b3a-7c00-8000-000000000090')

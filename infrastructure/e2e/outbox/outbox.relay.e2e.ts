@@ -20,7 +20,7 @@ import { Db } from '#infrastructure/db/db.client'
 import { outbox } from '#infrastructure/outbox/outbox.entity'
 import { OutboxRelay } from '#infrastructure/outbox/outbox.relay'
 import { QueueClientOutbox } from '#infrastructure/shared/queue.client'
-import { DbTest } from '#infrastructure/testing/db-test'
+import { DbTest } from '#infrastructure/testing/db.test-layer'
 
 interface Attempt {
   readonly queue: string

@@ -21,7 +21,7 @@ import {
 } from '#domain/attachment/attachment.port'
 import { matches } from '#domain/testing/rows'
 
-/** The rows `AttachmentRepositoryMemory` keeps, by id, for a test to arrange or read. */
+/** The rows `AttachmentRepositoryTest` keeps, by id, for a test to arrange or read. */
 export class AttachmentRows extends Context.Service<
   AttachmentRows,
   Ref.Ref<HashMap.HashMap<AttachmentId, Attachment>>
@@ -35,7 +35,7 @@ const holdsWhere = (where: AttachmentWhere) =>
     matches(Struct.omit(where, ['id'])),
   )
 
-export const AttachmentRepositoryMemory = Layer.effect(
+export const AttachmentRepositoryTest = Layer.effect(
   AttachmentRepository,
   Effect.map(AttachmentRows, (rows) =>
     AttachmentRepository.of({
@@ -60,7 +60,7 @@ export const AttachmentRepositoryMemory = Layer.effect(
   ),
 )
 
-/** The bytes `AttachmentStoreMemory` holds, by id, for a test to read. */
+/** The bytes `AttachmentStoreTest` holds, by id, for a test to read. */
 export class AttachmentObjects extends Context.Service<
   AttachmentObjects,
   Ref.Ref<HashMap.HashMap<AttachmentId, Uint8Array>>
@@ -69,7 +69,7 @@ export class AttachmentObjects extends Context.Service<
 }
 
 /** The attachment store over a map; `keep` is a no-op, since nothing here expires. */
-export const AttachmentStoreMemory = Layer.effect(
+export const AttachmentStoreTest = Layer.effect(
   AttachmentStore,
   Effect.map(AttachmentObjects, (objects) => {
     const select = (id: AttachmentId) => Effect.map(Ref.get(objects), HashMap.get(id))

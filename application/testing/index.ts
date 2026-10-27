@@ -1,3 +1,3 @@
-export { AttachmentStoreMemory } from '@app-template/domain/testing'
+export { AttachmentStoreTest } from '@app-template/domain/testing'
 
-export { DbTest } from '#application/testing/db.harness'
+export { DbTest } from '#application/testing/db.test-layer'

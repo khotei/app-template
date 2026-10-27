@@ -3,7 +3,7 @@
 How the app reaches S3 and SQS, locally and on AWS, and how the resources it needs are described,
 created and tested. The code: `packages/aws` (the inventory, the naming rule, the provisioner),
 `deployment/local/` (the Pulumi program of the local stand), `deployment/aws/` (its resources),
-`packages/testing/ministack.ts`.
+`packages/testing/ministack.test-layer.ts`.
 
 ## The local stand-in
 
@@ -172,10 +172,10 @@ and only the snapshot-timing block steps the `TestClock`.
 ## Tests on Docker
 
 Only the queue's own suite starts MiniStack: `packages/queue/e2e/queue.e2e.ts` starts one container
-through `SqsClientMiniStack` in `@app-template/testing` (`testcontainers`; an SQS client on that
+through `SqsClientTest` in `@app-template/testing` (`testcontainers`; an SQS client on that
 container) and stops it with the suite; it provisions its queues under the fixed stage `test`
 and passes `{ timeout: '60 seconds' }` to `layer(…)`. The application and api suites test
-our code, not S3 or SQS: they provide `AttachmentStoreMemory`
+our code, not S3 or SQS: they provide `AttachmentStoreTest`
 ([tooling.md › Tests](tooling.md#tests)) and send jobs to the outbox
 ([database.md › Tests](database.md#tests)). So `make test` needs a running Docker daemon and nothing
 else: the Pulumi project is for `make up` alone. The container starts in about two seconds; the

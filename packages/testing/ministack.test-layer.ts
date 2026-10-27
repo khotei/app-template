@@ -20,7 +20,7 @@ const start = Effect.acquireRelease(
 )
 
 /** An SQS client on a MiniStack container that lives as long as the layer: one per test file. */
-export const SqsClientMiniStack = Layer.unwrap(
+export const SqsClientTest = Layer.unwrap(
   Effect.map(start, (container) => {
     const endpoint = new URL(`http://${container.getHost()}:${container.getMappedPort(port)}`).href
     return SQSService.layer({ endpoint, region, credentials })

@@ -2,7 +2,7 @@ import { BunHttpServer, BunServices } from '@effect/platform-bun'
 import { ConfigProvider, Effect, Layer, Ref } from 'effect'
 import { Cookies, HttpClient } from 'effect/http'
 
-import { AttachmentStoreMemory, DbTest } from '@app-template/application/testing'
+import { AttachmentStoreTest, DbTest } from '@app-template/application/testing'
 import { ApiClient } from '@app-template/http-api'
 import { AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
 import { QueueClientOutbox } from '@app-template/infrastructure/shared'
@@ -15,7 +15,7 @@ import { ApiHttp } from '#api/layer'
  * writes.
  */
 export const ApiServerTest = ApiHttp.pipe(
-  Layer.provide([AttachmentRepositoryPg, AttachmentStoreMemory, QueueClientOutbox]),
+  Layer.provide([AttachmentRepositoryPg, AttachmentStoreTest, QueueClientOutbox]),
   Layer.provideMerge(BunHttpServer.layerTest),
   Layer.provideMerge(DbTest),
   Layer.provide([BunServices.layer, ConfigProvider.layer(ConfigProvider.fromUnknown({}))]),

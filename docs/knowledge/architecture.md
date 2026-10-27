@@ -113,7 +113,7 @@ Using the `chat` slice as the map:
 | service over the ports | `application/chat/chat.service.ts` | `ChatService`, `ChatService.layer` |
 | use case composing services | `application/chat/send-message.use-case.ts` | `SendMessageUseCase`, `SendMessageUseCase.layer` |
 | job: producer and worker | `application/chat/assistant-message.job.ts` | `AssistantMessageJob`, `AssistantMessageJob.worker` |
-| test support | `application/testing/chat.harness.ts` | `ChatTest`, `layerChatTest(chats)` |
+| test support | `application/testing/chat.test-layer.ts` | `ChatTest`, `layerChatTest(chats)` |
 | contract group | `http-api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`), the DTOs `Chat`, `Message` |
 | handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
 | browser feature | `apps/web/features/health/health-panel.ts` | `renderHealthPanel(root)` |
@@ -152,7 +152,7 @@ Pascal one (`Document`).
    `<verb>-<object>.use-case.ts` each use case, both a `Context.Service` with a `layer`, like
    `application/chat/`. Which flow goes where:
    [.claude/rules/use-cases.md](../../.claude/rules/use-cases.md). Test them on the test database
-   through the harness, races included. Shared test support goes in `application/testing/`. Add
+   through the test layer, races included. Shared test support goes in `application/testing/`. Add
    `index.ts` and the `exports` entry.
 7. **Job, if the entity has asynchronous work.** `infrastructure/<entity>/<entity>.queue.ts`
    holds the queue definitions (name, job schema, retry policy, `jobId`), and any prompt the model
@@ -167,10 +167,11 @@ Pascal one (`Document`).
    `HttpApiBuilder.group(Api, '<group>', …)`: it calls the use cases and services and projects
    each model onto its DTO through `apps/api/shared/projections.ts` (`Struct.pick`). Add it
    to `ApiRoutes`, and its services and `<Entity>Pg` to `ApiHttp` in `apps/api/layer.ts`; an
-   entity with an AWS adapter goes to `ApiLayer` instead, and the api harness provides the memory
+   entity with an AWS adapter goes to `ApiLayer` instead, and the api test layer provides the memory
    layer from `@app-template/application/testing` in its place.
-   Test in `apps/api/e2e/<entity>/<entity>.handler.e2e.ts`, on `apps/api/testing/api.harness.ts`, only
-   what HTTP adds (statuses, cookies, the wire shape); the rules stay in the application suites.
+   Test in `apps/api/e2e/<entity>/<entity>.handler.e2e.ts`, on
+   `apps/api/testing/api.test-layer.ts`, only what HTTP adds (statuses, cookies, the wire shape);
+   the rules stay in the application suites.
 10. **Client, if the browser needs it.** `ApiClient` from `@app-template/http-api` already has
     every endpoint of the contract; add a feature folder under `apps/web/features/<entity>/`
     whose Effect calls it through `ApiClient.use`.

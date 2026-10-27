@@ -4,7 +4,7 @@ import { Cookies, type HttpClientResponse } from 'effect/http'
 
 import { ApiClient } from '@app-template/http-api'
 
-import { ApiServerTest, ApiTest, layerApiClient } from '#api/testing/api.harness'
+import { ApiServerTest, ApiTest, layerApiClient } from '#api/testing/api.test-layer'
 
 const issuedCookie: Cookies.Cookie['options'] = {
   maxAge: Duration.seconds(31_536_000),

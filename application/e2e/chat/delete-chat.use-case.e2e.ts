@@ -18,7 +18,7 @@ import {
   selectChat,
   selectMessages,
   upload,
-} from '#application/testing/chat.harness'
+} from '#application/testing/chat.test-layer'
 
 /** The Postgres chat repository whose first `delete` dies, as a store failure would. */
 const ChatRepositoryDeleteFailingOnce = Layer.effect(

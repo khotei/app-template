@@ -14,7 +14,7 @@ import { ApiClient } from '@app-template/http-api'
 import { MessageRepositoryPg } from '@app-template/infrastructure/chat'
 import { assertSchemaEquals } from '@app-template/testing'
 
-import { ApiServerTest, ApiTest, layerApiClient } from '#api/testing/api.harness'
+import { ApiServerTest, ApiTest, layerApiClient } from '#api/testing/api.test-layer'
 
 const hello = { text: 'Hello', attachmentIds: [] }
 

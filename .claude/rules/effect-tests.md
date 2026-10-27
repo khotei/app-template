@@ -11,7 +11,7 @@ paths:
 
 - Test our code: a rule, a query, a race, a rollback, a retry. Never test the framework or a
   library (Effect, Drizzle, vitest, the HTTP builder), AWS or MiniStack, what a type already
-  guarantees, or test support itself (a fake, a harness, `PgClientTest`).
+  guarantees, or test support itself (a fake, a test layer, `PgClientTest`).
 - Test a rule once, at the lowest seam that owns it: a pure domain function before a service, a
   service before a handler. A handler test checks only what HTTP adds: a status, a cookie, the
   shape on the wire.
@@ -31,7 +31,8 @@ paths:
 - Test support that several test files share lives in `<workspace>/testing/` (or
   `packages/testing` when several workspaces share it, `@app-template/testing`, declared in
   `devDependencies`); the tests sit at the workspace's top, in `tests/` (no Docker) or `e2e/`
-  (Docker). Roles: `naming.md › Files`.
+  (Docker). Every support file is `<entity>.test-<role>.ts` and every test-only layer ends in
+  `Test`, so `**/*.test-*.ts` and `\w+Test\b` find them all; roles: `naming.md › Files`.
 
 ## Resources and time
 

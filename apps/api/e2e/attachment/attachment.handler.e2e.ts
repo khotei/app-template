@@ -11,7 +11,7 @@ import {
 } from '@app-template/http-api'
 import { assertSchemaEquals } from '@app-template/testing'
 
-import { ApiTest } from '#api/testing/api.harness'
+import { ApiTest } from '#api/testing/api.test-layer'
 
 const mebibyte = 1024 * 1024
 

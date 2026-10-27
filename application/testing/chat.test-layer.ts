@@ -15,7 +15,7 @@ import {
   MessageRepository,
   prepareMessage,
 } from '@app-template/domain/chat'
-import { AttachmentStoreMemory, chat } from '@app-template/domain/testing'
+import { AttachmentStoreTest, chat } from '@app-template/domain/testing'
 import type { UserId } from '@app-template/domain/user'
 import { AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
 import { ChatRepositoryPg, MessageRepositoryPg } from '@app-template/infrastructure/chat'
@@ -27,7 +27,7 @@ import { AttachmentService } from '#application/attachment/attachment.service'
 import { ChatService } from '#application/chat/chat.service'
 import { DeleteChatUseCase } from '#application/chat/delete-chat.use-case'
 import { SendMessageUseCase } from '#application/chat/send-message.use-case'
-import { DbWithUsers } from '#application/testing/db.harness'
+import { DbWithUsersTest } from '#application/testing/db.test-layer'
 
 const insertChat = Layer.effectDiscard(
   Effect.flatMap(ChatRepository, (chats) => chats.insert(chat)),
@@ -50,11 +50,11 @@ export const layerChatTest = (chats: Layer.Layer<ChatRepository, never, Db> = Ch
         chats,
         MessageRepositoryPg,
         AttachmentRepositoryPg,
-        AttachmentStoreMemory,
+        AttachmentStoreTest,
         QueueClientOutbox,
       ),
     ),
-    Layer.provideMerge(DbWithUsers),
+    Layer.provideMerge(DbWithUsersTest),
     Layer.provide(BunCrypto.layer),
   )
 

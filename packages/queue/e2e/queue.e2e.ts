@@ -20,7 +20,7 @@ import {
   provision,
   type Resources,
 } from '@app-template/aws'
-import { recordLogs, SqsClientMiniStack } from '@app-template/testing'
+import { recordLogs, SqsClientTest } from '@app-template/testing'
 
 import { type AttemptInfo, QueueClient, type QueueDefinition, worker } from '#queue/queue'
 import { QueueError, QueueTransport } from '#queue/queue.transport'
@@ -89,7 +89,7 @@ const clientOptions = { queueName, lockExpiration, lockRefreshInterval: '500 mil
 const QueueClientMiniStack = QueueClient.layer(clientOptions).pipe(
   Layer.provideMerge(QueueTransport.layerSqs),
   Layer.provide(Layer.effectDiscard(provision(queues, stage))),
-  Layer.provide(SqsClientMiniStack),
+  Layer.provide(SqsClientTest),
 )
 
 const wrapTransport = (
