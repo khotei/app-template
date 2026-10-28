@@ -761,13 +761,13 @@
 #### S19 — `packages/s3`: `S3Bucket`
 
 - **Goal:** a generic file service over `S3Service`, bound to one bucket per layer: `put` as one
-  `PutObject` or a multipart upload cut with `Stream.transduce(Sink.fold(…))`,
-  `Stream.zipWithNext` and `Bytes.concat`, aborted under `Effect.acquireRelease` as one pipeline;
+  `PutObject` or a multipart upload cut with `Stream.transduce(Sink.fold(…))`
+  and `Bytes.concat`, the latest part held back until the stream ends (D16), aborted under `Effect.acquireRelease` as one pipeline;
   `get`, `exists`, `url`, `untag`, `delete` (R15, R12, D9).
 - **Blocked by:** S18.
 - **Files:** `packages/s3/package.json` (`@app-template/s3`; `effect`, `@effect-aws/client-s3`;
   `devDependencies` `@app-template/testing`, `@effect/vitest`), `packages/s3/tsconfig.json`,
-  `packages/s3/index.ts`, `packages/s3/bucket.ts` (`S3Bucket`, `S3Bucket.layer({ bucket, partSize? })`,
+  `packages/s3/index.ts`, `packages/s3/bucket.ts` (`S3Bucket`, `S3Bucket.layer({ bucket })`,
   key `@app-template/s3/S3Bucket`; `architecture.md › Structure` is named for the entity, bucket: the bare
   name follows `packages/queue/queue.ts`, since `.file` is no role); `packages/s3/package.json`
   also declares `imports` `#s3/*`; root `tsconfig.json` (the reference);
@@ -775,14 +775,32 @@
   itself (no inventory, so the package stays generic).
 - **Test first:** `S3Bucket` on `S3ClientTest` (`packages/s3/e2e/bucket.e2e.ts`): 0 bytes, exactly
   5 MiB and 5 MiB + 1 upload as one `PutObject`, one `PutObject` and two parts (read as
-  `getObjectAttributes`'s `ObjectParts.TotalPartsCount`, which MiniStack answers; the ETag's
-  `-<parts>` suffix sits inside the quotes it returns); a
-  12 MiB stream uploads as three parts and `get` reads 12 MiB; a stream that fails after 6 MiB
-  leaves `exists` false and `listMultipartUploads` empty; `url`, `exists`, `untag` and `delete`
+  `getObjectAttributes`'s `ObjectParts.TotalPartsCount`, which MiniStack answers); a
+  12 MiB stream uploads as three parts and `get` reads 12 MiB; a stream that fails after 11 MiB,
+  past the first `UploadPart`, leaves `exists` false and `listMultipartUploads` empty; `url`, `exists`, `untag` and `delete`
   on a missing key answer none, false, void, void.
 - **Verify:** `make test-e2e`; `make check`.
 - **Model:** fable high
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - `Stream.zipWithNext` is gone (D16): built on `Channel.mapAccum`, its `onHalt` emits the held
+    part on a failure too, so a stream broken after 11 MiB sent its last part and
+    `CompleteMultipartUpload` and stored a truncated object. The fold holds the latest part back
+    and the finish runs only after the stream ended.
+  - `Stream.transduce` emits an empty group when the stream ends right after a cut, so empty
+    parts are filtered; an empty stream puts an empty object.
+  - The part size is a module constant of 5 MiB: no caller set `partSize`, and S3 refuses a
+    smaller part, so no test could exercise another value.
+  - `(key, options)` is closed over once in `createUpload`; the abort release is a plain guard on
+    the exit (`Effect.when` in 4.0.6 takes an `Effect<boolean>`).
+  - The suite provides `S3ClientTest` to the bucket and merges it in for its own reads; it counts
+    parts and reads no ETag (MiniStack's carries no quotes).
+  - The test content is `new Uint8Array(size).map(…)`: `Arr.makeBy(0, …)` answers one element.
+  - Beyond **Files**: `docs/knowledge/architecture.md` (the package list), `aws.md › Tests on
+    Docker`, `bun.lock`.
+  - For S20: `attachment.bucket.ts` still holds its own multipart code and
+    `buildInlineDisposition`; `Tagging` through `URLSearchParams` encodes a space as `+`.
+  - For S23: `packages/CLAUDE.md` lists no `s3`.
 
 #### S20 — `AttachmentBucketS3` over `S3Bucket`
 

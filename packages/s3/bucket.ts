@@ -1,7 +1,6 @@
 import { S3Service } from '@effect-aws/client-s3'
 import {
   Array as Arr,
-  ByteSize,
   Bytes,
   Clock,
   Context,
@@ -18,18 +17,16 @@ import {
 
 export interface PutOptions {
   readonly contentType: string
-  /** Sent as `Content-Disposition: inline; filename*=UTF-8''…`, so any name survives as ASCII. */
+  /**
+   * Sent as `Content-Disposition: inline; filename*=UTF-8''…` (RFC 6266 with RFC 8187), so any
+   * name survives as ASCII.
+   */
   readonly fileName?: string
   readonly tags?: Record<string, string>
 }
 
-export interface S3BucketOptions {
-  readonly bucket: string
-  /** Every part but the last is at least this big; S3 refuses a part under 5 MiB. */
-  readonly partSize?: ByteSize.ByteSize
-}
-
-const defaultPartSize = ByteSize.mebibytes(5)
+/** The S3 minimum for every part but the last. */
+const partSize = 5 * 1024 * 1024
 
 interface UploadState {
   /** The latest part, held back until the next one proves it is not the last. */
@@ -46,7 +43,6 @@ const initialUploadState: UploadState = {
   size: 0,
 }
 
-/** RFC 6266 with RFC 8187's `filename*`, so any file name survives as ASCII. */
 const buildInlineDisposition = (fileName: string) => {
   const encoded = encodeURIComponent(fileName).replace(
     /[!'()*]/g,
@@ -80,50 +76,49 @@ const hasBytes = (bytes: Uint8Array) => bytes.length > 0
  * The transducer emits an empty group when the stream ends right after a part is cut, so a
  * content of exactly `partSize` would gain an empty second part without the filter.
  */
-const cutParts =
-  (partSize: number) =>
-  <E>(content: Stream.Stream<Uint8Array, E>): Stream.Stream<Uint8Array, E> =>
-    content.pipe(
-      Stream.transduce(
-        Sink.fold(Arr.empty<Uint8Array>, (held) => sizeOf(held) < partSize, appendChunk),
-      ),
-      Stream.map(Bytes.concat),
-      Stream.filter(hasBytes),
-    )
+const cutParts = <E>(content: Stream.Stream<Uint8Array, E>): Stream.Stream<Uint8Array, E> =>
+  content.pipe(
+    Stream.transduce(
+      Sink.fold(Arr.empty<Uint8Array>, (held) => sizeOf(held) < partSize, appendChunk),
+    ),
+    Stream.map(Bytes.concat),
+    Stream.filter(hasBytes),
+  )
 
 /** Typed as a bare `S3ServiceError`, a missing key still arrives tagged `NoSuchKey`. */
 const isNoSuchKey = (error: unknown): boolean => Predicate.isTagged(error, 'NoSuchKey')
 
-const makeBucket = ({ bucket, partSize = defaultPartSize }: S3BucketOptions) =>
+const makeBucket = ({ bucket }: { readonly bucket: string }) =>
   Effect.gen(function* () {
     const s3 = yield* S3Service
 
     const buildObjectRef = (key: string) => ({ Bucket: bucket, Key: key })
 
-    const abortUnlessCompleted =
-      (key: string) => (uploadId: string, exit: Exit.Exit<unknown, unknown>) =>
-        s3
-          .abortMultipartUpload({ ...buildObjectRef(key), UploadId: uploadId })
-          .pipe(Effect.orDie, Effect.when(Effect.succeed(Exit.isFailure(exit))))
+    const createUpload = (key: string, options: PutOptions) => {
+      const ref = buildObjectRef(key)
+      const headers = buildObjectHeaders(options)
 
-    const openUpload = (key: string, options: PutOptions) =>
-      Effect.acquireRelease(
+      const abortUnlessCompleted = (uploadId: string, exit: Exit.Exit<unknown, unknown>) => {
+        if (Exit.isSuccess(exit)) return Effect.void
+        return s3.abortMultipartUpload({ ...ref, UploadId: uploadId }).pipe(Effect.orDie)
+      }
+
+      const openUpload = Effect.acquireRelease(
         s3
-          .createMultipartUpload({ ...buildObjectRef(key), ...buildObjectHeaders(options) })
+          .createMultipartUpload({ ...ref, ...headers })
           .pipe(Effect.flatMap(({ UploadId }) => Effect.fromNullishOr(UploadId))),
-        abortUnlessCompleted(key),
+        abortUnlessCompleted,
       )
 
-    /** Opens the multipart upload on the first part; the fold's scope aborts it on a failure. */
-    const sendPart = (key: string, options: PutOptions) =>
-      Effect.fnUntraced(function* (state: UploadState, bytes: Uint8Array) {
+      /** Opens the multipart upload on the first part; the fold's scope aborts it on a failure. */
+      const sendPart = Effect.fnUntraced(function* (state: UploadState, bytes: Uint8Array) {
         const uploadId = yield* Option.match(state.uploadId, {
-          onNone: () => openUpload(key, options),
+          onNone: () => openUpload,
           onSome: Effect.succeed,
         })
         const PartNumber = state.parts.length + 1
         const { ETag } = yield* s3.uploadPart({
-          ...buildObjectRef(key),
+          ...ref,
           UploadId: uploadId,
           PartNumber,
           Body: bytes,
@@ -135,45 +130,44 @@ const makeBucket = ({ bucket, partSize = defaultPartSize }: S3BucketOptions) =>
         }
       })
 
-    const receivePart = (key: string, options: PutOptions) =>
-      Effect.fnUntraced(function* (state: UploadState, bytes: Uint8Array) {
+      const receivePart = Effect.fnUntraced(function* (state: UploadState, bytes: Uint8Array) {
         const size = state.size + bytes.length
         if (Option.isNone(state.held)) return { ...state, held: Option.some(bytes), size }
 
-        const sent = yield* sendPart(key, options)(state, state.held.value)
+        const sent = yield* sendPart(state, state.held.value)
         return { ...sent, held: Option.some(bytes), size }
       }, Effect.orDie)
 
-    // Runs only after the stream ended: a part held back on a failure stays unsent.
-    const finishUpload = (key: string, options: PutOptions) =>
-      Effect.fnUntraced(function* (state: UploadState) {
+      // Runs only after the stream ended: a part held back on a failure stays unsent.
+      const finishUpload = Effect.fnUntraced(function* (state: UploadState) {
         const last = Option.getOrElse(state.held, () => new Uint8Array())
         if (Option.isNone(state.uploadId)) {
-          yield* s3.putObject({
-            ...buildObjectRef(key),
-            ...buildObjectHeaders(options),
-            Body: last,
-          })
+          yield* s3.putObject({ ...ref, ...headers, Body: last })
           return state.size
         }
 
-        const sent = yield* sendPart(key, options)(state, last)
+        const sent = yield* sendPart(state, last)
         yield* s3.completeMultipartUpload({
-          ...buildObjectRef(key),
+          ...ref,
           UploadId: state.uploadId.value,
           MultipartUpload: { Parts: Arr.copy(sent.parts) },
         })
         return state.size
       }, Effect.orDie)
 
+      return { receivePart, finishUpload }
+    }
+
     const put = Effect.fn('S3Bucket.put')(
-      <E>(key: string, content: Stream.Stream<Uint8Array, E>, options: PutOptions) =>
-        content.pipe(
-          cutParts(ByteSize.toNumberUnsafe(partSize)),
-          Stream.runFoldEffect(() => initialUploadState, receivePart(key, options)),
-          Effect.flatMap(finishUpload(key, options)),
+      <E>(key: string, content: Stream.Stream<Uint8Array, E>, options: PutOptions) => {
+        const upload = createUpload(key, options)
+        return content.pipe(
+          cutParts,
+          Stream.runFoldEffect(() => initialUploadState, upload.receivePart),
+          Effect.flatMap(upload.finishUpload),
           Effect.scoped,
-        ),
+        )
+      },
     )
 
     const get = Effect.fn('S3Bucket.get')((key: string) =>
@@ -247,6 +241,7 @@ export class S3Bucket extends Context.Service<
     readonly delete: (key: string) => Effect.Effect<void>
   }
 >()('@app-template/s3/S3Bucket') {
-  static readonly layer = (options: S3BucketOptions): Layer.Layer<S3Bucket, never, S3Service> =>
-    Layer.effect(this, makeBucket(options))
+  static readonly layer = (options: {
+    readonly bucket: string
+  }): Layer.Layer<S3Bucket, never, S3Service> => Layer.effect(this, makeBucket(options))
 }

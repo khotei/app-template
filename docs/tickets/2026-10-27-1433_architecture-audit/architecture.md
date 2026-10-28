@@ -381,7 +381,7 @@ export interface PutOptions {
   readonly tags?: Record<string, string>
 }
 export class S3Bucket extends Context.Service<S3Bucket, {
-  /** One PutObject below `partSize`, else a multipart upload; a failed stream leaves no object. */
+  /** One PutObject up to 5 MiB, else a multipart upload; a failed stream leaves no object. */
   readonly put: <E>(key: string, content: Stream.Stream<Uint8Array, E>, options: PutOptions) => Effect.Effect<number, E>
   readonly get: (key: string) => Effect.Effect<Option.Option<Uint8Array>>
   readonly exists: (key: string) => Effect.Effect<boolean>
@@ -392,16 +392,18 @@ export class S3Bucket extends Context.Service<S3Bucket, {
   /** Idempotent. */
   readonly delete: (key: string) => Effect.Effect<void>
 }>()('@app-template/s3/S3Bucket') {
-  static readonly layer = (options: { readonly bucket: string; readonly partSize?: ByteSize.ByteSize }) =>
+  static readonly layer = (options: { readonly bucket: string }) =>
     Layer.effect(this, …)   // needs S3Service
 }
 ```
 
 The chunking: `content.pipe(Stream.transduce(Sink.fold(Arr.empty, (held) => size(held) < partSize, append)),
-Stream.map(Bytes.concat), Stream.zipWithNext)`: each element is a part with "is there a next
-one" beside it, so the first part that has no successor decides between `PutObject` (no
-multipart was started) and the last `UploadPart` + `CompleteMultipartUpload`. The multipart
-upload opens under `Effect.acquireRelease`, so a failure aborts it.
+Stream.map(Bytes.concat), Stream.filter(hasBytes))`, folded with `Stream.runFoldEffect`: the fold
+holds the latest part back and sends the one before it as an `UploadPart` once the next is cut,
+and the finish (one `PutObject` when no multipart was started, else the held part and
+`CompleteMultipartUpload`) runs only after the stream ended, so a failure never completes a
+truncated object. The multipart upload opens under `Effect.acquireRelease`, so any exit but
+success aborts it.
 
 ### Tests
 
@@ -565,6 +567,10 @@ export const AwsTest = Layer.unwrap(Effect.gen(function* () {
   the relation filter `{ chat: { userId } }`. `buildWhere` stays for `update`, a query-builder
   call. *Rejected:* `buildWhere` for the reads; dropping absent keys one by one, which spreads a
   condition over every optional field.
+- **D16 — `S3Bucket` knows the last part by the stream's end, not by lookahead.** The fold holds
+  the latest part back and the finish step runs after a successful end. *Rejected:*
+  `Stream.zipWithNext`, whose `onHalt` fires on a failure too (`Channel.mapAccum`), so a broken
+  stream was completed with truncated content and the abort then found no upload.
 
 ## Risks
 

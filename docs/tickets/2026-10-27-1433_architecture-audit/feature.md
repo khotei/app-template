@@ -195,8 +195,8 @@ the glossary, so the rules point at one definition of each word.
 - **R15** — WHEN bytes are put to S3, THE SYSTEM SHALL do it through `S3Bucket` in `packages/s3`:
   `put(key, content, { contentType, fileName, tags })` uploads one `PutObject` while the content
   fits one part and a multipart upload otherwise, cutting parts of at least 5 MiB with
-  `Stream.transduce(Sink.fold(…))`, `Stream.zipWithNext` and `Bytes.concat`, and aborts the
-  upload on failure; `get`, `url`, `delete`, `untag` and `exists` complete it, the bucket being
+  `Stream.transduce(Sink.fold(…))` and `Bytes.concat`, holding the latest part back until the
+  stream ends, and aborts the upload on failure or interruption; `get`, `url`, `delete`, `untag` and `exists` complete it, the bucket being
   an option of its layer. `AttachmentBucketS3` holds only the keys and the mapping to the
   domain's types.
 - **R16** — WHEN a job is written to the outbox, THE SYSTEM SHALL store its body as `jsonb`, with

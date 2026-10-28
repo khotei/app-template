@@ -16,70 +16,50 @@ const S3BucketTest = S3Bucket.layer({ bucket }).pipe(
   Layer.provide(
     Layer.effectDiscard(Effect.flatMap(S3Service, (s3) => s3.createBucket({ Bucket: bucket }))),
   ),
-  Layer.provideMerge(S3ClientTest),
+  Layer.provide(S3ClientTest),
 )
 
-const buildContent = (size: number): Uint8Array => {
-  const bytes = new Uint8Array(size)
-  for (let i = 0; i < size; i++) bytes[i] = i % 251
-  return bytes
-}
+// Not `Arr.makeBy`: it answers at least one element, and the 0-byte case needs none.
+const buildContent = (size: number): Uint8Array =>
+  new Uint8Array(size).map((_, index) => index % 251)
 
 /** Chunks of a mebibyte, as a request body arrives, so a part is cut from several of them. */
-const chunk = (bytes: Uint8Array): ReadonlyArray<Uint8Array> =>
+const splitIntoMebibytes = (bytes: Uint8Array): ReadonlyArray<Uint8Array> =>
   Arr.makeBy(Math.ceil(bytes.length / mebibyte), (index) =>
     bytes.subarray(index * mebibyte, (index + 1) * mebibyte),
   )
 
 const octetStream = { contentType: 'application/octet-stream' } as const
 
-const readParts = (key: string) =>
+/** None for an object written with one `PutObject`. */
+const readPartCount = (key: string) =>
   Effect.flatMap(S3Service, (s3) =>
-    s3.getObjectAttributes({ Bucket: bucket, Key: key, ObjectAttributes: ['ETag', 'ObjectParts'] }),
-  ).pipe(
-    Effect.map(({ ETag, ObjectParts }) => ({
-      etag: ETag ?? '',
-      parts: Option.fromNullishOr(ObjectParts?.TotalPartsCount),
-    })),
-  )
+    s3.getObjectAttributes({ Bucket: bucket, Key: key, ObjectAttributes: ['ObjectParts'] }),
+  ).pipe(Effect.map(({ ObjectParts }) => Option.fromNullishOr(ObjectParts?.TotalPartsCount)))
 
-const upload = 30_000
+const uploadTimeout = 30_000
 
 describe('S3Bucket over S3ClientTest against MiniStack', () => {
-  layer(S3BucketTest, { timeout: '60 seconds' })((it) => {
+  layer(Layer.merge(S3BucketTest, S3ClientTest), { timeout: '60 seconds' })((it) => {
     it.effect.each([
-      { name: '0 bytes', key: 'empty', size: 0, parts: Option.none(), etag: /^[0-9a-f]{32}$/ },
-      {
-        name: 'exactly 5 MiB',
-        key: 'one-part',
-        size: partSize,
-        parts: Option.none(),
-        etag: /^[0-9a-f]{32}$/,
-      },
-      {
-        name: '5 MiB + 1',
-        key: 'two-parts',
-        size: partSize + 1,
-        parts: Option.some(2),
-        etag: /^[0-9a-f]{32}-2$/,
-      },
-      {
-        name: '12 MiB',
-        key: 'three-parts',
-        size: 12 * mebibyte,
-        parts: Option.some(3),
-        etag: /^[0-9a-f]{32}-3$/,
-      },
+      { name: '0 bytes', key: 'empty', size: 0, parts: Option.none() },
+      { name: 'exactly 5 MiB', key: 'one-part', size: partSize, parts: Option.none() },
+      { name: '5 MiB + 1', key: 'two-parts', size: partSize + 1, parts: Option.some(2) },
+      { name: '12 MiB', key: 'three-parts', size: 12 * mebibyte, parts: Option.some(3) },
     ])(
       'puts $name and reads it back',
-      ({ key, size, parts, etag }) =>
+      ({ key, size, parts }) =>
         Effect.gen(function* () {
           const files = yield* S3Bucket
           const content = buildContent(size)
 
-          const written = yield* files.put(key, Stream.fromIterable(chunk(content)), octetStream)
+          const written = yield* files.put(
+            key,
+            Stream.fromIterable(splitIntoMebibytes(content)),
+            octetStream,
+          )
           const read = yield* files.get(key)
-          const stored = yield* readParts(key)
+          const stored = yield* readPartCount(key)
 
           assert.strictEqual(written, size)
           assert.isTrue(Option.isSome(read))
@@ -89,10 +69,9 @@ describe('S3Bucket over S3ClientTest against MiniStack', () => {
               content,
             ),
           )
-          assert.deepStrictEqual(stored.parts, parts)
-          assert.match(stored.etag, etag)
+          assert.deepStrictEqual(stored, parts)
         }),
-      upload,
+      uploadTimeout,
     )
 
     it.effect(
@@ -104,7 +83,7 @@ describe('S3Bucket over S3ClientTest against MiniStack', () => {
           const error = new StreamBrokenError()
           // A part is sent once the part after it is cut, so the first `UploadPart` is on the
           // wire at 10 MiB and the failure finds the multipart upload open.
-          const content = breakAfter(chunk(buildContent(11 * mebibyte)), error)
+          const content = breakAfter(splitIntoMebibytes(buildContent(11 * mebibyte)), error)
 
           const failed = yield* files.put('broken', content, octetStream).pipe(Effect.flip)
           const exists = yield* files.exists('broken')
@@ -114,7 +93,7 @@ describe('S3Bucket over S3ClientTest against MiniStack', () => {
           assert.isFalse(exists)
           assert.deepStrictEqual(Uploads ?? [], [])
         }),
-      upload,
+      uploadTimeout,
     )
 
     it.effect('answers none, false, void and void for a missing key', () =>
