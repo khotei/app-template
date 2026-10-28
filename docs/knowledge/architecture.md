@@ -108,7 +108,7 @@ Using the `chat` slice as the map:
 | adapter implementing the port | `infrastructure/chat/chat.repository.ts` | `ChatRepositoryPg` (a `Layer` over `Db`) |
 | queue definitions | `infrastructure/chat/chat.queue.ts` | `assistantMessageQueue`, `GenerateAssistantMessage` (the job schema) |
 | relay from the database to a queue | `infrastructure/outbox/outbox.relay.ts` | `OutboxRelay` (a worker `Layer` that runs a fiber and provides nothing) |
-| prompt functions | `infrastructure/chat/chat.llm.ts` | `buildChatPrompt`, `streamAssistantText` |
+| adapter of the assistant port, with the prompts | `infrastructure/chat/assistant.llm.ts` | `AssistantLlm` (a `Layer` of `Assistant` over `LanguageModel`) |
 | domain service over the ports | `domain/chat/chat.service.ts`, `message.service.ts` | `ChatService`, `ChatService.layer`, `MessageService` |
 | use case composing services | `application/chat/send-message.use-case.ts` | `SendMessageUseCase`, `SendMessageUseCase.layer` |
 | job: producer and worker | `application/chat/assistant-message.job.ts` | `AssistantMessageJob`, `AssistantMessageJob.worker` |

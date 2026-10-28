@@ -34,7 +34,7 @@ test-support role starts with `test-` (the globs: `effect-tests.md › Test supp
 | `.service` | domain: the aggregate's domain service over its ports · application: a service over ports | domain, application |
 | `.use-case` | a flow that composes services: `<verb>-<object>.use-case.ts` | application |
 | `.job` | a queue's producer service and its worker | application |
-| `.repository` · `.bucket` · `.llm` | an adapter over a client; prompt functions live in `.llm` | infrastructure |
+| `.repository` · `.bucket` · `.llm` | an adapter over a client; `.llm` is the `Assistant` port's adapter over `LanguageModel` and holds the prompts | infrastructure |
 | `.entity` | an entity's Drizzle tables and their row codecs, one file per entity | infrastructure |
 | `.queue` | queue definitions | infrastructure |
 | `.relay` | a layer that moves records from the database to a queue (`OutboxRelay`) | infrastructure |

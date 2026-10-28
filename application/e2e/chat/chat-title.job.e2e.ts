@@ -13,19 +13,22 @@ import {
   MessageRepository,
   maxTitleLength,
 } from '@app-template/domain/chat'
-import { chat, chatId, epoch, messageId } from '@app-template/domain/testing'
+import {
+  type AssistantCallHold,
+  chat,
+  chatId,
+  epoch,
+  holdAssistantCall,
+  messageId,
+} from '@app-template/domain/testing'
 import { AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
-import { ChatPg, GenerateChatTitle } from '@app-template/infrastructure/chat'
+import { AssistantLlm, ChatPg, GenerateChatTitle } from '@app-template/infrastructure/chat'
 import { recordLogs } from '@app-template/testing'
 
 import { ChatTitleJob } from '#application/chat/chat-title.job'
 import { selectChat } from '#application/testing/chat.test-layer'
 import { DbWithUsersTest } from '#application/testing/db.test-layer'
-import {
-  holdModelCall,
-  type ModelCallHold,
-  recordLanguageModel,
-} from '#application/testing/language-model.test-fake'
+import { recordLanguageModel } from '#application/testing/language-model.test-fake'
 
 type Answer = Effect.Effect<Array<Response.PartEncoded>, AiError.AiError>
 
@@ -33,7 +36,8 @@ type Answer = Effect.Effect<Array<Response.PartEncoded>, AiError.AiError>
 const makeChatTitleHarness = (answer: Answer) => {
   const { prompts, layer: model } = recordLanguageModel({ generateText: answer })
   const { logs, layer: logger } = recordLogs()
-  const layer = Layer.mergeAll(ChatService.layer, model, logger).pipe(
+  const assistant = AssistantLlm.pipe(Layer.provide(model))
+  const layer = Layer.mergeAll(ChatService.layer, assistant, logger).pipe(
     Layer.provideMerge(Layer.merge(ChatPg, AttachmentRepositoryPg)),
     Layer.provide([DbWithUsersTest, BunCrypto.layer]),
   )
@@ -60,19 +64,20 @@ const queuedJob = new GenerateChatTitle({ chatId, messageId })
 const runTitle = Effect.exit(ChatTitleJob.handle(queuedJob))
 
 // A change made once the model is asked lands between the take and the write.
-const heldAnswer = (held: ModelCallHold) => Effect.andThen(held.hold, answering('Lisbon weekend'))
+const heldAnswer = (held: AssistantCallHold) =>
+  Effect.andThen(held.hold, answering('Lisbon weekend'))
 
 const moments = [
   {
     name: 'before the take',
     modelCallsAfterDelete: 0,
-    run: <R>(held: ModelCallHold, change: Effect.Effect<void, never, R>) =>
+    run: <R>(held: AssistantCallHold, change: Effect.Effect<void, never, R>) =>
       change.pipe(Effect.andThen(held.release), Effect.andThen(runTitle)),
   },
   {
     name: 'while the model answers',
     modelCallsAfterDelete: 1,
-    run: <R>(held: ModelCallHold, change: Effect.Effect<void, never, R>) =>
+    run: <R>(held: AssistantCallHold, change: Effect.Effect<void, never, R>) =>
       Effect.gen(function* () {
         const running = yield* Effect.forkChild(runTitle)
         yield* held.asked
@@ -84,26 +89,6 @@ const moments = [
 ] as const
 
 const filler = (length: number) => 'A'.repeat(length)
-
-// Each emoji is one grapheme: 😀 is two code units, the joined family eight, and the limit counts
-// code units.
-const graphemeCuts = [
-  {
-    name: 'an emoji that fits',
-    answer: `${filler(maxTitleLength - 2)}😀`,
-    title: `${filler(maxTitleLength - 2)}😀`,
-  },
-  {
-    name: 'an emoji across the limit',
-    answer: `${filler(maxTitleLength - 1)}😀`,
-    title: filler(maxTitleLength - 1),
-  },
-  {
-    name: 'a joined emoji across the limit',
-    answer: `${filler(maxTitleLength - 5)}👨‍👩‍👧`,
-    title: filler(maxTitleLength - 5),
-  },
-] as const
 
 const providerError = AiError.make({
   module: 'FakeProvider',
@@ -177,7 +162,7 @@ describe('ChatTitleJob.handle', () => {
   })
 
   it.effect.each(moments)('keeps a title the user set $name', ({ run }) => {
-    const held = holdModelCall()
+    const held = holdAssistantCall()
     const { prompts, logs, layer } = makeChatTitleHarness(heldAnswer(held))
     return Effect.gen(function* () {
       yield* arrangeChat()
@@ -196,7 +181,7 @@ describe('ChatTitleJob.handle', () => {
   it.effect.each(moments)(
     'ends with a log line when the chat is deleted $name',
     ({ run, modelCallsAfterDelete }) => {
-      const held = holdModelCall()
+      const held = holdAssistantCall()
       const { prompts, logs, layer } = makeChatTitleHarness(heldAnswer(held))
       return Effect.gen(function* () {
         yield* arrangeChat()
@@ -205,23 +190,6 @@ describe('ChatTitleJob.handle', () => {
 
         assert.strictEqual(prompts.length, modelCallsAfterDelete)
         assert.deepStrictEqual(logs, [['Info', 'chat title skipped: chat deleted']])
-      }).pipe(Effect.provide(layer))
-    },
-  )
-
-  it.effect.each(graphemeCuts)(
-    'cuts the title at a whole grapheme with $name',
-    ({ answer, title }) => {
-      const { layer } = makeChatTitleHarness(answering(answer))
-      return Effect.gen(function* () {
-        yield* arrangeChat()
-
-        yield* runTitle
-
-        assertEquals(
-          yield* selectChat(chatId),
-          Option.some(new Chat({ ...chat, title: Option.some(ChatTitle.make(title)) })),
-        )
       }).pipe(Effect.provide(layer))
     },
   )

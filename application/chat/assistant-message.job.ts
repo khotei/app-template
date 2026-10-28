@@ -14,10 +14,11 @@ import {
   Schedule,
   Stream,
 } from 'effect'
-import type { AiError, LanguageModel } from 'effect/ai'
 
 import { AttachmentBucket } from '@app-template/domain/attachment'
 import {
+  Assistant,
+  type AssistantTurn,
   type ChatId,
   ChatRepository,
   ChatService,
@@ -36,10 +37,7 @@ import {
 import {
   assistantMessageDeadLetterQueue,
   assistantMessageQueue,
-  buildChatPrompt,
-  type ChatTurn,
   GenerateAssistantMessage,
-  streamAssistantText,
 } from '@app-template/infrastructure/chat'
 import { type AttemptInfo, QueueClient, worker } from '@app-template/queue'
 
@@ -55,7 +53,7 @@ const readTurn = Effect.fnUntraced(function* ({ message, attachments }: MessageD
     ),
   )
 
-  return { message, files: Arr.getSomes(files) } satisfies ChatTurn
+  return { message, files: Arr.getSomes(files) } satisfies AssistantTurn
 })
 
 const readHistory = Effect.fnUntraced(function* (chatId: ChatId) {
@@ -111,18 +109,15 @@ const writeSettled = Effect.fnUntraced(function* (settled: Message, where: Messa
   if (!written) return yield* new MessageStageMovedError()
 })
 
-type ReplyError = AiError.AiError | MessageStageInvalidError
+type ReplyError = MessageStageInvalidError
 
-type ReplyServices =
-  | AttachmentBucket
-  | ChatRepository
-  | ChatService
-  | MessageRepository
-  | LanguageModel.LanguageModel
+type ReplyServices = Assistant | AttachmentBucket | ChatRepository | ChatService | MessageRepository
 
 const reply = Effect.fnUntraced(function* (
   taken: Message,
 ): Effect.fn.Return<void, ReplyError | MessageStageMovedError, ReplyServices> {
+  const assistant = yield* Assistant
+
   // Refused only for a terminal message: the reply was written before this take's lock expired.
   const takenAt = yield* DateTime.now
   const entry = yield* Effect.option(prepareMessage(taken, takenAt))
@@ -135,7 +130,7 @@ const reply = Effect.fnUntraced(function* (
   const generating = yield* generateMessage(prepared, generatingAt)
   yield* writeStage(generating, { stage: prepared.stage })
 
-  const text = yield* streamSnapshots(generating, streamAssistantText(buildChatPrompt(history)))
+  const text = yield* streamSnapshots(generating, assistant.streamText(history))
   const completedAt = yield* DateTime.now
   const completed = yield* completeMessage(generating, { text, at: completedAt })
   yield* writeSettled(completed, { stage: generating.stage })

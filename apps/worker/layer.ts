@@ -4,7 +4,7 @@ import { Effect, Layer } from 'effect'
 import { AssistantMessageJob, ChatTitleJob } from '@app-template/application/chat'
 import { MinimumLogLevelFromConfig } from '@app-template/config'
 import { AttachmentPgS3 } from '@app-template/infrastructure/attachment'
-import { ChatPg } from '@app-template/infrastructure/chat'
+import { AssistantLlm, ChatPg } from '@app-template/infrastructure/chat'
 import { Db } from '@app-template/infrastructure/db'
 import { OutboxRelaySqs } from '@app-template/infrastructure/outbox'
 import { QueueClientSqs } from '@app-template/infrastructure/shared'
@@ -15,7 +15,7 @@ const WorkerJobs = Layer.mergeAll(
   AssistantMessageJob.deadLetterWorker,
   ChatTitleJob.worker,
   ChatTitleJob.deadLetterWorker,
-).pipe(Layer.provide([ChatPg, AttachmentPgS3]))
+).pipe(Layer.provide([ChatPg, AttachmentPgS3, AssistantLlm]))
 
 const LogWorkerLifecycle = Effect.logInfo('worker started').pipe(
   Effect.andThen(Effect.addFinalizer(() => Effect.logInfo('worker stopped'))),

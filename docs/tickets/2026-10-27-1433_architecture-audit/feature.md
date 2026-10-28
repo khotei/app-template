@@ -263,7 +263,7 @@ the glossary, so the rules point at one definition of each word.
 | R5 | `grep -rn "messages\.\(update\|insert\)" application/ apps/` is empty; the reply e2e test still shows the stages and snapshots |
 | R6 | `ls apps/worker/chat/` shows `assistant-message.handler.ts`, `chat-title.handler.ts`; `find . -name "*.job.ts" -not -path "*/node_modules/*"` is empty |
 | R7 | the send e2e test: after a send, the outbox holds both jobs in the send's transaction (a failed send writes none) |
-| R8 | a unit test of `buildChatTitle` on a 300-grapheme text and on blank text; `ls infrastructure/chat/chat.llm.ts` fails; `AssistantLlm` holds the only prompt strings (`grep -rn "Suggest a title" .`) |
+| R8 | a unit test of `buildChatTitle` on a 300-grapheme text and on blank text; `ls infrastructure/chat/chat.llm.ts` fails; `AssistantLlm` holds the only prompt strings (`grep -rln "Write a title" --include='*.ts' .`) |
 | R9 | `infrastructure/outbox/outbox.relay.ts` exports a `Layer` and imports no domain service or use case |
 | R10 | `ls domain/chat application/chat` shows the files named; `find . -type d -name message` is empty |
 | R11 | `grep -rn "ensureFound\|isInChat\|isTitledChat\|isOwnedBy" --include=*.ts .` is empty; `grep -rn "selectOne" domain/*/*.port.ts` lists chat, message and attachment |

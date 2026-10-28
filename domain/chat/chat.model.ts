@@ -1,4 +1,4 @@
-import { type DateTime, Option, Schema } from 'effect'
+import { type DateTime, Option, Schema, String as Str } from 'effect'
 
 import { ChatId } from '#domain/chat/chat.id'
 import type { ActiveMessage, MessageDetail } from '#domain/chat/message.model'
@@ -13,6 +13,23 @@ export const ChatTitle = Schema.String.check(
   Schema.isMaxLength(maxTitleLength),
 ).pipe(Schema.brand('ChatTitle'))
 export type ChatTitle = typeof ChatTitle.Type
+
+const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+
+// Whole graphemes, so an emoji is never split, while the length stays within the code units
+// `ChatTitle` counts.
+const cutToTitleLength = (text: string): string => {
+  let cut = ''
+  for (const { segment } of graphemes.segment(text)) {
+    if (cut.length + segment.length > maxTitleLength) break
+    cut += segment
+  }
+  return cut
+}
+
+/** The title `text` yields once trimmed and cut to `maxTitleLength`; none when blank. */
+export const buildChatTitle = (text: string): Option.Option<ChatTitle> =>
+  Schema.decodeUnknownOption(ChatTitle)(Str.trim(cutToTitleLength(Str.trim(text))))
 
 export class Chat extends Schema.Class<Chat>('Chat')({
   id: ChatId,

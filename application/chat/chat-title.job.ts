@@ -1,11 +1,10 @@
 import { Context, Effect, Layer, Option } from 'effect'
 
-import { ChatService, type Message, MessageRepository } from '@app-template/domain/chat'
+import { Assistant, ChatService, type Message, MessageRepository } from '@app-template/domain/chat'
 import {
   chatTitleDeadLetterQueue,
   chatTitleQueue,
   GenerateChatTitle,
-  suggestChatTitle,
 } from '@app-template/infrastructure/chat'
 import { QueueClient, worker } from '@app-template/queue'
 
@@ -18,6 +17,7 @@ const titleSkipLogs = {
 } as const satisfies Record<TitleSkip, Effect.Effect<void>>
 
 const handle = Effect.fn('ChatTitleJob.handle')(function* (job: GenerateChatTitle) {
+  const assistant = yield* Assistant
   const chatService = yield* ChatService
   const messages = yield* MessageRepository
 
@@ -25,7 +25,7 @@ const handle = Effect.fn('ChatTitleJob.handle')(function* (job: GenerateChatTitl
   const first = yield* messages.selectOne({ id: job.messageId })
   if (Option.isNone(first)) return yield* titleSkipLogs.chatDeleted
 
-  const title = yield* suggestChatTitle(first.value.text)
+  const title = yield* assistant.suggestTitle(first.value.text)
   if (Option.isNone(title)) return yield* titleSkipLogs.nothingToTitle
 
   yield* chatService.updateTitle(job.chatId, title.value).pipe(
