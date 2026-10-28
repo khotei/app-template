@@ -283,8 +283,8 @@ const send = Effect.fn('SendMessageUseCase.send')(function* (userId, chatId, inp
 export class GenerateAssistantMessageUseCase extends Context.Service<…, {
   /** Prepares, generates with snapshots and completes the message; a moved message is skipped. */
   readonly generate: (job: GenerateAssistantMessage) => Effect.Effect<void, MessageStageInvalidError>
-  /** Fails the message while it is active, with `cause` kept out of the user's sight; a missing or settled one is logged and skipped. */
-  readonly fail: (messageId: MessageId, cause: Cause.Cause<unknown>) => Effect.Effect<void, MessageStageInvalidError>
+  /** Fails the message while it is active, with `cause` kept out of the user's sight; answers the failed message; a missing or settled one is logged, skipped and answers none. */
+  readonly fail: (messageId: MessageId, cause: Cause.Cause<unknown>) => Effect.Effect<Option.Option<Message>, MessageStageInvalidError>
 }>()(…) {}   // needs ChatRepository (the `updatedAt` write), MessageService, AttachmentBucket (reads), Assistant
 
 // apps/worker/chat/assistant-message.handler.ts

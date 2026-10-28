@@ -773,7 +773,18 @@
   `ls apps/worker/chat/` shows the two handlers; `make check`; with the stand up,
   `make dev-worker` starts.
 - **Model:** fable high
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - `GenerateAssistantMessageUseCase.fail` answers `Option<Message>`, the failed message, and
+    none on a skip; `settle` returns the settled message for it. `handleDeadLettered` logs its
+    error only on a `Some`, so a settled reply gets the use case's skip log alone. Rejected: the
+    handler reading the message itself, a repository behind a handler (R6).
+  - `handle` matches the exit with `Exit.match` instead of a ternary inside `Effect.onExit`.
+  - `WorkerJobs` in `apps/worker/layer.ts` is `WorkerHandlers`.
+  - Beyond **Files**: the use-case suite (the answer of `fail`), `README.md`,
+    `docs/knowledge/architecture.md`, `aws.md`; the `.job` lines in `naming.md` (the row, as S14
+    deferred), `comments.md` and `use-cases.md` (with the user's OK). `roadmap.md:258` stays as
+    dated history.
 
 #### S17 — The api's suites as unit tests over the memory layers
 

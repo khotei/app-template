@@ -264,10 +264,9 @@ describe('GenerateAssistantMessageUseCase', () => {
       return Effect.gen(function* () {
         yield* insertMessages([queuedReply])
 
-        const written = yield* fail(Cause.die(new Error('provider exploded')))
+        const failed = Option.getOrThrow(yield* fail(Cause.die(new Error('provider exploded'))))
 
-        assert.isTrue(written)
-        const failed = Option.getOrThrow(yield* selectReply)
+        assertEquals(yield* selectReply, Option.some(failed))
         const error = Option.getOrThrow(failed.error)
         assert.strictEqual(failed.stage, 'failed')
         assert.deepStrictEqual(
@@ -291,9 +290,9 @@ describe('GenerateAssistantMessageUseCase', () => {
     return Effect.gen(function* () {
       yield* insertMessages([asCompleted(queuedReply, 'Done.')])
 
-      const written = yield* fail(Cause.die(new Error('provider exploded')))
+      const failed = yield* fail(Cause.die(new Error('provider exploded')))
 
-      assert.isFalse(written)
+      assertEquals(failed, Option.none())
       assertEquals(yield* selectReply, Option.some(asCompleted(queuedReply, 'Done.')))
       assertEquals(yield* selectChat(chatId), Option.some(chat))
       assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: already settled']])

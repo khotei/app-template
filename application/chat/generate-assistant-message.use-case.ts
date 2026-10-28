@@ -40,8 +40,7 @@ const replySkipLogs = {
   alreadySettled: Effect.logInfo('assistant reply skipped: already settled'),
 } as const satisfies Record<ReplySkip, Effect.Effect<void>>
 
-/** A skip answered as "nothing written", for a caller that acts only on a write. */
-const skipped = (why: ReplySkip) => Effect.as(replySkipLogs[why], false)
+const skipped = (why: ReplySkip) => Effect.as(replySkipLogs[why], Option.none<Message>())
 
 const isCompletedTurn = ({ message }: MessageDetail) => message.stage === 'completed'
 
@@ -57,12 +56,12 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
     ) => Effect.Effect<void, MessageStageInvalidError>
     /**
      * Fails the message while it is active, with `cause` kept out of the user's sight, and
-     * answers whether it did; a missing or settled one is logged and skipped.
+     * answers the failed message; a missing or settled one is logged, skipped and answers none.
      */
     readonly fail: (
       messageId: MessageId,
       cause: Cause.Cause<unknown>,
-    ) => Effect.Effect<boolean, MessageStageInvalidError>
+    ) => Effect.Effect<Option.Option<Message>, MessageStageInvalidError>
   }
 >()('@app-template/application/chat/GenerateAssistantMessageUseCase', {
   make: Effect.gen(function* () {
@@ -128,6 +127,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
       const settled = yield* write
       // A rule-free write: a chat deleted meanwhile took its messages, so nothing is left to move.
       yield* chats.update({ updatedAt: settled.updatedAt }, { id: settled.chatId })
+      return settled
     }, transaction.run)
 
     const reply = Effect.fnUntraced(function* (taken: Message) {
@@ -171,7 +171,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
         at: failedAt,
       })
       return yield* settle(failed).pipe(
-        Effect.as(true),
+        Effect.map(Option.some),
         Effect.catchTag('MessageMovedError', () => skipped('alreadySettled')),
       )
     })
