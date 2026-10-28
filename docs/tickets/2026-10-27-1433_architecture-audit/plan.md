@@ -762,14 +762,25 @@
 - **Files:** `Makefile` (`bundle-check`: `bun build apps/web/app/main.ts --outdir
   node_modules/.cache/web-bundle --target browser`, then the negated grep of
   `architecture.md › Tests`; `check` runs it; `.PHONY`); `domain/package.json` (`"sideEffects":
-  false` confirmed); `docs/knowledge/architecture.md › Three boundary guards` (a fourth).
+  false` confirmed); `docs/knowledge/architecture.md › Boundary guards` (a fourth).
 - **Test first:** `config only`; the probe: a value import of `ChatService` in
   `http-api/chat/chat.http.ts` (the web override already bans `@app-template/domain` in
   `apps/web`, so the leak the guard catches comes through `http-api`) turns `make bundle-check`
   red; removed before the report.
 - **Verify:** `make bundle-check` green; the probe red; `make check`.
 - **Model:** opus medium
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The key pattern takes `[A-Za-z]*` before the suffix, not `+`: the bare port key
+    `@app-template/domain/chat/Assistant` has no letter before its suffix and passed the guard.
+    `architecture.md › Tests` is corrected.
+  - The probe imported `UserService`, `ChatRepository` and `Assistant`, not `ChatService`, which
+    stays in `application/` until S10; the guard greps `domain` and `infrastructure` keys only,
+    so an `application` service is not its to catch.
+  - The docs heading is `Boundary guards`, no count, with both anchors updated.
+  - Deferred to `web-app` (`docs/knowledge/roadmap.md`): CI's `static` job does not run the
+    guard, the build dir is not cleared between runs, and the four suffixes are a closed list;
+    all three follow the web bundler, which that ticket picks.
 
 ### Language and rules
 

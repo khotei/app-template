@@ -285,6 +285,11 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   writes snapshots; an SSE tail is `llm-providers`' (6) open question, so this ticket depends on
   3 alone for the reply and the upload, and on 6 only for assistant attachments and placeholders.
   The visitor cookie is the user cookie of `chat-core`'s `CurrentUser` security.
+- **Inherited from `architecture-audit`.** `make bundle-check` builds `apps/web/app/main.ts` with
+  `bun build` and greps the bundle for service keys ending in `Service`, `Repository`, `Bucket` or
+  `Assistant`. On the new bundler: rebuild its command, clear the output dir before each build,
+  decide whether any `@app-template/(domain|infrastructure)/` key fails it, and run it in CI's
+  `static` job.
 - **Facts (2026-10-17).** `@tanstack/react-start@1.169.3` (router 1.170, Vite ≥ 8, React 19 for
   the Bun preset, `aws_lambda` preset with streaming); `@chakra-ui/react@3.37.0`; Effect v4 atoms
   are `effect/reactivity/*` in core plus `@effect/atom-react@4.0.5` (React ≥ 19 only) with

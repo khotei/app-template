@@ -420,7 +420,7 @@ test-e2e: ## Run the e2e tests on their own containers (Docker running)
 test: test-unit test-e2e
 bundle-check: ## Fail when a domain service, port or adapter reaches the web bundle
 	bun build apps/web/app/main.ts --outdir node_modules/.cache/web-bundle --target browser
-	! grep -rE '@app-template/(domain|infrastructure)/[a-z-]+/[A-Za-z]+(Service|Repository|Bucket|Assistant)' node_modules/.cache/web-bundle
+	! grep -rE '@app-template/(domain|infrastructure)/[a-z-]+/[A-Za-z]*(Service|Repository|Bucket|Assistant)' node_modules/.cache/web-bundle
 check: ids lint typecheck migration-check test bundle-check
 ```
 

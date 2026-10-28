@@ -68,7 +68,7 @@ Each row lists what a workspace may import.
   `http-api` and runs its Effects itself; only its server entry `main.ts` may read `config`, to
   get a validated `WEB_PORT`.
 - **A ✓ is permission, not a declaration.** The dependency must also be in the importer's
-  `package.json`; see [the three guards](#three-boundary-guards).
+  `package.json`; see [the boundary guards](#boundary-guards).
 
 ## Imports: `#<workspace>/` vs `@app-template/`
 
@@ -181,15 +181,17 @@ declare each other. Check the importer's `package.json` anyway: `apps/worker`, f
 declare `@app-template/domain`. A new external client is a new dependency; see
 [tooling.md](tooling.md#add-a-dependency).
 
-## Three boundary guards
+## Boundary guards
 
-The import rules are enforced three times, each catching what the others miss:
+The import rules are enforced three times, each catching what the others miss, and a fourth guard
+checks what the import rules leave to tree shaking, the web bundle:
 
 | Guard | Catches | Reports |
 |---|---|---|
 | Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json` | an import that goes up a layer or into a sibling app; any relative path; a workspace or an `@effect/*` package other than `@effect/vitest` in `domain` (in its tests, a workspace other than `@app-template/testing`); a workspace other than `domain`, or an `@effect/*` package, in `http-api`; `http-api` in a lower layer, a package, the worker or `deployment` | `make lint`, `pre-commit`, CI `static` |
 | the isolated linker with `tsc -b` | an allowed import of a workspace that is not declared in `package.json` | TS2307 in `make typecheck` and at runtime |
 | `composite` project references (`rootDir: "."`) | a path that reaches into an unreferenced workspace's files | TS6059 / TS6307 in `make typecheck` |
+| `make bundle-check`: `bun build` of `apps/web/app/main.ts`, then a `grep` of the bundle | a domain service or port in the browser bundle, or an adapter, which carries its port's key: a value import of one that `http-api` passes on | the matched service keys, in `make check` |
 
 The Biome overrides are **deny-lists**: each names the workspaces a layer must not import. A new
 `packages/*` workspace therefore needs no change to them, while a new layer or app does. Test
@@ -200,9 +202,15 @@ domain test override repeats every domain ban. Symptoms
 and fixes:
 [tooling.md › Troubleshooting](tooling.md#troubleshooting).
 
+The bundle guard greps the service keys (`"@app-template/domain/chat/ChatRepository"`): string
+literals, which survive the build however Bun applies `domain`'s `"sideEffects": false`. A
+type-only import is erased and passes, as it should. `apps/web` cannot import `domain` at all, so
+a leak comes through `http-api`, which imports the domain barrels for their schemas and errors;
+tree shaking drops the services and ports beside them, and the guard proves it on every check.
+
 ### Known gaps
 
-Three forms pass all three guards. No code uses them; review is what catches them.
+Three forms pass every guard. No code uses them; review is what catches them.
 
 - **A type import inside an expression in web client code.** `export type X =
   import('@app-template/config').ApiConfig['Service']` in `app/`, `features/` or `shared/` passes

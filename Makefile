@@ -3,8 +3,8 @@
 .DEFAULT_GOAL := help
 
 .PHONY: help setup stack up down reset dev dev-api dev-worker dev-web debug-api debug-worker \
-  debug-web check ids lint fmt typecheck test test-unit test-e2e clean outdated vendor-effect \
-  vendor-drizzle migrate migration migration-check
+  debug-web check ids lint fmt typecheck test test-unit test-e2e bundle-check clean outdated \
+  vendor-effect vendor-drizzle migrate migration migration-check
 
 # The local Pulumi project: each tree's file backend under its .data/, named per command, so no
 # login is stored; the home (the provider plugins) is the main tree's .pulumi/, shared by every
@@ -104,7 +104,7 @@ debug-worker: ## Run the worker with --inspect and --watch
 debug-web: ## Run the web dev server with --inspect
 	bun --filter @app-template/web debug
 
-check: ids lint typecheck migration-check test ## Run every gate: ids, lint, types, migrations, tests
+check: ids lint typecheck migration-check test bundle-check ## Run every gate: ids, lint, types, migrations, tests, the web bundle
 
 ids: ## Fail on ticket ids in parentheses (D12, R3, Q70) outside docs/tickets
 	@if git grep --untracked -nE '\((D|R|Q)[0-9]+[a-z]?\)' -- . ':!docs/tickets' \
@@ -131,6 +131,13 @@ test-unit: ## Run the unit tests under tests/ (no Docker)
 
 test-e2e: ## Run the e2e tests under e2e/ on their own containers (Docker running)
 	bun --bun vitest run --project e2e
+
+# Greps the service keys, string literals that survive the build however Bun applies
+# "sideEffects": docs/knowledge/architecture.md › Boundary guards.
+bundle-check: ## Fail when a domain service, port or adapter reaches the web bundle
+	bun build apps/web/app/main.ts --outdir node_modules/.cache/web-bundle --target browser
+	! grep -rE '@app-template/(domain|infrastructure)/[a-z-]+/[A-Za-z]*(Service|Repository|Bucket|Assistant)' \
+		node_modules/.cache/web-bundle
 
 clean: ## Remove installed dependencies, build caches and coverage
 	find . -name node_modules -type d -prune -exec rm -rf {} +

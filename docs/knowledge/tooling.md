@@ -19,7 +19,7 @@ and `make setup` and `make test-unit` need neither.
 | `make dev` | `bun --filter './apps/*' dev` | all three processes, interleaved output |
 | `make dev-api` · `dev-worker` · `dev-web` | one app's `dev` script | one process |
 | `make debug-api` · `debug-worker` · `debug-web` | one app's `debug` script | the same mode plus `--inspect` |
-| `make check` | `ids`, `lint`, `typecheck`, `migration-check`, `test` | the gate before every commit and step report |
+| `make check` | `ids`, `lint`, `typecheck`, `migration-check`, `test`, `bundle-check` | the gate before every commit and step report |
 | `make ids` | `git grep` for ticket ids in parentheses outside `docs/tickets/` and `repos/` | a new project deletes the ticket, so an id elsewhere points nowhere |
 | `make lint` | `biome check` | lint, format and import order, without writing |
 | `make fmt` | `biome check --write` | apply formatting, import sorting and safe fixes |
@@ -28,6 +28,7 @@ and `make setup` and `make test-unit` need neither.
 | `make test-unit` | `bun --bun vitest run --project unit` | every `tests/**/*.test.ts`; no Docker ([Tests](#tests)) |
 | `make test-e2e` | `bun --bun vitest run --project e2e` | every `e2e/**/*.e2e.ts`; needs a running Docker daemon for the run's Postgres container ([Tests](#tests)) and the queue suite's MiniStack ([aws.md › Tests on Docker](aws.md#tests-on-docker)) |
 | `make test` | `test-unit`, then `test-e2e` | both projects |
+| `make bundle-check` | `bun build` of the web entry into `node_modules/.cache/web-bundle`, then a negated `grep` for the domain and infrastructure service keys | fails when a service, port or adapter reaches the browser: [architecture.md › Boundary guards](architecture.md#boundary-guards) |
 | `make outdated` | `bun outdated --recursive` | newer versions for every workspace |
 | `make vendor-effect` | `git subtree pull --squash --prefix repos/effect` of the `effect@<pin>` tag | update `repos/effect` to the catalog pin; it commits, so run it on a clean tree. First time: `git subtree add` with the same arguments |
 | `make vendor-drizzle` | `git subtree add`, then `pull`, `--squash --prefix repos/drizzle` of the `v<pin>` tag of `drizzle-orm` | the same for `repos/drizzle`: the whole Drizzle monorepo, since `git subtree` takes no subfolder; the source is under `repos/drizzle/drizzle-orm/src` |
@@ -222,7 +223,7 @@ its sources either way.
 
 A new `packages/*` workspace needs no change to the layer guards, because they are deny-lists. A
 new layer or app needs its own `overrides` entry in `biome.json`; see
-[architecture.md › Three boundary guards](architecture.md#three-boundary-guards) for what each
+[architecture.md › Boundary guards](architecture.md#boundary-guards) for what each
 entry repeats.
 
 ### Upgrade versions
