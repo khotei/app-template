@@ -21,19 +21,14 @@ import {
   stranger,
   unknownChatId,
   unknownMessageId,
+  upload,
 } from '@app-template/domain/testing'
 import type { UserId } from '@app-template/domain/user'
 import { assertSchemaEquals, isUuidV7 } from '@app-template/testing'
 
 import { ChatService } from '#application/chat/chat.service'
 import { SendMessageUseCase } from '#application/chat/send-message.use-case'
-import {
-  ChatTest,
-  selectChat,
-  selectMessages,
-  settle,
-  upload,
-} from '#application/testing/chat.test-layer'
+import { ChatTest, selectChat, selectMessages, settle } from '#application/testing/chat.test-layer'
 
 type ChatCall = (
   service: ChatService['Service'],

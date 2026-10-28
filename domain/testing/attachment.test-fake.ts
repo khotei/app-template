@@ -51,13 +51,11 @@ export const AttachmentRepositoryTest = Layer.effect(
           ),
         ),
       selectOne: (where) =>
-        Effect.map(
-          Ref.get(rows),
-          flow(HashMap.get(where.id), Option.filter(matches(Struct.omit(where, ['id'])))),
-        ),
-      selectByIds: (ids) =>
+        Effect.map(Ref.get(rows), flow(HashMap.toValues, Arr.findFirst(matches(where)))),
+      selectMany: (where) =>
         Ref.get(rows).pipe(
-          Effect.map((map) => Arr.map(ids, (id) => HashMap.get(map, id))),
+          Effect.map(HashMap.filter(holdsWhere(where))),
+          Effect.map((found) => Arr.map(where.id, (id) => HashMap.get(found, id))),
           Effect.map(Arr.getSomes),
         ),
       deleteByIds: (ids) => Ref.update(rows, HashMap.removeMany(ids)),

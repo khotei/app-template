@@ -1,12 +1,10 @@
 import { BunCrypto } from '@effect/platform-bun'
-import { Array as Arr, DateTime, Effect, Layer, Stream } from 'effect'
+import { Array as Arr, DateTime, Effect, Layer } from 'effect'
 
 import {
   type Attachment,
   AttachmentRepository,
   AttachmentService,
-  FileName,
-  MediaType,
 } from '@app-template/domain/attachment'
 import {
   type ChatId,
@@ -17,12 +15,10 @@ import {
   prepareMessage,
 } from '@app-template/domain/chat'
 import { AttachmentBucketTest, chat } from '@app-template/domain/testing'
-import type { UserId } from '@app-template/domain/user'
 import { AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
 import { ChatRepositoryPg, MessageRepositoryPg } from '@app-template/infrastructure/chat'
 import type { Db } from '@app-template/infrastructure/db'
 import { QueueClientOutbox } from '@app-template/infrastructure/shared'
-import { png } from '@app-template/testing'
 
 import { ChatService } from '#application/chat/chat.service'
 import { DeleteChatUseCase } from '#application/chat/delete-chat.use-case'
@@ -60,21 +56,6 @@ export const layerChatTest = (chats: Layer.Layer<ChatRepository, never, Db> = Ch
 
 export const ChatTest = layerChatTest()
 
-export const upload = (userId: UserId, name: string) =>
-  Effect.flatMap(AttachmentService, (attachments) =>
-    attachments.upload(
-      userId,
-      Stream.make({
-        fileName: FileName.make(name),
-        mediaType: MediaType.make('image/png'),
-        content: Stream.make(png),
-      }),
-    ),
-  ).pipe(
-    Effect.flatMap((uploaded) => Effect.fromOption(Arr.head(uploaded))),
-    Effect.orDie,
-  )
-
 /** Completes an assistant message as the worker would, freeing its chat for the next send. */
 export const settle = (message: Message) =>
   Effect.gen(function* () {
@@ -96,5 +77,5 @@ export const selectMessages = (chatId: ChatId) =>
 
 export const selectAttachments = (attachments: ReadonlyArray<Attachment>) =>
   Effect.flatMap(AttachmentRepository, (repository) =>
-    repository.selectByIds(Arr.map(attachments, (attachment) => attachment.id)),
+    repository.selectMany({ id: Arr.map(attachments, (attachment) => attachment.id) }),
   )

@@ -1,5 +1,6 @@
-import { DateTime, Duration, Option, type Predicate, Schema } from 'effect'
+import { DateTime, Duration, Effect, Option, type Predicate, Schema } from 'effect'
 
+import { AttachmentBoundError } from '#domain/attachment/attachment.error'
 import { AttachmentId } from '#domain/attachment/attachment.id'
 import { MessageId } from '#domain/chat/chat.id'
 import { UserId } from '#domain/user/user.id'
@@ -65,7 +66,7 @@ export const buildAttachment = (input: {
 
 export const unboundLifetime = Duration.hours(24)
 
-export const isExpired =
+export const isExpiredAt =
   (now: DateTime.Utc): Predicate.Predicate<Attachment> =>
   (attachment) =>
     Option.isNone(attachment.messageId) &&
@@ -73,3 +74,10 @@ export const isExpired =
       now,
       DateTime.addDuration(attachment.createdAt, unboundLifetime),
     )
+
+export const ensureUnbound = Effect.fn('ensureUnbound')(function* (attachment: Attachment) {
+  if (Option.isSome(attachment.messageId)) {
+    return yield* new AttachmentBoundError({ id: attachment.id })
+  }
+  return attachment
+})

@@ -8,12 +8,12 @@ export type AttachmentSet = Types.Simplify<RequireAtLeastOne<Pick<Attachment, 'm
 
 /** The rows are found by `id`; any other field must still hold its value. */
 export type AttachmentWhere = Types.Simplify<
-  { readonly id: ReadonlyArray<AttachmentId> } & Partial<Pick<Attachment, 'messageId'>>
+  { readonly id: ReadonlyArray<AttachmentId> } & Partial<Pick<Attachment, 'userId' | 'messageId'>>
 >
 
-/** `id` finds the row; `userId` must still hold, so an owner mismatch reads as absent. */
+/** Every field named must hold, so an owner mismatch reads as absent; at least one is named. */
 export type AttachmentOneWhere = Types.Simplify<
-  { readonly id: AttachmentId } & Partial<Pick<Attachment, 'userId'>>
+  RequireAtLeastOne<Pick<Attachment, 'id' | 'userId'>>
 >
 
 export class AttachmentRepository extends Context.Service<
@@ -26,10 +26,8 @@ export class AttachmentRepository extends Context.Service<
       where: AttachmentWhere,
     ) => Effect.Effect<ReadonlyArray<Attachment>>
     readonly selectOne: (where: AttachmentOneWhere) => Effect.Effect<Option.Option<Attachment>>
-    /** Returns the attachments found, in the order asked; unknown ids are left out. */
-    readonly selectByIds: (
-      ids: ReadonlyArray<AttachmentId>,
-    ) => Effect.Effect<ReadonlyArray<Attachment>>
+    /** Returns the attachments where `where` holds, in the order of `where.id`; ids not found are left out. */
+    readonly selectMany: (where: AttachmentWhere) => Effect.Effect<ReadonlyArray<Attachment>>
     /** Deletes the attachments found; unknown ids are skipped. */
     readonly deleteByIds: (ids: ReadonlyArray<AttachmentId>) => Effect.Effect<void>
   }

@@ -26,6 +26,7 @@ import {
   stranger,
   unknownAttachmentId,
   unknownChatId,
+  upload,
 } from '@app-template/domain/testing'
 import { assertSchemaEquals, isUuidV7, sortById } from '@app-template/testing'
 
@@ -37,7 +38,6 @@ import {
   selectChat,
   selectMessages,
   settle,
-  upload,
 } from '#application/testing/chat.test-layer'
 
 const boundElsewhere = Effect.gen(function* () {

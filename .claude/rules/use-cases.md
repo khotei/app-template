@@ -46,7 +46,7 @@ Do not wait for the method to grow: the exception is the signal.
   them before the commit.
 - **Enqueue inside the transaction of the writes the job reads**
   ([database.md › The outbox](../../docs/knowledge/database.md#the-outbox)).
-- Read a set through the port's batch method (`selectByIds`), never one `select` per id in a loop.
+- Read a set through the port's batch method (`selectMany`), never one `select` per id in a loop.
 - Return the contract's shape (each message with its attachments), so the handler only projects
   each model onto its DTO's fields (`Struct.pick`) and composes nothing.
 

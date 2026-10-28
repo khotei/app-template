@@ -11,6 +11,7 @@ import { UserRepositoryTest, UserRows } from '#domain/testing/user.test-fake'
 
 export * from '#domain/testing/attachment.test-fake'
 export * from '#domain/testing/attachment.test-fixture'
+export * from '#domain/testing/attachment.test-layer'
 export * from '#domain/testing/chat.test-fake'
 export * from '#domain/testing/chat.test-fixture'
 export * from '#domain/testing/user.test-fake'

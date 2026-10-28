@@ -25,6 +25,7 @@ const encodeSet = buildSet<AttachmentSet, typeof attachments>({
 
 const encodeWhere = buildWhere<AttachmentWhere>({
   id: (ids) => inArray(attachments.id, ids),
+  userId: UndefinedOr.map((userId) => eq(attachments.userId, userId)),
   messageId: UndefinedOr.map(
     Option.match({
       onNone: () => isNull(attachments.messageId),
@@ -34,7 +35,7 @@ const encodeWhere = buildWhere<AttachmentWhere>({
 })
 
 const encodeOneWhere = buildWhere<AttachmentOneWhere>({
-  id: (id) => eq(attachments.id, id),
+  id: UndefinedOr.map((id) => eq(attachments.id, id)),
   userId: UndefinedOr.map((userId) => eq(attachments.userId, userId)),
 })
 
@@ -58,10 +59,12 @@ export const AttachmentRepositoryPg = Layer.effect(
         const rows = yield* db.select().from(attachments).where(encodeOneWhere(where)).limit(1)
         return yield* decodeFound(rows[0], decodeAttachment)
       }, orDieWithSqlError),
-      selectByIds: Effect.fn('AttachmentRepository.selectByIds')(function* (ids) {
-        const rows = yield* db.query.attachments.findMany({ where: { id: { in: Arr.copy(ids) } } })
+      selectMany: Effect.fn('AttachmentRepository.selectMany')(function* (where) {
+        const rows = yield* db.select().from(attachments).where(encodeWhere(where))
         const found = yield* Effect.forEach(rows, decodeAttachment)
-        return Arr.getSomes(Arr.map(ids, (id) => Arr.findFirst(found, (each) => each.id === id)))
+        return Arr.getSomes(
+          Arr.map(where.id, (id) => Arr.findFirst(found, (each) => each.id === id)),
+        )
       }, orDieWithSqlError),
       deleteByIds: Effect.fn('AttachmentRepository.deleteByIds')(
         (ids: ReadonlyArray<AttachmentId>) =>

@@ -4,7 +4,7 @@ import { Effect, Exit, Layer, Option, Ref } from 'effect'
 
 import { AttachmentBucket } from '@app-template/domain/attachment'
 import { ChatNotFoundError, ChatRepository } from '@app-template/domain/chat'
-import { ask, chat, owner, stranger, unknownChatId } from '@app-template/domain/testing'
+import { ask, chat, owner, stranger, unknownChatId, upload } from '@app-template/domain/testing'
 import { ChatRepositoryPg } from '@app-template/infrastructure/chat'
 import { assertSchemaEquals } from '@app-template/testing'
 
@@ -17,7 +17,6 @@ import {
   selectAttachments,
   selectChat,
   selectMessages,
-  upload,
 } from '#application/testing/chat.test-layer'
 
 /** The Postgres chat repository whose first `delete` dies, as a store failure would. */

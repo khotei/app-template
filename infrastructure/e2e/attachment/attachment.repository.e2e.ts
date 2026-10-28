@@ -115,7 +115,9 @@ describe('AttachmentRepositoryPg', () => {
       assertSchemaEquals(Attachments, sortById(bound), boundNow)
       assertSchemaEquals(
         Attachments,
-        yield* attachments.selectByIds(Arr.map(Arr.append(free, boundBefore), (each) => each.id)),
+        yield* attachments.selectMany({
+          id: Arr.map(Arr.append(free, boundBefore), (each) => each.id),
+        }),
         Arr.append(boundNow, boundBefore),
       )
     }).pipe(Effect.provide(RepositoryStackPgTest)),
@@ -129,10 +131,12 @@ describe('AttachmentRepositoryPg', () => {
       yield* insertMessage
       yield* Effect.forEach([first, second], attachments.insert)
 
-      const selected = yield* attachments.selectByIds([second.id, unknownId, first.id])
+      const selected = yield* attachments.selectMany({ id: [second.id, unknownId, first.id] })
+      const foreign = yield* attachments.selectMany({ id: [first.id], userId: strangerId })
 
       assertSchemaEquals(Attachments, selected, [second, first])
-      assert.deepStrictEqual(yield* attachments.selectByIds([]), [])
+      assert.deepStrictEqual(foreign, [])
+      assert.deepStrictEqual(yield* attachments.selectMany({ id: [] }), [])
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
@@ -152,7 +156,7 @@ describe('AttachmentRepositoryPg', () => {
       yield* attachments.deleteByIds([])
 
       const ids = Arr.prepend(droppedIds, kept.id)
-      assertSchemaEquals(Attachments, yield* attachments.selectByIds(ids), [kept])
+      assertSchemaEquals(Attachments, yield* attachments.selectMany({ id: ids }), [kept])
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 })

@@ -30,6 +30,7 @@ import {
   AttachmentRows,
 } from '#domain/testing/attachment.test-fake'
 import { unknownAttachmentId } from '#domain/testing/attachment.test-fixture'
+import { upload } from '#domain/testing/attachment.test-layer'
 import { epoch, messageId } from '#domain/testing/chat.test-fixture'
 import { owner, stranger } from '#domain/testing/user.test-fixture'
 import type { UserId } from '#domain/user/user.id'
@@ -59,15 +60,7 @@ const photo = { fileName: FileName.make('photo.png'), mediaType: MediaType.make(
 
 const photoUpload = { ...photo, content: Stream.make(png) }
 
-const upload = (userId: UserId) =>
-  Effect.flatMap(AttachmentService, (service) =>
-    service.upload(userId, Stream.make(photoUpload)),
-  ).pipe(
-    Effect.flatMap((uploaded) => Effect.fromOption(Arr.head(uploaded))),
-    Effect.orDie,
-  )
-
-const uploadPhoto = upload(owner)
+const uploadPhoto = upload(owner, 'photo.png')
 
 const countStored = Effect.all({
   rows: Effect.flatMap(AttachmentRows, Ref.get).pipe(Effect.map(HashMap.size)),
@@ -127,7 +120,7 @@ const boundTo = (attachment: Attachment) =>
   new Attachment({ ...attachment, messageId: Option.some(messageId) })
 
 const selectStored = (ids: ReadonlyArray<AttachmentId>) =>
-  Effect.flatMap(AttachmentRepository, (attachments) => attachments.selectByIds(ids))
+  Effect.flatMap(AttachmentRepository, (attachments) => attachments.selectMany({ id: ids }))
 
 const selectBytes = (id: AttachmentId) =>
   Effect.flatMap(AttachmentBucket, (bucket) => bucket.select(id))
@@ -315,7 +308,7 @@ describe('AttachmentService', () => {
     Effect.gen(function* () {
       const service = yield* AttachmentService
       const free = yield* uploadPhoto
-      const foreign = yield* upload(stranger)
+      const foreign = yield* upload(stranger, 'photo.png')
 
       const strangerFirst = yield* Effect.flip(
         service.bind(owner, [free.id, foreign.id, unknownAttachmentId], messageId),

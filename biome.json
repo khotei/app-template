@@ -99,6 +99,37 @@
       }
     },
     {
+      "includes": ["domain/testing/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/**",
+                      "!@app-template/testing",
+                      "!@app-template/testing/**",
+                      "@effect/**",
+                      "!@effect/vitest",
+                      "!@effect/vitest/**"
+                    ],
+                    "message": "domain test support imports no workspace but the shared fixtures @app-template/testing, and no @effect/* package except the test runner @effect/vitest"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["domain/tests/**"],
       "linter": {
         "rules": {
