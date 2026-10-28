@@ -22,11 +22,24 @@ import {
   type MessageRows,
   RepositoryStackTest,
 } from '@app-template/domain/testing'
+import { AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
+import { ChatPg } from '@app-template/infrastructure/chat'
+import { Transaction } from '@app-template/infrastructure/db'
+import { QueueClientOutbox } from '@app-template/infrastructure/shared'
 import { TransactionTest } from '@app-template/infrastructure/testing'
 import { QueueClient } from '@app-template/queue'
 
 import { DeleteChatUseCase } from '#application/chat/delete-chat.use-case'
 import { SendMessageUseCase } from '#application/chat/send-message.use-case'
+import { DbWithUsersTest } from '#application/testing/db.test-layer'
+
+const ChatServices = Layer.mergeAll(
+  ChatService.layer,
+  MessageService.layer,
+  AttachmentService.layer,
+  SendMessageUseCase.layer,
+  DeleteChatUseCase.layer,
+)
 
 const insertChat = Layer.effectDiscard(
   Effect.flatMap(ChatRepository, (chats) => chats.insert(chat)),
@@ -52,13 +65,7 @@ export const layerChatTest = (
     ChatRows | MessageRows | AttachmentRows
   > = ChatRepositoryTest,
 ) =>
-  Layer.mergeAll(
-    ChatService.layer,
-    MessageService.layer,
-    AttachmentService.layer,
-    SendMessageUseCase.layer,
-    DeleteChatUseCase.layer,
-  ).pipe(
+  ChatServices.pipe(
     Layer.provide(chats),
     Layer.provideMerge(insertChat),
     Layer.provideMerge(
@@ -68,6 +75,25 @@ export const layerChatTest = (
   )
 
 export const ChatTest = layerChatTest()
+
+/**
+ * The chat services and use cases on a fresh test database where `chat` exists, over the real
+ * transaction, the outbox and the memory bucket: for what only Postgres decides, a rollback.
+ */
+export const ChatPgTest = ChatServices.pipe(
+  Layer.provideMerge(insertChat),
+  Layer.provideMerge(
+    Layer.mergeAll(
+      ChatPg,
+      AttachmentRepositoryPg,
+      AttachmentBucketTest,
+      QueueClientOutbox,
+      Transaction.layer,
+    ),
+  ),
+  Layer.provideMerge(DbWithUsersTest),
+  Layer.provide(BunCrypto.layer),
+)
 
 export const selectChat = (chatId: ChatId) =>
   Effect.flatMap(ChatRepository, (chats) => chats.selectOne({ id: chatId }))

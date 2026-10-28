@@ -35,13 +35,29 @@ const TransactionPgTest = Transaction.layer.pipe(Layer.provideMerge(DbTest))
 
 const selectUserIds = Effect.flatMap(Db, (db) => db.select({ id: users.id }).from(users))
 
+// The second insert is refused by the users primary key.
+const insertOwnerTwice = Effect.andThen(insertUser(owner), insertUser(owner))
+
 describe('Transaction', () => {
   it.effect('run keeps no write of a step when a later one is refused', () =>
     Effect.gen(function* () {
       const transaction = yield* Transaction
 
-      yield* flipSqlError(transaction.run(Effect.andThen(insertUser(owner), insertUser(owner))))
+      yield* flipSqlError(transaction.run(insertOwnerTwice))
 
+      assert.deepStrictEqual(yield* selectUserIds, [])
+    }).pipe(Effect.provide(TransactionPgTest)),
+  )
+
+  it.effect('run keeps no write of a step when a later one dies, as a repository does', () =>
+    Effect.gen(function* () {
+      const transaction = yield* Transaction
+
+      const exit = yield* Effect.exit(
+        transaction.run(Effect.andThen(insertUser(owner), Effect.orDie(insertUser(owner)))),
+      )
+
+      assert.isTrue(Exit.hasDies(exit))
       assert.deepStrictEqual(yield* selectUserIds, [])
     }).pipe(Effect.provide(TransactionPgTest)),
   )
@@ -49,9 +65,10 @@ describe('Transaction', () => {
   it.effect("run's own SqlError is a defect", () =>
     Effect.gen(function* () {
       const transaction = yield* Transaction
-      const sql = yield* SqlClient.SqlClient
+      const client = yield* SqlClient.SqlClient
 
-      const exit = yield* Effect.exit(transaction.run(sql`SELECT 1 FROM no_such_table`))
+      // The table does not exist, so the statement itself fails with a SqlError.
+      const exit = yield* Effect.exit(transaction.run(client`SELECT 1 FROM no_such_table`))
 
       assert.isTrue(Exit.hasDies(exit))
     }).pipe(Effect.provide(TransactionPgTest)),
