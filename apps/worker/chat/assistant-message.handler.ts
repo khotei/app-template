@@ -1,5 +1,6 @@
 import { Cause, Effect, Exit, Layer } from 'effect'
 
+import { GenerateAssistantMessageUseCase } from '@app-template/application/chat'
 import {
   assistantMessageDeadLetterQueue,
   assistantMessageQueue,
@@ -7,10 +8,8 @@ import {
 } from '@app-template/infrastructure/chat'
 import { type AttemptInfo, worker } from '@app-template/queue'
 
-import { GenerateAssistantMessageUseCase } from '#application/chat/generate-assistant-message.use-case'
-
 /** The last attempt fails the reply on any outcome but success, an interrupt included. */
-export const handle = Effect.fn('AssistantMessageJob.handle')(function* (
+export const handle = Effect.fn('AssistantMessageHandler.handle')(function* (
   job: GenerateAssistantMessage,
   info: AttemptInfo,
 ) {
@@ -22,17 +21,16 @@ export const handle = Effect.fn('AssistantMessageJob.handle')(function* (
   )
 })
 
-export const handleDeadLettered = Effect.fn('AssistantMessageJob.handleDeadLettered')(function* (
-  job: GenerateAssistantMessage,
-  info: AttemptInfo,
-) {
-  const useCase = yield* GenerateAssistantMessageUseCase
-  yield* Effect.logError('assistant reply dead-lettered')
-  const cause = `dead-lettered after ${info.attempt} attempts on ${assistantMessageDeadLetterQueue.name}`
-  yield* useCase.fail(job.messageId, Cause.fail(cause))
-})
+export const handleDeadLettered = Effect.fn('AssistantMessageHandler.handleDeadLettered')(
+  function* (job: GenerateAssistantMessage, info: AttemptInfo) {
+    const useCase = yield* GenerateAssistantMessageUseCase
+    const cause = `dead-lettered after ${info.attempt} attempts on ${assistantMessageDeadLetterQueue.name}`
+    const failed = yield* useCase.fail(job.messageId, Cause.fail(cause))
+    if (failed) yield* Effect.logError('assistant reply dead-lettered')
+  },
+)
 
-export const AssistantMessageJob = Layer.mergeAll(
+export const AssistantMessageHandler = Layer.mergeAll(
   worker(assistantMessageQueue, handle),
   worker(assistantMessageDeadLetterQueue, handleDeadLettered),
 ).pipe(Layer.provide(GenerateAssistantMessageUseCase.layer))

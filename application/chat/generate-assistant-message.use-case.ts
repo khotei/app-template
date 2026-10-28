@@ -40,6 +40,9 @@ const replySkipLogs = {
   alreadySettled: Effect.logInfo('assistant reply skipped: already settled'),
 } as const satisfies Record<ReplySkip, Effect.Effect<void>>
 
+/** A skip answered as "nothing written", for a caller that acts only on a write. */
+const skipped = (why: ReplySkip) => Effect.as(replySkipLogs[why], false)
+
 const isCompletedTurn = ({ message }: MessageDetail) => message.stage === 'completed'
 
 /** A terminal write of the reply, through `MessageService`. */
@@ -52,11 +55,14 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
     readonly generate: (
       job: GenerateAssistantMessage,
     ) => Effect.Effect<void, MessageStageInvalidError>
-    /** Fails the message while it is active, with `cause` kept out of the user's sight. */
+    /**
+     * Fails the message while it is active, with `cause` kept out of the user's sight, and
+     * answers whether it did; a missing or settled one is logged and skipped.
+     */
     readonly fail: (
       messageId: MessageId,
       cause: Cause.Cause<unknown>,
-    ) => Effect.Effect<void, MessageStageInvalidError>
+    ) => Effect.Effect<boolean, MessageStageInvalidError>
   }
 >()('@app-template/application/chat/GenerateAssistantMessageUseCase', {
   make: Effect.gen(function* () {
@@ -155,8 +161,8 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
       cause: Cause.Cause<unknown>,
     ) {
       const stored = yield* messages.selectOne({ id: messageId })
-      if (Option.isNone(stored)) return yield* replySkipLogs.chatDeleted
-      if (!isActiveMessage(stored.value)) return yield* replySkipLogs.alreadySettled
+      if (Option.isNone(stored)) return yield* skipped('chatDeleted')
+      if (!isActiveMessage(stored.value)) return yield* skipped('alreadySettled')
 
       const failedAt = yield* DateTime.now
       const failed = messageService.fail(stored.value, {
@@ -164,8 +170,9 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
         cause: Cause.pretty(cause),
         at: failedAt,
       })
-      yield* settle(failed).pipe(
-        Effect.catchTag('MessageMovedError', () => replySkipLogs.alreadySettled),
+      return yield* settle(failed).pipe(
+        Effect.as(true),
+        Effect.catchTag('MessageMovedError', () => skipped('alreadySettled')),
       )
     })
 

@@ -149,10 +149,10 @@ the worker from `QueueConfig` and `AwsConfig`: a definition's queue is
   sends there itself. A worker that dies mid-attempt leaves its message hidden until the
   visibility runs out; it then comes back as the next attempt, or goes to the dead-letter queue.
   A reply's last attempt writes `failed` on any outcome but success, a stopping worker included
-  (`AssistantMessageJob`). That write never happens after a killed process, a store failing the
-  write, or a stopped worker's leftover long poll spending the last attempt: the reply stays
-  active with its job in the dead-letter queue, until the dead-letter handler of
-  `AssistantMessageJob` fails it (below).
+  (`apps/worker/chat/assistant-message.handler.ts`). That write never happens after a killed
+  process, a store failing the write, or a stopped worker's leftover long poll spending the last
+  attempt: the reply stays active with its job in the dead-letter queue, until the handler's
+  `handleDeadLettered` fails it (below).
 - **The worker consumes both dead-letter queues.** `assistantMessageDeadLetterQueue` and
   `chatTitleDeadLetterQueue` (`infrastructure/chat/chat.queue.ts`) define `<queue>-dlq` with
   `maxAttempts` at `Number.MAX_SAFE_INTEGER` and a retry delay that doubles up to 5 minutes:

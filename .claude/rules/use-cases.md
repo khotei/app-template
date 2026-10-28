@@ -13,7 +13,7 @@ Where a flow lives in `application`. Names: `naming.md`; Effect shapes: `effect-
 - **A service is simple, goal-specific and easy to compose.** It composes what lies below it:
   domain rules, ports, adapters, packages.
 - **It calls a service of its own level only for shared state or a trivial task,** and the call
-  says why. A `.job` producer is a service of the same level: a service never enqueues.
+  says why. A service never enqueues: a use case sends the job through `QueueClient.send`.
 - **One writer per aggregate.** Only an aggregate's own service writes its records; another
   service may read that port for a view (`MessageDetail`), never write through it.
 - **Every method is safe on its own,** except a step another aggregate owns (a cascade): its doc
@@ -25,7 +25,7 @@ Where a flow lives in `application`. Names: `naming.md`; Effect shapes: `effect-
 
 Move it to `<verb>-<object>.use-case.ts` as soon as one holds:
 
-- it composes two services of one level, a `.job` producer included;
+- it composes two services of one level, or sends a job;
 - it writes a second aggregate (binds attachments, cascades a delete);
 - it needs one transaction across aggregates or one ordering of writes across them;
 - keeping it in the service needs an exception to a rule.

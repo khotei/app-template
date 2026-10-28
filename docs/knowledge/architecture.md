@@ -111,7 +111,7 @@ Using the `chat` slice as the map:
 | adapter of the assistant port, with the prompts | `infrastructure/chat/assistant.llm.ts` | `AssistantLlm` (a `Layer` of `Assistant` over `LanguageModel`) |
 | domain service over the ports | `domain/chat/chat.service.ts`, `message.service.ts` | `ChatService`, `ChatService.layer`, `MessageService` |
 | use case composing services | `application/chat/send-message.use-case.ts`, `generate-assistant-message.use-case.ts` | `SendMessageUseCase`, `SendMessageUseCase.layer`, `GenerateAssistantMessageUseCase` |
-| job: a queue's worker over a use case | `application/chat/assistant-message.job.ts` | `AssistantMessageJob` (a worker `Layer`) |
+| worker handler: a queue's consumer over a use case | `apps/worker/chat/assistant-message.handler.ts` | `handle`, `handleDeadLettered`, `AssistantMessageHandler` (a worker `Layer`) |
 | test support | `application/testing/chat.test-layer.ts` | `ChatTest`, `layerChatTest(chats)` |
 | contract group | `http-api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`), the DTOs `Chat`, `Message` |
 | handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
@@ -156,10 +156,10 @@ Pascal one (`Document`).
    `index.ts` and the `exports` entry.
 7. **Job, if the entity has asynchronous work.** `infrastructure/<entity>/<entity>.queue.ts`
    holds the queue definitions (name, job schema, retry policy, `jobId`), and any prompt the model
-   needs goes in `<entity>.llm.ts`. Both sides of the job live in
-   `application/<entity>/<object>.job.ts`: the producer service, which calls `QueueClient.send`
-   from `packages/queue`, and the static `worker` layer, which `apps/worker/layer.ts` merges
-   and provides with the `<Entity>Pg` layers the jobs read.
+   needs goes in `<entity>.llm.ts`. The use case that starts the work sends the job with
+   `QueueClient.send` from `packages/queue`; `apps/worker/<entity>/<object>.handler.ts` holds
+   `handle` and `handleDeadLettered` over a use case and their `worker` layer, which
+   `apps/worker/layer.ts` merges and provides with the `<Entity>Pg` layers the handlers read.
 8. **Contract.** Add the group in `http-api/<entity>/<entity>.http.ts`, listing the domain's errors
    with their statuses (`HttpApiSchema.status`), and add it to `Api` in `http-api/api.ts` before
    `.middleware(SchemaErrors)`.

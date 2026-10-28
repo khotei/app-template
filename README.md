@@ -110,8 +110,9 @@ Each line names one choice and where it lives; the rejected alternatives are in 
 - **Repositories are `Layer`s over Drizzle on `@effect/sql-pg`:** each entity declares its tables
   once, the row codecs and migrations derive from them, and a write across tables runs in one
   transaction. [docs/knowledge/database.md](docs/knowledge/database.md).
-- **Jobs live in one file, both sides:** a `.job` service enqueues, its `worker` is a `Layer` that
-  consumes in a fiber the layer's scope owns. `application/chat/*.job.ts`, `packages/queue`.
+- **A queue has a producer and a handler:** a use case sends the job with `QueueClient.send`;
+  `apps/worker/<entity>/<object>.handler.ts` consumes it over a use case in a `worker` `Layer`
+  that runs in a fiber the layer's scope owns. `packages/queue`.
 - **A process is one `Layer`:** `apps/api/layer.ts` and `apps/worker/layer.ts` close the
   leaves (database, S3, queue, platform) with `Layer.provide` and `main.ts` is
   `BunRuntime.runMain(Layer.launch(...))`; stopping closes one scope.
