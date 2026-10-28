@@ -2,7 +2,7 @@ import { Array as Arr, Effect } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
 import { DeleteChatUseCase, SendMessageUseCase } from '@app-template/application/chat'
-import { ChatService } from '@app-template/domain/chat'
+import { ChatService, MessageService } from '@app-template/domain/chat'
 import { Api, CurrentUser } from '@app-template/http-api'
 
 import { toChat, toDetail, toMessage, toSummary } from '#api/shared/projections'
@@ -12,6 +12,7 @@ export const ChatHandler = HttpApiBuilder.group(
   'chats',
   Effect.fnUntraced(function* (handlers) {
     const chats = yield* ChatService
+    const messages = yield* MessageService
     const sendMessage = yield* SendMessageUseCase
     const deleteChat = yield* DeleteChatUseCase
 
@@ -70,7 +71,7 @@ export const ChatHandler = HttpApiBuilder.group(
         'getMessage',
         Effect.fn('ChatHandler.getMessage')(function* ({ params }) {
           const user = yield* CurrentUser
-          const detail = yield* chats.getMessage(user.id, params.chatId, params.messageId)
+          const detail = yield* messages.get(user.id, params.chatId, params.messageId)
           return toMessage(detail)
         }),
       )

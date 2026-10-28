@@ -153,10 +153,10 @@ statement that writes. A conditional write answers whether it wrote:
   attachments, and optionally a field the row must still hold, `Option.none()` rendering `IS
   NULL`). The adapter maps each side through `buildSet` and `buildWhere` (above). The chat's
   update answers whether it wrote, the attachments' with the rows it wrote (`RETURNING *`).
-  - `ChatService.addUserMessage` sets the chat's `updatedAt` alone, so a title written
-    meanwhile survives. It writes the chat before the message: a chat deleted since the check
-    answers `false`, which the service turns into `ChatNotFoundError` instead of a foreign-key
-    failure, and the written row stays held until the send commits, so a concurrent delete waits.
+  - `SendMessageUseCase.send` sets the chat's `updatedAt` alone, so a title written meanwhile
+    survives. It writes the chat before the messages: a chat deleted since the check answers
+    `false`, which the use case turns into `ChatNotFoundError` instead of a foreign-key failure,
+    and the written row stays held until the send commits, so a concurrent delete waits.
   - `ChatService.updateTitle` writes `where` the title is still `none` and, on `false`, reads
     the chat only to name the refusal (`ChatNotFoundError` or `ChatTitledError`), so a rename
     always wins.

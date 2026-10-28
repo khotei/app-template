@@ -9,11 +9,13 @@ import {
 import {
   type ChatBusyError,
   type ChatId,
-  type ChatNotFoundError,
+  ChatNotFoundError,
+  ChatRepository,
   ChatService,
   type MessageDetail,
   type MessageInput,
   type MessageInputInvalidError,
+  MessageService,
 } from '@app-template/domain/chat'
 import type { UserId } from '@app-template/domain/user'
 
@@ -44,7 +46,9 @@ export class SendMessageUseCase extends Context.Service<
   }
 >()('@app-template/application/chat/SendMessageUseCase', {
   make: Effect.gen(function* () {
+    const chats = yield* ChatRepository
     const chatService = yield* ChatService
+    const messageService = yield* MessageService
     const attachmentService = yield* AttachmentService
     const assistantJob = yield* AssistantMessageJob
     const titleJob = yield* ChatTitleJob
@@ -54,9 +58,13 @@ export class SendMessageUseCase extends Context.Service<
       function* (userId: UserId, chatId: ChatId, input: MessageInput) {
         const sendable = yield* chatService.findSendable(userId, chatId, input)
 
-        const userMessage = yield* chatService.addUserMessage(sendable)
+        // A rule-free write, before the messages: a chat deleted since the check reads as gone.
+        const touched = yield* chats.update({ updatedAt: sendable.at }, { id: chatId })
+        if (!touched) return yield* new ChatNotFoundError({ id: chatId })
+
+        const userMessage = yield* messageService.addUserMessage(sendable)
         const bound = yield* attachmentService.bind(userId, input.attachmentIds, userMessage.id)
-        const assistantMessage = yield* chatService.addAssistantMessage(sendable)
+        const assistantMessage = yield* messageService.addAssistantMessage(sendable)
         yield* assistantJob.enqueue(assistantMessage)
         if (sendable.opensChat) yield* titleJob.enqueue(userMessage)
 
@@ -75,6 +83,7 @@ export class SendMessageUseCase extends Context.Service<
   static readonly layer = Layer.effect(this, this.make).pipe(
     Layer.provide([
       ChatService.layer,
+      MessageService.layer,
       AttachmentService.layer,
       AssistantMessageJob.layer,
       ChatTitleJob.layer,

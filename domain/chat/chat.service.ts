@@ -1,7 +1,7 @@
 import { Context, Crypto, Data, DateTime, Effect, Layer, Option } from 'effect'
 
-import { ChatBusyError, ChatNotFoundError, ChatTitledError } from '#domain/chat/chat.error'
-import { ChatId, MessageId } from '#domain/chat/chat.id'
+import { type ChatBusyError, ChatNotFoundError, ChatTitledError } from '#domain/chat/chat.error'
+import { ChatId } from '#domain/chat/chat.id'
 import {
   buildChat,
   Chat,
@@ -10,14 +10,11 @@ import {
   type ChatTitle,
 } from '#domain/chat/chat.model'
 import { ChatRepository } from '#domain/chat/chat.port'
-import { type MessageInputInvalidError, MessageNotFoundError } from '#domain/chat/message.error'
+import type { MessageInputInvalidError } from '#domain/chat/message.error'
 import {
-  buildAssistantMessage,
-  buildUserMessage,
   ensureChatAcceptsMessage,
   ensureMessageInput,
   type Message,
-  type MessageDetail,
   type MessageInput,
 } from '#domain/chat/message.model'
 import { MessageRepository, type MessageWhere } from '#domain/chat/message.port'
@@ -65,22 +62,11 @@ export class ChatService extends Context.Service<
      * this.
      */
     readonly delete: (userId: UserId, chatId: ChatId) => Effect.Effect<void, ChatNotFoundError>
-    readonly getMessage: (
-      userId: UserId,
-      chatId: ChatId,
-      messageId: MessageId,
-    ) => Effect.Effect<MessageDetail, MessageNotFoundError>
     readonly findSendable: (
       userId: UserId,
       chatId: ChatId,
       input: MessageInput,
     ) => Effect.Effect<SendableChat, MessageInputInvalidError | ChatNotFoundError | ChatBusyError>
-    /**
-     * Moves the chat's `updatedAt` alone to the send's time, then stores the message; a chat
-     * deleted since the check is `ChatNotFoundError`.
-     */
-    readonly addUserMessage: (sendable: SendableChat) => Effect.Effect<Message, ChatNotFoundError>
-    readonly addAssistantMessage: (sendable: SendableChat) => Effect.Effect<Message, ChatBusyError>
     /**
      * Stores a settled reply while the stored one still matches `where`, then moves the chat's
      * `updatedAt` alone to the reply's; answers whether it wrote.
@@ -92,9 +78,7 @@ export class ChatService extends Context.Service<
     const chats = yield* ChatRepository
     const messages = yield* MessageRepository
     const crypto = yield* Crypto.Crypto
-    const randomUuid = Effect.orDie(crypto.randomUUIDv7())
-    const randomChatId = Effect.map(randomUuid, ChatId.make)
-    const randomMessageId = Effect.map(randomUuid, MessageId.make)
+    const randomChatId = Effect.map(Effect.orDie(crypto.randomUUIDv7()), ChatId.make)
 
     const findOwnedChat = Effect.fnUntraced(function* (userId: UserId, id: ChatId) {
       const found = yield* chats.selectOne({ id, userId })
@@ -154,15 +138,6 @@ export class ChatService extends Context.Service<
       yield* chats.delete(chatId)
     })
 
-    const getMessage = Effect.fn('ChatService.getMessage')(function* (
-      userId: UserId,
-      chatId: ChatId,
-      messageId: MessageId,
-    ) {
-      const found = yield* messages.selectDetail({ id: messageId, chatId, userId })
-      return yield* Effect.fromOption(found, () => new MessageNotFoundError({ id: messageId }))
-    })
-
     const findSendable = Effect.fn('ChatService.findSendable')(function* (
       userId: UserId,
       chatId: ChatId,
@@ -177,39 +152,6 @@ export class ChatService extends Context.Service<
       const opened = yield* messages.existsByChat(chatId)
       const at = yield* DateTime.now
       return new SendableChat({ chatId, input, opensChat: !opened, at })
-    })
-
-    const addUserMessage = Effect.fn('ChatService.addUserMessage')(function* (
-      sendable: SendableChat,
-    ) {
-      const id = yield* randomMessageId
-      const message = buildUserMessage({
-        id,
-        chatId: sendable.chatId,
-        text: sendable.input.text,
-        createdAt: sendable.at,
-      })
-
-      const written = yield* chats.update({ updatedAt: sendable.at }, { id: sendable.chatId })
-      if (!written) return yield* new ChatNotFoundError({ id: sendable.chatId })
-
-      yield* messages.insert(message)
-      return message
-    })
-
-    const addAssistantMessage = Effect.fn('ChatService.addAssistantMessage')(function* (
-      sendable: SendableChat,
-    ) {
-      const id = yield* randomMessageId
-      const message = buildAssistantMessage({
-        id,
-        chatId: sendable.chatId,
-        createdAt: sendable.at,
-      })
-
-      const inserted = yield* messages.insert(message)
-      if (!inserted) return yield* new ChatBusyError({ id: sendable.chatId })
-      return message
     })
 
     const settleReply = Effect.fn('ChatService.settleReply')(function* (
@@ -230,10 +172,7 @@ export class ChatService extends Context.Service<
       rename,
       updateTitle,
       delete: remove,
-      getMessage,
       findSendable,
-      addUserMessage,
-      addAssistantMessage,
       settleReply,
     }
   }),

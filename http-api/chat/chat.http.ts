@@ -96,7 +96,7 @@ export class ChatHttp extends HttpApiGroup.make('chats')
     HttpApiEndpoint.get('getMessage', '/chats/:chatId/messages/:messageId', {
       params: { ...chatPath, messageId: MessageId },
       success: Message,
-      error: [chatNotFound, MessageNotFoundError.pipe(HttpApiSchema.status(404))],
+      error: MessageNotFoundError.pipe(HttpApiSchema.status(404)),
     }),
   )
   .middleware(Auth) {}
