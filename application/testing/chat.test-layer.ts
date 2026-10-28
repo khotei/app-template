@@ -34,6 +34,7 @@ import { AwsTest, TransactionTest } from '@app-template/infrastructure/testing'
 import { QueueClient } from '@app-template/queue'
 
 import { DeleteChatUseCase } from '#application/chat/delete-chat.use-case'
+import { GenerateAssistantMessageUseCase } from '#application/chat/generate-assistant-message.use-case'
 import { GenerateChatTitleUseCase } from '#application/chat/generate-chat-title.use-case'
 import { SendMessageUseCase } from '#application/chat/send-message.use-case'
 import { DbWithUsersTest } from '#application/testing/db.test-layer'
@@ -88,6 +89,16 @@ export const ChatTest = layerChatTest()
 export const ChatTitleTest = GenerateChatTitleUseCase.layer.pipe(
   Layer.provideMerge(insertChat),
   Layer.provideMerge(RepositoryStackTest),
+  Layer.provide(BunCrypto.layer),
+)
+
+/**
+ * The reply use case over the memory layers, on fresh rows where `chat` exists, the attachments'
+ * bytes in memory and the identity transaction; the `Assistant` is the test's, `recordAssistant()`.
+ */
+export const AssistantMessageTest = GenerateAssistantMessageUseCase.layer.pipe(
+  Layer.provideMerge(insertChat),
+  Layer.provideMerge(Layer.mergeAll(RepositoryStackTest, AttachmentBucketTest, TransactionTest)),
   Layer.provide(BunCrypto.layer),
 )
 

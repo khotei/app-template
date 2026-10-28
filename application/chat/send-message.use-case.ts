@@ -17,11 +17,14 @@ import {
   MessageService,
 } from '@app-template/domain/chat'
 import type { UserId } from '@app-template/domain/user'
-import { chatTitleQueue, GenerateChatTitle } from '@app-template/infrastructure/chat'
+import {
+  assistantMessageQueue,
+  chatTitleQueue,
+  GenerateAssistantMessage,
+  GenerateChatTitle,
+} from '@app-template/infrastructure/chat'
 import { Transaction } from '@app-template/infrastructure/db'
 import { QueueClient } from '@app-template/queue'
-
-import { AssistantMessageJob } from '#application/chat/assistant-message.job'
 
 export interface SentMessages {
   readonly userMessage: MessageDetail
@@ -51,7 +54,6 @@ export class SendMessageUseCase extends Context.Service<
     const chatService = yield* ChatService
     const messageService = yield* MessageService
     const attachmentService = yield* AttachmentService
-    const assistantJob = yield* AssistantMessageJob
     const queue = yield* QueueClient
     const transaction = yield* Transaction
 
@@ -69,7 +71,13 @@ export class SendMessageUseCase extends Context.Service<
       const userMessage = yield* messageService.addUserMessage(sendable)
       const bound = yield* attachmentService.bind(userId, input.attachmentIds, userMessage.id)
       const assistantMessage = yield* messageService.addAssistantMessage(sendable)
-      yield* assistantJob.enqueue(assistantMessage)
+      // A QueueError is a defect: no rule reads it, and it still rolls the send back.
+      yield* Effect.orDie(
+        queue.send(
+          assistantMessageQueue,
+          new GenerateAssistantMessage({ chatId, messageId: assistantMessage.id }),
+        ),
+      )
       if (sendable.opensChat) {
         yield* Effect.orDie(
           queue.send(chatTitleQueue, new GenerateChatTitle({ chatId, messageId: userMessage.id })),
@@ -86,11 +94,6 @@ export class SendMessageUseCase extends Context.Service<
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make).pipe(
-    Layer.provide([
-      ChatService.layer,
-      MessageService.layer,
-      AttachmentService.layer,
-      AssistantMessageJob.layer,
-    ]),
+    Layer.provide([ChatService.layer, MessageService.layer, AttachmentService.layer]),
   )
 }

@@ -110,8 +110,8 @@ Using the `chat` slice as the map:
 | relay from the database to a queue | `infrastructure/outbox/outbox.relay.ts` | `OutboxRelay` (a worker `Layer` that runs a fiber and provides nothing) |
 | adapter of the assistant port, with the prompts | `infrastructure/chat/assistant.llm.ts` | `AssistantLlm` (a `Layer` of `Assistant` over `LanguageModel`) |
 | domain service over the ports | `domain/chat/chat.service.ts`, `message.service.ts` | `ChatService`, `ChatService.layer`, `MessageService` |
-| use case composing services | `application/chat/send-message.use-case.ts` | `SendMessageUseCase`, `SendMessageUseCase.layer` |
-| job: producer and worker | `application/chat/assistant-message.job.ts` | `AssistantMessageJob`, `AssistantMessageJob.worker` |
+| use case composing services | `application/chat/send-message.use-case.ts`, `generate-assistant-message.use-case.ts` | `SendMessageUseCase`, `SendMessageUseCase.layer`, `GenerateAssistantMessageUseCase` |
+| job: a queue's worker over a use case | `application/chat/assistant-message.job.ts` | `AssistantMessageJob` (a worker `Layer`) |
 | test support | `application/testing/chat.test-layer.ts` | `ChatTest`, `layerChatTest(chats)` |
 | contract group | `http-api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`), the DTOs `Chat`, `Message` |
 | handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |

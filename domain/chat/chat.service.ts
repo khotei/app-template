@@ -14,10 +14,9 @@ import type { MessageInputInvalidError } from '#domain/chat/message.error'
 import {
   ensureChatAcceptsMessage,
   ensureMessageInput,
-  type Message,
   type MessageInput,
 } from '#domain/chat/message.model'
-import { MessageRepository, type MessageWhere } from '#domain/chat/message.port'
+import { MessageRepository } from '#domain/chat/message.port'
 import type { UserId } from '#domain/user/user.id'
 
 /**
@@ -67,11 +66,6 @@ export class ChatService extends Context.Service<
       chatId: ChatId,
       input: MessageInput,
     ) => Effect.Effect<SendableChat, MessageInputInvalidError | ChatNotFoundError | ChatBusyError>
-    /**
-     * Stores a settled reply while the stored one still matches `where`, then moves the chat's
-     * `updatedAt` alone to the reply's; answers whether it wrote.
-     */
-    readonly settleReply: (settled: Message, where: MessageWhere) => Effect.Effect<boolean>
   }
 >()('@app-template/domain/chat/ChatService', {
   make: Effect.gen(function* () {
@@ -154,17 +148,6 @@ export class ChatService extends Context.Service<
       return new SendableChat({ chatId, input, opensChat: !opened, at })
     })
 
-    const settleReply = Effect.fn('ChatService.settleReply')(function* (
-      settled: Message,
-      where: MessageWhere,
-    ) {
-      const written = yield* messages.update(settled, where)
-      if (!written) return false
-
-      yield* chats.update({ updatedAt: settled.updatedAt }, { id: settled.chatId })
-      return true
-    })
-
     return {
       create,
       list,
@@ -173,7 +156,6 @@ export class ChatService extends Context.Service<
       updateTitle,
       delete: remove,
       findSendable,
-      settleReply,
     }
   }),
 }) {

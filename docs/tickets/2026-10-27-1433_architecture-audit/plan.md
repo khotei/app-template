@@ -724,14 +724,33 @@
   layer of its own, recording the prompts).
 - **Test first:** the adapter: `suggestTitle` sends "Write a title" and cuts the answer through
   `buildChatTitle`; blank text answers none without a model call; a model `AiError` is a defect
-  (D3); `streamText` sends the history with its files. The use case over the memory layers: the stages `preparing`, `generating`, a
-  snapshot, `completed`, and the chat's `updatedAt` at the completion; a message moved during
-  the hold is skipped; a deleted chat is skipped; `fail` writes `failed` with the reason and
-  keeps `cause` out of the user's message; the history carries the attachments' bytes.
-- **Verify:** `grep -rn "messages\.\(update\|insert\)" application/ apps/` is empty;
-  `grep -rn "settleReply" --include=*.ts .` is empty; `make test-unit`; `make check`.
+  (D3); `streamText` sends the history with its files. The use case over the memory layers:
+  the stages `preparing`, `generating`, a snapshot, `completed`, and the chat's `updatedAt` at
+  the completion; a message moved during the hold is skipped; a deleted chat is skipped; `fail`
+  writes `failed` with the reason and keeps `cause` out of the user's message; the history
+  carries the attachments' bytes.
+- **Verify:** `grep -rn "messages\.\(update\|insert\)" application/ apps/ --exclude-dir=tests
+  --exclude-dir=e2e --exclude-dir=testing` is empty; `grep -rn "settleReply" --include=*.ts .`
+  is empty; `make test-unit`; `make check`.
 - **Model:** fable high
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Only the settle (the terminal write and the chat's `updatedAt`) runs under `Transaction.run`:
+    the snapshots must reach the polling client while the reply streams.
+  - The use case checks `isActiveMessage` before `prepare`, so a settled reply is a logged skip,
+    not a `MessageStageInvalidError` the queue would retry; `MessageStageInvalidError` still
+    fails the attempt as a bug.
+  - `fail` logs the same two skips as `generate` (a missing message, a settled one); the old
+    `failReply` was silent.
+  - `assistant-message.job.ts` is a plain `Layer` of its two workers over the use case until
+    S16; its `handleDeadLettered` logs the error before the active check.
+  - The Verify grep skips the suites: three arrange steps of earlier steps write `MessageRows`.
+  - `domain/tests/chat/chat.service.test.ts` was untouched: it held no `settleReply` case.
+  - Beyond **Files**: `AssistantMessageTest` in `application/testing/chat.test-layer.ts`;
+    `docs/knowledge/architecture.md` and `aws.md` (lines naming the job's workers).
+  - ~716 added lines against ~400: half are the two suites the step asks for.
+  - The old e2e suite's last-attempt cases (the interrupt, the dead letter on a deleted chat,
+    the last snapshot's text kept) leave with it; S16's **Test first** takes them.
 
 #### S16 — The worker's assistant-message handler; no `.job` file remains
 
@@ -747,7 +766,9 @@
 - **Test first:** `handle(job, info)` over the memory layers and a failing `recordAssistant`:
   the last attempt fails the message, an earlier one leaves it active; `handleDeadLettered`
   fails an active message with the attempts in its cause and logs an error, and skips a
-  settled one.
+  settled one without the error log; a worker interrupted during the last attempt still fails
+  the message; a dead letter for a deleted chat logs "chat deleted" and writes nothing; a failed
+  message keeps its last snapshot's text.
 - **Verify:** `find . -name "*.job.ts" -not -path "*/node_modules/*"` is empty;
   `ls apps/worker/chat/` shows the two handlers; `make check`; with the stand up,
   `make dev-worker` starts.

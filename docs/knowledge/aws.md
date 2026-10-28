@@ -151,8 +151,8 @@ the worker from `QueueConfig` and `AwsConfig`: a definition's queue is
   A reply's last attempt writes `failed` on any outcome but success, a stopping worker included
   (`AssistantMessageJob`). That write never happens after a killed process, a store failing the
   write, or a stopped worker's leftover long poll spending the last attempt: the reply stays
-  active with its job in the dead-letter queue, until `AssistantMessageJob.deadLetterWorker`
-  fails it (below).
+  active with its job in the dead-letter queue, until the dead-letter handler of
+  `AssistantMessageJob` fails it (below).
 - **The worker consumes both dead-letter queues.** `assistantMessageDeadLetterQueue` and
   `chatTitleDeadLetterQueue` (`infrastructure/chat/chat.queue.ts`) define `<queue>-dlq` with
   `maxAttempts` at `Number.MAX_SAFE_INTEGER` and a retry delay that doubles up to 5 minutes:

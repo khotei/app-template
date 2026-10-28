@@ -260,7 +260,7 @@ the glossary, so the rules point at one definition of each word.
 | R2 | `ls application/*/*.service.ts` is empty; `grep -rln "DateTime.now\|Crypto.Crypto" domain/*/*.service.ts` lists the four services; `grep -rn "\.\(insert\|update\|delete\)(" application/ apps/` finds only the chat's `updatedAt` writes of the send and the settle, each one `set` and one `where`; review confirms no other repository write there |
 | R3 | each `application/**/*.use-case.ts` imports a domain service and at least one of: a second domain service, `AttachmentBucket`, `QueueClient`, `Assistant`, `Transaction` |
 | R4 | `apps/api/chat/chat.handler.ts`: `list`, `get`, `rename`, `create` call `ChatService`; no use case of one call exists |
-| R5 | `grep -rn "messages\.\(update\|insert\)" application/ apps/` is empty; the reply e2e test still shows the stages and snapshots |
+| R5 | `grep -rn "messages\.\(update\|insert\)" application/ apps/ --exclude-dir=tests --exclude-dir=e2e --exclude-dir=testing` is empty; the reply's unit suite still shows the stages and snapshots |
 | R6 | `ls apps/worker/chat/` shows `assistant-message.handler.ts`, `chat-title.handler.ts`; `find . -name "*.job.ts" -not -path "*/node_modules/*"` is empty |
 | R7 | the send's unit suite: a first send puts both jobs in `sent`; its rollback e2e: with the title job's outbox row refused, the send keeps no message, bind or outbox row |
 | R8 | a unit test of `buildChatTitle` on a 300-grapheme text and on blank text; `ls infrastructure/chat/chat.llm.ts` fails; `AssistantLlm` holds the only prompt strings (`grep -rln "Write a title" --include='*.ts' .`) |

@@ -1,0 +1,186 @@
+import { assert, describe, it } from '@effect/vitest'
+import { assertEquals } from '@effect/vitest/utils'
+import { Array as Arr, Effect, Exit, Layer, Option, Ref, Stream } from 'effect'
+import { AiError, LanguageModel, Prompt, type Response } from 'effect/ai'
+
+import {
+  Attachment,
+  AttachmentId,
+  buildAttachment,
+  FileName,
+  FileSize,
+  MediaType,
+} from '@app-template/domain/attachment'
+import {
+  Assistant,
+  type AssistantTurn,
+  buildAssistantMessage,
+  buildUserMessage,
+  ChatTitle,
+  Message,
+  MessageId,
+} from '@app-template/domain/chat'
+import { chatId, epoch, owner } from '@app-template/domain/testing'
+import { png } from '@app-template/testing'
+
+import { AssistantLlm } from '#infrastructure/chat/assistant.llm'
+
+interface LanguageModelScript {
+  readonly generateText?: Effect.Effect<Array<Response.PartEncoded>, AiError.AiError>
+  readonly streamText?: Stream.Stream<Response.StreamPartEncoded, AiError.AiError>
+}
+
+/** `AssistantLlm` over a model answering from `script`, keeping each prompt; an unscripted call dies. */
+const recordLanguageModel = (script: LanguageModelScript) => {
+  const prompts = Ref.makeUnsafe<ReadonlyArray<Prompt.Prompt>>([])
+  const record = (prompt: Prompt.Prompt) => Ref.update(prompts, Arr.append(prompt))
+  const model = Layer.effect(
+    LanguageModel.LanguageModel,
+    LanguageModel.make({
+      generateText: ({ prompt }) =>
+        Effect.andThen(
+          record(prompt),
+          script.generateText ?? Effect.die('generateText is not scripted'),
+        ),
+      streamText: ({ prompt }) =>
+        Stream.fromEffect(record(prompt)).pipe(
+          Stream.flatMap(() => script.streamText ?? Stream.die('streamText is not scripted')),
+        ),
+    }),
+  )
+  return { prompts: Ref.get(prompts), layer: AssistantLlm.pipe(Layer.provide(model)) }
+}
+
+const contentsOf = (prompts: ReadonlyArray<Prompt.Prompt>) =>
+  Arr.map(prompts, (prompt) => prompt.content)
+
+const answer = (text: string) =>
+  Effect.succeed<Array<Response.PartEncoded>>([{ type: 'text', text }])
+
+const delta = (text: string): Response.StreamPartEncoded => ({
+  type: 'text-delta',
+  id: 'reply',
+  delta: text,
+})
+
+const providerError = AiError.make({
+  module: 'FakeProvider',
+  method: 'generateText',
+  reason: new AiError.UnknownError({ description: 'provider exploded' }),
+})
+
+const titleInstruction =
+  'Write a title of at most 120 characters for a chat that opens with the next message. Answer with the title alone.'
+
+const suggestTitle = (text: string) =>
+  Effect.flatMap(Assistant, (assistant) => assistant.suggestTitle(text))
+
+const streamText = (history: ReadonlyArray<AssistantTurn>) =>
+  Effect.flatMap(Assistant, (assistant) => Stream.runCollect(assistant.streamText(history)))
+
+const image = (id: string, fileName: string) =>
+  new Attachment({
+    ...buildAttachment({
+      id: AttachmentId.make(id),
+      userId: owner,
+      fileName: FileName.make(fileName),
+      mediaType: MediaType.make('image/png'),
+      size: FileSize.make(png.length),
+      createdAt: epoch,
+    }),
+    messageId: Option.some(MessageId.make('0192d4e0-7b3a-7c00-8000-000000000051')),
+  })
+
+const photo = image('0192d4e0-7b3a-7c00-8000-000000000040', 'photo.png')
+
+const sketch = image('0192d4e0-7b3a-7c00-8000-000000000041', 'sketch.png')
+
+const user = (n: number, text: string) =>
+  buildUserMessage({
+    id: MessageId.make(`0192d4e0-7b3a-7c00-8000-00000000005${n}`),
+    chatId,
+    text,
+    createdAt: epoch,
+  })
+
+const completed = new Message({
+  ...buildAssistantMessage({
+    id: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000052'),
+    chatId,
+    createdAt: epoch,
+  }),
+  stage: 'completed',
+  text: 'A photo.',
+})
+
+const file = (fileName: string) =>
+  ({ type: 'file', mediaType: 'image/png', fileName, data: png }) as const
+
+describe('AssistantLlm', () => {
+  it.effect(
+    'suggestTitle asks the model for a title and cuts its answer to the title length',
+    () => {
+      const { prompts, layer } = recordLanguageModel({ generateText: answer('a'.repeat(130)) })
+      return Effect.gen(function* () {
+        const title = yield* suggestTitle('Plan a weekend in Lisbon')
+
+        assertEquals(title, Option.some(ChatTitle.make('a'.repeat(120))))
+        assert.deepStrictEqual(contentsOf(yield* prompts), [
+          Prompt.make([
+            { role: 'system', content: titleInstruction },
+            { role: 'user', content: [{ type: 'text', text: 'Plan a weekend in Lisbon' }] },
+          ]).content,
+        ])
+      }).pipe(Effect.provide(layer))
+    },
+  )
+
+  it.effect('suggestTitle answers none for blank text without asking the model', () => {
+    const { prompts, layer } = recordLanguageModel({ generateText: answer('Lisbon weekend') })
+    return Effect.gen(function* () {
+      const title = yield* suggestTitle(' \n ')
+
+      assertEquals(title, Option.none())
+      assertEquals(yield* prompts, [])
+    }).pipe(Effect.provide(layer))
+  })
+
+  it.effect('suggestTitle dies on a provider failure', () => {
+    const { layer } = recordLanguageModel({ generateText: Effect.fail(providerError) })
+    return Effect.gen(function* () {
+      const exit = yield* Effect.exit(suggestTitle('Plan a weekend in Lisbon'))
+
+      assert.isTrue(Exit.hasDies(exit))
+    }).pipe(Effect.provide(layer))
+  })
+
+  it.effect(
+    'streamText prompts with the history and a file part per attachment, answering the deltas',
+    () => {
+      const { prompts, layer } = recordLanguageModel({
+        streamText: Stream.make<Array<Response.StreamPartEncoded>>(
+          { type: 'text-start', id: 'reply' },
+          delta('Hel'),
+          delta('lo'),
+          { type: 'text-end', id: 'reply' },
+        ),
+      })
+      return Effect.gen(function* () {
+        const deltas = yield* streamText([
+          { message: user(1, 'What is this?'), files: [{ attachment: photo, bytes: png }] },
+          { message: completed, files: [] },
+          { message: user(3, ''), files: [{ attachment: sketch, bytes: png }] },
+        ])
+
+        assert.deepStrictEqual(deltas, ['Hel', 'lo'])
+        assert.deepStrictEqual(contentsOf(yield* prompts), [
+          Prompt.make([
+            { role: 'user', content: [{ type: 'text', text: 'What is this?' }, file('photo.png')] },
+            { role: 'assistant', content: [{ type: 'text', text: 'A photo.' }] },
+            { role: 'user', content: [file('sketch.png')] },
+          ]).content,
+        ])
+      }).pipe(Effect.provide(layer))
+    },
+  )
+})
