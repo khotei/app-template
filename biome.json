@@ -99,38 +99,7 @@
       }
     },
     {
-      "includes": ["domain/testing/**"],
-      "linter": {
-        "rules": {
-          "style": {
-            "noRestrictedImports": {
-              "level": "error",
-              "options": {
-                "patterns": [
-                  {
-                    "group": [
-                      "@app-template/**",
-                      "!@app-template/testing",
-                      "!@app-template/testing/**",
-                      "@effect/**",
-                      "!@effect/vitest",
-                      "!@effect/vitest/**"
-                    ],
-                    "message": "domain test support imports no workspace but the shared fixtures @app-template/testing, and no @effect/* package except the test runner @effect/vitest"
-                  },
-                  {
-                    "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
-                  }
-                ]
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "includes": ["domain/tests/**"],
+      "includes": ["domain/testing/**", "domain/tests/**"],
       "linter": {
         "rules": {
           "style": {
@@ -149,7 +118,7 @@
                       "!@effect/platform-bun",
                       "!@effect/platform-bun/**"
                     ],
-                    "message": "domain tests import no workspace but the test support @app-template/testing, and no @effect/* package except the test runner @effect/vitest and @effect/platform-bun for BunCrypto.layer"
+                    "message": "domain test support and tests import no workspace but @app-template/testing, and no @effect/* package except the test runner @effect/vitest and @effect/platform-bun for BunCrypto.layer"
                   },
                   {
                     "group": ["./**", "../**"],

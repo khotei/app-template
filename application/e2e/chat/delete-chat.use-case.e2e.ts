@@ -39,7 +39,7 @@ const ChatRepositoryDeleteFailingOnce = Layer.effect(
 /** A message with an attachment in `chat`. */
 const sendPhoto = Effect.gen(function* () {
   const sendMessage = yield* SendMessageUseCase
-  const photo = yield* upload(owner, 'photo.png')
+  const photo = yield* upload(owner)
 
   const { userMessage } = yield* sendMessage.send(owner, chat.id, {
     text: 'Look',

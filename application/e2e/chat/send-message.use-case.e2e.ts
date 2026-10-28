@@ -44,7 +44,7 @@ const boundElsewhere = Effect.gen(function* () {
   const chats = yield* ChatService
   const sendMessage = yield* SendMessageUseCase
   const other = yield* chats.create(owner)
-  const photo = yield* upload(owner, 'bound.png')
+  const photo = yield* upload(owner)
 
   yield* sendMessage.send(owner, other.id, { text: '', attachmentIds: [photo.id] })
   return photo.id
@@ -58,7 +58,7 @@ const refusedAttachments = [
   },
   {
     name: "another user's attachment",
-    arrange: Effect.map(upload(stranger, 'foreign.png'), (photo) => photo.id),
+    arrange: Effect.map(upload(stranger), (photo) => photo.id),
     refusal: AttachmentNotFoundError,
   },
   {
@@ -181,7 +181,7 @@ describe('SendMessageUseCase', () => {
       Effect.gen(function* () {
         const sendMessage = yield* SendMessageUseCase
         const sql = yield* SqlClient.SqlClient
-        const photo = yield* upload(owner, 'photo.png')
+        const photo = yield* upload(owner)
         yield* Effect.orDie(sql.unsafe(constraint))
 
         const exit = yield* Effect.exit(
@@ -199,7 +199,7 @@ describe('SendMessageUseCase', () => {
   it.effect('send binds the attachments to the user message and returns their metadata', () =>
     Effect.gen(function* () {
       const sendMessage = yield* SendMessageUseCase
-      const photos = [yield* upload(owner, 'a.png'), yield* upload(owner, 'b.png')]
+      const photos = [yield* upload(owner), yield* upload(owner)]
       const attachmentIds = Arr.map(photos, (photo) => photo.id)
 
       const { userMessage } = yield* sendMessage.send(owner, chat.id, { text: '', attachmentIds })
@@ -218,7 +218,7 @@ describe('SendMessageUseCase', () => {
     ({ arrange, refusal }) =>
       Effect.gen(function* () {
         const sendMessage = yield* SendMessageUseCase
-        const valid = yield* upload(owner, 'valid.png')
+        const valid = yield* upload(owner)
         const refused = yield* arrange
         const jobsBefore = (yield* selectOutbox).length
 
@@ -255,7 +255,7 @@ describe('SendMessageUseCase', () => {
     Effect.gen(function* () {
       const chats = yield* ChatService
       const other = yield* chats.create(owner)
-      const photo = yield* upload(owner, 'shared.png')
+      const photo = yield* upload(owner)
       const input = { text: 'Look', attachmentIds: [photo.id] }
 
       const exits = yield* sendConcurrently([

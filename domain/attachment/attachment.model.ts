@@ -75,9 +75,10 @@ export const isExpiredAt =
       DateTime.addDuration(attachment.createdAt, unboundLifetime),
     )
 
-export const ensureUnbound = Effect.fn('ensureUnbound')(function* (attachment: Attachment) {
-  if (Option.isSome(attachment.messageId)) {
-    return yield* new AttachmentBoundError({ id: attachment.id })
-  }
-  return attachment
-})
+export const ensureUnbound = (
+  attachment: Attachment,
+): Effect.Effect<Attachment, AttachmentBoundError> =>
+  Option.match(attachment.messageId, {
+    onNone: () => Effect.succeed(attachment),
+    onSome: () => Effect.fail(new AttachmentBoundError({ id: attachment.id })),
+  })

@@ -32,9 +32,17 @@ export class AttachmentRows extends Context.Service<
 
 const holdsWhere = (where: AttachmentWhere) =>
   Predicate.and(
-    (attachment: Attachment) => Arr.contains(where.id, attachment.id),
+    (attachment: Attachment) => where.id === undefined || Arr.contains(where.id, attachment.id),
     matches(Struct.omit(where, ['id'])),
   )
+
+/** The rows in the order of `ids`; without `ids`, as stored. */
+const inOrderOf =
+  (ids: ReadonlyArray<AttachmentId> | undefined) =>
+  (found: HashMap.HashMap<AttachmentId, Attachment>): ReadonlyArray<Attachment> =>
+    ids === undefined
+      ? HashMap.toValues(found)
+      : Arr.getSomes(Arr.map(ids, (id) => HashMap.get(found, id)))
 
 export const AttachmentRepositoryTest = Layer.effect(
   AttachmentRepository,
@@ -51,12 +59,14 @@ export const AttachmentRepositoryTest = Layer.effect(
           ),
         ),
       selectOne: (where) =>
-        Effect.map(Ref.get(rows), flow(HashMap.toValues, Arr.findFirst(matches(where)))),
+        Effect.map(
+          Ref.get(rows),
+          flow(HashMap.get(where.id), Option.filter(matches(Struct.omit(where, ['id'])))),
+        ),
       selectMany: (where) =>
         Ref.get(rows).pipe(
           Effect.map(HashMap.filter(holdsWhere(where))),
-          Effect.map((found) => Arr.map(where.id, (id) => HashMap.get(found, id))),
-          Effect.map(Arr.getSomes),
+          Effect.map(inOrderOf(where.id)),
         ),
       deleteByIds: (ids) => Ref.update(rows, HashMap.removeMany(ids)),
     }),

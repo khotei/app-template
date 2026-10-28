@@ -2,6 +2,7 @@ import { eq, inArray, isNull } from 'drizzle-orm'
 import { Array as Arr, Effect, Layer, Option, Schema, UndefinedOr } from 'effect'
 
 import {
+  type Attachment,
   type AttachmentId,
   type AttachmentOneWhere,
   AttachmentRepository,
@@ -24,7 +25,7 @@ const encodeSet = buildSet<AttachmentSet, typeof attachments>({
 })
 
 const encodeWhere = buildWhere<AttachmentWhere>({
-  id: (ids) => inArray(attachments.id, ids),
+  id: UndefinedOr.map((ids) => inArray(attachments.id, ids)),
   userId: UndefinedOr.map((userId) => eq(attachments.userId, userId)),
   messageId: UndefinedOr.map(
     Option.match({
@@ -35,9 +36,17 @@ const encodeWhere = buildWhere<AttachmentWhere>({
 })
 
 const encodeOneWhere = buildWhere<AttachmentOneWhere>({
-  id: UndefinedOr.map((id) => eq(attachments.id, id)),
+  id: (id) => eq(attachments.id, id),
   userId: UndefinedOr.map((userId) => eq(attachments.userId, userId)),
 })
+
+/** The rows in the order of `ids`; without `ids`, as the database returned them. */
+const inOrderOf =
+  (ids: ReadonlyArray<AttachmentId> | undefined) =>
+  (found: ReadonlyArray<Attachment>): ReadonlyArray<Attachment> =>
+    ids === undefined
+      ? found
+      : Arr.getSomes(Arr.map(ids, (id) => Arr.findFirst(found, (each) => each.id === id)))
 
 export const AttachmentRepositoryPg = Layer.effect(
   AttachmentRepository,
@@ -62,9 +71,7 @@ export const AttachmentRepositoryPg = Layer.effect(
       selectMany: Effect.fn('AttachmentRepository.selectMany')(function* (where) {
         const rows = yield* db.select().from(attachments).where(encodeWhere(where))
         const found = yield* Effect.forEach(rows, decodeAttachment)
-        return Arr.getSomes(
-          Arr.map(where.id, (id) => Arr.findFirst(found, (each) => each.id === id)),
-        )
+        return inOrderOf(where.id)(found)
       }, orDieWithSqlError),
       deleteByIds: Effect.fn('AttachmentRepository.deleteByIds')(
         (ids: ReadonlyArray<AttachmentId>) =>

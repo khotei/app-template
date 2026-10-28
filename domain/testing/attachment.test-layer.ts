@@ -6,13 +6,13 @@ import { FileName, MediaType } from '#domain/attachment/attachment.model'
 import { AttachmentService } from '#domain/attachment/attachment.service'
 import type { UserId } from '#domain/user/user.id'
 
-/** Uploads one `png` named `name` for `userId` through the `AttachmentService` in context. */
-export const upload = (userId: UserId, name: string) =>
+/** Uploads one `png` as `photo.png` for `userId` through the `AttachmentService` in context. */
+export const upload = (userId: UserId) =>
   Effect.flatMap(AttachmentService, (attachments) =>
     attachments.upload(
       userId,
       Stream.make({
-        fileName: FileName.make(name),
+        fileName: FileName.make('photo.png'),
         mediaType: MediaType.make('image/png'),
         content: Stream.make(png),
       }),

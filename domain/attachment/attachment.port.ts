@@ -6,27 +6,32 @@ import type { Attachment, AttachmentMeta, FileSize } from '#domain/attachment/at
 
 export type AttachmentSet = Types.Simplify<RequireAtLeastOne<Pick<Attachment, 'messageId'>>>
 
-/** The rows are found by `id`; any other field must still hold its value. */
+/** The rows where every field named holds: `id` lists them, an owner mismatch reads as absent. */
 export type AttachmentWhere = Types.Simplify<
-  { readonly id: ReadonlyArray<AttachmentId> } & Partial<Pick<Attachment, 'userId' | 'messageId'>>
+  RequireAtLeastOne<
+    { readonly id: ReadonlyArray<AttachmentId> } & Partial<
+      Pick<Attachment, 'userId' | 'messageId'>
+    >,
+    'id' | 'userId'
+  >
 >
 
-/** Every field named must hold, so an owner mismatch reads as absent; at least one is named. */
+/** `id` finds the row; `userId` must still hold, so an owner mismatch reads as absent. */
 export type AttachmentOneWhere = Types.Simplify<
-  RequireAtLeastOne<Pick<Attachment, 'id' | 'userId'>>
+  { readonly id: AttachmentId } & Partial<Pick<Attachment, 'userId'>>
 >
 
 export class AttachmentRepository extends Context.Service<
   AttachmentRepository,
   {
     readonly insert: (attachment: Attachment) => Effect.Effect<void>
-    /** Writes `set` where `where` holds, in one statement; returns the attachments it wrote, unordered. */
+    /** Writes `set` where `where` holds, in one statement; returns the rows written, unordered. */
     readonly update: (
       set: AttachmentSet,
       where: AttachmentWhere,
     ) => Effect.Effect<ReadonlyArray<Attachment>>
     readonly selectOne: (where: AttachmentOneWhere) => Effect.Effect<Option.Option<Attachment>>
-    /** Returns the attachments where `where` holds, in the order of `where.id`; ids not found are left out. */
+    /** Rows where `where` holds; in the order of `where.id` when given, unknown ids skipped. */
     readonly selectMany: (where: AttachmentWhere) => Effect.Effect<ReadonlyArray<Attachment>>
     /** Deletes the attachments found; unknown ids are skipped. */
     readonly deleteByIds: (ids: ReadonlyArray<AttachmentId>) => Effect.Effect<void>

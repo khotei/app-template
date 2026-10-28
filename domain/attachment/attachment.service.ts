@@ -81,7 +81,6 @@ export class AttachmentService extends Context.Service<
     const crypto = yield* Crypto.Crypto
     const randomUuid = Effect.orDie(crypto.randomUUIDv7())
     const randomAttachmentId = Effect.map(randomUuid, AttachmentId.make)
-    const randomAttachmentIds = Stream.forever(Stream.fromEffect(randomAttachmentId))
 
     const deleteByIds = Effect.fn('AttachmentService.deleteByIds')(function* (
       ids: ReadonlyArray<AttachmentId>,
@@ -109,13 +108,14 @@ export class AttachmentService extends Context.Service<
       files: Stream.Stream<AttachmentUpload<E>, E>,
     ) {
       const tracked = yield* Ref.make<ReadonlyArray<AttachmentId>>(Arr.empty())
+      // Tracked before the write, not after the insert: a lost record still deletes the bytes.
+      const trackId = Effect.tap(randomAttachmentId, (id) => Ref.update(tracked, Arr.append(id)))
       const deleteTracked = Effect.flatMap(Ref.get(tracked), deleteByIds)
 
       return yield* files.pipe(
-        Stream.zip(randomAttachmentIds),
-        // Tracked before the write, not after the insert: a lost record still deletes the bytes.
-        Stream.tap(([, id]) => Ref.update(tracked, Arr.append(id))),
-        Stream.mapEffect(([file, id]) => uploadFile(file, { id, userId })),
+        Stream.mapEffect((file) =>
+          Effect.flatMap(trackId, (id) => uploadFile(file, { id, userId })),
+        ),
         Stream.runCollect,
         Effect.onError(() => deleteTracked),
       )

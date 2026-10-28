@@ -188,15 +188,16 @@ checks what the import rules leave to tree shaking, the web bundle:
 
 | Guard | Catches | Reports |
 |---|---|---|
-| Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json` | an import that goes up a layer or into a sibling app; any relative path; a workspace or an `@effect/*` package other than `@effect/vitest` in `domain` (in its tests, a workspace other than `@app-template/testing`); a workspace other than `domain`, or an `@effect/*` package, in `http-api`; `http-api` in a lower layer, a package, the worker or `deployment` | `make lint`, `pre-commit`, CI `static` |
+| Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json` | an import that goes up a layer or into a sibling app; any relative path; a workspace or an `@effect/*` package other than `@effect/vitest` in `domain` (in its `tests/` and `testing/`, a workspace other than `@app-template/testing`); a workspace other than `domain`, or an `@effect/*` package, in `http-api`; `http-api` in a lower layer, a package, the worker or `deployment` | `make lint`, `pre-commit`, CI `static` |
 | the isolated linker with `tsc -b` | an allowed import of a workspace that is not declared in `package.json` | TS2307 in `make typecheck` and at runtime |
 | `composite` project references (`rootDir: "."`) | a path that reaches into an unreferenced workspace's files | TS6059 / TS6307 in `make typecheck` |
 | `make bundle-check`: `bun build` of `apps/web/app/main.ts`, then a `grep` of the bundle | a domain service or port in the browser bundle, or an adapter, which carries its port's key: a value import of one that `http-api` passes on | the matched service keys, in `make check` |
 
 The Biome overrides are **deny-lists**: each names the workspaces a layer must not import. A new
 `packages/*` workspace therefore needs no change to them, while a new layer or app does. Test
-files follow their workspace's override, save `domain/tests/**`: its own override, after
-domain's, lets tests import `@app-template/testing`. Overrides that match the same file replace
+files follow their workspace's override, save `domain/tests/**` and `domain/testing/**`: one
+override of their own, after domain's, lets the tests and the test support import
+`@app-template/testing` and `@effect/platform-bun`. Overrides that match the same file replace
 each other's options rather than merge, so every override repeats the relative-path ban, and the
 domain test override repeats every domain ban. Symptoms
 and fixes:

@@ -60,7 +60,7 @@ const photo = { fileName: FileName.make('photo.png'), mediaType: MediaType.make(
 
 const photoUpload = { ...photo, content: Stream.make(png) }
 
-const uploadPhoto = upload(owner, 'photo.png')
+const uploadPhoto = upload(owner)
 
 const countStored = Effect.all({
   rows: Effect.flatMap(AttachmentRows, Ref.get).pipe(Effect.map(HashMap.size)),
@@ -308,7 +308,7 @@ describe('AttachmentService', () => {
     Effect.gen(function* () {
       const service = yield* AttachmentService
       const free = yield* uploadPhoto
-      const foreign = yield* upload(stranger, 'photo.png')
+      const foreign = yield* upload(stranger)
 
       const strangerFirst = yield* Effect.flip(
         service.bind(owner, [free.id, foreign.id, unknownAttachmentId], messageId),

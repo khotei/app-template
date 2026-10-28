@@ -92,7 +92,7 @@ describe('ChatService', () => {
     Effect.gen(function* () {
       const service = yield* ChatService
       const sendMessage = yield* SendMessageUseCase
-      const photo = yield* upload(owner, 'photo.png')
+      const photo = yield* upload(owner)
       const first = yield* sendMessage.send(owner, chat.id, {
         text: 'Look',
         attachmentIds: [photo.id],
@@ -122,7 +122,7 @@ describe('ChatService', () => {
     Effect.gen(function* () {
       const service = yield* ChatService
       const sendMessage = yield* SendMessageUseCase
-      const photo = yield* upload(owner, 'photo.png')
+      const photo = yield* upload(owner)
       const { userMessage } = yield* sendMessage.send(owner, chat.id, {
         text: 'Look',
         attachmentIds: [photo.id],
