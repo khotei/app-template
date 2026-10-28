@@ -33,14 +33,13 @@ test-support role starts with `test-` (the globs: `effect-tests.md › Test supp
 | `.port` | an entity's ports: `Context.Service` declarations with no layer, beside the value types they take and answer (`Set`/`Where`, `AssistantTurn`) | domain |
 | `.service` | domain: the aggregate's domain service over its ports · application: a service over ports | domain, application |
 | `.use-case` | a flow that composes services: `<verb>-<object>.use-case.ts` | application |
-| `.job` | a queue's producer service and its worker | application |
 | `.repository` · `.bucket` · `.llm` | an adapter over a client; `.llm` is the `Assistant` port's adapter over `LanguageModel` and holds the prompts | infrastructure |
 | `.entity` | an entity's Drizzle tables and their row codecs, one file per entity | infrastructure |
 | `.queue` | queue definitions | infrastructure |
 | `.relay` | a layer that moves records from the database to a queue (`OutboxRelay`) | infrastructure |
 | `.client` · `.transport` | client wiring · the service a package's client runs over (`QueueTransport`) | infrastructure/shared, infrastructure/db, http-api, packages |
 | `.http` | a contract group: one resource's HTTP routes (`HttpApiGroup`) | http-api |
-| `.handler` | a request handler | apps |
+| `.handler` | a request handler · in the worker, `<object>.handler.ts`: one queue's `handle` and `handleDeadLettered` over a use case | apps |
 | `.test` | a unit test: no process outside vitest; mirrors its source name, or names what it checks against (`resources.test.ts`: the inventory in `packages/aws`) | `tests/` |
 | `.e2e` | a test on Docker (Postgres, MiniStack) that mirrors its source name | `e2e/` |
 | `.test-fixture` | sample values (ids, dates, inputs, bytes); no Effect, no layers | `testing/` |

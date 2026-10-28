@@ -17,10 +17,11 @@ import {
   MessageService,
 } from '@app-template/domain/chat'
 import type { UserId } from '@app-template/domain/user'
+import { chatTitleQueue, GenerateChatTitle } from '@app-template/infrastructure/chat'
 import { Transaction } from '@app-template/infrastructure/db'
+import { QueueClient } from '@app-template/queue'
 
 import { AssistantMessageJob } from '#application/chat/assistant-message.job'
-import { ChatTitleJob } from '#application/chat/chat-title.job'
 
 export interface SentMessages {
   readonly userMessage: MessageDetail
@@ -51,7 +52,7 @@ export class SendMessageUseCase extends Context.Service<
     const messageService = yield* MessageService
     const attachmentService = yield* AttachmentService
     const assistantJob = yield* AssistantMessageJob
-    const titleJob = yield* ChatTitleJob
+    const queue = yield* QueueClient
     const transaction = yield* Transaction
 
     const send = Effect.fn('SendMessageUseCase.send')(function* (
@@ -69,7 +70,10 @@ export class SendMessageUseCase extends Context.Service<
       const bound = yield* attachmentService.bind(userId, input.attachmentIds, userMessage.id)
       const assistantMessage = yield* messageService.addAssistantMessage(sendable)
       yield* assistantJob.enqueue(assistantMessage)
-      if (sendable.opensChat) yield* titleJob.enqueue(userMessage)
+      if (sendable.opensChat) {
+        const titleJob = new GenerateChatTitle({ chatId, messageId: userMessage.id })
+        yield* Effect.orDie(queue.send(chatTitleQueue, titleJob))
+      }
 
       return {
         userMessage: { message: userMessage, attachments: bound },
@@ -86,7 +90,6 @@ export class SendMessageUseCase extends Context.Service<
       MessageService.layer,
       AttachmentService.layer,
       AssistantMessageJob.layer,
-      ChatTitleJob.layer,
     ]),
   )
 }

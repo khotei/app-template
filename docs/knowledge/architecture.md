@@ -81,7 +81,7 @@ import { z } from 'zod'                                     // external packages
 
 import { buildChat } from '@app-template/domain/chat'        // another workspace
 
-import { ChatTitleJob } from '#application/chat/chat-title.job'  // this workspace
+import { SendMessageUseCase } from '#application/chat/send-message.use-case'  // this workspace
 ```
 
 - **`@app-template/<workspace>[/<entity>]`** reaches another workspace through its `exports`. A
