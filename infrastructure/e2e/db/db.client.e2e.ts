@@ -35,15 +35,13 @@ const TransactionPgTest = Transaction.layer.pipe(Layer.provideMerge(DbTest))
 
 const selectUserIds = Effect.flatMap(Db, (db) => db.select({ id: users.id }).from(users))
 
-// The second insert is refused by the users primary key.
-const insertOwnerTwice = Effect.andThen(insertUser(owner), insertUser(owner))
-
 describe('Transaction', () => {
   it.effect('run keeps no write of a step when a later one is refused', () =>
     Effect.gen(function* () {
       const transaction = yield* Transaction
 
-      yield* flipSqlError(transaction.run(insertOwnerTwice))
+      // The second insert is refused by the users primary key.
+      yield* flipSqlError(transaction.run(Effect.andThen(insertUser(owner), insertUser(owner))))
 
       assert.deepStrictEqual(yield* selectUserIds, [])
     }).pipe(Effect.provide(TransactionPgTest)),

@@ -557,30 +557,58 @@
   { run: identity })`); `git mv infrastructure/testing/db.test-layer.ts
   infrastructure/db/testing/db.test-layer.ts` (`DbTest`, `flipSqlError`; the e2e suites' imports);
   `infrastructure/testing/index.ts` and `infrastructure/package.json` `exports["./testing"]`
-  (`DbTest`, `TransactionTest`); `packages/testing/queue.test-fake.ts` (`recordQueue()` →
-  `{ sent, layer }`, a `QueueTransport` over a `Ref`) and `packages/testing/index.ts`;
+  (`DbTest`, `TransactionTest`); `packages/queue/testing/queue.test-fake.ts` (`recordQueue()` →
+  `{ sent, layer }`, a `QueueTransport` over a `Ref`), `packages/queue/testing/index.ts` and
+  `packages/queue/package.json` `exports["./testing"]`;
   `application/chat/send-message.use-case.ts`, `delete-chat.use-case.ts` (`Transaction.run` as
   the `Effect.fn` pipeable, no `sql.withTransaction`, no `catchTag('SqlError')`);
   `application/testing/chat.test-layer.ts` (`ChatTest`: the use cases over `RepositoryStackTest`,
   `AttachmentBucketTest`, `TransactionTest`, `QueueClient.layer` over `recordQueue()`,
-  `BunCrypto.layer`; `chat` and the users arranged through the memory ports);
-  `application/testing/db.test-layer.ts` *gone*; `application/testing/index.ts`;
+  `BunCrypto.layer`, `QueueTransport` left open for each test's `recordQueue()`; `chat`
+  arranged through the memory ports; `ChatPgTest`: the same services on the real repositories,
+  `AttachmentBucketS3` on `AwsTest`, the outbox and `Transaction.layer`);
+  `application/testing/db.test-layer.ts` (keeps `DbWithUsersTest`); `application/testing/index.ts`;
   `apps/api/testing/api.test-layer.ts` (`DbTest` from `@app-template/infrastructure/testing`,
-  `AttachmentBucketTest` from `@app-template/domain/testing`); `apps/api/layer.ts`,
-  `apps/worker/layer.ts` (`Transaction.layer`); `git mv
+  `AttachmentBucketTest` from `@app-template/domain/testing`); `apps/api/layer.ts`
+  (`Transaction.layer`); `git mv
   application/e2e/chat/send-message.use-case.e2e.ts
   application/tests/chat/send-message.use-case.test.ts`, the same for `delete-chat`;
-  `.claude/rules/naming.md` (the three `./testing` exports).
+  `application/e2e/chat/send-message.use-case.e2e.ts`, `delete-chat.use-case.e2e.ts` (one
+  rollback case each, over `ChatPgTest`); `infrastructure/e2e/db/db.client.e2e.ts` (`Transaction`);
+  `.claude/rules/naming.md` (the four `./testing` exports).
 - **Test first:** the use cases over the memory layers (`application/tests/chat/*.use-case.test.ts`):
   a send writes the user message, binds, writes the queued assistant message, puts two jobs in
   `sent` when the chat opens and one otherwise, and leaves the chat's `updatedAt` at
   `sendable.at` and the title a rename gave it; a send to a chat deleted after `findSendable` is
   `ChatNotFoundError` and writes no message; a bind refusal leaves `sent` empty; a delete removes
-  the chat and its attachments' bytes. The transaction's atomicity stays with the journey (S21).
+  the chat and its attachments' bytes. The atomicity: `Transaction.layer` on `DbTest` keeps no
+  write of a step when a later one fails or dies; each use case on `ChatPgTest`, with a constraint
+  the test adds refusing its last write, keeps no row (red without `transaction.run`).
 - **Verify:** with Docker stopped, `make test-unit` runs the two suites; `grep -rn
   "withTransaction" application/` is empty; `make check`.
 - **Model:** fable high
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - `recordQueue()` lives in `packages/queue/testing` (`@app-template/queue/testing`), beside the
+    `QueueTransport` it fakes: in `packages/testing` it would close a project-reference cycle
+    (`packages/queue` references `packages/testing` for its e2e; `tsc -b` refuses, TS6202).
+  - `ChatTest` leaves `QueueTransport` open; each test closes it with its own `recordQueue()`, since
+    a recorder shared by a file's concurrent tests would mix their jobs. No users are arranged: no
+    memory port reads one.
+  - The old e2e suites' rollback cases moved to three new e2e cases, after the review found that
+    nothing turned red when a use case dropped `transaction.run`: `Transaction.layer` keeps no
+    earlier write when a later one fails or dies; the send, with the title job's outbox row refused,
+    keeps no message, bind, `updatedAt` or outbox row (R7); the delete, with a table referencing
+    the chat, keeps every row. `ChatPgTest` runs the real bucket on `AwsTest` (R18). The races and
+    the `ChatBusyError` and stranger cases are proved by the repositories' e2e and `domain/tests`.
+  - `application/testing/db.test-layer.ts` stays: `ChatPgTest` and the job e2e suites stand on
+    `DbWithUsersTest`.
+  - `apps/worker/layer.ts` needs `Transaction.layer` first in S15, the reply's settle.
+  - Beyond **Files**: `.claude/rules/use-cases.md` names `Transaction.run` (the user's OK),
+    `docs/knowledge/database.md`, `docs/knowledge/architecture.md`, `S3BucketFromConfig` and
+    `AwsTest` exported from their workspaces.
+  - ~900 changed lines over four rounds; the moved suites dominate.
+  - For S23: `infrastructure/CLAUDE.md` places test support in `testing/`, not `db/testing/`.
 
 #### S13 — The `Assistant` port's adapter; `buildChatTitle` in the domain
 
@@ -669,7 +697,8 @@
   `@app-template/application/chat/GenerateAssistantMessageUseCase`);
   `application/chat/assistant-message.job.ts` (shrinks to `handle`/`handleDeadLettered` over the
   use case; `enqueue` gone; the file goes in S16); `application/chat/send-message.use-case.ts`
-  (`queue.send(assistantMessageQueue, …)`); `domain/chat/chat.service.ts` (`settleReply` gone)
+  (`queue.send(assistantMessageQueue, …)`); `apps/worker/layer.ts` (`Transaction.layer`);
+  `domain/chat/chat.service.ts` (`settleReply` gone)
   and `domain/tests/chat/chat.service.test.ts`; `application/chat/index.ts`; `git mv
   application/e2e/chat/assistant-message.job.e2e.ts
   application/tests/chat/generate-assistant-message.use-case.test.ts` over the memory layers,
@@ -856,8 +885,8 @@
 #### S21 — The journey: a root `e2e/` workspace over both app layers
 
 - **Goal:** one test drives HTTP → outbox → relay → SQS → worker → HTTP in one process over the
-  run's containers and the model stub; the apps export `./layer`; the send's outbox write is
-  proved transactional there (R18, R7, D7).
+  run's containers and the model stub; the apps export `./layer` (R18, R7, D7); the send's
+  atomicity is S12's.
 - **Blocked by:** S16, S17, S20.
 - **Files:** `e2e/package.json` (`@app-template/e2e`, `devDependencies` only: `@app-template/api`,
   `worker`, `http-api`, `infrastructure`, `domain`, `testing`, `config`, `llm`, `effect`,

@@ -22,11 +22,15 @@ import {
   type MessageRows,
   RepositoryStackTest,
 } from '@app-template/domain/testing'
-import { AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
+import {
+  AttachmentBucketS3,
+  AttachmentRepositoryPg,
+  S3BucketFromConfig,
+} from '@app-template/infrastructure/attachment'
 import { ChatPg } from '@app-template/infrastructure/chat'
 import { Transaction } from '@app-template/infrastructure/db'
 import { QueueClientOutbox } from '@app-template/infrastructure/shared'
-import { TransactionTest } from '@app-template/infrastructure/testing'
+import { AwsTest, TransactionTest } from '@app-template/infrastructure/testing'
 import { QueueClient } from '@app-template/queue'
 
 import { DeleteChatUseCase } from '#application/chat/delete-chat.use-case'
@@ -78,7 +82,8 @@ export const ChatTest = layerChatTest()
 
 /**
  * The chat services and use cases on a fresh test database where `chat` exists, over the real
- * transaction, the outbox and the memory bucket: for what only Postgres decides, a rollback.
+ * transaction, the outbox and the attachments bucket of a stage of the test's own: for what only
+ * Postgres decides, a rollback.
  */
 export const ChatPgTest = ChatServices.pipe(
   Layer.provideMerge(insertChat),
@@ -86,13 +91,14 @@ export const ChatPgTest = ChatServices.pipe(
     Layer.mergeAll(
       ChatPg,
       AttachmentRepositoryPg,
-      AttachmentBucketTest,
+      AttachmentBucketS3,
       QueueClientOutbox,
       Transaction.layer,
     ),
   ),
+  Layer.provide(S3BucketFromConfig),
   Layer.provideMerge(DbWithUsersTest),
-  Layer.provide(BunCrypto.layer),
+  Layer.provide([AwsTest, BunCrypto.layer]),
 )
 
 export const selectChat = (chatId: ChatId) =>

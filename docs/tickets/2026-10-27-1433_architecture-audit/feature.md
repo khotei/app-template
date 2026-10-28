@@ -210,7 +210,7 @@ the glossary, so the rules point at one definition of each word.
   `domain/testing` (one layer per port over a `Ref<Map>`, exported as
   `@app-template/domain/testing`, mirroring the port's contract, the index included), the
   identity `Transaction` from `infrastructure/testing` and the recording queue from
-  `packages/testing`, needing no process outside vitest; a module folder holds no test;
+  `packages/queue/testing`, needing no process outside vitest; a module folder holds no test;
   domain services, use cases and handlers each have a unit suite; repositories have none.
 - **R18** — WHILE a workspace has adapters, THE SYSTEM SHALL test them in one `e2e/` at the
   workspace's top as `<path>/<name>.e2e.ts`, mirroring the source path, over a Postgres and a
@@ -258,11 +258,11 @@ the glossary, so the rules point at one definition of each word.
 |---|---|
 | R1 | `ls domain/*/*.port.ts` lists chat, message, assistant, attachment and user ports; `grep -rn "Context.Service" infrastructure/` finds only adapters' own services (`Db`, `QueueTransport`), no port declaration |
 | R2 | `ls application/*/*.service.ts` is empty; `grep -rln "DateTime.now\|Crypto.Crypto" domain/*/*.service.ts` lists the four services; `grep -rn "\.\(insert\|update\|delete\)(" application/ apps/` finds only the chat's `updatedAt` writes of the send and the settle, each one `set` and one `where`; review confirms no other repository write there |
-| R3 | each `application/**/*.use-case.ts` imports at least two of: a second domain service, `AttachmentBucket`, `QueueClient`, `Assistant`, `sql.withTransaction` |
+| R3 | each `application/**/*.use-case.ts` imports at least two of: a second domain service, `AttachmentBucket`, `QueueClient`, `Assistant`, `Transaction` |
 | R4 | `apps/api/chat/chat.handler.ts`: `list`, `get`, `rename`, `create` call `ChatService`; no use case of one call exists |
 | R5 | `grep -rn "messages\.\(update\|insert\)" application/ apps/` is empty; the reply e2e test still shows the stages and snapshots |
 | R6 | `ls apps/worker/chat/` shows `assistant-message.handler.ts`, `chat-title.handler.ts`; `find . -name "*.job.ts" -not -path "*/node_modules/*"` is empty |
-| R7 | the send e2e test: after a send, the outbox holds both jobs in the send's transaction (a failed send writes none) |
+| R7 | the send's unit suite: a first send puts both jobs in `sent`; its rollback e2e: with the title job's outbox row refused, the send keeps no message, bind or outbox row |
 | R8 | a unit test of `buildChatTitle` on a 300-grapheme text and on blank text; `ls infrastructure/chat/chat.llm.ts` fails; `AssistantLlm` holds the only prompt strings (`grep -rln "Write a title" --include='*.ts' .`) |
 | R9 | `infrastructure/outbox/outbox.relay.ts` exports a `Layer` and imports no domain service or use case |
 | R10 | `ls domain/chat application/chat` shows the files named; `find . -type d -name message` is empty |
@@ -273,7 +273,7 @@ the glossary, so the rules point at one definition of each word.
 | R15 | e2e on MiniStack: 0 bytes, exactly 5 MiB and 5 MiB + 1 upload as one `PutObject`, one `PutObject` and two parts; a 12 MiB file uploads as three parts and `get` reads 12 MiB; a stream that fails mid-way leaves no object and no open multipart upload; `wc -l infrastructure/attachment/attachment.bucket.ts` under 80 |
 | R16 | the migration alters `outbox.body` to `jsonb`; the relay e2e test still delivers the job |
 | R17 | with Docker stopped, `make test-unit` passes; `find . -path "*/tests/*.test.ts" -not -path "*/node_modules/*"` lists a suite per domain service, use case and handler, each under `<workspace>/tests/<module>/`; `find . -name "*.test.ts" -not -path "*/tests/*" -not -path "*/node_modules/*"` is empty; `ls domain/testing` shows one `.test-fake.ts` per entity plus the `.test-fixture.ts` files |
-| R18 | with Docker running and the local stand down, `make test-e2e` passes; `find . -name "*.e2e.ts" -not -path "*/node_modules/*"` lists the repositories, the relay, the migrations, the queue, `S3Bucket` and `AttachmentBucketS3` under `<workspace>/e2e/<module>/` and `e2e/chat.e2e.ts` at the root, nothing under `apps/`; `grep -rlnE "(Repository|RepositoryStack|Bucket|Transaction)Test\b" --include=*.e2e.ts .` is empty; `find . -name "*.test-*.ts" -not -path "*/node_modules/*" -not -path "./repos/*"` lists only paths with a `testing/` segment; two e2e runs in two worktrees at once both pass |
+| R18 | with Docker running and the local stand down, `make test-e2e` passes; `find . -name "*.e2e.ts" -not -path "*/node_modules/*"` lists the repositories, the relay, the migrations, the queue, `Transaction`, the use cases' rollback cases, `S3Bucket` and `AttachmentBucketS3` under `<workspace>/e2e/<module>/` and `e2e/chat.e2e.ts` at the root, nothing under `apps/`; `grep -rlnE "(Repository|RepositoryStack|Bucket|Transaction)Test\b" --include=*.e2e.ts .` is empty; `find . -name "*.test-*.ts" -not -path "*/node_modules/*" -not -path "./repos/*"` lists only paths with a `testing/` segment; two e2e runs in two worktrees at once both pass |
 | R19 | `make help` lists the three test targets; one `vitest.config.ts` declares two `projects`; `bun --bun vitest run --project unit` runs only `*.test.ts` under `tests/`; `make check` runs `test` |
 | R22 | `ls apps/*/src` fails; `make dev-api`, `make dev-worker`, `make dev-web` start; `make check` green; `grep -rn "src/" apps/*/package.json apps/*/tsconfig.json biome.json Makefile` finds nothing for the three apps |
 | R23 | `make check` runs the bundle check; a probe that imports `ChatService` from a web feature turns it red; `grep -n sideEffects domain/package.json` shows `false` |

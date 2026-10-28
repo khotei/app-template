@@ -19,17 +19,18 @@ const selectOutbox = Effect.flatMap(
 ).pipe(Effect.orDie)
 
 describe('SendMessageUseCase', () => {
+  // Live: the chat's `updatedAt` staying put means something only while the clock moves.
   it.live(
-    'a send whose reply insert is refused leaves no message, no bind, no chat change and no job',
+    'a send whose title job is refused leaves no message, no bind, no chat change and no job',
     () =>
       Effect.gen(function* () {
         const sendMessage = yield* SendMessageUseCase
         const client = yield* SqlClient.SqlClient
         const photo = yield* upload(owner)
-        // The reply is the write after the user message, its bind and the chat's `updatedAt`.
+        // The title job is the last write of the send that opens a chat; all the others precede it.
         yield* Effect.orDie(
           client.unsafe(
-            `ALTER TABLE messages ADD CONSTRAINT refuse_reply CHECK (author <> 'assistant')`,
+            `ALTER TABLE outbox ADD CONSTRAINT refuse_title CHECK (queue <> 'chat-title')`,
           ),
         )
 
@@ -41,7 +42,7 @@ describe('SendMessageUseCase', () => {
         assertEquals(yield* selectMessages(chat.id), [])
         assertEquals(yield* selectAttachments([photo]), [photo])
         assertEquals(yield* selectChat(chat.id), Option.some(chat))
-        assert.deepStrictEqual(yield* selectOutbox, [])
+        assertEquals(yield* selectOutbox, [])
       }).pipe(Effect.provide(ChatPgTest)),
   )
 })

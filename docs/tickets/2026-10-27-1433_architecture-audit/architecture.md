@@ -113,7 +113,7 @@ sits beside never reach the browser.
 | `aws/provision.ts` | `provision(resources, stage)` creates the bucket too, idempotent like the queues; `provisionQueues(queues, stage)` alone needs no S3 client |
 | `queue/e2e/queue.e2e.ts` | from `queue.test.ts`, on the run's MiniStack through `SqsClientTest` and `provisionQueues` under a stage of its own |
 | `testing/aws.test-layer.ts` **new** · `testing/ministack.test-layer.ts` *gone* | `SqsClientTest`, `S3ClientTest` over `inject('awsEndpoint')`; `ProvidedContext` gains `awsEndpoint` |
-| `testing/queue.test-fake.ts` **new** | `recordQueue()` → `{ sent, layer }`: a `QueueTransport` over a `Ref` |
+| `queue/testing/queue.test-fake.ts` **new** · `queue/package.json` | `recordQueue()` → `{ sent, layer }`: a `QueueTransport` over a `Ref`, exported as `@app-template/queue/testing` |
 | `testing/postgres.test-layer.ts` | `PgClientTest`, as today |
 
 ### `application`
@@ -463,6 +463,8 @@ export const AwsTest = Layer.unwrap(Effect.gen(function* () {
 | `ChatService`, `MessageService`, `AttachmentService`, `UserService` over the memory layers (`domain/tests`) | every rule: ownership through `Where`, the busy chat, the stage transitions and the lost race (`MessageMovedError`), the bind order, the expiry, the title cut | what the database enforces (the partial unique index, the cascade), the SQL the `Where` becomes |
 | `buildChatTitle`, the transitions, `ensureMessageInput` (`domain/tests/chat/*.model.test.ts`) | the grapheme cut, blank text, duplicate ids, the transition table | nothing stored |
 | the use cases over the memory layers, `TransactionTest`, `recordQueue()`, `recordAssistant()` (`application/tests`) | the order of steps, the jobs sent and when, the chat's `updatedAt` after a send and a settle, the snapshots and the settle, the skip on a moved message, the fail on the last attempt's cause | the transaction's atomicity, a real race between two sends, the outbox |
+| `Transaction.layer` on `DbTest` (`infrastructure/e2e/db`) | no earlier write kept when a later one fails or dies; a `SqlError` under `run` is a defect | whether a use case wraps its writes |
+| each use case on `ChatPgTest` with a write the test's constraint refuses (`application/e2e`) | the use case's writes in one transaction: no row and no outbox row kept | the rules (the unit suites' seam) |
 | `handle(job, info)` of each worker handler (`apps/worker/tests`) | the last-attempt policy, the dead-letter log and fail | the queue loop, redrive |
 | `ApiTest` over the memory layers (`apps/api/tests`) | statuses, the cookie, the wire shape, multipart limits | the database, S3 |
 | each `*RepositoryPg` on `DbTest` (`infrastructure/e2e`) | the `Where` as SQL (an owner mismatch reads as absent), the builders, the unique index on the active message, the relational reads, the cascade refusing a bound attachment | the rules above |
@@ -571,6 +573,11 @@ export const AwsTest = Layer.unwrap(Effect.gen(function* () {
   the relation filter `{ chat: { userId } }`. `buildWhere` stays for `update`, a query-builder
   call. *Rejected:* `buildWhere` for the reads; dropping absent keys one by one, which spreads a
   condition over every optional field.
+- **D17 — The recording queue lives in `packages/queue/testing`.** It fakes `QueueTransport`, so
+  it sits beside it as `@app-template/queue/testing`, as the domain's fakes sit in
+  `domain/testing`. *Rejected:* `packages/testing`, a project-reference cycle (`packages/queue`
+  references it for its e2e); `infrastructure/testing`, the adapters' layer for a fake of a
+  package's port.
 - **D16 — `S3Bucket` knows the last part by the stream's end, not by lookahead.** The fold holds
   the latest part back and the finish step runs after a successful end. *Rejected:*
   `Stream.zipWithNext`, whose `onHalt` fires on a failure too (`Channel.mapAccum`), so a broken

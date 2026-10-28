@@ -3,7 +3,9 @@ import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Exit, Option } from 'effect'
 import { SqlClient } from 'effect/sql'
 
+import { Chat } from '@app-template/domain/chat'
 import { chat, owner, upload } from '@app-template/domain/testing'
+import { sortById } from '@app-template/testing'
 
 import { DeleteChatUseCase } from '#application/chat/delete-chat.use-case'
 import { SendMessageUseCase } from '#application/chat/send-message.use-case'
@@ -21,7 +23,7 @@ describe('DeleteChatUseCase', () => {
       const deleteChat = yield* DeleteChatUseCase
       const client = yield* SqlClient.SqlClient
       const photo = yield* upload(owner)
-      const { userMessage } = yield* sendMessage.send(owner, chat.id, {
+      const { userMessage, assistantMessage } = yield* sendMessage.send(owner, chat.id, {
         text: 'Look',
         attachmentIds: [photo.id],
       })
@@ -35,8 +37,14 @@ describe('DeleteChatUseCase', () => {
       const exit = yield* Effect.exit(deleteChat.delete(owner, chat.id))
 
       assert.isTrue(Exit.hasDies(exit))
-      assert.isTrue(Option.isSome(yield* selectChat(chat.id)))
-      assert.strictEqual((yield* selectMessages(chat.id)).length, 2)
+      assertEquals(
+        yield* selectChat(chat.id),
+        Option.some(new Chat({ ...chat, updatedAt: userMessage.message.createdAt })),
+      )
+      assertEquals(
+        sortById(yield* selectMessages(chat.id)),
+        sortById([userMessage.message, assistantMessage.message]),
+      )
       assertEquals(yield* selectAttachments([photo]), userMessage.attachments)
     }).pipe(Effect.provide(ChatPgTest)),
   )
