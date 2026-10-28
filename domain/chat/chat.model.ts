@@ -14,7 +14,9 @@ export const ChatTitle = Schema.String.check(
 ).pipe(Schema.brand('ChatTitle'))
 export type ChatTitle = typeof ChatTitle.Type
 
-const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+// Grapheme boundaries are the same in every locale (UAX #29); a fixed tag keeps the ambient
+// locale out of the domain.
+const graphemes = new Intl.Segmenter('en', { granularity: 'grapheme' })
 
 // Whole graphemes, so an emoji is never split, while the length stays within the code units
 // `ChatTitle` counts.
@@ -27,7 +29,11 @@ const cutToTitleLength = (text: string): string => {
   return cut
 }
 
-/** The title `text` yields once trimmed and cut to `maxTitleLength`; none when blank. */
+/**
+ * The title `text` yields once trimmed and cut to `maxTitleLength`; none when blank.
+ *
+ * Trimmed before the cut so the limit counts visible text, and after it so the cut leaves no edge.
+ */
 export const buildChatTitle = (text: string): Option.Option<ChatTitle> =>
   Schema.decodeUnknownOption(ChatTitle)(Str.trim(cutToTitleLength(Str.trim(text))))
 

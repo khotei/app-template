@@ -39,12 +39,10 @@ import {
   MessageRepository,
 } from '@app-template/domain/chat'
 import {
-  type AssistantCallHold,
   AttachmentBucketTest,
   chat,
   chatId,
   epoch,
-  holdAssistantCall,
   messageId,
   owner,
 } from '@app-template/domain/testing'
@@ -62,7 +60,11 @@ import { png, recordLogs } from '@app-template/testing'
 
 import { AssistantMessageJob } from '#application/chat/assistant-message.job'
 import { DbWithUsersTest } from '#application/testing/db.test-layer'
-import { recordLanguageModel } from '#application/testing/language-model.test-fake'
+import {
+  holdModelCall,
+  type ModelCallHold,
+  recordLanguageModel,
+} from '#application/testing/language-model.test-fake'
 
 const historyId = (n: number) => MessageId.make(`0192d4e0-7b3a-7c00-8000-00000000005${n}`)
 const photoId = AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000040')
@@ -176,7 +178,7 @@ const threeDeltas = Stream.make(delta('Hel'), delta('lo, '), delta('world')).pip
 )
 
 // The job asks for the stream after its `generating` write.
-const heldDeltas = (held: AssistantCallHold) =>
+const heldDeltas = (held: ModelCallHold) =>
   Stream.fromEffect(held.hold).pipe(Stream.drain, Stream.concat(replyDeltas))
 
 const lastAttempt = assistantMessageQueue.maxAttempts
@@ -397,7 +399,7 @@ describe('AssistantMessageJob.handle', () => {
   )
 
   it.live('keeps a rename made while the reply streams when it bumps the chat', () => {
-    const held = holdAssistantCall()
+    const held = holdModelCall()
     const { writes, layer } = recordAssistantMessage(heldDeltas(held), storesPg)
     return Effect.gen(function* () {
       const chats = yield* ChatRepository
@@ -427,7 +429,7 @@ describe('AssistantMessageJob.handle', () => {
   it.live(
     'stops with already settled when another writer settles the reply while it streams',
     () => {
-      const held = holdAssistantCall()
+      const held = holdModelCall()
       const { logs, layer } = recordAssistantMessage(heldDeltas(held), storesPg)
       return Effect.gen(function* () {
         const messages = yield* MessageRepository
@@ -474,7 +476,7 @@ describe('AssistantMessageJob.handle', () => {
   })
 
   it.live('fails the reply when its worker stops during the last attempt', () => {
-    const held = holdAssistantCall()
+    const held = holdModelCall()
     const { writes, layer } = recordAssistantMessage(heldDeltas(held), storesPg)
     return Effect.gen(function* () {
       yield* arrangeChat()

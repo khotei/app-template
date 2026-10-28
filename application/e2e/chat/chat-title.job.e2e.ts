@@ -13,14 +13,7 @@ import {
   MessageRepository,
   maxTitleLength,
 } from '@app-template/domain/chat'
-import {
-  type AssistantCallHold,
-  chat,
-  chatId,
-  epoch,
-  holdAssistantCall,
-  messageId,
-} from '@app-template/domain/testing'
+import { chat, chatId, epoch, messageId } from '@app-template/domain/testing'
 import { AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
 import { AssistantLlm, ChatPg, GenerateChatTitle } from '@app-template/infrastructure/chat'
 import { recordLogs } from '@app-template/testing'
@@ -28,7 +21,11 @@ import { recordLogs } from '@app-template/testing'
 import { ChatTitleJob } from '#application/chat/chat-title.job'
 import { selectChat } from '#application/testing/chat.test-layer'
 import { DbWithUsersTest } from '#application/testing/db.test-layer'
-import { recordLanguageModel } from '#application/testing/language-model.test-fake'
+import {
+  holdModelCall,
+  type ModelCallHold,
+  recordLanguageModel,
+} from '#application/testing/language-model.test-fake'
 
 type Answer = Effect.Effect<Array<Response.PartEncoded>, AiError.AiError>
 
@@ -64,20 +61,19 @@ const queuedJob = new GenerateChatTitle({ chatId, messageId })
 const runTitle = Effect.exit(ChatTitleJob.handle(queuedJob))
 
 // A change made once the model is asked lands between the take and the write.
-const heldAnswer = (held: AssistantCallHold) =>
-  Effect.andThen(held.hold, answering('Lisbon weekend'))
+const heldAnswer = (held: ModelCallHold) => Effect.andThen(held.hold, answering('Lisbon weekend'))
 
 const moments = [
   {
     name: 'before the take',
     modelCallsAfterDelete: 0,
-    run: <R>(held: AssistantCallHold, change: Effect.Effect<void, never, R>) =>
+    run: <R>(held: ModelCallHold, change: Effect.Effect<void, never, R>) =>
       change.pipe(Effect.andThen(held.release), Effect.andThen(runTitle)),
   },
   {
     name: 'while the model answers',
     modelCallsAfterDelete: 1,
-    run: <R>(held: AssistantCallHold, change: Effect.Effect<void, never, R>) =>
+    run: <R>(held: ModelCallHold, change: Effect.Effect<void, never, R>) =>
       Effect.gen(function* () {
         const running = yield* Effect.forkChild(runTitle)
         yield* held.asked
@@ -162,7 +158,7 @@ describe('ChatTitleJob.handle', () => {
   })
 
   it.effect.each(moments)('keeps a title the user set $name', ({ run }) => {
-    const held = holdAssistantCall()
+    const held = holdModelCall()
     const { prompts, logs, layer } = makeChatTitleHarness(heldAnswer(held))
     return Effect.gen(function* () {
       yield* arrangeChat()
@@ -181,7 +177,7 @@ describe('ChatTitleJob.handle', () => {
   it.effect.each(moments)(
     'ends with a log line when the chat is deleted $name',
     ({ run, modelCallsAfterDelete }) => {
-      const held = holdAssistantCall()
+      const held = holdModelCall()
       const { prompts, logs, layer } = makeChatTitleHarness(heldAnswer(held))
       return Effect.gen(function* () {
         yield* arrangeChat()
@@ -194,7 +190,7 @@ describe('ChatTitleJob.handle', () => {
     },
   )
 
-  it.live('fails and leaves the chat untouched when the model fails', () => {
+  it.live('dies and leaves the chat untouched when the model fails', () => {
     const { logs, layer } = makeChatTitleHarness(Effect.fail(providerError))
     return Effect.gen(function* () {
       yield* arrangeChat()

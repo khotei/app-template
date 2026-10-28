@@ -3,15 +3,13 @@ import { LanguageModel, Prompt } from 'effect/ai'
 
 import {
   Assistant,
+  type AssistantFile,
   type AssistantTurn,
   buildChatTitle,
   maxTitleLength,
 } from '@app-template/domain/chat'
 
-const toFilePart = ({
-  attachment,
-  bytes,
-}: AssistantTurn['files'][number]): Prompt.FilePartEncoded => ({
+const toFilePart = ({ attachment, bytes }: AssistantFile): Prompt.FilePartEncoded => ({
   type: 'file',
   mediaType: attachment.mediaType,
   fileName: attachment.fileName,
