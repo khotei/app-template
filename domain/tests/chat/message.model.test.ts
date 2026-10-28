@@ -18,6 +18,7 @@ import {
   Message,
   MessageFailure,
   prepareMessage,
+  snapshotMessage,
 } from '#domain/chat/message.model'
 import type { MessageStage } from '#domain/chat/message-stage.model'
 
@@ -154,6 +155,21 @@ describe('generateMessage', () => {
     ...inactiveMessages,
   ] as const)('fails MessageStageInvalidError for %s', ([, message]) =>
     expectStageInvalid(generateMessage(message, later), message, 'generating'),
+  )
+})
+
+describe('snapshotMessage', () => {
+  it.effect.each(['preparing', 'generating'] as const)(
+    'sets the text and generating at the time, from %s',
+    (stage) =>
+      Effect.sync(() => {
+        const snapshot = snapshotMessage(assistantAt(stage), 'Sure', later)
+
+        assert.deepStrictEqual(
+          [snapshot.stage, snapshot.text, snapshot.updatedAt],
+          ['generating', 'Sure', later],
+        )
+      }),
   )
 })
 

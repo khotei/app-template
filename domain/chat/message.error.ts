@@ -18,8 +18,8 @@ export class MessageStageInvalidError extends Schema.TaggedError<MessageStageInv
   { id: MessageId, from: MessageStage, to: MessageStage },
 ) {}
 
-/** The stored message is no longer at `stage`, the one the write required: another writer won. */
+/** The stored message left `expected`, the stage the write required: another writer won. */
 export class MessageMovedError extends Schema.TaggedError<MessageMovedError>()(
   'MessageMovedError',
-  { id: MessageId, stage: MessageStage },
+  { id: MessageId, expected: MessageStage },
 ) {}

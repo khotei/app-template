@@ -11,13 +11,27 @@ import { buildChat, Chat, ChatTitle } from '#domain/chat/chat.model'
 import { ChatRepository } from '#domain/chat/chat.port'
 import { ChatService } from '#domain/chat/chat.service'
 import type { MessageInputInvalidError } from '#domain/chat/message.error'
+import type { Message } from '#domain/chat/message.model'
 import { MessageService } from '#domain/chat/message.service'
 import { ask, chat, epoch, unknownChatId } from '#domain/testing/chat.test-fixture'
-import { ChatTest, selectChat, send, settle } from '#domain/testing/chat.test-layer'
+import { ChatServicesTest, send } from '#domain/testing/chat.test-layer'
 import { owner, stranger } from '#domain/testing/user.test-fixture'
 import type { UserId } from '#domain/user/user.id'
 
-const ChatServicesTest = ChatTest.pipe(Layer.provide(BunCrypto.layer))
+const ChatServiceTest = ChatServicesTest.pipe(Layer.provide(BunCrypto.layer))
+
+/** Completes an assistant message as the worker would, freeing its chat for the next send. */
+const settle = (message: Message) =>
+  Effect.gen(function* () {
+    const messages = yield* MessageService
+    const at = yield* DateTime.now
+
+    const prepared = yield* messages.prepare(message, at)
+    return yield* messages.complete(prepared, { text: 'Sure.', at })
+  })
+
+const selectChat = (chatId: ChatId) =>
+  Effect.flatMap(ChatRepository, (chats) => chats.selectOne({ id: chatId }))
 
 type ChatCall = (
   service: ChatService['Service'],
@@ -48,32 +62,33 @@ describe('ChatService', () => {
       assert.isTrue(isUuidV7(created.id))
       assertEquals(created, buildChat({ id: created.id, userId: stranger, createdAt: epoch }))
       assertEquals(yield* service.list(stranger), [{ chat: created, activeMessage: Option.none() }])
-    }).pipe(Effect.provide(ChatServicesTest)),
+    }).pipe(Effect.provide(ChatServiceTest)),
   )
 
-  it.live("list puts the last active chat first with its active message, and only the user's", () =>
-    Effect.gen(function* () {
-      const service = yield* ChatService
-      const chats = yield* ChatRepository
-      const later = buildChat({
-        id: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000021'),
-        userId: owner,
-        createdAt: DateTime.addDuration(epoch, Duration.millis(1)),
-      })
-      yield* chats.insert(later)
-      yield* service.create(stranger)
-      const { assistantMessage } = yield* send(owner, chat.id, 'Lisbon?')
-      yield* chats.update({ updatedAt: assistantMessage.createdAt }, { id: chat.id })
+  it.effect(
+    "list puts the last active chat first with its active message, and only the user's",
+    () =>
+      Effect.gen(function* () {
+        const service = yield* ChatService
+        const chats = yield* ChatRepository
+        const later = buildChat({
+          id: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000021'),
+          userId: owner,
+          createdAt: DateTime.addDuration(epoch, Duration.millis(1)),
+        })
+        yield* chats.insert(later)
+        yield* service.create(stranger)
+        const { assistantMessage } = yield* send(owner, later.id, 'Lisbon?')
 
-      const summaries = yield* service.list(owner)
-      assertEquals(
-        Arr.map(summaries, (summary) => [summary.chat.id, summary.activeMessage]),
-        [
-          [chat.id, Option.some(assistantMessage)],
-          [later.id, Option.none()],
-        ],
-      )
-    }).pipe(Effect.provide(ChatServicesTest)),
+        const summaries = yield* service.list(owner)
+        assertEquals(
+          Arr.map(summaries, (summary) => [summary.chat.id, summary.activeMessage]),
+          [
+            [later.id, Option.some(assistantMessage)],
+            [chat.id, Option.none()],
+          ],
+        )
+      }).pipe(Effect.provide(ChatServiceTest)),
   )
 
   it.effect('get returns the chat with its messages and the active message', () =>
@@ -96,7 +111,7 @@ describe('ChatService', () => {
       )
       assertEquals(detail.activeMessage, Option.some(second.assistantMessage))
       assert.strictEqual(detail.chat.id, chat.id)
-    }).pipe(Effect.provide(ChatServicesTest)),
+    }).pipe(Effect.provide(ChatServiceTest)),
   )
 
   it.effect('findSendable says the first send opens the chat, and no later one', () =>
@@ -109,7 +124,7 @@ describe('ChatService', () => {
       const next = yield* service.findSendable(owner, chat.id, ask('And now?'))
 
       assert.deepStrictEqual([opening.opensChat, next.opensChat], [true, false])
-    }).pipe(Effect.provide(ChatServicesTest)),
+    }).pipe(Effect.provide(ChatServiceTest)),
   )
 
   it.effect('findSendable while a reply runs is ChatBusyError', () =>
@@ -120,7 +135,7 @@ describe('ChatService', () => {
       const busy = yield* Effect.flip(service.findSendable(owner, chat.id, ask('And now?')))
 
       assertSchemaEquals(ChatBusyError, busy, new ChatBusyError({ id: chat.id }))
-    }).pipe(Effect.provide(ChatServicesTest)),
+    }).pipe(Effect.provide(ChatServiceTest)),
   )
 
   it.live('rename sets the title and bumps updatedAt', () =>
@@ -139,7 +154,7 @@ describe('ChatService', () => {
         }),
       )
       assertEquals(yield* selectChat(chat.id), Option.some(renamed))
-    }).pipe(Effect.provide(ChatServicesTest)),
+    }).pipe(Effect.provide(ChatServiceTest)),
   )
 
   it.effect('updateTitle titles an untitled chat and keeps its updatedAt', () =>
@@ -152,7 +167,7 @@ describe('ChatService', () => {
         yield* selectChat(chat.id),
         Option.some(new Chat({ ...chat, title: Option.some(ChatTitle.make('Lisbon weekend')) })),
       )
-    }).pipe(Effect.provide(ChatServicesTest)),
+    }).pipe(Effect.provide(ChatServiceTest)),
   )
 
   it.effect('updateTitle of a titled chat is ChatTitledError and keeps the title', () =>
@@ -164,7 +179,7 @@ describe('ChatService', () => {
 
       assertSchemaEquals(ChatTitledError, error, new ChatTitledError({ id: chat.id }))
       assertEquals(yield* selectChat(chat.id), Option.some(renamed))
-    }).pipe(Effect.provide(ChatServicesTest)),
+    }).pipe(Effect.provide(ChatServiceTest)),
   )
 
   it.effect('updateTitle of a deleted chat is ChatNotFoundError and writes nothing', () =>
@@ -176,7 +191,7 @@ describe('ChatService', () => {
 
       assertSchemaEquals(ChatNotFoundError, error, new ChatNotFoundError({ id: chat.id }))
       assert.deepStrictEqual(yield* selectChat(chat.id), Option.none())
-    }).pipe(Effect.provide(ChatServicesTest)),
+    }).pipe(Effect.provide(ChatServiceTest)),
   )
 
   it.effect('a rename after updateTitle replaces the generated title', () =>
@@ -187,7 +202,7 @@ describe('ChatService', () => {
       const renamed = yield* service.rename(owner, chat.id, ChatTitle.make('Trip'))
 
       assertEquals(yield* selectChat(chat.id), Option.some(renamed))
-    }).pipe(Effect.provide(ChatServicesTest)),
+    }).pipe(Effect.provide(ChatServiceTest)),
   )
 
   it.effect.each(chatCalls)(
@@ -206,6 +221,6 @@ describe('ChatService', () => {
           activeMessage: Option.none(),
           messages: [],
         })
-      }).pipe(Effect.provide(ChatServicesTest)),
+      }).pipe(Effect.provide(ChatServiceTest)),
   )
 })

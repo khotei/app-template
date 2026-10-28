@@ -14,10 +14,11 @@ import {
   completeMessage,
   failMessage,
   generateMessage,
-  Message,
+  type Message,
   type MessageDetail,
   type MessageFailure,
   prepareMessage,
+  snapshotMessage,
 } from '#domain/chat/message.model'
 import { MessageRepository } from '#domain/chat/message.port'
 import type { MessageStage } from '#domain/chat/message-stage.model'
@@ -63,9 +64,9 @@ export class MessageService extends Context.Service<
     const crypto = yield* Crypto.Crypto
     const randomMessageId = Effect.map(Effect.orDie(crypto.randomUUIDv7()), MessageId.make)
 
-    const write = Effect.fnUntraced(function* (moved: Message, stage: MessageStage) {
-      const written = yield* messages.update(moved, { stage })
-      if (!written) return yield* new MessageMovedError({ id: moved.id, stage })
+    const write = Effect.fnUntraced(function* (moved: Message, expected: MessageStage) {
+      const written = yield* messages.update(moved, { stage: expected })
+      if (!written) return yield* new MessageMovedError({ id: moved.id, expected })
       return moved
     })
 
@@ -126,7 +127,7 @@ export class MessageService extends Context.Service<
 
     const snapshot = Effect.fn('MessageService.snapshot')(
       (message: Message, text: string, at: DateTime.Utc) =>
-        write(new Message({ ...message, text, updatedAt: at }), 'generating'),
+        write(snapshotMessage(message, text, at), 'generating'),
     )
 
     const complete = Effect.fn('MessageService.complete')(function* (
