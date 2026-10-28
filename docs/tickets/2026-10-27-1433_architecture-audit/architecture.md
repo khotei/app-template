@@ -59,8 +59,8 @@ Every `tests/` and `e2e/` file mirrors the source path; test support lives only 
 | `chat/chat.model.ts` | `Chat`, `ChatSummary`, `ChatDetail`, `ChatTitle`, `buildChat`, `buildChatTitle` (from `chat.llm.ts`) |
 | `chat/message.model.ts` **new** | `Message`, `MessageDetail`, `MessageStage`, `ActiveMessage`, `MessageFailure`, `MessageInput`, the builders, `isActiveMessage`, `ensureMessageInput`, the transitions `prepareMessage` … `failMessage` |
 | `chat/message.error.ts` **new** | `MessageNotFoundError`, `MessageInputInvalidError`, `MessageStageInvalidError`, `MessageMovedError` |
-| `chat/chat.port.ts` **new** | `ChatRepository`, `ChatSet`, `ChatWhere` |
-| `chat/message.port.ts` **new** | `MessageRepository`, `MessageWhere` |
+| `chat/chat.port.ts` **new** | `ChatRepository`, `ChatSet`, `ChatWhere`, `ChatOneWhere` |
+| `chat/message.port.ts` **new** | `MessageRepository`, `MessageWhere`, `MessageOneWhere` |
 | `chat/assistant.port.ts` **new** | `Assistant`, `AssistantTurn` |
 | `chat/chat.service.ts` | `ChatService` (domain), `SendableChat` |
 | `chat/message.service.ts` **new** | `MessageService` |
@@ -169,28 +169,31 @@ sits beside never reach the browser.
 ```ts
 // domain/chat/chat.port.ts
 export type ChatSet = RequireAtLeastOne<Pick<Chat, 'title' | 'updatedAt'>>
-/** `id` finds the row; every other field must still hold, so an owner mismatch reads as absent. */
-export type ChatWhere = { readonly id: ChatId } & Partial<Pick<Chat, 'userId' | 'title'>>
+/** The row a write finds by `id`; `title` must still hold its value. */
+export type ChatWhere = { readonly id: ChatId } & Partial<Pick<Chat, 'title'>>
+/** The row a read finds by `id`; `userId` must still hold, so an owner mismatch reads as absent. */
+export type ChatOneWhere = { readonly id: ChatId } & Partial<Pick<Chat, 'userId'>>
 
 export class ChatRepository extends Context.Service<ChatRepository, {
   readonly insert: (chat: Chat) => Effect.Effect<void>
   readonly update: (set: ChatSet, where: ChatWhere) => Effect.Effect<boolean>
-  readonly selectOne: (where: ChatWhere) => Effect.Effect<Option.Option<Chat>>
-  readonly selectDetail: (where: ChatWhere) => Effect.Effect<Option.Option<ChatDetail>>
+  readonly selectOne: (where: ChatOneWhere) => Effect.Effect<Option.Option<Chat>>
+  readonly selectDetail: (where: ChatOneWhere) => Effect.Effect<Option.Option<ChatDetail>>
   readonly selectSummaries: (userId: UserId) => Effect.Effect<ReadonlyArray<ChatSummary>>
   readonly delete: (id: ChatId) => Effect.Effect<void>
 }>()('@app-template/domain/chat/ChatRepository') {}
 
 // domain/chat/message.port.ts
 /** `id` finds the row; `chatId` and the chat's `userId` must still hold (a nested relation filter). */
-export type MessageWhere = { readonly id: MessageId } & Partial<{ chatId: ChatId; userId: UserId }>
-export type MessageStageWhere = Pick<Message, 'stage'>
+export type MessageOneWhere = { readonly id: MessageId } & Partial<{ chatId: ChatId; userId: UserId }>
+/** The stored stage a write requires; the row is always found by the message's id. */
+export type MessageWhere = Pick<Message, 'stage'>
 
 export class MessageRepository extends Context.Service<MessageRepository, {
   readonly insert: (message: Message) => Effect.Effect<boolean>
-  readonly update: (message: Message, where: MessageStageWhere) => Effect.Effect<boolean>
-  readonly selectOne: (where: MessageWhere) => Effect.Effect<Option.Option<Message>>
-  readonly selectDetail: (where: MessageWhere) => Effect.Effect<Option.Option<MessageDetail>>
+  readonly update: (message: Message, where: MessageWhere) => Effect.Effect<boolean>
+  readonly selectOne: (where: MessageOneWhere) => Effect.Effect<Option.Option<Message>>
+  readonly selectDetail: (where: MessageOneWhere) => Effect.Effect<Option.Option<MessageDetail>>
   readonly selectByChat: (chatId: ChatId) => Effect.Effect<ReadonlyArray<MessageDetail>>
   readonly existsByChat: (chatId: ChatId) => Effect.Effect<boolean>
   readonly selectActiveByChat: (chatId: ChatId) => Effect.Effect<Option.Option<ActiveMessage>>
@@ -554,6 +557,13 @@ export const AwsTest = Layer.unwrap(Effect.gen(function* () {
   the four have no single operation to be named by, and splitting them to find one gives
   shallow modules; a kind word on every name (`ChatRulesService`), which would distinguish
   nothing once `application` holds no service.
+- **D15 — A relational read's `<Entity>OneWhere` becomes a filter object.** Drizzle's relational
+  query (`findFirst`, `with`) aliases the table, so a `RAW` condition from `buildWhere` over the
+  table's columns fails with `42P01`; the filter names fields instead, an absent one becomes
+  `EmptyFilter` (`skipUndefined`, since Drizzle refuses `undefined`), and the message's owner is
+  the relation filter `{ chat: { userId } }`. `buildWhere` stays for `update`, a query-builder
+  call. *Rejected:* `buildWhere` for the reads; dropping absent keys one by one, which spreads a
+  condition over every optional field.
 
 ## Risks
 

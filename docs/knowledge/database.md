@@ -143,7 +143,7 @@ statement that writes. A conditional write answers whether it wrote:
   target, where })`), so a second active reply in a chat writes nothing and answers `false`;
   the application turns that into `ChatBusyError`. Any other message inserts.
 - **Update under a `where`.** `MessageRepository.update(message, where)` runs `WHERE id = …
-  AND <where fields>`, its `where` (`MessageStageWhere`, the stored stage to match),
+  AND <where fields>`, its `where` (`MessageWhere`, the stored stage to match),
   so a write whose expected stage another writer has left changes nothing and answers `false`;
   the reply job then stops as settled by someone else.
 - **Update of some fields under a `where`.** `ChatRepository.update(set, where)` and

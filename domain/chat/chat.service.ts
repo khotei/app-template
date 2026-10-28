@@ -20,7 +20,7 @@ import {
   type MessageDetail,
   type MessageInput,
 } from '#domain/chat/message.model'
-import { MessageRepository, type MessageStageWhere } from '#domain/chat/message.port'
+import { MessageRepository, type MessageWhere } from '#domain/chat/message.port'
 import type { UserId } from '#domain/user/user.id'
 
 /**
@@ -85,7 +85,7 @@ export class ChatService extends Context.Service<
      * Stores a settled reply while the stored one still matches `where`, then moves the chat's
      * `updatedAt` alone to the reply's; answers whether it wrote.
      */
-    readonly settleReply: (settled: Message, where: MessageStageWhere) => Effect.Effect<boolean>
+    readonly settleReply: (settled: Message, where: MessageWhere) => Effect.Effect<boolean>
   }
 >()('@app-template/domain/chat/ChatService', {
   make: Effect.gen(function* () {
@@ -126,10 +126,7 @@ export class ChatService extends Context.Service<
       const updatedAt = yield* DateTime.now
       const renamed = new Chat({ ...chat, title: Option.some(title), updatedAt })
 
-      const written = yield* chats.update(
-        { title: renamed.title, updatedAt },
-        { id: chatId, userId },
-      )
+      const written = yield* chats.update({ title: renamed.title, updatedAt }, { id: chatId })
       if (!written) return yield* new ChatNotFoundError({ id: chatId })
       return renamed
     })
@@ -217,7 +214,7 @@ export class ChatService extends Context.Service<
 
     const settleReply = Effect.fn('ChatService.settleReply')(function* (
       settled: Message,
-      where: MessageStageWhere,
+      where: MessageWhere,
     ) {
       const written = yield* messages.update(settled, where)
       if (!written) return false

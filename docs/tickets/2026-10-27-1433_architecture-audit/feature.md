@@ -174,7 +174,7 @@ the glossary, so the rules point at one definition of each word.
   `chat.error.ts`, `message.error.ts`, `chat.port.ts`, `message.port.ts`, `assistant.port.ts`,
   `chat.service.ts`, `message.service.ts`), and no `message/` folder.
 - **R11** — WHEN the audit lands, THE SYSTEM SHALL have no `ensureFound`, `isInChat` or
-  `isTitledChat` or `isOwnedBy`: ownership is a field of the `<Entity>Where` a repository's
+  `isTitledChat` or `isOwnedBy`: ownership is a field of the `<Entity>OneWhere` a repository's
   `selectOne(where)` takes (`chats.selectOne({ id, userId })`), so the database answers "not
   yours" and "not found" alike, as today. Where a field check on a value in hand remains, it is
   `Predicate.Struct({ userId: (id) => id === userId })` inline, wrapped only if several places

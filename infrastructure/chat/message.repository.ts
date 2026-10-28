@@ -3,8 +3,8 @@ import { Array as Arr, Effect, Layer, Option, Schema, UndefinedOr } from 'effect
 
 import {
   isActiveMessage,
+  type MessageOneWhere,
   MessageRepository,
-  type MessageStageWhere,
   type MessageWhere,
 } from '@app-template/domain/chat'
 
@@ -23,12 +23,12 @@ import { Db, decodeFound, orDieWithSqlError } from '#infrastructure/db/db.client
 
 const encodeMessage = Schema.encodeEffect(MessageInsert)
 
-const encodeStageWhere = buildWhere<MessageStageWhere>({
+const encodeWhere = buildWhere<MessageWhere>({
   stage: (stage) => eq(messages.stage, stage),
 })
 
 /** The chat's `userId` is a filter on the relation, so another user's message reads as absent. */
-const filterOf = (where: MessageWhere) =>
+const filterOf = (where: MessageOneWhere) =>
   ({
     id: where.id,
     chatId: skipUndefined(where.chatId),
@@ -53,7 +53,7 @@ export const MessageRepositoryPg = Layer.effect(
         const updated = yield* db
           .update(messages)
           .set(row)
-          .where(and(eq(messages.id, message.id), encodeStageWhere(where)))
+          .where(and(eq(messages.id, message.id), encodeWhere(where)))
           .returning({ id: messages.id })
         return Arr.isReadonlyArrayNonEmpty(updated)
       }, orDieWithSqlError),

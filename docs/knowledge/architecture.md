@@ -137,7 +137,7 @@ Pascal one (`Document`).
    `Context.Service` with no layer; `<entity>.model.ts`: pure operations such as
    `build<Entity>(input)`. Time and ids come in as input, never from `Date.now()` or
    `crypto.randomUUID()`. Test them in `domain/tests/<entity>/<entity>.model.test.ts`. Ownership
-   is a field of the `<Entity>Where` the port's `selectOne(where)` takes, so an owner mismatch
+   is a field of the `<Entity>OneWhere` the port's `selectOne(where)` takes, so an owner mismatch
    reads as absent, never a predicate after the read.
 4. **Domain exports.** `domain/<entity>/index.ts` re-exports its files, and
    `domain/package.json` gains `"./<entity>": "./<entity>/index.ts"` in `exports`.

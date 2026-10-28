@@ -3,6 +3,7 @@ import { Array as Arr, DateTime, Effect, Layer, Option, Schema, UndefinedOr } fr
 
 import {
   type ChatId,
+  type ChatOneWhere,
   ChatRepository,
   type ChatSet,
   type ChatWhere,
@@ -33,7 +34,6 @@ const encodeSet = buildSet<ChatSet, typeof chats>({
 
 const encodeWhere = buildWhere<ChatWhere>({
   id: (id) => eq(chats.id, id),
-  userId: UndefinedOr.map((userId) => eq(chats.userId, userId)),
   title: UndefinedOr.map(
     Option.match({
       onNone: () => isNull(chats.title),
@@ -42,18 +42,9 @@ const encodeWhere = buildWhere<ChatWhere>({
   ),
 })
 
-/** `encodeWhere` for a relational read, which aliases the table and so takes a filter object. */
-const filterOf = (where: ChatWhere) =>
-  ({
-    id: where.id,
-    userId: skipUndefined(where.userId),
-    title: skipUndefined(
-      UndefinedOr.map(
-        where.title,
-        Option.getOrElse(() => ({ isNull: true }) as const),
-      ),
-    ),
-  }) as const
+/** A relational read aliases the table, so it takes a filter object, not `buildWhere`. */
+const filterOf = (where: ChatOneWhere) =>
+  ({ id: where.id, userId: skipUndefined(where.userId) }) as const
 
 const decodeSummary = ({
   messages,

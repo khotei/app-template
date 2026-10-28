@@ -106,26 +106,17 @@ describe('ChatRepositoryPg', () => {
       yield* chats.insert(stored)
 
       const owned = yield* chats.selectOne({ id: stored.id, userId: ada })
-      const untitled = yield* chats.selectOne({ id: stored.id, title: Option.none() })
       const foreign = yield* chats.selectOne({ id: stored.id, userId: bob })
-      const titled = yield* chats.selectOne({
-        id: stored.id,
-        title: Option.some(ChatTitle.make('Trip')),
-      })
       const ownedDetail = yield* chats.selectDetail({ id: stored.id, userId: ada })
       const foreignDetail = yield* chats.selectDetail({ id: stored.id, userId: bob })
 
       assertSchemaEquals(SelectedChat, owned, Option.some(stored))
-      assertSchemaEquals(SelectedChat, untitled, Option.some(stored))
       assertSchemaEquals(
         SelectedDetail,
         ownedDetail,
         Option.some({ chat: stored, activeMessage: Option.none(), messages: [] }),
       )
-      assert.deepStrictEqual(
-        [foreign, titled, foreignDetail],
-        [Option.none(), Option.none(), Option.none()],
-      )
+      assert.deepStrictEqual([foreign, foreignDetail], [Option.none(), Option.none()])
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 

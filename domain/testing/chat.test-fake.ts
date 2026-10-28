@@ -20,7 +20,7 @@ import type { ChatId, MessageId } from '#domain/chat/chat.id'
 import { Chat, type ChatDetail, type ChatSummary } from '#domain/chat/chat.model'
 import { ChatRepository } from '#domain/chat/chat.port'
 import { isActiveMessage, type Message, type MessageDetail } from '#domain/chat/message.model'
-import { MessageRepository, type MessageWhere } from '#domain/chat/message.port'
+import { type MessageOneWhere, MessageRepository } from '#domain/chat/message.port'
 import { AttachmentRows } from '#domain/testing/attachment.test-fake'
 import { matches } from '#domain/testing/rows.test-util'
 import type { UserId } from '#domain/user/user.id'
@@ -118,7 +118,7 @@ const isOwnedThroughChat = (
     ? constTrue
     : (message) => Option.exists(HashMap.get(chats, message.chatId), matches<Chat>({ userId }))
 
-const holdsMessageWhere = (tables: Tables, where: MessageWhere) =>
+const holdsMessageWhere = (tables: Tables, where: MessageOneWhere) =>
   Predicate.and(
     matches<Message>({ chatId: where.chatId }),
     isOwnedThroughChat(tables.chats, where.userId),

@@ -30,7 +30,7 @@ import {
   type MessageId,
   MessageRepository,
   type MessageStageInvalidError,
-  type MessageStageWhere,
+  type MessageWhere,
   prepareMessage,
 } from '@app-template/domain/chat'
 import {
@@ -67,7 +67,7 @@ const readHistory = Effect.fnUntraced(function* (chatId: ChatId) {
 
 class MessageStageMovedError extends Data.TaggedError('MessageStageMovedError') {}
 
-const writeStage = Effect.fnUntraced(function* (message: Message, where: MessageStageWhere) {
+const writeStage = Effect.fnUntraced(function* (message: Message, where: MessageWhere) {
   const messages = yield* MessageRepository
   const updated = yield* messages.update(message, where)
   if (!updated) return yield* new MessageStageMovedError()
@@ -105,7 +105,7 @@ const alreadySettled = Effect.logInfo('assistant reply skipped: already settled'
 
 const chatDeleted = Effect.logInfo('assistant reply skipped: chat deleted')
 
-const writeSettled = Effect.fnUntraced(function* (settled: Message, where: MessageStageWhere) {
+const writeSettled = Effect.fnUntraced(function* (settled: Message, where: MessageWhere) {
   const chatService = yield* ChatService
   const written = yield* chatService.settleReply(settled, where)
   if (!written) return yield* new MessageStageMovedError()

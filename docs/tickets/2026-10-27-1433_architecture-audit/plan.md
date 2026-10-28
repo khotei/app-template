@@ -449,24 +449,25 @@
 
 #### S10 — `ChatService` to the domain; the one-line helpers gone
 
-- **Goal:** the chat's rules in `domain/chat/chat.service.ts`; `ChatWhere` and `MessageWhere`
+- **Goal:** the chat's rules in `domain/chat/chat.service.ts`; `ChatOneWhere` and `MessageOneWhere`
   carry ownership, so `ensureFound`, `isOwnedBy`, `isInChat`, `isTitledChat` and
   `domain/shared` go; the api's one-method flows call the domain service (R2, R11, R4, D10).
   `getMessage`, `addUserMessage`, `addAssistantMessage` and `settleReply` stay on the service
   until S11 and S15 take them.
 - **Blocked by:** S9.
 - **Files:** `git mv application/chat/chat.service.ts domain/chat/chat.service.ts` (key
-  `@app-template/domain/chat/ChatService`); `domain/chat/chat.port.ts` (`ChatWhere` gains
-  `userId`; `selectOne(where)` and `selectDetail(where)` replace the `id` reads);
-  `domain/chat/message.port.ts` (`MessageWhere = { id } & Partial<{ chatId; userId }>` for
-  `selectOne`/`selectDetail`; the stage condition of `update` becomes `MessageStageWhere`);
+  `@app-template/domain/chat/ChatService`); `domain/chat/chat.port.ts` (`ChatOneWhere`
+  `{ id; userId? }` for `selectOne(where)` and `selectDetail(where)`, which replace the `id`
+  reads; `update`'s `ChatWhere` keeps `{ id; title? }`); `domain/chat/message.port.ts`
+  (`MessageOneWhere = { id } & Partial<{ chatId; userId }>` for `selectOne`/`selectDetail`;
+  `update`'s `MessageWhere` keeps the stage);
   `domain/chat/chat.model.ts` (`isTitledChat` gone), `message.model.ts` (`isInChat` gone),
-  `domain/user/user.model.ts` (`isOwnedBy` gone), `domain/shared/` *gone* with its export;
+  `domain/shared/` *gone* with its export, `isOwnedBy` among it;
   `infrastructure/chat/chat.repository.ts`, `message.repository.ts` (`userId` as the nested
-  relation filter `{ chat: { userId } }`, `chatId` as a column, through `buildWhere`);
+  relation filter `{ chat: { userId } }`, `chatId` as a column, as a filter object, D15);
   `domain/testing/chat.test-fake.ts`; `application/chat/*.use-case.ts`, `*.job.ts`,
   `application/chat/index.ts`, `application/testing/chat.test-layer.ts`, `apps/api/chat/chat.handler.ts`,
-  `apps/api/layer.ts`, `apps/worker/layer.ts` (imports, `ChatService.layer` from the domain);
+  `apps/api/layer.ts` (imports, `ChatService.layer` from the domain);
   `git mv application/e2e/chat/chat.service.e2e.ts domain/tests/chat/chat.service.test.ts` over
   the memory layers; the twins in `infrastructure/e2e/chat/chat.repository.e2e.ts` and
   `message.repository.e2e.ts` (a stranger's chat and another chat's message read as none).
@@ -477,7 +478,29 @@
   empty; `ls domain/shared` fails; `grep -rn "selectOne" domain/*/*.port.ts` lists chat,
   message and attachment; `make check`.
 - **Model:** fable high
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - ~690 changed lines against the ~400 bound: the ports, the memory fake, the service and both
+    repositories change together, and half the diff is the moved suite and the Pg twins.
+  - Reads and the write guard are separate types, after S9's attachment port: `ChatOneWhere`
+    and `MessageOneWhere` (`id` plus the owner) for `selectOne`/`selectDetail`, `ChatWhere`
+    (`title`) and `MessageWhere` (`stage`) for `update`; `MessageStageWhere` is gone. `rename`
+    writes under `{ id }`: the owned read precedes it and `ChatSet` never moves `userId`.
+  - A relational read takes a filter object, not `buildWhere` (D15): `skipUndefined` in
+    `infrastructure/db/columns.ts` turns an absent field into `EmptyFilter`, and the message's
+    owner filter needs the relation `messages.chat` in `relations.ts`.
+  - `getMessage` reads once, `messages.selectDetail({ id, chatId, userId })`, so it fails
+    `MessageNotFoundError` alone, as `MessageService.get` will; the HTTP contract's
+    `chatNotFound` on `getMessage` goes in S11.
+  - Beyond **Files**: `relations.ts`, `columns.ts`, the imports of the four `application/e2e/chat`
+    suites and of `apps/api/e2e/chat/chat.handler.e2e.ts`, `docs/knowledge/architecture.md` and
+    `database.md`. `domain/user/user.model.ts` and `apps/worker/layer.ts` needed no change.
+  - The service suite's `getMessage` case holds no attachment; the repository's e2e suite
+    covers the attachments of a message detail.
+  - The **Verify** grep needs `--include='*.ts'` quoted in zsh.
+  - For S16: `findReply` could read the message alone, `messages.selectOne({ id, chatId })`.
+  - For S23: `effect-services.md` (`chats.selectById`), `effect-style.md` (`ensureFound`),
+    `domain/CLAUDE.md` (`shared`).
 
 #### S11 — `MessageService`: the message's writes leave `ChatService`
 
@@ -492,7 +515,8 @@
   `addAssistantMessage` gone; `settleReply` stays until S15); `domain/chat/index.ts`;
   `application/chat/send-message.use-case.ts` (`chats.update({ updatedAt: sendable.at },
   { id: chatId })` then `ChatNotFoundError`; `messageService.addUserMessage`);
-  `apps/api/chat/chat.handler.ts` (`getMessage` → `MessageService.get`); `apps/api/layer.ts`,
+  `apps/api/chat/chat.handler.ts` (`getMessage` → `MessageService.get`);
+  `http-api/chat/chat.http.ts` (`getMessage` drops `chatNotFound`, which S10 made unreachable); `apps/api/layer.ts`,
   `apps/worker/layer.ts` (`MessageService.layer`); `domain/tests/chat/message.service.test.ts`;
   `domain/tests/chat/chat.service.test.ts` (the moved cases).
 - **Test first:** `MessageService` over the memory layers: `addAssistantMessage` on a busy chat
