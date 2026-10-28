@@ -14,7 +14,7 @@ const insertChat = Layer.effectDiscard(
 )
 
 /** The chat services over the memory layers, on fresh rows where `chat` exists; needs `Crypto`. */
-export const ChatServicesTest = Layer.mergeAll(ChatService.layer, MessageService.layer).pipe(
+export const ChatTest = Layer.mergeAll(ChatService.layer, MessageService.layer).pipe(
   Layer.provideMerge(insertChat),
   Layer.provideMerge(RepositoryStackTest),
 )

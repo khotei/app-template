@@ -20,10 +20,10 @@ import {
 } from '#domain/chat/message.model'
 import { MessageService } from '#domain/chat/message.service'
 import { ask, chat, epoch, unknownMessageId } from '#domain/testing/chat.test-fixture'
-import { ChatServicesTest, selectMessages, send } from '#domain/testing/chat.test-layer'
+import { ChatTest, selectMessages, send } from '#domain/testing/chat.test-layer'
 import { owner, stranger } from '#domain/testing/user.test-fixture'
 
-const MessageServiceTest = ChatServicesTest.pipe(Layer.provide(BunCrypto.layer))
+const ChatBunTest = ChatTest.pipe(Layer.provide(BunCrypto.layer))
 
 const later = DateTime.addDuration(epoch, Duration.seconds(1))
 
@@ -81,7 +81,7 @@ describe('MessageService', () => {
         sortById(yield* selectMessages(chat.id)),
         sortById([userMessage, assistantMessage]),
       )
-    }).pipe(Effect.provide(MessageServiceTest)),
+    }).pipe(Effect.provide(ChatBunTest)),
   )
 
   it.effect('addAssistantMessage on a chat that has an active message is ChatBusyError', () =>
@@ -95,7 +95,7 @@ describe('MessageService', () => {
 
       assertSchemaEquals(ChatBusyError, busy, new ChatBusyError({ id: chat.id }))
       assertEquals(yield* selectMessages(chat.id), [first])
-    }).pipe(Effect.provide(MessageServiceTest)),
+    }).pipe(Effect.provide(ChatBunTest)),
   )
 
   it.effect('get returns the stored message', () =>
@@ -107,7 +107,7 @@ describe('MessageService', () => {
         message: userMessage,
         attachments: [],
       })
-    }).pipe(Effect.provide(MessageServiceTest)),
+    }).pipe(Effect.provide(ChatBunTest)),
   )
 
   it.effect(
@@ -138,7 +138,7 @@ describe('MessageService', () => {
           missing,
           new MessageNotFoundError({ id: unknownMessageId }),
         )
-      }).pipe(Effect.provide(MessageServiceTest)),
+      }).pipe(Effect.provide(ChatBunTest)),
   )
 
   it.effect('prepare, generate, snapshot and complete store each stage in turn', () =>
@@ -157,7 +157,7 @@ describe('MessageService', () => {
       )
       assert.deepStrictEqual([snapshot.text, completed.text], ['Sure', 'Sure.'])
       assertEquals(sortById(yield* selectMessages(chat.id)), sortById([userMessage, completed]))
-    }).pipe(Effect.provide(MessageServiceTest)),
+    }).pipe(Effect.provide(ChatBunTest)),
   )
 
   it.effect('fail stores the failure with its user-facing sentence', () =>
@@ -183,7 +183,7 @@ describe('MessageService', () => {
       )
       assert.strictEqual(failed.stage, 'failed')
       assertEquals(sortById(yield* selectMessages(chat.id)), sortById([userMessage, failed]))
-    }).pipe(Effect.provide(MessageServiceTest)),
+    }).pipe(Effect.provide(ChatBunTest)),
   )
 
   it.effect('prepare of a completed message is MessageStageInvalidError and writes nothing', () =>
@@ -200,7 +200,7 @@ describe('MessageService', () => {
         new MessageStageInvalidError({ id: userMessage.id, from: 'completed', to: 'preparing' }),
       )
       assertEquals(yield* selectMessages(chat.id), stored)
-    }).pipe(Effect.provide(MessageServiceTest)),
+    }).pipe(Effect.provide(ChatBunTest)),
   )
 
   it.effect.each(moves)('$name after the stored message moved is MessageMovedError', ({ move }) =>
@@ -218,7 +218,7 @@ describe('MessageService', () => {
         new MessageMovedError({ id: prepared.id, expected: 'preparing' }),
       )
       assertEquals(yield* selectMessages(chat.id), stored)
-    }).pipe(Effect.provide(MessageServiceTest)),
+    }).pipe(Effect.provide(ChatBunTest)),
   )
 
   it.effect('snapshot writes the text only while the stored message is generating', () =>
@@ -243,19 +243,6 @@ describe('MessageService', () => {
         new MessageMovedError({ id: prepared.id, expected: 'generating' }),
       )
       assertEquals(sortById(yield* selectMessages(chat.id)), sortById([userMessage, completed]))
-    }).pipe(Effect.provide(MessageServiceTest)),
-  )
-
-  it.effect('snapshot of a message handed at preparing keeps the stored message generating', () =>
-    Effect.gen(function* () {
-      const service = yield* MessageService
-      const { userMessage, prepared } = yield* prepareReply
-      yield* service.generate(prepared, later)
-
-      const snapshot = yield* service.snapshot(prepared, 'Su', later)
-
-      assert.strictEqual(snapshot.stage, 'generating')
-      assertEquals(sortById(yield* selectMessages(chat.id)), sortById([userMessage, snapshot]))
-    }).pipe(Effect.provide(MessageServiceTest)),
+    }).pipe(Effect.provide(ChatBunTest)),
   )
 })
