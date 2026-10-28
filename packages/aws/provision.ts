@@ -61,7 +61,7 @@ const provisionQueuePair = (stage: string) =>
   })
 
 /** Creates each bucket under `stage`, without its lifecycle rules; a second run changes nothing. */
-export const provisionBuckets = Effect.fn('provisionBuckets')(
+const provisionBuckets = Effect.fn('provisionBuckets')(
   (
     buckets: Resources['buckets'],
     stage: string,

@@ -97,9 +97,9 @@ sits beside never reach the browser.
 | `chat/assistant.llm.ts` **new** · `chat/chat.llm.ts` *gone* | `AssistantLlm`: the prompts, `streamText`, `suggestTitle` over `LanguageModel` |
 | `attachment/attachment.bucket.ts` | `AttachmentBucketS3` over `S3Bucket`: keys, headers, the domain mapping; under 80 lines |
 | `shared/aws.client.ts` | `SQSServiceFromConfig`, `S3ServiceFromConfig`, **new** `S3BucketFromConfig` (bucket from `AwsConfig.stage`) |
-| `shared/queue.client.ts` · `outbox/outbox.entity.ts` · `outbox/outbox.relay.ts` | `body` as `jsonb` (the job's encoded JSON value); the relay's loop as one pipeline |
+| `shared/queue.client.ts` · `outbox/outbox.entity.ts` · `outbox/outbox.relay.ts` | `body` as `jsonb` (the job's encoded JSON value); the relay's loop as one pipeline; `OutboxRelay` requires `AwsConfig`, `OutboxRelaySqs` provides `AwsConfig.layer` |
 | `testing/e2e.test-setup.ts` **new** | the e2e `globalSetup`: Postgres + migrated template, MiniStack; `provide('databaseUrl')`, `provide('awsEndpoint')` |
-| `testing/aws.test-layer.ts` **new** | `AwsTest`: a stage per test, `provision(resources, stage)`, `AwsConfig` over `inject('awsEndpoint')` |
+| `testing/aws.test-layer.ts` **new** | `AwsTest`: a stage per test, `provision(resources, stage)`, `AwsConfig` over `inject('awsEndpoint')`, with the SQS and S3 clients |
 | `testing/rows.test-util.ts`, `testing/repository-stack.test-layer.ts` | as today |
 | `tests/shared/resources.test.ts` | the only pure suite |
 | `e2e/` **new** | `chat/chat.entity.e2e.ts`, `chat/message.entity.e2e.ts`, `chat/chat.repository.e2e.ts`, `chat/message.repository.e2e.ts`, `attachment/attachment.entity.e2e.ts`, `attachment/attachment.repository.e2e.ts`, `attachment/attachment.bucket.e2e.ts` **new**, `user/user.repository.e2e.ts`, `db/db.client.e2e.ts`, `db/migrate.e2e.ts`, `outbox/outbox.relay.e2e.ts`, `shared/queue.client.e2e.ts` |
@@ -110,8 +110,8 @@ sits beside never reach the browser.
 | File | Holds |
 |---|---|
 | `s3/bucket.ts` **new** · `s3/index.ts` · `s3/package.json` | `S3Bucket`, `S3Bucket.layer({ bucket })` over `S3Service`; `e2e/bucket.e2e.ts` |
-| `aws/provision.ts` | `provision(resources, stage)` creates the bucket too, idempotent like the queues |
-| `queue/e2e/queue.e2e.ts` | from `queue.test.ts`, on the run's MiniStack through `AwsTest` |
+| `aws/provision.ts` | `provision(resources, stage)` creates the bucket too, idempotent like the queues; `provisionQueues(queues, stage)` alone needs no S3 client |
+| `queue/e2e/queue.e2e.ts` | from `queue.test.ts`, on the run's MiniStack through `SqsClientTest` and `provisionQueues` under a stage of its own |
 | `testing/aws.test-layer.ts` **new** · `testing/ministack.test-layer.ts` *gone* | `SqsClientTest`, `S3ClientTest` over `inject('awsEndpoint')`; `ProvidedContext` gains `awsEndpoint` |
 | `testing/queue.test-fake.ts` **new** | `recordQueue()` → `{ sent, layer }`: a `QueueTransport` over a `Ref` |
 | `testing/postgres.test-layer.ts` | `PgClientTest`, as today |
@@ -440,8 +440,8 @@ export default async function setup(project: TestProject) {
 export const AwsTest = Layer.unwrap(Effect.gen(function* () {
   const stage = `e2e${crypto.randomUUID().slice(0, 8)}`
   yield* provision(resources, stage)
-  return Layer.succeed(AwsConfig, { endpoint: inject('awsEndpoint'), stage, region, credentials })
-}).pipe(Effect.provide(SqsClientTest), Effect.provide(S3ClientTest)))
+  return Layer.succeed(AwsConfig, { region, endpoint: Option.some(new URL(inject('awsEndpoint'))), stage })
+}).pipe(Layer.provideMerge([SqsClientTest, S3ClientTest]))
 ```
 
 ## Seams
@@ -455,7 +455,7 @@ export const AwsTest = Layer.unwrap(Effect.gen(function* () {
 | `ApiTest` over the memory layers (`apps/api/tests`) | statuses, the cookie, the wire shape, multipart limits | the database, S3 |
 | each `*RepositoryPg` on `DbTest` (`infrastructure/e2e`) | the `Where` as SQL (an owner mismatch reads as absent), the builders, the unique index on the active message, the relational reads, the cascade refusing a bound attachment | the rules above |
 | `OutboxRelay` on `DbTest` + `AwsTest` (`infrastructure/e2e`) | a batch locked, sent to SQS and deleted; a failed send keeps its rows; the `jsonb` body round trip | what the worker does with the job |
-| `S3Bucket` on `AwsTest` (`packages/s3/e2e`) | 0 bytes, exactly 5 MiB and 5 MiB + 1 as one `PutObject`, one part or two; a failed stream leaves no object and no open upload; `url`, `exists`, `untag`, `delete` on a missing key | the attachment keys and the domain mapping |
+| `S3Bucket` on `S3ClientTest` and a bucket the suite creates (`packages/s3/e2e`) | 0 bytes, exactly 5 MiB and 5 MiB + 1 as one `PutObject`, one part or two; a failed stream leaves no object and no open upload; `url`, `exists`, `untag`, `delete` on a missing key | the attachment keys and the domain mapping |
 | `AttachmentBucketS3` on `AwsTest` (`infrastructure/e2e`) | the key, the headers (type, disposition), the `unbound` tag on a `PutObject`, `keep` as `untag` | the tag on a multipart upload (MiniStack drops it) |
 | the journey over `StandTest` (`e2e/chat.e2e.ts`) | the wiring of both apps: HTTP → outbox → relay → SQS → worker → the stages and the title read back over HTTP; the delete that removes the objects | any rule (each has a lower seam); the production config |
 | `make bundle-check` | a service, port or adapter name in the web bundle | a type-only import that is erased |

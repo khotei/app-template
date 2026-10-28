@@ -653,7 +653,7 @@
   through `inject`; each test gets a stage whose bucket and queues it provisions; the queue
   suite and the relay run on it (R18, D8).
 - **Blocked by:** S5. *Parallel* with S7–S17 (its one shared file is
-  `infrastructure/testing/index.ts`, a line each).
+  `packages/testing/index.ts`, a line each).
 - **Files:** `infrastructure/testing/e2e.test-setup.ts` (starts both containers with `Promise.all`,
   `provide('awsEndpoint')`; `infrastructure/package.json` gains `testcontainers` in
   `devDependencies`); `packages/testing/aws.test-layer.ts` (`SqsClientTest`, `S3ClientTest` over
@@ -662,7 +662,7 @@
   (`@effect-aws/client-s3`); `packages/aws/provision.ts` (`provision(resources, stage)` creates
   the bucket too, idempotent; `packages/aws/package.json` gains `@effect-aws/client-s3`);
   `infrastructure/testing/aws.test-layer.ts` (`AwsTest`: a stage `e2e<8 hex>`, `provision`,
-  `AwsConfig` over the endpoint); `infrastructure/testing/index.ts`;
+  `AwsConfig` over the endpoint);
   `packages/queue/e2e/queue.e2e.ts` (on `SqsClientTest`, a stage of its own per `layer` block
   instead of `'test'`); `infrastructure/e2e/outbox/outbox.relay.e2e.ts` (one case on
   `QueueTransport.layerSqs` over `AwsTest`: the row reaches the stage's real queue; the
@@ -675,7 +675,26 @@
   from two shells both pass; `grep -rn "SqsClientMiniStack" --include=*.ts .` is empty;
   `make check`.
 - **Model:** fable high
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Beyond **Files**: `infrastructure/outbox/outbox.relay.ts` — `OutboxRelay` reads `AwsConfig`
+    from its context instead of providing `AwsConfig.layer`, which would override the test's
+    stage; `OutboxRelaySqs` provides it, so the worker is unchanged. `infrastructure/package.json`
+    gains `vitest` too, for `inject`.
+  - `AwsTest` publishes the SQS and S3 clients with `AwsConfig` (`provideMerge`), as `DbTest`
+    publishes `PgClient`; `AwsConfig` has no `credentials` field, so the sketch in
+    `architecture.md › Contracts` is corrected.
+  - `ministackRegion` and `generateStage` (the `e2e<8 hex>` stage) sit in
+    `packages/testing/aws.test-util.ts`, since the queue suite in `packages` cannot import
+    `infrastructure`; `generateStage` stays a plain function, like `PgClientTest`'s database name.
+  - `provision` is split into a private `provisionBuckets` and a public `provisionQueues`, so the
+    queue suite needs no S3 client; `Resources` keeps its full shape.
+  - No `infrastructure/testing/index.ts`: `naming.md` lists no barrel there; S12 adds it with
+    `exports["./testing"]`.
+  - For S23: `naming.md › Symbols` has no verb for an impure value maker such as `generateStage`.
+  - For S19 and S21: `packages/s3` cannot reach `AwsTest`, so its suite stays on `S3ClientTest`
+    and a bucket it creates; S21's `STAGE` is `AwsTest`'s, or the apps reach resources nobody
+    provisioned.
 
 #### S19 — `packages/s3`: `S3Bucket`
 
@@ -738,7 +757,7 @@
   `apps/api/package.json`, `apps/worker/package.json` (`exports["./layer"]`);
   `e2e/testing/stand.test-layer.ts` (`StandTest`: `ApiHttp` over `BunHttpServer.layerTest` and the
   api's config-fed adapters, merged with `WorkerLayer`, under one `ConfigProvider.fromUnknown`
-  of `DATABASE_URL` and `AWS_ENDPOINT_URL` from `inject`, `STAGE` from the test, and
+  of `DATABASE_URL` and `AWS_ENDPOINT_URL` from `inject`, `STAGE` as `AwsTest`'s stage, and
   `AWS_REGION`, `API_PORT`, `NODE_ENV`, `LOG_LEVEL`, `QUEUE_LOCK_EXPIRATION`,
   `QUEUE_LOCK_REFRESH_INTERVAL`, `OUTBOX_POLL_INTERVAL` fixed; `ApiClient.layer` on the
   `address` of the `HttpServer` service); `e2e/chat.e2e.ts` (a user, a chat, an upload, a
