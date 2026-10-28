@@ -18,6 +18,7 @@
     "@app-template/config": "workspace:*",
     "@app-template/domain": "workspace:*",
     "@app-template/queue": "workspace:*",
+    "@app-template/s3": "workspace:*",
     "@effect-aws/client-s3": "catalog:effect-aws",
     "@effect-aws/client-sqs": "catalog:effect-aws",
     "@effect/platform-bun": "catalog:effect",

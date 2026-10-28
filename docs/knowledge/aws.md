@@ -94,21 +94,24 @@ updates on create; Pulumi updates the queue in place.
 ## Attachments
 
 An attachment's record lives in Postgres; its bytes live in the `attachments` bucket under
-`attachments/<id>` (`AttachmentBucketS3` in `infrastructure/attachment/attachment.bucket.ts`).
-The api and the worker run on `AttachmentPgS3`.
+`attachments/<id>`. `AttachmentBucketS3` (`infrastructure/attachment/attachment.bucket.ts`)
+holds only the keys, the headers, the tag and the mapping to the domain port; the upload itself
+is `S3Bucket` in `packages/s3`, bound to the stage's bucket by `S3BucketFromConfig`
+(`infrastructure/shared/aws.client.ts`). The api and the worker run on `AttachmentPgS3`.
 
 - **Upload.** The file streams in and is never buffered whole: up to 5 MiB it is one `PutObject`,
   above that a multipart upload in 5 MiB parts, so a file within `maxFileSize` takes two at most.
-  A failing or interrupted upload is aborted, so it leaves neither an object nor a stray upload;
-  the bucket's rule that aborts incomplete uploads is the backstop for a crashed process.
+  The latest part is held back until the stream ends, so a failing or interrupted upload is
+  aborted and leaves neither an object nor a stray upload; the bucket's rule that aborts
+  incomplete uploads is the backstop for a crashed process.
 - **The object says how it is served.** Its media type and an `inline` disposition with the file
   name are written at upload, so the download URL is signed without overrides.
 - **The unbound tag.** A new object carries `unbound=true`, sent with the `PutObject` or
   `CreateMultipartUpload` that writes it, and the bucket's expiration rule
   ([The inventory](#the-inventory)) acts on the tag; locally a file over 5 MiB stays untagged
-  ([Tests on Docker](#tests-on-docker)). Binding the attachment removes the tag before the bind
-  is written, so a crash between leaves an orphaned object, never a bound attachment without
-  bytes.
+  ([Tests on Docker](#tests-on-docker)), so `attachment.bucket.e2e.ts` asserts the tag on a
+  small upload only. Binding the attachment removes the tag before the bind is written, so a
+  crash between leaves an orphaned object, never a bound attachment without bytes.
 - **Expiry.** An attachment still unbound 24 hours after its upload (`unboundLifetime` in
   `domain/attachment`) reads as not found everywhere; no read deletes it, since a delete on read
   would race a send binding it. Its object goes by the bucket's rule, which acts after
