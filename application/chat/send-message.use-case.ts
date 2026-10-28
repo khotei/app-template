@@ -1,7 +1,11 @@
 import { Context, Effect, Layer } from 'effect'
 import { SqlClient } from 'effect/sql'
 
-import type { AttachmentBoundError, AttachmentNotFoundError } from '@app-template/domain/attachment'
+import {
+  type AttachmentBoundError,
+  type AttachmentNotFoundError,
+  AttachmentService,
+} from '@app-template/domain/attachment'
 import type {
   ChatBusyError,
   ChatId,
@@ -12,7 +16,6 @@ import type {
 } from '@app-template/domain/chat'
 import type { UserId } from '@app-template/domain/user'
 
-import { AttachmentService } from '#application/attachment/attachment.service'
 import { AssistantMessageJob } from '#application/chat/assistant-message.job'
 import { ChatService } from '#application/chat/chat.service'
 import { ChatTitleJob } from '#application/chat/chat-title.job'

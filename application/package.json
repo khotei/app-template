@@ -3,7 +3,6 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./attachment": "./attachment/index.ts",
     "./chat": "./chat/index.ts",
     "./testing": "./testing/index.ts"
   },

@@ -5,34 +5,6 @@ import { Array as Arr, Duration, Effect, Exit, HashMap, Layer, Option, Ref, Stre
 import { TestClock } from 'effect/testing'
 
 import {
-  Attachment,
-  AttachmentBoundError,
-  AttachmentBucket,
-  type AttachmentId,
-  AttachmentNotFoundError,
-  AttachmentRepository,
-  buildAttachment,
-  FileName,
-  FileSize,
-  MediaType,
-} from '@app-template/domain/attachment'
-import { buildUserMessage, ChatRepository, MessageRepository } from '@app-template/domain/chat'
-import {
-  AttachmentBucketObjects,
-  AttachmentBucketTest,
-  chat,
-  chatId,
-  epoch,
-  messageId,
-  owner,
-  stranger,
-  unknownAttachmentId,
-} from '@app-template/domain/testing'
-import type { UserId } from '@app-template/domain/user'
-import { AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
-import { ChatPg } from '@app-template/infrastructure/chat'
-import { Db } from '@app-template/infrastructure/db'
-import {
   assertSchemaEquals,
   breakAfter,
   isUuidV7,
@@ -40,40 +12,46 @@ import {
   StreamBrokenError,
 } from '@app-template/testing'
 
-import { AttachmentService } from '#application/attachment/attachment.service'
-import { upload } from '#application/testing/chat.test-layer'
-import { DbWithUsersTest } from '#application/testing/db.test-layer'
+import { AttachmentBoundError, AttachmentNotFoundError } from '#domain/attachment/attachment.error'
+import type { AttachmentId } from '#domain/attachment/attachment.id'
+import {
+  Attachment,
+  buildAttachment,
+  FileName,
+  FileSize,
+  MediaType,
+} from '#domain/attachment/attachment.model'
+import { AttachmentBucket, AttachmentRepository } from '#domain/attachment/attachment.port'
+import { AttachmentService } from '#domain/attachment/attachment.service'
+import {
+  AttachmentBucketObjects,
+  AttachmentBucketTest,
+  AttachmentRepositoryTest,
+  AttachmentRows,
+} from '#domain/testing/attachment.test-fake'
+import { unknownAttachmentId } from '#domain/testing/attachment.test-fixture'
+import { epoch, messageId } from '#domain/testing/chat.test-fixture'
+import { owner, stranger } from '#domain/testing/user.test-fixture'
+import type { UserId } from '#domain/user/user.id'
 
-const insertMessage = Effect.gen(function* () {
-  const chats = yield* ChatRepository
-  const messages = yield* MessageRepository
-
-  yield* chats.insert(chat)
-  yield* messages.insert(buildUserMessage({ id: messageId, chatId, text: '', createdAt: epoch }))
-})
-
-/** `DbWithUsersTest` where `messageId` exists in a chat of `owner`, so an attachment can bind to it. */
-const DbWithMessage = Layer.effectDiscard(insertMessage).pipe(
-  Layer.provide(ChatPg),
-  Layer.provideMerge(DbWithUsersTest),
-)
-
-/** The service over `repository` and `AttachmentBucketTest`, on a fresh test database. */
-const layerAttachmentService = (repository: Layer.Layer<AttachmentRepository, never, Db>) =>
+/** The service over `repository` and `AttachmentBucketTest`, on fresh rows. */
+const layerAttachmentService = (
+  repository: Layer.Layer<AttachmentRepository, never, AttachmentRows>,
+) =>
   AttachmentService.layer.pipe(
     Layer.provideMerge(Layer.mergeAll(repository, AttachmentBucketTest)),
     Layer.provide(BunCrypto.layer),
-    Layer.provideMerge(DbWithMessage),
+    Layer.provideMerge(AttachmentRows.layer),
   )
 
-const AttachmentServiceTest = layerAttachmentService(AttachmentRepositoryPg)
+const AttachmentServiceTest = layerAttachmentService(AttachmentRepositoryTest)
 
 const AttachmentRepositoryInsertDying = Layer.effect(
   AttachmentRepository,
   Effect.map(AttachmentRepository, (inner) =>
     AttachmentRepository.of({ ...inner, insert: () => Effect.die('the record write was lost') }),
   ),
-).pipe(Layer.provide(AttachmentRepositoryPg))
+).pipe(Layer.provide(AttachmentRepositoryTest))
 
 const AttachmentServiceRecordLost = layerAttachmentService(AttachmentRepositoryInsertDying)
 
@@ -81,13 +59,18 @@ const photo = { fileName: FileName.make('photo.png'), mediaType: MediaType.make(
 
 const photoUpload = { ...photo, content: Stream.make(png) }
 
-const uploadPhoto = upload(owner, 'photo.png')
+const upload = (userId: UserId) =>
+  Effect.flatMap(AttachmentService, (service) =>
+    service.upload(userId, Stream.make(photoUpload)),
+  ).pipe(
+    Effect.flatMap((uploaded) => Effect.fromOption(Arr.head(uploaded))),
+    Effect.orDie,
+  )
+
+const uploadPhoto = upload(owner)
 
 const countStored = Effect.all({
-  rows: Effect.flatMap(Db, (db) => db.query.attachments.findMany({ columns: { id: true } })).pipe(
-    Effect.map(Arr.length),
-    Effect.orDie,
-  ),
+  rows: Effect.flatMap(AttachmentRows, Ref.get).pipe(Effect.map(HashMap.size)),
   objects: Effect.flatMap(AttachmentBucketObjects, Ref.get).pipe(Effect.map(HashMap.size)),
 })
 
@@ -328,6 +311,33 @@ describe('AttachmentService', () => {
       }).pipe(Effect.provide(AttachmentServiceTest)),
   )
 
+  it.effect('bind names the first id not found in the order asked and binds nothing', () =>
+    Effect.gen(function* () {
+      const service = yield* AttachmentService
+      const free = yield* uploadPhoto
+      const foreign = yield* upload(stranger)
+
+      const strangerFirst = yield* Effect.flip(
+        service.bind(owner, [free.id, foreign.id, unknownAttachmentId], messageId),
+      )
+      const unknownFirst = yield* Effect.flip(
+        service.bind(owner, [free.id, unknownAttachmentId, foreign.id], messageId),
+      )
+
+      assertSchemaEquals(
+        AttachmentNotFoundError,
+        strangerFirst,
+        new AttachmentNotFoundError({ id: foreign.id }),
+      )
+      assertSchemaEquals(
+        AttachmentNotFoundError,
+        unknownFirst,
+        new AttachmentNotFoundError({ id: unknownAttachmentId }),
+      )
+      assertEquals(yield* selectStored([free.id, foreign.id]), [free, foreign])
+    }).pipe(Effect.provide(AttachmentServiceTest)),
+  )
+
   it.effect('bind with a bound attachment is AttachmentBoundError and binds nothing else', () =>
     Effect.gen(function* () {
       const service = yield* AttachmentService
@@ -341,6 +351,7 @@ describe('AttachmentService', () => {
       assertEquals(yield* selectStored([free.id, taken.id]), [free, boundTo(taken)])
     }).pipe(Effect.provide(AttachmentServiceTest)),
   )
+
   it.effect(
     'deleteByIds removes bound and unbound attachments with their bytes, and only them',
     () =>

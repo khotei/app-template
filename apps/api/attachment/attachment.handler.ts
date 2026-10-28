@@ -2,8 +2,7 @@ import { Array as Arr, Effect, Option, Schema, Stream } from 'effect'
 import { HttpServerResponse, Mime, Multipart } from 'effect/http'
 import { HttpApiBuilder } from 'effect/http-api'
 
-import { AttachmentService } from '@app-template/application/attachment'
-import { FileName, type MediaType } from '@app-template/domain/attachment'
+import { AttachmentService, FileName, type MediaType } from '@app-template/domain/attachment'
 import {
   Api,
   AttachmentMediaType,

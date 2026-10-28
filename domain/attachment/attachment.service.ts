@@ -6,31 +6,36 @@ import {
   Effect,
   Layer,
   Option,
+  Predicate,
   Ref,
   Stream,
   Struct,
 } from 'effect'
 
+import { AttachmentBoundError, AttachmentNotFoundError } from '#domain/attachment/attachment.error'
+import { AttachmentId } from '#domain/attachment/attachment.id'
 import {
   type Attachment,
-  AttachmentBoundError,
-  AttachmentBucket,
   type AttachmentDownload,
-  AttachmentId,
   type AttachmentMeta,
-  AttachmentNotFoundError,
-  AttachmentRepository,
   buildAttachment,
-  ensureBindable,
-  isVisibleTo,
-} from '@app-template/domain/attachment'
-import type { MessageId } from '@app-template/domain/chat'
-import { ensureFound } from '@app-template/domain/shared'
-import type { UserId } from '@app-template/domain/user'
+  isExpired,
+} from '#domain/attachment/attachment.model'
+import { AttachmentBucket, AttachmentRepository } from '#domain/attachment/attachment.port'
+import type { MessageId } from '#domain/chat/chat.id'
+import type { UserId } from '#domain/user/user.id'
 
 export interface AttachmentUpload<E> extends AttachmentMeta {
   readonly content: Stream.Stream<Uint8Array, E>
 }
+
+const isUnbound = (attachment: Attachment): boolean => Option.isNone(attachment.messageId)
+
+const ensureUnbound = (id: AttachmentId) =>
+  Effect.filterOrFail<Attachment, AttachmentBoundError>(
+    isUnbound,
+    () => new AttachmentBoundError({ id }),
+  )
 
 /** An attachment unbound for `unboundLifetime` reads as not found; no read deletes it. */
 export class AttachmentService extends Context.Service<
@@ -76,7 +81,7 @@ export class AttachmentService extends Context.Service<
      */
     readonly deleteByIds: (ids: ReadonlyArray<AttachmentId>) => Effect.Effect<void>
   }
->()('@app-template/application/attachment/AttachmentService', {
+>()('@app-template/domain/attachment/AttachmentService', {
   make: Effect.gen(function* () {
     const attachments = yield* AttachmentRepository
     const bucket = yield* AttachmentBucket
@@ -93,8 +98,14 @@ export class AttachmentService extends Context.Service<
 
     const uploadFile = Effect.fnUntraced(function* <E>(
       file: AttachmentUpload<E>,
-      { id, userId }: { readonly id: AttachmentId; readonly userId: UserId },
+      {
+        userId,
+        tracked,
+      }: { readonly userId: UserId; readonly tracked: Ref.Ref<ReadonlyArray<AttachmentId>> },
     ) {
+      const id = yield* randomAttachmentId
+      // Tracked before the write, not after the insert: a lost record still deletes the bytes.
+      yield* Ref.update(tracked, Arr.append(id))
       const createdAt = yield* DateTime.now
 
       const meta = Struct.pick(file, ['mediaType', 'fileName'])
@@ -109,27 +120,22 @@ export class AttachmentService extends Context.Service<
       userId: UserId,
       files: Stream.Stream<AttachmentUpload<E>, E>,
     ) {
-      const tracked = yield* Ref.make(Arr.empty<AttachmentId>())
-      // Tracked before the write, not after the insert: a lost record still deletes the bytes.
-      const trackId = Effect.tap(randomAttachmentId, (id) => Ref.update(tracked, Arr.append(id)))
+      const tracked = yield* Ref.make<ReadonlyArray<AttachmentId>>(Arr.empty())
       const deleteTracked = Effect.flatMap(Ref.get(tracked), deleteByIds)
 
       return yield* files.pipe(
-        Stream.mapEffect((file) =>
-          Effect.flatMap(trackId, (id) => uploadFile(file, { id, userId })),
-        ),
+        Stream.mapEffect((file) => uploadFile(file, { userId, tracked })),
         Stream.runCollect,
         Effect.onError(() => deleteTracked),
       )
     })
 
     const get = Effect.fn('AttachmentService.get')(function* (userId: UserId, id: AttachmentId) {
-      const found = yield* attachments.selectById(id)
+      const found = yield* attachments.selectOne({ id, userId })
       const now = yield* DateTime.now
 
-      return yield* ensureFound(
-        found,
-        isVisibleTo(userId, now),
+      return yield* Effect.fromOption(
+        Option.filter(found, Predicate.not(isExpired(now))),
         () => new AttachmentNotFoundError({ id }),
       )
     })
@@ -149,9 +155,7 @@ export class AttachmentService extends Context.Service<
       userId: UserId,
       id: AttachmentId,
     ) {
-      const found = yield* attachments.selectById(id)
-      const now = yield* DateTime.now
-      yield* ensureBindable(found, { id, userId, now })
+      yield* get(userId, id).pipe(ensureUnbound(id))
 
       yield* attachments.deleteByIds([id])
       yield* bucket.delete(id)
@@ -166,10 +170,18 @@ export class AttachmentService extends Context.Service<
       const stored = yield* attachments.selectByIds(ids)
       const now = yield* DateTime.now
       const found = new Map(Arr.map(stored, (attachment) => [attachment.id, attachment]))
-
-      yield* Effect.forEach(ids, (id) =>
-        ensureBindable(Option.fromUndefinedOr(found.get(id)), { id, userId, now }),
+      const isVisible: Predicate.Predicate<Attachment> = Predicate.and(
+        Predicate.Struct({ userId: (owner: UserId) => owner === userId }),
+        Predicate.not(isExpired(now)),
       )
+      const ensureBindable = (id: AttachmentId) =>
+        Option.fromUndefinedOr(found.get(id)).pipe(
+          Option.filter(isVisible),
+          Effect.fromOption(() => new AttachmentNotFoundError({ id })),
+          ensureUnbound(id),
+        )
+
+      yield* Effect.forEach(ids, ensureBindable, { discard: true })
 
       // Keep first: unbound bytes expire, so a crash must never leave a bound row over them.
       yield* Effect.forEach(ids, bucket.keep, { discard: true })

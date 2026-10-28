@@ -2,6 +2,7 @@ import {
   Array as Arr,
   Context,
   Effect,
+  flow,
   HashMap,
   Layer,
   Option,
@@ -49,7 +50,11 @@ export const AttachmentRepositoryTest = Layer.effect(
             (written) => [HashMap.toValues(written), HashMap.union(map, written)] as const,
           ),
         ),
-      selectById: (id) => Effect.map(Ref.get(rows), HashMap.get(id)),
+      selectOne: (where) =>
+        Effect.map(
+          Ref.get(rows),
+          flow(HashMap.get(where.id), Option.filter(matches(Struct.omit(where, ['id'])))),
+        ),
       selectByIds: (ids) =>
         Ref.get(rows).pipe(
           Effect.map((map) => Arr.map(ids, (id) => HashMap.get(map, id))),

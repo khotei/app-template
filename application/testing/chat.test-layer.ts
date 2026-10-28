@@ -4,6 +4,7 @@ import { Array as Arr, DateTime, Effect, Layer, Stream } from 'effect'
 import {
   type Attachment,
   AttachmentRepository,
+  AttachmentService,
   FileName,
   MediaType,
 } from '@app-template/domain/attachment'
@@ -23,7 +24,6 @@ import type { Db } from '@app-template/infrastructure/db'
 import { QueueClientOutbox } from '@app-template/infrastructure/shared'
 import { png } from '@app-template/testing'
 
-import { AttachmentService } from '#application/attachment/attachment.service'
 import { ChatService } from '#application/chat/chat.service'
 import { DeleteChatUseCase } from '#application/chat/delete-chat.use-case'
 import { SendMessageUseCase } from '#application/chat/send-message.use-case'

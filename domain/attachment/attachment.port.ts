@@ -11,6 +11,11 @@ export type AttachmentWhere = Types.Simplify<
   { readonly id: ReadonlyArray<AttachmentId> } & Partial<Pick<Attachment, 'messageId'>>
 >
 
+/** `id` finds the row; `userId` must still hold, so an owner mismatch reads as absent. */
+export type AttachmentOneWhere = Types.Simplify<
+  { readonly id: AttachmentId } & Partial<Pick<Attachment, 'userId'>>
+>
+
 export class AttachmentRepository extends Context.Service<
   AttachmentRepository,
   {
@@ -20,7 +25,7 @@ export class AttachmentRepository extends Context.Service<
       set: AttachmentSet,
       where: AttachmentWhere,
     ) => Effect.Effect<ReadonlyArray<Attachment>>
-    readonly selectById: (id: AttachmentId) => Effect.Effect<Option.Option<Attachment>>
+    readonly selectOne: (where: AttachmentOneWhere) => Effect.Effect<Option.Option<Attachment>>
     /** Returns the attachments found, in the order asked; unknown ids are left out. */
     readonly selectByIds: (
       ids: ReadonlyArray<AttachmentId>,

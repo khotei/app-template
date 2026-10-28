@@ -1,9 +1,7 @@
-import { DateTime, Duration, Effect, Option, Predicate, Schema } from 'effect'
+import { DateTime, Duration, Option, type Predicate, Schema } from 'effect'
 
-import { AttachmentBoundError, AttachmentNotFoundError } from '#domain/attachment/attachment.error'
 import { AttachmentId } from '#domain/attachment/attachment.id'
 import { MessageId } from '#domain/chat/chat.id'
-import { ensureFound, isOwnedBy } from '#domain/shared/guard'
 import { UserId } from '#domain/user/user.id'
 
 export const FileName = Schema.String.check(Schema.isNonEmpty()).pipe(Schema.brand('FileName'))
@@ -67,29 +65,11 @@ export const buildAttachment = (input: {
 
 export const unboundLifetime = Duration.hours(24)
 
-const isExpired = (attachment: Attachment, now: DateTime.Utc): boolean =>
-  Option.isNone(attachment.messageId) &&
-  DateTime.isGreaterThanOrEqualTo(now, DateTime.addDuration(attachment.createdAt, unboundLifetime))
-
-export const isVisibleTo = (userId: UserId, now: DateTime.Utc): Predicate.Predicate<Attachment> =>
-  Predicate.and(
-    isOwnedBy(userId),
-    Predicate.not((attachment: Attachment) => isExpired(attachment, now)),
-  )
-
-export const ensureBindable = Effect.fn('ensureBindable')(function* (
-  found: Option.Option<Attachment>,
-  {
-    id,
-    userId,
-    now,
-  }: { readonly id: AttachmentId; readonly userId: UserId; readonly now: DateTime.Utc },
-) {
-  const owned = yield* ensureFound(
-    found,
-    isVisibleTo(userId, now),
-    () => new AttachmentNotFoundError({ id }),
-  )
-  if (Option.isSome(owned.messageId)) return yield* new AttachmentBoundError({ id })
-  return owned
-})
+export const isExpired =
+  (now: DateTime.Utc): Predicate.Predicate<Attachment> =>
+  (attachment) =>
+    Option.isNone(attachment.messageId) &&
+    DateTime.isGreaterThanOrEqualTo(
+      now,
+      DateTime.addDuration(attachment.createdAt, unboundLifetime),
+    )

@@ -23,6 +23,8 @@ const createdAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')
 
 const userId = UserId.make('0192d4e0-7b3a-7c00-8000-000000000010')
 
+const strangerId = UserId.make('0192d4e0-7b3a-7c00-8000-000000000011')
+
 const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000040')
 
 const messageId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000050')
@@ -59,13 +61,30 @@ describe('AttachmentRepositoryPg', () => {
       yield* insertMessage
       yield* attachments.insert(unbound)
 
-      const beforeBind = yield* attachments.selectById(unbound.id)
+      const beforeBind = yield* attachments.selectOne({ id: unbound.id })
       yield* attachments.update({ messageId: Option.some(messageId) }, { id: [unbound.id] })
-      const afterBind = yield* attachments.selectById(unbound.id)
+      const afterBind = yield* attachments.selectOne({ id: unbound.id })
 
       assertSchemaEquals(SelectedAttachment, beforeBind, Option.some(unbound))
       assertSchemaEquals(SelectedAttachment, afterBind, Option.some(bound))
     }).pipe(Effect.provide(RepositoryStackPgTest)),
+  )
+
+  it.effect(
+    "selectOne with the owner's id finds the attachment; with a stranger's it is none",
+    () =>
+      Effect.gen(function* () {
+        const attachments = yield* AttachmentRepository
+        const stored = attachment('0192d4e0-7b3a-7c00-8000-000000000021')
+        yield* insertMessage
+        yield* attachments.insert(stored)
+
+        const owned = yield* attachments.selectOne({ id: stored.id, userId })
+        const foreign = yield* attachments.selectOne({ id: stored.id, userId: strangerId })
+
+        assertSchemaEquals(SelectedAttachment, owned, Option.some(stored))
+        assert.deepStrictEqual(foreign, Option.none())
+      }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
   it.effect('update where unbound returns the ones it bound and leaves one bound before', () =>
