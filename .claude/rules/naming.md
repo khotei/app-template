@@ -12,7 +12,7 @@ paths:
   packages `<dir>` (`@app-template/config`), apps `{api,worker,web}`, and `deployment`.
 - A layer exposes each entity as a subpath through its barrel: `@app-template/domain/chat` →
   `domain/chat/index.ts`. `http-api` and each package have one entry, `index.ts` or `client.ts`;
-  `infrastructure` and `application` may add `./testing` (`Files` below).
+  `queue`, `infrastructure` and `application` may add `./testing` (`Files` below).
 
 ## Imports
 
@@ -54,10 +54,10 @@ kebab name (`layer.ts`), and a tool's config file the name its tool reads (`driz
 `tests/` and `e2e/` sit at the workspace's top and mirror the source path
 (`domain/tests/chat/message.model.test.ts`); a module folder holds no test. Test-support roles
 live only in `testing/`, listed by no barrel or `exports` save the `packages/testing` index,
-`@app-template/domain/testing` (the memory layers and the fixtures),
-`@app-template/infrastructure/testing` (`DbTest`, the identity `TransactionTest`, the recording
-queue) and `@app-template/application/testing`, which the apps' suites compose instead of
-copying.
+`@app-template/domain/testing` (the memory layers and the fixtures), `@app-template/queue/testing`
+(the recording queue), `@app-template/infrastructure/testing` (`DbTest`, the identity
+`TransactionTest`) and `@app-template/application/testing`, which the apps' suites compose
+instead of copying.
 
 ## Symbols
 

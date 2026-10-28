@@ -259,8 +259,8 @@ one body over every implementation of its port and provides the layer per test
 ([effect-tests.md](../../.claude/rules/effect-tests.md)); the facts only Postgres has (a check, a
 partial unique index, a transaction) sit in a suite of their own. The service and use case
 suites run over the memory layers of `@app-template/domain/testing` instead, the use cases with
-`TransactionTest` (the identity) and the recording queue from
-`@app-template/infrastructure/testing`. The repository suites share the stacks of every
+`TransactionTest` (the identity, from `@app-template/infrastructure/testing`) and the recording
+queue from `@app-template/queue/testing`. The repository suites share the stacks of every
 repository from `infrastructure/testing/repository-stack.test-layer.ts` and insert the parent
 rows with `insertUser` and its siblings from `infrastructure/testing/rows.test-util.ts`. The api
 test layer provides `QueueClientOutbox`, so a send's jobs land in the test database's outbox. An

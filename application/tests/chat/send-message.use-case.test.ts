@@ -25,7 +25,7 @@ import {
   stranger,
   upload,
 } from '@app-template/domain/testing'
-import { recordQueue } from '@app-template/infrastructure/testing'
+import { recordQueue } from '@app-template/queue/testing'
 import { assertSchemaEquals, isUuidV7, sortById } from '@app-template/testing'
 
 import { SendMessageUseCase } from '#application/chat/send-message.use-case'

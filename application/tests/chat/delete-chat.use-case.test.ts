@@ -5,7 +5,7 @@ import { Effect, Layer, Option } from 'effect'
 import { AttachmentBucket } from '@app-template/domain/attachment'
 import { ChatService } from '@app-template/domain/chat'
 import { chat, owner, upload } from '@app-template/domain/testing'
-import { recordQueue } from '@app-template/infrastructure/testing'
+import { recordQueue } from '@app-template/queue/testing'
 
 import { DeleteChatUseCase } from '#application/chat/delete-chat.use-case'
 import { SendMessageUseCase } from '#application/chat/send-message.use-case'

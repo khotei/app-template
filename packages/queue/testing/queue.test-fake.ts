@@ -1,6 +1,6 @@
 import { Array as Arr, Effect, Layer, Ref } from 'effect'
 
-import { type MessageContent, QueueTransport } from '@app-template/queue'
+import { type MessageContent, QueueTransport } from '#queue/queue.transport'
 
 /** A message the recording transport took: the physical queue's name with the content sent. */
 export interface SentMessage extends MessageContent {
