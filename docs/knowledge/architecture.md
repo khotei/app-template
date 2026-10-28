@@ -195,11 +195,11 @@ checks what the import rules leave to tree shaking, the web bundle:
 
 The Biome overrides are **deny-lists**: each names the workspaces a layer must not import. A new
 `packages/*` workspace therefore needs no change to them, while a new layer or app does. Test
-files follow their workspace's override, save `domain/tests/**` and `domain/testing/**`: one
-override of their own, after domain's, lets the tests and the test support import
-`@app-template/testing` and `@effect/platform-bun`. Overrides that match the same file replace
-each other's options rather than merge, so every override repeats the relative-path ban, and the
-domain test override repeats every domain ban. Symptoms
+files follow their workspace's override, save `domain/tests/**` and `domain/testing/**`: an
+override each, after domain's, lets both import `@app-template/testing`, and the tests alone
+`@effect/platform-bun`. Overrides that match the same file replace each other's options rather
+than merge, so every override repeats the relative-path ban, and the two domain test overrides
+repeat every domain ban. Symptoms
 and fixes:
 [tooling.md › Troubleshooting](tooling.md#troubleshooting).
 

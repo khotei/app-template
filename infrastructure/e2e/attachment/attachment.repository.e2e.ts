@@ -140,6 +140,29 @@ describe('AttachmentRepositoryPg', () => {
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
+  it.effect("selects by owner all of the owner's attachments and none of a stranger's", () =>
+    Effect.gen(function* () {
+      const attachments = yield* AttachmentRepository
+      const owned = [
+        attachment('0192d4e0-7b3a-7c00-8000-000000000021'),
+        attachment('0192d4e0-7b3a-7c00-8000-000000000022'),
+      ]
+      const foreign = new Attachment({
+        ...attachment('0192d4e0-7b3a-7c00-8000-000000000026'),
+        userId: strangerId,
+      })
+      yield* insertMessage
+      yield* insertOwnedChats(strangerId, [])
+      yield* Effect.forEach(Arr.append(owned, foreign), attachments.insert)
+
+      const ownersRows = yield* attachments.selectMany({ userId })
+      const strangersRows = yield* attachments.selectMany({ userId: strangerId })
+
+      assertSchemaEquals(Attachments, sortById(ownersRows), sortById(owned))
+      assertSchemaEquals(Attachments, strangersRows, [foreign])
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
+  )
+
   it.effect('deletes the attachments asked for and keeps the rest', () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentRepository

@@ -425,7 +425,27 @@
 - **Verify:** `grep -rn "isVisibleTo\|ensureFound" domain/attachment` is empty;
   `ls application/attachment` fails; `make test-unit`; `make check`.
 - **Model:** fable high
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - `selectOne` takes `AttachmentOneWhere` (`id` required, `userId` optional); the batch
+    `AttachmentWhere` gains `userId` and is `RequireAtLeastOne` over `id` and `userId`, so
+    `selectMany({ userId })` reads a user's attachments, `{}` fails to typecheck, and
+    `update(set, { userId })` writes every row of that user. Without `id` the order is the
+    store's.
+  - `selectByIds(ids)` is `selectMany(where)`, over the same `Where` and `encodeWhere` as
+    `update`, so `bind` takes ownership from the query and the write: no owner check in memory.
+  - The unbound rule is the model's plain guard `ensureUnbound`; `isExpired` is
+    `isExpiredAt(now)`, curried, whose boundary cases moved into `attachment.model.test.ts`
+    (beyond **Files**).
+  - The upload generates and tracks each id inside its one `Stream.mapEffect` step;
+    `uploadFile` takes its id as input.
+  - One `upload(userId)` arrange step in `domain/testing/attachment.test-layer.ts`, used by the
+    domain suite and the three `application` e2e suites; `domain/testing` may import
+    `@app-template/testing` (its own Biome override), `domain/tests` also `@effect/platform-bun`.
+  - For S10: `selectOne` runs on the query builder. Drizzle's relational query (`findFirst`,
+    `with`) aliases the table, so a `RAW` filter built by `buildWhere` from the table's columns
+    fails with `42P01`; a relational read takes a filter object.
+  - For S23: `domain/CLAUDE.md` still lists models, errors, ports and pure operations only.
 
 #### S10 — `ChatService` to the domain; the one-line helpers gone
 

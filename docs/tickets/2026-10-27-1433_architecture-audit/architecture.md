@@ -64,8 +64,8 @@ Every `tests/` and `e2e/` file mirrors the source path; test support lives only 
 | `chat/assistant.port.ts` **new** | `Assistant`, `AssistantTurn` |
 | `chat/chat.service.ts` | `ChatService` (domain), `SendableChat` |
 | `chat/message.service.ts` **new** | `MessageService` |
-| `attachment/attachment.port.ts` **new** | `AttachmentRepository`, `AttachmentBucket`, `AttachmentSet`, `AttachmentWhere` |
-| `attachment/attachment.model.ts` | model, `buildAttachment`, `unboundLifetime`, `isVisibleTo`, `ensureBindable` |
+| `attachment/attachment.port.ts` **new** | `AttachmentRepository`, `AttachmentBucket`, `AttachmentSet`, `AttachmentWhere`, `AttachmentOneWhere` |
+| `attachment/attachment.model.ts` | model, `buildAttachment`, `unboundLifetime`, `isExpiredAt`, `ensureUnbound` |
 | `attachment/attachment.service.ts` | `AttachmentService` (domain) |
 | `user/user.port.ts` **new** · `user/user.service.ts` | `UserRepository` · `UserService` (domain), `UserSecret` |
 | `shared/` *gone* | `ensureFound` and the `./shared` export |
@@ -209,8 +209,10 @@ export class Assistant extends Context.Service<Assistant, {
 }>()('@app-template/domain/chat/Assistant') {}
 ```
 
-`AttachmentWhere` gains `userId` the same way (`selectOne({ id, userId })`); `AttachmentBucket`
-and `UserRepository` keep today's methods.
+`selectOne` takes `AttachmentOneWhere`, `{ id }` with an optional `userId`; the batch
+`AttachmentWhere` of `selectMany` (was `selectByIds`) and `update` gains `userId` and requires at
+least one of `id` (an array) and `userId`; `AttachmentBucket` and `UserRepository` keep today's
+methods.
 
 ### Domain services
 
@@ -527,7 +529,7 @@ export const AwsTest = Layer.unwrap(Effect.gen(function* () {
   attachments' bytes, which R15's list left out. *Rejected:* a bucket per call.
 - **D10 — Ownership is a `Where` field, not a predicate.** `selectOne({ id, userId })` lets the
   database answer "not yours" and "not found" alike; for messages the chat's `userId` is a
-  nested relation filter of the relational query. `isExpired` stays a predicate, since it reads
+  nested relation filter of the relational query. `isExpiredAt` stays a predicate, since it reads
   the clock. *Rejected:* `ensureFound` with `isOwnedBy` after the read.
 - **D11 — Test files carry their kind: `tests/**/*.test.ts` and `e2e/**/*.e2e.ts`.** The
   vitest projects select by folder and suffix at once, and an editor tab tells the kinds apart.
