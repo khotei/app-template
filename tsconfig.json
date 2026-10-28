@@ -9,6 +9,7 @@
     { "path": "./packages/config" },
     { "path": "./packages/queue" },
     { "path": "./packages/llm" },
+    { "path": "./packages/s3" },
     { "path": "./packages/testing" },
     { "path": "./packages/ui" },
     { "path": "./apps/api" },

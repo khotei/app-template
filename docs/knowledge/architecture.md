@@ -14,7 +14,7 @@ graph TD
   application --> domain
   apps -->|"apps/api only"| httpApi["http-api"]
   httpApi --> domain
-  apps --> packages["packages/* (aws · config · queue · llm · testing · ui)"]
+  apps --> packages["packages/* (aws · config · queue · llm · s3 · testing · ui)"]
   application --> packages
   infrastructure --> packages
   web["apps/web client"] --> httpApi

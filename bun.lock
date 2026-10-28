@@ -151,6 +151,17 @@
         "@effect/vitest": "catalog:effect",
       },
     },
+    "packages/s3": {
+      "name": "@app-template/s3",
+      "dependencies": {
+        "@effect-aws/client-s3": "catalog:effect-aws",
+        "effect": "catalog:effect",
+      },
+      "devDependencies": {
+        "@app-template/testing": "workspace:*",
+        "@effect/vitest": "catalog:effect",
+      },
+    },
     "packages/testing": {
       "name": "@app-template/testing",
       "dependencies": {
@@ -222,6 +233,8 @@
     "@app-template/llm": ["@app-template/llm@workspace:packages/llm"],
 
     "@app-template/queue": ["@app-template/queue@workspace:packages/queue"],
+
+    "@app-template/s3": ["@app-template/s3@workspace:packages/s3"],
 
     "@app-template/testing": ["@app-template/testing@workspace:packages/testing"],
 
