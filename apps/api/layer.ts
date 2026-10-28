@@ -36,7 +36,6 @@ export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
     DeleteChatUseCase.layer,
     RuntimeConfig.layer,
   ]),
-  Layer.provide([UserPg, ChatPg]),
 )
 
 const BunHttpServerFromConfig = Layer.unwrap(
@@ -46,7 +45,7 @@ const BunHttpServerFromConfig = Layer.unwrap(
 const LogApiStopped = Layer.effectDiscard(Effect.addFinalizer(() => Effect.logInfo('api stopped')))
 
 export const ApiLayer = Layer.merge(ApiHttp, LogApiStopped).pipe(
-  Layer.provide([AttachmentPgS3, QueueClientOutbox, Transaction.layer]),
+  Layer.provide([UserPg, ChatPg, AttachmentPgS3, QueueClientOutbox, Transaction.layer]),
   Layer.provide(Db.layerFromConfig),
   Layer.provide(BunHttpServerFromConfig),
   Layer.provide(MinimumLogLevelFromConfig),

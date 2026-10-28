@@ -11,7 +11,6 @@ import {
 } from '@app-template/domain/chat'
 import { UserUnknownError } from '@app-template/domain/user'
 import { ApiClient } from '@app-template/http-api'
-import { MessageRepositoryPg } from '@app-template/infrastructure/chat'
 import { assertSchemaEquals } from '@app-template/testing'
 
 import { ApiServerTest, ApiTest, layerApiClient } from '#api/testing/api.test-layer'
@@ -36,7 +35,7 @@ const failReply = (id: MessageId) =>
       }),
       { stage: reply.stage },
     )
-  }).pipe(Effect.orDie, Effect.provide(MessageRepositoryPg))
+  }).pipe(Effect.orDie)
 
 describe('chats', () => {
   it.effect('GET /chats without a cookie is 401 UserUnknownError', () =>

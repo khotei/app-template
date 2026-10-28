@@ -803,7 +803,18 @@
 - **Verify:** with Docker stopped, `make test-unit` passes; `ls apps/api/e2e` fails;
   `find . -name "*.e2e.ts" -path "*/apps/*"` is empty; `make check`.
 - **Model:** fable high
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - `UserPg` and `ChatPg` move from `ApiHttp` to `ApiLayer`, so `ApiHttp` requires the ports
+    alone and its provider picks the adapters: `ApiServerTest` the memory layers, `ApiLayer` the
+    Pg and AWS ones. S21's `StandTest` therefore runs `ApiLayer`, as `architecture.md` says,
+    not `ApiHttp` with a copy of its adapters. Rejected: a second router export over the ports.
+  - `QueueClientTest` is exported from `application/testing/chat.test-layer.ts` and composed by
+    the api instead of a copy of its options; `application/testing/index.ts` stays, the worker
+    suites compose it too.
+  - `apps/api/package.json` gains `@app-template/queue` (dev) for `recordQueue`; nothing was
+    left to drop.
+  - Beyond **Files**: `apps/api/layer.ts`, `docs/knowledge/architecture.md › Delivery`.
 
 ### Storage and the e2e run
 
@@ -945,8 +956,8 @@
   `@effect/vitest`, `@effect/platform-bun`; `imports` `#e2e/*`), `e2e/tsconfig.json`; root
   `package.json` (`workspaces` gains `e2e`), root `tsconfig.json` (the reference);
   `apps/api/package.json`, `apps/worker/package.json` (`exports["./layer"]`);
-  `e2e/testing/stand.test-layer.ts` (`StandTest`: `ApiHttp` over `BunHttpServer.layerTest` and the
-  api's config-fed adapters, merged with `WorkerLayer`, under one `ConfigProvider.fromUnknown`
+  `e2e/testing/stand.test-layer.ts` (`StandTest`: `ApiLayer`, whose adapters and server read the
+  config below, merged with `WorkerLayer`, under one `ConfigProvider.fromUnknown`
   of `DATABASE_URL` and `AWS_ENDPOINT_URL` from `inject`, `STAGE` as `AwsTest`'s stage, and
   `AWS_REGION`, `API_PORT`, `NODE_ENV`, `LOG_LEVEL`, `QUEUE_LOCK_EXPIRATION`,
   `QUEUE_LOCK_REFRESH_INTERVAL`, `OUTBOX_POLL_INTERVAL` fixed; `ApiClient.layer` on the

@@ -166,12 +166,13 @@ Pascal one (`Document`).
 9. **Delivery.** Implement the group in `apps/api/<entity>/<entity>.handler.ts` with
    `HttpApiBuilder.group(Api, '<group>', …)`: it calls the use cases and services and projects
    each model onto its DTO through `apps/api/shared/projections.ts` (`Struct.pick`). Add it
-   to `ApiRoutes`, and its services and `<Entity>Pg` to `ApiHttp` in `apps/api/layer.ts`; an
-   entity with an AWS adapter goes to `ApiLayer` instead, and the api test layer provides the memory
-   layer from `@app-template/application/testing` in its place.
-   Test in `apps/api/e2e/<entity>/<entity>.handler.e2e.ts`, on
+   to `ApiRoutes` and its services to `ApiHttp` in `apps/api/layer.ts`; its `<Entity>Pg` and any
+   AWS adapter go to `ApiLayer`, so `ApiHttp` runs over the ports alone and the api test layer
+   provides the memory layers in their place (`@app-template/domain/testing`, with the recording
+   queue's client from `@app-template/application/testing`).
+   Test in `apps/api/tests/<entity>/<entity>.handler.test.ts`, on
    `apps/api/testing/api.test-layer.ts`, only what HTTP adds (statuses, cookies, the wire shape);
-   the rules stay in the application suites.
+   the rules stay in the domain and application suites.
 10. **Client, if the browser needs it.** `ApiClient` from `@app-template/http-api` already has
     every endpoint of the contract; add a feature folder under `apps/web/features/<entity>/`
     whose Effect calls it through `ApiClient.use`.

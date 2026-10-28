@@ -52,7 +52,7 @@ const insertChat = Layer.effectDiscard(
 )
 
 /** The queue client on the definitions' own names; its locks never run, since nothing consumes. */
-const QueueClientTest = QueueClient.layer({
+export const QueueClientTest = QueueClient.layer({
   queueName: identity,
   lockExpiration: '30 seconds',
   lockRefreshInterval: '10 seconds',

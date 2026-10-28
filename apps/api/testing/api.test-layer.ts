@@ -1,31 +1,26 @@
-import { BunHttpServer, BunServices } from '@effect/platform-bun'
+import { BunCrypto, BunHttpServer } from '@effect/platform-bun'
 import { ConfigProvider, Effect, Layer, Ref } from 'effect'
 import { Cookies, HttpClient } from 'effect/http'
 
-import { AttachmentBucketTest } from '@app-template/domain/testing'
+import { QueueClientTest } from '@app-template/application/testing'
+import { AttachmentBucketTest, RepositoryStackTest } from '@app-template/domain/testing'
 import { ApiClient } from '@app-template/http-api'
-import { AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
-import { Transaction } from '@app-template/infrastructure/db'
-import { QueueClientOutbox } from '@app-template/infrastructure/shared'
-import { DbTest } from '@app-template/infrastructure/testing'
+import { TransactionTest } from '@app-template/infrastructure/testing'
+import { recordQueue } from '@app-template/queue/testing'
 
 import { ApiHttp } from '#api/layer'
 
 /**
- * The api on an ephemeral port over a fresh database, the memory attachment bucket and the outbox;
- * its `HttpClient` targets that port, and its `Db` is open for arranging what only the worker
- * writes.
+ * The api on an ephemeral port over the memory layers: fresh rows, the memory attachment bucket,
+ * the identity transaction and a queue that only records. Its `HttpClient` targets that port, and
+ * the repositories stay in context for arranging what only the worker writes.
  */
 export const ApiServerTest = ApiHttp.pipe(
-  Layer.provide([
-    AttachmentRepositoryPg,
-    AttachmentBucketTest,
-    QueueClientOutbox,
-    Transaction.layer,
-  ]),
+  Layer.provide([AttachmentBucketTest, TransactionTest, QueueClientTest]),
+  Layer.provide(recordQueue().layer),
   Layer.provideMerge(BunHttpServer.layerTest),
-  Layer.provideMerge(DbTest),
-  Layer.provide([BunServices.layer, ConfigProvider.layer(ConfigProvider.fromUnknown({}))]),
+  Layer.provideMerge(RepositoryStackTest),
+  Layer.provide([BunCrypto.layer, ConfigProvider.layer(ConfigProvider.fromUnknown({}))]),
 )
 
 /**
