@@ -1,4 +1,4 @@
-import { and, type SQL, sql } from 'drizzle-orm'
+import { and, EmptyFilter, type SQL, sql } from 'drizzle-orm'
 import { type PgTable, type PgUpdateSetSource, timestamp, uuid } from 'drizzle-orm/pg-core'
 import { Array as Arr, pipe, Struct } from 'effect'
 
@@ -56,3 +56,9 @@ export const buildWhere =
       Arr.map((key) => columns[key](where[key])),
       (conditions) => and(...conditions),
     )
+
+/**
+ * A `Where` field left out is no condition of a relational filter, which takes `EmptyFilter`
+ * for that and refuses `undefined`.
+ */
+export const skipUndefined = <A>(value: A | undefined): A | EmptyFilter => value ?? EmptyFilter

@@ -1,7 +1,8 @@
 import { Array as Arr, Effect } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
-import { ChatService, DeleteChatUseCase, SendMessageUseCase } from '@app-template/application/chat'
+import { DeleteChatUseCase, SendMessageUseCase } from '@app-template/application/chat'
+import { ChatService } from '@app-template/domain/chat'
 import { Api, CurrentUser } from '@app-template/http-api'
 
 import { toChat, toDetail, toMessage, toSummary } from '#api/shared/projections'

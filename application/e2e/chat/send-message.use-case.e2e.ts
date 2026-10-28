@@ -15,6 +15,7 @@ import {
   ChatBusyError,
   type ChatId,
   ChatNotFoundError,
+  ChatService,
   type MessageId,
   type MessageInput,
 } from '@app-template/domain/chat'
@@ -30,7 +31,6 @@ import {
 } from '@app-template/domain/testing'
 import { assertSchemaEquals, isUuidV7, sortById } from '@app-template/testing'
 
-import { ChatService } from '#application/chat/chat.service'
 import { SendMessageUseCase } from '#application/chat/send-message.use-case'
 import {
   ChatTest,

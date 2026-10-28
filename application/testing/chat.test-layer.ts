@@ -9,6 +9,7 @@ import {
 import {
   type ChatId,
   ChatRepository,
+  ChatService,
   completeMessage,
   type Message,
   MessageRepository,
@@ -20,7 +21,6 @@ import { ChatRepositoryPg, MessageRepositoryPg } from '@app-template/infrastruct
 import type { Db } from '@app-template/infrastructure/db'
 import { QueueClientOutbox } from '@app-template/infrastructure/shared'
 
-import { ChatService } from '#application/chat/chat.service'
 import { DeleteChatUseCase } from '#application/chat/delete-chat.use-case'
 import { SendMessageUseCase } from '#application/chat/send-message.use-case'
 import { DbWithUsersTest } from '#application/testing/db.test-layer'
@@ -68,7 +68,7 @@ export const settle = (message: Message) =>
   })
 
 export const selectChat = (chatId: ChatId) =>
-  Effect.flatMap(ChatRepository, (chats) => chats.selectById(chatId))
+  Effect.flatMap(ChatRepository, (chats) => chats.selectOne({ id: chatId }))
 
 export const selectMessages = (chatId: ChatId) =>
   Effect.flatMap(MessageRepository, (messages) => messages.selectByChat(chatId)).pipe(

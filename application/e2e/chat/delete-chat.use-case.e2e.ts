@@ -3,12 +3,11 @@ import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Exit, Layer, Option, Ref } from 'effect'
 
 import { AttachmentBucket } from '@app-template/domain/attachment'
-import { ChatNotFoundError, ChatRepository } from '@app-template/domain/chat'
+import { ChatNotFoundError, ChatRepository, ChatService } from '@app-template/domain/chat'
 import { ask, chat, owner, stranger, unknownChatId, upload } from '@app-template/domain/testing'
 import { ChatRepositoryPg } from '@app-template/infrastructure/chat'
 import { assertSchemaEquals } from '@app-template/testing'
 
-import { ChatService } from '#application/chat/chat.service'
 import { DeleteChatUseCase } from '#application/chat/delete-chat.use-case'
 import { SendMessageUseCase } from '#application/chat/send-message.use-case'
 import {

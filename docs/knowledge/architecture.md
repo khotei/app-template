@@ -81,7 +81,7 @@ import { z } from 'zod'                                     // external packages
 
 import { buildChat } from '@app-template/domain/chat'        // another workspace
 
-import { ChatService } from '#application/chat/chat.service'     // this workspace
+import { ChatTitleJob } from '#application/chat/chat-title.job'  // this workspace
 ```
 
 - **`@app-template/<workspace>[/<entity>]`** reaches another workspace through its `exports`. A
@@ -103,14 +103,13 @@ Using the `chat` slice as the map:
 | read model a port answers | `domain/chat/chat.model.ts`, `message.model.ts` | `ChatSummary`, `ChatDetail`, `MessageDetail` |
 | domain errors | `domain/chat/chat.error.ts`, `message.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
 | port and pure operations | `domain/chat/chat.port.ts`, `chat.model.ts`, `message.model.ts` | `ChatRepository`, `buildChat({ id, userId, createdAt })`, `prepareMessage` |
-| guard shared by the aggregates | `domain/shared/guard.ts` | `ensureFound(found, holds, missing)` |
 | database client and migrations | `infrastructure/db/` | `Db`, `Db.layerFromConfig`, `migrations/`, the shared columns in `columns.ts`, the relations in `relations.ts` |
 | tables and row codecs | `infrastructure/chat/chat.entity.ts` | `chats` (`snakeCase.table`), `ChatRow`, `ChatInsert` |
 | adapter implementing the port | `infrastructure/chat/chat.repository.ts` | `ChatRepositoryPg` (a `Layer` over `Db`) |
 | queue definitions | `infrastructure/chat/chat.queue.ts` | `assistantMessageQueue`, `GenerateAssistantMessage` (the job schema) |
 | relay from the database to a queue | `infrastructure/outbox/outbox.relay.ts` | `OutboxRelay` (a worker `Layer` that runs a fiber and provides nothing) |
 | prompt functions | `infrastructure/chat/chat.llm.ts` | `buildChatPrompt`, `streamAssistantText` |
-| service over the ports | `application/chat/chat.service.ts` | `ChatService`, `ChatService.layer` |
+| domain service over the ports | `domain/chat/chat.service.ts` | `ChatService`, `ChatService.layer` |
 | use case composing services | `application/chat/send-message.use-case.ts` | `SendMessageUseCase`, `SendMessageUseCase.layer` |
 | job: producer and worker | `application/chat/assistant-message.job.ts` | `AssistantMessageJob`, `AssistantMessageJob.worker` |
 | test support | `application/testing/chat.test-layer.ts` | `ChatTest`, `layerChatTest(chats)` |
@@ -137,9 +136,9 @@ Pascal one (`Document`).
 3. **Port and operations.** `<entity>.port.ts`: the `<Entity>Repository` port as a
    `Context.Service` with no layer; `<entity>.model.ts`: pure operations such as
    `build<Entity>(input)`. Time and ids come in as input, never from `Date.now()` or
-   `crypto.randomUUID()`. Test them in `domain/tests/<entity>/<entity>.model.test.ts`. A rule
-   several aggregates share (`ensureFound`, `isOwnedBy`) lives once, in `domain/shared/` or the
-   aggregate that owns it.
+   `crypto.randomUUID()`. Test them in `domain/tests/<entity>/<entity>.model.test.ts`. Ownership
+   is a field of the `<Entity>Where` the port's `selectOne(where)` takes, so an owner mismatch
+   reads as absent, never a predicate after the read.
 4. **Domain exports.** `domain/<entity>/index.ts` re-exports its files, and
    `domain/package.json` gains `"./<entity>": "./<entity>/index.ts"` in `exports`.
 5. **Tables and adapter.** `infrastructure/<entity>/<entity>.entity.ts` declares the tables and

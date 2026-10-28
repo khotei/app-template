@@ -1,32 +1,27 @@
 import { Context, Crypto, Data, DateTime, Effect, Layer, Option } from 'effect'
 
+import { ChatBusyError, ChatNotFoundError, ChatTitledError } from '#domain/chat/chat.error'
+import { ChatId, MessageId } from '#domain/chat/chat.id'
 import {
-  buildAssistantMessage,
   buildChat,
-  buildUserMessage,
   Chat,
-  ChatBusyError,
   type ChatDetail,
-  ChatId,
-  ChatNotFoundError,
-  ChatRepository,
   type ChatSummary,
   type ChatTitle,
-  ChatTitledError,
+} from '#domain/chat/chat.model'
+import { ChatRepository } from '#domain/chat/chat.port'
+import { type MessageInputInvalidError, MessageNotFoundError } from '#domain/chat/message.error'
+import {
+  buildAssistantMessage,
+  buildUserMessage,
   ensureChatAcceptsMessage,
   ensureMessageInput,
-  isInChat,
   type Message,
   type MessageDetail,
-  MessageId,
   type MessageInput,
-  type MessageInputInvalidError,
-  MessageNotFoundError,
-  MessageRepository,
-  type MessageWhere,
-} from '@app-template/domain/chat'
-import { ensureFound, isOwnedBy } from '@app-template/domain/shared'
-import type { UserId } from '@app-template/domain/user'
+} from '#domain/chat/message.model'
+import { MessageRepository, type MessageStageWhere } from '#domain/chat/message.port'
+import type { UserId } from '#domain/user/user.id'
 
 /**
  * Proof that a send may write to this chat: only `ChatService.findSendable` builds one, after it
@@ -74,7 +69,7 @@ export class ChatService extends Context.Service<
       userId: UserId,
       chatId: ChatId,
       messageId: MessageId,
-    ) => Effect.Effect<MessageDetail, ChatNotFoundError | MessageNotFoundError>
+    ) => Effect.Effect<MessageDetail, MessageNotFoundError>
     readonly findSendable: (
       userId: UserId,
       chatId: ChatId,
@@ -90,9 +85,9 @@ export class ChatService extends Context.Service<
      * Stores a settled reply while the stored one still matches `where`, then moves the chat's
      * `updatedAt` alone to the reply's; answers whether it wrote.
      */
-    readonly settleReply: (settled: Message, where: MessageWhere) => Effect.Effect<boolean>
+    readonly settleReply: (settled: Message, where: MessageStageWhere) => Effect.Effect<boolean>
   }
->()('@app-template/application/chat/ChatService', {
+>()('@app-template/domain/chat/ChatService', {
   make: Effect.gen(function* () {
     const chats = yield* ChatRepository
     const messages = yield* MessageRepository
@@ -102,8 +97,8 @@ export class ChatService extends Context.Service<
     const randomMessageId = Effect.map(randomUuid, MessageId.make)
 
     const findOwnedChat = Effect.fnUntraced(function* (userId: UserId, id: ChatId) {
-      const found = yield* chats.selectById(id)
-      return yield* ensureFound(found, isOwnedBy(userId), () => new ChatNotFoundError({ id }))
+      const found = yield* chats.selectOne({ id, userId })
+      return yield* Effect.fromOption(found, () => new ChatNotFoundError({ id }))
     })
 
     const create = Effect.fn('ChatService.create')(function* (userId: UserId) {
@@ -118,12 +113,8 @@ export class ChatService extends Context.Service<
     const list = Effect.fn('ChatService.list')(chats.selectSummaries)
 
     const get = Effect.fn('ChatService.get')(function* (userId: UserId, chatId: ChatId) {
-      const found = yield* chats.selectDetail(chatId)
-      return yield* ensureFound(
-        found,
-        (detail) => isOwnedBy(userId)(detail.chat),
-        () => new ChatNotFoundError({ id: chatId }),
-      )
+      const found = yield* chats.selectDetail({ id: chatId, userId })
+      return yield* Effect.fromOption(found, () => new ChatNotFoundError({ id: chatId }))
     })
 
     const rename = Effect.fn('ChatService.rename')(function* (
@@ -135,7 +126,10 @@ export class ChatService extends Context.Service<
       const updatedAt = yield* DateTime.now
       const renamed = new Chat({ ...chat, title: Option.some(title), updatedAt })
 
-      const written = yield* chats.update({ title: renamed.title, updatedAt }, { id: chatId })
+      const written = yield* chats.update(
+        { title: renamed.title, updatedAt },
+        { id: chatId, userId },
+      )
       if (!written) return yield* new ChatNotFoundError({ id: chatId })
       return renamed
     })
@@ -151,7 +145,7 @@ export class ChatService extends Context.Service<
       if (written) return
 
       // Read only to name the refusal: the write above already decided it.
-      const found = yield* chats.selectById(chatId)
+      const found = yield* chats.selectOne({ id: chatId })
       return yield* Option.match(found, {
         onNone: () => new ChatNotFoundError({ id: chatId }),
         onSome: () => new ChatTitledError({ id: chatId }),
@@ -168,14 +162,8 @@ export class ChatService extends Context.Service<
       chatId: ChatId,
       messageId: MessageId,
     ) {
-      yield* findOwnedChat(userId, chatId)
-
-      const found = yield* messages.selectDetail(messageId)
-      return yield* ensureFound(
-        found,
-        (detail) => isInChat(chatId)(detail.message),
-        () => new MessageNotFoundError({ id: messageId }),
-      )
+      const found = yield* messages.selectDetail({ id: messageId, chatId, userId })
+      return yield* Effect.fromOption(found, () => new MessageNotFoundError({ id: messageId }))
     })
 
     const findSendable = Effect.fn('ChatService.findSendable')(function* (
@@ -229,7 +217,7 @@ export class ChatService extends Context.Service<
 
     const settleReply = Effect.fn('ChatService.settleReply')(function* (
       settled: Message,
-      where: MessageWhere,
+      where: MessageStageWhere,
     ) {
       const written = yield* messages.update(settled, where)
       if (!written) return false

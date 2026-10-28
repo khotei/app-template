@@ -27,7 +27,7 @@ const openChat = Effect.flatMap(ApiClient, (api) =>
 const failReply = (id: MessageId) =>
   Effect.gen(function* () {
     const messages = yield* MessageRepository
-    const reply = yield* Effect.flatMap(messages.selectById(id), Effect.fromOption)
+    const reply = yield* Effect.flatMap(messages.selectOne({ id }), Effect.fromOption)
     yield* messages.update(
       yield* failMessage(reply, {
         reason: 'ReplyFailed',

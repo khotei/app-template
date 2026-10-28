@@ -1,6 +1,6 @@
 import { Context, Effect, Layer, Option } from 'effect'
 
-import { type Message, MessageRepository } from '@app-template/domain/chat'
+import { ChatService, type Message, MessageRepository } from '@app-template/domain/chat'
 import {
   chatTitleDeadLetterQueue,
   chatTitleQueue,
@@ -8,8 +8,6 @@ import {
   suggestChatTitle,
 } from '@app-template/infrastructure/chat'
 import { QueueClient, worker } from '@app-template/queue'
-
-import { ChatService } from '#application/chat/chat.service'
 
 type TitleSkip = 'chatDeleted' | 'alreadyTitled' | 'nothingToTitle'
 
@@ -24,7 +22,7 @@ const handle = Effect.fn('ChatTitleJob.handle')(function* (job: GenerateChatTitl
   const messages = yield* MessageRepository
 
   // The cascade takes the first message with its chat, so a missing one means a deleted chat.
-  const first = yield* messages.selectById(job.messageId)
+  const first = yield* messages.selectOne({ id: job.messageId })
   if (Option.isNone(first)) return yield* titleSkipLogs.chatDeleted
 
   const title = yield* suggestChatTitle(first.value.text)

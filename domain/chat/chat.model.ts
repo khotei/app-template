@@ -44,5 +44,3 @@ export const buildChat = (input: {
     createdAt: input.createdAt,
     updatedAt: input.createdAt,
   })
-
-export const isTitledChat = (chat: Chat): boolean => Option.isSome(chat.title)

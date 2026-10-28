@@ -31,6 +31,7 @@ import {
   Chat,
   type ChatId,
   ChatRepository,
+  ChatService,
   ChatTitle,
   Message,
   MessageFailure,
@@ -57,7 +58,6 @@ import type { AttemptInfo } from '@app-template/queue'
 import { png, recordLogs } from '@app-template/testing'
 
 import { AssistantMessageJob } from '#application/chat/assistant-message.job'
-import { ChatService } from '#application/chat/chat.service'
 import { DbWithUsersTest } from '#application/testing/db.test-layer'
 import {
   holdModelCall,
@@ -104,7 +104,7 @@ const makeStoresTest = () => {
     messages: Layer.mock(MessageRepository, {
       insert: putMessage,
       update: putMessage,
-      selectById: (id) => Effect.sync(() => Option.fromUndefinedOr(messages.get(id))),
+      selectOne: (where) => Effect.sync(() => Option.fromUndefinedOr(messages.get(where.id))),
       selectByChat: (chatId) =>
         Effect.sync(() =>
           Arr.map(
@@ -122,7 +122,7 @@ const makeStoresTest = () => {
             if (chat) chats.set(where.id, new Chat({ ...chat, ...set }))
             return chat !== undefined
           }),
-        selectById: (id) => Effect.sync(() => Option.fromUndefinedOr(chats.get(id))),
+        selectOne: (where) => Effect.sync(() => Option.fromUndefinedOr(chats.get(where.id))),
       }),
       Layer.mock(AttachmentRepository, {}),
       Layer.mock(AttachmentBucket, {}),
@@ -265,10 +265,10 @@ const history = [
 ]
 
 const selectReply = Effect.flatMap(MessageRepository, (messages) =>
-  messages.selectById(messageId),
+  messages.selectOne({ id: messageId }),
 ).pipe(Effect.map(Option.getOrThrow))
 
-const selectChat = Effect.flatMap(ChatRepository, (chats) => chats.selectById(chatId)).pipe(
+const selectChat = Effect.flatMap(ChatRepository, (chats) => chats.selectOne({ id: chatId })).pipe(
   Effect.map(Option.getOrThrow),
 )
 

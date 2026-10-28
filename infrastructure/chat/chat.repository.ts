@@ -21,7 +21,7 @@ import {
   type MessageRow,
   withAttachments,
 } from '#infrastructure/chat/message.entity'
-import { buildSet, buildWhere } from '#infrastructure/db/columns'
+import { buildSet, buildWhere, skipUndefined } from '#infrastructure/db/columns'
 import { Db, decodeFound, orDieWithSqlError } from '#infrastructure/db/db.client'
 
 const encodeChat = Schema.encodeEffect(ChatInsert)
@@ -33,6 +33,7 @@ const encodeSet = buildSet<ChatSet, typeof chats>({
 
 const encodeWhere = buildWhere<ChatWhere>({
   id: (id) => eq(chats.id, id),
+  userId: UndefinedOr.map((userId) => eq(chats.userId, userId)),
   title: UndefinedOr.map(
     Option.match({
       onNone: () => isNull(chats.title),
@@ -40,6 +41,19 @@ const encodeWhere = buildWhere<ChatWhere>({
     }),
   ),
 })
+
+/** `encodeWhere` for a relational read, which aliases the table and so takes a filter object. */
+const filterOf = (where: ChatWhere) =>
+  ({
+    id: where.id,
+    userId: skipUndefined(where.userId),
+    title: skipUndefined(
+      UndefinedOr.map(
+        where.title,
+        Option.getOrElse(() => ({ isNull: true }) as const),
+      ),
+    ),
+  }) as const
 
 const decodeSummary = ({
   messages,
@@ -83,8 +97,8 @@ export const ChatRepositoryPg = Layer.effect(
           .returning({ id: chats.id })
         return Arr.isReadonlyArrayNonEmpty(updated)
       }, orDieWithSqlError),
-      selectById: Effect.fn('ChatRepository.selectById')(function* (id) {
-        const row = yield* db.query.chats.findFirst({ where: { id } })
+      selectOne: Effect.fn('ChatRepository.selectOne')(function* (where) {
+        const row = yield* db.query.chats.findFirst({ where: filterOf(where) })
         return yield* decodeFound(row, decodeChat)
       }, orDieWithSqlError),
       selectSummaries: Effect.fn('ChatRepository.selectSummaries')(function* (userId) {
@@ -95,9 +109,9 @@ export const ChatRepositoryPg = Layer.effect(
         })
         return yield* Effect.forEach(rows, decodeSummary)
       }, orDieWithSqlError),
-      selectDetail: Effect.fn('ChatRepository.selectDetail')(function* (id) {
+      selectDetail: Effect.fn('ChatRepository.selectDetail')(function* (where) {
         const row = yield* db.query.chats.findFirst({
-          where: { id },
+          where: filterOf(where),
           with: { messages: { orderBy: inCreationOrder, with: withAttachments } },
         })
         return yield* decodeFound(row, decodeDetail)

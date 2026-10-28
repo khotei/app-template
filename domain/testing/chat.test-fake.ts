@@ -12,22 +12,18 @@ import {
   pipe,
   Ref,
 } from 'effect'
+import { constTrue } from 'effect/Function'
 
 import type { AttachmentId } from '#domain/attachment/attachment.id'
 import type { Attachment } from '#domain/attachment/attachment.model'
 import type { ChatId, MessageId } from '#domain/chat/chat.id'
 import { Chat, type ChatDetail, type ChatSummary } from '#domain/chat/chat.model'
 import { ChatRepository } from '#domain/chat/chat.port'
-import {
-  isActiveMessage,
-  isInChat,
-  type Message,
-  type MessageDetail,
-} from '#domain/chat/message.model'
-import { MessageRepository } from '#domain/chat/message.port'
-import { isOwnedBy } from '#domain/shared/guard'
+import { isActiveMessage, type Message, type MessageDetail } from '#domain/chat/message.model'
+import { MessageRepository, type MessageWhere } from '#domain/chat/message.port'
 import { AttachmentRows } from '#domain/testing/attachment.test-fake'
 import { matches } from '#domain/testing/rows.test-util'
+import type { UserId } from '#domain/user/user.id'
 
 /** The rows `ChatRepositoryTest` keeps, by id, for a test to arrange or read. */
 export class ChatRows extends Context.Service<ChatRows, Ref.Ref<HashMap.HashMap<ChatId, Chat>>>()(
@@ -44,6 +40,7 @@ export class MessageRows extends Context.Service<
   static readonly layer = Layer.effect(this, Ref.make(HashMap.empty<MessageId, Message>()))
 }
 
+type Chats = HashMap.HashMap<ChatId, Chat>
 type Messages = HashMap.HashMap<MessageId, Message>
 type Attachments = HashMap.HashMap<AttachmentId, Attachment>
 
@@ -62,7 +59,12 @@ const byLatestActivity: Order.Order<Chat> = (self, that) =>
   DateTime.Order(that.updatedAt, self.updatedAt)
 
 const messagesOf = (messages: Messages, chatId: ChatId) =>
-  pipe(messages, HashMap.filter(isInChat(chatId)), HashMap.toValues, Arr.sort(inCreationOrder))
+  pipe(
+    messages,
+    HashMap.filter(matches<Message>({ chatId })),
+    HashMap.toValues,
+    Arr.sort(inCreationOrder),
+  )
 
 /** The chat's active message, if any: the row the partial unique index guards. */
 const activeOf = (messages: Messages, chatId: ChatId) =>
@@ -90,6 +92,7 @@ const summaryOf =
   (chat: Chat): ChatSummary => ({ chat, activeMessage: activeOf(messages, chat.id) })
 
 interface Tables {
+  readonly chats: Chats
   readonly messages: Messages
   readonly attachments: Attachments
 }
@@ -104,6 +107,21 @@ const chatDetailOf =
 const hasBoundAttachment = (tables: Tables, chatId: ChatId): boolean =>
   Arr.some(messagesOf(tables.messages, chatId), (message) =>
     HashMap.some(tables.attachments, isBoundTo(message.id)),
+  )
+
+/** Holds when the message's chat is the user's, as the Pg relation filter reads it. */
+const isOwnedThroughChat = (
+  chats: Chats,
+  userId: UserId | undefined,
+): Predicate.Predicate<Message> =>
+  userId === undefined
+    ? constTrue
+    : (message) => Option.exists(HashMap.get(chats, message.chatId), matches<Chat>({ userId }))
+
+const holdsMessageWhere = (tables: Tables, where: MessageWhere) =>
+  Predicate.and(
+    matches<Message>({ chatId: where.chatId }),
+    isOwnedThroughChat(tables.chats, where.userId),
   )
 
 export const ChatRepositoryTest = Layer.effect(
@@ -128,7 +146,7 @@ export const ChatRepositoryTest = Layer.effect(
         Ref.modify(chats, (rows) =>
           pipe(
             HashMap.get(rows, where.id),
-            Option.filter(matches(where)),
+            Option.filter(matches<Chat>(where)),
             Option.match({
               onNone: () => [false, rows] as const,
               onSome: (chat) =>
@@ -136,17 +154,28 @@ export const ChatRepositoryTest = Layer.effect(
             }),
           ),
         ),
-      selectById: (id) => Effect.map(Ref.get(chats), HashMap.get(id)),
+      selectOne: (where) =>
+        Effect.map(
+          Ref.get(chats),
+          flow(HashMap.get(where.id), Option.filter(matches<Chat>(where))),
+        ),
       selectSummaries: (userId) =>
         Ref.get(chats).pipe(
           Effect.map(
-            flow(HashMap.filter(isOwnedBy(userId)), HashMap.toValues, Arr.sort(byLatestActivity)),
+            flow(
+              HashMap.filter(matches<Chat>({ userId })),
+              HashMap.toValues,
+              Arr.sort(byLatestActivity),
+            ),
           ),
           Effect.flatMap(withActiveMessage),
         ),
-      selectDetail: (id) =>
+      selectDetail: (where) =>
         Effect.map(readTables, (tables) =>
-          Option.map(HashMap.get(tables.chats, id), chatDetailOf(tables)),
+          HashMap.get(tables.chats, where.id).pipe(
+            Option.filter(matches<Chat>(where)),
+            Option.map(chatDetailOf(tables)),
+          ),
         ),
       delete: (id) =>
         Effect.gen(function* () {
@@ -155,7 +184,10 @@ export const ChatRepositoryTest = Layer.effect(
             return yield* Effect.die(new Error(`chat ${id} has a message with a bound attachment`))
           }
           yield* Ref.update(chats, HashMap.remove(id))
-          yield* Ref.update(messages, HashMap.filter(Predicate.not(isInChat(id))))
+          yield* Ref.update(
+            messages,
+            HashMap.filter(Predicate.not(matches<Message>({ chatId: id }))),
+          )
         }),
     })
   }),
@@ -164,10 +196,12 @@ export const ChatRepositoryTest = Layer.effect(
 export const MessageRepositoryTest = Layer.effect(
   MessageRepository,
   Effect.gen(function* () {
+    const chats = yield* ChatRows
     const messages = yield* MessageRows
     const attachments = yield* AttachmentRows
 
     const readTables = Effect.all({
+      chats: Ref.get(chats),
       messages: Ref.get(messages),
       attachments: Ref.get(attachments),
     })
@@ -191,16 +225,25 @@ export const MessageRepositoryTest = Layer.effect(
             }),
           ),
         ),
-      selectById: (id) => Effect.map(Ref.get(messages), HashMap.get(id)),
-      selectDetail: (id) =>
+      selectOne: (where) =>
         Effect.map(readTables, (tables) =>
-          Option.map(HashMap.get(tables.messages, id), detailOf(tables.attachments)),
+          HashMap.get(tables.messages, where.id).pipe(
+            Option.filter(holdsMessageWhere(tables, where)),
+          ),
+        ),
+      selectDetail: (where) =>
+        Effect.map(readTables, (tables) =>
+          HashMap.get(tables.messages, where.id).pipe(
+            Option.filter(holdsMessageWhere(tables, where)),
+            Option.map(detailOf(tables.attachments)),
+          ),
         ),
       selectByChat: (chatId) =>
         Effect.map(readTables, (tables) =>
           Arr.map(messagesOf(tables.messages, chatId), detailOf(tables.attachments)),
         ),
-      existsByChat: (chatId) => Effect.map(Ref.get(messages), HashMap.some(isInChat(chatId))),
+      existsByChat: (chatId) =>
+        Effect.map(Ref.get(messages), HashMap.some(matches<Message>({ chatId }))),
       selectActiveByChat: (chatId) =>
         Effect.map(Ref.get(messages), (rows) => activeOf(rows, chatId)),
     })

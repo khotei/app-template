@@ -14,6 +14,7 @@ export const relations = defineRelations(
     },
     chats: { messages: r.many.messages({ from: r.chats.id, to: r.messages.chatId }) },
     messages: {
+      chat: r.one.chats({ from: r.messages.chatId, to: r.chats.id }),
       attachments: r.many.attachments({ from: r.messages.id, to: r.attachments.messageId }),
     },
   }),

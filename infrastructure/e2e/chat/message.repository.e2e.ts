@@ -93,6 +93,37 @@ describe('MessageRepositoryPg', () => {
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
+  it.effect(
+    "selectOne and selectDetail read another chat's message or a stranger's chat's as none",
+    () =>
+      Effect.gen(function* () {
+        const messages = yield* MessageRepository
+        const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-00000000004c')
+        const other = ChatId.make('0192d4e0-7b3a-7c00-8000-00000000004d')
+        const strangerId = UserId.make('0192d4e0-7b3a-7c00-8000-000000000011')
+        const question = userMessage('0192d4e0-7b3a-7c00-8000-00000000005e', { chatId })
+        yield* insertOwnedChats(userId, [chatId, other])
+        yield* messages.insert(question)
+
+        const owned = yield* messages.selectOne({ id: question.id, chatId, userId })
+        const ownedDetail = yield* messages.selectDetail({ id: question.id, chatId, userId })
+        const elsewhere = yield* messages.selectOne({ id: question.id, chatId: other })
+        const foreign = yield* messages.selectOne({ id: question.id, userId: strangerId })
+        const foreignDetail = yield* messages.selectDetail({ id: question.id, userId: strangerId })
+
+        assertSchemaEquals(SelectedMessage, owned, Option.some(question))
+        assertSchemaEquals(
+          Schema.Option(Detail),
+          ownedDetail,
+          Option.some({ message: question, attachments: [] }),
+        )
+        assert.deepStrictEqual(
+          [elsewhere, foreign, foreignDetail],
+          [Option.none(), Option.none(), Option.none()],
+        )
+      }).pipe(Effect.provide(RepositoryStackPgTest)),
+  )
+
   it.effect('existsByChat answers whether the chat has a message', () =>
     Effect.gen(function* () {
       const messages = yield* MessageRepository
@@ -211,7 +242,7 @@ describe('MessageRepositoryPg', () => {
       assert.isFalse(updated)
       assertSchemaEquals(
         SelectedMessage,
-        yield* messages.selectById(generating.id),
+        yield* messages.selectOne({ id: generating.id }),
         Option.some(generating),
       )
     }).pipe(Effect.provide(RepositoryStackPgTest)),
@@ -235,7 +266,7 @@ describe('MessageRepositoryPg', () => {
       assertSchemaEquals(Details, yield* messages.selectByChat(chatId), [
         { message: completed, attachments: [] },
       ])
-      assert.deepStrictEqual(yield* messages.selectById(unknown.id), Option.none())
+      assert.deepStrictEqual(yield* messages.selectOne({ id: unknown.id }), Option.none())
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
@@ -289,7 +320,7 @@ describe('MessageRepositoryPg', () => {
 
       assertSchemaEquals(
         Schema.Option(Detail),
-        yield* messages.selectDetail(question.id),
+        yield* messages.selectDetail({ id: question.id }),
         Option.some(inUploadOrder),
       )
       assertSchemaEquals(Details, yield* messages.selectByChat(chatId), [inUploadOrder])

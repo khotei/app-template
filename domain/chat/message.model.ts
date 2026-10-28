@@ -87,11 +87,6 @@ export const buildAssistantMessage = (input: {
     updatedAt: input.createdAt,
   })
 
-export const isInChat =
-  (chatId: ChatId) =>
-  (message: Message): boolean =>
-    message.chatId === chatId
-
 const isActiveShape = Predicate.Struct({
   author: Schema.is(MessageAuthor.pick(['assistant'])),
   stage: Schema.is(ActiveMessageStage),

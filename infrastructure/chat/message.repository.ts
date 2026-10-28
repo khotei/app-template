@@ -1,7 +1,12 @@
 import { and, eq } from 'drizzle-orm'
-import { Array as Arr, Effect, Layer, Option, Schema } from 'effect'
+import { Array as Arr, Effect, Layer, Option, Schema, UndefinedOr } from 'effect'
 
-import { isActiveMessage, MessageRepository, type MessageWhere } from '@app-template/domain/chat'
+import {
+  isActiveMessage,
+  MessageRepository,
+  type MessageStageWhere,
+  type MessageWhere,
+} from '@app-template/domain/chat'
 
 import { decodeMessageDetail } from '#infrastructure/attachment/attachment.entity'
 import {
@@ -13,14 +18,22 @@ import {
   messages,
   withAttachments,
 } from '#infrastructure/chat/message.entity'
-import { buildWhere } from '#infrastructure/db/columns'
+import { buildWhere, skipUndefined } from '#infrastructure/db/columns'
 import { Db, decodeFound, orDieWithSqlError } from '#infrastructure/db/db.client'
 
 const encodeMessage = Schema.encodeEffect(MessageInsert)
 
-const encodeWhere = buildWhere<MessageWhere>({
+const encodeStageWhere = buildWhere<MessageStageWhere>({
   stage: (stage) => eq(messages.stage, stage),
 })
+
+/** The chat's `userId` is a filter on the relation, so another user's message reads as absent. */
+const filterOf = (where: MessageWhere) =>
+  ({
+    id: where.id,
+    chatId: skipUndefined(where.chatId),
+    chat: skipUndefined(UndefinedOr.map(where.userId, (userId) => ({ userId }))),
+  }) as const
 
 export const MessageRepositoryPg = Layer.effect(
   MessageRepository,
@@ -40,16 +53,19 @@ export const MessageRepositoryPg = Layer.effect(
         const updated = yield* db
           .update(messages)
           .set(row)
-          .where(and(eq(messages.id, message.id), encodeWhere(where)))
+          .where(and(eq(messages.id, message.id), encodeStageWhere(where)))
           .returning({ id: messages.id })
         return Arr.isReadonlyArrayNonEmpty(updated)
       }, orDieWithSqlError),
-      selectById: Effect.fn('MessageRepository.selectById')(function* (id) {
-        const row = yield* db.query.messages.findFirst({ where: { id } })
+      selectOne: Effect.fn('MessageRepository.selectOne')(function* (where) {
+        const row = yield* db.query.messages.findFirst({ where: filterOf(where) })
         return yield* decodeFound(row, decodeMessage)
       }, orDieWithSqlError),
-      selectDetail: Effect.fn('MessageRepository.selectDetail')(function* (id) {
-        const row = yield* db.query.messages.findFirst({ where: { id }, with: withAttachments })
+      selectDetail: Effect.fn('MessageRepository.selectDetail')(function* (where) {
+        const row = yield* db.query.messages.findFirst({
+          where: filterOf(where),
+          with: withAttachments,
+        })
         return yield* decodeFound(row, decodeMessageDetail)
       }, orDieWithSqlError),
       selectByChat: Effect.fn('MessageRepository.selectByChat')(function* (chatId) {

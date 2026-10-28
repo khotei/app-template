@@ -20,6 +20,7 @@ import { AttachmentBucket } from '@app-template/domain/attachment'
 import {
   type ChatId,
   ChatRepository,
+  ChatService,
   completeMessage,
   failMessage,
   generateMessage,
@@ -29,7 +30,7 @@ import {
   type MessageId,
   MessageRepository,
   type MessageStageInvalidError,
-  type MessageWhere,
+  type MessageStageWhere,
   prepareMessage,
 } from '@app-template/domain/chat'
 import {
@@ -41,8 +42,6 @@ import {
   streamAssistantText,
 } from '@app-template/infrastructure/chat'
 import { type AttemptInfo, QueueClient, worker } from '@app-template/queue'
-
-import { ChatService } from '#application/chat/chat.service'
 
 const snapshotInterval = Duration.millis(300)
 
@@ -68,7 +67,7 @@ const readHistory = Effect.fnUntraced(function* (chatId: ChatId) {
 
 class MessageStageMovedError extends Data.TaggedError('MessageStageMovedError') {}
 
-const writeStage = Effect.fnUntraced(function* (message: Message, where: MessageWhere) {
+const writeStage = Effect.fnUntraced(function* (message: Message, where: MessageStageWhere) {
   const messages = yield* MessageRepository
   const updated = yield* messages.update(message, where)
   if (!updated) return yield* new MessageStageMovedError()
@@ -106,7 +105,7 @@ const alreadySettled = Effect.logInfo('assistant reply skipped: already settled'
 
 const chatDeleted = Effect.logInfo('assistant reply skipped: chat deleted')
 
-const writeSettled = Effect.fnUntraced(function* (settled: Message, where: MessageWhere) {
+const writeSettled = Effect.fnUntraced(function* (settled: Message, where: MessageStageWhere) {
   const chatService = yield* ChatService
   const written = yield* chatService.settleReply(settled, where)
   if (!written) return yield* new MessageStageMovedError()
@@ -148,9 +147,9 @@ const findReply = Effect.fnUntraced(function* (
   const chats = yield* ChatRepository
   const messages = yield* MessageRepository
 
-  const chat = yield* chats.selectById(job.chatId)
+  const chat = yield* chats.selectOne({ id: job.chatId })
   if (Option.isNone(chat)) return Option.none()
-  return yield* messages.selectById(job.messageId)
+  return yield* messages.selectOne({ id: job.messageId })
 })
 
 const failActive = Effect.fnUntraced(function* (
@@ -169,7 +168,7 @@ const failReply = Effect.fnUntraced(function* (
 ): Effect.fn.Return<void, MessageStageInvalidError, ChatService | MessageRepository> {
   const messages = yield* MessageRepository
 
-  const stored = yield* messages.selectById(messageId)
+  const stored = yield* messages.selectOne({ id: messageId })
   const active = Option.filter(stored, isActiveMessage)
   if (Option.isNone(active)) return
 

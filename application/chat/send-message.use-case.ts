@@ -6,18 +6,18 @@ import {
   type AttachmentNotFoundError,
   AttachmentService,
 } from '@app-template/domain/attachment'
-import type {
-  ChatBusyError,
-  ChatId,
-  ChatNotFoundError,
-  MessageDetail,
-  MessageInput,
-  MessageInputInvalidError,
+import {
+  type ChatBusyError,
+  type ChatId,
+  type ChatNotFoundError,
+  ChatService,
+  type MessageDetail,
+  type MessageInput,
+  type MessageInputInvalidError,
 } from '@app-template/domain/chat'
 import type { UserId } from '@app-template/domain/user'
 
 import { AssistantMessageJob } from '#application/chat/assistant-message.job'
-import { ChatService } from '#application/chat/chat.service'
 import { ChatTitleJob } from '#application/chat/chat-title.job'
 
 export interface SentMessages {

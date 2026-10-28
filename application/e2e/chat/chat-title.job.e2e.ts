@@ -8,6 +8,7 @@ import {
   buildUserMessage,
   Chat,
   ChatRepository,
+  ChatService,
   ChatTitle,
   MessageRepository,
   maxTitleLength,
@@ -17,7 +18,6 @@ import { AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
 import { ChatPg, GenerateChatTitle } from '@app-template/infrastructure/chat'
 import { recordLogs } from '@app-template/testing'
 
-import { ChatService } from '#application/chat/chat.service'
 import { ChatTitleJob } from '#application/chat/chat-title.job'
 import { selectChat } from '#application/testing/chat.test-layer'
 import { DbWithUsersTest } from '#application/testing/db.test-layer'

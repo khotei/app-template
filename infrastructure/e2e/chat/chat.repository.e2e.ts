@@ -83,8 +83,49 @@ describe('ChatRepositoryPg', () => {
       yield* chats.insert(untitled)
       yield* chats.insert(titled)
 
-      assertSchemaEquals(SelectedChat, yield* chats.selectById(untitled.id), Option.some(untitled))
-      assertSchemaEquals(SelectedChat, yield* chats.selectById(titled.id), Option.some(titled))
+      assertSchemaEquals(
+        SelectedChat,
+        yield* chats.selectOne({ id: untitled.id }),
+        Option.some(untitled),
+      )
+      assertSchemaEquals(
+        SelectedChat,
+        yield* chats.selectOne({ id: titled.id }),
+        Option.some(titled),
+      )
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
+  )
+
+  it.effect("selectOne and selectDetail find the owner's chat; a stranger's read is none", () =>
+    Effect.gen(function* () {
+      const chats = yield* ChatRepository
+      const ada = UserId.make('0192d4e0-7b3a-7c00-8000-000000000010')
+      const bob = UserId.make('0192d4e0-7b3a-7c00-8000-000000000011')
+      const stored = chat('0192d4e0-7b3a-7c00-8000-00000000003d', ada)
+      yield* Effect.forEach([ada, bob], insertUser)
+      yield* chats.insert(stored)
+
+      const owned = yield* chats.selectOne({ id: stored.id, userId: ada })
+      const untitled = yield* chats.selectOne({ id: stored.id, title: Option.none() })
+      const foreign = yield* chats.selectOne({ id: stored.id, userId: bob })
+      const titled = yield* chats.selectOne({
+        id: stored.id,
+        title: Option.some(ChatTitle.make('Trip')),
+      })
+      const ownedDetail = yield* chats.selectDetail({ id: stored.id, userId: ada })
+      const foreignDetail = yield* chats.selectDetail({ id: stored.id, userId: bob })
+
+      assertSchemaEquals(SelectedChat, owned, Option.some(stored))
+      assertSchemaEquals(SelectedChat, untitled, Option.some(stored))
+      assertSchemaEquals(
+        SelectedDetail,
+        ownedDetail,
+        Option.some({ chat: stored, activeMessage: Option.none(), messages: [] }),
+      )
+      assert.deepStrictEqual(
+        [foreign, titled, foreignDetail],
+        [Option.none(), Option.none(), Option.none()],
+      )
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
@@ -154,7 +195,7 @@ describe('ChatRepositoryPg', () => {
 
         assertSchemaEquals(
           SelectedDetail,
-          yield* chats.selectDetail(stored.id),
+          yield* chats.selectDetail({ id: stored.id }),
           Option.some({
             chat: stored,
             activeMessage: Option.some(queued),
@@ -165,7 +206,7 @@ describe('ChatRepositoryPg', () => {
           }),
         )
         assert.deepStrictEqual(
-          yield* chats.selectDetail(ChatId.make('0192d4e0-7b3a-7c00-8000-00000000003c')),
+          yield* chats.selectDetail({ id: ChatId.make('0192d4e0-7b3a-7c00-8000-00000000003c') }),
           Option.none(),
         )
       }).pipe(Effect.provide(RepositoryStackPgTest)),
@@ -190,9 +231,9 @@ describe('ChatRepositoryPg', () => {
 
       yield* chats.delete(deleted.id)
 
-      assert.deepStrictEqual(yield* chats.selectById(deleted.id), Option.none())
-      assert.deepStrictEqual(yield* messages.selectById(deletedReply.id), Option.none())
-      assertSchemaEquals(SelectedChat, yield* chats.selectById(kept.id), Option.some(kept))
+      assert.deepStrictEqual(yield* chats.selectOne({ id: deleted.id }), Option.none())
+      assert.deepStrictEqual(yield* messages.selectOne({ id: deletedReply.id }), Option.none())
+      assertSchemaEquals(SelectedChat, yield* chats.selectOne({ id: kept.id }), Option.some(kept))
       assertSchemaEquals(MessageDetails, yield* messages.selectByChat(kept.id), [
         { message: keptQuestion, attachments: [] },
       ])
@@ -220,7 +261,11 @@ describe('ChatRepositoryPg', () => {
       const exit = yield* Effect.exit(chats.delete(stored.id))
 
       assert.isTrue(Exit.hasDies(exit))
-      assertSchemaEquals(SelectedChat, yield* chats.selectById(stored.id), Option.some(stored))
+      assertSchemaEquals(
+        SelectedChat,
+        yield* chats.selectOne({ id: stored.id }),
+        Option.some(stored),
+      )
       assertSchemaEquals(MessageDetails, yield* messages.selectByChat(stored.id), [
         { message: withPhoto, attachments: [attached] },
       ])
@@ -243,7 +288,7 @@ describe('ChatRepositoryPg', () => {
       assert.isTrue(touched)
       assertSchemaEquals(
         SelectedChat,
-        yield* chats.selectById(stored.id),
+        yield* chats.selectOne({ id: stored.id }),
         Option.some(new Chat({ ...stored, title, updatedAt: touchedAt })),
       )
     }).pipe(Effect.provide(RepositoryStackPgTest)),
@@ -268,7 +313,11 @@ describe('ChatRepositoryPg', () => {
         )
 
         assert.isFalse(written)
-        assertSchemaEquals(SelectedChat, yield* chats.selectById(titled.id), Option.some(titled))
+        assertSchemaEquals(
+          SelectedChat,
+          yield* chats.selectOne({ id: titled.id }),
+          Option.some(titled),
+        )
       }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
@@ -288,7 +337,7 @@ describe('ChatRepositoryPg', () => {
 
       assertSchemaEquals(
         SelectedChat,
-        yield* chats.selectById(stored.id),
+        yield* chats.selectOne({ id: stored.id }),
         Option.some(new Chat({ ...stored, title, updatedAt: later })),
       )
     }).pipe(Effect.provide(RepositoryStackPgTest)),
@@ -311,10 +360,10 @@ describe('ChatRepositoryPg', () => {
       assert.isFalse(created)
       assertSchemaEquals(
         SelectedChat,
-        yield* chats.selectById(existing.id),
+        yield* chats.selectOne({ id: existing.id }),
         Option.some(new Chat({ ...existing, title })),
       )
-      assert.deepStrictEqual(yield* chats.selectById(unknown.id), Option.none())
+      assert.deepStrictEqual(yield* chats.selectOne({ id: unknown.id }), Option.none())
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 })

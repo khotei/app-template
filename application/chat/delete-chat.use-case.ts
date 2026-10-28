@@ -2,10 +2,8 @@ import { Array as Arr, Context, Effect, Layer } from 'effect'
 import { SqlClient } from 'effect/sql'
 
 import { AttachmentService } from '@app-template/domain/attachment'
-import type { ChatId, ChatNotFoundError } from '@app-template/domain/chat'
+import { type ChatId, type ChatNotFoundError, ChatService } from '@app-template/domain/chat'
 import type { UserId } from '@app-template/domain/user'
-
-import { ChatService } from '#application/chat/chat.service'
 
 export class DeleteChatUseCase extends Context.Service<
   DeleteChatUseCase,
