@@ -592,9 +592,8 @@
   `buildChatPrompt`, `suggestTitle(text)` none for blank text without a model call, else the
   model's answer through `buildChatTitle`); `infrastructure/chat/chat.llm.ts` *gone*;
   `infrastructure/chat/index.ts`; `domain/chat/chat.model.ts` (`buildChatTitle(text):
-  Option<ChatTitle>`, the grapheme cut and the blank refusal); `domain/testing/assistant.test-fake.ts`
-  (`recordAssistant(script)` → `{ calls, layer }`; `holdAssistantCall()`) and
-  `domain/testing/index.ts`; `application/chat/assistant-message.job.ts`, `chat-title.job.ts`
+  Option<ChatTitle>`, the grapheme cut and the blank refusal); `domain/chat/assistant.port.ts`
+  (`AssistantFile`); `application/chat/assistant-message.job.ts`, `chat-title.job.ts`
   (call the `Assistant` port); `apps/worker/layer.ts` (`AssistantLlm` over `LanguageModelStub`);
   `application/e2e/chat/*.job.e2e.ts` (`AssistantLlm` over `recordLanguageModel`);
   `domain/tests/chat/chat.model.test.ts`; `.claude/rules/naming.md` (the `.llm` half of the
@@ -605,7 +604,23 @@
 - **Verify:** `ls infrastructure/chat/chat.llm.ts` fails; `grep -rln "Write a title"
   --include=*.ts .` lists only `assistant.llm.ts`; `make check`.
 - **Model:** fable high
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - `domain/testing/assistant.test-fake.ts` moves to S14, the first step that tests a job over the
+    port: in S13 nothing called `recordAssistant`, and `holdAssistantCall` only paused the scripted
+    language model. The two job e2e suites keep `holdModelCall` from
+    `application/testing/language-model.test-fake.ts`.
+  - The title job's three grapheme cases moved from its e2e suite to `chat.model.test.ts`; the
+    e2e suite keeps one trimmed-and-cut case, which also proves the prompt.
+  - `buildChatTitle` segments with `Intl.Segmenter('en', …)`: grapheme breaks follow UAX #29 in
+    every locale (checked in Bun across seven), so the tag only keeps the domain off the ambient
+    locale.
+  - `AssistantFile` names the `{ attachment, bytes }` pair in the port.
+  - The title job's provider-failure case asserts `Exit.hasDies`, proving D3.
+  - Beyond **Files**: `docs/knowledge/architecture.md` (the adapter row).
+  - For S23: `infrastructure/CLAUDE.md` says an LLM adapter owns its interface;
+    `effect-services.md` cites `suggestChatTitle` as the `Effect.fn.Return` example, which S23's
+    grep does not catch.
 
 #### S14 — `GenerateChatTitleUseCase` and the worker's title handler
 
@@ -622,7 +637,9 @@
   handle), worker(chatTitleDeadLetterQueue, handleDeadLettered))` over the use case's layer);
   `apps/worker/layer.ts`; `apps/worker/package.json` (`@app-template/domain`, `@app-template/queue`;
   `devDependencies` `@effect/vitest`, `@app-template/testing`), `apps/worker/tsconfig.json`;
-  `git mv application/e2e/chat/chat-title.job.e2e.ts
+  `domain/testing/assistant.test-fake.ts` (`recordAssistant(script)` → `{ calls, layer }`;
+  `holdAssistantCall()`, from S13) and `domain/testing/index.ts`; `git mv
+  application/e2e/chat/chat-title.job.e2e.ts
   application/tests/chat/generate-chat-title.use-case.test.ts` over the memory layers and
   `recordAssistant`; `apps/worker/tests/chat/chat-title.handler.test.ts`;
   `.claude/rules/naming.md` (the `.handler` row: `<object>.handler.ts` in the worker, one per

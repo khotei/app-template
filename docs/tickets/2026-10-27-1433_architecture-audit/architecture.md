@@ -61,7 +61,7 @@ Every `tests/` and `e2e/` file mirrors the source path; test support lives only 
 | `chat/message.error.ts` **new** | `MessageNotFoundError`, `MessageInputInvalidError`, `MessageStageInvalidError`, `MessageMovedError` |
 | `chat/chat.port.ts` **new** | `ChatRepository`, `ChatSet`, `ChatWhere`, `ChatOneWhere` |
 | `chat/message.port.ts` **new** | `MessageRepository`, `MessageWhere`, `MessageOneWhere` |
-| `chat/assistant.port.ts` **new** | `Assistant`, `AssistantTurn` |
+| `chat/assistant.port.ts` **new** | `Assistant`, `AssistantTurn`, `AssistantFile` |
 | `chat/chat.service.ts` | `ChatService` (domain), `SendableChat` |
 | `chat/message.service.ts` **new** | `MessageService` |
 | `attachment/attachment.port.ts` **new** | `AttachmentRepository`, `AttachmentBucket`, `AttachmentSet`, `AttachmentWhere`, `AttachmentOneWhere` |
@@ -69,7 +69,7 @@ Every `tests/` and `e2e/` file mirrors the source path; test support lives only 
 | `attachment/attachment.service.ts` | `AttachmentService` (domain) |
 | `user/user.port.ts` **new** · `user/user.service.ts` | `UserRepository` · `UserService` (domain), `UserSecret` |
 | `shared/` *gone* | `ensureFound` and the `./shared` export |
-| `testing/` **new** | `chat.test-fixture.ts`, `user.test-fixture.ts`, `attachment.test-fixture.ts` (from `application/testing`); `chat.test-fake.ts`: `ChatRepositoryTest`, `MessageRepositoryTest`; `attachment.test-fake.ts`: `AttachmentRepositoryTest`, `AttachmentBucketTest`; `user.test-fake.ts`: `UserRepositoryTest`; `chat.test-layer.ts`: `ChatTest` (`ChatService` and `MessageService` over the memory layers, `Crypto` open), `send`, `selectMessages`; `attachment.test-layer.ts`: `upload`; `assistant.test-fake.ts`: `recordAssistant(script)`, `holdAssistantCall()`; `index.ts` |
+| `testing/` **new** | `chat.test-fixture.ts`, `user.test-fixture.ts`, `attachment.test-fixture.ts` (from `application/testing`); `chat.test-fake.ts`: `ChatRepositoryTest`, `MessageRepositoryTest`; `attachment.test-fake.ts`: `AttachmentRepositoryTest`, `AttachmentBucketTest`; `user.test-fake.ts`: `UserRepositoryTest`; `chat.test-layer.ts`: `ChatTest` (`ChatService` and `MessageService` over the memory layers, `Crypto` open), `send`, `selectMessages`; `attachment.test-layer.ts`: `upload`; `assistant.test-fake.ts` (S14): `recordAssistant(script)`, `holdAssistantCall()`; `index.ts` |
 | `tests/` **new** | `chat/chat.model.test.ts`, `chat/message.model.test.ts`, `chat/chat.service.test.ts`, `chat/message.service.test.ts`, `attachment/…`, `user/…` |
 | `package.json` | `exports["./testing"]`; `@effect/platform-bun` in `devDependencies` (`BunCrypto.layer` in tests) |
 
@@ -200,9 +200,13 @@ export class MessageRepository extends Context.Service<MessageRepository, {
 }>()('@app-template/domain/chat/MessageRepository') {}
 
 // domain/chat/assistant.port.ts
+export interface AssistantFile {
+  readonly attachment: Attachment
+  readonly bytes: Uint8Array
+}
 export interface AssistantTurn {
   readonly message: Message
-  readonly files: ReadonlyArray<{ readonly attachment: Attachment; readonly bytes: Uint8Array }>
+  readonly files: ReadonlyArray<AssistantFile>
 }
 export class Assistant extends Context.Service<Assistant, {
   /** The assistant's text for the chat's next message, as deltas. */

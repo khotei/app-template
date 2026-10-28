@@ -197,7 +197,7 @@ describe('ChatTitleJob.handle', () => {
 
       const exit = yield* runTitle
 
-      assert.isTrue(Exit.isFailure(exit))
+      assert.isTrue(Exit.hasDies(exit))
       assertEquals(yield* selectChat(chatId), Option.some(chat))
       assert.deepStrictEqual(logs, [])
     }).pipe(Effect.provide(layer))
