@@ -1,8 +1,8 @@
 import { Duration, Effect, Option, Redacted } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
-import { UserService } from '@app-template/application/user'
 import { RuntimeConfig } from '@app-template/config'
+import { UserService } from '@app-template/domain/user'
 import { Api, Auth } from '@app-template/http-api'
 
 const cookieMaxAge = Duration.days(365)

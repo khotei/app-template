@@ -5,8 +5,7 @@
   "exports": {
     "./attachment": "./attachment/index.ts",
     "./chat": "./chat/index.ts",
-    "./testing": "./testing/index.ts",
-    "./user": "./user/index.ts"
+    "./testing": "./testing/index.ts"
   },
   "imports": {
     "#application/*": "./*.ts"

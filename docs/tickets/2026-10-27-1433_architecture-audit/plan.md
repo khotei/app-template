@@ -387,7 +387,15 @@
   has no `UserService` yet.
 - **Verify:** `ls application/user` fails; `make test-unit`; `make check`.
 - **Model:** fable high
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Beyond **Files**: `apps/api/user/user.handler.ts` imported the old path and now imports
+    `@app-template/domain/user`.
+  - The suite computes the expected SHA-256 with `crypto.subtle`, a Web API, since the domain
+    takes no Node built-ins; the hash check now compares the stored `Credential` whole.
+  - The old suite's `it.live` tests are `it.effect`: none asserts that time moves.
+  - For S23: `domain/CLAUDE.md` ("no ambient state", models, errors, ports and pure operations
+    only) no longer matches a domain service over `DateTime.now` and `Crypto`.
 
 #### S9 — `AttachmentService` to the domain; ownership as a `Where` field
 

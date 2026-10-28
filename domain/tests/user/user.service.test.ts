@@ -1,43 +1,33 @@
-import { createHash } from 'node:crypto'
-
 import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Effect, Layer, Option, Redacted, Result } from 'effect'
-import { Base64Url } from 'effect/encoding'
+import { Effect, HashMap, Layer, Option, Redacted, Ref, Result } from 'effect'
+import { Base64Url, Hex } from 'effect/encoding'
 
-import { epoch } from '@app-template/domain/testing'
-import { Credential, SecretHash, UserRepository, UserUnknownError } from '@app-template/domain/user'
-import { Db } from '@app-template/infrastructure/db'
-import { UserPg } from '@app-template/infrastructure/user'
 import { assertSchemaEquals, isUuidV7 } from '@app-template/testing'
 
-import { DbTest } from '#application/testing/db.test-layer'
-import { type UserSecret, UserService } from '#application/user/user.service'
+import { epoch } from '#domain/testing/chat.test-fixture'
+import { UserRepositoryTest, UserRows } from '#domain/testing/user.test-fake'
+import { UserUnknownError } from '#domain/user/user.error'
+import { Credential, SecretHash } from '#domain/user/user.model'
+import { type UserSecret, UserService } from '#domain/user/user.service'
 
 const UserServiceTest = UserService.layer.pipe(
-  Layer.provideMerge(UserPg),
+  Layer.provideMerge(UserRepositoryTest),
   Layer.provide(BunCrypto.layer),
-  Layer.provideMerge(DbTest),
+  Layer.provideMerge(UserRows.layer),
 )
 
-const countStoredRows = Effect.flatMap(Db, (db) =>
-  Effect.all([
-    db.query.users.findMany({ columns: { id: true } }),
-    db.query.credentials.findMany({ columns: { hash: true } }),
-  ]),
-).pipe(
-  Effect.map(([users, credentials]) => ({ users: users.length, credentials: credentials.length })),
-  Effect.orDie,
-)
+const readRows = Effect.flatMap(UserRows, Ref.get)
+const countStoredRows = Effect.map(readRows, HashMap.size)
 
 const unknownSecret = Redacted.make('q3Jx0V8m2bZ9yT_4kW-1sN7uP5oA6dLcE0fG8hI2jK4')
 
-const buildCredentialWithNode = (secret: UserSecret) =>
-  new Credential({
-    kind: 'secret',
-    hash: SecretHash.make(createHash('sha256').update(Redacted.value(secret)).digest('hex')),
-  })
+/** The hex SHA-256 of a secret by Web Crypto, apart from the service's `Crypto`. */
+const hashWithWebCrypto = (secret: UserSecret) =>
+  Effect.promise(() =>
+    crypto.subtle.digest('SHA-256', new TextEncoder().encode(Redacted.value(secret))),
+  ).pipe(Effect.map((digest) => Hex.encode(new Uint8Array(digest))))
 
 describe('UserService', () => {
   it.effect('ensure(none) creates a user with a UUIDv7 id at the clock time and a secret', () =>
@@ -61,15 +51,19 @@ describe('UserService', () => {
       const service = yield* UserService
       const { user, secret } = yield* service.ensure(Option.none())
 
+      const rows = yield* readRows
+      const stored = HashMap.get(rows, user.id).pipe(Option.map((row) => row.credential))
+      const hash = yield* hashWithWebCrypto(secret)
+
       assertEquals(
-        yield* (yield* UserRepository).selectByCredential(buildCredentialWithNode(secret)),
-        Option.some(user),
+        stored,
+        Option.some(new Credential({ kind: 'secret', hash: SecretHash.make(hash) })),
       )
       assertEquals(yield* service.authenticate(secret), user)
     }).pipe(Effect.provide(UserServiceTest)),
   )
 
-  it.live('ensure(some(secret)) returns the same user and secret without a second record', () =>
+  it.effect('ensure(some(secret)) returns the same user and secret without a second record', () =>
     Effect.gen(function* () {
       const service = yield* UserService
       const first = yield* service.ensure(Option.none())
@@ -79,7 +73,7 @@ describe('UserService', () => {
 
       assertEquals(second.user, first.user)
       assert.strictEqual(Redacted.value(second.secret), Redacted.value(first.secret))
-      assert.deepStrictEqual(yield* countStoredRows, stored)
+      assert.strictEqual(yield* countStoredRows, stored)
     }).pipe(Effect.provide(UserServiceTest)),
   )
 
