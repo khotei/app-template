@@ -29,6 +29,8 @@
     "@app-template/testing": "workspace:*",
     "@effect/vitest": "catalog:effect",
     "@testcontainers/postgresql": "catalog:runtime",
-    "drizzle-kit": "catalog:drizzle"
+    "drizzle-kit": "catalog:drizzle",
+    "testcontainers": "catalog:runtime",
+    "vitest": "catalog:tools"
   }
 }

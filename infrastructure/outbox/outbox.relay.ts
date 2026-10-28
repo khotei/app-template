@@ -67,9 +67,9 @@ export const OutboxRelay = Effect.gen(function* () {
   )
 
   yield* Effect.forever(poll).pipe(Effect.forkScoped)
-}).pipe(Layer.effectDiscard, Layer.provide([QueueConfig.layer, AwsConfig.layer]))
+}).pipe(Layer.effectDiscard, Layer.provide(QueueConfig.layer))
 
 export const OutboxRelaySqs = OutboxRelay.pipe(
   Layer.provide(QueueTransport.layerSqs),
-  Layer.provide(SQSServiceFromConfig),
+  Layer.provide([AwsConfig.layer, SQSServiceFromConfig]),
 )

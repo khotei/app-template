@@ -9,6 +9,7 @@
     "#aws/*": "./*.ts"
   },
   "dependencies": {
+    "@effect-aws/client-s3": "catalog:effect-aws",
     "@effect-aws/client-sqs": "catalog:effect-aws",
     "effect": "catalog:effect"
   }

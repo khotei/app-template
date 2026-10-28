@@ -112,11 +112,14 @@
         "@effect/vitest": "catalog:effect",
         "@testcontainers/postgresql": "catalog:runtime",
         "drizzle-kit": "catalog:drizzle",
+        "testcontainers": "catalog:runtime",
+        "vitest": "catalog:tools",
       },
     },
     "packages/aws": {
       "name": "@app-template/aws",
       "dependencies": {
+        "@effect-aws/client-s3": "catalog:effect-aws",
         "@effect-aws/client-sqs": "catalog:effect-aws",
         "effect": "catalog:effect",
       },
@@ -151,12 +154,11 @@
     "packages/testing": {
       "name": "@app-template/testing",
       "dependencies": {
-        "@app-template/config": "workspace:*",
+        "@effect-aws/client-s3": "catalog:effect-aws",
         "@effect-aws/client-sqs": "catalog:effect-aws",
         "@effect/sql-pg": "catalog:effect",
         "@effect/vitest": "catalog:effect",
         "effect": "catalog:effect",
-        "testcontainers": "catalog:runtime",
         "vitest": "catalog:tools",
       },
     },

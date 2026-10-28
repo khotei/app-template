@@ -11,6 +11,8 @@ import {
   Ref,
 } from 'effect'
 
+import { buildResourceName } from '@app-template/aws'
+import { AwsConfig } from '@app-template/config'
 import { ChatId, MessageId } from '@app-template/domain/chat'
 import { QueueClient, QueueError, QueueTransport } from '@app-template/queue'
 import { recordLogs } from '@app-template/testing'
@@ -20,6 +22,7 @@ import { Db } from '#infrastructure/db/db.client'
 import { outbox } from '#infrastructure/outbox/outbox.entity'
 import { OutboxRelay } from '#infrastructure/outbox/outbox.relay'
 import { QueueClientOutbox } from '#infrastructure/shared/queue.client'
+import { AwsTest } from '#infrastructure/testing/aws.test-layer'
 import { DbTest } from '#infrastructure/testing/db.test-layer'
 
 interface Attempt {
@@ -50,17 +53,23 @@ const recordTransport = Effect.gen(function* () {
 
 const pollInterval = 300
 
-const OutboxTest = QueueClientOutbox.pipe(
-  Layer.provideMerge(DbTest),
+const PollInterval = ConfigProvider.layer(
+  ConfigProvider.fromUnknown({ OUTBOX_POLL_INTERVAL: `${pollInterval} millis` }),
+)
+
+const OutboxDbTest = QueueClientOutbox.pipe(Layer.provideMerge(DbTest), Layer.merge(PollInterval))
+
+// The recording transport sees the queue name, so the stage is fixed.
+const OutboxTest = OutboxDbTest.pipe(
   Layer.merge(
-    ConfigProvider.layer(
-      ConfigProvider.fromUnknown({
-        AWS_REGION: 'us-east-1',
-        STAGE: 'test',
-        OUTBOX_POLL_INTERVAL: `${pollInterval} millis`,
-      }),
-    ),
+    Layer.succeed(AwsConfig, { region: 'us-east-1', endpoint: Option.none(), stage: 'test' }),
   ),
+)
+
+// The test's own stage on the run's MiniStack: the relay sends to its real queue.
+const OutboxSqsTest = QueueTransport.layerSqs.pipe(
+  Layer.provideMerge(AwsTest),
+  Layer.merge(OutboxDbTest),
 )
 
 const jobId = (n: number) => `0192d4e0-7b3a-7c00-8000-${String(n).padStart(12, '0')}`
@@ -99,6 +108,32 @@ describe('OutboxRelay', () => {
       })
       assert.deepStrictEqual(yield* lockOutbox, [])
     }).pipe(Effect.provide(OutboxTest)),
+  )
+
+  // Live: SQS long-polls in real time.
+  it.live(
+    "a pending row reaches the stage's real queue with its job id and JSON body, then is deleted",
+    () =>
+      Effect.gen(function* () {
+        const { stage } = yield* AwsConfig
+        yield* enqueue(1)
+
+        yield* Layer.build(OutboxRelay)
+        const received = yield* QueueTransport.use((transport) =>
+          transport.receive(buildResourceName(stage, assistantMessageQueue.name), {
+            visibility: '30 seconds',
+            wait: '10 seconds',
+          }),
+        ).pipe(Effect.flatMap(Effect.fromOption))
+
+        assert.strictEqual(received.attributes.jobId, jobId(1))
+        assert.deepStrictEqual(JSON.parse(received.body), {
+          chatId: '0192d4e0-7b3a-7c00-8000-000000000030',
+          messageId: jobId(1),
+        })
+        assert.deepStrictEqual(yield* lockOutbox, [])
+      }).pipe(Effect.provide(OutboxSqsTest)),
+    30_000,
   )
 
   // The clock stands still, so a relay that slept after a full batch would leave rows unsent.

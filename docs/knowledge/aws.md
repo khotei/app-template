@@ -3,7 +3,9 @@
 How the app reaches S3 and SQS, locally and on AWS, and how the resources it needs are described,
 created and tested. The code: `packages/aws` (the inventory, the naming rule, the provisioner),
 `deployment/local/` (the Pulumi program of the local stand), `deployment/aws/` (its resources),
-`packages/testing/ministack.test-layer.ts`.
+`infrastructure/testing/e2e.test-setup.ts` (the MiniStack the e2e run starts),
+`packages/testing/aws.test-layer.ts` (its clients) and `infrastructure/testing/aws.test-layer.ts`
+(a stage per test).
 
 ## The local stand-in
 
@@ -65,7 +67,7 @@ path-style addressing; without one, the SDK's own endpoints.
 
 `packages/aws/resources.ts` lists every bucket and queue as plain data, keyed by an identifier and
 carrying its logical `name`. Physical names are `buildResourceName(stage, name)`:
-`app-template-<stage>-<name>`, so `local`, every test file and every AWS stage hold their own set.
+`app-template-<stage>-<name>`, so `local`, every e2e test and every AWS stage hold their own set.
 
 | Resource | Carries | Provisioned as |
 |---|---|---|
@@ -73,12 +75,13 @@ carrying its logical `name`. Physical names are `buildResourceName(stage, name)`
 | queue `assistant-message`, `chat-title` | `maxReceiveCount` | its dead-letter queue first, named by `buildDeadLetterName` from the physical name (`app-template-<stage>-<name>-dlq`), then the queue with a `RedrivePolicy` to it. A queue definition in `infrastructure` reads its `name` and `maxAttempts` from here, so the two cannot disagree. |
 
 `make up` creates the inventory through Pulumi (`deployment/aws/storage.ts`, `queue.ts`); the
-queue's suite creates its queues with `provision` from `packages/aws`, in milliseconds and without
-the Pulumi CLI. `provision(queues, stage)` creates queues only and is idempotent: `CreateQueue` on
-an identical queue succeeds. `CreateQueue` compares a repeated `RedrivePolicy` as a string, so its
-JSON is built with a fixed key order. A queue whose `maxReceiveCount` changed in the inventory
-fails with `QueueNameExists`, because SQS never updates on create; Pulumi updates the queue in
-place.
+e2e tests create each test's stage with `provision(resources, stage)` from `packages/aws`, in
+milliseconds and without the Pulumi CLI. It creates the buckets and the queues, without the
+lifecycle rules (MiniStack never runs them), and is idempotent: `CreateBucket` on a bucket the
+account holds and `CreateQueue` on an identical queue both succeed. `CreateQueue` compares a
+repeated `RedrivePolicy` as a string, so its JSON is built with a fixed key order. A queue whose
+`maxReceiveCount` changed in the inventory fails with `QueueNameExists`, because SQS never
+updates on create; Pulumi updates the queue in place.
 
 ### Adding a resource
 
@@ -171,16 +174,18 @@ and only the snapshot-timing block steps the `TestClock`.
 
 ## Tests on Docker
 
-Only the queue's own suite starts MiniStack: `packages/queue/e2e/queue.e2e.ts` starts one container
-through `SqsClientTest` in `@app-template/testing` (`testcontainers`; an SQS client on that
-container) and stops it with the suite; it provisions its queues under the fixed stage `test`
-and passes `{ timeout: '60 seconds' }` to `layer(…)`. The application and api suites test
-our code, not S3 or SQS: they provide `AttachmentBucketTest`
-([tooling.md › Tests](tooling.md#tests)) and send jobs to the outbox
+The e2e `globalSetup` (`infrastructure/testing/e2e.test-setup.ts`) starts one MiniStack beside
+the run's Postgres (`testcontainers`, about two seconds for both) and hands its endpoint to the
+tests through `inject('awsEndpoint')`; `SqsClientTest` and `S3ClientTest` in `@app-template/testing`
+are clients on it. `AwsTest` in `infrastructure/testing` gives each test a stage of its own
+(`e2e` and eight hex digits), provisions the inventory's bucket and queues under it and provides
+`AwsConfig` over the endpoint and that stage, so an adapter builds its names as in production; it
+publishes the clients too, as the `*FromConfig` layers do. The queue's own suite provisions its
+own queues under one such stage for its `layer` block. Nothing cleans a stage up: the container
+goes with the run. The application and api suites test our code, not S3 or SQS: they provide
+`AttachmentBucketTest` ([tooling.md › Tests](tooling.md#tests)) and send jobs to the outbox
 ([database.md › Tests](database.md#tests)). So `make test` needs a running Docker daemon and nothing
-else: the Pulumi project is for `make up` alone. The container starts in about two seconds; the
-timeout covers the pull on a cold machine. Nothing cleans the stage up, since the container goes
-with it.
+else, not the local stand or `.env`: the Pulumi project is for `make up` alone.
 
 MiniStack differs from AWS in what it never does: lifecycle rules never run, the 5 MiB minimum
 part size is not enforced, and the `Tagging` sent with `CreateMultipartUpload` is dropped. What

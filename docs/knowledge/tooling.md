@@ -52,13 +52,16 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   source path. Each project lists the shared `exclude` (`repos/**` added to the default) and
   `sequence` itself, and the root sets no `globalSetup`, so a unit run starts no container. A new
   workspace needs no test config, and the vendored suites stay out.
-- **One Postgres per e2e run, a database per test.** `infrastructure/testing/e2e.test-setup.ts`
-  starts one `postgres:18.6-alpine` container (about 1.2 s) and migrates a template database in
-  it with the program `make migrate` runs. Each test provides
-  `PgClientTest` from `@app-template/testing`: a fresh database copied from the template and
-  dropped when the test ends, about 40 ms in all. A test therefore sees only its own rows, even
-  through a query that reads a whole table, and files run in parallel. E2e tests need Docker and
-  nothing else: no `.env`, no `make up`.
+- **One Postgres and one MiniStack per e2e run, a database and a stage per test.**
+  `infrastructure/testing/e2e.test-setup.ts` starts one `postgres:18.6-alpine` container (about
+  1.2 s) and migrates a template database in it with the program `make migrate` runs, and one
+  MiniStack container beside it (about two seconds for both). Each test provides `PgClientTest`
+  from `@app-template/testing`: a fresh database copied from the template and dropped when the
+  test ends, about 40 ms in all; a test on S3 or SQS provides `AwsTest` from
+  `infrastructure/testing`: a stage of its own on the run's MiniStack, its bucket and queues
+  provisioned ([aws.md › Tests on Docker](aws.md#tests-on-docker)). A test therefore sees only
+  its own rows and resources, even through a query that reads a whole table, and files run in
+  parallel. E2e tests need Docker and nothing else: no `.env`, no `make up`.
 - **Concurrent within a file.** Both projects set `sequence: { concurrent: true }`; since every
   test owns its database, nothing is shared between tests.
 - **Time.** `it.effect` provides a fresh `TestClock` per test, so time stands still unless the
@@ -67,8 +70,9 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   neighbours' time. `PgClientTest` gives its pool the live clock in any case: the pool reads
   `Clock` once when it is built, and a `TestClock` there stalls every statement.
 - **Only our code is under test.** Application and api suites replace S3 and the queue with plain
-  in-memory layers; MiniStack runs only the queue worker's suite, which tests our retry,
-  heartbeat and dead-letter logic, and takes most of a run's time with SQS's real delays. Test
+  in-memory layers; MiniStack serves the adapters' suites, among them the queue worker's, which
+  tests our retry, heartbeat and dead-letter logic and takes most of a run's time with SQS's
+  real delays. Test
   support is code to maintain that hides what a test checks, so a small problem in a test is
   solved by a plainer test, not by a helper.
 - **Output.** vitest switches to its `minimal` reporter when it detects an agent (`CLAUDECODE`,
