@@ -95,8 +95,8 @@ sits beside never reach the browser.
 | `db/testing/postgres.setup.ts` *gone* | replaced by `testing/e2e.test-setup.ts` |
 | `chat/chat.repository.ts`, `chat/message.repository.ts`, `attachment/attachment.repository.ts`, `user/user.repository.ts` | `selectOne(where)`, the shared builders, no `unknown` |
 | `chat/assistant.llm.ts` **new** · `chat/chat.llm.ts` *gone* | `AssistantLlm`: the prompts, `streamText`, `suggestTitle` over `LanguageModel` |
-| `attachment/attachment.bucket.ts` | `AttachmentBucketS3` over `S3Bucket`: keys, headers, the domain mapping; under 80 lines |
-| `shared/aws.client.ts` | `SQSServiceFromConfig`, `S3ServiceFromConfig`, **new** `S3BucketFromConfig` (bucket from `AwsConfig.stage`) |
+| `attachment/attachment.bucket.ts` | `AttachmentBucketS3` over `S3Bucket`: keys, headers, the domain mapping; **new** `S3BucketFromConfig` (bucket from `AwsConfig.stage`; `AwsConfig` and `S3Service` read from its context); under 80 lines |
+| `shared/aws.client.ts` | `SQSServiceFromConfig`, `S3ServiceFromConfig` |
 | `shared/queue.client.ts` · `outbox/outbox.entity.ts` · `outbox/outbox.relay.ts` | `body` as `jsonb` (the job's encoded JSON value); the relay's loop as one pipeline; `OutboxRelay` requires `AwsConfig`, `OutboxRelaySqs` provides `AwsConfig.layer` |
 | `testing/e2e.test-setup.ts` **new** | the e2e `globalSetup`: Postgres + migrated template, MiniStack; `provide('databaseUrl')`, `provide('awsEndpoint')` |
 | `testing/aws.test-layer.ts` **new** | `AwsTest`: a stage per test, `provision(resources, stage)`, `AwsConfig` over `inject('awsEndpoint')`, with the SQS and S3 clients |

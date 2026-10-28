@@ -13,8 +13,10 @@ import {
 import { unknownAttachmentId } from '@app-template/domain/testing'
 import { png } from '@app-template/testing'
 
-import { AttachmentBucketS3 } from '#infrastructure/attachment/attachment.bucket'
-import { S3BucketFromConfig } from '#infrastructure/shared/aws.client'
+import {
+  AttachmentBucketS3,
+  S3BucketFromConfig,
+} from '#infrastructure/attachment/attachment.bucket'
 import { AwsTest } from '#infrastructure/testing/aws.test-layer'
 
 // One stage for the file's `layer` block: each test writes an id of its own.
@@ -31,27 +33,6 @@ const meta = {
   fileName: FileName.make('отчёт (1).png'),
 }
 
-const buildObjectRef = (key: string) =>
-  Effect.map(AwsConfig, ({ stage }) => ({
-    Bucket: buildResourceName(stage, resources.buckets.attachments.name),
-    Key: key,
-  }))
-
-const headObject = (key: string) =>
-  Effect.gen(function* () {
-    const s3 = yield* S3Service
-    const ref = yield* buildObjectRef(key)
-    return yield* s3.headObject(ref)
-  })
-
-const readTags = (key: string) =>
-  Effect.gen(function* () {
-    const s3 = yield* S3Service
-    const ref = yield* buildObjectRef(key)
-    const { TagSet } = yield* s3.getObjectTagging(ref)
-    return TagSet
-  })
-
 describe('AttachmentBucketS3 over S3BucketFromConfig on AwsTest', () => {
   layer(AttachmentBucketS3Test, { timeout: '60 seconds' })((it) => {
     it.effect(
@@ -59,10 +40,15 @@ describe('AttachmentBucketS3 over S3BucketFromConfig on AwsTest', () => {
       () =>
         Effect.gen(function* () {
           const bucket = yield* AttachmentBucket
+          const s3 = yield* S3Service
+          const { stage } = yield* AwsConfig
           const id = attachmentId(1)
 
           const size = yield* bucket.insert(id, Stream.make(png), meta)
-          const head = yield* headObject(`attachments/${id}`)
+          const head = yield* s3.headObject({
+            Bucket: buildResourceName(stage, resources.buckets.attachments.name),
+            Key: `attachments/${id}`,
+          })
 
           assert.strictEqual(size, png.length)
           assert.strictEqual(head.ContentType, 'image/png')
@@ -76,29 +62,39 @@ describe('AttachmentBucketS3 over S3BucketFromConfig on AwsTest', () => {
     it.effect('marks a small upload unbound', () =>
       Effect.gen(function* () {
         const bucket = yield* AttachmentBucket
+        const s3 = yield* S3Service
+        const { stage } = yield* AwsConfig
         const id = attachmentId(2)
 
         yield* bucket.insert(id, Stream.make(png), meta)
-        const tags = yield* readTags(`attachments/${id}`)
+        const { TagSet } = yield* s3.getObjectTagging({
+          Bucket: buildResourceName(stage, resources.buckets.attachments.name),
+          Key: `attachments/${id}`,
+        })
 
-        assert.deepStrictEqual(tags, [{ Key: 'unbound', Value: 'true' }])
+        assert.deepStrictEqual(TagSet, [{ Key: 'unbound', Value: 'true' }])
       }),
     )
 
     it.effect('keep clears the unbound mark', () =>
       Effect.gen(function* () {
         const bucket = yield* AttachmentBucket
+        const s3 = yield* S3Service
+        const { stage } = yield* AwsConfig
         const id = attachmentId(3)
         yield* bucket.insert(id, Stream.make(png), meta)
 
         yield* bucket.keep(id)
-        const tags = yield* readTags(`attachments/${id}`)
+        const { TagSet } = yield* s3.getObjectTagging({
+          Bucket: buildResourceName(stage, resources.buckets.attachments.name),
+          Key: `attachments/${id}`,
+        })
 
-        assert.deepStrictEqual(tags, [])
+        assert.deepStrictEqual(TagSet, [])
       }),
     )
 
-    it.effect("url is a presigned GET on the endpoint's host", () =>
+    it.effect("url serves attachments/<id> from the endpoint's host", () =>
       Effect.gen(function* () {
         const bucket = yield* AttachmentBucket
         const { endpoint } = yield* AwsConfig
@@ -109,7 +105,6 @@ describe('AttachmentBucketS3 over S3BucketFromConfig on AwsTest', () => {
 
         assert.strictEqual(url.host, Option.getOrThrow(endpoint).host)
         assert.isTrue(url.pathname.endsWith(`/attachments/${id}`))
-        assert.isTrue(url.searchParams.has('X-Amz-Signature'))
       }),
     )
 

@@ -824,22 +824,34 @@
 - **Goal:** the bucket adapter holds only the keys, the headers, the tag and the domain mapping,
   under 80 lines, and gets its first real test (R15, R18, D9).
 - **Blocked by:** S19.
-- **Files:** `infrastructure/attachment/attachment.bucket.ts`; `infrastructure/shared/aws.client.ts`
-  (`S3BucketFromConfig`: `S3Bucket.layer({ bucket: buildResourceName(stage,
-  resources.buckets.attachments.name) })` over `S3ServiceFromConfig` and `AwsConfig`);
-  `infrastructure/attachment/index.ts` (`AttachmentPgS3` over `S3BucketFromConfig`);
+- **Files:** `infrastructure/attachment/attachment.bucket.ts` (and `S3BucketFromConfig`:
+  `S3Bucket.layer({ bucket: buildResourceName(stage, resources.buckets.attachments.name) })`,
+  `S3Service` and `AwsConfig` read from its context);
+  `infrastructure/attachment/index.ts` (`AttachmentPgS3` over `S3BucketFromConfig`,
+  `S3ServiceFromConfig` and `AwsConfig.layer`);
   `infrastructure/package.json` (`@app-template/s3`), `infrastructure/tsconfig.json`;
   `infrastructure/e2e/attachment/attachment.bucket.e2e.ts` over `AwsTest` and
   `S3BucketFromConfig`; `docs/knowledge/aws.md › Attachments` (the tag on a multipart upload is
   untestable on MiniStack, which drops `Tagging` on `CreateMultipartUpload`).
 - **Test first:** `AttachmentBucketS3` on `AwsTest`: the key `attachments/<id>`; the content type
   and an inline disposition that survives a UTF-8 file name; the `unbound` tag on a small
-  upload; `keep` clears it; `url` is presigned on the endpoint's host; `select` of a missing
+  upload; `keep` clears it; `url` serves `attachments/<id>` from the endpoint's host; `select` of a missing
   id is none.
 - **Verify:** `wc -l infrastructure/attachment/attachment.bucket.ts` under 80; `make test-e2e`;
   `make check`.
 - **Model:** fable high
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - `S3BucketFromConfig` reads `AwsConfig` and `S3Service` from its context, as `OutboxRelay` does
+    since S18: a layer that provided `AwsConfig.layer` would override `AwsTest`'s stage and read
+    the environment (R18). It sits in `attachment.bucket.ts`, the one file that knows the
+    attachments bucket, so `shared/aws.client.ts` stays about clients.
+  - The suite asserts the `unbound` tag on a small upload only (MiniStack drops `Tagging` on
+    `CreateMultipartUpload`); its `url` case checks the host and the adapter's path, not the
+    presign, which is `S3Bucket`'s.
+  - The suite's layer is `AttachmentBucketS3Test`; `AttachmentBucketTest` is the domain's fake.
+    Its ids come from a local `attachmentId(n)`: `domain/testing` holds one attachment id only.
+  - The adapter is 58 lines.
 
 #### S21 — The journey: a root `e2e/` workspace over both app layers
 

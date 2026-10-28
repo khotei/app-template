@@ -2,9 +2,12 @@ import { Layer } from 'effect'
 
 import { AwsConfig } from '@app-template/config'
 
-import { AttachmentBucketS3 } from '#infrastructure/attachment/attachment.bucket'
+import {
+  AttachmentBucketS3,
+  S3BucketFromConfig,
+} from '#infrastructure/attachment/attachment.bucket'
 import { AttachmentRepositoryPg } from '#infrastructure/attachment/attachment.repository'
-import { S3BucketFromConfig, S3ServiceFromConfig } from '#infrastructure/shared/aws.client'
+import { S3ServiceFromConfig } from '#infrastructure/shared/aws.client'
 
 export { AttachmentBucketS3 } from '#infrastructure/attachment/attachment.bucket'
 export { AttachmentRepositoryPg } from '#infrastructure/attachment/attachment.repository'
