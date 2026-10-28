@@ -1,1 +1,1 @@
-export { Db } from '#infrastructure/db/db.client'
+export { Db, Transaction } from '#infrastructure/db/db.client'

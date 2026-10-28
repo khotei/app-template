@@ -5,4 +5,4 @@ export {
   type QueueDefinition,
   worker,
 } from '#queue/queue'
-export { QueueError, QueueTransport } from '#queue/queue.transport'
+export { type MessageContent, QueueError, QueueTransport } from '#queue/queue.transport'

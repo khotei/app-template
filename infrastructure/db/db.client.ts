@@ -4,7 +4,7 @@ import { EffectLogger } from 'drizzle-orm/effect-core'
 import { EffectDrizzleQueryError } from 'drizzle-orm/effect-core/errors'
 import * as PgDrizzle from 'drizzle-orm/effect-postgres'
 import { Cause, Context, Effect, Layer, Option, Schema } from 'effect'
-import { SqlError } from 'effect/sql'
+import { SqlClient, SqlError } from 'effect/sql'
 
 import { DatabaseConfig } from '@app-template/config'
 
@@ -35,6 +35,23 @@ export class Db extends Context.Service<Db, PgDrizzle.EffectPgDatabase<typeof re
 
   /** Publishes the `PgClient` too, so callers open transactions on the connection `Db` uses. */
   static readonly layerFromConfig = this.layer.pipe(Layer.provideMerge(PgClientFromConfig))
+}
+
+export class Transaction extends Context.Service<
+  Transaction,
+  {
+    /** Runs `self` in one transaction; its own `SqlError` is a defect. */
+    readonly run: <A, E, R>(self: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>
+  }
+>()('@app-template/infrastructure/db/Transaction') {
+  static readonly layer = Layer.effect(
+    this,
+    Effect.map(SqlClient.SqlClient, (sql) =>
+      this.of({
+        run: (self) => sql.withTransaction(self).pipe(Effect.catchTag('SqlError', Effect.die)),
+      }),
+    ),
+  )
 }
 
 export const decodeFound = <Row, A, E, R>(

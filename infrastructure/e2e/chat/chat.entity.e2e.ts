@@ -6,7 +6,7 @@ import { UserId } from '@app-template/domain/user'
 
 import { ChatInsert, chats } from '#infrastructure/chat/chat.entity'
 import { Db } from '#infrastructure/db/db.client'
-import { DbTest, flipSqlError } from '#infrastructure/testing/db.test-layer'
+import { DbTest, flipSqlError } from '#infrastructure/db/testing/db.test-layer'
 import { insertUser } from '#infrastructure/testing/rows.test-util'
 
 const userId = UserId.make('0192d4e0-7b3a-7c00-8000-000000000060')

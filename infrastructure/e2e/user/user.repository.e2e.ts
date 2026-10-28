@@ -12,7 +12,7 @@ import {
 import { assertSchemaEquals } from '@app-template/testing'
 
 import { Db, isSqlError } from '#infrastructure/db/db.client'
-import { DbTest, flipSqlError } from '#infrastructure/testing/db.test-layer'
+import { DbTest, flipSqlError } from '#infrastructure/db/testing/db.test-layer'
 import { credentials, users } from '#infrastructure/user/user.entity'
 import { UserRepositoryPg } from '#infrastructure/user/user.repository'
 

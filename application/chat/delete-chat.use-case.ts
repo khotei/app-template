@@ -1,9 +1,9 @@
 import { Array as Arr, Context, Effect, Layer } from 'effect'
-import { SqlClient } from 'effect/sql'
 
 import { AttachmentService } from '@app-template/domain/attachment'
 import { type ChatId, type ChatNotFoundError, ChatService } from '@app-template/domain/chat'
 import type { UserId } from '@app-template/domain/user'
+import { Transaction } from '@app-template/infrastructure/db'
 
 export class DeleteChatUseCase extends Context.Service<
   DeleteChatUseCase,
@@ -15,20 +15,19 @@ export class DeleteChatUseCase extends Context.Service<
   make: Effect.gen(function* () {
     const chatService = yield* ChatService
     const attachmentService = yield* AttachmentService
-    const sql = yield* SqlClient.SqlClient
+    const transaction = yield* Transaction
 
     // The cascade from the chat cannot reach the attachments' bytes.
-    const remove = Effect.fn('DeleteChatUseCase.delete')(
-      function* (userId: UserId, chatId: ChatId) {
-        const { messages } = yield* chatService.get(userId, chatId)
-        yield* attachmentService.deleteByIds(
-          Arr.flatMap(messages, ({ attachments }) => Arr.map(attachments, ({ id }) => id)),
-        )
-        yield* chatService.delete(userId, chatId)
-      },
-      sql.withTransaction,
-      Effect.catchTag('SqlError', Effect.die),
-    )
+    const remove = Effect.fn('DeleteChatUseCase.delete')(function* (
+      userId: UserId,
+      chatId: ChatId,
+    ) {
+      const { messages } = yield* chatService.get(userId, chatId)
+      yield* attachmentService.deleteByIds(
+        Arr.flatMap(messages, ({ attachments }) => Arr.map(attachments, ({ id }) => id)),
+      )
+      yield* chatService.delete(userId, chatId)
+    }, transaction.run)
 
     return { delete: remove }
   }),

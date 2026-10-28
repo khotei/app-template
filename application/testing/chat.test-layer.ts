@@ -1,5 +1,5 @@
 import { BunCrypto } from '@effect/platform-bun'
-import { Array as Arr, DateTime, Effect, Layer } from 'effect'
+import { Array as Arr, Effect, identity, Layer } from 'effect'
 
 import {
   type Attachment,
@@ -10,62 +10,64 @@ import {
   type ChatId,
   ChatRepository,
   ChatService,
-  completeMessage,
-  type Message,
   MessageRepository,
-  prepareMessage,
+  MessageService,
 } from '@app-template/domain/chat'
-import { AttachmentBucketTest, chat } from '@app-template/domain/testing'
-import { AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
-import { ChatRepositoryPg, MessageRepositoryPg } from '@app-template/infrastructure/chat'
-import type { Db } from '@app-template/infrastructure/db'
-import { QueueClientOutbox } from '@app-template/infrastructure/shared'
+import {
+  AttachmentBucketTest,
+  type AttachmentRows,
+  ChatRepositoryTest,
+  type ChatRows,
+  chat,
+  type MessageRows,
+  RepositoryStackTest,
+} from '@app-template/domain/testing'
+import { TransactionTest } from '@app-template/infrastructure/testing'
+import { QueueClient } from '@app-template/queue'
 
 import { DeleteChatUseCase } from '#application/chat/delete-chat.use-case'
 import { SendMessageUseCase } from '#application/chat/send-message.use-case'
-import { DbWithUsersTest } from '#application/testing/db.test-layer'
 
 const insertChat = Layer.effectDiscard(
   Effect.flatMap(ChatRepository, (chats) => chats.insert(chat)),
 )
 
+/** The queue client on the definitions' own names; its locks never run, since nothing consumes. */
+const QueueClientTest = QueueClient.layer({
+  queueName: identity,
+  lockExpiration: '30 seconds',
+  lockRefreshInterval: '10 seconds',
+})
+
 /**
- * The chat services and use cases on a fresh test database where `chat` exists, over the memory
- * attachment bucket and the outbox; `chats` replaces the Postgres chat repository.
+ * The chat services and use cases over the memory layers, on fresh rows where `chat` exists, the
+ * identity transaction and the queue client; the `QueueTransport` is the test's, `recordQueue()`.
+ * `chats` replaces the memory chat repository the services write through, to force a race the
+ * real one cannot produce on demand; the test's own reads keep the plain one.
  */
-export const layerChatTest = (chats: Layer.Layer<ChatRepository, never, Db> = ChatRepositoryPg) =>
+export const layerChatTest = (
+  chats: Layer.Layer<
+    ChatRepository,
+    never,
+    ChatRows | MessageRows | AttachmentRows
+  > = ChatRepositoryTest,
+) =>
   Layer.mergeAll(
     ChatService.layer,
+    MessageService.layer,
     AttachmentService.layer,
     SendMessageUseCase.layer,
     DeleteChatUseCase.layer,
   ).pipe(
+    Layer.provide(chats),
     Layer.provideMerge(insertChat),
     Layer.provideMerge(
-      Layer.mergeAll(
-        chats,
-        MessageRepositoryPg,
-        AttachmentRepositoryPg,
-        AttachmentBucketTest,
-        QueueClientOutbox,
-      ),
+      Layer.mergeAll(RepositoryStackTest, AttachmentBucketTest, TransactionTest, QueueClientTest),
     ),
-    Layer.provideMerge(DbWithUsersTest),
     Layer.provide(BunCrypto.layer),
   )
 
 export const ChatTest = layerChatTest()
-
-/** Completes an assistant message as the worker would, freeing its chat for the next send. */
-export const settle = (message: Message) =>
-  Effect.gen(function* () {
-    const messages = yield* MessageRepository
-    const at = yield* DateTime.now
-
-    const prepared = yield* prepareMessage(message, at)
-    const completed = yield* completeMessage(prepared, { text: 'Sure.', at })
-    yield* messages.update(completed, { stage: message.stage })
-  })
 
 export const selectChat = (chatId: ChatId) =>
   Effect.flatMap(ChatRepository, (chats) => chats.selectOne({ id: chatId }))

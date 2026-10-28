@@ -40,10 +40,10 @@ Do not wait for the method to grow: the exception is the signal.
   removes the attachments first.
 - **All checks precede every write;** a step's own guard may repeat a check the use case already
   made.
-- **The writes commit in one transaction:** `sql.withTransaction` as a pipeable of the `Effect.fn`
-  that holds the writes, then `Effect.catchTag('SqlError', Effect.die)` for its own statements.
-  `AttachmentBucket` stays outside it: keep the bytes before the row that binds them, and delete
-  them before the commit.
+- **The writes commit in one transaction:** `Transaction.run` (`@app-template/infrastructure/db`)
+  as a pipeable of the `Effect.fn` that holds the writes; the process provides `Transaction.layer`,
+  a unit suite `TransactionTest`. `AttachmentBucket` stays outside it: keep the bytes before the
+  row that binds them, and delete them before the commit.
 - **Enqueue inside the transaction of the writes the job reads**
   ([database.md › The outbox](../../docs/knowledge/database.md#the-outbox)).
 - Read a set through the port's batch method (`selectMany`), never one `select` per id in a loop.

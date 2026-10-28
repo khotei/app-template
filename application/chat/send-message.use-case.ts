@@ -1,5 +1,4 @@
 import { Context, Effect, Layer } from 'effect'
-import { SqlClient } from 'effect/sql'
 
 import {
   type AttachmentBoundError,
@@ -18,6 +17,7 @@ import {
   MessageService,
 } from '@app-template/domain/chat'
 import type { UserId } from '@app-template/domain/user'
+import { Transaction } from '@app-template/infrastructure/db'
 
 import { AssistantMessageJob } from '#application/chat/assistant-message.job'
 import { ChatTitleJob } from '#application/chat/chat-title.job'
@@ -52,30 +52,30 @@ export class SendMessageUseCase extends Context.Service<
     const attachmentService = yield* AttachmentService
     const assistantJob = yield* AssistantMessageJob
     const titleJob = yield* ChatTitleJob
-    const sql = yield* SqlClient.SqlClient
+    const transaction = yield* Transaction
 
-    const send = Effect.fn('SendMessageUseCase.send')(
-      function* (userId: UserId, chatId: ChatId, input: MessageInput) {
-        const sendable = yield* chatService.findSendable(userId, chatId, input)
+    const send = Effect.fn('SendMessageUseCase.send')(function* (
+      userId: UserId,
+      chatId: ChatId,
+      input: MessageInput,
+    ) {
+      const sendable = yield* chatService.findSendable(userId, chatId, input)
 
-        // A rule-free write, before the messages: a chat deleted since the check reads as gone.
-        const touched = yield* chats.update({ updatedAt: sendable.at }, { id: chatId })
-        if (!touched) return yield* new ChatNotFoundError({ id: chatId })
+      // A rule-free write, before the messages: a chat deleted since the check reads as gone.
+      const touched = yield* chats.update({ updatedAt: sendable.at }, { id: chatId })
+      if (!touched) return yield* new ChatNotFoundError({ id: chatId })
 
-        const userMessage = yield* messageService.addUserMessage(sendable)
-        const bound = yield* attachmentService.bind(userId, input.attachmentIds, userMessage.id)
-        const assistantMessage = yield* messageService.addAssistantMessage(sendable)
-        yield* assistantJob.enqueue(assistantMessage)
-        if (sendable.opensChat) yield* titleJob.enqueue(userMessage)
+      const userMessage = yield* messageService.addUserMessage(sendable)
+      const bound = yield* attachmentService.bind(userId, input.attachmentIds, userMessage.id)
+      const assistantMessage = yield* messageService.addAssistantMessage(sendable)
+      yield* assistantJob.enqueue(assistantMessage)
+      if (sendable.opensChat) yield* titleJob.enqueue(userMessage)
 
-        return {
-          userMessage: { message: userMessage, attachments: bound },
-          assistantMessage: { message: assistantMessage, attachments: [] },
-        }
-      },
-      sql.withTransaction,
-      Effect.catchTag('SqlError', Effect.die),
-    )
+      return {
+        userMessage: { message: userMessage, attachments: bound },
+        assistantMessage: { message: assistantMessage, attachments: [] },
+      }
+    }, transaction.run)
 
     return { send }
   }),

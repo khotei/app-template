@@ -8,7 +8,7 @@ import { assertSchemaEquals } from '@app-template/testing'
 
 import { decodeMessage, messages } from '#infrastructure/chat/message.entity'
 import { Db } from '#infrastructure/db/db.client'
-import { DbTest, flipSqlError } from '#infrastructure/testing/db.test-layer'
+import { DbTest, flipSqlError } from '#infrastructure/db/testing/db.test-layer'
 import { insertChat, insertMessage, insertUser } from '#infrastructure/testing/rows.test-util'
 
 const createdAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')
