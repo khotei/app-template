@@ -69,7 +69,7 @@ Every `tests/` and `e2e/` file mirrors the source path; test support lives only 
 | `attachment/attachment.service.ts` | `AttachmentService` (domain) |
 | `user/user.port.ts` **new** · `user/user.service.ts` | `UserRepository` · `UserService` (domain), `UserSecret` |
 | `shared/` *gone* | `ensureFound` and the `./shared` export |
-| `testing/` **new** | `chat.test-fixture.ts`, `user.test-fixture.ts`, `attachment.test-fixture.ts` (from `application/testing`); `chat.test-fake.ts`: `ChatRepositoryTest`, `MessageRepositoryTest`; `attachment.test-fake.ts`: `AttachmentRepositoryTest`, `AttachmentBucketTest`; `user.test-fake.ts`: `UserRepositoryTest`; `assistant.test-fake.ts`: `recordAssistant(script)`, `holdAssistantCall()`; `index.ts` |
+| `testing/` **new** | `chat.test-fixture.ts`, `user.test-fixture.ts`, `attachment.test-fixture.ts` (from `application/testing`); `chat.test-fake.ts`: `ChatRepositoryTest`, `MessageRepositoryTest`; `attachment.test-fake.ts`: `AttachmentRepositoryTest`, `AttachmentBucketTest`; `user.test-fake.ts`: `UserRepositoryTest`; `chat.test-layer.ts`: `ChatTest` (`ChatService` and `MessageService` over the memory layers, `Crypto` open), `send`, `selectMessages`; `attachment.test-layer.ts`: `upload`; `assistant.test-fake.ts`: `recordAssistant(script)`, `holdAssistantCall()`; `index.ts` |
 | `tests/` **new** | `chat/chat.model.test.ts`, `chat/message.model.test.ts`, `chat/chat.service.test.ts`, `chat/message.service.test.ts`, `attachment/…`, `user/…` |
 | `package.json` | `exports["./testing"]`; `@effect/platform-bun` in `devDependencies` (`BunCrypto.layer` in tests) |
 
@@ -120,7 +120,7 @@ sits beside never reach the browser.
 
 | File | Holds |
 |---|---|
-| `chat/send-message.use-case.ts` | over `ChatService`, `MessageService`, `AttachmentService`, `QueueClient`, `Transaction` |
+| `chat/send-message.use-case.ts` | over `ChatService`, `MessageService`, `AttachmentService`, `QueueClient`, `Transaction`, and `ChatRepository` for the chat's `updatedAt` |
 | `chat/delete-chat.use-case.ts` | over `ChatService`, `AttachmentService`, `Transaction` |
 | `chat/generate-assistant-message.use-case.ts` **new** | `GenerateAssistantMessageUseCase`: `generate(job)`, `fail(messageId, cause)` |
 | `chat/generate-chat-title.use-case.ts` **new** | `GenerateChatTitleUseCase`: `generate(job)` |
@@ -241,7 +241,7 @@ export class MessageService extends Context.Service<MessageService, {
     Effect.Effect<MessageDetail, MessageNotFoundError>
   readonly addUserMessage: (sendable: SendableChat) => Effect.Effect<Message>
   readonly addAssistantMessage: (sendable: SendableChat) => Effect.Effect<Message, ChatBusyError>
-  /** Each stage move writes only while the stored message is still at `message.stage`. */
+  /** Each stage move writes only while the stored message is still at `message.stage`; `snapshot` while at `generating`. */
   readonly prepare: (message: Message, at: DateTime.Utc) => Effect.Effect<Message, MessageStageInvalidError | MessageMovedError>
   readonly generate: (message: Message, at: DateTime.Utc) => Effect.Effect<Message, MessageStageInvalidError | MessageMovedError>
   readonly snapshot: (message: Message, text: string, at: DateTime.Utc) => Effect.Effect<Message, MessageMovedError>
@@ -253,7 +253,8 @@ export class MessageService extends Context.Service<MessageService, {
 ```
 
 `MessageStageInvalidError` is the transition refused in memory (a bug); `MessageMovedError` is
-the stored message found at another stage (a lost race). The use case retries the first and
+the stored message found at another stage (a lost race); it carries `{ id, expected }`, the stage
+the write required. The use case retries the first and
 logs the second as skipped, as the job does today.
 
 ### Use cases and handlers
@@ -483,7 +484,7 @@ export const AwsTest = Layer.unwrap(Effect.gen(function* () {
   `if` behind a name, for two callers); Drizzle's `$onUpdate` on `updatedAt`, which would move
   the chat on the title job's write and break `chat.updatedAt == message.createdAt`.
 - **D2 — Pure operations live in `.model.ts`, split by the value they act on.** Builders,
-  predicates, `buildChatTitle` and the transitions sit beside the `Schema.Class` they produce;
+  predicates, `buildChatTitle`, the transitions and `snapshotMessage` sit beside the `Schema.Class` they produce;
   `.service.ts` holds only the service, `.port.ts` only the port, so the bundle guard can prove
   that neither reaches the browser. A file that outgrows a screen splits by value type
   (`message-stage.model.ts`), never into a `.rule` suffix. The stage schemas sit apart from

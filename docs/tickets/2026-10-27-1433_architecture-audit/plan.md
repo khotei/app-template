@@ -516,16 +516,33 @@
   `application/chat/send-message.use-case.ts` (`chats.update({ updatedAt: sendable.at },
   { id: chatId })` then `ChatNotFoundError`; `messageService.addUserMessage`);
   `apps/api/chat/chat.handler.ts` (`getMessage` → `MessageService.get`);
-  `http-api/chat/chat.http.ts` (`getMessage` drops `chatNotFound`, which S10 made unreachable); `apps/api/layer.ts`,
-  `apps/worker/layer.ts` (`MessageService.layer`); `domain/tests/chat/message.service.test.ts`;
+  `http-api/chat/chat.http.ts` (`getMessage` drops `chatNotFound`, which S10 made unreachable);
+  `apps/api/layer.ts` (`MessageService.layer`); `domain/tests/chat/message.service.test.ts`;
   `domain/tests/chat/chat.service.test.ts` (the moved cases).
 - **Test first:** `MessageService` over the memory layers: `addAssistantMessage` on a busy chat
   is `ChatBusyError`; `prepare` of a completed message is `MessageStageInvalidError`; `complete`
   after the stored message moved is `MessageMovedError`; `snapshot` writes the text only while
   stored at `generating`; `get` of another chat's message is `MessageNotFoundError`.
-- **Verify:** `ls domain/chat` shows the nine files of R10; `make test-unit`; `make check`.
+- **Verify:** `ls domain/chat` shows the nine files of R10 (beside `chat.id.ts`,
+  `message-stage.model.ts`, `index.ts`); `make test-unit`; `make check`.
 - **Model:** fable high
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - ~730 changed lines against the ~400 bound; more than half is the new and moved suites.
+  - `MessageMovedError { id, expected }`: the stage the write required; `{ from, to }` fails
+    `snapshot`, which moves no stage.
+  - `snapshot` writes `snapshotMessage(message, text, at)`, a pure builder in `message.model.ts`
+    that sets `generating` itself, under `{ stage: 'generating' }`, so a message handed at
+    `preparing` cannot write a stale stage back.
+  - `domain/testing/chat.test-layer.ts` (beyond **Files**): `ChatTest`, both services over the
+    memory layers with `Crypto` open, `send` and `selectMessages`; each suite provides
+    `BunCrypto.layer` as `ChatBunTest`.
+  - `list` is proved across three chats: renaming the middle one puts it first, which neither
+    `createdAt` order nor the fake's insertion order yields.
+  - `apps/worker/layer.ts` needed no change: no worker code reads `MessageService` before S15.
+  - Two `ChatService` cases left with the send's chat write; they go to S12's **Test first**.
+  - For S23: `use-cases.md`'s "one writer per aggregate" and its `findSendable → SendableChat →
+    addUserMessage` example contradict D1's rule-free write.
 
 ### The use cases
 
@@ -557,8 +574,9 @@
 - **Test first:** the use cases over the memory layers (`application/tests/chat/*.use-case.test.ts`):
   a send writes the user message, binds, writes the queued assistant message, puts two jobs in
   `sent` when the chat opens and one otherwise, and leaves the chat's `updatedAt` at
-  `sendable.at`; a bind refusal leaves `sent` empty; a delete removes the chat and its
-  attachments' bytes. The transaction's atomicity stays with the journey (S21).
+  `sendable.at` and the title a rename gave it; a send to a chat deleted after `findSendable` is
+  `ChatNotFoundError` and writes no message; a bind refusal leaves `sent` empty; a delete removes
+  the chat and its attachments' bytes. The transaction's atomicity stays with the journey (S21).
 - **Verify:** with Docker stopped, `make test-unit` runs the two suites; `grep -rn
   "withTransaction" application/` is empty; `make check`.
 - **Model:** fable high
@@ -852,7 +870,8 @@
 - **Goal:** the rules speak the glossary's words and describe only the new model (R20, R21).
 - **Blocked by:** S21, S22.
 - **Files:** `git mv .claude/rules/use-cases.md .claude/rules/layering.md` (paths `domain/**`,
-  `application/**`, `apps/**`; ports, domain services, use cases, handlers, the rule-free write,
+  `application/**`, `apps/**`; ports, domain services, use cases, handlers, the rule-free write
+  replacing "one writer per aggregate" and the `SendableChat` example,
   `Transaction.run`, the enqueue inside it, the concurrency section kept); `.claude/rules/naming.md`
   (whole: `.port`, `.model` with the rules, `.service` domain only with D14's two naming forms,
   `.use-case`, `.handler` in

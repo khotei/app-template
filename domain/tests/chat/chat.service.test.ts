@@ -65,29 +65,41 @@ describe('ChatService', () => {
     }).pipe(Effect.provide(ChatBunTest)),
   )
 
-  it.live("list puts the last active chat first with its active message, and only the user's", () =>
-    Effect.gen(function* () {
-      const service = yield* ChatService
-      const chats = yield* ChatRepository
-      const newer = buildChat({
-        id: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000021'),
-        userId: owner,
-        createdAt: DateTime.addDuration(epoch, Duration.millis(1)),
-      })
-      yield* chats.insert(newer)
-      yield* service.create(stranger)
-      const { assistantMessage } = yield* send(owner, newer.id, 'Lisbon?')
-      yield* service.rename(owner, chat.id, ChatTitle.make('Trip'))
+  it.live(
+    "rename makes the chat the last active one in list, which shows each active message and only the user's chats",
+    () =>
+      Effect.gen(function* () {
+        const service = yield* ChatService
+        const chats = yield* ChatRepository
+        const createdAfter = (millis: number) =>
+          DateTime.addDuration(epoch, Duration.millis(millis))
+        const second = buildChat({
+          id: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000021'),
+          userId: owner,
+          createdAt: createdAfter(1),
+        })
+        const third = buildChat({
+          id: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000022'),
+          userId: owner,
+          createdAt: createdAfter(2),
+        })
+        yield* chats.insert(second)
+        yield* chats.insert(third)
+        yield* service.create(stranger)
+        const { assistantMessage } = yield* send(owner, third.id, 'Lisbon?')
 
-      const summaries = yield* service.list(owner)
-      assertEquals(
-        Arr.map(summaries, (summary) => [summary.chat.id, summary.activeMessage]),
-        [
-          [chat.id, Option.none()],
-          [newer.id, Option.some(assistantMessage)],
-        ],
-      )
-    }).pipe(Effect.provide(ChatBunTest)),
+        yield* service.rename(owner, second.id, ChatTitle.make('Trip'))
+
+        const summaries = yield* service.list(owner)
+        assertEquals(
+          Arr.map(summaries, (summary) => [summary.chat.id, summary.activeMessage]),
+          [
+            [second.id, Option.none()],
+            [third.id, Option.some(assistantMessage)],
+            [chat.id, Option.none()],
+          ],
+        )
+      }).pipe(Effect.provide(ChatBunTest)),
   )
 
   it.effect('get returns the chat with its messages and the active message', () =>
