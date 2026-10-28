@@ -679,7 +679,23 @@
 - **Verify:** `find . -name "chat-title.job.ts" -not -path "*/node_modules/*"` is empty;
   `make test-unit`; `make check`.
 - **Model:** fable high
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The send runs `queue.send` under `Effect.orDie`: `QueueError` is an infrastructure failure
+    no rule reads, so the use case's error union stays the domain's; a defect under
+    `transaction.run` still rolls the send back (R7).
+  - The title handler's `handle` takes the job alone: `AttemptInfo` is read only where a
+    last-attempt policy exists, the reply's (S16).
+  - Beyond **Files**: `ChatTitleTest` in `application/testing/chat.test-layer.ts`, the title use
+    case over the memory layers with the `Assistant` open, shared by the use-case and the handler
+    suites; a layer of its own, since inside `ChatTest` every send and delete test would provide
+    an `Assistant` it never calls. `docs/knowledge/architecture.md` (an import example named the
+    gone job).
+  - The `.job` row stays in `naming.md` until S16 removes the last `.job` file.
+  - With the title job's e2e suite moved onto `recordAssistant`, nothing tests `AssistantLlm`
+    (the prompt, the cut, blank text, D3): S15 gives the adapter a unit suite of its own.
+  - R3's acceptance read "at least two of" its list; the title use case composes `ChatService`
+    and the `Assistant` only, so the check now asks for one of the list beside a domain service.
 
 #### S15 — `GenerateAssistantMessageUseCase`: the reply over `MessageService`
 
@@ -703,8 +719,12 @@
   application/e2e/chat/assistant-message.job.e2e.ts
   application/tests/chat/generate-assistant-message.use-case.test.ts` over the memory layers,
   `recordAssistant` and `holdAssistantCall` (a race is arranged by writing `MessageRows` between
-  hold and release); `application/testing/language-model.test-fake.ts` *gone*.
-- **Test first:** the use case over the memory layers: the stages `preparing`, `generating`, a
+  hold and release); `application/testing/language-model.test-fake.ts` *gone*;
+  `infrastructure/tests/chat/assistant.llm.test.ts` (`AssistantLlm` over a `LanguageModel.make`
+  layer of its own, recording the prompts).
+- **Test first:** the adapter: `suggestTitle` sends "Write a title" and cuts the answer through
+  `buildChatTitle`; blank text answers none without a model call; a model `AiError` is a defect
+  (D3); `streamText` sends the history with its files. The use case over the memory layers: the stages `preparing`, `generating`, a
   snapshot, `completed`, and the chat's `updatedAt` at the completion; a message moved during
   the hold is skipped; a deleted chat is skipped; `fail` writes `failed` with the reason and
   keeps `cause` out of the user's message; the history carries the attachments' bytes.

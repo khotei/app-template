@@ -71,8 +71,9 @@ export class SendMessageUseCase extends Context.Service<
       const assistantMessage = yield* messageService.addAssistantMessage(sendable)
       yield* assistantJob.enqueue(assistantMessage)
       if (sendable.opensChat) {
-        const titleJob = new GenerateChatTitle({ chatId, messageId: userMessage.id })
-        yield* Effect.orDie(queue.send(chatTitleQueue, titleJob))
+        yield* Effect.orDie(
+          queue.send(chatTitleQueue, new GenerateChatTitle({ chatId, messageId: userMessage.id })),
+        )
       }
 
       return {

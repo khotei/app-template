@@ -125,8 +125,8 @@ sits beside never reach the browser.
 | `chat/generate-assistant-message.use-case.ts` **new** | `GenerateAssistantMessageUseCase`: `generate(job)`, `fail(messageId, cause)` |
 | `chat/generate-chat-title.use-case.ts` **new** | `GenerateChatTitleUseCase`: `generate(job)` |
 | `chat/chat.service.ts`, `chat/*.job.ts`, `attachment/attachment.service.ts`, `user/user.service.ts` *gone* | moved to `domain` or split into the use cases |
-| `testing/chat.test-layer.ts` | `ChatTest`: the use cases over the memory layers, `TransactionTest`, `recordQueue()`; the arrange and read steps over the memory ports |
-| `testing/db.test-layer.ts`, `testing/attachment.fake.ts`, `testing/language-model.test-fake.ts`, the fixtures *gone* | moved to `domain/testing` and `infrastructure/db/testing` |
+| `testing/chat.test-layer.ts` | `ChatTest`: the use cases over the memory layers, `TransactionTest`, `recordQueue()`; `ChatTitleTest`: the title use case with the `Assistant` open; the arrange and read steps over the memory ports |
+| `testing/db.test-layer.ts`, `testing/attachment.fake.ts`, `testing/language-model.test-fake.ts`, the fixtures *gone* | moved to `domain/testing` and `infrastructure/db/testing`; the language model's layer to the `AssistantLlm` suite |
 | `tests/chat/*.use-case.test.ts` | one suite per use case |
 
 ### `apps` (no `src/`)
@@ -138,7 +138,7 @@ sits beside never reach the browser.
 | `api/tests/<entity>/<entity>.handler.test.ts` | statuses, cookies, the wire shape |
 | `worker/layer.ts`, `worker/main.ts` | `WorkerLayer`; `exports["./layer"]` |
 | `worker/chat/assistant-message.handler.ts` **new** · `worker/chat/chat-title.handler.ts` **new** | `handle`, `handleDeadLettered` exported; `AssistantMessageHandler`, `ChatTitleHandler` layers (`worker(queue, handle)` + dead-letter) |
-| `worker/tests/chat/*.handler.test.ts` **new** | `handle(job, info)` on the memory layers: the last attempt, the dead letter |
+| `worker/tests/chat/*.handler.test.ts` **new** | `handle(job)` (`handle(job, info)` for the reply) on the memory layers: the last attempt, the dead letter |
 | `web/main.ts`, `web/app/`, `web/features/`, `web/shared/`, `web/index.html` | as today, one level up; the Biome override names `apps/web/main.ts` |
 | `*/package.json`, `*/tsconfig.json` | `#api/*` → `./*.ts`, `include: ["**/*.ts"]`, scripts on `main.ts` |
 
@@ -273,8 +273,9 @@ const send = Effect.fn('SendMessageUseCase.send')(function* (userId, chatId, inp
   const userMessage = yield* messageService.addUserMessage(sendable)
   const bound = yield* attachmentService.bind(userId, input.attachmentIds, userMessage.id)
   const assistantMessage = yield* messageService.addAssistantMessage(sendable)
-  yield* queue.send(assistantMessageQueue, new GenerateAssistantMessage({ chatId, messageId: assistantMessage.id }))
-  if (sendable.opensChat) yield* queue.send(chatTitleQueue, new GenerateChatTitle({ chatId, messageId: userMessage.id }))
+  // A QueueError is a defect: no rule reads it, and it still rolls the send back.
+  yield* Effect.orDie(queue.send(assistantMessageQueue, new GenerateAssistantMessage({ chatId, messageId: assistantMessage.id })))
+  if (sendable.opensChat) yield* Effect.orDie(queue.send(chatTitleQueue, new GenerateChatTitle({ chatId, messageId: userMessage.id })))
   return { userMessage: { message: userMessage, attachments: bound }, assistantMessage: { message: assistantMessage, attachments: [] } }
 }, transaction.run)
 
@@ -465,7 +466,8 @@ export const AwsTest = Layer.unwrap(Effect.gen(function* () {
 | the use cases over the memory layers, `TransactionTest`, `recordQueue()`, `recordAssistant()` (`application/tests`) | the order of steps, the jobs sent and when, the chat's `updatedAt` after a send and a settle, the snapshots and the settle, the skip on a moved message, the fail on the last attempt's cause | the transaction's atomicity, a real race between two sends, the outbox |
 | `Transaction.layer` on `DbTest` (`infrastructure/e2e/db`) | no earlier write kept when a later one fails or dies; a `SqlError` under `run` is a defect | whether a use case wraps its writes |
 | each use case on `ChatPgTest` with a write the test's constraint refuses (`application/e2e`) | the use case's writes in one transaction: no row and no outbox row kept | the rules (the unit suites' seam) |
-| `handle(job, info)` of each worker handler (`apps/worker/tests`) | the last-attempt policy, the dead-letter log and fail | the queue loop, redrive |
+| `handle(job)` of each worker handler, `handle(job, info)` for the reply (`apps/worker/tests`) | the last-attempt policy, the dead-letter log and fail | the queue loop, redrive |
+| `AssistantLlm` over a recording `LanguageModel` layer (`infrastructure/tests/chat`) | the prompts, the title cut through `buildChatTitle`, blank text without a model call, an `AiError` as a defect (D3) | a real provider's answer |
 | `ApiTest` over the memory layers (`apps/api/tests`) | statuses, the cookie, the wire shape, multipart limits | the database, S3 |
 | each `*RepositoryPg` on `DbTest` (`infrastructure/e2e`) | the `Where` as SQL (an owner mismatch reads as absent), the builders, the unique index on the active message, the relational reads, the cascade refusing a bound attachment | the rules above |
 | `OutboxRelay` on `DbTest` + `AwsTest` (`infrastructure/e2e`) | a batch locked, sent to SQS and deleted; a failed send keeps its rows; the `jsonb` body round trip | what the worker does with the job |
