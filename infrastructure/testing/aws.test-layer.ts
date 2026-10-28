@@ -3,7 +3,7 @@ import { inject } from 'vitest'
 
 import { provision, resources } from '@app-template/aws'
 import { AwsConfig } from '@app-template/config'
-import { buildTestStage, ministackRegion, S3ClientTest, SqsClientTest } from '@app-template/testing'
+import { generateStage, ministackRegion, S3ClientTest, SqsClientTest } from '@app-template/testing'
 
 /**
  * A stage of its own per test on the run's MiniStack, its bucket and queues provisioned fresh.
@@ -11,7 +11,7 @@ import { buildTestStage, ministackRegion, S3ClientTest, SqsClientTest } from '@a
  */
 export const AwsTest = Layer.unwrap(
   Effect.gen(function* () {
-    const stage = buildTestStage()
+    const stage = generateStage()
     yield* provision(resources, stage)
     return Layer.succeed(AwsConfig, {
       region: ministackRegion,

@@ -1,5 +1,5 @@
 export { buildDeadLetterName, buildResourceName, projectName } from '#aws/naming'
-export { provision } from '#aws/provision'
+export { provision, provisionBuckets, provisionQueues } from '#aws/provision'
 export {
   type Resources,
   resources,

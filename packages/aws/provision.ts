@@ -17,11 +17,12 @@ import { type Cause, Effect, pipe, Record as Rec } from 'effect'
 import { buildDeadLetterName, buildResourceName } from '#aws/naming'
 import type { BucketResource, QueueResource, Resources } from '#aws/resources'
 
-type ProvisionError =
+type ProvisionBucketError = Cause.TimeoutError | SdkError | BucketAlreadyExistsError
+
+type ProvisionQueueError =
   | Cause.NoSuchElementError
   | Cause.TimeoutError
   | SdkError
-  | BucketAlreadyExistsError
   | InvalidAddressError
   | InvalidAttributeNameError
   | InvalidAttributeValueError
@@ -59,23 +60,33 @@ const provisionQueuePair = (stage: string) =>
     })
   })
 
+/** Creates each bucket under `stage`, without its lifecycle rules; a second run changes nothing. */
+export const provisionBuckets = Effect.fn('provisionBuckets')(
+  (
+    buckets: Resources['buckets'],
+    stage: string,
+  ): Effect.Effect<void, ProvisionBucketError, S3Service> =>
+    pipe(buckets, Rec.values, Effect.forEach(provisionBucket(stage), { discard: true })),
+)
+
 /**
- * Creates each bucket of the inventory, and each queue with its dead-letter queue, under `stage`;
- * a second run on the same resources changes nothing.
+ * Creates each queue with its dead-letter queue under `stage`; a second run on the same queues
+ * changes nothing.
  *
  * A queue whose attributes drifted from the inventory fails with `QueueNameExists`: SQS never
  * updates on create, and `make reset` is the local way back.
  */
-export const provision = Effect.fn('provision')(
+export const provisionQueues = Effect.fn('provisionQueues')(
   (
-    { buckets, queues }: Resources,
+    queues: Resources['queues'],
     stage: string,
-  ): Effect.Effect<void, ProvisionError, S3Service | SQSService> =>
-    Effect.all(
-      [
-        pipe(buckets, Rec.values, Effect.forEach(provisionBucket(stage), { discard: true })),
-        pipe(queues, Rec.values, Effect.forEach(provisionQueuePair(stage), { discard: true })),
-      ],
-      { discard: true },
-    ),
+  ): Effect.Effect<void, ProvisionQueueError, SQSService> =>
+    pipe(queues, Rec.values, Effect.forEach(provisionQueuePair(stage), { discard: true })),
+)
+
+/** The whole inventory under `stage`: the buckets and the queues. */
+export const provision = Effect.fn('provision')(({ buckets, queues }: Resources, stage: string) =>
+  Effect.all([provisionBuckets(buckets, stage), provisionQueues(queues, stage)], {
+    discard: true,
+  }),
 )

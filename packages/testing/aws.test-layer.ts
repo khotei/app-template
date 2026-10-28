@@ -3,19 +3,15 @@ import { SQSService } from '@effect-aws/client-sqs'
 import { Layer } from 'effect'
 import { inject } from 'vitest'
 
+import { ministackRegion } from '#testing/aws.test-util'
+
 declare module 'vitest' {
   export interface ProvidedContext {
     readonly awsEndpoint: string
   }
 }
 
-/** The region the `globalSetup` starts the run's MiniStack in; its clients and stages address it. */
-export const ministackRegion = 'us-east-1'
-
 const credentials = { accessKeyId: 'test', secretAccessKey: 'test' } as const
-
-/** A stage no other test holds, `e2e` and eight hex digits, so a test's resources are its own. */
-export const buildTestStage = (): string => `e2e${crypto.randomUUID().slice(0, 8)}`
 
 const buildClientOptions = () => ({
   endpoint: inject('awsEndpoint'),

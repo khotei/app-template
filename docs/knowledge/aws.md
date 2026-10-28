@@ -176,16 +176,17 @@ and only the snapshot-timing block steps the `TestClock`.
 
 The e2e `globalSetup` (`infrastructure/testing/e2e.test-setup.ts`) starts one MiniStack beside
 the run's Postgres (`testcontainers`, about two seconds for both) and hands its endpoint to the
-tests through `inject('awsEndpoint')`; `SqsClientTest` and `S3ClientTest` in `@app-template/testing`
-are clients on it. `AwsTest` in `infrastructure/testing` gives each test a stage of its own
-(`e2e` and eight hex digits), provisions the inventory's bucket and queues under it and provides
-`AwsConfig` over the endpoint and that stage, so an adapter builds its names as in production; it
-publishes the clients too, as the `*FromConfig` layers do. The queue's own suite provisions its
-own queues under one such stage for its `layer` block. Nothing cleans a stage up: the container
-goes with the run. The application and api suites test our code, not S3 or SQS: they provide
-`AttachmentBucketTest` ([tooling.md › Tests](tooling.md#tests)) and send jobs to the outbox
-([database.md › Tests](database.md#tests)). So `make test` needs a running Docker daemon and nothing
-else, not the local stand or `.env`: the Pulumi project is for `make up` alone.
+tests through `inject('awsEndpoint')`; `SqsClientTest` and `S3ClientTest` in
+`@app-template/testing` are clients on it. `AwsTest` (`infrastructure/testing/aws.test-layer.ts`)
+gives each test a stage of its own (`e2e` and eight hex digits), provisions the inventory's
+bucket and queues under it and provides `AwsConfig` over the endpoint and that stage, so an
+adapter builds its names as in production; it publishes the clients too, as the `*FromConfig`
+layers do. The queue's own suite provisions its own queues under one such stage for its `layer`
+block, with `provisionQueues`. Nothing cleans a stage up: the container goes with the run. The
+application and api suites test our code, not S3 or SQS: they provide `AttachmentBucketTest`
+([tooling.md › Tests](tooling.md#tests)) and send jobs to the outbox
+([database.md › Tests](database.md#tests)). So `make test` needs a running Docker daemon and
+nothing else, not the local stand or `.env`: the Pulumi project is for `make up` alone.
 
 MiniStack differs from AWS in what it never does: lifecycle rules never run, the 5 MiB minimum
 part size is not enforced, and the `Tagging` sent with `CreateMultipartUpload` is dropped. What

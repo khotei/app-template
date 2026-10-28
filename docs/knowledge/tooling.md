@@ -58,10 +58,10 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   MiniStack container beside it (about two seconds for both). Each test provides `PgClientTest`
   from `@app-template/testing`: a fresh database copied from the template and dropped when the
   test ends, about 40 ms in all; a test on S3 or SQS provides `AwsTest` from
-  `infrastructure/testing`: a stage of its own on the run's MiniStack, its bucket and queues
-  provisioned ([aws.md › Tests on Docker](aws.md#tests-on-docker)). A test therefore sees only
-  its own rows and resources, even through a query that reads a whole table, and files run in
-  parallel. E2e tests need Docker and nothing else: no `.env`, no `make up`.
+  `infrastructure/testing/aws.test-layer.ts`: a stage of its own on the run's MiniStack, its
+  bucket and queues provisioned ([aws.md › Tests on Docker](aws.md#tests-on-docker)). A test
+  therefore sees only its own rows and resources, even through a query that reads a whole table,
+  and files run in parallel. E2e tests need Docker and nothing else: no `.env`, no `make up`.
 - **Concurrent within a file.** Both projects set `sequence: { concurrent: true }`; since every
   test owns its database, nothing is shared between tests.
 - **Time.** `it.effect` provides a fresh `TestClock` per test, so time stands still unless the
@@ -72,9 +72,8 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
 - **Only our code is under test.** Application and api suites replace S3 and the queue with plain
   in-memory layers; MiniStack serves the adapters' suites, among them the queue worker's, which
   tests our retry, heartbeat and dead-letter logic and takes most of a run's time with SQS's
-  real delays. Test
-  support is code to maintain that hides what a test checks, so a small problem in a test is
-  solved by a plainer test, not by a helper.
+  real delays. Test support is code to maintain that hides what a test checks, so a small
+  problem in a test is solved by a plainer test, not by a helper.
 - **Output.** vitest switches to its `minimal` reporter when it detects an agent (`CLAUDECODE`,
   `AI_AGENT`): failures and a summary only. A terminal without them gets the per-file `default`
   reporter; `bun run test --reporter=default` forces it.

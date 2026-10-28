@@ -17,10 +17,10 @@ import {
 import {
   buildDeadLetterName,
   buildResourceName,
-  provision,
+  provisionQueues,
   type Resources,
 } from '@app-template/aws'
-import { buildTestStage, recordLogs, S3ClientTest, SqsClientTest } from '@app-template/testing'
+import { generateStage, recordLogs, SqsClientTest } from '@app-template/testing'
 
 import { type AttemptInfo, QueueClient, type QueueDefinition, worker } from '#queue/queue'
 import { QueueError, QueueTransport } from '#queue/queue.transport'
@@ -28,7 +28,7 @@ import { QueueError, QueueTransport } from '#queue/queue.transport'
 class Ping extends Schema.Class<Ping>('Ping')({ id: Schema.String, text: Schema.String }) {}
 
 // One stage for the file's one `layer` block: its queues are its own on the run's MiniStack.
-const stage = buildTestStage()
+const stage = generateStage()
 
 const maxAttempts = 3
 
@@ -89,8 +89,8 @@ const clientOptions = { queueName, lockExpiration, lockRefreshInterval: '500 mil
 
 const QueueClientMiniStack = QueueClient.layer(clientOptions).pipe(
   Layer.provideMerge(QueueTransport.layerSqs),
-  Layer.provide(Layer.effectDiscard(provision({ buckets: {}, queues }, stage))),
-  Layer.provide([SqsClientTest, S3ClientTest]),
+  Layer.provide(Layer.effectDiscard(provisionQueues(queues, stage))),
+  Layer.provide(SqsClientTest),
 )
 
 const wrapTransport = (
