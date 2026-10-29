@@ -9,9 +9,7 @@ import { ask, chat } from '#domain/testing/chat.test-fixture'
 import { RepositoryStackTest } from '#domain/testing/repository-stack.test-layer'
 import type { UserId } from '#domain/user/user.id'
 
-const insertChat = Layer.effectDiscard(
-  Effect.flatMap(ChatRepository, (chats) => chats.insert(chat)),
-)
+const insertChat = Layer.effectDiscard(ChatRepository.use((chats) => chats.insert(chat)))
 
 /** The chat services over the memory layers, on fresh rows where `chat` exists; needs `Crypto`. */
 export const ChatTest = Layer.mergeAll(ChatService.layer, MessageService.layer).pipe(
@@ -32,6 +30,6 @@ export const send = (userId: UserId, chatId: ChatId, text: string) =>
   })
 
 export const selectMessages = (chatId: ChatId) =>
-  Effect.flatMap(MessageRepository, (messages) => messages.selectByChat(chatId)).pipe(
+  MessageRepository.use((messages) => messages.selectByChat(chatId)).pipe(
     Effect.map(Arr.map(({ message }) => message)),
   )

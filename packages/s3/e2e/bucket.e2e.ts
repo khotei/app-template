@@ -13,9 +13,7 @@ const partSize = 5 * mebibyte
 const bucket = generateStage()
 
 const S3BucketTest = S3Bucket.layer({ bucket }).pipe(
-  Layer.provide(
-    Layer.effectDiscard(Effect.flatMap(S3Service, (s3) => s3.createBucket({ Bucket: bucket }))),
-  ),
+  Layer.provide(Layer.effectDiscard(S3Service.use((s3) => s3.createBucket({ Bucket: bucket })))),
   Layer.provide(S3ClientTest),
 )
 
@@ -33,7 +31,7 @@ const octetStream = { contentType: 'application/octet-stream' } as const
 
 /** None for an object written with one `PutObject`. */
 const readPartCount = (key: string) =>
-  Effect.flatMap(S3Service, (s3) =>
+  S3Service.use((s3) =>
     s3.getObjectAttributes({ Bucket: bucket, Key: key, ObjectAttributes: ['ObjectParts'] }),
   ).pipe(Effect.map(({ ObjectParts }) => Option.fromNullishOr(ObjectParts?.TotalPartsCount)))
 

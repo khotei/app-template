@@ -31,7 +31,7 @@ const settle = (message: Message) =>
   })
 
 const selectChat = (chatId: ChatId) =>
-  Effect.flatMap(ChatRepository, (chats) => chats.selectOne({ id: chatId }))
+  ChatRepository.use((chats) => chats.selectOne({ id: chatId }))
 
 type ChatCall = (
   service: ChatService['Service'],

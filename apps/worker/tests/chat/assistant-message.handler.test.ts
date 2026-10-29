@@ -66,14 +66,11 @@ const deadLetterInfo: AttemptInfo = {
 
 const job = new GenerateAssistantMessage({ chatId, messageId })
 
-const insertReply = (reply: Message) =>
-  Effect.flatMap(MessageRepository, (messages) => messages.insert(reply))
+const insertReply = (reply: Message) => MessageRepository.use((messages) => messages.insert(reply))
 
-const selectReply = Effect.flatMap(MessageRepository, (messages) =>
-  messages.selectOne({ id: messageId }),
-)
+const selectReply = MessageRepository.use((messages) => messages.selectOne({ id: messageId }))
 
-const deleteChat = Effect.flatMap(ChatRepository, (chats) => chats.delete(chatId))
+const deleteChat = ChatRepository.use((chats) => chats.delete(chatId))
 
 const assertFailed = (failed: Message, cause: string) => {
   const error = Option.getOrThrow(failed.error)

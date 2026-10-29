@@ -18,7 +18,7 @@ const job = new GenerateAssistantMessage({
   messageId: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000040'),
 })
 
-const selectOutbox = Effect.flatMap(Db, (db) =>
+const selectOutbox = Db.use((db) =>
   db.select({ queue: outbox.queue, jobId: outbox.jobId, body: outbox.body }).from(outbox),
 )
 

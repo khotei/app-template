@@ -99,7 +99,7 @@ describe('config layers', () => {
   )
 
   it.effect('sets the minimum log level from LOG_LEVEL', () =>
-    Effect.map(References.MinimumLogLevel, (minimum) => assert.strictEqual(minimum, 'Debug')).pipe(
+    References.MinimumLogLevel.useSync((minimum) => assert.strictEqual(minimum, 'Debug')).pipe(
       Effect.provide(provideVariables(MinimumLogLevelFromConfig, { LOG_LEVEL: 'Debug' })),
     ),
   )

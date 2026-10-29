@@ -99,7 +99,7 @@ const sketch = image('0192d4e0-7b3a-7c00-8000-000000000041', {
 })
 
 const insertMessages = (messages: ReadonlyArray<Message>) =>
-  Effect.flatMap(MessageRepository, (repository) =>
+  MessageRepository.use((repository) =>
     Effect.forEach(messages, repository.insert, { discard: true }),
   )
 
@@ -113,23 +113,21 @@ const insertAttachment = (attachment: Attachment, bytes: 'stored' | 'lost' = 'st
     yield* bucket.insert(attachment.id, Stream.make(png), attachment)
   })
 
-const selectReply = Effect.flatMap(MessageRepository, (messages) =>
-  messages.selectOne({ id: messageId }),
-)
+const selectReply = MessageRepository.use((messages) => messages.selectOne({ id: messageId }))
 
 // Another writer's settle, landing in the rows behind the use case's back.
-const settleElsewhere = Effect.flatMap(MessageRows, (rows) =>
+const settleElsewhere = MessageRows.use((rows) =>
   Ref.update(rows, HashMap.set(messageId, asCompleted(queuedReply, 'Done elsewhere.'))),
 )
 
-const deleteChat = Effect.flatMap(ChatRepository, (chats) => chats.delete(chatId))
+const deleteChat = ChatRepository.use((chats) => chats.delete(chatId))
 
 const job = new GenerateAssistantMessage({ chatId, messageId })
 
-const generate = Effect.flatMap(GenerateAssistantMessageUseCase, (useCase) => useCase.generate(job))
+const generate = GenerateAssistantMessageUseCase.use((useCase) => useCase.generate(job))
 
 const fail = (cause: Cause.Cause<unknown>) =>
-  Effect.flatMap(GenerateAssistantMessageUseCase, (useCase) => useCase.fail(messageId, cause))
+  GenerateAssistantMessageUseCase.use((useCase) => useCase.fail(messageId, cause))
 
 describe('GenerateAssistantMessageUseCase', () => {
   it.effect(

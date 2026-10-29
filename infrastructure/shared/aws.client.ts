@@ -1,6 +1,6 @@
 import { S3Service } from '@effect-aws/client-s3'
 import { SQSService } from '@effect-aws/client-sqs'
-import { type Config, Effect, Layer, Option } from 'effect'
+import { type Config, Layer, Option } from 'effect'
 
 import { AwsConfig } from '@app-template/config'
 
@@ -11,7 +11,7 @@ const buildClientOptions = ({ region, endpoint }: AwsConfig['Service']) => ({
 
 /** With an endpoint set, addresses buckets by path, so presigned URLs carry that endpoint's host. */
 export const S3ServiceFromConfig: Layer.Layer<S3Service, Config.ConfigError> = Layer.unwrap(
-  Effect.map(AwsConfig, (config) =>
+  AwsConfig.useSync((config) =>
     S3Service.layer({
       ...buildClientOptions(config),
       forcePathStyle: Option.isSome(config.endpoint),
@@ -20,5 +20,5 @@ export const S3ServiceFromConfig: Layer.Layer<S3Service, Config.ConfigError> = L
 ).pipe(Layer.provide(AwsConfig.layer))
 
 export const SQSServiceFromConfig: Layer.Layer<SQSService, Config.ConfigError> = Layer.unwrap(
-  Effect.map(AwsConfig, (config) => SQSService.layer(buildClientOptions(config))),
+  AwsConfig.useSync((config) => SQSService.layer(buildClientOptions(config))),
 ).pipe(Layer.provide(AwsConfig.layer))

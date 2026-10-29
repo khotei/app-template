@@ -11,7 +11,7 @@ import { DbTest, flipSqlError } from '#infrastructure/db/testing/db.test-layer'
 import { insertUser } from '#infrastructure/testing/rows.test-util'
 import { users } from '#infrastructure/user/user.entity'
 
-const greet = Effect.flatMap(Db, (db) =>
+const greet = Db.use((db) =>
   db.execute<{ greeting: string }>(sql`select ${'hello'}::text as greeting`, 'objects'),
 )
 
@@ -33,7 +33,7 @@ describe('Db', () => {
 
 const TransactionPgTest = Transaction.layer.pipe(Layer.provideMerge(DbTest))
 
-const selectUserIds = Effect.flatMap(Db, (db) => db.select({ id: users.id }).from(users))
+const selectUserIds = Db.use((db) => db.select({ id: users.id }).from(users))
 
 describe('Transaction', () => {
   it.effect('run keeps no write of a step when a later one is refused', () =>

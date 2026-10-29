@@ -3,7 +3,7 @@
 .DEFAULT_GOAL := help
 
 .PHONY: help setup stack up down reset dev dev-api dev-worker dev-web debug-api debug-worker \
-  debug-web check ids doc-names lint fmt typecheck test test-unit test-e2e bundle-check clean \
+  debug-web check ids doc-names service-use lint fmt typecheck test test-unit test-e2e bundle-check clean \
   outdated vendor-effect vendor-drizzle migrate migration migration-check
 
 # The local Pulumi project: each tree's file backend under its .data/, named per command, so no
@@ -104,7 +104,7 @@ debug-worker: ## Run the worker with --inspect and --watch
 debug-web: ## Run the web dev server with --inspect
 	bun --filter @app-template/web debug
 
-check: ids doc-names lint typecheck migration-check test bundle-check ## Run every gate: ids, doc names, lint, types, migrations, tests, the web bundle
+check: ids doc-names service-use lint typecheck migration-check test bundle-check ## Run every gate: ids, doc names, service use, lint, types, migrations, tests, the web bundle
 
 ids: ## Fail on ticket ids in parentheses (D12, R3, Q70) outside docs/tickets
 	@if git grep --untracked -nE '\((D|R|Q)[0-9]+[a-z]?\)' -- . ':!docs/tickets' \
@@ -140,6 +140,14 @@ doc-names: ## Fail on a backticked path or PascalCase name in the docs that the 
 			[ -e "$$name" ] || grep -qxF "$$name" $(DOC_NAMES_KNOWN) || echo "$$file:$$line: $$name"; \
 		done | grep .; then \
 		echo 'The docs name a path or a code name the repo lacks: fix the name, or cut it.'; \
+		exit 1; \
+	fi
+
+# One line per call: a call Biome wraps before the service slips past, and a point-free
+# `Effect.flatMap(Rows, Ref.get)` passes on purpose (.claude/rules/effect-style.md › Composition).
+service-use: ## Fail on Effect.flatMap or Effect.map over a service, which Service.use spells
+	@if git grep --untracked -nE 'Effect\.(flatMap|map)\([A-Z][A-Za-z0-9_.]*, \(' -- '*.ts' ':!repos'; then \
+		echo 'Reach a service by Service.use, or Service.useSync for a plain value.'; \
 		exit 1; \
 	fi
 

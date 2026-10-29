@@ -74,7 +74,7 @@ const decodeDetail = ({
 
 export const ChatRepositoryPg = Layer.effect(
   ChatRepository,
-  Effect.map(Db, (db) =>
+  Db.useSync((db) =>
     ChatRepository.of({
       insert: Effect.fn('ChatRepository.insert')(function* (chat) {
         const row = yield* encodeChat(chat)

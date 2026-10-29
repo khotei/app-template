@@ -13,10 +13,9 @@ import {
   selectMessages,
 } from '#application/testing/chat.test-layer'
 
-const selectOutbox = Effect.flatMap(
-  SqlClient.SqlClient,
-  (client) => client`SELECT queue FROM outbox`,
-).pipe(Effect.orDie)
+const selectOutbox = SqlClient.SqlClient.use((client) => client`SELECT queue FROM outbox`).pipe(
+  Effect.orDie,
+)
 
 describe('SendMessageUseCase', () => {
   // Live: the chat's `updatedAt` staying put means something only while the clock moves.

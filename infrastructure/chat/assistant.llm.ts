@@ -41,7 +41,7 @@ const buildTitlePrompt = (text: string): Prompt.Prompt =>
 export const AssistantLlm: Layer.Layer<Assistant, never, LanguageModel.LanguageModel> =
   Layer.effect(
     Assistant,
-    Effect.map(LanguageModel.LanguageModel, (model) =>
+    LanguageModel.LanguageModel.useSync((model) =>
       Assistant.of({
         streamText: (history) =>
           model.streamText({ prompt: buildChatPrompt(history) }).pipe(

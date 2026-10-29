@@ -49,7 +49,7 @@ const AttachmentServiceTest = layerAttachmentService(AttachmentRepositoryTest)
 
 const AttachmentRepositoryInsertDying = Layer.effect(
   AttachmentRepository,
-  Effect.map(AttachmentRepository, (inner) =>
+  AttachmentRepository.useSync((inner) =>
     AttachmentRepository.of({ ...inner, insert: () => Effect.die('the record write was lost') }),
   ),
 ).pipe(Layer.provide(AttachmentRepositoryTest))
@@ -69,7 +69,7 @@ const countStored = Effect.all({
 
 const bucketHref = (id: AttachmentId) =>
   Effect.map(
-    Effect.flatMap(AttachmentBucket, (bucket) => bucket.url(id)),
+    AttachmentBucket.use((bucket) => bucket.url(id)),
     Option.map((url) => url.href),
   )
 
@@ -112,7 +112,7 @@ const addressers = [
 ] as const satisfies ReadonlyArray<Addresser>
 
 const bind = (attachment: Attachment) =>
-  Effect.flatMap(AttachmentRepository, (attachments) =>
+  AttachmentRepository.use((attachments) =>
     attachments.update({ messageId: Option.some(messageId) }, { id: [attachment.id] }),
   )
 
@@ -120,10 +120,9 @@ const boundTo = (attachment: Attachment) =>
   new Attachment({ ...attachment, messageId: Option.some(messageId) })
 
 const selectStored = (ids: ReadonlyArray<AttachmentId>) =>
-  Effect.flatMap(AttachmentRepository, (attachments) => attachments.selectMany({ id: ids }))
+  AttachmentRepository.use((attachments) => attachments.selectMany({ id: ids }))
 
-const selectBytes = (id: AttachmentId) =>
-  Effect.flatMap(AttachmentBucket, (bucket) => bucket.select(id))
+const selectBytes = (id: AttachmentId) => AttachmentBucket.use((bucket) => bucket.select(id))
 
 describe('AttachmentService', () => {
   it.effect('upload stores the bytes and the metadata of an unbound attachment', () =>
@@ -200,7 +199,7 @@ describe('AttachmentService', () => {
     Effect.gen(function* () {
       const service = yield* AttachmentService
       const attachment = yield* uploadPhoto
-      yield* Effect.flatMap(AttachmentBucket, (bucket) => bucket.delete(attachment.id))
+      yield* AttachmentBucket.use((bucket) => bucket.delete(attachment.id))
 
       const error = yield* Effect.flip(service.download(owner, attachment.id))
 

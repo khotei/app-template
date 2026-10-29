@@ -12,7 +12,7 @@ import { handle, handleDeadLettered } from '#worker/chat/chat-title.handler'
 
 const lisbonWeekend = ChatTitle.make('Lisbon weekend')
 
-const insertFirstMessage = Effect.flatMap(MessageRepository, (messages) =>
+const insertFirstMessage = MessageRepository.use((messages) =>
   messages.insert(
     buildUserMessage({ id: messageId, chatId, text: 'Plan a weekend in Lisbon', createdAt: epoch }),
   ),

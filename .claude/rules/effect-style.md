@@ -50,7 +50,7 @@ The goal is code that reads top to bottom and extends by adding a row, not a bra
   pipeline ending in the combinator that runs it (`Effect.forkScoped`), a chain without its value
   `flow(…)`. Go data-last and point-free when the function's name says the step
   (`Effect.tap(Arr.match({ … }))`), a lambda only to add an argument or a name, never a point-free
-  form that needs a cast or loses an `E` or `R`.
+  form that needs a cast or loses an `E` or `R`. Reach a service by `Service.use` or `useSync`.
 - A composable function takes its subject as the last, single argument, options first and curried
   (`pipe(message, encodeWith(codec))`); `dual` only when called both directly and as a pipe step.
 

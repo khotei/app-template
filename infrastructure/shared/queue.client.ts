@@ -31,7 +31,7 @@ export const QueueClientSqs: Layer.Layer<
  */
 export const QueueClientOutbox: Layer.Layer<QueueClient, never, Db> = Layer.effect(
   QueueClient,
-  Effect.map(Db, (db) => {
+  Db.useSync((db) => {
     const send = Effect.fn('QueueClient.send')(function* <A, I>(
       definition: QueueDefinition<Schema.Codec<A, I>>,
       message: A,

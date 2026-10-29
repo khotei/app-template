@@ -22,7 +22,7 @@ const EffectLoggerDebug = Layer.succeed(EffectLogger, {
 })
 
 const PgClientFromConfig = Layer.unwrap(
-  Effect.map(DatabaseConfig, ({ url }) => PgClient.layer({ url })),
+  DatabaseConfig.useSync(({ url }) => PgClient.layer({ url })),
 ).pipe(Layer.provide(DatabaseConfig.layer))
 
 export class Db extends Context.Service<Db, PgDrizzle.EffectPgDatabase<typeof relations>>()(
@@ -46,7 +46,7 @@ export class Transaction extends Context.Service<
 >()('@app-template/infrastructure/db/Transaction') {
   static readonly layer = Layer.effect(
     this,
-    Effect.map(SqlClient.SqlClient, (sql) =>
+    SqlClient.SqlClient.useSync((sql) =>
       this.of({
         run: (self) => sql.withTransaction(self).pipe(Effect.catchTag('SqlError', Effect.die)),
       }),

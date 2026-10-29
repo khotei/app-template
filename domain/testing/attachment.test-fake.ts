@@ -46,7 +46,7 @@ const inOrderOf =
 
 export const AttachmentRepositoryTest = Layer.effect(
   AttachmentRepository,
-  Effect.map(AttachmentRows, (rows) =>
+  AttachmentRows.useSync((rows) =>
     AttachmentRepository.of({
       insert: (attachment) => Ref.update(rows, HashMap.set(attachment.id, attachment)),
       update: (set, where) =>
@@ -84,7 +84,7 @@ export class AttachmentBucketObjects extends Context.Service<
 /** The attachment bucket over a map; `keep` is a no-op, since nothing here expires. */
 export const AttachmentBucketTest = Layer.effect(
   AttachmentBucket,
-  Effect.map(AttachmentBucketObjects, (objects) => {
+  AttachmentBucketObjects.useSync((objects) => {
     const select = (id: AttachmentId) => Effect.map(Ref.get(objects), HashMap.get(id))
     return AttachmentBucket.of({
       insert: (id, content) =>

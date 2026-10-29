@@ -72,11 +72,10 @@ const providerError = AiError.make({
 const titleInstruction =
   'Write a title of at most 120 characters for a chat that opens with the next message. Answer with the title alone.'
 
-const suggestTitle = (text: string) =>
-  Effect.flatMap(Assistant, (assistant) => assistant.suggestTitle(text))
+const suggestTitle = (text: string) => Assistant.use((assistant) => assistant.suggestTitle(text))
 
 const streamText = (history: ReadonlyArray<AssistantTurn>) =>
-  Effect.flatMap(Assistant, (assistant) => Stream.runCollect(assistant.streamText(history)))
+  Assistant.use((assistant) => Stream.runCollect(assistant.streamText(history)))
 
 const image = (id: string, fileName: string) =>
   new Attachment({

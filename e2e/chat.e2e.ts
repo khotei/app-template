@@ -26,7 +26,7 @@ const poll = <A, E, R>(self: Effect.Effect<A, E, R>, until: (a: A) => boolean) =
 
 /** Reads the reply until the worker has settled it, as the browser's polling does. */
 const pollSettledMessage = (chatId: ChatId, messageId: MessageId) =>
-  Effect.flatMap(ApiClient, (api) =>
+  ApiClient.use((api) =>
     poll(
       api.chats.getMessage({ params: { chatId, messageId } }),
       (message) => !isActiveStage(message.stage),
@@ -34,7 +34,7 @@ const pollSettledMessage = (chatId: ChatId, messageId: MessageId) =>
   )
 
 const pollTitledChat = (chatId: ChatId) =>
-  Effect.flatMap(ApiClient, (api) =>
+  ApiClient.use((api) =>
     poll(api.chats.get({ params: { chatId } }), (chat) => Option.isSome(chat.title)),
   )
 
@@ -44,7 +44,7 @@ const formOf = (file: File) => {
   return form
 }
 
-const selectOutbox = Effect.flatMap(SqlClient.SqlClient, (sql) => sql`select queue from outbox`)
+const selectOutbox = SqlClient.SqlClient.use((sql) => sql`select queue from outbox`)
 
 describe('the journey over both app layers', { concurrent: false }, () => {
   layer(StandTest, { excludeTestServices: true })((it) => {

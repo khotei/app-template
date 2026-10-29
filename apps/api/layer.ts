@@ -39,7 +39,7 @@ export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
 )
 
 const BunHttpServerFromConfig = Layer.unwrap(
-  Effect.map(ApiConfig, ({ port }) => BunHttpServer.layer({ port })),
+  ApiConfig.useSync(({ port }) => BunHttpServer.layer({ port })),
 ).pipe(Layer.provide(ApiConfig.layer))
 
 const LogApiStopped = Layer.effectDiscard(Effect.addFinalizer(() => Effect.logInfo('api stopped')))

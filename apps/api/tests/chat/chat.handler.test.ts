@@ -18,9 +18,7 @@ import { ApiServerTest, ApiTest, layerApiClient } from '#api/testing/api.test-la
 const hello = { text: 'Hello', attachmentIds: [] }
 
 /** Registers the jar's user and opens an empty chat of theirs. */
-const openChat = Effect.flatMap(ApiClient, (api) =>
-  Effect.andThen(api.users.ensure(), api.chats.create()),
-)
+const openChat = ApiClient.use((api) => Effect.andThen(api.users.ensure(), api.chats.create()))
 
 /** Settles a reply as the worker does once its attempts are exhausted. */
 const failReply = (id: MessageId) =>

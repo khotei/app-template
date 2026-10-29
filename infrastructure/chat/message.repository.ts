@@ -37,7 +37,7 @@ const filterOf = (where: MessageOneWhere) =>
 
 export const MessageRepositoryPg = Layer.effect(
   MessageRepository,
-  Effect.map(Db, (db) =>
+  Db.useSync((db) =>
     MessageRepository.of({
       insert: Effect.fn('MessageRepository.insert')(function* (message) {
         const row = yield* encodeMessage(message)

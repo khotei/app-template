@@ -50,7 +50,7 @@ const inOrderOf =
 
 export const AttachmentRepositoryPg = Layer.effect(
   AttachmentRepository,
-  Effect.map(Db, (db) =>
+  Db.useSync((db) =>
     AttachmentRepository.of({
       insert: Effect.fn('AttachmentRepository.insert')(function* (attachment) {
         const row = yield* encodeAttachment(attachment)

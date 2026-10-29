@@ -75,7 +75,7 @@ const OutboxSqsTest = QueueTransport.layerSqs.pipe(
 const jobId = (n: number) => `0192d4e0-7b3a-7c00-8000-${String(n).padStart(12, '0')}`
 
 const enqueue = (n: number) =>
-  Effect.flatMap(QueueClient, (queue) =>
+  QueueClient.use((queue) =>
     queue.send(
       assistantMessageQueue,
       new GenerateAssistantMessage({
@@ -87,9 +87,7 @@ const enqueue = (n: number) =>
 
 // `for update` waits for every relay transaction that holds a row, so it reads the outbox as the
 // relays left it.
-const lockOutbox = Effect.flatMap(Db, (db) =>
-  db.select({ jobId: outbox.jobId }).from(outbox).for('update'),
-)
+const lockOutbox = Db.use((db) => db.select({ jobId: outbox.jobId }).from(outbox).for('update'))
 
 describe('OutboxRelay', () => {
   it.effect('sends a pending row to its queue with its job id and JSON body, then deletes it', () =>

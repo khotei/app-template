@@ -53,7 +53,7 @@ const settle = (message: Message) =>
  */
 const ChatRepositoryDeletedBeforeUpdate = Layer.effect(
   ChatRepository,
-  Effect.map(ChatRepository, (inner) =>
+  ChatRepository.useSync((inner) =>
     ChatRepository.of({
       ...inner,
       update: (set, where) => Effect.andThen(inner.delete(where.id), inner.update(set, where)),

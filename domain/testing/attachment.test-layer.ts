@@ -8,7 +8,7 @@ import type { UserId } from '#domain/user/user.id'
 
 /** Uploads one `png` as `photo.png` for `userId` through the `AttachmentService` in context. */
 export const upload = (userId: UserId) =>
-  Effect.flatMap(AttachmentService, (attachments) =>
+  AttachmentService.use((attachments) =>
     attachments.upload(
       userId,
       Stream.make({

@@ -35,9 +35,9 @@ type ProvisionQueueError =
 
 // A bucket this account holds already is the one asked for: CreateBucket never updates one.
 const provisionBucket = (stage: string) => (bucket: BucketResource) =>
-  Effect.flatMap(S3Service, (s3) =>
-    s3.createBucket({ Bucket: buildResourceName(stage, bucket.name) }),
-  ).pipe(Effect.catchTag('BucketAlreadyOwnedByYou', () => Effect.void))
+  S3Service.use((s3) => s3.createBucket({ Bucket: buildResourceName(stage, bucket.name) })).pipe(
+    Effect.catchTag('BucketAlreadyOwnedByYou', () => Effect.void),
+  )
 
 /** The key order is fixed: CreateQueue compares a repeated RedrivePolicy as a string. */
 const buildRedrivePolicy = (deadLetterTargetArn: string, maxReceiveCount: number): string =>
