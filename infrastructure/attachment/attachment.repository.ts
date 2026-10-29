@@ -11,14 +11,20 @@ import {
 } from '@app-template/domain/attachment'
 
 import {
+  AttachmentFromRow,
   AttachmentInsert,
   attachments,
-  decodeAttachment,
 } from '#infrastructure/attachment/attachment.entity'
 import { buildSet, buildWhere } from '#infrastructure/db/columns'
-import { Db, decodeFound, orDieWithSqlError } from '#infrastructure/db/db.client'
+import { Db, orDieWithSqlError } from '#infrastructure/db/db.client'
 
 const encodeAttachment = Schema.encodeEffect(AttachmentInsert)
+
+const decodeAttachments = Schema.decodeEffect(Schema.Array(AttachmentFromRow))
+
+const decodeOptionalAttachment = Schema.decodeEffect(
+  Schema.OptionFromUndefinedOr(AttachmentFromRow),
+)
 
 const encodeSet = buildSet<AttachmentSet, typeof attachments>({
   messageId: UndefinedOr.map(Option.getOrNull),
@@ -62,15 +68,15 @@ export const AttachmentRepositoryPg = Layer.effect(
           .set(encodeSet(set))
           .where(encodeWhere(where))
           .returning()
-        return yield* Effect.forEach(rows, decodeAttachment)
+        return yield* decodeAttachments(rows)
       }, orDieWithSqlError),
       selectOne: Effect.fn('AttachmentRepository.selectOne')(function* (where) {
         const rows = yield* db.select().from(attachments).where(encodeOneWhere(where)).limit(1)
-        return yield* decodeFound(rows[0], decodeAttachment)
+        return yield* decodeOptionalAttachment(rows[0])
       }, orDieWithSqlError),
       selectMany: Effect.fn('AttachmentRepository.selectMany')(function* (where) {
         const rows = yield* db.select().from(attachments).where(encodeWhere(where))
-        const found = yield* Effect.forEach(rows, decodeAttachment)
+        const found = yield* decodeAttachments(rows)
         return inOrderOf(where.id)(found)
       }, orDieWithSqlError),
       deleteByIds: Effect.fn('AttachmentRepository.deleteByIds')(

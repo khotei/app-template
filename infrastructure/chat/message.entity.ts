@@ -1,7 +1,7 @@
 import { eq, inArray, type SQL, sql } from 'drizzle-orm'
 import { createInsertSchema, createSelectSchema } from 'drizzle-orm/effect-schema'
 import { index, jsonb, pgEnum, snakeCase, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
-import { Array as Arr, Effect, Schema } from 'effect'
+import { Array as Arr, Schema } from 'effect'
 
 import {
   ActiveMessageStage,
@@ -72,8 +72,7 @@ export const MessageRow = createSelectSchema(messages, messageFields)
 
 export const MessageInsert = createInsertSchema(messages, messageFields)
 
-export const decodeMessage = (row: typeof MessageRow.Encoded) =>
-  Effect.map(Schema.decodeEffect(MessageRow)(row), (fields) => new Message(fields))
+export const MessageFromRow = MessageRow.pipe(Schema.decodeTo(Message))
 
 export const inCreationOrder = { createdAt: 'asc', id: 'asc' } as const
 

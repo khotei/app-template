@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm'
 import { createInsertSchema, createSelectSchema } from 'drizzle-orm/effect-schema'
 import { check, index, integer, snakeCase, text, uuid } from 'drizzle-orm/pg-core'
-import { Effect, Schema } from 'effect'
+import { Schema, SchemaGetter } from 'effect'
 
 import {
   Attachment,
@@ -11,10 +11,10 @@ import {
   MediaType,
   mediaTypePattern,
 } from '@app-template/domain/attachment'
-import { MessageId } from '@app-template/domain/chat'
+import { Message, MessageId } from '@app-template/domain/chat'
 import { UserId } from '@app-template/domain/user'
 
-import { decodeMessage, type MessageRow, messages } from '#infrastructure/chat/message.entity'
+import { MessageRow, messages } from '#infrastructure/chat/message.entity'
 import { createdAt, id } from '#infrastructure/db/columns'
 import { users } from '#infrastructure/user/user.entity'
 
@@ -57,15 +57,15 @@ export const AttachmentRow = createSelectSchema(attachments, attachmentFields)
 
 export const AttachmentInsert = createInsertSchema(attachments, attachmentFields)
 
-export const decodeAttachment = (row: typeof AttachmentRow.Encoded) =>
-  Effect.map(Schema.decodeEffect(AttachmentRow)(row), (fields) => new Attachment(fields))
+export const AttachmentFromRow = AttachmentRow.pipe(Schema.decodeTo(Attachment))
 
-export type MessageDetailRow = typeof MessageRow.Encoded & {
-  readonly attachments: ReadonlyArray<typeof AttachmentRow.Encoded>
-}
-
-export const decodeMessageDetail = ({ attachments, ...row }: MessageDetailRow) =>
-  Effect.all({
-    message: decodeMessage(row),
-    attachments: Effect.forEach(attachments, decodeAttachment),
-  })
+/** A message row with its attachments nested, as `withAttachments` reads it; decode only. */
+export const MessageDetailFromRow = Schema.Struct({
+  ...MessageRow.fields,
+  attachments: Schema.Array(AttachmentRow),
+}).pipe(
+  Schema.decodeTo(Schema.Struct({ message: Message, attachments: Schema.Array(Attachment) }), {
+    decode: SchemaGetter.transform(({ attachments, ...message }) => ({ message, attachments })),
+    encode: SchemaGetter.forbiddenEncoding,
+  }),
+)

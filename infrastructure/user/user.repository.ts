@@ -3,10 +3,12 @@ import { SqlClient } from 'effect/sql'
 
 import { UserRepository } from '@app-template/domain/user'
 
-import { Db, decodeFound, orDieWithSqlError } from '#infrastructure/db/db.client'
-import { credentials, decodeUser, UserInsert, users } from '#infrastructure/user/user.entity'
+import { Db, orDieWithSqlError } from '#infrastructure/db/db.client'
+import { credentials, UserFromRow, UserInsert, users } from '#infrastructure/user/user.entity'
 
 const encodeUser = Schema.encodeEffect(UserInsert)
+
+const decodeOptionalUser = Schema.decodeEffect(Schema.OptionFromUndefinedOr(UserFromRow))
 
 export const UserRepositoryPg = Layer.effect(
   UserRepository,
@@ -28,13 +30,13 @@ export const UserRepositoryPg = Layer.effect(
       ),
       selectById: Effect.fn('UserRepository.selectById')(function* (id) {
         const row = yield* db.query.users.findFirst({ where: { id } })
-        return yield* decodeFound(row, decodeUser)
+        return yield* decodeOptionalUser(row)
       }, orDieWithSqlError),
       selectByCredential: Effect.fn('UserRepository.selectByCredential')(function* (credential) {
         const row = yield* db.query.users.findFirst({
           where: { credentials: { kind: credential.kind, hash: credential.hash } },
         })
-        return yield* decodeFound(row, decodeUser)
+        return yield* decodeOptionalUser(row)
       }, orDieWithSqlError),
     })
   }),

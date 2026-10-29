@@ -3,7 +3,7 @@ import { EffectCache } from 'drizzle-orm/cache/core/cache-effect'
 import { EffectLogger } from 'drizzle-orm/effect-core'
 import { EffectDrizzleQueryError } from 'drizzle-orm/effect-core/errors'
 import * as PgDrizzle from 'drizzle-orm/effect-postgres'
-import { Cause, Context, Effect, Layer, Option, Schema } from 'effect'
+import { Cause, Context, Effect, Layer, Schema } from 'effect'
 import { SqlClient, SqlError } from 'effect/sql'
 
 import { DatabaseConfig } from '@app-template/config'
@@ -53,12 +53,6 @@ export class Transaction extends Context.Service<
     ),
   )
 }
-
-export const decodeFound = <Row, A, E, R>(
-  row: Row | undefined,
-  decode: (row: Row) => Effect.Effect<A, E, R>,
-): Effect.Effect<Option.Option<A>, E, R> =>
-  Effect.transposeOption(Option.map(Option.fromNullishOr(row), decode))
 
 export const isSqlError = Schema.is(SqlError.SqlError)
 

@@ -8,20 +8,26 @@ import {
   type MessageWhere,
 } from '@app-template/domain/chat'
 
-import { decodeMessageDetail } from '#infrastructure/attachment/attachment.entity'
+import { MessageDetailFromRow } from '#infrastructure/attachment/attachment.entity'
 import {
   activeMessage,
   activeMessageFilter,
-  decodeMessage,
   inCreationOrder,
+  MessageFromRow,
   MessageInsert,
   messages,
   withAttachments,
 } from '#infrastructure/chat/message.entity'
 import { buildWhere, skipUndefined } from '#infrastructure/db/columns'
-import { Db, decodeFound, orDieWithSqlError } from '#infrastructure/db/db.client'
+import { Db, orDieWithSqlError } from '#infrastructure/db/db.client'
 
 const encodeMessage = Schema.encodeEffect(MessageInsert)
+
+const decodeOptionalMessage = Schema.decodeEffect(Schema.OptionFromUndefinedOr(MessageFromRow))
+
+const decodeOptionalDetail = Schema.decodeEffect(Schema.OptionFromUndefinedOr(MessageDetailFromRow))
+
+const decodeDetails = Schema.decodeEffect(Schema.Array(MessageDetailFromRow))
 
 const encodeWhere = buildWhere<MessageWhere>({
   stage: (stage) => eq(messages.stage, stage),
@@ -59,14 +65,14 @@ export const MessageRepositoryPg = Layer.effect(
       }, orDieWithSqlError),
       selectOne: Effect.fn('MessageRepository.selectOne')(function* (where) {
         const row = yield* db.query.messages.findFirst({ where: filterOf(where) })
-        return yield* decodeFound(row, decodeMessage)
+        return yield* decodeOptionalMessage(row)
       }, orDieWithSqlError),
       selectDetail: Effect.fn('MessageRepository.selectDetail')(function* (where) {
         const row = yield* db.query.messages.findFirst({
           where: filterOf(where),
           with: withAttachments,
         })
-        return yield* decodeFound(row, decodeMessageDetail)
+        return yield* decodeOptionalDetail(row)
       }, orDieWithSqlError),
       selectByChat: Effect.fn('MessageRepository.selectByChat')(function* (chatId) {
         const rows = yield* db.query.messages.findMany({
@@ -74,7 +80,7 @@ export const MessageRepositoryPg = Layer.effect(
           orderBy: inCreationOrder,
           with: withAttachments,
         })
-        return yield* Effect.forEach(rows, decodeMessageDetail)
+        return yield* decodeDetails(rows)
       }, orDieWithSqlError),
       existsByChat: Effect.fn('MessageRepository.existsByChat')(function* (chatId) {
         const row = yield* db.query.messages.findFirst({
@@ -87,7 +93,7 @@ export const MessageRepositoryPg = Layer.effect(
         const row = yield* db.query.messages.findFirst({
           where: { chatId, ...activeMessageFilter },
         })
-        const found = yield* decodeFound(row, decodeMessage)
+        const found = yield* decodeOptionalMessage(row)
         return Option.filter(found, isActiveMessage)
       }, orDieWithSqlError),
     }),
