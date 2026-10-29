@@ -1,5 +1,5 @@
 import { inArray } from 'drizzle-orm'
-import { Array as Arr, Cause, Effect, Layer, Predicate, Struct } from 'effect'
+import { Array as Arr, Cause, Effect, Layer, Predicate, Schedule, Struct } from 'effect'
 import { SqlClient } from 'effect/sql'
 
 import { buildResourceName } from '@app-template/aws'
@@ -14,7 +14,7 @@ const batchLimit = 10
 
 type OutboxRow = typeof outbox.$inferSelect
 
-const isShortBatch = (rows: ReadonlyArray<OutboxRow>) => rows.length < batchLimit
+const isFullBatch = (rows: ReadonlyArray<OutboxRow>) => rows.length === batchLimit
 
 /**
  * Sends the outbox to SQS: each batch is locked, sent and deleted in one transaction, so a failed
@@ -56,17 +56,15 @@ export const OutboxRelay = Effect.gen(function* () {
     sql.withTransaction,
   )
 
-  const poll = relayBatch.pipe(
+  yield* relayBatch.pipe(
+    Effect.repeat({ while: isFullBatch }),
     Effect.tapCauseIf(Predicate.not(Cause.hasInterruptsOnly), (cause) =>
       Effect.logError('outbox relay failed', cause),
     ),
-    Effect.catchCauseIf(Predicate.not(Cause.hasInterruptsOnly), () => Effect.succeed([])),
-    Effect.tap((rows) =>
-      Effect.when(Effect.sleep(outboxPollInterval), Effect.succeed(isShortBatch(rows))),
-    ),
+    Effect.catchCauseIf(Predicate.not(Cause.hasInterruptsOnly), () => Effect.void),
+    Effect.repeat(Schedule.spaced(outboxPollInterval)),
+    Effect.forkScoped,
   )
-
-  yield* Effect.forever(poll).pipe(Effect.forkScoped)
 }).pipe(Layer.effectDiscard, Layer.provide(QueueConfig.layer))
 
 export const OutboxRelaySqs = OutboxRelay.pipe(

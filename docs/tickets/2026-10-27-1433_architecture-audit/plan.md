@@ -1310,7 +1310,12 @@ keeps the suites green, a changed assertion named in its findings.
   rows than one batch is relayed without waiting an interval, if none exists yet.
 - **Verify:** `make check`.
 - **Model:** opus medium
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The 25-row case under a still `TestClock` (`outbox.relay.e2e.ts`) already proves a full batch
+    relays without waiting; forcing `isFullBatch` false fails it, so no test was added.
+  - Logging and recovery stay two combinators (`tapCauseIf`, then `catchCauseIf`) between the two
+    repeats, so a failed batch ends the drain and still waits one interval (D4).
 
 #### S32 — The multipart upload knows its last part from the stream
 
