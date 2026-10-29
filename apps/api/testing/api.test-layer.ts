@@ -7,7 +7,7 @@ import { AttachmentBucketTest, RepositoryStackTest } from '@app-template/domain/
 import { ApiClient } from '@app-template/http-api'
 import { TransactionTest } from '@app-template/infrastructure/testing'
 import { recordQueue } from '@app-template/queue/testing'
-import { layerCookieJar } from '@app-template/testing'
+import { layerCookieJarTest } from '@app-template/testing'
 
 import { ApiHttp } from '#api/layer'
 
@@ -29,7 +29,7 @@ export const ApiServerTest = ApiHttp.pipe(
  * the `HttpClient` it puts in context sends through the same jar.
  */
 export const layerApiClient = (cookies: Cookies.Cookies = Cookies.empty) =>
-  ApiClient.layer('').pipe(Layer.provideMerge(layerCookieJar(cookies)))
+  ApiClient.layer('').pipe(Layer.provideMerge(layerCookieJarTest(cookies)))
 
 /** One browser on an api of the test's own: no row, object or server is shared with another test. */
 export const ApiTest = layerApiClient().pipe(Layer.provideMerge(ApiServerTest))

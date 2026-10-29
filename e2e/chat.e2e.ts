@@ -56,10 +56,9 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           const bucket = yield* AttachmentBucket
           yield* api.users.ensure()
           const chat = yield* api.chats.create()
-          const uploads = yield* api.attachments.upload({
-            payload: formOf(new File([png], 'photo.png', { type: 'image/png' })),
-          })
-          const uploaded = yield* Effect.fromOption(Arr.head(uploads))
+          const uploaded = yield* api.attachments
+            .upload({ payload: formOf(new File([png], 'photo.png', { type: 'image/png' })) })
+            .pipe(Effect.head)
 
           const sent = yield* api.chats.send({
             params: { chatId: chat.id },

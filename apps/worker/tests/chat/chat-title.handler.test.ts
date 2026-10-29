@@ -32,7 +32,7 @@ describe('ChatTitleHandler', () => {
         yield* selectChat(chatId),
         Option.some(new Chat({ ...chat, title: Option.some(lisbonWeekend) })),
       )
-    }).pipe(Effect.provide(ChatTitleTest.pipe(Layer.provide(assistant.layer))))
+    }).pipe(Effect.provide(Layer.provide(ChatTitleTest, assistant.layer)))
   })
 
   it.effect('handleDeadLettered logs the job at Error', () => {

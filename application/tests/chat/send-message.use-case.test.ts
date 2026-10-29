@@ -118,7 +118,7 @@ describe('SendMessageUseCase', () => {
             new Chat({ ...chat, title: Option.some(ChatTitle.make('Trip')), updatedAt: sentAt }),
           ),
         )
-      }).pipe(Effect.provide(ChatTest.pipe(Layer.provide(queue.layer))))
+      }).pipe(Effect.provide(Layer.provide(ChatTest, queue.layer)))
     },
   )
 
@@ -142,7 +142,7 @@ describe('SendMessageUseCase', () => {
           },
           replyJob(second.assistantMessage.message.id),
         ])
-      }).pipe(Effect.provide(ChatTest.pipe(Layer.provide(queue.layer))))
+      }).pipe(Effect.provide(Layer.provide(ChatTest, queue.layer)))
     },
   )
 
@@ -188,7 +188,7 @@ describe('SendMessageUseCase', () => {
         assertEquals(yield* messages.selectActiveByChat(chat.id), Option.none())
         assertEquals(yield* selectAttachments([photo]), [photo])
         assertEquals(yield* queue.sent, [])
-      }).pipe(Effect.provide(ChatTest.pipe(Layer.provide(queue.layer))))
+      }).pipe(Effect.provide(Layer.provide(ChatTest, queue.layer)))
     },
   )
 })

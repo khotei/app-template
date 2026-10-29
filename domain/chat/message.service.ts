@@ -63,7 +63,7 @@ export class MessageService extends Context.Service<
   make: Effect.gen(function* () {
     const messages = yield* MessageRepository
     const crypto = yield* Crypto.Crypto
-    const randomMessageId = Effect.map(Effect.orDie(crypto.randomUUIDv7()), MessageId.make)
+    const randomMessageId = crypto.randomUUIDv7().pipe(Effect.orDie, Effect.map(MessageId.make))
 
     const write = Effect.fnUntraced(function* (moved: Message, expected: MessageStage) {
       yield* messages
@@ -120,42 +120,30 @@ export class MessageService extends Context.Service<
       return message
     })
 
-    const prepare = Effect.fn('MessageService.prepare')(function* (
-      message: Message,
-      at: DateTime.Utc,
-    ) {
-      const prepared = yield* prepareMessage(message, at)
-      return yield* write(prepared, message.stage)
-    })
+    const prepare = Effect.fn('MessageService.prepare')((message: Message, at: DateTime.Utc) =>
+      prepareMessage(message, at).pipe(Effect.flatMap((moved) => write(moved, message.stage))),
+    )
 
-    const generate = Effect.fn('MessageService.generate')(function* (
-      message: Message,
-      at: DateTime.Utc,
-    ) {
-      const generating = yield* generateMessage(message, at)
-      return yield* write(generating, message.stage)
-    })
+    const generate = Effect.fn('MessageService.generate')((message: Message, at: DateTime.Utc) =>
+      generateMessage(message, at).pipe(Effect.flatMap((moved) => write(moved, message.stage))),
+    )
 
     const snapshot = Effect.fn('MessageService.snapshot')(
       (message: Message, text: string, at: DateTime.Utc) =>
         write(snapshotMessage(message, text, at), 'generating'),
     )
 
-    const complete = Effect.fn('MessageService.complete')(function* (
-      message: Message,
-      settled: MessageCompletion,
-    ) {
-      const completed = yield* completeMessage(message, settled)
-      return yield* write(completed, message.stage)
-    })
+    const complete = Effect.fn('MessageService.complete')(
+      (message: Message, settled: MessageCompletion) =>
+        completeMessage(message, settled).pipe(
+          Effect.flatMap((moved) => write(moved, message.stage)),
+        ),
+    )
 
-    const fail = Effect.fn('MessageService.fail')(function* (
-      message: Message,
-      failure: MessageFailureInput,
-    ) {
-      const failed = yield* failMessage(message, failure)
-      return yield* write(failed, message.stage)
-    })
+    const fail = Effect.fn('MessageService.fail')(
+      (message: Message, failure: MessageFailureInput) =>
+        failMessage(message, failure).pipe(Effect.flatMap((moved) => write(moved, message.stage))),
+    )
 
     return { get, addUserMessage, addAssistantMessage, prepare, generate, snapshot, complete, fail }
   }),

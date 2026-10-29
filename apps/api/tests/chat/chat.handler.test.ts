@@ -94,8 +94,8 @@ describe('chats', () => {
       const responses = yield* Effect.all([send, send], { concurrency: 'unbounded' })
 
       const statuses = Arr.map(responses, (response) => response.status)
-      const busy = yield* Effect.fromOption(
-        Arr.findFirst(responses, (response) => response.status === 409),
+      const busy = yield* Arr.findFirst(responses, (response) => response.status === 409).pipe(
+        Effect.fromOption,
       )
       assert.deepStrictEqual(Arr.sort(statuses, Order.Number), [202, 409])
       assertSchemaEquals(
@@ -109,9 +109,8 @@ describe('chats', () => {
   it.effect("another user's chat is 404 ChatNotFoundError, as if it did not exist", () =>
     Effect.gen(function* () {
       const chat = yield* Effect.provide(openChat, layerApiClient())
-      const [stranger, http] = yield* Effect.provide(
-        Effect.zip(ApiClient, HttpClient.HttpClient),
-        layerApiClient(),
+      const [stranger, http] = yield* Effect.zip(ApiClient, HttpClient.HttpClient).pipe(
+        Effect.provide(layerApiClient()),
       )
       yield* stranger.users.ensure()
 

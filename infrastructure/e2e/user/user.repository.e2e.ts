@@ -1,5 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Cause, DateTime, Effect, Exit, Layer, Option, Schema } from 'effect'
+import { SqlError } from 'effect/sql'
 
 import {
   buildUser,
@@ -11,7 +12,7 @@ import {
 } from '@app-template/domain/user'
 import { assertSchemaEquals } from '@app-template/testing'
 
-import { Db, isSqlError } from '#infrastructure/db/db.client'
+import { Db } from '#infrastructure/db/db.client'
 import { DbTest, flipSqlError } from '#infrastructure/db/testing/db.test-layer'
 import { credentials, users } from '#infrastructure/user/user.entity'
 import { UserRepositoryPg } from '#infrastructure/user/user.repository'
@@ -67,7 +68,7 @@ describe('UserRepositoryPg', () => {
 
         assert.isTrue(Exit.hasDies(inserted))
         const defect = Exit.isFailure(inserted) ? Cause.squash(inserted.cause) : undefined
-        if (!isSqlError(defect)) return assert.fail(`expected a SqlError defect, got ${defect}`)
+        assert(SqlError.isSqlError(defect), `expected a SqlError defect, got ${defect}`)
         assert.strictEqual(defect.reason._tag, 'UniqueViolation')
         assert.deepStrictEqual(selected, Option.none())
       }).pipe(Effect.provide(UserRepositoryPgTest)),

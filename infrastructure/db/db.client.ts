@@ -58,8 +58,6 @@ export class Transaction extends Context.Service<
 export const decodeOptionalRow = <S extends Schema.Constraint>(schema: S) =>
   Schema.decodeEffect(Schema.OptionFromNullishOr(schema))
 
-export const isSqlError = Schema.is(SqlError.SqlError)
-
 /**
  * Fails with the `SqlError` a Drizzle query error wraps, whose reason and driver message the
  * wrapper's own message leaves out.
@@ -69,7 +67,7 @@ export const isSqlError = Schema.is(SqlError.SqlError)
  */
 export const unwrapQueryError = (error: EffectDrizzleQueryError) => {
   const cause = Cause.isCause(error.cause) ? Cause.squash(error.cause) : error.cause
-  return isSqlError(cause) ? Effect.fail(cause) : Effect.die(error)
+  return SqlError.isSqlError(cause) ? Effect.fail(cause) : Effect.die(error)
 }
 
 const isQueryError = Schema.is(EffectDrizzleQueryError)

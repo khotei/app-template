@@ -1,4 +1,4 @@
-import { Array as Arr, Effect, Layer, Option, String as Str, Stream } from 'effect'
+import { Array as Arr, Effect, Layer, Option, pipe, String as Str, Stream } from 'effect'
 import { LanguageModel, Prompt } from 'effect/ai'
 
 import {
@@ -51,7 +51,7 @@ export const AssistantLlm: Layer.Layer<Assistant, never, LanguageModel.LanguageM
           ),
         suggestTitle: Effect.fn('Assistant.suggestTitle')(function* (text) {
           // A blank text never reaches the model, as `toTextParts` keeps empty text out.
-          if (Str.isEmpty(Str.trim(text))) return Option.none()
+          if (pipe(text, Str.trim, Str.isEmpty)) return Option.none()
           const response = yield* model.generateText({ prompt: buildTitlePrompt(text) })
           return buildChatTitle(response.text)
         }, Effect.orDie),

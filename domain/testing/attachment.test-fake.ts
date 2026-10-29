@@ -2,7 +2,6 @@ import {
   Array as Arr,
   Context,
   Effect,
-  flow,
   HashMap,
   Layer,
   Option,
@@ -42,7 +41,11 @@ const inOrderOf =
   (found: HashMap.HashMap<AttachmentId, Attachment>): ReadonlyArray<Attachment> =>
     ids === undefined
       ? HashMap.toValues(found)
-      : Arr.getSomes(Arr.map(ids, (id) => HashMap.get(found, id)))
+      : pipe(
+          ids,
+          Arr.map((id) => HashMap.get(found, id)),
+          Arr.getSomes,
+        )
 
 export const AttachmentRepositoryTest = Layer.effect(
   AttachmentRepository,
@@ -59,9 +62,9 @@ export const AttachmentRepositoryTest = Layer.effect(
           ),
         ),
       selectOne: (where) =>
-        Effect.map(
-          Ref.get(rows),
-          flow(HashMap.get(where.id), Option.filter(matches(Struct.omit(where, ['id'])))),
+        Ref.get(rows).pipe(
+          Effect.map(HashMap.get(where.id)),
+          Effect.map(Option.filter(matches(Struct.omit(where, ['id'])))),
         ),
       selectMany: (where) =>
         Ref.get(rows).pipe(
@@ -85,7 +88,7 @@ export class AttachmentBucketObjects extends Context.Service<
 export const AttachmentBucketTest = Layer.effect(
   AttachmentBucket,
   AttachmentBucketObjects.useSync((objects) => {
-    const select = (id: AttachmentId) => Effect.map(Ref.get(objects), HashMap.get(id))
+    const select = (id: AttachmentId) => Ref.get(objects).pipe(Effect.map(HashMap.get(id)))
     return AttachmentBucket.of({
       insert: (id, content) =>
         Effect.gen(function* () {

@@ -3,8 +3,8 @@
 .DEFAULT_GOAL := help
 
 .PHONY: help setup stack up down reset dev dev-api dev-worker dev-web debug-api debug-worker \
-  debug-web check ids doc-names service-use lint fmt typecheck test test-unit test-e2e bundle-check clean \
-  outdated vendor-effect vendor-drizzle migrate migration migration-check
+  debug-web check ids doc-names service-use nested-calls lint fmt typecheck test test-unit \
+  test-e2e bundle-check clean outdated vendor-effect vendor-drizzle migrate migration migration-check
 
 # The local Pulumi project: each tree's file backend under its .data/, named per command, so no
 # login is stored; the home (the provider plugins) is the main tree's .pulumi/, shared by every
@@ -104,7 +104,7 @@ debug-worker: ## Run the worker with --inspect and --watch
 debug-web: ## Run the web dev server with --inspect
 	bun --filter @app-template/web debug
 
-check: ids doc-names service-use lint typecheck migration-check test bundle-check ## Run every gate: ids, doc names, service use, lint, types, migrations, tests, the web bundle
+check: ids doc-names service-use nested-calls lint typecheck migration-check test bundle-check ## Run every gate: ids, doc names, service use, nested calls, lint, types, migrations, tests, the web bundle
 
 ids: ## Fail on ticket ids in parentheses (D12, R3, Q70) outside docs/tickets
 	@if git grep --untracked -nE '\((D|R|Q)[0-9]+[a-z]?\)' -- . ':!docs/tickets' \
@@ -150,6 +150,33 @@ service-use: ## Fail on Effect.flatMap or Effect.map over a service, which Servi
 		print "$$ARGV:", 1 + (substr($$_, 0, $$-[0]) =~ tr/\n//), "\n" }' \
 		$$(git ls-files --cached --others --exclude-standard -- '*.ts' ':!repos') | grep .; then \
 		echo 'Reach a service by Service.use, or Service.useSync for a plain value.'; \
+		exit 1; \
+	fi
+
+# The data-first combinators, curated so a constructor, a schema or a predicate takes any argument:
+# the unary ones, whose one argument is the subject, then those whose subject a second argument
+# follows (with one argument, they are the data-last form). A subject is a call of the modules in
+# NESTED_SUBJECT, or a `.pipe`. The matcher reads each file whole, as service-use does.
+NESTED_UNARY = Effect\.(fromOption|fromNullishOr|head|flip|exit|asVoid|asSome|orDie|ignore|forkChild|\
+forkScoped|forever|timed|transposeOption|option|flatten|scoped)|Option\.(getOrThrow|isSome|isNone|\
+flatten)|Arr\.(head|last|getSomes|flatten|isReadonlyArrayEmpty|isReadonlyArrayNonEmpty)|\
+Str\.(isEmpty|isNonEmpty|trim|toLowerCase)|Stream\.(runCollect|runDrain|runLast)|Layer\.(build|\
+launch|orDie)|Record\.(keys|values|toEntries)
+NESTED_BINARY = Effect\.(map|flatMap|andThen|tap|as|filterOrFail|mapError|catch\w*|tap\w+|provide\
+\w*|repeat|retry|zip\w*|race\w*|ensuring|onExit|onError|forEach|timeout\w*|match\w*|orElse\w*)|\
+Option\.(map|flatMap|filter|getOrElse|match|exists|orElse)|Arr\.(map|filter\w*|flatMap|sort|find\
+\w+|some|every|append\w*|prepend\w*|match|reduce|take|drop|join)|Str\.(split|startsWith|endsWith|\
+includes|replace|slice)|Stream\.(map\w*|tap\w*|concat|merge|filter|take|run\w+|schedule|grouped\w*|\
+scan\w*|flatMap|catch\w*|provide)|Layer\.(provide\w*|merge|tap\w*|catch\w*)|Record\.(map|filter|get)
+NESTED_SUBJECT = (Effect|Option|Arr|Str|Stream|Layer|Record|Ref)\.\w+\s*(\((?:[^()]++|(?-1))*+\))
+NESTED_CALL = \b(?:$(NESTED_UNARY))\(\s*(?:$(NESTED_SUBJECT)|[\w.]+\.pipe\() \
+  | \b(?:$(NESTED_BINARY))\(\s*(?:$(NESTED_SUBJECT)\s*,(?!\s*\))|[\w.]+\.pipe\()
+
+nested-calls: ## Fail on a combinator whose subject is another call, which a pipe spells in order
+	@if perl -0777 -ne 'while (/$(NESTED_CALL)/gx) { \
+		print "$$ARGV:", 1 + (substr($$_, 0, $$-[0]) =~ tr/\n//), "\n" }' \
+		$$(git ls-files --cached --others --exclude-standard -- '*.ts' ':!repos') | grep .; then \
+		echo 'Pipe the subject through the combinator: x.pipe(f), pipe(x, f), or flow(…) without x.'; \
 		exit 1; \
 	fi
 

@@ -165,7 +165,7 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
         yield* run(next.value, restore)
       })
 
-      return Effect.forever(Effect.uninterruptibleMask(receiveAndRun))
+      return Effect.uninterruptibleMask(receiveAndRun).pipe(Effect.forever)
     }
 
     return QueueClient.of({ send, consume })

@@ -1,4 +1,4 @@
-import { Array as Arr, Effect, Stream } from 'effect'
+import { Effect, Stream } from 'effect'
 
 import { png } from '@app-template/testing'
 
@@ -17,7 +17,4 @@ export const upload = (userId: UserId) =>
         content: Stream.make(png),
       }),
     ),
-  ).pipe(
-    Effect.flatMap((uploaded) => Effect.fromOption(Arr.head(uploaded))),
-    Effect.orDie,
-  )
+  ).pipe(Effect.head, Effect.orDie)

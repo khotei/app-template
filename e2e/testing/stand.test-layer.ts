@@ -8,7 +8,7 @@ import { AwsConfig } from '@app-template/config'
 import { ApiClient } from '@app-template/http-api'
 import { AttachmentBucketS3, S3BucketFromConfig } from '@app-template/infrastructure/attachment'
 import { AwsTest } from '@app-template/infrastructure/testing'
-import { layerCookieJar, PgClientTest } from '@app-template/testing'
+import { layerCookieJarTest, PgClientTest } from '@app-template/testing'
 import { WorkerLayer } from '@app-template/worker/layer'
 
 // `Config.Port` refuses 0, so the api cannot take an ephemeral port itself.
@@ -43,7 +43,7 @@ const buildConfigProvider = Effect.fnUntraced(function* (port: number) {
 /** One browser: a cookie jar of its own. */
 const layerApiClient = (port: number) =>
   ApiClient.layer(`http://localhost:${port}`).pipe(
-    Layer.provide(layerCookieJar()),
+    Layer.provide(layerCookieJarTest()),
     Layer.provide(FetchHttpClient.layer),
   )
 
@@ -67,6 +67,6 @@ export const StandTest = Layer.unwrap(
     )
   }).pipe(Effect.orDie),
 ).pipe(
-  Layer.provideMerge(AttachmentBucketS3.pipe(Layer.provide(S3BucketFromConfig))),
+  Layer.provideMerge(Layer.provide(AttachmentBucketS3, S3BucketFromConfig)),
   Layer.provideMerge([PgClientTest, AwsTest]),
 )

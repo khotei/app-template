@@ -70,8 +70,10 @@ describe('retryWhileUnreachable', () => {
       const { logs, layer: recordedLogs } = recordLogs()
       const { connect, attempts } = refuseConnections(refusals['a closed port'], Infinity)
 
-      const fiber = yield* Effect.forkChild(
-        Effect.flip(retryWhileUnreachable(connect)).pipe(Effect.provide(recordedLogs)),
+      const fiber = yield* retryWhileUnreachable(connect).pipe(
+        Effect.flip,
+        Effect.provide(recordedLogs),
+        Effect.forkChild,
       )
       yield* TestClock.adjust('1 minute')
       const error = yield* Fiber.join(fiber)

@@ -24,7 +24,7 @@ const selectAppliedCount = Effect.fnUntraced(function* (db: Db['Service']) {
     sql`select count(*)::int as applied from drizzle.__drizzle_migrations`,
     'objects',
   )
-  return Option.match(Arr.head(counted), { onNone: () => 0, onSome: ({ applied }) => applied })
+  return Arr.head(counted).pipe(Option.match({ onNone: () => 0, onSome: ({ applied }) => applied }))
 })
 
 /** Applies the pending migrations of `migrations/` and returns how many it applied. */

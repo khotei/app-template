@@ -26,19 +26,19 @@ export class UserService extends Context.Service<
   make: Effect.gen(function* () {
     const users = yield* UserRepository
     const crypto = yield* Crypto.Crypto
-    const randomUserId = Effect.map(Effect.orDie(crypto.randomUUIDv7()), UserId.make)
+    const randomUserId = crypto.randomUUIDv7().pipe(Effect.orDie, Effect.map(UserId.make))
 
     const hashSecret = Effect.fnUntraced(function* (secret: UserSecret) {
       const digest = yield* crypto.digest('SHA-256', encoder.encode(Redacted.value(secret)))
       return new Credential({ kind: 'secret', hash: SecretHash.make(Hex.encode(digest)) })
     }, Effect.orDie)
 
-    const authenticate = Effect.fn('UserService.authenticate')(function* (secret: UserSecret) {
-      const credential = yield* hashSecret(secret)
-      const found = yield* users.selectByCredential(credential)
-
-      return yield* Effect.fromOption(found, () => new UserUnknownError())
-    })
+    const authenticate = Effect.fn('UserService.authenticate')((secret: UserSecret) =>
+      hashSecret(secret).pipe(
+        Effect.flatMap(users.selectByCredential),
+        Effect.flatMap(Effect.fromOption(() => new UserUnknownError())),
+      ),
+    )
 
     const registerUser = Effect.fnUntraced(function* () {
       const id = yield* randomUserId

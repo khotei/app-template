@@ -60,9 +60,8 @@ const decodeDetail = ({ messages, ...row }: ChatRowWith<typeof MessageDetailFrom
   Effect.gen(function* () {
     const chat = yield* decodeChat(row)
     const details = yield* decodeDetails(messages)
-    const activeMessage = Arr.findFirst(
-      Arr.map(details, (detail) => detail.message),
-      isActiveMessage,
+    const activeMessage = Arr.findFirst(details, ({ message }) =>
+      Option.liftPredicate(message, isActiveMessage),
     )
     return { chat, activeMessage, messages: details }
   })

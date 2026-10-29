@@ -4,6 +4,7 @@ import {
   Effect,
   Option,
   Predicate,
+  pipe,
   Schema,
   String as Str,
 } from 'effect'
@@ -103,7 +104,7 @@ export const ensureChatAcceptsMessage = Effect.fn('ensureChatAcceptsMessage')(fu
 })
 
 export const ensureMessageInput = Effect.fn('ensureMessageInput')(function* (input: MessageInput) {
-  if (Str.isEmpty(Str.trim(input.text)) && Arr.isReadonlyArrayEmpty(input.attachmentIds)) {
+  if (pipe(input.text, Str.trim, Str.isEmpty) && Arr.isReadonlyArrayEmpty(input.attachmentIds)) {
     return yield* new MessageInputInvalidError()
   }
   // A repeated id would pass the bindability check twice and bind one attachment once.

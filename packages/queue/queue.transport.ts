@@ -90,7 +90,7 @@ const makeSqs = Effect.gen(function* () {
     })
     const { Messages } = yield* decodeReceived(response)
 
-    return Option.map(Arr.head(Messages ?? []), toReceived)
+    return Arr.head(Messages ?? []).pipe(Option.map(toReceived))
   }, failQueue)
 
   const extend = Effect.fn('QueueTransport.extend')(function* (

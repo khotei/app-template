@@ -16,11 +16,11 @@ import { SQSServiceFromConfig } from '#infrastructure/shared/aws.client'
 export const QueueClientSqs: Layer.Layer<
   QueueClient,
   Config.ConfigError | QueueLockRefreshIntervalInvalidError
-> = Layer.unwrap(
-  Effect.map(Effect.all([QueueConfig, AwsConfig]), ([locks, { stage }]) =>
+> = Effect.all([QueueConfig, AwsConfig]).pipe(
+  Effect.map(([locks, { stage }]) =>
     QueueClient.layer({ ...locks, queueName: (name) => buildResourceName(stage, name) }),
   ),
-).pipe(
+  Layer.unwrap,
   Layer.provide(QueueTransport.layerSqs),
   Layer.provide([QueueConfig.layer, AwsConfig.layer, SQSServiceFromConfig]),
 )

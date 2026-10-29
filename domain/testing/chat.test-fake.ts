@@ -123,7 +123,7 @@ const holdsMessageWhere = (tables: Tables, where: MessageOneWhere) =>
     isOwnedThroughChat(tables.chats, where.userId),
   )
 
-const makeReadTables = Effect.gen(function* () {
+const createReadTables = Effect.gen(function* () {
   const chats = yield* ChatRows
   const messages = yield* MessageRows
   const attachments = yield* AttachmentRows
@@ -140,10 +140,10 @@ export const ChatRepositoryTest = Layer.effect(
   Effect.gen(function* () {
     const chats = yield* ChatRows
     const messages = yield* MessageRows
-    const readTables = yield* makeReadTables
+    const readTables = yield* createReadTables
 
     const withActiveMessage = (found: ReadonlyArray<Chat>) =>
-      Effect.map(Ref.get(messages), (rows) => Arr.map(found, summaryOf(rows)))
+      Ref.get(messages).pipe(Effect.map((rows) => Arr.map(found, summaryOf(rows))))
 
     return ChatRepository.of({
       insert: (chat) => Ref.update(chats, HashMap.set(chat.id, chat)),
@@ -160,9 +160,9 @@ export const ChatRepositoryTest = Layer.effect(
           ),
         ),
       selectOne: (where) =>
-        Effect.map(
-          Ref.get(chats),
-          flow(HashMap.get(where.id), Option.filter(matches<Chat>(where))),
+        Ref.get(chats).pipe(
+          Effect.map(HashMap.get(where.id)),
+          Effect.map(Option.filter(matches<Chat>(where))),
         ),
       selectSummaries: (userId) =>
         Ref.get(chats).pipe(
@@ -202,7 +202,7 @@ export const MessageRepositoryTest = Layer.effect(
   MessageRepository,
   Effect.gen(function* () {
     const messages = yield* MessageRows
-    const readTables = yield* makeReadTables
+    const readTables = yield* createReadTables
 
     return MessageRepository.of({
       insert: (message) =>
@@ -241,9 +241,9 @@ export const MessageRepositoryTest = Layer.effect(
           Arr.map(messagesOf(tables.messages, chatId), detailOf(tables.attachments)),
         ),
       existsByChat: (chatId) =>
-        Effect.map(Ref.get(messages), HashMap.some(matches<Message>({ chatId }))),
+        Ref.get(messages).pipe(Effect.map(HashMap.some(matches<Message>({ chatId })))),
       selectActiveByChat: (chatId) =>
-        Effect.map(Ref.get(messages), (rows) => activeOf(rows, chatId)),
+        Ref.get(messages).pipe(Effect.map((rows) => activeOf(rows, chatId))),
     })
   }),
 )

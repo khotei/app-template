@@ -193,7 +193,7 @@ describe('GenerateAssistantMessageUseCase', () => {
       yield* Fiber.interrupt(running)
 
       assertEquals(yield* selectReply, Option.some(snapshotAt('One two', 300)))
-    }).pipe(Effect.provide(AssistantMessageTest.pipe(Layer.provide(assistant.layer))))
+    }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
   })
 
   it.effect('generate fails with the stream and writes no text past the last snapshot', () => {
@@ -210,7 +210,7 @@ describe('GenerateAssistantMessageUseCase', () => {
 
       assert.isTrue(Exit.hasDies(yield* Fiber.await(running)))
       assertEquals(yield* selectReply, Option.some(snapshotAt('One two', 300)))
-    }).pipe(Effect.provide(AssistantMessageTest.pipe(Layer.provide(assistant.layer))))
+    }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
   })
 
   it.effect(
@@ -235,7 +235,7 @@ describe('GenerateAssistantMessageUseCase', () => {
             ],
           },
         ])
-      }).pipe(Effect.provide(AssistantMessageTest.pipe(Layer.provide(assistant.layer))))
+      }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
     },
   )
 
@@ -309,7 +309,7 @@ describe('GenerateAssistantMessageUseCase', () => {
           yield* selectChat(chatId),
           Option.some(new Chat({ ...chat, updatedAt: failed.updatedAt })),
         )
-      }).pipe(Effect.provide(AssistantMessageTest.pipe(Layer.provide(assistant.layer))))
+      }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
     },
   )
 

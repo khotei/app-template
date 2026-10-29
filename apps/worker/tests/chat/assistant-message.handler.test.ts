@@ -94,7 +94,7 @@ describe('AssistantMessageHandler', () => {
         Option.some(new Message({ ...queuedReply, stage: 'generating' })),
       )
       assertEquals(yield* selectChat(chatId), Option.some(chat))
-    }).pipe(Effect.provide(AssistantMessageTest.pipe(Layer.provide(assistant.layer))))
+    }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
   })
 
   it.effect('handle fails the reply with the cause when the last attempt fails', () => {
@@ -111,7 +111,7 @@ describe('AssistantMessageHandler', () => {
         yield* selectChat(chatId),
         Option.some(new Chat({ ...chat, updatedAt: failed.updatedAt })),
       )
-    }).pipe(Effect.provide(AssistantMessageTest.pipe(Layer.provide(assistant.layer))))
+    }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
   })
 
   it.effect('handle fails the reply when its worker is interrupted during the last attempt', () => {
@@ -130,7 +130,7 @@ describe('AssistantMessageHandler', () => {
         yield* selectChat(chatId),
         Option.some(new Chat({ ...chat, updatedAt: failed.updatedAt })),
       )
-    }).pipe(Effect.provide(AssistantMessageTest.pipe(Layer.provide(assistant.layer))))
+    }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
   })
 
   it.effect("handle keeps the last snapshot's text on the reply it fails", () => {
@@ -149,7 +149,7 @@ describe('AssistantMessageHandler', () => {
       assertFailed(failed, 'provider exploded')
       assert.strictEqual(failed.text, 'Hel')
       assertEquals(failed.updatedAt, at(520))
-    }).pipe(Effect.provide(AssistantMessageTest.pipe(Layer.provide(assistant.layer))))
+    }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
   })
 
   it.effect(

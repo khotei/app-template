@@ -27,7 +27,7 @@ describe('config layers', () => {
     { variable: 'RDS_BASE_PORT', layer: MiniStackConfig.layer },
   ])('fails with a ConfigError naming a missing $variable', ({ variable, layer, given }) =>
     Effect.gen(function* () {
-      const error = yield* Effect.flip(Layer.build(provideVariables(layer, given ?? {})))
+      const error = yield* provideVariables(layer, given ?? {}).pipe(Layer.build, Effect.flip)
 
       assert.strictEqual(error._tag, 'ConfigError')
       assert.include(error.message, variable)
@@ -61,14 +61,10 @@ describe('config layers', () => {
     'rejects a lock refresh of $refresh against an expiration of $expiration',
     ({ refresh, expiration, printed }) =>
       Effect.gen(function* () {
-        const error = yield* Effect.flip(
-          Layer.build(
-            provideVariables(QueueConfig.layer, {
-              QUEUE_LOCK_EXPIRATION: expiration,
-              QUEUE_LOCK_REFRESH_INTERVAL: refresh,
-            }),
-          ),
-        )
+        const error = yield* provideVariables(QueueConfig.layer, {
+          QUEUE_LOCK_EXPIRATION: expiration,
+          QUEUE_LOCK_REFRESH_INTERVAL: refresh,
+        }).pipe(Layer.build, Effect.flip)
 
         assert.strictEqual(error._tag, 'QueueLockRefreshIntervalInvalidError')
         assert.include(error.message, `QUEUE_LOCK_REFRESH_INTERVAL ${printed}`)

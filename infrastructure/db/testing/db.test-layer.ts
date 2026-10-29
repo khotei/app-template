@@ -10,4 +10,4 @@ export const DbTest = Db.layer.pipe(Layer.provideMerge(PgClientTest))
 
 /** Succeeds with the `SqlError` a statement fails with, so a test reads its `reason`. */
 export const flipSqlError = <A, R>(self: Effect.Effect<A, EffectDrizzleQueryError, R>) =>
-  Effect.flip(self.pipe(Effect.catchTag('EffectDrizzleQueryError', unwrapQueryError)))
+  self.pipe(Effect.catchTag('EffectDrizzleQueryError', unwrapQueryError), Effect.flip)

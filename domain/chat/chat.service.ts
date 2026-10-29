@@ -72,12 +72,12 @@ export class ChatService extends Context.Service<
     const chats = yield* ChatRepository
     const messages = yield* MessageRepository
     const crypto = yield* Crypto.Crypto
-    const randomChatId = Effect.map(Effect.orDie(crypto.randomUUIDv7()), ChatId.make)
+    const randomChatId = crypto.randomUUIDv7().pipe(Effect.orDie, Effect.map(ChatId.make))
 
-    const findOwnedChat = Effect.fnUntraced(function* (userId: UserId, id: ChatId) {
-      const found = yield* chats.selectOne({ id, userId })
-      return yield* Effect.fromOption(found, () => new ChatNotFoundError({ id }))
-    })
+    const findOwnedChat = (userId: UserId, id: ChatId) =>
+      chats
+        .selectOne({ id, userId })
+        .pipe(Effect.flatMap(Effect.fromOption(() => new ChatNotFoundError({ id }))))
 
     const create = Effect.fn('ChatService.create')(function* (userId: UserId) {
       const id = yield* randomChatId
@@ -90,10 +90,11 @@ export class ChatService extends Context.Service<
 
     const list = Effect.fn('ChatService.list')(chats.selectSummaries)
 
-    const get = Effect.fn('ChatService.get')(function* (userId: UserId, chatId: ChatId) {
-      const found = yield* chats.selectDetail({ id: chatId, userId })
-      return yield* Effect.fromOption(found, () => new ChatNotFoundError({ id: chatId }))
-    })
+    const get = Effect.fn('ChatService.get')((userId: UserId, chatId: ChatId) =>
+      chats
+        .selectDetail({ id: chatId, userId })
+        .pipe(Effect.flatMap(Effect.fromOption(() => new ChatNotFoundError({ id: chatId })))),
+    )
 
     const rename = Effect.fn('ChatService.rename')(function* (
       userId: UserId,
@@ -129,10 +130,9 @@ export class ChatService extends Context.Service<
       })
     })
 
-    const remove = Effect.fn('ChatService.delete')(function* (userId: UserId, chatId: ChatId) {
-      yield* findOwnedChat(userId, chatId)
-      yield* chats.delete(chatId)
-    })
+    const remove = Effect.fn('ChatService.delete')((userId: UserId, chatId: ChatId) =>
+      findOwnedChat(userId, chatId).pipe(Effect.andThen(chats.delete(chatId))),
+    )
 
     const findSendable = Effect.fn('ChatService.findSendable')(function* (
       userId: UserId,

@@ -80,7 +80,9 @@ export class AttachmentService extends Context.Service<
     const attachments = yield* AttachmentRepository
     const bucket = yield* AttachmentBucket
     const crypto = yield* Crypto.Crypto
-    const randomAttachmentId = Effect.map(Effect.orDie(crypto.randomUUIDv7()), AttachmentId.make)
+    const randomAttachmentId = crypto
+      .randomUUIDv7()
+      .pipe(Effect.orDie, Effect.map(AttachmentId.make))
 
     const deleteByIds = Effect.fn('AttachmentService.deleteByIds')(function* (
       ids: ReadonlyArray<AttachmentId>,
@@ -110,7 +112,7 @@ export class AttachmentService extends Context.Service<
       const tracked = yield* Ref.make<ReadonlyArray<AttachmentId>>(Arr.empty())
       // Tracked before the write, not after the insert: a lost record still deletes the bytes.
       const trackId = Effect.tap(randomAttachmentId, (id) => Ref.update(tracked, Arr.append(id)))
-      const deleteTracked = Effect.flatMap(Ref.get(tracked), deleteByIds)
+      const deleteTracked = Ref.get(tracked).pipe(Effect.flatMap(deleteByIds))
 
       return yield* files.pipe(
         Stream.mapEffect((file) =>
@@ -125,9 +127,9 @@ export class AttachmentService extends Context.Service<
       const found = yield* attachments.selectOne({ id, userId })
       const now = yield* DateTime.now
 
-      return yield* Effect.fromOption(
-        Option.filter(found, Predicate.not(isExpiredAt(now))),
-        () => new AttachmentNotFoundError({ id }),
+      return yield* found.pipe(
+        Option.filter(Predicate.not(isExpiredAt(now))),
+        Effect.fromOption(() => new AttachmentNotFoundError({ id })),
       )
     })
 
@@ -136,9 +138,9 @@ export class AttachmentService extends Context.Service<
       id: AttachmentId,
     ) {
       const attachment = yield* get(userId, id)
-      const found = yield* bucket.url(id)
-
-      const url = yield* Effect.fromOption(found, () => new AttachmentNotFoundError({ id }))
+      const url = yield* bucket
+        .url(id)
+        .pipe(Effect.flatMap(Effect.fromOption(() => new AttachmentNotFoundError({ id }))))
 
       return { attachment, url }
     })
