@@ -146,8 +146,8 @@ sits beside never reach the browser.
 
 | File | Holds |
 |---|---|
-| `package.json`, `tsconfig.json` | `devDependencies` only: `@app-template/api`, `worker`, `http-api`, `infrastructure`, `testing`, `config`, `effect`, `@effect/vitest`, `@effect/platform-bun` |
-| `testing/stand.test-layer.ts` | `StandTest`: `ApiLayer` and `WorkerLayer` in one runtime over `DbTest`, `AwsTest`, `LanguageModelStub` and a `ConfigProvider.fromUnknown` of the containers' addresses; `ApiClient` on the api's port |
+| `package.json`, `tsconfig.json` | `devDependencies` only: `@app-template/api`, `worker`, `http-api`, `infrastructure`, `domain`, `testing`, `config`, `effect`, `@effect/vitest`, `@effect/platform-bun`, `@effect/sql-pg` |
+| `testing/stand.test-layer.ts` | `StandTest`: `ApiLayer` and `WorkerLayer` in one runtime over `PgClientTest` (not `DbTest`, whose `Db.layer` the apps would share bound to the test's client), `AwsTest`, the stub `WorkerLayer` brings and a `ConfigProvider.fromUnknown` of the test's database and stage; `ApiClient` on a free port the layer finds |
 | `chat.e2e.ts` | the journey: a user, a chat, an upload, a send, the message polled to `completed`, the title, the delete with its attachments |
 
 ### Root
@@ -156,7 +156,7 @@ sits beside never reach the browser.
 |---|---|
 | `vitest.config.ts` | two inline `projects`: `unit` and `e2e` |
 | `Makefile` | `test-unit`, `test-e2e`, `test`, `bundle-check`; `check` runs `test` and `bundle-check` |
-| `biome.json` | `domain/tests/**` override (adds `@effect/platform-bun`); `apps/web/main.ts`; an `e2e/**` override that bans only relative paths; the per-layer overrides already match any depth |
+| `biome.json` | `domain/tests/**` override (adds `@effect/platform-bun`); `apps/web/main.ts` (`e2e/` needs none: the root rule bans its relative paths); the per-layer overrides already match any depth |
 | `package.json` | `catalogs.effect` at `4.0.6`; `workspaces` gains `e2e` |
 | `tsconfig.json` | the `e2e` and `packages/s3` references |
 | `docs/knowledge/architecture.md`, `tooling.md`, `database.md`, `aws.md` | the new model, the test commands, the outbox body, the bucket in tests |

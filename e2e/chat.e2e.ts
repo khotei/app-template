@@ -47,7 +47,7 @@ const formOf = (file: File) => {
 const selectOutbox = Effect.flatMap(SqlClient.SqlClient, (sql) => sql`select queue from outbox`)
 
 describe('the journey over both app layers', { concurrent: false }, () => {
-  layer(StandTest, { timeout: '60 seconds', excludeTestServices: true })((it) => {
+  layer(StandTest, { excludeTestServices: true })((it) => {
     it.effect(
       'a sent message with an upload is answered and titled by the worker, and its delete removes the object',
       () =>

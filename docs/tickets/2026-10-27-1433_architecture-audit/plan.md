@@ -134,7 +134,7 @@
   before the report).
 - **Verify:** `grep -rn "unknown\|Struct.evolve" infrastructure/*/*.repository.ts` is empty;
   `make check`.
-- **Model:** fable high
+- **Model:** opus high
 - **Status:** done
 - **Findings:**
   - `Record.map` collapses the mappers into one value type, so the builders fold
@@ -164,7 +164,7 @@
   column is `text` and the entity says `jsonb`, through `make migration-check`.
 - **Verify:** `make migration-check`; `make test-e2e`; `grep -n jsonb
   infrastructure/outbox/outbox.entity.ts`; `make check`.
-- **Model:** fable high
+- **Model:** opus high
 - **Status:** done
 - **Findings:**
   - The migration keeps drizzle-kit's text (`SET DATA TYPE jsonb USING "body"::jsonb`), the
@@ -198,7 +198,7 @@
   ~400 lines the step splits into S5b (packages) and S5c (`http-api`, apps, `deployment`).
 - **Test first:** `config only` — the existing suites over these modules stay green unchanged.
 - **Verify:** `make check`; `git diff --stat` shows no test file changed.
-- **Model:** fable high
+- **Model:** opus high
 - **Status:** done
 - **Findings:**
   - The step fit one commit of ~150 lines; S5c is not created.
@@ -282,7 +282,7 @@
   and S10.
 - **Verify:** `ls domain/testing` shows the three `.fake.ts`, the three `.fixture.ts` and
   `index.ts`; `make check`.
-- **Model:** fable high
+- **Model:** opus high
 - **Status:** done
 - **Findings:**
   - The maps are `Ref<HashMap>`, not `Ref<Map>`: a write is one `Ref.modify` that replaces the
@@ -386,7 +386,7 @@
   `authenticate` on an unknown secret fails `UserUnknownError`. Red: `@app-template/domain/user`
   has no `UserService` yet.
 - **Verify:** `ls application/user` fails; `make test-unit`; `make check`.
-- **Model:** fable high
+- **Model:** opus high
 - **Status:** done
 - **Findings:**
   - Beyond **Files**: `apps/api/user/user.handler.ts` imported the old path and now imports
@@ -424,7 +424,7 @@
   bytes.
 - **Verify:** `grep -rn "isVisibleTo\|ensureFound" domain/attachment` is empty;
   `ls application/attachment` fails; `make test-unit`; `make check`.
-- **Model:** fable high
+- **Model:** opus high
 - **Status:** done
 - **Findings:**
   - `selectOne` takes `AttachmentOneWhere` (`id` required, `userId` optional); the batch
@@ -477,7 +477,7 @@
 - **Verify:** `grep -rn "ensureFound\|isInChat\|isTitledChat\|isOwnedBy" --include=*.ts .` is
   empty; `ls domain/shared` fails; `grep -rn "selectOne" domain/*/*.port.ts` lists chat,
   message and attachment; `make check`.
-- **Model:** fable high
+- **Model:** opus high
 - **Status:** done
 - **Findings:**
   - ~690 changed lines against the ~400 bound: the ports, the memory fake, the service and both
@@ -525,7 +525,7 @@
   stored at `generating`; `get` of another chat's message is `MessageNotFoundError`.
 - **Verify:** `ls domain/chat` shows the nine files of R10 (beside `chat.id.ts`,
   `message-stage.model.ts`, `index.ts`); `make test-unit`; `make check`.
-- **Model:** fable high
+- **Model:** opus high
 - **Status:** done
 - **Findings:**
   - ~730 changed lines against the ~400 bound; more than half is the new and moved suites.
@@ -586,7 +586,7 @@
   the test adds refusing its last write, keeps no row (red without `transaction.run`).
 - **Verify:** with Docker stopped, `make test-unit` runs the two suites; `grep -rn
   "withTransaction" application/` is empty; `make check`.
-- **Model:** fable high
+- **Model:** opus high
 - **Status:** done
 - **Findings:**
   - `recordQueue()` lives in `packages/queue/testing` (`@app-template/queue/testing`), beside the
@@ -631,7 +631,7 @@
   with an emoji at the cut is cut to `maxTitleLength` on a grapheme; blank text is none.
 - **Verify:** `ls infrastructure/chat/chat.llm.ts` fails; `grep -rln "Write a title"
   --include=*.ts .` lists only `assistant.llm.ts`; `make check`.
-- **Model:** fable high
+- **Model:** opus high
 - **Status:** done
 - **Findings:**
   - `domain/testing/assistant.test-fake.ts` moves to S14, the first step that tests a job over the
@@ -678,7 +678,7 @@
   error; `handle` runs the use case.
 - **Verify:** `find . -name "chat-title.job.ts" -not -path "*/node_modules/*"` is empty;
   `make test-unit`; `make check`.
-- **Model:** fable high
+- **Model:** opus high
 - **Status:** done
 - **Findings:**
   - The send runs `queue.send` under `Effect.orDie`: `QueueError` is an infrastructure failure
@@ -732,7 +732,7 @@
 - **Verify:** `grep -rn "messages\.\(update\|insert\)" application/ apps/ --exclude-dir=tests
   --exclude-dir=e2e --exclude-dir=testing` is empty; `grep -rn "settleReply" --include=*.ts .`
   is empty; `make test-unit`; `make check`.
-- **Model:** fable high
+- **Model:** opus high
 - **Status:** done
 - **Findings:**
   - Only the settle (the terminal write and the chat's `updatedAt`) runs under `Transaction.run`:
@@ -772,7 +772,7 @@
 - **Verify:** `find . -name "*.job.ts" -not -path "*/node_modules/*"` is empty;
   `ls apps/worker/chat/` shows the two handlers; `make check`; with the stand up,
   `make dev-worker` starts.
-- **Model:** fable high
+- **Model:** opus high
 - **Status:** done
 - **Findings:**
   - `GenerateAssistantMessageUseCase.fail` answers `Option<Message>`, the failed message, and
@@ -802,7 +802,7 @@
   harness still provides `DbTest`.
 - **Verify:** with Docker stopped, `make test-unit` passes; `ls apps/api/e2e` fails;
   `find . -name "*.e2e.ts" -path "*/apps/*"` is empty; `make check`.
-- **Model:** fable high
+- **Model:** opus high
 - **Status:** done
 - **Findings:**
   - `UserPg` and `ChatPg` move from `ApiHttp` to `ApiLayer`, so `ApiHttp` requires the ports
@@ -845,7 +845,7 @@
 - **Verify:** with the local stand down, `make test-e2e` passes; two `make test-e2e` runs at once
   from two shells both pass; `grep -rn "SqsClientMiniStack" --include=*.ts .` is empty;
   `make check`.
-- **Model:** fable high
+- **Model:** opus high
 - **Status:** done
 - **Findings:**
   - Beyond **Files**: `infrastructure/outbox/outbox.relay.ts` — `OutboxRelay` reads `AwsConfig`
@@ -889,7 +889,7 @@
   past the first `UploadPart`, leaves `exists` false and `listMultipartUploads` empty; `url`, `exists`, `untag` and `delete`
   on a missing key answer none, false, void, void.
 - **Verify:** `make test-e2e`; `make check`.
-- **Model:** fable high
+- **Model:** opus high
 - **Status:** done
 - **Findings:**
   - `Stream.zipWithNext` is gone (D16): built on `Channel.mapAccum`, its `onHalt` emits the held
@@ -931,7 +931,7 @@
   id is none.
 - **Verify:** `wc -l infrastructure/attachment/attachment.bucket.ts` under 80; `make test-e2e`;
   `make check`.
-- **Model:** fable high
+- **Model:** opus high
 - **Status:** done
 - **Findings:**
   - `S3BucketFromConfig` reads `AwsConfig` and `S3Service` from its context, as `OutboxRelay` does
@@ -971,8 +971,31 @@
 - **Test first:** the journey over `StandTest` (`e2e/chat.e2e.ts`).
 - **Verify:** `make test-e2e`; `find . -name "*.e2e.ts" -not -path "*/node_modules/*"` lists
   nothing under `apps/`; `make check`.
-- **Model:** fable high
-- **Status:** todo
+- **Model:** opus high
+- **Status:** done
+- **Findings:**
+  - `StandTest` sits on `PgClientTest`, not `DbTest`: a layer is built once per runtime, so
+    `DbTest`'s `Db.layer` would also serve the apps, bound to the test's client while their
+    `Transaction` holds their own, and every write would commit outside the transaction. The
+    test reads the outbox through `SqlClient`. Rejected: `DbTest` under the apps.
+  - `DATABASE_URL` comes from the `PgClientTest` client's config, `AWS_ENDPOINT_URL` and `STAGE`
+    from `AwsTest`'s `AwsConfig`; `inject` would name the container's unmigrated admin database.
+    `e2e` declares `@effect/sql-pg` (for `PgClient`) and not `@app-template/llm`, since
+    `WorkerLayer` brings the stub.
+  - The api's port is one `Bun.listen` finds free, and `ApiClient` targets
+    `http://localhost:<port>`: `Config.Port` refuses `0` and `ApiLayer` publishes no
+    `HttpServer`; a fixed port would collide across worktrees (R18). Rejected: exposing the
+    server from `ApiLayer` for a test.
+  - Beyond **Files**: `vitest.config.ts` gives the `e2e` project the SDK's test credentials,
+    which the apps' S3 and SQS clients read from the environment; `biome.json` stays, since the
+    root `noRestrictedImports` already bans relative paths in `e2e/`.
+  - The journey waits for a non-active stage, then asserts `completed`, so a failed reply shows
+    at once; the title is polled on its own, since its job runs beside the reply's. Two timeouts
+    stay (S21.2): `poll`'s 15 s names the wait that failed, and the test's 30 s sits above it,
+    since vitest's 5 s default is too near the journey's 3 s.
+  - The empty outbox shows the relay drained it, not that the send was atomic (S12's).
+  - For S23: `effect-tests.md` warns never to put `DbTest` in one runtime with a layer that
+    builds `Db.layerFromConfig`; `naming.md` is 91 lines and must come under its ~80 budget.
 
 #### S22 — The bundle guard
 
@@ -1029,7 +1052,7 @@
   */CLAUDE.md` finds nothing; `grep -rn "interactor\|orchestrator\|controller" .claude/rules/`
   is empty; `sed -n '/^## Architecture language/,$p' docs/knowledge/glossary.md | grep -c
   '^\*\*'` prints 15; `make check`.
-- **Model:** fable high
+- **Model:** opus high
 - **Status:** todo
 
 #### S24 — The knowledge docs on the new model

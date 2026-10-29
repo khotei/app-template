@@ -24,11 +24,12 @@ const buildConfigProvider = Effect.fnUntraced(function* (port: number) {
   const { config } = yield* PgClient.PgClient
   const { region, endpoint, stage } = yield* AwsConfig
   const databaseUrl = yield* Effect.fromOption(Option.fromNullishOr(config.url))
+  const awsEndpoint = yield* Effect.fromOption(endpoint)
 
   return ConfigProvider.fromUnknown({
     DATABASE_URL: Redacted.value(databaseUrl),
     AWS_REGION: region,
-    AWS_ENDPOINT_URL: Option.getOrThrow(endpoint).href,
+    AWS_ENDPOINT_URL: awsEndpoint.href,
     STAGE: stage,
     API_PORT: port,
     NODE_ENV: 'test',
