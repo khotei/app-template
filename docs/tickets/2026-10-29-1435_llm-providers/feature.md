@@ -15,8 +15,7 @@ times like a dropped connection, and a refusal is indistinguishable from a crash
 
 The assistant answers with a real Anthropic model, chosen by configuration, while the stub keeps
 the template running without a key. Each reply is one request and one structured response: a
-JSON object shaped by an Effect `Schema`, whose text the user reads and whose follow-ups the
-user may ask next. Failures are told apart by what a retry can fix, a refusal has its own reason,
+JSON object shaped by an Effect `Schema` that holds the text the user reads. Failures are told apart by what a retry can fix, a refusal has its own reason,
 and the whole `effect/ai` toolkit is mapped: used where it serves this flow, documented where it
 does not.
 
@@ -31,7 +30,7 @@ does not.
 - **Where this ticket departs from its roadmap entry.** OpenAI, assistant-produced files and
   placeholders, prompt-template provenance beyond a hash, history trimming, token and cost
   accounting, budgets, the SSE tail and a recorded provider round trip are out (see Out of scope,
-  with where each goes). Structured replies and follow-ups are new.
+  with where each goes). Structured replies are new.
 - **Requirements of `chat-core` this ticket amends.** R16 (snapshots while generating), R17
   (assistant turns in the prompt), R18 (which failures retry), R25 (how the title is asked). The
   amendments are R5, R8, R13–R17 and R19 below; `/ticket-implement` records them in
@@ -55,15 +54,15 @@ does not.
   | user attachments | Anthropic takes images (base64), PDF and plain text natively; `.docx`, `.xlsx` and audio are not accepted by any block or model |
 
 - **Terms** come from [docs/knowledge/glossary.md](../../knowledge/glossary.md): Chat, Message,
-  Message stage, Title, Attachment, Assistant. Extended by this grilling: **Follow-up** (new);
-  the `generating` stage no longer has a growing text.
+  Message stage, Title, Attachment, Assistant. Changed by this grilling: the `generating` stage
+  no longer has a growing text.
 
 ## Scope
 
 - The Anthropic provider and the stub, chosen by configuration; two models, one for replies and
   one for titles.
-- The reply as one structured response (text and follow-ups) defined by an Effect `Schema`, with
-  a fixed system prompt; the follow-ups stored with the message and returned by the api.
+- The reply as one structured response (its text) defined by an Effect `Schema`, with a fixed
+  system prompt.
 - Failures told apart by `AiError`: no retry for what a retry cannot fix, a rate limit's wait
   honoured, a refusal stored as its own reason.
 - The title as a structured response.
@@ -88,6 +87,8 @@ does not.
 - **Budgets** (per-user quotas, reply deadlines) and a **recorded provider round trip** in tests.
 - **Streaming the reply**, and the SSE tail: the reply arrives whole (R5); the SSE tail goes to
   `web-app` (7).
+- **Follow-ups** (questions the assistant suggests next, beside its text): dropped at
+  architecture; a later ticket can add a field to the reply schema.
 - Upgrading `effect` to 4.1.0.
 
 ## Requirements
@@ -111,16 +112,15 @@ does not.
 - **R5** — WHILE the worker handles an assistant-message job, THE SYSTEM SHALL set the message to
   `preparing` on taking the job and to `generating` when the request is sent, ask the reply model
   once for a reply, and WHEN the reply passes the reply schema, set the message `completed` with
-  its text and follow-ups in one write; no text is written before that. *Amends `chat-core` R16.*
-- **R6** — THE reply schema SHALL require a text that is non-empty after trimming and allow zero
-  to three follow-ups, each non-empty after trimming and at most 200 characters; the meaning of
-  each field SHALL reach the model as that field's description in the schema.
-- **R7** — WHEN the api returns a message, THE SYSTEM SHALL include its follow-ups, an empty list
-  for a user message and for an assistant message that is not `completed`.
+  its text in one write; no text is written before that. *Amends `chat-core` R16.*
+- **R6** — THE reply schema SHALL hold one field, a text that is non-empty after trimming; its
+  meaning SHALL reach the model as the field's description in the schema.
+- **R7** — *Dropped at architecture (2026-10-29):* the reply carries no follow-ups, so the api
+  returns nothing new.
 - **R8** — WHEN the worker builds the reply prompt, THE SYSTEM SHALL send the system prompt, then
   every `completed` message of the chat in creation order: a user message as its text and its
-  attachments as files, as today, and an assistant message as its text alone, without its
-  follow-ups. *Amends `chat-core` R17.*
+  attachments as files, as today, and an assistant message as its text. *Amends `chat-core`
+  R17.*
 - **R9** — THE system prompt SHALL be fixed text that states the assistant's role and rules; it
   SHALL NOT restate the reply schema, ask for the assistant's reasoning, or vary per request (no
   date, no user data).
@@ -144,8 +144,9 @@ does not.
   `chat-core` R18.*
 - **R15** — IF an attempt fails because the provider is overloaded or erred internally, the
   network failed, the reply did not pass the reply schema, or the reply was cut by the output
-  limit, THEN THE SYSTEM SHALL retry it as `chat-core` R18 states, and WHEN the attempts are
-  exhausted, set the message `failed` with reason `ReplyFailed`.
+  limit, THEN THE SYSTEM SHALL ask again within the same job, three requests in all, 1 s then
+  2 s apart as `chat-core` R18 counts them, and WHEN the requests are exhausted, set the message
+  `failed` with reason `ReplyFailed`. *Amends `chat-core` R18.*
 - **R16** — IF the model declines to answer, THEN THE SYSTEM SHALL set the message `failed` with
   reason `ReplyRefused` and a user-facing sentence of its own, keep no text, and not retry.
 - **R17** — IF the chat's history no longer fits the model's context window, THEN THE SYSTEM
@@ -159,11 +160,11 @@ does not.
 
 - **R19** — WHILE the worker handles the title job, THE SYSTEM SHALL ask the title model for a
   title in the language of the first message, as a structured response whose title is non-empty
-  and at most 120 characters once trimmed; IF the answer fails that schema, THEN the attempt
-  fails and is retried on the title queue's schedule; R13 and R14 apply to the title job as to
-  the reply. The rest of `chat-core` R25 stands: a user's title is never overwritten, a blank first
-  message asks no model, and exhausted attempts leave the chat untitled with a log. *Amends
-  `chat-core` R25.*
+  and at most 120 characters once trimmed; IF the answer fails that schema, THEN THE SYSTEM
+  SHALL ask again within the same job, five requests in all, 1, 2, 4 and 8 s apart; R13 and R14
+  apply to the title job as to the reply, and a refusal stops it at once as R13 does. The rest
+  of `chat-core` R25 stands: a user's title is never overwritten, a blank first message asks no
+  model, and exhausted requests leave the chat untitled with a log. *Amends `chat-core` R25.*
 
 ### Docs and configuration
 
@@ -178,13 +179,13 @@ does not.
 | Req | How to verify |
 |---|---|
 | R1 | With `LLM_PROVIDER=anthropic`, a key and both models in `.env`, `make dev`, send a message: the message reaches `completed` with a reply in the language asked, and the chat gets a title. A unit test over a fake `HttpClient` shows the reply request names the reply model and the title request the title model |
-| R2 | With `LLM_PROVIDER=stub` and no key, `make dev`, send a message: the message reaches `completed` with the stub's text and follow-ups, and the chat gets the stub's title |
+| R2 | With `LLM_PROVIDER=stub` and no key, `make dev`, send a message: the message reaches `completed` with the stub's text, and the chat gets the stub's title |
 | R3 | `LLM_PROVIDER` unset, then `anthropic` without the key: the worker exits at startup, each time with an error naming the setting |
 | R4 | `make test` passes with no key in the environment and the network disabled for the provider host |
-| R5 | A unit test on a fake model records the stages written: `preparing`, `generating`, then one `completed` write carrying text and follow-ups; no write in between |
-| R6 | Unit tests: a reply with blank text, with four follow-ups, or with a 201-character follow-up fails the schema; a reply with none passes. A test reads the JSON Schema sent and finds a description on each field |
-| R7 | `GET /chats/:chatId` returns `followUps` on every message: the stored list on a completed assistant message, `[]` on a user message and on an active one |
-| R8 | A unit test on a fake model reads the prompt: the system message first, user turns with their text and files, assistant turns as plain text with no follow-ups, failed and active messages absent |
+| R5 | A unit test on a fake model records the stages written: `preparing`, `generating`, then one `completed` write carrying the text; no write in between |
+| R6 | Unit tests: a reply with a blank text fails the schema, one with text passes. A test reads the JSON Schema sent and finds a description on the field |
+| R7 | — (dropped) |
+| R8 | A unit test on a fake model reads the prompt: the system message first, user turns with their text and files, assistant turns as their text, failed and active messages absent |
 | R9 | Review of the system prompt in the `/ticket-verify` pass: role and rules only; a unit test asserts it is equal across two requests of different chats |
 | R10 | A unit test over a fake `HttpClient` shows the reply request carries a top-level `cache_control` of type `ephemeral` without a `ttl` |
 | R11 | A unit test over a fake `HttpClient` shows `max_tokens` 16 000 on the reply request, and 1 000, the lowest effort and thinking disabled on the title request |
@@ -214,6 +215,8 @@ For `/ticket-architecture`.
   attempts multiply.
 - **Recommendation:** A, since the queue already owns attempts, dead letters and the last-attempt
   settling (`chat-core` D23).
+- **Answer:** B, inside the adapter rather than as a decorator layer; the queue retries only
+  crashes, so attempts do not multiply (architecture D1, D3). R15 and R19 now say so.
 
 ### Q2 — How is a refusal or an output-limit cut detected?
 
@@ -223,6 +226,9 @@ For `/ticket-architecture`.
   schema; B — call `generateText` with the response format and decode ourselves.
 - **Recommendation:** A if `generateObject`'s response exposes the finish reason on a decode
   failure; otherwise B. `researcher` to confirm.
+- **Answer:** neither: `generateText` takes no response format, and the decode failure carries
+  no finish reason. The finish part is read through `Telemetry.CurrentSpanTransformer` before
+  the decode (architecture D4).
 
 ### Q3 — Where does provenance live?
 
@@ -232,6 +238,8 @@ For `/ticket-architecture`.
   reply, and the domain stores it without reading it; B — only the infrastructure row holds it,
   written by the adapter.
 - **Recommendation:** A, since the domain service is the only writer of a message.
+- **Answer:** A, as a value of the port fixed at startup, written by the `generating` move
+  (architecture D6).
 
 ### Q4 — What does the stub do now that nothing streams?
 
@@ -239,3 +247,4 @@ For `/ticket-architecture`.
 - **Options:** A — answer the whole reply after a short fixed delay, so `generating` stays
   visible to a polling client; B — answer at once.
 - **Recommendation:** A.
+- **Answer:** A, the whole answer after 1 s (architecture D5).

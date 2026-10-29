@@ -44,11 +44,6 @@ The short name of a chat, shown in the user's chat list. The assistant proposes 
 first message unless the user has already set one; a user's title is never overwritten.
 _Avoid_: Name, subject, summary
 
-**Follow-up**:
-A question the assistant suggests the user may ask next, carried by an assistant message beside
-its text; at most three per message.
-_Avoid_: Suggestion, next question, quick reply, prompt
-
 **Attachment**:
 A file a user uploaded, or one produced for an assistant message. A user's attachment is bound
 to a message when that message is sent; until then only its owner can see it.

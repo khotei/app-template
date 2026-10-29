@@ -255,7 +255,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Out of scope.** Google and Bedrock (v3-only providers); agents and tool-use beyond what
   attachments need.
 - **Narrowed at its feature phase (2026-10-29).** Anthropic only, one structured reply per
-  request with follow-ups, no streaming; OpenAI, files, history trimming, token and cost
+  request, no streaming; OpenAI, files, history trimming, token and cost
   accounting, budgets and the recorded round trip moved to 18–20 or were dropped, and the SSE
   tail moved to `web-app` (7). See the ticket's `feature.md › Out of scope`.
 - **Status.** In progress: [docs/tickets/2026-10-29-1435_llm-providers/](../tickets/2026-10-29-1435_llm-providers/feature.md).
@@ -293,7 +293,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   writes snapshots; an SSE tail is `llm-providers`' (6) open question, so this ticket depends on
   3 alone for the reply and the upload, and on 6 only for assistant attachments and placeholders.
 - **Re-read against `llm-providers` (2026-10-29).** The reply now arrives whole: no snapshots, so
-  the client polls until the message is terminal and shows its text and follow-ups at once. The
+  the client polls until the message is terminal and shows its text at once. The
   SSE tail is this ticket's to decide, if it still earns its place. Assistant attachments and
   placeholders moved to `assistant-files` (18).
   The visitor cookie is the user cookie of `chat-core`'s `CurrentUser` security.
