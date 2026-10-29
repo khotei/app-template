@@ -7,8 +7,6 @@ import {
   Effect,
   Layer,
   Option,
-  Ref,
-  Schedule,
   String as Str,
   Stream,
 } from 'effect'
@@ -93,35 +91,19 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
       yield* messageService.snapshot(generating, text, at)
     })
 
-    const streamReply = Effect.fnUntraced(function* (
-      generating: Message,
-      history: ReadonlyArray<AssistantTurn>,
-    ) {
-      const text = yield* Ref.make(generating.text)
-      const unwritten = yield* Ref.make(Option.none<string>())
-      const accumulate = (delta: string) =>
-        Effect.flatMap(Ref.updateAndGet(text, Str.concat(delta)), (whole) =>
-          Ref.set(unwritten, Option.some(whole)),
-        )
-      const snapshot = Effect.flatMap(
-        Ref.getAndSet(unwritten, Option.none()),
-        Option.match({
-          onNone: () => Effect.void,
-          onSome: (whole) => writeSnapshot(generating, whole),
-        }),
+    // The stored text seeds the scan, so the first interval opens with the stream; a group of the
+    // seed alone has nothing new to write.
+    const streamReply = (generating: Message, history: ReadonlyArray<AssistantTurn>) =>
+      assistant.streamText(history).pipe(
+        Stream.scan(() => generating.text, Str.concat),
+        Stream.groupedWithin(Number.POSITIVE_INFINITY, snapshotInterval),
+        Stream.filter(Arr.isArrayNonEmpty),
+        Stream.map(Arr.lastNonEmpty),
+        Stream.filter((text) => text !== generating.text),
+        Stream.tap((text) => writeSnapshot(generating, text)),
+        Stream.runLast,
+        Effect.map(Option.getOrElse(() => generating.text)),
       )
-
-      // A write interrupted mid-flight could land after the final one, so a snapshot runs whole.
-      return yield* assistant
-        .streamText(history)
-        .pipe(
-          Stream.runForEach(accumulate),
-          Effect.raceFirst(
-            Effect.repeat(Effect.uninterruptible(snapshot), Schedule.spaced(snapshotInterval)),
-          ),
-          Effect.andThen(Ref.get(text)),
-        )
-    })
 
     const settle = Effect.fnUntraced(function* (write: SettlingWrite) {
       const settled = yield* write

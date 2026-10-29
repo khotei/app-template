@@ -48,7 +48,8 @@ const explodingMidway = Stream.make('Hel').pipe(
 )
 
 // The use case asks for the stream after its `generating` write.
-const heldForever = (held: AssistantCallHold) => Stream.fromEffect(held.hold).pipe(Stream.drain)
+const heldDeltas = (held: AssistantCallHold, deltas: Stream.Stream<string> = Stream.empty) =>
+  Stream.fromEffect(held.hold).pipe(Stream.drain, Stream.concat(deltas))
 
 const { maxAttempts } = assistantMessageQueue
 
@@ -115,7 +116,7 @@ describe('AssistantMessageHandler', () => {
 
   it.effect('handle fails the reply when its worker is interrupted during the last attempt', () => {
     const held = holdAssistantCall()
-    const assistant = recordAssistant({ streamText: heldForever(held) })
+    const assistant = recordAssistant({ streamText: heldDeltas(held) })
     return Effect.gen(function* () {
       yield* insertReply(queuedReply)
 
@@ -133,11 +134,14 @@ describe('AssistantMessageHandler', () => {
   })
 
   it.effect("handle keeps the last snapshot's text on the reply it fails", () => {
-    const assistant = recordAssistant({ streamText: explodingMidway })
+    const held = holdAssistantCall()
+    const assistant = recordAssistant({ streamText: heldDeltas(held, explodingMidway) })
     return Effect.gen(function* () {
       yield* insertReply(queuedReply)
 
       const running = yield* Effect.forkChild(handle(job, attemptInfo(maxAttempts)))
+      yield* held.asked
+      yield* held.release
       yield* TestClock.adjust('300 millis')
       assertEquals(
         yield* selectReply,
