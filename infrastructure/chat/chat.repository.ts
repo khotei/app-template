@@ -1,5 +1,5 @@
 import { eq, isNull } from 'drizzle-orm'
-import { Array as Arr, DateTime, Effect, Layer, Option, Schema, UndefinedOr } from 'effect'
+import { Array as Arr, DateTime, Effect, flow, Layer, Option, Schema, UndefinedOr } from 'effect'
 
 import {
   type ChatId,
@@ -83,25 +83,38 @@ export const ChatRepositoryPg = Layer.effect(
           .returning({ id: chats.id })
         return Arr.isReadonlyArrayNonEmpty(updated)
       }, orDieWithSqlError),
-      selectOne: Effect.fn('ChatRepository.selectOne')(function* (where) {
-        const row = yield* db.query.chats.findFirst({ where: filterOf(where) })
-        return yield* decodeOptionalRow(ChatFromRow)(row)
-      }, orDieWithSqlError),
-      selectSummaries: Effect.fn('ChatRepository.selectSummaries')(function* (userId) {
-        const rows = yield* db.query.chats.findMany({
-          where: { userId },
-          orderBy: { updatedAt: 'desc' },
-          with: { messages: { where: activeMessageFilter, limit: 1 } },
-        })
-        return yield* Effect.forEach(rows, decodeSummary)
-      }, orDieWithSqlError),
-      selectDetail: Effect.fn('ChatRepository.selectDetail')(function* (where) {
-        const row = yield* db.query.chats.findFirst({
-          where: filterOf(where),
-          with: { messages: { orderBy: inCreationOrder, with: withAttachments } },
-        })
-        return yield* Effect.transposeOption(Option.map(Option.fromNullishOr(row), decodeDetail))
-      }, orDieWithSqlError),
+      selectOne: Effect.fn('ChatRepository.selectOne')(
+        (where) =>
+          db.query.chats
+            .findFirst({ where: filterOf(where) })
+            .pipe(Effect.flatMap(decodeOptionalRow(ChatFromRow))),
+        orDieWithSqlError,
+      ),
+      selectSummaries: Effect.fn('ChatRepository.selectSummaries')(
+        (userId) =>
+          db.query.chats
+            .findMany({
+              where: { userId },
+              orderBy: { updatedAt: 'desc' },
+              with: { messages: { where: activeMessageFilter, limit: 1 } },
+            })
+            .pipe(Effect.flatMap(Effect.forEach(decodeSummary))),
+        orDieWithSqlError,
+      ),
+      selectDetail: Effect.fn('ChatRepository.selectDetail')(
+        (where) =>
+          db.query.chats
+            .findFirst({
+              where: filterOf(where),
+              with: { messages: { orderBy: inCreationOrder, with: withAttachments } },
+            })
+            .pipe(
+              Effect.flatMap(
+                flow(Option.fromNullishOr, Option.map(decodeDetail), Effect.transposeOption),
+              ),
+            ),
+        orDieWithSqlError,
+      ),
       delete: Effect.fn('ChatRepository.delete')(
         (id: ChatId) => db.delete(chats).where(eq(chats.id, id)),
         orDieWithSqlError,

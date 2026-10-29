@@ -1287,6 +1287,10 @@ keeps the suites green, a changed assertion named in its findings.
     keeps one `Effect.transposeOption`.
   - `message.entity.e2e.ts` changes its decode line, its assertions stay; `database.md` describes
     the new reads.
+  - Round 3, on the user's review: a read that only queries and decodes is an arrow piping the
+    query into its decoder (`.pipe(Effect.flatMap(decodeOptionalRow(…)))`), not a generator of two
+    `yield*`s (`effect-services.md › Functions`); `AttachmentRepository.selectOne` reads by
+    `db.query.attachments.findFirst`, so `encodeOneWhere` and `rows[0]` go.
 
 #### S30 — A service is reached by `Service.use`, and a check keeps it so
 

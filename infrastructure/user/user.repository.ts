@@ -26,16 +26,20 @@ export const UserRepositoryPg = Layer.effect(
         sql.withTransaction,
         orDieWithSqlError,
       ),
-      selectById: Effect.fn('UserRepository.selectById')(function* (id) {
-        const row = yield* db.query.users.findFirst({ where: { id } })
-        return yield* decodeOptionalRow(UserFromRow)(row)
-      }, orDieWithSqlError),
-      selectByCredential: Effect.fn('UserRepository.selectByCredential')(function* (credential) {
-        const row = yield* db.query.users.findFirst({
-          where: { credentials: { kind: credential.kind, hash: credential.hash } },
-        })
-        return yield* decodeOptionalRow(UserFromRow)(row)
-      }, orDieWithSqlError),
+      selectById: Effect.fn('UserRepository.selectById')(
+        (id) =>
+          db.query.users
+            .findFirst({ where: { id } })
+            .pipe(Effect.flatMap(decodeOptionalRow(UserFromRow))),
+        orDieWithSqlError,
+      ),
+      selectByCredential: Effect.fn('UserRepository.selectByCredential')(
+        (credential) =>
+          db.query.users
+            .findFirst({ where: { credentials: { kind: credential.kind, hash: credential.hash } } })
+            .pipe(Effect.flatMap(decodeOptionalRow(UserFromRow))),
+        orDieWithSqlError,
+      ),
     })
   }),
 )

@@ -59,25 +59,27 @@ export const MessageRepositoryPg = Layer.effect(
           .returning({ id: messages.id })
         return Arr.isReadonlyArrayNonEmpty(updated)
       }, orDieWithSqlError),
-      selectOne: Effect.fn('MessageRepository.selectOne')(function* (where) {
-        const row = yield* db.query.messages.findFirst({ where: filterOf(where) })
-        return yield* decodeOptionalRow(MessageFromRow)(row)
-      }, orDieWithSqlError),
-      selectDetail: Effect.fn('MessageRepository.selectDetail')(function* (where) {
-        const row = yield* db.query.messages.findFirst({
-          where: filterOf(where),
-          with: withAttachments,
-        })
-        return yield* decodeOptionalRow(MessageDetailFromRow)(row)
-      }, orDieWithSqlError),
-      selectByChat: Effect.fn('MessageRepository.selectByChat')(function* (chatId) {
-        const rows = yield* db.query.messages.findMany({
-          where: { chatId },
-          orderBy: inCreationOrder,
-          with: withAttachments,
-        })
-        return yield* decodeDetails(rows)
-      }, orDieWithSqlError),
+      selectOne: Effect.fn('MessageRepository.selectOne')(
+        (where) =>
+          db.query.messages
+            .findFirst({ where: filterOf(where) })
+            .pipe(Effect.flatMap(decodeOptionalRow(MessageFromRow))),
+        orDieWithSqlError,
+      ),
+      selectDetail: Effect.fn('MessageRepository.selectDetail')(
+        (where) =>
+          db.query.messages
+            .findFirst({ where: filterOf(where), with: withAttachments })
+            .pipe(Effect.flatMap(decodeOptionalRow(MessageDetailFromRow))),
+        orDieWithSqlError,
+      ),
+      selectByChat: Effect.fn('MessageRepository.selectByChat')(
+        (chatId) =>
+          db.query.messages
+            .findMany({ where: { chatId }, orderBy: inCreationOrder, with: withAttachments })
+            .pipe(Effect.flatMap(decodeDetails)),
+        orDieWithSqlError,
+      ),
       existsByChat: Effect.fn('MessageRepository.existsByChat')(function* (chatId) {
         const row = yield* db.query.messages.findFirst({
           where: { chatId },
@@ -85,13 +87,16 @@ export const MessageRepositoryPg = Layer.effect(
         })
         return row !== undefined
       }, orDieWithSqlError),
-      selectActiveByChat: Effect.fn('MessageRepository.selectActiveByChat')(function* (chatId) {
-        const row = yield* db.query.messages.findFirst({
-          where: { chatId, ...activeMessageFilter },
-        })
-        const found = yield* decodeOptionalRow(MessageFromRow)(row)
-        return Option.filter(found, isActiveMessage)
-      }, orDieWithSqlError),
+      selectActiveByChat: Effect.fn('MessageRepository.selectActiveByChat')(
+        (chatId) =>
+          db.query.messages
+            .findFirst({ where: { chatId, ...activeMessageFilter } })
+            .pipe(
+              Effect.flatMap(decodeOptionalRow(MessageFromRow)),
+              Effect.map(Option.filter(isActiveMessage)),
+            ),
+        orDieWithSqlError,
+      ),
     }),
   ),
 )
