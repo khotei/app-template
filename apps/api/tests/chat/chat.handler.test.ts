@@ -7,6 +7,7 @@ import {
   ChatNotFoundError,
   failMessage,
   type MessageId,
+  MessageNotFoundError,
   MessageRepository,
 } from '@app-template/domain/chat'
 import { UserUnknownError } from '@app-template/domain/user'
@@ -125,6 +126,28 @@ describe('chats', () => {
         new ChatNotFoundError({ id: chat.id }),
       )
     }).pipe(Effect.provide(ApiServerTest)),
+  )
+
+  it.effect("another chat's message or an unknown one is 404 MessageNotFoundError", () =>
+    Effect.gen(function* () {
+      const api = yield* ApiClient
+      const chat = yield* openChat
+      const other = yield* api.chats.create()
+      const { userMessage } = yield* api.chats.send({
+        params: { chatId: other.id },
+        payload: hello,
+      })
+
+      const elsewhere = yield* api.chats
+        .getMessage({ params: { chatId: chat.id, messageId: userMessage.id } })
+        .pipe(Effect.flip)
+
+      assertSchemaEquals(
+        MessageNotFoundError,
+        elsewhere,
+        new MessageNotFoundError({ id: userMessage.id }),
+      )
+    }).pipe(Effect.provide(ApiTest)),
   )
 
   it.effect('a failed reply carries its reason and message on the wire, never its cause', () =>

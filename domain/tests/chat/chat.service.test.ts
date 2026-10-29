@@ -6,20 +6,14 @@ import { DateTime, Effect, Layer, Option } from 'effect'
 import { assertSchemaEquals } from '@app-template/testing'
 
 import { ChatBusyError, ChatNotFoundError, ChatTitledError } from '#domain/chat/chat.error'
-import { ChatId, MessageId } from '#domain/chat/chat.id'
-import { buildChat, Chat, ChatTitle, ChatWithStatus } from '#domain/chat/chat.model'
+import { type ChatId, MessageId } from '#domain/chat/chat.id'
+import { Chat, ChatTitle, ChatWithStatus } from '#domain/chat/chat.model'
 import { ChatRepository } from '#domain/chat/chat.port'
 import { ChatService } from '#domain/chat/chat.service'
-import { type MessageInputInvalidError, MessageNotFoundError } from '#domain/chat/message.error'
+import type { MessageInputInvalidError } from '#domain/chat/message.error'
 import { buildUserMessage, completeMessage, type Message } from '#domain/chat/message.model'
 import { MessageRepository } from '#domain/chat/message.port'
-import {
-  ask,
-  chat,
-  epoch,
-  unknownChatId,
-  unknownMessageId,
-} from '#domain/testing/chat.test-fixture'
+import { ask, chat, epoch, unknownChatId } from '#domain/testing/chat.test-fixture'
 import { ChatTest, send } from '#domain/testing/chat.test-layer'
 import { owner, stranger } from '#domain/testing/user.test-fixture'
 import type { UserId } from '#domain/user/user.id'
@@ -184,59 +178,6 @@ describe('ChatService', () => {
         assertEquals(
           yield* service.findOne({ id: chat.id, userId: owner }),
           new ChatWithStatus({ ...chat, status: 'idle' }),
-        )
-      }).pipe(Effect.provide(ChatBunTest)),
-  )
-
-  it.effect('getMessage returns the stored message', () =>
-    Effect.gen(function* () {
-      const service = yield* ChatService
-      const { userMessage } = yield* send(owner, chat.id, 'Lisbon?')
-
-      assertEquals(yield* service.getMessage(owner, chat.id, userMessage.id), {
-        message: userMessage,
-        attachments: [],
-      })
-    }).pipe(Effect.provide(ChatBunTest)),
-  )
-
-  it.effect(
-    "getMessage of an unknown id, of another chat's message or of a stranger's chat is MessageNotFoundError",
-    () =>
-      Effect.gen(function* () {
-        const service = yield* ChatService
-        const other = buildChat({
-          id: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000021'),
-          userId: owner,
-          createdAt: epoch,
-        })
-        yield* ChatRepository.use((chats) => chats.insert(other))
-        const { userMessage } = yield* send(owner, other.id, 'Lisbon?')
-
-        const elsewhere = yield* service
-          .getMessage(owner, chat.id, userMessage.id)
-          .pipe(Effect.flip)
-        const foreign = yield* service
-          .getMessage(stranger, other.id, userMessage.id)
-          .pipe(Effect.flip)
-        const missing = yield* service
-          .getMessage(owner, chat.id, unknownMessageId)
-          .pipe(Effect.flip)
-
-        assertSchemaEquals(
-          MessageNotFoundError,
-          elsewhere,
-          new MessageNotFoundError({ id: userMessage.id }),
-        )
-        assertSchemaEquals(
-          MessageNotFoundError,
-          foreign,
-          new MessageNotFoundError({ id: userMessage.id }),
-        )
-        assertSchemaEquals(
-          MessageNotFoundError,
-          missing,
-          new MessageNotFoundError({ id: unknownMessageId }),
         )
       }).pipe(Effect.provide(ChatBunTest)),
   )

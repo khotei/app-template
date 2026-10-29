@@ -1,15 +1,14 @@
 import { Array as Arr, Context, Data, DateTime, Effect, Layer, Option, Struct } from 'effect'
 
 import { type ChatBusyError, ChatNotFoundError, ChatTitledError } from '#domain/chat/chat.error'
-import type { ChatId, MessageId } from '#domain/chat/chat.id'
+import type { ChatId } from '#domain/chat/chat.id'
 import { Chat, type ChatTitle, type ChatWithStatus, withStatus } from '#domain/chat/chat.model'
 import { type ChatOneWhere, ChatRepository } from '#domain/chat/chat.port'
-import { type MessageInputInvalidError, MessageNotFoundError } from '#domain/chat/message.error'
+import type { MessageInputInvalidError } from '#domain/chat/message.error'
 import {
   activeMessageWhere,
   ensureChatAcceptsMessage,
   ensureMessageInput,
-  type MessageDetail,
   type MessageInput,
 } from '#domain/chat/message.model'
 import { MessageRepository } from '#domain/chat/message.port'
@@ -29,11 +28,6 @@ export class ChatService extends Context.Service<
   ChatService,
   {
     readonly findOne: (where: ChatOneWhere) => Effect.Effect<ChatWithStatus, ChatNotFoundError>
-    readonly getMessage: (
-      userId: UserId,
-      chatId: ChatId,
-      messageId: MessageId,
-    ) => Effect.Effect<MessageDetail, MessageNotFoundError>
     readonly rename: (
       userId: UserId,
       chatId: ChatId,
@@ -67,15 +61,6 @@ export class ChatService extends Context.Service<
 
       return withStatus(chat, Arr.head(active).pipe(Option.map(Struct.get('message'))))
     })
-
-    const getMessage = Effect.fn('ChatService.getMessage')(
-      (userId: UserId, chatId: ChatId, messageId: MessageId) =>
-        messages
-          .selectOne({ id: messageId, chatId, userId })
-          .pipe(
-            Effect.flatMap(Effect.fromOption(() => new MessageNotFoundError({ id: messageId }))),
-          ),
-    )
 
     const rename = Effect.fn('ChatService.rename')(function* (
       userId: UserId,
@@ -123,7 +108,7 @@ export class ChatService extends Context.Service<
       return new SendableChat({ chatId, input, opensChat: Option.isNone(first), at })
     })
 
-    return { findOne, getMessage, rename, updateTitle, findSendable }
+    return { findOne, rename, updateTitle, findSendable }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

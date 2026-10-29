@@ -2,7 +2,14 @@ import { Array as Arr, Crypto, DateTime, Effect } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
 import { DeleteChatUseCase, SendMessageUseCase } from '@app-template/application/chat'
-import { buildChat, ChatId, ChatRepository, ChatService } from '@app-template/domain/chat'
+import {
+  buildChat,
+  ChatId,
+  ChatRepository,
+  ChatService,
+  MessageNotFoundError,
+  MessageRepository,
+} from '@app-template/domain/chat'
 import { generateId } from '@app-template/domain/shared'
 import { Api, CurrentUser } from '@app-template/http-api'
 
@@ -13,6 +20,7 @@ export const ChatHandler = HttpApiBuilder.group(
   'chats',
   Effect.fnUntraced(function* (handlers) {
     const chats = yield* ChatRepository
+    const messages = yield* MessageRepository
     const chatService = yield* ChatService
     const crypto = yield* Crypto.Crypto
     const sendMessage = yield* SendMessageUseCase
@@ -77,8 +85,14 @@ export const ChatHandler = HttpApiBuilder.group(
         'getMessage',
         Effect.fn('ChatHandler.getMessage')(function* ({ params }) {
           const user = yield* CurrentUser
-          const detail = yield* chatService.getMessage(user.id, params.chatId, params.messageId)
-          return toMessage(detail)
+          const message = yield* messages
+            .selectOne({ id: params.messageId, chatId: params.chatId, userId: user.id })
+            .pipe(
+              Effect.flatMap(
+                Effect.fromOption(() => new MessageNotFoundError({ id: params.messageId })),
+              ),
+            )
+          return toMessage(message)
         }),
       )
   }),

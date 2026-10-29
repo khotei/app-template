@@ -14,10 +14,10 @@ Where a flow lives. Words: `docs/knowledge/glossary.md › Architecture language
 
 - **A port speaks the domain's words,** never a client's type or error; its adapter turns a
   failure into a defect (`effect-schema.md`).
-- **A domain service holds the rules that need a port:** a check over stored rows, a not-found
-  turned into the domain error, a refusal named after a read (`ChatService`). An entity whose
-  rules are all pure model functions has no service: a use case runs the function and writes
-  the result through the port (the messages: `prepareMessage`, then `MessageRepository.update`).
+- **A domain service holds the rules that need a port:** a check over stored rows, a refusal
+  named after a read (`ChatService`); a bare not-found stays in the handler that reads it. An
+  entity whose rules are all pure model functions has no service: a use case runs the function
+  and writes the result through the port (the messages: `prepareMessage`, then `MessageRepository.update`).
 - It sees its ports, the clock (`DateTime.now`) and `Crypto`; never another domain service, the
   queue or `Transaction`, which are a use case's.
 - **Every method is safe on its own,** except a step a use case owns (a cascade): its doc comment
@@ -53,8 +53,9 @@ the signal.
 ## Handlers
 
 - A handler decodes the input, calls one domain service method, one use case or, for a step no
-  rule guards (a list, a record a model function builds), the port, and shapes the
-  outcome; it holds no rule and never calls a step a use case owns.
+  rule guards (a list, a record a model function builds, a read whose none is the domain's
+  `*NotFoundError`), the port, and shapes the outcome; it holds no other rule and never calls a
+  step a use case owns.
 - A worker handler owns the queue's policy, the last attempt and the dead letter: it composes the
   use case's methods (`generate`, then `fail` on the last attempt's cause), which never see
   `AttemptInfo`.
