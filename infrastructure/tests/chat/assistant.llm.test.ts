@@ -1,7 +1,8 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, Effect, Exit, Layer, Option, Ref, Stream } from 'effect'
+import { Array as Arr, Effect, Exit, Fiber, Layer, Option, Ref, Stream } from 'effect'
 import { AiError, LanguageModel, Prompt, type Response } from 'effect/ai'
+import { TestClock } from 'effect/testing'
 
 import {
   Attachment,
@@ -25,18 +26,19 @@ import { chatId, epoch, owner } from '@app-template/domain/testing'
 import { png } from '@app-template/testing'
 
 import { AssistantLlm } from '#infrastructure/chat/assistant.llm'
+import { AssistantModels } from '#infrastructure/chat/assistant-models.client'
 
 interface LanguageModelScript {
   readonly generateText?: Effect.Effect<Array<Response.PartEncoded>, AiError.AiError>
   readonly streamText?: Stream.Stream<Response.StreamPartEncoded, AiError.AiError>
 }
 
-/** `AssistantLlm` over a model answering from `script`, keeping each prompt; an unscripted call dies. */
+/** `AssistantLlm` over one model for both purposes, answering from `script`, keeping each prompt; an unscripted call dies. */
 const recordLanguageModel = (script: LanguageModelScript) => {
   const prompts = Ref.makeUnsafe<ReadonlyArray<Prompt.Prompt>>([])
   const record = (prompt: Prompt.Prompt) => Ref.update(prompts, Arr.append(prompt))
-  const model = Layer.effect(
-    LanguageModel.LanguageModel,
+  const models = Layer.effect(
+    AssistantModels,
     LanguageModel.make({
       generateText: ({ prompt }) =>
         record(prompt).pipe(
@@ -46,9 +48,11 @@ const recordLanguageModel = (script: LanguageModelScript) => {
         Stream.fromEffect(record(prompt)).pipe(
           Stream.flatMap(() => script.streamText ?? Stream.die('streamText is not scripted')),
         ),
-    }),
+    }).pipe(
+      Effect.map((model) => ({ provider: 'fake', replyModel: 'fake', reply: model, title: model })),
+    ),
   )
-  return { prompts: Ref.get(prompts), layer: AssistantLlm.pipe(Layer.provide(model)) }
+  return { prompts: Ref.get(prompts), layer: AssistantLlm.pipe(Layer.provide(models)) }
 }
 
 const contentsOf = (prompts: ReadonlyArray<Prompt.Prompt>) =>
@@ -189,6 +193,28 @@ describe('AssistantLlm', () => {
       const exit = yield* reply([{ message: user(1, 'Hi'), files: [] }]).pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
+    }).pipe(Effect.provide(layer))
+  })
+
+  it.effect('the stub answers a reply and a title after 1 s', () => {
+    const layer = AssistantLlm.pipe(Layer.provide(AssistantModels.layerStub))
+    return Effect.gen(function* () {
+      const answers = yield* Effect.all(
+        {
+          reply: reply([{ message: user(1, 'Hi'), files: [] }]),
+          title: suggestTitle('Plan a weekend in Lisbon'),
+        },
+        { concurrency: 'unbounded' },
+      ).pipe(Effect.forkChild)
+
+      yield* TestClock.adjust('1 second')
+
+      assertEquals(yield* Fiber.join(answers), {
+        reply: new AssistantReply({
+          text: 'This is the development stub answering the whole reply at once.',
+        }),
+        title: Option.some(ChatTitle.make('Stub chat title')),
+      })
     }).pipe(Effect.provide(layer))
   })
 })

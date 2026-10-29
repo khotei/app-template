@@ -72,6 +72,40 @@ export class RuntimeConfig extends Context.Service<
   )
 }
 
+const llmProviders = ['stub', 'anthropic'] as const
+
+type LlmProvider = (typeof llmProviders)[number]
+
+type LlmSettings =
+  | { readonly provider: 'stub' }
+  | {
+      readonly provider: 'anthropic'
+      readonly apiKey: Redacted.Redacted
+      readonly replyModel: string
+      readonly titleModel: string
+    }
+
+const llmSettings = {
+  stub: Config.succeed({ provider: 'stub' }),
+  anthropic: Config.all({
+    provider: Config.succeed('anthropic' as const),
+    apiKey: Config.Redacted('ANTHROPIC_API_KEY'),
+    replyModel: Config.String('LLM_REPLY_MODEL'),
+    titleModel: Config.String('LLM_TITLE_MODEL'),
+  }),
+} as const satisfies Record<LlmProvider, Config.Config<LlmSettings>>
+
+export class LlmConfig extends Context.Service<LlmConfig, LlmSettings>()(
+  '@app-template/config/LlmConfig',
+) {
+  static readonly layer = Layer.effect(
+    this,
+    Config.Literals(llmProviders, 'LLM_PROVIDER').pipe(
+      Config.flatMap((provider): Config.Config<LlmSettings> => llmSettings[provider]),
+    ),
+  )
+}
+
 export class QueueLockRefreshIntervalInvalidError extends Schema.TaggedError<QueueLockRefreshIntervalInvalidError>()(
   'QueueLockRefreshIntervalInvalidError',
   { lockExpiration: Schema.Duration, lockRefreshInterval: Schema.Duration },

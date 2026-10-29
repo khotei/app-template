@@ -13,8 +13,7 @@ import { assertSchemaEquals, png } from '@app-template/testing'
 
 import { StandTest } from '#e2e/testing/stand.test-layer'
 
-const stubReply =
-  'This is the development stub answering one word at a time, so the polling client can watch the reply grow.'
+const stubReply = 'This is the development stub answering the whole reply at once.'
 
 const isActiveStage = Schema.is(ActiveMessageStage)
 

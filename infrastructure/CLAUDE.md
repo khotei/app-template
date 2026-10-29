@@ -8,8 +8,7 @@ and `Transaction`.
   a domain port, so callers never see the client: object keys and prompts stay inside the adapter.
 - A `<entity>.queue.ts` holds only queue definitions; no adapter wraps `send` or `worker`.
 - A repository runs on Postgres through `db/`, over the tables its `<entity>.entity.ts` declares
-  ([database.md](../docs/knowledge/database.md)). `AssistantLlm` runs on `packages/llm`'s stub
-  until a real provider replaces its body, not its signature.
+  ([database.md](../docs/knowledge/database.md)).
 - `db/` holds the Postgres client (`Db`, a Drizzle database on `@effect/sql-pg`), `Transaction`,
   the relations every table shares (`relations.ts`) and the migrations. Drizzle is reached only
   through Effect, never through a promise.

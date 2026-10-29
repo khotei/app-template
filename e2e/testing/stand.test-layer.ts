@@ -37,6 +37,7 @@ const buildConfigProvider = Effect.fnUntraced(function* (port: number) {
     QUEUE_LOCK_EXPIRATION: '15 seconds',
     QUEUE_LOCK_REFRESH_INTERVAL: '5 seconds',
     OUTBOX_POLL_INTERVAL: '100 millis',
+    LLM_PROVIDER: 'stub',
   })
 })
 

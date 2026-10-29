@@ -266,8 +266,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   (`AssistantMessageJob`), which writes the growing text into the message as throttled snapshots
   that the client polls; the question above narrows to whether an SSE tail over the stored message
   is added. Assistant attachments are therefore produced inside that job: the first decision is
-  whether the model's tool call or a second job writes them, not whether a job exists. Provider
-  layers replace `LanguageModelStub`, which `apps/worker/layer.ts` provides today.
+  whether the model's tool call or a second job writes them, not whether a job exists.
 - **Facts (2026-10-17).** `@effect/ai-anthropic@4.0.5` and `@effect/ai-openai@4.0.5` exist;
   `@effect/ai-google` and `@effect/ai-amazon-bedrock` are Effect v3 only. The Anthropic Files API
   is GA; `document` blocks take PDFs up to 32 MB, images by base64, URL or file id.

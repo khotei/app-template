@@ -117,7 +117,7 @@ Using the `chat` slice as the map:
 | memory layers and fixtures | `domain/testing/chat.test-fake.ts`, `chat.test-fixture.ts`, `user.test-fixture.ts` | `ChatRepositoryTest`, `ChatRows`, `chat`, `owner`; `RepositoryStackTest` in `repository-stack.test-layer.ts`; all as `@app-template/domain/testing` |
 | database client, transaction and migrations | `infrastructure/db/` | `Db`, `Db.layerFromConfig`, `Transaction`, `migrations/`, the shared columns in `columns.ts`, the relations in `relations.ts`; `DbTest`, `TransactionTest` in `db/testing/` |
 | tables and row codecs | `infrastructure/chat/chat.entity.ts`, `message.entity.ts` | `chats` (`snakeCase.table`), `ChatRow`, `ChatInsert` |
-| adapter implementing a port | `infrastructure/chat/chat.repository.ts`, `assistant.llm.ts`; `attachment/attachment.bucket.ts` | `ChatRepositoryPg`, `AssistantLlm` (with the prompts), `AttachmentBucketS3` (each a `Layer` of its port) |
+| adapter implementing a port | `infrastructure/chat/chat.repository.ts`, `assistant.llm.ts`; `attachment/attachment.bucket.ts` | `ChatRepositoryPg`, `AssistantLlm` (with the prompts, over `AssistantModels`, the language model per purpose that `LLM_PROVIDER` picks), `AttachmentBucketS3` (each a `Layer` of its port) |
 | queue definitions | `infrastructure/chat/chat.queue.ts` | `assistantMessageQueue`, `GenerateAssistantMessage` (the job schema) |
 | relay from the database to a queue | `infrastructure/outbox/outbox.relay.ts` | `OutboxRelay` (a worker `Layer` that runs a fiber and provides nothing) |
 | use case composing domain services | `application/chat/send-message.use-case.ts`, `generate-assistant-message.use-case.ts` | `SendMessageUseCase`, `SendMessageUseCase.layer`, `GenerateAssistantMessageUseCase` |

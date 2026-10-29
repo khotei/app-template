@@ -16,8 +16,8 @@ the assistant answers. The api writes the message and its jobs in one transactio
 `202`; the worker relays the jobs to SQS, writes the model's whole reply into the message and
 titles the chat; the client polls the message until it is `completed` or `failed`. Records
 live in Postgres, attachment bytes in S3, and jobs go through an outbox and SQS (MiniStack
-locally); the language model is a stub that a real provider replaces later. The browser UI still
-shows only the health panel.
+locally); `LLM_PROVIDER` picks the language model: Anthropic, or a stub that needs no key. The
+browser UI still shows only the health panel.
 
 ```mermaid
 sequenceDiagram
@@ -109,7 +109,7 @@ One entity crosses every layer under the same folder name. The `chat` slice, by 
 ```text
 domain/chat/            chat.id  chat.model  chat.error  chat.port  chat.service
 application/chat/       send-message.use-case  generate-assistant-message.use-case
-infrastructure/chat/    chat.entity  chat.repository  chat.queue  assistant.llm
+infrastructure/chat/    chat.entity  chat.repository  chat.queue  assistant.llm  assistant-models.client
 http-api/chat/          chat.http
 apps/api/chat/          chat.handler
 apps/worker/chat/       assistant-message.handler  chat-title.handler

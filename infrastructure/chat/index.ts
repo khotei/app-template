@@ -4,6 +4,7 @@ import { ChatRepositoryPg } from '#infrastructure/chat/chat.repository'
 import { MessageRepositoryPg } from '#infrastructure/chat/message.repository'
 
 export * from '#infrastructure/chat/assistant.llm'
+export * from '#infrastructure/chat/assistant-models.client'
 export * from '#infrastructure/chat/chat.queue'
 export * from '#infrastructure/chat/chat.repository'
 export * from '#infrastructure/chat/message.repository'

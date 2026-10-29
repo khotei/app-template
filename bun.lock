@@ -60,7 +60,6 @@
         "@app-template/config": "workspace:*",
         "@app-template/domain": "workspace:*",
         "@app-template/infrastructure": "workspace:*",
-        "@app-template/llm": "workspace:*",
         "@app-template/queue": "workspace:*",
         "@effect/platform-bun": "catalog:effect",
         "effect": "catalog:effect",
@@ -122,10 +121,12 @@
         "@app-template/aws": "workspace:*",
         "@app-template/config": "workspace:*",
         "@app-template/domain": "workspace:*",
+        "@app-template/llm": "workspace:*",
         "@app-template/queue": "workspace:*",
         "@app-template/s3": "workspace:*",
         "@effect-aws/client-s3": "catalog:effect-aws",
         "@effect-aws/client-sqs": "catalog:effect-aws",
+        "@effect/ai-anthropic": "catalog:effect",
         "@effect/platform-bun": "catalog:effect",
         "@effect/sql-pg": "catalog:effect",
         "drizzle-orm": "catalog:drizzle",
@@ -207,6 +208,7 @@
       "drizzle-orm": "1.0.0-rc.5",
     },
     "effect": {
+      "@effect/ai-anthropic": "4.0.6",
       "@effect/platform-bun": "4.0.6",
       "@effect/sql-pg": "4.0.6",
       "@effect/vitest": "4.0.6",
@@ -337,6 +339,8 @@
     "@effect-aws/client-sqs": ["@effect-aws/client-sqs@2.0.0", "", { "dependencies": { "@aws-sdk/client-sqs": "^3", "@effect-aws/commons": "^1.0.0" }, "peerDependencies": { "effect": ">=4.0.0-beta.66 <5.0.0" } }, "sha512-T3zS9eMRPKVnAo9HiAXY9KezR9RABU5rI4zD8U1cyPJi5X4MQB2erJBgKysSqBhhAVVB2btohve15fmedGHLwg=="],
 
     "@effect-aws/commons": ["@effect-aws/commons@1.0.0", "", { "dependencies": { "@smithy/protocol-http": "^5.6.2", "@smithy/smithy-client": "^4.15.2", "@smithy/types": "^4.17.2" }, "peerDependencies": { "effect": ">=4.0.0-beta.66 <5.0.0" } }, "sha512-lxn1Cbyieo3rCAiovvQoJXZFpPYvLxHwYy0r8HFI65FeBiCvCrty822miSQKybItZdbqAcs2E34QQygX/Oialg=="],
+
+    "@effect/ai-anthropic": ["@effect/ai-anthropic@4.0.6", "", { "peerDependencies": { "effect": "^4.0.6" } }, "sha512-hGMzHIWCgUN0r02wWAIjaaIHK6HU+BXRVZiRbsT/zWwG0BwdYu0YPNuPOQwoqwOUANa7T2bhF+ghHaWcPfL9Xg=="],
 
     "@effect/platform-bun": ["@effect/platform-bun@4.0.6", "", { "dependencies": { "@effect/platform-node-shared": "^4.0.6" }, "peerDependencies": { "effect": "^4.0.6" } }, "sha512-RAsGcIVcqhV4aBiM07VnMeNWDyewp8WDwTdIUtiklUDBRtddDllYzPsTlsn+0gLdpdz2lGnMEOFzoNaNrcMfSA=="],
 
