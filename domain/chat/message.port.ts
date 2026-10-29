@@ -1,7 +1,8 @@
 import { Context, type Effect, type Option, type Types } from 'effect'
 
 import type { ChatId, MessageId } from '#domain/chat/chat.id'
-import type { ActiveMessage, Message, MessageDetail } from '#domain/chat/message.model'
+import type { Message, MessageAuthor, MessageDetail } from '#domain/chat/message.model'
+import type { MessageStage } from '#domain/chat/message-stage.model'
 import type { UserId } from '#domain/user/user.id'
 
 /** The stored stage a write requires; the row is always found by the message's id. */
@@ -15,6 +16,13 @@ export type MessageOneWhere = Types.Simplify<
   { readonly id: MessageId } & Partial<{ readonly chatId: ChatId; readonly userId: UserId }>
 >
 
+/** The rows where every field named holds; a list field holds for a row with any of its values. */
+export type MessageManyWhere = {
+  readonly chatId: ReadonlyArray<ChatId>
+  readonly author?: MessageAuthor
+  readonly stage?: ReadonlyArray<MessageStage>
+}
+
 export class MessageRepository extends Context.Service<
   MessageRepository,
   {
@@ -24,12 +32,8 @@ export class MessageRepository extends Context.Service<
     readonly update: (message: Message, where: MessageWhere) => Effect.Effect<void>
     readonly selectOne: (where: MessageOneWhere) => Effect.Effect<Option.Option<Message>>
     readonly selectDetail: (where: MessageOneWhere) => Effect.Effect<Option.Option<MessageDetail>>
-    /** Returns the chat's messages in creation order, a tie broken by id. */
-    readonly selectByChat: (chatId: ChatId) => Effect.Effect<ReadonlyArray<MessageDetail>>
     readonly existsByChat: (chatId: ChatId) => Effect.Effect<boolean>
-    /** Returns the active message of each chat in `chatIds` that has one, unordered. */
-    readonly selectActive: (
-      chatIds: ReadonlyArray<ChatId>,
-    ) => Effect.Effect<ReadonlyArray<ActiveMessage>>
+    /** Returns the rows where `where` holds in creation order, a tie broken by id. */
+    readonly selectMany: (where: MessageManyWhere) => Effect.Effect<ReadonlyArray<MessageDetail>>
   }
 >()('@app-template/domain/chat/MessageRepository') {}

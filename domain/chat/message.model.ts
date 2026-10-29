@@ -96,6 +96,12 @@ const isActiveShape = Predicate.Struct({
 export const isActiveMessage = (message: Message): message is ActiveMessage =>
   isActiveShape(message)
 
+/** The `isActiveMessage` condition as a read's `where`. */
+export const activeMessageWhere = {
+  author: 'assistant',
+  stage: ActiveMessageStage.literals,
+} as const
+
 export const ensureChatAcceptsMessage = Effect.fn('ensureChatAcceptsMessage')(function* (
   current: Option.Option<Message>,
 ) {

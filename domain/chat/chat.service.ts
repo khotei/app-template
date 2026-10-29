@@ -1,4 +1,15 @@
-import { Array as Arr, Context, Data, DateTime, Effect, Layer, Option, pipe, Struct } from 'effect'
+import {
+  Array as Arr,
+  Context,
+  Data,
+  DateTime,
+  Effect,
+  flow,
+  Layer,
+  Option,
+  pipe,
+  Struct,
+} from 'effect'
 
 import { type ChatBusyError, ChatNotFoundError, ChatTitledError } from '#domain/chat/chat.error'
 import type { ChatId, MessageId } from '#domain/chat/chat.id'
@@ -6,6 +17,7 @@ import { Chat, type ChatDetail, type ChatSummary, type ChatTitle } from '#domain
 import { ChatRepository } from '#domain/chat/chat.port'
 import { type MessageInputInvalidError, MessageNotFoundError } from '#domain/chat/message.error'
 import {
+  activeMessageWhere,
   ensureChatAcceptsMessage,
   ensureMessageInput,
   isActiveMessage,
@@ -61,9 +73,14 @@ export class ChatService extends Context.Service<
     const chats = yield* ChatRepository
     const messages = yield* MessageRepository
 
+    const selectActive = (chatIds: ReadonlyArray<ChatId>) =>
+      messages
+        .selectMany({ chatId: chatIds, ...activeMessageWhere })
+        .pipe(Effect.map(flow(Arr.map(Struct.get('message')), Arr.filter(isActiveMessage))))
+
     const list = Effect.fn('ChatService.list')(function* (userId: UserId) {
       const found = yield* chats.selectByUser(userId)
-      const active = yield* messages.selectActive(Arr.map(found, Struct.get('id')))
+      const active = yield* selectActive(Arr.map(found, Struct.get('id')))
 
       return Arr.map(
         found,
@@ -78,7 +95,7 @@ export class ChatService extends Context.Service<
       const chat = yield* chats
         .selectOne({ id: chatId, userId })
         .pipe(Effect.flatMap(Effect.fromOption(() => new ChatNotFoundError({ id: chatId }))))
-      const details = yield* messages.selectByChat(chatId)
+      const details = yield* messages.selectMany({ chatId: [chatId] })
 
       const activeMessage = pipe(
         details,
@@ -135,7 +152,7 @@ export class ChatService extends Context.Service<
         .selectOne({ id: chatId, userId }, { forUpdate: true })
         .pipe(Effect.flatMap(Effect.fromOption(() => new ChatNotFoundError({ id: chatId }))))
 
-      const active = yield* messages.selectActive([chatId])
+      const active = yield* selectActive([chatId])
       yield* ensureChatAcceptsMessage(Arr.head(active))
 
       const opened = yield* messages.existsByChat(chatId)

@@ -4,6 +4,7 @@ import { DateTime, Effect, Layer, Option } from 'effect'
 
 import { Attachment, AttachmentNotFoundError } from '@app-template/domain/attachment'
 import {
+  activeMessageWhere,
   buildAssistantMessage,
   buildUserMessage,
   Chat,
@@ -140,7 +141,7 @@ describe('SendMessageUseCase', () => {
           error,
           new AttachmentNotFoundError({ id: photo.id }),
         )
-        assertEquals(yield* messages.selectActive([chat.id]), [])
+        assertEquals(yield* messages.selectMany({ chatId: [chat.id], ...activeMessageWhere }), [])
         assertEquals(yield* selectAttachments([photo]), [photo])
         assertEquals(yield* queue.sent, [])
       }).pipe(Effect.provide(Layer.provide(ChatTest, queue.layer)))

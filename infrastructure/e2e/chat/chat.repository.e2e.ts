@@ -153,7 +153,7 @@ describe('ChatRepositoryPg', () => {
       assert.deepStrictEqual(yield* chats.selectOne({ id: deleted.id }), Option.none())
       assert.deepStrictEqual(yield* messages.selectOne({ id: deletedReply.id }), Option.none())
       assertSchemaEquals(SelectedChat, yield* chats.selectOne({ id: kept.id }), Option.some(kept))
-      assertSchemaEquals(MessageDetails, yield* messages.selectByChat(kept.id), [
+      assertSchemaEquals(MessageDetails, yield* messages.selectMany({ chatId: [kept.id] }), [
         { message: keptQuestion, attachments: [] },
       ])
     }).pipe(Effect.provide(RepositoryStackPgTest)),
@@ -197,7 +197,7 @@ describe('ChatRepositoryPg', () => {
         yield* chats.selectOne({ id: stored.id }),
         Option.some(stored),
       )
-      assertSchemaEquals(MessageDetails, yield* messages.selectByChat(stored.id), [
+      assertSchemaEquals(MessageDetails, yield* messages.selectMany({ chatId: [stored.id] }), [
         { message: withPhoto, attachments: [attached] },
       ])
     }).pipe(Effect.provide(RepositoryStackPgTest)),

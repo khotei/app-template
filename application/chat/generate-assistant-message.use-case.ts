@@ -66,7 +66,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
 
     const readHistory = (chatId: ChatId) =>
       messages
-        .selectByChat(chatId)
+        .selectMany({ chatId: [chatId] })
         .pipe(Effect.map(Arr.filter(isCompletedTurn)), Effect.flatMap(Effect.forEach(readTurn)))
 
     const settle = Effect.fnUntraced(function* (settled: Message, where: MessageWhere) {

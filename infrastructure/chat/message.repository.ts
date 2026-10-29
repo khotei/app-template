@@ -1,8 +1,8 @@
-import { and, eq, inArray } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { Array as Arr, Effect, Layer, Schema, UndefinedOr } from 'effect'
 
 import {
-  isActiveMessage,
+  type MessageManyWhere,
   type MessageOneWhere,
   MessageRepository,
   type MessageWhere,
@@ -27,8 +27,6 @@ import {
 
 const encodeMessage = Schema.encodeEffect(MessageInsert)
 
-const decodeMessages = Schema.decodeEffect(Schema.Array(MessageFromRow))
-
 const decodeDetails = Schema.decodeEffect(Schema.Array(MessageDetailFromRow))
 
 const encodeWhere = buildWhere<MessageWhere>({
@@ -41,6 +39,13 @@ const filterOf = (where: MessageOneWhere) =>
     id: where.id,
     chatId: skipUndefined(where.chatId),
     chat: skipUndefined(UndefinedOr.map(where.userId, (userId) => ({ userId }))),
+  }) as const
+
+const filterOfMany = (where: MessageManyWhere) =>
+  ({
+    chatId: { in: Arr.copy(where.chatId) },
+    author: skipUndefined(where.author),
+    stage: skipUndefined(UndefinedOr.map(where.stage, (stages) => ({ in: Arr.copy(stages) }))),
   }) as const
 
 export const MessageRepositoryPg = Layer.effect(
@@ -79,10 +84,14 @@ export const MessageRepositoryPg = Layer.effect(
             .pipe(Effect.flatMap(decodeOptionalRow(MessageDetailFromRow))),
         orDieWithSqlError,
       ),
-      selectByChat: Effect.fn('MessageRepository.selectByChat')(
-        (chatId) =>
+      selectMany: Effect.fn('MessageRepository.selectMany')(
+        (where) =>
           db.query.messages
-            .findMany({ where: { chatId }, orderBy: inCreationOrder, with: withAttachments })
+            .findMany({
+              where: filterOfMany(where),
+              orderBy: inCreationOrder,
+              with: withAttachments,
+            })
             .pipe(Effect.flatMap(decodeDetails)),
         orDieWithSqlError,
       ),
@@ -93,15 +102,6 @@ export const MessageRepositoryPg = Layer.effect(
         })
         return row !== undefined
       }, orDieWithSqlError),
-      selectActive: Effect.fn('MessageRepository.selectActive')(
-        (chatIds) =>
-          db
-            .select()
-            .from(messages)
-            .where(and(inArray(messages.chatId, chatIds), activeMessage))
-            .pipe(Effect.flatMap(decodeMessages), Effect.map(Arr.filter(isActiveMessage))),
-        orDieWithSqlError,
-      ),
     }),
   ),
 )

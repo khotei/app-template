@@ -20,7 +20,11 @@ import type { ChatId, MessageId } from '#domain/chat/chat.id'
 import { Chat } from '#domain/chat/chat.model'
 import { type ChatOneWhere, ChatRepository } from '#domain/chat/chat.port'
 import { isActiveMessage, type Message, type MessageDetail } from '#domain/chat/message.model'
-import { type MessageOneWhere, MessageRepository } from '#domain/chat/message.port'
+import {
+  type MessageManyWhere,
+  type MessageOneWhere,
+  MessageRepository,
+} from '#domain/chat/message.port'
 import { AttachmentRows } from '#domain/testing/attachment.test-fake'
 import { matches } from '#domain/testing/rows.test-util'
 import type { UserId } from '#domain/user/user.id'
@@ -112,6 +116,13 @@ const holdsMessageWhere = (tables: Tables, where: MessageOneWhere) =>
     matches<Message>({ chatId: where.chatId }),
     isOwnedThroughChat(tables.chats, where.userId),
   )
+
+const holdsManyWhere =
+  ({ chatId, author, stage }: MessageManyWhere) =>
+  (message: Message): boolean =>
+    Arr.contains(chatId, message.chatId) &&
+    (author === undefined || message.author === author) &&
+    (stage === undefined || Arr.contains(stage, message.stage))
 
 const createReadTables = Effect.gen(function* () {
   const chats = yield* ChatRows
@@ -232,20 +243,16 @@ export const MessageRepositoryTest = Layer.effect(
             Option.map(detailOf(tables.attachments)),
           ),
         ),
-      selectByChat: (chatId) =>
-        Effect.map(readTables, (tables) =>
-          pipe(messagesOf(tables.messages, chatId), Arr.map(detailOf(tables.attachments))),
-        ),
       existsByChat: (chatId) =>
         Ref.get(messages).pipe(Effect.map(HashMap.some(matches<Message>({ chatId })))),
-      selectActive: (chatIds) =>
-        Ref.get(messages).pipe(
-          Effect.map(
-            flow(
-              HashMap.toValues,
-              Arr.filter(isActiveMessage),
-              Arr.filter((message) => Arr.contains(chatIds, message.chatId)),
-            ),
+      selectMany: (where) =>
+        Effect.map(readTables, (tables) =>
+          pipe(
+            tables.messages,
+            HashMap.filter(holdsManyWhere(where)),
+            HashMap.toValues,
+            Arr.sort(inCreationOrder),
+            Arr.map(detailOf(tables.attachments)),
           ),
         ),
     })
