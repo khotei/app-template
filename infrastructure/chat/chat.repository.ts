@@ -49,6 +49,11 @@ const encodeWhere = buildWhere<ChatWhere>({
   ),
 })
 
+const encodeOneWhere = buildWhere<ChatOneWhere>({
+  id: (id) => eq(chats.id, id),
+  userId: UndefinedOr.map((userId) => eq(chats.userId, userId)),
+})
+
 /** A relational read aliases the table, so it takes a filter object, not `buildWhere`. */
 const filterOf = (where: ChatOneWhere) =>
   ({ id: where.id, userId: skipUndefined(where.userId) }) as const
@@ -93,15 +98,15 @@ export const ChatRepositoryPg = Layer.effect(
           .set(encodeSet(set))
           .where(encodeWhere(where))
           .returning({ id: chats.id })
-        return Arr.isReadonlyArrayNonEmpty(updated)
+        if (Arr.isReadonlyArrayEmpty(updated)) {
+          return yield* Effect.die(new Error(`chat ${where.id} was not updated`))
+        }
       }, orDieWithSqlError),
-      selectOne: Effect.fn('ChatRepository.selectOne')(
-        (where) =>
-          db.query.chats
-            .findFirst({ where: filterOf(where) })
-            .pipe(Effect.flatMap(decodeOptionalRow(ChatFromRow))),
-        orDieWithSqlError,
-      ),
+      selectOne: Effect.fn('ChatRepository.selectOne')(function* (where, options) {
+        const query = db.select().from(chats).where(encodeOneWhere(where)).$dynamic()
+        const rows = yield* options?.forUpdate ? query.for('update') : query
+        return yield* decodeOptionalRow(ChatFromRow)(Arr.head(rows).pipe(Option.getOrUndefined))
+      }, orDieWithSqlError),
       selectSummaries: Effect.fn('ChatRepository.selectSummaries')(
         (userId) =>
           db.query.chats
@@ -127,10 +132,12 @@ export const ChatRepositoryPg = Layer.effect(
             ),
         orDieWithSqlError,
       ),
-      delete: Effect.fn('ChatRepository.delete')(
-        (id: ChatId) => db.delete(chats).where(eq(chats.id, id)),
-        orDieWithSqlError,
-      ),
+      delete: Effect.fn('ChatRepository.delete')(function* (id: ChatId) {
+        const deleted = yield* db.delete(chats).where(eq(chats.id, id)).returning({ id: chats.id })
+        if (Arr.isReadonlyArrayEmpty(deleted)) {
+          return yield* Effect.die(new Error(`chat ${id} was not deleted`))
+        }
+      }, orDieWithSqlError),
     }),
   ),
 )

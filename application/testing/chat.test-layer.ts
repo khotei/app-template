@@ -12,15 +12,7 @@ import {
   ChatService,
   MessageRepository,
 } from '@app-template/domain/chat'
-import {
-  AttachmentBucketTest,
-  type AttachmentRows,
-  ChatRepositoryTest,
-  type ChatRows,
-  chat,
-  type MessageRows,
-  RepositoryStackTest,
-} from '@app-template/domain/testing'
+import { AttachmentBucketTest, chat, RepositoryStackTest } from '@app-template/domain/testing'
 import {
   AttachmentBucketS3,
   AttachmentRepositoryPg,
@@ -57,26 +49,14 @@ export const QueueClientTest = QueueClient.layer({
 /**
  * The chat services and use cases over the memory layers, on fresh rows where `chat` exists, the
  * identity transaction and the queue client; the `QueueTransport` is the test's, `recordQueue()`.
- * `chats` replaces the memory chat repository the services write through, to force a race the
- * real one cannot produce on demand; the test's own reads keep the plain one.
  */
-export const layerChatTest = (
-  chats: Layer.Layer<
-    ChatRepository,
-    never,
-    ChatRows | MessageRows | AttachmentRows
-  > = ChatRepositoryTest,
-) =>
-  ChatServices.pipe(
-    Layer.provide(chats),
-    Layer.provideMerge(insertChat),
-    Layer.provideMerge(
-      Layer.mergeAll(RepositoryStackTest, AttachmentBucketTest, TransactionTest, QueueClientTest),
-    ),
-    Layer.provide(BunCrypto.layer),
-  )
-
-export const ChatTest = layerChatTest()
+export const ChatTest = ChatServices.pipe(
+  Layer.provideMerge(insertChat),
+  Layer.provideMerge(
+    Layer.mergeAll(RepositoryStackTest, AttachmentBucketTest, TransactionTest, QueueClientTest),
+  ),
+  Layer.provide(BunCrypto.layer),
+)
 
 /**
  * The title use case over the memory layers, on fresh rows where `chat` exists; the `Assistant`

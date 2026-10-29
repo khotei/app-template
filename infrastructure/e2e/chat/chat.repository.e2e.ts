@@ -231,6 +231,18 @@ describe('ChatRepositoryPg', () => {
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
+  it.effect('delete of an unknown chat dies', () =>
+    Effect.gen(function* () {
+      const chats = yield* ChatRepository
+
+      const exit = yield* chats
+        .delete(ChatId.make('0192d4e0-7b3a-7c00-8000-00000000003d'))
+        .pipe(Effect.exit)
+
+      assert.isTrue(Exit.hasDies(exit))
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
+  )
+
   it.effect('delete dies and removes nothing while a message of the chat has an attachment', () =>
     Effect.gen(function* () {
       const chats = yield* ChatRepository
@@ -274,9 +286,8 @@ describe('ChatRepositoryPg', () => {
       yield* chats.insert(stored)
       yield* chats.update({ title }, { id: stored.id })
 
-      const touched = yield* chats.update({ updatedAt: touchedAt }, { id: stored.id })
+      yield* chats.update({ updatedAt: touchedAt }, { id: stored.id })
 
-      assert.isTrue(touched)
       assertSchemaEquals(
         SelectedChat,
         yield* chats.selectOne({ id: stored.id }),
@@ -285,31 +296,31 @@ describe('ChatRepositoryPg', () => {
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
-  it.effect(
-    'update where the chat is untitled answers false on a titled one, writing nothing',
-    () =>
-      Effect.gen(function* () {
-        const chats = yield* ChatRepository
-        const gus = UserId.make('0192d4e0-7b3a-7c00-8000-000000000016')
-        const titled = new Chat({
-          ...chat('0192d4e0-7b3a-7c00-8000-000000000039', gus),
-          title: Option.some(ChatTitle.make('Trip')),
-        })
-        yield* insertUser(gus)
-        yield* chats.insert(titled)
+  it.effect('update where the chat is untitled dies on a titled one, writing nothing', () =>
+    Effect.gen(function* () {
+      const chats = yield* ChatRepository
+      const gus = UserId.make('0192d4e0-7b3a-7c00-8000-000000000016')
+      const titled = new Chat({
+        ...chat('0192d4e0-7b3a-7c00-8000-000000000039', gus),
+        title: Option.some(ChatTitle.make('Trip')),
+      })
+      yield* insertUser(gus)
+      yield* chats.insert(titled)
 
-        const written = yield* chats.update(
+      const exit = yield* chats
+        .update(
           { title: Option.some(ChatTitle.make('Lisbon')) },
           { id: titled.id, title: Option.none() },
         )
+        .pipe(Effect.exit)
 
-        assert.isFalse(written)
-        assertSchemaEquals(
-          SelectedChat,
-          yield* chats.selectOne({ id: titled.id }),
-          Option.some(titled),
-        )
-      }).pipe(Effect.provide(RepositoryStackPgTest)),
+      assert.isTrue(Exit.hasDies(exit))
+      assertSchemaEquals(
+        SelectedChat,
+        yield* chats.selectOne({ id: titled.id }),
+        Option.some(titled),
+      )
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
   it.effect('update given a whole chat writes only the fields a set may change', () =>
@@ -334,7 +345,7 @@ describe('ChatRepositoryPg', () => {
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
-  it.effect('update renames an existing chat and never creates one', () =>
+  it.effect('update renames an existing chat and dies rather than create one', () =>
     Effect.gen(function* () {
       const chats = yield* ChatRepository
       const dee = UserId.make('0192d4e0-7b3a-7c00-8000-000000000013')
@@ -344,11 +355,10 @@ describe('ChatRepositoryPg', () => {
       yield* insertUser(dee)
       yield* chats.insert(existing)
 
-      const renamed = yield* chats.update({ title }, { id: existing.id })
-      const created = yield* chats.update({ title }, { id: unknown.id })
+      yield* chats.update({ title }, { id: existing.id })
+      const exit = yield* chats.update({ title }, { id: unknown.id }).pipe(Effect.exit)
 
-      assert.isTrue(renamed)
-      assert.isFalse(created)
+      assert.isTrue(Exit.hasDies(exit))
       assertSchemaEquals(
         SelectedChat,
         yield* chats.selectOne({ id: existing.id }),

@@ -204,23 +204,22 @@ describe('GenerateAssistantMessageUseCase', () => {
     },
   )
 
-  it.effect('generate skips a reply another writer settled while the assistant answers', () => {
+  it.effect('generate dies on a reply another writer settled while the assistant answers', () => {
     const held = holdAssistantCall()
     const assistant = recordAssistant({ reply: heldReply(held) })
-    const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
       yield* insertMessages([queuedReply])
 
-      const running = yield* Effect.forkChild(generate)
+      const running = yield* generate.pipe(Effect.exit, Effect.forkChild)
       yield* held.asked
       yield* settleElsewhere
       yield* held.release
-      yield* Fiber.join(running)
+      const exit = yield* Fiber.join(running)
 
+      assert.isTrue(Exit.hasDies(exit))
       assertEquals(yield* selectReply, Option.some(asCompleted(queuedReply, 'Done elsewhere.')))
       assertEquals(yield* selectChat(chatId), Option.some(chat))
-      assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: already settled']])
-    }).pipe(Effect.provide([AssistantMessageTest.pipe(Layer.provide(assistant.layer)), logger]))
+    }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
   })
 
   it.effect('generate skips a reply settled before it, without asking the assistant', () => {

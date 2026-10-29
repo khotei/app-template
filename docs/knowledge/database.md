@@ -142,8 +142,8 @@ so a whole entity passed as a set writes only the fields it may change; an absen
 ## Guards
 
 A rule that two writers could break between a read and a write is held by the database, in the
-statement that writes. The domain service checks the rule first, so a message write the guard
-refuses only lost a race and dies; a chat's or attachments' write answers whether it wrote:
+statement that writes. The caller checks the rule first, so a message or chat write the guard
+refuses only lost a race and dies; the attachments' write answers with the rows it wrote:
 
 - **Insert under a partial unique index.** `MessageRepository.insert` adds `ON CONFLICT
   (chat_id) WHERE <activeMessage> DO NOTHING RETURNING id` (Drizzle's `onConflictDoNothing({
@@ -159,21 +159,25 @@ refuses only lost a race and dies; a chat's or attachments' write answers whethe
   the rows match `where` (`ChatWhere`, `AttachmentWhere`: the `id`, an array of them for
   attachments, and optionally a field the row must still hold, `Option.none()` rendering `IS
   NULL`). The adapter maps each side through `buildSet` and `buildWhere` (above). The chat's
-  update answers whether it wrote, the attachments' with the rows it wrote (`RETURNING *`).
+  update dies when it writes nothing, the attachments' answers with the rows it wrote
+  (`RETURNING *`).
   - `SendMessageUseCase.send` sets the chat's `updatedAt` alone, so a title written meanwhile
-    survives. It writes the chat before the messages: a chat deleted since the check answers
-    `false`, which the use case turns into `ChatNotFoundError` instead of a foreign-key failure,
-    and the written row stays held until the send commits, so a concurrent delete waits.
-  - `ChatService.updateTitle` writes `where` the title is still `none` and, on `false`, reads
-    the chat only to name the refusal (`ChatNotFoundError` or `ChatTitledError`), so a rename
-    always wins.
+    survives.
+  - `ChatService.updateTitle` reads the chat to name a refusal (`ChatNotFoundError` or
+    `ChatTitledError`), then writes `where` the title is still `none`, so a rename landing
+    between the two wins and the title job dies and retries.
   - `AttachmentService.bind` checks each id, then writes the message `where` `messageId` is
     still `none`, and raises `AttachmentBoundError` for an id the statement skipped because
     another send took it in between.
 
-A delete needs no answer: `ChatRepository.delete` is one statement, the messages go by `ON
-DELETE CASCADE`, and a message with an attachment makes it die (`RESTRICT`), so the attachments
-are removed first.
+`ChatRepository.delete` is one statement and dies when it removes nothing: the messages go by
+`ON DELETE CASCADE`, and a message with an attachment makes it die (`RESTRICT`), so the
+attachments are removed first.
+
+- **A check under the row's lock.** `ChatService.findSendable` reads the chat with
+  `selectOne(where, { forUpdate: true })` (`SELECT … FOR UPDATE`) before it looks for an active
+  reply, so a second send to the chat waits there until the first commits and then fails with
+  `ChatBusyError`, and a delete of the chat waits until the send is done.
 
 ## Transactions
 
@@ -184,8 +188,8 @@ through the connection `@effect/sql` keeps in the fiber's context, so no port ta
 parameter. `SendMessageUseCase.send` writes the user message with the chat's `updatedAt`, the
 binds, the reply and its jobs' outbox rows, or none of them; `DeleteChatUseCase.delete` removes
 the attachments' rows and the chat, or neither. The guards above then decide every race inside
-Postgres, with no lock in the process: of two sends to one chat the second waits on the first's
-writes and its reply insert dies once the first commits, and of two binds of one
+Postgres, with no lock in the process: of two sends to one chat the second waits on the chat's
+row lock and, once the first commits, finds its reply active, and of two binds of one
 attachment the second's `UPDATE` waits on the row and skips it. Two api processes behave as two
 fibers. S3 stays outside the transaction: the bytes are kept before the bind, so no bound row sits
 over expiring bytes, and deleted before the commit, so a rollback restores rows that a retry still

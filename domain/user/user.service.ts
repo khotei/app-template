@@ -1,6 +1,7 @@
 import { Context, Crypto, DateTime, Effect, Layer, Option, Redacted } from 'effect'
 import { Base64Url, Hex } from 'effect/encoding'
 
+import { generateId } from '#domain/shared/id'
 import { UserUnknownError } from '#domain/user/user.error'
 import { UserId } from '#domain/user/user.id'
 import { buildUser, Credential, SecretHash, type User } from '#domain/user/user.model'
@@ -26,7 +27,6 @@ export class UserService extends Context.Service<
   make: Effect.gen(function* () {
     const users = yield* UserRepository
     const crypto = yield* Crypto.Crypto
-    const randomUserId = crypto.randomUUIDv7().pipe(Effect.orDie, Effect.map(UserId.make))
 
     const hashSecret = Effect.fnUntraced(function* (secret: UserSecret) {
       const digest = yield* crypto.digest('SHA-256', encoder.encode(Redacted.value(secret)))
@@ -41,7 +41,7 @@ export class UserService extends Context.Service<
     )
 
     const registerUser = Effect.fnUntraced(function* () {
-      const id = yield* randomUserId
+      const id = yield* generateId(crypto, UserId.make)
       const createdAt = yield* DateTime.now
       const bytes = yield* crypto.randomBytes(secretBytes).pipe(Effect.orDie)
       const secret = Redacted.make(Base64Url.encode(bytes))

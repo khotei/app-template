@@ -3,7 +3,6 @@ import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Layer, Option } from 'effect'
 
 import { AttachmentBucket } from '@app-template/domain/attachment'
-import { ChatService } from '@app-template/domain/chat'
 import { chat, owner, upload } from '@app-template/domain/testing'
 import { recordQueue } from '@app-template/queue/testing'
 
@@ -22,7 +21,6 @@ describe('DeleteChatUseCase', () => {
     () => {
       const queue = recordQueue()
       return Effect.gen(function* () {
-        const chats = yield* ChatService
         const sendMessage = yield* SendMessageUseCase
         const deleteChat = yield* DeleteChatUseCase
         const bucket = yield* AttachmentBucket
@@ -31,7 +29,6 @@ describe('DeleteChatUseCase', () => {
 
         yield* deleteChat.delete(owner, chat.id)
 
-        assertEquals(yield* chats.list(owner), [])
         assertEquals(yield* selectChat(chat.id), Option.none())
         assertEquals(yield* selectMessages(chat.id), [])
         assertEquals(yield* selectAttachments([photo]), [])

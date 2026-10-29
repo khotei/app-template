@@ -1,4 +1,4 @@
-import { Context, Crypto, Effect, Layer, Predicate } from 'effect'
+import { Context, Crypto, Effect, Layer } from 'effect'
 
 import {
   type AttachmentBoundError,
@@ -10,15 +10,16 @@ import {
   buildUserMessage,
   type ChatBusyError,
   type ChatId,
-  ChatNotFoundError,
+  type ChatNotFoundError,
   ChatRepository,
   ChatService,
-  generateMessageId,
   type MessageDetail,
+  MessageId,
   type MessageInput,
   type MessageInputInvalidError,
   MessageRepository,
 } from '@app-template/domain/chat'
+import { generateId } from '@app-template/domain/shared'
 import type { UserId } from '@app-template/domain/user'
 import {
   assistantMessageQueue,
@@ -60,7 +61,6 @@ export class SendMessageUseCase extends Context.Service<
     const queue = yield* QueueClient
     const transaction = yield* Transaction
     const crypto = yield* Crypto.Crypto
-    const generateId = generateMessageId.pipe(Effect.provideService(Crypto.Crypto, crypto))
 
     const send = Effect.fn('SendMessageUseCase.send')(function* (
       userId: UserId,
@@ -69,12 +69,9 @@ export class SendMessageUseCase extends Context.Service<
     ) {
       const sendable = yield* chatService.findSendable(userId, chatId, input)
 
-      // A rule-free write, before the messages: a chat deleted since the check reads as gone.
-      yield* chats
-        .update({ updatedAt: sendable.at }, { id: chatId })
-        .pipe(Effect.filterOrFail(Predicate.isTruthy, () => new ChatNotFoundError({ id: chatId })))
+      yield* chats.update({ updatedAt: sendable.at }, { id: chatId })
 
-      const userMessageId = yield* generateId
+      const userMessageId = yield* generateId(crypto, MessageId.make)
       const userMessage = buildUserMessage({
         id: userMessageId,
         chatId,
@@ -83,7 +80,7 @@ export class SendMessageUseCase extends Context.Service<
       })
       yield* messages.insert(userMessage)
       const bound = yield* attachmentService.bind(userId, input.attachmentIds, userMessage.id)
-      const assistantMessageId = yield* generateId
+      const assistantMessageId = yield* generateId(crypto, MessageId.make)
       const assistantMessage = buildAssistantMessage({
         id: assistantMessageId,
         chatId,

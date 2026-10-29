@@ -7,8 +7,6 @@ import {
   buildAssistantMessage,
   buildUserMessage,
   Chat,
-  ChatNotFoundError,
-  ChatRepository,
   ChatService,
   ChatTitle,
   completeMessage,
@@ -16,22 +14,13 @@ import {
   type MessageId,
   MessageRepository,
 } from '@app-template/domain/chat'
-import {
-  ask,
-  ChatRepositoryTest,
-  chat,
-  epoch,
-  owner,
-  stranger,
-  upload,
-} from '@app-template/domain/testing'
+import { ask, chat, epoch, owner, stranger, upload } from '@app-template/domain/testing'
 import { recordQueue } from '@app-template/queue/testing'
 import { assertSchemaEquals, isUuidV7, sortById } from '@app-template/testing'
 
 import { SendMessageUseCase } from '#application/chat/send-message.use-case'
 import {
   ChatTest,
-  layerChatTest,
   selectAttachments,
   selectChat,
   selectMessages,
@@ -47,20 +36,6 @@ const settle = (message: Message) =>
     yield* messages.update(completed, { stage: message.stage })
     return completed
   })
-
-/**
- * The memory chat repository whose chat is deleted on the way to its update, as a rival delete
- * between the send's check and its write would.
- */
-const ChatRepositoryDeletedBeforeUpdate = Layer.effect(
-  ChatRepository,
-  ChatRepository.useSync((inner) =>
-    ChatRepository.of({
-      ...inner,
-      update: (set, where) => inner.delete(where.id).pipe(Effect.andThen(inner.update(set, where))),
-    }),
-  ),
-).pipe(Layer.provide(ChatRepositoryTest))
 
 const replyJob = (messageId: MessageId) => ({
   queue: 'assistant-message',
@@ -144,27 +119,6 @@ describe('SendMessageUseCase', () => {
           replyJob(second.assistantMessage.message.id),
         ])
       }).pipe(Effect.provide(Layer.provide(ChatTest, queue.layer)))
-    },
-  )
-
-  it.effect(
-    'send to a chat deleted after the check is ChatNotFoundError and writes nothing',
-    () => {
-      const queue = recordQueue()
-      return Effect.gen(function* () {
-        const sendMessage = yield* SendMessageUseCase
-
-        const error = yield* sendMessage.send(owner, chat.id, ask('Lisbon?')).pipe(Effect.flip)
-
-        assertSchemaEquals(ChatNotFoundError, error, new ChatNotFoundError({ id: chat.id }))
-        assertEquals(yield* selectChat(chat.id), Option.none())
-        assertEquals(yield* selectMessages(chat.id), [])
-        assertEquals(yield* queue.sent, [])
-      }).pipe(
-        Effect.provide(
-          layerChatTest(ChatRepositoryDeletedBeforeUpdate).pipe(Layer.provide(queue.layer)),
-        ),
-      )
     },
   )
 

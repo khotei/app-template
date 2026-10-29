@@ -1,6 +1,5 @@
 import {
   Array as Arr,
-  Crypto,
   type DateTime,
   Effect,
   Option,
@@ -55,11 +54,6 @@ export interface MessageInput {
   readonly text: string
   readonly attachmentIds: ReadonlyArray<AttachmentId>
 }
-
-export const generateMessageId = Crypto.Crypto.use((crypto) => crypto.randomUUIDv7()).pipe(
-  Effect.orDie,
-  Effect.map(MessageId.make),
-)
 
 export const buildUserMessage = (input: {
   readonly id: MessageId

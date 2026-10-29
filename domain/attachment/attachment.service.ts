@@ -25,6 +25,7 @@ import {
 } from '#domain/attachment/attachment.model'
 import { AttachmentBucket, AttachmentRepository } from '#domain/attachment/attachment.port'
 import type { MessageId } from '#domain/chat/chat.id'
+import { generateId } from '#domain/shared/id'
 import type { UserId } from '#domain/user/user.id'
 
 export interface AttachmentUpload<E> extends AttachmentMeta {
@@ -80,9 +81,7 @@ export class AttachmentService extends Context.Service<
     const attachments = yield* AttachmentRepository
     const bucket = yield* AttachmentBucket
     const crypto = yield* Crypto.Crypto
-    const randomAttachmentId = crypto
-      .randomUUIDv7()
-      .pipe(Effect.orDie, Effect.map(AttachmentId.make))
+    const randomAttachmentId = generateId(crypto, AttachmentId.make)
 
     const deleteByIds = Effect.fn('AttachmentService.deleteByIds')(function* (
       ids: ReadonlyArray<AttachmentId>,

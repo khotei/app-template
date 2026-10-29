@@ -1,7 +1,12 @@
 import { Array as Arr, Context, Effect, Layer } from 'effect'
 
 import { AttachmentService } from '@app-template/domain/attachment'
-import { type ChatId, type ChatNotFoundError, ChatService } from '@app-template/domain/chat'
+import {
+  type ChatId,
+  type ChatNotFoundError,
+  ChatRepository,
+  ChatService,
+} from '@app-template/domain/chat'
 import type { UserId } from '@app-template/domain/user'
 import { Transaction } from '@app-template/infrastructure/db'
 
@@ -13,6 +18,7 @@ export class DeleteChatUseCase extends Context.Service<
   }
 >()('@app-template/application/chat/DeleteChatUseCase', {
   make: Effect.gen(function* () {
+    const chats = yield* ChatRepository
     const chatService = yield* ChatService
     const attachmentService = yield* AttachmentService
     const transaction = yield* Transaction
@@ -26,7 +32,7 @@ export class DeleteChatUseCase extends Context.Service<
       yield* attachmentService.deleteByIds(
         Arr.flatMap(messages, ({ attachments }) => Arr.map(attachments, ({ id }) => id)),
       )
-      yield* chatService.delete(userId, chatId)
+      yield* chats.delete(chatId)
     }, transaction.run)
 
     return { delete: remove }

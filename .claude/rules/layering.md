@@ -21,9 +21,8 @@ Where a flow lives. Words: `docs/knowledge/glossary.md › Architecture language
 - It sees its ports, the clock (`DateTime.now`) and `Crypto`; never another domain service, the
   queue or `Transaction`, which are a use case's.
 - **Every method is safe on its own,** except a step a use case owns (a cascade): its doc comment
-  names the use case, and handlers call only that (`ChatService.delete`, a step of
-  `DeleteChatUseCase`, which removes the attachments first). A method correct only after another
-  one ran is a trap: guard the invariant inside it, or take a proof value only the check builds.
+  names the use case, and handlers call only that. A method correct only after another one ran
+  is a trap: guard the invariant inside it, or take a proof value only the check builds.
 
 ## When a flow becomes a use case
 
@@ -53,7 +52,8 @@ the signal.
 
 ## Handlers
 
-- A handler decodes the input, calls one domain service method or one use case, and shapes the
+- A handler decodes the input, calls one domain service method, one use case or, for a step no
+  rule guards (a list, a record a model function builds), the port, and shapes the
   outcome; it holds no rule and never calls a step a use case owns.
 - A worker handler owns the queue's policy, the last attempt and the dead letter: it composes the
   use case's methods (`generate`, then `fail` on the last attempt's cause), which never see
@@ -63,8 +63,9 @@ the signal.
 
 - **Hold no lock in the process.** A rule two writers could break between a read and a write is
   a database guard in the write itself (a partial unique index, an `UPDATE … WHERE` on the free
-  state). The service checks first, so a refused write is a lost race and the adapter dies on it
-  (the reply's insert, a stage move); the bind skips a taken id (`AttachmentBoundError`).
+  state). The caller checks first, so a refused write is a lost race and the adapter dies on it
+  (the reply's insert, a stage move); the bind skips a taken id (`AttachmentBoundError`). A
+  check whose loser must get a domain error reads its row `forUpdate` (`findSendable`).
 - **Write only the fields you own of a record another process also writes,** and hold a rule in
   the write's `where`, not in a read before it: the send sets the chat's `updatedAt` alone, and the
   title is written only `where` the chat is still untitled.

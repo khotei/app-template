@@ -18,7 +18,7 @@ import type { AttachmentId } from '#domain/attachment/attachment.id'
 import type { Attachment } from '#domain/attachment/attachment.model'
 import type { ChatId, MessageId } from '#domain/chat/chat.id'
 import { Chat, type ChatDetail, type ChatSummary } from '#domain/chat/chat.model'
-import { ChatRepository } from '#domain/chat/chat.port'
+import { type ChatOneWhere, ChatRepository } from '#domain/chat/chat.port'
 import { isActiveMessage, type Message, type MessageDetail } from '#domain/chat/message.model'
 import { type MessageOneWhere, MessageRepository } from '#domain/chat/message.port'
 import { AttachmentRows } from '#domain/testing/attachment.test-fake'
@@ -143,6 +143,12 @@ export const ChatRepositoryTest = Layer.effect(
     const messages = yield* MessageRows
     const readTables = yield* createReadTables
 
+    const selectChat = (where: ChatOneWhere) =>
+      Ref.get(chats).pipe(
+        Effect.map(HashMap.get(where.id)),
+        Effect.map(Option.filter(matches<Chat>(where))),
+      )
+
     const withActiveMessage = (found: ReadonlyArray<Chat>) =>
       Ref.get(messages).pipe(Effect.map((rows) => Arr.map(found, summaryOf(rows))))
 
@@ -159,12 +165,12 @@ export const ChatRepositoryTest = Layer.effect(
                 [true, HashMap.set(rows, chat.id, new Chat({ ...chat, ...set }))] as const,
             }),
           ),
+        ).pipe(
+          Effect.filterOrElse(Predicate.isTruthy, () =>
+            Effect.die(new Error(`chat ${where.id} was not updated`)),
+          ),
         ),
-      selectOne: (where) =>
-        Ref.get(chats).pipe(
-          Effect.map(HashMap.get(where.id)),
-          Effect.map(Option.filter(matches<Chat>(where))),
-        ),
+      selectOne: selectChat,
       selectSummaries: (userId) =>
         Ref.get(chats).pipe(
           Effect.map(
@@ -186,6 +192,9 @@ export const ChatRepositoryTest = Layer.effect(
       delete: (id) =>
         Effect.gen(function* () {
           const tables = yield* readTables
+          if (!HashMap.has(tables.chats, id)) {
+            return yield* Effect.die(new Error(`chat ${id} was not deleted`))
+          }
           if (hasBoundAttachment(tables, id)) {
             return yield* Effect.die(new Error(`chat ${id} has a message with a bound attachment`))
           }

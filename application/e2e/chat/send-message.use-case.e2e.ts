@@ -1,6 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Effect, Exit, Option } from 'effect'
+import { Array as Arr, Effect, Exit, Option, Order } from 'effect'
 import { SqlClient } from 'effect/sql'
 
 import { chat, owner, upload } from '@app-template/domain/testing'
@@ -18,6 +18,23 @@ const selectOutbox = SqlClient.SqlClient.use((client) => client`SELECT queue FRO
 )
 
 describe('SendMessageUseCase', () => {
+  it.effect(
+    'of two concurrent sends to one chat, one is stored and the other is ChatBusyError',
+    () =>
+      Effect.gen(function* () {
+        const sendMessage = yield* SendMessageUseCase
+        const send = sendMessage.send(owner, chat.id, { text: 'Lisbon?', attachmentIds: [] }).pipe(
+          Effect.as('sent'),
+          Effect.catchTag('ChatBusyError', () => Effect.succeed('busy')),
+        )
+
+        const outcomes = yield* Effect.all([send, send], { concurrency: 'unbounded' })
+
+        assert.deepStrictEqual(Arr.sort(outcomes, Order.String), ['busy', 'sent'])
+        assert.strictEqual((yield* selectMessages(chat.id)).length, 2)
+      }).pipe(Effect.provide(ChatPgTest)),
+  )
+
   // Live: the chat's `updatedAt` staying put means something only while the clock moves.
   it.live(
     'a send whose title job is refused leaves no message, no bind, no chat change and no job',

@@ -18,13 +18,17 @@ export class ChatRepository extends Context.Service<
   ChatRepository,
   {
     readonly insert: (chat: Chat) => Effect.Effect<void>
-    /** Writes `set` where `where` holds; answers whether it wrote. */
-    readonly update: (set: ChatSet, where: ChatWhere) => Effect.Effect<boolean>
-    readonly selectOne: (where: ChatOneWhere) => Effect.Effect<Option.Option<Chat>>
+    /** Writes `set` where `where` holds; dies when it writes nothing. */
+    readonly update: (set: ChatSet, where: ChatWhere) => Effect.Effect<void>
+    /** With `forUpdate`, holds the row it reads until the transaction ends. */
+    readonly selectOne: (
+      where: ChatOneWhere,
+      options?: { readonly forUpdate?: boolean },
+    ) => Effect.Effect<Option.Option<Chat>>
     /** Returns the user's chats, the most recently updated first. */
     readonly selectSummaries: (userId: UserId) => Effect.Effect<ReadonlyArray<ChatSummary>>
     readonly selectDetail: (where: ChatOneWhere) => Effect.Effect<Option.Option<ChatDetail>>
-    /** Removes the chat with its messages; dies while one of them has an attachment. */
+    /** Removes the chat with its messages; dies when it removes nothing or while one has an attachment. */
     readonly delete: (id: ChatId) => Effect.Effect<void>
   }
 >()('@app-template/domain/chat/ChatRepository') {}

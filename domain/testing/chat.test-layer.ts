@@ -1,14 +1,11 @@
-import { Array as Arr, Effect, Layer } from 'effect'
+import { Array as Arr, Crypto, Effect, Layer } from 'effect'
 
-import type { ChatId } from '#domain/chat/chat.id'
+import { type ChatId, MessageId } from '#domain/chat/chat.id'
 import { ChatRepository } from '#domain/chat/chat.port'
 import { ChatService } from '#domain/chat/chat.service'
-import {
-  buildAssistantMessage,
-  buildUserMessage,
-  generateMessageId,
-} from '#domain/chat/message.model'
+import { buildAssistantMessage, buildUserMessage } from '#domain/chat/message.model'
 import { MessageRepository } from '#domain/chat/message.port'
+import { generateId } from '#domain/shared/id'
 import { ask, chat } from '#domain/testing/chat.test-fixture'
 import { RepositoryStackTest } from '#domain/testing/repository-stack.test-layer'
 import type { UserId } from '#domain/user/user.id'
@@ -26,9 +23,10 @@ export const send = (userId: UserId, chatId: ChatId, text: string) =>
   Effect.gen(function* () {
     const chats = yield* ChatService
     const messages = yield* MessageRepository
+    const crypto = yield* Crypto.Crypto
 
     const sendable = yield* chats.findSendable(userId, chatId, ask(text))
-    const userMessageId = yield* generateMessageId
+    const userMessageId = yield* generateId(crypto, MessageId.make)
     const userMessage = buildUserMessage({
       id: userMessageId,
       chatId,
@@ -36,7 +34,7 @@ export const send = (userId: UserId, chatId: ChatId, text: string) =>
       createdAt: sendable.at,
     })
     yield* messages.insert(userMessage)
-    const assistantMessageId = yield* generateMessageId
+    const assistantMessageId = yield* generateId(crypto, MessageId.make)
     const assistantMessage = buildAssistantMessage({
       id: assistantMessageId,
       chatId,

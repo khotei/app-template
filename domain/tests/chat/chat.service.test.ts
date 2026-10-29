@@ -1,22 +1,17 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, DateTime, Duration, Effect, Layer, Option } from 'effect'
+import { Array as Arr, DateTime, Effect, Layer, Option } from 'effect'
 
-import { assertSchemaEquals, isUuidV7 } from '@app-template/testing'
+import { assertSchemaEquals } from '@app-template/testing'
 
 import { ChatBusyError, ChatNotFoundError, ChatTitledError } from '#domain/chat/chat.error'
-import { ChatId } from '#domain/chat/chat.id'
+import { ChatId, MessageId } from '#domain/chat/chat.id'
 import { buildChat, Chat, ChatTitle } from '#domain/chat/chat.model'
 import { ChatRepository } from '#domain/chat/chat.port'
 import { ChatService } from '#domain/chat/chat.service'
 import { type MessageInputInvalidError, MessageNotFoundError } from '#domain/chat/message.error'
-import {
-  buildUserMessage,
-  completeMessage,
-  generateMessageId,
-  type Message,
-} from '#domain/chat/message.model'
+import { buildUserMessage, completeMessage, type Message } from '#domain/chat/message.model'
 import { MessageRepository } from '#domain/chat/message.port'
 import {
   ask,
@@ -51,69 +46,19 @@ type ChatCall = (
   chatId: ChatId,
 ) => Effect.Effect<unknown, ChatNotFoundError | ChatBusyError | MessageInputInvalidError>
 
-const chatCalls = [
+const chatCalls: ReadonlyArray<{ readonly name: string; readonly call: ChatCall }> = [
   { name: 'get', call: (service, userId, chatId) => service.get(userId, chatId) },
   {
     name: 'rename',
     call: (service, userId, chatId) => service.rename(userId, chatId, ChatTitle.make('Trip')),
   },
-  { name: 'delete', call: (service, userId, chatId) => service.delete(userId, chatId) },
   {
     name: 'findSendable',
     call: (service, userId, chatId) => service.findSendable(userId, chatId, ask('Lisbon?')),
   },
-] as const satisfies ReadonlyArray<{ readonly name: string; readonly call: ChatCall }>
+]
 
 describe('ChatService', () => {
-  it.effect('create stores an untitled chat with a UUIDv7 id at the clock time', () =>
-    Effect.gen(function* () {
-      const service = yield* ChatService
-
-      const created = yield* service.create(stranger)
-
-      assert.isTrue(isUuidV7(created.id))
-      assertEquals(created, buildChat({ id: created.id, userId: stranger, createdAt: epoch }))
-      assertEquals(yield* service.list(stranger), [{ chat: created, activeMessage: Option.none() }])
-    }).pipe(Effect.provide(ChatBunTest)),
-  )
-
-  it.live(
-    "rename makes the chat the last active one in list, which shows each active message and only the user's chats",
-    () =>
-      Effect.gen(function* () {
-        const service = yield* ChatService
-        const chats = yield* ChatRepository
-        const createdAfter = (millis: number) =>
-          DateTime.addDuration(epoch, Duration.millis(millis))
-        const second = buildChat({
-          id: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000021'),
-          userId: owner,
-          createdAt: createdAfter(1),
-        })
-        const third = buildChat({
-          id: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000022'),
-          userId: owner,
-          createdAt: createdAfter(2),
-        })
-        yield* chats.insert(second)
-        yield* chats.insert(third)
-        yield* service.create(stranger)
-        const { assistantMessage } = yield* send(owner, third.id, 'Lisbon?')
-
-        yield* service.rename(owner, second.id, ChatTitle.make('Trip'))
-
-        const summaries = yield* service.list(owner)
-        assertEquals(
-          Arr.map(summaries, (summary) => [summary.chat.id, summary.activeMessage]),
-          [
-            [second.id, Option.none()],
-            [third.id, Option.some(assistantMessage)],
-            [chat.id, Option.none()],
-          ],
-        )
-      }).pipe(Effect.provide(ChatBunTest)),
-  )
-
   it.effect('get returns the chat with its messages and the active message', () =>
     Effect.gen(function* () {
       const service = yield* ChatService
@@ -143,9 +88,13 @@ describe('ChatService', () => {
       const messages = yield* MessageRepository
 
       const opening = yield* service.findSendable(owner, chat.id, ask('Lisbon?'))
-      const id = yield* generateMessageId
       yield* messages.insert(
-        buildUserMessage({ id, chatId: chat.id, text: 'Lisbon?', createdAt: opening.at }),
+        buildUserMessage({
+          id: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000031'),
+          chatId: chat.id,
+          text: 'Lisbon?',
+          createdAt: opening.at,
+        }),
       )
       const next = yield* service.findSendable(owner, chat.id, ask('And now?'))
 
@@ -211,7 +160,7 @@ describe('ChatService', () => {
   it.effect('updateTitle of a deleted chat is ChatNotFoundError and writes nothing', () =>
     Effect.gen(function* () {
       const service = yield* ChatService
-      yield* service.delete(owner, chat.id)
+      yield* ChatRepository.use((chats) => chats.delete(chat.id))
 
       const error = yield* service.updateTitle(chat.id, ChatTitle.make('Lisbon')).pipe(Effect.flip)
 
@@ -267,7 +216,12 @@ describe('ChatService', () => {
     () =>
       Effect.gen(function* () {
         const service = yield* ChatService
-        const other = yield* service.create(owner)
+        const other = buildChat({
+          id: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000021'),
+          userId: owner,
+          createdAt: epoch,
+        })
+        yield* ChatRepository.use((chats) => chats.insert(other))
         const { userMessage } = yield* send(owner, other.id, 'Lisbon?')
 
         const elsewhere = yield* service
