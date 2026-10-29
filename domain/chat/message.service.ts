@@ -1,4 +1,4 @@
-import { Context, Crypto, type DateTime, Effect, Layer } from 'effect'
+import { Context, Crypto, type DateTime, Effect, Layer, Predicate } from 'effect'
 
 import { ChatBusyError } from '#domain/chat/chat.error'
 import { type ChatId, MessageId } from '#domain/chat/chat.id'
@@ -66,8 +66,14 @@ export class MessageService extends Context.Service<
     const randomMessageId = Effect.map(Effect.orDie(crypto.randomUUIDv7()), MessageId.make)
 
     const write = Effect.fnUntraced(function* (moved: Message, expected: MessageStage) {
-      const written = yield* messages.update(moved, { stage: expected })
-      if (!written) return yield* new MessageMovedError({ id: moved.id, expected })
+      yield* messages
+        .update(moved, { stage: expected })
+        .pipe(
+          Effect.filterOrFail(
+            Predicate.isTruthy,
+            () => new MessageMovedError({ id: moved.id, expected }),
+          ),
+        )
       return moved
     })
 
@@ -105,8 +111,11 @@ export class MessageService extends Context.Service<
         createdAt: sendable.at,
       })
 
-      const inserted = yield* messages.insert(message)
-      if (!inserted) return yield* new ChatBusyError({ id: sendable.chatId })
+      yield* messages
+        .insert(message)
+        .pipe(
+          Effect.filterOrFail(Predicate.isTruthy, () => new ChatBusyError({ id: sendable.chatId })),
+        )
       return message
     })
 
