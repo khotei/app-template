@@ -1219,6 +1219,150 @@
       now says so.
   - The input types are `MessageCompletion` and `MessageFailureInput`, in `message.model.ts`.
 
+### After verification, run 2
+
+`verification.md › 2026-10-29 — run 2`: Effect primitives that say what the code spells out by
+hand; every simplification was accepted. None changes behaviour a requirement asks for; each step
+keeps the suites green, a changed assertion named in its findings.
+
+#### S28 — The code takes the forms `effect-style.md` names
+
+- **Delivers:** no site in the tree breaks `effect-style.md`'s written forms.
+- **Goal:** `verification.md › run 2 › Simplifications` 2.
+  - `Effect.filterOrFail` with a named predicate for the boolean write checks:
+    `domain/chat/message.service.ts:70`, `:109`, `domain/chat/chat.service.ts:108`,
+    `application/chat/send-message.use-case.ts:69`.
+  - `Effect.fromOption` for `Option.isNone` + `.value`: `domain/attachment/attachment.service.ts:141`,
+    `domain/user/user.service.ts:41`.
+  - `Arr.appendAll` for the spread at `infrastructure/chat/assistant.llm.ts:27`; `Arr.map` at
+    `apps/api/shared/security.ts:33-34`.
+- **Blocked by:** none.
+- **Files:** the paths above.
+- **Test first:** `config only`: a refactor, the existing suites stay green unchanged.
+- **Verify:** `make check`; `git grep -nE 'if \(!\w+\) return yield\* new' -- '*.ts'` and
+  `git grep -n 'Option.isNone' -- domain application` find no write or read check left.
+- **Model:** opus medium
+- **Status:** todo
+
+#### S29 — A row decodes to its model by schema
+
+- **Delivers:** each entity has one `<Entity>FromRow` schema, a row piped into its domain class;
+  a nested read (chat with messages, message with attachments) is one schema; `decodeFound` and
+  the hand-typed `MessageDetailRow` are gone.
+- **Goal:** `verification.md › run 2 › Simplifications` 1.
+  - `<Entity>Row.pipe(Schema.decodeTo(<Entity>))` in `infrastructure/*/*.entity.ts`, replacing
+    `decodeChat`, `decodeMessage`, `decodeAttachment`, `decodeUser`.
+  - An optional row by `Schema.OptionFromUndefinedOr(<Entity>FromRow)`, replacing `decodeFound`
+    (`infrastructure/db/db.client.ts:57-61`).
+  - `decodeSummary`, `decodeDetail` (`chat.repository.ts:49-73`) and `decodeMessageDetail`
+    (`attachment.entity.ts:63-71`) as `Schema.Struct` + `SchemaGetter.transform`, encode
+    `SchemaGetter.forbidden`; `Option.filter(isActiveMessage)` stays outside the schema.
+- **Blocked by:** none.
+- **Files:** `infrastructure/*/*.entity.ts`, `infrastructure/*/*.repository.ts`,
+  `infrastructure/db/db.client.ts`.
+- **Test first:** the repository e2e suites (`infrastructure/e2e/**`) stay green unchanged: they
+  read every shape the schemas decode.
+- **Verify:** `make check`; `git grep -n 'decodeFound\|MessageDetailRow' -- '*.ts'` is empty.
+- **Model:** opus medium
+- **Status:** todo
+
+#### S30 — A service is reached by `Service.use`, and a check keeps it so
+
+- **Delivers:** one form for reaching a service in a helper; `make check` fails on the other.
+- **Goal:** `verification.md › run 2 › Simplifications` 3, lesson L5.
+  - `Service.use((s) => s.m(…))` (`useSync` for a plain value) for every
+    `Effect.flatMap(Service, (s) => s.m(…))` and `Effect.map(Service, …)`; a point-free
+    `Effect.flatMap(Rows, Ref.get)` stays.
+  - `effect-style.md › Composition`: one line for it; the file is at its 80-line budget, so a line
+    goes or two merge (`claude-md.md › Hard limits`).
+  - A `make` target in `check` greps `Effect\.(flatMap|map)\([A-Z]\w*, \(` over `*.ts` and fails
+    on a hit; `docs/knowledge/tooling.md` lists it.
+- **Blocked by:** S28 (both edit the same use cases).
+- **Files:** the sites the grep finds across `domain/`, `application/`, `infrastructure/`, `e2e/`;
+  `.claude/rules/effect-style.md`; `Makefile`; `docs/knowledge/tooling.md`.
+- **Test first:** the new target fails on the tree before the rewrite.
+- **Verify:** `make check`; probe the target with one restored `Effect.flatMap(ChatRepository, (c)
+  => …)`, see it fail, restore.
+- **Model:** opus medium
+- **Status:** todo
+
+#### S31 — The relay's loop as two repeats
+
+- **Delivers:** the outbox relay drains a full batch at once and waits one interval otherwise, by
+  `Effect.repeat` instead of `forever`, `when(sleep)` and `isShortBatch`.
+- **Goal:** `verification.md › run 2 › Simplifications` 4; D4 as amended in S10 holds.
+  - `relayBatch.pipe(Effect.repeat({ while: isFullBatch }), <log and recover a non-interrupt
+    cause>, Effect.repeat(Schedule.spaced(outboxPollInterval)), Effect.forkScoped)` in
+    `infrastructure/outbox/outbox.relay.ts`.
+- **Blocked by:** none.
+- **Files:** `infrastructure/outbox/outbox.relay.ts`.
+- **Test first:** `infrastructure/e2e/outbox/outbox.relay.e2e.ts` stays green; a case with more
+  rows than one batch is relayed without waiting an interval, if none exists yet.
+- **Verify:** `make check`.
+- **Model:** opus medium
+- **Status:** todo
+
+#### S32 — The multipart upload knows its last part from the stream
+
+- **Delivers:** `S3Bucket.put` cuts the content into parts and learns which is last from
+  `Stream.zipWithNext`, numbering them by `Stream.zipWithIndex`; `UploadState.held` is gone.
+- **Goal:** `verification.md › run 2 › Simplifications` 5.
+  - A single part goes by `putObject`, more by the multipart calls; an empty content still puts an
+    empty object, by an explicit branch.
+- **Blocked by:** none.
+- **Files:** `packages/s3/bucket.ts`.
+- **Test first:** `packages/s3/e2e/bucket.e2e.ts` covers an empty, a one-part and a many-part
+  content; add the one missing.
+- **Verify:** `make check`.
+- **Model:** opus high
+- **Status:** todo
+
+#### S33 — The reply's snapshots as one stream
+
+- **Delivers:** the assistant reply writes a snapshot at most once per interval and the full text
+  at the end, by `Stream.scan` + `Stream.groupedWithin` + `Stream.tap`, without two `Ref`s,
+  `uninterruptible` and `raceFirst`.
+- **Goal:** `verification.md › run 2 › Simplifications` 6.
+  - `Stream.scan` seeded with the stored text (a thunk), `Stream.groupedWithin(n,
+    snapshotInterval)`, `Arr.lastNonEmpty`, `Stream.tap(writeSnapshot)`, `Stream.runLast`, in
+    `application/chat/generate-assistant-message.use-case.ts`.
+  - A snapshot equal to the stored text is not written (`effect-style.md › Equality`), so the last
+    group does not write twice.
+- **Blocked by:** S28, S30 (the same file).
+- **Files:** `application/chat/generate-assistant-message.use-case.ts`; its unit suite.
+- **Test first:** `application/tests/chat/generate-assistant-message.use-case.test.ts`: under
+  `TestClock`, deltas across two intervals give two snapshots and a complete text; an interrupt
+  mid-stream leaves the last snapshot whole.
+- **Verify:** `make check`.
+- **Model:** opus high
+- **Status:** todo
+
+#### S34 — The small forms
+
+- **Delivers:** the one- and two-line forms of `verification.md › run 2 › Simplifications` 7.
+  - `DateTime.nowAsDate` in `packages/s3/bucket.ts:199` and
+    `infrastructure/shared/queue.client.ts:40-47`.
+  - `HashMap` for the `Map` in `AttachmentService.bind`.
+  - `Order.flip(Order.mapInput(DateTime.Order, …))` for `byLatestActivity`; one `readTables` in
+    `domain/testing/chat.test-fake.ts`; one `*Rows` service factory in `rows.test-util.ts`.
+  - One id helper for the four `Effect.map(Effect.orDie(crypto.randomUUIDv7()), X.make)`.
+  - `Schema.withDecodingDefault` for `Messages ?? []` in `packages/queue/queue.transport.ts`.
+  - `Effect.fromNullishOr` in `e2e/testing/stand.test-layer.ts:26`; `Effect.asSome` in the reply
+    use case.
+  - `Stream.schedule(Schedule.spaced(wordDelay))` in `packages/llm/client.ts`.
+  - One cookie-jar `HttpClient` layer for `apps/api/testing/api.test-layer.ts` and
+    `e2e/testing/stand.test-layer.ts`.
+  - `SqlError.isSqlError` and `Effect.retry({ while, times, schedule })` in
+    `infrastructure/db/migrate.ts`.
+  - `maxTitleLength` without `as const`.
+  A form that grows the code or loses a type, on trying, stays out and is named in the findings.
+- **Blocked by:** S29, S30, S33 (shared files).
+- **Files:** the paths above.
+- **Test first:** `config only`: a refactor, the existing suites stay green unchanged.
+- **Verify:** `make check`.
+- **Model:** opus medium
+- **Status:** todo
+
 ## Requirement coverage
 
 | Req | Steps |
@@ -1252,3 +1396,6 @@ Memory rules and their e2e twins (D6): the second active message (`MessageReposi
 as none (`ChatRepositoryTest.selectOne` ↔ `chat.repository.e2e.ts`, `AttachmentRepositoryTest`
 ↔ `attachment.repository.e2e.ts`), the bound attachment refusing the cascade
 (`ChatRepositoryTest.delete` ↔ `chat.repository.e2e.ts`).
+
+S28–S34 serve no requirement: they simplify what the requirements already hold
+(`verification.md › run 2`).

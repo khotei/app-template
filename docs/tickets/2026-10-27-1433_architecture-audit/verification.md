@@ -194,3 +194,103 @@ decides.
 - **Proposed change:** a mechanical check in `make check`: fail when a `.claude/rules/*.md` file
   passes 80 lines or a `CLAUDE.md` 40 (`claude-md.md › Hard limits`).
 - **Applied:** no
+
+## 2026-10-29 — run 2: Effect primitives
+
+A sweep, not a requirement check: which Effect 4.0.6 primitives say what the code spells out by
+hand. Three area passes (domain and application; the database and repositories; `packages/`,
+`apps/`, `http-api/`) and four line-by-line passes (every expression, declaration, type, loop and
+check in `domain/`, `application/` + `http-api/` + `e2e/`, `infrastructure/`, `packages/` +
+`apps/`). Every export below was read in `node_modules/.bun/effect@4.0.6/node_modules/effect/src`;
+the ones marked *run* were tried in a scratch file.
+
+**Verdict:** pass — run 1 stands; the code already uses `Schema` classes and brands, `Effect.fn`,
+`Match`, lookup tables, `catchTags`, `Schedule`, `Layer.launch` and `PgDrizzle` over `PgClient`.
+What follows is accepted simplification, steps S28–S34.
+
+### Requirements
+
+Not rechecked: no code changed since run 1.
+
+### Review
+
+#### Standards
+
+The code breaks `effect-style.md` in three places:
+
+- `Effect.filterOrFail` for a check on an effect's result (`› Control flow`): a boolean write
+  answer is checked by `if (!written) return yield* new …Error` at
+  `domain/chat/message.service.ts:70`, `:109`, `domain/chat/chat.service.ts:108`,
+  `application/chat/send-message.use-case.ts:69`.
+- An `Option` read through its combinators: `attachment.service.ts:141` and `user.service.ts:41`
+  test `Option.isNone` and read `.value`, where `Effect.fromOption` (`Effect.ts:2741`) names it.
+- `Arr` over native code: a spread at `infrastructure/chat/assistant.llm.ts:27`
+  (`Arr.appendAll`, `Array.ts:1291`) and a native `.map` at `apps/api/shared/security.ts:33-34`.
+
+Two styles coexist for reaching a service: `Effect.flatMap(Service, (s) => s.m(…))` at about 26
+sites (most in tests and test layers) and `Service.use` at three (`Context.ts:106`).
+
+#### Spec
+
+No spec for this run; see run 1.
+
+### Simplifications
+
+1. **Row to model by schema** (S29). `ChatRow.pipe(Schema.decodeTo(Chat))` and
+   `Schema.OptionFromUndefinedOr` replace the four `decode*` helpers and `decodeFound`
+   (`infrastructure/db/db.client.ts:57-61`, 14 call sites); a nested row (chat with messages,
+   message with attachments) is one `Schema.Struct` with a `SchemaGetter.transform`, so
+   `decodeSummary`, `decodeDetail` and the hand-typed `MessageDetailRow` go. About 40 lines; *run*,
+   `tsc` clean. In line with D2 of `2026-10-22-1915_postgres-drizzle` (derived codecs).
+2. **The rule's own forms** (S28): the six sites under Standards. About 8 lines; the gain is that
+   the code teaches what the rule says.
+3. **`Service.use`** (S30): one form at every site, a line in `effect-style.md` and a `make check`
+   grep so the other does not come back.
+4. **The relay's loop** (S31): `outbox.relay.ts:17,59-69`, `forever` + `when(sleep)` +
+   `isShortBatch`, becomes `Effect.repeat({ while: full batch })` then
+   `Effect.repeat(Schedule.spaced(outboxPollInterval))`. About 6 lines; *run*; same behaviour as D4.
+5. **The multipart upload** (S32): `packages/s3/bucket.ts:31-44,117-175` holds the latest part in
+   `held` until the next proves it is not the last; `Stream.zipWithNext` (`Stream.ts:5670`) says so
+   directly, `Stream.zipWithIndex` gives the part number. About 15 lines; *run*. An empty content
+   still needs an explicit empty `putObject`.
+6. **The reply's snapshots** (S33): `generate-assistant-message.use-case.ts:96-124`, two `Ref`s,
+   `uninterruptible`, `raceFirst` and `Effect.repeat(Schedule.spaced)`, becomes `Stream.scan` +
+   `Stream.groupedWithin(n, snapshotInterval)` + `Stream.tap(writeSnapshot)` + `Stream.runLast`.
+   About 14 lines; *run* (14 deltas at 50 ms, 3 writes, full text). The last group writes once
+   more before `complete`, and the scan's seed is a thunk.
+7. **Small forms** (S34), each a line or two: `DateTime.nowAsDate` for `Clock` + `new Date`
+   (`packages/s3/bucket.ts:199`, `infrastructure/shared/queue.client.ts:40-47`); `HashMap` for the
+   native `Map` in `AttachmentService.bind` (`attachment.service.ts:164-186`), dropping two
+   `Option.fromUndefinedOr`; `Order.flip(Order.mapInput(…))` for `byLatestActivity`
+   (`domain/testing/chat.test-fake.ts:58`); one `readTables` in `chat.test-fake.ts` (`:134`,
+   `:203`); one id helper for the four `Effect.map(Effect.orDie(crypto.randomUUIDv7()), X.make)`;
+   `Schema.withDecodingDefault` for `Messages ?? []` (`packages/queue/queue.transport.ts:40,93`);
+   `Effect.fromNullishOr` (`e2e/testing/stand.test-layer.ts:26`); `Effect.asSome`
+   (`generate-assistant-message.use-case.ts:174`); `Stream.schedule(Schedule.spaced)` for the stub's
+   word delay (`packages/llm/client.ts:24`); one cookie-jar `HttpClient` layer for
+   `apps/api/testing/api.test-layer.ts:28-41` and `e2e/testing/stand.test-layer.ts:42-57`; one
+   `*Rows` service factory in `rows.test-util.ts`; `SqlError.isSqlError` and `Effect.retry`'s
+   options in `infrastructure/db/migrate.ts:56-80`; `maxTitleLength` without `as const`.
+
+Rejected, with the reason:
+
+- `SqlModel.makeRepository` / `makeResolvers`: CRUD by id only; the ports' writes are conditional
+  and answer a boolean (D5); `SqlResolver` was rejected by D1.
+- `effect/persistence` `PersistedQueue`: replaces SQS and the outbox, an architecture decision.
+- `it.layer`: one resource shared by a block, which `effect-tests.md` forbids.
+- `@effect/sql-drizzle` and the `@effect/ai-*` providers: not installed; `drizzle-orm/effect-postgres`
+  is already the Effect driver.
+- `DELETE … RETURNING` for the relay's claim and a CTE for the user insert: not tried on Postgres.
+- `yield*` on an `Option` in `Effect.gen`: throws `Not a valid effect` in 4.0.6 (*run*).
+- The heartbeat as `Effect.repeat`: it would extend the lock once before the first wait.
+
+### Lessons
+
+#### L5 — The style rule and the code drift apart
+
+- **Evidence:** run 2 found the code against `effect-style.md` at six sites; `Service.use` and
+  `Effect.flatMap(Service, …)` coexist at 3 and about 26.
+- **Cost:** an agent copies the code beside it, not the rule, so each step can spread the drift.
+- **Proposed change:** each `effect-style.md` line a grep can test gets a check in `make check`,
+  starting with `Service.use` (S30).
+- **Applied:** no
