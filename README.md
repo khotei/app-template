@@ -1,20 +1,23 @@
 # App Template
 
-A chat clone (visitor → message → assistant reply) built as a template for enterprise projects.
-It grows one ticket at a time along the [roadmap](docs/knowledge/roadmap.md), and each ticket keeps
-its spec, design and plan in `docs/tickets/`, so a project started from it inherits the reasoning
-along with the code. Bun + TypeScript 7 + Effect 4 modular monolith with three processes:
-`apps/api`, `apps/worker` and `apps/web`.
+A chat clone (visitor → message → assistant reply) built as a template for enterprise projects:
+a Bun + TypeScript 7 + Effect 4 modular monolith, with an api, a worker and a web client over one
+domain. It grows one ticket at a time along the [roadmap](docs/knowledge/roadmap.md), and each
+ticket keeps its spec, design and plan in `docs/tickets/`, so a project started from it inherits
+the reasoning along with the code.
+
+It is not a framework, and nothing here is generated: every layer is plain code meant to be read,
+copied and changed.
 
 ## What it does today
 
 An anonymous user gets a secret in a cookie, creates chats, sends messages with attachments, and
-the assistant answers. The api stores the user's message, a `queued` assistant message and its
-jobs in one transaction (the jobs as outbox rows) and answers `202`; the worker relays the outbox to
-SQS, streams the model's reply into that one message as snapshots
-and titles the chat from its first message; the client polls the message until it is `completed`
-or `failed`. Records live in Postgres, attachment bytes in S3, and jobs go through SQS (MiniStack
-locally); the language model is a stub that a real provider replaces later.
+the assistant answers. The api writes the message and its jobs in one transaction and answers
+`202`; the worker relays the jobs to SQS, streams the model's reply into the message as snapshots
+and titles the chat; the client polls the message until it is `completed` or `failed`. Records
+live in Postgres, attachment bytes in S3, and jobs go through an outbox and SQS (MiniStack
+locally); the language model is a stub that a real provider replaces later. The browser UI still
+shows only the health panel.
 
 ```mermaid
 sequenceDiagram
@@ -33,15 +36,18 @@ sequenceDiagram
   W->>A: GET /chats/:id/messages/:messageId (poll)
 ```
 
-The browser UI still shows only the health panel; the chat screens are the next roadmap entries.
+How the transaction, the outbox and the relay work:
+[database.md › The outbox](docs/knowledge/database.md#the-outbox),
+[aws.md › Queues](docs/knowledge/aws.md#queues).
 
 ## Quick start
 
-Requires Bun 1.4.3 (the `packageManager` field) and GNU Make.
+Requires Bun at the version in `package.json › packageManager`, GNU Make, Docker running and the
+[Pulumi CLI](https://www.pulumi.com/docs/install/).
 
 ```sh
 make setup   # bun install, git hooks, and .env from .env.example
-make up      # MiniStack with Postgres, the bucket and the queues; migrates (needs Docker, Pulumi)
+make up      # MiniStack with Postgres, the bucket and the queues inside it; migrates
 make dev     # api, worker and web together
 ```
 
@@ -49,7 +55,7 @@ make dev     # api, worker and web together
 |---|---|---|
 | `apps/api` | <http://localhost:3000> | `/health` |
 | `apps/web` | <http://localhost:3001> | the health panel; `/api/*` is proxied to the api |
-| `apps/worker` | — | logs `worker started` and consumes the two queues |
+| `apps/worker` | — | logs `worker started`, relays the outbox and consumes the queues |
 
 A whole conversation from the shell, with the cookie kept in a jar:
 
@@ -62,107 +68,120 @@ curl -s -b jar -X POST localhost:3000/chats/<chatId>/messages \
 curl -s -b jar localhost:3000/chats/<chatId>/messages/<assistantMessageId>
 ```
 
-`make check` runs every gate: ids, the names the docs cite, Biome, `tsc -b`, the migration check,
-the unit and e2e suites (Docker running; the e2e run starts its own Postgres and MiniStack) and
-the web-bundle guard. `make help` lists the rest.
+`make down` stops the stand and keeps its data; `make reset` removes it whole. When `make up`
+fails: [aws.md › When the stand fails](docs/knowledge/aws.md#when-the-stand-fails).
 
-### The local AWS environment
+## Architecture at a glance
 
-MiniStack stands in for S3, SQS and RDS on `localhost:4566`; a Pulumi program in `deployment/local/`
-runs it in Docker and creates inside it the bucket, the queues and the Postgres instance, whose
-`DATABASE_URL` it writes to `.env.pulumi`. `make dev` needs it: the apps read the database, the
-bucket and the queues from there. `make check` needs Docker only. The design and the resource inventory:
-[docs/knowledge/aws.md](docs/knowledge/aws.md).
+Three processes share one codebase and one database. Each is one `Layer`, launched by
+`BunRuntime.runMain(Layer.launch(...))`, so stopping it closes one scope.
 
-```sh
-make setup   # once; then add Docker and the Pulumi CLI (https://www.pulumi.com/docs/install/)
-make up      # starts MiniStack, creates the resources (unchanged on a rerun), migrates
-make dev
-make down    # stops it; the resources and their data survive
-make reset   # removes MiniStack, the database's container and volume, and .data/ whole
+The workspaces, from the bottom up; each imports only from the ones below it:
+
+| Workspace | Holds | Never holds |
+|---|---|---|
+| `domain/` | models (`Schema.Class`), branded ids, errors, ports, and the domain services that own the rules | SQL, HTTP, AWS, an `@effect/*` package (tests aside) |
+| `http-api/` | the `HttpApi` contract over the domain's schemas, shared by the api and the browser | handlers, services |
+| `application/` | use cases: a flow across domain services, the queue, the bucket, the assistant, in one `Transaction` | rules of an entity, adapters |
+| `infrastructure/` | adapters of the ports: Postgres repositories, the S3 bucket, the LLM, the outbox relay | business rules |
+| `packages/*` | generic clients (`config`, `queue`, `s3`, `llm`, `aws`) knowing nothing of the chat | domain imports |
+| `apps/*` | thin entry points: api and worker handlers, the browser client | rules |
+
+The invariants a change must keep:
+
+- **The rules live in domain services.** A use case composes them and adds only rule-free
+  writes; it never decides what an entity may do.
+- **No rule in a handler.** An api or worker handler decodes, calls one use case or service, and
+  maps the answer.
+- **The database guards, not locks.** One active message per chat, a bind only while unbound and
+  every stage move are single conditional statements.
+- **A message never exists without its job.** The job is an outbox row in the same transaction.
+- **No service reaches the browser.** `make bundle-check` fails if one does.
+
+The full matrix, and how Biome enforces it:
+[architecture.md › Dependency rules](docs/knowledge/architecture.md#dependency-rules). The choices
+and the alternatives they rejected: each ticket's `architecture.md › Decisions`.
+
+## Anatomy of a slice
+
+One entity crosses every layer under the same folder name. The `chat` slice, by file suffix:
+
+```text
+domain/chat/            chat.id  chat.model  chat.error  chat.port  chat.service
+application/chat/       send-message.use-case  generate-assistant-message.use-case
+infrastructure/chat/    chat.entity  chat.repository  chat.queue  assistant.llm
+http-api/chat/          chat.http
+apps/api/chat/          chat.handler
+apps/worker/chat/       assistant-message.handler  chat-title.handler
+<workspace>/tests/…     <source path>.test.ts   unit, over memory layers, no Docker
+<workspace>/e2e/…       <source path>.e2e.ts    on the run's own Postgres and MiniStack
+<workspace>/testing/    .test-fake  .test-layer  .test-fixture  test support, never in a module
 ```
 
-| When | Then |
-|---|---|
-| Docker is not running | `make up` fails in the Docker provider; start Docker and run it again |
-| the Pulumi CLI is missing | `make up`, `down`, `reset` and `stack` fail at `pulumi`; install it from the link above. `make check` does not need it |
-| an older `.env` lacks `AWS_*`, `STAGE` or `RDS_BASE_PORT` | `make up` fails with a `ConfigError` naming the variable; `make setup` leaves an existing `.env` alone, so copy the block from `.env.example` |
-| the first `make up` takes longer | it downloads the Docker and AWS provider plugins into `.pulumi/` once; worktrees reuse them |
-| port 4566 is taken | the container fails to start; free the port (a leftover `app-template-ministack-4566`, or another emulator) |
-| `make up` failed midway | run it again; it goes on from what it created |
-| you want a clean slate | `make reset` also wipes the database, not only MiniStack |
+Read it bottom-up: the model and its pure operations, the port the service writes through, the
+service with the rules, the use case composing services, the adapter implementing the port, the
+handler calling the use case. Every file of the slice and what it is named:
+[architecture.md › Where things live](docs/knowledge/architecture.md#where-things-live); the
+suffixes and naming verbs: [.claude/rules/naming.md](.claude/rules/naming.md).
 
-## How it is built
+## Daily development
 
-Each line names one choice and where it lives; the rejected alternatives are in the tickets'
-`architecture.md › Decisions`.
+| To | Run | More |
+|---|---|---|
+| run every gate before a commit | `make check` (Docker running) | [tooling.md › Commands](docs/knowledge/tooling.md#commands) |
+| run one process, or debug it | `make dev-api`, `make debug-api` (also `-worker`, `-web`) | [tooling.md › Run and debug](docs/knowledge/tooling.md#run-and-debug) |
+| run the unit suites only, in seconds | `make test-unit` | [tooling.md › Tests](docs/knowledge/tooling.md#tests) |
+| run one test file or one test | `bun --bun vitest run --project unit <file> -t <name>` | [tooling.md › Commands](docs/knowledge/tooling.md#commands) |
+| fix formatting and import order | `make fmt` | [tooling.md › Troubleshooting](docs/knowledge/tooling.md#troubleshooting) |
+| change a table | edit its `.entity.ts`, then `make migration NAME=<name>` and `make migrate` | [database.md › Migrations](docs/knowledge/database.md#migrations) |
+| start over with an empty database | `make reset && make up` | [tooling.md › Environment](docs/knowledge/tooling.md#environment) |
+| work on two branches at once | a worktree with its own ports and containers | [tooling.md › Worktrees](docs/knowledge/tooling.md#worktrees) |
+| read Effect's or Drizzle's source at our pin | `repos/effect`, `repos/drizzle` | [tooling.md › Commands](docs/knowledge/tooling.md#commands) |
+| learn why a check failed | the symptom table | [tooling.md › Troubleshooting](docs/knowledge/tooling.md#troubleshooting) |
 
-- **Layers import only downwards:** the matrix is in
-  [docs/knowledge/architecture.md › Dependency rules](docs/knowledge/architecture.md#dependency-rules);
-  Biome rejects most of what it forbids, and
-  [› Known gaps](docs/knowledge/architecture.md#known-gaps) lists the rest.
-- **The domain is pure Effect:** models are `Schema.Class`, ids and constrained values are brands,
-  errors are `Schema.TaggedError`, pure operations take time and ids as input, and ports are
-  `Context.Service` declarations with no error channel. `domain/`.
-- **One HTTP contract, two consumers.** `http-api/` declares the `HttpApi` over the domain's
-  schemas; `apps/api` implements it with `HttpApiBuilder`, and the browser calls it through
-  `ApiClient`. A domain error becomes a status through one annotation in the contract.
-- **Domain services own the rules, use cases compose them, handlers call one of the two.** A
-  domain service in `domain/` writes its entity's records over the ports; a flow across services,
-  the queue or one transaction is a use case in `application/`; an api or worker handler holds no
-  rule. [.claude/rules/layering.md](.claude/rules/layering.md).
-- **Repositories are `Layer`s over Drizzle on `@effect/sql-pg`:** each entity declares its tables
-  once, the row codecs and migrations derive from them, a use case runs its writes in one
-  `Transaction`, and the database's guards (a partial unique index, conditional updates) stand in
-  for locks. [docs/knowledge/database.md](docs/knowledge/database.md).
-- **A queue has a producer and a handler:** a use case sends the job with `QueueClient.send`, which
-  writes an outbox row in the use case's transaction; the worker's relay forwards it to SQS;
-  `apps/worker/<entity>/<object>.handler.ts` consumes it over a use case in a `worker` `Layer`
-  that runs in a fiber the layer's scope owns. `packages/queue`.
-- **A process is one `Layer`:** `apps/api/layer.ts` and `apps/worker/layer.ts` close the
-  leaves (database, S3, queue, platform) with `Layer.provide` and `main.ts` is
-  `BunRuntime.runMain(Layer.launch(...))`; stopping closes one scope.
-- **Tests sit at agreed seams** with `@effect/vitest`: unit tests in `tests/` run the domain
-  services, the use cases and both apps' handlers over memory layers of the ports; e2e tests in
-  `e2e/` run the adapters and one journey through both apps on a Postgres and a MiniStack the run
-  starts for itself. [docs/knowledge/tooling.md › Tests](docs/knowledge/tooling.md#tests).
-- **Configuration is read once,** in `packages/config`, and reaches clients as options; the root
-  `.env` is the only environment file.
+Tips that save time:
 
-The Effect rules the code follows are in `.claude/rules/effect*.md`; a worked walkthrough of any
-step or module is one `/explain` away (see
-[docs/knowledge/sdd.md › Reading what was built](docs/knowledge/sdd.md#reading-what-was-built)).
+- **Test at the lowest seam that shows the rule.** A rule of an entity is a unit test of its
+  domain service over memory layers; only an adapter or a transaction needs e2e.
+- **Every e2e test owns its database and its stage,** so suites run in parallel and in two
+  worktrees at once; nothing needs `make up`.
+- **Time stands still in `it.effect`.** Move it with `TestClock.adjust`, or use `it.live`.
+- **The worker reloads by re-exec, the api in place,** so a worker edit never leaves a second
+  consumer behind: [tooling.md › Run and debug](docs/knowledge/tooling.md#run-and-debug).
+- **A rejected commit is the hook:** `make typecheck`, then Biome on the staged files. Fix and
+  commit again; never `--no-verify`.
+
+## Adding a feature
+
+1. **Specify it as a ticket:** `/ticket-feature`, then architecture, plan, implement, verify —
+   [sdd.md › The five skills](docs/knowledge/sdd.md#the-five-skills).
+2. **Add an entity** layer by layer, bottom-up, test first —
+   [architecture.md › Add a new entity](docs/knowledge/architecture.md#add-a-new-entity).
+3. **Add an AWS resource** to the inventory, local and deployed alike —
+   [aws.md › Adding a resource](docs/knowledge/aws.md#adding-a-resource).
 
 ## Where to read next
 
 | Question | Document |
 |---|---|
 | How do I run, debug, test, add a dependency or a workspace? Why did a check fail? | [docs/knowledge/tooling.md](docs/knowledge/tooling.md) |
-| Which layer does my code belong to, and what may it import? How do I add an entity? | [docs/knowledge/architecture.md](docs/knowledge/architecture.md) |
+| Which layer does my code belong to, and what may it import? | [docs/knowledge/architecture.md](docs/knowledge/architecture.md) |
+| How are records stored, guarded, migrated and tested? | [docs/knowledge/database.md](docs/knowledge/database.md) |
+| How do the apps reach S3 and SQS, locally and on AWS? | [docs/knowledge/aws.md](docs/knowledge/aws.md) |
 | What do the domain words mean? | [docs/knowledge/glossary.md](docs/knowledge/glossary.md) |
-| How do the apps reach S3 and SQS, locally and on AWS? How is a resource added? | [docs/knowledge/aws.md](docs/knowledge/aws.md) |
-| How is a change specified, planned, implemented and verified? What do the `/ticket-*` skills use under the hood? | [docs/knowledge/sdd.md](docs/knowledge/sdd.md) |
-| What is built next, in which order, and what does each ticket inherit? | [docs/knowledge/roadmap.md](docs/knowledge/roadmap.md) |
+| How is a change specified, planned, implemented and verified? | [docs/knowledge/sdd.md](docs/knowledge/sdd.md) |
+| What is built next, and in which order? | [docs/knowledge/roadmap.md](docs/knowledge/roadmap.md) |
 | What are the rules for one layer? | its `CLAUDE.md`, listed in [CLAUDE.md](CLAUDE.md) |
 | How are commits and pull requests written? | [.claude/rules/commits.md](.claude/rules/commits.md), [.claude/rules/pull-requests.md](.claude/rules/pull-requests.md) |
-| Why is the scaffold built this way? | `docs/tickets/2026-10-16-1433_monorepo-setup/`, and the step commits on branch `chore/monorepo-setup` |
-| How are records stored, migrated and tested on Postgres? | [docs/knowledge/database.md](docs/knowledge/database.md) |
-| Why is the chat built this way? | `docs/tickets/2026-10-17-1748_chat-core/` (`feature.md` for the requirements, `architecture.md › Decisions` for every choice and its rejected alternative) |
-| Why Postgres and the outbox, and why the layers look as they do? | `docs/tickets/2026-10-22-1915_postgres-drizzle/`, `docs/tickets/2026-10-27-1433_architecture-audit/` |
+| Why is it built this way? | the tickets in `docs/tickets/`: `feature.md` for the requirements, `architecture.md › Decisions` for every choice and its rejected alternative |
 
-## Branches
+## Branches and new projects
 
-| Branch | Holds |
-|---|---|
-| `main` | one squash commit per ticket, whose body is the PR description |
-| `chore/monorepo-setup` | the scaffold ticket's plan steps, one commit each |
-| `chore/enterprise-template` | the plan steps of every ticket after the scaffold |
-
-Why the steps live next to a clean `main`, and how a ticket reaches both:
+`main` holds one squash commit per ticket, whose body is the PR description;
+`chore/enterprise-template` keeps every plan step as its own commit beside it. Why, and how a
+ticket reaches both:
 [sdd.md › Roadmap and the teaching branch](docs/knowledge/sdd.md#roadmap-and-the-teaching-branch).
 
-## Starting a new project
-
-On GitHub, *Use this template → Include all branches* copies every branch, the three above among
-them. What to rename, delete and keep afterwards is roadmap entry 12,
+On GitHub, *Use this template → Include all branches* starts a new project with both; what to
+rename, delete and keep afterwards is the roadmap's
 [`template-handoff`](docs/knowledge/roadmap.md#12-template-handoff).
