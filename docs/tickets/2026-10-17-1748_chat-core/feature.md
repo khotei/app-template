@@ -177,7 +177,9 @@ replace one layer later.
   accumulated so far into the message at most once per snapshot interval (a tunable, default
   300 ms) while the model streams; and set `completed` with the final text when the stream ends.
   Each write bumps the message's `updatedAt`; the chat's `updatedAt` moves at send and at the
-  terminal stage only. *Amended in architecture: snapshots touch one record (D2).*
+  terminal stage only. *Amended in architecture: snapshots touch one record (D2).* *Amended in
+  `llm-providers` S1: the reply arrives whole; no text is written while generating, and
+  `completed` carries the reply's text in one write.*
 - **R17** — WHEN the worker builds the model prompt, THE SYSTEM SHALL include every `completed`
   message of the chat in creation order as the provider's `user` and `assistant` messages, with
   each user attachment as a `Prompt.FilePart` read from the store; `failed` and non-terminal

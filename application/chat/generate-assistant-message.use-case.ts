@@ -1,15 +1,4 @@
-import {
-  Array as Arr,
-  Cause,
-  Context,
-  DateTime,
-  Duration,
-  Effect,
-  Layer,
-  Option,
-  String as Str,
-  Stream,
-} from 'effect'
+import { Array as Arr, Cause, Context, DateTime, Effect, Layer, Option } from 'effect'
 
 import { type Attachment, AttachmentBucket } from '@app-template/domain/attachment'
 import {
@@ -29,8 +18,6 @@ import {
 import type { GenerateAssistantMessage } from '@app-template/infrastructure/chat'
 import { Transaction } from '@app-template/infrastructure/db'
 
-const snapshotInterval = Duration.millis(300)
-
 type ReplySkip = 'chatDeleted' | 'alreadySettled'
 
 const replySkipLogs = {
@@ -48,7 +35,7 @@ type SettlingWrite = Effect.Effect<Message, MessageStageInvalidError | MessageMo
 export class GenerateAssistantMessageUseCase extends Context.Service<
   GenerateAssistantMessageUseCase,
   {
-    /** Prepares, generates with snapshots and completes the message; a moved message is skipped. */
+    /** Prepares, generates and completes the message with the reply; a moved message is skipped. */
     readonly generate: (
       job: GenerateAssistantMessage,
     ) => Effect.Effect<void, MessageStageInvalidError>
@@ -83,25 +70,6 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
         .selectByChat(chatId)
         .pipe(Effect.map(Arr.filter(isCompletedTurn)), Effect.flatMap(Effect.forEach(readTurn)))
 
-    const writeSnapshot = Effect.fnUntraced(function* (generating: Message, text: string) {
-      const at = yield* DateTime.now
-      yield* messageService.snapshot(generating, text, at)
-    })
-
-    // Writes the latest text per interval; the stored text seeds the scan, so the first interval
-    // opens with the stream.
-    const streamReply = (generating: Message, history: ReadonlyArray<AssistantTurn>) =>
-      assistant.streamText(history).pipe(
-        Stream.scan(() => generating.text, Str.concat),
-        Stream.groupedWithin(Number.POSITIVE_INFINITY, snapshotInterval),
-        Stream.filter(Arr.isArrayNonEmpty),
-        Stream.map(Arr.lastNonEmpty),
-        Stream.filter((text) => text !== generating.text),
-        Stream.tap((text) => writeSnapshot(generating, text)),
-        Stream.runLast,
-        Effect.map(Option.getOrElse(() => generating.text)),
-      )
-
     const settle = Effect.fnUntraced(function* (write: SettlingWrite) {
       const settled = yield* write
       // A rule-free write: a chat deleted meanwhile took its messages, so nothing is left to move.
@@ -117,7 +85,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
       const generatingAt = yield* DateTime.now
       const generating = yield* messageService.generate(prepared, generatingAt)
 
-      const text = yield* streamReply(generating, history)
+      const { text } = yield* assistant.reply(history)
       const completedAt = yield* DateTime.now
       yield* settle(messageService.complete(generating, { text, at: completedAt }))
     })

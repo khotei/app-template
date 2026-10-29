@@ -1,16 +1,17 @@
-import { Array as Arr, Deferred, Effect, Layer, type Option, Ref, Stream } from 'effect'
+import { Array as Arr, Deferred, Effect, Layer, type Option, Ref } from 'effect'
 
+import type { AssistantReply } from '#domain/chat/assistant.model'
 import { Assistant, type AssistantTurn } from '#domain/chat/assistant.port'
 import type { ChatTitle } from '#domain/chat/chat.model'
 
 export interface AssistantScript {
-  readonly streamText?: Stream.Stream<string>
+  readonly reply?: Effect.Effect<AssistantReply>
   readonly suggestTitle?: Effect.Effect<Option.Option<ChatTitle>>
 }
 
 /** A call the recording assistant took, with what the caller handed it. */
 export type AssistantCall =
-  | { readonly method: 'streamText'; readonly history: ReadonlyArray<AssistantTurn> }
+  | { readonly method: 'reply'; readonly history: ReadonlyArray<AssistantTurn> }
   | { readonly method: 'suggestTitle'; readonly text: string }
 
 /** An `Assistant` answering from `script`, keeping each call in `calls`; an unscripted call dies. */
@@ -20,9 +21,9 @@ export const recordAssistant = (script: AssistantScript) => {
   const layer = Layer.succeed(
     Assistant,
     Assistant.of({
-      streamText: (history) =>
-        Stream.fromEffect(record({ method: 'streamText', history })).pipe(
-          Stream.flatMap(() => script.streamText ?? Stream.die('streamText is not scripted')),
+      reply: (history) =>
+        record({ method: 'reply', history }).pipe(
+          Effect.andThen(script.reply ?? Effect.die('reply is not scripted')),
         ),
       suggestTitle: (text) =>
         record({ method: 'suggestTitle', text }).pipe(

@@ -14,6 +14,7 @@ import {
   MediaType,
 } from '@app-template/domain/attachment'
 import {
+  AssistantReply,
   buildAssistantMessage,
   buildUserMessage,
   Chat,
@@ -48,20 +49,10 @@ const queuedReply = buildAssistantMessage({ id: messageId, chatId, createdAt: ep
 const asCompleted = (message: Message, text: string) =>
   new Message({ ...message, stage: 'completed', text })
 
-const replyDeltas = Stream.make('Hel', 'lo, ', 'world')
+const sure = new AssistantReply({ text: 'Sure.' })
 
-// Seven deltas 130 ms apart. An interval opens with the stream and then with the first delta
-// after a snapshot: snapshots at 300 ms (two deltas) and 690 ms (five), the full text at 910 ms.
-const sevenDeltas = Stream.make('One', ' two', ' three', ' four', ' five', ' six', ' seven').pipe(
-  Stream.tap(() => Effect.sleep('130 millis')),
-)
-
-const snapshotAt = (text: string, millis: number) =>
-  new Message({ ...queuedReply, stage: 'generating', text, updatedAt: at(millis) })
-
-// The use case asks for the stream after its `generating` write.
-const heldDeltas = (held: AssistantCallHold, deltas: Stream.Stream<string> = replyDeltas) =>
-  Stream.fromEffect(held.hold).pipe(Stream.drain, Stream.concat(deltas))
+// The use case asks for the reply after its `generating` write.
+const heldReply = (held: AssistantCallHold) => held.hold.pipe(Effect.as(sure))
 
 // A second apart: messages sharing a `createdAt` come back in no defined order.
 const user = (n: number, text: string) =>
@@ -137,10 +128,11 @@ const fail = (cause: Cause.Cause<unknown>) =>
 
 describe('GenerateAssistantMessageUseCase', () => {
   it.effect(
-    'generate moves the reply through preparing, generating, a snapshot at most every 300 ms and completed, and moves the chat to the completion',
+    "generate moves the reply through preparing and generating with no text, then completes it with the reply's text in one write, and moves the chat to the completion",
     () => {
       const held = holdAssistantCall()
-      const assistant = recordAssistant({ streamText: heldDeltas(held, sevenDeltas) })
+      const slowReply = held.hold.pipe(Effect.andThen(Effect.sleep('1 second')), Effect.as(sure))
+      const assistant = recordAssistant({ reply: slowReply })
       const { logs, layer: logger } = recordLogs()
       return Effect.gen(function* () {
         yield* insertMessages([queuedReply])
@@ -148,75 +140,48 @@ describe('GenerateAssistantMessageUseCase', () => {
         const running = yield* Effect.forkChild(generate)
         yield* held.asked
         // `generate` writes only where the stored stage is `preparing`, so this row proves that write.
-        assertEquals(
-          yield* selectReply,
-          Option.some(new Message({ ...queuedReply, stage: 'generating' })),
-        )
+        const generating = new Message({ ...queuedReply, stage: 'generating' })
+        assertEquals(yield* selectReply, Option.some(generating))
         yield* held.release
-        yield* TestClock.adjust('300 millis')
-        assertEquals(yield* selectReply, Option.some(snapshotAt('One two', 300)))
-        yield* TestClock.adjust('390 millis')
-        assertEquals(yield* selectReply, Option.some(snapshotAt('One two three four five', 690)))
-        yield* TestClock.adjust('220 millis')
+        yield* TestClock.adjust('500 millis')
+        assertEquals(yield* selectReply, Option.some(generating))
+        yield* TestClock.adjust('500 millis')
         yield* Fiber.join(running)
 
         assertEquals(
           yield* selectReply,
           Option.some(
-            new Message({
-              ...queuedReply,
-              stage: 'completed',
-              text: 'One two three four five six seven',
-              updatedAt: at(910),
-            }),
+            new Message({ ...queuedReply, stage: 'completed', text: 'Sure.', updatedAt: at(1000) }),
           ),
         )
         assertEquals(
           yield* selectChat(chatId),
-          Option.some(new Chat({ ...chat, updatedAt: at(910) })),
+          Option.some(new Chat({ ...chat, updatedAt: at(1000) })),
         )
         assert.deepStrictEqual(logs, [])
       }).pipe(Effect.provide([AssistantMessageTest.pipe(Layer.provide(assistant.layer)), logger]))
     },
   )
 
-  it.effect('generate interrupted mid-stream leaves the last snapshot as written', () => {
-    const held = holdAssistantCall()
-    const assistant = recordAssistant({ streamText: heldDeltas(held, sevenDeltas) })
+  it.effect('generate dies with the assistant and leaves the reply generating with no text', () => {
+    const assistant = recordAssistant({ reply: Effect.die('provider exploded') })
     return Effect.gen(function* () {
       yield* insertMessages([queuedReply])
 
-      const running = yield* Effect.forkChild(generate)
-      yield* held.asked
-      yield* held.release
-      yield* TestClock.adjust('500 millis')
-      yield* Fiber.interrupt(running)
+      const exit = yield* generate.pipe(Effect.exit)
 
-      assertEquals(yield* selectReply, Option.some(snapshotAt('One two', 300)))
-    }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
-  })
-
-  it.effect('generate fails with the stream and writes no text past the last snapshot', () => {
-    const dying = sevenDeltas.pipe(Stream.take(3), Stream.concat(Stream.die('provider exploded')))
-    const held = holdAssistantCall()
-    const assistant = recordAssistant({ streamText: heldDeltas(held, dying) })
-    return Effect.gen(function* () {
-      yield* insertMessages([queuedReply])
-
-      const running = yield* Effect.forkChild(generate)
-      yield* held.asked
-      yield* held.release
-      yield* TestClock.adjust('500 millis')
-
-      assert.isTrue(Exit.hasDies(yield* Fiber.await(running)))
-      assertEquals(yield* selectReply, Option.some(snapshotAt('One two', 300)))
+      assert.isTrue(Exit.hasDies(exit))
+      assertEquals(
+        yield* selectReply,
+        Option.some(new Message({ ...queuedReply, stage: 'generating' })),
+      )
     }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
   })
 
   it.effect(
     'generate prompts with every completed message in order and the bytes of its attachments',
     () => {
-      const assistant = recordAssistant({ streamText: replyDeltas })
+      const assistant = recordAssistant({ reply: Effect.succeed(sure) })
       return Effect.gen(function* () {
         yield* insertMessages([...history, queuedReply])
         yield* insertAttachment(photo)
@@ -226,7 +191,7 @@ describe('GenerateAssistantMessageUseCase', () => {
 
         assertEquals(yield* assistant.calls, [
           {
-            method: 'streamText',
+            method: 'reply',
             history: [
               { message: whatIsThis, files: [{ attachment: photo, bytes: png }] },
               { message: aPhoto, files: [] },
@@ -239,9 +204,9 @@ describe('GenerateAssistantMessageUseCase', () => {
     },
   )
 
-  it.effect('generate skips a reply another writer settled while it streams', () => {
+  it.effect('generate skips a reply another writer settled while the assistant answers', () => {
     const held = holdAssistantCall()
-    const assistant = recordAssistant({ streamText: heldDeltas(held) })
+    const assistant = recordAssistant({ reply: heldReply(held) })
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
       yield* insertMessages([queuedReply])
@@ -259,7 +224,7 @@ describe('GenerateAssistantMessageUseCase', () => {
   })
 
   it.effect('generate skips a reply settled before it, without asking the assistant', () => {
-    const assistant = recordAssistant({ streamText: replyDeltas })
+    const assistant = recordAssistant({ reply: Effect.succeed(sure) })
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
       yield* insertMessages([asCompleted(queuedReply, 'Done.')])
@@ -273,7 +238,7 @@ describe('GenerateAssistantMessageUseCase', () => {
   })
 
   it.effect('generate skips a deleted chat, without asking the assistant', () => {
-    const assistant = recordAssistant({ streamText: replyDeltas })
+    const assistant = recordAssistant({ reply: Effect.succeed(sure) })
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
       yield* insertMessages([queuedReply])

@@ -1,7 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { DateTime, Effect, Exit, Fiber, Layer, Option, Stream } from 'effect'
-import { TestClock } from 'effect/testing'
+import { Effect, Exit, Fiber, Layer, Option } from 'effect'
 
 import { AssistantMessageTest, selectChat } from '@app-template/application/testing'
 import {
@@ -12,7 +11,6 @@ import {
   MessageRepository,
 } from '@app-template/domain/chat'
 import {
-  type AssistantCallHold,
   chat,
   chatId,
   epoch,
@@ -30,26 +28,13 @@ import { recordLogs } from '@app-template/testing'
 
 import { handle, handleDeadLettered } from '#worker/chat/assistant-message.handler'
 
-const at = (millis: number) => DateTime.makeUnsafe(millis)
-
 const queuedReply = buildAssistantMessage({ id: messageId, chatId, createdAt: epoch })
 
 const completedReply = new Message({ ...queuedReply, stage: 'completed', text: 'Done.' })
 
 const providerExploded = new Error('provider exploded')
 
-const explodingAtOnce = Stream.die(providerExploded)
-
-// A delta at 120 ms, which the 300 ms snapshot writes, then the provider dies at 520 ms.
-const explodingMidway = Stream.make('Hel').pipe(
-  Stream.tap(() => Effect.sleep('120 millis')),
-  Stream.concat(Stream.fromEffect(Effect.sleep('400 millis')).pipe(Stream.drain)),
-  Stream.concat(Stream.die(providerExploded)),
-)
-
-// The use case asks for the stream after its `generating` write.
-const heldDeltas = (held: AssistantCallHold, deltas: Stream.Stream<string> = Stream.empty) =>
-  Stream.fromEffect(held.hold).pipe(Stream.drain, Stream.concat(deltas))
+const exploding = Effect.die(providerExploded)
 
 const { maxAttempts } = assistantMessageQueue
 
@@ -82,7 +67,7 @@ const assertFailed = (failed: Message, cause: string) => {
 
 describe('AssistantMessageHandler', () => {
   it.effect('handle leaves the reply active when an earlier attempt fails', () => {
-    const assistant = recordAssistant({ streamText: explodingAtOnce })
+    const assistant = recordAssistant({ reply: exploding })
     return Effect.gen(function* () {
       yield* insertReply(queuedReply)
 
@@ -97,8 +82,8 @@ describe('AssistantMessageHandler', () => {
     }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
   })
 
-  it.effect('handle fails the reply with the cause when the last attempt fails', () => {
-    const assistant = recordAssistant({ streamText: explodingAtOnce })
+  it.effect('handle fails the reply with the cause and no text when the last attempt fails', () => {
+    const assistant = recordAssistant({ reply: exploding })
     return Effect.gen(function* () {
       yield* insertReply(queuedReply)
 
@@ -107,6 +92,7 @@ describe('AssistantMessageHandler', () => {
       assert.isTrue(Exit.isFailure(exit))
       const failed = Option.getOrThrow(yield* selectReply)
       assertFailed(failed, 'provider exploded')
+      assert.strictEqual(failed.text, '')
       assertEquals(
         yield* selectChat(chatId),
         Option.some(new Chat({ ...chat, updatedAt: failed.updatedAt })),
@@ -116,7 +102,7 @@ describe('AssistantMessageHandler', () => {
 
   it.effect('handle fails the reply when its worker is interrupted during the last attempt', () => {
     const held = holdAssistantCall()
-    const assistant = recordAssistant({ streamText: heldDeltas(held) })
+    const assistant = recordAssistant({ reply: held.hold.pipe(Effect.andThen(Effect.never)) })
     return Effect.gen(function* () {
       yield* insertReply(queuedReply)
 
@@ -133,32 +119,13 @@ describe('AssistantMessageHandler', () => {
     }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
   })
 
-  it.effect("handle keeps the last snapshot's text on the reply it fails", () => {
-    const held = holdAssistantCall()
-    const assistant = recordAssistant({ streamText: heldDeltas(held, explodingMidway) })
-    return Effect.gen(function* () {
-      yield* insertReply(queuedReply)
-
-      const running = yield* handle(job, attemptInfo(maxAttempts)).pipe(Effect.forkChild)
-      yield* held.asked
-      yield* held.release
-      yield* TestClock.adjust('520 millis')
-      yield* Fiber.join(running).pipe(Effect.exit)
-
-      const failed = Option.getOrThrow(yield* selectReply)
-      assertFailed(failed, 'provider exploded')
-      assert.strictEqual(failed.text, 'Hel')
-      assertEquals(failed.updatedAt, at(520))
-    }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
-  })
-
   it.effect(
     'handleDeadLettered fails an active reply with the attempts in its cause and logs an error',
     () => {
       const assistant = recordAssistant({})
       const { logs, layer: logger } = recordLogs()
       return Effect.gen(function* () {
-        yield* insertReply(new Message({ ...queuedReply, stage: 'generating', text: 'Hel' }))
+        yield* insertReply(new Message({ ...queuedReply, stage: 'generating' }))
 
         yield* handleDeadLettered(job, deadLetterInfo)
 
@@ -167,7 +134,6 @@ describe('AssistantMessageHandler', () => {
           failed,
           `dead-lettered after ${maxAttempts + 1} attempts on assistant-message-dlq`,
         )
-        assert.strictEqual(failed.text, 'Hel')
         assertEquals(yield* assistant.calls, [])
         assert.deepStrictEqual(logs, [['Error', 'assistant reply dead-lettered']])
       }).pipe(Effect.provide([AssistantMessageTest.pipe(Layer.provide(assistant.layer)), logger]))

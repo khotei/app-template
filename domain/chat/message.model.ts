@@ -149,10 +149,6 @@ export const generateMessage = Effect.fn('generateMessage')((message: Message, a
   move(message, { to: 'generating', at }),
 )
 
-/** The text generated so far; the message keeps `generating` whatever stage it was handed at. */
-export const snapshotMessage = (message: Message, text: string, at: DateTime.Utc): Message =>
-  new Message({ ...message, text, stage: 'generating', updatedAt: at })
-
 /** The settled text of a reply and when it settled. */
 export type MessageCompletion = { readonly text: string; readonly at: DateTime.Utc }
 

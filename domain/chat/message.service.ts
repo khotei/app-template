@@ -19,7 +19,6 @@ import {
   type MessageDetail,
   type MessageFailureInput,
   prepareMessage,
-  snapshotMessage,
 } from '#domain/chat/message.model'
 import { MessageRepository } from '#domain/chat/message.port'
 import type { MessageStage } from '#domain/chat/message-stage.model'
@@ -44,12 +43,6 @@ export class MessageService extends Context.Service<
       message: Message,
       at: DateTime.Utc,
     ) => Effect.Effect<Message, MessageStageInvalidError | MessageMovedError>
-    /** Writes the text so far, only while the stored message is still `generating`. */
-    readonly snapshot: (
-      message: Message,
-      text: string,
-      at: DateTime.Utc,
-    ) => Effect.Effect<Message, MessageMovedError>
     readonly complete: (
       message: Message,
       settled: MessageCompletion,
@@ -128,11 +121,6 @@ export class MessageService extends Context.Service<
       generateMessage(message, at).pipe(Effect.flatMap((moved) => write(moved, message.stage))),
     )
 
-    const snapshot = Effect.fn('MessageService.snapshot')(
-      (message: Message, text: string, at: DateTime.Utc) =>
-        write(snapshotMessage(message, text, at), 'generating'),
-    )
-
     const complete = Effect.fn('MessageService.complete')(
       (message: Message, settled: MessageCompletion) =>
         completeMessage(message, settled).pipe(
@@ -145,7 +133,7 @@ export class MessageService extends Context.Service<
         failMessage(message, failure).pipe(Effect.flatMap((moved) => write(moved, message.stage))),
     )
 
-    return { get, addUserMessage, addAssistantMessage, prepare, generate, snapshot, complete, fail }
+    return { get, addUserMessage, addAssistantMessage, prepare, generate, complete, fail }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

@@ -1,9 +1,10 @@
-import { Array as Arr, Effect, Layer, Option, pipe, String as Str, Stream } from 'effect'
+import { Array as Arr, Effect, Layer, Option, pipe, Schema, String as Str, Stream } from 'effect'
 import { LanguageModel, Prompt } from 'effect/ai'
 
 import {
   Assistant,
   type AssistantFile,
+  AssistantReply,
   type AssistantTurn,
   buildChatTitle,
   maxTitleLength,
@@ -28,6 +29,8 @@ const buildChatPrompt = (history: ReadonlyArray<AssistantTurn>): Prompt.Prompt =
     })),
   )
 
+const decodeReply = Schema.decodeEffect(AssistantReply)
+
 const titleInstruction =
   `Write a title of at most ${maxTitleLength} characters for a chat that opens with the next message. Answer with the title alone.` as const
 
@@ -37,18 +40,20 @@ const buildTitlePrompt = (text: string): Prompt.Prompt =>
     { role: 'user', content: [{ type: 'text', text }] },
   ])
 
-/** The `Assistant` port over `LanguageModel`; a provider failure is a defect. */
+/** The `Assistant` port over `LanguageModel`; a provider failure or a blank reply is a defect. */
 export const AssistantLlm: Layer.Layer<Assistant, never, LanguageModel.LanguageModel> =
   Layer.effect(
     Assistant,
     LanguageModel.LanguageModel.useSync((model) =>
       Assistant.of({
-        streamText: (history) =>
-          model.streamText({ prompt: buildChatPrompt(history) }).pipe(
+        reply: Effect.fn('Assistant.reply')(function* (history) {
+          const text = yield* model.streamText({ prompt: buildChatPrompt(history) }).pipe(
             Stream.filter((part) => part.type === 'text-delta'),
             Stream.map((part) => part.delta),
-            Stream.orDie,
-          ),
+            Stream.mkString,
+          )
+          return yield* decodeReply({ text })
+        }, Effect.orDie),
         suggestTitle: Effect.fn('Assistant.suggestTitle')(function* (text) {
           // A blank text never reaches the model, as `toTextParts` keeps empty text out.
           if (pipe(text, Str.trim, Str.isEmpty)) return Option.none()

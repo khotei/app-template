@@ -13,6 +13,7 @@ import {
 } from '@app-template/domain/attachment'
 import {
   Assistant,
+  AssistantReply,
   type AssistantTurn,
   buildAssistantMessage,
   buildUserMessage,
@@ -73,8 +74,15 @@ const titleInstruction =
 
 const suggestTitle = (text: string) => Assistant.use((assistant) => assistant.suggestTitle(text))
 
-const streamText = (history: ReadonlyArray<AssistantTurn>) =>
-  Assistant.use((assistant) => assistant.streamText(history).pipe(Stream.runCollect))
+const reply = (history: ReadonlyArray<AssistantTurn>) =>
+  Assistant.use((assistant) => assistant.reply(history))
+
+const textStream = (...deltas: ReadonlyArray<string>) =>
+  Stream.make<Array<Response.StreamPartEncoded>>(
+    { type: 'text-start', id: 'reply' },
+    ...Arr.map(deltas, delta),
+    { type: 'text-end', id: 'reply' },
+  )
 
 const image = (id: string, fileName: string) =>
   new Attachment({
@@ -153,24 +161,17 @@ describe('AssistantLlm', () => {
   })
 
   it.effect(
-    'streamText prompts with the history and a file part per attachment, answering the deltas',
+    'reply prompts with the history and a file part per attachment, answering the deltas joined',
     () => {
-      const { prompts, layer } = recordLanguageModel({
-        streamText: Stream.make<Array<Response.StreamPartEncoded>>(
-          { type: 'text-start', id: 'reply' },
-          delta('Hel'),
-          delta('lo'),
-          { type: 'text-end', id: 'reply' },
-        ),
-      })
+      const { prompts, layer } = recordLanguageModel({ streamText: textStream('Hel', 'lo') })
       return Effect.gen(function* () {
-        const deltas = yield* streamText([
+        const answer = yield* reply([
           { message: user(1, 'What is this?'), files: [{ attachment: photo, bytes: png }] },
           { message: completed, files: [] },
           { message: user(3, ''), files: [{ attachment: sketch, bytes: png }] },
         ])
 
-        assert.deepStrictEqual(deltas, ['Hel', 'lo'])
+        assertEquals(answer, new AssistantReply({ text: 'Hello' }))
         assert.deepStrictEqual(contentsOf(yield* prompts), [
           Prompt.make([
             { role: 'user', content: [{ type: 'text', text: 'What is this?' }, file('photo.png')] },
@@ -181,4 +182,13 @@ describe('AssistantLlm', () => {
       }).pipe(Effect.provide(layer))
     },
   )
+
+  it.effect('reply dies on a blank answer', () => {
+    const { layer } = recordLanguageModel({ streamText: textStream(' ', '\n') })
+    return Effect.gen(function* () {
+      const exit = yield* reply([{ message: user(1, 'Hi'), files: [] }]).pipe(Effect.exit)
+
+      assert.isTrue(Exit.hasDies(exit))
+    }).pipe(Effect.provide(layer))
+  })
 })
