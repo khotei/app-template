@@ -9,8 +9,9 @@ along with the code. Bun + TypeScript 7 + Effect 4 modular monolith with three p
 ## What it does today
 
 An anonymous user gets a secret in a cookie, creates chats, sends messages with attachments, and
-the assistant answers. The api stores the user's message and a `queued` assistant message, enqueues
-a job and answers `202`; the worker streams the model's reply into that one message as snapshots
+the assistant answers. The api stores the user's message, a `queued` assistant message and its
+jobs in one transaction (the jobs as outbox rows) and answers `202`; the worker relays the outbox to
+SQS, streams the model's reply into that one message as snapshots
 and titles the chat from its first message; the client polls the message until it is `completed`
 or `failed`. Records live in Postgres, attachment bytes in S3, and jobs go through SQS (MiniStack
 locally); the language model is a stub that a real provider replaces later.
@@ -23,9 +24,10 @@ sequenceDiagram
   participant Q as SQS (MiniStack)
   participant K as apps/worker
   W->>A: POST /chats/:id/messages
-  A->>S: user message + queued assistant message
-  A->>Q: assistant-message job (+ chat-title job on the first message)
+  A->>S: one transaction: user message, queued assistant message, outbox rows
   A-->>W: 202
+  K->>S: relay claims the outbox rows
+  K->>Q: assistant-message job (+ chat-title job on the first message)
   K->>Q: receive
   K->>S: preparing → generating → text snapshots → completed | failed
   W->>A: GET /chats/:id/messages/:messageId (poll)
@@ -39,6 +41,7 @@ Requires Bun 1.4.3 (the `packageManager` field) and GNU Make.
 
 ```sh
 make setup   # bun install, git hooks, and .env from .env.example
+make up      # MiniStack with Postgres, the bucket and the queues; migrates (needs Docker, Pulumi)
 make dev     # api, worker and web together
 ```
 
@@ -59,19 +62,21 @@ curl -s -b jar -X POST localhost:3000/chats/<chatId>/messages \
 curl -s -b jar localhost:3000/chats/<chatId>/messages/<assistantMessageId>
 ```
 
-`make check` runs every gate (Biome, `tsc -b`, vitest); `make help` lists the rest.
+`make check` runs every gate: ids, the names the docs cite, Biome, `tsc -b`, the migration check,
+the unit and e2e suites (Docker running; the e2e run starts its own Postgres and MiniStack) and
+the web-bundle guard. `make help` lists the rest.
 
 ### The local AWS environment
 
 MiniStack stands in for S3, SQS and RDS on `localhost:4566`; a Pulumi program in `deployment/local/`
 runs it in Docker and creates inside it the bucket, the queues and the Postgres instance, whose
-`DATABASE_URL` it writes to `.env.pulumi`. The apps do not use it yet: `make dev` runs without
-`make up`, and `make check` needs Docker only. The design and the resource inventory:
+`DATABASE_URL` it writes to `.env.pulumi`. `make dev` needs it: the apps read the database, the
+bucket and the queues from there. `make check` needs Docker only. The design and the resource inventory:
 [docs/knowledge/aws.md](docs/knowledge/aws.md).
 
 ```sh
 make setup   # once; then add Docker and the Pulumi CLI (https://www.pulumi.com/docs/install/)
-make up      # starts MiniStack, creates the resources (+ 11 created; 11 unchanged after), migrates
+make up      # starts MiniStack, creates the resources (unchanged on a rerun), migrates
 make dev
 make down    # stops it; the resources and their data survive
 make reset   # removes MiniStack, the database's container and volume, and .data/ whole
@@ -107,9 +112,11 @@ Each line names one choice and where it lives; the rejected alternatives are in 
   the queue or one transaction is a use case in `application/`; an api or worker handler holds no
   rule. [.claude/rules/layering.md](.claude/rules/layering.md).
 - **Repositories are `Layer`s over Drizzle on `@effect/sql-pg`:** each entity declares its tables
-  once, the row codecs and migrations derive from them, and a write across tables runs in one
-  transaction. [docs/knowledge/database.md](docs/knowledge/database.md).
-- **A queue has a producer and a handler:** a use case sends the job with `QueueClient.send`;
+  once, the row codecs and migrations derive from them, a use case runs its writes in one
+  `Transaction`, and the database's guards (a partial unique index, conditional updates) stand in
+  for locks. [docs/knowledge/database.md](docs/knowledge/database.md).
+- **A queue has a producer and a handler:** a use case sends the job with `QueueClient.send`, which
+  writes an outbox row in the use case's transaction; the worker's relay forwards it to SQS;
   `apps/worker/<entity>/<object>.handler.ts` consumes it over a use case in a `worker` `Layer`
   that runs in a fiber the layer's scope owns. `packages/queue`.
 - **A process is one `Layer`:** `apps/api/layer.ts` and `apps/worker/layer.ts` close the
@@ -139,7 +146,9 @@ step or module is one `/explain` away (see
 | What are the rules for one layer? | its `CLAUDE.md`, listed in [CLAUDE.md](CLAUDE.md) |
 | How are commits and pull requests written? | [.claude/rules/commits.md](.claude/rules/commits.md), [.claude/rules/pull-requests.md](.claude/rules/pull-requests.md) |
 | Why is the scaffold built this way? | `docs/tickets/2026-10-16-1433_monorepo-setup/`, and the step commits on branch `chore/monorepo-setup` |
+| How are records stored, migrated and tested on Postgres? | [docs/knowledge/database.md](docs/knowledge/database.md) |
 | Why is the chat built this way? | `docs/tickets/2026-10-17-1748_chat-core/` (`feature.md` for the requirements, `architecture.md › Decisions` for every choice and its rejected alternative) |
+| Why Postgres and the outbox, and why the layers look as they do? | `docs/tickets/2026-10-22-1915_postgres-drizzle/`, `docs/tickets/2026-10-27-1433_architecture-audit/` |
 
 ## Branches
 
