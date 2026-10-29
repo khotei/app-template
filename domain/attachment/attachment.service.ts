@@ -136,10 +136,10 @@ export class AttachmentService extends Context.Service<
       id: AttachmentId,
     ) {
       const attachment = yield* get(userId, id)
-      const url = yield* bucket.url(id)
+      const found = yield* bucket.url(id)
 
-      if (Option.isNone(url)) return yield* new AttachmentNotFoundError({ id })
-      return { attachment, url: url.value }
+      const url = yield* Effect.fromOption(found, () => new AttachmentNotFoundError({ id }))
+      return { attachment, url }
     })
 
     const remove = Effect.fn('AttachmentService.delete')(function* (

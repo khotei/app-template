@@ -24,7 +24,7 @@ const buildChatPrompt = (history: ReadonlyArray<AssistantTurn>): Prompt.Prompt =
   Prompt.make(
     Arr.map(history, ({ message, files }) => ({
       role: message.author,
-      content: [...toTextParts(message.text), ...Arr.map(files, toFilePart)],
+      content: Arr.appendAll(toTextParts(message.text), Arr.map(files, toFilePart)),
     })),
   )
 
