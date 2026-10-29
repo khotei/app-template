@@ -46,7 +46,7 @@ update it.
 
 Binding decisions plus the rejected alternative (the ones a reader would "fix" back) · invariants
 types cannot express · cross-workspace coupling · non-obvious gotchas (ordering, version quirks) ·
-boundaries (import direction, ownership) · pointers to the file where a surface lives.
+boundaries (import direction, ownership) · one pointer to the file where a surface lives.
 
 Refresh a doc only when a real change lands, inside that change's commit. When in doubt, cut.
 

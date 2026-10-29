@@ -1140,6 +1140,9 @@
     (`Makefile.gone`) is not seen. Names the docs cite on purpose sit in `DOC_NAMES_ABSENT`.
   - The whole roadmap is left out, not only its history: its planned entries name what is not
     built yet.
+  - S25.2: the docs' spans go to a scratch file first, so a failing `git grep` fails the check
+    instead of feeding an empty pipe that passes. Rejected: `SHELL := bash` with `pipefail`,
+    which changes the shell of every target.
   - CI does not run it: the `links` job runs `make ids` alone and the tests run without
     `make check`. Left for `/ticket-verify`.
 

@@ -119,7 +119,9 @@ DOC_NAMES_IN = CLAUDE.md '*/CLAUDE.md' '.claude/rules/*.md' 'docs/knowledge/*.md
 # Named on purpose, absent on purpose: the paths the docs forbid, S3 operations, a naming example.
 DOC_NAMES_ABSENT = docs/adr/ docs/superpowers/ .claude/commands/ CreateMultipartUpload GetObject \
   FundsTransfer
-DOC_NAMES_KNOWN = node_modules/.cache/doc-names-known
+# Scratch lists, rewritten on every run.
+DOC_NAMES_KNOWN = node_modules/.cache/doc-names/known
+DOC_NAMES_SPANS = node_modules/.cache/doc-names/spans
 PASCAL = [A-Z][a-z0-9]+([A-Z][a-z0-9]*)+
 
 # A path is a span that starts at a tracked top-level entry and holds no placeholder, glob or
@@ -129,9 +131,10 @@ doc-names: ## Fail on a backticked path or PascalCase name in the docs that the 
 	@mkdir -p $(dir $(DOC_NAMES_KNOWN))
 	@{ git grep --untracked -ohwE '$(PASCAL)' -- ':!*.md'; printf '%s\n' $(DOC_NAMES_ABSENT); } \
 		| sort -u > $(DOC_NAMES_KNOWN)
+	@git grep --untracked -noE -e '`[^`]+`' --and --not -e '_Avoid_' -- $(DOC_NAMES_IN) \
+		> $(DOC_NAMES_SPANS); [ $$? -le 1 ] || { echo 'doc-names: git grep failed' >&2; exit 2; }
 	@top=$$(git ls-files | cut -d/ -f1 | sort -u | sed 's/[.]/[.]/g' | paste -sd '|' -); \
-	if git grep --untracked -noE -e '`[^`]+`' --and --not -e '_Avoid_' -- $(DOC_NAMES_IN) \
-		| tr -d '`' | sed -E -e 's/ › .*//' -e 's/^([^:]+:[0-9]+:$(PASCAL))[.].*/\1/' \
+	if tr -d '`' < $(DOC_NAMES_SPANS) | sed -E -e 's/ › .*//' -e 's/^([^:]+:[0-9]+:$(PASCAL))[.].*/\1/' \
 		| grep -E "^[^:]+:[0-9]+:(($$top)(/[A-Za-z0-9._-]+)*/?|$(PASCAL))$$" \
 		| while IFS=: read -r file line name; do \
 			[ -e "$$name" ] || grep -qxF "$$name" $(DOC_NAMES_KNOWN) || echo "$$file:$$line: $$name"; \
