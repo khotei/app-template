@@ -35,6 +35,10 @@ and `make setup` and `make test-unit` need neither.
 | `make vendor-drizzle` | `git subtree add`, then `pull`, `--squash --prefix repos/drizzle` of the `v<pin>` tag of `drizzle-orm` | the same for `repos/drizzle`: the whole Drizzle monorepo, since `git subtree` takes no subfolder; the source is under `repos/drizzle/drizzle-orm/src` |
 | `make clean` | removes every `node_modules` and `coverage` | a clean reinstall: follow with `make setup` |
 
+One file, or the tests whose name matches, through vitest itself:
+`bun --bun vitest run --project unit domain/tests/chat/chat.service.test.ts -t rename`
+(`--project e2e` for an e2e file, Docker running); `vitest` without `run` watches.
+
 The root `test` script, `bun --bun vitest run`, runs both projects at once (CI's `bun run test`);
 `bun test` would instead start Bun's own test runner, which is denied in `.claude/settings.json`.
 
