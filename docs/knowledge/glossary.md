@@ -58,3 +58,80 @@ _Avoid_: Template variable, token, embed, slot
 The language-model side of a chat, as the user sees it. The model behind it is a provider's
 artefact and is named only in `infrastructure`.
 _Avoid_: Bot, AI, agent, model
+
+## Architecture language
+
+The words the layers, rules and tickets use for the shape of the code. Each has one meaning here;
+the `_Avoid_` lists name the synonyms the sources use that we do not.
+
+**Component**:
+A folder named for one aggregate (`chat`, `attachment`, `user`) that appears under the same name
+in every layer; its responsibility fits one sentence.
+_Avoid_: Module, slice, feature folder, bounded context
+
+**Aggregate**:
+The entities whose records change together under one invariant: a chat with its messages, an
+attachment, a user. Each entity of it has its own domain service.
+_Avoid_: Entity group, root, aggregate root
+
+**Model**:
+The `Schema.Class` of an entity as the domain sees it (`Chat`, `Message`).
+_Avoid_: Entity (for the class), DTO, row
+
+**Read model**:
+A shape a port answers for a reader, composed of models (`ChatSummary`, `MessageDetail`); nothing
+writes one.
+_Avoid_: View, projection, DTO
+
+**Port**:
+A contract the domain declares for what it needs from outside the process (a repository, the
+bucket, the assistant), in the domain's words, with no layer of its own.
+_Avoid_: Interface, client, gateway, driver, store
+
+**Adapter**:
+An implementation of a port over a client, in `infrastructure`: a repository
+(`ChatRepositoryPg`), the bucket (`AttachmentBucketS3`), the assistant (`AssistantLlm`).
+_Avoid_: Implementation, provider, DAO, store
+
+**Domain service**:
+The owner of one entity's rules and the only writer of its records. It is named by its entity
+(`ChatService`); one that holds a single operation belonging to no entity is named by that
+operation, without `Service` (`FundsTransfer`).
+_Avoid_: Manager, helper, application service, business logic, service layer
+
+**Use case**:
+One scenario that composes domain services with the bucket, the queue, the assistant or one
+transaction; what a handler calls when a flow is more than one service method.
+_Avoid_: Interactor, orchestrator, workflow, application service, job
+
+**Handler**:
+The entry point of one request or one job in an app.
+_Avoid_: Controller, consumer, processor, endpoint
+
+**Relay**:
+An infrastructure layer that moves records from the database to a queue and holds no rule
+(`OutboxRelay`).
+_Avoid_: Dispatcher, publisher, poller
+
+**Outbox**:
+The table a use case writes its jobs to, in the transaction of the records they read; the relay
+sends them.
+_Avoid_: Event table, queue table
+
+**Job**:
+A message on a queue that asks the worker for one unit of work, shaped by its queue definition.
+_Avoid_: Task, event, command, message (the chat's word)
+
+**Unit test**:
+A test of one module over memory layers of its ports, needing no process outside the test runner.
+_Avoid_: Fast test, isolated test, mock test
+
+**E2E test**:
+A test over the containers the run starts (Postgres, MiniStack): of an adapter, of the transaction
+a use case runs, or of the journey through both apps.
+_Avoid_: Integration test, system test, functional test
+
+**Memory layer**:
+A layer of a port over a `Ref<HashMap>` in `domain/testing`, one per port; the unit tests' only
+double of a port.
+_Avoid_: Mock, stub, in-memory repository

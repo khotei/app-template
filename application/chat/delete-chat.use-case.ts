@@ -1,11 +1,9 @@
 import { Array as Arr, Context, Effect, Layer } from 'effect'
 
-import type { ChatId, ChatNotFoundError } from '@app-template/domain/chat'
+import { AttachmentService } from '@app-template/domain/attachment'
+import { type ChatId, type ChatNotFoundError, ChatService } from '@app-template/domain/chat'
 import type { UserId } from '@app-template/domain/user'
-
-import { AttachmentService } from '#application/attachment/attachment.service'
-import { ChatService } from '#application/chat/chat.service'
-import { UserLock } from '#application/user/user-lock'
+import { Transaction } from '@app-template/infrastructure/db'
 
 export class DeleteChatUseCase extends Context.Service<
   DeleteChatUseCase,
@@ -17,25 +15,24 @@ export class DeleteChatUseCase extends Context.Service<
   make: Effect.gen(function* () {
     const chatService = yield* ChatService
     const attachmentService = yield* AttachmentService
-    const userLock = yield* UserLock
+    const transaction = yield* Transaction
 
-    // Each step leaves what the next one reads, so a retry after a crash finishes the cascade:
-    // the attachments go while the messages still list them.
+    // The cascade from the chat cannot reach the attachments' bytes.
     const remove = Effect.fn('DeleteChatUseCase.delete')(function* (
       userId: UserId,
       chatId: ChatId,
     ) {
       const { messages } = yield* chatService.get(userId, chatId)
       yield* attachmentService.deleteByIds(
-        Arr.flatMap(messages, ({ message }) => message.attachmentIds),
+        Arr.flatMap(messages, ({ attachments }) => Arr.map(attachments, ({ id }) => id)),
       )
       yield* chatService.delete(userId, chatId)
-    }, userLock.withPermit)
+    }, transaction.run)
 
     return { delete: remove }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make).pipe(
-    Layer.provide([ChatService.layer, AttachmentService.layer, UserLock.layer]),
+    Layer.provide([ChatService.layer, AttachmentService.layer]),
   )
 }

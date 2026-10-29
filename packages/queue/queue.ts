@@ -4,9 +4,11 @@ import {
   Duration,
   Effect,
   Exit,
+  flow,
   Layer,
   Option,
   Predicate,
+  pipe,
   Result,
   Schedule,
   Schema,
@@ -58,10 +60,18 @@ const buildAttemptInfo = (received: Received, maxAttempts: number): AttemptInfo 
 const buildJsonCodec = <A, I>(schema: Schema.Codec<A, I>) =>
   Schema.fromJsonString(Schema.toCodecJson(schema))
 
-export const encodeBody = <A, I>(definition: QueueDefinition<Schema.Codec<A, I>>, message: A) =>
-  Schema.encodeEffect(buildJsonCodec(definition.schema))(message).pipe(
+const encodeWith = <A, I>(codec: Schema.Codec<A, I>) =>
+  flow(
+    Schema.encodeEffect(codec),
     Effect.mapError((cause) => new QueueError({ cause })),
   )
+
+/** The job as its definition's schema encodes it to JSON: the value an outbox row stores. */
+export const encodeJob = <A, I>(definition: QueueDefinition<Schema.Codec<A, I>>, message: A) =>
+  pipe(message, encodeWith(Schema.toCodecJson(definition.schema)))
+
+const encodeBody = <A, I>(definition: QueueDefinition<Schema.Codec<A, I>>, message: A) =>
+  pipe(message, encodeWith(buildJsonCodec(definition.schema)))
 
 const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueClientOptions) =>
   Effect.gen(function* () {
@@ -89,12 +99,18 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
       const release = (received: Received) => extend(received, 0)
 
       const heartbeat = (received: Received) =>
-        Effect.sleep(lockRefreshInterval).pipe(
-          Effect.andThen(extend(received, lockExpiration)),
+        extend(received, lockExpiration).pipe(
+          Effect.delay(lockRefreshInterval),
           Effect.tapCause((cause) => Effect.logWarning('queue heartbeat failed', cause)),
           Effect.ignore,
           Effect.forever,
         )
+
+      // `restore` lets an interrupt reach the effect, which then releases the message at once.
+      const releaseOnInterrupt =
+        (received: Received, restore: Restore) =>
+        <B, E2, R2>(effect: Effect.Effect<B, E2, R2>) =>
+          restore(effect).pipe(Effect.onInterrupt(() => Effect.ignore(release(received))))
 
       // Visibility settles every outcome: `delete` on success, a retry delay, or 0 so that the
       // next receive redrives a spent message to the dead-letter queue.
@@ -113,22 +129,24 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
         yield* extend(received, definition.retryDelay(info.attempt))
       })
 
-      // Runs masked from the receive on, so no interrupt finds the message unreleased: `restore`
-      // lets one reach the decode and the handler only, releasing the message at once.
+      // Runs masked from the receive on, so no interrupt finds the message unreleased: only the
+      // decode and the handler `releaseOnInterrupt`.
       const run = Effect.fnUntraced(
         function* (received: Received, restore: Restore) {
-          const releasing = <A, E2, R2>(effect: Effect.Effect<A, E2, R2>) =>
-            restore(effect).pipe(Effect.onInterrupt(() => Effect.ignore(release(received))))
-
-          const decoded = yield* releasing(Effect.result(decode(received.body)))
+          const decoded = yield* decode(received.body).pipe(
+            Effect.result,
+            releaseOnInterrupt(received, restore),
+          )
           if (Result.isFailure(decoded)) {
             yield* Effect.logError('queue message does not decode', decoded.failure)
             return yield* release(received)
           }
 
           const info = buildAttemptInfo(received, definition.maxAttempts)
-          const exit = yield* releasing(
-            Effect.raceFirst(Effect.exit(handle(decoded.success, info)), heartbeat(received)),
+          const exit = yield* handle(decoded.success, info).pipe(
+            Effect.exit,
+            Effect.raceFirst(heartbeat(received)),
+            releaseOnInterrupt(received, restore),
           )
           yield* settle(received, { info, exit })
         },
@@ -139,17 +157,15 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
           }),
       )
 
-      const receiveAndRun = Effect.uninterruptibleMask((restore) =>
-        Effect.gen(function* () {
-          const next = yield* restore(
-            transport.receive(queue, { visibility: lockExpiration, wait: receiveWait }),
-          )
-          if (Option.isNone(next)) return
-          yield* run(next.value, restore)
-        }),
-      )
+      const receiveAndRun = Effect.fnUntraced(function* (restore: Restore) {
+        const next = yield* restore(
+          transport.receive(queue, { visibility: lockExpiration, wait: receiveWait }),
+        )
+        if (Option.isNone(next)) return
+        yield* run(next.value, restore)
+      })
 
-      return Effect.forever(receiveAndRun)
+      return Effect.forever(Effect.uninterruptibleMask(receiveAndRun))
     }
 
     return QueueClient.of({ send, consume })

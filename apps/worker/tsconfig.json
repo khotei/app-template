@@ -4,11 +4,14 @@
     "rootDir": ".",
     "outDir": "../../node_modules/.cache/tsc/worker"
   },
-  "include": ["src/**/*.ts"],
+  "include": ["**/*.ts"],
   "references": [
     { "path": "../../application" },
+    { "path": "../../domain" },
     { "path": "../../infrastructure" },
     { "path": "../../packages/config" },
-    { "path": "../../packages/llm" }
+    { "path": "../../packages/llm" },
+    { "path": "../../packages/queue" },
+    { "path": "../../packages/testing" }
   ]
 }

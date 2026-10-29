@@ -6,17 +6,19 @@
   "exports": {
     "./attachment": "./attachment/index.ts",
     "./chat": "./chat/index.ts",
-    "./shared": "./shared/index.ts",
+    "./testing": "./testing/index.ts",
     "./user": "./user/index.ts"
   },
   "imports": {
     "#domain/*": "./*.ts"
   },
   "dependencies": {
-    "effect": "catalog:effect"
+    "effect": "catalog:effect",
+    "type-fest": "catalog:runtime"
   },
   "devDependencies": {
     "@app-template/testing": "workspace:*",
+    "@effect/platform-bun": "catalog:effect",
     "@effect/vitest": "catalog:effect"
   }
 }

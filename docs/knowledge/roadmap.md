@@ -38,7 +38,7 @@ graph LR
 | 1 | [`template-bootstrap`](#1-template-bootstrap) | `chore` | — | done: [docs/tickets/2026-10-17-1508_template-bootstrap/](../tickets/2026-10-17-1508_template-bootstrap/feature.md) |
 | 2 | [`claude-toolkit`](#2-claude-toolkit) | `chore` | 1, 3 | done: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md) |
 | 3 | [`chat-core`](#3-chat-core) | `feat` | 1 | done: [docs/tickets/2026-10-17-1748_chat-core/](../tickets/2026-10-17-1748_chat-core/feature.md) |
-| 4 | [`postgres-drizzle`](#4-postgres-drizzle) | `feat` | 3 | planned |
+| 4 | [`postgres-drizzle`](#4-postgres-drizzle) | `feat` | 3 | in progress: [docs/tickets/2026-10-22-1915_postgres-drizzle/](../tickets/2026-10-22-1915_postgres-drizzle/feature.md) |
 | 5 | [`aws-local`](#5-aws-local) | `feat` | 3 | done: [docs/tickets/2026-10-19-1448_aws-local/](../tickets/2026-10-19-1448_aws-local/feature.md) |
 | 6 | [`llm-providers`](#6-llm-providers) | `feat` | 5 | planned |
 | 7 | [`web-app`](#7-web-app) | `feat` | 3 (6 for assistant attachments and an SSE tail) | planned |
@@ -49,6 +49,9 @@ graph LR
 | 12 | [`template-handoff`](#12-template-handoff) | `chore` | all above | planned |
 | 13 | [`ticket-folder-order`](#13-ticket-folder-order) | `chore` | 3 | done: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md) |
 | 14 | [`toolkit-reading`](#14-toolkit-reading) | `chore` | 2 | done: [docs/tickets/2026-10-21-1347_toolkit-reading/](../tickets/2026-10-21-1347_toolkit-reading/feature.md) |
+| 15 | [`architecture-audit`](#15-architecture-audit) | `refactor` | 4 | in progress: [docs/tickets/2026-10-27-1433_architecture-audit/](../tickets/2026-10-27-1433_architecture-audit/feature.md) |
+| 16 | [`shared-files`](#16-shared-files) | `feat` | 15 | planned |
+| 17 | [`docs-diet`](#17-docs-diet) | `docs` | 15 | planned |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; its remaining work is re-homed
 in [Re-homing `effect-setup`](#re-homing-effect-setup).
@@ -182,10 +185,16 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   expiration. The donor isolates tests by one container per file plus `TRUNCATE` at the top of
   each test, which forbids parallel tests inside a file.
 - **Inherits from `aws-local` (2026-10-22).** A sweep of unbound attachment records past
-  `unboundLifetime` (the key-value store cannot list them; they read as not found until then); a
+  `unboundLifetime` (expired unbound records read as not found, and no sweep deletes them yet); a
   consumer or sweep for replies left active in the dead-letter queue (a killed worker, a failed
   `failed` write, a stopped worker's long poll); a `WHERE stage IN (…)` guard on the reply's
   terminal write.
+- **Status.** In progress: [docs/tickets/2026-10-22-1915_postgres-drizzle/](../tickets/2026-10-22-1915_postgres-drizzle/feature.md).
+  Its grilling departed from this entry: the outbox relays to SQS (there is no SQL queue store any
+  more); `$onUpdate` is dropped, timestamps and ids stay the domain's; tests run on Testcontainers
+  only, one Postgres per `vitest` run with a database per test, PGlite rejected as a second
+  driver; the local stand is one Pulumi program, MiniStack with the RDS instance, the bucket and
+  the queues inside it; the attachment record sweep was declined.
 
 ### 5. `aws-local`
 
@@ -251,7 +260,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   that the client polls; the question above narrows to whether an SSE tail over the stored message
   is added. Assistant attachments are therefore produced inside that job: the first decision is
   whether the model's tool call or a second job writes them, not whether a job exists. Provider
-  layers replace `LanguageModelStub`, which `apps/worker/src/layer.ts` provides today.
+  layers replace `LanguageModelStub`, which `apps/worker/layer.ts` provides today.
 - **Facts (2026-10-17).** `@effect/ai-anthropic@4.0.5` and `@effect/ai-openai@4.0.5` exist;
   `@effect/ai-google` and `@effect/ai-amazon-bedrock` are Effect v3 only. The Anthropic Files API
   is GA; `document` blocks take PDFs up to 32 MB, images by base64, URL or file id.
@@ -277,6 +286,11 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   writes snapshots; an SSE tail is `llm-providers`' (6) open question, so this ticket depends on
   3 alone for the reply and the upload, and on 6 only for assistant attachments and placeholders.
   The visitor cookie is the user cookie of `chat-core`'s `CurrentUser` security.
+- **Inherited from `architecture-audit`.** `make bundle-check` builds `apps/web/app/main.ts` with
+  `bun build` and greps the bundle for service keys ending in `Service`, `Repository`, `Bucket` or
+  `Assistant`. On the new bundler: rebuild its command, clear the output dir before each build,
+  decide whether any `@app-template/(domain|infrastructure)/` key fails it, and run it in CI's
+  `static` job.
 - **Facts (2026-10-17).** `@tanstack/react-start@1.169.3` (router 1.170, Vite ≥ 8, React 19 for
   the Bun preset, `aws_lambda` preset with streaming); `@chakra-ui/react@3.37.0`; Effect v4 atoms
   are `effect/reactivity/*` in core plus `@effect/atom-react@4.0.5` (React ≥ 19 only) with
@@ -314,15 +328,10 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Decided (2026-10-19).** Split from `aws-local` (5); depends on `postgres-drizzle` (4), since
   the deployed processes need a shared database, and on 5, not on 7 or 8.
 - **Decided (2026-10-21).** The applications never check or create their resources: the
-  infrastructure provides them (`aws-local` D5 dropped the startup `verify`). This program also
-  creates the inventory's buckets and queues on MiniStack for `make up`, replacing
-  `deployment/local/provision.ts`; `provision` in `packages/aws` then serves the tests only (each
-  test file creates its own resources in milliseconds, without the Pulumi CLI).
-- **Open questions for its feature phase.** Whether `@pulumi/aws` creates the bucket and the
-  queues on MiniStack (a bucket reads back its ACL, CORS and versioning, which an emulator may not
-  serve): a spike first. Whether the local Pulumi project of `aws-local` (5)
-  (the Docker provider runs MiniStack; there is no compose file) and the AWS program become one
-  project with two stacks; cold starts of `@effect/platform-bun` on Lambda; whether
+  infrastructure provides them (`aws-local` D5 dropped the startup `verify`); `provision` in
+  `packages/aws` serves the tests only (each test file creates its own resources in milliseconds,
+  without the Pulumi CLI).
+- **Open questions for its feature phase.** Cold starts of `@effect/platform-bun` on Lambda; whether
   `pulumi.dynamic.Resource`, unsupported under `runtime: bun`, is ever needed.
 - **Facts (2026-10-17).** Pulumi ≥ 3.227 runs TypeScript under `runtime: bun` (no function
   serialisation, no dynamic providers); CLI 3.270, `@pulumi/aws` 7.51. Bun on Lambda: the official
@@ -331,8 +340,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   non-Python runtimes in Docker, so the emulator mode verifies deployment artefacts; live
   development stays on `bun --watch` against MiniStack's queues and buckets.
 - **Rechecked (2026-10-19).** Pulumi CLI 3.270.0, `@pulumi/aws` 7.51.1. Bun runs the program only
-  under `runtime: bun`; `deployment/Pulumi.yaml` still says `nodejs` with `packagemanager: bun`,
-  which runs it on Node, so its feature phase picks one. Bun's Lambda guide (Lambda Web Adapter
+  under `runtime: bun`, as `deployment/local` runs; the AWS stack has no project file yet. Bun's Lambda guide (Lambda Web Adapter
   1.0.1 in a container; 1.1.0 is current) says nothing about response streaming. `provided.al2023`
   replaces `provided.al2` (deprecated 2026-07-31). Aurora Serverless v2 pauses at 0 ACU and resumes
   in about 15 s; Postgres 18 is on RDS and on Aurora (Serverless v2 from 18.3). App Runner has been
@@ -341,8 +349,15 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   source mappings with `ReportBatchItemFailures` remain the recommended worker pattern.
 - **Inherits from `aws-local` (2026-10-22).** Check on AWS what MiniStack cannot show: the
   `unbound` tag sent with `CreateMultipartUpload` and the lifecycle deletion it drives. Share one
-  AWS client builder between `infrastructure/shared/aws.client.ts` and
-  `deployment/local/provision.ts`, and brand `Stage`.
+  AWS client builder between `infrastructure/shared/aws.client.ts` and the tests' clients, and
+  brand `Stage`.
+- **Inherits from `postgres-drizzle` (2026-10-23).** The bucket with its lifecycle rule, the
+  queues with their dead-letter queues and the RDS instance are already Pulumi resources, created
+  on MiniStack by `deployment/local` (`provision.ts` is gone): `deployment/aws/{provider,database,
+  storage,queue}.ts` take an `aws.Provider`, so the prod stack calls them without an endpoint,
+  with Aurora or RDS settings and a managed password for the database. This ticket adds the
+  migration command for a deployed stage. Locally `make up` sets `VCR_MODE=REPLAY_ONLY` to skip
+  the provider's fixed waits; never on AWS.
 
 ### 10. `client-publishing`
 
@@ -351,9 +366,10 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Scope.** Build and `exports` of `http-api` (types from the `HttpApi` definition; the
   `domain` it imports ships with it); versioning; publishing to GitHub Packages or npm from CI on a tag; a consumer
   smoke test in a scratch project.
-- **Out of scope.** A client for other languages; an SDK generator from the served `/openapi.json`.
-- **Open questions for its feature phase.** Registry; whether the spec is published too;
-  how the client's `effect` dependency is declared for consumers that do not use Effect.
+- **Out of scope.** A client for other languages; an SDK generator, which would need an OpenAPI
+  spec the api does not serve.
+- **Open questions for its feature phase.** Registry; how the client's `effect` dependency is
+  declared for consumers that do not use Effect.
 
 ### 11. `workflow-cluster`
 
@@ -409,6 +425,44 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Facts (2026-10-21).** Rewording four rules without losing a constraint saved 11%; the
   always-loaded project files measured 4.5k tokens by `/context` before `claude-toolkit`.
 - **Status.** Done: [docs/tickets/2026-10-21-1347_toolkit-reading/](../tickets/2026-10-21-1347_toolkit-reading/feature.md).
+
+### 15. `architecture-audit`
+
+- **Goal.** One layering model: domain services and ports in `domain`, use cases only in
+  `application`, handlers in the apps (the worker like the api), tests in `tests/` over memory
+  ports and `e2e/` over the real infrastructure, the architecture language in the
+  glossary.
+- **Status.** In progress:
+  [docs/tickets/2026-10-27-1433_architecture-audit/](../tickets/2026-10-27-1433_architecture-audit/feature.md).
+  Its branch is cut from `feat/postgres-drizzle`; its PR waits for that merge.
+
+### 16. `shared-files`
+
+- **Goal.** A user uploads files to a pool of their own and links them to a message or a chat
+  later, instead of uploading for one message.
+- **Scope.** The pool and the link as domain concepts (the glossary bans "File" for an attachment
+  today, so the words come first); upload, list and delete of pool files; linking at send and to
+  a chat; what the reply reads when a chat has linked files; the `shared-files` migration of
+  today's `attachments` rows.
+- **Out of scope.** Sharing between users; assistant-produced files (`llm-providers`, 6).
+- **Inherits from `architecture-audit` (2026-10-27).** A file lives as long as its owner needs it:
+  no expiry of unlinked files, so the 24-hour unbound lifetime and the `unbound` S3 tag go.
+- **Open questions for its feature phase.** Whether one file may be linked to several messages;
+  whether deleting a chat deletes its linked files or only the links; the quota per user.
+- **Status.** Planned.
+
+### 17. `docs-diet`
+
+- **Goal.** The living docs name concepts and point to one exemplar, as `claude-md.md` binds since
+  `architecture-audit`; the tables and lists written before that rule are trimmed to it.
+- **Scope.** Every `docs/knowledge/` page, rule and `CLAUDE.md`: the file tables of a slice, the
+  lists of a module's exports or class names, the layouts `ls` reproduces. Each becomes the
+  concept and one exemplar, or goes; a code name stays where a rule or a gotcha needs it.
+- **Out of scope.** The ticket folders and the roadmap's history.
+- **Inherits from `architecture-audit` (2026-10-29).** `make doc-names` keeps the names the docs
+  keep true, but not whether a true name restates the code: that judgement is this ticket's. Most
+  review rounds of that ticket's last steps fixed copies of code names gone stale.
+- **Status.** Planned.
 
 ## Re-homing `effect-setup`
 

@@ -3,9 +3,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./attachment": "./attachment/index.ts",
     "./chat": "./chat/index.ts",
-    "./user": "./user/index.ts"
+    "./testing": "./testing/index.ts"
   },
   "imports": {
     "#application/*": "./*.ts"

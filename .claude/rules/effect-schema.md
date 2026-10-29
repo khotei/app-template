@@ -9,9 +9,9 @@ paths:
 
 - Decode untrusted input with a schema, never with hand-written predicates.
 - Put an invariant in the schema whenever a check can state it (`Schema.isTrimmed()`,
-  `Schema.isPattern(…)`, a brand), so the constructor and every decode from the store enforce it.
+  `Schema.isPattern(…)`, a brand), so the constructor and every decode of a row enforce it.
 - Brand with `Schema.brand`, never the `Brand` module: the schema route keeps the check and the
-  brand together, so `make`, the decode from the store and the wire DTO all agree. An id is
+  brand together, so `make`, the row's decode and the wire DTO all agree. An id is
   `Schema.String.check(Schema.isUUID()).pipe(Schema.brand('<Entity>Id'))`; a constrained value a
   port or use case accepts (a file name, a media type, a size) is a brand too, so a plain `string`
   or `number` cannot slip in.
@@ -31,9 +31,9 @@ paths:
 - A domain error is `Schema.TaggedError`, so it decodes at the wire; its HTTP status lives in
   `http-api/CLAUDE.md`. A marker that never leaves its module (a failure carried out of a callback
   for the loop around it) is `Data.TaggedError`.
-- Not-found from storage is a value (`Option`, or an id left out of an array); the application turns
-  it into the domain's `*NotFoundError`.
-- A port declares no error channel: its adapter turns a store failure or a stored value that no
-  longer decodes into a defect, since every caller handles both alike.
+- Not-found from a port is a value (`Option`, or an id left out of an array); the domain service
+  turns it into the domain's `*NotFoundError`.
+- A port declares no error channel: its adapter turns a client's failure or a stored value that
+  no longer decodes into a defect, since every caller handles both alike.
 - A user-facing sentence per failure reason lives in one table keyed by the reason; the cause stays
   in a separate field that never reaches the user.

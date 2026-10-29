@@ -28,6 +28,9 @@ update it.
   *currently binding* constraint: no dates, no superseded chains, no ticket numbers, no tombstones.
 - **No behaviour narration**: no per-function descriptions, signatures or test walkthroughs.
 - **One author per fact**: if another doc states it, link it by name; never restate it.
+- **Name the concept, point to one exemplar** (a folder or a file); never list what `ls` or `grep`
+  reproduces: a slice's files, a module's exports, its class names. A code name stays only where a
+  rule or a gotcha needs it, and `make doc-names` fails on a backticked path or name the repo lacks.
 
 ## Where each kind of fact lives
 
@@ -43,7 +46,7 @@ update it.
 
 Binding decisions plus the rejected alternative (the ones a reader would "fix" back) · invariants
 types cannot express · cross-workspace coupling · non-obvious gotchas (ordering, version quirks) ·
-boundaries (import direction, ownership) · pointers to the file where a surface lives.
+boundaries (import direction, ownership) · one pointer to the file where a surface lives.
 
 Refresh a doc only when a real change lands, inside that change's commit. When in doubt, cut.
 

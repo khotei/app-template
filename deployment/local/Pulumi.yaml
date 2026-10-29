@@ -1,4 +1,4 @@
 name: app-template-local
-description: MiniStack in Docker for the local environment
+description: The local stand, MiniStack in Docker with the database, the bucket and the queues inside it
 runtime: bun
-main: ministack.ts
+main: index.ts

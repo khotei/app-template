@@ -1,20 +1,26 @@
 import { fileURLToPath } from 'node:url'
 
 import * as docker from '@pulumi/docker'
-import { Effect, Option } from 'effect'
+import { Option } from 'effect'
 
 import { projectName } from '@app-template/aws'
-import { AwsConfig, ministackImage } from '@app-template/config'
+import { ministackImage } from '@app-template/config'
+
+import { settings } from '#deployment/local/settings'
 
 const internalPort = 4566
 /**
  * The host port is the one in `AWS_ENDPOINT_URL`, and the container is named after it, so a
  * worktree's MiniStack runs beside the main tree's without sharing a port, a name or a state.
+ * The Makefile rebuilds the name (`NAME_MINISTACK`); change both together.
  */
-const { region, endpoint } = Effect.runSync(Effect.provide(AwsConfig, AwsConfig.layer))
-const endpointUrl = Option.getOrThrowWith(
-  Option.filter(endpoint, (url) => url.port !== ''),
-  () => new Error('AWS_ENDPOINT_URL must name MiniStack with a port, as http://localhost:4566'),
+const { region, endpoint } = settings.aws
+const isPortSet = (url: URL) => url.port !== ''
+const endpointUrl = endpoint.pipe(
+  Option.filter(isPortSet),
+  Option.getOrThrowWith(
+    () => new Error('AWS_ENDPOINT_URL must name MiniStack with a port, as http://localhost:4566'),
+  ),
 )
 const port = Number(endpointUrl.port)
 const dataDir = fileURLToPath(new URL('../../.data/ministack', import.meta.url))
@@ -24,7 +30,7 @@ const remoteImage = new docker.RemoteImage('ministack-image', {
   keepLocally: true,
 })
 
-new docker.Container(
+export const ministack = new docker.Container(
   'ministack',
   {
     name: `${projectName}-ministack-${port}`,
@@ -36,8 +42,15 @@ new docker.Container(
       'STATE_DIR=/data/state',
       'S3_PERSIST=1',
       'S3_DATA_DIR=/data/s3',
+      // RDS instances run as containers on the host's Docker; their data in a named volume.
+      'MINISTACK_RDS_PUBLIC_ENDPOINT=1',
+      'RDS_PERSIST=1',
+      `RDS_BASE_PORT=${settings.ministack.rdsBasePort}`,
     ],
-    volumes: [{ hostPath: dataDir, containerPath: '/data' }],
+    volumes: [
+      { hostPath: dataDir, containerPath: '/data' },
+      { hostPath: '/var/run/docker.sock', containerPath: '/var/run/docker.sock' },
+    ],
     healthcheck: {
       tests: [
         'CMD',

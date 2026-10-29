@@ -13,13 +13,17 @@ steps only conform to the plan. Gates: `.claude/rules/sdd.md`.
 1. Read `feature.md` and `architecture.md`.
 2. Cut the work into **vertical slices**, each one commit that leaves `make check` green and fits
    one fresh implementer session (≤ ~400 changed lines, lockfiles excluded).
-3. Write `plan.md` from `docs/tickets/_template/plan.md`. Every step has:
+3. Write `plan.md` from `docs/tickets/_template/plan.md`, opening with its **Status** table, one
+   row per step. Every step has:
+   - **Delivers**: what exists or behaves differently once it lands, in plain words, no ids;
    - **Goal** with the `R…` and `D…` ids it serves;
    - **Blocked by:** the steps it needs, or `none`. Steps without a path between them are
      independent;
    - **Files**;
    - **Test first**: the Seam from `architecture.md` and the behaviour to see red, or `config only`;
    - **Verify**: commands and manual checks;
+   - **Model**: `opus medium` for a move, rename or config step, `fable high` for a step that
+     writes behaviour; `/ticket-implement` spawns the implementer on it;
    - **Status:** `todo`.
    A step that writes or rewrites a `docs/knowledge/` page also trims, in the same step, every
    rule and `CLAUDE.md` line that restates it.

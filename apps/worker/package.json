@@ -2,20 +2,29 @@
   "name": "@app-template/worker",
   "private": true,
   "type": "module",
+  "exports": {
+    "./layer": "./layer.ts"
+  },
   "imports": {
-    "#worker/*": "./src/*.ts"
+    "#worker/*": "./*.ts"
   },
   "scripts": {
-    "dev": "bun --env-file=../../.env --watch src/main.ts",
-    "debug": "bun --env-file=../../.env --inspect --watch src/main.ts",
-    "start": "bun --env-file=../../.env src/main.ts"
+    "dev": "bun --env-file=../../.env --env-file=../../.env.pulumi --watch main.ts",
+    "debug": "bun --env-file=../../.env --env-file=../../.env.pulumi --inspect --watch main.ts",
+    "start": "bun --env-file=../../.env --env-file=../../.env.pulumi main.ts"
   },
   "dependencies": {
     "@app-template/application": "workspace:*",
     "@app-template/config": "workspace:*",
+    "@app-template/domain": "workspace:*",
     "@app-template/infrastructure": "workspace:*",
     "@app-template/llm": "workspace:*",
+    "@app-template/queue": "workspace:*",
     "@effect/platform-bun": "catalog:effect",
     "effect": "catalog:effect"
+  },
+  "devDependencies": {
+    "@app-template/testing": "workspace:*",
+    "@effect/vitest": "catalog:effect"
   }
 }

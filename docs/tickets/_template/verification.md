@@ -35,6 +35,9 @@
 <Mistakes that recurred in two or more steps. Each proposes one change, applied only on the user's
 OK.>
 
-| Lesson | Evidence | Proposed change | Applied |
-|---|---|---|---|
-| <what went wrong> | <steps or review rounds> | <one line in a named skill or rule, or a check> | no |
+#### L1 — <what went wrong, in one line>
+
+- **Evidence:** <the steps, review rounds or feedback where it recurred>.
+- **Cost:** <what it caused: rounds, time, a wrong result>.
+- **Proposed change:** <one line in a named skill or rule, or a mechanical check>.
+- **Applied:** no

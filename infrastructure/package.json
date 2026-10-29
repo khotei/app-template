@@ -4,10 +4,12 @@
   "type": "module",
   "exports": {
     "./shared": "./shared/index.ts",
-    "./kv": "./kv/index.ts",
+    "./db": "./db/index.ts",
     "./user": "./user/index.ts",
     "./chat": "./chat/index.ts",
-    "./attachment": "./attachment/index.ts"
+    "./attachment": "./attachment/index.ts",
+    "./outbox": "./outbox/index.ts",
+    "./testing": "./testing/index.ts"
   },
   "imports": {
     "#infrastructure/*": "./*.ts"
@@ -17,13 +19,20 @@
     "@app-template/config": "workspace:*",
     "@app-template/domain": "workspace:*",
     "@app-template/queue": "workspace:*",
+    "@app-template/s3": "workspace:*",
     "@effect-aws/client-s3": "catalog:effect-aws",
     "@effect-aws/client-sqs": "catalog:effect-aws",
+    "@effect/platform-bun": "catalog:effect",
+    "@effect/sql-pg": "catalog:effect",
+    "drizzle-orm": "catalog:drizzle",
     "effect": "catalog:effect"
   },
   "devDependencies": {
     "@app-template/testing": "workspace:*",
-    "@effect/platform-bun": "catalog:effect",
-    "@effect/vitest": "catalog:effect"
+    "@effect/vitest": "catalog:effect",
+    "@testcontainers/postgresql": "catalog:runtime",
+    "drizzle-kit": "catalog:drizzle",
+    "testcontainers": "catalog:runtime",
+    "vitest": "catalog:tools"
   }
 }

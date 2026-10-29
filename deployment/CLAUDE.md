@@ -1,8 +1,12 @@
 # deployment
 
-Two Pulumi projects: `local/` runs MiniStack in Docker for `make up` (live), and `aws/` is the
-AWS infrastructure (a typed stub until the deploy ticket lands; it imports no `@pulumi/*` yet).
-How the local one runs: `docs/knowledge/aws.md › The local stand-in`.
+`local/` is the Pulumi program of `make up`: MiniStack in Docker, and inside it the resources of
+`aws/`. `aws/` holds the resource code as functions of an `aws.Provider` (the database, the
+bucket, the queues), so an AWS stack calls the same code; its other files are stubs until the
+deploy ticket lands. How it runs: `docs/knowledge/aws.md › The local stand-in`.
+
+- Never run `pulumi destroy` or `up --refresh` on the local stack; `make down` and `make reset`
+  work through Docker (why: `docs/knowledge/aws.md › The local stand-in`).
 
 - May import `packages/*` only; never a layer or an app.
 - Resource names come from `@app-template/aws` (`buildResourceName`,

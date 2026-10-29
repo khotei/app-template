@@ -8,7 +8,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!bun.lock", "!repos"]
+    "includes": ["**", "!bun.lock", "!repos", "!infrastructure/db/migrations"]
   },
   "formatter": {
     "enabled": true,
@@ -99,7 +99,7 @@
       }
     },
     {
-      "includes": ["domain/**/*.test.ts"],
+      "includes": ["domain/testing/**"],
       "linter": {
         "rules": {
           "style": {
@@ -116,7 +116,40 @@
                       "!@effect/vitest",
                       "!@effect/vitest/**"
                     ],
-                    "message": "domain tests import no workspace but the test support @app-template/testing, and no @effect/* package except the test runner @effect/vitest"
+                    "message": "domain test support imports no workspace but @app-template/testing, and no @effect/* package except the test runner @effect/vitest"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["domain/tests/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/**",
+                      "!@app-template/testing",
+                      "!@app-template/testing/**",
+                      "@effect/**",
+                      "!@effect/vitest",
+                      "!@effect/vitest/**",
+                      "!@effect/platform-bun",
+                      "!@effect/platform-bun/**"
+                    ],
+                    "message": "domain tests import no workspace but @app-template/testing, and no @effect/* package except the test runner @effect/vitest and @effect/platform-bun for BunCrypto.layer"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -366,7 +399,7 @@
       }
     },
     {
-      "includes": ["apps/web/src/main.ts"],
+      "includes": ["apps/web/main.ts"],
       "linter": {
         "rules": {
           "style": {

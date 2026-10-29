@@ -7,30 +7,36 @@ them. Versions: Bun 1.4.3, TypeScript 7.0.2, Biome 2.5.15, husky 9.1.7, vitest 5
 ## Commands
 
 Everything runs through the root `Makefile` (GNU Make 3.81, the macOS default). There is no
-`Makefile` in any workspace. Beyond Bun, two tools are prerequisites: Docker, for `make test` and
-`make up`, and the Pulumi CLI, for `make up`, `down` and `reset`; `make check` needs only Docker,
-and `make setup` needs neither.
+`Makefile` in any workspace. Beyond Bun, two tools are prerequisites: Docker, for `make test-e2e`
+and `make up`, and the Pulumi CLI, for `make up`; `make check` needs only Docker,
+and `make setup` and `make test-unit` need neither.
 
 | Target | Runs | Use |
 |---|---|---|
 | `make setup` | `bun install`, then copies `.env.example` to `.env` if missing | first clone; installs the git hooks too; needs no Pulumi CLI |
-| `make stack` | `pulumi login` to the file backend under `.data/pulumi`, `stack select local` or `init` | idempotent; `up` and `down` run it first |
-| `make up` · `down` · `reset` | `pulumi up` / `destroy` on `deployment/local/`, then `deployment/local/provision.ts` | MiniStack for S3 and SQS: [aws.md › The local stand-in](aws.md#the-local-stand-in) |
+| `make stack` | `stack select local` or `init` on the tree's file backend under `.data/pulumi` | idempotent; `up` runs it first |
+| `make up` · `down` · `reset` | `pulumi up` on `deployment/local/`, `.env.pulumi`, `make migrate` · `docker stop` · `docker rm -f`, `rm -rf .data` | MiniStack with the database, the bucket and the queues: [aws.md › The local stand-in](aws.md#the-local-stand-in) |
 | `make dev` | `bun --filter './apps/*' dev` | all three processes, interleaved output |
 | `make dev-api` · `dev-worker` · `dev-web` | one app's `dev` script | one process |
 | `make debug-api` · `debug-worker` · `debug-web` | one app's `debug` script | the same mode plus `--inspect` |
-| `make check` | `ids`, `lint`, `typecheck`, `test` | the gate before every commit and step report |
+| `make check` | `ids`, `doc-names`, `lint`, `typecheck`, `migration-check`, `test`, `bundle-check` | the gate before every commit and step report |
 | `make ids` | `git grep` for ticket ids in parentheses outside `docs/tickets/` and `repos/` | a new project deletes the ticket, so an id elsewhere points nowhere |
+| `make doc-names` | `git grep` for the backticked repo paths and two-word capitalised names in the `CLAUDE.md` files, the rules and `docs/knowledge/`, then a lookup of each in the tree and in every file but Markdown, `repos/` included | a doc that still names a moved file or a renamed class fails the gate; what it skips and why: the comments above the target |
 | `make lint` | `biome check` | lint, format and import order, without writing |
 | `make fmt` | `biome check --write` | apply formatting, import sorting and safe fixes |
 | `make typecheck` | `bunx tsc -b`, the patched `tsc` | typecheck every workspace through the project references, Effect diagnostics included |
-| `make test` | `bun run test`, which is `bun --bun vitest run` | every colocated `*.test.ts`; the AWS suites need a running Docker daemon ([aws.md › Tests on Docker](aws.md#tests-on-docker)) |
+| `make migrate` · `migration NAME=<name>` · `migration-check` | `migrate`: `bun --env-file=.env infrastructure/db/migrate.ts`; `migration` and `migration-check`: `bunx drizzle-kit generate` in `infrastructure/` | apply, generate and check migrations: [database.md › Migrations](database.md#migrations) |
+| `make test-unit` | `bun --bun vitest run --project unit` | every `tests/**/*.test.ts`; no Docker ([Tests](#tests)) |
+| `make test-e2e` | `bun --bun vitest run --project e2e` | every `e2e/**/*.e2e.ts`; needs a running Docker daemon for the run's own Postgres and MiniStack containers ([Tests](#tests)) |
+| `make test` | `test-unit`, then `test-e2e` | both projects |
+| `make bundle-check` | `bun build` of the web entry into `node_modules/.cache/web-bundle`, then a negated `grep` for the domain and infrastructure service keys | fails when a service, port or adapter reaches the browser: [architecture.md › Boundary guards](architecture.md#boundary-guards) |
 | `make outdated` | `bun outdated --recursive` | newer versions for every workspace |
 | `make vendor-effect` | `git subtree pull --squash --prefix repos/effect` of the `effect@<pin>` tag | update `repos/effect` to the catalog pin; it commits, so run it on a clean tree. First time: `git subtree add` with the same arguments |
+| `make vendor-drizzle` | `git subtree add`, then `pull`, `--squash --prefix repos/drizzle` of the `v<pin>` tag of `drizzle-orm` | the same for `repos/drizzle`: the whole Drizzle monorepo, since `git subtree` takes no subfolder; the source is under `repos/drizzle/drizzle-orm/src` |
 | `make clean` | removes every `node_modules` and `coverage` | a clean reinstall: follow with `make setup` |
 
-`bun run test` runs the root `test` script, while `bun test` would start Bun's own test runner,
-which is denied in `.claude/settings.json`.
+The root `test` script, `bun --bun vitest run`, runs both projects at once (CI's `bun run test`);
+`bun test` would instead start Bun's own test runner, which is denied in `.claude/settings.json`.
 
 Scripts live only where `make` calls them: the root `package.json` holds `prepare`, `lint`,
 `format` and `test`; each app holds `dev`, `debug` and `start`; library workspaces hold none.
@@ -41,9 +47,50 @@ Tests run on vitest 5, on the Bun runtime (`bun --bun`), so `Bun.serve` and the 
 inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`, `it.layer`,
 `TestClock`) needs vitest.
 
-- **One root `vitest.config.ts`**, which only adds `repos/**` to the default exclude: every
-  colocated `*.test.ts` runs, a new workspace needs no test config, and Effect's own suites stay
-  out.
+- **Unit and e2e: only our code is under test.** A unit test runs our domain services, use cases
+  and handlers and needs no process outside vitest. An e2e test proves an adapter, a use case's
+  transaction or the journey on the run's containers; among them is the queue's own suite, which
+  tests our retry, heartbeat and dead-letter logic and takes most of a run's time with SQS's real
+  delays. Which test goes where and what it runs on:
+  [effect-tests.md › Unit and e2e](../../.claude/rules/effect-tests.md#unit-and-e2e).
+- **One root `vitest.config.ts`, two projects,** chosen by `--project`: `unit` runs
+  `tests/**/*.test.ts`; `e2e` runs `e2e/**/*.e2e.ts`, on Docker, and alone has the
+  `globalSetup`. Both sit at the top of their workspace and mirror the source path. Each project
+  lists the shared `exclude` (`repos/**` and `.claude/worktrees/**` added to the default) and
+  `sequence` itself, and the root sets no `globalSetup`, so a unit run starts no container. A new
+  workspace needs no test config, and the vendored suites and the worktrees' copies stay out.
+- **One Postgres and one MiniStack per e2e run, a database and a stage per test.**
+  `infrastructure/testing/e2e.test-setup.ts` starts one `postgres:18.6-alpine` container (about
+  1.2 s) and migrates a template database in it with the program `make migrate` runs, and one
+  MiniStack container beside it (about two seconds for both). Each test provides `PgClientTest`
+  from `@app-template/testing`: a fresh database copied from the template and dropped when the
+  test ends, about 40 ms in all; a test on S3 or SQS provides `AwsTest` from
+  `infrastructure/testing/aws.test-layer.ts`: a stage of its own on the run's MiniStack, its
+  bucket and queues provisioned ([aws.md › Tests on Docker](aws.md#tests-on-docker)). A test
+  therefore sees only its own rows and resources, even through a query that reads a whole table,
+  and files run in parallel. E2e tests need Docker and nothing else: no `.env`, no `make up`.
+- **Two worktrees at once.** Testcontainers maps each container to a free host port and names it
+  itself, so two trees run `make test-e2e` side by side, and beside their local stands, with
+  nothing to configure; a unit run starts nothing at all.
+- **The journey, in the root `e2e` workspace.** `e2e/chat.e2e.ts` drives a user, a chat, an upload
+  and a send over HTTP and reads the reply and the title back once the worker has written them:
+  `StandTest` (`e2e/testing/stand.test-layer.ts`) runs `ApiLayer` and `WorkerLayer`, which the
+  apps export as `./layer`, in the test's own runtime over a `PgClientTest` database, an
+  `AwsTest` stage and the model stub, under one `ConfigProvider` that names them, so the apps'
+  own adapters and config code are the ones under test. The api takes a free port the layer
+  finds, since `Config.Port` refuses `0`, so two runs share nothing. The apps' SDK clients read
+  credentials from the environment, which the `e2e` project sets to the fixed test pair MiniStack
+  accepts. The journey proves the wiring; every rule keeps its lower seam.
+- **Concurrent within a file.** Both projects set `sequence: { concurrent: true }`; since every
+  test owns its database and its stage, nothing is shared between tests. The journey's file opts
+  out, since its tests share one stand and read its outbox whole.
+- **Time.** `it.effect` provides a fresh `TestClock` per test, so time stands still unless the
+  test moves it; `it.live` runs on the real clock. `@effect/vitest`'s `layer(…)` instead builds
+  one `TestClock` for its whole block, so under concurrency one test's `adjust` would move its
+  neighbours' time. `PgClientTest` gives its pool the live clock in any case: the pool reads
+  `Clock` once when it is built, and a `TestClock` there stalls every statement.
+- **A plainer test, not a helper.** Test support is code to maintain that hides what a test
+  checks, so a small problem in a test is solved by a plainer test, not by a helper.
 - **Output.** vitest switches to its `minimal` reporter when it detects an agent (`CLAUDECODE`,
   `AI_AGENT`): failures and a summary only. A terminal without them gets the per-file `default`
   reporter; `bun run test --reporter=default` forces it.
@@ -88,13 +135,13 @@ only the new interval ran.
 
 That is why the worker uses `--watch`: its queue consumers are fibers of an Effect runtime, and
 under `--hot` every edit would start a second runtime, and a second consumer of each queue, beside
-the old one. A re-exec leaves nothing to stop, so `apps/worker/src/main.ts` is one `runMain` and the
+the old one. A re-exec leaves nothing to stop, so `apps/worker/main.ts` is one `runMain` and the
 scope's finalizers (SIGTERM hands back the job in hand and logs `worker stopped`) are the whole
 shutdown; an edit runs the same finalizers before the re-exec, so the old runtime logs `worker
 stopped` ([aws.md › Queues](aws.md#queues)). `Bun.serve` handles
 `--hot` natively by swapping its routes, so `api` and `web` keep the faster reload. An Effect
 runtime does not: each edit re-evaluates `effect` itself and starts a new `runMain` beside the old
-one, whose scope, fibers and finalizers live on. So `apps/api/src/main.ts` keeps a stop handle on
+one, whose scope, fibers and finalizers live on. So `apps/api/main.ts` keeps a stop handle on
 `globalThis` (the one thing a reload keeps): each evaluation first stops the previous runtime and
 waits for its finalizers, then launches its own. Checked with a probe layer that ticked every
 second: without the handle, two edits left three tickers and SIGTERM ran three finalizers; with it,
@@ -107,34 +154,41 @@ server's `Bun.serve({ development })`.
 ### Worktrees
 
 A worktree is a full copy of the environment, so trees run `make up` and `make dev` side by side.
-Each gets a number `N`, the main tree 0, and owns its `node_modules` (`bun install`), `.data/`,
-`.pulumi/` and MiniStack container; its `.env` is the main tree's with three ports moved:
+Each gets a number `N`, the main tree 0, and owns its `node_modules` (`bun install`), `.data/`
+(with the Pulumi state), MiniStack container and database container. It shares only the Pulumi
+provider plugins, the main tree's `.pulumi/`, which never change once installed. Its `.env` is
+the main tree's with four ports and the stage moved, since MiniStack names the database's
+container and volume after the stage:
 
-| Variable | Port | Main tree | `N=1` |
+| Variable | Value | Main tree | `N=1` |
 |---|---|---|---|
 | `API_PORT` | `3000 + 10N` | 3000 | 3010 |
 | `WEB_PORT` | `3001 + 10N` | 3001 | 3011 |
 | `AWS_ENDPOINT_URL` | `4566 + 10N` | 4566 | 4576 |
+| `RDS_BASE_PORT` | `15432 + 10N` | 15432 | 15442 |
+| `STAGE` | `local<N>` | `local` | `local1` |
 
 The commands that write it:
 [`ticket-implement` › Parallel steps](../../.claude/skills/ticket-implement/SKILL.md#parallel-steps).
-Run `make down` in a worktree before it is removed, or its container outlives it and keeps the
-port.
+Run `make reset` in a worktree before it is removed, or its containers outlive it and keep their
+ports, and the database's volume stays.
 
 ## Environment
 
-- **One root `.env`**, gitignored. `.env.example` is its template and lists what the code reads,
-  plus the variables a client SDK reads from the environment itself: the AWS SDK's default
-  provider chain takes `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` locally and the role on AWS,
-  whose session token rotates, so credentials never pass through `@app-template/config`
+- **One root `.env`**, gitignored, written by hand; beside it `make up` writes `.env.pulumi`, the
+  stack's outputs (`DATABASE_URL`). `.env.example` is the template of `.env` and lists what the code
+  reads from it, plus the variables a client SDK reads from the environment itself: the AWS SDK's
+  default provider chain takes `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` locally and the role
+  on AWS, whose session token rotates, so credentials never pass through `@app-template/config`
   ([aws.md](aws.md#the-local-stand-in)). Variables of clients that are still stubs stay commented
   out.
 - **Quoting.** Strings are double-quoted (`LOG_LEVEL="Info"`), numbers are bare (`API_PORT=3000`).
-- **Loading.** Each app script passes `--env-file=../../.env`, a path relative to the app folder.
-  This works from `make` at the root and from `bun run dev` inside the app. The one exception is
-  `make up`: Pulumi starts `deployment/local/ministack.ts` itself, so no `--env-file` reaches it,
-  and the recipe loads `.env` into the shell's environment instead. The shell reads the file as
-  its own syntax, so a value with a space must be quoted.
+- **Loading.** Each app script passes `--env-file=../../.env --env-file=../../.env.pulumi`, paths
+  relative to the app folder, and `make migrate` the same two files; the second wins, and Bun
+  skips a missing one. This works from `make` at the root and from `bun run dev` inside the app.
+  The one exception is `make up`: Pulumi starts `deployment/local/index.ts` itself, so no
+  `--env-file` reaches it, and the recipe loads `.env` into the shell's environment instead. The
+  shell reads the file as its own syntax, so a value with a space must be quoted.
 - **A missing `.env`** is ignored by Bun without a warning. The process then fails at startup while
   building a config layer, with Effect's `ConfigError` naming the first missing or invalid
   variable. Variables exported in the shell work without a file, which is how CI runs.
@@ -152,8 +206,8 @@ Workspaces reference it as `catalog:<namespace>`; the unnamed `catalog:` is not 
 | Namespace | Holds | Today |
 |---|---|---|
 | `tools` | developer-workflow tools that never shape types or runtime behaviour | `@biomejs/biome`, `husky`, `vitest` |
-| `runtime` | everything else, including the runtime the code targets | `@types/bun`, `testcontainers` |
-| one per family | a release train, or a core and the plugins that pin it as a range | `typescript`: `typescript`, `@effect/tsgo` (it embeds one TypeScript version) · `effect`: `effect`, `@effect/*` · `effect-aws`: `@effect-aws/*` (one release train over the AWS SDK; it pins the SDK as a range, so the lockfile holds the SDK version) · `pulumi`: `@pulumi/pulumi` and the providers that pin it as a range (`@pulumi/docker`) |
+| `runtime` | everything else, including the runtime the code targets | `@types/bun`, `testcontainers`, `@testcontainers/postgresql`, `type-fest` |
+| one per family | a release train, or a core and the plugins that pin it as a range | `typescript`: `typescript`, `@effect/tsgo` (it embeds one TypeScript version) · `effect`: `effect`, `@effect/*` · `effect-aws`: `@effect-aws/*` (one release train over the AWS SDK; it pins the SDK as a range, so the lockfile holds the SDK version) · `pulumi`: `@pulumi/pulumi` and the providers that pin it as a range (`@pulumi/docker`) · `drizzle`: `drizzle-orm` and `drizzle-kit` (`drizzle-kit` peers the orm at the same rc, and it shapes the migrations, so it is not a `tools` entry) |
 
 `bunfig.toml` sets `exact = true`, so `bun add` writes `1.2.3`, never `^1.2.3`.
 
@@ -189,7 +243,7 @@ its sources either way.
 
 A new `packages/*` workspace needs no change to the layer guards, because they are deny-lists. A
 new layer or app needs its own `overrides` entry in `biome.json`; see
-[architecture.md › Three boundary guards](architecture.md#three-boundary-guards) for what each
+[architecture.md › Boundary guards](architecture.md#boundary-guards) for what each
 entry repeats.
 
 ### Upgrade versions
@@ -197,8 +251,9 @@ entry repeats.
 1. `make outdated` lists what is behind.
 2. Edit the version in the root `catalogs`. It is the only place a version lives.
 3. Run `bun install`, then `make check`, and commit `package.json` with `bun.lock`.
-4. After an `effect` catalog bump, run `make vendor-effect` on the now clean tree. `git subtree`
-   refuses any uncommitted change, so the bump and the vendoring are two commits of the same PR.
+4. After an `effect` or `drizzle` catalog bump, run `make vendor-effect` or `make vendor-drizzle`
+   on the now clean tree. `git subtree` refuses any uncommitted change, so the bump and the
+   vendoring are two commits of the same PR.
    Copy the squash commit's `git-subtree-dir:` and `git-subtree-split:` trailers into the PR body,
    outside its HTML comment: the squash merge drops them, and the next pull needs them.
 
@@ -245,9 +300,9 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 
 | Job | Runs |
 |---|---|
-| `static` | `bun install --frozen-lockfile`, `biome ci`, `tsc --version \| grep effect-tsgo`, `make typecheck` |
+| `static` | `bun install --frozen-lockfile`, `biome ci`, `tsc --version \| grep effect-tsgo`, `make typecheck`, `make migration-check`, `make bundle-check` |
 | `test` | `bun install --frozen-lockfile`, `bun run test` |
-| `links` | `make ids`, then `lychee --offline` on `README.md`, `docs/**/*.md` and `.claude/**/*.md` |
+| `links` | `make ids`, `make doc-names`, then `lychee --offline` on `README.md`, `docs/**/*.md` and `.claude/**/*.md` |
 
 `static` and `test` run on two Bun versions: `pinned` (from `packageManager`) blocks the merge, and
 `latest` only reports. The link check keeps relative links between documents from rotting.

@@ -12,9 +12,5 @@
     "@effect-aws/client-s3": "catalog:effect-aws",
     "@effect-aws/client-sqs": "catalog:effect-aws",
     "effect": "catalog:effect"
-  },
-  "devDependencies": {
-    "@app-template/testing": "workspace:*",
-    "@effect/vitest": "catalog:effect"
   }
 }
