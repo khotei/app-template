@@ -51,6 +51,7 @@ graph LR
 | 14 | [`toolkit-reading`](#14-toolkit-reading) | `chore` | 2 | done: [docs/tickets/2026-10-21-1347_toolkit-reading/](../tickets/2026-10-21-1347_toolkit-reading/feature.md) |
 | 15 | [`architecture-audit`](#15-architecture-audit) | `refactor` | 4 | in progress: [docs/tickets/2026-10-27-1433_architecture-audit/](../tickets/2026-10-27-1433_architecture-audit/feature.md) |
 | 16 | [`shared-files`](#16-shared-files) | `feat` | 15 | planned |
+| 17 | [`docs-diet`](#17-docs-diet) | `docs` | 15 | planned |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; its remaining work is re-homed
 in [Re-homing `effect-setup`](#re-homing-effect-setup).
@@ -448,6 +449,19 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   no expiry of unlinked files, so the 24-hour unbound lifetime and the `unbound` S3 tag go.
 - **Open questions for its feature phase.** Whether one file may be linked to several messages;
   whether deleting a chat deletes its linked files or only the links; the quota per user.
+- **Status.** Planned.
+
+### 17. `docs-diet`
+
+- **Goal.** The living docs name concepts and point to one exemplar, as `claude-md.md` binds since
+  `architecture-audit`; the tables and lists written before that rule are trimmed to it.
+- **Scope.** Every `docs/knowledge/` page, rule and `CLAUDE.md`: the file tables of a slice, the
+  lists of a module's exports or class names, the layouts `ls` reproduces. Each becomes the
+  concept and one exemplar, or goes; a code name stays where a rule or a gotcha needs it.
+- **Out of scope.** The ticket folders and the roadmap's history.
+- **Inherits from `architecture-audit` (2026-10-29).** `make doc-names` keeps the names the docs
+  keep true, but not whether a true name restates the code: that judgement is this ticket's. Most
+  review rounds of that ticket's last steps fixed copies of code names gone stale.
 - **Status.** Planned.
 
 ## Re-homing `effect-setup`

@@ -3,8 +3,8 @@
 .DEFAULT_GOAL := help
 
 .PHONY: help setup stack up down reset dev dev-api dev-worker dev-web debug-api debug-worker \
-  debug-web check ids lint fmt typecheck test test-unit test-e2e bundle-check clean outdated \
-  vendor-effect vendor-drizzle migrate migration migration-check
+  debug-web check ids doc-names lint fmt typecheck test test-unit test-e2e bundle-check clean \
+  outdated vendor-effect vendor-drizzle migrate migration migration-check
 
 # The local Pulumi project: each tree's file backend under its .data/, named per command, so no
 # login is stored; the home (the provider plugins) is the main tree's .pulumi/, shared by every
@@ -104,12 +104,39 @@ debug-worker: ## Run the worker with --inspect and --watch
 debug-web: ## Run the web dev server with --inspect
 	bun --filter @app-template/web debug
 
-check: ids lint typecheck migration-check test bundle-check ## Run every gate: ids, lint, types, migrations, tests, the web bundle
+check: ids doc-names lint typecheck migration-check test bundle-check ## Run every gate: ids, doc names, lint, types, migrations, tests, the web bundle
 
 ids: ## Fail on ticket ids in parentheses (D12, R3, Q70) outside docs/tickets
 	@if git grep --untracked -nE '\((D|R|Q)[0-9]+[a-z]?\)' -- . ':!docs/tickets' \
 		':!.github/PULL_REQUEST_example.md' ':!repos'; then \
 		echo 'Ticket ids belong in docs/tickets/ and commit messages, not in code, config or docs.'; \
+		exit 1; \
+	fi
+
+# The docs whose names doc-names keeps true; the roadmap plans files and names not built yet.
+DOC_NAMES_IN = CLAUDE.md '*/CLAUDE.md' '.claude/rules/*.md' 'docs/knowledge/*.md' ':!repos' \
+  ':!docs/knowledge/roadmap.md'
+# Named on purpose, absent on purpose: the paths the docs forbid, S3 operations, a naming example.
+DOC_NAMES_ABSENT = docs/adr/ docs/superpowers/ .claude/commands/ CreateMultipartUpload GetObject \
+  FundsTransfer
+DOC_NAMES_KNOWN = node_modules/.cache/doc-names-known
+PASCAL = [A-Z][a-z0-9]+([A-Z][a-z0-9]*)+
+
+# A path is a span that starts at a tracked top-level entry and holds no placeholder, glob or
+# space; a name is a PascalCase word of two parts or more, a dotted one checked by its head. The
+# code is every file but Markdown, repos/ included, so a library's own names pass.
+doc-names: ## Fail on a backticked path or PascalCase name in the docs that the repo lacks
+	@mkdir -p $(dir $(DOC_NAMES_KNOWN))
+	@{ git grep --untracked -ohwE '$(PASCAL)' -- ':!*.md'; printf '%s\n' $(DOC_NAMES_ABSENT); } \
+		| sort -u > $(DOC_NAMES_KNOWN)
+	@top=$$(git ls-files | cut -d/ -f1 | sort -u | sed 's/[.]/[.]/g' | paste -sd '|' -); \
+	if git grep --untracked -noE -e '`[^`]+`' --and --not -e '_Avoid_' -- $(DOC_NAMES_IN) \
+		| tr -d '`' | sed -E -e 's/ › .*//' -e 's/^([^:]+:[0-9]+:$(PASCAL))[.].*/\1/' \
+		| grep -E "^[^:]+:[0-9]+:(($$top)(/[A-Za-z0-9._-]+)*/?|$(PASCAL))$$" \
+		| while IFS=: read -r file line name; do \
+			[ -e "$$name" ] || grep -qxF "$$name" $(DOC_NAMES_KNOWN) || echo "$$file:$$line: $$name"; \
+		done | grep .; then \
+		echo 'The docs name a path or a code name the repo lacks: fix the name, or cut it.'; \
 		exit 1; \
 	fi
 

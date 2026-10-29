@@ -1108,6 +1108,41 @@
     link, a fixture's file, a file table); a rule against restating code in the docs and a
     check of the names they keep are left to `/ticket-verify` as lessons.
 
+#### S25 — The docs name concepts, and a check keeps their names true
+
+- **Goal:** the docs stop copying the code, and the names they keep are checked by `make check`
+  (R21; S24's finding: most review rounds fixed stale copies of code names).
+  - **The rule** (`.claude/rules/claude-md.md`): a `docs/knowledge/` page, a rule or a
+    `CLAUDE.md` names a concept and points to one exemplar (a folder or a file), and never lists
+    what `ls` or `grep` reproduces: the files of a slice, a module's exports, its class names. A
+    code name stays only where a rule or a gotcha needs it.
+  - **The check** (`make doc-names`, in `make check`): every backticked repo path in
+    `**/CLAUDE.md`, `.claude/rules/*.md` and `docs/knowledge/*.md` exists, and every backticked
+    PascalCase identifier occurs in the code; `docs/tickets/`, the roadmap (it plans files not
+    built yet and keeps the history) and the glossary's `_Avoid_` lines are left out. The names it finds stale now are fixed or cut.
+  - **The trim** of the existing tables and lists goes to a roadmap entry `docs-diet`, not here.
+- **Blocked by:** S24.
+- **Files:** `.claude/rules/claude-md.md`; `Makefile` (`doc-names`, added to `check`), with a
+  script beside it only if the shell grows unreadable; `docs/knowledge/tooling.md › Commands`
+  (the target's row); `docs/knowledge/roadmap.md` (the `docs-diet` entry); the docs whose stale
+  names the check reports.
+- **Test first:** a probe: rename a path in a doc to one that does not exist and see
+  `make doc-names` fail naming the file and the line, then restore it.
+- **Verify:** `make doc-names`; `make ids`; `make check`.
+- **Model:** opus high
+- **Status:** done
+- **Findings:**
+  - The first run found one stale name: `http-api/CLAUDE.md` showed a `DomainError` class the
+    code lacks; it shows `ChatNotFoundError` now.
+  - Names are looked up in every file that is not Markdown, `repos/` included, so library
+    names pass with no list; a stale name of ours passes when a library holds the same word.
+    Paths count only when they start at a tracked top-level entry, so a missing root file
+    (`Makefile.gone`) is not seen. Names the docs cite on purpose sit in `DOC_NAMES_ABSENT`.
+  - The whole roadmap is left out, not only its history: its planned entries name what is not
+    built yet.
+  - CI does not run it: the `links` job runs `make ids` alone and the tests run without
+    `make check`. Left for `/ticket-verify`.
+
 ## Requirement coverage
 
 | Req | Steps |
@@ -1132,7 +1167,7 @@
 | R18 | S2, S18, S19, S20, S21 |
 | R19 | S2 |
 | R20 | S23 |
-| R21 | S7b, S23, S24 |
+| R21 | S7b, S23, S24, S25 |
 | R22 | S3 |
 | R23 | S22 |
 
