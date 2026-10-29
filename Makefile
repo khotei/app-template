@@ -144,11 +144,14 @@ doc-names: ## Fail on a backticked path or PascalCase name in the docs that the 
 	fi
 
 # Reads each file whole, so a call Biome wraps across lines is caught too; any second argument
-# counts, a point-free `Ref.get` included (.claude/rules/effect-style.md › Composition).
+# counts, a point-free `Ref.get` included (.claude/rules/effect-style.md › Composition). The hits
+# go through a variable, so a perl that fails (a broken pattern) fails the gate too.
 service-use: ## Fail on Effect.flatMap or Effect.map over a service, which Service.use spells
-	@if perl -0777 -ne 'while (/Effect\.(flatMap|map)\(\s*[A-Z][A-Za-z0-9_.]*\s*,/g) { \
+	@hits=$$(perl -0777 -ne 'while (/Effect\.(flatMap|map)\(\s*[A-Z][A-Za-z0-9_.]*\s*,/g) { \
 		print "$$ARGV:", 1 + (substr($$_, 0, $$-[0]) =~ tr/\n//), "\n" }' \
-		$$(git ls-files --cached --others --exclude-standard -- '*.ts' ':!repos') | grep .; then \
+		$$(git ls-files --cached --others --exclude-standard -- '*.ts' ':!repos')) || exit 2; \
+	if [ -n "$$hits" ]; then \
+		echo "$$hits"; \
 		echo 'Reach a service by Service.use, or Service.useSync for a plain value.'; \
 		exit 1; \
 	fi

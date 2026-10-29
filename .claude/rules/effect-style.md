@@ -23,7 +23,7 @@ The goal is code that reads top to bottom and extends by adding a row, not a bra
 
 ## Control flow
 
-- Keep a generator flat: guard clauses, no nested ternary, one named `yield*` per statement.
+- Keep a generator flat: guard clauses, no nested ternary; one `yield*` per statement, value named.
 - Separate the paragraphs of a body with one blank line: the services it reads, the reads, the
   checks, the writes, the result. A body of three statements or fewer stays unbroken.
 - Read an `Option` by its combinators (`Option.match`); `.value` only under a narrowing guard.

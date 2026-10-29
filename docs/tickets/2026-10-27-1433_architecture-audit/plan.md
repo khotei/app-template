@@ -1469,7 +1469,29 @@ keeps the suites green, a changed assertion named in its findings.
   fails it, and a constructor argument passes.
 - **Verify:** `make check`; the probes; `git diff --numstat` shows no net growth.
 - **Model:** opus high
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Round 1: 57 sites where a combinator of `Effect`, `Option`, `Arr`, `Str`, `Stream`, `Layer` or
+    `Record` took a module call, a `Ref` call or a `.pipe` as its subject; the methods whose every
+    step feeds the next became one `.pipe` (the four `MessageService` transitions,
+    `ChatService.get` and `delete`, `UserService.authenticate`). Round 2 widened the subject to any
+    call (a method, a local function, `HashMap`, `Deferred`, a method chain, a trailing `.pipe`):
+    101 more sites, 23 in sources and 78 in tests.
+  - `make nested-calls` splits its list by the arity of the data-last form: where that form takes
+    two arguments (`forEach(f, { discard })`, `tapCauseIf(predicate, f)`) a leading call is a
+    function argument, so only a module call fails; a unary combinator around a generator body
+    (`Effect.scoped(Effect.gen(…))`) passes. Probes: 20 nested forms fail, 26 legal ones pass. It is
+    a regex heuristic: `new Foo()`, a ternary or a `yield*` as the subject pass, and so does a
+    combinator missing from its lists; review catches those.
+  - A perl failure fails both `nested-calls` and, since round 3, `service-use` (exit 2); before, a
+    broken pattern printed nothing and the gate passed.
+  - `.ts` grew by 4 lines net over the step (−13, then +17): `decodeDetail` as a pipe, which the
+    review asked for, wraps over five lines, and Biome wraps three tests' long subjects. The rest
+    of the growth is the gate, the rules and the docs.
+  - `security.ts` provides `CurrentUser` by `Effect.provideServiceEffect`, authenticating first as
+    the `flatMap` did. Folded in from the S34 review: `layerCookieJarTest`, `createReadTables`,
+    `as const` for literal objects and arrays only; `SqlError.isSqlError` replaces
+    `db.client.ts`'s copy.
 
 ## Requirement coverage
 
