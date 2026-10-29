@@ -107,6 +107,7 @@ export class ChatService extends Context.Service<
       yield* chats
         .update({ title: renamed.title, updatedAt }, { id: chatId })
         .pipe(Effect.filterOrFail(Predicate.isTruthy, () => new ChatNotFoundError({ id: chatId })))
+
       return renamed
     })
 

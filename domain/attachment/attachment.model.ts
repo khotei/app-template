@@ -1,4 +1,4 @@
-import { DateTime, Duration, Effect, Option, type Predicate, Schema } from 'effect'
+import { DateTime, Duration, Effect, Option, Predicate, Schema } from 'effect'
 
 import { AttachmentBoundError } from '#domain/attachment/attachment.error'
 import { AttachmentId } from '#domain/attachment/attachment.id'
@@ -66,14 +66,16 @@ export const buildAttachment = (input: {
 
 export const unboundLifetime = Duration.hours(24)
 
-export const isExpiredAt =
-  (now: DateTime.Utc): Predicate.Predicate<Attachment> =>
-  (attachment) =>
-    Option.isNone(attachment.messageId) &&
+const isUnbound: Predicate.Predicate<Attachment> = (attachment) =>
+  Option.isNone(attachment.messageId)
+
+export const isExpiredAt = (now: DateTime.Utc): Predicate.Predicate<Attachment> =>
+  Predicate.and(isUnbound, (attachment) =>
     DateTime.isGreaterThanOrEqualTo(
       now,
       DateTime.addDuration(attachment.createdAt, unboundLifetime),
-    )
+    ),
+  )
 
 export const ensureUnbound = (
   attachment: Attachment,

@@ -1242,7 +1242,17 @@ keeps the suites green, a changed assertion named in its findings.
 - **Verify:** `make check`; `git grep -nE 'if \(!\w+\) return yield\* new' -- '*.ts'` and
   `git grep -n 'Option.isNone' -- domain application` find no write or read check left.
 - **Model:** opus medium
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The `Option.isNone` grep still finds eight sites, all allowed: four skip-with-a-log guards in
+    the reply and title use cases (they skip, not fail, so `Effect.fromOption` does not fit, and
+    `.value` sits under the narrowing guard), one inside a predicate, three in `domain/tests`.
+  - `Predicate.isTruthy` is the named predicate for a write's boolean: a local `wasWritten` would
+    be the identity under a new name at four sites.
+  - Round 2: a blank line before the result where the body is longer than three statements
+    (`rename`, `addAssistantMessage`, `download`); `isExpiredAt` joins `isUnbound` and the age
+    check by `Predicate.and`; `architecture.md › Use cases and handlers` shows the send's write
+    check as `filterOrFail`.
 
 #### S29 — A row decodes to its model by schema
 
