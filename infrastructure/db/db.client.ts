@@ -54,6 +54,10 @@ export class Transaction extends Context.Service<
   )
 }
 
+/** Decodes the row a read found, or answers `Option.none()` when it found none. */
+export const decodeOptionalRow = <S extends Schema.Constraint>(schema: S) =>
+  Schema.decodeEffect(Schema.OptionFromNullishOr(schema))
+
 export const isSqlError = Schema.is(SqlError.SqlError)
 
 /**

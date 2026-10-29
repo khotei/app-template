@@ -19,13 +19,9 @@ import {
   withAttachments,
 } from '#infrastructure/chat/message.entity'
 import { buildWhere, skipUndefined } from '#infrastructure/db/columns'
-import { Db, orDieWithSqlError } from '#infrastructure/db/db.client'
+import { Db, decodeOptionalRow, orDieWithSqlError } from '#infrastructure/db/db.client'
 
 const encodeMessage = Schema.encodeEffect(MessageInsert)
-
-const decodeOptionalMessage = Schema.decodeEffect(Schema.OptionFromUndefinedOr(MessageFromRow))
-
-const decodeOptionalDetail = Schema.decodeEffect(Schema.OptionFromUndefinedOr(MessageDetailFromRow))
 
 const decodeDetails = Schema.decodeEffect(Schema.Array(MessageDetailFromRow))
 
@@ -65,14 +61,14 @@ export const MessageRepositoryPg = Layer.effect(
       }, orDieWithSqlError),
       selectOne: Effect.fn('MessageRepository.selectOne')(function* (where) {
         const row = yield* db.query.messages.findFirst({ where: filterOf(where) })
-        return yield* decodeOptionalMessage(row)
+        return yield* decodeOptionalRow(MessageFromRow)(row)
       }, orDieWithSqlError),
       selectDetail: Effect.fn('MessageRepository.selectDetail')(function* (where) {
         const row = yield* db.query.messages.findFirst({
           where: filterOf(where),
           with: withAttachments,
         })
-        return yield* decodeOptionalDetail(row)
+        return yield* decodeOptionalRow(MessageDetailFromRow)(row)
       }, orDieWithSqlError),
       selectByChat: Effect.fn('MessageRepository.selectByChat')(function* (chatId) {
         const rows = yield* db.query.messages.findMany({
@@ -93,7 +89,7 @@ export const MessageRepositoryPg = Layer.effect(
         const row = yield* db.query.messages.findFirst({
           where: { chatId, ...activeMessageFilter },
         })
-        const found = yield* decodeOptionalMessage(row)
+        const found = yield* decodeOptionalRow(MessageFromRow)(row)
         return Option.filter(found, isActiveMessage)
       }, orDieWithSqlError),
     }),

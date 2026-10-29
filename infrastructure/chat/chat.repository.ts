@@ -1,38 +1,25 @@
 import { eq, isNull } from 'drizzle-orm'
-import {
-  Array as Arr,
-  DateTime,
-  Effect,
-  Layer,
-  Option,
-  Schema,
-  SchemaGetter,
-  UndefinedOr,
-} from 'effect'
+import { Array as Arr, DateTime, Effect, Layer, Option, Schema, UndefinedOr } from 'effect'
 
 import {
-  Chat,
-  type ChatDetail,
   type ChatId,
   type ChatOneWhere,
   ChatRepository,
   type ChatSet,
-  type ChatSummary,
   type ChatWhere,
   isActiveMessage,
-  Message,
 } from '@app-template/domain/chat'
 
 import { MessageDetailFromRow } from '#infrastructure/attachment/attachment.entity'
-import { ChatFromRow, ChatInsert, ChatRow, chats } from '#infrastructure/chat/chat.entity'
+import { ChatFromRow, ChatInsert, chats } from '#infrastructure/chat/chat.entity'
 import {
   activeMessageFilter,
   inCreationOrder,
-  MessageRow,
+  MessageFromRow,
   withAttachments,
 } from '#infrastructure/chat/message.entity'
 import { buildSet, buildWhere, skipUndefined } from '#infrastructure/db/columns'
-import { Db, orDieWithSqlError } from '#infrastructure/db/db.client'
+import { Db, decodeOptionalRow, orDieWithSqlError } from '#infrastructure/db/db.client'
 
 const encodeChat = Schema.encodeEffect(ChatInsert)
 
@@ -55,53 +42,30 @@ const encodeWhere = buildWhere<ChatWhere>({
 const filterOf = (where: ChatOneWhere) =>
   ({ id: where.id, userId: skipUndefined(where.userId) }) as const
 
-const decodeOptionalChat = Schema.decodeEffect(Schema.OptionFromUndefinedOr(ChatFromRow))
+const decodeChat = Schema.decodeEffect(ChatFromRow)
 
-/** A chat row with at most one message nested, its active one; decode only. */
-const ChatSummaryFromRow = Schema.Struct({
-  ...ChatRow.fields,
-  messages: Schema.Array(MessageRow),
-}).pipe(
-  Schema.decodeTo(Schema.Struct({ chat: Chat, message: Schema.Option(Message) }), {
-    decode: SchemaGetter.transform(({ messages, ...chat }) => ({
-      chat,
-      message: Arr.head(messages),
-    })),
-    encode: SchemaGetter.forbiddenEncoding,
-  }),
-)
+const decodeMessages = Schema.decodeEffect(Schema.Array(MessageFromRow))
 
-const decodeSummaries = Schema.decodeEffect(Schema.Array(ChatSummaryFromRow))
+const decodeDetails = Schema.decodeEffect(Schema.Array(MessageDetailFromRow))
 
-const toSummary = ({ chat, message }: typeof ChatSummaryFromRow.Type): ChatSummary => ({
-  chat,
-  activeMessage: Option.filter(message, isActiveMessage),
-})
+type ChatRowWith<Nested> = typeof ChatFromRow.Encoded & { readonly messages: ReadonlyArray<Nested> }
 
-/** A chat row with every message nested, each with its attachments; decode only. */
-const ChatDetailFromRow = Schema.Struct({
-  ...ChatRow.fields,
-  messages: Schema.Array(MessageDetailFromRow),
-}).pipe(
-  Schema.decodeTo(
-    Schema.Struct({ chat: Chat, messages: Schema.Array(Schema.toType(MessageDetailFromRow)) }),
-    {
-      decode: SchemaGetter.transform(({ messages, ...chat }) => ({ chat, messages })),
-      encode: SchemaGetter.forbiddenEncoding,
-    },
-  ),
-)
+const decodeSummary = ({ messages, ...row }: ChatRowWith<typeof MessageFromRow.Encoded>) =>
+  Effect.all({
+    chat: decodeChat(row),
+    activeMessage: Effect.map(decodeMessages(messages), Arr.findFirst(isActiveMessage)),
+  })
 
-const decodeOptionalDetail = Schema.decodeEffect(Schema.OptionFromUndefinedOr(ChatDetailFromRow))
-
-const toDetail = ({ chat, messages }: typeof ChatDetailFromRow.Type): ChatDetail => ({
-  chat,
-  activeMessage: Arr.findFirst(
-    Arr.map(messages, (detail) => detail.message),
-    isActiveMessage,
-  ),
-  messages,
-})
+const decodeDetail = ({ messages, ...row }: ChatRowWith<typeof MessageDetailFromRow.Encoded>) =>
+  Effect.gen(function* () {
+    const chat = yield* decodeChat(row)
+    const details = yield* decodeDetails(messages)
+    const activeMessage = Arr.findFirst(
+      Arr.map(details, (detail) => detail.message),
+      isActiveMessage,
+    )
+    return { chat, activeMessage, messages: details }
+  })
 
 export const ChatRepositoryPg = Layer.effect(
   ChatRepository,
@@ -121,7 +85,7 @@ export const ChatRepositoryPg = Layer.effect(
       }, orDieWithSqlError),
       selectOne: Effect.fn('ChatRepository.selectOne')(function* (where) {
         const row = yield* db.query.chats.findFirst({ where: filterOf(where) })
-        return yield* decodeOptionalChat(row)
+        return yield* decodeOptionalRow(ChatFromRow)(row)
       }, orDieWithSqlError),
       selectSummaries: Effect.fn('ChatRepository.selectSummaries')(function* (userId) {
         const rows = yield* db.query.chats.findMany({
@@ -129,16 +93,14 @@ export const ChatRepositoryPg = Layer.effect(
           orderBy: { updatedAt: 'desc' },
           with: { messages: { where: activeMessageFilter, limit: 1 } },
         })
-        const summaries = yield* decodeSummaries(rows)
-        return Arr.map(summaries, toSummary)
+        return yield* Effect.forEach(rows, decodeSummary)
       }, orDieWithSqlError),
       selectDetail: Effect.fn('ChatRepository.selectDetail')(function* (where) {
         const row = yield* db.query.chats.findFirst({
           where: filterOf(where),
           with: { messages: { orderBy: inCreationOrder, with: withAttachments } },
         })
-        const found = yield* decodeOptionalDetail(row)
-        return Option.map(found, toDetail)
+        return yield* Effect.transposeOption(Option.map(Option.fromNullishOr(row), decodeDetail))
       }, orDieWithSqlError),
       delete: Effect.fn('ChatRepository.delete')(
         (id: ChatId) => db.delete(chats).where(eq(chats.id, id)),

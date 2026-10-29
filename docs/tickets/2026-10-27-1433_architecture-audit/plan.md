@@ -1269,12 +1269,24 @@ keeps the suites green, a changed assertion named in its findings.
     `SchemaGetter.forbidden`; `Option.filter(isActiveMessage)` stays outside the schema.
 - **Blocked by:** none.
 - **Files:** `infrastructure/*/*.entity.ts`, `infrastructure/*/*.repository.ts`,
-  `infrastructure/db/db.client.ts`.
+  `infrastructure/db/db.client.ts`, `infrastructure/e2e/chat/message.entity.e2e.ts`,
+  `docs/knowledge/database.md`.
 - **Test first:** the repository e2e suites (`infrastructure/e2e/**`) stay green unchanged: they
   read every shape the schemas decode.
 - **Verify:** `make check`; `git grep -n 'decodeFound\|MessageDetailRow' -- '*.ts'` is empty.
 - **Model:** opus medium
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Round 1 made the chat's summary and detail nested schemas too and grew the code (+38 lines):
+    `ChatSummary` and `ChatDetail` are interfaces ending in a narrowing to `ActiveMessage` that no
+    schema types, so each needed an intermediate shape and a mapper. Round 2 decodes them by two
+    small functions over the flat schemas; `MessageDetailFromRow` is the one nested schema left.
+    `infrastructure/` ends at +64 / −70 against the step's base.
+  - One `decodeOptionalRow(schema)` in `db.client.ts`, on `Schema.OptionFromNullishOr`, replaces
+    `decodeFound` and reads `null` as none as it did; the chat detail, decoded by a function,
+    keeps one `Effect.transposeOption`.
+  - `message.entity.e2e.ts` changes its decode line, its assertions stay; `database.md` describes
+    the new reads.
 
 #### S30 — A service is reached by `Service.use`, and a check keeps it so
 

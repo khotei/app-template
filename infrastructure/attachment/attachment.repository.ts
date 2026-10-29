@@ -16,15 +16,11 @@ import {
   attachments,
 } from '#infrastructure/attachment/attachment.entity'
 import { buildSet, buildWhere } from '#infrastructure/db/columns'
-import { Db, orDieWithSqlError } from '#infrastructure/db/db.client'
+import { Db, decodeOptionalRow, orDieWithSqlError } from '#infrastructure/db/db.client'
 
 const encodeAttachment = Schema.encodeEffect(AttachmentInsert)
 
 const decodeAttachments = Schema.decodeEffect(Schema.Array(AttachmentFromRow))
-
-const decodeOptionalAttachment = Schema.decodeEffect(
-  Schema.OptionFromUndefinedOr(AttachmentFromRow),
-)
 
 const encodeSet = buildSet<AttachmentSet, typeof attachments>({
   messageId: UndefinedOr.map(Option.getOrNull),
@@ -72,7 +68,7 @@ export const AttachmentRepositoryPg = Layer.effect(
       }, orDieWithSqlError),
       selectOne: Effect.fn('AttachmentRepository.selectOne')(function* (where) {
         const rows = yield* db.select().from(attachments).where(encodeOneWhere(where)).limit(1)
-        return yield* decodeOptionalAttachment(rows[0])
+        return yield* decodeOptionalRow(AttachmentFromRow)(rows[0])
       }, orDieWithSqlError),
       selectMany: Effect.fn('AttachmentRepository.selectMany')(function* (where) {
         const rows = yield* db.select().from(attachments).where(encodeWhere(where))
