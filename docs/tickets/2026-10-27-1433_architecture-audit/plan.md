@@ -1385,7 +1385,15 @@ keeps the suites green, a changed assertion named in its findings.
   mid-stream leaves the last snapshot whole.
 - **Verify:** `make check`.
 - **Model:** opus high
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The filter on the stored text skips only a seed-only group; the last group still writes the
+    full text once more before `complete`: an accepted cost, D19, which supersedes chat-core D3.
+    `uninterruptible` went with the race it guarded.
+  - An interval opens at the first delta after a snapshot (`groupedWithin`); the suite's second
+    snapshot moved from 600 to 690 ms. The use case is 18 lines shorter.
+  - A failure test joins the interrupt one; the worker's failure test waits on a hold before
+    moving the `TestClock` and keeps only what the handler adds.
 
 #### S34 — The small forms
 

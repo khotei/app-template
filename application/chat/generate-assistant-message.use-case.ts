@@ -91,8 +91,8 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
       yield* messageService.snapshot(generating, text, at)
     })
 
-    // The stored text seeds the scan, so the first interval opens with the stream; a group of the
-    // seed alone has nothing new to write.
+    // Writes the latest text per interval; the stored text seeds the scan, so the first interval
+    // opens with the stream.
     const streamReply = (generating: Message, history: ReadonlyArray<AssistantTurn>) =>
       assistant.streamText(history).pipe(
         Stream.scan(() => generating.text, Str.concat),

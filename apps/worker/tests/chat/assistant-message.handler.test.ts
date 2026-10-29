@@ -142,14 +142,7 @@ describe('AssistantMessageHandler', () => {
       const running = yield* Effect.forkChild(handle(job, attemptInfo(maxAttempts)))
       yield* held.asked
       yield* held.release
-      yield* TestClock.adjust('300 millis')
-      assertEquals(
-        yield* selectReply,
-        Option.some(
-          new Message({ ...queuedReply, stage: 'generating', text: 'Hel', updatedAt: at(300) }),
-        ),
-      )
-      yield* TestClock.adjust('220 millis')
+      yield* TestClock.adjust('520 millis')
       yield* Fiber.join(running).pipe(Effect.exit)
 
       const failed = Option.getOrThrow(yield* selectReply)

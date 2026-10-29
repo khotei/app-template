@@ -56,7 +56,7 @@ const sevenDeltas = Stream.make('One', ' two', ' three', ' four', ' five', ' six
   Stream.tap(() => Effect.sleep('130 millis')),
 )
 
-const generating = (text: string, millis: number) =>
+const snapshotAt = (text: string, millis: number) =>
   new Message({ ...queuedReply, stage: 'generating', text, updatedAt: at(millis) })
 
 // The use case asks for the stream after its `generating` write.
@@ -154,9 +154,9 @@ describe('GenerateAssistantMessageUseCase', () => {
         )
         yield* held.release
         yield* TestClock.adjust('300 millis')
-        assertEquals(yield* selectReply, Option.some(generating('One two', 300)))
+        assertEquals(yield* selectReply, Option.some(snapshotAt('One two', 300)))
         yield* TestClock.adjust('390 millis')
-        assertEquals(yield* selectReply, Option.some(generating('One two three four five', 690)))
+        assertEquals(yield* selectReply, Option.some(snapshotAt('One two three four five', 690)))
         yield* TestClock.adjust('220 millis')
         yield* Fiber.join(running)
 
@@ -192,7 +192,7 @@ describe('GenerateAssistantMessageUseCase', () => {
       yield* TestClock.adjust('500 millis')
       yield* Fiber.interrupt(running)
 
-      assertEquals(yield* selectReply, Option.some(generating('One two', 300)))
+      assertEquals(yield* selectReply, Option.some(snapshotAt('One two', 300)))
     }).pipe(Effect.provide(AssistantMessageTest.pipe(Layer.provide(assistant.layer))))
   })
 
@@ -209,7 +209,7 @@ describe('GenerateAssistantMessageUseCase', () => {
       yield* TestClock.adjust('500 millis')
 
       assert.isTrue(Exit.hasDies(yield* Fiber.await(running)))
-      assertEquals(yield* selectReply, Option.some(generating('One two', 300)))
+      assertEquals(yield* selectReply, Option.some(snapshotAt('One two', 300)))
     }).pipe(Effect.provide(AssistantMessageTest.pipe(Layer.provide(assistant.layer))))
   })
 

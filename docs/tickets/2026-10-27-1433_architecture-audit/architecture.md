@@ -591,6 +591,16 @@ export const AwsTest = Layer.unwrap(Effect.gen(function* () {
   message with its owner in one `selectDetail`, so a foreign or deleted chat is a missing message;
   both errors were 404, and the web client does not call the endpoint. *Rejected:* keeping
   `chatNotFound` in the contract, an error no handler fails with.
+- **D19 — The reply's snapshots are one stream.** `Stream.scan` from the stored text,
+  `Stream.groupedWithin(∞, snapshotInterval)`, the last text of each group, `Stream.tap` of the
+  write, `Stream.runLast` for the whole text. An interval opens at the first delta after a
+  snapshot, so the reply writes at most once per interval, and the model's stream pauses while a
+  snapshot writes. *Accepted cost:* the last group writes the full text once more before
+  `complete`, one extra `UPDATE` per reply; knowing a group is the last needs lookahead, D16's
+  trap. `uninterruptible` goes: the snapshots and `complete` run in sequence in one fiber, and an
+  interrupted write that lands late is a no-op under `WHERE stage = 'generating'`
+  (postgres-drizzle D5). *Rejected:* keeping chat-core D3's two `Ref`s, `raceFirst` and
+  `uninterruptible`, 18 more lines and a race to guard, to save one write.
 
 ## Risks
 
