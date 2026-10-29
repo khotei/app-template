@@ -33,10 +33,11 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. G
    user a plainer test instead, or the finding as a choice of its own.
 5. **Approval gate.** Wait for the user's explicit word:
    - **approve:** set the step's `Status: done` (or `blocked: <gate>` while a gate the step
-     names, such as a branch, a push or a CI run, has not run yet), add its findings to `plan.md`
+     names, such as a branch, a push or a CI run, has not run yet) in the step and in its row
+     of the plan's **Status** table, add its findings to `plan.md`
      and any new decision to `architecture.md`, stage the step's files, and commit with the
      proposed message as a command of its own. An amendment also rewrites the decision's body,
-     Contract, Seam or Risks row it makes wrong; its note keeps only what changed and the
+     Contract, Seam or Risks entry it makes wrong; its note keeps only what changed and the
      rejected alternative;
    - **feedback:** first offer to commit the tree as it stands as the current round (`S11.1`,
      code only, no `plan.md` edit), then send the feedback to the same implementer

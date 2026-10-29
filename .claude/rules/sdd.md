@@ -9,9 +9,9 @@ Every change of substance runs **feature → architecture → plan → implement
 
 | File | Holds | Written by |
 |---|---|---|
-| `feature.md` | goal, scope, out of scope, requirements `R…` in EARS, acceptance per requirement | `/ticket-feature` |
+| `feature.md` | problem, goal, scope, out of scope, requirements `R…` in EARS, acceptance per requirement | `/ticket-feature` |
 | `architecture.md` | structure, contracts, **Seams**, decisions `D…` with the rejected alternative, risks | `/ticket-architecture` |
-| `plan.md` | steps with `Blocked by:`, test first, verify, `Status:`, findings; a coverage table | `/ticket-plan`, `/ticket-implement` |
+| `plan.md` | a status table; steps with `Delivers:`, `Blocked by:`, test first, verify, `Status:`, findings; a coverage table | `/ticket-plan`, `/ticket-implement` |
 | `verification.md` | verdict per requirement, review, simplifications, **Lessons** | `/ticket-verify` |
 
 - **A ticket that has not started exists only as an entry in `docs/knowledge/roadmap.md`.**

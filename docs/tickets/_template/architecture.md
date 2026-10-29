@@ -29,12 +29,20 @@ graph LR
 
 ## Decisions
 
-<One entry per choice that is hard to reverse, surprising without context, and a real trade-off.>
+<One entry per choice that is hard to reverse, surprising without context, and a real trade-off.
+Each line of an entry is one or two sentences; a rejected alternative is kept only when someone
+would propose it again.>
 
-- **D1 — <decision>.** <Why.> *Rejected:* <alternative and why not>.
+- **D1 — <the decision, in one line>.**
+  - **Why:** <the reason>.
+  - **Cost accepted:** <what this choice makes worse>.
+  - **Reversal:** <one commit | a migration | irreversible: …>.
+  - **Rejected:**
+    - <alternative> — <why not>.
 
 ## Risks
 
-| Risk | Mitigation |
-|---|---|
-| <what could go wrong> | <how the plan contains it> |
+<One entry per risk, in the order: what could go wrong → what it would cause → how the plan
+contains it.>
+
+- **<Risk, in one line>.** <What it would cause.> *Contained by:* <step, check or test>.
