@@ -262,8 +262,9 @@ rows with `insertUser` and its siblings from `infrastructure/testing/rows.test-u
 reads the `SqlError` of a refused statement with `flipSqlError` from
 `infrastructure/db/testing/db.test-layer.ts`.
 
-The unit suites never reach Postgres ([tooling.md › Tests](tooling.md#tests)), and each guard a
-memory layer copies has its twin in a repository suite
-([effect-tests.md › Unit and e2e](../../.claude/rules/effect-tests.md#unit-and-e2e)). What only
-a transaction decides, that a use case keeps none of its
-writes or its outbox rows when one is refused, runs in `application/e2e/` on `ChatPgTest`.
+The unit suites never reach Postgres ([tooling.md › Tests](tooling.md#tests)). What only a
+transaction decides, that a use case keeps none of its writes or its outbox rows when one is
+refused, runs in `application/e2e/` on `ChatPgTest`. A memory layer copies the four guards the
+database adds (the active message's index, the message stage an update expects, an owner in the
+`where`, the cascade a bound attachment refuses), and each has its twin in a repository suite
+([effect-tests.md › Unit and e2e](../../.claude/rules/effect-tests.md#unit-and-e2e)).

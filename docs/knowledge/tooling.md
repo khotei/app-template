@@ -46,13 +46,11 @@ Tests run on vitest 5, on the Bun runtime (`bun --bun`), so `Bun.serve` and the 
 inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`, `it.layer`,
 `TestClock`) needs vitest.
 
-- **Unit and e2e: only our code is under test.** A unit test runs the real domain services, use
-  cases and handlers with each port on its memory layer (`@app-template/domain/testing`), the
-  transaction on `TransactionTest`, the queue on `recordQueue()` and the model on
-  `recordAssistant()`, and needs no process outside vitest. An e2e test proves an adapter, a use
-  case's transaction or the journey on the run's containers; among them is the queue's own
-  suite, which tests our retry, heartbeat and dead-letter logic and takes most of a run's time
-  with SQS's real delays. Which test goes where:
+- **Unit and e2e: only our code is under test.** A unit test runs our domain services, use cases
+  and handlers and needs no process outside vitest. An e2e test proves an adapter, a use case's
+  transaction or the journey on the run's containers; among them is the queue's own suite, which
+  tests our retry, heartbeat and dead-letter logic and takes most of a run's time with SQS's real
+  delays. Which test goes where and what it runs on:
   [effect-tests.md › Unit and e2e](../../.claude/rules/effect-tests.md#unit-and-e2e).
 - **One root `vitest.config.ts`, two projects,** chosen by `--project`: `unit` runs
   `tests/**/*.test.ts`; `e2e` runs `e2e/**/*.e2e.ts`, on Docker, and alone has the

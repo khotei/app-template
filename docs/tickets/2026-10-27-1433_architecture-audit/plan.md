@@ -1093,7 +1093,20 @@
   docs/knowledge/` finds only the glossary's `_Avoid_` lines and the roadmap's history;
   `make ids`; `make check`.
 - **Model:** opus medium
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - A `CLAUDE.md` restates imports only when it adds an exception or a reason the dependency
+    table lacks: `domain`, `http-api` and `packages` keep their lines; `application`,
+    `infrastructure` and `apps` dropped theirs. `architecture.md` points to the table, which
+    Biome enforces, and to both tickets' decisions.
+  - One author per test fact: `tooling.md › Tests` explains why unit and e2e exist,
+    `effect-tests.md` binds what each runs on and the harnesses (`DbTest` is described only
+    there and in `database.md`), and `database.md` lists the four guards the schema adds.
+  - Beyond **Files**, with the user's OK: `aws.md › Queues` drops "a job suite", and the
+    `make test-e2e` row of `tooling.md › Commands` names the run's own containers.
+  - Most review findings of the three rounds were names copied from the code going stale (a
+    link, a fixture's file, a file table); a rule against restating code in the docs and a
+    check of the names they keep are left to `/ticket-verify` as lessons.
 
 ## Requirement coverage
 
