@@ -151,7 +151,7 @@ Pascal one (`Document`).
 6. **Service and use cases.** `application/<entity>/<entity>.service.ts` holds the service and
    `<verb>-<object>.use-case.ts` each use case, both a `Context.Service` with a `layer`, like
    `application/chat/`. Which flow goes where:
-   [.claude/rules/use-cases.md](../../.claude/rules/use-cases.md). Test them in
+   [.claude/rules/layering.md](../../.claude/rules/layering.md). Test them in
    `application/tests/` over the memory layers through the test layer, with `TransactionTest`
    and `recordQueue()`. Shared test support goes in `application/testing/`. Add
    `index.ts` and the `exports` entry.

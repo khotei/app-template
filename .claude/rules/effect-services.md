@@ -10,16 +10,17 @@ paths:
 - An effectful function at a tracing boundary is `Effect.fn('<name>')(function* (…) { … })`,
   named after its export; a service method is named `'<Service>.<method>'`. An internal helper
   that marks no useful tracing boundary is `Effect.fnUntraced`.
-- A body that only delegates is passed as is, `Effect.fn('<Service>.<method>')(chats.selectById)`,
-  or as an arrow returning the effect; a generator is for a body with more than one step. Extra
-  arguments to `Effect.fn` are the pipeables every call runs through (`sql.withTransaction`).
+- A body that only delegates is passed as is,
+  `Effect.fn('ChatService.list')(chats.selectSummaries)`, or as an arrow returning the effect; a
+  generator is for a body with more than one step. Extra arguments to `Effect.fn` are the
+  pipeables every call runs through (`transaction.run`).
 - The variable holding an `Effect.fn` is named after the span's last segment; a reserved word
   gets its plain synonym (`remove` for `'ChatService.delete'`), never an entity suffix, since
   `'<Service>.<method>'` already names the entity. A method that needs the entity in its name
   is often doing a neighbouring service's work: look there before accepting the name.
-- A module-level function that a handler, a job's `handle` or an export composes states its
-  `Effect.fn.Return<A, E, R>` on the generator (`suggestChatTitle`), so the contract is read in
-  one line; a helper used once stays inferred, since the annotation drifts on refactors.
+- A module-level function that another module composes states its `Effect.fn.Return<A, E, R>`
+  on the generator, so the contract is read in one line; a helper used once stays inferred,
+  since the annotation drifts on refactors.
 - A pure builder that cannot fail returns the model itself, not an `Effect`.
 - A pure transition (`naming.md`) checks its source through one shared table of allowed sources and
   fails one `<Entity>StageInvalidError { id, from, to }`; a transition is one row and one call.
@@ -30,6 +31,9 @@ paths:
   memory; a test double; an injected dependency) or when several holders must share one state.
   A rule with one implementation and no dependency is a plain function.
 - Key a service `'@app-template/<workspace>/<entity>/<Name>'`.
+- A domain service is built in `make` from its ports, `DateTime.now` and `Crypto.Crypto`, and its
+  `layer` is `Layer.effect(this, this.make)` alone: a process provides the adapters and the
+  platform's `Crypto`, a unit test the memory layers (`layering.md` for what it may see).
 - A service built in a body beside its declaration is
   `Context.Service<Self, Shape>()(key, { make })`: the explicit `Shape` keeps the contract and its
   docs, `make` the body. A one-expression build (`Config.all`) goes straight into `Layer.effect`.
@@ -41,7 +45,7 @@ paths:
 - A service's layers are statics on the class, as in effect's own modules (`PgClient.layer`,
   `BunHttpServer.layerTest`). `static readonly layer = Layer.effect(this, this.make)` provides
   every dependency with one implementation and leaves open the leaves that vary (a port, a client,
-  a store, a platform service); there is no `layerNoDeps`. A ready variant that closes such a leaf
+  a platform service); there is no `layerNoDeps`. A ready variant that closes such a leaf
   is `static layer<Variant>`, a function when it takes options (`QueueTransport.layerSqs`,
   `ApiClient.layerFetch(baseUrl)`). A layer for a service declared elsewhere (a domain port) is a
   constant in the workspace that implements it (`ChatRepositoryPg`, `naming.md`).

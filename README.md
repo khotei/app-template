@@ -106,7 +106,7 @@ Each line names one choice and where it lives; the rejected alternatives are in 
   across aggregates is a use case whose writes commit in one transaction, guarded by the database
   rather than a lock, and the checks hand the writes a proof value (`SendableChat`) so the order
   cannot be skipped.
-  [.claude/rules/use-cases.md](.claude/rules/use-cases.md).
+  [.claude/rules/layering.md](.claude/rules/layering.md).
 - **Repositories are `Layer`s over Drizzle on `@effect/sql-pg`:** each entity declares its tables
   once, the row codecs and migrations derive from them, and a write across tables runs in one
   transaction. [docs/knowledge/database.md](docs/knowledge/database.md).

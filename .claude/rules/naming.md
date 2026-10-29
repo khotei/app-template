@@ -9,83 +9,72 @@ paths:
 ## Workspaces
 
 - Every workspace is `@app-template/<name>`: layers `{domain,http-api,application,infrastructure}`,
-  packages `<dir>` (`@app-template/config`), apps `{api,worker,web}`, `deployment`, and `e2e`,
-  the root workspace of the journey over both app layers, which has `devDependencies` only.
-- A layer exposes each entity as a subpath through its barrel: `@app-template/domain/chat` →
-  `domain/chat/index.ts`. `http-api` and each package have one entry, `index.ts` or `client.ts`;
-  `queue`, `infrastructure` and `application` may add `./testing` (`Files` below). `api` and
-  `worker` export `./layer` alone, for `e2e`; `main.ts` stays theirs.
+  packages `<dir>` (`@app-template/config`), apps `{api,worker,web}`, `deployment`, and `e2e`, the
+  root workspace of the journey over both app layers, with `devDependencies` only.
+- A layer exposes each entity as a subpath through its barrel (`@app-template/domain/chat` →
+  `domain/chat/index.ts`), plus `./testing` (`Files`); `http-api` and each package have one entry,
+  `index.ts` or `client.ts`, and `api` and `worker` export `./layer` alone, for `e2e`.
 
 ## Imports
 
-- **Inside a workspace:** `#<workspace>/<path>` (declared in its `package.json` `imports`), never
-  `./` or `../`. Example: `#domain/chat/chat.model`, `#api/layer`.
-- **Across workspaces:** `@app-template/<workspace>[/<entity>]`; which workspace may import which:
+- **Inside a workspace:** `#<workspace>/<path>` (`#domain/chat/chat.model`), never `./` or `../`.
+- **Across workspaces:** `@app-template/<workspace>[/<entity>]`; which may import which:
   [architecture.md › Dependency rules](../../docs/knowledge/architecture.md#dependency-rules).
 
 ## Files
 
-All source files are `kebab-case` with at most one dotted role suffix, `<entity>.<role>.ts`; a
-test-support role starts with `test-` (the globs: `effect-tests.md › Test support`):
+Source files are `kebab-case`, `<entity>.<role>.ts` with one role suffix and `<entity>` singular
+like its folder (`user/user.http.ts`); a file with no role keeps a bare name (`layer.ts`), a
+tool's config the name its tool reads (`drizzle.config.ts`).
 
-| Suffix | Role | Layer |
+| Suffix | Role | Where |
 |---|---|---|
-| `.id` | the aggregate's branded ids, the only file other aggregates' models import | domain |
-| `.model` · `.error` | entity types and value shapes, with the pure operations on them (builders, predicates, guards, transitions) · domain errors | domain |
-| `.port` | an entity's ports: `Context.Service` declarations with no layer, beside the value types they take and answer (`Set`/`Where`, `AssistantTurn`) | domain |
-| `.service` | domain: the aggregate's domain service over its ports · application: a service over ports | domain, application |
-| `.use-case` | a flow that composes services: `<verb>-<object>.use-case.ts` | application |
-| `.repository` · `.bucket` · `.llm` | an adapter over a client; `.llm` is the `Assistant` port's adapter over `LanguageModel` and holds the prompts | infrastructure |
-| `.entity` | an entity's Drizzle tables and their row codecs, one file per entity | infrastructure |
-| `.queue` | queue definitions | infrastructure |
-| `.relay` | a layer that moves records from the database to a queue (`OutboxRelay`) | infrastructure |
-| `.client` · `.transport` | client wiring · the service a package's client runs over (`QueueTransport`) | infrastructure/shared, infrastructure/db, http-api, packages |
-| `.http` | a contract group: one resource's HTTP routes (`HttpApiGroup`) | http-api |
-| `.handler` | a request handler · in the worker, `<object>.handler.ts`: one queue's `handle` and `handleDeadLettered` over a use case | apps |
-| `.test` | a unit test: no process outside vitest; mirrors its source name, or names what it checks against (`resources.test.ts`: the inventory in `packages/aws`) | `tests/` |
-| `.e2e` | a test on Docker (Postgres, MiniStack) that mirrors its source name | `e2e/` |
+| `.id` | the aggregate's branded ids, the only value another aggregate's model imports; a read model or a port may `import type` another aggregate's model (`MessageDetail`'s `Attachment`) | domain |
+| `.model` · `.error` | `Schema.Class`es with the pure operations on them (builders, predicates, guards, transitions), split by the value they act on, never into a `.rule` · domain errors | domain |
+| `.port` | an entity's ports, `Context.Service`s with no layer, beside the values they take and answer (`ChatWhere`, `AssistantTurn`) | domain |
+| `.service` | a domain service: `<entity>.service.ts` for an entity's rules, `<operation>.service.ts` for one operation that belongs to no entity | domain |
+| `.use-case` | a flow over domain services: `<verb>-<object>.use-case.ts` | application |
+| `.handler` | api: one contract group's handlers · worker: `<object>.handler.ts`, one queue's `handle` and `handleDeadLettered` over a use case | apps |
+| `.repository` · `.bucket` · `.llm` | a port's adapter over Postgres · S3 · `LanguageModel`, with the prompts | infrastructure |
+| `.entity` · `.queue` · `.relay` | an entity's Drizzle tables and row codecs · queue definitions and their job schemas · a layer that moves records from the database to a queue | infrastructure |
+| `.client` · `.transport` | client wiring · the service a package's client runs over (`QueueTransport`) | infrastructure, http-api, packages |
+| `.http` | a contract group: one resource's routes (`HttpApiGroup`) | http-api |
+| `.test` · `.e2e` | a unit test, no process outside vitest · a test on the run's containers | `tests/` · `e2e/` |
 | `.test-fixture` | sample values (ids, dates, inputs, bytes); no Effect, no layers | `testing/` |
 | `.test-fake` | a test implementation or wrapper of a port or service: records, yields, scripts | `testing/` |
-| `.test-layer` | a test layer (real services over fakes or containers, the fixtures it inserts), its arrange and read steps | `testing/` |
-| `.test-setup` | a vitest `globalSetup` module: run-wide resources, handed to tests through `provide` | `testing/` |
-| `.test-util` | an assertion or a small value helper with no layer (`assertSchemaEquals`, `sortById`) | `testing/` |
+| `.test-layer` | a test layer (real services over fakes or containers), its arrange and read steps | `testing/` |
+| `.test-setup` | a vitest `globalSetup`: run-wide resources, handed to tests through `provide` | `testing/` |
+| `.test-util` | an assertion or a value helper with no layer (`assertSchemaEquals`, `sortById`) | `testing/` |
 
-`<entity>` is singular, like its folder (`user/user.http.ts`); a file with no role keeps a bare
-kebab name (`layer.ts`), and a tool's config file the name its tool reads (`drizzle.config.ts`).
 `tests/` and `e2e/` sit at the workspace's top and mirror the source path
-(`domain/tests/chat/message.model.test.ts`); a module folder holds no test. Test-support roles
-live only in `testing/`, listed by no barrel or `exports` save the `packages/testing` index,
-`@app-template/domain/testing` (the memory layers and the fixtures), `@app-template/queue/testing`
-(the recording queue), `@app-template/infrastructure/testing` (`DbTest`, the identity
-`TransactionTest`) and `@app-template/application/testing`, which the apps' suites compose
-instead of copying.
+(`domain/tests/chat/message.model.test.ts`), or a suite with no source names what it checks
+(`resources.test.ts`); a module folder holds no test. Test support lives only in a `testing/`
+folder (`infrastructure/db/testing/` too), exported by no barrel save `packages/testing`'s,
+`@app-template/queue/testing` (the recording queue) and the three layers' `./testing`: `domain`
+(the memory layers, the fixtures), `infrastructure` (`DbTest`, `TransactionTest`, `AwsTest`) and
+`application` (the use cases' test layers), which suites compose instead of copying.
 
 ## Symbols
 
-- Types are `PascalCase` `<Entity><Role>`: `ChatRepository`, `ChatService`; a use case is
-  `<Verb><Object>UseCase` (`SendMessageUseCase`).
-- Errors are `<Entity><Problem>Error`, in every workspace (`RequestInvalidError` in `http-api`).
+- Types are `PascalCase` `<Entity><Role>` (`ChatRepository`), errors `<Entity><Problem>Error` in
+  every workspace, a use case `<Verb><Object>UseCase`. A domain service is named by its entity
+  (`ChatService`), or, for one operation of no entity, by that operation alone (`FundsTransfer`).
 - Functions are verb-first, and the verb marks the kind of work:
   - `create<Thing>`: a factory that wires dependencies;
-  - `layer<Variant>`: a static that builds the service's `Layer` for one variant
-    (`effect-services.md › Layers`); a combinator or constant that returns a `Layer` running
-    work is named for what it runs (`worker`, `OutboxRelay`);
-  - `build` / `ensure`: a pure function that derives a value or guards an invariant, in any layer
-    (`buildChat`);
-  - a pure transition is named for the stage it moves the entity to (`prepareMessage`);
+  - `layer<Variant>`: a static that builds one variant of the service's `Layer`
+    (`effect-services.md › Layers`); a `Layer` that runs work is named for it (`worker`);
+  - `build` / `ensure`: a pure function that derives a value or guards an invariant
+    (`buildChat`); a pure transition is named for the stage it moves to (`prepareMessage`);
+  - `generate`: an impure function that makes a fresh value (`generateStage`);
   - `is`: a predicate (`isActiveMessage`);
-  - `find`: a read over ports in a service or job that returns the record (as an `Option`, or
-    failing with its `*NotFoundError` or a refusal) or a lookup result (`findReply`,
-    `findOwnedChat`, `findSendable`); a port method never uses it;
-  - `select` / `insert` / `update` / `upsert` / `delete`: persistence (`selectById`); `update`
-    changes an existing record and never creates one;
-  - `exists`: a persistence question whether a record exists, answering `boolean`
-    (`existsByChat`).
-- Constants are `camelCase` with `as const` for literals; a `Layer` constant is `PascalCase`.
-  One for a service declared elsewhere is `<Service><Variant>` (`ChatRepositoryPg`); `<Entity>Pg`
-  in `<entity>/index.ts` bundles the aggregate's adapters, which a process provides.
-- Test support: every test-only layer ends in `Test`. A port's fake is `<Port>Test`, the
-  `<Service><Variant>` form (`AttachmentBucketTest`); a test layer is `<Entity>Test`, the entity's
-  real services over fakes, not a variant of a service (`ChatTest`; `layer<Entity>Test(…)` with
-  options). A stateful fake `<verb><Thing>()` returns `{ <handle>, layer }` (`recordLogs`);
-  `<Entity>Rows` is the map service a memory layer keeps its rows in (`ChatRows`).
+  - `find`: a domain service's or use case's read over ports, answering the record (an `Option`,
+    its `*NotFoundError` or a refusal) or a proof (`findSendable`); never a port method;
+  - `select` / `insert` / `update` / `delete` / `exists`: a port's persistence; `update` never
+    creates a record, `exists` answers `boolean` (`existsByChat`).
+- Constants are `camelCase`, `as const` for literals; a `Layer` constant is `PascalCase`, for a
+  service declared elsewhere `<Service><Variant>` (`ChatRepositoryPg`); `<Entity>Pg` in
+  `<entity>/index.ts` bundles the aggregate's adapters.
+- Every test-only layer ends in `Test`: a port's fake is `<Port>Test` (`AttachmentBucketTest`); a
+  test layer is `<Entity>Test`, the entity's real services over fakes (`ChatTest`;
+  `layer<Entity>Test(…)` with options). A stateful fake `<verb><Thing>()` returns
+  `{ <handle>, layer }` (`recordLogs`); `<Entity>Rows` holds a memory layer's rows (`ChatRows`).

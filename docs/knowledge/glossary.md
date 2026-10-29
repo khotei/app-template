@@ -70,8 +70,8 @@ in every layer; its responsibility fits one sentence.
 _Avoid_: Module, slice, feature folder, bounded context
 
 **Aggregate**:
-The entities one domain service changes under one invariant: a chat with its messages, an
-attachment, a user.
+The entities whose records change together under one invariant: a chat with its messages, an
+attachment, a user. Each entity of it has its own domain service.
 _Avoid_: Entity group, root, aggregate root
 
 **Model**:
@@ -85,21 +85,23 @@ _Avoid_: View, projection, DTO
 
 **Port**:
 A contract the domain declares for what it needs from outside the process (a repository, the
-store, the assistant), in the domain's words, with no layer of its own.
-_Avoid_: Interface, client, gateway, driver
+bucket, the assistant), in the domain's words, with no layer of its own.
+_Avoid_: Interface, client, gateway, driver, store
 
 **Adapter**:
-An implementation of a port over a client, in `infrastructure` (`ChatRepositoryPg`,
-`AttachmentBucketS3`, `AssistantLlm`).
-_Avoid_: Implementation, provider, DAO
+An implementation of a port over a client, in `infrastructure`: a repository
+(`ChatRepositoryPg`), the bucket (`AttachmentBucketS3`), the assistant (`AssistantLlm`).
+_Avoid_: Implementation, provider, DAO, store
 
 **Domain service**:
-The owner of one aggregate's rules and the only writer of its records; it reads its ports, the
-clock and the id generator, and nothing else.
+The owner of one entity's rules and the only writer of its records; it reads its ports, the clock
+and the id generator, and nothing else. It is named by its entity (`ChatService`); one that holds
+a single operation belonging to no entity is named by that operation, without `Service`
+(`FundsTransfer`).
 _Avoid_: Manager, helper, application service, business logic, service layer
 
 **Use case**:
-One scenario that composes domain services with the store, the queue, the assistant or one
+One scenario that composes domain services with the bucket, the queue, the assistant or one
 transaction; what a handler calls when a flow is more than one service method.
 _Avoid_: Interactor, orchestrator, workflow, application service, job
 
@@ -127,11 +129,11 @@ A test of one module over memory layers of its ports, needing no process outside
 _Avoid_: Fast test, isolated test, mock test
 
 **E2E test**:
-A test over the real infrastructure (Postgres, MiniStack) at a seam: a repository, a use case, a
-handler.
+A test over the containers the run starts (Postgres, MiniStack): of an adapter, of the transaction
+a use case runs, or of the journey through both apps.
 _Avoid_: Integration test, system test, functional test
 
 **Memory layer**:
-A layer of a port over a `Ref<Map>` in a `testing/` folder, one per port; the unit tests' only
-double.
+A layer of a port over a `Ref<HashMap>` in `domain/testing`, one per port, keeping the guards the
+database adds; the unit tests' only double of a port.
 _Avoid_: Mock, stub, in-memory repository

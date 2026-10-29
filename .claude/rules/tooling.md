@@ -7,7 +7,8 @@ Imperatives only. The explanations live in [docs/knowledge/tooling.md](../../doc
 - Run everything through `make <target>` (`make help` lists them). There is exactly one `Makefile`,
   at the root; never add one to a workspace.
 - `make check` must pass before a step is reported.
-- Typecheck with `make typecheck`; test with `make test`.
+- Typecheck with `make typecheck`. Test with `make test-unit` (`tests/`, no Docker), `make test-e2e`
+  (`e2e/`, Docker running, its own containers) or `make test`, both.
 
 ## Dependencies
 
