@@ -300,9 +300,9 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 
 | Job | Runs |
 |---|---|
-| `static` | `bun install --frozen-lockfile`, `biome ci`, `tsc --version \| grep effect-tsgo`, `make typecheck`, `make migration-check` |
+| `static` | `bun install --frozen-lockfile`, `biome ci`, `tsc --version \| grep effect-tsgo`, `make typecheck`, `make migration-check`, `make bundle-check` |
 | `test` | `bun install --frozen-lockfile`, `bun run test` |
-| `links` | `make ids`, then `lychee --offline` on `README.md`, `docs/**/*.md` and `.claude/**/*.md` |
+| `links` | `make ids`, `make doc-names`, then `lychee --offline` on `README.md`, `docs/**/*.md` and `.claude/**/*.md` |
 
 `static` and `test` run on two Bun versions: `pinned` (from `packageManager`) blocks the merge, and
 `latest` only reports. The link check keeps relative links between documents from rotting.

@@ -118,7 +118,8 @@ the glossary, so the rules point at one definition of each word.
   one journey through both apps.
 - No `src/` in the three apps, so every workspace has the same shape.
 - The architecture language in the glossary; the rules, the layer `CLAUDE.md` files and the
-  knowledge docs rewritten to the new model.
+  knowledge docs rewritten to the new model, and `make doc-names` keeping the names they cite
+  true.
 
 ## Out of scope
 
@@ -130,7 +131,9 @@ the glossary, so the rules point at one definition of each word.
 - A client package the browser or another project consumes without the server code:
   `client-publishing` (10); here only the bundle guard (R23).
 - Any new `jsonb` column or index on messages or attachments: no query reads a nested field.
-- The HTTP contract (`http-api`) and the web client: unchanged.
+- The HTTP contract (`http-api`) and the web client: unchanged, but for `getMessage`, which
+  lists `MessageNotFoundError` alone: the message is read with its owner, so a foreign or deleted
+  chat answers that error, 404 as before (D18); the web client does not call it.
 - The behaviour of any flow: the send, the reply, the title, the bind, the delete and the
   attachment lifetime do what they do today; the e2e suites prove it.
 
@@ -211,7 +214,9 @@ the glossary, so the rules point at one definition of each word.
   `@app-template/domain/testing`, mirroring the port's contract, the index included), the
   identity `Transaction` from `infrastructure/testing` and the recording queue from
   `packages/queue/testing`, needing no process outside vitest; a module folder holds no test;
-  domain services, use cases and handlers each have a unit suite; repositories have none.
+  domain services, use cases and handlers each have a unit suite; repositories have none; one
+  adapter, `AssistantLlm`, has one too, since only it holds the prompt, the cut and the blank
+  text and no e2e suite reaches a model.
 - **R18** — WHILE a workspace has adapters, THE SYSTEM SHALL test them in one `e2e/` at the
   workspace's top as `<path>/<name>.e2e.ts`, mirroring the source path, over a Postgres and a
   MiniStack the run starts for itself with Testcontainers, never the local stand or `.env`:
@@ -256,7 +261,7 @@ the glossary, so the rules point at one definition of each word.
 
 | Req | How to verify |
 |---|---|
-| R1 | `ls domain/*/*.port.ts` lists chat, message, assistant, attachment and user ports; `grep -rn "Context.Service" infrastructure/` finds only adapters' own services (`Db`, `QueueTransport`), no port declaration |
+| R1 | `ls domain/*/*.port.ts` lists chat, message, assistant, attachment and user ports; `grep -rn "Context.Service" infrastructure/` finds only adapters' own services (`Db`, `Transaction`), no port declaration |
 | R2 | `ls application/*/*.service.ts` is empty; `grep -rln "DateTime.now\|Crypto.Crypto" domain/*/*.service.ts` lists the four services; `grep -rn "\.\(insert\|update\|delete\)(" application/ apps/` finds only the chat's `updatedAt` writes of the send and the settle, each one `set` and one `where`; review confirms no other repository write there |
 | R3 | each `application/**/*.use-case.ts` imports a domain service and at least one of: a second domain service, `AttachmentBucket`, `QueueClient`, `Assistant`, `Transaction` |
 | R4 | `apps/api/chat/chat.handler.ts`: `list`, `get`, `rename`, `create` call `ChatService`; no use case of one call exists |
@@ -273,12 +278,12 @@ the glossary, so the rules point at one definition of each word.
 | R15 | e2e on MiniStack: 0 bytes, exactly 5 MiB and 5 MiB + 1 upload as one `PutObject`, one `PutObject` and two parts; a 12 MiB file uploads as three parts and `get` reads 12 MiB; a stream that fails mid-way leaves no object and no open multipart upload; `wc -l infrastructure/attachment/attachment.bucket.ts` under 80 |
 | R16 | the migration alters `outbox.body` to `jsonb`; the relay e2e test still delivers the job |
 | R17 | with Docker stopped, `make test-unit` passes; `find . -path "*/tests/*.test.ts" -not -path "*/node_modules/*"` lists a suite per domain service, use case and handler, each under `<workspace>/tests/<module>/`; `find . -name "*.test.ts" -not -path "*/tests/*" -not -path "*/node_modules/*"` is empty; `ls domain/testing` shows one `.test-fake.ts` per entity plus the `.test-fixture.ts` files |
-| R18 | with Docker running and the local stand down, `make test-e2e` passes; `find . -name "*.e2e.ts" -not -path "*/node_modules/*"` lists the repositories, the relay, the migrations, the queue, `Transaction`, the use cases' rollback cases, `S3Bucket` and `AttachmentBucketS3` under `<workspace>/e2e/<module>/` and `e2e/chat.e2e.ts` at the root, nothing under `apps/`; `grep -rlnE "(Repository|RepositoryStack|Bucket|Transaction)Test\b" --include=*.e2e.ts .` is empty; `find . -name "*.test-*.ts" -not -path "*/node_modules/*" -not -path "./repos/*"` lists only paths with a `testing/` segment; two e2e runs in two worktrees at once both pass |
+| R18 | with Docker running and the local stand down, `make test-e2e` passes; `find . -name "*.e2e.ts" -not -path "*/node_modules/*"` lists the repositories, the relay, the migrations, the queue, `Transaction`, the use cases' rollback cases, `S3Bucket` and `AttachmentBucketS3` under `<workspace>/e2e/<module>/` and `e2e/chat.e2e.ts` at the root, nothing under `apps/`; `grep -rlnE "(Repository|RepositoryStack|AttachmentBucket|Transaction)Test\b" --include='*.e2e.ts' .` is empty; `find . -name "*.test-*.ts" -not -path "*/node_modules/*" -not -path "./repos/*"` lists only paths with a `testing/` segment; two e2e runs in two worktrees at once both pass |
 | R19 | `make help` lists the three test targets; one `vitest.config.ts` declares two `projects`; `bun --bun vitest run --project unit` runs only `*.test.ts` under `tests/`; `make check` runs `test` |
 | R22 | `ls apps/*/src` fails; `make dev-api`, `make dev-worker`, `make dev-web` start; `make check` green; `grep -rn "src/" apps/*/package.json apps/*/tsconfig.json biome.json Makefile` finds nothing for the three apps |
 | R23 | `make check` runs the bundle check; a probe that imports `ChatService` from a web feature turns it red; `grep -n sideEffects domain/package.json` shows `false` |
 | R20 | `docs/knowledge/glossary.md` has the section with the fifteen terms; `grep -rn "interactor\|orchestrator\|controller" .claude/rules/` is empty |
-| R21 | `grep -rn "application.*service\|\.job\b\|chat.llm" .claude/rules/ */CLAUDE.md docs/knowledge/` finds only the glossary's `_Avoid_` lines |
+| R21 | `grep -rn --exclude=roadmap.md "application.*service\|\.job\b\|chat.llm" .claude/rules/ */CLAUDE.md docs/knowledge/` finds only the glossary's `_Avoid_` lines |
 
 ## Open questions
 

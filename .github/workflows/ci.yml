@@ -61,6 +61,9 @@ jobs:
       - name: Migrations match the entities
         run: make migration-check
 
+      - name: No service, port or adapter in the web bundle
+        run: make bundle-check
+
   test:
     name: test (bun ${{ matrix.bun }})
     runs-on: ubuntu-latest
@@ -109,6 +112,9 @@ jobs:
       # A new project deletes the ticket folder, so an id outside it points nowhere.
       - name: No ticket ids outside docs/tickets
         run: make ids
+
+      - name: The names the docs cite exist
+        run: make doc-names
 
       - name: Check links
         uses: lycheeverse/lychee-action@v2

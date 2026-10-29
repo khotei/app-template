@@ -1146,11 +1146,84 @@
   - CI does not run it: the `links` job runs `make ids` alone and the tests run without
     `make check`. Left for `/ticket-verify`.
 
+### After verification
+
+`verification.md › 2026-10-29 — run 1`: every requirement passes; the fixes below were accepted.
+
+#### S26 — The spec says what the ticket changed; its acceptance holds on correct code
+
+- **Delivers:** `feature.md` and `architecture.md` record the three places the ticket went beyond
+  them: `getMessage` answers "message not found" for a foreign chat, the adapter of the
+  `Assistant` port has a unit suite, and `make doc-names` guards the docs. The acceptance checks of
+  R1, R18 and R21 find nothing on the tree as it stands.
+- **Goal:** the verdict turns to pass (`verification.md › Spec` 1–6; `sdd.md › Deviations`).
+  - `feature.md › Out of scope`: the HTTP-contract line names the one change, `getMessage` lists
+    `MessageNotFoundError` alone, since the message is read with its owner; both answers are 404
+    and `apps/web` does not call it.
+  - `architecture.md › Decisions`: D18 for it. Rejected: keeping `chatNotFound` in the contract,
+    an error no handler fails with.
+  - `feature.md`: `make doc-names` in **Scope** (S25), and the `AssistantLlm` unit suite as R17's
+    one adapter exception (S14: nothing else tests the prompt, the cut and a blank text).
+  - Acceptance: R1 reads `Db`, `Transaction`; R18's grep names the domain fakes,
+    `(Repository|RepositoryStack|AttachmentBucket|Transaction)Test\b`, so the real
+    `S3BucketTest` on MiniStack passes; R21's grep leaves out `docs/knowledge/roadmap.md`, whose
+    entries are history and plans.
+- **Blocked by:** none.
+- **Files:** `feature.md`, `architecture.md`, this plan's coverage table.
+- **Test first:** `config only`.
+- **Verify:** run the acceptance commands of R1, R18 and R21 as `feature.md` now spells them, each
+  empty or matching what it says; probe R18's by naming a layer `ChatRepositoryTest` in an e2e
+  suite and see it hit, then restore; `make ids`; `make check`.
+- **Model:** opus medium
+- **Status:** done
+- **Findings:**
+  - R18's grep needs its `--include` quoted, `--include='*.e2e.ts'`: unquoted, zsh expands the
+    glob and the command fails before it runs (as S10 found). On the tree it is empty; with a
+    probe `ChatRepositoryTest` in `infrastructure/e2e/` it hits.
+
+#### S27 — The review's code findings, and CI runs every gate
+
+- **Delivers:** CI fails on a service leaking into the web bundle and on a stale name in the docs,
+  as `make check` does. The memory repository stack sits in a test-layer file, and the
+  duplicates the review found exist once.
+- **Goal:** `verification.md › Simplifications` 3–5 (R17, R21, R23).
+  - `RepositoryStackTest` moves from `domain/testing/index.ts` to
+    `domain/testing/repository-stack.test-layer.ts` (`naming.md › Files`); `index.ts` re-exports
+    it.
+  - `.github/workflows/ci.yml`: a job with `bun install` runs `make bundle-check doc-names`.
+  - One `filterOf` for `infrastructure/chat/chat.repository.ts` and `message.repository.ts`.
+  - `generate-assistant-message.use-case.ts`: `generate` and `fail` log a skip the same way.
+  - Named types for a snapshot's `{ text, at }` and a failure's input, shared by
+    `domain/chat/message.service.ts` and `message.model.ts`.
+  - `infrastructure/chat/assistant.llm.ts`: the empty-text comment once.
+  - `packages/s3/bucket.ts`: `get` and `untag` catch `NoSuchKey` by one form.
+- **Blocked by:** none.
+- **Files:** the paths above; `domain/testing/chat.test-layer.ts` (its import);
+  `docs/knowledge/architecture.md` (the memory-layers row names `index.ts`);
+  `docs/knowledge/tooling.md` if it says what CI runs.
+- **Test first:** `config only`: a refactor, the existing suites stay green unchanged.
+- **Verify:** `make check`; `git grep -n 'export const RepositoryStackTest'` finds only the
+  `.test-layer` file; `actionlint` or a push-free read of `ci.yml` shows both targets in a job.
+- **Model:** opus medium
+- **Status:** done
+- **Findings:**
+  - `make doc-names` runs in `links`, beside `make ids`: it needs `git grep` alone, no install.
+    `make bundle-check` runs in `static`, after the install it builds the web app with.
+  - Three review items left as they were, on reading:
+    - the two `filterOf` share only `skipUndefined`, already in `columns.ts`; the message's adds
+      `chatId` and the chat relation;
+    - `generate` answers `void` and `fail` an `Option`, so only `fail` wraps the skip log in
+      `skipped`; the title and reply tables log different texts;
+    - `untag` keeps `catchIf(isNoSuchKey)`: `deleteObjectTagging` types its error as a bare
+      `S3ServiceError`, and `catchTag('NoSuchKey')` fails `make typecheck` (TS2345). Its comment
+      now says so.
+  - The input types are `MessageCompletion` and `MessageFailureInput`, in `message.model.ts`.
+
 ## Requirement coverage
 
 | Req | Steps |
 |---|---|
-| R1 | S6, S13 |
+| R1 | S6, S13, S26 |
 | R2 | S8, S9, S10, S11 |
 | R3 | S12, S14, S15 |
 | R4 | S10, S17 |
@@ -1166,13 +1239,13 @@
 | R14 | S1 |
 | R15 | S19, S20 |
 | R16 | S5 |
-| R17 | S2, S7, S7b, S7c, S8, S9, S10, S11, S12, S14, S15, S16, S17 |
-| R18 | S2, S18, S19, S20, S21 |
+| R17 | S2, S7, S7b, S7c, S8, S9, S10, S11, S12, S14, S15, S16, S17, S26, S27 |
+| R18 | S2, S18, S19, S20, S21, S26 |
 | R19 | S2 |
 | R20 | S23 |
-| R21 | S7b, S23, S24, S25 |
+| R21 | S7b, S23, S24, S25, S26, S27 |
 | R22 | S3 |
-| R23 | S22 |
+| R23 | S22, S27 |
 
 Memory rules and their e2e twins (D6): the second active message (`MessageRepositoryTest.insert`
 ↔ `message.repository.e2e.ts`), the stage condition of `update` (↔ the same), the owner mismatch

@@ -15,8 +15,9 @@ import {
   failMessage,
   generateMessage,
   type Message,
+  type MessageCompletion,
   type MessageDetail,
-  type MessageFailure,
+  type MessageFailureInput,
   prepareMessage,
   snapshotMessage,
 } from '#domain/chat/message.model'
@@ -51,11 +52,11 @@ export class MessageService extends Context.Service<
     ) => Effect.Effect<Message, MessageMovedError>
     readonly complete: (
       message: Message,
-      settled: { readonly text: string; readonly at: DateTime.Utc },
+      settled: MessageCompletion,
     ) => Effect.Effect<Message, MessageStageInvalidError | MessageMovedError>
     readonly fail: (
       message: Message,
-      failure: Pick<MessageFailure, 'reason' | 'cause'> & { readonly at: DateTime.Utc },
+      failure: MessageFailureInput,
     ) => Effect.Effect<Message, MessageStageInvalidError | MessageMovedError>
   }
 >()('@app-template/domain/chat/MessageService', {
@@ -132,7 +133,7 @@ export class MessageService extends Context.Service<
 
     const complete = Effect.fn('MessageService.complete')(function* (
       message: Message,
-      settled: { readonly text: string; readonly at: DateTime.Utc },
+      settled: MessageCompletion,
     ) {
       const completed = yield* completeMessage(message, settled)
       return yield* write(completed, message.stage)
@@ -140,7 +141,7 @@ export class MessageService extends Context.Service<
 
     const fail = Effect.fn('MessageService.fail')(function* (
       message: Message,
-      failure: Pick<MessageFailure, 'reason' | 'cause'> & { readonly at: DateTime.Utc },
+      failure: MessageFailureInput,
     ) {
       const failed = yield* failMessage(message, failure)
       return yield* write(failed, message.stage)

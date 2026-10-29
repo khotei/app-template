@@ -85,7 +85,10 @@ const cutParts = <E>(content: Stream.Stream<Uint8Array, E>): Stream.Stream<Uint8
     Stream.filter(hasBytes),
   )
 
-/** Typed as a bare `S3ServiceError`, a missing key still arrives tagged `NoSuchKey`. */
+/**
+ * `deleteObjectTagging` types its error as a bare `S3ServiceError`, so `catchTag` cannot name
+ * `NoSuchKey`; a missing key still arrives with that tag.
+ */
 const isNoSuchKey = (error: unknown): boolean => Predicate.isTagged(error, 'NoSuchKey')
 
 const makeBucket = ({ bucket }: { readonly bucket: string }) =>

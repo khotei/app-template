@@ -6,7 +6,7 @@ import { ChatService } from '#domain/chat/chat.service'
 import { MessageRepository } from '#domain/chat/message.port'
 import { MessageService } from '#domain/chat/message.service'
 import { ask, chat } from '#domain/testing/chat.test-fixture'
-import { RepositoryStackTest } from '#domain/testing/index'
+import { RepositoryStackTest } from '#domain/testing/repository-stack.test-layer'
 import type { UserId } from '#domain/user/user.id'
 
 const insertChat = Layer.effectDiscard(

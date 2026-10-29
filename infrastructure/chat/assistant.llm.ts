@@ -50,7 +50,7 @@ export const AssistantLlm: Layer.Layer<Assistant, never, LanguageModel.LanguageM
             Stream.orDie,
           ),
         suggestTitle: Effect.fn('Assistant.suggestTitle')(function* (text) {
-          // A blank text never reaches the model: providers reject an empty text block.
+          // A blank text never reaches the model, as `toTextParts` keeps empty text out.
           if (Str.isEmpty(Str.trim(text))) return Option.none()
           const response = yield* model.generateText({ prompt: buildTitlePrompt(text) })
           return buildChatTitle(response.text)

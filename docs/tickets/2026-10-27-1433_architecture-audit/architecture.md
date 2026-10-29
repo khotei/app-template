@@ -584,6 +584,10 @@ export const AwsTest = Layer.unwrap(Effect.gen(function* () {
   the latest part back and the finish step runs after a successful end. *Rejected:*
   `Stream.zipWithNext`, whose `onHalt` fires on a failure too (`Channel.mapAccum`), so a broken
   stream was completed with truncated content and the abort then found no upload.
+- **D18 — `getMessage` lists `MessageNotFoundError` alone.** `MessageService.get` reads the
+  message with its owner in one `selectDetail`, so a foreign or deleted chat is a missing message;
+  both errors were 404, and the web client does not call the endpoint. *Rejected:* keeping
+  `chatNotFound` in the contract, an error no handler fails with.
 
 ## Risks
 

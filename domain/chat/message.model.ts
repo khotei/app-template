@@ -152,8 +152,11 @@ export const generateMessage = Effect.fn('generateMessage')((message: Message, a
 export const snapshotMessage = (message: Message, text: string, at: DateTime.Utc): Message =>
   new Message({ ...message, text, stage: 'generating', updatedAt: at })
 
+/** The settled text of a reply and when it settled. */
+export type MessageCompletion = { readonly text: string; readonly at: DateTime.Utc }
+
 export const completeMessage = Effect.fn('completeMessage')(
-  (message: Message, { text, at }: { readonly text: string; readonly at: DateTime.Utc }) =>
+  (message: Message, { text, at }: MessageCompletion) =>
     move(message, { to: 'completed', at, patch: { text, error: Option.none() } }),
 )
 
@@ -161,11 +164,13 @@ const failureMessages = {
   ReplyFailed: 'The assistant could not reply. Please try again.',
 } as const satisfies Record<MessageFailure['reason'], string>
 
+/** Why a reply failed and when; the user-facing text comes from `failureMessages`. */
+export type MessageFailureInput = Pick<MessageFailure, 'reason' | 'cause'> & {
+  readonly at: DateTime.Utc
+}
+
 export const failMessage = Effect.fn('failMessage')(
-  (
-    message: Message,
-    { reason, cause, at }: Pick<MessageFailure, 'reason' | 'cause'> & { readonly at: DateTime.Utc },
-  ) =>
+  (message: Message, { reason, cause, at }: MessageFailureInput) =>
     move(message, {
       to: 'failed',
       at,
