@@ -1,15 +1,4 @@
-import {
-  Array as Arr,
-  Context,
-  Data,
-  DateTime,
-  Effect,
-  flow,
-  Layer,
-  Option,
-  pipe,
-  Struct,
-} from 'effect'
+import { Array as Arr, Context, Data, DateTime, Effect, Layer, Option, pipe, Struct } from 'effect'
 
 import { type ChatBusyError, ChatNotFoundError, ChatTitledError } from '#domain/chat/chat.error'
 import type { ChatId, MessageId } from '#domain/chat/chat.id'
@@ -76,7 +65,7 @@ export class ChatService extends Context.Service<
     const selectActive = (chatIds: ReadonlyArray<ChatId>) =>
       messages
         .selectMany({ chatId: chatIds, ...activeMessageWhere })
-        .pipe(Effect.map(flow(Arr.map(Struct.get('message')), Arr.filter(isActiveMessage))))
+        .pipe(Effect.map(Arr.map(Struct.get('message'))))
 
     const list = Effect.fn('ChatService.list')(function* (userId: UserId) {
       const found = yield* chats.selectByUser(userId)
@@ -86,7 +75,10 @@ export class ChatService extends Context.Service<
         found,
         (chat): ChatSummary => ({
           chat,
-          activeMessage: Arr.findFirst(active, (message) => message.chatId === chat.id),
+          // `isActiveMessage` only narrows the type: the query read active messages alone.
+          activeMessage: Arr.findFirst(active, (message) => message.chatId === chat.id).pipe(
+            Option.filter(isActiveMessage),
+          ),
         }),
       )
     })
