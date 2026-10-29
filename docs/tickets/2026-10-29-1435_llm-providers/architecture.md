@@ -32,7 +32,7 @@ graph LR
   A -.implemented by.-> L["AssistantLlm<br/>prompts · schemas · retries · failure mapping"]
   L --> M["AssistantModels<br/>reply · title"]
   M -->|"LLM_PROVIDER=anthropic"| AN["AnthropicLanguageModel.make ×2<br/>AnthropicClient · FetchHttpClient"]
-  M -->|"LLM_PROVIDER=stub"| ST["makeLanguageModelStub ×2<br/>(packages/llm)"]
+  M -->|"LLM_PROVIDER=stub"| ST["createLanguageModelStub ×2<br/>(packages/llm)"]
   C["LlmConfig<br/>(packages/config)"] --> M
 ```
 
@@ -76,7 +76,7 @@ and a provenance.
 **`packages/`**
 
 ```
-~ llm/client.ts        LanguageModelStub (a word stream) → makeLanguageModelStub({ text, delay }),
+~ llm/client.ts        LanguageModelStub (a word stream) → createLanguageModelStub({ text, delay }),
                        a LanguageModel that answers `text` whole after `delay`
 ~ config/config.ts     + LlmConfig
 ```
@@ -198,12 +198,12 @@ of the schedule's delay and `retryAfter`.
 export class AssistantModels extends Context.Service<AssistantModels, {
   readonly provider: string
   readonly replyModel: string
-  readonly reply: LanguageModel.Service
-  readonly title: LanguageModel.Service
+  readonly reply: LanguageModel.LanguageModel
+  readonly title: LanguageModel.LanguageModel
 }>()('@app-template/infrastructure/chat/AssistantModels') {
   /** Built once: two `AnthropicLanguageModel.make`, each with its purpose's request config. */
   static readonly layerAnthropic: (options: AnthropicOptions) => Layer.Layer<AssistantModels, never, HttpClient.HttpClient>
-  /** Two `makeLanguageModelStub` answering canned JSON after 1 s; no key, no network. */
+  /** Two `createLanguageModelStub` answering canned JSON after 1 s; no key, no network. */
   static readonly layerStub: Layer.Layer<AssistantModels>
   /** Chooses by `LlmConfig.provider`. */
   static readonly layerFromConfig: Layer.Layer<AssistantModels, ConfigError, HttpClient.HttpClient>

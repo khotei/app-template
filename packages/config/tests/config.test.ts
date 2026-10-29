@@ -38,6 +38,11 @@ describe('config layers', () => {
       layer: LlmConfig.layer,
       given: { LLM_PROVIDER: 'anthropic', ANTHROPIC_API_KEY: 'key', LLM_TITLE_MODEL: 'title' },
     },
+    {
+      variable: 'LLM_TITLE_MODEL',
+      layer: LlmConfig.layer,
+      given: { LLM_PROVIDER: 'anthropic', ANTHROPIC_API_KEY: 'key', LLM_REPLY_MODEL: 'reply' },
+    },
   ])(
     'fails with a ConfigError naming a missing or invalid $variable',
     ({ variable, layer, given }) =>

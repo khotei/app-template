@@ -196,7 +196,7 @@ describe('AssistantLlm', () => {
     }).pipe(Effect.provide(layer))
   })
 
-  it.effect('the stub answers a reply and a title after 1 s', () => {
+  it.effect('the stub answers a reply and a title', () => {
     const layer = AssistantLlm.pipe(Layer.provide(AssistantModels.layerStub))
     return Effect.gen(function* () {
       const answers = yield* Effect.all(

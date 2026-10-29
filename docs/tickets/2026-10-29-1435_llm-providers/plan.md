@@ -7,7 +7,7 @@
 | Step | Delivers | Status |
 |---|---|---|
 | S1 | the reply is written once, whole; no snapshots | done |
-| S2 | Anthropic or the stub, chosen by `LLM_PROVIDER`; a model per purpose | todo |
+| S2 | Anthropic or the stub, chosen by `LLM_PROVIDER`; a model per purpose | | done |
 | S3 | the reply as a structured response with a fixed system prompt; per-purpose request settings | todo |
 | S4 | the port's two final errors, settled by the use cases | todo |
 | S5 | reply failures told apart, retried in place, a refusal kept apart | todo |
@@ -136,7 +136,25 @@
   naming `ANTHROPIC_API_KEY`; with `LLM_PROVIDER=stub`, `make dev` and a sent message reaches
   `completed` with the stub's text.
 - **Model:** fable high
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Ran on `opus high`, not `fable high`: the user's choice.
+  - Seam 6 also fails `anthropic` without `LLM_TITLE_MODEL` (round S2.2): R3 asks for either
+    model setting, and *Test first* named only the reply one.
+  - Seam 3 makes no timing claim: advancing the `TestClock` a second and joining would pass with
+    no delay at all, so the case only shows the stub's reply and title pass the schemas (R2); the
+    1 s delay stays R2's manual check. It stays on `it.effect`, moving the clock past the stub's
+    sleep, since `it.live` would spend a real second on a test that is not about time.
+  - `e2e/chat.e2e.ts` asserts the stub's new text, and `docs/knowledge/roadmap.md` lost a sentence
+    naming `LanguageModelStub`, which `make doc-names` refuses once the name is gone; neither was
+    in the Files list.
+  - `AssistantModels` carries `provider` and `replyModel` already, as the contract has them; only
+    S7 reads them, and the stub reports `stub` for both.
+  - `architecture.md` now names `createLanguageModelStub` and `LanguageModel.LanguageModel`.
+  - The manual check needed `make migrate` on the local stand: committed migration
+    `20261027172050_outbox_body_jsonb` had not run there, so the worker decoded no outbox job.
+    Nothing flags a stand behind its migrations but `queue message does not decode` in the
+    worker's log.
 
 #### S3 — A structured reply with a fixed system prompt
 
