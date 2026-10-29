@@ -1,7 +1,7 @@
 import { eq, inArray, type SQL, sql } from 'drizzle-orm'
 import { createInsertSchema, createSelectSchema } from 'drizzle-orm/effect-schema'
 import { index, jsonb, pgEnum, snakeCase, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
-import { Array as Arr, Schema } from 'effect'
+import { Schema } from 'effect'
 
 import {
   ActiveMessageStage,
@@ -49,16 +49,6 @@ export const messages = snakeCase.table(
  */
 export const activeMessage: SQL =
   sql`${eq(messages.author, 'assistant')} and ${inArray(messages.stage, ActiveMessageStage.literals)}`.inlineParams()
-
-/**
- * Holds for the rows `activeMessage` holds for, as a relational query's `where`.
- *
- * A relational query aliases the table, while `activeMessage` names `"messages"`.
- */
-export const activeMessageFilter = {
-  author: 'assistant' as const,
-  stage: { in: Arr.copy(ActiveMessageStage.literals) },
-}
 
 const messageFields = {
   id: MessageId,

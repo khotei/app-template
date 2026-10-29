@@ -110,7 +110,7 @@ Using the `chat` slice as the map:
 |---|---|---|
 | branded id | `domain/chat/chat.id.ts` | `ChatId`, `MessageId` |
 | entity schema with its pure operations | `domain/chat/chat.model.ts`, `message.model.ts`; the stage schemas both the model and the errors read, `message-stage.model.ts` | `Chat`, `Message` (`Schema.Class`), `buildChat({ id, userId, createdAt })`, `buildChatTitle`, the transitions `prepareMessage` … `failMessage` |
-| read model a port answers | `domain/chat/chat.model.ts`, `message.model.ts` | `ChatSummary`, `ChatDetail`, `MessageDetail` |
+| read model a port or a domain service answers | `domain/chat/chat.model.ts`, `message.model.ts` | `ChatSummary`, `ChatDetail`, `MessageDetail` |
 | domain errors | `domain/chat/chat.error.ts`, `message.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
 | port | `domain/chat/chat.port.ts`, `message.port.ts`, `assistant.port.ts` | `ChatRepository`, `MessageRepository`, `Assistant` (`Context.Service` with no layer) |
 | domain service: the rules that need a port | `domain/chat/chat.service.ts` | `ChatService`, `ChatService.layer` |

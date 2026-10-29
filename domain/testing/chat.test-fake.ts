@@ -17,7 +17,7 @@ import { constTrue } from 'effect/Function'
 import type { AttachmentId } from '#domain/attachment/attachment.id'
 import type { Attachment } from '#domain/attachment/attachment.model'
 import type { ChatId, MessageId } from '#domain/chat/chat.id'
-import { Chat, type ChatDetail, type ChatSummary } from '#domain/chat/chat.model'
+import { Chat } from '#domain/chat/chat.model'
 import { type ChatOneWhere, ChatRepository } from '#domain/chat/chat.port'
 import { isActiveMessage, type Message, type MessageDetail } from '#domain/chat/message.model'
 import { type MessageOneWhere, MessageRepository } from '#domain/chat/message.port'
@@ -86,22 +86,11 @@ const detailOf =
     ),
   })
 
-const summaryOf =
-  (messages: Messages) =>
-  (chat: Chat): ChatSummary => ({ chat, activeMessage: activeOf(messages, chat.id) })
-
 interface Tables {
   readonly chats: Chats
   readonly messages: Messages
   readonly attachments: Attachments
 }
-
-const chatDetailOf =
-  (tables: Tables) =>
-  (chat: Chat): ChatDetail => ({
-    ...summaryOf(tables.messages)(chat),
-    messages: pipe(messagesOf(tables.messages, chat.id), Arr.map(detailOf(tables.attachments))),
-  })
 
 const hasBoundAttachment = (tables: Tables, chatId: ChatId): boolean =>
   pipe(
@@ -149,9 +138,6 @@ export const ChatRepositoryTest = Layer.effect(
         Effect.map(Option.filter(matches<Chat>(where))),
       )
 
-    const withActiveMessage = (found: ReadonlyArray<Chat>) =>
-      Ref.get(messages).pipe(Effect.map((rows) => Arr.map(found, summaryOf(rows))))
-
     return ChatRepository.of({
       insert: (chat) => Ref.update(chats, HashMap.set(chat.id, chat)),
       update: (set, where) =>
@@ -171,7 +157,7 @@ export const ChatRepositoryTest = Layer.effect(
           ),
         ),
       selectOne: selectChat,
-      selectSummaries: (userId) =>
+      selectByUser: (userId) =>
         Ref.get(chats).pipe(
           Effect.map(
             flow(
@@ -179,14 +165,6 @@ export const ChatRepositoryTest = Layer.effect(
               HashMap.toValues,
               Arr.sort(byLatestActivity),
             ),
-          ),
-          Effect.flatMap(withActiveMessage),
-        ),
-      selectDetail: (where) =>
-        Effect.map(readTables, (tables) =>
-          HashMap.get(tables.chats, where.id).pipe(
-            Option.filter(matches<Chat>(where)),
-            Option.map(chatDetailOf(tables)),
           ),
         ),
       delete: (id) =>
@@ -260,8 +238,16 @@ export const MessageRepositoryTest = Layer.effect(
         ),
       existsByChat: (chatId) =>
         Ref.get(messages).pipe(Effect.map(HashMap.some(matches<Message>({ chatId })))),
-      selectActiveByChat: (chatId) =>
-        Ref.get(messages).pipe(Effect.map((rows) => activeOf(rows, chatId))),
+      selectActive: (chatIds) =>
+        Ref.get(messages).pipe(
+          Effect.map(
+            flow(
+              HashMap.toValues,
+              Arr.filter(isActiveMessage),
+              Arr.filter((message) => Arr.contains(chatIds, message.chatId)),
+            ),
+          ),
+        ),
     })
   }),
 )

@@ -2,7 +2,7 @@ import { Context, type Effect, type Option, type Types } from 'effect'
 import type { RequireAtLeastOne } from 'type-fest'
 
 import type { ChatId } from '#domain/chat/chat.id'
-import type { Chat, ChatDetail, ChatSummary } from '#domain/chat/chat.model'
+import type { Chat } from '#domain/chat/chat.model'
 import type { UserId } from '#domain/user/user.id'
 
 /** The fields a write may change; `userId` and `createdAt` never change. */
@@ -26,8 +26,7 @@ export class ChatRepository extends Context.Service<
       options?: { readonly forUpdate?: boolean },
     ) => Effect.Effect<Option.Option<Chat>>
     /** Returns the user's chats, the most recently updated first. */
-    readonly selectSummaries: (userId: UserId) => Effect.Effect<ReadonlyArray<ChatSummary>>
-    readonly selectDetail: (where: ChatOneWhere) => Effect.Effect<Option.Option<ChatDetail>>
+    readonly selectByUser: (userId: UserId) => Effect.Effect<ReadonlyArray<Chat>>
     /** Removes the chat with its messages; dies when it removes nothing or while one has an attachment. */
     readonly delete: (id: ChatId) => Effect.Effect<void>
   }

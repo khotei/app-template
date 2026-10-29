@@ -18,7 +18,6 @@ import {
   ChatId,
   ChatRepository,
   ChatTitle,
-  completeMessage,
   Message,
   MessageId,
   MessageRepository,
@@ -38,7 +37,7 @@ const at = (seconds: number) => DateTime.add(createdAt, { seconds })
 const question = (id: string, chatId: ChatId) =>
   buildUserMessage({ id: MessageId.make(id), chatId, text: 'Hi', createdAt })
 
-const reply = (id: string, chatId: ChatId) =>
+const _reply = (id: string, chatId: ChatId) =>
   buildAssistantMessage({ id: MessageId.make(id), chatId, createdAt: at(1) })
 
 const photo = (
@@ -59,13 +58,9 @@ const photo = (
 
 const SelectedChat = Schema.Option(Chat)
 
-const Summary = Schema.Struct({ chat: Chat, activeMessage: Schema.Option(Message) })
-
 const MessageDetails = Schema.Array(
   Schema.Struct({ message: Message, attachments: Schema.Array(Attachment) }),
 )
-
-const SelectedDetail = Schema.Option(Schema.Struct({ ...Summary.fields, messages: MessageDetails }))
 
 describe('ChatRepositoryPg', () => {
   it.effect('selects an inserted chat back, untitled and titled', () =>
@@ -96,7 +91,7 @@ describe('ChatRepositoryPg', () => {
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
-  it.effect("selectOne and selectDetail find the owner's chat; a stranger's read is none", () =>
+  it.effect("selectOne finds the owner's chat; a stranger's read is none", () =>
     Effect.gen(function* () {
       const chats = yield* ChatRepository
       const ada = UserId.make('0192d4e0-7b3a-7c00-8000-000000000010')
@@ -107,100 +102,33 @@ describe('ChatRepositoryPg', () => {
 
       const owned = yield* chats.selectOne({ id: stored.id, userId: ada })
       const foreign = yield* chats.selectOne({ id: stored.id, userId: bob })
-      const ownedDetail = yield* chats.selectDetail({ id: stored.id, userId: ada })
-      const foreignDetail = yield* chats.selectDetail({ id: stored.id, userId: bob })
 
       assertSchemaEquals(SelectedChat, owned, Option.some(stored))
-      assertSchemaEquals(
-        SelectedDetail,
-        ownedDetail,
-        Option.some({ chat: stored, activeMessage: Option.none(), messages: [] }),
-      )
-      assert.deepStrictEqual([foreign, foreignDetail], [Option.none(), Option.none()])
+      assert.deepStrictEqual(foreign, Option.none())
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
-  it.effect(
-    "selects the user's chats most recently updated first, each with its active message",
-    () =>
-      Effect.gen(function* () {
-        const chats = yield* ChatRepository
-        const messages = yield* MessageRepository
-        const ada = UserId.make('0192d4e0-7b3a-7c00-8000-000000000010')
-        const bob = UserId.make('0192d4e0-7b3a-7c00-8000-000000000011')
-        const older = new Chat({
-          ...chat('0192d4e0-7b3a-7c00-8000-000000000031', ada),
-          updatedAt: at(1),
-        })
-        const newer = new Chat({
-          ...chat('0192d4e0-7b3a-7c00-8000-000000000030', ada),
-          updatedAt: at(2),
-        })
-        const queued = reply('0192d4e0-7b3a-7c00-8000-000000000050', older.id)
-        const completed = yield* completeMessage(
-          reply('0192d4e0-7b3a-7c00-8000-000000000051', newer.id),
-          { text: 'Hello', at: at(2) },
-        )
-        yield* Effect.forEach([ada, bob], insertUser)
-        yield* Effect.forEach(
-          [older, newer, chat('0192d4e0-7b3a-7c00-8000-000000000032', bob)],
-          chats.insert,
-        )
-        yield* Effect.forEach(
-          [question('0192d4e0-7b3a-7c00-8000-000000000052', older.id), queued, completed],
-          messages.insert,
-        )
+  it.effect("selectByUser selects the user's chats, the most recently updated first", () =>
+    Effect.gen(function* () {
+      const chats = yield* ChatRepository
+      const ada = UserId.make('0192d4e0-7b3a-7c00-8000-000000000010')
+      const bob = UserId.make('0192d4e0-7b3a-7c00-8000-000000000011')
+      const older = new Chat({
+        ...chat('0192d4e0-7b3a-7c00-8000-000000000031', ada),
+        updatedAt: at(1),
+      })
+      const newer = new Chat({
+        ...chat('0192d4e0-7b3a-7c00-8000-000000000030', ada),
+        updatedAt: at(2),
+      })
+      yield* Effect.forEach([ada, bob], insertUser)
+      yield* Effect.forEach(
+        [older, newer, chat('0192d4e0-7b3a-7c00-8000-000000000032', bob)],
+        chats.insert,
+      )
 
-        assertSchemaEquals(Schema.Array(Summary), yield* chats.selectSummaries(ada), [
-          { chat: newer, activeMessage: Option.none() },
-          { chat: older, activeMessage: Option.some(queued) },
-        ])
-      }).pipe(Effect.provide(RepositoryStackPgTest)),
-  )
-
-  it.effect(
-    'selects a chat with its messages in creation order, each with its attachments in upload order',
-    () =>
-      Effect.gen(function* () {
-        const chats = yield* ChatRepository
-        const messages = yield* MessageRepository
-        const attachments = yield* AttachmentRepository
-        const ivy = UserId.make('0192d4e0-7b3a-7c00-8000-000000000018')
-        const stored = chat('0192d4e0-7b3a-7c00-8000-00000000003b', ivy)
-        const asked = question('0192d4e0-7b3a-7c00-8000-000000000055', stored.id)
-        const queued = reply('0192d4e0-7b3a-7c00-8000-000000000053', stored.id)
-        const firstUploaded = photo('0192d4e0-7b3a-7c00-8000-000000000023', {
-          userId: ivy,
-          messageId: asked.id,
-          seconds: 0,
-        })
-        const secondUploaded = photo('0192d4e0-7b3a-7c00-8000-000000000021', {
-          userId: ivy,
-          messageId: asked.id,
-          seconds: 1,
-        })
-        yield* insertUser(ivy)
-        yield* chats.insert(stored)
-        yield* Effect.forEach([queued, asked], messages.insert)
-        yield* Effect.forEach([secondUploaded, firstUploaded], attachments.insert)
-
-        assertSchemaEquals(
-          SelectedDetail,
-          yield* chats.selectDetail({ id: stored.id }),
-          Option.some({
-            chat: stored,
-            activeMessage: Option.some(queued),
-            messages: [
-              { message: asked, attachments: [firstUploaded, secondUploaded] },
-              { message: queued, attachments: [] },
-            ],
-          }),
-        )
-        assert.deepStrictEqual(
-          yield* chats.selectDetail({ id: ChatId.make('0192d4e0-7b3a-7c00-8000-00000000003c') }),
-          Option.none(),
-        )
-      }).pipe(Effect.provide(RepositoryStackPgTest)),
+      assertSchemaEquals(Schema.Array(Chat), yield* chats.selectByUser(ada), [newer, older])
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
   it.effect("delete removes the chat with its messages and keeps the user's other chats", () =>

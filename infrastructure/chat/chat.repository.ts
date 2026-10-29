@@ -1,16 +1,5 @@
-import { eq, isNull } from 'drizzle-orm'
-import {
-  Array as Arr,
-  DateTime,
-  Effect,
-  flow,
-  Layer,
-  Option,
-  pipe,
-  Schema,
-  Struct,
-  UndefinedOr,
-} from 'effect'
+import { desc, eq, isNull } from 'drizzle-orm'
+import { Array as Arr, DateTime, Effect, Layer, Option, Schema, UndefinedOr } from 'effect'
 
 import {
   type ChatId,
@@ -18,18 +7,10 @@ import {
   ChatRepository,
   type ChatSet,
   type ChatWhere,
-  isActiveMessage,
 } from '@app-template/domain/chat'
 
-import { MessageDetailFromRow } from '#infrastructure/attachment/attachment.entity'
 import { ChatFromRow, ChatInsert, chats } from '#infrastructure/chat/chat.entity'
-import {
-  activeMessageFilter,
-  inCreationOrder,
-  MessageFromRow,
-  withAttachments,
-} from '#infrastructure/chat/message.entity'
-import { buildSet, buildWhere, skipUndefined } from '#infrastructure/db/columns'
+import { buildSet, buildWhere } from '#infrastructure/db/columns'
 import {
   Db,
   decodeOptionalRow,
@@ -59,35 +40,7 @@ const encodeOneWhere = buildWhere<ChatOneWhere>({
   userId: UndefinedOr.map((userId) => eq(chats.userId, userId)),
 })
 
-/** A relational read aliases the table, so it takes a filter object, not `buildWhere`. */
-const filterOf = (where: ChatOneWhere) =>
-  ({ id: where.id, userId: skipUndefined(where.userId) }) as const
-
-const decodeChat = Schema.decodeEffect(ChatFromRow)
-
-const decodeMessages = Schema.decodeEffect(Schema.Array(MessageFromRow))
-
-const decodeDetails = Schema.decodeEffect(Schema.Array(MessageDetailFromRow))
-
-type ChatRowWith<Nested> = typeof ChatFromRow.Encoded & { readonly messages: ReadonlyArray<Nested> }
-
-const decodeSummary = ({ messages, ...row }: ChatRowWith<typeof MessageFromRow.Encoded>) =>
-  Effect.all({
-    chat: decodeChat(row),
-    activeMessage: decodeMessages(messages).pipe(Effect.map(Arr.findFirst(isActiveMessage))),
-  })
-
-const decodeDetail = ({ messages, ...row }: ChatRowWith<typeof MessageDetailFromRow.Encoded>) =>
-  Effect.gen(function* () {
-    const chat = yield* decodeChat(row)
-    const details = yield* decodeDetails(messages)
-    const activeMessage = pipe(
-      details,
-      Arr.map(Struct.get('message')),
-      Arr.findFirst(isActiveMessage),
-    )
-    return { chat, activeMessage, messages: details }
-  })
+const decodeChats = Schema.decodeEffect(Schema.Array(ChatFromRow))
 
 export const ChatRepositoryPg = Layer.effect(
   ChatRepository,
@@ -112,29 +65,14 @@ export const ChatRepositoryPg = Layer.effect(
         const rows = yield* options?.forUpdate ? query.for('update') : query
         return yield* decodeOptionalRow(ChatFromRow)(Arr.head(rows).pipe(Option.getOrUndefined))
       }, orDieWithSqlError),
-      selectSummaries: Effect.fn('ChatRepository.selectSummaries')(
+      selectByUser: Effect.fn('ChatRepository.selectByUser')(
         (userId) =>
-          db.query.chats
-            .findMany({
-              where: { userId },
-              orderBy: { updatedAt: 'desc' },
-              with: { messages: { where: activeMessageFilter, limit: 1 } },
-            })
-            .pipe(Effect.flatMap(Effect.forEach(decodeSummary))),
-        orDieWithSqlError,
-      ),
-      selectDetail: Effect.fn('ChatRepository.selectDetail')(
-        (where) =>
-          db.query.chats
-            .findFirst({
-              where: filterOf(where),
-              with: { messages: { orderBy: inCreationOrder, with: withAttachments } },
-            })
-            .pipe(
-              Effect.flatMap(
-                flow(Option.fromNullishOr, Option.map(decodeDetail), Effect.transposeOption),
-              ),
-            ),
+          db
+            .select()
+            .from(chats)
+            .where(eq(chats.userId, userId))
+            .orderBy(desc(chats.updatedAt))
+            .pipe(Effect.flatMap(decodeChats)),
         orDieWithSqlError,
       ),
       delete: Effect.fn('ChatRepository.delete')(

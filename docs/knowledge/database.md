@@ -43,12 +43,10 @@ from them and the row codecs derived from them.
   `ON CONFLICT … WHERE` that targets the index takes its predicate from this constant, which
   renders as literals (`.inlineParams()`): a generic plan, which Postgres switches a prepared
   statement to after five runs, cannot prove the index predicate from bound parameters.
-- **A relational read filters with an object, not the predicate.** A relational query aliases
-  its tables (`d0`, `d1`), while `activeMessage` names `"messages"."author"`, so the read of
-  the active message states the same condition as an object filter, `activeMessageFilter`
-  beside it (`{ author: 'assistant', stage: { in: … } }`), its stages from the same
-  `ActiveMessageStage.literals`; a query that filters for the active message spreads it, and
-  a read that already holds the chat's messages picks it with `isActiveMessage`.
+- **The read of active messages filters with the predicate.** `MessageRepository.selectActive`
+  is a plain `select` whose `where` is `activeMessage`, so the index and the read share one
+  constant; a read that already holds the chat's messages picks the active one with
+  `isActiveMessage`.
 - **A descending index states its null order.** Drizzle's `desc()` indexes nulls last while
   Postgres's `ORDER BY … DESC` sorts them first, so an index for that order is
   `.desc().nullsFirst()` (`chats_user_id_updated_at_index`).
@@ -104,12 +102,10 @@ const rows = yield* db.query.messages.findMany({
 // rows: [{ id, chatId, …, attachments: [{ id, userId, messageId, … }] }]
 ```
 
-A read model is one relational query: the domain declares the shapes the ports answer
-(`ChatSummary`, `ChatDetail`, `MessageDetail` in `chat.model.ts`), and the repository reads each
-in one `db.query`. A read model that holds a `Message` the domain narrows (`ChatSummary`,
-`ChatDetail`, with their `activeMessage`) is decoded by a small function in the repository: it
-decodes the chat with `ChatFromRow` and its messages with `Schema.Array(MessageFromRow)` or
-`Schema.Array(MessageDetailFromRow)`, then picks the active one with
+A read model is composed where it is answered: a repository reads a `MessageDetail` in one
+relational query (the message `with` its attachments), while `ChatService` builds `ChatSummary`
+and `ChatDetail` from the reads of two ports (`selectByUser` and `selectActive`, `selectOne` and
+`selectByChat`), so a chat read stays one table. The service picks the active message with
 `Arr.findFirst(isActiveMessage)`, a narrowing no schema types. A model holds no field that
 another table holds: `Message` has no attachments, which reach the reader as a `MessageDetail`.
 

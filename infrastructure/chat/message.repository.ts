@@ -1,5 +1,5 @@
-import { and, eq } from 'drizzle-orm'
-import { Effect, Layer, Option, Schema, UndefinedOr } from 'effect'
+import { and, eq, inArray } from 'drizzle-orm'
+import { Array as Arr, Effect, Layer, Schema, UndefinedOr } from 'effect'
 
 import {
   isActiveMessage,
@@ -11,7 +11,6 @@ import {
 import { MessageDetailFromRow } from '#infrastructure/attachment/attachment.entity'
 import {
   activeMessage,
-  activeMessageFilter,
   inCreationOrder,
   MessageFromRow,
   MessageInsert,
@@ -27,6 +26,8 @@ import {
 } from '#infrastructure/db/db.client'
 
 const encodeMessage = Schema.encodeEffect(MessageInsert)
+
+const decodeMessages = Schema.decodeEffect(Schema.Array(MessageFromRow))
 
 const decodeDetails = Schema.decodeEffect(Schema.Array(MessageDetailFromRow))
 
@@ -92,14 +93,13 @@ export const MessageRepositoryPg = Layer.effect(
         })
         return row !== undefined
       }, orDieWithSqlError),
-      selectActiveByChat: Effect.fn('MessageRepository.selectActiveByChat')(
-        (chatId) =>
-          db.query.messages
-            .findFirst({ where: { chatId, ...activeMessageFilter } })
-            .pipe(
-              Effect.flatMap(decodeOptionalRow(MessageFromRow)),
-              Effect.map(Option.filter(isActiveMessage)),
-            ),
+      selectActive: Effect.fn('MessageRepository.selectActive')(
+        (chatIds) =>
+          db
+            .select()
+            .from(messages)
+            .where(and(inArray(messages.chatId, chatIds), activeMessage))
+            .pipe(Effect.flatMap(decodeMessages), Effect.map(Arr.filter(isActiveMessage))),
         orDieWithSqlError,
       ),
     }),

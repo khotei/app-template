@@ -27,7 +27,9 @@ export class MessageRepository extends Context.Service<
     /** Returns the chat's messages in creation order, a tie broken by id. */
     readonly selectByChat: (chatId: ChatId) => Effect.Effect<ReadonlyArray<MessageDetail>>
     readonly existsByChat: (chatId: ChatId) => Effect.Effect<boolean>
-    /** Returns the chat's active message, the one `isActiveMessage` holds for, if any. */
-    readonly selectActiveByChat: (chatId: ChatId) => Effect.Effect<Option.Option<ActiveMessage>>
+    /** Returns the active message of each chat in `chatIds` that has one, unordered. */
+    readonly selectActive: (
+      chatIds: ReadonlyArray<ChatId>,
+    ) => Effect.Effect<ReadonlyArray<ActiveMessage>>
   }
 >()('@app-template/domain/chat/MessageRepository') {}

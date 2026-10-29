@@ -35,7 +35,7 @@ export const ChatHandler = HttpApiBuilder.group(
         'list',
         Effect.fn('ChatHandler.list')(function* () {
           const user = yield* CurrentUser
-          const summaries = yield* chats.selectSummaries(user.id)
+          const summaries = yield* chatService.list(user.id)
           return Arr.map(summaries, toSummary)
         }),
       )

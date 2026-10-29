@@ -140,7 +140,7 @@ describe('SendMessageUseCase', () => {
           error,
           new AttachmentNotFoundError({ id: photo.id }),
         )
-        assertEquals(yield* messages.selectActiveByChat(chat.id), Option.none())
+        assertEquals(yield* messages.selectActive([chat.id]), [])
         assertEquals(yield* selectAttachments([photo]), [photo])
         assertEquals(yield* queue.sent, [])
       }).pipe(Effect.provide(Layer.provide(ChatTest, queue.layer)))

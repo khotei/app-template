@@ -11,7 +11,7 @@ paths:
   named after its export; a service method is named `'<Service>.<method>'`. An internal helper
   that marks no useful tracing boundary is `Effect.fnUntraced`.
 - A body that only delegates is passed as is,
-  `Effect.fn('ChatService.list')(chats.selectSummaries)`, or as an arrow returning the effect; a
+  `Effect.fn('<Service>.<method>')(port.<method>)`, or as an arrow returning the effect; a
   generator is for a body with more than one step. Extra arguments to `Effect.fn` are the
   pipeables every call runs through (`transaction.run`).
 - The variable holding an `Effect.fn` is named after the span's last segment; a reserved word

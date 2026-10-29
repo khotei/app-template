@@ -1,7 +1,7 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, DateTime, Effect, Layer, Option } from 'effect'
+import { Array as Arr, DateTime, Effect, Layer, Option, Struct } from 'effect'
 
 import { assertSchemaEquals } from '@app-template/testing'
 
@@ -59,6 +59,40 @@ const chatCalls: ReadonlyArray<{ readonly name: string; readonly call: ChatCall 
 ]
 
 describe('ChatService', () => {
+  it.effect(
+    "list returns the user's chats, the most recently updated first, each with its active message",
+    () =>
+      Effect.gen(function* () {
+        const service = yield* ChatService
+        const chats = yield* ChatRepository
+        const newer = new Chat({
+          ...buildChat({
+            id: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000035'),
+            userId: owner,
+            createdAt: epoch,
+          }),
+          updatedAt: DateTime.add(epoch, { seconds: 1 }),
+        })
+        yield* chats.insert(newer)
+        yield* chats.insert(
+          buildChat({
+            id: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000036'),
+            userId: stranger,
+            createdAt: epoch,
+          }),
+        )
+        const sent = yield* send(owner, chat.id, 'Lisbon?')
+
+        const summaries = yield* service.list(owner)
+
+        assertEquals(Arr.map(summaries, Struct.get('chat')), [newer, chat])
+        assertEquals(
+          Arr.map(summaries, ({ activeMessage }) => Option.map(activeMessage, Struct.get('id'))),
+          [Option.none(), Option.some(sent.assistantMessage.id)],
+        )
+      }).pipe(Effect.provide(ChatBunTest)),
+  )
+
   it.effect('get returns the chat with its messages and the active message', () =>
     Effect.gen(function* () {
       const service = yield* ChatService

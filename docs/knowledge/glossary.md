@@ -79,8 +79,8 @@ The `Schema.Class` of an entity as the domain sees it (`Chat`, `Message`).
 _Avoid_: Entity (for the class), DTO, row
 
 **Read model**:
-A shape a port answers for a reader, composed of models (`ChatSummary`, `MessageDetail`); nothing
-writes one.
+A shape a port or a domain service answers for a reader, composed of models (`ChatSummary`,
+`MessageDetail`); nothing writes one.
 _Avoid_: View, projection, DTO
 
 **Port**:

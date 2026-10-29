@@ -1,13 +1,14 @@
-import { Context, Data, DateTime, Effect, Layer, Option } from 'effect'
+import { Array as Arr, Context, Data, DateTime, Effect, Layer, Option, pipe, Struct } from 'effect'
 
 import { type ChatBusyError, ChatNotFoundError, ChatTitledError } from '#domain/chat/chat.error'
 import type { ChatId, MessageId } from '#domain/chat/chat.id'
-import { Chat, type ChatDetail, type ChatTitle } from '#domain/chat/chat.model'
+import { Chat, type ChatDetail, type ChatSummary, type ChatTitle } from '#domain/chat/chat.model'
 import { ChatRepository } from '#domain/chat/chat.port'
 import { type MessageInputInvalidError, MessageNotFoundError } from '#domain/chat/message.error'
 import {
   ensureChatAcceptsMessage,
   ensureMessageInput,
+  isActiveMessage,
   type MessageDetail,
   type MessageInput,
 } from '#domain/chat/message.model'
@@ -27,6 +28,8 @@ export class SendableChat extends Data.Class<{
 export class ChatService extends Context.Service<
   ChatService,
   {
+    /** Returns the user's chats, the most recently updated first. */
+    readonly list: (userId: UserId) => Effect.Effect<ReadonlyArray<ChatSummary>>
     readonly get: (userId: UserId, chatId: ChatId) => Effect.Effect<ChatDetail, ChatNotFoundError>
     readonly getMessage: (
       userId: UserId,
@@ -58,11 +61,32 @@ export class ChatService extends Context.Service<
     const chats = yield* ChatRepository
     const messages = yield* MessageRepository
 
-    const get = Effect.fn('ChatService.get')((userId: UserId, chatId: ChatId) =>
-      chats
-        .selectDetail({ id: chatId, userId })
-        .pipe(Effect.flatMap(Effect.fromOption(() => new ChatNotFoundError({ id: chatId })))),
-    )
+    const list = Effect.fn('ChatService.list')(function* (userId: UserId) {
+      const found = yield* chats.selectByUser(userId)
+      const active = yield* messages.selectActive(Arr.map(found, Struct.get('id')))
+
+      return Arr.map(
+        found,
+        (chat): ChatSummary => ({
+          chat,
+          activeMessage: Arr.findFirst(active, (message) => message.chatId === chat.id),
+        }),
+      )
+    })
+
+    const get = Effect.fn('ChatService.get')(function* (userId: UserId, chatId: ChatId) {
+      const chat = yield* chats
+        .selectOne({ id: chatId, userId })
+        .pipe(Effect.flatMap(Effect.fromOption(() => new ChatNotFoundError({ id: chatId }))))
+      const details = yield* messages.selectByChat(chatId)
+
+      const activeMessage = pipe(
+        details,
+        Arr.map(Struct.get('message')),
+        Arr.findFirst(isActiveMessage),
+      )
+      return { chat, activeMessage, messages: details }
+    })
 
     const getMessage = Effect.fn('ChatService.getMessage')(
       (userId: UserId, chatId: ChatId, messageId: MessageId) =>
@@ -111,15 +135,15 @@ export class ChatService extends Context.Service<
         .selectOne({ id: chatId, userId }, { forUpdate: true })
         .pipe(Effect.flatMap(Effect.fromOption(() => new ChatNotFoundError({ id: chatId }))))
 
-      const active = yield* messages.selectActiveByChat(chatId)
-      yield* ensureChatAcceptsMessage(active)
+      const active = yield* messages.selectActive([chatId])
+      yield* ensureChatAcceptsMessage(Arr.head(active))
 
       const opened = yield* messages.existsByChat(chatId)
       const at = yield* DateTime.now
       return new SendableChat({ chatId, input, opensChat: !opened, at })
     })
 
-    return { get, getMessage, rename, updateTitle, findSendable }
+    return { list, get, getMessage, rename, updateTitle, findSendable }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)
