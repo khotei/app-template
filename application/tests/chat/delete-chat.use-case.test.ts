@@ -36,7 +36,7 @@ describe('DeleteChatUseCase', () => {
         assertEquals(yield* selectMessages(chat.id), [])
         assertEquals(yield* selectAttachments([photo]), [])
         assertEquals(yield* bucket.select(photo.id), Option.none())
-      }).pipe(Effect.provide(ChatTest.pipe(Layer.provide(queue.layer))))
+      }).pipe(Effect.provide(Layer.provide(ChatTest, queue.layer)))
     },
   )
 })

@@ -20,7 +20,7 @@ export class UserRows extends Context.Service<
 
 export const UserRepositoryTest = Layer.effect(
   UserRepository,
-  Effect.map(UserRows, (rows) =>
+  UserRows.useSync((rows) =>
     UserRepository.of({
       insert: (user, credential) => Ref.update(rows, HashMap.set(user.id, { user, credential })),
       selectById: (id) =>

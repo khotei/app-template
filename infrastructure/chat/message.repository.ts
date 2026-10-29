@@ -8,20 +8,22 @@ import {
   type MessageWhere,
 } from '@app-template/domain/chat'
 
-import { decodeMessageDetail } from '#infrastructure/attachment/attachment.entity'
+import { MessageDetailFromRow } from '#infrastructure/attachment/attachment.entity'
 import {
   activeMessage,
   activeMessageFilter,
-  decodeMessage,
   inCreationOrder,
+  MessageFromRow,
   MessageInsert,
   messages,
   withAttachments,
 } from '#infrastructure/chat/message.entity'
 import { buildWhere, skipUndefined } from '#infrastructure/db/columns'
-import { Db, decodeFound, orDieWithSqlError } from '#infrastructure/db/db.client'
+import { Db, decodeOptionalRow, orDieWithSqlError } from '#infrastructure/db/db.client'
 
 const encodeMessage = Schema.encodeEffect(MessageInsert)
+
+const decodeDetails = Schema.decodeEffect(Schema.Array(MessageDetailFromRow))
 
 const encodeWhere = buildWhere<MessageWhere>({
   stage: (stage) => eq(messages.stage, stage),
@@ -37,7 +39,7 @@ const filterOf = (where: MessageOneWhere) =>
 
 export const MessageRepositoryPg = Layer.effect(
   MessageRepository,
-  Effect.map(Db, (db) =>
+  Db.useSync((db) =>
     MessageRepository.of({
       insert: Effect.fn('MessageRepository.insert')(function* (message) {
         const row = yield* encodeMessage(message)
@@ -57,25 +59,27 @@ export const MessageRepositoryPg = Layer.effect(
           .returning({ id: messages.id })
         return Arr.isReadonlyArrayNonEmpty(updated)
       }, orDieWithSqlError),
-      selectOne: Effect.fn('MessageRepository.selectOne')(function* (where) {
-        const row = yield* db.query.messages.findFirst({ where: filterOf(where) })
-        return yield* decodeFound(row, decodeMessage)
-      }, orDieWithSqlError),
-      selectDetail: Effect.fn('MessageRepository.selectDetail')(function* (where) {
-        const row = yield* db.query.messages.findFirst({
-          where: filterOf(where),
-          with: withAttachments,
-        })
-        return yield* decodeFound(row, decodeMessageDetail)
-      }, orDieWithSqlError),
-      selectByChat: Effect.fn('MessageRepository.selectByChat')(function* (chatId) {
-        const rows = yield* db.query.messages.findMany({
-          where: { chatId },
-          orderBy: inCreationOrder,
-          with: withAttachments,
-        })
-        return yield* Effect.forEach(rows, decodeMessageDetail)
-      }, orDieWithSqlError),
+      selectOne: Effect.fn('MessageRepository.selectOne')(
+        (where) =>
+          db.query.messages
+            .findFirst({ where: filterOf(where) })
+            .pipe(Effect.flatMap(decodeOptionalRow(MessageFromRow))),
+        orDieWithSqlError,
+      ),
+      selectDetail: Effect.fn('MessageRepository.selectDetail')(
+        (where) =>
+          db.query.messages
+            .findFirst({ where: filterOf(where), with: withAttachments })
+            .pipe(Effect.flatMap(decodeOptionalRow(MessageDetailFromRow))),
+        orDieWithSqlError,
+      ),
+      selectByChat: Effect.fn('MessageRepository.selectByChat')(
+        (chatId) =>
+          db.query.messages
+            .findMany({ where: { chatId }, orderBy: inCreationOrder, with: withAttachments })
+            .pipe(Effect.flatMap(decodeDetails)),
+        orDieWithSqlError,
+      ),
       existsByChat: Effect.fn('MessageRepository.existsByChat')(function* (chatId) {
         const row = yield* db.query.messages.findFirst({
           where: { chatId },
@@ -83,13 +87,16 @@ export const MessageRepositoryPg = Layer.effect(
         })
         return row !== undefined
       }, orDieWithSqlError),
-      selectActiveByChat: Effect.fn('MessageRepository.selectActiveByChat')(function* (chatId) {
-        const row = yield* db.query.messages.findFirst({
-          where: { chatId, ...activeMessageFilter },
-        })
-        const found = yield* decodeFound(row, decodeMessage)
-        return Option.filter(found, isActiveMessage)
-      }, orDieWithSqlError),
+      selectActiveByChat: Effect.fn('MessageRepository.selectActiveByChat')(
+        (chatId) =>
+          db.query.messages
+            .findFirst({ where: { chatId, ...activeMessageFilter } })
+            .pipe(
+              Effect.flatMap(decodeOptionalRow(MessageFromRow)),
+              Effect.map(Option.filter(isActiveMessage)),
+            ),
+        orDieWithSqlError,
+      ),
     }),
   ),
 )

@@ -54,7 +54,9 @@ describe('ensureChatAcceptsMessage', () => {
     'fails ChatBusyError with the chat id when the current message is a %s assistant message',
     (stage) =>
       Effect.gen(function* () {
-        const error = yield* Effect.flip(ensureChatAcceptsMessage(Option.some(assistantAt(stage))))
+        const error = yield* ensureChatAcceptsMessage(Option.some(assistantAt(stage))).pipe(
+          Effect.flip,
+        )
 
         assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chatId }))
       }),
@@ -64,7 +66,7 @@ describe('ensureChatAcceptsMessage', () => {
 describe('ensureMessageInput', () => {
   it.effect.each(['', '  \n\t '])('rejects the blank text %j without attachments', (text) =>
     Effect.gen(function* () {
-      const error = yield* Effect.flip(ensureMessageInput({ text, attachmentIds: [] }))
+      const error = yield* ensureMessageInput({ text, attachmentIds: [] }).pipe(Effect.flip)
 
       assertSchemaEquals(MessageInputInvalidError, error, new MessageInputInvalidError())
     }),
@@ -72,9 +74,10 @@ describe('ensureMessageInput', () => {
 
   it.effect('rejects an attachment id given twice', () =>
     Effect.gen(function* () {
-      const error = yield* Effect.flip(
-        ensureMessageInput({ text: 'Look', attachmentIds: [attachmentId, attachmentId] }),
-      )
+      const error = yield* ensureMessageInput({
+        text: 'Look',
+        attachmentIds: [attachmentId, attachmentId],
+      }).pipe(Effect.flip)
 
       assertSchemaEquals(MessageInputInvalidError, error, new MessageInputInvalidError())
     }),

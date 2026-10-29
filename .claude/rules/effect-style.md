@@ -23,12 +23,10 @@ The goal is code that reads top to bottom and extends by adding a row, not a bra
 
 ## Control flow
 
-- Keep a generator flat: guard clauses, never a nested ternary; one `yield*` per statement, its
-  value named instead of nested in an argument, so every step is in view.
+- Keep a generator flat: guard clauses, no nested ternary; one `yield*` per statement, value named.
 - Separate the paragraphs of a body with one blank line: the services it reads, the reads, the
   checks, the writes, the result. A body of three statements or fewer stays unbroken.
-- Read an `Option` through its combinators (`Option.filter`, `Option.match`, `Option.getOrElse`);
-  touch `.value` only under a narrowing guard.
+- Read an `Option` by its combinators (`Option.match`); `.value` only under a narrowing guard.
 - Prefer `Arr` where it names what native code spells out: `Arr.append` over a spread, `Arr.filter`
   over `.filter`, `Arr.getSomes` over `flatMap(Option.toArray)`, `Arr.isReadonlyArrayEmpty`.
 - Run an effect per element with `Effect.forEach` (`{ discard: true }` when nothing is returned);
@@ -38,19 +36,21 @@ The goal is code that reads top to bottom and extends by adding a row, not a bra
 
 ## Composition
 
-- Business logic (a service method, a use case, a transition: rules in sequence with named
-  intermediates) is `Effect.gen` or `Effect.fn` with `yield*`, never `Effect.Do`; a one-step
-  transformation is a combinator (`Effect.map`). The plumbing around it (encoding, error mapping,
-  logging, retries, transactions, tracing, small helpers and adapters) is `pipe` / `.pipe`, on the
-  effect or as `Effect.fn`'s pipeables (`effect-services.md › Functions`):
-  `Effect.fn('<Service>.<method>')(function* (…) { … }, transaction.run, Effect.mapError(…))`.
-- `pipe` is the default way to compose, flat over nested: a value with `.pipe` (an `Effect`, a
-  `Layer`, a `Schema`) through it, plain data through `pipe(value, …)`; never both in one chain,
-  no `pipe(…)` inside a pipe step. An inside-out body becomes a pipe in execution order, an effect
-  pipeline ending in the combinator that runs it (`Effect.forkScoped`), a chain without its value
-  `flow(…)`. Go data-last and point-free when the function's name says the step
-  (`Effect.tap(Arr.match({ … }))`), a lambda only to add an argument or a name, never a point-free
-  form that needs a cast or loses an `E` or `R`.
+- Business logic (a service method, a use case, a transition: later steps read several earlier
+  values) is `Effect.gen` or `Effect.fn` with `yield*`, never `Effect.Do`; a one-step
+  transformation is a combinator (`Effect.map`). The plumbing (encoding, error mapping, logging,
+  retries, transactions, tracing) and small helpers and adapters are `pipe` / `.pipe`, chained on
+  the step they serve, never wrapped around it, or `Effect.fn`'s pipeables (`effect-services.md ›
+  Functions`): `Effect.fn('<Service>.<method>')(function* (…) { … }, transaction.run)`.
+- A call never takes another call's result as its subject (`make nested-calls`):
+  `Ref.get(rows).pipe(Effect.map(f))`, never `Effect.map(Ref.get(rows), f)`. A value with `.pipe`
+  (an `Effect`, a `Layer`, a `Schema`, an `Option`) goes through it, plain data through
+  `pipe(value, …)`; never both in one chain, no pipe inside a pipe step. A function whose every
+  step feeds only the next is point-free: `flow(…)`, or an arrow whose body is one `.pipe` ending
+  in the combinator that runs it (`Effect.forkScoped`). Go data-last when the function's name says
+  the step (`Effect.tap(Arr.match({ … }))`), a lambda only to add an argument or a name, never a
+  point-free form that needs a cast or loses an `E` or `R`.
+- Reach a service by `Service.use((s) => s.m(…))`, or `useSync` for a plain value.
 - A composable function takes its subject as the last, single argument, options first and curried
   (`pipe(message, encodeWith(codec))`); `dual` only when called both directly and as a pipe step.
 

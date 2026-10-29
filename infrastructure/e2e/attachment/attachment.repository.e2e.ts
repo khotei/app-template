@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, DateTime, Effect, Option, Schema } from 'effect'
+import { Array as Arr, DateTime, Effect, Option, pipe, Schema, Struct } from 'effect'
 
 import {
   Attachment,
@@ -101,7 +101,7 @@ describe('AttachmentRepositoryPg', () => {
       })
       yield* insertMessage
       yield* messages.insert(buildUserMessage({ id: nextMessageId, chatId, text: 'Hi', createdAt }))
-      yield* Effect.forEach(Arr.append(free, boundBefore), attachments.insert)
+      yield* pipe(free, Arr.append(boundBefore), Effect.forEach(attachments.insert))
 
       const bound = yield* attachments.update(
         { messageId: Option.some(nextMessageId) },
@@ -116,7 +116,7 @@ describe('AttachmentRepositoryPg', () => {
       assertSchemaEquals(
         Attachments,
         yield* attachments.selectMany({
-          id: Arr.map(Arr.append(free, boundBefore), (each) => each.id),
+          id: pipe(free, Arr.append(boundBefore), Arr.map(Struct.get('id'))),
         }),
         Arr.append(boundNow, boundBefore),
       )
@@ -153,7 +153,7 @@ describe('AttachmentRepositoryPg', () => {
       })
       yield* insertMessage
       yield* insertOwnedChats(strangerId, [])
-      yield* Effect.forEach(Arr.append(owned, foreign), attachments.insert)
+      yield* pipe(owned, Arr.append(foreign), Effect.forEach(attachments.insert))
 
       const ownersRows = yield* attachments.selectMany({ userId })
       const strangersRows = yield* attachments.selectMany({ userId: strangerId })
@@ -172,7 +172,7 @@ describe('AttachmentRepositoryPg', () => {
         attachment('0192d4e0-7b3a-7c00-8000-000000000025'),
       ]
       yield* insertMessage
-      yield* Effect.forEach(Arr.prepend(dropped, kept), attachments.insert)
+      yield* pipe(dropped, Arr.prepend(kept), Effect.forEach(attachments.insert))
 
       const droppedIds = Arr.map(dropped, (each) => each.id)
       yield* attachments.deleteByIds(Arr.append(droppedIds, unknownId))

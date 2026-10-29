@@ -11,7 +11,7 @@ import { DbTest, flipSqlError } from '#infrastructure/db/testing/db.test-layer'
 import { insertUser } from '#infrastructure/testing/rows.test-util'
 import { users } from '#infrastructure/user/user.entity'
 
-const greet = Effect.flatMap(Db, (db) =>
+const greet = Db.use((db) =>
   db.execute<{ greeting: string }>(sql`select ${'hello'}::text as greeting`, 'objects'),
 )
 
@@ -33,7 +33,7 @@ describe('Db', () => {
 
 const TransactionPgTest = Transaction.layer.pipe(Layer.provideMerge(DbTest))
 
-const selectUserIds = Effect.flatMap(Db, (db) => db.select({ id: users.id }).from(users))
+const selectUserIds = Db.use((db) => db.select({ id: users.id }).from(users))
 
 describe('Transaction', () => {
   it.effect('run keeps no write of a step when a later one is refused', () =>
@@ -41,7 +41,11 @@ describe('Transaction', () => {
       const transaction = yield* Transaction
 
       // The second insert is refused by the users primary key.
-      yield* flipSqlError(transaction.run(Effect.andThen(insertUser(owner), insertUser(owner))))
+      yield* insertUser(owner).pipe(
+        Effect.andThen(insertUser(owner)),
+        transaction.run,
+        flipSqlError,
+      )
 
       assert.deepStrictEqual(yield* selectUserIds, [])
     }).pipe(Effect.provide(TransactionPgTest)),
@@ -51,8 +55,11 @@ describe('Transaction', () => {
     Effect.gen(function* () {
       const transaction = yield* Transaction
 
-      const exit = yield* Effect.exit(
-        transaction.run(Effect.andThen(insertUser(owner), Effect.orDie(insertUser(owner)))),
+      const dying = insertUser(owner).pipe(Effect.orDie)
+      const exit = yield* insertUser(owner).pipe(
+        Effect.andThen(dying),
+        transaction.run,
+        Effect.exit,
       )
 
       assert.isTrue(Exit.hasDies(exit))
@@ -66,7 +73,7 @@ describe('Transaction', () => {
       const client = yield* SqlClient.SqlClient
 
       // The table does not exist, so the statement itself fails with a SqlError.
-      const exit = yield* Effect.exit(transaction.run(client`SELECT 1 FROM no_such_table`))
+      const exit = yield* transaction.run(client`SELECT 1 FROM no_such_table`).pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
     }).pipe(Effect.provide(TransactionPgTest)),

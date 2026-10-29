@@ -6,11 +6,13 @@ import { Auth, CurrentUser, RequestInvalidError, SchemaErrors } from '@app-templ
 
 export const AuthUserService = Layer.effect(
   Auth,
-  Effect.map(UserService, (users) =>
+  UserService.useSync((users) =>
     Auth.of({
       cookie: (httpEffect, { credential }) =>
-        Effect.flatMap(users.authenticate(credential), (user) =>
-          Effect.provideService(httpEffect, CurrentUser, { id: user.id }),
+        Effect.provideServiceEffect(
+          httpEffect,
+          CurrentUser,
+          users.authenticate(credential).pipe(Effect.map((user) => ({ id: user.id }))),
         ),
     }),
   ),

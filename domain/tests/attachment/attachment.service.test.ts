@@ -49,7 +49,7 @@ const AttachmentServiceTest = layerAttachmentService(AttachmentRepositoryTest)
 
 const AttachmentRepositoryInsertDying = Layer.effect(
   AttachmentRepository,
-  Effect.map(AttachmentRepository, (inner) =>
+  AttachmentRepository.useSync((inner) =>
     AttachmentRepository.of({ ...inner, insert: () => Effect.die('the record write was lost') }),
   ),
 ).pipe(Layer.provide(AttachmentRepositoryTest))
@@ -63,15 +63,12 @@ const photoUpload = { ...photo, content: Stream.make(png) }
 const uploadPhoto = upload(owner)
 
 const countStored = Effect.all({
-  rows: Effect.flatMap(AttachmentRows, Ref.get).pipe(Effect.map(HashMap.size)),
-  objects: Effect.flatMap(AttachmentBucketObjects, Ref.get).pipe(Effect.map(HashMap.size)),
+  rows: AttachmentRows.use(Ref.get).pipe(Effect.map(HashMap.size)),
+  objects: AttachmentBucketObjects.use(Ref.get).pipe(Effect.map(HashMap.size)),
 })
 
 const bucketHref = (id: AttachmentId) =>
-  Effect.map(
-    Effect.flatMap(AttachmentBucket, (bucket) => bucket.url(id)),
-    Option.map((url) => url.href),
-  )
+  AttachmentBucket.use((bucket) => bucket.url(id)).pipe(Effect.map(Option.map((url) => url.href)))
 
 const brokenUploads = [
   {
@@ -95,10 +92,10 @@ interface Addresser {
 }
 
 const readers = [
-  { name: 'get', address: (service, userId, id) => Effect.asVoid(service.get(userId, id)) },
+  { name: 'get', address: (service, userId, id) => service.get(userId, id).pipe(Effect.asVoid) },
   {
     name: 'download',
-    address: (service, userId, id) => Effect.asVoid(service.download(userId, id)),
+    address: (service, userId, id) => service.download(userId, id).pipe(Effect.asVoid),
   },
 ] as const satisfies ReadonlyArray<Addresser>
 
@@ -107,12 +104,12 @@ const addressers = [
   { name: 'delete', address: (service, userId, id) => service.delete(userId, id) },
   {
     name: 'bind',
-    address: (service, userId, id) => Effect.asVoid(service.bind(userId, [id], messageId)),
+    address: (service, userId, id) => service.bind(userId, [id], messageId).pipe(Effect.asVoid),
   },
 ] as const satisfies ReadonlyArray<Addresser>
 
 const bind = (attachment: Attachment) =>
-  Effect.flatMap(AttachmentRepository, (attachments) =>
+  AttachmentRepository.use((attachments) =>
     attachments.update({ messageId: Option.some(messageId) }, { id: [attachment.id] }),
   )
 
@@ -120,10 +117,9 @@ const boundTo = (attachment: Attachment) =>
   new Attachment({ ...attachment, messageId: Option.some(messageId) })
 
 const selectStored = (ids: ReadonlyArray<AttachmentId>) =>
-  Effect.flatMap(AttachmentRepository, (attachments) => attachments.selectMany({ id: ids }))
+  AttachmentRepository.use((attachments) => attachments.selectMany({ id: ids }))
 
-const selectBytes = (id: AttachmentId) =>
-  Effect.flatMap(AttachmentBucket, (bucket) => bucket.select(id))
+const selectBytes = (id: AttachmentId) => AttachmentBucket.use((bucket) => bucket.select(id))
 
 describe('AttachmentService', () => {
   it.effect('upload stores the bytes and the metadata of an unbound attachment', () =>
@@ -175,7 +171,7 @@ describe('AttachmentService', () => {
         const service = yield* AttachmentService
         const broken = new StreamBrokenError()
 
-        const error = yield* Effect.flip(service.upload(owner, files(broken)))
+        const error = yield* service.upload(owner, files(broken)).pipe(Effect.flip)
         const stored = yield* countStored
 
         assert.strictEqual(error, broken)
@@ -200,9 +196,9 @@ describe('AttachmentService', () => {
     Effect.gen(function* () {
       const service = yield* AttachmentService
       const attachment = yield* uploadPhoto
-      yield* Effect.flatMap(AttachmentBucket, (bucket) => bucket.delete(attachment.id))
+      yield* AttachmentBucket.use((bucket) => bucket.delete(attachment.id))
 
-      const error = yield* Effect.flip(service.download(owner, attachment.id))
+      const error = yield* service.download(owner, attachment.id).pipe(Effect.flip)
 
       assertSchemaEquals(
         AttachmentNotFoundError,
@@ -219,8 +215,8 @@ describe('AttachmentService', () => {
         const service = yield* AttachmentService
         const attachment = yield* uploadPhoto
 
-        const foreign = yield* Effect.flip(address(service, stranger, attachment.id))
-        const missing = yield* Effect.flip(address(service, owner, unknownAttachmentId))
+        const foreign = yield* address(service, stranger, attachment.id).pipe(Effect.flip)
+        const missing = yield* address(service, owner, unknownAttachmentId).pipe(Effect.flip)
 
         assertSchemaEquals(
           AttachmentNotFoundError,
@@ -242,7 +238,7 @@ describe('AttachmentService', () => {
 
       yield* service.delete(owner, attachment.id)
 
-      const error = yield* Effect.flip(service.get(owner, attachment.id))
+      const error = yield* service.get(owner, attachment.id).pipe(Effect.flip)
       assertSchemaEquals(
         AttachmentNotFoundError,
         error,
@@ -257,7 +253,7 @@ describe('AttachmentService', () => {
       const service = yield* AttachmentService
       const attachment = yield* uploadPhoto
 
-      const error = yield* Effect.flip(service.delete(stranger, attachment.id))
+      const error = yield* service.delete(stranger, attachment.id).pipe(Effect.flip)
       const found = yield* service.get(owner, attachment.id)
       const bytes = yield* selectBytes(attachment.id)
 
@@ -277,7 +273,7 @@ describe('AttachmentService', () => {
       const attachment = yield* uploadPhoto
       yield* bind(attachment)
 
-      const error = yield* Effect.flip(service.delete(owner, attachment.id))
+      const error = yield* service.delete(owner, attachment.id).pipe(Effect.flip)
       const bytes = yield* selectBytes(attachment.id)
 
       assertSchemaEquals(
@@ -310,12 +306,12 @@ describe('AttachmentService', () => {
       const free = yield* uploadPhoto
       const foreign = yield* upload(stranger)
 
-      const strangerFirst = yield* Effect.flip(
-        service.bind(owner, [free.id, foreign.id, unknownAttachmentId], messageId),
-      )
-      const unknownFirst = yield* Effect.flip(
-        service.bind(owner, [free.id, unknownAttachmentId, foreign.id], messageId),
-      )
+      const strangerFirst = yield* service
+        .bind(owner, [free.id, foreign.id, unknownAttachmentId], messageId)
+        .pipe(Effect.flip)
+      const unknownFirst = yield* service
+        .bind(owner, [free.id, unknownAttachmentId, foreign.id], messageId)
+        .pipe(Effect.flip)
 
       assertSchemaEquals(
         AttachmentNotFoundError,
@@ -338,7 +334,7 @@ describe('AttachmentService', () => {
       const taken = yield* uploadPhoto
       yield* bind(taken)
 
-      const error = yield* Effect.flip(service.bind(owner, [free.id, taken.id], messageId))
+      const error = yield* service.bind(owner, [free.id, taken.id], messageId).pipe(Effect.flip)
 
       assertSchemaEquals(AttachmentBoundError, error, new AttachmentBoundError({ id: taken.id }))
       assertEquals(yield* selectStored([free.id, taken.id]), [free, boundTo(taken)])
@@ -372,7 +368,7 @@ describe('AttachmentService', () => {
         const attachment = yield* uploadPhoto
         yield* TestClock.adjust(Duration.hours(24))
 
-        const error = yield* Effect.flip(address(service, owner, attachment.id))
+        const error = yield* address(service, owner, attachment.id).pipe(Effect.flip)
         const stored = yield* selectStored([attachment.id])
         const bytes = yield* selectBytes(attachment.id)
 
@@ -390,7 +386,7 @@ describe('AttachmentService', () => {
     Effect.gen(function* () {
       const service = yield* AttachmentService
 
-      const exit = yield* Effect.exit(service.upload(owner, Stream.make(photoUpload)))
+      const exit = yield* service.upload(owner, Stream.make(photoUpload)).pipe(Effect.exit)
       const stored = yield* countStored
 
       assert.isTrue(Exit.hasDies(exit))

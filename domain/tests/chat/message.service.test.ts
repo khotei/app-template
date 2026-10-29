@@ -91,7 +91,7 @@ describe('MessageService', () => {
       const sendable = yield* chats.findSendable(owner, chat.id, ask('Lisbon?'))
       const first = yield* service.addAssistantMessage(sendable)
 
-      const busy = yield* Effect.flip(service.addAssistantMessage(sendable))
+      const busy = yield* service.addAssistantMessage(sendable).pipe(Effect.flip)
 
       assertSchemaEquals(ChatBusyError, busy, new ChatBusyError({ id: chat.id }))
       assertEquals(yield* selectMessages(chat.id), [first])
@@ -119,9 +119,9 @@ describe('MessageService', () => {
         const other = yield* chats.create(owner)
         const { userMessage } = yield* send(owner, other.id, 'Lisbon?')
 
-        const elsewhere = yield* Effect.flip(service.get(owner, chat.id, userMessage.id))
-        const foreign = yield* Effect.flip(service.get(stranger, other.id, userMessage.id))
-        const missing = yield* Effect.flip(service.get(owner, chat.id, unknownMessageId))
+        const elsewhere = yield* service.get(owner, chat.id, userMessage.id).pipe(Effect.flip)
+        const foreign = yield* service.get(stranger, other.id, userMessage.id).pipe(Effect.flip)
+        const missing = yield* service.get(owner, chat.id, unknownMessageId).pipe(Effect.flip)
 
         assertSchemaEquals(
           MessageNotFoundError,
@@ -192,7 +192,7 @@ describe('MessageService', () => {
       const { userMessage } = yield* send(owner, chat.id, 'Lisbon?')
       const stored = yield* selectMessages(chat.id)
 
-      const error = yield* Effect.flip(service.prepare(userMessage, later))
+      const error = yield* service.prepare(userMessage, later).pipe(Effect.flip)
 
       assertSchemaEquals(
         MessageStageInvalidError,
@@ -210,7 +210,7 @@ describe('MessageService', () => {
       yield* service.complete(prepared, { text: 'Sure.', at: later })
       const stored = yield* selectMessages(chat.id)
 
-      const error = yield* Effect.flip(move(service, prepared))
+      const error = yield* move(service, prepared).pipe(Effect.flip)
 
       assertSchemaEquals(
         MessageMovedError,
@@ -226,11 +226,11 @@ describe('MessageService', () => {
       const service = yield* MessageService
       const { userMessage, prepared } = yield* prepareReply
 
-      const early = yield* Effect.flip(service.snapshot(prepared, 'Su', later))
+      const early = yield* service.snapshot(prepared, 'Su', later).pipe(Effect.flip)
       const generating = yield* service.generate(prepared, later)
       const snapshot = yield* service.snapshot(generating, 'Sure', later)
       const completed = yield* service.complete(generating, { text: 'Sure.', at: later })
-      const late = yield* Effect.flip(service.snapshot(snapshot, 'Sure!', later))
+      const late = yield* service.snapshot(snapshot, 'Sure!', later).pipe(Effect.flip)
 
       assertSchemaEquals(
         MessageMovedError,

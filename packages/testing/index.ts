@@ -1,5 +1,6 @@
 export * from '#testing/aws.test-layer'
 export * from '#testing/aws.test-util'
+export * from '#testing/http.test-layer'
 export * from '#testing/log.test-fake'
 export * from '#testing/order.test-util'
 export * from '#testing/png.test-fixture'

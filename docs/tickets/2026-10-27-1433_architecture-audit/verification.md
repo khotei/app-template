@@ -249,7 +249,7 @@ No spec for this run; see run 1.
 4. **The relay's loop** (S31): `outbox.relay.ts:17,59-69`, `forever` + `when(sleep)` +
    `isShortBatch`, becomes `Effect.repeat({ while: full batch })` then
    `Effect.repeat(Schedule.spaced(outboxPollInterval))`. About 6 lines; *run*; same behaviour as D4.
-5. **The multipart upload** (S32): `packages/s3/bucket.ts:31-44,117-175` holds the latest part in
+5. **The multipart upload** (S32) — *rejected: D16*: `packages/s3/bucket.ts:31-44,117-175` holds the latest part in
    `held` until the next proves it is not the last; `Stream.zipWithNext` (`Stream.ts:5670`) says so
    directly, `Stream.zipWithIndex` gives the part number. About 15 lines; *run*. An empty content
    still needs an explicit empty `putObject`.

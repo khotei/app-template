@@ -53,10 +53,10 @@ const settle = (message: Message) =>
  */
 const ChatRepositoryDeletedBeforeUpdate = Layer.effect(
   ChatRepository,
-  Effect.map(ChatRepository, (inner) =>
+  ChatRepository.useSync((inner) =>
     ChatRepository.of({
       ...inner,
-      update: (set, where) => Effect.andThen(inner.delete(where.id), inner.update(set, where)),
+      update: (set, where) => inner.delete(where.id).pipe(Effect.andThen(inner.update(set, where))),
     }),
   ),
 ).pipe(Layer.provide(ChatRepositoryTest))
@@ -118,7 +118,7 @@ describe('SendMessageUseCase', () => {
             new Chat({ ...chat, title: Option.some(ChatTitle.make('Trip')), updatedAt: sentAt }),
           ),
         )
-      }).pipe(Effect.provide(ChatTest.pipe(Layer.provide(queue.layer))))
+      }).pipe(Effect.provide(Layer.provide(ChatTest, queue.layer)))
     },
   )
 
@@ -142,7 +142,7 @@ describe('SendMessageUseCase', () => {
           },
           replyJob(second.assistantMessage.message.id),
         ])
-      }).pipe(Effect.provide(ChatTest.pipe(Layer.provide(queue.layer))))
+      }).pipe(Effect.provide(Layer.provide(ChatTest, queue.layer)))
     },
   )
 
@@ -153,7 +153,7 @@ describe('SendMessageUseCase', () => {
       return Effect.gen(function* () {
         const sendMessage = yield* SendMessageUseCase
 
-        const error = yield* Effect.flip(sendMessage.send(owner, chat.id, ask('Lisbon?')))
+        const error = yield* sendMessage.send(owner, chat.id, ask('Lisbon?')).pipe(Effect.flip)
 
         assertSchemaEquals(ChatNotFoundError, error, new ChatNotFoundError({ id: chat.id }))
         assertEquals(yield* selectChat(chat.id), Option.none())
@@ -176,9 +176,9 @@ describe('SendMessageUseCase', () => {
         const messages = yield* MessageRepository
         const photo = yield* upload(stranger)
 
-        const error = yield* Effect.flip(
-          sendMessage.send(owner, chat.id, { text: 'Look', attachmentIds: [photo.id] }),
-        )
+        const error = yield* sendMessage
+          .send(owner, chat.id, { text: 'Look', attachmentIds: [photo.id] })
+          .pipe(Effect.flip)
 
         assertSchemaEquals(
           AttachmentNotFoundError,
@@ -188,7 +188,7 @@ describe('SendMessageUseCase', () => {
         assertEquals(yield* messages.selectActiveByChat(chat.id), Option.none())
         assertEquals(yield* selectAttachments([photo]), [photo])
         assertEquals(yield* queue.sent, [])
-      }).pipe(Effect.provide(ChatTest.pipe(Layer.provide(queue.layer))))
+      }).pipe(Effect.provide(Layer.provide(ChatTest, queue.layer)))
     },
   )
 })

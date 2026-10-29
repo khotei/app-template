@@ -114,8 +114,9 @@ describe('attachments', () => {
       const api = yield* ApiClient
       const http = yield* HttpClient.HttpClient
       yield* api.users.ensure()
-      const uploads = yield* api.attachments.upload({ payload: formOf(png('photo.png')) })
-      const uploaded = yield* Effect.fromOption(Arr.head(uploads))
+      const uploaded = yield* api.attachments
+        .upload({ payload: formOf(png('photo.png')) })
+        .pipe(Effect.head)
 
       const response = yield* http.get(`/attachments/${uploaded.id}/download`).pipe(
         Effect.provideService(FetchHttpClient.RequestInit, {

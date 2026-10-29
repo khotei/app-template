@@ -18,15 +18,13 @@ import { ApiServerTest, ApiTest, layerApiClient } from '#api/testing/api.test-la
 const hello = { text: 'Hello', attachmentIds: [] }
 
 /** Registers the jar's user and opens an empty chat of theirs. */
-const openChat = Effect.flatMap(ApiClient, (api) =>
-  Effect.andThen(api.users.ensure(), api.chats.create()),
-)
+const openChat = ApiClient.use((api) => api.users.ensure().pipe(Effect.andThen(api.chats.create())))
 
 /** Settles a reply as the worker does once its attempts are exhausted. */
 const failReply = (id: MessageId) =>
   Effect.gen(function* () {
     const messages = yield* MessageRepository
-    const reply = yield* Effect.flatMap(messages.selectOne({ id }), Effect.fromOption)
+    const reply = yield* messages.selectOne({ id }).pipe(Effect.flatMap(Effect.fromOption))
     yield* messages.update(
       yield* failMessage(reply, {
         reason: 'ReplyFailed',
@@ -44,7 +42,7 @@ describe('chats', () => {
       const http = yield* HttpClient.HttpClient
 
       const response = yield* http.get('/chats')
-      const error = yield* Effect.flip(api.chats.list())
+      const error = yield* api.chats.list().pipe(Effect.flip)
 
       assert.strictEqual(response.status, 401)
       assert.deepStrictEqual(yield* response.json, { _tag: 'UserUnknownError' })
@@ -96,8 +94,8 @@ describe('chats', () => {
       const responses = yield* Effect.all([send, send], { concurrency: 'unbounded' })
 
       const statuses = Arr.map(responses, (response) => response.status)
-      const busy = yield* Effect.fromOption(
-        Arr.findFirst(responses, (response) => response.status === 409),
+      const busy = yield* Arr.findFirst(responses, (response) => response.status === 409).pipe(
+        Effect.fromOption,
       )
       assert.deepStrictEqual(Arr.sort(statuses, Order.Number), [202, 409])
       assertSchemaEquals(
@@ -111,9 +109,8 @@ describe('chats', () => {
   it.effect("another user's chat is 404 ChatNotFoundError, as if it did not exist", () =>
     Effect.gen(function* () {
       const chat = yield* Effect.provide(openChat, layerApiClient())
-      const [stranger, http] = yield* Effect.provide(
-        Effect.zip(ApiClient, HttpClient.HttpClient),
-        layerApiClient(),
+      const [stranger, http] = yield* Effect.zip(ApiClient, HttpClient.HttpClient).pipe(
+        Effect.provide(layerApiClient()),
       )
       yield* stranger.users.ensure()
 
@@ -139,10 +136,9 @@ describe('chats', () => {
       })
       yield* failReply(assistantMessage.id)
 
-      const wire = yield* Effect.flatMap(
-        http.get(`/chats/${chat.id}/messages/${assistantMessage.id}`),
-        (response) => response.json,
-      )
+      const wire = yield* http
+        .get(`/chats/${chat.id}/messages/${assistantMessage.id}`)
+        .pipe(Effect.flatMap((response) => response.json))
 
       assert.deepInclude(wire, {
         stage: 'failed',

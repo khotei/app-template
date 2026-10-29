@@ -48,7 +48,8 @@ const explodingMidway = Stream.make('Hel').pipe(
 )
 
 // The use case asks for the stream after its `generating` write.
-const heldForever = (held: AssistantCallHold) => Stream.fromEffect(held.hold).pipe(Stream.drain)
+const heldDeltas = (held: AssistantCallHold, deltas: Stream.Stream<string> = Stream.empty) =>
+  Stream.fromEffect(held.hold).pipe(Stream.drain, Stream.concat(deltas))
 
 const { maxAttempts } = assistantMessageQueue
 
@@ -66,14 +67,11 @@ const deadLetterInfo: AttemptInfo = {
 
 const job = new GenerateAssistantMessage({ chatId, messageId })
 
-const insertReply = (reply: Message) =>
-  Effect.flatMap(MessageRepository, (messages) => messages.insert(reply))
+const insertReply = (reply: Message) => MessageRepository.use((messages) => messages.insert(reply))
 
-const selectReply = Effect.flatMap(MessageRepository, (messages) =>
-  messages.selectOne({ id: messageId }),
-)
+const selectReply = MessageRepository.use((messages) => messages.selectOne({ id: messageId }))
 
-const deleteChat = Effect.flatMap(ChatRepository, (chats) => chats.delete(chatId))
+const deleteChat = ChatRepository.use((chats) => chats.delete(chatId))
 
 const assertFailed = (failed: Message, cause: string) => {
   const error = Option.getOrThrow(failed.error)
@@ -88,7 +86,7 @@ describe('AssistantMessageHandler', () => {
     return Effect.gen(function* () {
       yield* insertReply(queuedReply)
 
-      const exit = yield* Effect.exit(handle(job, attemptInfo(1)))
+      const exit = yield* handle(job, attemptInfo(1)).pipe(Effect.exit)
 
       assert.isTrue(Exit.isFailure(exit))
       assertEquals(
@@ -96,7 +94,7 @@ describe('AssistantMessageHandler', () => {
         Option.some(new Message({ ...queuedReply, stage: 'generating' })),
       )
       assertEquals(yield* selectChat(chatId), Option.some(chat))
-    }).pipe(Effect.provide(AssistantMessageTest.pipe(Layer.provide(assistant.layer))))
+    }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
   })
 
   it.effect('handle fails the reply with the cause when the last attempt fails', () => {
@@ -104,7 +102,7 @@ describe('AssistantMessageHandler', () => {
     return Effect.gen(function* () {
       yield* insertReply(queuedReply)
 
-      const exit = yield* Effect.exit(handle(job, attemptInfo(maxAttempts)))
+      const exit = yield* handle(job, attemptInfo(maxAttempts)).pipe(Effect.exit)
 
       assert.isTrue(Exit.isFailure(exit))
       const failed = Option.getOrThrow(yield* selectReply)
@@ -113,16 +111,16 @@ describe('AssistantMessageHandler', () => {
         yield* selectChat(chatId),
         Option.some(new Chat({ ...chat, updatedAt: failed.updatedAt })),
       )
-    }).pipe(Effect.provide(AssistantMessageTest.pipe(Layer.provide(assistant.layer))))
+    }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
   })
 
   it.effect('handle fails the reply when its worker is interrupted during the last attempt', () => {
     const held = holdAssistantCall()
-    const assistant = recordAssistant({ streamText: heldForever(held) })
+    const assistant = recordAssistant({ streamText: heldDeltas(held) })
     return Effect.gen(function* () {
       yield* insertReply(queuedReply)
 
-      const running = yield* Effect.forkChild(handle(job, attemptInfo(maxAttempts)))
+      const running = yield* handle(job, attemptInfo(maxAttempts)).pipe(Effect.forkChild)
       yield* held.asked
       yield* Fiber.interrupt(running)
 
@@ -132,30 +130,26 @@ describe('AssistantMessageHandler', () => {
         yield* selectChat(chatId),
         Option.some(new Chat({ ...chat, updatedAt: failed.updatedAt })),
       )
-    }).pipe(Effect.provide(AssistantMessageTest.pipe(Layer.provide(assistant.layer))))
+    }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
   })
 
   it.effect("handle keeps the last snapshot's text on the reply it fails", () => {
-    const assistant = recordAssistant({ streamText: explodingMidway })
+    const held = holdAssistantCall()
+    const assistant = recordAssistant({ streamText: heldDeltas(held, explodingMidway) })
     return Effect.gen(function* () {
       yield* insertReply(queuedReply)
 
-      const running = yield* Effect.forkChild(handle(job, attemptInfo(maxAttempts)))
-      yield* TestClock.adjust('300 millis')
-      assertEquals(
-        yield* selectReply,
-        Option.some(
-          new Message({ ...queuedReply, stage: 'generating', text: 'Hel', updatedAt: at(300) }),
-        ),
-      )
-      yield* TestClock.adjust('220 millis')
+      const running = yield* handle(job, attemptInfo(maxAttempts)).pipe(Effect.forkChild)
+      yield* held.asked
+      yield* held.release
+      yield* TestClock.adjust('520 millis')
       yield* Fiber.join(running).pipe(Effect.exit)
 
       const failed = Option.getOrThrow(yield* selectReply)
       assertFailed(failed, 'provider exploded')
       assert.strictEqual(failed.text, 'Hel')
       assertEquals(failed.updatedAt, at(520))
-    }).pipe(Effect.provide(AssistantMessageTest.pipe(Layer.provide(assistant.layer))))
+    }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
   })
 
   it.effect(

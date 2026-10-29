@@ -38,9 +38,8 @@ const recordLanguageModel = (script: LanguageModelScript) => {
     LanguageModel.LanguageModel,
     LanguageModel.make({
       generateText: ({ prompt }) =>
-        Effect.andThen(
-          record(prompt),
-          script.generateText ?? Effect.die('generateText is not scripted'),
+        record(prompt).pipe(
+          Effect.andThen(script.generateText ?? Effect.die('generateText is not scripted')),
         ),
       streamText: ({ prompt }) =>
         Stream.fromEffect(record(prompt)).pipe(
@@ -72,11 +71,10 @@ const providerError = AiError.make({
 const titleInstruction =
   'Write a title of at most 120 characters for a chat that opens with the next message. Answer with the title alone.'
 
-const suggestTitle = (text: string) =>
-  Effect.flatMap(Assistant, (assistant) => assistant.suggestTitle(text))
+const suggestTitle = (text: string) => Assistant.use((assistant) => assistant.suggestTitle(text))
 
 const streamText = (history: ReadonlyArray<AssistantTurn>) =>
-  Effect.flatMap(Assistant, (assistant) => Stream.runCollect(assistant.streamText(history)))
+  Assistant.use((assistant) => assistant.streamText(history).pipe(Stream.runCollect))
 
 const image = (id: string, fileName: string) =>
   new Attachment({
@@ -148,7 +146,7 @@ describe('AssistantLlm', () => {
   it.effect('suggestTitle dies on a provider failure', () => {
     const { layer } = recordLanguageModel({ generateText: Effect.fail(providerError) })
     return Effect.gen(function* () {
-      const exit = yield* Effect.exit(suggestTitle('Plan a weekend in Lisbon'))
+      const exit = yield* suggestTitle('Plan a weekend in Lisbon').pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
     }).pipe(Effect.provide(layer))

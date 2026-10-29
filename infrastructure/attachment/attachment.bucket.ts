@@ -18,14 +18,14 @@ export const buildObjectKey = (id: AttachmentId): string => `attachments/${id}`
 
 /** `S3Bucket` on the attachments bucket of the stage in `AwsConfig`, over the `S3Service` in context. */
 export const S3BucketFromConfig: Layer.Layer<S3Bucket, never, S3Service | AwsConfig> = Layer.unwrap(
-  Effect.map(AwsConfig, ({ stage }) =>
+  AwsConfig.useSync(({ stage }) =>
     S3Bucket.layer({ bucket: buildResourceName(stage, resources.buckets.attachments.name) }),
   ),
 )
 
 export const AttachmentBucketS3 = Layer.effect(
   AttachmentBucket,
-  Effect.map(S3Bucket, (bucket) => {
+  S3Bucket.useSync((bucket) => {
     const insert = Effect.fn('AttachmentBucket.insert')(
       <E>(id: AttachmentId, content: Stream.Stream<Uint8Array, E>, meta: AttachmentMeta) =>
         bucket

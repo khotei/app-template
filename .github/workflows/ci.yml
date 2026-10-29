@@ -113,6 +113,12 @@ jobs:
       - name: No ticket ids outside docs/tickets
         run: make ids
 
+      - name: Services reached by Service.use
+        run: make service-use
+
+      - name: No call takes another call's result as its subject
+        run: make nested-calls
+
       - name: The names the docs cite exist
         run: make doc-names
 

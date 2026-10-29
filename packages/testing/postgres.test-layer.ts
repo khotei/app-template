@@ -18,7 +18,7 @@ const buildDatabaseUrl = (url: string, database: string) => {
 }
 
 const runAdmin = (url: string, statement: string) =>
-  Effect.flatMap(PgClient.PgClient, (client) => client.unsafe(statement)).pipe(
+  PgClient.PgClient.use((client) => client.unsafe(statement)).pipe(
     Effect.provide(PgClient.layer({ url: Redacted.make(url) })),
   )
 
@@ -40,7 +40,7 @@ export const PgClientTest = Layer.unwrap(
 
     yield* Effect.acquireRelease(
       runAdmin(adminUrl, `CREATE DATABASE ${database} TEMPLATE ${templateDatabase}`),
-      () => Effect.orDie(runAdmin(adminUrl, `DROP DATABASE ${database} WITH (FORCE)`)),
+      () => runAdmin(adminUrl, `DROP DATABASE ${database} WITH (FORCE)`).pipe(Effect.orDie),
     )
 
     return PgClient.layer({ url: buildDatabaseUrl(adminUrl, database) }).pipe(

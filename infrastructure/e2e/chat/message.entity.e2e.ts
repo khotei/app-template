@@ -6,7 +6,7 @@ import { Chat, ChatId, Message, MessageId } from '@app-template/domain/chat'
 import { UserId } from '@app-template/domain/user'
 import { assertSchemaEquals } from '@app-template/testing'
 
-import { decodeMessage, messages } from '#infrastructure/chat/message.entity'
+import { MessageFromRow, messages } from '#infrastructure/chat/message.entity'
 import { Db } from '#infrastructure/db/db.client'
 import { DbTest, flipSqlError } from '#infrastructure/db/testing/db.test-layer'
 import { insertChat, insertMessage, insertUser } from '#infrastructure/testing/rows.test-util'
@@ -32,13 +32,11 @@ const message = (id: MessageId, fields: Partial<Pick<Message, 'stage'>>) =>
     ...fields,
   })
 
-const insertChatOfUser = Effect.andThen(insertUser(userId), insertChat(chat))
+const insertChatOfUser = insertUser(userId).pipe(Effect.andThen(insertChat(chat)))
 
-const selectMessages = Effect.gen(function* () {
-  const db = yield* Db
-  const rows = yield* db.select().from(messages).orderBy(asc(messages.id))
-  return yield* Effect.forEach(rows, (row) => decodeMessage(row))
-})
+const selectMessages = Db.use((db) => db.select().from(messages).orderBy(asc(messages.id))).pipe(
+  Effect.flatMap(Schema.decodeEffect(Schema.Array(MessageFromRow))),
+)
 
 describe('messages', () => {
   it.effect('refuses a second active reply in a chat through the partial unique index', () =>

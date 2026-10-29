@@ -22,7 +22,7 @@ describe('users', () => {
 
       const [, response] = yield* api.users.ensure({ responseMode: 'decoded-and-response' })
 
-      const cookie = Option.getOrThrow(readUserSecretCookie(response))
+      const cookie = readUserSecretCookie(response).pipe(Option.getOrThrow)
       assert.strictEqual(response.status, 201)
       assert.match(cookie.value, /^[\w-]{43}$/)
       assert.deepStrictEqual(cookie.options, issuedCookie)
@@ -40,9 +40,9 @@ describe('users', () => {
           responseMode: 'decoded-and-response',
         })
 
-        const cookie = Option.getOrThrow(readUserSecretCookie(refreshed))
+        const cookie = readUserSecretCookie(refreshed).pipe(Option.getOrThrow)
         assert.strictEqual(second.id, first.id)
-        assert.strictEqual(cookie.value, Option.getOrThrow(readUserSecretCookie(issued)).value)
+        assert.strictEqual(cookie.value, readUserSecretCookie(issued).pipe(Option.getOrThrow).value)
         assert.deepStrictEqual(cookie.options, issuedCookie)
       }).pipe(Effect.provide(ApiTest)),
   )
@@ -53,7 +53,7 @@ describe('users', () => {
 
       const [, response] = yield* forger.users.ensure({ responseMode: 'decoded-and-response' })
 
-      assert.notStrictEqual(Option.getOrThrow(readUserSecretCookie(response)).value, 'forged')
+      assert.notStrictEqual(readUserSecretCookie(response).pipe(Option.getOrThrow).value, 'forged')
     }).pipe(
       Effect.provide(
         layerApiClient(Cookies.fromSetCookie('user_secret=forged')).pipe(

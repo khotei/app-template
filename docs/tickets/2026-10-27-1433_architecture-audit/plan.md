@@ -1269,12 +1269,28 @@ keeps the suites green, a changed assertion named in its findings.
     `SchemaGetter.forbidden`; `Option.filter(isActiveMessage)` stays outside the schema.
 - **Blocked by:** none.
 - **Files:** `infrastructure/*/*.entity.ts`, `infrastructure/*/*.repository.ts`,
-  `infrastructure/db/db.client.ts`.
+  `infrastructure/db/db.client.ts`, `infrastructure/e2e/chat/message.entity.e2e.ts`,
+  `docs/knowledge/database.md`.
 - **Test first:** the repository e2e suites (`infrastructure/e2e/**`) stay green unchanged: they
   read every shape the schemas decode.
 - **Verify:** `make check`; `git grep -n 'decodeFound\|MessageDetailRow' -- '*.ts'` is empty.
 - **Model:** opus medium
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Round 1 made the chat's summary and detail nested schemas too and grew the code (+38 lines):
+    `ChatSummary` and `ChatDetail` are interfaces ending in a narrowing to `ActiveMessage` that no
+    schema types, so each needed an intermediate shape and a mapper. Round 2 decodes them by two
+    small functions over the flat schemas; `MessageDetailFromRow` is the one nested schema left.
+    `infrastructure/` ends at +64 / −70 against the step's base.
+  - One `decodeOptionalRow(schema)` in `db.client.ts`, on `Schema.OptionFromNullishOr`, replaces
+    `decodeFound` and reads `null` as none as it did; the chat detail, decoded by a function,
+    keeps one `Effect.transposeOption`.
+  - `message.entity.e2e.ts` changes its decode line, its assertions stay; `database.md` describes
+    the new reads.
+  - Round 3, on the user's review: a read that only queries and decodes is an arrow piping the
+    query into its decoder (`.pipe(Effect.flatMap(decodeOptionalRow(…)))`), not a generator of two
+    `yield*`s (`effect-services.md › Functions`); `AttachmentRepository.selectOne` reads by
+    `db.query.attachments.findFirst`, so `encodeOneWhere` and `rows[0]` go.
 
 #### S30 — A service is reached by `Service.use`, and a check keeps it so
 
@@ -1294,7 +1310,17 @@ keeps the suites green, a changed assertion named in its findings.
 - **Verify:** `make check`; probe the target with one restored `Effect.flatMap(ChatRepository, (c)
   => …)`, see it fail, restore.
 - **Model:** opus medium
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The plan's grep `[A-Z]\w*` matched nothing: `git grep -E` on macOS has no `\w`. The gate is a
+    `perl -0777` matcher over every tracked or new `.ts` outside `repos/`, each file read whole,
+    so a call Biome wraps across lines fails it too; it ends at the comma after the service, so
+    the point-free `Effect.flatMap(<X>Rows, Ref.get)` counts and became `<X>Rows.use(Ref.get)`.
+  - 64 sites across `domain/`, `application/`, `infrastructure/`, `e2e/`, `apps/` and `packages/`;
+    18 take `useSync`, each where the callback returns a plain value.
+  - CI runs `make service-use` in the `links` job: `ci.yml` calls the gates one by one, not
+    `make check`. `effect-style.md` stays at 80 lines: the `Option` bullet folds into one line.
+  - `architecture.md`'s `Transaction` example uses `useSync`.
 
 #### S31 — The relay's loop as two repeats
 
@@ -1310,7 +1336,12 @@ keeps the suites green, a changed assertion named in its findings.
   rows than one batch is relayed without waiting an interval, if none exists yet.
 - **Verify:** `make check`.
 - **Model:** opus medium
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The 25-row case under a still `TestClock` (`outbox.relay.e2e.ts`) already proves a full batch
+    relays without waiting; forcing `isFullBatch` false fails it, so no test was added.
+  - Logging and recovery stay two combinators (`tapCauseIf`, then `catchCauseIf`) between the two
+    repeats, so a failed batch ends the drain and still waits one interval (D4).
 
 #### S32 — The multipart upload knows its last part from the stream
 
@@ -1325,7 +1356,16 @@ keeps the suites green, a changed assertion named in its findings.
   content; add the one missing.
 - **Verify:** `make check`.
 - **Model:** opus high
-- **Status:** todo
+- **Status:** rejected (D16)
+- **Findings:**
+  - A prototype by the step failed the broken-stream e2e: `Stream.zipWithNext`'s `onHalt` emits
+    the latest part as last on a failure too, so a stream broken after 10 MiB completed a
+    truncated upload and the abort died with `NoSuchUpload`. D16 had rejected it already; the
+    sweep's agents missed the decision. `held` stays.
+  - Round 1 adds the case the step's test asked for: a content that fails right after exactly one
+    whole part (5 MiB, not 6: `Stream.transduce` emits the group being cut on a failure, so at
+    6 MiB the tail proves the part is not last and the multipart path runs). A temporary `put`
+    that finishes on failure turns it red on "no object".
 
 #### S33 — The reply's snapshots as one stream
 
@@ -1345,7 +1385,15 @@ keeps the suites green, a changed assertion named in its findings.
   mid-stream leaves the last snapshot whole.
 - **Verify:** `make check`.
 - **Model:** opus high
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The filter on the stored text skips only a seed-only group; the last group still writes the
+    full text once more before `complete`: an accepted cost, D19, which supersedes chat-core D3.
+    `uninterruptible` went with the race it guarded.
+  - An interval opens at the first delta after a snapshot (`groupedWithin`); the suite's second
+    snapshot moved from 600 to 690 ms. The use case is 18 lines shorter.
+  - A failure test joins the interrupt one; the worker's failure test waits on a hold before
+    moving the `TestClock` and keeps only what the handler adds.
 
 #### S34 — The small forms
 
@@ -1371,7 +1419,79 @@ keeps the suites green, a changed assertion named in its findings.
 - **Test first:** `config only`: a refactor, the existing suites stay green unchanged.
 - **Verify:** `make check`.
 - **Model:** opus medium
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Ten of thirteen forms applied, −9 lines in all. Left out, each would grow the code: a shared
+    `*Rows` factory (a class expression breaks declaration emit, TS4020/TS4023, unless its type is
+    written out), a shared id helper (a new domain module and four imports; instead the four sites
+    share one one-line form), `withDecodingDefaultKey` for `Messages ?? []` (+2).
+  - The migrator bounds its retry by `Schedule.upTo({ times })` before the log tap: the `times`
+    option stops after the tap ran and logs a 31st line the e2e suite refuses.
+  - The stub's first word now comes at once; the delay sits between words.
+  - The cookie-jar layer is `layerCookieJar` in `packages/testing/http.test-layer.ts`, used by the
+    api suites and the e2e stand. `db.client.ts`'s own `isSqlError` duplicates
+    `SqlError.isSqlError`: left for S35, which touches the file.
+
+#### S35 — No call takes another call's result as its subject, and a check keeps it so
+
+- **Delivers:** every inside-out chain reads in execution order: a call whose subject is another
+  call's result becomes a `.pipe` on that result (an `Effect`, a `Layer`, a `Schema`, a `Stream`),
+  `pipe(value, …)` for plain data, or `flow(…)` for a chain without its value; `make check` fails
+  on the nested form.
+- **Goal:** the user's review of S29 and S33 (`effect-style.md › Composition`: "flat over nested",
+  "an inside-out body becomes a pipe in execution order"), which the code still breaks.
+  - Examples on the tree: `Effect.map(Ref.get(rows), f)` → `Ref.get(rows).pipe(Effect.map(f))`;
+    `Effect.fromOption(Arr.head(xs))` → `pipe(xs, Arr.head, Effect.fromOption)`;
+    `Effect.transposeOption(Option.map(Option.fromNullishOr(row), decode))` →
+    `flow(Option.fromNullishOr, Option.map(decode), Effect.transposeOption)`;
+    `Str.isEmpty(Str.trim(text))` → `pipe(text, Str.trim, Str.isEmpty)`;
+    `Effect.provide(X.pipe(Layer.provide(Y)))` → `Effect.provide(Layer.provide(X, Y))` or a named
+    layer.
+  - A function whose every step feeds only the next is point-free: `flow(…)` of its steps, or the
+    arrow's body one `.pipe` (`effect-services.md › Functions`), e.g.
+    `findOwned = flow(chats.selectOne, Effect.flatMap(Effect.fromOption(onNone)))`.
+  - A function whose later steps read several earlier values stays `Effect.gen` / `Effect.fn` with
+    one named `yield*` per step (a pipe there would nest callbacks or carry an `Effect.Do`
+    record); the plumbing of a step (decode, map, filterOrFail, orDie) is chained on that step
+    with `.pipe`, never wrapped around it.
+  - Not nesting: a constructor or schema argument (`Option.some(ChatTitle.make(…))`,
+    `Schema.String.check(Schema.isUUID())`), a predicate built from others (`Predicate.not(…)`),
+    a layer list (`Layer.mergeAll(…)`).
+  - `effect-style.md › Composition`: the pipe line states the rule as "a call never takes another
+    call's result as its subject", with one example, within the 80-line budget.
+  - A `make` target in `check` (and CI's `links` job) fails on a data-first combinator of
+    `Effect`, `Option`, `Arr`, `Str`, `Stream`, `Layer` or `Record` whose first argument is a
+    call of those modules or of `Ref`; a curated list of combinators, so constructors pass.
+- **Blocked by:** S34 (both touch the same files).
+- **Files:** the sites the check finds across every workspace; `.claude/rules/effect-style.md`;
+  `Makefile`; `.github/workflows/ci.yml`; `docs/knowledge/tooling.md`.
+- **Test first:** the new target fails on the tree before the rewrite; a probe of each listed form
+  fails it, and a constructor argument passes.
+- **Verify:** `make check`; the probes; `git diff --numstat` shows no net growth.
+- **Model:** opus high
+- **Status:** done
+- **Findings:**
+  - Round 1: 57 sites where a combinator of `Effect`, `Option`, `Arr`, `Str`, `Stream`, `Layer` or
+    `Record` took a module call, a `Ref` call or a `.pipe` as its subject; the methods whose every
+    step feeds the next became one `.pipe` (the four `MessageService` transitions,
+    `ChatService.get` and `delete`, `UserService.authenticate`). Round 2 widened the subject to any
+    call (a method, a local function, `HashMap`, `Deferred`, a method chain, a trailing `.pipe`):
+    101 more sites, 23 in sources and 78 in tests.
+  - `make nested-calls` splits its list by the arity of the data-last form: where that form takes
+    two arguments (`forEach(f, { discard })`, `tapCauseIf(predicate, f)`) a leading call is a
+    function argument, so only a module call fails; a unary combinator around a generator body
+    (`Effect.scoped(Effect.gen(…))`) passes. Probes: 20 nested forms fail, 26 legal ones pass. It is
+    a regex heuristic: `new Foo()`, a ternary or a `yield*` as the subject pass, and so does a
+    combinator missing from its lists; review catches those.
+  - A perl failure fails both `nested-calls` and, since round 3, `service-use` (exit 2); before, a
+    broken pattern printed nothing and the gate passed.
+  - `.ts` grew by 4 lines net over the step (−13, then +17): `decodeDetail` as a pipe, which the
+    review asked for, wraps over five lines, and Biome wraps three tests' long subjects. The rest
+    of the growth is the gate, the rules and the docs.
+  - `security.ts` provides `CurrentUser` by `Effect.provideServiceEffect`, authenticating first as
+    the `flatMap` did. Folded in from the S34 review: `layerCookieJarTest`, `createReadTables`,
+    `as const` for literal objects and arrays only; `SqlError.isSqlError` replaces
+    `db.client.ts`'s copy.
 
 ## Requirement coverage
 

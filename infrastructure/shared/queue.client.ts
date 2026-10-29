@@ -16,11 +16,11 @@ import { SQSServiceFromConfig } from '#infrastructure/shared/aws.client'
 export const QueueClientSqs: Layer.Layer<
   QueueClient,
   Config.ConfigError | QueueLockRefreshIntervalInvalidError
-> = Layer.unwrap(
-  Effect.map(Effect.all([QueueConfig, AwsConfig]), ([locks, { stage }]) =>
+> = Effect.all([QueueConfig, AwsConfig]).pipe(
+  Effect.map(([locks, { stage }]) =>
     QueueClient.layer({ ...locks, queueName: (name) => buildResourceName(stage, name) }),
   ),
-).pipe(
+  Layer.unwrap,
   Layer.provide(QueueTransport.layerSqs),
   Layer.provide([QueueConfig.layer, AwsConfig.layer, SQSServiceFromConfig]),
 )
@@ -31,20 +31,20 @@ export const QueueClientSqs: Layer.Layer<
  */
 export const QueueClientOutbox: Layer.Layer<QueueClient, never, Db> = Layer.effect(
   QueueClient,
-  Effect.map(Db, (db) => {
+  Db.useSync((db) => {
     const send = Effect.fn('QueueClient.send')(function* <A, I>(
       definition: QueueDefinition<Schema.Codec<A, I>>,
       message: A,
     ) {
       const body = yield* encodeJob(definition, message)
-      const now = yield* DateTime.now
+      const now = yield* DateTime.nowAsDate
 
       yield* orDieWithSqlError(
         db.insert(outbox).values({
           queue: definition.name,
           jobId: definition.jobId(message),
           body,
-          createdAt: DateTime.toDateUtc(now),
+          createdAt: now,
         }),
       )
     })

@@ -1,6 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Cause, DateTime, Effect, Fiber, HashMap, Layer, Option, Ref, Stream } from 'effect'
+import { Cause, DateTime, Effect, Exit, Fiber, HashMap, Layer, Option, Ref, Stream } from 'effect'
 import { TestClock } from 'effect/testing'
 
 import {
@@ -50,11 +50,17 @@ const asCompleted = (message: Message, text: string) =>
 
 const replyDeltas = Stream.make('Hel', 'lo, ', 'world')
 
-// Three deltas 120 ms apart: the 300 ms snapshot sees the first two.
-const threeDeltas = replyDeltas.pipe(Stream.tap(() => Effect.sleep('120 millis')))
+// Seven deltas 130 ms apart. An interval opens with the stream and then with the first delta
+// after a snapshot: snapshots at 300 ms (two deltas) and 690 ms (five), the full text at 910 ms.
+const sevenDeltas = Stream.make('One', ' two', ' three', ' four', ' five', ' six', ' seven').pipe(
+  Stream.tap(() => Effect.sleep('130 millis')),
+)
+
+const snapshotAt = (text: string, millis: number) =>
+  new Message({ ...queuedReply, stage: 'generating', text, updatedAt: at(millis) })
 
 // The use case asks for the stream after its `generating` write.
-const heldDeltas = (held: AssistantCallHold, deltas = replyDeltas) =>
+const heldDeltas = (held: AssistantCallHold, deltas: Stream.Stream<string> = replyDeltas) =>
   Stream.fromEffect(held.hold).pipe(Stream.drain, Stream.concat(deltas))
 
 // A second apart: messages sharing a `createdAt` come back in no defined order.
@@ -99,7 +105,7 @@ const sketch = image('0192d4e0-7b3a-7c00-8000-000000000041', {
 })
 
 const insertMessages = (messages: ReadonlyArray<Message>) =>
-  Effect.flatMap(MessageRepository, (repository) =>
+  MessageRepository.use((repository) =>
     Effect.forEach(messages, repository.insert, { discard: true }),
   )
 
@@ -113,30 +119,28 @@ const insertAttachment = (attachment: Attachment, bytes: 'stored' | 'lost' = 'st
     yield* bucket.insert(attachment.id, Stream.make(png), attachment)
   })
 
-const selectReply = Effect.flatMap(MessageRepository, (messages) =>
-  messages.selectOne({ id: messageId }),
-)
+const selectReply = MessageRepository.use((messages) => messages.selectOne({ id: messageId }))
 
 // Another writer's settle, landing in the rows behind the use case's back.
-const settleElsewhere = Effect.flatMap(MessageRows, (rows) =>
+const settleElsewhere = MessageRows.use((rows) =>
   Ref.update(rows, HashMap.set(messageId, asCompleted(queuedReply, 'Done elsewhere.'))),
 )
 
-const deleteChat = Effect.flatMap(ChatRepository, (chats) => chats.delete(chatId))
+const deleteChat = ChatRepository.use((chats) => chats.delete(chatId))
 
 const job = new GenerateAssistantMessage({ chatId, messageId })
 
-const generate = Effect.flatMap(GenerateAssistantMessageUseCase, (useCase) => useCase.generate(job))
+const generate = GenerateAssistantMessageUseCase.use((useCase) => useCase.generate(job))
 
 const fail = (cause: Cause.Cause<unknown>) =>
-  Effect.flatMap(GenerateAssistantMessageUseCase, (useCase) => useCase.fail(messageId, cause))
+  GenerateAssistantMessageUseCase.use((useCase) => useCase.fail(messageId, cause))
 
 describe('GenerateAssistantMessageUseCase', () => {
   it.effect(
-    'generate moves the reply through preparing, generating, a snapshot every 300 ms and completed, and moves the chat to the completion',
+    'generate moves the reply through preparing, generating, a snapshot at most every 300 ms and completed, and moves the chat to the completion',
     () => {
       const held = holdAssistantCall()
-      const assistant = recordAssistant({ streamText: heldDeltas(held, threeDeltas) })
+      const assistant = recordAssistant({ streamText: heldDeltas(held, sevenDeltas) })
       const { logs, layer: logger } = recordLogs()
       return Effect.gen(function* () {
         yield* insertMessages([queuedReply])
@@ -150,18 +154,10 @@ describe('GenerateAssistantMessageUseCase', () => {
         )
         yield* held.release
         yield* TestClock.adjust('300 millis')
-        assertEquals(
-          yield* selectReply,
-          Option.some(
-            new Message({
-              ...queuedReply,
-              stage: 'generating',
-              text: 'Hello, ',
-              updatedAt: at(300),
-            }),
-          ),
-        )
-        yield* TestClock.adjust('60 millis')
+        assertEquals(yield* selectReply, Option.some(snapshotAt('One two', 300)))
+        yield* TestClock.adjust('390 millis')
+        assertEquals(yield* selectReply, Option.some(snapshotAt('One two three four five', 690)))
+        yield* TestClock.adjust('220 millis')
         yield* Fiber.join(running)
 
         assertEquals(
@@ -170,19 +166,52 @@ describe('GenerateAssistantMessageUseCase', () => {
             new Message({
               ...queuedReply,
               stage: 'completed',
-              text: 'Hello, world',
-              updatedAt: at(360),
+              text: 'One two three four five six seven',
+              updatedAt: at(910),
             }),
           ),
         )
         assertEquals(
           yield* selectChat(chatId),
-          Option.some(new Chat({ ...chat, updatedAt: at(360) })),
+          Option.some(new Chat({ ...chat, updatedAt: at(910) })),
         )
         assert.deepStrictEqual(logs, [])
       }).pipe(Effect.provide([AssistantMessageTest.pipe(Layer.provide(assistant.layer)), logger]))
     },
   )
+
+  it.effect('generate interrupted mid-stream leaves the last snapshot as written', () => {
+    const held = holdAssistantCall()
+    const assistant = recordAssistant({ streamText: heldDeltas(held, sevenDeltas) })
+    return Effect.gen(function* () {
+      yield* insertMessages([queuedReply])
+
+      const running = yield* Effect.forkChild(generate)
+      yield* held.asked
+      yield* held.release
+      yield* TestClock.adjust('500 millis')
+      yield* Fiber.interrupt(running)
+
+      assertEquals(yield* selectReply, Option.some(snapshotAt('One two', 300)))
+    }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
+  })
+
+  it.effect('generate fails with the stream and writes no text past the last snapshot', () => {
+    const dying = sevenDeltas.pipe(Stream.take(3), Stream.concat(Stream.die('provider exploded')))
+    const held = holdAssistantCall()
+    const assistant = recordAssistant({ streamText: heldDeltas(held, dying) })
+    return Effect.gen(function* () {
+      yield* insertMessages([queuedReply])
+
+      const running = yield* Effect.forkChild(generate)
+      yield* held.asked
+      yield* held.release
+      yield* TestClock.adjust('500 millis')
+
+      assert.isTrue(Exit.hasDies(yield* Fiber.await(running)))
+      assertEquals(yield* selectReply, Option.some(snapshotAt('One two', 300)))
+    }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
+  })
 
   it.effect(
     'generate prompts with every completed message in order and the bytes of its attachments',
@@ -206,7 +235,7 @@ describe('GenerateAssistantMessageUseCase', () => {
             ],
           },
         ])
-      }).pipe(Effect.provide(AssistantMessageTest.pipe(Layer.provide(assistant.layer))))
+      }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
     },
   )
 
@@ -280,7 +309,7 @@ describe('GenerateAssistantMessageUseCase', () => {
           yield* selectChat(chatId),
           Option.some(new Chat({ ...chat, updatedAt: failed.updatedAt })),
         )
-      }).pipe(Effect.provide(AssistantMessageTest.pipe(Layer.provide(assistant.layer))))
+      }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
     },
   )
 

@@ -1,11 +1,11 @@
-import { type DateTime, Option, Schema, String as Str } from 'effect'
+import { type DateTime, Option, pipe, Schema, String as Str } from 'effect'
 
 import { ChatId } from '#domain/chat/chat.id'
 import type { ActiveMessage, MessageDetail } from '#domain/chat/message.model'
 import { UserId } from '#domain/user/user.id'
 
 /** Counted in UTF-16 code units, as `Schema.isMaxLength` counts them. */
-export const maxTitleLength = 120 as const
+export const maxTitleLength = 120
 
 export const ChatTitle = Schema.String.check(
   Schema.isTrimmed(),
@@ -35,7 +35,7 @@ const cutToTitleLength = (text: string): string => {
  * Trimmed before the cut so the limit counts visible text, and after it so the cut leaves no edge.
  */
 export const buildChatTitle = (text: string): Option.Option<ChatTitle> =>
-  Schema.decodeUnknownOption(ChatTitle)(Str.trim(cutToTitleLength(Str.trim(text))))
+  pipe(text, Str.trim, cutToTitleLength, Str.trim, Schema.decodeUnknownOption(ChatTitle))
 
 export class Chat extends Schema.Class<Chat>('Chat')({
   id: ChatId,

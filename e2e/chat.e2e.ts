@@ -26,7 +26,7 @@ const poll = <A, E, R>(self: Effect.Effect<A, E, R>, until: (a: A) => boolean) =
 
 /** Reads the reply until the worker has settled it, as the browser's polling does. */
 const pollSettledMessage = (chatId: ChatId, messageId: MessageId) =>
-  Effect.flatMap(ApiClient, (api) =>
+  ApiClient.use((api) =>
     poll(
       api.chats.getMessage({ params: { chatId, messageId } }),
       (message) => !isActiveStage(message.stage),
@@ -34,7 +34,7 @@ const pollSettledMessage = (chatId: ChatId, messageId: MessageId) =>
   )
 
 const pollTitledChat = (chatId: ChatId) =>
-  Effect.flatMap(ApiClient, (api) =>
+  ApiClient.use((api) =>
     poll(api.chats.get({ params: { chatId } }), (chat) => Option.isSome(chat.title)),
   )
 
@@ -44,7 +44,7 @@ const formOf = (file: File) => {
   return form
 }
 
-const selectOutbox = Effect.flatMap(SqlClient.SqlClient, (sql) => sql`select queue from outbox`)
+const selectOutbox = SqlClient.SqlClient.use((sql) => sql`select queue from outbox`)
 
 describe('the journey over both app layers', { concurrent: false }, () => {
   layer(StandTest, { excludeTestServices: true })((it) => {
@@ -56,10 +56,9 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           const bucket = yield* AttachmentBucket
           yield* api.users.ensure()
           const chat = yield* api.chats.create()
-          const uploads = yield* api.attachments.upload({
-            payload: formOf(new File([png], 'photo.png', { type: 'image/png' })),
-          })
-          const uploaded = yield* Effect.fromOption(Arr.head(uploads))
+          const uploaded = yield* api.attachments
+            .upload({ payload: formOf(new File([png], 'photo.png', { type: 'image/png' })) })
+            .pipe(Effect.head)
 
           const sent = yield* api.chats.send({
             params: { chatId: chat.id },
@@ -86,9 +85,9 @@ describe('the journey over both app layers', { concurrent: false }, () => {
 
           yield* api.chats.delete({ params: { chatId: chat.id } })
           const object = yield* bucket.select(uploaded.id)
-          const gone = yield* Effect.flip(
-            api.attachments.get({ params: { attachmentId: uploaded.id } }),
-          )
+          const gone = yield* api.attachments
+            .get({ params: { attachmentId: uploaded.id } })
+            .pipe(Effect.flip)
 
           assert.deepStrictEqual(object, Option.none())
           assertSchemaEquals(
@@ -107,12 +106,12 @@ describe('the journey over both app layers', { concurrent: false }, () => {
         const chat = yield* api.chats.create()
         const stale = AttachmentId.make('0192d4e0-7b3a-7c00-8000-00000000dead')
 
-        const refused = yield* Effect.flip(
-          api.chats.send({
+        const refused = yield* api.chats
+          .send({
             params: { chatId: chat.id },
             payload: { text: 'Hello', attachmentIds: [stale] },
-          }),
-        )
+          })
+          .pipe(Effect.flip)
 
         const detail = yield* api.chats.get({ params: { chatId: chat.id } })
         const rows = yield* selectOutbox

@@ -13,7 +13,7 @@ import { UserPg } from '@app-template/infrastructure/user'
 
 /** Gives each user a credential of its own, since a credential's hash is a primary key. */
 const insertUser = (id: UserId) =>
-  Effect.flatMap(UserRepository, (users) =>
+  UserRepository.use((users) =>
     users.insert(
       buildUser({ id, createdAt: epoch }),
       new Credential({ kind: 'secret', hash: SecretHash.make(id.replaceAll('-', '').repeat(2)) }),

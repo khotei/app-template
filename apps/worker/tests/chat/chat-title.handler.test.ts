@@ -12,7 +12,7 @@ import { handle, handleDeadLettered } from '#worker/chat/chat-title.handler'
 
 const lisbonWeekend = ChatTitle.make('Lisbon weekend')
 
-const insertFirstMessage = Effect.flatMap(MessageRepository, (messages) =>
+const insertFirstMessage = MessageRepository.use((messages) =>
   messages.insert(
     buildUserMessage({ id: messageId, chatId, text: 'Plan a weekend in Lisbon', createdAt: epoch }),
   ),
@@ -32,7 +32,7 @@ describe('ChatTitleHandler', () => {
         yield* selectChat(chatId),
         Option.some(new Chat({ ...chat, title: Option.some(lisbonWeekend) })),
       )
-    }).pipe(Effect.provide(ChatTitleTest.pipe(Layer.provide(assistant.layer))))
+    }).pipe(Effect.provide(Layer.provide(ChatTitleTest, assistant.layer)))
   })
 
   it.effect('handleDeadLettered logs the job at Error', () => {

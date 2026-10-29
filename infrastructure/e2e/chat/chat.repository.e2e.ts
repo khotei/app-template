@@ -249,7 +249,7 @@ describe('ChatRepositoryPg', () => {
       yield* messages.insert(withPhoto)
       yield* attachments.insert(attached)
 
-      const exit = yield* Effect.exit(chats.delete(stored.id))
+      const exit = yield* chats.delete(stored.id).pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
       assertSchemaEquals(

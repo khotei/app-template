@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm'
 import { createInsertSchema, createSelectSchema } from 'drizzle-orm/effect-schema'
 import { check, pgEnum, snakeCase, text, uuid } from 'drizzle-orm/pg-core'
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 
 import { Credential, secretHashPattern, User, UserId } from '@app-template/domain/user'
 
@@ -29,5 +29,4 @@ export const UserRow = createSelectSchema(users, userFields)
 
 export const UserInsert = createInsertSchema(users, userFields)
 
-export const decodeUser = (row: typeof UserRow.Encoded) =>
-  Effect.map(Schema.decodeEffect(UserRow)(row), (fields) => new User(fields))
+export const UserFromRow = UserRow.pipe(Schema.decodeTo(User))

@@ -464,6 +464,7 @@ per the acceptance table, not by a test.
   deltas writes nothing. A snapshot runs `uninterruptible`: the race interrupts the snapshot loop
   when the stream ends, and a write cut short then could still land after the final one; the
   race awaits its interrupted loser, so the final write always comes last.
+  *Superseded by architecture-audit D19.*
 - **D4 — Dev state is `KeyValueStore.layerFileSystem` at `STORE_PATH`, bundled with
   `StoreConfig` in `infrastructure/kv/kv-store.ts`; tests use `layerMemory`.** The two processes
   need one state and the queue already shares `.data/queue.sqlite`. `layerFileSystem` stores

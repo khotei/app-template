@@ -76,13 +76,15 @@ export const UserInsert = createInsertSchema(users, userFields)
 - A refinement given as a schema replaces the column's schema whole: nothing adds `NullOr` or
   makes it optional, so a nullable column is refined to `Schema.OptionFromNullOr(…)` and a column
   with a default becomes required, as the domain always writes it.
-- Each entity file exports one decoder beside its codec (`decodeUser`, `decodeChat`), which
-  decodes a row and builds the model from the fields (`new User(fields)`); repositories and
-  tests share it. A decoder of rows nested across two entities lives in the entity file that
-  already imports the other (`decodeMessageDetail` in `attachment.entity.ts`), since the reverse
-  import closes a cycle Biome rejects. A repository encodes the model to the row it inserts. A row whose values are
-  already the domain's (brands, literals) is written as is: `credentials` takes
-  `{ hash, kind, userId }` from the credential and the user, with no codec.
+- Each entity file exports one `<Entity>FromRow` beside its codec, the row schema piped into the
+  domain class (`UserRow.pipe(Schema.decodeTo(User))`); repositories and tests decode with it.
+  `MessageDetailFromRow` decodes a message row with its attachments nested: one `Schema.Struct`
+  of both rows' schemas, turned into a `MessageDetail` by a `SchemaGetter.transform`, its encoding
+  forbidden since nothing writes it back. It lives in `attachment.entity.ts`, which already
+  imports the message entity, since the reverse import closes a cycle Biome rejects. A repository
+  encodes the model to the row it inserts. A row whose values are already the domain's (brands,
+  literals) is written as is: `credentials` takes `{ hash, kind, userId }` from the credential
+  and the user, with no codec.
 - A `jsonb` column carries the encoded type of its schema (`jsonb().$type<typeof
   MessageFailure.Encoded>()`), so the row Drizzle returns fits the codec; the refinement
   (`Schema.OptionFromNullOr(MessageFailure)`) is what decodes it.
@@ -104,7 +106,11 @@ const rows = yield* db.query.messages.findMany({
 
 A read model is one relational query: the domain declares the shapes the ports answer
 (`ChatSummary`, `ChatDetail`, `MessageDetail` in `chat.model.ts`), and the repository reads each
-in one `db.query`, decoding every level with its entity's decoder. A model holds no field that
+in one `db.query`. A read model that holds a `Message` the domain narrows (`ChatSummary`,
+`ChatDetail`, with their `activeMessage`) is decoded by a small function in the repository: it
+decodes the chat with `ChatFromRow` and its messages with `Schema.Array(MessageFromRow)` or
+`Schema.Array(MessageDetailFromRow)`, then picks the active one with
+`Arr.findFirst(isActiveMessage)`, a narrowing no schema types. A model holds no field that
 another table holds: `Message` has no attachments, which reach the reader as a `MessageDetail`.
 
 ## Repositories
@@ -119,9 +125,9 @@ connection `Db` uses. Every method ends with `orDieWithSqlError` from `db.client
 Reads go through relational queries (`db.query.<table>.findFirst` and `findMany`), writes
 through the core builder (`db.insert`, `db.update`, `db.delete`). A read of at most one row is a
 `findFirst`, which emits the `limit 1` itself, even where a key makes the row unique, so the
-query states its intent; `decodeFound` from `db.client.ts` decodes the row it found, or answers
-`Option.none()`. A filter on a relation (`{ credentials: { kind, hash } }`) renders as
-`exists (…)`.
+query states its intent; `decodeOptionalRow(<Entity>FromRow)` from `db.client.ts` decodes the
+row it found, or answers `Option.none()` for the `undefined` or `null` of none. A filter on a
+relation (`{ credentials: { kind, hash } }`) renders as `exists (…)`.
 
 A write of some fields under a condition maps its `<Entity>Set` and `<Entity>Where` onto the
 table through `db/columns.ts`, one mapper per field. `buildSet<Fields, Table>(columns)` takes a

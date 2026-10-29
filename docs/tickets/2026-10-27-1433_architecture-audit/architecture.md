@@ -316,7 +316,7 @@ export class Transaction extends Context.Service<Transaction, {
   /** Runs `self` in one transaction; its own `SqlError` is a defect. */
   readonly run: <A, E, R>(self: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>
 }>()('@app-template/infrastructure/db/Transaction') {
-  static readonly layer = Layer.effect(this, Effect.map(SqlClient.SqlClient, (sql) =>
+  static readonly layer = Layer.effect(this, SqlClient.SqlClient.useSync((sql) =>
     this.of({ run: (self) => sql.withTransaction(self).pipe(Effect.catchTag('SqlError', Effect.die)) })))
 }
 // infrastructure/db/testing/transaction.test-fake.ts
@@ -584,11 +584,23 @@ export const AwsTest = Layer.unwrap(Effect.gen(function* () {
 - **D16 — `S3Bucket` knows the last part by the stream's end, not by lookahead.** The fold holds
   the latest part back and the finish step runs after a successful end. *Rejected:*
   `Stream.zipWithNext`, whose `onHalt` fires on a failure too (`Channel.mapAccum`), so a broken
-  stream was completed with truncated content and the abort then found no upload.
+  stream was completed with truncated content and the abort then found no upload. Re-proposed
+  in verification run 2 and rejected again (S32): `Stream.transduce` also emits the group being
+  cut when the stream fails, so a lookahead would store a lone held part by `putObject` too.
 - **D18 — `getMessage` lists `MessageNotFoundError` alone.** `MessageService.get` reads the
   message with its owner in one `selectDetail`, so a foreign or deleted chat is a missing message;
   both errors were 404, and the web client does not call the endpoint. *Rejected:* keeping
   `chatNotFound` in the contract, an error no handler fails with.
+- **D19 — The reply's snapshots are one stream.** `Stream.scan` from the stored text,
+  `Stream.groupedWithin(∞, snapshotInterval)`, the last text of each group, `Stream.tap` of the
+  write, `Stream.runLast` for the whole text. An interval opens at the first delta after a
+  snapshot, so the reply writes at most once per interval, and the model's stream pauses while a
+  snapshot writes. *Accepted cost:* the last group writes the full text once more before
+  `complete`, one extra `UPDATE` per reply; knowing a group is the last needs lookahead, D16's
+  trap. `uninterruptible` goes: the snapshots and `complete` run in sequence in one fiber, and an
+  interrupted write that lands late is a no-op under `WHERE stage = 'generating'`
+  (postgres-drizzle D5). *Rejected:* keeping chat-core D3's two `Ref`s, `raceFirst` and
+  `uninterruptible`, 18 more lines and a race to guard, to save one write.
 
 ## Risks
 

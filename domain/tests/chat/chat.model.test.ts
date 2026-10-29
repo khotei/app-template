@@ -49,6 +49,6 @@ describe('buildChatTitle', () => {
   })
 
   it.each(['', ' \n '])('refuses the blank text %j', (text) => {
-    assert.isTrue(Option.isNone(buildChatTitle(text)))
+    assert.isTrue(buildChatTitle(text).pipe(Option.isNone))
   })
 })

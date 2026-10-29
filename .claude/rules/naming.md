@@ -71,9 +71,9 @@ folder (`infrastructure/db/testing/` too), exported by no barrel save `packages/
     its `*NotFoundError` or a refusal) or a proof (`findSendable`); never a port method;
   - `select` / `insert` / `update` / `delete` / `exists`: a port's persistence; `update` never
     creates a record, `exists` answers `boolean` (`existsByChat`).
-- Constants are `camelCase`, `as const` for literals; a `Layer` constant is `PascalCase`, for a
-  service declared elsewhere `<Service><Variant>` (`ChatRepositoryPg`); `<Entity>Pg` in
-  `<entity>/index.ts` bundles the aggregate's adapters.
+- Constants are `camelCase`, `as const` for literal objects and arrays; a `Layer` constant is
+  `PascalCase`, for a service declared elsewhere `<Service><Variant>` (`ChatRepositoryPg`);
+  `<Entity>Pg` in `<entity>/index.ts` bundles the aggregate's adapters.
 - Every test-only layer ends in `Test`: a port's fake is `<Port>Test` (`AttachmentBucketTest`); a
   test layer is `<Entity>Test`, the entity's real services over fakes (`ChatTest`;
   `layer<Entity>Test(…)` with options). A stateful fake `<verb><Thing>()` returns

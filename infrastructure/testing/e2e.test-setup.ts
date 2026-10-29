@@ -28,7 +28,7 @@ const startPostgresWithTemplate = async () => {
     // The provide closes the migration's pool here: `CREATE DATABASE … TEMPLATE` refuses a
     // template that still has a session.
     yield* migrateDatabase.pipe(
-      Effect.provide(Db.layer.pipe(Layer.provide(onDatabase(templateDatabase)))),
+      Effect.provide(Layer.provide(Db.layer, onDatabase(templateDatabase))),
     )
     yield* admin.unsafe(`ALTER DATABASE ${templateDatabase} IS_TEMPLATE true`)
   }).pipe(Effect.provide(onDatabase(container.getDatabase())))

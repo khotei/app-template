@@ -13,9 +13,7 @@ const partSize = 5 * mebibyte
 const bucket = generateStage()
 
 const S3BucketTest = S3Bucket.layer({ bucket }).pipe(
-  Layer.provide(
-    Layer.effectDiscard(Effect.flatMap(S3Service, (s3) => s3.createBucket({ Bucket: bucket }))),
-  ),
+  Layer.provide(Layer.effectDiscard(S3Service.use((s3) => s3.createBucket({ Bucket: bucket })))),
   Layer.provide(S3ClientTest),
 )
 
@@ -33,7 +31,7 @@ const octetStream = { contentType: 'application/octet-stream' } as const
 
 /** None for an object written with one `PutObject`. */
 const readPartCount = (key: string) =>
-  Effect.flatMap(S3Service, (s3) =>
+  S3Service.use((s3) =>
     s3.getObjectAttributes({ Bucket: bucket, Key: key, ObjectAttributes: ['ObjectParts'] }),
   ).pipe(Effect.map(({ ObjectParts }) => Option.fromNullishOr(ObjectParts?.TotalPartsCount)))
 
@@ -74,20 +72,24 @@ describe('S3Bucket over S3ClientTest against MiniStack', () => {
       uploadTimeout,
     )
 
-    it.effect(
-      'aborts the upload of a stream that fails after a part is sent, leaving no object',
-      () =>
+    // A part is sent once the part after it is cut, and a failure still emits the part being cut.
+    // At 11 MiB the failure finds the multipart upload open. At exactly 5 MiB one whole part is
+    // held and none sent, so a put that took the failure for the end would store it alone.
+    it.effect.each([
+      { name: 'after a part is sent', key: 'broken-multipart', size: 11 * mebibyte },
+      { name: 'after one whole part', key: 'broken-single', size: partSize },
+    ])(
+      'fails the put of a stream that breaks $name, leaving no object',
+      ({ key, size }) =>
         Effect.gen(function* () {
           const s3 = yield* S3Service
           const files = yield* S3Bucket
           const error = new StreamBrokenError()
-          // A part is sent once the part after it is cut, so the first `UploadPart` is on the
-          // wire at 10 MiB and the failure finds the multipart upload open.
-          const content = breakAfter(splitIntoMebibytes(buildContent(11 * mebibyte)), error)
+          const content = breakAfter(splitIntoMebibytes(buildContent(size)), error)
 
-          const failed = yield* files.put('broken', content, octetStream).pipe(Effect.flip)
-          const exists = yield* files.exists('broken')
-          const { Uploads } = yield* s3.listMultipartUploads({ Bucket: bucket, Prefix: 'broken' })
+          const failed = yield* files.put(key, content, octetStream).pipe(Effect.flip)
+          const exists = yield* files.exists(key)
+          const { Uploads } = yield* s3.listMultipartUploads({ Bucket: bucket, Prefix: key })
 
           assert.strictEqual(failed, error)
           assert.isFalse(exists)

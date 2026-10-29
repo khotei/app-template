@@ -2,8 +2,8 @@ import { S3Service } from '@effect-aws/client-s3'
 import {
   Array as Arr,
   Bytes,
-  Clock,
   Context,
+  DateTime,
   Duration,
   Effect,
   Exit,
@@ -196,12 +196,12 @@ const makeBucket = ({ bucket }: { readonly bucket: string }) =>
       const found = yield* exists(key)
       if (!found) return Option.none()
 
-      const now = yield* Clock.currentTimeMillis
+      const now = yield* DateTime.nowAsDate
       const signed = yield* s3
         .getObject(buildObjectRef(key), {
           presigned: true,
           expiresIn: Duration.toSeconds(lifetime),
-          signingDate: new Date(now),
+          signingDate: now,
         })
         .pipe(Effect.orDie)
       return Option.some(new URL(signed))

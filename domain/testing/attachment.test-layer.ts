@@ -1,4 +1,4 @@
-import { Array as Arr, Effect, Stream } from 'effect'
+import { Effect, Stream } from 'effect'
 
 import { png } from '@app-template/testing'
 
@@ -8,7 +8,7 @@ import type { UserId } from '#domain/user/user.id'
 
 /** Uploads one `png` as `photo.png` for `userId` through the `AttachmentService` in context. */
 export const upload = (userId: UserId) =>
-  Effect.flatMap(AttachmentService, (attachments) =>
+  AttachmentService.use((attachments) =>
     attachments.upload(
       userId,
       Stream.make({
@@ -17,7 +17,4 @@ export const upload = (userId: UserId) =>
         content: Stream.make(png),
       }),
     ),
-  ).pipe(
-    Effect.flatMap((uploaded) => Effect.fromOption(Arr.head(uploaded))),
-    Effect.orDie,
-  )
+  ).pipe(Effect.head, Effect.orDie)

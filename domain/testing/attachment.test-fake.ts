@@ -2,7 +2,6 @@ import {
   Array as Arr,
   Context,
   Effect,
-  flow,
   HashMap,
   Layer,
   Option,
@@ -42,11 +41,15 @@ const inOrderOf =
   (found: HashMap.HashMap<AttachmentId, Attachment>): ReadonlyArray<Attachment> =>
     ids === undefined
       ? HashMap.toValues(found)
-      : Arr.getSomes(Arr.map(ids, (id) => HashMap.get(found, id)))
+      : pipe(
+          ids,
+          Arr.map((id) => HashMap.get(found, id)),
+          Arr.getSomes,
+        )
 
 export const AttachmentRepositoryTest = Layer.effect(
   AttachmentRepository,
-  Effect.map(AttachmentRows, (rows) =>
+  AttachmentRows.useSync((rows) =>
     AttachmentRepository.of({
       insert: (attachment) => Ref.update(rows, HashMap.set(attachment.id, attachment)),
       update: (set, where) =>
@@ -59,9 +62,9 @@ export const AttachmentRepositoryTest = Layer.effect(
           ),
         ),
       selectOne: (where) =>
-        Effect.map(
-          Ref.get(rows),
-          flow(HashMap.get(where.id), Option.filter(matches(Struct.omit(where, ['id'])))),
+        Ref.get(rows).pipe(
+          Effect.map(HashMap.get(where.id)),
+          Effect.map(Option.filter(matches(Struct.omit(where, ['id'])))),
         ),
       selectMany: (where) =>
         Ref.get(rows).pipe(
@@ -84,8 +87,8 @@ export class AttachmentBucketObjects extends Context.Service<
 /** The attachment bucket over a map; `keep` is a no-op, since nothing here expires. */
 export const AttachmentBucketTest = Layer.effect(
   AttachmentBucket,
-  Effect.map(AttachmentBucketObjects, (objects) => {
-    const select = (id: AttachmentId) => Effect.map(Ref.get(objects), HashMap.get(id))
+  AttachmentBucketObjects.useSync((objects) => {
+    const select = (id: AttachmentId) => Ref.get(objects).pipe(Effect.map(HashMap.get(id)))
     return AttachmentBucket.of({
       insert: (id, content) =>
         Effect.gen(function* () {
@@ -94,7 +97,7 @@ export const AttachmentBucketTest = Layer.effect(
           return FileSize.make(bytes.length)
         }),
       select,
-      url: (id) => Effect.map(select(id), Option.as(new URL(`memory:attachments/${id}`))),
+      url: (id) => select(id).pipe(Effect.map(Option.as(new URL(`memory:attachments/${id}`)))),
       keep: () => Effect.void,
       delete: (id) => Ref.update(objects, HashMap.remove(id)),
     })

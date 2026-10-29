@@ -7,8 +7,10 @@ import {
   Layer,
   Option,
   Order,
+  pipe,
   Queue,
   Ref,
+  Struct,
 } from 'effect'
 
 import { buildResourceName } from '@app-template/aws'
@@ -75,7 +77,7 @@ const OutboxSqsTest = QueueTransport.layerSqs.pipe(
 const jobId = (n: number) => `0192d4e0-7b3a-7c00-8000-${String(n).padStart(12, '0')}`
 
 const enqueue = (n: number) =>
-  Effect.flatMap(QueueClient, (queue) =>
+  QueueClient.use((queue) =>
     queue.send(
       assistantMessageQueue,
       new GenerateAssistantMessage({
@@ -87,9 +89,7 @@ const enqueue = (n: number) =>
 
 // `for update` waits for every relay transaction that holds a row, so it reads the outbox as the
 // relays left it.
-const lockOutbox = Effect.flatMap(Db, (db) =>
-  db.select({ jobId: outbox.jobId }).from(outbox).for('update'),
-)
+const lockOutbox = Db.use((db) => db.select({ jobId: outbox.jobId }).from(outbox).for('update'))
 
 describe('OutboxRelay', () => {
   it.effect('sends a pending row to its queue with its job id and JSON body, then deletes it', () =>
@@ -97,7 +97,7 @@ describe('OutboxRelay', () => {
       const { attempts, layer } = yield* recordTransport
       yield* enqueue(1)
 
-      yield* Layer.build(OutboxRelay.pipe(Layer.provide(layer)))
+      yield* OutboxRelay.pipe(Layer.provide(layer), Layer.build)
       const attempt = yield* Queue.take(attempts)
 
       assert.strictEqual(attempt.queue, 'app-template-test-assistant-message')
@@ -143,16 +143,13 @@ describe('OutboxRelay', () => {
       const ns = Arr.range(1, 25)
       yield* Effect.forEach(ns, enqueue, { discard: true })
 
-      yield* Layer.build(OutboxRelay.pipe(Layer.provide(layer)))
-      yield* Layer.build(OutboxRelay.pipe(Layer.provide(layer)))
+      yield* OutboxRelay.pipe(Layer.provide(layer), Layer.build)
+      yield* OutboxRelay.pipe(Layer.provide(layer), Layer.build)
       const sent = yield* Queue.takeN(attempts, 25)
       const left = yield* lockOutbox
 
       assert.deepStrictEqual(
-        Arr.sort(
-          Arr.map(sent, (attempt) => attempt.jobId),
-          Order.String,
-        ),
+        pipe(sent, Arr.map(Struct.get('jobId')), Arr.sort(Order.String)),
         Arr.map(ns, jobId),
       )
       assert.deepStrictEqual(left, [])
@@ -168,7 +165,7 @@ describe('OutboxRelay', () => {
       yield* Ref.set(refusing, true)
       yield* enqueue(1)
 
-      yield* Layer.build(OutboxRelay.pipe(Layer.provide(layer)))
+      yield* OutboxRelay.pipe(Layer.provide(layer), Layer.build)
       yield* Queue.take(attempts)
       const refusedAt = yield* Clock.currentTimeMillis
       yield* Ref.set(refusing, false)
@@ -189,7 +186,7 @@ describe('OutboxRelay', () => {
       const { attempts, layer } = yield* recordTransport
       yield* enqueue(1)
 
-      yield* Layer.build(OutboxRelay.pipe(Layer.provide(layer)))
+      yield* OutboxRelay.pipe(Layer.provide(layer), Layer.build)
       yield* Queue.take(attempts)
       const firstAt = yield* Clock.currentTimeMillis
       yield* lockOutbox

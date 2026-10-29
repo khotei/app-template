@@ -47,9 +47,7 @@ const ChatServices = Layer.mergeAll(
   DeleteChatUseCase.layer,
 )
 
-const insertChat = Layer.effectDiscard(
-  Effect.flatMap(ChatRepository, (chats) => chats.insert(chat)),
-)
+const insertChat = Layer.effectDiscard(ChatRepository.use((chats) => chats.insert(chat)))
 
 /** The queue client on the definitions' own names; its locks never run, since nothing consumes. */
 export const QueueClientTest = QueueClient.layer({
@@ -124,14 +122,14 @@ export const ChatPgTest = ChatServices.pipe(
 )
 
 export const selectChat = (chatId: ChatId) =>
-  Effect.flatMap(ChatRepository, (chats) => chats.selectOne({ id: chatId }))
+  ChatRepository.use((chats) => chats.selectOne({ id: chatId }))
 
 export const selectMessages = (chatId: ChatId) =>
-  Effect.flatMap(MessageRepository, (messages) => messages.selectByChat(chatId)).pipe(
+  MessageRepository.use((messages) => messages.selectByChat(chatId)).pipe(
     Effect.map(Arr.map(({ message }) => message)),
   )
 
 export const selectAttachments = (attachments: ReadonlyArray<Attachment>) =>
-  Effect.flatMap(AttachmentRepository, (repository) =>
+  AttachmentRepository.use((repository) =>
     repository.selectMany({ id: Arr.map(attachments, (attachment) => attachment.id) }),
   )

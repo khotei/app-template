@@ -110,7 +110,7 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
       const releaseOnInterrupt =
         (received: Received, restore: Restore) =>
         <B, E2, R2>(effect: Effect.Effect<B, E2, R2>) =>
-          restore(effect).pipe(Effect.onInterrupt(() => Effect.ignore(release(received))))
+          restore(effect).pipe(Effect.onInterrupt(() => release(received).pipe(Effect.ignore)))
 
       // Visibility settles every outcome: `delete` on success, a retry delay, or 0 so that the
       // next receive redrives a spent message to the dead-letter queue.
@@ -165,7 +165,7 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
         yield* run(next.value, restore)
       })
 
-      return Effect.forever(Effect.uninterruptibleMask(receiveAndRun))
+      return Effect.uninterruptibleMask(receiveAndRun).pipe(Effect.forever)
     }
 
     return QueueClient.of({ send, consume })

@@ -28,19 +28,19 @@ const lisbonWeekend = ChatTitle.make('Lisbon weekend')
 
 const trip = ChatTitle.make('Trip')
 
-const insertFirstMessage = Effect.flatMap(MessageRepository, (messages) =>
+const insertFirstMessage = MessageRepository.use((messages) =>
   messages.insert(
     buildUserMessage({ id: messageId, chatId, text: 'Plan a weekend in Lisbon', createdAt: epoch }),
   ),
 )
 
-const renameChat = Effect.flatMap(ChatRepository, (chats) =>
-  Effect.asVoid(chats.update({ title: Option.some(trip) }, { id: chatId })),
+const renameChat = ChatRepository.use((chats) =>
+  chats.update({ title: Option.some(trip) }, { id: chatId }).pipe(Effect.asVoid),
 )
 
-const deleteChat = Effect.flatMap(ChatRepository, (chats) => chats.delete(chatId))
+const deleteChat = ChatRepository.use((chats) => chats.delete(chatId))
 
-const generate = Effect.flatMap(GenerateChatTitleUseCase, (useCase) =>
+const generate = GenerateChatTitleUseCase.use((useCase) =>
   useCase.generate(new GenerateChatTitle({ chatId, messageId })),
 )
 

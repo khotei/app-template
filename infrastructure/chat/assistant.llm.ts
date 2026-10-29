@@ -1,4 +1,4 @@
-import { Array as Arr, Effect, Layer, Option, String as Str, Stream } from 'effect'
+import { Array as Arr, Effect, Layer, Option, pipe, String as Str, Stream } from 'effect'
 import { LanguageModel, Prompt } from 'effect/ai'
 
 import {
@@ -24,7 +24,7 @@ const buildChatPrompt = (history: ReadonlyArray<AssistantTurn>): Prompt.Prompt =
   Prompt.make(
     Arr.map(history, ({ message, files }) => ({
       role: message.author,
-      content: Arr.appendAll(toTextParts(message.text), Arr.map(files, toFilePart)),
+      content: pipe(toTextParts(message.text), Arr.appendAll(Arr.map(files, toFilePart))),
     })),
   )
 
@@ -41,7 +41,7 @@ const buildTitlePrompt = (text: string): Prompt.Prompt =>
 export const AssistantLlm: Layer.Layer<Assistant, never, LanguageModel.LanguageModel> =
   Layer.effect(
     Assistant,
-    Effect.map(LanguageModel.LanguageModel, (model) =>
+    LanguageModel.LanguageModel.useSync((model) =>
       Assistant.of({
         streamText: (history) =>
           model.streamText({ prompt: buildChatPrompt(history) }).pipe(
@@ -51,7 +51,7 @@ export const AssistantLlm: Layer.Layer<Assistant, never, LanguageModel.LanguageM
           ),
         suggestTitle: Effect.fn('Assistant.suggestTitle')(function* (text) {
           // A blank text never reaches the model, as `toTextParts` keeps empty text out.
-          if (Str.isEmpty(Str.trim(text))) return Option.none()
+          if (pipe(text, Str.trim, Str.isEmpty)) return Option.none()
           const response = yield* model.generateText({ prompt: buildTitlePrompt(text) })
           return buildChatTitle(response.text)
         }, Effect.orDie),

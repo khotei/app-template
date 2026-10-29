@@ -4,6 +4,7 @@ import {
   Crypto,
   DateTime,
   Effect,
+  HashMap,
   Layer,
   Option,
   Predicate,
@@ -79,8 +80,9 @@ export class AttachmentService extends Context.Service<
     const attachments = yield* AttachmentRepository
     const bucket = yield* AttachmentBucket
     const crypto = yield* Crypto.Crypto
-    const randomUuid = Effect.orDie(crypto.randomUUIDv7())
-    const randomAttachmentId = Effect.map(randomUuid, AttachmentId.make)
+    const randomAttachmentId = crypto
+      .randomUUIDv7()
+      .pipe(Effect.orDie, Effect.map(AttachmentId.make))
 
     const deleteByIds = Effect.fn('AttachmentService.deleteByIds')(function* (
       ids: ReadonlyArray<AttachmentId>,
@@ -110,7 +112,7 @@ export class AttachmentService extends Context.Service<
       const tracked = yield* Ref.make<ReadonlyArray<AttachmentId>>(Arr.empty())
       // Tracked before the write, not after the insert: a lost record still deletes the bytes.
       const trackId = Effect.tap(randomAttachmentId, (id) => Ref.update(tracked, Arr.append(id)))
-      const deleteTracked = Effect.flatMap(Ref.get(tracked), deleteByIds)
+      const deleteTracked = Ref.get(tracked).pipe(Effect.flatMap(deleteByIds))
 
       return yield* files.pipe(
         Stream.mapEffect((file) =>
@@ -125,9 +127,9 @@ export class AttachmentService extends Context.Service<
       const found = yield* attachments.selectOne({ id, userId })
       const now = yield* DateTime.now
 
-      return yield* Effect.fromOption(
-        Option.filter(found, Predicate.not(isExpiredAt(now))),
-        () => new AttachmentNotFoundError({ id }),
+      return yield* found.pipe(
+        Option.filter(Predicate.not(isExpiredAt(now))),
+        Effect.fromOption(() => new AttachmentNotFoundError({ id })),
       )
     })
 
@@ -136,9 +138,9 @@ export class AttachmentService extends Context.Service<
       id: AttachmentId,
     ) {
       const attachment = yield* get(userId, id)
-      const found = yield* bucket.url(id)
-
-      const url = yield* Effect.fromOption(found, () => new AttachmentNotFoundError({ id }))
+      const url = yield* bucket
+        .url(id)
+        .pipe(Effect.flatMap(Effect.fromOption(() => new AttachmentNotFoundError({ id }))))
 
       return { attachment, url }
     })
@@ -162,9 +164,11 @@ export class AttachmentService extends Context.Service<
     ) {
       const stored = yield* attachments.selectMany({ id: ids, userId })
       const now = yield* DateTime.now
-      const found = new Map(Arr.map(stored, (attachment) => [attachment.id, attachment]))
+      const found = HashMap.fromIterable(
+        Arr.map(stored, (attachment) => [attachment.id, attachment]),
+      )
       const ensureBindable = (id: AttachmentId) =>
-        Option.fromUndefinedOr(found.get(id)).pipe(
+        HashMap.get(found, id).pipe(
           Option.filter(Predicate.not(isExpiredAt(now))),
           Effect.fromOption(() => new AttachmentNotFoundError({ id })),
           Effect.flatMap(ensureUnbound),
@@ -178,12 +182,9 @@ export class AttachmentService extends Context.Service<
         { messageId: Option.some(messageId) },
         { id: ids, userId, messageId: Option.none() },
       )
-      const byId = new Map(Arr.map(bound, (attachment) => [attachment.id, attachment]))
+      const byId = HashMap.fromIterable(Arr.map(bound, (attachment) => [attachment.id, attachment]))
       return yield* Effect.forEach(ids, (id) =>
-        Effect.fromOption(
-          Option.fromUndefinedOr(byId.get(id)),
-          () => new AttachmentBoundError({ id }),
-        ),
+        HashMap.get(byId, id).pipe(Effect.fromOption(() => new AttachmentBoundError({ id }))),
       )
     })
 
