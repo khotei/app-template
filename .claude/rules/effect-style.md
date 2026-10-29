@@ -27,8 +27,7 @@ The goal is code that reads top to bottom and extends by adding a row, not a bra
   value named instead of nested in an argument, so every step is in view.
 - Separate the paragraphs of a body with one blank line: the services it reads, the reads, the
   checks, the writes, the result. A body of three statements or fewer stays unbroken.
-- Read an `Option` through its combinators (`Option.filter`, `Option.match`, `Option.getOrElse`);
-  touch `.value` only under a narrowing guard.
+- Read an `Option` by its combinators (`Option.match`); `.value` only under a narrowing guard.
 - Prefer `Arr` where it names what native code spells out: `Arr.append` over a spread, `Arr.filter`
   over `.filter`, `Arr.getSomes` over `flatMap(Option.toArray)`, `Arr.isReadonlyArrayEmpty`.
 - Run an effect per element with `Effect.forEach` (`{ discard: true }` when nothing is returned);
@@ -50,7 +49,8 @@ The goal is code that reads top to bottom and extends by adding a row, not a bra
   pipeline ending in the combinator that runs it (`Effect.forkScoped`), a chain without its value
   `flow(…)`. Go data-last and point-free when the function's name says the step
   (`Effect.tap(Arr.match({ … }))`), a lambda only to add an argument or a name, never a point-free
-  form that needs a cast or loses an `E` or `R`. Reach a service by `Service.use` or `useSync`.
+  form that needs a cast or loses an `E` or `R`.
+- Reach a service by `Service.use((s) => s.m(…))`, or `useSync` for a plain value.
 - A composable function takes its subject as the last, single argument, options first and curried
   (`pipe(message, encodeWith(codec))`); `dual` only when called both directly and as a pipe step.
 

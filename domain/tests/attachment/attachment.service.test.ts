@@ -63,8 +63,8 @@ const photoUpload = { ...photo, content: Stream.make(png) }
 const uploadPhoto = upload(owner)
 
 const countStored = Effect.all({
-  rows: Effect.flatMap(AttachmentRows, Ref.get).pipe(Effect.map(HashMap.size)),
-  objects: Effect.flatMap(AttachmentBucketObjects, Ref.get).pipe(Effect.map(HashMap.size)),
+  rows: AttachmentRows.use(Ref.get).pipe(Effect.map(HashMap.size)),
+  objects: AttachmentBucketObjects.use(Ref.get).pipe(Effect.map(HashMap.size)),
 })
 
 const bucketHref = (id: AttachmentId) =>

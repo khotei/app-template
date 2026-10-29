@@ -18,7 +18,7 @@ const UserServiceTest = UserService.layer.pipe(
   Layer.provideMerge(UserRows.layer),
 )
 
-const readRows = Effect.flatMap(UserRows, Ref.get)
+const readRows = UserRows.use(Ref.get)
 const countStoredRows = Effect.map(readRows, HashMap.size)
 
 const unknownSecret = Redacted.make('q3Jx0V8m2bZ9yT_4kW-1sN7uP5oA6dLcE0fG8hI2jK4')

@@ -316,7 +316,7 @@ export class Transaction extends Context.Service<Transaction, {
   /** Runs `self` in one transaction; its own `SqlError` is a defect. */
   readonly run: <A, E, R>(self: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>
 }>()('@app-template/infrastructure/db/Transaction') {
-  static readonly layer = Layer.effect(this, Effect.map(SqlClient.SqlClient, (sql) =>
+  static readonly layer = Layer.effect(this, SqlClient.SqlClient.useSync((sql) =>
     this.of({ run: (self) => sql.withTransaction(self).pipe(Effect.catchTag('SqlError', Effect.die)) })))
 }
 // infrastructure/db/testing/transaction.test-fake.ts

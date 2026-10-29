@@ -1294,7 +1294,17 @@ keeps the suites green, a changed assertion named in its findings.
 - **Verify:** `make check`; probe the target with one restored `Effect.flatMap(ChatRepository, (c)
   => …)`, see it fail, restore.
 - **Model:** opus medium
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The plan's grep `[A-Z]\w*` matched nothing: `git grep -E` on macOS has no `\w`. The gate is a
+    `perl -0777` matcher over every tracked or new `.ts` outside `repos/`, each file read whole,
+    so a call Biome wraps across lines fails it too; it ends at the comma after the service, so
+    the point-free `Effect.flatMap(<X>Rows, Ref.get)` counts and became `<X>Rows.use(Ref.get)`.
+  - 64 sites across `domain/`, `application/`, `infrastructure/`, `e2e/`, `apps/` and `packages/`;
+    18 take `useSync`, each where the callback returns a plain value.
+  - CI runs `make service-use` in the `links` job: `ci.yml` calls the gates one by one, not
+    `make check`. `effect-style.md` stays at 80 lines: the `Option` bullet folds into one line.
+  - `architecture.md`'s `Transaction` example uses `useSync`.
 
 #### S31 — The relay's loop as two repeats
 

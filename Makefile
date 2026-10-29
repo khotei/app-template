@@ -143,10 +143,12 @@ doc-names: ## Fail on a backticked path or PascalCase name in the docs that the 
 		exit 1; \
 	fi
 
-# One line per call: a call Biome wraps before the service slips past, and a point-free
-# `Effect.flatMap(Rows, Ref.get)` passes on purpose (.claude/rules/effect-style.md › Composition).
+# Reads each file whole, so a call Biome wraps across lines is caught too; any second argument
+# counts, a point-free `Ref.get` included (.claude/rules/effect-style.md › Composition).
 service-use: ## Fail on Effect.flatMap or Effect.map over a service, which Service.use spells
-	@if git grep --untracked -nE 'Effect\.(flatMap|map)\([A-Z][A-Za-z0-9_.]*, \(' -- '*.ts' ':!repos'; then \
+	@if perl -0777 -ne 'while (/Effect\.(flatMap|map)\(\s*[A-Z][A-Za-z0-9_.]*\s*,/g) { \
+		print "$$ARGV:", 1 + (substr($$_, 0, $$-[0]) =~ tr/\n//), "\n" }' \
+		$$(git ls-files --cached --others --exclude-standard -- '*.ts' ':!repos') | grep .; then \
 		echo 'Reach a service by Service.use, or Service.useSync for a plain value.'; \
 		exit 1; \
 	fi
