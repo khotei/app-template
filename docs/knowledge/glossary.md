@@ -94,10 +94,9 @@ An implementation of a port over a client, in `infrastructure`: a repository
 _Avoid_: Implementation, provider, DAO, store
 
 **Domain service**:
-The owner of one entity's rules and the only writer of its records; it reads its ports, the clock
-and the id generator, and nothing else. It is named by its entity (`ChatService`); one that holds
-a single operation belonging to no entity is named by that operation, without `Service`
-(`FundsTransfer`).
+The owner of one entity's rules and the only writer of its records. It is named by its entity
+(`ChatService`); one that holds a single operation belonging to no entity is named by that
+operation, without `Service` (`FundsTransfer`).
 _Avoid_: Manager, helper, application service, business logic, service layer
 
 **Use case**:
@@ -106,8 +105,7 @@ transaction; what a handler calls when a flow is more than one service method.
 _Avoid_: Interactor, orchestrator, workflow, application service, job
 
 **Handler**:
-The entry point of one request or one job in an app: it decodes the input, calls one use case or
-one domain service method and shapes the outcome; it holds no rule.
+The entry point of one request or one job in an app.
 _Avoid_: Controller, consumer, processor, endpoint
 
 **Relay**:
@@ -134,6 +132,6 @@ a use case runs, or of the journey through both apps.
 _Avoid_: Integration test, system test, functional test
 
 **Memory layer**:
-A layer of a port over a `Ref<HashMap>` in `domain/testing`, one per port, keeping the guards the
-database adds; the unit tests' only double of a port.
+A layer of a port over a `Ref<HashMap>` in `domain/testing`, one per port; the unit tests' only
+double of a port.
 _Avoid_: Mock, stub, in-memory repository

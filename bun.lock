@@ -58,6 +58,7 @@
       "dependencies": {
         "@app-template/application": "workspace:*",
         "@app-template/config": "workspace:*",
+        "@app-template/domain": "workspace:*",
         "@app-template/infrastructure": "workspace:*",
         "@app-template/llm": "workspace:*",
         "@app-template/queue": "workspace:*",
@@ -65,7 +66,6 @@
         "effect": "catalog:effect",
       },
       "devDependencies": {
-        "@app-template/domain": "workspace:*",
         "@app-template/testing": "workspace:*",
         "@effect/vitest": "catalog:effect",
       },

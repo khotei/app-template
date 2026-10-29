@@ -247,7 +247,7 @@ the glossary, so the rules point at one definition of each word.
 - **R21** — WHEN the ticket lands, THE SYSTEM SHALL have rewritten to the new model
   `.claude/rules/use-cases.md` (as the layering rule), `naming.md` (`.port`; the `tests/` and
   `e2e/` folders, the `.test` and `.e2e` suffixes and their mirror rule; the three `./testing`
-  exports; `.job` and `.llm` dropped), `effect-tests.md`,
+  exports; `.job` and `chat.llm` dropped, `.llm` kept for the `Assistant` adapter), `effect-tests.md`,
   `effect-services.md`, the `CLAUDE.md` of `domain`, `application`, `infrastructure` and `apps`,
   the Biome override that lets `domain/tests/**` import `@effect/platform-bun`, and the
   knowledge docs `architecture.md` and `tooling.md`, with no line that restates the old model.

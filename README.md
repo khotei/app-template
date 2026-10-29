@@ -97,16 +97,15 @@ Each line names one choice and where it lives; the rejected alternatives are in 
   Biome rejects most of what it forbids, and
   [› Known gaps](docs/knowledge/architecture.md#known-gaps) lists the rest.
 - **The domain is pure Effect:** models are `Schema.Class`, ids and constrained values are brands,
-  errors are `Schema.TaggedError`, time and ids come in as input, and ports are `Context.Service`
-  declarations with no error channel. `domain/`.
+  errors are `Schema.TaggedError`, pure operations take time and ids as input, and ports are
+  `Context.Service` declarations with no error channel. `domain/`.
 - **One HTTP contract, two consumers.** `http-api/` declares the `HttpApi` over the domain's
   schemas; `apps/api` implements it with `HttpApiBuilder`, and the browser calls it through
   `ApiClient`. A domain error becomes a status through one annotation in the contract.
-- **Services are simple, use cases compose them.** A service owns one aggregate's writes; a flow
-  across aggregates is a use case whose writes commit in one transaction, guarded by the database
-  rather than a lock, and the checks hand the writes a proof value (`SendableChat`) so the order
-  cannot be skipped.
-  [.claude/rules/layering.md](.claude/rules/layering.md).
+- **Domain services own the rules, use cases compose them, handlers call one of the two.** A
+  domain service in `domain/` writes its entity's records over the ports; a flow across services,
+  the queue or one transaction is a use case in `application/`; an api or worker handler holds no
+  rule. [.claude/rules/layering.md](.claude/rules/layering.md).
 - **Repositories are `Layer`s over Drizzle on `@effect/sql-pg`:** each entity declares its tables
   once, the row codecs and migrations derive from them, and a write across tables runs in one
   transaction. [docs/knowledge/database.md](docs/knowledge/database.md).
@@ -116,10 +115,10 @@ Each line names one choice and where it lives; the rejected alternatives are in 
 - **A process is one `Layer`:** `apps/api/layer.ts` and `apps/worker/layer.ts` close the
   leaves (database, S3, queue, platform) with `Layer.provide` and `main.ts` is
   `BunRuntime.runMain(Layer.launch(...))`; stopping closes one scope.
-- **Tests sit at agreed seams** with `@effect/vitest`: domain rules, repositories on a Postgres
-  database of their own per test, services over the memory attachment bucket and a recording queue
-  under `TestClock`, jobs with a fake model, the queue client on MiniStack, the api through
-  `BunHttpServer.layerTest` and the real `ApiClient`.
+- **Tests sit at agreed seams** with `@effect/vitest`: unit tests in `tests/` run the domain
+  services, the use cases and both apps' handlers over memory layers of the ports; e2e tests in
+  `e2e/` run the adapters and one journey through both apps on a Postgres and a MiniStack the run
+  starts for itself. [docs/knowledge/tooling.md › Tests](docs/knowledge/tooling.md#tests).
 - **Configuration is read once,** in `packages/config`, and reaches clients as options; the root
   `.env` is the only environment file.
 

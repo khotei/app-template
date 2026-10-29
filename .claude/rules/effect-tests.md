@@ -21,11 +21,16 @@ paths:
 
 - **A unit test** (`tests/`) runs the real services over the memory layers of the ports
   (`@app-template/domain/testing`), with `TransactionTest`, `recordQueue()` and
-  `recordAssistant()` where a use case needs them, and starts no container. A further fake of a
+  `recordAssistant()` where a use case needs them, and starts no container. A use case's unit
+  test checks the order of its steps and the jobs it sends, not the rules. A further fake of a
   port only wraps a memory layer, to force a race or a failure it cannot produce on demand.
+- **A memory layer copies the guards the database adds** (an index, a `where`, a cascade), each
+  with its e2e twin on the Pg adapter, or a unit test passes on a write the database refuses.
 - **An e2e test** (`e2e/`) proves an adapter or a use case's transaction on the run's
-  containers, or the journey; each rule a memory layer copies from the database (an index, a
-  `where`, a cascade) has its e2e twin on the Pg adapter.
+  containers, or the journey. Atomicity: the database refuses one write of the flow (a constraint
+  the test adds), and no row and no outbox row is kept. A race runs the rival calls with
+  `Effect.all(…, { concurrency: 'unbounded' })` on the real repositories and asserts an outcome
+  that holds whichever call wins; a probe that removes the guard must turn it red.
 - The harnesses: `DbTest` (a database of its own, `Db` and `PgClient`), `AwsTest` (a stage of
   its own, its bucket and queues provisioned, the SQS and S3 clients) and `StandTest` (both app
   layers in one runtime, the journey's). Never put `DbTest` in one runtime with a layer that
@@ -36,16 +41,13 @@ paths:
 
 - Test code is held to the bar of app code: a test composes the real layers and doubles only
   what the seam leaves out.
-- A helper earns its place only when several tests get clearly longer without it. When a small
-  problem appears (time, isolation, ordering), change the test or drop the minor assertion; never
-  add a helper that patches another helper
-  ([tooling.md › Tests](../../docs/knowledge/tooling.md#tests)).
+- A helper earns its place only when several tests get clearly longer without it. A small problem
+  (time, isolation, ordering) changes the test or drops the minor assertion, never adds a helper
+  that patches another ([tooling.md › Tests](../../docs/knowledge/tooling.md#tests)).
 - A test reads its services from the context (`yield* ChatService`) under a layer it provides
   (`Effect.provide(ChatTest)`), never through a callback runner.
-- Test support that several test files share lives in `<workspace>/testing/` (or
-  `packages/testing`, `@app-template/testing`, in `devDependencies`, when several workspaces
-  share it). Every support file is `<entity>.test-<role>.ts` and every test-only layer ends in
-  `Test`, so `**/*.test-*.ts` and `\w+Test\b` find them all; roles: `naming.md › Files`.
+- Every support file is `<entity>.test-<role>.ts` and every test-only layer ends in `Test`, so
+  `**/*.test-*.ts` and `\w+Test\b` find them all; where they live: `naming.md › Files`.
 
 ## Resources and time
 

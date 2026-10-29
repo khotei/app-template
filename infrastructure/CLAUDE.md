@@ -14,7 +14,5 @@ and `Transaction`.
 - `db/` holds the Postgres client (`Db`, a Drizzle database on `@effect/sql-pg`), `Transaction`,
   the relations every table shares (`relations.ts`) and the migrations. Drizzle is reached only
   through Effect, never through a promise.
-- Test support lives in `testing/` (the e2e `globalSetup`, `AwsTest`) and `db/testing/` (`DbTest`,
-  `TransactionTest`), exported together as `@app-template/infrastructure/testing`.
 - This is where `Config` turns into client options: clients take explicit options and never read
   configuration themselves.

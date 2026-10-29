@@ -1053,7 +1053,27 @@
   is empty; `sed -n '/^## Architecture language/,$p' docs/knowledge/glossary.md | grep -c
   '^\*\*'` prints 15; `make check`.
 - **Model:** opus high
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The rules say one domain service per entity, since the chat aggregate has two (D1); D14
+    now says so, and R21 drops `chat.llm`, not `.llm`, which stays the `Assistant` adapter's
+    suffix.
+  - The `SendableChat` example stays, now spanning `ChatService.findSendable` and
+    `MessageService.addUserMessage`: only "one writer per aggregate" contradicted D1, not the
+    proof value.
+  - The glossary's **E2E test** entry names the transaction a use case runs, since
+    `application/e2e` proves it; it names no rule of a use case or a handler.
+  - Each rule fact has one author (S23.2): `layering.md` what a domain service sees and the
+    handler contract; `naming.md` the `./testing` and `./layer` exports; `effect-tests.md` what a
+    memory layer copies and the race and atomicity recipes, since `layering.md`'s paths never
+    load for `infrastructure/e2e`. The glossary keeps one-line definitions and D14's naming.
+  - Beyond **Files**, with the user's OK: the links to `layering.md` in `README.md`,
+    `explainer.md` and `docs/knowledge/architecture.md`; `README.md` on the new model;
+    `effect-style.md` without `ensureFound`, under its budget; `effect-schema.md` with the
+    domain service turning not-found into the error and no "store" for the database.
+  - The worker's four handlers state `Effect.fn.Return` (or the arrow's `Effect.Effect`), as
+    `effect-services.md` asks of a composed module-level function; the worker declares
+    `@app-template/domain` as a dependency for the error type. Rejected: dropping the rule.
 
 #### S24 — The knowledge docs on the new model
 

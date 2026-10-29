@@ -42,10 +42,10 @@ the signal.
   not-found makes it a service method. A read with no rule (a job's message by id) may go to the
   port too.
 - **All checks precede every write;** a step's own guard may repeat a check the use case made.
-- **The writes commit in one transaction:** `Transaction.run` (`@app-template/infrastructure/db`)
-  as a pipeable of the `Effect.fn` that holds them; the process provides `Transaction.layer`, a
-  unit test `TransactionTest`. `AttachmentBucket` stays outside it: keep the bytes before the row
-  that binds them, and delete them before the commit.
+- **The writes commit in one transaction:** the `Transaction` service's `transaction.run`
+  (`@app-template/infrastructure/db`) as a pipeable of the `Effect.fn` that holds them; the
+  process provides `Transaction.layer`, a unit test `TransactionTest`. `AttachmentBucket` stays
+  outside it: keep the bytes before the row that binds them, and delete them before the commit.
 - **Enqueue inside the transaction of the writes the job reads**, through `QueueClient.send`
   ([database.md › The outbox](../../docs/knowledge/database.md#the-outbox)).
 - Read a set through the port's batch method (`selectMany`), never one `select` per id in a loop.
@@ -69,12 +69,3 @@ the signal.
 - **Write only the fields you own of a record another process also writes,** and hold a rule in
   the write's `where`, not in a read before it: the send sets the chat's `updatedAt` alone, and the
   title is written only `where` the chat is still untitled.
-
-## Tests
-
-- A use case's unit test checks the order of its steps and the jobs it sends, not the rules; its
-  atomicity is an e2e test where the database refuses one write of the flow (a constraint the
-  test adds) and no row and no outbox row is kept.
-- A race runs the rival calls with `Effect.all(…, { concurrency: 'unbounded' })` on the real
-  repositories and asserts an outcome that holds whichever call wins; a probe that removes the
-  guard must turn it red.

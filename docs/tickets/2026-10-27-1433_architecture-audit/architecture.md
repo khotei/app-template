@@ -558,7 +558,7 @@ export const AwsTest = Layer.unwrap(Effect.gen(function* () {
 - **D14 — A domain service that owns all of an aggregate's rules is named by the aggregate;
   one that holds a single operation belonging to no entity is named by the operation.**
   `ChatService`, `MessageService`, `AttachmentService` and `UserService` are the aggregates'
-  rule owners over the ports, the clock and `Crypto`, one per aggregate in `<entity>.service.ts`;
+  rule owners over the ports, the clock and `Crypto`, one per entity of an aggregate (the chat has `ChatService` and `MessageService`, D1) in `<entity>.service.ts`;
   the operations that belong to an entity stay on it as pure functions named by the operation
   (`prepareMessage`, `buildChatTitle`, `ensureBindable`), as Evans asks. A service for one
   operation that belongs to no entity, if one appears, is named by that operation in the

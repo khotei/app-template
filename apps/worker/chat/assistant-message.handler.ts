@@ -1,6 +1,7 @@
 import { Cause, Effect, Exit, Layer, Option } from 'effect'
 
 import { GenerateAssistantMessageUseCase } from '@app-template/application/chat'
+import type { MessageStageInvalidError } from '@app-template/domain/chat'
 import {
   assistantMessageDeadLetterQueue,
   assistantMessageQueue,
@@ -12,7 +13,7 @@ import { type AttemptInfo, worker } from '@app-template/queue'
 export const handle = Effect.fn('AssistantMessageHandler.handle')(function* (
   job: GenerateAssistantMessage,
   info: AttemptInfo,
-) {
+): Effect.fn.Return<void, MessageStageInvalidError, GenerateAssistantMessageUseCase> {
   const useCase = yield* GenerateAssistantMessageUseCase
   if (!info.isLastAttempt) return yield* useCase.generate(job)
   // An exit handler runs uninterruptibly, so a stopping worker waits for the `failed` write.
@@ -26,7 +27,10 @@ export const handle = Effect.fn('AssistantMessageHandler.handle')(function* (
 })
 
 export const handleDeadLettered = Effect.fn('AssistantMessageHandler.handleDeadLettered')(
-  function* (job: GenerateAssistantMessage, info: AttemptInfo) {
+  function* (
+    job: GenerateAssistantMessage,
+    info: AttemptInfo,
+  ): Effect.fn.Return<void, MessageStageInvalidError, GenerateAssistantMessageUseCase> {
     const useCase = yield* GenerateAssistantMessageUseCase
 
     const cause = `dead-lettered after ${info.attempt} attempts on ${assistantMessageDeadLetterQueue.name}`

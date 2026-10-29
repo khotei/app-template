@@ -31,9 +31,9 @@ paths:
   memory; a test double; an injected dependency) or when several holders must share one state.
   A rule with one implementation and no dependency is a plain function.
 - Key a service `'@app-template/<workspace>/<entity>/<Name>'`.
-- A domain service is built in `make` from its ports, `DateTime.now` and `Crypto.Crypto`, and its
-  `layer` is `Layer.effect(this, this.make)` alone: a process provides the adapters and the
-  platform's `Crypto`, a unit test the memory layers (`layering.md` for what it may see).
+- A domain service's `layer` is `Layer.effect(this, this.make)` alone, every dependency left
+  open: a process provides the adapters, a unit test the memory layers (what it may depend on:
+  `layering.md › Ports and domain services`).
 - A service built in a body beside its declaration is
   `Context.Service<Self, Shape>()(key, { make })`: the explicit `Shape` keeps the contract and its
   docs, `make` the body. A one-expression build (`Config.all`) goes straight into `Layer.effect`.
