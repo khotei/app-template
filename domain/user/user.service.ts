@@ -36,10 +36,9 @@ export class UserService extends Context.Service<
 
     const authenticate = Effect.fn('UserService.authenticate')(function* (secret: UserSecret) {
       const credential = yield* hashSecret(secret)
-      const user = yield* users.selectByCredential(credential)
+      const found = yield* users.selectByCredential(credential)
 
-      if (Option.isNone(user)) return yield* new UserUnknownError()
-      return user.value
+      return yield* Effect.fromOption(found, () => new UserUnknownError())
     })
 
     const registerUser = Effect.fnUntraced(function* () {

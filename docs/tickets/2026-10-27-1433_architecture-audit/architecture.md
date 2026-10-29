@@ -268,8 +268,9 @@ logs the second as skipped, as the job does today.
 const send = Effect.fn('SendMessageUseCase.send')(function* (userId, chatId, input) {
   const sendable = yield* chatService.findSendable(userId, chatId, input)
   // A rule-free write: one field, one row; the chat gone since the check is the only refusal.
-  const touched = yield* chats.update({ updatedAt: sendable.at }, { id: chatId })
-  if (!touched) return yield* new ChatNotFoundError({ id: chatId })
+  yield* chats
+    .update({ updatedAt: sendable.at }, { id: chatId })
+    .pipe(Effect.filterOrFail(Predicate.isTruthy, () => new ChatNotFoundError({ id: chatId })))
   const userMessage = yield* messageService.addUserMessage(sendable)
   const bound = yield* attachmentService.bind(userId, input.attachmentIds, userMessage.id)
   const assistantMessage = yield* messageService.addAssistantMessage(sendable)

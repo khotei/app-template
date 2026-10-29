@@ -1,4 +1,4 @@
-import { Context, Crypto, Data, DateTime, Effect, Layer, Option } from 'effect'
+import { Context, Crypto, Data, DateTime, Effect, Layer, Option, Predicate } from 'effect'
 
 import { type ChatBusyError, ChatNotFoundError, ChatTitledError } from '#domain/chat/chat.error'
 import { ChatId } from '#domain/chat/chat.id'
@@ -104,8 +104,10 @@ export class ChatService extends Context.Service<
       const updatedAt = yield* DateTime.now
       const renamed = new Chat({ ...chat, title: Option.some(title), updatedAt })
 
-      const written = yield* chats.update({ title: renamed.title, updatedAt }, { id: chatId })
-      if (!written) return yield* new ChatNotFoundError({ id: chatId })
+      yield* chats
+        .update({ title: renamed.title, updatedAt }, { id: chatId })
+        .pipe(Effect.filterOrFail(Predicate.isTruthy, () => new ChatNotFoundError({ id: chatId })))
+
       return renamed
     })
 

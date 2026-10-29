@@ -1,4 +1,4 @@
-import { Effect, Layer, Predicate, SchemaIssue } from 'effect'
+import { Array as Arr, Effect, Layer, Predicate, SchemaIssue } from 'effect'
 import { type HttpApiError, HttpApiMiddleware } from 'effect/http-api'
 
 import { UserService } from '@app-template/domain/user'
@@ -30,8 +30,8 @@ const formatIssues = SchemaIssue.makeFormatterStandardSchemaV1()
 
 const toRequestInvalidError = (error: HttpApiError.HttpApiSchemaError) =>
   new RequestInvalidError({
-    issues: formatIssues(error.cause.issue).issues.map(({ path = [], message }) => ({
-      path: path.map((segment) => {
+    issues: Arr.map(formatIssues(error.cause.issue).issues, ({ path = [], message }) => ({
+      path: Arr.map(path, (segment) => {
         const key = Predicate.isObject(segment) ? segment.key : segment
         return Predicate.isNumber(key) ? key : String(key)
       }),

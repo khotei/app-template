@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from 'effect'
+import { Context, Effect, Layer, Predicate } from 'effect'
 
 import {
   type AttachmentBoundError,
@@ -65,8 +65,9 @@ export class SendMessageUseCase extends Context.Service<
       const sendable = yield* chatService.findSendable(userId, chatId, input)
 
       // A rule-free write, before the messages: a chat deleted since the check reads as gone.
-      const touched = yield* chats.update({ updatedAt: sendable.at }, { id: chatId })
-      if (!touched) return yield* new ChatNotFoundError({ id: chatId })
+      yield* chats
+        .update({ updatedAt: sendable.at }, { id: chatId })
+        .pipe(Effect.filterOrFail(Predicate.isTruthy, () => new ChatNotFoundError({ id: chatId })))
 
       const userMessage = yield* messageService.addUserMessage(sendable)
       const bound = yield* attachmentService.bind(userId, input.attachmentIds, userMessage.id)
