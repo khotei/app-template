@@ -584,7 +584,9 @@ export const AwsTest = Layer.unwrap(Effect.gen(function* () {
 - **D16 — `S3Bucket` knows the last part by the stream's end, not by lookahead.** The fold holds
   the latest part back and the finish step runs after a successful end. *Rejected:*
   `Stream.zipWithNext`, whose `onHalt` fires on a failure too (`Channel.mapAccum`), so a broken
-  stream was completed with truncated content and the abort then found no upload.
+  stream was completed with truncated content and the abort then found no upload. Re-proposed
+  in verification run 2 and rejected again (S32): `Stream.transduce` also emits the group being
+  cut when the stream fails, so a lookahead would store a lone held part by `putObject` too.
 - **D18 — `getMessage` lists `MessageNotFoundError` alone.** `MessageService.get` reads the
   message with its owner in one `selectDetail`, so a foreign or deleted chat is a missing message;
   both errors were 404, and the web client does not call the endpoint. *Rejected:* keeping

@@ -1352,7 +1352,16 @@ keeps the suites green, a changed assertion named in its findings.
   content; add the one missing.
 - **Verify:** `make check`.
 - **Model:** opus high
-- **Status:** todo
+- **Status:** rejected (D16)
+- **Findings:**
+  - A prototype by the step failed the broken-stream e2e: `Stream.zipWithNext`'s `onHalt` emits
+    the latest part as last on a failure too, so a stream broken after 10 MiB completed a
+    truncated upload and the abort died with `NoSuchUpload`. D16 had rejected it already; the
+    sweep's agents missed the decision. `held` stays.
+  - Round 1 adds the case the step's test asked for: a content that fails right after exactly one
+    whole part (5 MiB, not 6: `Stream.transduce` emits the group being cut on a failure, so at
+    6 MiB the tail proves the part is not last and the multipart path runs). A temporary `put`
+    that finishes on failure turns it red on "no object".
 
 #### S33 — The reply's snapshots as one stream
 
