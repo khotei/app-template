@@ -1,4 +1,5 @@
 import { Context, type Effect, type Option, type Types } from 'effect'
+import type { RequireAtLeastOne } from 'type-fest'
 
 import type { ChatId, MessageId } from '#domain/chat/chat.id'
 import type { Message, MessageAuthor, MessageDetail } from '#domain/chat/message.model'
@@ -9,11 +10,12 @@ import type { UserId } from '#domain/user/user.id'
 export type MessageWhere = Pick<Message, 'stage'>
 
 /**
- * The row a read finds by `id`; `chatId` and the chat's `userId` must still hold, so a message
- * of another chat or of another user's chat reads as absent.
+ * The rows where every field named holds; the chat's `userId` too, so a message of another
+ * user's chat reads as absent.
  */
 export type MessageOneWhere = Types.Simplify<
-  { readonly id: MessageId } & Partial<{ readonly chatId: ChatId; readonly userId: UserId }>
+  RequireAtLeastOne<{ readonly id: MessageId; readonly chatId: ChatId }> &
+    Partial<{ readonly userId: UserId }>
 >
 
 /** The rows where every field named holds; a list field holds for a row with any of its values. */
@@ -30,8 +32,8 @@ export class MessageRepository extends Context.Service<
     readonly insert: (message: Message) => Effect.Effect<void>
     /** Writes `message` only while the stored one matches `where`; dies when it writes nothing. */
     readonly update: (message: Message, where: MessageWhere) => Effect.Effect<void>
+    /** Returns the first row in creation order where `where` holds. */
     readonly selectOne: (where: MessageOneWhere) => Effect.Effect<Option.Option<MessageDetail>>
-    readonly existsByChat: (chatId: ChatId) => Effect.Effect<boolean>
     /** Returns the rows where `where` holds in creation order, a tie broken by id. */
     readonly selectMany: (where: MessageManyWhere) => Effect.Effect<ReadonlyArray<MessageDetail>>
   }

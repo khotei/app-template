@@ -35,7 +35,7 @@ const encodeWhere = buildWhere<MessageWhere>({
 /** The chat's `userId` is a filter on the relation, so another user's message reads as absent. */
 const filterOf = (where: MessageOneWhere) =>
   ({
-    id: where.id,
+    id: skipUndefined(where.id),
     chatId: skipUndefined(where.chatId),
     chat: skipUndefined(UndefinedOr.map(where.userId, (userId) => ({ userId }))),
   }) as const
@@ -72,7 +72,7 @@ export const MessageRepositoryPg = Layer.effect(
       selectOne: Effect.fn('MessageRepository.selectOne')(
         (where) =>
           db.query.messages
-            .findFirst({ where: filterOf(where), with: withAttachments })
+            .findFirst({ where: filterOf(where), orderBy: inCreationOrder, with: withAttachments })
             .pipe(Effect.flatMap(decodeOptionalRow(MessageDetailFromRow))),
         orDieWithSqlError,
       ),
@@ -87,13 +87,6 @@ export const MessageRepositoryPg = Layer.effect(
             .pipe(Effect.flatMap(decodeDetails)),
         orDieWithSqlError,
       ),
-      existsByChat: Effect.fn('MessageRepository.existsByChat')(function* (chatId) {
-        const row = yield* db.query.messages.findFirst({
-          where: { chatId },
-          columns: { id: true },
-        })
-        return row !== undefined
-      }, orDieWithSqlError),
     }),
   ),
 )

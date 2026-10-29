@@ -69,8 +69,8 @@ folder (`infrastructure/db/testing/` too), exported by no barrel save `packages/
   - `is`: a predicate (`isActiveMessage`);
   - `find`: a domain service's or use case's read over ports, answering the record (an `Option`,
     its `*NotFoundError` or a refusal) or a proof (`findSendable`); never a port method;
-  - `select` / `insert` / `update` / `delete` / `exists`: a port's persistence; `update` never
-    creates a record, `exists` answers `boolean` (`existsByChat`).
+  - `select` / `insert` / `update` / `delete`: a port's persistence; `update` never creates a
+    record.
 - Constants are `camelCase`, `as const` for literal objects and arrays; a `Layer` constant is
   `PascalCase`, for a service declared elsewhere `<Service><Variant>` (`ChatRepositoryPg`);
   `<Entity>Pg` in `<entity>/index.ts` bundles the aggregate's adapters.

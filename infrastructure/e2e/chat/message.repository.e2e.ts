@@ -113,18 +113,24 @@ describe('MessageRepositoryPg', () => {
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
-  it.effect('existsByChat answers whether the chat has a message', () =>
+  it.effect("selectOne by chatId reads the chat's first message, none for an empty chat", () =>
     Effect.gen(function* () {
       const messages = yield* MessageRepository
       const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-00000000004a')
       const empty = ChatId.make('0192d4e0-7b3a-7c00-8000-00000000004b')
+      const first = userMessage('0192d4e0-7b3a-7c00-8000-00000000005f', { chatId })
       yield* insertOwnedChats(userId, [chatId, empty])
-      yield* messages.insert(userMessage('0192d4e0-7b3a-7c00-8000-00000000005d', { chatId }))
-
-      assert.deepStrictEqual(
-        [yield* messages.existsByChat(chatId), yield* messages.existsByChat(empty)],
-        [true, false],
+      yield* messages.insert(
+        userMessage('0192d4e0-7b3a-7c00-8000-00000000005d', { chatId, seconds: 1 }),
       )
+      yield* messages.insert(first)
+
+      assertSchemaEquals(
+        SelectedDetail,
+        yield* messages.selectOne({ chatId }),
+        Option.some({ message: first, attachments: [] }),
+      )
+      assert.deepStrictEqual(yield* messages.selectOne({ chatId: empty }), Option.none())
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 

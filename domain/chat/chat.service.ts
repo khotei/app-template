@@ -155,9 +155,9 @@ export class ChatService extends Context.Service<
       const active = yield* selectActive([chatId])
       yield* ensureChatAcceptsMessage(Arr.head(active))
 
-      const opened = yield* messages.existsByChat(chatId)
+      const first = yield* messages.selectOne({ chatId })
       const at = yield* DateTime.now
-      return new SendableChat({ chatId, input, opensChat: !opened, at })
+      return new SendableChat({ chatId, input, opensChat: Option.isNone(first), at })
     })
 
     return { list, get, getMessage, rename, updateTitle, findSendable }

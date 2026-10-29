@@ -113,7 +113,7 @@ const isOwnedThroughChat = (
 
 const holdsMessageWhere = (tables: Tables, where: MessageOneWhere) =>
   Predicate.and(
-    matches<Message>({ chatId: where.chatId }),
+    matches<Message>({ id: where.id, chatId: where.chatId }),
     isOwnedThroughChat(tables.chats, where.userId),
   )
 
@@ -232,13 +232,15 @@ export const MessageRepositoryTest = Layer.effect(
         ),
       selectOne: (where) =>
         Effect.map(readTables, (tables) =>
-          HashMap.get(tables.messages, where.id).pipe(
-            Option.filter(holdsMessageWhere(tables, where)),
+          pipe(
+            tables.messages,
+            HashMap.filter(holdsMessageWhere(tables, where)),
+            HashMap.toValues,
+            Arr.sort(inCreationOrder),
+            Arr.head,
             Option.map(detailOf(tables.attachments)),
           ),
         ),
-      existsByChat: (chatId) =>
-        Ref.get(messages).pipe(Effect.map(HashMap.some(matches<Message>({ chatId })))),
       selectMany: (where) =>
         Effect.map(readTables, (tables) =>
           pipe(
