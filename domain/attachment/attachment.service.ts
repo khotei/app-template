@@ -184,7 +184,7 @@ export class AttachmentService extends Context.Service<
       )
       const byId = HashMap.fromIterable(Arr.map(bound, (attachment) => [attachment.id, attachment]))
       return yield* Effect.forEach(ids, (id) =>
-        Effect.fromOption(HashMap.get(byId, id), () => new AttachmentBoundError({ id })),
+        HashMap.get(byId, id).pipe(Effect.fromOption(() => new AttachmentBoundError({ id }))),
       )
     })
 

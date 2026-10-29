@@ -17,12 +17,13 @@ export const handle = Effect.fn('AssistantMessageHandler.handle')(function* (
   const useCase = yield* GenerateAssistantMessageUseCase
   if (!info.isLastAttempt) return yield* useCase.generate(job)
   // An exit handler runs uninterruptibly, so a stopping worker waits for the `failed` write.
-  yield* Effect.onExit(
-    useCase.generate(job),
-    Exit.match({
-      onSuccess: () => Effect.void,
-      onFailure: (cause) => useCase.fail(job.messageId, cause),
-    }),
+  yield* useCase.generate(job).pipe(
+    Effect.onExit(
+      Exit.match({
+        onSuccess: () => Effect.void,
+        onFailure: (cause) => useCase.fail(job.messageId, cause),
+      }),
+    ),
   )
 })
 

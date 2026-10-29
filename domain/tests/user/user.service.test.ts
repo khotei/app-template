@@ -91,7 +91,7 @@ describe('UserService', () => {
     Effect.gen(function* () {
       const service = yield* UserService
 
-      const error = yield* Effect.flip(service.authenticate(unknownSecret))
+      const error = yield* service.authenticate(unknownSecret).pipe(Effect.flip)
 
       assertSchemaEquals(UserUnknownError, error, new UserUnknownError())
     }).pipe(Effect.provide(UserServiceTest)),

@@ -68,10 +68,7 @@ const countStored = Effect.all({
 })
 
 const bucketHref = (id: AttachmentId) =>
-  Effect.map(
-    AttachmentBucket.use((bucket) => bucket.url(id)),
-    Option.map((url) => url.href),
-  )
+  AttachmentBucket.use((bucket) => bucket.url(id)).pipe(Effect.map(Option.map((url) => url.href)))
 
 const brokenUploads = [
   {
@@ -95,10 +92,10 @@ interface Addresser {
 }
 
 const readers = [
-  { name: 'get', address: (service, userId, id) => Effect.asVoid(service.get(userId, id)) },
+  { name: 'get', address: (service, userId, id) => service.get(userId, id).pipe(Effect.asVoid) },
   {
     name: 'download',
-    address: (service, userId, id) => Effect.asVoid(service.download(userId, id)),
+    address: (service, userId, id) => service.download(userId, id).pipe(Effect.asVoid),
   },
 ] as const satisfies ReadonlyArray<Addresser>
 
@@ -107,7 +104,7 @@ const addressers = [
   { name: 'delete', address: (service, userId, id) => service.delete(userId, id) },
   {
     name: 'bind',
-    address: (service, userId, id) => Effect.asVoid(service.bind(userId, [id], messageId)),
+    address: (service, userId, id) => service.bind(userId, [id], messageId).pipe(Effect.asVoid),
   },
 ] as const satisfies ReadonlyArray<Addresser>
 
@@ -174,7 +171,7 @@ describe('AttachmentService', () => {
         const service = yield* AttachmentService
         const broken = new StreamBrokenError()
 
-        const error = yield* Effect.flip(service.upload(owner, files(broken)))
+        const error = yield* service.upload(owner, files(broken)).pipe(Effect.flip)
         const stored = yield* countStored
 
         assert.strictEqual(error, broken)
@@ -201,7 +198,7 @@ describe('AttachmentService', () => {
       const attachment = yield* uploadPhoto
       yield* AttachmentBucket.use((bucket) => bucket.delete(attachment.id))
 
-      const error = yield* Effect.flip(service.download(owner, attachment.id))
+      const error = yield* service.download(owner, attachment.id).pipe(Effect.flip)
 
       assertSchemaEquals(
         AttachmentNotFoundError,
@@ -218,8 +215,8 @@ describe('AttachmentService', () => {
         const service = yield* AttachmentService
         const attachment = yield* uploadPhoto
 
-        const foreign = yield* Effect.flip(address(service, stranger, attachment.id))
-        const missing = yield* Effect.flip(address(service, owner, unknownAttachmentId))
+        const foreign = yield* address(service, stranger, attachment.id).pipe(Effect.flip)
+        const missing = yield* address(service, owner, unknownAttachmentId).pipe(Effect.flip)
 
         assertSchemaEquals(
           AttachmentNotFoundError,
@@ -241,7 +238,7 @@ describe('AttachmentService', () => {
 
       yield* service.delete(owner, attachment.id)
 
-      const error = yield* Effect.flip(service.get(owner, attachment.id))
+      const error = yield* service.get(owner, attachment.id).pipe(Effect.flip)
       assertSchemaEquals(
         AttachmentNotFoundError,
         error,
@@ -256,7 +253,7 @@ describe('AttachmentService', () => {
       const service = yield* AttachmentService
       const attachment = yield* uploadPhoto
 
-      const error = yield* Effect.flip(service.delete(stranger, attachment.id))
+      const error = yield* service.delete(stranger, attachment.id).pipe(Effect.flip)
       const found = yield* service.get(owner, attachment.id)
       const bytes = yield* selectBytes(attachment.id)
 
@@ -276,7 +273,7 @@ describe('AttachmentService', () => {
       const attachment = yield* uploadPhoto
       yield* bind(attachment)
 
-      const error = yield* Effect.flip(service.delete(owner, attachment.id))
+      const error = yield* service.delete(owner, attachment.id).pipe(Effect.flip)
       const bytes = yield* selectBytes(attachment.id)
 
       assertSchemaEquals(
@@ -309,12 +306,12 @@ describe('AttachmentService', () => {
       const free = yield* uploadPhoto
       const foreign = yield* upload(stranger)
 
-      const strangerFirst = yield* Effect.flip(
-        service.bind(owner, [free.id, foreign.id, unknownAttachmentId], messageId),
-      )
-      const unknownFirst = yield* Effect.flip(
-        service.bind(owner, [free.id, unknownAttachmentId, foreign.id], messageId),
-      )
+      const strangerFirst = yield* service
+        .bind(owner, [free.id, foreign.id, unknownAttachmentId], messageId)
+        .pipe(Effect.flip)
+      const unknownFirst = yield* service
+        .bind(owner, [free.id, unknownAttachmentId, foreign.id], messageId)
+        .pipe(Effect.flip)
 
       assertSchemaEquals(
         AttachmentNotFoundError,
@@ -337,7 +334,7 @@ describe('AttachmentService', () => {
       const taken = yield* uploadPhoto
       yield* bind(taken)
 
-      const error = yield* Effect.flip(service.bind(owner, [free.id, taken.id], messageId))
+      const error = yield* service.bind(owner, [free.id, taken.id], messageId).pipe(Effect.flip)
 
       assertSchemaEquals(AttachmentBoundError, error, new AttachmentBoundError({ id: taken.id }))
       assertEquals(yield* selectStored([free.id, taken.id]), [free, boundTo(taken)])
@@ -371,7 +368,7 @@ describe('AttachmentService', () => {
         const attachment = yield* uploadPhoto
         yield* TestClock.adjust(Duration.hours(24))
 
-        const error = yield* Effect.flip(address(service, owner, attachment.id))
+        const error = yield* address(service, owner, attachment.id).pipe(Effect.flip)
         const stored = yield* selectStored([attachment.id])
         const bytes = yield* selectBytes(attachment.id)
 
@@ -389,7 +386,7 @@ describe('AttachmentService', () => {
     Effect.gen(function* () {
       const service = yield* AttachmentService
 
-      const exit = yield* Effect.exit(service.upload(owner, Stream.make(photoUpload)))
+      const exit = yield* service.upload(owner, Stream.make(photoUpload)).pipe(Effect.exit)
       const stored = yield* countStored
 
       assert.isTrue(Exit.hasDies(exit))

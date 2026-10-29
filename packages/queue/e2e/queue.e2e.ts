@@ -180,7 +180,7 @@ describe('QueueClient.send and worker over QueueTransport.layerSqs against MiniS
     it.effect('consumes a sent message as its first attempt', () =>
       Effect.gen(function* () {
         const seen = yield* Queue.unbounded<Seen>()
-        yield* Layer.build(worker(definitions.consumed, recordAttempts(seen)))
+        yield* worker(definitions.consumed, recordAttempts(seen)).pipe(Layer.build)
 
         yield* sendPing(definitions.consumed, 'hello')
 
@@ -194,7 +194,7 @@ describe('QueueClient.send and worker over QueueTransport.layerSqs against MiniS
         const { logs, layer: recordedLogs } = recordLogs('queue')
         return Effect.gen(function* () {
           const seen = yield* Queue.unbounded<TimedSeen>()
-          yield* Layer.build(worker(exhausted, recordTimedAttempts(seen)))
+          yield* worker(exhausted, recordTimedAttempts(seen)).pipe(Layer.build)
 
           yield* sendPing(exhausted, 'fail')
           const attempts = yield* Queue.takeN(seen, maxAttempts)
@@ -266,7 +266,7 @@ describe('QueueClient.send and worker over QueueTransport.layerSqs against MiniS
             Effect.scoped,
           )
           yield* Layer.build(hang)
-          const [elapsed, next] = yield* Effect.timed(Queue.take(seen))
+          const [elapsed, next] = yield* Queue.take(seen).pipe(Effect.timed)
 
           assert.deepStrictEqual(
             [interrupted, next],
@@ -289,14 +289,12 @@ describe('QueueClient.send and worker over QueueTransport.layerSqs against MiniS
         return Effect.gen(function* () {
           const seen = yield* Queue.unbounded<Seen>()
           const calls = yield* Ref.make(0)
-          yield* Layer.build(
-            worker(definitions.interrupted, (ping, attempt) =>
-              recordAttempts(seen)(ping, attempt).pipe(
-                Effect.andThen(Ref.getAndUpdate(calls, (n) => n + 1)),
-                Effect.andThen((n) => (n === 0 ? Effect.interrupt : Effect.void)),
-              ),
+          yield* worker(definitions.interrupted, (ping, attempt) =>
+            recordAttempts(seen)(ping, attempt).pipe(
+              Effect.andThen(Ref.getAndUpdate(calls, (n) => n + 1)),
+              Effect.andThen((n) => (n === 0 ? Effect.interrupt : Effect.void)),
             ),
-          )
+          ).pipe(Layer.build)
 
           yield* sendPing(definitions.interrupted, 'gives up')
 
@@ -316,10 +314,9 @@ describe('QueueClient.send and worker over QueueTransport.layerSqs against MiniS
         const { logs, layer: recordedLogs } = recordLogs('queue')
         return Effect.gen(function* () {
           const seen = yield* Queue.unbounded<Seen>()
-          yield* Layer.build(
-            worker(definitions.recovered, recordAttempts(seen)).pipe(
-              Layer.provide(QueueClientFailingOnce),
-            ),
+          yield* worker(definitions.recovered, recordAttempts(seen)).pipe(
+            Layer.provide(QueueClientFailingOnce),
+            Layer.build,
           )
 
           yield* sendPing(definitions.recovered, 'after failure')
@@ -337,7 +334,7 @@ describe('QueueClient.send and worker over QueueTransport.layerSqs against MiniS
         const { logs, layer: recordedLogs } = recordLogs('queue')
         return Effect.gen(function* () {
           const seen = yield* Queue.unbounded<Seen>()
-          yield* Layer.build(worker(definitions.malformed, recordAttempts(seen)))
+          yield* worker(definitions.malformed, recordAttempts(seen)).pipe(Layer.build)
 
           yield* QueueTransport.use((transport) =>
             transport.send(queueName(definitions.malformed.name), {
@@ -367,12 +364,13 @@ describe('QueueClient.send and worker over QueueTransport.layerSqs against MiniS
           const stalling = { ...definitions.decoding, schema: stallDecode(decoding) }
 
           yield* sendPing(definitions.decoding, 'stalls')
-          yield* Layer.build(worker(stalling, recordAttempts(seen))).pipe(
+          yield* worker(stalling, recordAttempts(seen)).pipe(
+            Layer.build,
             Effect.andThen(Deferred.await(decoding)),
             Effect.scoped,
           )
-          yield* Layer.build(worker(definitions.decoding, recordAttempts(seen)))
-          const [elapsed, next] = yield* Effect.timed(Queue.take(seen))
+          yield* worker(definitions.decoding, recordAttempts(seen)).pipe(Layer.build)
+          const [elapsed, next] = yield* Queue.take(seen).pipe(Effect.timed)
 
           assert.deepStrictEqual(next, ['stalls', buildAttemptInfo(2)])
           assert.isBelow(Duration.toMillis(elapsed), Duration.toMillis(lockExpiration) / 2)
@@ -388,10 +386,13 @@ describe('QueueClient.send and worker over QueueTransport.layerSqs against MiniS
           const { extending, layer: slowExtend } = slowFirstExtend()
 
           yield* sendPing(settling, 'fail')
-          yield* Layer.build(
-            worker(settling, recordTimedAttempts(seen)).pipe(Layer.provide(slowExtend)),
-          ).pipe(Effect.andThen(Deferred.await(extending)), Effect.scoped)
-          yield* Layer.build(worker(settling, recordTimedAttempts(seen)))
+          yield* worker(settling, recordTimedAttempts(seen)).pipe(
+            Layer.provide(slowExtend),
+            Layer.build,
+            Effect.andThen(Deferred.await(extending)),
+            Effect.scoped,
+          )
+          yield* worker(settling, recordTimedAttempts(seen)).pipe(Layer.build)
           const attempts = yield* Queue.takeN(seen, 2)
 
           assert.deepStrictEqual(

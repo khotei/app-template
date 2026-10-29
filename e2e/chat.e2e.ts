@@ -85,9 +85,9 @@ describe('the journey over both app layers', { concurrent: false }, () => {
 
           yield* api.chats.delete({ params: { chatId: chat.id } })
           const object = yield* bucket.select(uploaded.id)
-          const gone = yield* Effect.flip(
-            api.attachments.get({ params: { attachmentId: uploaded.id } }),
-          )
+          const gone = yield* api.attachments
+            .get({ params: { attachmentId: uploaded.id } })
+            .pipe(Effect.flip)
 
           assert.deepStrictEqual(object, Option.none())
           assertSchemaEquals(
@@ -106,12 +106,12 @@ describe('the journey over both app layers', { concurrent: false }, () => {
         const chat = yield* api.chats.create()
         const stale = AttachmentId.make('0192d4e0-7b3a-7c00-8000-00000000dead')
 
-        const refused = yield* Effect.flip(
-          api.chats.send({
+        const refused = yield* api.chats
+          .send({
             params: { chatId: chat.id },
             payload: { text: 'Hello', attachmentIds: [stale] },
-          }),
-        )
+          })
+          .pipe(Effect.flip)
 
         const detail = yield* api.chats.get({ params: { chatId: chat.id } })
         const rows = yield* selectOutbox

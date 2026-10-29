@@ -71,10 +71,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
     const transaction = yield* Transaction
 
     const readFile = (attachment: Attachment) =>
-      Effect.map(
-        bucket.select(attachment.id),
-        Option.map((bytes) => ({ attachment, bytes })),
-      )
+      bucket.select(attachment.id).pipe(Effect.map(Option.map((bytes) => ({ attachment, bytes }))))
 
     const readTurn = ({ message, attachments }: MessageDetail) =>
       Effect.forEach(attachments, readFile).pipe(

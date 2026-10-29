@@ -143,7 +143,7 @@ describe('ChatService', () => {
       const service = yield* ChatService
       yield* send(owner, chat.id, 'Lisbon?')
 
-      const busy = yield* Effect.flip(service.findSendable(owner, chat.id, ask('And now?')))
+      const busy = yield* service.findSendable(owner, chat.id, ask('And now?')).pipe(Effect.flip)
 
       assertSchemaEquals(ChatBusyError, busy, new ChatBusyError({ id: chat.id }))
     }).pipe(Effect.provide(ChatBunTest)),
@@ -186,7 +186,7 @@ describe('ChatService', () => {
       const service = yield* ChatService
       const renamed = yield* service.rename(owner, chat.id, ChatTitle.make('Trip'))
 
-      const error = yield* Effect.flip(service.updateTitle(chat.id, ChatTitle.make('Lisbon')))
+      const error = yield* service.updateTitle(chat.id, ChatTitle.make('Lisbon')).pipe(Effect.flip)
 
       assertSchemaEquals(ChatTitledError, error, new ChatTitledError({ id: chat.id }))
       assertEquals(yield* selectChat(chat.id), Option.some(renamed))
@@ -198,7 +198,7 @@ describe('ChatService', () => {
       const service = yield* ChatService
       yield* service.delete(owner, chat.id)
 
-      const error = yield* Effect.flip(service.updateTitle(chat.id, ChatTitle.make('Lisbon')))
+      const error = yield* service.updateTitle(chat.id, ChatTitle.make('Lisbon')).pipe(Effect.flip)
 
       assertSchemaEquals(ChatNotFoundError, error, new ChatNotFoundError({ id: chat.id }))
       assert.deepStrictEqual(yield* selectChat(chat.id), Option.none())
@@ -222,8 +222,8 @@ describe('ChatService', () => {
       Effect.gen(function* () {
         const service = yield* ChatService
 
-        const foreign = yield* Effect.flip(call(service, stranger, chat.id))
-        const missing = yield* Effect.flip(call(service, owner, unknownChatId))
+        const foreign = yield* call(service, stranger, chat.id).pipe(Effect.flip)
+        const missing = yield* call(service, owner, unknownChatId).pipe(Effect.flip)
 
         assertSchemaEquals(ChatNotFoundError, foreign, new ChatNotFoundError({ id: chat.id }))
         assertSchemaEquals(ChatNotFoundError, missing, new ChatNotFoundError({ id: unknownChatId }))

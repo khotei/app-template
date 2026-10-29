@@ -63,7 +63,7 @@ describe('UserRepositoryPg', () => {
         const bob = user('0192d4e0-7b3a-7c00-8000-000000000014')
 
         yield* users.insert(user('0192d4e0-7b3a-7c00-8000-000000000013'), credential('a'))
-        const inserted = yield* Effect.exit(users.insert(bob, credential('a')))
+        const inserted = yield* users.insert(bob, credential('a')).pipe(Effect.exit)
         const selected = yield* users.selectById(bob.id)
 
         assert.isTrue(Exit.hasDies(inserted))

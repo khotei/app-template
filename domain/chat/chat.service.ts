@@ -131,7 +131,7 @@ export class ChatService extends Context.Service<
     })
 
     const remove = Effect.fn('ChatService.delete')((userId: UserId, chatId: ChatId) =>
-      findOwnedChat(userId, chatId).pipe(Effect.andThen(chats.delete(chatId))),
+      findOwnedChat(userId, chatId).pipe(Effect.flatMap(() => chats.delete(chatId))),
     )
 
     const findSendable = Effect.fn('ChatService.findSendable')(function* (

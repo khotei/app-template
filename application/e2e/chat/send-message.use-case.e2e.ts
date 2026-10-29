@@ -27,15 +27,13 @@ describe('SendMessageUseCase', () => {
         const client = yield* SqlClient.SqlClient
         const photo = yield* upload(owner)
         // The title job is the last write of the send that opens a chat; all the others precede it.
-        yield* Effect.orDie(
-          client.unsafe(
-            `ALTER TABLE outbox ADD CONSTRAINT refuse_title CHECK (queue <> 'chat-title')`,
-          ),
-        )
+        yield* client
+          .unsafe(`ALTER TABLE outbox ADD CONSTRAINT refuse_title CHECK (queue <> 'chat-title')`)
+          .pipe(Effect.orDie)
 
-        const exit = yield* Effect.exit(
-          sendMessage.send(owner, chat.id, { text: 'Look', attachmentIds: [photo.id] }),
-        )
+        const exit = yield* sendMessage
+          .send(owner, chat.id, { text: 'Look', attachmentIds: [photo.id] })
+          .pipe(Effect.exit)
 
         assert.isTrue(Exit.hasDies(exit))
         assertEquals(yield* selectMessages(chat.id), [])

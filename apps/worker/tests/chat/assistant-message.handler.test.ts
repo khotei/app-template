@@ -86,7 +86,7 @@ describe('AssistantMessageHandler', () => {
     return Effect.gen(function* () {
       yield* insertReply(queuedReply)
 
-      const exit = yield* Effect.exit(handle(job, attemptInfo(1)))
+      const exit = yield* handle(job, attemptInfo(1)).pipe(Effect.exit)
 
       assert.isTrue(Exit.isFailure(exit))
       assertEquals(
@@ -102,7 +102,7 @@ describe('AssistantMessageHandler', () => {
     return Effect.gen(function* () {
       yield* insertReply(queuedReply)
 
-      const exit = yield* Effect.exit(handle(job, attemptInfo(maxAttempts)))
+      const exit = yield* handle(job, attemptInfo(maxAttempts)).pipe(Effect.exit)
 
       assert.isTrue(Exit.isFailure(exit))
       const failed = Option.getOrThrow(yield* selectReply)
@@ -120,7 +120,7 @@ describe('AssistantMessageHandler', () => {
     return Effect.gen(function* () {
       yield* insertReply(queuedReply)
 
-      const running = yield* Effect.forkChild(handle(job, attemptInfo(maxAttempts)))
+      const running = yield* handle(job, attemptInfo(maxAttempts)).pipe(Effect.forkChild)
       yield* held.asked
       yield* Fiber.interrupt(running)
 
@@ -139,7 +139,7 @@ describe('AssistantMessageHandler', () => {
     return Effect.gen(function* () {
       yield* insertReply(queuedReply)
 
-      const running = yield* Effect.forkChild(handle(job, attemptInfo(maxAttempts)))
+      const running = yield* handle(job, attemptInfo(maxAttempts)).pipe(Effect.forkChild)
       yield* held.asked
       yield* held.release
       yield* TestClock.adjust('520 millis')

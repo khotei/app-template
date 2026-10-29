@@ -35,7 +35,7 @@ const insertFirstMessage = MessageRepository.use((messages) =>
 )
 
 const renameChat = ChatRepository.use((chats) =>
-  Effect.asVoid(chats.update({ title: Option.some(trip) }, { id: chatId })),
+  chats.update({ title: Option.some(trip) }, { id: chatId }).pipe(Effect.asVoid),
 )
 
 const deleteChat = ChatRepository.use((chats) => chats.delete(chatId))

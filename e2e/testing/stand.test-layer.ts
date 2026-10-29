@@ -49,6 +49,8 @@ const layerApiClient = (port: number) =>
 
 const Apps = Layer.merge(ApiLayer, WorkerLayer).pipe(Layer.provide(BunCrypto.layer))
 
+const StageBucketTest = AttachmentBucketS3.pipe(Layer.provide(S3BucketFromConfig))
+
 /**
  * The api and the worker in one runtime over the test's database and stage, the model stubbed,
  * with an `ApiClient` on the api; `SqlClient` and `AttachmentBucket` stay in context for what the
@@ -66,7 +68,4 @@ export const StandTest = Layer.unwrap(
       Layer.provide(ConfigProvider.layer(provider)),
     )
   }).pipe(Effect.orDie),
-).pipe(
-  Layer.provideMerge(Layer.provide(AttachmentBucketS3, S3BucketFromConfig)),
-  Layer.provideMerge([PgClientTest, AwsTest]),
-)
+).pipe(Layer.provideMerge(StageBucketTest), Layer.provideMerge([PgClientTest, AwsTest]))

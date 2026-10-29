@@ -29,12 +29,12 @@ describe('DeleteChatUseCase', () => {
       })
       // A row that references the chat without a cascade: Postgres refuses the chat's delete,
       // the write after the attachments' rows went.
-      yield* Effect.orDie(
-        client.unsafe('CREATE TABLE chat_holds (chat_id uuid NOT NULL REFERENCES chats (id))'),
-      )
+      yield* client
+        .unsafe('CREATE TABLE chat_holds (chat_id uuid NOT NULL REFERENCES chats (id))')
+        .pipe(Effect.orDie)
       yield* Effect.orDie(client`INSERT INTO chat_holds (chat_id) VALUES (${chat.id})`)
 
-      const exit = yield* Effect.exit(deleteChat.delete(owner, chat.id))
+      const exit = yield* deleteChat.delete(owner, chat.id).pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
       assertEquals(

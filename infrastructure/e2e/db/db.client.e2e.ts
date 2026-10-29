@@ -41,7 +41,11 @@ describe('Transaction', () => {
       const transaction = yield* Transaction
 
       // The second insert is refused by the users primary key.
-      yield* flipSqlError(transaction.run(Effect.andThen(insertUser(owner), insertUser(owner))))
+      yield* insertUser(owner).pipe(
+        Effect.andThen(insertUser(owner)),
+        transaction.run,
+        flipSqlError,
+      )
 
       assert.deepStrictEqual(yield* selectUserIds, [])
     }).pipe(Effect.provide(TransactionPgTest)),
@@ -51,8 +55,11 @@ describe('Transaction', () => {
     Effect.gen(function* () {
       const transaction = yield* Transaction
 
-      const exit = yield* Effect.exit(
-        transaction.run(Effect.andThen(insertUser(owner), Effect.orDie(insertUser(owner)))),
+      const dying = insertUser(owner).pipe(Effect.orDie)
+      const exit = yield* insertUser(owner).pipe(
+        Effect.andThen(dying),
+        transaction.run,
+        Effect.exit,
       )
 
       assert.isTrue(Exit.hasDies(exit))
@@ -66,7 +73,7 @@ describe('Transaction', () => {
       const client = yield* SqlClient.SqlClient
 
       // The table does not exist, so the statement itself fails with a SqlError.
-      const exit = yield* Effect.exit(transaction.run(client`SELECT 1 FROM no_such_table`))
+      const exit = yield* transaction.run(client`SELECT 1 FROM no_such_table`).pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
     }).pipe(Effect.provide(TransactionPgTest)),

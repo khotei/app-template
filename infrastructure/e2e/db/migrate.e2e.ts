@@ -53,8 +53,9 @@ describe('retryWhileUnreachable', () => {
       const { logs, layer: recordedLogs } = recordLogs()
       const { connect, attempts } = refuseConnections(reason, 3)
 
-      const fiber = yield* Effect.forkChild(
-        retryWhileUnreachable(connect).pipe(Effect.provide(recordedLogs)),
+      const fiber = yield* retryWhileUnreachable(connect).pipe(
+        Effect.provide(recordedLogs),
+        Effect.forkChild,
       )
       yield* TestClock.adjust('3 seconds')
       const result = yield* Fiber.join(fiber)
@@ -94,7 +95,7 @@ describe('retryWhileUnreachable', () => {
         Infinity,
       )
 
-      const error = yield* Effect.flip(retryWhileUnreachable(connect))
+      const error = yield* retryWhileUnreachable(connect).pipe(Effect.flip)
 
       assert.strictEqual(error.reason._tag, 'AuthenticationError')
       assert.strictEqual(attempts(), 1)

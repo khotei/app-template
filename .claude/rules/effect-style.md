@@ -23,8 +23,7 @@ The goal is code that reads top to bottom and extends by adding a row, not a bra
 
 ## Control flow
 
-- Keep a generator flat: guard clauses, never a nested ternary; one `yield*` per statement, its
-  value named instead of nested in an argument, so every step is in view.
+- Keep a generator flat: guard clauses, no nested ternary, one named `yield*` per statement.
 - Separate the paragraphs of a body with one blank line: the services it reads, the reads, the
   checks, the writes, the result. A body of three statements or fewer stays unbroken.
 - Read an `Option` by its combinators (`Option.match`); `.value` only under a narrowing guard.
@@ -38,9 +37,10 @@ The goal is code that reads top to bottom and extends by adding a row, not a bra
 ## Composition
 
 - Business logic (a service method, a use case, a transition: later steps read several earlier
-  values) is `Effect.gen` or `Effect.fn` with `yield*`, never `Effect.Do`. Its plumbing (encoding,
-  error mapping, logging, retries, transactions, tracing) is chained on the step it serves by
-  `.pipe`, never wrapped around it, or passed as `Effect.fn`'s pipeables (`effect-services.md ›
+  values) is `Effect.gen` or `Effect.fn` with `yield*`, never `Effect.Do`; a one-step
+  transformation is a combinator (`Effect.map`). The plumbing (encoding, error mapping, logging,
+  retries, transactions, tracing) and small helpers and adapters are `pipe` / `.pipe`, chained on
+  the step they serve, never wrapped around it, or `Effect.fn`'s pipeables (`effect-services.md ›
   Functions`): `Effect.fn('<Service>.<method>')(function* (…) { … }, transaction.run)`.
 - A call never takes another call's result as its subject (`make nested-calls`):
   `Ref.get(rows).pipe(Effect.map(f))`, never `Effect.map(Ref.get(rows), f)`. A value with `.pipe`

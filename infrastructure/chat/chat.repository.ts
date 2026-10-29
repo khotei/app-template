@@ -1,5 +1,16 @@
 import { eq, isNull } from 'drizzle-orm'
-import { Array as Arr, DateTime, Effect, flow, Layer, Option, Schema, UndefinedOr } from 'effect'
+import {
+  Array as Arr,
+  DateTime,
+  Effect,
+  flow,
+  Layer,
+  Option,
+  pipe,
+  Schema,
+  Struct,
+  UndefinedOr,
+} from 'effect'
 
 import {
   type ChatId,
@@ -53,15 +64,17 @@ type ChatRowWith<Nested> = typeof ChatFromRow.Encoded & { readonly messages: Rea
 const decodeSummary = ({ messages, ...row }: ChatRowWith<typeof MessageFromRow.Encoded>) =>
   Effect.all({
     chat: decodeChat(row),
-    activeMessage: Effect.map(decodeMessages(messages), Arr.findFirst(isActiveMessage)),
+    activeMessage: decodeMessages(messages).pipe(Effect.map(Arr.findFirst(isActiveMessage))),
   })
 
 const decodeDetail = ({ messages, ...row }: ChatRowWith<typeof MessageDetailFromRow.Encoded>) =>
   Effect.gen(function* () {
     const chat = yield* decodeChat(row)
     const details = yield* decodeDetails(messages)
-    const activeMessage = Arr.findFirst(details, ({ message }) =>
-      Option.liftPredicate(message, isActiveMessage),
+    const activeMessage = pipe(
+      details,
+      Arr.map(Struct.get('message')),
+      Arr.findFirst(isActiveMessage),
     )
     return { chat, activeMessage, messages: details }
   })

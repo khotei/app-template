@@ -73,16 +73,16 @@ export class SendMessageUseCase extends Context.Service<
       const bound = yield* attachmentService.bind(userId, input.attachmentIds, userMessage.id)
       const assistantMessage = yield* messageService.addAssistantMessage(sendable)
       // A QueueError is a defect: no rule reads it, and it still rolls the send back.
-      yield* Effect.orDie(
-        queue.send(
+      yield* queue
+        .send(
           assistantMessageQueue,
           new GenerateAssistantMessage({ chatId, messageId: assistantMessage.id }),
-        ),
-      )
-      if (sendable.opensChat) {
-        yield* Effect.orDie(
-          queue.send(chatTitleQueue, new GenerateChatTitle({ chatId, messageId: userMessage.id })),
         )
+        .pipe(Effect.orDie)
+      if (sendable.opensChat) {
+        yield* queue
+          .send(chatTitleQueue, new GenerateChatTitle({ chatId, messageId: userMessage.id }))
+          .pipe(Effect.orDie)
       }
 
       return {

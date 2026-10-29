@@ -25,9 +25,8 @@ export const recordAssistant = (script: AssistantScript) => {
           Stream.flatMap(() => script.streamText ?? Stream.die('streamText is not scripted')),
         ),
       suggestTitle: (text) =>
-        Effect.andThen(
-          record({ method: 'suggestTitle', text }),
-          script.suggestTitle ?? Effect.die('suggestTitle is not scripted'),
+        record({ method: 'suggestTitle', text }).pipe(
+          Effect.andThen(script.suggestTitle ?? Effect.die('suggestTitle is not scripted')),
         ),
     }),
   )
@@ -42,7 +41,7 @@ export const holdAssistantCall = () => {
   const asked = Deferred.makeUnsafe<void>()
   const released = Deferred.makeUnsafe<void>()
   return {
-    hold: Effect.andThen(Deferred.succeed(asked, undefined), Deferred.await(released)),
+    hold: Deferred.succeed(asked, undefined).pipe(Effect.andThen(Deferred.await(released))),
     asked: Deferred.await(asked),
     release: Deferred.succeed(released, undefined),
   }

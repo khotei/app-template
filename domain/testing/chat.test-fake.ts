@@ -67,7 +67,7 @@ const messagesOf = (messages: Messages, chatId: ChatId) =>
 
 /** The chat's active message, if any: the row the partial unique index guards. */
 const activeOf = (messages: Messages, chatId: ChatId) =>
-  Arr.findFirst(messagesOf(messages, chatId), isActiveMessage)
+  pipe(messagesOf(messages, chatId), Arr.findFirst(isActiveMessage))
 
 const isBoundTo =
   (messageId: MessageId) =>
@@ -100,12 +100,13 @@ const chatDetailOf =
   (tables: Tables) =>
   (chat: Chat): ChatDetail => ({
     ...summaryOf(tables.messages)(chat),
-    messages: Arr.map(messagesOf(tables.messages, chat.id), detailOf(tables.attachments)),
+    messages: pipe(messagesOf(tables.messages, chat.id), Arr.map(detailOf(tables.attachments))),
   })
 
 const hasBoundAttachment = (tables: Tables, chatId: ChatId): boolean =>
-  Arr.some(messagesOf(tables.messages, chatId), (message) =>
-    HashMap.some(tables.attachments, isBoundTo(message.id)),
+  pipe(
+    messagesOf(tables.messages, chatId),
+    Arr.some((message) => HashMap.some(tables.attachments, isBoundTo(message.id))),
   )
 
 /** Holds when the message's chat is the user's, as the Pg relation filter reads it. */
@@ -115,7 +116,7 @@ const isOwnedThroughChat = (
 ): Predicate.Predicate<Message> =>
   userId === undefined
     ? constTrue
-    : (message) => Option.exists(HashMap.get(chats, message.chatId), matches<Chat>({ userId }))
+    : (message) => HashMap.get(chats, message.chatId).pipe(Option.exists(matches<Chat>({ userId })))
 
 const holdsMessageWhere = (tables: Tables, where: MessageOneWhere) =>
   Predicate.and(
@@ -207,7 +208,7 @@ export const MessageRepositoryTest = Layer.effect(
     return MessageRepository.of({
       insert: (message) =>
         Ref.modify(messages, (rows) => {
-          if (isActiveMessage(message) && Option.isSome(activeOf(rows, message.chatId))) {
+          if (isActiveMessage(message) && activeOf(rows, message.chatId).pipe(Option.isSome)) {
             return [false, rows] as const
           }
           return [true, HashMap.set(rows, message.id, message)] as const
@@ -238,7 +239,7 @@ export const MessageRepositoryTest = Layer.effect(
         ),
       selectByChat: (chatId) =>
         Effect.map(readTables, (tables) =>
-          Arr.map(messagesOf(tables.messages, chatId), detailOf(tables.attachments)),
+          pipe(messagesOf(tables.messages, chatId), Arr.map(detailOf(tables.attachments))),
         ),
       existsByChat: (chatId) =>
         Ref.get(messages).pipe(Effect.map(HashMap.some(matches<Message>({ chatId })))),

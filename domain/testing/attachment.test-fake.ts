@@ -97,7 +97,7 @@ export const AttachmentBucketTest = Layer.effect(
           return FileSize.make(bytes.length)
         }),
       select,
-      url: (id) => Effect.map(select(id), Option.as(new URL(`memory:attachments/${id}`))),
+      url: (id) => select(id).pipe(Effect.map(Option.as(new URL(`memory:attachments/${id}`)))),
       keep: () => Effect.void,
       delete: (id) => Ref.update(objects, HashMap.remove(id)),
     })

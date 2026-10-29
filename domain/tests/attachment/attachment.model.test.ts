@@ -84,7 +84,7 @@ describe('ensureUnbound', () => {
 
   it.effect('fails AttachmentBoundError for an attachment a message holds', () =>
     Effect.gen(function* () {
-      const error = yield* Effect.flip(ensureUnbound(bound))
+      const error = yield* ensureUnbound(bound).pipe(Effect.flip)
 
       assertSchemaEquals(AttachmentBoundError, error, new AttachmentBoundError({ id: bound.id }))
     }),

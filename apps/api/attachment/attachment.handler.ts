@@ -37,7 +37,7 @@ const refuseMultipart = {
 >
 
 const matchesExtension = (file: Multipart.File) => (mediaType: MediaType) =>
-  Option.getOrElse(Mime.getType(file.name), () => mediaType) === mediaType
+  Mime.getType(file.name).pipe(Option.getOrElse(() => mediaType)) === mediaType
 
 const decodeDeclaredType = (file: Multipart.File) =>
   Schema.decodeUnknownEffect(AttachmentMediaType)(file.contentType).pipe(

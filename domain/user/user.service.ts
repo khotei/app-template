@@ -43,7 +43,7 @@ export class UserService extends Context.Service<
     const registerUser = Effect.fnUntraced(function* () {
       const id = yield* randomUserId
       const createdAt = yield* DateTime.now
-      const bytes = yield* Effect.orDie(crypto.randomBytes(secretBytes))
+      const bytes = yield* crypto.randomBytes(secretBytes).pipe(Effect.orDie)
       const secret = Redacted.make(Base64Url.encode(bytes))
 
       const user = buildUser({ id, createdAt })
