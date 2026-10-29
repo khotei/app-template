@@ -10,7 +10,8 @@
     "infrastructure",
     "packages/*",
     "apps/*",
-    "deployment"
+    "deployment",
+    "e2e"
   ],
   "scripts": {
     "lint": "biome check",
@@ -25,25 +26,33 @@
       "vitest": "5.0.5"
     },
     "runtime": {
+      "@testcontainers/postgresql": "12.2.1",
       "@types/bun": "1.4.3",
-      "testcontainers": "12.2.1"
+      "testcontainers": "12.2.1",
+      "type-fest": "5.10.0"
     },
     "typescript": {
       "@effect/tsgo": "0.53.2",
       "typescript": "7.0.2"
     },
     "effect": {
-      "@effect/platform-bun": "4.0.5",
-      "@effect/vitest": "4.0.5",
-      "effect": "4.0.5"
+      "@effect/platform-bun": "4.0.6",
+      "@effect/sql-pg": "4.0.6",
+      "@effect/vitest": "4.0.6",
+      "effect": "4.0.6"
     },
     "effect-aws": {
       "@effect-aws/client-s3": "2.0.0",
       "@effect-aws/client-sqs": "2.0.0"
     },
     "pulumi": {
+      "@pulumi/aws": "7.51.1",
       "@pulumi/docker": "5.2.0",
       "@pulumi/pulumi": "3.270.0"
+    },
+    "drizzle": {
+      "drizzle-kit": "1.0.0-rc.5",
+      "drizzle-orm": "1.0.0-rc.5"
     }
   },
   "devDependencies": {

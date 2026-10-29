@@ -4,14 +4,13 @@
     "rootDir": ".",
     "outDir": "../../node_modules/.cache/tsc/api"
   },
-  "include": ["src/**/*.ts"],
+  "include": ["**/*.ts"],
   "references": [
     { "path": "../../application" },
     { "path": "../../domain" },
     { "path": "../../http-api" },
     { "path": "../../infrastructure" },
     { "path": "../../packages/config" },
-    { "path": "../../packages/queue" },
     { "path": "../../packages/testing" }
   ]
 }

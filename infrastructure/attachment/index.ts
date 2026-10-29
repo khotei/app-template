@@ -2,15 +2,20 @@ import { Layer } from 'effect'
 
 import { AwsConfig } from '@app-template/config'
 
-import { AttachmentRepositoryKv } from '#infrastructure/attachment/attachment.repository'
-import { AttachmentStoreKv, AttachmentStoreS3 } from '#infrastructure/attachment/attachment.storage'
+import {
+  AttachmentBucketS3,
+  S3BucketFromConfig,
+} from '#infrastructure/attachment/attachment.bucket'
+import { AttachmentRepositoryPg } from '#infrastructure/attachment/attachment.repository'
 import { S3ServiceFromConfig } from '#infrastructure/shared/aws.client'
 
-export { AttachmentRepositoryKv } from '#infrastructure/attachment/attachment.repository'
-export { AttachmentStoreKv, AttachmentStoreS3 } from '#infrastructure/attachment/attachment.storage'
+export {
+  AttachmentBucketS3,
+  S3BucketFromConfig,
+} from '#infrastructure/attachment/attachment.bucket'
+export { AttachmentRepositoryPg } from '#infrastructure/attachment/attachment.repository'
 
-export const AttachmentKv = Layer.mergeAll(AttachmentRepositoryKv, AttachmentStoreKv)
-
-export const AttachmentKvS3 = Layer.mergeAll(AttachmentRepositoryKv, AttachmentStoreS3).pipe(
+export const AttachmentPgS3 = Layer.mergeAll(AttachmentRepositoryPg, AttachmentBucketS3).pipe(
+  Layer.provide(S3BucketFromConfig),
   Layer.provide([S3ServiceFromConfig, AwsConfig.layer]),
 )

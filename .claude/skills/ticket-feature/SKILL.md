@@ -33,9 +33,10 @@ repository holds no `GLOSSARY.md`, `GLOSSARY-MAP.md`, `CONTEXT.md` or `docs/adr/
 2. Call the Skill tool with `mattpocock-skills:grilling` and `mattpocock-skills:domain-modeling`,
    then grill the user until the frontier is empty. Every fact question goes to the `researcher`
    agent; the user answers only decisions. Resolved terms go into the glossary as they settle.
-3. Write `feature.md`: goal, context, scope, out of scope, requirements `R1…` in EARS
-   (`WHEN … THE SYSTEM SHALL …`, `WHILE`, `WHERE`, `IF … THEN`), one acceptance check per
-   requirement, and open questions; the facts the `researcher` confirmed go into Context. If the
+3. Write `feature.md`: problem, goal, context, scope, out of scope, requirements `R1…` in EARS
+   (`WHEN … THE SYSTEM SHALL …`, `WHILE`, `WHERE`, `IF … THEN`) that name behaviour, not paths
+   or code names, one acceptance check per requirement, and open questions, each with its
+   options and a recommendation; the facts the `researcher` confirmed go into Context. If the
    slug has a roadmap entry, set the roadmap entry's status to a link to the ticket folder.
 4. Present it and ask the user to confirm the shared understanding. The step is done when they
    confirm; next comes `/ticket-architecture <ticket folder>`.

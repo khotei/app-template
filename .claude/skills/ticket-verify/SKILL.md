@@ -16,7 +16,7 @@ what should the toolkit learn from building it. Gates: `.claude/rules/sdd.md`.
    - call the Skill tool with `mattpocock-skills:code-review` with the fixed point
      `git merge-base HEAD origin/main`, the spec `feature.md` plus `architecture.md`, the
      standards `.claude/rules/*.md` plus the touched `CLAUDE.md` files, and the `reviewer` agent
-     as each axis sub-agent.
+     as each axis sub-agent, the Standards axis on `model: sonnet`.
 
    Tell every agent to read the rules, `CLAUDE.md` files, skills and agents from disk: agents
    spawned in a long session can carry the copies loaded when it started. After rule edits, prefer
@@ -25,9 +25,10 @@ what should the toolkit learn from building it. Gates: `.claude/rules/sdd.md`.
    section per run: the verdict per `R…`, the Standards and Spec reports, ranked simplifications,
    and **Lessons**.
 3. **Lessons.** Collect the mistakes that recurred in two or more steps: `plan.md` findings,
-   review rounds, and the user's feedback in this session. Each lesson proposes one line in a
-   named skill or rule, or a mechanical check (a Biome rule, a test, a hook) when the mistake is
-   mechanical; never in a `CLAUDE.md`. Apply a lesson only on the user's OK.
+   review rounds, and the user's feedback in this session. Each lesson names where it recurred
+   and what it cost (rounds, time, a wrong result), and proposes one line in a named skill or
+   rule, or a mechanical check (a Biome rule, a test, a hook) when the mistake is mechanical;
+   never in a `CLAUDE.md`. Apply a lesson only on the user's OK.
 4. **Present** the verdict, the simplifications and the lessons. Accepted fixes become new
    `plan.md` steps for `/ticket-implement`. On `pass` and the user's agreement, propose the PR
    (`.claude/rules/pull-requests.md`); opening it needs its own OK.

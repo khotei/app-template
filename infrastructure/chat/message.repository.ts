@@ -1,50 +1,95 @@
-import { Array as Arr, Effect, Layer, Option } from 'effect'
-import { KeyValueStore } from 'effect/persistence'
+import { and, eq } from 'drizzle-orm'
+import { Array as Arr, Effect, Layer, Option, Schema, UndefinedOr } from 'effect'
 
 import {
-  type ChatId,
   isActiveMessage,
-  Message,
-  MessageId,
+  type MessageOneWhere,
   MessageRepository,
+  type MessageWhere,
 } from '@app-template/domain/chat'
 
-import { createCollection, createIndex } from '#infrastructure/kv/kv-collection'
+import { decodeMessageDetail } from '#infrastructure/attachment/attachment.entity'
+import {
+  activeMessage,
+  activeMessageFilter,
+  decodeMessage,
+  inCreationOrder,
+  MessageInsert,
+  messages,
+  withAttachments,
+} from '#infrastructure/chat/message.entity'
+import { buildWhere, skipUndefined } from '#infrastructure/db/columns'
+import { Db, decodeFound, orDieWithSqlError } from '#infrastructure/db/db.client'
 
-const chatMessagesKey = (chatId: ChatId) => `${chatId}/messages`
+const encodeMessage = Schema.encodeEffect(MessageInsert)
 
-export const MessageRepositoryKv = Layer.effect(
+const encodeWhere = buildWhere<MessageWhere>({
+  stage: (stage) => eq(messages.stage, stage),
+})
+
+/** The chat's `userId` is a filter on the relation, so another user's message reads as absent. */
+const filterOf = (where: MessageOneWhere) =>
+  ({
+    id: where.id,
+    chatId: skipUndefined(where.chatId),
+    chat: skipUndefined(UndefinedOr.map(where.userId, (userId) => ({ userId }))),
+  }) as const
+
+export const MessageRepositoryPg = Layer.effect(
   MessageRepository,
-  Effect.map(KeyValueStore.KeyValueStore, (store) => {
-    const messages = createCollection(store, { prefix: 'messages/', schema: Message })
-    const chatMessages = createIndex(store, { prefix: 'chats/', id: MessageId })
-    return MessageRepository.of({
+  Effect.map(Db, (db) =>
+    MessageRepository.of({
       insert: Effect.fn('MessageRepository.insert')(function* (message) {
-        yield* messages.set(message.id, message)
-        yield* chatMessages.append(chatMessagesKey(message.chatId), message.id)
-      }),
-      update: Effect.fn('MessageRepository.update')((message: Message) =>
-        messages.update(message.id, () => message),
-      ),
-      selectById: Effect.fn('MessageRepository.selectById')(messages.get),
-      selectByChat: Effect.fn('MessageRepository.selectByChat')((chatId: ChatId) =>
-        Effect.flatMap(chatMessages.list(chatMessagesKey(chatId)), messages.getMany),
-      ),
-      // Only the last message can be active: a send is refused while one is.
+        const row = yield* encodeMessage(message)
+        const inserted = yield* db
+          .insert(messages)
+          .values(row)
+          .onConflictDoNothing({ target: messages.chatId, where: activeMessage })
+          .returning({ id: messages.id })
+        return Arr.isReadonlyArrayNonEmpty(inserted)
+      }, orDieWithSqlError),
+      update: Effect.fn('MessageRepository.update')(function* (message, where) {
+        const row = yield* encodeMessage(message)
+        const updated = yield* db
+          .update(messages)
+          .set(row)
+          .where(and(eq(messages.id, message.id), encodeWhere(where)))
+          .returning({ id: messages.id })
+        return Arr.isReadonlyArrayNonEmpty(updated)
+      }, orDieWithSqlError),
+      selectOne: Effect.fn('MessageRepository.selectOne')(function* (where) {
+        const row = yield* db.query.messages.findFirst({ where: filterOf(where) })
+        return yield* decodeFound(row, decodeMessage)
+      }, orDieWithSqlError),
+      selectDetail: Effect.fn('MessageRepository.selectDetail')(function* (where) {
+        const row = yield* db.query.messages.findFirst({
+          where: filterOf(where),
+          with: withAttachments,
+        })
+        return yield* decodeFound(row, decodeMessageDetail)
+      }, orDieWithSqlError),
+      selectByChat: Effect.fn('MessageRepository.selectByChat')(function* (chatId) {
+        const rows = yield* db.query.messages.findMany({
+          where: { chatId },
+          orderBy: inCreationOrder,
+          with: withAttachments,
+        })
+        return yield* Effect.forEach(rows, decodeMessageDetail)
+      }, orDieWithSqlError),
+      existsByChat: Effect.fn('MessageRepository.existsByChat')(function* (chatId) {
+        const row = yield* db.query.messages.findFirst({
+          where: { chatId },
+          columns: { id: true },
+        })
+        return row !== undefined
+      }, orDieWithSqlError),
       selectActiveByChat: Effect.fn('MessageRepository.selectActiveByChat')(function* (chatId) {
-        const ids = yield* chatMessages.list(chatMessagesKey(chatId))
-        const last = Arr.last(ids)
-        if (Option.isNone(last)) return Option.none()
-
-        const stored = yield* messages.get(last.value)
-        return Option.filter(stored, isActiveMessage)
-      }),
-      // The index goes last, so a retry after a crash still finds the messages it lists.
-      deleteByChat: Effect.fn('MessageRepository.deleteByChat')(function* (chatId) {
-        const ids = yield* chatMessages.list(chatMessagesKey(chatId))
-        yield* Effect.forEach(ids, (id) => messages.delete(id), { discard: true })
-        yield* chatMessages.delete(chatMessagesKey(chatId))
-      }),
-    })
-  }),
+        const row = yield* db.query.messages.findFirst({
+          where: { chatId, ...activeMessageFilter },
+        })
+        const found = yield* decodeFound(row, decodeMessage)
+        return Option.filter(found, isActiveMessage)
+      }, orDieWithSqlError),
+    }),
+  ),
 )

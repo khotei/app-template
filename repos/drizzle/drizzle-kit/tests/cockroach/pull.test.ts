@@ -1,0 +1,1356 @@
+import { SQL, sql } from 'drizzle-orm';
+import {
+	AnyCockroachColumn,
+	bigint,
+	bit,
+	bool,
+	char,
+	check,
+	cockroachEnum,
+	cockroachMaterializedView,
+	cockroachRole,
+	cockroachSchema,
+	cockroachTable,
+	cockroachView,
+	date,
+	decimal,
+	doublePrecision,
+	float,
+	geometry,
+	index,
+	inet,
+	int4,
+	interval,
+	jsonb,
+	numeric,
+	real,
+	smallint,
+	string,
+	text,
+	time,
+	timestamp,
+	uuid,
+	varbit,
+	varchar,
+} from 'drizzle-orm/cockroach-core';
+import { fromDatabaseForDrizzle } from 'src/dialects/cockroach/introspect';
+import { prepareEntityFilter } from 'src/dialects/pull-utils';
+import { diffIntrospect, push, test } from 'tests/cockroach/mocks';
+import { expect } from 'vitest';
+
+test.concurrent('basic introspect test', async ({ dbc: db }) => {
+	const schema = {
+		users: cockroachTable('users', {
+			id: int4('id').notNull(),
+			email: text('email'),
+		}),
+	};
+
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(db, schema, 'basic-introspect');
+
+	expect(statements.length).toBe(0);
+	expect(generateStatements.length).toBe(0);
+	expect(sqlStatements.length).toBe(0);
+	expect(generateSqlStatements.length).toBe(0);
+});
+
+test.concurrent('basic identity always test', async ({ dbc: db }) => {
+	const schema = {
+		users: cockroachTable('users', {
+			id: int4('id').generatedAlwaysAsIdentity(),
+			email: text('email'),
+		}),
+	};
+
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(db, schema, 'basic-identity-always-introspect');
+
+	expect(statements.length).toBe(0);
+	expect(generateStatements.length).toBe(0);
+	expect(sqlStatements.length).toBe(0);
+	expect(generateSqlStatements.length).toBe(0);
+});
+
+test.concurrent('basic identity by default test', async ({ dbc: db }) => {
+	const schema = {
+		users: cockroachTable('users', {
+			id: int4('id').generatedByDefaultAsIdentity(),
+			email: text('email'),
+		}),
+	};
+
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(
+			db,
+			schema,
+			'basic-identity-default-introspect',
+		);
+
+	expect(statements.length).toBe(0);
+	expect(generateStatements.length).toBe(0);
+	expect(sqlStatements.length).toBe(0);
+	expect(generateSqlStatements.length).toBe(0);
+});
+
+test.concurrent('basic index test', async ({ dbc: db }) => {
+	const schema = {
+		users: cockroachTable('users', {
+			firstName: text('first_name'),
+			lastName: text('last_name'),
+			data: jsonb('data'),
+		}, (table) => [
+			index('single_column').on(table.firstName),
+			index('multi_column').on(table.firstName, table.lastName),
+			index('single_expression').on(sql`lower(${table.firstName})`),
+			index('multi_expression').on(sql`lower(${table.firstName})`, sql`lower(${table.lastName})`),
+			index('expression_with_comma').on(
+				sql`(lower(${table.firstName}) || ', '::text || lower(${table.lastName}))`,
+			),
+			// TODO
+			// index('expression_with_double_quote').on(sql`('"'::text || ${table.firstName})`),
+			index('expression_with_jsonb_operator').on(
+				sql`(${table.data} #>> '{a,b,1}'::text[])`,
+			),
+		]),
+	};
+
+	const { pushSqlStatements: sqlStatements, generateSqlStatements } = await diffIntrospect(
+		db,
+		schema,
+		'basic-index-introspect',
+	);
+
+	// expect(sqlStatements).toStrictEqual([]);
+	expect(generateSqlStatements).toStrictEqual([]);
+});
+
+test.concurrent('identity always test: few params', async ({ dbc: db }) => {
+	const schema = {
+		users: cockroachTable('users', {
+			id: int4('id').generatedAlwaysAsIdentity({
+				startWith: 100,
+			}),
+			email: text('email'),
+		}),
+	};
+
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(
+			db,
+			schema,
+			'identity-always-few-params-introspect',
+		);
+
+	expect(statements.length).toBe(0);
+	expect(generateStatements.length).toBe(0);
+	expect(sqlStatements.length).toBe(0);
+	expect(generateSqlStatements.length).toBe(0);
+});
+
+test.concurrent('identity by default test: few params', async ({ dbc: db }) => {
+	const schema = {
+		users: cockroachTable('users', {
+			id: int4('id').generatedByDefaultAsIdentity({
+				maxValue: 10000,
+			}),
+			email: text('email'),
+		}),
+	};
+
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(
+			db,
+			schema,
+			'identity-default-few-params-introspect',
+		);
+
+	expect(statements.length).toBe(0);
+	expect(generateStatements.length).toBe(0);
+	expect(sqlStatements.length).toBe(0);
+	expect(generateSqlStatements.length).toBe(0);
+});
+
+test.concurrent('identity always test: all params', async ({ dbc: db }) => {
+	const schema = {
+		users: cockroachTable('users', {
+			id: int4('id').generatedAlwaysAsIdentity({
+				startWith: 10,
+				increment: 4,
+				minValue: 10,
+				maxValue: 10000,
+				cache: 100,
+			}),
+			email: text('email'),
+		}),
+	};
+
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(
+			db,
+			schema,
+			'identity-always-all-params-introspect',
+		);
+
+	expect(statements.length).toBe(0);
+	expect(generateStatements.length).toBe(0);
+	expect(sqlStatements.length).toBe(0);
+	expect(generateSqlStatements.length).toBe(0);
+});
+
+test.concurrent('identity by default test: all params', async ({ dbc: db }) => {
+	const schema = {
+		users: cockroachTable('users', {
+			id: int4('id').generatedByDefaultAsIdentity({
+				startWith: 10,
+				increment: 4,
+				minValue: 10,
+				maxValue: 10000,
+				cache: 100,
+			}),
+			email: text('email'),
+		}),
+	};
+
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(
+			db,
+			schema,
+			'identity-default-all-params-introspect',
+		);
+
+	expect(statements.length).toBe(0);
+	expect(generateStatements.length).toBe(0);
+	expect(sqlStatements.length).toBe(0);
+	expect(generateSqlStatements.length).toBe(0);
+});
+
+test.concurrent('generated column: link to another column', async ({ dbc: db }) => {
+	const schema = {
+		users: cockroachTable('users', {
+			id: int4('id').generatedAlwaysAsIdentity(),
+			email: text('email'),
+			generatedEmail: text('generatedEmail').generatedAlwaysAs(
+				(): SQL => sql`email`,
+			),
+		}),
+	};
+
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(
+			db,
+			schema,
+			'generated-link-column',
+		);
+
+	expect(statements.length).toBe(0);
+	expect(generateStatements.length).toBe(0);
+	expect(sqlStatements.length).toBe(0);
+	expect(generateSqlStatements.length).toBe(0);
+});
+
+test.concurrent('introspect all column types', async ({ dbc: db }) => {
+	const myEnum = cockroachEnum('my_enum', ['a', 'b', 'c']);
+	const schema = {
+		enum_: myEnum,
+		columns: cockroachTable('columns', {
+			bigint: bigint('bigint', { mode: 'number' }).default(100),
+			bool: bool('bool').default(true),
+			geometry: geometry({ srid: 213, mode: 'tuple' }),
+			char: char('char', { length: 3 }).default('abc'),
+			date1: date('date1').default('2024-01-01'),
+			date2: date('date2').defaultNow(),
+			date3: date('date3').default(sql`current_timestamp`),
+			numeric: numeric('numeric', { precision: 3, scale: 1 }).default('99.9'),
+			numeric2: numeric('numeric2', { precision: 1, scale: 1 }).default('0.9'),
+			numeric3: numeric('numeric3').default('99.9'),
+			decimal: decimal('decimal', { precision: 3, scale: 1 }).default('99.9'),
+			decimal2: decimal('decimal2', { precision: 1, scale: 1 }).default('0.9'),
+			decimal3: decimal('decimal3').default('99.9'),
+			enum: myEnum('my_enum').default('a'),
+			bit: bit('bit').default('1'),
+			varit: varbit('varbit').default('1'),
+			float: float('float').default(100),
+			doublePrecision: doublePrecision('doublePrecision').default(100),
+			inet: inet('inet').default('127.0.0.1'),
+			int4: int4('int4').default(10),
+			interval: interval('interval').default('1 day 01:00:00'),
+			jsonb: jsonb('jsonb').$type<{ attr: string }>().default({ attr: 'value' }),
+			real: real('real').default(100),
+			smallint: smallint('smallint').default(10),
+			string: string('string').default('value'),
+			text: text('test').default('abc'),
+			time1: time('time1').default('00:00:00'),
+			timestamp1: timestamp('timestamp1', { withTimezone: true, precision: 6 }).default(new Date()),
+			timestamp2: timestamp('timestamp2', { withTimezone: true, precision: 6 }).defaultNow(),
+			timestamp3: timestamp('timestamp3', { withTimezone: true, precision: 6 }).default(
+				sql`timezone('utc'::text, now())`,
+			),
+			uuid1: uuid('uuid1').default('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'),
+			uuid2: uuid('uuid2').defaultRandom(),
+			varchar: varchar('varchar', { length: 25 }).default('abc'),
+		}),
+	};
+
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(
+			db,
+			schema,
+			'introspect-all-columns-types',
+		);
+
+	expect(statements).toStrictEqual([]);
+	expect(generateStatements).toStrictEqual([]);
+	expect(sqlStatements).toStrictEqual([]);
+	expect(generateSqlStatements).toStrictEqual([]);
+});
+
+test.concurrent('introspect all column array types', async ({ dbc: db }) => {
+	const myEnum = cockroachEnum('my_enum', ['a', 'b', 'c']);
+	const schema = {
+		enum_: myEnum,
+		columns: cockroachTable('columns', {
+			bigint: bigint('bigint', { mode: 'number' }).array(),
+			bit: bit().array(),
+			varbit: varbit().array(),
+			geometry: geometry().array(),
+			bool: bool('bool').array(),
+			char: char('char', { length: 3 }).array(),
+			date1: date('date1').array(),
+			date2: date('date2').array(),
+			date3: date('date3').array(),
+			numeric: numeric('numeric', { precision: 3, scale: 1 }).array(),
+			numeric2: numeric('numeric2', { precision: 1, scale: 1 }).array(),
+			numeric3: numeric('numeric3').array(),
+			decimal: decimal('decimal', { precision: 3, scale: 1 }).array(),
+			decimal2: decimal('decimal2', { precision: 1, scale: 1 }).array(),
+			decimal3: decimal('decimal3').array(),
+			enum: myEnum('my_enum').array(),
+			float: float('float').array(),
+			doublePrecision: doublePrecision('doublePrecision').array(),
+			inet: inet('inet').array(),
+			int4: int4('int4').array(),
+			interval: interval('interval').array(),
+			real: real('real').array(),
+			smallint: smallint('smallint').array(),
+			string: string('string').array(),
+			text: text('test').array(),
+			time1: time('time1').array(),
+			timestamp1: timestamp('timestamp1', { withTimezone: true, precision: 6 }).array(),
+			timestamp2: timestamp('timestamp2', { withTimezone: true, precision: 6 }).array(),
+			timestamp3: timestamp('timestamp3', { withTimezone: true, precision: 6 }).array(),
+			uuid1: uuid('uuid1').array(),
+			uuid2: uuid('uuid2').array(),
+			varchar: varchar('varchar', { length: 25 }).array(),
+		}),
+	};
+
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(
+			db,
+			schema,
+			'introspect-all-columns-array-types',
+		);
+
+	expect(statements.length).toBe(0);
+	expect(generateStatements.length).toBe(0);
+	expect(sqlStatements.length).toBe(0);
+	expect(generateSqlStatements.length).toBe(0);
+});
+
+test.concurrent('introspect columns with name with non-alphanumeric characters', async ({ dbc: db }) => {
+	const schema = {
+		users: cockroachTable('users', {
+			'not:allowed': int4('not:allowed'),
+			'nuh--uh': int4('nuh-uh'),
+			'1_nope': int4('1_nope'),
+			valid: int4('valid'),
+		}),
+	};
+
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(
+			db,
+			schema,
+			'introspect-column-with-name-with-non-alphanumeric-characters',
+		);
+
+	expect(statements.length).toBe(0);
+	expect(generateStatements.length).toBe(0);
+	expect(sqlStatements.length).toBe(0);
+	expect(generateSqlStatements.length).toBe(0);
+});
+
+test.concurrent('introspect enum from different schema', async ({ dbc: db }) => {
+	const schema2 = cockroachSchema('schema2');
+	const myEnumInSchema2 = schema2.enum('my_enum', ['a', 'b', 'c']);
+	const schema = {
+		schema2,
+		myEnumInSchema2,
+		users: cockroachTable('users', {
+			col: myEnumInSchema2('col'),
+		}),
+	};
+
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(
+			db,
+			schema,
+			'introspect-enum-from-different-schema',
+			['public', 'schema2'],
+		);
+
+	expect(statements.length).toBe(0);
+	expect(generateStatements.length).toBe(0);
+	expect(sqlStatements.length).toBe(0);
+	expect(generateSqlStatements.length).toBe(0);
+});
+
+test.concurrent('introspect enum with same names across different schema', async ({ dbc: db }) => {
+	const schema2 = cockroachSchema('schema2');
+	const myEnumInSchema2 = schema2.enum('my_enum', ['a', 'b', 'c']);
+	const myEnum = cockroachEnum('my_enum', ['a', 'b', 'c']);
+	const schema = {
+		schema2,
+		myEnumInSchema2,
+		myEnum,
+		users: cockroachTable('users', {
+			col1: myEnumInSchema2('col1'),
+			col2: myEnum('col2'),
+		}),
+	};
+
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(
+			db,
+			schema,
+			'introspect-enum-with-same-names-across-different-schema',
+			['public', 'schema2'],
+		);
+
+	expect(statements.length).toBe(0);
+	expect(generateStatements.length).toBe(0);
+	expect(sqlStatements.length).toBe(0);
+	expect(generateSqlStatements.length).toBe(0);
+});
+
+test.concurrent('introspect enum with similar name to native type', async ({ dbc: db }) => {
+	const timeLeft = cockroachEnum('time_left', ['short', 'medium', 'long']);
+	const schema = {
+		timeLeft,
+		auction: cockroachTable('auction', {
+			col: timeLeft('col1'),
+		}),
+	};
+
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(
+			db,
+			schema,
+			'introspect-enum-with-similar-name-to-native-type',
+		);
+
+	expect(statements.length).toBe(0);
+	expect(generateStatements.length).toBe(0);
+	expect(sqlStatements.length).toBe(0);
+	expect(generateSqlStatements.length).toBe(0);
+});
+
+test.concurrent('introspect strings with single quotes', async ({ dbc: db }) => {
+	const myEnum = cockroachEnum('my_enum', ['escape\'s quotes " ']);
+	const schema = {
+		enum_: myEnum,
+		columns: cockroachTable('columns', {
+			enum: myEnum('my_enum').default('escape\'s quotes " '),
+			text: text('text').default('escape\'s quotes " '),
+			varchar: varchar('varchar').default('escape\'s quotes " '),
+		}),
+	};
+
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(
+			db,
+			schema,
+			'introspect-strings-with-single-quotes',
+		);
+
+	expect(statements.length).toBe(0);
+	expect(generateStatements.length).toBe(0);
+	expect(sqlStatements.length).toBe(0);
+	expect(generateSqlStatements.length).toBe(0);
+});
+
+test.concurrent('introspect checks', async ({ dbc: db }) => {
+	const schema = {
+		users: cockroachTable('users', {
+			id: int4('id'),
+			name: varchar('name'),
+			age: int4('age'),
+		}, (table) => [check('some_check', sql`${table.age} > 21`)]),
+	};
+
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(
+			db,
+			schema,
+			'introspect-checks',
+		);
+
+	expect(statements.length).toBe(0);
+	expect(generateStatements.length).toBe(0);
+	expect(sqlStatements.length).toBe(0);
+	expect(generateSqlStatements.length).toBe(0);
+});
+
+test.concurrent('introspect checks from different schemas with same names', async ({ dbc: db }) => {
+	const mySchema = cockroachSchema('schema2');
+	const schema = {
+		mySchema,
+		users: cockroachTable('users', {
+			id: int4('id'),
+			age: int4('age'),
+		}, (table) => [check('some_check', sql`${table.age} > 21`)]),
+		usersInMySchema: mySchema.table('users', {
+			id: int4('id'),
+			age: int4('age'),
+		}, (table) => [check('some_check', sql`${table.age} < 1`)]),
+	};
+
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(
+			db,
+			schema,
+			'introspect-checks-diff-schema-same-names',
+			['public', 'schema2'],
+		);
+
+	expect(statements.length).toBe(0);
+	expect(generateStatements.length).toBe(0);
+	expect(sqlStatements.length).toBe(0);
+	expect(generateSqlStatements.length).toBe(0);
+});
+
+test.concurrent('introspect view #1', async ({ dbc: db }) => {
+	const users = cockroachTable('users', {
+		id: int4('id').primaryKey().notNull(),
+		name: varchar('users'),
+	});
+
+	const view = cockroachView('some_view').as((qb) => qb.select().from(users));
+	const schema = {
+		view,
+		users,
+	};
+
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(
+			db,
+			schema,
+			'introspect-view',
+		);
+
+	expect(statements.length).toBe(0);
+	expect(generateStatements.length).toBe(0);
+	expect(sqlStatements.length).toBe(0);
+	expect(generateSqlStatements.length).toBe(0);
+});
+
+test.concurrent('introspect view #2', async ({ dbc: db }) => {
+	const users = cockroachTable('users', {
+		id: int4('id').primaryKey().notNull(),
+		name: varchar('users'),
+	});
+
+	const view = cockroachView('some_view', { id: int4('asd') }).as(
+		sql`SELECT * FROM ${users}`,
+	);
+	const schema = {
+		view,
+		users,
+	};
+
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(
+			db,
+			schema,
+			'introspect-view-2',
+		);
+
+	expect(statements.length).toBe(0);
+	expect(generateStatements.length).toBe(0);
+	expect(sqlStatements.length).toBe(0);
+	expect(generateSqlStatements.length).toBe(0);
+});
+
+test.concurrent('introspect view in other schema', async ({ dbc: db }) => {
+	const newSchema = cockroachSchema('new_schema');
+	const users = cockroachTable('users', {
+		id: int4('id').primaryKey().notNull(),
+		name: varchar('users'),
+	});
+
+	const view = newSchema.view('some_view', { id: int4('asd') }).as(
+		sql`SELECT * FROM ${users}`,
+	);
+	const schema = {
+		view,
+		users,
+		newSchema,
+	};
+
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(
+			db,
+			schema,
+			'introspect-view-in-other-schema',
+			['new_schema', 'public'],
+		);
+
+	expect(statements.length).toBe(0);
+	expect(generateStatements.length).toBe(0);
+	expect(sqlStatements.length).toBe(0);
+	expect(generateSqlStatements.length).toBe(0);
+});
+
+test.concurrent('introspect materialized view in other schema', async ({ db }) => {
+	const newSchema = cockroachSchema('new_schema');
+	const users = cockroachTable('users', {
+		id: int4().primaryKey(),
+		name: varchar(),
+	});
+
+	const view = newSchema.materializedView('some_view', { id: int4() }).as(
+		sql`SELECT * FROM ${users}`,
+	);
+	const schema = {
+		view,
+		users,
+		newSchema,
+	};
+
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(
+			db,
+			schema,
+			'introspect-mat-view-in-other-schema',
+			['new_schema', 'public'],
+		);
+
+	expect(statements.length).toBe(0);
+	expect(generateStatements.length).toBe(0);
+	expect(sqlStatements.length).toBe(0);
+	expect(generateSqlStatements.length).toBe(0);
+});
+
+test.concurrent('introspect materialized view #1', async ({ db }) => {
+	const users = cockroachTable('users', {
+		id: int4('id').primaryKey().notNull(),
+		name: varchar('users'),
+	});
+
+	const view = cockroachMaterializedView('some_view').withNoData().as((qb) => qb.select().from(users));
+	const schema = {
+		view,
+		users,
+	};
+
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(
+			db,
+			schema,
+			'introspect-materialized-view',
+		);
+
+	expect(statements.length).toBe(0);
+	expect(generateStatements.length).toBe(0);
+	expect(sqlStatements.length).toBe(0);
+	expect(generateSqlStatements.length).toBe(0);
+});
+
+test.concurrent('introspect materialized view #2', async ({ db }) => {
+	const users = cockroachTable('users', {
+		id: int4('id').primaryKey().notNull(),
+		name: varchar('users'),
+	});
+
+	const view = cockroachMaterializedView('some_view', { id: int4('asd') }).as(
+		sql`SELECT * FROM ${users}`,
+	);
+	const schema = {
+		view,
+		users,
+	};
+
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(
+			db,
+			schema,
+			'introspect-materialized-view-2',
+		);
+
+	expect(statements.length).toBe(0);
+	expect(generateStatements.length).toBe(0);
+	expect(sqlStatements.length).toBe(0);
+	expect(generateSqlStatements.length).toBe(0);
+});
+
+test.concurrent('basic roles', async ({ dbc: db }) => {
+	const schema = {
+		usersRole: cockroachRole('user'),
+	};
+
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(
+			db,
+			schema,
+			'basic-roles',
+			['public'],
+			{ roles: { include: ['user'] } },
+		);
+
+	expect(statements.length).toBe(0);
+	expect(generateStatements.length).toBe(0);
+	expect(sqlStatements.length).toBe(0);
+	expect(generateSqlStatements.length).toBe(0);
+});
+
+test.concurrent('role with properties', async ({ dbc: db }) => {
+	const schema = {
+		usersRole: cockroachRole('user', { createDb: true, createRole: true }),
+	};
+
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(
+			db,
+			schema,
+			'roles-with-properties',
+			['public'],
+			{ roles: { include: ['user'] } },
+		);
+
+	expect(statements.length).toBe(0);
+	expect(generateStatements.length).toBe(0);
+	expect(sqlStatements.length).toBe(0);
+	expect(generateSqlStatements.length).toBe(0);
+});
+
+test.concurrent('role with a few properties', async ({ dbc: db }) => {
+	const schema = {
+		usersRole: cockroachRole('user', { createRole: true }),
+	};
+
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(
+			db,
+			schema,
+			'roles-with-few-properties',
+			['public'],
+			{ roles: { include: ['user'] } },
+		);
+
+	expect(statements.length).toBe(0);
+	expect(generateStatements.length).toBe(0);
+	expect(sqlStatements.length).toBe(0);
+	expect(generateSqlStatements.length).toBe(0);
+});
+
+test.concurrent('case sensitive schema name + identity column', async ({ dbc: db }) => {
+	const mySchema = cockroachSchema('CaseSensitiveSchema');
+	const schema = {
+		mySchema,
+		users: mySchema.table('users', {
+			id: int4('id').primaryKey().generatedAlwaysAsIdentity(),
+			name: text('name'),
+		}),
+	};
+
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(
+			db,
+			schema,
+			'case-sensitive-schema-name',
+			['CaseSensitiveSchema'],
+		);
+
+	expect(statements.length).toBe(0);
+	expect(generateStatements.length).toBe(0);
+	expect(sqlStatements.length).toBe(0);
+	expect(generateSqlStatements.length).toBe(0);
+});
+
+test.concurrent('introspect foreign keys', async ({ dbc: db }) => {
+	const users = cockroachTable('users', {
+		id: int4('id').primaryKey(),
+		name: text('name'),
+	});
+	const schema = {
+		users,
+		posts: cockroachTable('posts', {
+			id: int4('id').primaryKey(),
+			userId: int4('user_id').references(() => users.id, { onDelete: 'set null', onUpdate: 'cascade' }),
+		}),
+	};
+	const {
+		pushStatements: statements,
+		pushSqlStatements: sqlStatements,
+		generateStatements,
+		generateSqlStatements,
+	} = await diffIntrospect(db, schema, 'introspect-foreign-keys');
+
+	expect(statements).toStrictEqual([]);
+	expect(generateStatements).toStrictEqual([]);
+	expect(sqlStatements).toStrictEqual([]);
+	expect(generateSqlStatements).toStrictEqual([]);
+});
+
+test.concurrent('introspect table with self reference', async ({ dbc: db }) => {
+	const users = cockroachTable('users', {
+		id: int4().primaryKey(),
+		name: text(),
+		invited_id: int4().references((): AnyCockroachColumn => users.id),
+	});
+	const schema = { users };
+	const { pushStatements: statements, pushSqlStatements: sqlStatements, generateStatements, generateSqlStatements } =
+		await diffIntrospect(db, schema, 'introspect-self-ref');
+
+	expect(statements.length).toBe(0);
+	expect(generateStatements.length).toBe(0);
+	expect(sqlStatements.length).toBe(0);
+	expect(generateSqlStatements.length).toBe(0);
+});
+
+// https://github.com/drizzle-team/drizzle-orm/issues/5053
+test.concurrent('single quote default', async ({ dbc: db }) => {
+	const group = cockroachTable('group', {
+		id: text().notNull(),
+		fk_organizaton_group: text().notNull(),
+		saml_identifier: text().default('').notNull(),
+		display_name: text().default('').notNull(),
+	});
+
+	const { pushSqlStatements: sqlStatements, generateSqlStatements } = await diffIntrospect(
+		db,
+		{ group },
+		'single_quote_default',
+	);
+
+	expect(sqlStatements).toStrictEqual([]);
+	expect(generateSqlStatements).toStrictEqual([]);
+});
+
+// https://github.com/drizzle-team/drizzle-orm/issues/5193
+test('check definition', async ({ db }) => {
+	const table1 = cockroachTable('table1', {
+		column1: int4().primaryKey(),
+	}, (t) => [check('check_positive', sql`${t.column1} > 0`)]);
+	const schema = { table1 };
+	await push({ db, to: schema });
+
+	const filter = prepareEntityFilter('cockroach', {
+		tables: undefined,
+		schemas: undefined,
+		entities: undefined,
+		extensions: undefined,
+	}, []);
+
+	const { checks } = await fromDatabaseForDrizzle(
+		db,
+		filter,
+		() => {},
+		{
+			table: '__drizzle_migrations',
+			schema: 'drizzle',
+		},
+	);
+
+	expect(checks).toStrictEqual([
+		{
+			entityType: 'checks',
+			schema: 'public',
+			name: 'check_positive',
+			table: 'table1',
+			value: '(column1 > 0)',
+		},
+	]);
+});
+
+// other tables in migration schema
+test('pull after migrate with custom migrations table #1', async ({ db }) => {
+	await db.query(`CREATE SCHEMA drizzle;`);
+	await db.query(`
+		CREATE TABLE IF NOT EXISTS drizzle.__drizzle_migrations (
+			id SERIAL PRIMARY KEY,
+			name TEXT NOT NULL,
+			applied_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+		);
+	`);
+	await db.query(`
+		CREATE TABLE IF NOT EXISTS drizzle.users (
+			id SERIAL PRIMARY KEY,
+			name TEXT NOT NULL
+		);
+	`);
+
+	const filter = prepareEntityFilter('cockroach', {
+		tables: undefined,
+		schemas: undefined,
+		entities: undefined,
+		extensions: undefined,
+	}, []);
+	const { pks, columns, tables, schemas } = await fromDatabaseForDrizzle(
+		db,
+		filter,
+		() => {},
+		{
+			table: '__drizzle_migrations',
+			schema: 'drizzle',
+		},
+	);
+
+	expect([...schemas, ...tables, ...pks]).toStrictEqual([
+		{
+			entityType: 'schemas',
+			name: 'drizzle',
+		},
+		{
+			entityType: 'tables',
+			isRlsEnabled: false,
+			name: 'users',
+			schema: 'drizzle',
+		},
+		{
+			columns: [
+				'id',
+			],
+			entityType: 'pks',
+			name: 'users_pkey',
+			nameExplicit: true,
+			schema: 'drizzle',
+			table: 'users',
+		},
+	]);
+});
+
+// no tables in migration schema
+test('pull after migrate with custom migrations table #2', async ({ db }) => {
+	await db.query(`CREATE SCHEMA drizzle;`);
+	await db.query(`
+		CREATE TABLE IF NOT EXISTS drizzle.__drizzle_migrations (
+			id SERIAL PRIMARY KEY,
+			name TEXT NOT NULL,
+			applied_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+		);
+	`);
+	await db.query(`
+		CREATE TABLE IF NOT EXISTS public.users (
+			id SERIAL PRIMARY KEY,
+			name TEXT NOT NULL
+		);
+	`);
+
+	const filter = prepareEntityFilter('cockroach', {
+		tables: undefined,
+		schemas: undefined,
+		entities: undefined,
+		extensions: undefined,
+	}, []);
+	const { schemas, tables, pks } = await fromDatabaseForDrizzle(
+		db,
+		filter,
+		() => {},
+		{
+			table: '__drizzle_migrations',
+			schema: 'drizzle',
+		},
+	);
+
+	expect([...schemas, ...tables, ...pks]).toStrictEqual([
+		{
+			entityType: 'tables',
+			isRlsEnabled: false,
+			name: 'users',
+			schema: 'public',
+		},
+		{
+			columns: [
+				'id',
+			],
+			entityType: 'pks',
+			name: 'users_pkey',
+			nameExplicit: true,
+			schema: 'public',
+			table: 'users',
+		},
+	]);
+});
+
+// other tables in custom migration schema
+test('pull after migrate with custom migrations table #3', async ({ db }) => {
+	await db.query(`CREATE SCHEMA custom;`);
+	await db.query(`
+		CREATE TABLE IF NOT EXISTS custom.custom_migrations (
+			id SERIAL PRIMARY KEY,
+			name TEXT NOT NULL,
+			applied_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+		);
+	`);
+	await db.query(`
+		CREATE TABLE IF NOT EXISTS custom.users (
+			id SERIAL PRIMARY KEY,
+			name TEXT NOT NULL
+		);
+	`);
+	await db.query(`
+		CREATE TABLE IF NOT EXISTS public.users (
+			id SERIAL PRIMARY KEY,
+			name TEXT NOT NULL
+		);
+	`);
+
+	const filter = prepareEntityFilter('cockroach', {
+		tables: undefined,
+		schemas: undefined,
+		entities: undefined,
+		extensions: undefined,
+	}, []);
+	const { schemas, tables, pks } = await fromDatabaseForDrizzle(
+		db,
+		filter,
+		() => {},
+		{
+			table: 'custom_migrations',
+			schema: 'custom',
+		},
+	);
+
+	expect([...schemas, ...tables, ...pks]).toStrictEqual([
+		{
+			entityType: 'schemas',
+			name: 'custom',
+		},
+		{
+			entityType: 'tables',
+			isRlsEnabled: false,
+			name: 'users',
+			schema: 'custom',
+		},
+		{
+			entityType: 'tables',
+			isRlsEnabled: false,
+			name: 'users',
+			schema: 'public',
+		},
+		{
+			columns: [
+				'id',
+			],
+			entityType: 'pks',
+			name: 'users_pkey',
+			nameExplicit: true,
+			schema: 'public',
+			table: 'users',
+		},
+		{
+			columns: [
+				'id',
+			],
+			entityType: 'pks',
+			name: 'users_pkey',
+			nameExplicit: true,
+			schema: 'custom',
+			table: 'users',
+		},
+	]);
+});
+
+test('primary key with non default name', async ({ db }) => {
+	await db.query(`
+CREATE TABLE table1 (
+    id int4,
+	CONSTRAINT "primary_key" PRIMARY KEY (id)
+);`);
+	await db.query(`
+CREATE TABLE table2 (
+    id int4 primary key
+);
+`);
+
+	const {
+		pushSqlStatements: sqlStatements,
+		pushStatements: statements,
+		schema2,
+		generateStatements,
+		generateSqlStatements,
+	} = await diffIntrospect(db, {}, 'primary-key-without-default-name');
+
+	expect(sqlStatements).toStrictEqual([]);
+	expect(generateSqlStatements).toStrictEqual([]);
+	expect(statements).toStrictEqual([]);
+	expect(generateStatements).toStrictEqual([]);
+});
+
+// constraints (pk / fk / unique / check) round-trip with custom and default names
+test('constraints with custom and default names', async ({ db }) => {
+	await db.query(`CREATE TABLE ref (id int4 PRIMARY KEY);`);
+	await db.query(`
+CREATE TABLE t_custom (
+    id int4,
+    ref_id int4,
+    val int4,
+    num int4,
+    CONSTRAINT "custom_pk" PRIMARY KEY (id),
+    CONSTRAINT "custom_fk" FOREIGN KEY (ref_id) REFERENCES ref(id),
+    CONSTRAINT "custom_unique" UNIQUE (val),
+    CONSTRAINT "custom_check" CHECK (num > 0)
+);`);
+	await db.query(`
+CREATE TABLE t_default (
+    id int4 PRIMARY KEY,
+    ref_id int4 REFERENCES ref(id),
+    val int4 UNIQUE,
+    num int4 CHECK (num > 0)
+);`);
+
+	const { pushStatements, pushSqlStatements, generateStatements, generateSqlStatements } = await diffIntrospect(
+		db,
+		{},
+		'crdb-constraints-custom-and-default',
+	);
+
+	expect(pushStatements).toStrictEqual([]);
+	expect(generateStatements).toStrictEqual([]);
+	expect(pushSqlStatements).toStrictEqual([]);
+	expect(generateSqlStatements).toStrictEqual([]);
+});
+
+test('issue No2993', async ({ db }) => {
+	await db.query(`create schema drizzle_test;`);
+	await db.query(`create table drizzle_test.child (
+    id uuid primary key,
+    other_id uuid not null
+);`);
+	await db.query(`create table drizzle_test.parent (
+    id uuid primary key,
+    other_id uuid not null,
+    child_id uuid unique references drizzle_test.child (id) on delete restrict,
+    unique (other_id, child_id)
+);`);
+	await db.query(`alter table drizzle_test.child add constraint test_key
+foreign key (other_id, id)
+references drizzle_test.parent (other_id, child_id);`);
+
+	const {
+		pushStatements,
+		pushSqlStatements,
+		generateStatements,
+		generateSqlStatements,
+	} = await diffIntrospect(db, {}, 'issue-2993');
+
+	expect(pushStatements).toStrictEqual([]);
+	expect(generateStatements).toStrictEqual([]);
+	expect(pushSqlStatements).toStrictEqual([]);
+	expect(generateSqlStatements).toStrictEqual([]);
+});
+
+const templateUnsafeText = 'a\\b`${c}';
+const templateUnsafeTextInDatabase = "e'a\\\\b`${c}'";
+
+test('introspect check with a backslash, a backtick and "${"', async ({ db }) => {
+	await db.query(
+		`CREATE TABLE users (name string, CONSTRAINT name_check CHECK (name <> '${templateUnsafeText}'));`,
+	);
+
+	const { pushSqlStatements, generateSqlStatements, ddlAfterPull, schema2 } = await diffIntrospect(
+		db,
+		{},
+		'check-with-template-unsafe-text',
+	);
+
+	const expected = [`(name != ${templateUnsafeTextInDatabase}::STRING)`];
+	expect(pushSqlStatements).toStrictEqual([]);
+	expect(generateSqlStatements).toStrictEqual([]);
+	expect(ddlAfterPull.checks.list().map((it) => it.value)).toStrictEqual(expected);
+	expect(schema2.checks.map((it) => it.value)).toStrictEqual(expected);
+});
+
+test('introspect view with a backslash, a backtick and "${"', async ({ db }) => {
+	await db.query(`CREATE VIEW some_view AS SELECT '${templateUnsafeText}'::string AS name;`);
+
+	const { pushSqlStatements, generateSqlStatements, ddlAfterPull, schema2 } = await diffIntrospect(
+		db,
+		{},
+		'view-with-template-unsafe-text',
+	);
+
+	const expected = [`SELECT ${templateUnsafeTextInDatabase}::STRING AS name`];
+	expect(pushSqlStatements).toStrictEqual([]);
+	expect(generateSqlStatements).toStrictEqual([]);
+	expect(ddlAfterPull.views.list().map((it) => it.definition)).toStrictEqual(expected);
+	expect(schema2.views.map((it) => it.definition)).toStrictEqual(expected);
+});
+
+test('introspect generated column with a backslash, a backtick and "${"', async ({ db }) => {
+	await db.query(
+		`CREATE TABLE users (name string, generated_name string GENERATED ALWAYS AS (name || '${templateUnsafeText}') STORED);`,
+	);
+
+	const { pushSqlStatements, generateSqlStatements, ddlAfterPull, schema2 } = await diffIntrospect(
+		db,
+		{},
+		'generated-column-with-template-unsafe-text',
+	);
+
+	const expected = [null, `name || ${templateUnsafeTextInDatabase}`];
+	expect(pushSqlStatements).toStrictEqual([]);
+	expect(generateSqlStatements).toStrictEqual([]);
+	expect(ddlAfterPull.columns.list().map((it) => it.generated?.as ?? null)).toStrictEqual(expected);
+	expect(schema2.columns.map((it) => it.generated?.as ?? null)).toStrictEqual(expected);
+});
+
+test('introspect policy with a backslash, a backtick and "${"', async ({ db }) => {
+	await db.query(`CREATE TABLE users (name string);`);
+	await db.query(`ALTER TABLE users ENABLE ROW LEVEL SECURITY;`);
+	await db.query(
+		`CREATE POLICY name_policy ON users USING (name <> '${templateUnsafeText}') WITH CHECK (name <> '${templateUnsafeText}');`,
+	);
+
+	const { pushSqlStatements, generateSqlStatements, ddlAfterPull, schema2 } = await diffIntrospect(
+		db,
+		{},
+		'policy-with-template-unsafe-text',
+	);
+
+	const expected = [{
+		using: `name != ${templateUnsafeTextInDatabase}:::STRING`,
+		withCheck: `name != ${templateUnsafeTextInDatabase}:::STRING`,
+	}];
+	expect(pushSqlStatements).toStrictEqual([]);
+	expect(generateSqlStatements).toStrictEqual([]);
+	expect(ddlAfterPull.policies.list().map((it) => ({ using: it.using, withCheck: it.withCheck }))).toStrictEqual(
+		expected,
+	);
+	expect(schema2.policies.map((it) => ({ using: it.using, withCheck: it.withCheck }))).toStrictEqual(expected);
+});
+
+test('introspect index expression and predicate with a backslash, a backtick and "${"', async ({ db }) => {
+	await db.query(`CREATE TABLE users (name string);`);
+	await db.query(
+		`CREATE INDEX name_idx ON users ((name || '${templateUnsafeText}')) WHERE name <> '${templateUnsafeText}';`,
+	);
+
+	const { pushSqlStatements, generateSqlStatements, ddlAfterPull, schema2 } = await diffIntrospect(
+		db,
+		{},
+		'index-with-template-unsafe-text',
+	);
+
+	const indexesInDatabase = ddlAfterPull.indexes.list().map((it) => ({
+		expression: it.columns[0].value,
+		where: it.where,
+	}));
+	expect(pushSqlStatements).toStrictEqual([]);
+	expect(generateSqlStatements).toStrictEqual([]);
+	expect(indexesInDatabase.length).toBe(1);
+	expect(indexesInDatabase[0].where).toBe(`name != ${templateUnsafeTextInDatabase}::STRING`);
+	for (const part of ['\\', '`', '${']) expect(indexesInDatabase[0].expression).toContain(part);
+	expect(schema2.indexes.map((it) => ({ expression: it.columns[0].value, where: it.where }))).toStrictEqual(
+		indexesInDatabase,
+	);
+});
+
+test('introspect enum values with a backslash, a backtick and "${"', async ({ db }) => {
+	await db.query(`CREATE TYPE mood AS ENUM ('${templateUnsafeText}', 'x\`y\`z');`);
+
+	const { pushSqlStatements, generateSqlStatements, ddlAfterPull, schema2 } = await diffIntrospect(
+		db,
+		{},
+		'enum-values-with-template-unsafe-text',
+	);
+
+	const expected = [[templateUnsafeText, 'x`y`z']];
+	expect(pushSqlStatements).toStrictEqual([]);
+	expect(generateSqlStatements).toStrictEqual([]);
+	expect(ddlAfterPull.enums.list().map((it) => it.values)).toStrictEqual(expected);
+	expect(schema2.enums.map((it) => it.values)).toStrictEqual(expected);
+});
+
+test('introspect default expressions with a backslash, a backtick and "${"', async ({ db }) => {
+	const types = [
+		'int8',
+		'decimal',
+		'bit(3)',
+		'varbit(3)',
+		'timestamp',
+		'timestamptz',
+		'time',
+		'timetz',
+		'date',
+		'jsonb',
+		'geometry(point)',
+	];
+	const columns = types.map((type, i) => `column${i} ${type} DEFAULT NULLIF('${templateUnsafeText}', '"')::${type}`);
+
+	await db.query(`CREATE TABLE users (${columns.join(', ')});`);
+
+	const { pushSqlStatements, generateSqlStatements, ddlAfterPull, schema2 } = await diffIntrospect(
+		db,
+		{},
+		'default-expressions-with-template-unsafe-text',
+	);
+
+	const defaultsInDatabase = ddlAfterPull.columns.list().map((it) => [it.name, it.default]);
+	expect(pushSqlStatements).toStrictEqual([]);
+	expect(generateSqlStatements).toStrictEqual([]);
+	expect(defaultsInDatabase).toStrictEqual(
+		types.map((_, i) => [`column${i}`, `NULLIF(${templateUnsafeTextInDatabase}::STRING, '"'::STRING)`]),
+	);
+	expect(schema2.columns.map((it) => [it.name, it.default])).toStrictEqual(defaultsInDatabase);
+});
+
+test('introspect array default expressions with a backslash, a backtick and "${"', async ({ db }) => {
+	const types = [
+		'int2',
+		'int4',
+		'int8',
+		'bool',
+		'uuid',
+		'real',
+		'float',
+		'decimal',
+		'bit(3)',
+		'varbit(3)',
+		'timestamp',
+		'timestamptz',
+		'time',
+		'timetz',
+		'date',
+		'interval',
+		'inet',
+		'geometry(point)',
+		'mood',
+		'bytes',
+	];
+	const stringTypes = ['char(20)', 'varchar(20)', 'string'];
+	const columns = [
+		...types.map((type, i) => `column${i} ${type}[] DEFAULT ARRAY[NULLIF('${templateUnsafeText}', '"')::${type}]`),
+		...stringTypes.map((type, i) =>
+			`string_column${i} ${type}[] DEFAULT ARRAY[(gen_random_uuid()::string || '${templateUnsafeText}')::${type}]`
+		),
+	];
+
+	await db.query(`CREATE TYPE mood AS ENUM ('ok', 'bad');`);
+	await db.query(`CREATE TABLE users (${columns.join(', ')});`);
+
+	const { pushSqlStatements, generateSqlStatements, ddlAfterPull, schema2 } = await diffIntrospect(
+		db,
+		{},
+		'array-default-expressions-with-template-unsafe-text',
+	);
+
+	const defaultsInDatabase = ddlAfterPull.columns.list().map((it) => [it.name, it.default]);
+	expect(pushSqlStatements).toStrictEqual([]);
+	expect(generateSqlStatements).toStrictEqual([]);
+	expect(defaultsInDatabase.length).toBe(columns.length);
+	for (const [, def] of defaultsInDatabase) expect(def).toContain(templateUnsafeTextInDatabase);
+	expect(schema2.columns.map((it) => [it.name, it.default])).toStrictEqual(defaultsInDatabase);
+});

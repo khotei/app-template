@@ -12,15 +12,14 @@ An anonymous user gets a secret in a cookie, creates chats, sends messages with 
 the assistant answers. The api stores the user's message and a `queued` assistant message, enqueues
 a job and answers `202`; the worker streams the model's reply into that one message as snapshots
 and titles the chat from its first message; the client polls the message until it is `completed`
-or `failed`. Attachment bytes live in S3 and jobs go through SQS (MiniStack locally); the rest is
-local for now: a key-value store on disk shared by both processes and a stub language model.
-Postgres and a real provider each replace one layer later.
+or `failed`. Records live in Postgres, attachment bytes in S3, and jobs go through SQS (MiniStack
+locally); the language model is a stub that a real provider replaces later.
 
 ```mermaid
 sequenceDiagram
   participant W as apps/web (ApiClient)
   participant A as apps/api
-  participant S as KeyValueStore (.data/store)
+  participant S as Postgres
   participant Q as SQS (MiniStack)
   participant K as apps/worker
   W->>A: POST /chats/:id/messages
@@ -45,7 +44,7 @@ make dev     # api, worker and web together
 
 | Process | URL | Try |
 |---|---|---|
-| `apps/api` | <http://localhost:3000> | `/docs` (Scalar over the contract), `/openapi.json`, `/health` |
+| `apps/api` | <http://localhost:3000> | `/health` |
 | `apps/web` | <http://localhost:3001> | the health panel; `/api/*` is proxied to the api |
 | `apps/worker` | — | logs `worker started` and consumes the two queues |
 
@@ -64,31 +63,29 @@ curl -s -b jar localhost:3000/chats/<chatId>/messages/<assistantMessageId>
 
 ### The local AWS environment
 
-MiniStack stands in for S3 and SQS on `localhost:4566`; a Pulumi project in `deployment/local/`
-runs it in Docker, and the provisioner creates the bucket and the queues on it. The apps do not
-use it yet: `make dev` runs without `make up`, and `make check` needs Docker only. The design and
-the resource inventory: [docs/knowledge/aws.md](docs/knowledge/aws.md).
+MiniStack stands in for S3, SQS and RDS on `localhost:4566`; a Pulumi program in `deployment/local/`
+runs it in Docker and creates inside it the bucket, the queues and the Postgres instance, whose
+`DATABASE_URL` it writes to `.env.pulumi`. The apps do not use it yet: `make dev` runs without
+`make up`, and `make check` needs Docker only. The design and the resource inventory:
+[docs/knowledge/aws.md](docs/knowledge/aws.md).
 
 ```sh
 make setup   # once; then add Docker and the Pulumi CLI (https://www.pulumi.com/docs/install/)
-make up      # starts MiniStack, then logs one line per resource:
-             #   INFO (#1): created: app-template-local-attachments      (first run)
-             #   INFO (#1): unchanged: app-template-local-chat-title     (every run after)
+make up      # starts MiniStack, creates the resources (+ 11 created; 11 unchanged after), migrates
 make dev
-make down    # stops it; the bucket, the queues and their messages survive under .data/ministack
-make reset   # make down, then removes .data/ whole
+make down    # stops it; the resources and their data survive
+make reset   # removes MiniStack, the database's container and volume, and .data/ whole
 ```
 
 | When | Then |
 |---|---|
 | Docker is not running | `make up` fails in the Docker provider; start Docker and run it again |
 | the Pulumi CLI is missing | `make up`, `down`, `reset` and `stack` fail at `pulumi`; install it from the link above. `make check` does not need it |
-| an older `.env` lacks `AWS_*` and `STAGE` | the provisioner fails with a `ConfigError` naming `AWS_REGION`; `make setup` leaves an existing `.env` alone, so copy the AWS block from `.env.example` |
-| the first `make up` takes about ten seconds | it downloads the Docker provider plugin into `.pulumi/`; later runs take a few seconds |
+| an older `.env` lacks `AWS_*`, `STAGE` or `RDS_BASE_PORT` | `make up` fails with a `ConfigError` naming the variable; `make setup` leaves an existing `.env` alone, so copy the block from `.env.example` |
+| the first `make up` takes longer | it downloads the Docker and AWS provider plugins into `.pulumi/` once; worktrees reuse them |
 | port 4566 is taken | the container fails to start; free the port (a leftover `app-template-ministack-4566`, or another emulator) |
-| `make up` failed midway | the container stays in the stack; `make down`, then `make up` again |
-| you want a clean slate | `make reset` also wipes the key-value store in `.data/`, not only MiniStack |
-| an inventory change that SQS refuses on an existing queue (`QueueNameExists`) | `make reset`, then `make up` |
+| `make up` failed midway | run it again; it goes on from what it created |
+| you want a clean slate | `make reset` also wipes the database, not only MiniStack |
 
 ## How it is built
 
@@ -100,27 +97,28 @@ Each line names one choice and where it lives; the rejected alternatives are in 
   Biome rejects most of what it forbids, and
   [› Known gaps](docs/knowledge/architecture.md#known-gaps) lists the rest.
 - **The domain is pure Effect:** models are `Schema.Class`, ids and constrained values are brands,
-  errors are `Schema.TaggedError`, time and ids come in as input, and ports are `Context.Service`
-  declarations with no error channel. `domain/`.
-- **One HTTP contract, three consumers.** `http-api/` declares the `HttpApi` over the domain's
-  schemas; `apps/api` implements it with `HttpApiBuilder`, the browser calls it through
-  `ApiClient`, and `/openapi.json` is derived from it, never committed. A domain error becomes a
-  status through one annotation in the contract.
-- **Services are simple, use cases compose them.** A service owns one aggregate's writes; a flow
-  across aggregates or a critical section is a use case under the user's lock, and the checks hand
-  the writes a proof value (`SendableChat`, `BindableAttachments`) so the order cannot be skipped.
-  [.claude/rules/use-cases.md](.claude/rules/use-cases.md).
-- **Adapters are `Layer`s over effect's `KeyValueStore`:** one module gives every repository
-  collections, indexes and blobs with a process-wide lock, and turns a store failure into a defect
-  once. `infrastructure/kv/`.
-- **Jobs live in one file, both sides:** a `.job` service enqueues, its `worker` is a `Layer` that
-  consumes in a fiber the layer's scope owns. `application/chat/*.job.ts`, `packages/queue`.
-- **A process is one `Layer`:** `apps/api/src/layer.ts` and `apps/worker/src/layer.ts` close the
-  leaves (store, queue, platform) with `Layer.provide` and `main.ts` is
+  errors are `Schema.TaggedError`, pure operations take time and ids as input, and ports are
+  `Context.Service` declarations with no error channel. `domain/`.
+- **One HTTP contract, two consumers.** `http-api/` declares the `HttpApi` over the domain's
+  schemas; `apps/api` implements it with `HttpApiBuilder`, and the browser calls it through
+  `ApiClient`. A domain error becomes a status through one annotation in the contract.
+- **Domain services own the rules, use cases compose them, handlers call one of the two.** A
+  domain service in `domain/` writes its entity's records over the ports; a flow across services,
+  the queue or one transaction is a use case in `application/`; an api or worker handler holds no
+  rule. [.claude/rules/layering.md](.claude/rules/layering.md).
+- **Repositories are `Layer`s over Drizzle on `@effect/sql-pg`:** each entity declares its tables
+  once, the row codecs and migrations derive from them, and a write across tables runs in one
+  transaction. [docs/knowledge/database.md](docs/knowledge/database.md).
+- **A queue has a producer and a handler:** a use case sends the job with `QueueClient.send`;
+  `apps/worker/<entity>/<object>.handler.ts` consumes it over a use case in a `worker` `Layer`
+  that runs in a fiber the layer's scope owns. `packages/queue`.
+- **A process is one `Layer`:** `apps/api/layer.ts` and `apps/worker/layer.ts` close the
+  leaves (database, S3, queue, platform) with `Layer.provide` and `main.ts` is
   `BunRuntime.runMain(Layer.launch(...))`; stopping closes one scope.
-- **Tests sit at agreed seams** with `@effect/vitest`: domain rules, the kv module on both stores,
-  services on memory adapters under `TestClock`, jobs with a fake model, the api through
-  `BunHttpServer.layerTest` and the real `ApiClient`.
+- **Tests sit at agreed seams** with `@effect/vitest`: unit tests in `tests/` run the domain
+  services, the use cases and both apps' handlers over memory layers of the ports; e2e tests in
+  `e2e/` run the adapters and one journey through both apps on a Postgres and a MiniStack the run
+  starts for itself. [docs/knowledge/tooling.md › Tests](docs/knowledge/tooling.md#tests).
 - **Configuration is read once,** in `packages/config`, and reaches clients as options; the root
   `.env` is the only environment file.
 

@@ -4,6 +4,8 @@ description: >-
   Fresh-context verifier for a whole ticket. Checks every requirement in feature.md against
   observable behaviour and returns a verdict per requirement. Spawned by /ticket-verify. Never
   edits.
+model: opus
+effort: high
 disallowedTools: Edit, Write, NotebookEdit, Agent
 ---
 

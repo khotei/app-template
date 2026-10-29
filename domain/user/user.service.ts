@@ -1,21 +1,72 @@
-import { Context, type DateTime, type Effect, type Option } from 'effect'
+import { Context, Crypto, DateTime, Effect, Layer, Option, Redacted } from 'effect'
+import { Base64Url, Hex } from 'effect/encoding'
 
-import type { UserId } from '#domain/user/user.id'
-import { type Credential, User } from '#domain/user/user.model'
+import { UserUnknownError } from '#domain/user/user.error'
+import { UserId } from '#domain/user/user.id'
+import { buildUser, Credential, SecretHash, type User } from '#domain/user/user.model'
+import { UserRepository } from '#domain/user/user.port'
 
-export class UserRepository extends Context.Service<
-  UserRepository,
+/** The 32 random bytes a user signs in with, as base64url; only its hash is stored. */
+export type UserSecret = Redacted.Redacted<string>
+
+const secretBytes = 32
+
+const encoder = new TextEncoder()
+
+export class UserService extends Context.Service<
+  UserService,
   {
-    readonly insert: (user: User, credential: Credential) => Effect.Effect<void>
-    readonly selectById: (id: UserId) => Effect.Effect<Option.Option<User>>
-    readonly selectByCredential: (credential: Credential) => Effect.Effect<Option.Option<User>>
+    /** Returns the user a valid secret names; any other input creates a user with a new secret. */
+    readonly ensure: (
+      secret: Option.Option<UserSecret>,
+    ) => Effect.Effect<{ readonly user: User; readonly secret: UserSecret }>
+    readonly authenticate: (secret: UserSecret) => Effect.Effect<User, UserUnknownError>
   }
->()('@app-template/domain/user/UserRepository') {}
+>()('@app-template/domain/user/UserService', {
+  make: Effect.gen(function* () {
+    const users = yield* UserRepository
+    const crypto = yield* Crypto.Crypto
+    const randomUuid = Effect.orDie(crypto.randomUUIDv7())
+    const randomUserId = Effect.map(randomUuid, UserId.make)
 
-export const isOwnedBy =
-  (userId: UserId) =>
-  (owned: { readonly userId: UserId }): boolean =>
-    owned.userId === userId
+    const hashSecret = Effect.fnUntraced(function* (secret: UserSecret) {
+      const digest = yield* crypto.digest('SHA-256', encoder.encode(Redacted.value(secret)))
+      return new Credential({ kind: 'secret', hash: SecretHash.make(Hex.encode(digest)) })
+    }, Effect.orDie)
 
-export const buildUser = (input: { readonly id: UserId; readonly createdAt: DateTime.Utc }): User =>
-  new User({ id: input.id, createdAt: input.createdAt })
+    const authenticate = Effect.fn('UserService.authenticate')(function* (secret: UserSecret) {
+      const credential = yield* hashSecret(secret)
+      const user = yield* users.selectByCredential(credential)
+
+      if (Option.isNone(user)) return yield* new UserUnknownError()
+      return user.value
+    })
+
+    const registerUser = Effect.fnUntraced(function* () {
+      const id = yield* randomUserId
+      const createdAt = yield* DateTime.now
+      const bytes = yield* Effect.orDie(crypto.randomBytes(secretBytes))
+      const secret = Redacted.make(Base64Url.encode(bytes))
+
+      const user = buildUser({ id, createdAt })
+      const credential = yield* hashSecret(secret)
+      yield* users.insert(user, credential)
+      return { user, secret }
+    })
+
+    const ensure = Effect.fn('UserService.ensure')((secret: Option.Option<UserSecret>) =>
+      Option.match(secret, {
+        onNone: registerUser,
+        onSome: (presented) =>
+          authenticate(presented).pipe(
+            Effect.map((user) => ({ user, secret: presented })),
+            Effect.catchTag('UserUnknownError', registerUser),
+          ),
+      }),
+    )
+
+    return { ensure, authenticate }
+  }),
+}) {
+  static readonly layer = Layer.effect(this, this.make)
+}

@@ -4,6 +4,5 @@
     "rootDir": ".",
     "outDir": "../../node_modules/.cache/tsc/aws"
   },
-  "include": ["**/*.ts"],
-  "references": [{ "path": "../testing" }]
+  "include": ["**/*.ts"]
 }

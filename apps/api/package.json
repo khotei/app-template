@@ -2,13 +2,16 @@
   "name": "@app-template/api",
   "private": true,
   "type": "module",
+  "exports": {
+    "./layer": "./layer.ts"
+  },
   "imports": {
-    "#api/*": "./src/*.ts"
+    "#api/*": "./*.ts"
   },
   "scripts": {
-    "dev": "bun --env-file=../../.env --hot src/main.ts",
-    "debug": "bun --env-file=../../.env --inspect --hot src/main.ts",
-    "start": "bun --env-file=../../.env src/main.ts"
+    "dev": "bun --env-file=../../.env --env-file=../../.env.pulumi --hot main.ts",
+    "debug": "bun --env-file=../../.env --env-file=../../.env.pulumi --inspect --hot main.ts",
+    "start": "bun --env-file=../../.env --env-file=../../.env.pulumi main.ts"
   },
   "dependencies": {
     "@app-template/application": "workspace:*",

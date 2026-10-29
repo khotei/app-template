@@ -1,204 +1,163 @@
-import {
-  Array as Arr,
-  Context,
-  DateTime,
-  Effect,
-  Option,
-  Order,
-  Predicate,
-  Schema,
-  String as Str,
-} from 'effect'
+import { Context, Crypto, Data, DateTime, Effect, Layer, Option } from 'effect'
 
-import type { AttachmentId } from '#domain/attachment/attachment.id'
+import { type ChatBusyError, ChatNotFoundError, ChatTitledError } from '#domain/chat/chat.error'
+import { ChatId } from '#domain/chat/chat.id'
 import {
-  ChatBusyError,
-  MessageInputInvalidError,
-  MessageStageInvalidError,
-} from '#domain/chat/chat.error'
-import type { ChatId, MessageId } from '#domain/chat/chat.id'
-import {
-  type ActiveMessage,
-  ActiveMessageStage,
+  buildChat,
   Chat,
-  Message,
-  MessageAuthor,
-  MessageFailure,
-  type MessageStage,
+  type ChatDetail,
+  type ChatSummary,
+  type ChatTitle,
 } from '#domain/chat/chat.model'
+import { ChatRepository } from '#domain/chat/chat.port'
+import type { MessageInputInvalidError } from '#domain/chat/message.error'
+import {
+  ensureChatAcceptsMessage,
+  ensureMessageInput,
+  type MessageInput,
+} from '#domain/chat/message.model'
+import { MessageRepository } from '#domain/chat/message.port'
 import type { UserId } from '#domain/user/user.id'
 
-export class ChatRepository extends Context.Service<
-  ChatRepository,
-  {
-    readonly insert: (chat: Chat) => Effect.Effect<void>
-    readonly update: (chat: Chat) => Effect.Effect<void>
-    readonly selectById: (id: ChatId) => Effect.Effect<Option.Option<Chat>>
-    /** Returns the user's chats unordered. */
-    readonly selectByUser: (userId: UserId) => Effect.Effect<ReadonlyArray<Chat>>
-    readonly delete: (id: ChatId) => Effect.Effect<void>
-  }
->()('@app-template/domain/chat/ChatRepository') {}
-
-export class MessageRepository extends Context.Service<
-  MessageRepository,
-  {
-    readonly insert: (message: Message) => Effect.Effect<void>
-    readonly update: (message: Message) => Effect.Effect<void>
-    readonly selectById: (id: MessageId) => Effect.Effect<Option.Option<Message>>
-    /** Returns the chat's messages in insertion order. */
-    readonly selectByChat: (chatId: ChatId) => Effect.Effect<ReadonlyArray<Message>>
-    /** Returns the chat's active message, the one `isActiveMessage` holds for, if any. */
-    readonly selectActiveByChat: (chatId: ChatId) => Effect.Effect<Option.Option<ActiveMessage>>
-    readonly deleteByChat: (chatId: ChatId) => Effect.Effect<void>
-  }
->()('@app-template/domain/chat/MessageRepository') {}
-
-export const buildChat = (input: {
-  readonly id: ChatId
-  readonly userId: UserId
-  readonly createdAt: DateTime.Utc
-}): Chat =>
-  new Chat({
-    id: input.id,
-    userId: input.userId,
-    title: Option.none(),
-    createdAt: input.createdAt,
-    updatedAt: input.createdAt,
-  })
-
-export const buildUserMessage = (input: {
-  readonly id: MessageId
+/**
+ * Proof that a send may write to this chat: only `ChatService.findSendable` builds one, after it
+ * checked the input, the owner and that no message in the chat is active.
+ */
+class SendableChat extends Data.Class<{
   readonly chatId: ChatId
-  readonly text: string
-  readonly attachmentIds: ReadonlyArray<AttachmentId>
-  readonly createdAt: DateTime.Utc
-}): Message =>
-  new Message({
-    id: input.id,
-    chatId: input.chatId,
-    author: 'user',
-    stage: 'completed',
-    text: input.text,
-    attachmentIds: input.attachmentIds,
-    error: Option.none(),
-    createdAt: input.createdAt,
-    updatedAt: input.createdAt,
-  })
-
-export const buildAssistantMessage = (input: {
-  readonly id: MessageId
-  readonly chatId: ChatId
-  readonly createdAt: DateTime.Utc
-}): Message =>
-  new Message({
-    id: input.id,
-    chatId: input.chatId,
-    author: 'assistant',
-    stage: 'queued',
-    text: '',
-    attachmentIds: [],
-    error: Option.none(),
-    createdAt: input.createdAt,
-    updatedAt: input.createdAt,
-  })
-
-export const isTitledChat = (chat: Chat): boolean => Option.isSome(chat.title)
-
-export const byLatestUpdate: Order.Order<Chat> = Order.flip(
-  Order.mapInput(DateTime.Order, (chat: Chat) => chat.updatedAt),
-)
-
-export const isInChat =
-  (chatId: ChatId) =>
-  (message: Message): boolean =>
-    message.chatId === chatId
-
-const isActiveShape = Predicate.Struct({
-  author: Schema.is(MessageAuthor.pick(['assistant'])),
-  stage: Schema.is(ActiveMessageStage),
-})
-
-export const isActiveMessage = (message: Message): message is ActiveMessage =>
-  isActiveShape(message)
-
-export const ensureChatAcceptsMessage = Effect.fn('ensureChatAcceptsMessage')(function* (
-  current: Option.Option<Message>,
-) {
-  const active = Option.filter(current, isActiveMessage)
-  if (Option.isSome(active)) return yield* new ChatBusyError({ id: active.value.chatId })
-})
-
-export interface MessageInput {
-  readonly text: string
-  readonly attachmentIds: ReadonlyArray<AttachmentId>
+  readonly input: MessageInput
+  /** The chat has no message yet, so this send opens it. */
+  readonly opensChat: boolean
+  /** When the send was accepted: the messages' `createdAt` and the chat's `updatedAt`. */
+  readonly at: DateTime.Utc
+}> {
+  declare private readonly proof: never
 }
 
-export const ensureMessageInput = Effect.fn('ensureMessageInput')(function* (input: MessageInput) {
-  if (Str.isEmpty(Str.trim(input.text)) && Arr.isReadonlyArrayEmpty(input.attachmentIds)) {
-    return yield* new MessageInputInvalidError()
-  }
-  // A repeated id would pass the bindability check twice and bind one attachment once.
-  if (Arr.dedupe(input.attachmentIds).length < input.attachmentIds.length) {
-    return yield* new MessageInputInvalidError()
-  }
-})
+export type { SendableChat }
 
-const isPreparing = Predicate.and(isActiveMessage, (message) => message.stage === 'preparing')
-
-/** Which messages may enter each stage; `queued` is only ever built, never entered. */
-const transitions = {
-  preparing: isActiveMessage,
-  generating: isPreparing,
-  completed: isActiveMessage,
-  failed: isActiveMessage,
-} as const satisfies Record<Exclude<MessageStage, 'queued'>, Predicate.Predicate<Message>>
-
-const move = Effect.fnUntraced(function* (
-  message: Message,
+export class ChatService extends Context.Service<
+  ChatService,
   {
-    to,
-    at,
-    patch,
-  }: {
-    readonly to: keyof typeof transitions
-    readonly at: DateTime.Utc
-    readonly patch?: Partial<Pick<Message, 'text' | 'error'>>
-  },
-) {
-  if (!transitions[to](message)) {
-    return yield* new MessageStageInvalidError({ id: message.id, from: message.stage, to })
+    readonly create: (userId: UserId) => Effect.Effect<Chat>
+    /** Returns the user's chats, the most recently updated first. */
+    readonly list: (userId: UserId) => Effect.Effect<ReadonlyArray<ChatSummary>>
+    readonly get: (userId: UserId, chatId: ChatId) => Effect.Effect<ChatDetail, ChatNotFoundError>
+    readonly rename: (
+      userId: UserId,
+      chatId: ChatId,
+      title: ChatTitle,
+    ) => Effect.Effect<Chat, ChatNotFoundError>
+    /** Titles a chat no one has titled yet, keeping its `updatedAt`. */
+    readonly updateTitle: (
+      chatId: ChatId,
+      title: ChatTitle,
+    ) => Effect.Effect<void, ChatNotFoundError | ChatTitledError>
+    /**
+     * Removes the chat with its messages, whether or not a reply runs.
+     *
+     * A step of `DeleteChatUseCase`, which removes their attachments first, since a bound
+     * attachment holds its message back from the cascade: entry points call the use case, never
+     * this.
+     */
+    readonly delete: (userId: UserId, chatId: ChatId) => Effect.Effect<void, ChatNotFoundError>
+    readonly findSendable: (
+      userId: UserId,
+      chatId: ChatId,
+      input: MessageInput,
+    ) => Effect.Effect<SendableChat, MessageInputInvalidError | ChatNotFoundError | ChatBusyError>
   }
-  return new Message({ ...message, ...patch, stage: to, updatedAt: at })
-})
+>()('@app-template/domain/chat/ChatService', {
+  make: Effect.gen(function* () {
+    const chats = yield* ChatRepository
+    const messages = yield* MessageRepository
+    const crypto = yield* Crypto.Crypto
+    const randomChatId = Effect.map(Effect.orDie(crypto.randomUUIDv7()), ChatId.make)
 
-export const prepareMessage = Effect.fn('prepareMessage')((message: Message, at: DateTime.Utc) =>
-  move(message, { to: 'preparing', at, patch: { text: '', error: Option.none() } }),
-)
+    const findOwnedChat = Effect.fnUntraced(function* (userId: UserId, id: ChatId) {
+      const found = yield* chats.selectOne({ id, userId })
+      return yield* Effect.fromOption(found, () => new ChatNotFoundError({ id }))
+    })
 
-export const generateMessage = Effect.fn('generateMessage')((message: Message, at: DateTime.Utc) =>
-  move(message, { to: 'generating', at }),
-)
+    const create = Effect.fn('ChatService.create')(function* (userId: UserId) {
+      const id = yield* randomChatId
+      const createdAt = yield* DateTime.now
+      const chat = buildChat({ id, userId, createdAt })
 
-export const completeMessage = Effect.fn('completeMessage')(
-  (message: Message, { text, at }: { readonly text: string; readonly at: DateTime.Utc }) =>
-    move(message, { to: 'completed', at, patch: { text, error: Option.none() } }),
-)
+      yield* chats.insert(chat)
+      return chat
+    })
 
-const failureMessages = {
-  ReplyFailed: 'The assistant could not reply. Please try again.',
-} as const satisfies Record<MessageFailure['reason'], string>
+    const list = Effect.fn('ChatService.list')(chats.selectSummaries)
 
-export const failMessage = Effect.fn('failMessage')(
-  (
-    message: Message,
-    { reason, cause, at }: Pick<MessageFailure, 'reason' | 'cause'> & { readonly at: DateTime.Utc },
-  ) =>
-    move(message, {
-      to: 'failed',
-      at,
-      patch: {
-        error: Option.some(new MessageFailure({ reason, message: failureMessages[reason], cause })),
-      },
-    }),
-)
+    const get = Effect.fn('ChatService.get')(function* (userId: UserId, chatId: ChatId) {
+      const found = yield* chats.selectDetail({ id: chatId, userId })
+      return yield* Effect.fromOption(found, () => new ChatNotFoundError({ id: chatId }))
+    })
+
+    const rename = Effect.fn('ChatService.rename')(function* (
+      userId: UserId,
+      chatId: ChatId,
+      title: ChatTitle,
+    ) {
+      const chat = yield* findOwnedChat(userId, chatId)
+      const updatedAt = yield* DateTime.now
+      const renamed = new Chat({ ...chat, title: Option.some(title), updatedAt })
+
+      const written = yield* chats.update({ title: renamed.title, updatedAt }, { id: chatId })
+      if (!written) return yield* new ChatNotFoundError({ id: chatId })
+      return renamed
+    })
+
+    const updateTitle = Effect.fn('ChatService.updateTitle')(function* (
+      chatId: ChatId,
+      title: ChatTitle,
+    ) {
+      const written = yield* chats.update(
+        { title: Option.some(title) },
+        { id: chatId, title: Option.none() },
+      )
+      if (written) return
+
+      // Read only to name the refusal: the write above already decided it.
+      const found = yield* chats.selectOne({ id: chatId })
+      return yield* Option.match(found, {
+        onNone: () => new ChatNotFoundError({ id: chatId }),
+        onSome: () => new ChatTitledError({ id: chatId }),
+      })
+    })
+
+    const remove = Effect.fn('ChatService.delete')(function* (userId: UserId, chatId: ChatId) {
+      yield* findOwnedChat(userId, chatId)
+      yield* chats.delete(chatId)
+    })
+
+    const findSendable = Effect.fn('ChatService.findSendable')(function* (
+      userId: UserId,
+      chatId: ChatId,
+      input: MessageInput,
+    ) {
+      yield* ensureMessageInput(input)
+      yield* findOwnedChat(userId, chatId)
+
+      const active = yield* messages.selectActiveByChat(chatId)
+      yield* ensureChatAcceptsMessage(active)
+
+      const opened = yield* messages.existsByChat(chatId)
+      const at = yield* DateTime.now
+      return new SendableChat({ chatId, input, opensChat: !opened, at })
+    })
+
+    return {
+      create,
+      list,
+      get,
+      rename,
+      updateTitle,
+      delete: remove,
+      findSendable,
+    }
+  }),
+}) {
+  static readonly layer = Layer.effect(this, this.make)
+}

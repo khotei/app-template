@@ -6,8 +6,10 @@ import {
   Layer,
   type LogLevel,
   type Option,
+  type Redacted,
   References,
   Schema,
+  Struct,
 } from 'effect'
 
 export class ApiConfig extends Context.Service<ApiConfig, { readonly port: number }>()(
@@ -22,10 +24,11 @@ export class WebConfig extends Context.Service<WebConfig, { readonly port: numbe
   static readonly layer = Layer.effect(this, Config.all({ port: Config.Port('WEB_PORT') }))
 }
 
-export class StoreConfig extends Context.Service<StoreConfig, { readonly path: string }>()(
-  '@app-template/config/StoreConfig',
-) {
-  static readonly layer = Layer.effect(this, Config.all({ path: Config.String('STORE_PATH') }))
+export class DatabaseConfig extends Context.Service<
+  DatabaseConfig,
+  { readonly url: Redacted.Redacted }
+>()('@app-template/config/DatabaseConfig') {
+  static readonly layer = Layer.effect(this, Config.all({ url: Config.Redacted('DATABASE_URL') }))
 }
 
 /** `endpoint` is set for MiniStack and absent on AWS; credentials stay with the SDK's own chain. */
@@ -40,6 +43,17 @@ export class AwsConfig extends Context.Service<
       endpoint: Config.option(Config.URL('AWS_ENDPOINT_URL')),
       stage: Config.String('STAGE'),
     }),
+  )
+}
+
+/** The local stand only: the host port MiniStack gives its first RDS instance. */
+export class MiniStackConfig extends Context.Service<
+  MiniStackConfig,
+  { readonly rdsBasePort: number }
+>()('@app-template/config/MiniStackConfig') {
+  static readonly layer = Layer.effect(
+    this,
+    Config.all({ rdsBasePort: Config.Port('RDS_BASE_PORT') }),
   )
 }
 
@@ -77,6 +91,9 @@ const queueConfig = Config.all({
   lockRefreshInterval: Config.Duration('QUEUE_LOCK_REFRESH_INTERVAL').pipe(
     Config.withDefault(Duration.seconds(5)),
   ),
+  outboxPollInterval: Config.Duration('OUTBOX_POLL_INTERVAL').pipe(
+    Config.withDefault(Duration.seconds(1)),
+  ),
 }).pipe(
   Effect.filterOrFail(
     isLockRefreshBeforeExpiration,
@@ -90,12 +107,14 @@ export class QueueConfig extends Context.Service<
   {
     readonly lockExpiration: Duration.Duration
     readonly lockRefreshInterval: Duration.Duration
+    readonly outboxPollInterval: Duration.Duration
   }
 >()('@app-template/config/QueueConfig') {
   static readonly layer = Layer.effect(this, queueConfig)
 }
 
-export const MinimumLogLevelFromConfig = Layer.effect(
-  References.MinimumLogLevel,
-  Effect.map(RuntimeConfig, (config) => config.logLevel),
-).pipe(Layer.provide(RuntimeConfig.layer))
+export const MinimumLogLevelFromConfig = RuntimeConfig.pipe(
+  Effect.map(Struct.get('logLevel')),
+  Layer.effect(References.MinimumLogLevel),
+  Layer.provide(RuntimeConfig.layer),
+)

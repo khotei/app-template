@@ -26,7 +26,7 @@ module), the ticket folder, the step ids and commits, the reader profile, and th
    `Effect<A, E, R>` from its signature. Trace each `Layer`: what it provides, what it requires,
    where the chain reaches the runtime.
 4. **Read the rules the code obeys** from disk: `.claude/rules/effect*.md`, `naming.md`,
-   `use-cases.md`, and the `CLAUDE.md` of each touched workspace. They explain why a shape is the
+   `layering.md`, and the `CLAUDE.md` of each touched workspace. They explain why a shape is the
    way it is.
 5. **Write the report** in the format and order `REPORT.md` fixes, in Russian, with identifiers as
    in the code and `path:line` under every claim.

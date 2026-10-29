@@ -10,6 +10,7 @@
     { "path": "../packages/aws" },
     { "path": "../packages/config" },
     { "path": "../packages/queue" },
+    { "path": "../packages/s3" },
     { "path": "../packages/testing" }
   ]
 }

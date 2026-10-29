@@ -1,0 +1,231 @@
+import type { Casing } from '~/casing.ts';
+import type { BuildColumns, ColumnBuilderBase } from '~/column-builder.ts';
+import { entityKind, is } from '~/entity.ts';
+import type { TypedQueryBuilder } from '~/query-builders/query-builder.ts';
+import type { AddAliasToSelection } from '~/query-builders/select.types.ts';
+import { SelectionProxyHandler } from '~/selection-proxy.ts';
+import type { ColumnsSelection, SQL } from '~/sql/sql.ts';
+import { getTableColumns } from '~/utils.ts';
+import type { UpdateViewConfig, ViewConfig } from '~/view.ts';
+import type { SQLiteColumn } from './columns/common.ts';
+import { QueryBuilder } from './query-builders/query-builder.ts';
+import { sqliteTableBase } from './table.ts';
+import { SQLiteViewBase } from './view-base.ts';
+
+export interface ViewBuilderConfig {
+	algorithm?: 'undefined' | 'merge' | 'temptable';
+	definer?: string;
+	sqlSecurity?: 'definer' | 'invoker';
+	withCheckOption?: 'cascaded' | 'local';
+}
+
+export class ViewBuilderCore<
+	TConfig extends { name: string; columns?: unknown },
+> {
+	static readonly [entityKind]: string = 'SQLiteViewBuilderCore';
+	static [Symbol.hasInstance](value: unknown): boolean {
+		return is(value, this);
+	}
+
+	declare readonly _: {
+		readonly name: TConfig['name'];
+		readonly columns: TConfig['columns'];
+	};
+
+	constructor(
+		protected name: TConfig['name'],
+	) {}
+
+	protected config: ViewBuilderConfig = {};
+}
+
+export class ViewBuilder<TName extends string = string> extends ViewBuilderCore<{ name: TName }> {
+	static override readonly [entityKind]: string = 'SQLiteViewBuilder';
+
+	as<TSelection extends ColumnsSelection>(
+		qb: TypedQueryBuilder<TSelection> | ((qb: QueryBuilder) => TypedQueryBuilder<TSelection>),
+	): SQLiteViewWithSelection<
+		{
+			name: TName;
+			schema: undefined;
+			existing: false;
+			isAlias: false;
+			selectedFields: AddAliasToSelection<TSelection, TName, 'sqlite'>;
+		}
+	> {
+		if (typeof qb === 'function') {
+			qb = qb(new QueryBuilder());
+		}
+		const selectionProxy = new SelectionProxyHandler<TSelection>({
+			alias: this.name,
+			sqlBehavior: 'error',
+			sqlAliasedBehavior: 'alias',
+			replaceOriginalName: true,
+		});
+		// const aliasedSelectedFields = new Proxy(qb.getSelectedFields(), selectionProxy);
+		const aliasedSelectedFields = qb.getSelectedFields();
+		return new Proxy(
+			new SQLiteView({
+				// sqliteConfig: this.config,
+				config: {
+					name: this.name,
+					schema: undefined,
+					selectedFields: aliasedSelectedFields,
+					query: qb.getSQL().inlineParams(),
+				},
+			}),
+			selectionProxy as any,
+		) as SQLiteViewWithSelection<
+			{
+				name: TName;
+				schema: undefined;
+				existing: false;
+				isAlias: false;
+				selectedFields: AddAliasToSelection<TSelection, TName, 'sqlite'>;
+			}
+		>;
+	}
+}
+
+export class ManualViewBuilder<
+	TName extends string = string,
+	TColumns extends Record<string, ColumnBuilderBase> = Record<string, ColumnBuilderBase>,
+> extends ViewBuilderCore<
+	{ name: TName; columns: TColumns }
+> {
+	static override readonly [entityKind]: string = 'SQLiteManualViewBuilder';
+
+	private columns: Record<string, SQLiteColumn>;
+
+	constructor(
+		name: TName,
+		columns: TColumns,
+		casing: Casing | undefined,
+	) {
+		super(name);
+		this.columns = getTableColumns(sqliteTableBase(name, columns, undefined, undefined, casing)) as BuildColumns<
+			TName,
+			TColumns,
+			'sqlite'
+		>;
+	}
+
+	existing(): SQLiteViewWithSelection<
+		{
+			name: TName;
+			schema: undefined;
+			existing: true;
+			isAlias: false;
+			selectedFields: BuildColumns<TName, TColumns, 'sqlite'>;
+		}
+	> {
+		return new Proxy(
+			new SQLiteView({
+				config: {
+					name: this.name,
+					schema: undefined,
+					selectedFields: this.columns,
+					query: undefined,
+				},
+			}),
+			new SelectionProxyHandler({
+				alias: this.name,
+				sqlBehavior: 'error',
+				sqlAliasedBehavior: 'alias',
+				replaceOriginalName: true,
+			}),
+		) as SQLiteViewWithSelection<
+			{
+				name: TName;
+				schema: undefined;
+				existing: true;
+				isAlias: false;
+				selectedFields: BuildColumns<TName, TColumns, 'sqlite'>;
+			}
+		>;
+	}
+
+	as(
+		query: SQL,
+	): SQLiteViewWithSelection<
+		{
+			name: TName;
+			schema: undefined;
+			existing: false;
+			isAlias: false;
+			selectedFields: BuildColumns<TName, TColumns, 'sqlite'>;
+		}
+	> {
+		return new Proxy(
+			new SQLiteView({
+				config: {
+					name: this.name,
+					schema: undefined,
+					selectedFields: this.columns,
+					query: query.inlineParams(),
+				},
+			}),
+			new SelectionProxyHandler({
+				alias: this.name,
+				sqlBehavior: 'error',
+				sqlAliasedBehavior: 'alias',
+				replaceOriginalName: true,
+			}),
+		) as SQLiteViewWithSelection<
+			{
+				name: TName;
+				schema: undefined;
+				existing: false;
+				isAlias: false;
+				selectedFields: BuildColumns<TName, TColumns, 'sqlite'>;
+			}
+		>;
+	}
+}
+
+export class SQLiteView<T extends ViewConfig = ViewConfig> extends SQLiteViewBase<T> {
+	static override readonly [entityKind]: string = 'SQLiteView';
+
+	constructor({ config }: {
+		config: {
+			name: T['name'];
+			schema: T['schema'];
+			selectedFields: ColumnsSelection;
+			query: SQL | undefined;
+		};
+	}) {
+		super(config);
+	}
+}
+
+export type SQLiteViewWithSelection<T extends ViewConfig> = SQLiteView<T> & T['selectedFields'];
+
+/**
+ * Any SQLite view with a specified boundary, e.g. `AnySQLiteView<{ name: 'my_view' }>`.
+ *
+ * To describe any view with any config, use `SQLiteView` without type arguments.
+ */
+export type AnySQLiteView<TPartial extends Partial<ViewConfig> = {}> = SQLiteView<
+	UpdateViewConfig<ViewConfig, TPartial>
+>;
+
+export interface SQLiteViewFn {
+	<TName extends string>(name: TName): ViewBuilder<TName>;
+	<TName extends string, TColumns extends Record<string, ColumnBuilderBase>>(
+		name: TName,
+		columns: TColumns,
+	): ManualViewBuilder<TName, TColumns>;
+}
+
+/** @internal */
+export function sqliteViewWithCasing(casing: Casing | undefined): SQLiteViewFn {
+	return ((name, columns) => {
+		if (columns) {
+			return new ManualViewBuilder(name, columns, casing);
+		}
+		return new ViewBuilder(name);
+	}) as SQLiteViewFn;
+}
+
+export const sqliteView = sqliteViewWithCasing(undefined);
+export const view = sqliteView;

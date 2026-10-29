@@ -1,0 +1,19 @@
+{
+  "name": "@app-template/s3",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "imports": {
+    "#s3/*": "./*.ts"
+  },
+  "dependencies": {
+    "@effect-aws/client-s3": "catalog:effect-aws",
+    "effect": "catalog:effect"
+  },
+  "devDependencies": {
+    "@app-template/testing": "workspace:*",
+    "@effect/vitest": "catalog:effect"
+  }
+}

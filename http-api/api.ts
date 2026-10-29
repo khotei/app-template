@@ -1,4 +1,4 @@
-import { HttpApi, OpenApi } from 'effect/http-api'
+import { HttpApi } from 'effect/http-api'
 
 import { AttachmentHttp } from '#http-api/attachment/attachment.http'
 import { ChatHttp } from '#http-api/chat/chat.http'
@@ -13,5 +13,4 @@ export class Api extends HttpApi.make('app-template')
   .add(ChatHttp)
   .add(AttachmentHttp)
   .middleware(SchemaErrors)
-  .annotate(HttpApi.ParseOptions, { errors: 'all' })
-  .annotateMerge(OpenApi.annotations({ title: 'App Template API' })) {}
+  .annotate(HttpApi.ParseOptions, { errors: 'all' }) {}

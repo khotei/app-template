@@ -7,7 +7,8 @@ Imperatives only. The explanations live in [docs/knowledge/tooling.md](../../doc
 - Run everything through `make <target>` (`make help` lists them). There is exactly one `Makefile`,
   at the root; never add one to a workspace.
 - `make check` must pass before a step is reported.
-- Typecheck with `make typecheck`; test with `make test`.
+- Typecheck with `make typecheck`. Test with `make test-unit` (`tests/`, no Docker), `make test-e2e`
+  (`e2e/`, Docker running, its own containers) or `make test`, both.
 
 ## Dependencies
 
@@ -20,11 +21,13 @@ Imperatives only. The explanations live in [docs/knowledge/tooling.md](../../doc
 
 ## Environment
 
-- Keep one root `.env`. List in `.env.example` only the variables the code reads, plus the ones a
-  client SDK reads from the environment itself; keep values for stubbed services commented out.
-- App scripts load the root file with `--env-file=../../.env`. Quote every `.env` value that
-  holds a space. Read settings only through the `@app-template/config` services' layers. Tests
-  never depend on `.env`.
+- Keep one hand-written root `.env`, plus `.env.pulumi`, which `make up` writes from the stack's
+  outputs; never edit or commit it. List in `.env.example` only the variables the code reads from
+  `.env`, plus the ones a client SDK reads from the environment itself; keep values for stubbed
+  services commented out.
+- App scripts load both, `--env-file=../../.env --env-file=../../.env.pulumi`. Quote every
+  `.env` value that holds a space. Read settings only through the `@app-template/config`
+  services' layers. Tests never depend on `.env`.
 
 ## Dev modes
 

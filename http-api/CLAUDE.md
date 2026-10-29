@@ -13,11 +13,12 @@ not a package: it is the system's boundary, specific to this app and used by two
   its `attachments`).
 - **`index.ts` re-exports each domain schema a payload names** (`ChatTitle`): `web` may not import
   the domain, so it builds a payload's brand through this entry.
-- **Statuses are set here, never in the domain:** `DomainError.pipe(HttpApiSchema.status(404))`
-  where an endpoint or middleware lists the error. Only HTTP's own errors (`shared/errors.ts`)
-  carry `httpApiStatus` on the class.
-- **No handlers.** They are `apps/api/src/<entity>/<entity>.handler.ts`.
+- **Statuses are set here, never in the domain:**
+  `ChatNotFoundError.pipe(HttpApiSchema.status(404))` where an endpoint or middleware lists the
+  error. Only HTTP's own errors (`shared/errors.ts`) carry `httpApiStatus` on the class.
+- **No handlers.** They are `apps/api/<entity>/<entity>.handler.ts`.
 - Layout: `shared/` for what every group uses, one `<entity>/<entity>.http.ts` per group, no
   per-entity barrels.
-- **Commit no spec file.** The spec is derived from `Api` at runtime, so a domain edit can change
-  the wire unseen: the api's HTTP tests assert the wire shapes.
+- **A domain schema edit is a contract edit.** DTOs reuse the domain's schemas, so the change
+  reaches the wire unseen: the api's handler tests check only what HTTP adds (statuses, the cookie,
+  the failed-reply wire shape).

@@ -1,0 +1,145 @@
+import type {
+	CheckConstraint,
+	Column,
+	ForeignKey,
+	Index,
+	InterimColumn,
+	PrimaryKey,
+	SQLiteDDL,
+	SqliteEntities,
+	UniqueConstraint,
+	View,
+	ViewColumn,
+} from '../dialects/sqlite/ddl';
+import { interimToDDL } from '../dialects/sqlite/ddl';
+import { ddlDiff } from '../dialects/sqlite/diff';
+import { fromDatabase as fd } from '../dialects/sqlite/introspect';
+// import { ddlToTypeScript as dtt } from '../dialects/sqlite/typescript';
+import { mockResolver } from '../utils/mocks';
+
+export type Interim<T> = Omit<T, 'entityType'>;
+
+export type InterimTable = {
+	name: string;
+	columns: Interim<InterimColumn>[];
+	indexes: Interim<Index>[];
+	checks: Interim<CheckConstraint>[];
+	uniques: Interim<UniqueConstraint>[];
+	pks: Interim<PrimaryKey>[];
+	fks: Interim<ForeignKey>[];
+};
+
+export type InterimView = {
+	name: string;
+	columns: Interim<Column>[];
+	definition: string | null;
+};
+
+export type InterimStudioSchema = {
+	tables: InterimTable[];
+	views: InterimView[];
+};
+
+const fromInterims = (tables: InterimTable[], views: InterimView[]) => {
+	const tbls: SqliteEntities['tables'][] = tables.map((it) => ({
+		entityType: 'tables',
+		name: it.name,
+	}));
+	const columns: InterimColumn[] = tables.map((table) => {
+		return table.columns.map((it) => {
+			return {
+				entityType: 'columns',
+				...it,
+			} satisfies InterimColumn;
+		});
+	}).flat(1);
+
+	const indexes: Index[] = tables.map((table) => {
+		return table.indexes.filter((it) => it.origin === 'manual').map((it) => {
+			return { entityType: 'indexes', ...it } satisfies Index;
+		});
+	}).flat(1);
+
+	const checks: CheckConstraint[] = tables.map((table) => {
+		return table.checks.map((it) => {
+			return { entityType: 'checks', ...it } satisfies CheckConstraint;
+		});
+	}).flat(1);
+	const uniques: UniqueConstraint[] = tables.map((table) => {
+		return table.uniques.map((it) => {
+			return { entityType: 'uniques', ...it } satisfies UniqueConstraint;
+		});
+	}).flat(1);
+	const fks: ForeignKey[] = tables.map((table) => {
+		return table.fks.map((it) => {
+			return { entityType: 'fks', ...it } satisfies ForeignKey;
+		});
+	}).flat(1);
+	const pks: PrimaryKey[] = tables.map((table) => {
+		return table.pks.map((it) => {
+			return { entityType: 'pks', ...it } satisfies PrimaryKey;
+		});
+	}).flat(1);
+
+	const vws: View[] = views.map((it) => {
+		return { entityType: 'views', isExisting: false, error: null, definition: it.definition, name: it.name };
+	});
+	const viewsToColumns: Record<string, ViewColumn[]> = views.reduce((acc, table) => {
+		acc[table.name] = table.columns.map((it) => {
+			return {
+				view: table.name,
+				...it,
+			} satisfies ViewColumn;
+		});
+		return acc;
+	}, {} as Record<string, ViewColumn[]>);
+
+	return {
+		tables: tbls,
+		columns: columns,
+		pks,
+		fks,
+		checks,
+		uniques,
+		indexes,
+		views: vws,
+		viewsToColumns,
+	};
+};
+
+export const studioSchemaToDDL = (schema: InterimStudioSchema) => {
+	const interimSchema = fromInterims(schema.tables, schema.views);
+	const { ddl, errors } = interimToDDL(interimSchema);
+
+	if (errors.length > 0) {
+		throw new Error(errors.map((it) => JSON.stringify(it)).join('\n'));
+	}
+
+	return ddl;
+};
+
+export const diffSqlite = async (
+	ddl1: SQLiteDDL,
+	ddl2: SQLiteDDL,
+	renamesArr: string[],
+) => {
+	const renames = new Set(renamesArr);
+
+	const { sqlStatements, statements, groupedStatements } = await ddlDiff(
+		ddl1,
+		ddl2,
+		mockResolver(renames),
+		mockResolver(renames),
+		'default',
+	);
+
+	return { sqlStatements, statements, groupedStatements };
+};
+
+export const fromDatabase = fd;
+
+// export const ddlToTypeScript = (schema: InterimStudioSchema) => {
+// 	const interimSchema = fromInterims(schema.tables, schema.views);
+// 	const { ddl } = interimToDDL(interimSchema);
+// 	return dtt(ddl, 'camel', interimSchema.viewsToColumns, 'sqlite');
+// };
