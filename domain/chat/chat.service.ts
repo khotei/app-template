@@ -108,7 +108,7 @@ export class ChatService extends Context.Service<
     const getMessage = Effect.fn('ChatService.getMessage')(
       (userId: UserId, chatId: ChatId, messageId: MessageId) =>
         messages
-          .selectDetail({ id: messageId, chatId, userId })
+          .selectOne({ id: messageId, chatId, userId })
           .pipe(
             Effect.flatMap(Effect.fromOption(() => new MessageNotFoundError({ id: messageId }))),
           ),

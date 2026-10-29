@@ -55,11 +55,11 @@ const attachment = (id: string, seconds: number) =>
     createdAt: at(seconds),
   })
 
-const SelectedMessage = Schema.Option(Message)
-
 const Detail = Schema.Struct({ message: Message, attachments: Schema.Array(Attachment) })
 
 const Details = Schema.Array(Detail)
+
+const SelectedDetail = Schema.Option(Detail)
 
 /** Uploads the attachments, then binds them to the message, as a send does. */
 const bindAttachments = (attachments: ReadonlyArray<Attachment>, message: Message) =>
@@ -94,35 +94,23 @@ describe('MessageRepositoryPg', () => {
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
-  it.effect(
-    "selectOne and selectDetail read another chat's message or a stranger's chat's as none",
-    () =>
-      Effect.gen(function* () {
-        const messages = yield* MessageRepository
-        const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-00000000004c')
-        const other = ChatId.make('0192d4e0-7b3a-7c00-8000-00000000004d')
-        const strangerId = UserId.make('0192d4e0-7b3a-7c00-8000-000000000011')
-        const question = userMessage('0192d4e0-7b3a-7c00-8000-00000000005e', { chatId })
-        yield* insertOwnedChats(userId, [chatId, other])
-        yield* messages.insert(question)
+  it.effect("selectOne reads another chat's message or a stranger's chat's as none", () =>
+    Effect.gen(function* () {
+      const messages = yield* MessageRepository
+      const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-00000000004c')
+      const other = ChatId.make('0192d4e0-7b3a-7c00-8000-00000000004d')
+      const strangerId = UserId.make('0192d4e0-7b3a-7c00-8000-000000000011')
+      const question = userMessage('0192d4e0-7b3a-7c00-8000-00000000005e', { chatId })
+      yield* insertOwnedChats(userId, [chatId, other])
+      yield* messages.insert(question)
 
-        const owned = yield* messages.selectOne({ id: question.id, chatId, userId })
-        const ownedDetail = yield* messages.selectDetail({ id: question.id, chatId, userId })
-        const elsewhere = yield* messages.selectOne({ id: question.id, chatId: other })
-        const foreign = yield* messages.selectOne({ id: question.id, userId: strangerId })
-        const foreignDetail = yield* messages.selectDetail({ id: question.id, userId: strangerId })
+      const owned = yield* messages.selectOne({ id: question.id, chatId, userId })
+      const elsewhere = yield* messages.selectOne({ id: question.id, chatId: other })
+      const foreign = yield* messages.selectOne({ id: question.id, userId: strangerId })
 
-        assertSchemaEquals(SelectedMessage, owned, Option.some(question))
-        assertSchemaEquals(
-          Schema.Option(Detail),
-          ownedDetail,
-          Option.some({ message: question, attachments: [] }),
-        )
-        assert.deepStrictEqual(
-          [elsewhere, foreign, foreignDetail],
-          [Option.none(), Option.none(), Option.none()],
-        )
-      }).pipe(Effect.provide(RepositoryStackPgTest)),
+      assertSchemaEquals(SelectedDetail, owned, Option.some({ message: question, attachments: [] }))
+      assert.deepStrictEqual([elsewhere, foreign], [Option.none(), Option.none()])
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
   it.effect('existsByChat answers whether the chat has a message', () =>
@@ -292,9 +280,9 @@ describe('MessageRepositoryPg', () => {
 
       assert.isTrue(Exit.hasDies(exit))
       assertSchemaEquals(
-        SelectedMessage,
+        SelectedDetail,
         yield* messages.selectOne({ id: generating.id }),
-        Option.some(generating),
+        Option.some({ message: generating, attachments: [] }),
       )
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
@@ -369,8 +357,8 @@ describe('MessageRepositoryPg', () => {
       yield* bindAttachments([secondUploaded, firstUploaded], question)
 
       assertSchemaEquals(
-        Schema.Option(Detail),
-        yield* messages.selectDetail({ id: question.id }),
+        SelectedDetail,
+        yield* messages.selectOne({ id: question.id }),
         Option.some(inUploadOrder),
       )
       assertSchemaEquals(Details, yield* messages.selectMany({ chatId: [chatId] }), [inUploadOrder])

@@ -1,6 +1,18 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Cause, DateTime, Effect, Exit, Fiber, HashMap, Layer, Option, Ref, Stream } from 'effect'
+import {
+  Cause,
+  DateTime,
+  Effect,
+  Exit,
+  Fiber,
+  HashMap,
+  Layer,
+  Option,
+  Ref,
+  Stream,
+  Struct,
+} from 'effect'
 import { TestClock } from 'effect/testing'
 
 import {
@@ -110,7 +122,9 @@ const insertAttachment = (attachment: Attachment, bytes: 'stored' | 'lost' = 'st
     yield* bucket.insert(attachment.id, Stream.make(png), attachment)
   })
 
-const selectReply = MessageRepository.use((messages) => messages.selectOne({ id: messageId }))
+const selectReply = MessageRepository.use((messages) =>
+  messages.selectOne({ id: messageId }).pipe(Effect.map(Option.map(Struct.get('message')))),
+)
 
 // Another writer's settle, landing in the rows behind the use case's back.
 const settleElsewhere = MessageRows.use((rows) =>

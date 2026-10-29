@@ -1,6 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Effect, Exit, Fiber, Layer, Option } from 'effect'
+import { Effect, Exit, Fiber, Layer, Option, Struct } from 'effect'
 
 import { AssistantMessageTest, selectChat } from '@app-template/application/testing'
 import {
@@ -54,7 +54,9 @@ const job = new GenerateAssistantMessage({ chatId, messageId })
 
 const insertReply = (reply: Message) => MessageRepository.use((messages) => messages.insert(reply))
 
-const selectReply = MessageRepository.use((messages) => messages.selectOne({ id: messageId }))
+const selectReply = MessageRepository.use((messages) =>
+  messages.selectOne({ id: messageId }).pipe(Effect.map(Option.map(Struct.get('message')))),
+)
 
 const deleteChat = ChatRepository.use((chats) => chats.delete(chatId))
 

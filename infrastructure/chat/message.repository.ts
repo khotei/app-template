@@ -12,7 +12,6 @@ import { MessageDetailFromRow } from '#infrastructure/attachment/attachment.enti
 import {
   activeMessage,
   inCreationOrder,
-  MessageFromRow,
   MessageInsert,
   messages,
   withAttachments,
@@ -71,13 +70,6 @@ export const MessageRepositoryPg = Layer.effect(
           .pipe(orDieOnNoRows(`message ${message.id} was not updated`))
       }, orDieWithSqlError),
       selectOne: Effect.fn('MessageRepository.selectOne')(
-        (where) =>
-          db.query.messages
-            .findFirst({ where: filterOf(where) })
-            .pipe(Effect.flatMap(decodeOptionalRow(MessageFromRow))),
-        orDieWithSqlError,
-      ),
-      selectDetail: Effect.fn('MessageRepository.selectDetail')(
         (where) =>
           db.query.messages
             .findFirst({ where: filterOf(where), with: withAttachments })

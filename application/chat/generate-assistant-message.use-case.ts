@@ -1,4 +1,4 @@
-import { Array as Arr, Cause, Context, DateTime, Effect, Layer, Option } from 'effect'
+import { Array as Arr, Cause, Context, DateTime, Effect, Layer, Option, Struct } from 'effect'
 
 import { type Attachment, AttachmentBucket } from '@app-template/domain/attachment'
 import {
@@ -96,7 +96,9 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
       job: GenerateAssistantMessage,
     ) {
       // The cascade takes the message with its chat, so a missing one means a deleted chat.
-      const stored = yield* messages.selectOne({ id: job.messageId, chatId: job.chatId })
+      const stored = yield* messages
+        .selectOne({ id: job.messageId, chatId: job.chatId })
+        .pipe(Effect.map(Option.map(Struct.get('message'))))
       if (Option.isNone(stored)) return yield* replySkipLogs.chatDeleted
       if (!isActiveMessage(stored.value)) return yield* replySkipLogs.alreadySettled
 
@@ -107,7 +109,9 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
       messageId: MessageId,
       cause: Cause.Cause<unknown>,
     ) {
-      const stored = yield* messages.selectOne({ id: messageId })
+      const stored = yield* messages
+        .selectOne({ id: messageId })
+        .pipe(Effect.map(Option.map(Struct.get('message'))))
       if (Option.isNone(stored)) return yield* skipped('chatDeleted')
       if (!isActiveMessage(stored.value)) return yield* skipped('alreadySettled')
 

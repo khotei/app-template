@@ -30,8 +30,7 @@ export class MessageRepository extends Context.Service<
     readonly insert: (message: Message) => Effect.Effect<void>
     /** Writes `message` only while the stored one matches `where`; dies when it writes nothing. */
     readonly update: (message: Message, where: MessageWhere) => Effect.Effect<void>
-    readonly selectOne: (where: MessageOneWhere) => Effect.Effect<Option.Option<Message>>
-    readonly selectDetail: (where: MessageOneWhere) => Effect.Effect<Option.Option<MessageDetail>>
+    readonly selectOne: (where: MessageOneWhere) => Effect.Effect<Option.Option<MessageDetail>>
     readonly existsByChat: (chatId: ChatId) => Effect.Effect<boolean>
     /** Returns the rows where `where` holds in creation order, a tie broken by id. */
     readonly selectMany: (where: MessageManyWhere) => Effect.Effect<ReadonlyArray<MessageDetail>>

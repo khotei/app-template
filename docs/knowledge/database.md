@@ -102,13 +102,12 @@ const rows = yield* db.query.messages.findMany({
 // rows: [{ id, chatId, …, attachments: [{ id, userId, messageId, … }] }]
 ```
 
-A read model is composed where it is answered: a repository reads a `MessageDetail` in one
-relational query (the message `with` its attachments; `selectMany` always reads them), while
-`ChatService` builds `ChatSummary` and `ChatDetail` from the reads of two ports (`selectByUser`
-or `selectOne`, then `selectMany`), so a chat read stays one table. The service picks the active
-message with `Arr.findFirst(isActiveMessage)`, a narrowing no schema types. A model holds no
-field that another table holds: `Message` has no attachments, which reach the reader as a
-`MessageDetail`.
+A read model is composed where it is answered: `MessageRepository.selectOne` and `selectMany`
+always read a `MessageDetail`, the message `with` its attachments in one relational query, while
+`ChatService` builds `ChatSummary` and `ChatDetail` from a read of the chats, then one of their
+messages, so a chat read stays one table. The service picks the active message with
+`Arr.findFirst(isActiveMessage)`, a narrowing no schema types. A model holds no field that
+another table holds: `Message` has no attachments, which reach the reader as a `MessageDetail`.
 
 ## Repositories
 

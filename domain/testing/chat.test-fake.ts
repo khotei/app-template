@@ -234,12 +234,6 @@ export const MessageRepositoryTest = Layer.effect(
         Effect.map(readTables, (tables) =>
           HashMap.get(tables.messages, where.id).pipe(
             Option.filter(holdsMessageWhere(tables, where)),
-          ),
-        ),
-      selectDetail: (where) =>
-        Effect.map(readTables, (tables) =>
-          HashMap.get(tables.messages, where.id).pipe(
-            Option.filter(holdsMessageWhere(tables, where)),
             Option.map(detailOf(tables.attachments)),
           ),
         ),

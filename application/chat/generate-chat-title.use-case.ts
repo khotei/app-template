@@ -30,7 +30,7 @@ export class GenerateChatTitleUseCase extends Context.Service<
       const first = yield* messages.selectOne({ id: job.messageId })
       if (Option.isNone(first)) return yield* titleSkipLogs.chatDeleted
 
-      const title = yield* assistant.suggestTitle(first.value.text)
+      const title = yield* assistant.suggestTitle(first.value.message.text)
       if (Option.isNone(title)) return yield* titleSkipLogs.nothingToTitle
 
       yield* chatService.updateTitle(job.chatId, title.value).pipe(
