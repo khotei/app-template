@@ -38,8 +38,8 @@ graph LR
 | 3 | [`chat-core`](#3-chat-core) | `feat` | 1 | done: [docs/tickets/2026-10-17-1748_chat-core/](../tickets/2026-10-17-1748_chat-core/feature.md) |
 | 4 | [`postgres-drizzle`](#4-postgres-drizzle) | `feat` | 3 | in progress: [docs/tickets/2026-10-22-1915_postgres-drizzle/](../tickets/2026-10-22-1915_postgres-drizzle/feature.md) |
 | 5 | [`aws-local`](#5-aws-local) | `feat` | 3 | done: [docs/tickets/2026-10-19-1448_aws-local/](../tickets/2026-10-19-1448_aws-local/feature.md) |
-| 6 | [`llm-providers`](#6-llm-providers) | `feat` | 5 | planned |
-| 7 | [`web-app`](#7-web-app) | `feat` | 3 (6 for assistant attachments and an SSE tail) | planned |
+| 6 | [`llm-providers`](#6-llm-providers) | `feat` | 5 | in progress: [docs/tickets/2026-10-29-1435_llm-providers/](../tickets/2026-10-29-1435_llm-providers/feature.md) |
+| 7 | [`web-app`](#7-web-app) | `feat` | 3 (18 for assistant attachments) | planned |
 | 8 | [`observability`](#8-observability) | `feat` | 3 | planned |
 | 9 | [`aws-deployment`](#9-aws-deployment) | `feat` | 4, 5 | planned |
 | 10 | [`client-publishing`](#10-client-publishing) | `chore` | 3 | planned |
@@ -50,6 +50,10 @@ graph LR
 | 15 | [`architecture-audit`](#15-architecture-audit) | `refactor` | 4 | in progress: [docs/tickets/2026-10-27-1433_architecture-audit/](../tickets/2026-10-27-1433_architecture-audit/feature.md) |
 | 16 | [`shared-files`](#16-shared-files) | `feat` | 15 | planned |
 | 17 | [`docs-diet`](#17-docs-diet) | `docs` | 15 | planned |
+| 18 | [`assistant-files`](#18-assistant-files) | `feat` | 6 | planned |
+| 19 | [`openai-provider`](#19-openai-provider) | `feat` | 6 | planned |
+| 20 | [`context-window`](#20-context-window) | `feat` | 6 | planned |
+| 21 | [`bedrock-provider`](#21-bedrock-provider) | `feat` | 6, 9 | planned |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; its remaining work is re-homed
 in [Re-homing `effect-setup`](#re-homing-effect-setup).
@@ -250,6 +254,11 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   one recorded provider round trip.
 - **Out of scope.** Google and Bedrock (v3-only providers); agents and tool-use beyond what
   attachments need.
+- **Narrowed at its feature phase (2026-10-29).** Anthropic only, one structured reply per
+  request with follow-ups, no streaming; OpenAI, files, history trimming, token and cost
+  accounting, budgets and the recorded round trip moved to 18–20 or were dropped, and the SSE
+  tail moved to `web-app` (7). See the ticket's `feature.md › Out of scope`.
+- **Status.** In progress: [docs/tickets/2026-10-29-1435_llm-providers/](../tickets/2026-10-29-1435_llm-providers/feature.md).
 - **Open questions for its feature phase.** Placeholder syntax; which model produces files in the
   template demo; token and cost accounting per chat; whether the reply streams through the worker
   (see 3).
@@ -283,6 +292,10 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   assistant message until its stage is terminal, since the api streams nothing and the worker
   writes snapshots; an SSE tail is `llm-providers`' (6) open question, so this ticket depends on
   3 alone for the reply and the upload, and on 6 only for assistant attachments and placeholders.
+- **Re-read against `llm-providers` (2026-10-29).** The reply now arrives whole: no snapshots, so
+  the client polls until the message is terminal and shows its text and follow-ups at once. The
+  SSE tail is this ticket's to decide, if it still earns its place. Assistant attachments and
+  placeholders moved to `assistant-files` (18).
   The visitor cookie is the user cookie of `chat-core`'s `CurrentUser` security.
 - **Inherited from `architecture-audit`.** `make bundle-check` builds `apps/web/app/main.ts` with
   `bun build` and greps the bundle for service keys ending in `Service`, `Repository`, `Bucket` or
@@ -442,7 +455,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   today, so the words come first); upload, list and delete of pool files; linking at send and to
   a chat; what the reply reads when a chat has linked files; the `shared-files` migration of
   today's `attachments` rows.
-- **Out of scope.** Sharing between users; assistant-produced files (`llm-providers`, 6).
+- **Out of scope.** Sharing between users; assistant-produced files (`assistant-files`, 18).
 - **Inherits from `architecture-audit` (2026-10-27).** A file lives as long as its owner needs it:
   no expiry of unlinked files, so the 24-hour unbound lifetime and the `unbound` S3 tag go.
 - **Open questions for its feature phase.** Whether one file may be linked to several messages;
@@ -460,6 +473,101 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Inherits from `architecture-audit` (2026-10-29).** `make doc-names` keeps the names the docs
   keep true, but not whether a true name restates the code: that judgement is this ticket's. Most
   review rounds of that ticket's last steps fixed copies of code names gone stale.
+- **Status.** Planned.
+
+### 18. `assistant-files`
+
+- **Goal.** Files the way the Claude apps handle them: the user attaches Word, Excel, PowerPoint,
+  CSV, Markdown, images and PDF; the assistant reads them and produces Word, Excel, PowerPoint,
+  PDF, CSV and PNG files, shown in its text through placeholders.
+- **Scope.** Anthropic's code execution tool with its `docx`, `xlsx`, `pptx`, `pdf` Skills and the
+  Files API; uploading a user's file into the container; downloading produced files into S3 as
+  attachments of the assistant message; the placeholder syntax; the `pause_turn` continuation;
+  deleting files at Anthropic once copied; the stub producing a file for dev and e2e; audio by a
+  speech-to-text service.
+- **Out of scope.** Providers other than Anthropic.
+- **Open questions for its feature phase.** One container per chat or per reply; which files go
+  to the model natively (images, PDF, text) and which through the container; how to send a
+  `container_upload` block that `@effect/ai-anthropic` 4.0.6 cannot express (a local patch with
+  an upstream PR, an own HTTP call, or converting on our side); the speech-to-text service
+  (AWS Transcribe or another provider); retention, since code execution and the Files API are not
+  zero-data-retention eligible.
+- **Facts (2026-10-29).** Code execution, the Files API and Skills are GA, no beta header; Skills
+  go in the request's `container.skills`; produced files are those written to `$OUTPUT_DIR` and
+  come back as file ids in `bash_code_execution_tool_result`, downloaded with
+  `GET /v1/files/{id}/content`; containers live 30 days; code execution costs $0.05 per container
+  hour past 1 550 free hours a month per organisation, five minutes minimum, billed whenever a
+  request holds files. `.docx` and `.xlsx` are not accepted by any message block, and no Claude
+  model takes audio. `@effect/ai-anthropic` 4.0.6 passes `container` through its `Config` and
+  surfaces tool results with file ids, but its prompt converter rejects any media type but
+  images, PDF and text and has no `container_upload`; its generated Files API calls are awkward
+  for binary uploads.
+- **Facts on AWS (2026-10-29).** Claude on Bedrock has no code execution, Files API, Skills, web
+  search or Message Batches. Bedrock Converse `DocumentBlock` takes `docx`, `xlsx`, `csv`, `md`,
+  `html` (how they are converted is undocumented). Bedrock Knowledge Bases answer with retrieved
+  chunks, need an ingestion job and create no file: a fit for `shared-files` (16), not for a
+  message's attachment. Amazon Quick's Microsoft 365 extensions are Office add-ins with no
+  backend API. Bedrock Data Automation reads DOCX (as PDF), PDF, images and audio up to
+  240 minutes, not `xlsx` or `pptx`, and creates no file. AgentCore Code Interpreter is the AWS
+  way to create files (inline upload up to 100 MB, sessions up to 8 hours, $0.0895 per vCPU hour),
+  driven by a tool loop we write. Claude Platform on AWS is Anthropic-run, billed through AWS,
+  and has code execution, the Files API and Skills; its client is beta. MiniStack emulates
+  Transcribe (canned transcript) and Knowledge Bases (lexical search), not Data Automation or the
+  Code Interpreter.
+- **Status.** Planned.
+
+### 19. `openai-provider`
+
+- **Goal.** OpenAI as a second value of the provider setting, behind the same structured reply.
+- **Scope.** `@effect/ai-openai` layers; the reply and title schemas through OpenAI's structured
+  output; its error mapping (a 429 for an exhausted quota is `QuotaExhaustedError`, not a rate
+  limit).
+- **Facts (2026-10-29).** `@effect/ai-openai@4.0.6` peers `effect ^4.0.6` and targets the Responses
+  API; it rejects `text/plain` files and silently drops a PDF given as a plain base64 string, and
+  OpenAI caps a request at 50 MB of files.
+- **Status.** Planned.
+
+### 20. `context-window`
+
+- **Goal.** A long chat keeps answering: the history sent to the model is trimmed to the model's
+  context window instead of failing every reply once it outgrows it.
+- **Scope.** Dropping the oldest messages whole, never splitting one, always keeping the system
+  prompt and the newest user message; failing with a user-facing reason when even that does not
+  fit; counting tokens of attachments.
+- **Facts (2026-10-29).** `effect/ai` `Tokenizer.truncate` drops the oldest messages whole but
+  does not protect the system message; no provider package implements `Tokenizer`, so counting
+  is ours (a heuristic or Anthropic's token-counting endpoint). An overlong prompt is a 400
+  `InvalidRequestError` with no special mapping.
+- **Status.** Planned.
+
+### 21. `bedrock-provider`
+
+- **Goal.** Claude on Amazon Bedrock as a third value of the provider setting, so a deployed
+  project pays through its AWS bill and the worker authenticates with its IAM role instead of an
+  API key.
+- **Scope.** `@effect/ai-anthropic` against Bedrock's Anthropic Messages endpoint
+  (`bedrock-mantle.<region>.api.aws/anthropic`) with a SigV4-signing `HttpClient` over the default
+  credential chain; explicit cache points instead of the automatic top-level cache; a request
+  timeout of at least two minutes for the first compile of a new schema; the IAM permission
+  `bedrock-mantle:CreateInference` and model access in `aws-deployment` (9); the error mapping
+  of Bedrock's gateway errors and its rate limits.
+- **Out of scope.** Converse and `InvokeModel`; Bedrock-only services (Knowledge Bases, Data
+  Automation, AgentCore), which belong to `assistant-files` (18) or `shared-files` (16).
+- **Open questions for its feature phase.** Whether the endpoint accepts the provider's
+  `?beta=true` query; how throttling surfaces and whether a wait is given; effort and thinking
+  support; the global route or a regional profile (+10%).
+- **Facts (2026-10-29).** `@effect/ai-amazon-bedrock` is Effect v3 only (0.17.0);
+  `@effect-aws/client-bedrock-runtime@2.0.0` fits Effect 4 but is a client, not a
+  `LanguageModel`. The endpoint takes the first-party request body; model ids
+  `anthropic.claude-sonnet-5-5`, `anthropic.claude-haiku-5-5`. Structured output works through
+  `output_config.format` (at most 12 optional and 16 union-typed properties, no length or range
+  bounds, about 90 s to compile a new schema). The same model specs as Anthropic's (1M context,
+  128K output); not supported: code execution, web tools, Files API, Skills, Message Batches,
+  automatic prompt caching. Default quota 2M input tokens a minute, up to 5M on request.
+  Billed through AWS Marketplace; the global route has no premium, regional profiles +10%;
+  per-token prices were not readable from aws.amazon.com/bedrock/pricing and need the AWS
+  calculator. MiniStack 1.5.31 emulates Bedrock Runtime with canned replies that fail a schema
+  and does not emulate the Messages endpoint, so local runs stay on the stub.
 - **Status.** Planned.
 
 ## Re-homing `effect-setup`

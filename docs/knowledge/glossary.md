@@ -29,9 +29,9 @@ _Avoid_: Prompt, reply, completion, turn
 
 **Message stage**:
 Where an assistant message is in its life: `queued` (the chat has asked for it), `preparing`
-(the assistant is reading the chat), `generating` (the assistant is writing; the text grows),
-`completed`, or `failed` (the assistant gave up; the message carries a reason). The last two are
-terminal.
+(the assistant is reading the chat), `generating` (the assistant is writing; the text appears
+whole when it is done), `completed`, or `failed` (the assistant gave up; the message carries a
+reason). The last two are terminal.
 _Avoid_: State, status, in-progress, pending, streaming
 
 **Active message**:
@@ -43,6 +43,11 @@ _Avoid_: Chat status, pending message, current reply
 The short name of a chat, shown in the user's chat list. The assistant proposes one from the
 first message unless the user has already set one; a user's title is never overwritten.
 _Avoid_: Name, subject, summary
+
+**Follow-up**:
+A question the assistant suggests the user may ask next, carried by an assistant message beside
+its text; at most three per message.
+_Avoid_: Suggestion, next question, quick reply, prompt
 
 **Attachment**:
 A file a user uploaded, or one produced for an assistant message. A user's attachment is bound
