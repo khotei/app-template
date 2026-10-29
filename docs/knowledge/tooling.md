@@ -46,9 +46,13 @@ Tests run on vitest 5, on the Bun runtime (`bun --bun`), so `Bun.serve` and the 
 inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`, `it.layer`,
 `TestClock`) needs vitest.
 
-- **Unit and e2e.** A unit test runs the real domain services, use cases and handlers over the
-  memory layers of the ports and needs no process outside vitest; an e2e test proves an adapter,
-  a use case's transaction or the journey on the run's containers. Which test goes where:
+- **Unit and e2e: only our code is under test.** A unit test runs the real domain services, use
+  cases and handlers with each port on its memory layer (`@app-template/domain/testing`), the
+  transaction on `TransactionTest`, the queue on `recordQueue()` and the model on
+  `recordAssistant()`, and needs no process outside vitest. An e2e test proves an adapter, a use
+  case's transaction or the journey on the run's containers; among them is the queue's own
+  suite, which tests our retry, heartbeat and dead-letter logic and takes most of a run's time
+  with SQS's real delays. Which test goes where:
   [effect-tests.md › Unit and e2e](../../.claude/rules/effect-tests.md#unit-and-e2e).
 - **One root `vitest.config.ts`, two projects,** chosen by `--project`: `unit` runs
   `tests/**/*.test.ts`; `e2e` runs `e2e/**/*.e2e.ts`, on Docker, and alone has the
@@ -86,12 +90,8 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   one `TestClock` for its whole block, so under concurrency one test's `adjust` would move its
   neighbours' time. `PgClientTest` gives its pool the live clock in any case: the pool reads
   `Clock` once when it is built, and a `TestClock` there stalls every statement.
-- **Only our code is under test.** Unit suites replace each port with its memory layer
-  (`@app-template/domain/testing`), the transaction with `TransactionTest`, the queue with
-  `recordQueue()` and the model with `recordAssistant()`. The containers serve the e2e suites,
-  among them the queue's own, which tests our retry, heartbeat and dead-letter logic and takes
-  most of a run's time with SQS's real delays. Test support is code to maintain that hides what a
-  test checks, so a small problem in a test is solved by a plainer test, not by a helper.
+- **A plainer test, not a helper.** Test support is code to maintain that hides what a test
+  checks, so a small problem in a test is solved by a plainer test, not by a helper.
 - **Output.** vitest switches to its `minimal` reporter when it detects an agent (`CLAUDECODE`,
   `AI_AGENT`): failures and a summary only. A terminal without them gets the per-file `default`
   reporter; `bun run test --reporter=default` forces it.

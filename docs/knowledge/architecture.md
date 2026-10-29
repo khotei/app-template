@@ -1,8 +1,11 @@
 # Architecture
 
-Where code belongs, what it may import, and how to add a new entity. Each layer's binding rules
-live in its `CLAUDE.md`; the decisions behind them, with the rejected alternatives, live in the
-scaffold ticket's `architecture.md › Decisions` (`docs/tickets/2026-10-16-1433_monorepo-setup/`).
+Where code belongs, what it may import, and how to add a new entity. What a layer may import is
+the [Dependency rules](#dependency-rules) table below, which Biome enforces; each layer's other
+binding rules live in its `CLAUDE.md`. The decisions behind them, with the rejected alternatives,
+live in `architecture.md › Decisions` of the scaffold ticket
+(`docs/tickets/2026-10-16-1433_monorepo-setup/`) and of the architecture audit
+(`docs/tickets/2026-10-27-1433_architecture-audit/`).
 
 ## Layers
 
@@ -111,7 +114,7 @@ Using the `chat` slice as the map:
 | domain errors | `domain/chat/chat.error.ts`, `message.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
 | port | `domain/chat/chat.port.ts`, `message.port.ts`, `assistant.port.ts` | `ChatRepository`, `MessageRepository`, `Assistant` (`Context.Service` with no layer) |
 | domain service: the one writer of an entity | `domain/chat/chat.service.ts`, `message.service.ts` | `ChatService`, `ChatService.layer`, `MessageService` |
-| memory layers and fixtures | `domain/testing/chat.test-fake.ts`, `chat.test-fixture.ts` | `ChatRepositoryTest`, `ChatRows`, `chat`, `owner`; `RepositoryStackTest` in `index.ts`, as `@app-template/domain/testing` |
+| memory layers and fixtures | `domain/testing/chat.test-fake.ts`, `chat.test-fixture.ts`, `user.test-fixture.ts` | `ChatRepositoryTest`, `ChatRows`, `chat`, `owner`; `RepositoryStackTest` in `index.ts`, as `@app-template/domain/testing` |
 | database client, transaction and migrations | `infrastructure/db/` | `Db`, `Db.layerFromConfig`, `Transaction`, `migrations/`, the shared columns in `columns.ts`, the relations in `relations.ts`; `DbTest`, `TransactionTest` in `db/testing/` |
 | tables and row codecs | `infrastructure/chat/chat.entity.ts`, `message.entity.ts` | `chats` (`snakeCase.table`), `ChatRow`, `ChatInsert` |
 | adapter implementing a port | `infrastructure/chat/chat.repository.ts`, `assistant.llm.ts`; `attachment/attachment.bucket.ts` | `ChatRepositoryPg`, `AssistantLlm` (with the prompts), `AttachmentBucketS3` (each a `Layer` of its port) |
@@ -127,9 +130,8 @@ Using the `chat` slice as the map:
 | e2e test | `<workspace>/e2e/<source path>.e2e.ts`; the journey `e2e/chat.e2e.ts` | `infrastructure/e2e/chat/chat.repository.e2e.ts`, `application/e2e/chat/send-message.use-case.e2e.ts` |
 | test support | `<workspace>/testing/`, exported as `./testing` | `ChatTest` (`application/testing/chat.test-layer.ts`), `ApiTest`, `StandTest` |
 
-Every entity folder has an `index.ts` barrel. Tests sit at the workspace's top and mirror the
-source path: `tests/` run over the memory layers and need no Docker, `e2e/` run on the run's
-containers ([tooling.md › Tests](tooling.md#tests)). The file suffixes, the `./testing` exports
+Every entity folder has an `index.ts` barrel. What each kind of test runs on:
+[tooling.md › Tests](tooling.md#tests). The file suffixes, the `./testing` exports
 and the naming verbs are listed in [.claude/rules/naming.md](../../.claude/rules/naming.md). How
 the tables, codecs and migrations work: [database.md](database.md).
 
