@@ -212,7 +212,11 @@ export const MessageRepositoryTest = Layer.effect(
             return [false, rows] as const
           }
           return [true, HashMap.set(rows, message.id, message)] as const
-        }),
+        }).pipe(
+          Effect.filterOrElse(Predicate.isTruthy, () =>
+            Effect.die(new Error(`message ${message.id} was not inserted`)),
+          ),
+        ),
       update: (message, where) =>
         Ref.modify(messages, (rows) =>
           pipe(
@@ -222,6 +226,10 @@ export const MessageRepositoryTest = Layer.effect(
               onNone: () => [false, rows] as const,
               onSome: () => [true, HashMap.set(rows, message.id, message)] as const,
             }),
+          ),
+        ).pipe(
+          Effect.filterOrElse(Predicate.isTruthy, () =>
+            Effect.die(new Error(`message ${message.id} was not updated`)),
           ),
         ),
       selectOne: (where) =>

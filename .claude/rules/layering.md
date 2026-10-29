@@ -14,16 +14,16 @@ Where a flow lives. Words: `docs/knowledge/glossary.md › Architecture language
 
 - **A port speaks the domain's words,** never a client's type or error; its adapter turns a
   failure into a defect (`effect-schema.md`).
-- **A domain service is the only writer of its entity's records,** one per entity (`ChatService`
-  and `MessageService` for the chat aggregate). It may read another entity's port for a check or
-  a read model (`ChatService` reads `MessageRepository`), never write through it.
+- **A domain service holds the rules that need a port:** a check over stored rows, a not-found
+  turned into the domain error, a refusal named after a read (`ChatService`). An entity whose
+  rules are all pure model functions has no service: a use case runs the function and writes
+  the result through the port (the messages: `prepareMessage`, then `MessageRepository.update`).
 - It sees its ports, the clock (`DateTime.now`) and `Crypto`; never another domain service, the
   queue or `Transaction`, which are a use case's.
 - **Every method is safe on its own,** except a step a use case owns (a cascade): its doc comment
   names the use case, and handlers call only that (`ChatService.delete`, a step of
   `DeleteChatUseCase`, which removes the attachments first). A method correct only after another
-  one ran is a trap: guard the invariant inside it, or take a proof value only the check builds
-  (`ChatService.findSendable` → `SendableChat` → `MessageService.addUserMessage`).
+  one ran is a trap: guard the invariant inside it, or take a proof value only the check builds.
 
 ## When a flow becomes a use case
 
@@ -36,11 +36,10 @@ the signal.
 
 - A use case is a `Context.Service` whose `layer` provides the domain services it composes and
   leaves the ports open, so the process provides the adapters and a unit test the memory layers.
-- **It writes through domain services, save a rule-free write:** one `set` and one `where` whose
-  only refusal is "the row is gone" may be its own repository call (the chat's `updatedAt` at a
-  send and at a settle). A precondition, a transition, a second field or a domain error beyond
-  not-found makes it a service method. A read with no rule (a job's message by id) may go to the
-  port too.
+- **It writes through a domain service where one holds the write's rule,** else through the
+  port: a rule-free write (the chat's `updatedAt` at a send and at a settle) and a write whose
+  rule a model function already ran (a message's stage move). A read with no rule (a job's
+  message by id) may go to the port too.
 - **All checks precede every write;** a step's own guard may repeat a check the use case made.
 - **The writes commit in one transaction:** the `Transaction` service's `transaction.run`
   (`@app-template/infrastructure/db`) as a pipeable of the `Effect.fn` that holds them; the
@@ -64,8 +63,8 @@ the signal.
 
 - **Hold no lock in the process.** A rule two writers could break between a read and a write is
   a database guard in the write itself (a partial unique index, an `UPDATE … WHERE` on the free
-  state), and the domain service turns its answer into the domain error: the reply's insert
-  answers `false` (`ChatBusyError`), the bind skips a taken id (`AttachmentBoundError`).
+  state). The service checks first, so a refused write is a lost race and the adapter dies on it
+  (the reply's insert, a stage move); the bind skips a taken id (`AttachmentBoundError`).
 - **Write only the fields you own of a record another process also writes,** and hold a rule in
   the write's `where`, not in a read before it: the send sets the chat's `updatedAt` alone, and the
   title is written only `where` the chat is still untitled.

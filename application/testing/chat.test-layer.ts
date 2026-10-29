@@ -11,7 +11,6 @@ import {
   ChatRepository,
   ChatService,
   MessageRepository,
-  MessageService,
 } from '@app-template/domain/chat'
 import {
   AttachmentBucketTest,
@@ -41,7 +40,6 @@ import { DbWithUsersTest } from '#application/testing/db.test-layer'
 
 const ChatServices = Layer.mergeAll(
   ChatService.layer,
-  MessageService.layer,
   AttachmentService.layer,
   SendMessageUseCase.layer,
   DeleteChatUseCase.layer,

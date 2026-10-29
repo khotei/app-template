@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Predicate } from 'effect'
+import { Context, Crypto, Effect, Layer, Predicate } from 'effect'
 
 import {
   type AttachmentBoundError,
@@ -6,15 +6,18 @@ import {
   AttachmentService,
 } from '@app-template/domain/attachment'
 import {
+  buildAssistantMessage,
+  buildUserMessage,
   type ChatBusyError,
   type ChatId,
   ChatNotFoundError,
   ChatRepository,
   ChatService,
+  generateMessageId,
   type MessageDetail,
   type MessageInput,
   type MessageInputInvalidError,
-  MessageService,
+  MessageRepository,
 } from '@app-template/domain/chat'
 import type { UserId } from '@app-template/domain/user'
 import {
@@ -52,10 +55,12 @@ export class SendMessageUseCase extends Context.Service<
   make: Effect.gen(function* () {
     const chats = yield* ChatRepository
     const chatService = yield* ChatService
-    const messageService = yield* MessageService
+    const messages = yield* MessageRepository
     const attachmentService = yield* AttachmentService
     const queue = yield* QueueClient
     const transaction = yield* Transaction
+    const crypto = yield* Crypto.Crypto
+    const generateId = generateMessageId.pipe(Effect.provideService(Crypto.Crypto, crypto))
 
     const send = Effect.fn('SendMessageUseCase.send')(function* (
       userId: UserId,
@@ -69,9 +74,22 @@ export class SendMessageUseCase extends Context.Service<
         .update({ updatedAt: sendable.at }, { id: chatId })
         .pipe(Effect.filterOrFail(Predicate.isTruthy, () => new ChatNotFoundError({ id: chatId })))
 
-      const userMessage = yield* messageService.addUserMessage(sendable)
+      const userMessageId = yield* generateId
+      const userMessage = buildUserMessage({
+        id: userMessageId,
+        chatId,
+        text: sendable.input.text,
+        createdAt: sendable.at,
+      })
+      yield* messages.insert(userMessage)
       const bound = yield* attachmentService.bind(userId, input.attachmentIds, userMessage.id)
-      const assistantMessage = yield* messageService.addAssistantMessage(sendable)
+      const assistantMessageId = yield* generateId
+      const assistantMessage = buildAssistantMessage({
+        id: assistantMessageId,
+        chatId,
+        createdAt: sendable.at,
+      })
+      yield* messages.insert(assistantMessage)
       // A QueueError is a defect: no rule reads it, and it still rolls the send back.
       yield* queue
         .send(
@@ -95,6 +113,6 @@ export class SendMessageUseCase extends Context.Service<
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make).pipe(
-    Layer.provide([ChatService.layer, MessageService.layer, AttachmentService.layer]),
+    Layer.provide([ChatService.layer, AttachmentService.layer]),
   )
 }

@@ -48,7 +48,9 @@ export const MessageRepositoryPg = Layer.effect(
           .values(row)
           .onConflictDoNothing({ target: messages.chatId, where: activeMessage })
           .returning({ id: messages.id })
-        return Arr.isReadonlyArrayNonEmpty(inserted)
+        if (Arr.isReadonlyArrayEmpty(inserted)) {
+          return yield* Effect.die(new Error(`message ${message.id} was not inserted`))
+        }
       }, orDieWithSqlError),
       update: Effect.fn('MessageRepository.update')(function* (message, where) {
         const row = yield* encodeMessage(message)
@@ -57,7 +59,9 @@ export const MessageRepositoryPg = Layer.effect(
           .set(row)
           .where(and(eq(messages.id, message.id), encodeWhere(where)))
           .returning({ id: messages.id })
-        return Arr.isReadonlyArrayNonEmpty(updated)
+        if (Arr.isReadonlyArrayEmpty(updated)) {
+          return yield* Effect.die(new Error(`message ${message.id} was not updated`))
+        }
       }, orDieWithSqlError),
       selectOne: Effect.fn('MessageRepository.selectOne')(
         (where) =>

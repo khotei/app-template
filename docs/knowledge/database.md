@@ -142,16 +142,17 @@ so a whole entity passed as a set writes only the fields it may change; an absen
 ## Guards
 
 A rule that two writers could break between a read and a write is held by the database, in the
-statement that writes. A conditional write answers whether it wrote:
+statement that writes. The domain service checks the rule first, so a message write the guard
+refuses only lost a race and dies; a chat's or attachments' write answers whether it wrote:
 
 - **Insert under a partial unique index.** `MessageRepository.insert` adds `ON CONFLICT
   (chat_id) WHERE <activeMessage> DO NOTHING RETURNING id` (Drizzle's `onConflictDoNothing({
-  target, where })`), so a second active reply in a chat writes nothing and answers `false`;
-  the application turns that into `ChatBusyError`. Any other message inserts.
+  target, where })`), so a second active reply in a chat writes nothing and dies. Any other
+  message inserts.
 - **Update under a `where`.** `MessageRepository.update(message, where)` runs `WHERE id = …
   AND <where fields>`, its `where` (`MessageWhere`, the stored stage to match),
-  so a write whose expected stage another writer has left changes nothing and answers `false`;
-  the reply job then stops as settled by someone else.
+  so a write whose expected stage another writer has left, or whose message is gone, changes
+  nothing and dies; the job's retry then reads the message and skips it as settled or deleted.
 - **Update of some fields under a `where`.** `ChatRepository.update(set, where)` and
   `AttachmentRepository.update(set, where)` write only the fields of `set` (`ChatSet`,
   `AttachmentSet`: `RequireAtLeastOne` from `type-fest`, so an empty write fails typecheck) where
@@ -184,7 +185,7 @@ parameter. `SendMessageUseCase.send` writes the user message with the chat's `up
 binds, the reply and its jobs' outbox rows, or none of them; `DeleteChatUseCase.delete` removes
 the attachments' rows and the chat, or neither. The guards above then decide every race inside
 Postgres, with no lock in the process: of two sends to one chat the second waits on the first's
-writes and its reply insert answers `false` once the first commits, and of two binds of one
+writes and its reply insert dies once the first commits, and of two binds of one
 attachment the second's `UPDATE` waits on the row and skips it. Two api processes behave as two
 fibers. S3 stays outside the transaction: the bytes are kept before the bind, so no bound row sits
 over expiring bytes, and deleted before the commit, so a rollback restores rows that a retry still

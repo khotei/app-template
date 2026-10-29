@@ -11,10 +11,10 @@ import {
   ChatRepository,
   ChatService,
   ChatTitle,
+  completeMessage,
   type Message,
   type MessageId,
   MessageRepository,
-  MessageService,
 } from '@app-template/domain/chat'
 import {
   ask,
@@ -40,11 +40,12 @@ import {
 /** Completes an assistant message as the worker would, freeing its chat for the next send. */
 const settle = (message: Message) =>
   Effect.gen(function* () {
-    const messages = yield* MessageService
+    const messages = yield* MessageRepository
     const at = yield* DateTime.now
 
-    const prepared = yield* messages.prepare(message, at)
-    return yield* messages.complete(prepared, { text: 'Sure.', at })
+    const completed = yield* completeMessage(message, { text: 'Sure.', at })
+    yield* messages.update(completed, { stage: message.stage })
+    return completed
   })
 
 /**

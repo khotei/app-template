@@ -113,7 +113,7 @@ Using the `chat` slice as the map:
 | read model a port answers | `domain/chat/chat.model.ts`, `message.model.ts` | `ChatSummary`, `ChatDetail`, `MessageDetail` |
 | domain errors | `domain/chat/chat.error.ts`, `message.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
 | port | `domain/chat/chat.port.ts`, `message.port.ts`, `assistant.port.ts` | `ChatRepository`, `MessageRepository`, `Assistant` (`Context.Service` with no layer) |
-| domain service: the one writer of an entity | `domain/chat/chat.service.ts`, `message.service.ts` | `ChatService`, `ChatService.layer`, `MessageService` |
+| domain service: the rules that need a port | `domain/chat/chat.service.ts` | `ChatService`, `ChatService.layer` |
 | memory layers and fixtures | `domain/testing/chat.test-fake.ts`, `chat.test-fixture.ts`, `user.test-fixture.ts` | `ChatRepositoryTest`, `ChatRows`, `chat`, `owner`; `RepositoryStackTest` in `repository-stack.test-layer.ts`; all as `@app-template/domain/testing` |
 | database client, transaction and migrations | `infrastructure/db/` | `Db`, `Db.layerFromConfig`, `Transaction`, `migrations/`, the shared columns in `columns.ts`, the relations in `relations.ts`; `DbTest`, `TransactionTest` in `db/testing/` |
 | tables and row codecs | `infrastructure/chat/chat.entity.ts`, `message.entity.ts` | `chats` (`snakeCase.table`), `ChatRow`, `ChatInsert` |
@@ -155,8 +155,8 @@ Pascal one (`Document`).
    `<Entity>Rows`, a `Ref` of the rows, with the guards the database will add (an index, a
    `where`, a cascade), and the fixtures in `<entity>.test-fixture.ts`; `domain/testing/index.ts`
    exports both.
-5. **Domain service.** `domain/<entity>/<entity>.service.ts`: `<Entity>Service`, a
-   `Context.Service` with a `layer` over the ports, the only writer of the entity's records.
+5. **Domain service, if a rule needs a port.** `domain/<entity>/<entity>.service.ts`:
+   `<Entity>Service`, a `Context.Service` with a `layer` over the ports.
    Test it in `domain/tests/<entity>/<entity>.service.test.ts` over the memory layer. What it may
    see and when a flow leaves it: [.claude/rules/layering.md](../../.claude/rules/layering.md).
 6. **Domain exports.** `domain/<entity>/index.ts` re-exports its files, and

@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, DateTime, Effect, Option, Schema } from 'effect'
+import { Array as Arr, DateTime, Effect, Exit, Option, Schema } from 'effect'
 
 import {
   Attachment,
@@ -193,10 +193,10 @@ describe('MessageRepositoryPg', () => {
       })
       yield* insertOwnedChats(userId, [chatId])
 
-      const inserted = yield* messages.insert(queued)
-      const refused = yield* messages.insert(second)
+      yield* messages.insert(queued)
+      const exit = yield* messages.insert(second).pipe(Effect.exit)
 
-      assert.deepStrictEqual([inserted, refused], [true, false])
+      assert.isTrue(Exit.hasDies(exit))
       assertSchemaEquals(Details, yield* messages.selectByChat(chatId), [
         { message: queued, attachments: [] },
       ])
@@ -214,9 +214,8 @@ describe('MessageRepositoryPg', () => {
       )
       yield* insertOwnedChats(userId, [chatId])
 
-      const inserted = yield* Effect.forEach([queued, completed], messages.insert)
+      yield* Effect.forEach([queued, completed], messages.insert)
 
-      assert.deepStrictEqual(inserted, [true, true])
       assertSchemaEquals(Details, yield* messages.selectByChat(chatId), [
         { message: queued, attachments: [] },
         { message: completed, attachments: [] },
@@ -224,7 +223,7 @@ describe('MessageRepositoryPg', () => {
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
-  it.effect('update from a stage the message has left answers false and changes nothing', () =>
+  it.effect('update from a stage the message has left dies and changes nothing', () =>
     Effect.gen(function* () {
       const messages = yield* MessageRepository
       const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000049')
@@ -237,9 +236,9 @@ describe('MessageRepositoryPg', () => {
       yield* insertOwnedChats(userId, [chatId])
       yield* messages.insert(generating)
 
-      const updated = yield* messages.update(completed, { stage: 'preparing' })
+      const exit = yield* messages.update(completed, { stage: 'preparing' }).pipe(Effect.exit)
 
-      assert.isFalse(updated)
+      assert.isTrue(Exit.hasDies(exit))
       assertSchemaEquals(
         SelectedMessage,
         yield* messages.selectOne({ id: generating.id }),
@@ -258,11 +257,10 @@ describe('MessageRepositoryPg', () => {
       yield* messages.insert(queued)
       const completed = yield* completeMessage(queued, { text: 'Hello', at: at(1) })
 
-      const updated = yield* Effect.forEach([completed, unknown], (each) =>
-        messages.update(each, { stage: 'queued' }),
-      )
+      yield* messages.update(completed, { stage: 'queued' })
+      const exit = yield* messages.update(unknown, { stage: 'queued' }).pipe(Effect.exit)
 
-      assert.deepStrictEqual(updated, [true, false])
+      assert.isTrue(Exit.hasDies(exit))
       assertSchemaEquals(Details, yield* messages.selectByChat(chatId), [
         { message: completed, attachments: [] },
       ])

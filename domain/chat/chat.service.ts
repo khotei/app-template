@@ -1,7 +1,7 @@
 import { Context, Crypto, Data, DateTime, Effect, Layer, Option, Predicate } from 'effect'
 
 import { type ChatBusyError, ChatNotFoundError, ChatTitledError } from '#domain/chat/chat.error'
-import { ChatId } from '#domain/chat/chat.id'
+import { ChatId, type MessageId } from '#domain/chat/chat.id'
 import {
   buildChat,
   Chat,
@@ -10,10 +10,11 @@ import {
   type ChatTitle,
 } from '#domain/chat/chat.model'
 import { ChatRepository } from '#domain/chat/chat.port'
-import type { MessageInputInvalidError } from '#domain/chat/message.error'
+import { type MessageInputInvalidError, MessageNotFoundError } from '#domain/chat/message.error'
 import {
   ensureChatAcceptsMessage,
   ensureMessageInput,
+  type MessageDetail,
   type MessageInput,
 } from '#domain/chat/message.model'
 import { MessageRepository } from '#domain/chat/message.port'
@@ -43,6 +44,11 @@ export class ChatService extends Context.Service<
     /** Returns the user's chats, the most recently updated first. */
     readonly list: (userId: UserId) => Effect.Effect<ReadonlyArray<ChatSummary>>
     readonly get: (userId: UserId, chatId: ChatId) => Effect.Effect<ChatDetail, ChatNotFoundError>
+    readonly getMessage: (
+      userId: UserId,
+      chatId: ChatId,
+      messageId: MessageId,
+    ) => Effect.Effect<MessageDetail, MessageNotFoundError>
     readonly rename: (
       userId: UserId,
       chatId: ChatId,
@@ -94,6 +100,15 @@ export class ChatService extends Context.Service<
       chats
         .selectDetail({ id: chatId, userId })
         .pipe(Effect.flatMap(Effect.fromOption(() => new ChatNotFoundError({ id: chatId })))),
+    )
+
+    const getMessage = Effect.fn('ChatService.getMessage')(
+      (userId: UserId, chatId: ChatId, messageId: MessageId) =>
+        messages
+          .selectDetail({ id: messageId, chatId, userId })
+          .pipe(
+            Effect.flatMap(Effect.fromOption(() => new MessageNotFoundError({ id: messageId }))),
+          ),
     )
 
     const rename = Effect.fn('ChatService.rename')(function* (
@@ -154,6 +169,7 @@ export class ChatService extends Context.Service<
       create,
       list,
       get,
+      getMessage,
       rename,
       updateTitle,
       delete: remove,

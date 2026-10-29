@@ -6,14 +6,17 @@ import {
   type AssistantTurn,
   type ChatId,
   ChatRepository,
+  completeMessage,
+  failMessage,
+  generateMessage,
   isActiveMessage,
   type Message,
   type MessageDetail,
   type MessageId,
-  type MessageMovedError,
   MessageRepository,
-  MessageService,
   type MessageStageInvalidError,
+  type MessageWhere,
+  prepareMessage,
 } from '@app-template/domain/chat'
 import type { GenerateAssistantMessage } from '@app-template/infrastructure/chat'
 import { Transaction } from '@app-template/infrastructure/db'
@@ -29,13 +32,10 @@ const skipped = (why: ReplySkip) => Effect.as(replySkipLogs[why], Option.none<Me
 
 const isCompletedTurn = ({ message }: MessageDetail) => message.stage === 'completed'
 
-/** A terminal write of the reply, through `MessageService`. */
-type SettlingWrite = Effect.Effect<Message, MessageStageInvalidError | MessageMovedError>
-
 export class GenerateAssistantMessageUseCase extends Context.Service<
   GenerateAssistantMessageUseCase,
   {
-    /** Prepares, generates and completes the message with the reply; a moved message is skipped. */
+    /** Prepares, generates and completes the message with the reply; a settled message is skipped. */
     readonly generate: (
       job: GenerateAssistantMessage,
     ) => Effect.Effect<void, MessageStageInvalidError>
@@ -54,7 +54,6 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
     const bucket = yield* AttachmentBucket
     const chats = yield* ChatRepository
     const messages = yield* MessageRepository
-    const messageService = yield* MessageService
     const transaction = yield* Transaction
 
     const readFile = (attachment: Attachment) =>
@@ -70,8 +69,8 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
         .selectByChat(chatId)
         .pipe(Effect.map(Arr.filter(isCompletedTurn)), Effect.flatMap(Effect.forEach(readTurn)))
 
-    const settle = Effect.fnUntraced(function* (write: SettlingWrite) {
-      const settled = yield* write
+    const settle = Effect.fnUntraced(function* (settled: Message, where: MessageWhere) {
+      yield* messages.update(settled, where)
       // A rule-free write: a chat deleted meanwhile took its messages, so nothing is left to move.
       yield* chats.update({ updatedAt: settled.updatedAt }, { id: settled.chatId })
       return settled
@@ -79,15 +78,18 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
 
     const reply = Effect.fnUntraced(function* (taken: Message) {
       const preparedAt = yield* DateTime.now
-      const prepared = yield* messageService.prepare(taken, preparedAt)
+      const prepared = yield* prepareMessage(taken, preparedAt)
+      yield* messages.update(prepared, { stage: taken.stage })
 
       const history = yield* readHistory(prepared.chatId)
       const generatingAt = yield* DateTime.now
-      const generating = yield* messageService.generate(prepared, generatingAt)
+      const generating = yield* generateMessage(prepared, generatingAt)
+      yield* messages.update(generating, { stage: prepared.stage })
 
       const { text } = yield* assistant.reply(history)
       const completedAt = yield* DateTime.now
-      yield* settle(messageService.complete(generating, { text, at: completedAt }))
+      const completed = yield* completeMessage(generating, { text, at: completedAt })
+      yield* settle(completed, { stage: generating.stage })
     })
 
     const generate = Effect.fn('GenerateAssistantMessageUseCase.generate')(function* (
@@ -98,9 +100,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
       if (Option.isNone(stored)) return yield* replySkipLogs.chatDeleted
       if (!isActiveMessage(stored.value)) return yield* replySkipLogs.alreadySettled
 
-      yield* reply(stored.value).pipe(
-        Effect.catchTag('MessageMovedError', () => replySkipLogs.alreadySettled),
-      )
+      yield* reply(stored.value)
     })
 
     const fail = Effect.fn('GenerateAssistantMessageUseCase.fail')(function* (
@@ -112,19 +112,16 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
       if (!isActiveMessage(stored.value)) return yield* skipped('alreadySettled')
 
       const failedAt = yield* DateTime.now
-      const failed = messageService.fail(stored.value, {
+      const failed = yield* failMessage(stored.value, {
         reason: 'ReplyFailed',
         cause: Cause.pretty(cause),
         at: failedAt,
       })
-      return yield* settle(failed).pipe(
-        Effect.asSome,
-        Effect.catchTag('MessageMovedError', () => skipped('alreadySettled')),
-      )
+      return yield* settle(failed, { stage: stored.value.stage }).pipe(Effect.asSome)
     })
 
     return { generate, fail }
   }),
 }) {
-  static readonly layer = Layer.effect(this, this.make).pipe(Layer.provide(MessageService.layer))
+  static readonly layer = Layer.effect(this, this.make)
 }

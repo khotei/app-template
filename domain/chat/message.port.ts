@@ -18,10 +18,10 @@ export type MessageOneWhere = Types.Simplify<
 export class MessageRepository extends Context.Service<
   MessageRepository,
   {
-    /** Answers `false` and writes nothing when the message is active and its chat has one. */
-    readonly insert: (message: Message) => Effect.Effect<boolean>
-    /** Writes `message` only while the stored one matches `where`; answers whether it wrote. */
-    readonly update: (message: Message, where: MessageWhere) => Effect.Effect<boolean>
+    /** Dies when it writes nothing: the message is active and its chat already has one. */
+    readonly insert: (message: Message) => Effect.Effect<void>
+    /** Writes `message` only while the stored one matches `where`; dies when it writes nothing. */
+    readonly update: (message: Message, where: MessageWhere) => Effect.Effect<void>
     readonly selectOne: (where: MessageOneWhere) => Effect.Effect<Option.Option<Message>>
     readonly selectDetail: (where: MessageOneWhere) => Effect.Effect<Option.Option<MessageDetail>>
     /** Returns the chat's messages in creation order, a tie broken by id. */

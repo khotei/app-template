@@ -6,7 +6,7 @@ import { HttpApiBuilder } from 'effect/http-api'
 import { DeleteChatUseCase, SendMessageUseCase } from '@app-template/application/chat'
 import { ApiConfig, MinimumLogLevelFromConfig, RuntimeConfig } from '@app-template/config'
 import { AttachmentService } from '@app-template/domain/attachment'
-import { ChatService, MessageService } from '@app-template/domain/chat'
+import { ChatService } from '@app-template/domain/chat'
 import { UserService } from '@app-template/domain/user'
 import { Api } from '@app-template/http-api'
 import { AttachmentPgS3 } from '@app-template/infrastructure/attachment'
@@ -30,7 +30,6 @@ export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
   Layer.provide([
     UserService.layer,
     ChatService.layer,
-    MessageService.layer,
     AttachmentService.layer,
     SendMessageUseCase.layer,
     DeleteChatUseCase.layer,
