@@ -175,13 +175,12 @@ Tips that save time:
 | How are commits and pull requests written? | [.claude/rules/commits.md](.claude/rules/commits.md), [.claude/rules/pull-requests.md](.claude/rules/pull-requests.md) |
 | Why is it built this way? | the tickets in `docs/tickets/`: `feature.md` for the requirements, `architecture.md › Decisions` for every choice and its rejected alternative |
 
-## Branches and new projects
+## History and new projects
 
-`main` holds one squash commit per ticket, whose body is the PR description;
-`chore/enterprise-template` keeps every plan step as its own commit beside it. Why, and how a
-ticket reaches both:
-[sdd.md › Roadmap and the teaching branch](docs/knowledge/sdd.md#roadmap-and-the-teaching-branch).
+`main` is the only long-lived branch: one squash commit per ticket, whose body is the PR
+description. A ticket's plan steps stay in its merged PR's commit list and in its `plan.md`:
+[sdd.md › Roadmap and history](docs/knowledge/sdd.md#roadmap-and-history).
 
-On GitHub, *Use this template → Include all branches* starts a new project with both; what to
-rename, delete and keep afterwards is the roadmap's
+On GitHub, *Use this template* starts a new project from `main`; what to rename, delete and keep
+afterwards is the roadmap's
 [`template-handoff`](docs/knowledge/roadmap.md#12-template-handoff).

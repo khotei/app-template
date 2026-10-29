@@ -17,15 +17,13 @@ graph LR
   R["roadmap entry<br/>(status: planned)"] --> F["/ticket-feature &lt;slug&gt;<br/>docs/tickets/&lt;date&gt;_&lt;slug&gt;/"]
   F --> A["/ticket-architecture"] --> P["/ticket-plan"] --> I["/ticket-implement ×N"] --> V["/ticket-verify"]
   V --> PR["squash PR → main"]
-  PR --> E["no-ff merge → chore/enterprise-template"]
-  E --> R2["roadmap entry<br/>(status: done, link)"]
+  PR --> R2["roadmap entry<br/>(status: done, link)"]
 ```
 
 - **One ticket = one branch `<type>/<slug>` cut from `main` = one squash-merged PR.** Unchanged
   from `.claude/rules/sdd.md`.
-- **`chore/enterprise-template` is the teaching branch:** every plan step stays readable as its own
-  commit next to the squash that `main` keeps; why and how in
-  [sdd.md › Roadmap and the teaching branch](./sdd.md#roadmap-and-the-teaching-branch).
+- **`main` is the only long-lived branch:** the steps of a merged ticket stay in its PR's commit
+  list and its `plan.md`; see [sdd.md › Roadmap and history](./sdd.md#roadmap-and-history).
 - **Order below is the default, dependencies are the law.** A ticket may start when every entry in
   its `Depends on` is done. Two independent tickets may run in parallel on separate branches.
 - **Facts expire.** Every `Facts` line carries the date it was checked; `/ticket-feature`
@@ -388,8 +386,8 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Goal.** "Use this template" to a running, renamed project in ten minutes.
 - **Scope.** `make rename SCOPE=@acme NAME="Acme"`; a checklist of what to delete (`docs/tickets/`
   of the template, the example domain if unwanted) and what to keep (`docs/knowledge/`, rules,
-  skills); a fresh-clone rehearsal in CI; the README's "Starting a new project" rewritten; the
-  GitHub template flag verified with all branches; the toolkit items that matter only when the
+  skills); a fresh-clone rehearsal in CI; the README's "History and new projects" rewritten; the
+  GitHub template flag verified; the toolkit items that matter only when the
   template changes hands, inherited from `claude-toolkit` (2): `claude plugin eval` cases for the
   `ticket-*` skills (they must be wrapped as a plugin to load), `/skill-doctor` as a periodic
   check, pinning `mattpocock-skills` by `sha`, `skillOverrides` for the plugin skills the wrappers
