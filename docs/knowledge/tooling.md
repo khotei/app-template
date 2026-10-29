@@ -26,7 +26,7 @@ and `make setup` and `make test-unit` need neither.
 | `make typecheck` | `bunx tsc -b`, the patched `tsc` | typecheck every workspace through the project references, Effect diagnostics included |
 | `make migrate` · `migration NAME=<name>` · `migration-check` | `migrate`: `bun --env-file=.env infrastructure/db/migrate.ts`; `migration` and `migration-check`: `bunx drizzle-kit generate` in `infrastructure/` | apply, generate and check migrations: [database.md › Migrations](database.md#migrations) |
 | `make test-unit` | `bun --bun vitest run --project unit` | every `tests/**/*.test.ts`; no Docker ([Tests](#tests)) |
-| `make test-e2e` | `bun --bun vitest run --project e2e` | every `e2e/**/*.e2e.ts`; needs a running Docker daemon for the run's Postgres container ([Tests](#tests)) and the queue suite's MiniStack ([aws.md › Tests on Docker](aws.md#tests-on-docker)) |
+| `make test-e2e` | `bun --bun vitest run --project e2e` | every `e2e/**/*.e2e.ts`; needs a running Docker daemon for the run's own Postgres and MiniStack containers ([Tests](#tests)) |
 | `make test` | `test-unit`, then `test-e2e` | both projects |
 | `make bundle-check` | `bun build` of the web entry into `node_modules/.cache/web-bundle`, then a negated `grep` for the domain and infrastructure service keys | fails when a service, port or adapter reaches the browser: [architecture.md › Boundary guards](architecture.md#boundary-guards) |
 | `make outdated` | `bun outdated --recursive` | newer versions for every workspace |
@@ -46,12 +46,16 @@ Tests run on vitest 5, on the Bun runtime (`bun --bun`), so `Bun.serve` and the 
 inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`, `it.layer`,
 `TestClock`) needs vitest.
 
+- **Unit and e2e.** A unit test runs the real domain services, use cases and handlers over the
+  memory layers of the ports and needs no process outside vitest; an e2e test proves an adapter,
+  a use case's transaction or the journey on the run's containers. Which test goes where:
+  [effect-tests.md › Unit and e2e](../../.claude/rules/effect-tests.md#unit-and-e2e).
 - **One root `vitest.config.ts`, two projects,** chosen by `--project`: `unit` runs
-  `tests/**/*.test.ts`, which need no process outside vitest; `e2e` runs `e2e/**/*.e2e.ts`, on
-  Docker, and alone has the `globalSetup`. Both sit at the top of their workspace and mirror the
-  source path. Each project lists the shared `exclude` (`repos/**` added to the default) and
+  `tests/**/*.test.ts`; `e2e` runs `e2e/**/*.e2e.ts`, on Docker, and alone has the
+  `globalSetup`. Both sit at the top of their workspace and mirror the source path. Each project
+  lists the shared `exclude` (`repos/**` and `.claude/worktrees/**` added to the default) and
   `sequence` itself, and the root sets no `globalSetup`, so a unit run starts no container. A new
-  workspace needs no test config, and the vendored suites stay out.
+  workspace needs no test config, and the vendored suites and the worktrees' copies stay out.
 - **One Postgres and one MiniStack per e2e run, a database and a stage per test.**
   `infrastructure/testing/e2e.test-setup.ts` starts one `postgres:18.6-alpine` container (about
   1.2 s) and migrates a template database in it with the program `make migrate` runs, and one
@@ -62,6 +66,9 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   bucket and queues provisioned ([aws.md › Tests on Docker](aws.md#tests-on-docker)). A test
   therefore sees only its own rows and resources, even through a query that reads a whole table,
   and files run in parallel. E2e tests need Docker and nothing else: no `.env`, no `make up`.
+- **Two worktrees at once.** Testcontainers maps each container to a free host port and names it
+  itself, so two trees run `make test-e2e` side by side, and beside their local stands, with
+  nothing to configure; a unit run starts nothing at all.
 - **The journey, in the root `e2e` workspace.** `e2e/chat.e2e.ts` drives a user, a chat, an upload
   and a send over HTTP and reads the reply and the title back once the worker has written them:
   `StandTest` (`e2e/testing/stand.test-layer.ts`) runs `ApiLayer` and `WorkerLayer`, which the
@@ -72,18 +79,19 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   credentials from the environment, which the `e2e` project sets to the fixed test pair MiniStack
   accepts. The journey proves the wiring; every rule keeps its lower seam.
 - **Concurrent within a file.** Both projects set `sequence: { concurrent: true }`; since every
-  test owns its database, nothing is shared between tests. The journey's file opts out, since
-  its tests share one stand and read its outbox whole.
+  test owns its database and its stage, nothing is shared between tests. The journey's file opts
+  out, since its tests share one stand and read its outbox whole.
 - **Time.** `it.effect` provides a fresh `TestClock` per test, so time stands still unless the
   test moves it; `it.live` runs on the real clock. `@effect/vitest`'s `layer(…)` instead builds
   one `TestClock` for its whole block, so under concurrency one test's `adjust` would move its
   neighbours' time. `PgClientTest` gives its pool the live clock in any case: the pool reads
   `Clock` once when it is built, and a `TestClock` there stalls every statement.
-- **Only our code is under test.** Application and api suites replace S3 and the queue with plain
-  in-memory layers; MiniStack serves the adapters' suites, among them the queue worker's, which
-  tests our retry, heartbeat and dead-letter logic and takes most of a run's time with SQS's
-  real delays. Test support is code to maintain that hides what a test checks, so a small
-  problem in a test is solved by a plainer test, not by a helper.
+- **Only our code is under test.** Unit suites replace each port with its memory layer
+  (`@app-template/domain/testing`), the transaction with `TransactionTest`, the queue with
+  `recordQueue()` and the model with `recordAssistant()`. The containers serve the e2e suites,
+  among them the queue's own, which tests our retry, heartbeat and dead-letter logic and takes
+  most of a run's time with SQS's real delays. Test support is code to maintain that hides what a
+  test checks, so a small problem in a test is solved by a plainer test, not by a helper.
 - **Output.** vitest switches to its `minimal` reporter when it detects an agent (`CLAUDECODE`,
   `AI_AGENT`): failures and a summary only. A terminal without them gets the per-file `default`
   reporter; `bun run test --reporter=default` forces it.

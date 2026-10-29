@@ -171,9 +171,9 @@ the worker from `QueueConfig` and `AwsConfig`: a definition's queue is
   the rows to `buildResourceName(STAGE, queue)` over the same `QueueTransport`. A row the relay sent and could not
   delete is sent again, which the at-least-once handlers absorb.
 
-The queue's own suite checks those rules on MiniStack in real time. A job suite calls the job's
-`handle` with plain `AttemptInfo` values; a test of a moved `updatedAt` runs on the live clock,
-and only the snapshot-timing block steps the `TestClock`.
+The queue's own suite checks those rules on MiniStack in real time. A worker handler's suite
+calls its `handle` with plain `AttemptInfo` values over the memory layers, so the last attempt
+and the dead letter need no queue.
 
 ## Tests on Docker
 
@@ -186,10 +186,11 @@ bucket and queues under it and provides `AwsConfig` over the endpoint and that s
 adapter builds its names as in production; it publishes the clients too, as the `*FromConfig`
 layers do. The queue's own suite provisions its own queues under one such stage for its `layer`
 block, with `provisionQueues`, and the `s3` suite creates one bucket, named as a stage is, for
-its `S3Bucket`. Nothing cleans a stage up: the container goes with the run. The
-application and api suites test our code, not S3 or SQS: they provide `AttachmentBucketTest`
-([tooling.md › Tests](tooling.md#tests)) and send jobs to the outbox
-([database.md › Tests](database.md#tests)). So `make test` needs a running Docker daemon and
+its `S3Bucket`. Nothing cleans a stage up: the container goes with the run. On `AwsTest` run
+`AttachmentBucketS3`'s suite, the relay's (beside `DbTest`), the use cases' transactions
+(`ChatPgTest`, whose bucket is the stage's) and the journey. The unit suites test our code, not
+S3 or SQS: they provide `AttachmentBucketTest` and `recordQueue()`
+([tooling.md › Tests](tooling.md#tests)). So `make test-e2e` needs a running Docker daemon and
 nothing else, not the local stand or `.env`: the Pulumi project is for `make up` alone.
 
 MiniStack differs from AWS in what it never does: lifecycle rules never run, the 5 MiB minimum

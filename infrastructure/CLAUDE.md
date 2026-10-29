@@ -4,7 +4,6 @@ Adapters that implement the domain's ports on top of the generic `packages/*` cl
 repositories, the attachment bucket, the assistant, plus the queue definitions, the outbox relay
 and `Transaction`.
 
-- May import `domain` and `packages/*`; never `application`, an app or `deployment`.
 - One adapter per role file (`<entity>.repository.ts`, `.bucket.ts`, `.llm.ts`), each a `Layer` of
   a domain port, so callers never see the client: object keys and prompts stay inside the adapter.
 - A `<entity>.queue.ts` holds only queue definitions; no adapter wraps `send` or `worker`.

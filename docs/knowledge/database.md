@@ -253,17 +253,20 @@ and that are committed.
 
 ## Tests
 
-Each test runs on a database of its own, copied from a template that the run's setup migrates
-with the `make migrate` program ([tooling.md › Tests](tooling.md#tests)). A repository suite runs
-one body over every implementation of its port and provides the layer per test
-([effect-tests.md](../../.claude/rules/effect-tests.md)); the facts only Postgres has (a check, a
-partial unique index, a transaction) sit in a suite of their own. The service and use case
-suites run over the memory layers of `@app-template/domain/testing` instead, the use cases with
-`TransactionTest` (the identity, from `@app-template/infrastructure/testing`) and the recording
-queue from `@app-template/queue/testing`. The repository suites share the stacks of every
-repository from `infrastructure/testing/repository-stack.test-layer.ts` and insert the parent
-rows with `insertUser` and its siblings from `infrastructure/testing/rows.test-util.ts`. The api
-test layer provides `QueueClientOutbox`, so a send's jobs land in the test database's outbox. An
+Each e2e test runs on a database of its own, copied from a template that the run's setup
+migrates with the `make migrate` program ([tooling.md › Tests](tooling.md#tests)). Every
+`*RepositoryPg` has a suite in `infrastructure/e2e/` on `DbTest`, which shares the four
+repositories of `infrastructure/testing/repository-stack.test-layer.ts` and inserts the parent
+rows with `insertUser` and its siblings from `infrastructure/testing/rows.test-util.ts`. An
 `.entity.e2e.ts` checks what the schema itself refuses (a check, a partial unique index) and
 reads the `SqlError` of a refused statement with `flipSqlError` from
 `infrastructure/db/testing/db.test-layer.ts`.
+
+The domain services, the use cases and the handlers run over the memory layers of
+`@app-template/domain/testing` instead, with `TransactionTest` (the identity, from
+`@app-template/infrastructure/testing`) and the recording queue from
+`@app-template/queue/testing`, so no unit suite sees an outbox row. A memory layer copies each
+guard the database adds (the active message's index, the stage condition of an update, an owner
+in the `where`, the cascade a bound attachment refuses), and the repository suite holds the
+guard's twin on Postgres. What only a transaction decides, that a use case keeps none of its
+writes or its outbox rows when one is refused, runs in `application/e2e/` on `ChatPgTest`.
