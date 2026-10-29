@@ -116,6 +116,7 @@ export class MessageService extends Context.Service<
         .pipe(
           Effect.filterOrFail(Predicate.isTruthy, () => new ChatBusyError({ id: sendable.chatId })),
         )
+
       return message
     })
 

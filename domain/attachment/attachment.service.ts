@@ -139,6 +139,7 @@ export class AttachmentService extends Context.Service<
       const found = yield* bucket.url(id)
 
       const url = yield* Effect.fromOption(found, () => new AttachmentNotFoundError({ id }))
+
       return { attachment, url }
     })
 
