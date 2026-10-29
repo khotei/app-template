@@ -6,7 +6,7 @@
 
 | Step | Delivers | Status |
 |---|---|---|
-| S1 | the reply is written once, whole; no snapshots | todo |
+| S1 | the reply is written once, whole; no snapshots | done |
 | S2 | Anthropic or the stub, chosen by `LLM_PROVIDER`; a model per purpose | todo |
 | S3 | the reply as a structured response with a fixed system prompt; per-purpose request settings | todo |
 | S4 | the port's two final errors, settled by the use cases | todo |
@@ -72,7 +72,20 @@
 - **Verify:** `git grep -n "snapshot\|streamText" -- domain application apps/worker
   infrastructure/chat` is empty; `make check`.
 - **Model:** fable high
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Ran on `opus high`, not `fable high`: the user's choice.
+  - The *Verify* grep cannot be empty: the step's own Files list keeps `model.streamText` in
+    `assistant.llm.ts`, the stub's only way to answer until S2. It answers that one line alone;
+    the port's `streamText` is gone everywhere.
+  - Seam 7's bound sits in a new `domain/tests/chat/assistant.model.test.ts`, beside the model,
+    as the Files list says; `architecture.md › Seams` now names both suites.
+  - The worker's "crash on the last attempt fails the reply with no text" case joined the
+    existing last-attempt test (`failed.text === ''`); the dead-letter test no longer starts from
+    a `generating` text, since none can exist.
+  - S1 changed what more of `chat-core` asks than R16: R14 (no partial text while
+    `generating`), R19 (no snapshots to overwrite), its Context note on the worker job and the
+    R11–R14 and R16–R19 acceptance rows carry the amendment too (round S1.2).
 
 #### S2 — Choose the provider by configuration
 

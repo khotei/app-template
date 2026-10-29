@@ -249,7 +249,7 @@ provenance jsonb          -- { provider, model, instructionsHash } or null
 | 4 `GenerateAssistantMessageUseCase` over the memory layers, `recordAssistant` and `holdAssistantCall` | the stages written: `preparing`, `generating` with the provenance, then one `completed` with the text (R5, R12); `failed` with `ReplyRefused` or `ReplyFailed` from each port error, after one call, provenance kept (R13, R16, R17); only completed messages reach the port (R8) | how a provider failure becomes a port error (Seam 1) |
 | 5 `GenerateChatTitleUseCase` over the memory layers and `recordAssistant` | a port error logs and leaves the chat untitled; the rest of `chat-core` R25 still holds (R19) | the title's schema (Seam 1) |
 | 6 `LlmConfig.layer` over `ConfigProvider.fromUnknown` | `stub` alone passes; a missing or unknown provider, or `anthropic` without its key or a model, fails naming the variable (R3) | the worker exiting (by hand, R3's acceptance) |
-| 7 `domain/tests/chat/message.model.test.ts` | the `AssistantReply` bound (R6); the transitions above, the `ReplyRefused` sentence | — |
+| 7 `domain/tests/chat/message.model.test.ts`, `domain/tests/chat/assistant.model.test.ts` | the `AssistantReply` bound (R6); the transitions above, the `ReplyRefused` sentence | — |
 | 8 `MessageRepositoryPg` on `DbTest`, `infrastructure/e2e/chat/message.repository.e2e.ts` | `provenance` survives a write and a read, `null` as none | — |
 | 9 `apps/api` handler tests, `apps/api/tests/chat/chat.handler.test.ts` | no `provenance` and no `cause` on the wire (R12, R18) | — |
 | 10 the journey `e2e/chat.e2e.ts` on `layerStub` | the worker wiring end to end with no key and no network (R2, R4) | Anthropic itself (by hand, R1's acceptance) |
