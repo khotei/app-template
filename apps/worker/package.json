@@ -2,6 +2,9 @@
   "name": "@app-template/worker",
   "private": true,
   "type": "module",
+  "exports": {
+    "./layer": "./layer.ts"
+  },
   "imports": {
     "#worker/*": "./*.ts"
   },

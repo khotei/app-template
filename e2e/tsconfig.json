@@ -1,0 +1,17 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "../node_modules/.cache/tsc/e2e"
+  },
+  "include": ["**/*.ts"],
+  "references": [
+    { "path": "../apps/api" },
+    { "path": "../apps/worker" },
+    { "path": "../domain" },
+    { "path": "../http-api" },
+    { "path": "../infrastructure" },
+    { "path": "../packages/config" },
+    { "path": "../packages/testing" }
+  ]
+}

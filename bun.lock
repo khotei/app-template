@@ -93,6 +93,22 @@
         "@effect/vitest": "catalog:effect",
       },
     },
+    "e2e": {
+      "name": "@app-template/e2e",
+      "devDependencies": {
+        "@app-template/api": "workspace:*",
+        "@app-template/config": "workspace:*",
+        "@app-template/domain": "workspace:*",
+        "@app-template/http-api": "workspace:*",
+        "@app-template/infrastructure": "workspace:*",
+        "@app-template/testing": "workspace:*",
+        "@app-template/worker": "workspace:*",
+        "@effect/platform-bun": "catalog:effect",
+        "@effect/sql-pg": "catalog:effect",
+        "@effect/vitest": "catalog:effect",
+        "effect": "catalog:effect",
+      },
+    },
     "http-api": {
       "name": "@app-template/http-api",
       "dependencies": {
@@ -233,6 +249,8 @@
     "@app-template/deployment": ["@app-template/deployment@workspace:deployment"],
 
     "@app-template/domain": ["@app-template/domain@workspace:domain"],
+
+    "@app-template/e2e": ["@app-template/e2e@workspace:e2e"],
 
     "@app-template/http-api": ["@app-template/http-api@workspace:http-api"],
 

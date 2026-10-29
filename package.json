@@ -10,7 +10,8 @@
     "infrastructure",
     "packages/*",
     "apps/*",
-    "deployment"
+    "deployment",
+    "e2e"
   ],
   "scripts": {
     "lint": "biome check",

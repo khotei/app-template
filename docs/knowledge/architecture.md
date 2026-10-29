@@ -54,6 +54,7 @@ Each row lists what a workspace may import.
 | apps/web client (`app/`, `features/`, `shared/`) | ✗ | ✓ | ✗ | ✗ | `ui` only | ✗ |
 | apps/web/main.ts | ✗ | ✗ | ✗ | ✗ | `ui`, `config` | ✗ |
 | deployment | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ |
+| e2e | ✓ | ✓ | ✓ | ✗ | `config`, `testing` | ✓ (`api/layer`, `worker/layer`) |
 
 - **`domain` imports `effect` and no workspace,** not even `packages/*`, and no `@effect/*`
   package but the test runner `@effect/vitest`, so it stays pure and testable without fakes;

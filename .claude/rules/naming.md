@@ -9,10 +9,12 @@ paths:
 ## Workspaces
 
 - Every workspace is `@app-template/<name>`: layers `{domain,http-api,application,infrastructure}`,
-  packages `<dir>` (`@app-template/config`), apps `{api,worker,web}`, and `deployment`.
+  packages `<dir>` (`@app-template/config`), apps `{api,worker,web}`, `deployment`, and `e2e`,
+  the root workspace of the journey over both app layers, which has `devDependencies` only.
 - A layer exposes each entity as a subpath through its barrel: `@app-template/domain/chat` →
   `domain/chat/index.ts`. `http-api` and each package have one entry, `index.ts` or `client.ts`;
-  `queue`, `infrastructure` and `application` may add `./testing` (`Files` below).
+  `queue`, `infrastructure` and `application` may add `./testing` (`Files` below). `api` and
+  `worker` export `./layer` alone, for `e2e`; `main.ts` stays theirs.
 
 ## Imports
 

@@ -2,6 +2,9 @@
   "name": "@app-template/api",
   "private": true,
   "type": "module",
+  "exports": {
+    "./layer": "./layer.ts"
+  },
   "imports": {
     "#api/*": "./*.ts"
   },

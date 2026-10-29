@@ -14,6 +14,7 @@ Bun + TypeScript 7 modular monolith; three processes: `apps/api`, `apps/worker`,
 | `packages/*` | generic clients and libraries | [packages/CLAUDE.md](packages/CLAUDE.md) |
 | `apps/*` | thin entry points | [apps/CLAUDE.md](apps/CLAUDE.md) |
 | `deployment/` | local and AWS deployment | [deployment/CLAUDE.md](deployment/CLAUDE.md) |
+| `e2e/` | the journey over `apps/api` and `apps/worker` in one process | [tooling.md › Tests](docs/knowledge/tooling.md#tests) |
 
 Imports follow
 [docs/knowledge/architecture.md › Dependency rules](docs/knowledge/architecture.md#dependency-rules);

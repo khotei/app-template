@@ -62,8 +62,18 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   bucket and queues provisioned ([aws.md › Tests on Docker](aws.md#tests-on-docker)). A test
   therefore sees only its own rows and resources, even through a query that reads a whole table,
   and files run in parallel. E2e tests need Docker and nothing else: no `.env`, no `make up`.
+- **The journey, in the root `e2e` workspace.** `e2e/chat.e2e.ts` drives a user, a chat, an upload
+  and a send over HTTP and reads the reply and the title back once the worker has written them:
+  `StandTest` (`e2e/testing/stand.test-layer.ts`) runs `ApiLayer` and `WorkerLayer`, which the
+  apps export as `./layer`, in the test's own runtime over a `PgClientTest` database, an
+  `AwsTest` stage and the model stub, under one `ConfigProvider` that names them, so the apps'
+  own adapters and config code are the ones under test. The api takes a free port the layer
+  finds, since `Config.Port` refuses `0`, so two runs share nothing. The apps' SDK clients read
+  credentials from the environment, which the `e2e` project sets to the fixed test pair MiniStack
+  accepts. The journey proves the wiring; every rule keeps its lower seam.
 - **Concurrent within a file.** Both projects set `sequence: { concurrent: true }`; since every
-  test owns its database, nothing is shared between tests.
+  test owns its database, nothing is shared between tests. The journey's file opts out, since
+  its tests share one stand and read its outbox whole.
 - **Time.** `it.effect` provides a fresh `TestClock` per test, so time stands still unless the
   test moves it; `it.live` runs on the real clock. `@effect/vitest`'s `layer(…)` instead builds
   one `TestClock` for its whole block, so under concurrency one test's `adjust` would move its
