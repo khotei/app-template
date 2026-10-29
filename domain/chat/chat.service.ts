@@ -2,8 +2,8 @@ import { Array as Arr, Context, Data, DateTime, Effect, Layer, Option, Struct } 
 
 import { type ChatBusyError, ChatNotFoundError, ChatTitledError } from '#domain/chat/chat.error'
 import type { ChatId, MessageId } from '#domain/chat/chat.id'
-import { Chat, type ChatTitle } from '#domain/chat/chat.model'
-import { ChatRepository } from '#domain/chat/chat.port'
+import { Chat, type ChatTitle, type ChatWithStatus, withStatus } from '#domain/chat/chat.model'
+import { type ChatOneWhere, ChatRepository } from '#domain/chat/chat.port'
 import { type MessageInputInvalidError, MessageNotFoundError } from '#domain/chat/message.error'
 import {
   activeMessageWhere,
@@ -28,7 +28,7 @@ export class SendableChat extends Data.Class<{
 export class ChatService extends Context.Service<
   ChatService,
   {
-    readonly get: (userId: UserId, chatId: ChatId) => Effect.Effect<Chat, ChatNotFoundError>
+    readonly findOne: (where: ChatOneWhere) => Effect.Effect<ChatWithStatus, ChatNotFoundError>
     readonly getMessage: (
       userId: UserId,
       chatId: ChatId,
@@ -59,11 +59,14 @@ export class ChatService extends Context.Service<
     const chats = yield* ChatRepository
     const messages = yield* MessageRepository
 
-    const get = Effect.fn('ChatService.get')((userId: UserId, chatId: ChatId) =>
-      chats
-        .selectOne({ id: chatId, userId })
-        .pipe(Effect.flatMap(Effect.fromOption(() => new ChatNotFoundError({ id: chatId })))),
-    )
+    const findOne = Effect.fn('ChatService.findOne')(function* (where: ChatOneWhere) {
+      const chat = yield* chats
+        .selectOne(where)
+        .pipe(Effect.flatMap(Effect.fromOption(() => new ChatNotFoundError({ id: where.id }))))
+      const active = yield* messages.selectMany({ chatId: [chat.id], ...activeMessageWhere })
+
+      return withStatus(chat, Arr.head(active).pipe(Option.map(Struct.get('message'))))
+    })
 
     const getMessage = Effect.fn('ChatService.getMessage')(
       (userId: UserId, chatId: ChatId, messageId: MessageId) =>
@@ -120,7 +123,7 @@ export class ChatService extends Context.Service<
       return new SendableChat({ chatId, input, opensChat: Option.isNone(first), at })
     })
 
-    return { get, getMessage, rename, updateTitle, findSendable }
+    return { findOne, getMessage, rename, updateTitle, findSendable }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

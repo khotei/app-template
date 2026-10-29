@@ -6,7 +6,7 @@ import { buildChat, ChatId, ChatRepository, ChatService } from '@app-template/do
 import { generateId } from '@app-template/domain/shared'
 import { Api, CurrentUser } from '@app-template/http-api'
 
-import { toChat, toMessage } from '#api/shared/projections'
+import { toChat, toChatWithStatus, toMessage } from '#api/shared/projections'
 
 export const ChatHandler = HttpApiBuilder.group(
   Api,
@@ -43,8 +43,8 @@ export const ChatHandler = HttpApiBuilder.group(
         'get',
         Effect.fn('ChatHandler.get')(function* ({ params }) {
           const user = yield* CurrentUser
-          const chat = yield* chatService.get(user.id, params.chatId)
-          return toChat(chat)
+          const chat = yield* chatService.findOne({ id: params.chatId, userId: user.id })
+          return toChatWithStatus(chat)
         }),
       )
       .handle(

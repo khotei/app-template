@@ -37,9 +37,6 @@ const at = (seconds: number) => DateTime.add(createdAt, { seconds })
 const question = (id: string, chatId: ChatId) =>
   buildUserMessage({ id: MessageId.make(id), chatId, text: 'Hi', createdAt })
 
-const _reply = (id: string, chatId: ChatId) =>
-  buildAssistantMessage({ id: MessageId.make(id), chatId, createdAt: at(1) })
-
 const photo = (
   id: string,
   { userId, messageId, seconds }: { userId: UserId; messageId: MessageId; seconds: number },

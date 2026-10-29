@@ -37,7 +37,12 @@ _Avoid_: State, status, in-progress, pending, streaming
 **Active message**:
 The assistant message of a chat that is not yet terminal (`queued`, `preparing` or `generating`).
 A chat has at most one; the chat has no state of its own beyond it.
-_Avoid_: Chat status, pending message, current reply
+_Avoid_: Pending message, current reply
+
+**Chat status**:
+`busy` while the chat has an active message, else `idle`. No row stores it: `withStatus` derives it
+from the active message when a chat is read (`ChatWithStatus`).
+_Avoid_: Chat state; a message stage's name (`generating`) for it
 
 **Title**:
 The short name of a chat, shown in the user's chat list. The assistant proposes one from the
@@ -79,7 +84,8 @@ The `Schema.Class` of an entity as the domain sees it (`Chat`, `Message`).
 _Avoid_: Entity (for the class), DTO, row
 
 **Read model**:
-A shape a port answers for a reader, composed of models (`MessageDetail`); nothing writes one.
+A shape a port or a domain service answers for a reader, composed of models (`MessageDetail`,
+`ChatWithStatus`); nothing writes one.
 _Avoid_: View, projection, DTO
 
 **Port**:

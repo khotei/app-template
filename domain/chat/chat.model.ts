@@ -1,6 +1,7 @@
 import { type DateTime, Option, pipe, Schema, String as Str } from 'effect'
 
 import { ChatId } from '#domain/chat/chat.id'
+import type { Message } from '#domain/chat/message.model'
 import { UserId } from '#domain/user/user.id'
 
 /** Counted in UTF-16 code units, as `Schema.isMaxLength` counts them. */
@@ -43,6 +44,18 @@ export class Chat extends Schema.Class<Chat>('Chat')({
   createdAt: Schema.DateTimeUtc,
   updatedAt: Schema.DateTimeUtc,
 }) {}
+
+/** `busy` while the chat has an active message, else `idle`. */
+export const ChatStatus = Schema.Literals(['idle', 'busy'])
+export type ChatStatus = typeof ChatStatus.Type
+
+/** A chat with its status, which no row stores: `withStatus` derives it. */
+export class ChatWithStatus extends Chat.extend<ChatWithStatus>('ChatWithStatus')({
+  status: ChatStatus,
+}) {}
+
+export const withStatus = (chat: Chat, active: Option.Option<Message>): ChatWithStatus =>
+  new ChatWithStatus({ ...chat, status: Option.isSome(active) ? 'busy' : 'idle' })
 
 export const buildChat = (input: {
   readonly id: ChatId

@@ -75,6 +75,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
 
           assert.deepInclude(reply, { stage: 'completed', text: stubReply, attachments: [] })
           assert.deepStrictEqual(titled.title, Option.some('Stub chat title'))
+          assert.strictEqual(titled.status, 'idle')
           assert.deepStrictEqual(
             Arr.map(asked.attachments, ({ id }) => id),
             [uploaded.id],

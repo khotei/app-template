@@ -141,9 +141,9 @@ replace one layer later.
   with `web-app`.*
 - **R7** — WHEN `GET /chats/:chatId` succeeds, THE SYSTEM SHALL return the chat with every message
   in creation order, each message with its attachments' metadata, and its `activeMessage`.
-  *Amended by the chat-reads refactor on `feat/llm-providers`: it returns the chat alone; a
-  message is read by `GET /chats/:chatId/messages/:messageId`, and a list of them is decided
-  with `web-app`.*
+  *Amended by the chat-reads refactor on `feat/llm-providers`: it returns the chat with its
+  `status` (`busy` while it has an active message, else `idle`); a message is read by `GET
+  /chats/:chatId/messages/:messageId`, and a list of them is decided with `web-app`.*
 - **R8** — WHEN `PATCH /chats/:chatId` carries a `title` that is non-empty after trimming and at
   most 120 characters, THE SYSTEM SHALL set it trimmed, bump `updatedAt` and return the chat;
   otherwise it SHALL answer `400 RequestInvalidError`. *Amended in plan review: the contract trims the
@@ -158,7 +158,8 @@ replace one layer later.
   there is none. The repository finds it; no stored chat field holds it. *Amended in plan review:
   message stages are the one vocabulary; `Chat.status` is gone, because its `generating` meant
   something other than the message stage of that name.* *Amended by the chat-reads refactor
-  on `feat/llm-providers`: no endpoint exposes it any more; it still guards a send (R12).*
+  on `feat/llm-providers`: no endpoint exposes it; `GET /chats/:chatId` derives the chat's
+  `status` from it, and it still guards a send (R12).*
 
 ### Message and the assistant's message
 
