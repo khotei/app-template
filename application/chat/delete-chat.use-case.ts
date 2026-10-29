@@ -6,6 +6,7 @@ import {
   type ChatNotFoundError,
   ChatRepository,
   ChatService,
+  MessageRepository,
 } from '@app-template/domain/chat'
 import type { UserId } from '@app-template/domain/user'
 import { Transaction } from '@app-template/infrastructure/db'
@@ -20,6 +21,7 @@ export class DeleteChatUseCase extends Context.Service<
   make: Effect.gen(function* () {
     const chats = yield* ChatRepository
     const chatService = yield* ChatService
+    const messages = yield* MessageRepository
     const attachmentService = yield* AttachmentService
     const transaction = yield* Transaction
 
@@ -28,9 +30,11 @@ export class DeleteChatUseCase extends Context.Service<
       userId: UserId,
       chatId: ChatId,
     ) {
-      const { messages } = yield* chatService.get(userId, chatId)
+      yield* chatService.get(userId, chatId)
+      const details = yield* messages.selectMany({ chatId: [chatId] })
+
       yield* attachmentService.deleteByIds(
-        Arr.flatMap(messages, ({ attachments }) => Arr.map(attachments, ({ id }) => id)),
+        Arr.flatMap(details, ({ attachments }) => Arr.map(attachments, ({ id }) => id)),
       )
       yield* chats.delete(chatId)
     }, transaction.run)

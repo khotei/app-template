@@ -1,7 +1,7 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, DateTime, Effect, Layer, Option, Struct } from 'effect'
+import { DateTime, Effect, Layer, Option } from 'effect'
 
 import { assertSchemaEquals } from '@app-template/testing'
 
@@ -27,7 +27,7 @@ import type { UserId } from '#domain/user/user.id'
 const ChatBunTest = ChatTest.pipe(Layer.provideMerge(BunCrypto.layer))
 
 /** Completes an assistant message as the worker would, freeing its chat for the next send. */
-const settle = (message: Message) =>
+const _settle = (message: Message) =>
   Effect.gen(function* () {
     const messages = yield* MessageRepository
     const at = yield* DateTime.now
@@ -59,63 +59,6 @@ const chatCalls: ReadonlyArray<{ readonly name: string; readonly call: ChatCall 
 ]
 
 describe('ChatService', () => {
-  it.effect(
-    "list returns the user's chats, the most recently updated first, each with its active message",
-    () =>
-      Effect.gen(function* () {
-        const service = yield* ChatService
-        const chats = yield* ChatRepository
-        const newer = new Chat({
-          ...buildChat({
-            id: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000035'),
-            userId: owner,
-            createdAt: epoch,
-          }),
-          updatedAt: DateTime.add(epoch, { seconds: 1 }),
-        })
-        yield* chats.insert(newer)
-        yield* chats.insert(
-          buildChat({
-            id: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000036'),
-            userId: stranger,
-            createdAt: epoch,
-          }),
-        )
-        const sent = yield* send(owner, chat.id, 'Lisbon?')
-
-        const summaries = yield* service.list(owner)
-
-        assertEquals(Arr.map(summaries, Struct.get('chat')), [newer, chat])
-        assertEquals(
-          Arr.map(summaries, ({ activeMessage }) => Option.map(activeMessage, Struct.get('id'))),
-          [Option.none(), Option.some(sent.assistantMessage.id)],
-        )
-      }).pipe(Effect.provide(ChatBunTest)),
-  )
-
-  it.effect('get returns the chat with its messages and the active message', () =>
-    Effect.gen(function* () {
-      const service = yield* ChatService
-      const first = yield* send(owner, chat.id, 'Lisbon?')
-      yield* settle(first.assistantMessage)
-      const second = yield* send(owner, chat.id, 'And now?')
-
-      const detail = yield* service.get(owner, chat.id)
-
-      assert.sameMembers(
-        Arr.map(detail.messages, ({ message }) => message.id),
-        [
-          first.userMessage.id,
-          first.assistantMessage.id,
-          second.userMessage.id,
-          second.assistantMessage.id,
-        ],
-      )
-      assertEquals(detail.activeMessage, Option.some(second.assistantMessage))
-      assert.strictEqual(detail.chat.id, chat.id)
-    }).pipe(Effect.provide(ChatBunTest)),
-  )
-
   it.effect('findSendable says the first send opens the chat, and no later one', () =>
     Effect.gen(function* () {
       const service = yield* ChatService
@@ -225,11 +168,7 @@ describe('ChatService', () => {
 
         assertSchemaEquals(ChatNotFoundError, foreign, new ChatNotFoundError({ id: chat.id }))
         assertSchemaEquals(ChatNotFoundError, missing, new ChatNotFoundError({ id: unknownChatId }))
-        assertEquals(yield* service.get(owner, chat.id), {
-          chat,
-          activeMessage: Option.none(),
-          messages: [],
-        })
+        assertEquals(yield* service.get(owner, chat.id), chat)
       }).pipe(Effect.provide(ChatBunTest)),
   )
 

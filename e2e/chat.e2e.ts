@@ -45,6 +45,9 @@ const formOf = (file: File) => {
 
 const selectOutbox = SqlClient.SqlClient.use((sql) => sql`select queue from outbox`)
 
+const selectMessages = (chatId: ChatId) =>
+  SqlClient.SqlClient.use((sql) => sql`select id from messages where chat_id = ${chatId}`)
+
 describe('the journey over both app layers', { concurrent: false }, () => {
   layer(StandTest, { excludeTestServices: true })((it) => {
     it.effect(
@@ -66,18 +69,15 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           const reply = yield* pollSettledMessage(chat.id, sent.assistantMessage.id)
           const titled = yield* pollTitledChat(chat.id)
 
-          assert.deepInclude(reply, { stage: 'completed', text: stubReply })
+          const asked = yield* api.chats.getMessage({
+            params: { chatId: chat.id, messageId: sent.userMessage.id },
+          })
+
+          assert.deepInclude(reply, { stage: 'completed', text: stubReply, attachments: [] })
           assert.deepStrictEqual(titled.title, Option.some('Stub chat title'))
-          assert.deepStrictEqual(titled.activeMessage, Option.none())
           assert.deepStrictEqual(
-            Arr.map(titled.messages, ({ author, attachments }) => ({
-              author,
-              attachmentIds: Arr.map(attachments, ({ id }) => id),
-            })),
-            [
-              { author: 'user', attachmentIds: [uploaded.id] },
-              { author: 'assistant', attachmentIds: [] },
-            ],
+            Arr.map(asked.attachments, ({ id }) => id),
+            [uploaded.id],
           )
           const rows = yield* selectOutbox
           assert.deepStrictEqual(rows, [])
@@ -112,7 +112,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           })
           .pipe(Effect.flip)
 
-        const detail = yield* api.chats.get({ params: { chatId: chat.id } })
+        const stored = yield* selectMessages(chat.id)
         const rows = yield* selectOutbox
 
         assertSchemaEquals(
@@ -120,7 +120,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           refused,
           new AttachmentNotFoundError({ id: stale }),
         )
-        assert.deepStrictEqual(detail.messages, [])
+        assert.deepStrictEqual(stored, [])
         assert.deepStrictEqual(rows, [])
       }),
     )

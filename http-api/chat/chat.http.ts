@@ -7,7 +7,6 @@ import {
   AttachmentNotFoundError,
 } from '@app-template/domain/attachment'
 import {
-  ActiveMessageStage,
   ChatBusyError,
   ChatId,
   Chat as ChatModel,
@@ -30,15 +29,6 @@ export const Chat = ChatModel.mapFields((fields) => ({
 }))
 export type Chat = typeof Chat.Type
 
-export const ChatSummary = Chat.mapFields(
-  Struct.assign({
-    activeMessage: Schema.OptionFromNullOr(
-      MessageModel.mapFields((fields) => ({ id: fields.id, stage: ActiveMessageStage })),
-    ),
-  }),
-)
-export type ChatSummary = typeof ChatSummary.Type
-
 /** Carries the failure's user-facing sentence, never its cause. */
 export const Message = MessageModel.mapFields((fields) => ({
   ...fields,
@@ -47,9 +37,6 @@ export const Message = MessageModel.mapFields((fields) => ({
 }))
 export type Message = typeof Message.Type
 
-export const ChatDetail = ChatSummary.mapFields(Struct.assign({ messages: Schema.Array(Message) }))
-export type ChatDetail = typeof ChatDetail.Type
-
 const chatPath = { chatId: ChatId }
 
 const chatNotFound = ChatNotFoundError.pipe(HttpApiSchema.status(404))
@@ -57,10 +44,10 @@ const chatNotFound = ChatNotFoundError.pipe(HttpApiSchema.status(404))
 export class ChatHttp extends HttpApiGroup.make('chats')
   .add(
     HttpApiEndpoint.post('create', '/chats', { success: Chat.pipe(HttpApiSchema.status(201)) }),
-    HttpApiEndpoint.get('list', '/chats', { success: Schema.Array(ChatSummary) }),
+    HttpApiEndpoint.get('list', '/chats', { success: Schema.Array(Chat) }),
     HttpApiEndpoint.get('get', '/chats/:chatId', {
       params: chatPath,
-      success: ChatDetail,
+      success: Chat,
       error: chatNotFound,
     }),
     HttpApiEndpoint.patch('rename', '/chats/:chatId', {

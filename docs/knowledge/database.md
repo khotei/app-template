@@ -45,8 +45,9 @@ from them and the row codecs derived from them.
   statement to after five runs, cannot prove the index predicate from bound parameters.
 - **A read names the active condition as a `where`.** `activeMessageWhere`, beside
   `isActiveMessage` in `message.model.ts`, states the same condition for
-  `MessageRepository.selectMany`, its stages from the same `ActiveMessageStage.literals`; the
-  caller narrows the rows with `isActiveMessage`, which no `where` can type.
+  `MessageRepository.selectMany`, its stages from the same `ActiveMessageStage.literals`; a rule
+  that needs the `ActiveMessage` type checks the row with `isActiveMessage`, which no `where` can
+  type (`ensureChatAcceptsMessage`).
 - **A descending index states its null order.** Drizzle's `desc()` indexes nulls last while
   Postgres's `ORDER BY … DESC` sorts them first, so an index for that order is
   `.desc().nullsFirst()` (`chats_user_id_updated_at_index`).
@@ -102,12 +103,9 @@ const rows = yield* db.query.messages.findMany({
 // rows: [{ id, chatId, …, attachments: [{ id, userId, messageId, … }] }]
 ```
 
-A read model is composed where it is answered: `MessageRepository.selectOne` and `selectMany`
-always read a `MessageDetail`, the message `with` its attachments in one relational query, while
-`ChatService` builds `ChatSummary` and `ChatDetail` from a read of the chats, then one of their
-messages, so a chat read stays one table. The service picks the active message with
-`Arr.findFirst(isActiveMessage)`, a narrowing no schema types. A model holds no field that
-another table holds: `Message` has no attachments, which reach the reader as a `MessageDetail`.
+A read model is one relational query: `MessageRepository.selectOne` and `selectMany` always read
+a `MessageDetail`, the message `with` its attachments. A model holds no field that another table
+holds: `Message` has no attachments, which reach the reader as a `MessageDetail`.
 
 ## Repositories
 

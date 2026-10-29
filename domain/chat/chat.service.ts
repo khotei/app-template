@@ -1,15 +1,14 @@
-import { Array as Arr, Context, Data, DateTime, Effect, Layer, Option, pipe, Struct } from 'effect'
+import { Array as Arr, Context, Data, DateTime, Effect, Layer, Option, Struct } from 'effect'
 
 import { type ChatBusyError, ChatNotFoundError, ChatTitledError } from '#domain/chat/chat.error'
 import type { ChatId, MessageId } from '#domain/chat/chat.id'
-import { Chat, type ChatDetail, type ChatSummary, type ChatTitle } from '#domain/chat/chat.model'
+import { Chat, type ChatTitle } from '#domain/chat/chat.model'
 import { ChatRepository } from '#domain/chat/chat.port'
 import { type MessageInputInvalidError, MessageNotFoundError } from '#domain/chat/message.error'
 import {
   activeMessageWhere,
   ensureChatAcceptsMessage,
   ensureMessageInput,
-  isActiveMessage,
   type MessageDetail,
   type MessageInput,
 } from '#domain/chat/message.model'
@@ -29,9 +28,7 @@ export class SendableChat extends Data.Class<{
 export class ChatService extends Context.Service<
   ChatService,
   {
-    /** Returns the user's chats, the most recently updated first. */
-    readonly list: (userId: UserId) => Effect.Effect<ReadonlyArray<ChatSummary>>
-    readonly get: (userId: UserId, chatId: ChatId) => Effect.Effect<ChatDetail, ChatNotFoundError>
+    readonly get: (userId: UserId, chatId: ChatId) => Effect.Effect<Chat, ChatNotFoundError>
     readonly getMessage: (
       userId: UserId,
       chatId: ChatId,
@@ -62,40 +59,11 @@ export class ChatService extends Context.Service<
     const chats = yield* ChatRepository
     const messages = yield* MessageRepository
 
-    const selectActive = (chatIds: ReadonlyArray<ChatId>) =>
-      messages
-        .selectMany({ chatId: chatIds, ...activeMessageWhere })
-        .pipe(Effect.map(Arr.map(Struct.get('message'))))
-
-    const list = Effect.fn('ChatService.list')(function* (userId: UserId) {
-      const found = yield* chats.selectByUser(userId)
-      const active = yield* selectActive(Arr.map(found, Struct.get('id')))
-
-      return Arr.map(
-        found,
-        (chat): ChatSummary => ({
-          chat,
-          // `isActiveMessage` only narrows the type: the query read active messages alone.
-          activeMessage: Arr.findFirst(active, (message) => message.chatId === chat.id).pipe(
-            Option.filter(isActiveMessage),
-          ),
-        }),
-      )
-    })
-
-    const get = Effect.fn('ChatService.get')(function* (userId: UserId, chatId: ChatId) {
-      const chat = yield* chats
+    const get = Effect.fn('ChatService.get')((userId: UserId, chatId: ChatId) =>
+      chats
         .selectOne({ id: chatId, userId })
-        .pipe(Effect.flatMap(Effect.fromOption(() => new ChatNotFoundError({ id: chatId }))))
-      const details = yield* messages.selectMany({ chatId: [chatId] })
-
-      const activeMessage = pipe(
-        details,
-        Arr.map(Struct.get('message')),
-        Arr.findFirst(isActiveMessage),
-      )
-      return { chat, activeMessage, messages: details }
-    })
+        .pipe(Effect.flatMap(Effect.fromOption(() => new ChatNotFoundError({ id: chatId })))),
+    )
 
     const getMessage = Effect.fn('ChatService.getMessage')(
       (userId: UserId, chatId: ChatId, messageId: MessageId) =>
@@ -144,15 +112,15 @@ export class ChatService extends Context.Service<
         .selectOne({ id: chatId, userId }, { forUpdate: true })
         .pipe(Effect.flatMap(Effect.fromOption(() => new ChatNotFoundError({ id: chatId }))))
 
-      const active = yield* selectActive([chatId])
-      yield* ensureChatAcceptsMessage(Arr.head(active))
+      const active = yield* messages.selectMany({ chatId: [chatId], ...activeMessageWhere })
+      yield* ensureChatAcceptsMessage(Arr.head(active).pipe(Option.map(Struct.get('message'))))
 
       const first = yield* messages.selectOne({ chatId })
       const at = yield* DateTime.now
       return new SendableChat({ chatId, input, opensChat: Option.isNone(first), at })
     })
 
-    return { list, get, getMessage, rename, updateTitle, findSendable }
+    return { get, getMessage, rename, updateTitle, findSendable }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

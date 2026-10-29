@@ -1,7 +1,6 @@
 import { type DateTime, Option, pipe, Schema, String as Str } from 'effect'
 
 import { ChatId } from '#domain/chat/chat.id'
-import type { ActiveMessage, MessageDetail } from '#domain/chat/message.model'
 import { UserId } from '#domain/user/user.id'
 
 /** Counted in UTF-16 code units, as `Schema.isMaxLength` counts them. */
@@ -44,16 +43,6 @@ export class Chat extends Schema.Class<Chat>('Chat')({
   createdAt: Schema.DateTimeUtc,
   updatedAt: Schema.DateTimeUtc,
 }) {}
-
-export interface ChatSummary {
-  readonly chat: Chat
-  readonly activeMessage: Option.Option<ActiveMessage>
-}
-
-export interface ChatDetail extends ChatSummary {
-  /** Every message of the chat, in creation order. */
-  readonly messages: ReadonlyArray<MessageDetail>
-}
 
 export const buildChat = (input: {
   readonly id: ChatId

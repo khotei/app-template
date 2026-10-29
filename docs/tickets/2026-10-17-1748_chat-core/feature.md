@@ -136,9 +136,14 @@ replace one layer later.
   `title: none`, no active message, `createdAt` and `updatedAt` from `Clock`, and return it.
 - **R6** — WHEN `GET /chats` succeeds, THE SYSTEM SHALL return the user's chats as summaries
   (`id`, `title`, `activeMessage`, `createdAt`, `updatedAt`) sorted by `updatedAt` descending, without
-  messages and without pagination.
+  messages and without pagination. *Amended by the chat-reads refactor on
+  `feat/llm-providers`: the chats carry no `activeMessage`; what the client needs is decided
+  with `web-app`.*
 - **R7** — WHEN `GET /chats/:chatId` succeeds, THE SYSTEM SHALL return the chat with every message
   in creation order, each message with its attachments' metadata, and its `activeMessage`.
+  *Amended by the chat-reads refactor on `feat/llm-providers`: it returns the chat alone; a
+  message is read by `GET /chats/:chatId/messages/:messageId`, and a list of them is decided
+  with `web-app`.*
 - **R8** — WHEN `PATCH /chats/:chatId` carries a `title` that is non-empty after trimming and at
   most 120 characters, THE SYSTEM SHALL set it trimmed, bump `updatedAt` and return the chat;
   otherwise it SHALL answer `400 RequestInvalidError`. *Amended in plan review: the contract trims the
@@ -152,7 +157,8 @@ replace one layer later.
   that is `queued`, `preparing` or `generating`, as `activeMessage: { id, stage }`, or `null` when
   there is none. The repository finds it; no stored chat field holds it. *Amended in plan review:
   message stages are the one vocabulary; `Chat.status` is gone, because its `generating` meant
-  something other than the message stage of that name.*
+  something other than the message stage of that name.* *Amended by the chat-reads refactor
+  on `feat/llm-providers`: no endpoint exposes it any more; it still guards a send (R12).*
 
 ### Message and the assistant's message
 
