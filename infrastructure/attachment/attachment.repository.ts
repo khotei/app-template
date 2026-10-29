@@ -15,7 +15,12 @@ import {
   attachments,
 } from '#infrastructure/attachment/attachment.entity'
 import { buildSet, buildWhere, skipUndefined } from '#infrastructure/db/columns'
-import { Db, decodeOptionalRow, orDieWithSqlError } from '#infrastructure/db/db.client'
+import {
+  Db,
+  decodeOptionalRow,
+  orDieOnNoRows,
+  orDieWithSqlError,
+} from '#infrastructure/db/db.client'
 
 const encodeAttachment = Schema.encodeEffect(AttachmentInsert)
 
@@ -82,9 +87,13 @@ export const AttachmentRepositoryPg = Layer.effect(
             .pipe(Effect.flatMap(decodeAttachments), Effect.map(inOrderOf(where.id))),
         orDieWithSqlError,
       ),
-      deleteByIds: Effect.fn('AttachmentRepository.deleteByIds')(
-        (ids: ReadonlyArray<AttachmentId>) =>
-          db.delete(attachments).where(inArray(attachments.id, ids)),
+      delete: Effect.fn('AttachmentRepository.delete')(
+        (where) =>
+          db
+            .delete(attachments)
+            .where(encodeWhere(where))
+            .returning({ id: attachments.id })
+            .pipe(orDieOnNoRows('no attachment was deleted')),
         orDieWithSqlError,
       ),
     }),

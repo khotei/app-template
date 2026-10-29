@@ -83,10 +83,14 @@ export class AttachmentService extends Context.Service<
     const crypto = yield* Crypto.Crypto
     const randomAttachmentId = generateId(crypto, AttachmentId.make)
 
+    // An empty batch asks for nothing, so it never reaches the delete that dies on no rows.
+    const deleteRows = (ids: ReadonlyArray<AttachmentId>) =>
+      Arr.isReadonlyArrayNonEmpty(ids) ? attachments.delete({ id: ids }) : Effect.void
+
     const deleteByIds = Effect.fn('AttachmentService.deleteByIds')(function* (
       ids: ReadonlyArray<AttachmentId>,
     ) {
-      yield* attachments.deleteByIds(ids)
+      yield* deleteRows(ids)
       yield* Effect.forEach(ids, bucket.delete, { discard: true })
     })
 
@@ -108,14 +112,23 @@ export class AttachmentService extends Context.Service<
       userId: UserId,
       files: Stream.Stream<AttachmentUpload<E>, E>,
     ) {
+      // Bytes are tracked before the write, rows after the insert: a lost record still deletes
+      // its bytes, and the cleanup deletes only rows that exist.
       const tracked = yield* Ref.make<ReadonlyArray<AttachmentId>>(Arr.empty())
-      // Tracked before the write, not after the insert: a lost record still deletes the bytes.
+      const stored = yield* Ref.make<ReadonlyArray<AttachmentId>>(Arr.empty())
       const trackId = Effect.tap(randomAttachmentId, (id) => Ref.update(tracked, Arr.append(id)))
-      const deleteTracked = Ref.get(tracked).pipe(Effect.flatMap(deleteByIds))
+      const storeId = (attachment: Attachment) => Ref.update(stored, Arr.append(attachment.id))
+      const deleteTracked = Effect.gen(function* () {
+        yield* Ref.get(stored).pipe(Effect.flatMap(deleteRows))
+        const ids = yield* Ref.get(tracked)
+        yield* Effect.forEach(ids, bucket.delete, { discard: true })
+      })
 
       return yield* files.pipe(
         Stream.mapEffect((file) =>
-          Effect.flatMap(trackId, (id) => uploadFile(file, { id, userId })),
+          Effect.flatMap(trackId, (id) =>
+            uploadFile(file, { id, userId }).pipe(Effect.tap(storeId)),
+          ),
         ),
         Stream.runCollect,
         Effect.onError(() => deleteTracked),
@@ -151,7 +164,7 @@ export class AttachmentService extends Context.Service<
       const attachment = yield* get(userId, id)
       yield* ensureUnbound(attachment)
 
-      yield* attachments.deleteByIds([id])
+      yield* attachments.delete({ id: [id] })
       yield* bucket.delete(id)
     })
 

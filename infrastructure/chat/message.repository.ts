@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm'
-import { Array as Arr, Effect, Layer, Option, Schema, UndefinedOr } from 'effect'
+import { Effect, Layer, Option, Schema, UndefinedOr } from 'effect'
 
 import {
   isActiveMessage,
@@ -19,7 +19,12 @@ import {
   withAttachments,
 } from '#infrastructure/chat/message.entity'
 import { buildWhere, skipUndefined } from '#infrastructure/db/columns'
-import { Db, decodeOptionalRow, orDieWithSqlError } from '#infrastructure/db/db.client'
+import {
+  Db,
+  decodeOptionalRow,
+  orDieOnNoRows,
+  orDieWithSqlError,
+} from '#infrastructure/db/db.client'
 
 const encodeMessage = Schema.encodeEffect(MessageInsert)
 
@@ -43,25 +48,21 @@ export const MessageRepositoryPg = Layer.effect(
     MessageRepository.of({
       insert: Effect.fn('MessageRepository.insert')(function* (message) {
         const row = yield* encodeMessage(message)
-        const inserted = yield* db
+        yield* db
           .insert(messages)
           .values(row)
           .onConflictDoNothing({ target: messages.chatId, where: activeMessage })
           .returning({ id: messages.id })
-        if (Arr.isReadonlyArrayEmpty(inserted)) {
-          return yield* Effect.die(new Error(`message ${message.id} was not inserted`))
-        }
+          .pipe(orDieOnNoRows(`message ${message.id} was not inserted`))
       }, orDieWithSqlError),
       update: Effect.fn('MessageRepository.update')(function* (message, where) {
         const row = yield* encodeMessage(message)
-        const updated = yield* db
+        yield* db
           .update(messages)
           .set(row)
           .where(and(eq(messages.id, message.id), encodeWhere(where)))
           .returning({ id: messages.id })
-        if (Arr.isReadonlyArrayEmpty(updated)) {
-          return yield* Effect.die(new Error(`message ${message.id} was not updated`))
-        }
+          .pipe(orDieOnNoRows(`message ${message.id} was not updated`))
       }, orDieWithSqlError),
       selectOne: Effect.fn('MessageRepository.selectOne')(
         (where) =>

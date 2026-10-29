@@ -30,7 +30,12 @@ import {
   withAttachments,
 } from '#infrastructure/chat/message.entity'
 import { buildSet, buildWhere, skipUndefined } from '#infrastructure/db/columns'
-import { Db, decodeOptionalRow, orDieWithSqlError } from '#infrastructure/db/db.client'
+import {
+  Db,
+  decodeOptionalRow,
+  orDieOnNoRows,
+  orDieWithSqlError,
+} from '#infrastructure/db/db.client'
 
 const encodeChat = Schema.encodeEffect(ChatInsert)
 
@@ -92,16 +97,16 @@ export const ChatRepositoryPg = Layer.effect(
         const row = yield* encodeChat(chat)
         yield* db.insert(chats).values(row)
       }, orDieWithSqlError),
-      update: Effect.fn('ChatRepository.update')(function* (set, where) {
-        const updated = yield* db
-          .update(chats)
-          .set(encodeSet(set))
-          .where(encodeWhere(where))
-          .returning({ id: chats.id })
-        if (Arr.isReadonlyArrayEmpty(updated)) {
-          return yield* Effect.die(new Error(`chat ${where.id} was not updated`))
-        }
-      }, orDieWithSqlError),
+      update: Effect.fn('ChatRepository.update')(
+        (set, where) =>
+          db
+            .update(chats)
+            .set(encodeSet(set))
+            .where(encodeWhere(where))
+            .returning({ id: chats.id })
+            .pipe(orDieOnNoRows(`chat ${where.id} was not updated`)),
+        orDieWithSqlError,
+      ),
       selectOne: Effect.fn('ChatRepository.selectOne')(function* (where, options) {
         const query = db.select().from(chats).where(encodeOneWhere(where)).$dynamic()
         const rows = yield* options?.forUpdate ? query.for('update') : query
@@ -132,12 +137,15 @@ export const ChatRepositoryPg = Layer.effect(
             ),
         orDieWithSqlError,
       ),
-      delete: Effect.fn('ChatRepository.delete')(function* (id: ChatId) {
-        const deleted = yield* db.delete(chats).where(eq(chats.id, id)).returning({ id: chats.id })
-        if (Arr.isReadonlyArrayEmpty(deleted)) {
-          return yield* Effect.die(new Error(`chat ${id} was not deleted`))
-        }
-      }, orDieWithSqlError),
+      delete: Effect.fn('ChatRepository.delete')(
+        (id: ChatId) =>
+          db
+            .delete(chats)
+            .where(eq(chats.id, id))
+            .returning({ id: chats.id })
+            .pipe(orDieOnNoRows(`chat ${id} was not deleted`)),
+        orDieWithSqlError,
+      ),
     }),
   ),
 )

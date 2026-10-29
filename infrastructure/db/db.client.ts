@@ -3,7 +3,7 @@ import { EffectCache } from 'drizzle-orm/cache/core/cache-effect'
 import { EffectLogger } from 'drizzle-orm/effect-core'
 import { EffectDrizzleQueryError } from 'drizzle-orm/effect-core/errors'
 import * as PgDrizzle from 'drizzle-orm/effect-postgres'
-import { Cause, Context, Effect, Layer, Schema } from 'effect'
+import { Array as Arr, Cause, Context, Effect, Layer, Schema } from 'effect'
 import { SqlClient, SqlError } from 'effect/sql'
 
 import { DatabaseConfig } from '@app-template/config'
@@ -71,6 +71,19 @@ export const unwrapQueryError = (error: EffectDrizzleQueryError) => {
 }
 
 const isQueryError = Schema.is(EffectDrizzleQueryError)
+
+/**
+ * Dies with `message` when a write's `RETURNING` answers no row.
+ *
+ * The caller checked the rule before writing, so a write the guard refuses only lost a race.
+ */
+export const orDieOnNoRows =
+  (message: string) =>
+  <A, E, R>(self: Effect.Effect<ReadonlyArray<A>, E, R>): Effect.Effect<void, E, R> =>
+    self.pipe(
+      Effect.filterOrElse(Arr.isReadonlyArrayNonEmpty, () => Effect.die(new Error(message))),
+      Effect.asVoid,
+    )
 
 /** Turns every failure into a defect, a Drizzle query error as the `SqlError` it wraps. */
 export const orDieWithSqlError = <A, E, R>(

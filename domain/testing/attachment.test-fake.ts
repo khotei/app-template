@@ -71,7 +71,15 @@ export const AttachmentRepositoryTest = Layer.effect(
           Effect.map(HashMap.filter(holdsWhere(where))),
           Effect.map(inOrderOf(where.id)),
         ),
-      deleteByIds: (ids) => Ref.update(rows, HashMap.removeMany(ids)),
+      delete: (where) =>
+        Ref.modify(rows, (map) => {
+          const deleted = Arr.fromIterable(HashMap.keys(HashMap.filter(map, holdsWhere(where))))
+          return [deleted, HashMap.removeMany(map, deleted)] as const
+        }).pipe(
+          Effect.filterOrElse(Arr.isReadonlyArrayNonEmpty, () =>
+            Effect.die(new Error('no attachment was deleted')),
+          ),
+        ),
     }),
   ),
 )

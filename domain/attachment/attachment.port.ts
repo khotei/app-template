@@ -33,8 +33,8 @@ export class AttachmentRepository extends Context.Service<
     readonly selectOne: (where: AttachmentOneWhere) => Effect.Effect<Option.Option<Attachment>>
     /** Rows where `where` holds; in the order of `where.id` when given, unknown ids skipped. */
     readonly selectMany: (where: AttachmentWhere) => Effect.Effect<ReadonlyArray<Attachment>>
-    /** Deletes the attachments found; unknown ids are skipped. */
-    readonly deleteByIds: (ids: ReadonlyArray<AttachmentId>) => Effect.Effect<void>
+    /** Deletes the rows where `where` holds; dies when it deletes nothing. */
+    readonly delete: (where: AttachmentWhere) => Effect.Effect<void>
   }
 >()('@app-template/domain/attachment/AttachmentRepository') {}
 

@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, DateTime, Effect, Option, pipe, Schema, Struct } from 'effect'
+import { Array as Arr, DateTime, Effect, Exit, Option, pipe, Schema, Struct } from 'effect'
 
 import {
   Attachment,
@@ -175,11 +175,20 @@ describe('AttachmentRepositoryPg', () => {
       yield* pipe(dropped, Arr.prepend(kept), Effect.forEach(attachments.insert))
 
       const droppedIds = Arr.map(dropped, (each) => each.id)
-      yield* attachments.deleteByIds(Arr.append(droppedIds, unknownId))
-      yield* attachments.deleteByIds([])
+      yield* attachments.delete({ id: Arr.append(droppedIds, unknownId) })
 
       const ids = Arr.prepend(droppedIds, kept.id)
       assertSchemaEquals(Attachments, yield* attachments.selectMany({ id: ids }), [kept])
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
+  )
+
+  it.effect('delete where no row holds dies', () =>
+    Effect.gen(function* () {
+      const attachments = yield* AttachmentRepository
+
+      const exit = yield* attachments.delete({ id: [unknownId] }).pipe(Effect.exit)
+
+      assert.isTrue(Exit.hasDies(exit))
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 })
