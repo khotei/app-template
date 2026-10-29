@@ -1,4 +1,4 @@
-import { Effect, Layer, pipe, String as Str, Stream } from 'effect'
+import { Effect, Layer, pipe, Schedule, String as Str, Stream } from 'effect'
 import { LanguageModel, type Response } from 'effect/ai'
 
 const cannedReply =
@@ -21,7 +21,7 @@ const streamWords = (text: string): Stream.Stream<Response.StreamPartEncoded> =>
     text,
     Str.split(/(?= )/),
     Stream.fromIterable,
-    Stream.tap(() => Effect.sleep(wordDelay)),
+    Stream.schedule(Schedule.spaced(wordDelay)),
     Stream.map(toDelta),
   )
 

@@ -1419,6 +1419,56 @@ keeps the suites green, a changed assertion named in its findings.
 - **Test first:** `config only`: a refactor, the existing suites stay green unchanged.
 - **Verify:** `make check`.
 - **Model:** opus medium
+- **Status:** done
+- **Findings:**
+  - Ten of thirteen forms applied, −9 lines in all. Left out, each would grow the code: a shared
+    `*Rows` factory (a class expression breaks declaration emit, TS4020/TS4023, unless its type is
+    written out), a shared id helper (a new domain module and four imports; instead the four sites
+    share one one-line form), `withDecodingDefaultKey` for `Messages ?? []` (+2).
+  - The migrator bounds its retry by `Schedule.upTo({ times })` before the log tap: the `times`
+    option stops after the tap ran and logs a 31st line the e2e suite refuses.
+  - The stub's first word now comes at once; the delay sits between words.
+  - The cookie-jar layer is `layerCookieJar` in `packages/testing/http.test-layer.ts`, used by the
+    api suites and the e2e stand. `db.client.ts`'s own `isSqlError` duplicates
+    `SqlError.isSqlError`: left for S35, which touches the file.
+
+#### S35 — No call takes another call's result as its subject, and a check keeps it so
+
+- **Delivers:** every inside-out chain reads in execution order: a call whose subject is another
+  call's result becomes a `.pipe` on that result (an `Effect`, a `Layer`, a `Schema`, a `Stream`),
+  `pipe(value, …)` for plain data, or `flow(…)` for a chain without its value; `make check` fails
+  on the nested form.
+- **Goal:** the user's review of S29 and S33 (`effect-style.md › Composition`: "flat over nested",
+  "an inside-out body becomes a pipe in execution order"), which the code still breaks.
+  - Examples on the tree: `Effect.map(Ref.get(rows), f)` → `Ref.get(rows).pipe(Effect.map(f))`;
+    `Effect.fromOption(Arr.head(xs))` → `pipe(xs, Arr.head, Effect.fromOption)`;
+    `Effect.transposeOption(Option.map(Option.fromNullishOr(row), decode))` →
+    `flow(Option.fromNullishOr, Option.map(decode), Effect.transposeOption)`;
+    `Str.isEmpty(Str.trim(text))` → `pipe(text, Str.trim, Str.isEmpty)`;
+    `Effect.provide(X.pipe(Layer.provide(Y)))` → `Effect.provide(Layer.provide(X, Y))` or a named
+    layer.
+  - A function whose every step feeds only the next is point-free: `flow(…)` of its steps, or the
+    arrow's body one `.pipe` (`effect-services.md › Functions`), e.g.
+    `findOwned = flow(chats.selectOne, Effect.flatMap(Effect.fromOption(onNone)))`.
+  - A function whose later steps read several earlier values stays `Effect.gen` / `Effect.fn` with
+    one named `yield*` per step (a pipe there would nest callbacks or carry an `Effect.Do`
+    record); the plumbing of a step (decode, map, filterOrFail, orDie) is chained on that step
+    with `.pipe`, never wrapped around it.
+  - Not nesting: a constructor or schema argument (`Option.some(ChatTitle.make(…))`,
+    `Schema.String.check(Schema.isUUID())`), a predicate built from others (`Predicate.not(…)`),
+    a layer list (`Layer.mergeAll(…)`).
+  - `effect-style.md › Composition`: the pipe line states the rule as "a call never takes another
+    call's result as its subject", with one example, within the 80-line budget.
+  - A `make` target in `check` (and CI's `links` job) fails on a data-first combinator of
+    `Effect`, `Option`, `Arr`, `Str`, `Stream`, `Layer` or `Record` whose first argument is a
+    call of those modules or of `Ref`; a curated list of combinators, so constructors pass.
+- **Blocked by:** S34 (both touch the same files).
+- **Files:** the sites the check finds across every workspace; `.claude/rules/effect-style.md`;
+  `Makefile`; `.github/workflows/ci.yml`; `docs/knowledge/tooling.md`.
+- **Test first:** the new target fails on the tree before the rewrite; a probe of each listed form
+  fails it, and a constructor argument passes.
+- **Verify:** `make check`; the probes; `git diff --numstat` shows no net growth.
+- **Model:** opus high
 - **Status:** todo
 
 ## Requirement coverage

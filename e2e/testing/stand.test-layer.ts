@@ -1,14 +1,14 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { PgClient } from '@effect/sql-pg'
-import { ConfigProvider, Effect, Layer, Option, Redacted, Ref } from 'effect'
-import { Cookies, FetchHttpClient, HttpClient } from 'effect/http'
+import { ConfigProvider, Effect, Layer, Redacted } from 'effect'
+import { FetchHttpClient } from 'effect/http'
 
 import { ApiLayer } from '@app-template/api/layer'
 import { AwsConfig } from '@app-template/config'
 import { ApiClient } from '@app-template/http-api'
 import { AttachmentBucketS3, S3BucketFromConfig } from '@app-template/infrastructure/attachment'
 import { AwsTest } from '@app-template/infrastructure/testing'
-import { PgClientTest } from '@app-template/testing'
+import { layerCookieJar, PgClientTest } from '@app-template/testing'
 import { WorkerLayer } from '@app-template/worker/layer'
 
 // `Config.Port` refuses 0, so the api cannot take an ephemeral port itself.
@@ -23,7 +23,7 @@ const findFreePort = Effect.sync(() => {
 const buildConfigProvider = Effect.fnUntraced(function* (port: number) {
   const { config } = yield* PgClient.PgClient
   const { region, endpoint, stage } = yield* AwsConfig
-  const databaseUrl = yield* Effect.fromOption(Option.fromNullishOr(config.url))
+  const databaseUrl = yield* Effect.fromNullishOr(config.url)
   const awsEndpoint = yield* Effect.fromOption(endpoint)
 
   return ConfigProvider.fromUnknown({
@@ -40,17 +40,10 @@ const buildConfigProvider = Effect.fnUntraced(function* (port: number) {
   })
 })
 
-/** One browser: a cookie jar of its own, as `layerApiClient` in the api's own suites. */
+/** One browser: a cookie jar of its own. */
 const layerApiClient = (port: number) =>
   ApiClient.layer(`http://localhost:${port}`).pipe(
-    Layer.provide(
-      Layer.effect(
-        HttpClient.HttpClient,
-        Effect.map(Effect.zip(HttpClient.HttpClient, Ref.make(Cookies.empty)), ([client, jar]) =>
-          HttpClient.withCookiesRef(client, jar),
-        ),
-      ),
-    ),
+    Layer.provide(layerCookieJar()),
     Layer.provide(FetchHttpClient.layer),
   )
 

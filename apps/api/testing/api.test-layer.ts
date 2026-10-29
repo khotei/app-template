@@ -1,12 +1,13 @@
 import { BunCrypto, BunHttpServer } from '@effect/platform-bun'
-import { ConfigProvider, Effect, Layer, Ref } from 'effect'
-import { Cookies, HttpClient } from 'effect/http'
+import { ConfigProvider, Layer } from 'effect'
+import { Cookies } from 'effect/http'
 
 import { QueueClientTest } from '@app-template/application/testing'
 import { AttachmentBucketTest, RepositoryStackTest } from '@app-template/domain/testing'
 import { ApiClient } from '@app-template/http-api'
 import { TransactionTest } from '@app-template/infrastructure/testing'
 import { recordQueue } from '@app-template/queue/testing'
+import { layerCookieJar } from '@app-template/testing'
 
 import { ApiHttp } from '#api/layer'
 
@@ -28,16 +29,7 @@ export const ApiServerTest = ApiHttp.pipe(
  * the `HttpClient` it puts in context sends through the same jar.
  */
 export const layerApiClient = (cookies: Cookies.Cookies = Cookies.empty) =>
-  ApiClient.layer('').pipe(
-    Layer.provideMerge(
-      Layer.effect(
-        HttpClient.HttpClient,
-        Effect.map(Effect.zip(HttpClient.HttpClient, Ref.make(cookies)), ([client, jar]) =>
-          HttpClient.withCookiesRef(client, jar),
-        ),
-      ),
-    ),
-  )
+  ApiClient.layer('').pipe(Layer.provideMerge(layerCookieJar(cookies)))
 
 /** One browser on an api of the test's own: no row, object or server is shared with another test. */
 export const ApiTest = layerApiClient().pipe(Layer.provideMerge(ApiServerTest))

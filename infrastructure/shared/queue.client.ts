@@ -37,14 +37,14 @@ export const QueueClientOutbox: Layer.Layer<QueueClient, never, Db> = Layer.effe
       message: A,
     ) {
       const body = yield* encodeJob(definition, message)
-      const now = yield* DateTime.now
+      const now = yield* DateTime.nowAsDate
 
       yield* orDieWithSqlError(
         db.insert(outbox).values({
           queue: definition.name,
           jobId: definition.jobId(message),
           body,
-          createdAt: DateTime.toDateUtc(now),
+          createdAt: now,
         }),
       )
     })

@@ -55,8 +55,7 @@ const inCreationOrder = Order.combine(
   Order.mapInput(Order.String, (row: Created) => row.id),
 )
 
-const byLatestActivity: Order.Order<Chat> = (self, that) =>
-  DateTime.Order(that.updatedAt, self.updatedAt)
+const byLatestActivity = Order.flip(Order.mapInput(DateTime.Order, (chat: Chat) => chat.updatedAt))
 
 const messagesOf = (messages: Messages, chatId: ChatId) =>
   pipe(
@@ -124,18 +123,24 @@ const holdsMessageWhere = (tables: Tables, where: MessageOneWhere) =>
     isOwnedThroughChat(tables.chats, where.userId),
   )
 
+const makeReadTables = Effect.gen(function* () {
+  const chats = yield* ChatRows
+  const messages = yield* MessageRows
+  const attachments = yield* AttachmentRows
+
+  return Effect.all({
+    chats: Ref.get(chats),
+    messages: Ref.get(messages),
+    attachments: Ref.get(attachments),
+  })
+})
+
 export const ChatRepositoryTest = Layer.effect(
   ChatRepository,
   Effect.gen(function* () {
     const chats = yield* ChatRows
     const messages = yield* MessageRows
-    const attachments = yield* AttachmentRows
-
-    const readTables = Effect.all({
-      chats: Ref.get(chats),
-      messages: Ref.get(messages),
-      attachments: Ref.get(attachments),
-    })
+    const readTables = yield* makeReadTables
 
     const withActiveMessage = (found: ReadonlyArray<Chat>) =>
       Effect.map(Ref.get(messages), (rows) => Arr.map(found, summaryOf(rows)))
@@ -196,15 +201,8 @@ export const ChatRepositoryTest = Layer.effect(
 export const MessageRepositoryTest = Layer.effect(
   MessageRepository,
   Effect.gen(function* () {
-    const chats = yield* ChatRows
     const messages = yield* MessageRows
-    const attachments = yield* AttachmentRows
-
-    const readTables = Effect.all({
-      chats: Ref.get(chats),
-      messages: Ref.get(messages),
-      attachments: Ref.get(attachments),
-    })
+    const readTables = yield* makeReadTables
 
     return MessageRepository.of({
       insert: (message) =>

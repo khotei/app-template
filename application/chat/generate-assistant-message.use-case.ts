@@ -153,7 +153,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
         at: failedAt,
       })
       return yield* settle(failed).pipe(
-        Effect.map(Option.some),
+        Effect.asSome,
         Effect.catchTag('MessageMovedError', () => skipped('alreadySettled')),
       )
     })

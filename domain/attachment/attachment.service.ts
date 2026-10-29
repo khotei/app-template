@@ -4,6 +4,7 @@ import {
   Crypto,
   DateTime,
   Effect,
+  HashMap,
   Layer,
   Option,
   Predicate,
@@ -79,8 +80,7 @@ export class AttachmentService extends Context.Service<
     const attachments = yield* AttachmentRepository
     const bucket = yield* AttachmentBucket
     const crypto = yield* Crypto.Crypto
-    const randomUuid = Effect.orDie(crypto.randomUUIDv7())
-    const randomAttachmentId = Effect.map(randomUuid, AttachmentId.make)
+    const randomAttachmentId = Effect.map(Effect.orDie(crypto.randomUUIDv7()), AttachmentId.make)
 
     const deleteByIds = Effect.fn('AttachmentService.deleteByIds')(function* (
       ids: ReadonlyArray<AttachmentId>,
@@ -162,9 +162,11 @@ export class AttachmentService extends Context.Service<
     ) {
       const stored = yield* attachments.selectMany({ id: ids, userId })
       const now = yield* DateTime.now
-      const found = new Map(Arr.map(stored, (attachment) => [attachment.id, attachment]))
+      const found = HashMap.fromIterable(
+        Arr.map(stored, (attachment) => [attachment.id, attachment]),
+      )
       const ensureBindable = (id: AttachmentId) =>
-        Option.fromUndefinedOr(found.get(id)).pipe(
+        HashMap.get(found, id).pipe(
           Option.filter(Predicate.not(isExpiredAt(now))),
           Effect.fromOption(() => new AttachmentNotFoundError({ id })),
           Effect.flatMap(ensureUnbound),
@@ -178,12 +180,9 @@ export class AttachmentService extends Context.Service<
         { messageId: Option.some(messageId) },
         { id: ids, userId, messageId: Option.none() },
       )
-      const byId = new Map(Arr.map(bound, (attachment) => [attachment.id, attachment]))
+      const byId = HashMap.fromIterable(Arr.map(bound, (attachment) => [attachment.id, attachment]))
       return yield* Effect.forEach(ids, (id) =>
-        Effect.fromOption(
-          Option.fromUndefinedOr(byId.get(id)),
-          () => new AttachmentBoundError({ id }),
-        ),
+        Effect.fromOption(HashMap.get(byId, id), () => new AttachmentBoundError({ id })),
       )
     })
 

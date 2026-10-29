@@ -5,7 +5,7 @@ import type { ActiveMessage, MessageDetail } from '#domain/chat/message.model'
 import { UserId } from '#domain/user/user.id'
 
 /** Counted in UTF-16 code units, as `Schema.isMaxLength` counts them. */
-export const maxTitleLength = 120 as const
+export const maxTitleLength = 120
 
 export const ChatTitle = Schema.String.check(
   Schema.isTrimmed(),
