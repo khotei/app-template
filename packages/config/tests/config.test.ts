@@ -115,7 +115,7 @@ describe('config layers', () => {
       const { region, endpoint, stage } = yield* AwsConfig
 
       assert.deepStrictEqual(
-        { region, endpoint: Option.map(endpoint, String), stage },
+        { region, endpoint: endpoint.pipe(Option.map(String)), stage },
         { region: 'eu-central-1', endpoint: parsed, stage: 'local' },
       )
     }).pipe(

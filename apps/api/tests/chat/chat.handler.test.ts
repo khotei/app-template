@@ -101,7 +101,7 @@ describe('chats', () => {
       assert.deepStrictEqual(Arr.sort(statuses, Order.Number), [202, 409])
       assertSchemaEquals(
         ChatBusyError,
-        yield* Effect.flatMap(busy.json, Schema.decodeUnknownEffect(ChatBusyError)),
+        yield* busy.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(ChatBusyError))),
         new ChatBusyError({ id: chat.id }),
       )
     }).pipe(Effect.provide(ApiTest)),
@@ -120,7 +120,7 @@ describe('chats', () => {
       assert.strictEqual(response.status, 404)
       assertSchemaEquals(
         ChatNotFoundError,
-        yield* Effect.flatMap(response.json, Schema.decodeUnknownEffect(ChatNotFoundError)),
+        yield* response.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(ChatNotFoundError))),
         new ChatNotFoundError({ id: chat.id }),
       )
     }).pipe(Effect.provide(ApiServerTest)),

@@ -100,7 +100,9 @@ export class AttachmentService extends Context.Service<
       // its bytes, and the cleanup deletes only rows that exist.
       const tracked = yield* Ref.make<ReadonlyArray<AttachmentId>>(Arr.empty())
       const stored = yield* Ref.make<ReadonlyArray<AttachmentId>>(Arr.empty())
-      const trackId = Effect.tap(randomAttachmentId, (id) => Ref.update(tracked, Arr.append(id)))
+      const trackId = randomAttachmentId.pipe(
+        Effect.tap((id) => Ref.update(tracked, Arr.append(id))),
+      )
       const storeId = (attachment: Attachment) => Ref.update(stored, Arr.append(attachment.id))
       const deleteTracked = Effect.gen(function* () {
         const storedIds = yield* Ref.get(stored)
@@ -111,8 +113,9 @@ export class AttachmentService extends Context.Service<
 
       return yield* files.pipe(
         Stream.mapEffect((file) =>
-          Effect.flatMap(trackId, (id) =>
-            uploadFile(file, { id, userId }).pipe(Effect.tap(storeId)),
+          trackId.pipe(
+            Effect.flatMap((id) => uploadFile(file, { id, userId })),
+            Effect.tap(storeId),
           ),
         ),
         Stream.runCollect,

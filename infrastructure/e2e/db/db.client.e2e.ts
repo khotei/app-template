@@ -24,7 +24,8 @@ describe('Db', () => {
     { level: 'Info', expected: [] },
   ])('logs a statement with its parameters at $level', ({ level, expected }) => {
     const { logs, layer: recordedLogs } = recordLogs('query', 'params')
-    return Effect.map(greet, () => assert.deepStrictEqual(logs, expected)).pipe(
+    return greet.pipe(
+      Effect.map(() => assert.deepStrictEqual(logs, expected)),
       Effect.provide([DbTest, recordedLogs]),
       Effect.provideService(References.MinimumLogLevel, level),
     )

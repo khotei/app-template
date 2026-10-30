@@ -202,13 +202,15 @@ export const MessageRepositoryTest = Layer.effect(
     const readTables = yield* createReadTables
 
     const selectMany = (where: MessageSelectWhere) =>
-      Effect.map(readTables, (tables) =>
-        pipe(
-          tables.messages,
-          HashMap.filter(holdsWhere(tables, where)),
-          HashMap.toValues,
-          Arr.sort(inCreationOrder),
-          Arr.map(messageWithAttachmentsOf(tables.attachments)),
+      readTables.pipe(
+        Effect.map((tables) =>
+          pipe(
+            tables.messages,
+            HashMap.filter(holdsWhere(tables, where)),
+            HashMap.toValues,
+            Arr.sort(inCreationOrder),
+            Arr.map(messageWithAttachmentsOf(tables.attachments)),
+          ),
         ),
       )
 

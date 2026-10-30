@@ -45,8 +45,8 @@ const describeApplied = (applied: number) => {
 }
 
 /** `migrateDatabase`, then one `Info` line that says how many migrations it applied. */
-export const applyMigrations = Effect.flatMap(migrateDatabase, (applied) =>
-  Effect.logInfo(describeApplied(applied)),
+export const applyMigrations = migrateDatabase.pipe(
+  Effect.flatMap((applied) => Effect.logInfo(describeApplied(applied))),
 )
 
 /** Postgres's `cannot_connect_now`: it takes the connection, but is still starting up. */

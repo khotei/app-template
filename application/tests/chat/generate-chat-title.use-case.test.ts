@@ -34,7 +34,7 @@ const generate = GenerateChatTitleUseCase.use((useCase) =>
 )
 
 const heldAnswer = (held: AssistantCallHold) =>
-  Effect.andThen(held.hold, Effect.succeedSome(lisbonWeekend))
+  held.hold.pipe(Effect.andThen(Effect.succeedSome(lisbonWeekend)))
 
 const changesWhileAnswering = [
   { name: 'renamed', change: renameChat, log: 'chat deleted or titled', title: Option.some(trip) },
@@ -124,7 +124,7 @@ describe('GenerateChatTitleUseCase', () => {
 
         assertEquals(
           yield* selectChat(chatId),
-          Option.map(title, (title) => new Chat({ ...chat, title: Option.some(title) })),
+          title.pipe(Option.map((title) => new Chat({ ...chat, title: Option.some(title) }))),
         )
         assert.deepStrictEqual(logs, [['Info', `chat title skipped: ${log}`]])
       }).pipe(Effect.provide([ChatTitleTest.pipe(Layer.provide(assistant.layer)), logger]))

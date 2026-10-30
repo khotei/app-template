@@ -177,7 +177,7 @@ describe('failMessage', () => {
         assert.strictEqual(failed.status, 'failed')
         assert.strictEqual(failed.updatedAt, later)
         assert.deepStrictEqual(
-          Option.map(failed.error, (error) => ({ ...error })),
+          failed.error.pipe(Option.map((error) => ({ ...error }))),
           Option.some({
             reason: 'ReplyFailed' as const,
             message: 'The assistant could not reply. Please try again.',
