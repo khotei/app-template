@@ -1,4 +1,14 @@
-import { Array as Arr, Effect, Layer, Option, pipe, Schema, String as Str, Stream } from 'effect'
+import {
+  Array as Arr,
+  Effect,
+  Layer,
+  Option,
+  pipe,
+  Result,
+  Schema,
+  String as Str,
+  Stream,
+} from 'effect'
 import { Prompt } from 'effect/ai'
 
 import {
@@ -49,8 +59,9 @@ export const AssistantLlm: Layer.Layer<Assistant, never, AssistantModels> = Laye
     Assistant.of({
       reply: Effect.fn('Assistant.reply')(function* (history) {
         const text = yield* models.reply.streamText({ prompt: buildChatPrompt(history) }).pipe(
-          Stream.filter((part) => part.type === 'text-delta'),
-          Stream.map((part) => part.delta),
+          Stream.filterMap((part) =>
+            part.type === 'text-delta' ? Result.succeed(part.delta) : Result.fail(part),
+          ),
           Stream.mkString,
         )
         return yield* decodeReply({ text })

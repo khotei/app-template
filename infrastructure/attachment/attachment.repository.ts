@@ -1,8 +1,9 @@
 import { eq, inArray, isNull } from 'drizzle-orm'
-import { Array as Arr, Effect, Layer, Option, pipe, Schema, UndefinedOr } from 'effect'
+import { Array as Arr, Effect, Filter, Layer, Option, pipe, Schema, UndefinedOr } from 'effect'
 
 import {
   type Attachment,
+  type AttachmentId,
   AttachmentRepository,
   type AttachmentSet,
   type AttachmentWhere,
@@ -42,8 +43,11 @@ const inOrderOf =
   (found: ReadonlyArray<Attachment>): ReadonlyArray<Attachment> =>
     pipe(
       Arr.ensure(ids),
-      Arr.map((id) => Arr.findFirst(found, (each) => each.id === id)),
-      Arr.getSomes,
+      Arr.filterMap(
+        Filter.fromPredicateOption((id: AttachmentId) =>
+          Arr.findFirst(found, (each) => each.id === id),
+        ),
+      ),
     )
 
 export const AttachmentRepositoryPg = Layer.effect(

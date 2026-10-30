@@ -2,6 +2,7 @@ import {
   Array as Arr,
   Context,
   Effect,
+  Filter,
   HashMap,
   Layer,
   Option,
@@ -41,8 +42,7 @@ const inOrderOf =
   (found: HashMap.HashMap<AttachmentId, Attachment>): ReadonlyArray<Attachment> =>
     pipe(
       Arr.ensure(ids),
-      Arr.map((id) => HashMap.get(found, id)),
-      Arr.getSomes,
+      Arr.filterMap(Filter.fromPredicateOption((id: AttachmentId) => HashMap.get(found, id))),
     )
 
 export const AttachmentRepositoryTest = Layer.effect(
