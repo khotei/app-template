@@ -49,7 +49,7 @@ _Avoid_: State, stage; a new word for one of the six
 **Chat status**:
 `queued` while the chat's reply is in work, `failed` after its last reply failed, else `idle`;
 stored on the chat. A send moves it to `queued` (`queueChat`), the reply's end to `idle`
-(`freeChat`) or `failed` (`failChat`).
+(`idleChat`) or `failed` (`failChat`).
 _Avoid_: Busy, chat state; a value outside its subset (`generating`)
 
 **Title**:

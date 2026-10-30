@@ -72,7 +72,7 @@ const settleChat = Effect.fnUntraced(function* (chat: Chat, to: SettledChatStatu
   return new Chat({ ...chat, status: to })
 })
 
-export const freeChat = Effect.fn('freeChat')((chat: Chat) => settleChat(chat, 'idle'))
+export const idleChat = Effect.fn('idleChat')((chat: Chat) => settleChat(chat, 'idle'))
 
 export const failChat = Effect.fn('failChat')((chat: Chat) => settleChat(chat, 'failed'))
 

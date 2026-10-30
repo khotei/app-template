@@ -57,8 +57,9 @@ a package's own test helpers, which suites compose instead of copying.
   - `layer<Variant>`: a static that builds one variant of the service's `Layer`
     (`effect-services.md › Layers`); a `Layer` that runs work is named for it;
   - `build` / `ensure`: a pure function that derives a value or guards an invariant
-    (`build<Entity>`); a pure transition is named for the status it moves to (`ship<Entity>`),
-    which wins over this list;
+    (`build<Entity>`); a pure transition is named for the status it moves to, as a verb
+    (`ship<Entity>` to `shipped`; `complete<Entity>` to `done`, which no verb spells), which wins
+    over this list;
   - `generate`: an impure function that makes a fresh value (`generateId`);
   - `is` / `has`: a predicate;
   - `get`: a domain service's read over ports, never a port method; it answers the record or its

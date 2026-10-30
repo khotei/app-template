@@ -148,7 +148,7 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
   once, the second waits on the first's row lock, then matches no row and dies, rolled back
   whole: a lost race of that narrow window answers 500, any later send reads `queued` and
   answers 409. The reply's end (`settle` in `GenerateAssistantMessageUseCase`) moves it by
-  `freeChat` or `failChat` the same way, in the transaction that settles the message, so the
+  `idleChat` or `failChat` the same way, in the transaction that settles the message, so the
   chat's status and its active message move together; a path that ends a reply anywhere else
   must move the chat too, or the chat stays `queued`.
 - **Update under a `where`.** `MessageRepository.update(message, where)` runs `WHERE id = …

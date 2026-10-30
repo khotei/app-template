@@ -10,7 +10,7 @@ import {
   Chat,
   ChatTitle,
   failChat,
-  freeChat,
+  idleChat,
   maxTitleLength,
   queueChat,
 } from '#domain/chat/chat.model'
@@ -36,9 +36,9 @@ describe('queueChat', () => {
   )
 })
 
-describe('freeChat and failChat', () => {
+describe('idleChat and failChat', () => {
   it.effect.each([
-    { name: 'freeChat', end: freeChat, to: 'idle' },
+    { name: 'idleChat', end: idleChat, to: 'idle' },
     { name: 'failChat', end: failChat, to: 'failed' },
   ] as const)('$name ends a queued chat as $to', ({ end, to }) =>
     Effect.gen(function* () {
@@ -49,7 +49,7 @@ describe('freeChat and failChat', () => {
   )
 
   it.effect.each([
-    { name: 'freeChat', end: freeChat, from: 'idle', to: 'idle' },
+    { name: 'idleChat', end: idleChat, from: 'idle', to: 'idle' },
     { name: 'failChat', end: failChat, from: 'failed', to: 'failed' },
   ] as const)('$name refuses a chat that is $from', ({ end, from, to }) =>
     Effect.gen(function* () {

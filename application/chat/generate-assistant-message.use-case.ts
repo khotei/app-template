@@ -10,8 +10,8 @@ import {
   completeMessage,
   failChat,
   failMessage,
-  freeChat,
   generateMessage,
+  idleChat,
   isActiveMessage,
   type Message,
   type MessageId,
@@ -69,8 +69,8 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
         .selectMany({ chatId, status: ['done'] })
         .pipe(Effect.flatMap(Effect.forEach(readTurn)))
 
-    /** Writes the settled message with its chat's end, `freeChat` or `failChat`, in one transaction. */
-    const settleWith = (end: typeof freeChat) =>
+    /** Writes the settled message with its chat's end, `idleChat` or `failChat`, in one transaction. */
+    const settleWith = (end: typeof idleChat) =>
       Effect.fnUntraced(function* (settled: Message, where: MessageUpdateWhere) {
         yield* messages.update(settled, where)
         // The message's write held, so the foreign key still keeps its chat.
@@ -82,7 +82,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
         return settled
       }, transaction.run)
 
-    const settleCompleted = settleWith(freeChat)
+    const settleCompleted = settleWith(idleChat)
 
     const settleFailed = settleWith(failChat)
 
