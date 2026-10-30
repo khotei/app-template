@@ -15,7 +15,6 @@ import { Schema } from 'effect'
 import {
   ActiveMessageStage,
   ChatId,
-  Message,
   MessageAuthor,
   MessageFailure,
   MessageId,
@@ -72,8 +71,6 @@ const messageFields = {
 export const MessageRow = createSelectSchema(messages, messageFields)
 
 export const MessageInsert = createInsertSchema(messages, messageFields)
-
-export const MessageFromRow = MessageRow.pipe(Schema.decodeTo(Message))
 
 export const inCreationOrder = { createdAt: 'asc', id: 'asc' } as const
 

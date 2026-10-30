@@ -10,7 +10,7 @@ import {
 } from 'effect'
 
 import type { AttachmentId } from '#domain/attachment/attachment.id'
-import type { Attachment } from '#domain/attachment/attachment.model'
+import { Attachment } from '#domain/attachment/attachment.model'
 import { ChatId, MessageId } from '#domain/chat/chat.id'
 import { MessageInputInvalidError, MessageStageInvalidError } from '#domain/chat/message.error'
 import { ActiveMessageStage, MessageStage } from '#domain/chat/message-stage.model'
@@ -35,18 +35,14 @@ export class Message extends Schema.Class<Message>('Message')({
   error: Schema.Option(MessageFailure),
   createdAt: Schema.DateTimeUtc,
   updatedAt: Schema.DateTimeUtc,
+  /** Bound by `AttachmentService.bind`, in upload order; the message's own writes never touch them. */
+  attachments: Schema.Array(Attachment),
 }) {}
 
 /** An assistant message whose reply is still running; `isActiveMessage` narrows to it. */
 export interface ActiveMessage extends Message {
   readonly author: 'assistant'
   readonly stage: ActiveMessageStage
-}
-
-export interface MessageDetail {
-  readonly message: Message
-  /** The attachments bound to the message, in upload order. */
-  readonly attachments: ReadonlyArray<Attachment>
 }
 
 export interface MessageInput {
@@ -69,6 +65,7 @@ export const buildUserMessage = (input: {
     error: Option.none(),
     createdAt: input.createdAt,
     updatedAt: input.createdAt,
+    attachments: [],
   })
 
 export const buildAssistantMessage = (input: {
@@ -85,6 +82,7 @@ export const buildAssistantMessage = (input: {
     error: Option.none(),
     createdAt: input.createdAt,
     updatedAt: input.createdAt,
+    attachments: [],
   })
 
 const isActiveShape = Predicate.Struct({

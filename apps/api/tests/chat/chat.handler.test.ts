@@ -25,9 +25,7 @@ const openChat = ApiClient.use((api) => api.users.ensure().pipe(Effect.andThen(a
 const failReply = (id: MessageId) =>
   Effect.gen(function* () {
     const messages = yield* MessageRepository
-    const { message: reply } = yield* messages
-      .selectOne({ id })
-      .pipe(Effect.flatMap(Effect.fromOption))
+    const reply = yield* messages.selectOne({ id }).pipe(Effect.flatMap(Effect.fromOption))
     yield* messages.update(
       yield* failMessage(reply, {
         reason: 'ReplyFailed',

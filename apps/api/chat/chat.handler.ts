@@ -13,8 +13,6 @@ import {
 import { generateId } from '@app-template/domain/shared'
 import { Api, CurrentUser } from '@app-template/http-api'
 
-import { toMessage } from '#api/shared/projections'
-
 export const ChatHandler = HttpApiBuilder.group(
   Api,
   'chats',
@@ -70,25 +68,20 @@ export const ChatHandler = HttpApiBuilder.group(
         'send',
         Effect.fn('ChatHandler.send')(function* ({ params, payload }) {
           const user = yield* CurrentUser
-          const sent = yield* sendMessage.send(user.id, params.chatId, payload)
-          return {
-            userMessage: toMessage(sent.userMessage),
-            assistantMessage: toMessage(sent.assistantMessage),
-          }
+          return yield* sendMessage.send(user.id, params.chatId, payload)
         }),
       )
       .handle(
         'getMessage',
         Effect.fn('ChatHandler.getMessage')(function* ({ params }) {
           const user = yield* CurrentUser
-          const message = yield* messages
+          return yield* messages
             .selectOne({ id: params.messageId, chatId: params.chatId, userId: user.id })
             .pipe(
               Effect.flatMap(
                 Effect.fromOption(() => new MessageNotFoundError({ id: params.messageId })),
               ),
             )
-          return toMessage(message)
         }),
       )
   }),

@@ -1,4 +1,4 @@
-import { Array as Arr, Cause, Context, DateTime, Effect, Layer, Option, Struct } from 'effect'
+import { Array as Arr, Cause, Context, DateTime, Effect, Layer, Option } from 'effect'
 
 import { type Attachment, AttachmentBucket } from '@app-template/domain/attachment'
 import {
@@ -14,7 +14,6 @@ import {
   generateMessage,
   isActiveMessage,
   type Message,
-  type MessageDetail,
   type MessageId,
   MessageRepository,
   type MessageStageInvalidError,
@@ -33,7 +32,7 @@ const replySkipLogs = {
 
 const skipped = (why: ReplySkip) => Effect.as(replySkipLogs[why], Option.none<Message>())
 
-const isCompletedTurn = ({ message }: MessageDetail) => message.stage === 'completed'
+const isCompletedTurn = (message: Message) => message.stage === 'completed'
 
 export class GenerateAssistantMessageUseCase extends Context.Service<
   GenerateAssistantMessageUseCase,
@@ -62,8 +61,8 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
     const readFile = (attachment: Attachment) =>
       bucket.select(attachment.id).pipe(Effect.map(Option.map((bytes) => ({ attachment, bytes }))))
 
-    const readTurn = ({ message, attachments }: MessageDetail) =>
-      Effect.forEach(attachments, readFile).pipe(
+    const readTurn = (message: Message) =>
+      Effect.forEach(message.attachments, readFile).pipe(
         Effect.map((files): AssistantTurn => ({ message, files: Arr.getSomes(files) })),
       )
 
@@ -109,9 +108,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
       job: GenerateAssistantMessage,
     ) {
       // The cascade takes the message with its chat, so a missing one means a deleted chat.
-      const stored = yield* messages
-        .selectOne({ id: job.messageId, chatId: job.chatId })
-        .pipe(Effect.map(Option.map(Struct.get('message'))))
+      const stored = yield* messages.selectOne({ id: job.messageId, chatId: job.chatId })
       if (Option.isNone(stored)) return yield* replySkipLogs.chatDeleted
       if (!isActiveMessage(stored.value)) return yield* replySkipLogs.alreadySettled
 
@@ -122,9 +119,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
       messageId: MessageId,
       cause: Cause.Cause<unknown>,
     ) {
-      const stored = yield* messages
-        .selectOne({ id: messageId })
-        .pipe(Effect.map(Option.map(Struct.get('message'))))
+      const stored = yield* messages.selectOne({ id: messageId })
       if (Option.isNone(stored)) return yield* skipped('chatDeleted')
       if (!isActiveMessage(stored.value)) return yield* skipped('alreadySettled')
 

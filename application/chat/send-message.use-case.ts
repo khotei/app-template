@@ -14,7 +14,7 @@ import {
   ChatRepository,
   ChatService,
   ensureMessageInput,
-  type MessageDetail,
+  Message,
   MessageId,
   type MessageInput,
   type MessageInputInvalidError,
@@ -33,8 +33,8 @@ import { Transaction } from '@app-template/infrastructure/db'
 import { QueueClient } from '@app-template/queue'
 
 export interface SentMessages {
-  readonly userMessage: MessageDetail
-  readonly assistantMessage: MessageDetail
+  readonly userMessage: Message
+  readonly assistantMessage: Message
 }
 
 export class SendMessageUseCase extends Context.Service<
@@ -112,8 +112,8 @@ export class SendMessageUseCase extends Context.Service<
       }
 
       return {
-        userMessage: { message: userMessage, attachments: bound },
-        assistantMessage: { message: assistantMessage, attachments: [] },
+        userMessage: new Message({ ...userMessage, attachments: bound }),
+        assistantMessage,
       }
     }, transaction.run)
 

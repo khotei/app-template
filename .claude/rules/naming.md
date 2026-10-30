@@ -29,7 +29,7 @@ tool's config the name its tool reads (`drizzle.config.ts`).
 
 | Suffix | Role | Where |
 |---|---|---|
-| `.id` | the aggregate's branded ids, the only value another aggregate's model imports; a read model or a port may `import type` another aggregate's model (`MessageDetail`'s `Attachment`) | domain |
+| `.id` | the aggregate's branded ids, the only value another aggregate's model imports, save a model it holds as a field it never writes (`Message.attachments`); a port may `import type` another aggregate's model | domain |
 | `.model` · `.error` | `Schema.Class`es with the pure operations on them (builders, predicates, guards, transitions), split by the value they act on, never into a `.rule` · domain errors | domain |
 | `.port` | an entity's ports, `Context.Service`s with no layer, beside the values they take and answer (`ChatWhere`, `AssistantTurn`) | domain |
 | `.service` | a domain service: `<entity>.service.ts` for an entity's rules, `<operation>.service.ts` for one operation that belongs to no entity | domain |

@@ -2,7 +2,7 @@ import { Context, type Effect, type Option, type Types } from 'effect'
 import type { RequireAtLeastOne } from 'type-fest'
 
 import type { ChatId, MessageId } from '#domain/chat/chat.id'
-import type { Message, MessageAuthor, MessageDetail } from '#domain/chat/message.model'
+import type { Message, MessageAuthor } from '#domain/chat/message.model'
 import type { MessageStage } from '#domain/chat/message-stage.model'
 import type { UserId } from '#domain/user/user.id'
 
@@ -28,13 +28,19 @@ export type MessageManyWhere = {
 export class MessageRepository extends Context.Service<
   MessageRepository,
   {
-    /** Dies when it writes nothing: the message is active and its chat already has one. */
+    /**
+     * Writes the message's own fields, never its attachments; dies when it writes nothing: the
+     * message is active and its chat already has one.
+     */
     readonly insert: (message: Message) => Effect.Effect<void>
-    /** Writes `message` only while the stored one matches `where`; dies when it writes nothing. */
+    /**
+     * Writes the message's own fields only while the stored one matches `where`, never its
+     * attachments; dies when it writes nothing.
+     */
     readonly update: (message: Message, where: MessageWhere) => Effect.Effect<void>
-    /** Returns the first row in creation order where `where` holds. */
-    readonly selectOne: (where: MessageOneWhere) => Effect.Effect<Option.Option<MessageDetail>>
-    /** Returns the rows where `where` holds in creation order, a tie broken by id. */
-    readonly selectMany: (where: MessageManyWhere) => Effect.Effect<ReadonlyArray<MessageDetail>>
+    /** Returns the first row in creation order where `where` holds, with its attachments. */
+    readonly selectOne: (where: MessageOneWhere) => Effect.Effect<Option.Option<Message>>
+    /** Returns the rows where `where` holds with their attachments, in creation order, a tie broken by id. */
+    readonly selectMany: (where: MessageManyWhere) => Effect.Effect<ReadonlyArray<Message>>
   }
 >()('@app-template/domain/chat/MessageRepository') {}

@@ -12,7 +12,7 @@ import {
   ChatRepository,
   ChatTitle,
   completeMessage,
-  type Message,
+  Message,
   type MessageId,
   MessageRepository,
 } from '@app-template/domain/chat'
@@ -63,38 +63,35 @@ describe('SendMessageUseCase', () => {
           attachmentIds: [photo.id],
         })
 
-        const sentAt = userMessage.message.createdAt
+        const sentAt = userMessage.createdAt
         assert.isTrue(DateTime.isGreaterThan(sentAt, epoch))
-        assert.isTrue(isUuidV7(userMessage.message.id) && isUuidV7(assistantMessage.message.id))
+        assert.isTrue(isUuidV7(userMessage.id) && isUuidV7(assistantMessage.id))
         const bound = new Attachment({
           ...photo,
-          messageId: Option.some(userMessage.message.id),
+          messageId: Option.some(userMessage.id),
           chatId: Option.some(chat.id),
         })
         assertEquals(
           { userMessage, assistantMessage },
           {
-            userMessage: {
-              message: buildUserMessage({
-                id: userMessage.message.id,
+            userMessage: new Message({
+              ...buildUserMessage({
+                id: userMessage.id,
                 chatId: chat.id,
                 text: 'Plan a weekend in Lisbon',
                 createdAt: sentAt,
               }),
               attachments: [bound],
-            },
-            assistantMessage: {
-              message: buildAssistantMessage({
-                id: assistantMessage.message.id,
-                chatId: chat.id,
-                createdAt: sentAt,
-              }),
-              attachments: [],
-            },
+            }),
+            assistantMessage: buildAssistantMessage({
+              id: assistantMessage.id,
+              chatId: chat.id,
+              createdAt: sentAt,
+            }),
           },
         )
         const stored = yield* selectMessages(chat.id)
-        assertEquals(sortById(stored), sortById([userMessage.message, assistantMessage.message]))
+        assertEquals(sortById(stored), sortById([userMessage, assistantMessage]))
         assertEquals(yield* selectAttachments([photo]), [bound])
         assertEquals(
           yield* selectChat(chat.id),
@@ -118,17 +115,17 @@ describe('SendMessageUseCase', () => {
         const sendMessage = yield* SendMessageUseCase
 
         const first = yield* sendMessage.send(owner, chat.id, ask('Plan a weekend in Lisbon'))
-        yield* settle(first.assistantMessage.message)
+        yield* settle(first.assistantMessage)
         const second = yield* sendMessage.send(owner, chat.id, ask('And in Porto?'))
 
         assertEquals(yield* queue.sent, [
-          replyJob(first.assistantMessage.message.id),
+          replyJob(first.assistantMessage.id),
           {
             queue: 'chat-title',
-            body: `{"chatId":"${chat.id}","messageId":"${first.userMessage.message.id}"}`,
+            body: `{"chatId":"${chat.id}","messageId":"${first.userMessage.id}"}`,
             attributes: { jobId: chat.id },
           },
-          replyJob(second.assistantMessage.message.id),
+          replyJob(second.assistantMessage.id),
         ])
       }).pipe(Effect.provide(Layer.provide(ChatTest, queue.layer)))
     },

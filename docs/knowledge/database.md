@@ -80,9 +80,8 @@ export const UserInsert = createInsertSchema(users, userFields)
   with a default becomes required, as the domain always writes it.
 - Each entity file exports one `<Entity>FromRow` beside its codec, the row schema piped into the
   domain class (`UserRow.pipe(Schema.decodeTo(User))`); repositories and tests decode with it.
-  `MessageDetailFromRow` decodes a message row with its attachments nested: one `Schema.Struct`
-  of both rows' schemas, turned into a `MessageDetail` by a `SchemaGetter.transform`, its encoding
-  forbidden since nothing writes it back. It lives in `attachment.entity.ts`, which already
+  `MessageFromRow` decodes a message row with its attachments nested: one `Schema.Struct` of
+  both rows' schemas piped into `Message`. It lives in `attachment.entity.ts`, which already
   imports the message entity, since the reverse import closes a cycle Biome rejects. A repository
   encodes the model to the row it inserts. A row whose values are already the domain's (brands,
   literals) is written as is: `credentials` takes `{ hash, kind, userId }` from the credential
@@ -106,9 +105,9 @@ const rows = yield* db.query.messages.findMany({
 // rows: [{ id, chatId, …, attachments: [{ id, userId, messageId, … }] }]
 ```
 
-A read model is one relational query: `MessageRepository.selectOne` and `selectMany` always read
-a `MessageDetail`, the message `with` its attachments. A model holds no field that another table
-holds: `Message` has no attachments, which reach the reader as a `MessageDetail`.
+`MessageRepository.selectOne` and `selectMany` always read the message `with` its attachments,
+in one relational query: `Message.attachments` is the one model field another table holds, read
+and never written by the message's writes, since `AttachmentService.bind` binds them.
 
 ## Repositories
 

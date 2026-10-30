@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm'
 import { createInsertSchema, createSelectSchema } from 'drizzle-orm/effect-schema'
 import { check, foreignKey, index, integer, snakeCase, text, uuid } from 'drizzle-orm/pg-core'
-import { Schema, SchemaGetter } from 'effect'
+import { Schema } from 'effect'
 
 import {
   Attachment,
@@ -72,13 +72,8 @@ export const AttachmentInsert = createInsertSchema(attachments, attachmentFields
 
 export const AttachmentFromRow = AttachmentRow.pipe(Schema.decodeTo(Attachment))
 
-/** A message row with its attachments nested, as `withAttachments` reads it; decode only. */
-export const MessageDetailFromRow = Schema.Struct({
+/** A message row with its attachments nested, as `withAttachments` reads it. */
+export const MessageFromRow = Schema.Struct({
   ...MessageRow.fields,
-  attachments: Schema.Array(AttachmentRow),
-}).pipe(
-  Schema.decodeTo(Schema.Struct({ message: Message, attachments: Schema.Array(Attachment) }), {
-    decode: SchemaGetter.transform(({ attachments, ...message }) => ({ message, attachments })),
-    encode: SchemaGetter.forbiddenEncoding,
-  }),
-)
+  attachments: Schema.Array(AttachmentFromRow),
+}).pipe(Schema.decodeTo(Message))

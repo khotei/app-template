@@ -110,7 +110,6 @@ Using the `chat` slice as the map:
 |---|---|---|
 | branded id | `domain/chat/chat.id.ts` | `ChatId`, `MessageId` |
 | entity schema with its pure operations | `domain/chat/chat.model.ts`, `message.model.ts`; the stage schemas both the model and the errors read, `message-stage.model.ts` | `Chat`, `Message` (`Schema.Class`), `buildChat({ id, userId, createdAt })`, `buildChatTitle`, the transitions `prepareMessage` … `failMessage` |
-| read model a port or a domain service answers | `domain/chat/message.model.ts` | `MessageDetail` |
 | domain errors | `domain/chat/chat.error.ts`, `message.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
 | port | `domain/chat/chat.port.ts`, `message.port.ts`, `assistant.port.ts` | `ChatRepository`, `MessageRepository`, `Assistant` (`Context.Service` with no layer) |
 | domain service: the rules that need a port | `domain/chat/chat.service.ts` | `ChatService`, `ChatService.layer` |
@@ -188,8 +187,7 @@ Pascal one (`Document`).
     `.middleware(SchemaErrors)`.
 11. **Delivery.** Implement the group in `apps/api/<entity>/<entity>.handler.ts` with
     `HttpApiBuilder.group(Api, '<group>', …)`: it calls the use cases and services and returns
-    their models as is, since each DTO's encoder drops the fields the DTO leaves out; a read
-    model of another shape flattens in `apps/api/shared/projections.ts`. Add it
+    their models as is, since each DTO's encoder drops the fields the DTO leaves out. Add it
     to `ApiRoutes` and its services to `ApiHttp` in `apps/api/layer.ts`; its `<Entity>Pg` and any
     AWS adapter go to `ApiLayer`, so `ApiHttp` runs over the ports alone and the api test layer
     provides the memory layers in their place (`@app-template/domain/testing`, with the recording

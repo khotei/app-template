@@ -19,7 +19,7 @@ import type { Attachment } from '#domain/attachment/attachment.model'
 import type { ChatId, MessageId } from '#domain/chat/chat.id'
 import { Chat } from '#domain/chat/chat.model'
 import { ChatRepository, type ChatWhere } from '#domain/chat/chat.port'
-import { isActiveMessage, type Message, type MessageDetail } from '#domain/chat/message.model'
+import { isActiveMessage, Message } from '#domain/chat/message.model'
 import {
   type MessageManyWhere,
   type MessageOneWhere,
@@ -81,17 +81,19 @@ const isBoundTo =
   (attachment: Attachment): boolean =>
     Option.contains(attachment.messageId, messageId)
 
-const detailOf =
+/** The message with the attachments bound to it, as the Pg relation reads them. */
+const withAttachmentsOf =
   (attachments: Attachments) =>
-  (message: Message): MessageDetail => ({
-    message,
-    attachments: pipe(
-      attachments,
-      HashMap.filter(isBoundTo(message.id)),
-      HashMap.toValues,
-      Arr.sort(inCreationOrder),
-    ),
-  })
+  (message: Message): Message =>
+    new Message({
+      ...message,
+      attachments: pipe(
+        attachments,
+        HashMap.filter(isBoundTo(message.id)),
+        HashMap.toValues,
+        Arr.sort(inCreationOrder),
+      ),
+    })
 
 interface Tables {
   readonly chats: Chats
@@ -238,7 +240,7 @@ export const MessageRepositoryTest = Layer.effect(
             HashMap.toValues,
             Arr.sort(inCreationOrder),
             Arr.head,
-            Option.map(detailOf(tables.attachments)),
+            Option.map(withAttachmentsOf(tables.attachments)),
           ),
         ),
       selectMany: (where) =>
@@ -248,7 +250,7 @@ export const MessageRepositoryTest = Layer.effect(
             HashMap.filter(holdsManyWhere(where)),
             HashMap.toValues,
             Arr.sort(inCreationOrder),
-            Arr.map(detailOf(tables.attachments)),
+            Arr.map(withAttachmentsOf(tables.attachments)),
           ),
         ),
     })

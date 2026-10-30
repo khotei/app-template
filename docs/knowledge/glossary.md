@@ -90,11 +90,6 @@ _Avoid_: Entity group, root, aggregate root
 The `Schema.Class` of an entity as the domain sees it (`Chat`, `Message`).
 _Avoid_: Entity (for the class), DTO, row
 
-**Read model**:
-A shape a port or a domain service answers for a reader, composed of models (`MessageDetail`);
-nothing writes one.
-_Avoid_: View, projection, DTO
-
 **Port**:
 A contract the domain declares for what it needs from outside the process (a repository, the
 bucket, the assistant), in the domain's words, with no layer of its own.

@@ -1,4 +1,4 @@
-import { Array as Arr, Crypto, DateTime, Effect, Layer } from 'effect'
+import { Crypto, DateTime, Effect, Layer } from 'effect'
 
 import { type ChatId, MessageId } from '#domain/chat/chat.id'
 import { queueChat } from '#domain/chat/chat.model'
@@ -51,6 +51,4 @@ export const send = (userId: UserId, chatId: ChatId, text: string) =>
   })
 
 export const selectMessages = (chatId: ChatId) =>
-  MessageRepository.use((messages) => messages.selectMany({ chatId: [chatId] })).pipe(
-    Effect.map(Arr.map(({ message }) => message)),
-  )
+  MessageRepository.use((messages) => messages.selectMany({ chatId: [chatId] }))

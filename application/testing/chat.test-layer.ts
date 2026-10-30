@@ -1,5 +1,5 @@
 import { BunCrypto } from '@effect/platform-bun'
-import { Array as Arr, Effect, identity, Layer } from 'effect'
+import { Array as Arr, identity, Layer } from 'effect'
 
 import {
   type Attachment,
@@ -110,9 +110,7 @@ export const selectChat = (chatId: ChatId) =>
   ChatRepository.use((chats) => chats.selectOne({ id: chatId }))
 
 export const selectMessages = (chatId: ChatId) =>
-  MessageRepository.use((messages) => messages.selectMany({ chatId: [chatId] })).pipe(
-    Effect.map(Arr.map(({ message }) => message)),
-  )
+  MessageRepository.use((messages) => messages.selectMany({ chatId: [chatId] }))
 
 export const selectAttachments = (attachments: ReadonlyArray<Attachment>) =>
   AttachmentRepository.use((repository) =>

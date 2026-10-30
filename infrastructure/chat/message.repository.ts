@@ -8,7 +8,7 @@ import {
   type MessageWhere,
 } from '@app-template/domain/chat'
 
-import { MessageDetailFromRow } from '#infrastructure/attachment/attachment.entity'
+import { MessageFromRow } from '#infrastructure/attachment/attachment.entity'
 import {
   activeMessage,
   inCreationOrder,
@@ -26,7 +26,7 @@ import {
 
 const encodeMessage = Schema.encodeEffect(MessageInsert)
 
-const decodeDetails = Schema.decodeEffect(Schema.Array(MessageDetailFromRow))
+const decodeMessages = Schema.decodeEffect(Schema.Array(MessageFromRow))
 
 const encodeWhere = buildWhere<MessageWhere>({
   stage: (stage) => eq(messages.stage, stage),
@@ -73,7 +73,7 @@ export const MessageRepositoryPg = Layer.effect(
         (where) =>
           db.query.messages
             .findFirst({ where: filterOf(where), orderBy: inCreationOrder, with: withAttachments })
-            .pipe(Effect.flatMap(decodeOptionalRow(MessageDetailFromRow))),
+            .pipe(Effect.flatMap(decodeOptionalRow(MessageFromRow))),
         orDieWithSqlError,
       ),
       selectMany: Effect.fn('MessageRepository.selectMany')(
@@ -84,7 +84,7 @@ export const MessageRepositoryPg = Layer.effect(
               orderBy: inCreationOrder,
               with: withAttachments,
             })
-            .pipe(Effect.flatMap(decodeDetails)),
+            .pipe(Effect.flatMap(decodeMessages)),
         orDieWithSqlError,
       ),
     }),

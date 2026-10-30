@@ -1,12 +1,12 @@
 import { assert, describe, it } from '@effect/vitest'
-import { asc } from 'drizzle-orm'
 import { DateTime, Effect, Option, Schema } from 'effect'
 
 import { Chat, ChatId, Message, MessageId } from '@app-template/domain/chat'
 import { UserId } from '@app-template/domain/user'
 import { assertSchemaEquals } from '@app-template/testing'
 
-import { MessageFromRow, messages } from '#infrastructure/chat/message.entity'
+import { MessageFromRow } from '#infrastructure/attachment/attachment.entity'
+import { withAttachments } from '#infrastructure/chat/message.entity'
 import { Db } from '#infrastructure/db/db.client'
 import { DbTest, flipSqlError } from '#infrastructure/db/testing/db.test-layer'
 import { insertChat, insertMessage, insertUser } from '#infrastructure/testing/rows.test-util'
@@ -36,14 +36,15 @@ const message = (id: MessageId, fields: Partial<Pick<Message, 'stage'>>) =>
     error: Option.none(),
     createdAt,
     updatedAt,
+    attachments: [],
     ...fields,
   })
 
 const insertChatOfUser = insertUser(userId).pipe(Effect.andThen(insertChat(chat)))
 
-const selectMessages = Db.use((db) => db.select().from(messages).orderBy(asc(messages.id))).pipe(
-  Effect.flatMap(Schema.decodeEffect(Schema.Array(MessageFromRow))),
-)
+const selectMessages = Db.use((db) =>
+  db.query.messages.findMany({ orderBy: { id: 'asc' }, with: withAttachments }),
+).pipe(Effect.flatMap(Schema.decodeEffect(Schema.Array(MessageFromRow))))
 
 describe('messages', () => {
   it.effect('refuses a second active reply in a chat through the partial unique index', () =>

@@ -56,9 +56,7 @@ const photo = (
 
 const SelectedChat = Schema.Option(Chat)
 
-const MessageDetails = Schema.Array(
-  Schema.Struct({ message: Message, attachments: Schema.Array(Attachment) }),
-)
+const Messages = Schema.Array(Message)
 
 describe('ChatRepositoryPg', () => {
   it.effect('selects an inserted chat back, untitled and titled', () =>
@@ -181,8 +179,8 @@ describe('ChatRepositoryPg', () => {
       assert.deepStrictEqual(yield* chats.selectOne({ id: deleted.id }), Option.none())
       assert.deepStrictEqual(yield* messages.selectOne({ id: deletedReply.id }), Option.none())
       assertSchemaEquals(SelectedChat, yield* chats.selectOne({ id: kept.id }), Option.some(kept))
-      assertSchemaEquals(MessageDetails, yield* messages.selectMany({ chatId: [kept.id] }), [
-        { message: keptQuestion, attachments: [] },
+      assertSchemaEquals(Messages, yield* messages.selectMany({ chatId: [kept.id] }), [
+        keptQuestion,
       ])
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
