@@ -158,7 +158,7 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
 - **Update of some fields under a `where`.** `ChatRepository.update(set, where)` and
   `AttachmentRepository.update(set, where)` write only the fields of `set` (`ChatSet`,
   `AttachmentSet`: `RequireAtLeastOne` from `type-fest`, so an empty write fails typecheck) where
-  the rows match `where` (`ChatWhere`, `AttachmentWhere`: the `id`, an array of them for
+  the rows match `where` (`ChatWhere`, `AttachmentWhere`: the `id`, one or a list of them for
   attachments, and optionally a field the row must still hold, `Option.none()` rendering `IS
   NULL`). The adapter maps each side through `buildSet` and `buildWhere` (above). Both die when
   they write nothing. A status

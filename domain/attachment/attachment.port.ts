@@ -8,14 +8,14 @@ export type AttachmentSet = Types.Simplify<
   RequireAtLeastOne<Pick<Attachment, 'messageId' | 'chatId'>>
 >
 
-/** The rows `id` lists where every other field named holds, so an owner mismatch reads as absent. */
+/**
+ * The rows `id` finds, one or a list, where every other field named holds, so an owner mismatch
+ * reads as absent.
+ */
 export type AttachmentWhere = Types.Simplify<
-  { readonly id: ReadonlyArray<AttachmentId> } & Partial<Pick<Attachment, 'userId' | 'messageId'>>
->
-
-/** `id` finds the row; `userId` must still hold, so an owner mismatch reads as absent. */
-export type AttachmentOneWhere = Types.Simplify<
-  { readonly id: AttachmentId } & Partial<Pick<Attachment, 'userId'>>
+  { readonly id: AttachmentId | ReadonlyArray<AttachmentId> } & Partial<
+    Pick<Attachment, 'userId' | 'messageId'>
+  >
 >
 
 export class AttachmentRepository extends Context.Service<
@@ -24,7 +24,8 @@ export class AttachmentRepository extends Context.Service<
     readonly insert: (attachment: Attachment) => Effect.Effect<void>
     /** Writes `set` where `where` holds, in one statement; dies when it writes nothing. */
     readonly update: (set: AttachmentSet, where: AttachmentWhere) => Effect.Effect<void>
-    readonly selectOne: (where: AttachmentOneWhere) => Effect.Effect<Option.Option<Attachment>>
+    /** The first row `selectMany` reads. */
+    readonly selectOne: (where: AttachmentWhere) => Effect.Effect<Option.Option<Attachment>>
     /**
      * Rows where `where` holds, in the order of `where.id`, unknown ids skipped. With
      * `forUpdate`, holds the rows it reads until the transaction ends.

@@ -31,24 +31,30 @@ export class AttachmentRows extends Context.Service<
 
 const holdsWhere = (where: AttachmentWhere) =>
   Predicate.and(
-    matchesAny<Attachment>({ id: where.id }),
+    matchesAny<Attachment>({ id: Arr.ensure(where.id) }),
     matches<Attachment>(Struct.omit(where, ['id'])),
   )
 
-/** The rows in the order of `ids`. */
+/** The rows in the order of `ids`, one id or a list. */
 const inOrderOf =
-  (ids: ReadonlyArray<AttachmentId>) =>
+  (ids: AttachmentWhere['id']) =>
   (found: HashMap.HashMap<AttachmentId, Attachment>): ReadonlyArray<Attachment> =>
     pipe(
-      ids,
+      Arr.ensure(ids),
       Arr.map((id) => HashMap.get(found, id)),
       Arr.getSomes,
     )
 
 export const AttachmentRepositoryTest = Layer.effect(
   AttachmentRepository,
-  AttachmentRows.useSync((rows) =>
-    AttachmentRepository.of({
+  AttachmentRows.useSync((rows) => {
+    const selectMany = (where: AttachmentWhere) =>
+      Ref.get(rows).pipe(
+        Effect.map(HashMap.filter(holdsWhere(where))),
+        Effect.map(inOrderOf(where.id)),
+      )
+
+    return AttachmentRepository.of({
       insert: (attachment) => Ref.update(rows, HashMap.set(attachment.id, attachment)),
       update: (set, where) =>
         Ref.modify(rows, (map) =>
@@ -59,23 +65,15 @@ export const AttachmentRepositoryTest = Layer.effect(
             (written) => [HashMap.toValues(written), HashMap.union(map, written)] as const,
           ),
         ).pipe(orDieOnNoRows('no attachment was updated')),
-      selectOne: (where) =>
-        Ref.get(rows).pipe(
-          Effect.map(HashMap.get(where.id)),
-          Effect.map(Option.filter(matches(Struct.omit(where, ['id'])))),
-        ),
-      selectMany: (where) =>
-        Ref.get(rows).pipe(
-          Effect.map(HashMap.filter(holdsWhere(where))),
-          Effect.map(inOrderOf(where.id)),
-        ),
+      selectOne: (where) => selectMany(where).pipe(Effect.map(Arr.head)),
+      selectMany,
       delete: (where) =>
         Ref.modify(rows, (map) => {
           const deleted = Arr.fromIterable(HashMap.keys(HashMap.filter(map, holdsWhere(where))))
           return [deleted, HashMap.removeMany(map, deleted)] as const
         }).pipe(orDieOnNoRows('no attachment was deleted')),
-    }),
-  ),
+    })
+  }),
 )
 
 /** The bytes `AttachmentBucketTest` holds, by id, for a test to read. */
