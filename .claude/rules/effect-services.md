@@ -24,6 +24,8 @@ paths:
 - A pure builder that cannot fail returns the model itself, not an `Effect`.
 - A pure transition (`naming.md`) checks its source through one shared table of allowed sources and
   fails one `<Entity>StatusInvalidError { id, from, to }`; a transition is one row and one call.
+  One whose refusal reaches the user maps that error to its own (`<Entity>BusyError`), so the
+  contract names the refusal and the table still holds the rule.
 
 ## Services
 

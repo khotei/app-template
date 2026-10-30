@@ -1,4 +1,4 @@
-import { type DateTime, Effect, Option, pipe, Schema, String as Str } from 'effect'
+import { type DateTime, Effect, Option, Predicate, pipe, Schema, String as Str } from 'effect'
 
 import { Attachment } from '#domain/attachment/attachment.model'
 import { ChatBusyError, ChatStatusInvalidError } from '#domain/chat/chat.error'
@@ -9,10 +9,6 @@ import { UserId } from '#domain/user/user.id'
 /** `queued` while the chat's reply is in work, `failed` after its last reply failed, else `idle`. */
 export const ChatStatus = Status.pick(['idle', 'queued', 'failed'])
 export type ChatStatus = typeof ChatStatus.Type
-
-/** The statuses a reply's end moves a chat to. */
-export const SettledChatStatus = ChatStatus.pick(['idle', 'failed'])
-export type SettledChatStatus = typeof SettledChatStatus.Type
 
 /** Counted in UTF-16 code units, as `Schema.isMaxLength` counts them. */
 export const maxTitleLength = 120
@@ -58,23 +54,30 @@ export class Chat extends Schema.Class<Chat>('Chat')({
   attachments: Schema.Array(Attachment),
 }) {}
 
-/** Takes the chat for a send's reply; a chat whose reply is still in work refuses it. */
-export const queueChat = Effect.fn('queueChat')(function* (chat: Chat) {
-  if (isQueued(chat)) return yield* new ChatBusyError({ id: chat.id })
-  return new Chat({ ...chat, status: 'queued' })
-})
+/** Which chats may enter each status: a send takes a chat with no reply in work, its end one. */
+const transitions = {
+  queued: Predicate.not(isQueued),
+  idle: isQueued,
+  failed: isQueued,
+} as const satisfies Record<ChatStatus, Predicate.Predicate<Chat>>
 
-// Only a chat whose reply is in work has one to end.
-const settleChat = Effect.fnUntraced(function* (chat: Chat, to: SettledChatStatus) {
-  if (!isQueued(chat)) {
+const move = Effect.fnUntraced(function* (chat: Chat, to: ChatStatus) {
+  if (!transitions[to](chat)) {
     return yield* new ChatStatusInvalidError({ id: chat.id, from: chat.status, to })
   }
   return new Chat({ ...chat, status: to })
 })
 
-export const idleChat = Effect.fn('idleChat')((chat: Chat) => settleChat(chat, 'idle'))
+/** Takes the chat for a send's reply; a chat whose reply is still in work is `ChatBusyError`. */
+export const queueChat = Effect.fn('queueChat')((chat: Chat) =>
+  move(chat, 'queued').pipe(
+    Effect.catchTag('ChatStatusInvalidError', () => new ChatBusyError({ id: chat.id })),
+  ),
+)
 
-export const failChat = Effect.fn('failChat')((chat: Chat) => settleChat(chat, 'failed'))
+export const idleChat = Effect.fn('idleChat')((chat: Chat) => move(chat, 'idle'))
+
+export const failChat = Effect.fn('failChat')((chat: Chat) => move(chat, 'failed'))
 
 export const buildChat = (input: {
   readonly id: ChatId
