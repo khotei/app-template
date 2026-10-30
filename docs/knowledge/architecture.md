@@ -187,8 +187,9 @@ Pascal one (`Document`).
     with their statuses (`HttpApiSchema.status`), and add it to `Api` in `http-api/api.ts` before
     `.middleware(SchemaErrors)`.
 11. **Delivery.** Implement the group in `apps/api/<entity>/<entity>.handler.ts` with
-    `HttpApiBuilder.group(Api, '<group>', …)`: it calls the use cases and services and projects
-    each model onto its DTO through `apps/api/shared/projections.ts` (`Struct.pick`). Add it
+    `HttpApiBuilder.group(Api, '<group>', …)`: it calls the use cases and services and returns
+    their models as is, since each DTO's encoder drops the fields the DTO leaves out; a read
+    model of another shape flattens in `apps/api/shared/projections.ts`. Add it
     to `ApiRoutes` and its services to `ApiHttp` in `apps/api/layer.ts`; its `<Entity>Pg` and any
     AWS adapter go to `ApiLayer`, so `ApiHttp` runs over the ports alone and the api test layer
     provides the memory layers in their place (`@app-template/domain/testing`, with the recording

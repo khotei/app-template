@@ -1,4 +1,4 @@
-import { Array as Arr, Crypto, DateTime, Effect } from 'effect'
+import { Crypto, DateTime, Effect } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
 import { SendMessageUseCase } from '@app-template/application/chat'
@@ -13,7 +13,7 @@ import {
 import { generateId } from '@app-template/domain/shared'
 import { Api, CurrentUser } from '@app-template/http-api'
 
-import { toChat, toMessage } from '#api/shared/projections'
+import { toMessage } from '#api/shared/projections'
 
 export const ChatHandler = HttpApiBuilder.group(
   Api,
@@ -35,34 +35,28 @@ export const ChatHandler = HttpApiBuilder.group(
           const chat = buildChat({ id, userId: user.id, createdAt })
 
           yield* chats.insert(chat)
-          return toChat(chat)
+          return chat
         }),
       )
       .handle(
         'list',
         Effect.fn('ChatHandler.list')(function* () {
           const user = yield* CurrentUser
-          const found = yield* chats.selectMany({ userId: user.id })
-          return Arr.map(found, toChat)
+          return yield* chats.selectMany({ userId: user.id })
         }),
       )
       .handle(
         'get',
         Effect.fn('ChatHandler.get')(function* ({ params }) {
           const user = yield* CurrentUser
-          const chat = yield* chatService.getOne({ id: params.chatId, userId: user.id })
-          return toChat(chat)
+          return yield* chatService.getOne({ id: params.chatId, userId: user.id })
         }),
       )
       .handle(
         'rename',
         Effect.fn('ChatHandler.rename')(function* ({ params, payload }) {
           const user = yield* CurrentUser
-          const renamed = yield* chatService.rename(
-            { id: params.chatId, userId: user.id },
-            payload.title,
-          )
-          return toChat(renamed)
+          return yield* chatService.rename({ id: params.chatId, userId: user.id }, payload.title)
         }),
       )
       .handle(

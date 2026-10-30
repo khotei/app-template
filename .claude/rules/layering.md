@@ -47,8 +47,9 @@ the signal.
 - **Enqueue inside the transaction of the writes the job reads**, through `QueueClient.send`
   ([database.md › The outbox](../../docs/knowledge/database.md#the-outbox)).
 - Read a set through the port's batch method (`selectMany`), never one `select` per id in a loop.
-- Return the contract's shape (each message with its attachments), so the handler only projects
-  each model onto its DTO's fields (`Struct.pick`) and composes nothing.
+- Return the contract's shape (each message with its attachments), so the handler composes
+  nothing: it returns a model as is, since its DTO's encoder drops every field the DTO leaves
+  out (`userId`, a failure's `cause`), and only flattens a read model (`toMessage`).
 
 ## Handlers
 

@@ -150,6 +150,19 @@ describe('chats', () => {
     }).pipe(Effect.provide(ApiTest)),
   )
 
+  it.effect('GET /chats/:chatId answers the chat without its owner', () =>
+    Effect.gen(function* () {
+      const http = yield* HttpClient.HttpClient
+      const chat = yield* openChat
+
+      const wire = yield* http
+        .get(`/chats/${chat.id}`)
+        .pipe(Effect.flatMap((response) => response.json))
+
+      assert.hasAllKeys(wire, ['id', 'title', 'status', 'createdAt', 'updatedAt'])
+    }).pipe(Effect.provide(ApiTest)),
+  )
+
   it.effect('a failed reply carries its reason and message on the wire, never its cause', () =>
     Effect.gen(function* () {
       const api = yield* ApiClient

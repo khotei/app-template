@@ -14,8 +14,6 @@ import {
   type RequestIssue,
 } from '@app-template/http-api'
 
-import { toAttachment } from '#api/shared/projections'
-
 const buildRequestInvalid = (path: RequestIssue['path'], message: string) =>
   new RequestInvalidError({ issues: [{ path, message }] })
 
@@ -67,28 +65,23 @@ export const AttachmentHandler = HttpApiBuilder.group(
         Effect.fn('AttachmentHandler.upload')(function* ({ payload }) {
           const user = yield* CurrentUser
 
-          const uploaded = yield* attachments
-            .upload(user.id, Stream.mapEffect(payload, decodeUpload))
-            .pipe(
-              Effect.catchTag(
-                'MultipartError',
-                (error): Effect.Effect<never, UploadRefusal> =>
-                  refuseMultipart[error.reason._tag](error),
-              ),
-              Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty, () =>
-                buildRequestInvalid(['files'], 'Expected at least 1 file'),
-              ),
-            )
-
-          return Arr.map(uploaded, toAttachment)
+          return yield* attachments.upload(user.id, Stream.mapEffect(payload, decodeUpload)).pipe(
+            Effect.catchTag(
+              'MultipartError',
+              (error): Effect.Effect<never, UploadRefusal> =>
+                refuseMultipart[error.reason._tag](error),
+            ),
+            Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty, () =>
+              buildRequestInvalid(['files'], 'Expected at least 1 file'),
+            ),
+          )
         }),
       )
       .handle(
         'get',
         Effect.fn('AttachmentHandler.get')(function* ({ params }) {
           const user = yield* CurrentUser
-          const attachment = yield* attachments.get(user.id, params.attachmentId)
-          return toAttachment(attachment)
+          return yield* attachments.get(user.id, params.attachmentId)
         }),
       )
       .handleRaw(
