@@ -59,66 +59,6 @@ const toWholeSeconds = (duration: Duration.Input): number => Math.ceil(Duration.
 
 const failQueue = Effect.mapError((cause: unknown) => new QueueError({ cause }))
 
-const makeSqs = Effect.gen(function* () {
-  const sqs = yield* SQSService
-  const urls = yield* Cache.makeWith(
-    (queue: string) =>
-      sqs
-        .getQueueUrl({ QueueName: queue })
-        .pipe(Effect.flatMap(({ QueueUrl }) => Effect.fromNullishOr(QueueUrl))),
-    {
-      capacity: Number.POSITIVE_INFINITY,
-      timeToLive: (exit) => (Exit.isSuccess(exit) ? Duration.infinity : Duration.zero),
-    },
-  )
-
-  const send = Effect.fn('QueueTransport.send')(function* (queue: string, message: MessageContent) {
-    const url = yield* Cache.get(urls, queue)
-    yield* sqs.sendMessage({
-      QueueUrl: url,
-      MessageBody: message.body,
-      MessageAttributes: { jobId: { DataType: 'String', StringValue: message.attributes.jobId } },
-    })
-  }, failQueue)
-
-  const receive = Effect.fn('QueueTransport.receive')(function* (
-    queue: string,
-    options: ReceiveOptions,
-  ) {
-    const url = yield* Cache.get(urls, queue)
-    const response = yield* sqs.receiveMessage({
-      QueueUrl: url,
-      MaxNumberOfMessages: 1,
-      VisibilityTimeout: toWholeSeconds(options.visibility),
-      WaitTimeSeconds: toWholeSeconds(options.wait),
-      MessageAttributeNames: ['jobId'],
-      MessageSystemAttributeNames: ['ApproximateReceiveCount'],
-    })
-    const { Messages } = yield* decodeReceived(response)
-
-    return Arr.head(Messages).pipe(Option.map(toReceived))
-  }, failQueue)
-
-  const extend = Effect.fn('QueueTransport.extend')(function* (
-    queue: string,
-    { handle, visibility }: VisibilityChange,
-  ) {
-    const url = yield* Cache.get(urls, queue)
-    yield* sqs.changeMessageVisibility({
-      QueueUrl: url,
-      ReceiptHandle: handle,
-      VisibilityTimeout: toWholeSeconds(visibility),
-    })
-  }, failQueue)
-
-  const remove = Effect.fn('QueueTransport.delete')(function* (queue: string, handle: string) {
-    const url = yield* Cache.get(urls, queue)
-    yield* sqs.deleteMessage({ QueueUrl: url, ReceiptHandle: handle })
-  }, failQueue)
-
-  return { send, receive, extend, delete: remove }
-})
-
 export class QueueTransport extends Context.Service<
   QueueTransport,
   {
@@ -136,9 +76,72 @@ export class QueueTransport extends Context.Service<
     readonly extend: (queue: string, change: VisibilityChange) => Effect.Effect<void, QueueError>
     readonly delete: (queue: string, handle: string) => Effect.Effect<void, QueueError>
   }
->()('@app-template/queue/QueueTransport') {
+>()('@app-template/queue/QueueTransport', {
+  make: Effect.gen(function* () {
+    const sqs = yield* SQSService
+    const urls = yield* Cache.makeWith(
+      (queue: string) =>
+        sqs
+          .getQueueUrl({ QueueName: queue })
+          .pipe(Effect.flatMap(({ QueueUrl }) => Effect.fromNullishOr(QueueUrl))),
+      {
+        capacity: Number.POSITIVE_INFINITY,
+        timeToLive: (exit) => (Exit.isSuccess(exit) ? Duration.infinity : Duration.zero),
+      },
+    )
+
+    const send = Effect.fn('QueueTransport.send')(function* (
+      queue: string,
+      message: MessageContent,
+    ) {
+      const url = yield* Cache.get(urls, queue)
+      yield* sqs.sendMessage({
+        QueueUrl: url,
+        MessageBody: message.body,
+        MessageAttributes: { jobId: { DataType: 'String', StringValue: message.attributes.jobId } },
+      })
+    }, failQueue)
+
+    const receive = Effect.fn('QueueTransport.receive')(function* (
+      queue: string,
+      options: ReceiveOptions,
+    ) {
+      const url = yield* Cache.get(urls, queue)
+      const response = yield* sqs.receiveMessage({
+        QueueUrl: url,
+        MaxNumberOfMessages: 1,
+        VisibilityTimeout: toWholeSeconds(options.visibility),
+        WaitTimeSeconds: toWholeSeconds(options.wait),
+        MessageAttributeNames: ['jobId'],
+        MessageSystemAttributeNames: ['ApproximateReceiveCount'],
+      })
+      const { Messages } = yield* decodeReceived(response)
+
+      return Arr.head(Messages).pipe(Option.map(toReceived))
+    }, failQueue)
+
+    const extend = Effect.fn('QueueTransport.extend')(function* (
+      queue: string,
+      { handle, visibility }: VisibilityChange,
+    ) {
+      const url = yield* Cache.get(urls, queue)
+      yield* sqs.changeMessageVisibility({
+        QueueUrl: url,
+        ReceiptHandle: handle,
+        VisibilityTimeout: toWholeSeconds(visibility),
+      })
+    }, failQueue)
+
+    const remove = Effect.fn('QueueTransport.delete')(function* (queue: string, handle: string) {
+      const url = yield* Cache.get(urls, queue)
+      yield* sqs.deleteMessage({ QueueUrl: url, ReceiptHandle: handle })
+    }, failQueue)
+
+    return { send, receive, extend, delete: remove }
+  }),
+}) {
   static readonly layerSqs: Layer.Layer<QueueTransport, never, SQSService> = Layer.effect(
     this,
-    makeSqs,
+    this.make,
   )
 }

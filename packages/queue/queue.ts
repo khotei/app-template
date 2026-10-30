@@ -73,107 +73,6 @@ export const encodeJob = <A, I>(definition: QueueDefinition<Schema.Codec<A, I>>,
 const encodeBody = <A, I>(definition: QueueDefinition<Schema.Codec<A, I>>, message: A) =>
   pipe(message, encodeWith(buildJsonCodec(definition.schema)))
 
-const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueClientOptions) =>
-  Effect.gen(function* () {
-    const transport = yield* QueueTransport
-
-    const send = Effect.fn('QueueClient.send')(function* <A, I>(
-      definition: QueueDefinition<Schema.Codec<A, I>>,
-      message: A,
-    ) {
-      const body = yield* encodeBody(definition, message)
-      yield* transport.send(queueName(definition.name), {
-        body,
-        attributes: { jobId: definition.jobId(message) },
-      })
-    })
-
-    const consume = <A, I, E, R>(
-      definition: QueueDefinition<Schema.Codec<A, I>>,
-      handle: Handler<A, E, R>,
-    ) => {
-      const queue = queueName(definition.name)
-      const decode = Schema.decodeEffect(buildJsonCodec(definition.schema))
-      const extend = (received: Received, visibility: Duration.Input) =>
-        transport.extend(queue, { handle: received.handle, visibility })
-      const release = (received: Received) => extend(received, 0)
-
-      const heartbeat = (received: Received) =>
-        extend(received, lockExpiration).pipe(
-          Effect.delay(lockRefreshInterval),
-          Effect.tapCause((cause) => Effect.logWarning('queue heartbeat failed', cause)),
-          Effect.ignore,
-          Effect.forever,
-        )
-
-      // `restore` lets an interrupt reach the effect, which then releases the message at once.
-      const releaseOnInterrupt =
-        (received: Received, restore: Restore) =>
-        <B, E2, R2>(effect: Effect.Effect<B, E2, R2>) =>
-          restore(effect).pipe(Effect.onInterrupt(() => release(received).pipe(Effect.ignore)))
-
-      // A failed attempt waits its retry delay; the last is released at once, so that the next
-      // receive redrives it to the dead-letter queue.
-      const retry = (received: Received, info: AttemptInfo) =>
-        info.isLastAttempt
-          ? release(received)
-          : extend(received, definition.retryDelay(info.attempt))
-
-      const settle = Effect.fnUntraced(function* (
-        received: Received,
-        { info, exit }: { readonly info: AttemptInfo; readonly exit: Exit.Exit<void, E> },
-      ) {
-        if (Exit.isSuccess(exit)) return yield* transport.delete(queue, received.handle)
-        if (Cause.hasInterruptsOnly(exit.cause)) return yield* release(received)
-
-        yield* info.isLastAttempt
-          ? Effect.logError('queue message dead-lettered', exit.cause)
-          : Effect.logWarning('queue message attempt failed', exit.cause)
-        yield* retry(received, info)
-      })
-
-      // Runs masked from the receive on, so no interrupt finds the message unreleased: only the
-      // decode and the handler `releaseOnInterrupt`.
-      const run = Effect.fnUntraced(
-        function* (received: Received, restore: Restore) {
-          const info = buildAttemptInfo(received, definition.maxAttempts)
-          const decoded = yield* decode(received.body).pipe(
-            Effect.result,
-            releaseOnInterrupt(received, restore),
-          )
-          if (Result.isFailure(decoded)) {
-            yield* Effect.logError('queue message does not decode', decoded.failure)
-            return yield* retry(received, info)
-          }
-
-          const exit = yield* handle(decoded.success, info).pipe(
-            Effect.exit,
-            Effect.raceFirst(heartbeat(received)),
-            releaseOnInterrupt(received, restore),
-          )
-          yield* settle(received, { info, exit })
-        },
-        (effect, received) =>
-          Effect.annotateLogs(effect, {
-            jobId: received.attributes.jobId,
-            attempt: `${received.receiveCount}/${definition.maxAttempts}`,
-          }),
-      )
-
-      const receiveAndRun = Effect.fnUntraced(function* (restore: Restore) {
-        const next = yield* restore(
-          transport.receive(queue, { visibility: lockExpiration, wait: receiveWait }),
-        )
-        if (Option.isNone(next)) return
-        yield* run(next.value, restore)
-      })
-
-      return Effect.uninterruptibleMask(receiveAndRun).pipe(Effect.forever)
-    }
-
-    return QueueClient.of({ send, consume })
-  })
-
 export class QueueClient extends Context.Service<
   QueueClient,
   {
@@ -195,10 +94,111 @@ export class QueueClient extends Context.Service<
       handle: Handler<A, E, R>,
     ) => Effect.Effect<never, QueueError, R>
   }
->()('@app-template/queue/QueueClient') {
+>()('@app-template/queue/QueueClient', {
+  make: ({ queueName, lockExpiration, lockRefreshInterval }: QueueClientOptions) =>
+    Effect.gen(function* () {
+      const transport = yield* QueueTransport
+
+      const send = Effect.fn('QueueClient.send')(function* <A, I>(
+        definition: QueueDefinition<Schema.Codec<A, I>>,
+        message: A,
+      ) {
+        const body = yield* encodeBody(definition, message)
+        yield* transport.send(queueName(definition.name), {
+          body,
+          attributes: { jobId: definition.jobId(message) },
+        })
+      })
+
+      const consume = <A, I, E, R>(
+        definition: QueueDefinition<Schema.Codec<A, I>>,
+        handle: Handler<A, E, R>,
+      ) => {
+        const queue = queueName(definition.name)
+        const decode = Schema.decodeEffect(buildJsonCodec(definition.schema))
+        const extend = (received: Received, visibility: Duration.Input) =>
+          transport.extend(queue, { handle: received.handle, visibility })
+        const release = (received: Received) => extend(received, 0)
+
+        const heartbeat = (received: Received) =>
+          extend(received, lockExpiration).pipe(
+            Effect.delay(lockRefreshInterval),
+            Effect.tapCause((cause) => Effect.logWarning('queue heartbeat failed', cause)),
+            Effect.ignore,
+            Effect.forever,
+          )
+
+        // `restore` lets an interrupt reach the effect, which then releases the message at once.
+        const releaseOnInterrupt =
+          (received: Received, restore: Restore) =>
+          <B, E2, R2>(effect: Effect.Effect<B, E2, R2>) =>
+            restore(effect).pipe(Effect.onInterrupt(() => release(received).pipe(Effect.ignore)))
+
+        // A failed attempt waits its retry delay; the last is released at once, so that the next
+        // receive redrives it to the dead-letter queue.
+        const retry = (received: Received, info: AttemptInfo) =>
+          info.isLastAttempt
+            ? release(received)
+            : extend(received, definition.retryDelay(info.attempt))
+
+        const settle = Effect.fnUntraced(function* (
+          received: Received,
+          { info, exit }: { readonly info: AttemptInfo; readonly exit: Exit.Exit<void, E> },
+        ) {
+          if (Exit.isSuccess(exit)) return yield* transport.delete(queue, received.handle)
+          if (Cause.hasInterruptsOnly(exit.cause)) return yield* release(received)
+
+          yield* info.isLastAttempt
+            ? Effect.logError('queue message dead-lettered', exit.cause)
+            : Effect.logWarning('queue message attempt failed', exit.cause)
+          yield* retry(received, info)
+        })
+
+        // Runs masked from the receive on, so no interrupt finds the message unreleased: only the
+        // decode and the handler `releaseOnInterrupt`.
+        const run = Effect.fnUntraced(
+          function* (received: Received, restore: Restore) {
+            const info = buildAttemptInfo(received, definition.maxAttempts)
+            const decoded = yield* decode(received.body).pipe(
+              Effect.result,
+              releaseOnInterrupt(received, restore),
+            )
+            if (Result.isFailure(decoded)) {
+              yield* Effect.logError('queue message does not decode', decoded.failure)
+              return yield* retry(received, info)
+            }
+
+            const exit = yield* handle(decoded.success, info).pipe(
+              Effect.exit,
+              Effect.raceFirst(heartbeat(received)),
+              releaseOnInterrupt(received, restore),
+            )
+            yield* settle(received, { info, exit })
+          },
+          (effect, received) =>
+            Effect.annotateLogs(effect, {
+              jobId: received.attributes.jobId,
+              attempt: `${received.receiveCount}/${definition.maxAttempts}`,
+            }),
+        )
+
+        const receiveAndRun = Effect.fnUntraced(function* (restore: Restore) {
+          const next = yield* restore(
+            transport.receive(queue, { visibility: lockExpiration, wait: receiveWait }),
+          )
+          if (Option.isNone(next)) return
+          yield* run(next.value, restore)
+        })
+
+        return Effect.uninterruptibleMask(receiveAndRun).pipe(Effect.forever)
+      }
+
+      return { send, consume }
+    }),
+}) {
   static readonly layer = (
     options: QueueClientOptions,
-  ): Layer.Layer<QueueClient, never, QueueTransport> => Layer.effect(this, makeClient(options))
+  ): Layer.Layer<QueueClient, never, QueueTransport> => Layer.effect(this, this.make(options))
 }
 
 // Any cause restarts the consumer, logged, with no attempt limit: an unrecovered cause would end
