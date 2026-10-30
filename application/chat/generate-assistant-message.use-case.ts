@@ -3,7 +3,6 @@ import { Array as Arr, Cause, Context, Data, DateTime, Effect, Layer, Option } f
 import { type Attachment, AttachmentBucket } from '@app-template/domain/attachment'
 import {
   Assistant,
-  type AssistantTurn,
   type ChatId,
   ChatRepository,
   type ChatStatusInvalidError,
@@ -11,6 +10,7 @@ import {
   failChat,
   failMessage,
   generateMessage,
+  type HistoryMessage,
   idleChat,
   isActiveMessage,
   type Message,
@@ -56,18 +56,18 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
     const messages = yield* MessageRepository
     const transaction = yield* Transaction
 
-    const readFile = (attachment: Attachment) =>
+    const readBytes = (attachment: Attachment) =>
       bucket.select(attachment.id).pipe(Effect.map(Option.map((bytes) => ({ attachment, bytes }))))
 
-    const readTurn = (message: Message) =>
-      Effect.forEach(message.attachments, readFile).pipe(
-        Effect.map((files): AssistantTurn => ({ message, files: Arr.getSomes(files) })),
+    const readHistoryMessage = (message: Message) =>
+      Effect.forEach(message.attachments, readBytes).pipe(
+        Effect.map((found): HistoryMessage => ({ message, attachments: Arr.getSomes(found) })),
       )
 
     const readHistory = (chatId: ChatId) =>
       messages
         .selectMany({ chatId, status: ['done'] })
-        .pipe(Effect.flatMap(Effect.forEach(readTurn)))
+        .pipe(Effect.flatMap(Effect.forEach(readHistoryMessage)))
 
     /** Writes the settled message with its chat's end, `idleChat` or `failChat`, in one transaction. */
     const settleWith = (end: typeof idleChat) =>

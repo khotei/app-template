@@ -117,7 +117,7 @@ export class Assistant extends Context.Service<Assistant, {
   readonly replyProvenance: MessageProvenance
   /** The next message of the chat whose completed turns are `history`, oldest first. */
   readonly reply: (
-    history: ReadonlyArray<AssistantTurn>,
+    history: ReadonlyArray<HistoryMessage>,
   ) => Effect.Effect<AssistantReply, AssistantRefusedError | AssistantFailedError>
   /** None only for a blank `text`, which asks no model. */
   readonly suggestTitle: (

@@ -1,7 +1,7 @@
 import { Array as Arr, Deferred, Effect, Layer, type Option, Ref } from 'effect'
 
 import type { AssistantReply } from '#domain/chat/assistant.model'
-import { Assistant, type AssistantTurn } from '#domain/chat/assistant.port'
+import { Assistant, type HistoryMessage } from '#domain/chat/assistant.port'
 import type { ChatTitle } from '#domain/chat/chat.model'
 
 export interface AssistantScript {
@@ -11,7 +11,7 @@ export interface AssistantScript {
 
 /** A call the recording assistant took, with what the caller handed it. */
 export type AssistantCall =
-  | { readonly method: 'reply'; readonly history: ReadonlyArray<AssistantTurn> }
+  | { readonly method: 'reply'; readonly history: ReadonlyArray<HistoryMessage> }
   | { readonly method: 'suggestTitle'; readonly text: string }
 
 /** An `Assistant` answering from `script`, keeping each call in `calls`; an unscripted call dies. */

@@ -13,31 +13,31 @@ import { Prompt } from 'effect/ai'
 
 import {
   Assistant,
-  type AssistantFile,
   AssistantReply,
-  type AssistantTurn,
+  type AttachmentBytes,
   buildChatTitle,
+  type HistoryMessage,
   maxTitleLength,
 } from '@app-template/domain/chat'
 
 import { AssistantModels } from '#infrastructure/chat/assistant-models.client'
 
-const toFilePart = ({ attachment, bytes }: AssistantFile): Prompt.FilePartEncoded => ({
+const toFilePart = ({ attachment, bytes }: AttachmentBytes): Prompt.FilePartEncoded => ({
   type: 'file',
   mediaType: attachment.mediaType,
   fileName: attachment.fileName,
   data: bytes,
 })
 
-// Providers reject an empty text block, so a message sent with files only has no text part.
+// Providers reject an empty text block, so a message sent with attachments only has no text part.
 const toTextParts = (text: string): ReadonlyArray<Prompt.TextPartEncoded> =>
   Str.isNonEmpty(text) ? [{ type: 'text', text }] : []
 
-const buildChatPrompt = (history: ReadonlyArray<AssistantTurn>): Prompt.Prompt =>
+const buildChatPrompt = (history: ReadonlyArray<HistoryMessage>): Prompt.Prompt =>
   Prompt.make(
-    Arr.map(history, ({ message, files }) => ({
+    Arr.map(history, ({ message, attachments }) => ({
       role: message.author,
-      content: pipe(toTextParts(message.text), Arr.appendAll(Arr.map(files, toFilePart))),
+      content: pipe(toTextParts(message.text), Arr.appendAll(Arr.map(attachments, toFilePart))),
     })),
   )
 

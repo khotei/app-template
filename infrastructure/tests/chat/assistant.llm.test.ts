@@ -15,10 +15,10 @@ import {
 import {
   Assistant,
   AssistantReply,
-  type AssistantTurn,
   buildAssistantMessage,
   buildUserMessage,
   ChatTitle,
+  type HistoryMessage,
   Message,
   MessageId,
 } from '@app-template/domain/chat'
@@ -76,7 +76,7 @@ const titleInstruction =
 
 const suggestTitle = (text: string) => Assistant.use((assistant) => assistant.suggestTitle(text))
 
-const reply = (history: ReadonlyArray<AssistantTurn>) =>
+const reply = (history: ReadonlyArray<HistoryMessage>) =>
   Assistant.use((assistant) => assistant.reply(history))
 
 const textStream = (...deltas: ReadonlyArray<string>) =>
@@ -168,9 +168,9 @@ describe('AssistantLlm', () => {
       const { prompts, layer } = recordLanguageModel({ streamText: textStream('Hel', 'lo') })
       return Effect.gen(function* () {
         const answer = yield* reply([
-          { message: user(1, 'What is this?'), files: [{ attachment: photo, bytes: png }] },
-          { message: completed, files: [] },
-          { message: user(3, ''), files: [{ attachment: sketch, bytes: png }] },
+          { message: user(1, 'What is this?'), attachments: [{ attachment: photo, bytes: png }] },
+          { message: completed, attachments: [] },
+          { message: user(3, ''), attachments: [{ attachment: sketch, bytes: png }] },
         ])
 
         assertEquals(answer, new AssistantReply({ text: 'Hello' }))
@@ -188,7 +188,7 @@ describe('AssistantLlm', () => {
   it.effect('reply dies on a blank answer', () => {
     const { layer } = recordLanguageModel({ streamText: textStream(' ', '\n') })
     return Effect.gen(function* () {
-      const exit = yield* reply([{ message: user(1, 'Hi'), files: [] }]).pipe(Effect.exit)
+      const exit = yield* reply([{ message: user(1, 'Hi'), attachments: [] }]).pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
     }).pipe(Effect.provide(layer))
@@ -199,7 +199,7 @@ describe('AssistantLlm', () => {
     return Effect.gen(function* () {
       const answers = yield* Effect.all(
         {
-          reply: reply([{ message: user(1, 'Hi'), files: [] }]),
+          reply: reply([{ message: user(1, 'Hi'), attachments: [] }]),
           title: suggestTitle('Plan a weekend in Lisbon'),
         },
         { concurrency: 'unbounded' },

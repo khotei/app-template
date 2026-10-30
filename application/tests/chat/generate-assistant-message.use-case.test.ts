@@ -68,9 +68,9 @@ const whatIsThis = user(1, 'What is this?')
 const aPhoto = asCompleted(assistant(2), 'A photo.')
 const andAgain = user(3, 'And again?')
 const halfReply = new Message({ ...assistant(4), status: 'failed', text: 'half' })
-const filesOnly = user(5, '')
+const attachmentsOnly = user(5, '')
 
-const history = [whatIsThis, aPhoto, andAgain, halfReply, filesOnly]
+const history = [whatIsThis, aPhoto, andAgain, halfReply, attachmentsOnly]
 
 const image = (
   id: string,
@@ -96,7 +96,7 @@ const photo = image('0192d4e0-7b3a-7c00-8000-000000000040', {
 
 const sketch = image('0192d4e0-7b3a-7c00-8000-000000000041', {
   name: 'sketch.png',
-  boundTo: filesOnly.id,
+  boundTo: attachmentsOnly.id,
 })
 
 const insertMessages = (messages: ReadonlyArray<Message>) =>
@@ -192,11 +192,14 @@ describe('GenerateAssistantMessageUseCase', () => {
             history: [
               {
                 message: new Message({ ...whatIsThis, attachments: [photo] }),
-                files: [{ attachment: photo, bytes: png }],
+                attachments: [{ attachment: photo, bytes: png }],
               },
-              { message: aPhoto, files: [] },
-              { message: andAgain, files: [] },
-              { message: new Message({ ...filesOnly, attachments: [sketch] }), files: [] },
+              { message: aPhoto, attachments: [] },
+              { message: andAgain, attachments: [] },
+              {
+                message: new Message({ ...attachmentsOnly, attachments: [sketch] }),
+                attachments: [],
+              },
             ],
           },
         ])
