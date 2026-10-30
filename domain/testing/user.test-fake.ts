@@ -1,5 +1,6 @@
-import { Context, Effect, Equal, HashMap, Layer, Option, Ref } from 'effect'
+import { Context, Effect, HashMap, Layer, Option, Predicate, pipe, Ref } from 'effect'
 
+import { matches } from '#domain/testing/rows.test-util'
 import type { UserId } from '#domain/user/user.id'
 import type { Credential, User } from '#domain/user/user.model'
 import { type UserOneWhere, UserRepository } from '#domain/user/user.port'
@@ -18,9 +19,14 @@ export class UserRows extends Context.Service<
   static readonly layer = Layer.effect(this, Ref.make(HashMap.empty<UserId, UserRow>()))
 }
 
-const holdsWhere = (where: UserOneWhere) => (row: UserRow) =>
-  (where.id === undefined || row.user.id === where.id) &&
-  (where.credential === undefined || Equal.equals(row.credential, where.credential))
+const holdsWhere = (where: UserOneWhere): Predicate.Predicate<UserRow> =>
+  Predicate.and(
+    pipe(
+      matches<User>({ id: where.id }),
+      Predicate.mapInput((row: UserRow) => row.user),
+    ),
+    matches<UserRow>({ credential: where.credential }),
+  )
 
 export const UserRepositoryTest = Layer.effect(
   UserRepository,

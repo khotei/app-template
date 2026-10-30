@@ -1,5 +1,14 @@
 import { assert, describe, it } from '@effect/vitest'
-import { type Config, ConfigProvider, Duration, Effect, Layer, Option, References } from 'effect'
+import {
+  type Config,
+  ConfigProvider,
+  Duration,
+  Effect,
+  Layer,
+  Option,
+  References,
+  UndefinedOr,
+} from 'effect'
 
 import {
   ApiConfig,
@@ -114,7 +123,10 @@ describe('config layers', () => {
         provideVariables(AwsConfig.layer, {
           AWS_REGION: 'eu-central-1',
           STAGE: 'local',
-          ...(given === undefined ? {} : { AWS_ENDPOINT_URL: given }),
+          ...UndefinedOr.match(given, {
+            onUndefined: () => ({}),
+            onDefined: (url) => ({ AWS_ENDPOINT_URL: url }),
+          }),
         }),
       ),
     ),

@@ -21,7 +21,12 @@ export const matches =
   (row) =>
     pipe(
       Struct.keys(where),
-      Arr.every((key) => where[key] === undefined || Equal.equals(row[key], where[key])),
+      Arr.every((key) =>
+        UndefinedOr.match(where[key], {
+          onUndefined: constTrue,
+          onDefined: Equal.equals(row[key]),
+        }),
+      ),
     )
 
 /** Holds for a row whose every field `where` names is one of the listed values. */
