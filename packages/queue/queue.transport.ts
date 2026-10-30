@@ -34,10 +34,16 @@ const SqsMessage = Schema.Struct({
   ReceiptHandle: Schema.String,
   Body: Schema.String,
   Attributes: Schema.Struct({ ApproximateReceiveCount: Schema.NumberFromString }),
-  MessageAttributes: Schema.Struct({ jobId: Schema.Struct({ StringValue: Schema.String }) }),
+  // A message sent with no `jobId` still reaches its handler, logged under an empty one, rather
+  // than failing the receive for every message behind it.
+  MessageAttributes: Schema.Struct({ jobId: Schema.Struct({ StringValue: Schema.String }) }).pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed({ jobId: { StringValue: '' } })),
+  ),
 })
 
-const SqsReceived = Schema.Struct({ Messages: Schema.optionalKey(Schema.Array(SqsMessage)) })
+const SqsReceived = Schema.Struct({
+  Messages: Schema.Array(SqsMessage).pipe(Schema.withDecodingDefaultKey(Effect.succeed([]))),
+})
 
 const decodeReceived = Schema.decodeUnknownEffect(SqsReceived)
 
@@ -90,7 +96,7 @@ const makeSqs = Effect.gen(function* () {
     })
     const { Messages } = yield* decodeReceived(response)
 
-    return Arr.head(Messages ?? []).pipe(Option.map(toReceived))
+    return Arr.head(Messages).pipe(Option.map(toReceived))
   }, failQueue)
 
   const extend = Effect.fn('QueueTransport.extend')(function* (

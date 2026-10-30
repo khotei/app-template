@@ -1,4 +1,5 @@
 import { assert, describe, layer } from '@effect/vitest'
+import { SQSService } from '@effect-aws/client-sqs'
 import {
   Array as Arr,
   Clock,
@@ -41,6 +42,7 @@ const queues = {
   recovered: { name: 'recovered', maxReceiveCount: maxAttempts },
   malformed: { name: 'malformed', maxReceiveCount: maxAttempts },
   unending: { name: 'unending', maxReceiveCount: maxAttempts },
+  unlabelled: { name: 'unlabelled', maxReceiveCount: maxAttempts },
   decoding: { name: 'decoding', maxReceiveCount: maxAttempts },
   settling: { name: 'settling', maxReceiveCount: maxAttempts },
 } as const satisfies Resources['queues']
@@ -98,7 +100,7 @@ const clientOptions = { queueName, lockExpiration, lockRefreshInterval: '500 mil
 const QueueClientMiniStack = QueueClient.layer(clientOptions).pipe(
   Layer.provideMerge(QueueTransport.layerSqs),
   Layer.provide(Layer.effectDiscard(provisionQueues(queues, stage))),
-  Layer.provide(SqsClientTest),
+  Layer.provideMerge(SqsClientTest),
 )
 
 const wrapTransport = (
@@ -360,6 +362,24 @@ describe('QueueClient.send and worker over QueueTransport.layerSqs against MiniS
           )
         }).pipe(Effect.provide(recordedLogs))
       },
+      realTime,
+    )
+
+    it.effect(
+      'consumes a message sent with no jobId',
+      () =>
+        Effect.gen(function* () {
+          const seen = yield* Queue.unbounded<Seen>()
+          const sqs = yield* SQSService
+          yield* worker(definitions.unlabelled, recordAttempts(seen)).pipe(Layer.build)
+
+          const { QueueUrl } = yield* sqs.getQueueUrl({
+            QueueName: queueName(definitions.unlabelled.name),
+          })
+          yield* sqs.sendMessage({ QueueUrl, MessageBody: '{"id":"unlabelled","text":"no jobId"}' })
+
+          assert.deepStrictEqual(yield* Queue.take(seen), ['no jobId', buildAttemptInfo(1)])
+        }),
       realTime,
     )
 
