@@ -1,16 +1,12 @@
 import { AnthropicClient, AnthropicLanguageModel } from '@effect/ai-anthropic'
-import { type Config, Context, Effect, Layer, Match, type Redacted } from 'effect'
+import { type Config, Context, Effect, Layer, Match } from 'effect'
 import type { LanguageModel } from 'effect/ai'
 import type { HttpClient } from 'effect/http'
 
 import { LlmConfig } from '@app-template/config'
 import { createLanguageModelStub } from '@app-template/llm'
 
-export interface AnthropicOptions {
-  readonly apiKey: Redacted.Redacted
-  readonly replyModel: string
-  readonly titleModel: string
-}
+type AnthropicOptions = Extract<LlmConfig['Service'], { readonly provider: 'anthropic' }>
 
 // Long enough that a polling client sees the message `generating` before it completes.
 const stubDelay = '1 second' as const
