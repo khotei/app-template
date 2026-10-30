@@ -1,4 +1,4 @@
-import { Array as Arr, Cause, Context, DateTime, Effect, Layer, Option } from 'effect'
+import { Array as Arr, Cause, Context, Data, DateTime, Effect, Layer, Option } from 'effect'
 
 import { type Attachment, AttachmentBucket } from '@app-template/domain/attachment'
 import {
@@ -30,7 +30,7 @@ const replySkipLogs = {
   alreadySettled: Effect.logInfo('assistant reply skipped: already settled'),
 } as const satisfies Record<ReplySkip, Effect.Effect<void>>
 
-const skipped = (why: ReplySkip) => Effect.as(replySkipLogs[why], Option.none<Message>())
+class ReplySkipped extends Data.TaggedError('ReplySkipped')<{ readonly why: ReplySkip }> {}
 
 export class GenerateAssistantMessageUseCase extends Context.Service<
   GenerateAssistantMessageUseCase,
@@ -102,33 +102,33 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
       yield* settleCompleted(completed, { status: generating.status })
     })
 
-    const generate = Effect.fn('GenerateAssistantMessageUseCase.generate')(function* (
-      job: GenerateAssistantMessage,
-    ) {
-      // The cascade takes the message with its chat, so a missing one means a deleted chat.
-      const stored = yield* messages.selectOne({ id: job.messageId, chatId: job.chatId })
-      if (Option.isNone(stored)) return yield* replySkipLogs.chatDeleted
-      if (!isActiveMessage(stored.value)) return yield* replySkipLogs.alreadySettled
+    // The cascade takes the message with its chat, so a missing one means a deleted chat.
+    const selectActive = (id: MessageId) =>
+      messages.selectOne({ id }).pipe(
+        Effect.flatMap(Effect.fromOption(() => new ReplySkipped({ why: 'chatDeleted' }))),
+        Effect.filterOrFail(isActiveMessage, () => new ReplySkipped({ why: 'alreadySettled' })),
+      )
 
-      yield* reply(stored.value)
-    })
+    const generate = Effect.fn('GenerateAssistantMessageUseCase.generate')(
+      (job: GenerateAssistantMessage) => selectActive(job.messageId).pipe(Effect.flatMap(reply)),
+      Effect.catchTag('ReplySkipped', ({ why }) => replySkipLogs[why]),
+    )
 
-    const fail = Effect.fn('GenerateAssistantMessageUseCase.fail')(function* (
-      messageId: MessageId,
-      cause: Cause.Cause<unknown>,
-    ) {
-      const stored = yield* messages.selectOne({ id: messageId })
-      if (Option.isNone(stored)) return yield* skipped('chatDeleted')
-      if (!isActiveMessage(stored.value)) return yield* skipped('alreadySettled')
-
-      const failedAt = yield* DateTime.now
-      const failed = yield* failMessage(stored.value, {
-        reason: 'ReplyFailed',
-        cause: Cause.pretty(cause),
-        at: failedAt,
-      })
-      return yield* settleFailed(failed, { status: stored.value.status }).pipe(Effect.asSome)
-    })
+    const fail = Effect.fn('GenerateAssistantMessageUseCase.fail')(
+      function* (messageId: MessageId, cause: Cause.Cause<unknown>) {
+        const active = yield* selectActive(messageId)
+        const failedAt = yield* DateTime.now
+        const failed = yield* failMessage(active, {
+          reason: 'ReplyFailed',
+          cause: Cause.pretty(cause),
+          at: failedAt,
+        })
+        return yield* settleFailed(failed, { status: active.status }).pipe(Effect.asSome)
+      },
+      Effect.catchTag('ReplySkipped', ({ why }) =>
+        replySkipLogs[why].pipe(Effect.as(Option.none<Message>())),
+      ),
+    )
 
     return { generate, fail }
   }),
