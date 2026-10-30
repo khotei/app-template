@@ -15,14 +15,17 @@ import {
 import {
   Assistant,
   AssistantReply,
-  buildAssistantMessage,
-  buildUserMessage,
   ChatTitle,
   type HistoryMessage,
-  Message,
   MessageId,
 } from '@app-template/domain/chat'
-import { chatId, epoch, owner } from '@app-template/domain/testing'
+import {
+  asCompleted,
+  assistantMessageAt,
+  epoch,
+  owner,
+  userMessageAt,
+} from '@app-template/domain/testing'
 import { png } from '@app-template/testing'
 
 import { AssistantModels } from '#infrastructure/chat/assistant.client'
@@ -103,24 +106,6 @@ const photo = image('0192d4e0-7b3a-7c00-8000-000000000040', 'photo.png')
 
 const sketch = image('0192d4e0-7b3a-7c00-8000-000000000041', 'sketch.png')
 
-const user = (n: number, text: string) =>
-  buildUserMessage({
-    id: MessageId.make(`0192d4e0-7b3a-7c00-8000-00000000005${n}`),
-    chatId,
-    text,
-    createdAt: epoch,
-  })
-
-const completed = new Message({
-  ...buildAssistantMessage({
-    id: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000052'),
-    chatId,
-    createdAt: epoch,
-  }),
-  status: 'done',
-  text: 'A photo.',
-})
-
 const file = (fileName: string) =>
   ({ type: 'file', mediaType: 'image/png', fileName, data: png }) as const
 
@@ -168,9 +153,12 @@ describe('AssistantLlm', () => {
       const { prompts, layer } = recordLanguageModel({ streamText: textStream('Hel', 'lo') })
       return Effect.gen(function* () {
         const answer = yield* reply([
-          { message: user(1, 'What is this?'), attachments: [{ attachment: photo, bytes: png }] },
-          { message: completed, attachments: [] },
-          { message: user(3, ''), attachments: [{ attachment: sketch, bytes: png }] },
+          {
+            message: userMessageAt(1, 'What is this?'),
+            attachments: [{ attachment: photo, bytes: png }],
+          },
+          { message: asCompleted(assistantMessageAt(2), 'A photo.'), attachments: [] },
+          { message: userMessageAt(3, ''), attachments: [{ attachment: sketch, bytes: png }] },
         ])
 
         assertEquals(answer, new AssistantReply({ text: 'Hello' }))
@@ -188,7 +176,9 @@ describe('AssistantLlm', () => {
   it.effect('reply dies on a blank answer', () => {
     const { layer } = recordLanguageModel({ streamText: textStream(' ', '\n') })
     return Effect.gen(function* () {
-      const exit = yield* reply([{ message: user(1, 'Hi'), attachments: [] }]).pipe(Effect.exit)
+      const exit = yield* reply([{ message: userMessageAt(1, 'Hi'), attachments: [] }]).pipe(
+        Effect.exit,
+      )
 
       assert.isTrue(Exit.hasDies(exit))
     }).pipe(Effect.provide(layer))
@@ -199,7 +189,7 @@ describe('AssistantLlm', () => {
     return Effect.gen(function* () {
       const answers = yield* Effect.all(
         {
-          reply: reply([{ message: user(1, 'Hi'), attachments: [] }]),
+          reply: reply([{ message: userMessageAt(1, 'Hi'), attachments: [] }]),
           title: suggestTitle('Plan a weekend in Lisbon'),
         },
         { concurrency: 'unbounded' },

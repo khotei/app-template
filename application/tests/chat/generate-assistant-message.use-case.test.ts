@@ -16,14 +16,15 @@ import {
 import {
   AssistantReply,
   buildAssistantMessage,
-  buildUserMessage,
   Chat,
   Message,
-  MessageId,
+  type MessageId,
   MessageRepository,
 } from '@app-template/domain/chat'
 import {
   type AssistantCallHold,
+  asCompleted,
+  assistantMessageAt,
   chat,
   chatId,
   deleteChat,
@@ -36,6 +37,7 @@ import {
   recordAssistant,
   selectChat,
   selectMessage,
+  userMessageAt,
 } from '@app-template/domain/testing'
 import { GenerateAssistantMessage } from '@app-template/infrastructure/chat'
 import { png, recordLogs } from '@app-template/testing'
@@ -43,32 +45,20 @@ import { png, recordLogs } from '@app-template/testing'
 import { GenerateAssistantMessageUseCase } from '#application/chat/generate-assistant-message.use-case'
 import { AssistantMessageTest } from '#application/testing/chat.test-layer'
 
-const historyId = (n: number) => MessageId.make(`0192d4e0-7b3a-7c00-8000-00000000005${n}`)
-
 const at = (millis: number) => DateTime.makeUnsafe(millis)
 
 const queuedReply = buildAssistantMessage({ id: messageId, chatId, createdAt: epoch })
-
-const asCompleted = (message: Message, text: string) =>
-  new Message({ ...message, status: 'done', text })
 
 const sure = new AssistantReply({ text: 'Sure.' })
 
 // The use case asks for the reply after its `generating` write.
 const heldReply = (held: AssistantCallHold) => held.hold.pipe(Effect.as(sure))
 
-// A second apart: messages sharing a `createdAt` come back in no defined order.
-const user = (n: number, text: string) =>
-  buildUserMessage({ id: historyId(n), chatId, text, createdAt: at(n * 1000) })
-
-const assistant = (n: number) =>
-  buildAssistantMessage({ id: historyId(n), chatId, createdAt: at(n * 1000) })
-
-const whatIsThis = user(1, 'What is this?')
-const aPhoto = asCompleted(assistant(2), 'A photo.')
-const andAgain = user(3, 'And again?')
-const halfReply = new Message({ ...assistant(4), status: 'failed', text: 'half' })
-const attachmentsOnly = user(5, '')
+const whatIsThis = userMessageAt(1, 'What is this?')
+const aPhoto = asCompleted(assistantMessageAt(2), 'A photo.')
+const andAgain = userMessageAt(3, 'And again?')
+const halfReply = new Message({ ...assistantMessageAt(4), status: 'failed', text: 'half' })
+const attachmentsOnly = userMessageAt(5, '')
 
 const history = [whatIsThis, aPhoto, andAgain, halfReply, attachmentsOnly]
 
