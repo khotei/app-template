@@ -77,7 +77,7 @@ export const AssistantMessageTest = GenerateAssistantMessageUseCase.layer.pipe(
 
 /**
  * The chat services and use cases on a fresh test database where `chat` exists, over the real
- * transaction, the outbox and the attachments bucket of a status of the test's own: for what only
+ * transaction, the outbox and the attachments bucket of a stage of the test's own: for what only
  * Postgres decides, a rollback.
  */
 export const ChatPgTest = ChatServices.pipe(
