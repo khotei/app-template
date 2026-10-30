@@ -15,7 +15,10 @@ export const Status = Schema.Literals([
 ])
 export type Status = typeof Status.Type
 
-/** Holds for an entity of any status subset whose status is `queued`. */
-export const isQueued = Predicate.Struct({ status: Schema.is(Status.pick(['queued'])) })
+/** Holds for an entity of any status subset whose status is one of `statuses`; build it once. */
+export const hasStatus = <const L extends ReadonlyArray<Status>>(statuses: L) =>
+  Predicate.Struct({ status: Schema.is(Status.pick(statuses)) })
 
-export const isPreparing = Predicate.Struct({ status: Schema.is(Status.pick(['preparing'])) })
+export const isQueued = hasStatus(['queued'])
+
+export const isPreparing = hasStatus(['preparing'])
