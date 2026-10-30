@@ -57,17 +57,13 @@ const inCreationOrder = Order.combine(
 
 const newestFirst = Order.flip(Order.mapInput(DateTime.Order, (chat: Chat) => chat.createdAt))
 
-const messagesOf = (messages: Messages, chatId: ChatId) =>
-  pipe(
-    messages,
-    HashMap.filter(matches<Message>({ chatId })),
-    HashMap.toValues,
-    Arr.sort(inCreationOrder),
-  )
+/** The rows where `where` holds, in creation order. */
+const rowsWhere = <Row extends Created>(rows: HashMap.HashMap<string, Row>, where: Partial<Row>) =>
+  pipe(rows, HashMap.filter(matches(where)), HashMap.toValues, Arr.sort(inCreationOrder))
 
 /** The chat's active message, if any: the row the partial unique index guards. */
 const activeOf = (messages: Messages, chatId: ChatId) =>
-  pipe(messagesOf(messages, chatId), Arr.findFirst(isActiveMessage))
+  pipe(rowsWhere(messages, { chatId }), Arr.findFirst(isActiveMessage))
 
 /** The message with the attachments bound to it, as the Pg relation reads them. */
 const messageWithAttachmentsOf =
@@ -75,27 +71,14 @@ const messageWithAttachmentsOf =
   (message: Message): Message =>
     new Message({
       ...message,
-      attachments: pipe(
-        attachments,
-        HashMap.filter(matches<Attachment>({ messageId: Option.some(message.id) })),
-        HashMap.toValues,
-        Arr.sort(inCreationOrder),
-      ),
+      attachments: rowsWhere(attachments, { messageId: Option.some(message.id) }),
     })
 
 /** The chat with the attachments bound to its messages, as the Pg relation reads them. */
 const chatWithAttachmentsOf =
   (attachments: Attachments) =>
   (chat: Chat): Chat =>
-    new Chat({
-      ...chat,
-      attachments: pipe(
-        attachments,
-        HashMap.filter(matches<Attachment>({ chatId: Option.some(chat.id) })),
-        HashMap.toValues,
-        Arr.sort(inCreationOrder),
-      ),
-    })
+    new Chat({ ...chat, attachments: rowsWhere(attachments, { chatId: Option.some(chat.id) }) })
 
 interface Tables {
   readonly chats: Chats
@@ -141,13 +124,14 @@ export const ChatRepositoryTest = Layer.effect(
     const chats = yield* ChatRows
     const messages = yield* MessageRows
     const attachments = yield* AttachmentRows
+    const readTables = yield* createReadTables
 
     const selectChat = (where: ChatWhere) =>
-      Effect.all([Ref.get(chats), Ref.get(attachments)]).pipe(
-        Effect.map(([rows, files]) =>
-          HashMap.get(rows, where.id).pipe(
+      readTables.pipe(
+        Effect.map((tables) =>
+          HashMap.get(tables.chats, where.id).pipe(
             Option.filter(matches<Chat>(where)),
-            Option.map(chatWithAttachmentsOf(files)),
+            Option.map(chatWithAttachmentsOf(tables.attachments)),
           ),
         ),
       )
@@ -162,14 +146,14 @@ export const ChatRepositoryTest = Layer.effect(
         }).pipe(orDieOnNoRows(`chat ${where.id} was not updated`)),
       selectOne: selectChat,
       selectMany: (where) =>
-        Effect.all([Ref.get(chats), Ref.get(attachments)]).pipe(
-          Effect.map(([rows, files]) =>
+        readTables.pipe(
+          Effect.map((tables) =>
             pipe(
-              rows,
+              tables.chats,
               HashMap.filter(matches<Chat>(where)),
               HashMap.toValues,
               Arr.sort(newestFirst),
-              Arr.map(chatWithAttachmentsOf(files)),
+              Arr.map(chatWithAttachmentsOf(tables.attachments)),
             ),
           ),
         ),
