@@ -202,7 +202,7 @@ describe('AttachmentService', () => {
     Effect.gen(function* () {
       const service = yield* AttachmentService
       const attachment = yield* uploadPhoto
-      yield* AttachmentBucket.use((bucket) => bucket.delete(attachment.id))
+      yield* AttachmentBucket.use((bucket) => bucket.delete([attachment.id]))
 
       const error = yield* service.download(owner, attachment.id).pipe(Effect.flip)
 

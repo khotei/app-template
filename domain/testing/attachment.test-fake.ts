@@ -111,8 +111,7 @@ export const AttachmentBucketTest = Layer.effect(
       select,
       url: (id) => select(id).pipe(Effect.map(Option.as(new URL(`memory:attachments/${id}`)))),
       keep: () => Effect.void,
-      delete: (id) => Ref.update(objects, HashMap.remove(id)),
-      deleteMany: (ids) => Ref.update(objects, HashMap.removeMany(ids)),
+      delete: (ids) => Ref.update(objects, HashMap.removeMany(ids)),
     })
   }),
 ).pipe(Layer.provideMerge(AttachmentBucketObjects.layer))

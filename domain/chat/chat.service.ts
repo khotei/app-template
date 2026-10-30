@@ -55,7 +55,7 @@ export class ChatService extends Context.Service<
 
       // The cascade takes the messages and their attachments; the bytes go by the ids read.
       yield* chats.delete({ id: chat.id })
-      yield* bucket.deleteMany(Arr.map(chat.attachments, Struct.get('id')))
+      yield* bucket.delete(Arr.map(chat.attachments, Struct.get('id')))
     })
 
     return { getOne, rename, delete: remove }

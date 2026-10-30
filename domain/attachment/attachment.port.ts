@@ -58,9 +58,7 @@ export class AttachmentBucket extends Context.Service<
      * an id without bytes.
      */
     readonly keep: (id: AttachmentId) => Effect.Effect<void>
-    /** Idempotent. */
-    readonly delete: (id: AttachmentId) => Effect.Effect<void>
     /** Idempotent, in as few requests as the store allows. */
-    readonly deleteMany: (ids: ReadonlyArray<AttachmentId>) => Effect.Effect<void>
+    readonly delete: (ids: ReadonlyArray<AttachmentId>) => Effect.Effect<void>
   }
 >()('@app-template/domain/attachment/AttachmentBucket') {}

@@ -106,8 +106,8 @@ export class AttachmentService extends Context.Service<
       const deleteTracked = Effect.gen(function* () {
         const storedIds = yield* Ref.get(stored)
         if (Arr.isReadonlyArrayNonEmpty(storedIds)) yield* attachments.delete({ id: storedIds })
-        const ids = yield* Ref.get(tracked)
-        yield* Effect.forEach(ids, bucket.delete, { discard: true })
+        const trackedIds = yield* Ref.get(tracked)
+        yield* bucket.delete(trackedIds)
       })
 
       return yield* files.pipe(
@@ -151,7 +151,7 @@ export class AttachmentService extends Context.Service<
       yield* ensureUnbound(attachment)
 
       yield* attachments.delete({ id: [id] })
-      yield* bucket.delete(id)
+      yield* bucket.delete([id])
     })
 
     // One batch read; the refusal still names the first bad id in the order asked.

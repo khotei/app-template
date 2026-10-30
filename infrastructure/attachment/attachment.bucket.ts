@@ -49,14 +49,10 @@ export const AttachmentBucketS3 = Layer.effect(
       bucket.untag(buildObjectKey(id)),
     )
 
-    const remove = Effect.fn('AttachmentBucket.delete')((id: AttachmentId) =>
-      bucket.delete(buildObjectKey(id)),
+    const remove = Effect.fn('AttachmentBucket.delete')((ids: ReadonlyArray<AttachmentId>) =>
+      bucket.deleteMany(Arr.map(ids, buildObjectKey)),
     )
 
-    const deleteMany = Effect.fn('AttachmentBucket.deleteMany')(
-      (ids: ReadonlyArray<AttachmentId>) => bucket.deleteMany(Arr.map(ids, buildObjectKey)),
-    )
-
-    return AttachmentBucket.of({ insert, select, url, keep, delete: remove, deleteMany })
+    return AttachmentBucket.of({ insert, select, url, keep, delete: remove })
   }),
 )

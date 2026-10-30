@@ -173,9 +173,9 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
 
 `ChatRepository.delete(where)` is one statement and dies when it removes nothing; its messages
 and their attachments go by the cascade, and `RETURNING` answers only the chat's row.
-`ChatService.delete` therefore reads the chat to name `ChatNotFoundError`, then the attachments'
-ids by `chatId`, then deletes the chat, then the bytes, through
-`AttachmentBucket.deleteMany` (one `DeleteObjects` per 1000 keys). A file a concurrent send binds
+`ChatService.delete` therefore reads the chat with its attachments to name `ChatNotFoundError`,
+then deletes the chat, then the bytes, through
+`AttachmentBucket.delete` (one `DeleteObjects` per 1000 keys). A file a concurrent send binds
 between the read and the delete loses its row with the chat while its bytes stay in S3, bound and
 never expired: the price of a delete with no transaction.
 
