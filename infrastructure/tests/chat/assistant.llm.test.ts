@@ -25,8 +25,8 @@ import {
 import { chatId, epoch, owner } from '@app-template/domain/testing'
 import { png } from '@app-template/testing'
 
+import { AssistantModels } from '#infrastructure/chat/assistant.client'
 import { AssistantLlm } from '#infrastructure/chat/assistant.llm'
-import { AssistantModels } from '#infrastructure/chat/assistant-models.client'
 
 interface LanguageModelScript {
   readonly generateText?: Effect.Effect<Array<Response.PartEncoded>, AiError.AiError>

@@ -1,7 +1,7 @@
 import { Layer } from 'effect'
 
+import { AssistantModels } from '#infrastructure/chat/assistant.client'
 import { AssistantLlm } from '#infrastructure/chat/assistant.llm'
-import { AssistantModels } from '#infrastructure/chat/assistant-models.client'
 import { ChatRepositoryPg } from '#infrastructure/chat/chat.repository'
 import { MessageRepositoryPg } from '#infrastructure/chat/message.repository'
 

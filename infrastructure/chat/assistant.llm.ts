@@ -20,7 +20,7 @@ import {
   maxTitleLength,
 } from '@app-template/domain/chat'
 
-import { AssistantModels } from '#infrastructure/chat/assistant-models.client'
+import { AssistantModels } from '#infrastructure/chat/assistant.client'
 
 const toFilePart = ({ attachment, bytes }: AttachmentBytes): Prompt.FilePartEncoded => ({
   type: 'file',

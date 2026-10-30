@@ -170,7 +170,7 @@
   - `infrastructure/chat/assistant.llm.ts` (the system prompt, `ReplyAnswer` with the field's
     `description`, `reply` by `LanguageModel.generateObject` on `models.reply`, decoded into
     `AssistantReply`);
-  - `infrastructure/chat/assistant-models.client.ts` (the request settings per purpose, as
+  - `infrastructure/chat/assistant.client.ts` (the request settings per purpose, as
     `architecture.md › Contracts › AssistantModels` tabulates them, passed as
     `AnthropicLanguageModel.make({ model, config })`: `max_tokens` and `cache_control` at the top,
     effort as `output_config.effort`, `thinking: { type: 'disabled' }`; `layerStub`'s reply text
@@ -265,7 +265,7 @@
   - `infrastructure/chat/assistant.llm.ts` (`TitleAnswer` over a trimmed `ChatTitle` with the
     field's `description`; `suggestTitle` by `generateObject` on `models.title`, with S5's
     mapping and the title schedule; − the free-text instruction and the cut);
-  - `infrastructure/chat/assistant-models.client.ts` (`layerStub`'s title text is
+  - `infrastructure/chat/assistant.client.ts` (`layerStub`'s title text is
     `{"title": …}`);
   - `infrastructure/tests/chat/assistant.llm.test.ts`;
   - `docs/tickets/2026-10-17-1748_chat-core/feature.md` (R25 amended).
@@ -300,7 +300,7 @@
     `Schema.toJsonSchemaDocument(schema)`, the bytes as hex, a `PlatformError` a defect;
     `generate`, not the architecture's `hashInstructions`, by `naming.md › Symbols`;
     `replyProvenance` from `AssistantModels.provider` and `.replyModel`, which S7 adds to
-    `assistant-models.client.ts`, the stub reporting `stub` for both);
+    `assistant.client.ts`, the stub reporting `stub` for both);
   - `infrastructure/chat/message.entity.ts` (+ `provenance` `jsonb`, decoded by
     `Schema.OptionFromNullOr(MessageProvenance)`); `infrastructure/db/migrations/<stamp>_message_provenance/`
     (`make migration NAME=message_provenance`);

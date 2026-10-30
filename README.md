@@ -109,7 +109,7 @@ One entity crosses every layer under the same folder name. The `chat` slice, by 
 ```text
 domain/chat/            chat.id  chat.model  chat.error  chat.port  chat.service
 application/chat/       send-message.use-case  generate-assistant-message.use-case
-infrastructure/chat/    chat.entity  chat.repository  chat.queue  assistant.llm  assistant-models.client
+infrastructure/chat/    chat.entity  chat.repository  chat.queue  assistant.llm  assistant.client
 http-api/chat/          chat.http
 apps/api/chat/          chat.handler
 apps/worker/chat/       assistant-message.handler  chat-title.handler

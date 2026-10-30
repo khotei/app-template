@@ -67,7 +67,7 @@ and a provenance.
 ~ assistant.llm.ts              the system prompt, the reply and title schemas with their field
                                 descriptions, the prompts, the finish-reason capture, the retry
                                 schedules, the AiError mapping, hashInstructions; over AssistantModels and Crypto
-+ assistant-models.client.ts    AssistantModels with layerAnthropic(options), layerStub, layerFromConfig
++ assistant.client.ts    AssistantModels with layerAnthropic(options), layerStub, layerFromConfig
 ~ message.entity.ts             + provenance jsonb (D8)
 + db/migrations/<n>_…           the column
 ~ index.ts                      exports AssistantModels
@@ -192,7 +192,7 @@ The schedules: a reply makes three requests at most, 1 s then 2 s apart (`chat-c
 numbers); a title five, 1, 2, 4 and 8 s apart (the title queue's numbers). Each wait is the larger
 of the schedule's delay and `retryAfter`.
 
-**`AssistantModels`** (`infrastructure/chat/assistant-models.client.ts`)
+**`AssistantModels`** (`infrastructure/chat/assistant.client.ts`)
 
 ```ts
 export class AssistantModels extends Context.Service<AssistantModels, {
