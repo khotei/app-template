@@ -9,13 +9,17 @@ const { assistantMessage, chatTitle } = resources.queues
 const buildDoublingDelay = (attempt: number) => Duration.seconds(2 ** (attempt - 1))
 
 /**
- * A dead-letter queue has no redrive, so its attempts never run out and a failing handler retries
- * at most five minutes apart.
+ * The dead-letter queue of `queue`: it has no redrive, so its attempts never run out and a failing
+ * handler retries at most five minutes apart.
  */
-const deadLetterRetries = {
+const buildDeadLetterQueue = <A, I>(
+  queue: QueueDefinition<Schema.Codec<A, I>>,
+): QueueDefinition<Schema.Codec<A, I>> => ({
+  ...queue,
+  name: buildDeadLetterName(queue.name),
   maxAttempts: Number.MAX_SAFE_INTEGER,
-  retryDelay: (attempt: number) => Duration.min(buildDoublingDelay(attempt), Duration.minutes(5)),
-}
+  retryDelay: (attempt) => Duration.min(buildDoublingDelay(attempt), Duration.minutes(5)),
+})
 
 export class GenerateAssistantMessage extends Schema.Class<GenerateAssistantMessage>(
   'GenerateAssistantMessage',
@@ -30,11 +34,7 @@ export const assistantMessageQueue = {
   jobId: (job) => job.messageId,
 } satisfies QueueDefinition<typeof GenerateAssistantMessage>
 
-export const assistantMessageDeadLetterQueue = {
-  ...assistantMessageQueue,
-  ...deadLetterRetries,
-  name: buildDeadLetterName(assistantMessageQueue.name),
-} satisfies QueueDefinition<typeof GenerateAssistantMessage>
+export const assistantMessageDeadLetterQueue = buildDeadLetterQueue(assistantMessageQueue)
 
 /** `messageId` is the chat's first user message; the worker reads its text from the store. */
 export class GenerateChatTitle extends Schema.Class<GenerateChatTitle>('GenerateChatTitle')({
@@ -50,8 +50,4 @@ export const chatTitleQueue = {
   jobId: (job) => job.chatId,
 } satisfies QueueDefinition<typeof GenerateChatTitle>
 
-export const chatTitleDeadLetterQueue = {
-  ...chatTitleQueue,
-  ...deadLetterRetries,
-  name: buildDeadLetterName(chatTitleQueue.name),
-} satisfies QueueDefinition<typeof GenerateChatTitle>
+export const chatTitleDeadLetterQueue = buildDeadLetterQueue(chatTitleQueue)
