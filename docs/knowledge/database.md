@@ -105,9 +105,11 @@ const rows = yield* db.query.messages.findMany({
 // rows: [{ id, chatId, …, attachments: [{ id, userId, messageId, … }] }]
 ```
 
-`MessageRepository.selectOne` and `selectMany` always read the message `with` its attachments,
-in one relational query: `Message.attachments` is the one model field another table holds, read
-and never written by the message's writes, since `AttachmentService.bind` binds them.
+`ChatRepository` and `MessageRepository` read a chat or a message `with` its attachments, in one
+relational query: `Chat.attachments` and `Message.attachments` are the model fields another
+table holds, read and never written by their own writes, since `AttachmentService.bind` binds
+them. A relational query aliases its table, so the chat's `where` is built on the table the
+query hands to `RAW`, never on the `chats` constant.
 
 ## Repositories
 

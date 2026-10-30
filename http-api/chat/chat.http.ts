@@ -24,8 +24,9 @@ import * as limits from '#http-api/shared/limits'
 import { Auth } from '#http-api/shared/security'
 
 export const Chat = ChatModel.mapFields((fields) => ({
-  ...Struct.omit(fields, ['userId']),
+  ...fields,
   title: Schema.OptionFromNullOr(ChatTitle),
+  attachments: Schema.Array(Attachment),
 }))
 export type Chat = typeof Chat.Type
 

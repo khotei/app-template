@@ -109,23 +109,6 @@ describe('attachments', () => {
       }).pipe(Effect.provide(ApiTest)),
   )
 
-  it.effect('GET /attachments/:attachmentId answers the attachment without its owner or chat', () =>
-    Effect.gen(function* () {
-      const api = yield* ApiClient
-      const http = yield* HttpClient.HttpClient
-      yield* api.users.ensure()
-      const uploaded = yield* api.attachments
-        .upload({ payload: formOf(png('photo.png')) })
-        .pipe(Effect.head)
-
-      const wire = yield* http
-        .get(`/attachments/${uploaded.id}`)
-        .pipe(Effect.flatMap((response) => response.json))
-
-      assert.hasAllKeys(wire, ['id', 'messageId', 'fileName', 'mediaType', 'size', 'createdAt'])
-    }).pipe(Effect.provide(ApiTest)),
-  )
-
   it.effect("GET /attachments/:attachmentId/download is 302 to the bucket's URL", () =>
     Effect.gen(function* () {
       const api = yield* ApiClient

@@ -100,6 +100,7 @@ describe('SendMessageUseCase', () => {
               ...chat,
               title: Option.some(ChatTitle.make('Trip')),
               status: 'queued',
+              attachments: [bound],
             }),
           ),
         )

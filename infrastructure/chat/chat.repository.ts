@@ -1,5 +1,5 @@
-import { desc, eq, isNull } from 'drizzle-orm'
-import { Array as Arr, DateTime, Effect, flow, Layer, Option, Schema, UndefinedOr } from 'effect'
+import { eq, isNull } from 'drizzle-orm'
+import { DateTime, Effect, Layer, Option, Schema, UndefinedOr } from 'effect'
 import { identity } from 'effect/Function'
 
 import {
@@ -9,8 +9,10 @@ import {
   type ChatWhere,
 } from '@app-template/domain/chat'
 
-import { ChatFromRow, ChatInsert, chats } from '#infrastructure/chat/chat.entity'
-import { buildSet, buildWhere } from '#infrastructure/db/columns'
+import { ChatFromRow } from '#infrastructure/attachment/attachment.entity'
+import { ChatInsert, chats } from '#infrastructure/chat/chat.entity'
+import { withAttachments } from '#infrastructure/chat/message.entity'
+import { buildSet, buildWhere, skipUndefined } from '#infrastructure/db/columns'
 import {
   Db,
   decodeOptionalRow,
@@ -26,24 +28,33 @@ const encodeSet = buildSet<ChatSet, typeof chats>({
   updatedAt: UndefinedOr.map(DateTime.toDateUtc),
 })
 
-const encodeWhere = buildWhere<ChatWhere>({
-  id: (id) => eq(chats.id, id),
-  userId: UndefinedOr.map((userId) => eq(chats.userId, userId)),
-  title: UndefinedOr.map(
-    Option.match({
-      onNone: () => isNull(chats.title),
-      onSome: (title) => eq(chats.title, title),
-    }),
-  ),
-  status: UndefinedOr.map((status) => eq(chats.status, status)),
-})
+// Built on the table a query names: a relational query aliases `chats`, so a condition on the
+// `chats` constant would reference a table the query does not have.
+const encodeWhere = (table: typeof chats) =>
+  buildWhere<ChatWhere>({
+    id: (id) => eq(table.id, id),
+    userId: UndefinedOr.map((userId) => eq(table.userId, userId)),
+    title: UndefinedOr.map(
+      Option.match({
+        onNone: () => isNull(table.title),
+        onSome: (title) => eq(table.title, title),
+      }),
+    ),
+    status: UndefinedOr.map((status) => eq(table.status, status)),
+  })
 
-const encodeManyWhere = buildWhere<ChatManyWhere>({
-  userId: (userId) => eq(chats.userId, userId),
-  status: UndefinedOr.map((status) => eq(chats.status, status)),
-})
+const encodeManyWhere = (table: typeof chats) =>
+  buildWhere<ChatManyWhere>({
+    userId: (userId) => eq(table.userId, userId),
+    status: UndefinedOr.map((status) => eq(table.status, status)),
+  })
 
 const decodeChats = Schema.decodeEffect(Schema.Array(ChatFromRow))
+
+const latestFirstBy = {
+  createdAt: { createdAt: 'desc' },
+  updatedAt: { updatedAt: 'desc' },
+} as const
 
 export const ChatRepositoryPg = Layer.effect(
   ChatRepository,
@@ -58,30 +69,29 @@ export const ChatRepositoryPg = Layer.effect(
           db
             .update(chats)
             .set(encodeSet(set))
-            .where(encodeWhere(where))
+            .where(encodeWhere(chats)(where))
             .returning({ id: chats.id })
             .pipe(orDieOnNoRows(`chat ${where.id} was not updated`)),
         orDieWithSqlError,
       ),
       selectOne: Effect.fn('ChatRepository.selectOne')(
         (where) =>
-          db
-            .select()
-            .from(chats)
-            .where(encodeWhere(where))
-            .pipe(
-              Effect.map(flow(Arr.head, Option.getOrUndefined)),
-              Effect.flatMap(decodeOptionalRow(ChatFromRow)),
-            ),
+          db.query.chats
+            .findFirst({
+              where: { RAW: (table) => skipUndefined(encodeWhere(table)(where)) },
+              with: withAttachments,
+            })
+            .pipe(Effect.flatMap(decodeOptionalRow(ChatFromRow))),
         orDieWithSqlError,
       ),
       selectMany: Effect.fn('ChatRepository.selectMany')(
         (where, options) =>
-          db
-            .select()
-            .from(chats)
-            .where(encodeManyWhere(where))
-            .orderBy(desc(chats[options?.order ?? 'createdAt']))
+          db.query.chats
+            .findMany({
+              where: { RAW: (table) => skipUndefined(encodeManyWhere(table)(where)) },
+              orderBy: latestFirstBy[options?.order ?? 'createdAt'],
+              with: withAttachments,
+            })
             .pipe(Effect.flatMap(decodeChats)),
         orDieWithSqlError,
       ),
@@ -89,7 +99,7 @@ export const ChatRepositoryPg = Layer.effect(
         (where) =>
           db
             .delete(chats)
-            .where(encodeWhere(where))
+            .where(encodeWhere(chats)(where))
             .returning({ id: chats.id })
             .pipe(orDieOnNoRows(`chat ${where.id} was not deleted`)),
         orDieWithSqlError,

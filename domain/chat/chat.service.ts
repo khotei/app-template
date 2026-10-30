@@ -1,7 +1,7 @@
 import { Array as Arr, Context, DateTime, Effect, Layer, Option, Struct, type Types } from 'effect'
 import type { RequireAtLeastOne } from 'type-fest'
 
-import { AttachmentBucket, AttachmentRepository } from '#domain/attachment/attachment.port'
+import { AttachmentBucket } from '#domain/attachment/attachment.port'
 import { ChatNotFoundError } from '#domain/chat/chat.error'
 import { Chat, type ChatTitle } from '#domain/chat/chat.model'
 import { ChatRepository, type ChatWhere } from '#domain/chat/chat.port'
@@ -29,7 +29,6 @@ export class ChatService extends Context.Service<
 >()('@app-template/domain/chat/ChatService', {
   make: Effect.gen(function* () {
     const chats = yield* ChatRepository
-    const attachments = yield* AttachmentRepository
     const bucket = yield* AttachmentBucket
 
     const getOne = Effect.fn('ChatService.getOne')((where: ChatWhere) =>
@@ -52,13 +51,11 @@ export class ChatService extends Context.Service<
     })
 
     const remove = Effect.fn('ChatService.delete')(function* (where: ChatDeleteWhere) {
-      yield* getOne(where)
-      // The one delete takes the messages and their attachments by the cascade, but it answers
-      // only the chat's row: the attachments are read first for the ids of their bytes.
-      const removed = yield* attachments.selectMany({ chatId: where.id, userId: where.userId })
+      const chat = yield* getOne(where)
 
-      yield* chats.delete({ id: where.id })
-      yield* bucket.deleteMany(Arr.map(removed, Struct.get('id')))
+      // The cascade takes the messages and their attachments; the bytes go by the ids read.
+      yield* chats.delete({ id: chat.id })
+      yield* bucket.deleteMany(Arr.map(chat.attachments, Struct.get('id')))
     })
 
     return { getOne, rename, delete: remove }

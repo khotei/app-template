@@ -40,7 +40,14 @@ describe('ChatService.delete on Postgres', () => {
       assert.isTrue(Exit.hasDies(exit))
       assertEquals(
         yield* selectChat(chat.id),
-        Option.some(new Chat({ ...chat, status: 'queued', updatedAt: userMessage.createdAt })),
+        Option.some(
+          new Chat({
+            ...chat,
+            status: 'queued',
+            updatedAt: userMessage.createdAt,
+            attachments: userMessage.attachments,
+          }),
+        ),
       )
       assertEquals(
         sortById(yield* selectMessages(chat.id)),

@@ -3,7 +3,7 @@ import { createInsertSchema, createSelectSchema } from 'drizzle-orm/effect-schem
 import { check, index, pgEnum, snakeCase, text, uuid } from 'drizzle-orm/pg-core'
 import { Schema } from 'effect'
 
-import { Chat, ChatId, ChatStatus, ChatTitle, maxTitleLength } from '@app-template/domain/chat'
+import { ChatId, ChatStatus, ChatTitle, maxTitleLength } from '@app-template/domain/chat'
 import { UserId } from '@app-template/domain/user'
 
 import { createdAt, id, updatedAt } from '#infrastructure/db/columns'
@@ -44,5 +44,3 @@ const chatFields = {
 export const ChatRow = createSelectSchema(chats, chatFields)
 
 export const ChatInsert = createInsertSchema(chats, chatFields)
-
-export const ChatFromRow = ChatRow.pipe(Schema.decodeTo(Chat))

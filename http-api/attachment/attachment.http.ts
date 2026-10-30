@@ -1,4 +1,4 @@
-import { Schema, Struct } from 'effect'
+import { Schema } from 'effect'
 import { Multipart } from 'effect/http'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
@@ -9,15 +9,16 @@ import {
   AttachmentNotFoundError,
   MediaType,
 } from '@app-template/domain/attachment'
-import { MessageId } from '@app-template/domain/chat'
+import { ChatId, MessageId } from '@app-template/domain/chat'
 
 import { AttachmentTooLargeError, AttachmentTypeUnsupportedError } from '#http-api/shared/errors'
 import * as limits from '#http-api/shared/limits'
 import { Auth } from '#http-api/shared/security'
 
 export const Attachment = AttachmentModel.mapFields((fields) => ({
-  ...Struct.omit(fields, ['userId', 'chatId']),
+  ...fields,
   messageId: Schema.OptionFromNullOr(MessageId),
+  chatId: Schema.OptionFromNullOr(ChatId),
 }))
 export type Attachment = typeof Attachment.Type
 

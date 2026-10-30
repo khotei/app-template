@@ -1,5 +1,6 @@
 import { type DateTime, Effect, Option, pipe, Schema, String as Str } from 'effect'
 
+import { Attachment } from '#domain/attachment/attachment.model'
 import { ChatBusyError, ChatStatusInvalidError } from '#domain/chat/chat.error'
 import { ChatId } from '#domain/chat/chat.id'
 import { ChatStatus, type SettledChatStatus } from '#domain/chat/chat-status.model'
@@ -46,6 +47,8 @@ export class Chat extends Schema.Class<Chat>('Chat')({
   status: ChatStatus,
   createdAt: Schema.DateTimeUtc,
   updatedAt: Schema.DateTimeUtc,
+  /** Bound to the chat's messages, in upload order; the chat's own writes never touch them. */
+  attachments: Schema.Array(Attachment),
 }) {}
 
 /** Takes the chat for a send's reply; a chat whose reply is still in work refuses it. */
@@ -78,4 +81,5 @@ export const buildChat = (input: {
     status: 'idle',
     createdAt: input.createdAt,
     updatedAt: input.createdAt,
+    attachments: [],
   })

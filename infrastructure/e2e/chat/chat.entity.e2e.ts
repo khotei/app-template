@@ -18,6 +18,7 @@ const chat = new Chat({
   status: 'idle',
   createdAt: DateTime.makeUnsafe('2026-10-18T00:00:00.123Z'),
   updatedAt: DateTime.makeUnsafe('2026-10-18T00:00:01.456Z'),
+  attachments: [],
 })
 
 describe('chats', () => {

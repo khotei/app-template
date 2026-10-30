@@ -3,7 +3,6 @@ import {
   Context,
   DateTime,
   Effect,
-  flow,
   HashMap,
   Layer,
   Option,
@@ -82,7 +81,7 @@ const isBoundTo =
     Option.contains(attachment.messageId, messageId)
 
 /** The message with the attachments bound to it, as the Pg relation reads them. */
-const withAttachmentsOf =
+const messageWithAttachmentsOf =
   (attachments: Attachments) =>
   (message: Message): Message =>
     new Message({
@@ -90,6 +89,20 @@ const withAttachmentsOf =
       attachments: pipe(
         attachments,
         HashMap.filter(isBoundTo(message.id)),
+        HashMap.toValues,
+        Arr.sort(inCreationOrder),
+      ),
+    })
+
+/** The chat with the attachments bound to its messages, as the Pg relation reads them. */
+const chatWithAttachmentsOf =
+  (attachments: Attachments) =>
+  (chat: Chat): Chat =>
+    new Chat({
+      ...chat,
+      attachments: pipe(
+        attachments,
+        HashMap.filter((attachment) => Option.contains(attachment.chatId, chat.id)),
         HashMap.toValues,
         Arr.sort(inCreationOrder),
       ),
@@ -143,9 +156,13 @@ export const ChatRepositoryTest = Layer.effect(
     const attachments = yield* AttachmentRows
 
     const selectChat = (where: ChatWhere) =>
-      Ref.get(chats).pipe(
-        Effect.map(HashMap.get(where.id)),
-        Effect.map(Option.filter(matches<Chat>(where))),
+      Effect.all([Ref.get(chats), Ref.get(attachments)]).pipe(
+        Effect.map(([rows, files]) =>
+          HashMap.get(rows, where.id).pipe(
+            Option.filter(matches<Chat>(where)),
+            Option.map(chatWithAttachmentsOf(files)),
+          ),
+        ),
       )
 
     return ChatRepository.of({
@@ -168,12 +185,14 @@ export const ChatRepositoryTest = Layer.effect(
         ),
       selectOne: selectChat,
       selectMany: (where, options) =>
-        Ref.get(chats).pipe(
-          Effect.map(
-            flow(
+        Effect.all([Ref.get(chats), Ref.get(attachments)]).pipe(
+          Effect.map(([rows, files]) =>
+            pipe(
+              rows,
               HashMap.filter(matches<Chat>(where)),
               HashMap.toValues,
               Arr.sort(latestFirstBy[options?.order ?? 'createdAt']),
+              Arr.map(chatWithAttachmentsOf(files)),
             ),
           ),
         ),
@@ -240,7 +259,7 @@ export const MessageRepositoryTest = Layer.effect(
             HashMap.toValues,
             Arr.sort(inCreationOrder),
             Arr.head,
-            Option.map(withAttachmentsOf(tables.attachments)),
+            Option.map(messageWithAttachmentsOf(tables.attachments)),
           ),
         ),
       selectMany: (where) =>
@@ -250,7 +269,7 @@ export const MessageRepositoryTest = Layer.effect(
             HashMap.filter(holdsManyWhere(where)),
             HashMap.toValues,
             Arr.sort(inCreationOrder),
-            Arr.map(withAttachmentsOf(tables.attachments)),
+            Arr.map(messageWithAttachmentsOf(tables.attachments)),
           ),
         ),
     })

@@ -24,6 +24,7 @@ const chat = new Chat({
   status: 'idle',
   createdAt,
   updatedAt,
+  attachments: [],
 })
 
 const message = (id: MessageId, fields: Partial<Pick<Message, 'status'>>) =>

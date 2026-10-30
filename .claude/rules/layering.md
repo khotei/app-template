@@ -49,7 +49,7 @@ the signal.
 - Read a set through the port's batch method (`selectMany`), never one `select` per id in a loop.
 - Return the contract's shape (a message carries its attachments), so the handler composes
   nothing: it returns a model as is, since its DTO's encoder drops every field the DTO leaves
-  out (`userId`, a failure's `cause`).
+  out (a failure's `cause`).
 
 ## Handlers
 

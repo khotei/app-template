@@ -11,9 +11,10 @@ import {
   MediaType,
   mediaTypePattern,
 } from '@app-template/domain/attachment'
-import { ChatId, Message, MessageId } from '@app-template/domain/chat'
+import { Chat, ChatId, Message, MessageId } from '@app-template/domain/chat'
 import { UserId } from '@app-template/domain/user'
 
+import { ChatRow } from '#infrastructure/chat/chat.entity'
 import { MessageRow, messages } from '#infrastructure/chat/message.entity'
 import { createdAt, id } from '#infrastructure/db/columns'
 import { users } from '#infrastructure/user/user.entity'
@@ -71,6 +72,12 @@ export const AttachmentRow = createSelectSchema(attachments, attachmentFields)
 export const AttachmentInsert = createInsertSchema(attachments, attachmentFields)
 
 export const AttachmentFromRow = AttachmentRow.pipe(Schema.decodeTo(Attachment))
+
+/** A chat row with its attachments nested, as `withAttachments` reads it. */
+export const ChatFromRow = Schema.Struct({
+  ...ChatRow.fields,
+  attachments: Schema.Array(AttachmentFromRow),
+}).pipe(Schema.decodeTo(Chat))
 
 /** A message row with its attachments nested, as `withAttachments` reads it. */
 export const MessageFromRow = Schema.Struct({

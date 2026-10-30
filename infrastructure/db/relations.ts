@@ -12,7 +12,10 @@ export const relations = defineRelations(
       chats: r.many.chats({ from: r.users.id, to: r.chats.userId }),
       credentials: r.many.credentials({ from: r.users.id, to: r.credentials.userId }),
     },
-    chats: { messages: r.many.messages({ from: r.chats.id, to: r.messages.chatId }) },
+    chats: {
+      messages: r.many.messages({ from: r.chats.id, to: r.messages.chatId }),
+      attachments: r.many.attachments({ from: r.chats.id, to: r.attachments.chatId }),
+    },
     messages: {
       chat: r.one.chats({ from: r.messages.chatId, to: r.chats.id }),
       attachments: r.many.attachments({ from: r.messages.id, to: r.attachments.messageId }),
