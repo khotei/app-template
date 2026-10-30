@@ -148,8 +148,9 @@
   - `e2e/chat.e2e.ts` asserts the stub's new text, and `docs/knowledge/roadmap.md` lost a sentence
     naming `LanguageModelStub`, which `make doc-names` refuses once the name is gone; neither was
     in the Files list.
-  - `AssistantModels` carries `provider` and `replyModel` already, as the contract has them; only
-    S7 reads them, and the stub reports `stub` for both.
+  - `AssistantModels` carries no `provider` or `replyModel` yet, though the contract has them: a
+    review after S2 cut them as fields no caller read (`deep-modules.md`); S7 adds them with
+    their only reader.
   - `architecture.md` now names `createLanguageModelStub` and `LanguageModel.LanguageModel`.
   - The manual check needed `make migrate` on the local stand: committed migration
     `20261027172050_outbox_body_jsonb` had not run there, so the worker decoded no outbox job.
@@ -298,7 +299,8 @@
     `Crypto.digest('SHA-256', …)` over the prompt, a newline and `JSON.stringify` of
     `Schema.toJsonSchemaDocument(schema)`, the bytes as hex, a `PlatformError` a defect;
     `generate`, not the architecture's `hashInstructions`, by `naming.md › Symbols`;
-    `replyProvenance` from `AssistantModels.provider` and `.replyModel`);
+    `replyProvenance` from `AssistantModels.provider` and `.replyModel`, which S7 adds to
+    `assistant-models.client.ts`, the stub reporting `stub` for both);
   - `infrastructure/chat/message.entity.ts` (+ `provenance` `jsonb`, decoded by
     `Schema.OptionFromNullOr(MessageProvenance)`); `infrastructure/db/migrations/<stamp>_message_provenance/`
     (`make migration NAME=message_provenance`);

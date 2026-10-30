@@ -22,8 +22,6 @@ const stubTitle = 'Stub chat title' as const
 export class AssistantModels extends Context.Service<
   AssistantModels,
   {
-    readonly provider: string
-    readonly replyModel: string
     readonly reply: LanguageModel.LanguageModel
     readonly title: LanguageModel.LanguageModel
   }
@@ -38,7 +36,7 @@ export class AssistantModels extends Context.Service<
       Effect.all({
         reply: AnthropicLanguageModel.make({ model: replyModel }),
         title: AnthropicLanguageModel.make({ model: titleModel }),
-      }).pipe(Effect.map((models) => ({ provider: 'anthropic', replyModel, ...models }))),
+      }),
     ).pipe(Layer.provide(AnthropicClient.layer({ apiKey })))
 
   static readonly layerStub: Layer.Layer<AssistantModels> = Layer.effect(
@@ -46,7 +44,7 @@ export class AssistantModels extends Context.Service<
     Effect.all({
       reply: createLanguageModelStub({ text: stubReply, delay: stubDelay }),
       title: createLanguageModelStub({ text: stubTitle, delay: stubDelay }),
-    }).pipe(Effect.map((models) => ({ provider: 'stub', replyModel: 'stub', ...models }))),
+    }),
   )
 
   static readonly layerFromConfig: Layer.Layer<

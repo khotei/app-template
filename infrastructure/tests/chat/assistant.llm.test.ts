@@ -48,9 +48,7 @@ const recordLanguageModel = (script: LanguageModelScript) => {
         Stream.fromEffect(record(prompt)).pipe(
           Stream.flatMap(() => script.streamText ?? Stream.die('streamText is not scripted')),
         ),
-    }).pipe(
-      Effect.map((model) => ({ provider: 'fake', replyModel: 'fake', reply: model, title: model })),
-    ),
+    }).pipe(Effect.map((model) => ({ reply: model, title: model }))),
   )
   return { prompts: Ref.get(prompts), layer: AssistantLlm.pipe(Layer.provide(models)) }
 }
