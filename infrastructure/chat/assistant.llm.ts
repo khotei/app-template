@@ -52,7 +52,6 @@ const buildTitlePrompt = (text: string): Prompt.Prompt =>
     { role: 'user', content: [{ type: 'text', text }] },
   ])
 
-/** The `Assistant` port over `AssistantModels`; a provider failure or a blank reply is a defect. */
 export const AssistantLlm: Layer.Layer<Assistant, never, AssistantModels> = Layer.effect(
   Assistant,
   AssistantModels.useSync((models) =>
