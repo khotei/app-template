@@ -212,15 +212,18 @@ and `apps/worker` consumes through `QueueConsumerSqs` beside the relay.
   (`Schema.toCodecJson`) and inserts a row: the definition's `name` as `queue` (the stage is
   added on the way out), the `jobId` and the value as `body`. The insert joins the caller's
   `sql.withTransaction`; outside one it commits alone.
-- **`body` is `jsonb`, with no index on it.** Nothing queries the body: the column holds the
-  value for the relay alone, and `jsonb` keeps it a value a query can read by hand
-  (`body->>'chatId'`) instead of a string to parse. `jsonb` stores keys in its own order, so
+- **`body` is `jsonb`, with no index on it.** No code queries the body: the column holds the
+  value for the relay, and `jsonb` keeps it a value an operator can read by hand
+  (`body->'provenance'->>'model'` on a reply's job) instead of a string to parse. `jsonb` stores keys in its own order, so
   the string the relay sends is the row's, not the sender's.
 - **`OutboxRelay`** (`infrastructure/outbox/outbox.relay.ts`), a layer the worker provides, polls
-  in one transaction: it selects up to 10 rows `ORDER BY created_at, id` `FOR UPDATE SKIP
-  LOCKED`, sends each over `QueueTransport` to `buildResourceName(STAGE, queue)` with its
-  `jobId` and its `body` as a JSON string (`JSON.stringify`, the form the SQS client sends),
-  deletes them and commits. A full batch polls again at once; a shorter one waits
+  in one transaction: it selects up to 10 rows `WHERE sent_at IS NULL ORDER BY created_at, id`
+  `FOR UPDATE SKIP LOCKED`, sends each over `QueueTransport` to `buildResourceName(STAGE, queue)`
+  with its `jobId` and its `body` as a JSON string (`JSON.stringify`, the form the SQS client
+  sends), sets their `sent_at` and commits.
+- **A sent row stays,** so the outbox is the record of what each job carried; the partial index
+  `outbox_unsent_created_at_index` holds only unsent rows, so the poll stays cheap however many
+  sent rows pile up. Nothing removes sent rows yet. A full batch polls again at once; a shorter one waits
   `OUTBOX_POLL_INTERVAL` (1 second by default).
 - **Several relays share the table.** `SKIP LOCKED` hands a row to one relay at a time, and the
   others take the next rows or none.

@@ -43,7 +43,12 @@ const formOf = (file: File) => {
   return form
 }
 
-const selectOutbox = SqlClient.SqlClient.use((sql) => sql`select queue from outbox`)
+const selectUnsent = SqlClient.SqlClient.use(
+  (sql) => sql`select queue from outbox where sent_at is null`,
+)
+
+const selectOutboxOf = (chatId: ChatId) =>
+  SqlClient.SqlClient.use((sql) => sql`select queue from outbox where body->>'chatId' = ${chatId}`)
 
 const selectMessages = (chatId: ChatId) =>
   SqlClient.SqlClient.use((sql) => sql`select id from messages where chat_id = ${chatId}`)
@@ -80,8 +85,8 @@ describe('the journey over both app layers', { concurrent: false }, () => {
             Arr.map(asked.attachments, ({ id }) => id),
             [uploaded.id],
           )
-          const rows = yield* selectOutbox
-          assert.deepStrictEqual(rows, [])
+          const unsent = yield* selectUnsent
+          assert.deepStrictEqual(unsent, [])
 
           yield* api.chats.delete({ params: { chatId: chat.id } })
           const object = yield* bucket.select(uploaded.id)
@@ -114,7 +119,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           .pipe(Effect.flip)
 
         const stored = yield* selectMessages(chat.id)
-        const rows = yield* selectOutbox
+        const rows = yield* selectOutboxOf(chat.id)
 
         assertSchemaEquals(
           AttachmentNotFoundError,

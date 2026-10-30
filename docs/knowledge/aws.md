@@ -182,7 +182,7 @@ the worker from `QueueConfig` and `AwsConfig`: a definition's queue is
 - **The worker relays the outbox.** The api writes its jobs to the `outbox` table
   ([database.md › The outbox](database.md#the-outbox)), and `OutboxRelay` in the worker sends
   the rows to `buildResourceName(STAGE, queue)` over the same `QueueTransport`. A row the relay sent and could not
-  delete is sent again, which the at-least-once handlers absorb.
+  mark sent is sent again, which the at-least-once handlers absorb.
 
 The queue's own suite checks those rules on MiniStack in real time. A worker handler's suite
 calls its `handle` with plain `AttemptInfo` values over the memory layers, so the last attempt
