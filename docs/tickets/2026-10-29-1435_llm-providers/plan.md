@@ -13,7 +13,7 @@
 | S5 | reply failures told apart, retried in place, a refusal kept apart | done |
 | S6 | the title as a structured response with its own retries | done |
 | S7 | provenance in the reply's job, kept in the outbox; never on the message or the wire | done |
-| S8 | `docs/knowledge/ai.md`: every `effect/ai` module mapped | todo |
+| S8 | `docs/knowledge/ai.md`: every `effect/ai` module mapped | done |
 
 ## How to run this plan
 
@@ -433,7 +433,16 @@
 - **Verify:** `make doc-names`; every file of `repos/effect/packages/effect/src/ai/*.ts` but
   `index.ts` has a row (`ls` against the table); `make check`.
 - **Model:** opus medium
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - A field description does invalidate the prompt cache, against the Facts table of
+    `feature.md`: Anthropic's structured-outputs page says any change to `output_config.format`
+    invalidates the prompt cache; "a description change does not invalidate" holds only for its
+    separate cache of the compiled grammar. `ai.md` says so, and the Facts row is corrected.
+  - The 512-token floor checked on Anthropic's prompt-caching page: 512 on the 5.5 models,
+    1 024 on Sonnet 5; the system prompt alone is below it, so chats share no cached prefix.
+  - The link to `ai.md` sits on the adapter row of `docs/knowledge/architecture.md`; no rule
+    or `CLAUDE.md` line restated `ai.md`, so none was trimmed.
 
 ## Requirement coverage
 
