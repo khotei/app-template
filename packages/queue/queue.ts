@@ -14,7 +14,7 @@ import {
   Schema,
 } from 'effect'
 
-import { QueueError, QueueTransport, type Received } from '#queue/queue.transport'
+import { type QueueError, QueueTransport, type Received } from '#queue/queue.transport'
 
 export interface QueueDefinition<S extends Schema.Top> {
   readonly name: string
@@ -60,11 +60,9 @@ const buildAttemptInfo = (received: Received, maxAttempts: number): AttemptInfo 
 const buildJsonCodec = <A, I>(schema: Schema.Codec<A, I>) =>
   Schema.fromJsonString(Schema.toCodecJson(schema))
 
+// A job its own schema cannot encode is a bug, never a refusal a caller handles.
 const encodeWith = <A, I>(codec: Schema.Codec<A, I>) =>
-  flow(
-    Schema.encodeEffect(codec),
-    Effect.mapError((cause) => new QueueError({ cause })),
-  )
+  flow(Schema.encodeEffect(codec), Effect.orDie)
 
 /** The job as its definition's schema encodes it to JSON: the value an outbox row stores. */
 export const encodeJob = <A, I>(definition: QueueDefinition<Schema.Codec<A, I>>, message: A) =>
@@ -79,7 +77,7 @@ export class QueueClient extends Context.Service<
     readonly send: <A, I>(
       definition: QueueDefinition<Schema.Codec<A, I>>,
       message: A,
-    ) => Effect.Effect<void, QueueError>
+    ) => Effect.Effect<void>
     /**
      * Runs `handle` on each message forever, the attempt being its receive count: success deletes
      * it, a failure or an undecodable body hides it for `retryDelay`, or on the last attempt makes
@@ -108,7 +106,7 @@ export class QueueClient extends Context.Service<
           body,
           attributes: { jobId: definition.jobId(message) },
         })
-      })
+      }, Effect.orDie)
 
       const consume = <A, I, E, R>(
         definition: QueueDefinition<Schema.Codec<A, I>>,

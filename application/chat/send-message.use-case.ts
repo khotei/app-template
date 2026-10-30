@@ -98,17 +98,15 @@ export class SendMessageUseCase extends Context.Service<
         createdAt: at,
       })
       yield* messages.insert(assistantMessage)
-      // A QueueError is a defect: no rule reads it, and it still rolls the send back.
-      yield* queue
-        .send(
-          assistantMessageQueue,
-          new GenerateAssistantMessage({ chatId, messageId: assistantMessage.id }),
-        )
-        .pipe(Effect.orDie)
+      yield* queue.send(
+        assistantMessageQueue,
+        new GenerateAssistantMessage({ chatId, messageId: assistantMessage.id }),
+      )
       if (isFirstMessage) {
-        yield* queue
-          .send(chatTitleQueue, new GenerateChatTitle({ chatId, messageId: userMessage.id }))
-          .pipe(Effect.orDie)
+        yield* queue.send(
+          chatTitleQueue,
+          new GenerateChatTitle({ chatId, messageId: userMessage.id }),
+        )
       }
 
       return {
