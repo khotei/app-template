@@ -32,6 +32,13 @@ export class MessageFailure extends Schema.Class<MessageFailure>('MessageFailure
   cause: Schema.String,
 }) {}
 
+/** Who answered an assistant message, and with which instructions; it never leaves the api. */
+export class MessageProvenance extends Schema.Class<MessageProvenance>('MessageProvenance')({
+  provider: Schema.String,
+  model: Schema.String,
+  instructionsHash: Schema.String,
+}) {}
+
 export class Message extends Schema.Class<Message>('Message')({
   id: MessageId,
   chatId: ChatId,
@@ -39,6 +46,8 @@ export class Message extends Schema.Class<Message>('Message')({
   status: MessageStatus,
   text: Schema.String,
   error: Schema.Option(MessageFailure),
+  /** Set by the `generating` move, so it names the last model asked. */
+  provenance: Schema.Option(MessageProvenance),
   createdAt: Schema.DateTimeUtc,
   updatedAt: Schema.DateTimeUtc,
   /** Bound by `AttachmentService.bind`, in upload order; the message's own writes never touch them. */
@@ -69,6 +78,7 @@ export const buildUserMessage = (input: {
     status: 'done',
     text: input.text,
     error: Option.none(),
+    provenance: Option.none(),
     createdAt: input.createdAt,
     updatedAt: input.createdAt,
     attachments: [],
@@ -86,6 +96,7 @@ export const buildAssistantMessage = (input: {
     status: 'queued',
     text: '',
     error: Option.none(),
+    provenance: Option.none(),
     createdAt: input.createdAt,
     updatedAt: input.createdAt,
     attachments: [],
@@ -128,7 +139,7 @@ const move = Effect.fnUntraced(function* (
   }: {
     readonly to: keyof typeof transitions
     readonly at: DateTime.Utc
-    readonly patch?: Partial<Pick<Message, 'text' | 'error'>>
+    readonly patch?: Partial<Pick<Message, 'text' | 'error' | 'provenance'>>
   },
 ) {
   if (!transitions[to](message)) {
@@ -141,8 +152,15 @@ export const prepareMessage = Effect.fn('prepareMessage')((message: Message, at:
   move(message, { to: 'preparing', at, patch: { text: '', error: Option.none() } }),
 )
 
-export const generateMessage = Effect.fn('generateMessage')((message: Message, at: DateTime.Utc) =>
-  move(message, { to: 'generating', at }),
+/** Who is asked for the reply and when the request is sent. */
+export type MessageGeneration = {
+  readonly provenance: MessageProvenance
+  readonly at: DateTime.Utc
+}
+
+export const generateMessage = Effect.fn('generateMessage')(
+  (message: Message, { provenance, at }: MessageGeneration) =>
+    move(message, { to: 'generating', at, patch: { provenance: Option.some(provenance) } }),
 )
 
 /** The settled text of a reply and when it settled. */

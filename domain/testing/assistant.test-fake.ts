@@ -4,6 +4,7 @@ import type { AssistantError } from '#domain/chat/assistant.error'
 import type { AssistantReply } from '#domain/chat/assistant.model'
 import { Assistant, type HistoryMessage } from '#domain/chat/assistant.port'
 import type { ChatTitle } from '#domain/chat/chat.model'
+import { provenance } from '#domain/testing/chat.test-fixture'
 
 export interface AssistantScript {
   readonly reply?: Effect.Effect<AssistantReply, AssistantError>
@@ -15,13 +16,17 @@ export type AssistantCall =
   | { readonly method: 'reply'; readonly history: ReadonlyArray<HistoryMessage> }
   | { readonly method: 'suggestTitle'; readonly text: string }
 
-/** An `Assistant` answering from `script`, keeping each call in `calls`; an unscripted call dies. */
+/**
+ * An `Assistant` answering from `script` with `provenance` as its `replyProvenance`, keeping each
+ * call in `calls`; an unscripted call dies.
+ */
 export const recordAssistant = (script: AssistantScript) => {
   const calls = Ref.makeUnsafe<ReadonlyArray<AssistantCall>>([])
   const record = (call: AssistantCall) => Ref.update(calls, Arr.append(call))
   const layer = Layer.succeed(
     Assistant,
     Assistant.of({
+      replyProvenance: provenance,
       reply: (history) =>
         record({ method: 'reply', history }).pipe(
           Effect.andThen(script.reply ?? Effect.die('reply is not scripted')),

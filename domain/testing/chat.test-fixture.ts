@@ -7,6 +7,7 @@ import {
   buildUserMessage,
   Message,
   type MessageInput,
+  MessageProvenance,
 } from '#domain/chat/message.model'
 import { owner } from '#domain/testing/user.test-fixture'
 
@@ -29,6 +30,13 @@ export const firstMessage = buildUserMessage({
   chatId,
   text: 'Plan a weekend in Lisbon',
   createdAt: epoch,
+})
+
+/** Who answers in tests, as the recording assistant reports it. */
+export const provenance = new MessageProvenance({
+  provider: 'anthropic',
+  model: 'claude-sonnet-5-5',
+  instructionsHash: 'a1b2c3',
 })
 
 export const ask = (text: string): MessageInput => ({ text, attachmentIds: [] })

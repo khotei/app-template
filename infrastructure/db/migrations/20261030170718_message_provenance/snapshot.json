@@ -1,0 +1,47 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "a2ec62e2-4088-4551-bce1-b835f5272678",
+  "prevIds": [
+    "c751c669-140e-4f3d-83fc-59d048db2f48"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "messages",
+        "provenance"
+      ],
+      "writes": [
+        "s|col|public.messages.provenance",
+        "n|col|public.messages.provenance",
+        "e|col|public.messages.provenance"
+      ],
+      "reads": [
+        "n|tbl|public.messages",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "messages",
+        "name": "provenance",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

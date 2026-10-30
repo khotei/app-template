@@ -1,5 +1,6 @@
 import {
   Array as Arr,
+  Crypto,
   Duration,
   Effect,
   Function as Fn,
@@ -14,6 +15,7 @@ import {
   UndefinedOr,
 } from 'effect'
 import { AiError, Prompt, Response, Telemetry } from 'effect/ai'
+import { Hex } from 'effect/encoding'
 
 import {
   Assistant,
@@ -25,6 +27,7 @@ import {
   ChatTitle,
   type HistoryMessage,
   isBlank,
+  MessageProvenance,
   maxTitleLength,
 } from '@app-template/domain/chat'
 
@@ -167,23 +170,47 @@ const askWithin =
       Effect.mapError(toAssistantError),
     )
 
-export const AssistantLlm: Layer.Layer<Assistant, never, AssistantModels> = Layer.effect(
-  Assistant,
-  AssistantModels.useSync((models) =>
-    Assistant.of({
-      reply: Effect.fn('Assistant.reply')(function* (history) {
-        const response = yield* models.reply
-          .generateObject({ prompt: buildChatPrompt(history), schema: ReplyAnswer })
-          .pipe(askWithin(2))
-        return new AssistantReply(response.value)
-      }),
-      suggestTitle: Effect.fn('Assistant.suggestTitle')(function* (text) {
-        if (isBlank(text)) return Option.none()
-        const response = yield* models.title
-          .generateObject({ prompt: buildTitlePrompt(text), schema: TitleAnswer })
-          .pipe(askWithin(4))
-        return Option.some(response.value.title)
-      }),
+const encoder = new TextEncoder()
+
+// The JSON Schema document, not the schema's own form: it is what the model reads, so the hash
+// moves exactly when the instructions sent do.
+export const generateInstructionsHash = (
+  systemPrompt: string,
+  schema: Schema.Top,
+): Effect.Effect<string, never, Crypto.Crypto> => {
+  const instructions = `${systemPrompt}\n${JSON.stringify(Schema.toJsonSchemaDocument(schema))}`
+  return Crypto.Crypto.use((crypto) => crypto.digest('SHA-256', encoder.encode(instructions))).pipe(
+    Effect.map(Hex.encode),
+    Effect.orDie,
+  )
+}
+
+export const AssistantLlm: Layer.Layer<Assistant, never, AssistantModels | Crypto.Crypto> =
+  Layer.effect(
+    Assistant,
+    Effect.gen(function* () {
+      const models = yield* AssistantModels
+      const instructionsHash = yield* generateInstructionsHash(systemPrompt, ReplyAnswer)
+
+      return Assistant.of({
+        replyProvenance: new MessageProvenance({
+          provider: models.provider,
+          model: models.replyModel,
+          instructionsHash,
+        }),
+        reply: Effect.fn('Assistant.reply')(function* (history) {
+          const response = yield* models.reply
+            .generateObject({ prompt: buildChatPrompt(history), schema: ReplyAnswer })
+            .pipe(askWithin(2))
+          return new AssistantReply(response.value)
+        }),
+        suggestTitle: Effect.fn('Assistant.suggestTitle')(function* (text) {
+          if (isBlank(text)) return Option.none()
+          const response = yield* models.title
+            .generateObject({ prompt: buildTitlePrompt(text), schema: TitleAnswer })
+            .pipe(askWithin(4))
+          return Option.some(response.value.title)
+        }),
+      })
     }),
-  ),
-)
+  )

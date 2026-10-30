@@ -35,6 +35,7 @@ const message = (id: MessageId, fields: Partial<Pick<Message, 'status'>>) =>
     status: 'queued',
     text: '',
     error: Option.none(),
+    provenance: Option.none(),
     createdAt,
     updatedAt,
     attachments: [],

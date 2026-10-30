@@ -18,6 +18,7 @@ import {
   type MessageStatus,
   prepareMessage,
 } from '#domain/chat/message.model'
+import { provenance } from '#domain/testing/chat.test-fixture'
 
 const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000001')
 const messageId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000002')
@@ -110,17 +111,31 @@ describe('prepareMessage', () => {
       }),
   )
 
+  it.effect('keeps the provenance of the last request', () =>
+    Effect.gen(function* () {
+      const asked = new Message({
+        ...assistantAt('generating'),
+        provenance: Option.some(provenance),
+      })
+
+      const prepared = yield* prepareMessage(asked, later)
+
+      assert.deepStrictEqual(prepared.provenance, Option.some(provenance))
+    }),
+  )
+
   it.effect.each(inactiveMessages)('fails MessageStatusInvalidError for %s', ([, message]) =>
     expectStageInvalid(prepareMessage(message, later), message, 'preparing'),
   )
 })
 
 describe('generateMessage', () => {
-  it.effect('moves a preparing message to generating', () =>
+  it.effect('moves a preparing message to generating with the provenance of its request', () =>
     Effect.gen(function* () {
-      const generating = yield* generateMessage(assistantAt('preparing'), later)
+      const generating = yield* generateMessage(assistantAt('preparing'), { provenance, at: later })
 
       assert.strictEqual(generating.status, 'generating')
+      assert.deepStrictEqual(generating.provenance, Option.some(provenance))
       assert.strictEqual(generating.updatedAt, later)
     }),
   )
@@ -131,7 +146,7 @@ describe('generateMessage', () => {
     ['a user message at preparing', new Message({ ...userMessage, status: 'preparing' })],
     ...inactiveMessages,
   ] as const)('fails MessageStatusInvalidError for %s', ([, message]) =>
-    expectStageInvalid(generateMessage(message, later), message, 'generating'),
+    expectStageInvalid(generateMessage(message, { provenance, at: later }), message, 'generating'),
   )
 })
 

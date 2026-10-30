@@ -1,7 +1,8 @@
 import type { Generated } from '@effect/ai-anthropic'
+import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, Clock, Effect, Fiber, Layer, Option, Redacted, Ref } from 'effect'
+import { Array as Arr, Clock, Effect, Fiber, Layer, Option, Redacted, Ref, Schema } from 'effect'
 import { HttpClient, type HttpClientRequest, HttpClientResponse } from 'effect/http'
 import { TestClock } from 'effect/testing'
 
@@ -31,7 +32,7 @@ import {
 import { png } from '@app-template/testing'
 
 import { AssistantModels } from '#infrastructure/chat/assistant.client'
-import { AssistantLlm } from '#infrastructure/chat/assistant.llm'
+import { AssistantLlm, generateInstructionsHash } from '#infrastructure/chat/assistant.llm'
 
 type RequestBody = typeof Generated.BetaCreateMessageParams.Encoded
 
@@ -65,7 +66,7 @@ const recordAnthropic = (respond: (body: RequestBody) => Response) => {
         titleModel,
       }),
     ),
-    Layer.provide(Layer.succeed(HttpClient.HttpClient, httpClient)),
+    Layer.provide([Layer.succeed(HttpClient.HttpClient, httpClient), BunCrypto.layer]),
   )
   return {
     bodies: Ref.get(requests).pipe(Effect.map(Arr.map(({ body }) => body))),
@@ -231,6 +232,19 @@ describe('AssistantLlm', () => {
       assert.deepStrictEqual(body?.output_config?.format?.schema.properties, {
         text: { type: 'string', description: 'The reply the user reads, as plain text.' },
       })
+    }).pipe(Effect.provide(layer))
+  })
+
+  it.effect('replyProvenance names Anthropic, the reply model and the instructions hash', () => {
+    const { layer } = recordAnthropic(() => message('{"text":"Hello"}'))
+    return Effect.gen(function* () {
+      const { replyProvenance } = yield* Assistant
+
+      assert.deepStrictEqual(
+        { provider: replyProvenance.provider, model: replyProvenance.model },
+        { provider: 'anthropic', model: replyModel },
+      )
+      assert.match(replyProvenance.instructionsHash, /^[0-9a-f]{64}$/)
     }).pipe(Effect.provide(layer))
   })
 
@@ -451,7 +465,7 @@ describe('AssistantLlm', () => {
   })
 
   it.effect('the stub answers a reply and a title that pass their schemas', () => {
-    const layer = AssistantLlm.pipe(Layer.provide(AssistantModels.layerStub))
+    const layer = AssistantLlm.pipe(Layer.provide([AssistantModels.layerStub, BunCrypto.layer]))
     return Effect.gen(function* () {
       const answers = yield* Effect.all(
         { reply: reply(hi), title: suggestTitle('Plan a weekend in Lisbon') },
@@ -468,4 +482,32 @@ describe('AssistantLlm', () => {
       })
     }).pipe(Effect.provide(layer))
   })
+})
+
+describe('generateInstructionsHash', () => {
+  const prompt = 'Answer the last user message.'
+
+  const Answer = Schema.Struct({
+    text: Schema.String.annotateKey({ description: 'The reply, as plain text.' }),
+  })
+
+  it.effect('changes with the system prompt and with the schema, and with nothing else', () =>
+    Effect.gen(function* () {
+      const [first, again, otherPrompt, otherSchema] = yield* Effect.all([
+        generateInstructionsHash(prompt, Answer),
+        generateInstructionsHash(prompt, Answer),
+        generateInstructionsHash('Answer the last user message briefly.', Answer),
+        generateInstructionsHash(
+          prompt,
+          Schema.Struct({
+            text: Schema.String.annotateKey({ description: 'The reply, as Markdown.' }),
+          }),
+        ),
+      ])
+
+      assert.strictEqual(first, again)
+      assert.notStrictEqual(otherPrompt, first)
+      assert.notStrictEqual(otherSchema, first)
+    }).pipe(Effect.provide(BunCrypto.layer)),
+  )
 })

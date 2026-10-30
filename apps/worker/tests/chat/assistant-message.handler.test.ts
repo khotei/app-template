@@ -11,6 +11,7 @@ import {
   epoch,
   holdAssistantCall,
   messageId,
+  provenance,
   queuedChat,
   recordAssistant,
   selectChat,
@@ -70,7 +71,13 @@ describe('AssistantMessageHandler', () => {
       assert.isTrue(Exit.isFailure(exit))
       assertEquals(
         yield* selectMessage(messageId),
-        Option.some(new Message({ ...queuedReply, status: 'generating' })),
+        Option.some(
+          new Message({
+            ...queuedReply,
+            status: 'generating',
+            provenance: Option.some(provenance),
+          }),
+        ),
       )
       assertEquals(yield* selectChat(chatId), Option.some(queuedChat))
     }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))

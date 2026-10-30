@@ -23,6 +23,7 @@ import {
   MessageRepository,
   prepareMessage,
 } from '@app-template/domain/chat'
+import { provenance } from '@app-template/domain/testing'
 import { UserId } from '@app-template/domain/user'
 import { assertSchemaEquals } from '@app-template/testing'
 
@@ -194,7 +195,7 @@ describe('MessageRepositoryPg', () => {
         assistantMessage('0192d4e0-7b3a-7c00-8000-00000000005b', { chatId }),
         at(1),
       )
-      const generating = yield* generateMessage(preparing, at(2))
+      const generating = yield* generateMessage(preparing, { provenance, at: at(2) })
       const completed = yield* completeMessage(generating, { text: 'Hello', at: at(3) })
       yield* insertOwnedChats(userId, [chatId])
       yield* messages.insert(generating)
@@ -229,13 +230,32 @@ describe('MessageRepositoryPg', () => {
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
+  it.effect('keeps the provenance through a write and a read, and none as none', () =>
+    Effect.gen(function* () {
+      const messages = yield* MessageRepository
+      const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-00000000004e')
+      const queued = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000063', { chatId })
+      const preparing = yield* prepareMessage(queued, at(1))
+      const generating = yield* generateMessage(preparing, { provenance, at: at(2) })
+      yield* insertOwnedChats(userId, [chatId])
+
+      yield* messages.insert(preparing)
+      const unasked = yield* messages.selectOne({ id: queued.id })
+      yield* messages.update(generating, { status: preparing.status })
+      const asked = yield* messages.selectOne({ id: queued.id })
+
+      assertSchemaEquals(SelectedMessage, unasked, Option.some(preparing))
+      assertSchemaEquals(SelectedMessage, asked, Option.some(generating))
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
+  )
+
   it.effect('selects the active message among the terminal ones, wherever it stands', () =>
     Effect.gen(function* () {
       const messages = yield* MessageRepository
       const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000048')
       const queued = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000060', { chatId })
       const preparing = yield* prepareMessage(queued, at(1))
-      const generating = yield* generateMessage(preparing, at(2))
+      const generating = yield* generateMessage(preparing, { provenance, at: at(2) })
       const failed = yield* failMessage(
         assistantMessage('0192d4e0-7b3a-7c00-8000-000000000061', { chatId, seconds: 3 }),
         { reason: 'ReplyFailed', cause: 'provider timeout after 30s', at: at(4) },

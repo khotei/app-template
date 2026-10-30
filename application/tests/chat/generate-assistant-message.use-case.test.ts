@@ -35,6 +35,7 @@ import {
   MessageRows,
   messageId,
   owner,
+  provenance,
   queuedChat,
   recordAssistant,
   selectChat,
@@ -120,7 +121,7 @@ const fail = (cause: Cause.Cause<unknown>) =>
 
 describe('GenerateAssistantMessageUseCase', () => {
   it.effect(
-    "generate moves the reply through preparing and generating with no text, then completes it with the reply's text in one write, and moves the chat to the completion",
+    "generate moves the reply through preparing and generating with no text and the assistant's provenance, then completes it with the reply's text in one write, and moves the chat to the completion",
     () => {
       const held = holdAssistantCall()
       const slowReply = held.hold.pipe(Effect.andThen(Effect.sleep('1 second')), Effect.as(sure))
@@ -132,7 +133,11 @@ describe('GenerateAssistantMessageUseCase', () => {
         const running = yield* Effect.forkChild(generate)
         yield* held.asked
         // `generate` writes only where the stored status is `preparing`, so this row proves that write.
-        const generating = new Message({ ...queuedReply, status: 'generating' })
+        const generating = new Message({
+          ...queuedReply,
+          status: 'generating',
+          provenance: Option.some(provenance),
+        })
         assertEquals(yield* selectMessage(messageId), Option.some(generating))
         yield* held.release
         yield* TestClock.adjust('500 millis')
@@ -143,7 +148,13 @@ describe('GenerateAssistantMessageUseCase', () => {
         assertEquals(
           yield* selectMessage(messageId),
           Option.some(
-            new Message({ ...queuedReply, status: 'done', text: 'Sure.', updatedAt: at(1000) }),
+            new Message({
+              ...queuedReply,
+              status: 'done',
+              text: 'Sure.',
+              provenance: Option.some(provenance),
+              updatedAt: at(1000),
+            }),
           ),
         )
         assertEquals(yield* selectChat(chatId), Option.some(chat))
@@ -162,7 +173,13 @@ describe('GenerateAssistantMessageUseCase', () => {
       assert.isTrue(Exit.hasDies(exit))
       assertEquals(
         yield* selectMessage(messageId),
-        Option.some(new Message({ ...queuedReply, status: 'generating' })),
+        Option.some(
+          new Message({
+            ...queuedReply,
+            status: 'generating',
+            provenance: Option.some(provenance),
+          }),
+        ),
       )
     }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
   })
@@ -174,7 +191,7 @@ describe('GenerateAssistantMessageUseCase', () => {
     },
     { error: new AssistantFailedError({ cause: '401 invalid x-api-key' }), reason: 'ReplyFailed' },
   ] as const)(
-    "generate fails the reply with $reason and the error's cause after one call, and fails the chat",
+    "generate fails the reply with $reason and the error's cause after one call, keeping the provenance, and fails the chat",
     ({ error, reason }) => {
       const assistant = recordAssistant({ reply: Effect.fail(error) })
       return Effect.gen(function* () {
@@ -188,8 +205,14 @@ describe('GenerateAssistantMessageUseCase', () => {
             status: settled.status,
             text: settled.text,
             error: settled.error.pipe(Option.map(({ reason, cause }) => ({ reason, cause }))),
+            provenance: settled.provenance,
           },
-          { status: 'failed', text: '', error: Option.some({ reason, cause: error.cause }) },
+          {
+            status: 'failed',
+            text: '',
+            error: Option.some({ reason, cause: error.cause }),
+            provenance: Option.some(provenance),
+          },
         )
         assert.strictEqual((yield* assistant.calls).length, 1)
         assertEquals(
@@ -282,7 +305,7 @@ describe('GenerateAssistantMessageUseCase', () => {
   })
 
   it.live(
-    "fail fails an active reply with the reason, keeping the cause out of the user's message, and moves the chat",
+    "fail fails an active reply with the reason, keeping the cause out of the user's message, and moves the chat; a reply no model was asked for has no provenance",
     () => {
       const assistant = recordAssistant({})
       return Effect.gen(function* () {
@@ -297,6 +320,7 @@ describe('GenerateAssistantMessageUseCase', () => {
           [error.reason, error.message],
           ['ReplyFailed', 'The assistant could not reply. Please try again.'],
         )
+        assert.deepStrictEqual(failed.provenance, Option.none())
         assert.include(error.cause, 'provider exploded')
         assert.notInclude(error.message, 'provider exploded')
         assert.isTrue(DateTime.isGreaterThan(failed.updatedAt, epoch))
