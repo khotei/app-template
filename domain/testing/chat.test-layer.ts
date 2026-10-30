@@ -1,6 +1,7 @@
 import { Array as Arr, Crypto, DateTime, Effect, Layer } from 'effect'
 
 import { type ChatId, MessageId } from '#domain/chat/chat.id'
+import { queueChat } from '#domain/chat/chat.model'
 import { ChatRepository } from '#domain/chat/chat.port'
 import { ChatService } from '#domain/chat/chat.service'
 import { buildAssistantMessage, buildUserMessage } from '#domain/chat/message.model'
@@ -23,10 +24,13 @@ export const ChatTest = ChatService.layer.pipe(
 export const send = (userId: UserId, chatId: ChatId, text: string) =>
   Effect.gen(function* () {
     const chats = yield* ChatService
+    const repository = yield* ChatRepository
     const messages = yield* MessageRepository
     const crypto = yield* Crypto.Crypto
 
-    yield* chats.getOne({ id: chatId, userId })
+    const chat = yield* chats.getOne({ id: chatId, userId })
+    const queued = yield* queueChat(chat)
+    yield* repository.update({ status: queued.status }, { id: chatId, status: chat.status })
     const at = yield* DateTime.now
     const userMessageId = yield* generateId(crypto, MessageId.make)
     const userMessage = buildUserMessage({

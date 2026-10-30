@@ -47,7 +47,7 @@ from them and the row codecs derived from them.
   `isActiveMessage` in `message.model.ts`, states the same condition for
   `MessageRepository.selectMany`, its stages from the same `ActiveMessageStage.literals`; a rule
   that needs the `ActiveMessage` type checks the row with `isActiveMessage`, which no `where` can
-  type (`ensureChatAcceptsMessage`).
+  type (the reply job's skip of a settled message).
 - **A descending index states its null order.** Drizzle's `desc()` indexes nulls last while
   Postgres's `ORDER BY … DESC` sorts them first, so an index for that order is
   `.desc().nullsFirst()` (`chats_user_id_updated_at_index`).
@@ -145,7 +145,16 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
 - **Insert under a partial unique index.** `MessageRepository.insert` adds `ON CONFLICT
   (chat_id) WHERE <activeMessage> DO NOTHING RETURNING id` (Drizzle's `onConflictDoNothing({
   target, where })`), so a second active reply in a chat writes nothing and dies. Any other
-  message inserts.
+  message inserts. The chat's status decides the race first (below), so this index only backs it.
+- **A status move under the status read.** `SendMessageUseCase.send` reads the chat, runs
+  `queueChat` (a `queued` chat is `ChatBusyError`) and moves the status to `queued` `WHERE status
+  = <the status it read>` as its first write. Of two sends that both read the chat `idle` at
+  once, the second waits on the first's row lock, then matches no row and dies, rolled back
+  whole: a lost race of that narrow window answers 500, any later send reads `queued` and
+  answers 409. The reply's end (`settle` in `GenerateAssistantMessageUseCase`) moves it by
+  `freeChat` or `failChat` the same way, in the transaction that settles the message, so the
+  chat's status and its active message move together; a path that ends a reply anywhere else
+  must move the chat too, or the chat stays `queued`.
 - **Update under a `where`.** `MessageRepository.update(message, where)` runs `WHERE id = …
   AND <where fields>`, its `where` (`MessageWhere`, the stored stage to match),
   so a write whose expected stage another writer has left, or whose message is gone, changes
@@ -156,9 +165,8 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
   the rows match `where` (`ChatWhere`, `AttachmentWhere`: the `id`, an array of them for
   attachments, and optionally a field the row must still hold, `Option.none()` rendering `IS
   NULL`). The adapter maps each side through `buildSet` and `buildWhere` (above). Both die when
-  they write nothing; the attachments' also answers the rows it wrote (`RETURNING *`).
-  - `SendMessageUseCase.send` sets the chat's `updatedAt` alone, so a title written meanwhile
-    survives.
+  they write nothing; the attachments' also answers the rows it wrote (`RETURNING *`). A status
+  move writes the status alone, so a title written meanwhile survives it.
   - `ChatService.rename` reads the chat by the caller's `where` to name a refusal
     (`ChatNotFoundError`), then writes under the same `where`. The title job passes `title:
     none`, so a rename landing between the two wins and the job dies and retries.
@@ -175,23 +183,16 @@ ids by `chatId`, then deletes the chat, then the bytes, through
 between the read and the delete loses its row with the chat while its bytes stay in S3, bound and
 never expired: the price of a delete with no transaction.
 
-- **A check under the row's lock.** `SendMessageUseCase.send` reads the chat with
-  `ChatService.getOne(where, { forUpdate: true })` (`SELECT … FOR UPDATE`), so a second send to
-  the chat waits there until the first commits and then reads it `busy` (`ChatBusyError`), and a
-  delete of the chat waits until the send is done. The chat's status is read by a statement of
-  its own after the lock: a subquery of the locking statement reads from that statement's start
-  and would miss the reply committed while it waited.
-
 ## Transactions
 
 A use case that writes several aggregates commits them together: `Transaction.run` is a pipeable
 of the `Effect.fn` that holds the writes (`Transaction.layer` in `infrastructure/db/db.client.ts`
 wraps `SqlClient.withTransaction`), and every repository call inside joins the transaction
 through the connection `@effect/sql` keeps in the fiber's context, so no port takes a transaction
-parameter. `SendMessageUseCase.send` writes the user message with the chat's `updatedAt`, the
-binds, the reply and its jobs' outbox rows, or none of them. The guards above then decide every race inside
+parameter. `SendMessageUseCase.send` writes the chat's `status`, the user message, the binds, the
+reply and its jobs' outbox rows, or none of them. The guards above then decide every race inside
 Postgres, with no lock in the process: of two sends to one chat the second waits on the chat's
-row lock and, once the first commits, finds its reply active, and of two binds of one
+row lock and, once the first commits, finds the chat `queued`, and of two binds of one
 attachment the second waits on the attachment's row lock and finds it bound. Two api processes behave as two
 fibers. S3 stays outside the transaction: the bytes are kept before the bind, so no bound row sits
 over expiring bytes, and deleted before the commit, so a rollback restores rows that a retry still
@@ -199,8 +200,8 @@ finds. SQS is reached only through the outbox, whose rows join it.
 
 ## Stuck replies
 
-A reply that no attempt settles stays active, so the partial unique index refuses every next send
-to its chat with `ChatBusyError` until the worker fails it from the dead-letter queue
+A reply that no attempt settles stays active and its chat `queued`, so every next send to the chat
+fails `ChatBusyError` until the worker fails it from the dead-letter queue
 ([aws.md › Queues](aws.md#queues)). No sweep over active messages exists: by age alone it could
 not tell a dead reply from one waiting in a backlog.
 

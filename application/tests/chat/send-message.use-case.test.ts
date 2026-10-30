@@ -9,7 +9,7 @@ import {
   buildUserMessage,
   Chat,
   ChatBusyError,
-  ChatService,
+  ChatRepository,
   ChatTitle,
   completeMessage,
   type Message,
@@ -31,11 +31,13 @@ import {
 /** Completes an assistant message as the worker would, freeing its chat for the next send. */
 const settle = (message: Message) =>
   Effect.gen(function* () {
+    const chats = yield* ChatRepository
     const messages = yield* MessageRepository
     const at = yield* DateTime.now
 
     const completed = yield* completeMessage(message, { text: 'Sure.', at })
     yield* messages.update(completed, { stage: message.stage })
+    yield* chats.update({ status: 'idle' }, { id: message.chatId, status: 'queued' })
     return completed
   })
 
@@ -47,14 +49,14 @@ const replyJob = (messageId: MessageId) => ({
 
 describe('SendMessageUseCase', () => {
   it.live(
-    'send stores the user message with its attachments bound and a queued reply, and moves the chat to the send keeping its title',
+    'send stores the user message with its attachments bound and a queued reply, and queues the chat keeping its title',
     () => {
       const queue = recordQueue()
       return Effect.gen(function* () {
-        const chats = yield* ChatService
+        const chats = yield* ChatRepository
         const sendMessage = yield* SendMessageUseCase
         const photo = yield* upload(owner)
-        yield* chats.rename({ id: chat.id }, { title: Option.some(ChatTitle.make('Trip')) })
+        yield* chats.update({ title: Option.some(ChatTitle.make('Trip')) }, { id: chat.id })
 
         const { userMessage, assistantMessage } = yield* sendMessage.send(owner, chat.id, {
           text: 'Plan a weekend in Lisbon',
@@ -100,8 +102,7 @@ describe('SendMessageUseCase', () => {
             new Chat({
               ...chat,
               title: Option.some(ChatTitle.make('Trip')),
-              status: 'busy',
-              updatedAt: sentAt,
+              status: 'queued',
             }),
           ),
         )

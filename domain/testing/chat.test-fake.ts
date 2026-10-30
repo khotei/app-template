@@ -59,7 +59,10 @@ const inCreationOrder = Order.combine(
   Order.mapInput(Order.String, (row: Created) => row.id),
 )
 
-const byLatestActivity = Order.flip(Order.mapInput(DateTime.Order, (chat: Chat) => chat.updatedAt))
+const latestFirstBy = {
+  createdAt: Order.flip(Order.mapInput(DateTime.Order, (chat: Chat) => chat.createdAt)),
+  updatedAt: Order.flip(Order.mapInput(DateTime.Order, (chat: Chat) => chat.updatedAt)),
+} as const
 
 const messagesOf = (messages: Messages, chatId: ChatId) =>
   pipe(
@@ -137,20 +140,10 @@ export const ChatRepositoryTest = Layer.effect(
     const messages = yield* MessageRows
     const attachments = yield* AttachmentRows
 
-    // The status no row stores, derived from the messages on every read as the Pg read does.
-    const withStatus = Effect.fnUntraced(function* (found: ReadonlyArray<Chat>) {
-      const rows = yield* Ref.get(messages)
-      const isBusy = (chat: Chat) => activeOf(rows, chat.id).pipe(Option.isSome)
-      return Arr.map(found, (chat) => new Chat({ ...chat, status: isBusy(chat) ? 'busy' : 'idle' }))
-    })
-
     const selectChat = (where: ChatWhere) =>
       Ref.get(chats).pipe(
-        Effect.map(
-          flow(HashMap.get(where.id), Option.filter(matches<Chat>(where)), Arr.fromOption),
-        ),
-        Effect.flatMap(withStatus),
-        Effect.map(Arr.head),
+        Effect.map(HashMap.get(where.id)),
+        Effect.map(Option.filter(matches<Chat>(where))),
       )
 
     return ChatRepository.of({
@@ -172,16 +165,15 @@ export const ChatRepositoryTest = Layer.effect(
           ),
         ),
       selectOne: selectChat,
-      selectByUser: (userId) =>
+      selectMany: (where, options) =>
         Ref.get(chats).pipe(
           Effect.map(
             flow(
-              HashMap.filter(matches<Chat>({ userId })),
+              HashMap.filter(matches<Chat>(where)),
               HashMap.toValues,
-              Arr.sort(byLatestActivity),
+              Arr.sort(latestFirstBy[options?.order ?? 'createdAt']),
             ),
           ),
-          Effect.flatMap(withStatus),
         ),
       delete: (where) =>
         Effect.gen(function* () {

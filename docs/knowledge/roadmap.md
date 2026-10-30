@@ -579,7 +579,8 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   - The outbox keeps its rows as the jobs' ledger: `status`, `attempts`, the last `error`,
     `updated_at`, and a GIN index (`jsonb_path_ops`) on `body`, so `body @> '{"chatId": …}'`
     finds a chat's jobs.
-  - The statuses: `idle` (written by `QueueClientOutbox.send`, not yet in SQS) → `queued` (the
+  - The statuses, the shared `Status` of `domain/shared/status.model.ts` whole: `idle` (written
+    by `QueueClientOutbox.send`, not yet in SQS) → `queued` (the
     relay sent it; the job is in work) → `done` (the handler succeeded) or `failed` (its last
     attempt or its dead letter, with the error). The relay takes `idle` rows under `FOR UPDATE
     SKIP LOCKED` (a partial index on `status = 'idle'`) and marks them `queued` instead of

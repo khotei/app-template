@@ -36,13 +36,20 @@ _Avoid_: State, status, in-progress, pending, streaming
 
 **Active message**:
 The assistant message of a chat that is not yet terminal (`queued`, `preparing` or `generating`).
-A chat has at most one; the chat has no state of its own beyond it.
+A chat has at most one, and its chat stays `queued` while it runs.
 _Avoid_: Pending message, current reply
 
+**Status**:
+The one vocabulary of states in flight: `idle` waits for work, `queued` has work in flight, `done`
+and `failed` end it. An entity with a status picks its subset of `Status`; a message has stages
+instead, since its reply moves through more steps than a status names.
+_Avoid_: State; a new word for one of the four
+
 **Chat status**:
-`busy` while the chat has an active message, else `idle`. No column stores it: the repository
-derives it from the active message on every read of a chat (`Chat.status`).
-_Avoid_: Chat state; a message stage's name (`generating`) for it
+`queued` while the chat's reply is in work, `failed` after its last reply failed, else `idle`;
+stored on the chat. A send moves it to `queued` (`queueChat`), the reply's end to `idle`
+(`freeChat`) or `failed` (`failChat`).
+_Avoid_: Busy, chat state; a message stage's name (`generating`) for it
 
 **Title**:
 The short name of a chat, shown in the user's chat list. The assistant proposes one from the

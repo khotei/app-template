@@ -1,0 +1,5 @@
+CREATE TYPE "chat_status" AS ENUM('idle', 'queued', 'failed');--> statement-breakpoint
+ALTER TABLE "chats" ADD COLUMN "status" "chat_status" DEFAULT 'idle'::"chat_status" NOT NULL;--> statement-breakpoint
+UPDATE "chats" SET "status" = 'queued' WHERE EXISTS (SELECT 1 FROM "messages" WHERE "messages"."chat_id" = "chats"."id" AND "messages"."author" = 'assistant' AND "messages"."stage" IN ('queued', 'preparing', 'generating'));--> statement-breakpoint
+UPDATE "chats" SET "status" = 'failed' WHERE "status" = 'idle' AND (SELECT "messages"."stage" FROM "messages" WHERE "messages"."chat_id" = "chats"."id" AND "messages"."author" = 'assistant' ORDER BY "messages"."created_at" DESC, "messages"."id" DESC LIMIT 1) = 'failed';--> statement-breakpoint
+CREATE INDEX "chats_user_id_created_at_index" ON "chats" ("user_id","created_at" DESC);

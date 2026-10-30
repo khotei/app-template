@@ -1,7 +1,8 @@
 import { type DateTime, Effect, Option, pipe, Schema, String as Str } from 'effect'
 
-import { ChatBusyError } from '#domain/chat/chat.error'
+import { ChatBusyError, ChatStatusInvalidError } from '#domain/chat/chat.error'
 import { ChatId } from '#domain/chat/chat.id'
+import { ChatStatus, type SettledChatStatus } from '#domain/chat/chat-status.model'
 import { UserId } from '#domain/user/user.id'
 
 /** Counted in UTF-16 code units, as `Schema.isMaxLength` counts them. */
@@ -37,25 +38,32 @@ const cutToTitleLength = (text: string): string => {
 export const buildChatTitle = (text: string): Option.Option<ChatTitle> =>
   pipe(text, Str.trim, cutToTitleLength, Str.trim, Schema.decodeUnknownOption(ChatTitle))
 
-/** `busy` while the chat has an active message, else `idle`. */
-export const ChatStatus = Schema.Literals(['idle', 'busy'])
-export type ChatStatus = typeof ChatStatus.Type
-
 export class Chat extends Schema.Class<Chat>('Chat')({
   id: ChatId,
   userId: UserId,
   title: Schema.Option(ChatTitle),
-  /** No column stores it: the repository derives it from the chat's messages on every read. */
   status: ChatStatus,
   createdAt: Schema.DateTimeUtc,
   updatedAt: Schema.DateTimeUtc,
 }) {}
 
-export const ensureChatAcceptsMessage = Effect.fn('ensureChatAcceptsMessage')(function* (
-  chat: Chat,
-) {
-  if (chat.status === 'busy') return yield* new ChatBusyError({ id: chat.id })
+/** Takes the chat for a send's reply; a chat whose reply is still in work refuses it. */
+export const queueChat = Effect.fn('queueChat')(function* (chat: Chat) {
+  if (chat.status === 'queued') return yield* new ChatBusyError({ id: chat.id })
+  return new Chat({ ...chat, status: 'queued' })
 })
+
+// Only a chat whose reply is in work has one to end.
+const settleChat = Effect.fnUntraced(function* (chat: Chat, to: SettledChatStatus) {
+  if (chat.status !== 'queued') {
+    return yield* new ChatStatusInvalidError({ id: chat.id, from: chat.status, to })
+  }
+  return new Chat({ ...chat, status: to })
+})
+
+export const freeChat = Effect.fn('freeChat')((chat: Chat) => settleChat(chat, 'idle'))
+
+export const failChat = Effect.fn('failChat')((chat: Chat) => settleChat(chat, 'failed'))
 
 export const buildChat = (input: {
   readonly id: ChatId

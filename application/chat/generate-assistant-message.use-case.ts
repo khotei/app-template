@@ -6,8 +6,11 @@ import {
   type AssistantTurn,
   type ChatId,
   ChatRepository,
+  type ChatStatusInvalidError,
   completeMessage,
+  failChat,
   failMessage,
+  freeChat,
   generateMessage,
   isActiveMessage,
   type Message,
@@ -38,7 +41,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
     /** Prepares, generates and completes the message with the reply; a settled message is skipped. */
     readonly generate: (
       job: GenerateAssistantMessage,
-    ) => Effect.Effect<void, MessageStageInvalidError>
+    ) => Effect.Effect<void, MessageStageInvalidError | ChatStatusInvalidError>
     /**
      * Fails the message while it is active, with `cause` kept out of the user's sight, and
      * answers the failed message; a missing or settled one is logged, skipped and answers none.
@@ -46,7 +49,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
     readonly fail: (
       messageId: MessageId,
       cause: Cause.Cause<unknown>,
-    ) => Effect.Effect<Option.Option<Message>, MessageStageInvalidError>
+    ) => Effect.Effect<Option.Option<Message>, MessageStageInvalidError | ChatStatusInvalidError>
   }
 >()('@app-template/application/chat/GenerateAssistantMessageUseCase', {
   make: Effect.gen(function* () {
@@ -69,12 +72,22 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
         .selectMany({ chatId: [chatId] })
         .pipe(Effect.map(Arr.filter(isCompletedTurn)), Effect.flatMap(Effect.forEach(readTurn)))
 
-    const settle = Effect.fnUntraced(function* (settled: Message, where: MessageWhere) {
-      yield* messages.update(settled, where)
-      // A rule-free write: a chat deleted meanwhile took its messages, so nothing is left to move.
-      yield* chats.update({ updatedAt: settled.updatedAt }, { id: settled.chatId })
-      return settled
-    }, transaction.run)
+    /** Writes the settled message with its chat's end, `freeChat` or `failChat`, in one transaction. */
+    const settleWith = (end: typeof freeChat) =>
+      Effect.fnUntraced(function* (settled: Message, where: MessageWhere) {
+        yield* messages.update(settled, where)
+        // The message's write held, so the foreign key still keeps its chat.
+        const chat = yield* chats
+          .selectOne({ id: settled.chatId })
+          .pipe(Effect.map(Option.getOrThrow))
+        const ended = yield* end(chat)
+        yield* chats.update({ status: ended.status }, { id: chat.id, status: chat.status })
+        return settled
+      }, transaction.run)
+
+    const settleCompleted = settleWith(freeChat)
+
+    const settleFailed = settleWith(failChat)
 
     const reply = Effect.fnUntraced(function* (taken: Message) {
       const preparedAt = yield* DateTime.now
@@ -89,7 +102,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
       const { text } = yield* assistant.reply(history)
       const completedAt = yield* DateTime.now
       const completed = yield* completeMessage(generating, { text, at: completedAt })
-      yield* settle(completed, { stage: generating.stage })
+      yield* settleCompleted(completed, { stage: generating.stage })
     })
 
     const generate = Effect.fn('GenerateAssistantMessageUseCase.generate')(function* (
@@ -121,7 +134,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
         cause: Cause.pretty(cause),
         at: failedAt,
       })
-      return yield* settle(failed, { stage: stored.value.stage }).pipe(Effect.asSome)
+      return yield* settleFailed(failed, { stage: stored.value.stage }).pipe(Effect.asSome)
     })
 
     return { generate, fail }

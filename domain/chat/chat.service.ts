@@ -1,27 +1,30 @@
-import { Array as Arr, Context, Effect, Layer, Struct } from 'effect'
+import { Array as Arr, Context, DateTime, Effect, Layer, Option, Struct, type Types } from 'effect'
+import type { RequireAtLeastOne } from 'type-fest'
 
 import { AttachmentBucket, AttachmentRepository } from '#domain/attachment/attachment.port'
 import { ChatNotFoundError } from '#domain/chat/chat.error'
-import type { ChatId } from '#domain/chat/chat.id'
-import { Chat } from '#domain/chat/chat.model'
-import { ChatRepository, type ChatSet, type ChatWhere } from '#domain/chat/chat.port'
-import type { UserId } from '#domain/user/user.id'
+import { Chat, type ChatTitle } from '#domain/chat/chat.model'
+import { ChatRepository, type ChatWhere } from '#domain/chat/chat.port'
+
+/** The chat a rename finds: by its owner, or only while it is still untitled. */
+export type ChatRenameWhere = Types.Simplify<
+  Pick<Chat, 'id'> & RequireAtLeastOne<Pick<Chat, 'userId' | 'title'>>
+>
+
+/** The user's chat a delete finds. */
+export type ChatDeleteWhere = Pick<Chat, 'id' | 'userId'>
 
 export class ChatService extends Context.Service<
   ChatService,
   {
-    /**
-     * With `forUpdate`, holds the chat's row until the transaction ends; its status is read after
-     * the lock, so it counts a reply a concurrent send committed while this read waited.
-     */
-    readonly getOne: (
-      where: ChatWhere,
-      options?: { readonly forUpdate?: boolean },
+    readonly getOne: (where: ChatWhere) => Effect.Effect<Chat, ChatNotFoundError>
+    /** Titles the chat `where` finds and moves its `updatedAt`. */
+    readonly rename: (
+      where: ChatRenameWhere,
+      title: ChatTitle,
     ) => Effect.Effect<Chat, ChatNotFoundError>
-    /** Writes `set` to the chat `where` finds; the caller decides the title and whether `updatedAt` moves. */
-    readonly rename: (where: ChatWhere, set: ChatSet) => Effect.Effect<Chat, ChatNotFoundError>
     /** Removes the user's chat with its messages, their attachments and the bytes. */
-    readonly delete: (userId: UserId, chatId: ChatId) => Effect.Effect<void, ChatNotFoundError>
+    readonly delete: (where: ChatDeleteWhere) => Effect.Effect<void, ChatNotFoundError>
   }
 >()('@app-template/domain/chat/ChatService', {
   make: Effect.gen(function* () {
@@ -29,29 +32,32 @@ export class ChatService extends Context.Service<
     const attachments = yield* AttachmentRepository
     const bucket = yield* AttachmentBucket
 
-    const getOne = Effect.fn('ChatService.getOne')(function* (
-      where: ChatWhere,
-      options?: { readonly forUpdate?: boolean },
-    ) {
-      return yield* chats
-        .selectOne(where, options)
-        .pipe(Effect.flatMap(Effect.fromOption(() => new ChatNotFoundError({ id: where.id }))))
-    })
+    const getOne = Effect.fn('ChatService.getOne')((where: ChatWhere) =>
+      chats
+        .selectOne(where)
+        .pipe(Effect.flatMap(Effect.fromOption(() => new ChatNotFoundError({ id: where.id })))),
+    )
 
-    const rename = Effect.fn('ChatService.rename')(function* (where: ChatWhere, set: ChatSet) {
+    const rename = Effect.fn('ChatService.rename')(function* (
+      where: ChatRenameWhere,
+      title: ChatTitle,
+    ) {
       const chat = yield* getOne(where)
+      const updatedAt = yield* DateTime.now
+      const set = { title: Option.some(title), updatedAt }
+
       // The `where` holds again in the write, so a change landing after the read is kept.
       yield* chats.update(set, where)
       return new Chat({ ...chat, ...set })
     })
 
-    const remove = Effect.fn('ChatService.delete')(function* (userId: UserId, chatId: ChatId) {
-      yield* getOne({ id: chatId, userId })
+    const remove = Effect.fn('ChatService.delete')(function* (where: ChatDeleteWhere) {
+      yield* getOne(where)
       // The one delete takes the messages and their attachments by the cascade, but it answers
       // only the chat's row: the attachments are read first for the ids of their bytes.
-      const removed = yield* attachments.selectMany({ chatId, userId })
+      const removed = yield* attachments.selectMany({ chatId: where.id, userId: where.userId })
 
-      yield* chats.delete({ id: chatId })
+      yield* chats.delete({ id: where.id })
       yield* bucket.deleteMany(Arr.map(removed, Struct.get('id')))
     })
 

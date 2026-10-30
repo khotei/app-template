@@ -35,13 +35,13 @@ describe('ChatService.delete on Postgres', () => {
         .pipe(Effect.orDie)
       yield* Effect.orDie(client`INSERT INTO chat_holds (chat_id) VALUES (${chat.id})`)
 
-      const exit = yield* chatService.delete(owner, chat.id).pipe(Effect.exit)
+      const exit = yield* chatService.delete({ id: chat.id, userId: owner }).pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
       assertEquals(
         yield* selectChat(chat.id),
         Option.some(
-          new Chat({ ...chat, status: 'busy', updatedAt: userMessage.message.createdAt }),
+          new Chat({ ...chat, status: 'queued', updatedAt: userMessage.message.createdAt }),
         ),
       )
       assertEquals(

@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, DateTime, Effect, Exit, Option, Schema, Struct } from 'effect'
+import { DateTime, Effect, Exit, Option, Schema } from 'effect'
 
 import {
   Attachment,
@@ -106,64 +106,56 @@ describe('ChatRepositoryPg', () => {
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
-  it.effect("selectByUser selects the user's chats, the most recently updated first", () =>
+  it.effect("selectMany selects the user's chats, the newest created first or by order", () =>
     Effect.gen(function* () {
       const chats = yield* ChatRepository
       const ada = UserId.make('0192d4e0-7b3a-7c00-8000-000000000010')
       const bob = UserId.make('0192d4e0-7b3a-7c00-8000-000000000011')
-      const older = new Chat({
+      const renamed = new Chat({
         ...chat('0192d4e0-7b3a-7c00-8000-000000000031', ada),
-        updatedAt: at(1),
+        updatedAt: at(3),
       })
       const newer = new Chat({
         ...chat('0192d4e0-7b3a-7c00-8000-000000000030', ada),
-        updatedAt: at(2),
+        createdAt: at(1),
+        updatedAt: at(1),
       })
       yield* Effect.forEach([ada, bob], insertUser)
       yield* Effect.forEach(
-        [older, newer, chat('0192d4e0-7b3a-7c00-8000-000000000032', bob)],
+        [renamed, newer, chat('0192d4e0-7b3a-7c00-8000-000000000032', bob)],
         chats.insert,
       )
 
-      assertSchemaEquals(Schema.Array(Chat), yield* chats.selectByUser(ada), [newer, older])
+      assertSchemaEquals(Schema.Array(Chat), yield* chats.selectMany({ userId: ada }), [
+        newer,
+        renamed,
+      ])
+      assertSchemaEquals(
+        Schema.Array(Chat),
+        yield* chats.selectMany({ userId: ada }, { order: 'updatedAt' }),
+        [renamed, newer],
+      )
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
-  it.effect('reads a chat busy while its reply is active and idle otherwise, on every read', () =>
+  it.effect('update where the status still holds moves it once; the second write dies', () =>
     Effect.gen(function* () {
       const chats = yield* ChatRepository
-      const messages = yield* MessageRepository
       const ada = UserId.make('0192d4e0-7b3a-7c00-8000-000000000010')
-      const replying = chat('0192d4e0-7b3a-7c00-8000-000000000030', ada)
-      const asked = chat('0192d4e0-7b3a-7c00-8000-000000000031', ada)
+      const idle = chat('0192d4e0-7b3a-7c00-8000-000000000030', ada)
       yield* insertUser(ada)
-      yield* chats.insert(replying)
-      yield* chats.insert(asked)
-      yield* messages.insert(
-        buildAssistantMessage({
-          id: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000040'),
-          chatId: replying.id,
-          createdAt,
-        }),
-      )
-      yield* messages.insert(question('0192d4e0-7b3a-7c00-8000-000000000041', asked.id))
+      yield* chats.insert(idle)
 
-      const statusOf = (id: ChatId, options?: { readonly forUpdate?: boolean }) =>
-        chats.selectOne({ id }, options).pipe(Effect.map(Option.map((found) => found.status)))
+      const queue = chats.update({ status: 'queued' }, { id: idle.id, status: 'idle' })
+      yield* queue
+      const exit = yield* queue.pipe(Effect.exit)
 
-      assert.deepStrictEqual(
-        [
-          yield* statusOf(replying.id),
-          yield* statusOf(replying.id, { forUpdate: true }),
-          yield* statusOf(asked.id),
-        ],
-        [Option.some('busy'), Option.some('busy'), Option.some('idle')],
+      assert.isTrue(Exit.hasDies(exit))
+      assertSchemaEquals(
+        Schema.Array(Chat),
+        yield* chats.selectMany({ userId: ada, status: 'queued' }),
+        [new Chat({ ...idle, status: 'queued' })],
       )
-      const listed = yield* chats.selectByUser(ada)
-      assert.sameDeepMembers(Arr.map(listed, Struct.pick(['id', 'status'])), [
-        { id: replying.id, status: 'busy' },
-        { id: asked.id, status: 'idle' },
-      ])
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 

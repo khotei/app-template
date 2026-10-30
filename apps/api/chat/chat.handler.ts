@@ -1,4 +1,4 @@
-import { Array as Arr, Crypto, DateTime, Effect, Option } from 'effect'
+import { Array as Arr, Crypto, DateTime, Effect } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
 import { SendMessageUseCase } from '@app-template/application/chat'
@@ -42,7 +42,7 @@ export const ChatHandler = HttpApiBuilder.group(
         'list',
         Effect.fn('ChatHandler.list')(function* () {
           const user = yield* CurrentUser
-          const found = yield* chats.selectByUser(user.id)
+          const found = yield* chats.selectMany({ userId: user.id })
           return Arr.map(found, toChat)
         }),
       )
@@ -58,10 +58,9 @@ export const ChatHandler = HttpApiBuilder.group(
         'rename',
         Effect.fn('ChatHandler.rename')(function* ({ params, payload }) {
           const user = yield* CurrentUser
-          const updatedAt = yield* DateTime.now
           const renamed = yield* chatService.rename(
             { id: params.chatId, userId: user.id },
-            { title: Option.some(payload.title), updatedAt },
+            payload.title,
           )
           return toChat(renamed)
         }),
@@ -70,7 +69,7 @@ export const ChatHandler = HttpApiBuilder.group(
         'delete',
         Effect.fn('ChatHandler.delete')(function* ({ params }) {
           const user = yield* CurrentUser
-          yield* chatService.delete(user.id, params.chatId)
+          yield* chatService.delete({ id: params.chatId, userId: user.id })
         }),
       )
       .handle(

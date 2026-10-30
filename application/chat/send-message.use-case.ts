@@ -13,13 +13,13 @@ import {
   type ChatNotFoundError,
   ChatRepository,
   ChatService,
-  ensureChatAcceptsMessage,
   ensureMessageInput,
   type MessageDetail,
   MessageId,
   type MessageInput,
   type MessageInputInvalidError,
   MessageRepository,
+  queueChat,
 } from '@app-template/domain/chat'
 import { generateId } from '@app-template/domain/shared'
 import type { UserId } from '@app-template/domain/user'
@@ -69,15 +69,15 @@ export class SendMessageUseCase extends Context.Service<
       chatId: ChatId,
       input: MessageInput,
     ) {
-      // The lock makes a concurrent send to the chat wait here until this one commits, then find
-      // the chat busy.
-      const chat = yield* chatService.getOne({ id: chatId, userId }, { forUpdate: true })
+      const chat = yield* chatService.getOne({ id: chatId, userId })
       yield* ensureMessageInput(input)
-      yield* ensureChatAcceptsMessage(chat)
-      const opensChat = yield* messages.selectOne({ chatId }).pipe(Effect.map(Option.isNone))
+      const queued = yield* queueChat(chat)
+      const isFirstMessage = yield* messages.selectOne({ chatId }).pipe(Effect.map(Option.isNone))
       const at = yield* DateTime.now
 
-      yield* chats.update({ updatedAt: at }, { id: chatId })
+      // A concurrent send that queued the chat after the read leaves no row where its status
+      // holds, so this write dies: a lost race of two sends at once, rolled back whole.
+      yield* chats.update({ status: queued.status }, { id: chatId, status: chat.status })
 
       const userMessageId = yield* generateId(crypto, MessageId.make)
       const userMessage = buildUserMessage({
@@ -105,7 +105,7 @@ export class SendMessageUseCase extends Context.Service<
           new GenerateAssistantMessage({ chatId, messageId: assistantMessage.id }),
         )
         .pipe(Effect.orDie)
-      if (opensChat) {
+      if (isFirstMessage) {
         yield* queue
           .send(chatTitleQueue, new GenerateChatTitle({ chatId, messageId: userMessage.id }))
           .pipe(Effect.orDie)

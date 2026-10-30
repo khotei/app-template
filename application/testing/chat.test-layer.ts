@@ -12,7 +12,12 @@ import {
   ChatService,
   MessageRepository,
 } from '@app-template/domain/chat'
-import { AttachmentBucketTest, chat, RepositoryStackTest } from '@app-template/domain/testing'
+import {
+  AttachmentBucketTest,
+  chat,
+  queuedChat,
+  RepositoryStackTest,
+} from '@app-template/domain/testing'
 import {
   AttachmentBucketS3,
   AttachmentRepositoryPg,
@@ -36,6 +41,10 @@ const ChatServices = Layer.mergeAll(
 )
 
 const insertChat = Layer.effectDiscard(ChatRepository.use((chats) => chats.insert(chat)))
+
+const insertQueuedChat = Layer.effectDiscard(
+  ChatRepository.use((chats) => chats.insert(queuedChat)),
+)
 
 /** The queue client on the definitions' own names; its locks never run, since nothing consumes. */
 export const QueueClientTest = QueueClient.layer({
@@ -67,11 +76,11 @@ export const ChatTitleTest = GenerateChatTitleUseCase.layer.pipe(
 )
 
 /**
- * The reply use case over the memory layers, on fresh rows where `chat` exists, the attachments'
+ * The reply use case over the memory layers, on fresh rows where `queuedChat` exists, the attachments'
  * bytes in memory and the identity transaction; the `Assistant` is the test's, `recordAssistant()`.
  */
 export const AssistantMessageTest = GenerateAssistantMessageUseCase.layer.pipe(
-  Layer.provideMerge(insertChat),
+  Layer.provideMerge(insertQueuedChat),
   Layer.provideMerge(Layer.mergeAll(RepositoryStackTest, AttachmentBucketTest, TransactionTest)),
   Layer.provide(BunCrypto.layer),
 )

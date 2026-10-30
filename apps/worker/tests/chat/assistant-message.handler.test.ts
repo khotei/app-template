@@ -16,6 +16,7 @@ import {
   epoch,
   holdAssistantCall,
   messageId,
+  queuedChat,
   recordAssistant,
 } from '@app-template/domain/testing'
 import {
@@ -80,7 +81,7 @@ describe('AssistantMessageHandler', () => {
         yield* selectReply,
         Option.some(new Message({ ...queuedReply, stage: 'generating' })),
       )
-      assertEquals(yield* selectChat(chatId), Option.some(new Chat({ ...chat, status: 'busy' })))
+      assertEquals(yield* selectChat(chatId), Option.some(queuedChat))
     }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
   })
 
@@ -95,10 +96,7 @@ describe('AssistantMessageHandler', () => {
       const failed = Option.getOrThrow(yield* selectReply)
       assertFailed(failed, 'provider exploded')
       assert.strictEqual(failed.text, '')
-      assertEquals(
-        yield* selectChat(chatId),
-        Option.some(new Chat({ ...chat, updatedAt: failed.updatedAt })),
-      )
+      assertEquals(yield* selectChat(chatId), Option.some(new Chat({ ...chat, status: 'failed' })))
     }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
   })
 
@@ -114,10 +112,7 @@ describe('AssistantMessageHandler', () => {
 
       const failed = Option.getOrThrow(yield* selectReply)
       assertFailed(failed, 'interrupt')
-      assertEquals(
-        yield* selectChat(chatId),
-        Option.some(new Chat({ ...chat, updatedAt: failed.updatedAt })),
-      )
+      assertEquals(yield* selectChat(chatId), Option.some(new Chat({ ...chat, status: 'failed' })))
     }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
   })
 
@@ -151,7 +146,7 @@ describe('AssistantMessageHandler', () => {
       yield* handleDeadLettered(job, deadLetterInfo)
 
       assertEquals(yield* selectReply, Option.some(completedReply))
-      assertEquals(yield* selectChat(chatId), Option.some(chat))
+      assertEquals(yield* selectChat(chatId), Option.some(queuedChat))
       assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: already settled']])
     }).pipe(Effect.provide([AssistantMessageTest.pipe(Layer.provide(assistant.layer)), logger]))
   })

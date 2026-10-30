@@ -3,15 +3,19 @@ import type { RequireAtLeastOne } from 'type-fest'
 
 import type { ChatId } from '#domain/chat/chat.id'
 import type { Chat } from '#domain/chat/chat.model'
-import type { UserId } from '#domain/user/user.id'
 
 /** The fields a write may change; `userId` and `createdAt` never change. */
-export type ChatSet = Types.Simplify<RequireAtLeastOne<Pick<Chat, 'title' | 'updatedAt'>>>
+export type ChatSet = Types.Simplify<
+  RequireAtLeastOne<Pick<Chat, 'title' | 'status' | 'updatedAt'>>
+>
 
 /** The row found by `id`; every other field named must still hold, so an owner mismatch reads as absent. */
 export type ChatWhere = Types.Simplify<
-  { readonly id: ChatId } & Partial<Pick<Chat, 'userId' | 'title'>>
+  { readonly id: ChatId } & Partial<Pick<Chat, 'userId' | 'title' | 'status'>>
 >
+
+/** The user's chats; every other field named must hold. */
+export type ChatManyWhere = Types.Simplify<Pick<Chat, 'userId'> & Partial<Pick<Chat, 'status'>>>
 
 export class ChatRepository extends Context.Service<
   ChatRepository,
@@ -19,13 +23,12 @@ export class ChatRepository extends Context.Service<
     readonly insert: (chat: Chat) => Effect.Effect<void>
     /** Writes `set` where `where` holds; dies when it writes nothing. */
     readonly update: (set: ChatSet, where: ChatWhere) => Effect.Effect<void>
-    /** With `forUpdate`, holds the row it reads until the transaction ends. */
-    readonly selectOne: (
-      where: ChatWhere,
-      options?: { readonly forUpdate?: boolean },
-    ) => Effect.Effect<Option.Option<Chat>>
-    /** Returns the user's chats, the most recently updated first. */
-    readonly selectByUser: (userId: UserId) => Effect.Effect<ReadonlyArray<Chat>>
+    readonly selectOne: (where: ChatWhere) => Effect.Effect<Option.Option<Chat>>
+    /** Rows where `where` holds, the latest by `order` first: by default the newest created. */
+    readonly selectMany: (
+      where: ChatManyWhere,
+      options?: { readonly order?: 'createdAt' | 'updatedAt' },
+    ) => Effect.Effect<ReadonlyArray<Chat>>
     /**
      * Removes the chat `where` finds with its messages and their attachments, in one statement;
      * dies when it removes nothing.

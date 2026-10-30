@@ -1,7 +1,7 @@
 import { DateTime } from 'effect'
 
 import { ChatId, MessageId } from '#domain/chat/chat.id'
-import { buildChat } from '#domain/chat/chat.model'
+import { buildChat, Chat } from '#domain/chat/chat.model'
 import type { MessageInput } from '#domain/chat/message.model'
 import { owner } from '#domain/testing/user.test-fixture'
 
@@ -14,5 +14,8 @@ export const epoch = DateTime.makeUnsafe(0)
 
 /** An untitled chat of `owner`, created at `epoch`, so a later write shows as a moved `updatedAt`. */
 export const chat = buildChat({ id: chatId, userId: owner, createdAt: epoch })
+
+/** `chat` with its reply in work, as a send leaves it. */
+export const queuedChat = new Chat({ ...chat, status: 'queued' })
 
 export const ask = (text: string): MessageInput => ({ text, attachmentIds: [] })

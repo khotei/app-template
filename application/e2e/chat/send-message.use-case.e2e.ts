@@ -20,18 +20,21 @@ const selectOutbox = SqlClient.SqlClient.use((client) => client`SELECT queue FRO
 
 describe('SendMessageUseCase', () => {
   it.effect(
-    'of two concurrent sends to one chat, one is stored and the other is ChatBusyError',
+    'of two concurrent sends to one chat, one is stored and the other is refused, keeping nothing',
     () =>
       Effect.gen(function* () {
         const sendMessage = yield* SendMessageUseCase
+        // The loser reads the chat queued (ChatBusyError) or, having read it idle, dies on the
+        // status move: both roll it back whole.
         const send = sendMessage.send(owner, chat.id, { text: 'Lisbon?', attachmentIds: [] }).pipe(
           Effect.as('sent'),
-          Effect.catchTag('ChatBusyError', () => Effect.succeed('busy')),
+          Effect.catchTag('ChatBusyError', () => Effect.succeed('refused')),
+          Effect.catchDefect(() => Effect.succeed('refused')),
         )
 
         const outcomes = yield* Effect.all([send, send], { concurrency: 'unbounded' })
 
-        assert.deepStrictEqual(Arr.sort(outcomes, Order.String), ['busy', 'sent'])
+        assert.deepStrictEqual(Arr.sort(outcomes, Order.String), ['refused', 'sent'])
         assert.strictEqual((yield* selectMessages(chat.id)).length, 2)
       }).pipe(Effect.provide(ChatPgTest)),
   )
@@ -71,7 +74,7 @@ describe('SendMessageUseCase', () => {
         const sendMessage = yield* SendMessageUseCase
         const client = yield* SqlClient.SqlClient
         const photo = yield* upload(owner)
-        // The title job is the last write of the send that opens a chat; all the others precede it.
+        // The title job is the last write of a chat's first send; all the others precede it.
         yield* client
           .unsafe(`ALTER TABLE outbox ADD CONSTRAINT refuse_title CHECK (queue <> 'chat-title')`)
           .pipe(Effect.orDie)

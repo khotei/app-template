@@ -1,0 +1,130 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "71d6fe95-b167-4c78-8873-20682804f7a9",
+  "prevIds": [
+    "1f156fa3-eb35-4c3b-8f82-ce0c6fc0d265"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_enum",
+      "statementTarget": [
+        "enum",
+        "public",
+        "chat_status"
+      ],
+      "writes": [
+        "s|enum|public.chat_status",
+        "n|enum|public.chat_status",
+        "e|enum|public.chat_status",
+        "n|type|public.chat_status"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "chats",
+        "status"
+      ],
+      "writes": [
+        "s|col|public.chats.status",
+        "n|col|public.chats.status",
+        "e|col|public.chats.status"
+      ],
+      "reads": [
+        "n|tbl|public.chats",
+        "n|sch|public",
+        "n|enum|public.chat_status"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "chats",
+        "chats_user_id_created_at_index"
+      ],
+      "writes": [
+        "s|idx|public.chats_user_id_created_at_index",
+        "n|idx|public.chats_user_id_created_at_index",
+        "e|idx|public.chats_user_id_created_at_index",
+        "n|rel|public.chats_user_id_created_at_index"
+      ],
+      "reads": [
+        "n|tbl|public.chats",
+        "n|sch|public",
+        "n|col|public.chats.user_id",
+        "n|col|public.chats.created_at"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "chat_status",
+        "values": [
+          "idle",
+          "queued",
+          "failed"
+        ],
+        "entityType": "enums"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "chats",
+        "name": "status",
+        "type": "chat_status",
+        "typeSchema": "public",
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'idle'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "chats",
+        "name": "chats_user_id_created_at_index",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "user_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "created_at",
+            "isExpression": false,
+            "asc": false,
+            "nullsFirst": true,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    }
+  ]
+}
