@@ -27,7 +27,7 @@ export class SendableChat extends Data.Class<{
 export class ChatService extends Context.Service<
   ChatService,
   {
-    readonly findOne: (where: ChatWhere) => Effect.Effect<ChatWithStatus, ChatNotFoundError>
+    readonly getOne: (where: ChatWhere) => Effect.Effect<ChatWithStatus, ChatNotFoundError>
     /** Writes `set` to the chat `where` finds; the caller decides the title and whether `updatedAt` moves. */
     readonly rename: (where: ChatWhere, set: ChatSet) => Effect.Effect<Chat, ChatNotFoundError>
     /**
@@ -45,7 +45,7 @@ export class ChatService extends Context.Service<
     const chats = yield* ChatRepository
     const messages = yield* MessageRepository
 
-    const findOne = Effect.fn('ChatService.findOne')(function* (where: ChatWhere) {
+    const getOne = Effect.fn('ChatService.getOne')(function* (where: ChatWhere) {
       const chat = yield* chats
         .selectOne(where)
         .pipe(Effect.flatMap(Effect.fromOption(() => new ChatNotFoundError({ id: where.id }))))
@@ -82,7 +82,7 @@ export class ChatService extends Context.Service<
       return new SendableChat({ chatId, input, opensChat: Option.isNone(first), at })
     })
 
-    return { findOne, rename, findSendable }
+    return { getOne, rename, findSendable }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

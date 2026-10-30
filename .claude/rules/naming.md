@@ -67,8 +67,9 @@ folder (`infrastructure/db/testing/` too), exported by no barrel save `packages/
     (`buildChat`); a pure transition is named for the stage it moves to (`prepareMessage`);
   - `generate`: an impure function that makes a fresh value (`generateStage`);
   - `is`: a predicate (`isActiveMessage`);
-  - `find`: a domain service's or use case's read over ports, answering the record (an `Option`,
-    its `*NotFoundError` or a refusal) or a proof (`findSendable`); never a port method;
+  - `get` / `find`: a domain service's or use case's read over ports, never a port method:
+    `get` answers the record or its `*NotFoundError` (`AttachmentService.get`), `find` an
+    `Option` or a proof with its refusals (`findSendable`);
   - `select` / `insert` / `update` / `delete`: a port's persistence; `update` never creates a
     record.
 - Constants are `camelCase`, `as const` for literal objects and arrays; a `Layer` constant is

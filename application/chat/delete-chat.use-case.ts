@@ -30,7 +30,7 @@ export class DeleteChatUseCase extends Context.Service<
       userId: UserId,
       chatId: ChatId,
     ) {
-      yield* chatService.findOne({ id: chatId, userId })
+      yield* chatService.getOne({ id: chatId, userId })
       const details = yield* messages.selectMany({ chatId: [chatId] })
 
       yield* attachmentService.deleteByIds(

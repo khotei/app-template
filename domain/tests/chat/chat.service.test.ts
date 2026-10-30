@@ -48,7 +48,7 @@ type ChatCall = (
 ) => Effect.Effect<unknown, ChatNotFoundError | ChatBusyError | MessageInputInvalidError>
 
 const chatCalls: ReadonlyArray<{ readonly name: string; readonly call: ChatCall }> = [
-  { name: 'findOne', call: (service, userId, chatId) => service.findOne({ id: chatId, userId }) },
+  { name: 'getOne', call: (service, userId, chatId) => service.getOne({ id: chatId, userId }) },
   {
     name: 'rename',
     call: (service, userId, chatId) =>
@@ -61,14 +61,14 @@ const chatCalls: ReadonlyArray<{ readonly name: string; readonly call: ChatCall 
 ]
 
 describe('ChatService', () => {
-  it.effect('findOne says busy while a reply runs, and idle once it settles', () =>
+  it.effect('getOne says busy while a reply runs, and idle once it settles', () =>
     Effect.gen(function* () {
       const service = yield* ChatService
       const sent = yield* send(owner, chat.id, 'Lisbon?')
 
-      const replying = yield* service.findOne({ id: chat.id, userId: owner })
+      const replying = yield* service.getOne({ id: chat.id, userId: owner })
       yield* settle(sent.assistantMessage)
-      const settled = yield* service.findOne({ id: chat.id, userId: owner })
+      const settled = yield* service.getOne({ id: chat.id, userId: owner })
 
       assert.deepStrictEqual([replying.status, settled.status], ['busy', 'idle'])
     }).pipe(Effect.provide(ChatBunTest)),
@@ -161,7 +161,7 @@ describe('ChatService', () => {
         assertSchemaEquals(ChatNotFoundError, foreign, new ChatNotFoundError({ id: chat.id }))
         assertSchemaEquals(ChatNotFoundError, missing, new ChatNotFoundError({ id: unknownChatId }))
         assertEquals(
-          yield* service.findOne({ id: chat.id, userId: owner }),
+          yield* service.getOne({ id: chat.id, userId: owner }),
           new ChatWithStatus({ ...chat, status: 'idle' }),
         )
       }).pipe(Effect.provide(ChatBunTest)),

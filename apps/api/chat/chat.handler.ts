@@ -51,7 +51,7 @@ export const ChatHandler = HttpApiBuilder.group(
         'get',
         Effect.fn('ChatHandler.get')(function* ({ params }) {
           const user = yield* CurrentUser
-          const chat = yield* chatService.findOne({ id: params.chatId, userId: user.id })
+          const chat = yield* chatService.getOne({ id: params.chatId, userId: user.id })
           return toChatWithStatus(chat)
         }),
       )
