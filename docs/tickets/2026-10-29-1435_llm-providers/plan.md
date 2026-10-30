@@ -7,7 +7,7 @@
 | Step | Delivers | Status |
 |---|---|---|
 | S1 | the reply is written once, whole; no snapshots | done |
-| S2 | Anthropic or the stub, chosen by `LLM_PROVIDER`; a model per purpose | | done |
+| S2 | Anthropic or the stub, chosen by `LLM_PROVIDER`; a model per purpose | done |
 | S3 | the reply as a structured response with a fixed system prompt; per-purpose request settings | todo |
 | S4 | the port's two final errors, settled by the use cases | todo |
 | S5 | reply failures told apart, retried in place, a refusal kept apart | todo |
@@ -160,7 +160,7 @@
 #### S3 — A structured reply with a fixed system prompt
 
 - **Delivers:** each reply is one `generateObject` request: a fixed system prompt, then the
-  chat's completed turns, answered as a JSON object whose `text` the user reads. The reply
+  chat's `done` turns, answered as a JSON object whose `text` the user reads. The reply
   request caps output at 16 000 tokens and asks for the prefix to be cached; the title request
   caps at 1 000 tokens, lowest effort, thinking off. The stub answers the reply as canned JSON.
 - **Goal:** R1 (a model per purpose, seen in the request), R6, R8, R9, R10, R11, R2 (the stub's
@@ -195,7 +195,8 @@
 
 - **Delivers:** the assistant can now answer "refused" or "failed" instead of dying. The reply
   use case writes the message `failed` with `ReplyRefused` or `ReplyFailed`, each with its own
-  user-facing sentence, and ends the job; the title use case logs and leaves the chat untitled.
+  user-facing sentence, moves the chat to `failed` with it, so the next send is accepted, and
+  ends the job; the title use case logs and leaves the chat untitled.
   The adapter does not raise them yet (S5, S6), so the worker behaves as before.
 - **Goal:** the port's error channel and its settling (R13, R16, R17, R18 at the use case; D2,
   D3).
@@ -209,7 +210,8 @@
   - `domain/testing/assistant.test-fake.ts` (a script may fail with either error);
   - `application/chat/generate-assistant-message.use-case.ts` (`AssistantRefusedError` →
     `ReplyRefused`, `AssistantFailedError` → `ReplyFailed`, `cause` from the error, through
-    `settle`), `application/chat/generate-chat-title.use-case.ts` (a port error logs and ends);
+    `settleFailed`, which moves the chat by `failChat` in the same transaction),
+    `application/chat/generate-chat-title.use-case.ts` (a port error logs and ends);
   - `infrastructure/chat/assistant.llm.ts` (the type only: it still dies on a provider failure);
   - suites: `domain/tests/chat/message.model.test.ts`,
     `application/tests/chat/generate-assistant-message.use-case.test.ts`,
@@ -219,9 +221,9 @@
     first line restates the defect rule: it links to `effect-schema.md` instead).
 - **Test first:** Seam 4 — the port fails with `AssistantRefusedError`: the message is `failed`
   with `ReplyRefused`, its text empty, after one call; with `AssistantFailedError`: `failed` with
-  `ReplyFailed`; the job ends without an error either way. Seam 5 — the port fails: the chat
-  stays untitled and a log line names the failure. Seam 7 — `ReplyRefused`'s sentence. Seam 9 —
-  a `ReplyRefused` message on the wire carries its sentence and no `cause`.
+  `ReplyFailed`; the chat is `failed` and the job ends without an error either way. Seam 5 — the
+  port fails: the chat stays untitled and a log line names the failure. Seam 7 — `ReplyRefused`'s
+  sentence. Seam 9 — a `ReplyRefused` message on the wire carries its sentence and no `cause`.
 - **Verify:** `make check`.
 - **Model:** fable high
 - **Status:** todo
@@ -262,11 +264,15 @@
 - **Goal:** R19, R2 (the stub's title passes the schema); D5, D7.
 - **Blocked by:** S5.
 - **Files:**
-  - `infrastructure/chat/assistant.llm.ts` (`TitleAnswer` over a trimmed `ChatTitle` with the
-    field's `description`; `suggestTitle` by `generateObject` on `models.title`, with S5's
+  - `infrastructure/chat/assistant.llm.ts` (`TitleAnswer`: `Schema.Trim` decoded to `ChatTitle`,
+    as `http-api`'s rename payload does, since `ChatTitle` checks `isTrimmed`, with the field's
+    `description`; `suggestTitle` by `generateObject` on `models.title`, with S5's
     mapping and the title schedule; − the free-text instruction and the cut);
   - `infrastructure/chat/assistant.client.ts` (`layerStub`'s title text is
     `{"title": …}`);
+  - `domain/chat/chat.model.ts` (− `buildChatTitle`, `cutToTitleLength` and `graphemes`: the
+    adapter was their only caller, and an overlong title is now asked again, not cut),
+    `domain/tests/chat/chat.model.test.ts` (− the `buildChatTitle` cases);
   - `infrastructure/tests/chat/assistant.llm.test.ts`;
   - `docs/tickets/2026-10-17-1748_chat-core/feature.md` (R25 amended).
 - **Test first:** Seam 1 under `TestClock` — a 121-character title and a blank one are asked
@@ -282,19 +288,19 @@
 
 - **Delivers:** each assistant message stores who answered it once a model was asked: the
   provider, the model and a SHA-256 of the system prompt and the reply schema. It is written with
-  the `generating` move, kept by `completed` and `failed`, and never leaves the api.
+  the `generating` move, kept by `done` and `failed`, and never leaves the api.
 - **Goal:** R12; D6, D8.
 - **Blocked by:** S6 (shares `assistant.llm.ts` and its suite; hashes S3's system prompt and
   reply schema).
 - **Files:**
   - `domain/chat/message.model.ts` (+ `MessageProvenance`; `Message` + `provenance:
     Schema.Option(MessageProvenance)`; the builders set none; `generateMessage(message, {
-    provenance, at })`), `domain/chat/message.service.ts` (`generate` takes the provenance);
+    provenance, at })`, so `move`'s patch takes `provenance` too);
   - `domain/chat/assistant.port.ts` (+ `replyProvenance`);
     `domain/testing/assistant.test-fake.ts` (a fixed `replyProvenance`),
     `domain/testing/chat.test-fixture.ts` (+ `provenance`);
-  - `application/chat/generate-assistant-message.use-case.ts` (`generate` writes the port's
-    `replyProvenance`);
+  - `application/chat/generate-assistant-message.use-case.ts` (`reply` hands the port's
+    `replyProvenance` to `generateMessage`);
   - `infrastructure/chat/assistant.llm.ts` (+ `generateInstructionsHash(systemPrompt, schema)`:
     `Crypto.digest('SHA-256', …)` over the prompt, a newline and `JSON.stringify` of
     `Schema.toJsonSchemaDocument(schema)`, the bytes as hex, a `PlatformError` a defect;
@@ -305,14 +311,14 @@
     `Schema.OptionFromNullOr(MessageProvenance)`); `infrastructure/db/migrations/<stamp>_message_provenance/`
     (`make migration NAME=message_provenance`);
   - `http-api/chat/chat.http.ts` (`Message` omits `provenance`);
-  - suites: `domain/tests/chat/message.model.test.ts`, `message.service.test.ts`,
+  - suites: `domain/tests/chat/message.model.test.ts`,
     `application/tests/chat/generate-assistant-message.use-case.test.ts`,
     `infrastructure/tests/chat/assistant.llm.test.ts`,
     `infrastructure/e2e/chat/message.repository.e2e.ts`, `apps/api/tests/chat/chat.handler.test.ts`;
   - `docs/knowledge/glossary.md` (+ **Provenance**: who answered an assistant message, with
     which instructions; operators only; with its `_Avoid_` line, as every entry has).
 - **Test first:** Seam 2 — `generateInstructionsHash` changes with the system prompt and with the
-  schema. Seam 4 — the `generating` write carries the port's provenance; `completed` and a
+  schema. Seam 4 — the `generating` write carries the port's provenance; `done` and a
   `failed` after the call keep it; a message failed before `generating` has none. Seam 7 —
   `prepareMessage` keeps the provenance. Seam 8 — `provenance` survives a write and a read,
   `null` as none. Seam 9 — the api's message has no `provenance`.

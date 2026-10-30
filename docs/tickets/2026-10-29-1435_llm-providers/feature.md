@@ -111,7 +111,7 @@ does not.
 
 - **R5** — WHILE the worker handles an assistant-message job, THE SYSTEM SHALL set the message to
   `preparing` on taking the job and to `generating` when the request is sent, ask the reply model
-  once for a reply, and WHEN the reply passes the reply schema, set the message `completed` with
+  once for a reply, and WHEN the reply passes the reply schema, set the message `done` with
   its text in one write; no text is written before that. *Amends `chat-core` R16.* *Amended by
   the repository refactor on this branch: `completed` is the message status `done` (`chat-core`
   R15).*
@@ -120,7 +120,7 @@ does not.
 - **R7** — *Dropped at architecture (2026-10-29):* the reply carries no follow-ups, so the api
   returns nothing new.
 - **R8** — WHEN the worker builds the reply prompt, THE SYSTEM SHALL send the system prompt, then
-  every `completed` message of the chat in creation order: a user message as its text and its
+  every `done` message of the chat in creation order: a user message as its text and its
   attachments as files, as today, and an assistant message as its text. *Amends `chat-core`
   R17.*
 - **R9** — THE system prompt SHALL be fixed text that states the assistant's role and rules; it
@@ -180,18 +180,18 @@ does not.
 
 | Req | How to verify |
 |---|---|
-| R1 | With `LLM_PROVIDER=anthropic`, a key and both models in `.env`, `make dev`, send a message: the message reaches `completed` with a reply in the language asked, and the chat gets a title. A unit test over a fake `HttpClient` shows the reply request names the reply model and the title request the title model |
-| R2 | With `LLM_PROVIDER=stub` and no key, `make dev`, send a message: the message reaches `completed` with the stub's text, and the chat gets the stub's title |
+| R1 | With `LLM_PROVIDER=anthropic`, a key and both models in `.env`, `make dev`, send a message: the message reaches `done` with a reply in the language asked, and the chat gets a title. A unit test over a fake `HttpClient` shows the reply request names the reply model and the title request the title model |
+| R2 | With `LLM_PROVIDER=stub` and no key, `make dev`, send a message: the message reaches `done` with the stub's text, and the chat gets the stub's title |
 | R3 | `LLM_PROVIDER` unset, then `anthropic` without the key: the worker exits at startup, each time with an error naming the setting |
 | R4 | `make test` passes with no key in the environment and the network disabled for the provider host |
-| R5 | A unit test on a fake model records the stages written: `preparing`, `generating`, then one `completed` write carrying the text; no write in between |
+| R5 | A unit test on a fake model records the stages written: `preparing`, `generating`, then one `done` write carrying the text; no write in between |
 | R6 | Unit tests: a reply with a blank text fails the schema, one with text passes. A test reads the JSON Schema sent and finds a description on the field |
 | R7 | — (dropped) |
 | R8 | A unit test on a fake model reads the prompt: the system message first, user turns with their text and files, assistant turns as their text, failed and active messages absent |
 | R9 | Review of the system prompt in the `/ticket-verify` pass: role and rules only; a unit test asserts it is equal across two requests of different chats |
 | R10 | A unit test over a fake `HttpClient` shows the reply request carries a top-level `cache_control` of type `ephemeral` without a `ttl` |
 | R11 | A unit test over a fake `HttpClient` shows `max_tokens` 16 000 on the reply request, and 1 000, the lowest effort and thinking disabled on the title request |
-| R12 | A unit test reads the stored assistant message: provider, model and hash present after `completed` and after a `failed` that followed a model call; the hash changes when the system prompt or the schema changes; an api response for the message has none of them |
+| R12 | A unit test reads the stored assistant message: provider, model and hash present after `done` and after a `failed` that followed a model call; the hash changes when the system prompt or the schema changes; an api response for the message has none of them |
 | R13 | Unit tests: the fake model fails with an authentication error, then with an invalid request: the message is `failed` with `ReplyFailed` after one attempt |
 | R14 | Unit tests under `TestClock`: a rate limit with a 5 s wait is retried no sooner than 5 s; one with a 60 s wait fails the message at once |
 | R15 | Unit tests: an overloaded provider, a reply failing the schema, and a reply cut by the output limit each consume an attempt and are retried; after the last one the message is `failed` with `ReplyFailed` |

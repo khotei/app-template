@@ -18,16 +18,15 @@ the stub:
   that is down, a killed process.
 - **A refusal is told apart from a malformed reply** by reading the response's finish reason
   through `effect/ai`'s telemetry hook, which sees every response part before the decode (D4).
-- **Nothing streams.** The `generating` stage carries no text. The snapshots, their 300 ms
-  interval and `MessageService.snapshot` go (R5), and the message is written `completed` with its
-  text in one write.
+- **Nothing streams.** The `generating` stage carries no text. The snapshots and their 300 ms
+  interval go (R5), and the message is written `done` with its text in one write.
 - **Provenance is a value of the port**, fixed when the process starts, and the use case writes
   it with the `generating` move, the moment the request is sent (D6).
 
 ```mermaid
 graph LR
   H["worker handler<br/>(attempts, dead letter)"] --> UC["GenerateAssistantMessageUseCase<br/>GenerateChatTitleUseCase"]
-  UC --> MS["MessageService · ChatService"]
+  UC --> MS["message transitions · ChatService"]
   UC --> A["Assistant port<br/>reply · suggestTitle · replyProvenance"]
   A -.implemented by.-> L["AssistantLlm<br/>prompts · schemas · retries · failure mapping"]
   L --> M["AssistantModels<br/>reply · title"]
@@ -53,7 +52,7 @@ graph LR
 + assistant.model.ts   AssistantReply (text): the port's answer
 + assistant.error.ts   AssistantRefusedError, AssistantFailedError
 ~ assistant.port.ts    streamText → reply; suggestTitle fails; + replyProvenance
-~ message.service.ts   − snapshot; generate takes the provenance
+~ chat.model.ts        − buildChatTitle and its grapheme cut: the title schema bounds the answer
 ~ index.ts             exports the two new files
 ```
 
@@ -115,7 +114,7 @@ error and leaves the chat untitled.
 export class Assistant extends Context.Service<Assistant, {
   /** Who answers replies and with which instructions; fixed for the process's life. */
   readonly replyProvenance: MessageProvenance
-  /** The next message of the chat whose completed turns are `history`, oldest first. */
+  /** The next message of the chat whose `done` turns are `history`, oldest first. */
   readonly reply: (
     history: ReadonlyArray<HistoryMessage>,
   ) => Effect.Effect<AssistantReply, AssistantRefusedError | AssistantFailedError>
@@ -157,7 +156,7 @@ The transitions after this ticket:
 |---|---|---|
 | `prepareMessage(message, at)` | `preparing` | `text`, `error`; keeps `provenance`, so a failure before the next request still names the model that was last asked |
 | `generateMessage(message, { provenance, at })` | `generating`, `provenance` | — |
-| `completeMessage(message, { text, at })` | `completed`, `text` | `error` (unchanged) |
+| `completeMessage(message, { text, at })` | `done`, `text` | `error` (unchanged) |
 | `failMessage(message, { reason, cause, at })` | `failed`, `error` | — |
 
 **The reply schema the model sees** (`assistant.llm.ts`): the domain's `AssistantReply` field
@@ -169,8 +168,15 @@ more row here and in `AssistantReply`:
 const ReplyAnswer = Schema.Struct({
   text: AssistantReply.fields.text.annotate({ description: '…' }),
 })
-const TitleAnswer = Schema.Struct({ title: ChatTitle.annotate({ description: '…' }) })
+const TitleAnswer = Schema.Struct({
+  title: Schema.Trim.pipe(Schema.decodeTo(ChatTitle)).annotate({ description: '…' }),
+})
 ```
+
+`ChatTitle` checks `isTrimmed`, so the title decodes through `Schema.Trim`, as `http-api`'s
+rename payload does; a title over 120 characters fails the schema and is asked again, so
+`buildChatTitle`'s cut goes. Where the description must sit for the JSON Schema to carry it is
+checked against `repos/effect`; Seam 1's description case covers it.
 
 The adapter also exports `hashInstructions(systemPrompt, schema)`: the SHA-256, in hex, of the
 system prompt, a newline and `JSON.stringify` of the schema's JSON Schema document.
@@ -246,7 +252,7 @@ provenance jsonb          -- { provider, model, instructionsHash } or null
 | 1 `AssistantLlm` over `AssistantModels.layerAnthropic` and a fake `HttpClient` (`HttpClient.makeWith` + `HttpClientResponse.fromWeb`, under `TestClock`), `infrastructure/tests/chat/assistant.llm.test.ts` | the request body: the model per purpose (R1), the system prompt first, then the user turns with text and files and the assistant turns as their text (R8), the same system prompt for two chats (R9), `cache_control` without `ttl` (R10), `max_tokens`, effort and thinking per purpose (R11), a description on the schema's field (R6); the answer: every row of the failure mapping, the waits and the request counts (R13–R17, R19's retries) | the real Anthropic: what a refusal body looks like, latency, what a real 400 says, whether Anthropic accepts the JSON Schema |
 | 2 `hashInstructions`, the same file | the hash changes with the system prompt and with the schema (R12) | whether the hash reaches the stored message (Seam 4) |
 | 3 `AssistantLlm` over `AssistantModels.layerStub` | the stub's canned reply and title pass the same schemas (R2) | the stub's delay as a client sees it (by hand, R2's acceptance) |
-| 4 `GenerateAssistantMessageUseCase` over the memory layers, `recordAssistant` and `holdAssistantCall` | the stages written: `preparing`, `generating` with the provenance, then one `completed` with the text (R5, R12); `failed` with `ReplyRefused` or `ReplyFailed` from each port error, after one call, provenance kept (R13, R16, R17); only completed messages reach the port (R8) | how a provider failure becomes a port error (Seam 1) |
+| 4 `GenerateAssistantMessageUseCase` over the memory layers, `recordAssistant` and `holdAssistantCall` | the stages written: `preparing`, `generating` with the provenance, then one `done` with the text (R5, R12); `failed` with `ReplyRefused` or `ReplyFailed` from each port error, after one call, provenance kept, the chat `failed` with it (R13, R16, R17); only `done` messages reach the port (R8) | how a provider failure becomes a port error (Seam 1) |
 | 5 `GenerateChatTitleUseCase` over the memory layers and `recordAssistant` | a port error logs and leaves the chat untitled; the rest of `chat-core` R25 still holds (R19) | the title's schema (Seam 1) |
 | 6 `LlmConfig.layer` over `ConfigProvider.fromUnknown` | `stub` alone passes; a missing or unknown provider, or `anthropic` without its key or a model, fails naming the variable (R3) | the worker exiting (by hand, R3's acceptance) |
 | 7 `domain/tests/chat/message.model.test.ts`, `domain/tests/chat/assistant.model.test.ts` | the `AssistantReply` bound (R6); the transitions above, the `ReplyRefused` sentence | — |
@@ -287,7 +293,9 @@ change: the last attempt still settles a reply that a crash left active.
     - one error with a `kind` field — a `switch` in place of `catchTag`.
 
 - **D3 — The use cases settle every port error themselves.** `generate` writes `failed`
-  (`ReplyRefused` or `ReplyFailed`, `cause` from the error) and ends the job successfully; the
+  (`ReplyRefused` or `ReplyFailed`, `cause` from the error) through `settleFailed`, which moves
+  the chat to `failed` in the same transaction, as a crash on the last attempt does, and ends
+  the job successfully; the
   title use case logs and ends. The worker handlers keep only the last attempt and the dead
   letter, for crashes.
   - **Why:** the reason a port error maps to is a domain rule, and the number of the attempt
@@ -337,7 +345,7 @@ change: the last attempt still settles a reply that a crash left active.
   - **Why:**
     - Provider, model and instructions hash change only with configuration or code, so no answer
       needs to carry them.
-    - `generating` is the moment the request is sent, so `completed` and a `failed` after a call
+    - `generating` is the moment the request is sent, so `done` and a `failed` after a call
       keep the value, and a message failed before any call has none (R12).
     - The hash is SHA-256 from `Crypto.digest` (provided by `BunCrypto.layer`), so two versions
       of the instructions do not collide.
