@@ -2,12 +2,7 @@ import { eq, isNull } from 'drizzle-orm'
 import { DateTime, Effect, Layer, Option, Schema, UndefinedOr } from 'effect'
 import { identity } from 'effect/Function'
 
-import {
-  ChatRepository,
-  type ChatSelectManyWhere,
-  type ChatSet,
-  type ChatWhere,
-} from '@app-template/domain/chat'
+import { ChatRepository, type ChatSet, type ChatWhere } from '@app-template/domain/chat'
 
 import { ChatFromRow } from '#infrastructure/attachment/attachment.entity'
 import { ChatInsert, chats } from '#infrastructure/chat/chat.entity'
@@ -29,10 +24,11 @@ const encodeSet = buildSet<ChatSet, typeof chats>({
 })
 
 // Built on the table a query names: a relational query aliases `chats`, so a condition on the
-// `chats` constant would reference a table the query does not have.
+// `chats` constant would reference a table the query does not have. Partial, so `selectMany`'s
+// where, a subset of the fields, maps through the same columns.
 const encodeWhere = (table: typeof chats) =>
-  buildWhere<ChatWhere>({
-    id: (id) => eq(table.id, id),
+  buildWhere<Partial<ChatWhere>>({
+    id: UndefinedOr.map((id) => eq(table.id, id)),
     userId: UndefinedOr.map((userId) => eq(table.userId, userId)),
     title: UndefinedOr.map(
       Option.match({
@@ -42,9 +38,6 @@ const encodeWhere = (table: typeof chats) =>
     ),
     status: UndefinedOr.map((status) => eq(table.status, status)),
   })
-
-const encodeManyWhere = (table: typeof chats) =>
-  buildWhere<ChatSelectManyWhere>({ userId: (userId) => eq(table.userId, userId) })
 
 const decodeChats = Schema.decodeEffect(Schema.Array(ChatFromRow))
 
@@ -80,7 +73,7 @@ export const ChatRepositoryPg = Layer.effect(
         (where) =>
           db.query.chats
             .findMany({
-              where: { RAW: (table) => skipUndefined(encodeManyWhere(table)(where)) },
+              where: { RAW: (table) => skipUndefined(encodeWhere(table)(where)) },
               orderBy: { createdAt: 'desc' },
               with: withAttachments,
             })
