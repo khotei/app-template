@@ -202,7 +202,9 @@ replace one layer later.
   each user attachment as a `Prompt.FilePart` read from the store; `failed` and non-terminal
   messages are skipped. *Amended in S8a: an attachment whose bytes are missing from the store is
   left out and the message's text still goes: the bytes vanish only when the chat is deleted
-  while the job reads it, and failing the reply would only retry into the same gap.*
+  while the job reads it, and failing the reply would only retry into the same gap.* *Amended
+  in `llm-providers` S3: a fixed system prompt opens the prompt, before the messages, and the
+  model answers it as a JSON object whose `text` is the reply.*
 - **R18** — IF an attempt of the assistant-message job fails, THEN THE SYSTEM SHALL retry it on the
   queue definition's `Schedule` with the message back at `preparing`; WHEN the attempts are
   exhausted, THE SYSTEM SHALL set the message to `failed` with `error: { reason: 'ReplyFailed',

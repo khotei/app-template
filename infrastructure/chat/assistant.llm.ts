@@ -1,14 +1,4 @@
-import {
-  Array as Arr,
-  Effect,
-  Layer,
-  Option,
-  pipe,
-  Result,
-  Schema,
-  String as Str,
-  Stream,
-} from 'effect'
+import { Array as Arr, Effect, Layer, Option, pipe, Schema, String as Str } from 'effect'
 import { Prompt } from 'effect/ai'
 
 import {
@@ -34,15 +24,32 @@ const toFilePart = ({ attachment, bytes }: AttachmentBytes): Prompt.FilePartEnco
 const toTextParts = (text: string): ReadonlyArray<Prompt.TextPartEncoded> =>
   Str.isNonEmpty(text) ? [{ type: 'text', text }] : []
 
-const buildChatPrompt = (history: ReadonlyArray<HistoryMessage>): Prompt.Prompt =>
-  Prompt.make(
-    Arr.map(history, ({ message, attachments }) => ({
-      role: message.author,
-      content: pipe(toTextParts(message.text), Arr.appendAll(Arr.map(attachments, toFilePart))),
-    })),
-  )
+// Fixed for every request: a date or user data here would break the cached prefix.
+const systemPrompt = [
+  'You are the assistant of a chat app. Answer the last user message, using the whole conversation and every attached file as context.',
+  'Reply in the language of the last user message.',
+  'Be accurate and direct. When you do not know something or cannot help, say so plainly instead of guessing.',
+].join('\n')
 
-const decodeReply = Schema.decodeEffect(AssistantReply)
+// On the key: `annotate` would land on the field's check, which the JSON Schema leaves out.
+const ReplyAnswer = Schema.Struct({
+  text: AssistantReply.fields.text.annotateKey({
+    description: 'The reply the user reads, as plain text.',
+  }),
+})
+
+const toMessage = ({ message, attachments }: HistoryMessage): Prompt.MessageEncoded => ({
+  role: message.author,
+  content: pipe(toTextParts(message.text), Arr.appendAll(Arr.map(attachments, toFilePart))),
+})
+
+const buildChatPrompt = (history: ReadonlyArray<HistoryMessage>): Prompt.Prompt =>
+  pipe(
+    history,
+    Arr.map(toMessage),
+    Arr.prepend<Prompt.MessageEncoded>({ role: 'system', content: systemPrompt }),
+    Prompt.make,
+  )
 
 const titleInstruction =
   `Write a title of at most ${maxTitleLength} characters for a chat that opens with the next message. Answer with the title alone.` as const
@@ -58,13 +65,11 @@ export const AssistantLlm: Layer.Layer<Assistant, never, AssistantModels> = Laye
   AssistantModels.useSync((models) =>
     Assistant.of({
       reply: Effect.fn('Assistant.reply')(function* (history) {
-        const text = yield* models.reply.streamText({ prompt: buildChatPrompt(history) }).pipe(
-          Stream.filterMap((part) =>
-            part.type === 'text-delta' ? Result.succeed(part.delta) : Result.fail(part),
-          ),
-          Stream.mkString,
-        )
-        return yield* decodeReply({ text })
+        const response = yield* models.reply.generateObject({
+          prompt: buildChatPrompt(history),
+          schema: ReplyAnswer,
+        })
+        return new AssistantReply(response.value)
       }, Effect.orDie),
       suggestTitle: Effect.fn('Assistant.suggestTitle')(function* (text) {
         if (isBlank(text)) return Option.none()

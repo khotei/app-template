@@ -1,7 +1,7 @@
 import { AnthropicClient, AnthropicLanguageModel } from '@effect/ai-anthropic'
-import { type Config, Context, Effect, Layer, Match } from 'effect'
+import { type Config, Context, Duration, Effect, Layer, Match } from 'effect'
 import type { LanguageModel } from 'effect/ai'
-import type { HttpClient } from 'effect/http'
+import { FetchHttpClient, HttpClient } from 'effect/http'
 
 import { LlmConfig } from '@app-template/config'
 import { createLanguageModelStub } from '@app-template/llm'
@@ -11,9 +11,19 @@ type AnthropicOptions = Extract<LlmConfig['Service'], { readonly provider: 'anth
 // Long enough that a polling client sees the message `generating` before it completes.
 const stubDelay = '1 second' as const
 
-const stubReply = 'This is the development stub answering the whole reply at once.' as const
+const stubReply = JSON.stringify({
+  text: 'This is the development stub answering the whole reply at once.',
+})
 
 const stubTitle = 'Stub chat title' as const
+
+// Bun's `fetch` cuts a request that receives nothing for 360 s, and an answer of 16 000 tokens
+// arrives whole only at the end, so the idle limit is raised to 10 minutes, Anthropic SDK's own.
+const answerIdleLimit: BunFetchRequestInit = { timeout: Duration.toMillis(Duration.minutes(10)) }
+
+const waitForAnswer = HttpClient.transformResponse(
+  Effect.provideService(FetchHttpClient.RequestInit, answerIdleLimit),
+)
 
 export class AssistantModels extends Context.Service<
   AssistantModels,
@@ -30,10 +40,20 @@ export class AssistantModels extends Context.Service<
     Layer.effect(
       this,
       Effect.all({
-        reply: AnthropicLanguageModel.make({ model: replyModel }),
-        title: AnthropicLanguageModel.make({ model: titleModel }),
+        reply: AnthropicLanguageModel.make({
+          model: replyModel,
+          config: { max_tokens: 16_000, cache_control: { type: 'ephemeral' } },
+        }),
+        title: AnthropicLanguageModel.make({
+          model: titleModel,
+          config: {
+            max_tokens: 1_000,
+            output_config: { effort: 'low' },
+            thinking: { type: 'disabled' },
+          },
+        }),
       }),
-    ).pipe(Layer.provide(AnthropicClient.layer({ apiKey })))
+    ).pipe(Layer.provide(AnthropicClient.layer({ apiKey, transformClient: waitForAnswer })))
 
   static readonly layerStub: Layer.Layer<AssistantModels> = Layer.effect(
     this,

@@ -166,17 +166,18 @@ more row here and in `AssistantReply`:
 
 ```ts
 const ReplyAnswer = Schema.Struct({
-  text: AssistantReply.fields.text.annotate({ description: '…' }),
+  text: AssistantReply.fields.text.annotateKey({ description: '…' }),
 })
 const TitleAnswer = Schema.Struct({
-  title: Schema.Trim.pipe(Schema.decodeTo(ChatTitle)).annotate({ description: '…' }),
+  title: Schema.Trim.pipe(Schema.decodeTo(ChatTitle)).annotateKey({ description: '…' }),
 })
 ```
 
 `ChatTitle` checks `isTrimmed`, so the title decodes through `Schema.Trim`, as `http-api`'s
 rename payload does; a title over 120 characters fails the schema and is asked again, so
-`buildChatTitle`'s cut goes. Where the description must sit for the JSON Schema to carry it is
-checked against `repos/effect`; Seam 1's description case covers it.
+`buildChatTitle`'s cut goes. The description sits on the key: on a checked schema, `annotate`
+lands on the check, which the JSON Schema leaves out (S3: `{"type":"string"}` with no
+description); Seam 1's description case covers it.
 
 The adapter also exports `hashInstructions(systemPrompt, schema)`: the SHA-256, in hex, of the
 system prompt, a newline and `JSON.stringify` of the schema's JSON Schema document.
@@ -249,7 +250,7 @@ provenance jsonb          -- { provider, model, instructionsHash } or null
 
 | Seam | Catches | Misses |
 |---|---|---|
-| 1 `AssistantLlm` over `AssistantModels.layerAnthropic` and a fake `HttpClient` (`HttpClient.makeWith` + `HttpClientResponse.fromWeb`, under `TestClock`), `infrastructure/tests/chat/assistant.llm.test.ts` | the request body: the model per purpose (R1), the system prompt first, then the user turns with text and files and the assistant turns as their text (R8), the same system prompt for two chats (R9), `cache_control` without `ttl` (R10), `max_tokens`, effort and thinking per purpose (R11), a description on the schema's field (R6); the answer: every row of the failure mapping, the waits and the request counts (R13–R17, R19's retries) | the real Anthropic: what a refusal body looks like, latency, what a real 400 says, whether Anthropic accepts the JSON Schema |
+| 1 `AssistantLlm` over `AssistantModels.layerAnthropic` and a fake `HttpClient` (`HttpClient.make` + `HttpClientResponse.fromWeb`, under `TestClock`), `infrastructure/tests/chat/assistant.llm.test.ts` | the request body: the model per purpose (R1), the system prompt first, then the user turns with text and files and the assistant turns as their text (R8), the same system prompt for two chats (R9), `cache_control` without `ttl` (R10), `max_tokens`, effort and thinking per purpose (R11), a description on the schema's field (R6); the answer: every row of the failure mapping, the waits and the request counts (R13–R17, R19's retries) | the real Anthropic: what a refusal body looks like, latency, what a real 400 says, whether Anthropic accepts the JSON Schema |
 | 2 `hashInstructions`, the same file | the hash changes with the system prompt and with the schema (R12) | whether the hash reaches the stored message (Seam 4) |
 | 3 `AssistantLlm` over `AssistantModels.layerStub` | the stub's canned reply and title pass the same schemas (R2) | the stub's delay as a client sees it (by hand, R2's acceptance) |
 | 4 `GenerateAssistantMessageUseCase` over the memory layers, `recordAssistant` and `holdAssistantCall` | the stages written: `preparing`, `generating` with the provenance, then one `done` with the text (R5, R12); `failed` with `ReplyRefused` or `ReplyFailed` from each port error, after one call, provenance kept, the chat `failed` with it (R13, R16, R17); only `done` messages reach the port (R8) | how a provider failure becomes a port error (Seam 1) |
@@ -375,6 +376,19 @@ change: the last attempt still settles a reply that a crash left active.
     - three nullable columns — they need an all-or-none check, and three columns decoded into
       one `Option`.
 
+- **D9 — Anthropic's requests wait up to 10 minutes for a byte; the bound sits on
+  `AnthropicClient`.** Bun's `fetch` cuts a request that receives nothing for 360 s (V1,
+  `TimeoutError`), and a non-streamed answer of 16 000 tokens arrives whole at the end.
+  `AnthropicClient.layer`'s `transformClient` provides `FetchHttpClient.RequestInit` with
+  `timeout`, Bun's idle limit, set to Anthropic SDK's own 10 minutes.
+  - **Why:** the bound serves the reply's `max_tokens`, so it sits beside it and reaches only
+    the provider's requests.
+  - **Cost accepted:** it replaces, not merges, any `RequestInit` a process provides; none does.
+  - **Reversal:** one commit.
+  - **Rejected:**
+    - a timeout on `FetchHttpClient` in `apps/worker` — far from the bound it serves, and every
+      other request of the worker would get it.
+
 ## Risks
 
 - **An `effect/ai` upgrade moves the span transformer after the decode, or drops it.** A refusal
@@ -382,7 +396,8 @@ change: the last attempt still settles a reply that a crash left active.
   `HttpClient`, fails on the upgrade.
 - **A long reply runs into an HTTP timeout.** A non-streamed request for up to 16 000 tokens can
   take minutes. If Bun's `fetch` or something in between cuts it, a retryable transport error
-  spends every request and pays for each. *Contained by:* V1, and R1's acceptance run by hand.
+  spends every request and pays for each. *Contained by:* D9 (V1: Bun cuts at 360 s), and R1's
+  acceptance run by hand.
 - **The fake `HttpClient`'s canned response drifts from what the package parses.** Seam 1 would
   test a shape Anthropic never sends. *Contained by:* the canned bodies copy the package's own
   tests (`AnthropicLanguageModel.test.ts`), and R1's run by hand checks the real one.

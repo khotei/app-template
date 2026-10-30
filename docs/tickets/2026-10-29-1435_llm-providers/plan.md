@@ -8,7 +8,7 @@
 |---|---|---|
 | S1 | the reply is written once, whole; no snapshots | done |
 | S2 | Anthropic or the stub, chosen by `LLM_PROVIDER`; a model per purpose | done |
-| S3 | the reply as a structured response with a fixed system prompt; per-purpose request settings | todo |
+| S3 | the reply as a structured response with a fixed system prompt; per-purpose request settings | done |
 | S4 | the port's two final errors, settled by the use cases | todo |
 | S5 | reply failures told apart, retried in place, a refusal kept apart | todo |
 | S6 | the title as a structured response with its own retries | todo |
@@ -28,7 +28,7 @@
   `docs/tickets/2026-10-17-1748_chat-core/feature.md` in the same commit, in that file's form
   with the ticket named, since `chat-core` has steps of its own: *Amended in `llm-providers`
   S<n>: <what changed>.* R16 in S1, R17 in S3, R18 in S5, R25 in S6.
-- Every request to Anthropic in a test goes through a fake `HttpClient` (`HttpClient.makeWith` +
+- Every request to Anthropic in a test goes through a fake `HttpClient` (`HttpClient.make` +
   `HttpClientResponse.fromWeb`); the canned bodies copy
   `repos/effect/packages/ai/anthropic/test/AnthropicLanguageModel.test.ts`. No test reads `.env`
   or reaches the network (R4).
@@ -189,7 +189,25 @@
   for minutes, and with which error; if it does, `FetchHttpClient` gets an explicit timeout above
   the reply's worst case, recorded in the findings.
 - **Model:** fable high
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Ran on `opus high`, not `fable high`: the user's choice.
+  - The field's description is set by `annotateKey`: `annotate` lands on the field's check,
+    which the JSON Schema leaves out, so the model read `{"type":"string"}` alone.
+  - V1: Bun 1.4.4's `fetch` cuts a request that receives nothing for 360 s with
+    `TimeoutError: The operation timed out.`; with `timeout: false` it answered at 420 s, and so
+    did `AnthropicClient` over `FetchHttpClient.layer` with the new bound. The bound is 10
+    minutes on Anthropic's requests only (D9), not on `FetchHttpClient` as V1 proposed.
+  - V2: the canned response already is the minimum: dropping any field `BetaMessage` requires,
+    `usage`'s nullable ones included, fails the decode; only `inference_geo` is optional.
+  - The fake `HttpClient` is `HttpClient.make`, not `makeWith`: it hands over the request
+    whole and fixes the error type, so no cast is needed.
+  - The expected request bodies carry `cache_control: null` on each system and user block: the
+    package writes it, and it is what reaches Anthropic.
+  - The system-prompt case asserts the prompt non-empty and equal for two chats, not its text,
+    which would copy the prompt into the test.
+  - The title prompt's case (instruction and opening message) stays, though *Test first* did
+    not name it: it is existing behaviour, uncovered until S6 otherwise.
 
 #### S4 — The port's final errors, settled by the use cases
 
@@ -266,7 +284,7 @@
 - **Files:**
   - `infrastructure/chat/assistant.llm.ts` (`TitleAnswer`: `Schema.Trim` decoded to `ChatTitle`,
     as `http-api`'s rename payload does, since `ChatTitle` checks `isTrimmed`, with the field's
-    `description`; `suggestTitle` by `generateObject` on `models.title`, with S5's
+    `description` by `annotateKey`, as S3 found; `suggestTitle` by `generateObject` on `models.title`, with S5's
     mapping and the title schedule; − the free-text instruction and the cut);
   - `infrastructure/chat/assistant.client.ts` (`layerStub`'s title text is
     `{"title": …}`);
