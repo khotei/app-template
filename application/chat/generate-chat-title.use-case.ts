@@ -1,6 +1,12 @@
 import { Context, Effect, Layer, Option } from 'effect'
 
-import { Assistant, ChatService, MessageRepository } from '@app-template/domain/chat'
+import {
+  Assistant,
+  type AssistantFailedError,
+  type AssistantRefusedError,
+  ChatService,
+  MessageRepository,
+} from '@app-template/domain/chat'
 import type { GenerateChatTitle } from '@app-template/infrastructure/chat'
 
 type TitleSkip = 'chatDeleted' | 'deletedOrTitled' | 'nothingToTitle'
@@ -11,10 +17,18 @@ const titleSkipLogs = {
   nothingToTitle: Effect.logInfo('chat title skipped: nothing to title'),
 } as const satisfies Record<TitleSkip, Effect.Effect<void>>
 
+const logAssistantFailure = (error: AssistantRefusedError | AssistantFailedError) =>
+  Effect.logWarning('chat title skipped: the assistant failed').pipe(
+    Effect.annotateLogs({ error: error._tag, cause: error.cause }),
+  )
+
 export class GenerateChatTitleUseCase extends Context.Service<
   GenerateChatTitleUseCase,
   {
-    /** Titles the chat its first message opened; a chat gone or titled meanwhile is logged and skipped. */
+    /**
+     * Titles the chat its first message opened; a chat gone or titled meanwhile, or an
+     * assistant error, is logged and skipped.
+     */
     readonly generate: (job: GenerateChatTitle) => Effect.Effect<void>
   }
 >()('@app-template/application/chat/GenerateChatTitleUseCase', {
@@ -37,7 +51,7 @@ export class GenerateChatTitleUseCase extends Context.Service<
       yield* chatService
         .rename({ id: job.chatId, title: Option.none() }, title.value)
         .pipe(Effect.catchTag('ChatNotFoundError', () => titleSkipLogs.deletedOrTitled))
-    })
+    }, Effect.catch(logAssistantFailure))
 
     return { generate }
   }),

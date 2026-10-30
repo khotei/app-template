@@ -25,7 +25,7 @@ export const MessageAuthor = Schema.Literals(['user', 'assistant'])
 export type MessageAuthor = typeof MessageAuthor.Type
 
 export class MessageFailure extends Schema.Class<MessageFailure>('MessageFailure')({
-  reason: Schema.Literal('ReplyFailed'),
+  reason: Schema.Literals(['ReplyFailed', 'ReplyRefused']),
   /** A user-facing sentence fixed per reason; it never quotes the cause. */
   message: Schema.String,
   /** Diagnostic detail for operators; it never leaves the api. */
@@ -155,6 +155,7 @@ export const completeMessage = Effect.fn('completeMessage')(
 
 const failureMessages = {
   ReplyFailed: 'The assistant could not reply. Please try again.',
+  ReplyRefused: 'The assistant declined to answer this message.',
 } as const satisfies Record<MessageFailure['reason'], string>
 
 /** Why a reply failed and when; the user-facing text comes from `failureMessages`. */

@@ -32,6 +32,9 @@ paths:
 - Not-found from a port is a value (`Option`, or an id left out of an array); its reader turns it
   into the domain's `*NotFoundError`.
 - A port declares no error channel: its adapter turns a client's failure or a stored value that
-  no longer decodes into a defect, since every caller handles both alike.
+  no longer decodes into a defect, since every caller handles both alike. The exception is a port
+  whose failures are outcomes a use case settles, each its own way (an external service that
+  declines or gives up): it declares one final `<Entity><Problem>Error` per outcome, its adapter
+  retries before raising one, and every other failure stays a defect.
 - A user-facing sentence per failure reason lives in one table keyed by the reason; the cause stays
   in a separate field that never reaches the user.

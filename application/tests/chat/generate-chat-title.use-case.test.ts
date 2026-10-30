@@ -2,7 +2,13 @@ import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Fiber, Layer, Option } from 'effect'
 
-import { Chat, ChatRepository, ChatTitle } from '@app-template/domain/chat'
+import {
+  AssistantFailedError,
+  AssistantRefusedError,
+  Chat,
+  ChatRepository,
+  ChatTitle,
+} from '@app-template/domain/chat'
 import {
   type AssistantCallHold,
   chat,
@@ -104,6 +110,24 @@ describe('GenerateChatTitleUseCase', () => {
 
       assertEquals(yield* selectChat(chatId), Option.some(chat))
       assert.deepStrictEqual(logs, [['Info', 'chat title skipped: nothing to title']])
+    }).pipe(Effect.provide([ChatTitleTest.pipe(Layer.provide(assistant.layer)), logger]))
+  })
+
+  it.effect.each([
+    { error: new AssistantRefusedError({ cause: 'stop_reason refusal' }) },
+    { error: new AssistantFailedError({ cause: '529 overloaded' }) },
+  ])('leaves the chat untitled and logs the $error._tag', ({ error }) => {
+    const assistant = recordAssistant({ suggestTitle: Effect.fail(error) })
+    const { logs, layer: logger } = recordLogs('error', 'cause')
+    return Effect.gen(function* () {
+      yield* insertMessage(firstMessage)
+
+      yield* generate
+
+      assertEquals(yield* selectChat(chatId), Option.some(chat))
+      assert.deepStrictEqual(logs, [
+        ['Warn', 'chat title skipped: the assistant failed', error._tag, error.cause],
+      ])
     }).pipe(Effect.provide([ChatTitleTest.pipe(Layer.provide(assistant.layer)), logger]))
   })
 

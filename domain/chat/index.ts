@@ -1,3 +1,4 @@
+export * from '#domain/chat/assistant.error'
 export * from '#domain/chat/assistant.model'
 export * from '#domain/chat/assistant.port'
 export * from '#domain/chat/chat.error'

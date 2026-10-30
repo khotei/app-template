@@ -30,8 +30,8 @@ _Avoid_: Prompt, reply, completion, turn
 **Message status**:
 Where an assistant message is in its life, its subset of `Status`: `queued` (the chat has asked
 for it), `preparing` (the assistant is reading the chat), `generating` (the assistant is writing;
-the text appears whole when it is done), `done`, or `failed` (the assistant gave up; the message
-carries a reason). The last two are terminal.
+the text appears whole when it is done), `done`, or `failed` (the assistant gave up or declined; the
+message carries a reason). The last two are terminal.
 _Avoid_: Stage, state, completed, in-progress, pending, streaming
 
 **Active message**:

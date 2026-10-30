@@ -6,6 +6,7 @@ import {
   ChatBusyError,
   ChatNotFoundError,
   failMessage,
+  type MessageFailure,
   type MessageId,
   MessageNotFoundError,
   MessageRepository,
@@ -21,14 +22,14 @@ const hello = { text: 'Hello', attachmentIds: [] }
 /** Registers the jar's user and opens an empty chat of theirs. */
 const openChat = ApiClient.use((api) => api.users.ensure().pipe(Effect.andThen(api.chats.create())))
 
-/** Settles a reply as the worker does once its attempts are exhausted. */
-const failReply = (id: MessageId) =>
+/** Settles a reply as the worker does once the assistant answers an error. */
+const failReply = (id: MessageId, reason: MessageFailure['reason']) =>
   Effect.gen(function* () {
     const messages = yield* MessageRepository
     const reply = yield* messages.selectOne({ id }).pipe(Effect.flatMap(Effect.fromOption))
     yield* messages.update(
       yield* failMessage(reply, {
-        reason: 'ReplyFailed',
+        reason,
         cause: 'the provider timed out',
         at: reply.updatedAt,
       }),
@@ -148,28 +149,27 @@ describe('chats', () => {
     }).pipe(Effect.provide(ApiTest)),
   )
 
-  it.effect('a failed reply carries its reason and message on the wire, never its cause', () =>
-    Effect.gen(function* () {
-      const api = yield* ApiClient
-      const http = yield* HttpClient.HttpClient
-      const chat = yield* openChat
-      const { assistantMessage } = yield* api.chats.send({
-        params: { chatId: chat.id },
-        payload: hello,
-      })
-      yield* failReply(assistantMessage.id)
+  it.effect.each([
+    { reason: 'ReplyFailed', message: 'The assistant could not reply. Please try again.' },
+    { reason: 'ReplyRefused', message: 'The assistant declined to answer this message.' },
+  ] as const)(
+    'a $reason reply carries its reason and message on the wire, never its cause',
+    (error) =>
+      Effect.gen(function* () {
+        const api = yield* ApiClient
+        const http = yield* HttpClient.HttpClient
+        const chat = yield* openChat
+        const { assistantMessage } = yield* api.chats.send({
+          params: { chatId: chat.id },
+          payload: hello,
+        })
+        yield* failReply(assistantMessage.id, error.reason)
 
-      const wire = yield* http
-        .get(`/chats/${chat.id}/messages/${assistantMessage.id}`)
-        .pipe(Effect.flatMap((response) => response.json))
+        const wire = yield* http
+          .get(`/chats/${chat.id}/messages/${assistantMessage.id}`)
+          .pipe(Effect.flatMap((response) => response.json))
 
-      assert.deepInclude(wire, {
-        status: 'failed',
-        error: {
-          reason: 'ReplyFailed',
-          message: 'The assistant could not reply. Please try again.',
-        },
-      })
-    }).pipe(Effect.provide(ApiTest)),
+        assert.deepInclude(wire, { status: 'failed', error })
+      }).pipe(Effect.provide(ApiTest)),
   )
 })

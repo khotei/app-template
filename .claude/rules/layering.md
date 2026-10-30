@@ -11,8 +11,8 @@ Where a flow lives. Words: `docs/knowledge/glossary.md › Architecture language
 
 ## Ports and domain services
 
-- **A port speaks the domain's words,** never a client's type or error; its adapter turns a
-  failure into a defect (`effect-schema.md`).
+- **A port speaks the domain's words,** never a client's type or error; which failures it
+  declares: [effect-schema.md › Failures](effect-schema.md#failures).
 - **A domain service holds the rules that need a port:** a check over stored rows, a refusal
   named after a read; a bare not-found stays in the handler that reads it; an entity whose rules
   are all pure model functions has none.

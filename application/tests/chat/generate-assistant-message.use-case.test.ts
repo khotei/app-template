@@ -14,6 +14,8 @@ import {
   MediaType,
 } from '@app-template/domain/attachment'
 import {
+  AssistantFailedError,
+  AssistantRefusedError,
   AssistantReply,
   buildAssistantMessage,
   Chat,
@@ -164,6 +166,39 @@ describe('GenerateAssistantMessageUseCase', () => {
       )
     }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
   })
+
+  it.effect.each([
+    {
+      error: new AssistantRefusedError({ cause: 'stop_reason refusal' }),
+      reason: 'ReplyRefused',
+    },
+    { error: new AssistantFailedError({ cause: '401 invalid x-api-key' }), reason: 'ReplyFailed' },
+  ] as const)(
+    "generate fails the reply with $reason and the error's cause after one call, and fails the chat",
+    ({ error, reason }) => {
+      const assistant = recordAssistant({ reply: Effect.fail(error) })
+      return Effect.gen(function* () {
+        yield* insertMessages([queuedReply])
+
+        yield* generate
+
+        const settled = Option.getOrThrow(yield* selectMessage(messageId))
+        assert.deepStrictEqual(
+          {
+            status: settled.status,
+            text: settled.text,
+            error: settled.error.pipe(Option.map(({ reason, cause }) => ({ reason, cause }))),
+          },
+          { status: 'failed', text: '', error: Option.some({ reason, cause: error.cause }) },
+        )
+        assert.strictEqual((yield* assistant.calls).length, 1)
+        assertEquals(
+          yield* selectChat(chatId),
+          Option.some(new Chat({ ...chat, status: 'failed' })),
+        )
+      }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
+    },
+  )
 
   it.effect(
     'generate prompts with every completed message in order and the bytes of its attachments',

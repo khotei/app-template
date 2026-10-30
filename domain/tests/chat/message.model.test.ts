@@ -187,6 +187,20 @@ describe('failMessage', () => {
       }),
   )
 
+  it.effect.each([
+    { reason: 'ReplyFailed', sentence: 'The assistant could not reply. Please try again.' },
+    { reason: 'ReplyRefused', sentence: 'The assistant declined to answer this message.' },
+  ] as const)('gives $reason a sentence of its own', ({ reason, sentence }) =>
+    Effect.gen(function* () {
+      const failed = yield* failMessage(assistantAt('generating'), { reason, cause, at: later })
+
+      assert.deepStrictEqual(
+        failed.error.pipe(Option.map((error) => [error.reason, error.message])),
+        Option.some([reason, sentence]),
+      )
+    }),
+  )
+
   it.effect.each(inactiveMessages)('fails MessageStatusInvalidError for %s', ([, message]) =>
     expectStageInvalid(
       failMessage(message, { reason: 'ReplyFailed', cause, at: later }),

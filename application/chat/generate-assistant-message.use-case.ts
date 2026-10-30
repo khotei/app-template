@@ -3,6 +3,9 @@ import { Array as Arr, Cause, Context, Data, DateTime, Effect, Layer, Option } f
 import { type Attachment, AttachmentBucket } from '@app-template/domain/attachment'
 import {
   Assistant,
+  type AssistantFailedError,
+  type AssistantRefusedError,
+  type AssistantReply,
   type ChatId,
   ChatRepository,
   type ChatStatusInvalidError,
@@ -14,6 +17,7 @@ import {
   idleChat,
   isActiveMessage,
   type Message,
+  type MessageFailure,
   type MessageId,
   MessageRepository,
   type MessageStatusInvalidError,
@@ -30,12 +34,23 @@ const replySkipLogs = {
   alreadySettled: Effect.logInfo('assistant reply skipped: already settled'),
 } as const satisfies Record<ReplySkip, Effect.Effect<void>>
 
+const replyFailureReasons = {
+  AssistantRefusedError: 'ReplyRefused',
+  AssistantFailedError: 'ReplyFailed',
+} as const satisfies Record<
+  (AssistantRefusedError | AssistantFailedError)['_tag'],
+  MessageFailure['reason']
+>
+
 class ReplySkipped extends Data.TaggedError('ReplySkipped')<{ readonly why: ReplySkip }> {}
 
 export class GenerateAssistantMessageUseCase extends Context.Service<
   GenerateAssistantMessageUseCase,
   {
-    /** Prepares, generates and completes the message with the reply; a settled message is skipped. */
+    /**
+     * Prepares, generates and completes the message with the reply, or fails it and its chat
+     * with the reason the assistant's error maps to; a settled message is skipped.
+     */
     readonly generate: (
       job: GenerateAssistantMessage,
     ) => Effect.Effect<void, MessageStatusInvalidError | ChatStatusInvalidError>
@@ -82,9 +97,23 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
         return settled
       }, transaction.run)
 
-    const settleCompleted = settleWith(idleChat)
+    const settleCompleted = Effect.fnUntraced(function* (
+      generating: Message,
+      { text }: AssistantReply,
+    ) {
+      const completedAt = yield* DateTime.now
+      const completed = yield* completeMessage(generating, { text, at: completedAt })
+      return yield* settleWith(idleChat)(completed, { status: generating.status })
+    })
 
-    const settleFailed = settleWith(failChat)
+    const settleFailed = Effect.fnUntraced(function* (
+      active: Message,
+      { reason, cause }: Pick<MessageFailure, 'reason' | 'cause'>,
+    ) {
+      const failedAt = yield* DateTime.now
+      const failed = yield* failMessage(active, { reason, cause, at: failedAt })
+      return yield* settleWith(failChat)(failed, { status: active.status })
+    })
 
     const reply = Effect.fnUntraced(function* (taken: Message) {
       const preparedAt = yield* DateTime.now
@@ -96,10 +125,16 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
       const generating = yield* generateMessage(prepared, generatingAt)
       yield* messages.update(generating, { status: prepared.status })
 
-      const { text } = yield* assistant.reply(history)
-      const completedAt = yield* DateTime.now
-      const completed = yield* completeMessage(generating, { text, at: completedAt })
-      yield* settleCompleted(completed, { status: generating.status })
+      yield* assistant.reply(history).pipe(
+        Effect.matchEffect({
+          onSuccess: (answer) => settleCompleted(generating, answer),
+          onFailure: (error) =>
+            settleFailed(generating, {
+              reason: replyFailureReasons[error._tag],
+              cause: error.cause,
+            }),
+        }),
+      )
     })
 
     // The cascade takes the message with its chat, so a missing one means a deleted chat.
@@ -117,13 +152,10 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
     const fail = Effect.fn('GenerateAssistantMessageUseCase.fail')(
       function* (messageId: MessageId, cause: Cause.Cause<unknown>) {
         const active = yield* selectActive(messageId)
-        const failedAt = yield* DateTime.now
-        const failed = yield* failMessage(active, {
+        return yield* settleFailed(active, {
           reason: 'ReplyFailed',
           cause: Cause.pretty(cause),
-          at: failedAt,
-        })
-        return yield* settleFailed(failed, { status: active.status }).pipe(Effect.asSome)
+        }).pipe(Effect.asSome)
       },
       Effect.catchTag('ReplySkipped', ({ why }) =>
         replySkipLogs[why].pipe(Effect.as(Option.none<Message>())),
