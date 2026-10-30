@@ -3,7 +3,7 @@ import { Context, Effect, HashMap, Layer, Option, Predicate, pipe, Ref } from 'e
 import { matches } from '#domain/testing/rows.test-util'
 import type { UserId } from '#domain/user/user.id'
 import type { Credential, User } from '#domain/user/user.model'
-import { type UserOneWhere, UserRepository } from '#domain/user/user.port'
+import { UserRepository, type UserWhere } from '#domain/user/user.port'
 
 /** A user with the credential it was inserted with. */
 export interface UserRow {
@@ -19,7 +19,7 @@ export class UserRows extends Context.Service<
   static readonly layer = Layer.effect(this, Ref.make(HashMap.empty<UserId, UserRow>()))
 }
 
-const holdsWhere = (where: UserOneWhere): Predicate.Predicate<UserRow> =>
+const holdsWhere = (where: UserWhere): Predicate.Predicate<UserRow> =>
   Predicate.and(
     pipe(
       matches<User>({ id: where.id }),

@@ -20,7 +20,7 @@ import type { ChatId, MessageId } from '#domain/chat/chat.id'
 import { Chat } from '#domain/chat/chat.model'
 import { ChatRepository, type ChatWhere } from '#domain/chat/chat.port'
 import { isActiveMessage, Message } from '#domain/chat/message.model'
-import { MessageRepository, type MessageSelectWhere } from '#domain/chat/message.port'
+import { MessageRepository, type MessageWhere } from '#domain/chat/message.port'
 import { AttachmentRows } from '#domain/testing/attachment.test-fake'
 import { matches, matchesAny, orDieOnNoRows, updateRow } from '#domain/testing/rows.test-util'
 import type { UserId } from '#domain/user/user.id'
@@ -114,7 +114,7 @@ const isOwnedThroughChat = (
       HashMap.get(chats, message.chatId).pipe(Option.exists(matches<Chat>({ userId: owner }))),
   })
 
-const holdsWhere = (tables: Tables, where: MessageSelectWhere) =>
+const holdsWhere = (tables: Tables, where: MessageWhere) =>
   Predicate.and(
     matches<Message>({ id: where.id, chatId: where.chatId }),
     Predicate.and(
@@ -201,7 +201,7 @@ export const MessageRepositoryTest = Layer.effect(
     const messages = yield* MessageRows
     const readTables = yield* createReadTables
 
-    const selectMany = (where: MessageSelectWhere) =>
+    const selectMany = (where: MessageWhere) =>
       readTables.pipe(
         Effect.map((tables) =>
           pipe(

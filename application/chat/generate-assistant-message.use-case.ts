@@ -17,7 +17,7 @@ import {
   type MessageId,
   MessageRepository,
   type MessageStatusInvalidError,
-  type MessageWhere,
+  type MessageUpdateWhere,
   prepareMessage,
 } from '@app-template/domain/chat'
 import type { GenerateAssistantMessage } from '@app-template/infrastructure/chat'
@@ -71,7 +71,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
 
     /** Writes the settled message with its chat's end, `freeChat` or `failChat`, in one transaction. */
     const settleWith = (end: typeof freeChat) =>
-      Effect.fnUntraced(function* (settled: Message, where: MessageWhere) {
+      Effect.fnUntraced(function* (settled: Message, where: MessageUpdateWhere) {
         yield* messages.update(settled, where)
         // The message's write held, so the foreign key still keeps its chat.
         const chat = yield* chats

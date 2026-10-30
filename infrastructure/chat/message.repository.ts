@@ -3,7 +3,7 @@ import { Array as Arr, Effect, Layer, Schema, UndefinedOr } from 'effect'
 
 import {
   MessageRepository,
-  type MessageSelectWhere,
+  type MessageUpdateWhere,
   type MessageWhere,
 } from '@app-template/domain/chat'
 
@@ -27,12 +27,12 @@ const encodeMessage = Schema.encodeEffect(MessageInsert)
 
 const decodeMessages = Schema.decodeEffect(Schema.Array(MessageFromRow))
 
-const encodeWhere = buildWhere<MessageWhere>({
+const encodeWhere = buildWhere<MessageUpdateWhere>({
   status: (status) => eq(messages.status, status),
 })
 
 /** The chat's `userId` is a filter on the relation, so another user's message reads as absent. */
-const filterOf = (where: MessageSelectWhere) =>
+const filterOf = (where: MessageWhere) =>
   ({
     id: skipUndefined(where.id),
     chatId: skipUndefined(where.chatId),

@@ -25,7 +25,7 @@ tool reads.
 |---|---|---|
 | `.id` | the aggregate's branded ids, the only value another aggregate's model imports, save a model it holds as a field it never writes; a port may `import type` another aggregate's model | domain |
 | `.model` · `.error` | `Schema.Class`es with the pure operations on them (builders, predicates, guards, transitions), split by the value they act on, never into a `.rule` · domain errors | domain |
-| `.port` | an entity's ports, `Context.Service`s with no layer, beside the values they take and answer (`<Entity>Where`) | domain |
+| `.port` | an entity's ports, `Context.Service`s with no layer, beside the values they take and answer: `<Entity>Where`, shared by every verb that filters alike, and `<Entity><Verb>Where` for the one verb whose filter differs | domain |
 | `.service` | a domain service: `<entity>.service.ts` for an entity's rules, `<operation>.service.ts` for one operation that belongs to no entity | domain |
 | `.use-case` | a flow over domain services: `<verb>-<object>.use-case.ts` | application |
 | `.handler` | api: one contract group's handlers · worker: `<object>.handler.ts`, one queue's `handle` and `handleDeadLettered` over a use case | apps |

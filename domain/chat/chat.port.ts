@@ -15,7 +15,7 @@ export type ChatWhere = Types.Simplify<
 >
 
 /** The user's chats. */
-export type ChatManyWhere = Pick<Chat, 'userId'>
+export type ChatSelectManyWhere = Pick<Chat, 'userId'>
 
 export class ChatRepository extends Context.Service<
   ChatRepository,
@@ -25,7 +25,7 @@ export class ChatRepository extends Context.Service<
     readonly update: (set: ChatSet, where: ChatWhere) => Effect.Effect<void>
     readonly selectOne: (where: ChatWhere) => Effect.Effect<Option.Option<Chat>>
     /** Rows where `where` holds, the newest created first. */
-    readonly selectMany: (where: ChatManyWhere) => Effect.Effect<ReadonlyArray<Chat>>
+    readonly selectMany: (where: ChatSelectManyWhere) => Effect.Effect<ReadonlyArray<Chat>>
     /**
      * Removes the chat `where` finds with its messages and their attachments, in one statement;
      * dies when it removes nothing.

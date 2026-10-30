@@ -3,8 +3,8 @@ import { DateTime, Effect, Layer, Option, Schema, UndefinedOr } from 'effect'
 import { identity } from 'effect/Function'
 
 import {
-  type ChatManyWhere,
   ChatRepository,
+  type ChatSelectManyWhere,
   type ChatSet,
   type ChatWhere,
 } from '@app-template/domain/chat'
@@ -44,7 +44,7 @@ const encodeWhere = (table: typeof chats) =>
   })
 
 const encodeManyWhere = (table: typeof chats) =>
-  buildWhere<ChatManyWhere>({ userId: (userId) => eq(table.userId, userId) })
+  buildWhere<ChatSelectManyWhere>({ userId: (userId) => eq(table.userId, userId) })
 
 const decodeChats = Schema.decodeEffect(Schema.Array(ChatFromRow))
 

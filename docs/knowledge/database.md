@@ -152,7 +152,7 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
   chat's status and its active message move together; a path that ends a reply anywhere else
   must move the chat too, or the chat stays `queued`.
 - **Update under a `where`.** `MessageRepository.update(message, where)` runs `WHERE id = …
-  AND <where fields>`, its `where` (`MessageWhere`, the stored status to match),
+  AND <where fields>`, its `where` (`MessageUpdateWhere`, the stored status to match),
   so a write whose expected status another writer has left, or whose message is gone, changes
   nothing and dies; the job's retry then reads the message and skips it as settled or deleted.
 - **Update of some fields under a `where`.** `ChatRepository.update(set, where)` and
