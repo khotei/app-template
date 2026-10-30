@@ -29,7 +29,7 @@ const encodeMessage = Schema.encodeEffect(MessageInsert)
 const decodeMessages = Schema.decodeEffect(Schema.Array(MessageFromRow))
 
 const encodeWhere = buildWhere<MessageWhere>({
-  stage: (stage) => eq(messages.stage, stage),
+  status: (status) => eq(messages.status, status),
 })
 
 /** The chat's `userId` is a filter on the relation, so another user's message reads as absent. */
@@ -44,7 +44,9 @@ const filterOfMany = (where: MessageManyWhere) =>
   ({
     chatId: { in: Arr.copy(where.chatId) },
     author: skipUndefined(where.author),
-    stage: skipUndefined(UndefinedOr.map(where.stage, (stages) => ({ in: Arr.copy(stages) }))),
+    status: skipUndefined(
+      UndefinedOr.map(where.status, (statuses) => ({ in: Arr.copy(statuses) })),
+    ),
   }) as const
 
 export const MessageRepositoryPg = Layer.effect(

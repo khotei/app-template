@@ -1,0 +1,130 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "8584ea8b-3a8a-4630-9454-89409a66381a",
+  "prevIds": [
+    "71d6fe95-b167-4c78-8873-20682804f7a9"
+  ],
+  "footprints": [
+    {
+      "statementType": "rename_enum",
+      "statementTarget": [
+        "enum",
+        "public",
+        "message_stage"
+      ],
+      "writes": [
+        "s|enum|public.message_stage",
+        "n|enum|public.message_stage",
+        "n|type|public.message_stage",
+        "s|enum|public.message_status",
+        "n|enum|public.message_status",
+        "n|type|public.message_status"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "rename_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "messages",
+        "stage"
+      ],
+      "writes": [
+        "s|col|public.messages.stage",
+        "n|col|public.messages.stage",
+        "s|col|public.messages.status",
+        "n|col|public.messages.status"
+      ],
+      "reads": [
+        "n|tbl|public.messages",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "recreate_enum",
+      "statementTarget": [
+        "enum",
+        "public",
+        "message_status"
+      ],
+      "writes": [
+        "s|enum|public.message_status",
+        "n|enum|public.message_status",
+        "e|enum|public.message_status",
+        "n|type|public.message_status",
+        "s|colprop|public.messages.status.type",
+        "s|colprop|public.messages.status.default"
+      ],
+      "reads": [
+        "n|sch|public",
+        "n|tbl|public.messages",
+        "n|sch|public",
+        "n|col|public.messages.status"
+      ],
+      "sqlHash": "509f330ebaa38b6b"
+    },
+    {
+      "statementType": "recreate_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "messages",
+        "messages_chat_id_active_index"
+      ],
+      "writes": [
+        "s|idx|public.messages_chat_id_active_index",
+        "n|idx|public.messages_chat_id_active_index",
+        "e|idx|public.messages_chat_id_active_index",
+        "n|rel|public.messages_chat_id_active_index"
+      ],
+      "reads": [
+        "n|tbl|public.messages",
+        "n|sch|public",
+        "n|col|public.messages.chat_id"
+      ],
+      "sharedWrites": [],
+      "sqlHash": "5dae96eb2d0d6be3"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "rename",
+      "key": "enums\u0000[\"public\",\"message_stage\"]",
+      "set": {
+        "name": "message_status"
+      }
+    },
+    {
+      "op": "rename",
+      "key": "columns\u0000[\"public\",\"messages\",\"stage\"]",
+      "set": {
+        "name": "status"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "enums\u0000[\"public\",\"message_status\"]",
+      "set": {
+        "values": [
+          "queued",
+          "preparing",
+          "generating",
+          "done",
+          "failed"
+        ]
+      }
+    },
+    {
+      "op": "alter",
+      "key": "indexes\u0000[\"public\",\"messages_chat_id_active_index\"]",
+      "set": {
+        "where": "\"author\" = 'assistant' and \"status\" in ('queued', 'preparing', 'generating')"
+      }
+    }
+  ]
+}

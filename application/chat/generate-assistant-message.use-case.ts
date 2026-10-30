@@ -16,7 +16,7 @@ import {
   type Message,
   type MessageId,
   MessageRepository,
-  type MessageStageInvalidError,
+  type MessageStatusInvalidError,
   type MessageWhere,
   prepareMessage,
 } from '@app-template/domain/chat'
@@ -32,15 +32,13 @@ const replySkipLogs = {
 
 const skipped = (why: ReplySkip) => Effect.as(replySkipLogs[why], Option.none<Message>())
 
-const isCompletedTurn = (message: Message) => message.stage === 'completed'
-
 export class GenerateAssistantMessageUseCase extends Context.Service<
   GenerateAssistantMessageUseCase,
   {
     /** Prepares, generates and completes the message with the reply; a settled message is skipped. */
     readonly generate: (
       job: GenerateAssistantMessage,
-    ) => Effect.Effect<void, MessageStageInvalidError | ChatStatusInvalidError>
+    ) => Effect.Effect<void, MessageStatusInvalidError | ChatStatusInvalidError>
     /**
      * Fails the message while it is active, with `cause` kept out of the user's sight, and
      * answers the failed message; a missing or settled one is logged, skipped and answers none.
@@ -48,7 +46,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
     readonly fail: (
       messageId: MessageId,
       cause: Cause.Cause<unknown>,
-    ) => Effect.Effect<Option.Option<Message>, MessageStageInvalidError | ChatStatusInvalidError>
+    ) => Effect.Effect<Option.Option<Message>, MessageStatusInvalidError | ChatStatusInvalidError>
   }
 >()('@app-template/application/chat/GenerateAssistantMessageUseCase', {
   make: Effect.gen(function* () {
@@ -68,8 +66,8 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
 
     const readHistory = (chatId: ChatId) =>
       messages
-        .selectMany({ chatId: [chatId] })
-        .pipe(Effect.map(Arr.filter(isCompletedTurn)), Effect.flatMap(Effect.forEach(readTurn)))
+        .selectMany({ chatId: [chatId], status: ['done'] })
+        .pipe(Effect.flatMap(Effect.forEach(readTurn)))
 
     /** Writes the settled message with its chat's end, `freeChat` or `failChat`, in one transaction. */
     const settleWith = (end: typeof freeChat) =>
@@ -91,17 +89,17 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
     const reply = Effect.fnUntraced(function* (taken: Message) {
       const preparedAt = yield* DateTime.now
       const prepared = yield* prepareMessage(taken, preparedAt)
-      yield* messages.update(prepared, { stage: taken.stage })
+      yield* messages.update(prepared, { status: taken.status })
 
       const history = yield* readHistory(prepared.chatId)
       const generatingAt = yield* DateTime.now
       const generating = yield* generateMessage(prepared, generatingAt)
-      yield* messages.update(generating, { stage: prepared.stage })
+      yield* messages.update(generating, { status: prepared.status })
 
       const { text } = yield* assistant.reply(history)
       const completedAt = yield* DateTime.now
       const completed = yield* completeMessage(generating, { text, at: completedAt })
-      yield* settleCompleted(completed, { stage: generating.stage })
+      yield* settleCompleted(completed, { status: generating.status })
     })
 
     const generate = Effect.fn('GenerateAssistantMessageUseCase.generate')(function* (
@@ -129,7 +127,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
         cause: Cause.pretty(cause),
         at: failedAt,
       })
-      return yield* settleFailed(failed, { stage: stored.value.stage }).pipe(Effect.asSome)
+      return yield* settleFailed(failed, { status: stored.value.status }).pipe(Effect.asSome)
     })
 
     return { generate, fail }

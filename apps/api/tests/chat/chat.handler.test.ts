@@ -32,7 +32,7 @@ const failReply = (id: MessageId) =>
         cause: 'the provider timed out',
         at: reply.updatedAt,
       }),
-      { stage: reply.stage },
+      { status: reply.status },
     )
   }).pipe(Effect.orDie)
 
@@ -68,14 +68,14 @@ describe('chats', () => {
         assert.deepInclude(sent.userMessage, {
           chatId: chat.id,
           author: 'user',
-          stage: 'completed',
+          status: 'done',
           text: 'Hello',
           attachments: [],
         })
         assert.deepInclude(sent.assistantMessage, {
           chatId: chat.id,
           author: 'assistant',
-          stage: 'queued',
+          status: 'queued',
           text: '',
           attachments: [],
         })
@@ -177,7 +177,7 @@ describe('chats', () => {
         .pipe(Effect.flatMap((response) => response.json))
 
       assert.deepInclude(wire, {
-        stage: 'failed',
+        status: 'failed',
         error: {
           reason: 'ReplyFailed',
           message: 'The assistant could not reply. Please try again.',

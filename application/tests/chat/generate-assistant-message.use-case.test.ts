@@ -48,7 +48,7 @@ const at = (millis: number) => DateTime.makeUnsafe(millis)
 const queuedReply = buildAssistantMessage({ id: messageId, chatId, createdAt: epoch })
 
 const asCompleted = (message: Message, text: string) =>
-  new Message({ ...message, stage: 'completed', text })
+  new Message({ ...message, status: 'done', text })
 
 const sure = new AssistantReply({ text: 'Sure.' })
 
@@ -65,7 +65,7 @@ const assistant = (n: number) =>
 const whatIsThis = user(1, 'What is this?')
 const aPhoto = asCompleted(assistant(2), 'A photo.')
 const andAgain = user(3, 'And again?')
-const halfReply = new Message({ ...assistant(4), stage: 'failed', text: 'half' })
+const halfReply = new Message({ ...assistant(4), status: 'failed', text: 'half' })
 const filesOnly = user(5, '')
 
 const history = [whatIsThis, aPhoto, andAgain, halfReply, filesOnly]
@@ -141,8 +141,8 @@ describe('GenerateAssistantMessageUseCase', () => {
 
         const running = yield* Effect.forkChild(generate)
         yield* held.asked
-        // `generate` writes only where the stored stage is `preparing`, so this row proves that write.
-        const generating = new Message({ ...queuedReply, stage: 'generating' })
+        // `generate` writes only where the stored status is `preparing`, so this row proves that write.
+        const generating = new Message({ ...queuedReply, status: 'generating' })
         assertEquals(yield* selectReply, Option.some(generating))
         yield* held.release
         yield* TestClock.adjust('500 millis')
@@ -153,7 +153,7 @@ describe('GenerateAssistantMessageUseCase', () => {
         assertEquals(
           yield* selectReply,
           Option.some(
-            new Message({ ...queuedReply, stage: 'completed', text: 'Sure.', updatedAt: at(1000) }),
+            new Message({ ...queuedReply, status: 'done', text: 'Sure.', updatedAt: at(1000) }),
           ),
         )
         assertEquals(yield* selectChat(chatId), Option.some(chat))
@@ -172,7 +172,7 @@ describe('GenerateAssistantMessageUseCase', () => {
       assert.isTrue(Exit.hasDies(exit))
       assertEquals(
         yield* selectReply,
-        Option.some(new Message({ ...queuedReply, stage: 'generating' })),
+        Option.some(new Message({ ...queuedReply, status: 'generating' })),
       )
     }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
   })
@@ -263,7 +263,7 @@ describe('GenerateAssistantMessageUseCase', () => {
 
         assertEquals(yield* selectReply, Option.some(failed))
         const error = Option.getOrThrow(failed.error)
-        assert.strictEqual(failed.stage, 'failed')
+        assert.strictEqual(failed.status, 'failed')
         assert.deepStrictEqual(
           [error.reason, error.message],
           ['ReplyFailed', 'The assistant could not reply. Please try again.'],

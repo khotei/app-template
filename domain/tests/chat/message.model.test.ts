@@ -5,7 +5,7 @@ import { assertSchemaEquals } from '@app-template/testing'
 
 import { AttachmentId } from '#domain/attachment/attachment.id'
 import { ChatId, MessageId } from '#domain/chat/chat.id'
-import { MessageInputInvalidError, MessageStageInvalidError } from '#domain/chat/message.error'
+import { MessageInputInvalidError, MessageStatusInvalidError } from '#domain/chat/message.error'
 import {
   buildAssistantMessage,
   buildUserMessage,
@@ -17,7 +17,7 @@ import {
   MessageFailure,
   prepareMessage,
 } from '#domain/chat/message.model'
-import type { MessageStage } from '#domain/chat/message-stage.model'
+import type { MessageStatus } from '#domain/chat/message-status.model'
 
 const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000001')
 const messageId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000002')
@@ -25,8 +25,8 @@ const attachmentId = AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000003')
 const createdAt = DateTime.makeUnsafe('2026-10-17T00:00:00.000Z')
 const later = DateTime.makeUnsafe('2026-10-17T00:00:01.000Z')
 
-const assistantAt = (stage: MessageStage) =>
-  new Message({ ...buildAssistantMessage({ id: messageId, chatId, createdAt }), stage })
+const assistantAt = (status: MessageStatus) =>
+  new Message({ ...buildAssistantMessage({ id: messageId, chatId, createdAt }), status })
 
 const activeStages = ['queued', 'preparing', 'generating'] as const
 
@@ -68,13 +68,13 @@ describe('ensureMessageInput', () => {
 
 const inactiveMessages = [
   ['a user message', userMessage],
-  ['a completed assistant message', assistantAt('completed')],
+  ['a completed assistant message', assistantAt('done')],
   ['a failed assistant message', assistantAt('failed')],
 ] as const
 
-const withLeftovers = (stage: MessageStage) =>
+const withLeftovers = (status: MessageStatus) =>
   new Message({
-    ...assistantAt(stage),
+    ...assistantAt(status),
     text: 'Half a reply',
     error: Option.some(
       new MessageFailure({ reason: 'ReplyFailed', message: 'Earlier failure', cause: 'timeout' }),
@@ -82,35 +82,35 @@ const withLeftovers = (stage: MessageStage) =>
   })
 
 const expectStageInvalid = (
-  transition: Effect.Effect<Message, MessageStageInvalidError>,
+  transition: Effect.Effect<Message, MessageStatusInvalidError>,
   message: Message,
-  to: MessageStage,
+  to: MessageStatus,
 ) =>
   Effect.gen(function* () {
     const error = yield* Effect.flip(transition)
 
     assertSchemaEquals(
-      MessageStageInvalidError,
+      MessageStatusInvalidError,
       error,
-      new MessageStageInvalidError({ id: message.id, from: message.stage, to }),
+      new MessageStatusInvalidError({ id: message.id, from: message.status, to }),
     )
   })
 
 describe('prepareMessage', () => {
   it.effect.each(activeStages)(
     'moves a %s message to preparing with empty text and no error',
-    (stage) =>
+    (status) =>
       Effect.gen(function* () {
-        const prepared = yield* prepareMessage(withLeftovers(stage), later)
+        const prepared = yield* prepareMessage(withLeftovers(status), later)
 
-        assert.strictEqual(prepared.stage, 'preparing')
+        assert.strictEqual(prepared.status, 'preparing')
         assert.strictEqual(prepared.text, '')
         assert.isTrue(Option.isNone(prepared.error))
         assert.strictEqual(prepared.updatedAt, later)
       }),
   )
 
-  it.effect.each(inactiveMessages)('fails MessageStageInvalidError for %s', ([, message]) =>
+  it.effect.each(inactiveMessages)('fails MessageStatusInvalidError for %s', ([, message]) =>
     expectStageInvalid(prepareMessage(message, later), message, 'preparing'),
   )
 })
@@ -120,7 +120,7 @@ describe('generateMessage', () => {
     Effect.gen(function* () {
       const generating = yield* generateMessage(assistantAt('preparing'), later)
 
-      assert.strictEqual(generating.stage, 'generating')
+      assert.strictEqual(generating.status, 'generating')
       assert.strictEqual(generating.updatedAt, later)
     }),
   )
@@ -128,9 +128,9 @@ describe('generateMessage', () => {
   it.effect.each([
     ['a queued assistant message', assistantAt('queued')],
     ['a generating assistant message', assistantAt('generating')],
-    ['a user message at preparing', new Message({ ...userMessage, stage: 'preparing' })],
+    ['a user message at preparing', new Message({ ...userMessage, status: 'preparing' })],
     ...inactiveMessages,
-  ] as const)('fails MessageStageInvalidError for %s', ([, message]) =>
+  ] as const)('fails MessageStatusInvalidError for %s', ([, message]) =>
     expectStageInvalid(generateMessage(message, later), message, 'generating'),
   )
 })
@@ -138,25 +138,25 @@ describe('generateMessage', () => {
 describe('completeMessage', () => {
   it.effect.each(activeStages)(
     'moves a %s message to completed with the final text and no error',
-    (stage) =>
+    (status) =>
       Effect.gen(function* () {
-        const completed = yield* completeMessage(withLeftovers(stage), {
+        const completed = yield* completeMessage(withLeftovers(status), {
           text: 'Hello there',
           at: later,
         })
 
-        assert.strictEqual(completed.stage, 'completed')
+        assert.strictEqual(completed.status, 'done')
         assert.strictEqual(completed.text, 'Hello there')
         assert.isTrue(Option.isNone(completed.error))
         assert.strictEqual(completed.updatedAt, later)
       }),
   )
 
-  it.effect.each(inactiveMessages)('fails MessageStageInvalidError for %s', ([, message]) =>
+  it.effect.each(inactiveMessages)('fails MessageStatusInvalidError for %s', ([, message]) =>
     expectStageInvalid(
       completeMessage(message, { text: 'Hello there', at: later }),
       message,
-      'completed',
+      'done',
     ),
   )
 })
@@ -166,15 +166,15 @@ describe('failMessage', () => {
 
   it.effect.each(activeStages)(
     'moves a %s message to failed with the fixed sentence and the cause',
-    (stage) =>
+    (status) =>
       Effect.gen(function* () {
-        const failed = yield* failMessage(assistantAt(stage), {
+        const failed = yield* failMessage(assistantAt(status), {
           reason: 'ReplyFailed',
           cause,
           at: later,
         })
 
-        assert.strictEqual(failed.stage, 'failed')
+        assert.strictEqual(failed.status, 'failed')
         assert.strictEqual(failed.updatedAt, later)
         assert.deepStrictEqual(
           Option.map(failed.error, (error) => ({ ...error })),
@@ -187,7 +187,7 @@ describe('failMessage', () => {
       }),
   )
 
-  it.effect.each(inactiveMessages)('fails MessageStageInvalidError for %s', ([, message]) =>
+  it.effect.each(inactiveMessages)('fails MessageStatusInvalidError for %s', ([, message]) =>
     expectStageInvalid(
       failMessage(message, { reason: 'ReplyFailed', cause, at: later }),
       message,

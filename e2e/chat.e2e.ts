@@ -7,7 +7,7 @@ import {
   AttachmentId,
   AttachmentNotFoundError,
 } from '@app-template/domain/attachment'
-import { ActiveMessageStage, type ChatId, type MessageId } from '@app-template/domain/chat'
+import { ActiveMessageStatus, type ChatId, type MessageId } from '@app-template/domain/chat'
 import { ApiClient } from '@app-template/http-api'
 import { assertSchemaEquals, png } from '@app-template/testing'
 
@@ -15,7 +15,7 @@ import { StandTest } from '#e2e/testing/stand.test-layer'
 
 const stubReply = 'This is the development stub answering the whole reply at once.'
 
-const isActiveStage = Schema.is(ActiveMessageStage)
+const isActiveStatus = Schema.is(ActiveMessageStatus)
 
 const poll = <A, E, R>(self: Effect.Effect<A, E, R>, until: (a: A) => boolean) =>
   self.pipe(
@@ -28,7 +28,7 @@ const pollSettledMessage = (chatId: ChatId, messageId: MessageId) =>
   ApiClient.use((api) =>
     poll(
       api.chats.getMessage({ params: { chatId, messageId } }),
-      (message) => !isActiveStage(message.stage),
+      (message) => !isActiveStatus(message.status),
     ),
   )
 
@@ -73,7 +73,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
             params: { chatId: chat.id, messageId: sent.userMessage.id },
           })
 
-          assert.deepInclude(reply, { stage: 'completed', text: stubReply, attachments: [] })
+          assert.deepInclude(reply, { status: 'done', text: stubReply, attachments: [] })
           assert.deepStrictEqual(titled.title, Option.some('Stub chat title'))
           assert.strictEqual(titled.status, 'idle')
           assert.deepStrictEqual(

@@ -36,7 +36,7 @@ the signal.
 - A use case is a `Context.Service` whose `layer` provides the domain services it composes and
   leaves the ports open, so the process provides the adapters and a unit test the memory layers.
 - **It writes through a domain service where one holds the write's rule,** else through the
-  port: a rule-free write and a write whose rule a model function already ran (a message's stage
+  port: a rule-free write and a write whose rule a model function already ran (a message's status
   move, a chat's status move). A read with no rule (a job's
   message by id) may go to the port too.
 - **All checks precede every write;** a step's own guard may repeat a check the use case made.
@@ -66,7 +66,7 @@ the signal.
 - **Hold no lock in the process.** A rule two writers could break between a read and a write is
   a database guard in the write itself (a partial unique index, an `UPDATE … WHERE` on the free
   state). The caller checks first, so a refused write is a lost race and the adapter dies on it
-  (the reply's insert, a stage move); the bind skips a taken id (`AttachmentBoundError`). A
+  (the reply's insert, a status move); the bind skips a taken id (`AttachmentBoundError`). A
   check whose loser must get a domain error reads its rows `forUpdate` (`AttachmentService.bind`).
 - **Write only the fields you own of a record another process also writes,** and hold a rule in
   the write's `where`, not in a read before it: the send sets the chat's `status` alone, and the

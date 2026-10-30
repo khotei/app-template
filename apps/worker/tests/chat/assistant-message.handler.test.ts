@@ -31,7 +31,7 @@ import { handle, handleDeadLettered } from '#worker/chat/assistant-message.handl
 
 const queuedReply = buildAssistantMessage({ id: messageId, chatId, createdAt: epoch })
 
-const completedReply = new Message({ ...queuedReply, stage: 'completed', text: 'Done.' })
+const completedReply = new Message({ ...queuedReply, status: 'done', text: 'Done.' })
 
 const providerExploded = new Error('provider exploded')
 
@@ -61,7 +61,7 @@ const deleteChat = ChatRepository.use((chats) => chats.delete({ id: chatId }))
 
 const assertFailed = (failed: Message, cause: string) => {
   const error = Option.getOrThrow(failed.error)
-  assert.strictEqual(failed.stage, 'failed')
+  assert.strictEqual(failed.status, 'failed')
   assert.strictEqual(error.reason, 'ReplyFailed')
   assert.include(error.cause, cause)
 }
@@ -77,7 +77,7 @@ describe('AssistantMessageHandler', () => {
       assert.isTrue(Exit.isFailure(exit))
       assertEquals(
         yield* selectReply,
-        Option.some(new Message({ ...queuedReply, stage: 'generating' })),
+        Option.some(new Message({ ...queuedReply, status: 'generating' })),
       )
       assertEquals(yield* selectChat(chatId), Option.some(queuedChat))
     }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
@@ -120,7 +120,7 @@ describe('AssistantMessageHandler', () => {
       const assistant = recordAssistant({})
       const { logs, layer: logger } = recordLogs()
       return Effect.gen(function* () {
-        yield* insertReply(new Message({ ...queuedReply, stage: 'generating' }))
+        yield* insertReply(new Message({ ...queuedReply, status: 'generating' }))
 
         yield* handleDeadLettered(job, deadLetterInfo)
 

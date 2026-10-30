@@ -3,6 +3,7 @@ import { type DateTime, Effect, Option, pipe, Schema, String as Str } from 'effe
 import { ChatBusyError, ChatStatusInvalidError } from '#domain/chat/chat.error'
 import { ChatId } from '#domain/chat/chat.id'
 import { ChatStatus, type SettledChatStatus } from '#domain/chat/chat-status.model'
+import { isQueued } from '#domain/shared/status.model'
 import { UserId } from '#domain/user/user.id'
 
 /** Counted in UTF-16 code units, as `Schema.isMaxLength` counts them. */
@@ -49,13 +50,13 @@ export class Chat extends Schema.Class<Chat>('Chat')({
 
 /** Takes the chat for a send's reply; a chat whose reply is still in work refuses it. */
 export const queueChat = Effect.fn('queueChat')(function* (chat: Chat) {
-  if (chat.status === 'queued') return yield* new ChatBusyError({ id: chat.id })
+  if (isQueued(chat)) return yield* new ChatBusyError({ id: chat.id })
   return new Chat({ ...chat, status: 'queued' })
 })
 
 // Only a chat whose reply is in work has one to end.
 const settleChat = Effect.fnUntraced(function* (chat: Chat, to: SettledChatStatus) {
-  if (chat.status !== 'queued') {
+  if (!isQueued(chat)) {
     return yield* new ChatStatusInvalidError({ id: chat.id, from: chat.status, to })
   }
   return new Chat({ ...chat, status: to })

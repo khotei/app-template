@@ -190,7 +190,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Inherits from `aws-local` (2026-10-22).** A sweep of unbound attachment records past
   `unboundLifetime` (expired unbound records read as not found, and no sweep deletes them yet); a
   consumer or sweep for replies left active in the dead-letter queue (a killed worker, a failed
-  `failed` write, a stopped worker's long poll); a `WHERE stage IN (…)` guard on the reply's
+  `failed` write, a stopped worker's long poll); a `WHERE status IN (…)` guard on the reply's
   terminal write.
 - **Status.** In progress: [docs/tickets/2026-10-22-1915_postgres-drizzle/](../tickets/2026-10-22-1915_postgres-drizzle/feature.md).
   Its grilling departed from this entry: the outbox relays to SQS (there is no SQL queue store any
@@ -289,7 +289,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   suffice and Query/DB stay out; whether web client code may now import `effect` (today it is
   banned by Biome and must change for atoms); SSR of streams.
 - **Re-read against `chat-core` (2026-10-20).** "Streaming replies" means, today, polling the
-  assistant message until its stage is terminal, since the api streams nothing and the worker
+  assistant message until its status is terminal, since the api streams nothing and the worker
   writes snapshots; an SSE tail is `llm-providers`' (6) open question, so this ticket depends on
   3 alone for the reply and the upload, and on 6 only for assistant attachments and placeholders.
 - **Re-read against `llm-providers` (2026-10-29).** The reply now arrives whole: no snapshots, so
@@ -595,8 +595,8 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
     handler deletes the bytes by `AttachmentBucket.deleteMany`. `ChatService.delete` drops its
     attachment read and its bucket call; the memory fake records the job as the trigger does,
     with an e2e twin.
-  - The message keeps its stage: it is the reply's own state, which the client polls and the
-    guards read, not the job's.
+  - The message keeps its own status, its subset of the shared `Status`: it is the reply's
+    state, which the client polls and the guards read, not the job's.
 - **Why a trigger.** It catches every path in the same statement, including a file a concurrent
   send binds between the attachments' read and the chat's delete, whose bytes today stay in S3,
   bound and never expired.

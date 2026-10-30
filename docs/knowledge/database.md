@@ -26,7 +26,7 @@ from them and the row codecs derived from them.
   `TestClock` holds and there is no second clock; the `uuidv7()` default serves only
   hand-written SQL.
 - **Enums and checks read the domain.** An enum takes its values from the domain's literal
-  (`pgEnum('message_stage', MessageStage.literals)`), and a check reads the constant its brand
+  (`pgEnum('message_status', MessageStatus.literals)`), and a check reads the constant its brand
   checks with (`credentials_hash_check` matches `secretHashPattern.source`, as `SecretHash` does;
   `attachments_media_type_check` matches `mediaTypePattern.source` with `~*`, for its `i` flag;
   `chats_title_check` caps the length at `maxTitleLength`), so a row written by hand cannot hold
@@ -39,13 +39,13 @@ from them and the row codecs derived from them.
   `<table>_<columns>_<predicate>_index` (`messages_chat_id_active_index`).
 - **A rule across rows is a partial unique index.** `messages_chat_id_active_index` allows one
   active assistant message per chat; its predicate is `activeMessage`, exported from
-  `message.entity.ts` beside the table, with the stages from `ActiveMessageStage.literals`. An
+  `message.entity.ts` beside the table, with the statuses from `ActiveMessageStatus.literals`. An
   `ON CONFLICT … WHERE` that targets the index takes its predicate from this constant, which
   renders as literals (`.inlineParams()`): a generic plan, which Postgres switches a prepared
   statement to after five runs, cannot prove the index predicate from bound parameters.
 - **A read names the active condition as a `where`.** `activeMessageWhere`, beside
   `isActiveMessage` in `message.model.ts`, states the same condition for
-  `MessageRepository.selectMany`, its stages from the same `ActiveMessageStage.literals`; a rule
+  `MessageRepository.selectMany`, its statuses from the same `ActiveMessageStatus.literals`; a rule
   that needs the `ActiveMessage` type checks the row with `isActiveMessage`, which no `where` can
   type (the reply job's skip of a settled message).
 - **A descending index states its null order.** Drizzle's `desc()` indexes nulls last while
@@ -155,8 +155,8 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
   chat's status and its active message move together; a path that ends a reply anywhere else
   must move the chat too, or the chat stays `queued`.
 - **Update under a `where`.** `MessageRepository.update(message, where)` runs `WHERE id = …
-  AND <where fields>`, its `where` (`MessageWhere`, the stored stage to match),
-  so a write whose expected stage another writer has left, or whose message is gone, changes
+  AND <where fields>`, its `where` (`MessageWhere`, the stored status to match),
+  so a write whose expected status another writer has left, or whose message is gone, changes
   nothing and dies; the job's retry then reads the message and skips it as settled or deleted.
 - **Update of some fields under a `where`.** `ChatRepository.update(set, where)` and
   `AttachmentRepository.update(set, where)` write only the fields of `set` (`ChatSet`,
@@ -278,6 +278,6 @@ reads the `SqlError` of a refused statement with `flipSqlError` from
 The unit suites never reach Postgres ([tooling.md › Tests](tooling.md#tests)). What only a
 transaction decides, that a use case keeps none of its writes or its outbox rows when one is
 refused, runs in `application/e2e/` on `ChatPgTest`. A memory layer copies the four guards the
-database adds (the active message's index, the message stage an update expects, an owner in the
+database adds (the active message's index, the message status an update expects, an owner in the
 `where`, the cascade from a chat to its messages and their attachments), and each has its twin in a repository suite
 ([effect-tests.md › Unit and e2e](../../.claude/rules/effect-tests.md#unit-and-e2e)).

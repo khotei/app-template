@@ -23,7 +23,7 @@ paths:
   since the annotation drifts on refactors.
 - A pure builder that cannot fail returns the model itself, not an `Effect`.
 - A pure transition (`naming.md`) checks its source through one shared table of allowed sources and
-  fails one `<Entity>StageInvalidError { id, from, to }`; a transition is one row and one call.
+  fails one `<Entity>StatusInvalidError { id, from, to }`; a transition is one row and one call.
 
 ## Services
 

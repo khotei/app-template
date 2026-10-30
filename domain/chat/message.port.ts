@@ -3,11 +3,11 @@ import type { RequireAtLeastOne } from 'type-fest'
 
 import type { ChatId, MessageId } from '#domain/chat/chat.id'
 import type { Message, MessageAuthor } from '#domain/chat/message.model'
-import type { MessageStage } from '#domain/chat/message-stage.model'
+import type { MessageStatus } from '#domain/chat/message-status.model'
 import type { UserId } from '#domain/user/user.id'
 
-/** The stored stage a write requires; the row is always found by the message's id. */
-export type MessageWhere = Pick<Message, 'stage'>
+/** The stored status a write requires; the row is always found by the message's id. */
+export type MessageWhere = Pick<Message, 'status'>
 
 /**
  * The rows where every field named holds; the chat's `userId` too, so a message of another
@@ -22,7 +22,7 @@ export type MessageOneWhere = Types.Simplify<
 export type MessageManyWhere = {
   readonly chatId: ReadonlyArray<ChatId>
   readonly author?: MessageAuthor
-  readonly stage?: ReadonlyArray<MessageStage>
+  readonly status?: ReadonlyArray<MessageStatus>
 }
 
 export class MessageRepository extends Context.Service<

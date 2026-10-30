@@ -12,8 +12,9 @@ import {
 import type { AttachmentId } from '#domain/attachment/attachment.id'
 import { Attachment } from '#domain/attachment/attachment.model'
 import { ChatId, MessageId } from '#domain/chat/chat.id'
-import { MessageInputInvalidError, MessageStageInvalidError } from '#domain/chat/message.error'
-import { ActiveMessageStage, MessageStage } from '#domain/chat/message-stage.model'
+import { MessageInputInvalidError, MessageStatusInvalidError } from '#domain/chat/message.error'
+import { ActiveMessageStatus, MessageStatus } from '#domain/chat/message-status.model'
+import { isPreparing } from '#domain/shared/status.model'
 
 export const MessageAuthor = Schema.Literals(['user', 'assistant'])
 export type MessageAuthor = typeof MessageAuthor.Type
@@ -30,7 +31,7 @@ export class Message extends Schema.Class<Message>('Message')({
   id: MessageId,
   chatId: ChatId,
   author: MessageAuthor,
-  stage: MessageStage,
+  status: MessageStatus,
   text: Schema.String,
   error: Schema.Option(MessageFailure),
   createdAt: Schema.DateTimeUtc,
@@ -42,7 +43,7 @@ export class Message extends Schema.Class<Message>('Message')({
 /** An assistant message whose reply is still running; `isActiveMessage` narrows to it. */
 export interface ActiveMessage extends Message {
   readonly author: 'assistant'
-  readonly stage: ActiveMessageStage
+  readonly status: ActiveMessageStatus
 }
 
 export interface MessageInput {
@@ -60,7 +61,7 @@ export const buildUserMessage = (input: {
     id: input.id,
     chatId: input.chatId,
     author: 'user',
-    stage: 'completed',
+    status: 'done',
     text: input.text,
     error: Option.none(),
     createdAt: input.createdAt,
@@ -77,7 +78,7 @@ export const buildAssistantMessage = (input: {
     id: input.id,
     chatId: input.chatId,
     author: 'assistant',
-    stage: 'queued',
+    status: 'queued',
     text: '',
     error: Option.none(),
     createdAt: input.createdAt,
@@ -87,7 +88,7 @@ export const buildAssistantMessage = (input: {
 
 const isActiveShape = Predicate.Struct({
   author: Schema.is(MessageAuthor.pick(['assistant'])),
-  stage: Schema.is(ActiveMessageStage),
+  status: Schema.is(ActiveMessageStatus),
 })
 
 export const isActiveMessage = (message: Message): message is ActiveMessage =>
@@ -96,7 +97,7 @@ export const isActiveMessage = (message: Message): message is ActiveMessage =>
 /** The `isActiveMessage` condition as a read's `where`. */
 export const activeMessageWhere = {
   author: 'assistant',
-  stage: ActiveMessageStage.literals,
+  status: ActiveMessageStatus.literals,
 } as const
 
 export const ensureMessageInput = Effect.fn('ensureMessageInput')(function* (input: MessageInput) {
@@ -109,15 +110,13 @@ export const ensureMessageInput = Effect.fn('ensureMessageInput')(function* (inp
   }
 })
 
-const isPreparing = Predicate.and(isActiveMessage, (message) => message.stage === 'preparing')
-
-/** Which messages may enter each stage; `queued` is only ever built, never entered. */
+/** Which messages may enter each status; `queued` is only ever built, never entered. */
 const transitions = {
   preparing: isActiveMessage,
-  generating: isPreparing,
-  completed: isActiveMessage,
+  generating: Predicate.and(isActiveMessage, isPreparing),
+  done: isActiveMessage,
   failed: isActiveMessage,
-} as const satisfies Record<Exclude<MessageStage, 'queued'>, Predicate.Predicate<Message>>
+} as const satisfies Record<Exclude<MessageStatus, 'queued'>, Predicate.Predicate<Message>>
 
 const move = Effect.fnUntraced(function* (
   message: Message,
@@ -132,9 +131,9 @@ const move = Effect.fnUntraced(function* (
   },
 ) {
   if (!transitions[to](message)) {
-    return yield* new MessageStageInvalidError({ id: message.id, from: message.stage, to })
+    return yield* new MessageStatusInvalidError({ id: message.id, from: message.status, to })
   }
-  return new Message({ ...message, ...patch, stage: to, updatedAt: at })
+  return new Message({ ...message, ...patch, status: to, updatedAt: at })
 })
 
 export const prepareMessage = Effect.fn('prepareMessage')((message: Message, at: DateTime.Utc) =>
@@ -150,7 +149,7 @@ export type MessageCompletion = { readonly text: string; readonly at: DateTime.U
 
 export const completeMessage = Effect.fn('completeMessage')(
   (message: Message, { text, at }: MessageCompletion) =>
-    move(message, { to: 'completed', at, patch: { text, error: Option.none() } }),
+    move(message, { to: 'done', at, patch: { text, error: Option.none() } }),
 )
 
 const failureMessages = {

@@ -36,7 +36,7 @@ const settle = (message: Message) =>
     const at = yield* DateTime.now
 
     const completed = yield* completeMessage(message, { text: 'Sure.', at })
-    yield* messages.update(completed, { stage: message.stage })
+    yield* messages.update(completed, { status: message.status })
     yield* chats.update({ status: 'idle' }, { id: message.chatId, status: 'queued' })
     return completed
   })

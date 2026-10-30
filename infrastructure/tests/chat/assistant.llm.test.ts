@@ -119,7 +119,7 @@ const completed = new Message({
     chatId,
     createdAt: epoch,
   }),
-  stage: 'completed',
+  status: 'done',
   text: 'A photo.',
 })
 

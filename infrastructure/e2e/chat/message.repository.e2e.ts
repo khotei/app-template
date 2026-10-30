@@ -144,7 +144,7 @@ describe('MessageRepositoryPg', () => {
       )
 
       const completed = yield* completeMessage(queued, { text: 'Hello', at: at(1) })
-      yield* messages.update(completed, { stage: 'queued' })
+      yield* messages.update(completed, { status: 'queued' })
 
       assert.deepStrictEqual(
         yield* messages.selectMany({ chatId: [chatId], ...activeMessageWhere }),
@@ -198,7 +198,7 @@ describe('MessageRepositoryPg', () => {
       }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
-  it.effect("selects the assistant's message as active, never a user one in an active stage", () =>
+  it.effect("selects the assistant's message as active, never a user one in an active status", () =>
     Effect.gen(function* () {
       const messages = yield* MessageRepository
       const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000043')
@@ -208,7 +208,7 @@ describe('MessageRepositoryPg', () => {
         seconds: 1,
       })
       yield* insertOwnedChats(userId, [chatId])
-      yield* messages.insert(new Message({ ...question, stage: 'generating' }))
+      yield* messages.insert(new Message({ ...question, status: 'generating' }))
       yield* messages.insert(queued)
 
       assertSchemaEquals(
@@ -258,7 +258,7 @@ describe('MessageRepositoryPg', () => {
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
-  it.effect('update from a stage the message has left dies and changes nothing', () =>
+  it.effect('update from a status the message has left dies and changes nothing', () =>
     Effect.gen(function* () {
       const messages = yield* MessageRepository
       const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000049')
@@ -271,7 +271,7 @@ describe('MessageRepositoryPg', () => {
       yield* insertOwnedChats(userId, [chatId])
       yield* messages.insert(generating)
 
-      const exit = yield* messages.update(completed, { stage: 'preparing' }).pipe(Effect.exit)
+      const exit = yield* messages.update(completed, { status: 'preparing' }).pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
       assertSchemaEquals(
@@ -292,8 +292,8 @@ describe('MessageRepositoryPg', () => {
       yield* messages.insert(queued)
       const completed = yield* completeMessage(queued, { text: 'Hello', at: at(1) })
 
-      yield* messages.update(completed, { stage: 'queued' })
-      const exit = yield* messages.update(unknown, { stage: 'queued' }).pipe(Effect.exit)
+      yield* messages.update(completed, { status: 'queued' })
+      const exit = yield* messages.update(unknown, { status: 'queued' }).pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
       assertSchemaEquals(Messages, yield* messages.selectMany({ chatId: [chatId] }), [completed])

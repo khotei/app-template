@@ -117,11 +117,11 @@ const holdsMessageWhere = (tables: Tables, where: MessageOneWhere) =>
   )
 
 const holdsManyWhere =
-  ({ chatId, author, stage }: MessageManyWhere) =>
+  ({ chatId, author, status }: MessageManyWhere) =>
   (message: Message): boolean =>
     Arr.contains(chatId, message.chatId) &&
     (author === undefined || message.author === author) &&
-    (stage === undefined || Arr.contains(stage, message.stage))
+    (status === undefined || Arr.contains(status, message.status))
 
 const createReadTables = Effect.gen(function* () {
   const chats = yield* ChatRows

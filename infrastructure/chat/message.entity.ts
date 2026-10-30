@@ -13,12 +13,12 @@ import {
 import { Schema } from 'effect'
 
 import {
-  ActiveMessageStage,
+  ActiveMessageStatus,
   ChatId,
   MessageAuthor,
   MessageFailure,
   MessageId,
-  MessageStage,
+  MessageStatus,
 } from '@app-template/domain/chat'
 
 import { chats } from '#infrastructure/chat/chat.entity'
@@ -26,7 +26,7 @@ import { createdAt, id, updatedAt } from '#infrastructure/db/columns'
 
 export const messageAuthor = pgEnum('message_author', MessageAuthor.literals)
 
-export const messageStage = pgEnum('message_stage', MessageStage.literals)
+export const messageStatus = pgEnum('message_status', MessageStatus.literals)
 
 export const messages = snakeCase.table(
   'messages',
@@ -36,7 +36,7 @@ export const messages = snakeCase.table(
       .notNull()
       .references(() => chats.id, { onDelete: 'cascade' }),
     author: messageAuthor().notNull(),
-    stage: messageStage().notNull(),
+    status: messageStatus().notNull(),
     text: text().notNull(),
     error: jsonb().$type<typeof MessageFailure.Encoded>(),
     createdAt: createdAt(),
@@ -58,7 +58,7 @@ export const messages = snakeCase.table(
  * remove `.inlineParams()`; why: `docs/knowledge/database.md` › "Schema and entity files".
  */
 export const activeMessage: SQL =
-  sql`${eq(messages.author, 'assistant')} and ${inArray(messages.stage, ActiveMessageStage.literals)}`.inlineParams()
+  sql`${eq(messages.author, 'assistant')} and ${inArray(messages.status, ActiveMessageStatus.literals)}`.inlineParams()
 
 const messageFields = {
   id: MessageId,

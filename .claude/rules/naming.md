@@ -64,7 +64,7 @@ folder (`infrastructure/db/testing/` too), exported by no barrel save `packages/
   - `layer<Variant>`: a static that builds one variant of the service's `Layer`
     (`effect-services.md › Layers`); a `Layer` that runs work is named for it (`worker`);
   - `build` / `ensure`: a pure function that derives a value or guards an invariant
-    (`buildChat`); a pure transition is named for the stage it moves to (`prepareMessage`);
+    (`buildChat`); a pure transition is named for the status it moves to (`prepareMessage`);
   - `generate`: an impure function that makes a fresh value (`generateStage`);
   - `is`: a predicate (`isActiveMessage`);
   - `get` / `find`: a domain service's or use case's read over ports, never a port method:

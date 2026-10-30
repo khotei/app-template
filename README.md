@@ -14,7 +14,7 @@ copied and changed.
 An anonymous user gets a secret in a cookie, creates chats, sends messages with attachments, and
 the assistant answers. The api writes the message and its jobs in one transaction and answers
 `202`; the worker relays the jobs to SQS, writes the model's whole reply into the message and
-titles the chat; the client polls the message until it is `completed` or `failed`. Records
+titles the chat; the client polls the message until it is `done` or `failed`. Records
 live in Postgres, attachment bytes in S3, and jobs go through an outbox and SQS (MiniStack
 locally); `LLM_PROVIDER` picks the language model: Anthropic, or a stub that needs no key. The
 browser UI still shows only the health panel.
@@ -32,7 +32,7 @@ sequenceDiagram
   K->>S: relay claims the outbox rows
   K->>Q: assistant-message job (+ chat-title job on the first message)
   K->>Q: receive
-  K->>S: preparing → generating → completed with the text | failed
+  K->>S: preparing → generating → done with the text | failed
   W->>A: GET /chats/:id/messages/:messageId (poll)
 ```
 
@@ -94,7 +94,7 @@ The invariants a change must keep:
 - **No rule in a handler.** An api or worker handler decodes, calls one use case or service, and
   maps the answer.
 - **The database guards, not locks.** One active message per chat, a bind only while unbound and
-  every stage move are single conditional statements.
+  every status move are single conditional statements.
 - **A message never exists without its job.** The job is an outbox row in the same transaction.
 - **No service reaches the browser.** `make bundle-check` fails if one does.
 

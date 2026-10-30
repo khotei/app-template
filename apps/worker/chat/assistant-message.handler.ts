@@ -1,7 +1,7 @@
 import { Cause, Effect, Exit, Layer, Option } from 'effect'
 
 import { GenerateAssistantMessageUseCase } from '@app-template/application/chat'
-import type { ChatStatusInvalidError, MessageStageInvalidError } from '@app-template/domain/chat'
+import type { ChatStatusInvalidError, MessageStatusInvalidError } from '@app-template/domain/chat'
 import {
   assistantMessageDeadLetterQueue,
   assistantMessageQueue,
@@ -15,7 +15,7 @@ export const handle = Effect.fn('AssistantMessageHandler.handle')(function* (
   info: AttemptInfo,
 ): Effect.fn.Return<
   void,
-  MessageStageInvalidError | ChatStatusInvalidError,
+  MessageStatusInvalidError | ChatStatusInvalidError,
   GenerateAssistantMessageUseCase
 > {
   const useCase = yield* GenerateAssistantMessageUseCase
@@ -37,7 +37,7 @@ export const handleDeadLettered = Effect.fn('AssistantMessageHandler.handleDeadL
     info: AttemptInfo,
   ): Effect.fn.Return<
     void,
-    MessageStageInvalidError | ChatStatusInvalidError,
+    MessageStatusInvalidError | ChatStatusInvalidError,
     GenerateAssistantMessageUseCase
   > {
     const useCase = yield* GenerateAssistantMessageUseCase

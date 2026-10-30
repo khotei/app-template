@@ -24,15 +24,15 @@ _Avoid_: Conversation, thread, dialogue, session
 **Message**:
 One turn in a chat, authored by the user or by the assistant, with text and zero or more
 attachments. A user's message is complete when sent; an assistant's message is born `queued` and
-moves through the message stages.
+moves through the message statuses.
 _Avoid_: Prompt, reply, completion, turn
 
-**Message stage**:
-Where an assistant message is in its life: `queued` (the chat has asked for it), `preparing`
-(the assistant is reading the chat), `generating` (the assistant is writing; the text appears
-whole when it is done), `completed`, or `failed` (the assistant gave up; the message carries a
-reason). The last two are terminal.
-_Avoid_: State, status, in-progress, pending, streaming
+**Message status**:
+Where an assistant message is in its life, its subset of `Status`: `queued` (the chat has asked
+for it), `preparing` (the assistant is reading the chat), `generating` (the assistant is writing;
+the text appears whole when it is done), `done`, or `failed` (the assistant gave up; the message
+carries a reason). The last two are terminal.
+_Avoid_: Stage, state, completed, in-progress, pending, streaming
 
 **Active message**:
 The assistant message of a chat that is not yet terminal (`queued`, `preparing` or `generating`).
@@ -40,16 +40,17 @@ A chat has at most one, and its chat stays `queued` while it runs.
 _Avoid_: Pending message, current reply
 
 **Status**:
-The one vocabulary of states in flight: `idle` waits for work, `queued` has work in flight, `done`
-and `failed` end it. An entity with a status picks its subset of `Status`; a message has stages
-instead, since its reply moves through more steps than a status names.
-_Avoid_: State; a new word for one of the four
+The one vocabulary of states in flight: `idle` waits for work, `queued` has work in flight,
+`preparing` and `generating` run it, `done` and `failed` end it. Every entity with a status picks
+its subset of `Status` (the chat, the message), and a check on one value reads the shared
+predicate (`isQueued`).
+_Avoid_: State, stage; a new word for one of the six
 
 **Chat status**:
 `queued` while the chat's reply is in work, `failed` after its last reply failed, else `idle`;
 stored on the chat. A send moves it to `queued` (`queueChat`), the reply's end to `idle`
 (`freeChat`) or `failed` (`failChat`).
-_Avoid_: Busy, chat state; a message stage's name (`generating`) for it
+_Avoid_: Busy, chat state; a value outside its subset (`generating`)
 
 **Title**:
 The short name of a chat, shown in the user's chat list. The assistant proposes one from the

@@ -26,12 +26,12 @@ const chat = new Chat({
   updatedAt,
 })
 
-const message = (id: MessageId, fields: Partial<Pick<Message, 'stage'>>) =>
+const message = (id: MessageId, fields: Partial<Pick<Message, 'status'>>) =>
   new Message({
     id,
     chatId,
     author: 'assistant',
-    stage: 'queued',
+    status: 'queued',
     text: '',
     error: Option.none(),
     createdAt,
@@ -51,7 +51,7 @@ describe('messages', () => {
     Effect.gen(function* () {
       const queued = message(MessageId.make('0192d4e0-7b3a-7c00-8000-000000000076'), {})
       const generating = message(MessageId.make('0192d4e0-7b3a-7c00-8000-000000000077'), {
-        stage: 'generating',
+        status: 'generating',
       })
 
       yield* insertChatOfUser
@@ -66,7 +66,7 @@ describe('messages', () => {
   it.effect('accepts an active reply beside a completed one', () =>
     Effect.gen(function* () {
       const completed = message(MessageId.make('0192d4e0-7b3a-7c00-8000-000000000078'), {
-        stage: 'completed',
+        status: 'done',
       })
       const queued = message(MessageId.make('0192d4e0-7b3a-7c00-8000-000000000079'), {})
 
