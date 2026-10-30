@@ -1,7 +1,7 @@
 import type { Generated } from '@effect/ai-anthropic'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, Effect, Exit, Fiber, Layer, Option, Redacted, Ref } from 'effect'
+import { Array as Arr, Clock, Effect, Exit, Fiber, Layer, Option, Redacted, Ref } from 'effect'
 import { HttpClient, type HttpClientRequest, HttpClientResponse } from 'effect/http'
 import { TestClock } from 'effect/testing'
 
@@ -15,6 +15,7 @@ import {
 } from '@app-template/domain/attachment'
 import {
   Assistant,
+  type AssistantError,
   AssistantReply,
   ChatTitle,
   type HistoryMessage,
@@ -43,12 +44,15 @@ const readBody = (request: HttpClientRequest.HttpClientRequest): RequestBody =>
     ? JSON.parse(new TextDecoder().decode(request.body.body))
     : assert.fail(`a request body of ${request.body._tag}`)
 
-/** `AssistantLlm` over Anthropic's models and an `HttpClient` that keeps each request body and answers it by `respond`. */
+/** `AssistantLlm` over Anthropic's models and an `HttpClient` that keeps each request body and the time it was sent, and answers it by `respond`. */
 const recordAnthropic = (respond: (body: RequestBody) => Response) => {
-  const bodies = Ref.makeUnsafe<ReadonlyArray<RequestBody>>([])
+  const requests = Ref.makeUnsafe<
+    ReadonlyArray<{ readonly body: RequestBody; readonly at: number }>
+  >([])
   const httpClient = HttpClient.make((request) => {
     const body = readBody(request)
-    return Ref.update(bodies, Arr.append(body)).pipe(
+    return Clock.currentTimeMillis.pipe(
+      Effect.flatMap((at) => Ref.update(requests, Arr.append({ body, at }))),
       Effect.as(HttpClientResponse.fromWeb(request, respond(body))),
     )
   })
@@ -63,18 +67,22 @@ const recordAnthropic = (respond: (body: RequestBody) => Response) => {
     ),
     Layer.provide(Layer.succeed(HttpClient.HttpClient, httpClient)),
   )
-  return { bodies: Ref.get(bodies), layer }
+  return {
+    bodies: Ref.get(requests).pipe(Effect.map(Arr.map(({ body }) => body))),
+    sentAt: Ref.get(requests).pipe(Effect.map(Arr.map(({ at }) => at))),
+    layer,
+  }
 }
 
 /** A Messages API response whose one text block is `text`. */
-const message = (text: string) =>
+const message = (text: string, stopReason: Generated.BetaStopReason = 'end_turn') =>
   Response.json({
     id: 'msg_test',
     type: 'message',
     role: 'assistant',
     model: replyModel,
     content: [{ type: 'text', text }],
-    stop_reason: 'end_turn',
+    stop_reason: stopReason,
     stop_sequence: null,
     usage: {
       cache_creation: null,
@@ -85,6 +93,13 @@ const message = (text: string) =>
       service_tier: null,
     },
   })
+
+/** A Messages API error response. */
+const apiError = (
+  status: number,
+  { type, message, headers }: { type: string; message: string; headers?: Record<string, string> },
+) =>
+  Response.json({ type: 'error', error: { type, message }, request_id: null }, { status, headers })
 
 const titleInstruction =
   'Write a title of at most 120 characters for a chat that opens with the next message. Answer with the title alone.'
@@ -228,14 +243,120 @@ describe('AssistantLlm', () => {
     }).pipe(Effect.provide(layer))
   })
 
-  it.effect('reply dies on a blank answer', () => {
-    const { layer } = recordAnthropic(() => message('{"text":" \\n"}'))
-    return Effect.gen(function* () {
-      const exit = yield* reply(hi).pipe(Effect.exit)
+  it.effect.each<{
+    name: string
+    answer: () => Response
+    sentAt: ReadonlyArray<number>
+    error: AssistantError['_tag']
+    detail: string
+  }>([
+    {
+      name: 'a refusal whose text is whole JSON',
+      answer: () => message('{"text":"Hello"}', 'refusal'),
+      sentAt: [0],
+      error: 'AssistantRefusedError',
+      detail: 'content-filter',
+    },
+    {
+      name: 'a refusal whose text is not JSON',
+      answer: () => message('I cannot help with that.', 'refusal'),
+      sentAt: [0],
+      error: 'AssistantRefusedError',
+      detail: 'content-filter',
+    },
+    {
+      name: 'an answer cut by max_tokens',
+      answer: () => message('{"text":"Hello"}', 'max_tokens'),
+      sentAt: [0, 1_000, 3_000],
+      error: 'AssistantFailedError',
+      detail: 'length',
+    },
+    {
+      name: 'a blank text',
+      answer: () => message('{"text":" \\n"}'),
+      sentAt: [0, 1_000, 3_000],
+      error: 'AssistantFailedError',
+      detail: 'a string with a non-whitespace character',
+    },
+    {
+      name: 'a 529',
+      answer: () => apiError(529, { type: 'overloaded_error', message: 'Overloaded' }),
+      sentAt: [0, 1_000, 3_000],
+      error: 'AssistantFailedError',
+      detail: 'Overloaded',
+    },
+    {
+      name: 'a 500',
+      answer: () => apiError(500, { type: 'api_error', message: 'Internal server error' }),
+      sentAt: [0, 1_000, 3_000],
+      error: 'AssistantFailedError',
+      detail: 'Internal server error',
+    },
+    {
+      name: 'a 429 with retry-after 5',
+      answer: () =>
+        apiError(429, {
+          type: 'rate_limit_error',
+          message: 'Rate limited',
+          headers: { 'retry-after': '5' },
+        }),
+      sentAt: [0, 5_000, 10_000],
+      error: 'AssistantFailedError',
+      detail: 'Rate limit',
+    },
+    {
+      name: 'a 429 with retry-after 60',
+      answer: () =>
+        apiError(429, {
+          type: 'rate_limit_error',
+          message: 'Rate limited',
+          headers: { 'retry-after': '60' },
+        }),
+      sentAt: [0],
+      error: 'AssistantFailedError',
+      detail: 'Rate limit',
+    },
+    {
+      name: 'a 401',
+      answer: () => apiError(401, { type: 'authentication_error', message: 'invalid x-api-key' }),
+      sentAt: [0],
+      error: 'AssistantFailedError',
+      detail: 'invalid x-api-key',
+    },
+    {
+      name: 'a 403',
+      answer: () =>
+        apiError(403, {
+          type: 'permission_error',
+          message: 'The model is not available for this account',
+        }),
+      sentAt: [0],
+      error: 'AssistantFailedError',
+      detail: 'not available for this account',
+    },
+    {
+      name: 'a 400',
+      answer: () => apiError(400, { type: 'invalid_request_error', message: 'prompt is too long' }),
+      sentAt: [0],
+      error: 'AssistantFailedError',
+      detail: 'prompt is too long',
+    },
+  ])(
+    'reply on $name fails with $error, its requests sent at $sentAt ms',
+    ({ answer, sentAt, error, detail }) => {
+      const recorded = recordAnthropic(answer)
+      return Effect.gen(function* () {
+        const failing = yield* reply(hi).pipe(Effect.flip, Effect.forkChild)
 
-      assert.isTrue(Exit.hasDies(exit))
-    }).pipe(Effect.provide(layer))
-  })
+        yield* TestClock.adjust('2 minutes')
+
+        const failure = yield* Fiber.join(failing)
+        assertEquals(yield* recorded.sentAt, sentAt)
+        assert.strictEqual(failure._tag, error)
+        assert.include(failure.cause, detail)
+      }).pipe(Effect.provide(recorded.layer))
+    },
+  )
 
   it.effect(
     'suggestTitle asks for a title of the opening message and cuts the answer to the title length',
