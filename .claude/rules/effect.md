@@ -25,3 +25,6 @@ Imperatives for Effect 4 code in every layer; one `effect-*.md` file per concern
   (`Arr`, `Reducer`); a spread that rebuilds a nested object (`Struct`, `Optic`); filter then map
   (`Arr.filterMap`, `Filter`); `JSON.stringify` in a log (`Formatter`).
 - Before writing a utility type, look for it in effect's `Types` module, then in `type-fest`.
+- Before calling an API of any other package, read its signature in the version installed:
+  `<workspace>/node_modules/<pkg>` (its `.d.ts` or `src`), never from memory; the isolated
+  linker leaves the root `node_modules` without it.
