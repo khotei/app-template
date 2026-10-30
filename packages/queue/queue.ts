@@ -112,8 +112,13 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
         <B, E2, R2>(effect: Effect.Effect<B, E2, R2>) =>
           restore(effect).pipe(Effect.onInterrupt(() => release(received).pipe(Effect.ignore)))
 
-      // Visibility settles every outcome: `delete` on success, a retry delay, or 0 so that the
-      // next receive redrives a spent message to the dead-letter queue.
+      // A failed attempt waits its retry delay; the last is released at once, so that the next
+      // receive redrives it to the dead-letter queue.
+      const retry = (received: Received, info: AttemptInfo) =>
+        info.isLastAttempt
+          ? release(received)
+          : extend(received, definition.retryDelay(info.attempt))
+
       const settle = Effect.fnUntraced(function* (
         received: Received,
         { info, exit }: { readonly info: AttemptInfo; readonly exit: Exit.Exit<void, E> },
@@ -121,28 +126,26 @@ const makeClient = ({ queueName, lockExpiration, lockRefreshInterval }: QueueCli
         if (Exit.isSuccess(exit)) return yield* transport.delete(queue, received.handle)
         if (Cause.hasInterruptsOnly(exit.cause)) return yield* release(received)
 
-        if (info.isLastAttempt) {
-          yield* Effect.logError('queue message dead-lettered', exit.cause)
-          return yield* release(received)
-        }
-        yield* Effect.logWarning('queue message attempt failed', exit.cause)
-        yield* extend(received, definition.retryDelay(info.attempt))
+        yield* info.isLastAttempt
+          ? Effect.logError('queue message dead-lettered', exit.cause)
+          : Effect.logWarning('queue message attempt failed', exit.cause)
+        yield* retry(received, info)
       })
 
       // Runs masked from the receive on, so no interrupt finds the message unreleased: only the
       // decode and the handler `releaseOnInterrupt`.
       const run = Effect.fnUntraced(
         function* (received: Received, restore: Restore) {
+          const info = buildAttemptInfo(received, definition.maxAttempts)
           const decoded = yield* decode(received.body).pipe(
             Effect.result,
             releaseOnInterrupt(received, restore),
           )
           if (Result.isFailure(decoded)) {
             yield* Effect.logError('queue message does not decode', decoded.failure)
-            return yield* release(received)
+            return yield* retry(received, info)
           }
 
-          const info = buildAttemptInfo(received, definition.maxAttempts)
           const exit = yield* handle(decoded.success, info).pipe(
             Effect.exit,
             Effect.raceFirst(heartbeat(received)),
@@ -180,8 +183,9 @@ export class QueueClient extends Context.Service<
     ) => Effect.Effect<void, QueueError>
     /**
      * Runs `handle` on each message forever, the attempt being its receive count: success deletes
-     * it, a failure hides it for `retryDelay`, and a last failure, an undecodable body or an
-     * interrupt makes it visible at once for its next attempt or the dead-letter queue.
+     * it, a failure or an undecodable body hides it for `retryDelay`, or on the last attempt makes
+     * it visible at once for the dead-letter queue, and an interrupt makes it visible at once for
+     * its next attempt.
      *
      * An interrupt waits for the settle under way, so a retry keeps its delay and a delete is
      * not lost.

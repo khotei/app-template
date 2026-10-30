@@ -40,6 +40,7 @@ const queues = {
   interrupted: { name: 'interrupted', maxReceiveCount: maxAttempts },
   recovered: { name: 'recovered', maxReceiveCount: maxAttempts },
   malformed: { name: 'malformed', maxReceiveCount: maxAttempts },
+  unending: { name: 'unending', maxReceiveCount: maxAttempts },
   decoding: { name: 'decoding', maxReceiveCount: maxAttempts },
   settling: { name: 'settling', maxReceiveCount: maxAttempts },
 } as const satisfies Resources['queues']
@@ -84,6 +85,13 @@ const exhausted = {
 const settleDelay = Duration.seconds(4)
 
 const settling = { ...definitions.settling, retryDelay: () => settleDelay }
+
+// Never reaches a last attempt, as a dead-letter queue's definition.
+const unending = {
+  ...definitions.unending,
+  maxAttempts: Number.MAX_SAFE_INTEGER,
+  retryDelay: () => settleDelay,
+}
 
 const clientOptions = { queueName, lockExpiration, lockRefreshInterval: '500 millis' } as const
 
@@ -350,6 +358,27 @@ describe('QueueClient.send and worker over QueueTransport.layerSqs against MiniS
             logs,
             Arr.replicate(['Error', 'queue message does not decode', 'malformed'], maxAttempts),
           )
+        }).pipe(Effect.provide(recordedLogs))
+      },
+      realTime,
+    )
+
+    it.effect(
+      'hides a body that does not decode for its retry delay when no attempt is the last',
+      () => {
+        const { logs, layer: recordedLogs } = recordLogs('queue')
+        return Effect.gen(function* () {
+          yield* worker(unending, () => Effect.void).pipe(Layer.build)
+
+          yield* QueueTransport.use((transport) =>
+            transport.send(queueName(unending.name), {
+              body: malformedBody,
+              attributes: { jobId: 'malformed' },
+            }),
+          )
+          yield* Effect.sleep(Duration.subtract(settleDelay, Duration.seconds(1)))
+
+          assert.deepStrictEqual(logs, [['Error', 'queue message does not decode', 'unending']])
         }).pipe(Effect.provide(recordedLogs))
       },
       realTime,
