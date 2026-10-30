@@ -30,11 +30,14 @@ does not.
 - **Where this ticket departs from its roadmap entry.** OpenAI, assistant-produced files and
   placeholders, prompt-template provenance beyond a hash, history trimming, token and cost
   accounting, budgets, the SSE tail and a recorded provider round trip are out (see Out of scope,
-  with where each goes). Structured replies are new.
+  with where each goes). Structured replies are new. Provenance lives in the reply's job in the
+  outbox, not with the message as the roadmap entry says.
 - **Requirements of `chat-core` this ticket amends.** R16 (snapshots while generating), R17
   (assistant turns in the prompt), R18 (which failures retry), R25 (how the title is asked). The
   amendments are R5, R8, R13–R17 and R19 below; `/ticket-implement` records them in
   `chat-core/feature.md` in the commit that changes the behaviour.
+- **Requirements of `postgres-drizzle` this ticket amends.** R7 (a sent outbox entry is deleted):
+  the relay keeps it, so the reply job's provenance stays readable.
 - **Facts verified on 2026-10-29** by the `researcher` agent against the vendored
   `repos/effect` at 4.0.6 (equal to the installed `effect`), the npm registry and
   platform.claude.com:
@@ -67,7 +70,7 @@ does not.
   honoured, a refusal stored as its own reason.
 - The title as a structured response.
 - Prompt caching on the reply; explicit output limits and thinking settings per purpose.
-- Provenance (provider, model, instructions hash) stored with each assistant message.
+- Provenance (provider, model, instructions hash) stored with the reply's job in the outbox.
 - `docs/knowledge/ai.md`: every `effect/ai` module, where it is used or why not, and how to
   change the prompt or the schema.
 
@@ -235,8 +238,8 @@ For `/ticket-architecture`.
 
 ### Q3 — Where does provenance live?
 
-- **Why it matters:** the glossary names the model only in `infrastructure`, yet R12 stores it
-  with the message.
+- **Why it matters (before S7.2):** the glossary names the model only in `infrastructure`, yet
+  R12 stores it with the message.
 - **Options:** A — the `Assistant` port answers an opaque provenance (three strings) beside the
   reply, and the domain stores it without reading it; B — only the infrastructure row holds it,
   written by the adapter.

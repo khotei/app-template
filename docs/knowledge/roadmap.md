@@ -369,6 +369,10 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   with Aurora or RDS settings and a managed password for the database. This ticket adds the
   migration command for a deployed stage. Locally `make up` sets `VCR_MODE=REPLAY_ONLY` to skip
   the provider's fixed waits; never on AWS.
+- **Inherits from `llm-providers` (2026-10-30).** `deployment/` sets no LLM variables, so a
+  deployed worker and api fail at start: both need `LLM_PROVIDER` and, for `anthropic`,
+  `LLM_REPLY_MODEL`; the worker also `LLM_TITLE_MODEL` and `ANTHROPIC_API_KEY` (in SSM). The api
+  never reads the key.
 
 ### 10. `client-publishing`
 
@@ -607,6 +611,10 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   hiding the chat's reads) and a purge in batches, so the request deletes one row. Uploads into a
   chat (`POST /chats/:chatId/attachments`) with keys `chats/<chatId>/…`, which a delete clears by
   prefix listing.
+- **Inherits from `llm-providers` (2026-10-30).** The relay already keeps its rows: it sets
+  `sent_at` instead of deleting, over a partial index `WHERE sent_at IS NULL`, so a reply's job
+  keeps its provenance in `body`. The ledger's statuses replace `sent_at`; nothing removes sent
+  rows yet, which the retention question above now settles for every row.
 - **Facts (2026-10-30).** S3 lists by key prefix only and cannot list, delete or filter by
   metadata or tag; lifecycle rules filter by prefix, tag and size, a few static rules per bucket;
   `DeleteObjects` takes 1000 keys a request.

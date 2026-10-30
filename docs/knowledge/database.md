@@ -220,11 +220,11 @@ and `apps/worker` consumes through `QueueConsumerSqs` beside the relay.
   in one transaction: it selects up to 10 rows `WHERE sent_at IS NULL ORDER BY created_at, id`
   `FOR UPDATE SKIP LOCKED`, sends each over `QueueTransport` to `buildResourceName(STAGE, queue)`
   with its `jobId` and its `body` as a JSON string (`JSON.stringify`, the form the SQS client
-  sends), sets their `sent_at` and commits.
+  sends), sets their `sent_at` and commits. A full batch polls again at once; a shorter one
+  waits `OUTBOX_POLL_INTERVAL` (1 second by default).
 - **A sent row stays,** so the outbox is the record of what each job carried; the partial index
   `outbox_unsent_created_at_index` holds only unsent rows, so the poll stays cheap however many
-  sent rows pile up. Nothing removes sent rows yet. A full batch polls again at once; a shorter one waits
-  `OUTBOX_POLL_INTERVAL` (1 second by default).
+  sent rows pile up. Nothing removes sent rows yet.
 - **Several relays share the table.** `SKIP LOCKED` hands a row to one relay at a time, and the
   others take the next rows or none.
 - **A failed batch rolls back,** so its rows stay: the relay logs `outbox relay failed` with

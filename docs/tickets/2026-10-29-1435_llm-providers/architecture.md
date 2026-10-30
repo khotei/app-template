@@ -20,14 +20,15 @@ the stub:
   through `effect/ai`'s telemetry hook, which sees every response part before the decode (D4).
 - **Nothing streams.** The `generating` stage carries no text. The snapshots and their 300 ms
   interval go (R5), and the message is written `done` with its text in one write.
-- **Provenance is a value of the port**, fixed when the process starts, and the use case writes
-  it with the `generating` move, the moment the request is sent (D6).
+- **Provenance travels in the reply's job.** The api's send-message use case fills it from
+  `CurrentReplyProvenance`, fixed when the layer is built, and the outbox keeps every sent row,
+  so operators read it there; the message and the domain never carry it (D6, D8).
 
 ```mermaid
 graph LR
   H["worker handler<br/>(attempts, dead letter)"] --> UC["GenerateAssistantMessageUseCase<br/>GenerateChatTitleUseCase"]
   UC --> MS["message transitions · ChatService"]
-  UC --> A["Assistant port<br/>reply · suggestTitle · replyProvenance"]
+  UC --> A["Assistant port<br/>reply · suggestTitle"]
   A -.implemented by.-> L["AssistantLlm<br/>prompts · schemas · retries · failure mapping"]
   L --> M["AssistantModels<br/>reply · title"]
   M -->|"LLM_PROVIDER=anthropic"| AN["AnthropicLanguageModel.make ×2<br/>AnthropicClient · FetchHttpClient"]
@@ -46,30 +47,37 @@ graph LR
 **`domain/chat/`**
 
 ```
-~ message.model.ts     + MessageProvenance; Message + provenance;
-                         MessageFailure.reason + 'ReplyRefused', failureMessages + its sentence;
-                         generateMessage takes the provenance; − snapshotMessage
+~ message.model.ts     MessageFailure.reason + 'ReplyRefused', failureMessages + its sentence;
+                         − snapshotMessage
 + assistant.model.ts   AssistantReply (text): the port's answer
 + assistant.error.ts   AssistantRefusedError, AssistantFailedError
-~ assistant.port.ts    streamText → reply; suggestTitle fails; + replyProvenance
+~ assistant.port.ts    streamText → reply; suggestTitle fails
 ~ chat.model.ts        − buildChatTitle and its grapheme cut: the title schema bounds the answer
 ~ index.ts             exports the two new files
 ```
 
 **`domain/testing/`**: `assistant.test-fake.ts` scripts `reply` and `suggestTitle` with an
-answer or an error and exposes a fixed `replyProvenance`; `chat.test-fixture.ts` gains a reply
-and a provenance.
+answer or an error; `chat.test-fixture.ts` gains a reply.
 
 **`infrastructure/chat/`**
 
 ```
 ~ assistant.llm.ts              the system prompt, the reply and title schemas with their field
                                 descriptions, the prompts, the finish-reason capture, the retry
-                                schedules, the AiError mapping, hashInstructions; over AssistantModels and Crypto
+                                schedules, the AiError mapping, generateInstructionsHash;
+                                + CurrentReplyProvenance with layerFromConfig (D6)
 + assistant.client.ts    AssistantModels with layerAnthropic(options), layerStub, layerFromConfig
-~ message.entity.ts             + provenance jsonb (D8)
-+ db/migrations/<n>_…           the column
-~ index.ts                      exports AssistantModels
+~ chat.queue.ts                 + ReplyProvenance; GenerateAssistantMessage + provenance (D6)
+~ index.ts                      exports AssistantModels, CurrentReplyProvenance
+```
+
+**`infrastructure/outbox/`, `db/`, `testing/`**
+
+```
+~ outbox.entity.ts              + sent_at; the created_at index → a partial one over unsent rows (D8)
+~ outbox.relay.ts               polls unsent rows, marks a sent one instead of deleting it
++ db/migrations/<n>_outbox_sent_at
++ testing/chat.test-fake.ts     CurrentReplyProvenanceTest and the provenance it holds
 ```
 
 **`packages/`**
@@ -77,17 +85,18 @@ and a provenance.
 ```
 ~ llm/client.ts        LanguageModelStub (a word stream) → createLanguageModelStub({ text, delay }),
                        a LanguageModel that answers `text` whole after `delay`
-~ config/config.ts     + LlmConfig
+~ config/config.ts     + LlmConfig; + ReplyModelConfig (the provider and the reply model, no key)
 ```
 
 **`application/chat/`**: `generate-assistant-message.use-case.ts` loses the stream and the
 snapshots and settles the port's errors (D3); `generate-chat-title.use-case.ts` logs a port
-error and leaves the chat untitled.
+error and leaves the chat untitled; `send-message.use-case.ts` puts `CurrentReplyProvenance`
+into the reply's job (D6).
 
 **`http-api/`, `apps/`, `e2e/`**
 
 ```
-~ http-api/chat/chat.http.ts     Message DTO: − provenance (Struct.omit), so the new field never reaches the wire
+~ apps/api/layer.ts              + CurrentReplyProvenance.layerFromConfig
 ~ apps/worker/layer.ts           AssistantModels.layerFromConfig + FetchHttpClient.layer replace LanguageModelStub
 ~ e2e/testing/stand.test-layer.ts the config provider gains LLM_PROVIDER: 'stub'
 ```
@@ -99,8 +108,11 @@ error and leaves the chat untitled.
                                     change the system prompt or the reply schema, and what each
                                     change does to the prompt cache (R20)
 ~ docs/knowledge/architecture.md    the adapter row names AssistantModels
-~ docs/knowledge/glossary.md        + Provenance (who answered, and with which instructions; operators only);
+~ docs/knowledge/glossary.md        + Provenance (who the api expects to answer a reply, and with which
+                                    instructions; in the reply's job; operators only);
                                     a failed message is one the assistant gave up on or declined
+~ docs/knowledge/database.md, aws.md  the relay marks a sent row and keeps it
+~ docs/tickets/2026-10-22-1915_postgres-drizzle/feature.md   R7 amended: a sent entry is kept
 ~ .claude/rules/effect-schema.md    the port rule states its exception as a pattern (D2)
 ~ infrastructure/CLAUDE.md          drop "runs on packages/llm's stub until…"
 ~ .env.example                      LLM_PROVIDER="stub", the key and both models commented out (R21)
@@ -113,8 +125,6 @@ error and leaves the chat untitled.
 
 ```ts
 export class Assistant extends Context.Service<Assistant, {
-  /** Who answers replies and with which instructions; fixed for the process's life. */
-  readonly replyProvenance: MessageProvenance
   /** The next message of the chat whose `done` turns are `history`, oldest first. */
   readonly reply: (
     history: ReadonlyArray<HistoryMessage>,
@@ -136,16 +146,9 @@ export class AssistantFailedError extends Schema.TaggedError<AssistantFailedErro
   'AssistantFailedError', { cause: Schema.String }) {}
 ```
 
-**Models** (`domain/chat/message.model.ts`, `assistant.model.ts`)
+**Models** (`domain/chat/assistant.model.ts`)
 
 ```ts
-export class MessageProvenance extends Schema.Class<MessageProvenance>('MessageProvenance')({
-  provider: Schema.String, model: Schema.String, instructionsHash: Schema.String,
-}) {}
-
-// Message gains:
-provenance: Schema.Option(MessageProvenance),
-
 export class AssistantReply extends Schema.Class<AssistantReply>('AssistantReply')({
   text: Schema.String.check(<non-empty after trim>),
 }) {}
@@ -155,8 +158,8 @@ The transitions after this ticket:
 
 | Transition | Writes | Clears |
 |---|---|---|
-| `prepareMessage(message, at)` | `preparing` | `text`, `error`; keeps `provenance`, so a failure before the next request still names the model that was last asked |
-| `generateMessage(message, { provenance, at })` | `generating`, `provenance` | — |
+| `prepareMessage(message, at)` | `preparing` | `text`, `error` |
+| `generateMessage(message, at)` | `generating` | — |
 | `completeMessage(message, { text, at })` | `done`, `text` | `error` (unchanged) |
 | `failMessage(message, { reason, cause, at })` | `failed`, `error` | — |
 
@@ -184,9 +187,28 @@ with no description); the JSON Schema is the encoded side's, so `title`'s sits o
 `String`, where `Schema.Trim`'s own `expected` text would replace it (S6). Seam 1's description
 cases cover both.
 
-The adapter also exports `hashInstructions(systemPrompt, schema)`: the SHA-256, in hex, of the
-system prompt, a newline and `JSON.stringify` of the schema's JSON Schema document.
-`replyProvenance.instructionsHash` is that function over the reply's prompt and schema.
+The adapter also exports `generateInstructionsHash(systemPrompt, schema)`: the SHA-256, in hex,
+of the system prompt, a newline and `JSON.stringify` of the schema's JSON Schema document.
+
+**Provenance** (`infrastructure/chat/chat.queue.ts`, `assistant.llm.ts`)
+
+```ts
+export class ReplyProvenance extends Schema.Class<ReplyProvenance>('ReplyProvenance')({
+  provider: Schema.String, model: Schema.String, instructionsHash: Schema.String,
+}) {}
+
+export class GenerateAssistantMessage extends Schema.Class<GenerateAssistantMessage>(
+  'GenerateAssistantMessage',
+)({ chatId: ChatId, messageId: MessageId, provenance: ReplyProvenance }) {}
+
+// fixed at layer build from ReplyModelConfig and generateInstructionsHash(systemPrompt, ReplyAnswer)
+export class CurrentReplyProvenance extends Context.Service<CurrentReplyProvenance, ReplyProvenance>()(…) {
+  static readonly layerFromConfig: Layer.Layer<CurrentReplyProvenance, Config.ConfigError, Crypto.Crypto>
+}
+```
+
+The field is required although the worker never reads it, so a job queued without it fails to
+decode. `GenerateChatTitle` carries none.
 
 **Failure mapping** in `AssistantLlm`, per request:
 
@@ -210,8 +232,6 @@ names the wait alone, the provider's text staying in the error's HTTP context.
 
 ```ts
 export class AssistantModels extends Context.Service<AssistantModels, {
-  readonly provider: string
-  readonly replyModel: string
   readonly reply: LanguageModel.LanguageModel
   readonly title: LanguageModel.LanguageModel
 }>()('@app-template/infrastructure/chat/AssistantModels') {
@@ -244,29 +264,36 @@ export class LlmConfig extends Context.Service<LlmConfig,
 `LLM_PROVIDER` (`stub` | `anthropic`, required), `ANTHROPIC_API_KEY`, `LLM_REPLY_MODEL` and
 `LLM_TITLE_MODEL` (all three required when the provider is `anthropic`). A missing or unknown
 value fails the layer with `Config`'s error, which names the variable (R3).
+`ReplyModelConfig` (`{ provider, replyModel }`, `stub` for both under the stub) shares the
+`LLM_PROVIDER` and `LLM_REPLY_MODEL` reads with `LlmConfig` and never reads the key, so the api
+names the reply model without holding the provider's secret.
 
-**Data** (`messages`)
+**Data** (`outbox`)
 
 ```sql
-provenance jsonb          -- { provider, model, instructionsHash } or null
+sent_at timestamptz       -- set by the relay; null until the row is sent
+outbox_unsent_created_at_index ON (created_at) WHERE sent_at IS NULL
+-- body of a reply's job: { chatId, messageId, provenance: { provider, model, instructionsHash } }
 ```
 
-**Wire**: unchanged. `provenance` and `error.cause` never leave the api (R12, R18).
+**Wire**: unchanged. `error.cause` never leaves the api (R18); provenance lives in the outbox
+only (R12).
 
 ## Seams
 
 | Seam | Catches | Misses |
 |---|---|---|
 | 1 `AssistantLlm` over `AssistantModels.layerAnthropic` and a fake `HttpClient` (`HttpClient.make` + `HttpClientResponse.fromWeb`, under `TestClock`), `infrastructure/tests/chat/assistant.llm.test.ts` | the request body: the model per purpose (R1), the system prompt first, then the user turns with text and files and the assistant turns as their text (R8), the same system prompt for two chats (R9), `cache_control` without `ttl` (R10), `max_tokens`, effort and thinking per purpose (R11), a description on the schema's field (R6); the answer: every row of the failure mapping, the waits and the request counts (R13–R17, R19's retries) | the real Anthropic: what a refusal body looks like, latency, what a real 400 says, whether Anthropic accepts the JSON Schema |
-| 2 `hashInstructions`, the same file | the hash changes with the system prompt and with the schema (R12) | whether the hash reaches the stored message (Seam 4) |
+| 2 `generateInstructionsHash` and `CurrentReplyProvenance.layerFromConfig`, the same file | the hash changes with the system prompt and with the schema; the provenance names the configured provider and reply model with no key (R12) | whether the provenance reaches the job (Seams 11, 8) |
 | 3 `AssistantLlm` over `AssistantModels.layerStub` | the stub's canned reply and title pass the same schemas (R2) | the stub's delay as a client sees it (by hand, R2's acceptance) |
-| 4 `GenerateAssistantMessageUseCase` over the memory layers, `recordAssistant` and `holdAssistantCall` | the stages written: `preparing`, `generating` with the provenance, then one `done` with the text (R5, R12); `failed` with `ReplyRefused` or `ReplyFailed` from each port error, after one call, provenance kept, the chat `failed` with it (R13, R16, R17); only `done` messages reach the port (R8) | how a provider failure becomes a port error (Seam 1) |
+| 4 `GenerateAssistantMessageUseCase` over the memory layers, `recordAssistant` and `holdAssistantCall` | the stages written: `preparing`, `generating`, then one `done` with the text (R5); `failed` with `ReplyRefused` or `ReplyFailed` from each port error, after one call, the chat `failed` with it (R13, R16, R17); only `done` messages reach the port (R8) | how a provider failure becomes a port error (Seam 1) |
 | 5 `GenerateChatTitleUseCase` over the memory layers and `recordAssistant` | a port error logs and leaves the chat untitled; the rest of `chat-core` R25 still holds (R19) | the title's schema (Seam 1) |
-| 6 `LlmConfig.layer` over `ConfigProvider.fromUnknown` | `stub` alone passes; a missing or unknown provider, or `anthropic` without its key or a model, fails naming the variable (R3) | the worker exiting (by hand, R3's acceptance) |
+| 6 `LlmConfig.layer` and `ReplyModelConfig.layer` over `ConfigProvider.fromUnknown` | `stub` alone passes; a missing or unknown provider, or `anthropic` without its key or a model, fails naming the variable (R3); `ReplyModelConfig` reads `anthropic` without the key | the worker exiting (by hand, R3's acceptance) |
 | 7 `domain/tests/chat/message.model.test.ts`, `domain/tests/chat/assistant.model.test.ts` | the `AssistantReply` bound (R6); the transitions above, the `ReplyRefused` sentence | — |
-| 8 `MessageRepositoryPg` on `DbTest`, `infrastructure/e2e/chat/message.repository.e2e.ts` | `provenance` survives a write and a read, `null` as none | — |
-| 9 `apps/api` handler tests, `apps/api/tests/chat/chat.handler.test.ts` | no `provenance` and no `cause` on the wire (R12, R18) | — |
+| 8 `QueueSenderOutbox` and `OutboxRelay` on `DbTest`, `infrastructure/e2e/shared/queue.client.e2e.ts`, `infrastructure/e2e/outbox/outbox.relay.e2e.ts` | the reply job's body in the outbox holds the provenance; a sent row is kept with `sent_at` and never sent again; the body on SQS carries it too (R12) | — |
+| 9 `apps/api` handler tests, `apps/api/tests/chat/chat.handler.test.ts` | no `cause` on the wire (R18) | — |
 | 10 the journey `e2e/chat.e2e.ts` on `layerStub` | the worker wiring end to end with no key and no network (R2, R4) | Anthropic itself (by hand, R1's acceptance) |
+| 11 `SendMessageUseCase` over the memory layers and `CurrentReplyProvenanceTest`, `application/tests/chat/send-message.use-case.test.ts` | the reply's job carries the provenance, the title's job none (R12) | the api's layer wiring (Seam 10) |
 
 The worker handlers' suites (`apps/worker/tests/chat/`) keep their cases. Their behaviour does not
 change: the last attempt still settles a reply that a crash left active.
@@ -350,19 +377,28 @@ change: the last attempt still settles a reply that a crash left active.
       but the reader cannot see which call runs which model;
     - a stub at the port level — R2 would no longer prove the schemas.
 
-- **D6 — Provenance is the port's `replyProvenance`, fixed when the process starts and written
-  by the `generating` move.** *Answers Q3.*
+- **D6 — Provenance is a required field of the reply's job, filled by the api from
+  `CurrentReplyProvenance`, fixed when its layer is built.** *Answers Q3, revised in S7.2.*
   - **Why:**
-    - Provider, model and instructions hash change only with configuration or code, so no answer
-      needs to carry them.
-    - `generating` is the moment the request is sent, so `done` and a `failed` after a call
-      keep the value, and a message failed before any call has none (R12).
+    - Provider, model and instructions hash change only with configuration or code, so one
+      value per process serves every job.
+    - The domain, the port and the message never carry it: it is operator detail, and the job
+      already crosses from the api to the worker in the outbox (D8).
+    - `ReplyModelConfig` reads the provider and the reply model only, so the api holds no
+      Anthropic key.
     - The hash is SHA-256 from `Crypto.digest` (provided by `BunCrypto.layer`), so two versions
       of the instructions do not collide.
-  - **Cost accepted:** a message retried after a crash shows the provenance of its last
-    `generating`, not of every request.
-  - **Reversal:** one commit.
+    - The field is required although the worker ignores it, so a job queued without it fails
+      to decode instead of passing unnoticed.
+  - **Cost accepted:** the value is what the api expects, not what answered: while a deploy
+    rolls out, the worker may run another model or other instructions (R12 says so). The title's
+    job carries none.
+  - **Reversal:** one commit, plus D8's migration.
   - **Rejected:**
+    - the port's `replyProvenance`, written to the message by the `generating` move (S7.1) — the
+      user moved provenance out of the domain;
+    - provenance added to the outbox body outside the job's schema — nothing would check it, and
+      the coupling between the api and the outbox would not show in the code;
     - provenance returned with every answer and every error — the same value, carried through
       more types;
     - `Hash.string` — 32 bits, not cryptographic.
@@ -377,13 +413,19 @@ change: the last attempt still settles a reply that a crash left active.
       and a blank reply is a retried schema failure (R15).
   - **Reversal:** one commit.
 
-- **D8 — `provenance` is one `jsonb` column.**
-  - **Why:** provenance is always whole, three fields or none, stored the way `error` already is.
-  - **Cost accepted:** selecting messages by model or hash reads into JSON.
+- **D8 — The outbox keeps its sent rows: the relay sets `sent_at` instead of deleting, and polls
+  unsent rows over a partial index.** *Revised in S7.3.* This reverses `postgres-drizzle` D4,
+  and that ticket's R7 is amended.
+  - **Why:** the reply's job body is where provenance lives (D6); a deleted row would lose it
+    seconds after the send. The partial index `WHERE sent_at IS NULL` keeps the poll as cheap as
+    before however many sent rows pile up.
+  - **Cost accepted:** the table grows without bound, since nothing removes sent rows in this
+    ticket; selecting jobs by model or hash reads into the `jsonb` body.
   - **Reversal:** a migration.
   - **Rejected:**
-    - three nullable columns — they need an all-or-none check, and three columns decoded into
-      one `Option`.
+    - a `provenance jsonb` column on `messages` (S7.1) — it put provenance on the message;
+    - deleting a row once sent (`postgres-drizzle` D4) — provenance would vanish with it;
+    - a separate `meta` column on the outbox — the user put provenance in the job's body.
 
 - **D9 — Anthropic's requests wait up to 10 minutes for a byte; the bound sits on
   `AnthropicClient`.** Bun's `fetch` cuts a request that receives nothing for 360 s (V1,
@@ -418,6 +460,15 @@ change: the last attempt still settles a reply that a crash left active.
   first turns of a chat are short. R10 only asks for caching, so nothing fails, and `ai.md` says so.
 - **The history outgrows the context window.** Every later reply in that chat fails at once
   (R17). *Contained by:* accepted until `context-window`.
+- **Sent outbox rows pile up.** Nothing removes them, so the table and its backups grow without
+  bound; the poll stays cheap over the partial index. *Contained by:* `job-ledger`'s retention
+  question in the roadmap.
+- **Provenance names the expected model, not the one that answered.** During a deploy the api
+  and the worker may run different configurations or instructions. *Contained by:* accepted in
+  R12.
+- **A deploy lacks `LLM_PROVIDER` and `LLM_REPLY_MODEL`.** `deployment/` sets neither, so the
+  worker (since S2) and now the api fail at start with `Config`'s error. *Contained by:* an
+  `aws-deployment` note in the roadmap; the local stand reads them from `.env`.
 
 ## To verify during implementation
 

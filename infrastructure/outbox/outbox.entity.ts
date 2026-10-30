@@ -7,8 +7,7 @@ import { createdAt, id } from '#infrastructure/db/columns'
 /**
  * Jobs a transaction wrote for the relay to send: `queue` is a definition's name, before the
  * stage; `body` is the job encoded through its definition's schema. The relay sets `sentAt` and
- * keeps the row, so operators read what each job carried; nothing removes sent rows yet. No index
- * on `body`: nothing queries it.
+ * keeps the row, so operators read what each job carried. No index on `body`: nothing queries it.
  */
 export const outbox = snakeCase.table(
   'outbox',
@@ -20,7 +19,6 @@ export const outbox = snakeCase.table(
     createdAt: createdAt(),
     sentAt: timestamp({ withTimezone: true }),
   },
-  // The relay's poll reads only unsent rows, so the index holds only them.
   (table) => [
     index('outbox_unsent_created_at_index').on(table.createdAt).where(isNull(table.sentAt)),
   ],

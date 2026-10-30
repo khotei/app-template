@@ -175,8 +175,10 @@ const askWithin =
 
 const encoder = new TextEncoder()
 
-// The JSON Schema document, not the schema's own form: it is what the model reads, so the hash
-// moves exactly when the instructions sent do.
+/**
+ * Hashes the system prompt with the JSON Schema document the model reads, so it moves exactly when
+ * what is sent does.
+ */
 export const generateInstructionsHash = (
   systemPrompt: string,
   schema: Schema.Top,

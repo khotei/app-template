@@ -160,6 +160,8 @@ Postgres, one container per run.
   its definition within the relay interval (`OUTBOX_POLL_INTERVAL`, default 1 s) and delete it;
   IF a publish fails, THEN the entry SHALL stay pending and be retried on the next poll.
   *Amended in S10:* a sent entry is deleted, not marked (D4).
+  *Amended in llm-providers S7:* a sent entry is kept, marked `sent_at`, so the reply job's
+  provenance stays readable.
 - **R8** — WHEN several relays run (two worker processes), THE SYSTEM SHALL hand a pending entry
   to one of them at a time (`FOR UPDATE SKIP LOCKED`); a crash between the publish and the commit
   MAY publish the entry once more, which the idempotent handlers absorb (`aws-local` R9).

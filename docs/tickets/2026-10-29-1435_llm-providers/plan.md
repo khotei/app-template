@@ -12,7 +12,7 @@
 | S4 | the port's two final errors, settled by the use cases | done |
 | S5 | reply failures told apart, retried in place, a refusal kept apart | done |
 | S6 | the title as a structured response with its own retries | done |
-| S7 | provenance stored with each assistant message, never on the wire | todo |
+| S7 | provenance in the reply's job, kept in the outbox; never on the message or the wire | done |
 | S8 | `docs/knowledge/ai.md`: every `effect/ai` module mapped | todo |
 
 ## How to run this plan
@@ -151,6 +151,8 @@
   - `AssistantModels` carries no `provider` or `replyModel` yet, though the contract has them: a
     review after S2 cut them as fields no caller read (`deep-modules.md`); S7 adds them with
     their only reader.
+    *Superseded in S7.2:* their reader moved to the api, which reads them from
+    `ReplyModelConfig`, so `AssistantModels` keeps neither.
   - `architecture.md` now names `createLanguageModelStub` and `LanguageModel.LanguageModel`.
   - The manual check needed `make migrate` on the local stand: committed migration
     `20261027172050_outbox_body_jsonb` had not run there, so the worker decoded no outbox job.
@@ -348,48 +350,66 @@
     does not exist`, and only `make reset` (which wipes local data) rebuilds it. The stub
     journey (`e2e/chat.e2e.ts`) stood in: the worker titles the chat `Stub chat title`.
 
-#### S7 — Provenance stored with each assistant message
+#### S7 — Provenance in the reply's job, kept in the outbox
 
-- **Delivers:** each assistant message stores who answered it once a model was asked: the
-  provider, the model and a SHA-256 of the system prompt and the reply schema. It is written with
-  the `generating` move, kept by `done` and `failed`, and never leaves the api.
+- **Delivers:** each reply's job carries its provenance, the provider, the reply model and a
+  SHA-256 of the system prompt and the reply schema, as the api expects them; the outbox keeps
+  every sent row, marked `sent_at`, so operators read it there. The message, the domain and the
+  wire never carry it. *Revised after S7.1:* the user moved provenance from the message to the
+  outbox job's body.
 - **Goal:** R12; D6, D8.
 - **Blocked by:** S6 (shares `assistant.llm.ts` and its suite; hashes S3's system prompt and
   reply schema).
 - **Files:**
-  - `domain/chat/message.model.ts` (+ `MessageProvenance`; `Message` + `provenance:
-    Schema.Option(MessageProvenance)`; the builders set none; `generateMessage(message, {
-    provenance, at })`, so `move`'s patch takes `provenance` too);
-  - `domain/chat/assistant.port.ts` (+ `replyProvenance`);
-    `domain/testing/assistant.test-fake.ts` (a fixed `replyProvenance`),
-    `domain/testing/chat.test-fixture.ts` (+ `provenance`);
-  - `application/chat/generate-assistant-message.use-case.ts` (`reply` hands the port's
-    `replyProvenance` to `generateMessage`);
-  - `infrastructure/chat/assistant.llm.ts` (+ `generateInstructionsHash(systemPrompt, schema)`:
-    `Crypto.digest('SHA-256', …)` over the prompt, a newline and `JSON.stringify` of
-    `Schema.toJsonSchemaDocument(schema)`, the bytes as hex, a `PlatformError` a defect;
-    `generate`, not the architecture's `hashInstructions`, by `naming.md › Symbols`;
-    `replyProvenance` from `AssistantModels.provider` and `.replyModel`, which S7 adds to
-    `assistant.client.ts`, the stub reporting `stub` for both);
-  - `infrastructure/chat/message.entity.ts` (+ `provenance` `jsonb`, decoded by
-    `Schema.OptionFromNullOr(MessageProvenance)`); `infrastructure/db/migrations/<stamp>_message_provenance/`
-    (`make migration NAME=message_provenance`);
-  - `http-api/chat/chat.http.ts` (`Message` omits `provenance`);
-  - suites: `domain/tests/chat/message.model.test.ts`,
-    `application/tests/chat/generate-assistant-message.use-case.test.ts`,
-    `infrastructure/tests/chat/assistant.llm.test.ts`,
-    `infrastructure/e2e/chat/message.repository.e2e.ts`, `apps/api/tests/chat/chat.handler.test.ts`;
-  - `docs/knowledge/glossary.md` (+ **Provenance**: who answered an assistant message, with
-    which instructions; operators only; with its `_Avoid_` line, as every entry has).
+  - `infrastructure/chat/assistant.llm.ts` (+ `generateInstructionsHash(systemPrompt, schema)`,
+    + `CurrentReplyProvenance` with `layerFromConfig`); `infrastructure/chat/chat.queue.ts`
+    (+ `ReplyProvenance`, `GenerateAssistantMessage` + `provenance`); `infrastructure/chat/index.ts`;
+  - `packages/config/config.ts` (+ `ReplyModelConfig`, sharing the `LLM_PROVIDER` and
+    `LLM_REPLY_MODEL` reads with `LlmConfig`);
+  - `application/chat/send-message.use-case.ts`, `application/testing/chat.test-layer.ts`,
+    `apps/api/layer.ts`, `apps/api/testing/api.test-layer.ts`,
+    `infrastructure/testing/chat.test-fake.ts` (`CurrentReplyProvenanceTest`),
+    `infrastructure/testing/index.ts`;
+  - `infrastructure/outbox/outbox.entity.ts` (+ `sentAt`, a partial index over unsent rows),
+    `infrastructure/outbox/outbox.relay.ts` (marks instead of deleting),
+    `infrastructure/db/migrations/<stamp>_outbox_sent_at/`;
+  - suites: `infrastructure/tests/chat/assistant.llm.test.ts`, `packages/config/tests/config.test.ts`,
+    `application/tests/chat/send-message.use-case.test.ts`,
+    `infrastructure/e2e/shared/queue.client.e2e.ts`, `infrastructure/e2e/outbox/outbox.relay.e2e.ts`,
+    `e2e/chat.e2e.ts`, and the suites whose jobs gained the field;
+  - docs: `docs/knowledge/glossary.md` (+ **Provenance**), `database.md`, `aws.md`;
+    this ticket's `feature.md` (R12 and its acceptance, scope, Context, Q3);
+    `docs/tickets/2026-10-22-1915_postgres-drizzle/feature.md` (R7 amended).
 - **Test first:** Seam 2 — `generateInstructionsHash` changes with the system prompt and with the
-  schema. Seam 4 — the `generating` write carries the port's provenance; `done` and a
-  `failed` after the call keep it; a message failed before `generating` has none. Seam 7 —
-  `prepareMessage` keeps the provenance. Seam 8 — `provenance` survives a write and a read,
-  `null` as none. Seam 9 — the api's message has no `provenance`.
+  schema; `CurrentReplyProvenance` names the configured provider and model with no key. Seam 6 —
+  `ReplyModelConfig` reads `anthropic` without the key. Seam 11 — the reply's job carries the
+  provenance, the title's none. Seam 8 — the outbox body holds it; a sent row is kept with
+  `sent_at` and not sent again.
 - **Verify:** `make check` (its `migration-check` passes with the new folder); `make migrate` on
   the local stand applies it.
 - **Model:** opus high
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The design changed after S7.1 (3d4449c1ff), which stored provenance in a `jsonb` column on
+    `messages`, written by the `generating` move from the port's `replyProvenance`. The user
+    moved it into the outbox job's body, so S7.2 reverted the message side with its migration,
+    which had never left the branch, and S7.3 made the relay keep sent rows (D6, D8).
+  - S7.2 came to about 685 changed lines against the ~400 budget, half of them the mechanical
+    revert, so it landed as two rounds: S7.2 (the job field and the revert, `make check` green
+    alone) and S7.3 (the relay keeps rows).
+  - The migration was generated by `drizzle-kit generate` with `--hints`, not
+    `make migration`: drizzle-kit asked whether the partial index renamed the old one, and the
+    make target cannot pass the answer ("create"). A `HINTS=` on the target would cover it.
+  - `e2e/chat.e2e.ts` was not in the Files list: its cases share one stand, so a sent row of the
+    first stays visible to the second; the first now checks no unsent rows remain, the second
+    reads its chat's rows by `body->>'chatId'`.
+  - `apps/worker/tests/chat/assistant-message.handler.test.ts` and the suites building a
+    `GenerateAssistantMessage` gained the field; neither was listed.
+  - The local stand was recreated (`make reset`, at the user's word, then `make up`): it predated
+    the squash into `20261030095447_init`, so `make migrate` had failed with `type
+    "message_author" already exists` since S6. On the fresh stand both migrations applied.
+  - `deployment/` sets neither `LLM_PROVIDER` nor `LLM_REPLY_MODEL` (`git grep`), so a deploy
+    fails at start: the worker since S2, the api since S7. Recorded in Risks and the roadmap.
 
 #### S8 — Map the `effect/ai` toolkit
 
