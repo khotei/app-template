@@ -54,6 +54,7 @@ graph LR
 | 19 | [`openai-provider`](#19-openai-provider) | `feat` | 6 | planned |
 | 20 | [`context-window`](#20-context-window) | `feat` | 6 | planned |
 | 21 | [`bedrock-provider`](#21-bedrock-provider) | `feat` | 6, 9 | planned |
+| 22 | [`job-ledger`](#22-job-ledger) | `feat` | 4 | planned |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; its remaining work is re-homed
 in [Re-homing `effect-setup`](#re-homing-effect-setup).
@@ -567,6 +568,47 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   per-token prices were not readable from aws.amazon.com/bedrock/pricing and need the AWS
   calculator. MiniStack 1.5.31 emulates Bedrock Runtime with canned replies that fail a schema
   and does not emulate the Messages endpoint, so local runs stay on the stub.
+- **Status.** Planned.
+
+### 22. `job-ledger`
+
+- **Goal.** Every job, whatever its queue, leaves one row that says where it stands and why it
+  failed, searchable by what it is about; and deleting a chat or a file never waits on S3,
+  however many files it holds: the request deletes rows only, and a job deletes the bytes.
+- **Scope.**
+  - The outbox keeps its rows as the jobs' ledger: `status`, `attempts`, the last `error`,
+    `updated_at`, and a GIN index (`jsonb_path_ops`) on `body`, so `body @> '{"chatId": …}'`
+    finds a chat's jobs.
+  - The statuses: `idle` (written by `QueueClientOutbox.send`, not yet in SQS) → `queued` (the
+    relay sent it; the job is in work) → `done` (the handler succeeded) or `failed` (its last
+    attempt or its dead letter, with the error). The relay takes `idle` rows under `FOR UPDATE
+    SKIP LOCKED` (a partial index on `status = 'idle'`) and marks them `queued` instead of
+    deleting them. A run needs no status of its own: the queue's lock covers it.
+  - The worker writes each outcome back by `queue` and `job_id`, which SQS carries in the
+    message's attributes: a wrapper of `QueueClient` in `infrastructure`, since
+    `packages/queue` knows no database.
+  - Attachment deletions are jobs of this ledger: a statement-level trigger `AFTER DELETE ON
+    attachments` (`REFERENCING OLD TABLE`) writes one `attachment-deletion` job with the deleted
+    ids and their `chatId`, `messageId` and `userId`, whichever path deleted them (a chat's
+    cascade, a message's, a user's delete of an unbound file), in the deleting statement. Its
+    handler deletes the bytes by `AttachmentBucket.deleteMany`. `ChatService.delete` drops its
+    attachment read and its bucket call; the memory fake records the job as the trigger does,
+    with an e2e twin.
+  - The message keeps its stage: it is the reply's own state, which the client polls and the
+    guards read, not the job's.
+- **Why a trigger.** It catches every path in the same statement, including a file a concurrent
+  send binds between the attachments' read and the chat's delete, whose bytes today stay in S3,
+  bound and never expired.
+- **Open questions for its feature phase.** The retention of `done` rows; whether a `failed`
+  job returns to `idle` by hand; how a deletion job of a very large chat splits its ids; what the
+  worker does when Postgres refuses an outcome SQS has already settled.
+- **Related, not in scope.** A chat with millions of messages: a soft delete (`chats.deleted_at`
+  hiding the chat's reads) and a purge in batches, so the request deletes one row. Uploads into a
+  chat (`POST /chats/:chatId/attachments`) with keys `chats/<chatId>/…`, which a delete clears by
+  prefix listing.
+- **Facts (2026-10-30).** S3 lists by key prefix only and cannot list, delete or filter by
+  metadata or tag; lifecycle rules filter by prefix, tag and size, a few static rules per bucket;
+  `DeleteObjects` takes 1000 keys a request.
 - **Status.** Planned.
 
 ## Re-homing `effect-setup`

@@ -218,11 +218,27 @@ describe('AttachmentRepositoryPg', () => {
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
-  it.effect('delete where no row holds answers no rows', () =>
+  it.effect.each([
+    {
+      name: 'update',
+      write: (attachments: AttachmentRepository['Service']) =>
+        attachments.update(
+          { messageId: Option.some(messageId), chatId: Option.some(chatId) },
+          { id: [unknownId] },
+        ),
+    },
+    {
+      name: 'delete',
+      write: (attachments: AttachmentRepository['Service']) =>
+        attachments.delete({ id: [unknownId] }),
+    },
+  ])('$name where no row holds dies', ({ write }) =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentRepository
 
-      assert.deepStrictEqual(yield* attachments.delete({ id: [unknownId] }), [])
+      const exit = yield* write(attachments).pipe(Effect.exit)
+
+      assert.isTrue(Exit.hasDies(exit))
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 

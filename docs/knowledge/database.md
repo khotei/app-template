@@ -139,8 +139,8 @@ so a whole entity passed as a set writes only the fields it may change; an absen
 ## Guards
 
 A rule that two writers could break between a read and a write is held by the database, in the
-statement that writes. The caller checks the rule first, so a message or chat write the guard
-refuses only lost a race and dies; the attachments' write answers with the rows it wrote:
+statement that writes. The caller checks the rule first, so a write the guard refuses only lost
+a race: every repository's `insert`, `update` and `delete` dies when it touches no row:
 
 - **Insert under a partial unique index.** `MessageRepository.insert` adds `ON CONFLICT
   (chat_id) WHERE <activeMessage> DO NOTHING RETURNING id` (Drizzle's `onConflictDoNothing({
@@ -155,22 +155,22 @@ refuses only lost a race and dies; the attachments' write answers with the rows 
   `AttachmentSet`: `RequireAtLeastOne` from `type-fest`, so an empty write fails typecheck) where
   the rows match `where` (`ChatWhere`, `AttachmentWhere`: the `id`, an array of them for
   attachments, and optionally a field the row must still hold, `Option.none()` rendering `IS
-  NULL`). The adapter maps each side through `buildSet` and `buildWhere` (above). The chat's
-  update dies when it writes nothing, the attachments' answers with the rows it wrote
-  (`RETURNING *`).
+  NULL`). The adapter maps each side through `buildSet` and `buildWhere` (above). Both die when
+  they write nothing; the attachments' also answers the rows it wrote (`RETURNING *`).
   - `SendMessageUseCase.send` sets the chat's `updatedAt` alone, so a title written meanwhile
     survives.
   - `ChatService.rename` reads the chat by the caller's `where` to name a refusal
     (`ChatNotFoundError`), then writes under the same `where`. The title job passes `title:
     none`, so a rename landing between the two wins and the job dies and retries.
-  - `AttachmentService.bind` checks each id, then writes the message `where` `messageId` is
-    still `none`, and raises `AttachmentBoundError` for an id the statement skipped because
-    another send took it in between.
+  - `AttachmentService.bind` checks the ids on rows it reads `forUpdate`, then writes the message
+    `where` `messageId` is still `none`: a second send binding one of them waits on the lock and
+    then fails `AttachmentBoundError` in the check. A send without files binds nothing and skips
+    the write, which would die on no rows.
 
-`ChatRepository.delete(where)` is one statement and answers whether it removed the chat, so an
-owner mismatch reads as absent; its messages and their attachments go by the cascade, and
-`RETURNING` answers only the chat's row. `ChatService.delete` therefore reads the attachments'
-ids by `chatId` first, then deletes the chat, then the bytes, through
+`ChatRepository.delete(where)` is one statement and dies when it removes nothing; its messages
+and their attachments go by the cascade, and `RETURNING` answers only the chat's row.
+`ChatService.delete` therefore reads the chat to name `ChatNotFoundError`, then the attachments'
+ids by `chatId`, then deletes the chat, then the bytes, through
 `AttachmentBucket.deleteMany` (one `DeleteObjects` per 1000 keys). A file a concurrent send binds
 between the read and the delete loses its row with the chat while its bytes stay in S3, bound and
 never expired: the price of a delete with no transaction.
@@ -190,7 +190,7 @@ parameter. `SendMessageUseCase.send` writes the user message with the chat's `up
 binds, the reply and its jobs' outbox rows, or none of them. The guards above then decide every race inside
 Postgres, with no lock in the process: of two sends to one chat the second waits on the chat's
 row lock and, once the first commits, finds its reply active, and of two binds of one
-attachment the second's `UPDATE` waits on the row and skips it. Two api processes behave as two
+attachment the second waits on the attachment's row lock and finds it bound. Two api processes behave as two
 fibers. S3 stays outside the transaction: the bytes are kept before the bind, so no bound row sits
 over expiring bytes, and deleted before the commit, so a rollback restores rows that a retry still
 finds. SQS is reached only through the outbox, whose rows join it.

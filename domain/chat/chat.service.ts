@@ -70,12 +70,14 @@ export class ChatService extends Context.Service<
     })
 
     const remove = Effect.fn('ChatService.delete')(function* (userId: UserId, chatId: ChatId) {
+      yield* chats
+        .selectOne({ id: chatId, userId })
+        .pipe(Effect.flatMap(Effect.fromOption(() => new ChatNotFoundError({ id: chatId }))))
       // The one delete takes the messages and their attachments by the cascade, but it answers
       // only the chat's row: the attachments are read first for the ids of their bytes.
       const removed = yield* attachments.selectMany({ chatId, userId })
-      const deleted = yield* chats.delete({ id: chatId, userId })
-      if (!deleted) return yield* new ChatNotFoundError({ id: chatId })
 
+      yield* chats.delete({ id: chatId })
       yield* bucket.deleteMany(Arr.map(removed, Struct.get('id')))
     })
 

@@ -27,9 +27,9 @@ export class ChatRepository extends Context.Service<
     /** Returns the user's chats, the most recently updated first. */
     readonly selectByUser: (userId: UserId) => Effect.Effect<ReadonlyArray<Chat>>
     /**
-     * Removes the chat `where` finds with its messages and their attachments, in one statement, and
-     * answers whether it removed one.
+     * Removes the chat `where` finds with its messages and their attachments, in one statement;
+     * dies when it removes nothing.
      */
-    readonly delete: (where: ChatWhere) => Effect.Effect<boolean>
+    readonly delete: (where: ChatWhere) => Effect.Effect<void>
   }
 >()('@app-template/domain/chat/ChatRepository') {}

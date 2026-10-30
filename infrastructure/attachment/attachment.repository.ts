@@ -15,7 +15,12 @@ import {
   attachments,
 } from '#infrastructure/attachment/attachment.entity'
 import { buildSet, buildWhere, skipUndefined } from '#infrastructure/db/columns'
-import { Db, decodeOptionalRow, orDieWithSqlError } from '#infrastructure/db/db.client'
+import {
+  Db,
+  decodeOptionalRow,
+  orDieOnNoRows,
+  orDieWithSqlError,
+} from '#infrastructure/db/db.client'
 
 const encodeAttachment = Schema.encodeEffect(AttachmentInsert)
 
@@ -65,7 +70,12 @@ export const AttachmentRepositoryPg = Layer.effect(
             .set(encodeSet(set))
             .where(encodeWhere(where))
             .returning()
-            .pipe(Effect.flatMap(decodeAttachments)),
+            .pipe(
+              Effect.filterOrElse(Arr.isReadonlyArrayNonEmpty, () =>
+                Effect.die(new Error('no attachment was updated')),
+              ),
+              Effect.flatMap(decodeAttachments),
+            ),
         orDieWithSqlError,
       ),
       selectOne: Effect.fn('AttachmentRepository.selectOne')(
@@ -75,22 +85,18 @@ export const AttachmentRepositoryPg = Layer.effect(
             .pipe(Effect.flatMap(decodeOptionalRow(AttachmentFromRow))),
         orDieWithSqlError,
       ),
-      selectMany: Effect.fn('AttachmentRepository.selectMany')(
-        (where) =>
-          db
-            .select()
-            .from(attachments)
-            .where(encodeWhere(where))
-            .pipe(Effect.flatMap(decodeAttachments), Effect.map(inOrderOf(where.id))),
-        orDieWithSqlError,
-      ),
+      selectMany: Effect.fn('AttachmentRepository.selectMany')(function* (where, options) {
+        const query = db.select().from(attachments).where(encodeWhere(where)).$dynamic()
+        const rows = yield* options?.forUpdate ? query.for('update') : query
+        return yield* decodeAttachments(rows).pipe(Effect.map(inOrderOf(where.id)))
+      }, orDieWithSqlError),
       delete: Effect.fn('AttachmentRepository.delete')(
         (where) =>
           db
             .delete(attachments)
             .where(encodeWhere(where))
-            .returning()
-            .pipe(Effect.flatMap(decodeAttachments)),
+            .returning({ id: attachments.id })
+            .pipe(orDieOnNoRows('no attachment was deleted')),
         orDieWithSqlError,
       ),
     }),

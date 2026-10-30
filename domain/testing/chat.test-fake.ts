@@ -136,7 +136,6 @@ export const ChatRepositoryTest = Layer.effect(
     const chats = yield* ChatRows
     const messages = yield* MessageRows
     const attachments = yield* AttachmentRows
-    const readTables = yield* createReadTables
 
     const selectChat = (where: ChatWhere) =>
       Ref.get(chats).pipe(
@@ -176,7 +175,9 @@ export const ChatRepositoryTest = Layer.effect(
       delete: (where) =>
         Effect.gen(function* () {
           const found = yield* selectChat(where)
-          if (Option.isNone(found)) return false
+          if (Option.isNone(found)) {
+            return yield* Effect.die(new Error(`chat ${where.id} was not deleted`))
+          }
 
           // The cascade: the messages, then their attachments.
           yield* Ref.update(chats, HashMap.remove(where.id))
@@ -188,7 +189,6 @@ export const ChatRepositoryTest = Layer.effect(
             attachments,
             HashMap.filter((attachment) => !Option.contains(attachment.chatId, where.id)),
           )
-          return true
         }),
     })
   }),

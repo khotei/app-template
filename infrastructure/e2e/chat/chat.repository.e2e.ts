@@ -146,9 +146,8 @@ describe('ChatRepositoryPg', () => {
       yield* Effect.forEach([kept, deleted], chats.insert)
       yield* Effect.forEach([keptQuestion, deletedReply], messages.insert)
 
-      const removed = yield* chats.delete({ id: deleted.id, userId: cy })
+      yield* chats.delete({ id: deleted.id, userId: cy })
 
-      assert.isTrue(removed)
       assert.deepStrictEqual(yield* chats.selectOne({ id: deleted.id }), Option.none())
       assert.deepStrictEqual(yield* messages.selectOne({ id: deletedReply.id }), Option.none())
       assertSchemaEquals(SelectedChat, yield* chats.selectOne({ id: kept.id }), Option.some(kept))
@@ -158,29 +157,27 @@ describe('ChatRepositoryPg', () => {
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
-  it.effect(
-    "delete of an unknown chat or of another user's answers false and removes nothing",
-    () =>
-      Effect.gen(function* () {
-        const chats = yield* ChatRepository
-        const dan = UserId.make('0192d4e0-7b3a-7c00-8000-000000000015')
-        const stranger = UserId.make('0192d4e0-7b3a-7c00-8000-000000000016')
-        const stored = chat('0192d4e0-7b3a-7c00-8000-00000000003e', dan)
-        yield* Effect.forEach([dan, stranger], insertUser)
-        yield* chats.insert(stored)
+  it.effect("delete of an unknown chat or of another user's dies and removes nothing", () =>
+    Effect.gen(function* () {
+      const chats = yield* ChatRepository
+      const dan = UserId.make('0192d4e0-7b3a-7c00-8000-000000000015')
+      const stranger = UserId.make('0192d4e0-7b3a-7c00-8000-000000000016')
+      const stored = chat('0192d4e0-7b3a-7c00-8000-00000000003e', dan)
+      yield* Effect.forEach([dan, stranger], insertUser)
+      yield* chats.insert(stored)
 
-        const unknown = yield* chats.delete({
-          id: ChatId.make('0192d4e0-7b3a-7c00-8000-00000000003d'),
-        })
-        const foreign = yield* chats.delete({ id: stored.id, userId: stranger })
+      const unknown = yield* chats
+        .delete({ id: ChatId.make('0192d4e0-7b3a-7c00-8000-00000000003d') })
+        .pipe(Effect.exit)
+      const foreign = yield* chats.delete({ id: stored.id, userId: stranger }).pipe(Effect.exit)
 
-        assert.deepStrictEqual([unknown, foreign], [false, false])
-        assertSchemaEquals(
-          SelectedChat,
-          yield* chats.selectOne({ id: stored.id }),
-          Option.some(stored),
-        )
-      }).pipe(Effect.provide(RepositoryStackPgTest)),
+      assert.isTrue(Exit.hasDies(unknown) && Exit.hasDies(foreign))
+      assertSchemaEquals(
+        SelectedChat,
+        yield* chats.selectOne({ id: stored.id }),
+        Option.some(stored),
+      )
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
   it.effect("delete takes the messages' attachments with them by the cascade", () =>
@@ -201,9 +198,8 @@ describe('ChatRepositoryPg', () => {
       yield* messages.insert(withPhoto)
       yield* attachments.insert(attached)
 
-      const removed = yield* chats.delete({ id: stored.id })
+      yield* chats.delete({ id: stored.id })
 
-      assert.isTrue(removed)
       assert.deepStrictEqual(yield* messages.selectMany({ chatId: [stored.id] }), [])
       assert.deepStrictEqual(yield* attachments.selectMany({ id: [attached.id] }), [])
     }).pipe(Effect.provide(RepositoryStackPgTest)),

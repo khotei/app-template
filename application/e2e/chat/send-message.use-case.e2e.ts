@@ -3,7 +3,8 @@ import { assertEquals } from '@effect/vitest/utils'
 import { Array as Arr, Effect, Exit, Option, Order } from 'effect'
 import { SqlClient } from 'effect/sql'
 
-import { chat, owner, upload } from '@app-template/domain/testing'
+import { buildChat, ChatId, ChatRepository } from '@app-template/domain/chat'
+import { chat, epoch, owner, upload } from '@app-template/domain/testing'
 
 import { SendMessageUseCase } from '#application/chat/send-message.use-case'
 import {
@@ -32,6 +33,33 @@ describe('SendMessageUseCase', () => {
 
         assert.deepStrictEqual(Arr.sort(outcomes, Order.String), ['busy', 'sent'])
         assert.strictEqual((yield* selectMessages(chat.id)).length, 2)
+      }).pipe(Effect.provide(ChatPgTest)),
+  )
+
+  it.effect(
+    'of two concurrent sends binding one file to two chats, one binds it and the other is AttachmentBoundError',
+    () =>
+      Effect.gen(function* () {
+        const sendMessage = yield* SendMessageUseCase
+        const chats = yield* ChatRepository
+        const other = buildChat({
+          id: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000022'),
+          userId: owner,
+          createdAt: epoch,
+        })
+        yield* chats.insert(other)
+        const photo = yield* upload(owner)
+        const send = (chatId: ChatId) =>
+          sendMessage.send(owner, chatId, { text: 'Look', attachmentIds: [photo.id] }).pipe(
+            Effect.as('sent'),
+            Effect.catchTag('AttachmentBoundError', () => Effect.succeed('bound')),
+          )
+
+        const outcomes = yield* Effect.all([send(chat.id), send(other.id)], {
+          concurrency: 'unbounded',
+        })
+
+        assert.deepStrictEqual(Arr.sort(outcomes, Order.String), ['bound', 'sent'])
       }).pipe(Effect.provide(ChatPgTest)),
   )
 

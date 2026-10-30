@@ -58,9 +58,9 @@ export class AttachmentService extends Context.Service<
       id: AttachmentId,
     ) => Effect.Effect<void, AttachmentNotFoundError | AttachmentBoundError>
     /**
-     * Binds the user's attachments to the message of the chat and returns them bound, in the order asked; an
-     * id another bind took since the check fails `AttachmentBoundError`, the others staying bound
-     * unless the caller's transaction rolls back.
+     * Binds the user's attachments to the message of the chat and returns them bound, in the order
+     * asked; checks them under their rows' lock, so of two sends binding one file the second waits
+     * and fails `AttachmentBoundError`.
      */
     readonly bind: (
       userId: UserId,
@@ -100,7 +100,8 @@ export class AttachmentService extends Context.Service<
       const trackId = Effect.tap(randomAttachmentId, (id) => Ref.update(tracked, Arr.append(id)))
       const storeId = (attachment: Attachment) => Ref.update(stored, Arr.append(attachment.id))
       const deleteTracked = Effect.gen(function* () {
-        yield* Ref.get(stored).pipe(Effect.flatMap((ids) => attachments.delete({ id: ids })))
+        const storedIds = yield* Ref.get(stored)
+        if (Arr.isReadonlyArrayNonEmpty(storedIds)) yield* attachments.delete({ id: storedIds })
         const ids = yield* Ref.get(tracked)
         yield* Effect.forEach(ids, bucket.delete, { discard: true })
       })
@@ -155,7 +156,11 @@ export class AttachmentService extends Context.Service<
       ids: ReadonlyArray<AttachmentId>,
       { messageId, chatId }: { readonly messageId: MessageId; readonly chatId: ChatId },
     ) {
-      const stored = yield* attachments.selectMany({ id: ids, userId })
+      // A send without files binds nothing, and the update below dies on no rows.
+      if (Arr.isReadonlyArrayEmpty(ids)) return []
+      // The rows stay locked until the send commits, so a concurrent bind of one of them waits
+      // here and then finds it bound.
+      const stored = yield* attachments.selectMany({ id: ids, userId }, { forUpdate: true })
       const now = yield* DateTime.now
       const found = HashMap.fromIterable(
         Arr.map(stored, (attachment) => [attachment.id, attachment]),

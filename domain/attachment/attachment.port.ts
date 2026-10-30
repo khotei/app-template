@@ -28,16 +28,25 @@ export class AttachmentRepository extends Context.Service<
   AttachmentRepository,
   {
     readonly insert: (attachment: Attachment) => Effect.Effect<void>
-    /** Writes `set` where `where` holds, in one statement; returns the rows written, unordered. */
+    /**
+     * Writes `set` where `where` holds, in one statement; returns the rows written, unordered,
+     * and dies when it writes nothing.
+     */
     readonly update: (
       set: AttachmentSet,
       where: AttachmentWhere,
     ) => Effect.Effect<ReadonlyArray<Attachment>>
     readonly selectOne: (where: AttachmentOneWhere) => Effect.Effect<Option.Option<Attachment>>
-    /** Rows where `where` holds; in the order of `where.id` when given, unknown ids skipped. */
-    readonly selectMany: (where: AttachmentWhere) => Effect.Effect<ReadonlyArray<Attachment>>
-    /** Deletes the rows where `where` holds, in one statement; returns the rows deleted, unordered. */
-    readonly delete: (where: AttachmentWhere) => Effect.Effect<ReadonlyArray<Attachment>>
+    /**
+     * Rows where `where` holds; in the order of `where.id` when given, unknown ids skipped. With
+     * `forUpdate`, holds the rows it reads until the transaction ends.
+     */
+    readonly selectMany: (
+      where: AttachmentWhere,
+      options?: { readonly forUpdate?: boolean },
+    ) => Effect.Effect<ReadonlyArray<Attachment>>
+    /** Deletes the rows where `where` holds, in one statement; dies when it deletes nothing. */
+    readonly delete: (where: AttachmentWhere) => Effect.Effect<void>
   }
 >()('@app-template/domain/attachment/AttachmentRepository') {}
 

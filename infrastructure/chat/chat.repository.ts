@@ -71,7 +71,7 @@ export const ChatRepositoryPg = Layer.effect(
             .delete(chats)
             .where(encodeWhere(where))
             .returning({ id: chats.id })
-            .pipe(Effect.map(Arr.isReadonlyArrayNonEmpty)),
+            .pipe(orDieOnNoRows(`chat ${where.id} was not deleted`)),
         orDieWithSqlError,
       ),
     }),

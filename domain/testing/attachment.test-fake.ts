@@ -64,6 +64,10 @@ export const AttachmentRepositoryTest = Layer.effect(
             HashMap.map((attachment) => new Attachment({ ...attachment, ...set })),
             (written) => [HashMap.toValues(written), HashMap.union(map, written)] as const,
           ),
+        ).pipe(
+          Effect.filterOrElse(Arr.isReadonlyArrayNonEmpty, () =>
+            Effect.die(new Error('no attachment was updated')),
+          ),
         ),
       selectOne: (where) =>
         Ref.get(rows).pipe(
@@ -77,12 +81,14 @@ export const AttachmentRepositoryTest = Layer.effect(
         ),
       delete: (where) =>
         Ref.modify(rows, (map) => {
-          const deleted = HashMap.filter(map, holdsWhere(where))
-          return [
-            HashMap.toValues(deleted),
-            HashMap.removeMany(map, HashMap.keys(deleted)),
-          ] as const
-        }),
+          const deleted = Arr.fromIterable(HashMap.keys(HashMap.filter(map, holdsWhere(where))))
+          return [deleted, HashMap.removeMany(map, deleted)] as const
+        }).pipe(
+          Effect.filterOrElse(Arr.isReadonlyArrayNonEmpty, () =>
+            Effect.die(new Error('no attachment was deleted')),
+          ),
+          Effect.asVoid,
+        ),
     }),
   ),
 )
