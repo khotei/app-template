@@ -2,7 +2,7 @@
 
 Where code belongs, what it may import, and how to add a new entity. What a layer may import is
 the [Dependency rules](#dependency-rules) table below, which Biome enforces; each layer's other
-binding rules live in its `CLAUDE.md`. The decisions behind them, with the rejected alternatives,
+binding rules live in its `CLAUDE.md` and in `.claude/rules/`. The decisions behind them, with the rejected alternatives,
 live in `architecture.md › Decisions` of the scaffold ticket
 (`docs/tickets/2026-10-16-1433_monorepo-setup/`) and of the architecture audit
 (`docs/tickets/2026-10-27-1433_architecture-audit/`).
@@ -40,7 +40,7 @@ test process, and nothing imports it.
 | `domain/` | entity models and their pure operations, errors, ports, and the domain services that own the rules over them; no I/O of its own, time and ids only through `DateTime.now` and `Crypto` | [domain/CLAUDE.md](../../domain/CLAUDE.md) |
 | `http-api/` | the HTTP contract (`HttpApi`) over the domain, shared by `apps/api` and the browser | [http-api/CLAUDE.md](../../http-api/CLAUDE.md) |
 | `infrastructure/` | adapters that implement domain ports on top of `packages/*` clients | [infrastructure/CLAUDE.md](../../infrastructure/CLAUDE.md) |
-| `application/` | use cases: the flows that join the domain's writes in one transaction, or reach the queue, the bucket or the assistant | [application/CLAUDE.md](../../application/CLAUDE.md) |
+| `application/` | use cases: the flows that join the domain's writes in one transaction, or reach the queue, the bucket or the assistant | [layering.md](../../.claude/rules/layering.md) |
 | `packages/*` | generic, project-agnostic clients and libraries, with the one exception its rules name | [packages/CLAUDE.md](../../packages/CLAUDE.md) |
 | `apps/*` | entry points (`main.ts`), the handlers, and the process's layer (`layer.ts`) | [apps/CLAUDE.md](../../apps/CLAUDE.md) |
 | `e2e/` | the journey: `ApiLayer` and `WorkerLayer` in one runtime over the run's containers | [tooling.md › Tests](tooling.md#tests) |
@@ -109,15 +109,14 @@ Using the `chat` slice as the map:
 | What | File | Named |
 |---|---|---|
 | branded id | `domain/chat/chat.id.ts` | `ChatId`, `MessageId` |
-| entity schema with its pure operations | `domain/chat/chat.model.ts`, `message.model.ts`; the stage schemas both the model and the errors read, `message-stage.model.ts` | `Chat`, `Message` (`Schema.Class`), `buildChat({ id, userId, createdAt })`, `buildChatTitle`, the transitions `prepareMessage` … `failMessage` |
-| read model a port answers | `domain/chat/chat.model.ts`, `message.model.ts` | `ChatSummary`, `ChatDetail`, `MessageDetail` |
+| entity schema with its pure operations | `domain/chat/chat.model.ts`, `message.model.ts`; each with its subset of the shared `Status`, whose predicates live in `domain/shared/status.model.ts` | `Chat`, `Message` (`Schema.Class`), `buildChat({ id, userId, createdAt })`, the transitions `prepareMessage` … `failMessage` |
 | domain errors | `domain/chat/chat.error.ts`, `message.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
 | port | `domain/chat/chat.port.ts`, `message.port.ts`, `assistant.port.ts` | `ChatRepository`, `MessageRepository`, `Assistant` (`Context.Service` with no layer) |
-| domain service: the one writer of an entity | `domain/chat/chat.service.ts`, `message.service.ts` | `ChatService`, `ChatService.layer`, `MessageService` |
+| domain service: the rules that need a port | `domain/chat/chat.service.ts` | `ChatService`, `ChatService.layer` |
 | memory layers and fixtures | `domain/testing/chat.test-fake.ts`, `chat.test-fixture.ts`, `user.test-fixture.ts` | `ChatRepositoryTest`, `ChatRows`, `chat`, `owner`; `RepositoryStackTest` in `repository-stack.test-layer.ts`; all as `@app-template/domain/testing` |
 | database client, transaction and migrations | `infrastructure/db/` | `Db`, `Db.layerFromConfig`, `Transaction`, `migrations/`, the shared columns in `columns.ts`, the relations in `relations.ts`; `DbTest`, `TransactionTest` in `db/testing/` |
 | tables and row codecs | `infrastructure/chat/chat.entity.ts`, `message.entity.ts` | `chats` (`snakeCase.table`), `ChatRow`, `ChatInsert` |
-| adapter implementing a port | `infrastructure/chat/chat.repository.ts`, `assistant.llm.ts`; `attachment/attachment.bucket.ts` | `ChatRepositoryPg`, `AssistantLlm` (with the prompts), `AttachmentBucketS3` (each a `Layer` of its port) |
+| adapter implementing a port | `infrastructure/chat/chat.repository.ts`, `assistant.llm.ts`; `attachment/attachment.bucket.ts` | `ChatRepositoryPg`, `AssistantLlm` (with the prompts, over `AssistantModels`, the language model per purpose that `LLM_PROVIDER` picks: [ai.md](ai.md)), `AttachmentBucketS3` (each a `Layer` of its port) |
 | queue definitions | `infrastructure/chat/chat.queue.ts` | `assistantMessageQueue`, `GenerateAssistantMessage` (the job schema) |
 | relay from the database to a queue | `infrastructure/outbox/outbox.relay.ts` | `OutboxRelay` (a worker `Layer` that runs a fiber and provides nothing) |
 | use case composing domain services | `application/chat/send-message.use-case.ts`, `generate-assistant-message.use-case.ts` | `SendMessageUseCase`, `SendMessageUseCase.layer`, `GenerateAssistantMessageUseCase` |
@@ -155,8 +154,8 @@ Pascal one (`Document`).
    `<Entity>Rows`, a `Ref` of the rows, with the guards the database will add (an index, a
    `where`, a cascade), and the fixtures in `<entity>.test-fixture.ts`; `domain/testing/index.ts`
    exports both.
-5. **Domain service.** `domain/<entity>/<entity>.service.ts`: `<Entity>Service`, a
-   `Context.Service` with a `layer` over the ports, the only writer of the entity's records.
+5. **Domain service, if a rule needs a port.** `domain/<entity>/<entity>.service.ts`:
+   `<Entity>Service`, a `Context.Service` with a `layer` over the ports.
    Test it in `domain/tests/<entity>/<entity>.service.test.ts` over the memory layer. What it may
    see and when a flow leaves it: [.claude/rules/layering.md](../../.claude/rules/layering.md).
 6. **Domain exports.** `domain/<entity>/index.ts` re-exports its files, and
@@ -178,7 +177,7 @@ Pascal one (`Document`).
 9. **Job, if the entity has asynchronous work.** `infrastructure/<entity>/<entity>.queue.ts`
    holds the queue definitions (name, job schema, retry policy, `jobId`); a model the work calls
    is a domain port with its `.llm.ts` adapter, which holds the prompts. The use case that starts
-   the work sends the job with `QueueClient.send` from `packages/queue`;
+   the work sends the job with `QueueSender.send` from `packages/queue`;
    `apps/worker/<entity>/<object>.handler.ts` holds `handle` and `handleDeadLettered` over a use
    case and their `worker` layer, which `apps/worker/layer.ts` merges and provides with the
    `<Entity>Pg` layers the handlers read. Test `handle` in `apps/worker/tests/` over the memory
@@ -187,8 +186,8 @@ Pascal one (`Document`).
     with their statuses (`HttpApiSchema.status`), and add it to `Api` in `http-api/api.ts` before
     `.middleware(SchemaErrors)`.
 11. **Delivery.** Implement the group in `apps/api/<entity>/<entity>.handler.ts` with
-    `HttpApiBuilder.group(Api, '<group>', …)`: it calls the use cases and services and projects
-    each model onto its DTO through `apps/api/shared/projections.ts` (`Struct.pick`). Add it
+    `HttpApiBuilder.group(Api, '<group>', …)`: it calls the use cases and services and returns
+    their models as is, since each DTO's encoder drops the fields the DTO leaves out. Add it
     to `ApiRoutes` and its services to `ApiHttp` in `apps/api/layer.ts`; its `<Entity>Pg` and any
     AWS adapter go to `ApiLayer`, so `ApiHttp` runs over the ports alone and the api test layer
     provides the memory layers in their place (`@app-template/domain/testing`, with the recording

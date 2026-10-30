@@ -1,13 +1,24 @@
 import { assert, describe, it } from '@effect/vitest'
-import { type Config, ConfigProvider, Duration, Effect, Layer, Option, References } from 'effect'
+import {
+  type Config,
+  ConfigProvider,
+  Duration,
+  Effect,
+  Layer,
+  Option,
+  References,
+  UndefinedOr,
+} from 'effect'
 
 import {
   ApiConfig,
   AwsConfig,
   DatabaseConfig,
+  LlmConfig,
   MinimumLogLevelFromConfig,
   MiniStackConfig,
   QueueConfig,
+  ReplyModelConfig,
   RuntimeConfig,
 } from '#config/config'
 
@@ -25,13 +36,38 @@ describe('config layers', () => {
     { variable: 'AWS_REGION', layer: AwsConfig.layer },
     { variable: 'STAGE', layer: AwsConfig.layer, given: { AWS_REGION: 'eu-central-1' } },
     { variable: 'RDS_BASE_PORT', layer: MiniStackConfig.layer },
-  ])('fails with a ConfigError naming a missing $variable', ({ variable, layer, given }) =>
-    Effect.gen(function* () {
-      const error = yield* provideVariables(layer, given ?? {}).pipe(Layer.build, Effect.flip)
+    { variable: 'LLM_PROVIDER', layer: LlmConfig.layer },
+    { variable: 'LLM_PROVIDER', layer: LlmConfig.layer, given: { LLM_PROVIDER: 'openai' } },
+    {
+      variable: 'ANTHROPIC_API_KEY',
+      layer: LlmConfig.layer,
+      given: { LLM_PROVIDER: 'anthropic', LLM_REPLY_MODEL: 'reply', LLM_TITLE_MODEL: 'title' },
+    },
+    {
+      variable: 'LLM_REPLY_MODEL',
+      layer: LlmConfig.layer,
+      given: { LLM_PROVIDER: 'anthropic', ANTHROPIC_API_KEY: 'key', LLM_TITLE_MODEL: 'title' },
+    },
+    {
+      variable: 'LLM_TITLE_MODEL',
+      layer: LlmConfig.layer,
+      given: { LLM_PROVIDER: 'anthropic', ANTHROPIC_API_KEY: 'key', LLM_REPLY_MODEL: 'reply' },
+    },
+    { variable: 'LLM_PROVIDER', layer: ReplyModelConfig.layer },
+    {
+      variable: 'LLM_REPLY_MODEL',
+      layer: ReplyModelConfig.layer,
+      given: { LLM_PROVIDER: 'anthropic' },
+    },
+  ])(
+    'fails with a ConfigError naming a missing or invalid $variable',
+    ({ variable, layer, given }) =>
+      Effect.gen(function* () {
+        const error = yield* provideVariables(layer, given ?? {}).pipe(Layer.build, Effect.flip)
 
-      assert.strictEqual(error._tag, 'ConfigError')
-      assert.include(error.message, variable)
-    }),
+        assert.strictEqual(error._tag, 'ConfigError')
+        assert.include(error.message, variable)
+      }),
   )
 
   it.effect('applies the defaults', () =>
@@ -52,6 +88,27 @@ describe('config layers', () => {
     }).pipe(
       Effect.provide(provideVariables(Layer.mergeAll(RuntimeConfig.layer, QueueConfig.layer), {})),
     ),
+  )
+
+  it.effect('reads the stub provider with no key and no model', () =>
+    Effect.gen(function* () {
+      assert.deepStrictEqual(yield* LlmConfig, { provider: 'stub' })
+    }).pipe(Effect.provide(provideVariables(LlmConfig.layer, { LLM_PROVIDER: 'stub' }))),
+  )
+
+  it.effect.each<{
+    given: Record<string, string>
+    read: typeof ReplyModelConfig.Service
+  }>([
+    { given: { LLM_PROVIDER: 'stub' }, read: { provider: 'stub', replyModel: 'stub' } },
+    {
+      given: { LLM_PROVIDER: 'anthropic', LLM_REPLY_MODEL: 'reply' },
+      read: { provider: 'anthropic', replyModel: 'reply' },
+    },
+  ])('reads the reply model of $given.LLM_PROVIDER with no key', ({ given, read }) =>
+    Effect.gen(function* () {
+      assert.deepStrictEqual(yield* ReplyModelConfig, read)
+    }).pipe(Effect.provide(provideVariables(ReplyModelConfig.layer, given))),
   )
 
   it.effect.each([
@@ -80,7 +137,7 @@ describe('config layers', () => {
       const { region, endpoint, stage } = yield* AwsConfig
 
       assert.deepStrictEqual(
-        { region, endpoint: Option.map(endpoint, String), stage },
+        { region, endpoint: endpoint.pipe(Option.map(String)), stage },
         { region: 'eu-central-1', endpoint: parsed, stage: 'local' },
       )
     }).pipe(
@@ -88,7 +145,10 @@ describe('config layers', () => {
         provideVariables(AwsConfig.layer, {
           AWS_REGION: 'eu-central-1',
           STAGE: 'local',
-          ...(given === undefined ? {} : { AWS_ENDPOINT_URL: given }),
+          ...UndefinedOr.match(given, {
+            onUndefined: () => ({}),
+            onDefined: (url) => ({ AWS_ENDPOINT_URL: url }),
+          }),
         }),
       ),
     ),

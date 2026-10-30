@@ -17,8 +17,9 @@ paths:
   or `number` cannot slip in.
 - An absent value is an `Option` (`Schema.Option(…)` in a model), never `null` or `undefined`;
   `null` exists only in a wire DTO.
-- A literal lookup table is `as const satisfies Record<Key, Value>`, so a new key fails typecheck.
-- A `Schema.Class` instance is `Data`: compare two with `Equal.equals`, never field by field.
+- An annotation a JSON Schema must carry (a `description` a model reads) sits on the encoded
+  side, on the key of a checked field (`annotateKey`); its test reads it back from
+  `Schema.toJsonSchemaDocument`, since `annotate` on a check or a transformation drops it.
 - A closed set of stages or kinds is `Schema.Literals([...])`; a subset is `.pick([...])` of it, and
   its membership test is `Schema.is(Subset)`, not a hand-written `includes`.
 
@@ -28,12 +29,15 @@ paths:
   TypeScript.
 - A refused operation is a typed failure: never a `throw` (a defect that reads as an infrastructure
   failure) and never an `Option.none` (no detail for the caller or the log).
-- A domain error is `Schema.TaggedError`, so it decodes at the wire; its HTTP status lives in
-  `http-api/CLAUDE.md`. A marker that never leaves its module (a failure carried out of a callback
+- A domain error is a `Schema.TaggedError` whose tag is its class name, so it decodes at the
+  wire; its HTTP status lives in `http-api/CLAUDE.md`. A marker that never leaves its module (a failure carried out of a callback
   for the loop around it) is `Data.TaggedError`.
-- Not-found from a port is a value (`Option`, or an id left out of an array); the domain service
-  turns it into the domain's `*NotFoundError`.
+- Not-found from a port is a value (`Option`, or an id left out of an array); its reader turns it
+  into the domain's `*NotFoundError`.
 - A port declares no error channel: its adapter turns a client's failure or a stored value that
-  no longer decodes into a defect, since every caller handles both alike.
+  no longer decodes into a defect, since every caller handles both alike. The exception is a port
+  whose failures are outcomes a use case settles, each its own way (an external service that
+  declines or gives up): it declares one final `<Entity><Problem>Error` per outcome, its adapter
+  retries before raising one, and every other failure stays a defect.
 - A user-facing sentence per failure reason lives in one table keyed by the reason; the cause stays
   in a separate field that never reaches the user.

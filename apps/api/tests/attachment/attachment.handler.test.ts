@@ -103,7 +103,7 @@ describe('attachments', () => {
         assert.strictEqual(response.status, status)
         assertSchemaEquals(
           UploadError,
-          yield* Effect.flatMap(response.json, Schema.decodeUnknownEffect(UploadError)),
+          yield* response.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(UploadError))),
           error,
         )
       }).pipe(Effect.provide(ApiTest)),

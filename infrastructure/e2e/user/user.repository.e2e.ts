@@ -35,8 +35,8 @@ describe('UserRepositoryPg', () => {
       const ada = user('0192d4e0-7b3a-7c00-8000-000000000010')
 
       yield* users.insert(ada, credential('a'))
-      const byId = yield* users.selectById(ada.id)
-      const byCredential = yield* users.selectByCredential(credential('a'))
+      const byId = yield* users.selectOne({ id: ada.id })
+      const byCredential = yield* users.selectOne({ credential: credential('a') })
 
       assertSchemaEquals(SelectedUser, byId, Option.some(ada))
       assertSchemaEquals(SelectedUser, byCredential, Option.some(ada))
@@ -48,13 +48,28 @@ describe('UserRepositoryPg', () => {
       const users = yield* UserRepository
 
       yield* users.insert(user('0192d4e0-7b3a-7c00-8000-000000000011'), credential('a'))
-      const byCredential = yield* users.selectByCredential(credential('b'))
-      const byId = yield* users.selectById(UserId.make('0192d4e0-7b3a-7c00-8000-000000000019'))
+      const byCredential = yield* users.selectOne({ credential: credential('b') })
+      const byId = yield* users.selectOne({
+        id: UserId.make('0192d4e0-7b3a-7c00-8000-000000000019'),
+      })
 
       assert.deepStrictEqual(byCredential, Option.none())
       assert.deepStrictEqual(byId, Option.none())
     }).pipe(Effect.provide(UserRepositoryPgTest)),
   )
+  it.effect("selects none for an id with another user's credential", () =>
+    Effect.gen(function* () {
+      const users = yield* UserRepository
+      const ada = user('0192d4e0-7b3a-7c00-8000-000000000015')
+
+      yield* users.insert(ada, credential('a'))
+      yield* users.insert(user('0192d4e0-7b3a-7c00-8000-000000000016'), credential('b'))
+      const selected = yield* users.selectOne({ id: ada.id, credential: credential('b') })
+
+      assert.deepStrictEqual(selected, Option.none())
+    }).pipe(Effect.provide(UserRepositoryPgTest)),
+  )
+
   it.effect(
     'writes no user when its credential is taken, since both rows share a transaction',
     () =>
@@ -64,7 +79,7 @@ describe('UserRepositoryPg', () => {
 
         yield* users.insert(user('0192d4e0-7b3a-7c00-8000-000000000013'), credential('a'))
         const inserted = yield* users.insert(bob, credential('a')).pipe(Effect.exit)
-        const selected = yield* users.selectById(bob.id)
+        const selected = yield* users.selectOne({ id: bob.id })
 
         assert.isTrue(Exit.hasDies(inserted))
         const defect = Exit.isFailure(inserted) ? Cause.squash(inserted.cause) : undefined

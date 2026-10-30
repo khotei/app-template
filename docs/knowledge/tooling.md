@@ -16,14 +16,15 @@ and `make setup` and `make test-unit` need neither.
 | `make setup` | `bun install`, then copies `.env.example` to `.env` if missing | first clone; installs the git hooks too; needs no Pulumi CLI |
 | `make stack` | `stack select local` or `init` on the tree's file backend under `.data/pulumi` | idempotent; `up` runs it first |
 | `make up` · `down` · `reset` | `pulumi up` on `deployment/local/`, `.env.pulumi`, `make migrate` · `docker stop` · `docker rm -f`, `rm -rf .data` | MiniStack with the database, the bucket and the queues: [aws.md › The local stand-in](aws.md#the-local-stand-in) |
-| `make dev` | `bun --filter './apps/*' dev` | all three processes, interleaved output |
-| `make dev-api` · `dev-worker` · `dev-web` | one app's `dev` script | one process |
+| `make dev` | `make migrate`, then `bun --filter './apps/*' dev` | all three processes, interleaved output; stops first on a stand behind its migrations |
+| `make dev-api` · `dev-worker` · `dev-web` | one app's `dev` script, the api's and the worker's after `make migrate` | one process |
 | `make debug-api` · `debug-worker` · `debug-web` | one app's `debug` script | the same mode plus `--inspect` |
-| `make check` | `ids`, `doc-names`, `service-use`, `nested-calls`, `lint`, `typecheck`, `migration-check`, `test`, `bundle-check` | the gate before every commit and step report |
+| `make check` | `ids`, `doc-names`, `service-use`, `nested-calls`, `idioms`, `lint`, `typecheck`, `migration-check`, `test`, `bundle-check` | the gate before every commit and step report |
 | `make ids` | `git grep` for ticket ids in parentheses outside `docs/tickets/` and `repos/` | a new project deletes the ticket, so an id elsewhere points nowhere |
 | `make doc-names` | `git grep` for the backticked repo paths and two-word capitalised names in the `CLAUDE.md` files, the rules and `docs/knowledge/`, then a lookup of each in the tree and in every file but Markdown, `repos/` included | a doc that still names a moved file or a renamed class fails the gate; what it skips and why: the comments above the target |
 | `make service-use` | `perl` over every `.ts` file outside `repos/`, each read whole | the gate for the `Service.use` line of [effect-style.md › Composition](../../.claude/rules/effect-style.md#composition) |
 | `make nested-calls` | `perl` over the same files, for a curated list of data-first combinators of effect's modules whose subject is another call; what each list flags: the comments above the target | the gate for the nesting line of [effect-style.md › Composition](../../.claude/rules/effect-style.md#composition); a constructor, a schema or a predicate takes any argument |
+| `make idioms` | `git grep` over every `.ts` file outside `repos/` and the migrations for a check against `undefined` and a sort by a comparator lambda | the gate for the native-code line of [effect.md](../../.claude/rules/effect.md): `UndefinedOr` or `Option`, `Order` |
 | `make lint` | `biome check` | lint, format and import order, without writing |
 | `make fmt` | `biome check --write` | apply formatting, import sorting and safe fixes |
 | `make typecheck` | `bunx tsc -b`, the patched `tsc` | typecheck every workspace through the project references, Effect diagnostics included |
@@ -308,7 +309,7 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 |---|---|
 | `static` | `bun install --frozen-lockfile`, `biome ci`, `tsc --version \| grep effect-tsgo`, `make typecheck`, `make migration-check`, `make bundle-check` |
 | `test` | `bun install --frozen-lockfile`, `bun run test` |
-| `links` | `make ids`, `make service-use`, `make nested-calls`, `make doc-names`, then `lychee --offline` on `README.md`, `docs/**/*.md` and `.claude/**/*.md` |
+| `links` | `make ids`, `make service-use`, `make nested-calls`, `make idioms`, `make doc-names`, then `lychee --offline` on `README.md`, `docs/**/*.md` and `.claude/**/*.md` |
 
 `static` and `test` run on two Bun versions: `pinned` (from `packageManager`) blocks the merge, and
 `latest` only reports. The link check keeps relative links between documents from rotting.

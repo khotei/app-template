@@ -1,24 +1,18 @@
 # http-api
 
-The HTTP contract: one `HttpApi` (`api.ts`) over the domain, shared by `apps/api`, which
-implements it, and the browser, which calls it through `ApiClient` (`api.client.ts`). A layer,
-not a package: it is the system's boundary, specific to this app and used by two apps.
+The HTTP contract: one `HttpApi` over the domain, shared by `apps/api`, which implements it, and
+the browser, which calls it through its client.
 
-- **Imports only `effect` and `@app-template/domain`.** Biome rejects every other workspace and
-  `@effect/*`.
 - **Browser-safe:** no Bun APIs, no `Bun.env`, no Node built-ins.
 - **Reuse the domain; never redeclare it.** Ids, models and errors come from `@app-template/domain`.
-  A DTO (`mapFields`) only drops an internal field, turns an `Option` into `NullOr`, or composes
-  domain models into the shape a service returns (a summary plus `activeMessage`, a message plus
-  its `attachments`).
-- **`index.ts` re-exports each domain schema a payload names** (`ChatTitle`): `web` may not import
-  the domain, so it builds a payload's brand through this entry.
+  A DTO is the model's `mapFields`: it only drops an internal field, turns an `Option` into
+  `NullOr` or swaps a nested model for its DTO.
+- **`index.ts` re-exports each domain schema a payload names**: `web` may not import the domain,
+  so it builds a payload's brand through this entry.
 - **Statuses are set here, never in the domain:**
-  `ChatNotFoundError.pipe(HttpApiSchema.status(404))` where an endpoint or middleware lists the
-  error. Only HTTP's own errors (`shared/errors.ts`) carry `httpApiStatus` on the class.
-- **No handlers.** They are `apps/api/<entity>/<entity>.handler.ts`.
-- Layout: `shared/` for what every group uses, one `<entity>/<entity>.http.ts` per group, no
-  per-entity barrels.
+  `<Entity>NotFoundError.pipe(HttpApiSchema.status(404))` where an endpoint or middleware lists
+  the error. Only HTTP's own errors (`shared/errors.ts`)
+  carry `httpApiStatus` on the class.
 - **A domain schema edit is a contract edit.** DTOs reuse the domain's schemas, so the change
-  reaches the wire unseen: the api's handler tests check only what HTTP adds (statuses, the cookie,
-  the failed-reply wire shape).
+  reaches the wire unseen: the api's handler tests check only what HTTP adds (statuses, the
+  cookie, the wire shape).

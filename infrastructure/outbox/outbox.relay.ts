@@ -1,5 +1,5 @@
-import { inArray } from 'drizzle-orm'
-import { Array as Arr, Cause, Effect, Layer, Predicate, Schedule, Struct } from 'effect'
+import { inArray, isNull } from 'drizzle-orm'
+import { Array as Arr, Cause, DateTime, Effect, Layer, Predicate, Schedule, Struct } from 'effect'
 import { SqlClient } from 'effect/sql'
 
 import { buildResourceName } from '@app-template/aws'
@@ -17,8 +17,8 @@ type OutboxRow = typeof outbox.$inferSelect
 const isFullBatch = (rows: ReadonlyArray<OutboxRow>) => rows.length === batchLimit
 
 /**
- * Sends the outbox to SQS: each batch is locked, sent and deleted in one transaction, so a failed
- * send leaves its rows for the next poll.
+ * Sends the outbox to SQS: each batch of unsent rows is locked, sent and marked sent in one
+ * transaction, so a failed send leaves its rows for the next poll.
  *
  * Delivery is at-least-once: a crash between a send and the commit sends the row again.
  */
@@ -32,6 +32,7 @@ export const OutboxRelay = Effect.gen(function* () {
   const selectBatch = db
     .select()
     .from(outbox)
+    .where(isNull(outbox.sentAt))
     .orderBy(outbox.createdAt, outbox.id)
     .limit(batchLimit)
     .for('update', { skipLocked: true })
@@ -42,16 +43,17 @@ export const OutboxRelay = Effect.gen(function* () {
       attributes: { jobId: row.jobId },
     })
 
-  // `asVoid` gives the delete the type of `Effect.void`, the match's other arm.
-  const deleteRows = (rows: Arr.NonEmptyReadonlyArray<OutboxRow>) =>
-    db
-      .delete(outbox)
+  const markSent = Effect.fnUntraced(function* (rows: Arr.NonEmptyReadonlyArray<OutboxRow>) {
+    const sentAt = yield* DateTime.nowAsDate
+    yield* db
+      .update(outbox)
+      .set({ sentAt })
       .where(inArray(outbox.id, Arr.map(rows, Struct.get('id'))))
-      .pipe(Effect.asVoid)
+  })
 
   const relayBatch = selectBatch.pipe(
     Effect.tap(Effect.forEach(sendRow, { discard: true })),
-    Effect.tap(Arr.match({ onEmpty: () => Effect.void, onNonEmpty: deleteRows })),
+    Effect.tap(Arr.match({ onEmpty: () => Effect.void, onNonEmpty: markSent })),
     Effect.catchTag('EffectDrizzleQueryError', unwrapQueryError),
     sql.withTransaction,
   )

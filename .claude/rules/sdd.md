@@ -1,3 +1,10 @@
+---
+paths:
+  - "docs/tickets/**"
+  - "docs/knowledge/roadmap.md"
+  - ".claude/skills/**"
+---
+
 # Spec-driven development
 
 Every change of substance runs **feature → architecture → plan → implement → verify** through the
@@ -36,4 +43,3 @@ Every change of substance runs **feature → architecture → plan → implement
   its own OK.
 - **Deviations are recorded** in the same commit: `plan.md` findings, `architecture.md ›
   Decisions` when it is a decision, and `feature.md` when it changes what a requirement asks.
-- **Lessons change a skill, a rule or a check**, never a `CLAUDE.md`, and only on the user's OK.

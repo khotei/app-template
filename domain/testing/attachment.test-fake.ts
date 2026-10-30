@@ -2,6 +2,7 @@ import {
   Array as Arr,
   Context,
   Effect,
+  Filter,
   HashMap,
   Layer,
   Option,
@@ -19,7 +20,7 @@ import {
   AttachmentRepository,
   type AttachmentWhere,
 } from '#domain/attachment/attachment.port'
-import { matches } from '#domain/testing/rows.test-util'
+import { matches, matchesAny, orDieOnNoRows } from '#domain/testing/rows.test-util'
 
 /** The rows `AttachmentRepositoryTest` keeps, by id, for a test to arrange or read. */
 export class AttachmentRows extends Context.Service<
@@ -31,26 +32,29 @@ export class AttachmentRows extends Context.Service<
 
 const holdsWhere = (where: AttachmentWhere) =>
   Predicate.and(
-    (attachment: Attachment) => where.id === undefined || Arr.contains(where.id, attachment.id),
-    matches(Struct.omit(where, ['id'])),
+    matchesAny<Attachment>({ id: Arr.ensure(where.id) }),
+    matches<Attachment>(Struct.omit(where, ['id'])),
   )
 
-/** The rows in the order of `ids`; without `ids`, as stored. */
+/** The rows in the order of `ids`, one id or a list. */
 const inOrderOf =
-  (ids: ReadonlyArray<AttachmentId> | undefined) =>
+  (ids: AttachmentWhere['id']) =>
   (found: HashMap.HashMap<AttachmentId, Attachment>): ReadonlyArray<Attachment> =>
-    ids === undefined
-      ? HashMap.toValues(found)
-      : pipe(
-          ids,
-          Arr.map((id) => HashMap.get(found, id)),
-          Arr.getSomes,
-        )
+    pipe(
+      Arr.ensure(ids),
+      Arr.filterMap(Filter.fromPredicateOption((id: AttachmentId) => HashMap.get(found, id))),
+    )
 
 export const AttachmentRepositoryTest = Layer.effect(
   AttachmentRepository,
-  AttachmentRows.useSync((rows) =>
-    AttachmentRepository.of({
+  AttachmentRows.useSync((rows) => {
+    const selectMany = (where: AttachmentWhere) =>
+      Ref.get(rows).pipe(
+        Effect.map(HashMap.filter(holdsWhere(where))),
+        Effect.map(inOrderOf(where.id)),
+      )
+
+    return AttachmentRepository.of({
       insert: (attachment) => Ref.update(rows, HashMap.set(attachment.id, attachment)),
       update: (set, where) =>
         Ref.modify(rows, (map) =>
@@ -60,20 +64,16 @@ export const AttachmentRepositoryTest = Layer.effect(
             HashMap.map((attachment) => new Attachment({ ...attachment, ...set })),
             (written) => [HashMap.toValues(written), HashMap.union(map, written)] as const,
           ),
-        ),
-      selectOne: (where) =>
-        Ref.get(rows).pipe(
-          Effect.map(HashMap.get(where.id)),
-          Effect.map(Option.filter(matches(Struct.omit(where, ['id'])))),
-        ),
-      selectMany: (where) =>
-        Ref.get(rows).pipe(
-          Effect.map(HashMap.filter(holdsWhere(where))),
-          Effect.map(inOrderOf(where.id)),
-        ),
-      deleteByIds: (ids) => Ref.update(rows, HashMap.removeMany(ids)),
-    }),
-  ),
+        ).pipe(orDieOnNoRows('no attachment was updated')),
+      selectOne: (where) => selectMany(where).pipe(Effect.map(Arr.head)),
+      selectMany,
+      delete: (where) =>
+        Ref.modify(rows, (map) => {
+          const deleted = Arr.fromIterable(HashMap.keys(HashMap.filter(map, holdsWhere(where))))
+          return [deleted, HashMap.removeMany(map, deleted)] as const
+        }).pipe(orDieOnNoRows('no attachment was deleted')),
+    })
+  }),
 )
 
 /** The bytes `AttachmentBucketTest` holds, by id, for a test to read. */
@@ -99,7 +99,7 @@ export const AttachmentBucketTest = Layer.effect(
       select,
       url: (id) => select(id).pipe(Effect.map(Option.as(new URL(`memory:attachments/${id}`)))),
       keep: () => Effect.void,
-      delete: (id) => Ref.update(objects, HashMap.remove(id)),
+      delete: (ids) => Ref.update(objects, HashMap.removeMany(ids)),
     })
   }),
 ).pipe(Layer.provideMerge(AttachmentBucketObjects.layer))

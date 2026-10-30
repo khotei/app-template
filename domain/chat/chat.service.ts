@@ -1,164 +1,64 @@
-import { Context, Crypto, Data, DateTime, Effect, Layer, Option, Predicate } from 'effect'
+import { Array as Arr, Context, DateTime, Effect, Layer, Option, Struct, type Types } from 'effect'
+import type { RequireAtLeastOne } from 'type-fest'
 
-import { type ChatBusyError, ChatNotFoundError, ChatTitledError } from '#domain/chat/chat.error'
-import { ChatId } from '#domain/chat/chat.id'
-import {
-  buildChat,
-  Chat,
-  type ChatDetail,
-  type ChatSummary,
-  type ChatTitle,
-} from '#domain/chat/chat.model'
-import { ChatRepository } from '#domain/chat/chat.port'
-import type { MessageInputInvalidError } from '#domain/chat/message.error'
-import {
-  ensureChatAcceptsMessage,
-  ensureMessageInput,
-  type MessageInput,
-} from '#domain/chat/message.model'
-import { MessageRepository } from '#domain/chat/message.port'
-import type { UserId } from '#domain/user/user.id'
+import { AttachmentBucket } from '#domain/attachment/attachment.port'
+import { ChatNotFoundError } from '#domain/chat/chat.error'
+import { Chat, type ChatTitle } from '#domain/chat/chat.model'
+import { ChatRepository, type ChatWhere } from '#domain/chat/chat.port'
 
-/**
- * Proof that a send may write to this chat: only `ChatService.findSendable` builds one, after it
- * checked the input, the owner and that no message in the chat is active.
- */
-class SendableChat extends Data.Class<{
-  readonly chatId: ChatId
-  readonly input: MessageInput
-  /** The chat has no message yet, so this send opens it. */
-  readonly opensChat: boolean
-  /** When the send was accepted: the messages' `createdAt` and the chat's `updatedAt`. */
-  readonly at: DateTime.Utc
-}> {
-  declare private readonly proof: never
-}
+/** The chat a rename finds: by its owner, or only while it is still untitled. */
+export type ChatRenameWhere = Types.Simplify<
+  Pick<Chat, 'id'> & RequireAtLeastOne<Pick<Chat, 'userId' | 'title'>>
+>
 
-export type { SendableChat }
+/** The user's chat a delete finds. */
+export type ChatDeleteWhere = Pick<Chat, 'id' | 'userId'>
 
 export class ChatService extends Context.Service<
   ChatService,
   {
-    readonly create: (userId: UserId) => Effect.Effect<Chat>
-    /** Returns the user's chats, the most recently updated first. */
-    readonly list: (userId: UserId) => Effect.Effect<ReadonlyArray<ChatSummary>>
-    readonly get: (userId: UserId, chatId: ChatId) => Effect.Effect<ChatDetail, ChatNotFoundError>
+    readonly getOne: (where: ChatWhere) => Effect.Effect<Chat, ChatNotFoundError>
+    /** Titles the chat `where` finds and moves its `updatedAt`. */
     readonly rename: (
-      userId: UserId,
-      chatId: ChatId,
+      where: ChatRenameWhere,
       title: ChatTitle,
     ) => Effect.Effect<Chat, ChatNotFoundError>
-    /** Titles a chat no one has titled yet, keeping its `updatedAt`. */
-    readonly updateTitle: (
-      chatId: ChatId,
-      title: ChatTitle,
-    ) => Effect.Effect<void, ChatNotFoundError | ChatTitledError>
-    /**
-     * Removes the chat with its messages, whether or not a reply runs.
-     *
-     * A step of `DeleteChatUseCase`, which removes their attachments first, since a bound
-     * attachment holds its message back from the cascade: entry points call the use case, never
-     * this.
-     */
-    readonly delete: (userId: UserId, chatId: ChatId) => Effect.Effect<void, ChatNotFoundError>
-    readonly findSendable: (
-      userId: UserId,
-      chatId: ChatId,
-      input: MessageInput,
-    ) => Effect.Effect<SendableChat, MessageInputInvalidError | ChatNotFoundError | ChatBusyError>
+    /** Removes the user's chat with its messages, their attachments and the bytes. */
+    readonly delete: (where: ChatDeleteWhere) => Effect.Effect<void, ChatNotFoundError>
   }
 >()('@app-template/domain/chat/ChatService', {
   make: Effect.gen(function* () {
     const chats = yield* ChatRepository
-    const messages = yield* MessageRepository
-    const crypto = yield* Crypto.Crypto
-    const randomChatId = crypto.randomUUIDv7().pipe(Effect.orDie, Effect.map(ChatId.make))
+    const bucket = yield* AttachmentBucket
 
-    const findOwnedChat = (userId: UserId, id: ChatId) =>
+    const getOne = Effect.fn('ChatService.getOne')((where: ChatWhere) =>
       chats
-        .selectOne({ id, userId })
-        .pipe(Effect.flatMap(Effect.fromOption(() => new ChatNotFoundError({ id }))))
-
-    const create = Effect.fn('ChatService.create')(function* (userId: UserId) {
-      const id = yield* randomChatId
-      const createdAt = yield* DateTime.now
-      const chat = buildChat({ id, userId, createdAt })
-
-      yield* chats.insert(chat)
-      return chat
-    })
-
-    const list = Effect.fn('ChatService.list')(chats.selectSummaries)
-
-    const get = Effect.fn('ChatService.get')((userId: UserId, chatId: ChatId) =>
-      chats
-        .selectDetail({ id: chatId, userId })
-        .pipe(Effect.flatMap(Effect.fromOption(() => new ChatNotFoundError({ id: chatId })))),
+        .selectOne(where)
+        .pipe(Effect.flatMap(Effect.fromOption(() => new ChatNotFoundError({ id: where.id })))),
     )
 
     const rename = Effect.fn('ChatService.rename')(function* (
-      userId: UserId,
-      chatId: ChatId,
+      where: ChatRenameWhere,
       title: ChatTitle,
     ) {
-      const chat = yield* findOwnedChat(userId, chatId)
+      const chat = yield* getOne(where)
       const updatedAt = yield* DateTime.now
-      const renamed = new Chat({ ...chat, title: Option.some(title), updatedAt })
+      const set = { title: Option.some(title), updatedAt }
 
-      yield* chats
-        .update({ title: renamed.title, updatedAt }, { id: chatId })
-        .pipe(Effect.filterOrFail(Predicate.isTruthy, () => new ChatNotFoundError({ id: chatId })))
-
-      return renamed
+      // The `where` holds again in the write, so a change landing after the read is kept.
+      yield* chats.update(set, where)
+      return new Chat({ ...chat, ...set })
     })
 
-    const updateTitle = Effect.fn('ChatService.updateTitle')(function* (
-      chatId: ChatId,
-      title: ChatTitle,
-    ) {
-      const written = yield* chats.update(
-        { title: Option.some(title) },
-        { id: chatId, title: Option.none() },
-      )
-      if (written) return
+    const remove = Effect.fn('ChatService.delete')(function* (where: ChatDeleteWhere) {
+      const chat = yield* getOne(where)
 
-      // Read only to name the refusal: the write above already decided it.
-      const found = yield* chats.selectOne({ id: chatId })
-      return yield* Option.match(found, {
-        onNone: () => new ChatNotFoundError({ id: chatId }),
-        onSome: () => new ChatTitledError({ id: chatId }),
-      })
+      // The cascade takes the messages and their attachments; the bytes go by the ids read.
+      yield* chats.delete({ id: chat.id })
+      yield* bucket.delete(Arr.map(chat.attachments, Struct.get('id')))
     })
 
-    const remove = Effect.fn('ChatService.delete')((userId: UserId, chatId: ChatId) =>
-      findOwnedChat(userId, chatId).pipe(Effect.flatMap(() => chats.delete(chatId))),
-    )
-
-    const findSendable = Effect.fn('ChatService.findSendable')(function* (
-      userId: UserId,
-      chatId: ChatId,
-      input: MessageInput,
-    ) {
-      yield* ensureMessageInput(input)
-      yield* findOwnedChat(userId, chatId)
-
-      const active = yield* messages.selectActiveByChat(chatId)
-      yield* ensureChatAcceptsMessage(active)
-
-      const opened = yield* messages.existsByChat(chatId)
-      const at = yield* DateTime.now
-      return new SendableChat({ chatId, input, opensChat: !opened, at })
-    })
-
-    return {
-      create,
-      list,
-      get,
-      rename,
-      updateTitle,
-      delete: remove,
-      findSendable,
-    }
+    return { getOne, rename, delete: remove }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

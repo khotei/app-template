@@ -14,7 +14,7 @@ import {
   isExpiredAt,
   MediaType,
 } from '#domain/attachment/attachment.model'
-import { MessageId } from '#domain/chat/chat.id'
+import { ChatId, MessageId } from '#domain/chat/chat.id'
 import { UserId } from '#domain/user/user.id'
 
 describe('Attachment', () => {
@@ -22,6 +22,7 @@ describe('Attachment', () => {
     id: '0192d4e0-7b3a-7c00-8000-000000000020',
     userId: '0192d4e0-7b3a-7c00-8000-000000000010',
     messageId: Option.none(),
+    chatId: Option.none(),
     fileName: 'report.pdf',
     mediaType: 'application/pdf',
     size: 1024,
@@ -60,6 +61,7 @@ const unbound = buildAttachment({
 const bound = new Attachment({
   ...unbound,
   messageId: Option.some(MessageId.make('0192d4e0-7b3a-7c00-8000-000000000031')),
+  chatId: Option.some(ChatId.make('0192d4e0-7b3a-7c00-8000-000000000020')),
 })
 
 describe('isExpiredAt', () => {
@@ -78,13 +80,13 @@ describe('isExpiredAt', () => {
 describe('ensureUnbound', () => {
   it.effect('returns an unbound attachment', () =>
     Effect.gen(function* () {
-      assert.strictEqual(yield* ensureUnbound(unbound), unbound)
+      assert.strictEqual(yield* Effect.succeed(unbound).pipe(ensureUnbound), unbound)
     }),
   )
 
   it.effect('fails AttachmentBoundError for an attachment a message holds', () =>
     Effect.gen(function* () {
-      const error = yield* ensureUnbound(bound).pipe(Effect.flip)
+      const error = yield* Effect.succeed(bound).pipe(ensureUnbound, Effect.flip)
 
       assertSchemaEquals(AttachmentBoundError, error, new AttachmentBoundError({ id: bound.id }))
     }),

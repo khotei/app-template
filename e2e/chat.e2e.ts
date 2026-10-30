@@ -7,16 +7,16 @@ import {
   AttachmentId,
   AttachmentNotFoundError,
 } from '@app-template/domain/attachment'
-import { ActiveMessageStage, type ChatId, type MessageId } from '@app-template/domain/chat'
+import { ActiveMessageStatus, type ChatId, type MessageId } from '@app-template/domain/chat'
 import { ApiClient } from '@app-template/http-api'
+import { GenerateAssistantMessage } from '@app-template/infrastructure/chat'
 import { assertSchemaEquals, png } from '@app-template/testing'
 
 import { StandTest } from '#e2e/testing/stand.test-layer'
 
-const stubReply =
-  'This is the development stub answering one word at a time, so the polling client can watch the reply grow.'
+const stubReply = 'This is the development stub answering the whole reply at once.'
 
-const isActiveStage = Schema.is(ActiveMessageStage)
+const isActiveStatus = Schema.is(ActiveMessageStatus)
 
 const poll = <A, E, R>(self: Effect.Effect<A, E, R>, until: (a: A) => boolean) =>
   self.pipe(
@@ -29,7 +29,7 @@ const pollSettledMessage = (chatId: ChatId, messageId: MessageId) =>
   ApiClient.use((api) =>
     poll(
       api.chats.getMessage({ params: { chatId, messageId } }),
-      (message) => !isActiveStage(message.stage),
+      (message) => !isActiveStatus(message.status),
     ),
   )
 
@@ -44,12 +44,30 @@ const formOf = (file: File) => {
   return form
 }
 
-const selectOutbox = SqlClient.SqlClient.use((sql) => sql`select queue from outbox`)
+const selectUnsent = SqlClient.SqlClient.use(
+  (sql) => sql`select queue from outbox where sent_at is null`,
+)
+
+const selectOutboxOf = (chatId: ChatId) =>
+  SqlClient.SqlClient.use((sql) => sql`select queue from outbox where body->>'chatId' = ${chatId}`)
+
+const ReplyJobRows = Schema.Tuple([
+  Schema.Struct({ body: Schema.toCodecJson(GenerateAssistantMessage) }),
+])
+
+const selectReplyJob = (chatId: ChatId) =>
+  SqlClient.SqlClient.use(
+    (sql) =>
+      sql`select body from outbox where queue = 'assistant-message' and body->>'chatId' = ${chatId}`,
+  ).pipe(Effect.flatMap(Schema.decodeUnknownEffect(ReplyJobRows)))
+
+const selectMessages = (chatId: ChatId) =>
+  SqlClient.SqlClient.use((sql) => sql`select id from messages where chat_id = ${chatId}`)
 
 describe('the journey over both app layers', { concurrent: false }, () => {
   layer(StandTest, { excludeTestServices: true })((it) => {
     it.effect(
-      'a sent message with an upload is answered and titled by the worker, and its delete removes the object',
+      "a sent message with an upload is answered and titled by the worker, its reply job keeps the api's provenance, and its delete removes the object",
       () =>
         Effect.gen(function* () {
           const api = yield* ApiClient
@@ -67,21 +85,23 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           const reply = yield* pollSettledMessage(chat.id, sent.assistantMessage.id)
           const titled = yield* pollTitledChat(chat.id)
 
-          assert.deepInclude(reply, { stage: 'completed', text: stubReply })
+          const asked = yield* api.chats.getMessage({
+            params: { chatId: chat.id, messageId: sent.userMessage.id },
+          })
+
+          assert.deepInclude(reply, { status: 'done', text: stubReply, attachments: [] })
           assert.deepStrictEqual(titled.title, Option.some('Stub chat title'))
-          assert.deepStrictEqual(titled.activeMessage, Option.none())
+          assert.strictEqual(titled.status, 'idle')
           assert.deepStrictEqual(
-            Arr.map(titled.messages, ({ author, attachments }) => ({
-              author,
-              attachmentIds: Arr.map(attachments, ({ id }) => id),
-            })),
-            [
-              { author: 'user', attachmentIds: [uploaded.id] },
-              { author: 'assistant', attachmentIds: [] },
-            ],
+            Arr.map(asked.attachments, ({ id }) => id),
+            [uploaded.id],
           )
-          const rows = yield* selectOutbox
-          assert.deepStrictEqual(rows, [])
+          const unsent = yield* selectUnsent
+          assert.deepStrictEqual(unsent, [])
+          const [{ body: replyJob }] = yield* selectReplyJob(chat.id)
+          const provenance = Option.getOrThrow(replyJob.provenance)
+          assert.deepInclude(provenance, { provider: 'stub', model: 'stub' })
+          assert.match(provenance.instructionsHash, /^[0-9a-f]{64}$/)
 
           yield* api.chats.delete({ params: { chatId: chat.id } })
           const object = yield* bucket.select(uploaded.id)
@@ -113,15 +133,15 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           })
           .pipe(Effect.flip)
 
-        const detail = yield* api.chats.get({ params: { chatId: chat.id } })
-        const rows = yield* selectOutbox
+        const stored = yield* selectMessages(chat.id)
+        const rows = yield* selectOutboxOf(chat.id)
 
         assertSchemaEquals(
           AttachmentNotFoundError,
           refused,
           new AttachmentNotFoundError({ id: stale }),
         )
-        assert.deepStrictEqual(detail.messages, [])
+        assert.deepStrictEqual(stored, [])
         assert.deepStrictEqual(rows, [])
       }),
     )

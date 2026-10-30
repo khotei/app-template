@@ -9,6 +9,7 @@
     { "path": "../domain" },
     { "path": "../packages/aws" },
     { "path": "../packages/config" },
+    { "path": "../packages/llm" },
     { "path": "../packages/queue" },
     { "path": "../packages/s3" },
     { "path": "../packages/testing" }

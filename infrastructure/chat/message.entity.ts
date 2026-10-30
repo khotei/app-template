@@ -1,16 +1,24 @@
 import { eq, inArray, type SQL, sql } from 'drizzle-orm'
 import { createInsertSchema, createSelectSchema } from 'drizzle-orm/effect-schema'
-import { index, jsonb, pgEnum, snakeCase, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
-import { Array as Arr, Schema } from 'effect'
+import {
+  index,
+  jsonb,
+  pgEnum,
+  snakeCase,
+  text,
+  unique,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core'
+import { Schema } from 'effect'
 
 import {
-  ActiveMessageStage,
+  ActiveMessageStatus,
   ChatId,
-  Message,
   MessageAuthor,
   MessageFailure,
   MessageId,
-  MessageStage,
+  MessageStatus,
 } from '@app-template/domain/chat'
 
 import { chats } from '#infrastructure/chat/chat.entity'
@@ -18,7 +26,7 @@ import { createdAt, id, updatedAt } from '#infrastructure/db/columns'
 
 export const messageAuthor = pgEnum('message_author', MessageAuthor.literals)
 
-export const messageStage = pgEnum('message_stage', MessageStage.literals)
+export const messageStatus = pgEnum('message_status', MessageStatus.literals)
 
 export const messages = snakeCase.table(
   'messages',
@@ -28,7 +36,7 @@ export const messages = snakeCase.table(
       .notNull()
       .references(() => chats.id, { onDelete: 'cascade' }),
     author: messageAuthor().notNull(),
-    stage: messageStage().notNull(),
+    status: messageStatus().notNull(),
     text: text().notNull(),
     error: jsonb().$type<typeof MessageFailure.Encoded>(),
     createdAt: createdAt(),
@@ -37,6 +45,8 @@ export const messages = snakeCase.table(
   (table) => [
     index('messages_chat_id_created_at_index').on(table.chatId, table.createdAt),
     uniqueIndex('messages_chat_id_active_index').on(table.chatId).where(activeMessage),
+    // The target of `attachments_message_id_chat_id_fk`.
+    unique('messages_id_chat_id_unique').on(table.id, table.chatId),
   ],
 )
 
@@ -48,17 +58,7 @@ export const messages = snakeCase.table(
  * remove `.inlineParams()`; why: `docs/knowledge/database.md` › "Schema and entity files".
  */
 export const activeMessage: SQL =
-  sql`${eq(messages.author, 'assistant')} and ${inArray(messages.stage, ActiveMessageStage.literals)}`.inlineParams()
-
-/**
- * Holds for the rows `activeMessage` holds for, as a relational query's `where`.
- *
- * A relational query aliases the table, while `activeMessage` names `"messages"`.
- */
-export const activeMessageFilter = {
-  author: 'assistant' as const,
-  stage: { in: Arr.copy(ActiveMessageStage.literals) },
-}
+  sql`${eq(messages.author, 'assistant')} and ${inArray(messages.status, ActiveMessageStatus.literals)}`.inlineParams()
 
 const messageFields = {
   id: MessageId,
@@ -71,8 +71,6 @@ const messageFields = {
 export const MessageRow = createSelectSchema(messages, messageFields)
 
 export const MessageInsert = createInsertSchema(messages, messageFields)
-
-export const MessageFromRow = MessageRow.pipe(Schema.decodeTo(Message))
 
 export const inCreationOrder = { createdAt: 'asc', id: 'asc' } as const
 

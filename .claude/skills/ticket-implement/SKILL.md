@@ -15,7 +15,7 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. G
    shows no uncommitted change to tracked files; otherwise stop and ask.
 2. **Implement.** Spawn the `implementer` agent with pointers only: the ticket folder and the
    step id, on the `model` and `effort` the step's **Model** line names (`opus medium` for a
-   move, rename or config step; `fable high` for one that writes behaviour). Its `make check`
+   move, rename or config step; `opus high` for one that writes behaviour). Its `make check`
    hook keeps it working until the gate is green. A report that starts with `BLOCKED:` goes
    straight to the user.
 3. **Review.** Call the Skill tool with `mattpocock-skills:code-review`, overriding:

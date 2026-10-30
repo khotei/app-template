@@ -13,10 +13,13 @@ import {
   Struct,
 } from 'effect'
 
-import { AttachmentBoundError, AttachmentNotFoundError } from '#domain/attachment/attachment.error'
+import {
+  type AttachmentBoundError,
+  AttachmentNotFoundError,
+} from '#domain/attachment/attachment.error'
 import { AttachmentId } from '#domain/attachment/attachment.id'
 import {
-  type Attachment,
+  Attachment,
   type AttachmentDownload,
   type AttachmentMeta,
   buildAttachment,
@@ -24,7 +27,8 @@ import {
   isExpiredAt,
 } from '#domain/attachment/attachment.model'
 import { AttachmentBucket, AttachmentRepository } from '#domain/attachment/attachment.port'
-import type { MessageId } from '#domain/chat/chat.id'
+import type { ChatId, MessageId } from '#domain/chat/chat.id'
+import { generateId } from '#domain/shared/id'
 import type { UserId } from '#domain/user/user.id'
 
 export interface AttachmentUpload<E> extends AttachmentMeta {
@@ -57,39 +61,22 @@ export class AttachmentService extends Context.Service<
       id: AttachmentId,
     ) => Effect.Effect<void, AttachmentNotFoundError | AttachmentBoundError>
     /**
-     * Binds the user's attachments to the message and returns them bound, in the order asked; an
-     * id another bind took since the check fails `AttachmentBoundError`, the others staying bound
-     * unless the caller's transaction rolls back.
+     * Binds the user's attachments to the message of the chat and returns them bound, in the order
+     * asked; checks them under their rows' lock, so of two sends binding one file the second waits
+     * and fails `AttachmentBoundError`.
      */
     readonly bind: (
       userId: UserId,
       ids: ReadonlyArray<AttachmentId>,
-      messageId: MessageId,
+      to: { readonly messageId: MessageId; readonly chatId: ChatId },
     ) => Effect.Effect<ReadonlyArray<Attachment>, AttachmentNotFoundError | AttachmentBoundError>
-    /**
-     * Removes these attachments, bound or not; an id already removed is skipped, so a retried
-     * cascade finishes.
-     *
-     * A step of `DeleteChatUseCase`, which found the ids through the user's chat: it checks no
-     * owner, and entry points call the use case, never this.
-     */
-    readonly deleteByIds: (ids: ReadonlyArray<AttachmentId>) => Effect.Effect<void>
   }
 >()('@app-template/domain/attachment/AttachmentService', {
   make: Effect.gen(function* () {
     const attachments = yield* AttachmentRepository
     const bucket = yield* AttachmentBucket
     const crypto = yield* Crypto.Crypto
-    const randomAttachmentId = crypto
-      .randomUUIDv7()
-      .pipe(Effect.orDie, Effect.map(AttachmentId.make))
-
-    const deleteByIds = Effect.fn('AttachmentService.deleteByIds')(function* (
-      ids: ReadonlyArray<AttachmentId>,
-    ) {
-      yield* attachments.deleteByIds(ids)
-      yield* Effect.forEach(ids, bucket.delete, { discard: true })
-    })
+    const randomAttachmentId = generateId(crypto, AttachmentId.make)
 
     const uploadFile = Effect.fnUntraced(function* <E>(
       file: AttachmentUpload<E>,
@@ -109,14 +96,27 @@ export class AttachmentService extends Context.Service<
       userId: UserId,
       files: Stream.Stream<AttachmentUpload<E>, E>,
     ) {
+      // Bytes are tracked before the write, rows after the insert: a lost record still deletes
+      // its bytes, and the cleanup deletes only rows that exist.
       const tracked = yield* Ref.make<ReadonlyArray<AttachmentId>>(Arr.empty())
-      // Tracked before the write, not after the insert: a lost record still deletes the bytes.
-      const trackId = Effect.tap(randomAttachmentId, (id) => Ref.update(tracked, Arr.append(id)))
-      const deleteTracked = Ref.get(tracked).pipe(Effect.flatMap(deleteByIds))
+      const stored = yield* Ref.make<ReadonlyArray<AttachmentId>>(Arr.empty())
+      const trackId = randomAttachmentId.pipe(
+        Effect.tap((id) => Ref.update(tracked, Arr.append(id))),
+      )
+      const storeId = (attachment: Attachment) => Ref.update(stored, Arr.append(attachment.id))
+      const deleteTracked = Effect.gen(function* () {
+        const storedIds = yield* Ref.get(stored)
+        if (Arr.isReadonlyArrayNonEmpty(storedIds)) yield* attachments.delete({ id: storedIds })
+        const trackedIds = yield* Ref.get(tracked)
+        yield* bucket.delete(trackedIds)
+      })
 
       return yield* files.pipe(
         Stream.mapEffect((file) =>
-          Effect.flatMap(trackId, (id) => uploadFile(file, { id, userId })),
+          trackId.pipe(
+            Effect.flatMap((id) => uploadFile(file, { id, userId })),
+            Effect.tap(storeId),
+          ),
         ),
         Stream.runCollect,
         Effect.onError(() => deleteTracked),
@@ -149,20 +149,23 @@ export class AttachmentService extends Context.Service<
       userId: UserId,
       id: AttachmentId,
     ) {
-      const attachment = yield* get(userId, id)
-      yield* ensureUnbound(attachment)
+      yield* get(userId, id).pipe(ensureUnbound)
 
-      yield* attachments.deleteByIds([id])
-      yield* bucket.delete(id)
+      yield* attachments.delete({ id: [id] })
+      yield* bucket.delete([id])
     })
 
     // One batch read; the refusal still names the first bad id in the order asked.
     const bind = Effect.fn('AttachmentService.bind')(function* (
       userId: UserId,
       ids: ReadonlyArray<AttachmentId>,
-      messageId: MessageId,
+      { messageId, chatId }: { readonly messageId: MessageId; readonly chatId: ChatId },
     ) {
-      const stored = yield* attachments.selectMany({ id: ids, userId })
+      // A send without files binds nothing, and the update below dies on no rows.
+      if (Arr.isReadonlyArrayEmpty(ids)) return []
+      // The rows stay locked until the send commits, so a concurrent bind of one of them waits
+      // here and then finds it bound.
+      const stored = yield* attachments.selectMany({ id: ids, userId }, { forUpdate: true })
       const now = yield* DateTime.now
       const found = HashMap.fromIterable(
         Arr.map(stored, (attachment) => [attachment.id, attachment]),
@@ -171,24 +174,19 @@ export class AttachmentService extends Context.Service<
         HashMap.get(found, id).pipe(
           Option.filter(Predicate.not(isExpiredAt(now))),
           Effect.fromOption(() => new AttachmentNotFoundError({ id })),
-          Effect.flatMap(ensureUnbound),
+          ensureUnbound,
         )
 
-      yield* Effect.forEach(ids, ensureBindable, { discard: true })
+      const checked = yield* Effect.forEach(ids, ensureBindable)
 
+      const binding = { messageId: Option.some(messageId), chatId: Option.some(chatId) }
       // Keep first: unbound bytes expire, so a crash must never leave a bound row over them.
       yield* Effect.forEach(ids, bucket.keep, { discard: true })
-      const bound = yield* attachments.update(
-        { messageId: Option.some(messageId) },
-        { id: ids, userId, messageId: Option.none() },
-      )
-      const byId = HashMap.fromIterable(Arr.map(bound, (attachment) => [attachment.id, attachment]))
-      return yield* Effect.forEach(ids, (id) =>
-        HashMap.get(byId, id).pipe(Effect.fromOption(() => new AttachmentBoundError({ id }))),
-      )
+      yield* attachments.update(binding, { id: ids, userId, messageId: Option.none() })
+      return Arr.map(checked, (attachment) => new Attachment({ ...attachment, ...binding }))
     })
 
-    return { upload, get, download, delete: remove, bind, deleteByIds }
+    return { upload, get, download, delete: remove, bind }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

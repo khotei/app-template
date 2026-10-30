@@ -3,53 +3,53 @@ import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Fiber, Layer, Option } from 'effect'
 
 import {
-  buildUserMessage,
+  AssistantFailedError,
+  AssistantRefusedError,
   Chat,
   ChatRepository,
   ChatTitle,
-  MessageRepository,
 } from '@app-template/domain/chat'
 import {
   type AssistantCallHold,
   chat,
   chatId,
-  epoch,
+  deleteChat,
+  firstMessage,
   holdAssistantCall,
+  insertMessage,
   messageId,
   recordAssistant,
+  selectChat,
 } from '@app-template/domain/testing'
 import { GenerateChatTitle } from '@app-template/infrastructure/chat'
 import { recordLogs } from '@app-template/testing'
 
 import { GenerateChatTitleUseCase } from '#application/chat/generate-chat-title.use-case'
-import { ChatTitleTest, selectChat } from '#application/testing/chat.test-layer'
+import { ChatTitleTest } from '#application/testing/chat.test-layer'
 
 const lisbonWeekend = ChatTitle.make('Lisbon weekend')
 
 const trip = ChatTitle.make('Trip')
 
-const insertFirstMessage = MessageRepository.use((messages) =>
-  messages.insert(
-    buildUserMessage({ id: messageId, chatId, text: 'Plan a weekend in Lisbon', createdAt: epoch }),
-  ),
-)
-
 const renameChat = ChatRepository.use((chats) =>
   chats.update({ title: Option.some(trip) }, { id: chatId }).pipe(Effect.asVoid),
 )
-
-const deleteChat = ChatRepository.use((chats) => chats.delete(chatId))
 
 const generate = GenerateChatTitleUseCase.use((useCase) =>
   useCase.generate(new GenerateChatTitle({ chatId, messageId })),
 )
 
 const heldAnswer = (held: AssistantCallHold) =>
-  Effect.andThen(held.hold, Effect.succeedSome(lisbonWeekend))
+  held.hold.pipe(Effect.andThen(Effect.succeedSome(lisbonWeekend)))
 
 const changesWhileAnswering = [
-  { name: 'renamed', change: renameChat, log: 'already titled', title: Option.some(trip) },
-  { name: 'deleted', change: deleteChat, log: 'chat deleted', title: Option.none<ChatTitle>() },
+  { name: 'renamed', change: renameChat, log: 'chat deleted or titled', title: Option.some(trip) },
+  {
+    name: 'deleted',
+    change: deleteChat(chatId),
+    log: 'chat deleted or titled',
+    title: Option.none<ChatTitle>(),
+  },
 ] as const
 
 describe('GenerateChatTitleUseCase', () => {
@@ -57,7 +57,7 @@ describe('GenerateChatTitleUseCase', () => {
     const assistant = recordAssistant({ suggestTitle: Effect.succeedSome(lisbonWeekend) })
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
-      yield* insertFirstMessage
+      yield* insertMessage(firstMessage)
 
       yield* generate
 
@@ -76,7 +76,7 @@ describe('GenerateChatTitleUseCase', () => {
     const assistant = recordAssistant({ suggestTitle: Effect.succeedSome(lisbonWeekend) })
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
-      yield* insertFirstMessage
+      yield* insertMessage(firstMessage)
       yield* renameChat
 
       yield* generate
@@ -85,7 +85,7 @@ describe('GenerateChatTitleUseCase', () => {
         yield* selectChat(chatId),
         Option.some(new Chat({ ...chat, title: Option.some(trip) })),
       )
-      assert.deepStrictEqual(logs, [['Info', 'chat title skipped: already titled']])
+      assert.deepStrictEqual(logs, [['Info', 'chat title skipped: chat deleted or titled']])
     }).pipe(Effect.provide([ChatTitleTest.pipe(Layer.provide(assistant.layer)), logger]))
   })
 
@@ -104,12 +104,30 @@ describe('GenerateChatTitleUseCase', () => {
     const assistant = recordAssistant({ suggestTitle: Effect.succeedNone })
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
-      yield* insertFirstMessage
+      yield* insertMessage(firstMessage)
 
       yield* generate
 
       assertEquals(yield* selectChat(chatId), Option.some(chat))
       assert.deepStrictEqual(logs, [['Info', 'chat title skipped: nothing to title']])
+    }).pipe(Effect.provide([ChatTitleTest.pipe(Layer.provide(assistant.layer)), logger]))
+  })
+
+  it.effect.each([
+    { error: new AssistantRefusedError({ cause: 'stop_reason refusal' }) },
+    { error: new AssistantFailedError({ cause: '529 overloaded' }) },
+  ])('leaves the chat untitled and logs the $error._tag', ({ error }) => {
+    const assistant = recordAssistant({ suggestTitle: Effect.fail(error) })
+    const { logs, layer: logger } = recordLogs('error', 'cause')
+    return Effect.gen(function* () {
+      yield* insertMessage(firstMessage)
+
+      yield* generate
+
+      assertEquals(yield* selectChat(chatId), Option.some(chat))
+      assert.deepStrictEqual(logs, [
+        ['Warn', 'chat title skipped: the assistant failed', error._tag, error.cause],
+      ])
     }).pipe(Effect.provide([ChatTitleTest.pipe(Layer.provide(assistant.layer)), logger]))
   })
 
@@ -120,7 +138,7 @@ describe('GenerateChatTitleUseCase', () => {
       const assistant = recordAssistant({ suggestTitle: heldAnswer(held) })
       const { logs, layer: logger } = recordLogs()
       return Effect.gen(function* () {
-        yield* insertFirstMessage
+        yield* insertMessage(firstMessage)
 
         const running = yield* Effect.forkChild(generate)
         yield* held.asked
@@ -130,7 +148,7 @@ describe('GenerateChatTitleUseCase', () => {
 
         assertEquals(
           yield* selectChat(chatId),
-          Option.map(title, (title) => new Chat({ ...chat, title: Option.some(title) })),
+          title.pipe(Option.map((title) => new Chat({ ...chat, title: Option.some(title) }))),
         )
         assert.deepStrictEqual(logs, [['Info', `chat title skipped: ${log}`]])
       }).pipe(Effect.provide([ChatTitleTest.pipe(Layer.provide(assistant.layer)), logger]))

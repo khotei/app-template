@@ -2,25 +2,30 @@ import {
   Array as Arr,
   type DateTime,
   Effect,
+  flow,
   Option,
   Predicate,
-  pipe,
   Schema,
   String as Str,
 } from 'effect'
 
 import type { AttachmentId } from '#domain/attachment/attachment.id'
-import type { Attachment } from '#domain/attachment/attachment.model'
-import { ChatBusyError } from '#domain/chat/chat.error'
+import { Attachment } from '#domain/attachment/attachment.model'
 import { ChatId, MessageId } from '#domain/chat/chat.id'
-import { MessageInputInvalidError, MessageStageInvalidError } from '#domain/chat/message.error'
-import { ActiveMessageStage, MessageStage } from '#domain/chat/message-stage.model'
+import { MessageInputInvalidError, MessageStatusInvalidError } from '#domain/chat/message.error'
+import { isPreparing, Status } from '#domain/shared/status.model'
+
+export const MessageStatus = Status.pick(['queued', 'preparing', 'generating', 'done', 'failed'])
+export type MessageStatus = typeof MessageStatus.Type
+
+export const ActiveMessageStatus = MessageStatus.pick(['queued', 'preparing', 'generating'])
+export type ActiveMessageStatus = typeof ActiveMessageStatus.Type
 
 export const MessageAuthor = Schema.Literals(['user', 'assistant'])
 export type MessageAuthor = typeof MessageAuthor.Type
 
 export class MessageFailure extends Schema.Class<MessageFailure>('MessageFailure')({
-  reason: Schema.Literal('ReplyFailed'),
+  reason: Schema.Literals(['ReplyFailed', 'ReplyRefused']),
   /** A user-facing sentence fixed per reason; it never quotes the cause. */
   message: Schema.String,
   /** Diagnostic detail for operators; it never leaves the api. */
@@ -31,23 +36,19 @@ export class Message extends Schema.Class<Message>('Message')({
   id: MessageId,
   chatId: ChatId,
   author: MessageAuthor,
-  stage: MessageStage,
+  status: MessageStatus,
   text: Schema.String,
   error: Schema.Option(MessageFailure),
   createdAt: Schema.DateTimeUtc,
   updatedAt: Schema.DateTimeUtc,
+  /** Bound by `AttachmentService.bind`, in upload order; the message's own writes never touch them. */
+  attachments: Schema.Array(Attachment),
 }) {}
 
 /** An assistant message whose reply is still running; `isActiveMessage` narrows to it. */
 export interface ActiveMessage extends Message {
   readonly author: 'assistant'
-  readonly stage: ActiveMessageStage
-}
-
-export interface MessageDetail {
-  readonly message: Message
-  /** The attachments bound to the message, in upload order. */
-  readonly attachments: ReadonlyArray<Attachment>
+  readonly status: ActiveMessageStatus
 }
 
 export interface MessageInput {
@@ -65,11 +66,12 @@ export const buildUserMessage = (input: {
     id: input.id,
     chatId: input.chatId,
     author: 'user',
-    stage: 'completed',
+    status: 'done',
     text: input.text,
     error: Option.none(),
     createdAt: input.createdAt,
     updatedAt: input.createdAt,
+    attachments: [],
   })
 
 export const buildAssistantMessage = (input: {
@@ -81,30 +83,26 @@ export const buildAssistantMessage = (input: {
     id: input.id,
     chatId: input.chatId,
     author: 'assistant',
-    stage: 'queued',
+    status: 'queued',
     text: '',
     error: Option.none(),
     createdAt: input.createdAt,
     updatedAt: input.createdAt,
+    attachments: [],
   })
 
 const isActiveShape = Predicate.Struct({
   author: Schema.is(MessageAuthor.pick(['assistant'])),
-  stage: Schema.is(ActiveMessageStage),
+  status: Schema.is(ActiveMessageStatus),
 })
 
 export const isActiveMessage = (message: Message): message is ActiveMessage =>
   isActiveShape(message)
 
-export const ensureChatAcceptsMessage = Effect.fn('ensureChatAcceptsMessage')(function* (
-  current: Option.Option<Message>,
-) {
-  const active = Option.filter(current, isActiveMessage)
-  if (Option.isSome(active)) return yield* new ChatBusyError({ id: active.value.chatId })
-})
+export const isBlank: (text: string) => boolean = flow(Str.trim, Str.isEmpty)
 
 export const ensureMessageInput = Effect.fn('ensureMessageInput')(function* (input: MessageInput) {
-  if (pipe(input.text, Str.trim, Str.isEmpty) && Arr.isReadonlyArrayEmpty(input.attachmentIds)) {
+  if (isBlank(input.text) && Arr.isReadonlyArrayEmpty(input.attachmentIds)) {
     return yield* new MessageInputInvalidError()
   }
   // A repeated id would pass the bindability check twice and bind one attachment once.
@@ -113,15 +111,13 @@ export const ensureMessageInput = Effect.fn('ensureMessageInput')(function* (inp
   }
 })
 
-const isPreparing = Predicate.and(isActiveMessage, (message) => message.stage === 'preparing')
-
-/** Which messages may enter each stage; `queued` is only ever built, never entered. */
+/** Which messages may enter each status; `queued` is only ever built, never entered. */
 const transitions = {
   preparing: isActiveMessage,
-  generating: isPreparing,
-  completed: isActiveMessage,
+  generating: Predicate.and(isActiveMessage, isPreparing),
+  done: isActiveMessage,
   failed: isActiveMessage,
-} as const satisfies Record<Exclude<MessageStage, 'queued'>, Predicate.Predicate<Message>>
+} as const satisfies Record<Exclude<MessageStatus, 'queued'>, Predicate.Predicate<Message>>
 
 const move = Effect.fnUntraced(function* (
   message: Message,
@@ -136,9 +132,9 @@ const move = Effect.fnUntraced(function* (
   },
 ) {
   if (!transitions[to](message)) {
-    return yield* new MessageStageInvalidError({ id: message.id, from: message.stage, to })
+    return yield* new MessageStatusInvalidError({ id: message.id, from: message.status, to })
   }
-  return new Message({ ...message, ...patch, stage: to, updatedAt: at })
+  return new Message({ ...message, ...patch, status: to, updatedAt: at })
 })
 
 export const prepareMessage = Effect.fn('prepareMessage')((message: Message, at: DateTime.Utc) =>
@@ -149,20 +145,17 @@ export const generateMessage = Effect.fn('generateMessage')((message: Message, a
   move(message, { to: 'generating', at }),
 )
 
-/** The text generated so far; the message keeps `generating` whatever stage it was handed at. */
-export const snapshotMessage = (message: Message, text: string, at: DateTime.Utc): Message =>
-  new Message({ ...message, text, stage: 'generating', updatedAt: at })
-
 /** The settled text of a reply and when it settled. */
 export type MessageCompletion = { readonly text: string; readonly at: DateTime.Utc }
 
 export const completeMessage = Effect.fn('completeMessage')(
   (message: Message, { text, at }: MessageCompletion) =>
-    move(message, { to: 'completed', at, patch: { text, error: Option.none() } }),
+    move(message, { to: 'done', at, patch: { text, error: Option.none() } }),
 )
 
 const failureMessages = {
   ReplyFailed: 'The assistant could not reply. Please try again.',
+  ReplyRefused: 'The assistant declined to answer this message.',
 } as const satisfies Record<MessageFailure['reason'], string>
 
 /** Why a reply failed and when; the user-facing text comes from `failureMessages`. */

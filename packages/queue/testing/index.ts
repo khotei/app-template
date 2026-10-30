@@ -1,1 +1,1 @@
-export { recordQueue, type SentMessage } from '#queue/testing/queue.test-fake'
+export { recordQueue, type SentJob } from '#queue/testing/queue.test-fake'

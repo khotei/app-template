@@ -98,14 +98,29 @@ describe('S3Bucket over S3ClientTest against MiniStack', () => {
       uploadTimeout,
     )
 
-    it.effect('answers none, false, void and void for a missing key', () =>
+    it.effect(
+      'deleteMany removes the keys asked for, skips a missing one, and keeps the rest',
+      () =>
+        Effect.gen(function* () {
+          const files = yield* S3Bucket
+          const put = (key: string) => files.put(key, Stream.make(buildContent(1)), octetStream)
+          yield* Effect.forEach(['drop-1', 'drop-2', 'keep'], put, { discard: true })
+
+          yield* files.deleteMany(['drop-1', 'drop-2', 'missing'])
+          yield* files.deleteMany([])
+
+          const exist = yield* Effect.forEach(['drop-1', 'drop-2', 'keep'], files.exists)
+          assert.deepStrictEqual(exist, [false, false, true])
+        }),
+    )
+
+    it.effect('answers none, false and void for a missing key', () =>
       Effect.gen(function* () {
         const files = yield* S3Bucket
 
         const url = yield* files.url('missing', Duration.minutes(5))
         const exists = yield* files.exists('missing')
         yield* files.untag('missing')
-        yield* files.delete('missing')
 
         assert.deepStrictEqual(url, Option.none())
         assert.isFalse(exists)

@@ -33,7 +33,8 @@ replace one layer later.
   **worker job**, not streamed from the api: the api stores the user's message and a `queued`
   assistant message, enqueues the job and returns; the worker writes the growing text into that
   one message record as throttled snapshots, and the client polls the message until it is
-  terminal. SSE is therefore not built here; an SSE tail over the stored message is left to a
+  terminal. *Amended in `llm-providers` S1: the worker writes the reply whole, once, at
+  `completed`.* SSE is therefore not built here; an SSE tail over the stored message is left to a
   later ticket. The chat title is generated from the **first user message**, in a job that runs
   alongside the first assistant message, not after the first reply. Consequences for roadmap
   entries 6 and 7 are listed under Open questions.
@@ -135,9 +136,14 @@ replace one layer later.
   `title: none`, no active message, `createdAt` and `updatedAt` from `Clock`, and return it.
 - **R6** — WHEN `GET /chats` succeeds, THE SYSTEM SHALL return the user's chats as summaries
   (`id`, `title`, `activeMessage`, `createdAt`, `updatedAt`) sorted by `updatedAt` descending, without
-  messages and without pagination.
+  messages and without pagination. *Amended by the chat-reads refactor on
+  `feat/llm-providers`: the chats carry no `activeMessage`; what the client needs is decided
+  with `web-app`.*
 - **R7** — WHEN `GET /chats/:chatId` succeeds, THE SYSTEM SHALL return the chat with every message
   in creation order, each message with its attachments' metadata, and its `activeMessage`.
+  *Amended by the chat-reads refactor on `feat/llm-providers`: it returns the chat with its
+  `status` (`busy` while it has an active message, else `idle`); a message is read by `GET
+  /chats/:chatId/messages/:messageId`, and a list of them is decided with `web-app`.*
 - **R8** — WHEN `PATCH /chats/:chatId` carries a `title` that is non-empty after trimming and at
   most 120 characters, THE SYSTEM SHALL set it trimmed, bump `updatedAt` and return the chat;
   otherwise it SHALL answer `400 RequestInvalidError`. *Amended in plan review: the contract trims the
@@ -151,7 +157,13 @@ replace one layer later.
   that is `queued`, `preparing` or `generating`, as `activeMessage: { id, stage }`, or `null` when
   there is none. The repository finds it; no stored chat field holds it. *Amended in plan review:
   message stages are the one vocabulary; `Chat.status` is gone, because its `generating` meant
-  something other than the message stage of that name.*
+  something other than the message stage of that name.* *Amended by the chat-reads refactor
+  on `feat/llm-providers`: no endpoint exposes it; `GET /chats/:chatId` derives the chat's
+  `status` from it, and it still guards a send (R12).* *Amended by the repository refactor on
+  `feat/llm-providers`: the chat's `status` (`idle | queued | failed`) is a stored column, moved
+  by transitions in the transactions that change it: a send moves it to `queued`, the reply's end
+  to `idle` or, when the reply failed, `failed`; every endpoint that answers a chat carries it. A send to a
+  `queued` chat is R12's `409 ChatBusyError`; a `failed` one accepts a send.*
 
 ### Message and the assistant's message
 
@@ -167,23 +179,32 @@ replace one layer later.
 - **R13** — IF an `attachmentId` is unknown, belongs to another user or is already bound, THEN
   THE SYSTEM SHALL answer `404 AttachmentNotFoundError` or `409 AttachmentBoundError` and store nothing.
 - **R14** — WHEN `GET /chats/:chatId/messages/:messageId` succeeds, THE SYSTEM SHALL return the
-  message as currently stored, including a partial text while it is `generating`.
+  message as currently stored, including a partial text while it is `generating`. *Amended in
+  `llm-providers` S1: no partial text exists; the text is empty while `generating` and whole
+  at `completed`.*
 - **R15** — A message SHALL carry `id` (UUIDv7), `chatId`, `author` (`user | assistant`),
   `stage` (`queued | preparing | generating | completed | failed`), `text`, `attachments`
   (metadata), `createdAt`, `updatedAt`, and `error: Option` present only when `failed`. The
-  provider's other roles (`system`, `tool`) SHALL appear only in `infrastructure`.
+  provider's other roles (`system`, `tool`) SHALL appear only in `infrastructure`. *Amended by
+  the repository refactor on `feat/llm-providers`: the field is `status`, from the one status
+  vocabulary the chat shares, and `completed` is `done`, on the wire too; where these
+  requirements say a message's stage or `completed`, read its `status` and `done`.*
 - **R16** — WHILE the worker handles an assistant-message job, THE SYSTEM SHALL set the message to
   `preparing` on taking the job; to `generating` when the model request is sent; write the text
   accumulated so far into the message at most once per snapshot interval (a tunable, default
   300 ms) while the model streams; and set `completed` with the final text when the stream ends.
   Each write bumps the message's `updatedAt`; the chat's `updatedAt` moves at send and at the
-  terminal stage only. *Amended in architecture: snapshots touch one record (D2).*
+  terminal stage only. *Amended in architecture: snapshots touch one record (D2).* *Amended in
+  `llm-providers` S1: the reply arrives whole; no text is written while generating, and
+  `completed` carries the reply's text in one write.*
 - **R17** — WHEN the worker builds the model prompt, THE SYSTEM SHALL include every `completed`
   message of the chat in creation order as the provider's `user` and `assistant` messages, with
   each user attachment as a `Prompt.FilePart` read from the store; `failed` and non-terminal
   messages are skipped. *Amended in S8a: an attachment whose bytes are missing from the store is
   left out and the message's text still goes: the bytes vanish only when the chat is deleted
-  while the job reads it, and failing the reply would only retry into the same gap.*
+  while the job reads it, and failing the reply would only retry into the same gap.* *Amended
+  in `llm-providers` S3: a fixed system prompt opens the prompt, before the messages, and the
+  model answers it as a JSON object whose `text` is the reply.*
 - **R18** — IF an attempt of the assistant-message job fails, THEN THE SYSTEM SHALL retry it on the
   queue definition's `Schedule` with the message back at `preparing`; WHEN the attempts are
   exhausted, THE SYSTEM SHALL set the message to `failed` with `error: { reason: 'ReplyFailed',
@@ -196,7 +217,11 @@ replace one layer later.
   *Amended in [`aws-local`](../2026-10-19-1448_aws-local/feature.md) S5d: the retry waits the
   queue definition's `retryDelay` for that attempt (1 s, then 2 s); the attempts are the
   definition's three, and the last writes `failed` on any outcome but success, an interrupt
-  included (D23).*
+  included (D23).* *Amended in `llm-providers` S5: a provider failure no longer fails the
+  attempt; the assistant asks again within it, three requests 1 s then 2 s apart, each wait at
+  least a rate limit's of up to 30 s, and then fails the message `ReplyFailed`; a failure no
+  request can fix (a wrong key, an invalid request, a longer rate limit) fails it at once, and a
+  refusal fails it `ReplyRefused`. The queue's attempts now retry only a crash.*
 - **R19** — WHEN the worker starts after jobs were queued while it was stopped, or a job's lock
   expires after a crash, THE SYSTEM SHALL process the job, restarting the generation and
   overwriting earlier snapshots. *Amended in S8b: a crash on the last reply attempt does not
@@ -205,7 +230,8 @@ replace one layer later.
   stops during the last attempt sets the message `failed` instead of restarting it. The message
   stays active, and its job goes to the dead-letter queue, only when that write never happens: a
   killed process, a store failing the write, or a stopped worker's long poll spending the last
-  attempt. Accepted; a sweep belongs to ticket 4 or 9 (D23).*
+  attempt. Accepted; a sweep belongs to ticket 4 or 9 (D23).* *Amended in `llm-providers` S1:
+  there are no snapshots; a restarted generation writes no text until it completes.*
 
 ### Attachments
 
@@ -242,7 +268,12 @@ replace one layer later.
   user is never overwritten. IF the attempts are exhausted, THEN the chat stays untitled and the
   failure is logged. *Amended in S9:* IF the first message's text is blank (no text, or
   whitespace only) or the model's answer is blank, THEN the chat stays untitled, with an `Info`
-  log and no retry.
+  log and no retry. *Amended in `llm-providers` S6: the title is a structured answer, non-empty
+  and at most 120 characters once trimmed, in the language of the first message; an answer
+  that fails it, a blank one included, is asked again within the job, five requests 1, 2, 4
+  and 8 s apart, and is no longer cut; a wrong key, a rate limit over 30 s or a refusal stop at
+  once; the chat then stays untitled with a `Warning` log. Only a blank first message still
+  asks no model.*
 
 ### Contract, client and api
 
@@ -334,12 +365,12 @@ replace one layer later.
 | R4 | A chat id created under user A fetched with user B's cookie is `404 ChatNotFoundError`; the same for a message and an attachment. |
 | R5–R7 | Create two chats, send a message in the first: `GET /chats` lists the first one first with `title: null`, `activeMessage: { id, stage: 'queued' }`, no messages; `GET /chats/:id` returns the messages in order with attachment metadata. |
 | R8–R9 | `PATCH` with `"  "` or 121 characters is `400`; with `"Trip"` the summary shows it. `DELETE` while a message is active is `204`, the job ends with a log line and no write (worker test with a chat removed between enqueue and take). |
-| R10 | A repository and a service test: a chat with a `queued` assistant message returns it as `activeMessage`; after `completed` it is `null`; the stored chat has no such field. |
-| R11–R14 | Send returns `202` with a `completed` user message and a `queued` assistant message; a second send while the assistant message is active is `409 ChatBusyError`; an unknown attachment id is `404`, a bound one `409`; polling the assistant message under `TestClock` shows a growing `text` then `completed`. |
+| R10 | A repository and a service test: a chat with a `queued` assistant message returns it as `activeMessage`; after `completed` it is `null`; the stored chat has no such field. (*Amended by the repository refactor on `feat/llm-providers`:* the chat's stored `status` is `queued` after a send and `idle` or `failed` after the reply; a send to a `queued` chat is `409`.) |
+| R11–R14 | Send returns `202` with a `completed` user message and a `queued` assistant message; a second send while the assistant message is active is `409 ChatBusyError`; an unknown attachment id is `404`, a bound one `409`; polling the assistant message under `TestClock` shows a growing `text` then `completed` (*Amended in [`llm-providers`](../2026-10-29-1435_llm-providers/feature.md) S1:* the polled message shows an empty `text` until `completed` carries the whole reply). |
 | R15 | The `Message` schema test; `git grep -n "'system'\|'tool'" -- domain application` finds nothing. |
-| R16–R19 | A worker test with a fake `LanguageModel` that emits three deltas under `TestClock`: stages `preparing` → `generating` → `completed`, at most one write per snapshot interval, `updatedAt` bumped; the recorded prompt holds the history with a `file` part per attachment and no `failed` message; a failing model goes back to `preparing` per attempt and ends `failed` with `{ reason: 'ReplyFailed', message, cause }`, no provider text in `message`, and no `cause` in the api's response; with the worker stopped, three sends queue three jobs that run on start. |
+| R16–R19 | A worker test with a fake `LanguageModel` that emits three deltas under `TestClock`: stages `preparing` → `generating` → `completed`, at most one write per snapshot interval, `updatedAt` bumped (*Amended in [`llm-providers`](../2026-10-29-1435_llm-providers/feature.md) S1:* a fake assistant answers the reply whole, and `completed` is the only write after `generating`); the recorded prompt holds the history with a `file` part per attachment and no `failed` message; a failing model goes back to `preparing` per attempt and ends `failed` with `{ reason: 'ReplyFailed', message, cause }`, no provider text in `message`, and no `cause` in the api's response (*Amended in [`llm-providers`](../2026-10-29-1435_llm-providers/feature.md) S5:* a crashing attempt goes back to `preparing`; a failing provider is asked again within the attempt, in the adapter's suite); with the worker stopped, three sends queue three jobs that run on start. |
 | R20–R23 | Uploading two PNGs returns two unbound attachments; an 11 MB file is `413`, a `.zip` is `415`, six files or a nameless file `400`, and nothing is stored (adapter spy); `GET …/download` returns the bytes with `image/png` and `inline`; `DELETE` on an unbound one is `204`, on a bound one `409`. |
-| R24–R25 | After the first send, the title job is queued with an id derived from the chat id (a second send queues no second title job); the worker sets a title ≤ 120 chars; a `PATCH` made before the job completes wins; a model that always fails leaves `title: null` and a dead-letter log (*Amended in [`aws-local`](../2026-10-19-1448_aws-local/feature.md) S5c:* the job test shows `title: null` after a failing last attempt; the dead-letter log is the queue's, shown by its own suite); a first message with a blank text (no text, or whitespace only), or a blank answer, leaves `title: null` with an `Info` log and no retry (*Amended in S9*). |
+| R24–R25 | After the first send, the title job is queued with an id derived from the chat id (a second send queues no second title job); the worker sets a title ≤ 120 chars; a `PATCH` made before the job completes wins; a model that always fails leaves `title: null` and a dead-letter log (*Amended in [`aws-local`](../2026-10-19-1448_aws-local/feature.md) S5c:* the job test shows `title: null` after a failing last attempt; the dead-letter log is the queue's, shown by its own suite); a first message with a blank text (no text, or whitespace only), or a blank answer, leaves `title: null` with an `Info` log and no retry (*Amended in S9*; *amended in `llm-providers` S6:* an answer that fails the title's schema (blank or over 120 characters), or a failure a retry can fix, is asked again within the job, shown by the adapter's suite, and the job then leaves `title: null` with a `Warning` log). |
 | R26–R27 | `http-api` imports only `effect` and `@app-template/domain` (a probe importing another workspace fails `make lint`); at Seam 7, `OpenApi.fromApi(Api)` names the domain's tags (`UserUnknownError`) and documents the cookie security scheme and the 400; `GET /openapi.json` serves that spec and `GET /docs` serves Scalar. *Amended in aws-local's test pruning:* the cookie scheme and `security: []` are shown by live requests (a route without the cookie passes or gets 401), not by the spec. |
 | R28 | A request with a malformed body is `400 RequestInvalidError` listing every issue; `make dev-api` starts through `BunRuntime` and logs finalizers on SIGTERM. |
 | R29 | Through `ApiClient` against the test server (Seam 7): an unknown chat id fails with `ChatNotFoundError`, a malformed body with `RequestInvalidError`, a missing cookie with `UserUnknownError`, a stopped server with `HttpClientError` (*Amended in S14:* `ApiClient` runs every schema check on its own encode, so a malformed body cannot leave it; the body that fails decoding is sent over a raw client, and through `ApiClient` the domain's refusal of a blank message fails with `MessageInputInvalidError`; a `FormData` is not checked on encode, so S15 sends six files through `ApiClient` and sees it decode `RequestInvalidError`); a table keyed by an endpoint's error tags (`satisfies Record<tag, …>`) fails `make typecheck` on a missing or an extra tag; `bun build --minify --target=browser apps/web/src/app/main.ts \| gzip` stays near the measured 54 KB, recorded in the step's findings. *Amended in S12b.* *Amended in aws-local's test pruning:* the unknown chat id is checked once, and the stopped-server `HttpClientError` (effect's fetch transport) is no longer tested; `ApiClient.layerFetch`'s type and the web's error table cover the wiring. |

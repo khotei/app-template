@@ -1,14 +1,15 @@
+---
+paths:
+  - "**/package.json"
+  - "Makefile"
+  - ".env*"
+  - "packages/config/**"
+---
+
 # Tooling
 
-Imperatives only. The explanations live in [docs/knowledge/tooling.md](../../docs/knowledge/tooling.md).
-
-## Commands
-
-- Run everything through `make <target>` (`make help` lists them). There is exactly one `Makefile`,
-  at the root; never add one to a workspace.
-- `make check` must pass before a step is reported.
-- Typecheck with `make typecheck`. Test with `make test-unit` (`tests/`, no Docker), `make test-e2e`
-  (`e2e/`, Docker running, its own containers) or `make test`, both.
+Imperatives only. The commands: the root `CLAUDE.md`; the explanations:
+[docs/knowledge/tooling.md](../../docs/knowledge/tooling.md).
 
 ## Dependencies
 
@@ -16,8 +17,7 @@ Imperatives only. The explanations live in [docs/knowledge/tooling.md](../../doc
   `catalog:<namespace>`, never the unnamed `catalog:`.
 - Put a new dependency in `tools` or `runtime` by the definitions in the knowledge doc; give a
   lock-step family its own namespace.
-- Add a dependency with `bun add [-d] --catalog=<namespace> <pkg>@<exact>`, then declare it in each
-  consuming workspace.
+- After `bun add` (the root `CLAUDE.md`), declare the dependency in each consuming workspace.
 
 ## Environment
 
@@ -32,4 +32,3 @@ Imperatives only. The explanations live in [docs/knowledge/tooling.md](../../doc
 ## Dev modes
 
 - Keep `api` and `web` on `--hot` and `worker` on `--watch`; never invent a `--dev` flag.
-- Debug with `make debug-<app>`.

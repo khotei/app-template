@@ -1,20 +1,33 @@
 import { Context, Effect, Layer, Option } from 'effect'
 
-import { Assistant, ChatService, MessageRepository } from '@app-template/domain/chat'
+import {
+  Assistant,
+  type AssistantError,
+  ChatService,
+  MessageRepository,
+} from '@app-template/domain/chat'
 import type { GenerateChatTitle } from '@app-template/infrastructure/chat'
 
-type TitleSkip = 'chatDeleted' | 'alreadyTitled' | 'nothingToTitle'
+type TitleSkip = 'chatDeleted' | 'deletedOrTitled' | 'nothingToTitle'
 
 const titleSkipLogs = {
   chatDeleted: Effect.logInfo('chat title skipped: chat deleted'),
-  alreadyTitled: Effect.logInfo('chat title skipped: already titled'),
+  deletedOrTitled: Effect.logInfo('chat title skipped: chat deleted or titled'),
   nothingToTitle: Effect.logInfo('chat title skipped: nothing to title'),
 } as const satisfies Record<TitleSkip, Effect.Effect<void>>
+
+const logAssistantFailure = (error: AssistantError) =>
+  Effect.logWarning('chat title skipped: the assistant failed').pipe(
+    Effect.annotateLogs({ error: error._tag, cause: error.cause }),
+  )
 
 export class GenerateChatTitleUseCase extends Context.Service<
   GenerateChatTitleUseCase,
   {
-    /** Titles the chat its first message opened; a chat gone or titled meanwhile is logged and skipped. */
+    /**
+     * Titles the chat its first message opened; a chat gone or titled meanwhile, or an
+     * assistant error, is logged and skipped.
+     */
     readonly generate: (job: GenerateChatTitle) => Effect.Effect<void>
   }
 >()('@app-template/application/chat/GenerateChatTitleUseCase', {
@@ -33,13 +46,11 @@ export class GenerateChatTitleUseCase extends Context.Service<
       const title = yield* assistant.suggestTitle(first.value.text)
       if (Option.isNone(title)) return yield* titleSkipLogs.nothingToTitle
 
-      yield* chatService.updateTitle(job.chatId, title.value).pipe(
-        Effect.catchTags({
-          ChatNotFoundError: () => titleSkipLogs.chatDeleted,
-          ChatTitledError: () => titleSkipLogs.alreadyTitled,
-        }),
-      )
-    })
+      // Only an untitled chat takes the title, so a rename by the user always wins.
+      yield* chatService
+        .rename({ id: job.chatId, title: Option.none() }, title.value)
+        .pipe(Effect.catchTag('ChatNotFoundError', () => titleSkipLogs.deletedOrTitled))
+    }, Effect.catch(logAssistantFailure))
 
     return { generate }
   }),

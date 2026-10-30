@@ -1,5 +1,5 @@
 import type { S3Service } from '@effect-aws/client-s3'
-import { Duration, Effect, Layer, type Stream } from 'effect'
+import { Array as Arr, Duration, Effect, Layer, type Stream } from 'effect'
 
 import { buildResourceName, resources, unboundTag } from '@app-template/aws'
 import { AwsConfig } from '@app-template/config'
@@ -14,10 +14,10 @@ import { S3Bucket } from '@app-template/s3'
 const urlLifetime = Duration.minutes(5)
 const unboundTags = { [unboundTag.key]: unboundTag.value }
 
-export const buildObjectKey = (id: AttachmentId): string => `attachments/${id}`
+const buildObjectKey = (id: AttachmentId): string => `attachments/${id}`
 
 /** `S3Bucket` on the attachments bucket of the stage in `AwsConfig`, over the `S3Service` in context. */
-export const S3BucketFromConfig: Layer.Layer<S3Bucket, never, S3Service | AwsConfig> = Layer.unwrap(
+const S3BucketFromConfig: Layer.Layer<S3Bucket, never, S3Service | AwsConfig> = Layer.unwrap(
   AwsConfig.useSync(({ stage }) =>
     S3Bucket.layer({ bucket: buildResourceName(stage, resources.buckets.attachments.name) }),
   ),
@@ -49,10 +49,10 @@ export const AttachmentBucketS3 = Layer.effect(
       bucket.untag(buildObjectKey(id)),
     )
 
-    const remove = Effect.fn('AttachmentBucket.delete')((id: AttachmentId) =>
-      bucket.delete(buildObjectKey(id)),
+    const remove = Effect.fn('AttachmentBucket.delete')((ids: ReadonlyArray<AttachmentId>) =>
+      bucket.deleteMany(Arr.map(ids, buildObjectKey)),
     )
 
     return AttachmentBucket.of({ insert, select, url, keep, delete: remove })
   }),
-)
+).pipe(Layer.provide(S3BucketFromConfig))

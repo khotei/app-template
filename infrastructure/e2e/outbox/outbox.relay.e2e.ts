@@ -1,4 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
+import { isNotNull, isNull } from 'drizzle-orm'
 import {
   Array as Arr,
   Clock,
@@ -16,7 +17,7 @@ import {
 import { buildResourceName } from '@app-template/aws'
 import { AwsConfig } from '@app-template/config'
 import { ChatId, MessageId } from '@app-template/domain/chat'
-import { QueueClient, QueueError, QueueTransport } from '@app-template/queue'
+import { QueueError, QueueSender, QueueTransport } from '@app-template/queue'
 import { recordLogs } from '@app-template/testing'
 
 import { assistantMessageQueue, GenerateAssistantMessage } from '#infrastructure/chat/chat.queue'
@@ -24,8 +25,9 @@ import { Db } from '#infrastructure/db/db.client'
 import { DbTest } from '#infrastructure/db/testing/db.test-layer'
 import { outbox } from '#infrastructure/outbox/outbox.entity'
 import { OutboxRelay } from '#infrastructure/outbox/outbox.relay'
-import { QueueClientOutbox } from '#infrastructure/shared/queue.client'
+import { QueueSenderOutbox } from '#infrastructure/shared/queue.client'
 import { AwsTest } from '#infrastructure/testing/aws.test-layer'
+import { replyProvenance } from '#infrastructure/testing/chat.test-fake'
 
 interface Attempt {
   readonly queue: string
@@ -59,7 +61,7 @@ const PollInterval = ConfigProvider.layer(
   ConfigProvider.fromUnknown({ OUTBOX_POLL_INTERVAL: `${pollInterval} millis` }),
 )
 
-const OutboxDbTest = QueueClientOutbox.pipe(Layer.provideMerge(DbTest), Layer.merge(PollInterval))
+const OutboxDbTest = QueueSenderOutbox.pipe(Layer.provideMerge(DbTest), Layer.merge(PollInterval))
 
 // The recording transport sees the queue name, so the stage is fixed.
 const OutboxTest = OutboxDbTest.pipe(
@@ -77,42 +79,59 @@ const OutboxSqsTest = QueueTransport.layerSqs.pipe(
 const jobId = (n: number) => `0192d4e0-7b3a-7c00-8000-${String(n).padStart(12, '0')}`
 
 const enqueue = (n: number) =>
-  QueueClient.use((queue) =>
+  QueueSender.use((queue) =>
     queue.send(
       assistantMessageQueue,
       new GenerateAssistantMessage({
         chatId: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000030'),
         messageId: MessageId.make(jobId(n)),
+        provenance: Option.some(replyProvenance),
       }),
     ),
   )
 
-// `for update` waits for every relay transaction that holds a row, so it reads the outbox as the
-// relays left it.
-const lockOutbox = Db.use((db) => db.select({ jobId: outbox.jobId }).from(outbox).for('update'))
+// `for update` waits for every relay transaction that holds a row, so it reads the unsent rows as
+// the relays left them.
+const lockUnsent = Db.use((db) =>
+  db.select({ jobId: outbox.jobId }).from(outbox).where(isNull(outbox.sentAt)).for('update'),
+)
+
+const selectSent = Db.use((db) =>
+  db.select({ jobId: outbox.jobId }).from(outbox).where(isNotNull(outbox.sentAt)),
+)
+
+const provenanceBody = {
+  provider: 'anthropic',
+  model: 'claude-sonnet-5-5',
+  instructionsHash: 'a1b2c3',
+}
 
 describe('OutboxRelay', () => {
-  it.effect('sends a pending row to its queue with its job id and JSON body, then deletes it', () =>
-    Effect.gen(function* () {
-      const { attempts, layer } = yield* recordTransport
-      yield* enqueue(1)
+  it.effect(
+    'sends a pending row to its queue with its job id and JSON body, then marks it sent',
+    () =>
+      Effect.gen(function* () {
+        const { attempts, layer } = yield* recordTransport
+        yield* enqueue(1)
 
-      yield* OutboxRelay.pipe(Layer.provide(layer), Layer.build)
-      const attempt = yield* Queue.take(attempts)
+        yield* OutboxRelay.pipe(Layer.provide(layer), Layer.build)
+        const attempt = yield* Queue.take(attempts)
 
-      assert.strictEqual(attempt.queue, 'app-template-test-assistant-message')
-      assert.strictEqual(attempt.jobId, '0192d4e0-7b3a-7c00-8000-000000000001')
-      assert.deepStrictEqual(JSON.parse(attempt.body), {
-        chatId: '0192d4e0-7b3a-7c00-8000-000000000030',
-        messageId: '0192d4e0-7b3a-7c00-8000-000000000001',
-      })
-      assert.deepStrictEqual(yield* lockOutbox, [])
-    }).pipe(Effect.provide(OutboxTest)),
+        assert.strictEqual(attempt.queue, 'app-template-test-assistant-message')
+        assert.strictEqual(attempt.jobId, '0192d4e0-7b3a-7c00-8000-000000000001')
+        assert.deepStrictEqual(JSON.parse(attempt.body), {
+          chatId: '0192d4e0-7b3a-7c00-8000-000000000030',
+          messageId: '0192d4e0-7b3a-7c00-8000-000000000001',
+          provenance: provenanceBody,
+        })
+        assert.deepStrictEqual(yield* lockUnsent, [])
+        assert.deepStrictEqual(yield* selectSent, [{ jobId: jobId(1) }])
+      }).pipe(Effect.provide(OutboxTest)),
   )
 
   // Live: SQS long-polls in real time.
   it.live(
-    "a pending row reaches the stage's real queue with its job id and JSON body, then is deleted",
+    "a pending row reaches the stage's real queue with its job id and JSON body, then is marked sent",
     () =>
       Effect.gen(function* () {
         const { stage } = yield* AwsConfig
@@ -130,8 +149,9 @@ describe('OutboxRelay', () => {
         assert.deepStrictEqual(JSON.parse(received.body), {
           chatId: '0192d4e0-7b3a-7c00-8000-000000000030',
           messageId: jobId(1),
+          provenance: provenanceBody,
         })
-        assert.deepStrictEqual(yield* lockOutbox, [])
+        assert.deepStrictEqual(yield* lockUnsent, [])
       }).pipe(Effect.provide(OutboxSqsTest)),
     30_000,
   )
@@ -146,7 +166,7 @@ describe('OutboxRelay', () => {
       yield* OutboxRelay.pipe(Layer.provide(layer), Layer.build)
       yield* OutboxRelay.pipe(Layer.provide(layer), Layer.build)
       const sent = yield* Queue.takeN(attempts, 25)
-      const left = yield* lockOutbox
+      const left = yield* lockUnsent
 
       assert.deepStrictEqual(
         pipe(sent, Arr.map(Struct.get('jobId')), Arr.sort(Order.String)),
@@ -169,32 +189,35 @@ describe('OutboxRelay', () => {
       yield* Queue.take(attempts)
       const refusedAt = yield* Clock.currentTimeMillis
       yield* Ref.set(refusing, false)
-      const kept = yield* lockOutbox
+      const kept = yield* lockUnsent
       const sent = yield* Queue.take(attempts)
       const sentAt = yield* Clock.currentTimeMillis
 
       assert.deepStrictEqual(kept, [{ jobId: jobId(1) }])
       assert.strictEqual(sent.jobId, jobId(1))
       assert.isAtLeast(sentAt - refusedAt, pollInterval)
-      assert.deepStrictEqual(yield* lockOutbox, [])
+      assert.deepStrictEqual(yield* lockUnsent, [])
       assert.deepStrictEqual(logs, [['Error', 'outbox relay failed']])
     }).pipe(Effect.provide([OutboxTest, recordedLogs]))
   })
 
-  it.live('waits OUTBOX_POLL_INTERVAL after a batch shorter than its limit', () =>
-    Effect.gen(function* () {
-      const { attempts, layer } = yield* recordTransport
-      yield* enqueue(1)
+  it.live(
+    'waits OUTBOX_POLL_INTERVAL after a batch shorter than its limit, then sends only the new row',
+    () =>
+      Effect.gen(function* () {
+        const { attempts, layer } = yield* recordTransport
+        yield* enqueue(1)
 
-      yield* OutboxRelay.pipe(Layer.provide(layer), Layer.build)
-      yield* Queue.take(attempts)
-      const firstAt = yield* Clock.currentTimeMillis
-      yield* lockOutbox
-      yield* enqueue(2)
-      yield* Queue.take(attempts)
-      const secondAt = yield* Clock.currentTimeMillis
+        yield* OutboxRelay.pipe(Layer.provide(layer), Layer.build)
+        yield* Queue.take(attempts)
+        const firstAt = yield* Clock.currentTimeMillis
+        yield* lockUnsent
+        yield* enqueue(2)
+        const second = yield* Queue.take(attempts)
+        const secondAt = yield* Clock.currentTimeMillis
 
-      assert.isAtLeast(secondAt - firstAt, pollInterval)
-    }).pipe(Effect.provide(OutboxTest)),
+        assert.isAtLeast(secondAt - firstAt, pollInterval)
+        assert.strictEqual(second.jobId, jobId(2))
+      }).pipe(Effect.provide(OutboxTest)),
   )
 })

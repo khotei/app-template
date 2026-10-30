@@ -19,10 +19,11 @@ steps only conform to the plan. Gates: `.claude/rules/sdd.md`.
    - **Goal** with the `R…` and `D…` ids it serves;
    - **Blocked by:** the steps it needs, or `none`. Steps without a path between them are
      independent;
-   - **Files**;
+   - **Files**, including every suite that builds or asserts on a changed type (grep its
+     constructor) and every `docs/knowledge/` page that names a changed symbol;
    - **Test first**: the Seam from `architecture.md` and the behaviour to see red, or `config only`;
    - **Verify**: commands and manual checks;
-   - **Model**: `opus medium` for a move, rename or config step, `fable high` for a step that
+   - **Model**: `opus medium` for a move, rename or config step, `opus high` for a step that
      writes behaviour; `/ticket-implement` spawns the implementer on it;
    - **Status:** `todo`.
    A step that writes or rewrites a `docs/knowledge/` page also trims, in the same step, every

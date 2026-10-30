@@ -1,7 +1,7 @@
 import { Schema } from 'effect'
 
 import { MessageId } from '#domain/chat/chat.id'
-import { MessageStage } from '#domain/chat/message-stage.model'
+import { Status } from '#domain/shared/status.model'
 
 export class MessageNotFoundError extends Schema.TaggedError<MessageNotFoundError>()(
   'MessageNotFoundError',
@@ -13,13 +13,7 @@ export class MessageInputInvalidError extends Schema.TaggedError<MessageInputInv
   {},
 ) {}
 
-export class MessageStageInvalidError extends Schema.TaggedError<MessageStageInvalidError>()(
-  'MessageStageInvalidError',
-  { id: MessageId, from: MessageStage, to: MessageStage },
-) {}
-
-/** The stored message left `expected`, the stage the write required: another writer won. */
-export class MessageMovedError extends Schema.TaggedError<MessageMovedError>()(
-  'MessageMovedError',
-  { id: MessageId, expected: MessageStage },
+export class MessageStatusInvalidError extends Schema.TaggedError<MessageStatusInvalidError>()(
+  'MessageStatusInvalidError',
+  { id: MessageId, from: Status, to: Status },
 ) {}

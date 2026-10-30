@@ -1,24 +1,22 @@
-import { Array as Arr, Effect, Layer, Ref } from 'effect'
+import { Array as Arr, Layer, Ref } from 'effect'
 
-import { type MessageContent, QueueTransport } from '#queue/queue.transport'
+import { QueueSender } from '#queue/queue'
 
-/** A message the recording transport took: the physical queue's name with the content sent. */
-export interface SentMessage extends MessageContent {
+/** A job the recording sender took, under its definition's name and job id. */
+export interface SentJob {
   readonly queue: string
+  readonly jobId: string
+  readonly job: unknown
 }
 
-const onlySends = Effect.die('recordQueue only sends: nothing consumes it')
-
-/** A `QueueTransport` that keeps each send in `sent`, in order; it only sends, as the api's does. */
+/** A `QueueSender` that keeps each job sent in `sent`, in order. */
 export const recordQueue = () => {
-  const sent = Ref.makeUnsafe<ReadonlyArray<SentMessage>>([])
+  const sent = Ref.makeUnsafe<ReadonlyArray<SentJob>>([])
   const layer = Layer.succeed(
-    QueueTransport,
-    QueueTransport.of({
-      send: (queue, message) => Ref.update(sent, Arr.append({ queue, ...message })),
-      receive: () => onlySends,
-      extend: () => onlySends,
-      delete: () => onlySends,
+    QueueSender,
+    QueueSender.of({
+      send: (definition, job) =>
+        Ref.update(sent, Arr.append({ queue: definition.name, jobId: definition.jobId(job), job })),
     }),
   )
   return { sent: Ref.get(sent), layer }

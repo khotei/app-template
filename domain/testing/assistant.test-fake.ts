@@ -1,16 +1,27 @@
-import { Array as Arr, Deferred, Effect, Layer, type Option, Ref, Stream } from 'effect'
+import {
+  Array as Arr,
+  Deferred,
+  Effect,
+  Function as Fn,
+  Layer,
+  type Option,
+  Ref,
+  UndefinedOr,
+} from 'effect'
 
-import { Assistant, type AssistantTurn } from '#domain/chat/assistant.port'
+import type { AssistantError } from '#domain/chat/assistant.error'
+import type { AssistantReply } from '#domain/chat/assistant.model'
+import { Assistant, type HistoryMessage } from '#domain/chat/assistant.port'
 import type { ChatTitle } from '#domain/chat/chat.model'
 
 export interface AssistantScript {
-  readonly streamText?: Stream.Stream<string>
-  readonly suggestTitle?: Effect.Effect<Option.Option<ChatTitle>>
+  readonly reply?: Effect.Effect<AssistantReply, AssistantError>
+  readonly suggestTitle?: Effect.Effect<Option.Option<ChatTitle>, AssistantError>
 }
 
 /** A call the recording assistant took, with what the caller handed it. */
 export type AssistantCall =
-  | { readonly method: 'streamText'; readonly history: ReadonlyArray<AssistantTurn> }
+  | { readonly method: 'reply'; readonly history: ReadonlyArray<HistoryMessage> }
   | { readonly method: 'suggestTitle'; readonly text: string }
 
 /** An `Assistant` answering from `script`, keeping each call in `calls`; an unscripted call dies. */
@@ -20,13 +31,23 @@ export const recordAssistant = (script: AssistantScript) => {
   const layer = Layer.succeed(
     Assistant,
     Assistant.of({
-      streamText: (history) =>
-        Stream.fromEffect(record({ method: 'streamText', history })).pipe(
-          Stream.flatMap(() => script.streamText ?? Stream.die('streamText is not scripted')),
+      reply: (history) =>
+        record({ method: 'reply', history }).pipe(
+          Effect.andThen(
+            UndefinedOr.match(script.reply, {
+              onUndefined: () => Effect.die('reply is not scripted'),
+              onDefined: Fn.identity,
+            }),
+          ),
         ),
       suggestTitle: (text) =>
         record({ method: 'suggestTitle', text }).pipe(
-          Effect.andThen(script.suggestTitle ?? Effect.die('suggestTitle is not scripted')),
+          Effect.andThen(
+            UndefinedOr.match(script.suggestTitle, {
+              onUndefined: () => Effect.die('suggestTitle is not scripted'),
+              onDefined: Fn.identity,
+            }),
+          ),
         ),
     }),
   )

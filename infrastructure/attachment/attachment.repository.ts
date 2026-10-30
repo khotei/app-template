@@ -1,5 +1,5 @@
 import { eq, inArray, isNull } from 'drizzle-orm'
-import { Array as Arr, Effect, Layer, Option, pipe, Schema, UndefinedOr } from 'effect'
+import { Array as Arr, Effect, Filter, Layer, Option, pipe, Schema, UndefinedOr } from 'effect'
 
 import {
   type Attachment,
@@ -14,8 +14,8 @@ import {
   AttachmentInsert,
   attachments,
 } from '#infrastructure/attachment/attachment.entity'
-import { buildSet, buildWhere, skipUndefined } from '#infrastructure/db/columns'
-import { Db, decodeOptionalRow, orDieWithSqlError } from '#infrastructure/db/db.client'
+import { buildSet, buildWhere } from '#infrastructure/db/columns'
+import { Db, orDieOnNoRows, orDieWithSqlError } from '#infrastructure/db/db.client'
 
 const encodeAttachment = Schema.encodeEffect(AttachmentInsert)
 
@@ -23,10 +23,11 @@ const decodeAttachments = Schema.decodeEffect(Schema.Array(AttachmentFromRow))
 
 const encodeSet = buildSet<AttachmentSet, typeof attachments>({
   messageId: UndefinedOr.map(Option.getOrNull),
+  chatId: UndefinedOr.map(Option.getOrNull),
 })
 
 const encodeWhere = buildWhere<AttachmentWhere>({
-  id: UndefinedOr.map((ids) => inArray(attachments.id, ids)),
+  id: (id) => inArray(attachments.id, Arr.ensure(id)),
   userId: UndefinedOr.map((userId) => eq(attachments.userId, userId)),
   messageId: UndefinedOr.map(
     Option.match({
@@ -36,22 +37,32 @@ const encodeWhere = buildWhere<AttachmentWhere>({
   ),
 })
 
-/** The rows in the order of `ids`; without `ids`, as the database returned them. */
+/** The rows in the order of `ids`, one id or a list. */
 const inOrderOf =
-  (ids: ReadonlyArray<AttachmentId> | undefined) =>
+  (ids: AttachmentWhere['id']) =>
   (found: ReadonlyArray<Attachment>): ReadonlyArray<Attachment> =>
-    ids === undefined
-      ? found
-      : pipe(
-          ids,
-          Arr.map((id) => Arr.findFirst(found, (each) => each.id === id)),
-          Arr.getSomes,
-        )
+    pipe(
+      Arr.ensure(ids),
+      Arr.filterMap(
+        Filter.fromPredicateOption((id: AttachmentId) =>
+          Arr.findFirst(found, (each) => each.id === id),
+        ),
+      ),
+    )
 
 export const AttachmentRepositoryPg = Layer.effect(
   AttachmentRepository,
-  Db.useSync((db) =>
-    AttachmentRepository.of({
+  Db.useSync((db) => {
+    const selectMany = Effect.fn('AttachmentRepository.selectMany')(function* (
+      where: AttachmentWhere,
+      options?: { readonly forUpdate?: boolean },
+    ) {
+      const query = db.select().from(attachments).where(encodeWhere(where)).$dynamic()
+      const rows = yield* options?.forUpdate ? query.for('update') : query
+      return yield* decodeAttachments(rows).pipe(Effect.map(inOrderOf(where.id)))
+    }, orDieWithSqlError)
+
+    return AttachmentRepository.of({
       insert: Effect.fn('AttachmentRepository.insert')(function* (attachment) {
         const row = yield* encodeAttachment(attachment)
         yield* db.insert(attachments).values(row)
@@ -62,31 +73,21 @@ export const AttachmentRepositoryPg = Layer.effect(
             .update(attachments)
             .set(encodeSet(set))
             .where(encodeWhere(where))
-            .returning()
-            .pipe(Effect.flatMap(decodeAttachments)),
+            .returning({ id: attachments.id })
+            .pipe(orDieOnNoRows('no attachment was updated')),
         orDieWithSqlError,
       ),
-      selectOne: Effect.fn('AttachmentRepository.selectOne')(
-        (where) =>
-          db.query.attachments
-            .findFirst({ where: { id: where.id, userId: skipUndefined(where.userId) } })
-            .pipe(Effect.flatMap(decodeOptionalRow(AttachmentFromRow))),
-        orDieWithSqlError,
-      ),
-      selectMany: Effect.fn('AttachmentRepository.selectMany')(
+      selectOne: (where) => selectMany(where).pipe(Effect.map(Arr.head)),
+      selectMany,
+      delete: Effect.fn('AttachmentRepository.delete')(
         (where) =>
           db
-            .select()
-            .from(attachments)
+            .delete(attachments)
             .where(encodeWhere(where))
-            .pipe(Effect.flatMap(decodeAttachments), Effect.map(inOrderOf(where.id))),
+            .returning({ id: attachments.id })
+            .pipe(orDieOnNoRows('no attachment was deleted')),
         orDieWithSqlError,
       ),
-      deleteByIds: Effect.fn('AttachmentRepository.deleteByIds')(
-        (ids: ReadonlyArray<AttachmentId>) =>
-          db.delete(attachments).where(inArray(attachments.id, ids)),
-        orDieWithSqlError,
-      ),
-    }),
-  ),
+    })
+  }),
 )

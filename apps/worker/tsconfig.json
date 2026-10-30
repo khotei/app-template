@@ -10,7 +10,6 @@
     { "path": "../../domain" },
     { "path": "../../infrastructure" },
     { "path": "../../packages/config" },
-    { "path": "../../packages/llm" },
     { "path": "../../packages/queue" },
     { "path": "../../packages/testing" }
   ]

@@ -13,11 +13,11 @@ copied and changed.
 
 An anonymous user gets a secret in a cookie, creates chats, sends messages with attachments, and
 the assistant answers. The api writes the message and its jobs in one transaction and answers
-`202`; the worker relays the jobs to SQS, streams the model's reply into the message as snapshots
-and titles the chat; the client polls the message until it is `completed` or `failed`. Records
+`202`; the worker relays the jobs to SQS, writes the model's whole reply into the message and
+titles the chat; the client polls the message until it is `done` or `failed`. Records
 live in Postgres, attachment bytes in S3, and jobs go through an outbox and SQS (MiniStack
-locally); the language model is a stub that a real provider replaces later. The browser UI still
-shows only the health panel.
+locally); `LLM_PROVIDER` picks the language model: Anthropic, or a stub that needs no key. The
+browser UI still shows only the health panel.
 
 ```mermaid
 sequenceDiagram
@@ -32,7 +32,7 @@ sequenceDiagram
   K->>S: relay claims the outbox rows
   K->>Q: assistant-message job (+ chat-title job on the first message)
   K->>Q: receive
-  K->>S: preparing → generating → text snapshots → completed | failed
+  K->>S: preparing → generating → done with the text | failed
   W->>A: GET /chats/:id/messages/:messageId (poll)
 ```
 
@@ -64,7 +64,7 @@ curl -s -c jar -X POST localhost:3000/users
 curl -s -b jar -X POST localhost:3000/chats
 curl -s -b jar -X POST localhost:3000/chats/<chatId>/messages \
   -H 'content-type: application/json' -d '{"text":"Hello","attachmentIds":[]}'
-# repeat while the assistant message is queued, preparing or generating: its text grows
+# repeat while the assistant message is queued, preparing or generating: its text arrives whole
 curl -s -b jar localhost:3000/chats/<chatId>/messages/<assistantMessageId>
 ```
 
@@ -94,7 +94,7 @@ The invariants a change must keep:
 - **No rule in a handler.** An api or worker handler decodes, calls one use case or service, and
   maps the answer.
 - **The database guards, not locks.** One active message per chat, a bind only while unbound and
-  every stage move are single conditional statements.
+  every status move are single conditional statements.
 - **A message never exists without its job.** The job is an outbox row in the same transaction.
 - **No service reaches the browser.** `make bundle-check` fails if one does.
 
@@ -109,7 +109,7 @@ One entity crosses every layer under the same folder name. The `chat` slice, by 
 ```text
 domain/chat/            chat.id  chat.model  chat.error  chat.port  chat.service
 application/chat/       send-message.use-case  generate-assistant-message.use-case
-infrastructure/chat/    chat.entity  chat.repository  chat.queue  assistant.llm
+infrastructure/chat/    chat.entity  chat.repository  chat.queue  assistant.llm  assistant.client
 http-api/chat/          chat.http
 apps/api/chat/          chat.handler
 apps/worker/chat/       assistant-message.handler  chat-title.handler

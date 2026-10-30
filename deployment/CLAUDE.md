@@ -7,8 +7,6 @@ deploy ticket lands. How it runs: `docs/knowledge/aws.md › The local stand-in`
 
 - Never run `pulumi destroy` or `up --refresh` on the local stack; `make down` and `make reset`
   work through Docker (why: `docs/knowledge/aws.md › The local stand-in`).
-
-- May import `packages/*` only; never a layer or an app.
 - Resource names come from `@app-template/aws` (`buildResourceName`,
   `app-template-<stage>-<resource>`) and tags from `shared/tags.ts`; never hard-code either in a
   resource file.

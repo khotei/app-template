@@ -31,7 +31,7 @@ import {
 } from '#domain/testing/attachment.test-fake'
 import { unknownAttachmentId } from '#domain/testing/attachment.test-fixture'
 import { upload } from '#domain/testing/attachment.test-layer'
-import { epoch, messageId } from '#domain/testing/chat.test-fixture'
+import { chatId, epoch, messageId } from '#domain/testing/chat.test-fixture'
 import { owner, stranger } from '#domain/testing/user.test-fixture'
 import type { UserId } from '#domain/user/user.id'
 
@@ -104,17 +104,23 @@ const addressers = [
   { name: 'delete', address: (service, userId, id) => service.delete(userId, id) },
   {
     name: 'bind',
-    address: (service, userId, id) => service.bind(userId, [id], messageId).pipe(Effect.asVoid),
+    address: (service, userId, id) => service.bind(userId, [id], message).pipe(Effect.asVoid),
   },
 ] as const satisfies ReadonlyArray<Addresser>
 
+/** Where a send binds: the fixture message of the fixture chat. */
+const message = { messageId, chatId }
+
 const bind = (attachment: Attachment) =>
   AttachmentRepository.use((attachments) =>
-    attachments.update({ messageId: Option.some(messageId) }, { id: [attachment.id] }),
+    attachments.update(
+      { messageId: Option.some(messageId), chatId: Option.some(chatId) },
+      { id: [attachment.id] },
+    ),
   )
 
 const boundTo = (attachment: Attachment) =>
-  new Attachment({ ...attachment, messageId: Option.some(messageId) })
+  new Attachment({ ...attachment, messageId: Option.some(messageId), chatId: Option.some(chatId) })
 
 const selectStored = (ids: ReadonlyArray<AttachmentId>) =>
   AttachmentRepository.use((attachments) => attachments.selectMany({ id: ids }))
@@ -196,7 +202,7 @@ describe('AttachmentService', () => {
     Effect.gen(function* () {
       const service = yield* AttachmentService
       const attachment = yield* uploadPhoto
-      yield* AttachmentBucket.use((bucket) => bucket.delete(attachment.id))
+      yield* AttachmentBucket.use((bucket) => bucket.delete([attachment.id]))
 
       const error = yield* service.download(owner, attachment.id).pipe(Effect.flip)
 
@@ -293,7 +299,7 @@ describe('AttachmentService', () => {
         const first = yield* uploadPhoto
         const second = yield* uploadPhoto
 
-        const bound = yield* service.bind(owner, [second.id, first.id], messageId)
+        const bound = yield* service.bind(owner, [second.id, first.id], message)
 
         assertEquals(bound, [boundTo(second), boundTo(first)])
         assertEquals(yield* selectStored([second.id, first.id]), bound)
@@ -307,10 +313,10 @@ describe('AttachmentService', () => {
       const foreign = yield* upload(stranger)
 
       const strangerFirst = yield* service
-        .bind(owner, [free.id, foreign.id, unknownAttachmentId], messageId)
+        .bind(owner, [free.id, foreign.id, unknownAttachmentId], message)
         .pipe(Effect.flip)
       const unknownFirst = yield* service
-        .bind(owner, [free.id, unknownAttachmentId, foreign.id], messageId)
+        .bind(owner, [free.id, unknownAttachmentId, foreign.id], message)
         .pipe(Effect.flip)
 
       assertSchemaEquals(
@@ -334,30 +340,11 @@ describe('AttachmentService', () => {
       const taken = yield* uploadPhoto
       yield* bind(taken)
 
-      const error = yield* service.bind(owner, [free.id, taken.id], messageId).pipe(Effect.flip)
+      const error = yield* service.bind(owner, [free.id, taken.id], message).pipe(Effect.flip)
 
       assertSchemaEquals(AttachmentBoundError, error, new AttachmentBoundError({ id: taken.id }))
       assertEquals(yield* selectStored([free.id, taken.id]), [free, boundTo(taken)])
     }).pipe(Effect.provide(AttachmentServiceTest)),
-  )
-
-  it.effect(
-    'deleteByIds removes bound and unbound attachments with their bytes, and only them',
-    () =>
-      Effect.gen(function* () {
-        const service = yield* AttachmentService
-        const unbound = yield* uploadPhoto
-        const bound = yield* uploadPhoto
-        yield* bind(bound)
-        const kept = yield* uploadPhoto
-
-        yield* service.deleteByIds([unbound.id, bound.id, unknownAttachmentId])
-
-        assertEquals(yield* selectStored([unbound.id, bound.id, kept.id]), [kept])
-        assert.deepStrictEqual(yield* selectBytes(unbound.id), Option.none())
-        assert.deepStrictEqual(yield* selectBytes(bound.id), Option.none())
-        assert.deepStrictEqual(yield* selectBytes(kept.id), Option.some(png))
-      }).pipe(Effect.provide(AttachmentServiceTest)),
   )
 
   it.effect.each(addressers)(

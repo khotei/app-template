@@ -41,6 +41,9 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # IntelliJ based IDEs
 .idea
 
+# personal ignore list of fd (the editor's file picker)
+.fdignore
+
 # Finder (MacOS) folder config
 .DS_Store
 

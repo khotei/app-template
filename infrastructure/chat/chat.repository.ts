@@ -1,83 +1,45 @@
 import { eq, isNull } from 'drizzle-orm'
-import {
-  Array as Arr,
-  DateTime,
-  Effect,
-  flow,
-  Layer,
-  Option,
-  pipe,
-  Schema,
-  Struct,
-  UndefinedOr,
-} from 'effect'
+import { DateTime, Effect, Layer, Option, Schema, UndefinedOr } from 'effect'
+import { identity } from 'effect/Function'
 
-import {
-  type ChatId,
-  type ChatOneWhere,
-  ChatRepository,
-  type ChatSet,
-  type ChatWhere,
-  isActiveMessage,
-} from '@app-template/domain/chat'
+import { ChatRepository, type ChatSet, type ChatWhere } from '@app-template/domain/chat'
 
-import { MessageDetailFromRow } from '#infrastructure/attachment/attachment.entity'
-import { ChatFromRow, ChatInsert, chats } from '#infrastructure/chat/chat.entity'
-import {
-  activeMessageFilter,
-  inCreationOrder,
-  MessageFromRow,
-  withAttachments,
-} from '#infrastructure/chat/message.entity'
+import { ChatFromRow } from '#infrastructure/attachment/attachment.entity'
+import { ChatInsert, chats } from '#infrastructure/chat/chat.entity'
+import { withAttachments } from '#infrastructure/chat/message.entity'
 import { buildSet, buildWhere, skipUndefined } from '#infrastructure/db/columns'
-import { Db, decodeOptionalRow, orDieWithSqlError } from '#infrastructure/db/db.client'
+import {
+  Db,
+  decodeOptionalRow,
+  orDieOnNoRows,
+  orDieWithSqlError,
+} from '#infrastructure/db/db.client'
 
 const encodeChat = Schema.encodeEffect(ChatInsert)
 
 const encodeSet = buildSet<ChatSet, typeof chats>({
   title: UndefinedOr.map(Option.getOrNull),
+  status: identity,
   updatedAt: UndefinedOr.map(DateTime.toDateUtc),
 })
 
-const encodeWhere = buildWhere<ChatWhere>({
-  id: (id) => eq(chats.id, id),
-  title: UndefinedOr.map(
-    Option.match({
-      onNone: () => isNull(chats.title),
-      onSome: (title) => eq(chats.title, title),
-    }),
-  ),
-})
-
-/** A relational read aliases the table, so it takes a filter object, not `buildWhere`. */
-const filterOf = (where: ChatOneWhere) =>
-  ({ id: where.id, userId: skipUndefined(where.userId) }) as const
-
-const decodeChat = Schema.decodeEffect(ChatFromRow)
-
-const decodeMessages = Schema.decodeEffect(Schema.Array(MessageFromRow))
-
-const decodeDetails = Schema.decodeEffect(Schema.Array(MessageDetailFromRow))
-
-type ChatRowWith<Nested> = typeof ChatFromRow.Encoded & { readonly messages: ReadonlyArray<Nested> }
-
-const decodeSummary = ({ messages, ...row }: ChatRowWith<typeof MessageFromRow.Encoded>) =>
-  Effect.all({
-    chat: decodeChat(row),
-    activeMessage: decodeMessages(messages).pipe(Effect.map(Arr.findFirst(isActiveMessage))),
+// Built on the table a query names: a relational query aliases `chats`, so a condition on the
+// `chats` constant would reference a table the query does not have. Partial, so `selectMany`'s
+// where, a subset of the fields, maps through the same columns.
+const encodeWhere = (table: typeof chats) =>
+  buildWhere<Partial<ChatWhere>>({
+    id: UndefinedOr.map((id) => eq(table.id, id)),
+    userId: UndefinedOr.map((userId) => eq(table.userId, userId)),
+    title: UndefinedOr.map(
+      Option.match({
+        onNone: () => isNull(table.title),
+        onSome: (title) => eq(table.title, title),
+      }),
+    ),
+    status: UndefinedOr.map((status) => eq(table.status, status)),
   })
 
-const decodeDetail = ({ messages, ...row }: ChatRowWith<typeof MessageDetailFromRow.Encoded>) =>
-  Effect.gen(function* () {
-    const chat = yield* decodeChat(row)
-    const details = yield* decodeDetails(messages)
-    const activeMessage = pipe(
-      details,
-      Arr.map(Struct.get('message')),
-      Arr.findFirst(isActiveMessage),
-    )
-    return { chat, activeMessage, messages: details }
-  })
+const decodeChats = Schema.decodeEffect(Schema.Array(ChatFromRow))
 
 export const ChatRepositoryPg = Layer.effect(
   ChatRepository,
@@ -87,48 +49,44 @@ export const ChatRepositoryPg = Layer.effect(
         const row = yield* encodeChat(chat)
         yield* db.insert(chats).values(row)
       }, orDieWithSqlError),
-      update: Effect.fn('ChatRepository.update')(function* (set, where) {
-        const updated = yield* db
-          .update(chats)
-          .set(encodeSet(set))
-          .where(encodeWhere(where))
-          .returning({ id: chats.id })
-        return Arr.isReadonlyArrayNonEmpty(updated)
-      }, orDieWithSqlError),
+      update: Effect.fn('ChatRepository.update')(
+        (set, where) =>
+          db
+            .update(chats)
+            .set(encodeSet(set))
+            .where(encodeWhere(chats)(where))
+            .returning({ id: chats.id })
+            .pipe(orDieOnNoRows(`chat ${where.id} was not updated`)),
+        orDieWithSqlError,
+      ),
       selectOne: Effect.fn('ChatRepository.selectOne')(
         (where) =>
           db.query.chats
-            .findFirst({ where: filterOf(where) })
+            .findFirst({
+              where: { RAW: (table) => skipUndefined(encodeWhere(table)(where)) },
+              with: withAttachments,
+            })
             .pipe(Effect.flatMap(decodeOptionalRow(ChatFromRow))),
         orDieWithSqlError,
       ),
-      selectSummaries: Effect.fn('ChatRepository.selectSummaries')(
-        (userId) =>
-          db.query.chats
-            .findMany({
-              where: { userId },
-              orderBy: { updatedAt: 'desc' },
-              with: { messages: { where: activeMessageFilter, limit: 1 } },
-            })
-            .pipe(Effect.flatMap(Effect.forEach(decodeSummary))),
-        orDieWithSqlError,
-      ),
-      selectDetail: Effect.fn('ChatRepository.selectDetail')(
+      selectMany: Effect.fn('ChatRepository.selectMany')(
         (where) =>
           db.query.chats
-            .findFirst({
-              where: filterOf(where),
-              with: { messages: { orderBy: inCreationOrder, with: withAttachments } },
+            .findMany({
+              where: { RAW: (table) => skipUndefined(encodeWhere(table)(where)) },
+              orderBy: { createdAt: 'desc' },
+              with: withAttachments,
             })
-            .pipe(
-              Effect.flatMap(
-                flow(Option.fromNullishOr, Option.map(decodeDetail), Effect.transposeOption),
-              ),
-            ),
+            .pipe(Effect.flatMap(decodeChats)),
         orDieWithSqlError,
       ),
       delete: Effect.fn('ChatRepository.delete')(
-        (id: ChatId) => db.delete(chats).where(eq(chats.id, id)),
+        (where) =>
+          db
+            .delete(chats)
+            .where(encodeWhere(chats)(where))
+            .returning({ id: chats.id })
+            .pipe(orDieOnNoRows(`chat ${where.id} was not deleted`)),
         orDieWithSqlError,
       ),
     }),

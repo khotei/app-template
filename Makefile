@@ -83,13 +83,13 @@ migration-check: ## Fail when an entity changed without a migration
 		exit 1; \
 	fi
 
-dev: ## Run api, worker and web together in dev mode
+dev: migrate ## Run api, worker and web together in dev mode
 	bun --filter './apps/*' dev
 
-dev-api: ## Run the api with --hot
+dev-api: migrate ## Run the api with --hot
 	bun --filter @app-template/api dev
 
-dev-worker: ## Run the worker with --watch
+dev-worker: migrate ## Run the worker with --watch
 	bun --filter @app-template/worker dev
 
 dev-web: ## Run the web dev server with HMR
@@ -104,7 +104,7 @@ debug-worker: ## Run the worker with --inspect and --watch
 debug-web: ## Run the web dev server with --inspect
 	bun --filter @app-template/web debug
 
-check: ids doc-names service-use nested-calls lint typecheck migration-check test bundle-check ## Run every gate: ids, doc names, service use, nested calls, lint, types, migrations, tests, the web bundle
+check: ids doc-names service-use nested-calls idioms lint typecheck migration-check test bundle-check ## Run every gate: ids, doc names, service use, nested calls, idioms, lint, types, migrations, tests, the web bundle
 
 ids: ## Fail on ticket ids in parentheses (D12, R3, Q70) outside docs/tickets
 	@if git grep --untracked -nE '\((D|R|Q)[0-9]+[a-z]?\)' -- . ':!docs/tickets' \
@@ -186,6 +186,16 @@ NESTED_CALL = \b(?:$(NESTED_UNARY))\(\s*(?!Effect\.gen\b)$(NESTED_ANY) \
   | \b(?:$(NESTED_TWO))\(\s*$(NESTED_MODULE)\s*,(?!\s*\))
 
 # The hits go through a variable, so a perl that fails (a broken pattern) fails the gate too.
+# Native code that an effect module spells: a check for undefined (UndefinedOr, Option) and a sort
+# by a comparator lambda (Order).
+IDIOMS = [!=]== undefined|\.sort\(\(
+
+idioms: ## Fail on native code an effect module spells (.claude/rules/effect.md)
+	@if git grep --untracked -nE '$(IDIOMS)' -- '*.ts' ':!repos' ':!**/migrations/**'; then \
+		echo 'Use the effect module named in .claude/rules/effect.md: UndefinedOr or Option, Order.'; \
+		exit 1; \
+	fi
+
 nested-calls: ## Fail on a combinator whose subject is another call, which a pipe spells in order
 	@hits=$$(perl -0777 -ne 'while (/$(NESTED_CALL)/gx) { \
 		print "$$ARGV:", 1 + (substr($$_, 0, $$-[0]) =~ tr/\n//), "\n" }' \

@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, DateTime, Effect, Option, pipe, Schema, Struct } from 'effect'
+import { Array as Arr, DateTime, Effect, Exit, Option, pipe, Schema, Struct } from 'effect'
 
 import {
   Attachment,
@@ -12,7 +12,7 @@ import {
 } from '@app-template/domain/attachment'
 import { buildUserMessage, ChatId, MessageId, MessageRepository } from '@app-template/domain/chat'
 import { UserId } from '@app-template/domain/user'
-import { assertSchemaEquals, sortById } from '@app-template/testing'
+import { assertSchemaEquals } from '@app-template/testing'
 
 import {
   insertOwnedChats,
@@ -57,12 +57,19 @@ describe('AttachmentRepositoryPg', () => {
     Effect.gen(function* () {
       const attachments = yield* AttachmentRepository
       const unbound = attachment('0192d4e0-7b3a-7c00-8000-000000000021')
-      const bound = new Attachment({ ...unbound, messageId: Option.some(messageId) })
+      const bound = new Attachment({
+        ...unbound,
+        messageId: Option.some(messageId),
+        chatId: Option.some(chatId),
+      })
       yield* insertMessage
       yield* attachments.insert(unbound)
 
       const beforeBind = yield* attachments.selectOne({ id: unbound.id })
-      yield* attachments.update({ messageId: Option.some(messageId) }, { id: [unbound.id] })
+      yield* attachments.update(
+        { messageId: Option.some(messageId), chatId: Option.some(chatId) },
+        { id: [unbound.id] },
+      )
       const afterBind = yield* attachments.selectOne({ id: unbound.id })
 
       assertSchemaEquals(SelectedAttachment, beforeBind, Option.some(unbound))
@@ -98,21 +105,26 @@ describe('AttachmentRepositoryPg', () => {
       const boundBefore = new Attachment({
         ...attachment('0192d4e0-7b3a-7c00-8000-000000000023'),
         messageId: Option.some(messageId),
+        chatId: Option.some(chatId),
       })
       yield* insertMessage
       yield* messages.insert(buildUserMessage({ id: nextMessageId, chatId, text: 'Hi', createdAt }))
       yield* pipe(free, Arr.append(boundBefore), Effect.forEach(attachments.insert))
 
-      const bound = yield* attachments.update(
-        { messageId: Option.some(nextMessageId) },
+      yield* attachments.update(
+        { messageId: Option.some(nextMessageId), chatId: Option.some(chatId) },
         { id: [first.id, boundBefore.id, unknownId, second.id], messageId: Option.none() },
       )
 
       const boundNow = Arr.map(
         free,
-        (each) => new Attachment({ ...each, messageId: Option.some(nextMessageId) }),
+        (each) =>
+          new Attachment({
+            ...each,
+            messageId: Option.some(nextMessageId),
+            chatId: Option.some(chatId),
+          }),
       )
-      assertSchemaEquals(Attachments, sortById(bound), boundNow)
       assertSchemaEquals(
         Attachments,
         yield* attachments.selectMany({
@@ -140,29 +152,6 @@ describe('AttachmentRepositoryPg', () => {
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
-  it.effect("selects by owner all of the owner's attachments and none of a stranger's", () =>
-    Effect.gen(function* () {
-      const attachments = yield* AttachmentRepository
-      const owned = [
-        attachment('0192d4e0-7b3a-7c00-8000-000000000021'),
-        attachment('0192d4e0-7b3a-7c00-8000-000000000022'),
-      ]
-      const foreign = new Attachment({
-        ...attachment('0192d4e0-7b3a-7c00-8000-000000000026'),
-        userId: strangerId,
-      })
-      yield* insertMessage
-      yield* insertOwnedChats(strangerId, [])
-      yield* pipe(owned, Arr.append(foreign), Effect.forEach(attachments.insert))
-
-      const ownersRows = yield* attachments.selectMany({ userId })
-      const strangersRows = yield* attachments.selectMany({ userId: strangerId })
-
-      assertSchemaEquals(Attachments, sortById(ownersRows), sortById(owned))
-      assertSchemaEquals(Attachments, strangersRows, [foreign])
-    }).pipe(Effect.provide(RepositoryStackPgTest)),
-  )
-
   it.effect('deletes the attachments asked for and keeps the rest', () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentRepository
@@ -175,11 +164,57 @@ describe('AttachmentRepositoryPg', () => {
       yield* pipe(dropped, Arr.prepend(kept), Effect.forEach(attachments.insert))
 
       const droppedIds = Arr.map(dropped, (each) => each.id)
-      yield* attachments.deleteByIds(Arr.append(droppedIds, unknownId))
-      yield* attachments.deleteByIds([])
+      yield* attachments.delete({ id: Arr.append(droppedIds, unknownId) })
 
       const ids = Arr.prepend(droppedIds, kept.id)
       assertSchemaEquals(Attachments, yield* attachments.selectMany({ id: ids }), [kept])
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
+  )
+
+  it.effect("update dies and binds nothing when chatId is not the message's chat", () =>
+    Effect.gen(function* () {
+      const attachments = yield* AttachmentRepository
+      const otherChatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000041')
+      const unbound = attachment('0192d4e0-7b3a-7c00-8000-000000000028')
+      yield* insertMessage
+      yield* insertOwnedChats(strangerId, [otherChatId])
+      yield* attachments.insert(unbound)
+
+      const exit = yield* attachments
+        .update(
+          { messageId: Option.some(messageId), chatId: Option.some(otherChatId) },
+          { id: [unbound.id] },
+        )
+        .pipe(Effect.exit)
+
+      assert.isTrue(Exit.hasDies(exit))
+      assertSchemaEquals(Attachments, yield* attachments.selectMany({ id: [unbound.id] }), [
+        unbound,
+      ])
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
+  )
+
+  it.effect.each([
+    {
+      name: 'update',
+      write: (attachments: AttachmentRepository['Service']) =>
+        attachments.update(
+          { messageId: Option.some(messageId), chatId: Option.some(chatId) },
+          { id: [unknownId] },
+        ),
+    },
+    {
+      name: 'delete',
+      write: (attachments: AttachmentRepository['Service']) =>
+        attachments.delete({ id: [unknownId] }),
+    },
+  ])('$name where no row holds dies', ({ write }) =>
+    Effect.gen(function* () {
+      const attachments = yield* AttachmentRepository
+
+      const exit = yield* write(attachments).pipe(Effect.exit)
+
+      assert.isTrue(Exit.hasDies(exit))
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 })

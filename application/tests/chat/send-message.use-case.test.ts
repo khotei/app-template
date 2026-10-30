@@ -4,118 +4,114 @@ import { DateTime, Effect, Layer, Option } from 'effect'
 
 import { Attachment, AttachmentNotFoundError } from '@app-template/domain/attachment'
 import {
+  ActiveMessageStatus,
   buildAssistantMessage,
   buildUserMessage,
   Chat,
-  ChatNotFoundError,
+  ChatBusyError,
   ChatRepository,
-  ChatService,
   ChatTitle,
-  type Message,
+  completeMessage,
+  Message,
   type MessageId,
   MessageRepository,
-  MessageService,
 } from '@app-template/domain/chat'
 import {
   ask,
-  ChatRepositoryTest,
   chat,
   epoch,
   owner,
+  selectChat,
+  selectMessages,
   stranger,
   upload,
 } from '@app-template/domain/testing'
+import { GenerateAssistantMessage, GenerateChatTitle } from '@app-template/infrastructure/chat'
+import { replyProvenance } from '@app-template/infrastructure/testing'
 import { recordQueue } from '@app-template/queue/testing'
 import { assertSchemaEquals, isUuidV7, sortById } from '@app-template/testing'
 
 import { SendMessageUseCase } from '#application/chat/send-message.use-case'
-import {
-  ChatTest,
-  layerChatTest,
-  selectAttachments,
-  selectChat,
-  selectMessages,
-} from '#application/testing/chat.test-layer'
+import { ChatTest, selectAttachments } from '#application/testing/chat.test-layer'
 
 /** Completes an assistant message as the worker would, freeing its chat for the next send. */
 const settle = (message: Message) =>
   Effect.gen(function* () {
-    const messages = yield* MessageService
+    const chats = yield* ChatRepository
+    const messages = yield* MessageRepository
     const at = yield* DateTime.now
 
-    const prepared = yield* messages.prepare(message, at)
-    return yield* messages.complete(prepared, { text: 'Sure.', at })
+    const completed = yield* completeMessage(message, { text: 'Sure.', at })
+    yield* messages.update(completed, { status: message.status })
+    yield* chats.update({ status: 'idle' }, { id: message.chatId, status: 'queued' })
+    return completed
   })
-
-/**
- * The memory chat repository whose chat is deleted on the way to its update, as a rival delete
- * between the send's check and its write would.
- */
-const ChatRepositoryDeletedBeforeUpdate = Layer.effect(
-  ChatRepository,
-  ChatRepository.useSync((inner) =>
-    ChatRepository.of({
-      ...inner,
-      update: (set, where) => inner.delete(where.id).pipe(Effect.andThen(inner.update(set, where))),
-    }),
-  ),
-).pipe(Layer.provide(ChatRepositoryTest))
 
 const replyJob = (messageId: MessageId) => ({
   queue: 'assistant-message',
-  body: `{"chatId":"${chat.id}","messageId":"${messageId}"}`,
-  attributes: { jobId: messageId },
+  jobId: messageId,
+  job: new GenerateAssistantMessage({
+    chatId: chat.id,
+    messageId,
+    provenance: Option.some(replyProvenance),
+  }),
 })
 
 describe('SendMessageUseCase', () => {
   it.live(
-    'send stores the user message with its attachments bound and a queued reply, and moves the chat to the send keeping its title',
+    'send stores the user message with its attachments bound and a queued reply, and queues the chat keeping its title',
     () => {
       const queue = recordQueue()
       return Effect.gen(function* () {
-        const chats = yield* ChatService
+        const chats = yield* ChatRepository
         const sendMessage = yield* SendMessageUseCase
         const photo = yield* upload(owner)
-        yield* chats.rename(owner, chat.id, ChatTitle.make('Trip'))
+        yield* chats.update({ title: Option.some(ChatTitle.make('Trip')) }, { id: chat.id })
 
         const { userMessage, assistantMessage } = yield* sendMessage.send(owner, chat.id, {
           text: 'Plan a weekend in Lisbon',
           attachmentIds: [photo.id],
         })
 
-        const sentAt = userMessage.message.createdAt
+        const sentAt = userMessage.createdAt
         assert.isTrue(DateTime.isGreaterThan(sentAt, epoch))
-        assert.isTrue(isUuidV7(userMessage.message.id) && isUuidV7(assistantMessage.message.id))
-        const bound = new Attachment({ ...photo, messageId: Option.some(userMessage.message.id) })
+        assert.isTrue(isUuidV7(userMessage.id) && isUuidV7(assistantMessage.id))
+        const bound = new Attachment({
+          ...photo,
+          messageId: Option.some(userMessage.id),
+          chatId: Option.some(chat.id),
+        })
         assertEquals(
           { userMessage, assistantMessage },
           {
-            userMessage: {
-              message: buildUserMessage({
-                id: userMessage.message.id,
+            userMessage: new Message({
+              ...buildUserMessage({
+                id: userMessage.id,
                 chatId: chat.id,
                 text: 'Plan a weekend in Lisbon',
                 createdAt: sentAt,
               }),
               attachments: [bound],
-            },
-            assistantMessage: {
-              message: buildAssistantMessage({
-                id: assistantMessage.message.id,
-                chatId: chat.id,
-                createdAt: sentAt,
-              }),
-              attachments: [],
-            },
+            }),
+            assistantMessage: buildAssistantMessage({
+              id: assistantMessage.id,
+              chatId: chat.id,
+              createdAt: sentAt,
+            }),
           },
         )
         const stored = yield* selectMessages(chat.id)
-        assertEquals(sortById(stored), sortById([userMessage.message, assistantMessage.message]))
+        assertEquals(sortById(stored), sortById([userMessage, assistantMessage]))
         assertEquals(yield* selectAttachments([photo]), [bound])
         assertEquals(
           yield* selectChat(chat.id),
           Option.some(
-            new Chat({ ...chat, title: Option.some(ChatTitle.make('Trip')), updatedAt: sentAt }),
+            new Chat({
+              ...chat,
+              title: Option.some(ChatTitle.make('Trip')),
+              status: 'queued',
+              attachments: [bound],
+            }),
           ),
         )
       }).pipe(Effect.provide(Layer.provide(ChatTest, queue.layer)))
@@ -123,49 +119,42 @@ describe('SendMessageUseCase', () => {
   )
 
   it.effect(
-    'the first send queues the reply and the title jobs, a later one the reply only',
+    "the first send queues the reply job with the process's provenance and the title job, a later one the reply only",
     () => {
       const queue = recordQueue()
       return Effect.gen(function* () {
         const sendMessage = yield* SendMessageUseCase
 
         const first = yield* sendMessage.send(owner, chat.id, ask('Plan a weekend in Lisbon'))
-        yield* settle(first.assistantMessage.message)
+        yield* settle(first.assistantMessage)
         const second = yield* sendMessage.send(owner, chat.id, ask('And in Porto?'))
 
         assertEquals(yield* queue.sent, [
-          replyJob(first.assistantMessage.message.id),
+          replyJob(first.assistantMessage.id),
           {
             queue: 'chat-title',
-            body: `{"chatId":"${chat.id}","messageId":"${first.userMessage.message.id}"}`,
-            attributes: { jobId: chat.id },
+            jobId: chat.id,
+            job: new GenerateChatTitle({ chatId: chat.id, messageId: first.userMessage.id }),
           },
-          replyJob(second.assistantMessage.message.id),
+          replyJob(second.assistantMessage.id),
         ])
       }).pipe(Effect.provide(Layer.provide(ChatTest, queue.layer)))
     },
   )
 
-  it.effect(
-    'send to a chat deleted after the check is ChatNotFoundError and writes nothing',
-    () => {
-      const queue = recordQueue()
-      return Effect.gen(function* () {
-        const sendMessage = yield* SendMessageUseCase
+  it.effect('send while a reply runs is ChatBusyError before any message or job', () => {
+    const queue = recordQueue()
+    return Effect.gen(function* () {
+      const sendMessage = yield* SendMessageUseCase
+      yield* sendMessage.send(owner, chat.id, ask('Plan a weekend in Lisbon'))
 
-        const error = yield* sendMessage.send(owner, chat.id, ask('Lisbon?')).pipe(Effect.flip)
+      const error = yield* sendMessage.send(owner, chat.id, ask('And in Porto?')).pipe(Effect.flip)
 
-        assertSchemaEquals(ChatNotFoundError, error, new ChatNotFoundError({ id: chat.id }))
-        assertEquals(yield* selectChat(chat.id), Option.none())
-        assertEquals(yield* selectMessages(chat.id), [])
-        assertEquals(yield* queue.sent, [])
-      }).pipe(
-        Effect.provide(
-          layerChatTest(ChatRepositoryDeletedBeforeUpdate).pipe(Layer.provide(queue.layer)),
-        ),
-      )
-    },
-  )
+      assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chat.id }))
+      assert.lengthOf(yield* selectMessages(chat.id), 2)
+      assert.lengthOf(yield* queue.sent, 2)
+    }).pipe(Effect.provide(Layer.provide(ChatTest, queue.layer)))
+  })
 
   it.effect(
     "send with another user's attachment is AttachmentNotFoundError before any reply or job",
@@ -185,7 +174,10 @@ describe('SendMessageUseCase', () => {
           error,
           new AttachmentNotFoundError({ id: photo.id }),
         )
-        assertEquals(yield* messages.selectActiveByChat(chat.id), Option.none())
+        assertEquals(
+          yield* messages.selectMany({ chatId: chat.id, status: ActiveMessageStatus.literals }),
+          [],
+        )
         assertEquals(yield* selectAttachments([photo]), [photo])
         assertEquals(yield* queue.sent, [])
       }).pipe(Effect.provide(Layer.provide(ChatTest, queue.layer)))

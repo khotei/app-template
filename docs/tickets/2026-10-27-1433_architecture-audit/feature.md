@@ -201,7 +201,8 @@ the glossary, so the rules point at one definition of each word.
   `Stream.transduce(Sink.fold(…))` and `Bytes.concat`, holding the latest part back until the
   stream ends, and aborts the upload on failure or interruption; `get`, `url`, `delete`, `untag` and `exists` complete it, the bucket being
   an option of its layer. `AttachmentBucketS3` holds only the keys and the mapping to the
-  domain's types.
+  domain's types. *Amended on `feat/llm-providers`: `delete` of one key is gone, since only its
+  test called it; `deleteMany` deletes every key, one request per 1000.*
 - **R16** — WHEN a job is written to the outbox, THE SYSTEM SHALL store its body as `jsonb`, with
   no index on it.
 

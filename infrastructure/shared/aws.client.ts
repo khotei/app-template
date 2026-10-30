@@ -6,7 +6,7 @@ import { AwsConfig } from '@app-template/config'
 
 const buildClientOptions = ({ region, endpoint }: AwsConfig['Service']) => ({
   region,
-  endpoint: Option.map(endpoint, String).pipe(Option.getOrUndefined),
+  endpoint: endpoint.pipe(Option.map(String), Option.getOrUndefined),
 })
 
 /** With an endpoint set, addresses buckets by path, so presigned URLs carry that endpoint's host. */

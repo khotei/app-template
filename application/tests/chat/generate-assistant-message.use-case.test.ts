@@ -14,69 +14,56 @@ import {
   MediaType,
 } from '@app-template/domain/attachment'
 import {
+  AssistantFailedError,
+  AssistantRefusedError,
+  AssistantReply,
   buildAssistantMessage,
-  buildUserMessage,
   Chat,
-  ChatRepository,
   Message,
-  MessageId,
+  type MessageId,
   MessageRepository,
 } from '@app-template/domain/chat'
 import {
   type AssistantCallHold,
+  asCompleted,
+  assistantMessageAt,
   chat,
   chatId,
+  deleteChat,
   epoch,
   holdAssistantCall,
   MessageRows,
   messageId,
   owner,
+  queuedChat,
   recordAssistant,
+  selectChat,
+  selectMessage,
+  userMessageAt,
 } from '@app-template/domain/testing'
 import { GenerateAssistantMessage } from '@app-template/infrastructure/chat'
+import { replyProvenance } from '@app-template/infrastructure/testing'
 import { png, recordLogs } from '@app-template/testing'
 
 import { GenerateAssistantMessageUseCase } from '#application/chat/generate-assistant-message.use-case'
-import { AssistantMessageTest, selectChat } from '#application/testing/chat.test-layer'
-
-const historyId = (n: number) => MessageId.make(`0192d4e0-7b3a-7c00-8000-00000000005${n}`)
+import { AssistantMessageTest } from '#application/testing/chat.test-layer'
 
 const at = (millis: number) => DateTime.makeUnsafe(millis)
 
 const queuedReply = buildAssistantMessage({ id: messageId, chatId, createdAt: epoch })
 
-const asCompleted = (message: Message, text: string) =>
-  new Message({ ...message, stage: 'completed', text })
+const sure = new AssistantReply({ text: 'Sure.' })
 
-const replyDeltas = Stream.make('Hel', 'lo, ', 'world')
+// The use case asks for the reply after its `generating` write.
+const heldReply = (held: AssistantCallHold) => held.hold.pipe(Effect.as(sure))
 
-// Seven deltas 130 ms apart. An interval opens with the stream and then with the first delta
-// after a snapshot: snapshots at 300 ms (two deltas) and 690 ms (five), the full text at 910 ms.
-const sevenDeltas = Stream.make('One', ' two', ' three', ' four', ' five', ' six', ' seven').pipe(
-  Stream.tap(() => Effect.sleep('130 millis')),
-)
+const whatIsThis = userMessageAt(1, 'What is this?')
+const aPhoto = asCompleted(assistantMessageAt(2), 'A photo.')
+const andAgain = userMessageAt(3, 'And again?')
+const halfReply = new Message({ ...assistantMessageAt(4), status: 'failed', text: 'half' })
+const attachmentsOnly = userMessageAt(5, '')
 
-const snapshotAt = (text: string, millis: number) =>
-  new Message({ ...queuedReply, stage: 'generating', text, updatedAt: at(millis) })
-
-// The use case asks for the stream after its `generating` write.
-const heldDeltas = (held: AssistantCallHold, deltas: Stream.Stream<string> = replyDeltas) =>
-  Stream.fromEffect(held.hold).pipe(Stream.drain, Stream.concat(deltas))
-
-// A second apart: messages sharing a `createdAt` come back in no defined order.
-const user = (n: number, text: string) =>
-  buildUserMessage({ id: historyId(n), chatId, text, createdAt: at(n * 1000) })
-
-const assistant = (n: number) =>
-  buildAssistantMessage({ id: historyId(n), chatId, createdAt: at(n * 1000) })
-
-const whatIsThis = user(1, 'What is this?')
-const aPhoto = asCompleted(assistant(2), 'A photo.')
-const andAgain = user(3, 'And again?')
-const halfReply = new Message({ ...assistant(4), stage: 'failed', text: 'half' })
-const filesOnly = user(5, '')
-
-const history = [whatIsThis, aPhoto, andAgain, halfReply, filesOnly]
+const history = [whatIsThis, aPhoto, andAgain, halfReply, attachmentsOnly]
 
 const image = (
   id: string,
@@ -92,6 +79,7 @@ const image = (
       createdAt: epoch,
     }),
     messageId: Option.some(boundTo),
+    chatId: Option.some(chatId),
   })
 
 const photo = image('0192d4e0-7b3a-7c00-8000-000000000040', {
@@ -101,7 +89,7 @@ const photo = image('0192d4e0-7b3a-7c00-8000-000000000040', {
 
 const sketch = image('0192d4e0-7b3a-7c00-8000-000000000041', {
   name: 'sketch.png',
-  boundTo: filesOnly.id,
+  boundTo: attachmentsOnly.id,
 })
 
 const insertMessages = (messages: ReadonlyArray<Message>) =>
@@ -119,16 +107,16 @@ const insertAttachment = (attachment: Attachment, bytes: 'stored' | 'lost' = 'st
     yield* bucket.insert(attachment.id, Stream.make(png), attachment)
   })
 
-const selectReply = MessageRepository.use((messages) => messages.selectOne({ id: messageId }))
-
 // Another writer's settle, landing in the rows behind the use case's back.
 const settleElsewhere = MessageRows.use((rows) =>
   Ref.update(rows, HashMap.set(messageId, asCompleted(queuedReply, 'Done elsewhere.'))),
 )
 
-const deleteChat = ChatRepository.use((chats) => chats.delete(chatId))
-
-const job = new GenerateAssistantMessage({ chatId, messageId })
+const job = new GenerateAssistantMessage({
+  chatId,
+  messageId,
+  provenance: Option.some(replyProvenance),
+})
 
 const generate = GenerateAssistantMessageUseCase.use((useCase) => useCase.generate(job))
 
@@ -137,86 +125,90 @@ const fail = (cause: Cause.Cause<unknown>) =>
 
 describe('GenerateAssistantMessageUseCase', () => {
   it.effect(
-    'generate moves the reply through preparing, generating, a snapshot at most every 300 ms and completed, and moves the chat to the completion',
+    "generate moves the reply through preparing and generating with no text, then completes it with the reply's text in one write, and moves the chat to the completion",
     () => {
       const held = holdAssistantCall()
-      const assistant = recordAssistant({ streamText: heldDeltas(held, sevenDeltas) })
+      const slowReply = held.hold.pipe(Effect.andThen(Effect.sleep('1 second')), Effect.as(sure))
+      const assistant = recordAssistant({ reply: slowReply })
       const { logs, layer: logger } = recordLogs()
       return Effect.gen(function* () {
         yield* insertMessages([queuedReply])
 
         const running = yield* Effect.forkChild(generate)
         yield* held.asked
-        // `generate` writes only where the stored stage is `preparing`, so this row proves that write.
-        assertEquals(
-          yield* selectReply,
-          Option.some(new Message({ ...queuedReply, stage: 'generating' })),
-        )
+        // `generate` writes only where the stored status is `preparing`, so this row proves that write.
+        const generating = new Message({ ...queuedReply, status: 'generating' })
+        assertEquals(yield* selectMessage(messageId), Option.some(generating))
         yield* held.release
-        yield* TestClock.adjust('300 millis')
-        assertEquals(yield* selectReply, Option.some(snapshotAt('One two', 300)))
-        yield* TestClock.adjust('390 millis')
-        assertEquals(yield* selectReply, Option.some(snapshotAt('One two three four five', 690)))
-        yield* TestClock.adjust('220 millis')
+        yield* TestClock.adjust('500 millis')
+        assertEquals(yield* selectMessage(messageId), Option.some(generating))
+        yield* TestClock.adjust('500 millis')
         yield* Fiber.join(running)
 
         assertEquals(
-          yield* selectReply,
+          yield* selectMessage(messageId),
           Option.some(
-            new Message({
-              ...queuedReply,
-              stage: 'completed',
-              text: 'One two three four five six seven',
-              updatedAt: at(910),
-            }),
+            new Message({ ...queuedReply, status: 'done', text: 'Sure.', updatedAt: at(1000) }),
           ),
         )
-        assertEquals(
-          yield* selectChat(chatId),
-          Option.some(new Chat({ ...chat, updatedAt: at(910) })),
-        )
+        assertEquals(yield* selectChat(chatId), Option.some(chat))
         assert.deepStrictEqual(logs, [])
       }).pipe(Effect.provide([AssistantMessageTest.pipe(Layer.provide(assistant.layer)), logger]))
     },
   )
 
-  it.effect('generate interrupted mid-stream leaves the last snapshot as written', () => {
-    const held = holdAssistantCall()
-    const assistant = recordAssistant({ streamText: heldDeltas(held, sevenDeltas) })
+  it.effect('generate dies with the assistant and leaves the reply generating with no text', () => {
+    const assistant = recordAssistant({ reply: Effect.die('provider exploded') })
     return Effect.gen(function* () {
       yield* insertMessages([queuedReply])
 
-      const running = yield* Effect.forkChild(generate)
-      yield* held.asked
-      yield* held.release
-      yield* TestClock.adjust('500 millis')
-      yield* Fiber.interrupt(running)
+      const exit = yield* generate.pipe(Effect.exit)
 
-      assertEquals(yield* selectReply, Option.some(snapshotAt('One two', 300)))
+      assert.isTrue(Exit.hasDies(exit))
+      assertEquals(
+        yield* selectMessage(messageId),
+        Option.some(new Message({ ...queuedReply, status: 'generating' })),
+      )
     }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
   })
 
-  it.effect('generate fails with the stream and writes no text past the last snapshot', () => {
-    const dying = sevenDeltas.pipe(Stream.take(3), Stream.concat(Stream.die('provider exploded')))
-    const held = holdAssistantCall()
-    const assistant = recordAssistant({ streamText: heldDeltas(held, dying) })
-    return Effect.gen(function* () {
-      yield* insertMessages([queuedReply])
+  it.effect.each([
+    {
+      error: new AssistantRefusedError({ cause: 'stop_reason refusal' }),
+      reason: 'ReplyRefused',
+    },
+    { error: new AssistantFailedError({ cause: '401 invalid x-api-key' }), reason: 'ReplyFailed' },
+  ] as const)(
+    "generate fails the reply with $reason and the error's cause after one call, and fails the chat",
+    ({ error, reason }) => {
+      const assistant = recordAssistant({ reply: Effect.fail(error) })
+      return Effect.gen(function* () {
+        yield* insertMessages([queuedReply])
 
-      const running = yield* Effect.forkChild(generate)
-      yield* held.asked
-      yield* held.release
-      yield* TestClock.adjust('500 millis')
+        yield* generate
 
-      assert.isTrue(Exit.hasDies(yield* Fiber.await(running)))
-      assertEquals(yield* selectReply, Option.some(snapshotAt('One two', 300)))
-    }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
-  })
+        const settled = Option.getOrThrow(yield* selectMessage(messageId))
+        assert.deepStrictEqual(
+          {
+            status: settled.status,
+            text: settled.text,
+            error: settled.error.pipe(Option.map(({ reason, cause }) => ({ reason, cause }))),
+          },
+          { status: 'failed', text: '', error: Option.some({ reason, cause: error.cause }) },
+        )
+        assert.strictEqual((yield* assistant.calls).length, 1)
+        assertEquals(
+          yield* selectChat(chatId),
+          Option.some(new Chat({ ...chat, status: 'failed' })),
+        )
+      }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
+    },
+  )
 
   it.effect(
     'generate prompts with every completed message in order and the bytes of its attachments',
     () => {
-      const assistant = recordAssistant({ streamText: replyDeltas })
+      const assistant = recordAssistant({ reply: Effect.succeed(sure) })
       return Effect.gen(function* () {
         yield* insertMessages([...history, queuedReply])
         yield* insertAttachment(photo)
@@ -226,12 +218,18 @@ describe('GenerateAssistantMessageUseCase', () => {
 
         assertEquals(yield* assistant.calls, [
           {
-            method: 'streamText',
+            method: 'reply',
             history: [
-              { message: whatIsThis, files: [{ attachment: photo, bytes: png }] },
-              { message: aPhoto, files: [] },
-              { message: andAgain, files: [] },
-              { message: filesOnly, files: [] },
+              {
+                message: new Message({ ...whatIsThis, attachments: [photo] }),
+                attachments: [{ attachment: photo, bytes: png }],
+              },
+              { message: aPhoto, attachments: [] },
+              { message: andAgain, attachments: [] },
+              {
+                message: new Message({ ...attachmentsOnly, attachments: [sketch] }),
+                attachments: [],
+              },
             ],
           },
         ])
@@ -239,45 +237,47 @@ describe('GenerateAssistantMessageUseCase', () => {
     },
   )
 
-  it.effect('generate skips a reply another writer settled while it streams', () => {
+  it.effect('generate dies on a reply another writer settled while the assistant answers', () => {
     const held = holdAssistantCall()
-    const assistant = recordAssistant({ streamText: heldDeltas(held) })
-    const { logs, layer: logger } = recordLogs()
+    const assistant = recordAssistant({ reply: heldReply(held) })
     return Effect.gen(function* () {
       yield* insertMessages([queuedReply])
 
-      const running = yield* Effect.forkChild(generate)
+      const running = yield* generate.pipe(Effect.exit, Effect.forkChild)
       yield* held.asked
       yield* settleElsewhere
       yield* held.release
-      yield* Fiber.join(running)
+      const exit = yield* Fiber.join(running)
 
-      assertEquals(yield* selectReply, Option.some(asCompleted(queuedReply, 'Done elsewhere.')))
-      assertEquals(yield* selectChat(chatId), Option.some(chat))
-      assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: already settled']])
-    }).pipe(Effect.provide([AssistantMessageTest.pipe(Layer.provide(assistant.layer)), logger]))
+      assert.isTrue(Exit.hasDies(exit))
+      assertEquals(
+        yield* selectMessage(messageId),
+        Option.some(asCompleted(queuedReply, 'Done elsewhere.')),
+      )
+      assertEquals(yield* selectChat(chatId), Option.some(queuedChat))
+    }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
   })
 
   it.effect('generate skips a reply settled before it, without asking the assistant', () => {
-    const assistant = recordAssistant({ streamText: replyDeltas })
+    const assistant = recordAssistant({ reply: Effect.succeed(sure) })
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
       yield* insertMessages([asCompleted(queuedReply, 'Done.')])
 
       yield* generate
 
-      assertEquals(yield* selectReply, Option.some(asCompleted(queuedReply, 'Done.')))
+      assertEquals(yield* selectMessage(messageId), Option.some(asCompleted(queuedReply, 'Done.')))
       assertEquals(yield* assistant.calls, [])
       assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: already settled']])
     }).pipe(Effect.provide([AssistantMessageTest.pipe(Layer.provide(assistant.layer)), logger]))
   })
 
   it.effect('generate skips a deleted chat, without asking the assistant', () => {
-    const assistant = recordAssistant({ streamText: replyDeltas })
+    const assistant = recordAssistant({ reply: Effect.succeed(sure) })
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
       yield* insertMessages([queuedReply])
-      yield* deleteChat
+      yield* deleteChat(chatId)
 
       yield* generate
 
@@ -295,9 +295,9 @@ describe('GenerateAssistantMessageUseCase', () => {
 
         const failed = Option.getOrThrow(yield* fail(Cause.die(new Error('provider exploded'))))
 
-        assertEquals(yield* selectReply, Option.some(failed))
+        assertEquals(yield* selectMessage(messageId), Option.some(failed))
         const error = Option.getOrThrow(failed.error)
-        assert.strictEqual(failed.stage, 'failed')
+        assert.strictEqual(failed.status, 'failed')
         assert.deepStrictEqual(
           [error.reason, error.message],
           ['ReplyFailed', 'The assistant could not reply. Please try again.'],
@@ -307,7 +307,7 @@ describe('GenerateAssistantMessageUseCase', () => {
         assert.isTrue(DateTime.isGreaterThan(failed.updatedAt, epoch))
         assertEquals(
           yield* selectChat(chatId),
-          Option.some(new Chat({ ...chat, updatedAt: failed.updatedAt })),
+          Option.some(new Chat({ ...chat, status: 'failed' })),
         )
       }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
     },
@@ -322,8 +322,8 @@ describe('GenerateAssistantMessageUseCase', () => {
       const failed = yield* fail(Cause.die(new Error('provider exploded')))
 
       assertEquals(failed, Option.none())
-      assertEquals(yield* selectReply, Option.some(asCompleted(queuedReply, 'Done.')))
-      assertEquals(yield* selectChat(chatId), Option.some(chat))
+      assertEquals(yield* selectMessage(messageId), Option.some(asCompleted(queuedReply, 'Done.')))
+      assertEquals(yield* selectChat(chatId), Option.some(queuedChat))
       assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: already settled']])
     }).pipe(Effect.provide([AssistantMessageTest.pipe(Layer.provide(assistant.layer)), logger]))
   })

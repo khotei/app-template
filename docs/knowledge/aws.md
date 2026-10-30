@@ -141,8 +141,9 @@ file. The api and the worker run on `AttachmentPgS3`.
 
 ## Queues
 
-`QueueClient` (`packages/queue`) sends and consumes jobs over `QueueTransport`, four SQS calls
-(`send`, `receive`, `extend`, `delete`). `QueueClientSqs` in `infrastructure/shared` wires it for
+`QueueConsumer` (`packages/queue`) consumes jobs over `QueueTransport`, four SQS calls
+(`send`, `receive`, `extend`, `delete`); jobs reach SQS only through the outbox relay
+([database.md › The outbox](database.md#the-outbox)). `QueueConsumerSqs` in `infrastructure/shared` wires it for
 the worker from `QueueConfig` and `AwsConfig`: a definition's queue is
 `buildResourceName(STAGE, definition.name)`.
 
@@ -153,7 +154,7 @@ the worker from `QueueConfig` and `AwsConfig`: a definition's queue is
   `QUEUE_LOCK_REFRESH_INTERVAL` while the handler runs. The attempt number is SQS's
   `ApproximateReceiveCount`, and the last attempt is the definition's `maxAttempts`, which is the
   inventory's `maxReceiveCount`.
-- **Every outcome is a visibility**, as the `QueueClient.consume` doc in
+- **Every outcome is a visibility**, as the `QueueConsumer.consume` doc in
   `packages/queue/queue.ts` lists them; SQS rounds a retry delay up to whole seconds, and an
   interrupt (a worker stopping, a handler interrupting itself) spends its attempt.
 - **Redrive is the only way to the dead-letter queue.** The receive after the
@@ -172,7 +173,7 @@ the worker from `QueueConfig` and `AwsConfig`: a definition's queue is
   The receive count carries over through the redrive (checked on MiniStack), so the first
   receive there is attempt `maxReceiveCount + 1`. The reply's consumer logs the stuck reply and
   writes it `failed` with `ReplyFailed`, a cause naming the queue and the attempts, and the
-  chat's `updatedAt`, under the stage guard the job uses, so a reply settled meanwhile or a
+  chat's `updatedAt`, under the status guard the job uses, so a reply settled meanwhile or a
   deleted chat is only logged. The title's consumer only logs, since an untitled chat is
   harmless.
 - **A stopped worker's long poll can outlive it.** Interrupting a receive aborts its HTTP request,
@@ -181,7 +182,7 @@ the worker from `QueueConfig` and `AwsConfig`: a definition's queue is
 - **The worker relays the outbox.** The api writes its jobs to the `outbox` table
   ([database.md › The outbox](database.md#the-outbox)), and `OutboxRelay` in the worker sends
   the rows to `buildResourceName(STAGE, queue)` over the same `QueueTransport`. A row the relay sent and could not
-  delete is sent again, which the at-least-once handlers absorb.
+  mark sent is sent again, which the at-least-once handlers absorb.
 
 The queue's own suite checks those rules on MiniStack in real time. A worker handler's suite
 calls its `handle` with plain `AttemptInfo` values over the memory layers, so the last attempt

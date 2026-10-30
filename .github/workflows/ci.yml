@@ -118,6 +118,8 @@ jobs:
 
       - name: No call takes another call's result as its subject
         run: make nested-calls
+      - name: No native code that an effect module spells
+        run: make idioms
 
       - name: The names the docs cite exist
         run: make doc-names
