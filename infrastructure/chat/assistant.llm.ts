@@ -14,6 +14,7 @@ import {
   Schema,
   SchemaTransformation,
   String as Str,
+  Struct,
   UndefinedOr,
 } from 'effect'
 import { AiError, Prompt, Response, Telemetry } from 'effect/ai'
@@ -94,7 +95,9 @@ const EarlyFinish = Response.FinishReason.pick(['content-filter', 'length'])
 
 type EarlyFinish = typeof EarlyFinish.Type
 
-const isEarlyFinish = Schema.is(EarlyFinish)
+const isEarlyFinishPart = Schema.is(
+  Schema.Struct({ type: Schema.Literal('finish'), reason: EarlyFinish }),
+)
 
 const earlyFinishReasons = {
   'content-filter': AiError.ContentPolicyError,
@@ -114,10 +117,10 @@ const failOnEarlyFinish = Effect.fnUntraced(function* <A>(
   // `generateObject` hands every response part to the span transformer before it decodes,
   // and `StructuredOutputError` carries no finish reason, so this hook is where a refusal shows.
   const keepEarlyFinish: Telemetry.SpanTransformer = ({ response }) => {
-    const reason = Arr.findFirst(response, (part) =>
-      part.type === 'finish' && isEarlyFinish(part.reason)
-        ? Option.some(part.reason)
-        : Option.none(),
+    const reason = pipe(
+      response,
+      Arr.findFirst(isEarlyFinishPart),
+      Option.map(Struct.get('reason')),
     )
     MutableRef.set(earlyFinish, reason)
   }

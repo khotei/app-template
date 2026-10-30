@@ -15,7 +15,7 @@
 | S7 | provenance in the reply's job, kept in the outbox; never on the message or the wire | done |
 | S8 | `docs/knowledge/ai.md`: every `effect/ai` module mapped | done |
 | S9 | a reply job queued before `provenance` decodes; the journey reads the provenance the api wrote | done |
-| S10 | review fixes: the fake's `??`, a named predicate, `architecture.md` matching the branch | todo |
+| S10 | review fixes: the fake's `??`, a named predicate, `architecture.md` matching the branch | done |
 
 ## How to run this plan
 
@@ -488,7 +488,18 @@
 - **Test first:** `config only`.
 - **Verify:** `make check`.
 - **Model:** opus medium
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The predicate is `isEarlyFinishPart`, `Schema.is` over a struct of `type: 'finish'` and an
+    early `reason`: `Predicate.and` does not pass the first refinement's narrowing to the second,
+    so it could not read `reason` without a cast.
+  - The review caught the rewritten Wire line claiming this ticket adds nothing to the wire;
+    S4's `ReplyRefused` reaches the client in a failed message's `reason`, and the line now says
+    so.
+  - Out of scope: `isWorthRetrying` keeps an inline `&&`, and `??` on a value remains in
+    `infrastructure/db/columns.ts` and four suites; `make idioms` misses them, since its pattern
+    looks for `=== undefined`, not `??`. Adding `??` to it is a repo-wide tooling change, left
+    for a later lesson.
 
 ## Requirement coverage
 

@@ -278,8 +278,12 @@ outbox_unsent_created_at_index ON (created_at) WHERE sent_at IS NULL
 -- a job queued before S7 has no provenance key
 ```
 
-**Wire**: unchanged. `error.cause` never leaves the api (R18); provenance lives in the outbox
-only (R12).
+**Wire**: this ticket adds one value, `ReplyRefused` in a failed message's `reason`; the chat
+refactors on this branch change the rest.
+A chat carries its `status` (`idle`, `queued`, `failed`), its `attachments` and its `userId`; a
+message's `stage` is `status`, with `done` for `completed`; an attachment carries its `userId` and
+`chatId`. `GET /chats` and `GET /chats/:chatId` answer the chat alone: no `activeMessage`, no
+`messages`. `error.cause` never leaves the api (R18); provenance lives in the outbox only (R12).
 
 ## Seams
 
@@ -306,7 +310,9 @@ change: the last attempt still settles a reply that a crash left active.
   crashes.** *Answers Q1.*
   - **Why:** the adapter is the only place that sees `AiError`, so it can tell what a retry can
     fix and honour `retryAfter`. The port then answers only final outcomes, and `packages/queue`
-    does not change.
+    gains no retry policy for them. The behaviour the branch changes there is the queue's own: `QueueClient`
+    split into `QueueSender` and `QueueConsumer`, a failed send a defect, a message with no
+    `jobId` received, the retries of a body that does not decode spaced.
   - **Cost accepted:** while it waits, the job holds its queue lock: up to three requests and two
     waits of at most 30 s each. The heartbeat extends the lock every 5 s. A worker that crashes
     on every attempt can make 3 × 3 requests for one message.

@@ -1,4 +1,13 @@
-import { Array as Arr, Deferred, Effect, Layer, type Option, Ref } from 'effect'
+import {
+  Array as Arr,
+  Deferred,
+  Effect,
+  Function as Fn,
+  Layer,
+  type Option,
+  Ref,
+  UndefinedOr,
+} from 'effect'
 
 import type { AssistantError } from '#domain/chat/assistant.error'
 import type { AssistantReply } from '#domain/chat/assistant.model'
@@ -24,11 +33,21 @@ export const recordAssistant = (script: AssistantScript) => {
     Assistant.of({
       reply: (history) =>
         record({ method: 'reply', history }).pipe(
-          Effect.andThen(script.reply ?? Effect.die('reply is not scripted')),
+          Effect.andThen(
+            UndefinedOr.match(script.reply, {
+              onUndefined: () => Effect.die('reply is not scripted'),
+              onDefined: Fn.identity,
+            }),
+          ),
         ),
       suggestTitle: (text) =>
         record({ method: 'suggestTitle', text }).pipe(
-          Effect.andThen(script.suggestTitle ?? Effect.die('suggestTitle is not scripted')),
+          Effect.andThen(
+            UndefinedOr.match(script.suggestTitle, {
+              onUndefined: () => Effect.die('suggestTitle is not scripted'),
+              onDefined: Fn.identity,
+            }),
+          ),
         ),
     }),
   )
