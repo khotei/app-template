@@ -8,11 +8,10 @@ import type { UserId } from '#domain/user/user.id'
 /** The fields a write may change; `userId` and `createdAt` never change. */
 export type ChatSet = Types.Simplify<RequireAtLeastOne<Pick<Chat, 'title' | 'updatedAt'>>>
 
-/** The row a write finds by `id`; `title` must still hold its value. */
-export type ChatWhere = Types.Simplify<{ readonly id: ChatId } & Partial<Pick<Chat, 'title'>>>
-
-/** The row a read finds by `id`; `userId` must still hold, so an owner mismatch reads as absent. */
-export type ChatOneWhere = Types.Simplify<{ readonly id: ChatId } & Partial<Pick<Chat, 'userId'>>>
+/** The row found by `id`; every other field named must still hold, so an owner mismatch reads as absent. */
+export type ChatWhere = Types.Simplify<
+  { readonly id: ChatId } & Partial<Pick<Chat, 'userId' | 'title'>>
+>
 
 export class ChatRepository extends Context.Service<
   ChatRepository,
@@ -22,7 +21,7 @@ export class ChatRepository extends Context.Service<
     readonly update: (set: ChatSet, where: ChatWhere) => Effect.Effect<void>
     /** With `forUpdate`, holds the row it reads until the transaction ends. */
     readonly selectOne: (
-      where: ChatOneWhere,
+      where: ChatWhere,
       options?: { readonly forUpdate?: boolean },
     ) => Effect.Effect<Option.Option<Chat>>
     /** Returns the user's chats, the most recently updated first. */

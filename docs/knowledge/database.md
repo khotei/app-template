@@ -157,9 +157,9 @@ refuses only lost a race and dies; the attachments' write answers with the rows 
   (`RETURNING *`).
   - `SendMessageUseCase.send` sets the chat's `updatedAt` alone, so a title written meanwhile
     survives.
-  - `ChatService.updateTitle` reads the chat to name a refusal (`ChatNotFoundError` or
-    `ChatTitledError`), then writes `where` the title is still `none`, so a rename landing
-    between the two wins and the title job dies and retries.
+  - `ChatService.rename` reads the chat by the caller's `where` to name a refusal
+    (`ChatNotFoundError`), then writes under the same `where`. The title job passes `title:
+    none`, so a rename landing between the two wins and the job dies and retries.
   - `AttachmentService.bind` checks each id, then writes the message `where` `messageId` is
     still `none`, and raises `AttachmentBoundError` for an id the statement skipped because
     another send took it in between.

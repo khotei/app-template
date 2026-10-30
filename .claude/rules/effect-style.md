@@ -13,7 +13,7 @@ The goal is code that reads top to bottom and extends by adding a row, not a bra
   boolean, moves into one trailing object with named fields after the subject:
   `failMessage(message, { reason, cause, at })`.
 - More than two stay positional only where the types tell them apart: a service `Shape` method
-  whose leading parameters are branded ids (`rename(userId, chatId, title)`).
+  whose leading parameters are branded ids (`findSendable(userId, chatId, input)`).
 - A repository write takes what it writes (the entity, or an `<Entity>Set` of the fields it
   changes), then an `<Entity>Where` of the fields the stored row must still hold, both typed from
   the model and passed as values, not an options bag, so the call reads as the SQL it runs:

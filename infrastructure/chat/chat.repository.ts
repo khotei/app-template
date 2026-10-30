@@ -3,7 +3,6 @@ import { Array as Arr, DateTime, Effect, Layer, Option, Schema, UndefinedOr } fr
 
 import {
   type ChatId,
-  type ChatOneWhere,
   ChatRepository,
   type ChatSet,
   type ChatWhere,
@@ -27,17 +26,13 @@ const encodeSet = buildSet<ChatSet, typeof chats>({
 
 const encodeWhere = buildWhere<ChatWhere>({
   id: (id) => eq(chats.id, id),
+  userId: UndefinedOr.map((userId) => eq(chats.userId, userId)),
   title: UndefinedOr.map(
     Option.match({
       onNone: () => isNull(chats.title),
       onSome: (title) => eq(chats.title, title),
     }),
   ),
-})
-
-const encodeOneWhere = buildWhere<ChatOneWhere>({
-  id: (id) => eq(chats.id, id),
-  userId: UndefinedOr.map((userId) => eq(chats.userId, userId)),
 })
 
 const decodeChats = Schema.decodeEffect(Schema.Array(ChatFromRow))
@@ -61,7 +56,7 @@ export const ChatRepositoryPg = Layer.effect(
         orDieWithSqlError,
       ),
       selectOne: Effect.fn('ChatRepository.selectOne')(function* (where, options) {
-        const query = db.select().from(chats).where(encodeOneWhere(where)).$dynamic()
+        const query = db.select().from(chats).where(encodeWhere(where)).$dynamic()
         const rows = yield* options?.forUpdate ? query.for('update') : query
         return yield* decodeOptionalRow(ChatFromRow)(Arr.head(rows).pipe(Option.getOrUndefined))
       }, orDieWithSqlError),

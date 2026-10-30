@@ -1,4 +1,4 @@
-import { Array as Arr, Crypto, DateTime, Effect } from 'effect'
+import { Array as Arr, Crypto, DateTime, Effect, Option } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
 import { DeleteChatUseCase, SendMessageUseCase } from '@app-template/application/chat'
@@ -59,7 +59,11 @@ export const ChatHandler = HttpApiBuilder.group(
         'rename',
         Effect.fn('ChatHandler.rename')(function* ({ params, payload }) {
           const user = yield* CurrentUser
-          const renamed = yield* chatService.rename(user.id, params.chatId, payload.title)
+          const updatedAt = yield* DateTime.now
+          const renamed = yield* chatService.rename(
+            { id: params.chatId, userId: user.id },
+            { title: Option.some(payload.title), updatedAt },
+          )
           return toChat(renamed)
         }),
       )

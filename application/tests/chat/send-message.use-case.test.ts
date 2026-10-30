@@ -53,7 +53,7 @@ describe('SendMessageUseCase', () => {
         const chats = yield* ChatService
         const sendMessage = yield* SendMessageUseCase
         const photo = yield* upload(owner)
-        yield* chats.rename(owner, chat.id, ChatTitle.make('Trip'))
+        yield* chats.rename({ id: chat.id }, { title: Option.some(ChatTitle.make('Trip')) })
 
         const { userMessage, assistantMessage } = yield* sendMessage.send(owner, chat.id, {
           text: 'Plan a weekend in Lisbon',

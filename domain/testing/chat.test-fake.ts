@@ -18,7 +18,7 @@ import type { AttachmentId } from '#domain/attachment/attachment.id'
 import type { Attachment } from '#domain/attachment/attachment.model'
 import type { ChatId, MessageId } from '#domain/chat/chat.id'
 import { Chat } from '#domain/chat/chat.model'
-import { type ChatOneWhere, ChatRepository } from '#domain/chat/chat.port'
+import { ChatRepository, type ChatWhere } from '#domain/chat/chat.port'
 import { isActiveMessage, type Message, type MessageDetail } from '#domain/chat/message.model'
 import {
   type MessageManyWhere,
@@ -143,7 +143,7 @@ export const ChatRepositoryTest = Layer.effect(
     const messages = yield* MessageRows
     const readTables = yield* createReadTables
 
-    const selectChat = (where: ChatOneWhere) =>
+    const selectChat = (where: ChatWhere) =>
       Ref.get(chats).pipe(
         Effect.map(HashMap.get(where.id)),
         Effect.map(Option.filter(matches<Chat>(where))),

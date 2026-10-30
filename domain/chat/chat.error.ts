@@ -10,7 +10,3 @@ export class ChatNotFoundError extends Schema.TaggedError<ChatNotFoundError>()(
 export class ChatBusyError extends Schema.TaggedError<ChatBusyError>()('ChatBusyError', {
   id: ChatId,
 }) {}
-
-export class ChatTitledError extends Schema.TaggedError<ChatTitledError>()('ChatTitledError', {
-  id: ChatId,
-}) {}

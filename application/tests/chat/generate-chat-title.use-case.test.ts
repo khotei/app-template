@@ -48,8 +48,13 @@ const heldAnswer = (held: AssistantCallHold) =>
   Effect.andThen(held.hold, Effect.succeedSome(lisbonWeekend))
 
 const changesWhileAnswering = [
-  { name: 'renamed', change: renameChat, log: 'already titled', title: Option.some(trip) },
-  { name: 'deleted', change: deleteChat, log: 'chat deleted', title: Option.none<ChatTitle>() },
+  { name: 'renamed', change: renameChat, log: 'chat deleted or titled', title: Option.some(trip) },
+  {
+    name: 'deleted',
+    change: deleteChat,
+    log: 'chat deleted or titled',
+    title: Option.none<ChatTitle>(),
+  },
 ] as const
 
 describe('GenerateChatTitleUseCase', () => {
@@ -85,7 +90,7 @@ describe('GenerateChatTitleUseCase', () => {
         yield* selectChat(chatId),
         Option.some(new Chat({ ...chat, title: Option.some(trip) })),
       )
-      assert.deepStrictEqual(logs, [['Info', 'chat title skipped: already titled']])
+      assert.deepStrictEqual(logs, [['Info', 'chat title skipped: chat deleted or titled']])
     }).pipe(Effect.provide([ChatTitleTest.pipe(Layer.provide(assistant.layer)), logger]))
   })
 

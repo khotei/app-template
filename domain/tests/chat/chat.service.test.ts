@@ -5,7 +5,7 @@ import { DateTime, Effect, Layer, Option } from 'effect'
 
 import { assertSchemaEquals } from '@app-template/testing'
 
-import { ChatBusyError, ChatNotFoundError, ChatTitledError } from '#domain/chat/chat.error'
+import { ChatBusyError, ChatNotFoundError } from '#domain/chat/chat.error'
 import { type ChatId, MessageId } from '#domain/chat/chat.id'
 import { Chat, ChatTitle, ChatWithStatus } from '#domain/chat/chat.model'
 import { ChatRepository } from '#domain/chat/chat.port'
@@ -19,6 +19,13 @@ import { owner, stranger } from '#domain/testing/user.test-fixture'
 import type { UserId } from '#domain/user/user.id'
 
 const ChatBunTest = ChatTest.pipe(Layer.provideMerge(BunCrypto.layer))
+
+const trip = ChatTitle.make('Trip')
+
+const lisbonWeekend = ChatTitle.make('Lisbon weekend')
+
+/** The `where` a generated title writes with: only a chat no one has titled yet. */
+const untitled = (id: ChatId) => ({ id, title: Option.none<ChatTitle>() })
 
 /** Completes an assistant message as the worker would, freeing its chat for the next send. */
 const settle = (message: Message) =>
@@ -44,7 +51,8 @@ const chatCalls: ReadonlyArray<{ readonly name: string; readonly call: ChatCall 
   { name: 'findOne', call: (service, userId, chatId) => service.findOne({ id: chatId, userId }) },
   {
     name: 'rename',
-    call: (service, userId, chatId) => service.rename(userId, chatId, ChatTitle.make('Trip')),
+    call: (service, userId, chatId) =>
+      service.rename({ id: chatId, userId }, { title: Option.some(trip) }),
   },
   {
     name: 'findSendable',
@@ -97,71 +105,48 @@ describe('ChatService', () => {
     }).pipe(Effect.provide(ChatBunTest)),
   )
 
-  it.live('rename sets the title and bumps updatedAt', () =>
+  it.effect('rename writes the set it is given and returns the chat with it', () =>
     Effect.gen(function* () {
       const service = yield* ChatService
+      const updatedAt = DateTime.add(epoch, { minutes: 1 })
 
-      const renamed = yield* service.rename(owner, chat.id, ChatTitle.make('Trip'))
-
-      assert.isTrue(DateTime.isGreaterThan(renamed.updatedAt, epoch))
-      assertEquals(
-        renamed,
-        new Chat({
-          ...chat,
-          title: Option.some(ChatTitle.make('Trip')),
-          updatedAt: renamed.updatedAt,
-        }),
+      const renamed = yield* service.rename(
+        { id: chat.id, userId: owner },
+        { title: Option.some(trip), updatedAt },
       )
+
+      assertEquals(renamed, new Chat({ ...chat, title: Option.some(trip), updatedAt }))
       assertEquals(yield* selectChat(chat.id), Option.some(renamed))
     }).pipe(Effect.provide(ChatBunTest)),
   )
 
-  it.effect('updateTitle titles an untitled chat and keeps its updatedAt', () =>
+  it.effect('rename where the title is none titles an untitled chat and keeps its updatedAt', () =>
     Effect.gen(function* () {
       const service = yield* ChatService
 
-      yield* service.updateTitle(chat.id, ChatTitle.make('Lisbon weekend'))
+      yield* service.rename(untitled(chat.id), { title: Option.some(lisbonWeekend) })
 
       assertEquals(
         yield* selectChat(chat.id),
-        Option.some(new Chat({ ...chat, title: Option.some(ChatTitle.make('Lisbon weekend')) })),
+        Option.some(new Chat({ ...chat, title: Option.some(lisbonWeekend) })),
       )
     }).pipe(Effect.provide(ChatBunTest)),
   )
 
-  it.effect('updateTitle of a titled chat is ChatTitledError and keeps the title', () =>
-    Effect.gen(function* () {
-      const service = yield* ChatService
-      const renamed = yield* service.rename(owner, chat.id, ChatTitle.make('Trip'))
+  it.effect(
+    'rename where the title is none of a titled chat is ChatNotFoundError and keeps the title',
+    () =>
+      Effect.gen(function* () {
+        const service = yield* ChatService
+        const renamed = yield* service.rename({ id: chat.id }, { title: Option.some(trip) })
 
-      const error = yield* service.updateTitle(chat.id, ChatTitle.make('Lisbon')).pipe(Effect.flip)
+        const error = yield* service
+          .rename(untitled(chat.id), { title: Option.some(lisbonWeekend) })
+          .pipe(Effect.flip)
 
-      assertSchemaEquals(ChatTitledError, error, new ChatTitledError({ id: chat.id }))
-      assertEquals(yield* selectChat(chat.id), Option.some(renamed))
-    }).pipe(Effect.provide(ChatBunTest)),
-  )
-
-  it.effect('updateTitle of a deleted chat is ChatNotFoundError and writes nothing', () =>
-    Effect.gen(function* () {
-      const service = yield* ChatService
-      yield* ChatRepository.use((chats) => chats.delete(chat.id))
-
-      const error = yield* service.updateTitle(chat.id, ChatTitle.make('Lisbon')).pipe(Effect.flip)
-
-      assertSchemaEquals(ChatNotFoundError, error, new ChatNotFoundError({ id: chat.id }))
-      assert.deepStrictEqual(yield* selectChat(chat.id), Option.none())
-    }).pipe(Effect.provide(ChatBunTest)),
-  )
-
-  it.effect('a rename after updateTitle replaces the generated title', () =>
-    Effect.gen(function* () {
-      const service = yield* ChatService
-      yield* service.updateTitle(chat.id, ChatTitle.make('Lisbon weekend'))
-
-      const renamed = yield* service.rename(owner, chat.id, ChatTitle.make('Trip'))
-
-      assertEquals(yield* selectChat(chat.id), Option.some(renamed))
-    }).pipe(Effect.provide(ChatBunTest)),
+        assertSchemaEquals(ChatNotFoundError, error, new ChatNotFoundError({ id: chat.id }))
+        assertEquals(yield* selectChat(chat.id), Option.some(renamed))
+      }).pipe(Effect.provide(ChatBunTest)),
   )
 
   it.effect.each(chatCalls)(
