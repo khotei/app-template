@@ -11,7 +11,7 @@
 | S3 | the reply as a structured response with a fixed system prompt; per-purpose request settings | done |
 | S4 | the port's two final errors, settled by the use cases | done |
 | S5 | reply failures told apart, retried in place, a refusal kept apart | done |
-| S6 | the title as a structured response with its own retries | todo |
+| S6 | the title as a structured response with its own retries | done |
 | S7 | provenance stored with each assistant message, never on the wire | todo |
 | S8 | `docs/knowledge/ai.md`: every `effect/ai` module mapped | todo |
 
@@ -207,7 +207,8 @@
   - The system-prompt case asserts the prompt non-empty and equal for two chats, not its text,
     which would copy the prompt into the test.
   - The title prompt's case (instruction and opening message) stays, though *Test first* did
-    not name it: it is existing behaviour, uncovered until S6 otherwise.
+    not name it: it is existing behaviour, uncovered until S6 otherwise. S6 drops its copy of
+    the instruction's text, as the reply's case has none.
 
 #### S4 — The port's final errors, settled by the use cases
 
@@ -311,9 +312,8 @@
 - **Goal:** R19, R2 (the stub's title passes the schema); D5, D7.
 - **Blocked by:** S5.
 - **Files:**
-  - `infrastructure/chat/assistant.llm.ts` (`TitleAnswer`: `Schema.Trim` decoded to `ChatTitle`,
-    as `http-api`'s rename payload does, since `ChatTitle` checks `isTrimmed`, with the field's
-    `description` by `annotateKey`, as S3 found; `suggestTitle` by `generateObject` on `models.title`, with S5's
+  - `infrastructure/chat/assistant.llm.ts` (`TitleAnswer`: a `String` trimmed into `ChatTitle`,
+    since `ChatTitle` checks `isTrimmed`, with the field's `description` on the encoded `String`; `suggestTitle` by `generateObject` on `models.title`, with S5's
     mapping and the title schedule; − the free-text instruction and the cut);
   - `infrastructure/chat/assistant.client.ts` (`layerStub`'s title text is
     `{"title": …}`);
@@ -329,7 +329,24 @@
 - **Verify:** `make check`; with `LLM_PROVIDER=stub`, `make dev` and a first message titles the
   chat with the stub's title.
 - **Model:** opus high
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The title's description sits on the encoded `String`, trimmed into `ChatTitle` by
+    `SchemaTransformation.trim()`, not on the key as S3 found for the reply: the JSON Schema is
+    the encoded side's, and on `Schema.Trim` its own `expected` text replaces the description
+    (checked by a probe; Seam 1's description case covers it).
+  - One `askWithin(retries)` carries the failure mapping and the schedule for both purposes,
+    `askWithin(2)` for the reply and `askWithin(4)` for the title (round S6.2).
+  - The title asks for the language of the opening message in the field's description, not in
+    the instruction; the prompt case asserts the instruction sent, not its text.
+  - `chat-core`'s R24–R25 acceptance row is amended too, besides R25: it said a blank answer is
+    not retried.
+  - The port's `suggestTitle` doc said a blank answer is none; it now says none comes only for a
+    blank text (round S6.2).
+  - Verify's `make dev` did not run: the local database predates the squash into
+    `20261030095447_init`, so creating a chat fails with `column "status" of relation "chats"
+    does not exist`, and only `make reset` (which wipes local data) rebuilds it. The stub
+    journey (`e2e/chat.e2e.ts`) stood in: the worker titles the chat `Stub chat title`.
 
 #### S7 — Provenance stored with each assistant message
 

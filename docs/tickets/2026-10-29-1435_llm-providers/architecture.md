@@ -170,15 +170,19 @@ const ReplyAnswer = Schema.Struct({
   text: AssistantReply.fields.text.annotateKey({ description: '…' }),
 })
 const TitleAnswer = Schema.Struct({
-  title: Schema.Trim.pipe(Schema.decodeTo(ChatTitle)).annotateKey({ description: '…' }),
+  title: Schema.String.annotate({ description: '…' }).pipe(
+    Schema.decodeTo(ChatTitle, SchemaTransformation.trim()),
+  ),
 })
 ```
 
-`ChatTitle` checks `isTrimmed`, so the title decodes through `Schema.Trim`, as `http-api`'s
-rename payload does; a title over 120 characters fails the schema and is asked again, so
-`buildChatTitle`'s cut goes. The description sits on the key: on a checked schema, `annotate`
-lands on the check, which the JSON Schema leaves out (S3: `{"type":"string"}` with no
-description); Seam 1's description case covers it.
+`ChatTitle` checks `isTrimmed`, so the title is trimmed on its way in, by the transformation
+`Schema.Trim` uses; a title over 120 characters fails the schema and is asked again, so
+`buildChatTitle`'s cut goes. Where the description sits: on a checked schema, `annotate` lands on
+the check, which the JSON Schema leaves out, so `text`'s sits on the key (S3: `{"type":"string"}`
+with no description); the JSON Schema is the encoded side's, so `title`'s sits on the encoded
+`String`, where `Schema.Trim`'s own `expected` text would replace it (S6). Seam 1's description
+cases cover both.
 
 The adapter also exports `hashInstructions(systemPrompt, schema)`: the SHA-256, in hex, of the
 system prompt, a newline and `JSON.stringify` of the schema's JSON Schema document.

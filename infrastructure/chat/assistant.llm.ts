@@ -142,7 +142,12 @@ const retryAfterOf = ({ retryAfter }: AiError.AiError): Duration.Duration =>
 const isWorthRetrying = (error: AiError.AiError): boolean =>
   error.isRetryable && Duration.isLessThanOrEqualTo(retryAfterOf(error), longestRetryAfter)
 
-/** `retries` requests after the first, 1, 2, 4 … s apart, each wait at least the provider's `retryAfter`. */
+const toAssistantError = (error: AiError.AiError): AssistantError =>
+  error.reason._tag === 'ContentPolicyError'
+    ? new AssistantRefusedError({ cause: error.message })
+    : new AssistantFailedError({ cause: error.message })
+
+/** `retries` more requests, 1, 2, 4 … s apart, each wait at least the provider's `retryAfter`. */
 const retrySchedule = (retries: number): Schedule.Schedule<Duration.Duration, AiError.AiError> =>
   Schedule.exponential('1 second').pipe(
     Schedule.upTo({ times: retries }),
@@ -152,22 +157,13 @@ const retrySchedule = (retries: number): Schedule.Schedule<Duration.Duration, Ai
     ),
   )
 
-const replySchedule = retrySchedule(2)
-
-const titleSchedule = retrySchedule(4)
-
-const toAssistantError = (error: AiError.AiError): AssistantError =>
-  error.reason._tag === 'ContentPolicyError'
-    ? new AssistantRefusedError({ cause: error.message })
-    : new AssistantFailedError({ cause: error.message })
-
-/** Retries a request by `schedule` while a retry can help, then fails it as the port's error. */
+/** Asks again up to `retries` times while a retry can help, then fails as the port's error. */
 const askWithin =
-  (schedule: Schedule.Schedule<Duration.Duration, AiError.AiError>) =>
+  (retries: number) =>
   <A>(request: Effect.Effect<A, AiError.AiError>): Effect.Effect<A, AssistantError> =>
     request.pipe(
       failOnEarlyFinish,
-      Effect.retry({ schedule, while: isWorthRetrying }),
+      Effect.retry({ schedule: retrySchedule(retries), while: isWorthRetrying }),
       Effect.mapError(toAssistantError),
     )
 
@@ -178,14 +174,14 @@ export const AssistantLlm: Layer.Layer<Assistant, never, AssistantModels> = Laye
       reply: Effect.fn('Assistant.reply')(function* (history) {
         const response = yield* models.reply
           .generateObject({ prompt: buildChatPrompt(history), schema: ReplyAnswer })
-          .pipe(askWithin(replySchedule))
+          .pipe(askWithin(2))
         return new AssistantReply(response.value)
       }),
       suggestTitle: Effect.fn('Assistant.suggestTitle')(function* (text) {
         if (isBlank(text)) return Option.none()
         const response = yield* models.title
           .generateObject({ prompt: buildTitlePrompt(text), schema: TitleAnswer })
-          .pipe(askWithin(titleSchedule))
+          .pipe(askWithin(4))
         return Option.some(response.value.title)
       }),
     }),

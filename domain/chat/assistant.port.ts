@@ -23,7 +23,10 @@ export class Assistant extends Context.Service<
     readonly reply: (
       history: ReadonlyArray<HistoryMessage>,
     ) => Effect.Effect<AssistantReply, AssistantError>
-    /** A title for a chat opened by `text`; none when the text or the answer is blank. */
+    /**
+     * A title for a chat opened by `text`, none only for a blank `text`; an answer that fails the
+     * title's schema is asked again, then fails.
+     */
     readonly suggestTitle: (text: string) => Effect.Effect<Option.Option<ChatTitle>, AssistantError>
   }
 >()('@app-template/domain/chat/Assistant') {}
