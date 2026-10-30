@@ -56,7 +56,6 @@ export const AssistantLlm: Layer.Layer<Assistant, never, AssistantModels> = Laye
         return yield* decodeReply({ text })
       }, Effect.orDie),
       suggestTitle: Effect.fn('Assistant.suggestTitle')(function* (text) {
-        // A blank text never reaches the model, as `toTextParts` keeps empty text out.
         if (pipe(text, Str.trim, Str.isEmpty)) return Option.none()
         const response = yield* models.title.generateText({ prompt: buildTitlePrompt(text) })
         return buildChatTitle(response.text)
