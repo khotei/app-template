@@ -14,7 +14,7 @@ import { S3Bucket } from '@app-template/s3'
 const urlLifetime = Duration.minutes(5)
 const unboundTags = { [unboundTag.key]: unboundTag.value }
 
-export const buildObjectKey = (id: AttachmentId): string => `attachments/${id}`
+const buildObjectKey = (id: AttachmentId): string => `attachments/${id}`
 
 /** `S3Bucket` on the attachments bucket of the stage in `AwsConfig`, over the `S3Service` in context. */
 export const S3BucketFromConfig: Layer.Layer<S3Bucket, never, S3Service | AwsConfig> = Layer.unwrap(

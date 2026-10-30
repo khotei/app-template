@@ -92,6 +92,10 @@ const cutParts = <E>(content: Stream.Stream<Uint8Array, E>): Stream.Stream<Uint8
  */
 const isNoSuchKey = (error: unknown): boolean => Predicate.isTagged(error, 'NoSuchKey')
 
+/** `Quiet` answers only the keys it failed on; a missing key is no failure. */
+const hasKeptKeys = ({ Errors }: { readonly Errors?: ReadonlyArray<unknown> | undefined }) =>
+  Option.fromNullishOr(Errors).pipe(Option.exists(Arr.isReadonlyArrayNonEmpty))
+
 /** The most keys one `DeleteObjects` request takes. */
 const deleteBatchSize = 1000
 
@@ -247,7 +251,6 @@ export class S3Bucket extends Context.Service<
         s3.deleteObject(buildObjectRef(key)).pipe(Effect.asVoid, Effect.orDie),
       )
 
-      // `Quiet` answers only the keys it failed on; a missing key is no failure.
       const deleteBatch = (keys: Arr.NonEmptyReadonlyArray<string>) =>
         s3
           .deleteObjects({
@@ -255,12 +258,12 @@ export class S3Bucket extends Context.Service<
             Delete: { Objects: Arr.map(keys, (Key) => ({ Key })), Quiet: true },
           })
           .pipe(
-            Effect.orDie,
-            Effect.flatMap(({ Errors }) =>
-              Arr.isReadonlyArrayNonEmpty(Errors ?? [])
-                ? Effect.die(new Error(`S3 kept ${Errors?.length} of the keys asked to delete`))
-                : Effect.void,
+            Effect.filterOrFail(
+              Predicate.not(hasKeptKeys),
+              ({ Errors }) => new Error('S3 kept keys asked to delete', { cause: Errors }),
             ),
+            Effect.asVoid,
+            Effect.orDie,
           )
 
       const deleteMany = Effect.fn('S3Bucket.deleteMany')((keys: ReadonlyArray<string>) =>
