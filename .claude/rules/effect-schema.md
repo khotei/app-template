@@ -31,8 +31,8 @@ paths:
 - A domain error is `Schema.TaggedError`, so it decodes at the wire; its HTTP status lives in
   `http-api/CLAUDE.md`. A marker that never leaves its module (a failure carried out of a callback
   for the loop around it) is `Data.TaggedError`.
-- Not-found from a port is a value (`Option`, or an id left out of an array); the domain service
-  turns it into the domain's `*NotFoundError`.
+- Not-found from a port is a value (`Option`, or an id left out of an array); its reader turns it
+  into the domain's `*NotFoundError`.
 - A port declares no error channel: its adapter turns a client's failure or a stored value that
   no longer decodes into a defect, since every caller handles both alike.
 - A user-facing sentence per failure reason lives in one table keyed by the reason; the cause stays

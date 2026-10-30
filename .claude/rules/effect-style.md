@@ -17,7 +17,7 @@ The goal is code that reads top to bottom and extends by adding a row, not a bra
 - A repository write takes what it writes (the entity, or an `<Entity>Set` of the fields it
   changes), then an `<Entity>Where` of the fields the stored row must still hold, both typed from
   the model and passed as values, not an options bag, so the call reads as the SQL it runs:
-  `chats.update({ updatedAt: at }, { id })`, `messages.update(generating, { stage })`.
+  `chats.update({ updatedAt: at }, { id })`, `messages.update(generating, { status })`.
 - Destructure an object whose fields come from different things (`{ reason, cause, at }`) in the
   parameter list; keep an entity or a proof value whole, so the reader sees whose field it is.
 

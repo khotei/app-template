@@ -15,14 +15,12 @@ Where a flow lives. Words: `docs/knowledge/glossary.md › Architecture language
 - **A port speaks the domain's words,** never a client's type or error; its adapter turns a
   failure into a defect (`effect-schema.md`).
 - **A domain service holds the rules that need a port:** a check over stored rows, a refusal
-  named after a read (`ChatService`); a bare not-found stays in the handler that reads it. An
-  entity whose rules are all pure model functions has no service: a use case runs the function
-  and writes the result through the port (the messages: `prepareMessage`, then `MessageRepository.update`).
+  named after a read (`ChatService`); a bare not-found stays in the handler that reads it; an
+  entity whose rules are all pure model functions has none (`deep-modules.md`).
 - It sees its ports, the clock (`DateTime.now`) and `Crypto`; never another domain service, the
   queue or `Transaction`, which are a use case's.
-- **Every method is safe on its own,** except a step a use case owns (a cascade): its doc comment
-  names the use case, and handlers call only that. A method correct only after another one ran
-  is a trap: guard the invariant inside it, or take a proof value only the check builds.
+- **Every method is safe on its own:** a method correct only after another one ran is a trap;
+  guard the invariant inside it.
 
 ## When a flow becomes a use case
 
@@ -55,8 +53,7 @@ the signal.
 
 - A handler decodes the input, calls one domain service method, one use case or, for a step no
   rule guards (a list, a record a model function builds, a read whose none is the domain's
-  `*NotFoundError`), the port, and shapes the outcome; it holds no other rule and never calls a
-  step a use case owns.
+  `*NotFoundError`), the port, and shapes the outcome; it holds no other rule.
 - A worker handler owns the queue's policy, the last attempt and the dead letter: it composes the
   use case's methods (`generate`, then `fail` on the last attempt's cause), which never see
   `AttemptInfo`.
@@ -65,9 +62,8 @@ the signal.
 
 - **Hold no lock in the process.** A rule two writers could break between a read and a write is
   a database guard in the write itself (a partial unique index, an `UPDATE … WHERE` on the free
-  state). The caller checks first, so a refused write is a lost race and the adapter dies on it
-  (the reply's insert, a status move); the bind skips a taken id (`AttachmentBoundError`). A
-  check whose loser must get a domain error reads its rows `forUpdate` (`AttachmentService.bind`).
+  state), and a refused write dies (`deep-modules.md › A deep port`). A check whose loser must get
+  a domain error reads its rows `forUpdate` (`AttachmentService.bind`).
 - **Write only the fields you own of a record another process also writes,** and hold a rule in
   the write's `where`, not in a read before it: the send sets the chat's `status` alone, and the
   title is written only `where` the chat is still untitled.

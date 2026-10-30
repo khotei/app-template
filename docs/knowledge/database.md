@@ -166,7 +166,7 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
   the rows match `where` (`ChatWhere`, `AttachmentWhere`: the `id`, an array of them for
   attachments, and optionally a field the row must still hold, `Option.none()` rendering `IS
   NULL`). The adapter maps each side through `buildSet` and `buildWhere` (above). Both die when
-  they write nothing; the attachments' also answers the rows it wrote (`RETURNING *`). A status
+  they write nothing. A status
   move writes the status alone, so a title written meanwhile survives it.
   - `ChatService.rename` reads the chat by the caller's `where` to name a refusal
     (`ChatNotFoundError`), then writes under the same `where`. The title job passes `title:

@@ -21,6 +21,7 @@ judge the diff, not how it was made.
   when a test is weak, propose a plainer test or a dropped assertion
   (`.claude/rules/effect-tests.md`).
 - **Context the diff lacks:** `.claude/rules/naming.md` for names and imports,
-  `.claude/rules/effect.md` and the `effect-*.md` files it maps for any `.ts` in the diff, and
+  `.claude/rules/effect.md` and the `effect-*.md` files it maps for any `.ts` in the diff,
+  `.claude/rules/deep-modules.md` for code the diff could have cut, and
   `docs/knowledge/architecture.md` for the layers. Read them from disk, even when the brief does
   not list them.
