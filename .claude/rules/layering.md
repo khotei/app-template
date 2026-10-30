@@ -39,7 +39,7 @@ the signal.
 - **The writes commit in one transaction:** `Transaction`'s `run` as a pipeable of the `Effect.fn`
   that holds them; the process provides its layer, a unit test the identity one. An object store
   stays outside it: keep the bytes before the row that binds them, delete them before the commit.
-- **Enqueue inside the transaction of the writes the job reads**, through `QueueClient.send`
+- **Enqueue inside the transaction of the writes the job reads**, through `QueueSender.send`
   ([database.md › The outbox](../../docs/knowledge/database.md#the-outbox)).
 - Read or delete a set through one batch call, never one call per id in a loop.
 - Return the contract's shape, so the handler composes nothing: it returns a model as is, since

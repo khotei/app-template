@@ -30,7 +30,7 @@ import {
   GenerateChatTitle,
 } from '@app-template/infrastructure/chat'
 import { Transaction } from '@app-template/infrastructure/db'
-import { QueueClient } from '@app-template/queue'
+import { QueueSender } from '@app-template/queue'
 
 export interface SentMessages {
   readonly userMessage: Message
@@ -60,7 +60,7 @@ export class SendMessageUseCase extends Context.Service<
     const chatService = yield* ChatService
     const messages = yield* MessageRepository
     const attachmentService = yield* AttachmentService
-    const queue = yield* QueueClient
+    const queue = yield* QueueSender
     const transaction = yield* Transaction
     const crypto = yield* Crypto.Crypto
 

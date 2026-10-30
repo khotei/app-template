@@ -4,7 +4,6 @@ import {
   Duration,
   Effect,
   Exit,
-  flow,
   Layer,
   Option,
   Predicate,
@@ -39,7 +38,7 @@ export interface AttemptInfo {
 
 export type Handler<A, E, R> = (message: A, attempt: AttemptInfo) => Effect.Effect<void, E, R>
 
-export interface QueueClientOptions {
+export interface QueueConsumerOptions {
   /** The physical queue that holds a definition's `name`. */
   readonly queueName: (name: string) => string
   /** How long a received message stays hidden from other workers; keep it above `lockRefreshInterval`. */
@@ -60,24 +59,26 @@ const buildAttemptInfo = (received: Received, maxAttempts: number): AttemptInfo 
 const buildJsonCodec = <A, I>(schema: Schema.Codec<A, I>) =>
   Schema.fromJsonString(Schema.toCodecJson(schema))
 
-// A job its own schema cannot encode is a bug, never a refusal a caller handles.
-const encodeWith = <A, I>(codec: Schema.Codec<A, I>) =>
-  flow(Schema.encodeEffect(codec), Effect.orDie)
-
-/** The job as its definition's schema encodes it to JSON: the value an outbox row stores. */
+/**
+ * The job as its definition's schema encodes it to JSON: the value an outbox row stores, and the
+ * body of the message once stringified. A job its own schema cannot encode is a bug, so it dies.
+ */
 export const encodeJob = <A, I>(definition: QueueDefinition<Schema.Codec<A, I>>, message: A) =>
-  pipe(message, encodeWith(Schema.toCodecJson(definition.schema)))
+  pipe(message, Schema.encodeEffect(Schema.toCodecJson(definition.schema)), Effect.orDie)
 
-const encodeBody = <A, I>(definition: QueueDefinition<Schema.Codec<A, I>>, message: A) =>
-  pipe(message, encodeWith(buildJsonCodec(definition.schema)))
-
-export class QueueClient extends Context.Service<
-  QueueClient,
+export class QueueSender extends Context.Service<
+  QueueSender,
   {
     readonly send: <A, I>(
       definition: QueueDefinition<Schema.Codec<A, I>>,
       message: A,
     ) => Effect.Effect<void>
+  }
+>()('@app-template/queue/QueueSender') {}
+
+export class QueueConsumer extends Context.Service<
+  QueueConsumer,
+  {
     /**
      * Runs `handle` on each message forever, the attempt being its receive count: success deletes
      * it, a failure or an undecodable body hides it for `retryDelay`, or on the last attempt makes
@@ -92,21 +93,10 @@ export class QueueClient extends Context.Service<
       handle: Handler<A, E, R>,
     ) => Effect.Effect<never, QueueError, R>
   }
->()('@app-template/queue/QueueClient', {
-  make: ({ queueName, lockExpiration, lockRefreshInterval }: QueueClientOptions) =>
+>()('@app-template/queue/QueueConsumer', {
+  make: ({ queueName, lockExpiration, lockRefreshInterval }: QueueConsumerOptions) =>
     Effect.gen(function* () {
       const transport = yield* QueueTransport
-
-      const send = Effect.fn('QueueClient.send')(function* <A, I>(
-        definition: QueueDefinition<Schema.Codec<A, I>>,
-        message: A,
-      ) {
-        const body = yield* encodeBody(definition, message)
-        yield* transport.send(queueName(definition.name), {
-          body,
-          attributes: { jobId: definition.jobId(message) },
-        })
-      }, Effect.orDie)
 
       const consume = <A, I, E, R>(
         definition: QueueDefinition<Schema.Codec<A, I>>,
@@ -191,12 +181,12 @@ export class QueueClient extends Context.Service<
         return Effect.uninterruptibleMask(receiveAndRun).pipe(Effect.forever)
       }
 
-      return { send, consume }
+      return { consume }
     }),
 }) {
   static readonly layer = (
-    options: QueueClientOptions,
-  ): Layer.Layer<QueueClient, never, QueueTransport> => Layer.effect(this, this.make(options))
+    options: QueueConsumerOptions,
+  ): Layer.Layer<QueueConsumer, never, QueueTransport> => Layer.effect(this, this.make(options))
 }
 
 // Any cause restarts the consumer, logged, with no attempt limit: an unrecovered cause would end
@@ -211,8 +201,8 @@ const consumerRestart = Schedule.min([
 export const worker = <A, I, E, R>(
   definition: QueueDefinition<Schema.Codec<A, I>>,
   handle: Handler<A, E, R>,
-): Layer.Layer<never, never, QueueClient | R> =>
-  QueueClient.use((client) => client.consume(definition, handle)).pipe(
+): Layer.Layer<never, never, QueueConsumer | R> =>
+  QueueConsumer.use((consumer) => consumer.consume(definition, handle)).pipe(
     Effect.tapCauseIf(Predicate.not(Cause.hasInterruptsOnly), (cause) =>
       Effect.logError('queue consumer failed', cause),
     ),

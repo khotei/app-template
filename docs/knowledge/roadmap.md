@@ -580,13 +580,13 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
     `updated_at`, and a GIN index (`jsonb_path_ops`) on `body`, so `body @> '{"chatId": …}'`
     finds a chat's jobs.
   - The statuses, the shared `Status` of `domain/shared/status.model.ts` whole: `idle` (written
-    by `QueueClientOutbox.send`, not yet in SQS) → `queued` (the
+    by `QueueSenderOutbox.send`, not yet in SQS) → `queued` (the
     relay sent it; the job is in work) → `done` (the handler succeeded) or `failed` (its last
     attempt or its dead letter, with the error). The relay takes `idle` rows under `FOR UPDATE
     SKIP LOCKED` (a partial index on `status = 'idle'`) and marks them `queued` instead of
     deleting them. A run needs no status of its own: the queue's lock covers it.
   - The worker writes each outcome back by `queue` and `job_id`, which SQS carries in the
-    message's attributes: a wrapper of `QueueClient` in `infrastructure`, since
+    message's attributes: a wrapper of `QueueConsumer` in `infrastructure`, since
     `packages/queue` knows no database.
   - Attachment deletions are jobs of this ledger: a statement-level trigger `AFTER DELETE ON
     attachments` (`REFERENCING OLD TABLE`) writes one `attachment-deletion` job with the deleted

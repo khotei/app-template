@@ -7,7 +7,7 @@ import { AttachmentPgS3 } from '@app-template/infrastructure/attachment'
 import { AssistantLlmFromConfig, ChatPg } from '@app-template/infrastructure/chat'
 import { Db, Transaction } from '@app-template/infrastructure/db'
 import { OutboxRelaySqs } from '@app-template/infrastructure/outbox'
-import { QueueClientSqs } from '@app-template/infrastructure/shared'
+import { QueueConsumerSqs } from '@app-template/infrastructure/shared'
 
 import { AssistantMessageHandler } from '#worker/chat/assistant-message.handler'
 import { ChatTitleHandler } from '#worker/chat/chat-title.handler'
@@ -22,7 +22,7 @@ const LogWorkerLifecycle = Effect.logInfo('worker started').pipe(
 )
 
 export const WorkerLayer = Layer.mergeAll(WorkerHandlers, OutboxRelaySqs, LogWorkerLifecycle).pipe(
-  Layer.provide([Db.layerFromConfig, QueueClientSqs, BunCrypto.layer]),
+  Layer.provide([Db.layerFromConfig, QueueConsumerSqs, BunCrypto.layer]),
   Layer.provide(FetchHttpClient.layer),
   Layer.provide(MinimumLogLevelFromConfig),
 )

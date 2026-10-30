@@ -141,8 +141,9 @@ file. The api and the worker run on `AttachmentPgS3`.
 
 ## Queues
 
-`QueueClient` (`packages/queue`) sends and consumes jobs over `QueueTransport`, four SQS calls
-(`send`, `receive`, `extend`, `delete`). `QueueClientSqs` in `infrastructure/shared` wires it for
+`QueueConsumer` (`packages/queue`) consumes jobs over `QueueTransport`, four SQS calls
+(`send`, `receive`, `extend`, `delete`); jobs reach SQS only through the outbox relay
+([database.md › The outbox](database.md#the-outbox)). `QueueConsumerSqs` in `infrastructure/shared` wires it for
 the worker from `QueueConfig` and `AwsConfig`: a definition's queue is
 `buildResourceName(STAGE, definition.name)`.
 
@@ -153,7 +154,7 @@ the worker from `QueueConfig` and `AwsConfig`: a definition's queue is
   `QUEUE_LOCK_REFRESH_INTERVAL` while the handler runs. The attempt number is SQS's
   `ApproximateReceiveCount`, and the last attempt is the definition's `maxAttempts`, which is the
   inventory's `maxReceiveCount`.
-- **Every outcome is a visibility**, as the `QueueClient.consume` doc in
+- **Every outcome is a visibility**, as the `QueueConsumer.consume` doc in
   `packages/queue/queue.ts` lists them; SQS rounds a retry delay up to whole seconds, and an
   interrupt (a worker stopping, a handler interrupting itself) spends its attempt.
 - **Redrive is the only way to the dead-letter queue.** The receive after the

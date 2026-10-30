@@ -16,7 +16,7 @@ import {
 import { buildResourceName } from '@app-template/aws'
 import { AwsConfig } from '@app-template/config'
 import { ChatId, MessageId } from '@app-template/domain/chat'
-import { QueueClient, QueueError, QueueTransport } from '@app-template/queue'
+import { QueueError, QueueSender, QueueTransport } from '@app-template/queue'
 import { recordLogs } from '@app-template/testing'
 
 import { assistantMessageQueue, GenerateAssistantMessage } from '#infrastructure/chat/chat.queue'
@@ -24,7 +24,7 @@ import { Db } from '#infrastructure/db/db.client'
 import { DbTest } from '#infrastructure/db/testing/db.test-layer'
 import { outbox } from '#infrastructure/outbox/outbox.entity'
 import { OutboxRelay } from '#infrastructure/outbox/outbox.relay'
-import { QueueClientOutbox } from '#infrastructure/shared/queue.client'
+import { QueueSenderOutbox } from '#infrastructure/shared/queue.client'
 import { AwsTest } from '#infrastructure/testing/aws.test-layer'
 
 interface Attempt {
@@ -59,7 +59,7 @@ const PollInterval = ConfigProvider.layer(
   ConfigProvider.fromUnknown({ OUTBOX_POLL_INTERVAL: `${pollInterval} millis` }),
 )
 
-const OutboxDbTest = QueueClientOutbox.pipe(Layer.provideMerge(DbTest), Layer.merge(PollInterval))
+const OutboxDbTest = QueueSenderOutbox.pipe(Layer.provideMerge(DbTest), Layer.merge(PollInterval))
 
 // The recording transport sees the queue name, so the stage is fixed.
 const OutboxTest = OutboxDbTest.pipe(
@@ -77,7 +77,7 @@ const OutboxSqsTest = QueueTransport.layerSqs.pipe(
 const jobId = (n: number) => `0192d4e0-7b3a-7c00-8000-${String(n).padStart(12, '0')}`
 
 const enqueue = (n: number) =>
-  QueueClient.use((queue) =>
+  QueueSender.use((queue) =>
     queue.send(
       assistantMessageQueue,
       new GenerateAssistantMessage({

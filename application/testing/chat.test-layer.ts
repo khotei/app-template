@@ -1,5 +1,5 @@
 import { BunCrypto } from '@effect/platform-bun'
-import { Array as Arr, identity, Layer } from 'effect'
+import { Array as Arr, Layer } from 'effect'
 
 import {
   type Attachment,
@@ -17,9 +17,8 @@ import {
 import { AttachmentBucketS3, AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
 import { ChatPg } from '@app-template/infrastructure/chat'
 import { Transaction } from '@app-template/infrastructure/db'
-import { QueueClientOutbox } from '@app-template/infrastructure/shared'
+import { QueueSenderOutbox } from '@app-template/infrastructure/shared'
 import { AwsTest, TransactionTest } from '@app-template/infrastructure/testing'
-import { QueueClient } from '@app-template/queue'
 
 import { GenerateAssistantMessageUseCase } from '#application/chat/generate-assistant-message.use-case'
 import { GenerateChatTitleUseCase } from '#application/chat/generate-chat-title.use-case'
@@ -32,22 +31,13 @@ const ChatServices = Layer.mergeAll(
   SendMessageUseCase.layer,
 )
 
-/** The queue client on the definitions' own names; its locks never run, since nothing consumes. */
-export const QueueClientTest = QueueClient.layer({
-  queueName: identity,
-  lockExpiration: '30 seconds',
-  lockRefreshInterval: '10 seconds',
-})
-
 /**
  * The chat services and use cases over the memory layers, on fresh rows where `chat` exists, the
- * identity transaction and the queue client; the `QueueTransport` is the test's, `recordQueue()`.
+ * identity transaction; the `QueueSender` is the test's, `recordQueue()`.
  */
 export const ChatTest = ChatServices.pipe(
   Layer.provideMerge(insertChatLayer(chat)),
-  Layer.provideMerge(
-    Layer.mergeAll(RepositoryStackTest, AttachmentBucketTest, TransactionTest, QueueClientTest),
-  ),
+  Layer.provideMerge(Layer.mergeAll(RepositoryStackTest, AttachmentBucketTest, TransactionTest)),
   Layer.provide(BunCrypto.layer),
 )
 
@@ -83,7 +73,7 @@ export const ChatPgTest = ChatServices.pipe(
       ChatPg,
       AttachmentRepositoryPg,
       AttachmentBucketS3,
-      QueueClientOutbox,
+      QueueSenderOutbox,
       Transaction.layer,
     ),
   ),

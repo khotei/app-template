@@ -6,19 +6,25 @@ import {
   QueueConfig,
   type QueueLockRefreshIntervalInvalidError,
 } from '@app-template/config'
-import { encodeJob, QueueClient, type QueueDefinition, QueueTransport } from '@app-template/queue'
+import {
+  encodeJob,
+  QueueConsumer,
+  type QueueDefinition,
+  QueueSender,
+  QueueTransport,
+} from '@app-template/queue'
 
 import { Db, orDieWithSqlError } from '#infrastructure/db/db.client'
 import { outbox } from '#infrastructure/outbox/outbox.entity'
 import { SQSServiceFromConfig } from '#infrastructure/shared/aws.client'
 
-/** Queues on SQS, whose redrive policy moves a spent message to its dead-letter queue. */
-export const QueueClientSqs: Layer.Layer<
-  QueueClient,
+/** Consumes queues on SQS, whose redrive policy moves a spent message to its dead-letter queue. */
+export const QueueConsumerSqs: Layer.Layer<
+  QueueConsumer,
   Config.ConfigError | QueueLockRefreshIntervalInvalidError
 > = Effect.all([QueueConfig, AwsConfig]).pipe(
   Effect.map(([locks, { stage }]) =>
-    QueueClient.layer({ ...locks, queueName: (name) => buildResourceName(stage, name) }),
+    QueueConsumer.layer({ ...locks, queueName: (name) => buildResourceName(stage, name) }),
   ),
   Layer.unwrap,
   Layer.provide(QueueTransport.layerSqs),
@@ -29,10 +35,10 @@ export const QueueClientSqs: Layer.Layer<
  * Writes each job to the `outbox` table, joining the caller's transaction, for `OutboxRelay` to
  * send to SQS.
  */
-export const QueueClientOutbox: Layer.Layer<QueueClient, never, Db> = Layer.effect(
-  QueueClient,
+export const QueueSenderOutbox: Layer.Layer<QueueSender, never, Db> = Layer.effect(
+  QueueSender,
   Db.useSync((db) => {
-    const send = Effect.fn('QueueClient.send')(function* <A, I>(
+    const send = Effect.fn('QueueSender.send')(function* <A, I>(
       definition: QueueDefinition<Schema.Codec<A, I>>,
       message: A,
     ) {
@@ -45,9 +51,6 @@ export const QueueClientOutbox: Layer.Layer<QueueClient, never, Db> = Layer.effe
         .pipe(orDieWithSqlError)
     })
 
-    return QueueClient.of({
-      send,
-      consume: () => Effect.die('QueueClientOutbox only sends: the api never consumes'),
-    })
+    return QueueSender.of({ send })
   }),
 )

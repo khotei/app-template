@@ -204,15 +204,14 @@ not tell a dead reply from one waiting in a backlog.
 ## The outbox
 
 A job reaches SQS through the `outbox` table, so it commits or rolls back with the writes that
-enqueue it: `apps/api` provides `QueueClientOutbox` as its `QueueClient` and never sends to SQS,
-and `apps/worker` consumes through `QueueClientSqs` beside the relay.
+enqueue it: `apps/api` provides `QueueSenderOutbox` as its `QueueSender` and never sends to SQS,
+and `apps/worker` consumes through `QueueConsumerSqs` beside the relay.
 
-- **`QueueClientOutbox`** (`infrastructure/shared/queue.client.ts`) is a `QueueClient` whose
+- **`QueueSenderOutbox`** (`infrastructure/shared/queue.client.ts`) is the `QueueSender` whose
   `send` encodes the job through its definition's schema to a JSON value
   (`Schema.toCodecJson`) and inserts a row: the definition's `name` as `queue` (the stage is
   added on the way out), the `jobId` and the value as `body`. The insert joins the caller's
-  `sql.withTransaction`; outside one it commits alone. Its `consume` dies: the api never
-  consumes.
+  `sql.withTransaction`; outside one it commits alone.
 - **`body` is `jsonb`, with no index on it.** Nothing queries the body: the column holds the
   value for the relay alone, and `jsonb` keeps it a value a query can read by hand
   (`body->>'chatId'`) instead of a string to parse. `jsonb` stores keys in its own order, so

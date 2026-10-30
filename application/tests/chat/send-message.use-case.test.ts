@@ -26,6 +26,7 @@ import {
   stranger,
   upload,
 } from '@app-template/domain/testing'
+import { GenerateAssistantMessage, GenerateChatTitle } from '@app-template/infrastructure/chat'
 import { recordQueue } from '@app-template/queue/testing'
 import { assertSchemaEquals, isUuidV7, sortById } from '@app-template/testing'
 
@@ -47,8 +48,8 @@ const settle = (message: Message) =>
 
 const replyJob = (messageId: MessageId) => ({
   queue: 'assistant-message',
-  body: `{"chatId":"${chat.id}","messageId":"${messageId}"}`,
-  attributes: { jobId: messageId },
+  jobId: messageId,
+  job: new GenerateAssistantMessage({ chatId: chat.id, messageId }),
 })
 
 describe('SendMessageUseCase', () => {
@@ -127,8 +128,8 @@ describe('SendMessageUseCase', () => {
           replyJob(first.assistantMessage.id),
           {
             queue: 'chat-title',
-            body: `{"chatId":"${chat.id}","messageId":"${first.userMessage.id}"}`,
-            attributes: { jobId: chat.id },
+            jobId: chat.id,
+            job: new GenerateChatTitle({ chatId: chat.id, messageId: first.userMessage.id }),
           },
           replyJob(second.assistantMessage.id),
         ])

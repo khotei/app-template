@@ -177,7 +177,7 @@ Pascal one (`Document`).
 9. **Job, if the entity has asynchronous work.** `infrastructure/<entity>/<entity>.queue.ts`
    holds the queue definitions (name, job schema, retry policy, `jobId`); a model the work calls
    is a domain port with its `.llm.ts` adapter, which holds the prompts. The use case that starts
-   the work sends the job with `QueueClient.send` from `packages/queue`;
+   the work sends the job with `QueueSender.send` from `packages/queue`;
    `apps/worker/<entity>/<object>.handler.ts` holds `handle` and `handleDeadLettered` over a use
    case and their `worker` layer, which `apps/worker/layer.ts` merges and provides with the
    `<Entity>Pg` layers the handlers read. Test `handle` in `apps/worker/tests/` over the memory

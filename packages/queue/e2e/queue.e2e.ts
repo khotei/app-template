@@ -23,7 +23,13 @@ import {
 } from '@app-template/aws'
 import { generateStage, recordLogs, SqsClientTest } from '@app-template/testing'
 
-import { type AttemptInfo, QueueClient, type QueueDefinition, worker } from '#queue/queue'
+import {
+  type AttemptInfo,
+  encodeJob,
+  QueueConsumer,
+  type QueueDefinition,
+  worker,
+} from '#queue/queue'
 import { QueueError, QueueTransport } from '#queue/queue.transport'
 
 class Ping extends Schema.Class<Ping>('Ping')({ id: Schema.String, text: Schema.String }) {}
@@ -97,7 +103,7 @@ const unending = {
 
 const clientOptions = { queueName, lockExpiration, lockRefreshInterval: '500 millis' } as const
 
-const QueueClientMiniStack = QueueClient.layer(clientOptions).pipe(
+const QueueConsumerMiniStack = QueueConsumer.layer(clientOptions).pipe(
   Layer.provideMerge(QueueTransport.layerSqs),
   Layer.provide(Layer.effectDiscard(provisionQueues(queues, stage))),
   Layer.provideMerge(SqsClientTest),
@@ -106,12 +112,12 @@ const QueueClientMiniStack = QueueClient.layer(clientOptions).pipe(
 const wrapTransport = (
   wrap: (transport: QueueTransport['Service']) => Effect.Effect<QueueTransport['Service']>,
 ) =>
-  QueueClient.layer(clientOptions).pipe(
+  QueueConsumer.layer(clientOptions).pipe(
     Layer.provide(Layer.effect(QueueTransport, QueueTransport.use(wrap))),
   )
 
 // Over the suite's SQS transport; only the first `receive` fails.
-const QueueClientFailingOnce = wrapTransport((transport) =>
+const QueueConsumerFailingOnce = wrapTransport((transport) =>
   Effect.gen(function* () {
     const hasFailed = yield* Ref.make(false)
     return QueueTransport.of({
@@ -165,8 +171,16 @@ const recordTimedAttempts = (seen: Queue.Queue<TimedSeen>) => (ping: Ping, attem
     Effect.andThen(ping.text === 'fail' ? Effect.fail('handler failed') : Effect.void),
   )
 
-const sendPing = (definition: PingQueue, text: string) =>
-  QueueClient.use((client) => client.send(definition, new Ping({ id: text, text })))
+// As the outbox relay sends a job: its JSON encoding, stringified.
+const sendPing = Effect.fnUntraced(function* (definition: PingQueue, text: string) {
+  const transport = yield* QueueTransport
+  const body = yield* encodeJob(definition, new Ping({ id: text, text }))
+
+  yield* transport.send(queueName(definition.name), {
+    body: JSON.stringify(body),
+    attributes: { jobId: text },
+  })
+})
 
 const buildAttemptInfo = (attempt: number): AttemptInfo => ({
   attempt,
@@ -183,10 +197,10 @@ const receiveDeadLettered = (definition: PingQueue) =>
   ).pipe(Effect.flatMap(Effect.fromOption))
 
 // The tests share the file's stage and its queues, so they run one at a time.
-describe('QueueClient.send and worker over QueueTransport.layerSqs against MiniStack', {
+describe('worker over QueueTransport.layerSqs against MiniStack', {
   concurrent: false,
 }, () => {
-  layer(QueueClientMiniStack, { timeout: '60 seconds', excludeTestServices: true })((it) => {
+  layer(QueueConsumerMiniStack, { timeout: '60 seconds', excludeTestServices: true })((it) => {
     it.effect('consumes a sent message as its first attempt', () =>
       Effect.gen(function* () {
         const seen = yield* Queue.unbounded<Seen>()
@@ -325,7 +339,7 @@ describe('QueueClient.send and worker over QueueTransport.layerSqs against MiniS
         return Effect.gen(function* () {
           const seen = yield* Queue.unbounded<Seen>()
           yield* worker(definitions.recovered, recordAttempts(seen)).pipe(
-            Layer.provide(QueueClientFailingOnce),
+            Layer.provide(QueueConsumerFailingOnce),
             Layer.build,
           )
 
