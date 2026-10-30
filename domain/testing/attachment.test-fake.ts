@@ -68,6 +68,7 @@ export const AttachmentRepositoryTest = Layer.effect(
           Effect.filterOrElse(Arr.isReadonlyArrayNonEmpty, () =>
             Effect.die(new Error('no attachment was updated')),
           ),
+          Effect.asVoid,
         ),
       selectOne: (where) =>
         Ref.get(rows).pipe(

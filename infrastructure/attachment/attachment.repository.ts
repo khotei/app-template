@@ -69,13 +69,8 @@ export const AttachmentRepositoryPg = Layer.effect(
             .update(attachments)
             .set(encodeSet(set))
             .where(encodeWhere(where))
-            .returning()
-            .pipe(
-              Effect.filterOrElse(Arr.isReadonlyArrayNonEmpty, () =>
-                Effect.die(new Error('no attachment was updated')),
-              ),
-              Effect.flatMap(decodeAttachments),
-            ),
+            .returning({ id: attachments.id })
+            .pipe(orDieOnNoRows('no attachment was updated')),
         orDieWithSqlError,
       ),
       selectOne: Effect.fn('AttachmentRepository.selectOne')(

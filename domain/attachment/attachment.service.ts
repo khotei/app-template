@@ -13,12 +13,16 @@ import {
   Struct,
 } from 'effect'
 
-import { AttachmentBoundError, AttachmentNotFoundError } from '#domain/attachment/attachment.error'
+import {
+  type AttachmentBoundError,
+  AttachmentNotFoundError,
+} from '#domain/attachment/attachment.error'
 import { AttachmentId } from '#domain/attachment/attachment.id'
 import {
   type Attachment,
   type AttachmentDownload,
   type AttachmentMeta,
+  bindAttachment,
   buildAttachment,
   ensureUnbound,
   isExpiredAt,
@@ -172,18 +176,15 @@ export class AttachmentService extends Context.Service<
           Effect.flatMap(ensureUnbound),
         )
 
-      yield* Effect.forEach(ids, ensureBindable, { discard: true })
+      const checked = yield* Effect.forEach(ids, ensureBindable)
 
       // Keep first: unbound bytes expire, so a crash must never leave a bound row over them.
       yield* Effect.forEach(ids, bucket.keep, { discard: true })
-      const bound = yield* attachments.update(
+      yield* attachments.update(
         { messageId: Option.some(messageId), chatId: Option.some(chatId) },
         { id: ids, userId, messageId: Option.none() },
       )
-      const byId = HashMap.fromIterable(Arr.map(bound, (attachment) => [attachment.id, attachment]))
-      return yield* Effect.forEach(ids, (id) =>
-        HashMap.get(byId, id).pipe(Effect.fromOption(() => new AttachmentBoundError({ id }))),
-      )
+      return Arr.map(checked, (attachment) => bindAttachment(attachment, { messageId, chatId }))
     })
 
     return { upload, get, download, delete: remove, bind }

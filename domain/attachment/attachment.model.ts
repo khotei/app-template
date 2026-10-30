@@ -80,6 +80,13 @@ export const isExpiredAt = (now: DateTime.Utc): Predicate.Predicate<Attachment> 
     ),
   )
 
+/** The attachment bound to the message of the chat. */
+export const bindAttachment = (
+  attachment: Attachment,
+  { messageId, chatId }: { readonly messageId: MessageId; readonly chatId: ChatId },
+): Attachment =>
+  new Attachment({ ...attachment, messageId: Option.some(messageId), chatId: Option.some(chatId) })
+
 export const ensureUnbound = (
   attachment: Attachment,
 ): Effect.Effect<Attachment, AttachmentBoundError> =>

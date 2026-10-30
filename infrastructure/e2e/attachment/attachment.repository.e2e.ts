@@ -111,7 +111,7 @@ describe('AttachmentRepositoryPg', () => {
       yield* messages.insert(buildUserMessage({ id: nextMessageId, chatId, text: 'Hi', createdAt }))
       yield* pipe(free, Arr.append(boundBefore), Effect.forEach(attachments.insert))
 
-      const bound = yield* attachments.update(
+      yield* attachments.update(
         { messageId: Option.some(nextMessageId), chatId: Option.some(chatId) },
         { id: [first.id, boundBefore.id, unknownId, second.id], messageId: Option.none() },
       )
@@ -125,7 +125,6 @@ describe('AttachmentRepositoryPg', () => {
             chatId: Option.some(chatId),
           }),
       )
-      assertSchemaEquals(Attachments, sortById(bound), boundNow)
       assertSchemaEquals(
         Attachments,
         yield* attachments.selectMany({
