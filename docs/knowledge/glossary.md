@@ -69,13 +69,14 @@ _Avoid_: Template variable, token, embed, slot
 
 **Assistant**:
 The language-model side of a chat, as the user sees it. The model behind it is a provider's
-artefact and is named only in `infrastructure` and in a message's provenance.
+artefact and is named only in `infrastructure`.
 _Avoid_: Bot, AI, agent, model
 
 **Provenance**:
-Who answered an assistant message and with which instructions: the provider, the model and a hash
-of the system prompt with the reply schema. Set when the model is asked, so a message that failed
-before any request has none. For operators only; it never leaves the api.
+Who the api expects to answer a reply and with which instructions: the configured provider and
+reply model and a hash of the system prompt with the reply schema. It travels in the reply's job
+and stays in the outbox once sent; the message never carries it, and the worker may run another
+model while a deploy rolls out. For operators only; no api response carries it.
 _Avoid_: Metadata, model info, source, origin
 
 ## Architecture language

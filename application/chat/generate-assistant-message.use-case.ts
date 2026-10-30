@@ -118,10 +118,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
 
       const history = yield* readHistory(prepared.chatId)
       const generatingAt = yield* DateTime.now
-      const generating = yield* generateMessage(prepared, {
-        provenance: assistant.replyProvenance,
-        at: generatingAt,
-      })
+      const generating = yield* generateMessage(prepared, generatingAt)
       yield* messages.update(generating, { status: prepared.status })
 
       yield* assistant.reply(history).pipe(

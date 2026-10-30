@@ -6,13 +6,10 @@ import {
   ChatBusyError,
   ChatNotFoundError,
   failMessage,
-  generateMessage,
   type MessageId,
   MessageNotFoundError,
   MessageRepository,
-  prepareMessage,
 } from '@app-template/domain/chat'
-import { provenance } from '@app-template/domain/testing'
 import { UserUnknownError } from '@app-template/domain/user'
 import { ApiClient } from '@app-template/http-api'
 import { assertSchemaEquals } from '@app-template/testing'
@@ -24,19 +21,19 @@ const hello = { text: 'Hello', attachmentIds: [] }
 /** Registers the jar's user and opens an empty chat of theirs. */
 const openChat = ApiClient.use((api) => api.users.ensure().pipe(Effect.andThen(api.chats.create())))
 
-/** Settles a reply as the worker does once the assistant, asked, refuses. */
+/** Settles a reply as the worker does once the assistant refuses. */
 const refuseReply = (id: MessageId) =>
   Effect.gen(function* () {
     const messages = yield* MessageRepository
     const reply = yield* messages.selectOne({ id }).pipe(Effect.flatMap(Effect.fromOption))
-    const prepared = yield* prepareMessage(reply, reply.updatedAt)
-    const generating = yield* generateMessage(prepared, { provenance, at: reply.updatedAt })
-    const refused = yield* failMessage(generating, {
-      reason: 'ReplyRefused',
-      cause: 'stop_reason refusal',
-      at: reply.updatedAt,
-    })
-    yield* messages.update(refused, { status: reply.status })
+    yield* messages.update(
+      yield* failMessage(reply, {
+        reason: 'ReplyRefused',
+        cause: 'stop_reason refusal',
+        at: reply.updatedAt,
+      }),
+      { status: reply.status },
+    )
   }).pipe(Effect.orDie)
 
 describe('chats', () => {
@@ -151,27 +148,24 @@ describe('chats', () => {
     }).pipe(Effect.provide(ApiTest)),
   )
 
-  it.effect(
-    'a refused reply carries its reason and message on the wire, never its cause or its provenance',
-    () =>
-      Effect.gen(function* () {
-        const api = yield* ApiClient
-        const http = yield* HttpClient.HttpClient
-        const chat = yield* openChat
-        const { assistantMessage } = yield* api.chats.send({
-          params: { chatId: chat.id },
-          payload: hello,
-        })
-        yield* refuseReply(assistantMessage.id)
+  it.effect('a refused reply carries its reason and message on the wire, never its cause', () =>
+    Effect.gen(function* () {
+      const api = yield* ApiClient
+      const http = yield* HttpClient.HttpClient
+      const chat = yield* openChat
+      const { assistantMessage } = yield* api.chats.send({
+        params: { chatId: chat.id },
+        payload: hello,
+      })
+      yield* refuseReply(assistantMessage.id)
 
-        const wire = yield* http
-          .get(`/chats/${chat.id}/messages/${assistantMessage.id}`)
-          .pipe(Effect.flatMap((response) => response.json))
+      const wire = yield* http
+        .get(`/chats/${chat.id}/messages/${assistantMessage.id}`)
+        .pipe(Effect.flatMap((response) => response.json))
 
-        assert.deepNestedInclude(wire, { status: 'failed', 'error.reason': 'ReplyRefused' })
-        assert.nestedProperty(wire, 'error.message')
-        assert.notNestedProperty(wire, 'error.cause')
-        assert.notProperty(wire, 'provenance')
-      }).pipe(Effect.provide(ApiTest)),
+      assert.deepNestedInclude(wire, { status: 'failed', 'error.reason': 'ReplyRefused' })
+      assert.nestedProperty(wire, 'error.message')
+      assert.notNestedProperty(wire, 'error.cause')
+    }).pipe(Effect.provide(ApiTest)),
   )
 })

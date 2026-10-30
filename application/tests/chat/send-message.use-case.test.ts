@@ -27,6 +27,7 @@ import {
   upload,
 } from '@app-template/domain/testing'
 import { GenerateAssistantMessage, GenerateChatTitle } from '@app-template/infrastructure/chat'
+import { replyProvenance } from '@app-template/infrastructure/testing'
 import { recordQueue } from '@app-template/queue/testing'
 import { assertSchemaEquals, isUuidV7, sortById } from '@app-template/testing'
 
@@ -49,7 +50,7 @@ const settle = (message: Message) =>
 const replyJob = (messageId: MessageId) => ({
   queue: 'assistant-message',
   jobId: messageId,
-  job: new GenerateAssistantMessage({ chatId: chat.id, messageId }),
+  job: new GenerateAssistantMessage({ chatId: chat.id, messageId, provenance: replyProvenance }),
 })
 
 describe('SendMessageUseCase', () => {
@@ -114,7 +115,7 @@ describe('SendMessageUseCase', () => {
   )
 
   it.effect(
-    'the first send queues the reply and the title jobs, a later one the reply only',
+    "the first send queues the reply job with the process's provenance and the title job, a later one the reply only",
     () => {
       const queue = recordQueue()
       return Effect.gen(function* () {

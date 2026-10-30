@@ -1,5 +1,7 @@
 import {
   Array as Arr,
+  type Config,
+  Context,
   Crypto,
   Duration,
   Effect,
@@ -17,6 +19,7 @@ import {
 import { AiError, Prompt, Response, Telemetry } from 'effect/ai'
 import { Hex } from 'effect/encoding'
 
+import { ReplyModelConfig } from '@app-template/config'
 import {
   Assistant,
   type AssistantError,
@@ -27,11 +30,11 @@ import {
   ChatTitle,
   type HistoryMessage,
   isBlank,
-  MessageProvenance,
   maxTitleLength,
 } from '@app-template/domain/chat'
 
 import { AssistantModels } from '#infrastructure/chat/assistant.client'
+import { ReplyProvenance } from '#infrastructure/chat/chat.queue'
 
 const toFilePart = ({ attachment, bytes }: AttachmentBytes): Prompt.FilePartEncoded => ({
   type: 'file',
@@ -185,32 +188,43 @@ export const generateInstructionsHash = (
   )
 }
 
-export const AssistantLlm: Layer.Layer<Assistant, never, AssistantModels | Crypto.Crypto> =
-  Layer.effect(
-    Assistant,
+/** The provenance of every reply this process queues, fixed when its layer is built. */
+export class CurrentReplyProvenance extends Context.Service<
+  CurrentReplyProvenance,
+  ReplyProvenance
+>()('@app-template/infrastructure/chat/CurrentReplyProvenance') {
+  static readonly layerFromConfig: Layer.Layer<
+    CurrentReplyProvenance,
+    Config.ConfigError,
+    Crypto.Crypto
+  > = Layer.effect(
+    this,
     Effect.gen(function* () {
-      const models = yield* AssistantModels
+      const { provider, replyModel } = yield* ReplyModelConfig
       const instructionsHash = yield* generateInstructionsHash(systemPrompt, ReplyAnswer)
 
-      return Assistant.of({
-        replyProvenance: new MessageProvenance({
-          provider: models.provider,
-          model: models.replyModel,
-          instructionsHash,
-        }),
-        reply: Effect.fn('Assistant.reply')(function* (history) {
-          const response = yield* models.reply
-            .generateObject({ prompt: buildChatPrompt(history), schema: ReplyAnswer })
-            .pipe(askWithin(2))
-          return new AssistantReply(response.value)
-        }),
-        suggestTitle: Effect.fn('Assistant.suggestTitle')(function* (text) {
-          if (isBlank(text)) return Option.none()
-          const response = yield* models.title
-            .generateObject({ prompt: buildTitlePrompt(text), schema: TitleAnswer })
-            .pipe(askWithin(4))
-          return Option.some(response.value.title)
-        }),
-      })
+      return new ReplyProvenance({ provider, model: replyModel, instructionsHash })
     }),
-  )
+  ).pipe(Layer.provide(ReplyModelConfig.layer))
+}
+
+export const AssistantLlm: Layer.Layer<Assistant, never, AssistantModels> = Layer.effect(
+  Assistant,
+  AssistantModels.useSync((models) =>
+    Assistant.of({
+      reply: Effect.fn('Assistant.reply')(function* (history) {
+        const response = yield* models.reply
+          .generateObject({ prompt: buildChatPrompt(history), schema: ReplyAnswer })
+          .pipe(askWithin(2))
+        return new AssistantReply(response.value)
+      }),
+      suggestTitle: Effect.fn('Assistant.suggestTitle')(function* (text) {
+        if (isBlank(text)) return Option.none()
+        const response = yield* models.title
+          .generateObject({ prompt: buildTitlePrompt(text), schema: TitleAnswer })
+          .pipe(askWithin(4))
+        return Option.some(response.value.title)
+      }),
+    }),
+  ),
+)

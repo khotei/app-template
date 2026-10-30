@@ -11,7 +11,6 @@ import {
   epoch,
   holdAssistantCall,
   messageId,
-  provenance,
   queuedChat,
   recordAssistant,
   selectChat,
@@ -22,6 +21,7 @@ import {
   assistantMessageQueue,
   GenerateAssistantMessage,
 } from '@app-template/infrastructure/chat'
+import { replyProvenance } from '@app-template/infrastructure/testing'
 import type { AttemptInfo } from '@app-template/queue'
 import { recordLogs } from '@app-template/testing'
 
@@ -49,7 +49,7 @@ const deadLetterInfo: AttemptInfo = {
   isLastAttempt: false,
 }
 
-const job = new GenerateAssistantMessage({ chatId, messageId })
+const job = new GenerateAssistantMessage({ chatId, messageId, provenance: replyProvenance })
 
 const insertReply = (reply: Message) => MessageRepository.use((messages) => messages.insert(reply))
 
@@ -71,13 +71,7 @@ describe('AssistantMessageHandler', () => {
       assert.isTrue(Exit.isFailure(exit))
       assertEquals(
         yield* selectMessage(messageId),
-        Option.some(
-          new Message({
-            ...queuedReply,
-            status: 'generating',
-            provenance: Option.some(provenance),
-          }),
-        ),
+        Option.some(new Message({ ...queuedReply, status: 'generating' })),
       )
       assertEquals(yield* selectChat(chatId), Option.some(queuedChat))
     }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))

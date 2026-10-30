@@ -5,6 +5,7 @@ import { AssistantLlm } from '#infrastructure/chat/assistant.llm'
 import { ChatRepositoryPg } from '#infrastructure/chat/chat.repository'
 import { MessageRepositoryPg } from '#infrastructure/chat/message.repository'
 
+export { CurrentReplyProvenance } from '#infrastructure/chat/assistant.llm'
 export * from '#infrastructure/chat/chat.queue'
 export * from '#infrastructure/chat/chat.repository'
 export * from '#infrastructure/chat/message.repository'

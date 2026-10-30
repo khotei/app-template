@@ -28,8 +28,6 @@ const waitForAnswer = HttpClient.transformResponse(
 export class AssistantModels extends Context.Service<
   AssistantModels,
   {
-    readonly provider: string
-    readonly replyModel: string
     readonly reply: LanguageModel.LanguageModel
     readonly title: LanguageModel.LanguageModel
   }
@@ -42,8 +40,6 @@ export class AssistantModels extends Context.Service<
     Layer.effect(
       this,
       Effect.all({
-        provider: Effect.succeed('anthropic'),
-        replyModel: Effect.succeed(replyModel),
         reply: AnthropicLanguageModel.make({
           model: replyModel,
           config: { max_tokens: 16_000, cache_control: { type: 'ephemeral' } },
@@ -62,8 +58,6 @@ export class AssistantModels extends Context.Service<
   static readonly layerStub: Layer.Layer<AssistantModels> = Layer.effect(
     this,
     Effect.all({
-      provider: Effect.succeed('stub'),
-      replyModel: Effect.succeed('stub'),
       reply: createLanguageModelStub({ text: stubReply, delay: stubDelay }),
       title: createLanguageModelStub({ text: stubTitle, delay: stubDelay }),
     }),

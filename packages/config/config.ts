@@ -106,6 +106,28 @@ export class LlmConfig extends Context.Service<LlmConfig, LlmSettings>()(
   )
 }
 
+type ReplyModelSettings = { readonly provider: LlmProvider; readonly replyModel: string }
+
+const replyModelSettings = {
+  stub: Config.succeed({ provider: 'stub', replyModel: 'stub' }),
+  anthropic: Config.all({
+    provider: Config.succeed('anthropic' as const),
+    replyModel: Config.String('LLM_REPLY_MODEL'),
+  }),
+} as const satisfies Record<LlmProvider, Config.Config<ReplyModelSettings>>
+
+/** The provider and the model that answer replies, read without the provider's key. */
+export class ReplyModelConfig extends Context.Service<ReplyModelConfig, ReplyModelSettings>()(
+  '@app-template/config/ReplyModelConfig',
+) {
+  static readonly layer = Layer.effect(
+    this,
+    Config.Literals(llmProviders, 'LLM_PROVIDER').pipe(
+      Config.flatMap((provider): Config.Config<ReplyModelSettings> => replyModelSettings[provider]),
+    ),
+  )
+}
+
 export class QueueLockRefreshIntervalInvalidError extends Schema.TaggedError<QueueLockRefreshIntervalInvalidError>()(
   'QueueLockRefreshIntervalInvalidError',
   { lockExpiration: Schema.Duration, lockRefreshInterval: Schema.Duration },

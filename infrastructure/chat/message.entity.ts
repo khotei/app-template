@@ -18,7 +18,6 @@ import {
   MessageAuthor,
   MessageFailure,
   MessageId,
-  MessageProvenance,
   MessageStatus,
 } from '@app-template/domain/chat'
 
@@ -40,7 +39,6 @@ export const messages = snakeCase.table(
     status: messageStatus().notNull(),
     text: text().notNull(),
     error: jsonb().$type<typeof MessageFailure.Encoded>(),
-    provenance: jsonb().$type<typeof MessageProvenance.Encoded>(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -66,7 +64,6 @@ const messageFields = {
   id: MessageId,
   chatId: ChatId,
   error: Schema.OptionFromNullOr(MessageFailure),
-  provenance: Schema.OptionFromNullOr(MessageProvenance),
   createdAt: Schema.DateTimeUtcFromDate,
   updatedAt: Schema.DateTimeUtcFromDate,
 }

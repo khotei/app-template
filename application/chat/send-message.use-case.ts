@@ -25,6 +25,7 @@ import { generateId } from '@app-template/domain/shared'
 import type { UserId } from '@app-template/domain/user'
 import {
   assistantMessageQueue,
+  CurrentReplyProvenance,
   chatTitleQueue,
   GenerateAssistantMessage,
   GenerateChatTitle,
@@ -63,6 +64,7 @@ export class SendMessageUseCase extends Context.Service<
     const queue = yield* QueueSender
     const transaction = yield* Transaction
     const crypto = yield* Crypto.Crypto
+    const provenance = yield* CurrentReplyProvenance
 
     const send = Effect.fn('SendMessageUseCase.send')(function* (
       userId: UserId,
@@ -100,7 +102,7 @@ export class SendMessageUseCase extends Context.Service<
       yield* messages.insert(assistantMessage)
       yield* queue.send(
         assistantMessageQueue,
-        new GenerateAssistantMessage({ chatId, messageId: assistantMessage.id }),
+        new GenerateAssistantMessage({ chatId, messageId: assistantMessage.id, provenance }),
       )
       if (isFirstMessage) {
         yield* queue.send(

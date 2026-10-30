@@ -21,9 +21,24 @@ const buildDeadLetterQueue = <A, I>(
   retryDelay: (attempt) => Duration.min(buildDoublingDelay(attempt), Duration.minutes(5)),
 })
 
+/**
+ * Who the api expects to answer a reply, and with which instructions, read by operators from the
+ * outbox; the worker may run another model while a deploy rolls out.
+ */
+export class ReplyProvenance extends Schema.Class<ReplyProvenance>('ReplyProvenance')({
+  provider: Schema.String,
+  model: Schema.String,
+  instructionsHash: Schema.String,
+}) {}
+
 export class GenerateAssistantMessage extends Schema.Class<GenerateAssistantMessage>(
   'GenerateAssistantMessage',
-)({ chatId: ChatId, messageId: MessageId }) {}
+)({
+  chatId: ChatId,
+  messageId: MessageId,
+  // The worker never reads it; required, so a job queued without it fails to decode.
+  provenance: ReplyProvenance,
+}) {}
 
 /** The user is polling this message, so few short retries let it reach `failed` in seconds. */
 export const assistantMessageQueue = {

@@ -2,7 +2,18 @@ import type { Generated } from '@effect/ai-anthropic'
 import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, Clock, Effect, Fiber, Layer, Option, Redacted, Ref, Schema } from 'effect'
+import {
+  Array as Arr,
+  Clock,
+  ConfigProvider,
+  Effect,
+  Fiber,
+  Layer,
+  Option,
+  Redacted,
+  Ref,
+  Schema,
+} from 'effect'
 import { HttpClient, type HttpClientRequest, HttpClientResponse } from 'effect/http'
 import { TestClock } from 'effect/testing'
 
@@ -32,7 +43,11 @@ import {
 import { png } from '@app-template/testing'
 
 import { AssistantModels } from '#infrastructure/chat/assistant.client'
-import { AssistantLlm, generateInstructionsHash } from '#infrastructure/chat/assistant.llm'
+import {
+  AssistantLlm,
+  CurrentReplyProvenance,
+  generateInstructionsHash,
+} from '#infrastructure/chat/assistant.llm'
 
 type RequestBody = typeof Generated.BetaCreateMessageParams.Encoded
 
@@ -66,7 +81,7 @@ const recordAnthropic = (respond: (body: RequestBody) => Response) => {
         titleModel,
       }),
     ),
-    Layer.provide([Layer.succeed(HttpClient.HttpClient, httpClient), BunCrypto.layer]),
+    Layer.provide(Layer.succeed(HttpClient.HttpClient, httpClient)),
   )
   return {
     bodies: Ref.get(requests).pipe(Effect.map(Arr.map(({ body }) => body))),
@@ -232,19 +247,6 @@ describe('AssistantLlm', () => {
       assert.deepStrictEqual(body?.output_config?.format?.schema.properties, {
         text: { type: 'string', description: 'The reply the user reads, as plain text.' },
       })
-    }).pipe(Effect.provide(layer))
-  })
-
-  it.effect('replyProvenance names Anthropic, the reply model and the instructions hash', () => {
-    const { layer } = recordAnthropic(() => message('{"text":"Hello"}'))
-    return Effect.gen(function* () {
-      const { replyProvenance } = yield* Assistant
-
-      assert.deepStrictEqual(
-        { provider: replyProvenance.provider, model: replyProvenance.model },
-        { provider: 'anthropic', model: replyModel },
-      )
-      assert.match(replyProvenance.instructionsHash, /^[0-9a-f]{64}$/)
     }).pipe(Effect.provide(layer))
   })
 
@@ -465,7 +467,7 @@ describe('AssistantLlm', () => {
   })
 
   it.effect('the stub answers a reply and a title that pass their schemas', () => {
-    const layer = AssistantLlm.pipe(Layer.provide([AssistantModels.layerStub, BunCrypto.layer]))
+    const layer = AssistantLlm.pipe(Layer.provide(AssistantModels.layerStub))
     return Effect.gen(function* () {
       const answers = yield* Effect.all(
         { reply: reply(hi), title: suggestTitle('Plan a weekend in Lisbon') },
@@ -509,5 +511,26 @@ describe('generateInstructionsHash', () => {
       assert.notStrictEqual(otherPrompt, first)
       assert.notStrictEqual(otherSchema, first)
     }).pipe(Effect.provide(BunCrypto.layer)),
+  )
+})
+
+describe('CurrentReplyProvenance', () => {
+  it.effect(
+    'names the configured provider and reply model with the instructions hash, and needs no key',
+    () =>
+      Effect.gen(function* () {
+        const { provider, model, instructionsHash } = yield* CurrentReplyProvenance
+
+        assert.deepStrictEqual({ provider, model }, { provider: 'anthropic', model: replyModel })
+        assert.match(instructionsHash, /^[0-9a-f]{64}$/)
+      }).pipe(
+        Effect.provide(CurrentReplyProvenance.layerFromConfig),
+        Effect.provide([
+          BunCrypto.layer,
+          ConfigProvider.layer(
+            ConfigProvider.fromUnknown({ LLM_PROVIDER: 'anthropic', LLM_REPLY_MODEL: replyModel }),
+          ),
+        ]),
+      ),
   )
 })

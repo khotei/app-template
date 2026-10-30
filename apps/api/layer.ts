@@ -10,7 +10,7 @@ import { ChatService } from '@app-template/domain/chat'
 import { UserService } from '@app-template/domain/user'
 import { Api } from '@app-template/http-api'
 import { AttachmentPgS3 } from '@app-template/infrastructure/attachment'
-import { ChatPg } from '@app-template/infrastructure/chat'
+import { ChatPg, CurrentReplyProvenance } from '@app-template/infrastructure/chat'
 import { Db, Transaction } from '@app-template/infrastructure/db'
 import { QueueSenderOutbox } from '@app-template/infrastructure/shared'
 import { UserPg } from '@app-template/infrastructure/user'
@@ -43,7 +43,14 @@ const BunHttpServerFromConfig = Layer.unwrap(
 const LogApiStopped = Layer.effectDiscard(Effect.addFinalizer(() => Effect.logInfo('api stopped')))
 
 export const ApiLayer = Layer.merge(ApiHttp, LogApiStopped).pipe(
-  Layer.provide([UserPg, ChatPg, AttachmentPgS3, QueueSenderOutbox, Transaction.layer]),
+  Layer.provide([
+    UserPg,
+    ChatPg,
+    AttachmentPgS3,
+    QueueSenderOutbox,
+    Transaction.layer,
+    CurrentReplyProvenance.layerFromConfig,
+  ]),
   Layer.provide(Db.layerFromConfig),
   Layer.provide(BunHttpServerFromConfig),
   Layer.provide(MinimumLogLevelFromConfig),

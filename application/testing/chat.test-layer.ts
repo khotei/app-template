@@ -18,7 +18,11 @@ import { AttachmentBucketS3, AttachmentRepositoryPg } from '@app-template/infras
 import { ChatPg } from '@app-template/infrastructure/chat'
 import { Transaction } from '@app-template/infrastructure/db'
 import { QueueSenderOutbox } from '@app-template/infrastructure/shared'
-import { AwsTest, TransactionTest } from '@app-template/infrastructure/testing'
+import {
+  AwsTest,
+  CurrentReplyProvenanceTest,
+  TransactionTest,
+} from '@app-template/infrastructure/testing'
 
 import { GenerateAssistantMessageUseCase } from '#application/chat/generate-assistant-message.use-case'
 import { GenerateChatTitleUseCase } from '#application/chat/generate-chat-title.use-case'
@@ -29,7 +33,7 @@ const ChatServices = Layer.mergeAll(
   ChatService.layer,
   AttachmentService.layer,
   SendMessageUseCase.layer,
-)
+).pipe(Layer.provide(CurrentReplyProvenanceTest))
 
 /**
  * The chat services and use cases over the memory layers, on fresh rows where `chat` exists, the

@@ -130,9 +130,10 @@ does not.
   prefix to be cached with the default five-minute lifetime.
 - **R11** — THE SYSTEM SHALL cap a reply at 16 000 output tokens with the model's default effort
   and thinking, and a title at 1 000 output tokens with the lowest effort and thinking off.
-- **R12** — WHEN an assistant message becomes terminal after a model was asked, THE SYSTEM SHALL
-  store with it the provider, the model and a hash of the instructions (the system prompt and
-  the reply schema together); no api response SHALL carry them.
+- **R12** — WHEN the api queues a reply's job, THE SYSTEM SHALL store with that job in the outbox
+  the configured provider, the configured reply model and a hash of the instructions (the system
+  prompt and the reply schema together), read without the provider's key; the worker that
+  answers may run another model while a deploy rolls out, and no api response SHALL carry them.
 
 ### Failures
 
@@ -191,7 +192,7 @@ does not.
 | R9 | Review of the system prompt in the `/ticket-verify` pass: role and rules only; a unit test asserts it is equal across two requests of different chats |
 | R10 | A unit test over a fake `HttpClient` shows the reply request carries a top-level `cache_control` of type `ephemeral` without a `ttl` |
 | R11 | A unit test over a fake `HttpClient` shows `max_tokens` 16 000 on the reply request, and 1 000, the lowest effort and thinking disabled on the title request |
-| R12 | A unit test reads the stored assistant message: provider, model and hash present after `done` and after a `failed` that followed a model call; the hash changes when the system prompt or the schema changes; an api response for the message has none of them |
+| R12 | A unit test shows the send queues the reply job with the configured provider, model and hash, and the title job without them; an e2e test reads them in the outbox row's body, and the relay keeps the row once sent; a unit test shows the hash changes when the system prompt or the schema changes, and the provider and model are read with no key set; the message, and so every api response, has no provenance |
 | R13 | Unit tests: the fake model fails with an authentication error, then with an invalid request: the message is `failed` with `ReplyFailed` after one attempt |
 | R14 | Unit tests under `TestClock`: a rate limit with a 5 s wait is retried no sooner than 5 s; one with a 60 s wait fails the message at once |
 | R15 | Unit tests: an overloaded provider, a reply failing the schema, and a reply cut by the output limit each consume an attempt and are retried; after the last one the message is `failed` with `ReplyFailed` |
@@ -241,7 +242,8 @@ For `/ticket-architecture`.
   written by the adapter.
 - **Recommendation:** A, since the domain service is the only writer of a message.
 - **Answer:** A, as a value of the port fixed at startup, written by the `generating` move
-  (architecture D6).
+  (architecture D6). *Revised in S7.2:* neither; the api writes it into the reply's job in the
+  outbox, and the domain and the message never see it.
 
 ### Q4 — What does the stub do now that nothing streams?
 

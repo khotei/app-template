@@ -18,6 +18,7 @@ import {
   MinimumLogLevelFromConfig,
   MiniStackConfig,
   QueueConfig,
+  ReplyModelConfig,
   RuntimeConfig,
 } from '#config/config'
 
@@ -51,6 +52,12 @@ describe('config layers', () => {
       variable: 'LLM_TITLE_MODEL',
       layer: LlmConfig.layer,
       given: { LLM_PROVIDER: 'anthropic', ANTHROPIC_API_KEY: 'key', LLM_REPLY_MODEL: 'reply' },
+    },
+    { variable: 'LLM_PROVIDER', layer: ReplyModelConfig.layer },
+    {
+      variable: 'LLM_REPLY_MODEL',
+      layer: ReplyModelConfig.layer,
+      given: { LLM_PROVIDER: 'anthropic' },
     },
   ])(
     'fails with a ConfigError naming a missing or invalid $variable',
@@ -87,6 +94,21 @@ describe('config layers', () => {
     Effect.gen(function* () {
       assert.deepStrictEqual(yield* LlmConfig, { provider: 'stub' })
     }).pipe(Effect.provide(provideVariables(LlmConfig.layer, { LLM_PROVIDER: 'stub' }))),
+  )
+
+  it.effect.each<{
+    given: Record<string, string>
+    read: typeof ReplyModelConfig.Service
+  }>([
+    { given: { LLM_PROVIDER: 'stub' }, read: { provider: 'stub', replyModel: 'stub' } },
+    {
+      given: { LLM_PROVIDER: 'anthropic', LLM_REPLY_MODEL: 'reply' },
+      read: { provider: 'anthropic', replyModel: 'reply' },
+    },
+  ])('reads the reply model of $given.LLM_PROVIDER with no key', ({ given, read }) =>
+    Effect.gen(function* () {
+      assert.deepStrictEqual(yield* ReplyModelConfig, read)
+    }).pipe(Effect.provide(provideVariables(ReplyModelConfig.layer, given))),
   )
 
   it.effect.each([
