@@ -3,9 +3,16 @@ import { type DateTime, Effect, Option, pipe, Schema, String as Str } from 'effe
 import { Attachment } from '#domain/attachment/attachment.model'
 import { ChatBusyError, ChatStatusInvalidError } from '#domain/chat/chat.error'
 import { ChatId } from '#domain/chat/chat.id'
-import { ChatStatus, type SettledChatStatus } from '#domain/chat/chat-status.model'
-import { isQueued } from '#domain/shared/status.model'
+import { isQueued, Status } from '#domain/shared/status.model'
 import { UserId } from '#domain/user/user.id'
+
+/** `queued` while the chat's reply is in work, `failed` after its last reply failed, else `idle`. */
+export const ChatStatus = Status.pick(['idle', 'queued', 'failed'])
+export type ChatStatus = typeof ChatStatus.Type
+
+/** The statuses a reply's end moves a chat to. */
+export const SettledChatStatus = ChatStatus.pick(['idle', 'failed'])
+export type SettledChatStatus = typeof SettledChatStatus.Type
 
 /** Counted in UTF-16 code units, as `Schema.isMaxLength` counts them. */
 export const maxTitleLength = 120

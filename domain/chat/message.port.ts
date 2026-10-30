@@ -2,8 +2,7 @@ import { Context, type Effect, type Option, type Types } from 'effect'
 import type { RequireAtLeastOne } from 'type-fest'
 
 import type { ChatId, MessageId } from '#domain/chat/chat.id'
-import type { Message, MessageAuthor } from '#domain/chat/message.model'
-import type { MessageStatus } from '#domain/chat/message-status.model'
+import type { Message, MessageAuthor, MessageStatus } from '#domain/chat/message.model'
 import type { UserId } from '#domain/user/user.id'
 
 /** The stored status a write requires; the row is always found by the message's id. */

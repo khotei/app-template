@@ -13,8 +13,13 @@ import type { AttachmentId } from '#domain/attachment/attachment.id'
 import { Attachment } from '#domain/attachment/attachment.model'
 import { ChatId, MessageId } from '#domain/chat/chat.id'
 import { MessageInputInvalidError, MessageStatusInvalidError } from '#domain/chat/message.error'
-import { ActiveMessageStatus, MessageStatus } from '#domain/chat/message-status.model'
-import { isPreparing } from '#domain/shared/status.model'
+import { isPreparing, Status } from '#domain/shared/status.model'
+
+export const MessageStatus = Status.pick(['queued', 'preparing', 'generating', 'done', 'failed'])
+export type MessageStatus = typeof MessageStatus.Type
+
+export const ActiveMessageStatus = MessageStatus.pick(['queued', 'preparing', 'generating'])
+export type ActiveMessageStatus = typeof ActiveMessageStatus.Type
 
 export const MessageAuthor = Schema.Literals(['user', 'assistant'])
 export type MessageAuthor = typeof MessageAuthor.Type

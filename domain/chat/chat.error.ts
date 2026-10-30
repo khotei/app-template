@@ -1,7 +1,7 @@
 import { Schema } from 'effect'
 
 import { ChatId } from '#domain/chat/chat.id'
-import { ChatStatus } from '#domain/chat/chat-status.model'
+import { Status } from '#domain/shared/status.model'
 
 export class ChatNotFoundError extends Schema.TaggedError<ChatNotFoundError>()(
   'ChatNotFoundError',
@@ -14,5 +14,5 @@ export class ChatBusyError extends Schema.TaggedError<ChatBusyError>()('ChatBusy
 
 export class ChatStatusInvalidError extends Schema.TaggedError<ChatStatusInvalidError>()(
   'ChatStatusInvalidError',
-  { id: ChatId, from: ChatStatus, to: ChatStatus },
+  { id: ChatId, from: Status, to: Status },
 ) {}

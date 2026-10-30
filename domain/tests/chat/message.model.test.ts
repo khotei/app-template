@@ -15,9 +15,9 @@ import {
   generateMessage,
   Message,
   MessageFailure,
+  type MessageStatus,
   prepareMessage,
 } from '#domain/chat/message.model'
-import type { MessageStatus } from '#domain/chat/message-status.model'
 
 const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000001')
 const messageId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000002')
