@@ -112,7 +112,9 @@ does not.
 - **R5** — WHILE the worker handles an assistant-message job, THE SYSTEM SHALL set the message to
   `preparing` on taking the job and to `generating` when the request is sent, ask the reply model
   once for a reply, and WHEN the reply passes the reply schema, set the message `completed` with
-  its text in one write; no text is written before that. *Amends `chat-core` R16.*
+  its text in one write; no text is written before that. *Amends `chat-core` R16.* *Amended by
+  the repository refactor on this branch: `completed` is the message status `done` (`chat-core`
+  R15).*
 - **R6** — THE reply schema SHALL hold one field, a text that is non-empty after trimming; its
   meaning SHALL reach the model as the field's description in the schema.
 - **R7** — *Dropped at architecture (2026-10-29):* the reply carries no follow-ups, so the api

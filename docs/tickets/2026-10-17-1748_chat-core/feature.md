@@ -159,7 +159,11 @@ replace one layer later.
   message stages are the one vocabulary; `Chat.status` is gone, because its `generating` meant
   something other than the message stage of that name.* *Amended by the chat-reads refactor
   on `feat/llm-providers`: no endpoint exposes it; `GET /chats/:chatId` derives the chat's
-  `status` from it, and it still guards a send (R12).*
+  `status` from it, and it still guards a send (R12).* *Amended by the repository refactor on
+  `feat/llm-providers`: the chat's `status` (`idle | queued | failed`) is a stored column, moved
+  by transitions in the transactions that change it: a send moves it to `queued`, the reply's end
+  to `idle` or, when the reply failed, `failed`; every endpoint that answers a chat carries it. A send to a
+  `queued` chat is R12's `409 ChatBusyError`; a `failed` one accepts a send.*
 
 ### Message and the assistant's message
 
@@ -181,7 +185,10 @@ replace one layer later.
 - **R15** — A message SHALL carry `id` (UUIDv7), `chatId`, `author` (`user | assistant`),
   `stage` (`queued | preparing | generating | completed | failed`), `text`, `attachments`
   (metadata), `createdAt`, `updatedAt`, and `error: Option` present only when `failed`. The
-  provider's other roles (`system`, `tool`) SHALL appear only in `infrastructure`.
+  provider's other roles (`system`, `tool`) SHALL appear only in `infrastructure`. *Amended by
+  the repository refactor on `feat/llm-providers`: the field is `status`, from the one status
+  vocabulary the chat shares, and `completed` is `done`, on the wire too; where these
+  requirements say a message's stage or `completed`, read its `status` and `done`.*
 - **R16** — WHILE the worker handles an assistant-message job, THE SYSTEM SHALL set the message to
   `preparing` on taking the job; to `generating` when the model request is sent; write the text
   accumulated so far into the message at most once per snapshot interval (a tunable, default
@@ -347,7 +354,7 @@ replace one layer later.
 | R4 | A chat id created under user A fetched with user B's cookie is `404 ChatNotFoundError`; the same for a message and an attachment. |
 | R5–R7 | Create two chats, send a message in the first: `GET /chats` lists the first one first with `title: null`, `activeMessage: { id, stage: 'queued' }`, no messages; `GET /chats/:id` returns the messages in order with attachment metadata. |
 | R8–R9 | `PATCH` with `"  "` or 121 characters is `400`; with `"Trip"` the summary shows it. `DELETE` while a message is active is `204`, the job ends with a log line and no write (worker test with a chat removed between enqueue and take). |
-| R10 | A repository and a service test: a chat with a `queued` assistant message returns it as `activeMessage`; after `completed` it is `null`; the stored chat has no such field. |
+| R10 | A repository and a service test: a chat with a `queued` assistant message returns it as `activeMessage`; after `completed` it is `null`; the stored chat has no such field. (*Amended by the repository refactor on `feat/llm-providers`:* the chat's stored `status` is `queued` after a send and `idle` or `failed` after the reply; a send to a `queued` chat is `409`.) |
 | R11–R14 | Send returns `202` with a `completed` user message and a `queued` assistant message; a second send while the assistant message is active is `409 ChatBusyError`; an unknown attachment id is `404`, a bound one `409`; polling the assistant message under `TestClock` shows a growing `text` then `completed` (*Amended in [`llm-providers`](../2026-10-29-1435_llm-providers/feature.md) S1:* the polled message shows an empty `text` until `completed` carries the whole reply). |
 | R15 | The `Message` schema test; `git grep -n "'system'\|'tool'" -- domain application` finds nothing. |
 | R16–R19 | A worker test with a fake `LanguageModel` that emits three deltas under `TestClock`: stages `preparing` → `generating` → `completed`, at most one write per snapshot interval, `updatedAt` bumped (*Amended in [`llm-providers`](../2026-10-29-1435_llm-providers/feature.md) S1:* a fake assistant answers the reply whole, and `completed` is the only write after `generating`); the recorded prompt holds the history with a `file` part per attachment and no `failed` message; a failing model goes back to `preparing` per attempt and ends `failed` with `{ reason: 'ReplyFailed', message, cause }`, no provider text in `message`, and no `cause` in the api's response; with the worker stopped, three sends queue three jobs that run on start. |
