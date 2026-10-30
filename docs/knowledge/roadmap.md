@@ -38,7 +38,7 @@ graph LR
 | 3 | [`chat-core`](#3-chat-core) | `feat` | 1 | done: [docs/tickets/2026-10-17-1748_chat-core/](../tickets/2026-10-17-1748_chat-core/feature.md) |
 | 4 | [`postgres-drizzle`](#4-postgres-drizzle) | `feat` | 3 | in progress: [docs/tickets/2026-10-22-1915_postgres-drizzle/](../tickets/2026-10-22-1915_postgres-drizzle/feature.md) |
 | 5 | [`aws-local`](#5-aws-local) | `feat` | 3 | done: [docs/tickets/2026-10-19-1448_aws-local/](../tickets/2026-10-19-1448_aws-local/feature.md) |
-| 6 | [`llm-providers`](#6-llm-providers) | `feat` | 5 | in progress: [docs/tickets/2026-10-29-1435_llm-providers/](../tickets/2026-10-29-1435_llm-providers/feature.md) |
+| 6 | [`llm-providers`](#6-llm-providers) | `feat` | 5 | done: [docs/tickets/2026-10-29-1435_llm-providers/](../tickets/2026-10-29-1435_llm-providers/feature.md) |
 | 7 | [`web-app`](#7-web-app) | `feat` | 3 (18 for assistant attachments) | planned |
 | 8 | [`observability`](#8-observability) | `feat` | 3 | planned |
 | 9 | [`aws-deployment`](#9-aws-deployment) | `feat` | 4, 5 | planned |
@@ -259,7 +259,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   request, no streaming; OpenAI, files, history trimming, token and cost
   accounting, budgets and the recorded round trip moved to 18–20 or were dropped, and the SSE
   tail moved to `web-app` (7). See the ticket's `feature.md › Out of scope`.
-- **Status.** In progress: [docs/tickets/2026-10-29-1435_llm-providers/](../tickets/2026-10-29-1435_llm-providers/feature.md).
+- **Status.** Done: [docs/tickets/2026-10-29-1435_llm-providers/](../tickets/2026-10-29-1435_llm-providers/feature.md).
 - **Open questions for its feature phase.** Placeholder syntax; which model produces files in the
   template demo; token and cost accounting per chat; whether the reply streams through the worker
   (see 3).
