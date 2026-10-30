@@ -80,7 +80,7 @@ describe('AssistantMessageHandler', () => {
         yield* selectReply,
         Option.some(new Message({ ...queuedReply, stage: 'generating' })),
       )
-      assertEquals(yield* selectChat(chatId), Option.some(chat))
+      assertEquals(yield* selectChat(chatId), Option.some(new Chat({ ...chat, status: 'busy' })))
     }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
   })
 

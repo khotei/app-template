@@ -14,15 +14,14 @@ import {
   MediaType,
 } from '#domain/attachment/attachment.model'
 import { AttachmentBucket, AttachmentRepository } from '#domain/attachment/attachment.port'
-import { ChatBusyError, ChatNotFoundError } from '#domain/chat/chat.error'
-import { type ChatId, MessageId } from '#domain/chat/chat.id'
-import { Chat, ChatTitle, ChatWithStatus } from '#domain/chat/chat.model'
+import { ChatNotFoundError } from '#domain/chat/chat.error'
+import type { ChatId } from '#domain/chat/chat.id'
+import { Chat, ChatTitle } from '#domain/chat/chat.model'
 import { ChatRepository } from '#domain/chat/chat.port'
 import { ChatService } from '#domain/chat/chat.service'
-import type { MessageInputInvalidError } from '#domain/chat/message.error'
-import { buildUserMessage, completeMessage, type Message } from '#domain/chat/message.model'
+import { completeMessage, type Message } from '#domain/chat/message.model'
 import { MessageRepository } from '#domain/chat/message.port'
-import { ask, chat, epoch, unknownChatId } from '#domain/testing/chat.test-fixture'
+import { chat, epoch, unknownChatId } from '#domain/testing/chat.test-fixture'
 import { ChatTest, selectMessages, send } from '#domain/testing/chat.test-layer'
 import { owner, stranger } from '#domain/testing/user.test-fixture'
 import type { UserId } from '#domain/user/user.id'
@@ -54,7 +53,7 @@ type ChatCall = (
   service: ChatService['Service'],
   userId: UserId,
   chatId: ChatId,
-) => Effect.Effect<unknown, ChatNotFoundError | ChatBusyError | MessageInputInvalidError>
+) => Effect.Effect<unknown, ChatNotFoundError>
 
 const chatCalls: ReadonlyArray<{ readonly name: string; readonly call: ChatCall }> = [
   { name: 'getOne', call: (service, userId, chatId) => service.getOne({ id: chatId, userId }) },
@@ -64,10 +63,6 @@ const chatCalls: ReadonlyArray<{ readonly name: string; readonly call: ChatCall 
       service.rename({ id: chatId, userId }, { title: Option.some(trip) }),
   },
   { name: 'delete', call: (service, userId, chatId) => service.delete(userId, chatId) },
-  {
-    name: 'findSendable',
-    call: (service, userId, chatId) => service.findSendable(userId, chatId, ask('Lisbon?')),
-  },
 ]
 
 describe('ChatService', () => {
@@ -81,37 +76,6 @@ describe('ChatService', () => {
       const settled = yield* service.getOne({ id: chat.id, userId: owner })
 
       assert.deepStrictEqual([replying.status, settled.status], ['busy', 'idle'])
-    }).pipe(Effect.provide(ChatBunTest)),
-  )
-
-  it.effect('findSendable says the first send opens the chat, and no later one', () =>
-    Effect.gen(function* () {
-      const service = yield* ChatService
-      const messages = yield* MessageRepository
-
-      const opening = yield* service.findSendable(owner, chat.id, ask('Lisbon?'))
-      yield* messages.insert(
-        buildUserMessage({
-          id: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000031'),
-          chatId: chat.id,
-          text: 'Lisbon?',
-          createdAt: opening.at,
-        }),
-      )
-      const next = yield* service.findSendable(owner, chat.id, ask('And now?'))
-
-      assert.deepStrictEqual([opening.opensChat, next.opensChat], [true, false])
-    }).pipe(Effect.provide(ChatBunTest)),
-  )
-
-  it.effect('findSendable while a reply runs is ChatBusyError', () =>
-    Effect.gen(function* () {
-      const service = yield* ChatService
-      yield* send(owner, chat.id, 'Lisbon?')
-
-      const busy = yield* service.findSendable(owner, chat.id, ask('And now?')).pipe(Effect.flip)
-
-      assertSchemaEquals(ChatBusyError, busy, new ChatBusyError({ id: chat.id }))
     }).pipe(Effect.provide(ChatBunTest)),
   )
 
@@ -205,10 +169,7 @@ describe('ChatService', () => {
 
         assertSchemaEquals(ChatNotFoundError, foreign, new ChatNotFoundError({ id: chat.id }))
         assertSchemaEquals(ChatNotFoundError, missing, new ChatNotFoundError({ id: unknownChatId }))
-        assertEquals(
-          yield* service.getOne({ id: chat.id, userId: owner }),
-          new ChatWithStatus({ ...chat, status: 'idle' }),
-        )
+        assertEquals(yield* service.getOne({ id: chat.id, userId: owner }), chat)
       }).pipe(Effect.provide(ChatBunTest)),
   )
 })

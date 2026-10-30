@@ -1,9 +1,9 @@
 import { sql } from 'drizzle-orm'
 import { createInsertSchema, createSelectSchema } from 'drizzle-orm/effect-schema'
 import { check, index, snakeCase, text, uuid } from 'drizzle-orm/pg-core'
-import { Schema } from 'effect'
+import { Schema, Struct } from 'effect'
 
-import { Chat, ChatId, ChatTitle, maxTitleLength } from '@app-template/domain/chat'
+import { Chat, ChatId, ChatStatus, ChatTitle, maxTitleLength } from '@app-template/domain/chat'
 import { UserId } from '@app-template/domain/user'
 
 import { createdAt, id, updatedAt } from '#infrastructure/db/columns'
@@ -41,4 +41,7 @@ export const ChatRow = createSelectSchema(chats, chatFields)
 
 export const ChatInsert = createInsertSchema(chats, chatFields)
 
-export const ChatFromRow = ChatRow.pipe(Schema.decodeTo(Chat))
+/** A row with the status a second read derives from the chat's messages: no column stores it. */
+export const ChatFromRow = ChatRow.mapFields(Struct.assign({ status: ChatStatus })).pipe(
+  Schema.decodeTo(Chat),
+)

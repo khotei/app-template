@@ -1,7 +1,7 @@
-import { type DateTime, Option, pipe, Schema, String as Str } from 'effect'
+import { type DateTime, Effect, Option, pipe, Schema, String as Str } from 'effect'
 
+import { ChatBusyError } from '#domain/chat/chat.error'
 import { ChatId } from '#domain/chat/chat.id'
-import type { Message } from '#domain/chat/message.model'
 import { UserId } from '#domain/user/user.id'
 
 /** Counted in UTF-16 code units, as `Schema.isMaxLength` counts them. */
@@ -37,25 +37,25 @@ const cutToTitleLength = (text: string): string => {
 export const buildChatTitle = (text: string): Option.Option<ChatTitle> =>
   pipe(text, Str.trim, cutToTitleLength, Str.trim, Schema.decodeUnknownOption(ChatTitle))
 
-export class Chat extends Schema.Class<Chat>('Chat')({
-  id: ChatId,
-  userId: UserId,
-  title: Schema.Option(ChatTitle),
-  createdAt: Schema.DateTimeUtc,
-  updatedAt: Schema.DateTimeUtc,
-}) {}
-
 /** `busy` while the chat has an active message, else `idle`. */
 export const ChatStatus = Schema.Literals(['idle', 'busy'])
 export type ChatStatus = typeof ChatStatus.Type
 
-/** A chat with its status, which no row stores: `withStatus` derives it. */
-export class ChatWithStatus extends Chat.extend<ChatWithStatus>('ChatWithStatus')({
+export class Chat extends Schema.Class<Chat>('Chat')({
+  id: ChatId,
+  userId: UserId,
+  title: Schema.Option(ChatTitle),
+  /** No column stores it: the repository derives it from the chat's messages on every read. */
   status: ChatStatus,
+  createdAt: Schema.DateTimeUtc,
+  updatedAt: Schema.DateTimeUtc,
 }) {}
 
-export const withStatus = (chat: Chat, active: Option.Option<Message>): ChatWithStatus =>
-  new ChatWithStatus({ ...chat, status: Option.isSome(active) ? 'busy' : 'idle' })
+export const ensureChatAcceptsMessage = Effect.fn('ensureChatAcceptsMessage')(function* (
+  chat: Chat,
+) {
+  if (chat.status === 'busy') return yield* new ChatBusyError({ id: chat.id })
+})
 
 export const buildChat = (input: {
   readonly id: ChatId
@@ -66,6 +66,7 @@ export const buildChat = (input: {
     id: input.id,
     userId: input.userId,
     title: Option.none(),
+    status: 'idle',
     createdAt: input.createdAt,
     updatedAt: input.createdAt,
   })

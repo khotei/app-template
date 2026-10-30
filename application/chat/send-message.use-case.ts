@@ -1,4 +1,4 @@
-import { Context, Crypto, Effect, Layer } from 'effect'
+import { Context, Crypto, DateTime, Effect, Layer, Option } from 'effect'
 
 import {
   type AttachmentBoundError,
@@ -13,6 +13,8 @@ import {
   type ChatNotFoundError,
   ChatRepository,
   ChatService,
+  ensureChatAcceptsMessage,
+  ensureMessageInput,
   type MessageDetail,
   MessageId,
   type MessageInput,
@@ -67,16 +69,22 @@ export class SendMessageUseCase extends Context.Service<
       chatId: ChatId,
       input: MessageInput,
     ) {
-      const sendable = yield* chatService.findSendable(userId, chatId, input)
+      // The lock makes a concurrent send to the chat wait here until this one commits, then find
+      // the chat busy.
+      const chat = yield* chatService.getOne({ id: chatId, userId }, { forUpdate: true })
+      yield* ensureMessageInput(input)
+      yield* ensureChatAcceptsMessage(chat)
+      const opensChat = yield* messages.selectOne({ chatId }).pipe(Effect.map(Option.isNone))
+      const at = yield* DateTime.now
 
-      yield* chats.update({ updatedAt: sendable.at }, { id: chatId })
+      yield* chats.update({ updatedAt: at }, { id: chatId })
 
       const userMessageId = yield* generateId(crypto, MessageId.make)
       const userMessage = buildUserMessage({
         id: userMessageId,
         chatId,
-        text: sendable.input.text,
-        createdAt: sendable.at,
+        text: input.text,
+        createdAt: at,
       })
       yield* messages.insert(userMessage)
       const bound = yield* attachmentService.bind(userId, input.attachmentIds, {
@@ -87,7 +95,7 @@ export class SendMessageUseCase extends Context.Service<
       const assistantMessage = buildAssistantMessage({
         id: assistantMessageId,
         chatId,
-        createdAt: sendable.at,
+        createdAt: at,
       })
       yield* messages.insert(assistantMessage)
       // A QueueError is a defect: no rule reads it, and it still rolls the send back.
@@ -97,7 +105,7 @@ export class SendMessageUseCase extends Context.Service<
           new GenerateAssistantMessage({ chatId, messageId: assistantMessage.id }),
         )
         .pipe(Effect.orDie)
-      if (sendable.opensChat) {
+      if (opensChat) {
         yield* queue
           .send(chatTitleQueue, new GenerateChatTitle({ chatId, messageId: userMessage.id }))
           .pipe(Effect.orDie)

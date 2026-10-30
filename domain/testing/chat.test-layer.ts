@@ -1,4 +1,4 @@
-import { Array as Arr, Crypto, Effect, Layer } from 'effect'
+import { Array as Arr, Crypto, DateTime, Effect, Layer } from 'effect'
 
 import { type ChatId, MessageId } from '#domain/chat/chat.id'
 import { ChatRepository } from '#domain/chat/chat.port'
@@ -7,7 +7,7 @@ import { buildAssistantMessage, buildUserMessage } from '#domain/chat/message.mo
 import { MessageRepository } from '#domain/chat/message.port'
 import { generateId } from '#domain/shared/id'
 import { AttachmentBucketTest } from '#domain/testing/attachment.test-fake'
-import { ask, chat } from '#domain/testing/chat.test-fixture'
+import { chat } from '#domain/testing/chat.test-fixture'
 import { RepositoryStackTest } from '#domain/testing/repository-stack.test-layer'
 import type { UserId } from '#domain/user/user.id'
 
@@ -26,20 +26,21 @@ export const send = (userId: UserId, chatId: ChatId, text: string) =>
     const messages = yield* MessageRepository
     const crypto = yield* Crypto.Crypto
 
-    const sendable = yield* chats.findSendable(userId, chatId, ask(text))
+    yield* chats.getOne({ id: chatId, userId })
+    const at = yield* DateTime.now
     const userMessageId = yield* generateId(crypto, MessageId.make)
     const userMessage = buildUserMessage({
       id: userMessageId,
       chatId,
       text,
-      createdAt: sendable.at,
+      createdAt: at,
     })
     yield* messages.insert(userMessage)
     const assistantMessageId = yield* generateId(crypto, MessageId.make)
     const assistantMessage = buildAssistantMessage({
       id: assistantMessageId,
       chatId,
-      createdAt: sendable.at,
+      createdAt: at,
     })
     yield* messages.insert(assistantMessage)
     return { userMessage, assistantMessage }

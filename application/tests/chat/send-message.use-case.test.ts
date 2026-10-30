@@ -8,6 +8,7 @@ import {
   buildAssistantMessage,
   buildUserMessage,
   Chat,
+  ChatBusyError,
   ChatService,
   ChatTitle,
   completeMessage,
@@ -96,7 +97,12 @@ describe('SendMessageUseCase', () => {
         assertEquals(
           yield* selectChat(chat.id),
           Option.some(
-            new Chat({ ...chat, title: Option.some(ChatTitle.make('Trip')), updatedAt: sentAt }),
+            new Chat({
+              ...chat,
+              title: Option.some(ChatTitle.make('Trip')),
+              status: 'busy',
+              updatedAt: sentAt,
+            }),
           ),
         )
       }).pipe(Effect.provide(Layer.provide(ChatTest, queue.layer)))
@@ -126,6 +132,20 @@ describe('SendMessageUseCase', () => {
       }).pipe(Effect.provide(Layer.provide(ChatTest, queue.layer)))
     },
   )
+
+  it.effect('send while a reply runs is ChatBusyError before any message or job', () => {
+    const queue = recordQueue()
+    return Effect.gen(function* () {
+      const sendMessage = yield* SendMessageUseCase
+      yield* sendMessage.send(owner, chat.id, ask('Plan a weekend in Lisbon'))
+
+      const error = yield* sendMessage.send(owner, chat.id, ask('And in Porto?')).pipe(Effect.flip)
+
+      assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chat.id }))
+      assert.lengthOf(yield* selectMessages(chat.id), 2)
+      assert.lengthOf(yield* queue.sent, 2)
+    }).pipe(Effect.provide(Layer.provide(ChatTest, queue.layer)))
+  })
 
   it.effect(
     "send with another user's attachment is AttachmentNotFoundError before any reply or job",

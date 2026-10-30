@@ -66,7 +66,8 @@ the signal.
   a database guard in the write itself (a partial unique index, an `UPDATE … WHERE` on the free
   state). The caller checks first, so a refused write is a lost race and the adapter dies on it
   (the reply's insert, a stage move); the bind skips a taken id (`AttachmentBoundError`). A
-  check whose loser must get a domain error reads its row `forUpdate` (`findSendable`).
+  check whose loser must get a domain error reads its row `forUpdate` (the send's
+  `ChatService.getOne`).
 - **Write only the fields you own of a record another process also writes,** and hold a rule in
   the write's `where`, not in a read before it: the send sets the chat's `updatedAt` alone, and the
   title is written only `where` the chat is still untitled.

@@ -15,6 +15,7 @@ const chat = new Chat({
   id: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000061'),
   userId,
   title: Option.none(),
+  status: 'idle',
   createdAt: DateTime.makeUnsafe('2026-10-18T00:00:00.123Z'),
   updatedAt: DateTime.makeUnsafe('2026-10-18T00:00:01.456Z'),
 })

@@ -4,14 +4,12 @@ import { DateTime, Effect, Option } from 'effect'
 import { assertSchemaEquals } from '@app-template/testing'
 
 import { AttachmentId } from '#domain/attachment/attachment.id'
-import { ChatBusyError } from '#domain/chat/chat.error'
 import { ChatId, MessageId } from '#domain/chat/chat.id'
 import { MessageInputInvalidError, MessageStageInvalidError } from '#domain/chat/message.error'
 import {
   buildAssistantMessage,
   buildUserMessage,
   completeMessage,
-  ensureChatAcceptsMessage,
   ensureMessageInput,
   failMessage,
   generateMessage,
@@ -37,29 +35,6 @@ const userMessage = buildUserMessage({
   chatId,
   text: 'Hello',
   createdAt,
-})
-
-describe('ensureChatAcceptsMessage', () => {
-  it.effect.each([
-    ['none', Option.none()],
-    ['a user message', Option.some(userMessage)],
-    ['a completed assistant message', Option.some(assistantAt('completed'))],
-    ['a failed assistant message', Option.some(assistantAt('failed'))],
-  ] as const)('passes when the current message is %s', ([, current]) =>
-    ensureChatAcceptsMessage(current),
-  )
-
-  it.effect.each(activeStages)(
-    'fails ChatBusyError with the chat id when the current message is a %s assistant message',
-    (stage) =>
-      Effect.gen(function* () {
-        const error = yield* ensureChatAcceptsMessage(Option.some(assistantAt(stage))).pipe(
-          Effect.flip,
-        )
-
-        assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chatId }))
-      }),
-  )
 })
 
 describe('ensureMessageInput', () => {

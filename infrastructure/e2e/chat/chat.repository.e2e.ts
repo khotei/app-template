@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { DateTime, Effect, Exit, Option, Schema } from 'effect'
+import { Array as Arr, DateTime, Effect, Exit, Option, Schema, Struct } from 'effect'
 
 import {
   Attachment,
@@ -126,6 +126,44 @@ describe('ChatRepositoryPg', () => {
       )
 
       assertSchemaEquals(Schema.Array(Chat), yield* chats.selectByUser(ada), [newer, older])
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
+  )
+
+  it.effect('reads a chat busy while its reply is active and idle otherwise, on every read', () =>
+    Effect.gen(function* () {
+      const chats = yield* ChatRepository
+      const messages = yield* MessageRepository
+      const ada = UserId.make('0192d4e0-7b3a-7c00-8000-000000000010')
+      const replying = chat('0192d4e0-7b3a-7c00-8000-000000000030', ada)
+      const asked = chat('0192d4e0-7b3a-7c00-8000-000000000031', ada)
+      yield* insertUser(ada)
+      yield* chats.insert(replying)
+      yield* chats.insert(asked)
+      yield* messages.insert(
+        buildAssistantMessage({
+          id: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000040'),
+          chatId: replying.id,
+          createdAt,
+        }),
+      )
+      yield* messages.insert(question('0192d4e0-7b3a-7c00-8000-000000000041', asked.id))
+
+      const statusOf = (id: ChatId, options?: { readonly forUpdate?: boolean }) =>
+        chats.selectOne({ id }, options).pipe(Effect.map(Option.map((found) => found.status)))
+
+      assert.deepStrictEqual(
+        [
+          yield* statusOf(replying.id),
+          yield* statusOf(replying.id, { forUpdate: true }),
+          yield* statusOf(asked.id),
+        ],
+        [Option.some('busy'), Option.some('busy'), Option.some('idle')],
+      )
+      const listed = yield* chats.selectByUser(ada)
+      assert.sameDeepMembers(Arr.map(listed, Struct.pick(['id', 'status'])), [
+        { id: replying.id, status: 'busy' },
+        { id: asked.id, status: 'idle' },
+      ])
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 

@@ -1,7 +1,31 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Option, Schema } from 'effect'
+import { Effect, Option, Schema } from 'effect'
 
-import { buildChatTitle, ChatTitle, maxTitleLength } from '#domain/chat/chat.model'
+import { assertSchemaEquals } from '@app-template/testing'
+
+import { ChatBusyError } from '#domain/chat/chat.error'
+import {
+  buildChatTitle,
+  Chat,
+  ChatTitle,
+  ensureChatAcceptsMessage,
+  maxTitleLength,
+} from '#domain/chat/chat.model'
+import { chat } from '#domain/testing/chat.test-fixture'
+
+describe('ensureChatAcceptsMessage', () => {
+  it.effect('passes an idle chat', () => ensureChatAcceptsMessage(chat))
+
+  it.effect('fails a busy chat with ChatBusyError', () =>
+    Effect.gen(function* () {
+      const error = yield* ensureChatAcceptsMessage(new Chat({ ...chat, status: 'busy' })).pipe(
+        Effect.flip,
+      )
+
+      assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chat.id }))
+    }),
+  )
+})
 
 describe('ChatTitle', () => {
   it.each(['Trip', 'a'.repeat(120)])('accepts %j', (title) => {

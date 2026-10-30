@@ -13,7 +13,7 @@ import {
 import { generateId } from '@app-template/domain/shared'
 import { Api, CurrentUser } from '@app-template/http-api'
 
-import { toChat, toChatWithStatus, toMessage } from '#api/shared/projections'
+import { toChat, toMessage } from '#api/shared/projections'
 
 export const ChatHandler = HttpApiBuilder.group(
   Api,
@@ -51,7 +51,7 @@ export const ChatHandler = HttpApiBuilder.group(
         Effect.fn('ChatHandler.get')(function* ({ params }) {
           const user = yield* CurrentUser
           const chat = yield* chatService.getOne({ id: params.chatId, userId: user.id })
-          return toChatWithStatus(chat)
+          return toChat(chat)
         }),
       )
       .handle(

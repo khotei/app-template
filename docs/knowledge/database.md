@@ -175,10 +175,12 @@ ids by `chatId`, then deletes the chat, then the bytes, through
 between the read and the delete loses its row with the chat while its bytes stay in S3, bound and
 never expired: the price of a delete with no transaction.
 
-- **A check under the row's lock.** `ChatService.findSendable` reads the chat with
-  `selectOne(where, { forUpdate: true })` (`SELECT … FOR UPDATE`) before it looks for an active
-  reply, so a second send to the chat waits there until the first commits and then fails with
-  `ChatBusyError`, and a delete of the chat waits until the send is done.
+- **A check under the row's lock.** `SendMessageUseCase.send` reads the chat with
+  `ChatService.getOne(where, { forUpdate: true })` (`SELECT … FOR UPDATE`), so a second send to
+  the chat waits there until the first commits and then reads it `busy` (`ChatBusyError`), and a
+  delete of the chat waits until the send is done. The chat's status is read by a statement of
+  its own after the lock: a subquery of the locking statement reads from that statement's start
+  and would miss the reply committed while it waited.
 
 ## Transactions
 

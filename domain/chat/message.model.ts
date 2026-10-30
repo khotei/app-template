@@ -11,7 +11,6 @@ import {
 
 import type { AttachmentId } from '#domain/attachment/attachment.id'
 import type { Attachment } from '#domain/attachment/attachment.model'
-import { ChatBusyError } from '#domain/chat/chat.error'
 import { ChatId, MessageId } from '#domain/chat/chat.id'
 import { MessageInputInvalidError, MessageStageInvalidError } from '#domain/chat/message.error'
 import { ActiveMessageStage, MessageStage } from '#domain/chat/message-stage.model'
@@ -101,13 +100,6 @@ export const activeMessageWhere = {
   author: 'assistant',
   stage: ActiveMessageStage.literals,
 } as const
-
-export const ensureChatAcceptsMessage = Effect.fn('ensureChatAcceptsMessage')(function* (
-  current: Option.Option<Message>,
-) {
-  const active = Option.filter(current, isActiveMessage)
-  if (Option.isSome(active)) return yield* new ChatBusyError({ id: active.value.chatId })
-})
 
 export const ensureMessageInput = Effect.fn('ensureMessageInput')(function* (input: MessageInput) {
   if (pipe(input.text, Str.trim, Str.isEmpty) && Arr.isReadonlyArrayEmpty(input.attachmentIds)) {

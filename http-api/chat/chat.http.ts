@@ -12,7 +12,6 @@ import {
   Chat as ChatModel,
   ChatNotFoundError,
   ChatTitle,
-  ChatWithStatus as ChatWithStatusModel,
   MessageFailure,
   MessageId,
   MessageInputInvalidError,
@@ -29,12 +28,6 @@ export const Chat = ChatModel.mapFields((fields) => ({
   title: Schema.OptionFromNullOr(ChatTitle),
 }))
 export type Chat = typeof Chat.Type
-
-export const ChatWithStatus = ChatWithStatusModel.mapFields((fields) => ({
-  ...Struct.omit(fields, ['userId']),
-  title: Schema.OptionFromNullOr(ChatTitle),
-}))
-export type ChatWithStatus = typeof ChatWithStatus.Type
 
 /** Carries the failure's user-facing sentence, never its cause. */
 export const Message = MessageModel.mapFields((fields) => ({
@@ -54,7 +47,7 @@ export class ChatHttp extends HttpApiGroup.make('chats')
     HttpApiEndpoint.get('list', '/chats', { success: Schema.Array(Chat) }),
     HttpApiEndpoint.get('get', '/chats/:chatId', {
       params: chatPath,
-      success: ChatWithStatus,
+      success: Chat,
       error: chatNotFound,
     }),
     HttpApiEndpoint.patch('rename', '/chats/:chatId', {

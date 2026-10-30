@@ -17,7 +17,14 @@ const updatedAt = DateTime.makeUnsafe('2026-10-18T00:00:01.456Z')
 const userId = UserId.make('0192d4e0-7b3a-7c00-8000-000000000060')
 const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000061')
 
-const chat = new Chat({ id: chatId, userId, title: Option.none(), createdAt, updatedAt })
+const chat = new Chat({
+  id: chatId,
+  userId,
+  title: Option.none(),
+  status: 'idle',
+  createdAt,
+  updatedAt,
+})
 
 const message = (id: MessageId, fields: Partial<Pick<Message, 'stage'>>) =>
   new Message({

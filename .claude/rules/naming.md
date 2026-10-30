@@ -69,7 +69,7 @@ folder (`infrastructure/db/testing/` too), exported by no barrel save `packages/
   - `is`: a predicate (`isActiveMessage`);
   - `get` / `find`: a domain service's or use case's read over ports, never a port method:
     `get` answers the record or its `*NotFoundError` (`AttachmentService.get`), `find` an
-    `Option` or a proof with its refusals (`findSendable`);
+    `Option` or a proof with its refusals;
   - `select` / `insert` / `update` / `delete`: a port's persistence; `update` never creates a
     record.
 - Constants are `camelCase`, `as const` for literal objects and arrays; a `Layer` constant is

@@ -40,8 +40,8 @@ A chat has at most one; the chat has no state of its own beyond it.
 _Avoid_: Pending message, current reply
 
 **Chat status**:
-`busy` while the chat has an active message, else `idle`. No row stores it: `withStatus` derives it
-from the active message when a chat is read (`ChatWithStatus`).
+`busy` while the chat has an active message, else `idle`. No column stores it: the repository
+derives it from the active message on every read of a chat (`Chat.status`).
 _Avoid_: Chat state; a message stage's name (`generating`) for it
 
 **Title**:
@@ -84,8 +84,8 @@ The `Schema.Class` of an entity as the domain sees it (`Chat`, `Message`).
 _Avoid_: Entity (for the class), DTO, row
 
 **Read model**:
-A shape a port or a domain service answers for a reader, composed of models (`MessageDetail`,
-`ChatWithStatus`); nothing writes one.
+A shape a port or a domain service answers for a reader, composed of models (`MessageDetail`);
+nothing writes one.
 _Avoid_: View, projection, DTO
 
 **Port**:

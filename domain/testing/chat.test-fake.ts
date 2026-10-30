@@ -137,10 +137,20 @@ export const ChatRepositoryTest = Layer.effect(
     const messages = yield* MessageRows
     const attachments = yield* AttachmentRows
 
+    // The status no row stores, derived from the messages on every read as the Pg read does.
+    const withStatus = Effect.fnUntraced(function* (found: ReadonlyArray<Chat>) {
+      const rows = yield* Ref.get(messages)
+      const isBusy = (chat: Chat) => activeOf(rows, chat.id).pipe(Option.isSome)
+      return Arr.map(found, (chat) => new Chat({ ...chat, status: isBusy(chat) ? 'busy' : 'idle' }))
+    })
+
     const selectChat = (where: ChatWhere) =>
       Ref.get(chats).pipe(
-        Effect.map(HashMap.get(where.id)),
-        Effect.map(Option.filter(matches<Chat>(where))),
+        Effect.map(
+          flow(HashMap.get(where.id), Option.filter(matches<Chat>(where)), Arr.fromOption),
+        ),
+        Effect.flatMap(withStatus),
+        Effect.map(Arr.head),
       )
 
     return ChatRepository.of({
@@ -171,6 +181,7 @@ export const ChatRepositoryTest = Layer.effect(
               Arr.sort(byLatestActivity),
             ),
           ),
+          Effect.flatMap(withStatus),
         ),
       delete: (where) =>
         Effect.gen(function* () {
