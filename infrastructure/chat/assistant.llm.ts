@@ -9,6 +9,7 @@ import {
   pipe,
   Schedule,
   Schema,
+  SchemaTransformation,
   String as Str,
   UndefinedOr,
 } from 'effect'
@@ -21,7 +22,7 @@ import {
   AssistantRefusedError,
   AssistantReply,
   type AttachmentBytes,
-  buildChatTitle,
+  ChatTitle,
   type HistoryMessage,
   isBlank,
   maxTitleLength,
@@ -67,8 +68,15 @@ const buildChatPrompt = (history: ReadonlyArray<HistoryMessage>): Prompt.Prompt 
     Prompt.make,
   )
 
-const titleInstruction =
-  `Write a title of at most ${maxTitleLength} characters for a chat that opens with the next message. Answer with the title alone.` as const
+const titleInstruction = 'Write a title for a chat that opens with the next message.' as const
+
+// The JSON Schema is the encoded side's, so the description sits on the `String` that is trimmed
+// into a `ChatTitle`: on `Schema.Trim`, its own `expected` text would replace it.
+const TitleAnswer = Schema.Struct({
+  title: Schema.String.annotate({
+    description: `The title of the chat, in the language of its opening message, at most ${maxTitleLength} characters.`,
+  }).pipe(Schema.decodeTo(ChatTitle, SchemaTransformation.trim())),
+})
 
 const buildTitlePrompt = (text: string): Prompt.Prompt =>
   Prompt.make([
@@ -134,19 +142,34 @@ const retryAfterOf = ({ retryAfter }: AiError.AiError): Duration.Duration =>
 const isWorthRetrying = (error: AiError.AiError): boolean =>
   error.isRetryable && Duration.isLessThanOrEqualTo(retryAfterOf(error), longestRetryAfter)
 
-/** Three requests at most, 1 s then 2 s apart, each wait at least the provider's `retryAfter`. */
-const replySchedule = Schedule.exponential('1 second').pipe(
-  Schedule.upTo({ times: 2 }),
-  Schedule.setInputType<AiError.AiError>(),
-  Schedule.modifyDelay(({ input, duration }) =>
-    Effect.succeed(Duration.max(duration, retryAfterOf(input))),
-  ),
-)
+/** `retries` requests after the first, 1, 2, 4 … s apart, each wait at least the provider's `retryAfter`. */
+const retrySchedule = (retries: number): Schedule.Schedule<Duration.Duration, AiError.AiError> =>
+  Schedule.exponential('1 second').pipe(
+    Schedule.upTo({ times: retries }),
+    Schedule.setInputType<AiError.AiError>(),
+    Schedule.modifyDelay(({ input, duration }) =>
+      Effect.succeed(Duration.max(duration, retryAfterOf(input))),
+    ),
+  )
+
+const replySchedule = retrySchedule(2)
+
+const titleSchedule = retrySchedule(4)
 
 const toAssistantError = (error: AiError.AiError): AssistantError =>
   error.reason._tag === 'ContentPolicyError'
     ? new AssistantRefusedError({ cause: error.message })
     : new AssistantFailedError({ cause: error.message })
+
+/** Retries a request by `schedule` while a retry can help, then fails it as the port's error. */
+const askWithin =
+  (schedule: Schedule.Schedule<Duration.Duration, AiError.AiError>) =>
+  <A>(request: Effect.Effect<A, AiError.AiError>): Effect.Effect<A, AssistantError> =>
+    request.pipe(
+      failOnEarlyFinish,
+      Effect.retry({ schedule, while: isWorthRetrying }),
+      Effect.mapError(toAssistantError),
+    )
 
 export const AssistantLlm: Layer.Layer<Assistant, never, AssistantModels> = Layer.effect(
   Assistant,
@@ -155,18 +178,16 @@ export const AssistantLlm: Layer.Layer<Assistant, never, AssistantModels> = Laye
       reply: Effect.fn('Assistant.reply')(function* (history) {
         const response = yield* models.reply
           .generateObject({ prompt: buildChatPrompt(history), schema: ReplyAnswer })
-          .pipe(
-            failOnEarlyFinish,
-            Effect.retry({ schedule: replySchedule, while: isWorthRetrying }),
-            Effect.mapError(toAssistantError),
-          )
+          .pipe(askWithin(replySchedule))
         return new AssistantReply(response.value)
       }),
       suggestTitle: Effect.fn('Assistant.suggestTitle')(function* (text) {
         if (isBlank(text)) return Option.none()
-        const response = yield* models.title.generateText({ prompt: buildTitlePrompt(text) })
-        return buildChatTitle(response.text)
-      }, Effect.orDie),
+        const response = yield* models.title
+          .generateObject({ prompt: buildTitlePrompt(text), schema: TitleAnswer })
+          .pipe(askWithin(titleSchedule))
+        return Option.some(response.value.title)
+      }),
     }),
   ),
 )

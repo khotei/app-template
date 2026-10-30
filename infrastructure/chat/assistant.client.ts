@@ -15,7 +15,7 @@ const stubReply = JSON.stringify({
   text: 'This is the development stub answering the whole reply at once.',
 })
 
-const stubTitle = 'Stub chat title' as const
+const stubTitle = JSON.stringify({ title: 'Stub chat title' })
 
 // Bun's `fetch` cuts a request that receives nothing for 360 s, and an answer of 16 000 tokens
 // arrives whole only at the end, so the idle limit is raised to 10 minutes, Anthropic SDK's own.

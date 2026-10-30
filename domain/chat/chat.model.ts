@@ -1,4 +1,4 @@
-import { type DateTime, Effect, Option, Predicate, pipe, Schema, String as Str } from 'effect'
+import { type DateTime, Effect, Option, Predicate, Schema } from 'effect'
 
 import { Attachment } from '#domain/attachment/attachment.model'
 import { ChatBusyError, ChatStatusInvalidError } from '#domain/chat/chat.error'
@@ -19,29 +19,6 @@ export const ChatTitle = Schema.String.check(
   Schema.isMaxLength(maxTitleLength),
 ).pipe(Schema.brand('ChatTitle'))
 export type ChatTitle = typeof ChatTitle.Type
-
-// Grapheme boundaries are the same in every locale (UAX #29); a fixed tag keeps the ambient
-// locale out of the domain.
-const graphemes = new Intl.Segmenter('en', { granularity: 'grapheme' })
-
-// Whole graphemes, so an emoji is never split, while the length stays within the code units
-// `ChatTitle` counts.
-const cutToTitleLength = (text: string): string => {
-  let cut = ''
-  for (const { segment } of graphemes.segment(text)) {
-    if (cut.length + segment.length > maxTitleLength) break
-    cut += segment
-  }
-  return cut
-}
-
-/**
- * The title `text` yields once trimmed and cut to `maxTitleLength`; none when blank.
- *
- * Trimmed before the cut so the limit counts visible text, and after it so the cut leaves no edge.
- */
-export const buildChatTitle = (text: string): Option.Option<ChatTitle> =>
-  pipe(text, Str.trim, cutToTitleLength, Str.trim, Schema.decodeUnknownOption(ChatTitle))
 
 export class Chat extends Schema.Class<Chat>('Chat')({
   id: ChatId,

@@ -1,7 +1,7 @@
 import type { Generated } from '@effect/ai-anthropic'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, Clock, Effect, Exit, Fiber, Layer, Option, Redacted, Ref } from 'effect'
+import { Array as Arr, Clock, Effect, Fiber, Layer, Option, Redacted, Ref } from 'effect'
 import { HttpClient, type HttpClientRequest, HttpClientResponse } from 'effect/http'
 import { TestClock } from 'effect/testing'
 
@@ -104,9 +104,6 @@ const apiError = (
     { status, headers },
   )
 
-const titleInstruction =
-  'Write a title of at most 120 characters for a chat that opens with the next message. Answer with the title alone.'
-
 const suggestTitle = (text: string) => Assistant.use((assistant) => assistant.suggestTitle(text))
 
 const reply = (history: ReadonlyArray<HistoryMessage>) =>
@@ -170,7 +167,7 @@ describe('AssistantLlm', () => {
   it.effect(
     'suggestTitle asks the title model for at most 1 000 tokens, with the lowest effort and thinking off',
     () => {
-      const { bodies, layer } = recordAnthropic(() => message('Lisbon weekend'))
+      const { bodies, layer } = recordAnthropic(() => message('{"title":"Lisbon weekend"}'))
       return Effect.gen(function* () {
         yield* suggestTitle('Plan a weekend in Lisbon')
 
@@ -360,27 +357,86 @@ describe('AssistantLlm', () => {
   })
 
   it.effect(
-    'suggestTitle asks for a title of the opening message and cuts the answer to the title length',
+    'suggestTitle asks for a title of the opening message, its JSON Schema telling the model what the field means',
     () => {
-      const { bodies, layer } = recordAnthropic(() => message('a'.repeat(130)))
+      const { bodies, layer } = recordAnthropic(() => message('{"title":"Lisbon weekend"}'))
       return Effect.gen(function* () {
-        const title = yield* suggestTitle('Plan a weekend in Lisbon')
+        yield* suggestTitle('Plan a weekend in Lisbon')
 
         const [body] = yield* bodies
-        assertEquals(title, Option.some(ChatTitle.make('a'.repeat(120))))
-        assert.deepStrictEqual(
-          { system: body?.system, messages: body?.messages },
+        assert.isNotEmpty(body?.system)
+        assert.deepStrictEqual(body?.messages, [
           {
-            system: [{ type: 'text', text: titleInstruction, cache_control: null }],
-            messages: [
-              {
-                role: 'user',
-                content: [{ type: 'text', text: 'Plan a weekend in Lisbon', cache_control: null }],
-              },
-            ],
+            role: 'user',
+            content: [{ type: 'text', text: 'Plan a weekend in Lisbon', cache_control: null }],
           },
-        )
+        ])
+        assert.deepStrictEqual(body?.output_config?.format?.schema.properties, {
+          title: {
+            type: 'string',
+            description:
+              'The title of the chat, in the language of its opening message, at most 120 characters.',
+          },
+        })
       }).pipe(Effect.provide(layer))
+    },
+  )
+
+  it.effect("suggestTitle answers the model's title trimmed", () => {
+    const { layer } = recordAnthropic(() => message('{"title":"  Lisbon weekend \\n"}'))
+    return Effect.gen(function* () {
+      const title = yield* suggestTitle('Plan a weekend in Lisbon')
+
+      assertEquals(title, Option.some(ChatTitle.make('Lisbon weekend')))
+    }).pipe(Effect.provide(layer))
+  })
+
+  it.effect.each<{
+    name: string
+    answer: () => Response
+    sentAt: ReadonlyArray<number>
+    error: AssistantError['_tag']
+  }>([
+    {
+      name: 'a title of 121 characters',
+      answer: () => message(JSON.stringify({ title: 'a'.repeat(121) })),
+      sentAt: [0, 1_000, 3_000, 7_000, 15_000],
+      error: 'AssistantFailedError',
+    },
+    {
+      name: 'a blank title',
+      answer: () => message('{"title":" \\n"}'),
+      sentAt: [0, 1_000, 3_000, 7_000, 15_000],
+      error: 'AssistantFailedError',
+    },
+    {
+      name: 'a 401',
+      answer: () => apiError(401, { type: 'authentication_error', text: 'invalid x-api-key' }),
+      sentAt: [0],
+      error: 'AssistantFailedError',
+    },
+    {
+      name: 'a refusal',
+      answer: () => message('{"title":"Lisbon weekend"}', 'refusal'),
+      sentAt: [0],
+      error: 'AssistantRefusedError',
+    },
+  ])(
+    'suggestTitle on $name fails with $error, its requests sent at $sentAt ms',
+    ({ answer, sentAt, error }) => {
+      const recorded = recordAnthropic(answer)
+      return Effect.gen(function* () {
+        const failing = yield* suggestTitle('Plan a weekend in Lisbon').pipe(
+          Effect.flip,
+          Effect.forkChild,
+        )
+
+        yield* TestClock.adjust('2 minutes')
+
+        const failure = yield* Fiber.join(failing)
+        assertEquals(yield* recorded.sentAt, sentAt)
+        assert.strictEqual(failure._tag, error)
+      }).pipe(Effect.provide(recorded.layer))
     },
   )
 
@@ -391,15 +447,6 @@ describe('AssistantLlm', () => {
 
       assertEquals(title, Option.none())
       assertEquals(yield* bodies, [])
-    }).pipe(Effect.provide(layer))
-  })
-
-  it.effect('suggestTitle dies on a provider failure', () => {
-    const { layer } = recordAnthropic(() => new Response('Overloaded', { status: 529 }))
-    return Effect.gen(function* () {
-      const exit = yield* suggestTitle('Plan a weekend in Lisbon').pipe(Effect.exit)
-
-      assert.isTrue(Exit.hasDies(exit))
     }).pipe(Effect.provide(layer))
   })
 
