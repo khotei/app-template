@@ -83,13 +83,13 @@ migration-check: ## Fail when an entity changed without a migration
 		exit 1; \
 	fi
 
-dev: ## Run api, worker and web together in dev mode
+dev: migrate ## Run api, worker and web together in dev mode
 	bun --filter './apps/*' dev
 
-dev-api: ## Run the api with --hot
+dev-api: migrate ## Run the api with --hot
 	bun --filter @app-template/api dev
 
-dev-worker: ## Run the worker with --watch
+dev-worker: migrate ## Run the worker with --watch
 	bun --filter @app-template/worker dev
 
 dev-web: ## Run the web dev server with HMR
