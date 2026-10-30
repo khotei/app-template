@@ -117,8 +117,6 @@ export class S3Bucket extends Context.Service<
     readonly url: (key: string, lifetime: Duration.Duration) => Effect.Effect<Option.Option<URL>>
     /** Idempotent, a no-op for a missing key. */
     readonly untag: (key: string) => Effect.Effect<void>
-    /** Idempotent. */
-    readonly delete: (key: string) => Effect.Effect<void>
     /** Idempotent; one request per 1000 keys, none for no key. */
     readonly deleteMany: (keys: ReadonlyArray<string>) => Effect.Effect<void>
   }
@@ -247,10 +245,6 @@ export class S3Bucket extends Context.Service<
         ),
       )
 
-      const remove = Effect.fn('S3Bucket.delete')((key: string) =>
-        s3.deleteObject(buildObjectRef(key)).pipe(Effect.asVoid, Effect.orDie),
-      )
-
       const deleteBatch = (keys: Arr.NonEmptyReadonlyArray<string>) =>
         s3
           .deleteObjects({
@@ -270,7 +264,7 @@ export class S3Bucket extends Context.Service<
         pipe(keys, Arr.chunksOf(deleteBatchSize), Effect.forEach(deleteBatch, { discard: true })),
       )
 
-      return { put, get, exists, url, untag, delete: remove, deleteMany }
+      return { put, get, exists, url, untag, deleteMany }
     }),
 }) {
   static readonly layer = (options: {

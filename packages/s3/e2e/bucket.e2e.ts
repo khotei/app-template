@@ -114,14 +114,13 @@ describe('S3Bucket over S3ClientTest against MiniStack', () => {
         }),
     )
 
-    it.effect('answers none, false, void and void for a missing key', () =>
+    it.effect('answers none, false and void for a missing key', () =>
       Effect.gen(function* () {
         const files = yield* S3Bucket
 
         const url = yield* files.url('missing', Duration.minutes(5))
         const exists = yield* files.exists('missing')
         yield* files.untag('missing')
-        yield* files.delete('missing')
 
         assert.deepStrictEqual(url, Option.none())
         assert.isFalse(exists)
