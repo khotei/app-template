@@ -99,12 +99,6 @@ const isActiveShape = Predicate.Struct({
 export const isActiveMessage = (message: Message): message is ActiveMessage =>
   isActiveShape(message)
 
-/** The `isActiveMessage` condition as a read's `where`. */
-export const activeMessageWhere = {
-  author: 'assistant',
-  status: ActiveMessageStatus.literals,
-} as const
-
 export const ensureMessageInput = Effect.fn('ensureMessageInput')(function* (input: MessageInput) {
   if (pipe(input.text, Str.trim, Str.isEmpty) && Arr.isReadonlyArrayEmpty(input.attachmentIds)) {
     return yield* new MessageInputInvalidError()

@@ -43,11 +43,6 @@ from them and the row codecs derived from them.
   `ON CONFLICT … WHERE` that targets the index takes its predicate from this constant, which
   renders as literals (`.inlineParams()`): a generic plan, which Postgres switches a prepared
   statement to after five runs, cannot prove the index predicate from bound parameters.
-- **A read names the active condition as a `where`.** `activeMessageWhere`, beside
-  `isActiveMessage` in `message.model.ts`, states the same condition for
-  `MessageRepository.selectMany`, its statuses from the same `ActiveMessageStatus.literals`; a rule
-  that needs the `ActiveMessage` type checks the row with `isActiveMessage`, which no `where` can
-  type (the reply job's skip of a settled message).
 - **A descending index states its null order.** Drizzle's `desc()` indexes nulls last while
   Postgres's `ORDER BY … DESC` sorts them first, so an index for that order is
   `.desc().nullsFirst()` (`chats_user_id_updated_at_index`).

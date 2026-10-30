@@ -42,8 +42,7 @@ const filterOf = (where: MessageOneWhere) =>
 
 const filterOfMany = (where: MessageManyWhere) =>
   ({
-    chatId: { in: Arr.copy(where.chatId) },
-    author: skipUndefined(where.author),
+    chatId: where.chatId,
     status: skipUndefined(
       UndefinedOr.map(where.status, (statuses) => ({ in: Arr.copy(statuses) })),
     ),

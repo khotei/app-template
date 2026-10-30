@@ -10,7 +10,6 @@ import {
   Ref,
   Stream,
   Struct,
-  UndefinedOr,
 } from 'effect'
 
 import type { AttachmentId } from '#domain/attachment/attachment.id'
@@ -32,24 +31,19 @@ export class AttachmentRows extends Context.Service<
 
 const holdsWhere = (where: AttachmentWhere) =>
   Predicate.and(
-    (attachment: Attachment) => where.id === undefined || Arr.contains(where.id, attachment.id),
-    matches<Attachment>({
-      ...Struct.omit(where, ['id', 'chatId']),
-      chatId: UndefinedOr.map(where.chatId, Option.some),
-    }),
+    (attachment: Attachment) => Arr.contains(where.id, attachment.id),
+    matches<Attachment>(Struct.omit(where, ['id'])),
   )
 
-/** The rows in the order of `ids`; without `ids`, as stored. */
+/** The rows in the order of `ids`. */
 const inOrderOf =
-  (ids: ReadonlyArray<AttachmentId> | undefined) =>
+  (ids: ReadonlyArray<AttachmentId>) =>
   (found: HashMap.HashMap<AttachmentId, Attachment>): ReadonlyArray<Attachment> =>
-    ids === undefined
-      ? HashMap.toValues(found)
-      : pipe(
-          ids,
-          Arr.map((id) => HashMap.get(found, id)),
-          Arr.getSomes,
-        )
+    pipe(
+      ids,
+      Arr.map((id) => HashMap.get(found, id)),
+      Arr.getSomes,
+    )
 
 export const AttachmentRepositoryTest = Layer.effect(
   AttachmentRepository,

@@ -2,7 +2,7 @@ import { Context, type Effect, type Option, type Types } from 'effect'
 import type { RequireAtLeastOne } from 'type-fest'
 
 import type { ChatId, MessageId } from '#domain/chat/chat.id'
-import type { Message, MessageAuthor, MessageStatus } from '#domain/chat/message.model'
+import type { Message, MessageStatus } from '#domain/chat/message.model'
 import type { UserId } from '#domain/user/user.id'
 
 /** The stored status a write requires; the row is always found by the message's id. */
@@ -17,10 +17,9 @@ export type MessageOneWhere = Types.Simplify<
     Partial<{ readonly userId: UserId }>
 >
 
-/** The rows where every field named holds; a list field holds for a row with any of its values. */
+/** The chat's rows; `status`, when named, holds for a row with any of its values. */
 export type MessageManyWhere = {
-  readonly chatId: ReadonlyArray<ChatId>
-  readonly author?: MessageAuthor
+  readonly chatId: ChatId
   readonly status?: ReadonlyArray<MessageStatus>
 }
 

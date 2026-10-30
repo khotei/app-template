@@ -110,7 +110,7 @@ export const selectChat = (chatId: ChatId) =>
   ChatRepository.use((chats) => chats.selectOne({ id: chatId }))
 
 export const selectMessages = (chatId: ChatId) =>
-  MessageRepository.use((messages) => messages.selectMany({ chatId: [chatId] }))
+  MessageRepository.use((messages) => messages.selectMany({ chatId: chatId }))
 
 export const selectAttachments = (attachments: ReadonlyArray<Attachment>) =>
   AttachmentRepository.use((repository) =>

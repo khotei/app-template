@@ -32,7 +32,7 @@ const encodeSet = buildSet<AttachmentSet, typeof attachments>({
 })
 
 const encodeWhere = buildWhere<AttachmentWhere>({
-  id: UndefinedOr.map((ids) => inArray(attachments.id, ids)),
+  id: (ids) => inArray(attachments.id, ids),
   userId: UndefinedOr.map((userId) => eq(attachments.userId, userId)),
   messageId: UndefinedOr.map(
     Option.match({
@@ -40,20 +40,17 @@ const encodeWhere = buildWhere<AttachmentWhere>({
       onSome: (messageId) => eq(attachments.messageId, messageId),
     }),
   ),
-  chatId: UndefinedOr.map((chatId) => eq(attachments.chatId, chatId)),
 })
 
-/** The rows in the order of `ids`; without `ids`, as the database returned them. */
+/** The rows in the order of `ids`. */
 const inOrderOf =
-  (ids: ReadonlyArray<AttachmentId> | undefined) =>
+  (ids: ReadonlyArray<AttachmentId>) =>
   (found: ReadonlyArray<Attachment>): ReadonlyArray<Attachment> =>
-    ids === undefined
-      ? found
-      : pipe(
-          ids,
-          Arr.map((id) => Arr.findFirst(found, (each) => each.id === id)),
-          Arr.getSomes,
-        )
+    pipe(
+      ids,
+      Arr.map((id) => Arr.findFirst(found, (each) => each.id === id)),
+      Arr.getSomes,
+    )
 
 export const AttachmentRepositoryPg = Layer.effect(
   AttachmentRepository,

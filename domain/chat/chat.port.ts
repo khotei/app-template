@@ -14,8 +14,8 @@ export type ChatWhere = Types.Simplify<
   { readonly id: ChatId } & Partial<Pick<Chat, 'userId' | 'title' | 'status'>>
 >
 
-/** The user's chats; every other field named must hold. */
-export type ChatManyWhere = Types.Simplify<Pick<Chat, 'userId'> & Partial<Pick<Chat, 'status'>>>
+/** The user's chats. */
+export type ChatManyWhere = Pick<Chat, 'userId'>
 
 export class ChatRepository extends Context.Service<
   ChatRepository,
@@ -24,11 +24,8 @@ export class ChatRepository extends Context.Service<
     /** Writes `set` where `where` holds; dies when it writes nothing. */
     readonly update: (set: ChatSet, where: ChatWhere) => Effect.Effect<void>
     readonly selectOne: (where: ChatWhere) => Effect.Effect<Option.Option<Chat>>
-    /** Rows where `where` holds, the latest by `order` first: by default the newest created. */
-    readonly selectMany: (
-      where: ChatManyWhere,
-      options?: { readonly order?: 'createdAt' | 'updatedAt' },
-    ) => Effect.Effect<ReadonlyArray<Chat>>
+    /** Rows where `where` holds, the newest created first. */
+    readonly selectMany: (where: ChatManyWhere) => Effect.Effect<ReadonlyArray<Chat>>
     /**
      * Removes the chat `where` finds with its messages and their attachments, in one statement;
      * dies when it removes nothing.

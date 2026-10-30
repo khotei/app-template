@@ -10,6 +10,7 @@ import {
   Predicate,
   pipe,
   Ref,
+  UndefinedOr,
 } from 'effect'
 import { constTrue } from 'effect/Function'
 
@@ -58,10 +59,7 @@ const inCreationOrder = Order.combine(
   Order.mapInput(Order.String, (row: Created) => row.id),
 )
 
-const latestFirstBy = {
-  createdAt: Order.flip(Order.mapInput(DateTime.Order, (chat: Chat) => chat.createdAt)),
-  updatedAt: Order.flip(Order.mapInput(DateTime.Order, (chat: Chat) => chat.updatedAt)),
-} as const
+const newestFirst = Order.flip(Order.mapInput(DateTime.Order, (chat: Chat) => chat.createdAt))
 
 const messagesOf = (messages: Messages, chatId: ChatId) =>
   pipe(
@@ -129,12 +127,13 @@ const holdsMessageWhere = (tables: Tables, where: MessageOneWhere) =>
     isOwnedThroughChat(tables.chats, where.userId),
   )
 
-const holdsManyWhere =
-  ({ chatId, author, status }: MessageManyWhere) =>
-  (message: Message): boolean =>
-    Arr.contains(chatId, message.chatId) &&
-    (author === undefined || message.author === author) &&
-    (status === undefined || Arr.contains(status, message.status))
+const holdsManyWhere = ({ chatId, status }: MessageManyWhere) =>
+  Predicate.and(matches<Message>({ chatId }), (message: Message) =>
+    UndefinedOr.match(status, {
+      onUndefined: constTrue,
+      onDefined: Arr.contains(message.status),
+    }),
+  )
 
 const createReadTables = Effect.gen(function* () {
   const chats = yield* ChatRows
@@ -184,14 +183,14 @@ export const ChatRepositoryTest = Layer.effect(
           ),
         ),
       selectOne: selectChat,
-      selectMany: (where, options) =>
+      selectMany: (where) =>
         Effect.all([Ref.get(chats), Ref.get(attachments)]).pipe(
           Effect.map(([rows, files]) =>
             pipe(
               rows,
               HashMap.filter(matches<Chat>(where)),
               HashMap.toValues,
-              Arr.sort(latestFirstBy[options?.order ?? 'createdAt']),
+              Arr.sort(newestFirst),
               Arr.map(chatWithAttachmentsOf(files)),
             ),
           ),

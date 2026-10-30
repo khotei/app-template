@@ -104,7 +104,7 @@ describe('ChatRepositoryPg', () => {
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
-  it.effect("selectMany selects the user's chats, the newest created first or by order", () =>
+  it.effect("selectMany selects the user's chats, the newest created first", () =>
     Effect.gen(function* () {
       const chats = yield* ChatRepository
       const ada = UserId.make('0192d4e0-7b3a-7c00-8000-000000000010')
@@ -128,11 +128,6 @@ describe('ChatRepositoryPg', () => {
         newer,
         renamed,
       ])
-      assertSchemaEquals(
-        Schema.Array(Chat),
-        yield* chats.selectMany({ userId: ada }, { order: 'updatedAt' }),
-        [renamed, newer],
-      )
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
@@ -150,9 +145,9 @@ describe('ChatRepositoryPg', () => {
 
       assert.isTrue(Exit.hasDies(exit))
       assertSchemaEquals(
-        Schema.Array(Chat),
-        yield* chats.selectMany({ userId: ada, status: 'queued' }),
-        [new Chat({ ...idle, status: 'queued' })],
+        SelectedChat,
+        yield* chats.selectOne({ id: idle.id }),
+        Option.some(new Chat({ ...idle, status: 'queued' })),
       )
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
@@ -179,9 +174,7 @@ describe('ChatRepositoryPg', () => {
       assert.deepStrictEqual(yield* chats.selectOne({ id: deleted.id }), Option.none())
       assert.deepStrictEqual(yield* messages.selectOne({ id: deletedReply.id }), Option.none())
       assertSchemaEquals(SelectedChat, yield* chats.selectOne({ id: kept.id }), Option.some(kept))
-      assertSchemaEquals(Messages, yield* messages.selectMany({ chatId: [kept.id] }), [
-        keptQuestion,
-      ])
+      assertSchemaEquals(Messages, yield* messages.selectMany({ chatId: kept.id }), [keptQuestion])
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
@@ -228,7 +221,7 @@ describe('ChatRepositoryPg', () => {
 
       yield* chats.delete({ id: stored.id })
 
-      assert.deepStrictEqual(yield* messages.selectMany({ chatId: [stored.id] }), [])
+      assert.deepStrictEqual(yield* messages.selectMany({ chatId: stored.id }), [])
       assert.deepStrictEqual(yield* attachments.selectMany({ id: [attached.id] }), [])
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )

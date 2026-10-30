@@ -44,17 +44,9 @@ const encodeWhere = (table: typeof chats) =>
   })
 
 const encodeManyWhere = (table: typeof chats) =>
-  buildWhere<ChatManyWhere>({
-    userId: (userId) => eq(table.userId, userId),
-    status: UndefinedOr.map((status) => eq(table.status, status)),
-  })
+  buildWhere<ChatManyWhere>({ userId: (userId) => eq(table.userId, userId) })
 
 const decodeChats = Schema.decodeEffect(Schema.Array(ChatFromRow))
-
-const latestFirstBy = {
-  createdAt: { createdAt: 'desc' },
-  updatedAt: { updatedAt: 'desc' },
-} as const
 
 export const ChatRepositoryPg = Layer.effect(
   ChatRepository,
@@ -85,11 +77,11 @@ export const ChatRepositoryPg = Layer.effect(
         orDieWithSqlError,
       ),
       selectMany: Effect.fn('ChatRepository.selectMany')(
-        (where, options) =>
+        (where) =>
           db.query.chats
             .findMany({
               where: { RAW: (table) => skipUndefined(encodeManyWhere(table)(where)) },
-              orderBy: latestFirstBy[options?.order ?? 'createdAt'],
+              orderBy: { createdAt: 'desc' },
               with: withAttachments,
             })
             .pipe(Effect.flatMap(decodeChats)),

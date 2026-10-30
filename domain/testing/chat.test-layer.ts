@@ -51,4 +51,4 @@ export const send = (userId: UserId, chatId: ChatId, text: string) =>
   })
 
 export const selectMessages = (chatId: ChatId) =>
-  MessageRepository.use((messages) => messages.selectMany({ chatId: [chatId] }))
+  MessageRepository.use((messages) => messages.selectMany({ chatId: chatId }))

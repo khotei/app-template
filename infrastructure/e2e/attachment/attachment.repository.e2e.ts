@@ -12,7 +12,7 @@ import {
 } from '@app-template/domain/attachment'
 import { buildUserMessage, ChatId, MessageId, MessageRepository } from '@app-template/domain/chat'
 import { UserId } from '@app-template/domain/user'
-import { assertSchemaEquals, sortById } from '@app-template/testing'
+import { assertSchemaEquals } from '@app-template/testing'
 
 import {
   insertOwnedChats,
@@ -152,29 +152,6 @@ describe('AttachmentRepositoryPg', () => {
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
-  it.effect("selects by owner all of the owner's attachments and none of a stranger's", () =>
-    Effect.gen(function* () {
-      const attachments = yield* AttachmentRepository
-      const owned = [
-        attachment('0192d4e0-7b3a-7c00-8000-000000000021'),
-        attachment('0192d4e0-7b3a-7c00-8000-000000000022'),
-      ]
-      const foreign = new Attachment({
-        ...attachment('0192d4e0-7b3a-7c00-8000-000000000026'),
-        userId: strangerId,
-      })
-      yield* insertMessage
-      yield* insertOwnedChats(strangerId, [])
-      yield* pipe(owned, Arr.append(foreign), Effect.forEach(attachments.insert))
-
-      const ownersRows = yield* attachments.selectMany({ userId })
-      const strangersRows = yield* attachments.selectMany({ userId: strangerId })
-
-      assertSchemaEquals(Attachments, sortById(ownersRows), sortById(owned))
-      assertSchemaEquals(Attachments, strangersRows, [foreign])
-    }).pipe(Effect.provide(RepositoryStackPgTest)),
-  )
-
   it.effect('deletes the attachments asked for and keeps the rest', () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentRepository
@@ -238,26 +215,6 @@ describe('AttachmentRepositoryPg', () => {
       const exit = yield* write(attachments).pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
-    }).pipe(Effect.provide(RepositoryStackPgTest)),
-  )
-
-  it.effect("selectMany by chatId reads the owner's attachments bound to the chat's messages", () =>
-    Effect.gen(function* () {
-      const attachments = yield* AttachmentRepository
-      const bound = new Attachment({
-        ...attachment('0192d4e0-7b3a-7c00-8000-000000000026'),
-        messageId: Option.some(messageId),
-        chatId: Option.some(chatId),
-      })
-      const unbound = attachment('0192d4e0-7b3a-7c00-8000-000000000027')
-      yield* insertMessage
-      yield* Effect.forEach([bound, unbound], attachments.insert)
-
-      const foreign = yield* attachments.selectMany({ chatId, userId: strangerId })
-      const found = yield* attachments.selectMany({ chatId, userId })
-
-      assert.deepStrictEqual(foreign, [])
-      assertSchemaEquals(Attachments, found, [bound])
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 })

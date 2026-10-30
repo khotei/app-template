@@ -3,20 +3,14 @@ import type { RequireAtLeastOne } from 'type-fest'
 
 import type { AttachmentId } from '#domain/attachment/attachment.id'
 import type { Attachment, AttachmentMeta, FileSize } from '#domain/attachment/attachment.model'
-import type { ChatId } from '#domain/chat/chat.id'
 
 export type AttachmentSet = Types.Simplify<
   RequireAtLeastOne<Pick<Attachment, 'messageId' | 'chatId'>>
 >
 
-/** The rows where every field named holds: `id` lists them, an owner mismatch reads as absent. */
+/** The rows `id` lists where every other field named holds, so an owner mismatch reads as absent. */
 export type AttachmentWhere = Types.Simplify<
-  RequireAtLeastOne<
-    { readonly id: ReadonlyArray<AttachmentId> } & Partial<
-      Pick<Attachment, 'userId' | 'messageId'> & { readonly chatId: ChatId }
-    >,
-    'id' | 'userId'
-  >
+  { readonly id: ReadonlyArray<AttachmentId> } & Partial<Pick<Attachment, 'userId' | 'messageId'>>
 >
 
 /** `id` finds the row; `userId` must still hold, so an owner mismatch reads as absent. */
@@ -32,7 +26,7 @@ export class AttachmentRepository extends Context.Service<
     readonly update: (set: AttachmentSet, where: AttachmentWhere) => Effect.Effect<void>
     readonly selectOne: (where: AttachmentOneWhere) => Effect.Effect<Option.Option<Attachment>>
     /**
-     * Rows where `where` holds; in the order of `where.id` when given, unknown ids skipped. With
+     * Rows where `where` holds, in the order of `where.id`, unknown ids skipped. With
      * `forUpdate`, holds the rows it reads until the transaction ends.
      */
     readonly selectMany: (
