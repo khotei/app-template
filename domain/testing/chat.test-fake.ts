@@ -19,10 +19,10 @@ import type { Attachment } from '#domain/attachment/attachment.model'
 import type { ChatId, MessageId } from '#domain/chat/chat.id'
 import { Chat } from '#domain/chat/chat.model'
 import { ChatRepository, type ChatWhere } from '#domain/chat/chat.port'
-import { isActiveMessage, Message, type MessageStatus } from '#domain/chat/message.model'
+import { isActiveMessage, Message } from '#domain/chat/message.model'
 import { MessageRepository, type MessageSelectWhere } from '#domain/chat/message.port'
 import { AttachmentRows } from '#domain/testing/attachment.test-fake'
-import { matches } from '#domain/testing/rows.test-util'
+import { matches, matchesAny, orDieOnNoRows, updateRow } from '#domain/testing/rows.test-util'
 import type { UserId } from '#domain/user/user.id'
 
 /** The rows `ChatRepositoryTest` keeps, by id, for a test to arrange or read. */
@@ -69,11 +69,6 @@ const messagesOf = (messages: Messages, chatId: ChatId) =>
 const activeOf = (messages: Messages, chatId: ChatId) =>
   pipe(messagesOf(messages, chatId), Arr.findFirst(isActiveMessage))
 
-const isBoundTo =
-  (messageId: MessageId) =>
-  (attachment: Attachment): boolean =>
-    Option.contains(attachment.messageId, messageId)
-
 /** The message with the attachments bound to it, as the Pg relation reads them. */
 const messageWithAttachmentsOf =
   (attachments: Attachments) =>
@@ -82,7 +77,7 @@ const messageWithAttachmentsOf =
       ...message,
       attachments: pipe(
         attachments,
-        HashMap.filter(isBoundTo(message.id)),
+        HashMap.filter(matches<Attachment>({ messageId: Option.some(message.id) })),
         HashMap.toValues,
         Arr.sort(inCreationOrder),
       ),
@@ -96,7 +91,7 @@ const chatWithAttachmentsOf =
       ...chat,
       attachments: pipe(
         attachments,
-        HashMap.filter((attachment) => Option.contains(attachment.chatId, chat.id)),
+        HashMap.filter(matches<Attachment>({ chatId: Option.some(chat.id) })),
         HashMap.toValues,
         Arr.sort(inCreationOrder),
       ),
@@ -119,13 +114,13 @@ const isOwnedThroughChat = (
       HashMap.get(chats, message.chatId).pipe(Option.exists(matches<Chat>({ userId: owner }))),
   })
 
-const hasAnyStatus = (statuses: ReadonlyArray<MessageStatus> | undefined) => (message: Message) =>
-  UndefinedOr.match(statuses, { onUndefined: constTrue, onDefined: Arr.contains(message.status) })
-
 const holdsWhere = (tables: Tables, where: MessageSelectWhere) =>
   Predicate.and(
     matches<Message>({ id: where.id, chatId: where.chatId }),
-    Predicate.and(isOwnedThroughChat(tables.chats, where.userId), hasAnyStatus(where.status)),
+    Predicate.and(
+      isOwnedThroughChat(tables.chats, where.userId),
+      matchesAny<Message>({ status: where.status }),
+    ),
   )
 
 const createReadTables = Effect.gen(function* () {
@@ -160,21 +155,11 @@ export const ChatRepositoryTest = Layer.effect(
     return ChatRepository.of({
       insert: (chat) => Ref.update(chats, HashMap.set(chat.id, chat)),
       update: (set, where) =>
-        Ref.modify(chats, (rows) =>
-          pipe(
-            HashMap.get(rows, where.id),
-            Option.filter(matches<Chat>(where)),
-            Option.match({
-              onNone: () => [false, rows] as const,
-              onSome: (chat) =>
-                [true, HashMap.set(rows, chat.id, new Chat({ ...chat, ...set }))] as const,
-            }),
-          ),
-        ).pipe(
-          Effect.filterOrElse(Predicate.isTruthy, () =>
-            Effect.die(new Error(`chat ${where.id} was not updated`)),
-          ),
-        ),
+        updateRow(chats, {
+          id: where.id,
+          where,
+          update: (chat) => new Chat({ ...chat, ...set }),
+        }).pipe(orDieOnNoRows(`chat ${where.id} was not updated`)),
       selectOne: selectChat,
       selectMany: (where) =>
         Effect.all([Ref.get(chats), Ref.get(attachments)]).pipe(
@@ -190,10 +175,10 @@ export const ChatRepositoryTest = Layer.effect(
         ),
       delete: (where) =>
         Effect.gen(function* () {
-          const found = yield* selectChat(where)
-          if (Option.isNone(found)) {
-            return yield* Effect.die(new Error(`chat ${where.id} was not deleted`))
-          }
+          yield* selectChat(where).pipe(
+            Effect.map(Option.toArray),
+            orDieOnNoRows(`chat ${where.id} was not deleted`),
+          )
 
           // The cascade: the messages, then their attachments.
           yield* Ref.update(chats, HashMap.remove(where.id))
@@ -203,7 +188,7 @@ export const ChatRepositoryTest = Layer.effect(
           )
           yield* Ref.update(
             attachments,
-            HashMap.filter((attachment) => !Option.contains(attachment.chatId, where.id)),
+            HashMap.filter(Predicate.not(matches<Attachment>({ chatId: Option.some(where.id) }))),
           )
         }),
     })
@@ -216,54 +201,31 @@ export const MessageRepositoryTest = Layer.effect(
     const messages = yield* MessageRows
     const readTables = yield* createReadTables
 
+    const selectMany = (where: MessageSelectWhere) =>
+      Effect.map(readTables, (tables) =>
+        pipe(
+          tables.messages,
+          HashMap.filter(holdsWhere(tables, where)),
+          HashMap.toValues,
+          Arr.sort(inCreationOrder),
+          Arr.map(messageWithAttachmentsOf(tables.attachments)),
+        ),
+      )
+
     return MessageRepository.of({
       insert: (message) =>
         Ref.modify(messages, (rows) => {
           if (isActiveMessage(message) && activeOf(rows, message.chatId).pipe(Option.isSome)) {
-            return [false, rows] as const
+            return [Arr.empty<Message>(), rows] as const
           }
-          return [true, HashMap.set(rows, message.id, message)] as const
-        }).pipe(
-          Effect.filterOrElse(Predicate.isTruthy, () =>
-            Effect.die(new Error(`message ${message.id} was not inserted`)),
-          ),
-        ),
+          return [Arr.of(message), HashMap.set(rows, message.id, message)] as const
+        }).pipe(orDieOnNoRows(`message ${message.id} was not inserted`)),
       update: (message, where) =>
-        Ref.modify(messages, (rows) =>
-          pipe(
-            HashMap.get(rows, message.id),
-            Option.filter(matches(where)),
-            Option.match({
-              onNone: () => [false, rows] as const,
-              onSome: () => [true, HashMap.set(rows, message.id, message)] as const,
-            }),
-          ),
-        ).pipe(
-          Effect.filterOrElse(Predicate.isTruthy, () =>
-            Effect.die(new Error(`message ${message.id} was not updated`)),
-          ),
+        updateRow(messages, { id: message.id, where, update: () => message }).pipe(
+          orDieOnNoRows(`message ${message.id} was not updated`),
         ),
-      selectOne: (where) =>
-        Effect.map(readTables, (tables) =>
-          pipe(
-            tables.messages,
-            HashMap.filter(holdsWhere(tables, where)),
-            HashMap.toValues,
-            Arr.sort(inCreationOrder),
-            Arr.head,
-            Option.map(messageWithAttachmentsOf(tables.attachments)),
-          ),
-        ),
-      selectMany: (where) =>
-        Effect.map(readTables, (tables) =>
-          pipe(
-            tables.messages,
-            HashMap.filter(holdsWhere(tables, where)),
-            HashMap.toValues,
-            Arr.sort(inCreationOrder),
-            Arr.map(messageWithAttachmentsOf(tables.attachments)),
-          ),
-        ),
+      selectOne: (where) => selectMany(where).pipe(Effect.map(Arr.head)),
+      selectMany,
     })
   }),
 )

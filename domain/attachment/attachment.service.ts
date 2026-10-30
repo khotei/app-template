@@ -146,8 +146,7 @@ export class AttachmentService extends Context.Service<
       userId: UserId,
       id: AttachmentId,
     ) {
-      const attachment = yield* get(userId, id)
-      yield* ensureUnbound(attachment)
+      yield* get(userId, id).pipe(ensureUnbound)
 
       yield* attachments.delete({ id: [id] })
       yield* bucket.delete([id])
@@ -172,7 +171,7 @@ export class AttachmentService extends Context.Service<
         HashMap.get(found, id).pipe(
           Option.filter(Predicate.not(isExpiredAt(now))),
           Effect.fromOption(() => new AttachmentNotFoundError({ id })),
-          Effect.flatMap(ensureUnbound),
+          ensureUnbound,
         )
 
       const checked = yield* Effect.forEach(ids, ensureBindable)

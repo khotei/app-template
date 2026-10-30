@@ -2,22 +2,19 @@ import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Exit, Fiber, Layer, Option } from 'effect'
 
-import { AssistantMessageTest, selectChat } from '@app-template/application/testing'
-import {
-  buildAssistantMessage,
-  Chat,
-  ChatRepository,
-  Message,
-  MessageRepository,
-} from '@app-template/domain/chat'
+import { AssistantMessageTest } from '@app-template/application/testing'
+import { buildAssistantMessage, Chat, Message, MessageRepository } from '@app-template/domain/chat'
 import {
   chat,
   chatId,
+  deleteChat,
   epoch,
   holdAssistantCall,
   messageId,
   queuedChat,
   recordAssistant,
+  selectChat,
+  selectMessage,
 } from '@app-template/domain/testing'
 import {
   assistantMessageDeadLetterQueue,
@@ -55,10 +52,6 @@ const job = new GenerateAssistantMessage({ chatId, messageId })
 
 const insertReply = (reply: Message) => MessageRepository.use((messages) => messages.insert(reply))
 
-const selectReply = MessageRepository.use((messages) => messages.selectOne({ id: messageId }))
-
-const deleteChat = ChatRepository.use((chats) => chats.delete({ id: chatId }))
-
 const assertFailed = (failed: Message, cause: string) => {
   const error = Option.getOrThrow(failed.error)
   assert.strictEqual(failed.status, 'failed')
@@ -76,7 +69,7 @@ describe('AssistantMessageHandler', () => {
 
       assert.isTrue(Exit.isFailure(exit))
       assertEquals(
-        yield* selectReply,
+        yield* selectMessage(messageId),
         Option.some(new Message({ ...queuedReply, status: 'generating' })),
       )
       assertEquals(yield* selectChat(chatId), Option.some(queuedChat))
@@ -91,7 +84,7 @@ describe('AssistantMessageHandler', () => {
       const exit = yield* handle(job, attemptInfo(maxAttempts)).pipe(Effect.exit)
 
       assert.isTrue(Exit.isFailure(exit))
-      const failed = Option.getOrThrow(yield* selectReply)
+      const failed = Option.getOrThrow(yield* selectMessage(messageId))
       assertFailed(failed, 'provider exploded')
       assert.strictEqual(failed.text, '')
       assertEquals(yield* selectChat(chatId), Option.some(new Chat({ ...chat, status: 'failed' })))
@@ -108,7 +101,7 @@ describe('AssistantMessageHandler', () => {
       yield* held.asked
       yield* Fiber.interrupt(running)
 
-      const failed = Option.getOrThrow(yield* selectReply)
+      const failed = Option.getOrThrow(yield* selectMessage(messageId))
       assertFailed(failed, 'interrupt')
       assertEquals(yield* selectChat(chatId), Option.some(new Chat({ ...chat, status: 'failed' })))
     }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
@@ -124,7 +117,7 @@ describe('AssistantMessageHandler', () => {
 
         yield* handleDeadLettered(job, deadLetterInfo)
 
-        const failed = Option.getOrThrow(yield* selectReply)
+        const failed = Option.getOrThrow(yield* selectMessage(messageId))
         assertFailed(
           failed,
           `dead-lettered after ${maxAttempts + 1} attempts on assistant-message-dlq`,
@@ -143,7 +136,7 @@ describe('AssistantMessageHandler', () => {
 
       yield* handleDeadLettered(job, deadLetterInfo)
 
-      assertEquals(yield* selectReply, Option.some(completedReply))
+      assertEquals(yield* selectMessage(messageId), Option.some(completedReply))
       assertEquals(yield* selectChat(chatId), Option.some(queuedChat))
       assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: already settled']])
     }).pipe(Effect.provide([AssistantMessageTest.pipe(Layer.provide(assistant.layer)), logger]))
@@ -154,11 +147,11 @@ describe('AssistantMessageHandler', () => {
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
       yield* insertReply(queuedReply)
-      yield* deleteChat
+      yield* deleteChat(chatId)
 
       yield* handleDeadLettered(job, deadLetterInfo)
 
-      assertEquals(yield* selectReply, Option.none())
+      assertEquals(yield* selectMessage(messageId), Option.none())
       assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: chat deleted']])
     }).pipe(Effect.provide([AssistantMessageTest.pipe(Layer.provide(assistant.layer)), logger]))
   })

@@ -2,7 +2,7 @@ import { DateTime } from 'effect'
 
 import { ChatId, MessageId } from '#domain/chat/chat.id'
 import { buildChat, Chat } from '#domain/chat/chat.model'
-import type { MessageInput } from '#domain/chat/message.model'
+import { buildUserMessage, type MessageInput } from '#domain/chat/message.model'
 import { owner } from '#domain/testing/user.test-fixture'
 
 export const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000020')
@@ -17,5 +17,13 @@ export const chat = buildChat({ id: chatId, userId: owner, createdAt: epoch })
 
 /** `chat` with its reply in work, as a send leaves it. */
 export const queuedChat = new Chat({ ...chat, status: 'queued' })
+
+/** The first message of `chat`, the one its title job reads. */
+export const firstMessage = buildUserMessage({
+  id: messageId,
+  chatId,
+  text: 'Plan a weekend in Lisbon',
+  createdAt: epoch,
+})
 
 export const ask = (text: string): MessageInput => ({ text, attachmentIds: [] })

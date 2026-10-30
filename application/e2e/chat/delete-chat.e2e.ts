@@ -5,16 +5,11 @@ import { SqlClient } from 'effect/sql'
 
 import { AttachmentBucket } from '@app-template/domain/attachment'
 import { Chat, ChatService } from '@app-template/domain/chat'
-import { chat, owner, upload } from '@app-template/domain/testing'
+import { chat, owner, selectChat, selectMessages, upload } from '@app-template/domain/testing'
 import { sortById } from '@app-template/testing'
 
 import { SendMessageUseCase } from '#application/chat/send-message.use-case'
-import {
-  ChatPgTest,
-  selectAttachments,
-  selectChat,
-  selectMessages,
-} from '#application/testing/chat.test-layer'
+import { ChatPgTest, selectAttachments } from '#application/testing/chat.test-layer'
 
 describe('ChatService.delete on Postgres', () => {
   it.effect('a refused chat delete keeps every row and the bytes', () =>

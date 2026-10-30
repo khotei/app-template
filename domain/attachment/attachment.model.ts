@@ -80,10 +80,8 @@ export const isExpiredAt = (now: DateTime.Utc): Predicate.Predicate<Attachment> 
     ),
   )
 
-export const ensureUnbound = (
-  attachment: Attachment,
-): Effect.Effect<Attachment, AttachmentBoundError> =>
-  Option.match(attachment.messageId, {
-    onNone: () => Effect.succeed(attachment),
-    onSome: () => Effect.fail(new AttachmentBoundError({ id: attachment.id })),
-  })
+/** Fails `AttachmentBoundError` for an attachment a message holds. */
+export const ensureUnbound = Effect.filterOrFail<Attachment, AttachmentBoundError>(
+  isUnbound,
+  (attachment) => new AttachmentBoundError({ id: attachment.id }),
+)

@@ -6,15 +6,11 @@ import {
   AttachmentRepository,
   AttachmentService,
 } from '@app-template/domain/attachment'
-import {
-  type ChatId,
-  ChatRepository,
-  ChatService,
-  MessageRepository,
-} from '@app-template/domain/chat'
+import { ChatService } from '@app-template/domain/chat'
 import {
   AttachmentBucketTest,
   chat,
+  insertChatLayer,
   queuedChat,
   RepositoryStackTest,
 } from '@app-template/domain/testing'
@@ -40,12 +36,6 @@ const ChatServices = Layer.mergeAll(
   SendMessageUseCase.layer,
 )
 
-const insertChat = Layer.effectDiscard(ChatRepository.use((chats) => chats.insert(chat)))
-
-const insertQueuedChat = Layer.effectDiscard(
-  ChatRepository.use((chats) => chats.insert(queuedChat)),
-)
-
 /** The queue client on the definitions' own names; its locks never run, since nothing consumes. */
 export const QueueClientTest = QueueClient.layer({
   queueName: identity,
@@ -58,7 +48,7 @@ export const QueueClientTest = QueueClient.layer({
  * identity transaction and the queue client; the `QueueTransport` is the test's, `recordQueue()`.
  */
 export const ChatTest = ChatServices.pipe(
-  Layer.provideMerge(insertChat),
+  Layer.provideMerge(insertChatLayer(chat)),
   Layer.provideMerge(
     Layer.mergeAll(RepositoryStackTest, AttachmentBucketTest, TransactionTest, QueueClientTest),
   ),
@@ -70,7 +60,7 @@ export const ChatTest = ChatServices.pipe(
  * is the test's, `recordAssistant()`.
  */
 export const ChatTitleTest = GenerateChatTitleUseCase.layer.pipe(
-  Layer.provideMerge(insertChat),
+  Layer.provideMerge(insertChatLayer(chat)),
   Layer.provideMerge(Layer.merge(RepositoryStackTest, AttachmentBucketTest)),
   Layer.provide(BunCrypto.layer),
 )
@@ -80,7 +70,7 @@ export const ChatTitleTest = GenerateChatTitleUseCase.layer.pipe(
  * bytes in memory and the identity transaction; the `Assistant` is the test's, `recordAssistant()`.
  */
 export const AssistantMessageTest = GenerateAssistantMessageUseCase.layer.pipe(
-  Layer.provideMerge(insertQueuedChat),
+  Layer.provideMerge(insertChatLayer(queuedChat)),
   Layer.provideMerge(Layer.mergeAll(RepositoryStackTest, AttachmentBucketTest, TransactionTest)),
   Layer.provide(BunCrypto.layer),
 )
@@ -91,7 +81,7 @@ export const AssistantMessageTest = GenerateAssistantMessageUseCase.layer.pipe(
  * Postgres decides, a rollback.
  */
 export const ChatPgTest = ChatServices.pipe(
-  Layer.provideMerge(insertChat),
+  Layer.provideMerge(insertChatLayer(chat)),
   Layer.provideMerge(
     Layer.mergeAll(
       ChatPg,
@@ -105,12 +95,6 @@ export const ChatPgTest = ChatServices.pipe(
   Layer.provideMerge(DbWithUsersTest),
   Layer.provide([AwsTest, BunCrypto.layer]),
 )
-
-export const selectChat = (chatId: ChatId) =>
-  ChatRepository.use((chats) => chats.selectOne({ id: chatId }))
-
-export const selectMessages = (chatId: ChatId) =>
-  MessageRepository.use((messages) => messages.selectMany({ chatId: chatId }))
 
 export const selectAttachments = (attachments: ReadonlyArray<Attachment>) =>
   AttachmentRepository.use((repository) =>

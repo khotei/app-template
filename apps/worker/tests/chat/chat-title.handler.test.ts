@@ -2,9 +2,17 @@ import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Layer, Option } from 'effect'
 
-import { ChatTitleTest, selectChat } from '@app-template/application/testing'
-import { buildUserMessage, Chat, ChatTitle, MessageRepository } from '@app-template/domain/chat'
-import { chat, chatId, epoch, messageId, recordAssistant } from '@app-template/domain/testing'
+import { ChatTitleTest } from '@app-template/application/testing'
+import { Chat, ChatTitle } from '@app-template/domain/chat'
+import {
+  chat,
+  chatId,
+  firstMessage,
+  insertMessage,
+  messageId,
+  recordAssistant,
+  selectChat,
+} from '@app-template/domain/testing'
 import { GenerateChatTitle } from '@app-template/infrastructure/chat'
 import { recordLogs } from '@app-template/testing'
 
@@ -12,19 +20,13 @@ import { handle, handleDeadLettered } from '#worker/chat/chat-title.handler'
 
 const lisbonWeekend = ChatTitle.make('Lisbon weekend')
 
-const insertFirstMessage = MessageRepository.use((messages) =>
-  messages.insert(
-    buildUserMessage({ id: messageId, chatId, text: 'Plan a weekend in Lisbon', createdAt: epoch }),
-  ),
-)
-
 const job = new GenerateChatTitle({ chatId, messageId })
 
 describe('ChatTitleHandler', () => {
   it.effect('handle titles the chat through the use case', () => {
     const assistant = recordAssistant({ suggestTitle: Effect.succeedSome(lisbonWeekend) })
     return Effect.gen(function* () {
-      yield* insertFirstMessage
+      yield* insertMessage(firstMessage)
 
       yield* handle(job)
 

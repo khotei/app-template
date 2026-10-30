@@ -66,7 +66,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
 
     const readHistory = (chatId: ChatId) =>
       messages
-        .selectMany({ chatId: chatId, status: ['done'] })
+        .selectMany({ chatId, status: ['done'] })
         .pipe(Effect.flatMap(Effect.forEach(readTurn)))
 
     /** Writes the settled message with its chat's end, `freeChat` or `failChat`, in one transaction. */

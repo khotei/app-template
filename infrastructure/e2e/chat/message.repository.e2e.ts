@@ -85,10 +85,7 @@ describe('MessageRepositoryPg', () => {
         (each) => messages.insert(each),
       )
 
-      assertSchemaEquals(Messages, yield* messages.selectMany({ chatId: chatId }), [
-        question,
-        reply,
-      ])
+      assertSchemaEquals(Messages, yield* messages.selectMany({ chatId }), [question, reply])
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
@@ -139,7 +136,7 @@ describe('MessageRepositoryPg', () => {
 
       assertSchemaEquals(
         Messages,
-        yield* messages.selectMany({ chatId: chatId, status: ActiveMessageStatus.literals }),
+        yield* messages.selectMany({ chatId, status: ActiveMessageStatus.literals }),
         [queued],
       )
 
@@ -147,7 +144,7 @@ describe('MessageRepositoryPg', () => {
       yield* messages.update(completed, { status: 'queued' })
 
       assert.deepStrictEqual(
-        yield* messages.selectMany({ chatId: chatId, status: ActiveMessageStatus.literals }),
+        yield* messages.selectMany({ chatId, status: ActiveMessageStatus.literals }),
         [],
       )
     }).pipe(Effect.provide(RepositoryStackPgTest)),
@@ -168,7 +165,7 @@ describe('MessageRepositoryPg', () => {
       const exit = yield* messages.insert(second).pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
-      assertSchemaEquals(Messages, yield* messages.selectMany({ chatId: chatId }), [queued])
+      assertSchemaEquals(Messages, yield* messages.selectMany({ chatId }), [queued])
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
@@ -185,10 +182,7 @@ describe('MessageRepositoryPg', () => {
 
       yield* Effect.forEach([queued, completed], messages.insert)
 
-      assertSchemaEquals(Messages, yield* messages.selectMany({ chatId: chatId }), [
-        queued,
-        completed,
-      ])
+      assertSchemaEquals(Messages, yield* messages.selectMany({ chatId }), [queued, completed])
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
@@ -230,7 +224,7 @@ describe('MessageRepositoryPg', () => {
       const exit = yield* messages.update(unknown, { status: 'queued' }).pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
-      assertSchemaEquals(Messages, yield* messages.selectMany({ chatId: chatId }), [completed])
+      assertSchemaEquals(Messages, yield* messages.selectMany({ chatId }), [completed])
       assert.deepStrictEqual(yield* messages.selectOne({ id: unknown.id }), Option.none())
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
@@ -255,10 +249,10 @@ describe('MessageRepositoryPg', () => {
 
       assertSchemaEquals(
         Messages,
-        yield* messages.selectMany({ chatId: chatId, status: ActiveMessageStatus.literals }),
+        yield* messages.selectMany({ chatId, status: ActiveMessageStatus.literals }),
         [generating],
       )
-      assertSchemaEquals(Messages, yield* messages.selectMany({ chatId: chatId }), [
+      assertSchemaEquals(Messages, yield* messages.selectMany({ chatId }), [
         generating,
         failed,
         completed,
@@ -292,7 +286,7 @@ describe('MessageRepositoryPg', () => {
         yield* messages.selectOne({ id: question.id }),
         Option.some(inUploadOrder),
       )
-      assertSchemaEquals(Messages, yield* messages.selectMany({ chatId: chatId }), [inUploadOrder])
+      assertSchemaEquals(Messages, yield* messages.selectMany({ chatId }), [inUploadOrder])
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 })

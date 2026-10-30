@@ -4,15 +4,17 @@ import { Array as Arr, Effect, Exit, Option, Order } from 'effect'
 import { SqlClient } from 'effect/sql'
 
 import { buildChat, ChatId, ChatRepository } from '@app-template/domain/chat'
-import { chat, epoch, owner, upload } from '@app-template/domain/testing'
-
-import { SendMessageUseCase } from '#application/chat/send-message.use-case'
 import {
-  ChatPgTest,
-  selectAttachments,
+  chat,
+  epoch,
+  owner,
   selectChat,
   selectMessages,
-} from '#application/testing/chat.test-layer'
+  upload,
+} from '@app-template/domain/testing'
+
+import { SendMessageUseCase } from '#application/chat/send-message.use-case'
+import { ChatPgTest, selectAttachments } from '#application/testing/chat.test-layer'
 
 const selectOutbox = SqlClient.SqlClient.use((client) => client`SELECT queue FROM outbox`).pipe(
   Effect.orDie,

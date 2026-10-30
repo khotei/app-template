@@ -1,7 +1,6 @@
-import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { DateTime, Effect, Layer, Option, Stream } from 'effect'
+import { DateTime, Effect, Option, Stream } from 'effect'
 
 import { assertSchemaEquals, png } from '@app-template/testing'
 
@@ -15,16 +14,19 @@ import {
 } from '#domain/attachment/attachment.model'
 import { AttachmentBucket, AttachmentRepository } from '#domain/attachment/attachment.port'
 import { ChatNotFoundError } from '#domain/chat/chat.error'
-import type { ChatId } from '#domain/chat/chat.id'
+import { type ChatId, MessageId } from '#domain/chat/chat.id'
 import { Chat, ChatTitle } from '#domain/chat/chat.model'
-import { ChatRepository } from '#domain/chat/chat.port'
 import { ChatService } from '#domain/chat/chat.service'
-import { chat, epoch, unknownChatId } from '#domain/testing/chat.test-fixture'
-import { ChatTest, selectMessages, send } from '#domain/testing/chat.test-layer'
+import { buildAssistantMessage } from '#domain/chat/message.model'
+import { chat, epoch, firstMessage, unknownChatId } from '#domain/testing/chat.test-fixture'
+import { ChatTest } from '#domain/testing/chat.test-layer'
+import {
+  insertMessage,
+  selectChat,
+  selectMessages,
+} from '#domain/testing/repository-stack.test-layer'
 import { owner, stranger } from '#domain/testing/user.test-fixture'
 import type { UserId } from '#domain/user/user.id'
-
-const ChatBunTest = ChatTest.pipe(Layer.provideMerge(BunCrypto.layer))
 
 const trip = ChatTitle.make('Trip')
 
@@ -32,9 +34,6 @@ const lisbonWeekend = ChatTitle.make('Lisbon weekend')
 
 /** The `where` a generated title writes with: only a chat no one has titled yet. */
 const untitled = (id: ChatId) => ({ id, title: Option.none<ChatTitle>() })
-
-const selectChat = (chatId: ChatId) =>
-  ChatRepository.use((chats) => chats.selectOne({ id: chatId }))
 
 type ChatCall = (
   service: ChatService['Service'],
@@ -64,7 +63,7 @@ describe('ChatService', () => {
         new Chat({ ...chat, title: Option.some(trip), updatedAt: renamed.updatedAt }),
       )
       assertEquals(yield* selectChat(chat.id), Option.some(renamed))
-    }).pipe(Effect.provide(ChatBunTest)),
+    }).pipe(Effect.provide(ChatTest)),
   )
 
   it.effect('rename where the title is none titles an untitled chat', () =>
@@ -75,7 +74,7 @@ describe('ChatService', () => {
 
       assertEquals(renamed.title, Option.some(lisbonWeekend))
       assertEquals(yield* selectChat(chat.id), Option.some(renamed))
-    }).pipe(Effect.provide(ChatBunTest)),
+    }).pipe(Effect.provide(ChatTest)),
   )
 
   it.effect(
@@ -89,7 +88,7 @@ describe('ChatService', () => {
 
         assertSchemaEquals(ChatNotFoundError, error, new ChatNotFoundError({ id: chat.id }))
         assertEquals(yield* selectChat(chat.id), Option.some(renamed))
-      }).pipe(Effect.provide(ChatBunTest)),
+      }).pipe(Effect.provide(ChatTest)),
   )
 
   it.effect(
@@ -99,7 +98,14 @@ describe('ChatService', () => {
         const service = yield* ChatService
         const attachments = yield* AttachmentRepository
         const bucket = yield* AttachmentBucket
-        const { userMessage } = yield* send(owner, chat.id, 'Look')
+        yield* insertMessage(firstMessage)
+        yield* insertMessage(
+          buildAssistantMessage({
+            id: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000031'),
+            chatId: chat.id,
+            createdAt: epoch,
+          }),
+        )
         const photo = new Attachment({
           ...buildAttachment({
             id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000024'),
@@ -109,7 +115,7 @@ describe('ChatService', () => {
             size: FileSize.make(png.length),
             createdAt: epoch,
           }),
-          messageId: Option.some(userMessage.id),
+          messageId: Option.some(firstMessage.id),
           chatId: Option.some(chat.id),
         })
         yield* attachments.insert(photo)
@@ -117,14 +123,11 @@ describe('ChatService', () => {
 
         yield* service.delete({ id: chat.id, userId: owner })
 
-        assertEquals(
-          yield* ChatRepository.use((chats) => chats.selectOne({ id: chat.id })),
-          Option.none(),
-        )
+        assertEquals(yield* selectChat(chat.id), Option.none())
         assertEquals(yield* selectMessages(chat.id), [])
         assertEquals(yield* attachments.selectMany({ id: [photo.id] }), [])
         assertEquals(yield* bucket.select(photo.id), Option.none())
-      }).pipe(Effect.provide(ChatBunTest)),
+      }).pipe(Effect.provide(ChatTest)),
   )
 
   it.effect.each(chatCalls)(
@@ -139,6 +142,6 @@ describe('ChatService', () => {
         assertSchemaEquals(ChatNotFoundError, foreign, new ChatNotFoundError({ id: chat.id }))
         assertSchemaEquals(ChatNotFoundError, missing, new ChatNotFoundError({ id: unknownChatId }))
         assertEquals(yield* service.getOne({ id: chat.id, userId: owner }), chat)
-      }).pipe(Effect.provide(ChatBunTest)),
+      }).pipe(Effect.provide(ChatTest)),
   )
 })

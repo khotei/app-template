@@ -80,13 +80,13 @@ describe('isExpiredAt', () => {
 describe('ensureUnbound', () => {
   it.effect('returns an unbound attachment', () =>
     Effect.gen(function* () {
-      assert.strictEqual(yield* ensureUnbound(unbound), unbound)
+      assert.strictEqual(yield* Effect.succeed(unbound).pipe(ensureUnbound), unbound)
     }),
   )
 
   it.effect('fails AttachmentBoundError for an attachment a message holds', () =>
     Effect.gen(function* () {
-      const error = yield* ensureUnbound(bound).pipe(Effect.flip)
+      const error = yield* Effect.succeed(bound).pipe(ensureUnbound, Effect.flip)
 
       assertSchemaEquals(AttachmentBoundError, error, new AttachmentBoundError({ id: bound.id }))
     }),

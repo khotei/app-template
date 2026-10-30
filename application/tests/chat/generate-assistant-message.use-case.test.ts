@@ -18,7 +18,6 @@ import {
   buildAssistantMessage,
   buildUserMessage,
   Chat,
-  ChatRepository,
   Message,
   MessageId,
   MessageRepository,
@@ -27,6 +26,7 @@ import {
   type AssistantCallHold,
   chat,
   chatId,
+  deleteChat,
   epoch,
   holdAssistantCall,
   MessageRows,
@@ -34,12 +34,14 @@ import {
   owner,
   queuedChat,
   recordAssistant,
+  selectChat,
+  selectMessage,
 } from '@app-template/domain/testing'
 import { GenerateAssistantMessage } from '@app-template/infrastructure/chat'
 import { png, recordLogs } from '@app-template/testing'
 
 import { GenerateAssistantMessageUseCase } from '#application/chat/generate-assistant-message.use-case'
-import { AssistantMessageTest, selectChat } from '#application/testing/chat.test-layer'
+import { AssistantMessageTest } from '#application/testing/chat.test-layer'
 
 const historyId = (n: number) => MessageId.make(`0192d4e0-7b3a-7c00-8000-00000000005${n}`)
 
@@ -112,14 +114,10 @@ const insertAttachment = (attachment: Attachment, bytes: 'stored' | 'lost' = 'st
     yield* bucket.insert(attachment.id, Stream.make(png), attachment)
   })
 
-const selectReply = MessageRepository.use((messages) => messages.selectOne({ id: messageId }))
-
 // Another writer's settle, landing in the rows behind the use case's back.
 const settleElsewhere = MessageRows.use((rows) =>
   Ref.update(rows, HashMap.set(messageId, asCompleted(queuedReply, 'Done elsewhere.'))),
 )
-
-const deleteChat = ChatRepository.use((chats) => chats.delete({ id: chatId }))
 
 const job = new GenerateAssistantMessage({ chatId, messageId })
 
@@ -143,15 +141,15 @@ describe('GenerateAssistantMessageUseCase', () => {
         yield* held.asked
         // `generate` writes only where the stored status is `preparing`, so this row proves that write.
         const generating = new Message({ ...queuedReply, status: 'generating' })
-        assertEquals(yield* selectReply, Option.some(generating))
+        assertEquals(yield* selectMessage(messageId), Option.some(generating))
         yield* held.release
         yield* TestClock.adjust('500 millis')
-        assertEquals(yield* selectReply, Option.some(generating))
+        assertEquals(yield* selectMessage(messageId), Option.some(generating))
         yield* TestClock.adjust('500 millis')
         yield* Fiber.join(running)
 
         assertEquals(
-          yield* selectReply,
+          yield* selectMessage(messageId),
           Option.some(
             new Message({ ...queuedReply, status: 'done', text: 'Sure.', updatedAt: at(1000) }),
           ),
@@ -171,7 +169,7 @@ describe('GenerateAssistantMessageUseCase', () => {
 
       assert.isTrue(Exit.hasDies(exit))
       assertEquals(
-        yield* selectReply,
+        yield* selectMessage(messageId),
         Option.some(new Message({ ...queuedReply, status: 'generating' })),
       )
     }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
@@ -219,7 +217,10 @@ describe('GenerateAssistantMessageUseCase', () => {
       const exit = yield* Fiber.join(running)
 
       assert.isTrue(Exit.hasDies(exit))
-      assertEquals(yield* selectReply, Option.some(asCompleted(queuedReply, 'Done elsewhere.')))
+      assertEquals(
+        yield* selectMessage(messageId),
+        Option.some(asCompleted(queuedReply, 'Done elsewhere.')),
+      )
       assertEquals(yield* selectChat(chatId), Option.some(queuedChat))
     }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
   })
@@ -232,7 +233,7 @@ describe('GenerateAssistantMessageUseCase', () => {
 
       yield* generate
 
-      assertEquals(yield* selectReply, Option.some(asCompleted(queuedReply, 'Done.')))
+      assertEquals(yield* selectMessage(messageId), Option.some(asCompleted(queuedReply, 'Done.')))
       assertEquals(yield* assistant.calls, [])
       assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: already settled']])
     }).pipe(Effect.provide([AssistantMessageTest.pipe(Layer.provide(assistant.layer)), logger]))
@@ -243,7 +244,7 @@ describe('GenerateAssistantMessageUseCase', () => {
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
       yield* insertMessages([queuedReply])
-      yield* deleteChat
+      yield* deleteChat(chatId)
 
       yield* generate
 
@@ -261,7 +262,7 @@ describe('GenerateAssistantMessageUseCase', () => {
 
         const failed = Option.getOrThrow(yield* fail(Cause.die(new Error('provider exploded'))))
 
-        assertEquals(yield* selectReply, Option.some(failed))
+        assertEquals(yield* selectMessage(messageId), Option.some(failed))
         const error = Option.getOrThrow(failed.error)
         assert.strictEqual(failed.status, 'failed')
         assert.deepStrictEqual(
@@ -288,7 +289,7 @@ describe('GenerateAssistantMessageUseCase', () => {
       const failed = yield* fail(Cause.die(new Error('provider exploded')))
 
       assertEquals(failed, Option.none())
-      assertEquals(yield* selectReply, Option.some(asCompleted(queuedReply, 'Done.')))
+      assertEquals(yield* selectMessage(messageId), Option.some(asCompleted(queuedReply, 'Done.')))
       assertEquals(yield* selectChat(chatId), Option.some(queuedChat))
       assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: already settled']])
     }).pipe(Effect.provide([AssistantMessageTest.pipe(Layer.provide(assistant.layer)), logger]))

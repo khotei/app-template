@@ -2,43 +2,32 @@ import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Fiber, Layer, Option } from 'effect'
 
-import {
-  buildUserMessage,
-  Chat,
-  ChatRepository,
-  ChatTitle,
-  MessageRepository,
-} from '@app-template/domain/chat'
+import { Chat, ChatRepository, ChatTitle } from '@app-template/domain/chat'
 import {
   type AssistantCallHold,
   chat,
   chatId,
-  epoch,
+  deleteChat,
+  firstMessage,
   holdAssistantCall,
+  insertMessage,
   messageId,
   recordAssistant,
+  selectChat,
 } from '@app-template/domain/testing'
 import { GenerateChatTitle } from '@app-template/infrastructure/chat'
 import { recordLogs } from '@app-template/testing'
 
 import { GenerateChatTitleUseCase } from '#application/chat/generate-chat-title.use-case'
-import { ChatTitleTest, selectChat } from '#application/testing/chat.test-layer'
+import { ChatTitleTest } from '#application/testing/chat.test-layer'
 
 const lisbonWeekend = ChatTitle.make('Lisbon weekend')
 
 const trip = ChatTitle.make('Trip')
 
-const insertFirstMessage = MessageRepository.use((messages) =>
-  messages.insert(
-    buildUserMessage({ id: messageId, chatId, text: 'Plan a weekend in Lisbon', createdAt: epoch }),
-  ),
-)
-
 const renameChat = ChatRepository.use((chats) =>
   chats.update({ title: Option.some(trip) }, { id: chatId }).pipe(Effect.asVoid),
 )
-
-const deleteChat = ChatRepository.use((chats) => chats.delete({ id: chatId }))
 
 const generate = GenerateChatTitleUseCase.use((useCase) =>
   useCase.generate(new GenerateChatTitle({ chatId, messageId })),
@@ -51,7 +40,7 @@ const changesWhileAnswering = [
   { name: 'renamed', change: renameChat, log: 'chat deleted or titled', title: Option.some(trip) },
   {
     name: 'deleted',
-    change: deleteChat,
+    change: deleteChat(chatId),
     log: 'chat deleted or titled',
     title: Option.none<ChatTitle>(),
   },
@@ -62,7 +51,7 @@ describe('GenerateChatTitleUseCase', () => {
     const assistant = recordAssistant({ suggestTitle: Effect.succeedSome(lisbonWeekend) })
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
-      yield* insertFirstMessage
+      yield* insertMessage(firstMessage)
 
       yield* generate
 
@@ -81,7 +70,7 @@ describe('GenerateChatTitleUseCase', () => {
     const assistant = recordAssistant({ suggestTitle: Effect.succeedSome(lisbonWeekend) })
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
-      yield* insertFirstMessage
+      yield* insertMessage(firstMessage)
       yield* renameChat
 
       yield* generate
@@ -109,7 +98,7 @@ describe('GenerateChatTitleUseCase', () => {
     const assistant = recordAssistant({ suggestTitle: Effect.succeedNone })
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
-      yield* insertFirstMessage
+      yield* insertMessage(firstMessage)
 
       yield* generate
 
@@ -125,7 +114,7 @@ describe('GenerateChatTitleUseCase', () => {
       const assistant = recordAssistant({ suggestTitle: heldAnswer(held) })
       const { logs, layer: logger } = recordLogs()
       return Effect.gen(function* () {
-        yield* insertFirstMessage
+        yield* insertMessage(firstMessage)
 
         const running = yield* Effect.forkChild(generate)
         yield* held.asked

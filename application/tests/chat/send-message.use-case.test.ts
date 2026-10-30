@@ -16,17 +16,21 @@ import {
   type MessageId,
   MessageRepository,
 } from '@app-template/domain/chat'
-import { ask, chat, epoch, owner, stranger, upload } from '@app-template/domain/testing'
+import {
+  ask,
+  chat,
+  epoch,
+  owner,
+  selectChat,
+  selectMessages,
+  stranger,
+  upload,
+} from '@app-template/domain/testing'
 import { recordQueue } from '@app-template/queue/testing'
 import { assertSchemaEquals, isUuidV7, sortById } from '@app-template/testing'
 
 import { SendMessageUseCase } from '#application/chat/send-message.use-case'
-import {
-  ChatTest,
-  selectAttachments,
-  selectChat,
-  selectMessages,
-} from '#application/testing/chat.test-layer'
+import { ChatTest, selectAttachments } from '#application/testing/chat.test-layer'
 
 /** Completes an assistant message as the worker would, freeing its chat for the next send. */
 const settle = (message: Message) =>

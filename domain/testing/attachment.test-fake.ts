@@ -19,7 +19,7 @@ import {
   AttachmentRepository,
   type AttachmentWhere,
 } from '#domain/attachment/attachment.port'
-import { matches } from '#domain/testing/rows.test-util'
+import { matches, matchesAny, orDieOnNoRows } from '#domain/testing/rows.test-util'
 
 /** The rows `AttachmentRepositoryTest` keeps, by id, for a test to arrange or read. */
 export class AttachmentRows extends Context.Service<
@@ -31,7 +31,7 @@ export class AttachmentRows extends Context.Service<
 
 const holdsWhere = (where: AttachmentWhere) =>
   Predicate.and(
-    (attachment: Attachment) => Arr.contains(where.id, attachment.id),
+    matchesAny<Attachment>({ id: where.id }),
     matches<Attachment>(Struct.omit(where, ['id'])),
   )
 
@@ -58,12 +58,7 @@ export const AttachmentRepositoryTest = Layer.effect(
             HashMap.map((attachment) => new Attachment({ ...attachment, ...set })),
             (written) => [HashMap.toValues(written), HashMap.union(map, written)] as const,
           ),
-        ).pipe(
-          Effect.filterOrElse(Arr.isReadonlyArrayNonEmpty, () =>
-            Effect.die(new Error('no attachment was updated')),
-          ),
-          Effect.asVoid,
-        ),
+        ).pipe(orDieOnNoRows('no attachment was updated')),
       selectOne: (where) =>
         Ref.get(rows).pipe(
           Effect.map(HashMap.get(where.id)),
@@ -78,12 +73,7 @@ export const AttachmentRepositoryTest = Layer.effect(
         Ref.modify(rows, (map) => {
           const deleted = Arr.fromIterable(HashMap.keys(HashMap.filter(map, holdsWhere(where))))
           return [deleted, HashMap.removeMany(map, deleted)] as const
-        }).pipe(
-          Effect.filterOrElse(Arr.isReadonlyArrayNonEmpty, () =>
-            Effect.die(new Error('no attachment was deleted')),
-          ),
-          Effect.asVoid,
-        ),
+        }).pipe(orDieOnNoRows('no attachment was deleted')),
     }),
   ),
 )
