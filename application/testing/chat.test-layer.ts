@@ -14,11 +14,7 @@ import {
   queuedChat,
   RepositoryStackTest,
 } from '@app-template/domain/testing'
-import {
-  AttachmentBucketS3,
-  AttachmentRepositoryPg,
-  S3BucketFromConfig,
-} from '@app-template/infrastructure/attachment'
+import { AttachmentBucketS3, AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
 import { ChatPg } from '@app-template/infrastructure/chat'
 import { Transaction } from '@app-template/infrastructure/db'
 import { QueueClientOutbox } from '@app-template/infrastructure/shared'
@@ -91,7 +87,6 @@ export const ChatPgTest = ChatServices.pipe(
       Transaction.layer,
     ),
   ),
-  Layer.provide(S3BucketFromConfig),
   Layer.provideMerge(DbWithUsersTest),
   Layer.provide([AwsTest, BunCrypto.layer]),
 )

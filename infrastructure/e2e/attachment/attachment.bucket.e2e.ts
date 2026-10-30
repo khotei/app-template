@@ -13,17 +13,11 @@ import {
 import { unknownAttachmentId } from '@app-template/domain/testing'
 import { png } from '@app-template/testing'
 
-import {
-  AttachmentBucketS3,
-  S3BucketFromConfig,
-} from '#infrastructure/attachment/attachment.bucket'
+import { AttachmentBucketS3 } from '#infrastructure/attachment/attachment.bucket'
 import { AwsTest } from '#infrastructure/testing/aws.test-layer'
 
 // One stage for the file's `layer` block: each test writes an id of its own.
-const AttachmentBucketS3Test = AttachmentBucketS3.pipe(
-  Layer.provide(S3BucketFromConfig),
-  Layer.provideMerge(AwsTest),
-)
+const AttachmentBucketS3Test = AttachmentBucketS3.pipe(Layer.provideMerge(AwsTest))
 
 const attachmentId = (n: number) =>
   AttachmentId.make(`0192d4e0-7b3a-7c00-8000-${String(n).padStart(12, '0')}`)
@@ -33,7 +27,7 @@ const meta = {
   fileName: FileName.make('отчёт (1).png'),
 }
 
-describe('AttachmentBucketS3 over S3BucketFromConfig on AwsTest', () => {
+describe('AttachmentBucketS3 on AwsTest', () => {
   layer(AttachmentBucketS3Test, { timeout: '60 seconds' })((it) => {
     it.effect(
       'writes the bytes under attachments/<id> with the media type and an inline disposition that carries the UTF-8 file name',

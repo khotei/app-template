@@ -6,7 +6,7 @@ import { FetchHttpClient } from 'effect/http'
 import { ApiLayer } from '@app-template/api/layer'
 import { AwsConfig } from '@app-template/config'
 import { ApiClient } from '@app-template/http-api'
-import { AttachmentBucketS3, S3BucketFromConfig } from '@app-template/infrastructure/attachment'
+import { AttachmentBucketS3 } from '@app-template/infrastructure/attachment'
 import { AwsTest } from '@app-template/infrastructure/testing'
 import { layerCookieJarTest, PgClientTest } from '@app-template/testing'
 import { WorkerLayer } from '@app-template/worker/layer'
@@ -50,8 +50,6 @@ const layerApiClient = (port: number) =>
 
 const Apps = Layer.merge(ApiLayer, WorkerLayer).pipe(Layer.provide(BunCrypto.layer))
 
-const StageBucketTest = AttachmentBucketS3.pipe(Layer.provide(S3BucketFromConfig))
-
 /**
  * The api and the worker in one runtime over the test's database and stage, the model stubbed,
  * with an `ApiClient` on the api; `SqlClient` and `AttachmentBucket` stay in context for what the
@@ -69,4 +67,4 @@ export const StandTest = Layer.unwrap(
       Layer.provide(ConfigProvider.layer(provider)),
     )
   }).pipe(Effect.orDie),
-).pipe(Layer.provideMerge(StageBucketTest), Layer.provideMerge([PgClientTest, AwsTest]))
+).pipe(Layer.provideMerge(AttachmentBucketS3), Layer.provideMerge([PgClientTest, AwsTest]))
