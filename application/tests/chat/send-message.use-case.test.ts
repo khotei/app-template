@@ -50,7 +50,11 @@ const settle = (message: Message) =>
 const replyJob = (messageId: MessageId) => ({
   queue: 'assistant-message',
   jobId: messageId,
-  job: new GenerateAssistantMessage({ chatId: chat.id, messageId, provenance: replyProvenance }),
+  job: new GenerateAssistantMessage({
+    chatId: chat.id,
+    messageId,
+    provenance: Option.some(replyProvenance),
+  }),
 })
 
 describe('SendMessageUseCase', () => {

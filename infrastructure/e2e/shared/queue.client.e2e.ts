@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Layer } from 'effect'
+import { Effect, Layer, Option } from 'effect'
 import { SqlClient } from 'effect/sql'
 
 import { ChatId, MessageId } from '@app-template/domain/chat'
@@ -17,7 +17,7 @@ const QueueSenderOutboxTest = QueueSenderOutbox.pipe(Layer.provideMerge(DbTest))
 const job = new GenerateAssistantMessage({
   chatId: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000030'),
   messageId: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000040'),
-  provenance: replyProvenance,
+  provenance: Option.some(replyProvenance),
 })
 
 const selectOutbox = Db.use((db) =>

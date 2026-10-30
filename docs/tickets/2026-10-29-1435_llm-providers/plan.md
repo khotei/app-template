@@ -14,7 +14,7 @@
 | S6 | the title as a structured response with its own retries | done |
 | S7 | provenance in the reply's job, kept in the outbox; never on the message or the wire | done |
 | S8 | `docs/knowledge/ai.md`: every `effect/ai` module mapped | done |
-| S9 | a reply job queued before `provenance` decodes; the journey reads the provenance the api wrote | todo |
+| S9 | a reply job queued before `provenance` decodes; the journey reads the provenance the api wrote | done |
 | S10 | review fixes: the fake's `??`, a named predicate, `architecture.md` matching the branch | todo |
 
 ## How to run this plan
@@ -462,7 +462,18 @@
   the journey's outbox row carries the stub's provenance.
 - **Verify:** `make check`.
 - **Model:** opus medium
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - `provenance` is `Schema.OptionFromOptionalKey(ReplyProvenance)`: absent decodes as none,
+    `Some` encodes to the same object, so the outbox and SQS bodies are unchanged; every builder
+    passes `Option.some`. An absent value is an `Option` (`effect-schema.md`), so not an
+    optional key typed `undefined`.
+  - The decode case sits in `apps/worker/tests/chat/assistant-message.handler.test.ts`: the body
+    `{ chatId, messageId }` goes through the queue's JSON codec, then `handle` settles it `done`.
+  - The journey decodes the reply job's outbox row with the job's schema; checked inverted, with
+    the api writing none, it failed. Its title gained "its reply job keeps the api's provenance".
+  - D6 said the field was required, so a job without it failed to decode; this step reverses
+    that, and D6 now rejects it.
 
 #### S10 — Review fixes from verification
 

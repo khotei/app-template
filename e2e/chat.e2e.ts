@@ -9,6 +9,7 @@ import {
 } from '@app-template/domain/attachment'
 import { ActiveMessageStatus, type ChatId, type MessageId } from '@app-template/domain/chat'
 import { ApiClient } from '@app-template/http-api'
+import { GenerateAssistantMessage } from '@app-template/infrastructure/chat'
 import { assertSchemaEquals, png } from '@app-template/testing'
 
 import { StandTest } from '#e2e/testing/stand.test-layer'
@@ -50,13 +51,23 @@ const selectUnsent = SqlClient.SqlClient.use(
 const selectOutboxOf = (chatId: ChatId) =>
   SqlClient.SqlClient.use((sql) => sql`select queue from outbox where body->>'chatId' = ${chatId}`)
 
+const ReplyJobRows = Schema.Tuple([
+  Schema.Struct({ body: Schema.toCodecJson(GenerateAssistantMessage) }),
+])
+
+const selectReplyJob = (chatId: ChatId) =>
+  SqlClient.SqlClient.use(
+    (sql) =>
+      sql`select body from outbox where queue = 'assistant-message' and body->>'chatId' = ${chatId}`,
+  ).pipe(Effect.flatMap(Schema.decodeUnknownEffect(ReplyJobRows)))
+
 const selectMessages = (chatId: ChatId) =>
   SqlClient.SqlClient.use((sql) => sql`select id from messages where chat_id = ${chatId}`)
 
 describe('the journey over both app layers', { concurrent: false }, () => {
   layer(StandTest, { excludeTestServices: true })((it) => {
     it.effect(
-      'a sent message with an upload is answered and titled by the worker, and its delete removes the object',
+      "a sent message with an upload is answered and titled by the worker, its reply job keeps the api's provenance, and its delete removes the object",
       () =>
         Effect.gen(function* () {
           const api = yield* ApiClient
@@ -87,6 +98,10 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           )
           const unsent = yield* selectUnsent
           assert.deepStrictEqual(unsent, [])
+          const [{ body: replyJob }] = yield* selectReplyJob(chat.id)
+          const provenance = Option.getOrThrow(replyJob.provenance)
+          assert.deepInclude(provenance, { provider: 'stub', model: 'stub' })
+          assert.match(provenance.instructionsHash, /^[0-9a-f]{64}$/)
 
           yield* api.chats.delete({ params: { chatId: chat.id } })
           const object = yield* bucket.select(uploaded.id)

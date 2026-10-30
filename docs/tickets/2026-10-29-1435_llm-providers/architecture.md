@@ -67,7 +67,7 @@ answer or an error; `chat.test-fixture.ts` gains a reply.
                                 schedules, the AiError mapping, generateInstructionsHash;
                                 + CurrentReplyProvenance with layerFromConfig (D6)
 + assistant.client.ts    AssistantModels with layerAnthropic(options), layerStub, layerFromConfig
-~ chat.queue.ts                 + ReplyProvenance; GenerateAssistantMessage + provenance (D6)
+~ chat.queue.ts                 + ReplyProvenance; GenerateAssistantMessage + provenance, optional on decode (D6)
 ~ index.ts                      exports AssistantModels, CurrentReplyProvenance
 ```
 
@@ -199,7 +199,7 @@ export class ReplyProvenance extends Schema.Class<ReplyProvenance>('ReplyProvena
 
 export class GenerateAssistantMessage extends Schema.Class<GenerateAssistantMessage>(
   'GenerateAssistantMessage',
-)({ chatId: ChatId, messageId: MessageId, provenance: ReplyProvenance }) {}
+)({ chatId: ChatId, messageId: MessageId, provenance: Schema.OptionFromOptionalKey(ReplyProvenance) }) {}
 
 // fixed at layer build from ReplyModelConfig and generateInstructionsHash(systemPrompt, ReplyAnswer)
 export class CurrentReplyProvenance extends Context.Service<CurrentReplyProvenance, ReplyProvenance>()(…) {
@@ -207,8 +207,9 @@ export class CurrentReplyProvenance extends Context.Service<CurrentReplyProvenan
 }
 ```
 
-The field is required although the worker never reads it, so a job queued without it fails to
-decode. `GenerateChatTitle` carries none.
+The api writes the field into every reply job; it decodes as none from a body queued before it
+existed, so that job still reaches the worker (D6). The worker never reads it.
+`GenerateChatTitle` carries none.
 
 **Failure mapping** in `AssistantLlm`, per request:
 
@@ -273,7 +274,8 @@ names the reply model without holding the provider's secret.
 ```sql
 sent_at timestamptz       -- set by the relay; null until the row is sent
 outbox_unsent_created_at_index ON (created_at) WHERE sent_at IS NULL
--- body of a reply's job: { chatId, messageId, provenance: { provider, model, instructionsHash } }
+-- body of a reply's job: { chatId, messageId, provenance: { provider, model, instructionsHash } };
+-- a job queued before S7 has no provenance key
 ```
 
 **Wire**: unchanged. `error.cause` never leaves the api (R18); provenance lives in the outbox
@@ -377,8 +379,9 @@ change: the last attempt still settles a reply that a crash left active.
       but the reader cannot see which call runs which model;
     - a stub at the port level — R2 would no longer prove the schemas.
 
-- **D6 — Provenance is a required field of the reply's job, filled by the api from
-  `CurrentReplyProvenance`, fixed when its layer is built.** *Answers Q3, revised in S7.2.*
+- **D6 — Provenance is a field of the reply's job, always written by the api from
+  `CurrentReplyProvenance`, fixed when its layer is built, and optional on decode.** *Answers Q3,
+  revised in S7.2 and S9.*
   - **Why:**
     - Provider, model and instructions hash change only with configuration or code, so one
       value per process serves every job.
@@ -388,8 +391,9 @@ change: the last attempt still settles a reply that a crash left active.
       Anthropic key.
     - The hash is SHA-256 from `Crypto.digest` (provided by `BunCrypto.layer`), so two versions
       of the instructions do not collide.
-    - The field is required although the worker ignores it, so a job queued without it fails
-      to decode instead of passing unnoticed.
+    - It is optional on decode (S9): a job queued before the field existed must still reach the
+      worker, since an undecodable body retries forever on the dead-letter queue and its chat
+      stays `queued`.
   - **Cost accepted:** the value is what the api expects, not what answered: while a deploy
     rolls out, the worker may run another model or other instructions (R12 says so). The title's
     job carries none.
@@ -401,7 +405,11 @@ change: the last attempt still settles a reply that a crash left active.
       the coupling between the api and the outbox would not show in the code;
     - provenance returned with every answer and every error — the same value, carried through
       more types;
-    - `Hash.string` — 32 bits, not cryptographic.
+    - `Hash.string` — 32 bits, not cryptographic;
+    - required on decode (S7.2) — a deploy that adds it strands every job already queued
+      (verification run 1);
+    - the dead-letter path failing the message of any undecodable body — it needs the message id
+      read past the schema, and belongs to `job-ledger`.
 
 - **D7 — The bound of a reply lives in the domain; the field description the model reads lives
   in the adapter.** `AssistantReply` (a text non-empty after trimming) is the domain's;

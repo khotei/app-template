@@ -102,7 +102,11 @@ export class SendMessageUseCase extends Context.Service<
       yield* messages.insert(assistantMessage)
       yield* queue.send(
         assistantMessageQueue,
-        new GenerateAssistantMessage({ chatId, messageId: assistantMessage.id, provenance }),
+        new GenerateAssistantMessage({
+          chatId,
+          messageId: assistantMessage.id,
+          provenance: Option.some(provenance),
+        }),
       )
       if (isFirstMessage) {
         yield* queue.send(

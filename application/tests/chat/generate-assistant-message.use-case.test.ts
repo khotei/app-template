@@ -112,7 +112,11 @@ const settleElsewhere = MessageRows.use((rows) =>
   Ref.update(rows, HashMap.set(messageId, asCompleted(queuedReply, 'Done elsewhere.'))),
 )
 
-const job = new GenerateAssistantMessage({ chatId, messageId, provenance: replyProvenance })
+const job = new GenerateAssistantMessage({
+  chatId,
+  messageId,
+  provenance: Option.some(replyProvenance),
+})
 
 const generate = GenerateAssistantMessageUseCase.use((useCase) => useCase.generate(job))
 

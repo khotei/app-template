@@ -85,7 +85,7 @@ const enqueue = (n: number) =>
       new GenerateAssistantMessage({
         chatId: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000030'),
         messageId: MessageId.make(jobId(n)),
-        provenance: replyProvenance,
+        provenance: Option.some(replyProvenance),
       }),
     ),
   )

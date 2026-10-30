@@ -1,9 +1,15 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Effect, Exit, Fiber, Layer, Option } from 'effect'
+import { Effect, Exit, Fiber, Layer, Option, Schema } from 'effect'
 
 import { AssistantMessageTest } from '@app-template/application/testing'
-import { buildAssistantMessage, Chat, Message, MessageRepository } from '@app-template/domain/chat'
+import {
+  AssistantReply,
+  buildAssistantMessage,
+  Chat,
+  Message,
+  MessageRepository,
+} from '@app-template/domain/chat'
 import {
   chat,
   chatId,
@@ -49,7 +55,11 @@ const deadLetterInfo: AttemptInfo = {
   isLastAttempt: false,
 }
 
-const job = new GenerateAssistantMessage({ chatId, messageId, provenance: replyProvenance })
+const job = new GenerateAssistantMessage({
+  chatId,
+  messageId,
+  provenance: Option.some(replyProvenance),
+})
 
 const insertReply = (reply: Message) => MessageRepository.use((messages) => messages.insert(reply))
 
@@ -74,6 +84,22 @@ describe('AssistantMessageHandler', () => {
         Option.some(new Message({ ...queuedReply, status: 'generating' })),
       )
       assertEquals(yield* selectChat(chatId), Option.some(queuedChat))
+    }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
+  })
+
+  it.effect('handle settles the reply of a job queued before it carried provenance', () => {
+    const assistant = recordAssistant({
+      reply: Effect.succeed(new AssistantReply({ text: 'Done.' })),
+    })
+    return Effect.gen(function* () {
+      yield* insertReply(queuedReply)
+      const queuedBefore = yield* Schema.decodeUnknownEffect(
+        Schema.toCodecJson(assistantMessageQueue.schema),
+      )({ chatId, messageId })
+
+      yield* handle(queuedBefore, attemptInfo(1))
+
+      assertEquals(yield* selectMessage(messageId), Option.some(completedReply))
     }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
   })
 

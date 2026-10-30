@@ -36,8 +36,9 @@ export class GenerateAssistantMessage extends Schema.Class<GenerateAssistantMess
 )({
   chatId: ChatId,
   messageId: MessageId,
-  // The worker never reads it; required, so a job queued without it fails to decode.
-  provenance: ReplyProvenance,
+  // Optional on decode: a job queued before the field existed must still reach the worker, or its
+  // chat stays queued behind a body the dead-letter path never settles.
+  provenance: Schema.OptionFromOptionalKey(ReplyProvenance),
 }) {}
 
 /** The user is polling this message, so few short retries let it reach `failed` in seconds. */
