@@ -17,6 +17,9 @@ paths:
   or `number` cannot slip in.
 - An absent value is an `Option` (`Schema.Option(…)` in a model), never `null` or `undefined`;
   `null` exists only in a wire DTO.
+- An annotation a JSON Schema must carry (a `description` a model reads) sits on the encoded
+  side, on the key of a checked field (`annotateKey`); its test reads it back from
+  `Schema.toJsonSchemaDocument`, since `annotate` on a check or a transformation drops it.
 - A closed set of stages or kinds is `Schema.Literals([...])`; a subset is `.pick([...])` of it, and
   its membership test is `Schema.is(Subset)`, not a hand-written `includes`.
 
