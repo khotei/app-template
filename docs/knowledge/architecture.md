@@ -2,7 +2,7 @@
 
 Where code belongs, what it may import, and how to add a new entity. What a layer may import is
 the [Dependency rules](#dependency-rules) table below, which Biome enforces; each layer's other
-binding rules live in its `CLAUDE.md`. The decisions behind them, with the rejected alternatives,
+binding rules live in its `CLAUDE.md` and in `.claude/rules/`. The decisions behind them, with the rejected alternatives,
 live in `architecture.md › Decisions` of the scaffold ticket
 (`docs/tickets/2026-10-16-1433_monorepo-setup/`) and of the architecture audit
 (`docs/tickets/2026-10-27-1433_architecture-audit/`).
@@ -40,7 +40,7 @@ test process, and nothing imports it.
 | `domain/` | entity models and their pure operations, errors, ports, and the domain services that own the rules over them; no I/O of its own, time and ids only through `DateTime.now` and `Crypto` | [domain/CLAUDE.md](../../domain/CLAUDE.md) |
 | `http-api/` | the HTTP contract (`HttpApi`) over the domain, shared by `apps/api` and the browser | [http-api/CLAUDE.md](../../http-api/CLAUDE.md) |
 | `infrastructure/` | adapters that implement domain ports on top of `packages/*` clients | [infrastructure/CLAUDE.md](../../infrastructure/CLAUDE.md) |
-| `application/` | use cases: the flows that join the domain's writes in one transaction, or reach the queue, the bucket or the assistant | [application/CLAUDE.md](../../application/CLAUDE.md) |
+| `application/` | use cases: the flows that join the domain's writes in one transaction, or reach the queue, the bucket or the assistant | [layering.md](../../.claude/rules/layering.md) |
 | `packages/*` | generic, project-agnostic clients and libraries, with the one exception its rules name | [packages/CLAUDE.md](../../packages/CLAUDE.md) |
 | `apps/*` | entry points (`main.ts`), the handlers, and the process's layer (`layer.ts`) | [apps/CLAUDE.md](../../apps/CLAUDE.md) |
 | `e2e/` | the journey: `ApiLayer` and `WorkerLayer` in one runtime over the run's containers | [tooling.md › Tests](tooling.md#tests) |

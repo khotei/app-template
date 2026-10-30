@@ -44,8 +44,8 @@ paths:
 - A helper earns its place only when several tests get clearly longer without it. A small problem
   (time, isolation, ordering) changes the test or drops the minor assertion, never adds a helper
   that patches another ([tooling.md › Tests](../../docs/knowledge/tooling.md#tests)).
-- A test reads its services from the context (`yield* ChatService`) under a layer it provides
-  (`Effect.provide(ChatTest)`), never through a callback runner.
+- A test reads its services from the context (`yield* <Entity>Service`) under a layer it provides
+  (`Effect.provide(<Entity>Test)`), never through a callback runner.
 - Every support file is `<entity>.test-<role>.ts` and every test-only layer ends in `Test`, so
   `**/*.test-*.ts` and `\w+Test\b` find them all; where they live: `naming.md › Files`.
 
@@ -57,7 +57,7 @@ paths:
   `describe(name, { concurrent: false }, …)` (vitest 5 has no `describe.sequential`).
 - `it.effect` gives each test its own `TestClock`, standing at 0, which is the fixtures' `epoch`.
   A test whose point is that time moves (an `updatedAt` bump) runs `it.live` and asserts
-  relations (`message.createdAt == chat.updatedAt > epoch`), not instants. Move a `TestClock`
+  relations (`child.createdAt == parent.updatedAt > epoch`), not instants. Move a `TestClock`
   only in a test about a delay or an expiry, never inside a shared `layer(…)` block.
 - Generate ids with `BunCrypto.layer`; seed `TestCrypto` only for a test that asserts an id.
 

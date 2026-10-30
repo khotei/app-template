@@ -15,7 +15,7 @@ paths:
   generator is for a body with more than one step. Extra arguments to `Effect.fn` are the
   pipeables every call runs through (`transaction.run`).
 - The variable holding an `Effect.fn` is named after the span's last segment; a reserved word
-  gets its plain synonym (`remove` for `'ChatService.delete'`), never an entity suffix, since
+  gets its plain synonym (`remove` for `'<Entity>Service.delete'`), never an entity suffix, since
   `'<Service>.<method>'` already names the entity. A method that needs the entity in its name
   is often doing a neighbouring service's work: look there before accepting the name.
 - A module-level function that another module composes states its `Effect.fn.Return<A, E, R>`
@@ -32,8 +32,7 @@ paths:
   A rule with one implementation and no dependency is a plain function.
 - Key a service `'@app-template/<workspace>/<entity>/<Name>'`.
 - A domain service's `layer` is `Layer.effect(this, this.make)` alone, every dependency left
-  open: a process provides the adapters, a unit test the memory layers (what it may depend on:
-  `layering.md › Ports and domain services`).
+  open: a process provides the adapters, a unit test the memory layers.
 - A service built in a body beside its declaration is
   `Context.Service<Self, Shape>()(key, { make })`: the explicit `Shape` keeps the contract and its
   docs, `make` the body. A one-expression build (`Config.all`) goes straight into `Layer.effect`.
@@ -48,7 +47,7 @@ paths:
   a platform service); there is no `layerNoDeps`. A ready variant that closes such a leaf
   is `static layer<Variant>`, a function when it takes options (`QueueTransport.layerSqs`,
   `ApiClient.layerFetch(baseUrl)`). A layer for a service declared elsewhere (a domain port) is a
-  constant in the workspace that implements it (`ChatRepositoryPg`, `naming.md`).
+  constant in the workspace that implements it (`<Entity>RepositoryPg`, `naming.md`).
 - Variants live in the service's file: a separate file would import the class while the class
   referenced it, a cycle.
 - Chain `Layer.provide` from the nearest dependency outward. `Layer.provide([a, b])` provides

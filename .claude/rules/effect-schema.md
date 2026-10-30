@@ -17,8 +17,6 @@ paths:
   or `number` cannot slip in.
 - An absent value is an `Option` (`Schema.Option(…)` in a model), never `null` or `undefined`;
   `null` exists only in a wire DTO.
-- A literal lookup table is `as const satisfies Record<Key, Value>`, so a new key fails typecheck.
-- A `Schema.Class` instance is `Data`: compare two with `Equal.equals`, never field by field.
 - A closed set of stages or kinds is `Schema.Literals([...])`; a subset is `.pick([...])` of it, and
   its membership test is `Schema.is(Subset)`, not a hand-written `includes`.
 
@@ -28,8 +26,8 @@ paths:
   TypeScript.
 - A refused operation is a typed failure: never a `throw` (a defect that reads as an infrastructure
   failure) and never an `Option.none` (no detail for the caller or the log).
-- A domain error is `Schema.TaggedError`, so it decodes at the wire; its HTTP status lives in
-  `http-api/CLAUDE.md`. A marker that never leaves its module (a failure carried out of a callback
+- A domain error is a `Schema.TaggedError` whose tag is its class name, so it decodes at the
+  wire; its HTTP status lives in `http-api/CLAUDE.md`. A marker that never leaves its module (a failure carried out of a callback
   for the loop around it) is `Data.TaggedError`.
 - Not-found from a port is a value (`Option`, or an id left out of an array); its reader turns it
   into the domain's `*NotFoundError`.

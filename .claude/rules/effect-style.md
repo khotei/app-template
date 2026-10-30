@@ -9,15 +9,15 @@ The goal is code that reads top to bottom and extends by adding a row, not a bra
 
 ## Signatures
 
-- Up to two parameters stay positional (`prepareMessage(message, at)`). A third one, or a
-  boolean, moves into one trailing object with named fields after the subject:
-  `failMessage(message, { reason, cause, at })`.
+- Up to two parameters stay positional (`shipOrder(order, at)`). A third one, or a boolean,
+  moves into one trailing object with named fields after the subject:
+  `cancelOrder(order, { reason, cause, at })`.
 - More than two stay positional only where the types tell them apart: a service `Shape` method
-  whose leading parameters are branded ids (`SendMessageUseCase.send(userId, chatId, input)`).
+  whose leading parameters are branded ids (`placeOrder(userId, cartId, input)`).
 - A repository write takes what it writes (the entity, or an `<Entity>Set` of the fields it
   changes), then an `<Entity>Where` of the fields the stored row must still hold, both typed from
   the model and passed as values, not an options bag, so the call reads as the SQL it runs:
-  `chats.update({ updatedAt: at }, { id })`, `messages.update(generating, { status })`.
+  `orders.update({ updatedAt: at }, { id })`, `orders.update(shipped, { status: order.status })`.
 - Destructure an object whose fields come from different things (`{ reason, cause, at }`) in the
   parameter list; keep an entity or a proof value whole, so the reader sees whose field it is.
 
@@ -58,7 +58,7 @@ The goal is code that reads top to bottom and extends by adding a row, not a bra
 
 - When a rule varies by a key (a stage, a reason, a kind), index a lookup table
   `as const satisfies Record<Key, …>`, never a predicate parameter or a chain of `if`s: a new key
-  fails typecheck until its row exists (`transitions`, `failureMessages`). A table of effects
+  fails typecheck until its row exists (a status's allowed sources, a reason's user message). A table of effects
   names its rows' `E` and `R` (an alias for a long union), never `unknown`: it names a row's needs.
 - A closed union with three or more arms read in one place is a `Match` (`Match.typeTags` /
   `Match.valueTags` on `_tag`, `Match.discriminators('<field>')` otherwise) ending in

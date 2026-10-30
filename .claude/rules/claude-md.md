@@ -28,9 +28,12 @@ update it.
   *currently binding* constraint: no dates, no superseded chains, no ticket numbers, no tombstones.
 - **No behaviour narration**: no per-function descriptions, signatures or test walkthroughs.
 - **One author per fact**: if another doc states it, link it by name; never restate it.
-- **Name the concept, point to one exemplar** (a folder or a file); never list what `ls` or `grep`
-  reproduces: a slice's files, a module's exports, its class names. A code name stays only where a
-  rule or a gotcha needs it, and `make doc-names` fails on a backticked path or name the repo lacks.
+- **Write the pattern, not the instance,** so a refactor leaves the rule true: placeholders
+  (`<Entity>Repository`, `<verb>-<object>`) and a short neutral snippet in a fence (an `Order`, not
+  a model of this app). A live name only for a stable anchor: a workspace, a `make` target, a
+  library API, the template's own infrastructure (the transaction, the queue client, the test
+  harnesses). Never list what `ls` or `grep` reproduces; `make doc-names` fails on a backticked
+  path or name the repo lacks.
 
 ## Where each kind of fact lives
 
@@ -49,6 +52,8 @@ types cannot express · cross-workspace coupling · non-obvious gotchas (orderin
 boundaries (import direction, ownership) · one pointer to the file where a surface lives.
 
 Refresh a doc only when a real change lands, inside that change's commit. When in doubt, cut.
+A lesson learned from building changes a skill, a rule or a check, never a `CLAUDE.md`, and only
+on the user's OK.
 
 ## The toolkit
 
