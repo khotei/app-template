@@ -11,3 +11,6 @@ export class AssistantFailedError extends Schema.TaggedError<AssistantFailedErro
   'AssistantFailedError',
   { cause: Schema.String },
 ) {}
+
+/** Both are final: the adapter has spent its retries or knows none would help. */
+export type AssistantError = AssistantRefusedError | AssistantFailedError

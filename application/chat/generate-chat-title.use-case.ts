@@ -2,8 +2,7 @@ import { Context, Effect, Layer, Option } from 'effect'
 
 import {
   Assistant,
-  type AssistantFailedError,
-  type AssistantRefusedError,
+  type AssistantError,
   ChatService,
   MessageRepository,
 } from '@app-template/domain/chat'
@@ -17,7 +16,7 @@ const titleSkipLogs = {
   nothingToTitle: Effect.logInfo('chat title skipped: nothing to title'),
 } as const satisfies Record<TitleSkip, Effect.Effect<void>>
 
-const logAssistantFailure = (error: AssistantRefusedError | AssistantFailedError) =>
+const logAssistantFailure = (error: AssistantError) =>
   Effect.logWarning('chat title skipped: the assistant failed').pipe(
     Effect.annotateLogs({ error: error._tag, cause: error.cause }),
   )

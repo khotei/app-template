@@ -99,8 +99,9 @@ error and leaves the chat untitled.
                                     change the system prompt or the reply schema, and what each
                                     change does to the prompt cache (R20)
 ~ docs/knowledge/architecture.md    the adapter row names AssistantModels
-~ docs/knowledge/glossary.md        + Provenance (who answered, and with which instructions; operators only)
-~ .claude/rules/effect-schema.md    the port rule names the Assistant exception (D2)
+~ docs/knowledge/glossary.md        + Provenance (who answered, and with which instructions; operators only);
+                                    a failed message is one the assistant gave up on or declined
+~ .claude/rules/effect-schema.md    the port rule states its exception as a pattern (D2)
 ~ infrastructure/CLAUDE.md          drop "runs on packages/llm's stub until…"
 ~ .env.example                      LLM_PROVIDER="stub", the key and both models commented out (R21)
 ~ docs/tickets/2026-10-17-1748_chat-core/feature.md   R16, R17, R18, R25 amended, in the commit that changes each
@@ -281,13 +282,15 @@ change: the last attempt still settles a reply that a crash left active.
       between the adapter, the handler and the queue definition.
 
 - **D2 — The `Assistant` port declares two errors, `AssistantRefusedError` and
-  `AssistantFailedError`, an exception to "a port declares no error channel".**
+  `AssistantFailedError`, named together `AssistantError`, an exception to "a port declares no
+  error channel".**
   - **Why:** R13–R17 give each outcome its own reason, and a defect cannot carry that choice to
     the use case. Under D1 every error that leaves the port is final, so "a retry cannot fix it"
     and "the retries ran out" are handled alike. They differ only in `cause`, which operators
     read.
-  - **Cost accepted:** `effect-schema.md` gains a named exception; every fake of the port scripts
-    errors.
+  - **Cost accepted:** `effect-schema.md` gains an exception, stated as a pattern (a port whose
+    failures a use case settles each its own way), not by the port's name; every fake of the port
+    scripts errors.
   - **Reversal:** one commit.
   - **Rejected:**
     - three errors (refused, rejected, unavailable) — two of them would share every handler;

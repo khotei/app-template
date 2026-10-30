@@ -6,7 +6,6 @@ import {
   ChatBusyError,
   ChatNotFoundError,
   failMessage,
-  type MessageFailure,
   type MessageId,
   MessageNotFoundError,
   MessageRepository,
@@ -22,15 +21,15 @@ const hello = { text: 'Hello', attachmentIds: [] }
 /** Registers the jar's user and opens an empty chat of theirs. */
 const openChat = ApiClient.use((api) => api.users.ensure().pipe(Effect.andThen(api.chats.create())))
 
-/** Settles a reply as the worker does once the assistant answers an error. */
-const failReply = (id: MessageId, reason: MessageFailure['reason']) =>
+/** Settles a reply as the worker does once the assistant refuses. */
+const refuseReply = (id: MessageId) =>
   Effect.gen(function* () {
     const messages = yield* MessageRepository
     const reply = yield* messages.selectOne({ id }).pipe(Effect.flatMap(Effect.fromOption))
     yield* messages.update(
       yield* failMessage(reply, {
-        reason,
-        cause: 'the provider timed out',
+        reason: 'ReplyRefused',
+        cause: 'stop_reason refusal',
         at: reply.updatedAt,
       }),
       { status: reply.status },
@@ -149,27 +148,24 @@ describe('chats', () => {
     }).pipe(Effect.provide(ApiTest)),
   )
 
-  it.effect.each([
-    { reason: 'ReplyFailed', message: 'The assistant could not reply. Please try again.' },
-    { reason: 'ReplyRefused', message: 'The assistant declined to answer this message.' },
-  ] as const)(
-    'a $reason reply carries its reason and message on the wire, never its cause',
-    (error) =>
-      Effect.gen(function* () {
-        const api = yield* ApiClient
-        const http = yield* HttpClient.HttpClient
-        const chat = yield* openChat
-        const { assistantMessage } = yield* api.chats.send({
-          params: { chatId: chat.id },
-          payload: hello,
-        })
-        yield* failReply(assistantMessage.id, error.reason)
+  it.effect('a refused reply carries its reason and message on the wire, never its cause', () =>
+    Effect.gen(function* () {
+      const api = yield* ApiClient
+      const http = yield* HttpClient.HttpClient
+      const chat = yield* openChat
+      const { assistantMessage } = yield* api.chats.send({
+        params: { chatId: chat.id },
+        payload: hello,
+      })
+      yield* refuseReply(assistantMessage.id)
 
-        const wire = yield* http
-          .get(`/chats/${chat.id}/messages/${assistantMessage.id}`)
-          .pipe(Effect.flatMap((response) => response.json))
+      const wire = yield* http
+        .get(`/chats/${chat.id}/messages/${assistantMessage.id}`)
+        .pipe(Effect.flatMap((response) => response.json))
 
-        assert.deepInclude(wire, { status: 'failed', error })
-      }).pipe(Effect.provide(ApiTest)),
+      assert.deepNestedInclude(wire, { status: 'failed', 'error.reason': 'ReplyRefused' })
+      assert.nestedProperty(wire, 'error.message')
+      assert.notNestedProperty(wire, 'error.cause')
+    }).pipe(Effect.provide(ApiTest)),
   )
 })

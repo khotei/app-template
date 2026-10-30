@@ -9,7 +9,7 @@
 | S1 | the reply is written once, whole; no snapshots | done |
 | S2 | Anthropic or the stub, chosen by `LLM_PROVIDER`; a model per purpose | done |
 | S3 | the reply as a structured response with a fixed system prompt; per-purpose request settings | done |
-| S4 | the port's two final errors, settled by the use cases | todo |
+| S4 | the port's two final errors, settled by the use cases | done |
 | S5 | reply failures told apart, retried in place, a refusal kept apart | todo |
 | S6 | the title as a structured response with its own retries | todo |
 | S7 | provenance stored with each assistant message, never on the wire | todo |
@@ -221,7 +221,7 @@
 - **Blocked by:** S3.
 - **Files:**
   - `domain/chat/assistant.error.ts` (new: `AssistantRefusedError`, `AssistantFailedError`,
-    each `{ cause: Schema.String }`), `domain/chat/assistant.port.ts` (both methods declare
+    each `{ cause: Schema.String }`, and their union `AssistantError`), `domain/chat/assistant.port.ts` (both methods declare
     them), `domain/chat/index.ts`;
   - `domain/chat/message.model.ts` (`MessageFailure.reason` + `'ReplyRefused'`, its sentence in
     `failureMessages`);
@@ -230,12 +230,12 @@
     `ReplyRefused`, `AssistantFailedError` → `ReplyFailed`, `cause` from the error, through
     `settleFailed`, which moves the chat by `failChat` in the same transaction),
     `application/chat/generate-chat-title.use-case.ts` (a port error logs and ends);
-  - `infrastructure/chat/assistant.llm.ts` (the type only: it still dies on a provider failure);
   - suites: `domain/tests/chat/message.model.test.ts`,
     `application/tests/chat/generate-assistant-message.use-case.test.ts`,
     `generate-chat-title.use-case.test.ts`, `apps/api/tests/chat/chat.handler.test.ts`;
-  - `.claude/rules/effect-schema.md` (the "a port declares no error channel" line names the
-    `Assistant` exception) and `.claude/rules/layering.md › Ports and domain services` (its
+  - `docs/knowledge/glossary.md › Message status` (`failed`: the assistant gave up or declined);
+  - `.claude/rules/effect-schema.md` (the "a port declares no error channel" line states its
+    exception as a pattern) and `.claude/rules/layering.md › Ports and domain services` (its
     first line restates the defect rule: it links to `effect-schema.md` instead).
 - **Test first:** Seam 4 — the port fails with `AssistantRefusedError`: the message is `failed`
   with `ReplyRefused`, its text empty, after one call; with `AssistantFailedError`: `failed` with
@@ -243,8 +243,20 @@
   port fails: the chat stays untitled and a log line names the failure. Seam 7 — `ReplyRefused`'s
   sentence. Seam 9 — a `ReplyRefused` message on the wire carries its sentence and no `cause`.
 - **Verify:** `make check`.
-- **Model:** fable high
-- **Status:** todo
+- **Model:** opus high
+- **Status:** done
+- **Findings:**
+  - `effect-schema.md` states the exception as a pattern, not by the `Assistant` name the Files
+    line asked for: rules hold patterns, never live code names (`claude-md.md`), so a refactor
+    of the port leaves the rule true.
+  - `infrastructure/chat/assistant.llm.ts` is untouched: a layer whose methods never fail
+    already satisfies the port's wider error type; it still dies on a provider failure until S5.
+  - `docs/knowledge/glossary.md` was not in the Files list: `failed` now also means declined.
+  - Round S4.2: the union is named once, `AssistantError`, used by the port, the fake and both
+    use cases; the api's wire test is one case, `ReplyRefused`, asserting a reason, a message
+    and no `cause` but not the sentence, which `message.model.test.ts` owns.
+  - Seam 9 was red at the type level only: before the change `ReplyRefused` did not compile
+    against the one-value `reason`.
 
 #### S5 — Reply failures told apart and retried in place
 
@@ -270,7 +282,7 @@
   `retry-after: 5`: the next request no sooner than 5 s; with `retry-after: 60`, a 401, a 403 and
   a 400: `AssistantFailedError` after one request.
 - **Verify:** `make check`.
-- **Model:** fable high
+- **Model:** opus high
 - **Status:** todo
 
 #### S6 — A structured title with its own retries
@@ -299,7 +311,7 @@
   stub's title decodes into a `ChatTitle`.
 - **Verify:** `make check`; with `LLM_PROVIDER=stub`, `make dev` and a first message titles the
   chat with the stub's title.
-- **Model:** fable high
+- **Model:** opus high
 - **Status:** todo
 
 #### S7 — Provenance stored with each assistant message
@@ -342,7 +354,7 @@
   `null` as none. Seam 9 — the api's message has no `provenance`.
 - **Verify:** `make check` (its `migration-check` passes with the new folder); `make migrate` on
   the local stand applies it.
-- **Model:** fable high
+- **Model:** opus high
 - **Status:** todo
 
 #### S8 — Map the `effect/ai` toolkit

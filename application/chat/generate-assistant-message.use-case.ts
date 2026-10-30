@@ -3,8 +3,7 @@ import { Array as Arr, Cause, Context, Data, DateTime, Effect, Layer, Option } f
 import { type Attachment, AttachmentBucket } from '@app-template/domain/attachment'
 import {
   Assistant,
-  type AssistantFailedError,
-  type AssistantRefusedError,
+  type AssistantError,
   type AssistantReply,
   type ChatId,
   ChatRepository,
@@ -37,10 +36,7 @@ const replySkipLogs = {
 const replyFailureReasons = {
   AssistantRefusedError: 'ReplyRefused',
   AssistantFailedError: 'ReplyFailed',
-} as const satisfies Record<
-  (AssistantRefusedError | AssistantFailedError)['_tag'],
-  MessageFailure['reason']
->
+} as const satisfies Record<AssistantError['_tag'], MessageFailure['reason']>
 
 class ReplySkipped extends Data.TaggedError('ReplySkipped')<{ readonly why: ReplySkip }> {}
 
