@@ -16,7 +16,7 @@ import * as limits from '#http-api/shared/limits'
 import { Auth } from '#http-api/shared/security'
 
 export const Attachment = AttachmentModel.mapFields((fields) => ({
-  ...Struct.omit(fields, ['userId']),
+  ...Struct.omit(fields, ['userId', 'chatId']),
   messageId: Schema.OptionFromNullOr(MessageId),
 }))
 export type Attachment = typeof Attachment.Type

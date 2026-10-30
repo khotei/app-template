@@ -1,6 +1,15 @@
 import { eq, inArray, type SQL, sql } from 'drizzle-orm'
 import { createInsertSchema, createSelectSchema } from 'drizzle-orm/effect-schema'
-import { index, jsonb, pgEnum, snakeCase, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
+import {
+  index,
+  jsonb,
+  pgEnum,
+  snakeCase,
+  text,
+  unique,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core'
 import { Schema } from 'effect'
 
 import {
@@ -37,6 +46,8 @@ export const messages = snakeCase.table(
   (table) => [
     index('messages_chat_id_created_at_index').on(table.chatId, table.createdAt),
     uniqueIndex('messages_chat_id_active_index').on(table.chatId).where(activeMessage),
+    // The target of `attachments_message_id_chat_id_fk`.
+    unique('messages_id_chat_id_unique').on(table.id, table.chatId),
   ],
 )
 

@@ -51,9 +51,12 @@ from them and the row codecs derived from them.
 - **A descending index states its null order.** Drizzle's `desc()` indexes nulls last while
   Postgres's `ORDER BY … DESC` sorts them first, so an index for that order is
   `.desc().nullsFirst()` (`chats_user_id_updated_at_index`).
-- **Foreign keys say what a delete does.** `credentials` and `messages` cascade from their parent;
-  `attachments.message_id` restricts, so a message with a bound attachment cannot be deleted
-  before it.
+- **Foreign keys say what a delete does.** `credentials`, `messages` and a bound attachment's row
+  cascade from their parent, so a chat's delete is one statement. The attachment's key is the pair
+  `(message_id, chat_id)` over `messages (id, chat_id)`, so `chat_id`, which a bind writes beside
+  `message_id` to find a chat's attachments without its messages, can only name the message's
+  chat, and a check keeps both null or both set. The cascade never reaches S3: whoever deletes a
+  chat or a message deletes the bytes too.
 - **A link lives in one foreign key, never in an array beside it.** Postgres cannot hold a
   foreign key on array elements, so a copy would drift: a message's attachments are the rows
   whose `attachments.message_id` names it, and `messages` keeps no list of them. They read in
@@ -164,9 +167,13 @@ refuses only lost a race and dies; the attachments' write answers with the rows 
     still `none`, and raises `AttachmentBoundError` for an id the statement skipped because
     another send took it in between.
 
-`ChatRepository.delete` is one statement and dies when it removes nothing: the messages go by
-`ON DELETE CASCADE`, and a message with an attachment makes it die (`RESTRICT`), so the
-attachments are removed first.
+`ChatRepository.delete(where)` is one statement and answers whether it removed the chat, so an
+owner mismatch reads as absent; its messages and their attachments go by the cascade, and
+`RETURNING` answers only the chat's row. `ChatService.delete` therefore reads the attachments'
+ids by `chatId` first, then deletes the chat, then the bytes, through
+`AttachmentBucket.deleteMany` (one `DeleteObjects` per 1000 keys). A file a concurrent send binds
+between the read and the delete loses its row with the chat while its bytes stay in S3, bound and
+never expired: the price of a delete with no transaction.
 
 - **A check under the row's lock.** `ChatService.findSendable` reads the chat with
   `selectOne(where, { forUpdate: true })` (`SELECT … FOR UPDATE`) before it looks for an active
@@ -180,8 +187,7 @@ of the `Effect.fn` that holds the writes (`Transaction.layer` in `infrastructure
 wraps `SqlClient.withTransaction`), and every repository call inside joins the transaction
 through the connection `@effect/sql` keeps in the fiber's context, so no port takes a transaction
 parameter. `SendMessageUseCase.send` writes the user message with the chat's `updatedAt`, the
-binds, the reply and its jobs' outbox rows, or none of them; `DeleteChatUseCase.delete` removes
-the attachments' rows and the chat, or neither. The guards above then decide every race inside
+binds, the reply and its jobs' outbox rows, or none of them. The guards above then decide every race inside
 Postgres, with no lock in the process: of two sends to one chat the second waits on the chat's
 row lock and, once the first commits, finds its reply active, and of two binds of one
 attachment the second's `UPDATE` waits on the row and skips it. Two api processes behave as two
@@ -271,5 +277,5 @@ The unit suites never reach Postgres ([tooling.md › Tests](tooling.md#tests)).
 transaction decides, that a use case keeps none of its writes or its outbox rows when one is
 refused, runs in `application/e2e/` on `ChatPgTest`. A memory layer copies the four guards the
 database adds (the active message's index, the message stage an update expects, an owner in the
-`where`, the cascade a bound attachment refuses), and each has its twin in a repository suite
+`where`, the cascade from a chat to its messages and their attachments), and each has its twin in a repository suite
 ([effect-tests.md › Unit and e2e](../../.claude/rules/effect-tests.md#unit-and-e2e)).

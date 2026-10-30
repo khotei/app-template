@@ -14,7 +14,7 @@ import {
   isExpiredAt,
   MediaType,
 } from '#domain/attachment/attachment.model'
-import { MessageId } from '#domain/chat/chat.id'
+import { ChatId, MessageId } from '#domain/chat/chat.id'
 import { UserId } from '#domain/user/user.id'
 
 describe('Attachment', () => {
@@ -22,6 +22,7 @@ describe('Attachment', () => {
     id: '0192d4e0-7b3a-7c00-8000-000000000020',
     userId: '0192d4e0-7b3a-7c00-8000-000000000010',
     messageId: Option.none(),
+    chatId: Option.none(),
     fileName: 'report.pdf',
     mediaType: 'application/pdf',
     size: 1024,
@@ -60,6 +61,7 @@ const unbound = buildAttachment({
 const bound = new Attachment({
   ...unbound,
   messageId: Option.some(MessageId.make('0192d4e0-7b3a-7c00-8000-000000000031')),
+  chatId: Option.some(ChatId.make('0192d4e0-7b3a-7c00-8000-000000000020')),
 })
 
 describe('isExpiredAt', () => {

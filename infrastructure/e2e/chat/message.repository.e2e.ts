@@ -68,7 +68,7 @@ const bindAttachments = (attachments: ReadonlyArray<Attachment>, message: Messag
 
     yield* Effect.forEach(attachments, repository.insert, { discard: true })
     yield* repository.update(
-      { messageId: Option.some(message.id) },
+      { messageId: Option.some(message.id), chatId: Option.some(message.chatId) },
       { id: Arr.map(attachments, (each) => each.id) },
     )
   })
@@ -353,7 +353,11 @@ describe('MessageRepositoryPg', () => {
       const secondUploaded = attachment('0192d4e0-7b3a-7c00-8000-000000000021', 1)
       const question = userMessage('0192d4e0-7b3a-7c00-8000-00000000005c', { chatId, seconds: 3 })
       const bound = (each: Attachment) =>
-        new Attachment({ ...each, messageId: Option.some(question.id) })
+        new Attachment({
+          ...each,
+          messageId: Option.some(question.id),
+          chatId: Option.some(chatId),
+        })
       const inUploadOrder = {
         message: question,
         attachments: [bound(firstUploaded), bound(secondUploaded)],

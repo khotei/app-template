@@ -1,12 +1,7 @@
 import { desc, eq, isNull } from 'drizzle-orm'
 import { Array as Arr, DateTime, Effect, Layer, Option, Schema, UndefinedOr } from 'effect'
 
-import {
-  type ChatId,
-  ChatRepository,
-  type ChatSet,
-  type ChatWhere,
-} from '@app-template/domain/chat'
+import { ChatRepository, type ChatSet, type ChatWhere } from '@app-template/domain/chat'
 
 import { ChatFromRow, ChatInsert, chats } from '#infrastructure/chat/chat.entity'
 import { buildSet, buildWhere } from '#infrastructure/db/columns'
@@ -71,12 +66,12 @@ export const ChatRepositoryPg = Layer.effect(
         orDieWithSqlError,
       ),
       delete: Effect.fn('ChatRepository.delete')(
-        (id: ChatId) =>
+        (where) =>
           db
             .delete(chats)
-            .where(eq(chats.id, id))
+            .where(encodeWhere(where))
             .returning({ id: chats.id })
-            .pipe(orDieOnNoRows(`chat ${id} was not deleted`)),
+            .pipe(Effect.map(Arr.isReadonlyArrayNonEmpty)),
         orDieWithSqlError,
       ),
     }),

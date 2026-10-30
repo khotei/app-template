@@ -57,12 +57,19 @@ describe('AttachmentRepositoryPg', () => {
     Effect.gen(function* () {
       const attachments = yield* AttachmentRepository
       const unbound = attachment('0192d4e0-7b3a-7c00-8000-000000000021')
-      const bound = new Attachment({ ...unbound, messageId: Option.some(messageId) })
+      const bound = new Attachment({
+        ...unbound,
+        messageId: Option.some(messageId),
+        chatId: Option.some(chatId),
+      })
       yield* insertMessage
       yield* attachments.insert(unbound)
 
       const beforeBind = yield* attachments.selectOne({ id: unbound.id })
-      yield* attachments.update({ messageId: Option.some(messageId) }, { id: [unbound.id] })
+      yield* attachments.update(
+        { messageId: Option.some(messageId), chatId: Option.some(chatId) },
+        { id: [unbound.id] },
+      )
       const afterBind = yield* attachments.selectOne({ id: unbound.id })
 
       assertSchemaEquals(SelectedAttachment, beforeBind, Option.some(unbound))
@@ -98,19 +105,25 @@ describe('AttachmentRepositoryPg', () => {
       const boundBefore = new Attachment({
         ...attachment('0192d4e0-7b3a-7c00-8000-000000000023'),
         messageId: Option.some(messageId),
+        chatId: Option.some(chatId),
       })
       yield* insertMessage
       yield* messages.insert(buildUserMessage({ id: nextMessageId, chatId, text: 'Hi', createdAt }))
       yield* pipe(free, Arr.append(boundBefore), Effect.forEach(attachments.insert))
 
       const bound = yield* attachments.update(
-        { messageId: Option.some(nextMessageId) },
+        { messageId: Option.some(nextMessageId), chatId: Option.some(chatId) },
         { id: [first.id, boundBefore.id, unknownId, second.id], messageId: Option.none() },
       )
 
       const boundNow = Arr.map(
         free,
-        (each) => new Attachment({ ...each, messageId: Option.some(nextMessageId) }),
+        (each) =>
+          new Attachment({
+            ...each,
+            messageId: Option.some(nextMessageId),
+            chatId: Option.some(chatId),
+          }),
       )
       assertSchemaEquals(Attachments, sortById(bound), boundNow)
       assertSchemaEquals(
@@ -182,13 +195,54 @@ describe('AttachmentRepositoryPg', () => {
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 
-  it.effect('delete where no row holds dies', () =>
+  it.effect("update dies and binds nothing when chatId is not the message's chat", () =>
+    Effect.gen(function* () {
+      const attachments = yield* AttachmentRepository
+      const otherChatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000041')
+      const unbound = attachment('0192d4e0-7b3a-7c00-8000-000000000028')
+      yield* insertMessage
+      yield* insertOwnedChats(strangerId, [otherChatId])
+      yield* attachments.insert(unbound)
+
+      const exit = yield* attachments
+        .update(
+          { messageId: Option.some(messageId), chatId: Option.some(otherChatId) },
+          { id: [unbound.id] },
+        )
+        .pipe(Effect.exit)
+
+      assert.isTrue(Exit.hasDies(exit))
+      assertSchemaEquals(Attachments, yield* attachments.selectMany({ id: [unbound.id] }), [
+        unbound,
+      ])
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
+  )
+
+  it.effect('delete where no row holds answers no rows', () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentRepository
 
-      const exit = yield* attachments.delete({ id: [unknownId] }).pipe(Effect.exit)
+      assert.deepStrictEqual(yield* attachments.delete({ id: [unknownId] }), [])
+    }).pipe(Effect.provide(RepositoryStackPgTest)),
+  )
 
-      assert.isTrue(Exit.hasDies(exit))
+  it.effect("selectMany by chatId reads the owner's attachments bound to the chat's messages", () =>
+    Effect.gen(function* () {
+      const attachments = yield* AttachmentRepository
+      const bound = new Attachment({
+        ...attachment('0192d4e0-7b3a-7c00-8000-000000000026'),
+        messageId: Option.some(messageId),
+        chatId: Option.some(chatId),
+      })
+      const unbound = attachment('0192d4e0-7b3a-7c00-8000-000000000027')
+      yield* insertMessage
+      yield* Effect.forEach([bound, unbound], attachments.insert)
+
+      const foreign = yield* attachments.selectMany({ chatId, userId: strangerId })
+      const found = yield* attachments.selectMany({ chatId, userId })
+
+      assert.deepStrictEqual(foreign, [])
+      assertSchemaEquals(Attachments, found, [bound])
     }).pipe(Effect.provide(RepositoryStackPgTest)),
   )
 })

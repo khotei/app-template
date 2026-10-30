@@ -63,7 +63,11 @@ describe('SendMessageUseCase', () => {
         const sentAt = userMessage.message.createdAt
         assert.isTrue(DateTime.isGreaterThan(sentAt, epoch))
         assert.isTrue(isUuidV7(userMessage.message.id) && isUuidV7(assistantMessage.message.id))
-        const bound = new Attachment({ ...photo, messageId: Option.some(userMessage.message.id) })
+        const bound = new Attachment({
+          ...photo,
+          messageId: Option.some(userMessage.message.id),
+          chatId: Option.some(chat.id),
+        })
         assertEquals(
           { userMessage, assistantMessage },
           {

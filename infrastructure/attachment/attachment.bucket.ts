@@ -1,5 +1,5 @@
 import type { S3Service } from '@effect-aws/client-s3'
-import { Duration, Effect, Layer, type Stream } from 'effect'
+import { Array as Arr, Duration, Effect, Layer, type Stream } from 'effect'
 
 import { buildResourceName, resources, unboundTag } from '@app-template/aws'
 import { AwsConfig } from '@app-template/config'
@@ -53,6 +53,10 @@ export const AttachmentBucketS3 = Layer.effect(
       bucket.delete(buildObjectKey(id)),
     )
 
-    return AttachmentBucket.of({ insert, select, url, keep, delete: remove })
+    const deleteMany = Effect.fn('AttachmentBucket.deleteMany')(
+      (ids: ReadonlyArray<AttachmentId>) => bucket.deleteMany(Arr.map(ids, buildObjectKey)),
+    )
+
+    return AttachmentBucket.of({ insert, select, url, keep, delete: remove, deleteMany })
   }),
 )

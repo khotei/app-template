@@ -58,7 +58,7 @@ const selectReply = MessageRepository.use((messages) =>
   messages.selectOne({ id: messageId }).pipe(Effect.map(Option.map(Struct.get('message')))),
 )
 
-const deleteChat = ChatRepository.use((chats) => chats.delete(chatId))
+const deleteChat = ChatRepository.use((chats) => chats.delete({ id: chatId }))
 
 const assertFailed = (failed: Message, cause: string) => {
   const error = Option.getOrThrow(failed.error)

@@ -24,7 +24,6 @@ import { QueueClientOutbox } from '@app-template/infrastructure/shared'
 import { AwsTest, TransactionTest } from '@app-template/infrastructure/testing'
 import { QueueClient } from '@app-template/queue'
 
-import { DeleteChatUseCase } from '#application/chat/delete-chat.use-case'
 import { GenerateAssistantMessageUseCase } from '#application/chat/generate-assistant-message.use-case'
 import { GenerateChatTitleUseCase } from '#application/chat/generate-chat-title.use-case'
 import { SendMessageUseCase } from '#application/chat/send-message.use-case'
@@ -34,7 +33,6 @@ const ChatServices = Layer.mergeAll(
   ChatService.layer,
   AttachmentService.layer,
   SendMessageUseCase.layer,
-  DeleteChatUseCase.layer,
 )
 
 const insertChat = Layer.effectDiscard(ChatRepository.use((chats) => chats.insert(chat)))
@@ -64,7 +62,7 @@ export const ChatTest = ChatServices.pipe(
  */
 export const ChatTitleTest = GenerateChatTitleUseCase.layer.pipe(
   Layer.provideMerge(insertChat),
-  Layer.provideMerge(RepositoryStackTest),
+  Layer.provideMerge(Layer.merge(RepositoryStackTest, AttachmentBucketTest)),
   Layer.provide(BunCrypto.layer),
 )
 

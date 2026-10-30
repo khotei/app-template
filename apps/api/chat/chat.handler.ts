@@ -1,7 +1,7 @@
 import { Array as Arr, Crypto, DateTime, Effect, Option } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
-import { DeleteChatUseCase, SendMessageUseCase } from '@app-template/application/chat'
+import { SendMessageUseCase } from '@app-template/application/chat'
 import {
   buildChat,
   ChatId,
@@ -24,7 +24,6 @@ export const ChatHandler = HttpApiBuilder.group(
     const chatService = yield* ChatService
     const crypto = yield* Crypto.Crypto
     const sendMessage = yield* SendMessageUseCase
-    const deleteChat = yield* DeleteChatUseCase
 
     return handlers
       .handle(
@@ -71,7 +70,7 @@ export const ChatHandler = HttpApiBuilder.group(
         'delete',
         Effect.fn('ChatHandler.delete')(function* ({ params }) {
           const user = yield* CurrentUser
-          yield* deleteChat.delete(user.id, params.chatId)
+          yield* chatService.delete(user.id, params.chatId)
         }),
       )
       .handle(

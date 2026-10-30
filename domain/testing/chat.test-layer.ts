@@ -6,6 +6,7 @@ import { ChatService } from '#domain/chat/chat.service'
 import { buildAssistantMessage, buildUserMessage } from '#domain/chat/message.model'
 import { MessageRepository } from '#domain/chat/message.port'
 import { generateId } from '#domain/shared/id'
+import { AttachmentBucketTest } from '#domain/testing/attachment.test-fake'
 import { ask, chat } from '#domain/testing/chat.test-fixture'
 import { RepositoryStackTest } from '#domain/testing/repository-stack.test-layer'
 import type { UserId } from '#domain/user/user.id'
@@ -15,7 +16,7 @@ const insertChat = Layer.effectDiscard(ChatRepository.use((chats) => chats.inser
 /** The chat services over the memory layers, on fresh rows where `chat` exists; needs `Crypto`. */
 export const ChatTest = ChatService.layer.pipe(
   Layer.provideMerge(insertChat),
-  Layer.provideMerge(RepositoryStackTest),
+  Layer.provideMerge(Layer.merge(RepositoryStackTest, AttachmentBucketTest)),
 )
 
 /** Stores a user message with its queued reply, as a send does. */

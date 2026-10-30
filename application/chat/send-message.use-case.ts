@@ -79,7 +79,10 @@ export class SendMessageUseCase extends Context.Service<
         createdAt: sendable.at,
       })
       yield* messages.insert(userMessage)
-      const bound = yield* attachmentService.bind(userId, input.attachmentIds, userMessage.id)
+      const bound = yield* attachmentService.bind(userId, input.attachmentIds, {
+        messageId: userMessage.id,
+        chatId,
+      })
       const assistantMessageId = yield* generateId(crypto, MessageId.make)
       const assistantMessage = buildAssistantMessage({
         id: assistantMessageId,

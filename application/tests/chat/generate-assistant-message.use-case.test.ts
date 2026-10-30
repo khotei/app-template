@@ -95,6 +95,7 @@ const image = (
       createdAt: epoch,
     }),
     messageId: Option.some(boundTo),
+    chatId: Option.some(chatId),
   })
 
 const photo = image('0192d4e0-7b3a-7c00-8000-000000000040', {
@@ -131,7 +132,7 @@ const settleElsewhere = MessageRows.use((rows) =>
   Ref.update(rows, HashMap.set(messageId, asCompleted(queuedReply, 'Done elsewhere.'))),
 )
 
-const deleteChat = ChatRepository.use((chats) => chats.delete(chatId))
+const deleteChat = ChatRepository.use((chats) => chats.delete({ id: chatId }))
 
 const job = new GenerateAssistantMessage({ chatId, messageId })
 

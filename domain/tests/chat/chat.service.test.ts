@@ -1,10 +1,19 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { DateTime, Effect, Layer, Option } from 'effect'
+import { DateTime, Effect, Layer, Option, Stream } from 'effect'
 
-import { assertSchemaEquals } from '@app-template/testing'
+import { assertSchemaEquals, png } from '@app-template/testing'
 
+import { AttachmentId } from '#domain/attachment/attachment.id'
+import {
+  Attachment,
+  buildAttachment,
+  FileName,
+  FileSize,
+  MediaType,
+} from '#domain/attachment/attachment.model'
+import { AttachmentBucket, AttachmentRepository } from '#domain/attachment/attachment.port'
 import { ChatBusyError, ChatNotFoundError } from '#domain/chat/chat.error'
 import { type ChatId, MessageId } from '#domain/chat/chat.id'
 import { Chat, ChatTitle, ChatWithStatus } from '#domain/chat/chat.model'
@@ -14,7 +23,7 @@ import type { MessageInputInvalidError } from '#domain/chat/message.error'
 import { buildUserMessage, completeMessage, type Message } from '#domain/chat/message.model'
 import { MessageRepository } from '#domain/chat/message.port'
 import { ask, chat, epoch, unknownChatId } from '#domain/testing/chat.test-fixture'
-import { ChatTest, send } from '#domain/testing/chat.test-layer'
+import { ChatTest, selectMessages, send } from '#domain/testing/chat.test-layer'
 import { owner, stranger } from '#domain/testing/user.test-fixture'
 import type { UserId } from '#domain/user/user.id'
 
@@ -54,6 +63,7 @@ const chatCalls: ReadonlyArray<{ readonly name: string; readonly call: ChatCall 
     call: (service, userId, chatId) =>
       service.rename({ id: chatId, userId }, { title: Option.some(trip) }),
   },
+  { name: 'delete', call: (service, userId, chatId) => service.delete(userId, chatId) },
   {
     name: 'findSendable',
     call: (service, userId, chatId) => service.findSendable(userId, chatId, ask('Lisbon?')),
@@ -146,6 +156,41 @@ describe('ChatService', () => {
 
         assertSchemaEquals(ChatNotFoundError, error, new ChatNotFoundError({ id: chat.id }))
         assertEquals(yield* selectChat(chat.id), Option.some(renamed))
+      }).pipe(Effect.provide(ChatBunTest)),
+  )
+
+  it.effect(
+    'delete while a reply runs removes the chat, its messages, their attachments and bytes',
+    () =>
+      Effect.gen(function* () {
+        const service = yield* ChatService
+        const attachments = yield* AttachmentRepository
+        const bucket = yield* AttachmentBucket
+        const { userMessage } = yield* send(owner, chat.id, 'Look')
+        const photo = new Attachment({
+          ...buildAttachment({
+            id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000024'),
+            userId: owner,
+            fileName: FileName.make('photo.png'),
+            mediaType: MediaType.make('image/png'),
+            size: FileSize.make(png.length),
+            createdAt: epoch,
+          }),
+          messageId: Option.some(userMessage.id),
+          chatId: Option.some(chat.id),
+        })
+        yield* attachments.insert(photo)
+        yield* bucket.insert(photo.id, Stream.make(png), photo)
+
+        yield* service.delete(owner, chat.id)
+
+        assertEquals(
+          yield* ChatRepository.use((chats) => chats.selectOne({ id: chat.id })),
+          Option.none(),
+        )
+        assertEquals(yield* selectMessages(chat.id), [])
+        assertEquals(yield* attachments.selectMany({ id: [photo.id] }), [])
+        assertEquals(yield* bucket.select(photo.id), Option.none())
       }).pipe(Effect.provide(ChatBunTest)),
   )
 

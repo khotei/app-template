@@ -10,6 +10,7 @@ import {
   Ref,
   Stream,
   Struct,
+  UndefinedOr,
 } from 'effect'
 
 import type { AttachmentId } from '#domain/attachment/attachment.id'
@@ -32,7 +33,10 @@ export class AttachmentRows extends Context.Service<
 const holdsWhere = (where: AttachmentWhere) =>
   Predicate.and(
     (attachment: Attachment) => where.id === undefined || Arr.contains(where.id, attachment.id),
-    matches(Struct.omit(where, ['id'])),
+    matches<Attachment>({
+      ...Struct.omit(where, ['id', 'chatId']),
+      chatId: UndefinedOr.map(where.chatId, Option.some),
+    }),
   )
 
 /** The rows in the order of `ids`; without `ids`, as stored. */
@@ -73,13 +77,12 @@ export const AttachmentRepositoryTest = Layer.effect(
         ),
       delete: (where) =>
         Ref.modify(rows, (map) => {
-          const deleted = Arr.fromIterable(HashMap.keys(HashMap.filter(map, holdsWhere(where))))
-          return [deleted, HashMap.removeMany(map, deleted)] as const
-        }).pipe(
-          Effect.filterOrElse(Arr.isReadonlyArrayNonEmpty, () =>
-            Effect.die(new Error('no attachment was deleted')),
-          ),
-        ),
+          const deleted = HashMap.filter(map, holdsWhere(where))
+          return [
+            HashMap.toValues(deleted),
+            HashMap.removeMany(map, HashMap.keys(deleted)),
+          ] as const
+        }),
     }),
   ),
 )
@@ -108,6 +111,7 @@ export const AttachmentBucketTest = Layer.effect(
       url: (id) => select(id).pipe(Effect.map(Option.as(new URL(`memory:attachments/${id}`)))),
       keep: () => Effect.void,
       delete: (id) => Ref.update(objects, HashMap.remove(id)),
+      deleteMany: (ids) => Ref.update(objects, HashMap.removeMany(ids)),
     })
   }),
 ).pipe(Layer.provideMerge(AttachmentBucketObjects.layer))

@@ -38,7 +38,7 @@ const renameChat = ChatRepository.use((chats) =>
   chats.update({ title: Option.some(trip) }, { id: chatId }).pipe(Effect.asVoid),
 )
 
-const deleteChat = ChatRepository.use((chats) => chats.delete(chatId))
+const deleteChat = ChatRepository.use((chats) => chats.delete({ id: chatId }))
 
 const generate = GenerateChatTitleUseCase.use((useCase) =>
   useCase.generate(new GenerateChatTitle({ chatId, messageId })),

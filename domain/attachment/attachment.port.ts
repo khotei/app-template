@@ -3,14 +3,17 @@ import type { RequireAtLeastOne } from 'type-fest'
 
 import type { AttachmentId } from '#domain/attachment/attachment.id'
 import type { Attachment, AttachmentMeta, FileSize } from '#domain/attachment/attachment.model'
+import type { ChatId } from '#domain/chat/chat.id'
 
-export type AttachmentSet = Types.Simplify<RequireAtLeastOne<Pick<Attachment, 'messageId'>>>
+export type AttachmentSet = Types.Simplify<
+  RequireAtLeastOne<Pick<Attachment, 'messageId' | 'chatId'>>
+>
 
 /** The rows where every field named holds: `id` lists them, an owner mismatch reads as absent. */
 export type AttachmentWhere = Types.Simplify<
   RequireAtLeastOne<
     { readonly id: ReadonlyArray<AttachmentId> } & Partial<
-      Pick<Attachment, 'userId' | 'messageId'>
+      Pick<Attachment, 'userId' | 'messageId'> & { readonly chatId: ChatId }
     >,
     'id' | 'userId'
   >
@@ -33,8 +36,8 @@ export class AttachmentRepository extends Context.Service<
     readonly selectOne: (where: AttachmentOneWhere) => Effect.Effect<Option.Option<Attachment>>
     /** Rows where `where` holds; in the order of `where.id` when given, unknown ids skipped. */
     readonly selectMany: (where: AttachmentWhere) => Effect.Effect<ReadonlyArray<Attachment>>
-    /** Deletes the rows where `where` holds; dies when it deletes nothing. */
-    readonly delete: (where: AttachmentWhere) => Effect.Effect<void>
+    /** Deletes the rows where `where` holds, in one statement; returns the rows deleted, unordered. */
+    readonly delete: (where: AttachmentWhere) => Effect.Effect<ReadonlyArray<Attachment>>
   }
 >()('@app-template/domain/attachment/AttachmentRepository') {}
 
@@ -60,5 +63,7 @@ export class AttachmentBucket extends Context.Service<
     readonly keep: (id: AttachmentId) => Effect.Effect<void>
     /** Idempotent. */
     readonly delete: (id: AttachmentId) => Effect.Effect<void>
+    /** Idempotent, in as few requests as the store allows. */
+    readonly deleteMany: (ids: ReadonlyArray<AttachmentId>) => Effect.Effect<void>
   }
 >()('@app-template/domain/attachment/AttachmentBucket') {}

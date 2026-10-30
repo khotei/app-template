@@ -96,12 +96,6 @@ interface Tables {
   readonly attachments: Attachments
 }
 
-const hasBoundAttachment = (tables: Tables, chatId: ChatId): boolean =>
-  pipe(
-    messagesOf(tables.messages, chatId),
-    Arr.some((message) => HashMap.some(tables.attachments, isBoundTo(message.id))),
-  )
-
 /** Holds when the message's chat is the user's, as the Pg relation filter reads it. */
 const isOwnedThroughChat = (
   chats: Chats,
@@ -141,6 +135,7 @@ export const ChatRepositoryTest = Layer.effect(
   Effect.gen(function* () {
     const chats = yield* ChatRows
     const messages = yield* MessageRows
+    const attachments = yield* AttachmentRows
     const readTables = yield* createReadTables
 
     const selectChat = (where: ChatWhere) =>
@@ -178,20 +173,22 @@ export const ChatRepositoryTest = Layer.effect(
             ),
           ),
         ),
-      delete: (id) =>
+      delete: (where) =>
         Effect.gen(function* () {
-          const tables = yield* readTables
-          if (!HashMap.has(tables.chats, id)) {
-            return yield* Effect.die(new Error(`chat ${id} was not deleted`))
-          }
-          if (hasBoundAttachment(tables, id)) {
-            return yield* Effect.die(new Error(`chat ${id} has a message with a bound attachment`))
-          }
-          yield* Ref.update(chats, HashMap.remove(id))
+          const found = yield* selectChat(where)
+          if (Option.isNone(found)) return false
+
+          // The cascade: the messages, then their attachments.
+          yield* Ref.update(chats, HashMap.remove(where.id))
           yield* Ref.update(
             messages,
-            HashMap.filter(Predicate.not(matches<Message>({ chatId: id }))),
+            HashMap.filter(Predicate.not(matches<Message>({ chatId: where.id }))),
           )
+          yield* Ref.update(
+            attachments,
+            HashMap.filter((attachment) => !Option.contains(attachment.chatId, where.id)),
+          )
+          return true
         }),
     })
   }),

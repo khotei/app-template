@@ -24,7 +24,7 @@ import {
   isExpiredAt,
 } from '#domain/attachment/attachment.model'
 import { AttachmentBucket, AttachmentRepository } from '#domain/attachment/attachment.port'
-import type { MessageId } from '#domain/chat/chat.id'
+import type { ChatId, MessageId } from '#domain/chat/chat.id'
 import { generateId } from '#domain/shared/id'
 import type { UserId } from '#domain/user/user.id'
 
@@ -58,23 +58,15 @@ export class AttachmentService extends Context.Service<
       id: AttachmentId,
     ) => Effect.Effect<void, AttachmentNotFoundError | AttachmentBoundError>
     /**
-     * Binds the user's attachments to the message and returns them bound, in the order asked; an
+     * Binds the user's attachments to the message of the chat and returns them bound, in the order asked; an
      * id another bind took since the check fails `AttachmentBoundError`, the others staying bound
      * unless the caller's transaction rolls back.
      */
     readonly bind: (
       userId: UserId,
       ids: ReadonlyArray<AttachmentId>,
-      messageId: MessageId,
+      to: { readonly messageId: MessageId; readonly chatId: ChatId },
     ) => Effect.Effect<ReadonlyArray<Attachment>, AttachmentNotFoundError | AttachmentBoundError>
-    /**
-     * Removes these attachments, bound or not; an id already removed is skipped, so a retried
-     * cascade finishes.
-     *
-     * A step of `DeleteChatUseCase`, which found the ids through the user's chat: it checks no
-     * owner, and entry points call the use case, never this.
-     */
-    readonly deleteByIds: (ids: ReadonlyArray<AttachmentId>) => Effect.Effect<void>
   }
 >()('@app-template/domain/attachment/AttachmentService', {
   make: Effect.gen(function* () {
@@ -82,17 +74,6 @@ export class AttachmentService extends Context.Service<
     const bucket = yield* AttachmentBucket
     const crypto = yield* Crypto.Crypto
     const randomAttachmentId = generateId(crypto, AttachmentId.make)
-
-    // An empty batch asks for nothing, so it never reaches the delete that dies on no rows.
-    const deleteRows = (ids: ReadonlyArray<AttachmentId>) =>
-      Arr.isReadonlyArrayNonEmpty(ids) ? attachments.delete({ id: ids }) : Effect.void
-
-    const deleteByIds = Effect.fn('AttachmentService.deleteByIds')(function* (
-      ids: ReadonlyArray<AttachmentId>,
-    ) {
-      yield* deleteRows(ids)
-      yield* Effect.forEach(ids, bucket.delete, { discard: true })
-    })
 
     const uploadFile = Effect.fnUntraced(function* <E>(
       file: AttachmentUpload<E>,
@@ -119,7 +100,7 @@ export class AttachmentService extends Context.Service<
       const trackId = Effect.tap(randomAttachmentId, (id) => Ref.update(tracked, Arr.append(id)))
       const storeId = (attachment: Attachment) => Ref.update(stored, Arr.append(attachment.id))
       const deleteTracked = Effect.gen(function* () {
-        yield* Ref.get(stored).pipe(Effect.flatMap(deleteRows))
+        yield* Ref.get(stored).pipe(Effect.flatMap((ids) => attachments.delete({ id: ids })))
         const ids = yield* Ref.get(tracked)
         yield* Effect.forEach(ids, bucket.delete, { discard: true })
       })
@@ -172,7 +153,7 @@ export class AttachmentService extends Context.Service<
     const bind = Effect.fn('AttachmentService.bind')(function* (
       userId: UserId,
       ids: ReadonlyArray<AttachmentId>,
-      messageId: MessageId,
+      { messageId, chatId }: { readonly messageId: MessageId; readonly chatId: ChatId },
     ) {
       const stored = yield* attachments.selectMany({ id: ids, userId })
       const now = yield* DateTime.now
@@ -191,7 +172,7 @@ export class AttachmentService extends Context.Service<
       // Keep first: unbound bytes expire, so a crash must never leave a bound row over them.
       yield* Effect.forEach(ids, bucket.keep, { discard: true })
       const bound = yield* attachments.update(
-        { messageId: Option.some(messageId) },
+        { messageId: Option.some(messageId), chatId: Option.some(chatId) },
         { id: ids, userId, messageId: Option.none() },
       )
       const byId = HashMap.fromIterable(Arr.map(bound, (attachment) => [attachment.id, attachment]))
@@ -200,7 +181,7 @@ export class AttachmentService extends Context.Service<
       )
     })
 
-    return { upload, get, download, delete: remove, bind, deleteByIds }
+    return { upload, get, download, delete: remove, bind }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

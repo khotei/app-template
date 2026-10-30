@@ -2,7 +2,7 @@ import { DateTime, Duration, Effect, Option, Predicate, Schema } from 'effect'
 
 import { AttachmentBoundError } from '#domain/attachment/attachment.error'
 import { AttachmentId } from '#domain/attachment/attachment.id'
-import { MessageId } from '#domain/chat/chat.id'
+import { ChatId, MessageId } from '#domain/chat/chat.id'
 import { UserId } from '#domain/user/user.id'
 
 export const FileName = Schema.String.check(Schema.isNonEmpty()).pipe(Schema.brand('FileName'))
@@ -29,6 +29,8 @@ export class Attachment extends Schema.Class<Attachment>('Attachment')({
   id: AttachmentId,
   userId: UserId,
   messageId: Schema.Option(MessageId),
+  /** The chat of `messageId`, set with it, so a chat's attachments are found without its messages. */
+  chatId: Schema.Option(ChatId),
   fileName: FileName,
   mediaType: MediaType,
   size: FileSize,
@@ -58,6 +60,7 @@ export const buildAttachment = (input: {
     id: input.id,
     userId: input.userId,
     messageId: Option.none(),
+    chatId: Option.none(),
     fileName: input.fileName,
     mediaType: input.mediaType,
     size: input.size,

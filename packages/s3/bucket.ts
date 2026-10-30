@@ -11,6 +11,7 @@ import {
   Number as Num,
   Option,
   Predicate,
+  pipe,
   Sink,
   Stream,
 } from 'effect'
@@ -90,6 +91,9 @@ const cutParts = <E>(content: Stream.Stream<Uint8Array, E>): Stream.Stream<Uint8
  * `NoSuchKey`; a missing key still arrives with that tag.
  */
 const isNoSuchKey = (error: unknown): boolean => Predicate.isTagged(error, 'NoSuchKey')
+
+/** The most keys one `DeleteObjects` request takes. */
+const deleteBatchSize = 1000
 
 const makeBucket = ({ bucket }: { readonly bucket: string }) =>
   Effect.gen(function* () {
@@ -219,7 +223,27 @@ const makeBucket = ({ bucket }: { readonly bucket: string }) =>
       s3.deleteObject(buildObjectRef(key)).pipe(Effect.asVoid, Effect.orDie),
     )
 
-    return S3Bucket.of({ put, get, exists, url, untag, delete: remove })
+    // `Quiet` answers only the keys it failed on; a missing key is no failure.
+    const deleteBatch = (keys: Arr.NonEmptyReadonlyArray<string>) =>
+      s3
+        .deleteObjects({
+          Bucket: bucket,
+          Delete: { Objects: Arr.map(keys, (Key) => ({ Key })), Quiet: true },
+        })
+        .pipe(
+          Effect.orDie,
+          Effect.flatMap(({ Errors }) =>
+            Arr.isReadonlyArrayNonEmpty(Errors ?? [])
+              ? Effect.die(new Error(`S3 kept ${Errors?.length} of the keys asked to delete`))
+              : Effect.void,
+          ),
+        )
+
+    const deleteMany = Effect.fn('S3Bucket.deleteMany')((keys: ReadonlyArray<string>) =>
+      pipe(keys, Arr.chunksOf(deleteBatchSize), Effect.forEach(deleteBatch, { discard: true })),
+    )
+
+    return S3Bucket.of({ put, get, exists, url, untag, delete: remove, deleteMany })
   })
 
 export class S3Bucket extends Context.Service<
@@ -242,6 +266,8 @@ export class S3Bucket extends Context.Service<
     readonly untag: (key: string) => Effect.Effect<void>
     /** Idempotent. */
     readonly delete: (key: string) => Effect.Effect<void>
+    /** Idempotent; one request per 1000 keys, none for no key. */
+    readonly deleteMany: (keys: ReadonlyArray<string>) => Effect.Effect<void>
   }
 >()('@app-template/s3/S3Bucket') {
   static readonly layer = (options: {

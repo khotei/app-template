@@ -15,12 +15,7 @@ import {
   attachments,
 } from '#infrastructure/attachment/attachment.entity'
 import { buildSet, buildWhere, skipUndefined } from '#infrastructure/db/columns'
-import {
-  Db,
-  decodeOptionalRow,
-  orDieOnNoRows,
-  orDieWithSqlError,
-} from '#infrastructure/db/db.client'
+import { Db, decodeOptionalRow, orDieWithSqlError } from '#infrastructure/db/db.client'
 
 const encodeAttachment = Schema.encodeEffect(AttachmentInsert)
 
@@ -28,6 +23,7 @@ const decodeAttachments = Schema.decodeEffect(Schema.Array(AttachmentFromRow))
 
 const encodeSet = buildSet<AttachmentSet, typeof attachments>({
   messageId: UndefinedOr.map(Option.getOrNull),
+  chatId: UndefinedOr.map(Option.getOrNull),
 })
 
 const encodeWhere = buildWhere<AttachmentWhere>({
@@ -39,6 +35,7 @@ const encodeWhere = buildWhere<AttachmentWhere>({
       onSome: (messageId) => eq(attachments.messageId, messageId),
     }),
   ),
+  chatId: UndefinedOr.map((chatId) => eq(attachments.chatId, chatId)),
 })
 
 /** The rows in the order of `ids`; without `ids`, as the database returned them. */
@@ -92,8 +89,8 @@ export const AttachmentRepositoryPg = Layer.effect(
           db
             .delete(attachments)
             .where(encodeWhere(where))
-            .returning({ id: attachments.id })
-            .pipe(orDieOnNoRows('no attachment was deleted')),
+            .returning()
+            .pipe(Effect.flatMap(decodeAttachments)),
         orDieWithSqlError,
       ),
     }),

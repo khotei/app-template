@@ -21,6 +21,7 @@ const attachment = new Attachment({
   id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000093'),
   userId,
   messageId: Option.none(),
+  chatId: Option.none(),
   fileName: FileName.make('notes.txt'),
   mediaType: MediaType.make('text/plain'),
   size: FileSize.make(42),
@@ -36,6 +37,11 @@ describe('attachments', () => {
       fields: { mediaType: 'text' },
     },
     { name: 'a negative size', check: 'attachments_size_check', fields: { size: -1 } },
+    {
+      name: 'a chat without a message',
+      check: 'attachments_message_id_chat_id_check',
+      fields: { chatId: '0192d4e0-7b3a-7c00-8000-000000000094' },
+    },
   ])('refuses $name through its check', ({ check, fields }) =>
     Effect.gen(function* () {
       const db = yield* Db
