@@ -250,12 +250,13 @@ and that are committed.
   folder in the tree, committed or not, so a step that adds a migration stays green before its
   commit. CI runs it on a fresh checkout, which holds only committed migrations, so there an
   entity changed without a committed migration fails the build.
-- Commit `migration.sql` and `snapshot.json` together, and never edit a committed migration: the
-  ledger `drizzle.__drizzle_migrations` records each one once, so an edit never reaches a
-  database that already applied it.
-- When a column or a table disappears and another appears, drizzle-kit asks whether it was
-  renamed. `make migration` asks in the terminal; without one (`make migration-check`, CI) it
-  fails and prints the `--hints` it needs, so run `make migration` by hand first.
+- Commit `migration.sql` and `snapshot.json` together. The ledger `drizzle.__drizzle_migrations`
+  records each migration once, so an edit never reaches a database that already applied it.
+- **Until a deployed database holds data, the migrations stay one `init`.** A change that
+  drizzle-kit cannot write alone (a rename it asks about, values to carry over) deletes
+  `infrastructure/db/migrations/` and regenerates it with `make migration NAME=init`, never a
+  rename by `--hints` or hand-written SQL; a local database rebuilds by `make reset && make up`.
+  The first deployed database ends this: from then on a committed migration is never edited.
 - The apps neither migrate nor check the schema at startup; only `make migrate` and the tests'
   setup apply migrations.
 - Biome skips `infrastructure/db/migrations/`: the files are drizzle-kit's output, and a

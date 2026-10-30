@@ -1,1 +1,0 @@
-ALTER TABLE "outbox" ALTER COLUMN "body" SET DATA TYPE jsonb USING "body"::jsonb;
