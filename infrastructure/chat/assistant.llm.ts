@@ -17,6 +17,7 @@ import {
   type AttachmentBytes,
   buildChatTitle,
   type HistoryMessage,
+  isBlank,
   maxTitleLength,
 } from '@app-template/domain/chat'
 
@@ -66,7 +67,7 @@ export const AssistantLlm: Layer.Layer<Assistant, never, AssistantModels> = Laye
         return yield* decodeReply({ text })
       }, Effect.orDie),
       suggestTitle: Effect.fn('Assistant.suggestTitle')(function* (text) {
-        if (pipe(text, Str.trim, Str.isEmpty)) return Option.none()
+        if (isBlank(text)) return Option.none()
         const response = yield* models.title.generateText({ prompt: buildTitlePrompt(text) })
         return buildChatTitle(response.text)
       }, Effect.orDie),

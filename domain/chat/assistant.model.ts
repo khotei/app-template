@@ -1,7 +1,11 @@
-import { Schema } from 'effect'
+import { Predicate, Schema } from 'effect'
+
+import { isBlank } from '#domain/chat/message.model'
 
 export class AssistantReply extends Schema.Class<AssistantReply>('AssistantReply')({
   text: Schema.String.check(
-    Schema.isPattern(/\S/u, { expected: 'a string with a non-whitespace character' }),
+    Schema.makeFilter(Predicate.not(isBlank), {
+      expected: 'a string with a non-whitespace character',
+    }),
   ),
 }) {}

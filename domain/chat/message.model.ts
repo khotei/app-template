@@ -2,9 +2,9 @@ import {
   Array as Arr,
   type DateTime,
   Effect,
+  flow,
   Option,
   Predicate,
-  pipe,
   Schema,
   String as Str,
 } from 'effect'
@@ -99,8 +99,10 @@ const isActiveShape = Predicate.Struct({
 export const isActiveMessage = (message: Message): message is ActiveMessage =>
   isActiveShape(message)
 
+export const isBlank: (text: string) => boolean = flow(Str.trim, Str.isEmpty)
+
 export const ensureMessageInput = Effect.fn('ensureMessageInput')(function* (input: MessageInput) {
-  if (pipe(input.text, Str.trim, Str.isEmpty) && Arr.isReadonlyArrayEmpty(input.attachmentIds)) {
+  if (isBlank(input.text) && Arr.isReadonlyArrayEmpty(input.attachmentIds)) {
     return yield* new MessageInputInvalidError()
   }
   // A repeated id would pass the bindability check twice and bind one attachment once.
