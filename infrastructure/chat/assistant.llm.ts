@@ -1,6 +1,5 @@
 import {
   Array as Arr,
-  Data,
   Duration,
   Effect,
   Function as Fn,
@@ -13,7 +12,7 @@ import {
   String as Str,
   UndefinedOr,
 } from 'effect'
-import { type AiError, Prompt, Response, Telemetry } from 'effect/ai'
+import { AiError, Prompt, Response, Telemetry } from 'effect/ai'
 
 import {
   Assistant,
@@ -83,32 +82,17 @@ type EarlyFinish = typeof EarlyFinish.Type
 
 const isEarlyFinish = Schema.is(EarlyFinish)
 
-/**
- * The model stopped before a whole answer, whether its text decoded or not; it never leaves
- * this module.
- *
- * It answers `isRetryable` and `retryAfter` as `AiError` does, so one predicate and one delay
- * read every failure of a request.
- */
-class EarlyFinishError extends Data.TaggedError('EarlyFinishError')<{
-  readonly reason: EarlyFinish
-}> {
-  get isRetryable(): boolean {
-    return this.reason === 'length'
-  }
+// A refusal is the one content policy failure; a cut answer is output another request may fix.
+const earlyFinishReasons = {
+  'content-filter': () =>
+    new AiError.ContentPolicyError({
+      description: 'The model stopped with finish reason content-filter',
+    }),
+  length: () =>
+    new AiError.InvalidOutputError({ description: 'The model stopped with finish reason length' }),
+} as const satisfies Record<EarlyFinish, () => AiError.AiErrorReason>
 
-  get retryAfter(): Duration.Duration | undefined {
-    return undefined
-  }
-
-  override get message(): string {
-    return `The model stopped with finish reason ${this.reason}`
-  }
-}
-
-type RequestError = AiError.AiError | EarlyFinishError
-
-/** Fails a request whose model stopped early, read from its finish part, decoded or not. */
+/** Fails a request whose model refused or was cut, read from its finish part, decoded or not. */
 const failOnEarlyFinish = Effect.fnUntraced(function* <A>(
   request: Effect.Effect<A, AiError.AiError>,
 ) {
@@ -130,29 +114,35 @@ const failOnEarlyFinish = Effect.fnUntraced(function* <A>(
   )
 
   const stopped = MutableRef.get(earlyFinish)
-  if (Option.isSome(stopped)) return yield* new EarlyFinishError({ reason: stopped.value })
+  if (Option.isSome(stopped)) {
+    return yield* AiError.make({
+      module: 'AssistantLlm',
+      method: 'generateObject',
+      reason: earlyFinishReasons[stopped.value](),
+    })
+  }
   return yield* Effect.fromResult(answer)
 })
 
 const longestRetryAfter = Duration.seconds(30)
 
-const retryAfterOf = ({ retryAfter }: RequestError): Duration.Duration =>
+const retryAfterOf = ({ retryAfter }: AiError.AiError): Duration.Duration =>
   UndefinedOr.match(retryAfter, { onUndefined: () => Duration.zero, onDefined: Fn.identity })
 
-const isWorthRetrying = (error: RequestError): boolean =>
+const isWorthRetrying = (error: AiError.AiError): boolean =>
   error.isRetryable && Duration.isLessThanOrEqualTo(retryAfterOf(error), longestRetryAfter)
 
 /** Three requests at most, 1 s then 2 s apart, each wait at least the provider's `retryAfter`. */
 const replySchedule = Schedule.exponential('1 second').pipe(
   Schedule.upTo({ times: 2 }),
-  Schedule.setInputType<RequestError>(),
+  Schedule.setInputType<AiError.AiError>(),
   Schedule.modifyDelay(({ input, duration }) =>
     Effect.succeed(Duration.max(duration, retryAfterOf(input))),
   ),
 )
 
-const toAssistantError = (error: RequestError): AssistantError =>
-  error._tag === 'EarlyFinishError' && error.reason === 'content-filter'
+const toAssistantError = (error: AiError.AiError): AssistantError =>
+  error.reason._tag === 'ContentPolicyError'
     ? new AssistantRefusedError({ cause: error.message })
     : new AssistantFailedError({ cause: error.message })
 
