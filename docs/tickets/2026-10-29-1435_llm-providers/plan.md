@@ -14,6 +14,8 @@
 | S6 | the title as a structured response with its own retries | done |
 | S7 | provenance in the reply's job, kept in the outbox; never on the message or the wire | done |
 | S8 | `docs/knowledge/ai.md`: every `effect/ai` module mapped | done |
+| S9 | a reply job queued before `provenance` decodes; the journey reads the provenance the api wrote | todo |
+| S10 | review fixes: the fake's `??`, a named predicate, `architecture.md` matching the branch | todo |
 
 ## How to run this plan
 
@@ -444,6 +446,39 @@
   - The link to `ai.md` sits on the adapter row of `docs/knowledge/architecture.md`; no rule
     or `CLAUDE.md` line restated `ai.md`, so none was trimmed.
 
+#### S9 — Old reply jobs decode; the journey reads the provenance
+
+- **Delivers:** a reply job queued before its body carried `provenance` still decodes, so the
+  worker settles its message and a deploy never leaves a chat `queued` behind an undecodable job;
+  the journey reads the provenance the api's real layer put into the outbox row.
+- **Goal:** R12; D6. From verification run 1, simplifications 1 and 2.
+- **Blocked by:** S8.
+- **Files:** `infrastructure/chat/chat.queue.ts` (`provenance` decodes when absent; the api still
+  writes it); `e2e/chat.e2e.ts` (the reply job's outbox body holds the provenance of
+  `CurrentReplyProvenance.layerFromConfig` on the stub: provider and model `stub`, a 64-hex
+  hash); the suite that decodes the job, or a case beside the worker handler's decode; every
+  suite that builds or asserts on `GenerateAssistantMessage`.
+- **Test first:** a body `{ chatId, messageId }` decodes as a `GenerateAssistantMessage`; Seam 10:
+  the journey's outbox row carries the stub's provenance.
+- **Verify:** `make check`.
+- **Model:** opus medium
+- **Status:** todo
+
+#### S10 — Review fixes from verification
+
+- **Delivers:** two rule breaches gone and `architecture.md` true of the branch it ships with.
+- **Goal:** D1, D4; from verification run 1, simplifications 3 and 4.
+- **Blocked by:** S9.
+- **Files:** `domain/testing/assistant.test-fake.ts` (`UndefinedOr` for the `??`);
+  `infrastructure/chat/assistant.llm.ts` (a named predicate for the inline `&&` in
+  `failOnEarlyFinish`); `architecture.md`'s "**Wire**: unchanged" and D1's "`packages/queue`
+  does not change", rewritten to what the branch's other commits did (the chat status on the
+  wire, `done` for `completed`, no `activeMessage`; `QueueSender` and `QueueConsumer`).
+- **Test first:** `config only`.
+- **Verify:** `make check`.
+- **Model:** opus medium
+- **Status:** todo
+
 ## Requirement coverage
 
 | Req | Steps |
@@ -459,7 +494,7 @@
 | R9 | S3 |
 | R10 | S3 |
 | R11 | S3 |
-| R12 | S7 |
+| R12 | S7, S9 |
 | R13 | S4, S5 |
 | R14 | S5 |
 | R15 | S5 |
