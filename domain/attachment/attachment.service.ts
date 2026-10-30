@@ -19,10 +19,9 @@ import {
 } from '#domain/attachment/attachment.error'
 import { AttachmentId } from '#domain/attachment/attachment.id'
 import {
-  type Attachment,
+  Attachment,
   type AttachmentDownload,
   type AttachmentMeta,
-  bindAttachment,
   buildAttachment,
   ensureUnbound,
   isExpiredAt,
@@ -178,13 +177,11 @@ export class AttachmentService extends Context.Service<
 
       const checked = yield* Effect.forEach(ids, ensureBindable)
 
+      const binding = { messageId: Option.some(messageId), chatId: Option.some(chatId) }
       // Keep first: unbound bytes expire, so a crash must never leave a bound row over them.
       yield* Effect.forEach(ids, bucket.keep, { discard: true })
-      yield* attachments.update(
-        { messageId: Option.some(messageId), chatId: Option.some(chatId) },
-        { id: ids, userId, messageId: Option.none() },
-      )
-      return Arr.map(checked, (attachment) => bindAttachment(attachment, { messageId, chatId }))
+      yield* attachments.update(binding, { id: ids, userId, messageId: Option.none() })
+      return Arr.map(checked, (attachment) => new Attachment({ ...attachment, ...binding }))
     })
 
     return { upload, get, download, delete: remove, bind }
