@@ -10,7 +10,7 @@
 | S2 | Anthropic or the stub, chosen by `LLM_PROVIDER`; a model per purpose | done |
 | S3 | the reply as a structured response with a fixed system prompt; per-purpose request settings | done |
 | S4 | the port's two final errors, settled by the use cases | done |
-| S5 | reply failures told apart, retried in place, a refusal kept apart | todo |
+| S5 | reply failures told apart, retried in place, a refusal kept apart | done |
 | S6 | the title as a structured response with its own retries | todo |
 | S7 | provenance stored with each assistant message, never on the wire | todo |
 | S8 | `docs/knowledge/ai.md`: every `effect/ai` module mapped | todo |
@@ -269,11 +269,11 @@
 - **Files:**
   - `infrastructure/chat/assistant.llm.ts` (the finish part kept per request through
     `Telemetry.CurrentSpanTransformer`, provided per request; the mapping of `architecture.md ›
-    Contracts › Failure mapping`, read from the `AiError`'s `reason._tag`, `isRetryable` and
-    `retryAfter`, so the reasons the table does not name (`QuotaExhaustedError`,
-    `NetworkError`, `InvalidOutputError`, `ContentPolicyError`) fall to its last two rows; the
-    reply schedule, each wait the larger of its delay and `retryAfter`; `cause` from the
-    `AiError` or the finish reason);
+    Contracts › Failure mapping`: an early finish raised as an `AiError` (`ContentPolicyError`,
+    `InvalidOutputError`), then read from its `reason._tag`, `isRetryable` and `retryAfter`, so
+    the reasons the table does not name (`QuotaExhaustedError`, `NetworkError`) fall to its last
+    two rows; the reply schedule, each wait the larger of its delay and `retryAfter`; `cause`
+    from the `AiError`);
   - `infrastructure/tests/chat/assistant.llm.test.ts` (one case per mapping row);
   - `docs/tickets/2026-10-17-1748_chat-core/feature.md` (R18 amended).
 - **Test first:** Seam 1 under `TestClock` — a `stop_reason: "refusal"` answer, whole JSON or
@@ -283,7 +283,24 @@
   a 400: `AssistantFailedError` after one request.
 - **Verify:** `make check`.
 - **Model:** opus high
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - An early finish fails its request as an `AiError` (round S5.2): `content-filter` as
+    `ContentPolicyError`, `length` as `InvalidOutputError`, so one predicate and one schedule
+    read every failure; a `ContentPolicyError` the provider raises itself is a refusal too. S5.1
+    had a module-local `EarlyFinishError` mirroring `AiError`'s `isRetryable` and `retryAfter`.
+  - The mapping table asserts each error's tag and its requests' times under `TestClock`, not
+    the whole error: `cause` is the package's message. One case asserts the provider's text in
+    `cause` (a 401's `invalid x-api-key`), the rule tested once.
+  - A rate limit's `cause` is the package's message, which names the wait but not the
+    provider's text (R18 partly): that text sits in the error's HTTP context, and reading it
+    would be a parser for one reason.
+  - The transport-error row has no case of its own: it is the `isRetryable` row, which the 529
+    and 500 cases cover, and faking a transport failure would grow the fake `HttpClient`.
+  - `chat-core`'s R16–R19 acceptance row is amended too, besides R18: it described a failing
+    model sent back to `preparing` per attempt.
+  - Out of scope: `stop_reason: "model_context_window_exceeded"` reaches the package as
+    `unknown`, so a cut answer that still decodes is kept (`architecture.md › Risks`).
 
 #### S6 — A structured title with its own retries
 

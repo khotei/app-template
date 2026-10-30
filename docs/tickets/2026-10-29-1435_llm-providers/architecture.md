@@ -188,8 +188,8 @@ system prompt, a newline and `JSON.stringify` of the schema's JSON Schema docume
 
 | What came back | Retry in place | Final error |
 |---|---|---|
-| finish reason `content-filter` (decoded or not) | no | `AssistantRefusedError` |
-| finish reason `length` (decoded or not) | yes | `AssistantFailedError` after the last request |
+| finish reason `content-filter` (decoded or not), raised as `ContentPolicyError`, or a `ContentPolicyError` itself | no | `AssistantRefusedError` |
+| finish reason `length` (decoded or not), raised as `InvalidOutputError` | yes | `AssistantFailedError` after the last request |
 | `StructuredOutputError` (the answer failed the schema) | yes | `AssistantFailedError` after the last request |
 | `RateLimitError` with `retryAfter` ≤ 30 s | yes, waiting at least `retryAfter` | `AssistantFailedError` after the last request |
 | `RateLimitError` with `retryAfter` > 30 s | no | `AssistantFailedError` |
@@ -198,7 +198,9 @@ system prompt, a newline and `JSON.stringify` of the schema's JSON Schema docume
 
 The schedules: a reply makes three requests at most, 1 s then 2 s apart (`chat-core` R18's
 numbers); a title five, 1, 2, 4 and 8 s apart (the title queue's numbers). Each wait is the larger
-of the schedule's delay and `retryAfter`.
+of the schedule's delay and `retryAfter`. Every final error's `cause` is the `AiError`'s message:
+the provider's text for an HTTP error, the finish reason for an early finish; a rate limit's
+names the wait alone, the provider's text staying in the error's HTTP context.
 
 **`AssistantModels`** (`infrastructure/chat/assistant.client.ts`)
 
@@ -404,6 +406,10 @@ change: the last attempt still settles a reply that a crash left active.
 - **The fake `HttpClient`'s canned response drifts from what the package parses.** Seam 1 would
   test a shape Anthropic never sends. *Contained by:* the canned bodies copy the package's own
   tests (`AnthropicLanguageModel.test.ts`), and R1's run by hand checks the real one.
+- **An answer cut by the context window passes as whole.** Anthropic's `stop_reason:
+  "model_context_window_exceeded"` reaches `effect/ai` as finish reason `unknown`, so a cut
+  answer whose text still decodes is kept as the reply; one that does not decode is retried as a
+  schema failure. *Contained by:* accepted; `context-window` owns a history that outgrows it.
 - **A short prefix is not cached.** Anthropic silently skips caching below 512 tokens, and the
   first turns of a chat are short. R10 only asks for caching, so nothing fails, and `ai.md` says so.
 - **The history outgrows the context window.** Every later reply in that chat fails at once

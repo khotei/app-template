@@ -82,15 +82,15 @@ type EarlyFinish = typeof EarlyFinish.Type
 
 const isEarlyFinish = Schema.is(EarlyFinish)
 
-// A refusal is the one content policy failure; a cut answer is output another request may fix.
 const earlyFinishReasons = {
-  'content-filter': () =>
-    new AiError.ContentPolicyError({
-      description: 'The model stopped with finish reason content-filter',
-    }),
-  length: () =>
-    new AiError.InvalidOutputError({ description: 'The model stopped with finish reason length' }),
-} as const satisfies Record<EarlyFinish, () => AiError.AiErrorReason>
+  'content-filter': AiError.ContentPolicyError,
+  length: AiError.InvalidOutputError,
+} as const satisfies Record<
+  EarlyFinish,
+  new (props: {
+    readonly description: string
+  }) => AiError.AiErrorReason
+>
 
 /** Fails a request whose model refused or was cut, read from its finish part, decoded or not. */
 const failOnEarlyFinish = Effect.fnUntraced(function* <A>(
@@ -118,7 +118,9 @@ const failOnEarlyFinish = Effect.fnUntraced(function* <A>(
     return yield* AiError.make({
       module: 'AssistantLlm',
       method: 'generateObject',
-      reason: earlyFinishReasons[stopped.value](),
+      reason: new earlyFinishReasons[stopped.value]({
+        description: `The model stopped with finish reason ${stopped.value}`,
+      }),
     })
   }
   return yield* Effect.fromResult(answer)
