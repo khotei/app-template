@@ -2,9 +2,8 @@ import { and, eq } from 'drizzle-orm'
 import { Array as Arr, Effect, Layer, Schema, UndefinedOr } from 'effect'
 
 import {
-  type MessageManyWhere,
-  type MessageOneWhere,
   MessageRepository,
+  type MessageSelectWhere,
   type MessageWhere,
 } from '@app-template/domain/chat'
 
@@ -33,19 +32,14 @@ const encodeWhere = buildWhere<MessageWhere>({
 })
 
 /** The chat's `userId` is a filter on the relation, so another user's message reads as absent. */
-const filterOf = (where: MessageOneWhere) =>
+const filterOf = (where: MessageSelectWhere) =>
   ({
     id: skipUndefined(where.id),
     chatId: skipUndefined(where.chatId),
-    chat: skipUndefined(UndefinedOr.map(where.userId, (userId) => ({ userId }))),
-  }) as const
-
-const filterOfMany = (where: MessageManyWhere) =>
-  ({
-    chatId: where.chatId,
     status: skipUndefined(
       UndefinedOr.map(where.status, (statuses) => ({ in: Arr.copy(statuses) })),
     ),
+    chat: skipUndefined(UndefinedOr.map(where.userId, (userId) => ({ userId }))),
   }) as const
 
 export const MessageRepositoryPg = Layer.effect(
@@ -81,7 +75,7 @@ export const MessageRepositoryPg = Layer.effect(
         (where) =>
           db.query.messages
             .findMany({
-              where: filterOfMany(where),
+              where: filterOf(where),
               orderBy: inCreationOrder,
               with: withAttachments,
             })

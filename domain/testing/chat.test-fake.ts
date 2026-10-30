@@ -19,12 +19,8 @@ import type { Attachment } from '#domain/attachment/attachment.model'
 import type { ChatId, MessageId } from '#domain/chat/chat.id'
 import { Chat } from '#domain/chat/chat.model'
 import { ChatRepository, type ChatWhere } from '#domain/chat/chat.port'
-import { isActiveMessage, Message } from '#domain/chat/message.model'
-import {
-  type MessageManyWhere,
-  type MessageOneWhere,
-  MessageRepository,
-} from '#domain/chat/message.port'
+import { isActiveMessage, Message, type MessageStatus } from '#domain/chat/message.model'
+import { MessageRepository, type MessageSelectWhere } from '#domain/chat/message.port'
 import { AttachmentRows } from '#domain/testing/attachment.test-fake'
 import { matches } from '#domain/testing/rows.test-util'
 import type { UserId } from '#domain/user/user.id'
@@ -117,22 +113,19 @@ const isOwnedThroughChat = (
   chats: Chats,
   userId: UserId | undefined,
 ): Predicate.Predicate<Message> =>
-  userId === undefined
-    ? constTrue
-    : (message) => HashMap.get(chats, message.chatId).pipe(Option.exists(matches<Chat>({ userId })))
+  UndefinedOr.match(userId, {
+    onUndefined: () => constTrue,
+    onDefined: (owner) => (message: Message) =>
+      HashMap.get(chats, message.chatId).pipe(Option.exists(matches<Chat>({ userId: owner }))),
+  })
 
-const holdsMessageWhere = (tables: Tables, where: MessageOneWhere) =>
+const hasAnyStatus = (statuses: ReadonlyArray<MessageStatus> | undefined) => (message: Message) =>
+  UndefinedOr.match(statuses, { onUndefined: constTrue, onDefined: Arr.contains(message.status) })
+
+const holdsWhere = (tables: Tables, where: MessageSelectWhere) =>
   Predicate.and(
     matches<Message>({ id: where.id, chatId: where.chatId }),
-    isOwnedThroughChat(tables.chats, where.userId),
-  )
-
-const holdsManyWhere = ({ chatId, status }: MessageManyWhere) =>
-  Predicate.and(matches<Message>({ chatId }), (message: Message) =>
-    UndefinedOr.match(status, {
-      onUndefined: constTrue,
-      onDefined: Arr.contains(message.status),
-    }),
+    Predicate.and(isOwnedThroughChat(tables.chats, where.userId), hasAnyStatus(where.status)),
   )
 
 const createReadTables = Effect.gen(function* () {
@@ -254,7 +247,7 @@ export const MessageRepositoryTest = Layer.effect(
         Effect.map(readTables, (tables) =>
           pipe(
             tables.messages,
-            HashMap.filter(holdsMessageWhere(tables, where)),
+            HashMap.filter(holdsWhere(tables, where)),
             HashMap.toValues,
             Arr.sort(inCreationOrder),
             Arr.head,
@@ -265,7 +258,7 @@ export const MessageRepositoryTest = Layer.effect(
         Effect.map(readTables, (tables) =>
           pipe(
             tables.messages,
-            HashMap.filter(holdsManyWhere(where)),
+            HashMap.filter(holdsWhere(tables, where)),
             HashMap.toValues,
             Arr.sort(inCreationOrder),
             Arr.map(messageWithAttachmentsOf(tables.attachments)),

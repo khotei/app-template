@@ -9,19 +9,13 @@ import type { UserId } from '#domain/user/user.id'
 export type MessageWhere = Pick<Message, 'status'>
 
 /**
- * The rows where every field named holds; the chat's `userId` too, so a message of another
- * user's chat reads as absent.
+ * The rows where every field named holds: `status` for a row with any of its values, `userId` for
+ * the owner of the row's chat, so a message of another user's chat reads as absent.
  */
-export type MessageOneWhere = Types.Simplify<
+export type MessageSelectWhere = Types.Simplify<
   RequireAtLeastOne<{ readonly id: MessageId; readonly chatId: ChatId }> &
-    Partial<{ readonly userId: UserId }>
+    Partial<{ readonly userId: UserId; readonly status: ReadonlyArray<MessageStatus> }>
 >
-
-/** The chat's rows; `status`, when named, holds for a row with any of its values. */
-export type MessageManyWhere = {
-  readonly chatId: ChatId
-  readonly status?: ReadonlyArray<MessageStatus>
-}
 
 export class MessageRepository extends Context.Service<
   MessageRepository,
@@ -37,8 +31,8 @@ export class MessageRepository extends Context.Service<
      */
     readonly update: (message: Message, where: MessageWhere) => Effect.Effect<void>
     /** Returns the first row in creation order where `where` holds, with its attachments. */
-    readonly selectOne: (where: MessageOneWhere) => Effect.Effect<Option.Option<Message>>
+    readonly selectOne: (where: MessageSelectWhere) => Effect.Effect<Option.Option<Message>>
     /** Returns the rows where `where` holds with their attachments, in creation order, a tie broken by id. */
-    readonly selectMany: (where: MessageManyWhere) => Effect.Effect<ReadonlyArray<Message>>
+    readonly selectMany: (where: MessageSelectWhere) => Effect.Effect<ReadonlyArray<Message>>
   }
 >()('@app-template/domain/chat/MessageRepository') {}
