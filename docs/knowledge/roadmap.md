@@ -54,7 +54,7 @@ graph LR
 | 19 | [`openai-provider`](#19-openai-provider) | `feat` | 6 | planned |
 | 20 | [`context-window`](#20-context-window) | `feat` | 6 | planned |
 | 21 | [`bedrock-provider`](#21-bedrock-provider) | `feat` | 6, 9 | planned |
-| 22 | [`job-ledger`](#22-job-ledger) | `feat` | 4, 23 | planned |
+| 22 | [`jobs`](#22-jobs) | `feat` | 4, 23 | planned |
 | 23 | [`modular-monolith`](#23-modular-monolith) | `refactor` | 15 | in progress: [docs/tickets/2026-10-31-0926_modular-monolith/](../tickets/2026-10-31-0926_modular-monolith/feature.md) |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; its remaining work is re-homed
@@ -580,13 +580,14 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   and does not emulate the Messages endpoint, so local runs stay on the stub.
 - **Status.** Planned.
 
-### 22. `job-ledger`
+### 22. `jobs`
 
 - **Goal.** Every job, whatever its queue, leaves one row that says where it stands and why it
   failed, searchable by what it is about; and deleting a chat or a file never waits on S3,
   however many files it holds: the request deletes rows only, and a job deletes the bytes.
 - **Scope.**
-  - The outbox keeps its rows as the jobs' ledger: `status`, `attempts`, the last `error`,
+  - The table `jobs` (renamed from `outbox` by `modular-monolith`) keeps one row per job with
+    `status`, `attempts`, the last `error`,
     `updated_at`, and a GIN index (`jsonb_path_ops`) on `body`, so `body @> '{"chatId": …}'`
     finds a chat's jobs.
   - The statuses, the shared `Status` of `domain/shared/status.model.ts` whole: `idle` (written
@@ -602,7 +603,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
     attachments` (`REFERENCING OLD TABLE`) writes one `attachment-deletion` job with the deleted
     ids and their `chatId`, `messageId` and `userId`, whichever path deleted them (a chat's
     cascade, a message's, a user's delete of an unbound file), in the deleting statement. Its
-    handler deletes the bytes by `AttachmentBucket.deleteMany`. `ChatService.delete` drops its
+    handler deletes the bytes by `FileRepository.delete`. `ChatService.delete` drops its
     attachment read and its bucket call; the memory fake records the job as the trigger does,
     with an e2e twin.
   - The message keeps its own status, its subset of the shared `Status`: it is the reply's
@@ -621,11 +622,13 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   `sent_at` instead of deleting, over a partial index `WHERE sent_at IS NULL`, so a reply's job
   keeps its provenance in `body`. The ledger's statuses replace `sent_at`; nothing removes sent
   rows yet, which the retention question above now settles for every row.
-- **Inherits from `modular-monolith` (2026-10-31).** Each module that sends jobs owns its outbox
-  table in its own schema, built by a shared package; the trigger on `attachments` writes the
-  chat's own outbox. `Status` belongs to `chat` (the chat's and the message's states); the
-  ledger's job states are a vocabulary of their own, since `queued` means "sent to SQS" for a job
-  and "reply in work" for a message.
+- **Inherits from `modular-monolith` (2026-10-31).** The table is `jobs`, read and written by
+  `JobRepository` in `kernel/data/job`, and `QueueSenderJobs`, the consumer and the relay live in
+  `kernel/queue` over it, so the outcome write-back lands there; the schema restarted as one
+  migration, so this ticket's migration is the second; the handler of a deletion job
+  calls `FileRepository.delete`. `Status` belongs to `chat` (the chat's and the message's states);
+  the jobs' states are a vocabulary of their own, since `queued` means "sent to SQS" for a job and
+  "reply in work" for a message.
 - **Facts (2026-10-30).** S3 lists by key prefix only and cannot list, delete or filter by
   metadata or tag; lifecycle rules filter by prefix, tag and size, a few static rules per bucket;
   `DeleteObjects` takes 1000 keys a request.

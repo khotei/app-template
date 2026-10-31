@@ -7,18 +7,16 @@
 
 ## Conclusion
 
-The guide and the frameworks agree on one core, and this stack already enforces almost all of it
-without a new tool:
+The guide and the frameworks agree on a core this stack enforces without a new tool:
 
-1. A module is a business capability that owns its behaviour and its data.
+1. A module is a business capability that owns its behaviour.
 2. Only its contract is visible outside, shaped for the consumers' use cases, not the domain model.
 3. Dependencies between modules are declared and acyclic.
-4. A table has one writing module, and a transaction stays inside one module; other modules learn
-   of a write through an event.
-5. A violation fails the build; a module whose boundary is not checked "is just a package".
+4. A violation fails the build; a module whose boundary is not checked "is just a package".
 
-The one rule no tool here covers is table ownership: it needs a Postgres schema per module and a
-test.
+On data the ticket departs from the guide on purpose: one data layer owns every store for every
+module, and a use case may commit several modules' writes in one transaction
+(`feature.md › Decisions`, `architecture.md › D7, D2, D16`).
 
 ## The guide (Software Architecture Guild)
 
@@ -80,41 +78,19 @@ generic rule over a test per module.
 ## Verified in this repo
 
 - Biome 2.5.15 `noRestrictedImports` catches `import`, `export * from` and `export { x } from`.
-  One override on `modules/*/domain/**` with `@app-template/*`, `@app-template/**`,
-  `!@app-template/kernel`, `!@app-template/kernel/**` bans every other module; without `**` a
-  deep path passes. Biome also has `noImportCycles` (file level) and `noPrivateImports`.
+  One override on a path glob with `@app-template/*`, `@app-template/**` and negations for the
+  allowed packages bans every other one; without `**` a deep path passes. Biome also has
+  `noImportCycles` (file level) and `noPrivateImports`.
 - tsgo 7.0.2: circular project references fail with TS6202.
 - `bunfig.toml` `linker = "isolated"`: an undeclared workspace fails with TS2307.
-- Drizzle per module: see `feature.md › Context`.
 
-## Candidate rules for the ticket
+## What the ticket took
 
-| # | Rule | Source | Checked by |
-|---|---|---|---|
-| 1 | A module is a capability whose mission fits one sentence; never one per table | what-is-component | review |
-| 2 | Inside a module, layers only downward | modular-monolith | Biome per layer path |
-| 3 | Other modules import only `@app-template/<m>-contract`; the module's own package only `apps` and `e2e` | modular-monolith, Spring Modulith, Packwerk | `exports`, Biome |
-| 4 | A contract imports only `effect` and the kernel | contracts | its own `package.json` (TS2307) |
-| 5 | Module dependencies declared and acyclic | modular-monolith | isolated linker, `tsc -b` |
-| 6 | `domain` knows no other module; a need is its own port and adapter | integration-of-bounded-contexts | Biome |
-| 7 | One writing module per table; no join with another module's tables | modular-monolith, operational data | a schema per module + an ownership test |
-| 8 | No foreign key across modules unless decided | operational data | the ownership test |
-| 9 | A transaction stays in one module; others learn through the outbox | modular-monolith | review, e2e |
-| 10 | An event handler tolerates a second delivery | integration-of-bounded-contexts | a unit test per handler |
-| 11 | A question is a facade call, a reaction is an event; facades take batches | modular-monolith, workflows | review |
-| 12 | A contract changes compatibly | contracts | the consumers' typecheck |
-| 13 | The kernel is small and has no business rule | sharing | `make check`, review |
-| 14 | External systems sit behind adapters of the owning module | modular-monolith | Biome |
-| 15 | A module's tests run on its layers and fakes of other contracts; a small e2e proves the wiring | modular-monolith, Spring Modulith | Effect's `R` channel |
-| 16 | A violation fails `make check`; an exception is time-boxed in a `Decision:` | measuring-and-governing | process |
-
-## Where the research corrected the first draft
-
-- A Postgres schema per module (the draft deferred it).
-- `identity` → `user` with only the layers it needs (a generic subdomain needs no rich model).
-- Contracts shaped by the consumer's use case.
-- Processes with branches get an orchestrator; none exists today.
-- `Status` in the kernel, not in `chat` (the draft's move was reversed: `job-ledger` plans to use
-  it for the outbox).
-- Attachments stay in `chat` (8 + 3 files of two-way coupling today); a `drive` module waits for
-  `shared-files`.
+- Modules by capability, never one per table: D1.
+- Layers inside a module, checked by a Biome override per layer: D4, D12.
+- Other modules see only a contract workspace: D3.
+- Module dependencies declared and acyclic: the isolated linker, `tsc -b`, the modules rule (D12).
+- The kernel holds no business rule: D5, the modules rule.
+- External systems behind the adapters of the module that uses them: D4.
+- A module's tests run over its layers and memory twins; e2e prove the wiring: D19.
+- A violation fails `make check`, through configuration, never a hand-written test: D12.
