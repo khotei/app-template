@@ -6,7 +6,7 @@
 
 | Step | Delivers | Status |
 |---|---|---|
-| S1 | tests in `__tests__/` and `__e2e__/` everywhere; the e2e over assembled layers in `apps/api` | todo |
+| S1 | tests in `__tests__/` and `__e2e__/` everywhere; the e2e over assembled layers in `apps/api` | done |
 | S2 | `generateId` in `packages/db`, beside the `id()` column | todo |
 | S3 | the use cases in `application/use-cases` | todo |
 | S4 | the `kernel` workspace with `/config` and `/aws`; `packages/aws` a generic provisioner | todo |
@@ -80,11 +80,24 @@
   `domain/CLAUDE.md`, `infrastructure/CLAUDE.md`, `apps/CLAUDE.md`.
 - **Test first:** `config only` — a move: `make test-unit` and `make test-e2e` report the same
   number of tests before and after.
-- **Verify:** `make check`; `git ls-files ':!repos' ':!docs' | grep -E '(^|/)(tests|e2e|testing)/'`
-  lists only `packages/testing/`; a throwaway import of `#testing-e2e/…` into a unit test fails `make lint`
+- **Verify:** `make check`; `git ls-files ':!repos' ':!docs' | grep -E '(^|/)(tests|e2e|testing)/' |
+  grep -vE '__(tests|e2e)__/'` lists only `packages/testing/`; a throwaway import of `#testing-e2e/…` into a unit test fails `make lint`
   (reverted).
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - About 780 changed lines against the ~400 limit, the user's choice to keep one step: some 250
+    are the `__tests__/**` overrides in `biome.json`, each repeating its workspace's bans as the
+    Files list asks; splitting the move from the guard would have left R17 unguarded between them.
+  - The *Verify* grep matched every `__tests__/testing/` and `__e2e__/testing/` and could never
+    pass; it now filters them out.
+  - `application` exports `ChatServices` from `./testing`, so `ChatPgTest` in
+    `apps/__e2e__/testing/` composes the same services instead of copying them.
+  - R17 half met: the Biome message explains the ban but names no decision, since `make ids`
+    refuses decision ids outside `docs/tickets`; S21 names the `decisions.md` record. `apps/__e2e__`
+    has no Biome override of its own, as `e2e/` had none; S21's per-ring overrides cover it.
+  - Round S1.2: `apps/CLAUDE.md` says `apps/__e2e__` is not an app, so its imports of `api/layer`
+    and `worker/layer` do not read as breaking "Apps never import each other".
 
 #### S2 — `generateId` in the database package
 
