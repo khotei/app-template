@@ -48,13 +48,14 @@ graph LR
 | 13 | [`ticket-folder-order`](#13-ticket-folder-order) | `chore` | 3 | done: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md) |
 | 14 | [`toolkit-reading`](#14-toolkit-reading) | `chore` | 2 | done: [docs/tickets/2026-10-21-1347_toolkit-reading/](../tickets/2026-10-21-1347_toolkit-reading/feature.md) |
 | 15 | [`architecture-audit`](#15-architecture-audit) | `refactor` | 4 | in progress: [docs/tickets/2026-10-27-1433_architecture-audit/](../tickets/2026-10-27-1433_architecture-audit/feature.md) |
-| 16 | [`shared-files`](#16-shared-files) | `feat` | 15 | planned |
+| 16 | [`shared-files`](#16-shared-files) | `feat` | 15, 23 | planned |
 | 17 | [`docs-diet`](#17-docs-diet) | `docs` | 15 | planned |
-| 18 | [`assistant-files`](#18-assistant-files) | `feat` | 6 | planned |
+| 18 | [`assistant-files`](#18-assistant-files) | `feat` | 6, 23 | planned |
 | 19 | [`openai-provider`](#19-openai-provider) | `feat` | 6 | planned |
 | 20 | [`context-window`](#20-context-window) | `feat` | 6 | planned |
 | 21 | [`bedrock-provider`](#21-bedrock-provider) | `feat` | 6, 9 | planned |
-| 22 | [`job-ledger`](#22-job-ledger) | `feat` | 4 | planned |
+| 22 | [`job-ledger`](#22-job-ledger) | `feat` | 4, 23 | planned |
+| 23 | [`modular-monolith`](#23-modular-monolith) | `refactor` | 15 | in progress: [docs/tickets/2026-10-31-0926_modular-monolith/](../tickets/2026-10-31-0926_modular-monolith/feature.md) |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; its remaining work is re-homed
 in [Re-homing `effect-setup`](#re-homing-effect-setup).
@@ -462,6 +463,11 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Out of scope.** Sharing between users; assistant-produced files (`assistant-files`, 18).
 - **Inherits from `architecture-audit` (2026-10-27).** A file lives as long as its owner needs it:
   no expiry of unlinked files, so the 24-hour unbound lifetime and the `unbound` S3 tag go.
+- **Inherits from `modular-monolith` (2026-10-31).** Files are split out of `chat` into a module
+  named `drive` (not `files`, the banned word for an attachment; not `bucket`, a technology).
+  Chat owns the link between a message and a file, with a copy of the file's metadata taken at
+  link time, so a chat's read stays one query; `drive` owns the pool and the bytes and knows no
+  chat.
 - **Open questions for its feature phase.** Whether one file may be linked to several messages;
   whether deleting a chat deletes its linked files or only the links; the quota per user.
 - **Status.** Planned.
@@ -615,10 +621,23 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   `sent_at` instead of deleting, over a partial index `WHERE sent_at IS NULL`, so a reply's job
   keeps its provenance in `body`. The ledger's statuses replace `sent_at`; nothing removes sent
   rows yet, which the retention question above now settles for every row.
+- **Inherits from `modular-monolith` (2026-10-31).** Each module that sends jobs owns its outbox
+  table in its own schema, built by a shared package; the trigger on `attachments` writes the
+  chat's own outbox. `Status` belongs to `chat` (the chat's and the message's states); the
+  ledger's job states are a vocabulary of their own, since `queued` means "sent to SQS" for a job
+  and "reply in work" for a message.
 - **Facts (2026-10-30).** S3 lists by key prefix only and cannot list, delete or filter by
   metadata or tag; lifecycle rules filter by prefix, tag and size, a few static rules per bucket;
   `DeleteObjects` takes 1000 keys a request.
 - **Status.** Planned.
+
+### 23. `modular-monolith`
+
+- **Goal.** The code is partitioned by business capability (`chat`, `identity`) over a kernel
+  with no business rule; a module is reached only through its contract, and the build rejects an
+  import into another module, a cycle and a table outside its owner's schema.
+- **Status.** In progress:
+  [docs/tickets/2026-10-31-0926_modular-monolith/](../tickets/2026-10-31-0926_modular-monolith/feature.md).
 
 ## Re-homing `effect-setup`
 

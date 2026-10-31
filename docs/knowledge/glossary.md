@@ -84,10 +84,21 @@ _Avoid_: Metadata, model info, source, origin
 The words the layers, rules and tickets use for the shape of the code. Each has one meaning here;
 the `_Avoid_` lists name the synonyms the sources use that we do not.
 
-**Component**:
-A folder named for one aggregate (`chat`, `attachment`, `user`) that appears under the same name
-in every layer; its responsibility fits one sentence.
-_Avoid_: Module, slice, feature folder, bounded context
+**Application**:
+Every business rule of the app, under `application/`: the modules and, above them, the use cases
+that compose them. The kernel binds it to the outside world; the apps run it.
+_Avoid_: Application layer, app (a process under `apps/`), business layer
+
+**Module**:
+A business capability whose mission fits one sentence. It owns its rules, its tables and its
+adapters in its `domain/` and `infrastructure/`, imports no other module but through its module
+contract, and never imports the use cases. Never one per table or per aggregate.
+_Avoid_: Component, core, slice, feature folder, bounded context, service
+
+**Module contract**:
+The part of a module other modules may depend on: its ids, its errors and the shapes they carry,
+with no implementation.
+_Avoid_: Public API, interface, SDK, client
 
 **Aggregate**:
 The entities whose records change together under one invariant: a chat with its messages, an
@@ -116,7 +127,9 @@ _Avoid_: Manager, helper, application service, business logic, service layer
 
 **Use case**:
 One scenario that composes domain services with the bucket, the queue, the assistant or one
-transaction; what a handler calls when a flow is more than one service method.
+transaction; what a handler calls when a flow is more than one service method. Every use case
+lives in the use-case workspace of the application, above the modules, so a flow that spans modules is one too and
+may commit their writes in one transaction.
 _Avoid_: Interactor, orchestrator, workflow, application service, job
 
 **Handler**:
@@ -137,8 +150,20 @@ _Avoid_: Event table, queue table
 A message on a queue that asks the worker for one unit of work, shaped by its queue definition.
 _Avoid_: Task, event, command, message (the chat's word)
 
+**Kernel**:
+The application's foundation: the tools of `packages/*` configured for this app (its config, its
+resources, its database with the migrations, its queue and language-model clients). It holds no
+business rule and knows no module; each of its packages declares whether it runs in the browser.
+_Avoid_: Shared kernel, common, core, shared, utils, platform
+
+**Package**:
+A tool under `packages/*` that is configured by its caller and knows no app, so it would work in
+another project unchanged; the kernel configures it for this one.
+_Avoid_: Library (for a workspace), lib, helper, kernel
+
 **Unit test**:
-A test of one module over memory layers of its ports, needing no process outside the test runner.
+A test of a domain service, a use case or a handler over memory layers of its ports, needing no
+process outside the test runner.
 _Avoid_: Fast test, isolated test, mock test
 
 **E2E test**:
@@ -147,6 +172,6 @@ a use case runs, or of the journey through both apps.
 _Avoid_: Integration test, system test, functional test
 
 **Memory layer**:
-A layer of a port over a `Ref<HashMap>` in `domain/testing`, one per port; the unit tests' only
+A layer of a port over a `Ref<HashMap>` in its module's `testing/`, one per port; the unit tests' only
 double of a port.
 _Avoid_: Mock, stub, in-memory repository
