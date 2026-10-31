@@ -29,8 +29,8 @@ and `make setup` and `make test-unit` need neither.
 | `make fmt` | `biome check --write` | apply formatting, import sorting and safe fixes |
 | `make typecheck` | `bunx tsc -b`, the patched `tsc` | typecheck every workspace through the project references, Effect diagnostics included |
 | `make migrate` · `migration NAME=<name>` · `migration-check` | `migrate`: `bun --env-file=.env infrastructure/db/migrate.ts`; `migration` and `migration-check`: `bunx drizzle-kit generate` in `infrastructure/` | apply, generate and check migrations: [database.md › Migrations](database.md#migrations) |
-| `make test-unit` | `bun --bun vitest run --project unit` | every `tests/**/*.test.ts`; no Docker ([Tests](#tests)) |
-| `make test-e2e` | `bun --bun vitest run --project e2e` | every `e2e/**/*.e2e.ts`; needs a running Docker daemon for the run's own Postgres and MiniStack containers ([Tests](#tests)) |
+| `make test-unit` | `bun --bun vitest run --project unit` | every `__tests__/**/*.test.ts`; no Docker ([Tests](#tests)) |
+| `make test-e2e` | `bun --bun vitest run --project e2e` | every `__e2e__/**/*.e2e.ts`; needs a running Docker daemon for the run's own Postgres and MiniStack containers ([Tests](#tests)) |
 | `make test` | `test-unit`, then `test-e2e` | both projects |
 | `make bundle-check` | `bun build` of the web entry into `node_modules/.cache/web-bundle`, then a negated `grep` for the domain and infrastructure service keys | fails when a service, port or adapter reaches the browser: [architecture.md › Boundary guards](architecture.md#boundary-guards) |
 | `make outdated` | `bun outdated --recursive` | newer versions for every workspace |
@@ -39,7 +39,7 @@ and `make setup` and `make test-unit` need neither.
 | `make clean` | removes every `node_modules` and `coverage` | a clean reinstall: follow with `make setup` |
 
 One file, or the tests whose name matches, through vitest itself:
-`bun --bun vitest run --project unit domain/tests/chat/chat.service.test.ts -t rename`
+`bun --bun vitest run --project unit domain/__tests__/chat/chat.service.test.ts -t rename`
 (`--project e2e` for an e2e file, Docker running); `vitest` without `run` watches.
 
 The root `test` script, `bun --bun vitest run`, runs both projects at once (CI's `bun run test`);
@@ -61,30 +61,32 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   delays. Which test goes where and what it runs on:
   [effect-tests.md › Unit and e2e](../../.claude/rules/effect-tests.md#unit-and-e2e).
 - **One root `vitest.config.ts`, two projects,** chosen by `--project`: `unit` runs
-  `tests/**/*.test.ts`; `e2e` runs `e2e/**/*.e2e.ts`, on Docker, and alone has the
-  `globalSetup`. Both sit at the top of their workspace and mirror the source path. Each project
+  `__tests__/**/*.test.ts`; `e2e` runs `__e2e__/**/*.e2e.ts`, on Docker, and alone has the
+  `globalSetup`. Both sit at the top of their workspace and mirror the source path; the e2e over
+  assembled layers, the use cases on Postgres and the journey, live in the `apps/__e2e__`
+  workspace, so `application` runs unit tests only. Each project
   lists the shared `exclude` (`repos/**` and `.claude/worktrees/**` added to the default) and
   `sequence` itself, and the root sets no `globalSetup`, so a unit run starts no container. A new
   workspace needs no test config, and the vendored suites and the worktrees' copies stay out.
 - **One Postgres and one MiniStack per e2e run, a database and a stage per test.**
-  `infrastructure/testing/e2e.test-setup.ts` starts one `postgres:18.6-alpine` container (about
-  1.2 s) and migrates a template database in it with the program `make migrate` runs, and one
+  `infrastructure/__e2e__/testing/e2e.test-setup.ts` starts one `postgres:18.6-alpine` container
+  (about 1.2 s) and migrates a template database in it with the program `make migrate` runs, and one
   MiniStack container beside it (about two seconds for both). Each test provides `PgClientTest`
   from `@app-template/testing`: a fresh database copied from the template and dropped when the
   test ends, about 40 ms in all; a test on S3 or SQS provides `AwsTest` from
-  `infrastructure/testing/aws.test-layer.ts`: a stage of its own on the run's MiniStack, its
-  bucket and queues provisioned ([aws.md › Tests on Docker](aws.md#tests-on-docker)). A test
+  `infrastructure/__e2e__/testing/aws.test-layer.ts`: a stage of its own on the run's MiniStack,
+  its bucket and queues provisioned ([aws.md › Tests on Docker](aws.md#tests-on-docker)). A test
   therefore sees only its own rows and resources, even through a query that reads a whole table,
   and files run in parallel. E2e tests need Docker and nothing else: no `.env`, no `make up`.
 - **Two worktrees at once.** Testcontainers maps each container to a free host port and names it
   itself, so two trees run `make test-e2e` side by side, and beside their local stands, with
   nothing to configure; a unit run starts nothing at all.
-- **The journey, in the root `e2e` workspace.** `e2e/chat.e2e.ts` drives a user, a chat, an upload
-  and a send over HTTP and reads the reply and the title back once the worker has written them:
-  `StandTest` (`e2e/testing/stand.test-layer.ts`) runs `ApiLayer` and `WorkerLayer`, which the
-  apps export as `./layer`, in the test's own runtime over a `PgClientTest` database, an
-  `AwsTest` stage and the model stub, under one `ConfigProvider` that names them, so the apps'
-  own adapters and config code are the ones under test. The api takes a free port the layer
+- **The journey, in the `apps/__e2e__` workspace.** `apps/__e2e__/chat.e2e.ts` drives a user, a
+  chat, an upload and a send over HTTP and reads the reply and the title back once the worker has
+  written them: `StandTest` (`apps/__e2e__/testing/stand.test-layer.ts`) runs `ApiLayer` and
+  `WorkerLayer`, which the apps export as `./layer`, in the test's own runtime over a
+  `PgClientTest` database, an `AwsTest` stage and the model stub, under one `ConfigProvider` that
+  names them, so the apps' own adapters and config code are the ones under test. The api takes a free port the layer
   finds, since `Config.Port` refuses `0`, so two runs share nothing. The apps' SDK clients read
   credentials from the environment, which the `e2e` project sets to the fixed test pair MiniStack
   accepts. The journey proves the wiring; every rule keeps its lower seam.

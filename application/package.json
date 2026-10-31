@@ -4,10 +4,11 @@
   "type": "module",
   "exports": {
     "./chat": "./chat/index.ts",
-    "./testing": "./testing/index.ts"
+    "./testing": "./__tests__/testing/index.ts"
   },
   "imports": {
-    "#application/*": "./*.ts"
+    "#application/*": "./*.ts",
+    "#testing/*": "./__tests__/testing/*.ts"
   },
   "dependencies": {
     "@app-template/domain": "workspace:*",

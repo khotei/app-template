@@ -7,8 +7,9 @@ Bun + TypeScript 7 modular monolith; three processes: `apps/api`, `apps/worker`,
 
 `domain/` the pure core · `http-api/` the HTTP contract shared by `api` and `web` ·
 `infrastructure/` the adapters of the domain's ports · `application/` use cases · `packages/*`
-generic clients · `apps/*` thin entry points · `deployment/` local and AWS · `e2e/` the journey
-over `api` and `worker` in one process. What may import what, which Biome enforces:
+generic clients · `apps/*` thin entry points · `deployment/` local and AWS · `apps/__e2e__/`
+the e2e over assembled layers, the journey over `api` and `worker` in one process among them.
+What may import what, which Biome enforces:
 [architecture.md › Dependency rules](docs/knowledge/architecture.md#dependency-rules).
 
 ## Working here

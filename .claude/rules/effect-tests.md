@@ -1,8 +1,7 @@
 ---
 paths:
-  - "**/tests/**"
-  - "**/e2e/**"
-  - "**/testing/**"
+  - "**/__tests__/**"
+  - "**/__e2e__/**"
 ---
 
 # Effect: tests
@@ -19,14 +18,14 @@ paths:
 
 ## Unit and e2e
 
-- **A unit test** (`tests/`) runs the real services over the memory layers of the ports
+- **A unit test** (`__tests__/`) runs the real services over the memory layers of the ports
   (`@app-template/domain/testing`), with `TransactionTest`, `recordQueue()` and
   `recordAssistant()` where a use case needs them, and starts no container. A use case's unit
   test checks the order of its steps and the jobs it sends, not the rules. A further fake of a
   port only wraps a memory layer, to force a race or a failure it cannot produce on demand.
 - **A memory layer copies the guards the database adds** (an index, a `where`, a cascade), each
   with its e2e twin on the Pg adapter, or a unit test passes on a write the database refuses.
-- **An e2e test** (`e2e/`) proves an adapter or a use case's transaction on the run's
+- **An e2e test** (`__e2e__/`) proves an adapter or a use case's transaction on the run's
   containers, or the journey. Atomicity: the database refuses one write of the flow (a constraint
   the test adds), and no row and no outbox row is kept. A race runs the rival calls with
   `Effect.all(…, { concurrency: 'unbounded' })` on the real repositories and asserts an outcome

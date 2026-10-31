@@ -25,15 +25,16 @@ graph TD
   webMain["apps/web/main.ts"] --> ui
   webMain --> config["packages/config"]
   deployment --> packages
-  e2e["e2e (the journey)"] -->|"api/layer · worker/layer"| apps
+  e2e["apps/__e2e__ (the e2e over assembled layers)"] -->|"api/layer · worker/layer"| apps
   e2e --> httpApi
+  e2e --> application
   e2e --> infrastructure
 ```
 
 Imports only go **down**: `apps` → `application` → `infrastructure` → `domain`, and `apps/api`
 and `apps/web` → `http-api` → `domain`. A layer may skip levels: `application` usually imports
-`domain` directly. The root `e2e` workspace sits above the apps: it runs both app layers in one
-test process, and nothing imports it.
+`domain` directly. The `apps/__e2e__` workspace sits above the apps: it runs both app layers in
+one test process, and the use cases on Postgres, and nothing imports it.
 
 | Workspace | Holds | Rules |
 |---|---|---|
@@ -43,7 +44,7 @@ test process, and nothing imports it.
 | `application/` | use cases: the flows that join the domain's writes in one transaction, or reach the queue, the bucket or the assistant | [layering.md](../../.claude/rules/layering.md) |
 | `packages/*` | generic, project-agnostic clients and libraries, with the one exception its rules name | [packages/CLAUDE.md](../../packages/CLAUDE.md) |
 | `apps/*` | entry points (`main.ts`), the handlers, and the process's layer (`layer.ts`) | [apps/CLAUDE.md](../../apps/CLAUDE.md) |
-| `e2e/` | the journey: `ApiLayer` and `WorkerLayer` in one runtime over the run's containers | [tooling.md › Tests](tooling.md#tests) |
+| `apps/__e2e__/` | the e2e over assembled layers: the use cases on Postgres, and the journey, `ApiLayer` and `WorkerLayer` in one runtime over the run's containers | [tooling.md › Tests](tooling.md#tests) |
 | `deployment/` | `local/`, the Pulumi program of the local stand: MiniStack and the resources inside it ([aws.md](aws.md)); `aws/`, the resource code as functions of a provider, the rest a stub for now | [deployment/CLAUDE.md](../../deployment/CLAUDE.md) |
 
 ### Dependency rules
@@ -62,13 +63,13 @@ Each row lists what a workspace may import.
 | apps/web client (`app/`, `features/`, `shared/`) | ✗ | ✓ | ✗ | ✗ | `ui` only | ✗ |
 | apps/web/main.ts | ✗ | ✗ | ✗ | ✗ | `ui`, `config` | ✗ |
 | deployment | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ |
-| e2e | ✓ | ✓ | ✓ | ✗ | `config`, `testing` | ✓ (`api/layer`, `worker/layer`) |
+| apps/__e2e__ | ✓ | ✓ | ✓ | ✓ | `config`, `testing` | ✓ (`api/layer`, `worker/layer`) |
 
 - **`domain` imports `effect` and no workspace,** not even `packages/*`, and no `@effect/*`
   package but the test runner `@effect/vitest`, so it stays pure and testable without fakes;
-  `type-fest` it imports for types only (`RequireAtLeastOne`). Its `tests/` and `testing/` may
-  also import the test support `@app-template/testing`, and its `tests/` `@effect/platform-bun`
-  for `BunCrypto.layer`.
+  `type-fest` it imports for types only (`RequireAtLeastOne`). Its `__tests__/` may also import
+  the test support `@app-template/testing`, and its tests outside `__tests__/testing/`
+  `@effect/platform-bun` for `BunCrypto.layer`.
 - **`http-api` imports `effect` and `domain` only.** It is the system's HTTP boundary, shared by
   the api that implements it and the browser that calls it, so it lists the domain's ids, models
   and errors instead of copies, and the wire carries the domain's tags (`UserUnknownError`). The
@@ -113,8 +114,8 @@ Using the `chat` slice as the map:
 | domain errors | `domain/chat/chat.error.ts`, `message.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
 | port | `domain/chat/chat.port.ts`, `message.port.ts`, `assistant.port.ts` | `ChatRepository`, `MessageRepository`, `Assistant` (`Context.Service` with no layer) |
 | domain service: the rules that need a port | `domain/chat/chat.service.ts` | `ChatService`, `ChatService.layer` |
-| memory layers and fixtures | `domain/testing/chat.test-fake.ts`, `chat.test-fixture.ts`, `user.test-fixture.ts` | `ChatRepositoryTest`, `ChatRows`, `chat`, `owner`; `RepositoryStackTest` in `repository-stack.test-layer.ts`; all as `@app-template/domain/testing` |
-| database client, transaction and migrations | `infrastructure/db/` | `Db`, `Db.layerFromConfig`, `Transaction`, `migrations/`, the shared columns in `columns.ts`, the relations in `relations.ts`; `DbTest`, `TransactionTest` in `db/testing/` |
+| memory layers and fixtures | `domain/__tests__/testing/chat.test-fake.ts`, `chat.test-fixture.ts`, `user.test-fixture.ts` | `ChatRepositoryTest`, `ChatRows`, `chat`, `owner`; `RepositoryStackTest` in `repository-stack.test-layer.ts`; all as `@app-template/domain/testing` |
+| database client, transaction and migrations | `infrastructure/db/` | `Db`, `Db.layerFromConfig`, `Transaction`, `migrations/`, the shared columns in `columns.ts`, the relations in `relations.ts`; `TransactionTest` in `__tests__/testing/`, `DbTest` in `__e2e__/testing/` |
 | tables and row codecs | `infrastructure/chat/chat.entity.ts`, `message.entity.ts` | `chats` (`snakeCase.table`), `ChatRow`, `ChatInsert` |
 | adapter implementing a port | `infrastructure/chat/chat.repository.ts`, `assistant.llm.ts`; `attachment/attachment.bucket.ts` | `ChatRepositoryPg`, `AssistantLlm` (with the prompts, over `AssistantModels`, the language model per purpose that `LLM_PROVIDER` picks: [ai.md](ai.md)), `AttachmentBucketS3` (each a `Layer` of its port) |
 | queue definitions | `infrastructure/chat/chat.queue.ts` | `assistantMessageQueue`, `GenerateAssistantMessage` (the job schema) |
@@ -125,9 +126,9 @@ Using the `chat` slice as the map:
 | worker handler: a queue's consumer over a use case | `apps/worker/chat/assistant-message.handler.ts` | `handle`, `handleDeadLettered`, `AssistantMessageHandler` (a worker `Layer`) |
 | the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp` over the ports, `ApiLayer` with the adapters, `WorkerLayer`; exported as `./layer` |
 | browser feature | `apps/web/features/health/health-panel.ts` | `renderHealthPanel(root)` |
-| unit test | `<workspace>/tests/<source path>.test.ts` | `domain/tests/chat/chat.service.test.ts`, `application/tests/chat/send-message.use-case.test.ts` |
-| e2e test | `<workspace>/e2e/<source path>.e2e.ts`; the journey `e2e/chat.e2e.ts` | `infrastructure/e2e/chat/chat.repository.e2e.ts`, `application/e2e/chat/send-message.use-case.e2e.ts` |
-| test support | `<workspace>/testing/`, exported as `./testing` | `ChatTest` (`application/testing/chat.test-layer.ts`), `ApiTest`, `StandTest` |
+| unit test | `<workspace>/__tests__/<source path>.test.ts` | `domain/__tests__/chat/chat.service.test.ts`, `application/__tests__/chat/send-message.use-case.test.ts` |
+| e2e test | `<workspace>/__e2e__/<source path>.e2e.ts`; the use cases on Postgres and the journey `apps/__e2e__/chat.e2e.ts` | `infrastructure/__e2e__/chat/chat.repository.e2e.ts`, `apps/__e2e__/use-cases/send-message.use-case.e2e.ts` |
+| test support | `<workspace>/__tests__/testing/` (`#testing/*`, exported as `./testing`) and `<workspace>/__e2e__/testing/` (`#testing-e2e/*`, `./testing-e2e`); a unit test never imports the latter | `ChatTest` (`application/__tests__/testing/chat.test-layer.ts`), `ApiTest`, `StandTest` |
 
 Every entity folder has an `index.ts` barrel. What each kind of test runs on:
 [tooling.md › Tests](tooling.md#tests). The file suffixes, the `./testing` exports
@@ -147,16 +148,16 @@ Pascal one (`Document`).
 3. **Port and operations.** `<entity>.port.ts`: the `<Entity>Repository` port as a
    `Context.Service` with no layer; `<entity>.model.ts`: pure operations such as
    `build<Entity>(input)`. Time and ids come in as input, never from `Date.now()` or
-   `crypto.randomUUID()`. Test them in `domain/tests/<entity>/<entity>.model.test.ts`. Ownership
+   `crypto.randomUUID()`. Test them in `domain/__tests__/<entity>/<entity>.model.test.ts`. Ownership
    is a field of the `<Entity>OneWhere` the port's `selectOne(where)` takes, so an owner mismatch
    reads as absent, never a predicate after the read.
-4. **Memory layer.** `domain/testing/<entity>.test-fake.ts`: `<Entity>RepositoryTest` over
+4. **Memory layer.** `domain/__tests__/testing/<entity>.test-fake.ts`: `<Entity>RepositoryTest` over
    `<Entity>Rows`, a `Ref` of the rows, with the guards the database will add (an index, a
-   `where`, a cascade), and the fixtures in `<entity>.test-fixture.ts`; `domain/testing/index.ts`
-   exports both.
+   `where`, a cascade), and the fixtures in `<entity>.test-fixture.ts`;
+   `domain/__tests__/testing/index.ts` exports both.
 5. **Domain service, if a rule needs a port.** `domain/<entity>/<entity>.service.ts`:
    `<Entity>Service`, a `Context.Service` with a `layer` over the ports.
-   Test it in `domain/tests/<entity>/<entity>.service.test.ts` over the memory layer. What it may
+   Test it in `domain/__tests__/<entity>/<entity>.service.test.ts` over the memory layer. What it may
    see and when a flow leaves it: [.claude/rules/layering.md](../../.claude/rules/layering.md).
 6. **Domain exports.** `domain/<entity>/index.ts` re-exports its files, and
    `domain/package.json` gains `"./<entity>": "./<entity>/index.ts"` in `exports`.
@@ -166,21 +167,21 @@ Pascal one (`Document`).
    `Layer` constant that provides the domain port over `Db`. Add `index.ts`, which also exports
    `<Entity>Pg`, the one layer of every adapter of the aggregate
    (`ChatPg = Layer.mergeAll(ChatRepositoryPg, MessageRepositoryPg)`), and the `exports` entry.
-   Test it in `infrastructure/e2e/<entity>/<entity>.repository.e2e.ts` on `DbTest`, with a twin
+   Test it in `infrastructure/__e2e__/<entity>/<entity>.repository.e2e.ts` on `DbTest`, with a twin
    of every guard the memory layer copies.
 8. **Use cases, if a flow composes two domain services or sends a job.**
    `application/<entity>/<verb>-<object>.use-case.ts`, a `Context.Service` with a `layer`, like
-   `application/chat/`. Test it in `application/tests/` over the memory layers, with
-   `TransactionTest` and `recordQueue()`, and its transaction in `application/e2e/` with a write
-   the database refuses. Shared test support goes in `application/testing/`. Add `index.ts`
-   and the `exports` entry.
+   `application/chat/`. Test it in `application/__tests__/` over the memory layers, with
+   `TransactionTest` and `recordQueue()`, and its transaction in `apps/__e2e__/use-cases/` with a
+   write the database refuses. Shared test support goes in `application/__tests__/testing/`. Add
+   `index.ts` and the `exports` entry.
 9. **Job, if the entity has asynchronous work.** `infrastructure/<entity>/<entity>.queue.ts`
    holds the queue definitions (name, job schema, retry policy, `jobId`); a model the work calls
    is a domain port with its `.llm.ts` adapter, which holds the prompts. The use case that starts
    the work sends the job with `QueueSender.send` from `packages/queue`;
    `apps/worker/<entity>/<object>.handler.ts` holds `handle` and `handleDeadLettered` over a use
    case and their `worker` layer, which `apps/worker/layer.ts` merges and provides with the
-   `<Entity>Pg` layers the handlers read. Test `handle` in `apps/worker/tests/` over the memory
+   `<Entity>Pg` layers the handlers read. Test `handle` in `apps/worker/__tests__/` over the memory
    layers.
 10. **Contract.** Add the group in `http-api/<entity>/<entity>.http.ts`, listing the domain's errors
     with their statuses (`HttpApiSchema.status`), and add it to `Api` in `http-api/api.ts` before
@@ -192,10 +193,10 @@ Pascal one (`Document`).
     AWS adapter go to `ApiLayer`, so `ApiHttp` runs over the ports alone and the api test layer
     provides the memory layers in their place (`@app-template/domain/testing`, with the recording
     queue's client from `@app-template/application/testing`).
-    Test in `apps/api/tests/<entity>/<entity>.handler.test.ts`, on
-    `apps/api/testing/api.test-layer.ts`, only what HTTP adds (statuses, cookies, the wire shape);
-    the rules stay in the domain and application suites. A flow that crosses both apps joins the
-    journey in `e2e/chat.e2e.ts` only when its wiring is new.
+    Test in `apps/api/__tests__/<entity>/<entity>.handler.test.ts`, on
+    `apps/api/__tests__/testing/api.test-layer.ts`, only what HTTP adds (statuses, cookies, the
+    wire shape); the rules stay in the domain and application suites. A flow that crosses both
+    apps joins the journey in `apps/__e2e__/chat.e2e.ts` only when its wiring is new.
 12. **Client, if the browser needs it.** `ApiClient` from `@app-template/http-api` already has
     every endpoint of the contract; add a feature folder under `apps/web/features/<entity>/`
     whose Effect calls it through `ApiClient.use`.
@@ -212,20 +213,20 @@ checks what the import rules leave to tree shaking, the web bundle:
 
 | Guard | Catches | Reports |
 |---|---|---|
-| Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json` | an import that goes up a layer or into a sibling app; any relative path; a workspace or an `@effect/*` package other than `@effect/vitest` in `domain` (in its `tests/` and `testing/`, a workspace other than `@app-template/testing`); a workspace other than `domain`, or an `@effect/*` package, in `http-api`; `http-api` in a lower layer, a package, the worker or `deployment` | `make lint`, `pre-commit`, CI `static` |
+| Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json` | an import that goes up a layer or into a sibling app; any relative path; a workspace or an `@effect/*` package other than `@effect/vitest` in `domain` (in its `__tests__/`, a workspace other than `@app-template/testing`); e2e support (`#testing-e2e/*`, `./testing-e2e`) in a unit test or its support; a workspace other than `domain`, or an `@effect/*` package, in `http-api`; `http-api` in a lower layer, a package, the worker or `deployment` | `make lint`, `pre-commit`, CI `static` |
 | the isolated linker with `tsc -b` | an allowed import of a workspace that is not declared in `package.json` | TS2307 in `make typecheck` and at runtime |
 | `composite` project references (`rootDir: "."`) | a path that reaches into an unreferenced workspace's files | TS6059 / TS6307 in `make typecheck` |
 | `make bundle-check`: `bun build` of `apps/web/app/main.ts`, then a `grep` of the bundle | a domain service or port in the browser bundle, or an adapter, which carries its port's key: a value import of one that `http-api` passes on | the matched service keys, in `make check` |
 
 The Biome overrides are **deny-lists**: each names the workspaces a layer must not import. A new
 `packages/*` workspace therefore needs no change to them, while a new layer or app does. The
-root `e2e` workspace has none: the root rule bans its relative paths, and its `package.json`
-declares only the workspaces the journey runs. Test
-files follow their workspace's override, save `domain/tests/**` and `domain/testing/**`: an
-override each, after domain's, lets both import `@app-template/testing`, and the tests alone
+`apps/__e2e__` workspace has none: the root rule bans its relative paths, and its `package.json`
+declares only the workspaces its suites run. Each workspace's `__tests__/**` has an override of
+its own, after the workspace's, that adds the ban on e2e support; `domain/__tests__/**` and
+`domain/__tests__/testing/**` also let both import `@app-template/testing`, and the tests alone
 `@effect/platform-bun`. Overrides that match the same file replace each other's options rather
-than merge, so every override repeats the relative-path ban, and the two domain test overrides
-repeat every domain ban. Symptoms
+than merge, so every override repeats the relative-path ban, and every `__tests__/**` override
+repeats its workspace's bans. Symptoms
 and fixes:
 [tooling.md › Troubleshooting](tooling.md#troubleshooting).
 

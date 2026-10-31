@@ -33,19 +33,22 @@ tool reads.
 | `.entity` · `.queue` · `.relay` | an entity's Drizzle tables and row codecs · queue definitions and their job schemas · a layer that moves records from the database to a queue | infrastructure |
 | `.client` · `.transport` | client wiring · the service a package's client runs over | infrastructure, http-api, packages |
 | `.http` | a contract group: one resource's routes (`HttpApiGroup`) | http-api |
-| `.test` · `.e2e` | a unit test, no process outside vitest · a test on the run's containers | `tests/` · `e2e/` |
-| `.test-fixture` | sample values (ids, dates, inputs, bytes); no Effect, no layers | `testing/` |
-| `.test-fake` | a test implementation or wrapper of a port or service: records, yields, scripts | `testing/` |
-| `.test-layer` | a test layer (real services over fakes or containers), its arrange and read steps | `testing/` |
-| `.test-setup` | a vitest `globalSetup`: run-wide resources, handed to tests through `provide` | `testing/` |
-| `.test-util` | an assertion or a value helper with no layer | `testing/` |
+| `.test` · `.e2e` | a unit test, no process outside vitest · a test on the run's containers | `__tests__/` · `__e2e__/` |
+| `.test-fixture` | sample values (ids, dates, inputs, bytes); no Effect, no layers | `testing/` of either |
+| `.test-fake` | a test implementation or wrapper of a port or service: records, yields, scripts | `testing/` of either |
+| `.test-layer` | a test layer (real services over fakes or containers), its arrange and read steps | `testing/` of either |
+| `.test-setup` | a vitest `globalSetup`: run-wide resources, handed to tests through `provide` | `__e2e__/testing/` |
+| `.test-util` | an assertion or a value helper with no layer | `testing/` of either |
 
-`tests/` and `e2e/` sit at the workspace's top and mirror the source path
-(`domain/tests/<entity>/<entity>.model.test.ts`), or a suite with no source names what it checks;
-a module folder holds no test. Test support lives only in a `testing/` folder, exported by no
-barrel save the three layers' `./testing` (`domain`: the memory layers and fixtures;
-`infrastructure`: the database and AWS harnesses; `application`: the use cases' test layers) and
-a package's own test helpers, which suites compose instead of copying.
+`__tests__/` and `__e2e__/` sit at the workspace's top and mirror the source path
+(`domain/__tests__/<entity>/<entity>.model.test.ts`), or a suite with no source names what it
+checks; a module folder holds no test. Test support lives only in the `testing/` inside them: a
+file any unit test imports in `__tests__/testing/` (`#testing/*`, exported as `./testing`), the
+rest in `__e2e__/testing/` (`#testing-e2e/*`, exported as `./testing-e2e`); a unit test never
+imports e2e support. Suites compose these barrels instead of copying them: `domain`'s memory
+layers and fixtures, `infrastructure`'s transaction and database and AWS harnesses,
+`application`'s use cases' test layers, a package's own test helpers. The e2e over assembled
+layers, the journey among them, live in `apps/__e2e__`.
 
 ## Symbols
 

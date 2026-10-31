@@ -4,10 +4,11 @@
   "type": "module",
   "exports": {
     ".": "./index.ts",
-    "./testing": "./testing/index.ts"
+    "./testing": "./__tests__/testing/index.ts"
   },
   "imports": {
-    "#queue/*": "./*.ts"
+    "#queue/*": "./*.ts",
+    "#testing/*": "./__tests__/testing/*.ts"
   },
   "dependencies": {
     "@effect-aws/client-sqs": "catalog:effect-aws",

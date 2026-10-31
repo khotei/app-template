@@ -268,16 +268,16 @@ and that are committed.
 
 Each e2e test runs on a database of its own, copied from a template that the run's setup
 migrates with the `make migrate` program ([tooling.md › Tests](tooling.md#tests)). Every
-`*RepositoryPg` has a suite in `infrastructure/e2e/` on `DbTest`, which shares the four
-repositories of `infrastructure/testing/repository-stack.test-layer.ts` and inserts the parent
-rows with `insertUser` and its siblings from `infrastructure/testing/rows.test-util.ts`. An
+`*RepositoryPg` has a suite in `infrastructure/__e2e__/` on `DbTest`, which shares the four
+repositories of `infrastructure/__e2e__/testing/repository-stack.test-layer.ts` and inserts the parent
+rows with `insertUser` and its siblings from `infrastructure/__e2e__/testing/rows.test-util.ts`. An
 `.entity.e2e.ts` checks what the schema itself refuses (a check, a partial unique index) and
 reads the `SqlError` of a refused statement with `flipSqlError` from
-`infrastructure/db/testing/db.test-layer.ts`.
+`infrastructure/__e2e__/testing/db.test-layer.ts`.
 
 The unit suites never reach Postgres ([tooling.md › Tests](tooling.md#tests)). What only a
 transaction decides, that a use case keeps none of its writes or its outbox rows when one is
-refused, runs in `application/e2e/` on `ChatPgTest`. A memory layer copies the four guards the
+refused, runs in `apps/__e2e__/use-cases/` on `ChatPgTest`. A memory layer copies the four guards the
 database adds (the active message's index, the message status an update expects, an owner in the
 `where`, the cascade from a chat to its messages and their attachments), and each has its twin in a repository suite
 ([effect-tests.md › Unit and e2e](../../.claude/rules/effect-tests.md#unit-and-e2e)).

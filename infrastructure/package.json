@@ -9,10 +9,13 @@
     "./chat": "./chat/index.ts",
     "./attachment": "./attachment/index.ts",
     "./outbox": "./outbox/index.ts",
-    "./testing": "./testing/index.ts"
+    "./testing": "./__tests__/testing/index.ts",
+    "./testing-e2e": "./__e2e__/testing/index.ts"
   },
   "imports": {
-    "#infrastructure/*": "./*.ts"
+    "#infrastructure/*": "./*.ts",
+    "#testing/*": "./__tests__/testing/*.ts",
+    "#testing-e2e/*": "./__e2e__/testing/*.ts"
   },
   "dependencies": {
     "@app-template/aws": "workspace:*",

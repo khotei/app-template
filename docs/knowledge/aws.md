@@ -3,8 +3,8 @@
 How the app reaches S3 and SQS, locally and on AWS, and how the resources it needs are described,
 created and tested. The code: `packages/aws` (the inventory, the naming rule, the provisioner),
 `deployment/local/` (the Pulumi program of the local stand), `deployment/aws/` (its resources),
-`infrastructure/testing/e2e.test-setup.ts` (the MiniStack the e2e run starts),
-`packages/testing/aws.test-layer.ts` (its clients) and `infrastructure/testing/aws.test-layer.ts`
+`infrastructure/__e2e__/testing/e2e.test-setup.ts` (the MiniStack the e2e run starts),
+`packages/testing/aws.test-layer.ts` (its clients) and `infrastructure/__e2e__/testing/aws.test-layer.ts`
 (a stage per test).
 
 ## The local stand-in
@@ -128,7 +128,7 @@ file. The api and the worker run on `AttachmentPgS3`.
   `domain/attachment`) reads as not found everywhere; no read deletes it, since a delete on read
   would race a send binding it. Its object goes by the bucket's rule, which acts after
   `unboundExpirationDays` (S3 rounds up to the next midnight UTC);
-  `infrastructure/tests/shared/resources.test.ts` keeps those days no shorter than `unboundLifetime`, so
+  `infrastructure/__tests__/shared/resources.test.ts` keeps those days no shorter than `unboundLifetime`, so
   nothing still bindable loses its bytes. Its row stays, since no sweep removes expired rows.
   Locally the object stays as well, since MiniStack never runs the rule
   ([Tests on Docker](#tests-on-docker)).
@@ -190,10 +190,10 @@ and the dead letter need no queue.
 
 ## Tests on Docker
 
-The e2e `globalSetup` (`infrastructure/testing/e2e.test-setup.ts`) starts one MiniStack beside
+The e2e `globalSetup` (`infrastructure/__e2e__/testing/e2e.test-setup.ts`) starts one MiniStack beside
 the run's Postgres (`testcontainers`, about two seconds for both) and hands its endpoint to the
 tests through `inject('awsEndpoint')`; `SqsClientTest` and `S3ClientTest` in
-`@app-template/testing` are clients on it. `AwsTest` (`infrastructure/testing/aws.test-layer.ts`)
+`@app-template/testing` are clients on it. `AwsTest` (`infrastructure/__e2e__/testing/aws.test-layer.ts`)
 gives each test a stage of its own (`e2e` and eight hex digits), provisions the inventory's
 bucket and queues under it and provides `AwsConfig` over the endpoint and that stage, so an
 adapter builds its names as in production; it publishes the clients too, as the `*FromConfig`

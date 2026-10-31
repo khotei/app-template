@@ -6,7 +6,7 @@ code: `infrastructure/chat/assistant.llm.ts` (`AssistantLlm`: the prompts, the s
 finish-reason hook, the retries and the failure mapping), `infrastructure/chat/assistant.client.ts`
 (`AssistantModels`: one language model per purpose, Anthropic or the stub),
 `packages/llm/client.ts` (the stub) and `packages/config/config.ts` (`LlmConfig`,
-`ReplyModelConfig`). The suite: `infrastructure/tests/chat/assistant.llm.test.ts`, over a fake
+`ReplyModelConfig`). The suite: `infrastructure/__tests__/chat/assistant.llm.test.ts`, over a fake
 `HttpClient` that answers canned Anthropic bodies, so no test needs a key or the network.
 
 Every module named here is unstable at 4.0.6: check an API against the vendored sources

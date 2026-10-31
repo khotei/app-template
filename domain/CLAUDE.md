@@ -10,4 +10,4 @@ adapters implement) and the domain services that own the rules over them.
   module the client does not use. Ports live only in `.port.ts` files and services only in
   `.service.ts` files, never beside a model, so `make bundle-check` can prove neither reaches the
   bundle.
-- `testing/` holds one memory layer per port, for every workspace's unit tests.
+- `__tests__/testing/` holds one memory layer per port, for every workspace's unit tests.

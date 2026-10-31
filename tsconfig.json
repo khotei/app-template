@@ -15,7 +15,7 @@
     { "path": "./apps/api" },
     { "path": "./apps/worker" },
     { "path": "./apps/web" },
-    { "path": "./deployment" },
-    { "path": "./e2e" }
+    { "path": "./apps/__e2e__" },
+    { "path": "./deployment" }
   ]
 }

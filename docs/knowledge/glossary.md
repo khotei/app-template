@@ -172,6 +172,6 @@ a use case runs, or of the journey through both apps.
 _Avoid_: Integration test, system test, functional test
 
 **Memory layer**:
-A layer of a port over a `Ref<HashMap>` in its module's `testing/`, one per port; the unit tests' only
-double of a port.
+A layer of a port over a `Ref<HashMap>` in its workspace's `__tests__/testing/`, one per port; the
+unit tests' only double of a port.
 _Avoid_: Mock, stub, in-memory repository

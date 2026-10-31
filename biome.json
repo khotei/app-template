@@ -99,38 +99,7 @@
       }
     },
     {
-      "includes": ["domain/testing/**"],
-      "linter": {
-        "rules": {
-          "style": {
-            "noRestrictedImports": {
-              "level": "error",
-              "options": {
-                "patterns": [
-                  {
-                    "group": [
-                      "@app-template/**",
-                      "!@app-template/testing",
-                      "!@app-template/testing/**",
-                      "@effect/**",
-                      "!@effect/vitest",
-                      "!@effect/vitest/**"
-                    ],
-                    "message": "domain test support imports no workspace but @app-template/testing, and no @effect/* package except the test runner @effect/vitest"
-                  },
-                  {
-                    "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
-                  }
-                ]
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "includes": ["domain/tests/**"],
+      "includes": ["domain/__tests__/**"],
       "linter": {
         "rules": {
           "style": {
@@ -150,6 +119,53 @@
                       "!@effect/platform-bun/**"
                     ],
                     "message": "domain tests import no workspace but @app-template/testing, and no @effect/* package except the test runner @effect/vitest and @effect/platform-bun for BunCrypto.layer"
+                  },
+                  {
+                    "group": [
+                      "#testing-e2e/**",
+                      "@app-template/*/testing-e2e",
+                      "@app-template/*/testing-e2e/**"
+                    ],
+                    "message": "a unit test and its support import no e2e support (#testing-e2e/\u2026, @app-template/*/testing-e2e): unit tests run with no container"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["domain/__tests__/testing/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/**",
+                      "!@app-template/testing",
+                      "!@app-template/testing/**",
+                      "@effect/**",
+                      "!@effect/vitest",
+                      "!@effect/vitest/**"
+                    ],
+                    "message": "domain test support imports no workspace but @app-template/testing, and no @effect/* package except the test runner @effect/vitest"
+                  },
+                  {
+                    "group": [
+                      "#testing-e2e/**",
+                      "@app-template/*/testing-e2e",
+                      "@app-template/*/testing-e2e/**"
+                    ],
+                    "message": "a unit test and its support import no e2e support (#testing-e2e/\u2026, @app-template/*/testing-e2e): unit tests run with no container"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -229,6 +245,51 @@
       }
     },
     {
+      "includes": ["infrastructure/__tests__/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/application",
+                      "@app-template/application/**",
+                      "@app-template/api",
+                      "@app-template/api/**",
+                      "@app-template/worker",
+                      "@app-template/worker/**",
+                      "@app-template/web",
+                      "@app-template/web/**",
+                      "@app-template/deployment",
+                      "@app-template/deployment/**",
+                      "@app-template/http-api",
+                      "@app-template/http-api/**"
+                    ],
+                    "message": "infrastructure may import only domain and packages/*: no upward imports"
+                  },
+                  {
+                    "group": [
+                      "#testing-e2e/**",
+                      "@app-template/*/testing-e2e",
+                      "@app-template/*/testing-e2e/**"
+                    ],
+                    "message": "a unit test and its support import no e2e support (#testing-e2e/\u2026, @app-template/*/testing-e2e): unit tests run with no container"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["application/**"],
       "linter": {
         "rules": {
@@ -251,6 +312,49 @@
                       "@app-template/http-api/**"
                     ],
                     "message": "application may import infrastructure, domain and packages/*: no upward imports"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["application/__tests__/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/api",
+                      "@app-template/api/**",
+                      "@app-template/worker",
+                      "@app-template/worker/**",
+                      "@app-template/web",
+                      "@app-template/web/**",
+                      "@app-template/deployment",
+                      "@app-template/deployment/**",
+                      "@app-template/http-api",
+                      "@app-template/http-api/**"
+                    ],
+                    "message": "application may import infrastructure, domain and packages/*: no upward imports"
+                  },
+                  {
+                    "group": [
+                      "#testing-e2e/**",
+                      "@app-template/*/testing-e2e",
+                      "@app-template/*/testing-e2e/**"
+                    ],
+                    "message": "a unit test and its support import no e2e support (#testing-e2e/\u2026, @app-template/*/testing-e2e): unit tests run with no container"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -305,6 +409,55 @@
       }
     },
     {
+      "includes": ["packages/*/__tests__/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/domain",
+                      "@app-template/domain/**",
+                      "@app-template/infrastructure",
+                      "@app-template/infrastructure/**",
+                      "@app-template/application",
+                      "@app-template/application/**",
+                      "@app-template/api",
+                      "@app-template/api/**",
+                      "@app-template/worker",
+                      "@app-template/worker/**",
+                      "@app-template/web",
+                      "@app-template/web/**",
+                      "@app-template/deployment",
+                      "@app-template/deployment/**",
+                      "@app-template/http-api",
+                      "@app-template/http-api/**"
+                    ],
+                    "message": "packages/* are generic: they may import each other, but never a layer (http-api included) or an app"
+                  },
+                  {
+                    "group": [
+                      "#testing-e2e/**",
+                      "@app-template/*/testing-e2e",
+                      "@app-template/*/testing-e2e/**"
+                    ],
+                    "message": "a unit test and its support import no e2e support (#testing-e2e/\u2026, @app-template/*/testing-e2e): unit tests run with no container"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["apps/api/**"],
       "linter": {
         "rules": {
@@ -323,6 +476,45 @@
                       "@app-template/deployment/**"
                     ],
                     "message": "apps are independent: api must not import another app"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/api/__tests__/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/worker",
+                      "@app-template/worker/**",
+                      "@app-template/web",
+                      "@app-template/web/**",
+                      "@app-template/deployment",
+                      "@app-template/deployment/**"
+                    ],
+                    "message": "apps are independent: api must not import another app"
+                  },
+                  {
+                    "group": [
+                      "#testing-e2e/**",
+                      "@app-template/*/testing-e2e",
+                      "@app-template/*/testing-e2e/**"
+                    ],
+                    "message": "a unit test and its support import no e2e support (#testing-e2e/\u2026, @app-template/*/testing-e2e): unit tests run with no container"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -356,6 +548,47 @@
                       "@app-template/http-api/**"
                     ],
                     "message": "apps are independent: worker must not import another app"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/worker/__tests__/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/api",
+                      "@app-template/api/**",
+                      "@app-template/web",
+                      "@app-template/web/**",
+                      "@app-template/deployment",
+                      "@app-template/deployment/**",
+                      "@app-template/http-api",
+                      "@app-template/http-api/**"
+                    ],
+                    "message": "apps are independent: worker must not import another app"
+                  },
+                  {
+                    "group": [
+                      "#testing-e2e/**",
+                      "@app-template/*/testing-e2e",
+                      "@app-template/*/testing-e2e/**"
+                    ],
+                    "message": "a unit test and its support import no e2e support (#testing-e2e/\u2026, @app-template/*/testing-e2e): unit tests run with no container"
                   },
                   {
                     "group": ["./**", "../**"],

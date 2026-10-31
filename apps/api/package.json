@@ -6,7 +6,8 @@
     "./layer": "./layer.ts"
   },
   "imports": {
-    "#api/*": "./*.ts"
+    "#api/*": "./*.ts",
+    "#testing/*": "./__tests__/testing/*.ts"
   },
   "scripts": {
     "dev": "bun --env-file=../../.env --env-file=../../.env.pulumi --hot main.ts",
