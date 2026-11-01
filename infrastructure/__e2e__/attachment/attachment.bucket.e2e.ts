@@ -2,8 +2,6 @@ import { assert, describe, layer } from '@effect/vitest'
 import { S3Service } from '@effect-aws/client-s3'
 import { Effect, Layer, Option, Stream } from 'effect'
 
-import { buildResourceName, resources } from '@app-template/aws'
-import { AwsConfig } from '@app-template/config'
 import {
   AttachmentBucket,
   AttachmentId,
@@ -11,10 +9,12 @@ import {
   MediaType,
 } from '@app-template/domain/attachment'
 import { unknownAttachmentId } from '@app-template/domain/testing'
+import { buildResourceName, resources } from '@app-template/kernel/aws/resources'
+import { AwsConfig } from '@app-template/kernel/config'
+import { AwsTest } from '@app-template/kernel/testing-e2e'
 import { png } from '@app-template/testing'
 
 import { AttachmentBucketS3 } from '#infrastructure/attachment/attachment.bucket'
-import { AwsTest } from '#testing-e2e/aws.test-layer'
 
 // One stage for the file's `layer` block: each test writes an id of its own.
 const AttachmentBucketS3Test = AttachmentBucketS3.pipe(Layer.provideMerge(AwsTest))

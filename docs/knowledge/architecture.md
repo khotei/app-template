@@ -17,13 +17,17 @@ graph TD
   application --> domain
   apps -->|"apps/api only"| httpApi["http-api"]
   httpApi --> domain
-  apps --> packages["packages/* (aws · config · queue · llm · s3 · testing · ui)"]
+  apps --> kernel["kernel (config · aws)"]
+  infrastructure --> kernel
+  kernel --> packages
+  apps --> packages["packages/* (aws · queue · llm · s3 · testing · ui)"]
   application --> packages
   infrastructure --> packages
   web["apps/web client"] --> httpApi
   web --> ui["packages/ui"]
   webMain["apps/web/main.ts"] --> ui
-  webMain --> config["packages/config"]
+  webMain --> config["kernel/config"]
+  deployment --> kernel
   deployment --> packages
   e2e["apps/__e2e__ (the e2e over assembled layers)"] -->|"api/layer · worker/layer"| apps
   e2e --> httpApi
@@ -42,7 +46,8 @@ one test process, and the use cases on Postgres, and nothing imports it.
 | `http-api/` | the HTTP contract (`HttpApi`) over the domain, shared by `apps/api` and the browser | [http-api/CLAUDE.md](../../http-api/CLAUDE.md) |
 | `infrastructure/` | adapters that implement domain ports on top of `packages/*` clients | [infrastructure/CLAUDE.md](../../infrastructure/CLAUDE.md) |
 | `application/use-cases/` | use cases: the flows that join the domain's writes in one transaction, or reach the queue, the bucket or the assistant | [layering.md](../../.claude/rules/layering.md) |
-| `packages/*` | generic, project-agnostic clients and libraries, with the one exception its rules name | [packages/CLAUDE.md](../../packages/CLAUDE.md) |
+| `kernel/` | this app's configuration of its tools: the config services, the AWS clients built from them, the AWS inventory | [kernel/CLAUDE.md](../../kernel/CLAUDE.md) |
+| `packages/*` | generic, project-agnostic clients and libraries | [packages/CLAUDE.md](../../packages/CLAUDE.md) |
 | `apps/*` | entry points (`main.ts`), the handlers, and the process's layer (`layer.ts`) | [apps/CLAUDE.md](../../apps/CLAUDE.md) |
 | `apps/__e2e__/` | the e2e over assembled layers: the use cases on Postgres, and the journey, `ApiLayer` and `WorkerLayer` in one runtime over the run's containers | [tooling.md › Tests](tooling.md#tests) |
 | `deployment/` | `local/`, the Pulumi program of the local stand: MiniStack and the resources inside it ([aws.md](aws.md)); `aws/`, the resource code as functions of a provider, the rest a stub for now | [deployment/CLAUDE.md](../../deployment/CLAUDE.md) |
@@ -54,19 +59,20 @@ later the modules.
 
 Each row lists what a workspace may import.
 
-| From ↓ / may import → | domain | http-api | infrastructure | application | packages/* | apps |
-|---|---|---|---|---|---|---|
-| domain | — | ✗ | ✗ | ✗ | ✗ | ✗ |
-| http-api | ✓ | — | ✗ | ✗ | ✗ | ✗ |
-| infrastructure | ✓ | ✗ | — | ✗ | ✓ | ✗ |
-| application | ✓ | ✗ | ✓ | — | ✓ | ✗ |
-| packages/* | ✗ | ✗ | ✗ | ✗ | ✓ (each other) | ✗ |
-| apps/api | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ (no sibling app) |
-| apps/worker | ✓ | ✗ | ✓ | ✓ | ✓ | ✗ (no sibling app) |
-| apps/web client (`app/`, `features/`, `shared/`) | ✗ | ✓ | ✗ | ✗ | `ui` only | ✗ |
-| apps/web/main.ts | ✗ | ✗ | ✗ | ✗ | `ui`, `config` | ✗ |
-| deployment | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ |
-| apps/__e2e__ | ✓ | ✓ | ✓ | ✓ | `config`, `testing` | ✓ (`api/layer`, `worker/layer`) |
+| From ↓ / may import → | domain | http-api | infrastructure | application | kernel | packages/* | apps |
+|---|---|---|---|---|---|---|---|
+| domain | — | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| http-api | ✓ | — | ✗ | ✗ | ✗ | ✗ | ✗ |
+| infrastructure | ✓ | ✗ | — | ✗ | ✓ | ✓ | ✗ |
+| application | ✓ | ✗ | ✓ | — | ✓ | ✓ | ✗ |
+| kernel | ✗ | ✗ | ✗ | ✗ | — | ✓ | ✗ |
+| packages/* | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ (each other) | ✗ |
+| apps/api | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ (no sibling app) |
+| apps/worker | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ | ✗ (no sibling app) |
+| apps/web client (`app/`, `features/`, `shared/`) | ✗ | ✓ | ✗ | ✗ | ✗ | `ui` only | ✗ |
+| apps/web/main.ts | ✗ | ✗ | ✗ | ✗ | `config` only | `ui` | ✗ |
+| deployment | ✗ | ✗ | ✗ | ✗ | ✓ | ✓ | ✗ |
+| apps/__e2e__ | ✓ | ✓ | ✓ | ✓ | ✓ | `testing` | ✓ (`api/layer`, `worker/layer`) |
 
 - **`domain` imports `effect` and no workspace,** not even `packages/*`, and no `@effect/*`
   package but the test runner `@effect/vitest`, so it stays pure and testable without fakes;
@@ -79,8 +85,8 @@ Each row lists what a workspace may import.
   domain therefore ships to the browser: it declares `"sideEffects": false`, so a bundle keeps
   only the schemas it uses and drops the ports.
 - **`apps/web` client code ships to the browser.** It calls the api through `ApiClient` from
-  `http-api` and runs its Effects itself; only its server entry `main.ts` may read `config`, to
-  get a validated `WEB_PORT`.
+  `http-api` and runs its Effects itself; only its server entry `main.ts` may read
+  `kernel/config`, to get a validated `WEB_PORT`.
 - **A ✓ is permission, not a declaration.** The dependency must also be in the importer's
   `package.json`; see [the boundary guards](#boundary-guards).
 
@@ -244,14 +250,15 @@ tree shaking drops the services and ports beside them, and the guard proves it o
 Three forms pass every guard. No code uses them; review is what catches them.
 
 - **A type import inside an expression in web client code.** `export type X =
-  import('@app-template/config').ApiConfig['Service']` in `app/`, `features/` or `shared/` passes
-  Biome, which does not see `import()` inside a type, and `tsc -b`, because web declares
-  `@app-template/config` for its server entry. The type is erased, so nothing reaches the browser,
-  but the client then depends on the shape of the server config.
+  import('@app-template/kernel/config').ApiConfig['Service']` in `app/`, `features/` or
+  `shared/` passes Biome, which does not see `import()` inside a type, and `tsc -b`, because web
+  declares `@app-template/kernel` for its server entry. The type is erased, so nothing reaches
+  the browser, but the client then depends on the shape of the server config.
 - **A workspace importing itself by name.** `@app-template/use-cases/chat` from inside
   `application/use-cases/` passes Biome, whose overrides list only other workspaces, and
-  `tsc -b`, which resolves a package's own `exports`. It skips the `#<workspace>/` convention and can import the
-  file's own barrel, a cycle that shows up as `undefined` while modules initialise.
+  `tsc -b`, which resolves a package's own `exports`. It skips the `#<workspace>/` convention and
+  can import the file's own barrel, a cycle that shows up as `undefined` while modules
+  initialise.
 - **A runtime module or third-party package in `domain`.** `node:crypto` or any npm package passes
   the domain guard, which bans only workspaces and `@effect/*`. Purity rests on review and on the
   grep for `Date.now`, `new Date(` and `randomUUID`.

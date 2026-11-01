@@ -10,7 +10,7 @@
     { "path": "../../domain" },
     { "path": "../../http-api" },
     { "path": "../../infrastructure" },
-    { "path": "../../packages/config" },
+    { "path": "../../kernel" },
     { "path": "../../packages/testing" }
   ]
 }

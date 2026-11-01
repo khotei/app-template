@@ -1,6 +1,6 @@
 import * as aws from '@pulumi/aws'
 
-import { buildResourceName } from '@app-template/aws'
+import { buildResourceName } from '@app-template/kernel/aws/resources'
 
 import { buildTags } from '#deployment/shared/tags'
 

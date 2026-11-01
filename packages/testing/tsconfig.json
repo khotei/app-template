@@ -4,6 +4,5 @@
     "rootDir": ".",
     "outDir": "../../node_modules/.cache/tsc/testing"
   },
-  "include": ["**/*.ts"],
-  "references": [{ "path": "../config" }]
+  "include": ["**/*.ts"]
 }

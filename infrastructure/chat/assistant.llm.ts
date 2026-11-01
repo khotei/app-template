@@ -20,7 +20,6 @@ import {
 import { AiError, Prompt, Response, Telemetry } from 'effect/ai'
 import { Hex } from 'effect/encoding'
 
-import { ReplyModelConfig } from '@app-template/config'
 import {
   Assistant,
   type AssistantError,
@@ -33,6 +32,7 @@ import {
   isBlank,
   maxTitleLength,
 } from '@app-template/domain/chat'
+import { ReplyModelConfig } from '@app-template/kernel/config'
 
 import { AssistantModels } from '#infrastructure/chat/assistant.client'
 import { ReplyProvenance } from '#infrastructure/chat/chat.queue'

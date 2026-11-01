@@ -2,13 +2,13 @@ import { inArray, isNull } from 'drizzle-orm'
 import { Array as Arr, Cause, DateTime, Effect, Layer, Predicate, Schedule, Struct } from 'effect'
 import { SqlClient } from 'effect/sql'
 
-import { buildResourceName } from '@app-template/aws'
-import { AwsConfig, QueueConfig } from '@app-template/config'
+import { SQSServiceFromConfig } from '@app-template/kernel/aws'
+import { buildResourceName } from '@app-template/kernel/aws/resources'
+import { AwsConfig, QueueConfig } from '@app-template/kernel/config'
 import { QueueTransport } from '@app-template/queue'
 
 import { Db, unwrapQueryError } from '#infrastructure/db/db.client'
 import { outbox } from '#infrastructure/outbox/outbox.entity'
-import { SQSServiceFromConfig } from '#infrastructure/shared/aws.client'
 
 const batchLimit = 10
 

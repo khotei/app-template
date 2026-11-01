@@ -14,9 +14,10 @@ import {
   Struct,
 } from 'effect'
 
-import { buildResourceName } from '@app-template/aws'
-import { AwsConfig } from '@app-template/config'
 import { ChatId, MessageId } from '@app-template/domain/chat'
+import { buildResourceName } from '@app-template/kernel/aws/resources'
+import { AwsConfig } from '@app-template/kernel/config'
+import { AwsTest } from '@app-template/kernel/testing-e2e'
 import { QueueError, QueueSender, QueueTransport } from '@app-template/queue'
 import { recordLogs } from '@app-template/testing'
 
@@ -26,7 +27,6 @@ import { outbox } from '#infrastructure/outbox/outbox.entity'
 import { OutboxRelay } from '#infrastructure/outbox/outbox.relay'
 import { QueueSenderOutbox } from '#infrastructure/shared/queue.client'
 import { replyProvenance } from '#testing/chat.test-fake'
-import { AwsTest } from '#testing-e2e/aws.test-layer'
 import { DbTest } from '#testing-e2e/db.test-layer'
 
 interface Attempt {

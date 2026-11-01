@@ -3,7 +3,7 @@ paths:
   - "**/package.json"
   - "Makefile"
   - ".env*"
-  - "packages/config/**"
+  - "kernel/config/**"
 ---
 
 # Tooling
@@ -26,7 +26,7 @@ Imperatives only. The commands: the root `CLAUDE.md`; the explanations:
   `.env`, plus the ones a client SDK reads from the environment itself; keep values for stubbed
   services commented out.
 - App scripts load both, `--env-file=../../.env --env-file=../../.env.pulumi`. Quote every
-  `.env` value that holds a space. Read settings only through the `@app-template/config`
+  `.env` value that holds a space. Read settings only through the `@app-template/kernel/config`
   services' layers. Tests never depend on `.env`.
 
 ## Dev modes

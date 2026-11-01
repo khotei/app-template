@@ -31,7 +31,7 @@ tool reads.
 | `.handler` | api: one contract group's handlers · worker: `<object>.handler.ts`, one queue's `handle` and `handleDeadLettered` over a use case | apps |
 | `.repository` · `.bucket` · `.llm` | a port's adapter over Postgres · S3 · `LanguageModel`, with the prompts | infrastructure |
 | `.entity` · `.queue` · `.relay` | an entity's Drizzle tables and row codecs · queue definitions and their job schemas · a layer that moves records from the database to a queue | infrastructure |
-| `.client` · `.transport` | client wiring · the service a package's client runs over | infrastructure, http-api, packages |
+| `.client` · `.transport` | client wiring · the service a package's client runs over | infrastructure, kernel, http-api, packages |
 | `.http` | a contract group: one resource's routes (`HttpApiGroup`) | http-api |
 | `.test` · `.e2e` | a unit test, no process outside vitest · a test on the run's containers | `__tests__/` · `__e2e__/` |
 | `.test-fixture` | sample values (ids, dates, inputs, bytes); no Effect, no layers | `testing/` of either |

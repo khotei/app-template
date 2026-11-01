@@ -5,7 +5,7 @@ How the assistant asks a language model for a reply or a title, which parts of `
 code: `infrastructure/chat/assistant.llm.ts` (`AssistantLlm`: the prompts, the schemas, the
 finish-reason hook, the retries and the failure mapping), `infrastructure/chat/assistant.client.ts`
 (`AssistantModels`: one language model per purpose, Anthropic or the stub),
-`packages/llm/client.ts` (the stub) and `packages/config/config.ts` (`LlmConfig`,
+`packages/llm/client.ts` (the stub) and `kernel/config/config.ts` (`LlmConfig`,
 `ReplyModelConfig`). The suite: `infrastructure/__tests__/chat/assistant.llm.test.ts`, over a fake
 `HttpClient` that answers canned Anthropic bodies, so no test needs a key or the network.
 

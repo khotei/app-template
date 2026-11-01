@@ -368,7 +368,7 @@
       }
     },
     {
-      "includes": ["packages/**"],
+      "includes": ["kernel/**"],
       "linter": {
         "rules": {
           "style": {
@@ -395,7 +395,99 @@
                       "@app-template/http-api",
                       "@app-template/http-api/**"
                     ],
-                    "message": "packages/* are generic: they may import each other, but never a layer (http-api included) or an app"
+                    "message": "the kernel holds this app's tools: it may import only packages/*, never a layer (http-api included) or an app"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["kernel/__tests__/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/domain",
+                      "@app-template/domain/**",
+                      "@app-template/infrastructure",
+                      "@app-template/infrastructure/**",
+                      "@app-template/application",
+                      "@app-template/application/**",
+                      "@app-template/api",
+                      "@app-template/api/**",
+                      "@app-template/worker",
+                      "@app-template/worker/**",
+                      "@app-template/web",
+                      "@app-template/web/**",
+                      "@app-template/deployment",
+                      "@app-template/deployment/**",
+                      "@app-template/http-api",
+                      "@app-template/http-api/**"
+                    ],
+                    "message": "the kernel holds this app's tools: it may import only packages/*, never a layer (http-api included) or an app"
+                  },
+                  {
+                    "group": [
+                      "#testing-e2e/**",
+                      "@app-template/*/testing-e2e",
+                      "@app-template/*/testing-e2e/**"
+                    ],
+                    "message": "a unit test and its support import no e2e support (#testing-e2e/\u2026, @app-template/*/testing-e2e): unit tests run with no container"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/domain",
+                      "@app-template/domain/**",
+                      "@app-template/infrastructure",
+                      "@app-template/infrastructure/**",
+                      "@app-template/application",
+                      "@app-template/application/**",
+                      "@app-template/api",
+                      "@app-template/api/**",
+                      "@app-template/worker",
+                      "@app-template/worker/**",
+                      "@app-template/web",
+                      "@app-template/web/**",
+                      "@app-template/deployment",
+                      "@app-template/deployment/**",
+                      "@app-template/http-api",
+                      "@app-template/http-api/**",
+                      "@app-template/kernel",
+                      "@app-template/kernel/**"
+                    ],
+                    "message": "packages/* are generic: they may import each other, but never the kernel, a layer (http-api included) or an app"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -434,9 +526,11 @@
                       "@app-template/deployment",
                       "@app-template/deployment/**",
                       "@app-template/http-api",
-                      "@app-template/http-api/**"
+                      "@app-template/http-api/**",
+                      "@app-template/kernel",
+                      "@app-template/kernel/**"
                     ],
-                    "message": "packages/* are generic: they may import each other, but never a layer (http-api included) or an app"
+                    "message": "packages/* are generic: they may import each other, but never the kernel, a layer (http-api included) or an app"
                   },
                   {
                     "group": [
@@ -645,10 +739,9 @@
                       "@app-template/**",
                       "!@app-template/ui",
                       "!@app-template/ui/**",
-                      "!@app-template/config",
-                      "!@app-template/config/**"
+                      "!@app-template/kernel/config"
                     ],
-                    "message": "the web server entry imports only @app-template/ui and @app-template/config of our workspaces, never @app-template/http-api"
+                    "message": "the web server entry imports only @app-template/ui and @app-template/kernel/config of our workspaces, never @app-template/http-api"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -687,7 +780,7 @@
                       "@app-template/http-api",
                       "@app-template/http-api/**"
                     ],
-                    "message": "deployment may import only packages/*"
+                    "message": "deployment may import only the kernel and packages/*"
                   },
                   {
                     "group": ["./**", "../**"],

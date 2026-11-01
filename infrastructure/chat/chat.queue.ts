@@ -1,7 +1,8 @@
 import { Duration, Schema } from 'effect'
 
-import { buildDeadLetterName, resources } from '@app-template/aws'
+import { buildDeadLetterName } from '@app-template/aws'
 import { ChatId, MessageId } from '@app-template/domain/chat'
+import { resources } from '@app-template/kernel/aws/resources'
 import type { QueueDefinition } from '@app-template/queue'
 
 const { assistantMessage, chatTitle } = resources.queues

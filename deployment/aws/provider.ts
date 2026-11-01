@@ -2,7 +2,7 @@ import * as aws from '@pulumi/aws'
 import type * as pulumi from '@pulumi/pulumi'
 import { Option } from 'effect'
 
-import type { AwsConfig } from '@app-template/config'
+import type { AwsConfig } from '@app-template/kernel/config'
 
 /**
  * MiniStack answers every service on one URL and accepts any credentials, so the provider skips

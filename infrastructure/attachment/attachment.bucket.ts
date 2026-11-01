@@ -1,14 +1,14 @@
 import type { S3Service } from '@effect-aws/client-s3'
 import { Array as Arr, Duration, Effect, Layer, type Stream } from 'effect'
 
-import { buildResourceName, resources, unboundTag } from '@app-template/aws'
-import { AwsConfig } from '@app-template/config'
 import {
   AttachmentBucket,
   type AttachmentId,
   type AttachmentMeta,
   FileSize,
 } from '@app-template/domain/attachment'
+import { buildResourceName, resources, unboundTag } from '@app-template/kernel/aws/resources'
+import { AwsConfig } from '@app-template/kernel/config'
 import { S3Bucket } from '@app-template/s3'
 
 const urlLifetime = Duration.minutes(5)

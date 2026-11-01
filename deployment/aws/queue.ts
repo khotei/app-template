@@ -1,7 +1,8 @@
 import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
 
-import { buildDeadLetterName, buildResourceName, resources } from '@app-template/aws'
+import { buildDeadLetterName } from '@app-template/aws'
+import { buildResourceName, resources } from '@app-template/kernel/aws/resources'
 
 import { buildTags } from '#deployment/shared/tags'
 

@@ -19,8 +19,8 @@
   },
   "dependencies": {
     "@app-template/aws": "workspace:*",
-    "@app-template/config": "workspace:*",
     "@app-template/domain": "workspace:*",
+    "@app-template/kernel": "workspace:*",
     "@app-template/llm": "workspace:*",
     "@app-template/queue": "workspace:*",
     "@app-template/s3": "workspace:*",

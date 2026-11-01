@@ -13,13 +13,13 @@ import {
 } from 'effect'
 
 export class ApiConfig extends Context.Service<ApiConfig, { readonly port: number }>()(
-  '@app-template/config/ApiConfig',
+  '@app-template/kernel/config/ApiConfig',
 ) {
   static readonly layer = Layer.effect(this, Config.all({ port: Config.Port('API_PORT') }))
 }
 
 export class WebConfig extends Context.Service<WebConfig, { readonly port: number }>()(
-  '@app-template/config/WebConfig',
+  '@app-template/kernel/config/WebConfig',
 ) {
   static readonly layer = Layer.effect(this, Config.all({ port: Config.Port('WEB_PORT') }))
 }
@@ -27,7 +27,7 @@ export class WebConfig extends Context.Service<WebConfig, { readonly port: numbe
 export class DatabaseConfig extends Context.Service<
   DatabaseConfig,
   { readonly url: Redacted.Redacted }
->()('@app-template/config/DatabaseConfig') {
+>()('@app-template/kernel/config/DatabaseConfig') {
   static readonly layer = Layer.effect(this, Config.all({ url: Config.Redacted('DATABASE_URL') }))
 }
 
@@ -35,7 +35,7 @@ export class DatabaseConfig extends Context.Service<
 export class AwsConfig extends Context.Service<
   AwsConfig,
   { readonly region: string; readonly endpoint: Option.Option<URL>; readonly stage: string }
->()('@app-template/config/AwsConfig') {
+>()('@app-template/kernel/config/AwsConfig') {
   static readonly layer = Layer.effect(
     this,
     Config.all({
@@ -50,7 +50,7 @@ export class AwsConfig extends Context.Service<
 export class MiniStackConfig extends Context.Service<
   MiniStackConfig,
   { readonly rdsBasePort: number }
->()('@app-template/config/MiniStackConfig') {
+>()('@app-template/kernel/config/MiniStackConfig') {
   static readonly layer = Layer.effect(
     this,
     Config.all({ rdsBasePort: Config.Port('RDS_BASE_PORT') }),
@@ -62,7 +62,7 @@ const nodeEnvs = ['development', 'test', 'production'] as const
 export class RuntimeConfig extends Context.Service<
   RuntimeConfig,
   { readonly nodeEnv: (typeof nodeEnvs)[number]; readonly logLevel: LogLevel.LogLevel }
->()('@app-template/config/RuntimeConfig') {
+>()('@app-template/kernel/config/RuntimeConfig') {
   static readonly layer = Layer.effect(
     this,
     Config.all({
@@ -100,7 +100,7 @@ const llmSettings = {
 } as const satisfies Record<LlmProvider, Config.Config<LlmSettings>>
 
 export class LlmConfig extends Context.Service<LlmConfig, LlmSettings>()(
-  '@app-template/config/LlmConfig',
+  '@app-template/kernel/config/LlmConfig',
 ) {
   static readonly layer = Layer.effect(
     this,
@@ -122,7 +122,7 @@ const replyModelSettings = {
 
 /** The provider and the model that answer replies, read without the provider's key. */
 export class ReplyModelConfig extends Context.Service<ReplyModelConfig, ReplyModelSettings>()(
-  '@app-template/config/ReplyModelConfig',
+  '@app-template/kernel/config/ReplyModelConfig',
 ) {
   static readonly layer = Layer.effect(
     this,
@@ -169,7 +169,7 @@ export class QueueConfig extends Context.Service<
     readonly lockRefreshInterval: Duration.Duration
     readonly outboxPollInterval: Duration.Duration
   }
->()('@app-template/config/QueueConfig') {
+>()('@app-template/kernel/config/QueueConfig') {
   static readonly layer = Layer.effect(this, queueConfig)
 }
 

@@ -1,6 +1,6 @@
 import { Effect, Layer } from 'effect'
 
-import { ApiConfig, RuntimeConfig, WebConfig } from '@app-template/config'
+import { ApiConfig, RuntimeConfig, WebConfig } from '@app-template/kernel/config'
 
 import index from '#web/index.html'
 

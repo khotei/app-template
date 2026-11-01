@@ -9,7 +9,7 @@
 | S1 | tests in `__tests__/` and `__e2e__/` everywhere; the e2e over assembled layers in `apps/api` | done |
 | S2 | `generateId` in `packages/db`, beside the `id()` column | todo |
 | S3 | the use cases in `application/use-cases` | done |
-| S4 | the `kernel` workspace with `/config` and `/aws`; `packages/aws` a generic provisioner | todo |
+| S4 | the `kernel` workspace with `/config` and `/aws`; `packages/aws` a generic provisioner | done |
 | S5 | `packages/db`: the generic Drizzle client, transaction and migrator | todo |
 | S6 | `kernel/postgres` and the migrations in `kernel/data` | todo |
 | S7 | `kernel/llm` picks the provider; chat keeps only its prompts | todo |
@@ -202,7 +202,23 @@
   `buildDeadLetterName`; a throwaway import of `@app-template/kernel/config` in `packages/queue`
   fails `make lint` (reverted).
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - About 520 changed lines against the ~400 limit, `bun.lock` aside: some 100 are the kernel's
+    own Biome overrides, the rest a move that `tsc -b` refuses half done.
+  - `kernel/**` and `kernel/__tests__/**` get Biome overrides beyond Files (relative imports, no
+    layer or app, no e2e support in a unit test), so the kernel is never the one workspace without
+    S1's guards; S21 replaces them with the per-ring overrides.
+  - `resources.test.ts` stays whole in `infrastructure/__tests__/shared/`: its one case reads
+    chat's domain (`unboundLifetime`), so nothing moves to `kernel/__tests__/aws/` before S19.
+    No empty `kernel/__tests__/testing/index.ts` or `./testing` export: S16 creates them.
+  - `provision` and `provisionQueues` take a name function in place of the stage; the queue's e2e
+    names its queues `queue-<stage>-<name>`, since a package may not import the kernel's rule.
+  - Beyond Files: the root `CLAUDE.md` Map, `README.md` and `roadmap.md` name the moved paths;
+    `docs/knowledge/architecture.md`'s tables gain a `kernel` row and column.
+  - Round S4.2 (review): `kernel/CLAUDE.md` states why the kernel exists instead of listing its
+    subpaths, `packages/CLAUDE.md` keeps the split as a pattern without naming packages, the docs
+    show `provision`'s name function, and long lines are re-wrapped.
 
 #### S5 — The generic database package
 

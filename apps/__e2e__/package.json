@@ -7,10 +7,10 @@
   },
   "devDependencies": {
     "@app-template/api": "workspace:*",
-    "@app-template/config": "workspace:*",
     "@app-template/domain": "workspace:*",
     "@app-template/http-api": "workspace:*",
     "@app-template/infrastructure": "workspace:*",
+    "@app-template/kernel": "workspace:*",
     "@app-template/testing": "workspace:*",
     "@app-template/use-cases": "workspace:*",
     "@app-template/worker": "workspace:*",

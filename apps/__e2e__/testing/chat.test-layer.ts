@@ -6,7 +6,7 @@ import { AttachmentBucketS3, AttachmentRepositoryPg } from '@app-template/infras
 import { ChatPg } from '@app-template/infrastructure/chat'
 import { Transaction } from '@app-template/infrastructure/db'
 import { QueueSenderOutbox } from '@app-template/infrastructure/shared'
-import { AwsTest } from '@app-template/infrastructure/testing-e2e'
+import { AwsTest } from '@app-template/kernel/testing-e2e'
 import { ChatServices } from '@app-template/use-cases/testing'
 
 import { DbWithUsersTest } from '#testing-e2e/db.test-layer'

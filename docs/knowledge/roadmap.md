@@ -361,7 +361,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   source mappings with `ReportBatchItemFailures` remain the recommended worker pattern.
 - **Inherits from `aws-local` (2026-10-22).** Check on AWS what MiniStack cannot show: the
   `unbound` tag sent with `CreateMultipartUpload` and the lifecycle deletion it drives. Share one
-  AWS client builder between `infrastructure/shared/aws.client.ts` and the tests' clients, and
+  AWS client builder between `kernel/aws/aws.client.ts` and the tests' clients, and
   brand `Stage`.
 - **Inherits from `postgres-drizzle` (2026-10-23).** The bucket with its lifecycle rule, the
   queues with their dead-letter queues and the RDS instance are already Pulumi resources, created

@@ -14,8 +14,10 @@ import {
 } from '@effect-aws/client-sqs'
 import { type Cause, Effect, pipe, Record as Rec } from 'effect'
 
-import { buildDeadLetterName, buildResourceName } from '#aws/naming'
+import { buildDeadLetterName } from '#aws/naming'
 import type { BucketResource, QueueResource, Resources } from '#aws/resources'
+
+type BuildName = (name: string) => string
 
 type ProvisionBucketError = Cause.TimeoutError | SdkError | BucketAlreadyExistsError
 
@@ -34,8 +36,8 @@ type ProvisionQueueError =
   | UnsupportedOperationError
 
 // A bucket this account holds already is the one asked for: CreateBucket never updates one.
-const provisionBucket = (stage: string) => (bucket: BucketResource) =>
-  S3Service.use((s3) => s3.createBucket({ Bucket: buildResourceName(stage, bucket.name) })).pipe(
+const provisionBucket = (buildName: BuildName) => (bucket: BucketResource) =>
+  S3Service.use((s3) => s3.createBucket({ Bucket: buildName(bucket.name) })).pipe(
     Effect.catchTag('BucketAlreadyOwnedByYou', () => Effect.void),
   )
 
@@ -43,10 +45,10 @@ const provisionBucket = (stage: string) => (bucket: BucketResource) =>
 const buildRedrivePolicy = (deadLetterTargetArn: string, maxReceiveCount: number): string =>
   JSON.stringify({ deadLetterTargetArn, maxReceiveCount })
 
-const provisionQueuePair = (stage: string) =>
+const provisionQueuePair = (buildName: BuildName) =>
   Effect.fnUntraced(function* (queue: QueueResource) {
     const sqs = yield* SQSService
-    const name = buildResourceName(stage, queue.name)
+    const name = buildName(queue.name)
 
     const deadLetter = yield* sqs.createQueue({ QueueName: buildDeadLetterName(name) })
     const { Attributes } = yield* sqs.getQueueAttributes({
@@ -60,18 +62,18 @@ const provisionQueuePair = (stage: string) =>
     })
   })
 
-/** Creates each bucket under `stage`, without its lifecycle rules; a second run changes nothing. */
+/** Creates each bucket under `buildName(name)`, without lifecycle rules; reruns change nothing. */
 const provisionBuckets = Effect.fn('provisionBuckets')(
   (
     buckets: Resources['buckets'],
-    stage: string,
+    buildName: BuildName,
   ): Effect.Effect<void, ProvisionBucketError, S3Service> =>
-    pipe(buckets, Rec.values, Effect.forEach(provisionBucket(stage), { discard: true })),
+    pipe(buckets, Rec.values, Effect.forEach(provisionBucket(buildName), { discard: true })),
 )
 
 /**
- * Creates each queue with its dead-letter queue under `stage`; a second run on the same queues
- * changes nothing.
+ * Creates each queue with its dead-letter queue under `buildName(name)`; a second run on the same
+ * queues changes nothing.
  *
  * A queue whose attributes drifted from the inventory fails with `QueueNameExists`: SQS never
  * updates on create, and `make reset` is the local way back.
@@ -79,14 +81,15 @@ const provisionBuckets = Effect.fn('provisionBuckets')(
 export const provisionQueues = Effect.fn('provisionQueues')(
   (
     queues: Resources['queues'],
-    stage: string,
+    buildName: BuildName,
   ): Effect.Effect<void, ProvisionQueueError, SQSService> =>
-    pipe(queues, Rec.values, Effect.forEach(provisionQueuePair(stage), { discard: true })),
+    pipe(queues, Rec.values, Effect.forEach(provisionQueuePair(buildName), { discard: true })),
 )
 
-/** The whole inventory under `stage`: the buckets and the queues. */
-export const provision = Effect.fn('provision')(({ buckets, queues }: Resources, stage: string) =>
-  Effect.all([provisionBuckets(buckets, stage), provisionQueues(queues, stage)], {
-    discard: true,
-  }),
+/** The whole inventory under `buildName(name)`: the buckets and the queues. */
+export const provision = Effect.fn('provision')(
+  ({ buckets, queues }: Resources, buildName: BuildName) =>
+    Effect.all([provisionBuckets(buckets, buildName), provisionQueues(queues, buildName)], {
+      discard: true,
+    }),
 )

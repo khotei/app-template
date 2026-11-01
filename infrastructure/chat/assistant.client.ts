@@ -3,7 +3,7 @@ import { type Config, Context, Duration, Effect, Layer, Match } from 'effect'
 import type { LanguageModel } from 'effect/ai'
 import { FetchHttpClient, HttpClient } from 'effect/http'
 
-import { LlmConfig } from '@app-template/config'
+import { LlmConfig } from '@app-template/kernel/config'
 import { createLanguageModelStub } from '@app-template/llm'
 
 type AnthropicOptions = Extract<LlmConfig['Service'], { readonly provider: 'anthropic' }>

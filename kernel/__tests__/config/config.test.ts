@@ -20,7 +20,7 @@ import {
   QueueConfig,
   ReplyModelConfig,
   RuntimeConfig,
-} from '#config/config'
+} from '#kernel/config/config'
 
 const provideVariables = <A, E>(layer: Layer.Layer<A, E>, variables: Record<string, string>) =>
   layer.pipe(Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(variables))))

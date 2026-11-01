@@ -4,10 +4,10 @@ import { ConfigProvider, Effect, Layer, Redacted } from 'effect'
 import { FetchHttpClient } from 'effect/http'
 
 import { ApiLayer } from '@app-template/api/layer'
-import { AwsConfig } from '@app-template/config'
 import { ApiClient } from '@app-template/http-api'
 import { AttachmentBucketS3 } from '@app-template/infrastructure/attachment'
-import { AwsTest } from '@app-template/infrastructure/testing-e2e'
+import { AwsConfig } from '@app-template/kernel/config'
+import { AwsTest } from '@app-template/kernel/testing-e2e'
 import { layerCookieJarTest, PgClientTest } from '@app-template/testing'
 import { WorkerLayer } from '@app-template/worker/layer'
 

@@ -6,7 +6,7 @@ import { migrate } from 'drizzle-orm/effect-postgres/migrator'
 import { Array as Arr, Effect, Option, Predicate, Schedule } from 'effect'
 import { SqlError } from 'effect/sql'
 
-import { MinimumLogLevelFromConfig } from '@app-template/config'
+import { MinimumLogLevelFromConfig } from '@app-template/kernel/config'
 
 import { Db, unwrapQueryError } from '#infrastructure/db/db.client'
 

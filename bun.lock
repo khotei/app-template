@@ -31,10 +31,10 @@
       "name": "@app-template/e2e",
       "devDependencies": {
         "@app-template/api": "workspace:*",
-        "@app-template/config": "workspace:*",
         "@app-template/domain": "workspace:*",
         "@app-template/http-api": "workspace:*",
         "@app-template/infrastructure": "workspace:*",
+        "@app-template/kernel": "workspace:*",
         "@app-template/testing": "workspace:*",
         "@app-template/use-cases": "workspace:*",
         "@app-template/worker": "workspace:*",
@@ -47,10 +47,10 @@
     "apps/api": {
       "name": "@app-template/api",
       "dependencies": {
-        "@app-template/config": "workspace:*",
         "@app-template/domain": "workspace:*",
         "@app-template/http-api": "workspace:*",
         "@app-template/infrastructure": "workspace:*",
+        "@app-template/kernel": "workspace:*",
         "@app-template/use-cases": "workspace:*",
         "@effect/platform-bun": "catalog:effect",
         "effect": "catalog:effect",
@@ -64,8 +64,8 @@
     "apps/web": {
       "name": "@app-template/web",
       "dependencies": {
-        "@app-template/config": "workspace:*",
         "@app-template/http-api": "workspace:*",
+        "@app-template/kernel": "workspace:*",
         "@app-template/ui": "workspace:*",
         "effect": "catalog:effect",
       },
@@ -73,9 +73,9 @@
     "apps/worker": {
       "name": "@app-template/worker",
       "dependencies": {
-        "@app-template/config": "workspace:*",
         "@app-template/domain": "workspace:*",
         "@app-template/infrastructure": "workspace:*",
+        "@app-template/kernel": "workspace:*",
         "@app-template/queue": "workspace:*",
         "@app-template/use-cases": "workspace:*",
         "@effect/platform-bun": "catalog:effect",
@@ -90,7 +90,7 @@
       "name": "@app-template/deployment",
       "dependencies": {
         "@app-template/aws": "workspace:*",
-        "@app-template/config": "workspace:*",
+        "@app-template/kernel": "workspace:*",
         "@pulumi/aws": "catalog:pulumi",
         "@pulumi/docker": "catalog:pulumi",
         "@pulumi/pulumi": "catalog:pulumi",
@@ -120,8 +120,8 @@
       "name": "@app-template/infrastructure",
       "dependencies": {
         "@app-template/aws": "workspace:*",
-        "@app-template/config": "workspace:*",
         "@app-template/domain": "workspace:*",
+        "@app-template/kernel": "workspace:*",
         "@app-template/llm": "workspace:*",
         "@app-template/queue": "workspace:*",
         "@app-template/s3": "workspace:*",
@@ -142,21 +142,26 @@
         "vitest": "catalog:tools",
       },
     },
+    "kernel": {
+      "name": "@app-template/kernel",
+      "dependencies": {
+        "@app-template/aws": "workspace:*",
+        "@effect-aws/client-s3": "catalog:effect-aws",
+        "@effect-aws/client-sqs": "catalog:effect-aws",
+        "effect": "catalog:effect",
+      },
+      "devDependencies": {
+        "@app-template/testing": "workspace:*",
+        "@effect/vitest": "catalog:effect",
+        "vitest": "catalog:tools",
+      },
+    },
     "packages/aws": {
       "name": "@app-template/aws",
       "dependencies": {
         "@effect-aws/client-s3": "catalog:effect-aws",
         "@effect-aws/client-sqs": "catalog:effect-aws",
         "effect": "catalog:effect",
-      },
-    },
-    "packages/config": {
-      "name": "@app-template/config",
-      "dependencies": {
-        "effect": "catalog:effect",
-      },
-      "devDependencies": {
-        "@effect/vitest": "catalog:effect",
       },
     },
     "packages/llm": {
@@ -245,8 +250,6 @@
 
     "@app-template/aws": ["@app-template/aws@workspace:packages/aws"],
 
-    "@app-template/config": ["@app-template/config@workspace:packages/config"],
-
     "@app-template/deployment": ["@app-template/deployment@workspace:deployment"],
 
     "@app-template/domain": ["@app-template/domain@workspace:domain"],
@@ -256,6 +259,8 @@
     "@app-template/http-api": ["@app-template/http-api@workspace:http-api"],
 
     "@app-template/infrastructure": ["@app-template/infrastructure@workspace:infrastructure"],
+
+    "@app-template/kernel": ["@app-template/kernel@workspace:kernel"],
 
     "@app-template/llm": ["@app-template/llm@workspace:packages/llm"],
 

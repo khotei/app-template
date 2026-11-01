@@ -4,7 +4,7 @@ import { Effect, Layer, Redacted } from 'effect'
 import { GenericContainer, type StartedTestContainer, Wait } from 'testcontainers'
 import type { TestProject } from 'vitest/node'
 
-import { ministackImage, postgresImage } from '@app-template/config'
+import { ministackImage, postgresImage } from '@app-template/kernel/config'
 import { ministackRegion, templateDatabase } from '@app-template/testing'
 
 import { Db } from '#infrastructure/db/db.client'

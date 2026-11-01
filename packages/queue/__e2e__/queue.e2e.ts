@@ -15,12 +15,7 @@ import {
   SchemaGetter,
 } from 'effect'
 
-import {
-  buildDeadLetterName,
-  buildResourceName,
-  provisionQueues,
-  type Resources,
-} from '@app-template/aws'
+import { buildDeadLetterName, provisionQueues, type Resources } from '@app-template/aws'
 import { generateStage, recordLogs, SqsClientTest } from '@app-template/testing'
 
 import {
@@ -78,7 +73,8 @@ const stallDecode = (decoding: Deferred.Deferred<void>) =>
     }),
   )
 
-const queueName = (name: string) => buildResourceName(stage, name)
+// A package may not import the kernel's naming rule, so the suite names its queues itself.
+const queueName = (name: string) => `queue-${stage}-${name}`
 
 const lockExpiration = Duration.seconds(2)
 
@@ -105,7 +101,7 @@ const clientOptions = { queueName, lockExpiration, lockRefreshInterval: '500 mil
 
 const QueueConsumerMiniStack = QueueConsumer.layer(clientOptions).pipe(
   Layer.provideMerge(QueueTransport.layerSqs),
-  Layer.provide(Layer.effectDiscard(provisionQueues(queues, stage))),
+  Layer.provide(Layer.effectDiscard(provisionQueues(queues, queueName))),
   Layer.provideMerge(SqsClientTest),
 )
 

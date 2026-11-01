@@ -3,8 +3,8 @@ import { fileURLToPath } from 'node:url'
 import * as docker from '@pulumi/docker'
 import { Option } from 'effect'
 
-import { projectName } from '@app-template/aws'
-import { ministackImage } from '@app-template/config'
+import { projectName } from '@app-template/kernel/aws/resources'
+import { ministackImage } from '@app-template/kernel/config'
 
 import { settings } from '#deployment/local/settings'
 

@@ -6,7 +6,7 @@ import * as PgDrizzle from 'drizzle-orm/effect-postgres'
 import { Array as Arr, Cause, Context, Effect, Layer, Schema } from 'effect'
 import { SqlClient, SqlError } from 'effect/sql'
 
-import { DatabaseConfig } from '@app-template/config'
+import { DatabaseConfig } from '@app-template/kernel/config'
 
 import { relations } from '#infrastructure/db/relations'
 

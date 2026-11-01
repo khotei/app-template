@@ -74,7 +74,7 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   MiniStack container beside it (about two seconds for both). Each test provides `PgClientTest`
   from `@app-template/testing`: a fresh database copied from the template and dropped when the
   test ends, about 40 ms in all; a test on S3 or SQS provides `AwsTest` from
-  `infrastructure/__e2e__/testing/aws.test-layer.ts`: a stage of its own on the run's MiniStack,
+  `kernel/__e2e__/testing/aws.test-layer.ts`: a stage of its own on the run's MiniStack,
   its bucket and queues provisioned ([aws.md › Tests on Docker](aws.md#tests-on-docker)). A test
   therefore sees only its own rows and resources, even through a query that reads a whole table,
   and files run in parallel. E2e tests need Docker and nothing else: no `.env`, no `make up`.
@@ -188,7 +188,7 @@ ports, and the database's volume stays.
   stack's outputs (`DATABASE_URL`). `.env.example` is the template of `.env` and lists what the code
   reads from it, plus the variables a client SDK reads from the environment itself: the AWS SDK's
   default provider chain takes `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` locally and the role
-  on AWS, whose session token rotates, so credentials never pass through `@app-template/config`
+  on AWS, whose session token rotates, so credentials never pass through `@app-template/kernel/config`
   ([aws.md](aws.md#the-local-stand-in)). Variables of clients that are still stubs stay commented
   out.
 - **Quoting.** Strings are double-quoted (`LOG_LEVEL="Info"`), numbers are bare (`API_PORT=3000`).
@@ -201,7 +201,7 @@ ports, and the database's volume stays.
 - **A missing `.env`** is ignored by Bun without a warning. The process then fails at startup while
   building a config layer, with Effect's `ConfigError` naming the first missing or invalid
   variable. Variables exported in the shell work without a file, which is how CI runs.
-- **Reading settings.** Only `@app-template/config` reads the environment: each area is a
+- **Reading settings.** Only `@app-template/kernel/config` reads the environment: each area is a
   `Context.Service` (`ApiConfig`, `QueueConfig`, …) with a `layer` on `effect/Config`. Tests
   provide a `ConfigProvider.fromUnknown` record, so they never need `.env`.
 
@@ -225,12 +225,12 @@ Workspaces reference it as `catalog:<namespace>`; the unnamed `catalog:` is not 
 Run `bun add` inside the consuming workspace:
 
 ```sh
-cd packages/config
+cd packages/queue
 bun add --catalog=runtime zod@3.25.76      # add -d for a devDependency
 ```
 
 Bun writes `"zod": "3.25.76"` into the root `catalogs.runtime` and `"zod": "catalog:runtime"` into
-`packages/config/package.json`. A second workspace that needs the same package declares
+`packages/queue/package.json`. A second workspace that needs the same package declares
 `"zod": "catalog:runtime"` by hand and runs `bun install`.
 
 A dependency on another workspace is declared as `"@app-template/<name>": "workspace:*"`. Also add
@@ -244,7 +244,7 @@ its sources either way.
    `"type": "module"`, an `exports` entry, and `"imports": { "#<name>/*": "./*.ts" }`).
 2. Add `tsconfig.json`: extend `tsconfig.base.json`, set `rootDir: "."` and
    `outDir: "<relative>/node_modules/.cache/tsc/<name>"`, set `include`, and reference the
-   workspaces it imports. Copy an existing one, such as `packages/config/tsconfig.json`.
+   workspaces it imports. Copy an existing one, such as `packages/queue/tsconfig.json`.
 3. Add the path to the root `package.json` `workspaces` if no glob covers it. Bun rejects an
    explicit path that does not exist yet, so create the folder first.
 4. Add the path to the root `tsconfig.json` `references`.

@@ -84,7 +84,8 @@ The workspaces, from the bottom up; each imports only from the ones below it:
 | `http-api/` | the `HttpApi` contract over the domain's schemas, shared by the api and the browser | handlers, services |
 | `application/use-cases/` | use cases: a flow across domain services, the queue, the bucket, the assistant, in one `Transaction` | rules of an entity, adapters |
 | `infrastructure/` | adapters of the ports: Postgres repositories, the S3 bucket, the LLM, the outbox relay | business rules |
-| `packages/*` | generic clients (`config`, `queue`, `s3`, `llm`, `aws`) knowing nothing of the chat | domain imports |
+| `kernel/` | this app's configuration of its tools: the config services, the S3 and SQS clients, the AWS inventory | business rules |
+| `packages/*` | generic clients (`queue`, `s3`, `llm`, the `aws` provisioner) knowing nothing of this app | domain imports |
 | `apps/*` | thin entry points: api and worker handlers, the browser client | rules |
 
 The invariants a change must keep:

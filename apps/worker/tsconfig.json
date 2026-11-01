@@ -9,7 +9,7 @@
     { "path": "../../application/use-cases" },
     { "path": "../../domain" },
     { "path": "../../infrastructure" },
-    { "path": "../../packages/config" },
+    { "path": "../../kernel" },
     { "path": "../../packages/queue" },
     { "path": "../../packages/testing" }
   ]

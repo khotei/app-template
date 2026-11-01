@@ -1,4 +1,4 @@
-import { buildResourceName } from '@app-template/aws'
+import { buildResourceName } from '@app-template/kernel/aws/resources'
 
 import { deploymentConfig } from '#deployment/aws/config'
 import { buildTags } from '#deployment/shared/tags'
