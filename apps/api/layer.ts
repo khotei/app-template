@@ -3,7 +3,6 @@ import { Effect, Layer } from 'effect'
 import { HttpRouter } from 'effect/http'
 import { HttpApiBuilder } from 'effect/http-api'
 
-import { SendMessageUseCase } from '@app-template/application/chat'
 import { ApiConfig, MinimumLogLevelFromConfig, RuntimeConfig } from '@app-template/config'
 import { AttachmentService } from '@app-template/domain/attachment'
 import { ChatService } from '@app-template/domain/chat'
@@ -14,6 +13,7 @@ import { ChatPg, CurrentReplyProvenance } from '@app-template/infrastructure/cha
 import { Db, Transaction } from '@app-template/infrastructure/db'
 import { QueueSenderOutbox } from '@app-template/infrastructure/shared'
 import { UserPg } from '@app-template/infrastructure/user'
+import { SendMessageUseCase } from '@app-template/use-cases/chat'
 
 import { AttachmentHandler } from '#api/attachment/attachment.handler'
 import { ChatHandler } from '#api/chat/chat.handler'

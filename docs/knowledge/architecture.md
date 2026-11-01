@@ -41,11 +41,14 @@ one test process, and the use cases on Postgres, and nothing imports it.
 | `domain/` | entity models and their pure operations, errors, ports, and the domain services that own the rules over them; no I/O of its own, time and ids only through `DateTime.now` and `Crypto` | [domain/CLAUDE.md](../../domain/CLAUDE.md) |
 | `http-api/` | the HTTP contract (`HttpApi`) over the domain, shared by `apps/api` and the browser | [http-api/CLAUDE.md](../../http-api/CLAUDE.md) |
 | `infrastructure/` | adapters that implement domain ports on top of `packages/*` clients | [infrastructure/CLAUDE.md](../../infrastructure/CLAUDE.md) |
-| `application/` | use cases: the flows that join the domain's writes in one transaction, or reach the queue, the bucket or the assistant | [layering.md](../../.claude/rules/layering.md) |
+| `application/use-cases/` | use cases: the flows that join the domain's writes in one transaction, or reach the queue, the bucket or the assistant | [layering.md](../../.claude/rules/layering.md) |
 | `packages/*` | generic, project-agnostic clients and libraries, with the one exception its rules name | [packages/CLAUDE.md](../../packages/CLAUDE.md) |
 | `apps/*` | entry points (`main.ts`), the handlers, and the process's layer (`layer.ts`) | [apps/CLAUDE.md](../../apps/CLAUDE.md) |
 | `apps/__e2e__/` | the e2e over assembled layers: the use cases on Postgres, and the journey, `ApiLayer` and `WorkerLayer` in one runtime over the run's containers | [tooling.md › Tests](tooling.md#tests) |
 | `deployment/` | `local/`, the Pulumi program of the local stand: MiniStack and the resources inside it ([aws.md](aws.md)); `aws/`, the resource code as functions of a provider, the rest a stub for now | [deployment/CLAUDE.md](../../deployment/CLAUDE.md) |
+
+`application/` is a folder of workspaces with no `package.json` of its own: today `use-cases`,
+later the modules.
 
 ### Dependency rules
 
@@ -92,7 +95,7 @@ import { z } from 'zod'                                     // external packages
 
 import { buildChat } from '@app-template/domain/chat'        // another workspace
 
-import { SendMessageUseCase } from '#application/chat/send-message.use-case'  // this workspace
+import { SendMessageUseCase } from '#use-cases/chat/send-message.use-case'  // this workspace
 ```
 
 - **`@app-template/<workspace>[/<entity>]`** reaches another workspace through its `exports`. A
@@ -120,15 +123,15 @@ Using the `chat` slice as the map:
 | adapter implementing a port | `infrastructure/chat/chat.repository.ts`, `assistant.llm.ts`; `attachment/attachment.bucket.ts` | `ChatRepositoryPg`, `AssistantLlm` (with the prompts, over `AssistantModels`, the language model per purpose that `LLM_PROVIDER` picks: [ai.md](ai.md)), `AttachmentBucketS3` (each a `Layer` of its port) |
 | queue definitions | `infrastructure/chat/chat.queue.ts` | `assistantMessageQueue`, `GenerateAssistantMessage` (the job schema) |
 | relay from the database to a queue | `infrastructure/outbox/outbox.relay.ts` | `OutboxRelay` (a worker `Layer` that runs a fiber and provides nothing) |
-| use case composing domain services | `application/chat/send-message.use-case.ts`, `generate-assistant-message.use-case.ts` | `SendMessageUseCase`, `SendMessageUseCase.layer`, `GenerateAssistantMessageUseCase` |
+| use case composing domain services | `application/use-cases/chat/send-message.use-case.ts`, `generate-assistant-message.use-case.ts` | `SendMessageUseCase`, `SendMessageUseCase.layer`, `GenerateAssistantMessageUseCase` |
 | contract group | `http-api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`), the DTOs `Chat`, `Message` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
 | worker handler: a queue's consumer over a use case | `apps/worker/chat/assistant-message.handler.ts` | `handle`, `handleDeadLettered`, `AssistantMessageHandler` (a worker `Layer`) |
 | the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp` over the ports, `ApiLayer` with the adapters, `WorkerLayer`; exported as `./layer` |
 | browser feature | `apps/web/features/health/health-panel.ts` | `renderHealthPanel(root)` |
-| unit test | `<workspace>/__tests__/<source path>.test.ts` | `domain/__tests__/chat/chat.service.test.ts`, `application/__tests__/chat/send-message.use-case.test.ts` |
+| unit test | `<workspace>/__tests__/<source path>.test.ts` | `domain/__tests__/chat/chat.service.test.ts`, `application/use-cases/__tests__/chat/send-message.use-case.test.ts` |
 | e2e test | `<workspace>/__e2e__/<source path>.e2e.ts`; the use cases on Postgres and the journey `apps/__e2e__/chat.e2e.ts` | `infrastructure/__e2e__/chat/chat.repository.e2e.ts`, `apps/__e2e__/use-cases/send-message.use-case.e2e.ts` |
-| test support | `<workspace>/__tests__/testing/` (`#testing/*`, exported as `./testing`) and `<workspace>/__e2e__/testing/` (`#testing-e2e/*`, `./testing-e2e`); a unit test never imports the latter | `ChatTest` (`application/__tests__/testing/chat.test-layer.ts`), `ApiTest`, `StandTest` |
+| test support | `<workspace>/__tests__/testing/` (`#testing/*`, exported as `./testing`) and `<workspace>/__e2e__/testing/` (`#testing-e2e/*`, `./testing-e2e`); a unit test never imports the latter | `ChatTest` (`application/use-cases/__tests__/testing/chat.test-layer.ts`), `ApiTest`, `StandTest` |
 
 Every entity folder has an `index.ts` barrel. What each kind of test runs on:
 [tooling.md › Tests](tooling.md#tests). The file suffixes, the `./testing` exports
@@ -170,11 +173,11 @@ Pascal one (`Document`).
    Test it in `infrastructure/__e2e__/<entity>/<entity>.repository.e2e.ts` on `DbTest`, with a twin
    of every guard the memory layer copies.
 8. **Use cases, if a flow composes two domain services or sends a job.**
-   `application/<entity>/<verb>-<object>.use-case.ts`, a `Context.Service` with a `layer`, like
-   `application/chat/`. Test it in `application/__tests__/` over the memory layers, with
-   `TransactionTest` and `recordQueue()`, and its transaction in `apps/__e2e__/use-cases/` with a
-   write the database refuses. Shared test support goes in `application/__tests__/testing/`. Add
-   `index.ts` and the `exports` entry.
+   `application/use-cases/<entity>/<verb>-<object>.use-case.ts`, a `Context.Service` with a `layer`,
+   like `application/use-cases/chat/`. Test it in `application/use-cases/__tests__/` over the memory
+   layers, with `TransactionTest` and `recordQueue()`, and its transaction in
+   `apps/__e2e__/use-cases/` with a write the database refuses. Shared test support goes in
+   `application/use-cases/__tests__/testing/`. Add `index.ts` and the `exports` entry.
 9. **Job, if the entity has asynchronous work.** `infrastructure/<entity>/<entity>.queue.ts`
    holds the queue definitions (name, job schema, retry policy, `jobId`); a model the work calls
    is a domain port with its `.llm.ts` adapter, which holds the prompts. The use case that starts
@@ -192,7 +195,7 @@ Pascal one (`Document`).
     to `ApiRoutes` and its services to `ApiHttp` in `apps/api/layer.ts`; its `<Entity>Pg` and any
     AWS adapter go to `ApiLayer`, so `ApiHttp` runs over the ports alone and the api test layer
     provides the memory layers in their place (`@app-template/domain/testing`, with the recording
-    queue's client from `@app-template/application/testing`).
+    queue's client from `@app-template/use-cases/testing`).
     Test in `apps/api/__tests__/<entity>/<entity>.handler.test.ts`, on
     `apps/api/__tests__/testing/api.test-layer.ts`, only what HTTP adds (statuses, cookies, the
     wire shape); the rules stay in the domain and application suites. A flow that crosses both
@@ -245,9 +248,9 @@ Three forms pass every guard. No code uses them; review is what catches them.
   Biome, which does not see `import()` inside a type, and `tsc -b`, because web declares
   `@app-template/config` for its server entry. The type is erased, so nothing reaches the browser,
   but the client then depends on the shape of the server config.
-- **A workspace importing itself by name.** `@app-template/application/chat` from inside
-  `application/` passes Biome, whose overrides list only other workspaces, and `tsc -b`, which
-  resolves a package's own `exports`. It skips the `#<workspace>/` convention and can import the
+- **A workspace importing itself by name.** `@app-template/use-cases/chat` from inside
+  `application/use-cases/` passes Biome, whose overrides list only other workspaces, and
+  `tsc -b`, which resolves a package's own `exports`. It skips the `#<workspace>/` convention and can import the
   file's own barrel, a cycle that shows up as `undefined` while modules initialise.
 - **A runtime module or third-party package in `domain`.** `node:crypto` or any npm package passes
   the domain guard, which bans only workspaces and `@effect/*`. Purity rests on review and on the

@@ -31,8 +31,8 @@ import { replyProvenance } from '@app-template/infrastructure/testing'
 import { recordQueue } from '@app-template/queue/testing'
 import { assertSchemaEquals, isUuidV7, sortById } from '@app-template/testing'
 
-import { SendMessageUseCase } from '#application/chat/send-message.use-case'
 import { ChatTest, selectAttachments } from '#testing/chat.test-layer'
+import { SendMessageUseCase } from '#use-cases/chat/send-message.use-case'
 
 /** Completes an assistant message as the worker would, freeing its chat for the next send. */
 const settle = (message: Message) =>

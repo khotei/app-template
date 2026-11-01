@@ -45,8 +45,8 @@ import { GenerateAssistantMessage } from '@app-template/infrastructure/chat'
 import { replyProvenance } from '@app-template/infrastructure/testing'
 import { png, recordLogs } from '@app-template/testing'
 
-import { GenerateAssistantMessageUseCase } from '#application/chat/generate-assistant-message.use-case'
 import { AssistantMessageTest } from '#testing/chat.test-layer'
+import { GenerateAssistantMessageUseCase } from '#use-cases/chat/generate-assistant-message.use-case'
 
 const at = (millis: number) => DateTime.makeUnsafe(millis)
 

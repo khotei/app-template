@@ -6,7 +6,7 @@
   "workspaces": [
     "domain",
     "http-api",
-    "application",
+    "application/*",
     "infrastructure",
     "packages/*",
     "apps/*",

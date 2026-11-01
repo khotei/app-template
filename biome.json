@@ -218,8 +218,8 @@
                 "patterns": [
                   {
                     "group": [
-                      "@app-template/application",
-                      "@app-template/application/**",
+                      "@app-template/use-cases",
+                      "@app-template/use-cases/**",
                       "@app-template/api",
                       "@app-template/api/**",
                       "@app-template/worker",
@@ -255,8 +255,8 @@
                 "patterns": [
                   {
                     "group": [
-                      "@app-template/application",
-                      "@app-template/application/**",
+                      "@app-template/use-cases",
+                      "@app-template/use-cases/**",
                       "@app-template/api",
                       "@app-template/api/**",
                       "@app-template/worker",
@@ -290,7 +290,7 @@
       }
     },
     {
-      "includes": ["application/**"],
+      "includes": ["application/use-cases/**"],
       "linter": {
         "rules": {
           "style": {
@@ -311,7 +311,7 @@
                       "@app-template/http-api",
                       "@app-template/http-api/**"
                     ],
-                    "message": "application may import infrastructure, domain and packages/*: no upward imports"
+                    "message": "use-cases may import infrastructure, domain and packages/*: no upward imports"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -325,7 +325,7 @@
       }
     },
     {
-      "includes": ["application/__tests__/**"],
+      "includes": ["application/use-cases/__tests__/**"],
       "linter": {
         "rules": {
           "style": {
@@ -346,7 +346,7 @@
                       "@app-template/http-api",
                       "@app-template/http-api/**"
                     ],
-                    "message": "application may import infrastructure, domain and packages/*: no upward imports"
+                    "message": "use-cases may import infrastructure, domain and packages/*: no upward imports"
                   },
                   {
                     "group": [
@@ -382,8 +382,8 @@
                       "@app-template/domain/**",
                       "@app-template/infrastructure",
                       "@app-template/infrastructure/**",
-                      "@app-template/application",
-                      "@app-template/application/**",
+                      "@app-template/use-cases",
+                      "@app-template/use-cases/**",
                       "@app-template/api",
                       "@app-template/api/**",
                       "@app-template/worker",
@@ -423,8 +423,8 @@
                       "@app-template/domain/**",
                       "@app-template/infrastructure",
                       "@app-template/infrastructure/**",
-                      "@app-template/application",
-                      "@app-template/application/**",
+                      "@app-template/use-cases",
+                      "@app-template/use-cases/**",
                       "@app-template/api",
                       "@app-template/api/**",
                       "@app-template/worker",
@@ -676,8 +676,8 @@
                       "@app-template/domain/**",
                       "@app-template/infrastructure",
                       "@app-template/infrastructure/**",
-                      "@app-template/application",
-                      "@app-template/application/**",
+                      "@app-template/use-cases",
+                      "@app-template/use-cases/**",
                       "@app-template/api",
                       "@app-template/api/**",
                       "@app-template/worker",

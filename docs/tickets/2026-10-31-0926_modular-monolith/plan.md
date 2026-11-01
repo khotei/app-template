@@ -8,7 +8,7 @@
 |---|---|---|
 | S1 | tests in `__tests__/` and `__e2e__/` everywhere; the e2e over assembled layers in `apps/api` | done |
 | S2 | `generateId` in `packages/db`, beside the `id()` column | todo |
-| S3 | the use cases in `application/use-cases` | todo |
+| S3 | the use cases in `application/use-cases` | done |
 | S4 | the `kernel` workspace with `/config` and `/aws`; `packages/aws` a generic provisioner | todo |
 | S5 | `packages/db`: the generic Drizzle client, transaction and migrator | todo |
 | S6 | `kernel/postgres` and the migrations in `kernel/data` | todo |
@@ -149,7 +149,17 @@
 - **Verify:** `make check`; `git grep -n '@app-template/application'` finds nothing;
   `ls application` shows only `use-cases`.
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The rules' `paths:` globs (`layering.md`, `deep-modules.md`) stay `application/**`, which still
+    matches `application/use-cases/**` and will match the modules; `database.md` and the glossary
+    named no moved path and are unchanged.
+  - `application/chat/index.ts` and `application/tsconfig.json` show as a delete and an add, not a
+    rename: every line of them is an import or a path.
+  - Round S3.2 (review): `README.md`'s slice block re-padded; `docs/knowledge/architecture.md`
+    names `application/use-cases/` in the workspace table, says `application/` is a folder of
+    workspaces with no `package.json` of its own, and re-wraps the edited prose at 100. The layer
+    keeps the name `application` in the diagram and the import matrix until S22.
 
 #### S4 — The kernel's config and AWS
 

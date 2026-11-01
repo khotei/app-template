@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "../../node_modules/.cache/tsc/use-cases"
+  },
+  "include": ["**/*.ts"],
+  "references": [
+    { "path": "../../domain" },
+    { "path": "../../infrastructure" },
+    { "path": "../../packages/queue" },
+    { "path": "../../packages/testing" }
+  ]
+}

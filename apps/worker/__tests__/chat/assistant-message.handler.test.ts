@@ -2,7 +2,6 @@ import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Exit, Fiber, Layer, Option, Schema } from 'effect'
 
-import { AssistantMessageTest } from '@app-template/application/testing'
 import {
   AssistantReply,
   buildAssistantMessage,
@@ -30,6 +29,7 @@ import {
 import { replyProvenance } from '@app-template/infrastructure/testing'
 import type { AttemptInfo } from '@app-template/queue'
 import { recordLogs } from '@app-template/testing'
+import { AssistantMessageTest } from '@app-template/use-cases/testing'
 
 import { handle, handleDeadLettered } from '#worker/chat/assistant-message.handler'
 

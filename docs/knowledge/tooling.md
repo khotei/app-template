@@ -64,7 +64,7 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   `__tests__/**/*.test.ts`; `e2e` runs `__e2e__/**/*.e2e.ts`, on Docker, and alone has the
   `globalSetup`. Both sit at the top of their workspace and mirror the source path; the e2e over
   assembled layers, the use cases on Postgres and the journey, live in the `apps/__e2e__`
-  workspace, so `application` runs unit tests only. Each project
+  workspace, so `use-cases` runs unit tests only. Each project
   lists the shared `exclude` (`repos/**` and `.claude/worktrees/**` added to the default) and
   `sequence` itself, and the root sets no `globalSetup`, so a unit run starts no container. A new
   workspace needs no test config, and the vendored suites and the worktrees' copies stay out.

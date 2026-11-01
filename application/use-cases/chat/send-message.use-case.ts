@@ -55,7 +55,7 @@ export class SendMessageUseCase extends Context.Service<
       | AttachmentBoundError
     >
   }
->()('@app-template/application/chat/SendMessageUseCase', {
+>()('@app-template/use-cases/chat/SendMessageUseCase', {
   make: Effect.gen(function* () {
     const chats = yield* ChatRepository
     const chatService = yield* ChatService

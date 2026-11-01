@@ -7,12 +7,12 @@
   },
   "devDependencies": {
     "@app-template/api": "workspace:*",
-    "@app-template/application": "workspace:*",
     "@app-template/config": "workspace:*",
     "@app-template/domain": "workspace:*",
     "@app-template/http-api": "workspace:*",
     "@app-template/infrastructure": "workspace:*",
     "@app-template/testing": "workspace:*",
+    "@app-template/use-cases": "workspace:*",
     "@app-template/worker": "workspace:*",
     "@effect/platform-bun": "catalog:effect",
     "@effect/sql-pg": "catalog:effect",

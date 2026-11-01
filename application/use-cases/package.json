@@ -1,5 +1,5 @@
 {
-  "name": "@app-template/application",
+  "name": "@app-template/use-cases",
   "private": true,
   "type": "module",
   "exports": {
@@ -7,7 +7,7 @@
     "./testing": "./__tests__/testing/index.ts"
   },
   "imports": {
-    "#application/*": "./*.ts",
+    "#use-cases/*": "./*.ts",
     "#testing/*": "./__tests__/testing/*.ts"
   },
   "dependencies": {

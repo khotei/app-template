@@ -3,7 +3,7 @@
   "references": [
     { "path": "./domain" },
     { "path": "./http-api" },
-    { "path": "./application" },
+    { "path": "./application/use-cases" },
     { "path": "./infrastructure" },
     { "path": "./packages/aws" },
     { "path": "./packages/config" },

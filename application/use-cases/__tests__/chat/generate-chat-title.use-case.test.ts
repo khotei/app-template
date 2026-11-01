@@ -24,8 +24,8 @@ import {
 import { GenerateChatTitle } from '@app-template/infrastructure/chat'
 import { recordLogs } from '@app-template/testing'
 
-import { GenerateChatTitleUseCase } from '#application/chat/generate-chat-title.use-case'
 import { ChatTitleTest } from '#testing/chat.test-layer'
+import { GenerateChatTitleUseCase } from '#use-cases/chat/generate-chat-title.use-case'
 
 const lisbonWeekend = ChatTitle.make('Lisbon weekend')
 

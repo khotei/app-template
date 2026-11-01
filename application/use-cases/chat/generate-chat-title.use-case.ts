@@ -30,7 +30,7 @@ export class GenerateChatTitleUseCase extends Context.Service<
      */
     readonly generate: (job: GenerateChatTitle) => Effect.Effect<void>
   }
->()('@app-template/application/chat/GenerateChatTitleUseCase', {
+>()('@app-template/use-cases/chat/GenerateChatTitleUseCase', {
   make: Effect.gen(function* () {
     const assistant = yield* Assistant
     const chatService = yield* ChatService

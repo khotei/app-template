@@ -13,8 +13,8 @@
         "vitest": "catalog:tools",
       },
     },
-    "application": {
-      "name": "@app-template/application",
+    "application/use-cases": {
+      "name": "@app-template/use-cases",
       "dependencies": {
         "@app-template/domain": "workspace:*",
         "@app-template/infrastructure": "workspace:*",
@@ -31,12 +31,12 @@
       "name": "@app-template/e2e",
       "devDependencies": {
         "@app-template/api": "workspace:*",
-        "@app-template/application": "workspace:*",
         "@app-template/config": "workspace:*",
         "@app-template/domain": "workspace:*",
         "@app-template/http-api": "workspace:*",
         "@app-template/infrastructure": "workspace:*",
         "@app-template/testing": "workspace:*",
+        "@app-template/use-cases": "workspace:*",
         "@app-template/worker": "workspace:*",
         "@effect/platform-bun": "catalog:effect",
         "@effect/sql-pg": "catalog:effect",
@@ -47,11 +47,11 @@
     "apps/api": {
       "name": "@app-template/api",
       "dependencies": {
-        "@app-template/application": "workspace:*",
         "@app-template/config": "workspace:*",
         "@app-template/domain": "workspace:*",
         "@app-template/http-api": "workspace:*",
         "@app-template/infrastructure": "workspace:*",
+        "@app-template/use-cases": "workspace:*",
         "@effect/platform-bun": "catalog:effect",
         "effect": "catalog:effect",
       },
@@ -73,11 +73,11 @@
     "apps/worker": {
       "name": "@app-template/worker",
       "dependencies": {
-        "@app-template/application": "workspace:*",
         "@app-template/config": "workspace:*",
         "@app-template/domain": "workspace:*",
         "@app-template/infrastructure": "workspace:*",
         "@app-template/queue": "workspace:*",
+        "@app-template/use-cases": "workspace:*",
         "@effect/platform-bun": "catalog:effect",
         "effect": "catalog:effect",
       },
@@ -243,8 +243,6 @@
   "packages": {
     "@app-template/api": ["@app-template/api@workspace:apps/api"],
 
-    "@app-template/application": ["@app-template/application@workspace:application"],
-
     "@app-template/aws": ["@app-template/aws@workspace:packages/aws"],
 
     "@app-template/config": ["@app-template/config@workspace:packages/config"],
@@ -268,6 +266,8 @@
     "@app-template/testing": ["@app-template/testing@workspace:packages/testing"],
 
     "@app-template/ui": ["@app-template/ui@workspace:packages/ui"],
+
+    "@app-template/use-cases": ["@app-template/use-cases@workspace:application/use-cases"],
 
     "@app-template/web": ["@app-template/web@workspace:apps/web"],
 

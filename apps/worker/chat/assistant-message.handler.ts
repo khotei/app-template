@@ -1,6 +1,5 @@
 import { Cause, Effect, Exit, Layer, Option } from 'effect'
 
-import { GenerateAssistantMessageUseCase } from '@app-template/application/chat'
 import type { ChatStatusInvalidError, MessageStatusInvalidError } from '@app-template/domain/chat'
 import {
   assistantMessageDeadLetterQueue,
@@ -8,6 +7,7 @@ import {
   type GenerateAssistantMessage,
 } from '@app-template/infrastructure/chat'
 import { type AttemptInfo, worker } from '@app-template/queue'
+import { GenerateAssistantMessageUseCase } from '@app-template/use-cases/chat'
 
 /** The last attempt fails the reply on any outcome but success, an interrupt included. */
 export const handle = Effect.fn('AssistantMessageHandler.handle')(function* (

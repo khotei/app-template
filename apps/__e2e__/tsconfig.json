@@ -8,7 +8,7 @@
   "references": [
     { "path": "../api" },
     { "path": "../worker" },
-    { "path": "../../application" },
+    { "path": "../../application/use-cases" },
     { "path": "../../domain" },
     { "path": "../../http-api" },
     { "path": "../../infrastructure" },

@@ -1,7 +1,6 @@
 import { Crypto, DateTime, Effect } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
-import { SendMessageUseCase } from '@app-template/application/chat'
 import {
   buildChat,
   ChatId,
@@ -12,6 +11,7 @@ import {
 } from '@app-template/domain/chat'
 import { generateId } from '@app-template/domain/shared'
 import { Api, CurrentUser } from '@app-template/http-api'
+import { SendMessageUseCase } from '@app-template/use-cases/chat'
 
 export const ChatHandler = HttpApiBuilder.group(
   Api,

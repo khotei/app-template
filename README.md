@@ -82,7 +82,7 @@ The workspaces, from the bottom up; each imports only from the ones below it:
 |---|---|---|
 | `domain/` | models (`Schema.Class`), branded ids, errors, ports, and the domain services that own the rules | SQL, HTTP, AWS, an `@effect/*` package (tests aside) |
 | `http-api/` | the `HttpApi` contract over the domain's schemas, shared by the api and the browser | handlers, services |
-| `application/` | use cases: a flow across domain services, the queue, the bucket, the assistant, in one `Transaction` | rules of an entity, adapters |
+| `application/use-cases/` | use cases: a flow across domain services, the queue, the bucket, the assistant, in one `Transaction` | rules of an entity, adapters |
 | `infrastructure/` | adapters of the ports: Postgres repositories, the S3 bucket, the LLM, the outbox relay | business rules |
 | `packages/*` | generic clients (`config`, `queue`, `s3`, `llm`, `aws`) knowing nothing of the chat | domain imports |
 | `apps/*` | thin entry points: api and worker handlers, the browser client | rules |
@@ -107,12 +107,12 @@ and the alternatives they rejected: each ticket's `architecture.md › Decisions
 One entity crosses every layer under the same folder name. The `chat` slice, by file suffix:
 
 ```text
-domain/chat/            chat.id  chat.model  chat.error  chat.port  chat.service
-application/chat/       send-message.use-case  generate-assistant-message.use-case
-infrastructure/chat/    chat.entity  chat.repository  chat.queue  assistant.llm  assistant.client
-http-api/chat/          chat.http
-apps/api/chat/          chat.handler
-apps/worker/chat/       assistant-message.handler  chat-title.handler
+domain/chat/                     chat.id  chat.model  chat.error  chat.port  chat.service
+application/use-cases/chat/      send-message.use-case  generate-assistant-message.use-case
+infrastructure/chat/             chat.entity  chat.repository  chat.queue  assistant.llm  assistant.client
+http-api/chat/                   chat.http
+apps/api/chat/                   chat.handler
+apps/worker/chat/                assistant-message.handler  chat-title.handler
 <workspace>/__tests__/…          <source path>.test.ts   unit, over memory layers, no Docker
 <workspace>/__e2e__/…            <source path>.e2e.ts    on the run's own Postgres and MiniStack
 <workspace>/__tests__/testing/   .test-fake  .test-layer  .test-fixture  unit test support

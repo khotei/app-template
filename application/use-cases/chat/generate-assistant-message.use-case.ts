@@ -59,7 +59,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
       cause: Cause.Cause<unknown>,
     ) => Effect.Effect<Option.Option<Message>, MessageStatusInvalidError | ChatStatusInvalidError>
   }
->()('@app-template/application/chat/GenerateAssistantMessageUseCase', {
+>()('@app-template/use-cases/chat/GenerateAssistantMessageUseCase', {
   make: Effect.gen(function* () {
     const assistant = yield* Assistant
     const bucket = yield* AttachmentBucket

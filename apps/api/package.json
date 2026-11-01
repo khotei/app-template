@@ -15,11 +15,11 @@
     "start": "bun --env-file=../../.env --env-file=../../.env.pulumi main.ts"
   },
   "dependencies": {
-    "@app-template/application": "workspace:*",
     "@app-template/config": "workspace:*",
     "@app-template/domain": "workspace:*",
     "@app-template/http-api": "workspace:*",
     "@app-template/infrastructure": "workspace:*",
+    "@app-template/use-cases": "workspace:*",
     "@effect/platform-bun": "catalog:effect",
     "effect": "catalog:effect"
   },

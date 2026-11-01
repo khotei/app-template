@@ -16,9 +16,9 @@ import {
 } from '@app-template/domain/testing'
 import { CurrentReplyProvenanceTest, TransactionTest } from '@app-template/infrastructure/testing'
 
-import { GenerateAssistantMessageUseCase } from '#application/chat/generate-assistant-message.use-case'
-import { GenerateChatTitleUseCase } from '#application/chat/generate-chat-title.use-case'
-import { SendMessageUseCase } from '#application/chat/send-message.use-case'
+import { GenerateAssistantMessageUseCase } from '#use-cases/chat/generate-assistant-message.use-case'
+import { GenerateChatTitleUseCase } from '#use-cases/chat/generate-chat-title.use-case'
+import { SendMessageUseCase } from '#use-cases/chat/send-message.use-case'
 
 /** The chat services and the message use case, for a test to put over its stores. */
 export const ChatServices = Layer.mergeAll(
