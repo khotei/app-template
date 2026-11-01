@@ -18,6 +18,13 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. G
    move, rename or config step; `opus high` for one that writes behaviour). Its `make check`
    hook keeps it working until the gate is green. A report that starts with `BLOCKED:` goes
    straight to the user.
+   - **Simplify, a behaviour step only** (`opus high`): the refactor that `tdd` leaves out of its
+     red → green loop. Call the Skill tool with `simplify` on the uncommitted step, its args
+     pointing at the step in `plan.md`, `.claude/rules/*.md` (which override it), and the
+     deletion test and depth of `mattpocock-skills:codebase-design`; it keeps every interim state
+     the plan names (a delegating adapter, a module the next step removes) and every test case.
+     Then run `make check`. Its edits join the step's diff before review. Never on a move, rename
+     or config step: a move keeps each file's content for `git` to see the rename.
 3. **Review.** Call the Skill tool with `mattpocock-skills:code-review`, overriding:
 
    | code-review asks for | Use |
@@ -27,8 +34,13 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. G
    | the standards | `.claude/rules/*.md` and the `CLAUDE.md` of every touched workspace |
    | the sub-agents | the `reviewer` agent, once per axis, in parallel; the Standards axis on `model: sonnet`, the Spec axis on the agent's own |
 
-4. **Present** the implementer's report, then the `## Standards` and `## Spec` reports as
-   code-review aggregates them, then the fixes you recommend. Filter the findings first: a fix
+   A behaviour step also gets, in parallel with the two axes, a hunt for correctness bugs: the
+   Skill tool with the built-in `code-review` at `medium`, on the same uncommitted diff, report
+   only. A step that adds error handling, a retry, or a store outside the transaction (a bucket,
+   a queue) also gets the `pr-review-toolkit:silent-failure-hunter` agent on that diff.
+4. **Present** the implementer's report and what `simplify` changed, then the `## Standards` and
+   `## Spec` reports as code-review aggregates them, then the bugs and silent failures found,
+   then the fixes you recommend. Filter the findings first: a fix
    that adds test support (a helper, a fake, a wrapper) is never forwarded as routine; offer the
    user a plainer test instead, or the finding as a choice of its own.
 5. **Approval gate.** Wait for the user's explicit word:

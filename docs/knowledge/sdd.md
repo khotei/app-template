@@ -60,7 +60,7 @@ uses updates this map too; the Standards review checks it against `.claude/rules
 | `/ticket-feature` | `grilling`, `domain-modeling` | `researcher` | — | `feature.md`, `docs/knowledge/glossary.md`, `docs/knowledge/roadmap.md` |
 | `/ticket-architecture` | `codebase-design`, `grilling` | `researcher` | — | `architecture.md` |
 | `/ticket-plan` | — | `researcher` | — | `plan.md` |
-| `/ticket-implement` | `code-review` | `implementer` (one worktree per parallel step, with its own `.env`, ports and MiniStack), `reviewer` | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, one commit per approved step |
+| `/ticket-implement` | `code-review`; on a behaviour step the built-in `simplify`, with `codebase-design` as its vocabulary, and the built-in `code-review` | `implementer` (one worktree per parallel step, with its own `.env`, ports and MiniStack), `reviewer`; `pr-review-toolkit:silent-failure-hunter` on a step with error handling, a retry or a store outside the transaction | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, one commit per approved step |
 | `/ticket-verify` | `code-review` | `verifier`, `reviewer` | — | `verification.md` |
 | `/explain` | `codebase-design`, as vocabulary | `explainer` | — | an HTML walkthrough in `$TMPDIR`; nothing in the repo |
 | `implementer` | `tdd`, preloaded | — | `make-check.sh` on `Stop` (runs as `SubagentStop`) | the step's files |
@@ -94,13 +94,20 @@ graph LR
     tdd{{tdd}}
     review{{code-review}}
   end
+  subgraph builtin [built-in and pr-review-toolkit]
+    simplify{{simplify}}
+    bugs{{code-review, bugs}}
+    hunter([silent-failure-hunter])
+  end
   feature -.-> grilling & modeling
   feature --> researcher
   arch -.-> design & grilling
   arch --> researcher
   plan --> researcher
   impl --> implementer & reviewer
-  impl -.-> review
+  impl -.-> review & simplify & bugs
+  simplify -.-> design
+  impl --> hunter
   implementer -.-> tdd
   implementer --> hook
   verify --> verifier & reviewer
@@ -129,10 +136,16 @@ A step runs through three stages before anything is committed:
 
 1. **`implementer`** builds the step test-first at the agreed seam. A hook runs `make check` when
    it tries to finish and sends it back while the gate is red. Its only way out on red is a final
-   message starting with `BLOCKED:`, which reaches you unchanged.
+   message starting with `BLOCKED:`, which reaches you unchanged. On a step that writes
+   behaviour, `simplify` then does the refactor `tdd` keeps out of its loop, judged by the rules
+   and `codebase-design`'s deletion test, sparing the interim states the plan names, and
+   `make check` runs again; a move skips it, since its files must keep their content for `git`
+   to see the rename.
 2. **`code-review`** runs two `reviewer` agents in parallel, each in a fresh context: **Standards**
    (the rules in `.claude/rules/` and the smell baseline) and **Spec** (the step and its
-   requirements). The two reports stay separate, so one axis cannot hide the other.
+   requirements). The two reports stay separate, so one axis cannot hide the other. Neither axis
+   hunts for bugs, so a behaviour step also gets the built-in `code-review` at `medium`, and one
+   with error handling or a store outside the transaction `silent-failure-hunter`.
 3. **You** read the report and both reviews, then approve, send feedback to the same implementer,
    or stop. Approval updates `plan.md`, records any decision, and commits with the proposed
    message.
