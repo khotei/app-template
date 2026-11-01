@@ -1,8 +1,5 @@
 import type { Resources } from '@app-template/aws'
 
-/** The object tag the bucket's expiration rule selects on. */
-export const unboundTag = { key: 'unbound', value: 'true' } as const
-
 export const resources = {
   buckets: {
     attachments: {

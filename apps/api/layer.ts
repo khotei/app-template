@@ -7,12 +7,13 @@ import { AttachmentService, ChatService, MessageService } from '@app-template/ch
 import { Transaction } from '@app-template/db'
 import { Api } from '@app-template/http-api'
 import { UserService } from '@app-template/identity/services'
-import { AttachmentBucketS3FromConfig } from '@app-template/infrastructure/attachment'
 import { CurrentReplyProvenance } from '@app-template/infrastructure/chat'
+import { S3BucketFromConfig } from '@app-template/kernel/aws'
 import { ApiConfig, MinimumLogLevelFromConfig, RuntimeConfig } from '@app-template/kernel/config'
 import { Db } from '@app-template/kernel/data'
 import { AttachmentRepository } from '@app-template/kernel/data/attachment'
 import { ChatRepository, MessageRepository } from '@app-template/kernel/data/chat'
+import { FileRepository } from '@app-template/kernel/data/file'
 import { JobRepository } from '@app-template/kernel/data/job'
 import { UserRepository } from '@app-template/kernel/data/user'
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
@@ -48,21 +49,17 @@ const BunHttpServerFromConfig = Layer.unwrap(
 const LogApiStopped = Layer.effectDiscard(Effect.addFinalizer(() => Effect.logInfo('api stopped')))
 
 export const ApiLayer = Layer.merge(ApiHttp, LogApiStopped).pipe(
-  Layer.provide([
-    AttachmentBucketS3FromConfig,
-    QueueSenderJobs,
-    Transaction.layer,
-    CurrentReplyProvenance.layerFromConfig,
-  ]),
+  Layer.provide([QueueSenderJobs, Transaction.layer, CurrentReplyProvenance.layerFromConfig]),
   Layer.provide([
     UserRepository.layer,
     ChatRepository.layer,
     MessageRepository.layer,
     AttachmentRepository.layer,
     JobRepository.layer,
+    FileRepository.layer,
   ]),
   Layer.provide(Db.layer),
-  Layer.provide(PgClientFromConfig),
+  Layer.provide([PgClientFromConfig, S3BucketFromConfig]),
   Layer.provide(BunHttpServerFromConfig),
   Layer.provide(MinimumLogLevelFromConfig),
 )

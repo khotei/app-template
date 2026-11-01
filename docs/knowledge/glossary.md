@@ -110,14 +110,13 @@ The `Schema.Class` of an entity as the domain sees it (`Chat`, `Message`).
 _Avoid_: Entity (for the class), DTO, row
 
 **Port**:
-A contract the domain declares for what it needs from outside the process (the bucket, the
-assistant), in the domain's words, with no layer of its own; a store's repository is the data
+A contract the domain declares for what it needs from outside the process (the assistant), in
+the domain's words, with no layer of its own; a store's repository is the data
 layer's, no port.
 _Avoid_: Interface, client, gateway, driver, store
 
 **Adapter**:
-An implementation of a port over a client, in `infrastructure`: the bucket
-(`AttachmentBucketS3`), the assistant (`AssistantLlm`).
+An implementation of a port over a client, in `infrastructure`: the assistant (`AssistantLlm`).
 _Avoid_: Implementation, provider, DAO, store
 
 **Domain service**:

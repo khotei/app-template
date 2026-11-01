@@ -41,8 +41,9 @@ the signal.
   move). A read with no rule (a job's record by id) may go to the repository too.
 - **All checks precede every write;** a step's own guard may repeat a check the use case made.
 - **The writes commit in one transaction:** `Transaction`'s `run` as a pipeable of the `Effect.fn`
-  that holds them; the process provides its layer, a unit test the identity one. An object store
-  stays outside it: keep the bytes before the row that binds them, delete them before the commit.
+  that holds them; the process provides its layer, a unit test the identity one. An object
+  store's repository joins none: keep the bytes before the row that binds them, delete them once
+  the rows are gone.
 - **Enqueue inside the transaction of the writes the job reads**, through `QueueSender.send`
   ([database.md › The outbox](../../docs/knowledge/database.md#the-outbox)).
 - Read or delete a set through one batch call, never one call per id in a loop.

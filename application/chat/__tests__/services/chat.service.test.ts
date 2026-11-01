@@ -5,6 +5,7 @@ import { DateTime, Effect, Layer, Option, Stream } from 'effect'
 
 import type { UserId } from '@app-template/identity-contract'
 import { AttachmentRepository } from '@app-template/kernel/data/attachment'
+import { FileRepository } from '@app-template/kernel/data/file'
 import { RepositoryStackTest } from '@app-template/kernel/testing'
 import { assertSchemaEquals, epoch, png } from '@app-template/testing'
 
@@ -16,14 +17,12 @@ import {
   FileSize,
   MediaType,
 } from '#domain/attachment.model'
-import { AttachmentBucket } from '#domain/attachment.port'
 import { ChatNotFoundError } from '#domain/chat.error'
 import { type ChatId, MessageId } from '#domain/chat.id'
 import { Chat, ChatTitle } from '#domain/chat.model'
 import { buildAssistantMessage } from '#domain/message.model'
 import { encodeAttachment } from '#services/attachment.mapper'
 import { ChatService } from '#services/chat.service'
-import { AttachmentBucketTest } from '#testing/attachment.test-fake'
 import { chat, firstMessage, owner, stranger, unknownChatId } from '#testing/chat.test-fixture'
 import {
   insertChatLayer,
@@ -35,7 +34,7 @@ import {
 /** The chat services over the memory layers, on fresh rows where `chat` exists. */
 const ChatTest = ChatService.layer.pipe(
   Layer.provideMerge(insertChatLayer(chat)),
-  Layer.provideMerge(Layer.merge(RepositoryStackTest, AttachmentBucketTest)),
+  Layer.provideMerge(RepositoryStackTest),
   Layer.provide(BunCrypto.layer),
 )
 
@@ -108,7 +107,7 @@ describe('ChatService', () => {
       Effect.gen(function* () {
         const service = yield* ChatService
         const attachments = yield* AttachmentRepository
-        const bucket = yield* AttachmentBucket
+        const files = yield* FileRepository
         yield* insertMessage(firstMessage)
         yield* insertMessage(
           buildAssistantMessage({
@@ -131,14 +130,14 @@ describe('ChatService', () => {
         })
         const row = yield* encodeAttachment(photo)
         yield* attachments.insert(row)
-        yield* bucket.insert(photo.id, Stream.make(png), photo)
+        yield* files.insert({ ...photo, content: Stream.make(png) })
 
         yield* service.delete({ id: chat.id, userId: owner })
 
         assertEquals(yield* selectChat(chat.id), Option.none())
         assertEquals(yield* selectMessages(chat.id), [])
         assertEquals(yield* attachments.selectMany({ id: [photo.id] }), [])
-        assertEquals(yield* bucket.select(photo.id), Option.none())
+        assertEquals(yield* files.selectOne({ id: photo.id }), Option.none())
       }).pipe(Effect.provide(ChatTest)),
   )
 

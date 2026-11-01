@@ -5,7 +5,6 @@ import {
   type AssistantError,
   type AssistantReply,
   type Attachment,
-  AttachmentBucket,
   type ChatId,
   type ChatStatusInvalidError,
   completeMessage,
@@ -31,6 +30,7 @@ import {
 import { Transaction } from '@app-template/db'
 import type { GenerateAssistantMessage } from '@app-template/infrastructure/chat'
 import { ChatRepository, MessageRepository } from '@app-template/kernel/data/chat'
+import { FileRepository } from '@app-template/kernel/data/file'
 
 type ReplySkip = 'chatDeleted' | 'alreadySettled'
 
@@ -68,13 +68,15 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
 >()('@app-template/use-cases/chat/GenerateAssistantMessageUseCase', {
   make: Effect.gen(function* () {
     const assistant = yield* Assistant
-    const bucket = yield* AttachmentBucket
+    const files = yield* FileRepository
     const chats = yield* ChatRepository
     const messages = yield* MessageRepository
     const transaction = yield* Transaction
 
     const readBytes = (attachment: Attachment) =>
-      bucket.select(attachment.id).pipe(Effect.map(Option.map((bytes) => ({ attachment, bytes }))))
+      files
+        .selectOne({ id: attachment.id })
+        .pipe(Effect.map(Option.map((bytes) => ({ attachment, bytes }))))
 
     const readHistoryMessage = (message: Message) =>
       Effect.forEach(message.attachments, readBytes).pipe(

@@ -10,28 +10,27 @@ import {
   Predicate,
   Ref,
   Stream,
-  Struct,
 } from 'effect'
 
 import { generateId } from '@app-template/db'
 import type { UserId } from '@app-template/identity-contract'
 import { AttachmentRepository } from '@app-template/kernel/data/attachment'
+import { FileRepository } from '@app-template/kernel/data/file'
 
 import { type AttachmentBoundError, AttachmentNotFoundError } from '#domain/attachment.error'
 import { AttachmentId } from '#domain/attachment.id'
 import {
   Attachment,
   type AttachmentDownload,
-  type AttachmentMeta,
   buildAttachment,
   ensureUnbound,
+  FileSize,
   isExpiredAt,
 } from '#domain/attachment.model'
-import { AttachmentBucket } from '#domain/attachment.port'
 import type { ChatId, MessageId } from '#domain/chat.id'
 import { decodeAttachment, decodeAttachments, encodeAttachment } from '#services/attachment.mapper'
 
-export interface AttachmentUpload<E> extends AttachmentMeta {
+export interface AttachmentUpload<E> extends Pick<Attachment, 'mediaType' | 'fileName'> {
   readonly content: Stream.Stream<Uint8Array, E>
 }
 
@@ -45,7 +44,7 @@ export class AttachmentService extends Context.Service<
      */
     readonly upload: <E>(
       userId: UserId,
-      files: Stream.Stream<AttachmentUpload<E>, E>,
+      uploads: Stream.Stream<AttachmentUpload<E>, E>,
     ) => Effect.Effect<ReadonlyArray<Attachment>, E>
     readonly get: (
       userId: UserId,
@@ -74,7 +73,7 @@ export class AttachmentService extends Context.Service<
 >()('@app-template/chat/services/AttachmentService', {
   make: Effect.gen(function* () {
     const attachments = yield* AttachmentRepository
-    const bucket = yield* AttachmentBucket
+    const files = yield* FileRepository
     const crypto = yield* Crypto.Crypto
     const randomAttachmentId = generateId(crypto, AttachmentId.make)
 
@@ -84,9 +83,8 @@ export class AttachmentService extends Context.Service<
     ) {
       const createdAt = yield* DateTime.now
 
-      const meta = Struct.pick(file, ['mediaType', 'fileName'])
-      const size = yield* bucket.insert(id, file.content, meta)
-      const attachment = buildAttachment({ ...meta, id, userId, size, createdAt })
+      const size = yield* files.insert({ ...file, id }).pipe(Effect.map(FileSize.make))
+      const attachment = buildAttachment({ ...file, id, userId, size, createdAt })
       const row = yield* encodeAttachment(attachment)
 
       yield* attachments.insert(row)
@@ -95,7 +93,7 @@ export class AttachmentService extends Context.Service<
 
     const upload = Effect.fn('AttachmentService.upload')(function* <E>(
       userId: UserId,
-      files: Stream.Stream<AttachmentUpload<E>, E>,
+      uploads: Stream.Stream<AttachmentUpload<E>, E>,
     ) {
       // Bytes are tracked before the write, rows after the insert: a lost record still deletes
       // its bytes, and the cleanup deletes only rows that exist.
@@ -109,10 +107,10 @@ export class AttachmentService extends Context.Service<
         const storedIds = yield* Ref.get(stored)
         if (Arr.isReadonlyArrayNonEmpty(storedIds)) yield* attachments.delete({ id: storedIds })
         const trackedIds = yield* Ref.get(tracked)
-        yield* bucket.delete(trackedIds)
+        yield* files.delete({ id: trackedIds })
       })
 
-      return yield* files.pipe(
+      return yield* uploads.pipe(
         Stream.mapEffect((file) =>
           trackId.pipe(
             Effect.flatMap((id) => uploadFile(file, { id, userId })),
@@ -141,8 +139,8 @@ export class AttachmentService extends Context.Service<
       id: AttachmentId,
     ) {
       const attachment = yield* get(userId, id)
-      const url = yield* bucket
-        .url(id)
+      const url = yield* files
+        .url({ id })
         .pipe(Effect.flatMap(Effect.fromOption(() => new AttachmentNotFoundError({ id }))))
 
       return { attachment, url }
@@ -155,7 +153,7 @@ export class AttachmentService extends Context.Service<
       yield* get(userId, id).pipe(ensureUnbound)
 
       yield* attachments.delete({ id: [id] })
-      yield* bucket.delete([id])
+      yield* files.delete({ id: [id] })
     })
 
     // One batch read; the refusal still names the first bad id in the order asked.
@@ -184,8 +182,8 @@ export class AttachmentService extends Context.Service<
 
       const checked = yield* Effect.forEach(ids, ensureBindable)
 
-      // Keep first: unbound bytes expire, so a crash must never leave a bound row over them.
-      yield* Effect.forEach(ids, bucket.keep, { discard: true })
+      // Bind the files first: unbound bytes expire, so a crash must never leave a bound row over them.
+      yield* Effect.forEach(ids, (id) => files.update({ bound: true }, { id }), { discard: true })
       yield* attachments.update({ messageId, chatId }, { id: ids, userId, messageId: null })
 
       const binding = { messageId: Option.some(messageId), chatId: Option.some(chatId) }

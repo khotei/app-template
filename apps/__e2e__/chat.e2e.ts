@@ -4,7 +4,6 @@ import { SqlClient } from 'effect/sql'
 
 import {
   ActiveMessageStatus,
-  AttachmentBucket,
   AttachmentId,
   AttachmentNotFoundError,
   type ChatId,
@@ -12,6 +11,7 @@ import {
 } from '@app-template/chat/domain'
 import { ApiClient } from '@app-template/http-api'
 import { GenerateAssistantMessage } from '@app-template/infrastructure/chat'
+import { FileRepository } from '@app-template/kernel/data/file'
 import { assertSchemaEquals, png } from '@app-template/testing'
 
 import { StandTest } from '#testing-e2e/stand.test-layer'
@@ -73,7 +73,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
       () =>
         Effect.gen(function* () {
           const api = yield* ApiClient
-          const bucket = yield* AttachmentBucket
+          const files = yield* FileRepository
           yield* api.users.ensure()
           const chat = yield* api.chats.create()
           const uploaded = yield* api.attachments
@@ -106,7 +106,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           assert.match(provenance.instructionsHash, /^[0-9a-f]{64}$/)
 
           yield* api.chats.delete({ params: { chatId: chat.id } })
-          const object = yield* bucket.select(uploaded.id)
+          const object = yield* files.selectOne({ id: uploaded.id })
           const gone = yield* api.attachments
             .get({ params: { attachmentId: uploaded.id } })
             .pipe(Effect.flip)

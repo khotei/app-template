@@ -29,7 +29,7 @@ tool reads.
 | `.service` | a domain service: `<entity>.service.ts` for an entity's rules, `<operation>.service.ts` for one operation that belongs to no entity | a module's `services/` |
 | `.use-case` | a flow over domain services: `<verb>-<object>.use-case.ts` | application |
 | `.handler` | api: one contract group's handlers · worker: `<object>.handler.ts`, one queue's `handle` and `handleDeadLettered` over a use case | apps |
-| `.repository` · `.bucket` · `.llm` · `.queue` | the data layer's access to a store, `<Name>Repository` over its entities · S3 · `LanguageModel`, with the prompts · queue definitions and their job schemas | `kernel/data` · infrastructure |
+| `.repository` · `.llm` · `.queue` | the data layer's access to a store (a table or an object store), `<Name>Repository` over its entities · `LanguageModel`, with the prompts · queue definitions and their job schemas | `kernel/data` · infrastructure |
 | `.relay` | a layer that moves records from the database to a queue | kernel |
 | `.table` · `.entity` | a table, importing only tables · its entities, the schemas read from it, `<Name>Entity` with its `Insert`, `Where` and `Set`, and a `<Verb>Where` for the one verb whose filter differs | `kernel/data` |
 | `.mapper` | an entity's codec into a model, `<Model>FromEntity` | a module's `services` |

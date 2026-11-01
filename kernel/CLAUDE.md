@@ -12,7 +12,8 @@ passes it.
 - The migrations live here, not in `packages/db`: the schema and the client's config are this
   app's, and `packages/db` only applies the folder it is given.
 - The data layer takes its clients from the context and imports no `config`, `postgres` or `aws`:
-  the processes provide `PgClientFromConfig` beside `Db.layer`, the e2e `DbTest`.
+  the processes provide `PgClientFromConfig` beside `Db.layer` and `S3BucketFromConfig` beside
+  `FileRepository.layer`, the e2e `DbTest` and `AwsTest`.
 - The data layer speaks its own types: besides packages, a table imports only tables and an
   entity only tables and entities, never a model, so an enum, a check's limit or pattern and a
   JSON column's shape are declared there.

@@ -5,8 +5,8 @@ import { FetchHttpClient } from 'effect/http'
 
 import { ApiLayer } from '@app-template/api/layer'
 import { ApiClient } from '@app-template/http-api'
-import { AttachmentBucketS3 } from '@app-template/infrastructure/attachment'
 import { AwsConfig } from '@app-template/kernel/config'
+import { FileRepository } from '@app-template/kernel/data/file'
 import { AwsTest } from '@app-template/kernel/testing-e2e'
 import { layerCookieJarTest, PgClientTest } from '@app-template/testing'
 import { WorkerLayer } from '@app-template/worker/layer'
@@ -52,7 +52,7 @@ const Apps = Layer.merge(ApiLayer, WorkerLayer).pipe(Layer.provide(BunCrypto.lay
 
 /**
  * The api and the worker in one runtime over the test's database and stage, the model stubbed,
- * with an `ApiClient` on the api; `SqlClient` and `AttachmentBucket` stay in context for what the
+ * with an `ApiClient` on the api; `SqlClient` and `FileRepository` stay in context for what the
  * test reads behind the apps.
  *
  * `PgClientTest`, not `DbTest`: a layer is built once per runtime, so `DbTest`'s `Db.layer` would
@@ -67,4 +67,4 @@ export const StandTest = Layer.unwrap(
       Layer.provide(ConfigProvider.layer(provider)),
     )
   }).pipe(Effect.orDie),
-).pipe(Layer.provideMerge(AttachmentBucketS3), Layer.provideMerge([PgClientTest, AwsTest]))
+).pipe(Layer.provideMerge(FileRepository.layer), Layer.provideMerge([PgClientTest, AwsTest]))

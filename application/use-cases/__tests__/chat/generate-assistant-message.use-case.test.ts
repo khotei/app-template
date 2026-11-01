@@ -8,7 +8,6 @@ import {
   AssistantRefusedError,
   AssistantReply,
   Attachment,
-  AttachmentBucket,
   AttachmentId,
   buildAssistantMessage,
   buildAttachment,
@@ -41,6 +40,7 @@ import {
 import { GenerateAssistantMessage } from '@app-template/infrastructure/chat'
 import { replyProvenance } from '@app-template/infrastructure/testing'
 import { AttachmentRepository } from '@app-template/kernel/data/attachment'
+import { FileRepository } from '@app-template/kernel/data/file'
 import { epoch, png, recordLogs } from '@app-template/testing'
 
 import { AssistantMessageTest } from '#testing/chat.test-layer'
@@ -96,12 +96,12 @@ const insertMessages = (messages: ReadonlyArray<Message>) =>
 const insertAttachment = (attachment: Attachment, bytes: 'stored' | 'lost' = 'stored') =>
   Effect.gen(function* () {
     const attachments = yield* AttachmentRepository
-    const bucket = yield* AttachmentBucket
+    const files = yield* FileRepository
     const row = yield* encodeAttachment(attachment)
 
     yield* attachments.insert(row)
     if (bytes === 'lost') return
-    yield* bucket.insert(attachment.id, Stream.make(png), attachment)
+    yield* files.insert({ ...attachment, content: Stream.make(png) })
   })
 
 // Another writer's settle, landing in the rows behind the use case's back.

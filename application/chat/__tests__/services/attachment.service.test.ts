@@ -6,7 +6,8 @@ import { TestClock } from 'effect/testing'
 
 import type { UserId } from '@app-template/identity-contract'
 import { AttachmentRepository } from '@app-template/kernel/data/attachment'
-import { AttachmentRows, RepositoryStackTest } from '@app-template/kernel/testing'
+import { FileRepository } from '@app-template/kernel/data/file'
+import { AttachmentRows, FileObjects, RepositoryStackTest } from '@app-template/kernel/testing'
 import {
   assertSchemaEquals,
   breakAfter,
@@ -25,20 +26,16 @@ import {
   FileSize,
   MediaType,
 } from '#domain/attachment.model'
-import { AttachmentBucket } from '#domain/attachment.port'
 import { AttachmentService } from '#services/attachment.service'
-import { AttachmentBucketObjects, AttachmentBucketTest } from '#testing/attachment.test-fake'
 import { unknownAttachmentId } from '#testing/attachment.test-fixture'
 import { selectAttachments, upload } from '#testing/attachment.test-layer'
 import { chatId, firstMessage, messageId, owner, stranger } from '#testing/chat.test-fixture'
 import { insertMessage } from '#testing/chat.test-layer'
 
-const MemoryStoresTest = Layer.merge(RepositoryStackTest, AttachmentBucketTest)
-
 /** The service over the memory layers, on fresh rows where the message a send binds to exists. */
 const AttachmentServiceTest = AttachmentService.layer.pipe(
   Layer.provideMerge(Layer.effectDiscard(insertMessage(firstMessage))),
-  Layer.provideMerge(MemoryStoresTest),
+  Layer.provideMerge(RepositoryStackTest),
   Layer.provide(BunCrypto.layer),
 )
 
@@ -51,7 +48,7 @@ const AttachmentRepositoryInsertDying = Layer.effect(
 
 const AttachmentServiceRecordLost = AttachmentService.layer.pipe(
   Layer.provide(AttachmentRepositoryInsertDying),
-  Layer.provideMerge(MemoryStoresTest),
+  Layer.provideMerge(RepositoryStackTest),
   Layer.provide(BunCrypto.layer),
 )
 
@@ -63,11 +60,11 @@ const uploadPhoto = upload(owner)
 
 const countStored = Effect.all({
   rows: AttachmentRows.use(Ref.get).pipe(Effect.map(HashMap.size)),
-  objects: AttachmentBucketObjects.use(Ref.get).pipe(Effect.map(HashMap.size)),
+  objects: FileObjects.use(Ref.get).pipe(Effect.map(HashMap.size)),
 })
 
 const bucketHref = (id: AttachmentId) =>
-  AttachmentBucket.use((bucket) => bucket.url(id)).pipe(Effect.map(Option.map((url) => url.href)))
+  FileRepository.use((files) => files.url({ id })).pipe(Effect.map(Option.map((url) => url.href)))
 
 const brokenUploads = [
   {
@@ -118,7 +115,7 @@ const bind = (attachment: Attachment) =>
 const boundTo = (attachment: Attachment) =>
   new Attachment({ ...attachment, messageId: Option.some(messageId), chatId: Option.some(chatId) })
 
-const selectBytes = (id: AttachmentId) => AttachmentBucket.use((bucket) => bucket.select(id))
+const selectBytes = (id: AttachmentId) => FileRepository.use((files) => files.selectOne({ id }))
 
 describe('AttachmentService', () => {
   it.effect('upload stores the bytes and the metadata of an unbound attachment', () =>
@@ -198,7 +195,7 @@ describe('AttachmentService', () => {
     Effect.gen(function* () {
       const service = yield* AttachmentService
       const attachment = yield* uploadPhoto
-      yield* AttachmentBucket.use((bucket) => bucket.delete([attachment.id]))
+      yield* FileRepository.use((files) => files.delete({ id: [attachment.id] }))
 
       const error = yield* service.download(owner, attachment.id).pipe(Effect.flip)
 

@@ -14,8 +14,8 @@ import type { RequireAtLeastOne } from 'type-fest'
 import { generateId } from '@app-template/db'
 import type { UserId } from '@app-template/identity-contract'
 import { ChatRepository } from '@app-template/kernel/data/chat'
+import { FileRepository } from '@app-template/kernel/data/file'
 
-import { AttachmentBucket } from '#domain/attachment.port'
 import { ChatNotFoundError } from '#domain/chat.error'
 import { ChatId } from '#domain/chat.id'
 import { buildChat, Chat, type ChatTitle } from '#domain/chat.model'
@@ -53,7 +53,7 @@ export class ChatService extends Context.Service<
 >()('@app-template/chat/services/ChatService', {
   make: Effect.gen(function* () {
     const chats = yield* ChatRepository
-    const bucket = yield* AttachmentBucket
+    const files = yield* FileRepository
     const crypto = yield* Crypto.Crypto
 
     const create = Effect.fn('ChatService.create')(function* (userId: UserId) {
@@ -98,7 +98,7 @@ export class ChatService extends Context.Service<
 
       // The cascade takes the messages and their attachments; the bytes go by the ids read.
       yield* chats.delete({ id: chat.id })
-      yield* bucket.delete(Arr.map(chat.attachments, Struct.get('id')))
+      yield* files.delete({ id: Arr.map(chat.attachments, Struct.get('id')) })
     })
 
     return { create, list, getOne, rename, delete: remove }

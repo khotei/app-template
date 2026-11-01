@@ -155,7 +155,8 @@ kernel/                          @app-template/kernel
     migrate.ts                     the `make migrate` entry ← infrastructure/db/migrate.ts
   aws/                           → /aws
     aws.client.ts                  S3ServiceFromConfig, SQSServiceFromConfig ← infrastructure/shared;
-                                   S3BucketFromConfig (S3Bucket on the stage's bucket)
+                                   S3BucketOfStage, S3BucketFromConfig (S3Bucket on the stage's
+                                   bucket)
     resources/                     → /aws/resources: the inventory (buckets with their lifecycle,
                                    queues) and the naming rule ← packages/aws/{resources,naming}.ts
   queue/                         → /queue
@@ -302,13 +303,13 @@ differs, and says what it cannot do:
 
 ```ts
 // kernel/data/file/file.repository.ts: Layer<FileRepository, never, S3Bucket>
-/** An object store joins no transaction: keep the bytes before the row that binds them, delete them before the commit. */
+/** An object store joins no transaction: keep the bytes before the row that binds them, delete them once the rows are gone. */
 export class FileRepository extends Context.Service<FileRepository, {
   readonly insert: <E>(file: FileEntityInsert<E>) => Effect.Effect<number, E>   // tagged unbound; the byte count
   readonly selectOne: (where: FileEntityWhere) => Effect.Effect<Option.Option<Uint8Array>>
   readonly url: (where: FileEntityWhere) => Effect.Effect<Option.Option<URL>>
   readonly update: (set: FileEntitySet, where: FileEntityWhere) => Effect.Effect<void>   // { bound: true } untags
-  readonly delete: (where: FileEntityManyWhere) => Effect.Effect<void>
+  readonly delete: (where: FileEntityDeleteWhere) => Effect.Effect<void>
 }>()('@app-template/kernel/data/file/FileRepository') {
   static readonly layer = Layer.effect(this, S3Bucket.useSync((bucket) => this.of({ … })))
 }
@@ -679,7 +680,7 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
     data; the objects stay in today's bucket under today's keys.
   - **Cost accepted:** one interface over a store that joins no transaction: the repository's doc
     comment and `layering.md` keep the order (the bytes before the row that binds them, deleted
-    before the commit), checked by the use cases' e2e.
+    once the rows are gone), checked by the use cases' e2e.
   - **Reversal:** the port back in `chat`'s `domain/` with its adapter in `infrastructure/`.
   - **Rejected:**
     - the `AttachmentBucket` port in `chat` (today) — a module adapter over data every module may
@@ -699,6 +700,11 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
   - **Rejected:**
     - `PgClientFromConfig` and the migrate entry in `kernel/data` — the centre would read the
       boundary's configuration.
+  - **Note (S18):** `S3BucketOfStage`, over `AwsConfig` and `S3Service` in the context, is the one
+    place that names the stage's bucket; `S3BucketFromConfig` closes it over the config and
+    `AwsTest` reuses it, so the e2e runs on the name the processes use. The delete's where is
+    `FileEntityDeleteWhere`, `naming.md`'s `<Verb>Where`; D17's "before the commit" read as the
+    code never ran it: the rows go first, then the bytes, as the delete-chat e2e proves.
 
 - **D19 — Every workspace keeps its unit tests in `__tests__/` and its e2e in `__e2e__/`, each
   with its support in a `testing/` inside, exported as `./testing` and `./testing-e2e`; an e2e

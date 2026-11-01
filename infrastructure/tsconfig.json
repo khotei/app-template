@@ -12,7 +12,6 @@
     { "path": "../packages/aws" },
     { "path": "../packages/db" },
     { "path": "../packages/queue" },
-    { "path": "../packages/s3" },
     { "path": "../packages/testing" }
   ]
 }

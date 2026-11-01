@@ -2,7 +2,7 @@ import { BunCrypto } from '@effect/platform-bun'
 import { Layer } from 'effect'
 
 import { AttachmentService, ChatService } from '@app-template/chat/services'
-import { AttachmentBucketTest, chat, insertChatLayer, queuedChat } from '@app-template/chat/testing'
+import { chat, insertChatLayer, queuedChat } from '@app-template/chat/testing'
 import { TransactionTest } from '@app-template/db/testing'
 import { CurrentReplyProvenanceTest } from '@app-template/infrastructure/testing'
 import { RepositoryStackTest } from '@app-template/kernel/testing'
@@ -24,7 +24,7 @@ export const ChatServices = Layer.mergeAll(
  */
 export const ChatTest = ChatServices.pipe(
   Layer.provideMerge(insertChatLayer(chat)),
-  Layer.provideMerge(Layer.mergeAll(RepositoryStackTest, AttachmentBucketTest, TransactionTest)),
+  Layer.provideMerge(Layer.merge(RepositoryStackTest, TransactionTest)),
   Layer.provide(BunCrypto.layer),
 )
 
@@ -34,7 +34,7 @@ export const ChatTest = ChatServices.pipe(
  */
 export const ChatTitleTest = GenerateChatTitleUseCase.layer.pipe(
   Layer.provideMerge(insertChatLayer(chat)),
-  Layer.provideMerge(Layer.merge(RepositoryStackTest, AttachmentBucketTest)),
+  Layer.provideMerge(RepositoryStackTest),
   Layer.provide(BunCrypto.layer),
 )
 
@@ -44,6 +44,6 @@ export const ChatTitleTest = GenerateChatTitleUseCase.layer.pipe(
  */
 export const AssistantMessageTest = GenerateAssistantMessageUseCase.layer.pipe(
   Layer.provideMerge(insertChatLayer(queuedChat)),
-  Layer.provideMerge(Layer.mergeAll(RepositoryStackTest, AttachmentBucketTest, TransactionTest)),
+  Layer.provideMerge(Layer.merge(RepositoryStackTest, TransactionTest)),
   Layer.provide(BunCrypto.layer),
 )

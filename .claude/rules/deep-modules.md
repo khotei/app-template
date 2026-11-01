@@ -38,8 +38,12 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
   `delete`) over a `where` typed from the entity (`Pick`, `Partial`, `RequireAtLeastOne`); reads
   that filter alike share one `where` type; a new filter is a field. A write finds its row by the
   key, from the written entity or a required `where` field, so it never matches every row.
+  A store whose answer has another shape (an object store's signed URL) adds its own verb for it
+  alone; the other verbs keep their names, so a caller reads every store alike.
 - A write answers `void` and dies where it matches no row: the caller checked the rule, so a
   miss is a lost race; a `boolean`, rows or a domain error adds an error mode to every caller.
+  An object store's writes are idempotent and cannot tell a missing object, so they never die on
+  one. A write that measures what it stores (a stream's byte count) answers the measure.
 - One shape per entity: a related model is a field the same relational query fills, never a
   second type (`<Entity>Detail`, `<Entity>With<Thing>`); an option never changes the answer's type.
 - The filter lives in the `where`, a relation in the database (`ON DELETE CASCADE`), never in code

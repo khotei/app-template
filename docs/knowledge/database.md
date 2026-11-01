@@ -133,7 +133,9 @@ query hands to `RAW`, never on the `chats` constant.
 A repository is a `Layer` over `Db` and `SqlClient` in its entity's `.repository.ts` (names:
 [naming.md › Symbols](../../.claude/rules/naming.md#symbols)). The data layer's,
 `UserRepository` in `kernel/data/user/`, `ChatRepository` and `MessageRepository` in
-`kernel/data/chat/` and `AttachmentRepository` in `kernel/data/attachment/`, speak entities:
+`kernel/data/chat/`, `AttachmentRepository` in `kernel/data/attachment/` and `FileRepository`
+over the attachments' objects in `kernel/data/file/` ([aws.md › Attachments](aws.md#attachments)),
+speak entities:
 they take a `<Name>EntityInsert`, a `<Name>EntitySet` and a `<Name>EntityWhere` and answer
 `<Name>Entity`. A module's service calls one directly, with no port in front, and maps with its
 module's mapper (`UserService` over `UserRepository`). A method that writes several tables runs
@@ -212,7 +214,7 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
 and their attachments go by the cascade, and `RETURNING` answers only the chat's row.
 `ChatService.delete` therefore reads the chat with its attachments to name `ChatNotFoundError`,
 then deletes the chat, then the bytes, through
-`AttachmentBucket.delete` (one `DeleteObjects` per 1000 keys). A file a concurrent send binds
+`FileRepository.delete` (one `DeleteObjects` per 1000 keys). A file a concurrent send binds
 between the read and the delete loses its row with the chat while its bytes stay in S3, bound and
 never expired: the price of a delete with no transaction.
 

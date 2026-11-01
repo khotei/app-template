@@ -1,5 +1,4 @@
 export * from '#testing/assistant.test-fake'
-export * from '#testing/attachment.test-fake'
 export * from '#testing/attachment.test-fixture'
 export * from '#testing/attachment.test-layer'
 export * from '#testing/chat.test-fixture'

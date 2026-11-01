@@ -3,7 +3,7 @@ import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Exit, Option } from 'effect'
 import { SqlClient } from 'effect/sql'
 
-import { AttachmentBucket, Chat } from '@app-template/chat/domain'
+import { Chat } from '@app-template/chat/domain'
 import { ChatService } from '@app-template/chat/services'
 import {
   chat,
@@ -13,6 +13,7 @@ import {
   selectMessages,
   upload,
 } from '@app-template/chat/testing'
+import { FileRepository } from '@app-template/kernel/data/file'
 import { sortById } from '@app-template/testing'
 import { SendMessageUseCase } from '@app-template/use-cases/chat'
 
@@ -23,7 +24,7 @@ describe('ChatService.delete on Postgres', () => {
     Effect.gen(function* () {
       const sendMessage = yield* SendMessageUseCase
       const chatService = yield* ChatService
-      const bucket = yield* AttachmentBucket
+      const files = yield* FileRepository
       const client = yield* SqlClient.SqlClient
       const photo = yield* upload(owner)
       const { userMessage, assistantMessage } = yield* sendMessage.send(owner, chat.id, {
@@ -56,7 +57,7 @@ describe('ChatService.delete on Postgres', () => {
         sortById([userMessage, assistantMessage]),
       )
       assertEquals(yield* selectAttachments([photo.id]), userMessage.attachments)
-      assert.isTrue(Option.isSome(yield* bucket.select(photo.id)))
+      assert.isTrue(Option.isSome(yield* files.selectOne({ id: photo.id })))
     }).pipe(Effect.provide(ChatPgTest)),
   )
 })

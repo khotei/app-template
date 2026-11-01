@@ -56,6 +56,7 @@ graph LR
 | 21 | [`bedrock-provider`](#21-bedrock-provider) | `feat` | 6, 9 | planned |
 | 22 | [`jobs`](#22-jobs) | `feat` | 4, 23 | planned |
 | 23 | [`modular-monolith`](#23-modular-monolith) | `refactor` | 15 | in progress: [docs/tickets/2026-10-31-0926_modular-monolith/](../tickets/2026-10-31-0926_modular-monolith/feature.md) |
+| 24 | [`attachment-storage-failures`](#24-attachment-storage-failures) | `fix` | 23 | planned |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; its remaining work is re-homed
 in [Re-homing `effect-setup`](#re-homing-effect-setup).
@@ -643,6 +644,26 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   import into another module, a cycle and a table outside its owner's schema.
 - **Status.** In progress:
   [docs/tickets/2026-10-31-0926_modular-monolith/](../tickets/2026-10-31-0926_modular-monolith/feature.md).
+
+### 24. `attachment-storage-failures`
+
+- **Goal.** A failure in the attachments' object store is never silent: a lost file is logged or
+  refused where it is noticed, and no bytes are left in S3 that no rule or job will remove.
+- **Scope.**
+  - The reply's history: a bound attachment whose bytes `FileRepository.selectOne` no longer
+    finds is dropped from the assistant's input without a word today; it logs a warning with the
+    attachment's and the chat's ids, or fails the reply while the chat still exists.
+  - The bind: `FileRepository.update({ bound: true })` succeeds on a missing object, since S3's
+    untag ignores `NoSuchKey`, so a row binds to no bytes and its download answers 404; the bind
+    refuses it with `AttachmentNotFoundError`, or the untag dies on a missing object.
+  - The send's rollback: the bind untags inside the send's transaction, which S3 does not join,
+    so a rollback leaves unbound rows over untagged bytes that the lifecycle rule never expires;
+    the transaction's failure restores the tag, or logs the ids.
+- **Related, not in scope.** The bytes of a deleted chat whose `FileRepository.delete` fails after
+  the rows are gone: 22 `jobs` moves that delete into an `attachment-deletion` job.
+- **Found by** `modular-monolith` S18's review (2026-11-01): every gap predates that ticket,
+  which moves the code as is.
+- **Status.** Planned.
 
 ## Re-homing `effect-setup`
 

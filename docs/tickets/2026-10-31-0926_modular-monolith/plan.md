@@ -23,7 +23,7 @@
 | S15 | `AttachmentRepository` in the data layer | done |
 | S16 | the memory repositories over entities in the kernel's test support | done |
 | S17 | chat's services and the use cases over the data layer; the repository ports gone | done |
-| S18 | `FileRepository` in the data layer; the bucket port gone | todo |
+| S18 | `FileRepository` in the data layer; the bucket port gone | done |
 | S19 | chat's assistant in `application/chat/infrastructure`; no `infrastructure` workspace | todo |
 | S20 | the decisions document and the modules review rule | todo |
 | S21 | the Biome guards per ring and layer | todo |
@@ -906,10 +906,38 @@
 - **Test first:** a repository on MiniStack — the file suite (an upload is tagged `unbound`, a bind
   removes the tag, a delete removes many) passes over `FileRepository`, red until it exists; the
   services' suites over `FileRepositoryTest` keep every case.
-- **Verify:** `make check`; `git grep -nE "AttachmentBucket"` finds nothing;
+- **Verify:** `make check`; `git grep -nE "AttachmentBucket" -- ':!docs/tickets'` finds nothing;
   `make dev`: upload a file, send it, open its link, delete the chat.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The delete's where is `FileEntityDeleteWhere`, not the Contract's `FileEntityManyWhere`
+    (`naming.md`'s `<Verb>Where`). The order against S3 is as before: the bytes before the row that
+    binds them, deleted once the rows are gone; the Contract and D17 now say so (a note on D18).
+  - `S3BucketOfStage` is the one place that names the stage's bucket; `S3BucketFromConfig` closes
+    it over the config, and `AwsTest` reuses it.
+  - `FileRepository`'s writes never die on a missing file, unlike a table's: S3 is idempotent, as
+    the port was; `deep-modules.md` states the exception.
+  - `FileRepositoryTest` sits inside `RepositoryStackTest`, its bytes in `FileObjects`.
+  - `AttachmentMeta` is gone with the port; `AttachmentUpload<E>` picks from `Attachment`.
+  - Beyond the Files: `apps/__e2e__/testing/chat.test-layer.ts`,
+    `kernel/__e2e__/testing/aws.test-layer.ts`, `kernel/__tests__/testing/*`,
+    `kernel/aws/resources/index.ts`, `kernel/tsconfig.json`, `infrastructure/{package.json,
+    tsconfig.json,CLAUDE.md}` (the `./attachment` export and its S3 dependencies gone),
+    `kernel/CLAUDE.md`, `docs/knowledge/{architecture,glossary}.md`.
+  - `deployment/aws/storage.ts` imports `@app-template/kernel/data/file` for the unbound tag, which
+    also loads the S3 client into the Pulumi program.
+  - `make bundle-check` does not yet know the data layer's keys, so a `FileRepository` import into
+    the web app passes it until S19 sets the final pattern.
+  - The review's silent-failure pass found three gaps older than this ticket (a lost file dropped
+    from the reply's history, a bind over a missing object, untagged bytes after a send's
+    rollback): the roadmap's 24 `attachment-storage-failures`, on the user's word. The bytes of a
+    deleted chat whose delete fails are 22 `jobs`'.
+  - The by-hand Verify ran `make reset` in the main tree: the local database predated S10's single
+    migration.
+  - Round S18.2 (review): doc lines re-wrapped, the e2e's layer inlined, the `deep-modules.md`
+    clause.
+  - Size: 48 files, +409 / −376; three moves git reads as delete and add.
 
 #### S19 — Chat's assistant in its module
 

@@ -38,12 +38,6 @@ export class Attachment extends Schema.Class<Attachment>('Attachment')({
   createdAt: Schema.DateTimeUtc,
 }) {}
 
-/** What the bucket keeps beside the bytes. */
-export interface AttachmentMeta {
-  readonly mediaType: MediaType
-  readonly fileName: FileName
-}
-
 export interface AttachmentDownload {
   readonly attachment: Attachment
   readonly url: URL

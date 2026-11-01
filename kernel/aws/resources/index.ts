@@ -1,2 +1,2 @@
 export { buildResourceName, projectName } from '#kernel/aws/resources/naming'
-export { resources, unboundTag } from '#kernel/aws/resources/resources'
+export { resources } from '#kernel/aws/resources/resources'

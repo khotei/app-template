@@ -84,7 +84,7 @@ identifier and carrying its logical `name`. Physical names are `buildResourceNam
 
 | Resource | Carries | Provisioned as |
 |---|---|---|
-| bucket `attachments` | `lifecycle.unboundExpirationDays`, `lifecycle.abortIncompleteUploadDays` | the bucket and two lifecycle rules: objects carrying `unboundTag` (`unbound=true`) expire; incomplete multipart uploads are aborted. |
+| bucket `attachments` | `lifecycle.unboundExpirationDays`, `lifecycle.abortIncompleteUploadDays` | the bucket and two lifecycle rules: objects carrying the data layer's `unboundTag` (`unbound=true`) expire; incomplete multipart uploads are aborted. |
 | queue `assistant-message`, `chat-title` | `maxReceiveCount` | its dead-letter queue first, named by `buildDeadLetterName` from the physical name (`app-template-<stage>-<name>-dlq`), then the queue with a `RedrivePolicy` to it. A queue definition in `infrastructure` reads its `name` and `maxAttempts` from here, so the two cannot disagree. |
 
 `make up` creates the inventory through Pulumi (`deployment/aws/storage.ts`, `queue.ts`); the
@@ -102,17 +102,20 @@ queue in place.
 
 1. Add the entry to `resources.ts`; a queue's dead-letter queue is derived, not listed.
 2. For a queue, add its definition in `infrastructure/<entity>/<entity>.queue.ts`, reading `name`
-   and `maxAttempts` from the entry; for a bucket, the adapter reads it from `resources.buckets`.
+   and `maxAttempts` from the entry; for a bucket, `S3BucketFromConfig` reads it from
+   `resources.buckets`.
    Code that names a missing entry fails typecheck.
 3. `make up` creates it locally.
 
 ## Attachments
 
 An attachment's record lives in Postgres; its bytes live in the `attachments` bucket under
-`attachments/<id>`. `AttachmentBucketS3` (`infrastructure/attachment/attachment.bucket.ts`)
-holds only the keys, the headers, the tag and the mapping to the domain port; the upload itself
-is `S3Bucket` in `packages/s3`, bound to the stage's bucket by `S3BucketFromConfig` in the same
-file. The api and the worker run on `AttachmentBucketS3FromConfig`.
+`attachments/<id>`. `FileRepository` (`kernel/data/file/file.repository.ts`) holds only the
+keys, the headers and the tag, which `file.entity.ts` declares beside the key; the upload itself
+is `S3Bucket` in `packages/s3`, taken from the context. `S3BucketFromConfig`
+(`kernel/aws/aws.client.ts`) binds it to the stage's bucket, and the api and the worker provide
+it beside `FileRepository.layer`. The store joins no transaction, so a service keeps the bytes
+before the row that binds them and deletes them once the rows are gone.
 
 - **Upload.** The file streams in and is never buffered whole: up to 5 MiB it is one `PutObject`,
   above that a multipart upload in 5 MiB parts, so a file within `maxFileSize` takes two at most.
@@ -124,7 +127,7 @@ file. The api and the worker run on `AttachmentBucketS3FromConfig`.
 - **The unbound tag.** A new object carries `unbound=true`, sent with the `PutObject` or
   `CreateMultipartUpload` that writes it, and the bucket's expiration rule
   ([The inventory](#the-inventory)) acts on the tag; locally a file over 5 MiB stays untagged
-  ([Tests on Docker](#tests-on-docker)), so `attachment.bucket.e2e.ts` asserts the tag on a
+  ([Tests on Docker](#tests-on-docker)), so `file.repository.e2e.ts` asserts the tag on a
   small upload only. Binding the attachment removes the tag before the bind is written, so a
   crash between leaves an orphaned object, never a bound attachment without bytes.
 - **Expiry.** An attachment still unbound 24 hours after its upload (`unboundLifetime` in
@@ -200,12 +203,13 @@ tests through `inject('awsEndpoint')`; `SqsClientTest` and `S3ClientTest` in
 gives each test a stage of its own (`e2e` and eight hex digits), provisions the inventory's
 bucket and queues under it and provides `AwsConfig` over the endpoint and that stage, so an
 adapter builds its names as in production; it publishes the clients too, as the `*FromConfig`
-layers do. The queue's own suite provisions its own queues under one such stage for its `layer`
-block, with `provisionQueues(queues, buildName)`, and the `s3` suite creates one bucket, named as a stage is, for
-its `S3Bucket`. Nothing cleans a stage up: the container goes with the run. On `AwsTest` run
-`AttachmentBucketS3`'s suite, the relay's (beside `DbTest`), the use cases' transactions
+layers do, and the stage's `S3Bucket`. The queue's own suite provisions its own queues under one
+such stage for its `layer` block, with `provisionQueues(queues, buildName)`, and the `s3` suite
+creates one bucket, named as a stage is, for its `S3Bucket`. Nothing cleans a stage up: the
+container goes with the run. On `AwsTest` run
+`FileRepository`'s suite, the relay's (beside `DbTest`), the use cases' transactions
 (`ChatPgTest`, whose bucket is the stage's) and the journey. The unit suites test our code, not
-S3 or SQS: they provide `AttachmentBucketTest` and `recordQueue()`
+S3 or SQS: they provide `FileRepositoryTest` (in `RepositoryStackTest`) and `recordQueue()`
 ([tooling.md › Tests](tooling.md#tests)). So `make test-e2e` needs a running Docker daemon and
 nothing else, not the local stand or `.env`: the Pulumi project is for `make up` alone.
 
