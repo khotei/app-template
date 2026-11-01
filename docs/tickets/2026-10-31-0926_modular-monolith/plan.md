@@ -11,7 +11,7 @@
 | S3 | the use cases in `application/use-cases` | done |
 | S4 | the `kernel` workspace with `/config` and `/aws`; `packages/aws` a generic provisioner | done |
 | S5 | `packages/db`: the generic Drizzle client, transaction and migrator | done |
-| S6 | `kernel/postgres` and the migrations in `kernel/data` | todo |
+| S6 | `kernel/postgres` and the migrations in `kernel/data` | done |
 | S7 | `kernel/llm` picks the provider; chat keeps only its prompts | todo |
 | S8 | the tables and relations in `kernel/data`, in the data layer's own types | todo |
 | S9 | `Db` in `kernel/data` over the `PgClient` in the context; the entity suites speak entities | todo |
@@ -308,7 +308,20 @@
 - **Verify:** `make check`; `make up` then `make migrate` prints `nothing to apply`;
   `make migration-check` from the root reports no change.
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - `PgClientFromConfig` fails with `Config.ConfigError | SqlError.SqlError`: `PgClient.layer`
+    fails with `SqlError` when it cannot connect, and the contract's narrower type did not compile;
+    `architecture.md › Contracts` now says so.
+  - `migrationsFolder` lives in a new `kernel/data/migrations.ts`, re-exported by
+    `kernel/data/index.ts`, so every `index.ts` stays a barrel; S10 deletes only the folder.
+  - The e2e setup sits in `kernel/__e2e__/testing/` but is not exported from `./testing-e2e`:
+    vitest loads it by path, and an export would pull testcontainers into every importer.
+  - `kernel/postgres/index.ts` re-exports only `PgClientFromConfig`, so infrastructure's `Db` does
+    not load the migrate entry and `BunRuntime`.
+  - `@effect/sql-pg`, `drizzle-kit` and testcontainers leave `infrastructure`'s manifest.
+  - Round S6.2 (review): the barrel trimmed, `kernel/CLAUDE.md` says why the migrations live in the
+    kernel, `DRIZZLE_CONFIG` joins the Makefile's variables, `database.md` re-wrapped.
 
 #### S7 — The language model in a package and the kernel
 

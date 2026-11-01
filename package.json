@@ -60,6 +60,7 @@
     "@biomejs/biome": "catalog:tools",
     "@effect/tsgo": "catalog:typescript",
     "@types/bun": "catalog:runtime",
+    "drizzle-kit": "catalog:drizzle",
     "husky": "catalog:tools",
     "typescript": "catalog:typescript",
     "vitest": "catalog:tools"

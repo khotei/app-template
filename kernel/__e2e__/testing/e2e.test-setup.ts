@@ -5,10 +5,11 @@ import { GenericContainer, type StartedTestContainer, Wait } from 'testcontainer
 import type { TestProject } from 'vitest/node'
 
 import { migrateDatabase } from '@app-template/db'
-import { ministackImage, postgresImage } from '@app-template/kernel/config'
 import { ministackRegion, templateDatabase } from '@app-template/testing'
 
-import { migrationsFolder } from '#infrastructure/db/migrate'
+import { ministackImage } from '#kernel/config/ministack'
+import { postgresImage } from '#kernel/config/postgres'
+import { migrationsFolder } from '#kernel/data/migrations'
 
 const startPostgresWithTemplate = async () => {
   const container = await new PostgreSqlContainer(postgresImage).start()

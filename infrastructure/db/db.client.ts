@@ -1,15 +1,10 @@
-import { PgClient } from '@effect/sql-pg'
 import type * as PgDrizzle from 'drizzle-orm/effect-postgres'
 import { Context, Layer } from 'effect'
 
 import { createDb } from '@app-template/db'
-import { DatabaseConfig } from '@app-template/kernel/config'
+import { PgClientFromConfig } from '@app-template/kernel/postgres'
 
 import { relations } from '#infrastructure/db/relations'
-
-export const PgClientFromConfig = Layer.unwrap(
-  DatabaseConfig.useSync(({ url }) => PgClient.layer({ url })),
-).pipe(Layer.provide(DatabaseConfig.layer))
 
 export class Db extends Context.Service<Db, PgDrizzle.EffectPgDatabase<typeof relations>>()(
   '@app-template/infrastructure/db/Db',

@@ -28,7 +28,7 @@ and `make setup` and `make test-unit` need neither.
 | `make lint` | `biome check` | lint, format and import order, without writing |
 | `make fmt` | `biome check --write` | apply formatting, import sorting and safe fixes |
 | `make typecheck` | `bunx tsc -b`, the patched `tsc` | typecheck every workspace through the project references, Effect diagnostics included |
-| `make migrate` · `migration NAME=<name>` · `migration-check` | `migrate`: `bun --env-file=.env infrastructure/db/migrate.ts`; `migration` and `migration-check`: `bunx drizzle-kit generate` in `infrastructure/` | apply, generate and check migrations: [database.md › Migrations](database.md#migrations) |
+| `make migrate` · `migration NAME=<name>` · `migration-check` | `migrate`: `bun --env-file=.env kernel/postgres/migrate.ts`; `migration` and `migration-check`: `bunx drizzle-kit generate --config kernel/data/drizzle.config.ts` from the root | apply, generate and check migrations: [database.md › Migrations](database.md#migrations) |
 | `make test-unit` | `bun --bun vitest run --project unit` | every `__tests__/**/*.test.ts`; no Docker ([Tests](#tests)) |
 | `make test-e2e` | `bun --bun vitest run --project e2e` | every `__e2e__/**/*.e2e.ts`; needs a running Docker daemon for the run's own Postgres and MiniStack containers ([Tests](#tests)) |
 | `make test` | `test-unit`, then `test-e2e` | both projects |
@@ -69,7 +69,7 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   `sequence` itself, and the root sets no `globalSetup`, so a unit run starts no container. A new
   workspace needs no test config, and the vendored suites and the worktrees' copies stay out.
 - **One Postgres and one MiniStack per e2e run, a database and a stage per test.**
-  `infrastructure/__e2e__/testing/e2e.test-setup.ts` starts one `postgres:18.6-alpine` container
+  `kernel/__e2e__/testing/e2e.test-setup.ts` starts one `postgres:18.6-alpine` container
   (about 1.2 s) and migrates a template database in it with `migrateDatabase(folder)`, as
   `make migrate` does, and one MiniStack container beside it (about two seconds for both). Each
   test provides `PgClientTest` from `@app-template/testing`: a fresh database copied from the

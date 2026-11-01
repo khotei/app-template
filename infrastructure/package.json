@@ -29,16 +29,12 @@
     "@effect-aws/client-sqs": "catalog:effect-aws",
     "@effect/ai-anthropic": "catalog:effect",
     "@effect/platform-bun": "catalog:effect",
-    "@effect/sql-pg": "catalog:effect",
     "drizzle-orm": "catalog:drizzle",
     "effect": "catalog:effect"
   },
   "devDependencies": {
     "@app-template/testing": "workspace:*",
     "@effect/vitest": "catalog:effect",
-    "@testcontainers/postgresql": "catalog:runtime",
-    "drizzle-kit": "catalog:drizzle",
-    "testcontainers": "catalog:runtime",
     "vitest": "catalog:tools"
   }
 }

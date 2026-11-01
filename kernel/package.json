@@ -4,8 +4,10 @@
   "type": "module",
   "exports": {
     "./config": "./config/index.ts",
+    "./postgres": "./postgres/index.ts",
     "./aws": "./aws/index.ts",
     "./aws/resources": "./aws/resources/index.ts",
+    "./data": "./data/index.ts",
     "./testing-e2e": "./__e2e__/testing/index.ts"
   },
   "imports": {
@@ -14,13 +16,18 @@
   },
   "dependencies": {
     "@app-template/aws": "workspace:*",
+    "@app-template/db": "workspace:*",
     "@effect-aws/client-s3": "catalog:effect-aws",
     "@effect-aws/client-sqs": "catalog:effect-aws",
+    "@effect/platform-bun": "catalog:effect",
+    "@effect/sql-pg": "catalog:effect",
     "effect": "catalog:effect"
   },
   "devDependencies": {
     "@app-template/testing": "workspace:*",
     "@effect/vitest": "catalog:effect",
+    "@testcontainers/postgresql": "catalog:runtime",
+    "testcontainers": "catalog:runtime",
     "vitest": "catalog:tools"
   }
 }

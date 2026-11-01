@@ -27,6 +27,7 @@ EXPORT_ENV = set -a && . ./.env && set +a
 NAME_MINISTACK = ministack=app-template-ministack-$$(echo "$$AWS_ENDPOINT_URL" | sed -E 's/.*:([0-9]+).*/\1/')
 # The pair of the identifier in deployment/aws/database.ts, for the same reason.
 NAME_DATABASE = database=app-template-$$STAGE-database
+DRIZZLE_CONFIG = kernel/data/drizzle.config.ts
 
 help: ## List all targets
 	@echo 'App Template: make <target>'
@@ -61,19 +62,19 @@ reset: ## Remove MiniStack, the database's container and volume, and .data/ whol
 	rm -rf .data .env.pulumi
 
 migrate: ## Apply the pending migrations to the database in .env.pulumi
-	bun --env-file=.env --env-file=.env.pulumi infrastructure/db/migrate.ts
+	bun --env-file=.env --env-file=.env.pulumi kernel/postgres/migrate.ts
 
-# drizzle-kit runs from infrastructure/: the pinned binary is that workspace's devDependency, and
-# the config's paths resolve against the working directory, not the config file.
+# drizzle-kit is a root devDependency: the isolated linker links a workspace's binary only in that
+# workspace. The config's paths resolve against the working directory, the root.
 migration: ## Generate a migration from the entities, with no database: NAME=<name>
 	@test -n "$(NAME)" || { echo 'usage: make migration NAME=<name>'; exit 1; }
-	cd infrastructure && bunx drizzle-kit generate --name $(NAME)
+	bunx drizzle-kit generate --config $(DRIZZLE_CONFIG) --name $(NAME)
 
 # Compares folder listings, not git; soft here, strict in CI (docs/knowledge/database.md ›
 # Migrations). Closed stdin makes a rename prompt fail the target instead of hanging it.
 migration-check: ## Fail when an entity changed without a migration
-	@dir=infrastructure/db/migrations; before=$$(ls $$dir); \
-	out=$$(cd infrastructure && bunx drizzle-kit generate --name unmigrated </dev/null 2>&1) || \
+	@dir=kernel/data/migrations; before=$$(ls $$dir); \
+	out=$$(bunx drizzle-kit generate --config $(DRIZZLE_CONFIG) --name unmigrated </dev/null 2>&1) || \
 		{ echo "$$out"; exit 1; }; \
 	new=$$(ls $$dir | grep -vxF "$$before"); \
 	if [ -n "$$new" ]; then \

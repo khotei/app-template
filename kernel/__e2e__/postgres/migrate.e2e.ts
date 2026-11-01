@@ -4,7 +4,8 @@ import { Effect } from 'effect'
 import { migrateDatabase } from '@app-template/db'
 import { PgClientTest, recordLogs } from '@app-template/testing'
 
-import { applyMigrations, migrationsFolder } from '#infrastructure/db/migrate'
+import { migrationsFolder } from '#kernel/data/migrations'
+import { applyMigrations } from '#kernel/postgres/migrate'
 
 describe('applyMigrations', () => {
   it.effect('applies nothing to a database copied from the migrated template, and says so', () => {

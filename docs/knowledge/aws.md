@@ -4,7 +4,7 @@ How the app reaches S3 and SQS, locally and on AWS, and how the resources it nee
 created and tested. The code: `kernel/aws/resources/` (the inventory, the naming rule),
 `packages/aws` (the generic provisioner), `kernel/aws/aws.client.ts` (the apps' S3 and SQS clients),
 `deployment/local/` (the Pulumi program of the local stand), `deployment/aws/` (its resources),
-`infrastructure/__e2e__/testing/e2e.test-setup.ts` (the MiniStack the e2e run starts),
+`kernel/__e2e__/testing/e2e.test-setup.ts` (the MiniStack the e2e run starts),
 `packages/testing/aws.test-layer.ts` (its clients) and `kernel/__e2e__/testing/aws.test-layer.ts`
 (a stage per test).
 
@@ -193,7 +193,7 @@ and the dead letter need no queue.
 
 ## Tests on Docker
 
-The e2e `globalSetup` (`infrastructure/__e2e__/testing/e2e.test-setup.ts`) starts one MiniStack beside
+The e2e `globalSetup` (`kernel/__e2e__/testing/e2e.test-setup.ts`) starts one MiniStack beside
 the run's Postgres (`testcontainers`, about two seconds for both) and hands its endpoint to the
 tests through `inject('awsEndpoint')`; `SqsClientTest` and `S3ClientTest` in
 `@app-template/testing` are clients on it. `AwsTest` (`kernel/__e2e__/testing/aws.test-layer.ts`)

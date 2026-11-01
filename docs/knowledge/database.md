@@ -4,10 +4,11 @@ How the app stores its records in Postgres: where the tables are declared, how a
 domain model, how the schema changes, and how tests get a database. The code:
 `packages/db/` (`@app-template/db`, which knows no table: `createDb`, `Transaction`, the shared
 columns, the query helpers, `migrateDatabase(folder)` and `retryWhileUnreachable`),
-`infrastructure/db/` (the client `Db`, made by `createDb(relations)`, the relations, the
-migrations and the migrate program), `infrastructure/<aggregate>/<entity>.entity.ts` (the tables)
-and `infrastructure/drizzle.config.ts`. Drizzle runs on `@effect/sql-pg` and is reached only through
-Effect: every query is an `Effect`, never a promise.
+`kernel/postgres/` (`PgClientFromConfig`, the `PgClient` built from `DatabaseConfig`, and the
+migrate program), `kernel/data/` (the migrations and `drizzle.config.ts`), `infrastructure/db/`
+(the client `Db`, made by `createDb(relations)`, and the relations) and
+`infrastructure/<aggregate>/<entity>.entity.ts` (the tables). Drizzle runs on `@effect/sql-pg`
+and is reached only through Effect: every query is an `Effect`, never a promise.
 
 ## Schema and entity files
 
@@ -242,7 +243,7 @@ and that are committed.
 
 | Command | Does |
 |---|---|
-| `make migration NAME=<name>` | `drizzle-kit generate` in `infrastructure/`: compares the entity files with the last snapshot and writes `infrastructure/db/migrations/<timestamp>_<name>/` (`migration.sql`, `snapshot.json`); needs no database |
+| `make migration NAME=<name>` | `drizzle-kit generate --config kernel/data/drizzle.config.ts` from the root, whose paths it resolves against the working directory: compares the entity files with the last snapshot and writes `kernel/data/migrations/<timestamp>_<name>/` (`migration.sql`, `snapshot.json`); needs no database |
 | `make migrate` | applies the pending migrations to `DATABASE_URL` through `migrateDatabase(folder)` on `DatabaseConfig`; with none pending it logs `nothing to apply`; while the database refuses connections it retries, logging `database not reachable yet, retrying`; any other failed connection or query logs its cause at once |
 | `make migration-check` | generates into the folder and fails, printing the missing SQL, if a new folder appeared; it removes that folder |
 
@@ -254,12 +255,12 @@ and that are committed.
   records each migration once, so an edit never reaches a database that already applied it.
 - **Until a deployed database holds data, the migrations stay one `init`.** A change that
   drizzle-kit cannot write alone (a rename it asks about, values to carry over) deletes
-  `infrastructure/db/migrations/` and regenerates it with `make migration NAME=init`, never a
+  `kernel/data/migrations/` and regenerates it with `make migration NAME=init`, never a
   rename by `--hints` or hand-written SQL; a local database rebuilds by `make reset && make up`.
   The first deployed database ends this: from then on a committed migration is never edited.
 - The apps neither migrate nor check the schema at startup; only `make migrate` and the tests'
   setup apply migrations.
-- Biome skips `infrastructure/db/migrations/`: the files are drizzle-kit's output, and a
+- Biome skips `kernel/data/migrations/`: the files are drizzle-kit's output, and a
   reformatted snapshot would differ from the next one it writes.
 
 ## The local database

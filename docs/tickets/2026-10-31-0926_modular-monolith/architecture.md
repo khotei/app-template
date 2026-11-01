@@ -136,6 +136,7 @@ application/                     the behaviour; unit tests only
 kernel/                          @app-template/kernel
   data/                          → /data: imports only packages/*, takes its clients from the context
     db.client.ts                   Db = createDb(relations), needs PgClient ← infrastructure/db/db.client.ts
+    migrations.ts                  migrationsFolder, the path the migrator and the e2e setup apply
     relations.ts                   ← infrastructure/db/relations.ts
     drizzle.config.ts              ← infrastructure/drizzle.config.ts
     migrations/                    one initial migration, in place of infrastructure/db/migrations/
@@ -316,7 +317,7 @@ it from config, the process provides it.
 
 ```ts
 // kernel/postgres/postgres.client.ts
-export const PgClientFromConfig: Layer.Layer<PgClient.PgClient | SqlClient.SqlClient, Config.ConfigError>
+export const PgClientFromConfig: Layer.Layer<PgClient.PgClient | SqlClient.SqlClient, Config.ConfigError | SqlError.SqlError>
 // kernel/aws/aws.client.ts: S3Bucket on buildResourceName(stage, resources.buckets.attachments.name)
 export const S3BucketFromConfig: Layer.Layer<S3Bucket, Config.ConfigError>
 // apps/api/layer.ts
