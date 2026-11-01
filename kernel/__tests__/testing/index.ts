@@ -1,1 +1,4 @@
+export * from '#testing/attachment.test-fake'
+export * from '#testing/chat.test-fake'
+export * from '#testing/repository-stack.test-layer'
 export * from '#testing/user.test-fake'

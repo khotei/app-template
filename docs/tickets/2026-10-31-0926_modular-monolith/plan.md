@@ -21,7 +21,7 @@
 | S13 | chat's domain and services in `application/chat`; no `domain` workspace | done |
 | S14 | `ChatRepository` and `MessageRepository` in the data layer | done |
 | S15 | `AttachmentRepository` in the data layer | done |
-| S16 | the memory repositories over entities in the kernel's test support | todo |
+| S16 | the memory repositories over entities in the kernel's test support | done |
 | S17 | chat's services and the use cases over the data layer; the repository ports gone | todo |
 | S18 | `FileRepository` in the data layer; the bucket port gone | todo |
 | S19 | chat's assistant in `application/chat/infrastructure`; no `infrastructure` workspace | todo |
@@ -643,7 +643,7 @@
     importer since S9; S17 deletes them with the adapters.
   - Round S12.2 (review): the codec pair in the mapper, the fake's primary keys, doc lines
     re-wrapped.
-  - Size: 30 files, +277 / −234.
+  - Size: 34 files, +302 / −258.
 
 #### S13 — Chat's domain and services in its module
 
@@ -781,7 +781,31 @@
 - **Test first:** `config only` — test support; it is exercised from the next step.
 - **Verify:** `make check`.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Chat's arrange and read helpers move into `chat.test-layer.ts` but still call the ports: the
+    chat and attachment mappers live in `infrastructure`, which imports `@app-template/chat`.
+    They go through the mappers in S17. Until then `@app-template/chat/testing` and
+    `@app-template/kernel/testing` both export `ChatRepositoryTest`, `ChatRows` and
+    `RepositoryStackTest`, differently typed.
+  - The kernel's `RepositoryStackTest` provides `UserRepositoryTest` too: the whole data layer's
+    stack, as the Structure has it.
+  - Each fake copies the guards its repository's e2e proves: the primary key, the where and set
+    fields, the active reply on insert and update, the cascade, and on an attachment update the
+    composite key to its message's chat and the binding check. Foreign keys on insert and the
+    value checks stay the database's alone. Inserts fill the column defaults.
+  - `writeSet` keeps a record naming every set field: callers pass whole entities as the set
+    (`chat.repository.e2e.ts`, "update given a whole chat writes only the fields a set may
+    change"), and `tsc` keeps the record in step with the `Set`.
+  - Beyond the Files: `packages/testing/rows.test-util.ts` (`insertRow`, `updateRows`,
+    `deleteRows`, `writeSet`, with an optional `accepts` check over the rows the write leaves),
+    `kernel/data/chat/message.table.ts` (`activeMessageStatuses`, read by the index and the fake;
+    the generated SQL unchanged), `docs/knowledge/architecture.md`.
+  - `AttachmentRepositoryTest` reads the message it binds to through `MessageRepository`, since
+    importing `MessageRows` would make the two fakes import each other.
+  - Round S16.2 (review): the active reply on update, the attachment's binding guards, the
+    insert defaults.
+  - Size: about 560 lines (+121 / −46 tracked, 394 new), nearly all the three fakes.
 
 #### S17 — Chat's services and the use cases over the data layer
 
@@ -791,6 +815,9 @@
   `*RepositoryPg` adapters, `ChatPg` and `AttachmentPgS3`'s repository half are gone; the apps
   provide the data layer's repositories. The Postgres test stack (`RepositoryStackPgTest`,
   `insertUser` and the other row helpers) lives in `@app-template/kernel/testing-e2e`, in entities.
+  Chat's arrange and read helpers in `chat.test-layer.ts` go through the mappers, and chat's
+  port-level fakes (`ChatRepositoryTest`, `MessageRepositoryTest`, `AttachmentRepositoryTest`,
+  its `RepositoryStackTest`) and `updateRow` in `@app-template/testing` are gone (S16).
   Every suite keeps its cases.
 - **Goal:** chat's behaviour over the data layer, no port in between (R1, R3, R9, D4, D7, D14).
 - **Blocked by:** S12, S16.

@@ -20,8 +20,7 @@ import { Chat, ChatTitle } from '#domain/chat.model'
 import { buildAssistantMessage } from '#domain/message.model'
 import { ChatService } from '#services/chat.service'
 import { chat, firstMessage, owner, stranger, unknownChatId } from '#testing/chat.test-fixture'
-import { ChatTest } from '#testing/chat.test-layer'
-import { insertMessage, selectChat, selectMessages } from '#testing/repository-stack.test-layer'
+import { ChatTest, insertMessage, selectChat, selectMessages } from '#testing/chat.test-layer'
 
 const trip = ChatTitle.make('Trip')
 

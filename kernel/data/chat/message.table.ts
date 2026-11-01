@@ -54,6 +54,9 @@ export const messages = snakeCase.table(
   ],
 )
 
+/** The statuses of an assistant message whose reply still runs; the memory fake reads them too. */
+export const activeMessageStatuses = ['queued', 'preparing', 'generating'] as const
+
 /**
  * Holds for an assistant message whose reply still runs: the predicate of
  * `messages_chat_id_active_index`.
@@ -62,4 +65,4 @@ export const messages = snakeCase.table(
  * remove `.inlineParams()`; why: `docs/knowledge/database.md` › "Schema and entity files".
  */
 export const activeMessage: SQL =
-  sql`${eq(messages.author, 'assistant')} and ${inArray(messages.status, ['queued', 'preparing', 'generating'])}`.inlineParams()
+  sql`${eq(messages.author, 'assistant')} and ${inArray(messages.status, activeMessageStatuses)}`.inlineParams()
