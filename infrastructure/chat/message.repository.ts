@@ -13,6 +13,7 @@ import {
   type MessageUpdateWhere,
   type MessageWhere,
 } from '@app-template/domain/chat'
+import { Db } from '@app-template/kernel/data'
 import {
   activeMessage,
   inCreationOrder,
@@ -22,7 +23,6 @@ import {
 } from '@app-template/kernel/data/chat'
 
 import { MessageFromEntity } from '#infrastructure/chat/chat.mapper'
-import { Db } from '#infrastructure/db/db.client'
 
 const encodeMessage = flow(
   Schema.encodeEffect(MessageFromEntity),

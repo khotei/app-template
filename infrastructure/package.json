@@ -4,13 +4,11 @@
   "type": "module",
   "exports": {
     "./shared": "./shared/index.ts",
-    "./db": "./db/index.ts",
     "./user": "./user/index.ts",
     "./chat": "./chat/index.ts",
     "./attachment": "./attachment/index.ts",
     "./outbox": "./outbox/index.ts",
-    "./testing": "./__tests__/testing/index.ts",
-    "./testing-e2e": "./__e2e__/testing/index.ts"
+    "./testing": "./__tests__/testing/index.ts"
   },
   "imports": {
     "#infrastructure/*": "./*.ts",

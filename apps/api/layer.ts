@@ -10,10 +10,11 @@ import { UserService } from '@app-template/domain/user'
 import { Api } from '@app-template/http-api'
 import { AttachmentPgS3 } from '@app-template/infrastructure/attachment'
 import { ChatPg, CurrentReplyProvenance } from '@app-template/infrastructure/chat'
-import { Db } from '@app-template/infrastructure/db'
 import { QueueSenderOutbox } from '@app-template/infrastructure/shared'
 import { UserPg } from '@app-template/infrastructure/user'
 import { ApiConfig, MinimumLogLevelFromConfig, RuntimeConfig } from '@app-template/kernel/config'
+import { Db } from '@app-template/kernel/data'
+import { PgClientFromConfig } from '@app-template/kernel/postgres'
 import { SendMessageUseCase } from '@app-template/use-cases/chat'
 
 import { AttachmentHandler } from '#api/attachment/attachment.handler'
@@ -52,7 +53,8 @@ export const ApiLayer = Layer.merge(ApiHttp, LogApiStopped).pipe(
     Transaction.layer,
     CurrentReplyProvenance.layerFromConfig,
   ]),
-  Layer.provide(Db.layerFromConfig),
+  Layer.provide(Db.layer),
+  Layer.provide(PgClientFromConfig),
   Layer.provide(BunHttpServerFromConfig),
   Layer.provide(MinimumLogLevelFromConfig),
 )

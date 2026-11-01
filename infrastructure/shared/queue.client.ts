@@ -8,6 +8,7 @@ import {
   QueueConfig,
   type QueueLockRefreshIntervalInvalidError,
 } from '@app-template/kernel/config'
+import { Db } from '@app-template/kernel/data'
 import { outbox } from '@app-template/kernel/data/outbox'
 import {
   encodeJob,
@@ -16,8 +17,6 @@ import {
   QueueSender,
   QueueTransport,
 } from '@app-template/queue'
-
-import { Db } from '#infrastructure/db/db.client'
 
 /** Consumes queues on SQS, whose redrive policy moves a spent message to its dead-letter queue. */
 export const QueueConsumerSqs: Layer.Layer<

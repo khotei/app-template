@@ -5,10 +5,11 @@ domain model, how the schema changes, and how tests get a database. The code:
 `packages/db/` (`@app-template/db`, which knows no table: `createDb`, `Transaction`, the shared
 columns, the query helpers, `migrateDatabase(folder)` and `retryWhileUnreachable`),
 `kernel/postgres/` (`PgClientFromConfig`, the `PgClient` built from `DatabaseConfig`, and the
-migrate program), `kernel/data/` (the tables, their entities, the relations, the migrations and
-`drizzle.config.ts`), `infrastructure/db/` (the client `Db`, made by `createDb(relations)`) and
-the mappers beside the repositories in `infrastructure/<aggregate>/`. Drizzle runs on
-`@effect/sql-pg` and is reached only through Effect: every query is an `Effect`, never a promise.
+migrate program), `kernel/data/` (the client `Db`, made by `createDb(relations)` over the
+`PgClient` in the context; the tables, their entities, the relations, the migrations and
+`drizzle.config.ts`) and the mappers beside the repositories in `infrastructure/<aggregate>/`.
+Drizzle runs on `@effect/sql-pg` and is reached only through Effect: every query is an `Effect`,
+never a promise.
 
 ## Schema and entity files
 
@@ -131,8 +132,9 @@ A repository is a `Layer` over `Db` and `SqlClient` in its entity's `.repository
 [naming.md › Symbols](../../.claude/rules/naming.md#symbols)). A method that writes several tables
 runs them in one `sql.withTransaction`, passed to `Effect.fn` as a pipeable:
 `UserRepositoryPg.insert` writes the user and its credential, or neither. `SqlClient` is the
-`PgClient` that `Db.layerFromConfig` and `DbTest` publish, so the transaction runs on the
-connection `Db` uses. Every method ends with `orDieWithSqlError` from `@app-template/db`.
+`PgClient` that `Db.layer` takes from the context (`PgClientFromConfig` in the processes, `DbTest`
+in the e2e), so the transaction runs on the connection `Db` uses. Every method ends with
+`orDieWithSqlError` from `@app-template/db`.
 
 Reads go through relational queries (`db.query.<table>.findFirst` and `findMany`), writes
 through the core builder (`db.insert`, `db.update`, `db.delete`). A read of at most one row is a
@@ -291,9 +293,12 @@ migrates with the `make migrate` program ([tooling.md › Tests](tooling.md#test
 `*RepositoryPg` has a suite in `infrastructure/__e2e__/` on `DbTest`, which shares the four
 repositories of `infrastructure/__e2e__/testing/repository-stack.test-layer.ts` and inserts the parent
 rows with `insertUser` and its siblings from `infrastructure/__e2e__/testing/rows.test-util.ts`. An
-`.entity.e2e.ts` checks what the schema itself refuses (a check, a partial unique index) and
-reads the `SqlError` of a refused statement with `flipSqlError` from
-`@app-template/db/testing-e2e`.
+`.entity.e2e.ts` in `kernel/__e2e__/data/<store>/` checks, in entities only, what the schema
+itself refuses (a check, a partial unique index) and reads the `SqlError` of a refused statement
+with `flipSqlError` from `@app-template/db/testing-e2e`. A limit or a pattern the data layer
+declares again beside a model has a `.mapper.e2e.ts` in `apps/__e2e__/mappers/`: it writes the
+model's extreme value through the mapper and reads it back, so a check that drifts from its model
+fails there.
 
 The unit suites never reach Postgres ([tooling.md › Tests](tooling.md#tests)). What only a
 transaction decides, that a use case keeps none of its writes or its outbox rows when one is

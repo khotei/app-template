@@ -19,10 +19,10 @@ import {
   type AttachmentSet,
   type AttachmentWhere,
 } from '@app-template/domain/attachment'
+import { Db } from '@app-template/kernel/data'
 import { AttachmentEntityInsert, attachments } from '@app-template/kernel/data/attachment'
 
 import { AttachmentFromEntity } from '#infrastructure/attachment/attachment.mapper'
-import { Db } from '#infrastructure/db/db.client'
 
 const encodeAttachment = flow(
   Schema.encodeEffect(AttachmentFromEntity),

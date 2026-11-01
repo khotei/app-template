@@ -5,10 +5,11 @@ import { FetchHttpClient } from 'effect/http'
 import { Transaction } from '@app-template/db'
 import { AttachmentPgS3 } from '@app-template/infrastructure/attachment'
 import { AssistantLlmFromConfig, ChatPg } from '@app-template/infrastructure/chat'
-import { Db } from '@app-template/infrastructure/db'
 import { OutboxRelaySqs } from '@app-template/infrastructure/outbox'
 import { QueueConsumerSqs } from '@app-template/infrastructure/shared'
 import { MinimumLogLevelFromConfig } from '@app-template/kernel/config'
+import { Db } from '@app-template/kernel/data'
+import { PgClientFromConfig } from '@app-template/kernel/postgres'
 
 import { AssistantMessageHandler } from '#worker/chat/assistant-message.handler'
 import { ChatTitleHandler } from '#worker/chat/chat-title.handler'
@@ -23,7 +24,8 @@ const LogWorkerLifecycle = Effect.logInfo('worker started').pipe(
 )
 
 export const WorkerLayer = Layer.mergeAll(WorkerHandlers, OutboxRelaySqs, LogWorkerLifecycle).pipe(
-  Layer.provide([Db.layerFromConfig, QueueConsumerSqs, BunCrypto.layer]),
+  Layer.provide([Db.layer, QueueConsumerSqs, BunCrypto.layer]),
+  Layer.provide(PgClientFromConfig),
   Layer.provide(FetchHttpClient.layer),
   Layer.provide(MinimumLogLevelFromConfig),
 )

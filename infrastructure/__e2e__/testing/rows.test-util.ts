@@ -2,6 +2,7 @@ import { pipe, Schema } from 'effect'
 
 import type { Chat, Message } from '@app-template/domain/chat'
 import type { UserId } from '@app-template/domain/user'
+import { Db } from '@app-template/kernel/data'
 import {
   ChatEntityInsert,
   chats,
@@ -11,7 +12,6 @@ import {
 import { users } from '@app-template/kernel/data/user'
 
 import { ChatFromEntity, MessageFromEntity } from '#infrastructure/chat/chat.mapper'
-import { Db } from '#infrastructure/db/db.client'
 
 export const insertUser = (id: UserId) =>
   Db.use((db) => db.insert(users).values({ id, createdAt: new Date(0) }))

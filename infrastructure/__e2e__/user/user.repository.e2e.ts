@@ -11,12 +11,12 @@ import {
   UserId,
   UserRepository,
 } from '@app-template/domain/user'
+import { Db } from '@app-template/kernel/data'
 import { credentials, users } from '@app-template/kernel/data/user'
+import { DbTest } from '@app-template/kernel/testing-e2e'
 import { assertSchemaEquals } from '@app-template/testing'
 
-import { Db } from '#infrastructure/db/db.client'
 import { UserRepositoryPg } from '#infrastructure/user/user.repository'
-import { DbTest } from '#testing-e2e/db.test-layer'
 
 const createdAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')
 

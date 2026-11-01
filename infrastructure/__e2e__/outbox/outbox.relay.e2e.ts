@@ -17,17 +17,16 @@ import {
 import { ChatId, MessageId } from '@app-template/domain/chat'
 import { buildResourceName } from '@app-template/kernel/aws/resources'
 import { AwsConfig } from '@app-template/kernel/config'
+import { Db } from '@app-template/kernel/data'
 import { outbox } from '@app-template/kernel/data/outbox'
-import { AwsTest } from '@app-template/kernel/testing-e2e'
+import { AwsTest, DbTest } from '@app-template/kernel/testing-e2e'
 import { QueueError, QueueSender, QueueTransport } from '@app-template/queue'
 import { recordLogs } from '@app-template/testing'
 
 import { assistantMessageQueue, GenerateAssistantMessage } from '#infrastructure/chat/chat.queue'
-import { Db } from '#infrastructure/db/db.client'
 import { OutboxRelay } from '#infrastructure/outbox/outbox.relay'
 import { QueueSenderOutbox } from '#infrastructure/shared/queue.client'
 import { replyProvenance } from '#testing/chat.test-fake'
-import { DbTest } from '#testing-e2e/db.test-layer'
 
 interface Attempt {
   readonly queue: string

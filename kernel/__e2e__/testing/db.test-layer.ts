@@ -2,7 +2,7 @@ import { Layer } from 'effect'
 
 import { PgClientTest } from '@app-template/testing'
 
-import { Db } from '#infrastructure/db/db.client'
+import { Db } from '#kernel/data/db.client'
 
-/** Publishes `PgClient` too, as `Db.layerFromConfig` does, so a test can open transactions. */
+/** Publishes `PgClient` too, so a test can open transactions on the connection `Db` uses. */
 export const DbTest = Db.layer.pipe(Layer.provideMerge(PgClientTest))

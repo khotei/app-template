@@ -55,7 +55,7 @@ paths:
   referenced it, a cycle.
 - Chain `Layer.provide` from the nearest dependency outward. `Layer.provide([a, b])` provides
   siblings that cannot feed each other. Never publish internals with `Layer.provideMerge`; the
-  exception is the client a caller opens transactions on (`Db.layerFromConfig`, `DbTest`).
+  exception is the client a caller opens transactions on (`DbTest`).
 - A client never reads the environment (`SqliteClient.layerConfig` is rejected): `Config` turns
   into options in `infrastructure` or the kernel, and only `@app-template/kernel/config` reads
   variables.

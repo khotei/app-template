@@ -8,8 +8,8 @@ import {
   type UserId,
   UserRepository,
 } from '@app-template/domain/user'
-import { DbTest } from '@app-template/infrastructure/testing-e2e'
 import { UserPg } from '@app-template/infrastructure/user'
+import { DbTest } from '@app-template/kernel/testing-e2e'
 
 /** Gives each user a credential of its own, since a credential's hash is a primary key. */
 const insertUser = (id: UserId) =>

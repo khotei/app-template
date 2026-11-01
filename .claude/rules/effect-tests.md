@@ -32,9 +32,9 @@ paths:
   that holds whichever call wins; a probe that removes the guard must turn it red.
 - The harnesses: `DbTest` (a database of its own, `Db` and `PgClient`), `AwsTest` (a stage of
   its own, its bucket and queues provisioned, the SQS and S3 clients) and `StandTest` (both app
-  layers in one runtime, the journey's). Never put `DbTest` in one runtime with a layer that
-  builds `Db.layerFromConfig`: a layer is built once per runtime, so its `Db` would serve both,
-  bound to the test's client, and the app's writes would commit outside its transaction.
+  layers in one runtime, the journey's). Never put `DbTest` in one runtime with an app's layer:
+  a layer is built once per runtime, so its `Db.layer` would serve both, bound to the test's
+  client, and the app's writes would commit outside its transaction.
 
 ## Test support
 

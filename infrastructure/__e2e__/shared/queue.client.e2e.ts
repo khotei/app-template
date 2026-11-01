@@ -3,14 +3,14 @@ import { Effect, Layer, Option } from 'effect'
 import { SqlClient } from 'effect/sql'
 
 import { ChatId, MessageId } from '@app-template/domain/chat'
+import { Db } from '@app-template/kernel/data'
 import { outbox } from '@app-template/kernel/data/outbox'
+import { DbTest } from '@app-template/kernel/testing-e2e'
 import { QueueSender } from '@app-template/queue'
 
 import { assistantMessageQueue, GenerateAssistantMessage } from '#infrastructure/chat/chat.queue'
-import { Db } from '#infrastructure/db/db.client'
 import { QueueSenderOutbox } from '#infrastructure/shared/queue.client'
 import { replyProvenance } from '#testing/chat.test-fake'
-import { DbTest } from '#testing-e2e/db.test-layer'
 
 const QueueSenderOutboxTest = QueueSenderOutbox.pipe(Layer.provideMerge(DbTest))
 

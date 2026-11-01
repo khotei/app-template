@@ -7,6 +7,7 @@ import { AttachmentBucketS3 } from '#infrastructure/attachment/attachment.bucket
 import { AttachmentRepositoryPg } from '#infrastructure/attachment/attachment.repository'
 
 export { AttachmentBucketS3 } from '#infrastructure/attachment/attachment.bucket'
+export { AttachmentFromEntity } from '#infrastructure/attachment/attachment.mapper'
 export { AttachmentRepositoryPg } from '#infrastructure/attachment/attachment.repository'
 
 export const AttachmentPgS3 = Layer.mergeAll(AttachmentRepositoryPg, AttachmentBucketS3).pipe(

@@ -14,7 +14,7 @@
 | S6 | `kernel/postgres` and the migrations in `kernel/data` | done |
 | S7 | `kernel/llm` picks the provider; chat keeps only its prompts | done |
 | S8 | the tables and relations in `kernel/data`, in the data layer's own types | done |
-| S9 | `Db` in `kernel/data` over the `PgClient` in the context; the entity suites speak entities | todo |
+| S9 | `Db` in `kernel/data` over the `PgClient` in the context; the entity suites speak entities | done |
 | S10 | the table `jobs` and `JobRepository`; one initial migration; the queue in `kernel/queue` | todo |
 | S11 | the `identity` module and `identity-contract` | todo |
 | S12 | `UserRepository` in the data layer; the first port gone | todo |
@@ -454,7 +454,20 @@
 - **Verify:** `make check`; `git grep -n "@app-template/infrastructure/db"` finds nothing;
   `git grep -nE "(@app-template|#)kernel/(config|postgres|aws)" kernel/data` finds nothing.
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The Test first's probe on the data layer's title limit catches nothing: the e2e database is
+    built from the migrations, so a change to a `*.table.ts` alone is `make migration-check`'s to
+    catch. A migration that narrows `chats_title_check`, `attachments_media_type_check` or
+    `credentials_hash_check` turns all three mapper suites red (probed, then reverted).
+  - The chat and attachment mappers join `infrastructure`'s barrels so `apps/__e2e__` reaches them,
+    until S17 moves them into the modules.
+  - The hash case goes through `UserRepositoryPg`, since `credentials` has no mapper, and is named
+    for its check; S12, which removes `UserRepositoryPg`, rewrites it over the data layer's
+    `UserRepository` rather than changing an import.
+  - `infrastructure` loses its `./testing-e2e` export, whose only member was `DbTest`.
+  - The chat entity suite's too-long case writes `'a'.repeat(121)`: the data layer reads no model.
+  - Round S9.2 (review): the hash suite's name and comment, `database.md` re-wrapped.
 
 #### S10 — Jobs as data, a fresh schema, the queue at the boundary
 

@@ -6,10 +6,9 @@ import { unwrapQueryError } from '@app-template/db'
 import { SQSServiceFromConfig } from '@app-template/kernel/aws'
 import { buildResourceName } from '@app-template/kernel/aws/resources'
 import { AwsConfig, QueueConfig } from '@app-template/kernel/config'
+import { Db } from '@app-template/kernel/data'
 import { outbox } from '@app-template/kernel/data/outbox'
 import { QueueTransport } from '@app-template/queue'
-
-import { Db } from '#infrastructure/db/db.client'
 
 const batchLimit = 10
 

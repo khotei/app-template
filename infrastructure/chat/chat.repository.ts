@@ -11,10 +11,10 @@ import {
   skipUndefined,
 } from '@app-template/db'
 import { ChatRepository, type ChatSet, type ChatWhere } from '@app-template/domain/chat'
+import { Db } from '@app-template/kernel/data'
 import { ChatEntityInsert, chats, withAttachments } from '@app-template/kernel/data/chat'
 
 import { ChatFromEntity } from '#infrastructure/chat/chat.mapper'
-import { Db } from '#infrastructure/db/db.client'
 
 const encodeChat = flow(
   Schema.encodeEffect(ChatFromEntity),

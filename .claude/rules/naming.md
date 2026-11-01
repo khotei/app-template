@@ -47,7 +47,7 @@ checks; a module folder holds no test. Test support lives only in the `testing/`
 file any unit test imports in `__tests__/testing/` (`#testing/*`, exported as `./testing`), the
 rest in `__e2e__/testing/` (`#testing-e2e/*`, exported as `./testing-e2e`); a unit test never
 imports e2e support. Suites compose these barrels instead of copying them: `domain`'s memory layers
-and fixtures, `infrastructure`'s transaction and database and AWS harnesses, `use-cases`' test
+and fixtures, the kernel's database and AWS harnesses, `use-cases`' test
 layers, a package's own test helpers. The e2e over assembled layers, the journey among them, live
 in `apps/__e2e__`.
 

@@ -3,9 +3,9 @@ import { SqlClient } from 'effect/sql'
 
 import { decodeOptionalRow, orDieWithSqlError, skipUndefined } from '@app-template/db'
 import { UserRepository, type UserWhere } from '@app-template/domain/user'
+import { Db } from '@app-template/kernel/data'
 import { credentials, UserEntityInsert, users } from '@app-template/kernel/data/user'
 
-import { Db } from '#infrastructure/db/db.client'
 import { UserFromEntity } from '#infrastructure/user/user.mapper'
 
 const encodeUser = flow(
