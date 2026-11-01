@@ -10,7 +10,7 @@
 | S2 | `generateId` in `packages/db`, beside the `id()` column | todo |
 | S3 | the use cases in `application/use-cases` | done |
 | S4 | the `kernel` workspace with `/config` and `/aws`; `packages/aws` a generic provisioner | done |
-| S5 | `packages/db`: the generic Drizzle client, transaction and migrator | todo |
+| S5 | `packages/db`: the generic Drizzle client, transaction and migrator | done |
 | S6 | `kernel/postgres` and the migrations in `kernel/data` | todo |
 | S7 | `kernel/llm` picks the provider; chat keeps only its prompts | todo |
 | S8 | the tables and relations in `kernel/data`, in the data layer's own types | todo |
@@ -247,7 +247,24 @@
   and answers how many it applied; red until it takes the folder.
 - **Verify:** `make check`; `git grep -n "#infrastructure/db/columns"` finds nothing.
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - `createDb(relations)` answers the `make` effect, not a `Db` class: a class returned from a
+    function fails `tsc -b`'s declarations (TS4023 on Effect's internals), and an explicit
+    `Context.ServiceClass` return type breaks Effect's `Unify`. The app declares
+    `class Db extends Context.Service<…>()(key, { make: createDb(relations) })`, as Drizzle's own
+    `PgDrizzle.make` is used; `architecture.md`'s `Db = createDb(relations)` still reads true, and
+    S9 moves that class to `kernel/data`.
+  - About 480 changed lines against the ~400 limit, `bun.lock` aside: mostly the client, the
+    migrator and their suites moving, which `git` counts as new lines in a new package.
+  - `unwrapQueryError` stays in the `@app-template/db` barrel: the outbox relay catches its query
+    errors with it. `migrationsFolder` is exported from `infrastructure/db/migrate.ts` for the e2e
+    setup; S6 moves both. `flipSqlError` lives in `sql-error.test-util.ts`.
+  - Picked after S3 and S4: the kernel's Biome overrides from S4 named `@app-template/application`
+    and now name `@app-template/use-cases`.
+  - Round S5.2 (review): the `applyMigrations` case keeps its `applied === 0` assertion, the
+    `createDb` doc keeps only what a caller needs, `packages/CLAUDE.md` is left to S4's pattern,
+    and long lines are re-wrapped.
 
 #### S6 — The kernel's Postgres client and the migrations
 

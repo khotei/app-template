@@ -2,6 +2,7 @@ import { assert, describe, it } from '@effect/vitest'
 import { Cause, DateTime, Effect, Exit, Layer, Option, Schema } from 'effect'
 import { SqlError } from 'effect/sql'
 
+import { flipSqlError } from '@app-template/db/testing-e2e'
 import {
   buildUser,
   Credential,
@@ -15,7 +16,7 @@ import { assertSchemaEquals } from '@app-template/testing'
 import { Db } from '#infrastructure/db/db.client'
 import { credentials, users } from '#infrastructure/user/user.entity'
 import { UserRepositoryPg } from '#infrastructure/user/user.repository'
-import { DbTest, flipSqlError } from '#testing-e2e/db.test-layer'
+import { DbTest } from '#testing-e2e/db.test-layer'
 
 const createdAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')
 

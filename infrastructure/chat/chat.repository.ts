@@ -2,18 +2,20 @@ import { eq, isNull } from 'drizzle-orm'
 import { DateTime, Effect, Layer, Option, Schema, UndefinedOr } from 'effect'
 import { identity } from 'effect/Function'
 
+import {
+  buildSet,
+  buildWhere,
+  decodeOptionalRow,
+  orDieOnNoRows,
+  orDieWithSqlError,
+  skipUndefined,
+} from '@app-template/db'
 import { ChatRepository, type ChatSet, type ChatWhere } from '@app-template/domain/chat'
 
 import { ChatFromRow } from '#infrastructure/attachment/attachment.entity'
 import { ChatInsert, chats } from '#infrastructure/chat/chat.entity'
 import { withAttachments } from '#infrastructure/chat/message.entity'
-import { buildSet, buildWhere, skipUndefined } from '#infrastructure/db/columns'
-import {
-  Db,
-  decodeOptionalRow,
-  orDieOnNoRows,
-  orDieWithSqlError,
-} from '#infrastructure/db/db.client'
+import { Db } from '#infrastructure/db/db.client'
 
 const encodeChat = Schema.encodeEffect(ChatInsert)
 

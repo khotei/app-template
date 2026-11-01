@@ -1,6 +1,7 @@
 import { assert, describe, it } from '@effect/vitest'
 import { DateTime, Effect, Option, Schema } from 'effect'
 
+import { flipSqlError } from '@app-template/db/testing-e2e'
 import { Chat, ChatId, Message, MessageId } from '@app-template/domain/chat'
 import { UserId } from '@app-template/domain/user'
 import { assertSchemaEquals } from '@app-template/testing'
@@ -8,7 +9,7 @@ import { assertSchemaEquals } from '@app-template/testing'
 import { MessageFromRow } from '#infrastructure/attachment/attachment.entity'
 import { withAttachments } from '#infrastructure/chat/message.entity'
 import { Db } from '#infrastructure/db/db.client'
-import { DbTest, flipSqlError } from '#testing-e2e/db.test-layer'
+import { DbTest } from '#testing-e2e/db.test-layer'
 import { insertChat, insertMessage, insertUser } from '#testing-e2e/rows.test-util'
 
 const createdAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')

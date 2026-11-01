@@ -1,12 +1,13 @@
 import { assert, describe, it } from '@effect/vitest'
 import { DateTime, Effect, Option, Schema } from 'effect'
 
+import { flipSqlError } from '@app-template/db/testing-e2e'
 import { Chat, ChatId, maxTitleLength } from '@app-template/domain/chat'
 import { UserId } from '@app-template/domain/user'
 
 import { ChatInsert, chats } from '#infrastructure/chat/chat.entity'
 import { Db } from '#infrastructure/db/db.client'
-import { DbTest, flipSqlError } from '#testing-e2e/db.test-layer'
+import { DbTest } from '#testing-e2e/db.test-layer'
 import { insertUser } from '#testing-e2e/rows.test-util'
 
 const userId = UserId.make('0192d4e0-7b3a-7c00-8000-000000000060')

@@ -2,9 +2,11 @@
 
 How the app stores its records in Postgres: where the tables are declared, how a row becomes a
 domain model, how the schema changes, and how tests get a database. The code:
-`infrastructure/db/` (the client `Db`, the shared columns, the relations, the migrations and the
-migrate program), `infrastructure/<aggregate>/<entity>.entity.ts` (the tables) and
-`infrastructure/drizzle.config.ts`. Drizzle runs on `@effect/sql-pg` and is reached only through
+`packages/db/` (`@app-template/db`, which knows no table: `createDb`, `Transaction`, the shared
+columns, the query helpers, `migrateDatabase(folder)` and `retryWhileUnreachable`),
+`infrastructure/db/` (the client `Db`, made by `createDb(relations)`, the relations, the
+migrations and the migrate program), `infrastructure/<aggregate>/<entity>.entity.ts` (the tables)
+and `infrastructure/drizzle.config.ts`. Drizzle runs on `@effect/sql-pg` and is reached only through
 Effect: every query is an `Effect`, never a promise.
 
 ## Schema and entity files
@@ -20,7 +22,7 @@ from them and the row codecs derived from them.
 - **Names.** A table is declared with `snakeCase.table` from `drizzle-orm/pg-core`, so the
   `camelCase` keys in code (`createdAt`) become `snake_case` columns (`created_at`) with no name
   spelled twice.
-- **Shared columns** come from `infrastructure/db/columns.ts`: `id()`, a `uuid` primary key with
+- **Shared columns** come from `packages/db/columns.ts`: `id()`, a `uuid` primary key with
   `DEFAULT uuidv7()`, and `createdAt()` and `updatedAt()`, `timestamptz` columns with no default
   and no `$onUpdate`. The domain writes every id and every timestamp with its own clock, so
   `TestClock` holds and there is no second clock; the `uuidv7()` default serves only
@@ -113,24 +115,25 @@ A repository is a `Layer` over `Db` and `SqlClient` in its entity's `.repository
 runs them in one `sql.withTransaction`, passed to `Effect.fn` as a pipeable:
 `UserRepositoryPg.insert` writes the user and its credential, or neither. `SqlClient` is the
 `PgClient` that `Db.layerFromConfig` and `DbTest` publish, so the transaction runs on the
-connection `Db` uses. Every method ends with `orDieWithSqlError` from `db.client.ts`.
+connection `Db` uses. Every method ends with `orDieWithSqlError` from `@app-template/db`.
 
 Reads go through relational queries (`db.query.<table>.findFirst` and `findMany`), writes
 through the core builder (`db.insert`, `db.update`, `db.delete`). A read of at most one row is a
 `findFirst`, which emits the `limit 1` itself, even where a key makes the row unique, so the
-query states its intent; `decodeOptionalRow(<Entity>FromRow)` from `db.client.ts` decodes the
+query states its intent; `decodeOptionalRow(<Entity>FromRow)` from `@app-template/db` decodes the
 row it found, or answers `Option.none()` for the `undefined` or `null` of none. A filter on a
 relation (`{ credentials: { kind, hash } }`) renders as `exists (…)`.
 
 A write of some fields under a condition maps its `<Entity>Set` and `<Entity>Where` onto the
-table through `db/columns.ts`, one mapper per field. `buildSet<Fields, Table>(columns)` takes a
-`SetColumns<Fields, Table>`, each mapper typed by the table's column (`PgUpdateSetSource<Table>`),
-and answers the row Drizzle's `set` takes; `buildWhere<Fields>(columns)` takes a
-`WhereColumns<Fields>`, each mapper answering `SQL | undefined`, and joins them with `and`. A
-mapper answering the wrong shape, a field the type gains without a mapper, and a mapper for a
-field the table has no column for all fail typecheck. The builders walk the mapper table's keys,
-so a whole entity passed as a set writes only the fields it may change; an absent field maps to
-`undefined` (`UndefinedOr.map`), which Drizzle's `set` and `and` skip.
+table through `packages/db/columns.ts`, one mapper per field.
+`buildSet<Fields, Table>(columns)` takes a `SetColumns<Fields, Table>`, each mapper typed by the
+table's column (`PgUpdateSetSource<Table>`), and answers the row Drizzle's `set` takes;
+`buildWhere<Fields>(columns)` takes a `WhereColumns<Fields>`, each mapper answering
+`SQL | undefined`, and joins them with `and`. A mapper answering the wrong shape, a field the
+type gains without a mapper, and a mapper for a field the table has no column for all fail
+typecheck. The builders walk the mapper table's keys, so a whole entity passed as a set writes
+only the fields it may change; an absent field maps to `undefined` (`UndefinedOr.map`), which
+Drizzle's `set` and `and` skip.
 
 ## Guards
 
@@ -182,7 +185,7 @@ never expired: the price of a delete with no transaction.
 ## Transactions
 
 A use case that writes several aggregates commits them together: `Transaction.run` is a pipeable
-of the `Effect.fn` that holds the writes (`Transaction.layer` in `infrastructure/db/db.client.ts`
+of the `Effect.fn` that holds the writes (`Transaction.layer` in `packages/db/db.client.ts`
 wraps `SqlClient.withTransaction`), and every repository call inside joins the transaction
 through the connection `@effect/sql` keeps in the fiber's context, so no port takes a transaction
 parameter. `SendMessageUseCase.send` writes the chat's `status`, the user message, the binds, the
@@ -240,7 +243,7 @@ and that are committed.
 | Command | Does |
 |---|---|
 | `make migration NAME=<name>` | `drizzle-kit generate` in `infrastructure/`: compares the entity files with the last snapshot and writes `infrastructure/db/migrations/<timestamp>_<name>/` (`migration.sql`, `snapshot.json`); needs no database |
-| `make migrate` | applies the pending migrations to `DATABASE_URL` through an Effect program on `DatabaseConfig`; with none pending it logs `nothing to apply`; while the database refuses connections it retries, logging `database not reachable yet, retrying`; any other failed connection or query logs its cause at once |
+| `make migrate` | applies the pending migrations to `DATABASE_URL` through `migrateDatabase(folder)` on `DatabaseConfig`; with none pending it logs `nothing to apply`; while the database refuses connections it retries, logging `database not reachable yet, retrying`; any other failed connection or query logs its cause at once |
 | `make migration-check` | generates into the folder and fails, printing the missing SQL, if a new folder appeared; it removes that folder |
 
 - **`make migration-check` is soft locally and strict in CI.** In `make check` it counts every
@@ -273,7 +276,7 @@ repositories of `infrastructure/__e2e__/testing/repository-stack.test-layer.ts` 
 rows with `insertUser` and its siblings from `infrastructure/__e2e__/testing/rows.test-util.ts`. An
 `.entity.e2e.ts` checks what the schema itself refuses (a check, a partial unique index) and
 reads the `SqlError` of a refused statement with `flipSqlError` from
-`infrastructure/__e2e__/testing/db.test-layer.ts`.
+`@app-template/db/testing-e2e`.
 
 The unit suites never reach Postgres ([tooling.md › Tests](tooling.md#tests)). What only a
 transaction decides, that a use case keeps none of its writes or its outbox rows when one is

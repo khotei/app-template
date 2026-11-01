@@ -20,7 +20,7 @@ graph TD
   apps --> kernel["kernel (config · aws)"]
   infrastructure --> kernel
   kernel --> packages
-  apps --> packages["packages/* (aws · queue · llm · s3 · testing · ui)"]
+  apps --> packages["packages/* (aws · db · queue · llm · s3 · testing · ui)"]
   application --> packages
   infrastructure --> packages
   web["apps/web client"] --> httpApi
@@ -72,7 +72,7 @@ Each row lists what a workspace may import.
 | apps/web client (`app/`, `features/`, `shared/`) | ✗ | ✓ | ✗ | ✗ | ✗ | `ui` only | ✗ |
 | apps/web/main.ts | ✗ | ✗ | ✗ | ✗ | `config` only | `ui` | ✗ |
 | deployment | ✗ | ✗ | ✗ | ✗ | ✓ | ✓ | ✗ |
-| apps/__e2e__ | ✓ | ✓ | ✓ | ✓ | ✓ | `testing` | ✓ (`api/layer`, `worker/layer`) |
+| apps/__e2e__ | ✓ | ✓ | ✓ | ✓ | ✓ | `db`, `testing` | ✓ (`api/layer`, `worker/layer`) |
 
 - **`domain` imports `effect` and no workspace,** not even `packages/*`, and no `@effect/*`
   package but the test runner `@effect/vitest`, so it stays pure and testable without fakes;
@@ -124,7 +124,8 @@ Using the `chat` slice as the map:
 | port | `domain/chat/chat.port.ts`, `message.port.ts`, `assistant.port.ts` | `ChatRepository`, `MessageRepository`, `Assistant` (`Context.Service` with no layer) |
 | domain service: the rules that need a port | `domain/chat/chat.service.ts` | `ChatService`, `ChatService.layer` |
 | memory layers and fixtures | `domain/__tests__/testing/chat.test-fake.ts`, `chat.test-fixture.ts`, `user.test-fixture.ts` | `ChatRepositoryTest`, `ChatRows`, `chat`, `owner`; `RepositoryStackTest` in `repository-stack.test-layer.ts`; all as `@app-template/domain/testing` |
-| database client, transaction and migrations | `infrastructure/db/` | `Db`, `Db.layerFromConfig`, `Transaction`, `migrations/`, the shared columns in `columns.ts`, the relations in `relations.ts`; `TransactionTest` in `__tests__/testing/`, `DbTest` in `__e2e__/testing/` |
+| database tools any app could use | `packages/db/` (`@app-template/db`) | `createDb(relations)`, `Transaction`, the shared columns in `columns.ts`, `migrateDatabase(folder)`, `retryWhileUnreachable`; `TransactionTest` as `./testing`, `flipSqlError` as `./testing-e2e` |
+| database client and migrations | `infrastructure/db/` | `Db` (made by `createDb(relations)`), `Db.layerFromConfig`, `migrations/`, the relations in `relations.ts`; `DbTest` in `__e2e__/testing/` |
 | tables and row codecs | `infrastructure/chat/chat.entity.ts`, `message.entity.ts` | `chats` (`snakeCase.table`), `ChatRow`, `ChatInsert` |
 | adapter implementing a port | `infrastructure/chat/chat.repository.ts`, `assistant.llm.ts`; `attachment/attachment.bucket.ts` | `ChatRepositoryPg`, `AssistantLlm` (with the prompts, over `AssistantModels`, the language model per purpose that `LLM_PROVIDER` picks: [ai.md](ai.md)), `AttachmentBucketS3` (each a `Layer` of its port) |
 | queue definitions | `infrastructure/chat/chat.queue.ts` | `assistantMessageQueue`, `GenerateAssistantMessage` (the job schema) |

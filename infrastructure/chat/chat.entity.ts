@@ -3,10 +3,10 @@ import { createInsertSchema, createSelectSchema } from 'drizzle-orm/effect-schem
 import { check, index, pgEnum, snakeCase, text, uuid } from 'drizzle-orm/pg-core'
 import { Schema } from 'effect'
 
+import { createdAt, id, updatedAt } from '@app-template/db'
 import { ChatId, ChatStatus, ChatTitle, maxTitleLength } from '@app-template/domain/chat'
 import { UserId } from '@app-template/domain/user'
 
-import { createdAt, id, updatedAt } from '#infrastructure/db/columns'
 import { users } from '#infrastructure/user/user.entity'
 
 export const chatStatus = pgEnum('chat_status', ChatStatus.literals)

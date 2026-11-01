@@ -7,6 +7,7 @@
     { "path": "./infrastructure" },
     { "path": "./kernel" },
     { "path": "./packages/aws" },
+    { "path": "./packages/db" },
     { "path": "./packages/queue" },
     { "path": "./packages/llm" },
     { "path": "./packages/s3" },

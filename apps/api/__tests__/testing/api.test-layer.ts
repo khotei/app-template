@@ -2,9 +2,10 @@ import { BunCrypto, BunHttpServer } from '@effect/platform-bun'
 import { ConfigProvider, Layer } from 'effect'
 import { Cookies } from 'effect/http'
 
+import { TransactionTest } from '@app-template/db/testing'
 import { AttachmentBucketTest, RepositoryStackTest } from '@app-template/domain/testing'
 import { ApiClient } from '@app-template/http-api'
-import { CurrentReplyProvenanceTest, TransactionTest } from '@app-template/infrastructure/testing'
+import { CurrentReplyProvenanceTest } from '@app-template/infrastructure/testing'
 import { recordQueue } from '@app-template/queue/testing'
 import { layerCookieJarTest } from '@app-template/testing'
 

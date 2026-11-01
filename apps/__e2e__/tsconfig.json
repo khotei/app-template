@@ -13,6 +13,7 @@
     { "path": "../../http-api" },
     { "path": "../../infrastructure" },
     { "path": "../../kernel" },
+    { "path": "../../packages/db" },
     { "path": "../../packages/testing" }
   ]
 }

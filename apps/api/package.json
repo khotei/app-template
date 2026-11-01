@@ -15,6 +15,7 @@
     "start": "bun --env-file=../../.env --env-file=../../.env.pulumi main.ts"
   },
   "dependencies": {
+    "@app-template/db": "workspace:*",
     "@app-template/domain": "workspace:*",
     "@app-template/http-api": "workspace:*",
     "@app-template/infrastructure": "workspace:*",

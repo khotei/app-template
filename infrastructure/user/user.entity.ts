@@ -3,9 +3,8 @@ import { createInsertSchema, createSelectSchema } from 'drizzle-orm/effect-schem
 import { check, pgEnum, snakeCase, text, uuid } from 'drizzle-orm/pg-core'
 import { Schema } from 'effect'
 
+import { createdAt, id } from '@app-template/db'
 import { Credential, secretHashPattern, User, UserId } from '@app-template/domain/user'
-
-import { createdAt, id } from '#infrastructure/db/columns'
 
 export const users = snakeCase.table('users', { id: id(), createdAt: createdAt() })
 

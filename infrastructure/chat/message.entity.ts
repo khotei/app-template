@@ -12,6 +12,7 @@ import {
 } from 'drizzle-orm/pg-core'
 import { Schema } from 'effect'
 
+import { createdAt, id, updatedAt } from '@app-template/db'
 import {
   ActiveMessageStatus,
   ChatId,
@@ -22,7 +23,6 @@ import {
 } from '@app-template/domain/chat'
 
 import { chats } from '#infrastructure/chat/chat.entity'
-import { createdAt, id, updatedAt } from '#infrastructure/db/columns'
 
 export const messageAuthor = pgEnum('message_author', MessageAuthor.literals)
 

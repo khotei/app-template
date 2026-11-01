@@ -2,6 +2,13 @@ import { and, eq } from 'drizzle-orm'
 import { Array as Arr, Effect, Layer, Schema, UndefinedOr } from 'effect'
 
 import {
+  buildWhere,
+  decodeOptionalRow,
+  orDieOnNoRows,
+  orDieWithSqlError,
+  skipUndefined,
+} from '@app-template/db'
+import {
   MessageRepository,
   type MessageUpdateWhere,
   type MessageWhere,
@@ -15,13 +22,7 @@ import {
   messages,
   withAttachments,
 } from '#infrastructure/chat/message.entity'
-import { buildWhere, skipUndefined } from '#infrastructure/db/columns'
-import {
-  Db,
-  decodeOptionalRow,
-  orDieOnNoRows,
-  orDieWithSqlError,
-} from '#infrastructure/db/db.client'
+import { Db } from '#infrastructure/db/db.client'
 
 const encodeMessage = Schema.encodeEffect(MessageInsert)
 

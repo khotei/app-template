@@ -1,5 +1,6 @@
 import { Context, Crypto, DateTime, Effect, Layer, Option } from 'effect'
 
+import { Transaction } from '@app-template/db'
 import {
   type AttachmentBoundError,
   type AttachmentNotFoundError,
@@ -30,7 +31,6 @@ import {
   GenerateAssistantMessage,
   GenerateChatTitle,
 } from '@app-template/infrastructure/chat'
-import { Transaction } from '@app-template/infrastructure/db'
 import { QueueSender } from '@app-template/queue'
 
 export interface SentMessages {

@@ -1,10 +1,10 @@
 import { Effect, Layer, Schema, UndefinedOr } from 'effect'
 import { SqlClient } from 'effect/sql'
 
+import { decodeOptionalRow, orDieWithSqlError, skipUndefined } from '@app-template/db'
 import { UserRepository, type UserWhere } from '@app-template/domain/user'
 
-import { skipUndefined } from '#infrastructure/db/columns'
-import { Db, decodeOptionalRow, orDieWithSqlError } from '#infrastructure/db/db.client'
+import { Db } from '#infrastructure/db/db.client'
 import { credentials, UserFromRow, UserInsert, users } from '#infrastructure/user/user.entity'
 
 const encodeUser = Schema.encodeEffect(UserInsert)

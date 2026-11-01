@@ -11,6 +11,7 @@
     "#testing/*": "./__tests__/testing/*.ts"
   },
   "dependencies": {
+    "@app-template/db": "workspace:*",
     "@app-template/domain": "workspace:*",
     "@app-template/infrastructure": "workspace:*",
     "@app-template/queue": "workspace:*",

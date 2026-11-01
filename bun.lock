@@ -16,6 +16,7 @@
     "application/use-cases": {
       "name": "@app-template/use-cases",
       "dependencies": {
+        "@app-template/db": "workspace:*",
         "@app-template/domain": "workspace:*",
         "@app-template/infrastructure": "workspace:*",
         "@app-template/queue": "workspace:*",
@@ -31,6 +32,7 @@
       "name": "@app-template/e2e",
       "devDependencies": {
         "@app-template/api": "workspace:*",
+        "@app-template/db": "workspace:*",
         "@app-template/domain": "workspace:*",
         "@app-template/http-api": "workspace:*",
         "@app-template/infrastructure": "workspace:*",
@@ -47,6 +49,7 @@
     "apps/api": {
       "name": "@app-template/api",
       "dependencies": {
+        "@app-template/db": "workspace:*",
         "@app-template/domain": "workspace:*",
         "@app-template/http-api": "workspace:*",
         "@app-template/infrastructure": "workspace:*",
@@ -73,6 +76,7 @@
     "apps/worker": {
       "name": "@app-template/worker",
       "dependencies": {
+        "@app-template/db": "workspace:*",
         "@app-template/domain": "workspace:*",
         "@app-template/infrastructure": "workspace:*",
         "@app-template/kernel": "workspace:*",
@@ -120,6 +124,7 @@
       "name": "@app-template/infrastructure",
       "dependencies": {
         "@app-template/aws": "workspace:*",
+        "@app-template/db": "workspace:*",
         "@app-template/domain": "workspace:*",
         "@app-template/kernel": "workspace:*",
         "@app-template/llm": "workspace:*",
@@ -162,6 +167,19 @@
         "@effect-aws/client-s3": "catalog:effect-aws",
         "@effect-aws/client-sqs": "catalog:effect-aws",
         "effect": "catalog:effect",
+      },
+    },
+    "packages/db": {
+      "name": "@app-template/db",
+      "dependencies": {
+        "@effect/sql-pg": "catalog:effect",
+        "drizzle-orm": "catalog:drizzle",
+        "effect": "catalog:effect",
+      },
+      "devDependencies": {
+        "@app-template/testing": "workspace:*",
+        "@effect/platform-bun": "catalog:effect",
+        "@effect/vitest": "catalog:effect",
       },
     },
     "packages/llm": {
@@ -249,6 +267,8 @@
     "@app-template/api": ["@app-template/api@workspace:apps/api"],
 
     "@app-template/aws": ["@app-template/aws@workspace:packages/aws"],
+
+    "@app-template/db": ["@app-template/db@workspace:packages/db"],
 
     "@app-template/deployment": ["@app-template/deployment@workspace:deployment"],
 

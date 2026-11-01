@@ -3,6 +3,7 @@ import { createInsertSchema, createSelectSchema } from 'drizzle-orm/effect-schem
 import { check, foreignKey, index, integer, snakeCase, text, uuid } from 'drizzle-orm/pg-core'
 import { Schema } from 'effect'
 
+import { createdAt, id } from '@app-template/db'
 import {
   Attachment,
   AttachmentId,
@@ -16,7 +17,6 @@ import { UserId } from '@app-template/domain/user'
 
 import { ChatRow } from '#infrastructure/chat/chat.entity'
 import { MessageRow, messages } from '#infrastructure/chat/message.entity'
-import { createdAt, id } from '#infrastructure/db/columns'
 import { users } from '#infrastructure/user/user.entity'
 
 export const attachments = snakeCase.table(

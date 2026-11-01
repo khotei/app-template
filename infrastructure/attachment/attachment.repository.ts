@@ -1,6 +1,7 @@
 import { eq, inArray, isNull } from 'drizzle-orm'
 import { Array as Arr, Effect, Filter, Layer, Option, pipe, Schema, UndefinedOr } from 'effect'
 
+import { buildSet, buildWhere, orDieOnNoRows, orDieWithSqlError } from '@app-template/db'
 import {
   type Attachment,
   type AttachmentId,
@@ -14,8 +15,7 @@ import {
   AttachmentInsert,
   attachments,
 } from '#infrastructure/attachment/attachment.entity'
-import { buildSet, buildWhere } from '#infrastructure/db/columns'
-import { Db, orDieOnNoRows, orDieWithSqlError } from '#infrastructure/db/db.client'
+import { Db } from '#infrastructure/db/db.client'
 
 const encodeAttachment = Schema.encodeEffect(AttachmentInsert)
 

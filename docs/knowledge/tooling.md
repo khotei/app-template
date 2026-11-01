@@ -70,14 +70,14 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   workspace needs no test config, and the vendored suites and the worktrees' copies stay out.
 - **One Postgres and one MiniStack per e2e run, a database and a stage per test.**
   `infrastructure/__e2e__/testing/e2e.test-setup.ts` starts one `postgres:18.6-alpine` container
-  (about 1.2 s) and migrates a template database in it with the program `make migrate` runs, and one
-  MiniStack container beside it (about two seconds for both). Each test provides `PgClientTest`
-  from `@app-template/testing`: a fresh database copied from the template and dropped when the
-  test ends, about 40 ms in all; a test on S3 or SQS provides `AwsTest` from
-  `kernel/__e2e__/testing/aws.test-layer.ts`: a stage of its own on the run's MiniStack,
-  its bucket and queues provisioned ([aws.md › Tests on Docker](aws.md#tests-on-docker)). A test
-  therefore sees only its own rows and resources, even through a query that reads a whole table,
-  and files run in parallel. E2e tests need Docker and nothing else: no `.env`, no `make up`.
+  (about 1.2 s) and migrates a template database in it with `migrateDatabase(folder)`, as
+  `make migrate` does, and one MiniStack container beside it (about two seconds for both). Each
+  test provides `PgClientTest` from `@app-template/testing`: a fresh database copied from the
+  template and dropped when the test ends, about 40 ms in all; a test on S3 or SQS provides
+  `AwsTest` from `kernel/__e2e__/testing/aws.test-layer.ts`: a stage of its own on the run's
+  MiniStack, its bucket and queues provisioned
+  ([aws.md › Tests on Docker](aws.md#tests-on-docker)). A test therefore sees only its own rows and
+  resources, even through a query that reads a whole table, and files run in parallel. E2e tests need Docker and nothing else: no `.env`, no `make up`.
 - **Two worktrees at once.** Testcontainers maps each container to a free host port and names it
   itself, so two trees run `make test-e2e` side by side, and beside their local stands, with
   nothing to configure; a unit run starts nothing at all.

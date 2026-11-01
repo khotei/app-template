@@ -1,14 +1,14 @@
 import { PgClient } from '@effect/sql-pg'
 import { PostgreSqlContainer } from '@testcontainers/postgresql'
-import { Effect, Layer, Redacted } from 'effect'
+import { Effect, Redacted } from 'effect'
 import { GenericContainer, type StartedTestContainer, Wait } from 'testcontainers'
 import type { TestProject } from 'vitest/node'
 
+import { migrateDatabase } from '@app-template/db'
 import { ministackImage, postgresImage } from '@app-template/kernel/config'
 import { ministackRegion, templateDatabase } from '@app-template/testing'
 
-import { Db } from '#infrastructure/db/db.client'
-import { migrateDatabase } from '#infrastructure/db/migrate'
+import { migrationsFolder } from '#infrastructure/db/migrate'
 
 const startPostgresWithTemplate = async () => {
   const container = await new PostgreSqlContainer(postgresImage).start()
@@ -27,9 +27,7 @@ const startPostgresWithTemplate = async () => {
     yield* admin.unsafe(`CREATE DATABASE ${templateDatabase}`)
     // The provide closes the migration's pool here: `CREATE DATABASE … TEMPLATE` refuses a
     // template that still has a session.
-    yield* migrateDatabase.pipe(
-      Effect.provide(Layer.provide(Db.layer, onDatabase(templateDatabase))),
-    )
+    yield* migrateDatabase(migrationsFolder).pipe(Effect.provide(onDatabase(templateDatabase)))
     yield* admin.unsafe(`ALTER DATABASE ${templateDatabase} IS_TEMPLATE true`)
   }).pipe(Effect.provide(onDatabase(container.getDatabase())))
 

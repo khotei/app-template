@@ -1,5 +1,6 @@
 import { type Config, DateTime, Effect, Layer, type Schema } from 'effect'
 
+import { orDieWithSqlError } from '@app-template/db'
 import { SQSServiceFromConfig } from '@app-template/kernel/aws'
 import { buildResourceName } from '@app-template/kernel/aws/resources'
 import {
@@ -15,7 +16,7 @@ import {
   QueueTransport,
 } from '@app-template/queue'
 
-import { Db, orDieWithSqlError } from '#infrastructure/db/db.client'
+import { Db } from '#infrastructure/db/db.client'
 import { outbox } from '#infrastructure/outbox/outbox.entity'
 
 /** Consumes queues on SQS, whose redrive policy moves a spent message to its dead-letter queue. */
