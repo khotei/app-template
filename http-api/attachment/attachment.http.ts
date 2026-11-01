@@ -7,9 +7,10 @@ import {
   AttachmentId,
   Attachment as AttachmentModel,
   AttachmentNotFoundError,
+  ChatId,
   MediaType,
-} from '@app-template/domain/attachment'
-import { ChatId, MessageId } from '@app-template/domain/chat'
+  MessageId,
+} from '@app-template/chat/domain'
 import { Auth } from '@app-template/identity-contract'
 
 import { AttachmentTooLargeError, AttachmentTypeUnsupportedError } from '#http-api/shared/errors'

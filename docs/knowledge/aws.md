@@ -128,9 +128,9 @@ file. The api and the worker run on `AttachmentPgS3`.
   small upload only. Binding the attachment removes the tag before the bind is written, so a
   crash between leaves an orphaned object, never a bound attachment without bytes.
 - **Expiry.** An attachment still unbound 24 hours after its upload (`unboundLifetime` in
-  `domain/attachment`) reads as not found everywhere; no read deletes it, since a delete on read
-  would race a send binding it. Its object goes by the bucket's rule, which acts after
-  `unboundExpirationDays` (S3 rounds up to the next midnight UTC);
+  `application/chat/domain/attachment.model.ts`) reads as not found everywhere; no read deletes
+  it, since a delete on read would race a send binding it. Its object goes by the bucket's rule,
+  which acts after `unboundExpirationDays` (S3 rounds up to the next midnight UTC);
   `infrastructure/__tests__/shared/resources.test.ts` keeps those days no shorter than `unboundLifetime`, so
   nothing still bindable loses its bytes. Its row stays, since no sweep removes expired rows.
   Locally the object stays as well, since MiniStack never runs the rule

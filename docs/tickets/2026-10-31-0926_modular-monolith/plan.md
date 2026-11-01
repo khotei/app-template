@@ -18,7 +18,7 @@
 | S10 | the table `jobs` and `JobRepository`; one initial migration; the queue in `kernel/queue` | done |
 | S11 | the `identity` module and `identity-contract` | done |
 | S12 | `UserRepository` in the data layer; the first port gone | todo |
-| S13 | chat's domain and services in `application/chat`; no `domain` workspace | todo |
+| S13 | chat's domain and services in `application/chat`; no `domain` workspace | done |
 | S14 | `ChatRepository` and `MessageRepository` in the data layer | done |
 | S15 | `AttachmentRepository` in the data layer | done |
 | S16 | the memory repositories over entities in the kernel's test support | todo |
@@ -656,7 +656,23 @@
 - **Verify:** `make check`; `git grep -n "@app-template/domain"` finds nothing; `ls domain` fails;
   `make bundle-check` fails on a throwaway import of `ChatService` into the web app (reverted).
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The `application/*/services/**` override had landed in S11, so this step adds none.
+  - The kernel, packages and deployment overrides ban `@app-template/chat` where they banned
+    `@app-template/domain`, so the guard does not lapse; identity is unguarded there since S11,
+    which S21's per-ring guards close.
+  - The Dependency rules table in `docs/knowledge/architecture.md` names `use-cases` where it named
+    `application`, and its module column states what `biome.json` allows (`http-api`: `domain`
+    only; `infrastructure`: all but `services`); S22 rewrites the page.
+  - `make bundle-check`'s throwaway import of `ChatService` goes through `http-api/index.ts`, since
+    the web app may not import a module.
+  - Beyond the Files: `.claude/skills/explain/REPORT.md` (the layers of its diagram, S23's file) and
+    one path in `docs/knowledge/roadmap.md` (`application/chat/domain/status.model.ts`).
+  - Round S13.2 (review): doc lines re-wrapped to 100, `effect-tests.md` names
+    `@app-template/<module>/testing`, the table checked cell by cell against `biome.json`.
+  - Size: 110 files, +391 / −554, nearly all moves and import lines; the four `domain/**`
+    overrides account for −179.
 
 #### S14 — Chats and messages in the data layer
 

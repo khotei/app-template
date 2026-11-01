@@ -6,9 +6,9 @@
   },
   "include": ["**/*.ts"],
   "references": [
+    { "path": "../application/chat" },
     { "path": "../application/identity" },
     { "path": "../application/identity/contract" },
-    { "path": "../domain" },
     { "path": "../kernel" },
     { "path": "../packages/aws" },
     { "path": "../packages/db" },

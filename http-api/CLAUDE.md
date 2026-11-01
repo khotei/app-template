@@ -4,8 +4,8 @@ The HTTP contract: one `HttpApi` over the domain, shared by `apps/api`, which im
 the browser, which calls it through its client.
 
 - **Browser-safe:** no Bun APIs, no `Bun.env`, no Node built-ins.
-- **Reuse the domain; never redeclare it.** Ids, models and errors come from `@app-template/domain`,
-  a module's contract (`@app-template/<module>-contract`) or its `/domain`. A DTO is the model's
+- **Reuse the domain; never redeclare it.** Ids, models and errors come from a module's contract
+  (`@app-template/<module>-contract`) or its `/domain`. A DTO is the model's
   `mapFields`: it only drops an internal field, turns an `Option` into `NullOr` or swaps a nested
   model for its DTO.
 - **`index.ts` re-exports each domain schema a payload names**: `web` may not import the domain,

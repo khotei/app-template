@@ -4,25 +4,23 @@ import { Cause, DateTime, Effect, Exit, Fiber, HashMap, Layer, Option, Ref, Stre
 import { TestClock } from 'effect/testing'
 
 import {
+  AssistantFailedError,
+  AssistantRefusedError,
+  AssistantReply,
   Attachment,
   AttachmentBucket,
   AttachmentId,
   AttachmentRepository,
+  buildAssistantMessage,
   buildAttachment,
+  Chat,
   FileName,
   FileSize,
   MediaType,
-} from '@app-template/domain/attachment'
-import {
-  AssistantFailedError,
-  AssistantRefusedError,
-  AssistantReply,
-  buildAssistantMessage,
-  Chat,
   Message,
   type MessageId,
   MessageRepository,
-} from '@app-template/domain/chat'
+} from '@app-template/chat/domain'
 import {
   type AssistantCallHold,
   asCompleted,
@@ -39,7 +37,7 @@ import {
   selectChat,
   selectMessage,
   userMessageAt,
-} from '@app-template/domain/testing'
+} from '@app-template/chat/testing'
 import { GenerateAssistantMessage } from '@app-template/infrastructure/chat'
 import { replyProvenance } from '@app-template/infrastructure/testing'
 import { epoch, png, recordLogs } from '@app-template/testing'

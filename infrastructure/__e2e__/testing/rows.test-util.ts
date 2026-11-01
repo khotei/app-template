@@ -1,6 +1,6 @@
 import { pipe, Schema } from 'effect'
 
-import type { Chat, Message } from '@app-template/domain/chat'
+import type { Chat, Message } from '@app-template/chat/domain'
 import type { UserId } from '@app-template/identity-contract'
 import { Db } from '@app-template/kernel/data'
 import {

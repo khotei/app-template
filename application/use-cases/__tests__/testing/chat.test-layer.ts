@@ -1,20 +1,16 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { Array as Arr, Layer } from 'effect'
 
-import { TransactionTest } from '@app-template/db/testing'
-import {
-  type Attachment,
-  AttachmentRepository,
-  AttachmentService,
-} from '@app-template/domain/attachment'
-import { ChatService } from '@app-template/domain/chat'
+import { type Attachment, AttachmentRepository } from '@app-template/chat/domain'
+import { AttachmentService, ChatService } from '@app-template/chat/services'
 import {
   AttachmentBucketTest,
   chat,
   insertChatLayer,
   queuedChat,
   RepositoryStackTest,
-} from '@app-template/domain/testing'
+} from '@app-template/chat/testing'
+import { TransactionTest } from '@app-template/db/testing'
 import { CurrentReplyProvenanceTest } from '@app-template/infrastructure/testing'
 
 import { GenerateAssistantMessageUseCase } from '#use-cases/chat/generate-assistant-message.use-case'

@@ -38,9 +38,13 @@ and `make setup` and `make test-unit` need neither.
 | `make vendor-drizzle` | `git subtree add`, then `pull`, `--squash --prefix repos/drizzle` of the `v<pin>` tag of `drizzle-orm` | the same for `repos/drizzle`: the whole Drizzle monorepo, since `git subtree` takes no subfolder; the source is under `repos/drizzle/drizzle-orm/src` |
 | `make clean` | removes every `node_modules` and `coverage` | a clean reinstall: follow with `make setup` |
 
-One file, or the tests whose name matches, through vitest itself:
-`bun --bun vitest run --project unit domain/__tests__/chat/chat.service.test.ts -t rename`
-(`--project e2e` for an e2e file, Docker running); `vitest` without `run` watches.
+One file, or the tests whose name matches, through vitest itself (`--project e2e` for an e2e
+file, Docker running; `vitest` without `run` watches):
+
+```sh
+bun --bun vitest run --project unit \
+  application/chat/__tests__/services/chat.service.test.ts -t rename
+```
 
 The root `test` script, `bun --bun vitest run`, runs both projects at once (CI's `bun run test`);
 `bun test` would instead start Bun's own test runner, which is denied in `.claude/settings.json`.
@@ -324,8 +328,8 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 |---|---|---|
 | `TS2307: Cannot find module '@app-template/<name>'` from `make typecheck`, or `Cannot find module` at runtime | the import is allowed, but the workspace is not declared in this workspace's `package.json` | add `"@app-template/<name>": "workspace:*"` and a `tsconfig.json` reference, then `bun install` |
 | `TS6059 … is not under 'rootDir'` and `TS6307 … is not listed within the file list of project` | a relative path reaches into another workspace that is not referenced | import it as `@app-template/<name>/…`; relative paths are banned anyway |
-| Biome `lint/style/noRestrictedImports`: `domain is the pure core…` or `… no upward imports` | the import goes up a layer or into a sibling app, or `domain` imports an `@effect/*` package other than `@effect/vitest` | move the shared code down a layer, or receive it as an argument; in `domain`, use an `effect` module; see [architecture.md](architecture.md#dependency-rules) |
-| Biome `noRestrictedImports`: `… never a relative path` | a `./` or `../` import inside a workspace | use `#<workspace>/<path>`, for example `#domain/chat/chat.model` |
+| Biome `lint/style/noRestrictedImports`: `a module's domain is pure…` or `… no upward imports` | the import goes up a layer or into a sibling app, or a module's `domain/` imports an `@effect/*` package | move the shared code down a layer, or receive it as an argument; in a module's `domain/`, use an `effect` module; see [architecture.md](architecture.md#dependency-rules) |
+| Biome `noRestrictedImports`: `… never a relative path` | a `./` or `../` import inside a workspace | use `#<workspace>/<path>`, for example `#domain/chat.model` |
 | Biome `lint/suspicious/noImportCycles`: `This import is part of a cycle` | two modules import each other, typically two aggregates' models through their ids | import the other aggregate's id from its `<aggregate>.id.ts`, never its model |
 | Biome `assist/source/organizeImports`: `Sort these imports.` | import groups out of order or without blank lines between them | `make fmt` |
 | a commit is rejected after `tsc` or Biome output | the `pre-commit` hook failed | fix the reported error, `git add`, and commit again |

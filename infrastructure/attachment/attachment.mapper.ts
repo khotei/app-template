@@ -3,11 +3,12 @@ import { Schema } from 'effect'
 import {
   Attachment,
   AttachmentId,
+  ChatId,
   FileName,
   FileSize,
   MediaType,
-} from '@app-template/domain/attachment'
-import { ChatId, MessageId } from '@app-template/domain/chat'
+  MessageId,
+} from '@app-template/chat/domain'
 import { UserId } from '@app-template/identity-contract'
 import { AttachmentEntity } from '@app-template/kernel/data/attachment'
 

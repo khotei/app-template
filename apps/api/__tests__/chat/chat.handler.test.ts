@@ -9,7 +9,7 @@ import {
   type MessageId,
   MessageNotFoundError,
   MessageRepository,
-} from '@app-template/domain/chat'
+} from '@app-template/chat/domain'
 import { ApiClient } from '@app-template/http-api'
 import { UserUnknownError } from '@app-template/identity-contract'
 import { assertSchemaEquals } from '@app-template/testing'

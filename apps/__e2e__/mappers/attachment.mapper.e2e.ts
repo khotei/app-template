@@ -1,14 +1,8 @@
 import { describe, it } from '@effect/vitest'
 import { DateTime, Effect, Option, pipe, Schema } from 'effect'
 
-import {
-  Attachment,
-  AttachmentId,
-  FileName,
-  FileSize,
-  MediaType,
-} from '@app-template/domain/attachment'
-import { owner } from '@app-template/domain/testing'
+import { Attachment, AttachmentId, FileName, FileSize, MediaType } from '@app-template/chat/domain'
+import { owner } from '@app-template/chat/testing'
 import { AttachmentFromEntity } from '@app-template/infrastructure/attachment'
 import { Db } from '@app-template/kernel/data'
 import { AttachmentEntityInsert, attachments } from '@app-template/kernel/data/attachment'

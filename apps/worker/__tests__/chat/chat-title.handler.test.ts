@@ -2,7 +2,7 @@ import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Layer, Option } from 'effect'
 
-import { Chat, ChatTitle } from '@app-template/domain/chat'
+import { Chat, ChatTitle } from '@app-template/chat/domain'
 import {
   chat,
   chatId,
@@ -11,7 +11,7 @@ import {
   messageId,
   recordAssistant,
   selectChat,
-} from '@app-template/domain/testing'
+} from '@app-template/chat/testing'
 import { GenerateChatTitle } from '@app-template/infrastructure/chat'
 import { recordLogs } from '@app-template/testing'
 import { ChatTitleTest } from '@app-template/use-cases/testing'

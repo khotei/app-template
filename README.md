@@ -80,7 +80,7 @@ The workspaces, from the bottom up; each imports only from the ones below it:
 
 | Workspace | Holds | Never holds |
 |---|---|---|
-| `domain/` | models (`Schema.Class`), branded ids, errors, ports, and the domain services that own the rules | SQL, HTTP, AWS, an `@effect/*` package (tests aside) |
+| `application/<module>/` | a module (`chat`, `identity`): models (`Schema.Class`), branded ids, errors and ports in `domain/`, the domain services that own the rules in `services/` | SQL, HTTP, AWS, an `@effect/*` package (tests aside) |
 | `http-api/` | the `HttpApi` contract over the domain's schemas, shared by the api and the browser | handlers, services |
 | `application/use-cases/` | use cases: a flow across domain services, the queue, the bucket, the assistant, in one `Transaction` | rules of an entity, adapters |
 | `infrastructure/` | adapters of the ports: Postgres repositories, the S3 bucket, the LLM | business rules |
@@ -108,7 +108,8 @@ and the alternatives they rejected: each ticket's `architecture.md › Decisions
 One entity crosses every layer under the same folder name. The `chat` slice, by file suffix:
 
 ```text
-domain/chat/                     chat.id  chat.model  chat.error  chat.port  chat.service
+application/chat/domain/         chat.id  chat.model  chat.error  chat.port
+application/chat/services/       chat.service
 application/use-cases/chat/      send-message.use-case  generate-assistant-message.use-case
 infrastructure/chat/             chat.entity  chat.repository  chat.queue  assistant.llm
 http-api/chat/                   chat.http

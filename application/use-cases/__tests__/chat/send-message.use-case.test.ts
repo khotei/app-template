@@ -2,9 +2,10 @@ import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { DateTime, Effect, Layer, Option } from 'effect'
 
-import { Attachment, AttachmentNotFoundError } from '@app-template/domain/attachment'
 import {
   ActiveMessageStatus,
+  Attachment,
+  AttachmentNotFoundError,
   buildAssistantMessage,
   buildUserMessage,
   Chat,
@@ -15,7 +16,7 @@ import {
   Message,
   type MessageId,
   MessageRepository,
-} from '@app-template/domain/chat'
+} from '@app-template/chat/domain'
 import {
   ask,
   chat,
@@ -24,7 +25,7 @@ import {
   selectMessages,
   stranger,
   upload,
-} from '@app-template/domain/testing'
+} from '@app-template/chat/testing'
 import { GenerateAssistantMessage, GenerateChatTitle } from '@app-template/infrastructure/chat'
 import { replyProvenance } from '@app-template/infrastructure/testing'
 import { recordQueue } from '@app-template/queue/testing'

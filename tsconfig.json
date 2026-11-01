@@ -1,8 +1,8 @@
 {
   "files": [],
   "references": [
-    { "path": "./domain" },
     { "path": "./http-api" },
+    { "path": "./application/chat" },
     { "path": "./application/identity" },
     { "path": "./application/identity/contract" },
     { "path": "./application/use-cases" },

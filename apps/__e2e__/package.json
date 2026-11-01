@@ -7,8 +7,8 @@
   },
   "devDependencies": {
     "@app-template/api": "workspace:*",
+    "@app-template/chat": "workspace:*",
     "@app-template/db": "workspace:*",
-    "@app-template/domain": "workspace:*",
     "@app-template/http-api": "workspace:*",
     "@app-template/identity": "workspace:*",
     "@app-template/identity-contract": "workspace:*",

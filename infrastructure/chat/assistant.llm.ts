@@ -32,7 +32,7 @@ import {
   type HistoryMessage,
   isBlank,
   maxTitleLength,
-} from '@app-template/domain/chat'
+} from '@app-template/chat/domain'
 import { ReplyModelConfig } from '@app-template/kernel/config'
 import { createLanguageModel } from '@app-template/kernel/llm'
 

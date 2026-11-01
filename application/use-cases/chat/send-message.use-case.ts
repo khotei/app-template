@@ -1,19 +1,14 @@
 import { Context, Crypto, DateTime, Effect, Layer, Option } from 'effect'
 
-import { generateId, Transaction } from '@app-template/db'
 import {
   type AttachmentBoundError,
   type AttachmentNotFoundError,
-  AttachmentService,
-} from '@app-template/domain/attachment'
-import {
   buildAssistantMessage,
   buildUserMessage,
   type ChatBusyError,
   type ChatId,
   type ChatNotFoundError,
   ChatRepository,
-  ChatService,
   ensureMessageInput,
   Message,
   MessageId,
@@ -21,7 +16,9 @@ import {
   type MessageInputInvalidError,
   MessageRepository,
   queueChat,
-} from '@app-template/domain/chat'
+} from '@app-template/chat/domain'
+import { AttachmentService, ChatService } from '@app-template/chat/services'
+import { generateId, Transaction } from '@app-template/db'
 import type { UserId } from '@app-template/identity-contract'
 import {
   assistantMessageQueue,

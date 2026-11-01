@@ -1,7 +1,7 @@
 import { Duration, Schema } from 'effect'
 
 import { buildDeadLetterName } from '@app-template/aws'
-import { ChatId, MessageId } from '@app-template/domain/chat'
+import { ChatId, MessageId } from '@app-template/chat/domain'
 import { resources } from '@app-template/kernel/aws/resources'
 import type { QueueDefinition } from '@app-template/queue'
 

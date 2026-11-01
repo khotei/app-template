@@ -1,11 +1,11 @@
 import { Array as Arr, Cause, Context, Data, DateTime, Effect, Layer, Option } from 'effect'
 
-import { Transaction } from '@app-template/db'
-import { type Attachment, AttachmentBucket } from '@app-template/domain/attachment'
 import {
   Assistant,
   type AssistantError,
   type AssistantReply,
+  type Attachment,
+  AttachmentBucket,
   type ChatId,
   ChatRepository,
   type ChatStatusInvalidError,
@@ -23,7 +23,8 @@ import {
   type MessageStatusInvalidError,
   type MessageUpdateWhere,
   prepareMessage,
-} from '@app-template/domain/chat'
+} from '@app-template/chat/domain'
+import { Transaction } from '@app-template/db'
 import type { GenerateAssistantMessage } from '@app-template/infrastructure/chat'
 
 type ReplySkip = 'chatDeleted' | 'alreadySettled'

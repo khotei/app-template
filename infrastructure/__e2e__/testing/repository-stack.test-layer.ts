@@ -1,6 +1,6 @@
 import { DateTime, Effect, Layer } from 'effect'
 
-import { buildChat, type ChatId, ChatRepository } from '@app-template/domain/chat'
+import { buildChat, type ChatId, ChatRepository } from '@app-template/chat/domain'
 import type { UserId } from '@app-template/identity-contract'
 import { DbTest } from '@app-template/kernel/testing-e2e'
 

@@ -5,8 +5,6 @@ import {
   AttachmentBoundError,
   AttachmentId,
   AttachmentNotFoundError,
-} from '@app-template/domain/attachment'
-import {
   ChatBusyError,
   ChatId,
   Chat as ChatModel,
@@ -17,7 +15,7 @@ import {
   MessageInputInvalidError,
   Message as MessageModel,
   MessageNotFoundError,
-} from '@app-template/domain/chat'
+} from '@app-template/chat/domain'
 import { Auth } from '@app-template/identity-contract'
 
 import { Attachment } from '#http-api/attachment/attachment.http'

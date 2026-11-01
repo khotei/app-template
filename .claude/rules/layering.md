@@ -1,6 +1,5 @@
 ---
 paths:
-  - "domain/**"
   - "application/**"
   - "apps/**"
 ---

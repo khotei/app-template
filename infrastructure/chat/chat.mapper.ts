@@ -7,7 +7,7 @@ import {
   Message,
   MessageFailure,
   MessageId,
-} from '@app-template/domain/chat'
+} from '@app-template/chat/domain'
 import { UserId } from '@app-template/identity-contract'
 import { ChatEntity, MessageEntity } from '@app-template/kernel/data/chat'
 

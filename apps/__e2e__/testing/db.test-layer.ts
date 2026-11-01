@@ -1,6 +1,6 @@
 import { Effect, Layer } from 'effect'
 
-import { owner, stranger } from '@app-template/domain/testing'
+import { owner, stranger } from '@app-template/chat/testing'
 import { buildUser, Credential, SecretHash, UserRepository } from '@app-template/identity/domain'
 import type { UserId } from '@app-template/identity-contract'
 import { UserPg } from '@app-template/infrastructure/user'

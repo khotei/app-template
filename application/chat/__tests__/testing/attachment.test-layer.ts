@@ -1,0 +1,20 @@
+import { Effect, Stream } from 'effect'
+
+import type { UserId } from '@app-template/identity-contract'
+import { png } from '@app-template/testing'
+
+import { FileName, MediaType } from '#domain/attachment.model'
+import { AttachmentService } from '#services/attachment.service'
+
+/** Uploads one `png` as `photo.png` for `userId` through the `AttachmentService` in context. */
+export const upload = (userId: UserId) =>
+  AttachmentService.use((attachments) =>
+    attachments.upload(
+      userId,
+      Stream.make({
+        fileName: FileName.make('photo.png'),
+        mediaType: MediaType.make('image/png'),
+        content: Stream.make(png),
+      }),
+    ),
+  ).pipe(Effect.head, Effect.orDie)

@@ -1,15 +1,15 @@
 import { Crypto, DateTime, Effect } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
-import { generateId } from '@app-template/db'
 import {
   buildChat,
   ChatId,
   ChatRepository,
-  ChatService,
   MessageNotFoundError,
   MessageRepository,
-} from '@app-template/domain/chat'
+} from '@app-template/chat/domain'
+import { ChatService } from '@app-template/chat/services'
+import { generateId } from '@app-template/db'
 import { Api } from '@app-template/http-api'
 import { CurrentUser } from '@app-template/identity-contract'
 import { SendMessageUseCase } from '@app-template/use-cases/chat'

@@ -1,7 +1,7 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Duration } from 'effect'
 
-import { unboundLifetime } from '@app-template/domain/attachment'
+import { unboundLifetime } from '@app-template/chat/domain'
 import { resources } from '@app-template/kernel/aws/resources'
 
 describe('the inventory and the attachment lifetime agree', () => {

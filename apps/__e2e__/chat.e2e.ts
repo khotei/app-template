@@ -3,11 +3,13 @@ import { Array as Arr, Effect, Option, Schedule, Schema } from 'effect'
 import { SqlClient } from 'effect/sql'
 
 import {
+  ActiveMessageStatus,
   AttachmentBucket,
   AttachmentId,
   AttachmentNotFoundError,
-} from '@app-template/domain/attachment'
-import { ActiveMessageStatus, type ChatId, type MessageId } from '@app-template/domain/chat'
+  type ChatId,
+  type MessageId,
+} from '@app-template/chat/domain'
 import { ApiClient } from '@app-template/http-api'
 import { GenerateAssistantMessage } from '@app-template/infrastructure/chat'
 import { assertSchemaEquals, png } from '@app-template/testing'

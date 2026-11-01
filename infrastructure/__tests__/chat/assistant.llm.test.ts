@@ -17,22 +17,20 @@ import { HttpClient, type HttpClientRequest, HttpClientResponse } from 'effect/h
 import { TestClock } from 'effect/testing'
 
 import {
-  Attachment,
-  AttachmentId,
-  buildAttachment,
-  FileName,
-  FileSize,
-  MediaType,
-} from '@app-template/domain/attachment'
-import {
   Assistant,
   type AssistantError,
   AssistantReply,
+  Attachment,
+  AttachmentId,
+  buildAttachment,
   ChatTitle,
+  FileName,
+  FileSize,
   type HistoryMessage,
+  MediaType,
   MessageId,
-} from '@app-template/domain/chat'
-import { asCompleted, assistantMessageAt, owner, userMessageAt } from '@app-template/domain/testing'
+} from '@app-template/chat/domain'
+import { asCompleted, assistantMessageAt, owner, userMessageAt } from '@app-template/chat/testing'
 import { epoch, png } from '@app-template/testing'
 
 import {

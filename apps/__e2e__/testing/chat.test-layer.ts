@@ -1,8 +1,8 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { Layer } from 'effect'
 
+import { chat, insertChatLayer } from '@app-template/chat/testing'
 import { Transaction } from '@app-template/db'
-import { chat, insertChatLayer } from '@app-template/domain/testing'
 import { AttachmentBucketS3, AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
 import { ChatPg } from '@app-template/infrastructure/chat'
 import { JobRepository } from '@app-template/kernel/data/job'

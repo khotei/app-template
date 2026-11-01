@@ -1,11 +1,7 @@
 import { Context, Effect, Layer, Option } from 'effect'
 
-import {
-  Assistant,
-  type AssistantError,
-  ChatService,
-  MessageRepository,
-} from '@app-template/domain/chat'
+import { Assistant, type AssistantError, MessageRepository } from '@app-template/chat/domain'
+import { ChatService } from '@app-template/chat/services'
 import type { GenerateChatTitle } from '@app-template/infrastructure/chat'
 
 type TitleSkip = 'chatDeleted' | 'deletedOrTitled' | 'nothingToTitle'

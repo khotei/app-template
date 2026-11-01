@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "../../node_modules/.cache/tsc/chat"
+  },
+  "include": ["**/*.ts"],
+  "references": [
+    { "path": "../identity/contract" },
+    { "path": "../../packages/db" },
+    { "path": "../../packages/testing" }
+  ]
+}

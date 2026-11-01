@@ -6,7 +6,7 @@
   },
   "include": ["**/*.ts"],
   "references": [
-    { "path": "../../domain" },
+    { "path": "../chat" },
     { "path": "../../infrastructure" },
     { "path": "../../packages/db" },
     { "path": "../../packages/queue" },

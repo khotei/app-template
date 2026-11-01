@@ -15,8 +15,8 @@
   },
   "dependencies": {
     "@app-template/aws": "workspace:*",
+    "@app-template/chat": "workspace:*",
     "@app-template/db": "workspace:*",
-    "@app-template/domain": "workspace:*",
     "@app-template/identity": "workspace:*",
     "@app-template/identity-contract": "workspace:*",
     "@app-template/kernel": "workspace:*",

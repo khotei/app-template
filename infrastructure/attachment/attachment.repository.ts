@@ -4,7 +4,7 @@ import {
   AttachmentRepository,
   type AttachmentSet,
   type AttachmentWhere,
-} from '@app-template/domain/attachment'
+} from '@app-template/chat/domain'
 import {
   AttachmentEntityInsert,
   AttachmentRepository as AttachmentEntityRepository,

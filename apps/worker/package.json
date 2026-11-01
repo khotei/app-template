@@ -14,8 +14,8 @@
     "start": "bun --env-file=../../.env --env-file=../../.env.pulumi main.ts"
   },
   "dependencies": {
+    "@app-template/chat": "workspace:*",
     "@app-template/db": "workspace:*",
-    "@app-template/domain": "workspace:*",
     "@app-template/infrastructure": "workspace:*",
     "@app-template/kernel": "workspace:*",
     "@app-template/queue": "workspace:*",

@@ -8,7 +8,7 @@ import {
   Chat,
   Message,
   MessageRepository,
-} from '@app-template/domain/chat'
+} from '@app-template/chat/domain'
 import {
   chat,
   chatId,
@@ -19,7 +19,7 @@ import {
   recordAssistant,
   selectChat,
   selectMessage,
-} from '@app-template/domain/testing'
+} from '@app-template/chat/testing'
 import {
   assistantMessageDeadLetterQueue,
   assistantMessageQueue,

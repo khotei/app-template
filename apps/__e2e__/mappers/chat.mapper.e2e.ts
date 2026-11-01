@@ -1,8 +1,8 @@
 import { describe, it } from '@effect/vitest'
 import { DateTime, Effect, Option, pipe, Schema } from 'effect'
 
-import { Chat, ChatId, ChatTitle, maxTitleLength } from '@app-template/domain/chat'
-import { owner } from '@app-template/domain/testing'
+import { Chat, ChatId, ChatTitle, maxTitleLength } from '@app-template/chat/domain'
+import { owner } from '@app-template/chat/testing'
 import { ChatFromEntity } from '@app-template/infrastructure/chat'
 import { Db } from '@app-template/kernel/data'
 import { ChatEntityInsert, chats } from '@app-template/kernel/data/chat'

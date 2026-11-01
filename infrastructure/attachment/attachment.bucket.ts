@@ -6,7 +6,7 @@ import {
   type AttachmentId,
   type AttachmentMeta,
   FileSize,
-} from '@app-template/domain/attachment'
+} from '@app-template/chat/domain'
 import { buildResourceName, resources, unboundTag } from '@app-template/kernel/aws/resources'
 import { AwsConfig } from '@app-template/kernel/config'
 import { S3Bucket } from '@app-template/s3'

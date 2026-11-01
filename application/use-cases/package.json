@@ -11,8 +11,8 @@
     "#testing/*": "./__tests__/testing/*.ts"
   },
   "dependencies": {
+    "@app-template/chat": "workspace:*",
     "@app-template/db": "workspace:*",
-    "@app-template/domain": "workspace:*",
     "@app-template/identity-contract": "workspace:*",
     "@app-template/infrastructure": "workspace:*",
     "@app-template/queue": "workspace:*",

@@ -19,7 +19,7 @@ paths:
 ## Unit and e2e
 
 - **A unit test** (`__tests__/`) runs the real services over the memory layers of the ports
-  (`@app-template/domain/testing`), with `TransactionTest`, `recordQueue()` and
+  (`@app-template/<module>/testing`), with `TransactionTest`, `recordQueue()` and
   `recordAssistant()` where a use case needs them, and starts no container. A use case's unit
   test checks the order of its steps and the jobs it sends, not the rules. A further fake of a
   port only wraps a memory layer, to force a race or a failure it cannot produce on demand.

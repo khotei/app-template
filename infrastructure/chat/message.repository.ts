@@ -1,6 +1,6 @@
 import { Effect, flow, Layer, Schema } from 'effect'
 
-import { MessageRepository } from '@app-template/domain/chat'
+import { MessageRepository } from '@app-template/chat/domain'
 import {
   MessageEntityInsert,
   MessageRepository as MessageEntityRepository,

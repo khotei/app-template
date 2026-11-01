@@ -6,8 +6,8 @@
   },
   "include": ["**/*.ts"],
   "references": [
+    { "path": "../../application/chat" },
     { "path": "../../application/use-cases" },
-    { "path": "../../domain" },
     { "path": "../../infrastructure" },
     { "path": "../../kernel" },
     { "path": "../../packages/db" },

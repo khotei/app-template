@@ -1,6 +1,6 @@
 import { DateTime, Effect, flow, Layer, Option, Schema, Struct } from 'effect'
 
-import { ChatRepository, type ChatSet, type ChatWhere } from '@app-template/domain/chat'
+import { ChatRepository, type ChatSet, type ChatWhere } from '@app-template/chat/domain'
 import {
   ChatEntityInsert,
   ChatRepository as ChatEntityRepository,

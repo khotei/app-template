@@ -1,6 +1,6 @@
 import { Cause, Effect, Exit, Layer, Option } from 'effect'
 
-import type { ChatStatusInvalidError, MessageStatusInvalidError } from '@app-template/domain/chat'
+import type { ChatStatusInvalidError, MessageStatusInvalidError } from '@app-template/chat/domain'
 import {
   assistantMessageDeadLetterQueue,
   assistantMessageQueue,

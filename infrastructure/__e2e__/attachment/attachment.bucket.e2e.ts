@@ -2,13 +2,8 @@ import { assert, describe, layer } from '@effect/vitest'
 import { S3Service } from '@effect-aws/client-s3'
 import { Effect, Layer, Option, Stream } from 'effect'
 
-import {
-  AttachmentBucket,
-  AttachmentId,
-  FileName,
-  MediaType,
-} from '@app-template/domain/attachment'
-import { unknownAttachmentId } from '@app-template/domain/testing'
+import { AttachmentBucket, AttachmentId, FileName, MediaType } from '@app-template/chat/domain'
+import { unknownAttachmentId } from '@app-template/chat/testing'
 import { buildResourceName, resources } from '@app-template/kernel/aws/resources'
 import { AwsConfig } from '@app-template/kernel/config'
 import { AwsTest } from '@app-template/kernel/testing-e2e'
