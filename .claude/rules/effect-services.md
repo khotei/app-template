@@ -39,8 +39,8 @@ paths:
 - A service built in a body beside its declaration is
   `Context.Service<Self, Shape>()(key, { make })`: the explicit `Shape` keeps the contract and its
   docs, `make` the body. A one-expression build (`Config.all`) goes straight into `Layer.effect`.
-- A port's doc comment states the contract the type cannot (order of a list, what a missing key
-  yields); the adapter repeats none of it.
+- A repository's or port's doc comment states the contract the type cannot (order of a list, what
+  a missing key yields); its other layers repeat none of it.
 
 ## Layers
 
@@ -50,7 +50,7 @@ paths:
   a platform service); there is no `layerNoDeps`. A ready variant that closes such a leaf
   is `static layer<Variant>`, a function when it takes options (`QueueTransport.layerSqs`,
   `ApiClient.layerFetch(baseUrl)`). A layer for a service declared elsewhere (a domain port) is a
-  constant in the workspace that implements it (`<Entity>RepositoryPg`, `naming.md`).
+  constant in the workspace that implements it (`<Port><Variant>`, `naming.md`).
 - Variants live in the service's file: a separate file would import the class while the class
   referenced it, a cycle.
 - Chain `Layer.provide` from the nearest dependency outward. `Layer.provide([a, b])` provides

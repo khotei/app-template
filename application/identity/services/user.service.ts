@@ -3,9 +3,10 @@ import { Base64Url, Hex } from 'effect/encoding'
 
 import { generateId } from '@app-template/db'
 import { UserId, UserUnknownError } from '@app-template/identity-contract'
+import { UserRepository } from '@app-template/kernel/data/user'
 
 import { buildUser, Credential, SecretHash, type User } from '#domain/user.model'
-import { UserRepository } from '#domain/user.port'
+import { decodeUser, encodeCredential, encodeUser } from '#services/user.mapper'
 
 /** The 32 random bytes a user signs in with, as base64url; only its hash is stored. */
 export type UserSecret = Redacted.Redacted<string>
@@ -30,12 +31,15 @@ export class UserService extends Context.Service<
 
     const hashSecret = Effect.fnUntraced(function* (secret: UserSecret) {
       const digest = yield* crypto.digest('SHA-256', encoder.encode(Redacted.value(secret)))
-      return new Credential({ kind: 'secret', hash: SecretHash.make(Hex.encode(digest)) })
+      return yield* encodeCredential(
+        new Credential({ kind: 'secret', hash: SecretHash.make(Hex.encode(digest)) }),
+      )
     }, Effect.orDie)
 
     const authenticate = Effect.fn('UserService.authenticate')((secret: UserSecret) =>
       hashSecret(secret).pipe(
         Effect.flatMap((credential) => users.selectOne({ credential })),
+        Effect.flatMap(decodeUser),
         Effect.flatMap(Effect.fromOption(() => new UserUnknownError())),
       ),
     )
@@ -48,7 +52,8 @@ export class UserService extends Context.Service<
 
       const user = buildUser({ id, createdAt })
       const credential = yield* hashSecret(secret)
-      yield* users.insert(user, credential)
+      const row = yield* encodeUser(user)
+      yield* users.insert(row, credential)
       return { user, secret }
     })
 

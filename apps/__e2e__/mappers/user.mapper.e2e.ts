@@ -1,15 +1,10 @@
 import { describe, it } from '@effect/vitest'
 import { DateTime, Effect, Layer, Option, Schema } from 'effect'
 
-import {
-  buildUser,
-  Credential,
-  SecretHash,
-  User,
-  UserRepository,
-} from '@app-template/identity/domain'
+import { buildUser, Credential, SecretHash, User } from '@app-template/identity/domain'
+import { decodeUser, encodeCredential, encodeUser } from '@app-template/identity/services'
 import { UserId } from '@app-template/identity-contract'
-import { UserPg } from '@app-template/infrastructure/user'
+import { UserRepository } from '@app-template/kernel/data/user'
 import { DbTest } from '@app-template/kernel/testing-e2e'
 import { assertSchemaEquals } from '@app-template/testing'
 
@@ -24,17 +19,21 @@ const credential = new Credential({
   hash: SecretHash.make('0123456789abcdef'.repeat(4)),
 })
 
-const UserPgTest = UserPg.pipe(Layer.provide(DbTest))
+const UserRepositoryDbTest = UserRepository.layer.pipe(Layer.provide(DbTest))
 
 describe('a credential hash on Postgres', () => {
   it.effect('writes a credential hash of every allowed character and reads its user back', () =>
     Effect.gen(function* () {
       const users = yield* UserRepository
+      const row = yield* encodeUser(user)
+      const stored = yield* encodeCredential(credential)
 
-      yield* users.insert(user, credential)
-      const selected = yield* users.selectOne({ credential })
+      yield* users.insert(row, stored)
+      const selected = yield* users
+        .selectOne({ credential: stored })
+        .pipe(Effect.flatMap(decodeUser))
 
       assertSchemaEquals(Schema.Option(User), selected, Option.some(user))
-    }).pipe(Effect.provide(UserPgTest)),
+    }).pipe(Effect.provide(UserRepositoryDbTest)),
   )
 })

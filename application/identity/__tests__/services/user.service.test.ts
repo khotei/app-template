@@ -1,15 +1,15 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Effect, HashMap, Layer, Option, Redacted, Ref, Result } from 'effect'
+import { Effect, HashMap, Layer, Option, Redacted, Ref, Result, Schema } from 'effect'
 import { Base64Url, Hex } from 'effect/encoding'
 
 import { UserUnknownError } from '@app-template/identity-contract'
+import { UserRepositoryTest, UserRows } from '@app-template/kernel/testing'
 import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/testing'
 
 import { Credential, SecretHash } from '#domain/user.model'
 import { type UserSecret, UserService } from '#services/user.service'
-import { UserRepositoryTest, UserRows } from '#testing/user.test-fake'
 
 const UserServiceTest = UserService.layer.pipe(
   Layer.provideMerge(UserRepositoryTest),
@@ -51,7 +51,9 @@ describe('UserService', () => {
       const { user, secret } = yield* service.ensure(Option.none())
 
       const rows = yield* readRows
-      const stored = HashMap.get(rows, user.id).pipe(Option.map((row) => row.credential))
+      const stored = HashMap.get(rows, user.id).pipe(
+        Option.map((row) => Schema.decodeSync(Credential)(row.credential)),
+      )
       const hash = yield* hashWithWebCrypto(secret)
 
       assertEquals(

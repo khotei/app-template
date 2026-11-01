@@ -17,7 +17,7 @@
 | S9 | `Db` in `kernel/data` over the `PgClient` in the context; the entity suites speak entities | done |
 | S10 | the table `jobs` and `JobRepository`; one initial migration; the queue in `kernel/queue` | done |
 | S11 | the `identity` module and `identity-contract` | done |
-| S12 | `UserRepository` in the data layer; the first port gone | todo |
+| S12 | `UserRepository` in the data layer; the first port gone | done |
 | S13 | chat's domain and services in `application/chat`; no `domain` workspace | done |
 | S14 | `ChatRepository` and `MessageRepository` in the data layer | done |
 | S15 | `AttachmentRepository` in the data layer | done |
@@ -623,7 +623,27 @@
   exists.
 - **Verify:** `make check`; `git grep -n "UserRepositoryPg"` finds nothing.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Identity's mapper owns the codec pair beside `UserFromEntity`: `encodeUser`, `decodeUser`
+    and `encodeCredential`, each dying on a mapping failure. The service and the mapper e2e call
+    them, and chat's mappers take this shape in S17; no generic helper in `packages/db` yet.
+  - `UserEntityCredential` names `{ kind, hash }` of `credentials`: the key `insert` writes and
+    `selectOne` filters by.
+  - `insert` takes `UserEntityInsert`, whose id the column defaults, so it reads the id back with
+    `RETURNING`. The memory fake requires the id every caller passes, and dies, writing nothing,
+    when a stored row holds the id or the credential (matched on `kind` and `hash`).
+  - No arrange helpers in identity: the service suite writes no rows, and its one read step
+    decodes the stored credential (D14).
+  - `biome.json`, off the Files: `application/*/services/**` may import
+    `@app-template/kernel/data/*`, as D4 has a service depend on the data layer; identity loses
+    its `./testing` export.
+  - The Verify grep finds `UserRepositoryPg` only in `docs/tickets/`, the earlier tickets' text.
+  - `infrastructure/__e2e__/testing/{repository-stack.test-layer.ts,rows.test-util.ts}` have no
+    importer since S9; S17 deletes them with the adapters.
+  - Round S12.2 (review): the codec pair in the mapper, the fake's primary keys, doc lines
+    re-wrapped.
+  - Size: 30 files, +277 / −234.
 
 #### S13 — Chat's domain and services in its module
 

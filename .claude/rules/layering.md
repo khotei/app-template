@@ -12,11 +12,14 @@ Where a flow lives. Words: `docs/knowledge/glossary.md › Architecture language
 
 - **A port speaks the domain's words,** never a client's type or error; which failures it
   declares: [effect-schema.md › Failures](effect-schema.md#failures).
-- **A domain service holds the rules that need a port:** a check over stored rows, a refusal
-  named after a read; a bare not-found stays in the handler that reads it; an entity whose rules
-  are all pure model functions has none.
-- It sees its ports, the clock (`DateTime.now`) and `Crypto`; never another domain service, the
-  queue or the transaction, which are a use case's.
+- **A repository is the data layer's, with no port in front:** a service calls
+  `<Name>Repository` from `@app-template/kernel/data/<store>` in entities and maps them with the
+  `<Model>FromEntity` of its module's `services/`.
+- **A domain service holds the rules that need a repository or a port:** a check over stored
+  rows, a refusal named after a read; a bare not-found stays in the handler that reads it; an
+  entity whose rules are all pure model functions has none.
+- It sees the repositories, its ports, the clock (`DateTime.now`) and `Crypto`; never another
+  domain service, the queue or the transaction, which are a use case's.
 - **Every method is safe on its own:** a method correct only after another one ran is a trap;
   guard the invariant inside it.
 
@@ -30,10 +33,11 @@ the signal.
 ## Use cases
 
 - A use case is a `Context.Service` whose `layer` provides the domain services it composes and
-  leaves the ports open, so the process provides the adapters and a unit test the memory layers.
+  leaves the repositories and ports open, so the process provides their layers and a unit test
+  the memory layers.
 - **It writes through a domain service where one holds the write's rule,** else through the
-  port: a rule-free write, or one whose rule a model function already ran (a status move). A read
-  with no rule (a job's record by id) may go to the port too.
+  repository: a rule-free write, or one whose rule a model function already ran (a status
+  move). A read with no rule (a job's record by id) may go to the repository too.
 - **All checks precede every write;** a step's own guard may repeat a check the use case made.
 - **The writes commit in one transaction:** `Transaction`'s `run` as a pipeable of the `Effect.fn`
   that holds them; the process provides its layer, a unit test the identity one. An object store
@@ -48,7 +52,7 @@ the signal.
 
 - A handler decodes the input, calls one domain service method, one use case or, for a step no
   rule guards (a list, a record a model function builds, a read whose none is the domain's
-  `*NotFoundError`), the port, and shapes the outcome; it holds no other rule.
+  `*NotFoundError`), the repository, and shapes the outcome; it holds no other rule.
 - A worker handler owns the queue's policy, the last attempt and the dead letter: it composes the
   use case's methods (the work, then its failure on the last attempt's cause), which never see the
   attempt.

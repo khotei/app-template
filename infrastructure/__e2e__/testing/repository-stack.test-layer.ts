@@ -7,11 +7,9 @@ import { DbTest } from '@app-template/kernel/testing-e2e'
 import { AttachmentRepositoryPg } from '#infrastructure/attachment/attachment.repository'
 import { ChatRepositoryPg } from '#infrastructure/chat/chat.repository'
 import { MessageRepositoryPg } from '#infrastructure/chat/message.repository'
-import { UserRepositoryPg } from '#infrastructure/user/user.repository'
 import { insertUser } from '#testing-e2e/rows.test-util'
 
 export const RepositoryStackPgTest = Layer.mergeAll(
-  UserRepositoryPg,
   ChatRepositoryPg,
   MessageRepositoryPg,
   AttachmentRepositoryPg,

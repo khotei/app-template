@@ -7,8 +7,9 @@ columns, the query helpers, `migrateDatabase(folder)` and `retryWhileUnreachable
 `kernel/postgres/` (`PgClientFromConfig`, the `PgClient` built from `DatabaseConfig`, and the
 migrate program), `kernel/data/` (the client `Db`, made by `createDb(relations)` over the
 `PgClient` in the context; the tables, their entities, the relations, the migrations and
-`drizzle.config.ts`; the data layer's repositories over them) and the mappers beside the port
-adapters in `infrastructure/<aggregate>/`.
+`drizzle.config.ts`; the data layer's repositories over them) and the mappers in a module's
+`services/` (`UserFromEntity`) or, while chat's ports remain, beside their adapters in
+`infrastructure/<aggregate>/`.
 Drizzle runs on `@effect/sql-pg` and is reached only through Effect: every query is an `Effect`,
 never a promise.
 
@@ -81,8 +82,8 @@ export const ChatEntity = Schema.Struct({
 })
 ```
 
-A mapper, `<model>.mapper.ts` beside the repositories, lays the model's schemas over the
-entity's fields and pipes the struct into the model; repositories and tests decode and encode
+A mapper, `<model>.mapper.ts` in the module's `services/`, lays the model's schemas over the
+entity's fields and pipes the struct into the model; services and tests decode and encode
 with it:
 
 ```ts
@@ -99,10 +100,10 @@ export const UserFromEntity = Schema.Struct({
 - A model nested in another (an attachment in a chat, the failure in a message) is laid by its
   encoded side, `AttachmentFromEntity.from` or `Schema.toEncoded(MessageFailure)`; why: the
   comment in `infrastructure/chat/chat.mapper.ts`.
-- A repository writes a model encoded through its mapper and decoded with `<Name>EntityInsert`,
-  which cuts the nested attachments and checks the row. A row whose values are already the
-  domain's (brands, literals) is written as is: `credentials` takes `{ hash, kind, userId }` from
-  the credential and the user, with no mapper.
+- A service writes a model encoded through its mapper and decoded with `<Name>EntityInsert`,
+  which cuts the nested attachments and checks the row. A value already in the data layer's
+  types (brands, literals) is passed as is: `UserRepository.insert` takes the credential with
+  no mapper and writes `{ hash, kind, userId }`, the user's id from the row it inserted.
 - A `jsonb` column carries its shape's type (`jsonb().$type<typeof MessageFailureJson.Type>()`),
   declared as a schema beside the table, so the row Drizzle returns fits the entity.
 
@@ -130,21 +131,19 @@ query hands to `RAW`, never on the `chats` constant.
 ## Repositories
 
 A repository is a `Layer` over `Db` and `SqlClient` in its entity's `.repository.ts` (names:
-[naming.md › Symbols](../../.claude/rules/naming.md#symbols)). The data layer's own,
-`ChatRepository` and `MessageRepository` in `kernel/data/chat/` and `AttachmentRepository` in
-`kernel/data/attachment/`, speak entities: they take a `<Name>EntityInsert`, a
-`<Name>EntitySet` and a `<Name>EntityWhere` and answer `<Name>Entity`; their `*RepositoryPg`
-adapters implement the domain's ports over them, encoding a model through its mapper and
-decoding the entity back. A method that writes several tables runs
+[naming.md › Symbols](../../.claude/rules/naming.md#symbols)). The data layer's,
+`UserRepository` in `kernel/data/user/`, `ChatRepository` and `MessageRepository` in
+`kernel/data/chat/` and `AttachmentRepository` in `kernel/data/attachment/`, speak entities:
+they take a `<Name>EntityInsert`, a `<Name>EntitySet` and a `<Name>EntityWhere` and answer
+`<Name>Entity`. A module's service calls one directly, with no port in front, and maps with its
+module's mapper (`UserService` over `UserRepository`). A method that writes several tables runs
 them in one `sql.withTransaction`, passed to `Effect.fn` as a pipeable:
-`UserRepositoryPg.insert` writes the user and its credential, or neither. `SqlClient` is the
+`UserRepository.insert` writes the user and its credential, or neither. `SqlClient` is the
 `PgClient` that `Db.layer` takes from the context (`PgClientFromConfig` in the processes, `DbTest`
 in the e2e), so the transaction runs on the connection `Db` uses. Every method ends with
 `orDieWithSqlError` from `@app-template/db`.
 
-The data layer's repositories, `<Name>Repository` in `kernel/data/<store>/<name>.repository.ts`
-(`AttachmentRepository`), speak entities: an `<Name>EntityInsert`, `<Name>EntityWhere` and
-`<Name>EntitySet` in, `<Name>Entity` out. Until the services call them, a domain port's
+Until chat's services call the data layer's repositories, a domain port's
 `*RepositoryPg` delegates to one: it encodes the model through its mapper and decodes the row
 with `<Name>EntityInsert`, maps each `Option` of the `where` and the set to `null`, and decodes
 the entities it reads into models.
@@ -312,7 +311,7 @@ Each e2e test runs on a database of its own, copied from a template that the run
 migrates with the `make migrate` program ([tooling.md › Tests](tooling.md#tests)). A data
 layer's repository has a `.repository.e2e.ts` in `kernel/__e2e__/data/<store>/` on `DbTest`, in
 entities, its parent rows written through `Db`. Every `*RepositoryPg` that still holds its
-queries has a suite in `infrastructure/__e2e__/` on `DbTest`, which shares the four
+queries has a suite in `infrastructure/__e2e__/` on `DbTest`, which shares the three
 repositories of `infrastructure/__e2e__/testing/repository-stack.test-layer.ts` and inserts the parent
 rows with `insertUser` and its siblings from `infrastructure/__e2e__/testing/rows.test-util.ts`. An
 `.entity.e2e.ts` in `kernel/__e2e__/data/<store>/` checks, in entities only, what the schema

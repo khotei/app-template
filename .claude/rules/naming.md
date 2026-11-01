@@ -25,11 +25,11 @@ tool reads.
 |---|---|---|
 | `.id` | the aggregate's branded ids, the only value another aggregate's model imports, save a model it holds as a field it never writes; a port may `import type` another aggregate's model | domain |
 | `.model` · `.error` | `Schema.Class`es with the pure operations on them (builders, predicates, guards, transitions), split by the value they act on, never into a `.rule` · domain errors | domain |
-| `.port` | an entity's ports, `Context.Service`s with no layer, beside the values they take and answer: `<Entity>Where`, shared by every verb that filters alike, and `<Entity><Verb>Where` for the one verb whose filter differs | domain |
-| `.service` | a domain service: `<entity>.service.ts` for an entity's rules, `<operation>.service.ts` for one operation that belongs to no entity | domain, a module's `services/` |
+| `.port` | a module's ports, `Context.Service`s with no layer, beside the values they take and answer; never a store's, which the data layer's repository serves | domain |
+| `.service` | a domain service: `<entity>.service.ts` for an entity's rules, `<operation>.service.ts` for one operation that belongs to no entity | a module's `services/` |
 | `.use-case` | a flow over domain services: `<verb>-<object>.use-case.ts` | application |
 | `.handler` | api: one contract group's handlers · worker: `<object>.handler.ts`, one queue's `handle` and `handleDeadLettered` over a use case | apps |
-| `.repository` · `.bucket` · `.llm` · `.queue` | a port's adapter over Postgres, or a store's `<Name>Repository` over its entities · S3 · `LanguageModel`, with the prompts · queue definitions and their job schemas | infrastructure; a store's repository in `kernel/data` |
+| `.repository` · `.bucket` · `.llm` · `.queue` | the data layer's access to a store, `<Name>Repository` over its entities · S3 · `LanguageModel`, with the prompts · queue definitions and their job schemas | `kernel/data` · infrastructure |
 | `.relay` | a layer that moves records from the database to a queue | kernel |
 | `.table` · `.entity` | a table, importing only tables · its entities, the schemas read from it, `<Name>Entity` with its `Insert`, `Where` and `Set`, and a `<Verb>Where` for the one verb whose filter differs | `kernel/data` |
 | `.mapper` | an entity's codec into a model, `<Model>FromEntity` | a module's `services`; `infrastructure` holds them while it remains |
@@ -48,9 +48,9 @@ names what it checks; a module folder holds no test. Test support lives only in 
 inside them: a file any unit test imports in `__tests__/testing/` (`#testing/*`, exported as
 `./testing`), the rest in `__e2e__/testing/` (`#testing-e2e/*`, exported as `./testing-e2e`); a
 unit test never imports e2e support. Suites compose these barrels instead of copying them: a
-module's memory layers and fixtures, the kernel's database and AWS harnesses, `use-cases`' test
-layers, a package's own test helpers. The e2e over assembled layers, the journey among them, live
-in `apps/__e2e__`.
+module's memory layers and fixtures, the kernel's memory repositories and its database and AWS
+harnesses, `use-cases`' test layers, a package's own test helpers. The e2e over assembled layers,
+the journey among them, live in `apps/__e2e__`.
 
 ## Symbols
 
@@ -67,14 +67,14 @@ in `apps/__e2e__`.
     over this list;
   - `generate`: an impure function that makes a fresh value (`generateId` in `@app-template/db`);
   - `is` / `has`: a predicate;
-  - `get`: a domain service's read over ports, never a port method; it answers the record or its
-    `*NotFoundError`;
-  - `select` / `insert` / `update` / `delete`: a port's persistence; `update` never creates a
+  - `get`: a domain service's read over repositories, never a repository method; it answers the
+    record or its `*NotFoundError`;
+  - `select` / `insert` / `update` / `delete`: a repository's persistence; `update` never creates a
     record.
 - Constants are `camelCase`, `as const` for literal objects and arrays; a `Layer` constant is
-  `PascalCase`, for a service declared elsewhere `<Service><Variant>` (`<Entity>RepositoryPg`);
+  `PascalCase`, for a service declared elsewhere `<Service><Variant>` (`<Port>S3`);
   `<Entity>Pg` in `<entity>/index.ts` bundles the aggregate's adapters.
-- Every test-only layer ends in `Test`: a port's fake is `<Port>Test`; a test layer is
-  `<Entity>Test`, the entity's real services over fakes (`layer<Entity>Test(…)` with options). A
-  stateful fake `<verb><Thing>()` returns `{ <handle>, layer }`; `<Entity>Rows` holds a memory
-  layer's rows.
+- Every test-only layer ends in `Test`: a repository's or port's fake is `<Service>Test`; a test
+  layer is `<Entity>Test`, the entity's real services over fakes (`layer<Entity>Test(…)` with
+  options). A stateful fake `<verb><Thing>()` returns `{ <handle>, layer }`; `<Entity>Rows` holds
+  a memory layer's rows.

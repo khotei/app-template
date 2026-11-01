@@ -9,10 +9,10 @@ import { Api } from '@app-template/http-api'
 import { UserService } from '@app-template/identity/services'
 import { AttachmentPgS3 } from '@app-template/infrastructure/attachment'
 import { ChatPg, CurrentReplyProvenance } from '@app-template/infrastructure/chat'
-import { UserPg } from '@app-template/infrastructure/user'
 import { ApiConfig, MinimumLogLevelFromConfig, RuntimeConfig } from '@app-template/kernel/config'
 import { Db } from '@app-template/kernel/data'
 import { JobRepository } from '@app-template/kernel/data/job'
+import { UserRepository } from '@app-template/kernel/data/user'
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
 import { QueueSenderJobs } from '@app-template/kernel/queue'
 import { SendMessageUseCase } from '@app-template/use-cases/chat'
@@ -46,14 +46,13 @@ const LogApiStopped = Layer.effectDiscard(Effect.addFinalizer(() => Effect.logIn
 
 export const ApiLayer = Layer.merge(ApiHttp, LogApiStopped).pipe(
   Layer.provide([
-    UserPg,
     ChatPg,
     AttachmentPgS3,
     QueueSenderJobs,
     Transaction.layer,
     CurrentReplyProvenance.layerFromConfig,
   ]),
-  Layer.provide(JobRepository.layer),
+  Layer.provide([UserRepository.layer, JobRepository.layer]),
   Layer.provide(Db.layer),
   Layer.provide(PgClientFromConfig),
   Layer.provide(BunHttpServerFromConfig),

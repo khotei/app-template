@@ -20,7 +20,7 @@ module was cut or kept.
   existing one takes (a `where` field, a model field); a new name is the last resort.
 - **Caller:** what only tests use is no interface; delete it with its mapper, fake branch and test.
 
-## A deep port
+## A deep repository
 
 ```ts
 // shallow: one method per question, answers that carry meaning the caller must decode
@@ -28,13 +28,14 @@ selectActiveByOwner(ownerId): Effect<Option<ActiveOrder>>
 existsByOwner(ownerId): Effect<boolean>
 update(set, id): Effect<boolean>
 // deep: the question is data typed from the model, a write that misses is a defect
-selectOne(where: OrderWhere): Effect<Option<Order>>
-selectMany(where: OrderWhere, options?: { forUpdate?: boolean }): Effect<ReadonlyArray<Order>>
-update(set: OrderSet, where: OrderWhere): Effect<void>
+selectOne(where: OrderEntityWhere): Effect<Option<OrderEntity>>
+selectMany(where: OrderEntityWhere, options?: { forUpdate?: boolean }):
+  Effect<ReadonlyArray<OrderEntity>>
+update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
 ```
 
 - A repository has one method per verb (`insert`, `update`, `selectOne`, `selectMany`,
-  `delete`) over a `where` typed from the model (`Pick`, `Partial`, `RequireAtLeastOne`); reads
+  `delete`) over a `where` typed from the entity (`Pick`, `Partial`, `RequireAtLeastOne`); reads
   that filter alike share one `where` type; a new filter is a field. A write finds its row by the
   key, from the written entity or a required `where` field, so it never matches every row.
 - A write answers `void` and dies where it matches no row: the caller checked the rule, so a
@@ -45,18 +46,20 @@ update(set: OrderSet, where: OrderWhere): Effect<void>
   after the read.
 - Adapters stay small through shared mappers from each `where` and set field to its column; a
   `where` inside a relational query is built on the table the query hands over, which it aliases.
-- The memory fake is the port's second adapter: its methods share one matcher, never a copy each.
+- The memory fake is the repository's second layer, over the same entities: its methods share one
+  matcher, never a copy each.
 
 ## Composition over pass-through
 
 ```ts
-// the model function moves the value and names the refusal; the port writes it under the old state
+// the model function moves the value and names the refusal;
+// the repository writes it under the old state
 const shipped = yield* shipOrder(order, at)               // fails OrderStatusInvalidError
 yield* orders.update(shipped, { status: order.status })   // dies if another writer moved it
 return shipped                                            // the value built, never a re-read
 ```
 
-- No method sits between a model function and the port. A domain service keeps only the rules
+- No method sits between a model function and the repository. A domain service keeps only the rules
   that need a read (an owner check, a cascade with its side effects).
 - Two methods that differ by their `where` or `set` are one, taking them from the caller, with
   arguments as narrow as the fields it uses.

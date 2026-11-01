@@ -5,19 +5,17 @@
   "sideEffects": false,
   "exports": {
     "./domain": "./domain/index.ts",
-    "./services": "./services/index.ts",
-    "./testing": "./__tests__/testing/index.ts"
+    "./services": "./services/index.ts"
   },
   "imports": {
     "#domain/*": "./domain/*.ts",
-    "#services/*": "./services/*.ts",
-    "#testing/*": "./__tests__/testing/*.ts"
+    "#services/*": "./services/*.ts"
   },
   "dependencies": {
     "@app-template/db": "workspace:*",
     "@app-template/identity-contract": "workspace:*",
-    "effect": "catalog:effect",
-    "type-fest": "catalog:runtime"
+    "@app-template/kernel": "workspace:*",
+    "effect": "catalog:effect"
   },
   "devDependencies": {
     "@app-template/testing": "workspace:*",

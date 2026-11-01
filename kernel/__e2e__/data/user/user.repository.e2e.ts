@@ -1,35 +1,30 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Cause, DateTime, Effect, Exit, Layer, Option, Schema } from 'effect'
+import { Cause, Effect, Exit, Layer, Option, Schema } from 'effect'
 import { SqlError } from 'effect/sql'
 
 import { flipSqlError } from '@app-template/db/testing-e2e'
-import {
-  buildUser,
-  Credential,
-  SecretHash,
-  User,
-  UserRepository,
-} from '@app-template/identity/domain'
-import { UserId } from '@app-template/identity-contract'
-import { Db } from '@app-template/kernel/data'
-import { credentials, users } from '@app-template/kernel/data/user'
-import { DbTest } from '@app-template/kernel/testing-e2e'
 import { assertSchemaEquals } from '@app-template/testing'
 
-import { UserRepositoryPg } from '#infrastructure/user/user.repository'
+import { Db } from '#kernel/data/db.client'
+import { UserEntity, type UserEntityCredential } from '#kernel/data/user/user.entity'
+import { UserRepository } from '#kernel/data/user/user.repository'
+import { credentials, users } from '#kernel/data/user/user.table'
+import { DbTest } from '#testing-e2e/db.test-layer'
 
-const createdAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')
+const createdAt = new Date('2026-10-18T00:00:00.123Z')
 
-const user = (id: string) => buildUser({ id: UserId.make(id), createdAt })
+const user = (id: string): UserEntity => ({ id, createdAt })
 
-const credential = (hex: string) =>
-  new Credential({ kind: 'secret', hash: SecretHash.make(hex.repeat(64)) })
+const credential = (hex: string): UserEntityCredential => ({
+  kind: 'secret',
+  hash: hex.repeat(64),
+})
 
-const SelectedUser = Schema.Option(User)
+const SelectedUser = Schema.Option(UserEntity)
 
-const UserRepositoryPgTest = UserRepositoryPg.pipe(Layer.provide(DbTest))
+const UserRepositoryDbTest = UserRepository.layer.pipe(Layer.provide(DbTest))
 
-describe('UserRepositoryPg', () => {
+describe('UserRepository', () => {
   it.effect('selects an inserted user back by its id and by its credential', () =>
     Effect.gen(function* () {
       const users = yield* UserRepository
@@ -41,7 +36,7 @@ describe('UserRepositoryPg', () => {
 
       assertSchemaEquals(SelectedUser, byId, Option.some(ada))
       assertSchemaEquals(SelectedUser, byCredential, Option.some(ada))
-    }).pipe(Effect.provide(UserRepositoryPgTest)),
+    }).pipe(Effect.provide(UserRepositoryDbTest)),
   )
 
   it.effect('selects none for an unknown credential or id', () =>
@@ -51,12 +46,12 @@ describe('UserRepositoryPg', () => {
       yield* users.insert(user('0192d4e0-7b3a-7c00-8000-000000000011'), credential('a'))
       const byCredential = yield* users.selectOne({ credential: credential('b') })
       const byId = yield* users.selectOne({
-        id: UserId.make('0192d4e0-7b3a-7c00-8000-000000000019'),
+        id: '0192d4e0-7b3a-7c00-8000-000000000019',
       })
 
       assert.deepStrictEqual(byCredential, Option.none())
       assert.deepStrictEqual(byId, Option.none())
-    }).pipe(Effect.provide(UserRepositoryPgTest)),
+    }).pipe(Effect.provide(UserRepositoryDbTest)),
   )
   it.effect("selects none for an id with another user's credential", () =>
     Effect.gen(function* () {
@@ -68,7 +63,7 @@ describe('UserRepositoryPg', () => {
       const selected = yield* users.selectOne({ id: ada.id, credential: credential('b') })
 
       assert.deepStrictEqual(selected, Option.none())
-    }).pipe(Effect.provide(UserRepositoryPgTest)),
+    }).pipe(Effect.provide(UserRepositoryDbTest)),
   )
 
   it.effect(
@@ -87,7 +82,7 @@ describe('UserRepositoryPg', () => {
         assert(SqlError.isSqlError(defect), `expected a SqlError defect, got ${defect}`)
         assert.strictEqual(defect.reason._tag, 'UniqueViolation')
         assert.deepStrictEqual(selected, Option.none())
-      }).pipe(Effect.provide(UserRepositoryPgTest)),
+      }).pipe(Effect.provide(UserRepositoryDbTest)),
   )
 
   it.effect('rejects a credentials.hash that is not lower-case hex, through its check', () =>
