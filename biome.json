@@ -99,6 +99,36 @@
       }
     },
     {
+      "includes": ["domain/**/*.service.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/**",
+                      "!@app-template/db",
+                      "@effect/**",
+                      "!@effect/vitest",
+                      "!@effect/vitest/**"
+                    ],
+                    "message": "a domain service imports no workspace but @app-template/db for generateId, and no @effect/* package except the test runner @effect/vitest"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["domain/__tests__/**"],
       "linter": {
         "rules": {

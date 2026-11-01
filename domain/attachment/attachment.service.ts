@@ -13,6 +13,8 @@ import {
   Struct,
 } from 'effect'
 
+import { generateId } from '@app-template/db'
+
 import {
   type AttachmentBoundError,
   AttachmentNotFoundError,
@@ -28,7 +30,6 @@ import {
 } from '#domain/attachment/attachment.model'
 import { AttachmentBucket, AttachmentRepository } from '#domain/attachment/attachment.port'
 import type { ChatId, MessageId } from '#domain/chat/chat.id'
-import { generateId } from '#domain/shared/id'
 import type { UserId } from '#domain/user/user.id'
 
 export interface AttachmentUpload<E> extends AttachmentMeta {

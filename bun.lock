@@ -104,6 +104,7 @@
     "domain": {
       "name": "@app-template/domain",
       "dependencies": {
+        "@app-template/db": "workspace:*",
         "effect": "catalog:effect",
         "type-fest": "catalog:runtime",
       },

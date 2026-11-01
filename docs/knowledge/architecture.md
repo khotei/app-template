@@ -61,7 +61,7 @@ Each row lists what a workspace may import.
 
 | From ↓ / may import → | domain | http-api | infrastructure | application | kernel | packages/* | apps |
 |---|---|---|---|---|---|---|---|
-| domain | — | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| domain | — | ✗ | ✗ | ✗ | ✗ | `db` in a service only | ✗ |
 | http-api | ✓ | — | ✗ | ✗ | ✗ | ✗ | ✗ |
 | infrastructure | ✓ | ✗ | — | ✗ | ✓ | ✓ | ✗ |
 | application | ✓ | ✗ | ✓ | — | ✓ | ✓ | ✗ |
@@ -74,8 +74,9 @@ Each row lists what a workspace may import.
 | deployment | ✗ | ✗ | ✗ | ✗ | ✓ | ✓ | ✗ |
 | apps/__e2e__ | ✓ | ✓ | ✓ | ✓ | ✓ | `db`, `testing` | ✓ (`api/layer`, `worker/layer`) |
 
-- **`domain` imports `effect` and no workspace,** not even `packages/*`, and no `@effect/*`
-  package but the test runner `@effect/vitest`, so it stays pure and testable without fakes;
+- **`domain` imports `effect` and no workspace but `@app-template/db`, in a service only** (for
+  `generateId`), and no `@effect/*` package but the test runner `@effect/vitest`, so it stays pure
+  and testable without fakes;
   `type-fest` it imports for types only (`RequireAtLeastOne`). Its `__tests__/` may also import
   the test support `@app-template/testing`, and its tests outside `__tests__/testing/`
   `@effect/platform-bun` for `BunCrypto.layer`.
@@ -223,7 +224,7 @@ checks what the import rules leave to tree shaking, the web bundle:
 
 | Guard | Catches | Reports |
 |---|---|---|
-| Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json` | an import that goes up a layer or into a sibling app; any relative path; a workspace or an `@effect/*` package other than `@effect/vitest` in `domain` (in its `__tests__/`, a workspace other than `@app-template/testing`); e2e support (`#testing-e2e/*`, `./testing-e2e`) in a unit test or its support; a workspace other than `domain`, or an `@effect/*` package, in `http-api`; `http-api` in a lower layer, a package, the worker or `deployment` | `make lint`, `pre-commit`, CI `static` |
+| Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json` | an import that goes up a layer or into a sibling app; any relative path; a workspace or an `@effect/*` package other than `@effect/vitest` in `domain` (in a `*.service.ts`, a workspace other than `@app-template/db`; in its `__tests__/`, a workspace other than `@app-template/testing`); e2e support (`#testing-e2e/*`, `./testing-e2e`) in a unit test or its support; a workspace other than `domain`, or an `@effect/*` package, in `http-api`; `http-api` in a lower layer, a package, the worker or `deployment` | `make lint`, `pre-commit`, CI `static` |
 | the isolated linker with `tsc -b` | an allowed import of a workspace that is not declared in `package.json` | TS2307 in `make typecheck` and at runtime |
 | `composite` project references (`rootDir: "."`) | a path that reaches into an unreferenced workspace's files | TS6059 / TS6307 in `make typecheck` |
 | `make bundle-check`: `bun build` of `apps/web/app/main.ts`, then a `grep` of the bundle | a domain service or port in the browser bundle, or an adapter, which carries its port's key: a value import of one that `http-api` passes on | the matched service keys, in `make check` |

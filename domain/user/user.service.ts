@@ -1,7 +1,8 @@
 import { Context, Crypto, DateTime, Effect, Layer, Option, Redacted } from 'effect'
 import { Base64Url, Hex } from 'effect/encoding'
 
-import { generateId } from '#domain/shared/id'
+import { generateId } from '@app-template/db'
+
 import { UserUnknownError } from '#domain/user/user.error'
 import { UserId } from '#domain/user/user.id'
 import { buildUser, Credential, SecretHash, type User } from '#domain/user/user.model'

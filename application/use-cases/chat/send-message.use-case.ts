@@ -1,6 +1,6 @@
 import { Context, Crypto, DateTime, Effect, Layer, Option } from 'effect'
 
-import { Transaction } from '@app-template/db'
+import { generateId, Transaction } from '@app-template/db'
 import {
   type AttachmentBoundError,
   type AttachmentNotFoundError,
@@ -22,7 +22,6 @@ import {
   MessageRepository,
   queueChat,
 } from '@app-template/domain/chat'
-import { generateId } from '@app-template/domain/shared'
 import type { UserId } from '@app-template/domain/user'
 import {
   assistantMessageQueue,

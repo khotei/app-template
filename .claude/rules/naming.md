@@ -63,7 +63,7 @@ in `apps/__e2e__`.
     (`build<Entity>`); a pure transition is named for the status it moves to, as a verb
     (`ship<Entity>` to `shipped`; `complete<Entity>` to `done`, which no verb spells), which wins
     over this list;
-  - `generate`: an impure function that makes a fresh value (`generateId`);
+  - `generate`: an impure function that makes a fresh value (`generateId` in `@app-template/db`);
   - `is` / `has`: a predicate;
   - `get`: a domain service's read over ports, never a port method; it answers the record or its
     `*NotFoundError`;

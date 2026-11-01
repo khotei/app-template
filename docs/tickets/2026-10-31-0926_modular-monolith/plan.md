@@ -7,7 +7,7 @@
 | Step | Delivers | Status |
 |---|---|---|
 | S1 | tests in `__tests__/` and `__e2e__/` everywhere; the e2e over assembled layers in `apps/api` | done |
-| S2 | `generateId` in `packages/db`, beside the `id()` column | todo |
+| S2 | `generateId` in `packages/db`, beside the `id()` column | done |
 | S3 | the use cases in `application/use-cases` | done |
 | S4 | the `kernel` workspace with `/config` and `/aws`; `packages/aws` a generic provisioner | done |
 | S5 | `packages/db`: the generic Drizzle client, transaction and migrator | done |
@@ -119,7 +119,17 @@
   services, the send-message use case) pass unchanged.
 - **Verify:** `make check`; `git grep -n "shared/id"` finds nothing.
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The `domain/**/*.service.ts` override repeats every ban of `domain/**` (Biome replaces, not
+    merges, the options of two matching overrides) and lifts only `@app-template/db`'s root; models,
+    ports and errors still import no workspace.
+  - `packages/db` declares `"sideEffects": false`, as `domain` does: without it Bun walked the
+    Postgres client while building the browser bundle and warned about `node:net`; the bundle is
+    byte-identical either way.
+  - Beyond Files: `docs/knowledge/architecture.md`'s domain rule and its Biome guard row name the
+    service exception, which would otherwise read false from this commit.
+  - Round S2.2 (review): the domain rule says the exception in its own lead; `sideEffects` added.
 
 #### S3 — The use cases in `application/use-cases`
 
