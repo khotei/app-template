@@ -20,7 +20,7 @@
 | S12 | `UserRepository` in the data layer; the first port gone | todo |
 | S13 | chat's domain and services in `application/chat`; no `domain` workspace | todo |
 | S14 | `ChatRepository` and `MessageRepository` in the data layer | todo |
-| S15 | `AttachmentRepository` in the data layer | todo |
+| S15 | `AttachmentRepository` in the data layer | done |
 | S16 | the memory repositories over entities in the kernel's test support | todo |
 | S17 | chat's services and the use cases over the data layer; the repository ports gone | todo |
 | S18 | `FileRepository` in the data layer; the bucket port gone | todo |
@@ -671,7 +671,21 @@
   repository exists.
 - **Verify:** `make check`.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The set crosses the adapter through `Struct.mapPick` with a typed lambda (`getOrNull`), not
+    `Struct.evolve`: evolve maps a key by one function over the whole `RequireAtLeastOne` union,
+    so the key a branch requires comes out `| undefined`. The where keeps `Struct.evolve`.
+  - `AttachmentRepository.update` writes its set through `buildSet`, though `AttachmentEntitySet`
+    matches the columns: it drops a key outside the set, which a bare `.set(set)` would write.
+    `/simplify` had removed it; round 2 restored it.
+  - `AttachmentEntity` names the entity's type beside its schema, in place of an `AttachmentRow`
+    alias; S14 names `ChatEntity` and `MessageEntity` the same way.
+  - `AttachmentRepositoryPg` provides the data layer's repository itself, so no process or test
+    stack changes until S17 composes the data layer.
+  - Beyond the Files: `.claude/rules/naming.md` (the `.repository` row) and `kernel/CLAUDE.md`
+    name the data layer's repositories.
+  - Size: 8 files, +267 / −179.
 
 #### S16 — The memory repositories over entities
 

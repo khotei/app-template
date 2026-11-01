@@ -1,77 +1,93 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, DateTime, Effect, Exit, Option, pipe, Schema, Struct } from 'effect'
+import { Array as Arr, Effect, Exit, Layer, Option, pipe, Schema, Struct } from 'effect'
 
-import {
-  Attachment,
-  AttachmentId,
-  AttachmentRepository,
-  buildAttachment,
-  FileName,
-  FileSize,
-  MediaType,
-} from '@app-template/domain/attachment'
-import { buildUserMessage, ChatId, MessageId, MessageRepository } from '@app-template/domain/chat'
-import { UserId } from '@app-template/identity-contract'
 import { assertSchemaEquals } from '@app-template/testing'
 
-import { insertOwnedChats, RepositoryStackPgTest } from '#testing-e2e/repository-stack.test-layer'
+import { AttachmentEntity } from '#kernel/data/attachment/attachment.entity'
+import { AttachmentRepository } from '#kernel/data/attachment/attachment.repository'
+import { chats } from '#kernel/data/chat/chat.table'
+import { messages } from '#kernel/data/chat/message.table'
+import { Db } from '#kernel/data/db.client'
+import { users } from '#kernel/data/user/user.table'
+import { DbTest } from '#testing-e2e/db.test-layer'
 
-const createdAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')
+const createdAt = new Date('2026-10-18T00:00:00.123Z')
 
-const userId = UserId.make('0192d4e0-7b3a-7c00-8000-000000000010')
+const userId = '0192d4e0-7b3a-7c00-8000-000000000010'
 
-const strangerId = UserId.make('0192d4e0-7b3a-7c00-8000-000000000011')
+const strangerId = '0192d4e0-7b3a-7c00-8000-000000000011'
 
-const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000040')
+const chatId = '0192d4e0-7b3a-7c00-8000-000000000040'
 
-const messageId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000050')
+const messageId = '0192d4e0-7b3a-7c00-8000-000000000050'
 
-const attachment = (id: string) =>
-  buildAttachment({
-    id: AttachmentId.make(id),
-    userId,
-    fileName: FileName.make('photo.png'),
-    mediaType: MediaType.make('image/png'),
-    size: FileSize.make(1024),
-    createdAt,
-  })
-
-const unknownId = AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000029')
-
-const SelectedAttachment = Schema.Option(Attachment)
-
-const Attachments = Schema.Array(Attachment)
-
-const insertMessage = Effect.gen(function* () {
-  const messages = yield* MessageRepository
-
-  yield* insertOwnedChats(userId, [chatId])
-  yield* messages.insert(buildUserMessage({ id: messageId, chatId, text: 'Hi', createdAt }))
+const attachment = (id: string): AttachmentEntity => ({
+  id,
+  userId,
+  messageId: null,
+  chatId: null,
+  fileName: 'photo.png',
+  mediaType: 'image/png',
+  size: 1024,
+  createdAt,
 })
 
-describe('AttachmentRepositoryPg', () => {
+const unknownId = '0192d4e0-7b3a-7c00-8000-000000000029'
+
+const SelectedAttachment = Schema.Option(AttachmentEntity)
+
+const Attachments = Schema.Array(AttachmentEntity)
+
+const insertOwnedChat = (ownerId: string, id: string) =>
+  Db.use((db) =>
+    db
+      .insert(users)
+      .values({ id: ownerId, createdAt: new Date(0) })
+      .pipe(
+        Effect.andThen(
+          db
+            .insert(chats)
+            .values({ id, userId: ownerId, title: null, createdAt, updatedAt: createdAt }),
+        ),
+      ),
+  )
+
+const insertMessage = (id: string) =>
+  Db.use((db) =>
+    db.insert(messages).values({
+      id,
+      chatId,
+      author: 'user',
+      status: 'done',
+      text: 'Hi',
+      error: null,
+      createdAt,
+      updatedAt: createdAt,
+    }),
+  )
+
+const insertChatWithMessage = insertOwnedChat(userId, chatId).pipe(
+  Effect.andThen(insertMessage(messageId)),
+)
+
+const AttachmentRepositoryDbTest = AttachmentRepository.layer.pipe(Layer.provideMerge(DbTest))
+
+describe('AttachmentRepository', () => {
   it.effect('selects an attachment back, unbound and once bound', () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentRepository
       const unbound = attachment('0192d4e0-7b3a-7c00-8000-000000000021')
-      const bound = new Attachment({
-        ...unbound,
-        messageId: Option.some(messageId),
-        chatId: Option.some(chatId),
-      })
-      yield* insertMessage
+      const bound = { ...unbound, messageId, chatId }
+      yield* insertChatWithMessage
       yield* attachments.insert(unbound)
 
       const beforeBind = yield* attachments.selectOne({ id: unbound.id })
-      yield* attachments.update(
-        { messageId: Option.some(messageId), chatId: Option.some(chatId) },
-        { id: [unbound.id] },
-      )
+      yield* attachments.update({ messageId, chatId }, { id: [unbound.id] })
       const afterBind = yield* attachments.selectOne({ id: unbound.id })
 
       assertSchemaEquals(SelectedAttachment, beforeBind, Option.some(unbound))
       assertSchemaEquals(SelectedAttachment, afterBind, Option.some(bound))
-    }).pipe(Effect.provide(RepositoryStackPgTest)),
+    }).pipe(Effect.provide(AttachmentRepositoryDbTest)),
   )
 
   it.effect(
@@ -80,7 +96,7 @@ describe('AttachmentRepositoryPg', () => {
       Effect.gen(function* () {
         const attachments = yield* AttachmentRepository
         const stored = attachment('0192d4e0-7b3a-7c00-8000-000000000021')
-        yield* insertMessage
+        yield* insertChatWithMessage
         yield* attachments.insert(stored)
 
         const owned = yield* attachments.selectOne({ id: stored.id, userId })
@@ -88,40 +104,31 @@ describe('AttachmentRepositoryPg', () => {
 
         assertSchemaEquals(SelectedAttachment, owned, Option.some(stored))
         assert.deepStrictEqual(foreign, Option.none())
-      }).pipe(Effect.provide(RepositoryStackPgTest)),
+      }).pipe(Effect.provide(AttachmentRepositoryDbTest)),
   )
 
   it.effect('update where unbound returns the ones it bound and leaves one bound before', () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentRepository
-      const messages = yield* MessageRepository
-      const nextMessageId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000051')
+      const nextMessageId = '0192d4e0-7b3a-7c00-8000-000000000051'
       const first = attachment('0192d4e0-7b3a-7c00-8000-000000000021')
       const second = attachment('0192d4e0-7b3a-7c00-8000-000000000022')
       const free = [first, second]
-      const boundBefore = new Attachment({
+      const boundBefore = {
         ...attachment('0192d4e0-7b3a-7c00-8000-000000000023'),
-        messageId: Option.some(messageId),
-        chatId: Option.some(chatId),
-      })
-      yield* insertMessage
-      yield* messages.insert(buildUserMessage({ id: nextMessageId, chatId, text: 'Hi', createdAt }))
+        messageId,
+        chatId,
+      }
+      yield* insertChatWithMessage
+      yield* insertMessage(nextMessageId)
       yield* pipe(free, Arr.append(boundBefore), Effect.forEach(attachments.insert))
 
       yield* attachments.update(
-        { messageId: Option.some(nextMessageId), chatId: Option.some(chatId) },
-        { id: [first.id, boundBefore.id, unknownId, second.id], messageId: Option.none() },
+        { messageId: nextMessageId, chatId },
+        { id: [first.id, boundBefore.id, unknownId, second.id], messageId: null },
       )
 
-      const boundNow = Arr.map(
-        free,
-        (each) =>
-          new Attachment({
-            ...each,
-            messageId: Option.some(nextMessageId),
-            chatId: Option.some(chatId),
-          }),
-      )
+      const boundNow = Arr.map(free, (each) => ({ ...each, messageId: nextMessageId, chatId }))
       assertSchemaEquals(
         Attachments,
         yield* attachments.selectMany({
@@ -129,7 +136,7 @@ describe('AttachmentRepositoryPg', () => {
         }),
         Arr.append(boundNow, boundBefore),
       )
-    }).pipe(Effect.provide(RepositoryStackPgTest)),
+    }).pipe(Effect.provide(AttachmentRepositoryDbTest)),
   )
 
   it.effect('selects the attachments found in the order asked, leaving out unknown ids', () =>
@@ -137,7 +144,7 @@ describe('AttachmentRepositoryPg', () => {
       const attachments = yield* AttachmentRepository
       const first = attachment('0192d4e0-7b3a-7c00-8000-000000000021')
       const second = attachment('0192d4e0-7b3a-7c00-8000-000000000022')
-      yield* insertMessage
+      yield* insertChatWithMessage
       yield* Effect.forEach([first, second], attachments.insert)
 
       const selected = yield* attachments.selectMany({ id: [second.id, unknownId, first.id] })
@@ -146,7 +153,7 @@ describe('AttachmentRepositoryPg', () => {
       assertSchemaEquals(Attachments, selected, [second, first])
       assert.deepStrictEqual(foreign, [])
       assert.deepStrictEqual(yield* attachments.selectMany({ id: [] }), [])
-    }).pipe(Effect.provide(RepositoryStackPgTest)),
+    }).pipe(Effect.provide(AttachmentRepositoryDbTest)),
   )
 
   it.effect('deletes the attachments asked for and keeps the rest', () =>
@@ -157,7 +164,7 @@ describe('AttachmentRepositoryPg', () => {
         attachment('0192d4e0-7b3a-7c00-8000-000000000024'),
         attachment('0192d4e0-7b3a-7c00-8000-000000000025'),
       ]
-      yield* insertMessage
+      yield* insertChatWithMessage
       yield* pipe(dropped, Arr.prepend(kept), Effect.forEach(attachments.insert))
 
       const droppedIds = Arr.map(dropped, (each) => each.id)
@@ -165,40 +172,34 @@ describe('AttachmentRepositoryPg', () => {
 
       const ids = Arr.prepend(droppedIds, kept.id)
       assertSchemaEquals(Attachments, yield* attachments.selectMany({ id: ids }), [kept])
-    }).pipe(Effect.provide(RepositoryStackPgTest)),
+    }).pipe(Effect.provide(AttachmentRepositoryDbTest)),
   )
 
   it.effect("update dies and binds nothing when chatId is not the message's chat", () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentRepository
-      const otherChatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000041')
+      const otherChatId = '0192d4e0-7b3a-7c00-8000-000000000041'
       const unbound = attachment('0192d4e0-7b3a-7c00-8000-000000000028')
-      yield* insertMessage
-      yield* insertOwnedChats(strangerId, [otherChatId])
+      yield* insertChatWithMessage
+      yield* insertOwnedChat(strangerId, otherChatId)
       yield* attachments.insert(unbound)
 
       const exit = yield* attachments
-        .update(
-          { messageId: Option.some(messageId), chatId: Option.some(otherChatId) },
-          { id: [unbound.id] },
-        )
+        .update({ messageId, chatId: otherChatId }, { id: [unbound.id] })
         .pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
       assertSchemaEquals(Attachments, yield* attachments.selectMany({ id: [unbound.id] }), [
         unbound,
       ])
-    }).pipe(Effect.provide(RepositoryStackPgTest)),
+    }).pipe(Effect.provide(AttachmentRepositoryDbTest)),
   )
 
   it.effect.each([
     {
       name: 'update',
       write: (attachments: AttachmentRepository['Service']) =>
-        attachments.update(
-          { messageId: Option.some(messageId), chatId: Option.some(chatId) },
-          { id: [unknownId] },
-        ),
+        attachments.update({ messageId, chatId }, { id: [unknownId] }),
     },
     {
       name: 'delete',
@@ -212,6 +213,6 @@ describe('AttachmentRepositoryPg', () => {
       const exit = yield* write(attachments).pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
-    }).pipe(Effect.provide(RepositoryStackPgTest)),
+    }).pipe(Effect.provide(AttachmentRepositoryDbTest)),
   )
 })

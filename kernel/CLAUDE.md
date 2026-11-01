@@ -1,8 +1,8 @@
 # kernel
 
 The kernel holds this app's configuration of its tools: its settings, its resources and the rule
-that names them, the clients built from them, and its data: the tables, entities and relations
-in `data/`, with the schema's history in `data/migrations/`.
+that names them, the clients built from them, and its data: the tables, entities, relations and
+repositories in `data/`, with the schema's history in `data/migrations/`.
 Keeping them here keeps `packages/*` generic: a package takes what is this app's as a parameter
 (a resource's name reaches the provisioner as a function), and the kernel is the one place that
 passes it.

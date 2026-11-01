@@ -136,6 +136,13 @@ runs them in one `sql.withTransaction`, passed to `Effect.fn` as a pipeable:
 in the e2e), so the transaction runs on the connection `Db` uses. Every method ends with
 `orDieWithSqlError` from `@app-template/db`.
 
+The data layer's repositories, `<Name>Repository` in `kernel/data/<store>/<name>.repository.ts`
+(`AttachmentRepository`), speak entities: an `<Name>EntityInsert`, `<Name>EntityWhere` and
+`<Name>EntitySet` in, `<Name>Entity` out. Until the services call them, a domain port's
+`*RepositoryPg` delegates to one: it encodes the model through its mapper and decodes the row
+with `<Name>EntityInsert`, maps each `Option` of the `where` and the set to `null`, and decodes
+the entities it reads into models.
+
 Reads go through relational queries (`db.query.<table>.findFirst` and `findMany`), writes
 through the core builder (`db.insert`, `db.update`, `db.delete`). A read of at most one row is a
 `findFirst`, which emits the `limit 1` itself, even where a key makes the row unique, so the
@@ -182,8 +189,10 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
   `AttachmentSet`: `RequireAtLeastOne` from `type-fest`, so an empty write fails typecheck) where
   the rows match `where` (`ChatWhere`, `AttachmentWhere`: the `id`, one or a list of them for
   attachments, and optionally a field the row must still hold, `Option.none()` rendering `IS
-  NULL`). The adapter maps each side through `buildSet` and `buildWhere` (above). Both die when
-  they write nothing. A status
+  NULL`). The chat's adapter maps each side through `buildSet` and `buildWhere` (above); the
+  attachments' turns each `Option.none()` into `null`, and the data layer's
+  `AttachmentRepository` maps `AttachmentEntitySet` and `AttachmentEntityWhere` through them,
+  `null` rendering `IS NULL`. Both die when they write nothing. A status
   move writes the status alone, so a title written meanwhile survives it.
   - `ChatService.rename` reads the chat by the caller's `where` to name a refusal
     (`ChatNotFoundError`), then writes under the same `where`. The title job passes `title:
@@ -289,8 +298,10 @@ and that are committed.
 ## Tests
 
 Each e2e test runs on a database of its own, copied from a template that the run's setup
-migrates with the `make migrate` program ([tooling.md › Tests](tooling.md#tests)). Every
-`*RepositoryPg` has a suite in `infrastructure/__e2e__/` on `DbTest`, which shares the four
+migrates with the `make migrate` program ([tooling.md › Tests](tooling.md#tests)). A data
+layer's repository has a `.repository.e2e.ts` in `kernel/__e2e__/data/<store>/` on `DbTest`, in
+entities, its parent rows written through `Db`. Every `*RepositoryPg` that still holds its
+queries has a suite in `infrastructure/__e2e__/` on `DbTest`, which shares the four
 repositories of `infrastructure/__e2e__/testing/repository-stack.test-layer.ts` and inserts the parent
 rows with `insertUser` and its siblings from `infrastructure/__e2e__/testing/rows.test-util.ts`. An
 `.entity.e2e.ts` in `kernel/__e2e__/data/<store>/` checks, in entities only, what the schema

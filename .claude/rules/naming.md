@@ -29,7 +29,7 @@ tool reads.
 | `.service` | a domain service: `<entity>.service.ts` for an entity's rules, `<operation>.service.ts` for one operation that belongs to no entity | domain, a module's `services/` |
 | `.use-case` | a flow over domain services: `<verb>-<object>.use-case.ts` | application |
 | `.handler` | api: one contract group's handlers · worker: `<object>.handler.ts`, one queue's `handle` and `handleDeadLettered` over a use case | apps |
-| `.repository` · `.bucket` · `.llm` · `.queue` · `.relay` | a port's adapter over Postgres · S3 · `LanguageModel`, with the prompts · queue definitions and their job schemas · a layer that moves records from the database to a queue | infrastructure |
+| `.repository` · `.bucket` · `.llm` · `.queue` · `.relay` | a port's adapter over Postgres, or a store's `<Name>Repository` over its entities · S3 · `LanguageModel`, with the prompts · queue definitions and their job schemas · a layer that moves records from the database to a queue | infrastructure; a store's repository in `kernel/data` |
 | `.table` · `.entity` | a table, importing only tables · its entities, the schemas read from it, `<Name>Entity` with its `Insert`, `Where` and `Set` | `kernel/data` |
 | `.mapper` | an entity's codec into a model, `<Model>FromEntity` | a module's `services`; `infrastructure` holds them while it remains |
 | `.client` · `.transport` | client wiring · the service a package's client runs over | infrastructure, kernel, http-api, packages |
