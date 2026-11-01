@@ -183,8 +183,8 @@ packages/
   queue/  s3/                    tests, e2e, testing → __tests__/, __e2e__/
   testing/                       + epoch, matches, matchesAny, updateRow, the memory orDieOnNoRows
                                  (the package is test support itself)
-http-api/                        imports chat/domain and identity-contract; shared/security.ts keeps
-                                 SchemaErrors; shared/errors.ts unchanged
+http-api/                        imports chat/domain, identity/domain and identity-contract;
+                                 shared/security.ts keeps SchemaErrors; shared/errors.ts unchanged
 apps/
   api/                           layer.ts provides the clients from kernel/postgres and kernel/aws
     __tests__/{testing,…}/         ← apps/api/{testing,tests}
@@ -481,6 +481,8 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
   - **Rejected:**
     - a `contract/` subpath export of the module — a consumer then declares the whole module and
       the linker no longer stops it reaching the rest.
+  - **Note (S11):** `http-api` also imports identity's `domain`, since its user DTO is the `User`
+    model; a module's `domain` still imports only the contracts.
 
 - **D4 — A module holds `domain/`, `services/` and, once it has an adapter, `infrastructure/`,
   the same `#domain/*`, `#services/*`, `#infrastructure/*` aliases in every module, and an export

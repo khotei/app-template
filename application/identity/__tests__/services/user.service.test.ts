@@ -4,12 +4,11 @@ import { assertEquals } from '@effect/vitest/utils'
 import { Effect, HashMap, Layer, Option, Redacted, Ref, Result } from 'effect'
 import { Base64Url, Hex } from 'effect/encoding'
 
-import { assertSchemaEquals, isUuidV7 } from '@app-template/testing'
+import { UserUnknownError } from '@app-template/identity-contract'
+import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/testing'
 
-import { UserUnknownError } from '#domain/user/user.error'
-import { Credential, SecretHash } from '#domain/user/user.model'
-import { type UserSecret, UserService } from '#domain/user/user.service'
-import { epoch } from '#testing/chat.test-fixture'
+import { Credential, SecretHash } from '#domain/user.model'
+import { type UserSecret, UserService } from '#services/user.service'
 import { UserRepositoryTest, UserRows } from '#testing/user.test-fake'
 
 const UserServiceTest = UserService.layer.pipe(

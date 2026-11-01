@@ -1,15 +1,11 @@
 import { Effect, Layer } from 'effect'
 
-import { epoch, owner, stranger } from '@app-template/domain/testing'
-import {
-  buildUser,
-  Credential,
-  SecretHash,
-  type UserId,
-  UserRepository,
-} from '@app-template/domain/user'
+import { owner, stranger } from '@app-template/domain/testing'
+import { buildUser, Credential, SecretHash, UserRepository } from '@app-template/identity/domain'
+import type { UserId } from '@app-template/identity-contract'
 import { UserPg } from '@app-template/infrastructure/user'
 import { DbTest } from '@app-template/kernel/testing-e2e'
+import { epoch } from '@app-template/testing'
 
 /** Gives each user a credential of its own, since a credential's hash is a primary key. */
 const insertUser = (id: UserId) =>

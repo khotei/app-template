@@ -3,6 +3,8 @@
   "references": [
     { "path": "./domain" },
     { "path": "./http-api" },
+    { "path": "./application/identity" },
+    { "path": "./application/identity/contract" },
     { "path": "./application/use-cases" },
     { "path": "./infrastructure" },
     { "path": "./kernel" },

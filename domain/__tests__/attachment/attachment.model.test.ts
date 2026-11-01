@@ -1,6 +1,7 @@
 import { assert, describe, it } from '@effect/vitest'
 import { DateTime, Effect, Exit, Option, Schema } from 'effect'
 
+import { UserId } from '@app-template/identity-contract'
 import { assertSchemaEquals } from '@app-template/testing'
 
 import { AttachmentBoundError } from '#domain/attachment/attachment.error'
@@ -15,7 +16,6 @@ import {
   MediaType,
 } from '#domain/attachment/attachment.model'
 import { ChatId, MessageId } from '#domain/chat/chat.id'
-import { UserId } from '#domain/user/user.id'
 
 describe('Attachment', () => {
   const encoded = {

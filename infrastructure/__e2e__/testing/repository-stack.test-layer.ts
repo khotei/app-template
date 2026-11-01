@@ -1,7 +1,7 @@
 import { DateTime, Effect, Layer } from 'effect'
 
 import { buildChat, type ChatId, ChatRepository } from '@app-template/domain/chat'
-import type { UserId } from '@app-template/domain/user'
+import type { UserId } from '@app-template/identity-contract'
 import { DbTest } from '@app-template/kernel/testing-e2e'
 
 import { AttachmentRepositoryPg } from '#infrastructure/attachment/attachment.repository'

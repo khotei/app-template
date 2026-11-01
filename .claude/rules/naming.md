@@ -11,8 +11,8 @@ paths:
 - **Inside a workspace:** `#<workspace>/<path>` (`#domain/<entity>/<entity>.model`), never `./`
   or `../`.
 - **Across workspaces:** `@app-template/<workspace>[/<entity>]`: a layer exposes each entity as a
-  subpath through its `index.ts` barrel, plus `./testing`; `http-api` and each package have one
-  entry, no per-entity barrels; which may import which:
+  subpath through its `index.ts` barrel, plus `./testing`; a module one per layer, its contract
+  `@app-template/<module>-contract`; `http-api` and each package one entry; which may import which:
   [architecture.md › Dependency rules](../../docs/knowledge/architecture.md#dependency-rules).
 
 ## Files
@@ -26,7 +26,7 @@ tool reads.
 | `.id` | the aggregate's branded ids, the only value another aggregate's model imports, save a model it holds as a field it never writes; a port may `import type` another aggregate's model | domain |
 | `.model` · `.error` | `Schema.Class`es with the pure operations on them (builders, predicates, guards, transitions), split by the value they act on, never into a `.rule` · domain errors | domain |
 | `.port` | an entity's ports, `Context.Service`s with no layer, beside the values they take and answer: `<Entity>Where`, shared by every verb that filters alike, and `<Entity><Verb>Where` for the one verb whose filter differs | domain |
-| `.service` | a domain service: `<entity>.service.ts` for an entity's rules, `<operation>.service.ts` for one operation that belongs to no entity | domain |
+| `.service` | a domain service: `<entity>.service.ts` for an entity's rules, `<operation>.service.ts` for one operation that belongs to no entity | domain, a module's `services/` |
 | `.use-case` | a flow over domain services: `<verb>-<object>.use-case.ts` | application |
 | `.handler` | api: one contract group's handlers · worker: `<object>.handler.ts`, one queue's `handle` and `handleDeadLettered` over a use case | apps |
 | `.repository` · `.bucket` · `.llm` · `.queue` · `.relay` | a port's adapter over Postgres · S3 · `LanguageModel`, with the prompts · queue definitions and their job schemas · a layer that moves records from the database to a queue | infrastructure |

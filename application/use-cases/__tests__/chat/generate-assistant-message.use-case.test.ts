@@ -30,7 +30,6 @@ import {
   chat,
   chatId,
   deleteChat,
-  epoch,
   holdAssistantCall,
   MessageRows,
   messageId,
@@ -43,7 +42,7 @@ import {
 } from '@app-template/domain/testing'
 import { GenerateAssistantMessage } from '@app-template/infrastructure/chat'
 import { replyProvenance } from '@app-template/infrastructure/testing'
-import { png, recordLogs } from '@app-template/testing'
+import { epoch, png, recordLogs } from '@app-template/testing'
 
 import { AssistantMessageTest } from '#testing/chat.test-layer'
 import { GenerateAssistantMessageUseCase } from '#use-cases/chat/generate-assistant-message.use-case'

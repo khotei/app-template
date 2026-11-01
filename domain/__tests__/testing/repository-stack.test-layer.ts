@@ -12,19 +12,13 @@ import {
   MessageRepositoryTest,
   MessageRows,
 } from '#testing/chat.test-fake'
-import { UserRepositoryTest, UserRows } from '#testing/user.test-fake'
 
-/** The four repositories over fresh rows, the rows in context for a test to arrange or read. */
+/** Chat's three repositories over fresh rows, the rows in context for a test to arrange or read. */
 export const RepositoryStackTest = Layer.mergeAll(
-  UserRepositoryTest,
   ChatRepositoryTest,
   MessageRepositoryTest,
   AttachmentRepositoryTest,
-).pipe(
-  Layer.provideMerge(
-    Layer.mergeAll(UserRows.layer, ChatRows.layer, MessageRows.layer, AttachmentRows.layer),
-  ),
-)
+).pipe(Layer.provideMerge(Layer.mergeAll(ChatRows.layer, MessageRows.layer, AttachmentRows.layer)))
 
 /** Stores `chat` before the layers it feeds start. */
 export const insertChatLayer = (chat: Chat) =>

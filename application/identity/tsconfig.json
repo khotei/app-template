@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "../../node_modules/.cache/tsc/identity"
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["contract"],
+  "references": [
+    { "path": "./contract" },
+    { "path": "../../packages/db" },
+    { "path": "../../packages/testing" }
+  ]
+}

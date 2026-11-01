@@ -4,9 +4,11 @@ import { assertEquals } from '@effect/vitest/utils'
 import { Array as Arr, Duration, Effect, Exit, HashMap, Layer, Option, Ref, Stream } from 'effect'
 import { TestClock } from 'effect/testing'
 
+import type { UserId } from '@app-template/identity-contract'
 import {
   assertSchemaEquals,
   breakAfter,
+  epoch,
   isUuidV7,
   png,
   StreamBrokenError,
@@ -23,7 +25,6 @@ import {
 } from '#domain/attachment/attachment.model'
 import { AttachmentBucket, AttachmentRepository } from '#domain/attachment/attachment.port'
 import { AttachmentService } from '#domain/attachment/attachment.service'
-import type { UserId } from '#domain/user/user.id'
 import {
   AttachmentBucketObjects,
   AttachmentBucketTest,
@@ -32,8 +33,7 @@ import {
 } from '#testing/attachment.test-fake'
 import { unknownAttachmentId } from '#testing/attachment.test-fixture'
 import { upload } from '#testing/attachment.test-layer'
-import { chatId, epoch, messageId } from '#testing/chat.test-fixture'
-import { owner, stranger } from '#testing/user.test-fixture'
+import { chatId, messageId, owner, stranger } from '#testing/chat.test-fixture'
 
 /** The service over `repository` and `AttachmentBucketTest`, on fresh rows. */
 const layerAttachmentService = (

@@ -14,11 +14,32 @@
         "vitest": "catalog:tools",
       },
     },
+    "application/identity": {
+      "name": "@app-template/identity",
+      "dependencies": {
+        "@app-template/db": "workspace:*",
+        "@app-template/identity-contract": "workspace:*",
+        "effect": "catalog:effect",
+        "type-fest": "catalog:runtime",
+      },
+      "devDependencies": {
+        "@app-template/testing": "workspace:*",
+        "@effect/platform-bun": "catalog:effect",
+        "@effect/vitest": "catalog:effect",
+      },
+    },
+    "application/identity/contract": {
+      "name": "@app-template/identity-contract",
+      "dependencies": {
+        "effect": "catalog:effect",
+      },
+    },
     "application/use-cases": {
       "name": "@app-template/use-cases",
       "dependencies": {
         "@app-template/db": "workspace:*",
         "@app-template/domain": "workspace:*",
+        "@app-template/identity-contract": "workspace:*",
         "@app-template/infrastructure": "workspace:*",
         "@app-template/queue": "workspace:*",
         "effect": "catalog:effect",
@@ -36,6 +57,8 @@
         "@app-template/db": "workspace:*",
         "@app-template/domain": "workspace:*",
         "@app-template/http-api": "workspace:*",
+        "@app-template/identity": "workspace:*",
+        "@app-template/identity-contract": "workspace:*",
         "@app-template/infrastructure": "workspace:*",
         "@app-template/kernel": "workspace:*",
         "@app-template/testing": "workspace:*",
@@ -53,6 +76,8 @@
         "@app-template/db": "workspace:*",
         "@app-template/domain": "workspace:*",
         "@app-template/http-api": "workspace:*",
+        "@app-template/identity": "workspace:*",
+        "@app-template/identity-contract": "workspace:*",
         "@app-template/infrastructure": "workspace:*",
         "@app-template/kernel": "workspace:*",
         "@app-template/use-cases": "workspace:*",
@@ -106,6 +131,7 @@
       "name": "@app-template/domain",
       "dependencies": {
         "@app-template/db": "workspace:*",
+        "@app-template/identity-contract": "workspace:*",
         "effect": "catalog:effect",
         "type-fest": "catalog:runtime",
       },
@@ -119,6 +145,8 @@
       "name": "@app-template/http-api",
       "dependencies": {
         "@app-template/domain": "workspace:*",
+        "@app-template/identity": "workspace:*",
+        "@app-template/identity-contract": "workspace:*",
         "effect": "catalog:effect",
       },
     },
@@ -128,6 +156,8 @@
         "@app-template/aws": "workspace:*",
         "@app-template/db": "workspace:*",
         "@app-template/domain": "workspace:*",
+        "@app-template/identity": "workspace:*",
+        "@app-template/identity-contract": "workspace:*",
         "@app-template/kernel": "workspace:*",
         "@app-template/queue": "workspace:*",
         "@app-template/s3": "workspace:*",
@@ -283,6 +313,10 @@
     "@app-template/e2e": ["@app-template/e2e@workspace:apps/__e2e__"],
 
     "@app-template/http-api": ["@app-template/http-api@workspace:http-api"],
+
+    "@app-template/identity": ["@app-template/identity@workspace:application/identity"],
+
+    "@app-template/identity-contract": ["@app-template/identity-contract@workspace:application/identity/contract"],
 
     "@app-template/infrastructure": ["@app-template/infrastructure@workspace:infrastructure"],
 

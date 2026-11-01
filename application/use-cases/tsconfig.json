@@ -10,6 +10,7 @@
     { "path": "../../infrastructure" },
     { "path": "../../packages/db" },
     { "path": "../../packages/queue" },
-    { "path": "../../packages/testing" }
+    { "path": "../../packages/testing" },
+    { "path": "../identity/contract" }
   ]
 }

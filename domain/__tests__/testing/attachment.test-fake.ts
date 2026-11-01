@@ -13,6 +13,8 @@ import {
   Struct,
 } from 'effect'
 
+import { matches, matchesAny, orDieOnNoRows } from '@app-template/testing'
+
 import type { AttachmentId } from '#domain/attachment/attachment.id'
 import { Attachment, FileSize } from '#domain/attachment/attachment.model'
 import {
@@ -20,7 +22,6 @@ import {
   AttachmentRepository,
   type AttachmentWhere,
 } from '#domain/attachment/attachment.port'
-import { matches, matchesAny, orDieOnNoRows } from '#testing/rows.test-util'
 
 /** The rows `AttachmentRepositoryTest` keeps, by id, for a test to arrange or read. */
 export class AttachmentRows extends Context.Service<

@@ -22,7 +22,7 @@ import {
   MessageRepository,
   queueChat,
 } from '@app-template/domain/chat'
-import type { UserId } from '@app-template/domain/user'
+import type { UserId } from '@app-template/identity-contract'
 import {
   assistantMessageQueue,
   CurrentReplyProvenance,

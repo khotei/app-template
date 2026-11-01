@@ -2,7 +2,7 @@ import { Effect, flow, Layer, Schema, UndefinedOr } from 'effect'
 import { SqlClient } from 'effect/sql'
 
 import { decodeOptionalRow, orDieWithSqlError, skipUndefined } from '@app-template/db'
-import { UserRepository, type UserWhere } from '@app-template/domain/user'
+import { UserRepository, type UserWhere } from '@app-template/identity/domain'
 import { Db } from '@app-template/kernel/data'
 import { credentials, UserEntityInsert, users } from '@app-template/kernel/data/user'
 

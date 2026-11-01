@@ -22,7 +22,7 @@ import {
   MessageId,
   MessageRepository,
 } from '@app-template/domain/chat'
-import { UserId } from '@app-template/domain/user'
+import { UserId } from '@app-template/identity-contract'
 import { assertSchemaEquals } from '@app-template/testing'
 
 import { RepositoryStackPgTest } from '#testing-e2e/repository-stack.test-layer'

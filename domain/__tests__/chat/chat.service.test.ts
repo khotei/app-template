@@ -2,7 +2,8 @@ import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { DateTime, Effect, Option, Stream } from 'effect'
 
-import { assertSchemaEquals, png } from '@app-template/testing'
+import type { UserId } from '@app-template/identity-contract'
+import { assertSchemaEquals, epoch, png } from '@app-template/testing'
 
 import { AttachmentId } from '#domain/attachment/attachment.id'
 import {
@@ -18,11 +19,9 @@ import { type ChatId, MessageId } from '#domain/chat/chat.id'
 import { Chat, ChatTitle } from '#domain/chat/chat.model'
 import { ChatService } from '#domain/chat/chat.service'
 import { buildAssistantMessage } from '#domain/chat/message.model'
-import type { UserId } from '#domain/user/user.id'
-import { chat, epoch, firstMessage, unknownChatId } from '#testing/chat.test-fixture'
+import { chat, firstMessage, owner, stranger, unknownChatId } from '#testing/chat.test-fixture'
 import { ChatTest } from '#testing/chat.test-layer'
 import { insertMessage, selectChat, selectMessages } from '#testing/repository-stack.test-layer'
-import { owner, stranger } from '#testing/user.test-fixture'
 
 const trip = ChatTitle.make('Trip')
 

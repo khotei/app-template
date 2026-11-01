@@ -13,7 +13,6 @@ import {
   chat,
   chatId,
   deleteChat,
-  epoch,
   holdAssistantCall,
   messageId,
   queuedChat,
@@ -28,7 +27,7 @@ import {
 } from '@app-template/infrastructure/chat'
 import { replyProvenance } from '@app-template/infrastructure/testing'
 import type { AttemptInfo } from '@app-template/queue'
-import { recordLogs } from '@app-template/testing'
+import { epoch, recordLogs } from '@app-template/testing'
 import { AssistantMessageTest } from '@app-template/use-cases/testing'
 
 import { handle, handleDeadLettered } from '#worker/chat/assistant-message.handler'

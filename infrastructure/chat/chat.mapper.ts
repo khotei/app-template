@@ -8,7 +8,7 @@ import {
   MessageFailure,
   MessageId,
 } from '@app-template/domain/chat'
-import { UserId } from '@app-template/domain/user'
+import { UserId } from '@app-template/identity-contract'
 import { ChatEntity, MessageEntity } from '@app-template/kernel/data/chat'
 
 import { AttachmentFromEntity } from '#infrastructure/attachment/attachment.mapper'

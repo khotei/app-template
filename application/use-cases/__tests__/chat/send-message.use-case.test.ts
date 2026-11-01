@@ -19,7 +19,6 @@ import {
 import {
   ask,
   chat,
-  epoch,
   owner,
   selectChat,
   selectMessages,
@@ -29,7 +28,7 @@ import {
 import { GenerateAssistantMessage, GenerateChatTitle } from '@app-template/infrastructure/chat'
 import { replyProvenance } from '@app-template/infrastructure/testing'
 import { recordQueue } from '@app-template/queue/testing'
-import { assertSchemaEquals, isUuidV7, sortById } from '@app-template/testing'
+import { assertSchemaEquals, epoch, isUuidV7, sortById } from '@app-template/testing'
 
 import { ChatTest, selectAttachments } from '#testing/chat.test-layer'
 import { SendMessageUseCase } from '#use-cases/chat/send-message.use-case'

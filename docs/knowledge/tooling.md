@@ -244,7 +244,9 @@ its sources either way.
    `"type": "module"`, an `exports` entry, and `"imports": { "#<name>/*": "./*.ts" }`).
 2. Add `tsconfig.json`: extend `tsconfig.base.json`, set `rootDir: "."` and
    `outDir: "<relative>/node_modules/.cache/tsc/<name>"`, set `include`, and reference the
-   workspaces it imports. Copy an existing one, such as `packages/queue/tsconfig.json`.
+   workspaces it imports. Copy an existing one, such as `packages/queue/tsconfig.json`. A module
+   with a contract nested in its folder also sets `"exclude": ["contract"]` and references
+   `./contract`; without both, `tsc -b` compiles the contract twice.
 3. Add the path to the root `package.json` `workspaces` if no glob covers it. Bun rejects an
    explicit path that does not exist yet, so create the folder first.
 4. Add the path to the root `tsconfig.json` `references`.

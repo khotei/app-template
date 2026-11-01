@@ -10,7 +10,8 @@ import {
   MessageNotFoundError,
   MessageRepository,
 } from '@app-template/domain/chat'
-import { Api, CurrentUser } from '@app-template/http-api'
+import { Api } from '@app-template/http-api'
+import { CurrentUser } from '@app-template/identity-contract'
 import { SendMessageUseCase } from '@app-template/use-cases/chat'
 
 export const ChatHandler = HttpApiBuilder.group(

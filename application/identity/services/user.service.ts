@@ -2,11 +2,10 @@ import { Context, Crypto, DateTime, Effect, Layer, Option, Redacted } from 'effe
 import { Base64Url, Hex } from 'effect/encoding'
 
 import { generateId } from '@app-template/db'
+import { UserId, UserUnknownError } from '@app-template/identity-contract'
 
-import { UserUnknownError } from '#domain/user/user.error'
-import { UserId } from '#domain/user/user.id'
-import { buildUser, Credential, SecretHash, type User } from '#domain/user/user.model'
-import { UserRepository } from '#domain/user/user.port'
+import { buildUser, Credential, SecretHash, type User } from '#domain/user.model'
+import { UserRepository } from '#domain/user.port'
 
 /** The 32 random bytes a user signs in with, as base64url; only its hash is stored. */
 export type UserSecret = Redacted.Redacted<string>
@@ -24,7 +23,7 @@ export class UserService extends Context.Service<
     ) => Effect.Effect<{ readonly user: User; readonly secret: UserSecret }>
     readonly authenticate: (secret: UserSecret) => Effect.Effect<User, UserUnknownError>
   }
->()('@app-template/domain/user/UserService', {
+>()('@app-template/identity/services/UserService', {
   make: Effect.gen(function* () {
     const users = yield* UserRepository
     const crypto = yield* Crypto.Crypto

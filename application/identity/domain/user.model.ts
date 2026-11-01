@@ -1,6 +1,6 @@
 import { type DateTime, Schema } from 'effect'
 
-import { UserId } from '#domain/user/user.id'
+import { UserId } from '@app-template/identity-contract'
 
 export class User extends Schema.Class<User>('User')({
   id: UserId,

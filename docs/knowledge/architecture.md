@@ -45,6 +45,8 @@ one test process, and the use cases on Postgres, and nothing imports it.
 | `domain/` | entity models and their pure operations, errors, ports, and the domain services that own the rules over them; no I/O of its own, time and ids only through `DateTime.now` and `Crypto` | [domain/CLAUDE.md](../../domain/CLAUDE.md) |
 | `http-api/` | the HTTP contract (`HttpApi`) over the domain, shared by `apps/api` and the browser | [http-api/CLAUDE.md](../../http-api/CLAUDE.md) |
 | `infrastructure/` | adapters that implement domain ports on top of `packages/*` clients | [infrastructure/CLAUDE.md](../../infrastructure/CLAUDE.md) |
+| `application/identity/` | the first module: the user and its credential in `domain/`, `UserService` in `services/`; reached from outside only through its contract | [layering.md](../../.claude/rules/layering.md) |
+| `application/identity/contract/` | `@app-template/identity-contract`, what other workspaces need of identity: `UserId`, `UserUnknownError`, `CurrentUser`, `Auth` | this table |
 | `application/use-cases/` | use cases: the flows that join the domain's writes in one transaction, or reach the queue, the bucket or the assistant | [layering.md](../../.claude/rules/layering.md) |
 | `kernel/` | this app's configuration of its tools: the config services, the Postgres and AWS clients built from them, the AWS inventory, the migrations, the language model of the configured provider | [kernel/CLAUDE.md](../../kernel/CLAUDE.md) |
 | `packages/*` | generic, project-agnostic clients and libraries | [packages/CLAUDE.md](../../packages/CLAUDE.md) |
@@ -52,8 +54,8 @@ one test process, and the use cases on Postgres, and nothing imports it.
 | `apps/__e2e__/` | the e2e over assembled layers: the use cases on Postgres, and the journey, `ApiLayer` and `WorkerLayer` in one runtime over the run's containers | [tooling.md › Tests](tooling.md#tests) |
 | `deployment/` | `local/`, the Pulumi program of the local stand: MiniStack and the resources inside it ([aws.md](aws.md)); `aws/`, the resource code as functions of a provider, the rest a stub for now | [deployment/CLAUDE.md](../../deployment/CLAUDE.md) |
 
-`application/` is a folder of workspaces with no `package.json` of its own: today `use-cases`,
-later the modules.
+`application/` is a folder of workspaces with no `package.json` of its own: `use-cases` and the
+modules, today `identity` with its contract nested in `identity/contract/`.
 
 ### Dependency rules
 
@@ -80,11 +82,15 @@ Each row lists what a workspace may import.
   `type-fest` it imports for types only (`RequireAtLeastOne`). Its `__tests__/` may also import
   the test support `@app-template/testing`, and its tests outside `__tests__/testing/`
   `@effect/platform-bun` for `BunCrypto.layer`.
-- **`http-api` imports `effect` and `domain` only.** It is the system's HTTP boundary, shared by
-  the api that implements it and the browser that calls it, so it lists the domain's ids, models
-  and errors instead of copies, and the wire carries the domain's tags (`UserUnknownError`). The
-  domain therefore ships to the browser: it declares `"sideEffects": false`, so a bundle keeps
-  only the schemas it uses and drops the ports.
+- **A module's contract** (`@app-template/<module>-contract`) imports no workspace, and every
+  workspace above `packages/*` may import it: `domain`, `http-api` and the apps take `UserId`,
+  `UserUnknownError`, `CurrentUser` and `Auth` from `identity-contract`. A module's `domain/`
+  imports no workspace but the contracts, its `services/` also `@app-template/db`.
+- **`http-api` imports `effect`, `domain`, the contracts and a module's `domain` only.** It is the
+  system's HTTP boundary, shared by the api that implements it and the browser that calls it, so
+  it lists the domain's ids, models and errors instead of copies, and the wire carries the tags of
+  the domain and the contracts (`UserUnknownError`). The domain therefore ships to the browser: it
+  declares `"sideEffects": false`, so a bundle keeps only the schemas it uses and drops the ports.
 - **`apps/web` client code ships to the browser.** It calls the api through `ApiClient` from
   `http-api` and runs its Effects itself; only its server entry `main.ts` may read
   `kernel/config`, to get a validated `WEB_PORT`.
@@ -124,7 +130,7 @@ Using the `chat` slice as the map:
 | domain errors | `domain/chat/chat.error.ts`, `message.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
 | port | `domain/chat/chat.port.ts`, `message.port.ts`, `assistant.port.ts` | `ChatRepository`, `MessageRepository`, `Assistant` (`Context.Service` with no layer) |
 | domain service: the rules that need a port | `domain/chat/chat.service.ts` | `ChatService`, `ChatService.layer` |
-| memory layers and fixtures | `domain/__tests__/testing/chat.test-fake.ts`, `chat.test-fixture.ts`, `user.test-fixture.ts` | `ChatRepositoryTest`, `ChatRows`, `chat`, `owner`; `RepositoryStackTest` in `repository-stack.test-layer.ts`; all as `@app-template/domain/testing` |
+| memory layers and fixtures | `domain/__tests__/testing/chat.test-fake.ts`, `chat.test-fixture.ts` | `ChatRepositoryTest`, `ChatRows`, `chat`, `owner`; `RepositoryStackTest` in `repository-stack.test-layer.ts`; all as `@app-template/domain/testing`; the user's `UserRepositoryTest` as `@app-template/identity/testing`; `epoch` and the row matchers `matches`, `matchesAny`, `updateRow` in `@app-template/testing` |
 | database tools any app could use | `packages/db/` (`@app-template/db`) | `createDb(relations)`, `Transaction`, the shared columns in `columns.ts`, `migrateDatabase(folder)`, `retryWhileUnreachable`; `TransactionTest` as `./testing`, `flipSqlError` as `./testing-e2e` |
 | database client | `kernel/data/db.client.ts` | `Db` (made by `createDb(relations)` over the data layer's relations), `Db.layer` over the `PgClient` in the context; `DbTest` as `@app-template/kernel/testing-e2e` |
 | Postgres client from config and the migrations | `kernel/postgres/`, `kernel/data/` | `PgClientFromConfig` and `applyMigrations`, the `make migrate` program, in `@app-template/kernel/postgres`; `migrationsFolder` over `migrations/` and `drizzle.config.ts` in `kernel/data/`; the e2e run's setup in `kernel/__e2e__/testing/e2e.test-setup.ts` |
@@ -228,10 +234,10 @@ checks what the import rules leave to tree shaking, the web bundle:
 
 | Guard | Catches | Reports |
 |---|---|---|
-| Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json` | an import that goes up a layer or into a sibling app; any relative path; a workspace or an `@effect/*` package other than `@effect/vitest` in `domain` (in a `*.service.ts`, a workspace other than `@app-template/db`; in its `__tests__/`, a workspace other than `@app-template/testing`); e2e support (`#testing-e2e/*`, `./testing-e2e`) in a unit test or its support; a workspace other than `domain`, or an `@effect/*` package, in `http-api`; `http-api` in a lower layer, a package, the worker or `deployment` | `make lint`, `pre-commit`, CI `static` |
+| Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json` | an import that goes up a layer or into a sibling app; any relative path; a workspace or an `@effect/*` package other than `@effect/vitest` in `domain` but the module contracts (in a `*.service.ts`, a workspace other than `@app-template/db`; in its `__tests__/`, a workspace other than `@app-template/testing`); the same per layer of a module (`application/*/domain/**`, `services/**`, `contract/**`, `__tests__/**`); e2e support (`#testing-e2e/*`, `./testing-e2e`) in a unit test or its support; a workspace other than `domain`, a contract or a module's `domain`, or an `@effect/*` package, in `http-api`; `http-api` in a lower layer, a package, the worker or `deployment` | `make lint`, `pre-commit`, CI `static` |
 | the isolated linker with `tsc -b` | an allowed import of a workspace that is not declared in `package.json` | TS2307 in `make typecheck` and at runtime |
 | `composite` project references (`rootDir: "."`) | a path that reaches into an unreferenced workspace's files | TS6059 / TS6307 in `make typecheck` |
-| `make bundle-check`: `bun build` of `apps/web/app/main.ts`, then a `grep` of the bundle | a domain service or port in the browser bundle, or an adapter, which carries its port's key: a value import of one that `http-api` passes on | the matched service keys, in `make check` |
+| `make bundle-check`: `bun build` of `apps/web/app/main.ts`, then a `grep` of the bundle | a domain service or port in the browser bundle, or an adapter, which carries its port's key: a value import of one that `http-api` passes on; a module's `services/` or `infrastructure/` key, or a port key of its `domain/` | the matched service keys, in `make check` |
 
 The Biome overrides are **deny-lists**: each names the workspaces a layer must not import. A new
 `packages/*` workspace therefore needs no change to them, while a new layer or app does. The

@@ -7,8 +7,7 @@
     "./attachment": "./attachment/index.ts",
     "./chat": "./chat/index.ts",
     "./shared": "./shared/index.ts",
-    "./testing": "./__tests__/testing/index.ts",
-    "./user": "./user/index.ts"
+    "./testing": "./__tests__/testing/index.ts"
   },
   "imports": {
     "#domain/*": "./*.ts",
@@ -16,6 +15,7 @@
   },
   "dependencies": {
     "@app-template/db": "workspace:*",
+    "@app-template/identity-contract": "workspace:*",
     "effect": "catalog:effect",
     "type-fest": "catalog:runtime"
   },

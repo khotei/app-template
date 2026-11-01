@@ -18,10 +18,10 @@ import {
   Message as MessageModel,
   MessageNotFoundError,
 } from '@app-template/domain/chat'
+import { Auth } from '@app-template/identity-contract'
 
 import { Attachment } from '#http-api/attachment/attachment.http'
 import * as limits from '#http-api/shared/limits'
-import { Auth } from '#http-api/shared/security'
 
 export const Chat = ChatModel.mapFields((fields) => ({
   ...fields,

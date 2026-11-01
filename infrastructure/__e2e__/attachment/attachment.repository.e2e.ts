@@ -11,7 +11,7 @@ import {
   MediaType,
 } from '@app-template/domain/attachment'
 import { buildUserMessage, ChatId, MessageId, MessageRepository } from '@app-template/domain/chat'
-import { UserId } from '@app-template/domain/user'
+import { UserId } from '@app-template/identity-contract'
 import { assertSchemaEquals } from '@app-template/testing'
 
 import { insertOwnedChats, RepositoryStackPgTest } from '#testing-e2e/repository-stack.test-layer'

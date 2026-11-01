@@ -8,11 +8,11 @@ import {
   AttachmentMediaType,
   AttachmentTooLargeError,
   AttachmentTypeUnsupportedError,
-  CurrentUser,
   limits,
   RequestInvalidError,
   type RequestIssue,
 } from '@app-template/http-api'
+import { CurrentUser } from '@app-template/identity-contract'
 
 const buildRequestInvalid = (path: RequestIssue['path'], message: string) =>
   new RequestInvalidError({ issues: [{ path, message }] })

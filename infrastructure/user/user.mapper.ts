@@ -1,6 +1,7 @@
 import { Schema } from 'effect'
 
-import { User, UserId } from '@app-template/domain/user'
+import { User } from '@app-template/identity/domain'
+import { UserId } from '@app-template/identity-contract'
 import { UserEntity } from '@app-template/kernel/data/user'
 
 export const UserFromEntity = Schema.Struct({

@@ -32,14 +32,8 @@ import {
   type HistoryMessage,
   MessageId,
 } from '@app-template/domain/chat'
-import {
-  asCompleted,
-  assistantMessageAt,
-  epoch,
-  owner,
-  userMessageAt,
-} from '@app-template/domain/testing'
-import { png } from '@app-template/testing'
+import { asCompleted, assistantMessageAt, owner, userMessageAt } from '@app-template/domain/testing'
+import { epoch, png } from '@app-template/testing'
 
 import {
   AssistantLlm,

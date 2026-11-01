@@ -6,6 +6,8 @@
   },
   "include": ["**/*.ts"],
   "references": [
+    { "path": "../application/identity" },
+    { "path": "../application/identity/contract" },
     { "path": "../domain" },
     { "path": "../kernel" },
     { "path": "../packages/aws" },

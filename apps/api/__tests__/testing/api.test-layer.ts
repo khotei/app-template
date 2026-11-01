@@ -5,6 +5,7 @@ import { Cookies } from 'effect/http'
 import { TransactionTest } from '@app-template/db/testing'
 import { AttachmentBucketTest, RepositoryStackTest } from '@app-template/domain/testing'
 import { ApiClient } from '@app-template/http-api'
+import { UserRepositoryTest, UserRows } from '@app-template/identity/testing'
 import { CurrentReplyProvenanceTest } from '@app-template/infrastructure/testing'
 import { recordQueue } from '@app-template/queue/testing'
 import { layerCookieJarTest } from '@app-template/testing'
@@ -25,6 +26,8 @@ export const ApiServerTest = ApiHttp.pipe(
   ]),
   Layer.provideMerge(BunHttpServer.layerTest),
   Layer.provideMerge(RepositoryStackTest),
+  Layer.provideMerge(UserRepositoryTest),
+  Layer.provideMerge(UserRows.layer),
   Layer.provide([BunCrypto.layer, ConfigProvider.layer(ConfigProvider.fromUnknown({}))]),
 )
 

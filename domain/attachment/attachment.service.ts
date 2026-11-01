@@ -14,6 +14,7 @@ import {
 } from 'effect'
 
 import { generateId } from '@app-template/db'
+import type { UserId } from '@app-template/identity-contract'
 
 import {
   type AttachmentBoundError,
@@ -30,7 +31,6 @@ import {
 } from '#domain/attachment/attachment.model'
 import { AttachmentBucket, AttachmentRepository } from '#domain/attachment/attachment.port'
 import type { ChatId, MessageId } from '#domain/chat/chat.id'
-import type { UserId } from '#domain/user/user.id'
 
 export interface AttachmentUpload<E> extends AttachmentMeta {
   readonly content: Stream.Stream<Uint8Array, E>

@@ -6,9 +6,9 @@ import {
   Credential,
   SecretHash,
   User,
-  UserId,
   UserRepository,
-} from '@app-template/domain/user'
+} from '@app-template/identity/domain'
+import { UserId } from '@app-template/identity-contract'
 import { UserPg } from '@app-template/infrastructure/user'
 import { DbTest } from '@app-template/kernel/testing-e2e'
 import { assertSchemaEquals } from '@app-template/testing'

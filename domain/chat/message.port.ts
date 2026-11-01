@@ -1,9 +1,10 @@
 import { Context, type Effect, type Option, type Types } from 'effect'
 import type { RequireAtLeastOne } from 'type-fest'
 
+import type { UserId } from '@app-template/identity-contract'
+
 import type { ChatId, MessageId } from '#domain/chat/chat.id'
 import type { Message, MessageStatus } from '#domain/chat/message.model'
-import type { UserId } from '#domain/user/user.id'
 
 /** The stored status a write requires; the row is always found by the message's id. */
 export type MessageUpdateWhere = Pick<Message, 'status'>

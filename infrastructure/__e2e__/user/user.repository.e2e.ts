@@ -8,9 +8,9 @@ import {
   Credential,
   SecretHash,
   User,
-  UserId,
   UserRepository,
-} from '@app-template/domain/user'
+} from '@app-template/identity/domain'
+import { UserId } from '@app-template/identity-contract'
 import { Db } from '@app-template/kernel/data'
 import { credentials, users } from '@app-template/kernel/data/user'
 import { DbTest } from '@app-template/kernel/testing-e2e'

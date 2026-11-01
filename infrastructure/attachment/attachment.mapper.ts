@@ -8,7 +8,7 @@ import {
   MediaType,
 } from '@app-template/domain/attachment'
 import { ChatId, MessageId } from '@app-template/domain/chat'
-import { UserId } from '@app-template/domain/user'
+import { UserId } from '@app-template/identity-contract'
 import { AttachmentEntity } from '@app-template/kernel/data/attachment'
 
 export const AttachmentFromEntity = Schema.Struct({

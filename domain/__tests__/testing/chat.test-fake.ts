@@ -14,6 +14,9 @@ import {
 } from 'effect'
 import { constTrue } from 'effect/Function'
 
+import type { UserId } from '@app-template/identity-contract'
+import { matches, matchesAny, orDieOnNoRows, updateRow } from '@app-template/testing'
+
 import type { AttachmentId } from '#domain/attachment/attachment.id'
 import type { Attachment } from '#domain/attachment/attachment.model'
 import type { ChatId, MessageId } from '#domain/chat/chat.id'
@@ -21,9 +24,7 @@ import { Chat } from '#domain/chat/chat.model'
 import { ChatRepository, type ChatWhere } from '#domain/chat/chat.port'
 import { isActiveMessage, Message } from '#domain/chat/message.model'
 import { MessageRepository, type MessageWhere } from '#domain/chat/message.port'
-import type { UserId } from '#domain/user/user.id'
 import { AttachmentRows } from '#testing/attachment.test-fake'
-import { matches, matchesAny, orDieOnNoRows, updateRow } from '#testing/rows.test-util'
 
 /** The rows `ChatRepositoryTest` keeps, by id, for a test to arrange or read. */
 export class ChatRows extends Context.Service<ChatRows, Ref.Ref<HashMap.HashMap<ChatId, Chat>>>()(

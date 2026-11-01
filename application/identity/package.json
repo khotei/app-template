@@ -1,0 +1,27 @@
+{
+  "name": "@app-template/identity",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./domain": "./domain/index.ts",
+    "./services": "./services/index.ts",
+    "./testing": "./__tests__/testing/index.ts"
+  },
+  "imports": {
+    "#domain/*": "./domain/*.ts",
+    "#services/*": "./services/*.ts",
+    "#testing/*": "./__tests__/testing/*.ts"
+  },
+  "dependencies": {
+    "@app-template/db": "workspace:*",
+    "@app-template/identity-contract": "workspace:*",
+    "effect": "catalog:effect",
+    "type-fest": "catalog:runtime"
+  },
+  "devDependencies": {
+    "@app-template/testing": "workspace:*",
+    "@effect/platform-bun": "catalog:effect",
+    "@effect/vitest": "catalog:effect"
+  }
+}

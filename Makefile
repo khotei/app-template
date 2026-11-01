@@ -230,7 +230,7 @@ test-e2e: ## Run the e2e tests under __e2e__/ on their own containers (Docker ru
 # "sideEffects": docs/knowledge/architecture.md › Boundary guards.
 bundle-check: ## Fail when a domain service, port or adapter reaches the web bundle
 	bun build apps/web/app/main.ts --outdir node_modules/.cache/web-bundle --target browser
-	! grep -rE '@app-template/(domain|infrastructure)/[a-z-]+/[A-Za-z]*(Service|Repository|Bucket|Assistant)' \
+	! grep -rE '@app-template/((domain|infrastructure)/[a-z-]+/[A-Za-z]*(Service|Repository|Bucket|Assistant)|[a-z-]+/(services|infrastructure)/|[a-z-]+/domain/[A-Za-z]*(Repository|Bucket|Assistant))' \
 		node_modules/.cache/web-bundle
 
 clean: ## Remove installed dependencies, build caches and coverage

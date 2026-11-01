@@ -10,8 +10,8 @@ import {
   MessageNotFoundError,
   MessageRepository,
 } from '@app-template/domain/chat'
-import { UserUnknownError } from '@app-template/domain/user'
 import { ApiClient } from '@app-template/http-api'
+import { UserUnknownError } from '@app-template/identity-contract'
 import { assertSchemaEquals } from '@app-template/testing'
 
 import { ApiServerTest, ApiTest, layerApiClient } from '#testing/api.test-layer'

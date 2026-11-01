@@ -16,7 +16,7 @@
 | S8 | the tables and relations in `kernel/data`, in the data layer's own types | done |
 | S9 | `Db` in `kernel/data` over the `PgClient` in the context; the entity suites speak entities | done |
 | S10 | the table `jobs` and `JobRepository`; one initial migration; the queue in `kernel/queue` | todo |
-| S11 | the `identity` module and `identity-contract` | todo |
+| S11 | the `identity` module and `identity-contract` | done |
 | S12 | `UserRepository` in the data layer; the first port gone | todo |
 | S13 | chat's domain and services in `application/chat`; no `domain` workspace | todo |
 | S14 | `ChatRepository` and `MessageRepository` in the data layer | todo |
@@ -555,7 +555,21 @@
 - **Verify:** `make check`; `git grep -n "@app-template/domain/user"` finds nothing;
   `make bundle-check` fails on a throwaway import of `UserService` into the web app (reverted).
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - `http-api` imports identity's `domain` beside the contract: its user DTO is the `User` model
+    (a note on D3).
+  - Chat's `RepositoryStackTest` drops the user's memory layers, and the api test layer adds them
+    from `@app-template/identity/testing`: kept in domain's stack, `tsc -b` fails with TS2883,
+    since its declarations cannot name `UserRepository` outside domain's program.
+  - `user.test-fixture.ts` held only `epoch`, so it went to `packages/testing/clock.test-fixture.ts`
+    and identity has no fixture file.
+  - A Biome override for `application/*/services/**` lands now, copying the domain service one, so
+    identity's services are never unguarded; S13 had planned it. The module's overrides sit before
+    the use cases' ones, since Biome keeps the last matching override's options.
+  - `make bundle-check` also greps the module key forms (`<module>/services/`,
+    `<module>/infrastructure/`, a port key in `<module>/domain/`).
+  - Size: 86 files, +481 / −160, most of it moves and import lines; `biome.json` alone is +210.
 
 #### S12 — The user's repository in the data layer
 

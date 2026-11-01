@@ -8,6 +8,8 @@
   "references": [
     { "path": "../api" },
     { "path": "../worker" },
+    { "path": "../../application/identity" },
+    { "path": "../../application/identity/contract" },
     { "path": "../../application/use-cases" },
     { "path": "../../domain" },
     { "path": "../../http-api" },

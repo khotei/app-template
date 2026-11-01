@@ -1,10 +1,11 @@
 import { type DateTime, Effect, Option, Predicate, Schema } from 'effect'
 
+import { UserId } from '@app-template/identity-contract'
+
 import { Attachment } from '#domain/attachment/attachment.model'
 import { ChatBusyError, ChatStatusInvalidError } from '#domain/chat/chat.error'
 import { ChatId } from '#domain/chat/chat.id'
 import { isQueued, Status } from '#domain/shared/status.model'
-import { UserId } from '#domain/user/user.id'
 
 /** `queued` while the chat's reply is in work, `failed` after its last reply failed, else `idle`. */
 export const ChatStatus = Status.pick(['idle', 'queued', 'failed'])

@@ -4,14 +4,8 @@ import { Array as Arr, Effect, Exit, Option, Order } from 'effect'
 import { SqlClient } from 'effect/sql'
 
 import { buildChat, ChatId, ChatRepository } from '@app-template/domain/chat'
-import {
-  chat,
-  epoch,
-  owner,
-  selectChat,
-  selectMessages,
-  upload,
-} from '@app-template/domain/testing'
+import { chat, owner, selectChat, selectMessages, upload } from '@app-template/domain/testing'
+import { epoch } from '@app-template/testing'
 import { SendMessageUseCase } from '@app-template/use-cases/chat'
 import { selectAttachments } from '@app-template/use-cases/testing'
 

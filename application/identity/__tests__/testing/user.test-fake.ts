@@ -1,9 +1,10 @@
 import { Context, Effect, HashMap, Layer, Option, Predicate, pipe, Ref } from 'effect'
 
-import type { UserId } from '#domain/user/user.id'
-import type { Credential, User } from '#domain/user/user.model'
-import { UserRepository, type UserWhere } from '#domain/user/user.port'
-import { matches } from '#testing/rows.test-util'
+import type { UserId } from '@app-template/identity-contract'
+import { matches } from '@app-template/testing'
+
+import type { Credential, User } from '#domain/user.model'
+import { UserRepository, type UserWhere } from '#domain/user.port'
 
 /** A user with the credential it was inserted with. */
 export interface UserRow {
@@ -15,7 +16,7 @@ export interface UserRow {
 export class UserRows extends Context.Service<
   UserRows,
   Ref.Ref<HashMap.HashMap<UserId, UserRow>>
->()('@app-template/domain/testing/UserRows') {
+>()('@app-template/identity/testing/UserRows') {
   static readonly layer = Layer.effect(this, Ref.make(HashMap.empty<UserId, UserRow>()))
 }
 

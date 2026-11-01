@@ -19,6 +19,8 @@
     "@app-template/aws": "workspace:*",
     "@app-template/db": "workspace:*",
     "@app-template/domain": "workspace:*",
+    "@app-template/identity": "workspace:*",
+    "@app-template/identity-contract": "workspace:*",
     "@app-template/kernel": "workspace:*",
     "@app-template/queue": "workspace:*",
     "@app-template/s3": "workspace:*",

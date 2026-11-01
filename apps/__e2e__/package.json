@@ -10,6 +10,8 @@
     "@app-template/db": "workspace:*",
     "@app-template/domain": "workspace:*",
     "@app-template/http-api": "workspace:*",
+    "@app-template/identity": "workspace:*",
+    "@app-template/identity-contract": "workspace:*",
     "@app-template/infrastructure": "workspace:*",
     "@app-template/kernel": "workspace:*",
     "@app-template/testing": "workspace:*",
