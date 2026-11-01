@@ -5,20 +5,21 @@ domain model, how the schema changes, and how tests get a database. The code:
 `packages/db/` (`@app-template/db`, which knows no table: `createDb`, `Transaction`, the shared
 columns, the query helpers, `migrateDatabase(folder)` and `retryWhileUnreachable`),
 `kernel/postgres/` (`PgClientFromConfig`, the `PgClient` built from `DatabaseConfig`, and the
-migrate program), `kernel/data/` (the migrations and `drizzle.config.ts`), `infrastructure/db/`
-(the client `Db`, made by `createDb(relations)`, and the relations) and
-`infrastructure/<aggregate>/<entity>.entity.ts` (the tables). Drizzle runs on `@effect/sql-pg`
-and is reached only through Effect: every query is an `Effect`, never a promise.
+migrate program), `kernel/data/` (the tables, their entities, the relations, the migrations and
+`drizzle.config.ts`), `infrastructure/db/` (the client `Db`, made by `createDb(relations)`) and
+the mappers beside the repositories in `infrastructure/<aggregate>/`. Drizzle runs on
+`@effect/sql-pg` and is reached only through Effect: every query is an `Effect`, never a promise.
 
 ## Schema and entity files
 
-Each entity declares its tables in one file beside its repository,
-`infrastructure/<aggregate>/<entity>.entity.ts`, one file per entity as the aggregate's
-repositories are split (`user/user.entity.ts`: `users`, `credentials`; `chat/chat.entity.ts`:
-`chats`; `chat/message.entity.ts`: `messages`; `attachment/attachment.entity.ts`:
-`attachments`; `outbox/outbox.entity.ts`: `outbox`, which no model maps, so it has no codec).
-The tables are the one declaration of the schema: the migrations are generated
-from them and the row codecs derived from them.
+The data layer, `kernel/data/<store>/`, declares each table in `<name>.table.ts` and its
+entities, the schemas read from it, in `<name>.entity.ts` (`user/user.table.ts`: `users`,
+`credentials`; `chat/chat.table.ts`: `chats`; `chat/message.table.ts`: `messages`;
+`attachment/attachment.table.ts`: `attachments`; `outbox/outbox.table.ts`: `outbox`); what each
+may import: [kernel/CLAUDE.md](../../kernel/CLAUDE.md). Since a table imports no entity,
+`ChatEntity` and `MessageEntity` nest `AttachmentEntity` without a cycle. The tables are the one
+declaration of the schema: the migrations are generated from them and the entities derived
+from them.
 
 - **Names.** A table is declared with `snakeCase.table` from `drizzle-orm/pg-core`, so the
   `camelCase` keys in code (`createdAt`) become `snake_case` columns (`created_at`) with no name
@@ -28,13 +29,15 @@ from them and the row codecs derived from them.
   and no `$onUpdate`. The domain writes every id and every timestamp with its own clock, so
   `TestClock` holds and there is no second clock; the `uuidv7()` default serves only
   hand-written SQL.
-- **Enums and checks read the domain.** An enum takes its values from the domain's literal
-  (`pgEnum('message_status', MessageStatus.literals)`), and a check reads the constant its brand
-  checks with (`credentials_hash_check` matches `secretHashPattern.source`, as `SecretHash` does;
-  `attachments_media_type_check` matches `mediaTypePattern.source` with `~*`, for its `i` flag;
-  `chats_title_check` caps the length at `maxTitleLength`), so a row written by hand cannot hold
-  what the domain rejects. drizzle-kit inlines the constants into the DDL, so a changed literal,
-  pattern or limit changes the schema, and `make migration-check` fails until a migration exists.
+- **Enums and checks state the data layer's own values.** An enum lists its values
+  (`pgEnum('message_status', ['queued', …])`), and a check declares its own pattern or limit
+  beside the table (`credentials_hash_check` the pattern `SecretHash` checks with;
+  `attachments_media_type_check` the one `MediaType` checks with, matched with `~*` for its `i`
+  flag; `chats_title_check` the length `ChatTitle` caps), so a row written by hand cannot hold
+  what the domain rejects. The model checks the same rule on its side, so a value lives twice: a
+  change to one is a change to both. drizzle-kit inlines the values into the DDL, so a changed
+  literal, pattern or limit changes the schema, and `make migration-check` fails until a
+  migration exists.
 - **A check is a backstop, never stricter than the brand.** It may let through what the brand
   refuses, never the reverse: `chats_title_check` trims spaces only and counts code points, where
   `ChatTitle` trims every whitespace and counts UTF-16 units. Checks are named
@@ -42,7 +45,7 @@ from them and the row codecs derived from them.
   `<table>_<columns>_<predicate>_index` (`messages_chat_id_active_index`).
 - **A rule across rows is a partial unique index.** `messages_chat_id_active_index` allows one
   active assistant message per chat; its predicate is `activeMessage`, exported from
-  `message.entity.ts` beside the table, with the statuses from `ActiveMessageStatus.literals`. An
+  `message.table.ts` beside the table, with the active statuses listed there. An
   `ON CONFLICT … WHERE` that targets the index takes its predicate from this constant, which
   renders as literals (`.inlineParams()`): a generic plan, which Postgres switches a prepared
   statement to after five runs, cannot prove the index predicate from bound parameters.
@@ -61,40 +64,53 @@ from them and the row codecs derived from them.
   upload order, `created_at` then `id`, whatever order the send listed them in;
   `attachments_message_id_created_at_id_index` serves that order.
 
-## Codecs
+## Entities and mappers
 
-An entity file derives a row codec with `createSelectSchema` or `createInsertSchema` from
-`drizzle-orm/effect-schema` only for a table whose columns differ from the model's fields: a
-`Date` that is a `DateTime.Utc` in the model, an id to brand on the way back.
+An entity file derives its schemas from the table with `createSelectSchema` and
+`createInsertSchema` from `drizzle-orm/effect-schema`, in the data layer's own types (`string`,
+`string | null`, `Date`), beside the `<Name>EntityWhere` and `<Name>EntitySet` its reads and
+writes filter and change by. An entity is the shape every read returns, so a chat's and a
+message's nest their attachments:
 
 ```ts
-const userFields = { id: UserId, createdAt: Schema.DateTimeUtcFromDate }
-export const UserRow = createSelectSchema(users, userFields)
-export const UserInsert = createInsertSchema(users, userFields)
+export const ChatEntity = Schema.Struct({
+  ...createSelectSchema(chats).fields,
+  attachments: Schema.Array(AttachmentEntity),
+})
+```
+
+A mapper, `<model>.mapper.ts` beside the repositories, lays the model's schemas over the
+entity's fields and pipes the struct into the model; repositories and tests decode and encode
+with it:
+
+```ts
+export const UserFromEntity = Schema.Struct({
+  ...UserEntity.fields,
+  id: UserId,
+  createdAt: Schema.DateTimeUtcFromDate,
+}).pipe(Schema.decodeTo(User))
 ```
 
 - A refinement given as a schema replaces the column's schema whole: nothing adds `NullOr` or
-  makes it optional, so a nullable column is refined to `Schema.OptionFromNullOr(…)` and a column
-  with a default becomes required, as the domain always writes it.
-- Each entity file exports one `<Entity>FromRow` beside its codec, the row schema piped into the
-  domain class (`UserRow.pipe(Schema.decodeTo(User))`); repositories and tests decode with it.
-  `MessageFromRow` decodes a message row with its attachments nested: one `Schema.Struct` of
-  both rows' schemas piped into `Message`. It lives in `attachment.entity.ts`, which already
-  imports the message entity, since the reverse import closes a cycle Biome rejects. A repository
-  encodes the model to the row it inserts. A row whose values are already the domain's (brands,
-  literals) is written as is: `credentials` takes `{ hash, kind, userId }` from the credential
-  and the user, with no codec.
-- A `jsonb` column carries the encoded type of its schema (`jsonb().$type<typeof
-  MessageFailure.Encoded>()`), so the row Drizzle returns fits the codec; the refinement
-  (`Schema.OptionFromNullOr(MessageFailure)`) is what decodes it.
+  makes it optional, so a nullable column is laid as `Schema.OptionFromNullOr(…)`. A refinement
+  given as a function (`{ error: () => MessageFailureJson }`) keeps the column's `NullOr`.
+- A model nested in another (an attachment in a chat, the failure in a message) is laid by its
+  encoded side, `AttachmentFromEntity.from` or `Schema.toEncoded(MessageFailure)`; why: the
+  comment in `infrastructure/chat/chat.mapper.ts`.
+- A repository writes a model encoded through its mapper and decoded with `<Name>EntityInsert`,
+  which cuts the nested attachments and checks the row. A row whose values are already the
+  domain's (brands, literals) is written as is: `credentials` takes `{ hash, kind, userId }` from
+  the credential and the user, with no mapper.
+- A `jsonb` column carries its shape's type (`jsonb().$type<typeof MessageFailureJson.Type>()`),
+  declared as a schema beside the table, so the row Drizzle returns fits the entity.
 
 ## Relations
 
-`infrastructure/db/relations.ts` declares the relations once, with `defineRelations` over every
+`kernel/data/relations.ts` declares the relations once, with `defineRelations` over every
 table, and `Db` is built with them (`PgDrizzle.make({ relations })`), so `db.query.<table>` is
 typed. A relation names its columns (`from`, `to`) and joins on their equality only, and holds
 no order: a query states it with `orderBy`. A relational query returns nested rows of the same
-shape as a `select`, so they decode with the same codecs:
+shape as a `select`, so they decode with the same entities:
 
 ```ts
 const rows = yield* db.query.messages.findMany({
@@ -121,7 +137,7 @@ connection `Db` uses. Every method ends with `orDieWithSqlError` from `@app-temp
 Reads go through relational queries (`db.query.<table>.findFirst` and `findMany`), writes
 through the core builder (`db.insert`, `db.update`, `db.delete`). A read of at most one row is a
 `findFirst`, which emits the `limit 1` itself, even where a key makes the row unique, so the
-query states its intent; `decodeOptionalRow(<Entity>FromRow)` from `@app-template/db` decodes the
+query states its intent; `decodeOptionalRow(<Model>FromEntity)` from `@app-template/db` decodes the
 row it found, or answers `Option.none()` for the `undefined` or `null` of none. A filter on a
 relation (`{ credentials: { kind, hash } }`) renders as `exists (…)`.
 

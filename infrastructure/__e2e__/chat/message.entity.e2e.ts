@@ -4,10 +4,10 @@ import { DateTime, Effect, Option, Schema } from 'effect'
 import { flipSqlError } from '@app-template/db/testing-e2e'
 import { Chat, ChatId, Message, MessageId } from '@app-template/domain/chat'
 import { UserId } from '@app-template/domain/user'
+import { withAttachments } from '@app-template/kernel/data/chat'
 import { assertSchemaEquals } from '@app-template/testing'
 
-import { MessageFromRow } from '#infrastructure/attachment/attachment.entity'
-import { withAttachments } from '#infrastructure/chat/message.entity'
+import { MessageFromEntity } from '#infrastructure/chat/chat.mapper'
 import { Db } from '#infrastructure/db/db.client'
 import { DbTest } from '#testing-e2e/db.test-layer'
 import { insertChat, insertMessage, insertUser } from '#testing-e2e/rows.test-util'
@@ -46,7 +46,7 @@ const insertChatOfUser = insertUser(userId).pipe(Effect.andThen(insertChat(chat)
 
 const selectMessages = Db.use((db) =>
   db.query.messages.findMany({ orderBy: { id: 'asc' }, with: withAttachments }),
-).pipe(Effect.flatMap(Schema.decodeEffect(Schema.Array(MessageFromRow))))
+).pipe(Effect.flatMap(Schema.decodeEffect(Schema.Array(MessageFromEntity))))
 
 describe('messages', () => {
   it.effect('refuses a second active reply in a chat through the partial unique index', () =>

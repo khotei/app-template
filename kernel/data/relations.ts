@@ -1,9 +1,9 @@
 import { defineRelations } from 'drizzle-orm'
 
-import { attachments } from '#infrastructure/attachment/attachment.entity'
-import { chats } from '#infrastructure/chat/chat.entity'
-import { messages } from '#infrastructure/chat/message.entity'
-import { credentials, users } from '#infrastructure/user/user.entity'
+import { attachments } from '#kernel/data/attachment/attachment.table'
+import { chats } from '#kernel/data/chat/chat.table'
+import { messages } from '#kernel/data/chat/message.table'
+import { credentials, users } from '#kernel/data/user/user.table'
 
 export const relations = defineRelations(
   { users, credentials, chats, messages, attachments },

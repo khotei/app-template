@@ -1,15 +1,13 @@
 import { sql } from 'drizzle-orm'
-import { createInsertSchema, createSelectSchema } from 'drizzle-orm/effect-schema'
 import { check, index, pgEnum, snakeCase, text, uuid } from 'drizzle-orm/pg-core'
-import { Schema } from 'effect'
 
 import { createdAt, id, updatedAt } from '@app-template/db'
-import { ChatId, ChatStatus, ChatTitle, maxTitleLength } from '@app-template/domain/chat'
-import { UserId } from '@app-template/domain/user'
 
-import { users } from '#infrastructure/user/user.entity'
+import { users } from '#kernel/data/user/user.table'
 
-export const chatStatus = pgEnum('chat_status', ChatStatus.literals)
+const maxTitleLength = 120
+
+export const chatStatus = pgEnum('chat_status', ['idle', 'queued', 'failed'])
 
 export const chats = snakeCase.table(
   'chats',
@@ -32,15 +30,3 @@ export const chats = snakeCase.table(
     index('chats_user_id_updated_at_index').on(table.userId, table.updatedAt.desc().nullsFirst()),
   ],
 )
-
-const chatFields = {
-  id: ChatId,
-  userId: UserId,
-  title: Schema.OptionFromNullOr(ChatTitle),
-  createdAt: Schema.DateTimeUtcFromDate,
-  updatedAt: Schema.DateTimeUtcFromDate,
-}
-
-export const ChatRow = createSelectSchema(chats, chatFields)
-
-export const ChatInsert = createInsertSchema(chats, chatFields)

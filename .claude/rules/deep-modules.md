@@ -4,6 +4,7 @@ paths:
   - "application/**"
   - "apps/**"
   - "infrastructure/**"
+  - "kernel/**"
 ---
 
 # Deep modules

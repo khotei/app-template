@@ -154,7 +154,9 @@
         "@effect-aws/client-sqs": "catalog:effect-aws",
         "@effect/platform-bun": "catalog:effect",
         "@effect/sql-pg": "catalog:effect",
+        "drizzle-orm": "catalog:drizzle",
         "effect": "catalog:effect",
+        "type-fest": "catalog:runtime",
       },
       "devDependencies": {
         "@app-template/testing": "workspace:*",

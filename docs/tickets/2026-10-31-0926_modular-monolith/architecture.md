@@ -268,7 +268,7 @@ alone:
 
 ```ts
 // kernel/data/chat/chat.table.ts
-export const chatStatus = pgEnum('chat_status', ['idle', 'queued', 'preparing', 'generating', 'done', 'failed'])
+export const chatStatus = pgEnum('chat_status', ['idle', 'queued', 'failed'])
 export const chats = snakeCase.table('chats', { id: id(), userId: uuid().notNull().references(() => users.id), … })
 
 // kernel/data/chat/chat.entity.ts
@@ -278,8 +278,10 @@ export const ChatEntity = Schema.Struct({
   attachments: Schema.Array(AttachmentEntity),
 })
 export const ChatEntityInsert = createInsertSchema(chats)
-export type ChatEntityWhere = Partial<Pick<typeof ChatEntity.Type, 'id' | 'userId'>>
-export type ChatEntitySet = Partial<Pick<typeof ChatEntity.Type, 'title' | 'status' | 'updatedAt'>>
+// never empty: a write finds its rows by a key, so it never matches every row
+export type ChatEntityWhere = RequireAtLeastOne<Pick<typeof ChatEntity.Type, 'id' | 'userId'>> &
+  Partial<Pick<typeof ChatEntity.Type, 'title' | 'status'>>
+export type ChatEntitySet = RequireAtLeastOne<Pick<typeof ChatEntity.Type, 'title' | 'status' | 'updatedAt'>>
 
 // kernel/data/chat/chat.repository.ts
 export class ChatRepository extends Context.Service<ChatRepository, {
@@ -329,7 +331,11 @@ const DataLayer = Layer.mergeAll(ChatRepository.layer, …, FileRepository.layer
 
 **A module maps** an entity to its model, and a service composes it. The mapper lays the model's
 schemas over the entity's fields: each one's encoded side is the entity's type (`string`,
-`string | null`, `Date`), so `decodeTo` needs no transformation of its own:
+`string | null`, `Date`), so `decodeTo` needs no transformation of its own. A nested model is laid
+by its encoded side (`AttachmentFromEntity.from`, `Schema.toEncoded(MessageFailure)`): encoding
+the parent hands it plain fields, which the model's own schema refuses. A repository writes a
+model encoded through its mapper and then decoded through `<Name>EntityInsert`, which cuts the
+nested attachments and checks the row:
 
 ```ts
 // application/chat/services/chat.mapper.ts
@@ -340,7 +346,7 @@ export const ChatFromEntity = Schema.Struct({
   title: Schema.OptionFromNullOr(ChatTitle),
   createdAt: Schema.DateTimeUtcFromDate,
   updatedAt: Schema.DateTimeUtcFromDate,
-  attachments: Schema.Array(AttachmentFromEntity),
+  attachments: Schema.Array(AttachmentFromEntity.from),
 }).pipe(Schema.decodeTo(Chat))
 
 // application/chat/services/chat.service.ts

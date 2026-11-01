@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm'
-import { Array as Arr, Effect, Layer, Schema, UndefinedOr } from 'effect'
+import { Array as Arr, Effect, flow, Layer, Schema, UndefinedOr } from 'effect'
 
 import {
   buildWhere,
@@ -13,20 +13,23 @@ import {
   type MessageUpdateWhere,
   type MessageWhere,
 } from '@app-template/domain/chat'
-
-import { MessageFromRow } from '#infrastructure/attachment/attachment.entity'
 import {
   activeMessage,
   inCreationOrder,
-  MessageInsert,
+  MessageEntityInsert,
   messages,
   withAttachments,
-} from '#infrastructure/chat/message.entity'
+} from '@app-template/kernel/data/chat'
+
+import { MessageFromEntity } from '#infrastructure/chat/chat.mapper'
 import { Db } from '#infrastructure/db/db.client'
 
-const encodeMessage = Schema.encodeEffect(MessageInsert)
+const encodeMessage = flow(
+  Schema.encodeEffect(MessageFromEntity),
+  Effect.flatMap(Schema.decodeEffect(MessageEntityInsert)),
+)
 
-const decodeMessages = Schema.decodeEffect(Schema.Array(MessageFromRow))
+const decodeMessages = Schema.decodeEffect(Schema.Array(MessageFromEntity))
 
 const encodeWhere = buildWhere<MessageUpdateWhere>({
   status: (status) => eq(messages.status, status),
@@ -69,7 +72,7 @@ export const MessageRepositoryPg = Layer.effect(
         (where) =>
           db.query.messages
             .findFirst({ where: filterOf(where), orderBy: inCreationOrder, with: withAttachments })
-            .pipe(Effect.flatMap(decodeOptionalRow(MessageFromRow))),
+            .pipe(Effect.flatMap(decodeOptionalRow(MessageFromEntity))),
         orDieWithSqlError,
       ),
       selectMany: Effect.fn('MessageRepository.selectMany')(

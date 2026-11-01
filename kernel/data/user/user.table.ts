@@ -1,14 +1,13 @@
 import { sql } from 'drizzle-orm'
-import { createInsertSchema, createSelectSchema } from 'drizzle-orm/effect-schema'
 import { check, pgEnum, snakeCase, text, uuid } from 'drizzle-orm/pg-core'
-import { Schema } from 'effect'
 
 import { createdAt, id } from '@app-template/db'
-import { Credential, secretHashPattern, User, UserId } from '@app-template/domain/user'
+
+const secretHashPattern = /^[0-9a-f]{64}$/
 
 export const users = snakeCase.table('users', { id: id(), createdAt: createdAt() })
 
-export const credentialKind = pgEnum('credential_kind', [Credential.fields.kind.literal])
+export const credentialKind = pgEnum('credential_kind', ['secret'])
 
 export const credentials = snakeCase.table(
   'credentials',
@@ -21,11 +20,3 @@ export const credentials = snakeCase.table(
   },
   (table) => [check('credentials_hash_check', sql`${table.hash} ~ ${secretHashPattern.source}`)],
 )
-
-const userFields = { id: UserId, createdAt: Schema.DateTimeUtcFromDate }
-
-export const UserRow = createSelectSchema(users, userFields)
-
-export const UserInsert = createInsertSchema(users, userFields)
-
-export const UserFromRow = UserRow.pipe(Schema.decodeTo(User))

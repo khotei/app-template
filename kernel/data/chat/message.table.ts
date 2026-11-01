@@ -1,5 +1,4 @@
 import { eq, inArray, type SQL, sql } from 'drizzle-orm'
-import { createInsertSchema, createSelectSchema } from 'drizzle-orm/effect-schema'
 import {
   index,
   jsonb,
@@ -13,20 +12,25 @@ import {
 import { Schema } from 'effect'
 
 import { createdAt, id, updatedAt } from '@app-template/db'
-import {
-  ActiveMessageStatus,
-  ChatId,
-  MessageAuthor,
-  MessageFailure,
-  MessageId,
-  MessageStatus,
-} from '@app-template/domain/chat'
 
-import { chats } from '#infrastructure/chat/chat.entity'
+import { chats } from '#kernel/data/chat/chat.table'
 
-export const messageAuthor = pgEnum('message_author', MessageAuthor.literals)
+/** Why a reply failed, as the column `error` holds it. */
+export const MessageFailureJson = Schema.Struct({
+  reason: Schema.Literals(['ReplyFailed', 'ReplyRefused']),
+  message: Schema.String,
+  cause: Schema.String,
+})
 
-export const messageStatus = pgEnum('message_status', MessageStatus.literals)
+export const messageAuthor = pgEnum('message_author', ['user', 'assistant'])
+
+export const messageStatus = pgEnum('message_status', [
+  'queued',
+  'preparing',
+  'generating',
+  'done',
+  'failed',
+])
 
 export const messages = snakeCase.table(
   'messages',
@@ -38,7 +42,7 @@ export const messages = snakeCase.table(
     author: messageAuthor().notNull(),
     status: messageStatus().notNull(),
     text: text().notNull(),
-    error: jsonb().$type<typeof MessageFailure.Encoded>(),
+    error: jsonb().$type<typeof MessageFailureJson.Type>(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -51,27 +55,11 @@ export const messages = snakeCase.table(
 )
 
 /**
- * Holds for exactly the rows `isActiveMessage` holds for: the predicate of
+ * Holds for an assistant message whose reply still runs: the predicate of
  * `messages_chat_id_active_index`.
  *
  * An `ON CONFLICT … WHERE` that targets the index takes its predicate from this constant. Do not
  * remove `.inlineParams()`; why: `docs/knowledge/database.md` › "Schema and entity files".
  */
 export const activeMessage: SQL =
-  sql`${eq(messages.author, 'assistant')} and ${inArray(messages.status, ActiveMessageStatus.literals)}`.inlineParams()
-
-const messageFields = {
-  id: MessageId,
-  chatId: ChatId,
-  error: Schema.OptionFromNullOr(MessageFailure),
-  createdAt: Schema.DateTimeUtcFromDate,
-  updatedAt: Schema.DateTimeUtcFromDate,
-}
-
-export const MessageRow = createSelectSchema(messages, messageFields)
-
-export const MessageInsert = createInsertSchema(messages, messageFields)
-
-export const inCreationOrder = { createdAt: 'asc', id: 'asc' } as const
-
-export const withAttachments = { attachments: { orderBy: inCreationOrder } } as const
+  sql`${eq(messages.author, 'assistant')} and ${inArray(messages.status, ['queued', 'preparing', 'generating'])}`.inlineParams()

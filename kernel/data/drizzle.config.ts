@@ -4,6 +4,6 @@ import { defineConfig } from 'drizzle-kit'
 // drizzle-kit resolves these paths against the working directory, the root, not this file.
 export default defineConfig({
   dialect: 'postgresql',
-  schema: ['infrastructure/*/*.entity.ts', 'kernel/data/*/*.table.ts'],
+  schema: 'kernel/data/*/*.table.ts',
   out: 'kernel/data/migrations',
 })

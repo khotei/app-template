@@ -1,5 +1,5 @@
 import { eq, isNull } from 'drizzle-orm'
-import { DateTime, Effect, Layer, Option, Schema, UndefinedOr } from 'effect'
+import { DateTime, Effect, flow, Layer, Option, Schema, UndefinedOr } from 'effect'
 import { identity } from 'effect/Function'
 
 import {
@@ -11,13 +11,15 @@ import {
   skipUndefined,
 } from '@app-template/db'
 import { ChatRepository, type ChatSet, type ChatWhere } from '@app-template/domain/chat'
+import { ChatEntityInsert, chats, withAttachments } from '@app-template/kernel/data/chat'
 
-import { ChatFromRow } from '#infrastructure/attachment/attachment.entity'
-import { ChatInsert, chats } from '#infrastructure/chat/chat.entity'
-import { withAttachments } from '#infrastructure/chat/message.entity'
+import { ChatFromEntity } from '#infrastructure/chat/chat.mapper'
 import { Db } from '#infrastructure/db/db.client'
 
-const encodeChat = Schema.encodeEffect(ChatInsert)
+const encodeChat = flow(
+  Schema.encodeEffect(ChatFromEntity),
+  Effect.flatMap(Schema.decodeEffect(ChatEntityInsert)),
+)
 
 const encodeSet = buildSet<ChatSet, typeof chats>({
   title: UndefinedOr.map(Option.getOrNull),
@@ -41,7 +43,7 @@ const encodeWhere = (table: typeof chats) =>
     status: UndefinedOr.map((status) => eq(table.status, status)),
   })
 
-const decodeChats = Schema.decodeEffect(Schema.Array(ChatFromRow))
+const decodeChats = Schema.decodeEffect(Schema.Array(ChatFromEntity))
 
 export const ChatRepositoryPg = Layer.effect(
   ChatRepository,
@@ -68,7 +70,7 @@ export const ChatRepositoryPg = Layer.effect(
               where: { RAW: (table) => skipUndefined(encodeWhere(table)(where)) },
               with: withAttachments,
             })
-            .pipe(Effect.flatMap(decodeOptionalRow(ChatFromRow))),
+            .pipe(Effect.flatMap(decodeOptionalRow(ChatFromEntity))),
         orDieWithSqlError,
       ),
       selectMany: Effect.fn('ChatRepository.selectMany')(

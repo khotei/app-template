@@ -126,9 +126,10 @@ Using the `chat` slice as the map:
 | domain service: the rules that need a port | `domain/chat/chat.service.ts` | `ChatService`, `ChatService.layer` |
 | memory layers and fixtures | `domain/__tests__/testing/chat.test-fake.ts`, `chat.test-fixture.ts`, `user.test-fixture.ts` | `ChatRepositoryTest`, `ChatRows`, `chat`, `owner`; `RepositoryStackTest` in `repository-stack.test-layer.ts`; all as `@app-template/domain/testing` |
 | database tools any app could use | `packages/db/` (`@app-template/db`) | `createDb(relations)`, `Transaction`, the shared columns in `columns.ts`, `migrateDatabase(folder)`, `retryWhileUnreachable`; `TransactionTest` as `./testing`, `flipSqlError` as `./testing-e2e` |
-| database client | `infrastructure/db/` | `Db` (made by `createDb(relations)`), `Db.layerFromConfig` over `PgClientFromConfig`, the relations in `relations.ts`; `DbTest` in `__e2e__/testing/` |
+| database client | `infrastructure/db/` | `Db` (made by `createDb(relations)` over the data layer's relations), `Db.layerFromConfig` over `PgClientFromConfig`; `DbTest` in `__e2e__/testing/` |
 | Postgres client from config and the migrations | `kernel/postgres/`, `kernel/data/` | `PgClientFromConfig` and `applyMigrations`, the `make migrate` program, in `@app-template/kernel/postgres`; `migrationsFolder` over `migrations/` and `drizzle.config.ts` in `kernel/data/`; the e2e run's setup in `kernel/__e2e__/testing/e2e.test-setup.ts` |
-| tables and row codecs | `infrastructure/chat/chat.entity.ts`, `message.entity.ts` | `chats` (`snakeCase.table`), `ChatRow`, `ChatInsert` |
+| tables, entities and relations | `kernel/data/chat/chat.table.ts`, `chat.entity.ts`; `kernel/data/relations.ts` | `chats` (`snakeCase.table`), `ChatEntity`, `relations` |
+| mapper from an entity to a model | `infrastructure/chat/chat.mapper.ts` | `ChatFromEntity`, `MessageFromEntity` |
 | adapter implementing a port | `infrastructure/chat/chat.repository.ts`, `assistant.llm.ts`; `attachment/attachment.bucket.ts` | `ChatRepositoryPg`, `AssistantLlm` (with the prompts, over a language model per purpose that the kernel's `createLanguageModel` builds on the provider `LLM_PROVIDER` picks: [ai.md](ai.md)), `AttachmentBucketS3` (each a `Layer` of its port) |
 | queue definitions | `infrastructure/chat/chat.queue.ts` | `assistantMessageQueue`, `GenerateAssistantMessage` (the job schema) |
 | relay from the database to a queue | `infrastructure/outbox/outbox.relay.ts` | `OutboxRelay` (a worker `Layer` that runs a fiber and provides nothing) |
@@ -173,9 +174,11 @@ Pascal one (`Document`).
    see and when a flow leaves it: [.claude/rules/layering.md](../../.claude/rules/layering.md).
 6. **Domain exports.** `domain/<entity>/index.ts` re-exports its files, and
    `domain/package.json` gains `"./<entity>": "./<entity>/index.ts"` in `exports`.
-7. **Tables and adapter.** `infrastructure/<entity>/<entity>.entity.ts` declares the tables and
-   their row codecs, `infrastructure/db/relations.ts` gains them, and `make migration` writes the
-   migration ([database.md](database.md)). `<entity>.repository.ts`: `<Entity>RepositoryPg`, a
+7. **Tables and adapter.** `kernel/data/<entity>/<entity>.table.ts` declares the tables and
+   `<entity>.entity.ts` their entities, `kernel/data/relations.ts` gains them, and
+   `make migration` writes the migration ([database.md](database.md)).
+   `infrastructure/<entity>/<entity>.mapper.ts`: `<Model>FromEntity`, the entity decoded into the
+   model. `<entity>.repository.ts`: `<Entity>RepositoryPg`, a
    `Layer` constant that provides the domain port over `Db`. Add `index.ts`, which also exports
    `<Entity>Pg`, the one layer of every adapter of the aggregate
    (`ChatPg = Layer.mergeAll(ChatRepositoryPg, MessageRepositoryPg)`), and the `exports` entry.

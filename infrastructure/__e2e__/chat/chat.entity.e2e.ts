@@ -1,11 +1,12 @@
 import { assert, describe, it } from '@effect/vitest'
-import { DateTime, Effect, Option, Schema } from 'effect'
+import { DateTime, Effect, Option, pipe, Schema } from 'effect'
 
 import { flipSqlError } from '@app-template/db/testing-e2e'
 import { Chat, ChatId, maxTitleLength } from '@app-template/domain/chat'
 import { UserId } from '@app-template/domain/user'
+import { ChatEntityInsert, chats } from '@app-template/kernel/data/chat'
 
-import { ChatInsert, chats } from '#infrastructure/chat/chat.entity'
+import { ChatFromEntity } from '#infrastructure/chat/chat.mapper'
 import { Db } from '#infrastructure/db/db.client'
 import { DbTest } from '#testing-e2e/db.test-layer'
 import { insertUser } from '#testing-e2e/rows.test-util'
@@ -30,7 +31,7 @@ describe('chats', () => {
   ])('refuses a title that is $name through its check', ({ title }) =>
     Effect.gen(function* () {
       const db = yield* Db
-      const row = Schema.encodeSync(ChatInsert)(chat)
+      const row = pipe(chat, Schema.encodeSync(ChatFromEntity), Schema.decodeSync(ChatEntityInsert))
 
       yield* insertUser(userId)
       const error = yield* flipSqlError(db.insert(chats).values({ ...row, title }))

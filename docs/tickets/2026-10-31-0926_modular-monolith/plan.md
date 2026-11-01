@@ -13,7 +13,7 @@
 | S5 | `packages/db`: the generic Drizzle client, transaction and migrator | done |
 | S6 | `kernel/postgres` and the migrations in `kernel/data` | done |
 | S7 | `kernel/llm` picks the provider; chat keeps only its prompts | done |
-| S8 | the tables and relations in `kernel/data`, in the data layer's own types | todo |
+| S8 | the tables and relations in `kernel/data`, in the data layer's own types | done |
 | S9 | `Db` in `kernel/data` over the `PgClient` in the context; the entity suites speak entities | todo |
 | S10 | the table `jobs` and `JobRepository`; one initial migration; the queue in `kernel/queue` | todo |
 | S11 | the `identity` module and `identity-contract` | todo |
@@ -398,7 +398,28 @@
   red until the tables move; `make migration-check` reports no change.
 - **Verify:** `make check`; `git grep -n "@app-template/domain" kernel` finds nothing.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - About 600 changed lines against the ~400 limit, `bun.lock` aside, kept one commit: splitting
+    the tables from the entities would have left codecs over the kernel's tables that the next
+    step rewrote, and the docs change with the names `make doc-names` checks.
+  - `chat_status` keeps three values, as chat's `ChatStatus` does; the contract's six would have
+    changed the enum and needed a migration. The contract follows.
+  - A nested model is laid by its encoded side in a mapper (`AttachmentFromEntity.from`,
+    `Schema.toEncoded(MessageFailure)`): the contract's `AttachmentFromEntity` decoded but failed to
+    encode a message, which the message repository's suite caught. The contract follows.
+  - No `Where` or `Set` can be empty (Depth review): each `Where` keeps a key required
+    (`RequireAtLeastOne` over `id`, `userId` or `chatId`), each `Set` is `RequireAtLeastOne`,
+    as the domain's ports are, so S14 and S15 cannot write every row; `type-fest` joins the kernel.
+  - Repositories write a model encoded through its mapper, then decoded through
+    `<Name>EntityInsert`, which cuts the nested attachments and checks the row.
+  - The jsonb column `error` keeps a `$type` from `MessageFailureJson`, declared beside the table;
+    the entity takes the same schema. No `UserEntitySet` (users have no update); the outbox keeps
+    only its table, since S10 replaces the store with `jobs`.
+  - `inCreationOrder` and `withAttachments` stay in `message.entity.ts` until S14's repositories
+    take them.
+  - Round S8.2 (simplify and review): the regexes lose their dead `i` flag and comments, the
+    `Where`/`Set` keys, writes through the insert schema, `naming.md`'s `.table` and `.mapper` rows.
 
 #### S9 — The data layer's `Db` over the client in the context
 

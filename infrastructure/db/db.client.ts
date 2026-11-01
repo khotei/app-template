@@ -2,9 +2,8 @@ import type * as PgDrizzle from 'drizzle-orm/effect-postgres'
 import { Context, Layer } from 'effect'
 
 import { createDb } from '@app-template/db'
+import { relations } from '@app-template/kernel/data'
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
-
-import { relations } from '#infrastructure/db/relations'
 
 export class Db extends Context.Service<Db, PgDrizzle.EffectPgDatabase<typeof relations>>()(
   '@app-template/infrastructure/db/Db',

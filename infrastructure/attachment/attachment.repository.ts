@@ -1,5 +1,15 @@
 import { eq, inArray, isNull } from 'drizzle-orm'
-import { Array as Arr, Effect, Filter, Layer, Option, pipe, Schema, UndefinedOr } from 'effect'
+import {
+  Array as Arr,
+  Effect,
+  Filter,
+  flow,
+  Layer,
+  Option,
+  pipe,
+  Schema,
+  UndefinedOr,
+} from 'effect'
 
 import { buildSet, buildWhere, orDieOnNoRows, orDieWithSqlError } from '@app-template/db'
 import {
@@ -9,17 +19,17 @@ import {
   type AttachmentSet,
   type AttachmentWhere,
 } from '@app-template/domain/attachment'
+import { AttachmentEntityInsert, attachments } from '@app-template/kernel/data/attachment'
 
-import {
-  AttachmentFromRow,
-  AttachmentInsert,
-  attachments,
-} from '#infrastructure/attachment/attachment.entity'
+import { AttachmentFromEntity } from '#infrastructure/attachment/attachment.mapper'
 import { Db } from '#infrastructure/db/db.client'
 
-const encodeAttachment = Schema.encodeEffect(AttachmentInsert)
+const encodeAttachment = flow(
+  Schema.encodeEffect(AttachmentFromEntity),
+  Effect.flatMap(Schema.decodeEffect(AttachmentEntityInsert)),
+)
 
-const decodeAttachments = Schema.decodeEffect(Schema.Array(AttachmentFromRow))
+const decodeAttachments = Schema.decodeEffect(Schema.Array(AttachmentFromEntity))
 
 const encodeSet = buildSet<AttachmentSet, typeof attachments>({
   messageId: UndefinedOr.map(Option.getOrNull),

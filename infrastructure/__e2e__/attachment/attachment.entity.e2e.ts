@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { DateTime, Effect, Option, Schema } from 'effect'
+import { DateTime, Effect, Option, pipe, Schema } from 'effect'
 
 import { flipSqlError } from '@app-template/db/testing-e2e'
 import {
@@ -10,8 +10,9 @@ import {
   MediaType,
 } from '@app-template/domain/attachment'
 import { UserId } from '@app-template/domain/user'
+import { AttachmentEntityInsert, attachments } from '@app-template/kernel/data/attachment'
 
-import { AttachmentInsert, attachments } from '#infrastructure/attachment/attachment.entity'
+import { AttachmentFromEntity } from '#infrastructure/attachment/attachment.mapper'
 import { Db } from '#infrastructure/db/db.client'
 import { DbTest } from '#testing-e2e/db.test-layer'
 import { insertUser } from '#testing-e2e/rows.test-util'
@@ -46,7 +47,11 @@ describe('attachments', () => {
   ])('refuses $name through its check', ({ check, fields }) =>
     Effect.gen(function* () {
       const db = yield* Db
-      const row = Schema.encodeSync(AttachmentInsert)(attachment)
+      const row = pipe(
+        attachment,
+        Schema.encodeSync(AttachmentFromEntity),
+        Schema.decodeSync(AttachmentEntityInsert),
+      )
 
       yield* insertUser(userId)
       const error = yield* flipSqlError(db.insert(attachments).values({ ...row, ...fields }))

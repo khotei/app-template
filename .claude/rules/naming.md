@@ -29,8 +29,9 @@ tool reads.
 | `.service` | a domain service: `<entity>.service.ts` for an entity's rules, `<operation>.service.ts` for one operation that belongs to no entity | domain |
 | `.use-case` | a flow over domain services: `<verb>-<object>.use-case.ts` | application |
 | `.handler` | api: one contract group's handlers · worker: `<object>.handler.ts`, one queue's `handle` and `handleDeadLettered` over a use case | apps |
-| `.repository` · `.bucket` · `.llm` | a port's adapter over Postgres · S3 · `LanguageModel`, with the prompts | infrastructure |
-| `.entity` · `.queue` · `.relay` | an entity's Drizzle tables and row codecs · queue definitions and their job schemas · a layer that moves records from the database to a queue | infrastructure |
+| `.repository` · `.bucket` · `.llm` · `.queue` · `.relay` | a port's adapter over Postgres · S3 · `LanguageModel`, with the prompts · queue definitions and their job schemas · a layer that moves records from the database to a queue | infrastructure |
+| `.table` · `.entity` | a table, importing only tables · its entities, the schemas read from it, `<Name>Entity` with its `Insert`, `Where` and `Set` | `kernel/data` |
+| `.mapper` | an entity's codec into a model, `<Model>FromEntity` | a module's `services`; `infrastructure` holds them while it remains |
 | `.client` · `.transport` | client wiring · the service a package's client runs over | infrastructure, kernel, http-api, packages |
 | `.http` | a contract group: one resource's routes (`HttpApiGroup`) | http-api |
 | `.test` · `.e2e` | a unit test, no process outside vitest · a test on the run's containers | `__tests__/` · `__e2e__/` |

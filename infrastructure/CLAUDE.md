@@ -7,5 +7,6 @@ queue definitions, the outbox relay and the app's `Db` over its tables.
   prompts stay inside the adapter.
 - A `<entity>.queue.ts` holds only queue definitions; no adapter wraps `send` or `worker`.
 - A repository runs on Postgres through `db/` and the helpers of `@app-template/db`, over the
-  tables its `<entity>.entity.ts` declares ([database.md](../docs/knowledge/database.md)).
-  Drizzle is reached only through Effect, never through a promise.
+  tables of `@app-template/kernel/data`, and turns an entity into a model and back only through
+  its `<entity>.mapper.ts` ([database.md](../docs/knowledge/database.md)). Drizzle is reached
+  only through Effect, never through a promise.

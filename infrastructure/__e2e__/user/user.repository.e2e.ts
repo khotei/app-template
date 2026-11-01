@@ -11,10 +11,10 @@ import {
   UserId,
   UserRepository,
 } from '@app-template/domain/user'
+import { credentials, users } from '@app-template/kernel/data/user'
 import { assertSchemaEquals } from '@app-template/testing'
 
 import { Db } from '#infrastructure/db/db.client'
-import { credentials, users } from '#infrastructure/user/user.entity'
 import { UserRepositoryPg } from '#infrastructure/user/user.repository'
 import { DbTest } from '#testing-e2e/db.test-layer'
 

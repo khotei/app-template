@@ -1,13 +1,17 @@
-import { Effect, Layer, Schema, UndefinedOr } from 'effect'
+import { Effect, flow, Layer, Schema, UndefinedOr } from 'effect'
 import { SqlClient } from 'effect/sql'
 
 import { decodeOptionalRow, orDieWithSqlError, skipUndefined } from '@app-template/db'
 import { UserRepository, type UserWhere } from '@app-template/domain/user'
+import { credentials, UserEntityInsert, users } from '@app-template/kernel/data/user'
 
 import { Db } from '#infrastructure/db/db.client'
-import { credentials, UserFromRow, UserInsert, users } from '#infrastructure/user/user.entity'
+import { UserFromEntity } from '#infrastructure/user/user.mapper'
 
-const encodeUser = Schema.encodeEffect(UserInsert)
+const encodeUser = flow(
+  Schema.encodeEffect(UserFromEntity),
+  Effect.flatMap(Schema.decodeEffect(UserEntityInsert)),
+)
 
 /** The credential is a filter on the relation, so a user is found by any credential it holds. */
 const filterOf = (where: UserWhere) =>
@@ -40,7 +44,7 @@ export const UserRepositoryPg = Layer.effect(
         (where) =>
           db.query.users
             .findFirst({ where: filterOf(where) })
-            .pipe(Effect.flatMap(decodeOptionalRow(UserFromRow))),
+            .pipe(Effect.flatMap(decodeOptionalRow(UserFromEntity))),
         orDieWithSqlError,
       ),
     })
