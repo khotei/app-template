@@ -210,7 +210,7 @@ Behaviour seen from outside does not change.
 | R6 | the workspace list shows `kernel`, the two modules, `identity-contract`, `use-cases`, the packages, `http-api`, the three apps and `e2e` at `apps/__e2e__`, and no `domain` or `infrastructure` workspace |
 | R7 | grep: no module's code imports another module's package other than its contract |
 | R8 | each module holds only `domain/`, `services/`, `infrastructure/`, `__tests__/` and its manifests; every `*.use-case.ts` lies under `application/use-cases/`; the layer overrides pass |
-| R9 | grep: no file under `kernel/data/` imports `@app-template/*` but a package under `packages/*`, or `#kernel/*` outside `#kernel/data`; every `*.entity.ts` and `*.repository.ts` lies under `kernel/data/` |
+| R9 | grep: no file under `kernel/data/` imports `@app-template/*` but a package under `packages/*`, or `#kernel/*` outside `#kernel/data`; every `*.table.ts`, `*.entity.ts` and `*.repository.ts` lies under `kernel/data/` |
 | R10 | the send-message e2e finds the job in `jobs` and rolls back both on a failed write |
 | R11 | `git ls-files` finds no `tests/`, `e2e/` or `testing/` folder outside `__tests__/` and `__e2e__/` (but the package `packages/testing`), and no `__e2e__/` under `application/` |
 | R12 | a throwaway import of another module's internals, and one of an undeclared workspace, each fail `make check` with the import and the decision named |
@@ -234,6 +234,10 @@ Settled with the user on 2026-10-31, after the research, an audit and the plan r
   objects) and its repositories in its own types, imports only `packages/*` and takes its clients
   from the context; the processes provide them. Tables stay in `public` with today's foreign keys
   and checks. Every module may read and write any record through it.
+- **A table is not an entity.** A store's table lives in `<name>.table.ts` and imports only
+  tables; its entity, the schema every read returns, lives in `<name>.entity.ts`, so `ChatEntity`
+  and `MessageEntity` nest their attachments. A module's mapper lays the models' schemas over the
+  entity's fields.
 - **Two modules**, `chat` and `identity`; attachments stay in `chat` until `shared-files` (16). A
   module is `domain/`, `services/` and `infrastructure/`; a repository is no port. `identity`
   is reachable only through `identity-contract`; no events, facades or reactions between modules.

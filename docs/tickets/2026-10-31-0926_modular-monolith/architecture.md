@@ -139,11 +139,11 @@ kernel/                          @app-template/kernel
     relations.ts                   ← infrastructure/db/relations.ts
     drizzle.config.ts              ← infrastructure/drizzle.config.ts
     migrations/                    one initial migration, in place of infrastructure/db/migrations/
-    chat/                          chat.entity.ts, message.entity.ts ← infrastructure/chat/*.entity.ts;
+    chat/                          chat.{table,entity}.ts, message.{table,entity}.ts ← infrastructure/chat/*.entity.ts;
                                    chat.repository.ts, message.repository.ts (the query code of today's)
-    attachment/                    attachment.{entity,repository}.ts ← infrastructure/attachment/
-    user/                          user.{entity,repository}.ts ← infrastructure/user/ (users, credentials)
-    job/                           job.entity.ts (table jobs) ← infrastructure/outbox/outbox.entity.ts;
+    attachment/                    attachment.{table,entity,repository}.ts ← infrastructure/attachment/
+    user/                          user.{table,entity,repository}.ts ← infrastructure/user/ (users, credentials)
+    job/                           job.{table,entity}.ts (table jobs) ← infrastructure/outbox/outbox.entity.ts;
                                    job.repository.ts new
     file/                          file.entity.ts new: FileEntity, the key attachments/<id>, the unbound tag;
                                    file.repository.ts: FileRepository over S3Bucket
@@ -257,13 +257,26 @@ picks `**/__tests__/**/*.test.ts` and `**/__e2e__/**/*.e2e.ts`.
 `infrastructure/`, and the port keys of a module's `domain/`:
 `@app-template/((use-cases|kernel)/|[a-z-]+/(services|infrastructure)/|[a-z-]+/domain/[A-Za-z]*(Assistant|Provenance))`.
 
-**An entity in the data layer** speaks its own types and imports only packages:
+**An entity in the data layer** speaks its own types and imports only packages. A table is
+Drizzle's description of SQL in `<name>.table.ts`, and an entity is the schema read from it in
+`<name>.entity.ts`. Tables import only tables, for their keys, and entities import tables and other
+entities, so a chat's entity nests its attachments without a cycle
+(`chat.entity` → `attachment.entity` → `attachment.table` → `message.table` → `chat.table`). Every
+read of a chat or a message nests its attachments, so their entity does too. A write is the row
+alone:
 
 ```ts
-// kernel/data/chat/chat.entity.ts
+// kernel/data/chat/chat.table.ts
 export const chatStatus = pgEnum('chat_status', ['idle', 'queued', 'preparing', 'generating', 'done', 'failed'])
 export const chats = snakeCase.table('chats', { id: id(), userId: uuid().notNull().references(() => users.id), … })
-export const ChatEntity = createSelectSchema(chats)
+
+// kernel/data/chat/chat.entity.ts
+/** A chat with its attachments, in upload order: every read nests them. */
+export const ChatEntity = Schema.Struct({
+  ...createSelectSchema(chats).fields,
+  attachments: Schema.Array(AttachmentEntity),
+})
+export const ChatEntityInsert = createInsertSchema(chats)
 export type ChatEntityWhere = Partial<Pick<typeof ChatEntity.Type, 'id' | 'userId'>>
 export type ChatEntitySet = Partial<Pick<typeof ChatEntity.Type, 'title' | 'status' | 'updatedAt'>>
 
@@ -313,11 +326,21 @@ const DataLayer = Layer.mergeAll(ChatRepository.layer, …, FileRepository.layer
 )
 ```
 
-**A module maps** an entity to its model, and a service composes it:
+**A module maps** an entity to its model, and a service composes it. The mapper lays the model's
+schemas over the entity's fields: each one's encoded side is the entity's type (`string`,
+`string | null`, `Date`), so `decodeTo` needs no transformation of its own:
 
 ```ts
 // application/chat/services/chat.mapper.ts
-export const ChatFromEntity = ChatEntity.pipe(Schema.decodeTo(Chat))
+export const ChatFromEntity = Schema.Struct({
+  ...ChatEntity.fields,
+  id: ChatId,
+  userId: UserId,
+  title: Schema.OptionFromNullOr(ChatTitle),
+  createdAt: Schema.DateTimeUtcFromDate,
+  updatedAt: Schema.DateTimeUtcFromDate,
+  attachments: Schema.Array(AttachmentFromEntity),
+}).pipe(Schema.decodeTo(Chat))
 
 // application/chat/services/chat.service.ts
 const get = Effect.fn('ChatService.get')(function* (id: ChatId) {
@@ -388,7 +411,7 @@ keeps its name and definition but `outbox`, now `jobs`; the data layer redeclare
 checks' values itself (D11), and a `pg_dump --schema-only` diff against `main` shows only the
 rename (R4, R5). `make migration` and `make migration-check` run from the root with
 `--config kernel/data/drizzle.config.ts`, whose paths drizzle-kit resolves against the working
-directory (`schema: 'kernel/data/*/*.entity.ts'`, `out: 'kernel/data/migrations'`); `drizzle-kit`
+directory (`schema: 'kernel/data/*/*.table.ts'`, `out: 'kernel/data/migrations'`); `drizzle-kit`
 is a root devDependency, since the isolated linker puts a workspace's binary only in that
 workspace.
 
@@ -510,11 +533,22 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
 
 - **D8 — The data layer's names end in `Entity` (`ChatEntity`, `ChatEntityInsert`,
   `ChatEntityWhere`, `ChatEntitySet`); its repositories are `<Name>Repository`; a table keeps its
-  SQL name; a module maps with `<Model>FromEntity` in `<model>.mapper.ts`; "Entity" names nothing
-  else, and the domain's records are models.**
-  - **Why:** a reader tells the data's view from the domain's by the name alone.
-  - **Cost accepted:** the rules' `<Entity>` placeholders (about 40, in 10 files) become `<Model>`.
-  - **Reversal:** a rename.
+  SQL name and lives in `<name>.table.ts`, its entities in `<name>.entity.ts`; an entity is the
+  shape every read returns, so `ChatEntity` and `MessageEntity` nest their attachments; a module
+  maps with `<Model>FromEntity` in `<model>.mapper.ts`; "Entity" names nothing else, and the
+  domain's records are models.**
+  - **Why:** a reader tells the data's view from the domain's by the name alone, and a table from
+    its entity by the file; tables that import only tables leave the entities free to nest one
+    another without an import cycle.
+  - **Cost accepted:** the rules' `<Entity>` placeholders (about 40, in 10 files) become `<Model>`;
+    a store has two files where it had one.
+  - **Reversal:** a rename; the tables back into the entity files.
+  - **Rejected:**
+    - a flat `ChatEntity` beside a `ChatEntityWithAttachments` — a second name for the one shape
+      every read returns, kept in `attachment.entity.ts` to dodge the cycle, as `ChatFromRow` is
+      today.
+    - the service composing a chat from two repositories — two queries and a grouping where one
+      relational read serves.
 
 - **D9 — Jobs are the table `jobs` (today's `outbox`) and `JobRepository` in the data layer
   (`insert`, `selectMany` of the unsent with a lock, `update` of `sentAt`); `QueueSenderJobs`,

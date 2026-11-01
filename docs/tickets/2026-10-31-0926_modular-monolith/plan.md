@@ -231,7 +231,7 @@
   `@app-template/kernel/testing-e2e`. `make migrate`, `make migration` and `make migration-check`
   run from the root with `--config kernel/data/drizzle.config.ts`, whose paths drizzle-kit
   resolves against the working directory: `schema: ['infrastructure/*/*.entity.ts',
-  'kernel/data/*/*.entity.ts']` (a glob that matches nothing is skipped),
+  'kernel/data/*/*.table.ts']` (a glob that matches nothing is skipped),
   `out: 'kernel/data/migrations'`. `drizzle-kit` becomes a root devDependency, since the isolated
   linker puts a workspace's binary only in that workspace.
 - **Goal:** the app's connection to Postgres at the boundary, the schema's history with the data
@@ -287,26 +287,30 @@
 
 - **Delivers:** every table, enum, index and relation lives in `kernel/data`, in a folder per store
   (`chat/`, `attachment/`, `user/`, `outbox/`), exported from `@app-template/kernel/data` and its
-  subpaths. The entity files import only packages: they declare the enums' values, the checks'
-  limits and patterns and the message failure's shape themselves, and expose `<Name>Entity`,
-  `<Name>EntityInsert`, `<Name>EntityWhere` and `<Name>EntitySet`. The decoding into models moves
-  to `<model>.mapper.ts` beside today's repositories (`ChatFromEntity` in place of `ChatFromRow`).
+  subpaths. Each store splits today's entity file in two: `<name>.table.ts` holds the table and
+  imports only tables, `<name>.entity.ts` exposes `<Name>Entity`, `<Name>EntityInsert`,
+  `<Name>EntityWhere` and `<Name>EntitySet`; `ChatEntity` and `MessageEntity` nest their
+  attachments, as every read returns them. Both import only packages: they declare the enums'
+  values, the checks' limits and patterns and the message failure's shape themselves. The
+  decoding into models moves to `<model>.mapper.ts` beside today's repositories (`ChatFromEntity`
+  in place of `ChatFromRow`, the models' schemas laid over the entity's fields).
   `Db` stays in `infrastructure` one more step, built over the kernel's relations. The schema is
   unchanged: no migration (verified in a scratch run: rc.5 emits nothing when the values match).
 - **Goal:** the data at the centre, in its own words (R4, R5, R9, R14, D7, D8, D11).
 - **Blocked by:** S6.
 - **Files:** `infrastructure/{chat/chat.entity.ts,chat/message.entity.ts,attachment/attachment.entity.ts,user/user.entity.ts,outbox/outbox.entity.ts}`
-  → `kernel/data/{chat,chat,attachment,user,outbox}/`; `infrastructure/db/relations.ts` →
+  → `kernel/data/{chat/chat,chat/message,attachment/attachment,user/user,outbox/outbox}.{table,entity}.ts`;
+  `infrastructure/db/relations.ts` (over the `*.table.ts`) →
   `kernel/data/relations.ts`; new `kernel/data/{chat,attachment,user,outbox}/index.ts`; new
   `infrastructure/{chat/chat.mapper.ts,attachment/attachment.mapper.ts,user/user.mapper.ts}`
   (`chat.mapper.ts` holds `ChatFromEntity` and `MessageFromEntity`);
   `infrastructure/{chat/chat.repository.ts,chat/message.repository.ts,attachment/attachment.repository.ts,user/user.repository.ts,outbox/outbox.relay.ts,shared/queue.client.ts,db/db.client.ts}`
   (tables from the kernel, models through the mappers); `infrastructure/__e2e__/testing/rows.test-util.ts`;
   the `infrastructure/__e2e__/**` suites that import a table or a `*FromRow`;
-  `kernel/data/drizzle.config.ts` (only `kernel/data/*/*.entity.ts`); `kernel/{package.json,tsconfig.json}`
+  `kernel/data/drizzle.config.ts` (only `kernel/data/*/*.table.ts`); `kernel/{package.json,tsconfig.json}`
   (`drizzle-orm`); `infrastructure/{package.json,tsconfig.json}`; `bun.lock`;
   `docs/knowledge/{database,architecture}.md` (the entity files' paths, `*FromRow`), `README.md`,
-  `.claude/rules/naming.md` (the `.entity` row lives in `kernel/data`; a new `.mapper` row: an
+  `.claude/rules/naming.md` (the `.entity` row lives in `kernel/data`; a new `.table` row: a table, importing only tables; a new `.mapper` row: an
   entity's codec into a model, in a module's `services`; `infrastructure` holds them until S17), `.claude/rules/deep-modules.md`
   (`paths:` gains `kernel/**`), `infrastructure/CLAUDE.md`, `kernel/CLAUDE.md`.
 - **Test first:** a repository on Postgres — the repository suites pass over the kernel's tables,
@@ -352,7 +356,7 @@
 
 #### S10 — Jobs as data, a fresh schema, the queue at the boundary
 
-- **Delivers:** the table `outbox` is `jobs` (`kernel/data/job/job.entity.ts`: `JobEntity`,
+- **Delivers:** the table `outbox` is `jobs` (`kernel/data/job/job.{table,entity}.ts`: `JobEntity`,
   `JobEntityInsert`, `JobEntityWhere`, `JobEntitySet`), and the two migrations give way to one
   initial migration generated from the data layer, since the app is not in production.
   `JobRepository` (`@app-template/kernel/data/job`) inserts a job, selects the unsent rows
@@ -364,7 +368,7 @@
 - **Goal:** jobs are data like any table, the schema one migration, the queue's transport the
   boundary (R2, R4, R5, R9, R10, D9, D20).
 - **Blocked by:** S9.
-- **Files:** `kernel/data/outbox/outbox.entity.ts` → `kernel/data/job/job.entity.ts` (table
+- **Files:** `kernel/data/outbox/outbox.{table,entity}.ts` → `kernel/data/job/job.{table,entity}.ts` (table
   `jobs`), `kernel/data/{relations.ts,index.ts}`; `kernel/data/migrations/**` deleted and one
   initial migration generated (`make migration NAME=init`); new
   `kernel/data/job/job.repository.ts` (the queries of today's sender and relay) and its suite
