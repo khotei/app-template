@@ -15,6 +15,7 @@
     "@app-template/db": "workspace:*",
     "@app-template/identity-contract": "workspace:*",
     "@app-template/infrastructure": "workspace:*",
+    "@app-template/kernel": "workspace:*",
     "@app-template/queue": "workspace:*",
     "effect": "catalog:effect"
   },

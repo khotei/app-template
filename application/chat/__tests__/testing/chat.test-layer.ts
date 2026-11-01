@@ -1,50 +1,48 @@
-import { Layer } from 'effect'
+import { Effect, Layer } from 'effect'
+
+import { ChatRepository, MessageRepository } from '@app-template/kernel/data/chat'
 
 import type { ChatId, MessageId } from '#domain/chat.id'
 import type { Chat } from '#domain/chat.model'
-import { ChatRepository } from '#domain/chat.port'
 import type { Message } from '#domain/message.model'
-import { MessageRepository } from '#domain/message.port'
-import { ChatService } from '#services/chat.service'
 import {
-  AttachmentBucketTest,
-  AttachmentRepositoryTest,
-  AttachmentRows,
-} from '#testing/attachment.test-fake'
-import {
-  ChatRepositoryTest,
-  ChatRows,
-  MessageRepositoryTest,
-  MessageRows,
-} from '#testing/chat.test-fake'
-import { chat } from '#testing/chat.test-fixture'
+  decodeChat,
+  decodeMessage,
+  decodeMessages,
+  encodeChat,
+  encodeMessage,
+} from '#services/chat.mapper'
 
-/** Chat's three repositories over fresh rows, the rows in context for a test to arrange or read. */
-export const RepositoryStackTest = Layer.mergeAll(
-  ChatRepositoryTest,
-  MessageRepositoryTest,
-  AttachmentRepositoryTest,
-).pipe(Layer.provideMerge(Layer.mergeAll(ChatRows.layer, MessageRows.layer, AttachmentRows.layer)))
+export const insertChat = (chat: Chat) =>
+  encodeChat(chat).pipe(Effect.flatMap((row) => ChatRepository.use((chats) => chats.insert(row))))
 
 /** Stores `chat` before the layers it feeds start. */
-export const insertChatLayer = (chat: Chat) =>
-  Layer.effectDiscard(ChatRepository.use((chats) => chats.insert(chat)))
+export const insertChatLayer = (chat: Chat) => Layer.effectDiscard(insertChat(chat))
 
-export const selectChat = (id: ChatId) => ChatRepository.use((chats) => chats.selectOne({ id }))
+export const selectChat = (id: ChatId) =>
+  ChatRepository.use((chats) => chats.selectOne({ id })).pipe(Effect.flatMap(decodeChat))
 
 export const deleteChat = (id: ChatId) => ChatRepository.use((chats) => chats.delete({ id }))
 
 export const insertMessage = (message: Message) =>
-  MessageRepository.use((messages) => messages.insert(message))
+  encodeMessage(message).pipe(
+    Effect.flatMap((row) => MessageRepository.use((messages) => messages.insert(row))),
+  )
+
+/** Writes `message` over the stored one, whatever its status, as another writer would. */
+export const updateMessage = (message: Message) =>
+  encodeMessage(message).pipe(
+    Effect.flatMap((row) =>
+      MessageRepository.use((messages) => messages.update(row, { id: message.id })),
+    ),
+  )
 
 export const selectMessage = (id: MessageId) =>
-  MessageRepository.use((messages) => messages.selectOne({ id }))
+  MessageRepository.use((messages) => messages.selectOne({ id })).pipe(
+    Effect.flatMap(decodeMessage),
+  )
 
 export const selectMessages = (chatId: ChatId) =>
-  MessageRepository.use((messages) => messages.selectMany({ chatId }))
-
-/** The chat services over the memory layers, on fresh rows where `chat` exists. */
-export const ChatTest = ChatService.layer.pipe(
-  Layer.provideMerge(insertChatLayer(chat)),
-  Layer.provideMerge(Layer.merge(RepositoryStackTest, AttachmentBucketTest)),
-)
+  MessageRepository.use((messages) => messages.selectMany({ chatId })).pipe(
+    Effect.flatMap(decodeMessages),
+  )

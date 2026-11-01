@@ -16,6 +16,7 @@
   "dependencies": {
     "@app-template/db": "workspace:*",
     "@app-template/identity-contract": "workspace:*",
+    "@app-template/kernel": "workspace:*",
     "effect": "catalog:effect",
     "type-fest": "catalog:runtime"
   },

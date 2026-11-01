@@ -2,18 +2,13 @@ import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Exit, Fiber, Layer, Option, Schema } from 'effect'
 
-import {
-  AssistantReply,
-  buildAssistantMessage,
-  Chat,
-  Message,
-  MessageRepository,
-} from '@app-template/chat/domain'
+import { AssistantReply, buildAssistantMessage, Chat, Message } from '@app-template/chat/domain'
 import {
   chat,
   chatId,
   deleteChat,
   holdAssistantCall,
+  insertMessage,
   messageId,
   queuedChat,
   recordAssistant,
@@ -60,8 +55,6 @@ const job = new GenerateAssistantMessage({
   provenance: Option.some(replyProvenance),
 })
 
-const insertReply = (reply: Message) => MessageRepository.use((messages) => messages.insert(reply))
-
 const assertFailed = (failed: Message, cause: string) => {
   const error = Option.getOrThrow(failed.error)
   assert.strictEqual(failed.status, 'failed')
@@ -73,7 +66,7 @@ describe('AssistantMessageHandler', () => {
   it.effect('handle leaves the reply active when an earlier attempt fails', () => {
     const assistant = recordAssistant({ reply: exploding })
     return Effect.gen(function* () {
-      yield* insertReply(queuedReply)
+      yield* insertMessage(queuedReply)
 
       const exit = yield* handle(job, attemptInfo(1)).pipe(Effect.exit)
 
@@ -91,7 +84,7 @@ describe('AssistantMessageHandler', () => {
       reply: Effect.succeed(new AssistantReply({ text: 'Done.' })),
     })
     return Effect.gen(function* () {
-      yield* insertReply(queuedReply)
+      yield* insertMessage(queuedReply)
       const queuedBefore = yield* Schema.decodeUnknownEffect(
         Schema.toCodecJson(assistantMessageQueue.schema),
       )({ chatId, messageId })
@@ -105,7 +98,7 @@ describe('AssistantMessageHandler', () => {
   it.effect('handle fails the reply with the cause and no text when the last attempt fails', () => {
     const assistant = recordAssistant({ reply: exploding })
     return Effect.gen(function* () {
-      yield* insertReply(queuedReply)
+      yield* insertMessage(queuedReply)
 
       const exit = yield* handle(job, attemptInfo(maxAttempts)).pipe(Effect.exit)
 
@@ -121,7 +114,7 @@ describe('AssistantMessageHandler', () => {
     const held = holdAssistantCall()
     const assistant = recordAssistant({ reply: held.hold.pipe(Effect.andThen(Effect.never)) })
     return Effect.gen(function* () {
-      yield* insertReply(queuedReply)
+      yield* insertMessage(queuedReply)
 
       const running = yield* handle(job, attemptInfo(maxAttempts)).pipe(Effect.forkChild)
       yield* held.asked
@@ -139,7 +132,7 @@ describe('AssistantMessageHandler', () => {
       const assistant = recordAssistant({})
       const { logs, layer: logger } = recordLogs()
       return Effect.gen(function* () {
-        yield* insertReply(new Message({ ...queuedReply, status: 'generating' }))
+        yield* insertMessage(new Message({ ...queuedReply, status: 'generating' }))
 
         yield* handleDeadLettered(job, deadLetterInfo)
 
@@ -158,7 +151,7 @@ describe('AssistantMessageHandler', () => {
     const assistant = recordAssistant({})
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
-      yield* insertReply(completedReply)
+      yield* insertMessage(completedReply)
 
       yield* handleDeadLettered(job, deadLetterInfo)
 
@@ -172,7 +165,7 @@ describe('AssistantMessageHandler', () => {
     const assistant = recordAssistant({})
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
-      yield* insertReply(queuedReply)
+      yield* insertMessage(queuedReply)
       yield* deleteChat(chatId)
 
       yield* handleDeadLettered(job, deadLetterInfo)

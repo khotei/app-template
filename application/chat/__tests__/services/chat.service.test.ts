@@ -1,8 +1,11 @@
+import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { DateTime, Effect, Option, Stream } from 'effect'
+import { DateTime, Effect, Layer, Option, Stream } from 'effect'
 
 import type { UserId } from '@app-template/identity-contract'
+import { AttachmentRepository } from '@app-template/kernel/data/attachment'
+import { RepositoryStackTest } from '@app-template/kernel/testing'
 import { assertSchemaEquals, epoch, png } from '@app-template/testing'
 
 import { AttachmentId } from '#domain/attachment.id'
@@ -13,14 +16,28 @@ import {
   FileSize,
   MediaType,
 } from '#domain/attachment.model'
-import { AttachmentBucket, AttachmentRepository } from '#domain/attachment.port'
+import { AttachmentBucket } from '#domain/attachment.port'
 import { ChatNotFoundError } from '#domain/chat.error'
 import { type ChatId, MessageId } from '#domain/chat.id'
 import { Chat, ChatTitle } from '#domain/chat.model'
 import { buildAssistantMessage } from '#domain/message.model'
+import { encodeAttachment } from '#services/attachment.mapper'
 import { ChatService } from '#services/chat.service'
+import { AttachmentBucketTest } from '#testing/attachment.test-fake'
 import { chat, firstMessage, owner, stranger, unknownChatId } from '#testing/chat.test-fixture'
-import { ChatTest, insertMessage, selectChat, selectMessages } from '#testing/chat.test-layer'
+import {
+  insertChatLayer,
+  insertMessage,
+  selectChat,
+  selectMessages,
+} from '#testing/chat.test-layer'
+
+/** The chat services over the memory layers, on fresh rows where `chat` exists. */
+const ChatTest = ChatService.layer.pipe(
+  Layer.provideMerge(insertChatLayer(chat)),
+  Layer.provideMerge(Layer.merge(RepositoryStackTest, AttachmentBucketTest)),
+  Layer.provide(BunCrypto.layer),
+)
 
 const trip = ChatTitle.make('Trip')
 
@@ -112,7 +129,8 @@ describe('ChatService', () => {
           messageId: Option.some(firstMessage.id),
           chatId: Option.some(chat.id),
         })
-        yield* attachments.insert(photo)
+        const row = yield* encodeAttachment(photo)
+        yield* attachments.insert(row)
         yield* bucket.insert(photo.id, Stream.make(png), photo)
 
         yield* service.delete({ id: chat.id, userId: owner })

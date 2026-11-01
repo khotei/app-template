@@ -499,6 +499,12 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
   - **Rejected:**
     - ports in `domain/` with adapters over the data layer — two layers with the same methods.
     - an alias per module (`#chat/…`) — an override per module.
+  - **Note (S17):** a handler calls one service method or one use case and never a repository, so
+    each record has one owner every caller goes through: `ChatService` gains `create` and `list`,
+    and `MessageService` owns a message's reads (`getOne`, the owner through its chat). Rejected:
+    the handler over the repositories for a step no rule guards, as `layering.md` allowed, which
+    put the mappers and the data layer in the apps; `getMessage` in `ChatService`, a second
+    entity's reads in the chat's service.
 
 - **D5 — One kernel workspace, `@app-template/kernel`, with subpaths `/config`, `/postgres`,
   `/aws`, `/aws/resources`, `/queue`, `/llm` and `/data`; it holds the data and the boundary's

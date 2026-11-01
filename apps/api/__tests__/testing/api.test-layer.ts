@@ -2,11 +2,11 @@ import { BunCrypto, BunHttpServer } from '@effect/platform-bun'
 import { ConfigProvider, Layer } from 'effect'
 import { Cookies } from 'effect/http'
 
-import { AttachmentBucketTest, RepositoryStackTest } from '@app-template/chat/testing'
+import { AttachmentBucketTest } from '@app-template/chat/testing'
 import { TransactionTest } from '@app-template/db/testing'
 import { ApiClient } from '@app-template/http-api'
 import { CurrentReplyProvenanceTest } from '@app-template/infrastructure/testing'
-import { UserRepositoryTest, UserRows } from '@app-template/kernel/testing'
+import { RepositoryStackTest } from '@app-template/kernel/testing'
 import { recordQueue } from '@app-template/queue/testing'
 import { layerCookieJarTest } from '@app-template/testing'
 
@@ -26,8 +26,6 @@ export const ApiServerTest = ApiHttp.pipe(
   ]),
   Layer.provideMerge(BunHttpServer.layerTest),
   Layer.provideMerge(RepositoryStackTest),
-  Layer.provideMerge(UserRepositoryTest),
-  Layer.provideMerge(UserRows.layer),
   Layer.provide([BunCrypto.layer, ConfigProvider.layer(ConfigProvider.fromUnknown({}))]),
 )
 

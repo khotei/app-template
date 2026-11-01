@@ -8,7 +8,6 @@
   "references": [
     { "path": "../application/chat" },
     { "path": "../application/identity" },
-    { "path": "../application/identity/contract" },
     { "path": "../kernel" },
     { "path": "../packages/aws" },
     { "path": "../packages/db" },

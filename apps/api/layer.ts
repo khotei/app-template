@@ -3,14 +3,16 @@ import { Effect, Layer } from 'effect'
 import { HttpRouter } from 'effect/http'
 import { HttpApiBuilder } from 'effect/http-api'
 
-import { AttachmentService, ChatService } from '@app-template/chat/services'
+import { AttachmentService, ChatService, MessageService } from '@app-template/chat/services'
 import { Transaction } from '@app-template/db'
 import { Api } from '@app-template/http-api'
 import { UserService } from '@app-template/identity/services'
-import { AttachmentPgS3 } from '@app-template/infrastructure/attachment'
-import { ChatPg, CurrentReplyProvenance } from '@app-template/infrastructure/chat'
+import { AttachmentBucketS3FromConfig } from '@app-template/infrastructure/attachment'
+import { CurrentReplyProvenance } from '@app-template/infrastructure/chat'
 import { ApiConfig, MinimumLogLevelFromConfig, RuntimeConfig } from '@app-template/kernel/config'
 import { Db } from '@app-template/kernel/data'
+import { AttachmentRepository } from '@app-template/kernel/data/attachment'
+import { ChatRepository, MessageRepository } from '@app-template/kernel/data/chat'
 import { JobRepository } from '@app-template/kernel/data/job'
 import { UserRepository } from '@app-template/kernel/data/user'
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
@@ -32,6 +34,7 @@ export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
   Layer.provide([
     UserService.layer,
     ChatService.layer,
+    MessageService.layer,
     AttachmentService.layer,
     SendMessageUseCase.layer,
     RuntimeConfig.layer,
@@ -46,13 +49,18 @@ const LogApiStopped = Layer.effectDiscard(Effect.addFinalizer(() => Effect.logIn
 
 export const ApiLayer = Layer.merge(ApiHttp, LogApiStopped).pipe(
   Layer.provide([
-    ChatPg,
-    AttachmentPgS3,
+    AttachmentBucketS3FromConfig,
     QueueSenderJobs,
     Transaction.layer,
     CurrentReplyProvenance.layerFromConfig,
   ]),
-  Layer.provide([UserRepository.layer, JobRepository.layer]),
+  Layer.provide([
+    UserRepository.layer,
+    ChatRepository.layer,
+    MessageRepository.layer,
+    AttachmentRepository.layer,
+    JobRepository.layer,
+  ]),
   Layer.provide(Db.layer),
   Layer.provide(PgClientFromConfig),
   Layer.provide(BunHttpServerFromConfig),

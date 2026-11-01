@@ -4,7 +4,7 @@ import { EffectCache } from 'drizzle-orm/cache/core/cache-effect'
 import { EffectLogger } from 'drizzle-orm/effect-core'
 import { EffectDrizzleQueryError } from 'drizzle-orm/effect-core/errors'
 import * as PgDrizzle from 'drizzle-orm/effect-postgres'
-import { Array as Arr, Cause, Context, Effect, Layer, Schema } from 'effect'
+import { Array as Arr, Cause, Context, Effect, flow, Layer, Schema } from 'effect'
 import { SqlClient, SqlError } from 'effect/sql'
 
 /**
@@ -44,6 +44,26 @@ export class Transaction extends Context.Service<
 /** Decodes the row a read found, or answers `Option.none()` when it found none. */
 export const decodeOptionalRow = <S extends Schema.Constraint>(schema: S) =>
   Schema.decodeEffect(Schema.OptionFromNullishOr(schema))
+
+/**
+ * Encodes a model through its mapper and decodes the result with the row's insert schema, which
+ * drops the fields the table lacks and checks the row; a failure is a defect.
+ */
+export const encodeRowWith = <
+  Row extends Schema.Constraint,
+  Mapper extends Schema.ConstraintCodec<unknown, Row['Encoded'], unknown, unknown>,
+>(
+  mapper: Mapper,
+  row: Row,
+) => flow(Schema.encodeEffect(mapper), Effect.flatMap(Schema.decodeEffect(row)), Effect.orDie)
+
+/** Decodes the entity a read found, if any, through its mapper; a failure is a defect. */
+export const decodeOptionalWith = <Mapper extends Schema.Constraint>(mapper: Mapper) =>
+  flow(Schema.decodeEffect(Schema.Option(mapper)), Effect.orDie)
+
+/** Decodes the entities a read found through their mapper; a failure is a defect. */
+export const decodeManyWith = <Mapper extends Schema.Constraint>(mapper: Mapper) =>
+  flow(Schema.decodeEffect(Schema.Array(mapper)), Effect.orDie)
 
 /**
  * Fails with the `SqlError` a Drizzle query error wraps, whose reason and driver message the

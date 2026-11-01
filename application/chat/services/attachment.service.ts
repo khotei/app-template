@@ -15,6 +15,7 @@ import {
 
 import { generateId } from '@app-template/db'
 import type { UserId } from '@app-template/identity-contract'
+import { AttachmentRepository } from '@app-template/kernel/data/attachment'
 
 import { type AttachmentBoundError, AttachmentNotFoundError } from '#domain/attachment.error'
 import { AttachmentId } from '#domain/attachment.id'
@@ -26,8 +27,9 @@ import {
   ensureUnbound,
   isExpiredAt,
 } from '#domain/attachment.model'
-import { AttachmentBucket, AttachmentRepository } from '#domain/attachment.port'
+import { AttachmentBucket } from '#domain/attachment.port'
 import type { ChatId, MessageId } from '#domain/chat.id'
+import { decodeAttachment, decodeAttachments, encodeAttachment } from '#services/attachment.mapper'
 
 export interface AttachmentUpload<E> extends AttachmentMeta {
   readonly content: Stream.Stream<Uint8Array, E>
@@ -85,8 +87,9 @@ export class AttachmentService extends Context.Service<
       const meta = Struct.pick(file, ['mediaType', 'fileName'])
       const size = yield* bucket.insert(id, file.content, meta)
       const attachment = buildAttachment({ ...meta, id, userId, size, createdAt })
+      const row = yield* encodeAttachment(attachment)
 
-      yield* attachments.insert(attachment)
+      yield* attachments.insert(row)
       return attachment
     })
 
@@ -122,7 +125,9 @@ export class AttachmentService extends Context.Service<
     })
 
     const get = Effect.fn('AttachmentService.get')(function* (userId: UserId, id: AttachmentId) {
-      const found = yield* attachments.selectOne({ id, userId })
+      const found = yield* attachments
+        .selectOne({ id, userId })
+        .pipe(Effect.flatMap(decodeAttachment))
       const now = yield* DateTime.now
 
       return yield* found.pipe(
@@ -163,7 +168,9 @@ export class AttachmentService extends Context.Service<
       if (Arr.isReadonlyArrayEmpty(ids)) return []
       // The rows stay locked until the send commits, so a concurrent bind of one of them waits
       // here and then finds it bound.
-      const stored = yield* attachments.selectMany({ id: ids, userId }, { forUpdate: true })
+      const stored = yield* attachments
+        .selectMany({ id: ids, userId }, { forUpdate: true })
+        .pipe(Effect.flatMap(decodeAttachments))
       const now = yield* DateTime.now
       const found = HashMap.fromIterable(
         Arr.map(stored, (attachment) => [attachment.id, attachment]),
@@ -177,10 +184,11 @@ export class AttachmentService extends Context.Service<
 
       const checked = yield* Effect.forEach(ids, ensureBindable)
 
-      const binding = { messageId: Option.some(messageId), chatId: Option.some(chatId) }
       // Keep first: unbound bytes expire, so a crash must never leave a bound row over them.
       yield* Effect.forEach(ids, bucket.keep, { discard: true })
-      yield* attachments.update(binding, { id: ids, userId, messageId: Option.none() })
+      yield* attachments.update({ messageId, chatId }, { id: ids, userId, messageId: null })
+
+      const binding = { messageId: Option.some(messageId), chatId: Option.some(chatId) }
       return Arr.map(checked, (attachment) => new Attachment({ ...attachment, ...binding }))
     })
 

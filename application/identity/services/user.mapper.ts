@@ -1,5 +1,6 @@
 import { Effect, flow, Schema } from 'effect'
 
+import { decodeOptionalWith, encodeRowWith } from '@app-template/db'
 import { UserId } from '@app-template/identity-contract'
 import { UserEntity, UserEntityInsert } from '@app-template/kernel/data/user'
 
@@ -11,13 +12,9 @@ export const UserFromEntity = Schema.Struct({
   createdAt: Schema.DateTimeUtcFromDate,
 }).pipe(Schema.decodeTo(User))
 
-export const encodeUser = flow(
-  Schema.encodeEffect(UserFromEntity),
-  Effect.flatMap(Schema.decodeEffect(UserEntityInsert)),
-  Effect.orDie,
-)
+export const encodeUser = encodeRowWith(UserFromEntity, UserEntityInsert)
 
-export const decodeUser = flow(Schema.decodeEffect(Schema.Option(UserFromEntity)), Effect.orDie)
+export const decodeUser = decodeOptionalWith(UserFromEntity)
 
 /** A credential's fields are already the data layer's, so its own schema encodes it. */
 export const encodeCredential = flow(Schema.encodeEffect(Credential), Effect.orDie)

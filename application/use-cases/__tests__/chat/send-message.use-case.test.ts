@@ -10,39 +10,39 @@ import {
   buildUserMessage,
   Chat,
   ChatBusyError,
-  ChatRepository,
   ChatTitle,
   completeMessage,
   Message,
   type MessageId,
-  MessageRepository,
 } from '@app-template/chat/domain'
 import {
   ask,
   chat,
   owner,
+  selectAttachments,
   selectChat,
   selectMessages,
   stranger,
+  updateMessage,
   upload,
 } from '@app-template/chat/testing'
 import { GenerateAssistantMessage, GenerateChatTitle } from '@app-template/infrastructure/chat'
 import { replyProvenance } from '@app-template/infrastructure/testing'
+import { ChatRepository, MessageRepository } from '@app-template/kernel/data/chat'
 import { recordQueue } from '@app-template/queue/testing'
 import { assertSchemaEquals, epoch, isUuidV7, sortById } from '@app-template/testing'
 
-import { ChatTest, selectAttachments } from '#testing/chat.test-layer'
+import { ChatTest } from '#testing/chat.test-layer'
 import { SendMessageUseCase } from '#use-cases/chat/send-message.use-case'
 
 /** Completes an assistant message as the worker would, freeing its chat for the next send. */
 const settle = (message: Message) =>
   Effect.gen(function* () {
     const chats = yield* ChatRepository
-    const messages = yield* MessageRepository
     const at = yield* DateTime.now
 
     const completed = yield* completeMessage(message, { text: 'Sure.', at })
-    yield* messages.update(completed, { status: message.status })
+    yield* updateMessage(completed)
     yield* chats.update({ status: 'idle' }, { id: message.chatId, status: 'queued' })
     return completed
   })
@@ -66,7 +66,7 @@ describe('SendMessageUseCase', () => {
         const chats = yield* ChatRepository
         const sendMessage = yield* SendMessageUseCase
         const photo = yield* upload(owner)
-        yield* chats.update({ title: Option.some(ChatTitle.make('Trip')) }, { id: chat.id })
+        yield* chats.update({ title: 'Trip' }, { id: chat.id })
 
         const { userMessage, assistantMessage } = yield* sendMessage.send(owner, chat.id, {
           text: 'Plan a weekend in Lisbon',
@@ -102,7 +102,7 @@ describe('SendMessageUseCase', () => {
         )
         const stored = yield* selectMessages(chat.id)
         assertEquals(sortById(stored), sortById([userMessage, assistantMessage]))
-        assertEquals(yield* selectAttachments([photo]), [bound])
+        assertEquals(yield* selectAttachments([photo.id]), [bound])
         assertEquals(
           yield* selectChat(chat.id),
           Option.some(
@@ -178,7 +178,7 @@ describe('SendMessageUseCase', () => {
           yield* messages.selectMany({ chatId: chat.id, status: ActiveMessageStatus.literals }),
           [],
         )
-        assertEquals(yield* selectAttachments([photo]), [photo])
+        assertEquals(yield* selectAttachments([photo.id]), [photo])
         assertEquals(yield* queue.sent, [])
       }).pipe(Effect.provide(Layer.provide(ChatTest, queue.layer)))
     },

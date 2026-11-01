@@ -130,15 +130,15 @@ Using the `chat` slice as the map:
 | branded id | `application/chat/domain/chat.id.ts` | `ChatId`, `MessageId` |
 | entity schema with its pure operations | `application/chat/domain/chat.model.ts`, `message.model.ts`; each with its subset of the shared `Status`, whose predicates live in `status.model.ts` beside them | `Chat`, `Message` (`Schema.Class`), `buildChat({ id, userId, createdAt })`, the transitions `prepareMessage` … `failMessage` |
 | domain errors | `application/chat/domain/chat.error.ts`, `message.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
-| port | `application/chat/domain/chat.port.ts`, `message.port.ts`, `assistant.port.ts` | `ChatRepository`, `MessageRepository`, `Assistant` (`Context.Service` with no layer) |
-| domain service: the rules that need a port | `application/chat/services/chat.service.ts` | `ChatService`, `ChatService.layer` |
-| memory layers and fixtures | `application/chat/__tests__/testing/chat.test-fake.ts`, `chat.test-fixture.ts` | `ChatRepositoryTest`, `ChatRows`, `chat`, `owner`; `RepositoryStackTest` and the arrange and read steps in `chat.test-layer.ts`; all as `@app-template/chat/testing`; the data layer's memory repositories over entities (`UserRepositoryTest`, `ChatRepositoryTest`, `MessageRepositoryTest`, `AttachmentRepositoryTest`, their `<Entity>Rows`, `RepositoryStackTest`) as `@app-template/kernel/testing`; `epoch`, the row matchers `matches`, `matchesAny` and the row writes `updateRow`, `insertRow`, `updateRows`, `deleteRows`, `writeSet` in `@app-template/testing` |
+| port | `application/chat/domain/assistant.port.ts`, `attachment.port.ts` | `Assistant`, `AttachmentBucket` (`Context.Service` with no layer) |
+| domain service: the rules that need a repository or a port | `application/chat/services/chat.service.ts` | `ChatService`, `ChatService.layer`, over the data layer's `ChatRepository` |
+| memory layers and fixtures | `application/chat/__tests__/testing/assistant.test-fake.ts`, `attachment.test-fake.ts`, `chat.test-fixture.ts` | `recordAssistant()`, `AttachmentBucketTest`, `chat`, `owner`; the arrange and read steps in `chat.test-layer.ts`, through the mappers; all as `@app-template/chat/testing`; the data layer's memory repositories over entities (`UserRepositoryTest`, `ChatRepositoryTest`, `MessageRepositoryTest`, `AttachmentRepositoryTest`, their `<Entity>Rows`, `RepositoryStackTest`) as `@app-template/kernel/testing`; `epoch`, the row matchers `matches`, `matchesAny` and the row writes `insertRow`, `updateRows`, `deleteRows`, `writeSet` in `@app-template/testing` |
 | database tools any app could use | `packages/db/` (`@app-template/db`) | `createDb(relations)`, `Transaction`, the shared columns in `columns.ts`, `migrateDatabase(folder)`, `retryWhileUnreachable`; `TransactionTest` as `./testing`, `flipSqlError` as `./testing-e2e` |
 | database client | `kernel/data/db.client.ts` | `Db` (made by `createDb(relations)` over the data layer's relations), `Db.layer` over the `PgClient` in the context; `DbTest` as `@app-template/kernel/testing-e2e` |
 | Postgres client from config and the migrations | `kernel/postgres/`, `kernel/data/` | `PgClientFromConfig` and `applyMigrations`, the `make migrate` program, in `@app-template/kernel/postgres`; `migrationsFolder` over `migrations/` and `drizzle.config.ts` in `kernel/data/`; the e2e run's setup in `kernel/__e2e__/testing/e2e.test-setup.ts` |
 | tables, entities and relations | `kernel/data/chat/chat.table.ts`, `chat.entity.ts`; `kernel/data/relations.ts` | `chats` (`snakeCase.table`), `ChatEntity`, `relations` |
-| mapper from an entity to a model | `infrastructure/chat/chat.mapper.ts` | `ChatFromEntity`, `MessageFromEntity` |
-| adapter implementing a port | `infrastructure/chat/chat.repository.ts`, `assistant.llm.ts`; `attachment/attachment.bucket.ts` | `ChatRepositoryPg`, `AssistantLlm` (with the prompts, over a language model per purpose that the kernel's `createLanguageModel` builds on the provider `LLM_PROVIDER` picks: [ai.md](ai.md)), `AttachmentBucketS3` (each a `Layer` of its port) |
+| mapper from an entity to a model | `application/chat/services/chat.mapper.ts` | `ChatFromEntity`, `MessageFromEntity` with their codecs `encodeChat`, `decodeChat` …, built by `encodeRowWith` and `decodeOptionalWith` from `@app-template/db` |
+| adapter implementing a port | `infrastructure/chat/assistant.llm.ts`; `attachment/attachment.bucket.ts` | `AssistantLlm` (with the prompts, over a language model per purpose that the kernel's `createLanguageModel` builds on the provider `LLM_PROVIDER` picks: [ai.md](ai.md)), `AttachmentBucketS3` (each a `Layer` of its port) |
 | queue definitions | `infrastructure/chat/chat.queue.ts` | `assistantMessageQueue`, `GenerateAssistantMessage` (the job schema) |
 | the queue's clients and the relay from the database to a queue | `kernel/queue/queue.client.ts`, `job.relay.ts`; `kernel/data/job/job.repository.ts` | `QueueSenderJobs`, `QueueConsumerSqs`, `JobRelay` (a worker `Layer` that runs a fiber and provides nothing), all over `JobRepository` |
 | use case composing domain services | `application/use-cases/chat/send-message.use-case.ts`, `generate-assistant-message.use-case.ts` | `SendMessageUseCase`, `SendMessageUseCase.layer`, `GenerateAssistantMessageUseCase` |
@@ -166,21 +166,20 @@ Pascal one (`Document`).
    `Schema` with a same-named type; `<entity>.model.ts`: `<Entity>` as a `Schema.Class`.
 2. **Domain errors.** `<entity>.error.ts`: `Schema.TaggedError` classes named
    `<Entity><Problem>Error`, whose tag is the class name.
-3. **Port and operations.** `<entity>.port.ts`: the `<Entity>Repository` port as a
-   `Context.Service` with no layer; `<entity>.model.ts`: pure operations such as
+3. **Operations.** `<entity>.model.ts`: pure operations such as
    `build<Entity>(input)`. Time and ids come in as input, never from `Date.now()` or
    `crypto.randomUUID()`. Test them in
    `application/<module>/__tests__/domain/<entity>.model.test.ts`. Ownership is a field of the
-   `<Entity>OneWhere` the port's `selectOne(where)` takes, so an owner mismatch reads as absent,
-   never a predicate after the read.
-4. **Memory layer.** `application/<module>/__tests__/testing/<entity>.test-fake.ts`:
-   `<Entity>RepositoryTest` over `<Entity>Rows`, a `Ref` of the rows, with the guards the
-   database will add (an index, a `where`, a cascade), and the fixtures in
-   `<entity>.test-fixture.ts`;
-   `application/<module>/__tests__/testing/index.ts` exports both.
-5. **Domain service, if a rule needs a port.**
-   `application/<module>/services/<entity>.service.ts`: `<Entity>Service`, a `Context.Service`
-   with a `layer` over the ports. Test it in
+   `<Name>EntityWhere` the repository's `selectOne(where)` takes, so an owner mismatch reads as
+   absent, never a predicate after the read.
+4. **Memory layer.** `kernel/__tests__/testing/<entity>.test-fake.ts`: `<Name>RepositoryTest`
+   over `<Name>Rows`, a `Ref` of the entities, with the guards the database will add (an index,
+   a `where`, a cascade); the fixtures in
+   `application/<module>/__tests__/testing/<entity>.test-fixture.ts`, exported from that folder's
+   `index.ts`.
+5. **Domain service.** `application/<module>/services/<entity>.service.ts`: `<Entity>Service`,
+   a `Context.Service` with a `layer` over the repositories and the ports, the only way a
+   handler reaches the entity's records. Test it in
    `application/<module>/__tests__/services/<entity>.service.test.ts` over the memory layer.
    What it may see and when a flow leaves it:
    [.claude/rules/layering.md](../../.claude/rules/layering.md).
@@ -189,13 +188,11 @@ Pascal one (`Document`).
 7. **Tables and adapter.** `kernel/data/<entity>/<entity>.table.ts` declares the tables and
    `<entity>.entity.ts` their entities, `kernel/data/relations.ts` gains them, and
    `make migration` writes the migration ([database.md](database.md)).
-   `infrastructure/<entity>/<entity>.mapper.ts`: `<Model>FromEntity`, the entity decoded into the
-   model. `<entity>.repository.ts`: `<Entity>RepositoryPg`, a
-   `Layer` constant that provides the domain port over `Db`. Add `index.ts`, which also exports
-   `<Entity>Pg`, the one layer of every adapter of the aggregate
-   (`ChatPg = Layer.mergeAll(ChatRepositoryPg, MessageRepositoryPg)`), and the `exports` entry.
-   Test it in `infrastructure/__e2e__/<entity>/<entity>.repository.e2e.ts` on `DbTest`, with a twin
-   of every guard the memory layer copies.
+   `<entity>.repository.ts`: `<Name>Repository` over `Db`, in entities, exported from the
+   store's `index.ts`. `application/<module>/services/<entity>.mapper.ts`: `<Model>FromEntity`,
+   the entity decoded into the model, with its codec pair. Test the repository in
+   `kernel/__e2e__/data/<store>/<entity>.repository.e2e.ts` on `DbTest`, with a twin of every
+   guard its memory layer in `kernel/__tests__/testing/` copies.
 8. **Use cases, if a flow composes two domain services or sends a job.**
    `application/use-cases/<entity>/<verb>-<object>.use-case.ts`, a `Context.Service` with a `layer`,
    like `application/use-cases/chat/`. Test it in `application/use-cases/__tests__/` over the memory
@@ -208,18 +205,18 @@ Pascal one (`Document`).
    the work sends the job with `QueueSender.send` from `packages/queue`;
    `apps/worker/<entity>/<object>.handler.ts` holds `handle` and `handleDeadLettered` over a use
    case and their `worker` layer, which `apps/worker/layer.ts` merges and provides with the
-   `<Entity>Pg` layers the handlers read. Test `handle` in `apps/worker/__tests__/` over the memory
-   layers.
+   data layer's repositories and the adapters the handlers read. Test `handle` in
+   `apps/worker/__tests__/` over the memory layers.
 10. **Contract.** Add the group in `http-api/<entity>/<entity>.http.ts`, listing the domain's errors
     with their statuses (`HttpApiSchema.status`), and add it to `Api` in `http-api/api.ts` before
     `.middleware(SchemaErrors)`.
 11. **Delivery.** Implement the group in `apps/api/<entity>/<entity>.handler.ts` with
     `HttpApiBuilder.group(Api, '<group>', …)`: it calls the use cases and services and returns
     their models as is, since each DTO's encoder drops the fields the DTO leaves out. Add it
-    to `ApiRoutes` and its services to `ApiHttp` in `apps/api/layer.ts`; its `<Entity>Pg` and any
-    AWS adapter go to `ApiLayer`, so `ApiHttp` runs over the ports alone and the api test layer
-    provides the memory layers in their place (`@app-template/chat/testing`, with the recording
-    queue's client from `@app-template/use-cases/testing`).
+    to `ApiRoutes` and its services to `ApiHttp` in `apps/api/layer.ts`; its repositories and any
+    AWS adapter go to `ApiLayer`, so `ApiHttp` runs over the repositories and ports alone and the
+    api test layer provides the memory layers in their place (`@app-template/chat/testing`, with
+    the recording queue's client from `@app-template/use-cases/testing`).
     Test in `apps/api/__tests__/<entity>/<entity>.handler.test.ts`, on
     `apps/api/__tests__/testing/api.test-layer.ts`, only what HTTP adds (statuses, cookies, the
     wire shape); the rules stay in the modules' and use cases' suites. A flow that crosses both
@@ -240,7 +237,7 @@ checks what the import rules leave to tree shaking, the web bundle:
 
 | Guard | Catches | Reports |
 |---|---|---|
-| Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json` | an import that goes up a layer or into a sibling app; any relative path; a workspace or an `@effect/*` package in a layer of a module but the contracts, per layer (`application/*/domain/**`; `services/**`, which may also import `@app-template/db`; `contract/**`; `__tests__/**`, which may also import `@app-template/testing`, `@app-template/kernel/testing` and the test runners); e2e support (`#testing-e2e/*`, `./testing-e2e`) in a unit test or its support; a workspace other than a contract or a module's `domain`, or an `@effect/*` package, in `http-api`; `http-api` in a lower layer, a package, the worker or `deployment` | `make lint`, `pre-commit`, CI `static` |
+| Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json` | an import that goes up a layer or into a sibling app; any relative path; a workspace or an `@effect/*` package in a layer of a module but the contracts, per layer (`application/*/domain/**`; `services/**`, which may also import `@app-template/db`; `contract/**`; `__tests__/**`, which may also import `@app-template/testing`, `@app-template/kernel/testing`, the data layer's stores and the test runners); e2e support (`#testing-e2e/*`, `./testing-e2e`) in a unit test or its support; a workspace other than a contract or a module's `domain`, or an `@effect/*` package, in `http-api`; `http-api` in a lower layer, a package, the worker or `deployment` | `make lint`, `pre-commit`, CI `static` |
 | the isolated linker with `tsc -b` | an allowed import of a workspace that is not declared in `package.json` | TS2307 in `make typecheck` and at runtime |
 | `composite` project references (`rootDir: "."`) | a path that reaches into an unreferenced workspace's files | TS6059 / TS6307 in `make typecheck` |
 | `make bundle-check`: `bun build` of `apps/web/app/main.ts`, then a `grep` of the bundle | a domain service or port in the browser bundle, or an adapter, which carries its port's key: a value import of one that `http-api` passes on; a module's `services/` or `infrastructure/` key, or a port key of its `domain/` | the matched service keys, in `make check` |
@@ -256,7 +253,7 @@ options rather than merge, so every override repeats the relative-path ban, and 
 `__tests__/**` override repeats its workspace's bans. Symptoms and fixes:
 [tooling.md › Troubleshooting](tooling.md#troubleshooting).
 
-The bundle guard greps the service keys (`"@app-template/chat/domain/ChatRepository"`): string
+The bundle guard greps the service keys (`"@app-template/chat/domain/AttachmentBucket"`): string
 literals, which survive the build however Bun applies a module's `"sideEffects": false`. A
 type-only import is erased and passes, as it should. `apps/web` cannot import a module at all, so
 a leak comes through `http-api`, which imports the modules' `domain` barrels for their schemas

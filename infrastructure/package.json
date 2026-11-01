@@ -10,15 +10,13 @@
   },
   "imports": {
     "#infrastructure/*": "./*.ts",
-    "#testing/*": "./__tests__/testing/*.ts",
-    "#testing-e2e/*": "./__e2e__/testing/*.ts"
+    "#testing/*": "./__tests__/testing/*.ts"
   },
   "dependencies": {
     "@app-template/aws": "workspace:*",
     "@app-template/chat": "workspace:*",
     "@app-template/db": "workspace:*",
     "@app-template/identity": "workspace:*",
-    "@app-template/identity-contract": "workspace:*",
     "@app-template/kernel": "workspace:*",
     "@app-template/queue": "workspace:*",
     "@app-template/s3": "workspace:*",

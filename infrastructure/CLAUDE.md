@@ -6,7 +6,3 @@ queue definitions.
 - Each adapter is a `Layer` of a domain port, so callers never see the client: object keys and
   prompts stay inside the adapter.
 - A `<entity>.queue.ts` holds only queue definitions; no adapter wraps `send` or `worker`.
-- A repository runs on Postgres through `db/` and the helpers of `@app-template/db`, over the
-  tables of `@app-template/kernel/data`, and turns an entity into a model and back only through
-  its `<entity>.mapper.ts` ([database.md](../docs/knowledge/database.md)). Drizzle is reached
-  only through Effect, never through a promise.

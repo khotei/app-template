@@ -5,6 +5,8 @@ import { Array as Arr, Duration, Effect, Exit, HashMap, Layer, Option, Ref, Stre
 import { TestClock } from 'effect/testing'
 
 import type { UserId } from '@app-template/identity-contract'
+import { AttachmentRepository } from '@app-template/kernel/data/attachment'
+import { AttachmentRows, RepositoryStackTest } from '@app-template/kernel/testing'
 import {
   assertSchemaEquals,
   breakAfter,
@@ -23,38 +25,35 @@ import {
   FileSize,
   MediaType,
 } from '#domain/attachment.model'
-import { AttachmentBucket, AttachmentRepository } from '#domain/attachment.port'
+import { AttachmentBucket } from '#domain/attachment.port'
 import { AttachmentService } from '#services/attachment.service'
-import {
-  AttachmentBucketObjects,
-  AttachmentBucketTest,
-  AttachmentRepositoryTest,
-  AttachmentRows,
-} from '#testing/attachment.test-fake'
+import { AttachmentBucketObjects, AttachmentBucketTest } from '#testing/attachment.test-fake'
 import { unknownAttachmentId } from '#testing/attachment.test-fixture'
-import { upload } from '#testing/attachment.test-layer'
-import { chatId, messageId, owner, stranger } from '#testing/chat.test-fixture'
+import { selectAttachments, upload } from '#testing/attachment.test-layer'
+import { chatId, firstMessage, messageId, owner, stranger } from '#testing/chat.test-fixture'
+import { insertMessage } from '#testing/chat.test-layer'
 
-/** The service over `repository` and `AttachmentBucketTest`, on fresh rows. */
-const layerAttachmentService = (
-  repository: Layer.Layer<AttachmentRepository, never, AttachmentRows>,
-) =>
-  AttachmentService.layer.pipe(
-    Layer.provideMerge(Layer.mergeAll(repository, AttachmentBucketTest)),
-    Layer.provide(BunCrypto.layer),
-    Layer.provideMerge(AttachmentRows.layer),
-  )
+const MemoryStoresTest = Layer.merge(RepositoryStackTest, AttachmentBucketTest)
 
-const AttachmentServiceTest = layerAttachmentService(AttachmentRepositoryTest)
+/** The service over the memory layers, on fresh rows where the message a send binds to exists. */
+const AttachmentServiceTest = AttachmentService.layer.pipe(
+  Layer.provideMerge(Layer.effectDiscard(insertMessage(firstMessage))),
+  Layer.provideMerge(MemoryStoresTest),
+  Layer.provide(BunCrypto.layer),
+)
 
 const AttachmentRepositoryInsertDying = Layer.effect(
   AttachmentRepository,
   AttachmentRepository.useSync((inner) =>
     AttachmentRepository.of({ ...inner, insert: () => Effect.die('the record write was lost') }),
   ),
-).pipe(Layer.provide(AttachmentRepositoryTest))
+)
 
-const AttachmentServiceRecordLost = layerAttachmentService(AttachmentRepositoryInsertDying)
+const AttachmentServiceRecordLost = AttachmentService.layer.pipe(
+  Layer.provide(AttachmentRepositoryInsertDying),
+  Layer.provideMerge(MemoryStoresTest),
+  Layer.provide(BunCrypto.layer),
+)
 
 const photo = { fileName: FileName.make('photo.png'), mediaType: MediaType.make('image/png') }
 
@@ -113,17 +112,11 @@ const message = { messageId, chatId }
 
 const bind = (attachment: Attachment) =>
   AttachmentRepository.use((attachments) =>
-    attachments.update(
-      { messageId: Option.some(messageId), chatId: Option.some(chatId) },
-      { id: [attachment.id] },
-    ),
+    attachments.update({ messageId, chatId }, { id: [attachment.id] }),
   )
 
 const boundTo = (attachment: Attachment) =>
   new Attachment({ ...attachment, messageId: Option.some(messageId), chatId: Option.some(chatId) })
-
-const selectStored = (ids: ReadonlyArray<AttachmentId>) =>
-  AttachmentRepository.use((attachments) => attachments.selectMany({ id: ids }))
 
 const selectBytes = (id: AttachmentId) => AttachmentBucket.use((bucket) => bucket.select(id))
 
@@ -166,7 +159,10 @@ describe('AttachmentService', () => {
         Arr.map(uploaded, (attachment) => attachment.fileName),
         [photo.fileName, second.fileName],
       )
-      assertEquals(yield* selectStored(Arr.map(uploaded, (attachment) => attachment.id)), uploaded)
+      assertEquals(
+        yield* selectAttachments(Arr.map(uploaded, (attachment) => attachment.id)),
+        uploaded,
+      )
     }).pipe(Effect.provide(AttachmentServiceTest)),
   )
 
@@ -302,7 +298,7 @@ describe('AttachmentService', () => {
         const bound = yield* service.bind(owner, [second.id, first.id], message)
 
         assertEquals(bound, [boundTo(second), boundTo(first)])
-        assertEquals(yield* selectStored([second.id, first.id]), bound)
+        assertEquals(yield* selectAttachments([second.id, first.id]), bound)
       }).pipe(Effect.provide(AttachmentServiceTest)),
   )
 
@@ -329,7 +325,7 @@ describe('AttachmentService', () => {
         unknownFirst,
         new AttachmentNotFoundError({ id: unknownAttachmentId }),
       )
-      assertEquals(yield* selectStored([free.id, foreign.id]), [free, foreign])
+      assertEquals(yield* selectAttachments([free.id, foreign.id]), [free, foreign])
     }).pipe(Effect.provide(AttachmentServiceTest)),
   )
 
@@ -343,7 +339,7 @@ describe('AttachmentService', () => {
       const error = yield* service.bind(owner, [free.id, taken.id], message).pipe(Effect.flip)
 
       assertSchemaEquals(AttachmentBoundError, error, new AttachmentBoundError({ id: taken.id }))
-      assertEquals(yield* selectStored([free.id, taken.id]), [free, boundTo(taken)])
+      assertEquals(yield* selectAttachments([free.id, taken.id]), [free, boundTo(taken)])
     }).pipe(Effect.provide(AttachmentServiceTest)),
   )
 
@@ -356,7 +352,7 @@ describe('AttachmentService', () => {
         yield* TestClock.adjust(Duration.hours(24))
 
         const error = yield* address(service, owner, attachment.id).pipe(Effect.flip)
-        const stored = yield* selectStored([attachment.id])
+        const stored = yield* selectAttachments([attachment.id])
         const bytes = yield* selectBytes(attachment.id)
 
         assertSchemaEquals(

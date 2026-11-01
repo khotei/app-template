@@ -15,9 +15,10 @@ Where a flow lives. Words: `docs/knowledge/glossary.md › Architecture language
 - **A repository is the data layer's, with no port in front:** a service calls
   `<Name>Repository` from `@app-template/kernel/data/<store>` in entities and maps them with the
   `<Model>FromEntity` of its module's `services/`.
-- **A domain service holds the rules that need a repository or a port:** a check over stored
-  rows, a refusal named after a read; a bare not-found stays in the handler that reads it; an
-  entity whose rules are all pure model functions has none.
+- **A domain service owns its entity's records for every caller above it:** the rules that need
+  a repository or a port (a check over stored rows, a refusal named after a read) and the plain
+  reads and writes a handler asks for (a list, a create, a record by key with its
+  `*NotFoundError`).
 - It sees the repositories, its ports, the clock (`DateTime.now`) and `Crypto`; never another
   domain service, the queue or the transaction, which are a use case's.
 - **Every method is safe on its own:** a method correct only after another one ran is a trap;
@@ -50,9 +51,8 @@ the signal.
 
 ## Handlers
 
-- A handler decodes the input, calls one domain service method, one use case or, for a step no
-  rule guards (a list, a record a model function builds, a read whose none is the domain's
-  `*NotFoundError`), the repository, and shapes the outcome; it holds no other rule.
+- A handler decodes the input, calls one domain service method or one use case, and shapes the
+  outcome; it never reads or writes a repository and holds no rule.
 - A worker handler owns the queue's policy, the last attempt and the dead letter: it composes the
   use case's methods (the work, then its failure on the last attempt's cause), which never see the
   attempt.

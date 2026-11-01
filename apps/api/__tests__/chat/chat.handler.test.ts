@@ -8,8 +8,8 @@ import {
   failMessage,
   type MessageId,
   MessageNotFoundError,
-  MessageRepository,
 } from '@app-template/chat/domain'
+import { selectMessage, updateMessage } from '@app-template/chat/testing'
 import { ApiClient } from '@app-template/http-api'
 import { UserUnknownError } from '@app-template/identity-contract'
 import { assertSchemaEquals } from '@app-template/testing'
@@ -24,15 +24,13 @@ const openChat = ApiClient.use((api) => api.users.ensure().pipe(Effect.andThen(a
 /** Settles a reply as the worker does once the assistant refuses. */
 const refuseReply = (id: MessageId) =>
   Effect.gen(function* () {
-    const messages = yield* MessageRepository
-    const reply = yield* messages.selectOne({ id }).pipe(Effect.flatMap(Effect.fromOption))
-    yield* messages.update(
+    const reply = yield* selectMessage(id).pipe(Effect.flatMap(Effect.fromOption))
+    yield* updateMessage(
       yield* failMessage(reply, {
         reason: 'ReplyRefused',
         cause: 'stop_reason refusal',
         at: reply.updatedAt,
       }),
-      { status: reply.status },
     )
   }).pipe(Effect.orDie)
 

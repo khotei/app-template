@@ -1,15 +1,7 @@
-import { Crypto, DateTime, Effect } from 'effect'
+import { Effect } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
-import {
-  buildChat,
-  ChatId,
-  ChatRepository,
-  MessageNotFoundError,
-  MessageRepository,
-} from '@app-template/chat/domain'
-import { ChatService } from '@app-template/chat/services'
-import { generateId } from '@app-template/db'
+import { ChatService, MessageService } from '@app-template/chat/services'
 import { Api } from '@app-template/http-api'
 import { CurrentUser } from '@app-template/identity-contract'
 import { SendMessageUseCase } from '@app-template/use-cases/chat'
@@ -18,10 +10,8 @@ export const ChatHandler = HttpApiBuilder.group(
   Api,
   'chats',
   Effect.fnUntraced(function* (handlers) {
-    const chats = yield* ChatRepository
-    const messages = yield* MessageRepository
     const chatService = yield* ChatService
-    const crypto = yield* Crypto.Crypto
+    const messageService = yield* MessageService
     const sendMessage = yield* SendMessageUseCase
 
     return handlers
@@ -29,19 +19,14 @@ export const ChatHandler = HttpApiBuilder.group(
         'create',
         Effect.fn('ChatHandler.create')(function* () {
           const user = yield* CurrentUser
-          const id = yield* generateId(crypto, ChatId.make)
-          const createdAt = yield* DateTime.now
-          const chat = buildChat({ id, userId: user.id, createdAt })
-
-          yield* chats.insert(chat)
-          return chat
+          return yield* chatService.create(user.id)
         }),
       )
       .handle(
         'list',
         Effect.fn('ChatHandler.list')(function* () {
           const user = yield* CurrentUser
-          return yield* chats.selectMany({ userId: user.id })
+          return yield* chatService.list(user.id)
         }),
       )
       .handle(
@@ -76,13 +61,11 @@ export const ChatHandler = HttpApiBuilder.group(
         'getMessage',
         Effect.fn('ChatHandler.getMessage')(function* ({ params }) {
           const user = yield* CurrentUser
-          return yield* messages
-            .selectOne({ id: params.messageId, chatId: params.chatId, userId: user.id })
-            .pipe(
-              Effect.flatMap(
-                Effect.fromOption(() => new MessageNotFoundError({ id: params.messageId })),
-              ),
-            )
+          return yield* messageService.getOne({
+            id: params.messageId,
+            chatId: params.chatId,
+            userId: user.id,
+          })
         }),
       )
   }),

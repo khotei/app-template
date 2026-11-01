@@ -7,7 +7,6 @@ import {
   type Attachment,
   AttachmentBucket,
   type ChatId,
-  ChatRepository,
   type ChatStatusInvalidError,
   completeMessage,
   failChat,
@@ -19,13 +18,19 @@ import {
   type Message,
   type MessageFailure,
   type MessageId,
-  MessageRepository,
+  type MessageStatus,
   type MessageStatusInvalidError,
-  type MessageUpdateWhere,
   prepareMessage,
 } from '@app-template/chat/domain'
+import {
+  decodeChat,
+  decodeMessage,
+  decodeMessages,
+  encodeMessage,
+} from '@app-template/chat/services'
 import { Transaction } from '@app-template/db'
 import type { GenerateAssistantMessage } from '@app-template/infrastructure/chat'
+import { ChatRepository, MessageRepository } from '@app-template/kernel/data/chat'
 
 type ReplySkip = 'chatDeleted' | 'alreadySettled'
 
@@ -79,16 +84,21 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
     const readHistory = (chatId: ChatId) =>
       messages
         .selectMany({ chatId, status: ['done'] })
-        .pipe(Effect.flatMap(Effect.forEach(readHistoryMessage)))
+        .pipe(Effect.flatMap(decodeMessages), Effect.flatMap(Effect.forEach(readHistoryMessage)))
+
+    const updateMessage = (message: Message, from: MessageStatus) =>
+      encodeMessage(message).pipe(
+        Effect.flatMap((row) => messages.update(row, { id: message.id, status: [from] })),
+      )
 
     /** Writes the settled message with its chat's end, `idleChat` or `failChat`, in one transaction. */
     const settleWith = (end: typeof idleChat) =>
-      Effect.fnUntraced(function* (settled: Message, where: MessageUpdateWhere) {
-        yield* messages.update(settled, where)
+      Effect.fnUntraced(function* (settled: Message, from: MessageStatus) {
+        yield* updateMessage(settled, from)
         // The message's write held, so the foreign key still keeps its chat.
         const chat = yield* chats
           .selectOne({ id: settled.chatId })
-          .pipe(Effect.map(Option.getOrThrow))
+          .pipe(Effect.flatMap(decodeChat), Effect.map(Option.getOrThrow))
         const ended = yield* end(chat)
         yield* chats.update({ status: ended.status }, { id: chat.id, status: chat.status })
         return settled
@@ -100,7 +110,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
     ) {
       const completedAt = yield* DateTime.now
       const completed = yield* completeMessage(generating, { text, at: completedAt })
-      return yield* settleWith(idleChat)(completed, { status: generating.status })
+      return yield* settleWith(idleChat)(completed, generating.status)
     })
 
     const settleFailed = Effect.fnUntraced(function* (
@@ -109,18 +119,18 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
     ) {
       const failedAt = yield* DateTime.now
       const failed = yield* failMessage(active, { reason, cause, at: failedAt })
-      return yield* settleWith(failChat)(failed, { status: active.status })
+      return yield* settleWith(failChat)(failed, active.status)
     })
 
     const reply = Effect.fnUntraced(function* (taken: Message) {
       const preparedAt = yield* DateTime.now
       const prepared = yield* prepareMessage(taken, preparedAt)
-      yield* messages.update(prepared, { status: taken.status })
+      yield* updateMessage(prepared, taken.status)
 
       const history = yield* readHistory(prepared.chatId)
       const generatingAt = yield* DateTime.now
       const generating = yield* generateMessage(prepared, generatingAt)
-      yield* messages.update(generating, { status: prepared.status })
+      yield* updateMessage(generating, prepared.status)
 
       yield* assistant.reply(history).pipe(
         Effect.matchEffect({
@@ -137,6 +147,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
     // The cascade takes the message with its chat, so a missing one means a deleted chat.
     const selectActive = (id: MessageId) =>
       messages.selectOne({ id }).pipe(
+        Effect.flatMap(decodeMessage),
         Effect.flatMap(Effect.fromOption(() => new ReplySkipped({ why: 'chatDeleted' }))),
         Effect.filterOrFail(isActiveMessage, () => new ReplySkipped({ why: 'alreadySettled' })),
       )

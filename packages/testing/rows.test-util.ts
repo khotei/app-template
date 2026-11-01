@@ -3,7 +3,6 @@ import {
   Effect,
   Equal,
   HashMap,
-  Option,
   Predicate,
   pipe,
   Ref,
@@ -46,29 +45,6 @@ export const matchesAny =
         }),
       ),
     )
-
-/** Replaces the row `id` finds while `where` holds by `update` of it; answers the rows written. */
-export const updateRow = <Id, Row extends object>(
-  rows: Ref.Ref<HashMap.HashMap<Id, Row>>,
-  {
-    id,
-    where,
-    update,
-  }: { readonly id: Id; readonly where: Partial<Row>; readonly update: (row: Row) => Row },
-): Effect.Effect<ReadonlyArray<Row>> =>
-  Ref.modify(rows, (map) =>
-    pipe(
-      HashMap.get(map, id),
-      Option.filter(matches(where)),
-      Option.match({
-        onNone: () => [Arr.empty<Row>(), map] as const,
-        onSome: (row) => {
-          const written = update(row)
-          return [Arr.of(written), HashMap.set(map, id, written)] as const
-        },
-      }),
-    ),
-  )
 
 /** Dies with `message` when a write answers no row, as the Pg repositories' writes do. */
 export const orDieOnNoRows =

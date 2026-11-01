@@ -1,43 +1,7 @@
-import { Context, type Effect, type Option, type Stream, type Types } from 'effect'
-import type { RequireAtLeastOne } from 'type-fest'
+import { Context, type Effect, type Option, type Stream } from 'effect'
 
 import type { AttachmentId } from '#domain/attachment.id'
-import type { Attachment, AttachmentMeta, FileSize } from '#domain/attachment.model'
-
-export type AttachmentSet = Types.Simplify<
-  RequireAtLeastOne<Pick<Attachment, 'messageId' | 'chatId'>>
->
-
-/**
- * The rows `id` finds, one or a list, where every other field named holds, so an owner mismatch
- * reads as absent.
- */
-export type AttachmentWhere = Types.Simplify<
-  { readonly id: AttachmentId | ReadonlyArray<AttachmentId> } & Partial<
-    Pick<Attachment, 'userId' | 'messageId'>
-  >
->
-
-export class AttachmentRepository extends Context.Service<
-  AttachmentRepository,
-  {
-    readonly insert: (attachment: Attachment) => Effect.Effect<void>
-    /** Writes `set` where `where` holds, in one statement; dies when it writes nothing. */
-    readonly update: (set: AttachmentSet, where: AttachmentWhere) => Effect.Effect<void>
-    /** The first row `selectMany` reads. */
-    readonly selectOne: (where: AttachmentWhere) => Effect.Effect<Option.Option<Attachment>>
-    /**
-     * Rows where `where` holds, in the order of `where.id`, unknown ids skipped. With
-     * `forUpdate`, holds the rows it reads until the transaction ends.
-     */
-    readonly selectMany: (
-      where: AttachmentWhere,
-      options?: { readonly forUpdate?: boolean },
-    ) => Effect.Effect<ReadonlyArray<Attachment>>
-    /** Deletes the rows where `where` holds, in one statement; dies when it deletes nothing. */
-    readonly delete: (where: AttachmentWhere) => Effect.Effect<void>
-  }
->()('@app-template/chat/domain/AttachmentRepository') {}
+import type { AttachmentMeta, FileSize } from '#domain/attachment.model'
 
 export class AttachmentBucket extends Context.Service<
   AttachmentBucket,

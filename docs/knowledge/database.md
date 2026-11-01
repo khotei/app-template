@@ -99,7 +99,7 @@ export const UserFromEntity = Schema.Struct({
   given as a function (`{ error: () => MessageFailureJson }`) keeps the column's `NullOr`.
 - A model nested in another (an attachment in a chat, the failure in a message) is laid by its
   encoded side, `AttachmentFromEntity.from` or `Schema.toEncoded(MessageFailure)`; why: the
-  comment in `infrastructure/chat/chat.mapper.ts`.
+  comment in `application/chat/services/chat.mapper.ts`.
 - A service writes a model encoded through its mapper and decoded with `<Name>EntityInsert`,
   which cuts the nested attachments and checks the row. A value already in the data layer's
   types (brands, literals) is passed as is: `UserRepository.insert` takes the credential with
@@ -143,10 +143,10 @@ them in one `sql.withTransaction`, passed to `Effect.fn` as a pipeable:
 in the e2e), so the transaction runs on the connection `Db` uses. Every method ends with
 `orDieWithSqlError` from `@app-template/db`.
 
-Until chat's services call the data layer's repositories, a domain port's
-`*RepositoryPg` delegates to one: it encodes the model through its mapper and decodes the row
-with `<Name>EntityInsert`, maps each `Option` of the `where` and the set to `null`, and decodes
-the entities it reads into models.
+A module's services and the use cases call the data layer's repositories through the
+`<Model>FromEntity` mappers of the module's `services/`: a write encodes the model through its
+mapper and decodes the row with `<Name>EntityInsert`, the set and the `where` map each `Option`
+to `null`, and a read decodes the entities into models; a mapping failure dies.
 
 Reads go through relational queries (`db.query.<table>.findFirst` and `findMany`), writes
 through the core builder (`db.insert`, `db.update`, `db.delete`). A read of at most one row is a
@@ -185,22 +185,21 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
   `idleChat` or `failChat` the same way, in the transaction that settles the message, so the
   chat's status and its active message move together; a path that ends a reply anywhere else
   must move the chat too, or the chat stays `queued`.
-- **Update under a `where`.** `MessageRepository.update(message, where)` writes the message's
-  status, text, error and `updatedAt` `WHERE id = … AND status IN (…)`: its adapter passes the
-  message's id and the stored status to match (`MessageUpdateWhere`) as a `MessageEntityWhere`,
-  so a write whose expected status another writer has left, or whose message is gone, changes
-  nothing and dies; the job's retry then reads the message and skips it as settled or deleted.
+- **Update under a `where`.** `MessageRepository.update(set, where)` writes the message's
+  status, text, error and `updatedAt` `WHERE id = … AND status IN (…)`: the reply's use case
+  passes the encoded message as the set, and its id and the stored status to match as the
+  `MessageEntityWhere`, so a write whose expected status another writer has left, or whose
+  message is gone, changes nothing and dies; the job's retry then reads the message and skips it
+  as settled or deleted.
 - **Update of some fields under a `where`.** `ChatRepository.update(set, where)` and
-  `AttachmentRepository.update(set, where)` write only the fields of `set` (`ChatSet`,
-  `AttachmentSet`: `RequireAtLeastOne` from `type-fest`, so an empty write fails typecheck) where
-  the rows match `where` (`ChatWhere`, `AttachmentWhere`: the `id`, one or a list of them for
-  attachments, and optionally a field the row must still hold, `Option.none()` rendering `IS
-  NULL`). The data layer's repository maps each side through `buildSet` and `buildWhere`
-  (above), the chat's adapter the model's values (`Option`, `DateTime`) into the entity's first;
-  the attachments' adapter turns each `Option.none()` into `null`, and the data layer's
-  `AttachmentRepository` maps `AttachmentEntitySet` and `AttachmentEntityWhere` through them,
-  `null` rendering `IS NULL`. Both die when they write nothing. A status move writes the status
-  alone, so a title written meanwhile survives it.
+  `AttachmentRepository.update(set, where)` write only the fields of `set` (`ChatEntitySet`,
+  `AttachmentEntitySet`: `RequireAtLeastOne` from `type-fest`, so an empty write fails typecheck)
+  where the rows match `where` (`ChatEntityWhere`, `AttachmentEntityWhere`: a key, one id or a
+  list of them for attachments, and optionally a field the row must still hold, `null` rendering
+  `IS NULL`). The repository maps each side through `buildSet` and `buildWhere` (above); a
+  service encodes the changed model through its mapper and writes the set's fields from the row,
+  and `encodeChatWhere` turns the `Option` of a chat's `where` into `null`. Both die when they
+  write nothing. A status move writes the status alone, so a title written meanwhile survives it.
   - `ChatService.rename` reads the chat by the caller's `where` to name a refusal
     (`ChatNotFoundError`), then writes under the same `where`. The title job passes `title:
     none`, so a rename landing between the two wins and the job dies and retries.
@@ -310,10 +309,7 @@ and that are committed.
 Each e2e test runs on a database of its own, copied from a template that the run's setup
 migrates with the `make migrate` program ([tooling.md › Tests](tooling.md#tests)). A data
 layer's repository has a `.repository.e2e.ts` in `kernel/__e2e__/data/<store>/` on `DbTest`, in
-entities, its parent rows written through `Db`. Every `*RepositoryPg` that still holds its
-queries has a suite in `infrastructure/__e2e__/` on `DbTest`, which shares the three
-repositories of `infrastructure/__e2e__/testing/repository-stack.test-layer.ts` and inserts the parent
-rows with `insertUser` and its siblings from `infrastructure/__e2e__/testing/rows.test-util.ts`. An
+entities, its parent rows written through `Db`. An
 `.entity.e2e.ts` in `kernel/__e2e__/data/<store>/` checks, in entities only, what the schema
 itself refuses (a check, a partial unique index) and reads the `SqlError` of a refused statement
 with `flipSqlError` from `@app-template/db/testing-e2e`. A limit or a pattern the data layer

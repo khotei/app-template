@@ -1,7 +1,10 @@
 export { buildSet, buildWhere, createdAt, id, skipUndefined, updatedAt } from '#db/columns'
 export {
   createDb,
+  decodeManyWith,
   decodeOptionalRow,
+  decodeOptionalWith,
+  encodeRowWith,
   orDieOnNoRows,
   orDieWithSqlError,
   Transaction,

@@ -22,7 +22,7 @@
 | S14 | `ChatRepository` and `MessageRepository` in the data layer | done |
 | S15 | `AttachmentRepository` in the data layer | done |
 | S16 | the memory repositories over entities in the kernel's test support | done |
-| S17 | chat's services and the use cases over the data layer; the repository ports gone | todo |
+| S17 | chat's services and the use cases over the data layer; the repository ports gone | done |
 | S18 | `FileRepository` in the data layer; the bucket port gone | todo |
 | S19 | chat's assistant in `application/chat/infrastructure`; no `infrastructure` workspace | todo |
 | S20 | the decisions document and the modules review rule | todo |
@@ -842,7 +842,33 @@
   another word). If the diff runs
   past ~400 lines, the use cases split off as their own round.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The api's handlers call only services and use cases (a note on D4): `ChatService` gains
+    `create` and `list`, and a new `MessageService.getOne` reads a message by its owner through
+    its chat. `layering.md` › Handlers and the domain-service line say so. S21's guards should
+    ban `@app-template/kernel/data/*` and the mappers in `apps/*/` but their `layer.ts`.
+  - `encodeRowWith`, `decodeOptionalWith` and `decodeManyWith` in `@app-template/db` build every
+    mapper's codec pair, identity's too, as the Contract's `decodeOptionalWith(ChatFromEntity)`
+    has it. A write encodes the changed model and passes the row, or the fields it changes picked
+    from it, as the set: `rename` writes `title` and `updatedAt` only, so a status moved since the
+    read survives. The set encoders, `ChatSet` and `AttachmentSet` are gone.
+  - The Postgres test stack in `infrastructure/__e2e__/testing/` is deleted, not moved to
+    `@app-template/kernel/testing-e2e`: it had no importer since S9.
+  - The use cases are not a round of their own: the services and the use cases share one memory
+    store in the unit suites, so switching one alone breaks the other's suites.
+  - `AttachmentPgS3` is `AttachmentBucketS3FromConfig`, the bucket alone, until S18.
+  - `biome.json`: `application/*/__tests__` may import `@app-template/kernel/data/*`, the root
+    with `Db` still banned. `ChatTest` lives in `chat.service.test.ts`, since `ChatService` now
+    needs `Crypto` and the test support may not import `BunCrypto`.
+  - `MessageService`'s suite (4 cases) was written after the service, with no red run.
+  - Outside the step: `ChatService.delete` removes the rows, then the bytes outside the
+    transaction, as before; if S3 refuses, the chat is gone and the bytes have no row left to
+    retry from. A candidate for the roadmap. `infrastructure/{package,tsconfig}.json` carry dead
+    dependencies, which S19 removes with the workspace.
+  - Rounds S17.2 (review: `rename` through the mapper, doc lines) and S17.3 (the user: handlers
+    through services, `MessageService`).
+  - Size: 65 files, +591 / −1047, mostly deletions.
 
 #### S18 — Files in the data layer
 
@@ -853,7 +879,7 @@
   the store joins no transaction. `FileEntity`, the key and the `unbound` tag live in
   `kernel/data/file`; `kernel/aws` provides `S3BucketFromConfig` (the stage's bucket from
   the inventory); `deployment` takes the tag from the data layer. The `AttachmentBucket` port,
-  `AttachmentBucketS3` and `AttachmentPgS3` are gone: chat's services and the
+  `AttachmentBucketS3` and `AttachmentBucketS3FromConfig` are gone: chat's services and the
   generate-assistant-message use case call `FileRepository`, `FileRepositoryTest` replaces
   `AttachmentBucketTest`. Uploads, binds, downloads and deletes behave as before.
 - **Goal:** every store behind the data layer, its client from outside (R1, R3, R9, D17, D18).
@@ -880,7 +906,7 @@
 - **Test first:** a repository on MiniStack — the file suite (an upload is tagged `unbound`, a bind
   removes the tag, a delete removes many) passes over `FileRepository`, red until it exists; the
   services' suites over `FileRepositoryTest` keep every case.
-- **Verify:** `make check`; `git grep -nE "AttachmentBucket|AttachmentPgS3"` finds nothing;
+- **Verify:** `make check`; `git grep -nE "AttachmentBucket"` finds nothing;
   `make dev`: upload a file, send it, open its link, delete the chat.
 - **Model:** `opus high`
 - **Status:** todo

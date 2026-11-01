@@ -108,10 +108,11 @@ and the alternatives they rejected: each ticket's `architecture.md › Decisions
 One entity crosses every layer under the same folder name. The `chat` slice, by file suffix:
 
 ```text
-application/chat/domain/         chat.id  chat.model  chat.error  chat.port
-application/chat/services/       chat.service
+kernel/data/chat/                chat.table  chat.entity  chat.repository
+application/chat/domain/         chat.id  chat.model  chat.error  assistant.port
+application/chat/services/       chat.mapper  chat.service
 application/use-cases/chat/      send-message.use-case  generate-assistant-message.use-case
-infrastructure/chat/             chat.entity  chat.repository  chat.queue  assistant.llm
+infrastructure/chat/             chat.queue  assistant.llm
 http-api/chat/                   chat.http
 apps/api/chat/                   chat.handler
 apps/worker/chat/                assistant-message.handler  chat-title.handler
@@ -122,9 +123,10 @@ apps/worker/chat/                assistant-message.handler  chat-title.handler
 apps/__e2e__/                    the use cases on Postgres and the journey, over assembled layers
 ```
 
-Read it bottom-up: the model and its pure operations, the port the service writes through, the
-service with the rules, the use case composing services, the adapter implementing the port, the
-handler calling the use case. Every file of the slice and what it is named:
+Read it bottom-up: the data layer's table, entity and repository, the model and its pure
+operations, the mapper between entity and model, the service with the rules, the use case
+composing services, the adapter implementing a port, the handler calling the use case. Every
+file of the slice and what it is named:
 [architecture.md › Where things live](docs/knowledge/architecture.md#where-things-live); the
 suffixes and naming verbs: [.claude/rules/naming.md](.claude/rules/naming.md).
 

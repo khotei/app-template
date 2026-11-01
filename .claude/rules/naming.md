@@ -32,7 +32,7 @@ tool reads.
 | `.repository` · `.bucket` · `.llm` · `.queue` | the data layer's access to a store, `<Name>Repository` over its entities · S3 · `LanguageModel`, with the prompts · queue definitions and their job schemas | `kernel/data` · infrastructure |
 | `.relay` | a layer that moves records from the database to a queue | kernel |
 | `.table` · `.entity` | a table, importing only tables · its entities, the schemas read from it, `<Name>Entity` with its `Insert`, `Where` and `Set`, and a `<Verb>Where` for the one verb whose filter differs | `kernel/data` |
-| `.mapper` | an entity's codec into a model, `<Model>FromEntity` | a module's `services`; `infrastructure` holds them while it remains |
+| `.mapper` | an entity's codec into a model, `<Model>FromEntity` | a module's `services` |
 | `.client` · `.transport` | client wiring · the service a package's client runs over | infrastructure, kernel, http-api, packages |
 | `.http` | a contract group: one resource's routes (`HttpApiGroup`) | http-api |
 | `.test` · `.e2e` | a unit test, no process outside vitest · a test on the run's containers | `__tests__/` · `__e2e__/` |
@@ -72,8 +72,7 @@ the journey among them, live in `apps/__e2e__`.
   - `select` / `insert` / `update` / `delete`: a repository's persistence; `update` never creates a
     record.
 - Constants are `camelCase`, `as const` for literal objects and arrays; a `Layer` constant is
-  `PascalCase`, for a service declared elsewhere `<Service><Variant>` (`<Port>S3`);
-  `<Entity>Pg` in `<entity>/index.ts` bundles the aggregate's adapters.
+  `PascalCase`, for a service declared elsewhere `<Service><Variant>` (`<Port>S3`).
 - Every test-only layer ends in `Test`: a repository's or port's fake is `<Service>Test`; a test
   layer is `<Entity>Test`, the entity's real services over fakes (`layer<Entity>Test(…)` with
   options). A stateful fake `<verb><Thing>()` returns `{ <handle>, layer }`; `<Entity>Rows` holds

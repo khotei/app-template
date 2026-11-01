@@ -8,16 +8,14 @@ import {
   type ChatBusyError,
   type ChatId,
   type ChatNotFoundError,
-  ChatRepository,
   ensureMessageInput,
   Message,
   MessageId,
   type MessageInput,
   type MessageInputInvalidError,
-  MessageRepository,
   queueChat,
 } from '@app-template/chat/domain'
-import { AttachmentService, ChatService } from '@app-template/chat/services'
+import { AttachmentService, ChatService, encodeMessage } from '@app-template/chat/services'
 import { generateId, Transaction } from '@app-template/db'
 import type { UserId } from '@app-template/identity-contract'
 import {
@@ -27,6 +25,7 @@ import {
   GenerateAssistantMessage,
   GenerateChatTitle,
 } from '@app-template/infrastructure/chat'
+import { ChatRepository, MessageRepository } from '@app-template/kernel/data/chat'
 import { QueueSender } from '@app-template/queue'
 
 export interface SentMessages {
@@ -84,7 +83,8 @@ export class SendMessageUseCase extends Context.Service<
         text: input.text,
         createdAt: at,
       })
-      yield* messages.insert(userMessage)
+      const userRow = yield* encodeMessage(userMessage)
+      yield* messages.insert(userRow)
       const bound = yield* attachmentService.bind(userId, input.attachmentIds, {
         messageId: userMessage.id,
         chatId,
@@ -95,7 +95,8 @@ export class SendMessageUseCase extends Context.Service<
         chatId,
         createdAt: at,
       })
-      yield* messages.insert(assistantMessage)
+      const assistantRow = yield* encodeMessage(assistantMessage)
+      yield* messages.insert(assistantRow)
       yield* queue.send(
         assistantMessageQueue,
         new GenerateAssistantMessage({

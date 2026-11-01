@@ -3,11 +3,18 @@ import { assertEquals } from '@effect/vitest/utils'
 import { Array as Arr, Effect, Exit, Option, Order } from 'effect'
 import { SqlClient } from 'effect/sql'
 
-import { buildChat, ChatId, ChatRepository } from '@app-template/chat/domain'
-import { chat, owner, selectChat, selectMessages, upload } from '@app-template/chat/testing'
+import { buildChat, ChatId } from '@app-template/chat/domain'
+import {
+  chat,
+  insertChat,
+  owner,
+  selectAttachments,
+  selectChat,
+  selectMessages,
+  upload,
+} from '@app-template/chat/testing'
 import { epoch } from '@app-template/testing'
 import { SendMessageUseCase } from '@app-template/use-cases/chat'
-import { selectAttachments } from '@app-template/use-cases/testing'
 
 import { ChatPgTest } from '#testing-e2e/chat.test-layer'
 
@@ -41,13 +48,12 @@ describe('SendMessageUseCase', () => {
     () =>
       Effect.gen(function* () {
         const sendMessage = yield* SendMessageUseCase
-        const chats = yield* ChatRepository
         const other = buildChat({
           id: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000022'),
           userId: owner,
           createdAt: epoch,
         })
-        yield* chats.insert(other)
+        yield* insertChat(other)
         const photo = yield* upload(owner)
         const send = (chatId: ChatId) =>
           sendMessage.send(owner, chatId, { text: 'Look', attachmentIds: [photo.id] }).pipe(
@@ -82,7 +88,7 @@ describe('SendMessageUseCase', () => {
 
         assert.isTrue(Exit.hasDies(exit))
         assertEquals(yield* selectMessages(chat.id), [])
-        assertEquals(yield* selectAttachments([photo]), [photo])
+        assertEquals(yield* selectAttachments([photo.id]), [photo])
         assertEquals(yield* selectChat(chat.id), Option.some(chat))
         assertEquals(yield* selectJobs, [])
       }).pipe(Effect.provide(ChatPgTest)),

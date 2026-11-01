@@ -3,8 +3,9 @@ import { Layer } from 'effect'
 
 import { chat, insertChatLayer } from '@app-template/chat/testing'
 import { Transaction } from '@app-template/db'
-import { AttachmentBucketS3, AttachmentRepositoryPg } from '@app-template/infrastructure/attachment'
-import { ChatPg } from '@app-template/infrastructure/chat'
+import { AttachmentBucketS3 } from '@app-template/infrastructure/attachment'
+import { AttachmentRepository } from '@app-template/kernel/data/attachment'
+import { ChatRepository, MessageRepository } from '@app-template/kernel/data/chat'
 import { JobRepository } from '@app-template/kernel/data/job'
 import { QueueSenderJobs } from '@app-template/kernel/queue'
 import { AwsTest } from '@app-template/kernel/testing-e2e'
@@ -21,8 +22,9 @@ export const ChatPgTest = ChatServices.pipe(
   Layer.provideMerge(insertChatLayer(chat)),
   Layer.provideMerge(
     Layer.mergeAll(
-      ChatPg,
-      AttachmentRepositoryPg,
+      ChatRepository.layer,
+      MessageRepository.layer,
+      AttachmentRepository.layer,
       AttachmentBucketS3,
       QueueSenderJobs.pipe(Layer.provide(JobRepository.layer)),
       Transaction.layer,

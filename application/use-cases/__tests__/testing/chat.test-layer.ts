@@ -1,17 +1,11 @@
 import { BunCrypto } from '@effect/platform-bun'
-import { Array as Arr, Layer } from 'effect'
+import { Layer } from 'effect'
 
-import { type Attachment, AttachmentRepository } from '@app-template/chat/domain'
 import { AttachmentService, ChatService } from '@app-template/chat/services'
-import {
-  AttachmentBucketTest,
-  chat,
-  insertChatLayer,
-  queuedChat,
-  RepositoryStackTest,
-} from '@app-template/chat/testing'
+import { AttachmentBucketTest, chat, insertChatLayer, queuedChat } from '@app-template/chat/testing'
 import { TransactionTest } from '@app-template/db/testing'
 import { CurrentReplyProvenanceTest } from '@app-template/infrastructure/testing'
+import { RepositoryStackTest } from '@app-template/kernel/testing'
 
 import { GenerateAssistantMessageUseCase } from '#use-cases/chat/generate-assistant-message.use-case'
 import { GenerateChatTitleUseCase } from '#use-cases/chat/generate-chat-title.use-case'
@@ -53,8 +47,3 @@ export const AssistantMessageTest = GenerateAssistantMessageUseCase.layer.pipe(
   Layer.provideMerge(Layer.mergeAll(RepositoryStackTest, AttachmentBucketTest, TransactionTest)),
   Layer.provide(BunCrypto.layer),
 )
-
-export const selectAttachments = (attachments: ReadonlyArray<Attachment>) =>
-  AttachmentRepository.use((repository) =>
-    repository.selectMany({ id: Arr.map(attachments, (attachment) => attachment.id) }),
-  )

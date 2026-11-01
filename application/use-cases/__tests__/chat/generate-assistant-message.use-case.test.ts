@@ -1,6 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Cause, DateTime, Effect, Exit, Fiber, HashMap, Layer, Option, Ref, Stream } from 'effect'
+import { Cause, DateTime, Effect, Exit, Fiber, Layer, Option, Stream } from 'effect'
 import { TestClock } from 'effect/testing'
 
 import {
@@ -10,7 +10,6 @@ import {
   Attachment,
   AttachmentBucket,
   AttachmentId,
-  AttachmentRepository,
   buildAssistantMessage,
   buildAttachment,
   Chat,
@@ -19,8 +18,8 @@ import {
   MediaType,
   Message,
   type MessageId,
-  MessageRepository,
 } from '@app-template/chat/domain'
+import { encodeAttachment } from '@app-template/chat/services'
 import {
   type AssistantCallHold,
   asCompleted,
@@ -29,17 +28,19 @@ import {
   chatId,
   deleteChat,
   holdAssistantCall,
-  MessageRows,
+  insertMessage,
   messageId,
   owner,
   queuedChat,
   recordAssistant,
   selectChat,
   selectMessage,
+  updateMessage,
   userMessageAt,
 } from '@app-template/chat/testing'
 import { GenerateAssistantMessage } from '@app-template/infrastructure/chat'
 import { replyProvenance } from '@app-template/infrastructure/testing'
+import { AttachmentRepository } from '@app-template/kernel/data/attachment'
 import { epoch, png, recordLogs } from '@app-template/testing'
 
 import { AssistantMessageTest } from '#testing/chat.test-layer'
@@ -90,24 +91,21 @@ const sketch = image('0192d4e0-7b3a-7c00-8000-000000000041', {
 })
 
 const insertMessages = (messages: ReadonlyArray<Message>) =>
-  MessageRepository.use((repository) =>
-    Effect.forEach(messages, repository.insert, { discard: true }),
-  )
+  Effect.forEach(messages, insertMessage, { discard: true })
 
 const insertAttachment = (attachment: Attachment, bytes: 'stored' | 'lost' = 'stored') =>
   Effect.gen(function* () {
     const attachments = yield* AttachmentRepository
     const bucket = yield* AttachmentBucket
+    const row = yield* encodeAttachment(attachment)
 
-    yield* attachments.insert(attachment)
+    yield* attachments.insert(row)
     if (bytes === 'lost') return
     yield* bucket.insert(attachment.id, Stream.make(png), attachment)
   })
 
 // Another writer's settle, landing in the rows behind the use case's back.
-const settleElsewhere = MessageRows.use((rows) =>
-  Ref.update(rows, HashMap.set(messageId, asCompleted(queuedReply, 'Done elsewhere.'))),
-)
+const settleElsewhere = updateMessage(asCompleted(queuedReply, 'Done elsewhere.'))
 
 const job = new GenerateAssistantMessage({
   chatId,

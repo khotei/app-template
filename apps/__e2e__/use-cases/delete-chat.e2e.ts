@@ -5,10 +5,16 @@ import { SqlClient } from 'effect/sql'
 
 import { AttachmentBucket, Chat } from '@app-template/chat/domain'
 import { ChatService } from '@app-template/chat/services'
-import { chat, owner, selectChat, selectMessages, upload } from '@app-template/chat/testing'
+import {
+  chat,
+  owner,
+  selectAttachments,
+  selectChat,
+  selectMessages,
+  upload,
+} from '@app-template/chat/testing'
 import { sortById } from '@app-template/testing'
 import { SendMessageUseCase } from '@app-template/use-cases/chat'
-import { selectAttachments } from '@app-template/use-cases/testing'
 
 import { ChatPgTest } from '#testing-e2e/chat.test-layer'
 
@@ -49,7 +55,7 @@ describe('ChatService.delete on Postgres', () => {
         sortById(yield* selectMessages(chat.id)),
         sortById([userMessage, assistantMessage]),
       )
-      assertEquals(yield* selectAttachments([photo]), userMessage.attachments)
+      assertEquals(yield* selectAttachments([photo.id]), userMessage.attachments)
       assert.isTrue(Option.isSome(yield* bucket.select(photo.id)))
     }).pipe(Effect.provide(ChatPgTest)),
   )

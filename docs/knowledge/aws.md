@@ -112,7 +112,7 @@ An attachment's record lives in Postgres; its bytes live in the `attachments` bu
 `attachments/<id>`. `AttachmentBucketS3` (`infrastructure/attachment/attachment.bucket.ts`)
 holds only the keys, the headers, the tag and the mapping to the domain port; the upload itself
 is `S3Bucket` in `packages/s3`, bound to the stage's bucket by `S3BucketFromConfig` in the same
-file. The api and the worker run on `AttachmentPgS3`.
+file. The api and the worker run on `AttachmentBucketS3FromConfig`.
 
 - **Upload.** The file streams in and is never buffered whole: up to 5 MiB it is one `PutObject`,
   above that a multipart upload in 5 MiB parts, so a file within `maxFileSize` takes two at most.
