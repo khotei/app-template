@@ -1,5 +1,34 @@
-import { type Duration, Effect, Stream } from 'effect'
+import { AnthropicClient, AnthropicLanguageModel } from '@effect/ai-anthropic'
+import { Duration, Effect, type Redacted, Stream } from 'effect'
 import { LanguageModel, type Response } from 'effect/ai'
+import { FetchHttpClient, HttpClient } from 'effect/http'
+
+/** The settings an Anthropic model sends with every request, but the model's name. */
+export type AnthropicRequestConfig = Omit<typeof AnthropicLanguageModel.Config.Service, 'model'>
+
+// Bun's `fetch` cuts a request that receives nothing for 360 s, and an answer of 16 000 tokens
+// arrives whole only at the end, so the idle limit is raised to 10 minutes, Anthropic SDK's own.
+const answerIdleLimit: BunFetchRequestInit = { timeout: Duration.toMillis(Duration.minutes(10)) }
+
+const waitForAnswer = HttpClient.transformResponse(
+  Effect.provideService(FetchHttpClient.RequestInit, answerIdleLimit),
+)
+
+export const createLanguageModelAnthropic = ({
+  apiKey,
+  model,
+  config,
+}: {
+  readonly apiKey: Redacted.Redacted
+  readonly model: string
+  readonly config: AnthropicRequestConfig
+}): Effect.Effect<LanguageModel.LanguageModel, never, HttpClient.HttpClient> =>
+  AnthropicLanguageModel.make({ model, config }).pipe(
+    Effect.provideServiceEffect(
+      AnthropicClient.AnthropicClient,
+      AnthropicClient.make({ apiKey, transformClient: waitForAnswer }),
+    ),
+  )
 
 export const createLanguageModelStub = ({
   text,

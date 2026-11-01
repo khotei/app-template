@@ -368,7 +368,7 @@ export const JobRelaySqs: Layer.Layer<never, Config.ConfigError, JobRepository |
 ```ts
 // kernel/llm/llm.client.ts: the provider by LlmConfig; the purpose's settings come from the caller
 export const createLanguageModel: (purpose: {
-  readonly anthropic: { readonly model: (config: AnthropicOptions) => string; readonly config: AnthropicConfig }
+  readonly anthropic: { readonly model: (config: AnthropicOptions) => string; readonly config: AnthropicRequestConfig }
   readonly stub: { readonly text: string }
 }) => Effect.Effect<LanguageModel.LanguageModel, Config.ConfigError, HttpClient.HttpClient>
 ```
@@ -515,6 +515,11 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
   - **Rejected:**
     - `layerAnthropic` and `layerStub` kept for the test — an interface only a test uses.
     - the test building the models itself — it would copy chat's settings and check its copy.
+  - **Note (S7):** `AssistantLlm` builds both models itself; an `AssistantModels` service between
+    them failed the deletion test. The purpose is still keyed by provider and carries Anthropic's
+    request settings, so a second provider adds a key in `chat` too: `openai-provider` (19)
+    decides a provider-neutral purpose, translated inside `kernel/llm`, with two providers to
+    test it against.
 
 - **D7 — The data is the centre: `kernel/data` holds every store (tables, relations, the
   attachments' objects) and its repository in its own types, one `Db` over every table, imports

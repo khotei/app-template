@@ -9,6 +9,7 @@
     "#llm/*": "./*.ts"
   },
   "dependencies": {
+    "@effect/ai-anthropic": "catalog:effect",
     "effect": "catalog:effect"
   }
 }

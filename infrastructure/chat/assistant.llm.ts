@@ -19,6 +19,7 @@ import {
 } from 'effect'
 import { AiError, Prompt, Response, Telemetry } from 'effect/ai'
 import { Hex } from 'effect/encoding'
+import type { HttpClient } from 'effect/http'
 
 import {
   Assistant,
@@ -33,8 +34,8 @@ import {
   maxTitleLength,
 } from '@app-template/domain/chat'
 import { ReplyModelConfig } from '@app-template/kernel/config'
+import { createLanguageModel } from '@app-template/kernel/llm'
 
-import { AssistantModels } from '#infrastructure/chat/assistant.client'
 import { ReplyProvenance } from '#infrastructure/chat/chat.queue'
 
 const toFilePart = ({ attachment, bytes }: AttachmentBytes): Prompt.FilePartEncoded => ({
@@ -213,23 +214,53 @@ export class CurrentReplyProvenance extends Context.Service<
   ).pipe(Layer.provide(ReplyModelConfig.layer))
 }
 
-export const AssistantLlm: Layer.Layer<Assistant, never, AssistantModels> = Layer.effect(
-  Assistant,
-  AssistantModels.useSync((models) =>
-    Assistant.of({
-      reply: Effect.fn('Assistant.reply')(function* (history) {
-        const response = yield* models.reply
-          .generateObject({ prompt: buildChatPrompt(history), schema: ReplyAnswer })
-          .pipe(askWithin(2))
-        return new AssistantReply(response.value)
-      }),
-      suggestTitle: Effect.fn('Assistant.suggestTitle')(function* (text) {
-        if (isBlank(text)) return Option.none()
-        const response = yield* models.title
-          .generateObject({ prompt: buildTitlePrompt(text), schema: TitleAnswer })
-          .pipe(askWithin(4))
-        return Option.some(response.value.title)
-      }),
-    }),
-  ),
-)
+const stubReply = JSON.stringify({
+  text: 'This is the development stub answering the whole reply at once.',
+})
+
+const stubTitle = JSON.stringify({ title: 'Stub chat title' })
+
+const assistantModels = Effect.all({
+  reply: createLanguageModel({
+    anthropic: {
+      model: Struct.get('replyModel'),
+      config: { max_tokens: 16_000, cache_control: { type: 'ephemeral' } },
+    },
+    stub: { text: stubReply },
+  }),
+  title: createLanguageModel({
+    anthropic: {
+      model: Struct.get('titleModel'),
+      config: {
+        max_tokens: 1_000,
+        output_config: { effort: 'low' },
+        thinking: { type: 'disabled' },
+      },
+    },
+    stub: { text: stubTitle },
+  }),
+})
+
+export const AssistantLlm: Layer.Layer<Assistant, Config.ConfigError, HttpClient.HttpClient> =
+  Layer.effect(
+    Assistant,
+    assistantModels.pipe(
+      Effect.map((models) =>
+        Assistant.of({
+          reply: Effect.fn('Assistant.reply')(function* (history) {
+            const response = yield* models.reply
+              .generateObject({ prompt: buildChatPrompt(history), schema: ReplyAnswer })
+              .pipe(askWithin(2))
+            return new AssistantReply(response.value)
+          }),
+          suggestTitle: Effect.fn('Assistant.suggestTitle')(function* (text) {
+            if (isBlank(text)) return Option.none()
+            const response = yield* models.title
+              .generateObject({ prompt: buildTitlePrompt(text), schema: TitleAnswer })
+              .pipe(askWithin(4))
+            return Option.some(response.value.title)
+          }),
+        }),
+      ),
+    ),
+  )

@@ -129,18 +129,17 @@
         "@app-template/db": "workspace:*",
         "@app-template/domain": "workspace:*",
         "@app-template/kernel": "workspace:*",
-        "@app-template/llm": "workspace:*",
         "@app-template/queue": "workspace:*",
         "@app-template/s3": "workspace:*",
         "@effect-aws/client-s3": "catalog:effect-aws",
         "@effect-aws/client-sqs": "catalog:effect-aws",
-        "@effect/ai-anthropic": "catalog:effect",
         "@effect/platform-bun": "catalog:effect",
         "drizzle-orm": "catalog:drizzle",
         "effect": "catalog:effect",
       },
       "devDependencies": {
         "@app-template/testing": "workspace:*",
+        "@effect/ai-anthropic": "catalog:effect",
         "@effect/vitest": "catalog:effect",
         "vitest": "catalog:tools",
       },
@@ -150,6 +149,7 @@
       "dependencies": {
         "@app-template/aws": "workspace:*",
         "@app-template/db": "workspace:*",
+        "@app-template/llm": "workspace:*",
         "@effect-aws/client-s3": "catalog:effect-aws",
         "@effect-aws/client-sqs": "catalog:effect-aws",
         "@effect/platform-bun": "catalog:effect",
@@ -188,6 +188,7 @@
     "packages/llm": {
       "name": "@app-template/llm",
       "dependencies": {
+        "@effect/ai-anthropic": "catalog:effect",
         "effect": "catalog:effect",
       },
     },

@@ -17,7 +17,7 @@ graph TD
   application --> domain
   apps -->|"apps/api only"| httpApi["http-api"]
   httpApi --> domain
-  apps --> kernel["kernel (config · postgres · aws · data)"]
+  apps --> kernel["kernel (config · postgres · aws · llm · data)"]
   infrastructure --> kernel
   kernel --> packages
   apps --> packages["packages/* (aws · db · queue · llm · s3 · testing · ui)"]
@@ -46,7 +46,7 @@ one test process, and the use cases on Postgres, and nothing imports it.
 | `http-api/` | the HTTP contract (`HttpApi`) over the domain, shared by `apps/api` and the browser | [http-api/CLAUDE.md](../../http-api/CLAUDE.md) |
 | `infrastructure/` | adapters that implement domain ports on top of `packages/*` clients | [infrastructure/CLAUDE.md](../../infrastructure/CLAUDE.md) |
 | `application/use-cases/` | use cases: the flows that join the domain's writes in one transaction, or reach the queue, the bucket or the assistant | [layering.md](../../.claude/rules/layering.md) |
-| `kernel/` | this app's configuration of its tools: the config services, the Postgres and AWS clients built from them, the AWS inventory, the migrations | [kernel/CLAUDE.md](../../kernel/CLAUDE.md) |
+| `kernel/` | this app's configuration of its tools: the config services, the Postgres and AWS clients built from them, the AWS inventory, the migrations, the language model of the configured provider | [kernel/CLAUDE.md](../../kernel/CLAUDE.md) |
 | `packages/*` | generic, project-agnostic clients and libraries | [packages/CLAUDE.md](../../packages/CLAUDE.md) |
 | `apps/*` | entry points (`main.ts`), the handlers, and the process's layer (`layer.ts`) | [apps/CLAUDE.md](../../apps/CLAUDE.md) |
 | `apps/__e2e__/` | the e2e over assembled layers: the use cases on Postgres, and the journey, `ApiLayer` and `WorkerLayer` in one runtime over the run's containers | [tooling.md › Tests](tooling.md#tests) |
@@ -129,7 +129,7 @@ Using the `chat` slice as the map:
 | database client | `infrastructure/db/` | `Db` (made by `createDb(relations)`), `Db.layerFromConfig` over `PgClientFromConfig`, the relations in `relations.ts`; `DbTest` in `__e2e__/testing/` |
 | Postgres client from config and the migrations | `kernel/postgres/`, `kernel/data/` | `PgClientFromConfig` and `applyMigrations`, the `make migrate` program, in `@app-template/kernel/postgres`; `migrationsFolder` over `migrations/` and `drizzle.config.ts` in `kernel/data/`; the e2e run's setup in `kernel/__e2e__/testing/e2e.test-setup.ts` |
 | tables and row codecs | `infrastructure/chat/chat.entity.ts`, `message.entity.ts` | `chats` (`snakeCase.table`), `ChatRow`, `ChatInsert` |
-| adapter implementing a port | `infrastructure/chat/chat.repository.ts`, `assistant.llm.ts`; `attachment/attachment.bucket.ts` | `ChatRepositoryPg`, `AssistantLlm` (with the prompts, over `AssistantModels`, the language model per purpose that `LLM_PROVIDER` picks: [ai.md](ai.md)), `AttachmentBucketS3` (each a `Layer` of its port) |
+| adapter implementing a port | `infrastructure/chat/chat.repository.ts`, `assistant.llm.ts`; `attachment/attachment.bucket.ts` | `ChatRepositoryPg`, `AssistantLlm` (with the prompts, over a language model per purpose that the kernel's `createLanguageModel` builds on the provider `LLM_PROVIDER` picks: [ai.md](ai.md)), `AttachmentBucketS3` (each a `Layer` of its port) |
 | queue definitions | `infrastructure/chat/chat.queue.ts` | `assistantMessageQueue`, `GenerateAssistantMessage` (the job schema) |
 | relay from the database to a queue | `infrastructure/outbox/outbox.relay.ts` | `OutboxRelay` (a worker `Layer` that runs a fiber and provides nothing) |
 | use case composing domain services | `application/use-cases/chat/send-message.use-case.ts`, `generate-assistant-message.use-case.ts` | `SendMessageUseCase`, `SendMessageUseCase.layer`, `GenerateAssistantMessageUseCase` |

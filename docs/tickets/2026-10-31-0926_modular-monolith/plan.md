@@ -12,7 +12,7 @@
 | S4 | the `kernel` workspace with `/config` and `/aws`; `packages/aws` a generic provisioner | done |
 | S5 | `packages/db`: the generic Drizzle client, transaction and migrator | done |
 | S6 | `kernel/postgres` and the migrations in `kernel/data` | done |
-| S7 | `kernel/llm` picks the provider; chat keeps only its prompts | todo |
+| S7 | `kernel/llm` picks the provider; chat keeps only its prompts | done |
 | S8 | the tables and relations in `kernel/data`, in the data layer's own types | todo |
 | S9 | `Db` in `kernel/data` over the `PgClient` in the context; the entity suites speak entities | todo |
 | S10 | the table `jobs` and `JobRepository`; one initial migration; the queue in `kernel/queue` | todo |
@@ -343,11 +343,26 @@
   `anthropic` with `ANTHROPIC_API_KEY`, `LLM_REPLY_MODEL`, `LLM_TITLE_MODEL`, and `stub`) in place
   of the removed `layerAnthropic` and `layerStub`; every case keeps its assertions, the request
   settings included; red until `AssistantModels` is built through `createLanguageModel` (D6, D14).
-- **Verify:** `make check`; `git grep -n "ai-anthropic" infrastructure ':!infrastructure/__tests__'` finds
+- **Verify:** `make check`; `git grep -n "ai-anthropic" infrastructure ':!infrastructure/__tests__' ':!infrastructure/package.json'` finds
   nothing (the suite keeps its type import and devDependency);
   `LLM_PROVIDER=stub make dev`: a reply and a title arrive.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - `kernel/package.json` gains `@app-template/llm`, not `@effect/ai-anthropic`: `packages/llm`
+    exports the request type, so the provider's library stays in one package (D6).
+  - `AssistantModels` is gone rather than moved: `AssistantLlm` builds the reply and the title
+    models itself through `createLanguageModel`, since a service with one layer and one consumer
+    failed the deletion test (Depth and Standards); `infrastructure`'s index re-exports the layer as
+    `AssistantLlmFromConfig`, so the worker is untouched.
+  - `packages/llm`'s request type is `AnthropicRequestConfig`, apart from `@effect/ai-anthropic`'s
+    `AnthropicConfig` module; the contract follows.
+  - The purpose stays keyed by provider, as the contract fixes it; D6's note hands a
+    provider-neutral purpose to `openai-provider` (19).
+  - One `AnthropicClient` per model and `LlmConfig` read once per model, where one layer served
+    both: stateless, read at start, no request changes.
+  - The Verify grep skips `infrastructure/package.json`, whose devDependency the suite keeps.
+  - Round S7.2 (review): `AssistantModels` dissolved, the type renamed, `ai.md` re-wrapped.
 
 #### S8 — The tables in the data layer
 

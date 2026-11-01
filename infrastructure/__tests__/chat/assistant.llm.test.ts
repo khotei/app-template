@@ -10,7 +10,6 @@ import {
   Fiber,
   Layer,
   Option,
-  Redacted,
   Ref,
   Schema,
 } from 'effect'
@@ -42,7 +41,6 @@ import {
 } from '@app-template/domain/testing'
 import { png } from '@app-template/testing'
 
-import { AssistantModels } from '#infrastructure/chat/assistant.client'
 import {
   AssistantLlm,
   CurrentReplyProvenance,
@@ -60,8 +58,8 @@ const readBody = (request: HttpClientRequest.HttpClientRequest): RequestBody =>
     ? JSON.parse(new TextDecoder().decode(request.body.body))
     : assert.fail(`a request body of ${request.body._tag}`)
 
-/** `AssistantLlm` over Anthropic's models and an `HttpClient` that keeps each request body and the time it was sent, and answers it by `respond`. */
-const recordAnthropic = (respond: (body: RequestBody) => Response) => {
+/** `AssistantLlm` over the models `env` configures and an `HttpClient` that keeps each request body and the time it was sent, and answers it by `respond`. */
+const recordProvider = (env: Record<string, string>, respond: (body: RequestBody) => Response) => {
   const requests = Ref.makeUnsafe<
     ReadonlyArray<{ readonly body: RequestBody; readonly at: number }>
   >([])
@@ -73,15 +71,10 @@ const recordAnthropic = (respond: (body: RequestBody) => Response) => {
     )
   })
   const layer = AssistantLlm.pipe(
-    Layer.provide(
-      AssistantModels.layerAnthropic({
-        provider: 'anthropic',
-        apiKey: Redacted.make('sk-test-key'),
-        replyModel,
-        titleModel,
-      }),
-    ),
-    Layer.provide(Layer.succeed(HttpClient.HttpClient, httpClient)),
+    Layer.provide([
+      Layer.succeed(HttpClient.HttpClient, httpClient),
+      ConfigProvider.layer(ConfigProvider.fromUnknown(env)),
+    ]),
   )
   return {
     bodies: Ref.get(requests).pipe(Effect.map(Arr.map(({ body }) => body))),
@@ -89,6 +82,18 @@ const recordAnthropic = (respond: (body: RequestBody) => Response) => {
     layer,
   }
 }
+
+/** `recordProvider` over Anthropic's models. */
+const recordAnthropic = (respond: (body: RequestBody) => Response) =>
+  recordProvider(
+    {
+      LLM_PROVIDER: 'anthropic',
+      ANTHROPIC_API_KEY: 'sk-test-key',
+      LLM_REPLY_MODEL: replyModel,
+      LLM_TITLE_MODEL: titleModel,
+    },
+    respond,
+  )
 
 /** A Messages API response whose one text block is `text`. */
 const message = (text: string, stopReason: Generated.BetaStopReason = 'end_turn') =>
@@ -467,7 +472,9 @@ describe('AssistantLlm', () => {
   })
 
   it.effect('the stub answers a reply and a title that pass their schemas', () => {
-    const layer = AssistantLlm.pipe(Layer.provide(AssistantModels.layerStub))
+    const { layer } = recordProvider({ LLM_PROVIDER: 'stub' }, () =>
+      assert.fail('the stub sends no request'),
+    )
     return Effect.gen(function* () {
       const answers = yield* Effect.all(
         { reply: reply(hi), title: suggestTitle('Plan a weekend in Lisbon') },
