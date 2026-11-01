@@ -60,7 +60,7 @@ uses updates this map too; the Standards review checks it against `.claude/rules
 | `/ticket-feature` | `grilling`, `domain-modeling` | `researcher` | — | `feature.md`, `docs/knowledge/glossary.md`, `docs/knowledge/roadmap.md` |
 | `/ticket-architecture` | `codebase-design`, `grilling` | `researcher` | — | `architecture.md` |
 | `/ticket-plan` | — | `researcher` | — | `plan.md` |
-| `/ticket-implement` | `code-review`; on a behaviour step the built-in `simplify`, with `codebase-design` as its vocabulary, and the built-in `code-review` | `implementer` (one worktree per parallel step, with its own `.env`, ports and MiniStack), `reviewer`; `pr-review-toolkit:silent-failure-hunter` on a step with error handling, a retry or a store outside the transaction | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, one commit per approved step |
+| `/ticket-implement` | `code-review`; on a behaviour step the built-in `simplify`, with `codebase-design` as its vocabulary, and the built-in `code-review` | `implementer` (one worktree per parallel step, with its own `.env`, ports and MiniStack), `reviewer` (a third, Depth, axis on a behaviour step); `pr-review-toolkit:silent-failure-hunter` on a step with error handling, a retry or a store outside the transaction | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, one commit per approved step |
 | `/ticket-verify` | `code-review` | `verifier`, `reviewer` | — | `verification.md` |
 | `/explain` | `codebase-design`, as vocabulary | `explainer` | — | an HTML walkthrough in `$TMPDIR`; nothing in the repo |
 | `implementer` | `tdd`, preloaded | — | `make-check.sh` on `Stop` (runs as `SubagentStop`) | the step's files |
@@ -112,7 +112,7 @@ graph LR
   implementer --> hook
   verify --> verifier & reviewer
   verify -.-> review
-  reviewer -.-> review
+  reviewer -.-> review & design
   explain --> explainer
   explain -.-> design
 ```
@@ -128,6 +128,7 @@ Solid arrows spawn an agent or run a hook; dotted arrows use a plugin skill.
 | `tdd` asks the user to confirm seams before testing | the implementer takes them from `architecture.md › Seams`, confirmed earlier | a subagent cannot ask, and the seams were already agreed |
 | `implement` commits on its own and reviews committed work | `/ticket-implement` reviews the uncommitted step and commits only after your OK | every commit is approved |
 | `code-review` diffs from a fixed point to `HEAD` and spawns generic sub-agents | for a step: `git diff HEAD` plus untracked files, reviewed by read-only `reviewer` agents; the Spec axis also flags a diff that changes what a requirement asks | the step is reviewed before it is committed, by agents that cannot edit, and `feature.md` changes with the requirement |
+| `improve-codebase-architecture` scans the whole codebase, writes an HTML report, grills, and writes `GLOSSARY.md` and ADRs | the Depth axis of `/ticket-implement`: a read-only `reviewer` on a behaviour step's files and their callers, a text report, `architecture.md › Decisions` as the record not to re-litigate | the shape is questioned while the step is small, and no doc lands outside `docs/knowledge/` and the ticket |
 | `research` writes a notes file into the repo | `researcher` answers in its report | facts reach the conversation, not the tree |
 
 ## The approval gate
@@ -145,7 +146,10 @@ A step runs through three stages before anything is committed:
    (the rules in `.claude/rules/` and the smell baseline) and **Spec** (the step and its
    requirements). The two reports stay separate, so one axis cannot hide the other. Neither axis
    hunts for bugs, so a behaviour step also gets the built-in `code-review` at `medium`, and one
-   with error handling or a store outside the transaction `silent-failure-hunter`.
+   with error handling or a store outside the transaction `silent-failure-hunter`. A behaviour
+   step gets a third `reviewer` too, **Depth**: `improve-codebase-architecture`'s search for
+   shallow modules, limited to the step's files and their callers, as text; a candidate that
+   contradicts a decision or reshapes a module comes to you as a question.
 3. **You** read the report and both reviews, then approve, send feedback to the same implementer,
    or stop. Approval updates `plan.md`, records any decision, and commits with the proposed
    message.

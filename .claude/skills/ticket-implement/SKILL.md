@@ -38,9 +38,20 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. G
    Skill tool with the built-in `code-review` at `medium`, on the same uncommitted diff, report
    only. A step that adds error handling, a retry, or a store outside the transaction (a bucket,
    a queue) also gets the `pr-review-toolkit:silent-failure-hunter` agent on that diff.
+
+   A behaviour step also gets a **Depth** axis, the core of mattpocock's
+   `improve-codebase-architecture` scoped to the step: a `reviewer` agent, in parallel with the
+   others, on the diff's files and the modules that call them. It asks whether the shape is right
+   (a shallow interface, a seam with one adapter, one concept spread over many files), in the
+   vocabulary of `mattpocock-skills:codebase-design` and the nouns of
+   `docs/knowledge/glossary.md`, and re-opens a decision of `architecture.md` only when the
+   friction is real. It reports text only, each candidate marked `Strong`, `Worth exploring` or
+   `Speculative`: no HTML report, no grilling, no glossary or ADR file.
 4. **Present** the implementer's report and what `simplify` changed, then the `## Standards` and
    `## Spec` reports as code-review aggregates them, then the bugs and silent failures found,
-   then the fixes you recommend. Filter the findings first: a fix
+   then the `## Depth` candidates, then the fixes you recommend. A Depth candidate inside the
+   plan is a fix like any other; one that contradicts a decision or reshapes a module is the
+   user's choice, asked as its own question. Filter the findings first: a fix
    that adds test support (a helper, a fake, a wrapper) is never forwarded as routine; offer the
    user a plainer test instead, or the finding as a choice of its own.
 5. **Approval gate.** Wait for the user's explicit word:
