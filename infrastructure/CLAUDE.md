@@ -1,7 +1,7 @@
 # infrastructure
 
 Adapters that implement the domain's ports on top of the generic `packages/*` clients, plus the
-queue definitions, the outbox relay and the app's `Db` over its tables.
+queue definitions.
 
 - Each adapter is a `Layer` of a domain port, so callers never see the client: object keys and
   prompts stay inside the adapter.

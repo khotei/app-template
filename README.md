@@ -27,9 +27,9 @@ sequenceDiagram
   participant Q as SQS (MiniStack)
   participant K as apps/worker
   W->>A: POST /chats/:id/messages
-  A->>S: one transaction: user message, queued assistant message, outbox rows
+  A->>S: one transaction: user message, queued assistant message, jobs
   A-->>W: 202
-  K->>S: relay claims the outbox rows
+  K->>S: relay claims the unsent jobs
   K->>Q: assistant-message job (+ chat-title job on the first message)
   K->>Q: receive
   K->>S: preparing → generating → done with the text | failed
@@ -55,7 +55,7 @@ make dev     # api, worker and web together
 |---|---|---|
 | `apps/api` | <http://localhost:3000> | `/health` |
 | `apps/web` | <http://localhost:3001> | the health panel; `/api/*` is proxied to the api |
-| `apps/worker` | — | logs `worker started`, relays the outbox and consumes the queues |
+| `apps/worker` | — | logs `worker started`, relays the jobs and consumes the queues |
 
 A whole conversation from the shell, with the cookie kept in a jar:
 
@@ -83,8 +83,8 @@ The workspaces, from the bottom up; each imports only from the ones below it:
 | `domain/` | models (`Schema.Class`), branded ids, errors, ports, and the domain services that own the rules | SQL, HTTP, AWS, an `@effect/*` package (tests aside) |
 | `http-api/` | the `HttpApi` contract over the domain's schemas, shared by the api and the browser | handlers, services |
 | `application/use-cases/` | use cases: a flow across domain services, the queue, the bucket, the assistant, in one `Transaction` | rules of an entity, adapters |
-| `infrastructure/` | adapters of the ports: Postgres repositories, the S3 bucket, the LLM, the outbox relay | business rules |
-| `kernel/` | this app's configuration of its tools: the config services, the S3 and SQS clients, the AWS inventory, the language model | business rules |
+| `infrastructure/` | adapters of the ports: Postgres repositories, the S3 bucket, the LLM | business rules |
+| `kernel/` | this app's configuration of its tools: the config services, the S3 and SQS clients, the AWS inventory, the table `jobs` and the queue's clients over it, the language model | business rules |
 | `packages/*` | generic clients (`queue`, `s3`, `llm`, the `aws` provisioner) knowing nothing of this app | domain imports |
 | `apps/*` | thin entry points: api and worker handlers, the browser client | rules |
 
@@ -96,7 +96,7 @@ The invariants a change must keep:
   maps the answer.
 - **The database guards, not locks.** One active message per chat, a bind only while unbound and
   every status move are single conditional statements.
-- **A message never exists without its job.** The job is an outbox row in the same transaction.
+- **A message never exists without its job.** The job is a row of `jobs` in the same transaction.
 - **No service reaches the browser.** `make bundle-check` fails if one does.
 
 The full matrix, and how Biome enforces it:

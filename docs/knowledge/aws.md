@@ -146,7 +146,7 @@ file. The api and the worker run on `AttachmentPgS3`.
 
 `QueueConsumer` (`packages/queue`) consumes jobs over `QueueTransport`, four SQS calls
 (`send`, `receive`, `extend`, `delete`); jobs reach SQS only through the outbox relay
-([database.md › The outbox](database.md#the-outbox)). `QueueConsumerSqs` in `infrastructure/shared` wires it for
+([database.md › The outbox](database.md#the-outbox)). `QueueConsumerSqs` in `kernel/queue` wires it for
 the worker from `QueueConfig` and `AwsConfig`: a definition's queue is
 `buildResourceName(STAGE, definition.name)`.
 
@@ -182,8 +182,8 @@ the worker from `QueueConfig` and `AwsConfig`: a definition's queue is
 - **A stopped worker's long poll can outlive it.** Interrupting a receive aborts its HTTP request,
   but MiniStack keeps the poll open and hides the next message it finds for its visibility
   timeout; that message returns after `QUEUE_LOCK_EXPIRATION` with an attempt spent.
-- **The worker relays the outbox.** The api writes its jobs to the `outbox` table
-  ([database.md › The outbox](database.md#the-outbox)), and `OutboxRelay` in the worker sends
+- **The worker relays the jobs.** The api writes each job as a row of the table `jobs`
+  ([database.md › The outbox](database.md#the-outbox)), and `JobRelay` in the worker sends
   the rows to `buildResourceName(STAGE, queue)` over the same `QueueTransport`. A row the relay sent and could not
   mark sent is sent again, which the at-least-once handlers absorb.
 

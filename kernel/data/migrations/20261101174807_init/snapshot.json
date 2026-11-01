@@ -2,7 +2,7 @@
   "type": "base",
   "version": "9",
   "dialect": "postgres",
-  "id": "c751c669-140e-4f3d-83fc-59d048db2f48",
+  "id": "d5539076-c5bb-4b73-acc8-514ba3af5163",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -141,15 +141,15 @@
       "statementTarget": [
         "table",
         "public",
-        "outbox"
+        "jobs"
       ],
       "writes": [
-        "s|tbl|public.outbox",
-        "n|tbl|public.outbox",
-        "e|tbl|public.outbox",
-        "n|rel|public.outbox",
-        "n|type|public.outbox",
-        "n|rel|public.outbox_pkey"
+        "s|tbl|public.jobs",
+        "n|tbl|public.jobs",
+        "e|tbl|public.jobs",
+        "n|rel|public.jobs",
+        "n|type|public.jobs",
+        "n|rel|public.jobs_pkey"
       ],
       "reads": [
         "n|sch|public"
@@ -324,19 +324,19 @@
       "statementTarget": [
         "index",
         "public",
-        "outbox",
-        "outbox_created_at_index"
+        "jobs",
+        "jobs_unsent_created_at_index"
       ],
       "writes": [
-        "s|idx|public.outbox_created_at_index",
-        "n|idx|public.outbox_created_at_index",
-        "e|idx|public.outbox_created_at_index",
-        "n|rel|public.outbox_created_at_index"
+        "s|idx|public.jobs_unsent_created_at_index",
+        "n|idx|public.jobs_unsent_created_at_index",
+        "e|idx|public.jobs_unsent_created_at_index",
+        "n|rel|public.jobs_unsent_created_at_index"
       ],
       "reads": [
-        "n|tbl|public.outbox",
+        "n|tbl|public.jobs",
         "n|sch|public",
-        "n|col|public.outbox.created_at"
+        "n|col|public.jobs.created_at"
       ]
     },
     {
@@ -478,7 +478,7 @@
     },
     {
       "schema": "public",
-      "name": "outbox",
+      "name": "jobs",
       "isRlsEnabled": false,
       "entityType": "tables"
     },
@@ -821,7 +821,7 @@
     },
     {
       "schema": "public",
-      "table": "outbox",
+      "table": "jobs",
       "name": "id",
       "type": "uuid",
       "typeSchema": null,
@@ -834,7 +834,7 @@
     },
     {
       "schema": "public",
-      "table": "outbox",
+      "table": "jobs",
       "name": "queue",
       "type": "text",
       "typeSchema": null,
@@ -847,7 +847,7 @@
     },
     {
       "schema": "public",
-      "table": "outbox",
+      "table": "jobs",
       "name": "job_id",
       "type": "text",
       "typeSchema": null,
@@ -860,7 +860,7 @@
     },
     {
       "schema": "public",
-      "table": "outbox",
+      "table": "jobs",
       "name": "body",
       "type": "jsonb",
       "typeSchema": null,
@@ -873,11 +873,24 @@
     },
     {
       "schema": "public",
-      "table": "outbox",
+      "table": "jobs",
       "name": "created_at",
       "type": "timestamp with time zone",
       "typeSchema": null,
       "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "jobs",
+      "name": "sent_at",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
       "dimensions": 0,
       "default": null,
       "generated": null,
@@ -1112,8 +1125,8 @@
     },
     {
       "schema": "public",
-      "table": "outbox",
-      "name": "outbox_created_at_index",
+      "table": "jobs",
+      "name": "jobs_unsent_created_at_index",
       "nameExplicit": true,
       "columns": [
         {
@@ -1125,7 +1138,7 @@
         }
       ],
       "isUnique": false,
-      "where": null,
+      "where": "(\"sent_at\" is null)",
       "with": "",
       "method": "btree",
       "concurrently": false,
@@ -1250,8 +1263,8 @@
     },
     {
       "schema": "public",
-      "table": "outbox",
-      "name": "outbox_pkey",
+      "table": "jobs",
+      "name": "jobs_pkey",
       "columns": [
         "id"
       ],

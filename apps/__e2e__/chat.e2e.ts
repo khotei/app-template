@@ -45,11 +45,11 @@ const formOf = (file: File) => {
 }
 
 const selectUnsent = SqlClient.SqlClient.use(
-  (sql) => sql`select queue from outbox where sent_at is null`,
+  (sql) => sql`select queue from jobs where sent_at is null`,
 )
 
-const selectOutboxOf = (chatId: ChatId) =>
-  SqlClient.SqlClient.use((sql) => sql`select queue from outbox where body->>'chatId' = ${chatId}`)
+const selectJobsOf = (chatId: ChatId) =>
+  SqlClient.SqlClient.use((sql) => sql`select queue from jobs where body->>'chatId' = ${chatId}`)
 
 const ReplyJobRows = Schema.Tuple([
   Schema.Struct({ body: Schema.toCodecJson(GenerateAssistantMessage) }),
@@ -58,7 +58,7 @@ const ReplyJobRows = Schema.Tuple([
 const selectReplyJob = (chatId: ChatId) =>
   SqlClient.SqlClient.use(
     (sql) =>
-      sql`select body from outbox where queue = 'assistant-message' and body->>'chatId' = ${chatId}`,
+      sql`select body from jobs where queue = 'assistant-message' and body->>'chatId' = ${chatId}`,
   ).pipe(Effect.flatMap(Schema.decodeUnknownEffect(ReplyJobRows)))
 
 const selectMessages = (chatId: ChatId) =>
@@ -119,7 +119,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
       30_000,
     )
 
-    it.effect('a send with a stale attachment id keeps no message and no outbox row', () =>
+    it.effect('a send with a stale attachment id keeps no message and no job', () =>
       Effect.gen(function* () {
         const api = yield* ApiClient
         yield* api.users.ensure()
@@ -134,7 +134,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           .pipe(Effect.flip)
 
         const stored = yield* selectMessages(chat.id)
-        const rows = yield* selectOutboxOf(chat.id)
+        const rows = yield* selectJobsOf(chat.id)
 
         assertSchemaEquals(
           AttachmentNotFoundError,

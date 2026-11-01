@@ -362,9 +362,12 @@ transport is the boundary's, composed over it:
 
 ```ts
 // kernel/data/job/job.repository.ts: insert, selectMany of the unsent `for update skip locked`, update of sentAt
+// under a JobEntityUpdateWhere, which requires both `id` and `sentAt: null`, so sentAt is set once
 export class JobRepository extends Context.Service<JobRepository, { … }>()('@app-template/kernel/data/job/JobRepository') {}
 // kernel/queue/queue.client.ts: writes a job through the repository, joining the caller's transaction
 export const QueueSenderJobs: Layer.Layer<QueueSender, never, JobRepository>
+// kernel/queue/queue.client.ts: receives from SQS; the worker provides SQSService once, for it and the relay
+export const QueueConsumerSqs: Layer.Layer<QueueConsumer, Config.ConfigError | QueueLockRefreshIntervalInvalidError, SQSService>
 // kernel/queue/job.relay.ts: sends the unsent rows to SQS
 export const JobRelaySqs: Layer.Layer<never, Config.ConfigError, JobRepository | SqlClient.SqlClient | SQSService>
 ```
@@ -580,6 +583,10 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
     - `QueueSenderJobs` in the data layer — the data would know the queue's job shape.
     - an outbox per module built by a generic `packages/outbox` — needed only with a schema per
       module.
+  - **Note (S10):** `update` takes `JobEntityUpdateWhere`, which requires both `id` and
+    `sentAt: null`: with the one `JobEntityWhere` of `selectMany`, `update({ sentAt }, { sentAt:
+    null })` would typecheck and mark every unsent job sent. `QueueConsumerSqs` takes `SQSService`
+    from the context, as `JobRelaySqs` does.
 
 - **D10 — HTTP groups stay in `http-api`, handlers in the apps; `RequestInvalidError` stays in
   `http-api`; `generateId` lives in `packages/db`, beside the `id()` column.**

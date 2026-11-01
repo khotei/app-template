@@ -10,11 +10,12 @@ import { Api } from '@app-template/http-api'
 import { UserService } from '@app-template/identity/services'
 import { AttachmentPgS3 } from '@app-template/infrastructure/attachment'
 import { ChatPg, CurrentReplyProvenance } from '@app-template/infrastructure/chat'
-import { QueueSenderOutbox } from '@app-template/infrastructure/shared'
 import { UserPg } from '@app-template/infrastructure/user'
 import { ApiConfig, MinimumLogLevelFromConfig, RuntimeConfig } from '@app-template/kernel/config'
 import { Db } from '@app-template/kernel/data'
+import { JobRepository } from '@app-template/kernel/data/job'
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
+import { QueueSenderJobs } from '@app-template/kernel/queue'
 import { SendMessageUseCase } from '@app-template/use-cases/chat'
 
 import { AttachmentHandler } from '#api/attachment/attachment.handler'
@@ -49,10 +50,11 @@ export const ApiLayer = Layer.merge(ApiHttp, LogApiStopped).pipe(
     UserPg,
     ChatPg,
     AttachmentPgS3,
-    QueueSenderOutbox,
+    QueueSenderJobs,
     Transaction.layer,
     CurrentReplyProvenance.layerFromConfig,
   ]),
+  Layer.provide(JobRepository.layer),
   Layer.provide(Db.layer),
   Layer.provide(PgClientFromConfig),
   Layer.provide(BunHttpServerFromConfig),

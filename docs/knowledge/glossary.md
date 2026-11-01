@@ -75,7 +75,7 @@ _Avoid_: Bot, AI, agent, model
 **Provenance**:
 Who the api expects to answer a reply and with which instructions: the configured provider and
 reply model and a hash of the system prompt with the reply schema. It travels in the reply's job
-and stays in the outbox once sent; the message never carries it, and the worker may run another
+and stays in the table `jobs` once sent; the message never carries it, and the worker may run another
 model while a deploy rolls out. For operators only; no api response carries it.
 _Avoid_: Metadata, model info, source, origin
 
@@ -137,13 +137,13 @@ The entry point of one request or one job in an app.
 _Avoid_: Controller, consumer, processor, endpoint
 
 **Relay**:
-An infrastructure layer that moves records from the database to a queue and holds no rule
-(`OutboxRelay`).
+A kernel layer that moves records from the database to a queue and holds no rule
+(`JobRelay`).
 _Avoid_: Dispatcher, publisher, poller
 
 **Outbox**:
-The table a use case writes its jobs to, in the transaction of the records they read; the relay
-sends them.
+The pattern by which a use case writes its jobs to the table `jobs`, in the transaction of the
+records they read, for the relay to send them.
 _Avoid_: Event table, queue table
 
 **Job**:

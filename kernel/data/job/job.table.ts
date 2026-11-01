@@ -9,8 +9,8 @@ import { createdAt, id } from '@app-template/db'
  * stage; `body` is the job encoded through its definition's schema. The relay sets `sentAt` and
  * keeps the row, so operators read what each job carried. No index on `body`: nothing queries it.
  */
-export const outbox = snakeCase.table(
-  'outbox',
+export const jobs = snakeCase.table(
+  'jobs',
   {
     id: id(),
     queue: text().notNull(),
@@ -20,6 +20,6 @@ export const outbox = snakeCase.table(
     sentAt: timestamp({ withTimezone: true }),
   },
   (table) => [
-    index('outbox_unsent_created_at_index').on(table.createdAt).where(isNull(table.sentAt)),
+    index('jobs_unsent_created_at_index').on(table.createdAt).where(isNull(table.sentAt)),
   ],
 )

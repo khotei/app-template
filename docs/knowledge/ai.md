@@ -129,7 +129,7 @@ Both live in `infrastructure/chat/assistant.llm.ts`: `systemPrompt` and `ReplyAn
 
 Either change moves the instructions hash, the SHA-256 of the system prompt and the reply
 schema's JSON Schema document, which the api writes into each reply's job as its provenance
-(**Provenance** in [glossary.md](glossary.md)). Operators read it from the outbox to tell
+(**Provenance** in [glossary.md](glossary.md)). Operators read it from the table `jobs` to tell
 which replies were asked under which instructions.
 
 ## The modules of `effect/ai`

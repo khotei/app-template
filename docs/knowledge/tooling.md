@@ -92,7 +92,7 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   accepts. The journey proves the wiring; every rule keeps its lower seam.
 - **Concurrent within a file.** Both projects set `sequence: { concurrent: true }`; since every
   test owns its database and its stage, nothing is shared between tests. The journey's file opts
-  out, since its tests share one stand and read its outbox whole.
+  out, since its tests share one stand and read its table `jobs` whole.
 - **Time.** `it.effect` provides a fresh `TestClock` per test, so time stands still unless the
   test moves it; `it.live` runs on the real clock. `@effect/vitest`'s `layer(…)` instead builds
   one `TestClock` for its whole block, so under concurrency one test's `adjust` would move its

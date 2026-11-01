@@ -24,7 +24,7 @@ const buildDeadLetterQueue = <A, I>(
 
 /**
  * Who the api expects to answer a reply, and with which instructions, read by operators from the
- * outbox; the worker may run another model while a deploy rolls out.
+ * table `jobs`; the worker may run another model while a deploy rolls out.
  */
 export class ReplyProvenance extends Schema.Class<ReplyProvenance>('ReplyProvenance')({
   provider: Schema.String,

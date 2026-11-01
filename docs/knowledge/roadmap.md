@@ -591,7 +591,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
     `updated_at`, and a GIN index (`jsonb_path_ops`) on `body`, so `body @> '{"chatId": …}'`
     finds a chat's jobs.
   - The statuses, the shared `Status` of `domain/shared/status.model.ts` whole: `idle` (written
-    by `QueueSenderOutbox.send`, not yet in SQS) → `queued` (the
+    by `QueueSenderJobs.send`, not yet in SQS) → `queued` (the
     relay sent it; the job is in work) → `done` (the handler succeeded) or `failed` (its last
     attempt or its dead letter, with the error). The relay takes `idle` rows under `FOR UPDATE
     SKIP LOCKED` (a partial index on `status = 'idle'`) and marks them `queued` instead of
@@ -608,6 +608,8 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
     with an e2e twin.
   - The message keeps its own status, its subset of the shared `Status`: it is the reply's
     state, which the client polls and the guards read, not the job's.
+  - The relay gets attempts and a dead letter of its own: today a job SQS refuses forever blocks
+    its batch and re-sends the jobs before it on every poll.
 - **Why a trigger.** It catches every path in the same statement, including a file a concurrent
   send binds between the attachments' read and the chat's delete, whose bytes today stay in S3,
   bound and never expired.

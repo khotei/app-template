@@ -48,7 +48,7 @@ one test process, and the use cases on Postgres, and nothing imports it.
 | `application/identity/` | the first module: the user and its credential in `domain/`, `UserService` in `services/`; reached from outside only through its contract | [layering.md](../../.claude/rules/layering.md) |
 | `application/identity/contract/` | `@app-template/identity-contract`, what other workspaces need of identity: `UserId`, `UserUnknownError`, `CurrentUser`, `Auth` | this table |
 | `application/use-cases/` | use cases: the flows that join the domain's writes in one transaction, or reach the queue, the bucket or the assistant | [layering.md](../../.claude/rules/layering.md) |
-| `kernel/` | this app's configuration of its tools: the config services, the Postgres and AWS clients built from them, the AWS inventory, the migrations, the language model of the configured provider | [kernel/CLAUDE.md](../../kernel/CLAUDE.md) |
+| `kernel/` | this app's configuration of its tools: the config services, the Postgres and AWS clients built from them, the AWS inventory, the migrations, the queue's clients over the table `jobs`, the language model of the configured provider | [kernel/CLAUDE.md](../../kernel/CLAUDE.md) |
 | `packages/*` | generic, project-agnostic clients and libraries | [packages/CLAUDE.md](../../packages/CLAUDE.md) |
 | `apps/*` | entry points (`main.ts`), the handlers, and the process's layer (`layer.ts`) | [apps/CLAUDE.md](../../apps/CLAUDE.md) |
 | `apps/__e2e__/` | the e2e over assembled layers: the use cases on Postgres, and the journey, `ApiLayer` and `WorkerLayer` in one runtime over the run's containers | [tooling.md › Tests](tooling.md#tests) |
@@ -138,7 +138,7 @@ Using the `chat` slice as the map:
 | mapper from an entity to a model | `infrastructure/chat/chat.mapper.ts` | `ChatFromEntity`, `MessageFromEntity` |
 | adapter implementing a port | `infrastructure/chat/chat.repository.ts`, `assistant.llm.ts`; `attachment/attachment.bucket.ts` | `ChatRepositoryPg`, `AssistantLlm` (with the prompts, over a language model per purpose that the kernel's `createLanguageModel` builds on the provider `LLM_PROVIDER` picks: [ai.md](ai.md)), `AttachmentBucketS3` (each a `Layer` of its port) |
 | queue definitions | `infrastructure/chat/chat.queue.ts` | `assistantMessageQueue`, `GenerateAssistantMessage` (the job schema) |
-| relay from the database to a queue | `infrastructure/outbox/outbox.relay.ts` | `OutboxRelay` (a worker `Layer` that runs a fiber and provides nothing) |
+| the queue's clients and the relay from the database to a queue | `kernel/queue/queue.client.ts`, `job.relay.ts`; `kernel/data/job/job.repository.ts` | `QueueSenderJobs`, `QueueConsumerSqs`, `JobRelay` (a worker `Layer` that runs a fiber and provides nothing), all over `JobRepository` |
 | use case composing domain services | `application/use-cases/chat/send-message.use-case.ts`, `generate-assistant-message.use-case.ts` | `SendMessageUseCase`, `SendMessageUseCase.layer`, `GenerateAssistantMessageUseCase` |
 | contract group | `http-api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`), the DTOs `Chat`, `Message` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |

@@ -11,7 +11,7 @@ import { selectAttachments } from '@app-template/use-cases/testing'
 
 import { ChatPgTest } from '#testing-e2e/chat.test-layer'
 
-const selectOutbox = SqlClient.SqlClient.use((client) => client`SELECT queue FROM outbox`).pipe(
+const selectJobs = SqlClient.SqlClient.use((client) => client`SELECT queue FROM jobs`).pipe(
   Effect.orDie,
 )
 
@@ -73,7 +73,7 @@ describe('SendMessageUseCase', () => {
         const photo = yield* upload(owner)
         // The title job is the last write of a chat's first send; all the others precede it.
         yield* client
-          .unsafe(`ALTER TABLE outbox ADD CONSTRAINT refuse_title CHECK (queue <> 'chat-title')`)
+          .unsafe(`ALTER TABLE jobs ADD CONSTRAINT refuse_title CHECK (queue <> 'chat-title')`)
           .pipe(Effect.orDie)
 
         const exit = yield* sendMessage
@@ -84,7 +84,7 @@ describe('SendMessageUseCase', () => {
         assertEquals(yield* selectMessages(chat.id), [])
         assertEquals(yield* selectAttachments([photo]), [photo])
         assertEquals(yield* selectChat(chat.id), Option.some(chat))
-        assertEquals(yield* selectOutbox, [])
+        assertEquals(yield* selectJobs, [])
       }).pipe(Effect.provide(ChatPgTest)),
   )
 })

@@ -11,22 +11,24 @@ import {
   pipe,
   Queue,
   Ref,
+  Schedule,
   Struct,
 } from 'effect'
+import { SqlClient } from 'effect/sql'
 
-import { ChatId, MessageId } from '@app-template/domain/chat'
-import { buildResourceName } from '@app-template/kernel/aws/resources'
-import { AwsConfig } from '@app-template/kernel/config'
-import { Db } from '@app-template/kernel/data'
-import { outbox } from '@app-template/kernel/data/outbox'
-import { AwsTest, DbTest } from '@app-template/kernel/testing-e2e'
 import { QueueError, QueueSender, QueueTransport } from '@app-template/queue'
 import { recordLogs } from '@app-template/testing'
 
-import { assistantMessageQueue, GenerateAssistantMessage } from '#infrastructure/chat/chat.queue'
-import { OutboxRelay } from '#infrastructure/outbox/outbox.relay'
-import { QueueSenderOutbox } from '#infrastructure/shared/queue.client'
-import { replyProvenance } from '#testing/chat.test-fake'
+import { buildResourceName } from '#kernel/aws/resources/naming'
+import { AwsConfig } from '#kernel/config/config'
+import { Db } from '#kernel/data/db.client'
+import { JobRepository } from '#kernel/data/job/job.repository'
+import { jobs } from '#kernel/data/job/job.table'
+import { JobRelay } from '#kernel/queue/job.relay'
+import { QueueSenderJobs } from '#kernel/queue/queue.client'
+import { AwsTest } from '#testing-e2e/aws.test-layer'
+import { DbTest } from '#testing-e2e/db.test-layer'
+import { SampleJob, sampleJobQueue, sampleProvenance } from '#testing-e2e/job.test-fixture'
 
 interface Attempt {
   readonly queue: string
@@ -60,19 +62,23 @@ const PollInterval = ConfigProvider.layer(
   ConfigProvider.fromUnknown({ OUTBOX_POLL_INTERVAL: `${pollInterval} millis` }),
 )
 
-const OutboxDbTest = QueueSenderOutbox.pipe(Layer.provideMerge(DbTest), Layer.merge(PollInterval))
+const JobsDbTest = QueueSenderJobs.pipe(
+  Layer.provideMerge(JobRepository.layer),
+  Layer.provideMerge(DbTest),
+  Layer.merge(PollInterval),
+)
 
 // The recording transport sees the queue name, so the stage is fixed.
-const OutboxTest = OutboxDbTest.pipe(
+const JobsTest = JobsDbTest.pipe(
   Layer.merge(
     Layer.succeed(AwsConfig, { region: 'us-east-1', endpoint: Option.none(), stage: 'test' }),
   ),
 )
 
 // The test's own stage on the run's MiniStack: the relay sends to its real queue.
-const OutboxSqsTest = QueueTransport.layerSqs.pipe(
+const JobsSqsTest = QueueTransport.layerSqs.pipe(
   Layer.provideMerge(AwsTest),
-  Layer.merge(OutboxDbTest),
+  Layer.merge(JobsDbTest),
 )
 
 const jobId = (n: number) => `0192d4e0-7b3a-7c00-8000-${String(n).padStart(12, '0')}`
@@ -80,11 +86,11 @@ const jobId = (n: number) => `0192d4e0-7b3a-7c00-8000-${String(n).padStart(12, '
 const enqueue = (n: number) =>
   QueueSender.use((queue) =>
     queue.send(
-      assistantMessageQueue,
-      new GenerateAssistantMessage({
-        chatId: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000030'),
-        messageId: MessageId.make(jobId(n)),
-        provenance: Option.some(replyProvenance),
+      sampleJobQueue,
+      new SampleJob({
+        chatId: '0192d4e0-7b3a-7c00-8000-000000000030',
+        messageId: jobId(n),
+        provenance: sampleProvenance,
       }),
     ),
   )
@@ -92,11 +98,11 @@ const enqueue = (n: number) =>
 // `for update` waits for every relay transaction that holds a row, so it reads the unsent rows as
 // the relays left them.
 const lockUnsent = Db.use((db) =>
-  db.select({ jobId: outbox.jobId }).from(outbox).where(isNull(outbox.sentAt)).for('update'),
+  db.select({ jobId: jobs.jobId }).from(jobs).where(isNull(jobs.sentAt)).for('update'),
 )
 
 const selectSent = Db.use((db) =>
-  db.select({ jobId: outbox.jobId }).from(outbox).where(isNotNull(outbox.sentAt)),
+  db.select({ jobId: jobs.jobId }).from(jobs).where(isNotNull(jobs.sentAt)),
 )
 
 const provenanceBody = {
@@ -105,7 +111,7 @@ const provenanceBody = {
   instructionsHash: 'a1b2c3',
 }
 
-describe('OutboxRelay', () => {
+describe('JobRelay', () => {
   it.effect(
     'sends a pending row to its queue with its job id and JSON body, then marks it sent',
     () =>
@@ -113,7 +119,7 @@ describe('OutboxRelay', () => {
         const { attempts, layer } = yield* recordTransport
         yield* enqueue(1)
 
-        yield* OutboxRelay.pipe(Layer.provide(layer), Layer.build)
+        yield* JobRelay.pipe(Layer.provide(layer), Layer.build)
         const attempt = yield* Queue.take(attempts)
 
         assert.strictEqual(attempt.queue, 'app-template-test-assistant-message')
@@ -125,7 +131,7 @@ describe('OutboxRelay', () => {
         })
         assert.deepStrictEqual(yield* lockUnsent, [])
         assert.deepStrictEqual(yield* selectSent, [{ jobId: jobId(1) }])
-      }).pipe(Effect.provide(OutboxTest)),
+      }).pipe(Effect.provide(JobsTest)),
   )
 
   // Live: SQS long-polls in real time.
@@ -136,9 +142,9 @@ describe('OutboxRelay', () => {
         const { stage } = yield* AwsConfig
         yield* enqueue(1)
 
-        yield* Layer.build(OutboxRelay)
+        yield* Layer.build(JobRelay)
         const received = yield* QueueTransport.use((transport) =>
-          transport.receive(buildResourceName(stage, assistantMessageQueue.name), {
+          transport.receive(buildResourceName(stage, sampleJobQueue.name), {
             visibility: '30 seconds',
             wait: '10 seconds',
           }),
@@ -151,7 +157,7 @@ describe('OutboxRelay', () => {
           provenance: provenanceBody,
         })
         assert.deepStrictEqual(yield* lockUnsent, [])
-      }).pipe(Effect.provide(OutboxSqsTest)),
+      }).pipe(Effect.provide(JobsSqsTest)),
     30_000,
   )
 
@@ -162,8 +168,8 @@ describe('OutboxRelay', () => {
       const ns = Arr.range(1, 25)
       yield* Effect.forEach(ns, enqueue, { discard: true })
 
-      yield* OutboxRelay.pipe(Layer.provide(layer), Layer.build)
-      yield* OutboxRelay.pipe(Layer.provide(layer), Layer.build)
+      yield* JobRelay.pipe(Layer.provide(layer), Layer.build)
+      yield* JobRelay.pipe(Layer.provide(layer), Layer.build)
       const sent = yield* Queue.takeN(attempts, 25)
       const left = yield* lockUnsent
 
@@ -173,7 +179,7 @@ describe('OutboxRelay', () => {
       )
       assert.deepStrictEqual(left, [])
       assert.deepStrictEqual(yield* Queue.poll(attempts), Option.none())
-    }).pipe(Effect.provide(OutboxTest)),
+    }).pipe(Effect.provide(JobsTest)),
   )
 
   // Live, as is the next test: a `TestClock` cannot tell when the relay has reached its sleep.
@@ -184,7 +190,7 @@ describe('OutboxRelay', () => {
       yield* Ref.set(refusing, true)
       yield* enqueue(1)
 
-      yield* OutboxRelay.pipe(Layer.provide(layer), Layer.build)
+      yield* JobRelay.pipe(Layer.provide(layer), Layer.build)
       yield* Queue.take(attempts)
       const refusedAt = yield* Clock.currentTimeMillis
       yield* Ref.set(refusing, false)
@@ -197,8 +203,34 @@ describe('OutboxRelay', () => {
       assert.isAtLeast(sentAt - refusedAt, pollInterval)
       assert.deepStrictEqual(yield* lockUnsent, [])
       assert.deepStrictEqual(logs, [['Error', 'outbox relay failed']])
-    }).pipe(Effect.provide([OutboxTest, recordedLogs]))
+    }).pipe(Effect.provide([JobsTest, recordedLogs]))
   })
+
+  it.live(
+    'logs a batch the database fails once, sends nothing, and sends the row on the next poll',
+    () => {
+      const { logs, layer: recordedLogs } = recordLogs()
+      return Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient
+        const { attempts, layer } = yield* recordTransport
+        yield* enqueue(1)
+        yield* sql.unsafe('ALTER TABLE jobs RENAME TO jobs_away')
+
+        yield* JobRelay.pipe(Layer.provide(layer), Layer.build)
+        yield* Effect.sync(() => logs.length).pipe(
+          Effect.repeat({ until: (count) => count > 0, schedule: Schedule.spaced('10 millis') }),
+        )
+        const sentWhileFailing = yield* Queue.poll(attempts)
+        yield* sql.unsafe('ALTER TABLE jobs_away RENAME TO jobs')
+        const sent = yield* Queue.take(attempts)
+
+        assert.deepStrictEqual(sentWhileFailing, Option.none())
+        assert.strictEqual(sent.jobId, jobId(1))
+        assert.deepStrictEqual(yield* lockUnsent, [])
+        assert.deepStrictEqual(logs, [['Error', 'outbox relay failed']])
+      }).pipe(Effect.provide([JobsTest, recordedLogs]))
+    },
+  )
 
   it.live(
     'waits OUTBOX_POLL_INTERVAL after a batch shorter than its limit, then sends only the new row',
@@ -207,7 +239,7 @@ describe('OutboxRelay', () => {
         const { attempts, layer } = yield* recordTransport
         yield* enqueue(1)
 
-        yield* OutboxRelay.pipe(Layer.provide(layer), Layer.build)
+        yield* JobRelay.pipe(Layer.provide(layer), Layer.build)
         yield* Queue.take(attempts)
         const firstAt = yield* Clock.currentTimeMillis
         yield* lockUnsent
@@ -217,6 +249,6 @@ describe('OutboxRelay', () => {
 
         assert.isAtLeast(secondAt - firstAt, pollInterval)
         assert.strictEqual(second.jobId, jobId(2))
-      }).pipe(Effect.provide(OutboxTest)),
+      }).pipe(Effect.provide(JobsTest)),
   )
 })

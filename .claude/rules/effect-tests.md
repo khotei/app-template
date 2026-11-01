@@ -27,7 +27,7 @@ paths:
   with its e2e twin on the Pg adapter, or a unit test passes on a write the database refuses.
 - **An e2e test** (`__e2e__/`) proves an adapter or a use case's transaction on the run's
   containers, or the journey. Atomicity: the database refuses one write of the flow (a constraint
-  the test adds), and no row and no outbox row is kept. A race runs the rival calls with
+  the test adds), and no row and no job is kept. A race runs the rival calls with
   `Effect.all(…, { concurrency: 'unbounded' })` on the real repositories and asserts an outcome
   that holds whichever call wins; a probe that removes the guard must turn it red.
 - The harnesses: `DbTest` (a database of its own, `Db` and `PgClient`), `AwsTest` (a stage of

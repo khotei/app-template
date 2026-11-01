@@ -15,7 +15,7 @@
 | S7 | `kernel/llm` picks the provider; chat keeps only its prompts | done |
 | S8 | the tables and relations in `kernel/data`, in the data layer's own types | done |
 | S9 | `Db` in `kernel/data` over the `PgClient` in the context; the entity suites speak entities | done |
-| S10 | the table `jobs` and `JobRepository`; one initial migration; the queue in `kernel/queue` | todo |
+| S10 | the table `jobs` and `JobRepository`; one initial migration; the queue in `kernel/queue` | done |
 | S11 | the `identity` module and `identity-contract` | done |
 | S12 | `UserRepository` in the data layer; the first port gone | todo |
 | S13 | chat's domain and services in `application/chat`; no `domain` workspace | todo |
@@ -509,7 +509,29 @@
   (output pasted in the step report); `make migration-check` reports no change; `make dev`, send a
   message in the web app: the reply and the title arrive.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - `JobRepository.update` takes `JobEntityUpdateWhere`, which requires both `id` and
+    `sentAt: null`, so a write never matches every job and a sent job's `sentAt` is set once (a
+    note on D9); a new case checks that a second update of a sent job dies and keeps its `sentAt`.
+    `naming.md`'s `.entity` row names a `<Verb>Where` for the one verb whose filter differs.
+  - `QueueConsumerSqs` takes `SQSService` from the context, as `JobRelaySqs` does; the worker
+    provides `SQSServiceFromConfig` once, in a later `Layer.provide` than both, since siblings in
+    one `Layer.provide([…])` do not feed each other. The Contract now names its type.
+  - The kernel's queue suites send a `SampleJob` fixture of their own
+    (`kernel/__e2e__/testing/job.test-fixture.ts`), since the kernel imports no module's queue
+    definitions.
+  - The relay reads and writes only through `JobRepository`, whose methods die on an SQL error;
+    its `catchCauseIf` logs and swallows every non-interrupt cause, which a new case checks (a
+    renamed table: one log line, nothing sent, the row sent on the next poll).
+  - The `pg_dump --schema-only` diff against `main` shows only `outbox` renamed `jobs`, with its
+    primary key and partial index. A database migrated before the single `init` needs one
+    `make reset`, which `database.md` says.
+  - A job that SQS refuses forever blocks its batch and re-sends the jobs before it on every
+    poll, as before this step; `jobs` (22) in the roadmap now owns the relay's attempts and dead
+    letter.
+  - Size: 40 files, +576 / −412, over the ~400 lines; the replaced migrations and their
+    snapshots are about 190 of them, the rest mostly moves.
 
 #### S11 — The identity module and its contract
 

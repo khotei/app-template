@@ -3,11 +3,9 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./shared": "./shared/index.ts",
     "./user": "./user/index.ts",
     "./chat": "./chat/index.ts",
     "./attachment": "./attachment/index.ts",
-    "./outbox": "./outbox/index.ts",
     "./testing": "./__tests__/testing/index.ts"
   },
   "imports": {
@@ -25,7 +23,6 @@
     "@app-template/queue": "workspace:*",
     "@app-template/s3": "workspace:*",
     "@effect-aws/client-s3": "catalog:effect-aws",
-    "@effect-aws/client-sqs": "catalog:effect-aws",
     "@effect/platform-bun": "catalog:effect",
     "drizzle-orm": "catalog:drizzle",
     "effect": "catalog:effect"

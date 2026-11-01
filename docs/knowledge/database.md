@@ -17,7 +17,7 @@ never a promise.
 The data layer, `kernel/data/<store>/`, declares each table in `<name>.table.ts` and its
 entities, the schemas read from it, in `<name>.entity.ts` (`user/user.table.ts`: `users`,
 `credentials`; `chat/chat.table.ts`: `chats`; `chat/message.table.ts`: `messages`;
-`attachment/attachment.table.ts`: `attachments`; `outbox/outbox.table.ts`: `outbox`); what each
+`attachment/attachment.table.ts`: `attachments`; `job/job.table.ts`: `jobs`); what each
 may import: [kernel/CLAUDE.md](../../kernel/CLAUDE.md). Since a table imports no entity,
 `ChatEntity` and `MessageEntity` nest `AttachmentEntity` without a cycle. The tables are the one
 declaration of the schema: the migrations are generated from them and the entities derived
@@ -225,13 +225,13 @@ of the `Effect.fn` that holds the writes (`Transaction.layer` in `packages/db/db
 wraps `SqlClient.withTransaction`), and every repository call inside joins the transaction
 through the connection `@effect/sql` keeps in the fiber's context, so no port takes a transaction
 parameter. `SendMessageUseCase.send` writes the chat's `status`, the user message, the binds, the
-reply and its jobs' outbox rows, or none of them. The guards above then decide every race inside
+reply and its jobs, or none of them. The guards above then decide every race inside
 Postgres, with no lock in the process: of two sends to one chat the second waits on the chat's
 row lock and, once the first commits, finds the chat `queued`, and of two binds of one
 attachment the second waits on the attachment's row lock and finds it bound. Two api processes behave as two
 fibers. S3 stays outside the transaction: the bytes are kept before the bind, so no bound row sits
 over expiring bytes, and deleted before the commit, so a rollback restores rows that a retry still
-finds. SQS is reached only through the outbox, whose rows join it.
+finds. SQS is reached only through the table `jobs`, whose rows join it.
 
 ## Stuck replies
 
@@ -242,27 +242,29 @@ not tell a dead reply from one waiting in a backlog.
 
 ## The outbox
 
-A job reaches SQS through the `outbox` table, so it commits or rolls back with the writes that
-enqueue it: `apps/api` provides `QueueSenderOutbox` as its `QueueSender` and never sends to SQS,
-and `apps/worker` consumes through `QueueConsumerSqs` beside the relay.
+A job reaches SQS through the table `jobs`, so it commits or rolls back with the writes that
+enqueue it (the transactional outbox): `apps/api` provides `QueueSenderJobs` as its `QueueSender`
+and never sends to SQS, and `apps/worker` consumes through `QueueConsumerSqs` beside the relay.
+The three live in `kernel/queue/` over `JobRepository` (`kernel/data/job/job.repository.ts`),
+which inserts a job, selects the unsent ones and sets their `sentAt`.
 
-- **`QueueSenderOutbox`** (`infrastructure/shared/queue.client.ts`) is the `QueueSender` whose
-  `send` encodes the job through its definition's schema to a JSON value
-  (`Schema.toCodecJson`) and inserts a row: the definition's `name` as `queue` (the stage is
-  added on the way out), the `jobId` and the value as `body`. The insert joins the caller's
-  `sql.withTransaction`; outside one it commits alone.
+- **`QueueSenderJobs`** (`kernel/queue/queue.client.ts`) is the `QueueSender` whose `send`
+  encodes the job through its definition's schema to a JSON value (`Schema.toCodecJson`) and
+  inserts a row: the definition's `name` as `queue` (the stage is added on the way out), the
+  `jobId` and the value as `body`. The insert joins the caller's `sql.withTransaction`; outside
+  one it commits alone.
 - **`body` is `jsonb`, with no index on it.** No code queries the body: the column holds the
   value for the relay, and `jsonb` keeps it a value an operator can read by hand
   (`body->'provenance'->>'model'` on a reply's job) instead of a string to parse. `jsonb` stores keys in its own order, so
   the string the relay sends is the row's, not the sender's.
-- **`OutboxRelay`** (`infrastructure/outbox/outbox.relay.ts`), a layer the worker provides, polls
+- **`JobRelay`** (`kernel/queue/job.relay.ts`), a layer the worker provides as `JobRelaySqs`, polls
   in one transaction: it selects up to 10 rows `WHERE sent_at IS NULL ORDER BY created_at, id`
   `FOR UPDATE SKIP LOCKED`, sends each over `QueueTransport` to `buildResourceName(STAGE, queue)`
   with its `jobId` and its `body` as a JSON string (`JSON.stringify`, the form the SQS client
   sends), sets their `sent_at` and commits. A full batch polls again at once; a shorter one
   waits `OUTBOX_POLL_INTERVAL` (1 second by default).
-- **A sent row stays,** so the outbox is the record of what each job carried; the partial index
-  `outbox_unsent_created_at_index` holds only unsent rows, so the poll stays cheap however many
+- **A sent row stays,** so `jobs` is the record of what each job carried; the partial index
+  `jobs_unsent_created_at_index` holds only unsent rows, so the poll stays cheap however many
   sent rows pile up. Nothing removes sent rows yet.
 - **Several relays share the table.** `SKIP LOCKED` hands a row to one relay at a time, and the
   others take the next rows or none.
@@ -293,6 +295,7 @@ and that are committed.
   `kernel/data/migrations/` and regenerates it with `make migration NAME=init`, never a
   rename by `--hints` or hand-written SQL; a local database rebuilds by `make reset && make up`.
   The first deployed database ends this: from then on a committed migration is never edited.
+  A database migrated before `init` replaced the two earlier migrations needs `make reset` once.
 - The apps neither migrate nor check the schema at startup; only `make migrate` and the tests'
   setup apply migrations.
 - Biome skips `kernel/data/migrations/`: the files are drizzle-kit's output, and a
@@ -320,7 +323,7 @@ model's extreme value through the mapper and reads it back, so a check that drif
 fails there.
 
 The unit suites never reach Postgres ([tooling.md › Tests](tooling.md#tests)). What only a
-transaction decides, that a use case keeps none of its writes or its outbox rows when one is
+transaction decides, that a use case keeps none of its writes or its jobs when one is
 refused, runs in `apps/__e2e__/use-cases/` on `ChatPgTest`. A memory layer copies the four guards the
 database adds (the active message's index, the message status an update expects, an owner in the
 `where`, the cascade from a chat to its messages and their attachments), and each has its twin in a repository suite

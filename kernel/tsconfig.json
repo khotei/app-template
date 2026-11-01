@@ -9,6 +9,7 @@
     { "path": "../packages/aws" },
     { "path": "../packages/db" },
     { "path": "../packages/llm" },
+    { "path": "../packages/queue" },
     { "path": "../packages/testing" }
   ]
 }

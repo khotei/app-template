@@ -5,11 +5,12 @@ import { FetchHttpClient } from 'effect/http'
 import { Transaction } from '@app-template/db'
 import { AttachmentPgS3 } from '@app-template/infrastructure/attachment'
 import { AssistantLlmFromConfig, ChatPg } from '@app-template/infrastructure/chat'
-import { OutboxRelaySqs } from '@app-template/infrastructure/outbox'
-import { QueueConsumerSqs } from '@app-template/infrastructure/shared'
+import { SQSServiceFromConfig } from '@app-template/kernel/aws'
 import { MinimumLogLevelFromConfig } from '@app-template/kernel/config'
 import { Db } from '@app-template/kernel/data'
+import { JobRepository } from '@app-template/kernel/data/job'
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
+import { JobRelaySqs, QueueConsumerSqs } from '@app-template/kernel/queue'
 
 import { AssistantMessageHandler } from '#worker/chat/assistant-message.handler'
 import { ChatTitleHandler } from '#worker/chat/chat-title.handler'
@@ -23,8 +24,9 @@ const LogWorkerLifecycle = Effect.logInfo('worker started').pipe(
   Layer.effectDiscard,
 )
 
-export const WorkerLayer = Layer.mergeAll(WorkerHandlers, OutboxRelaySqs, LogWorkerLifecycle).pipe(
-  Layer.provide([Db.layer, QueueConsumerSqs, BunCrypto.layer]),
+export const WorkerLayer = Layer.mergeAll(WorkerHandlers, JobRelaySqs, LogWorkerLifecycle).pipe(
+  Layer.provide([JobRepository.layer, QueueConsumerSqs, BunCrypto.layer]),
+  Layer.provide([Db.layer, SQSServiceFromConfig]),
   Layer.provide(PgClientFromConfig),
   Layer.provide(FetchHttpClient.layer),
   Layer.provide(MinimumLogLevelFromConfig),
