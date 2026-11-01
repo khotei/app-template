@@ -12,20 +12,21 @@ export const MessageEntity = Schema.Struct({
   ...createSelectSchema(messages, refine).fields,
   attachments: Schema.Array(AttachmentEntity),
 })
+export type MessageEntity = typeof MessageEntity.Type
 
 export const MessageEntityInsert = createInsertSchema(messages, refine)
 
 /** `userId` is the owner of the row's chat, not a column of `messages`. */
 export type MessageEntityWhere = Types.Simplify<
-  RequireAtLeastOne<Pick<typeof MessageEntity.Type, 'id' | 'chatId'>> &
+  RequireAtLeastOne<Pick<MessageEntity, 'id' | 'chatId'>> &
     Partial<{
       readonly userId: string
-      readonly status: ReadonlyArray<(typeof MessageEntity.Type)['status']>
+      readonly status: ReadonlyArray<MessageEntity['status']>
     }>
 >
 
 export type MessageEntitySet = Types.Simplify<
-  RequireAtLeastOne<Pick<typeof MessageEntity.Type, 'status' | 'text' | 'error' | 'updatedAt'>>
+  RequireAtLeastOne<Pick<MessageEntity, 'status' | 'text' | 'error' | 'updatedAt'>>
 >
 
 export const inCreationOrder = { createdAt: 'asc', id: 'asc' } as const

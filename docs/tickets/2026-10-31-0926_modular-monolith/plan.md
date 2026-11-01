@@ -19,7 +19,7 @@
 | S11 | the `identity` module and `identity-contract` | done |
 | S12 | `UserRepository` in the data layer; the first port gone | todo |
 | S13 | chat's domain and services in `application/chat`; no `domain` workspace | todo |
-| S14 | `ChatRepository` and `MessageRepository` in the data layer | todo |
+| S14 | `ChatRepository` and `MessageRepository` in the data layer | done |
 | S15 | `AttachmentRepository` in the data layer | done |
 | S16 | the memory repositories over entities in the kernel's test support | todo |
 | S17 | chat's services and the use cases over the data layer; the repository ports gone | todo |
@@ -654,7 +654,24 @@
   layer's repositories, red until they exist.
 - **Verify:** `make check`.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - One where builder serves every message verb, the owner as
+    `chat_id IN (select id from chats where user_id = …)`, so `update` honours `userId` too; the
+    relational filter covered only the reads. A new case checks the owner in an update's where.
+  - The message adapter passes the whole row as the set, so an update writes status, text, error
+    and `updatedAt` only; the port's doc says so.
+  - The chat adapter maps its set with `Struct.mapPick` over typed lambdas (`GetOrNull`,
+    `ToDateUtc`), as S15 does, in place of a cast to `ChatEntitySet`.
+  - `inCreationOrder` and `withAttachments` stay in `message.entity.ts`, out of the barrel, so the
+    chat repository does not import the message repository. `ChatEntity` and `MessageEntity` name
+    the entity types beside their schemas.
+  - An update's or a delete's die message names no id (`no chat was updated`), where the adapters'
+    named `where.id`: a where may find its rows by `userId` alone. An insert's still names the id.
+  - Beyond the Files: `domain/chat/message.port.ts` (the doc of `update`),
+    `kernel/__e2e__/data/chat/message.entity.e2e.ts`, `docs/knowledge/architecture.md`.
+  - Size: 14 files, +788 / −588, over the ~400 lines: two repositories and their two suites move
+    whole, and the adapters are rewritten over them.
 
 #### S15 — Attachments in the data layer
 

@@ -1,4 +1,11 @@
 export * from '#kernel/data/chat/chat.entity'
+export { ChatRepository } from '#kernel/data/chat/chat.repository'
 export * from '#kernel/data/chat/chat.table'
-export * from '#kernel/data/chat/message.entity'
+export {
+  MessageEntity,
+  MessageEntityInsert,
+  type MessageEntitySet,
+  type MessageEntityWhere,
+} from '#kernel/data/chat/message.entity'
+export { MessageRepository } from '#kernel/data/chat/message.repository'
 export * from '#kernel/data/chat/message.table'

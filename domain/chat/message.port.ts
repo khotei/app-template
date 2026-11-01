@@ -27,8 +27,8 @@ export class MessageRepository extends Context.Service<
      */
     readonly insert: (message: Message) => Effect.Effect<void>
     /**
-     * Writes the message's own fields only while the stored one matches `where`, never its
-     * attachments; dies when it writes nothing.
+     * Writes the message's status, text, error and `updatedAt` only while the stored one matches
+     * `where`, never its attachments; dies when it writes nothing.
      */
     readonly update: (message: Message, where: MessageUpdateWhere) => Effect.Effect<void>
     /** Returns the first row in creation order where `where` holds, with its attachments. */

@@ -7,7 +7,8 @@ columns, the query helpers, `migrateDatabase(folder)` and `retryWhileUnreachable
 `kernel/postgres/` (`PgClientFromConfig`, the `PgClient` built from `DatabaseConfig`, and the
 migrate program), `kernel/data/` (the client `Db`, made by `createDb(relations)` over the
 `PgClient` in the context; the tables, their entities, the relations, the migrations and
-`drizzle.config.ts`) and the mappers beside the repositories in `infrastructure/<aggregate>/`.
+`drizzle.config.ts`; the data layer's repositories over them) and the mappers beside the port
+adapters in `infrastructure/<aggregate>/`.
 Drizzle runs on `@effect/sql-pg` and is reached only through Effect: every query is an `Effect`,
 never a promise.
 
@@ -129,8 +130,13 @@ query hands to `RAW`, never on the `chats` constant.
 ## Repositories
 
 A repository is a `Layer` over `Db` and `SqlClient` in its entity's `.repository.ts` (names:
-[naming.md › Symbols](../../.claude/rules/naming.md#symbols)). A method that writes several tables
-runs them in one `sql.withTransaction`, passed to `Effect.fn` as a pipeable:
+[naming.md › Symbols](../../.claude/rules/naming.md#symbols)). The data layer's own,
+`ChatRepository` and `MessageRepository` in `kernel/data/chat/` and `AttachmentRepository` in
+`kernel/data/attachment/`, speak entities: they take a `<Name>EntityInsert`, a
+`<Name>EntitySet` and a `<Name>EntityWhere` and answer `<Name>Entity`; their `*RepositoryPg`
+adapters implement the domain's ports over them, encoding a model through its mapper and
+decoding the entity back. A method that writes several tables runs
+them in one `sql.withTransaction`, passed to `Effect.fn` as a pipeable:
 `UserRepositoryPg.insert` writes the user and its credential, or neither. `SqlClient` is the
 `PgClient` that `Db.layer` takes from the context (`PgClientFromConfig` in the processes, `DbTest`
 in the e2e), so the transaction runs on the connection `Db` uses. Every method ends with
@@ -146,7 +152,7 @@ the entities it reads into models.
 Reads go through relational queries (`db.query.<table>.findFirst` and `findMany`), writes
 through the core builder (`db.insert`, `db.update`, `db.delete`). A read of at most one row is a
 `findFirst`, which emits the `limit 1` itself, even where a key makes the row unique, so the
-query states its intent; `decodeOptionalRow(<Model>FromEntity)` from `@app-template/db` decodes the
+query states its intent; `decodeOptionalRow(<Name>Entity)` from `@app-template/db` decodes the
 row it found, or answers `Option.none()` for the `undefined` or `null` of none. A filter on a
 relation (`{ credentials: { kind, hash } }`) renders as `exists (…)`.
 
@@ -180,8 +186,9 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
   `idleChat` or `failChat` the same way, in the transaction that settles the message, so the
   chat's status and its active message move together; a path that ends a reply anywhere else
   must move the chat too, or the chat stays `queued`.
-- **Update under a `where`.** `MessageRepository.update(message, where)` runs `WHERE id = …
-  AND <where fields>`, its `where` (`MessageUpdateWhere`, the stored status to match),
+- **Update under a `where`.** `MessageRepository.update(message, where)` writes the message's
+  status, text, error and `updatedAt` `WHERE id = … AND status IN (…)`: its adapter passes the
+  message's id and the stored status to match (`MessageUpdateWhere`) as a `MessageEntityWhere`,
   so a write whose expected status another writer has left, or whose message is gone, changes
   nothing and dies; the job's retry then reads the message and skips it as settled or deleted.
 - **Update of some fields under a `where`.** `ChatRepository.update(set, where)` and
@@ -189,11 +196,12 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
   `AttachmentSet`: `RequireAtLeastOne` from `type-fest`, so an empty write fails typecheck) where
   the rows match `where` (`ChatWhere`, `AttachmentWhere`: the `id`, one or a list of them for
   attachments, and optionally a field the row must still hold, `Option.none()` rendering `IS
-  NULL`). The chat's adapter maps each side through `buildSet` and `buildWhere` (above); the
-  attachments' turns each `Option.none()` into `null`, and the data layer's
+  NULL`). The data layer's repository maps each side through `buildSet` and `buildWhere`
+  (above), the chat's adapter the model's values (`Option`, `DateTime`) into the entity's first;
+  the attachments' adapter turns each `Option.none()` into `null`, and the data layer's
   `AttachmentRepository` maps `AttachmentEntitySet` and `AttachmentEntityWhere` through them,
-  `null` rendering `IS NULL`. Both die when they write nothing. A status
-  move writes the status alone, so a title written meanwhile survives it.
+  `null` rendering `IS NULL`. Both die when they write nothing. A status move writes the status
+  alone, so a title written meanwhile survives it.
   - `ChatService.rename` reads the chat by the caller's `where` to name a refusal
     (`ChatNotFoundError`), then writes under the same `where`. The title job passes `title:
     none`, so a rename landing between the two wins and the job dies and retries.

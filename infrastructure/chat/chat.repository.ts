@@ -1,18 +1,12 @@
-import { eq, isNull } from 'drizzle-orm'
-import { DateTime, Effect, flow, Layer, Option, Schema, UndefinedOr } from 'effect'
-import { identity } from 'effect/Function'
+import { DateTime, Effect, flow, Layer, Option, Schema, Struct } from 'effect'
 
-import {
-  buildSet,
-  buildWhere,
-  decodeOptionalRow,
-  orDieOnNoRows,
-  orDieWithSqlError,
-  skipUndefined,
-} from '@app-template/db'
 import { ChatRepository, type ChatSet, type ChatWhere } from '@app-template/domain/chat'
-import { Db } from '@app-template/kernel/data'
-import { ChatEntityInsert, chats, withAttachments } from '@app-template/kernel/data/chat'
+import {
+  ChatEntityInsert,
+  ChatRepository as ChatEntityRepository,
+  type ChatEntitySet,
+  type ChatEntityWhere,
+} from '@app-template/kernel/data/chat'
 
 import { ChatFromEntity } from '#infrastructure/chat/chat.mapper'
 
@@ -21,78 +15,47 @@ const encodeChat = flow(
   Effect.flatMap(Schema.decodeEffect(ChatEntityInsert)),
 )
 
-const encodeSet = buildSet<ChatSet, typeof chats>({
-  title: UndefinedOr.map(Option.getOrNull),
-  status: identity,
-  updatedAt: UndefinedOr.map(DateTime.toDateUtc),
-})
+// Lambdas, not `Struct.evolve`: evolve maps a key by one function over the whole union, so the
+// key a `RequireAtLeastOne` branch requires comes out `| undefined`.
+interface GetOrNull extends Struct.Lambda {
+  <A>(self: Option.Option<A>): A | null
+  readonly '~lambda.out': this['~lambda.in'] extends Option.Option<infer A> | undefined
+    ? A | null
+    : never
+}
 
-// Built on the table a query names: a relational query aliases `chats`, so a condition on the
-// `chats` constant would reference a table the query does not have. Partial, so `selectMany`'s
-// where, a subset of the fields, maps through the same columns.
-const encodeWhere = (table: typeof chats) =>
-  buildWhere<Partial<ChatWhere>>({
-    id: UndefinedOr.map((id) => eq(table.id, id)),
-    userId: UndefinedOr.map((userId) => eq(table.userId, userId)),
-    title: UndefinedOr.map(
-      Option.match({
-        onNone: () => isNull(table.title),
-        onSome: (title) => eq(table.title, title),
-      }),
-    ),
-    status: UndefinedOr.map((status) => eq(table.status, status)),
-  })
+interface ToDateUtc extends Struct.Lambda {
+  (self: DateTime.Utc): Date
+  readonly '~lambda.out': Date
+}
+
+const getOrNull = Struct.lambda<GetOrNull>(Option.getOrNull)
+
+const toDateUtc = Struct.lambda<ToDateUtc>(DateTime.toDateUtc)
+
+const encodeSet = (set: ChatSet): ChatEntitySet => {
+  const titled = Struct.mapPick(set, ['title'], getOrNull)
+  return Struct.mapPick(titled, ['updatedAt'], toDateUtc)
+}
+
+const encodeWhere = (where: ChatWhere): ChatEntityWhere =>
+  Struct.mapPick(where, ['title'], getOrNull)
+
+const decodeChat = Schema.decodeEffect(Schema.Option(ChatFromEntity))
 
 const decodeChats = Schema.decodeEffect(Schema.Array(ChatFromEntity))
 
 export const ChatRepositoryPg = Layer.effect(
   ChatRepository,
-  Db.useSync((db) =>
+  ChatEntityRepository.useSync((chats) =>
     ChatRepository.of({
-      insert: Effect.fn('ChatRepository.insert')(function* (chat) {
-        const row = yield* encodeChat(chat)
-        yield* db.insert(chats).values(row)
-      }, orDieWithSqlError),
-      update: Effect.fn('ChatRepository.update')(
-        (set, where) =>
-          db
-            .update(chats)
-            .set(encodeSet(set))
-            .where(encodeWhere(chats)(where))
-            .returning({ id: chats.id })
-            .pipe(orDieOnNoRows(`chat ${where.id} was not updated`)),
-        orDieWithSqlError,
-      ),
-      selectOne: Effect.fn('ChatRepository.selectOne')(
-        (where) =>
-          db.query.chats
-            .findFirst({
-              where: { RAW: (table) => skipUndefined(encodeWhere(table)(where)) },
-              with: withAttachments,
-            })
-            .pipe(Effect.flatMap(decodeOptionalRow(ChatFromEntity))),
-        orDieWithSqlError,
-      ),
-      selectMany: Effect.fn('ChatRepository.selectMany')(
-        (where) =>
-          db.query.chats
-            .findMany({
-              where: { RAW: (table) => skipUndefined(encodeWhere(table)(where)) },
-              orderBy: { createdAt: 'desc' },
-              with: withAttachments,
-            })
-            .pipe(Effect.flatMap(decodeChats)),
-        orDieWithSqlError,
-      ),
-      delete: Effect.fn('ChatRepository.delete')(
-        (where) =>
-          db
-            .delete(chats)
-            .where(encodeWhere(chats)(where))
-            .returning({ id: chats.id })
-            .pipe(orDieOnNoRows(`chat ${where.id} was not deleted`)),
-        orDieWithSqlError,
-      ),
+      insert: (chat) => encodeChat(chat).pipe(Effect.flatMap(chats.insert), Effect.orDie),
+      update: (set, where) => chats.update(encodeSet(set), encodeWhere(where)),
+      selectOne: (where) =>
+        chats.selectOne(encodeWhere(where)).pipe(Effect.flatMap(decodeChat), Effect.orDie),
+      selectMany: (where) =>
+        chats.selectMany(where).pipe(Effect.flatMap(decodeChats), Effect.orDie),
+      delete: (where) => chats.delete(encodeWhere(where)),
     }),
   ),
-)
+).pipe(Layer.provide(ChatEntityRepository.layer))

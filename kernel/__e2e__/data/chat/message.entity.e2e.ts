@@ -11,15 +11,13 @@ import { Db } from '#kernel/data/db.client'
 import { users } from '#kernel/data/user/user.table'
 import { DbTest } from '#testing-e2e/db.test-layer'
 
-type MessageRow = typeof MessageEntity.Type
-
 const createdAt = new Date('2026-10-18T00:00:00.123Z')
 const updatedAt = new Date('2026-10-18T00:00:01.456Z')
 
 const userId = '0192d4e0-7b3a-7c00-8000-000000000060'
 const chatId = '0192d4e0-7b3a-7c00-8000-000000000061'
 
-const message = (id: string, fields: Partial<Pick<MessageRow, 'status'>>): MessageRow => ({
+const message = (id: string, fields: Partial<Pick<MessageEntity, 'status'>>): MessageEntity => ({
   id,
   chatId,
   author: 'assistant',
@@ -43,7 +41,7 @@ const insertChatOfUser = Db.use((db) =>
     ),
 )
 
-const insertMessage = ({ attachments: _, ...row }: MessageRow) =>
+const insertMessage = ({ attachments: _, ...row }: MessageEntity) =>
   Db.use((db) => db.insert(messages).values(row))
 
 const selectMessages = Db.use((db) =>
