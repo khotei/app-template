@@ -154,11 +154,6 @@ A step runs through three stages before anything is committed:
    or stop. Approval updates `plan.md`, records any decision, and commits with the proposed
    message.
 
-While a step waits for you, the next one, blocked by it alone, is already built in a worktree on
-top of its diff, and reviewed once the waiting step is committed. A step that changes how the
-repository is laid out (imports, workspaces, guards) first shows you a short before → after
-sketch, and starts on your word.
-
 Pushing, opening the PR and creating the remote each need their own OK.
 
 ### Reading what was built
