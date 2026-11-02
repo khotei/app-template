@@ -1,6 +1,15 @@
-import { and, EmptyFilter, type SQL, sql } from 'drizzle-orm'
+import {
+  and,
+  type Column,
+  EmptyFilter,
+  eq,
+  type GetColumnData,
+  isNull,
+  type SQL,
+  sql,
+} from 'drizzle-orm'
 import { type PgTable, type PgUpdateSetSource, timestamp, uuid } from 'drizzle-orm/pg-core'
-import { Array as Arr, pipe, Struct } from 'effect'
+import { Array as Arr, Option, pipe, Struct } from 'effect'
 
 // Functions, not shared constants: each call returns a fresh builder, because a table names a
 // builder's column the first time it sees it, so a constant reused under another key would keep
@@ -55,6 +64,15 @@ export const buildWhere =
       Struct.keys(columns),
       Arr.map((key) => columns[key](where[key])),
       (conditions) => and(...conditions),
+    )
+
+/** Equals `value`, or `IS NULL` for `null`, which SQL's `=` never matches. */
+export const eqOrIsNull =
+  <TColumn extends Column>(column: TColumn) =>
+  (value: GetColumnData<TColumn, 'raw'> | null): SQL =>
+    pipe(
+      Option.fromNullOr(value),
+      Option.match({ onNone: () => isNull(column), onSome: (some) => eq(column, some) }),
     )
 
 /**

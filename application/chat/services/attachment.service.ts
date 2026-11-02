@@ -38,6 +38,11 @@ export interface AttachmentUpload<E> extends Pick<Attachment, 'mediaType' | 'fil
 /** The user's attachment; another user's reads as absent. */
 export type AttachmentWhere = Types.Simplify<Pick<Attachment, 'id' | 'userId'>>
 
+/** The user's attachments by id; an absent, expired or another user's id fails the read. */
+export type AttachmentGetManyWhere = Types.Simplify<
+  { readonly id: ReadonlyArray<Attachment['id']> } & Pick<Attachment, 'userId'>
+>
+
 /** An attachment unbound for `unboundLifetime` reads as not found; no read deletes it. */
 export class AttachmentService extends Context.Service<
   AttachmentService,
@@ -60,10 +65,9 @@ export class AttachmentService extends Context.Service<
      * The user's attachments in creation order; one `AttachmentNotFoundError` names every absent,
      * expired or another user's id, in the order asked.
      */
-    readonly getMany: (where: {
-      readonly id: ReadonlyArray<AttachmentId>
-      readonly userId: UserId
-    }) => Effect.Effect<ReadonlyArray<Attachment>, AttachmentNotFoundError>
+    readonly getMany: (
+      where: AttachmentGetManyWhere,
+    ) => Effect.Effect<ReadonlyArray<Attachment>, AttachmentNotFoundError>
   }
 >()('@app-template/application/chat/services/AttachmentService', {
   make: Effect.gen(function* () {
@@ -143,10 +147,9 @@ export class AttachmentService extends Context.Service<
       yield* files.delete({ id: [id] })
     })
 
-    const getMany = Effect.fn('AttachmentService.getMany')(function* (where: {
-      readonly id: ReadonlyArray<AttachmentId>
-      readonly userId: UserId
-    }) {
+    const getMany = Effect.fn('AttachmentService.getMany')(function* (
+      where: AttachmentGetManyWhere,
+    ) {
       if (Arr.isReadonlyArrayEmpty(where.id)) return Arr.empty<Attachment>()
       const now = yield* DateTime.now
 

@@ -1,6 +1,14 @@
 import { eq, inArray } from 'drizzle-orm'
-import { Array as Arr, Context, Effect, Layer, type Option, Schema, UndefinedOr } from 'effect'
-import { identity } from 'effect/Function'
+import {
+  Array as Arr,
+  Context,
+  Effect,
+  identity,
+  Layer,
+  type Option,
+  Schema,
+  UndefinedOr,
+} from 'effect'
 
 import {
   buildSet,

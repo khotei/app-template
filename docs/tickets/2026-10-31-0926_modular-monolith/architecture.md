@@ -75,7 +75,7 @@ What may import what (✓ allowed, ✗ refused by Biome; a ✓ still needs the `
 | From ↓ / may import → | another module | a contract | `use-cases` | `kernel/data` | rest of `kernel` | `packages/*` | `http-api` |
 |---|---|---|---|---|---|---|---|
 | a module's `domain/` | ✗ | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
-| a module's `services/` | ✗ | ✓ | ✗ | ✓, but `Db`, `relations`, `migrationsFolder` | `/aws`, but `*FromConfig`, `*OfStage` | `aws`, `db`, `queue` | ✗ |
+| a module's `services/` | ✗ | ✓ | ✗ | ✓, but `Db`, `relations`, `migrationsFolder` | `/aws`, but `*FromConfig`, `*OfStage` | `db`, `queue` | ✗ |
 | a module's `infrastructure/` | ✗ | ✓ | ✗ | ✓ | ✓ | ✓ | ✗ |
 | a contract | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
 | `use-cases` | ✓, through each module's entry | ✓ | — | ✓ | ✗ | ✓ | ✗ |

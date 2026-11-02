@@ -1,4 +1,12 @@
-export { buildSet, buildWhere, createdAt, id, skipUndefined, updatedAt } from '#db/columns'
+export {
+  buildSet,
+  buildWhere,
+  createdAt,
+  eqOrIsNull,
+  id,
+  skipUndefined,
+  updatedAt,
+} from '#db/columns'
 export {
   createDb,
   decodeManyWith,

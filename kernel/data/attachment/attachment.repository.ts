@@ -1,9 +1,10 @@
-import { eq, inArray, isNull } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { Array as Arr, Context, Effect, identity, Layer, type Option, UndefinedOr } from 'effect'
 
 import {
   buildSet,
   buildWhere,
+  eqOrIsNull,
   hasRowPer,
   orDieUnless,
   orDieWithSqlError,
@@ -26,9 +27,7 @@ const encodeSet = buildSet<AttachmentEntitySet, typeof attachments>({
 const encodeWhere = buildWhere<AttachmentEntityWhere>({
   id: (id) => inArray(attachments.id, Arr.ensure(id)),
   userId: UndefinedOr.map((userId) => eq(attachments.userId, userId)),
-  messageId: UndefinedOr.map((messageId) =>
-    messageId === null ? isNull(attachments.messageId) : eq(attachments.messageId, messageId),
-  ),
+  messageId: UndefinedOr.map(eqOrIsNull(attachments.messageId)),
 })
 
 export class AttachmentRepository extends Context.Service<

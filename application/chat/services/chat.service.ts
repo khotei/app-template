@@ -1,14 +1,25 @@
-import { Array as Arr, Context, Crypto, DateTime, Effect, Layer, Struct, type Types } from 'effect'
+import {
+  Array as Arr,
+  Context,
+  Crypto,
+  DateTime,
+  Effect,
+  Layer,
+  Option,
+  Struct,
+  type Types,
+  UndefinedOr,
+} from 'effect'
 import type { RequireAtLeastOne } from 'type-fest'
 
 import type { UserId } from '@app-template/application/identity'
-import { ChatRepository, FileRepository } from '@app-template/kernel/data'
+import { type ChatEntityWhere, ChatRepository, FileRepository } from '@app-template/kernel/data'
 import { generateId } from '@app-template/packages/db'
 
 import { ChatNotFoundError } from '#chat/domain/chat.error'
 import { ChatId } from '#chat/domain/chat.id'
 import { buildChat, type Chat, type ChatTitle, renameChat } from '#chat/domain/chat.model'
-import { decodeChat, decodeChats, encodeChat, encodeChatWhere } from '#chat/services/chat.mapper'
+import { decodeChat, decodeChats, encodeChat } from '#chat/services/chat.mapper'
 
 /** The row found by `id`; every other field named must still hold, so an owner mismatch reads as absent. */
 export type ChatWhere = Types.Simplify<Pick<Chat, 'id'> & Partial<Pick<Chat, 'userId' | 'title'>>>
@@ -20,6 +31,9 @@ export type ChatRenameWhere = Types.Simplify<
 
 /** The user's chat a delete finds. */
 export type ChatDeleteWhere = Types.Simplify<Pick<Chat, 'id' | 'userId'>>
+
+const encodeChatWhere = (where: ChatWhere): ChatEntityWhere =>
+  Struct.evolve(where, { title: UndefinedOr.map(Option.getOrNull) })
 
 export class ChatService extends Context.Service<
   ChatService,

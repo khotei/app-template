@@ -1,11 +1,20 @@
-import { eq, isNull } from 'drizzle-orm'
-import { Array as Arr, Context, Effect, flow, Layer, Option, Schema, UndefinedOr } from 'effect'
-import { identity } from 'effect/Function'
+import { eq } from 'drizzle-orm'
+import {
+  Array as Arr,
+  Context,
+  Effect,
+  identity,
+  Layer,
+  type Option,
+  Schema,
+  UndefinedOr,
+} from 'effect'
 
 import {
   buildSet,
   buildWhere,
   decodeOptionalRow,
+  eqOrIsNull,
   orDieUnless,
   orDieWithSqlError,
   skipUndefined,
@@ -33,15 +42,7 @@ const encodeWhere = (table: typeof chats) =>
   buildWhere<ChatEntityWhere>({
     id: UndefinedOr.map((id) => eq(table.id, id)),
     userId: UndefinedOr.map((userId) => eq(table.userId, userId)),
-    title: UndefinedOr.map(
-      flow(
-        Option.fromNullOr,
-        Option.match({
-          onNone: () => isNull(table.title),
-          onSome: (title) => eq(table.title, title),
-        }),
-      ),
-    ),
+    title: UndefinedOr.map(eqOrIsNull(table.title)),
     status: UndefinedOr.map((status) => eq(table.status, status)),
   })
 

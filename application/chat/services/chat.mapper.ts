@@ -1,10 +1,9 @@
-import { Option, Schema, Struct, UndefinedOr } from 'effect'
+import { Schema } from 'effect'
 
 import { UserId } from '@app-template/application/identity'
 import {
   ChatEntity,
   ChatEntityInsert,
-  type ChatEntityWhere,
   MessageEntity,
   MessageEntityInsert,
 } from '@app-template/kernel/data'
@@ -14,7 +13,6 @@ import { ChatId, MessageId } from '#chat/domain/chat.id'
 import { Chat, ChatTitle } from '#chat/domain/chat.model'
 import { Message, MessageFailure } from '#chat/domain/message.model'
 import { AttachmentFromEntity } from '#chat/services/attachment.mapper'
-import type { ChatWhere } from '#chat/services/chat.service'
 
 // A nested model is laid by its encoded side, since encoding the parent hands it plain fields.
 const attachments = Schema.Array(AttachmentFromEntity.from)
@@ -50,6 +48,3 @@ export const encodeMessage = encodeRowWith(MessageFromEntity, MessageEntityInser
 export const decodeMessage = decodeOptionalWith(MessageFromEntity)
 
 export const decodeMessages = decodeManyWith(MessageFromEntity)
-
-export const encodeChatWhere = (where: ChatWhere): ChatEntityWhere =>
-  Struct.evolve(where, { title: UndefinedOr.map(Option.getOrNull) })

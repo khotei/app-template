@@ -5,6 +5,7 @@ import {
   Data,
   DateTime,
   Effect,
+  flow,
   Layer,
   Option,
   type Types,
@@ -102,7 +103,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
         // The message's write held, so the foreign key still keeps its chat.
         const chat = yield* chats
           .selectOne({ id: settled.chatId })
-          .pipe(Effect.flatMap(decodeChat), Effect.map(Option.getOrThrow))
+          .pipe(Effect.flatMap(decodeChat), Effect.flatMap(flow(Effect.fromOption, Effect.orDie)))
         const ended = yield* end(chat)
         yield* chats.update({ status: ended.status }, { id: chat.id, status: chat.status })
         return settled

@@ -145,8 +145,9 @@ in the e2e), so the transaction runs on the connection `Db` uses. Every method e
 
 A module's services and the use cases call the data layer's repositories through the
 `<Model>FromEntity` mappers of the module's `services/`: a write encodes the model through its
-mapper and decodes the row with `<Name>EntityInsert`, the set and the `where` map each `Option`
-to `null`, and a read decodes the entities into models; a mapping failure dies.
+mapper and decodes the row with `<Name>EntityInsert`, the set takes its fields from that row,
+the service maps each `Option` of a `where` to `null`, and a read decodes the entities into
+models; a mapping failure dies.
 
 Reads go through relational queries (`db.query.<table>.findFirst` and `findMany`), writes
 through the core builder (`db.insert`, `db.update`, `db.delete`). A read of at most one row is a
@@ -165,6 +166,8 @@ type gains without a mapper, and a mapper for a field the table has no column fo
 typecheck. The builders walk the mapper table's keys, so a whole entity passed as a set writes
 only the fields it may change; an absent field maps to `undefined` (`UndefinedOr.map`), which
 Drizzle's `set` and `and` skip.
+A nullable field's mapper is `eqOrIsNull(column)`, which renders `null` as `IS NULL`, since
+SQL's `=` never matches it.
 
 ## Guards
 

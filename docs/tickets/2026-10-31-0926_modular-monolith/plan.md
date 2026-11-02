@@ -47,7 +47,7 @@
 | S39 | `biome.json` keeps only the import rules nothing else holds | done |
 | S40 | R1 names the three answers S38 changed | done |
 | S41 | `packages/` reaches no app ring; the HTTP contract held by a snapshot | todo |
-| S42 | the verification's small fixes in docs, tests and chat's code | todo |
+| S42 | the verification's small fixes in docs, tests and chat's code | done |
 
 ## How to run this plan
 
@@ -1983,9 +1983,24 @@
   test, `generate-assistant-message.use-case.ts`, `chat.mapper.ts`, `chat.service.ts`,
   `attachment.service.ts`, the three repositories in `kernel/data`.
 - **Test first:** none new; every case kept, the moved suite green in its new place.
-- **Verify:** `make check`; `git grep -n 'getOrThrow' -- application`.
+- **Verify:** `make check`; `git grep -n 'getOrThrow' -- application ':!**/__tests__/**'` empty.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Ran in worktree N=2 beside S40 (main tree) and S41 (N=1) on the user's word. Unit 221 cases,
+    e2e 104, as before; the moved suite is a 100% rename.
+  - The written Verify grep matched the tests' `getOrThrow` before and after the fix (lesson L4),
+    so it leaves out `__tests__/`; on HEAD it found the one line in `settleWith`.
+  - `encodeChatWhere` moved into its one caller, the service, not the where types to a third
+    file (`deep-modules.md`); `database.md` now says the service maps a where's `Option`.
+  - Review (round 2): the nullable where was a copy in two repositories, now `eqOrIsNull(column)`
+    beside `buildWhere`, named for the SQL it renders; `jobs.sentAt` keeps `isNull`, its where
+    admits `null` alone. `settleWith` dies on the missing chat alone (`flow(Effect.fromOption,
+    Effect.orDie)`), so a typed error of the read reaches the signature. `AttachmentGetManyWhere`
+    is built from the model and has its doc line. The ticket's matrix row admits `db` and `queue`.
+  - Not taken: `getOne` over `getMany` (Depth, worth exploring): one `orDie` over a one-element
+    list reads worse than the two calls of the liveness rule.
+  - No `/simplify` pass: the step is itself the verification's simplifications.
 
 ## Requirement coverage
 
