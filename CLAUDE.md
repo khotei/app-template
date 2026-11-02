@@ -1,6 +1,6 @@
 # App Template
 
-A chat clone (visitor → message → assistant reply) built as a template for enterprise projects.
+A chat clone (user → message → assistant reply) built as a template for enterprise projects.
 Bun + TypeScript 7 modular monolith; three processes: `apps/api`, `apps/worker`, `apps/web`.
 
 ## Map

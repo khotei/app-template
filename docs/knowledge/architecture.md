@@ -114,7 +114,7 @@ that refuses the row's ✗, a Biome override in `biome.json` whose message names
   `#services/*`; a service reaches the outside world only through a port its `domain/` declares,
   and an adapter reaches its own module through `#domain/*`, never the package's name.
 - **An app's handler** calls one service method or one use case: it imports no repository and no
-  mapper (`<Name>FromEntity`, `encode<Name>`, `decode<Name>`); only the process's `layer.ts`
+  mapper (`<Model>FromEntity`, `encode<Model>`, `decode<Model>`); only the process's `layer.ts`
   provides the data layer. The apps never import each other or `deployment`:
   [Independent apps](decisions.md#independent-apps).
 - **A module's `domain/` and a contract import only `effect`** (and `type-fest` for types), and
@@ -260,7 +260,8 @@ export class DeleteUserUseCase extends Context.Service<DeleteUserUseCase, {
 
 An entity is the data layer's record; its model is the module's. Follow the `chat` slice from the
 data outward, write each test before its code and run `make check` after each step. `<entity>` is
-the kebab name (`document`), `<Name>` the Pascal one.
+the kebab name (`document`), `<Name>` the Pascal one of the data layer's names, `<Model>` the
+model's.
 
 1. **The data.** `kernel/data/<store>/`, a store's folder (messages share `chat/`):
    `<entity>.table.ts` (the table), `<entity>.entity.ts` (`<Name>Entity` with its `Insert`,
@@ -276,11 +277,11 @@ the kebab name (`document`), `<Name>` the Pascal one.
 2. **The model.** `application/<module>/domain/`: `<entity>.id.ts`, `<entity>.model.ts` (a
    `Schema.Class` with its pure operations; time and ids come in as input), `<entity>.error.ts`,
    tested in `application/<module>/__tests__/domain/`.
-3. **The mapper.** `application/<module>/services/<entity>.mapper.ts`: `<Name>FromEntity` lays the
+3. **The mapper.** `application/<module>/services/<entity>.mapper.ts`: `<Model>FromEntity` lays the
    model's schemas over the entity's fields; its round trip through Postgres, with the model's
    extreme values, goes in `apps/__e2e__/mappers/`, so a limit both sides declare cannot drift
    ([Checks kept in the tables](decisions.md#checks-kept-in-the-tables)).
-4. **The service.** `application/<module>/services/<entity>.service.ts`: `<Name>Service` over the
+4. **The service.** `application/<module>/services/<entity>.service.ts`: `<Model>Service` over the
    repository, the one owner every handler goes through, tested over the memory repositories.
    The layers' barrels re-export the new files.
 5. **The flows.** A flow over two services or a job is a [use case](#a-use-case); asynchronous

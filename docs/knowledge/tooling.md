@@ -135,13 +135,13 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
 
 | | `--hot` (`api`, `web`) | `--watch` (`worker`) |
 |---|---|---|
-| On change | re-evaluates modules inside the running process | re-executes the process into a fresh runtime |
+| On change | re-evaluates the changed files inside the running process | re-executes the process into a fresh runtime |
 | PID | the same | may stay the same: Bun restarts by `exec` |
 | `globalThis` | survives | reset |
-| Module state (the in-memory repository) | rebuilt, so data is lost | rebuilt |
+| Top-level state of a file (a cache, a counter) | rebuilt, so data is lost | rebuilt |
 | Timers and open connections | survive the reload | gone |
 
-Checked by experiment: a module that bumps a counter on `globalThis` and starts a `setInterval`
+Checked by experiment: a file that bumps a counter on `globalThis` and starts a `setInterval`
 logging it. After one edit under `--hot`, the counter read 2 and **both** intervals kept ticking,
 the old code next to the new one, with the PID unchanged. Under `--watch` the counter read 1 and
 only the new interval ran.
@@ -332,7 +332,7 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 | `TS6059 … is not under 'rootDir'` and `TS6307 … is not listed within the file list of project` | a relative path reaches into another workspace that is not referenced | import it as `@app-template/<name>/…`; relative paths are banned anyway |
 | Biome `lint/style/noRestrictedImports`: `… (decisions.md › <record>)` | the import points outward or across a ring or layer, into a sibling app, or a module's `domain/` imports an `@effect/*` package | read the named record in [decisions.md](decisions.md); move the shared code down a layer, or receive it as an argument; in a module's `domain/`, use an `effect` module; see [architecture.md](architecture.md#dependency-rules) |
 | Biome `noRestrictedImports`: `… never a relative path` | a `./` or `../` import inside a workspace | use `#<workspace>/<path>`, for example `#domain/chat.model` |
-| Biome `lint/suspicious/noImportCycles`: `This import is part of a cycle` | two modules import each other, typically two aggregates' models through their ids | import the other aggregate's id from its `<aggregate>.id.ts`, never its model |
+| Biome `lint/suspicious/noImportCycles`: `This import is part of a cycle` | two files import each other, typically two aggregates' models through their ids | import the other aggregate's id from its `<aggregate>.id.ts`, never its model |
 | Biome `assist/source/organizeImports`: `Sort these imports.` | import groups out of order or without blank lines between them | `make fmt` |
 | a commit is rejected after `tsc` or Biome output | the `pre-commit` hook failed | fix the reported error, `git add`, and commit again |
 | a push is rejected after test output | the `pre-push` hook failed | fix the tests; never use `--no-verify` |

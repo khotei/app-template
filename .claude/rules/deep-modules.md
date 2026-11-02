@@ -43,8 +43,8 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
   miss is a lost race; a `boolean`, rows or a domain error adds an error mode to every caller.
   An object store's writes are idempotent and cannot tell a missing object, so they never die on
   one. A write that measures what it stores (a stream's byte count) answers the measure.
-- One shape per entity: a related model is a field the same relational query fills, never a
-  second type (`<Entity>Detail`, `<Entity>With<Thing>`); an option never changes the answer's type.
+- One shape per entity: a related entity is a field the same relational query fills, never a
+  second type (`<Name>EntityWith<Thing>`); an option never changes the answer's type.
 - The filter lives in the `where`, a relation in the database (`ON DELETE CASCADE`), never in code
   after the read.
 - Adapters stay small through shared mappers from each `where` and set field to its column; a
@@ -66,8 +66,8 @@ return shipped                                            // the value built, ne
   that need a read (an owner check, a cascade with its side effects).
 - Two methods that differ by their `where` or `set` are one, taking them from the caller, with
   arguments as narrow as the fields it uses.
-- A copy per entity is one function over the varying part: an id maker given the brand, one
-  status vocabulary each entity picks a subset of, one status predicate built from a pick.
+- A copy per model is one function over the varying part: an id maker given the brand, one
+  status vocabulary each model picks a subset of, one status predicate built from a pick.
 - After a write, answer the value the pure function built; never re-read it or re-check what the
   write's guard checked.
 - A value another table implies is a column moved by transitions in the transactions that change

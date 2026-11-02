@@ -15,16 +15,16 @@ paths:
   generator is for a body with more than one step. Extra arguments to `Effect.fn` are the
   pipeables every call runs through (`transaction.run`).
 - The variable holding an `Effect.fn` is named after the span's last segment; a reserved word
-  gets its plain synonym (`remove` for `'<Entity>Service.delete'`), never an entity suffix, since
-  `'<Service>.<method>'` already names the entity. A method that needs the entity in its name
+  gets its plain synonym (`remove` for `'<Model>Service.delete'`), never a model suffix, since
+  `'<Service>.<method>'` already names the model. A method that needs the model in its name
   is often doing a neighbouring service's work: look there before accepting the name.
 - A module-level function that another module composes states its `Effect.fn.Return<A, E, R>`
   on the generator, so the contract is read in one line; a helper used once stays inferred,
   since the annotation drifts on refactors.
 - A pure builder that cannot fail returns the model itself, not an `Effect`.
 - A pure transition (`naming.md`) checks its source through one shared table of allowed sources and
-  fails one `<Entity>StatusInvalidError { id, from, to }`; a transition is one row and one call.
-  One whose refusal reaches the user maps that error to its own (`<Entity>BusyError`), so the
+  fails one `<Model>StatusInvalidError { id, from, to }`; a transition is one row and one call.
+  One whose refusal reaches the user maps that error to its own (`<Model>BusyError`), so the
   contract names the refusal and the table still holds the rule.
 
 ## Services

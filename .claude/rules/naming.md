@@ -8,7 +8,7 @@ paths:
 
 ## Imports
 
-- **Inside a workspace:** `#<workspace>/<path>` (`#domain/<entity>.model`), never `./`
+- **Inside a workspace:** `#<workspace>/<path>` (`#domain/<model>.model`), never `./`
   or `../`.
 - **Across workspaces:** `@app-template/<workspace>[/<subpath>]`, through the `exports` and the
   `index.ts` barrels; `http-api` and each package one entry, the subpaths of the others:
@@ -18,7 +18,7 @@ paths:
 
 ## Files
 
-Source files are `kebab-case`, `<entity>.<role>.ts` with one role suffix and `<entity>` singular
+Source files are `kebab-case`, `<name>.<role>.ts` with one role suffix and `<name>` singular
 like its folder; a file with no role keeps a bare name (`layer.ts`), a tool's config the name its
 tool reads.
 
@@ -27,7 +27,7 @@ tool reads.
 | `.id` | the aggregate's branded ids, the only value another aggregate's model imports, save a model it holds as a field it never writes; a port may `import type` another aggregate's model | domain |
 | `.model` · `.error` | `Schema.Class`es with the pure operations on them (builders, predicates, guards, transitions), split by the value they act on, never into a `.rule` · domain errors | domain |
 | `.port` | a module's ports, `Context.Service`s with no layer, beside the values they take and answer; never a store's, which the data layer's repository serves | domain |
-| `.service` | a domain service: `<entity>.service.ts` for an entity's rules, `<operation>.service.ts` for one operation that belongs to no entity | a module's `services/` |
+| `.service` | a domain service: `<model>.service.ts` for a model's rules, `<operation>.service.ts` for one operation that belongs to no model | a module's `services/` |
 | `.use-case` | a flow over domain services: `<verb>-<object>.use-case.ts` | application |
 | `.handler` | api: one contract group's handlers · worker: `<object>.handler.ts`, one queue's `handle` and `handleDeadLettered` over a use case | apps |
 | `.repository` · `.llm` · `.queue` | the data layer's access to a store (a table or an object store), `<Name>Repository` over its entities · `LanguageModel`, with the prompts · queue definitions and their job schemas | `kernel/data` · a module's `infrastructure` · a module's `services` |
@@ -50,16 +50,17 @@ barrels instead of copying them. Which folder, which support and which suite run
 
 ## Symbols
 
-- Types are `PascalCase` `<Entity><Role>` (`<Entity>Repository`), errors `<Entity><Problem>Error`
-  in every workspace, a use case `<Verb><Object>UseCase`. A domain service is named by its entity
-  (`<Entity>Service`), or, for one operation of no entity, by that operation alone.
+- Types are `PascalCase` `<Name><Role>` (`<Name>Repository`), a domain error
+  `<Model><Problem>Error`, a port's `<Port><Problem>Error`, a use case `<Verb><Object>UseCase`. A
+  domain service is named by its model (`<Model>Service`), or, for one operation of no model, by
+  that operation alone.
 - Functions are verb-first, and the verb marks the kind of work:
   - `create<Thing>`: a factory that wires dependencies;
   - `layer<Variant>`: a static that builds one variant of the service's `Layer`
     (`effect-services.md › Layers`); a `Layer` that runs work is named for it;
   - `build` / `ensure`: a pure function that derives a value or guards an invariant
-    (`build<Entity>`); a pure transition is named for the status it moves to, as a verb
-    (`ship<Entity>` to `shipped`; `complete<Entity>` to `done`, which no verb spells), which wins
+    (`build<Model>`); a pure transition is named for the status it moves to, as a verb
+    (`ship<Model>` to `shipped`; `complete<Model>` to `done`, which no verb spells), which wins
     over this list;
   - `generate`: an impure function that makes a fresh value (`generateId` in `@app-template/db`);
   - `is` / `has`: a predicate;
@@ -70,6 +71,6 @@ barrels instead of copying them. Which folder, which support and which suite run
 - Constants are `camelCase`, `as const` for literal objects and arrays; a `Layer` constant is
   `PascalCase`, for a service declared elsewhere `<Service><Variant>` (`<Port>S3`).
 - Every test-only layer ends in `Test`: a repository's or port's fake is `<Service>Test`; a test
-  layer is `<Entity>Test`, the entity's real services over fakes (`layer<Entity>Test(…)` with
-  options). A stateful fake `<verb><Thing>()` returns `{ <handle>, layer }`; `<Entity>Rows` holds
+  layer is `<Model>Test`, the model's real services over fakes (`layer<Model>Test(…)` with
+  options). A stateful fake `<verb><Thing>()` returns `{ <handle>, layer }`; `<Name>Rows` holds
   a memory layer's rows.

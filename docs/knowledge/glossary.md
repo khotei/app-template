@@ -41,7 +41,7 @@ _Avoid_: Pending message, current reply
 
 **Status**:
 The one vocabulary of states in flight: `idle` waits for work, `queued` has work in flight,
-`preparing` and `generating` run it, `done` and `failed` end it. Every entity with a status picks
+`preparing` and `generating` run it, `done` and `failed` end it. Every model with a status picks
 its subset of `Status` (the chat, the message), and a check on one value reads the shared
 predicate (`isQueued`).
 _Avoid_: State, stage; a new word for one of the six
@@ -68,46 +68,82 @@ attachment in its place.
 _Avoid_: Template variable, token, embed, slot
 
 **Assistant**:
-The language-model side of a chat, as the user sees it. The model behind it is a provider's
-artefact and is named only in a module's `infrastructure/`.
+The language-model side of a chat, as the user sees it. The language model behind it is a
+provider's artefact and is named only at the boundary: `kernel/llm` and a module's
+`infrastructure/`.
 _Avoid_: Bot, AI, agent, model
 
 **Provenance**:
 Who the api expects to answer a reply and with which instructions: the configured provider and
 reply model and a hash of the system prompt with the reply schema. It travels in the reply's job
-and stays in the table `jobs` once sent; the message never carries it, and the worker may run another
-model while a deploy rolls out. For operators only; no api response carries it.
+and stays in the table `jobs` once sent; the message never carries it, and the worker may run
+another language model while a deploy rolls out. For operators only; no api response carries it.
 _Avoid_: Metadata, model info, source, origin
 
 ## Architecture language
 
-The words the layers, rules and tickets use for the shape of the code. Each has one meaning here;
-the `_Avoid_` lists name the synonyms the sources use that we do not.
+The words the rings, layers, rules and tickets use for the shape of the code. The code is cut in
+three rings, the data layer at the centre, the application around it and the boundary outside,
+and every dependency points inward. Each word has one meaning here; the `_Avoid_` lists name the
+synonyms the sources use that we do not.
+
+**Entity**:
+A record as the data layer reads and writes it, derived from its table in the data layer's own
+types (`ChatEntity`, with its `Insert`, `Where` and `Set`): the one shape every read of its store
+returns. Never a model; a module's mapper turns it into one.
+_Avoid_: Model, row type, record class, DTO
+
+**Data layer**:
+The ring at the centre, `kernel/data`: one `Db` over every table and relation, the migrations,
+and a repository per store (a table, the attachments' objects, the jobs), all in entities. It
+holds no rule, knows no module and takes its clients from the context; every module reads and
+writes it.
+_Avoid_: Persistence layer, DAL, repository layer, shared domain
 
 **Application**:
-Every business rule of the app, under `application/`: the modules and, above them, the use cases
-that compose them. The kernel binds it to the outside world; the apps run it.
+The ring of the behaviour, under `application/`: the modules and, above them, the use cases that
+compose them. It holds every business rule; the data layer stores what it decides, the boundary
+connects it to the world, and the apps run it.
 _Avoid_: Application layer, app (a process under `apps/`), business layer
 
 **Module**:
-A business capability whose mission fits one sentence. It owns its rules, its tables and its
-adapters in its `domain/` and `infrastructure/`, imports no other module but through its module
-contract, and never imports the use cases. Never one per table or per aggregate.
+A business capability whose mission fits one sentence, a workspace under `application/`: its
+models, rules, errors and ports in `domain/`, its domain services, mappers and queue definitions
+in `services/`, the adapters of its ports in `infrastructure/`. Its records live in the data
+layer. It imports another module only through that module's contract, and never the use cases.
+Never one per table or per aggregate.
 _Avoid_: Component, core, slice, feature folder, bounded context, service
 
 **Module contract**:
-The part of a module other modules may depend on: its ids, its errors and the shapes they carry,
-with no implementation.
+The part of a module other modules may depend on, a workspace nested in the module's folder
+(`application/identity/contract/`): its ids, its errors and the shapes they carry, with no
+implementation. A dependency on a contract is a dependency on its module, so two modules that
+import each other's contracts form a cycle.
 _Avoid_: Public API, interface, SDK, client
 
+**Use case**:
+One scenario that composes domain services, of one module or several, with the files, the jobs,
+the assistant or one transaction; what a handler calls when a flow is more than one service
+method. Every use case lives in `application/use-cases`, above the modules, so a flow that spans
+modules is one too: it calls each module's rules, holds none of its own, and may commit their
+writes in one transaction.
+_Avoid_: Interactor, orchestrator, workflow, application service, job
+
+**Boundary**:
+The outer ring, everything that touches the world outside the process: the kernel's configured
+clients, each module's `infrastructure/`, `http-api` and the apps, which assemble the layers and
+provide the clients.
+_Avoid_: Edge, shell, outer layer, infrastructure layer
+
 **Aggregate**:
-The entities whose records change together under one invariant: a chat with its messages, an
-attachment, a user. Each entity of it has its own domain service.
+The models whose records change together under one invariant: a chat with its messages, an
+attachment, a user. Each model of it has its own domain service.
 _Avoid_: Entity group, root, aggregate root
 
 **Model**:
-The `Schema.Class` of an entity as the domain sees it (`Chat`, `Message`).
-_Avoid_: Entity (for the class), DTO, row
+The `Schema.Class` of a domain concept as its module sees it, with its pure operations (`Chat`,
+`Message`). Not the language model, which keeps both words.
+_Avoid_: Entity, DTO, row
 
 **Port**:
 A contract the domain declares for what it needs from outside the process (the assistant), in
@@ -121,17 +157,10 @@ An implementation of a port over a client, in a module's `infrastructure/`: the 
 _Avoid_: Implementation, provider, DAO, store
 
 **Domain service**:
-The owner of one entity's rules and the only writer of its records. It is named by its entity
-(`ChatService`); one that holds a single operation belonging to no entity is named by that
+The owner of one model's rules: every write a rule guards goes through it. It is named by its
+model (`ChatService`); one that holds a single operation belonging to no model is named by that
 operation, without `Service` (`FundsTransfer`).
 _Avoid_: Manager, helper, application service, business logic, service layer
-
-**Use case**:
-One scenario that composes domain services with the bucket, the queue, the assistant or one
-transaction; what a handler calls when a flow is more than one service method. Every use case
-lives in the use-case workspace of the application, above the modules, so a flow that spans modules is one too and
-may commit their writes in one transaction.
-_Avoid_: Interactor, orchestrator, workflow, application service, job
 
 **Handler**:
 The entry point of one request or one job in an app.
@@ -152,27 +181,29 @@ A message on a queue that asks the worker for one unit of work, shaped by its qu
 _Avoid_: Task, event, command, message (the chat's word)
 
 **Kernel**:
-The application's foundation: the tools of `packages/*` configured for this app (its config, its
-resources, its database with the migrations, its queue and language-model clients). It holds no
-business rule and knows no module; each of its packages declares whether it runs in the browser.
+The workspace `kernel/`: the data layer at its centre, and around it the tools of `packages/*`
+configured for this app (its config, its Postgres client and migrate program, its AWS clients
+and inventory, its queue's transport and relay, its language model). It holds no business rule
+and knows no module.
 _Avoid_: Shared kernel, common, core, shared, utils, platform
 
 **Package**:
-A tool under `packages/*` that is configured by its caller and knows no app, so it would work in
-another project unchanged; the kernel configures it for this one.
+A workspace under `packages/*`: a tool configured by its caller that knows no app, so it would
+work in another project unchanged. Every ring may use it; the kernel configures it for this one.
 _Avoid_: Library (for a workspace), lib, helper, kernel
 
 **Unit test**:
-A test of a domain service, a use case or a handler over memory layers of its ports, needing no
-process outside the test runner.
+A test of a domain service, a use case or a handler over memory layers, needing no process
+outside the test runner.
 _Avoid_: Fast test, isolated test, mock test
 
 **E2E test**:
-A test over the containers the run starts (Postgres, MiniStack): of an adapter, of the transaction
-a use case runs, or of the journey through both apps.
+A test over the containers the run starts (Postgres, MiniStack): of a repository, of an adapter,
+of the transaction a use case runs, or of the journey through both apps.
 _Avoid_: Integration test, system test, functional test
 
 **Memory layer**:
-A layer of a port over a `Ref<HashMap>` in its workspace's `__tests__/testing/`, one per port; the
-unit tests' only double of a port.
+A layer of a repository or a port over a `Ref<HashMap>`, one per service: the repositories' in
+the kernel's `__tests__/testing/`, over the same entities as the real ones, the others' in the
+`__tests__/testing/` of the workspace that declares the service. The unit tests' only double.
 _Avoid_: Mock, stub, in-memory repository

@@ -14,12 +14,12 @@ The goal is code that reads top to bottom and extends by adding a row, not a bra
   `cancelOrder(order, { reason, cause, at })`.
 - More than two stay positional only where the types tell them apart: a service `Shape` method
   whose leading parameters are branded ids (`placeOrder(userId, cartId, input)`).
-- A repository write takes what it writes (the entity, or an `<Entity>Set` of the fields it
-  changes), then an `<Entity>Where` of the fields the stored row must still hold, both typed from
-  the model and passed as values, not an options bag, so the call reads as the SQL it runs:
+- A repository write takes what it writes (the entity, or a `<Name>EntitySet` of the fields it
+  changes), then a `<Name>EntityWhere` of the fields the stored row must still hold, both typed
+  from the entity and passed as values, not an options bag, so the call reads as the SQL it runs:
   `orders.update({ updatedAt: at }, { id })`, `orders.update(shipped, { status: order.status })`.
 - Destructure an object whose fields come from different things (`{ reason, cause, at }`) in the
-  parameter list; keep an entity or a proof value whole, so the reader sees whose field it is.
+  parameter list; keep a model or a proof value whole, so the reader sees whose field it is.
 
 ## Control flow
 

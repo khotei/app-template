@@ -46,9 +46,9 @@ paths:
 - A helper earns its place only when several tests get clearly longer without it. A small problem
   (time, isolation, ordering) changes the test or drops the minor assertion, never adds a helper
   that patches another ([tooling.md › Tests](../../docs/knowledge/tooling.md#tests)).
-- A test reads its services from the context (`yield* <Entity>Service`) under a layer it provides
-  (`Effect.provide(<Entity>Test)`), never through a callback runner.
-- Every support file is `<entity>.test-<role>.ts` and every test-only layer ends in `Test`, so
+- A test reads its services from the context (`yield* <Model>Service`) under a layer it provides
+  (`Effect.provide(<Model>Test)`), never through a callback runner.
+- Every support file is `<name>.test-<role>.ts` and every test-only layer ends in `Test`, so
   `**/*.test-*.ts` and `\w+Test\b` find them all; where they live: `naming.md › Files`.
 
 ## Resources and time
@@ -67,14 +67,14 @@ paths:
 
 - Write Effect tests with `@effect/vitest`: `it.effect` for an effect, `Effect.flip` to inspect a
   failure, `assert` from the same package.
-- Compare a failure whole, with `assertSchemaEquals(<Entity><Problem>Error, error,
-  new <Entity><Problem>Error({ … }))` from `@app-template/testing`: the schema is the expected
+- Compare a failure whole, with `assertSchemaEquals(<Model><Problem>Error, error,
+  new <Model><Problem>Error({ … }))` from `@app-template/testing`: the schema is the expected
   error's own class (`Schema.Array(<Class>)` for a list). It compares encoded forms: Bun puts
   its own position keys on an `Error`, so `Equal.equals` (`assertEquals`) fails at random on two
   equal errors. Never `assert.deepStrictEqual` on an `Error`: chai judges it by its message alone,
   so two errors with different fields pass.
 - A model fixture passes `DateTime` values: `Schema.DateTimeUtc` decodes a `DateTime`, not an ISO
-  string. Ids in fixtures are `<Entity>Id.make('<uuid>')`.
+  string. Ids in fixtures are `<Model>Id.make('<uuid>')`.
 - Run the cases of one rule with `it.effect.each` over objects (a name template over `$field`),
   never a `for` loop around `it` or a lookup by key.
 - When a test checks logging, assert the level with the message.

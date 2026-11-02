@@ -15,7 +15,7 @@ Where a flow lives. Words: `docs/knowledge/glossary.md › Architecture language
 - **A repository is the data layer's, with no port in front:** a service calls
   `<Name>Repository` from `@app-template/kernel/data/<store>` in entities and maps them with the
   `<Model>FromEntity` of its module's `services/`.
-- **A domain service owns its entity's records for every caller above it:** the rules that need
+- **A domain service owns its model's records for every caller above it:** the rules that need
   a repository or a port (a check over stored rows, a refusal named after a read) and the plain
   reads and writes a handler asks for (a list, a create, a record by key with its
   `*NotFoundError`).

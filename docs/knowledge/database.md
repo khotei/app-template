@@ -156,8 +156,8 @@ query states its intent; `decodeOptionalRow(<Name>Entity)` from `@app-template/d
 row it found, or answers `Option.none()` for the `undefined` or `null` of none. A filter on a
 relation (`{ credentials: { kind, hash } }`) renders as `exists (…)`.
 
-A write of some fields under a condition maps its `<Entity>Set` and `<Entity>Where` onto the
-table through `packages/db/columns.ts`, one mapper per field.
+A write of some fields under a condition maps its `<Name>EntitySet` and `<Name>EntityWhere` onto
+the table through `packages/db/columns.ts`, one mapper per field.
 `buildSet<Fields, Table>(columns)` takes a `SetColumns<Fields, Table>`, each mapper typed by the
 table's column (`PgUpdateSetSource<Table>`), and answers the row Drizzle's `set` takes;
 `buildWhere<Fields>(columns)` takes a `WhereColumns<Fields>`, each mapper answering
@@ -222,9 +222,9 @@ never expired: the price of a delete with no transaction.
 A use case that writes several aggregates commits them together: `Transaction.run` is a pipeable
 of the `Effect.fn` that holds the writes (`Transaction.layer` in `packages/db/db.client.ts`
 wraps `SqlClient.withTransaction`), and every repository call inside joins the transaction
-through the connection `@effect/sql` keeps in the fiber's context, so no port takes a transaction
-parameter. `SendMessageUseCase.send` writes the chat's `status`, the user message, the binds, the
-reply and its jobs, or none of them. The guards above then decide every race inside
+through the connection `@effect/sql` keeps in the fiber's context, so no repository takes a
+transaction parameter. `SendMessageUseCase.send` writes the chat's `status`, the user message,
+the binds, the reply and its jobs, or none of them. The guards above then decide every race inside
 Postgres, with no lock in the process: of two sends to one chat the second waits on the chat's
 row lock and, once the first commits, finds the chat `queued`, and of two binds of one
 attachment the second waits on the attachment's row lock and finds it bound. Two api processes behave as two
@@ -274,19 +274,19 @@ which inserts a job, selects the unsent ones and sets their `sentAt`.
 
 ## Migrations
 
-The schema changes only through SQL migrations that drizzle-kit generates from the entity files
+The schema changes only through SQL migrations that drizzle-kit generates from the table files
 and that are committed.
 
 | Command | Does |
 |---|---|
-| `make migration NAME=<name>` | `drizzle-kit generate --config kernel/data/drizzle.config.ts` from the root, whose paths it resolves against the working directory: compares the entity files with the last snapshot and writes `kernel/data/migrations/<timestamp>_<name>/` (`migration.sql`, `snapshot.json`); needs no database |
+| `make migration NAME=<name>` | `drizzle-kit generate --config kernel/data/drizzle.config.ts` from the root, whose paths it resolves against the working directory: compares the table files with the last snapshot and writes `kernel/data/migrations/<timestamp>_<name>/` (`migration.sql`, `snapshot.json`); needs no database |
 | `make migrate` | applies the pending migrations to `DATABASE_URL` through `migrateDatabase(folder)` on `DatabaseConfig`; with none pending it logs `nothing to apply`; while the database refuses connections it retries, logging `database not reachable yet, retrying`; any other failed connection or query logs its cause at once |
 | `make migration-check` | generates into the folder and fails, printing the missing SQL, if a new folder appeared; it removes that folder |
 
 - **`make migration-check` is soft locally and strict in CI.** In `make check` it counts every
   folder in the tree, committed or not, so a step that adds a migration stays green before its
   commit. CI runs it on a fresh checkout, which holds only committed migrations, so there an
-  entity changed without a committed migration fails the build.
+  table changed without a committed migration fails the build.
 - Commit `migration.sql` and `snapshot.json` together. The ledger `drizzle.__drizzle_migrations`
   records each migration once, so an edit never reaches a database that already applied it.
 - **Until a deployed database holds data, the migrations stay one `init`.** A change that

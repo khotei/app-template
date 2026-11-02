@@ -28,7 +28,7 @@
 | S20 | the decisions document and the modules review rule | done |
 | S21 | the Biome guards per ring and layer | done |
 | S22 | `architecture.md` rewritten for the rings | done |
-| S23 | the glossary, the `<Model>` placeholders, the roadmap and the remaining pages | todo |
+| S23 | the glossary, the `<Model>` placeholders, the roadmap and the remaining pages | done |
 
 ## How to run this plan
 
@@ -1148,7 +1148,24 @@
   `git grep -nP "@app-template/(domain|infrastructure|application|config|e2e)\b|packages/config/" -- '*.md' ':!docs/tickets'`
   finds nothing.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - A placeholder follows what it names: `<Model>` for a domain name, its mapper
+    (`<Model>FromEntity`) and its domain service (`<Model>Service`); `<Name>Entity…`,
+    `<Name>Repository` and `<Name>Rows` for the data layer; `<Port><Problem>Error` for a port's
+    error; `<name>` for a file name both rings share.
+  - The glossary's domain service no longer "owns its model's writes": any module writes any
+    record ("Records open, rules called"); `layering.md`'s "owns its model's records for every
+    caller above it" is the S17 decision and stays.
+  - Beyond the Files: `application/CLAUDE.md`, `layering.md` and `CLAUDE.md` (placeholders and
+    "visitor" → "user"), `docs/knowledge/architecture.md` (its mapper and service placeholders),
+    the roadmap's intro and its `web-app` and `client-publishing` entries.
+  - `ai.md` needed nothing: it names nothing gone (checked with the Verify greps).
+  - Kept: the lowercase `<entity>` in `architecture.md`, a file name of the data layer;
+    `.github/PULL_REQUEST_example.md`, a copy of a real merged PR; the roadmap's history lines
+    that say "visitor".
+  - Round S23.2 (review: placeholders, "visitor", the domain service's writes).
+  - Size: 19 files, +219 / −153.
 
 ## Requirement coverage
 

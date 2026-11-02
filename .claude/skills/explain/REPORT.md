@@ -13,8 +13,9 @@ Three to five sentences: what was built, how it sits in the system, what to hold
 
 ### 2. Карта изменений
 
-A Mermaid `flowchart LR` of the modules in scope and their neighbours. One `subgraph` per layer
-(`application`, `kernel`, `http-api`, `apps`, `packages`), so the import direction is visible.
+A Mermaid `flowchart LR` of the files in scope and their neighbours. One `subgraph` per ring (the
+data `kernel/data`; the behaviour `application`; the boundary: the rest of `kernel`, a module's
+`infrastructure/`, `http-api`, `apps`) and one for `packages`, so the inward direction is visible.
 `A --> B` means "A depends on / calls B"; label the edge when the relation is not obvious
 (`-->|"enqueues job"|`).
 
@@ -28,14 +29,14 @@ diagram per subsystem.
 
 ### 3. Основной поток
 
-A Mermaid `sequenceDiagram` per scenario the change adds or alters (request → handler → service →
-port → adapter → response; or job polled → step → store). At most three; name each with the
-requirement it serves (`R21`).
+A Mermaid `sequenceDiagram` per scenario the change adds or alters (request → handler → use case
+→ service → repository, or port → adapter → response; or job polled → step → store). At most
+three; name each with the requirement it serves (`R21`).
 
 ### 4. Сущности
 
-For each new or substantially changed module (service, handler, layer, schema, job, port,
-repository), in dependency order:
+For each new or substantially changed service, handler, layer, schema, job, port, repository,
+entity or model, in dependency order:
 
 **`Name`** — `path/to/file.ts`
 - **Имя:** why it is called this; the glossary term it carries, if any.
@@ -70,8 +71,10 @@ Mandatory when the scope has `.ts` files.
 
 ### 6. Решения, уже принятые
 
-The `D…` of `architecture.md` and the `Decision:` paragraphs of the commits in scope, each in plain
-words with its rejected alternative, cited (`D32`, `f20c6a0`). No new decisions are derived here.
+The `D…` of `architecture.md`, the records of `docs/knowledge/decisions.md` the scope touches and
+the `Decision:` paragraphs of the commits in scope, each in plain words with its rejected
+alternative, cited (`D32`, `decisions.md › <record>`, `f20c6a0`). No new decisions are derived
+here.
 
 ### 7. Контракты
 

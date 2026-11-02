@@ -30,7 +30,7 @@ update it.
 - **No behaviour narration**: no per-function descriptions, signatures or test walkthroughs.
 - **One author per fact**: if another doc states it, link it by name; never restate it.
 - **Write the pattern, not the instance,** so a refactor leaves the rule true: placeholders
-  (`<Entity>Repository`, `<verb>-<object>`) and a short neutral snippet in a fence (an `Order`, not
+  (`<Name>Repository`, `<verb>-<object>`) and a short neutral snippet in a fence (an `Order`, not
   a model of this app). A live name only for a stable anchor: a workspace, a `make` target, a
   library API, the template's own infrastructure (the transaction, the queue client, the test
   harnesses). Never list what `ls` or `grep` reproduces; `make doc-names` fails on a backticked

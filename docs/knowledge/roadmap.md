@@ -1,6 +1,6 @@
 # Roadmap
 
-The tickets that turn this repository into **App Template**: a chat clone (visitor → message →
+The tickets that turn this repository into **App Template**: a chat clone (user → message →
 assistant reply, with attachments) built as a worked example of an Effect v4 modular monolith on
 Bun, with Postgres, AWS and Pulumi, so that a new enterprise project starts from it in minutes.
 
@@ -55,7 +55,7 @@ graph LR
 | 20 | [`context-window`](#20-context-window) | `feat` | 6 | planned |
 | 21 | [`bedrock-provider`](#21-bedrock-provider) | `feat` | 6, 9 | planned |
 | 22 | [`jobs`](#22-jobs) | `feat` | 4, 23 | planned |
-| 23 | [`modular-monolith`](#23-modular-monolith) | `refactor` | 15 | in progress: [docs/tickets/2026-10-31-0926_modular-monolith/](../tickets/2026-10-31-0926_modular-monolith/feature.md) |
+| 23 | [`modular-monolith`](#23-modular-monolith) | `refactor` | 15 | done: [docs/tickets/2026-10-31-0926_modular-monolith/](../tickets/2026-10-31-0926_modular-monolith/feature.md) |
 | 24 | [`attachment-storage-failures`](#24-attachment-storage-failures) | `fix` | 23 | planned |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; its remaining work is re-homed
@@ -301,8 +301,11 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   The visitor cookie is the user cookie of `chat-core`'s `CurrentUser` security.
 - **Inherited from `architecture-audit`.** `make bundle-check` builds `apps/web/app/main.ts` with
   `bun build` and greps the bundle for service keys ending in `Service`, `Repository`, `Bucket` or
-  `Assistant`. On the new bundler: rebuild its command, clear the output dir before each build,
-  decide whether any `@app-template/(domain|infrastructure)/` key fails it, and run it in CI's
+  `Assistant`; `modular-monolith` (23) replaced the suffixes with key paths: every key of the
+  kernel, of the use cases and of a module's `services/` and `infrastructure/`, and of its
+  `domain/` only the port keys
+  ([architecture.md › Boundary guards](architecture.md#boundary-guards)). On the new bundler:
+  rebuild its command, clear the output dir before each build, keep that grep, and run it in CI's
   `static` job.
 - **Facts (2026-10-17).** `@tanstack/react-start@1.169.3` (router 1.170, Vite ≥ 8, React 19 for
   the Bun preset, `aws_lambda` preset with streaming); `@chakra-ui/react@3.37.0`; Effect v4 atoms
@@ -381,8 +384,8 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Goal.** `@app-template/http-api` and its `ApiClient` consumable from any TypeScript
   project without the server code, with every type intact.
 - **Scope.** Build and `exports` of `http-api` (types from the `HttpApi` definition; the
-  `domain` it imports ships with it); versioning; publishing to GitHub Packages or npm from CI on a tag; a consumer
-  smoke test in a scratch project.
+  modules' `domain` subpaths and contracts it imports ship with it); versioning; publishing to
+  GitHub Packages or npm from CI on a tag; a consumer smoke test in a scratch project.
 - **Out of scope.** A client for other languages; an SDK generator, which would need an OpenAPI
   spec the api does not serve.
 - **Open questions for its feature phase.** Registry; how the client's `effect` dependency is
@@ -464,11 +467,19 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Out of scope.** Sharing between users; assistant-produced files (`assistant-files`, 18).
 - **Inherits from `architecture-audit` (2026-10-27).** A file lives as long as its owner needs it:
   no expiry of unlinked files, so the 24-hour unbound lifetime and the `unbound` S3 tag go.
-- **Inherits from `modular-monolith` (2026-10-31).** Files are split out of `chat` into a module
-  named `drive` (not `files`, the banned word for an attachment; not `bucket`, a technology).
-  Chat owns the link between a message and a file, with a copy of the file's metadata taken at
-  link time, so a chat's read stays one query; `drive` owns the pool and the bytes and knows no
-  chat.
+- **Inherits from `modular-monolith` (2026-10-31, done 2026-11-02).** Files are split out of
+  `chat` into a module named `drive` (not `files`, the banned word for an attachment; not
+  `bucket`, a technology). Chat owns the link between a message and a file, with a copy of the
+  file's metadata taken at link time, so a chat's read stays one query; `drive` owns the pool and
+  the bytes and knows no chat. The bytes and the rows are already the data layer's
+  (`FileRepository` in `kernel/data/file`, the attachments' table in `kernel/data/attachment`),
+  so `drive` is a new module of services over them, added by
+  [architecture.md › Add a module](architecture.md#add-a-module); the pool's table is a new store
+  in `kernel/data`. Chat reaches `drive` only through `drive`'s contract, and a send that links
+  files is one use case over both modules, in one transaction. The split rewrites the records
+  [Modules by capability](decisions.md#modules-by-capability) and
+  [Files in the data layer](decisions.md#files-in-the-data-layer), whose *Revisit when* name this
+  ticket.
 - **Open questions for its feature phase.** Whether one file may be linked to several messages;
   whether deleting a chat deletes its linked files or only the links; the quota per user.
 - **Status.** Planned.
@@ -513,6 +524,11 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   surfaces tool results with file ids, but its prompt converter rejects any media type but
   images, PDF and text and has no `container_upload`; its generated Files API calls are awkward
   for binary uploads.
+- **Inherits from `modular-monolith` (2026-11-02).** The prompts and the Anthropic calls live in
+  chat's adapter `AssistantLlm` (`application/chat/infrastructure/`), the provider's settings in
+  `kernel/llm`; a produced file is stored through `FileRepository` in the data layer, its bytes
+  kept before the row that binds them, since S3 joins no transaction. Files outside a chat
+  reopen [Files in the data layer](decisions.md#files-in-the-data-layer).
 - **Facts on AWS (2026-10-29).** Claude on Bedrock has no code execution, Files API, Skills, web
   search or Message Batches. Bedrock Converse `DocumentBlock` takes `docx`, `xlsx`, `csv`, `md`,
   `html` (how they are converted is undocumented). Bedrock Knowledge Bases answer with retrieved
@@ -598,7 +614,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
     SKIP LOCKED` (a partial index on `status = 'idle'`) and marks them `queued` instead of
     deleting them. A run needs no status of its own: the queue's lock covers it.
   - The worker writes each outcome back by `queue` and `job_id`, which SQS carries in the
-    message's attributes: a wrapper of `QueueConsumer` in `infrastructure`, since
+    message's attributes: a wrapper of `QueueConsumer` in `kernel/queue`, since
     `packages/queue` knows no database.
   - Attachment deletions are jobs of this ledger: a statement-level trigger `AFTER DELETE ON
     attachments` (`REFERENCING OLD TABLE`) writes one `attachment-deletion` job with the deleted
@@ -625,13 +641,18 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   `sent_at` instead of deleting, over a partial index `WHERE sent_at IS NULL`, so a reply's job
   keeps its provenance in `body`. The ledger's statuses replace `sent_at`; nothing removes sent
   rows yet, which the retention question above now settles for every row.
-- **Inherits from `modular-monolith` (2026-10-31).** The table is `jobs`, read and written by
-  `JobRepository` in `kernel/data/job`, and `QueueSenderJobs`, the consumer and the relay live in
-  `kernel/queue` over it, so the outcome write-back lands there; the schema restarted as one
-  migration, so this ticket's migration is the second; the handler of a deletion job
-  calls `FileRepository.delete`. `Status` belongs to `chat` (the chat's and the message's states);
-  the jobs' states are a vocabulary of their own, since `queued` means "sent to SQS" for a job and
-  "reply in work" for a message.
+- **Inherits from `modular-monolith` (2026-10-31, done 2026-11-02).** The table is `jobs`, read
+  and written by `JobRepository` in `kernel/data/job`, so the statuses and the trigger are the
+  data layer's, in this ticket's migration, the second since the schema restarted as one;
+  `QueueSenderJobs`, the consumer and the relay live in `kernel/queue` over it, so the outcome
+  write-back lands there; the handler of a deletion job calls `FileRepository.delete`. A deletion
+  job carries work that outlives the request, which
+  [Use cases above the modules](decisions.md#use-cases-above-the-modules) allows, never a
+  module's reaction to another's write. `Status` belongs to `chat` (the chat's and the message's
+  states); the jobs' states are a vocabulary of their own, since `queued` means "sent to SQS" for
+  a job and "reply in work" for a message. The statuses rewrite
+  [Jobs as a table in the data layer](decisions.md#jobs-as-a-table-in-the-data-layer), whose
+  *Revisit when* names this ticket.
 - **Facts (2026-10-30).** S3 lists by key prefix only and cannot list, delete or filter by
   metadata or tag; lifecycle rules filter by prefix, tag and size, a few static rules per bucket;
   `DeleteObjects` takes 1000 keys a request.
@@ -639,11 +660,14 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 
 ### 23. `modular-monolith`
 
-- **Goal.** The code is partitioned by business capability (`chat`, `identity`) over a kernel
-  with no business rule; a module is reached only through its contract, and the build rejects an
-  import into another module, a cycle and a table outside its owner's schema.
-- **Status.** In progress:
+- **Goal.** The code is cut in three rings: the data layer at the centre, every store in its own
+  types; the modules by business capability (`chat`, `identity`) and the use cases above them;
+  the boundary outside. A module is reached only through its contract, and the build rejects an
+  import that points outward or across, naming the decision it breaks.
+- **Status.** Done:
   [docs/tickets/2026-10-31-0926_modular-monolith/](../tickets/2026-10-31-0926_modular-monolith/feature.md).
+  How the code is cut and how to extend it: [architecture.md](architecture.md); why each boundary
+  holds and when to revisit it: [decisions.md](decisions.md).
 
 ### 24. `attachment-storage-failures`
 

@@ -1,6 +1,6 @@
 # App Template
 
-A chat clone (visitor → message → assistant reply) built as a template for enterprise projects:
+A chat clone (user → message → assistant reply) built as a template for enterprise projects:
 a Bun + TypeScript 7 + Effect 4 modular monolith, with an api, a worker and a web client over one
 domain. It grows one ticket at a time along the [roadmap](docs/knowledge/roadmap.md), and each
 ticket keeps its spec, design and plan in `docs/tickets/`, so a project started from it inherits
@@ -76,21 +76,25 @@ fails: [aws.md › When the stand fails](docs/knowledge/aws.md#when-the-stand-fa
 Three processes share one codebase and one database. Each is one `Layer`, launched by
 `BunRuntime.runMain(Layer.launch(...))`, so stopping it closes one scope.
 
-The workspaces, from the bottom up; each imports only from the ones below it:
+The code is cut in three rings, and every dependency points inward, from the boundary to the
+behaviour to the data:
 
-| Workspace | Holds | Never holds |
-|---|---|---|
-| `application/<module>/` | a module (`chat`, `identity`): models (`Schema.Class`), branded ids, errors and ports in `domain/`, the domain services that own the rules and the queue definitions in `services/`, the adapters of the ports (the LLM) in `infrastructure/` | SQL, an `@effect/*` package outside `infrastructure/` (tests aside) |
-| `http-api/` | the `HttpApi` contract over the domain's schemas, shared by the api and the browser | handlers, services |
-| `application/use-cases/` | use cases: a flow across domain services, the queue, the bucket, the assistant, in one `Transaction` | rules of an entity, adapters |
-| `kernel/` | this app's configuration of its tools: the config services, the S3 and SQS clients, the AWS inventory, the table `jobs` and the queue's clients over it, the language model | business rules |
-| `packages/*` | generic clients (`queue`, `s3`, `llm`, the `aws` provisioner) knowing nothing of this app | domain imports |
-| `apps/*` | thin entry points: api and worker handlers, the browser client | rules |
+| Ring | Workspace | Holds | Never holds |
+|---|---|---|---|
+| data | `kernel/data` | `Db` over every table and relation, the migrations, and one repository per store (the attachments' objects and the jobs among them), in its own types: entities | a model, a rule, a module, config |
+| behaviour | `application/<module>/` | a module (`chat`, `identity`): models (`Schema.Class`), branded ids, errors and ports in `domain/`; the domain services that own the rules, the mappers between entity and model and the queue definitions in `services/`; a contract other modules import (`identity/contract`) | SQL, another module but through its contract, an `@effect/*` package outside `infrastructure/` (tests aside) |
+| behaviour | `application/use-cases/` | every use case: a flow across domain services, of one module or several, with the files, the jobs and the assistant, in one `Transaction` | a model's rules, adapters |
+| boundary | the rest of `kernel/` | this app's clients, built from its config: Postgres and the migrate program, S3 and SQS with the AWS inventory, the queue's sender, consumer and relay, the language model | business rules, a module |
+| boundary | a module's `infrastructure/` | the adapters of its ports (the LLM) | another module |
+| boundary | `http-api/` | the `HttpApi` contract over the domain's schemas, shared by the api and the browser | handlers, services |
+| boundary | `apps/*` | thin entry points: api and worker handlers, each process's `layer.ts`, the browser client | rules, a repository outside `layer.ts` |
+| any | `packages/*` | generic tools (`db`, `queue`, `s3`, `llm`, the `aws` provisioner) knowing nothing of this app | an import of this app |
 
 The invariants a change must keep:
 
-- **The rules live in domain services.** A use case composes them and adds only rule-free
-  writes; it never decides what an entity may do.
+- **The rules live in the modules.** A model's pure operations and its domain service hold them;
+  a use case composes them and adds only rule-free writes, and it never decides what a model may
+  do. A rule another module owns is called, never copied.
 - **No rule in a handler.** An api or worker handler decodes, calls one use case or service, and
   maps the answer.
 - **The database guards, not locks.** One active message per chat, a bind only while unbound and
@@ -99,12 +103,14 @@ The invariants a change must keep:
 - **No service reaches the browser.** `make bundle-check` fails if one does.
 
 The full matrix, and how Biome enforces it:
-[architecture.md › Dependency rules](docs/knowledge/architecture.md#dependency-rules). The choices
-and the alternatives they rejected: each ticket's `architecture.md › Decisions`.
+[architecture.md › Dependency rules](docs/knowledge/architecture.md#dependency-rules). Why each
+boundary holds, what it costs and what breaks if it is reversed:
+[decisions.md](docs/knowledge/decisions.md), one record per decision.
 
 ## Anatomy of a slice
 
-One entity crosses every layer under the same folder name. The `chat` slice, by file suffix:
+One name crosses every ring under the same folder name: the entity and the model share it. The
+`chat` slice, by file suffix:
 
 ```text
 kernel/data/chat/                chat.table  chat.entity  chat.repository
@@ -122,8 +128,8 @@ apps/worker/chat/                assistant-message.handler  chat-title.handler
 apps/__e2e__/                    the use cases on Postgres and the journey, over assembled layers
 ```
 
-Read it bottom-up: the data layer's table, entity and repository, the model and its pure
-operations, the mapper between entity and model, the service with the rules, the use case
+Read it from the data outward: the data layer's table, entity and repository, the model and its
+pure operations, the mapper between entity and model, the service with the rules, the use case
 composing services, the adapter implementing a port, the handler calling the use case. Every
 file of the slice and what it is named:
 [architecture.md › Where things live](docs/knowledge/architecture.md#where-things-live); the
@@ -146,7 +152,7 @@ suffixes and naming verbs: [.claude/rules/naming.md](.claude/rules/naming.md).
 
 Tips that save time:
 
-- **Test at the lowest seam that shows the rule.** A rule of an entity is a unit test of its
+- **Test at the lowest seam that shows the rule.** A model's rule is a unit test of its
   domain service over memory layers; only an adapter or a transaction needs e2e.
 - **Every e2e test owns its database and its stage,** so suites run in parallel and in two
   worktrees at once; nothing needs `make up`.
@@ -160,7 +166,7 @@ Tips that save time:
 
 1. **Specify it as a ticket:** `/ticket-feature`, then architecture, plan, implement, verify —
    [sdd.md › The five skills](docs/knowledge/sdd.md#the-five-skills).
-2. **Add an entity** layer by layer, bottom-up, test first —
+2. **Add an entity and its model** from the data outward, test first —
    [architecture.md › Add a new entity](docs/knowledge/architecture.md#add-a-new-entity).
 3. **Add an AWS resource** to the inventory, local and deployed alike —
    [aws.md › Adding a resource](docs/knowledge/aws.md#adding-a-resource).
@@ -170,7 +176,7 @@ Tips that save time:
 | Question | Document |
 |---|---|
 | How do I run, debug, test, add a dependency or a workspace? Why did a check fail? | [docs/knowledge/tooling.md](docs/knowledge/tooling.md) |
-| Which layer does my code belong to, and what may it import? | [docs/knowledge/architecture.md](docs/knowledge/architecture.md) |
+| Which ring and layer does my code belong to, and what may it import? | [docs/knowledge/architecture.md](docs/knowledge/architecture.md) |
 | How are records stored, guarded, migrated and tested? | [docs/knowledge/database.md](docs/knowledge/database.md) |
 | How do the apps reach S3 and SQS, locally and on AWS? | [docs/knowledge/aws.md](docs/knowledge/aws.md) |
 | What do the domain words mean? | [docs/knowledge/glossary.md](docs/knowledge/glossary.md) |
@@ -178,7 +184,7 @@ Tips that save time:
 | What is built next, and in which order? | [docs/knowledge/roadmap.md](docs/knowledge/roadmap.md) |
 | What are the rules for one layer? | its `CLAUDE.md`, listed in [CLAUDE.md](CLAUDE.md) |
 | How are commits and pull requests written? | [.claude/rules/commits.md](.claude/rules/commits.md), [.claude/rules/pull-requests.md](.claude/rules/pull-requests.md) |
-| Why is it built this way? | the tickets in `docs/tickets/`: `feature.md` for the requirements, `architecture.md › Decisions` for every choice and its rejected alternative |
+| Why is it built this way? | [docs/knowledge/decisions.md](docs/knowledge/decisions.md): each binding decision with its reason, its rejected alternatives and what a reversal breaks; its history in the ticket that made it, under `docs/tickets/` |
 
 ## History and new projects
 

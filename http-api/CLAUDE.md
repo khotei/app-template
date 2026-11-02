@@ -11,7 +11,7 @@ the browser, which calls it through its client.
 - **`index.ts` re-exports each domain schema a payload names**: `web` may not import the domain,
   so it builds a payload's brand through this entry.
 - **Statuses are set here, never in the domain:**
-  `<Entity>NotFoundError.pipe(HttpApiSchema.status(404))` where an endpoint or middleware lists
+  `<Model>NotFoundError.pipe(HttpApiSchema.status(404))` where an endpoint or middleware lists
   the error. Only HTTP's own errors (`shared/errors.ts`)
   carry `httpApiStatus` on the class.
 - **A domain schema edit is a contract edit.** DTOs reuse the domain's schemas, so the change

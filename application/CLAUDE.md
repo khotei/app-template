@@ -18,5 +18,5 @@ and may import:
   tests.
 - **An adapter is a `Layer` of a port** in the module's `infrastructure/`, so callers never see
   the client: the prompts stay inside the adapter.
-- A `<entity>.queue.ts` in `services/` holds only queue definitions; no adapter wraps `send` or
+- A `<model>.queue.ts` in `services/` holds only queue definitions; no adapter wraps `send` or
   `worker`.

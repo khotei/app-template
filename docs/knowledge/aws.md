@@ -30,7 +30,7 @@ Postgres container on the host's Docker (its socket is mounted), on the host por
 (`RDS_PERSIST=1`). The program exports `DATABASE_URL`, built from the instance's endpoint, and
 `make up` writes it to `.env.pulumi` (how it loads:
 [tooling.md › Environment](tooling.md#environment)). The
-local credentials are fixed in `deployment/local/settings.ts`, the one module that reads the
+local credentials are fixed in `deployment/local/settings.ts`, the one file that reads the
 configuration. MiniStack names the instance's container and volume after the identifier, so each
 worktree has its own `STAGE` and `RDS_BASE_PORT` ([tooling.md › Worktrees](tooling.md#worktrees)).
 
@@ -101,7 +101,7 @@ queue in place.
 ### Adding a resource
 
 1. Add the entry to `resources.ts`; a queue's dead-letter queue is derived, not listed.
-2. For a queue, add its definition in `application/<module>/services/<entity>.queue.ts`, reading
+2. For a queue, add its definition in `application/<module>/services/<model>.queue.ts`, reading
    `name` and `maxAttempts` from the entry; for a bucket, `S3BucketFromConfig` reads it from
    `resources.buckets`.
    Code that names a missing entry fails typecheck.
@@ -201,14 +201,14 @@ the run's Postgres (`testcontainers`, about two seconds for both) and hands its 
 tests through `inject('awsEndpoint')`; `SqsClientTest` and `S3ClientTest` in
 `@app-template/testing` are clients on it. `AwsTest` (`kernel/__e2e__/testing/aws.test-layer.ts`)
 gives each test a stage of its own (`e2e` and eight hex digits), provisions the inventory's
-bucket and queues under it and provides `AwsConfig` over the endpoint and that stage, so an
-adapter builds its names as in production; it publishes the clients too, as the `*FromConfig`
-layers do, and the stage's `S3Bucket`. The queue's own suite provisions its own queues under one
-such stage for its `layer` block, with `provisionQueues(queues, buildName)`, and the `s3` suite
-creates one bucket, named as a stage is, for its `S3Bucket`. Nothing cleans a stage up: the
-container goes with the run. On `AwsTest` run
-`FileRepository`'s suite, the relay's (beside `DbTest`), the use cases' transactions
-(`ChatPgTest`, whose bucket is the stage's) and the journey. The unit suites test our code, not
+bucket and queues under it and provides `AwsConfig` over the endpoint and that stage, so the
+kernel's clients build their names as in production; it publishes the clients too, as the
+`*FromConfig` layers do, and the stage's `S3Bucket`. The queue's own suite provisions its own
+queues under one such stage for its `layer` block, with `provisionQueues(queues, buildName)`,
+and the `s3` suite creates one bucket, named as a stage is, for its `S3Bucket`. Nothing cleans a
+stage up: the container goes with the run. On `AwsTest` run `FileRepository`'s suite, the
+relay's (beside `DbTest`), the use cases' transactions (`ChatPgTest`, whose bucket is the
+stage's) and the journey. The unit suites test our code, not
 S3 or SQS: they provide `FileRepositoryTest` (in `RepositoryStackTest`) and `recordQueue()`
 ([tooling.md › Tests](tooling.md#tests)). So `make test-e2e` needs a running Docker daemon and
 nothing else, not the local stand or `.env`: the Pulumi project is for `make up` alone.
