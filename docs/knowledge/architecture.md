@@ -215,40 +215,40 @@ orders its writes: [.claude/rules/layering.md](../../.claude/rules/layering.md).
 modules has the same shape as one that does not (none spans today):
 
 ```ts
-// application/use-cases/user/delete-user.use-case.ts
-export class DeleteUserUseCase extends Context.Service<DeleteUserUseCase, {
-  /** Deletes the user with every chat they own. */
-  readonly delete: (id: UserId) => Effect.Effect<void, UserUnknownError>
-}>()('@app-template/application/use-cases/user/DeleteUserUseCase', {
+// application/use-cases/order/place-order.use-case.ts
+export class PlaceOrderUseCase extends Context.Service<PlaceOrderUseCase, {
+  /** Places the order of an active customer. */
+  readonly place: (
+    customerId: CustomerId,
+    lines: OrderLines,
+  ) => Effect.Effect<Order, CustomerBlockedError>
+}>()('@app-template/application/use-cases/order/PlaceOrderUseCase', {
   make: Effect.gen(function* () {
-    const users = yield* UserService       // identity
-    const chats = yield* ChatService       // chat
-    const files = yield* FileRepository
+    const customers = yield* CustomerService // the customer module
+    const orders = yield* OrderService       // the order module
     const transaction = yield* Transaction
-    const deleteRows = Effect.fn('DeleteUserUseCase.deleteRows')(function* (id: UserId) {
-      yield* users.getOne({ id })          // identity's rule, called: an unknown user fails
-      const fileIds = yield* chats.deleteAllOf(id) // chat's own rule over its rows
-      yield* users.delete(id)
-      return fileIds
-    }, transaction.run)                    // the rows commit together or not at all
-    const remove = Effect.fn('DeleteUserUseCase.delete')(function* (id: UserId) {
-      const fileIds = yield* deleteRows(id)
-      yield* files.delete({ id: fileIds }) // after the commit: an object store joins no transaction
-    })
-    return { delete: remove }
+    const place = Effect.fn('PlaceOrderUseCase.place')(function* (
+      customerId: CustomerId,
+      lines: OrderLines,
+    ) {
+      yield* customers.requireActive(customerId) // the customer's rule, called
+      return yield* orders.place(customerId, lines)
+    }, transaction.run)                      // the writes commit together or not at all
+    return { place }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make).pipe(
-    Layer.provide([UserService.layer, ChatService.layer]),
+    Layer.provide([CustomerService.layer, OrderService.layer]),
   )
 }
 ```
 
-- **A rule another module owns is called, never copied.** Chat may read the user's row itself, but
-  whether a user counts as unknown is identity's rule, so the use case calls identity. The test:
-  if the owner changes the rule, must this module change too? Yes, one rule, called; no, two
-  rules that only look alike, each kept by its module (two length limits that happen to match
-  stay two). Record: [Records open, rules called](decisions.md#records-open-rules-called).
+- **A rule another module owns is called, never copied.** The order module may read the
+  customer's row itself, but whether a customer may order is the customer module's rule, so the
+  use case calls it. The test: if the owner changes the rule, must this module change too? Yes,
+  one rule, called; no, two rules that only look alike, each kept by its module (two length
+  limits that happen to match stay two). Record:
+  [Records open, rules called](decisions.md#records-open-rules-called).
 - **No module reacts to another's write.** The flow runs synchronously in one use case; a job
   carries only work that outlives the request (the assistant's reply, the title). Record:
   [Use cases above the modules](decisions.md#use-cases-above-the-modules).
@@ -360,7 +360,7 @@ checks what the import rules leave to tree shaking, the web bundle. Record:
 | Biome `noRestrictedImports`, one `overrides` entry per ring, kernel part, package and module layer in `biome.json`, each listing the units it may import | each ✗ of [Dependency rules](#dependency-rules) and each unit no list names, with the record named in the message; any relative path; in each `<workspace>/__tests__/**` but its `testing/e2e/`, e2e support (`#testing/*/e2e/**`, `@app-template/**/testing/e2e`) | `make lint`, `pre-commit`, CI `static` |
 | the isolated linker with `tsc -b` | an allowed import of a workspace that is not declared in `package.json` | TS2307 in `make typecheck` and at runtime |
 | `composite` project references (`rootDir: "."`), one project per workspace | a path that reaches into an unreferenced workspace's files; a cycle of references between workspaces | TS6059 / TS6307 / TS6202 in `make typecheck` |
-| `make bundle-check`: `bun build` of `apps/web/app/main.ts`, then a `grep` of the bundle | a key of the kernel, of the use cases, of a module's `services/` or `infrastructure/`, or a port key of its `domain/`, in the browser bundle | the matched service keys, in `make check` |
+| `make bundle-check`: `bun build` of `apps/web/app/main.ts`, then a `grep` of the bundle | a key of the kernel, of the use cases, or of a module's `services/`, `infrastructure/` or `domain/`, where only its ports carry one, in the browser bundle | the matched service keys, in `make check` |
 
 Every Biome override allows only the units it lists: what a new package, module, layer or app
 adds to `biome.json` is in [tooling.md › Add a workspace](tooling.md#add-a-workspace). When two
@@ -384,7 +384,7 @@ services.
 ### Known gaps
 
 What no tool checks, review refuses through
-[.claude/rules/modules.md](../../.claude/rules/modules.md). Three import forms also pass every
+[.claude/rules/modules.md](../../.claude/rules/modules.md). Four import forms also pass every
 guard; no code uses them:
 
 - **A type import inside an expression in web client code.** `export type X =
@@ -400,3 +400,7 @@ guard; no code uses them:
 - **A runtime module or third-party package in a module's `domain/`.** `node:crypto` or any npm
   package passes the domain guard, which bans only workspaces and `@effect/*`. Purity rests on
   review and on the grep for `Date.now`, `new Date(` and `randomUUID`.
+- **A server library in a browser-safe package.** An import of `<server library>` in
+  `packages/ui` passes Biome, whose package overrides ban only workspaces, and `tsc -b`, because
+  the one `packages/package.json` declares every package's libraries for all of them. `make
+  bundle-check` greps only this app's keys, so the library reaches the browser's bundle unseen.

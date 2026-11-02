@@ -120,7 +120,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   a worker job. The `example` slice is deleted; `chat` is the new worked example.
 - **First Effect rule.** Its first slice ends with a short `.claude/rules/effect.md` drawn from that
   code, so later steps follow it; `claude-toolkit` (2) polishes it.
-- **Scope.** `domain/chat` (Visitor, Chat, Message, Attachment, Placeholder as `Schema`, errors,
+- **Scope.** the chat domain (Visitor, Chat, Message, Attachment, Placeholder as `Schema`, errors,
   ports); in-memory adapters on `KeyValueStore`; `application/chat` services and the job;
   `@app-template/http-api` as an `HttpApi` with the visitor secret as `HttpApiSecurity`, SSE for the
   reply (`HttpApiSchema.StreamSse` over `LanguageModel.streamText` from the stub), multipart upload
@@ -308,8 +308,8 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Inherited from `architecture-audit`.** `make bundle-check` builds `apps/web/app/main.ts` with
   `bun build` and greps the bundle for service keys ending in `Service`, `Repository`, `Bucket` or
   `Assistant`; `modular-monolith` (23) replaced the suffixes with key paths: every key of the
-  kernel, of the use cases and of a module's `services/` and `infrastructure/`, and of its
-  `domain/` only the port keys
+  kernel, of the use cases and of a module's `services/`, `infrastructure/` and `domain/`, where
+  only its ports carry one
   ([architecture.md › Boundary guards](architecture.md#boundary-guards)). On the new bundler:
   rebuild its command, clear the output dir before each build, keep that grep, and run it in CI's
   `static` job.

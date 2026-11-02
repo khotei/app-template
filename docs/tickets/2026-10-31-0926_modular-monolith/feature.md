@@ -108,9 +108,9 @@ Behaviour seen from outside does not change.
 - **Tests**: every workspace keeps its unit tests in `__tests__/` with their support in
   `__tests__/testing/`, the support only the e2e use in `__tests__/testing/e2e/`, and its e2e
   tests in `__e2e__/`; a unit test never imports `testing/e2e`. `application`
-  holds unit tests, and of e2e only its mappers' extreme values on Postgres, beside the mappers
-  (amended in S31); the e2e over the processes live beside the apps in `apps/__e2e__`
-  (`@app-template/e2e`, today's `e2e/` workspace): the journey and the use cases' races and
+  holds unit tests only, its mappers' among them over the schemas (amended in S31 and S34); the
+  e2e over the processes live in the test app `apps/e2e` (`@app-template/e2e`, today's `e2e/`
+  workspace, amended in S35): the journey and the use cases' races and
   rollbacks, each a request to the api with the worker in the same runtime, never a use case
   called directly.
 - **Imports by folder path** (added 2026-11-02, after verification): a part of the kernel, a
@@ -226,10 +226,10 @@ Behaviour seen from outside does not change.
 | R3 | the delete-chat e2e passes: messages and attachments are gone and the bucket holds none of their objects |
 | R4 | `make reset`, then `make up`, applies one migration; `pg_dump --schema-only` of it, diffed against one of `main`'s, shows only `outbox` renamed `jobs` |
 | R5 | `make migration-check` reports no change |
-| R6 | the workspace list shows `kernel`, `application` (the two modules with identity's contract folder, and the use cases), `packages`, `http-api`, the three apps and `e2e` at `apps/__e2e__`, and no `domain` or `infrastructure` workspace |
+| R6 | the workspace list shows `kernel`, `application` (the two modules with identity's contract folder, and the use cases), `packages`, `http-api`, the three apps and the test app at `apps/e2e`, and no `domain` or `infrastructure` workspace |
 | R7 | review finds no module importing from another module's entry a name outside its contract; `.claude/rules/modules.md` names the check and links its record |
-| R8 | each module holds only `domain/`, `services/`, `infrastructure/`, `__tests__/` and its manifests; every `*.use-case.ts` lies under `application/use-cases/`; the layer overrides pass |
-| R9 | grep: no file under `kernel/data/` imports `@app-template/*` but a package under `packages/*`, or `#kernel/*` outside `#kernel/data`; every `*.table.ts`, `*.entity.ts` and `*.repository.ts` lies under `kernel/data/` |
+| R8 | each module holds only `domain/`, `services/`, `infrastructure/`, its `contract/` once another module needs one, `__tests__/` and its entry `index.ts`, and no `__e2e__/`; every `*.use-case.ts` lies under `application/use-cases/`; the layer overrides pass |
+| R9 | grep: no source file under `kernel/data/` (outside its `__tests__/` and `__e2e__/`) imports `@app-template/*` but a package under `packages/*`, or `#kernel/*` outside `#kernel/data`; its e2e and their support take of the kernel only the inventory (`@app-template/kernel/aws`, with its e2e support) and `@app-template/kernel/config`, to build the stores' clients; every `*.table.ts`, `*.entity.ts` and `*.repository.ts` lies under `kernel/data/` |
 | R10 | a send through the api leaves its job in `jobs`, and a refused write keeps neither the job nor the writes |
 | R11 | `git ls-files` finds no `tests/`, `e2e/` or `testing/` folder outside `__tests__/` and `__e2e__/` (but the package `packages/testing`, the test app `apps/e2e` and its `apps/e2e/testing`), no `__e2e__/testing/` under `kernel/` or `packages/`, no `aws`, `postgres` or `rows` support in `packages/testing`, no `__e2e__/` under `application/`, no `apps/__e2e__`, and no suite under `apps/e2e` that reads a use case or a mapper from the context |
 | R12 | a throwaway import of another module's internals, and one of a unit its workspace's list does not name, each fail `make check` with the import and the decision named |

@@ -42,7 +42,7 @@
 | S34 | the mappers checked by unit tests over the schemas | done |
 | S35 | `apps/__e2e__` → `apps/e2e`, a test app | done |
 | S36 | the branch review's test fixes | todo |
-| S37 | the docs the branch review found out of step with the code | todo |
+| S37 | the docs the branch review found out of step with the code | done |
 | S38 | the chat module in one shape | todo |
 | S39 | `biome.json` keeps only the import rules nothing else holds | todo |
 
@@ -1758,7 +1758,20 @@
 - **Test first:** `docs only`; a widened grep is proven red by a probe port named otherwise.
 - **Verify:** `make check`, `make doc-width`, `make doc-names`.
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Ran in worktree N=2 beside S36 on the user's word.
+  - The grep widened: it matches every key under a module's `domain/`, since only a port carries
+    one there; a probe port `Clock` passed the old grep and failed the new.
+  - Beyond the listed spots, R19 asked for every stale name outside the Note paragraphs: R6's
+    row and the Scope (`apps/e2e`), the use-case example in the ticket's Contracts and in
+    `architecture.md`, the ticket's Structure, Seams, Contracts paragraph and Biome rows, the D3,
+    D4 and D19 headlines and the nested-contract risk. A decision's headline states what binds
+    now; its Notes keep the history.
+  - Review: the kernel exports `/aws` and `/data` whole, so the diagram, the matrix, the D5
+    headline and `decisions.md` name what Biome allows by name instead of the gone subpaths
+    `/aws/resources` and `/data/file`; the `package.json` blocks are marked excerpts; Known gaps
+    uses a placeholder for the server library.
 
 
 #### S38 — The chat module in one shape

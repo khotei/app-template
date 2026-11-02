@@ -54,9 +54,13 @@ it and enqueues the jobs; a rule stays in its module. It reads or writes a repos
 where no rule applies ([layering.md › Use cases](../../.claude/rules/layering.md#use-cases)).
 
 ```ts
-const deleteUser = Effect.fn('DeleteUserUseCase.deleteUser')(function* (id: UserId) {
-  yield* ChatService.deleteAllOf(id)
-  yield* UserService.delete(id)
+// two modules' services, each holding its own rule, under one transaction
+const place = Effect.fn('PlaceOrderUseCase.place')(function* (
+  customerId: CustomerId,
+  lines: OrderLines,
+) {
+  yield* customers.requireActive(customerId)
+  return yield* orders.place(customerId, lines)
 }, transaction.run)
 ```
 
@@ -370,7 +374,7 @@ bucket's name and lifecycle; `deployment` reads both.
   row that binds them and deleted once the rows are gone.
 - **Guarded by:** the repository's doc comment and `.claude/rules/layering.md` (the order); the
   refused chat delete in `apps/e2e/api/chat.e2e.ts`; the file repository's e2e in
-  `kernel/data/__e2e__/file`; the `deployment/**` override (of the data only `/data/file`).
+  `kernel/data/__e2e__/file`; the `deployment/**` override (of the data only `unboundTag`).
 - **If reversed:** the port goes back into `chat`'s `domain/` with its adapter in
   `infrastructure/`, and a second module needing files imports chat.
 - **Revisit when:** `shared-files` or `assistant-files` needs files outside a chat.

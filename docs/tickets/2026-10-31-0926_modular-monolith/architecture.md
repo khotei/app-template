@@ -17,7 +17,8 @@ inward:
   the ports that reach outside, and ships to the browser; its `services/` hold the domain
   services, the mappers between an entity and a model and the job definitions, over the data
   layer's repositories; its `infrastructure/` the adapters of its ports. A module reaches another
-  only through its contract (`identity-contract`).
+  only through its contract, a folder `contract/` exported through its entry
+  (`application/identity/contract/`).
 - **The boundary** is everything that touches the world outside the process: the kernel's
   configured clients (`/config`, `/postgres`, `/aws`, `/queue`, `/llm`), each module's
   `infrastructure/`, `http-api` and the apps, which assemble the layers and provide the clients.
@@ -37,7 +38,7 @@ graph TD
     useCases["application/use-cases"]
     services["a module's services/"]
     domain["a module's domain/"]
-    idc["identity-contract"]
+    idc["identity's contract/"]
   end
   subgraph data["data"]
     db["kernel/data: Db · tables · relations · repositories · files · jobs · migrations"]
@@ -50,7 +51,7 @@ graph TD
   worker --> useCases
   worker --> infra
   worker --> kernelOut
-  httpApi -->|"./domain only"| domain
+  httpApi -->|"the entries, no service, mapper or adapter by name"| domain
   httpApi --> idc
   useCases --> services
   useCases --> db
@@ -59,14 +60,14 @@ graph TD
   services --> domain
   services --> db
   services --> idc
-  services -->|"/aws/resources only"| kernelOut
+  services -->|"/aws: the inventory only"| kernelOut
   domain --> idc
   kernelOut --> db
   db --> packages["packages/*: db · aws · queue · s3 · llm · ui · testing"]
   kernelOut --> packages
   services --> packages
   deployment --> kernelOut
-  deployment -->|"/data/file only"| db
+  deployment -->|"/data: unboundTag only"| db
 ```
 
 What may import what (✓ allowed, ✗ refused by Biome; a ✓ still needs the `package.json` entry):
@@ -74,21 +75,21 @@ What may import what (✓ allowed, ✗ refused by Biome; a ✓ still needs the `
 | From ↓ / may import → | another module | a contract | `use-cases` | `kernel/data` | rest of `kernel` | `packages/*` | `http-api` |
 |---|---|---|---|---|---|---|---|
 | a module's `domain/` | ✗ | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
-| a module's `services/` | ✗ | ✓ | ✗ | ✓ | `/aws/resources` only | `aws`, `db`, `queue` | ✗ |
+| a module's `services/` | ✗ | ✓ | ✗ | ✓, but `Db`, `relations`, `migrationsFolder` | `/aws`, but `*FromConfig`, `*OfStage` | `aws`, `db`, `queue` | ✗ |
 | a module's `infrastructure/` | ✗ | ✓ | ✗ | ✓ | ✓ | ✓ | ✗ |
 | a contract | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
-| `use-cases` | `./domain`, `./services` | ✓ | — | ✓ | ✗ | ✓ | ✗ |
+| `use-cases` | ✓, through each module's entry | ✓ | — | ✓ | ✗ | ✓ | ✗ |
 | `kernel/data` | ✗ | ✗ | ✗ | — | ✗ | ✓ | ✗ |
 | rest of `kernel` | ✗ | ✗ | ✗ | ✓ | ✓ | ✓ | ✗ |
 | `packages/*` | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ (each other) | ✗ |
-| `http-api` | `./domain` only | ✓ | ✗ | ✗ | ✗ | ✗ | — |
+| `http-api` | its entry, but `*Service`, `*FromEntity`, `*FromConfig`, `encode*`, `decode*` | ✓ | ✗ | ✗ | ✗ | ✗ | — |
 | `apps/api`, `apps/worker` | ✓ | ✓ | ✓ | in `layer.ts` only | ✓ | ✓ | api only |
 | `apps/web` client | ✗ | ✗ | ✗ | ✗ | ✗ | `ui` | ✓ |
-| `deployment` | ✗ | ✗ | ✗ | `/data/file` only | `/config`, `/aws/resources` | ✓ | ✗ |
+| `deployment` | ✗ | ✗ | ✗ | `unboundTag` only | `/config`; `/aws`, but `*FromConfig`, `*OfStage` | ✓ | ✗ |
 
 Tests import as their workspace's source does, plus the test support of the workspaces it
 declares: a unit test (`__tests__/`) their `./testing`, an e2e suite (`__e2e__/`) their
-`./testing` and `./testing-e2e`. A unit test never imports e2e support (R17).
+`./testing` and `./testing/e2e`. A unit test never imports e2e support (R17).
 
 A module's `domain/` and a contract import only `effect` (and `type-fest` for types), so the
 domain still ships to the browser through `http-api`; `make bundle-check` proves no service, use
@@ -97,8 +98,9 @@ ports its `domain/` declares (`Assistant`, and `CurrentReplyProvenance` with its
 `ReplyProvenance`, which move there from `assistant.llm.ts` and `chat.queue.ts`), each implemented
 by a layer in its `infrastructure/` (`CurrentReplyProvenanceFromConfig`); the data layer's
 repositories are not ports, they are the data. The one boundary part `services/` may read is
-`@app-template/kernel/aws/resources`, the app's inventory of queues and buckets as plain
-constants, so a job definition takes its queue's name from the one list `deployment` reads too.
+the inventory of `@app-template/kernel/aws`, the app's queues and buckets as plain constants
+(Biome refuses its `*FromConfig` and `*OfStage` clients by name), so a job definition takes its
+queue's name from the one list `deployment` reads too.
 
 ## Structure
 
@@ -106,8 +108,9 @@ Moves are `old → new`; **new** marks a file that does not exist today. `__test
 mirror the source path in every workspace.
 
 ```
-application/                     the behaviour; unit tests, a mapper's e2e beside it (S31)
-  chat/                          @app-template/chat
+application/                     @app-template/application: the behaviour, one workspace (S27);
+                                 unit tests only (S34)
+  chat/                          @app-template/application/chat, through chat/index.ts
     domain/                      ← domain/chat/*, domain/attachment/*, domain/shared/status.model.ts,
                                    minus every *.port.ts of a repository or the bucket
       assistant.port.ts            + CurrentReplyProvenance, ReplyProvenance ← assistant.llm.ts, chat.queue.ts
@@ -121,15 +124,15 @@ application/                     the behaviour; unit tests, a mapper's e2e besid
                                    attachment.test-layer, infrastructure/testing/chat.test-fake.ts;
                                    arrange and read helpers take models and go through the mappers
       domain/  services/  infrastructure/   ← domain/tests/{chat,attachment}, infrastructure/tests/chat
-  identity/                      @app-template/identity
+  identity/                      @app-template/application/identity, through identity/index.ts
     domain/user.model.ts         ← domain/user/user.model.ts (UserId, UserUnknownError leave)
     services/                    user.service.ts ← domain/user; user.mapper.ts new
-    contract/                    @app-template/identity-contract
+    contract/                    the contract, exported through identity/index.ts
       user.id.ts                   UserId               ← domain/user/user.id.ts
       user.error.ts                UserUnknownError     ← domain/user/user.error.ts
       auth.ts                      CurrentUser, Auth    ← http-api/shared/security.ts
     __tests__/{testing,domain,services}/  ← domain/testing/user.test-fixture.ts, domain/tests/user
-  use-cases/                     @app-template/use-cases ← today's application/ workspace
+  use-cases/                     @app-template/application/use-cases ← today's application/ workspace
     chat/                          send-message, generate-assistant-message, generate-chat-title
     __tests__/{testing,chat}/      ← application/{testing/chat.test-layer.ts,tests/chat}
   CLAUDE.md                      new: from domain/CLAUDE.md and infrastructure/CLAUDE.md
@@ -157,7 +160,7 @@ kernel/                          @app-template/kernel
     aws.client.ts                  S3ServiceFromConfig, SQSServiceFromConfig ← infrastructure/shared;
                                    S3BucketOfStage, S3BucketFromConfig (S3Bucket on the stage's
                                    bucket)
-    resources/                     → /aws/resources: the inventory (buckets with their lifecycle,
+    resources/                     through /aws: the inventory (buckets with their lifecycle,
                                    queues) and the naming rule ← packages/aws/{resources,naming}.ts
   queue/                         → /queue
     queue.client.ts                QueueConsumerSqs, QueueSenderJobs over JobRepository
@@ -169,31 +172,32 @@ kernel/                          @app-template/kernel
                                    over entities, RepositoryStackTest ← domain/testing/*.test-fake.ts;
                                    data/__e2e__/<store>/, postgres/__e2e__/, queue/__e2e__/
                                    ← infrastructure/e2e/**, in entities, no model;
-                                   data/__e2e__/testing → /data/testing-e2e: DbTest, the job
-                                   fixture, e2e.test-setup; aws/__e2e__/testing → /aws/testing-e2e:
+                                   data/__tests__/testing/e2e → /data/testing/e2e: DbTest,
+                                   e2e.test-setup; aws/__tests__/testing/e2e → /aws/testing/e2e:
                                    AwsTest ← infrastructure/{db/testing,testing}
   CLAUDE.md                      new
 packages/
-  db/                            new  @app-template/db: createDb, Transaction, generateId, decodeOptionalRow,
+  db/                            new  @app-template/packages/db: createDb, Transaction, generateId, decodeOptionalRow,
                                  unwrapQueryError, orDie*, columns.ts, migrateDatabase(folder),
                                  retryWhileUnreachable; __tests__/testing: TransactionTest;
-                                 __e2e__/testing: flipSqlError
+                                 __tests__/testing/e2e: flipSqlError
   aws/                           keeps provision, provisionQueues, Resources, buildDeadLetterName;
                                  naming by a function the caller passes
   llm/                           + the Anthropic and stub builders from infrastructure/chat/assistant.client.ts
   queue/  s3/                    tests, e2e, testing → __tests__/, __e2e__/
   testing/                       + epoch, matches, matchesAny, updateRow, the memory orDieOnNoRows
                                  (the package is test support itself)
-http-api/                        imports chat/domain, identity/domain and identity-contract;
+http-api/                        imports the chat and identity entries, their domain and contract;
                                  shared/security.ts keeps SchemaErrors; shared/errors.ts unchanged
 apps/
   api/                           layer.ts provides the clients from kernel/postgres and kernel/aws
     __tests__/{testing,…}/         ← apps/api/{testing,tests}
-  __e2e__/                       @app-template/e2e ← e2e/ (the journey over both processes),
-                                   the use cases' cases as requests to the api (S31)
+  e2e/                           @app-template/e2e, the test app (S35) ← e2e/ (the journey over
+                                   both processes), the use cases' cases as requests to the api
+                                   in e2e/api/ (S31)
   worker/                        layer.ts the same; __tests__/ ← tests/
   web/                           import paths
-deployment/                      imports kernel/config, kernel/aws/resources, kernel/data/file (the tag)
+deployment/                      imports kernel/config, the inventory of kernel/aws, kernel/data (the tag)
 ```
 
 Gone: the `domain` and `infrastructure` workspaces, the root `e2e/` folder, the old `application` workspace's
@@ -213,54 +217,52 @@ a repository without a port); `application/CLAUDE.md` and `kernel/CLAUDE.md` (**
 
 ## Contracts
 
-**Package exports.** Every workspace exports its test support as `./testing` and `./testing-e2e`
-and aliases them as `#testing/*` and `#testing-e2e/*`; the kernel per part, as
-`./<part>/testing[-e2e]` and `#testing[-e2e]/<part>/*` (S25).
+**Package exports.** A workspace exports each unit by its folder, `./<unit>`, and the unit's test
+support as `./<unit>/testing` and `./<unit>/testing/e2e`, both under its `__tests__/testing/`;
+inside, a unit aliases its files as `#<unit>/*` and its support as `#testing/<unit>/*` and
+`#testing/<unit>/e2e/*` (S27 to S32). A module's contract is a folder of the module, exported
+through the module's entry, never a package of its own.
 
 ```json
-// kernel/package.json
+// kernel/package.json, an excerpt
 {
   "name": "@app-template/kernel",
   "exports": {
     "./config": "./config/index.ts", "./postgres": "./postgres/index.ts",
-    "./aws": "./aws/index.ts", "./aws/resources": "./aws/resources/index.ts",
-    "./queue": "./queue/index.ts", "./llm": "./llm/index.ts",
-    "./data": "./data/index.ts", "./data/chat": "./data/chat/index.ts",
-    "./data/attachment": "./data/attachment/index.ts", "./data/user": "./data/user/index.ts",
-    "./data/job": "./data/job/index.ts", "./data/file": "./data/file/index.ts",
+    "./aws": "./aws/index.ts", "./data": "./data/index.ts",
+    "./llm": "./llm/index.ts", "./queue": "./queue/index.ts",
     "./data/testing": "./data/__tests__/testing/index.ts",
-    "./data/testing-e2e": "./data/__e2e__/testing/index.ts",
-    "./aws/testing-e2e": "./aws/__e2e__/testing/index.ts"
+    "./data/testing/e2e": "./data/__tests__/testing/e2e/index.ts",
+    "./aws/testing/e2e": "./aws/__tests__/testing/e2e/index.ts"
   },
   "imports": { "#kernel/*": "./*.ts", "#testing/data/*": "./data/__tests__/testing/*.ts",
-               "#testing-e2e/data/*": "./data/__e2e__/testing/*.ts",
-               "#testing-e2e/aws/*": "./aws/__e2e__/testing/*.ts" }
+               "#testing/data/e2e/*": "./data/__tests__/testing/e2e/*.ts",
+               "#testing/aws/e2e/*": "./aws/__tests__/testing/e2e/*.ts", … }
 }
-// application/chat/package.json
+// application/package.json, an excerpt
 {
-  "name": "@app-template/chat",
+  "name": "@app-template/application",
   "sideEffects": false,
-  "exports": { "./domain": "./domain/index.ts", "./services": "./services/index.ts",
-               "./infrastructure": "./infrastructure/index.ts",
-               "./testing": "./__tests__/testing/index.ts" },
-  "imports": { "#domain/*": "./domain/*.ts", "#services/*": "./services/*.ts",
-               "#infrastructure/*": "./infrastructure/*.ts", "#testing/*": "./__tests__/testing/*.ts" }
+  "exports": { "./chat": "./chat/index.ts", "./identity": "./identity/index.ts",
+               "./use-cases": "./use-cases/index.ts",
+               "./chat/testing": "./chat/__tests__/testing/index.ts", … },
+  "imports": { "#chat/*": "./chat/*.ts", "#identity/*": "./identity/*.ts",
+               "#use-cases/*": "./use-cases/*.ts",
+               "#testing/chat/*": "./chat/__tests__/testing/*.ts", … }
 }
 ```
 
-The aliases are the same in every module, so one Biome override per layer covers every module
-(verified in a sandbox: Bun, `tsc -b` and vitest resolve each alias to its own package). A module
-with a nested contract sets `"exclude": ["contract"]` and references `./contract` in its
-`tsconfig.json`; without both, `tsc -b` silently compiles the contract twice (verified). The
-kernel is one project for `tsc -b`, so the data's direction inside it is Biome's (D5). Vitest
-picks `**/__tests__/**/*.test.ts` and `**/__e2e__/**/*.e2e.ts`.
+Each module has its own alias, `#<module>/*`, so Biome holds one override per module's layer,
+naming the modules below it, and a contract is a folder with an override of its own. `kernel`,
+`packages` and `application` are one project each for `tsc -b`, so the direction between their
+units is Biome's (D5). Vitest picks `**/__tests__/**/*.test.ts` and `**/__e2e__/**/*.e2e.ts`.
 
 **Service keys** read `'@app-template/<folder>/<Name>'`, the file's folder from the repository
 root (`'@app-template/application/chat/services/ChatService'` from S29,
 `'@app-template/kernel/data/chat/ChatRepository'`, `'@app-template/packages/s3/S3Bucket'`);
-`make bundle-check` greps every key under `use-cases/`, `kernel/` and a module's `services/` or
-`infrastructure/`, and the port keys of a module's `domain/`:
-`@app-template/((use-cases|kernel)/|[a-z-]+/(services|infrastructure)/|[a-z-]+/domain/[A-Za-z]*(Assistant|Provenance))`.
+`make bundle-check` greps every key under `kernel/`, `use-cases/` and a module's `services/`,
+`infrastructure/` or `domain/`, where only the ports carry one (S37):
+`@app-template/(kernel/|application/(use-cases/|[a-z-]+/(services|infrastructure|domain)/))`.
 
 **An entity in the data layer** speaks its own types and imports only packages. A table is
 Drizzle's description of SQL in `<name>.table.ts`, and an entity is the schema read from it in
@@ -390,10 +392,13 @@ export const createLanguageModel: (purpose: {
 modules has the same shape (none today, R18):
 
 ```ts
-// application/use-cases/user/delete-user.use-case.ts
-const deleteUser = Effect.fn('DeleteUserUseCase.deleteUser')(function* (id: UserId) {
-  yield* ChatService.deleteAllOf(id)
-  yield* UserService.delete(id)
+// two modules' services, each holding its own rule, under one transaction
+const place = Effect.fn('PlaceOrderUseCase.place')(function* (
+  customerId: CustomerId,
+  lines: OrderLines,
+) {
+  yield* customers.requireActive(customerId)
+  return yield* orders.place(customerId, lines)
 }, transaction.run)
 ```
 
@@ -402,24 +407,24 @@ record in `decisions.md`:
 
 | Override | Refuses |
 |---|---|
-| `application/*/domain/**` | `@app-template/**` but `*-contract`; `#services/**`, `#infrastructure/**`; `@effect/**` |
-| `application/*/services/**` | the other module packages; `@app-template/kernel/**` but `/data/**` and `/aws/resources`; `#infrastructure/**`; `use-cases`, `http-api`, the apps, `deployment` |
-| `application/*/infrastructure/**` | the other module packages, `use-cases`, `http-api`, the apps, `deployment` |
-| `application/*/contract/**` | `@app-template/**` |
-| `application/use-cases/**` | `*/infrastructure`, `*/testing` (source only), `@app-template/kernel/**` but `/data/**`, `http-api`, the apps, `deployment` |
+| `application/<module>/domain/**` | `@app-template/**` but the entry of a module below it; `#<module>/services/**`, `#<module>/infrastructure/**`; `@effect/**` |
+| `application/<module>/services/**` | `@app-template/**` but `packages/{aws,db,queue}`, the entry of a module below it, of `kernel/data` the stores and of `kernel/aws` the inventory; `#<module>/infrastructure/**`; `@effect/**` |
+| `application/<module>/infrastructure/**` | `@app-template/**` but the entry of a module below it, `kernel/*` and `packages/*`; `#<module>/services/**` |
+| `application/<module>/contract/**` | `@app-template/**`; `@effect/**`; its module's other files |
+| `application/use-cases/**` | `@app-template/**` but the modules' entries, `kernel/data` and `packages/*`; any `/testing` in source |
 | `kernel/data/**` | `@app-template/**` but the `packages/*` names; `#kernel/**` but `#kernel/data/**` |
-| `kernel/**` | the module packages, `*-contract`, `use-cases`, `http-api`, the apps |
-| `packages/**` | `@app-template/kernel/**`, the module packages, `*-contract`, `use-cases`, `http-api`, the apps |
-| `http-api/**` | `@app-template/**` but `*-contract` and `*/domain`; `@effect/**` |
-| `apps/{api,worker}/**` | `@app-template/kernel/data/**` and a module's mappers but in `layer.ts`; another app |
-| `deployment/**` | the module packages, `*-contract`, `use-cases`, `http-api`, the apps; `@app-template/kernel/**` but `/config`, `/aws/resources`, `/data/file` |
-| `<workspace>/__tests__/**`, one per workspace (`kernel/*/__tests__/**` for the kernel's parts) | that workspace's bans repeated, and `#testing-e2e/**`, `@app-template/**/testing-e2e` |
+| `kernel/**` | `@app-template/**` but `packages/*` |
+| `packages/**` | `@app-template/**`, but the packages below it in a package's own override |
+| `http-api/**` | `@app-template/**` but a module's entry, and of it the names `*Service`, `*FromEntity`, `*FromConfig`, `encode*`, `decode*`; `@effect/**` |
+| `apps/{api,worker}/**` | `@app-template/**` but `application/*`, `kernel/*`, `packages/*` (and `http-api` for the api); `kernel/data` and a module's mappers but in `layer.ts` |
+| `deployment/**` | `@app-template/**` but `packages/*` and of the kernel `/config`, `/aws` (the inventory) and `/data` (the files' key) |
+| `<workspace>/__tests__/**`, one per workspace (`kernel/*/__tests__/**` for the kernel's parts) | that workspace's bans repeated, and `#testing/*/e2e/**`, `@app-template/**/testing/e2e` |
 
-The masks `!@app-template/*-contract` and `!@app-template/*/domain` work in Biome 2.5.15 (verified
-in a sandbox). When two overrides match one file, Biome replaces the first one's
+A mask such as `!@app-template/application/identity` works in Biome 2.5.15 (verified in a
+sandbox). When two overrides match one file, Biome replaces the first one's
 `noRestrictedImports` options with the last one's instead of merging them (verified), so a test
-folder's override repeats its workspace's bans. A list that names the module packages grows by one entry per module: the
-add-a-module checklist says so.
+folder's override repeats its workspace's bans. A list that names the modules grows by one
+entry per module: the add-a-module checklist says so.
 *Note (S21):* rows for the apps and `deployment` added, the use cases refuse a module's `./testing`
 in source, and the matrix's cells for a module's `services/` packages and the apps' `kernel/data`
 follow `biome.json`; the relative-path and app-independence bans got records of their own.
@@ -442,8 +447,8 @@ The behaviour must not change, so the seams are today's, at their new paths.
 |---|---|---|
 | `Api` through `ApiHttp` on the api test layer (`apps/api/__tests__/`) | statuses, cookies and the wire shape of every endpoint (R1) | the database, the queue, the worker |
 | the OpenAPI document of `Api`, before and after | any change of a route, a schema or an error tag on the wire (R1) | runtime behaviour behind the routes |
-| the journey over `ApiLayer` and `WorkerLayer` (`apps/__e2e__/chat.e2e.ts`) | the wiring of both processes: a sent message gets its reply and its title, the job sits in `jobs` (R2, R10) | which module or layer a fault comes from |
-| a use case through the api on Postgres and MiniStack (`apps/__e2e__/chat.e2e.ts`) | one transaction across the writes and `jobs`, rolled back by a refused write; a deleted chat loses its rows and objects (R3, R10) | which write a defect comes from: a refusal reads as a `500` |
+| the journey over `ApiLayer` and `WorkerLayer` (`apps/e2e/api/chat.e2e.ts`) | the wiring of both processes: a sent message gets its reply and its title, the job sits in `jobs` (R2, R10) | which module or layer a fault comes from |
+| a use case through the api on Postgres and MiniStack (`apps/e2e/api/chat.e2e.ts`) | one transaction across the writes and `jobs`, rolled back by a refused write; a deleted chat loses its rows and objects (R3, R10) | which write a defect comes from: a refusal reads as a `500` |
 | a module's services and the use cases over the memory repositories, `TransactionTest` and `recordQueue()` (`application/*/__tests__/`) | the rules, a use case's checks, writes and jobs (R2) | SQL, the real transaction, S3 |
 | a repository on Postgres or MiniStack (`kernel/data/__e2e__/<store>/`), in entities | the SQL, the relations, the partial unique index, the cascades, the checks, the object keys and tags (R9) | the models' rules |
 | a mapper over the schemas (`application/<module>/__tests__/services/`) | each model's extreme value and every status and author through the entity's insert schema; each limit and pattern equal to the table's export, which the data layer's e2e binds to its check (R9) | the services, the SQL |
@@ -484,8 +489,9 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
     - reactions through jobs — the request → event → job path is hard to debug in production.
     - a transaction per module — guards a data boundary the data layer does not have (D7).
 
-- **D3 — A module contract is its own workspace in the module's folder, created with its first
-  consumer: today `identity-contract` (`UserId`, `UserUnknownError`, `CurrentUser`, `Auth`).**
+- **D3 — A module contract is a folder `contract/` of the module, exported through its entry
+  (a workspace of its own until S29), created with its first consumer: today identity's
+  (`UserId`, `UserUnknownError`, `CurrentUser`, `Auth`).**
   - **Why:** `chat` and `http-api` need these four and nothing else of identity.
   - **Cost accepted:** a nested workspace needs `exclude` and a reference in its module's
     `tsconfig.json`; `Auth`, an HTTP middleware, lives outside `http-api`.
@@ -506,8 +512,8 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
     `Current<Name>`): review over a name rule, the user's word.
 
 - **D4 — A module holds `domain/`, `services/` and, once it has an adapter, `infrastructure/`,
-  the same `#domain/*`, `#services/*`, `#infrastructure/*` aliases in every module, and an export
-  per layer; a repository is no port.**
+  one alias `#<module>/*` and one entry per module (per-layer aliases and exports until S29); a
+  repository is no port.**
   - **Why:** `domain/` ships to the browser, so what reads the data cannot sit there; the data
     layer's repository already is the contract a service needs, and a port with an adapter over it
     would repeat its methods; the same aliases let one Biome override per layer cover every module.
@@ -534,7 +540,7 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
     2026-11-02.
 
 - **D5 — One kernel workspace, `@app-template/kernel`, with subpaths `/config`, `/postgres`,
-  `/aws`, `/aws/resources`, `/queue`, `/llm` and `/data`; it holds the data and the boundary's
+  `/aws` (its clients and the inventory), `/queue`, `/llm` and `/data`; it holds the data and the boundary's
   configured clients, and no service rule; `packages/*` is configurable and knows no app.**
   - **Why:** the exceptions in `packages/` (the AWS inventory, the pinned images) and the wiring in
     `infrastructure/shared` and `infrastructure/db` are one kind of code: this app's tools and
@@ -744,8 +750,9 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
     code never ran it: the rows go first, then the bytes, as the delete-chat e2e proves.
 
 - **D19 — Every workspace keeps its unit tests in `__tests__/` and its e2e in `__e2e__/`, the
-  kernel in each of its parts, each with its support in a `testing/` inside, exported as `./testing` and `./testing-e2e`; an e2e
-  suite may import `./testing`, a unit test never `./testing-e2e`; `application` has unit tests
+  kernel in each of its parts, each with its support in a `testing/` inside, exported as
+  `./testing` and `./testing/e2e`; an e2e suite may import both, a unit test never
+  `./testing/e2e`; `application` has unit tests
   alone, and the e2e through the api live in the test app `apps/e2e` (`@app-template/e2e`).**
   - **Why:** the folder tells a unit test from an e2e and from source; the behaviour ring runs
     over memory, the real stores are tested in the kernel, the assembled layers in the apps.
@@ -877,5 +884,6 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
   fails. *Contained by:* the step that restarts the migrations runs `make reset` in its verify and
   says so in its commit body; `docs/knowledge/database.md` names the reset.
 - **A nested contract compiled twice** when its module's `tsconfig.json` lacks the `exclude` or the
-  reference. *Contained by:* the step that creates `identity-contract` sets both, and the
-  add-a-module checklist names them.
+  reference, while a contract was a workspace of its own. *Contained by:* the step that created
+  identity's contract set both; gone since S29, when the contract became a folder of the one
+  `application` project.
