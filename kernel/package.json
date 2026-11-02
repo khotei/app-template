@@ -17,7 +17,8 @@
     "#kernel/*": "./*.ts",
     "#testing/data/*": "./data/__tests__/testing/*.ts",
     "#testing/data/e2e/*": "./data/__tests__/testing/e2e/*.ts",
-    "#testing/aws/e2e/*": "./aws/__tests__/testing/e2e/*.ts"
+    "#testing/aws/e2e/*": "./aws/__tests__/testing/e2e/*.ts",
+    "#testing/queue/e2e/*": "./queue/__tests__/testing/e2e/*.ts"
   },
   "dependencies": {
     "@app-template/packages": "workspace:*",

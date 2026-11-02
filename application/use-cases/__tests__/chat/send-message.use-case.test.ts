@@ -16,9 +16,9 @@ import {
   GenerateChatTitle,
   Message,
   type MessageId,
+  type MessageInput,
 } from '@app-template/application/chat'
 import {
-  ask,
   chat,
   owner,
   replyProvenance,
@@ -35,6 +35,8 @@ import { assertSchemaEquals, epoch, isUuidV7, sortById } from '@app-template/pac
 
 import { ChatTest } from '#testing/use-cases/chat.test-layer'
 import { SendMessageUseCase } from '#use-cases/chat/send-message.use-case'
+
+const ask = (text: string): MessageInput => ({ text, attachmentIds: [] })
 
 /** Completes an assistant message as the worker would, freeing its chat for the next send. */
 const settle = (message: Message) =>

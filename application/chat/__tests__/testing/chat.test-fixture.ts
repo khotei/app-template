@@ -5,17 +5,11 @@ import { epoch } from '@app-template/packages/testing'
 
 import { ChatId, MessageId } from '#chat/domain/chat.id'
 import { buildChat, Chat } from '#chat/domain/chat.model'
-import {
-  buildAssistantMessage,
-  buildUserMessage,
-  Message,
-  type MessageInput,
-} from '#chat/domain/message.model'
+import { buildAssistantMessage, buildUserMessage, Message } from '#chat/domain/message.model'
 
 export const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000020')
 export const messageId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000030')
 export const unknownChatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000038')
-export const unknownMessageId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000039')
 
 export const owner = UserId.make('0192d4e0-7b3a-7c00-8000-000000000010')
 export const stranger = UserId.make('0192d4e0-7b3a-7c00-8000-000000000011')
@@ -33,8 +27,6 @@ export const firstMessage = buildUserMessage({
   text: 'Plan a weekend in Lisbon',
   createdAt: epoch,
 })
-
-export const ask = (text: string): MessageInput => ({ text, attachmentIds: [] })
 
 const historyId = (n: number) => MessageId.make(`0192d4e0-7b3a-7c00-8000-00000000005${n}`)
 

@@ -37,7 +37,8 @@
 | S29 | `application/` one workspace, one entry per module | done |
 | S30 | a Biome list per workspace | done |
 | S31 | the mappers' e2e beside the mappers; the use cases' e2e through the api | done |
-| S32 | test support beside its one user | todo |
+| S32 | test support beside its one user | done |
+| S33 | the test layout told in one place | todo |
 
 ## How to run this plan
 
@@ -1569,7 +1570,37 @@
   `grep -rn 'sampleJobQueue\|SampleJob' kernel/data` finds none; each moved fixture has one
   reader.
 - **Model:** `opus medium`
+- **Status:** done
+- **Findings:**
+  - Ran in worktree N=1 beside S31 on the user's word; picked onto the branch after S31 with no
+    conflict (`biome.json` merged clean).
+  - `kernel/queue`'s Biome override now covers `kernel/queue/__tests__/testing/e2e/**`, as
+    `kernel/aws`'s covers its own, so the fixture may read the inventory.
+  - Review found `decisions.md` and `architecture.md` saying every part's e2e support has an
+    entry and an export; both now say support one unit alone reads keeps the alias and no entry.
+
+
+#### S33 — The test layout told in one place
+
+- **Delivers:** on the user's word after S31, where tests and their support live (the folders,
+  `testing/` and `testing/e2e/`, the entries and aliases, which support a test may import, what
+  `apps/__e2e__` checks) is told in `docs/knowledge/decisions.md › Tests in their folders` (why)
+  and `docs/knowledge/tooling.md › Tests` (how) alone. `docs/knowledge/architecture.md › Where
+  tests live`, `database.md`, `aws.md`, `.claude/rules/effect-tests.md`, `README.md` and the
+  `CLAUDE.md` files keep at most one sentence naming the place, with a link; every fact they
+  repeat goes. Each moved test or renamed folder after this step edits those two docs alone.
+- **Goal:** R19 (the docs describe the rings and how to extend them), each fact told once.
+- **Blocked by:** S32.
+- **Files:** the docs named above; a `CLAUDE.md` keeps what `.claude/rules/claude-md.md` asks of
+  it and links the rest.
+- **Test first:** `docs only`; a fact cut from a doc is found in one of the two, quoted in the
+  report.
+- **Verify:** `make check`, `make doc-width`, `make doc-names`, `lychee` on the touched docs;
+  `git grep -n '__tests__/testing/e2e' -- ':!docs/tickets'` finds it in the two docs, Biome and
+  the code alone.
+- **Model:** `opus medium`
 - **Status:** todo
+
 
 ## Requirement coverage
 
@@ -1593,6 +1624,6 @@
 | R16 | S11, S13, S19, S21, S27 |
 | R17 | S1, S21, S28 |
 | R18 | S20, S22 |
-| R19 | S22, S23 |
+| R19 | S22, S23, S33 |
 | R20 | S20, S21 |
 | R21 | S27, S29 |

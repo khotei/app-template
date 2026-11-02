@@ -1087,7 +1087,11 @@
       }
     },
     {
-      "includes": ["kernel/queue/**", "!kernel/queue/__tests__/**"],
+      "includes": [
+        "kernel/queue/**",
+        "!kernel/queue/__tests__/**",
+        "kernel/queue/__tests__/testing/e2e/**"
+      ],
       "linter": {
         "rules": {
           "style": {
@@ -1107,7 +1111,7 @@
                       "!@app-template/packages/*/testing",
                       "!@app-template/packages/*/testing/e2e"
                     ],
-                    "message": "kernel/queue and its e2e import no workspace but packages/* and their test support, and of the kernel /config, /aws and /data with their e2e support: the kernel imports no module, contract, use case, http-api or app, and a part only the parts below it (decisions.md › One kernel; Guards are configuration)"
+                    "message": "kernel/queue, its e2e and their support import no workspace but packages/* and their test support, and of the kernel /config, /aws and /data with their e2e support: the kernel imports no module, contract, use case, http-api or app, and a part only the parts below it (decisions.md › One kernel; Guards are configuration)"
                   },
                   {
                     "group": [

@@ -208,7 +208,8 @@ runs `**/__tests__/**/*.test.ts`, its `e2e` project `**/__e2e__/**/*.e2e.ts`
 ([tooling.md › Tests](tooling.md#tests)). Test support lives in `__tests__/testing/`, imported as
 `@app-template/<folder>/testing` and aliased `#testing/<unit>/*`; the part only the e2e use lives
 in `__tests__/testing/e2e/`, imported as `@app-template/<folder>/testing/e2e` and aliased
-`#testing/<unit>/e2e/*`, which `/testing` does not re-export. The shared `packages/testing` holds
+`#testing/<unit>/e2e/*`, which `/testing` does not re-export; support one unit alone reads keeps
+the alias and no entry. The shared `packages/testing` holds
 only the support several units use; a package's own (its rows, its Postgres or MiniStack clients)
 lives in that package. A unit test imports its workspace's source and the `/testing` of the
 units it declares; an e2e suite also their `/testing/e2e`; a unit test never imports e2e

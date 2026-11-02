@@ -3,15 +3,11 @@ import { Effect, Layer } from 'effect'
 import { SqlClient } from 'effect/sql'
 
 import { Db, JobRepository, jobs } from '@app-template/kernel/data'
-import {
-  DbTest,
-  SampleJob,
-  sampleJobQueue,
-  sampleProvenance,
-} from '@app-template/kernel/data/testing/e2e'
+import { DbTest } from '@app-template/kernel/data/testing/e2e'
 import { QueueSender } from '@app-template/packages/queue'
 
 import { QueueSenderJobs } from '#kernel/queue/queue.client'
+import { SampleJob, sampleJobQueue, sampleProvenance } from '#testing/queue/e2e/job.test-fixture'
 
 const QueueSenderJobsTest = QueueSenderJobs.pipe(
   Layer.provide(JobRepository.layer),

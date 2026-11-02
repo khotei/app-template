@@ -5,17 +5,13 @@ import { Effect, Layer } from 'effect'
 import { RepositoryStackTest } from '@app-template/kernel/data/testing'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
+import { MessageId } from '#chat/domain/chat.id'
 import { MessageNotFoundError } from '#chat/domain/message.error'
 import { MessageService, type MessageWhere } from '#chat/services/message.service'
-import {
-  chat,
-  firstMessage,
-  owner,
-  stranger,
-  unknownChatId,
-  unknownMessageId,
-} from '#testing/chat/chat.test-fixture'
+import { chat, firstMessage, owner, stranger, unknownChatId } from '#testing/chat/chat.test-fixture'
 import { insertChatLayer, insertMessage } from '#testing/chat/chat.test-layer'
+
+const unknownMessageId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000039')
 
 /** The message service over the memory layers, on fresh rows where `chat` has `firstMessage`. */
 const MessageServiceTest = MessageService.layer.pipe(

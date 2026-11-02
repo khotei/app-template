@@ -20,17 +20,13 @@ import { buildResourceName } from '@app-template/kernel/aws'
 import { AwsTest } from '@app-template/kernel/aws/testing/e2e'
 import { AwsConfig } from '@app-template/kernel/config'
 import { Db, JobRepository, jobs } from '@app-template/kernel/data'
-import {
-  DbTest,
-  SampleJob,
-  sampleJobQueue,
-  sampleProvenance,
-} from '@app-template/kernel/data/testing/e2e'
+import { DbTest } from '@app-template/kernel/data/testing/e2e'
 import { QueueError, QueueSender, QueueTransport } from '@app-template/packages/queue'
 import { recordLogs } from '@app-template/packages/testing'
 
 import { JobRelay } from '#kernel/queue/job.relay'
 import { QueueSenderJobs } from '#kernel/queue/queue.client'
+import { SampleJob, sampleJobQueue, sampleProvenance } from '#testing/queue/e2e/job.test-fixture'
 
 interface Attempt {
   readonly queue: string

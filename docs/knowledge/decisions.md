@@ -497,7 +497,8 @@ Every workspace keeps its unit tests and their support in `__tests__/`, the supp
 `__tests__/testing/e2e/`, behind an `index.ts` of its own that `__tests__/testing/index.ts` does
 not re-export. A unit imports it as `@app-template/<folder>/testing` and
 `@app-template/<folder>/testing/e2e`, and its own files through `#testing/<unit>/*` and
-`#testing/<unit>/e2e/*`; the kernel's parts are units like packages, so each part keeps its own
+`#testing/<unit>/e2e/*`; support that one unit alone reads keeps the alias and no entry. The
+kernel's parts are units like packages, so each part keeps its own
 (`kernel/<part>/__tests__/`, `kernel/<part>/__e2e__/`). The support files keep their kind suffixes
 (`.test-layer`, `.test-setup`). An e2e suite may import both, a unit test never `testing/e2e`;
 `application` has unit tests and, of e2e, only its mappers' round trips on Postgres, beside the
@@ -524,13 +525,12 @@ package, as a kernel part's does.
   name of its own: a third test folder, and an import name no folder carries. A label in the file
   name (`<name>.e2e-layer.ts`) beside the unit test support: the label is lost behind the
   `/testing` entry, so only review could refuse the import.
-- **Cost:** a use case's race or rollback runs through the api with both processes up, slower
-  than a call of the use case.
-  The kernel declares an alias and an export per part's support. The run's `globalSetup` sits
-  in the data's e2e support, though it starts the MiniStack every workspace's e2e uses. The e2e
-  support lies under `__tests__/`, so the kernel's and the packages' `__tests__/**` Biome
-  overrides exclude `__tests__/testing/e2e/**`, and the override of a kernel part or a package
-  that covers its e2e takes it back.
+- **Cost:** a use case's race or rollback runs through the api with both processes up, slower than a
+  call of the use case. The kernel declares an alias per part's support, and an export where another
+  unit reads it. The run's `globalSetup` sits in the data's e2e support, though it starts the
+  MiniStack every workspace's e2e uses. The e2e support lies under `__tests__/`, so the kernel's and
+  the packages' `__tests__/**` Biome overrides exclude `__tests__/testing/e2e/**`, and the override
+  of a kernel part or a package that covers its e2e takes it back.
 - **Guarded by:** every `__tests__/**` Biome override bans `#testing/*/e2e/**` and
   `@app-template/**/testing/e2e`, but in `__tests__/testing/e2e/**`, which the e2e overrides
   take; the `application/use-cases/**` override bans `@app-template/*/testing`,

@@ -17,7 +17,7 @@ import {
 } from '@app-template/packages/testing'
 
 import { AttachmentBoundError, AttachmentNotFoundError } from '#chat/domain/attachment.error'
-import type { AttachmentId } from '#chat/domain/attachment.id'
+import { AttachmentId } from '#chat/domain/attachment.id'
 import {
   Attachment,
   buildAttachment,
@@ -26,10 +26,11 @@ import {
   MediaType,
 } from '#chat/domain/attachment.model'
 import { AttachmentService } from '#chat/services/attachment.service'
-import { unknownAttachmentId } from '#testing/chat/attachment.test-fixture'
 import { selectAttachments, upload } from '#testing/chat/attachment.test-layer'
 import { chatId, firstMessage, messageId, owner, stranger } from '#testing/chat/chat.test-fixture'
 import { insertMessage } from '#testing/chat/chat.test-layer'
+
+const unknownAttachmentId = AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000029')
 
 /** The service over the memory layers, on fresh rows where the message a send binds to exists. */
 const AttachmentServiceTest = AttachmentService.layer.pipe(
