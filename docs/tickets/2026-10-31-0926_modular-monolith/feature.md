@@ -79,8 +79,8 @@ Behaviour seen from outside does not change.
 
 ## Scope
 
-- **The data layer**, `kernel/data` (`@app-template/kernel/data`, a subpath per store:
-  `/data/chat`, `/data/attachment`, `/data/user`, `/data/job`, `/data/file`): `Db` over every
+- **The data layer**, `kernel/data` (`@app-template/kernel/data`, one entry for every store):
+  `Db` over every
   table and relation, the migrations and the drizzle-kit config, every table, enum, index and
   relation, the repositories with their own `<Name>Entity`, `<Name>EntityInsert`,
   `<Name>EntityWhere` and `<Name>EntitySet`, `JobRepository`, and `FileRepository` over the
@@ -96,9 +96,9 @@ Behaviour seen from outside does not change.
   model, the job definitions) and, once it has an adapter, `infrastructure/` (chat's assistant with
   its prompts). The module contract `identity-contract` holds `UserId`, `UserUnknownError`,
   `CurrentUser` and `Auth`. Every use case lives in `application/use-cases`
-  (`@app-template/use-cases`), above the modules.
-- **The boundary**: the kernel, one workspace `@app-template/kernel` with subpaths `/config`,
-  `/postgres`, `/aws`, `/aws/resources`, `/queue` and `/llm` beside `/data`, holding this app's
+  (`@app-template/application/use-cases`), above the modules.
+- **The boundary**: the kernel, one workspace with the parts `config`, `postgres`, `aws` (with the
+  inventory), `queue` and `llm` beside `data`, holding this app's
   configuration of its tools (the clients built from config, the AWS inventory, the migrate entry,
   the queue's sender, consumer and relay) and no service rule; `http-api`, which keeps every HTTP
   group; the apps, which keep the handlers, assemble the layers and provide the clients.
@@ -106,13 +106,19 @@ Behaviour seen from outside does not change.
   `Transaction`, the columns, `generateId`, the migrator), `aws` reduced to the generic provisioner, and `llm`
   with the provider builders now in chat's `assistant.client.ts`.
 - **Tests**: every workspace keeps its unit tests in `__tests__/` with their support in
-  `__tests__/testing/`, and its e2e tests in `__e2e__/` with their support in `__e2e__/testing/`;
-  an e2e suite may import `__tests__/testing`, a unit test never `__e2e__/testing`. `application`
+  `__tests__/testing/`, the support only the e2e use in `__tests__/testing/e2e/`, and its e2e
+  tests in `__e2e__/`; a unit test never imports `testing/e2e`. `application`
   holds unit tests only; the e2e over assembled layers live beside the apps in `apps/__e2e__`
   (`@app-template/e2e`, today's `e2e/` workspace): the use cases on Postgres, the mappers' extreme
   values and the journey over both processes, which never import each other.
-- The guards: package `exports`, the isolated linker, `tsc -b` project references, a Biome
-  override per ring and per layer, the bundle check rewritten; each Biome failure names the
+- **Imports by folder path** (added 2026-11-02, after verification): a part of the kernel, a
+  package under `packages/*` and a workspace under `application/` are imported by their folder,
+  `@app-template/<folder>` (`@app-template/application/chat`, `@app-template/packages/db`,
+  `@app-template/kernel/data`), through `paths` in `tsconfig.base.json`, each by one entry, its
+  `index.ts`, and its test support by `<folder>/testing` (`<folder>/testing/e2e` for what only
+  the e2e use); the apps and `http-api` keep their package names.
+- The guards: a Biome list per workspace of the units it may import, `tsc -b` project
+  references, a Biome override per ring and per layer, the bundle check rewritten; each Biome failure names the
   decision it protects. What no configuration expresses (a cycle of modules through their
   contracts, a service rule in the kernel) is a review rule, never hand-written test code.
 - Names: the data layer's types end in `Entity`; the word names nothing else, and the domain's
@@ -159,14 +165,18 @@ Behaviour seen from outside does not change.
   `packages/*` and takes its clients from the context.
 - **R10** — WHEN a use case enqueues a job, THE SYSTEM SHALL write it to the table `jobs` in the
   transaction of the writes the job reads.
-- **R11** — THE SYSTEM SHALL keep a workspace's unit tests with their support under `__tests__/`
-  and its e2e tests with their support under `__e2e__/`, and SHALL run no e2e test from
-  `application`.
+- **R11** — THE SYSTEM SHALL keep a workspace's unit tests and its test support under
+  `__tests__/`, with the support only the e2e use under `__tests__/testing/e2e/`, and its e2e
+  tests under `__e2e__/`, and SHALL run no e2e test from `application`.
+- **R21** — THE SYSTEM SHALL import a part of the kernel, a package under `packages/*` and a
+  workspace under `application/` by its folder path, `@app-template/<folder>`, through one entry,
+  its `index.ts`, and its test support through `@app-template/<folder>/testing` and
+  `@app-template/<folder>/testing/e2e`; the apps and `http-api` SHALL keep their package names.
 
 ### Guards
 
 - **R12** — IF code imports another module's internals, a module from outside the use cases, the
-  processes and the HTTP contract, or a workspace its package does not declare,
+  processes and the HTTP contract, or a unit its workspace's Biome list does not name,
   THEN `make check` SHALL fail, naming the import and the decision it breaks.
 - **R13** — IF the workspaces form a cycle, or the kernel or a generic package imports a module or
   a contract, THEN `make check` SHALL fail; IF the modules form a cycle once a dependency on a
@@ -175,11 +185,13 @@ Behaviour seen from outside does not change.
   `make check` SHALL fail, naming the decision.
 - **R15** — IF a module's domain or a contract imports the kernel, a module's services import the
   kernel's boundary or the module's own infrastructure, a use case imports the kernel's boundary
-  or a module's infrastructure, or a package under `packages/*` imports the kernel, THEN
+  (every layer of a module below it is open to it), or a package under `packages/*` imports the
+  kernel, THEN
   `make check` SHALL fail, naming the import and the decision.
 - **R16** — IF a service, a use case, a repository or an adapter reaches the browser's bundle, THEN
   `make check` SHALL fail.
-- **R17** — IF a unit test imports e2e support, THEN `make check` SHALL fail, naming the decision.
+- **R17** — IF a unit test imports e2e support (`testing/e2e`), THEN `make check` SHALL fail,
+  naming the decision.
 
 ### Rules, docs and decisions
 
@@ -212,13 +224,14 @@ Behaviour seen from outside does not change.
 | R8 | each module holds only `domain/`, `services/`, `infrastructure/`, `__tests__/` and its manifests; every `*.use-case.ts` lies under `application/use-cases/`; the layer overrides pass |
 | R9 | grep: no file under `kernel/data/` imports `@app-template/*` but a package under `packages/*`, or `#kernel/*` outside `#kernel/data`; every `*.table.ts`, `*.entity.ts` and `*.repository.ts` lies under `kernel/data/` |
 | R10 | the send-message e2e finds the job in `jobs` and rolls back both on a failed write |
-| R11 | `git ls-files` finds no `tests/`, `e2e/` or `testing/` folder outside `__tests__/` and `__e2e__/` (but the package `packages/testing`), and no `__e2e__/` under `application/` |
-| R12 | a throwaway import of another module's internals, and one of an undeclared workspace, each fail `make check` with the import and the decision named |
+| R11 | `git ls-files` finds no `tests/`, `e2e/` or `testing/` folder outside `__tests__/` and `__e2e__/` (but the package `packages/testing` and `apps/__e2e__/testing`), no `__e2e__/testing/` under `kernel/` or `packages/`, and no `__e2e__/` under `application/` |
+| R12 | a throwaway import of another module's internals, and one of a unit its workspace's list does not name, each fail `make check` with the import and the decision named |
 | R13 | a throwaway import of a module into the kernel and into a generic package each fail `make check` with the decision named; the modules rule names the contract cycle and its decision |
 | R14 | throwaway imports of a module's model, of `#kernel/aws` and of `@app-template/kernel/config` into a data-layer file each fail `make check` with the decision named |
-| R15 | throwaway imports of the kernel into a module's domain and into a contract, of `@app-template/kernel/llm` and of the module's infrastructure into its services, of `@app-template/kernel/postgres` into a use case, and of the kernel into a package each fail `make check` with the decision named |
+| R15 | throwaway imports of the kernel into a module's domain and into a contract, of `@app-template/kernel/llm` and of the module's infrastructure into its services, of `@app-template/kernel/postgres` into a use case (a module's infrastructure in a use case passes), and of the kernel into a package each fail `make check` with the decision named |
 | R16 | `make bundle-check` passes; throwaway imports of a module's service, of a use case and of a repository into the web app each make it fail |
-| R17 | a throwaway import of `#testing-e2e/…` into a unit test fails `make check` with the decision named |
+| R17 | throwaway imports of `#testing/e2e/…` and of `@app-template/kernel/data/testing/e2e` into a unit test each fail `make check` with the decision named |
+| R21 | `git grep` finds no import of `@app-template/<name>` for a unit of `kernel`, `packages` or `application` but by its folder, and none of a layer or store subpath; `make check` passes |
 | R18 | the decisions document and `architecture.md` show a use case spanning modules with a short snippet; grep finds no job whose handler reacts to another module's write |
 | R19 | `make doc-names` passes; `architecture.md` has the seven sections; the glossary has "Application", "Module", "Module contract", "Use case", "Kernel", "Data layer", "Entity", "Model", "Boundary" and "Package" and bans "Component" |
 | R20 | every decision of `architecture.md › Decisions` has a record with the seven fields; every Biome guard's message and every review rule names a record that exists; `CLAUDE.md` holds the pointer |
@@ -260,3 +273,9 @@ Settled with the user on 2026-10-31, after the research, an audit and the plan r
 - **Guards** are configuration (`exports`, the isolated linker, `tsc -b`, Biome, the bundle
   check) plus one review rule, never hand-written test code; the decisions live in
   `docs/knowledge/decisions.md`.
+- **Imports by folder path** (settled 2026-11-02, after verification): the kernel's parts, the
+  packages and the application's workspaces are imported as `@app-template/<folder>` through
+  `paths`, one `index.ts` and one `/testing` each; a Biome list per workspace replaces the
+  isolated linker's check, which an alias bypasses; a use case may import any layer of a module
+  below it; e2e support sits in `__tests__/testing/e2e/`, imported as `<folder>/testing/e2e`,
+  which Biome refuses in a unit test.

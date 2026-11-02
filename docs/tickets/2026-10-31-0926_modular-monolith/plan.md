@@ -32,6 +32,9 @@
 | S24 | the statuses through the mapper e2e; the test layers' `provideMerge` in the rule | done |
 | S25 | the kernel's tests beside each of its parts | done |
 | S26 | the apps' layers exported to the e2e as test support | done |
+| S27 | the packages and the kernel's parts imported by folder | todo |
+| S28 | the application's workspaces imported by folder, one entry per module | todo |
+| S29 | a Biome list per workspace; e2e support in `__tests__/testing/e2e/` | todo |
 
 ## How to run this plan
 
@@ -1277,6 +1280,85 @@
     internal `#api/layer` imports `main.ts` keeps.
   - Size: 10 files, about +30 / −21.
 
+#### S27 — The packages and the kernel's parts imported by folder
+
+- **Delivers:** `paths` in `tsconfig.base.json`, one pair per unit, listed by hand:
+  `@app-template/packages/<name>` → `packages/<name>/index.ts` and
+  `@app-template/packages/<name>/testing` → `packages/<name>/__tests__/testing/index.ts` for
+  `aws`, `db`, `llm`, `queue`, `s3`, `testing`, `ui`; `@app-template/kernel/<part>` →
+  `kernel/<part>/index.ts` and its `/testing` for `config`, `data`, `postgres`, `aws`, `queue`,
+  `llm`. `kernel/data/index.ts` re-exports every store (the `/data/<store>` subpaths go),
+  `kernel/aws/index.ts` the inventory (`/aws/resources` goes). The `/testing-e2e` aliases stay
+  until S29. `vitest.config.ts` gains `resolve: { tsconfigPaths: true }`. Every import of these
+  units is rewritten (about 170 in 120 files). Biome's patterns name the new specifiers, and
+  `make bundle-check` greps the bundle's file paths (`// kernel/`, `// application/use-cases/`,
+  `// application/<module>/(services|infrastructure)/`) in place of package names. The units'
+  `exports` and workspace dependencies stay until S29.
+- **Goal:** R21, D21; the user's word on 2026-11-02.
+- **Blocked by:** S26.
+- **Files:** `tsconfig.base.json`, `vitest.config.ts`, `Makefile` (`bundle-check`), `biome.json`,
+  `kernel/{data,aws}/index.ts`, every `*.ts` importing `@app-template/{kernel,aws,db,llm,queue,s3,testing,ui}`,
+  `docs/knowledge/decisions.md › Imports through subpaths` (rewritten: imports by folder) and
+  `› One kernel`, and every doc, rule, `CLAUDE.md` and skill `git grep` finds naming an old
+  specifier.
+- **Test first:** `config only` — every case and assertion kept (D14).
+- **Verify:** `make check`; `git grep -nE "'@app-template/(kernel/data/|kernel/aws/resources|(aws|db|llm|queue|s3|testing|ui)['/])" -- ':!docs/tickets' ':!repos'`
+  finds nothing; a throwaway import of `ChatService` into `apps/web/app/main.ts` fails
+  `make bundle-check` naming the file's path (R16).
+- **Model:** `opus medium`
+- **Status:** todo
+
+#### S28 — The application's workspaces imported by folder
+
+- **Delivers:** `paths` pairs for `@app-template/application/{chat,identity,identity/contract,use-cases}`
+  and their `/testing`; `application/{chat,identity,use-cases}/index.ts` each the one entry
+  (re-exporting `domain/`, `services/`, `infrastructure/`; the use cases' `chat/`); every import
+  of these units rewritten (about 100 in 50 files). Each Biome ban on another unit's layer
+  (`@app-template/*/services`, `*/infrastructure`, `*/domain`) either matches the imported name
+  through `importNamePattern` (the mappers, `*FromConfig`, `*Service`, `*Repository`) or is
+  recorded as lost; the use cases' ban on a module's infrastructure goes (R15).
+- **Goal:** R21, R15 as amended; D21, D4's note.
+- **Blocked by:** S27.
+- **Files:** `tsconfig.base.json`, `biome.json`, `application/{chat,identity,use-cases}/index.ts`,
+  every `*.ts` importing `@app-template/{chat,identity,identity-contract,use-cases}`,
+  `docs/knowledge/decisions.md › A module's layers`, `› Module contracts`, `› Use cases above
+  the modules`, `docs/knowledge/architecture.md`, `.claude/rules/modules.md`, and every doc
+  `git grep` finds naming an old specifier.
+- **Test first:** `config only` — every case and assertion kept (D14).
+- **Verify:** `make check`; `git grep -nE "'@app-template/(chat|identity|identity-contract|use-cases)['/]" -- ':!docs/tickets' ':!repos'`
+  finds nothing; throwaway imports of a mapper into an api handler and of `@app-template/kernel/postgres`
+  into a use case each fail Biome naming the record; one of `AssistantLlmFromConfig` into a use
+  case passes; `make bundle-check` still fails on `ChatService` in the web app.
+- **Model:** `opus medium`
+- **Status:** todo
+
+#### S29 — A Biome list per workspace; e2e support in `testing/e2e`
+
+- **Delivers:** each workspace's Biome override refuses `@app-template/**` but for the units it
+  may import (`!@app-template/<folder>`, `!…/testing` in its tests), following the rings, the
+  message naming D22's record; the workspace dependencies on `kernel`, `packages/*` and
+  `application/*` and those units' `exports` leave every `package.json` (the apps keep theirs).
+  The e2e support of `kernel/data`, `kernel/aws` and `packages/db` moves from `__e2e__/testing/`
+  to `__tests__/testing/e2e/`, names unchanged, behind an `index.ts`; the aliases
+  `<folder>/testing/e2e` and `#testing/e2e/*` replace `/testing-e2e` and `#testing-e2e/*`, and
+  the unit-test bans follow them (R17).
+- **Goal:** R11, R12, R13 and R17 as amended; D22, D19's and D12's notes.
+- **Blocked by:** S28.
+- **Files:** `biome.json`, every `package.json` under `kernel/`, `packages/`, `application/`,
+  `http-api/`, `apps/`, `deployment/`, `bun.lock`, the moved support files, `vitest.config.ts`
+  (`globalSetup`), `.claude/rules/{effect-tests,naming}.md`, `docs/knowledge/decisions.md ›
+  Guards are configuration` and `› Tests in their folders`, `docs/knowledge/{architecture,tooling}.md`,
+  and every doc `git grep` finds naming `testing-e2e` or a moved file.
+- **Test first:** `config only` — every case and assertion kept (D14).
+- **Verify:** `make check`; `git grep -n "testing-e2e" -- ':!docs/tickets' ':!repos'` finds
+  nothing; a throwaway import of `@app-template/packages/db` into `apps/web/` and one of
+  `@app-template/application/identity` into chat's services each fail Biome naming the record
+  (R12); throwaway imports of `#testing/e2e/db.test-layer` and of
+  `@app-template/kernel/data/testing/e2e` into a unit test each fail naming the record (R17); a script lists every `@app-template/<folder>` import with its workspace and finds each in
+  that workspace's list.
+- **Model:** `opus high`
+- **Status:** todo
+
 ## Requirement coverage
 
 | Req | Steps |
@@ -1291,13 +1373,14 @@
 | R8 | S3, S13, S19, S21 |
 | R9 | S8, S9, S10, S12, S14, S15, S17, S18 |
 | R10 | S10 |
-| R11 | S1 |
-| R12 | S21 |
-| R13 | S4, S20, S21 |
+| R11 | S1, S29 |
+| R12 | S21, S29 |
+| R13 | S4, S20, S21, S29 |
 | R14 | S8, S21 |
-| R15 | S4, S21 |
-| R16 | S11, S13, S19, S21 |
-| R17 | S1, S21 |
+| R15 | S4, S21, S28 |
+| R16 | S11, S13, S19, S21, S27 |
+| R17 | S1, S21, S29 |
 | R18 | S20, S22 |
 | R19 | S22, S23 |
 | R20 | S20, S21 |
+| R21 | S27, S28 |

@@ -515,6 +515,10 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
     the handler over the repositories for a step no rule guards, as `layering.md` allowed, which
     put the mappers and the data layer in the apps; `getMessage` in `ChatService`, a second
     entity's reads in the chat's service.
+  - **Note (S28):** a module now has one entry, its `index.ts`, in place of an export per layer
+    (D21); a Biome ban on another unit's layer matches the imported name instead
+    (`importNamePattern`). A use case may import any layer of a module below it, its
+    infrastructure included: the user's word on 2026-11-02.
 
 - **D5 — One kernel workspace, `@app-template/kernel`, with subpaths `/config`, `/postgres`,
   `/aws`, `/aws/resources`, `/queue`, `/llm` and `/data`; it holds the data and the boundary's
@@ -531,6 +535,8 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
       app's tools.
     - `packages/aws` moved whole — the queue package's e2e would import the kernel; the generic
       provisioner stays, the inventory and the naming rule move.
+  - **Note (S27):** the subpaths became parts imported by folder (D21): `@app-template/kernel/data`
+    is one entry for every store, and the AWS inventory joins `@app-template/kernel/aws`.
 
 - **D6 — The language-model technology lives in `packages/llm` (the provider builders) and
   `kernel/llm` (the provider by `LlmConfig`); `chat` keeps only `AssistantLlm` with its prompts and
@@ -642,6 +648,9 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
   - **Rejected:**
     - a module-graph test — test code for a rule review can hold.
     - dependency-cruiser — needs a TypeScript parser the repo lacks.
+  - **Note (S29):** a `paths` alias bypasses the isolated linker and `tsc -b`'s references (D21),
+    so a Biome list per workspace of the units it may import takes their place (D22); `exports`
+    stay only for the apps.
 
 - **D13 — `Status` belongs to `chat`.**
   - **Why:** only the chat and the message use it; `jobs` (22) gets a job vocabulary of its own.
@@ -743,6 +752,12 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
     their support exported per part; the e2e run's `globalSetup` stays one file in the data's e2e
     support, since vitest runs `globalSetup` files one after another and a split would stop
     Postgres and MiniStack from starting in parallel.
+  - **Note (S29):** a unit's support lives in `__tests__/testing/`, the part only the e2e use in
+    `__tests__/testing/e2e/`, imported as `<folder>/testing` and `<folder>/testing/e2e` (D21), so
+    the import names the folder and Biome still refuses `testing/e2e` in a unit test (R17); the
+    files keep their kind suffixes (`db.test-layer.ts`). Rejected: a label in the file name
+    (`db.e2e-layer.ts`) beside the unit's other support — the label is lost behind the `/testing`
+    entry, so only review could refuse it; `/testing-e2e`, a name no folder carries.
 
 - **D20 — The migrations restart as one initial migration generated from the data layer; every
   database is recreated (`make reset`).**
@@ -754,6 +769,39 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
   - **Rejected:**
     - the two migrations kept, `outbox` renamed in a third — a history no deployed database
       needs.
+
+- **D21 — A part of the kernel, a package under `packages/*` and a workspace under
+  `application/` are imported by their folder, `@app-template/<folder>`, through `paths` in
+  `tsconfig.base.json`: one entry, the unit's `index.ts`, and its test support,
+  `@app-template/<folder>/testing` (and `/testing/e2e`); the apps and `http-api` keep their
+  package names.**
+  - **Why:** an import tells where its code lives; one entry per unit is all a caller must know.
+  - **Sources:** a probe on 2026-11-02 (worktree `modular-monolith-S27-paths-probe`): `tsc -b`
+    (tsgo), the Bun runtime and `bun build` resolve the aliases; vitest needs
+    `resolve: { tsconfigPaths: true }` (Vite 8); the web bundle is byte-identical with `http-api`
+    importing chat through its one entry, since the bundler drops the unused services.
+  - **Cost accepted:** an alias bypasses the isolated linker and the project references, so an
+    undeclared or unreferenced unit type-checks (D22 replaces the check); the bundler parses a
+    module's services to drop them; a ban on another unit's layer matches names, not paths;
+    `make bundle-check` greps the bundle's file paths.
+  - **Reversal:** the package names and their `exports` again; one commit of import rewrites.
+  - **Rejected:**
+    - package names carrying the path (`@app-template/application/chat`) — npm names allow one
+      `/` after the scope.
+    - one workspace per top folder with subpath exports — the linker would check whole folders,
+      not modules, and `tsc -b` would no longer refuse a cycle of modules.
+    - a subpath per layer under the folder (`/chat/domain`) — the user's word: one entry.
+
+- **D22 — Each workspace's Biome override lists the units it may import
+  (`@app-template/**` refused but for `!@app-template/<folder>` per unit); the list follows the
+  rings.**
+  - **Why:** the isolated linker no longer sees an alias import (D21); Biome's message names the
+    record, which TS2307 never could (R12).
+  - **Cost accepted:** a list per workspace, kept beside its `tsconfig.json` references by hand;
+    a cycle of workspaces is refused by the lists, not by `tsc -b`.
+  - **Reversal:** with D21's reversal, the workspace dependencies again.
+  - **Rejected:**
+    - no list, the boundary held by review — the user's word: the guard stays configuration.
 
 ## Risks
 
@@ -768,7 +816,10 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
 - **The bundle check's grep keeps passing with the old pattern** once the service keys change.
   *Contained by:* each step that renames keys proves the pattern with a throwaway import (R16).
 - **A list of module packages in a Biome override misses a new module.** *Contained by:* the
-  isolated linker (an undeclared workspace fails with TS2307) and the add-a-module checklist.
+  per-workspace lists of D22 (an unlisted unit is refused) and the add-a-module checklist.
+- **An alias import of a unit escapes every check between S27 and S29**, when the linker no
+  longer sees it and the lists do not yet exist. *Contained by:* the steps run back to back, and
+  S29's Verify greps every import against the new lists.
 - **A limit duplicated by D11 drifts** between a model and its check. *Contained by:* the
   mappers' e2e writes the extreme value the model allows.
 - **The plan's interim states.** The ports' adapters delegate to the data layer's repositories
