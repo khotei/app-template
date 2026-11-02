@@ -1,12 +1,12 @@
 import { eq, isNull } from 'drizzle-orm'
-import { Context, Effect, flow, Layer, Option, Schema, UndefinedOr } from 'effect'
+import { Array as Arr, Context, Effect, flow, Layer, Option, Schema, UndefinedOr } from 'effect'
 import { identity } from 'effect/Function'
 
 import {
   buildSet,
   buildWhere,
   decodeOptionalRow,
-  orDieOnNoRows,
+  orDieUnless,
   orDieWithSqlError,
   skipUndefined,
 } from '@app-template/packages/db'
@@ -84,7 +84,7 @@ export class ChatRepository extends Context.Service<
               .set(encodeSet(set))
               .where(encodeWhere(chats)(where))
               .returning({ id: chats.id })
-              .pipe(orDieOnNoRows('no chat was updated')),
+              .pipe(orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no chat was updated')),
           orDieWithSqlError,
         ),
         selectOne: Effect.fn('ChatRepository.selectOne')(
@@ -107,7 +107,7 @@ export class ChatRepository extends Context.Service<
               .delete(chats)
               .where(encodeWhere(chats)(where))
               .returning({ id: chats.id })
-              .pipe(orDieOnNoRows('no chat was deleted')),
+              .pipe(orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no chat was deleted')),
           orDieWithSqlError,
         ),
       }),

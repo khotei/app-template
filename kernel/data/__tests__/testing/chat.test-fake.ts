@@ -15,7 +15,7 @@ import {
 } from 'effect'
 import { constTrue } from 'effect/Function'
 
-import { orDieOnNoRows } from '@app-template/packages/db'
+import { orDieUnless } from '@app-template/packages/db'
 
 import type { AttachmentEntity } from '#kernel/data/attachment/attachment.entity'
 import { ChatEntity, type ChatEntityWhere } from '#kernel/data/chat/chat.entity'
@@ -161,19 +161,19 @@ export const ChatRepositoryTest = Layer.effect(
         decodeChat({ ...chatDefaults, ...chat }).pipe(
           Effect.orDie,
           Effect.flatMap((row) => insertRow(chats, { row })),
-          orDieOnNoRows('no chat was inserted: its id is taken'),
+          orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no chat was inserted: its id is taken'),
         ),
       update: (set, where) =>
         updateRows(chats, {
           where: holdsChatWhere(where),
           update: writeSet({ title: true, status: true, updatedAt: true }, set),
-        }).pipe(orDieOnNoRows('no chat was updated')),
+        }).pipe(orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no chat was updated')),
       selectOne: (where) => selectMany(where).pipe(Effect.map(Arr.head)),
       selectMany,
       delete: (where) =>
         deleteRows(chats, holdsChatWhere(where)).pipe(
           Effect.tap(cascade),
-          orDieOnNoRows('no chat was deleted'),
+          orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no chat was deleted'),
         ),
     })
   }),
@@ -211,7 +211,7 @@ export const MessageRepositoryTest = Layer.effect(
         decodeMessage({ ...messageDefaults, ...message }).pipe(
           Effect.orDie,
           Effect.flatMap((row) => insertRow(messages, { row, accepts: holdsActiveIndex })),
-          orDieOnNoRows(`message ${message.id} was not inserted`),
+          orDieUnless(Arr.isReadonlyArrayNonEmpty, `message ${message.id} was not inserted`),
         ),
       update: (set, where) =>
         read.pipe(
@@ -222,7 +222,7 @@ export const MessageRepositoryTest = Layer.effect(
               accepts: holdsActiveIndex,
             }),
           ),
-          orDieOnNoRows('no message was updated'),
+          orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no message was updated'),
         ),
       selectOne: (where) => selectMany(where).pipe(Effect.map(Arr.head)),
       selectMany,

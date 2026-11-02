@@ -80,33 +80,25 @@ export const unwrapQueryError = (error: EffectDrizzleQueryError) => {
 const isQueryError = Schema.is(EffectDrizzleQueryError)
 
 /**
- * Dies with `message` when a write's `RETURNING` answers no row.
- *
- * The caller checked the rule before writing, so a write the guard refuses only lost a race.
+ * Holds when a write's `RETURNING` answers one row per distinct id of `ids`: a write over a list
+ * misses none of the rows it names.
  */
-export const orDieOnNoRows =
-  (message: string) =>
-  <A, E, R>(self: Effect.Effect<ReadonlyArray<A>, E, R>): Effect.Effect<void, E, R> =>
-    self.pipe(
-      Effect.filterOrElse(Arr.isReadonlyArrayNonEmpty, () => Effect.die(new Error(message))),
-      Effect.asVoid,
-    )
-
-const holdsRowPer = (ids: string | ReadonlyArray<string>) =>
+export const hasRowPer = (ids: string | ReadonlyArray<string>) =>
   Predicate.and(
     Arr.isReadonlyArrayNonEmpty<unknown>,
     (rows: ReadonlyArray<unknown>) => rows.length === Arr.dedupe(Arr.ensure(ids)).length,
   )
 
 /**
- * Dies with `message` unless a write's `RETURNING` answers one row per distinct id of `ids`: a
- * write over a list dies where it misses any row it names, as `orDieOnNoRows` where it misses all.
+ * Dies with `message` unless the rows a write's `RETURNING` answers satisfy `holds`.
+ *
+ * The caller checked the rule before writing, so a write the guard refuses only lost a race.
  */
-export const orDieOnMissedRows =
-  (ids: string | ReadonlyArray<string>, message: string) =>
+export const orDieUnless =
+  (holds: Predicate.Predicate<ReadonlyArray<unknown>>, message: string) =>
   <A, E, R>(self: Effect.Effect<ReadonlyArray<A>, E, R>): Effect.Effect<void, E, R> =>
     self.pipe(
-      Effect.filterOrElse(holdsRowPer(ids), () => Effect.die(new Error(message))),
+      Effect.filterOrElse(holds, () => Effect.die(new Error(message))),
       Effect.asVoid,
     )
 

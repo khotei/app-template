@@ -11,7 +11,7 @@ import {
   Schema,
 } from 'effect'
 
-import { orDieOnNoRows } from '@app-template/packages/db'
+import { orDieUnless } from '@app-template/packages/db'
 
 import {
   UserEntity,
@@ -74,7 +74,10 @@ export const UserRepositoryTest = Layer.effect(
               ),
             ),
           ),
-          orDieOnNoRows('no user was inserted: its id or its credential is taken'),
+          orDieUnless(
+            Arr.isReadonlyArrayNonEmpty,
+            'no user was inserted: its id or its credential is taken',
+          ),
         ),
       selectOne: (where) =>
         Ref.get(rows).pipe(

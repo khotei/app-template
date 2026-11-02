@@ -1,7 +1,7 @@
 import { inArray, isNull } from 'drizzle-orm'
-import { Context, Effect, Layer, UndefinedOr } from 'effect'
+import { Array as Arr, Context, Effect, Layer, UndefinedOr } from 'effect'
 
-import { buildSet, buildWhere, orDieOnNoRows, orDieWithSqlError } from '@app-template/packages/db'
+import { buildSet, buildWhere, orDieUnless, orDieWithSqlError } from '@app-template/packages/db'
 
 import { Db } from '#kernel/data/db.client'
 import type {
@@ -61,7 +61,7 @@ export class JobRepository extends Context.Service<
               .set(encodeSet(set))
               .where(encodeWhere(where))
               .returning({ id: jobs.id })
-              .pipe(orDieOnNoRows('no job was updated')),
+              .pipe(orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no job was updated')),
           orDieWithSqlError,
         ),
       }),

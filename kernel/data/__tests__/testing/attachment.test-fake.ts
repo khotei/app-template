@@ -13,7 +13,7 @@ import {
   Schema,
 } from 'effect'
 
-import { orDieOnMissedRows, orDieOnNoRows } from '@app-template/packages/db'
+import { hasRowPer, orDieUnless } from '@app-template/packages/db'
 
 import {
   AttachmentEntity,
@@ -82,7 +82,7 @@ export const AttachmentRepositoryTest = Layer.effect(
         decodeAttachment({ ...attachmentDefaults, ...attachment }).pipe(
           Effect.orDie,
           Effect.flatMap((row) => insertRow(rows, { row })),
-          orDieOnNoRows('no attachment was inserted: its id is taken'),
+          orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no attachment was inserted: its id is taken'),
         ),
       update: (set, where) => {
         const update = writeSet({ messageId: true, chatId: true }, set)
@@ -97,7 +97,7 @@ export const AttachmentRepositoryTest = Layer.effect(
               ),
             ),
           ),
-          orDieOnMissedRows(where.id, 'an attachment named was not updated'),
+          orDieUnless(hasRowPer(where.id), 'an attachment named was not updated'),
           Effect.andThen(updateRows(rows, { where: holdsWhere(where), update })),
           Effect.asVoid,
         )
@@ -107,7 +107,7 @@ export const AttachmentRepositoryTest = Layer.effect(
       delete: (where) =>
         Ref.get(rows).pipe(
           Effect.map(flow(HashMap.filter(holdsWhere(where)), HashMap.toValues)),
-          orDieOnMissedRows(where.id, 'an attachment named was not deleted'),
+          orDieUnless(hasRowPer(where.id), 'an attachment named was not deleted'),
           Effect.andThen(deleteRows(rows, holdsWhere(where))),
           Effect.asVoid,
         ),

@@ -56,6 +56,19 @@ The goal is code that reads top to bottom and extends by adding a row, not a bra
 - Reach a service by `Service.use((s) => s.m(…))`, or `useSync` for a plain value.
 - A composable function takes its subject as the last, single argument, options first and curried
   (`pipe(message, encodeWith(codec))`); `dual` only when called both directly and as a pipe step.
+- **Helpers that differ only by a step inside one frame are one function taking that step** (a
+  predicate, a mapper): each caller passes its step in place, a library function or a lambda,
+  never a named wrapper per variant. Such steps are open, any caller brings one; a rule varying
+  by a key of a closed set stays a lookup table (› Branching).
+```ts
+// don't: a copy of the frame per field
+const sumTotal = (xs: ReadonlyArray<Order>) => pipe(xs, Arr.map((o) => o.total), Num.sumAll)
+const sumRefunded = (xs: ReadonlyArray<Order>) => pipe(xs, Arr.map((o) => o.refunded), Num.sumAll)
+// do: one frame, the step passed where it is used
+const sumBy = <A>(amount: (a: A) => number) => (xs: ReadonlyArray<A>) =>
+  pipe(xs, Arr.map(amount), Num.sumAll)
+pipe(orders, sumBy((order) => order.refunded))
+```
 
 ## Branching
 

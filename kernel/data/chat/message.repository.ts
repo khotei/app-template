@@ -6,7 +6,7 @@ import {
   buildSet,
   buildWhere,
   decodeOptionalRow,
-  orDieOnNoRows,
+  orDieUnless,
   orDieWithSqlError,
   skipUndefined,
 } from '@app-template/packages/db'
@@ -81,7 +81,9 @@ export class MessageRepository extends Context.Service<
               .values(message)
               .onConflictDoNothing({ target: messages.chatId, where: activeMessage })
               .returning({ id: messages.id })
-              .pipe(orDieOnNoRows(`message ${message.id} was not inserted`)),
+              .pipe(
+                orDieUnless(Arr.isReadonlyArrayNonEmpty, `message ${message.id} was not inserted`),
+              ),
           orDieWithSqlError,
         ),
         update: Effect.fn('MessageRepository.update')(
@@ -91,7 +93,7 @@ export class MessageRepository extends Context.Service<
               .set(encodeSet(set))
               .where(encodeWhere(messages)(where))
               .returning({ id: messages.id })
-              .pipe(orDieOnNoRows('no message was updated')),
+              .pipe(orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no message was updated')),
           orDieWithSqlError,
         ),
         selectOne: Effect.fn('MessageRepository.selectOne')(

@@ -4,7 +4,8 @@ import { Array as Arr, Context, Effect, identity, Layer, type Option, UndefinedO
 import {
   buildSet,
   buildWhere,
-  orDieOnMissedRows,
+  hasRowPer,
+  orDieUnless,
   orDieWithSqlError,
 } from '@app-template/packages/db'
 
@@ -72,7 +73,7 @@ export class AttachmentRepository extends Context.Service<
             .set(encodeSet(set))
             .where(encodeWhere(where))
             .returning({ id: attachments.id })
-            .pipe(orDieOnMissedRows(where.id, 'an attachment named was not updated')),
+            .pipe(orDieUnless(hasRowPer(where.id), 'an attachment named was not updated')),
         orDieWithSqlError,
       ),
       selectOne: (where: AttachmentEntityWhere) => selectMany(where).pipe(Effect.map(Arr.head)),
@@ -83,7 +84,7 @@ export class AttachmentRepository extends Context.Service<
             .delete(attachments)
             .where(encodeWhere(where))
             .returning({ id: attachments.id })
-            .pipe(orDieOnMissedRows(where.id, 'an attachment named was not deleted')),
+            .pipe(orDieUnless(hasRowPer(where.id), 'an attachment named was not deleted')),
         orDieWithSqlError,
       ),
     }
