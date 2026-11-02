@@ -34,7 +34,7 @@
 | S26 | the apps' layers exported to the e2e as test support | done |
 | S27 | `packages/` one workspace; the kernel's parts one entry each | done |
 | S28 | e2e support in `__tests__/testing/e2e/` | done |
-| S29 | `application/` one workspace, one entry per module | todo |
+| S29 | `application/` one workspace, one entry per module | done |
 | S30 | a Biome list per workspace | todo |
 
 ## How to run this plan
@@ -1421,7 +1421,8 @@
   them, `biome.json`,
   `application/{chat,identity,use-cases}/index.ts`, every `*.ts` under `application/` (aliases)
   and every one importing `@app-template/{chat,identity,identity-contract,use-cases}`, every
-  `package.json` declaring them, `docs/knowledge/decisions.md › A module's layers`, `› Module
+  `package.json` declaring them, `Makefile` (`bundle-check`'s pattern, which names the keys),
+  `docs/knowledge/decisions.md › A module's layers`, `› Module
   contracts`, `› Use cases above the modules`, `docs/knowledge/architecture.md`,
   `.claude/rules/{modules,naming}.md`, and every doc `git grep` finds naming an old specifier or
   alias.
@@ -1434,7 +1435,24 @@
   `ChatService` in the web app; `git ls-files 'application/**/tsconfig.json'` finds
   `application/tsconfig.json` alone.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Biome replaces the options of two overrides matching one file, so each module's layer is an
+    override of its own (`application/<module>/<layer>/**`), not one per layer as D4's note had
+    it; the layer patterns still match by glob. A layer with no override passes every ban but
+    the relative path ("Add a module" names it).
+  - On the user's word, of another module's entry a module takes only the forms a contract's
+    names take (`<Name>Id`, `<Name>Error`, `Current<Name>`): an inverted `importNamePattern`,
+    which also refuses `import * as` and a default import (probed); `http-api`, which reads
+    identity's `User`, keeps the suffix ban, and a namespace import passes it (known gaps).
+  - Review found a module's source free to import its own test support (`#testing/<module>/…`),
+    a gap older than the step; each source layer's override now refuses `#testing/**`.
+  - `make bundle-check`'s pattern took the new keys (`Makefile`, added to Files); the bundle is
+    unchanged but `bun build` parses 1266 modules (324 before) and warns about `node:net`, the
+    cost D21 names. `"sideEffects": false` now covers the use cases.
+  - Stale `node_modules` of the old module workspaces were removed by hand before the last run.
+  - Size: 109 files, about +904 / −752 without `bun.lock`, past the ~400 limit; one commit on
+    the user's word, as S27.
 
 #### S30 — A Biome list per workspace
 

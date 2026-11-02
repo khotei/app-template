@@ -12,12 +12,12 @@ import {
   Stream,
 } from 'effect'
 
-import type { UserId } from '@app-template/identity-contract'
+import type { UserId } from '@app-template/application/identity'
 import { AttachmentRepository, FileRepository } from '@app-template/kernel/data'
 import { generateId } from '@app-template/packages/db'
 
-import { type AttachmentBoundError, AttachmentNotFoundError } from '#domain/attachment.error'
-import { AttachmentId } from '#domain/attachment.id'
+import { type AttachmentBoundError, AttachmentNotFoundError } from '#chat/domain/attachment.error'
+import { AttachmentId } from '#chat/domain/attachment.id'
 import {
   Attachment,
   type AttachmentDownload,
@@ -25,9 +25,13 @@ import {
   ensureUnbound,
   FileSize,
   isExpiredAt,
-} from '#domain/attachment.model'
-import type { ChatId, MessageId } from '#domain/chat.id'
-import { decodeAttachment, decodeAttachments, encodeAttachment } from '#services/attachment.mapper'
+} from '#chat/domain/attachment.model'
+import type { ChatId, MessageId } from '#chat/domain/chat.id'
+import {
+  decodeAttachment,
+  decodeAttachments,
+  encodeAttachment,
+} from '#chat/services/attachment.mapper'
 
 export interface AttachmentUpload<E> extends Pick<Attachment, 'mediaType' | 'fileName'> {
   readonly content: Stream.Stream<Uint8Array, E>
@@ -69,7 +73,7 @@ export class AttachmentService extends Context.Service<
       to: { readonly messageId: MessageId; readonly chatId: ChatId },
     ) => Effect.Effect<ReadonlyArray<Attachment>, AttachmentNotFoundError | AttachmentBoundError>
   }
->()('@app-template/chat/services/AttachmentService', {
+>()('@app-template/application/chat/services/AttachmentService', {
   make: Effect.gen(function* () {
     const attachments = yield* AttachmentRepository
     const files = yield* FileRepository

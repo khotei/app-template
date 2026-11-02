@@ -1,12 +1,12 @@
 import { Schema } from 'effect'
 
-import { UserId } from '@app-template/identity-contract'
+import { UserId } from '@app-template/application/identity'
 import { AttachmentEntity, AttachmentEntityInsert } from '@app-template/kernel/data'
 import { decodeManyWith, decodeOptionalWith, encodeRowWith } from '@app-template/packages/db'
 
-import { AttachmentId } from '#domain/attachment.id'
-import { Attachment, FileName, FileSize, MediaType } from '#domain/attachment.model'
-import { ChatId, MessageId } from '#domain/chat.id'
+import { AttachmentId } from '#chat/domain/attachment.id'
+import { Attachment, FileName, FileSize, MediaType } from '#chat/domain/attachment.model'
+import { ChatId, MessageId } from '#chat/domain/chat.id'
 
 export const AttachmentFromEntity = Schema.Struct({
   ...AttachmentEntity.fields,

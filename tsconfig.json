@@ -2,10 +2,7 @@
   "files": [],
   "references": [
     { "path": "./http-api" },
-    { "path": "./application/chat" },
-    { "path": "./application/identity" },
-    { "path": "./application/identity/contract" },
-    { "path": "./application/use-cases" },
+    { "path": "./application" },
     { "path": "./kernel" },
     { "path": "./packages/aws" },
     { "path": "./packages/db" },

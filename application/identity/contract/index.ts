@@ -1,3 +1,3 @@
-export * from '#contract/auth'
-export * from '#contract/user.error'
-export * from '#contract/user.id'
+export * from '#identity/contract/auth'
+export * from '#identity/contract/user.error'
+export * from '#identity/contract/user.id'

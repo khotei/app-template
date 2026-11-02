@@ -15,8 +15,8 @@ import {
   MessageInputInvalidError,
   Message as MessageModel,
   MessageNotFoundError,
-} from '@app-template/chat/domain'
-import { Auth } from '@app-template/identity-contract'
+} from '@app-template/application/chat'
+import { Auth } from '@app-template/application/identity'
 
 import { Attachment } from '#http-api/attachment/attachment.http'
 import * as limits from '#http-api/shared/limits'

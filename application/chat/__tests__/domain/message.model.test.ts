@@ -3,9 +3,9 @@ import { DateTime, Effect, Option } from 'effect'
 
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { AttachmentId } from '#domain/attachment.id'
-import { ChatId, MessageId } from '#domain/chat.id'
-import { MessageInputInvalidError, MessageStatusInvalidError } from '#domain/message.error'
+import { AttachmentId } from '#chat/domain/attachment.id'
+import { ChatId, MessageId } from '#chat/domain/chat.id'
+import { MessageInputInvalidError, MessageStatusInvalidError } from '#chat/domain/message.error'
 import {
   buildAssistantMessage,
   buildUserMessage,
@@ -17,7 +17,7 @@ import {
   MessageFailure,
   type MessageStatus,
   prepareMessage,
-} from '#domain/message.model'
+} from '#chat/domain/message.model'
 
 const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000001')
 const messageId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000002')

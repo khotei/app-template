@@ -74,8 +74,8 @@ const deleteUser = Effect.fn('DeleteUserUseCase.deleteUser')(function* (id: User
   data layer does not have.
 - **Cost:** a module's flows live outside the module; a shared transaction makes a module harder
   to extract.
-- **Guarded by:** a module's services and infrastructure cannot import `@app-template/use-cases`
-  (their Biome overrides); `.claude/rules/modules.md` refuses a rule in a use case and a job that
+- **Guarded by:** no file of a module imports `@app-template/application/use-cases` (the Biome
+  overrides of its layers); `.claude/rules/modules.md` refuses a rule in a use case and a job that
   carries a module's reaction to another module's write.
 - **If reversed:** events between modules need an event ledger, a handler per reaction and
   at-least-once delivery; a send that spans modules loses its one transaction.
@@ -84,55 +84,74 @@ const deleteUser = Effect.fn('DeleteUserUseCase.deleteUser')(function* (id: User
 
 ### Module contracts
 
-A module other modules need exposes a contract, its own workspace in the module's folder, created
-with its first consumer: `identity-contract` (`UserId`, `UserUnknownError`, `CurrentUser`,
-`Auth`). A dependency on a module's contract counts as one on the module.
+A module other modules need exposes a contract, a folder of the module created with its first
+consumer, `application/identity/contract/` (`UserId`, `UserUnknownError`, `CurrentUser`,
+`Auth`), exported through the module's one entry, `@app-template/application/identity`, with
+the rest of the module. A dependency on a module's contract counts as one on the module.
 
-- **Why:** `chat` and `http-api` need these four and nothing else of identity; a workspace of its
-  own lets the linker refuse the rest.
+- **Why:** `chat` and `http-api` need these four and little else of identity; one entry per
+  module is all a caller must know, and the kernel's parts work the same way.
 - **Sources:** the guide's "design contracts around use cases, not around internal entity
   models"
   ([contracts](https://software-architecture-guild.com/guide/architecture/boundaries/contracts/));
   Spring Modulith's named interfaces and Packwerk's public folder (research).
-- **Rejected:** a `contract/` subpath export of the module: a consumer then declares the whole
-  module, and the linker no longer stops it reaching the rest.
-- **Cost:** a nested workspace needs `exclude` and a reference in its module's `tsconfig.json`;
+- **Rejected:** the contract as its own workspace: the linker refused the rest of the module,
+  but a nested workspace needed `exclude` and a reference in its module's `tsconfig.json`, and a
+  second package name for one module. A second entry, `@app-template/application/identity/contract`:
+  two ways in for one module. A Biome list of the contract's names (`allowImportNames`): a guard
+  of another pattern than the kernel's.
+- **Cost:** the entry opens the module whole, so Biome tells the contract by its names: another
+  module takes only `<Name>Id`, `<Name>Error` and `Current<Name>`, so a contract's names take
+  these forms, and an id or error of the module's domain outside its contract is review's
+  (`modules.md`);
   `Auth`, an HTTP middleware, lives outside `http-api`; `http-api` also reads identity's `domain`,
   since its user DTO is the `User` model.
-- **Guarded by:** the isolated linker (an undeclared module fails with TS2307); the Biome
-  overrides on `application/*/domain/**` and `application/*/contract/**`; `tsc -b` refuses a cycle
-  of project references (TS6202); `.claude/rules/modules.md` refuses a cycle through contracts.
-- **If reversed:** a consumer that declares the module reaches its services and data mappers,
-  and two modules can depend on each other with no tool noticing.
+- **Guarded by:** the Biome overrides of each module's layers, which take no module's entry but
+  the one below it (chat takes identity's, identity none) and none of its files
+  (`#<module>/…`), and take of it only the names a contract carries (an inverted
+  `importNamePattern`, which also refuses a namespace or default import); the override on
+  `application/identity/contract/**`, which imports no workspace and no other file of identity;
+  `.claude/rules/modules.md` refuses a name past the contract and a cycle through contracts.
+- **If reversed:** a consumer that takes the module's entry reaches its services and data
+  mappers, and two modules can depend on each other with no tool noticing.
 - **Revisit when:** a second consumer needs more of a module than its contract holds: grow the
   contract, never import past it.
 
 ### A module's layers
 
-A module holds `domain/`, `services/` and, once it has an adapter, `infrastructure/`, with the
-same `#domain/*`, `#services/*` and `#infrastructure/*` aliases in every module and an export per
-layer. A repository is no port: a service calls the data layer's repository directly.
+A module holds `domain/`, `services/` and, once it has an adapter, `infrastructure/`, behind one
+entry, its `index.ts`, which re-exports every layer; its files reach each other through aliases
+that name the module (`#chat/domain/*`, `#chat/services/*`). A repository is no port: a service
+calls the data layer's repository directly.
 
 - **Why:** `domain/` ships to the browser, so what reads the data cannot sit there; the data
   layer's repository already is the contract a service needs, and a port with an adapter over it
-  would repeat its methods; the same aliases let one Biome override per layer cover every module.
-  A handler calls one service method or one use case, never a repository, so each record has one
-  owner every caller goes through.
+  would repeat its methods; the aliases keep the layer in every import line, so each layer's
+  Biome override matches the others by glob (`#*/services/**`). A handler calls one service
+  method or one use case, never a repository, so each record has one owner every caller goes
+  through.
 - **Sources:** the guide's "Keep internal layering per module"
   ([styles/modular-monolith](https://software-architecture-guild.com/guide/architecture/styles/modular-monolith/));
   `.claude/rules/layering.md`.
 - **Rejected:** ports in `domain/` with adapters over the data layer: two layers with the same
-  methods. An alias per module (`#<module>/…`): an override per module.
+  methods. An export per layer (`/chat/domain`): a caller must know the module's inside. The same
+  `#domain/*` aliases in every module: inside one workspace they would collide.
 - **Cost:** a service depends on the data layer directly, so its unit tests take the data layer's
-  memory repositories; an alias does not name its module.
-- **Guarded by:** the Biome overrides on `application/*/domain/**` (no `#services/**` or
-  `#infrastructure/**`, no workspace but the contracts), `application/*/services/**` (no
-  `#infrastructure/**`), `application/*/infrastructure/**` (no `#services/**`),
-  `application/use-cases/**` (no module's `infrastructure`) and `apps/api/**` and `apps/worker/**`
-  (no data layer and no mapper but in `layer.ts`); `make bundle-check` (no service, repository or
-  adapter in the browser).
-- **If reversed:** a port per repository comes back with five adapters that only delegate, and
-  every override is repeated per module.
+  memory repositories; one entry opens the module whole, so another unit's ban on a layer matches
+  the names it imports, and the bundler parses a module's services to drop them; since Biome
+  replaces the options of two overrides that match one file, each module's layer is an override
+  of its own, `application/<module>/<layer>/**`, which holds the module's ban on another's files;
+  a namespace import (`import * as`) of an entry passes `http-api`'s bans by name.
+- **Guarded by:** the Biome overrides on each `application/<module>/domain/**` (no
+  `#*/services/**` or `#*/infrastructure/**`, no workspace but the entry of a module below it),
+  `…/services/**` (no `#*/infrastructure/**`), `…/infrastructure/**` (no `#*/services/**`), each
+  refusing the other units' files; on `http-api/**` and on `apps/api/**` and `apps/worker/**`, a
+  module's services, mappers and adapters by name (`*Service`, `*FromEntity`, `*FromConfig`,
+  `encode*`, `decode*`; the apps the mappers alone, but in `layer.ts`), with no data layer but in
+  `layer.ts`; `make bundle-check` (no service, repository or adapter in the browser). A use case
+  may import every layer of a module below it, its infrastructure too.
+- **If reversed:** a port per repository comes back with five adapters that only delegate; an
+  export per layer brings back the subpaths and a ban per layer by path.
 - **Revisit when:** a service needs a store the data layer cannot reach, or the domain stops
   shipping to the browser.
 
@@ -152,8 +171,8 @@ The HTTP groups stay in `http-api` and the handlers in the apps; `RequestInvalid
 - **Rejected:** `generateId` spelled out at each call, or copied per module: two copies of a rule
   no module owns. `generateId` in `kernel/data`: it knows no app, so it is a package's.
 - **Cost:** a module's HTTP shape lives outside the module.
-- **Guarded by:** the Biome override on `http-api/**` (no workspace but the contracts and a
-  module's `domain`); the `apps/web/**` override; `make bundle-check`.
+- **Guarded by:** the Biome override on `http-api/**` (no workspace but a module's entry, and
+  of it no service, mapper or adapter by name); the `apps/web/**` override; `make bundle-check`.
 - **If reversed:** a handler inside its module imports the assembled `Api`, which imports the
   module: a cycle `tsc -b` refuses.
 - **Revisit when:** the groups stop being assembled into one `Api`, or a module serves its own
@@ -167,8 +186,8 @@ The HTTP groups stay in `http-api` and the handlers in the apps; `RequestInvalid
 - **Sources:** the ticket's survey of its users.
 - **Rejected:** `Status` in a shared place: a vocabulary owned by no module.
 - **Cost:** none today.
-- **Guarded by:** a module's `domain/` imports no other module but its contract, so no other
-  module can reach it.
+- **Guarded by:** another module reaches chat only through its entry and takes only the names of
+  its contract (`modules.md`); Biome refuses its services and mappers by name, review a model.
 - **If reversed:** a shared `Status` couples every module that reads it to chat's states.
 - **Revisit when:** `jobs` adds statuses: it gets a job vocabulary of its own.
 
@@ -239,8 +258,8 @@ purposes, and its test builds the models from `LlmConfig`.
 - **Cost:** the test's setup names the environment variables; a purpose is still keyed by
   provider and carries Anthropic's request settings, so a second provider adds a key in `chat`
   too.
-- **Guarded by:** the Biome override on `application/*/services/**` (no `@app-template/kernel/llm`);
-  the `AssistantLlm` suite over a recording client.
+- **Guarded by:** the Biome override on each `application/<module>/services/**` (no
+  `@app-template/kernel/llm`); the `AssistantLlm` suite over a recording client.
 - **If reversed:** the provider choice moves back into `chat`, and each new provider changes the
   module.
 - **Revisit when:** `openai-provider` lands: it decides a provider-neutral purpose, translated
@@ -398,36 +417,44 @@ code.
 
 ### Imports through subpaths
 
-A file imports its own unit's files through the workspace's `#…` subpaths (`#domain/*`,
+A file imports its own unit's files through the workspace's `#…` subpaths (`#chat/domain/*`,
 `#kernel/<part>/*`, `#db/*`), never a relative path, and another unit only through that unit's
-entry, even inside one workspace (a kernel part reaches another as `@app-template/kernel/<part>`). A
-unit of the kernel or of `packages/` is imported by its folder: each of the two folders is one
-workspace, `@app-template/kernel` and `@app-template/packages`, with one export per unit, its
-`index.ts` (`@app-template/kernel/data`, every store; `@app-template/packages/db`), and its test
-support (`@app-template/packages/db/testing`). The modules, `http-api` and the apps keep their
-package names.
+entry, even inside one workspace (a kernel part reaches another as
+`@app-template/kernel/<part>`, a module another as `@app-template/application/<module>`). A unit
+of the kernel, of `packages/` or of `application/` is imported by its folder: each of the three
+folders is one workspace, `@app-template/kernel`, `@app-template/packages` and
+`@app-template/application`, with one export per unit, its `index.ts`
+(`@app-template/kernel/data`, every store; `@app-template/packages/db`;
+`@app-template/application/chat`, every layer), and its test support
+(`@app-template/packages/db/testing`). `http-api` and the apps keep their package names.
 
 - **Why:** an import tells where its code lives, and one entry per unit is all a caller must know;
-  a subpath inside a workspace names the layer it reaches, so a Biome override can refuse it by
-  pattern, while a relative path hides the layer and can reach into another workspace's files.
+  a subpath inside a workspace names the unit and the layer it reaches, so a Biome override can
+  refuse it by pattern, while a relative path hides the layer and can reach into another
+  workspace's files.
 - **Sources:** `.claude/rules/naming.md`; npm names allow one `/` after the scope, so a folder's
   path is a subpath of its folder's workspace; `tsc -b`'s TS6059 and TS6307 on a path into an
   unreferenced project.
 - **Rejected:** relative paths inside a layer only: one more rule for a reader to apply, and no
-  pattern tells a layer's own folder from the next. A workspace per package with `paths` aliases
+  pattern tells a layer's own folder from the next. A workspace per unit with `paths` aliases
   in `tsconfig.base.json`: an alias bypasses the linker entirely and needs a setting in every
-  tool. A subpath per store or per layer (`/data/<store>`): a caller must know the unit's inside.
-- **Cost:** every workspace declares its `imports`; one manifest declares every package's
-  dependencies, so the linker tells `packages/` from the kernel but not one package from another;
-  a unit's one entry opens it whole, so a layer that may take only part of it (the inventory of
-  `/aws`, the stores of `/data`) is held by the names it imports.
+  tool. A subpath per store or per layer (`/data/<store>`, `/chat/domain`): a caller must know
+  the unit's inside. A `tsconfig.json` project per module: its `references` would repeat the
+  Biome overrides, one rule in two places.
+- **Cost:** every workspace declares its `imports`; one manifest declares every unit's
+  dependencies, so the linker tells the folders apart but not one unit from another; a unit's
+  one entry opens it whole, so a layer that may take only part of it (the inventory of `/aws`,
+  the stores of `/data`, a module's contract) is held by the names it imports; `application/`
+  is one `tsconfig.json` project, as the kernel is, so `tsc -b` no longer refuses an import
+  between its modules.
 - **Guarded by:** the root `noRestrictedImports` pattern and its copy in every Biome override;
-  an override per kernel part refusing another part's `#kernel/…` and `#testing…/…` files; a
-  `tsconfig.json` project per package, so a package importing another it does not reference
-  fails `tsc -b`; the overrides' `importNamePattern` on `/aws` and `/data`.
-- **If reversed:** `packages/` splits into a workspace per package, each with its manifest, and
-  the specifiers lose the folder; without the `#…` subpaths, the per-layer overrides no longer
-  see which layer a relative import reaches.
+  an override per kernel part, and per layer of each module, refusing another unit's
+  `#<unit>/…` and `#testing/<unit>/…` files; a `tsconfig.json` project per package, so a package
+  importing another it does not reference fails `tsc -b`; the overrides' `importNamePattern` on
+  `/aws`, `/data` and the modules' entries.
+- **If reversed:** a folder splits into a workspace per unit, each with its manifest, and the
+  specifiers lose the folder; without the `#…` subpaths, the per-layer overrides no longer see
+  which layer a relative import reaches.
 - **Revisit when:** Biome can restrict an import by the folder it resolves to.
 
 ### Independent apps
@@ -484,7 +511,8 @@ package, as a kernel part's does.
 - **Guarded by:** every `__tests__/**` Biome override bans `#testing/*/e2e/**` and
   `@app-template/**/testing/e2e`, but in `__tests__/testing/e2e/**`, which the e2e overrides
   take; the `application/use-cases/**` override bans `@app-template/*/testing`,
-  `@app-template/kernel/*/testing` and `@app-template/kernel/*/testing/e2e` in source; the
+  `@app-template/kernel/*/testing` and `@app-template/kernel/*/testing/e2e` in source, and a
+  module's source overrides ban `#testing/**`, its own support too; the
   `kernel/data/__tests__/**` override keeps the data layer's bans on its memory repositories; the
   vitest projects `unit` (`**/__tests__/**/*.test.ts`) and `e2e` (`**/__e2e__/**/*.e2e.ts`)
   include by folder and suffix.

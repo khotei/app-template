@@ -9,11 +9,11 @@ import {
   String as Str,
 } from 'effect'
 
-import type { AttachmentId } from '#domain/attachment.id'
-import { Attachment } from '#domain/attachment.model'
-import { ChatId, MessageId } from '#domain/chat.id'
-import { MessageInputInvalidError, MessageStatusInvalidError } from '#domain/message.error'
-import { isPreparing, Status } from '#domain/status.model'
+import type { AttachmentId } from '#chat/domain/attachment.id'
+import { Attachment } from '#chat/domain/attachment.model'
+import { ChatId, MessageId } from '#chat/domain/chat.id'
+import { MessageInputInvalidError, MessageStatusInvalidError } from '#chat/domain/message.error'
+import { isPreparing, Status } from '#chat/domain/status.model'
 
 export const MessageStatus = Status.pick(['queued', 'preparing', 'generating', 'done', 'failed'])
 export type MessageStatus = typeof MessageStatus.Type

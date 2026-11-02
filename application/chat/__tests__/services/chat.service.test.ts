@@ -3,32 +3,32 @@ import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { DateTime, Effect, Layer, Option, Stream } from 'effect'
 
-import type { UserId } from '@app-template/identity-contract'
+import type { UserId } from '@app-template/application/identity'
 import { AttachmentRepository, FileRepository } from '@app-template/kernel/data'
 import { RepositoryStackTest } from '@app-template/kernel/data/testing'
 import { assertSchemaEquals, epoch, png } from '@app-template/packages/testing'
 
-import { AttachmentId } from '#domain/attachment.id'
+import { AttachmentId } from '#chat/domain/attachment.id'
 import {
   Attachment,
   buildAttachment,
   FileName,
   FileSize,
   MediaType,
-} from '#domain/attachment.model'
-import { ChatNotFoundError } from '#domain/chat.error'
-import { type ChatId, MessageId } from '#domain/chat.id'
-import { Chat, ChatTitle } from '#domain/chat.model'
-import { buildAssistantMessage } from '#domain/message.model'
-import { encodeAttachment } from '#services/attachment.mapper'
-import { ChatService } from '#services/chat.service'
-import { chat, firstMessage, owner, stranger, unknownChatId } from '#testing/chat.test-fixture'
+} from '#chat/domain/attachment.model'
+import { ChatNotFoundError } from '#chat/domain/chat.error'
+import { type ChatId, MessageId } from '#chat/domain/chat.id'
+import { Chat, ChatTitle } from '#chat/domain/chat.model'
+import { buildAssistantMessage } from '#chat/domain/message.model'
+import { encodeAttachment } from '#chat/services/attachment.mapper'
+import { ChatService } from '#chat/services/chat.service'
+import { chat, firstMessage, owner, stranger, unknownChatId } from '#testing/chat/chat.test-fixture'
 import {
   insertChatLayer,
   insertMessage,
   selectChat,
   selectMessages,
-} from '#testing/chat.test-layer'
+} from '#testing/chat/chat.test-layer'
 
 /** The chat services over the memory layers, on fresh rows where `chat` exists. */
 const ChatTest = ChatService.layer.pipe(

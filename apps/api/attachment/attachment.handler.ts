@@ -2,8 +2,8 @@ import { Array as Arr, Effect, Option, Schema, Stream } from 'effect'
 import { HttpServerResponse, Mime, Multipart } from 'effect/http'
 import { HttpApiBuilder } from 'effect/http-api'
 
-import { FileName, type MediaType } from '@app-template/chat/domain'
-import { AttachmentService } from '@app-template/chat/services'
+import { AttachmentService, FileName, type MediaType } from '@app-template/application/chat'
+import { CurrentUser } from '@app-template/application/identity'
 import {
   Api,
   AttachmentMediaType,
@@ -13,7 +13,6 @@ import {
   RequestInvalidError,
   type RequestIssue,
 } from '@app-template/http-api'
-import { CurrentUser } from '@app-template/identity-contract'
 
 const buildRequestInvalid = (path: RequestIssue['path'], message: string) =>
   new RequestInvalidError({ issues: [{ path, message }] })

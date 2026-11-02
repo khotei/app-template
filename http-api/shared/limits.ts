@@ -1,4 +1,4 @@
-import { maxTitleLength } from '@app-template/chat/domain'
+import { maxTitleLength } from '@app-template/application/chat'
 
 export const attachment = {
   maxFileSize: '10 MiB',

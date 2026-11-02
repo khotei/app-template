@@ -3,7 +3,7 @@ import { assertEquals } from '@effect/vitest/utils'
 import { Array as Arr, Effect, Exit, Option, Order } from 'effect'
 import { SqlClient } from 'effect/sql'
 
-import { buildChat, ChatId } from '@app-template/chat/domain'
+import { buildChat, ChatId } from '@app-template/application/chat'
 import {
   chat,
   insertChat,
@@ -12,9 +12,9 @@ import {
   selectChat,
   selectMessages,
   upload,
-} from '@app-template/chat/testing'
+} from '@app-template/application/chat/testing'
+import { SendMessageUseCase } from '@app-template/application/use-cases'
 import { epoch } from '@app-template/packages/testing'
-import { SendMessageUseCase } from '@app-template/use-cases/chat'
 
 import { ChatPgTest } from '#testing/chat.test-layer'
 

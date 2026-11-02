@@ -9,15 +9,15 @@ import {
   UndefinedOr,
 } from 'effect'
 
-import type { AssistantError } from '#domain/assistant.error'
-import type { AssistantReply } from '#domain/assistant.model'
+import type { AssistantError } from '#chat/domain/assistant.error'
+import type { AssistantReply } from '#chat/domain/assistant.model'
 import {
   Assistant,
   CurrentReplyProvenance,
   type HistoryMessage,
   ReplyProvenance,
-} from '#domain/assistant.port'
-import type { ChatTitle } from '#domain/chat.model'
+} from '#chat/domain/assistant.port'
+import type { ChatTitle } from '#chat/domain/chat.model'
 
 export interface AssistantScript {
   readonly reply?: Effect.Effect<AssistantReply, AssistantError>

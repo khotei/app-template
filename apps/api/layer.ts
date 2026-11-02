@@ -3,10 +3,15 @@ import { Effect, Layer } from 'effect'
 import { HttpRouter } from 'effect/http'
 import { HttpApiBuilder } from 'effect/http-api'
 
-import { CurrentReplyProvenanceFromConfig } from '@app-template/chat/infrastructure'
-import { AttachmentService, ChatService, MessageService } from '@app-template/chat/services'
+import {
+  AttachmentService,
+  ChatService,
+  CurrentReplyProvenanceFromConfig,
+  MessageService,
+} from '@app-template/application/chat'
+import { UserService } from '@app-template/application/identity'
+import { SendMessageUseCase } from '@app-template/application/use-cases'
 import { Api } from '@app-template/http-api'
-import { UserService } from '@app-template/identity/services'
 import { S3BucketFromConfig } from '@app-template/kernel/aws'
 import { ApiConfig, MinimumLogLevelFromConfig, RuntimeConfig } from '@app-template/kernel/config'
 import {
@@ -21,7 +26,6 @@ import {
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
 import { QueueSenderJobs } from '@app-template/kernel/queue'
 import { Transaction } from '@app-template/packages/db'
-import { SendMessageUseCase } from '@app-template/use-cases/chat'
 
 import { AttachmentHandler } from '#api/attachment/attachment.handler'
 import { ChatHandler } from '#api/chat/chat.handler'

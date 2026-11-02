@@ -1,10 +1,10 @@
 import { Effect } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
-import { ChatService, MessageService } from '@app-template/chat/services'
+import { ChatService, MessageService } from '@app-template/application/chat'
+import { CurrentUser } from '@app-template/application/identity'
+import { SendMessageUseCase } from '@app-template/application/use-cases'
 import { Api } from '@app-template/http-api'
-import { CurrentUser } from '@app-template/identity-contract'
-import { SendMessageUseCase } from '@app-template/use-cases/chat'
 
 export const ChatHandler = HttpApiBuilder.group(
   Api,

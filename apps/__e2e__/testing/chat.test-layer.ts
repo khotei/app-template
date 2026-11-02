@@ -1,7 +1,8 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { Layer } from 'effect'
 
-import { chat, insertChatLayer } from '@app-template/chat/testing'
+import { chat, insertChatLayer } from '@app-template/application/chat/testing'
+import { ChatServices } from '@app-template/application/use-cases/testing'
 import { AwsTest } from '@app-template/kernel/aws/testing/e2e'
 import {
   AttachmentRepository,
@@ -12,7 +13,6 @@ import {
 } from '@app-template/kernel/data'
 import { QueueSenderJobs } from '@app-template/kernel/queue'
 import { Transaction } from '@app-template/packages/db'
-import { ChatServices } from '@app-template/use-cases/testing'
 
 import { DbWithUsersTest } from '#testing/db.test-layer'
 

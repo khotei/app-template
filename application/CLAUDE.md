@@ -13,7 +13,8 @@ and may import:
   every module the client does not use. Ports live only in `.port.ts` files and services only in
   `services/`, never beside a model, so `make bundle-check` can prove neither reaches the
   bundle.
-- Another module's ids and errors come from its contract, never from the module itself.
+- Another module's ids and errors come from its entry, and only the names of its `contract/`
+  folder ([modules.md](../.claude/rules/modules.md)).
 - A module's `__tests__/testing/` holds one memory layer per port, for every workspace's unit
   tests.
 - **An adapter is a `Layer` of a port** in the module's `infrastructure/`, so callers never see

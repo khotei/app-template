@@ -4,9 +4,9 @@ import { Effect, Schema } from 'effect'
 
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { ChatBusyError, ChatStatusInvalidError } from '#domain/chat.error'
-import { Chat, ChatTitle, failChat, idleChat, queueChat } from '#domain/chat.model'
-import { chat } from '#testing/chat.test-fixture'
+import { ChatBusyError, ChatStatusInvalidError } from '#chat/domain/chat.error'
+import { Chat, ChatTitle, failChat, idleChat, queueChat } from '#chat/domain/chat.model'
+import { chat } from '#testing/chat/chat.test-fixture'
 
 describe('queueChat', () => {
   it.effect.each([{ from: 'idle' }, { from: 'failed' }] as const)(

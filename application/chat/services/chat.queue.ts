@@ -4,8 +4,8 @@ import { resources } from '@app-template/kernel/aws'
 import { buildDeadLetterName } from '@app-template/packages/aws'
 import type { QueueDefinition } from '@app-template/packages/queue'
 
-import { ReplyProvenance } from '#domain/assistant.port'
-import { ChatId, MessageId } from '#domain/chat.id'
+import { ReplyProvenance } from '#chat/domain/assistant.port'
+import { ChatId, MessageId } from '#chat/domain/chat.id'
 
 const { assistantMessage, chatTitle } = resources.queues
 

@@ -4,9 +4,9 @@ import {
   chatTitleDeadLetterQueue,
   chatTitleQueue,
   type GenerateChatTitle,
-} from '@app-template/chat/services'
+} from '@app-template/application/chat'
+import { GenerateChatTitleUseCase } from '@app-template/application/use-cases'
 import { worker } from '@app-template/packages/queue'
-import { GenerateChatTitleUseCase } from '@app-template/use-cases/chat'
 
 export const handle = Effect.fn('ChatTitleHandler.handle')(
   (job: GenerateChatTitle): Effect.Effect<void, never, GenerateChatTitleUseCase> =>

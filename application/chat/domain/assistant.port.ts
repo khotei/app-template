@@ -1,10 +1,10 @@
 import { Context, type Effect, type Option, Schema } from 'effect'
 
-import type { AssistantError } from '#domain/assistant.error'
-import type { AssistantReply } from '#domain/assistant.model'
-import type { Attachment } from '#domain/attachment.model'
-import type { ChatTitle } from '#domain/chat.model'
-import type { Message } from '#domain/message.model'
+import type { AssistantError } from '#chat/domain/assistant.error'
+import type { AssistantReply } from '#chat/domain/assistant.model'
+import type { Attachment } from '#chat/domain/attachment.model'
+import type { ChatTitle } from '#chat/domain/chat.model'
+import type { Message } from '#chat/domain/message.model'
 
 export interface AttachmentBytes {
   readonly attachment: Attachment
@@ -29,7 +29,7 @@ export class Assistant extends Context.Service<
      */
     readonly suggestTitle: (text: string) => Effect.Effect<Option.Option<ChatTitle>, AssistantError>
   }
->()('@app-template/chat/domain/Assistant') {}
+>()('@app-template/application/chat/domain/Assistant') {}
 
 /**
  * Who the api expects to answer a reply, and with which instructions, read by operators from the
@@ -45,4 +45,4 @@ export class ReplyProvenance extends Schema.Class<ReplyProvenance>('ReplyProvena
 export class CurrentReplyProvenance extends Context.Service<
   CurrentReplyProvenance,
   ReplyProvenance
->()('@app-template/chat/domain/CurrentReplyProvenance') {}
+>()('@app-template/application/chat/domain/CurrentReplyProvenance') {}

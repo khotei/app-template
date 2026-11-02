@@ -2,7 +2,7 @@ import { BunCrypto, BunHttpServer } from '@effect/platform-bun'
 import { ConfigProvider, Layer } from 'effect'
 import { Cookies } from 'effect/http'
 
-import { CurrentReplyProvenanceTest } from '@app-template/chat/testing'
+import { CurrentReplyProvenanceTest } from '@app-template/application/chat/testing'
 import { ApiClient } from '@app-template/http-api'
 import { RepositoryStackTest } from '@app-template/kernel/data/testing'
 import { TransactionTest } from '@app-template/packages/db/testing'

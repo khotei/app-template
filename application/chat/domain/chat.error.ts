@@ -1,7 +1,7 @@
 import { Schema } from 'effect'
 
-import { ChatId } from '#domain/chat.id'
-import { Status } from '#domain/status.model'
+import { ChatId } from '#chat/domain/chat.id'
+import { Status } from '#chat/domain/status.model'
 
 export class ChatNotFoundError extends Schema.TaggedError<ChatNotFoundError>()(
   'ChatNotFoundError',

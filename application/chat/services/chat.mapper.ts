@@ -1,6 +1,6 @@
 import { Option, Schema, Struct, type Types, UndefinedOr } from 'effect'
 
-import { UserId } from '@app-template/identity-contract'
+import { UserId } from '@app-template/application/identity'
 import {
   ChatEntity,
   ChatEntityInsert,
@@ -10,10 +10,10 @@ import {
 } from '@app-template/kernel/data'
 import { decodeManyWith, decodeOptionalWith, encodeRowWith } from '@app-template/packages/db'
 
-import { ChatId, MessageId } from '#domain/chat.id'
-import { Chat, ChatTitle } from '#domain/chat.model'
-import { Message, MessageFailure } from '#domain/message.model'
-import { AttachmentFromEntity } from '#services/attachment.mapper'
+import { ChatId, MessageId } from '#chat/domain/chat.id'
+import { Chat, ChatTitle } from '#chat/domain/chat.model'
+import { Message, MessageFailure } from '#chat/domain/message.model'
+import { AttachmentFromEntity } from '#chat/services/attachment.mapper'
 
 // A nested model is laid by its encoded side, since encoding the parent hands it plain fields.
 const attachments = Schema.Array(AttachmentFromEntity.from)

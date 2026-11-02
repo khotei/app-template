@@ -5,9 +5,5 @@
     "outDir": "../node_modules/.cache/tsc/http-api"
   },
   "include": ["**/*.ts"],
-  "references": [
-    { "path": "../application/chat" },
-    { "path": "../application/identity" },
-    { "path": "../application/identity/contract" }
-  ]
+  "references": [{ "path": "../application" }]
 }

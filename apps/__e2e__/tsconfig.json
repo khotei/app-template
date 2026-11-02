@@ -8,10 +8,7 @@
   "references": [
     { "path": "../api" },
     { "path": "../worker" },
-    { "path": "../../application/chat" },
-    { "path": "../../application/identity" },
-    { "path": "../../application/identity/contract" },
-    { "path": "../../application/use-cases" },
+    { "path": "../../application" },
     { "path": "../../http-api" },
     { "path": "../../kernel" },
     { "path": "../../packages/db" },

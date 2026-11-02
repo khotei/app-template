@@ -3,29 +3,27 @@ import { Context, Crypto, DateTime, Effect, Layer, Option } from 'effect'
 import {
   type AttachmentBoundError,
   type AttachmentNotFoundError,
+  AttachmentService,
+  assistantMessageQueue,
   buildAssistantMessage,
   buildUserMessage,
   type ChatBusyError,
   type ChatId,
   type ChatNotFoundError,
+  ChatService,
   CurrentReplyProvenance,
+  chatTitleQueue,
+  encodeMessage,
   ensureMessageInput,
+  GenerateAssistantMessage,
+  GenerateChatTitle,
   Message,
   MessageId,
   type MessageInput,
   type MessageInputInvalidError,
   queueChat,
-} from '@app-template/chat/domain'
-import {
-  AttachmentService,
-  assistantMessageQueue,
-  ChatService,
-  chatTitleQueue,
-  encodeMessage,
-  GenerateAssistantMessage,
-  GenerateChatTitle,
-} from '@app-template/chat/services'
-import type { UserId } from '@app-template/identity-contract'
+} from '@app-template/application/chat'
+import type { UserId } from '@app-template/application/identity'
 import { ChatRepository, MessageRepository } from '@app-template/kernel/data'
 import { generateId, Transaction } from '@app-template/packages/db'
 import { QueueSender } from '@app-template/packages/queue'
@@ -52,7 +50,7 @@ export class SendMessageUseCase extends Context.Service<
       | AttachmentBoundError
     >
   }
->()('@app-template/use-cases/chat/SendMessageUseCase', {
+>()('@app-template/application/use-cases/chat/SendMessageUseCase', {
   make: Effect.gen(function* () {
     const chats = yield* ChatRepository
     const chatService = yield* ChatService

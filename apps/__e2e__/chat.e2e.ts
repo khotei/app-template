@@ -7,9 +7,9 @@ import {
   AttachmentId,
   AttachmentNotFoundError,
   type ChatId,
+  GenerateAssistantMessage,
   type MessageId,
-} from '@app-template/chat/domain'
-import { GenerateAssistantMessage } from '@app-template/chat/services'
+} from '@app-template/application/chat'
 import { ApiClient } from '@app-template/http-api'
 import { FileRepository } from '@app-template/kernel/data'
 import { assertSchemaEquals, png } from '@app-template/packages/testing'

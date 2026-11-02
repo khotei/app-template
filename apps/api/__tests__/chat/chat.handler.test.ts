@@ -8,10 +8,10 @@ import {
   failMessage,
   type MessageId,
   MessageNotFoundError,
-} from '@app-template/chat/domain'
-import { selectMessage, updateMessage } from '@app-template/chat/testing'
+} from '@app-template/application/chat'
+import { selectMessage, updateMessage } from '@app-template/application/chat/testing'
+import { UserUnknownError } from '@app-template/application/identity'
 import { ApiClient } from '@app-template/http-api'
-import { UserUnknownError } from '@app-template/identity-contract'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { ApiServerTest, ApiTest, layerApiClient } from '#testing/api.test-layer'

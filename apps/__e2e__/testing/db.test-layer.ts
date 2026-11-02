@@ -1,7 +1,7 @@
 import { Effect, Layer } from 'effect'
 
-import { owner, stranger } from '@app-template/chat/testing'
-import type { UserId } from '@app-template/identity-contract'
+import { owner, stranger } from '@app-template/application/chat/testing'
+import type { UserId } from '@app-template/application/identity'
 import { UserRepository } from '@app-template/kernel/data'
 import { DbTest } from '@app-template/kernel/data/testing/e2e'
 

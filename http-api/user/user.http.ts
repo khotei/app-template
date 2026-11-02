@@ -1,6 +1,6 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
-import { User } from '@app-template/identity/domain'
+import { User } from '@app-template/application/identity'
 
 /** Has no `Auth`: `ensure` reads the cookie itself and answers with a user whatever it carries. */
 export class UserHttp extends HttpApiGroup.make('users').add(

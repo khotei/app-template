@@ -2,12 +2,15 @@ import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Exit, Fiber, Layer, Option, Schema } from 'effect'
 
-import { AssistantReply, buildAssistantMessage, Chat, Message } from '@app-template/chat/domain'
 import {
+  AssistantReply,
   assistantMessageDeadLetterQueue,
   assistantMessageQueue,
+  buildAssistantMessage,
+  Chat,
   GenerateAssistantMessage,
-} from '@app-template/chat/services'
+  Message,
+} from '@app-template/application/chat'
 import {
   chat,
   chatId,
@@ -20,10 +23,10 @@ import {
   replyProvenance,
   selectChat,
   selectMessage,
-} from '@app-template/chat/testing'
+} from '@app-template/application/chat/testing'
+import { AssistantMessageTest } from '@app-template/application/use-cases/testing'
 import type { AttemptInfo } from '@app-template/packages/queue'
 import { epoch, recordLogs } from '@app-template/packages/testing'
-import { AssistantMessageTest } from '@app-template/use-cases/testing'
 
 import { handle, handleDeadLettered } from '#worker/chat/assistant-message.handler'
 

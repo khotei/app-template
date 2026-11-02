@@ -1,10 +1,10 @@
 import { DateTime, Duration, Effect, Option, Predicate, Schema } from 'effect'
 
-import { UserId } from '@app-template/identity-contract'
+import { UserId } from '@app-template/application/identity'
 
-import { AttachmentBoundError } from '#domain/attachment.error'
-import { AttachmentId } from '#domain/attachment.id'
-import { ChatId, MessageId } from '#domain/chat.id'
+import { AttachmentBoundError } from '#chat/domain/attachment.error'
+import { AttachmentId } from '#chat/domain/attachment.id'
+import { ChatId, MessageId } from '#chat/domain/chat.id'
 
 export const FileName = Schema.String.check(Schema.isNonEmpty()).pipe(Schema.brand('FileName'))
 export type FileName = typeof FileName.Type

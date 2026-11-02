@@ -1,9 +1,16 @@
 import { describe, it } from '@effect/vitest'
 import { DateTime, Effect, Layer, Option, Schema } from 'effect'
 
-import { buildUser, Credential, SecretHash, User } from '@app-template/identity/domain'
-import { decodeUser, encodeCredential, encodeUser } from '@app-template/identity/services'
-import { UserId } from '@app-template/identity-contract'
+import {
+  buildUser,
+  Credential,
+  decodeUser,
+  encodeCredential,
+  encodeUser,
+  SecretHash,
+  User,
+  UserId,
+} from '@app-template/application/identity'
 import { UserRepository } from '@app-template/kernel/data'
 import { DbTest } from '@app-template/kernel/data/testing/e2e'
 import { assertSchemaEquals } from '@app-template/packages/testing'

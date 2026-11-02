@@ -23,7 +23,7 @@ Every dependency points inward, from the boundary to the behaviour to the data:
   the ports that reach outside, and ships to the browser; its `services/` the domain services, the
   mappers between an entity and a model and the job definitions, over the data layer's
   repositories; its `infrastructure/` the adapters of its ports. A module reaches another only
-  through its contract (`identity-contract`).
+  through its entry, and takes from it only its contract (`application/identity/contract/`).
 - **The boundary**, everything that touches the world outside the process: the kernel's
   configured clients (`/config`, `/postgres`, `/aws`, `/queue`, `/llm`), each module's
   `infrastructure/`, `http-api` and the apps, which assemble the layers and provide the clients.
@@ -81,9 +81,11 @@ graph TD
   e2e --> worker
 ```
 
-`application/` is a folder of workspaces with no `package.json` of its own: `use-cases` and the
-modules, each module's contract nested in its folder (`application/identity/contract/`). The
-`apps/__e2e__` workspace runs both app layers in one test process, and nothing imports it.
+`application/` is one workspace, `@app-template/application`, and one `tsconfig.json` project:
+each module and the use cases a folder with one entry (`@app-template/application/chat` →
+`application/chat/index.ts`), a module's contract a folder in it
+(`application/identity/contract/`), exported through the module's entry. The `apps/__e2e__`
+workspace runs both app layers in one test process, and nothing imports it.
 
 ## Dependency rules
 
@@ -93,15 +95,15 @@ that refuses the row's ✗, a Biome override in `biome.json` whose message names
 
 | From ↓ / may import → | another module | a contract | `use-cases` | `kernel/data` | rest of `kernel` | `packages/*` | `http-api` | Refused by |
 |---|---|---|---|---|---|---|---|---|
-| a module's `domain/` | ✗ | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ | `application/*/domain/**` |
-| a module's `services/` | ✗ | ✓ | ✗ | ✓, but `Db` and the relations | `/aws`: the inventory only | `aws`, `db`, `queue` only | ✗ | `application/*/services/**` |
-| a module's `infrastructure/` | ✗, its own by name too | ✓ | ✗ | ✓ | ✓ | ✓ | ✗ | `application/*/infrastructure/**` |
-| a contract | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | `application/*/contract/**` |
-| `use-cases` | `/domain`, `/services`; `/testing` in its tests only | ✓ | — | ✓ | ✗ | ✓ | ✗ | `application/use-cases/**` |
+| a module's `domain/` | ✗ | ✓, through its entry | ✗ | ✗ | ✗ | ✗ | ✗ | `application/<module>/domain/**` |
+| a module's `services/` | ✗ | ✓, through its entry | ✗ | ✓, but `Db` and the relations | `/aws`: the inventory only | `aws`, `db`, `queue` only | ✗ | `application/<module>/services/**` |
+| a module's `infrastructure/` | ✗, its own entry too | ✓, through its entry | ✗ | ✓ | ✓ | ✓ | ✗ | `application/<module>/infrastructure/**` |
+| a contract | ✗, nor its module's files | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | `application/<module>/contract/**` |
+| `use-cases` | ✓, every layer; `/testing` in its tests only | ✓ | — | ✓ | ✗ | ✓ | ✗ | `application/use-cases/**` |
 | `kernel/data` | ✗ | ✗ | ✗ | — | ✗ | ✓, by name | ✗ | `kernel/data/**` |
 | rest of `kernel` | ✗ | ✗ | ✗ | ✓ | ✓ | ✓ | ✗ | `kernel/**` |
 | `packages/*` | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ (each other) | ✗ | `packages/**` |
-| `http-api` | `/domain` only | ✓ | ✗ | ✗ | ✗ | ✗ | — | `http-api/**` |
+| `http-api` | its domain only: no service, mapper or adapter by name | ✓ | ✗ | ✗ | ✗ | ✗ | — | `http-api/**` |
 | `apps/api` | ✓, a mapper in `layer.ts` only | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | ✓ | `apps/api/**`; `apps/api/layer.ts` lifts the data and mapper bans |
 | `apps/worker` | ✓, a mapper in `layer.ts` only | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | ✗ | `apps/worker/**`; `apps/worker/layer.ts` lifts the data and mapper bans |
 | `apps/web` client | ✗ | ✗ | ✗ | ✗ | ✗ | `ui` only | ✓ | `apps/web/**`; `make bundle-check` |
@@ -109,10 +111,14 @@ that refuses the row's ✗, a Biome override in `biome.json` whose message names
 | `deployment` | ✗ | ✗ | ✗ | the files' key only | `/config`, `/aws`: the inventory | ✓ | ✗ | `deployment/**` |
 | `apps/__e2e__` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | its `package.json`; apps through `api/testing`, `worker/testing` |
 
-- **Inside a module** the layers point inward too: `domain/` imports neither `#services/*` nor
-  `#infrastructure/*`, `services/` not `#infrastructure/*`, and `infrastructure/` not
-  `#services/*`; a service reaches the outside world only through a port its `domain/` declares,
-  and an adapter reaches its own module through `#domain/*`, never the package's name.
+- **Inside a module** the layers point inward too: `domain/` imports neither
+  `#<module>/services/*` nor `#<module>/infrastructure/*`, `services/` not
+  `#<module>/infrastructure/*`, and `infrastructure/` not `#<module>/services/*`; a service
+  reaches the outside world only through a port its `domain/` declares, and a module reaches its
+  own files, its contract's too, through `#<module>/…`, never its entry. Another module's files
+  are refused whatever the layer; of another module's entry Biome lets a module take only the
+  names a contract carries, `<Name>Id`, `<Name>Error` and `Current<Name>`, and refuses a
+  namespace or default import of it.
 - **An app's handler** calls one service method or one use case: it imports no repository and no
   mapper (`<Model>FromEntity`, `encode<Model>`, `decode<Model>`); only the process's `layer.ts`
   provides the data layer. The apps never import each other or `deployment`:
@@ -140,23 +146,24 @@ import { readFileSync } from 'node:fs'                      // Bun and Node buil
 
 import { Effect } from 'effect'                             // external packages
 
-import { buildChat } from '@app-template/chat/domain'        // another workspace
+import { buildChat } from '@app-template/application/chat'  // another unit
 
-import { SendMessageUseCase } from '#use-cases/chat/send-message.use-case'  // this workspace
+import { SendMessageUseCase } from '#use-cases/chat/send-message.use-case'  // this unit
 ```
 
-- **`@app-template/<workspace>[/<subpath>]`** reaches another workspace through its `exports`,
-  each entry an `index.ts` barrel: the kernel one per part (`@app-template/kernel/data` →
+- **`@app-template/<folder>`** reaches another unit through its workspace's `exports`, each
+  entry an `index.ts` barrel: the kernel one per part (`@app-template/kernel/data` →
   `kernel/data/index.ts`, every store), a package by its folder (`@app-template/packages/db`),
-  each with its test support (`@app-template/kernel/data/testing`, `…/testing/e2e`), and a
-  module one subpath per
-  layer (`@app-template/chat/domain` → `application/chat/domain/index.ts`).
-- **`#<workspace>/<path>`** reaches a file of the same unit, through the `imports` map in its
-  workspace's `package.json` (`"#domain/*": "./domain/*.ts"`, `"#api/*": "./*.ts"`); a kernel
-  part or a package reaches another through that one's entry, never its files. Every module uses the
-  same aliases, so one Biome override per layer covers them all. Relative `./` and `../` paths are
-  banned ([Imports through subpaths](decisions.md#imports-through-subpaths)). A bare `#/` prefix
-  would be shorter, but Bun 1.4.3 cannot resolve it.
+  a module or the use cases by theirs (`@app-template/application/chat` →
+  `application/chat/index.ts`, every layer), each with its test support
+  (`@app-template/kernel/data/testing`, `…/testing/e2e`).
+- **`#<unit>/<path>`** reaches a file of the same unit, through the `imports` map in its
+  workspace's `package.json` (`"#chat/*": "./chat/*.ts"`, `"#api/*": "./*.ts"`); a kernel part,
+  a package or a module reaches another through that one's entry, never its files. Each layer
+  of a module keeps its name in the path (`#chat/services/…`), so a layer's Biome override
+  matches the others by glob (`#*/services/**`). Relative `./` and `../` paths are banned
+  ([Imports through subpaths](decisions.md#imports-through-subpaths)). A bare `#/` prefix would
+  be shorter, but Bun 1.4.3 cannot resolve it.
 - **Order** is the four groups above, separated by blank lines. `make fmt` sorts them.
 
 ## Where things live
@@ -185,7 +192,8 @@ Using the `chat` slice as the map:
 | the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp` over the repositories and ports, `ApiLayer` with the clients, `WorkerLayer`; `main.ts` runs them, the e2e reaches them as `ApiLayerTest`, `WorkerLayerTest` through `./testing` |
 | browser feature | `apps/web/features/health/health-panel.ts` | `renderHealthPanel(root)` |
 
-Every store folder of `kernel/data`, and every layer of a module, has an `index.ts` barrel. The
+Every store folder of `kernel/data`, and every layer of a module, has an `index.ts` barrel, and
+each module's own `index.ts` re-exports its layers. The
 file suffixes and the naming verbs: [.claude/rules/naming.md](../../.claude/rules/naming.md).
 
 ## Where tests live
@@ -206,7 +214,7 @@ support. `apps/__e2e__`, e2e alone, aliases its own support `#testing/*`. Record
 
 | Ring | Suite | Runs on |
 |---|---|---|
-| behaviour | `application/<module>/__tests__/`, `application/use-cases/__tests__/` | memory only: the kernel's memory repositories (`@app-template/kernel/data/testing`), a module's memory layers of its ports (`@app-template/chat/testing`), `TransactionTest`; `application` has no e2e |
+| behaviour | `application/<module>/__tests__/`, `application/use-cases/__tests__/` | memory only: the kernel's memory repositories (`@app-template/kernel/data/testing`), a module's memory layers of its ports (`@app-template/application/chat/testing`), `TransactionTest`; `application` has no e2e |
 | data | `kernel/data/__e2e__/<store>/` | Postgres (`DbTest`) or MiniStack (`AwsTest`), in entities |
 | boundary | `kernel/postgres/__e2e__/`, `kernel/queue/__e2e__/`, `packages/<package>/__e2e__/`; an adapter's suite in `application/<module>/__tests__/infrastructure/` | the run's containers; the adapter over a recording client |
 | tools | `kernel/config/__tests__/`, `packages/<package>/__tests__/` | memory only |
@@ -230,7 +238,7 @@ modules has the same shape as one that does not (none spans today):
 export class DeleteUserUseCase extends Context.Service<DeleteUserUseCase, {
   /** Deletes the user with every chat they own. */
   readonly delete: (id: UserId) => Effect.Effect<void, UserUnknownError>
-}>()('@app-template/use-cases/user/DeleteUserUseCase', {
+}>()('@app-template/application/use-cases/user/DeleteUserUseCase', {
   make: Effect.gen(function* () {
     const users = yield* UserService       // identity
     const chats = yield* ChatService       // chat
@@ -336,27 +344,27 @@ Layer.provide(Db.layer), Layer.provide([PgClientFromConfig, S3BucketFromConfig])
 
 ## Add a module
 
-A module is a workspace `application/<module>/` named `@app-template/<module>`; its contract, once
-another module needs it, `application/<module>/contract/` named `@app-template/<module>-contract`.
+A module is a folder `application/<module>/` of the `@app-template/application` workspace,
+imported as `@app-template/application/<module>`; its contract, once another module needs it,
+the folder `application/<module>/contract/`, exported through the same entry.
 Record: [Modules by capability](decisions.md#modules-by-capability).
 
-1. **The workspace.** A `package.json` with `"sideEffects": false`, an `exports` entry per layer
-   (`./domain`, `./services`; `./infrastructure` once it has an adapter, `./testing` once it has
-   test support) and the same `imports` aliases as `application/chat/package.json`; a
-   `tsconfig.json` like `application/identity/tsconfig.json`, referenced from the root
-   `tsconfig.json`. The root `workspaces` globs `application/*` and `application/*/contract`
-   already match it; `bun install` links it.
-2. **The Biome lists that name the module packages.** Add `@app-template/<module>` and
-   `@app-template/<module>/**` to every list that names them, or the new module passes those
-   overrides; how to find the lists:
+1. **The entry.** `application/<module>/index.ts` re-exports each layer's barrel; in
+   `application/package.json`, an `exports` entry `./<module>` (and `./<module>/testing` once it
+   has test support) and the aliases `#<module>/*` and `#testing/<module>/*`, as chat's. The
+   folder's one `tsconfig.json` project already includes it, and `bun install` links nothing new.
+2. **The Biome overrides.** Copy chat's override of each layer the module has
+   (`application/chat/domain/**`, `…/services/**`, `…/infrastructure/**`, `…/__tests__/**` and
+   the ones under it), with `#<module>/**` in place of `#chat/**`; a module below it is the one
+   entry its lists let through, and a module above it adds the new entry to its own lists. A
+   layer with no override passes every ban but the relative path:
    [tooling.md › Add a workspace](tooling.md#add-a-workspace).
-3. **A nested contract** is a workspace of its own: a `package.json` declaring only `effect` and a
-   `tsconfig.json` like `application/identity/contract/`'s, referenced from the root
-   `tsconfig.json`, then `bun install`. The module sets `"exclude": ["contract"]` and a reference
-   to `./contract` in its `tsconfig.json`; without both, `tsc -b` compiles the contract twice.
-   Record: [Module contracts](decisions.md#module-contracts).
-4. **The consumers** declare the module or its contract in their `package.json`; the service keys
-   read `'@app-template/<module>/services/<Name>'`, which `make bundle-check` already greps.
+3. **A contract** is a folder `contract/` with an `index.ts`, re-exported by the module's entry,
+   and its own override as `application/identity/contract/**`'s. Record:
+   [Module contracts](decisions.md#module-contracts).
+4. **The consumers** declare `@app-template/application` in their `package.json`; the service
+   keys read `'@app-template/application/<module>/services/<Name>'`, which `make bundle-check`
+   already greps.
 5. **The docs.** The glossary gains the module's words; `decisions.md` a record if the cut is a
    decision ([Decisions recorded in one page](decisions.md#decisions-recorded-in-one-page)).
 
@@ -368,30 +376,34 @@ checks what the import rules leave to tree shaking, the web bundle. Record:
 
 | Guard | Catches | Reports |
 |---|---|---|
-| Biome `noRestrictedImports`, one `overrides` entry per ring and layer in `biome.json` | each ✗ of [Dependency rules](#dependency-rules), with the record named in the message; any relative path; in each `<workspace>/__tests__/**` but its `testing/e2e/`, e2e support (`#testing/*/e2e/**`, `@app-template/**/testing/e2e`) | `make lint`, `pre-commit`, CI `static` |
+| Biome `noRestrictedImports`, one `overrides` entry per ring, kernel part and module layer in `biome.json` | each ✗ of [Dependency rules](#dependency-rules), with the record named in the message; any relative path; in each `<workspace>/__tests__/**` but its `testing/e2e/`, e2e support (`#testing/*/e2e/**`, `@app-template/**/testing/e2e`) | `make lint`, `pre-commit`, CI `static` |
 | the isolated linker with `tsc -b` | an allowed import of a workspace that is not declared in `package.json` | TS2307 in `make typecheck` and at runtime |
 | `composite` project references (`rootDir: "."`) | a path that reaches into an unreferenced project's files (one package's import of another it does not reference); a cycle of references | TS6059 / TS6307 / TS6202 in `make typecheck` |
 | `make bundle-check`: `bun build` of `apps/web/app/main.ts`, then a `grep` of the bundle | a key of the kernel, of the use cases, of a module's `services/` or `infrastructure/`, or a port key of its `domain/`, in the browser bundle | the matched service keys, in `make check` |
 
 Most Biome overrides deny what a layer must not import, but `kernel/data/**` and a module's
-`services/**` allow only the packages they name, and the lists that name the module packages grow
-one entry per module: what a new package, module, layer or app adds to `biome.json` is in
-[tooling.md › Add a workspace](tooling.md#add-a-workspace). When two overrides match one file,
-Biome replaces the first one's options with the last one's instead of merging them, so every
-override repeats the relative-path ban and every `__tests__/**` override repeats its workspace's
-bans. Inside the kernel, one project for `tsc -b`, the data's direction rests on Biome alone.
-Symptoms and fixes: [tooling.md › Troubleshooting](tooling.md#troubleshooting).
+layers allow only the units they name: what a new package, module, layer or app adds to
+`biome.json` is in [tooling.md › Add a workspace](tooling.md#add-a-workspace). When two
+overrides match one file, Biome replaces the first one's options with the last one's instead of
+merging them, so every override repeats the relative-path ban, every `__tests__/**` override
+repeats its workspace's bans, and each module's layer has an override of its own, which holds
+that module's ban on the other units' files. Inside the kernel and inside `application/`, one
+project each for `tsc -b`, the direction between their units rests on Biome alone. Symptoms and
+fixes: [tooling.md › Troubleshooting](tooling.md#troubleshooting).
 
-The bundle guard greps the service keys (`"@app-template/chat/services/ChatService"`): string
-literals, which survive the build however Bun applies a module's `"sideEffects": false`. A
-type-only import is erased and passes, as it should. `apps/web` cannot import a module at all, so
-a leak comes through `http-api`, which imports the modules' `domain` barrels for their schemas
-and errors; tree shaking drops the ports beside them, and the guard proves it on every check.
+The bundle guard greps the service keys
+(`"@app-template/application/chat/services/ChatService"`): string literals, which survive the
+build however Bun applies `"sideEffects": false`. A type-only import is erased and passes, as it
+should. `apps/web` cannot import a module at all, so a leak comes through `http-api`, which
+imports the modules' entries for their schemas and errors; tree shaking drops the services,
+adapters and ports beside them, and the guard proves it on every check. Bun still parses what it
+drops, so the build warns about `node:net`, which `@effect/sql-pg` reaches below a module's
+services.
 
 ### Known gaps
 
 What no tool checks, review refuses through
-[.claude/rules/modules.md](../../.claude/rules/modules.md). Three import forms also pass every
+[.claude/rules/modules.md](../../.claude/rules/modules.md). Four import forms also pass every
 guard; no code uses them:
 
 - **A type import inside an expression in web client code.** `export type X =
@@ -399,11 +411,15 @@ guard; no code uses them:
   `shared/` passes Biome, which does not see `import()` inside a type, and `tsc -b`, because web
   declares `@app-template/kernel` for its server entry. The type is erased, so nothing reaches
   the browser, but the client then depends on the shape of the server config.
-- **A workspace importing itself by name.** `@app-template/use-cases/chat` from inside
-  `application/use-cases/` passes Biome, whose override there does not name its own workspace,
-  and `tsc -b`, which resolves a package's own `exports`. It skips the `#<workspace>/` convention
-  and can import the file's own barrel, a cycle that shows up as `undefined` while modules
-  initialise.
+- **A namespace import of an entry.** `import * as Chat from '@app-template/application/chat'`
+  in `http-api/` passes every ban by name (`importNamePattern` sees no name), and so does one of
+  `@app-template/kernel/data` where only its stores are allowed; `Chat.ChatService` then reaches
+  what the names were refused for, and `make bundle-check` catches it only in the browser's
+  bundle.
+- **A kernel part importing itself by name.** `@app-template/kernel/aws` from inside
+  `kernel/aws/` passes Biome, whose override there allows every kernel part, and `tsc -b`, which
+  resolves a package's own `exports`. It skips the `#<unit>/` convention and can import the
+  file's own barrel, a cycle that shows up as `undefined` while modules initialise.
 - **A runtime module or third-party package in a module's `domain/`.** `node:crypto` or any npm
   package passes the domain guard, which bans only workspaces and `@effect/*`. Purity rests on
   review and on the grep for `Date.now`, `new Date(` and `randomUUID`.

@@ -3,7 +3,7 @@ import { Duration } from 'effect'
 
 import { resources } from '@app-template/kernel/aws'
 
-import { unboundLifetime } from '#domain/attachment.model'
+import { unboundLifetime } from '#chat/domain/attachment.model'
 
 describe('the inventory and the attachment lifetime agree', () => {
   it('the attachments bucket expires unbound objects no sooner than unboundLifetime', () => {

@@ -1,8 +1,12 @@
 import { Context, Effect, Layer, Option } from 'effect'
 
-import { Assistant, type AssistantError } from '@app-template/chat/domain'
-import type { GenerateChatTitle } from '@app-template/chat/services'
-import { ChatService, decodeMessage } from '@app-template/chat/services'
+import {
+  Assistant,
+  type AssistantError,
+  ChatService,
+  decodeMessage,
+  type GenerateChatTitle,
+} from '@app-template/application/chat'
 import { MessageRepository } from '@app-template/kernel/data'
 
 type TitleSkip = 'chatDeleted' | 'deletedOrTitled' | 'nothingToTitle'
@@ -27,7 +31,7 @@ export class GenerateChatTitleUseCase extends Context.Service<
      */
     readonly generate: (job: GenerateChatTitle) => Effect.Effect<void>
   }
->()('@app-template/use-cases/chat/GenerateChatTitleUseCase', {
+>()('@app-template/application/use-cases/chat/GenerateChatTitleUseCase', {
   make: Effect.gen(function* () {
     const assistant = yield* Assistant
     const chatService = yield* ChatService

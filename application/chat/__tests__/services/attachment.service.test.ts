@@ -4,7 +4,7 @@ import { assertEquals } from '@effect/vitest/utils'
 import { Array as Arr, Duration, Effect, Exit, HashMap, Layer, Option, Ref, Stream } from 'effect'
 import { TestClock } from 'effect/testing'
 
-import type { UserId } from '@app-template/identity-contract'
+import type { UserId } from '@app-template/application/identity'
 import { AttachmentRepository, FileRepository } from '@app-template/kernel/data'
 import { AttachmentRows, FileObjects, RepositoryStackTest } from '@app-template/kernel/data/testing'
 import {
@@ -16,20 +16,20 @@ import {
   StreamBrokenError,
 } from '@app-template/packages/testing'
 
-import { AttachmentBoundError, AttachmentNotFoundError } from '#domain/attachment.error'
-import type { AttachmentId } from '#domain/attachment.id'
+import { AttachmentBoundError, AttachmentNotFoundError } from '#chat/domain/attachment.error'
+import type { AttachmentId } from '#chat/domain/attachment.id'
 import {
   Attachment,
   buildAttachment,
   FileName,
   FileSize,
   MediaType,
-} from '#domain/attachment.model'
-import { AttachmentService } from '#services/attachment.service'
-import { unknownAttachmentId } from '#testing/attachment.test-fixture'
-import { selectAttachments, upload } from '#testing/attachment.test-layer'
-import { chatId, firstMessage, messageId, owner, stranger } from '#testing/chat.test-fixture'
-import { insertMessage } from '#testing/chat.test-layer'
+} from '#chat/domain/attachment.model'
+import { AttachmentService } from '#chat/services/attachment.service'
+import { unknownAttachmentId } from '#testing/chat/attachment.test-fixture'
+import { selectAttachments, upload } from '#testing/chat/attachment.test-layer'
+import { chatId, firstMessage, messageId, owner, stranger } from '#testing/chat/chat.test-fixture'
+import { insertMessage } from '#testing/chat/chat.test-layer'
 
 /** The service over the memory layers, on fresh rows where the message a send binds to exists. */
 const AttachmentServiceTest = AttachmentService.layer.pipe(

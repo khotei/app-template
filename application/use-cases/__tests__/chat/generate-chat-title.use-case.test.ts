@@ -7,8 +7,8 @@ import {
   AssistantRefusedError,
   Chat,
   ChatTitle,
-} from '@app-template/chat/domain'
-import { GenerateChatTitle } from '@app-template/chat/services'
+  GenerateChatTitle,
+} from '@app-template/application/chat'
 import {
   type AssistantCallHold,
   chat,
@@ -20,11 +20,11 @@ import {
   messageId,
   recordAssistant,
   selectChat,
-} from '@app-template/chat/testing'
+} from '@app-template/application/chat/testing'
 import { ChatRepository } from '@app-template/kernel/data'
 import { recordLogs } from '@app-template/packages/testing'
 
-import { ChatTitleTest } from '#testing/chat.test-layer'
+import { ChatTitleTest } from '#testing/use-cases/chat.test-layer'
 import { GenerateChatTitleUseCase } from '#use-cases/chat/generate-chat-title.use-case'
 
 const lisbonWeekend = ChatTitle.make('Lisbon weekend')

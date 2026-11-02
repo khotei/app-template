@@ -1,11 +1,11 @@
 import { assert, describe, it } from '@effect/vitest'
 import { DateTime, Effect, Exit, Option, Schema } from 'effect'
 
-import { UserId } from '@app-template/identity-contract'
+import { UserId } from '@app-template/application/identity'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { AttachmentBoundError } from '#domain/attachment.error'
-import { AttachmentId } from '#domain/attachment.id'
+import { AttachmentBoundError } from '#chat/domain/attachment.error'
+import { AttachmentId } from '#chat/domain/attachment.id'
 import {
   Attachment,
   buildAttachment,
@@ -14,8 +14,8 @@ import {
   FileSize,
   isExpiredAt,
   MediaType,
-} from '#domain/attachment.model'
-import { ChatId, MessageId } from '#domain/chat.id'
+} from '#chat/domain/attachment.model'
+import { ChatId, MessageId } from '#chat/domain/chat.id'
 
 describe('Attachment', () => {
   const encoded = {

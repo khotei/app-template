@@ -252,18 +252,17 @@ its sources either way.
    `"type": "module"`, an `exports` entry, and `"imports": { "#<name>/*": "./*.ts" }`).
 2. Add `tsconfig.json`: extend `tsconfig.base.json`, set `rootDir: "."` and
    `outDir: "<relative>/node_modules/.cache/tsc/<name>"`, set `include`, and reference the
-   workspaces it imports. Copy an existing one, such as `packages/queue/tsconfig.json`. A module
-   with a contract nested in its folder also sets `"exclude": ["contract"]` and references
-   `./contract`; without both, `tsc -b` compiles the contract twice.
+   workspaces it imports. Copy an existing one, such as `packages/queue/tsconfig.json`.
 3. Add the path to the root `package.json` `workspaces` if no glob covers it. Bun rejects an
    explicit path that does not exist yet, so create the folder first.
 4. Add the path to the root `tsconfig.json` `references`.
 5. Run `bun install` and `make check`.
 
 In `biome.json`, a new package joins the allow-lists of the `kernel/data/**`
-override and, if a module's services use it, of `application/*/services/**`; a new module joins
-every list that names the module packages (`grep -n '@app-template/identity/\*\*' biome.json`). A
-new layer or app needs its own `overrides` entry in `biome.json`; see
+override and, if a module's services use it, of each `application/<module>/services/**`; a new
+module copies the overrides of a module's layers, one per layer it has
+([architecture.md › Add a module](architecture.md#add-a-module)). A new layer or app needs its
+own `overrides` entry in `biome.json`; see
 [architecture.md › Boundary guards](architecture.md#boundary-guards) for what each
 entry repeats.
 
@@ -295,8 +294,9 @@ new version. CI also runs a non-blocking job on Bun `latest`, which shows the ne
 
 ## TypeScript
 
-- **Project references.** The root `tsconfig.json` has no files of its own and references all 14
-  workspaces. Each workspace is a `composite` project that references what it imports.
+- **Project references.** The root `tsconfig.json` has no files of its own and references every
+  project: one per workspace, and one per package inside `packages/`. Each is a `composite`
+  project that references what it imports.
 - **The patched `tsc -b` is the only typecheck gate.** It walks the references, reports every
   type error, and runs the Effect language service, whose errors and warnings both fail it
   (`ignoreEffectWarningsInTscExitCode` stays `false`). `make typecheck`, `pre-commit` and CI all
@@ -345,7 +345,7 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 | `TS2307: Cannot find module '@app-template/<name>'` from `make typecheck`, or `Cannot find module` at runtime | the import is allowed, but the workspace is not declared in this workspace's `package.json` | add `"@app-template/<name>": "workspace:*"` and a `tsconfig.json` reference, then `bun install` |
 | `TS6059 … is not under 'rootDir'` and `TS6307 … is not listed within the file list of project` | a relative path reaches into another workspace that is not referenced | import it as `@app-template/<name>/…`; relative paths are banned anyway |
 | Biome `lint/style/noRestrictedImports`: `… (decisions.md › <record>)` | the import points outward or across a ring or layer, into a sibling app, or a module's `domain/` imports an `@effect/*` package | read the named record in [decisions.md](decisions.md); move the shared code down a layer, or receive it as an argument; in a module's `domain/`, use an `effect` module; see [architecture.md](architecture.md#dependency-rules) |
-| Biome `noRestrictedImports`: `… never a relative path` | a `./` or `../` import inside a workspace | use `#<workspace>/<path>`, for example `#domain/chat.model` |
+| Biome `noRestrictedImports`: `… never a relative path` | a `./` or `../` import inside a workspace | use `#<unit>/<path>`, for example `#chat/domain/chat.model` |
 | Biome `lint/suspicious/noImportCycles`: `This import is part of a cycle` | two files import each other, typically two aggregates' models through their ids | import the other aggregate's id from its `<aggregate>.id.ts`, never its model |
 | Biome `assist/source/organizeImports`: `Sort these imports.` | import groups out of order or without blank lines between them | `make fmt` |
 | a commit is rejected after `tsc` or Biome output | the `pre-commit` hook failed | fix the reported error, `git add`, and commit again |

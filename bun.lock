@@ -14,10 +14,9 @@
         "vitest": "catalog:tools",
       },
     },
-    "application/chat": {
-      "name": "@app-template/chat",
+    "application": {
+      "name": "@app-template/application",
       "dependencies": {
-        "@app-template/identity-contract": "workspace:*",
         "@app-template/kernel": "workspace:*",
         "@app-template/packages": "workspace:*",
         "effect": "catalog:effect",
@@ -29,50 +28,14 @@
         "@effect/vitest": "catalog:effect",
       },
     },
-    "application/identity": {
-      "name": "@app-template/identity",
-      "dependencies": {
-        "@app-template/identity-contract": "workspace:*",
-        "@app-template/kernel": "workspace:*",
-        "@app-template/packages": "workspace:*",
-        "effect": "catalog:effect",
-      },
-      "devDependencies": {
-        "@effect/platform-bun": "catalog:effect",
-        "@effect/vitest": "catalog:effect",
-      },
-    },
-    "application/identity/contract": {
-      "name": "@app-template/identity-contract",
-      "dependencies": {
-        "effect": "catalog:effect",
-      },
-    },
-    "application/use-cases": {
-      "name": "@app-template/use-cases",
-      "dependencies": {
-        "@app-template/chat": "workspace:*",
-        "@app-template/identity-contract": "workspace:*",
-        "@app-template/kernel": "workspace:*",
-        "@app-template/packages": "workspace:*",
-        "effect": "catalog:effect",
-      },
-      "devDependencies": {
-        "@effect/platform-bun": "catalog:effect",
-        "@effect/vitest": "catalog:effect",
-      },
-    },
     "apps/__e2e__": {
       "name": "@app-template/e2e",
       "devDependencies": {
         "@app-template/api": "workspace:*",
-        "@app-template/chat": "workspace:*",
+        "@app-template/application": "workspace:*",
         "@app-template/http-api": "workspace:*",
-        "@app-template/identity": "workspace:*",
-        "@app-template/identity-contract": "workspace:*",
         "@app-template/kernel": "workspace:*",
         "@app-template/packages": "workspace:*",
-        "@app-template/use-cases": "workspace:*",
         "@app-template/worker": "workspace:*",
         "@effect/platform-bun": "catalog:effect",
         "@effect/sql-pg": "catalog:effect",
@@ -83,13 +46,10 @@
     "apps/api": {
       "name": "@app-template/api",
       "dependencies": {
-        "@app-template/chat": "workspace:*",
+        "@app-template/application": "workspace:*",
         "@app-template/http-api": "workspace:*",
-        "@app-template/identity": "workspace:*",
-        "@app-template/identity-contract": "workspace:*",
         "@app-template/kernel": "workspace:*",
         "@app-template/packages": "workspace:*",
-        "@app-template/use-cases": "workspace:*",
         "@effect/platform-bun": "catalog:effect",
         "effect": "catalog:effect",
       },
@@ -109,10 +69,9 @@
     "apps/worker": {
       "name": "@app-template/worker",
       "dependencies": {
-        "@app-template/chat": "workspace:*",
+        "@app-template/application": "workspace:*",
         "@app-template/kernel": "workspace:*",
         "@app-template/packages": "workspace:*",
-        "@app-template/use-cases": "workspace:*",
         "@effect/platform-bun": "catalog:effect",
         "effect": "catalog:effect",
       },
@@ -134,9 +93,7 @@
     "http-api": {
       "name": "@app-template/http-api",
       "dependencies": {
-        "@app-template/chat": "workspace:*",
-        "@app-template/identity": "workspace:*",
-        "@app-template/identity-contract": "workspace:*",
+        "@app-template/application": "workspace:*",
         "effect": "catalog:effect",
       },
     },
@@ -216,7 +173,7 @@
   "packages": {
     "@app-template/api": ["@app-template/api@workspace:apps/api"],
 
-    "@app-template/chat": ["@app-template/chat@workspace:application/chat"],
+    "@app-template/application": ["@app-template/application@workspace:application"],
 
     "@app-template/deployment": ["@app-template/deployment@workspace:deployment"],
 
@@ -224,15 +181,9 @@
 
     "@app-template/http-api": ["@app-template/http-api@workspace:http-api"],
 
-    "@app-template/identity": ["@app-template/identity@workspace:application/identity"],
-
-    "@app-template/identity-contract": ["@app-template/identity-contract@workspace:application/identity/contract"],
-
     "@app-template/kernel": ["@app-template/kernel@workspace:kernel"],
 
     "@app-template/packages": ["@app-template/packages@workspace:packages"],
-
-    "@app-template/use-cases": ["@app-template/use-cases@workspace:application/use-cases"],
 
     "@app-template/web": ["@app-template/web@workspace:apps/web"],
 

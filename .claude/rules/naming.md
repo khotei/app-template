@@ -8,13 +8,13 @@ paths:
 
 ## Imports
 
-- **Inside a unit:** `#<workspace>/<path>` (`#domain/<model>.model`), never `./`
+- **Inside a unit:** `#<unit>/<path>` (`#<module>/domain/<model>.model`), never `./`
   or `../`; another unit, even in the same workspace, only through its entry
   (`@app-template/kernel/<part>`), never one of its files.
-- **Across workspaces:** `@app-template/<workspace>[/<subpath>]`, through the `exports` and the
-  `index.ts` barrels: a kernel part (`@app-template/kernel/<part>`) and a package
-  (`@app-template/packages/<name>`) one entry, its `/testing` and `/testing/e2e`, a module one
-  per layer:
+- **Across units:** `@app-template/<folder>`, through the `exports` and the `index.ts` barrels:
+  a kernel part (`@app-template/kernel/<part>`), a package (`@app-template/packages/<name>`) and
+  a module or the use cases (`@app-template/application/<module>`) one entry each, with its
+  `/testing` and `/testing/e2e`:
   [architecture.md › Imports](../../docs/knowledge/architecture.md#imports-workspace-vs-app-template);
   which may import which:
   [architecture.md › Dependency rules](../../docs/knowledge/architecture.md#dependency-rules).

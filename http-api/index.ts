@@ -1,4 +1,4 @@
-export { ChatTitle } from '@app-template/chat/domain'
+export { ChatTitle } from '@app-template/application/chat'
 
 export * from '#http-api/api'
 export * from '#http-api/api.client'

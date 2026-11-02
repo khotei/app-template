@@ -27,17 +27,17 @@ import {
   type AssistantError,
   AssistantFailedError,
   AssistantRefusedError,
-} from '#domain/assistant.error'
-import { AssistantReply } from '#domain/assistant.model'
+} from '#chat/domain/assistant.error'
+import { AssistantReply } from '#chat/domain/assistant.model'
 import {
   Assistant,
   type AttachmentBytes,
   CurrentReplyProvenance,
   type HistoryMessage,
   ReplyProvenance,
-} from '#domain/assistant.port'
-import { ChatTitle, maxTitleLength } from '#domain/chat.model'
-import { isBlank } from '#domain/message.model'
+} from '#chat/domain/assistant.port'
+import { ChatTitle, maxTitleLength } from '#chat/domain/chat.model'
+import { isBlank } from '#chat/domain/message.model'
 
 const toFilePart = ({ attachment, bytes }: AttachmentBytes): Prompt.FilePartEncoded => ({
   type: 'file',

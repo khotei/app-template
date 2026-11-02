@@ -12,13 +12,14 @@ import {
   buildAssistantMessage,
   buildAttachment,
   Chat,
+  encodeAttachment,
   FileName,
   FileSize,
+  GenerateAssistantMessage,
   MediaType,
   Message,
   type MessageId,
-} from '@app-template/chat/domain'
-import { encodeAttachment, GenerateAssistantMessage } from '@app-template/chat/services'
+} from '@app-template/application/chat'
 import {
   type AssistantCallHold,
   asCompleted,
@@ -37,11 +38,11 @@ import {
   selectMessage,
   updateMessage,
   userMessageAt,
-} from '@app-template/chat/testing'
+} from '@app-template/application/chat/testing'
 import { AttachmentRepository, FileRepository } from '@app-template/kernel/data'
 import { epoch, png, recordLogs } from '@app-template/packages/testing'
 
-import { AssistantMessageTest } from '#testing/chat.test-layer'
+import { AssistantMessageTest } from '#testing/use-cases/chat.test-layer'
 import { GenerateAssistantMessageUseCase } from '#use-cases/chat/generate-assistant-message.use-case'
 
 const at = (millis: number) => DateTime.makeUnsafe(millis)

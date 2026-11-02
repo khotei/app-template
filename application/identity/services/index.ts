@@ -1,2 +1,2 @@
-export * from '#services/user.mapper'
-export * from '#services/user.service'
+export * from '#identity/services/user.mapper'
+export * from '#identity/services/user.service'

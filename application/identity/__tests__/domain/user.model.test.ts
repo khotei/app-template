@@ -1,7 +1,7 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Schema } from 'effect'
 
-import { SecretHash } from '#domain/user.model'
+import { SecretHash } from '#identity/domain/user.model'
 
 const hash = '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08'
 

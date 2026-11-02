@@ -15,10 +15,9 @@
     "start": "bun --env-file=../../.env --env-file=../../.env.pulumi main.ts"
   },
   "dependencies": {
-    "@app-template/chat": "workspace:*",
+    "@app-template/application": "workspace:*",
     "@app-template/kernel": "workspace:*",
     "@app-template/packages": "workspace:*",
-    "@app-template/use-cases": "workspace:*",
     "@effect/platform-bun": "catalog:effect",
     "effect": "catalog:effect"
   },

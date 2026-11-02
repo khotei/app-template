@@ -1,9 +1,15 @@
 import { describe, it } from '@effect/vitest'
 import { DateTime, Effect, Option, pipe, Schema } from 'effect'
 
-import { Attachment, AttachmentId, FileName, FileSize, MediaType } from '@app-template/chat/domain'
-import { AttachmentFromEntity } from '@app-template/chat/services'
-import { owner } from '@app-template/chat/testing'
+import {
+  Attachment,
+  AttachmentFromEntity,
+  AttachmentId,
+  FileName,
+  FileSize,
+  MediaType,
+} from '@app-template/application/chat'
+import { owner } from '@app-template/application/chat/testing'
 import { AttachmentEntityInsert, attachments, Db } from '@app-template/kernel/data'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 

@@ -18,25 +18,30 @@ import { TestClock } from 'effect/testing'
 
 import { epoch, png } from '@app-template/packages/testing'
 
-import type { AssistantError } from '#domain/assistant.error'
-import { AssistantReply } from '#domain/assistant.model'
-import { Assistant, CurrentReplyProvenance, type HistoryMessage } from '#domain/assistant.port'
-import { AttachmentId } from '#domain/attachment.id'
+import type { AssistantError } from '#chat/domain/assistant.error'
+import { AssistantReply } from '#chat/domain/assistant.model'
+import { Assistant, CurrentReplyProvenance, type HistoryMessage } from '#chat/domain/assistant.port'
+import { AttachmentId } from '#chat/domain/attachment.id'
 import {
   Attachment,
   buildAttachment,
   FileName,
   FileSize,
   MediaType,
-} from '#domain/attachment.model'
-import { MessageId } from '#domain/chat.id'
-import { ChatTitle } from '#domain/chat.model'
+} from '#chat/domain/attachment.model'
+import { MessageId } from '#chat/domain/chat.id'
+import { ChatTitle } from '#chat/domain/chat.model'
 import {
   AssistantLlm,
   CurrentReplyProvenanceFromConfig,
   generateInstructionsHash,
-} from '#infrastructure/assistant.llm'
-import { asCompleted, assistantMessageAt, owner, userMessageAt } from '#testing/chat.test-fixture'
+} from '#chat/infrastructure/assistant.llm'
+import {
+  asCompleted,
+  assistantMessageAt,
+  owner,
+  userMessageAt,
+} from '#testing/chat/chat.test-fixture'
 
 type RequestBody = typeof Generated.BetaCreateMessageParams.Encoded
 

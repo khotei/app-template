@@ -1,16 +1,16 @@
 import { DateTime } from 'effect'
 
-import { UserId } from '@app-template/identity-contract'
+import { UserId } from '@app-template/application/identity'
 import { epoch } from '@app-template/packages/testing'
 
-import { ChatId, MessageId } from '#domain/chat.id'
-import { buildChat, Chat } from '#domain/chat.model'
+import { ChatId, MessageId } from '#chat/domain/chat.id'
+import { buildChat, Chat } from '#chat/domain/chat.model'
 import {
   buildAssistantMessage,
   buildUserMessage,
   Message,
   type MessageInput,
-} from '#domain/message.model'
+} from '#chat/domain/message.model'
 
 export const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000020')
 export const messageId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000030')

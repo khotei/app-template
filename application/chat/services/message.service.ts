@@ -1,11 +1,11 @@
 import { Context, Effect, Layer, type Types } from 'effect'
 
-import type { UserId } from '@app-template/identity-contract'
+import type { UserId } from '@app-template/application/identity'
 import { MessageRepository } from '@app-template/kernel/data'
 
-import { MessageNotFoundError } from '#domain/message.error'
-import type { Message } from '#domain/message.model'
-import { decodeMessage } from '#services/chat.mapper'
+import { MessageNotFoundError } from '#chat/domain/message.error'
+import type { Message } from '#chat/domain/message.model'
+import { decodeMessage } from '#chat/services/chat.mapper'
 
 /** The message of the user's chat; one of another user's chat reads as absent. */
 export type MessageWhere = Types.Simplify<
@@ -17,7 +17,7 @@ export class MessageService extends Context.Service<
   {
     readonly getOne: (where: MessageWhere) => Effect.Effect<Message, MessageNotFoundError>
   }
->()('@app-template/chat/services/MessageService', {
+>()('@app-template/application/chat/services/MessageService', {
   make: Effect.gen(function* () {
     const messages = yield* MessageRepository
 

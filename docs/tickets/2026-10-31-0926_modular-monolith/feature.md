@@ -223,7 +223,7 @@ Behaviour seen from outside does not change.
 | R4 | `make reset`, then `make up`, applies one migration; `pg_dump --schema-only` of it, diffed against one of `main`'s, shows only `outbox` renamed `jobs` |
 | R5 | `make migration-check` reports no change |
 | R6 | the workspace list shows `kernel`, `application` (the two modules with identity's contract folder, and the use cases), `packages`, `http-api`, the three apps and `e2e` at `apps/__e2e__`, and no `domain` or `infrastructure` workspace |
-| R7 | grep: no module's code imports from another module's entry a name outside its contract; `.claude/rules/modules.md` names the check and links its record |
+| R7 | throwaway imports of another module's model, service, mapper and of its whole entry (`import * as`) each fail `make check` with the record named; review finds no module importing from another module's entry a name outside its contract; `.claude/rules/modules.md` names the check and links its record |
 | R8 | each module holds only `domain/`, `services/`, `infrastructure/`, `__tests__/` and its manifests; every `*.use-case.ts` lies under `application/use-cases/`; the layer overrides pass |
 | R9 | grep: no file under `kernel/data/` imports `@app-template/*` but a package under `packages/*`, or `#kernel/*` outside `#kernel/data`; every `*.table.ts`, `*.entity.ts` and `*.repository.ts` lies under `kernel/data/` |
 | R10 | the send-message e2e finds the job in `jobs` and rolls back both on a failed write |

@@ -2,16 +2,16 @@ import { Effect, Layer } from 'effect'
 
 import { ChatRepository, MessageRepository } from '@app-template/kernel/data'
 
-import type { ChatId, MessageId } from '#domain/chat.id'
-import type { Chat } from '#domain/chat.model'
-import type { Message } from '#domain/message.model'
+import type { ChatId, MessageId } from '#chat/domain/chat.id'
+import type { Chat } from '#chat/domain/chat.model'
+import type { Message } from '#chat/domain/message.model'
 import {
   decodeChat,
   decodeMessage,
   decodeMessages,
   encodeChat,
   encodeMessage,
-} from '#services/chat.mapper'
+} from '#chat/services/chat.mapper'
 
 export const insertChat = (chat: Chat) =>
   encodeChat(chat).pipe(Effect.flatMap((row) => ChatRepository.use((chats) => chats.insert(row))))

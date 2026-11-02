@@ -12,10 +12,11 @@ import {
   ChatBusyError,
   ChatTitle,
   completeMessage,
+  GenerateAssistantMessage,
+  GenerateChatTitle,
   Message,
   type MessageId,
-} from '@app-template/chat/domain'
-import { GenerateAssistantMessage, GenerateChatTitle } from '@app-template/chat/services'
+} from '@app-template/application/chat'
 import {
   ask,
   chat,
@@ -27,12 +28,12 @@ import {
   stranger,
   updateMessage,
   upload,
-} from '@app-template/chat/testing'
+} from '@app-template/application/chat/testing'
 import { ChatRepository, MessageRepository } from '@app-template/kernel/data'
 import { recordQueue } from '@app-template/packages/queue/testing'
 import { assertSchemaEquals, epoch, isUuidV7, sortById } from '@app-template/packages/testing'
 
-import { ChatTest } from '#testing/chat.test-layer'
+import { ChatTest } from '#testing/use-cases/chat.test-layer'
 import { SendMessageUseCase } from '#use-cases/chat/send-message.use-case'
 
 /** Completes an assistant message as the worker would, freeing its chat for the next send. */

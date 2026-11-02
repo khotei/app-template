@@ -11,20 +11,20 @@ import {
 } from 'effect'
 import type { RequireAtLeastOne } from 'type-fest'
 
-import type { UserId } from '@app-template/identity-contract'
+import type { UserId } from '@app-template/application/identity'
 import { ChatRepository, FileRepository } from '@app-template/kernel/data'
 import { generateId } from '@app-template/packages/db'
 
-import { ChatNotFoundError } from '#domain/chat.error'
-import { ChatId } from '#domain/chat.id'
-import { buildChat, Chat, type ChatTitle } from '#domain/chat.model'
+import { ChatNotFoundError } from '#chat/domain/chat.error'
+import { ChatId } from '#chat/domain/chat.id'
+import { buildChat, Chat, type ChatTitle } from '#chat/domain/chat.model'
 import {
   type ChatWhere,
   decodeChat,
   decodeChats,
   encodeChat,
   encodeChatWhere,
-} from '#services/chat.mapper'
+} from '#chat/services/chat.mapper'
 
 /** The chat a rename finds: by its owner, or only while it is still untitled. */
 export type ChatRenameWhere = Types.Simplify<
@@ -49,7 +49,7 @@ export class ChatService extends Context.Service<
     /** Removes the user's chat with its messages, their attachments and the bytes. */
     readonly delete: (where: ChatDeleteWhere) => Effect.Effect<void, ChatNotFoundError>
   }
->()('@app-template/chat/services/ChatService', {
+>()('@app-template/application/chat/services/ChatService', {
   make: Effect.gen(function* () {
     const chats = yield* ChatRepository
     const files = yield* FileRepository

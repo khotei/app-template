@@ -3,16 +3,17 @@ import { DateTime, Effect, Option, pipe, Schema } from 'effect'
 
 import {
   Chat,
+  ChatFromEntity,
   ChatId,
   ChatStatus,
   ChatTitle,
   Message,
+  MessageFromEntity,
   MessageId,
   MessageStatus,
   maxTitleLength,
-} from '@app-template/chat/domain'
-import { ChatFromEntity, MessageFromEntity } from '@app-template/chat/services'
-import { owner } from '@app-template/chat/testing'
+} from '@app-template/application/chat'
+import { owner } from '@app-template/application/chat/testing'
 import {
   ChatEntityInsert,
   chats,

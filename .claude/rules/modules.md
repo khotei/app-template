@@ -10,12 +10,31 @@ paths:
 them. Each names the record in `docs/knowledge/decisions.md` that says why; read it before
 arguing an exception.
 
+## A name past another module's contract
+
+A module's entry, `@app-template/application/<module>`, opens it whole: its contract, its
+models, its services. Another module takes from it only the names of its `contract/` folder,
+and Biome lets through only the forms a contract's names take, `<Name>Id`, `<Name>Error` and
+`Current<Name>`
+([architecture.md › Dependency rules](../../docs/knowledge/architecture.md#dependency-rules));
+an id or an error of its domain outside the contract matches them, so review refuses it.
+
+```ts
+// kept: an id of the contract
+import { CustomerId } from '@app-template/application/customer'
+// refused: a model of the customer module's domain
+import { Customer } from '@app-template/application/customer'
+```
+
+Record: [Module contracts](../../docs/knowledge/decisions.md#module-contracts).
+
 ## A cycle of modules through their contracts
 
-A dependency on `<module>-contract` counts as one on `<module>`. If `<a>` imports
-`<b>-contract` and `<b>` imports `<a>-contract`, the modules form a cycle even though no two
-workspaces do. Break it by moving the shared id or error into the contract of the module that
-owns it, or the flow into a use case.
+A dependency on a module's contract counts as one on the module. If `<a>` imports from `<b>`'s
+entry and `<b>` from `<a>`'s, the modules form a cycle, which `tsc -b` no longer sees inside one
+project: refuse a change to `biome.json` that lets a module's overrides take the entry of a
+module above it. Break the cycle by moving the shared id or error into the contract of the
+module that owns it, or the flow into a use case.
 Record: [Module contracts](../../docs/knowledge/decisions.md#module-contracts).
 
 ## A service rule or a model in the kernel

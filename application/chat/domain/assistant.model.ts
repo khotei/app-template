@@ -1,6 +1,6 @@
 import { Predicate, Schema } from 'effect'
 
-import { isBlank } from '#domain/message.model'
+import { isBlank } from '#chat/domain/message.model'
 
 export class AssistantReply extends Schema.Class<AssistantReply>('AssistantReply')({
   text: Schema.String.check(

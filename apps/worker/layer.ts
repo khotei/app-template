@@ -2,7 +2,7 @@ import { BunCrypto } from '@effect/platform-bun'
 import { Effect, Layer } from 'effect'
 import { FetchHttpClient } from 'effect/http'
 
-import { AssistantLlmFromConfig } from '@app-template/chat/infrastructure'
+import { AssistantLlmFromConfig } from '@app-template/application/chat'
 import { S3BucketFromConfig, SQSServiceFromConfig } from '@app-template/kernel/aws'
 import { MinimumLogLevelFromConfig } from '@app-template/kernel/config'
 import {

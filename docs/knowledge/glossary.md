@@ -107,18 +107,18 @@ connects it to the world, and the apps run it.
 _Avoid_: Application layer, app (a process under `apps/`), business layer
 
 **Module**:
-A business capability whose mission fits one sentence, a workspace under `application/`: its
-models, rules, errors and ports in `domain/`, its domain services, mappers and queue definitions
-in `services/`, the adapters of its ports in `infrastructure/`. Its records live in the data
-layer. It imports another module only through that module's contract, and never the use cases.
-Never one per table or per aggregate.
+A business capability whose mission fits one sentence, a folder of `application/` with one
+entry, `@app-template/application/<module>`: its models, rules, errors and ports in `domain/`,
+its domain services, mappers and queue definitions in `services/`, the adapters of its ports in
+`infrastructure/`. Its records live in the data layer. It imports another module only through
+that module's contract, and never the use cases. Never one per table or per aggregate.
 _Avoid_: Component, core, slice, feature folder, bounded context, service
 
 **Module contract**:
-The part of a module other modules may depend on, a workspace nested in the module's folder
-(`application/identity/contract/`): its ids, its errors and the shapes they carry, with no
-implementation. A dependency on a contract is a dependency on its module, so two modules that
-import each other's contracts form a cycle.
+The part of a module other modules may depend on, a folder of the module
+(`application/identity/contract/`) exported through its entry: its ids, its errors and the
+shapes they carry, with no implementation. A dependency on a contract is a dependency on its
+module, so two modules that import each other's contracts form a cycle.
 _Avoid_: Public API, interface, SDK, client
 
 **Use case**:

@@ -8,8 +8,13 @@ import {
   type ChatId,
   type ChatStatusInvalidError,
   completeMessage,
+  decodeChat,
+  decodeMessage,
+  decodeMessages,
+  encodeMessage,
   failChat,
   failMessage,
+  type GenerateAssistantMessage,
   generateMessage,
   type HistoryMessage,
   idleChat,
@@ -20,14 +25,7 @@ import {
   type MessageStatus,
   type MessageStatusInvalidError,
   prepareMessage,
-} from '@app-template/chat/domain'
-import type { GenerateAssistantMessage } from '@app-template/chat/services'
-import {
-  decodeChat,
-  decodeMessage,
-  decodeMessages,
-  encodeMessage,
-} from '@app-template/chat/services'
+} from '@app-template/application/chat'
 import { ChatRepository, FileRepository, MessageRepository } from '@app-template/kernel/data'
 import { Transaction } from '@app-template/packages/db'
 
@@ -64,7 +62,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
       cause: Cause.Cause<unknown>,
     ) => Effect.Effect<Option.Option<Message>, MessageStatusInvalidError | ChatStatusInvalidError>
   }
->()('@app-template/use-cases/chat/GenerateAssistantMessageUseCase', {
+>()('@app-template/application/use-cases/chat/GenerateAssistantMessageUseCase', {
   make: Effect.gen(function* () {
     const assistant = yield* Assistant
     const files = yield* FileRepository

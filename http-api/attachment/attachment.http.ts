@@ -10,8 +10,8 @@ import {
   ChatId,
   MediaType,
   MessageId,
-} from '@app-template/chat/domain'
-import { Auth } from '@app-template/identity-contract'
+} from '@app-template/application/chat'
+import { Auth } from '@app-template/application/identity'
 
 import { AttachmentTooLargeError, AttachmentTypeUnsupportedError } from '#http-api/shared/errors'
 import * as limits from '#http-api/shared/limits'

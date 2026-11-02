@@ -1,10 +1,10 @@
 import { Effect, flow, Schema } from 'effect'
 
-import { UserId } from '@app-template/identity-contract'
 import { UserEntity, UserEntityInsert } from '@app-template/kernel/data'
 import { decodeOptionalWith, encodeRowWith } from '@app-template/packages/db'
 
-import { Credential, User } from '#domain/user.model'
+import { UserId } from '#identity/contract/user.id'
+import { Credential, User } from '#identity/domain/user.model'
 
 export const UserFromEntity = Schema.Struct({
   ...UserEntity.fields,

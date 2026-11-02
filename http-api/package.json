@@ -10,9 +10,7 @@
     "#http-api/*": "./*.ts"
   },
   "dependencies": {
-    "@app-template/chat": "workspace:*",
-    "@app-template/identity": "workspace:*",
-    "@app-template/identity-contract": "workspace:*",
+    "@app-template/application": "workspace:*",
     "effect": "catalog:effect"
   }
 }

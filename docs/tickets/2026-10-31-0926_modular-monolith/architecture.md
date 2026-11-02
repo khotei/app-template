@@ -500,10 +500,12 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
     `application/identity/contract/`, exported through `@app-template/application/identity`
     with the rest: the user's word on 2026-11-02, one entry per module, guarded as the kernel's
     parts are, by a Biome override per unit over whole entries. What another module takes from
-    identity's entry (today `UserId` alone) is held by review (`modules.md`), no longer by a
-    package boundary. Rejected: `@app-template/application/identity/contract`, a second entry for
-    one module; a Biome list of the contract's names (`allowImportNames`), a guard of another
-    pattern than the kernel's.
+    identity's entry (today `UserId` alone) Biome holds by the forms a contract's names take, on
+    the user's word: an inverted `importNamePattern` lets through only `<Name>Id`,
+    `<Name>Error` and `Current<Name>`, and refuses a namespace or default import; an id or error
+    of the domain outside the contract is review's (`modules.md`). Rejected:
+    `@app-template/application/identity/contract`, a second entry for one module; a Biome list of
+    the contract's names (`allowImportNames`), one list per module to keep by hand.
 
 - **D4 — A module holds `domain/`, `services/` and, once it has an adapter, `infrastructure/`,
   the same `#domain/*`, `#services/*`, `#infrastructure/*` aliases in every module, and an export
@@ -526,8 +528,10 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
   - **Note (S29):** a module now has one entry, its `index.ts`, in place of an export per layer
     (D21); a Biome ban on another unit's layer matches the imported name instead
     (`importNamePattern`). With `application/` one workspace, the aliases name the module
-    (`#chat/domain/*`, `#identity/services/*`), and each layer override matches them by glob
-    (`#*/services/**`), so the rejected "override per module" does not follow. A use case may
+    (`#chat/domain/*`, `#identity/services/*`), and the layer patterns match them by glob
+    (`#*/services/**`). Each module's layer is still an override of its own
+    (`application/<module>/<layer>/**`): Biome replaces the options of two overrides matching one
+    file, so a shared layer override would erase the module's ban on another's files. A use case may
     import any layer of a module below it, its infrastructure included: the user's word on
     2026-11-02.
 
