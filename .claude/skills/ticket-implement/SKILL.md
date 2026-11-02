@@ -13,7 +13,10 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. G
 1. **Pick the step:** the one named, else the first `todo` step whose `Blocked by` steps are all
    `done`. Check that the branch is the ticket branch (`<type>/<slug>`) and that `git status`
    shows no uncommitted change to tracked files; otherwise stop and ask.
-2. **Implement.** Spawn the `implementer` agent with pointers only: the ticket folder and the
+2. **Implement.** A step that changes how the repository is laid out (imports, workspaces,
+   project references, guards, a module's shape) first shows the user a sketch: five to ten
+   lines of before → after on one or two of its files; the implementer starts on their word.
+   Spawn the `implementer` agent with pointers only: the ticket folder and the
    step id, on the `model` and `effort` the step's **Model** line names (`opus medium` for a
    move, rename or config step; `opus high` for one that writes behaviour). Its `make check`
    hook keeps it working until the gate is green. A report that starts with `BLOCKED:` goes
@@ -70,6 +73,22 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. G
 6. Name the next unblocked step.
 
 One step, or one round of it, per approval. Pushing or opening a PR needs its own OK.
+
+## The next step while one waits
+
+While a step waits at the approval gate (5), the next step, when the waiting one is all that
+blocks it, starts at once in a worktree on top of the waiting step's tree, so it is built while
+the user reads. Skip it while the waiting step asks the user a question that may change the next
+step's files.
+
+- Write the waiting step's diff: `git add -N` its untracked files, then
+  `git diff --binary HEAD > <scratchpad>/<step>.patch`.
+- Spawn the next `implementer` as a parallel step (below). Its prompt adds, to run right after the
+  block: `git apply --index <patch>` and `git commit -qm "wip <waiting step>"`, its one commit.
+- Its review waits for the waiting step's commit. Then, in the worktree, commit its round, drop
+  the wip commit with `git rebase --onto <ticket branch> <wip commit>`, run `bun install` and
+  `make check`, and review its round as any parallel step's. Feedback that changes the waiting
+  step's files after the patch reaches the next implementer as a round after the rebase.
 
 ## Parallel steps
 

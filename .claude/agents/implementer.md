@@ -45,7 +45,9 @@ You are **implementer**. `/ticket-implement` gives you a ticket folder and one s
   every number it changed, across code, `README.md`, `docs/knowledge` and the ticket folder. Fix
   each hit in your files; list the ticket's under *Deviations* with the edit they need.
 - **The gate.** A hook runs `make check` when you finish and sends you back while it fails. Fix
-  the cause; a `BLOCKED:` report is the only way out while it is red.
+  the cause; a `BLOCKED:` report is the only way out while it is red. While you work, check with
+  `make lint`, `make typecheck` and `make test-unit`, and leave the full `make check`, whose e2e
+  start containers, to the hook, unless the step's **Verify** names an e2e run.
 
 ## Report (your final message)
 
