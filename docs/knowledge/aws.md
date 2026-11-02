@@ -3,10 +3,8 @@
 How the app reaches S3 and SQS, locally and on AWS, and how the resources it needs are described,
 created and tested. The code: `kernel/aws/resources/` (the inventory, the naming rule),
 `packages/aws` (the generic provisioner), `kernel/aws/aws.client.ts` (the apps' S3 and SQS clients),
-`deployment/local/` (the Pulumi program of the local stand), `deployment/aws/` (its resources),
-`kernel/data/__tests__/testing/e2e/e2e.test-setup.ts` (the MiniStack the e2e run starts),
-`packages/aws/__tests__/testing/e2e/aws.test-layer.ts` (its clients) and
-`kernel/aws/__tests__/testing/e2e/aws.test-layer.ts` (a stage per test).
+`deployment/local/` (the Pulumi program of the local stand) and `deployment/aws/` (its
+resources); the e2e support, [tooling.md › Tests](tooling.md#tests).
 
 ## The local stand-in
 
@@ -196,22 +194,19 @@ and the dead letter need no queue.
 
 ## Tests on Docker
 
-The e2e `globalSetup` (`kernel/data/__tests__/testing/e2e/e2e.test-setup.ts`) starts one MiniStack
-beside the run's Postgres (`testcontainers`, about two seconds for both) and hands its endpoint to
-the tests through `inject('awsEndpoint')`; `SqsClientTest` and `S3ClientTest` in
-`@app-template/packages/aws/testing/e2e` are clients on it. `AwsTest`
-(`kernel/aws/__tests__/testing/e2e/aws.test-layer.ts`) gives each test a stage of its own (`e2e` and
-eight hex digits), provisions the inventory's bucket and queues under it and provides `AwsConfig`
-over the endpoint and that stage, so the kernel's clients build their names as in production; it
+The e2e `globalSetup` starts one MiniStack beside the run's Postgres (`testcontainers`) and hands
+its endpoint to the tests through `inject('awsEndpoint')`; `SqsClientTest` and `S3ClientTest` are
+clients on it. `AwsTest` gives each test a stage of its own (`e2e` and eight hex digits),
+provisions the inventory's bucket and queues under it and provides `AwsConfig` over the endpoint
+and that stage, so the kernel's clients build their names as in production; it
 publishes the clients too, as the `*FromConfig` layers do, and the stage's `S3Bucket`. The queue's
 own suite provisions its own queues under one such stage for its `layer` block, with
 `provisionQueues(queues, buildName)`, and the `s3` suite creates one bucket, named as a stage is,
-for its `S3Bucket`. Nothing cleans a stage up: the container goes with the run. On `AwsTest` run
-`FileRepository`'s suite, the relay's (beside `DbTest`) and the e2e through the api (`StandTest`),
-the journey and the use cases' transactions. The unit suites test our code, not S3 or SQS: they
-provide `FileRepositoryTest` (in `RepositoryStackTest`) and `recordQueue()`
-([tooling.md › Tests](tooling.md#tests)). So `make test-e2e` needs a running Docker daemon and
-nothing else, not the local stand or `.env`: the Pulumi project is for `make up` alone.
+for its `S3Bucket`. Nothing cleans a stage up: the container goes with the run. The unit suites
+test our code, not S3 or SQS: they provide `FileRepositoryTest` (in `RepositoryStackTest`) and
+`recordQueue()`. So `make test-e2e` needs a running Docker daemon and nothing else, not the local
+stand or `.env`: the Pulumi project is for `make up` alone. Where the harnesses live and which
+suites run on `AwsTest`: [tooling.md › Tests](tooling.md#tests).
 
 MiniStack differs from AWS in what it never does: lifecycle rules never run, the 5 MiB minimum
 part size is not enforced, and the `Tagging` sent with `CreateMultipartUpload` is dropped. What

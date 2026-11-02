@@ -18,17 +18,18 @@ paths:
 
 ## Unit and e2e
 
-- **A unit test** (`__tests__/`) runs the real services over the data layer's memory
-  repositories (`@app-template/kernel/data/testing`) and the memory layers of the ports
-  (`@app-template/application/<module>/testing`), with `TransactionTest`, `recordQueue()` and
-  `recordAssistant()` where a use case needs them, and starts no container. A use case's unit
-  test checks the order of its steps and the jobs it sends, not the rules. A further fake of a
-  repository or port only wraps a memory layer, to force a race or a failure it cannot produce on
-  demand.
+Where each kind and its support live, and which support a test may import:
+[tooling.md › Tests](../../docs/knowledge/tooling.md#tests).
+
+- **A unit test** runs the real services over the data layer's memory repositories and the
+  memory layers of the ports, with `TransactionTest`, `recordQueue()` and `recordAssistant()`
+  where a use case needs them, and starts no container. A use case's unit test checks the order
+  of its steps and the jobs it sends, not the rules. A further fake of a repository or port only
+  wraps a memory layer, to force a race or a failure it cannot produce on demand.
 - **A memory layer copies the guards the database adds** (an index, a `where`, a cascade), each
   with its e2e twin on the data layer's repository, or a unit test passes on a write the
   database refuses.
-- **An e2e test** (`__e2e__/`) proves an adapter on the run's containers, or a flow through the
+- **An e2e test** proves an adapter on the run's containers, or a flow through the
   api, a use case's transaction or race among them, never a call of the use case. Atomicity: the
   database refuses one write (a constraint the test adds), and no row and no job is kept. A race
   sends the rival requests with `Effect.all(…, { concurrency: 'unbounded' })` and asserts an
@@ -49,7 +50,7 @@ paths:
 - A test reads its services from the context (`yield* <Model>Service`) under a layer it provides
   (`Effect.provide(<Model>Test)`), never through a callback runner.
 - Every support file is `<name>.test-<role>.ts` and every test-only layer ends in `Test`, so
-  `**/*.test-*.ts` and `\w+Test\b` find them all; where they live: `naming.md › Files`.
+  `**/*.test-*.ts` and `\w+Test\b` find them all.
 
 ## Resources and time
 

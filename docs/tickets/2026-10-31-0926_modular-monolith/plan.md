@@ -38,7 +38,9 @@
 | S30 | a Biome list per workspace | done |
 | S31 | the mappers' e2e beside the mappers; the use cases' e2e through the api | done |
 | S32 | test support beside its one user | done |
-| S33 | the test layout told in one place | todo |
+| S33 | the test layout told in one place | done |
+| S34 | the mappers checked by unit tests over the schemas | todo |
+| S35 | `apps/__e2e__` → `apps/e2e`, a test app | todo |
 
 ## How to run this plan
 
@@ -1591,13 +1593,83 @@
   repeat goes. Each moved test or renamed folder after this step edits those two docs alone.
 - **Goal:** R19 (the docs describe the rings and how to extend them), each fact told once.
 - **Blocked by:** S32.
-- **Files:** the docs named above; a `CLAUDE.md` keeps what `.claude/rules/claude-md.md` asks of
-  it and links the rest.
+- **Files:** the docs named above, `.claude/rules/naming.md`, `glossary.md › Memory layer`, and
+  the recipes and rows of `architecture.md` that name a test path; a `CLAUDE.md` keeps what
+  `.claude/rules/claude-md.md` asks of it and links the rest.
 - **Test first:** `docs only`; a fact cut from a doc is found in one of the two, quoted in the
   report.
 - **Verify:** `make check`, `make doc-width`, `make doc-names`, `lychee` on the touched docs;
   `git grep -n '__tests__/testing/e2e' -- ':!docs/tickets'` finds it in the two docs, Biome and
   the code alone.
+- **Model:** `opus medium`
+- **Status:** done
+- **Findings:**
+  - `decisions.md` already held every fact of the layout and is unchanged; `tooling.md › Tests`
+    gained the folder, support and import rules, the suite-by-ring table (from `architecture.md`)
+    and the data layer's suites.
+  - Beyond Files: `naming.md` (it named `__tests__/testing/e2e/`), the glossary's Memory layer
+    (paths) and `architecture.md`'s recipes, Dependency rules and Imports, so moving a test no
+    longer edits a recipe.
+  - `apps/__e2e__` stays named in `architecture.md › Dependency rules` and the root `CLAUDE.md` as
+    a workspace, not a test path; S35 edits them.
+  - `lychee` is not installed locally: run through Docker with CI's flags and
+    `--include-fragments`, 0 errors.
+  - Review: the apps row said both apps' unit tests run the app's layer; the worker's call a
+    handler over its use case's test layer, and the row says so. The mapper recipe keeps the
+    Postgres round trip until S34.
+  - Left for the md-files follow-up: `decisions.md › Tests in their folders` still restates what
+    `tooling.md › Tests` tells; `effect-tests.md` is 82 lines against the ~80 budget.
+
+
+#### S34 — The mappers checked by unit tests over the schemas
+
+- **Delivers:** on the user's word after S32, `application` keeps unit tests alone. The three
+  mapper e2e (`application/chat/__e2e__/services/{chat,attachment}.mapper.e2e.ts`,
+  `application/identity/__e2e__/services/user.mapper.e2e.ts`) become unit tests
+  `application/<module>/__tests__/services/<name>.mapper.test.ts`: each model's extreme value and
+  every value of its statuses and authors is encoded through its mapper, decoded by the entity's
+  insert schema (the enums' values come from the table), and read back through the mapper equal
+  to the model; one case per module compares each limit and pattern the model and the table
+  both declare (`maxTitleLength`, `mediaTypePattern`, `secretHashPattern`), which `kernel/data`
+  now exports. The data layer's entity e2e bind the table's rule to its SQL check: each refuses
+  the limit plus one by the exported constant (not a literal `121`) and accepts the limit itself.
+  The `application/<module>/__e2e__/` folders and their Biome overrides go.
+- **Goal:** R11 as amended (no e2e from `application`); D11's guard rewritten.
+- **Blocked by:** S33.
+- **Files:** the three suites (moved and rewritten), `kernel/data/{chat,attachment,user}/*.table.ts`
+  and the data's entry (the constants), `kernel/data/__e2e__/{chat,attachment,user}/`,
+  `biome.json`, `feature.md` (R11 and its row), `docs/knowledge/decisions.md › Checks kept in the
+  tables` (Guarded by) and the two docs S33 leaves holding the test layout.
+- **Test first:** each new unit case is red when the model's limit, pattern or a status literal is
+  changed on one side (a probe per kind); each data e2e case is red when the check's SQL limit is
+  changed.
+- **Verify:** `make check`; `git ls-files 'application/**/__e2e__/**'` finds none; the unit run
+  counts the mapper cases the e2e had; the e2e run counts three files fewer.
+- **Model:** `opus high`
+- **Status:** todo
+
+
+#### S35 — `apps/__e2e__` → `apps/e2e`, a test app
+
+- **Delivers:** on the user's word after S32, the workspace that checks the whole system over real
+  connections is a test app, `apps/e2e` (`@app-template/e2e`), not a `__e2e__` folder, which
+  everywhere else means the e2e of its own folder's source. Today's suites move to
+  `apps/e2e/api/`, its support to `apps/e2e/testing/` (still `#testing/*`), so a later UI suite
+  (Playwright) takes `apps/e2e/web/`. It runs no process and is still the one workspace that
+  imports the apps' `testing` exports.
+- **Goal:** R11 as amended (the flow's e2e in `apps/e2e`).
+- **Blocked by:** S33. Runs beside S34 on the user's word, in a worktree: S34 touches neither
+  `apps/` nor the e2e project.
+- **Files:** the moved folder, `vitest.config.ts` (the e2e project includes
+  `apps/e2e/**/*.e2e.ts`, or `make test-e2e` skips the journey), `tsconfig.json`, `biome.json`,
+  `bun.lock`, `apps/CLAUDE.md` (a test app, not a fourth process), the root `CLAUDE.md` map,
+  `architecture.md › Dependency rules`, `.claude/rules/effect-tests.md`'s `paths:` (its
+  `**/__e2e__/**` glob no longer matches the journey), `feature.md` (R11 and its row), and the
+  two docs S33 leaves holding the test layout.
+- **Test first:** `config only` — every case kept; the e2e run counts the same cases.
+- **Verify:** `make check`; `make test-e2e` counts as many cases as before;
+  `git grep -n 'apps/__e2e__' -- ':!docs/tickets'` finds none; `make dev` starts api, worker and
+  web alone.
 - **Model:** `opus medium`
 - **Status:** todo
 
@@ -1616,7 +1688,7 @@
 | R8 | S3, S13, S19, S21 |
 | R9 | S8, S9, S10, S12, S14, S15, S17, S18 |
 | R10 | S10, S31 |
-| R11 | S1, S28, S31 |
+| R11 | S1, S28, S31, S34, S35 |
 | R12 | S21, S30 |
 | R13 | S4, S20, S21, S30 |
 | R14 | S8, S21 |

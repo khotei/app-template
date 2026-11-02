@@ -13,8 +13,7 @@ paths:
   (`@app-template/kernel/<part>`), never one of its files.
 - **Across units:** `@app-template/<folder>`, through the `exports` and the `index.ts` barrels:
   a kernel part (`@app-template/kernel/<part>`), a package (`@app-template/packages/<name>`) and
-  a module or the use cases (`@app-template/application/<module>`) one entry each, with its
-  `/testing` and `/testing/e2e`:
+  a module or the use cases (`@app-template/application/<module>`) one entry each:
   [architecture.md › Imports](../../docs/knowledge/architecture.md#imports-workspace-vs-app-template);
   which may import which:
   [architecture.md › Dependency rules](../../docs/knowledge/architecture.md#dependency-rules).
@@ -43,16 +42,11 @@ tool reads.
 | `.test-fixture` | sample values (ids, dates, inputs, bytes); no Effect, no layers | a `testing/` |
 | `.test-fake` | a test implementation or wrapper of a port or service: records, yields, scripts | a `testing/` |
 | `.test-layer` | a test layer (real services over fakes or containers), its arrange and read steps | a `testing/` |
-| `.test-setup` | a vitest `globalSetup`: run-wide resources, handed to tests through `provide` | `__tests__/testing/e2e/` |
+| `.test-setup` | a vitest `globalSetup`: run-wide resources, handed to tests through `provide` | a `testing/e2e/` |
 | `.test-util` | an assertion or a value helper with no layer | a `testing/` |
 
-Support that only the e2e use, since it reads the run's containers, sits in `testing/e2e/`.
-
-A test mirrors its source path under its workspace's `__tests__/` or `__e2e__/` (a kernel part's
-own, `kernel/<part>/__tests__/`), or a suite with no source names what it checks; a module folder
-holds no test. Suites compose the `testing/`
-barrels instead of copying them. Which folder, which support and which suite runs where:
-[architecture.md › Where tests live](../../docs/knowledge/architecture.md#where-tests-live).
+Which folder holds a test and its support, the path a test mirrors and which support it may
+import: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests).
 
 ## Symbols
 

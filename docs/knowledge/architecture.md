@@ -137,8 +137,7 @@ units its row allows, so an unlisted unit is refused
   list ([Boundary guards](#boundary-guards)). Inside the kernel and `packages/` the units are
   ordered: a kernel part lists only the parts below it (`/config` at the bottom, `/data` beside
   it and listing none), a package only the packages below it.
-- **Tests** import as their workspace's source does, plus the test support of the workspaces it
-  declares: [Where tests live](#where-tests-live).
+- **Tests** and the support they may import: [tooling.md › Tests](tooling.md#tests).
 
 ## Imports: `#<workspace>/` vs `@app-template/`
 
@@ -158,8 +157,8 @@ import { SendMessageUseCase } from '#use-cases/chat/send-message.use-case'  // t
   entry an `index.ts` barrel: the kernel one per part (`@app-template/kernel/data` →
   `kernel/data/index.ts`, every store), a package by its folder (`@app-template/packages/db`),
   a module or the use cases by theirs (`@app-template/application/chat` →
-  `application/chat/index.ts`, every layer), each with its test support
-  (`@app-template/kernel/data/testing`, `…/testing/e2e`).
+  `application/chat/index.ts`, every layer), each with its test support's entries
+  ([tooling.md › Tests](tooling.md#tests)).
 - **`#<unit>/<path>`** reaches a file of the same unit, through the `imports` map in its
   workspace's `package.json` (`"#chat/*": "./chat/*.ts"`, `"#api/*": "./*.ts"`); a kernel part,
   a package or a module reaches another through that one's entry, never its files. Each layer
@@ -192,7 +191,7 @@ Using the `chat` slice as the map:
 | contract group | `http-api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`), the DTOs |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
 | worker handler: a queue's consumer over a use case | `apps/worker/chat/assistant-message.handler.ts` | `handle`, `handleDeadLettered`, `AssistantMessageHandler` |
-| the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp` over the repositories and ports, `ApiLayer` with the clients, `WorkerLayer`; `main.ts` runs them, the e2e reaches them as `ApiLayerTest`, `WorkerLayerTest` through `./testing` |
+| the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp` over the repositories and ports, `ApiLayer` with the clients, `WorkerLayer`; `main.ts` runs them |
 | browser feature | `apps/web/features/health/health-panel.ts` | `renderHealthPanel(root)` |
 
 Every store folder of `kernel/data`, and every layer of a module, has an `index.ts` barrel, and
@@ -201,33 +200,10 @@ file suffixes and the naming verbs: [.claude/rules/naming.md](../../.claude/rule
 
 ## Where tests live
 
-Every workspace keeps its unit tests in `__tests__/` and its e2e in `__e2e__/`, at its top,
-mirroring the source path; the kernel's parts are units like packages, so each part keeps them in
-its own folder (`kernel/<part>/__tests__/`, `kernel/<part>/__e2e__/`). Vitest's `unit` project
-runs `**/__tests__/**/*.test.ts`, its `e2e` project `**/__e2e__/**/*.e2e.ts`
-([tooling.md › Tests](tooling.md#tests)). Test support lives in `__tests__/testing/`, imported as
-`@app-template/<folder>/testing` and aliased `#testing/<unit>/*`; the part only the e2e use lives
-in `__tests__/testing/e2e/`, imported as `@app-template/<folder>/testing/e2e` and aliased
-`#testing/<unit>/e2e/*`, which `/testing` does not re-export; support one unit alone reads keeps
-the alias and no entry. The shared `packages/testing` holds
-only the support several units use; a package's own (its rows, its Postgres or MiniStack clients)
-lives in that package. A unit test imports its workspace's source and the `/testing` of the
-units it declares; an e2e suite also their `/testing/e2e`; a unit test never imports e2e
-support. `apps/__e2e__`, e2e alone, aliases its own support `#testing/*`. Record:
+Every workspace keeps its unit tests in `__tests__/` and its e2e in `__e2e__/`, each with its
+support under `__tests__/testing/`. What goes where, which support a test may import and what
+runs on what: [tooling.md › Tests](tooling.md#tests). Why:
 [Tests in their folders](decisions.md#tests-in-their-folders).
-
-| Ring | Suite | Runs on |
-|---|---|---|
-| behaviour | `application/<module>/__tests__/`, `application/use-cases/__tests__/` | memory only: the kernel's memory repositories (`@app-template/kernel/data/testing`), a module's memory layers of its ports (`@app-template/application/chat/testing`), `TransactionTest`; of e2e only the mappers' round trips, `application/<module>/__e2e__/services/` on `DbTest` |
-| data | `kernel/data/__e2e__/<store>/` | Postgres (`DbTest`) or MiniStack (`AwsTest`), in entities |
-| boundary | `kernel/postgres/__e2e__/`, `kernel/queue/__e2e__/`, `packages/<package>/__e2e__/`; an adapter's suite in `application/<module>/__tests__/infrastructure/` | the run's containers; the adapter over a recording client |
-| tools | `kernel/config/__tests__/`, `packages/<package>/__tests__/` | memory only |
-| apps | `apps/api/__tests__/`, `apps/worker/__tests__/` | the app's layer over the memory layers |
-| assembled | `apps/__e2e__/chat.e2e.ts`: the journey and the use cases' races and rollbacks, each a request to the api | both app layers in one runtime (`StandTest`) |
-
-The memory repositories live in `kernel/data/__tests__/testing/`, over the same entities as the real
-ones. What each kind of test checks, what a memory layer must copy and how to write a test:
-[.claude/rules/effect-tests.md](../../.claude/rules/effect-tests.md).
 
 ## A use case
 
@@ -291,16 +267,15 @@ model's.
    ([database.md](database.md)). What a table and an entity may import and declare:
    [kernel/CLAUDE.md](../../kernel/CLAUDE.md). Ownership is a field of the `<Name>EntityWhere`
    the reads take, so a record of another owner reads as absent, never a check after the read.
-   Test the repository in
-   `kernel/data/__e2e__/<store>/` on `DbTest`, and add its memory repository to
-   `kernel/data/__tests__/testing/` with a twin of every guard the e2e proves.
+   Test the repository on `DbTest`, and add its memory repository with a twin of every guard
+   the e2e proves ([tooling.md › Tests](tooling.md#tests)).
 2. **The model.** `application/<module>/domain/`: `<entity>.id.ts`, `<entity>.model.ts` (a
    `Schema.Class` with its pure operations; time and ids come in as input), `<entity>.error.ts`,
-   tested in `application/<module>/__tests__/domain/`.
+   each with its unit test.
 3. **The mapper.** `application/<module>/services/<entity>.mapper.ts`: `<Model>FromEntity` lays the
    model's schemas over the entity's fields; its round trip through Postgres, with the model's
-   extreme values, goes beside it in `application/<module>/__e2e__/services/`, so a limit both
-   sides declare cannot drift ([Checks kept in the tables](decisions.md#checks-kept-in-the-tables)).
+   extreme values, checks every limit and enum both sides declare, so none can drift
+   ([Checks kept in the tables](decisions.md#checks-kept-in-the-tables)).
 4. **The service.** `application/<module>/services/<entity>.service.ts`: `<Model>Service` over the
    repository, the one owner every handler goes through, tested over the memory repositories.
    The layers' barrels re-export the new files.
@@ -341,10 +316,9 @@ Layer.provide(Db.layer), Layer.provide([PgClientFromConfig, S3BucketFromConfig])
    from the inventory in `kernel/aws/resources`.
 4. **Each process** provides it in its `layer.ts`; a missing one is a type error in the layer's
    requirements.
-5. **The e2e harness** in the part's `__tests__/testing/e2e/` (`kernel/data/__tests__/testing/e2e/`,
-   `kernel/aws/__tests__/testing/e2e/`) provides a client of the test's own (a
-   database, a stage) the same way `DbTest` and `AwsTest` do; `deployment/local/` provisions the
-   store on the local stand ([aws.md](aws.md)).
+5. **The e2e harness,** in the part's e2e support ([tooling.md › Tests](tooling.md#tests)),
+   provides a client of the test's own (a database, a stage) the same way `DbTest` and `AwsTest`
+   do; `deployment/local/` provisions the store on the local stand ([aws.md](aws.md)).
 
 ## Add a module
 
@@ -354,9 +328,10 @@ the folder `application/<module>/contract/`, exported through the same entry.
 Record: [Modules by capability](decisions.md#modules-by-capability).
 
 1. **The entry.** `application/<module>/index.ts` re-exports each layer's barrel; in
-   `application/package.json`, an `exports` entry `./<module>` (and `./<module>/testing` once it
-   has test support) and the aliases `#<module>/*` and `#testing/<module>/*`, as chat's. The
-   folder's one `tsconfig.json` project already includes it, and `bun install` links nothing new.
+   `application/package.json`, an `exports` entry `./<module>` and the alias `#<module>/*`, and
+   once it has test support that support's entry and alias
+   ([tooling.md › Tests](tooling.md#tests)), as chat's. The folder's one `tsconfig.json` project
+   already includes it, and `bun install` links nothing new.
 2. **The Biome overrides.** Copy chat's override of its entry and of each layer the module has
    (`application/chat/index.ts`, `…/domain/**`, `…/services/**`, `…/infrastructure/**`,
    `…/__tests__/**` and the ones under it), with `#<module>/**` in place of `#chat/**`; a module

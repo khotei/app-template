@@ -15,8 +15,8 @@ and may import:
   bundle.
 - Another module's ids and errors come from its entry, and only the names of its `contract/`
   folder ([modules.md](../.claude/rules/modules.md)).
-- A module's `__tests__/testing/` holds one memory layer per port, for every workspace's unit
-  tests.
+- **Each port has one memory layer** in its module's test support, for every workspace's unit
+  tests: [tooling.md › Tests](../docs/knowledge/tooling.md#tests).
 - **An adapter is a `Layer` of a port** in the module's `infrastructure/`, so callers never see
   the client: the prompts stay inside the adapter.
 - A `<model>.queue.ts` in `services/` holds only queue definitions; no adapter wraps `send` or

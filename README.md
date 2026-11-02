@@ -121,11 +121,6 @@ application/use-cases/chat/      send-message.use-case  generate-assistant-messa
 http-api/chat/                   chat.http
 apps/api/chat/                   chat.handler
 apps/worker/chat/                assistant-message.handler  chat-title.handler
-<workspace>/__tests__/…          <source path>.test.ts   unit, over memory layers, no Docker
-<workspace>/__e2e__/…            <source path>.e2e.ts    on the run's own Postgres and MiniStack
-<workspace>/__tests__/testing/   .test-fake  .test-layer  .test-fixture  unit test support
-<workspace>/__tests__/testing/e2e/  .test-layer  .test-setup  e2e support, never in a unit test
-apps/__e2e__/                    the journey and the use cases' races and rollbacks, through the api
 ```
 
 Read it from the data outward: the data layer's table, entity and repository, the model and its
@@ -133,7 +128,9 @@ pure operations, the mapper between entity and model, the service with the rules
 composing services, the adapter implementing a port, the handler calling the use case. Every
 file of the slice and what it is named:
 [architecture.md › Where things live](docs/knowledge/architecture.md#where-things-live); the
-suffixes and naming verbs: [.claude/rules/naming.md](.claude/rules/naming.md).
+suffixes and naming verbs: [.claude/rules/naming.md](.claude/rules/naming.md). A slice's tests sit
+in its workspace's `__tests__/` and `__e2e__/`:
+[tooling.md › Tests](docs/knowledge/tooling.md#tests).
 
 ## Daily development
 

@@ -64,23 +64,66 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   and handlers and needs no process outside vitest. An e2e test proves an adapter, a use case's
   transaction or the journey on the run's containers; among them is the queue's own suite, which
   tests our retry, heartbeat and dead-letter logic and takes most of a run's time with SQS's real
-  delays. Which test goes where and what it runs on:
+  delays. What each kind checks and how to write it:
   [effect-tests.md › Unit and e2e](../../.claude/rules/effect-tests.md#unit-and-e2e).
+- **A folder per kind, beside the source.** Every workspace keeps its unit tests in `__tests__/`
+  and its e2e in `__e2e__/`, at its top; a test mirrors its source path there, and a suite with
+  no source is named for what it checks. A module folder holds no test. The kernel's parts are
+  units like packages, so each part keeps its own (`kernel/<part>/__tests__/`,
+  `kernel/<part>/__e2e__/`). Why, and what refuses a test in the wrong place:
+  [decisions.md › Tests in their folders](decisions.md#tests-in-their-folders).
+- **Test support in `__tests__/testing/`,** the files ending in a `.test-<role>` suffix
+  ([naming.md › Files](../../.claude/rules/naming.md#files)), imported as
+  `@app-template/<folder>/testing` and aliased `#testing/<unit>/*` (`#testing/*` in a workspace
+  of one unit, as an app). The part only the e2e use, since it reads the run's containers, sits
+  in `__tests__/testing/e2e/` (the run's `globalSetup` in the data layer's), behind an `index.ts`
+  of its own that `__tests__/testing/index.ts` does not re-export: imported as
+  `@app-template/<folder>/testing/e2e` and aliased `#testing/<unit>/e2e/*`. Support one unit
+  alone reads keeps the alias and no entry. Suites compose these barrels instead of copying them.
+  The memory repositories live in `kernel/data/__tests__/testing/`, over the same entities as the
+  real ones, and a module's memory layers of its ports in that module's. The shared
+  `packages/testing` holds only the support several units use; a package's own (its rows, its
+  Postgres or MiniStack clients) lives in that package, as a kernel part's does.
+- **What a test may import.** A unit test imports its workspace's source and the `/testing` of
+  the units its workspace declares; an e2e suite also their `/testing/e2e`; a unit test never
+  imports e2e support. The `apps/__e2e__` workspace holds e2e alone, aliases its own support
+  `#testing/*` (`apps/__e2e__/testing/`) and is the one workspace that imports the apps'
+  `./testing`, so an app has no `__e2e__/` of its own.
+
+Which suite runs where:
+
+| Ring | Suite | Runs on |
+|---|---|---|
+| behaviour | `application/<module>/__tests__/`, `application/use-cases/__tests__/` | memory only: the kernel's memory repositories (`@app-template/kernel/data/testing`), a module's memory layers of its ports (`@app-template/application/<module>/testing`), `TransactionTest`; of e2e only the mappers' round trips, `application/<module>/__e2e__/services/` on `DbTest` |
+| data | `kernel/data/__e2e__/<store>/` | Postgres (`DbTest`) or MiniStack (`AwsTest`), in entities |
+| boundary | `kernel/postgres/__e2e__/`, `kernel/queue/__e2e__/`, `packages/<package>/__e2e__/`; an adapter's suite in `application/<module>/__tests__/infrastructure/` | the run's containers; the adapter over a recording client |
+| tools | `kernel/config/__tests__/`, `packages/<package>/__tests__/` | memory only |
+| apps | `apps/api/__tests__/`, `apps/worker/__tests__/` | memory only: the api's HTTP layer (`ApiHttp`) with the memory layers in place of the repositories and ports; a worker handler over its use case's test layer |
+| assembled | `apps/__e2e__/chat.e2e.ts`: the journey and the use cases' races and rollbacks, each a request to the api | both app layers in one runtime (`StandTest`) |
+
+- **The data layer's suites.** A repository's `.repository.e2e.ts` and an entity's
+  `.entity.e2e.ts` sit in `kernel/data/__e2e__/<store>/` on `DbTest`; `flipSqlError`, which reads
+  the `SqlError` of a refused statement, comes from `@app-template/packages/db/testing/e2e`. What
+  they check: [database.md › Tests](database.md#tests). A limit or a pattern the data layer
+  declares again beside a model has a `.mapper.e2e.ts` in `application/<module>/__e2e__/services/`:
+  it writes the model's extreme value, and every value of an enum the model holds too (a status,
+  an author), through the mapper and reads it back, so a check or an enum that drifts from its
+  model fails there.
 - **One root `vitest.config.ts`, two projects,** chosen by `--project`: `unit` runs
   `__tests__/**/*.test.ts`; `e2e` runs `__e2e__/**/*.e2e.ts`, on Docker, and alone has the
-  `globalSetup`. Both sit at the top of their workspace and mirror the source path; the e2e
-  through the api, the journey and the use cases' races and rollbacks, live in the `apps/__e2e__`
-  workspace, so `use-cases` runs unit tests only and a module's e2e are its mappers'. Each project
-  lists the shared `exclude` (`repos/**` and `.claude/worktrees/**` added to the default) and
-  `sequence` itself, and the root sets no `globalSetup`, so a unit run starts no container. A new
-  workspace needs no test config, and the vendored suites and the worktrees' copies stay out.
+  `globalSetup`. Each project lists the shared `exclude` (`repos/**` and `.claude/worktrees/**`
+  added to the default) and `sequence` itself, and the root sets no `globalSetup`, so a unit run
+  starts no container. A new workspace needs no test config, and the vendored suites and the
+  worktrees' copies stay out.
 - **One Postgres and one MiniStack per e2e run, a database and a stage per test.**
   `kernel/data/__tests__/testing/e2e/e2e.test-setup.ts` starts one `postgres:18.6-alpine`
   container (about 1.2 s) and migrates a template database in it with `migrateDatabase(folder)`,
-  as `make migrate` does, and one MiniStack container beside it (about two seconds for both). Each
-  test provides `PgClientTest` from `@app-template/packages/db/testing/e2e`: a fresh database
-  copied from the template and dropped when the test ends, about 40 ms in all; a test on S3 or
-  SQS provides `AwsTest` from `kernel/aws/__tests__/testing/e2e/aws.test-layer.ts`: a stage of its
+  as `make migrate` does, and one MiniStack container beside it (about two seconds for both);
+  `SqsClientTest` and `S3ClientTest` from `@app-template/packages/aws/testing/e2e` are clients on
+  that MiniStack. Each test provides `PgClientTest` from `@app-template/packages/db/testing/e2e`:
+  a fresh database copied from the template and dropped when the test ends, about 40 ms in all; a
+  test on S3 or SQS (`FileRepository`'s, the relay's beside `DbTest`, the e2e through the api)
+  provides `AwsTest` from `kernel/aws/__tests__/testing/e2e/aws.test-layer.ts`: a stage of its
   own on the run's MiniStack, its bucket and queues provisioned
   ([aws.md › Tests on Docker](aws.md#tests-on-docker)). A test therefore sees only its own rows and
   resources, even through a query that reads a whole table, and files run in parallel. E2e tests

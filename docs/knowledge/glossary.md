@@ -204,7 +204,7 @@ of the transaction a use case runs, or of the journey through both apps.
 _Avoid_: Integration test, system test, functional test
 
 **Memory layer**:
-A layer of a repository or a port over a `Ref<HashMap>`, one per service: the repositories' in
-the kernel's `__tests__/testing/`, over the same entities as the real ones, the others' in the
-`__tests__/testing/` of the workspace that declares the service. The unit tests' only double.
+A layer of a repository or a port over a `Ref<HashMap>`, one per service, in the test support of
+the workspace that declares the service; the repositories' over the same entities as the real
+ones. The unit tests' only double.
 _Avoid_: Mock, stub, in-memory repository
