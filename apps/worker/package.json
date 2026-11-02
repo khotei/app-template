@@ -3,10 +3,11 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./layer": "./layer.ts"
+    "./testing": "./__tests__/testing/index.ts"
   },
   "imports": {
-    "#worker/*": "./*.ts"
+    "#worker/*": "./*.ts",
+    "#testing/*": "./__tests__/testing/*.ts"
   },
   "scripts": {
     "dev": "bun --env-file=../../.env --env-file=../../.env.pulumi --watch main.ts",

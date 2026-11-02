@@ -31,7 +31,7 @@
 | S23 | the glossary, the `<Model>` placeholders, the roadmap and the remaining pages | done |
 | S24 | the statuses through the mapper e2e; the test layers' `provideMerge` in the rule | done |
 | S25 | the kernel's tests beside each of its parts | done |
-| S26 | the apps' layers exported to the e2e as test support | todo |
+| S26 | the apps' layers exported to the e2e as test support | done |
 
 ## How to run this plan
 
@@ -1257,15 +1257,25 @@
 - **Blocked by:** S25.
 - **Files:** `apps/{api,worker}/package.json`, `apps/api/__tests__/testing/api.test-layer.ts`,
   `apps/worker/__tests__/testing/{worker.test-layer,index}.ts`, `apps/api/__tests__/testing/index.ts`,
-  `apps/__e2e__/testing/stand.test-layer.ts`, `biome.json` (the `apps/__e2e__/**` allowances and
-  any ban naming `/layer`), `apps/CLAUDE.md`, and every doc `git grep` finds naming `./layer`,
+  `apps/__e2e__/testing/stand.test-layer.ts`, `apps/CLAUDE.md`, and every doc `git grep` finds naming `./layer`,
   `api/layer` or `worker/layer`.
 - **Test first:** `config only` — every case and assertion kept (D14).
-- **Verify:** `make check`; `git grep -n "api/layer'\|worker/layer'"` finds nothing outside the
-  tickets; a throwaway import of `@app-template/worker/testing` into `apps/api/` fails Biome
+- **Verify:** `make check`; `git grep -nE "@app-template/(api|worker)/layer"` finds nothing
+  outside the tickets; a throwaway import of `@app-template/worker/testing` into `apps/api/` fails Biome
   naming "Independent apps".
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - `biome.json` needed no change: no override names `/layer` as an import, and the Independent
+    apps bans on `@app-template/<app>/**` cover `./testing` (a throwaway import of
+    `@app-template/worker/testing` into `apps/api/` fails naming the record).
+  - The names end in `Test` so `\w+Test\b` finds them, though they are the real process layers;
+    exporting `ApiLayer` unaliased from `index.ts` was the review's plainer alternative, not taken.
+  - An app's unit support can reach its real layer, as it already did through `#api/layer` for
+    `ApiHttp`; the e2e-support ban is unchanged.
+  - Verify's grep was narrowed to `@app-template/(api|worker)/layer`: the written one matched the
+    internal `#api/layer` imports `main.ts` keeps.
+  - Size: 10 files, about +30 / −21.
 
 ## Requirement coverage
 

@@ -77,7 +77,7 @@ graph TD
   services --> packages
   deployment --> kernelOut
   deployment -->|"/data/file only"| db
-  e2e["apps/__e2e__"] -->|"api/layer · worker/layer"| api
+  e2e["apps/__e2e__"] -->|"api/testing · worker/testing"| api
   e2e --> worker
 ```
 
@@ -107,7 +107,7 @@ that refuses the row's ✗, a Biome override in `biome.json` whose message names
 | `apps/web` client | ✗ | ✗ | ✗ | ✗ | ✗ | `ui` only | ✓ | `apps/web/**`; `make bundle-check` |
 | `apps/web/main.ts` | ✗ | ✗ | ✗ | ✗ | `/config` only | `ui` only | ✗ | `apps/web/main.ts` |
 | `deployment` | ✗ | ✗ | ✗ | `/data/file` only | `/config`, `/aws/resources` | ✓ | ✗ | `deployment/**` |
-| `apps/__e2e__` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | its `package.json`; apps through `api/layer`, `worker/layer` |
+| `apps/__e2e__` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | its `package.json`; apps through `api/testing`, `worker/testing` |
 
 - **Inside a module** the layers point inward too: `domain/` imports neither `#services/*` nor
   `#infrastructure/*`, `services/` not `#infrastructure/*`, and `infrastructure/` not
@@ -179,7 +179,7 @@ Using the `chat` slice as the map:
 | contract group | `http-api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`), the DTOs |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
 | worker handler: a queue's consumer over a use case | `apps/worker/chat/assistant-message.handler.ts` | `handle`, `handleDeadLettered`, `AssistantMessageHandler` |
-| the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp` over the repositories and ports, `ApiLayer` with the clients, `WorkerLayer`; exported as `./layer` |
+| the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp` over the repositories and ports, `ApiLayer` with the clients, `WorkerLayer`; `main.ts` runs them, the e2e reaches them as `ApiLayerTest`, `WorkerLayerTest` through `./testing` |
 | browser feature | `apps/web/features/health/health-panel.ts` | `renderHealthPanel(root)` |
 
 Every store folder of `kernel/data`, and every layer of a module, has an `index.ts` barrel. The

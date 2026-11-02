@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./layer": "./layer.ts"
+    "./testing": "./__tests__/testing/index.ts"
   },
   "imports": {
     "#api/*": "./*.ts",

@@ -11,6 +11,9 @@ import { layerCookieJarTest } from '@app-template/testing'
 
 import { ApiHttp } from '#api/layer'
 
+/** The whole api process, clients and all, for the e2e journey that runs it beside the worker. */
+export { ApiLayer as ApiLayerTest } from '#api/layer'
+
 /**
  * The api on an ephemeral port over the memory layers: fresh rows and files,
  * the identity transaction, a queue that only records and a fixed reply provenance. Its `HttpClient` targets that port, and
