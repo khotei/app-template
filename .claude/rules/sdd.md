@@ -43,3 +43,5 @@ Every change of substance runs **feature → architecture → plan → implement
   its own OK.
 - **Deviations are recorded** in the same commit: `plan.md` findings, `architecture.md ›
   Decisions` when it is a decision, and `feature.md` when it changes what a requirement asks.
+  A decision that adds or changes a binding rule also adds or rewrites its record in
+  `docs/knowledge/decisions.md`, in the same commit.

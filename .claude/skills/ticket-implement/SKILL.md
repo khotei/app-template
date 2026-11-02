@@ -58,7 +58,8 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. G
    - **approve:** set the step's `Status: done` (or `blocked: <gate>` while a gate the step
      names, such as a branch, a push or a CI run, has not run yet) in the step and in its row
      of the plan's **Status** table, add its findings to `plan.md`
-     and any new decision to `architecture.md`, stage the step's files, and commit with the
+     and any new decision to `architecture.md`, with the record it adds or changes in
+     `docs/knowledge/decisions.md`, stage the step's files, and commit with the
      proposed message as a command of its own. An amendment also rewrites the decision's body,
      Contract, Seam or Risks entry it makes wrong; its note keeps only what changed and the
      rejected alternative;

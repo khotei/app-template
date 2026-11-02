@@ -23,9 +23,10 @@ update it.
 ## Hard limits
 
 - **`CLAUDE.md` ≤ ~40 lines; a rule file ≤ ~80.** Over budget ⇒ cut, don't append.
-- **Decision history lives in commit `Decision:` paragraphs and the ticket's
-  `architecture.md › Decisions`**, never in `CLAUDE.md` or rules. These state only the
-  *currently binding* constraint: no dates, no superseded chains, no ticket numbers, no tombstones.
+- **A binding architecture decision has its record in `docs/knowledge/decisions.md`; its history
+  lives in commit `Decision:` paragraphs and the ticket's `architecture.md › Decisions`**, never
+  in `CLAUDE.md` or rules. These state only the *currently binding* constraint and link the
+  record: no dates, no superseded chains, no ticket numbers, no tombstones.
 - **No behaviour narration**: no per-function descriptions, signatures or test walkthroughs.
 - **One author per fact**: if another doc states it, link it by name; never restate it.
 - **Write the pattern, not the instance,** so a refactor leaves the rule true: placeholders
@@ -42,6 +43,7 @@ update it.
 | Binding constraints of one layer or workspace | `<layer>/CLAUDE.md` |
 | Repo-wide conventions | `.claude/rules/*.md` |
 | How the system works, for humans | `docs/knowledge/*.md` |
+| Why a boundary holds, what guards it, what its reversal breaks | `docs/knowledge/decisions.md` |
 | One ticket's what, why and how | its folder in `docs/tickets/` (`sdd.md`) |
 | What changed and why | `git log` |
 

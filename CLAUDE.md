@@ -28,4 +28,7 @@ What may import what, which Biome enforces:
   [docs/knowledge/sdd.md](docs/knowledge/sdd.md).
 - **The domain glossary is `docs/knowledge/glossary.md`.** Never create `GLOSSARY.md`,
   `CONTEXT.md` or `docs/adr/`, even when a skill asks for them.
+- **The architecture decisions are `docs/knowledge/decisions.md`.** Asked to change a module
+  boundary, the data layer, the kernel, a guard or a recorded decision, read its record first and
+  state what breaks and what it costs before changing anything; the change rewrites the record.
 - Code, docs and rules are written in English.

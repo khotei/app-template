@@ -22,7 +22,9 @@ where tests observe it, and every non-obvious decision. Gates: `.claude/rules/sd
      misses. `tdd` later writes tests only at these seams, so the user confirms them here;
    - **Decisions** `D1…`: each with its why, the cost accepted, how it is reversed, and the
      rejected alternative. A choice earns a decision when it is hard to reverse, surprising
-     without context, and a real trade-off. These replace ADRs;
+     without context, and a real trade-off. These replace ADRs. A decision that binds beyond the
+     ticket names the record of `docs/knowledge/decisions.md` it adds or changes, for the step
+     that lands it;
    - risks, each with what it would cause and what contains it.
 4. Present it. The step is done when the user approves the Seams and the Decisions; next comes
    `/ticket-plan <ticket folder>`.

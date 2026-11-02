@@ -25,7 +25,7 @@
 | S17 | chat's services and the use cases over the data layer; the repository ports gone | done |
 | S18 | `FileRepository` in the data layer; the bucket port gone | done |
 | S19 | chat's assistant in `application/chat/infrastructure`; no `infrastructure` workspace | done |
-| S20 | the decisions document and the modules review rule | todo |
+| S20 | the decisions document and the modules review rule | done |
 | S21 | the Biome guards per ring and layer | todo |
 | S22 | `architecture.md` rewritten for the rings | todo |
 | S23 | the glossary, the `<Model>` placeholders, the roadmap and the remaining pages | todo |
@@ -1027,7 +1027,27 @@
 - **Verify:** `make check` (`make ids`, `make doc-names`); each record has the seven fields; every
   item of `modules.md` names a record that exists.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - 20 records, one per decision, each with the seven fields; titled by the decision ("Jobs as a
+    table in the data layer"), so no ticket id leaves `docs/tickets/`. The four departures from
+    the guide are listed up front and marked in their sources.
+  - `modules.md` has a fifth item beyond the four named: a job reacting to another module's write
+    (R18), which no tool checks. R20's "every review rule names a record" reads as its items.
+  - The records name the guards of the Contracts' end state, the overrides S21 adds included;
+    S21 edits a record whose guard diverges (`decisions.md` joins its Files).
+  - D13 and D14 had no rejected alternative; their records name one, now in `architecture.md`.
+  - The use case's record and `modules.md` keep the allowance of `layering.md › Use cases`: a
+    use case reads or writes a repository where no rule applies.
+  - Round S20.2 (the user's word): the ticket process keeps the page current — `sdd.md`'s gate,
+    `/ticket-architecture` naming the record a decision adds or changes, `/ticket-implement`
+    writing it on approval, `docs/knowledge/sdd.md`'s map.
+  - Left: `application/CLAUDE.md`'s "No I/O" over a module's `infrastructure/` to S22; the
+    `README.md` and `architecture.md` lines naming only tickets as the home of decisions to S23
+    and S22.
+  - Over budget, kept one step on the main session's call: docs only, and a split would leave
+    `modules.md` pointing at records outside its diff.
+  - Size: 8 files, about +540 / −10 (`decisions.md` 454 lines, `modules.md` 60).
 
 #### S21 — The guards per ring and layer
 
@@ -1041,7 +1061,8 @@
 - **Goal:** the build refuses what points outward or across (R7, R8, R12, R13, R14, R15, R16, R17,
   R20, D12).
 - **Blocked by:** S20.
-- **Files:** `biome.json`; `docs/knowledge/tooling.md` if it describes the overrides.
+- **Files:** `biome.json`; `docs/knowledge/tooling.md` if it describes the overrides;
+  `docs/knowledge/decisions.md` where a guard diverges from its record's Guarded by.
 - **Test first:** `make check` with a throwaway import (the Seam) — each throwaway of
   `feature.md › Acceptance` R12–R17 fails with its decision named; red today for those no override
   refuses yet (a data-layer file importing `#kernel/aws`).
@@ -1058,7 +1079,9 @@
   in the module), how to add a store's client (the data layer names it, the kernel builds it, the
   process provides it), where tests live, and the shape of a use case with a short snippet,
   including when a rule is called and when it is a module's own (D16). Every rule and `CLAUDE.md`
-  line that restates it is trimmed to a pointer.
+  line that restates it is trimmed to a pointer. `application/CLAUDE.md`'s "No I/O" excepts a
+  module's `infrastructure/`, and the page's intro names `decisions.md` as the home of the living
+  decisions.
 - **Goal:** the docs say how the code is cut and how to extend it (R18, R19).
 - **Blocked by:** S21.
 - **Files:** `docs/knowledge/architecture.md`; `.claude/rules/{layering,naming,deep-modules,effect-services,effect-tests}.md`,

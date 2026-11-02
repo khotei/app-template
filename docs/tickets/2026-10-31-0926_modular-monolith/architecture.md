@@ -638,6 +638,9 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
   - **Why:** only the chat and the message use it; `jobs` (22) gets a job vocabulary of its own.
   - **Cost accepted:** none today.
   - **Reversal:** one commit.
+  - **Rejected:**
+    - `Status` in a shared place — a vocabulary owned by no module.
+  - *Note (S20):* the rejected alternative added with its record in `decisions.md`.
 
 - **D14 — Tests keep every case and assertion; they change in paths, in the arrange and read
   steps that go through a repository (entities in place of models), and in the language model's
@@ -645,6 +648,9 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
   - **Why:** proves behaviour kept (R1) while the repository ports go.
   - **Cost accepted:** the memory repositories are rewritten over entities.
   - **Reversal:** not applicable.
+  - **Rejected:**
+    - rewriting the suites with the code — nothing would show what changed.
+  - *Note (S20):* the rejected alternative added with its record in `decisions.md`.
 
 - **D15 — The decisions live in `docs/knowledge/decisions.md`, which `CLAUDE.md` points to and
   every Biome message and review rule names.**
