@@ -6,9 +6,9 @@ Bun, with Postgres, AWS and Pulumi, so that a new enterprise project starts from
 
 This file is the **only place a future ticket exists** before its `/ticket-feature` runs. SDD knows
 no "draft ticket": each entry below holds what a ticket is *for* (goal, scope, out of scope,
-dependencies, inherited requirements, open questions); the *how* is decided by `/ticket-architecture`
-inside the ticket. When a ticket starts, `/ticket-feature <slug>` reads its entry, grills from
-there, and the entry's `Status` becomes a link to the ticket folder.
+dependencies, inherited requirements, open questions); the *how* is decided by
+`/ticket-architecture` inside the ticket. When a ticket starts, `/ticket-feature <slug>` reads its
+entry, grills from there, and the entry's `Status` becomes a link to the ticket folder.
 
 ## How a ticket flows
 
@@ -71,7 +71,8 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   and `CLAUDE.md` as a template's; `effect-setup` marked superseded; the first squash PR.
 - **Out of scope.** Any behaviour change; finishing `effect-setup`; the rename script and the
   "new project" checklist (12).
-- **Status.** Done: [docs/tickets/2026-10-17-1508_template-bootstrap/](../tickets/2026-10-17-1508_template-bootstrap/feature.md).
+- **Status.** Done:
+  [docs/tickets/2026-10-17-1508_template-bootstrap/](../tickets/2026-10-17-1508_template-bootstrap/feature.md).
 
 ### 2. `claude-toolkit`
 
@@ -107,7 +108,8 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   `Decision:` paragraphs): what stays, what becomes a check, what loads lazily. Evals,
   `/skill-doctor`, plugin pinning, `skillOverrides`, agent `memory` and the extra hooks move to
   `template-handoff` (12): nothing recorded would have been prevented by them.
-- **Status.** Done: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md).
+- **Status.** Done:
+  [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md).
 
 ### 3. `chat-core`
 
@@ -146,10 +148,11 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   `effect/ai` streams `Response` parts (`text-delta`, `file`, `tool-call`, …) and takes
   `Prompt.FilePart` for images and PDFs. `@effect/sql-pglite@4.0.5` exists for later in-process
   Postgres tests.
-- **Status.** Done: [docs/tickets/2026-10-17-1748_chat-core/](../tickets/2026-10-17-1748_chat-core/feature.md),
-  merged as `d142143`. Its grilling departed from this entry: the assistant's message is a worker job polled by the
-  client (no SSE here), the title job starts from the first user message, and `Visitor` became
-  `User`.
+- **Status.** Done:
+  [docs/tickets/2026-10-17-1748_chat-core/](../tickets/2026-10-17-1748_chat-core/feature.md), merged
+  as `d142143`. Its grilling departed from this entry: the assistant's message is a worker job
+  polled by the client (no SSE here), the title job starts from the first user message, and
+  `Visitor` became `User`.
 
 ### 4. `postgres-drizzle`
 
@@ -194,12 +197,13 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   consumer or sweep for replies left active in the dead-letter queue (a killed worker, a failed
   `failed` write, a stopped worker's long poll); a `WHERE status IN (…)` guard on the reply's
   terminal write.
-- **Status.** In progress: [docs/tickets/2026-10-22-1915_postgres-drizzle/](../tickets/2026-10-22-1915_postgres-drizzle/feature.md).
+- **Status.** In progress:
+  [docs/tickets/2026-10-22-1915_postgres-drizzle/](../tickets/2026-10-22-1915_postgres-drizzle/feature.md).
   Its grilling departed from this entry: the outbox relays to SQS (there is no SQL queue store any
   more); `$onUpdate` is dropped, timestamps and ids stay the domain's; tests run on Testcontainers
-  only, one Postgres per `vitest` run with a database per test, PGlite rejected as a second
-  driver; the local stand is one Pulumi program, MiniStack with the RDS instance, the bucket and
-  the queues inside it; the attachment record sweep was declined.
+  only, one Postgres per `vitest` run with a database per test, PGlite rejected as a second driver;
+  the local stand is one Pulumi program, MiniStack with the RDS instance, the bucket and the queues
+  inside it; the attachment record sweep was declined.
 
 ### 5. `aws-local`
 
@@ -227,9 +231,10 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   window; Node.js and `provided.*` Lambdas run as local processes, Docker only for images.
   `@effect-aws/client-s3` and `client-sqs` 2.0.0 peer `effect >=4.0.0-beta.66 <5.0.0`, install
   under Bun 1.4.3, type-check under `tsc` 7 and presign on Bun (scratch run, no live endpoint).
-- **Status.** Done: [docs/tickets/2026-10-19-1448_aws-local/](../tickets/2026-10-19-1448_aws-local/feature.md),
-  merged as `30fa816`. The settling attempt of the reply job and the startup `verify` went; an
-  expired attachment reads as not found, and no read deletes it.
+- **Status.** Done:
+  [docs/tickets/2026-10-19-1448_aws-local/](../tickets/2026-10-19-1448_aws-local/feature.md), merged
+  as `30fa816`. The settling attempt of the reply job and the startup `verify` went; an expired
+  attachment reads as not found, and no read deletes it.
 - **Facts (2026-10-17).** LocalStack's OSS repository was archived on 2026-03-23 and its image
   requires an account; free only for non-commercial use. MiniStack: MIT, Python, images ~110–360 MB,
   4.9k stars, releases every 1–3 days, SQS (DLQ redrive, FIFO attributes stored), S3 (multipart,
@@ -261,7 +266,8 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   request, no streaming; OpenAI, files, history trimming, token and cost
   accounting, budgets and the recorded round trip moved to 18–20 or were dropped, and the SSE
   tail moved to `web-app` (7). See the ticket's `feature.md › Out of scope`.
-- **Status.** Done: [docs/tickets/2026-10-29-1435_llm-providers/](../tickets/2026-10-29-1435_llm-providers/feature.md).
+- **Status.** Done:
+  [docs/tickets/2026-10-29-1435_llm-providers/](../tickets/2026-10-29-1435_llm-providers/feature.md).
 - **Open questions for its feature phase.** Placeholder syntax; which model produces files in the
   template demo; token and cost accounting per chat; whether the reply streams through the worker
   (see 3).
@@ -330,8 +336,8 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 ### 9. `aws-deployment`
 
 - **Goal.** One Pulumi program deploys the api, the worker, Postgres, S3 and SQS to AWS, from the
-  resource inventory `aws-local` (5) introduced, and the same program provisions MiniStack for the "true emulator" local mode, so a new
-  project is live in one command.
+  resource inventory `aws-local` (5) introduced, and the same program provisions MiniStack for the
+  "true emulator" local mode, so a new project is live in one command.
 - **Scope.** `deployment/` on Pulumi `runtime: bun`; Lambda packaging for api and worker (Lambda
   Web Adapter container is the official Bun path; the `bun-lambda` layer is the alternative), the
   web on its Nitro `aws_lambda` output or static hosting; Aurora Serverless v2 with auto-pause
@@ -356,13 +362,14 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   non-Python runtimes in Docker, so the emulator mode verifies deployment artefacts; live
   development stays on `bun --watch` against MiniStack's queues and buckets.
 - **Rechecked (2026-10-19).** Pulumi CLI 3.270.0, `@pulumi/aws` 7.51.1. Bun runs the program only
-  under `runtime: bun`, as `deployment/local` runs; the AWS stack has no project file yet. Bun's Lambda guide (Lambda Web Adapter
-  1.0.1 in a container; 1.1.0 is current) says nothing about response streaming. `provided.al2023`
-  replaces `provided.al2` (deprecated 2026-07-31). Aurora Serverless v2 pauses at 0 ACU and resumes
-  in about 15 s; Postgres 18 is on RDS and on Aurora (Serverless v2 from 18.3). App Runner has been
-  closed to new customers since 2026-04-30; AWS points to ECS Express Mode. Lambda Web Functions
-  (2026-10-12) serve HTTP without an adapter, but only on `nodejs24.x`, so not under Bun. SQS event
-  source mappings with `ReportBatchItemFailures` remain the recommended worker pattern.
+  under `runtime: bun`, as `deployment/local` runs; the AWS stack has no project file yet. Bun's
+  Lambda guide (Lambda Web Adapter 1.0.1 in a container; 1.1.0 is current) says nothing about
+  response streaming. `provided.al2023` replaces `provided.al2` (deprecated 2026-07-31). Aurora
+  Serverless v2 pauses at 0 ACU and resumes in about 15 s; Postgres 18 is on RDS and on Aurora
+  (Serverless v2 from 18.3). App Runner has been closed to new customers since 2026-04-30; AWS
+  points to ECS Express Mode. Lambda Web Functions (2026-10-12) serve HTTP without an adapter, but
+  only on `nodejs24.x`, so not under Bun. SQS event source mappings with `ReportBatchItemFailures`
+  remain the recommended worker pattern.
 - **Inherits from `aws-local` (2026-10-22).** Check on AWS what MiniStack cannot show: the
   `unbound` tag sent with `CreateMultipartUpload` and the lifecycle deletion it drives. Share one
   AWS client builder between `kernel/aws/aws.client.ts` and the tests' clients, and
@@ -444,7 +451,8 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Out of scope.** A cut made for tokens alone that saves under 20% of the load it targets.
 - **Facts (2026-10-21).** Rewording four rules without losing a constraint saved 11%; the
   always-loaded project files measured 4.5k tokens by `/context` before `claude-toolkit`.
-- **Status.** Done: [docs/tickets/2026-10-21-1347_toolkit-reading/](../tickets/2026-10-21-1347_toolkit-reading/feature.md).
+- **Status.** Done:
+  [docs/tickets/2026-10-21-1347_toolkit-reading/](../tickets/2026-10-21-1347_toolkit-reading/feature.md).
 
 ### 15. `architecture-audit`
 
@@ -712,8 +720,8 @@ Cross-ticket facts checked on 2026-10-17; re-verify before relying on one.
 - **Donor `khotei/kotodama-core`** (main @ `018b275f`, 2026-07-27): borrow the per-file
   Testcontainers service with `acquireRelease`, the replacement `ConfigProvider.fromDotEnvContents`
   built from the running container so production layers run verbatim in tests, the plain-data AWS
-  resource inventory with a drift guard, single-tag decorator layers for timeout and retry wired only
-  at the root, the worker's core/edge split (`processBatch` never acks; the Lambda edge returns
+  resource inventory with a drift guard, single-tag decorator layers for timeout and retry wired
+  only at the root, the worker's core/edge split (`processBatch` never acks; the Lambda edge returns
   `batchItemFailures`), `Context.Reference` for tunables, `BunHttpServer.layerTest` with the typed
   client in api tests. Avoid its two S3 clients, caret ranges in catalogs, missing root `tsc -b`,
   hand-rolled queue port, write-then-enqueue without an outbox, `TRUNCATE`-per-test isolation.

@@ -191,8 +191,8 @@ branch, so no merge commit is needed and the repository allows none.
 
 ## Lessons
 
-`/ticket-verify` ends with **Lessons**: mistakes that recurred in two or more steps, each turned into
-one proposed change. A mechanical mistake (an import shape, a banned API) gets a check: a Biome
+`/ticket-verify` ends with **Lessons**: mistakes that recurred in two or more steps, each turned
+into one proposed change. A mechanical mistake (an import shape, a banned API) gets a check: a Biome
 rule, a test or a hook. A judgement call gets one line in a named skill or rule. A `CLAUDE.md`
 never grows from a lesson, and nothing is applied without your OK. For a broader look at a whole
 session, the plugin's `/mattpocock-skills:retro` is available to run by hand.

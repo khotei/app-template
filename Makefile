@@ -3,7 +3,7 @@
 .DEFAULT_GOAL := help
 
 .PHONY: help setup stack up down reset dev dev-api dev-worker dev-web debug-api debug-worker \
-  debug-web check ids doc-names service-use nested-calls lint fmt typecheck test test-unit \
+  debug-web check ids doc-names doc-width service-use nested-calls lint fmt typecheck test test-unit \
   test-e2e bundle-check clean outdated vendor-effect vendor-drizzle migrate migration migration-check
 
 # The local Pulumi project: each tree's file backend under its .data/, named per command, so no
@@ -105,7 +105,7 @@ debug-worker: ## Run the worker with --inspect and --watch
 debug-web: ## Run the web dev server with --inspect
 	bun --filter @app-template/web debug
 
-check: ids doc-names service-use nested-calls idioms lint typecheck migration-check test bundle-check ## Run every gate: ids, doc names, service use, nested calls, idioms, lint, types, migrations, tests, the web bundle
+check: ids doc-names doc-width service-use nested-calls idioms lint typecheck migration-check test bundle-check ## Run every gate: ids, doc names, doc width, service use, nested calls, idioms, lint, types, migrations, tests, the web bundle
 
 ids: ## Fail on ticket ids in parentheses (D12, R3, Q70) outside docs/tickets
 	@if git grep --untracked -nE '\((D|R|Q)[0-9]+[a-z]?\)' -- . ':!docs/tickets' \
@@ -141,6 +141,27 @@ doc-names: ## Fail on a backticked path or PascalCase name in the docs that the 
 			[ -e "$$name" ] || grep -qxF "$$name" $(DOC_NAMES_KNOWN) || echo "$$file:$$line: $$name"; \
 		done | grep .; then \
 		echo 'The docs name a path or a code name the repo lacks: fix the name, or cut it.'; \
+		exit 1; \
+	fi
+
+# A prose line wraps at 100, as Biome's lineWidth does the code. Exempt: the frontmatter, fences,
+# tables, headings, quotes, a URL, and a line that is one code span or link with no space to break
+# at outside them.
+doc-width: ## Fail on a prose line over 100 characters in the docs outside docs/tickets
+	@hits=$$(perl -CSD -ne 'LINE: { \
+		if ($$. == 1) { $$fence = 0; $$front = /^---$$/; last LINE if $$front } \
+		if ($$front) { $$front = 0 if /^---$$/; last LINE } \
+		if (/^\s*```/) { $$fence = !$$fence; last LINE } \
+		last LINE if $$fence || /^\s*[|#>]/ || m{://}; \
+		chomp; last LINE if length() <= 100; \
+		(my $$t = $$_) =~ s/`[^`]*`|\[[^\]]*\]\([^)]*\)/X/g; $$t =~ s/^\s*(?:[-*]|\d+\.)?\s*//; \
+		print "$$ARGV:$$.: ", length(), "\n" if $$t =~ / /; \
+		} close ARGV if eof' \
+		$$(git ls-files --cached --others --exclude-standard -- '*.md' ':!docs/tickets' ':!repos' \
+			':!.github')) || exit 2; \
+	if [ -n "$$hits" ]; then \
+		echo "$$hits"; \
+		echo 'Wrap the prose at 100 characters.'; \
 		exit 1; \
 	fi
 

@@ -124,6 +124,9 @@ jobs:
       - name: The names the docs cite exist
         run: make doc-names
 
+      - name: Prose wrapped at 100
+        run: make doc-width
+
       - name: Check links
         uses: lycheeverse/lychee-action@v2
         with:

@@ -135,8 +135,8 @@ before the row that binds them and deletes them once the rows are gone.
   it, since a delete on read would race a send binding it. Its object goes by the bucket's rule,
   which acts after `unboundExpirationDays` (S3 rounds up to the next midnight UTC);
   `application/chat/__tests__/services/resources.test.ts` keeps those days no shorter than
-  `unboundLifetime`, so nothing still bindable loses its bytes. Its row stays, since no sweep removes expired rows.
-  Locally the object stays as well, since MiniStack never runs the rule
+  `unboundLifetime`, so nothing still bindable loses its bytes. Its row stays, since no sweep
+  removes expired rows. Locally the object stays as well, since MiniStack never runs the rule
   ([Tests on Docker](#tests-on-docker)).
 - **Download.** The api answers `302` to a `GetObject` URL presigned for 300 seconds.
 - **The signed host.** The host is part of the signature, so the browser must reach the host the
@@ -149,8 +149,8 @@ before the row that binds them and deletes them once the rows are gone.
 
 `QueueConsumer` (`packages/queue`) consumes jobs over `QueueTransport`, four SQS calls
 (`send`, `receive`, `extend`, `delete`); jobs reach SQS only through the outbox relay
-([database.md › The outbox](database.md#the-outbox)). `QueueConsumerSqs` in `kernel/queue` wires it for
-the worker from `QueueConfig` and `AwsConfig`: a definition's queue is
+([database.md › The outbox](database.md#the-outbox)). `QueueConsumerSqs` in `kernel/queue` wires it
+for the worker from `QueueConfig` and `AwsConfig`: a definition's queue is
 `buildResourceName(STAGE, definition.name)`.
 
 - **Delivery is at-least-once** (`QueueDefinition.jobId` in `packages/queue/queue.ts`): the jobs
@@ -187,8 +187,8 @@ the worker from `QueueConfig` and `AwsConfig`: a definition's queue is
   timeout; that message returns after `QUEUE_LOCK_EXPIRATION` with an attempt spent.
 - **The worker relays the jobs.** The api writes each job as a row of the table `jobs`
   ([database.md › The outbox](database.md#the-outbox)), and `JobRelay` in the worker sends
-  the rows to `buildResourceName(STAGE, queue)` over the same `QueueTransport`. A row the relay sent and could not
-  mark sent is sent again, which the at-least-once handlers absorb.
+  the rows to `buildResourceName(STAGE, queue)` over the same `QueueTransport`. A row the relay sent
+  and could not mark sent is sent again, which the at-least-once handlers absorb.
 
 The queue's own suite checks those rules on MiniStack in real time. A worker handler's suite
 calls its `handle` with plain `AttemptInfo` values over the memory layers, so the last attempt

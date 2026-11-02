@@ -4,9 +4,9 @@ How the assistant asks a language model for a reply or a title, which parts of `
 `@effect/ai-anthropic` it uses, and what to know before changing its prompt or its schema. The
 code: `application/chat/infrastructure/assistant.llm.ts` (`AssistantLlm`: the prompts, the
 schemas, one language model per purpose with its settings and canned stub answer, the
-finish-reason hook, the retries and the failure mapping), `kernel/llm/llm.client.ts` (`createLanguageModel`: the
-provider `LlmConfig` names), `packages/llm/client.ts` (the Anthropic and stub builders) and
-`kernel/config/config.ts` (`LlmConfig`, `ReplyModelConfig`). The suite:
+finish-reason hook, the retries and the failure mapping), `kernel/llm/llm.client.ts`
+(`createLanguageModel`: the provider `LlmConfig` names), `packages/llm/client.ts` (the Anthropic and
+stub builders) and `kernel/config/config.ts` (`LlmConfig`, `ReplyModelConfig`). The suite:
 `application/chat/__tests__/infrastructure/assistant.llm.test.ts`, over a fake `HttpClient` that
 answers canned Anthropic bodies, so no test needs a key or the network.
 

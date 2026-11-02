@@ -18,7 +18,8 @@ flow, a test name, a rule or `CLAUDE.md`)? Yes → delete it on sight. Only four
 - an **invariant or policy the type cannot express**: an export that carries one (an attempt
   count, an ordering, a proof value) gets exactly one TSDoc sentence stating it, since the reader
   otherwise reconstructs it from the helpers;
-- a usage **constraint on an exported symbol** ("keep `lockRefreshInterval` below `lockExpiration`").
+- a usage **constraint on an exported symbol** ("keep `lockRefreshInterval` below
+  `lockExpiration`").
 
 Never write line narration, step markers, a doc block that repeats the function name, a `@param`
 that restates a type, or provenance tags (ticket or requirement ids belong in the commit `Refs:`).

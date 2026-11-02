@@ -18,7 +18,8 @@ The format is owned by `commits.md`; this file only adapts it to the PR surface.
 - **PR title** = a `commits.md` subject line. Only the title sets the squash subject.
 - **PR body** = the template's sections: **Summary** (what and why) · **What changed** ·
   **How it works** (the mechanism, with an optional Mermaid diagram inside `<details>` so a raw
-  `git log` stays short) · **Decisions** (one `Decision:` per choice) · **Refs** (the ticket folder).
+  `git log` stays short) · **Decisions** (one `Decision:` per choice) · **Refs** (the ticket
+  folder).
 - **Reviewer-only content lives in ONE `<!-- … -->` block** (title rule, self-check, how to test,
   screenshots), which the merge leaves out. Never nest comments, and never write a literal `-->`
   inside one: it closes the block early and leaks review notes into history.

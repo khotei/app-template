@@ -19,9 +19,10 @@ and `make setup` and `make test-unit` need neither.
 | `make dev` | `make migrate`, then `bun --filter './apps/*' dev` | all three processes, interleaved output; stops first on a stand behind its migrations |
 | `make dev-api` · `dev-worker` · `dev-web` | one app's `dev` script, the api's and the worker's after `make migrate` | one process |
 | `make debug-api` · `debug-worker` · `debug-web` | one app's `debug` script | the same mode plus `--inspect` |
-| `make check` | `ids`, `doc-names`, `service-use`, `nested-calls`, `idioms`, `lint`, `typecheck`, `migration-check`, `test`, `bundle-check` | the gate before every commit and step report |
+| `make check` | `ids`, `doc-names`, `doc-width`, `service-use`, `nested-calls`, `idioms`, `lint`, `typecheck`, `migration-check`, `test`, `bundle-check` | the gate before every commit and step report |
 | `make ids` | `git grep` for ticket ids in parentheses outside `docs/tickets/` and `repos/` | a new project deletes the ticket, so an id elsewhere points nowhere |
 | `make doc-names` | `git grep` for the backticked repo paths and two-word capitalised names in the `CLAUDE.md` files, the rules and `docs/knowledge/`, then a lookup of each in the tree and in every file but Markdown, `repos/` included | a doc that still names a moved file or a renamed class fails the gate; what it skips and why: the comments above the target |
+| `make doc-width` | `perl` over the tracked Markdown outside `docs/tickets/`, `repos/` and `.github/` | a prose line wraps at 100, as the code does; what it skips: the comments above the target |
 | `make service-use` | `perl` over every `.ts` file outside `repos/`, each read whole | the gate for the `Service.use` line of [effect-style.md › Composition](../../.claude/rules/effect-style.md#composition) |
 | `make nested-calls` | `perl` over the same files, for a curated list of data-first combinators of effect's modules whose subject is another call; what each list flags: the comments above the target | the gate for the nesting line of [effect-style.md › Composition](../../.claude/rules/effect-style.md#composition); a constructor, a schema or a predicate takes any argument |
 | `make idioms` | `git grep` over every `.ts` file outside `repos/` and the migrations for a check against `undefined` and a sort by a comparator lambda | the gate for the native-code line of [effect.md](../../.claude/rules/effect.md): `UndefinedOr` or `Option`, `Order` |
@@ -81,7 +82,8 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   `AwsTest` from `kernel/__e2e__/testing/aws.test-layer.ts`: a stage of its own on the run's
   MiniStack, its bucket and queues provisioned
   ([aws.md › Tests on Docker](aws.md#tests-on-docker)). A test therefore sees only its own rows and
-  resources, even through a query that reads a whole table, and files run in parallel. E2e tests need Docker and nothing else: no `.env`, no `make up`.
+  resources, even through a query that reads a whole table, and files run in parallel. E2e tests
+  need Docker and nothing else: no `.env`, no `make up`.
 - **Two worktrees at once.** Testcontainers maps each container to a free host port and names it
   itself, so two trees run `make test-e2e` side by side, and beside their local stands, with
   nothing to configure; a unit run starts nothing at all.
@@ -90,10 +92,10 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   written them: `StandTest` (`apps/__e2e__/testing/stand.test-layer.ts`) runs `ApiLayer` and
   `WorkerLayer`, which the apps export as `./layer`, in the test's own runtime over a
   `PgClientTest` database, an `AwsTest` stage and the model stub, under one `ConfigProvider` that
-  names them, so the apps' own adapters and config code are the ones under test. The api takes a free port the layer
-  finds, since `Config.Port` refuses `0`, so two runs share nothing. The apps' SDK clients read
-  credentials from the environment, which the `e2e` project sets to the fixed test pair MiniStack
-  accepts. The journey proves the wiring; every rule keeps its lower seam.
+  names them, so the apps' own adapters and config code are the ones under test. The api takes a
+  free port the layer finds, since `Config.Port` refuses `0`, so two runs share nothing. The apps'
+  SDK clients read credentials from the environment, which the `e2e` project sets to the fixed test
+  pair MiniStack accepts. The journey proves the wiring; every rule keeps its lower seam.
 - **Concurrent within a file.** Both projects set `sequence: { concurrent: true }`; since every
   test owns its database and its stage, nothing is shared between tests. The journey's file opts
   out, since its tests share one stand and read its table `jobs` whole.
@@ -192,9 +194,9 @@ ports, and the database's volume stays.
   stack's outputs (`DATABASE_URL`). `.env.example` is the template of `.env` and lists what the code
   reads from it, plus the variables a client SDK reads from the environment itself: the AWS SDK's
   default provider chain takes `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` locally and the role
-  on AWS, whose session token rotates, so credentials never pass through `@app-template/kernel/config`
-  ([aws.md](aws.md#the-local-stand-in)). Variables of clients that are still stubs stay commented
-  out.
+  on AWS, whose session token rotates, so credentials never pass through
+  `@app-template/kernel/config` ([aws.md](aws.md#the-local-stand-in)). Variables of clients that are
+  still stubs stay commented out.
 - **Quoting.** Strings are double-quoted (`LOG_LEVEL="Info"`), numbers are bare (`API_PORT=3000`).
 - **Loading.** Each app script passes `--env-file=../../.env --env-file=../../.env.pulumi`, paths
   relative to the app folder, and `make migrate` the same two files; the second wins, and Bun
@@ -319,7 +321,7 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 |---|---|
 | `static` | `bun install --frozen-lockfile`, `biome ci`, `tsc --version \| grep effect-tsgo`, `make typecheck`, `make migration-check`, `make bundle-check` |
 | `test` | `bun install --frozen-lockfile`, `bun run test` |
-| `links` | `make ids`, `make service-use`, `make nested-calls`, `make idioms`, `make doc-names`, then `lychee --offline` on `README.md`, `docs/**/*.md` and `.claude/**/*.md` |
+| `links` | `make ids`, `make service-use`, `make nested-calls`, `make idioms`, `make doc-names`, `make doc-width`, then `lychee --offline` on `README.md`, `docs/**/*.md` and `.claude/**/*.md` |
 
 `static` and `test` run on two Bun versions: `pinned` (from `packageManager`) blocks the merge, and
 `latest` only reports. The link check keeps relative links between documents from rotting.

@@ -30,8 +30,8 @@ paths:
 - A refused operation is a typed failure: never a `throw` (a defect that reads as an infrastructure
   failure) and never an `Option.none` (no detail for the caller or the log).
 - A domain error is a `Schema.TaggedError` whose tag is its class name, so it decodes at the
-  wire; its HTTP status lives in `http-api/CLAUDE.md`. A marker that never leaves its module (a failure carried out of a callback
-  for the loop around it) is `Data.TaggedError`.
+  wire; its HTTP status lives in `http-api/CLAUDE.md`. A marker that never leaves its module (a
+  failure carried out of a callback for the loop around it) is `Data.TaggedError`.
 - Not-found from a port is a value (`Option`, or an id left out of an array); its reader turns it
   into the domain's `*NotFoundError`.
 - A port declares no error channel: its adapter turns a client's failure or a stored value that

@@ -30,7 +30,7 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. G
    | code-review asks for | Use |
    |---|---|
    | the fixed point and diff | `HEAD`; the diff is `git diff HEAD` plus every untracked file in `git status --short`, so the uncommitted step is reviewed |
-   | the spec | the step in `plan.md`, and the `R…` it cites from `feature.md`; the Spec axis also reports whether the diff changes what a quoted `R…` asks, which then requires the `feature.md` edit in the same diff |
+   | the spec | the step in `plan.md`, and the `R…` it cites from `feature.md`; the Spec axis also reports whether the diff changes what a quoted `R…` asks, which then requires the `feature.md` edit in the same diff, and names for each deleted statement, guard or check where it now lives, or reports it lost |
    | the standards | `.claude/rules/*.md` and the `CLAUDE.md` of every touched workspace |
    | the sub-agents | the `reviewer` agent, once per axis, in parallel; the Standards axis on `model: sonnet`, the Spec axis on the agent's own |
 

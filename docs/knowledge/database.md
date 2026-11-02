@@ -227,10 +227,10 @@ transaction parameter. `SendMessageUseCase.send` writes the chat's `status`, the
 the binds, the reply and its jobs, or none of them. The guards above then decide every race inside
 Postgres, with no lock in the process: of two sends to one chat the second waits on the chat's
 row lock and, once the first commits, finds the chat `queued`, and of two binds of one
-attachment the second waits on the attachment's row lock and finds it bound. Two api processes behave as two
-fibers. S3 stays outside the transaction: the bytes are kept before the bind, so no bound row sits
-over expiring bytes, and deleted before the commit, so a rollback restores rows that a retry still
-finds. SQS is reached only through the table `jobs`, whose rows join it.
+attachment the second waits on the attachment's row lock and finds it bound. Two api processes
+behave as two fibers. S3 stays outside the transaction: the bytes are kept before the bind, so no
+bound row sits over expiring bytes, and deleted before the commit, so a rollback restores rows that
+a retry still finds. SQS is reached only through the table `jobs`, whose rows join it.
 
 ## Stuck replies
 
@@ -254,8 +254,8 @@ which inserts a job, selects the unsent ones and sets their `sentAt`.
   one it commits alone.
 - **`body` is `jsonb`, with no index on it.** No code queries the body: the column holds the
   value for the relay, and `jsonb` keeps it a value an operator can read by hand
-  (`body->'provenance'->>'model'` on a reply's job) instead of a string to parse. `jsonb` stores keys in its own order, so
-  the string the relay sends is the row's, not the sender's.
+  (`body->'provenance'->>'model'` on a reply's job) instead of a string to parse. `jsonb` stores
+  keys in its own order, so the string the relay sends is the row's, not the sender's.
 - **`JobRelay`** (`kernel/queue/job.relay.ts`), a layer the worker provides as `JobRelaySqs`, polls
   in one transaction: it selects up to 10 rows `WHERE sent_at IS NULL ORDER BY created_at, id`
   `FOR UPDATE SKIP LOCKED`, sends each over `QueueTransport` to `buildResourceName(STAGE, queue)`
@@ -320,7 +320,8 @@ fails there.
 
 The unit suites never reach Postgres ([tooling.md › Tests](tooling.md#tests)). What only a
 transaction decides, that a use case keeps none of its writes or its jobs when one is
-refused, runs in `apps/__e2e__/use-cases/` on `ChatPgTest`. A memory layer copies the four guards the
-database adds (the active message's index, the message status an update expects, an owner in the
-`where`, the cascade from a chat to its messages and their attachments), and each has its twin in a repository suite
+refused, runs in `apps/__e2e__/use-cases/` on `ChatPgTest`. A memory layer copies the four guards
+the database adds (the active message's index, the message status an update expects, an owner in the
+`where`, the cascade from a chat to its messages and their attachments), and each has its twin in a
+repository suite
 ([effect-tests.md › Unit and e2e](../../.claude/rules/effect-tests.md#unit-and-e2e)).
