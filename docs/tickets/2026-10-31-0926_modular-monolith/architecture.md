@@ -446,7 +446,7 @@ The behaviour must not change, so the seams are today's, at their new paths.
 | Seam | Catches | Misses |
 |---|---|---|
 | `Api` through `ApiHttp` on the api test layer (`apps/api/__tests__/`) | statuses, cookies and the wire shape of every endpoint (R1) | the database, the queue, the worker |
-| the OpenAPI document of `Api`, before and after | any change of a route, a schema or an error tag on the wire (R1) | runtime behaviour behind the routes |
+| the OpenAPI document of `Api` against its snapshot (`make api-check`) | any change of a route, a schema or an error tag on the wire (R1) | runtime behaviour behind the routes |
 | the journey over `ApiLayer` and `WorkerLayer` (`apps/e2e/api/chat.e2e.ts`) | the wiring of both processes: a sent message gets its reply and its title, the job sits in `jobs` (R2, R10) | which module or layer a fault comes from |
 | a use case through the api on Postgres and MiniStack (`apps/e2e/api/chat.e2e.ts`) | one transaction across the writes and `jobs`, rolled back by a refused write; a deleted chat loses its rows and objects (R3, R10) | which write a defect comes from: a refusal reads as a `500` |
 | a module's services and the use cases over the memory repositories, `TransactionTest` and `recordQueue()` (`application/*/__tests__/`) | the rules, a use case's checks, writes and jobs (R2) | SQL, the real transaction, S3 |

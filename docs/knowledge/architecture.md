@@ -357,7 +357,7 @@ import rules leave to tree shaking, the web bundle; what no guard sees, review r
 | Guard | Catches | Reports |
 |---|---|---|
 | Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json`: `http-api`, the web client, and of `application/*/` the `domain/`, `contract/`, `services/`, `infrastructure/` and `index.ts`, the use cases, the data layer | what reaches the browser, by unit and by imported name; the kernel's boundary in a module's services and in a use case; any workspace but `packages/*` in the data layer, and any in an entry of `application/`; a layer that points outward inside a module; with the record named in the message | `make lint`, `pre-commit`, CI `static` |
-| the GritQL plugin `biome-imports.grit`, which reads the unit (`application/<module>`, `kernel/<part>`, `packages/<package>`) from the file's path | another unit's `#<unit>/…`, `#kernel/<unit>/…` or `#testing/<unit>/…` file, in an import, an `export … from`, an `import()` or a `require()`; any relative path | the same |
+| the GritQL plugin `biome-imports.grit`, which reads the unit (`application/<module>`, `kernel/<part>`, `packages/<package>`) from the file's path | another unit's `#<unit>/…`, `#kernel/<unit>/…` or `#testing/<unit>/…` file, in an import, an `export … from`, an `import()` in code or in a type, a `require()`, a `require.resolve()` or `import.meta.resolve()`, or a `vi` loader (`vi.mock`, `vi.importActual`, …), a template literal included; any relative path; in a file under `packages/`, any workspace but `@app-template/packages`, even one its manifest declares | the same |
 | Biome `noImportCycles` | a cycle of value imports: two files, two modules, a kernel part and one that imports it, a module and its own entry | the same |
 | the isolated linker with `tsc -b` | an import of a workspace the importer's `package.json` does not declare: a module in the kernel, the kernel in a package, an app in another, a module in `deployment` | TS2307 in `make typecheck` and at runtime |
 | `composite` project references (`rootDir: "."`), one project per workspace | a path that reaches into an unreferenced workspace's files; a cycle of references between workspaces | TS6059 / TS6307 / TS6202 in `make typecheck` |
@@ -379,14 +379,15 @@ services.
 ### Known gaps
 
 What no tool checks, review refuses through
-[.claude/rules/modules.md](../../.claude/rules/modules.md). Four import forms also pass every
+[.claude/rules/modules.md](../../.claude/rules/modules.md). Five import forms also pass every
 guard; no code uses them:
 
 - **A type import inside an expression in web client code.** `export type X =
   import('@app-template/kernel/config').ApiConfig['Service']` in `app/`, `features/` or
-  `shared/` passes Biome, which does not see `import()` inside a type, and `tsc -b`, because web
-  declares `@app-template/kernel` for its server entry. The type is erased, so nothing reaches
-  the browser, but the client then depends on the shape of the server config.
+  `shared/` passes Biome's `noRestrictedImports`, which does not see `import()` inside a type,
+  and `tsc -b`, because web declares `@app-template/kernel` for its server entry. The type is
+  erased, so nothing reaches the browser, but the client then depends on the shape of the server
+  config.
 - **A namespace import of an entry.** `import * as Chat from '@app-template/application/chat'`
   in `http-api/` passes every ban by name (`importNamePattern` sees no name), and so does one of
   `@app-template/kernel/data` where only its stores are allowed; `Chat.ChatService` then reaches
@@ -399,3 +400,7 @@ guard; no code uses them:
   `packages/ui` passes Biome, which keeps no list for a package, and `tsc -b`, because
   the one `packages/package.json` declares every package's libraries for all of them. `make
   bundle-check` greps only this app's keys, so the library reaches the browser's bundle unseen.
+- **A specifier the plugin cannot read.** `biome-imports.grit` reads a literal in the forms
+  [Boundary guards](#boundary-guards) lists; one built at runtime (`import(name)`, a string
+  joined from parts) or handed to another loader passes it. In `packages/` it then reaches any
+  workspace the one manifest declares, elsewhere another unit's file.

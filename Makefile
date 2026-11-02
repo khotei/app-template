@@ -4,7 +4,8 @@
 
 .PHONY: help setup stack up down reset dev dev-api dev-worker dev-web debug-api debug-worker \
   debug-web check ids doc-names doc-width service-use nested-calls lint fmt typecheck test test-unit \
-  test-e2e bundle-check clean outdated vendor-effect vendor-drizzle migrate migration migration-check
+  test-e2e bundle-check clean outdated vendor-effect vendor-drizzle migrate migration migration-check \
+  api-check api-snapshot
 
 # The local Pulumi project: each tree's file backend under its .data/, named per command, so no
 # login is stored; the home (the provider plugins) is the main tree's .pulumi/, shared by every
@@ -84,6 +85,26 @@ migration-check: ## Fail when an entity changed without a migration
 		exit 1; \
 	fi
 
+# The generator writes the file it is given, not stdout, so a log while the modules load stays out
+# of the document; the snapshot is replaced only once a generation succeeded.
+API_SNAPSHOT = http-api/openapi.json
+API_GENERATED = node_modules/.cache/openapi.json
+
+api-check: ## Fail when the OpenAPI document of the HTTP contract differs from its snapshot
+	@test -f $(API_SNAPSHOT) || { echo "$(API_SNAPSHOT) is missing: run make api-snapshot."; exit 1; }
+	@mkdir -p $(dir $(API_GENERATED))
+	@bun apps/api/openapi.ts $(API_GENERATED)
+	@diff -u $(API_SNAPSHOT) $(API_GENERATED) || { \
+		echo; echo "The HTTP contract differs from $(API_SNAPSHOT) (above: - snapshot, + code)."; \
+		echo 'A change on purpose: run make api-snapshot and commit the snapshot with it.'; \
+		exit 1; \
+	}
+
+api-snapshot: ## Rewrite the HTTP contract's OpenAPI snapshot from the code
+	@mkdir -p $(dir $(API_GENERATED))
+	bun apps/api/openapi.ts $(API_GENERATED)
+	mv $(API_GENERATED) $(API_SNAPSHOT)
+
 dev: migrate ## Run api, worker and web together in dev mode
 	bun --filter './apps/*' dev
 
@@ -105,7 +126,7 @@ debug-worker: ## Run the worker with --inspect and --watch
 debug-web: ## Run the web dev server with --inspect
 	bun --filter @app-template/web debug
 
-check: ids doc-names doc-width service-use nested-calls idioms lint typecheck migration-check test bundle-check ## Run every gate: ids, doc names, doc width, service use, nested calls, idioms, lint, types, migrations, tests, the web bundle
+check: ids doc-names doc-width service-use nested-calls idioms lint typecheck api-check migration-check test bundle-check ## Run every gate: ids, doc names, doc width, service use, nested calls, idioms, lint, types, the HTTP contract, migrations, tests, the web bundle
 
 ids: ## Fail on ticket ids in parentheses (D12, R3, Q70) outside docs/tickets
 	@if git grep --untracked -nE '\((D|R|Q)[0-9]+[a-z]?\)' -- . ':!docs/tickets' \

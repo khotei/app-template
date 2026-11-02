@@ -57,6 +57,12 @@ jobs:
       - name: Typecheck
         run: make typecheck
 
+      # Pinned only: the document is effect's output, and a newer runtime's would read as a contract
+      # change.
+      - name: The HTTP contract matches its snapshot
+        if: matrix.bun == 'pinned'
+        run: make api-check
+
       # Strict here: docs/knowledge/database.md › Migrations.
       - name: Migrations match the entities
         run: make migration-check

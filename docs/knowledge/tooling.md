@@ -19,7 +19,7 @@ and `make setup` and `make test-unit` need neither.
 | `make dev` | `make migrate`, then `bun --filter './apps/*' dev` | all three processes, interleaved output; stops first on a stand behind its migrations |
 | `make dev-api` · `dev-worker` · `dev-web` | one app's `dev` script, the api's and the worker's after `make migrate` | one process |
 | `make debug-api` · `debug-worker` · `debug-web` | one app's `debug` script | the same mode plus `--inspect` |
-| `make check` | `ids`, `doc-names`, `doc-width`, `service-use`, `nested-calls`, `idioms`, `lint`, `typecheck`, `migration-check`, `test`, `bundle-check` | the gate before every commit and step report |
+| `make check` | `ids`, `doc-names`, `doc-width`, `service-use`, `nested-calls`, `idioms`, `lint`, `typecheck`, `api-check`, `migration-check`, `test`, `bundle-check` | the gate before every commit and step report |
 | `make ids` | `git grep` for ticket ids in parentheses outside `docs/tickets/` and `repos/` | a new project deletes the ticket, so an id elsewhere points nowhere |
 | `make doc-names` | `git grep` for the backticked repo paths and two-word capitalised names in the `CLAUDE.md` files, the rules and `docs/knowledge/`, then a lookup of each in the tree and in every file but Markdown, `repos/` included | a doc that still names a moved file or a renamed class fails the gate; what it skips and why: the comments above the target |
 | `make doc-width` | `perl` over the tracked Markdown outside `docs/tickets/`, `repos/` and `.github/` | a prose line wraps at 100, as the code does; what it skips: the comments above the target |
@@ -30,6 +30,7 @@ and `make setup` and `make test-unit` need neither.
 | `make fmt` | `biome check --write` | apply formatting, import sorting and safe fixes |
 | `make typecheck` | `bunx tsc -b`, the patched `tsc` | typecheck every workspace through the project references, Effect diagnostics included |
 | `make migrate` · `migration NAME=<name>` · `migration-check` | `migrate`: `bun --env-file=.env kernel/postgres/migrate.ts`; `migration` and `migration-check`: `bunx drizzle-kit generate --config kernel/data/drizzle.config.ts` from the root | apply, generate and check migrations: [database.md › Migrations](database.md#migrations) |
+| `make api-check` · `api-snapshot` | `bun apps/api/openapi.ts <file>`, which writes the OpenAPI document of `Api` to the file, then `diff -u` against `http-api/openapi.json` · the same, moved over the snapshot once it succeeded | a route, a schema, a status or an error's field that changes on the wire fails the gate until the snapshot moves with it, in the commit that changes the contract; Biome skips the generated snapshot |
 | `make test-unit` | `bun --bun vitest run --project unit` | every `__tests__/**/*.test.ts`; no Docker ([Tests](#tests)) |
 | `make test-e2e` | `bun --bun vitest run --project e2e` | every `__e2e__/**/*.e2e.ts` and `apps/e2e/**/*.e2e.ts`; needs a running Docker daemon for the run's own Postgres and MiniStack containers ([Tests](#tests)) |
 | `make test` | `test-unit`, then `test-e2e` | both projects |
@@ -374,7 +375,7 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 
 | Job | Runs |
 |---|---|
-| `static` | `bun install --frozen-lockfile`, `biome ci`, `tsc --version \| grep effect-tsgo`, `make typecheck`, `make migration-check`, `make bundle-check` |
+| `static` | `bun install --frozen-lockfile`, `biome ci`, `tsc --version \| grep effect-tsgo`, `make typecheck`, `make api-check` (`pinned` only), `make migration-check`, `make bundle-check` |
 | `test` | `bun install --frozen-lockfile`, `bun run test` |
 | `links` | `make ids`, `make service-use`, `make nested-calls`, `make idioms`, `make doc-names`, `make doc-width`, then `lychee --offline` on `README.md`, `docs/**/*.md` and `.claude/**/*.md` |
 

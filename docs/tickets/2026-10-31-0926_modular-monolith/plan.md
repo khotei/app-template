@@ -46,7 +46,7 @@
 | S38 | the chat module in one shape | done |
 | S39 | `biome.json` keeps only the import rules nothing else holds | done |
 | S40 | R1 names the three answers S38 changed | done |
-| S41 | `packages/` reaches no app ring; the HTTP contract held by a snapshot | todo |
+| S41 | `packages/` reaches no app ring; the HTTP contract held by a snapshot | done |
 | S42 | the verification's small fixes in docs, tests and chat's code | done |
 
 ## How to run this plan
@@ -1944,15 +1944,15 @@
 #### S41 — `packages/` reaches no app ring; the HTTP contract held by a snapshot
 
 - **Delivers:** R13's gap closed: the GritQL plugin `biome-imports.grit` refuses, from any file
-  under `packages/`, an import of `@app-template/kernel`, `application`, `http-api` or an app,
-  naming `decisions.md`'s record of the packages, so a dependency declared in the manifest no
+  under `packages/`, an import of any workspace but `@app-template/packages`, in every import form
+  it reads, naming `decisions.md`'s record of the packages, so a dependency declared in the manifest no
   longer passes. Lesson L5: `make api-check`, in `make check`, generates the OpenAPI document of
   `Api` and diffs it against a committed snapshot; a contract change fails until the snapshot
   moves with it, and `make api-snapshot` rewrites it.
 - **Goal:** R13 whole; a contract change seen by `make check` (R1).
 - **Blocked by:** none; runs beside S40 and S42 on the user's word.
-- **Files:** `biome-imports.grit`, `Makefile`, a snapshot and its generator beside `http-api` (or
-  in `apps/e2e`), `docs/knowledge/decisions.md` (Guarded by), `architecture.md › Known gaps`,
+- **Files:** `biome-imports.grit`, `biome.json`, `Makefile`, `.github/workflows/ci.yml`, the
+  snapshot `http-api/openapi.json` and its generator `apps/api/openapi.ts`, `http-api/CLAUDE.md`, `docs/knowledge/decisions.md` (Guarded by), `architecture.md › Known gaps`,
   `tooling.md` (the new target), `feature.md` R13's row if it names the check.
 - **Test first:** the probe of verification run 2 (`"@app-template/kernel"` in
   `packages/package.json`, an import of `@app-template/kernel/config` in `packages/db`) turns
@@ -1960,7 +1960,23 @@
   red.
 - **Verify:** `make check`; both probes red, then removed; `make api-check` green on HEAD.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Ran in worktree N=1 beside S40 (main tree) and S42 (N=2) on the user's word; picked last,
+    the docs merged clean.
+  - Run 2's probe red before the change and after it: the plugin names `decisions.md › One kernel`
+    for every workspace, `deployment` too, as the record says the packages' manifest declares
+    none. A field renamed in an error schema turns `make api-check` red with the diff.
+  - Review (round 2): every rule of the plugin now reads a template literal, a type's `import()`,
+    `require.resolve`, `import.meta.resolve` and vitest's mock and `importActual` loaders; a
+    specifier built at runtime is a fifth known gap. The generator moved from `http-api`, which
+    ships to the browser, to `apps/api`, and writes the file it is given, so a log never lands in
+    the document; `make api-snapshot` replaces the snapshot only after a generation succeeds; a
+    missing snapshot says so. CI runs the check on the pinned Bun alone.
+  - The snapshot stays out of Biome, as the migrations do: Biome would reformat it. A script and
+    a `diff`, not a vitest file snapshot: the diff names the changed lines.
+  - Left out: the type-import gap of the web client, which the plugin could now close (Known
+    gaps); the false refusal under a `/packages/` folder above the checkout, a recorded cost.
 
 #### S42 — The verification's small fixes in docs, tests and chat's code
 

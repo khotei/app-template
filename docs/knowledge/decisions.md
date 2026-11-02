@@ -258,7 +258,8 @@ no app.
   only its inventory or its stores are held by the imported names (`*FromConfig`, `Db`).
 - **Guarded by:** the isolated linker and `tsc -b` (TS2307): the kernel's manifest declares no
   module, use case, `http-api` or app, `packages/`'s no workspace at all; `biome-imports.grit`,
-  another part's files; `noImportCycles`, a part importing one that imports it;
+  another part's files, and in a file under `packages/` any workspace but `@app-template/packages`,
+  even one its manifest declares; `noImportCycles`, a part importing one that imports it;
   `.claude/rules/modules.md` refuses a part or a package importing one above it, what
   `deployment` takes of the kernel past `/config`, the inventory of `/aws` and the files' key of
   `/data`, and a service rule or a model in the kernel.
@@ -487,7 +488,8 @@ layer's imports, the inward direction of a module's layers and an entry of `appl
 which imports no workspace; `noImportCycles` refuses a cycle
 of value imports; the GritQL plugin `biome-imports.grit` reads the unit from the file's path and
 refuses another unit's `#<unit>/…`, `#kernel/<unit>/…` and `#testing/<unit>/…` files in every
-import form, and a relative path anywhere.
+import form it reads, a relative path anywhere, and in a file under `packages/` any workspace but
+`@app-template/packages`, which the linker lets through once the one manifest declares it.
 
 - **Why:** every guard is configuration of a tool the repo has; a fitness test is code to keep,
   and drifts. A list per unit repeated what the linker already refused and grew past what a

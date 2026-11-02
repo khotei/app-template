@@ -15,5 +15,6 @@ the browser, which calls it through its client.
   the error. Only HTTP's own errors (`shared/errors.ts`)
   carry `httpApiStatus` on the class.
 - **A domain schema edit is a contract edit.** DTOs reuse the domain's schemas, so the change
-  reaches the wire unseen: the api's handler tests check only what HTTP adds (statuses, the
-  cookie, the wire shape).
+  reaches the wire past the api's handler tests, which check only what HTTP adds (statuses, the
+  cookie, the wire shape); `make api-check` fails on it until `make api-snapshot` moves
+  `openapi.json` with it.

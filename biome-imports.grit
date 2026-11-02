@@ -1,11 +1,23 @@
 language js
 
-// The specifier of an import, an export … from, an import() or a require().
 pattern specifier($source) {
   or {
     JsModuleSource() as $source,
-    `import($source)`,
-    `require($source)`
+    `import($source, $...)`,
+    `require($source)`,
+    `require.resolve($source, $...)`,
+    `import.meta.resolve($source, $...)`,
+    `vi.$loader($source, $...)` where {
+      $loader <: or {
+        "mock",
+        "doMock",
+        "unmock",
+        "doUnmock",
+        "importActual",
+        "importMock"
+      }
+    },
+    TsImportType() as $type where { $type <: contains TsStringLiteralType() as $source }
   }
 }
 
@@ -14,12 +26,19 @@ pattern specifier($source) {
 or {
   specifier($source) where {
     $filename <: r".*/(?:application|kernel|packages)/([a-z0-9-]+)/.*"($unit),
-    $source <: r"['\"]#(?:kernel/|testing/)?([a-z0-9-]+)/.*['\"]"($target),
+    $source <: r"['\"`]#(?:kernel/|testing/)?([a-z0-9-]+)/.*['\"`]"($target),
     not $target <: $unit,
     register_diagnostic(span=$source, message="a unit reaches its own files through #<unit>/… and another unit only through its entry, @app-template/<folder>/<unit> or its /testing, never one of its files (decisions.md › Imports through subpaths)")
   },
   specifier($source) where {
-    $source <: r"['\"]\.\.?/.*['\"]",
+    $filename <: r".*/(application|kernel|packages)/[a-z0-9-]+/.*"($ring),
+    $ring <: "packages",
+    $source <: r"['\"`]@app-template/([a-z0-9-]+).*['\"`]"($workspace),
+    not $workspace <: "packages",
+    register_diagnostic(span=$source, message="packages/ imports no other workspace, whatever its manifest declares: only @app-template/packages/<package> (decisions.md › One kernel)")
+  },
+  specifier($source) where {
+    $source <: r"['\"`]\.\.?/.*['\"`]",
     register_diagnostic(span=$source, message="inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)")
   }
 }
