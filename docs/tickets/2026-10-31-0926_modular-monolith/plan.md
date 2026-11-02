@@ -32,9 +32,10 @@
 | S24 | the statuses through the mapper e2e; the test layers' `provideMerge` in the rule | done |
 | S25 | the kernel's tests beside each of its parts | done |
 | S26 | the apps' layers exported to the e2e as test support | done |
-| S27 | the packages and the kernel's parts imported by folder | todo |
-| S28 | the application's workspaces imported by folder, one entry per module | todo |
-| S29 | a Biome list per workspace; e2e support in `__tests__/testing/e2e/` | todo |
+| S27 | `packages/` one workspace; the kernel's parts one entry each | done |
+| S28 | e2e support in `__tests__/testing/e2e/` | todo |
+| S29 | `application/` one workspace, one entry per module | todo |
+| S30 | a Biome list per workspace | todo |
 
 ## How to run this plan
 
@@ -1280,81 +1281,144 @@
     internal `#api/layer` imports `main.ts` keeps.
   - Size: 10 files, about +30 / −21.
 
-#### S27 — The packages and the kernel's parts imported by folder
+#### S27 — The packages one workspace; the kernel's parts one entry each
 
-- **Delivers:** `paths` in `tsconfig.base.json`, one pair per unit, listed by hand:
-  `@app-template/packages/<name>` → `packages/<name>/index.ts` and
-  `@app-template/packages/<name>/testing` → `packages/<name>/__tests__/testing/index.ts` for
-  `aws`, `db`, `llm`, `queue`, `s3`, `testing`, `ui`; `@app-template/kernel/<part>` →
-  `kernel/<part>/index.ts` and its `/testing` for `config`, `data`, `postgres`, `aws`, `queue`,
-  `llm`. `kernel/data/index.ts` re-exports every store (the `/data/<store>` subpaths go),
-  `kernel/aws/index.ts` the inventory (`/aws/resources` goes). The `/testing-e2e` aliases stay
-  until S29. `vitest.config.ts` gains `resolve: { tsconfigPaths: true }`. Every import of these
-  units is rewritten (about 170 in 120 files). Biome's patterns name the new specifiers, and
-  `make bundle-check` greps the bundle's file paths (`// kernel/`, `// application/use-cases/`,
-  `// application/<module>/(services|infrastructure)/`) in place of package names. The units'
-  `exports` and workspace dependencies stay until S29.
-- **Goal:** R21, D21; the user's word on 2026-11-02.
+- **Delivers:** `packages/` becomes one workspace, `@app-template/packages` (the root
+  `workspaces` lists `packages` for `packages/*`): one `package.json` merging the packages'
+  dependencies, with an export per package (`./aws`, `./db`, `./llm`, `./queue`, `./s3`,
+  `./testing`, `./ui`) and its support (`./db/testing`, `./queue/testing`, `./db/testing-e2e`
+  until S28), and internal aliases named for their package (`#db/*`, `#testing/db/*`, as the
+  kernel's `#testing/data/*`). The kernel's `exports` shrink to one per part (`./config`,
+  `./postgres`, `./aws`, `./data`, `./llm`, `./queue`) and its support: `kernel/data/index.ts`
+  re-exports every store, `kernel/aws/index.ts` the inventory. A unit reaches another only
+  through its entry, `@app-template/<unit>` or `<unit>/testing`, never a file of it: the
+  kernel's parts stop importing each other's files through `#kernel/<part>/…` (about 30) and
+  Biome refuses it; `#` aliases stay for a unit's own files. Every import of these units is
+  rewritten (about 170 in 120 files), Biome's patterns name the new specifiers, and the
+  `@app-template/packages` dependency replaces the per-package ones. Each package keeps its own
+  `tsconfig.json` project if `tsc -b` still checks the references between them; else one project,
+  recorded. No `paths`, no change to `vitest.config.ts`. `make bundle-check` is proven still to
+  catch a service.
+- **Goal:** R21, D21, D5's note; the user's word on 2026-11-02.
 - **Blocked by:** S26.
-- **Files:** `tsconfig.base.json`, `vitest.config.ts`, `Makefile` (`bundle-check`), `biome.json`,
-  `kernel/{data,aws}/index.ts`, every `*.ts` importing `@app-template/{kernel,aws,db,llm,queue,s3,testing,ui}`,
-  `docs/knowledge/decisions.md › Imports through subpaths` (rewritten: imports by folder) and
-  `› One kernel`, and every doc, rule, `CLAUDE.md` and skill `git grep` finds naming an old
-  specifier.
+- **Files:** `package.json` (root `workspaces`), `packages/package.json` (new) and the
+  packages' manifests (gone), `packages/*/tsconfig.json`, `tsconfig.json`, `bun.lock`,
+  `kernel/package.json`, `kernel/{data,aws}/index.ts`, `Makefile` (`bundle-check`, if its
+  pattern needs it), `biome.json`, every `*.ts` importing `@app-template/{kernel,aws,db,llm,queue,s3,testing,ui}`,
+  every `package.json` declaring a package, `docs/knowledge/decisions.md › Imports through
+  subpaths` (rewritten: imports by folder) and `› One kernel`, and every doc, rule, `CLAUDE.md`
+  and skill `git grep` finds naming an old specifier.
 - **Test first:** `config only` — every case and assertion kept (D14).
-- **Verify:** `make check`; `git grep -nE "'@app-template/(kernel/data/|kernel/aws/resources|(aws|db|llm|queue|s3|testing|ui)['/])" -- ':!docs/tickets' ':!repos'`
-  finds nothing; a throwaway import of `ChatService` into `apps/web/app/main.ts` fails
-  `make bundle-check` naming the file's path (R16).
+- **Verify:** `make check`; `git grep -nE "'@app-template/(kernel/data/(attachment|chat|file|job|user)['/]|kernel/aws/resources|(aws|db|llm|queue|s3|testing|ui)['/])" -- ':!docs/tickets' ':!repos'`
+  finds only the repositories' service keys; a throwaway import of `ChatService` into `apps/web/app/main.ts` fails
+  `make bundle-check` (R16); one of `@app-template/packages/db` into a workspace that does not
+  declare `@app-template/packages` fails `tsc -b`.
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Rewritten mid-step on the user's word: no `paths` (D21's probe kept as the rejected
+    alternative); a unit reached only through its entry, the kernel's parts too (28 imports from
+    `#kernel/<part>/…`; `kernel/data/testing-e2e` gained `SampleJob`, `sampleJobQueue`,
+    `sampleProvenance`); service keys `'@app-template/<folder>/<Name>'`, the file's folder from
+    the root (`effect-services.md`): the kernel's unchanged, the packages' gain `packages/`.
+  - Each package keeps its `tsconfig.json`: an import of `@app-template/packages/db` or `#db/id`
+    from `packages/ui` fails `tsc -b` with TS6059/TS6307; one of `@app-template/packages/db`
+    into `http-api`, which does not declare the workspace, fails with TS2307.
+  - One entry opens a part whole, so the old subpath limits are held by imported name
+    (`importNamePattern`, matched whole by Biome, which refuses `^`/`$`): modules' services and
+    tests take no `Db`, `relations`, `migrationsFolder` of `/data` and no `*FromConfig`,
+    `*OfStage` of `/aws`; deployment takes only `unboundTag` of `/data`, stricter than before.
+    Kept on the user's word; review found `migrationsFolder` open, closed in this step.
+  - A Biome override per kernel part refuses another part's files, since Biome replaces the
+    options of two matching overrides; a gap: a future `kernel/{aws,llm,postgres,queue}/__tests__`
+    falls under the generic tests override, with no cross-part ban.
+  - `kernel/data/migrations.ts` builds its folder with `join(import.meta.dirname, …)`:
+    `node:url`'s browser polyfill lacks `fileURLToPath`, so a data leak failed the web build
+    before the bundle grep could name it. `bundle-check`'s pattern needed no change; the web
+    bundle is byte-identical; a `ChatService` imported by path or through `http-api` is named.
+  - `packages/llm/index.ts` is new (its entry was `client.ts`); `"sideEffects": false` of
+    `packages/db` was not carried over, with no bundle change. After the manifests moved,
+    `tsc -b` needed `node_modules/.cache/tsc` removed once.
+  - Verify's grep was narrowed: the `/data/testing` entries and the repositories' keys match it.
+  - The `testing-e2e` move left S29 for S28 on the user's word; the application became S29, the
+    lists S30.
+  - Size: 134 files, about +675 / −496 without `bun.lock` (≈390 lines of `biome.json`), past
+    the ~400 limit through the mid-step decisions; kept one commit on the user's word.
 
-#### S28 — The application's workspaces imported by folder
+#### S28 — E2e support in `testing/e2e`
 
-- **Delivers:** `paths` pairs for `@app-template/application/{chat,identity,identity/contract,use-cases}`
-  and their `/testing`; `application/{chat,identity,use-cases}/index.ts` each the one entry
-  (re-exporting `domain/`, `services/`, `infrastructure/`; the use cases' `chat/`); every import
-  of these units rewritten (about 100 in 50 files). Each Biome ban on another unit's layer
-  (`@app-template/*/services`, `*/infrastructure`, `*/domain`) either matches the imported name
-  through `importNamePattern` (the mappers, `*FromConfig`, `*Service`, `*Repository`) or is
-  recorded as lost; the use cases' ban on a module's infrastructure goes (R15).
-- **Goal:** R21, R15 as amended; D21, D4's note.
+- **Delivers:** the e2e support of `kernel/data`, `kernel/aws` and `packages/db` moves from
+  `__e2e__/testing/` to `__tests__/testing/e2e/`, names unchanged, behind an `index.ts` that
+  `__tests__/testing/index.ts` does not re-export; the exports `<unit>/testing/e2e` and the
+  aliases `#testing/<unit>/e2e/*` replace `/testing-e2e` and `#testing-e2e/<unit>/*`, and the
+  unit-test bans follow them (R17).
+- **Goal:** R11 and R17 as amended; D19's note.
 - **Blocked by:** S27.
-- **Files:** `tsconfig.base.json`, `biome.json`, `application/{chat,identity,use-cases}/index.ts`,
-  every `*.ts` importing `@app-template/{chat,identity,identity-contract,use-cases}`,
-  `docs/knowledge/decisions.md › A module's layers`, `› Module contracts`, `› Use cases above
-  the modules`, `docs/knowledge/architecture.md`, `.claude/rules/modules.md`, and every doc
-  `git grep` finds naming an old specifier.
-- **Test first:** `config only` — every case and assertion kept (D14).
-- **Verify:** `make check`; `git grep -nE "'@app-template/(chat|identity|identity-contract|use-cases)['/]" -- ':!docs/tickets' ':!repos'`
-  finds nothing; throwaway imports of a mapper into an api handler and of `@app-template/kernel/postgres`
-  into a use case each fail Biome naming the record; one of `AssistantLlmFromConfig` into a use
-  case passes; `make bundle-check` still fails on `ChatService` in the web app.
-- **Model:** `opus medium`
-- **Status:** todo
-
-#### S29 — A Biome list per workspace; e2e support in `testing/e2e`
-
-- **Delivers:** each workspace's Biome override refuses `@app-template/**` but for the units it
-  may import (`!@app-template/<folder>`, `!…/testing` in its tests), following the rings, the
-  message naming D22's record; the workspace dependencies on `kernel`, `packages/*` and
-  `application/*` and those units' `exports` leave every `package.json` (the apps keep theirs).
-  The e2e support of `kernel/data`, `kernel/aws` and `packages/db` moves from `__e2e__/testing/`
-  to `__tests__/testing/e2e/`, names unchanged, behind an `index.ts`; the aliases
-  `<folder>/testing/e2e` and `#testing/e2e/*` replace `/testing-e2e` and `#testing-e2e/*`, and
-  the unit-test bans follow them (R17).
-- **Goal:** R11, R12, R13 and R17 as amended; D22, D19's and D12's notes.
-- **Blocked by:** S28.
-- **Files:** `biome.json`, every `package.json` under `kernel/`, `packages/`, `application/`,
-  `http-api/`, `apps/`, `deployment/`, `bun.lock`, the moved support files, `vitest.config.ts`
-  (`globalSetup`), `.claude/rules/{effect-tests,naming}.md`, `docs/knowledge/decisions.md ›
-  Guards are configuration` and `› Tests in their folders`, `docs/knowledge/{architecture,tooling}.md`,
-  and every doc `git grep` finds naming `testing-e2e` or a moved file.
+- **Files:** `biome.json`, `kernel/package.json`, `packages/package.json`, the moved support
+  files, `vitest.config.ts` (`globalSetup`), every file importing them,
+  `.claude/rules/{effect-tests,naming}.md`, `docs/knowledge/decisions.md › Tests in their
+  folders`, `docs/knowledge/{architecture,tooling}.md`, and every doc `git grep` finds naming
+  `testing-e2e` or a moved file.
 - **Test first:** `config only` — every case and assertion kept (D14).
 - **Verify:** `make check`; `git grep -n "testing-e2e" -- ':!docs/tickets' ':!repos'` finds
-  nothing; a throwaway import of `@app-template/packages/db` into `apps/web/` and one of
+  nothing; throwaway imports of `#testing/data/e2e/db.test-layer` into a kernel unit test and of
+  `@app-template/kernel/data/testing/e2e` into a module's unit test each fail Biome naming the
+  record (R17).
+- **Model:** `opus medium`
+- **Status:** todo
+
+#### S29 — The application one workspace, one entry per module
+
+- **Delivers:** `application/` becomes one workspace, `@app-template/application` (the root
+  `workspaces` lists `application` for `application/*` and `application/*/contract`), with an
+  export per module (`./chat`, `./identity`, `./use-cases`) and their `/testing`; the identity
+  contract stays a folder, `application/identity/contract/`, exported through
+  `@app-template/application/identity`; the guards follow the kernel's pattern, a Biome override
+  per unit refusing the units it may not import by their entry, with no list of names, so what
+  chat takes from identity's entry (today `UserId` alone) is held by `.claude/rules/modules.md`; `application/{chat,identity,use-cases}/index.ts` each the one entry (re-exporting
+  `domain/`, `services/`, `infrastructure/`; the use cases' `chat/`); the internal aliases name
+  the module (`#chat/domain/*`, `#identity/services/*`, `#identity/contract/*`,
+  `#use-cases/*`, `#testing/chat/*`), and each layer override matches them by glob
+  (`#*/services/**`); a module reaches the use cases or another module only through its entry,
+  never `#<other module>/…`. Each service key takes its file's folder from the repository root
+  (`@app-template/application/chat/services/ChatService`), the rule S27 set. Every import of these units is rewritten (about 100 in 50 files). Each
+  Biome ban on another unit's layer (`@app-template/*/services`, `*/infrastructure`, `*/domain`)
+  either matches the imported name through `importNamePattern` (the mappers, `*FromConfig`,
+  `*Service`, `*Repository`) or is recorded as lost; the use cases' ban on a module's
+  infrastructure goes (R15). Each module keeps its `tsconfig.json` project, as each package did in S27.
+- **Goal:** R21, R7 and R15 as amended; D21, D4's and D3's notes.
+- **Blocked by:** S28.
+- **Files:** `package.json` (root `workspaces`), `application/package.json` (new) and the
+  modules' manifests (gone), `bun.lock`, `application/*/tsconfig.json`, `biome.json`,
+  `application/{chat,identity,use-cases}/index.ts`, every `*.ts` under `application/` (aliases)
+  and every one importing `@app-template/{chat,identity,identity-contract,use-cases}`, every
+  `package.json` declaring them, `docs/knowledge/decisions.md › A module's layers`, `› Module
+  contracts`, `› Use cases above the modules`, `docs/knowledge/architecture.md`,
+  `.claude/rules/{modules,naming}.md`, and every doc `git grep` finds naming an old specifier or
+  alias.
+- **Test first:** `config only` — every case and assertion kept (D14).
+- **Verify:** `make check`; `git grep -nE "'@app-template/(chat|identity|identity-contract|use-cases)['/]|'#(domain|services|infrastructure|contract)/" -- ':!docs/tickets' ':!repos'`
+  finds nothing; throwaway imports of a mapper into an api handler, of `#chat/infrastructure/…`
+  into chat's services, of `@app-template/application/chat` into identity and of
+  `@app-template/kernel/postgres` into a use case each fail Biome naming the record; one of `AssistantLlmFromConfig` into a use case passes; `make bundle-check`
+  still fails on `ChatService` in the web app.
+- **Model:** `opus high`
+- **Status:** todo
+
+#### S30 — A Biome list per workspace
+
+- **Delivers:** each workspace's Biome override, and each unit's inside `packages/`,
+  `application/` and `kernel/`, refuses `@app-template/**` but for the units it may import
+  (`!@app-template/<folder>`, `!…/testing` in its tests), following the rings, the message
+  naming D22's record.
+- **Goal:** R12 and R13 as amended; D22, D12's note.
+- **Blocked by:** S29.
+- **Files:** `biome.json`, `docs/knowledge/decisions.md › Guards are configuration`,
+  `docs/knowledge/{architecture,tooling}.md`, `.claude/rules/modules.md`.
+- **Test first:** `config only` — every case and assertion kept (D14).
+- **Verify:** `make check`; a throwaway import of `@app-template/packages/db` into `apps/web/` and one of
   `@app-template/application/identity` into chat's services each fail Biome naming the record
-  (R12); throwaway imports of `#testing/e2e/db.test-layer` and of
-  `@app-template/kernel/data/testing/e2e` into a unit test each fail naming the record (R17); a script lists every `@app-template/<folder>` import with its workspace and finds each in
+  (R12); a script lists every `@app-template/<folder>` import with its workspace and finds each in
   that workspace's list.
 - **Model:** `opus high`
 - **Status:** todo
@@ -1373,14 +1437,14 @@
 | R8 | S3, S13, S19, S21 |
 | R9 | S8, S9, S10, S12, S14, S15, S17, S18 |
 | R10 | S10 |
-| R11 | S1, S29 |
-| R12 | S21, S29 |
-| R13 | S4, S20, S21, S29 |
+| R11 | S1, S28 |
+| R12 | S21, S30 |
+| R13 | S4, S20, S21, S30 |
 | R14 | S8, S21 |
-| R15 | S4, S21, S28 |
+| R15 | S4, S21, S27, S29 |
 | R16 | S11, S13, S19, S21, S27 |
-| R17 | S1, S21, S29 |
+| R17 | S1, S21, S28 |
 | R18 | S20, S22 |
 | R19 | S22, S23 |
 | R20 | S20, S21 |
-| R21 | S27, S28 |
+| R21 | S27, S29 |

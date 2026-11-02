@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm'
 import { check, foreignKey, index, integer, snakeCase, text, uuid } from 'drizzle-orm/pg-core'
 
-import { createdAt, id } from '@app-template/db'
+import { createdAt, id } from '@app-template/packages/db'
 
 import { messages } from '#kernel/data/chat/message.table'
 import { users } from '#kernel/data/user/user.table'

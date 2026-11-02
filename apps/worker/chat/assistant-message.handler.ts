@@ -6,7 +6,7 @@ import {
   assistantMessageQueue,
   type GenerateAssistantMessage,
 } from '@app-template/chat/services'
-import { type AttemptInfo, worker } from '@app-template/queue'
+import { type AttemptInfo, worker } from '@app-template/packages/queue'
 import { GenerateAssistantMessageUseCase } from '@app-template/use-cases/chat'
 
 /** The last attempt fails the reply on any outcome but success, an interrupt included. */

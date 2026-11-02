@@ -28,9 +28,9 @@ import {
   updateMessage,
   upload,
 } from '@app-template/chat/testing'
-import { ChatRepository, MessageRepository } from '@app-template/kernel/data/chat'
-import { recordQueue } from '@app-template/queue/testing'
-import { assertSchemaEquals, epoch, isUuidV7, sortById } from '@app-template/testing'
+import { ChatRepository, MessageRepository } from '@app-template/kernel/data'
+import { recordQueue } from '@app-template/packages/queue/testing'
+import { assertSchemaEquals, epoch, isUuidV7, sortById } from '@app-template/packages/testing'
 
 import { ChatTest } from '#testing/chat.test-layer'
 import { SendMessageUseCase } from '#use-cases/chat/send-message.use-case'

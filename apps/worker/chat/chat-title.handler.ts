@@ -5,7 +5,7 @@ import {
   chatTitleQueue,
   type GenerateChatTitle,
 } from '@app-template/chat/services'
-import { worker } from '@app-template/queue'
+import { worker } from '@app-template/packages/queue'
 import { GenerateChatTitleUseCase } from '@app-template/use-cases/chat'
 
 export const handle = Effect.fn('ChatTitleHandler.handle')(

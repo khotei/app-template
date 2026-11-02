@@ -11,10 +11,9 @@ import {
 } from 'effect'
 import type { RequireAtLeastOne } from 'type-fest'
 
-import { generateId } from '@app-template/db'
 import type { UserId } from '@app-template/identity-contract'
-import { ChatRepository } from '@app-template/kernel/data/chat'
-import { FileRepository } from '@app-template/kernel/data/file'
+import { ChatRepository, FileRepository } from '@app-template/kernel/data'
+import { generateId } from '@app-template/packages/db'
 
 import { ChatNotFoundError } from '#domain/chat.error'
 import { ChatId } from '#domain/chat.id'

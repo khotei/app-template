@@ -1,7 +1,7 @@
 import { DateTime } from 'effect'
 
 import { UserId } from '@app-template/identity-contract'
-import { epoch } from '@app-template/testing'
+import { epoch } from '@app-template/packages/testing'
 
 import { ChatId, MessageId } from '#domain/chat.id'
 import { buildChat, Chat } from '#domain/chat.model'

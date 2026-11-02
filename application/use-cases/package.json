@@ -12,14 +12,12 @@
   },
   "dependencies": {
     "@app-template/chat": "workspace:*",
-    "@app-template/db": "workspace:*",
     "@app-template/identity-contract": "workspace:*",
     "@app-template/kernel": "workspace:*",
-    "@app-template/queue": "workspace:*",
+    "@app-template/packages": "workspace:*",
     "effect": "catalog:effect"
   },
   "devDependencies": {
-    "@app-template/testing": "workspace:*",
     "@effect/platform-bun": "catalog:effect",
     "@effect/vitest": "catalog:effect"
   }

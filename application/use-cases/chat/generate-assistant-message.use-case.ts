@@ -28,9 +28,8 @@ import {
   decodeMessages,
   encodeMessage,
 } from '@app-template/chat/services'
-import { Transaction } from '@app-template/db'
-import { ChatRepository, MessageRepository } from '@app-template/kernel/data/chat'
-import { FileRepository } from '@app-template/kernel/data/file'
+import { ChatRepository, FileRepository, MessageRepository } from '@app-template/kernel/data'
+import { Transaction } from '@app-template/packages/db'
 
 type ReplySkip = 'chatDeleted' | 'alreadySettled'
 

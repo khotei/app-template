@@ -32,8 +32,8 @@ paths:
 - Add a `Context.Service` only when something varies (the implementation: Postgres, S3,
   memory; a test double; an injected dependency) or when several holders must share one state.
   A rule with one implementation and no dependency is a plain function.
-- Key a service `'@app-template/<package>/<folder>/<Name>'`: the package's name without the
-  scope, then the file's folder inside it, if any.
+- Key a service `'@app-template/<folder>/<Name>'`: the folder its file lives in, from the
+  repository root, so the key says where to look.
 - A domain service's `layer` is `Layer.effect(this, this.make)` alone, every dependency left
   open: a process provides the adapters, a unit test the memory layers.
 - A service built in a body beside its declaration is

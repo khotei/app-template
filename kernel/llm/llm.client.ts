@@ -2,13 +2,12 @@ import { type Config, Effect, Match } from 'effect'
 import type { LanguageModel } from 'effect/ai'
 import type { HttpClient } from 'effect/http'
 
+import { LlmConfig } from '@app-template/kernel/config'
 import {
   type AnthropicRequestConfig,
   createLanguageModelAnthropic,
   createLanguageModelStub,
-} from '@app-template/llm'
-
-import { LlmConfig } from '#kernel/config/config'
+} from '@app-template/packages/llm'
 
 type AnthropicOptions = Extract<LlmConfig['Service'], { readonly provider: 'anthropic' }>
 

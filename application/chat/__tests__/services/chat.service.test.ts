@@ -4,10 +4,9 @@ import { assertEquals } from '@effect/vitest/utils'
 import { DateTime, Effect, Layer, Option, Stream } from 'effect'
 
 import type { UserId } from '@app-template/identity-contract'
-import { AttachmentRepository } from '@app-template/kernel/data/attachment'
-import { FileRepository } from '@app-template/kernel/data/file'
+import { AttachmentRepository, FileRepository } from '@app-template/kernel/data'
 import { RepositoryStackTest } from '@app-template/kernel/data/testing'
-import { assertSchemaEquals, epoch, png } from '@app-template/testing'
+import { assertSchemaEquals, epoch, png } from '@app-template/packages/testing'
 
 import { AttachmentId } from '#domain/attachment.id'
 import {

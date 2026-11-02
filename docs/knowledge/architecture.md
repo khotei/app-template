@@ -69,14 +69,14 @@ graph TD
   services --> domain
   services --> db
   services --> contract
-  services -->|"/aws/resources only"| kernelOut
+  services -->|"/aws: the inventory only"| kernelOut
   domain --> contract
   kernelOut --> db
   db --> packages["packages/*: aws · db · llm · queue · s3 · testing · ui"]
   kernelOut --> packages
   services --> packages
   deployment --> kernelOut
-  deployment -->|"/data/file only"| db
+  deployment -->|"/data: the files' key only"| db
   e2e["apps/__e2e__"] -->|"api/testing · worker/testing"| api
   e2e --> worker
 ```
@@ -94,7 +94,7 @@ that refuses the row's ✗, a Biome override in `biome.json` whose message names
 | From ↓ / may import → | another module | a contract | `use-cases` | `kernel/data` | rest of `kernel` | `packages/*` | `http-api` | Refused by |
 |---|---|---|---|---|---|---|---|---|
 | a module's `domain/` | ✗ | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ | `application/*/domain/**` |
-| a module's `services/` | ✗ | ✓ | ✗ | `/data/<store>` | `/aws/resources` only | `aws`, `db`, `queue` only | ✗ | `application/*/services/**` |
+| a module's `services/` | ✗ | ✓ | ✗ | ✓, but `Db` and the relations | `/aws`: the inventory only | `aws`, `db`, `queue` only | ✗ | `application/*/services/**` |
 | a module's `infrastructure/` | ✗, its own by name too | ✓ | ✗ | ✓ | ✓ | ✓ | ✗ | `application/*/infrastructure/**` |
 | a contract | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | `application/*/contract/**` |
 | `use-cases` | `/domain`, `/services`; `/testing` in its tests only | ✓ | — | ✓ | ✗ | ✓ | ✗ | `application/use-cases/**` |
@@ -106,7 +106,7 @@ that refuses the row's ✗, a Biome override in `biome.json` whose message names
 | `apps/worker` | ✓, a mapper in `layer.ts` only | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | ✗ | `apps/worker/**`; `apps/worker/layer.ts` lifts the data and mapper bans |
 | `apps/web` client | ✗ | ✗ | ✗ | ✗ | ✗ | `ui` only | ✓ | `apps/web/**`; `make bundle-check` |
 | `apps/web/main.ts` | ✗ | ✗ | ✗ | ✗ | `/config` only | `ui` only | ✗ | `apps/web/main.ts` |
-| `deployment` | ✗ | ✗ | ✗ | `/data/file` only | `/config`, `/aws/resources` | ✓ | ✗ | `deployment/**` |
+| `deployment` | ✗ | ✗ | ✗ | the files' key only | `/config`, `/aws`: the inventory | ✓ | ✗ | `deployment/**` |
 | `apps/__e2e__` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | its `package.json`; apps through `api/testing`, `worker/testing` |
 
 - **Inside a module** the layers point inward too: `domain/` imports neither `#services/*` nor
@@ -126,8 +126,8 @@ that refuses the row's ✗, a Biome override in `biome.json` whose message names
   [.claude/rules/modules.md](../../.claude/rules/modules.md) lists it with the other forms only
   review refuses.
 - **A ✓ is permission, not a declaration.** The dependency must also be in the importer's
-  `package.json`, or the isolated linker and `tsc -b` refuse it
-  ([Boundary guards](#boundary-guards)).
+  `package.json`, or the isolated linker and `tsc -b` refuse it; a package that imports another
+  references its project too ([Boundary guards](#boundary-guards)).
 - **Tests** import as their workspace's source does, plus the test support of the workspaces it
   declares: [Where tests live](#where-tests-live).
 
@@ -145,12 +145,14 @@ import { buildChat } from '@app-template/chat/domain'        // another workspac
 import { SendMessageUseCase } from '#use-cases/chat/send-message.use-case'  // this workspace
 ```
 
-- **`@app-template/<workspace>[/<subpath>]`** reaches another workspace through its `exports`: a
-  module one subpath per layer (`@app-template/chat/domain` → `application/chat/domain/index.ts`),
-  the kernel one per part and per store (`@app-template/kernel/data/chat`), each with its
-  `index.ts` barrel.
-- **`#<workspace>/<path>`** reaches a file inside the same workspace, through the `imports` map in
-  its `package.json` (`"#domain/*": "./domain/*.ts"`, `"#api/*": "./*.ts"`). Every module uses the
+- **`@app-template/<workspace>[/<subpath>]`** reaches another workspace through its `exports`,
+  each entry an `index.ts` barrel: the kernel one per part (`@app-template/kernel/data` →
+  `kernel/data/index.ts`, every store), a package by its folder (`@app-template/packages/db`),
+  each with its test support (`@app-template/kernel/data/testing`), and a module one subpath per
+  layer (`@app-template/chat/domain` → `application/chat/domain/index.ts`).
+- **`#<workspace>/<path>`** reaches a file of the same unit, through the `imports` map in its
+  workspace's `package.json` (`"#domain/*": "./domain/*.ts"`, `"#api/*": "./*.ts"`); a kernel
+  part or a package reaches another through that one's entry, never its files. Every module uses the
   same aliases, so one Biome override per layer covers them all. Relative `./` and `../` paths are
   banned ([Imports through subpaths](decisions.md#imports-through-subpaths)). A bare `#/` prefix
   would be shorter, but Bun 1.4.3 cannot resolve it.
@@ -175,7 +177,7 @@ Using the `chat` slice as the map:
 | repository | `kernel/data/chat/chat.repository.ts`; `kernel/data/file/file.repository.ts`; `kernel/data/job/job.repository.ts` | `ChatRepository` over `Db`; `FileRepository` over `S3Bucket`; `JobRepository` |
 | database client and migrations | `kernel/data/db.client.ts`, `kernel/data/migrations.ts`; `kernel/postgres/` | `Db` over the `PgClient` in the context, `migrationsFolder`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |
 | the queue's transport | `kernel/queue/queue.client.ts`, `job.relay.ts` | `QueueSenderJobs`, `QueueConsumerSqs`, `JobRelaySqs`, over `JobRepository` |
-| database tools any app could use | `packages/db/` (`@app-template/db`) | `createDb(relations)`, `Transaction`, the shared columns, `generateId`, `migrateDatabase(folder)` |
+| database tools any app could use | `packages/db/` (`@app-template/packages/db`) | `createDb(relations)`, `Transaction`, the shared columns, `generateId`, `migrateDatabase(folder)` |
 | contract group | `http-api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`), the DTOs |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
 | worker handler: a queue's consumer over a use case | `apps/worker/chat/assistant-message.handler.ts` | `handle`, `handleDeadLettered`, `AssistantMessageHandler` |
@@ -269,7 +271,7 @@ model's.
 1. **The data.** `kernel/data/<store>/`, a store's folder (messages share `chat/`):
    `<entity>.table.ts` (the table), `<entity>.entity.ts` (`<Name>Entity` with its `Insert`,
    `Where` and `Set`), `<entity>.repository.ts` (`<Name>Repository` over `Db`), and an
-   `index.ts`; an `exports` entry `./data/<store>` in `kernel/package.json`; the table in
+   `index.ts`, re-exported by `kernel/data/index.ts`; the table in
    `kernel/data/relations.ts`; `make migration` writes the migration
    ([database.md](database.md)). What a table and an entity may import and declare:
    [kernel/CLAUDE.md](../../kernel/CLAUDE.md). Ownership is a field of the `<Name>EntityWhere`
@@ -365,7 +367,7 @@ checks what the import rules leave to tree shaking, the web bundle. Record:
 |---|---|---|
 | Biome `noRestrictedImports`, one `overrides` entry per ring and layer in `biome.json` | each ✗ of [Dependency rules](#dependency-rules), with the record named in the message; any relative path; in each `<workspace>/__tests__/**`, e2e support (`#testing-e2e/**`, `@app-template/*/testing-e2e`) | `make lint`, `pre-commit`, CI `static` |
 | the isolated linker with `tsc -b` | an allowed import of a workspace that is not declared in `package.json` | TS2307 in `make typecheck` and at runtime |
-| `composite` project references (`rootDir: "."`) | a path that reaches into an unreferenced workspace's files; a cycle of references | TS6059 / TS6307 / TS6202 in `make typecheck` |
+| `composite` project references (`rootDir: "."`) | a path that reaches into an unreferenced project's files (one package's import of another it does not reference); a cycle of references | TS6059 / TS6307 / TS6202 in `make typecheck` |
 | `make bundle-check`: `bun build` of `apps/web/app/main.ts`, then a `grep` of the bundle | a key of the kernel, of the use cases, of a module's `services/` or `infrastructure/`, or a port key of its `domain/`, in the browser bundle | the matched service keys, in `make check` |
 
 Most Biome overrides deny what a layer must not import, but `kernel/data/**` and a module's

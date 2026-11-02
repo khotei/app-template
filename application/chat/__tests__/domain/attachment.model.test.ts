@@ -2,7 +2,7 @@ import { assert, describe, it } from '@effect/vitest'
 import { DateTime, Effect, Exit, Option, Schema } from 'effect'
 
 import { UserId } from '@app-template/identity-contract'
-import { assertSchemaEquals } from '@app-template/testing'
+import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { AttachmentBoundError } from '#domain/attachment.error'
 import { AttachmentId } from '#domain/attachment.id'

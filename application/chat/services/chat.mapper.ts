@@ -1,6 +1,5 @@
 import { Option, Schema, Struct, type Types, UndefinedOr } from 'effect'
 
-import { decodeManyWith, decodeOptionalWith, encodeRowWith } from '@app-template/db'
 import { UserId } from '@app-template/identity-contract'
 import {
   ChatEntity,
@@ -8,7 +7,8 @@ import {
   type ChatEntityWhere,
   MessageEntity,
   MessageEntityInsert,
-} from '@app-template/kernel/data/chat'
+} from '@app-template/kernel/data'
+import { decodeManyWith, decodeOptionalWith, encodeRowWith } from '@app-template/packages/db'
 
 import { ChatId, MessageId } from '#domain/chat.id'
 import { Chat, ChatTitle } from '#domain/chat.model'

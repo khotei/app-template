@@ -4,9 +4,9 @@ import { DateTime, Effect, Layer, Option, Schema } from 'effect'
 import { buildUser, Credential, SecretHash, User } from '@app-template/identity/domain'
 import { decodeUser, encodeCredential, encodeUser } from '@app-template/identity/services'
 import { UserId } from '@app-template/identity-contract'
+import { UserRepository } from '@app-template/kernel/data'
 import { DbTest } from '@app-template/kernel/data/testing-e2e'
-import { UserRepository } from '@app-template/kernel/data/user'
-import { assertSchemaEquals } from '@app-template/testing'
+import { assertSchemaEquals } from '@app-template/packages/testing'
 
 const user = buildUser({
   id: UserId.make('0192d4e0-7b3a-7c00-8000-000000000103'),

@@ -13,14 +13,14 @@ import {
 } from '@app-template/chat/domain'
 import { ChatFromEntity, MessageFromEntity } from '@app-template/chat/services'
 import { owner } from '@app-template/chat/testing'
-import { Db } from '@app-template/kernel/data'
 import {
   ChatEntityInsert,
   chats,
+  Db,
   MessageEntityInsert,
   messages,
-} from '@app-template/kernel/data/chat'
-import { assertSchemaEquals } from '@app-template/testing'
+} from '@app-template/kernel/data'
+import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { DbWithUsersTest } from '#testing-e2e/db.test-layer'
 

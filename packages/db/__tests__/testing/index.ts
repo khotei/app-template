@@ -1,1 +1,1 @@
-export { TransactionTest } from '#testing/transaction.test-fake'
+export { TransactionTest } from '#testing/db/transaction.test-fake'

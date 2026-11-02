@@ -1,8 +1,8 @@
 import { Effect, flow, Schema } from 'effect'
 
-import { decodeOptionalWith, encodeRowWith } from '@app-template/db'
 import { UserId } from '@app-template/identity-contract'
-import { UserEntity, UserEntityInsert } from '@app-template/kernel/data/user'
+import { UserEntity, UserEntityInsert } from '@app-template/kernel/data'
+import { decodeOptionalWith, encodeRowWith } from '@app-template/packages/db'
 
 import { Credential, User } from '#domain/user.model'
 

@@ -7,8 +7,8 @@ import { ApiLayerTest } from '@app-template/api/testing'
 import { ApiClient } from '@app-template/http-api'
 import { AwsTest } from '@app-template/kernel/aws/testing-e2e'
 import { AwsConfig } from '@app-template/kernel/config'
-import { FileRepository } from '@app-template/kernel/data/file'
-import { layerCookieJarTest, PgClientTest } from '@app-template/testing'
+import { FileRepository } from '@app-template/kernel/data'
+import { layerCookieJarTest, PgClientTest } from '@app-template/packages/testing'
 import { WorkerLayerTest } from '@app-template/worker/testing'
 
 // `Config.Port` refuses 0, so the api cannot take an ephemeral port itself.

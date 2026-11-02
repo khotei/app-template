@@ -1,8 +1,8 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Effect, Schema } from 'effect'
 
-import { flipSqlError } from '@app-template/db/testing-e2e'
-import { assertSchemaEquals } from '@app-template/testing'
+import { flipSqlError } from '@app-template/packages/db/testing-e2e'
+import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { chats } from '#kernel/data/chat/chat.table'
 import { MessageEntity, withAttachments } from '#kernel/data/chat/message.entity'

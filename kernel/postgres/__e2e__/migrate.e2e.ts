@@ -1,10 +1,10 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Effect } from 'effect'
 
-import { migrateDatabase } from '@app-template/db'
-import { PgClientTest, recordLogs } from '@app-template/testing'
+import { migrationsFolder } from '@app-template/kernel/data'
+import { migrateDatabase } from '@app-template/packages/db'
+import { PgClientTest, recordLogs } from '@app-template/packages/testing'
 
-import { migrationsFolder } from '#kernel/data/migrations'
 import { applyMigrations } from '#kernel/postgres/migrate'
 
 describe('applyMigrations', () => {

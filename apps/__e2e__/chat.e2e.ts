@@ -11,8 +11,8 @@ import {
 } from '@app-template/chat/domain'
 import { GenerateAssistantMessage } from '@app-template/chat/services'
 import { ApiClient } from '@app-template/http-api'
-import { FileRepository } from '@app-template/kernel/data/file'
-import { assertSchemaEquals, png } from '@app-template/testing'
+import { FileRepository } from '@app-template/kernel/data'
+import { assertSchemaEquals, png } from '@app-template/packages/testing'
 
 import { StandTest } from '#testing-e2e/stand.test-layer'
 

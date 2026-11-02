@@ -16,18 +16,16 @@
   },
   "dependencies": {
     "@app-template/chat": "workspace:*",
-    "@app-template/db": "workspace:*",
     "@app-template/http-api": "workspace:*",
     "@app-template/identity": "workspace:*",
     "@app-template/identity-contract": "workspace:*",
     "@app-template/kernel": "workspace:*",
+    "@app-template/packages": "workspace:*",
     "@app-template/use-cases": "workspace:*",
     "@effect/platform-bun": "catalog:effect",
     "effect": "catalog:effect"
   },
   "devDependencies": {
-    "@app-template/queue": "workspace:*",
-    "@app-template/testing": "workspace:*",
     "@effect/vitest": "catalog:effect"
   }
 }

@@ -13,7 +13,7 @@ Where a flow lives. Words: `docs/knowledge/glossary.md › Architecture language
 - **A port speaks the domain's words,** never a client's type or error; which failures it
   declares: [effect-schema.md › Failures](effect-schema.md#failures).
 - **A repository is the data layer's, with no port in front:** a service calls
-  `<Name>Repository` from `@app-template/kernel/data/<store>` in entities and maps them with the
+  `<Name>Repository` from `@app-template/kernel/data` in entities and maps them with the
   `<Model>FromEntity` of its module's `services/`.
 - **A domain service owns its model's records for every caller above it:** the rules that need
   a repository or a port (a check over stored rows, a refusal named after a read) and the plain

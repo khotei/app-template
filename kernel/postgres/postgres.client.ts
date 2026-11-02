@@ -2,7 +2,7 @@ import { PgClient } from '@effect/sql-pg'
 import { type Config, Layer } from 'effect'
 import type { SqlClient, SqlError } from 'effect/sql'
 
-import { DatabaseConfig } from '#kernel/config/config'
+import { DatabaseConfig } from '@app-template/kernel/config'
 
 export const PgClientFromConfig: Layer.Layer<
   PgClient.PgClient | SqlClient.SqlClient,

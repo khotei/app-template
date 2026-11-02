@@ -188,8 +188,9 @@ and knows no module.
 _Avoid_: Shared kernel, common, core, shared, utils, platform
 
 **Package**:
-A workspace under `packages/*`: a tool configured by its caller that knows no app, so it would
-work in another project unchanged. Every ring may use it; the kernel configures it for this one.
+A folder under `packages/`, imported as `@app-template/packages/<name>`: a tool configured by
+its caller that knows no app, so it would work in another project unchanged. Every ring may use
+it; the kernel configures it for this one.
 _Avoid_: Library (for a workspace), lib, helper, kernel
 
 **Unit test**:

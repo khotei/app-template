@@ -5,19 +5,22 @@ import { HttpApiBuilder } from 'effect/http-api'
 
 import { CurrentReplyProvenanceFromConfig } from '@app-template/chat/infrastructure'
 import { AttachmentService, ChatService, MessageService } from '@app-template/chat/services'
-import { Transaction } from '@app-template/db'
 import { Api } from '@app-template/http-api'
 import { UserService } from '@app-template/identity/services'
 import { S3BucketFromConfig } from '@app-template/kernel/aws'
 import { ApiConfig, MinimumLogLevelFromConfig, RuntimeConfig } from '@app-template/kernel/config'
-import { Db } from '@app-template/kernel/data'
-import { AttachmentRepository } from '@app-template/kernel/data/attachment'
-import { ChatRepository, MessageRepository } from '@app-template/kernel/data/chat'
-import { FileRepository } from '@app-template/kernel/data/file'
-import { JobRepository } from '@app-template/kernel/data/job'
-import { UserRepository } from '@app-template/kernel/data/user'
+import {
+  AttachmentRepository,
+  ChatRepository,
+  Db,
+  FileRepository,
+  JobRepository,
+  MessageRepository,
+  UserRepository,
+} from '@app-template/kernel/data'
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
 import { QueueSenderJobs } from '@app-template/kernel/queue'
+import { Transaction } from '@app-template/packages/db'
 import { SendMessageUseCase } from '@app-template/use-cases/chat'
 
 import { AttachmentHandler } from '#api/attachment/attachment.handler'

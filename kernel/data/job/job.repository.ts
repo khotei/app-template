@@ -1,7 +1,7 @@
 import { inArray, isNull } from 'drizzle-orm'
 import { Context, Effect, Layer, UndefinedOr } from 'effect'
 
-import { buildSet, buildWhere, orDieOnNoRows, orDieWithSqlError } from '@app-template/db'
+import { buildSet, buildWhere, orDieOnNoRows, orDieWithSqlError } from '@app-template/packages/db'
 
 import { Db } from '#kernel/data/db.client'
 import type {

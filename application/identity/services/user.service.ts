@@ -1,9 +1,9 @@
 import { Context, Crypto, DateTime, Effect, Layer, Option, Redacted } from 'effect'
 import { Base64Url, Hex } from 'effect/encoding'
 
-import { generateId } from '@app-template/db'
 import { UserId, UserUnknownError } from '@app-template/identity-contract'
-import { UserRepository } from '@app-template/kernel/data/user'
+import { UserRepository } from '@app-template/kernel/data'
+import { generateId } from '@app-template/packages/db'
 
 import { buildUser, Credential, SecretHash, type User } from '#domain/user.model'
 import { decodeUser, encodeCredential, encodeUser } from '#services/user.mapper'

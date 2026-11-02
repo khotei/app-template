@@ -2,14 +2,16 @@ import { assert, describe, it } from '@effect/vitest'
 import { Effect, Layer } from 'effect'
 import { SqlClient } from 'effect/sql'
 
-import { QueueSender } from '@app-template/queue'
+import { Db, JobRepository, jobs } from '@app-template/kernel/data'
+import {
+  DbTest,
+  SampleJob,
+  sampleJobQueue,
+  sampleProvenance,
+} from '@app-template/kernel/data/testing-e2e'
+import { QueueSender } from '@app-template/packages/queue'
 
-import { Db } from '#kernel/data/db.client'
-import { JobRepository } from '#kernel/data/job/job.repository'
-import { jobs } from '#kernel/data/job/job.table'
 import { QueueSenderJobs } from '#kernel/queue/queue.client'
-import { DbTest } from '#testing-e2e/data/db.test-layer'
-import { SampleJob, sampleJobQueue, sampleProvenance } from '#testing-e2e/data/job.test-fixture'
 
 const QueueSenderJobsTest = QueueSenderJobs.pipe(
   Layer.provide(JobRepository.layer),

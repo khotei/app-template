@@ -16,19 +16,21 @@ import {
 } from 'effect'
 import { SqlClient } from 'effect/sql'
 
-import { QueueError, QueueSender, QueueTransport } from '@app-template/queue'
-import { recordLogs } from '@app-template/testing'
+import { buildResourceName } from '@app-template/kernel/aws'
+import { AwsTest } from '@app-template/kernel/aws/testing-e2e'
+import { AwsConfig } from '@app-template/kernel/config'
+import { Db, JobRepository, jobs } from '@app-template/kernel/data'
+import {
+  DbTest,
+  SampleJob,
+  sampleJobQueue,
+  sampleProvenance,
+} from '@app-template/kernel/data/testing-e2e'
+import { QueueError, QueueSender, QueueTransport } from '@app-template/packages/queue'
+import { recordLogs } from '@app-template/packages/testing'
 
-import { buildResourceName } from '#kernel/aws/resources/naming'
-import { AwsConfig } from '#kernel/config/config'
-import { Db } from '#kernel/data/db.client'
-import { JobRepository } from '#kernel/data/job/job.repository'
-import { jobs } from '#kernel/data/job/job.table'
 import { JobRelay } from '#kernel/queue/job.relay'
 import { QueueSenderJobs } from '#kernel/queue/queue.client'
-import { AwsTest } from '#testing-e2e/aws/aws.test-layer'
-import { DbTest } from '#testing-e2e/data/db.test-layer'
-import { SampleJob, sampleJobQueue, sampleProvenance } from '#testing-e2e/data/job.test-fixture'
 
 interface Attempt {
   readonly queue: string

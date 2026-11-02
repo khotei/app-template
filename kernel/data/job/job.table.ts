@@ -2,7 +2,7 @@ import { isNull } from 'drizzle-orm'
 import { index, jsonb, snakeCase, text, timestamp } from 'drizzle-orm/pg-core'
 import type { Schema } from 'effect'
 
-import { createdAt, id } from '@app-template/db'
+import { createdAt, id } from '@app-template/packages/db'
 
 /**
  * Jobs a transaction wrote for the relay to send: `queue` is a definition's name, before the

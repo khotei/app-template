@@ -1,7 +1,7 @@
 import type * as PgDrizzle from 'drizzle-orm/effect-postgres'
 import { Context, Layer } from 'effect'
 
-import { createDb } from '@app-template/db'
+import { createDb } from '@app-template/packages/db'
 
 import { relations } from '#kernel/data/relations'
 

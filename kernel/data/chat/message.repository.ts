@@ -9,7 +9,7 @@ import {
   orDieOnNoRows,
   orDieWithSqlError,
   skipUndefined,
-} from '@app-template/db'
+} from '@app-template/packages/db'
 
 import { chats } from '#kernel/data/chat/chat.table'
 import {

@@ -1,16 +1,15 @@
 # Database
 
 How the app stores its records in Postgres: where the tables are declared, how a row becomes a
-domain model, how the schema changes, and how tests get a database. The code:
-`packages/db/` (`@app-template/db`, which knows no table: `createDb`, `Transaction`, the shared
-columns, the query helpers, `migrateDatabase(folder)` and `retryWhileUnreachable`),
-`kernel/postgres/` (`PgClientFromConfig`, the `PgClient` built from `DatabaseConfig`, and the
-migrate program), `kernel/data/` (the client `Db`, made by `createDb(relations)` over the
-`PgClient` in the context; the tables, their entities, the relations, the migrations and
-`drizzle.config.ts`; the data layer's repositories over them) and the mappers in a module's
-`services/` (`UserFromEntity`, `ChatFromEntity`).
-Drizzle runs on `@effect/sql-pg` and is reached only through Effect: every query is an `Effect`,
-never a promise.
+domain model, how the schema changes, and how tests get a database. The code: `packages/db/`
+(`@app-template/packages/db`, which knows no table: `createDb`, `Transaction`, the shared columns,
+the query helpers, `migrateDatabase(folder)` and `retryWhileUnreachable`), `kernel/postgres/`
+(`PgClientFromConfig`, the `PgClient` built from `DatabaseConfig`, and the migrate program),
+`kernel/data/` (the client `Db`, made by `createDb(relations)` over the `PgClient` in the context;
+the tables, their entities, the relations, the migrations and `drizzle.config.ts`; the data layer's
+repositories over them) and the mappers in a module's `services/` (`UserFromEntity`,
+`ChatFromEntity`). Drizzle runs on `@effect/sql-pg` and is reached only through Effect: every query
+is an `Effect`, never a promise.
 
 ## Schema and entity files
 
@@ -142,7 +141,7 @@ them in one `sql.withTransaction`, passed to `Effect.fn` as a pipeable:
 `UserRepository.insert` writes the user and its credential, or neither. `SqlClient` is the
 `PgClient` that `Db.layer` takes from the context (`PgClientFromConfig` in the processes, `DbTest`
 in the e2e), so the transaction runs on the connection `Db` uses. Every method ends with
-`orDieWithSqlError` from `@app-template/db`.
+`orDieWithSqlError` from `@app-template/packages/db`.
 
 A module's services and the use cases call the data layer's repositories through the
 `<Model>FromEntity` mappers of the module's `services/`: a write encodes the model through its
@@ -151,8 +150,8 @@ to `null`, and a read decodes the entities into models; a mapping failure dies.
 
 Reads go through relational queries (`db.query.<table>.findFirst` and `findMany`), writes
 through the core builder (`db.insert`, `db.update`, `db.delete`). A read of at most one row is a
-`findFirst`, which emits the `limit 1` itself, even where a key makes the row unique, so the
-query states its intent; `decodeOptionalRow(<Name>Entity)` from `@app-template/db` decodes the
+`findFirst`, which emits the `limit 1` itself, even where a key makes the row unique, so the query
+states its intent; `decodeOptionalRow(<Name>Entity)` from `@app-template/packages/db` decodes the
 row it found, or answers `Option.none()` for the `undefined` or `null` of none. A filter on a
 relation (`{ credentials: { kind, hash } }`) renders as `exists (…)`.
 
@@ -311,13 +310,12 @@ Each e2e test runs on a database of its own, copied from a template that the run
 migrates with the `make migrate` program ([tooling.md › Tests](tooling.md#tests)). A data
 layer's repository has a `.repository.e2e.ts` in `kernel/data/__e2e__/<store>/` on `DbTest`, in
 entities, its parent rows written through `Db`. An
-`.entity.e2e.ts` in `kernel/data/__e2e__/<store>/` checks, in entities only, what the schema
-itself refuses (a check, a partial unique index) and reads the `SqlError` of a refused statement
-with `flipSqlError` from `@app-template/db/testing-e2e`. A limit or a pattern the data layer
+`.entity.e2e.ts` in `kernel/data/__e2e__/<store>/` checks, in entities only, what the schema itself
+refuses (a check, a partial unique index) and reads the `SqlError` of a refused statement with
+`flipSqlError` from `@app-template/packages/db/testing-e2e`. A limit or a pattern the data layer
 declares again beside a model has a `.mapper.e2e.ts` in `apps/__e2e__/mappers/`: it writes the
-model's extreme value, and every value of an enum the model holds too (a status, an author),
-through the mapper and reads it back, so a check or an enum that drifts from its model fails
-there.
+model's extreme value, and every value of an enum the model holds too (a status, an author), through
+the mapper and reads it back, so a check or an enum that drifts from its model fails there.
 
 The unit suites never reach Postgres ([tooling.md › Tests](tooling.md#tests)). What only a
 transaction decides, that a use case keeps none of its writes or its jobs when one is

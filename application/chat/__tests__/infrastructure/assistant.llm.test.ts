@@ -16,7 +16,7 @@ import {
 import { HttpClient, type HttpClientRequest, HttpClientResponse } from 'effect/http'
 import { TestClock } from 'effect/testing'
 
-import { epoch, png } from '@app-template/testing'
+import { epoch, png } from '@app-template/packages/testing'
 
 import type { AssistantError } from '#domain/assistant.error'
 import { AssistantReply } from '#domain/assistant.model'

@@ -1,12 +1,10 @@
 import { Array as Arr, Cause, DateTime, Effect, Layer, Predicate, Schedule, Struct } from 'effect'
 import { SqlClient } from 'effect/sql'
 
-import { QueueTransport } from '@app-template/queue'
-
-import { buildResourceName } from '#kernel/aws/resources/naming'
-import { AwsConfig, QueueConfig } from '#kernel/config/config'
-import type { JobEntity } from '#kernel/data/job/job.entity'
-import { JobRepository } from '#kernel/data/job/job.repository'
+import { buildResourceName } from '@app-template/kernel/aws'
+import { AwsConfig, QueueConfig } from '@app-template/kernel/config'
+import { type JobEntity, JobRepository } from '@app-template/kernel/data'
+import { QueueTransport } from '@app-template/packages/queue'
 
 const batchLimit = 10
 

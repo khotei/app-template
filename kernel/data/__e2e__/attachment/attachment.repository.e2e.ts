@@ -1,7 +1,7 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Array as Arr, Effect, Exit, Layer, Option, pipe, Schema, Struct } from 'effect'
 
-import { assertSchemaEquals } from '@app-template/testing'
+import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { AttachmentEntity } from '#kernel/data/attachment/attachment.entity'
 import { AttachmentRepository } from '#kernel/data/attachment/attachment.repository'

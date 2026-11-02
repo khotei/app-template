@@ -2,8 +2,8 @@ import { assert, describe, it } from '@effect/vitest'
 import { Cause, Effect, Exit, Layer, Option, Schema } from 'effect'
 import { SqlError } from 'effect/sql'
 
-import { flipSqlError } from '@app-template/db/testing-e2e'
-import { assertSchemaEquals } from '@app-template/testing'
+import { flipSqlError } from '@app-template/packages/db/testing-e2e'
+import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { Db } from '#kernel/data/db.client'
 import { UserEntity, type UserEntityCredential } from '#kernel/data/user/user.entity'

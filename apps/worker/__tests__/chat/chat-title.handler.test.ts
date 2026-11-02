@@ -13,7 +13,7 @@ import {
   recordAssistant,
   selectChat,
 } from '@app-template/chat/testing'
-import { recordLogs } from '@app-template/testing'
+import { recordLogs } from '@app-template/packages/testing'
 import { ChatTitleTest } from '@app-template/use-cases/testing'
 
 import { handle, handleDeadLettered } from '#worker/chat/chat-title.handler'

@@ -6,13 +6,7 @@
     "./config": "./config/index.ts",
     "./postgres": "./postgres/index.ts",
     "./aws": "./aws/index.ts",
-    "./aws/resources": "./aws/resources/index.ts",
     "./data": "./data/index.ts",
-    "./data/chat": "./data/chat/index.ts",
-    "./data/attachment": "./data/attachment/index.ts",
-    "./data/user": "./data/user/index.ts",
-    "./data/job": "./data/job/index.ts",
-    "./data/file": "./data/file/index.ts",
     "./llm": "./llm/index.ts",
     "./queue": "./queue/index.ts",
     "./data/testing": "./data/__tests__/testing/index.ts",
@@ -26,11 +20,7 @@
     "#testing-e2e/aws/*": "./aws/__e2e__/testing/*.ts"
   },
   "dependencies": {
-    "@app-template/aws": "workspace:*",
-    "@app-template/db": "workspace:*",
-    "@app-template/llm": "workspace:*",
-    "@app-template/queue": "workspace:*",
-    "@app-template/s3": "workspace:*",
+    "@app-template/packages": "workspace:*",
     "@effect-aws/client-s3": "catalog:effect-aws",
     "@effect-aws/client-sqs": "catalog:effect-aws",
     "@effect/platform-bun": "catalog:effect",
@@ -40,7 +30,6 @@
     "type-fest": "catalog:runtime"
   },
   "devDependencies": {
-    "@app-template/testing": "workspace:*",
     "@effect/vitest": "catalog:effect",
     "@testcontainers/postgresql": "catalog:runtime",
     "testcontainers": "catalog:runtime",

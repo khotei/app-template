@@ -1,7 +1,7 @@
 import { Array as Arr, Context, Effect, Layer, type Option } from 'effect'
 import { SqlClient } from 'effect/sql'
 
-import { decodeOptionalRow, orDieWithSqlError, skipUndefined } from '@app-template/db'
+import { decodeOptionalRow, orDieWithSqlError, skipUndefined } from '@app-template/packages/db'
 
 import { Db } from '#kernel/data/db.client'
 import {

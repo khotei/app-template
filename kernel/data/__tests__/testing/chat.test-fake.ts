@@ -23,7 +23,7 @@ import {
   orDieOnNoRows,
   updateRows,
   writeSet,
-} from '@app-template/testing'
+} from '@app-template/packages/testing'
 
 import type { AttachmentEntity } from '#kernel/data/attachment/attachment.entity'
 import { ChatEntity, type ChatEntityWhere } from '#kernel/data/chat/chat.entity'

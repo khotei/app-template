@@ -198,9 +198,10 @@ called; no, two rules, each kept by its module.
 
 ### One kernel
 
-One kernel workspace, `@app-template/kernel`, with subpaths `/config`, `/postgres`, `/aws`,
-`/aws/resources`, `/queue`, `/llm` and `/data`, holds the data and the boundary's configured
-clients and no service rule; `packages/*` is configurable and knows no app.
+One kernel workspace, `@app-template/kernel`, with one entry per part, `/config`, `/postgres`,
+`/aws` (the clients and the inventory), `/queue`, `/llm` and `/data` (every store), holds the data
+and the boundary's configured clients and no service rule; `packages/*` is configurable and knows
+no app.
 
 - **Why:** the AWS inventory, the pinned images and the clients' wiring are one kind of code: this
   app's tools and data. One workspace keeps one manifest and one project.
@@ -213,11 +214,12 @@ clients and no service rule; `packages/*` is configurable and knows no app.
   and the inventory and its naming rule moved.
 - **Cost:** one manifest declares every client's dependency, so the linker no longer stops a
   module reaching a kernel part it does not use, and inside the kernel the data's direction rests
-  on Biome, not on `tsc -b`.
+  on Biome, not on `tsc -b`. One entry per part opens a part whole, so the layers that may take
+  only its inventory or its stores are held by the imported names (`*FromConfig`, `Db`).
 - **Guarded by:** the Biome overrides on `kernel/**` (no module, contract, use case, `http-api` or
-  app), `packages/**` (no kernel) and `deployment/**` (of the kernel only `/config`,
-  `/aws/resources` and `/data/file`); `.claude/rules/modules.md` refuses a service rule or a model
-  in the kernel.
+  app), `packages/**` (no kernel) and `deployment/**` (of the kernel only `/config`, the
+  inventory of `/aws` and the files' key of `/data`, by imported name);
+  `.claude/rules/modules.md` refuses a service rule or a model in the kernel.
 - **If reversed:** split into packages, the kernel's parts gain a manifest and a project each;
   with service rules in it, the kernel becomes the shared domain the guide calls a smell.
 - **Revisit when:** a kernel part grows dependencies most modules must not reach; `/data` is the
@@ -396,18 +398,36 @@ code.
 
 ### Imports through subpaths
 
-Inside a workspace a file imports through the workspace's `#<workspace>/…` subpaths (`#domain/*`,
-`#kernel/*`), never a relative path; across workspaces through the package name.
+A file imports its own unit's files through the workspace's `#…` subpaths (`#domain/*`,
+`#kernel/<part>/*`, `#db/*`), never a relative path, and another unit only through that unit's
+entry, even inside one workspace (a kernel part reaches another as `@app-template/kernel/<part>`). A
+unit of the kernel or of `packages/` is imported by its folder: each of the two folders is one
+workspace, `@app-template/kernel` and `@app-template/packages`, with one export per unit, its
+`index.ts` (`@app-template/kernel/data`, every store; `@app-template/packages/db`), and its test
+support (`@app-template/packages/db/testing`). The modules, `http-api` and the apps keep their
+package names.
 
-- **Why:** a subpath names the layer it reaches, so a Biome override can refuse it by pattern; a
-  relative path hides the layer and can reach into another workspace's files.
-- **Sources:** `.claude/rules/naming.md`; `tsc -b`'s TS6059 and TS6307 on a path into an
-  unreferenced workspace.
+- **Why:** an import tells where its code lives, and one entry per unit is all a caller must know;
+  a subpath inside a workspace names the layer it reaches, so a Biome override can refuse it by
+  pattern, while a relative path hides the layer and can reach into another workspace's files.
+- **Sources:** `.claude/rules/naming.md`; npm names allow one `/` after the scope, so a folder's
+  path is a subpath of its folder's workspace; `tsc -b`'s TS6059 and TS6307 on a path into an
+  unreferenced project.
 - **Rejected:** relative paths inside a layer only: one more rule for a reader to apply, and no
-  pattern tells a layer's own folder from the next.
-- **Cost:** every workspace declares its `imports` in `package.json`.
-- **Guarded by:** the root `noRestrictedImports` pattern and its copy in every Biome override.
-- **If reversed:** the per-layer overrides no longer see which layer a relative import reaches.
+  pattern tells a layer's own folder from the next. A workspace per package with `paths` aliases
+  in `tsconfig.base.json`: an alias bypasses the linker entirely and needs a setting in every
+  tool. A subpath per store or per layer (`/data/<store>`): a caller must know the unit's inside.
+- **Cost:** every workspace declares its `imports`; one manifest declares every package's
+  dependencies, so the linker tells `packages/` from the kernel but not one package from another;
+  a unit's one entry opens it whole, so a layer that may take only part of it (the inventory of
+  `/aws`, the stores of `/data`) is held by the names it imports.
+- **Guarded by:** the root `noRestrictedImports` pattern and its copy in every Biome override;
+  an override per kernel part refusing another part's `#kernel/…` and `#testing…/…` files; a
+  `tsconfig.json` project per package, so a package importing another it does not reference
+  fails `tsc -b`; the overrides' `importNamePattern` on `/aws` and `/data`.
+- **If reversed:** `packages/` splits into a workspace per package, each with its manifest, and
+  the specifiers lose the folder; without the `#…` subpaths, the per-layer overrides no longer
+  see which layer a relative import reaches.
 - **Revisit when:** Biome can restrict an import by the folder it resolves to.
 
 ### Independent apps

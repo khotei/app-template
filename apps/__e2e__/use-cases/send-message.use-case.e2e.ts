@@ -13,7 +13,7 @@ import {
   selectMessages,
   upload,
 } from '@app-template/chat/testing'
-import { epoch } from '@app-template/testing'
+import { epoch } from '@app-template/packages/testing'
 import { SendMessageUseCase } from '@app-template/use-cases/chat'
 
 import { ChatPgTest } from '#testing-e2e/chat.test-layer'

@@ -21,8 +21,8 @@ import {
   recordAssistant,
   selectChat,
 } from '@app-template/chat/testing'
-import { ChatRepository } from '@app-template/kernel/data/chat'
-import { recordLogs } from '@app-template/testing'
+import { ChatRepository } from '@app-template/kernel/data'
+import { recordLogs } from '@app-template/packages/testing'
 
 import { ChatTitleTest } from '#testing/chat.test-layer'
 import { GenerateChatTitleUseCase } from '#use-cases/chat/generate-chat-title.use-case'

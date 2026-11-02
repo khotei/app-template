@@ -11,7 +11,7 @@ import {
 } from 'effect/sql/SqlError'
 import { TestClock } from 'effect/testing'
 
-import { PgClientTest, recordLogs } from '@app-template/testing'
+import { PgClientTest, recordLogs } from '@app-template/packages/testing'
 
 import { migrateDatabase, retryWhileUnreachable } from '#db/migrate'
 

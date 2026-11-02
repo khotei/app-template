@@ -3,15 +3,18 @@ import { Effect, Layer } from 'effect'
 import { FetchHttpClient } from 'effect/http'
 
 import { AssistantLlmFromConfig } from '@app-template/chat/infrastructure'
-import { Transaction } from '@app-template/db'
 import { S3BucketFromConfig, SQSServiceFromConfig } from '@app-template/kernel/aws'
 import { MinimumLogLevelFromConfig } from '@app-template/kernel/config'
-import { Db } from '@app-template/kernel/data'
-import { ChatRepository, MessageRepository } from '@app-template/kernel/data/chat'
-import { FileRepository } from '@app-template/kernel/data/file'
-import { JobRepository } from '@app-template/kernel/data/job'
+import {
+  ChatRepository,
+  Db,
+  FileRepository,
+  JobRepository,
+  MessageRepository,
+} from '@app-template/kernel/data'
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
 import { JobRelaySqs, QueueConsumerSqs } from '@app-template/kernel/queue'
+import { Transaction } from '@app-template/packages/db'
 
 import { AssistantMessageHandler } from '#worker/chat/assistant-message.handler'
 import { ChatTitleHandler } from '#worker/chat/chat-title.handler'

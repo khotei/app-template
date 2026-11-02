@@ -1,8 +1,8 @@
 import { Duration, Schema } from 'effect'
 
-import { buildDeadLetterName } from '@app-template/aws'
-import { resources } from '@app-template/kernel/aws/resources'
-import type { QueueDefinition } from '@app-template/queue'
+import { resources } from '@app-template/kernel/aws'
+import { buildDeadLetterName } from '@app-template/packages/aws'
+import type { QueueDefinition } from '@app-template/packages/queue'
 
 import { ReplyProvenance } from '#domain/assistant.port'
 import { ChatId, MessageId } from '#domain/chat.id'

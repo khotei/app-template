@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm'
 import { check, pgEnum, snakeCase, text, uuid } from 'drizzle-orm/pg-core'
 
-import { createdAt, id } from '@app-template/db'
+import { createdAt, id } from '@app-template/packages/db'
 
 const secretHashPattern = /^[0-9a-f]{64}$/
 

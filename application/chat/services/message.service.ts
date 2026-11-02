@@ -1,7 +1,7 @@
 import { Context, Effect, Layer, type Types } from 'effect'
 
 import type { UserId } from '@app-template/identity-contract'
-import { MessageRepository } from '@app-template/kernel/data/chat'
+import { MessageRepository } from '@app-template/kernel/data'
 
 import { MessageNotFoundError } from '#domain/message.error'
 import type { Message } from '#domain/message.model'

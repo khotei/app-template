@@ -1,7 +1,7 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Duration } from 'effect'
 
-import { resources } from '@app-template/kernel/aws/resources'
+import { resources } from '@app-template/kernel/aws'
 
 import { unboundLifetime } from '#domain/attachment.model'
 

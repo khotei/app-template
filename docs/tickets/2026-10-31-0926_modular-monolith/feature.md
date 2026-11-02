@@ -94,7 +94,7 @@ Behaviour seen from outside does not change.
   request), each a workspace with `domain/` (models, pure rules, errors, the ports that reach
   outside; ships to the browser), `services/` (domain services, the mappers between an entity and a
   model, the job definitions) and, once it has an adapter, `infrastructure/` (chat's assistant with
-  its prompts). The module contract `identity-contract` holds `UserId`, `UserUnknownError`,
+  its prompts). The module contract, identity's `contract/` folder exported through its entry, holds `UserId`, `UserUnknownError`,
   `CurrentUser` and `Auth`. Every use case lives in `application/use-cases`
   (`@app-template/application/use-cases`), above the modules.
 - **The boundary**: the kernel, one workspace with the parts `config`, `postgres`, `aws` (with the
@@ -114,11 +114,12 @@ Behaviour seen from outside does not change.
 - **Imports by folder path** (added 2026-11-02, after verification): a part of the kernel, a
   package under `packages/*` and a workspace under `application/` are imported by their folder,
   `@app-template/<folder>` (`@app-template/application/chat`, `@app-template/packages/db`,
-  `@app-template/kernel/data`), through `paths` in `tsconfig.base.json`, each by one entry, its
-  `index.ts`, and its test support by `<folder>/testing` (`<folder>/testing/e2e` for what only
-  the e2e use); the apps and `http-api` keep their package names.
-- The guards: a Biome list per workspace of the units it may import, `tsc -b` project
-  references, a Biome override per ring and per layer, the bundle check rewritten; each Biome failure names the
+  `@app-template/kernel/data`): `packages/` and `application/` each become one workspace, like
+  the kernel, whose `exports` give each unit one entry, its `index.ts`, and its test support,
+  `<folder>/testing` (`<folder>/testing/e2e` for what only the e2e use); the apps and `http-api`
+  keep their package names.
+- The guards: package `exports`, the isolated linker between workspaces, a Biome list per
+  workspace of the units it may import, `tsc -b` project references, a Biome override per ring and per layer, the bundle check rewritten; each Biome failure names the
   decision it protects. What no configuration expresses (a cycle of modules through their
   contracts, a service rule in the kernel) is a review rule, never hand-written test code.
 - Names: the data layer's types end in `Entity`; the word names nothing else, and the domain's
@@ -157,7 +158,8 @@ Behaviour seen from outside does not change.
   with the use cases above them, and a boundary of the kernel's configured clients, the HTTP
   contract and the processes, with `packages/*` that are configurable and know no app.
 - **R7** — THE SYSTEM SHALL let a module reach another module only through that module's
-  contract, which holds no implementation.
+  contract, which holds no implementation; review holds which names of the module's entry are
+  its contract.
 - **R8** — THE SYSTEM SHALL keep inside each module the layers `domain`, `services` and
   `infrastructure` and their import direction, and every use case in the use-case workspace.
 - **R9** — THE SYSTEM SHALL declare every table, enum, index, relation, stored object and
@@ -169,7 +171,7 @@ Behaviour seen from outside does not change.
   `__tests__/`, with the support only the e2e use under `__tests__/testing/e2e/`, and its e2e
   tests under `__e2e__/`, and SHALL run no e2e test from `application`.
 - **R21** — THE SYSTEM SHALL import a part of the kernel, a package under `packages/*` and a
-  workspace under `application/` by its folder path, `@app-template/<folder>`, through one entry,
+  module or the use cases under `application/` by its folder path, `@app-template/<folder>`, through one entry,
   its `index.ts`, and its test support through `@app-template/<folder>/testing` and
   `@app-template/<folder>/testing/e2e`; the apps and `http-api` SHALL keep their package names.
 
@@ -219,8 +221,8 @@ Behaviour seen from outside does not change.
 | R3 | the delete-chat e2e passes: messages and attachments are gone and the bucket holds none of their objects |
 | R4 | `make reset`, then `make up`, applies one migration; `pg_dump --schema-only` of it, diffed against one of `main`'s, shows only `outbox` renamed `jobs` |
 | R5 | `make migration-check` reports no change |
-| R6 | the workspace list shows `kernel`, the two modules, `identity-contract`, `use-cases`, the packages, `http-api`, the three apps and `e2e` at `apps/__e2e__`, and no `domain` or `infrastructure` workspace |
-| R7 | grep: no module's code imports another module's package other than its contract |
+| R6 | the workspace list shows `kernel`, `application` (the two modules with identity's contract folder, and the use cases), `packages`, `http-api`, the three apps and `e2e` at `apps/__e2e__`, and no `domain` or `infrastructure` workspace |
+| R7 | grep: no module's code imports from another module's entry a name outside its contract; `.claude/rules/modules.md` names the check and links its record |
 | R8 | each module holds only `domain/`, `services/`, `infrastructure/`, `__tests__/` and its manifests; every `*.use-case.ts` lies under `application/use-cases/`; the layer overrides pass |
 | R9 | grep: no file under `kernel/data/` imports `@app-template/*` but a package under `packages/*`, or `#kernel/*` outside `#kernel/data`; every `*.table.ts`, `*.entity.ts` and `*.repository.ts` lies under `kernel/data/` |
 | R10 | the send-message e2e finds the job in `jobs` and rolls back both on a failed write |
@@ -253,7 +255,7 @@ Settled with the user on 2026-10-31, after the research, an audit and the plan r
   entity's fields.
 - **Two modules**, `chat` and `identity`; attachments stay in `chat` until `shared-files` (16). A
   module is `domain/`, `services/` and `infrastructure/`; a repository is no port. `identity`
-  is reachable only through `identity-contract`; no events, facades or reactions between modules.
+  is reachable only through its contract (a folder behind identity's entry since S29); no events, facades or reactions between modules.
 - **Every use case lives in `application/use-cases`**, above the modules, synchronous, one
   transaction whatever modules it touches.
 - **One kernel workspace** with subpaths for config, Postgres, AWS (with the inventory), queue,
@@ -273,9 +275,10 @@ Settled with the user on 2026-10-31, after the research, an audit and the plan r
 - **Guards** are configuration (`exports`, the isolated linker, `tsc -b`, Biome, the bundle
   check) plus one review rule, never hand-written test code; the decisions live in
   `docs/knowledge/decisions.md`.
-- **Imports by folder path** (settled 2026-11-02, after verification): the kernel's parts, the
-  packages and the application's workspaces are imported as `@app-template/<folder>` through
-  `paths`, one `index.ts` and one `/testing` each; a Biome list per workspace replaces the
-  isolated linker's check, which an alias bypasses; a use case may import any layer of a module
+- **Imports by folder path** (settled 2026-11-02, after verification): `packages/` and
+  `application/` each become one workspace, like the kernel, so the kernel's parts, the packages,
+  the modules and the use cases are imported as `@app-template/<folder>`, one `index.ts` and one
+  `/testing` each, by their `exports`, with no `paths` alias; a Biome list per workspace tells
+  the units inside one workspace apart, which the linker cannot; a use case may import any layer of a module
   below it; e2e support sits in `__tests__/testing/e2e/`, imported as `<folder>/testing/e2e`,
   which Biome refuses in a unit test.

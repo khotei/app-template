@@ -1,10 +1,10 @@
 import { BunRuntime } from '@effect/platform-bun'
 import { Effect } from 'effect'
 
-import { migrateDatabase, retryWhileUnreachable } from '@app-template/db'
+import { MinimumLogLevelFromConfig } from '@app-template/kernel/config'
+import { migrationsFolder } from '@app-template/kernel/data'
+import { migrateDatabase, retryWhileUnreachable } from '@app-template/packages/db'
 
-import { MinimumLogLevelFromConfig } from '#kernel/config/config'
-import { migrationsFolder } from '#kernel/data/migrations'
 import { PgClientFromConfig } from '#kernel/postgres/postgres.client'
 
 const describeApplied = (applied: number) => {

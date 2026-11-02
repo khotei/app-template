@@ -25,10 +25,10 @@ import {
   GenerateAssistantMessage,
   GenerateChatTitle,
 } from '@app-template/chat/services'
-import { generateId, Transaction } from '@app-template/db'
 import type { UserId } from '@app-template/identity-contract'
-import { ChatRepository, MessageRepository } from '@app-template/kernel/data/chat'
-import { QueueSender } from '@app-template/queue'
+import { ChatRepository, MessageRepository } from '@app-template/kernel/data'
+import { generateId, Transaction } from '@app-template/packages/db'
+import { QueueSender } from '@app-template/packages/queue'
 
 export interface SentMessages {
   readonly userMessage: Message

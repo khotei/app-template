@@ -74,7 +74,7 @@ export class QueueSender extends Context.Service<
       message: A,
     ) => Effect.Effect<void>
   }
->()('@app-template/queue/QueueSender') {}
+>()('@app-template/packages/queue/QueueSender') {}
 
 export class QueueConsumer extends Context.Service<
   QueueConsumer,
@@ -93,7 +93,7 @@ export class QueueConsumer extends Context.Service<
       handle: Handler<A, E, R>,
     ) => Effect.Effect<never, QueueError, R>
   }
->()('@app-template/queue/QueueConsumer', {
+>()('@app-template/packages/queue/QueueConsumer', {
   make: ({ queueName, lockExpiration, lockRefreshInterval }: QueueConsumerOptions) =>
     Effect.gen(function* () {
       const transport = yield* QueueTransport

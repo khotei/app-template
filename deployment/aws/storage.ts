@@ -1,7 +1,7 @@
 import * as aws from '@pulumi/aws'
 
-import { buildResourceName, resources } from '@app-template/kernel/aws/resources'
-import { unboundTag } from '@app-template/kernel/data/file'
+import { buildResourceName, resources } from '@app-template/kernel/aws'
+import { unboundTag } from '@app-template/kernel/data'
 
 import { buildTags } from '#deployment/shared/tags'
 

@@ -2,7 +2,7 @@ import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Schema } from 'effect'
 
-import { assertSchemaEquals } from '@app-template/testing'
+import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { ChatBusyError, ChatStatusInvalidError } from '#domain/chat.error'
 import { Chat, ChatTitle, failChat, idleChat, queueChat } from '#domain/chat.model'

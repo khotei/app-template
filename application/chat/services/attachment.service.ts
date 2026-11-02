@@ -12,10 +12,9 @@ import {
   Stream,
 } from 'effect'
 
-import { generateId } from '@app-template/db'
 import type { UserId } from '@app-template/identity-contract'
-import { AttachmentRepository } from '@app-template/kernel/data/attachment'
-import { FileRepository } from '@app-template/kernel/data/file'
+import { AttachmentRepository, FileRepository } from '@app-template/kernel/data'
+import { generateId } from '@app-template/packages/db'
 
 import { type AttachmentBoundError, AttachmentNotFoundError } from '#domain/attachment.error'
 import { AttachmentId } from '#domain/attachment.id'

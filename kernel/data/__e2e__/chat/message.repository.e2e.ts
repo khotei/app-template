@@ -1,7 +1,7 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Effect, Exit, Layer, Option, Schema } from 'effect'
 
-import { assertSchemaEquals } from '@app-template/testing'
+import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import type { AttachmentEntity } from '#kernel/data/attachment/attachment.entity'
 import { attachments } from '#kernel/data/attachment/attachment.table'

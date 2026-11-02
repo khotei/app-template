@@ -3,7 +3,7 @@ import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Layer } from 'effect'
 
 import { RepositoryStackTest } from '@app-template/kernel/data/testing'
-import { assertSchemaEquals } from '@app-template/testing'
+import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { MessageNotFoundError } from '#domain/message.error'
 import { MessageService, type MessageWhere } from '#services/message.service'

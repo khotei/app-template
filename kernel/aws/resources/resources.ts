@@ -1,4 +1,4 @@
-import type { Resources } from '@app-template/aws'
+import type { Resources } from '@app-template/packages/aws'
 
 export const resources = {
   buckets: {

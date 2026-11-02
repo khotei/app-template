@@ -17,16 +17,13 @@
     "application/chat": {
       "name": "@app-template/chat",
       "dependencies": {
-        "@app-template/aws": "workspace:*",
-        "@app-template/db": "workspace:*",
         "@app-template/identity-contract": "workspace:*",
         "@app-template/kernel": "workspace:*",
-        "@app-template/queue": "workspace:*",
+        "@app-template/packages": "workspace:*",
         "effect": "catalog:effect",
         "type-fest": "catalog:runtime",
       },
       "devDependencies": {
-        "@app-template/testing": "workspace:*",
         "@effect/ai-anthropic": "catalog:effect",
         "@effect/platform-bun": "catalog:effect",
         "@effect/vitest": "catalog:effect",
@@ -35,13 +32,12 @@
     "application/identity": {
       "name": "@app-template/identity",
       "dependencies": {
-        "@app-template/db": "workspace:*",
         "@app-template/identity-contract": "workspace:*",
         "@app-template/kernel": "workspace:*",
+        "@app-template/packages": "workspace:*",
         "effect": "catalog:effect",
       },
       "devDependencies": {
-        "@app-template/testing": "workspace:*",
         "@effect/platform-bun": "catalog:effect",
         "@effect/vitest": "catalog:effect",
       },
@@ -56,14 +52,12 @@
       "name": "@app-template/use-cases",
       "dependencies": {
         "@app-template/chat": "workspace:*",
-        "@app-template/db": "workspace:*",
         "@app-template/identity-contract": "workspace:*",
         "@app-template/kernel": "workspace:*",
-        "@app-template/queue": "workspace:*",
+        "@app-template/packages": "workspace:*",
         "effect": "catalog:effect",
       },
       "devDependencies": {
-        "@app-template/testing": "workspace:*",
         "@effect/platform-bun": "catalog:effect",
         "@effect/vitest": "catalog:effect",
       },
@@ -73,12 +67,11 @@
       "devDependencies": {
         "@app-template/api": "workspace:*",
         "@app-template/chat": "workspace:*",
-        "@app-template/db": "workspace:*",
         "@app-template/http-api": "workspace:*",
         "@app-template/identity": "workspace:*",
         "@app-template/identity-contract": "workspace:*",
         "@app-template/kernel": "workspace:*",
-        "@app-template/testing": "workspace:*",
+        "@app-template/packages": "workspace:*",
         "@app-template/use-cases": "workspace:*",
         "@app-template/worker": "workspace:*",
         "@effect/platform-bun": "catalog:effect",
@@ -91,18 +84,16 @@
       "name": "@app-template/api",
       "dependencies": {
         "@app-template/chat": "workspace:*",
-        "@app-template/db": "workspace:*",
         "@app-template/http-api": "workspace:*",
         "@app-template/identity": "workspace:*",
         "@app-template/identity-contract": "workspace:*",
         "@app-template/kernel": "workspace:*",
+        "@app-template/packages": "workspace:*",
         "@app-template/use-cases": "workspace:*",
         "@effect/platform-bun": "catalog:effect",
         "effect": "catalog:effect",
       },
       "devDependencies": {
-        "@app-template/queue": "workspace:*",
-        "@app-template/testing": "workspace:*",
         "@effect/vitest": "catalog:effect",
       },
     },
@@ -111,7 +102,7 @@
       "dependencies": {
         "@app-template/http-api": "workspace:*",
         "@app-template/kernel": "workspace:*",
-        "@app-template/ui": "workspace:*",
+        "@app-template/packages": "workspace:*",
         "effect": "catalog:effect",
       },
     },
@@ -119,23 +110,21 @@
       "name": "@app-template/worker",
       "dependencies": {
         "@app-template/chat": "workspace:*",
-        "@app-template/db": "workspace:*",
         "@app-template/kernel": "workspace:*",
-        "@app-template/queue": "workspace:*",
+        "@app-template/packages": "workspace:*",
         "@app-template/use-cases": "workspace:*",
         "@effect/platform-bun": "catalog:effect",
         "effect": "catalog:effect",
       },
       "devDependencies": {
-        "@app-template/testing": "workspace:*",
         "@effect/vitest": "catalog:effect",
       },
     },
     "deployment": {
       "name": "@app-template/deployment",
       "dependencies": {
-        "@app-template/aws": "workspace:*",
         "@app-template/kernel": "workspace:*",
+        "@app-template/packages": "workspace:*",
         "@pulumi/aws": "catalog:pulumi",
         "@pulumi/docker": "catalog:pulumi",
         "@pulumi/pulumi": "catalog:pulumi",
@@ -154,11 +143,7 @@
     "kernel": {
       "name": "@app-template/kernel",
       "dependencies": {
-        "@app-template/aws": "workspace:*",
-        "@app-template/db": "workspace:*",
-        "@app-template/llm": "workspace:*",
-        "@app-template/queue": "workspace:*",
-        "@app-template/s3": "workspace:*",
+        "@app-template/packages": "workspace:*",
         "@effect-aws/client-s3": "catalog:effect-aws",
         "@effect-aws/client-sqs": "catalog:effect-aws",
         "@effect/platform-bun": "catalog:effect",
@@ -168,77 +153,27 @@
         "type-fest": "catalog:runtime",
       },
       "devDependencies": {
-        "@app-template/testing": "workspace:*",
         "@effect/vitest": "catalog:effect",
         "@testcontainers/postgresql": "catalog:runtime",
         "testcontainers": "catalog:runtime",
         "vitest": "catalog:tools",
       },
     },
-    "packages/aws": {
-      "name": "@app-template/aws",
+    "packages": {
+      "name": "@app-template/packages",
       "dependencies": {
         "@effect-aws/client-s3": "catalog:effect-aws",
         "@effect-aws/client-sqs": "catalog:effect-aws",
-        "effect": "catalog:effect",
-      },
-    },
-    "packages/db": {
-      "name": "@app-template/db",
-      "dependencies": {
-        "@effect/sql-pg": "catalog:effect",
-        "drizzle-orm": "catalog:drizzle",
-        "effect": "catalog:effect",
-      },
-      "devDependencies": {
-        "@app-template/testing": "workspace:*",
-        "@effect/platform-bun": "catalog:effect",
-        "@effect/vitest": "catalog:effect",
-      },
-    },
-    "packages/llm": {
-      "name": "@app-template/llm",
-      "dependencies": {
         "@effect/ai-anthropic": "catalog:effect",
-        "effect": "catalog:effect",
-      },
-    },
-    "packages/queue": {
-      "name": "@app-template/queue",
-      "dependencies": {
-        "@effect-aws/client-sqs": "catalog:effect-aws",
-        "effect": "catalog:effect",
-      },
-      "devDependencies": {
-        "@app-template/aws": "workspace:*",
-        "@app-template/testing": "workspace:*",
-        "@effect/vitest": "catalog:effect",
-      },
-    },
-    "packages/s3": {
-      "name": "@app-template/s3",
-      "dependencies": {
-        "@effect-aws/client-s3": "catalog:effect-aws",
-        "effect": "catalog:effect",
-      },
-      "devDependencies": {
-        "@app-template/testing": "workspace:*",
-        "@effect/vitest": "catalog:effect",
-      },
-    },
-    "packages/testing": {
-      "name": "@app-template/testing",
-      "dependencies": {
-        "@effect-aws/client-s3": "catalog:effect-aws",
-        "@effect-aws/client-sqs": "catalog:effect-aws",
         "@effect/sql-pg": "catalog:effect",
         "@effect/vitest": "catalog:effect",
+        "drizzle-orm": "catalog:drizzle",
         "effect": "catalog:effect",
         "vitest": "catalog:tools",
       },
-    },
-    "packages/ui": {
-      "name": "@app-template/ui",
+      "devDependencies": {
+        "@effect/platform-bun": "catalog:effect",
+      },
     },
   },
   "catalogs": {
@@ -281,11 +216,7 @@
   "packages": {
     "@app-template/api": ["@app-template/api@workspace:apps/api"],
 
-    "@app-template/aws": ["@app-template/aws@workspace:packages/aws"],
-
     "@app-template/chat": ["@app-template/chat@workspace:application/chat"],
-
-    "@app-template/db": ["@app-template/db@workspace:packages/db"],
 
     "@app-template/deployment": ["@app-template/deployment@workspace:deployment"],
 
@@ -299,15 +230,7 @@
 
     "@app-template/kernel": ["@app-template/kernel@workspace:kernel"],
 
-    "@app-template/llm": ["@app-template/llm@workspace:packages/llm"],
-
-    "@app-template/queue": ["@app-template/queue@workspace:packages/queue"],
-
-    "@app-template/s3": ["@app-template/s3@workspace:packages/s3"],
-
-    "@app-template/testing": ["@app-template/testing@workspace:packages/testing"],
-
-    "@app-template/ui": ["@app-template/ui@workspace:packages/ui"],
+    "@app-template/packages": ["@app-template/packages@workspace:packages"],
 
     "@app-template/use-cases": ["@app-template/use-cases@workspace:application/use-cases"],
 

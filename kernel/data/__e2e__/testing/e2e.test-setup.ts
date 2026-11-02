@@ -4,11 +4,10 @@ import { Effect, Redacted } from 'effect'
 import { GenericContainer, type StartedTestContainer, Wait } from 'testcontainers'
 import type { TestProject } from 'vitest/node'
 
-import { migrateDatabase } from '@app-template/db'
-import { ministackRegion, templateDatabase } from '@app-template/testing'
+import { ministackImage, postgresImage } from '@app-template/kernel/config'
+import { migrateDatabase } from '@app-template/packages/db'
+import { ministackRegion, templateDatabase } from '@app-template/packages/testing'
 
-import { ministackImage } from '#kernel/config/ministack'
-import { postgresImage } from '#kernel/config/postgres'
 import { migrationsFolder } from '#kernel/data/migrations'
 
 const startPostgresWithTemplate = async () => {

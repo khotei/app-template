@@ -1,6 +1,6 @@
 import { Effect, Layer } from 'effect'
 
-import { ChatRepository, MessageRepository } from '@app-template/kernel/data/chat'
+import { ChatRepository, MessageRepository } from '@app-template/kernel/data'
 
 import type { ChatId, MessageId } from '#domain/chat.id'
 import type { Chat } from '#domain/chat.model'

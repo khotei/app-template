@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm'
 import { check, index, pgEnum, snakeCase, text, uuid } from 'drizzle-orm/pg-core'
 
-import { createdAt, id, updatedAt } from '@app-template/db'
+import { createdAt, id, updatedAt } from '@app-template/packages/db'
 
 import { users } from '#kernel/data/user/user.table'
 

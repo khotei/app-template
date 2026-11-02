@@ -2,11 +2,11 @@ import { S3Service } from '@effect-aws/client-s3'
 import { SQSService } from '@effect-aws/client-sqs'
 import { type Config, Layer, Option } from 'effect'
 
-import { S3Bucket } from '@app-template/s3'
+import { AwsConfig } from '@app-template/kernel/config'
+import { S3Bucket } from '@app-template/packages/s3'
 
 import { buildResourceName } from '#kernel/aws/resources/naming'
 import { resources } from '#kernel/aws/resources/resources'
-import { AwsConfig } from '#kernel/config/config'
 
 const buildClientOptions = ({ region, endpoint }: AwsConfig['Service']) => ({
   region,

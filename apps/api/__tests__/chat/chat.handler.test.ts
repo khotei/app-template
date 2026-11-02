@@ -12,7 +12,7 @@ import {
 import { selectMessage, updateMessage } from '@app-template/chat/testing'
 import { ApiClient } from '@app-template/http-api'
 import { UserUnknownError } from '@app-template/identity-contract'
-import { assertSchemaEquals } from '@app-template/testing'
+import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { ApiServerTest, ApiTest, layerApiClient } from '#testing/api.test-layer'
 

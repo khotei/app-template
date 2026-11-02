@@ -1,6 +1,6 @@
 import { Array as Arr, Context, Duration, Effect, Layer, type Option } from 'effect'
 
-import { S3Bucket } from '@app-template/s3'
+import { S3Bucket } from '@app-template/packages/s3'
 
 import {
   buildFileKey,

@@ -2,7 +2,7 @@ import { assert, describe, it } from '@effect/vitest'
 import { eq } from 'drizzle-orm'
 import { Effect, Exit, Layer, Option, Schema } from 'effect'
 
-import { assertSchemaEquals } from '@app-template/testing'
+import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { attachments } from '#kernel/data/attachment/attachment.table'
 import { ChatEntity } from '#kernel/data/chat/chat.entity'

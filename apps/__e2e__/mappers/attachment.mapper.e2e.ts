@@ -4,9 +4,8 @@ import { DateTime, Effect, Option, pipe, Schema } from 'effect'
 import { Attachment, AttachmentId, FileName, FileSize, MediaType } from '@app-template/chat/domain'
 import { AttachmentFromEntity } from '@app-template/chat/services'
 import { owner } from '@app-template/chat/testing'
-import { Db } from '@app-template/kernel/data'
-import { AttachmentEntityInsert, attachments } from '@app-template/kernel/data/attachment'
-import { assertSchemaEquals } from '@app-template/testing'
+import { AttachmentEntityInsert, attachments, Db } from '@app-template/kernel/data'
+import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { DbWithUsersTest } from '#testing-e2e/db.test-layer'
 

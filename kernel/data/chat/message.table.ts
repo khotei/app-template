@@ -11,7 +11,7 @@ import {
 } from 'drizzle-orm/pg-core'
 import { Schema } from 'effect'
 
-import { createdAt, id, updatedAt } from '@app-template/db'
+import { createdAt, id, updatedAt } from '@app-template/packages/db'
 
 import { chats } from '#kernel/data/chat/chat.table'
 

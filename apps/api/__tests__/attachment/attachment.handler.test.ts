@@ -9,7 +9,7 @@ import {
   limits,
   RequestInvalidError,
 } from '@app-template/http-api'
-import { assertSchemaEquals } from '@app-template/testing'
+import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { ApiTest } from '#testing/api.test-layer'
 

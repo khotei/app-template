@@ -199,7 +199,7 @@ and the dead letter need no queue.
 The e2e `globalSetup` (`kernel/data/__e2e__/testing/e2e.test-setup.ts`) starts one MiniStack beside
 the run's Postgres (`testcontainers`, about two seconds for both) and hands its endpoint to the
 tests through `inject('awsEndpoint')`; `SqsClientTest` and `S3ClientTest` in
-`@app-template/testing` are clients on it. `AwsTest`
+`@app-template/packages/testing` are clients on it. `AwsTest`
 (`kernel/aws/__e2e__/testing/aws.test-layer.ts`) gives each test a stage of its own (`e2e` and
 eight hex digits), provisions the inventory's bucket and queues under it and provides `AwsConfig`
 over the endpoint and that stage, so the kernel's clients build their names as in production; it

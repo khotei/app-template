@@ -22,7 +22,7 @@ import {
   orDieOnNoRows,
   updateRows,
   writeSet,
-} from '@app-template/testing'
+} from '@app-template/packages/testing'
 
 import {
   AttachmentEntity,

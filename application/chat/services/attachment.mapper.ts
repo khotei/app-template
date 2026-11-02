@@ -1,8 +1,8 @@
 import { Schema } from 'effect'
 
-import { decodeManyWith, decodeOptionalWith, encodeRowWith } from '@app-template/db'
 import { UserId } from '@app-template/identity-contract'
-import { AttachmentEntity, AttachmentEntityInsert } from '@app-template/kernel/data/attachment'
+import { AttachmentEntity, AttachmentEntityInsert } from '@app-template/kernel/data'
+import { decodeManyWith, decodeOptionalWith, encodeRowWith } from '@app-template/packages/db'
 
 import { AttachmentId } from '#domain/attachment.id'
 import { Attachment, FileName, FileSize, MediaType } from '#domain/attachment.model'

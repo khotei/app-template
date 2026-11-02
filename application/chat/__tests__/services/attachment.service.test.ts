@@ -5,8 +5,7 @@ import { Array as Arr, Duration, Effect, Exit, HashMap, Layer, Option, Ref, Stre
 import { TestClock } from 'effect/testing'
 
 import type { UserId } from '@app-template/identity-contract'
-import { AttachmentRepository } from '@app-template/kernel/data/attachment'
-import { FileRepository } from '@app-template/kernel/data/file'
+import { AttachmentRepository, FileRepository } from '@app-template/kernel/data'
 import { AttachmentRows, FileObjects, RepositoryStackTest } from '@app-template/kernel/data/testing'
 import {
   assertSchemaEquals,
@@ -15,7 +14,7 @@ import {
   isUuidV7,
   png,
   StreamBrokenError,
-} from '@app-template/testing'
+} from '@app-template/packages/testing'
 
 import { AttachmentBoundError, AttachmentNotFoundError } from '#domain/attachment.error'
 import type { AttachmentId } from '#domain/attachment.id'

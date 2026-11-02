@@ -1,21 +1,20 @@
 import type { SQSService } from '@effect-aws/client-sqs'
 import { type Config, DateTime, Effect, Layer, type Schema } from 'effect'
 
+import { buildResourceName } from '@app-template/kernel/aws'
+import {
+  AwsConfig,
+  QueueConfig,
+  type QueueLockRefreshIntervalInvalidError,
+} from '@app-template/kernel/config'
+import { JobRepository } from '@app-template/kernel/data'
 import {
   encodeJob,
   QueueConsumer,
   type QueueDefinition,
   QueueSender,
   QueueTransport,
-} from '@app-template/queue'
-
-import { buildResourceName } from '#kernel/aws/resources/naming'
-import {
-  AwsConfig,
-  QueueConfig,
-  type QueueLockRefreshIntervalInvalidError,
-} from '#kernel/config/config'
-import { JobRepository } from '#kernel/data/job/job.repository'
+} from '@app-template/packages/queue'
 
 /** Consumes queues on SQS, whose redrive policy moves a spent message to its dead-letter queue. */
 export const QueueConsumerSqs: Layer.Layer<

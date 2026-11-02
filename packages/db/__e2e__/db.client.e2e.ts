@@ -5,17 +5,17 @@ import { integer, pgTable } from 'drizzle-orm/pg-core'
 import { Context, Effect, Exit, Layer, type LogLevel, References } from 'effect'
 import { SqlClient } from 'effect/sql'
 
-import { PgClientTest, recordLogs } from '@app-template/testing'
+import { PgClientTest, recordLogs } from '@app-template/packages/testing'
 
 import { createDb, Transaction } from '#db/db.client'
-import { flipSqlError } from '#testing-e2e/sql-error.test-util'
+import { flipSqlError } from '#testing-e2e/db/sql-error.test-util'
 
 const probes = pgTable('probes', { id: integer().primaryKey() })
 
 const relations = defineRelations({ probes })
 
 class Db extends Context.Service<Db, PgDrizzle.EffectPgDatabase<typeof relations>>()(
-  '@app-template/db/__e2e__/Db',
+  '@app-template/packages/db/__e2e__/Db',
   { make: createDb(relations) },
 ) {
   static readonly layer = Layer.effect(this, this.make)

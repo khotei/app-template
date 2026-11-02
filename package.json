@@ -8,7 +8,7 @@
     "application/*",
     "application/*/contract",
     "kernel",
-    "packages/*",
+    "packages",
     "apps/*",
     "deployment"
   ],

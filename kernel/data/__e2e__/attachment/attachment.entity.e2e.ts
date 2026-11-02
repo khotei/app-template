@@ -1,7 +1,7 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Effect } from 'effect'
 
-import { flipSqlError } from '@app-template/db/testing-e2e'
+import { flipSqlError } from '@app-template/packages/db/testing-e2e'
 
 import { attachments } from '#kernel/data/attachment/attachment.table'
 import { Db } from '#kernel/data/db.client'

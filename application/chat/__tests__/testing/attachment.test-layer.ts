@@ -1,8 +1,8 @@
 import { Effect, Stream } from 'effect'
 
 import type { UserId } from '@app-template/identity-contract'
-import { AttachmentRepository } from '@app-template/kernel/data/attachment'
-import { png } from '@app-template/testing'
+import { AttachmentRepository } from '@app-template/kernel/data'
+import { png } from '@app-template/packages/testing'
 
 import type { AttachmentId } from '#domain/attachment.id'
 import { FileName, MediaType } from '#domain/attachment.model'

@@ -8,10 +8,12 @@ paths:
 
 ## Imports
 
-- **Inside a workspace:** `#<workspace>/<path>` (`#domain/<model>.model`), never `./`
-  or `../`.
+- **Inside a unit:** `#<workspace>/<path>` (`#domain/<model>.model`), never `./`
+  or `../`; another unit, even in the same workspace, only through its entry
+  (`@app-template/kernel/<part>`), never one of its files.
 - **Across workspaces:** `@app-template/<workspace>[/<subpath>]`, through the `exports` and the
-  `index.ts` barrels; `http-api` and each package one entry, the subpaths of the others:
+  `index.ts` barrels: a kernel part (`@app-template/kernel/<part>`) and a package
+  (`@app-template/packages/<name>`) one entry and its `/testing`, a module one per layer:
   [architecture.md › Imports](../../docs/knowledge/architecture.md#imports-workspace-vs-app-template);
   which may import which:
   [architecture.md › Dependency rules](../../docs/knowledge/architecture.md#dependency-rules).
@@ -63,7 +65,8 @@ barrels instead of copying them. Which folder, which support and which suite run
     (`build<Model>`); a pure transition is named for the status it moves to, as a verb
     (`ship<Model>` to `shipped`; `complete<Model>` to `done`, which no verb spells), which wins
     over this list;
-  - `generate`: an impure function that makes a fresh value (`generateId` in `@app-template/db`);
+  - `generate`: an impure function that makes a fresh value (`generateId` in
+    `@app-template/packages/db`);
   - `is` / `has`: a predicate;
   - `get`: a domain service's read over repositories, never a repository method; it answers the
     record or its `*NotFoundError`;

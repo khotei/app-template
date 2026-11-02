@@ -77,8 +77,8 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   `kernel/data/__e2e__/testing/e2e.test-setup.ts` starts one `postgres:18.6-alpine` container
   (about 1.2 s) and migrates a template database in it with `migrateDatabase(folder)`, as
   `make migrate` does, and one MiniStack container beside it (about two seconds for both). Each
-  test provides `PgClientTest` from `@app-template/testing`: a fresh database copied from the
-  template and dropped when the test ends, about 40 ms in all; a test on S3 or SQS provides
+  test provides `PgClientTest` from `@app-template/packages/testing`: a fresh database copied from
+  the template and dropped when the test ends, about 40 ms in all; a test on S3 or SQS provides
   `AwsTest` from `kernel/aws/__e2e__/testing/aws.test-layer.ts`: a stage of its own on the run's
   MiniStack, its bucket and queues provisioned
   ([aws.md › Tests on Docker](aws.md#tests-on-docker)). A test therefore sees only its own rows and
@@ -115,7 +115,8 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   real position only once the JIT compiles the code that builds the error. `Equal.equals` drops
   only `stack` from an `Error`, so two errors with equal fields differ at random, more often as the
   suite grows. Tests therefore compare errors with `assertSchemaEquals` from
-  `@app-template/testing`, which encodes both through the error's schema and sees only its fields.
+  `@app-template/packages/testing`, which encodes both through the error's schema and sees only
+  its fields.
 
 ## Run and debug
 
@@ -237,7 +238,7 @@ bun add --catalog=runtime zod@3.25.76      # add -d for a devDependency
 ```
 
 Bun writes `"zod": "3.25.76"` into the root `catalogs.runtime` and `"zod": "catalog:runtime"` into
-`packages/queue/package.json`. A second workspace that needs the same package declares
+`packages/package.json`. A second workspace that needs the same package declares
 `"zod": "catalog:runtime"` by hand and runs `bun install`.
 
 A dependency on another workspace is declared as `"@app-template/<name>": "workspace:*"`. Also add
@@ -259,12 +260,22 @@ its sources either way.
 4. Add the path to the root `tsconfig.json` `references`.
 5. Run `bun install` and `make check`.
 
-In `biome.json`, a new `packages/*` workspace joins the allow-lists of the `kernel/data/**`
+In `biome.json`, a new package joins the allow-lists of the `kernel/data/**`
 override and, if a module's services use it, of `application/*/services/**`; a new module joins
 every list that names the module packages (`grep -n '@app-template/identity/\*\*' biome.json`). A
 new layer or app needs its own `overrides` entry in `biome.json`; see
 [architecture.md › Boundary guards](architecture.md#boundary-guards) for what each
 entry repeats.
+
+### Add a package
+
+`packages/` is one workspace, `@app-template/packages`, and each folder in it a package with a
+`tsconfig.json` project of its own, so `tsc -b` still refuses a package importing another it does
+not reference (TS6059, TS6307): inside the workspace the import does not go through a symlink. A new
+package is a folder with its `index.ts`, an `exports` entry `./<name>` and an `imports` alias
+`"#<name>/*": "./<name>/*.ts"` in `packages/package.json`, its dependencies there, and a
+`tsconfig.json` like `packages/queue/tsconfig.json`, referenced from the root `tsconfig.json` and
+from every project that imports it.
 
 ### Upgrade versions
 

@@ -2,13 +2,12 @@ import { assert, describe, layer } from '@effect/vitest'
 import { S3Service } from '@effect-aws/client-s3'
 import { Effect, Layer, Option, Stream } from 'effect'
 
-import { png } from '@app-template/testing'
+import { buildResourceName, resources } from '@app-template/kernel/aws'
+import { AwsTest } from '@app-template/kernel/aws/testing-e2e'
+import { AwsConfig } from '@app-template/kernel/config'
+import { png } from '@app-template/packages/testing'
 
-import { buildResourceName } from '#kernel/aws/resources/naming'
-import { resources } from '#kernel/aws/resources/resources'
-import { AwsConfig } from '#kernel/config/config'
 import { FileRepository } from '#kernel/data/file/file.repository'
-import { AwsTest } from '#testing-e2e/aws/aws.test-layer'
 
 const fileId = (n: number) => `0192d4e0-7b3a-7c00-8000-${String(n).padStart(12, '0')}`
 

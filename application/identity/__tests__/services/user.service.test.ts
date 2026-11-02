@@ -6,7 +6,7 @@ import { Base64Url, Hex } from 'effect/encoding'
 
 import { UserUnknownError } from '@app-template/identity-contract'
 import { UserRepositoryTest, UserRows } from '@app-template/kernel/data/testing'
-import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/testing'
+import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
 import { Credential, SecretHash } from '#domain/user.model'
 import { type UserSecret, UserService } from '#services/user.service'

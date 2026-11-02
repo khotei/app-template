@@ -13,8 +13,8 @@ import {
   selectMessages,
   upload,
 } from '@app-template/chat/testing'
-import { FileRepository } from '@app-template/kernel/data/file'
-import { sortById } from '@app-template/testing'
+import { FileRepository } from '@app-template/kernel/data'
+import { sortById } from '@app-template/packages/testing'
 import { SendMessageUseCase } from '@app-template/use-cases/chat'
 
 import { ChatPgTest } from '#testing-e2e/chat.test-layer'
