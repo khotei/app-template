@@ -85,7 +85,7 @@
                       "@app-template/application/use-cases",
                       "@effect/**"
                     ],
-                    "message": "http-api is the HTTP boundary shared by the apps: it imports only effect and a module's entry, for its contract and its domain (decisions.md › HTTP outside the modules)"
+                    "message": "http-api is the HTTP boundary shared by the apps: it imports only effect and a module's entry, for its contract and its domain (decisions.md › HTTP outside the modules; Guards are configuration)"
                   },
                   {
                     "group": ["@app-template/application/*"],
@@ -118,7 +118,7 @@
                       "!@app-template/application/identity",
                       "@effect/**"
                     ],
-                    "message": "a module's domain is pure and ships to the browser: it imports no workspace but the entry of a module below it, and no @effect/* package (decisions.md › A module's layers; Module contracts)"
+                    "message": "a module's domain is pure and ships to the browser: it imports no workspace but the entry of a module below it, and no @effect/* package (decisions.md › A module's layers; Module contracts; Guards are configuration)"
                   },
                   {
                     "group": ["#*/services/**", "#*/infrastructure/**"],
@@ -163,7 +163,7 @@
                       "!@app-template/application/identity",
                       "@effect/**"
                     ],
-                    "message": "a module's services import no workspace but @app-template/packages/db for generateId and the mappers' codecs, @app-template/packages/aws and @app-template/packages/queue for the job definitions, the inventory (@app-template/kernel/aws), the data layer's stores (@app-template/kernel/data) and the entry of a module below it, and no @effect/* package: no module above it, no use case, no boundary part such as @app-template/kernel/llm (decisions.md › A module's layers; Module contracts; Use cases above the modules; The language model in the kernel)"
+                    "message": "a module's services import no workspace but @app-template/packages/db for generateId and the mappers' codecs, @app-template/packages/aws and @app-template/packages/queue for the job definitions, the inventory (@app-template/kernel/aws), the data layer's stores (@app-template/kernel/data) and the entry of a module below it, and no @effect/* package: no module above it, no use case, no boundary part such as @app-template/kernel/llm (decisions.md › A module's layers; Module contracts; Use cases above the modules; The language model in the kernel; Guards are configuration)"
                   },
                   {
                     "group": ["@app-template/kernel/aws"],
@@ -209,21 +209,13 @@
                 "patterns": [
                   {
                     "group": [
-                      "@app-template/application",
-                      "@app-template/application/**",
+                      "@app-template/**",
                       "!@app-template/application/identity",
-                      "@app-template/api",
-                      "@app-template/api/**",
-                      "@app-template/worker",
-                      "@app-template/worker/**",
-                      "@app-template/web",
-                      "@app-template/web/**",
-                      "@app-template/deployment",
-                      "@app-template/deployment/**",
-                      "@app-template/http-api",
-                      "@app-template/http-api/**"
+                      "!@app-template/kernel/*",
+                      "!@app-template/packages/*",
+                      "@app-template/packages/testing"
                     ],
-                    "message": "a module's infrastructure may import its domain, the entry of a module below it, the kernel and packages/*: no module above it, no use case, http-api, app or deployment (decisions.md › Module contracts; Use cases above the modules)"
+                    "message": "a module's infrastructure imports no workspace but the entry of a module below it, the kernel and packages/*: no module above it, no use case, http-api, app, deployment or test support (decisions.md › Module contracts; Use cases above the modules; Guards are configuration)"
                   },
                   {
                     "group": ["#*/services/**"],
@@ -272,7 +264,7 @@
                       "!@effect/platform-bun",
                       "!@effect/platform-bun/**"
                     ],
-                    "message": "a module's tests import no workspace but @app-template/packages/testing, the entry of a module below it, the data layer's memory repositories (@app-template/kernel/data/testing), the inventory (@app-template/kernel/aws) and the data layer's stores (@app-template/kernel/data) they arrange through, and no @effect/* package except the test runner @effect/vitest and @effect/platform-bun for BunCrypto.layer (decisions.md › A module's layers; Module contracts)"
+                    "message": "a module's tests import no workspace but @app-template/packages/testing, the entry of a module below it, the data layer's memory repositories (@app-template/kernel/data/testing), the inventory (@app-template/kernel/aws) and the data layer's stores (@app-template/kernel/data) they arrange through, and no @effect/* package except the test runner @effect/vitest and @effect/platform-bun for BunCrypto.layer (decisions.md › A module's layers; Module contracts; Guards are configuration)"
                   },
                   {
                     "group": ["@app-template/kernel/aws"],
@@ -328,7 +320,7 @@
                       "!@effect/vitest",
                       "!@effect/vitest/**"
                     ],
-                    "message": "a module's test support imports no workspace but @app-template/packages/testing, the entry of a module below it, the data layer's memory repositories (@app-template/kernel/data/testing) and its stores (@app-template/kernel/data) it arranges through, and no @effect/* package except the test runner @effect/vitest (decisions.md › A module's layers; Module contracts)"
+                    "message": "a module's test support imports no workspace but @app-template/packages/testing, the entry of a module below it, the data layer's memory repositories (@app-template/kernel/data/testing) and its stores (@app-template/kernel/data) it arranges through, and no @effect/* package except the test runner @effect/vitest (decisions.md › A module's layers; Module contracts; Guards are configuration)"
                   },
                   {
                     "group": ["@app-template/kernel/data"],
@@ -369,21 +361,13 @@
                 "patterns": [
                   {
                     "group": [
-                      "@app-template/application",
-                      "@app-template/application/**",
+                      "@app-template/**",
                       "!@app-template/application/identity",
-                      "@app-template/api",
-                      "@app-template/api/**",
-                      "@app-template/worker",
-                      "@app-template/worker/**",
-                      "@app-template/web",
-                      "@app-template/web/**",
-                      "@app-template/deployment",
-                      "@app-template/deployment/**",
-                      "@app-template/http-api",
-                      "@app-template/http-api/**"
+                      "!@app-template/kernel/*",
+                      "!@app-template/packages/*",
+                      "!@app-template/kernel/data/testing"
                     ],
-                    "message": "a module's infrastructure may import its domain, the entry of a module below it, the kernel and packages/*: no module above it, no use case, http-api, app or deployment (decisions.md › Module contracts; Use cases above the modules)"
+                    "message": "a module's infrastructure tests import no workspace but the entry of a module below it, the kernel, packages/* and the memory repositories (@app-template/kernel/data/testing): no module above it, no use case, http-api, app or deployment (decisions.md › Module contracts; Use cases above the modules; Guards are configuration)"
                   },
                   {
                     "group": ["#*/services/**"],
@@ -413,6 +397,38 @@
       }
     },
     {
+      "includes": ["application/chat/index.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@app-template/**"],
+                    "message": "a module's entry re-exports its own layers' barrels and imports no workspace (decisions.md › Imports through subpaths; Guards are configuration)"
+                  },
+                  {
+                    "group": ["#*/**", "!#chat/**"],
+                    "message": "a module reaches its own files through #<module>/… and another module or the use cases only through its entry, @app-template/application/<unit> or its /testing, never one of its files (decisions.md › Imports through subpaths)"
+                  },
+                  {
+                    "group": ["#testing/**"],
+                    "message": "a module's source imports no test support, its own neither (decisions.md › Tests in their folders)"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["application/identity/contract/**"],
       "linter": {
         "rules": {
@@ -423,7 +439,7 @@
                 "patterns": [
                   {
                     "group": ["@app-template/**", "@effect/**"],
-                    "message": "a module contract imports no workspace and no @effect/* package: every consumer of the module reads it (decisions.md › Module contracts)"
+                    "message": "a module contract imports no workspace and no @effect/* package: every consumer of the module reads it (decisions.md › Module contracts; Guards are configuration)"
                   },
                   {
                     "group": ["#*/**", "!#identity/contract/**"],
@@ -451,7 +467,7 @@
                 "patterns": [
                   {
                     "group": ["@app-template/**", "@effect/**"],
-                    "message": "a module's domain is pure and ships to the browser: it imports no workspace but the entry of a module below it, and no @effect/* package (decisions.md › A module's layers; Module contracts)"
+                    "message": "a module's domain is pure and ships to the browser: it imports no workspace but the entry of a module below it, and no @effect/* package (decisions.md › A module's layers; Module contracts; Guards are configuration)"
                   },
                   {
                     "group": ["#*/services/**", "#*/infrastructure/**"],
@@ -495,7 +511,7 @@
                       "!@app-template/kernel/data",
                       "@effect/**"
                     ],
-                    "message": "a module's services import no workspace but @app-template/packages/db for generateId and the mappers' codecs, @app-template/packages/aws and @app-template/packages/queue for the job definitions, the inventory (@app-template/kernel/aws), the data layer's stores (@app-template/kernel/data) and the entry of a module below it, and no @effect/* package: no module above it, no use case, no boundary part such as @app-template/kernel/llm (decisions.md › A module's layers; Module contracts; Use cases above the modules; The language model in the kernel)"
+                    "message": "a module's services import no workspace but @app-template/packages/db for generateId and the mappers' codecs, @app-template/packages/aws and @app-template/packages/queue for the job definitions, the inventory (@app-template/kernel/aws), the data layer's stores (@app-template/kernel/data) and the entry of a module below it, and no @effect/* package: no module above it, no use case, no boundary part such as @app-template/kernel/llm (decisions.md › A module's layers; Module contracts; Use cases above the modules; The language model in the kernel; Guards are configuration)"
                   },
                   {
                     "group": ["@app-template/kernel/aws"],
@@ -553,7 +569,7 @@
                       "!@effect/platform-bun",
                       "!@effect/platform-bun/**"
                     ],
-                    "message": "a module's tests import no workspace but @app-template/packages/testing, the entry of a module below it, the data layer's memory repositories (@app-template/kernel/data/testing), the inventory (@app-template/kernel/aws) and the data layer's stores (@app-template/kernel/data) they arrange through, and no @effect/* package except the test runner @effect/vitest and @effect/platform-bun for BunCrypto.layer (decisions.md › A module's layers; Module contracts)"
+                    "message": "a module's tests import no workspace but @app-template/packages/testing, the entry of a module below it, the data layer's memory repositories (@app-template/kernel/data/testing), the inventory (@app-template/kernel/aws) and the data layer's stores (@app-template/kernel/data) they arrange through, and no @effect/* package except the test runner @effect/vitest and @effect/platform-bun for BunCrypto.layer (decisions.md › A module's layers; Module contracts; Guards are configuration)"
                   },
                   {
                     "group": ["@app-template/kernel/aws"],
@@ -589,6 +605,38 @@
       }
     },
     {
+      "includes": ["application/identity/index.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@app-template/**"],
+                    "message": "a module's entry re-exports its own layers' barrels and imports no workspace (decisions.md › Imports through subpaths; Guards are configuration)"
+                  },
+                  {
+                    "group": ["#*/**", "!#identity/**"],
+                    "message": "a module reaches its own files through #<module>/… and another module or the use cases only through its entry, @app-template/application/<unit> or its /testing, never one of its files (decisions.md › Imports through subpaths)"
+                  },
+                  {
+                    "group": ["#testing/**"],
+                    "message": "a module's source imports no test support, its own neither (decisions.md › Tests in their folders)"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["application/use-cases/**"],
       "linter": {
         "rules": {
@@ -599,18 +647,14 @@
                 "patterns": [
                   {
                     "group": [
-                      "@app-template/api",
-                      "@app-template/api/**",
-                      "@app-template/worker",
-                      "@app-template/worker/**",
-                      "@app-template/web",
-                      "@app-template/web/**",
-                      "@app-template/deployment",
-                      "@app-template/deployment/**",
-                      "@app-template/http-api",
-                      "@app-template/http-api/**"
+                      "@app-template/**",
+                      "!@app-template/application/chat",
+                      "!@app-template/application/identity",
+                      "!@app-template/kernel/data",
+                      "!@app-template/packages/*",
+                      "@app-template/packages/testing"
                     ],
-                    "message": "use cases sit under http-api, the apps and deployment and import none of them (decisions.md › Use cases above the modules)"
+                    "message": "the use cases import no workspace but a module's entry, the data layer (@app-template/kernel/data) and packages/*: no http-api, app or deployment above them, no boundary part of the kernel (/config, /postgres, /aws, /queue, /llm), which the processes provide (decisions.md › Use cases above the modules; Clients from the context; Guards are configuration)"
                   },
                   {
                     "group": [
@@ -619,15 +663,6 @@
                       "#testing/**"
                     ],
                     "message": "a use case's source imports no test support (@app-template/<unit>/testing and …/testing/e2e, #testing/…): only its __tests__/ do (decisions.md › Tests in their folders)"
-                  },
-                  {
-                    "group": [
-                      "@app-template/kernel",
-                      "@app-template/kernel/**",
-                      "!@app-template/kernel/data",
-                      "!@app-template/kernel/data/**"
-                    ],
-                    "message": "a use case imports only the kernel's data layer (@app-template/kernel/data), never its boundary (/config, /postgres, /aws, /queue, /llm): the processes provide the clients (decisions.md › Clients from the context)"
                   },
                   {
                     "group": [
@@ -661,27 +696,16 @@
                 "patterns": [
                   {
                     "group": [
-                      "@app-template/api",
-                      "@app-template/api/**",
-                      "@app-template/worker",
-                      "@app-template/worker/**",
-                      "@app-template/web",
-                      "@app-template/web/**",
-                      "@app-template/deployment",
-                      "@app-template/deployment/**",
-                      "@app-template/http-api",
-                      "@app-template/http-api/**"
-                    ],
-                    "message": "use cases sit under http-api, the apps and deployment and import none of them (decisions.md › Use cases above the modules)"
-                  },
-                  {
-                    "group": [
-                      "@app-template/kernel",
-                      "@app-template/kernel/**",
+                      "@app-template/**",
+                      "!@app-template/application/chat",
+                      "!@app-template/application/identity",
                       "!@app-template/kernel/data",
-                      "!@app-template/kernel/data/**"
+                      "!@app-template/packages/*",
+                      "!@app-template/application/chat/testing",
+                      "!@app-template/kernel/data/testing",
+                      "!@app-template/packages/*/testing"
                     ],
-                    "message": "a use case imports only the kernel's data layer (@app-template/kernel/data), never its boundary (/config, /postgres, /aws, /queue, /llm): the processes provide the clients (decisions.md › Clients from the context)"
+                    "message": "the use cases import no workspace but a module's entry, the data layer (@app-template/kernel/data) and packages/*, and their test support: no http-api, app or deployment above them, no boundary part of the kernel (/config, /postgres, /aws, /queue, /llm), which the processes provide (decisions.md › Use cases above the modules; Clients from the context; Guards are configuration)"
                   },
                   {
                     "group": [
@@ -723,20 +747,11 @@
                 "patterns": [
                   {
                     "group": [
-                      "@app-template/application",
-                      "@app-template/application/**",
-                      "@app-template/api",
-                      "@app-template/api/**",
-                      "@app-template/worker",
-                      "@app-template/worker/**",
-                      "@app-template/web",
-                      "@app-template/web/**",
-                      "@app-template/deployment",
-                      "@app-template/deployment/**",
-                      "@app-template/http-api",
-                      "@app-template/http-api/**"
+                      "@app-template/**",
+                      "!@app-template/packages/*",
+                      "@app-template/packages/testing"
                     ],
-                    "message": "the kernel holds this app's tools and data: it may import only packages/*, never a module, a contract, a use case, http-api or an app (decisions.md › One kernel)"
+                    "message": "a kernel part with no override of its own imports no workspace but packages/*: the kernel imports no module, contract, use case, http-api or app, and a part only the parts below it (decisions.md › One kernel; Guards are configuration)"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -761,22 +776,10 @@
                   {
                     "group": [
                       "@app-template/**",
-                      "!@app-template/packages/aws",
-                      "!@app-template/packages/aws/**",
-                      "!@app-template/packages/db",
-                      "!@app-template/packages/db/**",
-                      "!@app-template/packages/llm",
-                      "!@app-template/packages/llm/**",
-                      "!@app-template/packages/queue",
-                      "!@app-template/packages/queue/**",
-                      "!@app-template/packages/s3",
-                      "!@app-template/packages/s3/**",
-                      "!@app-template/packages/testing",
-                      "!@app-template/packages/testing/**",
-                      "!@app-template/packages/ui",
-                      "!@app-template/packages/ui/**"
+                      "!@app-template/packages/*",
+                      "@app-template/packages/testing"
                     ],
-                    "message": "the data layer imports no workspace but packages/*: no module or model, no other kernel part such as @app-template/kernel/config (decisions.md › The data at the centre; Clients from the context)"
+                    "message": "the data layer imports no workspace but packages/*: no module or model, no other kernel part such as @app-template/kernel/config (decisions.md › The data at the centre; Clients from the context; Guards are configuration)"
                   },
                   {
                     "group": ["#kernel/**", "!#kernel/data/**"],
@@ -804,20 +807,11 @@
                 "patterns": [
                   {
                     "group": [
-                      "@app-template/application",
-                      "@app-template/application/**",
-                      "@app-template/api",
-                      "@app-template/api/**",
-                      "@app-template/worker",
-                      "@app-template/worker/**",
-                      "@app-template/web",
-                      "@app-template/web/**",
-                      "@app-template/deployment",
-                      "@app-template/deployment/**",
-                      "@app-template/http-api",
-                      "@app-template/http-api/**"
+                      "@app-template/**",
+                      "!@app-template/packages/*",
+                      "!@app-template/packages/*/testing"
                     ],
-                    "message": "the kernel holds this app's tools and data: it may import only packages/*, never a module, a contract, a use case, http-api or an app (decisions.md › One kernel)"
+                    "message": "the tests of a kernel part with no override of their own import no workspace but packages/* and their test support: the kernel imports no module, contract, use case, http-api or app, and a part only the parts below it (decisions.md › One kernel; Guards are configuration)"
                   },
                   {
                     "group": [
@@ -850,22 +844,10 @@
                   {
                     "group": [
                       "@app-template/**",
-                      "!@app-template/packages/aws",
-                      "!@app-template/packages/aws/**",
-                      "!@app-template/packages/db",
-                      "!@app-template/packages/db/**",
-                      "!@app-template/packages/llm",
-                      "!@app-template/packages/llm/**",
-                      "!@app-template/packages/queue",
-                      "!@app-template/packages/queue/**",
-                      "!@app-template/packages/s3",
-                      "!@app-template/packages/s3/**",
-                      "!@app-template/packages/testing",
-                      "!@app-template/packages/testing/**",
-                      "!@app-template/packages/ui",
-                      "!@app-template/packages/ui/**"
+                      "!@app-template/packages/*",
+                      "!@app-template/packages/*/testing"
                     ],
-                    "message": "the data layer and its memory repositories import no workspace but packages/*: no module or model, no other kernel part such as @app-template/kernel/config (decisions.md › The data at the centre; Clients from the context)"
+                    "message": "the data layer and its memory repositories import no workspace but packages/*: no module or model, no other kernel part such as @app-template/kernel/config (decisions.md › The data at the centre; Clients from the context; Guards are configuration)"
                   },
                   {
                     "group": ["#kernel/**", "!#kernel/data/**"],
@@ -901,20 +883,12 @@
                 "patterns": [
                   {
                     "group": [
-                      "@app-template/application",
-                      "@app-template/application/**",
-                      "@app-template/api",
-                      "@app-template/api/**",
-                      "@app-template/worker",
-                      "@app-template/worker/**",
-                      "@app-template/web",
-                      "@app-template/web/**",
-                      "@app-template/deployment",
-                      "@app-template/deployment/**",
-                      "@app-template/http-api",
-                      "@app-template/http-api/**"
+                      "@app-template/**",
+                      "!@app-template/packages/*",
+                      "!@app-template/packages/*/testing",
+                      "!@app-template/packages/*/testing/e2e"
                     ],
-                    "message": "the kernel holds this app's tools and data: it may import only packages/*, never a module, a contract, a use case, http-api or an app (decisions.md › One kernel)"
+                    "message": "the e2e of a kernel part with no override of their own import no workspace but packages/* and their test support: the kernel imports no module, contract, use case, http-api or app, and a part only the parts below it (decisions.md › One kernel; Guards are configuration)"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -943,10 +917,12 @@
                   {
                     "group": [
                       "@app-template/**",
-                      "!@app-template/kernel/**",
-                      "!@app-template/packages/**"
+                      "!@app-template/kernel/config",
+                      "!@app-template/packages/*",
+                      "@app-template/packages/testing",
+                      "!@app-template/packages/*/testing/e2e"
                     ],
-                    "message": "the kernel holds this app's tools and data: it may import only packages/*, never a module, a contract, a use case, http-api or an app (decisions.md › One kernel)"
+                    "message": "kernel/aws and its e2e support import no workspace but packages/*, the e2e support of packages/* and of the kernel /config: the kernel imports no module, contract, use case, http-api or app, and a part only the parts below it (decisions.md › One kernel; Guards are configuration)"
                   },
                   {
                     "group": ["#kernel/**", "!#kernel/aws/**", "#testing/**", "!#testing/aws/**"],
@@ -975,10 +951,11 @@
                   {
                     "group": [
                       "@app-template/**",
-                      "!@app-template/kernel/**",
-                      "!@app-template/packages/**"
+                      "!@app-template/kernel/config",
+                      "!@app-template/packages/*",
+                      "@app-template/packages/testing"
                     ],
-                    "message": "the kernel holds this app's tools and data: it may import only packages/*, never a module, a contract, a use case, http-api or an app (decisions.md › One kernel)"
+                    "message": "kernel/llm imports no workspace but packages/* and of the kernel /config: the kernel imports no module, contract, use case, http-api or app, and a part only the parts below it (decisions.md › One kernel; Guards are configuration)"
                   },
                   {
                     "group": ["#kernel/**", "!#kernel/llm/**", "#testing/**", "!#testing/llm/**"],
@@ -1007,10 +984,13 @@
                   {
                     "group": [
                       "@app-template/**",
-                      "!@app-template/kernel/**",
-                      "!@app-template/packages/**"
+                      "!@app-template/kernel/config",
+                      "!@app-template/kernel/data",
+                      "!@app-template/packages/*",
+                      "!@app-template/packages/*/testing",
+                      "!@app-template/packages/*/testing/e2e"
                     ],
-                    "message": "the kernel holds this app's tools and data: it may import only packages/*, never a module, a contract, a use case, http-api or an app (decisions.md › One kernel)"
+                    "message": "kernel/postgres and its e2e import no workspace but packages/* and their test support, and of the kernel /config and /data: the kernel imports no module, contract, use case, http-api or app, and a part only the parts below it (decisions.md › One kernel; Guards are configuration)"
                   },
                   {
                     "group": [
@@ -1044,10 +1024,16 @@
                   {
                     "group": [
                       "@app-template/**",
-                      "!@app-template/kernel/**",
-                      "!@app-template/packages/**"
+                      "!@app-template/kernel/aws",
+                      "!@app-template/kernel/aws/testing/e2e",
+                      "!@app-template/kernel/config",
+                      "!@app-template/kernel/data",
+                      "!@app-template/kernel/data/testing/e2e",
+                      "!@app-template/packages/*",
+                      "!@app-template/packages/*/testing",
+                      "!@app-template/packages/*/testing/e2e"
                     ],
-                    "message": "the kernel holds this app's tools and data: it may import only packages/*, never a module, a contract, a use case, http-api or an app (decisions.md › One kernel)"
+                    "message": "kernel/queue and its e2e import no workspace but packages/* and their test support, and of the kernel /config, /aws and /data with their e2e support: the kernel imports no module, contract, use case, http-api or app, and a part only the parts below it (decisions.md › One kernel; Guards are configuration)"
                   },
                   {
                     "group": [
@@ -1081,10 +1067,10 @@
                   {
                     "group": [
                       "@app-template/**",
-                      "!@app-template/kernel/**",
-                      "!@app-template/packages/**"
+                      "!@app-template/packages/*",
+                      "!@app-template/packages/*/testing"
                     ],
-                    "message": "the kernel holds this app's tools and data: it may import only packages/*, never a module, a contract, a use case, http-api or an app (decisions.md › One kernel)"
+                    "message": "kernel/config and its tests import no workspace but packages/* and their test support: the kernel imports no module, contract, use case, http-api or app, and a part only the parts below it (decisions.md › One kernel; Guards are configuration)"
                   },
                   {
                     "group": [
@@ -1126,10 +1112,14 @@
                   {
                     "group": [
                       "@app-template/**",
-                      "!@app-template/kernel/**",
-                      "!@app-template/packages/**"
+                      "!@app-template/kernel/aws",
+                      "!@app-template/kernel/aws/testing/e2e",
+                      "!@app-template/kernel/config",
+                      "!@app-template/packages/*",
+                      "!@app-template/packages/*/testing",
+                      "!@app-template/packages/*/testing/e2e"
                     ],
-                    "message": "the kernel holds this app's tools and data: it may import only packages/*, never a module, a contract, a use case, http-api or an app (decisions.md › One kernel)"
+                    "message": "the e2e of the data layer and their support import no workspace but packages/* and their test support, and of the kernel /config and /aws with its e2e support, from which they build the stores' clients: the kernel imports no module, contract, use case, http-api or app, and a part only the parts below it (decisions.md › One kernel; Guards are configuration)"
                   },
                   {
                     "group": ["#kernel/**", "!#kernel/data/**", "#testing/**", "!#testing/data/**"],
@@ -1156,23 +1146,8 @@
               "options": {
                 "patterns": [
                   {
-                    "group": [
-                      "@app-template/kernel",
-                      "@app-template/kernel/**",
-                      "@app-template/application",
-                      "@app-template/application/**",
-                      "@app-template/api",
-                      "@app-template/api/**",
-                      "@app-template/worker",
-                      "@app-template/worker/**",
-                      "@app-template/web",
-                      "@app-template/web/**",
-                      "@app-template/deployment",
-                      "@app-template/deployment/**",
-                      "@app-template/http-api",
-                      "@app-template/http-api/**"
-                    ],
-                    "message": "packages/* are generic: they may import each other, but never the kernel, a module, a contract, a use case, http-api or an app (decisions.md › One kernel)"
+                    "group": ["@app-template/**"],
+                    "message": "a package with no override of its own imports no workspace but none: a package is generic and imports no kernel, module, contract, use case, http-api or app, and a package only the packages below it (decisions.md › One kernel; Guards are configuration)"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -1195,23 +1170,8 @@
               "options": {
                 "patterns": [
                   {
-                    "group": [
-                      "@app-template/kernel",
-                      "@app-template/kernel/**",
-                      "@app-template/application",
-                      "@app-template/application/**",
-                      "@app-template/api",
-                      "@app-template/api/**",
-                      "@app-template/worker",
-                      "@app-template/worker/**",
-                      "@app-template/web",
-                      "@app-template/web/**",
-                      "@app-template/deployment",
-                      "@app-template/deployment/**",
-                      "@app-template/http-api",
-                      "@app-template/http-api/**"
-                    ],
-                    "message": "packages/* are generic: they may import each other, but never the kernel, a module, a contract, a use case, http-api or an app (decisions.md › One kernel)"
+                    "group": ["@app-template/**", "!@app-template/packages/testing"],
+                    "message": "the tests of a package with no override of their own import no workspace but @app-template/packages/testing: a package is generic and imports no kernel, module, contract, use case, http-api or app, and a package only the packages below it (decisions.md › One kernel; Guards are configuration)"
                   },
                   {
                     "group": [
@@ -1220,6 +1180,352 @@
                       "@app-template/**/testing/e2e/**"
                     ],
                     "message": "a unit test and its support import no e2e support (#testing/<unit>/e2e/…, @app-template/<unit>/testing/e2e): unit tests run with no container (decisions.md › Tests in their folders)"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "packages/aws/**",
+        "!packages/aws/__tests__/**",
+        "packages/aws/__tests__/testing/e2e/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@app-template/**"],
+                    "message": "packages/aws imports no workspace but none: a package is generic and imports no kernel, module, contract, use case, http-api or app, and a package only the packages below it (decisions.md › One kernel; Guards are configuration)"
+                  },
+                  {
+                    "group": ["#*/**", "!#aws/**", "!#testing/aws/**"],
+                    "message": "a package reaches its own files through #<package>/… and another package only through its entry, @app-template/packages/<package> or its /testing, never one of its files (decisions.md › Imports through subpaths)"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/aws/__tests__/**", "!packages/aws/__tests__/testing/e2e/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@app-template/**", "!@app-template/packages/testing"],
+                    "message": "the tests of packages/aws import no workspace but @app-template/packages/testing: a package is generic and imports no kernel, module, contract, use case, http-api or app, and a package only the packages below it (decisions.md › One kernel; Guards are configuration)"
+                  },
+                  {
+                    "group": [
+                      "#testing/*/e2e/**",
+                      "@app-template/**/testing/e2e",
+                      "@app-template/**/testing/e2e/**"
+                    ],
+                    "message": "a unit test and its support import no e2e support (#testing/<unit>/e2e/…, @app-template/<unit>/testing/e2e): unit tests run with no container (decisions.md › Tests in their folders)"
+                  },
+                  {
+                    "group": ["#*/**", "!#aws/**", "!#testing/aws/**"],
+                    "message": "a package reaches its own files through #<package>/… and another package only through its entry, @app-template/packages/<package> or its /testing, never one of its files (decisions.md › Imports through subpaths)"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "packages/db/**",
+        "!packages/db/__tests__/**",
+        "packages/db/__tests__/testing/e2e/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@app-template/**", "!@app-template/packages/testing"],
+                    "message": "packages/db imports no workspace but @app-template/packages/testing, for its e2e support: a package is generic and imports no kernel, module, contract, use case, http-api or app, and a package only the packages below it (decisions.md › One kernel; Guards are configuration)"
+                  },
+                  {
+                    "group": ["#*/**", "!#db/**", "!#testing/db/**"],
+                    "message": "a package reaches its own files through #<package>/… and another package only through its entry, @app-template/packages/<package> or its /testing, never one of its files (decisions.md › Imports through subpaths)"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/db/__tests__/**", "!packages/db/__tests__/testing/e2e/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@app-template/**", "!@app-template/packages/testing"],
+                    "message": "the tests of packages/db import no workspace but @app-template/packages/testing: a package is generic and imports no kernel, module, contract, use case, http-api or app, and a package only the packages below it (decisions.md › One kernel; Guards are configuration)"
+                  },
+                  {
+                    "group": [
+                      "#testing/*/e2e/**",
+                      "@app-template/**/testing/e2e",
+                      "@app-template/**/testing/e2e/**"
+                    ],
+                    "message": "a unit test and its support import no e2e support (#testing/<unit>/e2e/…, @app-template/<unit>/testing/e2e): unit tests run with no container (decisions.md › Tests in their folders)"
+                  },
+                  {
+                    "group": ["#*/**", "!#db/**", "!#testing/db/**"],
+                    "message": "a package reaches its own files through #<package>/… and another package only through its entry, @app-template/packages/<package> or its /testing, never one of its files (decisions.md › Imports through subpaths)"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "packages/llm/**",
+        "!packages/llm/__tests__/**",
+        "packages/llm/__tests__/testing/e2e/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@app-template/**"],
+                    "message": "packages/llm imports no workspace but none: a package is generic and imports no kernel, module, contract, use case, http-api or app, and a package only the packages below it (decisions.md › One kernel; Guards are configuration)"
+                  },
+                  {
+                    "group": ["#*/**", "!#llm/**", "!#testing/llm/**"],
+                    "message": "a package reaches its own files through #<package>/… and another package only through its entry, @app-template/packages/<package> or its /testing, never one of its files (decisions.md › Imports through subpaths)"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "packages/queue/**",
+        "!packages/queue/__tests__/**",
+        "packages/queue/__tests__/testing/e2e/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/**",
+                      "!@app-template/packages/aws",
+                      "!@app-template/packages/aws/testing/e2e",
+                      "!@app-template/packages/testing"
+                    ],
+                    "message": "packages/queue imports no workspace but @app-template/packages/aws and in its e2e its e2e support and @app-template/packages/testing: a package is generic and imports no kernel, module, contract, use case, http-api or app, and a package only the packages below it (decisions.md › One kernel; Guards are configuration)"
+                  },
+                  {
+                    "group": ["#*/**", "!#queue/**", "!#testing/queue/**"],
+                    "message": "a package reaches its own files through #<package>/… and another package only through its entry, @app-template/packages/<package> or its /testing, never one of its files (decisions.md › Imports through subpaths)"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/queue/__tests__/**", "!packages/queue/__tests__/testing/e2e/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/**",
+                      "!@app-template/packages/aws",
+                      "!@app-template/packages/testing"
+                    ],
+                    "message": "the tests of packages/queue import no workspace but @app-template/packages/aws, @app-template/packages/testing: a package is generic and imports no kernel, module, contract, use case, http-api or app, and a package only the packages below it (decisions.md › One kernel; Guards are configuration)"
+                  },
+                  {
+                    "group": [
+                      "#testing/*/e2e/**",
+                      "@app-template/**/testing/e2e",
+                      "@app-template/**/testing/e2e/**"
+                    ],
+                    "message": "a unit test and its support import no e2e support (#testing/<unit>/e2e/…, @app-template/<unit>/testing/e2e): unit tests run with no container (decisions.md › Tests in their folders)"
+                  },
+                  {
+                    "group": ["#*/**", "!#queue/**", "!#testing/queue/**"],
+                    "message": "a package reaches its own files through #<package>/… and another package only through its entry, @app-template/packages/<package> or its /testing, never one of its files (decisions.md › Imports through subpaths)"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "packages/s3/**",
+        "!packages/s3/__tests__/**",
+        "packages/s3/__tests__/testing/e2e/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/**",
+                      "!@app-template/packages/aws",
+                      "!@app-template/packages/aws/testing/e2e",
+                      "!@app-template/packages/testing"
+                    ],
+                    "message": "packages/s3 imports no workspace but @app-template/packages/aws and in its e2e its e2e support and @app-template/packages/testing: a package is generic and imports no kernel, module, contract, use case, http-api or app, and a package only the packages below it (decisions.md › One kernel; Guards are configuration)"
+                  },
+                  {
+                    "group": ["#*/**", "!#s3/**", "!#testing/s3/**"],
+                    "message": "a package reaches its own files through #<package>/… and another package only through its entry, @app-template/packages/<package> or its /testing, never one of its files (decisions.md › Imports through subpaths)"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "packages/testing/**",
+        "!packages/testing/__tests__/**",
+        "packages/testing/__tests__/testing/e2e/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@app-template/**"],
+                    "message": "packages/testing imports no workspace but none: a package is generic and imports no kernel, module, contract, use case, http-api or app, and a package only the packages below it (decisions.md › One kernel; Guards are configuration)"
+                  },
+                  {
+                    "group": ["#*/**", "!#testing/*"],
+                    "message": "a package reaches its own files through #<package>/… and another package only through its entry, @app-template/packages/<package> or its /testing, never one of its files (decisions.md › Imports through subpaths)"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "packages/ui/**",
+        "!packages/ui/__tests__/**",
+        "packages/ui/__tests__/testing/e2e/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@app-template/**"],
+                    "message": "packages/ui imports no workspace but none: a package is generic and imports no kernel, module, contract, use case, http-api or app, and a package only the packages below it (decisions.md › One kernel; Guards are configuration)"
+                  },
+                  {
+                    "group": ["#*/**", "!#ui/**", "!#testing/ui/**"],
+                    "message": "a package reaches its own files through #<package>/… and another package only through its entry, @app-template/packages/<package> or its /testing, never one of its files (decisions.md › Imports through subpaths)"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -1243,14 +1549,14 @@
                 "patterns": [
                   {
                     "group": [
-                      "@app-template/worker",
-                      "@app-template/worker/**",
-                      "@app-template/web",
-                      "@app-template/web/**",
-                      "@app-template/deployment",
-                      "@app-template/deployment/**"
+                      "@app-template/**",
+                      "!@app-template/application/*",
+                      "!@app-template/http-api",
+                      "!@app-template/kernel/*",
+                      "!@app-template/packages/*",
+                      "@app-template/packages/testing"
                     ],
-                    "message": "apps are independent: api must not import another app (decisions.md › Independent apps)"
+                    "message": "apps/api imports no workspace but the modules' and the use cases' entries, http-api, the kernel and packages/*: the apps never import each other or deployment (decisions.md › Independent apps; Guards are configuration)"
                   },
                   {
                     "group": ["@app-template/kernel/data", "@app-template/kernel/data/**"],
@@ -1283,14 +1589,14 @@
                 "patterns": [
                   {
                     "group": [
-                      "@app-template/worker",
-                      "@app-template/worker/**",
-                      "@app-template/web",
-                      "@app-template/web/**",
-                      "@app-template/deployment",
-                      "@app-template/deployment/**"
+                      "@app-template/**",
+                      "!@app-template/application/*",
+                      "!@app-template/http-api",
+                      "!@app-template/kernel/*",
+                      "!@app-template/packages/*",
+                      "@app-template/packages/testing"
                     ],
-                    "message": "apps are independent: api must not import another app (decisions.md › Independent apps)"
+                    "message": "apps/api imports no workspace but the modules' and the use cases' entries, http-api, the kernel and packages/*: the apps never import each other or deployment (decisions.md › Independent apps; Guards are configuration)"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -1314,14 +1620,16 @@
                 "patterns": [
                   {
                     "group": [
-                      "@app-template/worker",
-                      "@app-template/worker/**",
-                      "@app-template/web",
-                      "@app-template/web/**",
-                      "@app-template/deployment",
-                      "@app-template/deployment/**"
+                      "@app-template/**",
+                      "!@app-template/application/*",
+                      "!@app-template/http-api",
+                      "!@app-template/kernel/*",
+                      "!@app-template/packages/*",
+                      "!@app-template/application/*/testing",
+                      "!@app-template/kernel/*/testing",
+                      "!@app-template/packages/*/testing"
                     ],
-                    "message": "apps are independent: api must not import another app (decisions.md › Independent apps)"
+                    "message": "the tests of apps/api import no workspace but the modules' and the use cases' entries, http-api, the kernel and packages/* and their test support: the apps never import each other or deployment (decisions.md › Independent apps; Guards are configuration)"
                   },
                   {
                     "group": [
@@ -1366,16 +1674,13 @@
                 "patterns": [
                   {
                     "group": [
-                      "@app-template/api",
-                      "@app-template/api/**",
-                      "@app-template/web",
-                      "@app-template/web/**",
-                      "@app-template/deployment",
-                      "@app-template/deployment/**",
-                      "@app-template/http-api",
-                      "@app-template/http-api/**"
+                      "@app-template/**",
+                      "!@app-template/application/*",
+                      "!@app-template/kernel/*",
+                      "!@app-template/packages/*",
+                      "@app-template/packages/testing"
                     ],
-                    "message": "apps are independent: worker must not import another app (decisions.md › Independent apps)"
+                    "message": "apps/worker imports no workspace but the modules' and the use cases' entries, the kernel and packages/*: the apps never import each other or deployment (decisions.md › Independent apps; Guards are configuration)"
                   },
                   {
                     "group": ["@app-template/kernel/data", "@app-template/kernel/data/**"],
@@ -1408,16 +1713,13 @@
                 "patterns": [
                   {
                     "group": [
-                      "@app-template/api",
-                      "@app-template/api/**",
-                      "@app-template/web",
-                      "@app-template/web/**",
-                      "@app-template/deployment",
-                      "@app-template/deployment/**",
-                      "@app-template/http-api",
-                      "@app-template/http-api/**"
+                      "@app-template/**",
+                      "!@app-template/application/*",
+                      "!@app-template/kernel/*",
+                      "!@app-template/packages/*",
+                      "@app-template/packages/testing"
                     ],
-                    "message": "apps are independent: worker must not import another app (decisions.md › Independent apps)"
+                    "message": "apps/worker imports no workspace but the modules' and the use cases' entries, the kernel and packages/*: the apps never import each other or deployment (decisions.md › Independent apps; Guards are configuration)"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -1441,16 +1743,15 @@
                 "patterns": [
                   {
                     "group": [
-                      "@app-template/api",
-                      "@app-template/api/**",
-                      "@app-template/web",
-                      "@app-template/web/**",
-                      "@app-template/deployment",
-                      "@app-template/deployment/**",
-                      "@app-template/http-api",
-                      "@app-template/http-api/**"
+                      "@app-template/**",
+                      "!@app-template/application/*",
+                      "!@app-template/kernel/*",
+                      "!@app-template/packages/*",
+                      "!@app-template/application/*/testing",
+                      "!@app-template/kernel/*/testing",
+                      "!@app-template/packages/*/testing"
                     ],
-                    "message": "apps are independent: worker must not import another app (decisions.md › Independent apps)"
+                    "message": "the tests of apps/worker import no workspace but the modules' and the use cases' entries, the kernel and packages/* and their test support: the apps never import each other or deployment (decisions.md › Independent apps; Guards are configuration)"
                   },
                   {
                     "group": [
@@ -1501,7 +1802,7 @@
                       "!@app-template/packages/ui",
                       "!@app-template/packages/ui/**"
                     ],
-                    "message": "web client code may import only @app-template/http-api and @app-template/packages/ui: it ships to the browser (decisions.md › HTTP outside the modules)"
+                    "message": "web client code may import only @app-template/http-api and @app-template/packages/ui: it ships to the browser (decisions.md › HTTP outside the modules; Guards are configuration)"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -1530,7 +1831,7 @@
                       "!@app-template/packages/ui/**",
                       "!@app-template/kernel/config"
                     ],
-                    "message": "the web server entry imports only @app-template/packages/ui and @app-template/kernel/config of our workspaces, never @app-template/http-api (decisions.md › HTTP outside the modules)"
+                    "message": "the web server entry imports only @app-template/packages/ui and @app-template/kernel/config of our workspaces, never @app-template/http-api (decisions.md › HTTP outside the modules; Guards are configuration)"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -1554,23 +1855,14 @@
                 "patterns": [
                   {
                     "group": [
-                      "@app-template/application",
-                      "@app-template/application/**",
-                      "@app-template/api",
-                      "@app-template/api/**",
-                      "@app-template/worker",
-                      "@app-template/worker/**",
-                      "@app-template/web",
-                      "@app-template/web/**",
-                      "@app-template/http-api",
-                      "@app-template/http-api/**",
-                      "@app-template/kernel",
-                      "@app-template/kernel/**",
-                      "!@app-template/kernel/config",
+                      "@app-template/**",
                       "!@app-template/kernel/aws",
-                      "!@app-template/kernel/data"
+                      "!@app-template/kernel/config",
+                      "!@app-template/kernel/data",
+                      "!@app-template/packages/*",
+                      "@app-template/packages/testing"
                     ],
-                    "message": "deployment may import only packages/* and of the kernel its config, the inventory (/aws) and the files' key (/data) (decisions.md › One kernel; Files in the data layer)"
+                    "message": "deployment may import only packages/* and of the kernel its config, the inventory (/aws) and the files' key (/data) (decisions.md › One kernel; Files in the data layer; Guards are configuration)"
                   },
                   {
                     "group": ["@app-template/kernel/aws"],
@@ -1582,6 +1874,43 @@
                     "importNamePattern": "unboundTag",
                     "invertImportNamePattern": true,
                     "message": "of @app-template/kernel/data deployment takes only the files' key, unboundTag (decisions.md › One kernel; Files in the data layer)"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/__e2e__/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/**",
+                      "!@app-template/api/testing",
+                      "!@app-template/worker/testing",
+                      "!@app-template/application/*",
+                      "!@app-template/application/*/testing",
+                      "!@app-template/http-api",
+                      "!@app-template/kernel/*",
+                      "!@app-template/kernel/*/testing",
+                      "!@app-template/kernel/*/testing/e2e",
+                      "!@app-template/packages/*",
+                      "!@app-template/packages/*/testing",
+                      "!@app-template/packages/*/testing/e2e"
+                    ],
+                    "message": "the e2e import no workspace but the processes' test support (@app-template/api/testing, @app-template/worker/testing), the application, http-api, the kernel, packages/* and their test support: never web or deployment (decisions.md › Independent apps; Guards are configuration)"
                   },
                   {
                     "group": ["./**", "../**"],

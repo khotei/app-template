@@ -9,6 +9,6 @@
   "references": [
     { "path": "../../http-api" },
     { "path": "../../kernel" },
-    { "path": "../../packages/ui" }
+    { "path": "../../packages" }
   ]
 }

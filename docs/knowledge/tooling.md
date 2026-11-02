@@ -253,29 +253,31 @@ its sources either way.
    `"type": "module"`, an `exports` entry, and `"imports": { "#<name>/*": "./*.ts" }`).
 2. Add `tsconfig.json`: extend `tsconfig.base.json`, set `rootDir: "."` and
    `outDir: "<relative>/node_modules/.cache/tsc/<name>"`, set `include`, and reference the
-   workspaces it imports. Copy an existing one, such as `packages/queue/tsconfig.json`.
+   workspaces it imports. Copy an existing one, such as `kernel/tsconfig.json`.
 3. Add the path to the root `package.json` `workspaces` if no glob covers it. Bun rejects an
    explicit path that does not exist yet, so create the folder first.
 4. Add the path to the root `tsconfig.json` `references`.
 5. Run `bun install` and `make check`.
 
-In `biome.json`, a new package joins the allow-lists of the `kernel/data/**`
-override and, if a module's services use it, of each `application/<module>/services/**`; a new
-module copies the overrides of a module's layers, one per layer it has
-([architecture.md › Add a module](architecture.md#add-a-module)). A new layer or app needs its
-own `overrides` entry in `biome.json`; see
-[architecture.md › Boundary guards](architecture.md#boundary-guards) for what each
-entry repeats.
+In `biome.json` every unit has an override whose list names the units it may import, and an
+unlisted unit is refused. A new unit gets its override, and every unit that imports it adds it
+to its own list, never one above its own in the rings
+([decisions.md › Guards are configuration](decisions.md#guards-are-configuration)); the lists
+that open a whole ring below (`!@app-template/packages/*`, `!@app-template/kernel/*`) take a new
+package or kernel part as it is. A new module copies the overrides of a module's layers, one per
+layer it has ([architecture.md › Add a module](architecture.md#add-a-module)). See
+[architecture.md › Boundary guards](architecture.md#boundary-guards) for what each entry
+repeats.
 
 ### Add a package
 
-`packages/` is one workspace, `@app-template/packages`, and each folder in it a package with a
-`tsconfig.json` project of its own, so `tsc -b` still refuses a package importing another it does
-not reference (TS6059, TS6307): inside the workspace the import does not go through a symlink. A new
-package is a folder with its `index.ts`, an `exports` entry `./<name>` and an `imports` alias
-`"#<name>/*": "./<name>/*.ts"` in `packages/package.json`, its dependencies there, and a
-`tsconfig.json` like `packages/queue/tsconfig.json`, referenced from the root `tsconfig.json` and
-from every project that imports it.
+`packages/` is one workspace, `@app-template/packages`, and one `tsconfig.json` project, as the
+kernel is: each folder in it is a package, and which package imports which is the packages' Biome
+lists alone. A new package is a folder with its `index.ts`, an `exports` entry `./<name>` and an
+`imports` alias `"#<name>/*": "./<name>/*.ts"` in `packages/package.json`, its dependencies
+there, and an override in `biome.json` like an existing package's, listing the packages below
+it and refusing the other packages' `#<package>/…` files, and one more for its `__tests__/**`
+when it has unit tests.
 
 ### Upgrade versions
 
@@ -296,8 +298,8 @@ new version. CI also runs a non-blocking job on Bun `latest`, which shows the ne
 ## TypeScript
 
 - **Project references.** The root `tsconfig.json` has no files of its own and references every
-  project: one per workspace, and one per package inside `packages/`. Each is a `composite`
-  project that references what it imports.
+  project, one per workspace. Each is a `composite` project that references what it imports;
+  inside `kernel/`, `packages/` and `application/` the Biome lists tell the units apart.
 - **The patched `tsc -b` is the only typecheck gate.** It walks the references, reports every
   type error, and runs the Effect language service, whose errors and warnings both fail it
   (`ignoreEffectWarningsInTscExitCode` stays `false`). `make typecheck`, `pre-commit` and CI all

@@ -8,8 +8,6 @@
   "references": [
     { "path": "../../application" },
     { "path": "../../kernel" },
-    { "path": "../../packages/db" },
-    { "path": "../../packages/queue" },
-    { "path": "../../packages/testing" }
+    { "path": "../../packages" }
   ]
 }

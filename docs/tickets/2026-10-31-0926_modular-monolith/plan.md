@@ -35,7 +35,7 @@
 | S27 | `packages/` one workspace; the kernel's parts one entry each | done |
 | S28 | e2e support in `__tests__/testing/e2e/` | done |
 | S29 | `application/` one workspace, one entry per module | done |
-| S30 | a Biome list per workspace | todo |
+| S30 | a Biome list per workspace | done |
 
 ## How to run this plan
 
@@ -1432,7 +1432,7 @@
   into chat's services, of `@app-template/application/chat` into identity and of
   `@app-template/kernel/postgres` into a use case each fail Biome naming the record; one of
   `AssistantLlmFromConfig` into a use case passes; `make bundle-check` still fails on
-  `ChatService` in the web app; `git ls-files 'application/**/tsconfig.json'` finds
+  `ChatService` in the web app; `find application -name tsconfig.json -not -path '*/node_modules/*'` finds
   `application/tsconfig.json` alone.
 - **Model:** `opus high`
 - **Status:** done
@@ -1470,14 +1470,31 @@
   `docs/knowledge/{architecture,tooling}.md`, `.claude/rules/modules.md`.
 - **Test first:** `config only` — every case and assertion kept (D14).
 - **Verify:** `make check`; a throwaway import of `@app-template/packages/db` into `apps/web/` and one of
-  `@app-template/application/identity` into chat's services each fail Biome naming the record
+  `@app-template/application/chat` into identity's services each fail Biome naming the record
   (R12), and so does one of `@app-template/packages/s3` into `packages/db` and one of
   `#testing/db/e2e/…` into `packages/s3/__e2e__` (another unit's file, which no S28 ban
   refuses inside `packages/`); a script lists every
   `@app-template/<folder>` import with its workspace and finds each in that workspace's list;
-  `git ls-files 'packages/**/tsconfig.json'` finds `packages/tsconfig.json` alone.
+  `find packages -name tsconfig.json -not -path '*/node_modules/*'` finds
+  `packages/tsconfig.json` alone.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The Verify probe of `@app-template/application/identity` into chat's services could not
+    fail (chat sits above identity and imports it); the reverse probe replaced it. The
+    `git ls-files 'packages/**/tsconfig.json'` check matched nothing in any tree state (git's
+    `**/` needs a folder between); `find` replaced it here and in S29.
+  - Biome's `noImportCycles`, already on, refuses a cycle between units of one folder through
+    value imports (probed: `kernel/aws` into `kernel/config`); only a cycle through
+    `import type` is review's. D22's Cost, its Risk, `decisions.md` and `modules.md` say so.
+  - Review found two units with no list: the modules' entries (`application/<module>/index.ts`,
+    through which a cycle between modules passed) and `packages/aws/__tests__/**` (free to reach
+    another package's `#<package>/…`, which its own project had refused). Each has an override.
+  - A kernel part's or a package's one override covers its source and its e2e, so the source
+    may import the test support its list admits, as before the step; D22's Cost records it.
+  - Size: 22 files, about +695 / −419, past the ~400 limit; one commit on the user's word, as
+    S27 and S29, since a split would leave one commit checking the packages by neither their
+    `references` nor their lists.
 
 ## Requirement coverage
 

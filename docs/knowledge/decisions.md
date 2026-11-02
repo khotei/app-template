@@ -232,8 +232,9 @@ no app.
   module reaching a kernel part it does not use, and inside the kernel the data's direction rests
   on Biome, not on `tsc -b`. One entry per part opens a part whole, so the layers that may take
   only its inventory or its stores are held by the imported names (`*FromConfig`, `Db`).
-- **Guarded by:** the Biome overrides on `kernel/**` (no module, contract, use case, `http-api` or
-  app), `packages/**` (no kernel) and `deployment/**` (of the kernel only `/config`, the
+- **Guarded by:** the lists of the Biome overrides on each kernel part (no module, contract, use
+  case, `http-api` or app, and only the parts below it), on each package (no kernel, and only the
+  packages below it) and on `deployment/**` (of the kernel only `/config`, the
   inventory of `/aws` and the files' key of `/data`, by imported name);
   `.claude/rules/modules.md` refuses a service rule or a model in the kernel.
 - **If reversed:** split into packages, the kernel's parts gain a manifest and a project each;
@@ -398,18 +399,37 @@ Jobs are the table `jobs` and `JobRepository` in the data layer; `QueueSenderJob
 
 The guards are `exports`, the isolated linker, `tsc -b`, Biome and the bundle check; what no
 configuration expresses is the review rule `.claude/rules/modules.md`, never hand-written test
-code.
+code. `kernel/`, `packages/` and `application/` are one workspace and one `tsconfig.json` project
+each, so the linker and `tsc -b` see the folder but not its units: each unit's Biome override
+lists the units it may import, `@app-template/**` refused but for `!@app-template/<folder>/<unit>`
+per unit below it in the rings (a glob, `!@app-template/packages/*`, where a whole ring below is
+open), its test support only in the override that covers its tests. `http-api`, the apps and
+`deployment` keep a list of the same form.
 
 - **Why:** every guard is configuration of a tool the repo has; a fitness test is code to keep,
-  and drifts.
+  and drifts. The linker sees `@app-template/packages`, not its `/db` or `/ui`, and Biome's
+  message names this record, which TS2307 never could.
 - **Sources:** the guide's "Add fitness functions in CI … turn violations into failing builds"
   ([styles/modular-monolith](https://software-architecture-guild.com/guide/architecture/styles/modular-monolith/));
   in modular-monolith-with-ddd an architecture test checks the wrong assembly (research).
 - **Rejected:** a module-graph test: test code for a rule review can hold. dependency-cruiser: it
-  needs a TypeScript parser the repo lacks.
-- **Cost:** what only the review rule names passes `make check` when review misses it.
-- **Guarded by:** `make check` runs them all; the Standards reviewer reads `.claude/rules/`.
-- **If reversed:** a test beside the rule, kept in step with every new module.
+  needs a TypeScript parser the repo lacks. No list inside a folder, its boundaries held by
+  review: the guard stays configuration. A `tsconfig.json` project per unit beside its list: its
+  `references` would repeat the list (TS6307 refuses an unreferenced unit), one rule in two
+  places.
+- **Cost:** what only the review rule names passes `make check` when review misses it. A list
+  per unit, kept by hand, and a new unit refused by every list until one names it. `tsc -b` no
+  longer refuses a cycle between the units of one folder (TS6202): Biome's `noImportCycles`
+  refuses one of value imports, and one through `import type` needs two lists naming each other,
+  which review refuses (`modules.md`). Where one override covers a unit's source and its e2e (a
+  kernel part, a package), the source may import the test support its list admits, which only
+  review refuses.
+- **Guarded by:** `make check` runs them all; the Standards reviewer reads `.claude/rules/`; the
+  list in each unit's override in `biome.json`.
+- **If reversed:** a test beside the rule, kept in step with every new module; without the lists,
+  a folder splits into a workspace per unit again
+  ([Imports through subpaths](#imports-through-subpaths)) and its dependencies take their
+  place.
 - **Revisit when:** review misses a violation the rule names, or a tool gains the check.
 
 ### Imports through subpaths
@@ -442,12 +462,12 @@ folders is one workspace, `@app-template/kernel`, `@app-template/packages` and
   dependencies, so the linker tells the folders apart but not one unit from another; a unit's
   one entry opens it whole, so a layer that may take only part of it (the inventory of `/aws`,
   the stores of `/data`, a module's contract) is held by the names it imports; `application/`
-  is one `tsconfig.json` project, as the kernel is, so `tsc -b` no longer refuses an import
-  between its modules.
+  and `packages/` are one `tsconfig.json` project each, as the kernel is, so `tsc -b` no longer
+  refuses an import between their units ([Guards are configuration](#guards-are-configuration)
+  lists them).
 - **Guarded by:** the root `noRestrictedImports` pattern and its copy in every Biome override;
-  an override per kernel part, and per layer of each module, refusing another unit's
-  `#<unit>/…` and `#testing/<unit>/…` files; a `tsconfig.json` project per package, so a package
-  importing another it does not reference fails `tsc -b`; the overrides' `importNamePattern` on
+  an override per kernel part, per package and per layer of each module, refusing another unit's
+  `#<unit>/…` and `#testing/<unit>/…` files; the overrides' `importNamePattern` on
   `/aws`, `/data` and the modules' entries.
 - **If reversed:** a folder splits into a workspace per unit, each with its manifest, and the
   specifiers lose the folder; without the `#…` subpaths, the per-layer overrides no longer see
@@ -503,8 +523,8 @@ package, as a kernel part's does.
   The kernel declares an alias and an export per part's support. The run's `globalSetup` sits
   in the data's e2e support, though it starts the MiniStack every workspace's e2e uses. The e2e
   support lies under `__tests__/`, so the kernel's and the packages' `__tests__/**` Biome
-  overrides exclude `__tests__/testing/e2e/**`; a kernel part's e2e override takes it back, and
-  in `packages/` the `packages/**` override covers it as it covers the packages' e2e.
+  overrides exclude `__tests__/testing/e2e/**`, and the override of a kernel part or a package
+  that covers its e2e takes it back.
 - **Guarded by:** every `__tests__/**` Biome override bans `#testing/*/e2e/**` and
   `@app-template/**/testing/e2e`, but in `__tests__/testing/e2e/**`, which the e2e overrides
   take; the `application/use-cases/**` override bans `@app-template/*/testing`,

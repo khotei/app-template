@@ -5,12 +5,5 @@
     "outDir": "../node_modules/.cache/tsc/kernel"
   },
   "include": ["**/*.ts"],
-  "references": [
-    { "path": "../packages/aws" },
-    { "path": "../packages/db" },
-    { "path": "../packages/llm" },
-    { "path": "../packages/queue" },
-    { "path": "../packages/s3" },
-    { "path": "../packages/testing" }
-  ]
+  "references": [{ "path": "../packages" }]
 }

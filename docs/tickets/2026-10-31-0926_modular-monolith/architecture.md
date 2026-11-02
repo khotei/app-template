@@ -816,7 +816,9 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
   - **Cost accepted:** a list per unit, kept by hand. Each folder is one `tsconfig.json`
     project, as the kernel is (S29, S30), so the lists alone record which unit imports which:
     `tsc -b` no longer refuses a cycle between units of one folder (TS6202) nor rebuilds them one
-    by one.
+    by one; Biome's `noImportCycles` refuses one of value imports (probed in S30), review one
+    through `import type`. Where one override covers a unit's source and its e2e (a kernel part,
+    a package), the source may import the test support its list admits.
   - **Reversal:** with D21's reversal, the workspace dependencies again.
   - **Rejected:**
     - no list, the boundary held by review — the user's word: the guard stays configuration.
@@ -839,9 +841,9 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
 - **A list of module packages in a Biome override misses a new module.** *Contained by:* the
   per-workspace lists of D22 (an unlisted unit is refused) and the add-a-module checklist.
 - **A cycle between units of one folder**, once the folder is one `tsconfig.json` project and
-  `tsc -b` no longer sees units (D22). *Contained by:* each list names only units below its own
-  in the rings, so a cycle needs two lists to name each other, which review of `biome.json`
-  sees. Until S30 the packages' own projects refuse an unreferenced package (TS6307).
+  `tsc -b` no longer sees units (D22). *Contained by:* Biome's `noImportCycles` for value
+  imports; for one through `import type`, each list names only units below its own in the rings,
+  so a cycle needs two lists to name each other, which review of `biome.json` sees.
 - **A limit duplicated by D11 drifts** between a model and its check. *Contained by:* the
   mappers' e2e writes the extreme value the model allows.
 - **The plan's interim states.** The ports' adapters delegate to the data layer's repositories

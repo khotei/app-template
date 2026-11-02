@@ -29,11 +29,14 @@ Record: [Module contracts](../../docs/knowledge/decisions.md#module-contracts).
 ## A cycle of modules through their contracts
 
 A dependency on a module's contract counts as one on the module. If `<a>` imports from `<b>`'s
-entry and `<b>` from `<a>`'s, the modules form a cycle, which `tsc -b` no longer sees inside one
-project: refuse a change to `biome.json` that lets a module's overrides take the entry of a
-module above it. Break the cycle by moving the shared id or error into the contract of the
-module that owns it, or the flow into a use case.
-Record: [Module contracts](../../docs/knowledge/decisions.md#module-contracts).
+entry and `<b>` from `<a>`'s, the modules form a cycle. Biome's `noImportCycles` refuses one of
+value imports, never one through `import type`: refuse a change to `biome.json` whose list lets a
+unit import one above it in the rings (a module the entry of a module above it, a kernel part a
+part that imports it). Break the cycle
+by moving the shared id or error into the contract of the module that owns it, or the flow into
+a use case.
+Records: [Module contracts](../../docs/knowledge/decisions.md#module-contracts),
+[Guards are configuration](../../docs/knowledge/decisions.md#guards-are-configuration).
 
 ## A service rule or a model in the kernel
 
