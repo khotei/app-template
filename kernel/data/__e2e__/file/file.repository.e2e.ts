@@ -8,7 +8,7 @@ import { buildResourceName } from '#kernel/aws/resources/naming'
 import { resources } from '#kernel/aws/resources/resources'
 import { AwsConfig } from '#kernel/config/config'
 import { FileRepository } from '#kernel/data/file/file.repository'
-import { AwsTest } from '#testing-e2e/aws.test-layer'
+import { AwsTest } from '#testing-e2e/aws/aws.test-layer'
 
 const fileId = (n: number) => `0192d4e0-7b3a-7c00-8000-${String(n).padStart(12, '0')}`
 

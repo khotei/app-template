@@ -35,7 +35,7 @@ import { MessageRepository } from '#kernel/data/chat/message.repository'
 export class AttachmentRows extends Context.Service<
   AttachmentRows,
   Ref.Ref<HashMap.HashMap<string, AttachmentEntity>>
->()('@app-template/kernel/testing/AttachmentRows') {
+>()('@app-template/kernel/data/testing/AttachmentRows') {
   static readonly layer = Layer.effect(this, Ref.make(HashMap.empty<string, AttachmentEntity>()))
 }
 

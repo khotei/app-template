@@ -6,7 +6,7 @@ import { flipSqlError } from '@app-template/db/testing-e2e'
 import { attachments } from '#kernel/data/attachment/attachment.table'
 import { Db } from '#kernel/data/db.client'
 import { users } from '#kernel/data/user/user.table'
-import { DbTest } from '#testing-e2e/db.test-layer'
+import { DbTest } from '#testing-e2e/data/db.test-layer'
 
 const userId = '0192d4e0-7b3a-7c00-8000-000000000090'
 

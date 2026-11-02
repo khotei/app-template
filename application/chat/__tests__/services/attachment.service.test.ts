@@ -7,7 +7,7 @@ import { TestClock } from 'effect/testing'
 import type { UserId } from '@app-template/identity-contract'
 import { AttachmentRepository } from '@app-template/kernel/data/attachment'
 import { FileRepository } from '@app-template/kernel/data/file'
-import { AttachmentRows, FileObjects, RepositoryStackTest } from '@app-template/kernel/testing'
+import { AttachmentRows, FileObjects, RepositoryStackTest } from '@app-template/kernel/data/testing'
 import {
   assertSchemaEquals,
   breakAfter,

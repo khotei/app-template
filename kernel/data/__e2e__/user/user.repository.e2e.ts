@@ -9,7 +9,7 @@ import { Db } from '#kernel/data/db.client'
 import { UserEntity, type UserEntityCredential } from '#kernel/data/user/user.entity'
 import { UserRepository } from '#kernel/data/user/user.repository'
 import { credentials, users } from '#kernel/data/user/user.table'
-import { DbTest } from '#testing-e2e/db.test-layer'
+import { DbTest } from '#testing-e2e/data/db.test-layer'
 
 const createdAt = new Date('2026-10-18T00:00:00.123Z')
 

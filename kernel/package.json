@@ -15,13 +15,15 @@
     "./data/file": "./data/file/index.ts",
     "./llm": "./llm/index.ts",
     "./queue": "./queue/index.ts",
-    "./testing": "./__tests__/testing/index.ts",
-    "./testing-e2e": "./__e2e__/testing/index.ts"
+    "./data/testing": "./data/__tests__/testing/index.ts",
+    "./data/testing-e2e": "./data/__e2e__/testing/index.ts",
+    "./aws/testing-e2e": "./aws/__e2e__/testing/index.ts"
   },
   "imports": {
     "#kernel/*": "./*.ts",
-    "#testing/*": "./__tests__/testing/*.ts",
-    "#testing-e2e/*": "./__e2e__/testing/*.ts"
+    "#testing/data/*": "./data/__tests__/testing/*.ts",
+    "#testing-e2e/data/*": "./data/__e2e__/testing/*.ts",
+    "#testing-e2e/aws/*": "./aws/__e2e__/testing/*.ts"
   },
   "dependencies": {
     "@app-template/aws": "workspace:*",

@@ -19,7 +19,7 @@ paths:
 ## Unit and e2e
 
 - **A unit test** (`__tests__/`) runs the real services over the data layer's memory
-  repositories (`@app-template/kernel/testing`) and the memory layers of the ports
+  repositories (`@app-template/kernel/data/testing`) and the memory layers of the ports
   (`@app-template/<module>/testing`), with `TransactionTest`, `recordQueue()` and
   `recordAssistant()` where a use case needs them, and starts no container. A use case's unit
   test checks the order of its steps and the jobs it sends, not the rules. A further fake of a

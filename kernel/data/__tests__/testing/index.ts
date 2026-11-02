@@ -1,0 +1,5 @@
+export * from '#testing/data/attachment.test-fake'
+export * from '#testing/data/chat.test-fake'
+export * from '#testing/data/file.test-fake'
+export * from '#testing/data/repository-stack.test-layer'
+export * from '#testing/data/user.test-fake'

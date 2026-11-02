@@ -264,7 +264,7 @@ its clients from the context. The tables stay in `public` with their foreign key
   its stores carved out of the data layer.
 - **Guarded by:** the Biome override on `kernel/data/**` (no workspace but `packages/*`, no
   `#kernel/**` but `#kernel/data/**`); `.claude/rules/modules.md` refuses a model or a service rule
-  there; the repositories' e2e in `kernel/__e2e__/data`.
+  there; the repositories' e2e in `kernel/data/__e2e__`.
 - **If reversed:** a schema and a Drizzle per module, one migration; every join and foreign key
   across modules becomes a read through the owner.
 - **Revisit when:** a module is to be extracted, or two modules' data stop being read together.
@@ -349,7 +349,7 @@ bucket's name and lifecycle; `deployment` reads both.
   row that binds them and deleted once the rows are gone.
 - **Guarded by:** the repository's doc comment and `.claude/rules/layering.md` (the order); the
   delete-chat e2e in `apps/__e2e__/use-cases`; the file repository's e2e in
-  `kernel/__e2e__/data/file`; the `deployment/**` override (of the data only `/data/file`).
+  `kernel/data/__e2e__/file`; the `deployment/**` override (of the data only `/data/file`).
 - **If reversed:** the port goes back into `chat`'s `domain/` with its adapter in
   `infrastructure/`, and a second module needing files imports chat.
 - **Revisit when:** `shared-files` or `assistant-files` needs files outside a chat.
@@ -370,7 +370,7 @@ Jobs are the table `jobs` and `JobRepository` in the data layer; `QueueSenderJob
   module: needed only with a schema per module.
 - **Cost:** none today.
 - **Guarded by:** the `kernel/data/**` override (the data imports no `#kernel/queue`); the queue's
-  e2e in `kernel/__e2e__/queue`.
+  e2e in `kernel/queue/__e2e__`.
 - **If reversed:** a rename in a migration, or the transport inside the data layer.
 - **Revisit when:** `jobs` adds the statuses to the same table.
 
@@ -429,21 +429,32 @@ share lives in a ring below them.
 ### Tests in their folders
 
 Every workspace keeps its unit tests in `__tests__/` and its e2e in `__e2e__/`, each with its
-support in a `testing/` inside, exported as `./testing` and `./testing-e2e`; an e2e suite may
-import `./testing`, a unit test never `./testing-e2e`; `application` has unit tests only, and the
-e2e over assembled layers live in `apps/__e2e__`.
+support in a `testing/` inside, exported as `./testing` and `./testing-e2e`; the kernel's parts are
+units like packages, so each part keeps its own (`kernel/<part>/__tests__/`,
+`kernel/<part>/__e2e__/`), its support exported as `./<part>/testing` and `./<part>/testing-e2e`
+and aliased `#testing/<part>/*` and `#testing-e2e/<part>/*`. An e2e suite may import `./testing`, a
+unit test never `./testing-e2e`; `application` has unit tests only, and the e2e over assembled
+layers live in `apps/__e2e__`.
 
 - **Why:** the folder tells a unit test from an e2e and from source; the behaviour runs over
-  memory, the real stores are tested in the kernel, the assembled layers in the apps.
+  memory, the real stores are tested in the kernel, the assembled layers in the apps. A part's
+  tests and support sit with the part they test or build, as a package's do.
 - **Sources:** `.claude/rules/effect-tests.md`; `vitest.config.ts` selects by folder.
-- **Rejected:** test folders at a workspace's top: support beside the source folders. The use
-  cases' and mappers' e2e in `application`: the behaviour would need containers. The e2e in each
-  app: the journey would make the api import the worker, and apps never import each other. The e2e
-  workspace at the root: a test of the processes away from them.
+- **Rejected:** test folders at a workspace's top: support beside the source folders. The
+  kernel's tests in one pair of test folders at its top: a part's tests away from it, and one
+  support barrel for every part. The use cases' and mappers' e2e in `application`: the
+  behaviour would need containers. The e2e in each app: the journey would make the api import the
+  worker, and apps never import each other. The e2e workspace at the root: a test of the
+  processes away from them.
 - **Cost:** the drift check of the tables' checks lives in `apps/__e2e__`, away from the mappers.
+  The kernel declares an alias and an export per part's support. The run's `globalSetup` sits
+  in the data's e2e support, though it starts the MiniStack every workspace's e2e uses.
 - **Guarded by:** every `__tests__/**` Biome override bans `#testing-e2e/**` and
-  `@app-template/*/testing-e2e`; the `application/use-cases/**` override bans
-  `@app-template/*/testing` in source; the vitest projects `unit` and `e2e` include by folder.
+  `@app-template/**/testing-e2e`; the `application/use-cases/**` override bans
+  `@app-template/*/testing`, `@app-template/kernel/*/testing` and
+  `@app-template/kernel/*/testing-e2e` in source; the `kernel/data/__tests__/**` override keeps the
+  data layer's bans on its memory repositories; the vitest projects `unit` and `e2e` include by
+  folder.
 - **If reversed:** a rename of the folders.
 - **Revisit when:** a workspace needs a third kind of test.
 

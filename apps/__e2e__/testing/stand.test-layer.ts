@@ -5,9 +5,9 @@ import { FetchHttpClient } from 'effect/http'
 
 import { ApiLayer } from '@app-template/api/layer'
 import { ApiClient } from '@app-template/http-api'
+import { AwsTest } from '@app-template/kernel/aws/testing-e2e'
 import { AwsConfig } from '@app-template/kernel/config'
 import { FileRepository } from '@app-template/kernel/data/file'
-import { AwsTest } from '@app-template/kernel/testing-e2e'
 import { layerCookieJarTest, PgClientTest } from '@app-template/testing'
 import { WorkerLayer } from '@app-template/worker/layer'
 

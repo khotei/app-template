@@ -9,7 +9,7 @@ import { MessageEntity, withAttachments } from '#kernel/data/chat/message.entity
 import { messages } from '#kernel/data/chat/message.table'
 import { Db } from '#kernel/data/db.client'
 import { users } from '#kernel/data/user/user.table'
-import { DbTest } from '#testing-e2e/db.test-layer'
+import { DbTest } from '#testing-e2e/data/db.test-layer'
 
 const createdAt = new Date('2026-10-18T00:00:00.123Z')
 const updatedAt = new Date('2026-10-18T00:00:01.456Z')

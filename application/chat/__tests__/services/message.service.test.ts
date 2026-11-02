@@ -2,7 +2,7 @@ import { describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Layer } from 'effect'
 
-import { RepositoryStackTest } from '@app-template/kernel/testing'
+import { RepositoryStackTest } from '@app-template/kernel/data/testing'
 import { assertSchemaEquals } from '@app-template/testing'
 
 import { MessageNotFoundError } from '#domain/message.error'

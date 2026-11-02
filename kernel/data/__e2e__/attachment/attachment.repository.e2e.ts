@@ -9,7 +9,7 @@ import { chats } from '#kernel/data/chat/chat.table'
 import { messages } from '#kernel/data/chat/message.table'
 import { Db } from '#kernel/data/db.client'
 import { users } from '#kernel/data/user/user.table'
-import { DbTest } from '#testing-e2e/db.test-layer'
+import { DbTest } from '#testing-e2e/data/db.test-layer'
 
 const createdAt = new Date('2026-10-18T00:00:00.123Z')
 

@@ -6,7 +6,7 @@ import { DateTime, Effect, Layer, Option, Stream } from 'effect'
 import type { UserId } from '@app-template/identity-contract'
 import { AttachmentRepository } from '@app-template/kernel/data/attachment'
 import { FileRepository } from '@app-template/kernel/data/file'
-import { RepositoryStackTest } from '@app-template/kernel/testing'
+import { RepositoryStackTest } from '@app-template/kernel/data/testing'
 import { assertSchemaEquals, epoch, png } from '@app-template/testing'
 
 import { AttachmentId } from '#domain/attachment.id'

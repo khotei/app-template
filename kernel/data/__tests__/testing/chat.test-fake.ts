@@ -31,7 +31,7 @@ import { ChatRepository } from '#kernel/data/chat/chat.repository'
 import { MessageEntity, type MessageEntityWhere } from '#kernel/data/chat/message.entity'
 import { MessageRepository } from '#kernel/data/chat/message.repository'
 import { activeMessageStatuses } from '#kernel/data/chat/message.table'
-import { AttachmentRows } from '#testing/attachment.test-fake'
+import { AttachmentRows } from '#testing/data/attachment.test-fake'
 
 const ChatRow = Schema.Struct(Struct.omit(ChatEntity.fields, ['attachments']))
 type ChatRow = typeof ChatRow.Type
@@ -43,7 +43,7 @@ type MessageRow = typeof MessageRow.Type
 export class ChatRows extends Context.Service<
   ChatRows,
   Ref.Ref<HashMap.HashMap<string, ChatRow>>
->()('@app-template/kernel/testing/ChatRows') {
+>()('@app-template/kernel/data/testing/ChatRows') {
   static readonly layer = Layer.effect(this, Ref.make(HashMap.empty<string, ChatRow>()))
 }
 
@@ -51,7 +51,7 @@ export class ChatRows extends Context.Service<
 export class MessageRows extends Context.Service<
   MessageRows,
   Ref.Ref<HashMap.HashMap<string, MessageRow>>
->()('@app-template/kernel/testing/MessageRows') {
+>()('@app-template/kernel/data/testing/MessageRows') {
   static readonly layer = Layer.effect(this, Ref.make(HashMap.empty<string, MessageRow>()))
 }
 

@@ -26,9 +26,9 @@ import { JobRepository } from '#kernel/data/job/job.repository'
 import { jobs } from '#kernel/data/job/job.table'
 import { JobRelay } from '#kernel/queue/job.relay'
 import { QueueSenderJobs } from '#kernel/queue/queue.client'
-import { AwsTest } from '#testing-e2e/aws.test-layer'
-import { DbTest } from '#testing-e2e/db.test-layer'
-import { SampleJob, sampleJobQueue, sampleProvenance } from '#testing-e2e/job.test-fixture'
+import { AwsTest } from '#testing-e2e/aws/aws.test-layer'
+import { DbTest } from '#testing-e2e/data/db.test-layer'
+import { SampleJob, sampleJobQueue, sampleProvenance } from '#testing-e2e/data/job.test-fixture'
 
 interface Attempt {
   readonly queue: string

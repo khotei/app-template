@@ -30,6 +30,8 @@
 | S22 | `architecture.md` rewritten for the rings | done |
 | S23 | the glossary, the `<Model>` placeholders, the roadmap and the remaining pages | done |
 | S24 | the statuses through the mapper e2e; the test layers' `provideMerge` in the rule | done |
+| S25 | the kernel's tests beside each of its parts | done |
+| S26 | the apps' layers exported to the e2e as test support | todo |
 
 ## How to run this plan
 
@@ -1197,6 +1199,73 @@
     back through the schemas, not a write the database refuses.
   - Round S24.2 (review: `it.effect.each`, fixed ids, the authors, the docs).
   - Size: 4 files, +89 / −19.
+
+#### S25 — The kernel's tests beside each of its parts
+
+- **Delivers:** each part of the kernel keeps its own tests, as each package does:
+  `kernel/data/__e2e__/<store>/` and `kernel/data/__tests__/testing/` (the memory repositories),
+  `kernel/postgres/__e2e__/`, `kernel/queue/__e2e__/`, `kernel/config/__tests__/`, and the e2e
+  support beside the part it builds (`DbTest` and the job fixture with the data, `AwsTest` with
+  `aws`); no `kernel/__tests__/` or `kernel/__e2e__/` is left. The support is exported per part
+  (`@app-template/kernel/data/testing`, `…/data/testing-e2e`, `…/aws/testing-e2e`), and every
+  importer, the Biome overrides on the kernel's tests, `vitest.config.ts`'s `globalSetup` and
+  the docs follow.
+- **Goal:** the user's word after verification: the kernel's parts are units like packages, so
+  their tests sit with them (D19 amended; `decisions.md › Tests in their folders` rewritten).
+- **Blocked by:** S24.
+- **Files:** the 24 files under `kernel/__tests__/` and `kernel/__e2e__/` (moved);
+  `kernel/package.json`, `kernel/tsconfig.json` if it lists them; every file importing
+  `@app-template/kernel/testing`, `…/testing-e2e`, `#testing/*` or `#testing-e2e/*` of the kernel
+  (`git grep`); `biome.json` (the `kernel/__tests__/**` override and any pattern naming the
+  kernel's test exports); `vitest.config.ts`; `docs/knowledge/{architecture,aws,database,
+  decisions,tooling}.md`, `.claude/rules/effect-tests.md` and `kernel/CLAUDE.md` where they name
+  the paths; the ticket's `architecture.md` D19 note is the main session's.
+- **Test first:** `config only` — a move; every case and assertion kept (D14).
+- **Verify:** `make check`; `find kernel -maxdepth 1 -name '__*'` finds nothing; a throwaway
+  import of the data's `testing-e2e` support into `kernel/data/__tests__/` fails Biome naming
+  "Tests in their folders".
+- **Model:** `opus medium`
+- **Status:** done
+- **Findings:**
+  - The aliases are `#testing/<part>/*` and `#testing-e2e/<part>/*`, so the `#testing-e2e/**`
+    ban in every unit-test override still catches them.
+  - The e2e run's `globalSetup` stays one file, in `kernel/data/__e2e__/testing/`: vitest runs
+    `globalSetup` files one after another, so a split would start Postgres and MiniStack in turn.
+    It also starts the MiniStack every workspace's e2e needs, a cost `decisions.md` records.
+  - Beyond the Files, in `biome.json`: the e2e-support ban widened to
+    `@app-template/**/testing-e2e` (a probe shows `**` also matches one segment); a
+    `kernel/*/__e2e__/**` override, since the data's e2e arranges through `#kernel/aws` and
+    `#kernel/config` as before; the services and use-case source overrides ban the kernel's part
+    support, which the `!@app-template/kernel/data/*` exceptions would otherwise open.
+  - Also beyond the Files: `.claude/rules/naming.md` (the mirror rule for a kernel part's own test
+    folders); `kernel/CLAUDE.md` named no moved path.
+  - Round S25.2 (review): a `kernel/data/__tests__/**` override after `kernel/*/__tests__/**`
+    restores the data layer's bans on the memory repositories, which the later override had
+    replaced.
+  - Size: 49 files, +311 / −148, most of it `biome.json`'s repeated ban lists.
+
+#### S26 — The apps' layers exported to the e2e as test support
+
+- **Delivers:** `apps/api` and `apps/worker` export `./testing` in place of `./layer`:
+  `apps/api/__tests__/testing/api.test-layer.ts` re-exports `ApiLayer` as `ApiLayerTest`, a new
+  `apps/worker/__tests__/testing/worker.test-layer.ts` re-exports `WorkerLayer` as
+  `WorkerLayerTest`, each behind an `index.ts`; the journey's `stand.test-layer.ts` imports them
+  from `@app-template/api/testing` and `@app-template/worker/testing`; `main.ts` keeps its
+  `layer.ts`.
+- **Goal:** what only the tests use is test support, not an app's interface (`deep-modules.md ›
+  Caller`); the user's word after verification.
+- **Blocked by:** S25.
+- **Files:** `apps/{api,worker}/package.json`, `apps/api/__tests__/testing/api.test-layer.ts`,
+  `apps/worker/__tests__/testing/{worker.test-layer,index}.ts`, `apps/api/__tests__/testing/index.ts`,
+  `apps/__e2e__/testing/stand.test-layer.ts`, `biome.json` (the `apps/__e2e__/**` allowances and
+  any ban naming `/layer`), `apps/CLAUDE.md`, and every doc `git grep` finds naming `./layer`,
+  `api/layer` or `worker/layer`.
+- **Test first:** `config only` — every case and assertion kept (D14).
+- **Verify:** `make check`; `git grep -n "api/layer'\|worker/layer'"` finds nothing outside the
+  tickets; a throwaway import of `@app-template/worker/testing` into `apps/api/` fails Biome
+  naming "Independent apps".
+- **Model:** `opus medium`
+- **Status:** todo
 
 ## Requirement coverage
 

@@ -188,24 +188,27 @@ file suffixes and the naming verbs: [.claude/rules/naming.md](../../.claude/rule
 ## Where tests live
 
 Every workspace keeps its unit tests in `__tests__/` and its e2e in `__e2e__/`, at its top,
-mirroring the source path; vitest's `unit` project runs `**/__tests__/**/*.test.ts`, its `e2e`
-project `**/__e2e__/**/*.e2e.ts` ([tooling.md › Tests](tooling.md#tests)). Test support lives in
-the `testing/` inside each: `__tests__/testing/` aliased `#testing/*` and exported as `./testing`,
-`__e2e__/testing/` aliased `#testing-e2e/*` and exported as `./testing-e2e`. A unit test imports
-its workspace's source and the `./testing` of the workspaces it declares; an e2e suite also their
-`./testing-e2e`; a unit test never imports e2e support. Record:
+mirroring the source path; the kernel's parts are units like packages, so each part keeps them in
+its own folder (`kernel/<part>/__tests__/`, `kernel/<part>/__e2e__/`). Vitest's `unit` project
+runs `**/__tests__/**/*.test.ts`, its `e2e` project `**/__e2e__/**/*.e2e.ts`
+([tooling.md › Tests](tooling.md#tests)). Test support lives in the `testing/` inside each:
+`__tests__/testing/` aliased `#testing/*` and exported as `./testing`, `__e2e__/testing/` aliased
+`#testing-e2e/*` and exported as `./testing-e2e`; a kernel part's support names the part after
+the alias and before the export (`#testing-e2e/<part>/*`, `./<part>/testing-e2e`). A unit test
+imports its workspace's source and the `./testing` of the workspaces it declares; an e2e suite
+also their `./testing-e2e`; a unit test never imports e2e support. Record:
 [Tests in their folders](decisions.md#tests-in-their-folders).
 
 | Ring | Suite | Runs on |
 |---|---|---|
-| behaviour | `application/<module>/__tests__/`, `application/use-cases/__tests__/` | memory only: the kernel's memory repositories (`@app-template/kernel/testing`), a module's memory layers of its ports (`@app-template/chat/testing`), `TransactionTest`; `application` has no e2e |
-| data | `kernel/__e2e__/data/<store>/` | Postgres (`DbTest`) or MiniStack (`AwsTest`), in entities |
-| boundary | `kernel/__e2e__/postgres/`, `kernel/__e2e__/queue/`, `packages/<package>/__e2e__/`; an adapter's suite in `application/<module>/__tests__/infrastructure/` | the run's containers; the adapter over a recording client |
-| tools | `kernel/__tests__/`, `packages/<package>/__tests__/` | memory only |
+| behaviour | `application/<module>/__tests__/`, `application/use-cases/__tests__/` | memory only: the kernel's memory repositories (`@app-template/kernel/data/testing`), a module's memory layers of its ports (`@app-template/chat/testing`), `TransactionTest`; `application` has no e2e |
+| data | `kernel/data/__e2e__/<store>/` | Postgres (`DbTest`) or MiniStack (`AwsTest`), in entities |
+| boundary | `kernel/postgres/__e2e__/`, `kernel/queue/__e2e__/`, `packages/<package>/__e2e__/`; an adapter's suite in `application/<module>/__tests__/infrastructure/` | the run's containers; the adapter over a recording client |
+| tools | `kernel/config/__tests__/`, `packages/<package>/__tests__/` | memory only |
 | apps | `apps/api/__tests__/`, `apps/worker/__tests__/` | the app's layer over the memory layers |
 | assembled | `apps/__e2e__/`: the use cases on Postgres in `use-cases/`, the mappers' round trips in `mappers/`, the journey `chat.e2e.ts` | both app layers in one runtime (`StandTest`) |
 
-The memory repositories live in `kernel/__tests__/testing/`, over the same entities as the real
+The memory repositories live in `kernel/data/__tests__/testing/`, over the same entities as the real
 ones. What each kind of test checks, what a memory layer must copy and how to write a test:
 [.claude/rules/effect-tests.md](../../.claude/rules/effect-tests.md).
 
@@ -272,8 +275,8 @@ model's.
    [kernel/CLAUDE.md](../../kernel/CLAUDE.md). Ownership is a field of the `<Name>EntityWhere`
    the reads take, so a record of another owner reads as absent, never a check after the read.
    Test the repository in
-   `kernel/__e2e__/data/<store>/` on `DbTest`, and add its memory repository to
-   `kernel/__tests__/testing/` with a twin of every guard the e2e proves.
+   `kernel/data/__e2e__/<store>/` on `DbTest`, and add its memory repository to
+   `kernel/data/__tests__/testing/` with a twin of every guard the e2e proves.
 2. **The model.** `application/<module>/domain/`: `<entity>.id.ts`, `<entity>.model.ts` (a
    `Schema.Class` with its pure operations; time and ids come in as input), `<entity>.error.ts`,
    tested in `application/<module>/__tests__/domain/`.
@@ -321,7 +324,8 @@ Layer.provide(Db.layer), Layer.provide([PgClientFromConfig, S3BucketFromConfig])
    from the inventory in `kernel/aws/resources`.
 4. **Each process** provides it in its `layer.ts`; a missing one is a type error in the layer's
    requirements.
-5. **The e2e harness** in `kernel/__e2e__/testing/` provides a client of the test's own (a
+5. **The e2e harness** in the part's `__e2e__/testing/` (`kernel/data/__e2e__/testing/`,
+   `kernel/aws/__e2e__/testing/`) provides a client of the test's own (a
    database, a stage) the same way `DbTest` and `AwsTest` do; `deployment/local/` provisions the
    store on the local stand ([aws.md](aws.md)).
 

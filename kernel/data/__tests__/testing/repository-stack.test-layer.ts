@@ -1,14 +1,14 @@
 import { Layer } from 'effect'
 
-import { AttachmentRepositoryTest, AttachmentRows } from '#testing/attachment.test-fake'
+import { AttachmentRepositoryTest, AttachmentRows } from '#testing/data/attachment.test-fake'
 import {
   ChatRepositoryTest,
   ChatRows,
   MessageRepositoryTest,
   MessageRows,
-} from '#testing/chat.test-fake'
-import { FileObjects, FileRepositoryTest } from '#testing/file.test-fake'
-import { UserRepositoryTest, UserRows } from '#testing/user.test-fake'
+} from '#testing/data/chat.test-fake'
+import { FileObjects, FileRepositoryTest } from '#testing/data/file.test-fake'
+import { UserRepositoryTest, UserRows } from '#testing/data/user.test-fake'
 
 /**
  * The data layer's memory repositories over fresh rows and objects, both in context for a test to

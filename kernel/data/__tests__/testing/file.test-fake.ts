@@ -7,7 +7,7 @@ import { FileRepository } from '#kernel/data/file/file.repository'
 export class FileObjects extends Context.Service<
   FileObjects,
   Ref.Ref<HashMap.HashMap<string, Uint8Array>>
->()('@app-template/kernel/testing/FileObjects') {
+>()('@app-template/kernel/data/testing/FileObjects') {
   static readonly layer = Layer.effect(this, Ref.make(HashMap.empty<string, Uint8Array>()))
 }
 

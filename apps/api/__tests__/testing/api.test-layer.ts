@@ -5,7 +5,7 @@ import { Cookies } from 'effect/http'
 import { CurrentReplyProvenanceTest } from '@app-template/chat/testing'
 import { TransactionTest } from '@app-template/db/testing'
 import { ApiClient } from '@app-template/http-api'
-import { RepositoryStackTest } from '@app-template/kernel/testing'
+import { RepositoryStackTest } from '@app-template/kernel/data/testing'
 import { recordQueue } from '@app-template/queue/testing'
 import { layerCookieJarTest } from '@app-template/testing'
 

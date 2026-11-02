@@ -30,7 +30,7 @@ export interface UserRow {
 export class UserRows extends Context.Service<
   UserRows,
   Ref.Ref<HashMap.HashMap<string, UserRow>>
->()('@app-template/kernel/testing/UserRows') {
+>()('@app-template/kernel/data/testing/UserRows') {
   static readonly layer = Layer.effect(this, Ref.make(HashMap.empty<string, UserRow>()))
 }
 

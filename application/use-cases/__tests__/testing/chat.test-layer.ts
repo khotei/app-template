@@ -9,7 +9,7 @@ import {
   queuedChat,
 } from '@app-template/chat/testing'
 import { TransactionTest } from '@app-template/db/testing'
-import { RepositoryStackTest } from '@app-template/kernel/testing'
+import { RepositoryStackTest } from '@app-template/kernel/data/testing'
 
 import { GenerateAssistantMessageUseCase } from '#use-cases/chat/generate-assistant-message.use-case'
 import { GenerateChatTitleUseCase } from '#use-cases/chat/generate-chat-title.use-case'

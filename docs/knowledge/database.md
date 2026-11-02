@@ -309,9 +309,9 @@ and that are committed.
 
 Each e2e test runs on a database of its own, copied from a template that the run's setup
 migrates with the `make migrate` program ([tooling.md › Tests](tooling.md#tests)). A data
-layer's repository has a `.repository.e2e.ts` in `kernel/__e2e__/data/<store>/` on `DbTest`, in
+layer's repository has a `.repository.e2e.ts` in `kernel/data/__e2e__/<store>/` on `DbTest`, in
 entities, its parent rows written through `Db`. An
-`.entity.e2e.ts` in `kernel/__e2e__/data/<store>/` checks, in entities only, what the schema
+`.entity.e2e.ts` in `kernel/data/__e2e__/<store>/` checks, in entities only, what the schema
 itself refuses (a check, a partial unique index) and reads the `SqlError` of a refused statement
 with `flipSqlError` from `@app-template/db/testing-e2e`. A limit or a pattern the data layer
 declares again beside a model has a `.mapper.e2e.ts` in `apps/__e2e__/mappers/`: it writes the

@@ -4,8 +4,8 @@ import { DateTime, Effect, Layer, Option, Schema } from 'effect'
 import { buildUser, Credential, SecretHash, User } from '@app-template/identity/domain'
 import { decodeUser, encodeCredential, encodeUser } from '@app-template/identity/services'
 import { UserId } from '@app-template/identity-contract'
+import { DbTest } from '@app-template/kernel/data/testing-e2e'
 import { UserRepository } from '@app-template/kernel/data/user'
-import { DbTest } from '@app-template/kernel/testing-e2e'
 import { assertSchemaEquals } from '@app-template/testing'
 
 const user = buildUser({

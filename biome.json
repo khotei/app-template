@@ -149,6 +149,8 @@
                       "!@app-template/queue",
                       "!@app-template/kernel/aws/resources",
                       "!@app-template/kernel/data/*",
+                      "@app-template/kernel/data/testing",
+                      "@app-template/kernel/data/testing-e2e",
                       "!@app-template/*-contract",
                       "!@app-template/*-contract/**",
                       "@effect/**"
@@ -255,7 +257,6 @@
                       "!@app-template/testing/**",
                       "!@app-template/*-contract",
                       "!@app-template/*-contract/**",
-                      "!@app-template/kernel/testing",
                       "!@app-template/kernel/aws/resources",
                       "!@app-template/kernel/data/*",
                       "@effect/**",
@@ -264,15 +265,15 @@
                       "!@effect/platform-bun",
                       "!@effect/platform-bun/**"
                     ],
-                    "message": "a module's tests import no workspace but @app-template/testing, the module contracts, @app-template/kernel/testing, the inventory (@app-template/kernel/aws/resources) and the data layer's stores (@app-template/kernel/data/*) they arrange through, and no @effect/* package except the test runner @effect/vitest and @effect/platform-bun for BunCrypto.layer (decisions.md › A module's layers; Module contracts)"
+                    "message": "a module's tests import no workspace but @app-template/testing, the module contracts, the data layer's memory repositories (@app-template/kernel/data/testing), the inventory (@app-template/kernel/aws/resources) and the data layer's stores (@app-template/kernel/data/*) they arrange through, and no @effect/* package except the test runner @effect/vitest and @effect/platform-bun for BunCrypto.layer (decisions.md › A module's layers; Module contracts)"
                   },
                   {
                     "group": [
                       "#testing-e2e/**",
-                      "@app-template/*/testing-e2e",
-                      "@app-template/*/testing-e2e/**"
+                      "@app-template/**/testing-e2e",
+                      "@app-template/**/testing-e2e/**"
                     ],
-                    "message": "a unit test and its support import no e2e support (#testing-e2e/…, @app-template/*/testing-e2e): unit tests run with no container (decisions.md › Tests in their folders)"
+                    "message": "a unit test and its support import no e2e support (#testing-e2e/…, @app-template/**/testing-e2e): unit tests run with no container (decisions.md › Tests in their folders)"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -301,21 +302,20 @@
                       "!@app-template/testing/**",
                       "!@app-template/*-contract",
                       "!@app-template/*-contract/**",
-                      "!@app-template/kernel/testing",
                       "!@app-template/kernel/data/*",
                       "@effect/**",
                       "!@effect/vitest",
                       "!@effect/vitest/**"
                     ],
-                    "message": "a module's test support imports no workspace but @app-template/testing, the module contracts, @app-template/kernel/testing and the data layer's stores (@app-template/kernel/data/*) it arranges through, and no @effect/* package except the test runner @effect/vitest (decisions.md › A module's layers; Module contracts)"
+                    "message": "a module's test support imports no workspace but @app-template/testing, the module contracts, the data layer's memory repositories (@app-template/kernel/data/testing) and its stores (@app-template/kernel/data/*) it arranges through, and no @effect/* package except the test runner @effect/vitest (decisions.md › A module's layers; Module contracts)"
                   },
                   {
                     "group": [
                       "#testing-e2e/**",
-                      "@app-template/*/testing-e2e",
-                      "@app-template/*/testing-e2e/**"
+                      "@app-template/**/testing-e2e",
+                      "@app-template/**/testing-e2e/**"
                     ],
-                    "message": "a unit test and its support import no e2e support (#testing-e2e/…, @app-template/*/testing-e2e): unit tests run with no container (decisions.md › Tests in their folders)"
+                    "message": "a unit test and its support import no e2e support (#testing-e2e/…, @app-template/**/testing-e2e): unit tests run with no container (decisions.md › Tests in their folders)"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -365,10 +365,10 @@
                   {
                     "group": [
                       "#testing-e2e/**",
-                      "@app-template/*/testing-e2e",
-                      "@app-template/*/testing-e2e/**"
+                      "@app-template/**/testing-e2e",
+                      "@app-template/**/testing-e2e/**"
                     ],
-                    "message": "a unit test and its support import no e2e support (#testing-e2e/…, @app-template/*/testing-e2e): unit tests run with no container (decisions.md › Tests in their folders)"
+                    "message": "a unit test and its support import no e2e support (#testing-e2e/…, @app-template/**/testing-e2e): unit tests run with no container (decisions.md › Tests in their folders)"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -413,8 +413,13 @@
                     "message": "a use case reaches a module's adapters only through the ports of its domain; the processes provide them (decisions.md › A module's layers)"
                   },
                   {
-                    "group": ["@app-template/*/testing", "@app-template/*/testing/**"],
-                    "message": "a use case's source imports no test support (@app-template/*/testing): only its __tests__/ do (decisions.md › Tests in their folders)"
+                    "group": [
+                      "@app-template/*/testing",
+                      "@app-template/*/testing/**",
+                      "@app-template/kernel/*/testing",
+                      "@app-template/kernel/*/testing-e2e"
+                    ],
+                    "message": "a use case's source imports no test support (@app-template/*/testing, @app-template/kernel/*/testing and …/testing-e2e): only its __tests__/ do (decisions.md › Tests in their folders)"
                   },
                   {
                     "group": [
@@ -472,18 +477,17 @@
                       "@app-template/kernel",
                       "@app-template/kernel/**",
                       "!@app-template/kernel/data",
-                      "!@app-template/kernel/data/**",
-                      "!@app-template/kernel/testing"
+                      "!@app-template/kernel/data/**"
                     ],
                     "message": "a use case imports only the kernel's data layer (@app-template/kernel/data/*), never its boundary (/config, /postgres, /aws, /queue, /llm): the processes provide the clients (decisions.md › Clients from the context)"
                   },
                   {
                     "group": [
                       "#testing-e2e/**",
-                      "@app-template/*/testing-e2e",
-                      "@app-template/*/testing-e2e/**"
+                      "@app-template/**/testing-e2e",
+                      "@app-template/**/testing-e2e/**"
                     ],
-                    "message": "a unit test and its support import no e2e support (#testing-e2e/…, @app-template/*/testing-e2e): unit tests run with no container (decisions.md › Tests in their folders)"
+                    "message": "a unit test and its support import no e2e support (#testing-e2e/…, @app-template/**/testing-e2e): unit tests run with no container (decisions.md › Tests in their folders)"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -584,7 +588,7 @@
       }
     },
     {
-      "includes": ["kernel/__tests__/**"],
+      "includes": ["kernel/*/__tests__/**"],
       "linter": {
         "rules": {
           "style": {
@@ -618,10 +622,105 @@
                   {
                     "group": [
                       "#testing-e2e/**",
-                      "@app-template/*/testing-e2e",
-                      "@app-template/*/testing-e2e/**"
+                      "@app-template/**/testing-e2e",
+                      "@app-template/**/testing-e2e/**"
                     ],
-                    "message": "a unit test and its support import no e2e support (#testing-e2e/…, @app-template/*/testing-e2e): unit tests run with no container (decisions.md › Tests in their folders)"
+                    "message": "a unit test and its support import no e2e support (#testing-e2e/…, @app-template/**/testing-e2e): unit tests run with no container (decisions.md › Tests in their folders)"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["kernel/data/__tests__/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/**",
+                      "!@app-template/aws",
+                      "!@app-template/aws/**",
+                      "!@app-template/db",
+                      "!@app-template/db/**",
+                      "!@app-template/llm",
+                      "!@app-template/llm/**",
+                      "!@app-template/queue",
+                      "!@app-template/queue/**",
+                      "!@app-template/s3",
+                      "!@app-template/s3/**",
+                      "!@app-template/testing",
+                      "!@app-template/testing/**",
+                      "!@app-template/ui",
+                      "!@app-template/ui/**"
+                    ],
+                    "message": "the data layer and its memory repositories import no workspace but packages/*: no module or model, no other kernel part such as @app-template/kernel/config (decisions.md › The data at the centre; Clients from the context)"
+                  },
+                  {
+                    "group": ["#kernel/**", "!#kernel/data/**"],
+                    "message": "the data layer and its memory repositories import no other kernel part (#kernel/postgres, #kernel/aws, #kernel/queue, #kernel/config): they take their clients from the context (decisions.md › The data at the centre; Clients from the context; Jobs as a table in the data layer)"
+                  },
+                  {
+                    "group": [
+                      "#testing-e2e/**",
+                      "@app-template/**/testing-e2e",
+                      "@app-template/**/testing-e2e/**"
+                    ],
+                    "message": "a unit test and its support import no e2e support (#testing-e2e/…, @app-template/**/testing-e2e): unit tests run with no container (decisions.md › Tests in their folders)"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["kernel/*/__e2e__/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/chat",
+                      "@app-template/chat/**",
+                      "@app-template/identity",
+                      "@app-template/identity/**",
+                      "@app-template/*-contract",
+                      "@app-template/*-contract/**",
+                      "@app-template/use-cases",
+                      "@app-template/use-cases/**",
+                      "@app-template/api",
+                      "@app-template/api/**",
+                      "@app-template/worker",
+                      "@app-template/worker/**",
+                      "@app-template/web",
+                      "@app-template/web/**",
+                      "@app-template/deployment",
+                      "@app-template/deployment/**",
+                      "@app-template/http-api",
+                      "@app-template/http-api/**"
+                    ],
+                    "message": "the kernel holds this app's tools and data: it may import only packages/*, never a module, a contract, a use case, http-api or an app (decisions.md › One kernel)"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -716,10 +815,10 @@
                   {
                     "group": [
                       "#testing-e2e/**",
-                      "@app-template/*/testing-e2e",
-                      "@app-template/*/testing-e2e/**"
+                      "@app-template/**/testing-e2e",
+                      "@app-template/**/testing-e2e/**"
                     ],
-                    "message": "a unit test and its support import no e2e support (#testing-e2e/…, @app-template/*/testing-e2e): unit tests run with no container (decisions.md › Tests in their folders)"
+                    "message": "a unit test and its support import no e2e support (#testing-e2e/…, @app-template/**/testing-e2e): unit tests run with no container (decisions.md › Tests in their folders)"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -824,8 +923,12 @@
                     "message": "apps are independent: api must not import another app (decisions.md › Independent apps)"
                   },
                   {
-                    "group": ["@app-template/kernel/data", "@app-template/kernel/data/**"],
-                    "message": "a handler calls one service method or one use case, never a repository: only the process's layer.ts provides the data layer (decisions.md › A module's layers)"
+                    "group": [
+                      "@app-template/kernel/data",
+                      "@app-template/kernel/data/**",
+                      "!@app-template/kernel/data/testing"
+                    ],
+                    "message": "a handler calls one service method or one use case, never a repository: only the process's layer.ts provides the data layer, and a test arranges through its memory repositories (@app-template/kernel/data/testing) (decisions.md › A module's layers)"
                   },
                   {
                     "group": ["@app-template/*/services", "@app-template/*/services/**"],
@@ -835,10 +938,10 @@
                   {
                     "group": [
                       "#testing-e2e/**",
-                      "@app-template/*/testing-e2e",
-                      "@app-template/*/testing-e2e/**"
+                      "@app-template/**/testing-e2e",
+                      "@app-template/**/testing-e2e/**"
                     ],
-                    "message": "a unit test and its support import no e2e support (#testing-e2e/…, @app-template/*/testing-e2e): unit tests run with no container (decisions.md › Tests in their folders)"
+                    "message": "a unit test and its support import no e2e support (#testing-e2e/…, @app-template/**/testing-e2e): unit tests run with no container (decisions.md › Tests in their folders)"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -949,8 +1052,12 @@
                     "message": "apps are independent: worker must not import another app (decisions.md › Independent apps)"
                   },
                   {
-                    "group": ["@app-template/kernel/data", "@app-template/kernel/data/**"],
-                    "message": "a handler calls one service method or one use case, never a repository: only the process's layer.ts provides the data layer (decisions.md › A module's layers)"
+                    "group": [
+                      "@app-template/kernel/data",
+                      "@app-template/kernel/data/**",
+                      "!@app-template/kernel/data/testing"
+                    ],
+                    "message": "a handler calls one service method or one use case, never a repository: only the process's layer.ts provides the data layer, and a test arranges through its memory repositories (@app-template/kernel/data/testing) (decisions.md › A module's layers)"
                   },
                   {
                     "group": ["@app-template/*/services", "@app-template/*/services/**"],
@@ -960,10 +1067,10 @@
                   {
                     "group": [
                       "#testing-e2e/**",
-                      "@app-template/*/testing-e2e",
-                      "@app-template/*/testing-e2e/**"
+                      "@app-template/**/testing-e2e",
+                      "@app-template/**/testing-e2e/**"
                     ],
-                    "message": "a unit test and its support import no e2e support (#testing-e2e/…, @app-template/*/testing-e2e): unit tests run with no container (decisions.md › Tests in their folders)"
+                    "message": "a unit test and its support import no e2e support (#testing-e2e/…, @app-template/**/testing-e2e): unit tests run with no container (decisions.md › Tests in their folders)"
                   },
                   {
                     "group": ["./**", "../**"],

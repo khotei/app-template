@@ -164,14 +164,14 @@ kernel/                          @app-template/kernel
                                    ← infrastructure/shared/queue.client.ts
     job.relay.ts                   JobRelaySqs over JobRepository ← infrastructure/outbox/outbox.relay.ts
   llm/llm.client.ts              → /llm: new: createLanguageModel, the provider chosen by LlmConfig
-  __tests__/
-    testing/                     → /testing: the memory repositories over entities (Chat, Message,
-                                   Attachment, User, File), RepositoryStackTest ← domain/testing/*.test-fake.ts
-    config/  aws/                  ← packages/config/tests, infrastructure/tests/shared
-  __e2e__/
-    testing/                     → /testing-e2e: DbTest, AwsTest, RepositoryStackPgTest, rows.test-util,
-                                   e2e.test-setup ← infrastructure/{db/testing,testing}
-    data/<store>/  postgres/  queue/   ← infrastructure/e2e/**; in entities, no model
+  <part>/__tests__/  <part>/__e2e__/   each part keeps its tests (S25): config/__tests__,
+                                   data/__tests__/testing → /data/testing: the memory repositories
+                                   over entities, RepositoryStackTest ← domain/testing/*.test-fake.ts;
+                                   data/__e2e__/<store>/, postgres/__e2e__/, queue/__e2e__/
+                                   ← infrastructure/e2e/**, in entities, no model;
+                                   data/__e2e__/testing → /data/testing-e2e: DbTest, the job
+                                   fixture, e2e.test-setup; aws/__e2e__/testing → /aws/testing-e2e:
+                                   AwsTest ← infrastructure/{db/testing,testing}
   CLAUDE.md                      new
 packages/
   db/                            new  @app-template/db: createDb, Transaction, generateId, decodeOptionalRow,
@@ -215,7 +215,8 @@ a repository without a port); `application/CLAUDE.md` and `kernel/CLAUDE.md` (**
 ## Contracts
 
 **Package exports.** Every workspace exports its test support as `./testing` and `./testing-e2e`
-and aliases them as `#testing/*` and `#testing-e2e/*`.
+and aliases them as `#testing/*` and `#testing-e2e/*`; the kernel per part, as
+`./<part>/testing[-e2e]` and `#testing[-e2e]/<part>/*` (S25).
 
 ```json
 // kernel/package.json
@@ -228,10 +229,13 @@ and aliases them as `#testing/*` and `#testing-e2e/*`.
     "./data": "./data/index.ts", "./data/chat": "./data/chat/index.ts",
     "./data/attachment": "./data/attachment/index.ts", "./data/user": "./data/user/index.ts",
     "./data/job": "./data/job/index.ts", "./data/file": "./data/file/index.ts",
-    "./testing": "./__tests__/testing/index.ts", "./testing-e2e": "./__e2e__/testing/index.ts"
+    "./data/testing": "./data/__tests__/testing/index.ts",
+    "./data/testing-e2e": "./data/__e2e__/testing/index.ts",
+    "./aws/testing-e2e": "./aws/__e2e__/testing/index.ts"
   },
-  "imports": { "#kernel/*": "./*.ts", "#testing/*": "./__tests__/testing/*.ts",
-               "#testing-e2e/*": "./__e2e__/testing/*.ts" }
+  "imports": { "#kernel/*": "./*.ts", "#testing/data/*": "./data/__tests__/testing/*.ts",
+               "#testing-e2e/data/*": "./data/__e2e__/testing/*.ts",
+               "#testing-e2e/aws/*": "./aws/__e2e__/testing/*.ts" }
 }
 // application/chat/package.json
 {
@@ -410,7 +414,7 @@ record in `decisions.md`:
 | `http-api/**` | `@app-template/**` but `*-contract` and `*/domain`; `@effect/**` |
 | `apps/{api,worker}/**` | `@app-template/kernel/data/**` and a module's mappers but in `layer.ts`; another app |
 | `deployment/**` | the module packages, `*-contract`, `use-cases`, `http-api`, the apps; `@app-template/kernel/**` but `/config`, `/aws/resources`, `/data/file` |
-| `<workspace>/__tests__/**`, one per workspace | that workspace's bans repeated, and `#testing-e2e/**`, `@app-template/*/testing-e2e` |
+| `<workspace>/__tests__/**`, one per workspace (`kernel/*/__tests__/**` for the kernel's parts) | that workspace's bans repeated, and `#testing-e2e/**`, `@app-template/**/testing-e2e` |
 
 The masks `!@app-template/*-contract` and `!@app-template/*/domain` work in Biome 2.5.15 (verified
 in a sandbox). When two overrides match one file, Biome replaces the first one's
@@ -442,7 +446,7 @@ The behaviour must not change, so the seams are today's, at their new paths.
 | the journey over `ApiLayer` and `WorkerLayer` (`apps/__e2e__/chat.e2e.ts`) | the wiring of both processes: a sent message gets its reply and its title, the job sits in `jobs` (R2, R10) | which module or layer a fault comes from |
 | a use case on Postgres and MiniStack (`apps/__e2e__/use-cases/`) | one transaction across the writes and `jobs`, rolled back by a refused write; a deleted chat loses its rows and objects (R3, R10) | the HTTP shape |
 | a module's services and the use cases over the memory repositories, `TransactionTest` and `recordQueue()` (`application/*/__tests__/`) | the rules, a use case's checks, writes and jobs (R2) | SQL, the real transaction, S3 |
-| a repository on Postgres or MiniStack (`kernel/__e2e__/data/<store>/`), in entities | the SQL, the relations, the partial unique index, the cascades, the checks, the object keys and tags (R9) | the models' rules |
+| a repository on Postgres or MiniStack (`kernel/data/__e2e__/<store>/`), in entities | the SQL, the relations, the partial unique index, the cascades, the checks, the object keys and tags (R9) | the models' rules |
 | a mapper on Postgres (`apps/__e2e__/mappers/`) | a model's extreme value written through its entity and read back, so a limit duplicated by D11 cannot drift (R9) | the services |
 | the `AssistantLlm` adapter over a recording `HttpClient` (`application/chat/__tests__/infrastructure/`) | the requests to the provider, the settings, the retries, the stub (R2) | the provider itself |
 | a worker handler (`apps/worker/__tests__/`) | attempts, the last attempt and the dead letter (R2) | SQS itself |
@@ -717,8 +721,8 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
     `FileEntityDeleteWhere`, `naming.md`'s `<Verb>Where`; D17's "before the commit" read as the
     code never ran it: the rows go first, then the bytes, as the delete-chat e2e proves.
 
-- **D19 — Every workspace keeps its unit tests in `__tests__/` and its e2e in `__e2e__/`, each
-  with its support in a `testing/` inside, exported as `./testing` and `./testing-e2e`; an e2e
+- **D19 — Every workspace keeps its unit tests in `__tests__/` and its e2e in `__e2e__/`, the
+  kernel in each of its parts, each with its support in a `testing/` inside, exported as `./testing` and `./testing-e2e`; an e2e
   suite may import `./testing`, a unit test never `./testing-e2e`; `application` has unit tests
   only, and the e2e over assembled layers live in `apps/__e2e__` (`@app-template/e2e`).**
   - **Why:** the folder tells a unit test from an e2e and from source; the behaviour ring runs
@@ -733,6 +737,12 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
     - the e2e in each app's `__e2e__` — the journey would make the api import the worker, and apps
       never import each other.
     - the e2e workspace at the root (today's `e2e/`) — a test of the processes away from them.
+    - the kernel's tests at its top (S1–S24) — its parts are units like packages, yet their tests
+      sat apart from them.
+  - **Note (S25):** the user's word after verification: the kernel's tests moved into its parts,
+    their support exported per part; the e2e run's `globalSetup` stays one file in the data's e2e
+    support, since vitest runs `globalSetup` files one after another and a split would stop
+    Postgres and MiniStack from starting in parallel.
 
 - **D20 — The migrations restart as one initial migration generated from the data layer; every
   database is recreated (`make reset`).**

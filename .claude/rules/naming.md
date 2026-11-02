@@ -43,8 +43,9 @@ tool reads.
 | `.test-setup` | a vitest `globalSetup`: run-wide resources, handed to tests through `provide` | `__e2e__/testing/` |
 | `.test-util` | an assertion or a value helper with no layer | `testing/` of either |
 
-A test mirrors its source path under its workspace's `__tests__/` or `__e2e__/`, or a suite with
-no source names what it checks; a module folder holds no test. Suites compose the `testing/`
+A test mirrors its source path under its workspace's `__tests__/` or `__e2e__/` (a kernel part's
+own, `kernel/<part>/__tests__/`), or a suite with no source names what it checks; a module folder
+holds no test. Suites compose the `testing/`
 barrels instead of copying them. Which folder, which support and which suite runs where:
 [architecture.md › Where tests live](../../docs/knowledge/architecture.md#where-tests-live).
 
