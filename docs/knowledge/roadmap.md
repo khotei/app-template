@@ -327,28 +327,47 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 
 ### 8. `observability`
 
-- **Goal.** Every request, job and model call traced, logged and measured, visible locally in one
-  UI and exportable to any OTLP backend, with Effect DevTools for debugging.
-- **Scope.** `effect/observability` (`Otlp.layer` for traces, logs and metrics without the OTel
-  SDK) in the three processes; spans across api → queue → worker → model; `effect/ai`
-  `Telemetry`; `effect/devtools` client layer in dev; a local collector and UI in
-  `docker-compose`; structured logging conventions; health and readiness endpoints; a
-  `docs/knowledge/observability.md`.
-- **Out of scope.** Dashboards and alerting in AWS (9).
-- **Open questions for its feature phase.** `Otlp.layer` versus `@effect/opentelemetry` with the
-  OTel SDK (needed only if a vendor SDK is required); which local UI (Jaeger, Grafana LGTM,
-  SigNoz).
-- **Facts (2026-11-02).** No tracer is installed yet, though every `Effect.fn('<name>')` already
-  opens a span (68 of them in `application`, `kernel` and `apps`). `effect/devtools`
-  `DevTools.layer(url?)` installs a tracer that keeps the current one and streams spans, span
-  events and metric snapshots over a WebSocket to `ws://localhost:34437`, the server of the VS Code
-  extension "Effect Dev Tools" (started from its Clients panel); the client reconnects every
-  second, so the api and the worker may start first. A dev-only layer behind a config flag, never
-  in tests or on AWS. The extension's debugger panels (Fibers, Context, Span Stack, pause on
-  defect) need no code and work under `make debug-<app>`. Unverified: whether the extension's
-  tracer panel reads the v4 protocol; the v4 DevTools page documents only the debugger panels, and
-  the extension's README still imports `DevTools` from `@effect/experimental`, the v3 line.
-  `@stability unstable` throughout.
+- **Goal.** Every request, job and model call traced, logged and measured, readable three ways:
+  by a person in a local UI, by an agent (Claude Code) from the terminal while it debugs, and on
+  AWS for the deployed application, all from one telemetry path with no editor plugin.
+- **Scope.**
+  - `effect/observability` `Otlp.layer` (traces, logs and metrics over OTLP/HTTP, no OTel SDK) in
+    the api and the worker; one trace across api → queue → worker → model, the job carrying its
+    sender's trace context; `effect/ai` `Telemetry` on the model calls.
+  - Logs as JSON lines on stdout (`Logger.consoleJson`) with the trace and span ids, so
+    `make dev`'s output and CloudWatch Logs read the same and a log line leads to its trace.
+  - A local backend in `docker-compose` with an HTTP query API, not only a UI.
+  - Agent access: `make` targets (or a skill) that fetch a trace by id, search recent failed
+    traces and query logs by trace id or level, printing compact text an agent can read; an MCP
+    server for the backend only if the targets fall short.
+  - The AWS path, deployed by `aws-deployment` (9): logs to CloudWatch Logs from stdout, traces
+    to X-Ray through its OTLP endpoint; the Pulumi resources and permissions are 9's.
+  - Structured logging conventions; health and readiness endpoints;
+    `docs/knowledge/observability.md`, including how an agent debugs with it.
+- **Out of scope.** Dashboards and alerting in AWS (9); `effect/devtools`.
+- **Decided (2026-11-02).** No `effect/devtools`: its tracer streams to the VS Code extension
+  "Effect Dev Tools" only, and the user works in Vim; its debugger panels need VS Code as well.
+- **Open questions for its feature phase.** Which local backend: Grafana's `otel-lgtm` image
+  (Tempo, Loki and Prometheus behind one Grafana, each with an HTTP query API) or Jaeger (traces
+  only, logs stay on stdout); traces to X-Ray signed in-process (`Otlp.layer` takes an
+  `HttpClient`, so a SigV4-signing client, the one `bedrock-provider` (21) needs, could serve
+  both) or through an ADOT collector sidecar on the worker's ECS task, which also fits a Lambda
+  api only as a layer; how an agent reaches AWS telemetry (the AWS CLI's Logs Insights queries,
+  or an MCP server); sampling on AWS.
+- **Facts (2026-11-02).**
+  - No tracer is installed yet, though every `Effect.fn('<name>')` already opens a span (68 of
+    them in `application`, `kernel` and `apps`); logs go to the default console logger.
+  - `Otlp.layer({ baseUrl, resource, headers, compression })` posts to `/v1/logs`,
+    `/v1/metrics` and `/v1/traces` below `baseUrl` and needs an `HttpClient` and an
+    `OtlpSerialization`; `@stability unstable`. `Logger` has `consoleJson`, `consoleLogFmt` and
+    `consoleStructured`.
+  - AWS takes OTLP/HTTP (not gRPC) at `https://xray.<region>.amazonaws.com/v1/traces` and
+    `https://logs.<region>.amazonaws.com/v1/logs` (the log group and stream in the headers
+    `x-aws-log-group` and `x-aws-log-stream`), signed with SigV4; ECS and Lambda already ship
+    stdout to CloudWatch Logs.
+  - Grafana's official `mcp-grafana` queries Loki by LogQL; a community `lgtm-mcp` also reads
+    Tempo traces by id and TraceQL. Whether an AWS MCP server reads CloudWatch Logs and X-Ray was
+    not checked.
 
 ### 9. `aws-deployment`
 
@@ -842,5 +861,6 @@ Cross-ticket facts checked on 2026-10-17; re-verify before relying on one.
   `effect@4.0.6`).** Only the queue: `PersistedQueue` replaces `packages/queue`, the relay and the
   SQS transport (22). Already used: `effect/encoding` `Base64Url` and `Hex` for the user secret.
   Nothing of ours to replace, recorded where they would apply: `Sse` (7), `Zip`, `Xml` and
-  `effect/workers` (18), `effect/devtools` (8), `effect/workflow` (11), `effect/jose`, from 4.1.1
-  (25). Rejected: `effect/eventlog`, a local-first sync of an event journal (7).
+  `effect/workers` (18), `effect/workflow` (11), `effect/jose`, from 4.1.1 (25). Rejected:
+  `effect/eventlog`, a local-first sync of an event journal (7); `effect/devtools`, which streams
+  to a VS Code extension only (8).
