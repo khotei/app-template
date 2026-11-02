@@ -41,9 +41,9 @@ graph LR
 | 6 | [`llm-providers`](#6-llm-providers) | `feat` | 5 | done: [docs/tickets/2026-10-29-1435_llm-providers/](../tickets/2026-10-29-1435_llm-providers/feature.md) |
 | 7 | [`web-app`](#7-web-app) | `feat` | 3 (18 for assistant attachments) | planned |
 | 8 | [`observability`](#8-observability) | `feat` | 3 | planned |
-| 9 | [`aws-deployment`](#9-aws-deployment) | `feat` | 4, 5, 22 | planned |
+| 9 | [`aws-deployment`](#9-aws-deployment) | `feat` | 4, 5 | planned |
 | 10 | [`client-publishing`](#10-client-publishing) | `chore` | 3 | planned |
-| 11 | [`workflow-cluster`](#11-workflow-cluster) | `feat` | 22 | planned, exploratory |
+| 11 | [`workflow-cluster`](#11-workflow-cluster) | `feat` | 4, 8 | planned, exploratory |
 | 12 | [`template-handoff`](#12-template-handoff) | `chore` | all above | planned |
 | 13 | [`ticket-folder-order`](#13-ticket-folder-order) | `chore` | 3 | done: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md) |
 | 14 | [`toolkit-reading`](#14-toolkit-reading) | `chore` | 2 | done: [docs/tickets/2026-10-21-1347_toolkit-reading/](../tickets/2026-10-21-1347_toolkit-reading/feature.md) |
@@ -54,10 +54,9 @@ graph LR
 | 19 | [`openai-provider`](#19-openai-provider) | `feat` | 6 | planned |
 | 20 | [`context-window`](#20-context-window) | `feat` | 6 | planned |
 | 21 | [`bedrock-provider`](#21-bedrock-provider) | `feat` | 6, 9 | planned |
-| 22 | [`persisted-queue`](#22-persisted-queue) | `refactor` | 4, 23 | planned |
+| 22 | [`jobs`](#22-jobs) | `feat` | 4, 23 | planned |
 | 23 | [`modular-monolith`](#23-modular-monolith) | `refactor` | 15 | done: [docs/tickets/2026-10-31-0926_modular-monolith/](../tickets/2026-10-31-0926_modular-monolith/feature.md) |
 | 24 | [`attachment-storage-failures`](#24-attachment-storage-failures) | `fix` | 23 | planned |
-| 25 | [`authentication`](#25-authentication) | `feat` | 23 | planned, exploratory |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; its remaining work is re-homed
 in [Re-homing `effect-setup`](#re-homing-effect-setup).
@@ -319,59 +318,27 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   are `effect/reactivity/*` in core plus `@effect/atom-react@4.0.5` (React ≥ 19 only) with
   `ReactHydration.HydrationBoundary`; `@effect-atom/*` is the v3 line; no official TanStack bridge
   exists; nothing is called "Effect UI".
-- **Facts (2026-11-02).** `effect/encoding` `Sse` (`@stability unstable` in `effect@4.0.6`) encodes
-  and decodes server-sent events as stream channels, with schema variants: the codec for an SSE
-  tail if one earns its place. `effect/eventlog` is not a fit: it syncs an event journal between
-  offline-capable clients and a server (local-first), so adopting it would replace the data layer
-  of a chat whose source of truth is the server and whose reply the worker writes.
+- **To weigh.** [Ideas to weigh › Smaller fits](#smaller-fits): `Sse`, and why not `eventlog`.
 
 ### 8. `observability`
 
-- **Goal.** Every request, job and model call traced, logged and measured, readable three ways:
-  by a person in a local UI, by an agent (Claude Code) from the terminal while it debugs, and on
-  AWS for the deployed application, all from one telemetry path with no editor plugin.
-- **Scope.**
-  - `effect/observability` `Otlp.layer` (traces, logs and metrics over OTLP/HTTP, no OTel SDK) in
-    the api and the worker; one trace across api → queue → worker → model, the job carrying its
-    sender's trace context; `effect/ai` `Telemetry` on the model calls.
-  - Logs as JSON lines on stdout (`Logger.consoleJson`) with the trace and span ids, so
-    `make dev`'s output and CloudWatch Logs read the same and a log line leads to its trace.
-  - A local backend in `docker-compose` with an HTTP query API, not only a UI.
-  - Agent access: `make` targets (or a skill) that fetch a trace by id, search recent failed
-    traces and query logs by trace id or level, printing compact text an agent can read; an MCP
-    server for the backend only if the targets fall short.
-  - The AWS path, deployed by `aws-deployment` (9): logs to CloudWatch Logs from stdout, traces
-    to X-Ray through its OTLP endpoint; the Pulumi resources and permissions are 9's.
-  - Structured logging conventions; health and readiness endpoints;
-    `docs/knowledge/observability.md`, including how an agent debugs with it.
-- **Out of scope.** Dashboards and alerting in AWS (9); `effect/devtools`.
-- **Decided (2026-11-02).** No `effect/devtools`: its tracer streams to the VS Code extension
-  "Effect Dev Tools" only, and the user works in Vim; its debugger panels need VS Code as well.
-- **Open questions for its feature phase.** Which local backend: Grafana's `otel-lgtm` image
-  (Tempo, Loki and Prometheus behind one Grafana, each with an HTTP query API) or Jaeger (traces
-  only, logs stay on stdout); traces to X-Ray signed in-process (`Otlp.layer` takes an
-  `HttpClient`, so a SigV4-signing client, the one `bedrock-provider` (21) needs, could serve
-  both) or through an ADOT collector sidecar on the worker's ECS task, which also fits a Lambda
-  api only as a layer; how an agent reaches AWS telemetry (the AWS CLI's Logs Insights queries,
-  or an MCP server); sampling on AWS.
-- **Facts (2026-11-02).**
-  - No tracer is installed yet, though every `Effect.fn('<name>')` already opens a span (68 of
-    them in `application`, `kernel` and `apps`); logs go to the default console logger.
-  - `Otlp.layer({ baseUrl, resource, headers, compression })` posts to `/v1/logs`,
-    `/v1/metrics` and `/v1/traces` below `baseUrl` and needs an `HttpClient` and an
-    `OtlpSerialization`; `@stability unstable`. `Logger` has `consoleJson`, `consoleLogFmt` and
-    `consoleStructured`.
-  - AWS takes OTLP/HTTP (not gRPC) at `https://xray.<region>.amazonaws.com/v1/traces` and
-    `https://logs.<region>.amazonaws.com/v1/logs` (the log group and stream in the headers
-    `x-aws-log-group` and `x-aws-log-stream`), signed with SigV4; ECS and Lambda already ship
-    stdout to CloudWatch Logs.
-  - Grafana's official `mcp-grafana` queries Loki by LogQL; a community `lgtm-mcp` also reads
-    Tempo traces by id and TraceQL. Whether an AWS MCP server reads CloudWatch Logs and X-Ray was
-    not checked.
+- **Goal.** Every request, job and model call traced, logged and measured, visible locally in one
+  UI and exportable to any OTLP backend, with Effect DevTools for debugging.
+- **Scope.** `effect/observability` (`Otlp.layer` for traces, logs and metrics without the OTel
+  SDK) in the three processes; spans across api → queue → worker → model; `effect/ai`
+  `Telemetry`; `effect/devtools` client layer in dev; a local collector and UI in
+  `docker-compose`; structured logging conventions; health and readiness endpoints; a
+  `docs/knowledge/observability.md`.
+- **Out of scope.** Dashboards and alerting in AWS (9).
+- **Open questions for its feature phase.** `Otlp.layer` versus `@effect/opentelemetry` with the
+  OTel SDK (needed only if a vendor SDK is required); which local UI (Jaeger, Grafana LGTM,
+  SigNoz).
+- **To weigh.** [Ideas to weigh › Telemetry readable by an agent and on
+  AWS](#telemetry-readable-by-an-agent-and-on-aws): agent access, AWS export, no DevTools in Vim.
 
 ### 9. `aws-deployment`
 
-- **Goal.** One Pulumi program deploys the api, the worker, Postgres and S3 to AWS, from the
+- **Goal.** One Pulumi program deploys the api, the worker, Postgres, S3 and SQS to AWS, from the
   resource inventory `aws-local` (5) introduced, and the same program provisions MiniStack for the
   "true emulator" local mode, so a new project is live in one command.
 - **Scope.** `deployment/` on Pulumi `runtime: bun`; Lambda packaging for api and worker (Lambda
@@ -389,13 +356,8 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   infrastructure provides them (`aws-local` D5 dropped the startup `verify`); `provision` in
   `packages/aws` serves the tests only (each test file creates its own resources in milliseconds,
   without the Pulumi CLI).
-- **Decided (2026-11-02).** The queue moves into Postgres (`persisted-queue`, 22), so the worker
-  is a long-running process that polls the database, not a Lambda woken by an SQS event source
-  mapping: ECS (Express Mode or Fargate) runs it; the SQS queues, their dead-letter queues and the
-  Lambda event adapter leave the Scope. The api may still run on Lambda.
 - **Open questions for its feature phase.** Cold starts of `@effect/platform-bun` on Lambda; whether
-  `pulumi.dynamic.Resource`, unsupported under `runtime: bun`, is ever needed; the worker's
-  service on ECS (Express Mode or Fargate) and how many tasks poll one database.
+  `pulumi.dynamic.Resource`, unsupported under `runtime: bun`, is ever needed.
 - **Facts (2026-10-17).** Pulumi ≥ 3.227 runs TypeScript under `runtime: bun` (no function
   serialisation, no dynamic providers); CLI 3.270, `@pulumi/aws` 7.51. Bun on Lambda: the official
   guide uses Lambda Web Adapter in a container (also gives response streaming for SSE);
@@ -426,6 +388,10 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   deployed worker and api fail at start: both need `LLM_PROVIDER` and, for `anthropic`,
   `LLM_REPLY_MODEL`; the worker also `LLM_TITLE_MODEL` and `ANTHROPIC_API_KEY` (in SSM). The api
   never reads the key.
+- **To weigh.** [Ideas to weigh › Queue on SQS or in Postgres](#queue-on-sqs-or-in-postgres)
+  decides whether the worker is a Lambda on SQS or a long-running poller, and where the relay
+  runs; [Telemetry readable by an agent and on AWS](#telemetry-readable-by-an-agent-and-on-aws)
+  the CloudWatch and X-Ray path.
 
 ### 10. `client-publishing`
 
@@ -450,16 +416,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Facts (2026-10-17).** Both modules are in `effect@4.0.5` (`@stability unstable`); the cluster
   runtime has HTTP and socket runners, SQL message storage and Kubernetes discovery, but no SQS
   transport.
-- **Facts (2026-11-02).** The durable engine is `ClusterWorkflowEngine.layer`, which needs
-  `Sharding` and `MessageStorage`; `WorkflowEngine.layerMemory` is for tests only. One process
-  runs it on `SingleRunner.layer({ runnerStorage: 'memory' })`, which needs `SqlClient` and
-  `Crypto` and stores messages in the tables `cluster_messages`, `cluster_replies` and
-  `cluster_migrations` (prefix configurable), created by the library's own migrations, beside the
-  one Drizzle migration. `Activity` stores and replays a step's result, `DurableClock` is a timer
-  that survives restarts, `DurableDeferred` a wait an outside call completes, and `DurableQueue`
-  hands work to a worker over `PersistedQueue`, the queue 22 adopts. So once 22 lands, Workflow
-  adds only multi-step durability: the spike waits for a flow of several steps (18's
-  upload → extract → summarise is the first candidate); today's jobs are one step each.
+- **To weigh.** [Ideas to weigh › Workflow on top of the queue](#workflow-on-top-of-the-queue).
 
 ### 12. `template-handoff`
 
@@ -601,13 +558,8 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   and has code execution, the Files API and Skills; its client is beta. MiniStack emulates
   Transcribe (canned transcript) and Knowledge Bases (lexical search), not Data Automation or the
   Code Interpreter.
-- **Facts on Effect (2026-11-02).** `.docx`, `.xlsx` and `.pptx` are zip archives of XML, so
-  converting them to text on our side needs no third-party library: `effect/encoding` `Zip`
-  decodes an archive as a stream without buffering whole entries, and `Xml` reads XML as a
-  stream of events, with `elements` for repeated items (both new in 4.0; check their stability
-  tags before relying on them). If that conversion is heavy enough to stall the worker,
-  `effect/workers` runs it on a Bun worker thread (`BunWorker`, `BunWorkerRunner` in
-  `@effect/platform-bun`), typed messages and `Transferable` buffers included.
+- **To weigh.** [Ideas to weigh › Smaller fits](#smaller-fits): `Zip`, `Xml` and `workers` to
+  turn Office files into text on our side.
 - **Status.** Planned.
 
 ### 19. `openai-provider`
@@ -664,52 +616,12 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   and does not emulate the Messages endpoint, so local runs stay on the stub.
 - **Status.** Planned.
 
-### 22. `persisted-queue`
+### 22. `jobs`
 
-- **Goal.** The hand-written queue goes: jobs live in Postgres through Effect's `PersistedQueue`,
-  so the queue logic, the outbox relay and the SQS transport are deleted, not maintained. Every
-  job still leaves one row that says where it stands and why it failed; and deleting a chat or a
-  file never waits on S3, however many files it holds: the request deletes rows only, and a job
-  deletes the bytes.
-- **Decided (2026-11-02).** Replaces the ticket `jobs`, whose ledger below was to be written by
-  hand on top of the SQS queue. The ledger it planned (statuses, attempts, the last error) comes
-  with the library's table; its trigger and its open questions carry over.
-- **Deleted.** `packages/queue` (`QueueConsumer`, `QueueSender`, `QueueTransport` over SQS, the
-  dead-letter retry logic), `kernel/queue` (`QueueSenderJobs`, `JobRelay`, `QueueConsumerSqs`),
-  `kernel/data/job` and the `jobs` table, the dead-letter handlers and definitions of the worker
-  and of `chat`, the SQS queues and dead-letter queues in `deployment/`, the variables
-  `QUEUE_LOCK_EXPIRATION`, `QUEUE_LOCK_REFRESH_INTERVAL` and `OUTBOX_POLL_INTERVAL`: about 610
-  lines of code and 960 of tests on 2026-11-02.
-- **Gained from the library.**
-  - The outbox for free: `offer` writes a row through the current `SqlClient`, so inside the
-    send's `withTransaction` the job commits with the message, and no relay is needed (to prove by
-    one e2e: a rolled-back send leaves no job).
-  - Retries by `maxAttempts` and a `retrySchedule` replayed from the stored attempt count, so the
-    delays hold across processes; a delayed first run (`offer` with `delay`); de-duplication by
-    the offered `id`, the job id of today's definitions.
-  - Per row: `state` (`pending` → `processing` → `completed` or `failed`), `attempts`,
-    `last_failure`; a partial index on pending rows; `layerCleanup` removes old finished rows,
-    which answers the retention question below.
-  - `layerStoreMemory`, the same semantics in memory, for the tests above the queue.
-- **Costs.**
-  - SQS leaves the template: the worker polls Postgres and runs as a long-running process, which
-    rewrites `aws-deployment` (9).
-  - The library creates its table at start (`CREATE TABLE IF NOT EXISTS`), outside the one
-    Drizzle migration; the feature phase decides whether to accept that or to mirror the table in
-    Drizzle and skip its DDL.
-  - `element` is `TEXT`, not `jsonb`: finding a chat's jobs by `body @> '{"chatId": …}'` needs an
-    index of ours on a cast, or a column of our own.
-  - `@stability unstable`: the API may change in a minor of `effect`.
-  - It rewrites `aws-local` D1 ("`PersistedQueue` goes": an SQS store could not keep the store's
-    promises), the records
-    [Jobs as a table in the data layer](decisions.md#jobs-as-a-table-in-the-data-layer) and
-    [One initial migration](decisions.md#one-initial-migration) if the library's DDL stays.
-- **Open questions added (2026-11-02).** How the handler learns its last attempt (`take` gives
-  `attempts`; `maxAttempts` is the definition's); where a `failed` row is surfaced, now that no
-  dead-letter queue exists; whether the trigger below may insert into the library's table, which
-  ties the schema to the library's private columns, or writes a row of ours that a job reads.
-- **The `jobs` ticket's scope, kept for its trigger and open questions; its statuses, relay and
-  write-back are what the library replaces.**
+- **Goal.** Every job, whatever its queue, leaves one row that says where it stands and why it
+  failed, searchable by what it is about; and deleting a chat or a file never waits on S3,
+  however many files it holds: the request deletes rows only, and a job deletes the bytes.
+- **Scope.**
   - The table `jobs` (renamed from `outbox` by `modular-monolith`) keeps one row per job with
     `status`, `attempts`, the last `error`,
     `updated_at`, and a GIN index (`jsonb_path_ops`) on `body`, so `body @> '{"chatId": …}'`
@@ -763,6 +675,9 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Facts (2026-10-30).** S3 lists by key prefix only and cannot list, delete or filter by
   metadata or tag; lifecycle rules filter by prefix, tag and size, a few static rules per bucket;
   `DeleteObjects` takes 1000 keys a request.
+- **To weigh first.** [Ideas to weigh › Queue on SQS or in Postgres](#queue-on-sqs-or-in-postgres):
+  Effect's `PersistedQueue` would give most of this ledger and delete our queue, at the cost of
+  SQS. Decide it before this ticket's design.
 - **Status.** Planned.
 
 ### 23. `modular-monolith`
@@ -791,34 +706,136 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
     so a rollback leaves unbound rows over untagged bytes that the lifecycle rule never expires;
     the transaction's failure restores the tag, or logs the ids.
 - **Related, not in scope.** The bytes of a deleted chat whose `FileRepository.delete` fails after
-  the rows are gone: 22 `persisted-queue` moves that delete into an `attachment-deletion` job.
+  the rows are gone: 22 `jobs` moves that delete into an `attachment-deletion` job.
 - **Found by** `modular-monolith` S18's review (2026-11-01): every gap predates that ticket,
   which moves the code as is.
 - **Status.** Planned.
 
-### 25. `authentication`
+## Ideas to weigh
 
-- **Goal.** To be set by its feature phase. The starting point is `chat-core`'s decision that
-  today's user, known by a server-issued secret in an `HttpOnly` cookie, later merges into an
-  account.
-- **Today (2026-11-02).** `identity`'s `UserService` issues 32 random bytes as a base64url secret,
-  stores only its SHA-256, and resolves the user by that hash on every request through the
-  `Auth` middleware's cookie security. A session is revoked by deleting its row; no JWT exists.
-- **Open questions for its feature phase.** An external identity provider (Cognito, Auth0, any
-  OIDC) or accounts of our own; how a cookie user merges into an account; whether sessions stay
-  rows (revocable, one query a request) or become signed tokens (no query, revoked only by
-  expiry or a deny-list).
-- **Facts (2026-11-02).** `effect/jose` ships from `effect@4.1.1` (2026-10-30; `4.1.2` is
-  current), `@stability unstable`, on Web Crypto through the new `effect/crypto`, with no
-  third-party dependency. `Jwt.sign` and `Jwt.verify` take a `Schema` for the claims;
-  `Jwt.verifyWithKeySet` resolves the key through `Jwks`; `Jwks.layerRemote({ url })` fetches and
-  caches a provider's key set (10-minute TTL, a 30-second cooldown for unknown `kid`s, one request
-  shared by concurrent callers, redirects refused); `Jwt.encrypt` and `Jwt.decrypt` cover JWE with
-  `dir` and A256GCM only. Algorithms: HS, RS, PS and ES at 256, 384 and 512, and EdDSA; compact
-  serialisation only. There is no `HttpApiSecurity` or middleware helper: a bearer check is a
-  middleware of ours that calls `Jwt.verifyWithKeySet`. Adopting it first moves the catalog from
-  `effect@4.0.6` to `4.1.x`, an upgrade whose changelog was not found.
-- **Status.** Planned, exploratory.
+Options raised outside a ticket, **not decided**: the plan above stands until a ticket's feature
+phase weighs one. Each holds what it would bring, what it would cost, and what to check first.
+Raised on 2026-11-02 by a review of Effect's modules (`effect@4.0.6`, Jose from `4.1.1`) for
+hand-written code they could replace; only the queue qualified.
+
+### Queue on SQS or in Postgres
+
+For `jobs` (22) and `aws-deployment` (9), and the record
+[Jobs as a table in the data layer](decisions.md#jobs-as-a-table-in-the-data-layer).
+
+- **The option.** Effect's `PersistedQueue` (`effect/persistence`) with `layerStoreSql` keeps
+  the jobs in a Postgres table and replaces our queue: `packages/queue` (`QueueConsumer`,
+  `QueueSender`, `QueueTransport` over SQS), `kernel/queue` (`QueueSenderJobs`, `JobRelay`,
+  `QueueConsumerSqs`), `kernel/data/job`, the dead-letter handlers and definitions, the SQS queues
+  in `deployment/`, three queue variables: about 610 lines of code and 960 of tests.
+- **What Postgres would bring.**
+  - No relay: `offer` writes through the current `SqlClient`, so inside the send's transaction
+    the job commits with the message (assumed from the code, to prove by one e2e). One system
+    holds a job's whole state, so 22's question "what the worker does when Postgres refuses an
+    outcome SQS has already settled" disappears.
+  - Per row `state` (`pending` → `processing` → `completed` or `failed`), `attempts` and
+    `last_failure`: most of 22's ledger without writing it. `layerCleanup` for retention.
+  - Retries by `maxAttempts` and a `retrySchedule` replayed from the stored attempt count;
+    `offer` with `delay`; de-duplication by `id`; an interrupt does not cost an attempt, as it
+    does on SQS.
+  - `layerStoreMemory` with the same semantics, so tests above the queue run without Docker.
+- **What SQS gives that Postgres would lose.**
+  - Monitoring without code: CloudWatch metrics per queue (messages visible, in flight, age of
+    the oldest), alarms on a dead-letter queue's depth, messages browsable in the console, and a
+    built-in redrive from a dead-letter queue back to its source. In Postgres all of this is ours
+    to build, as SQL or as metrics of `observability` (8).
+  - A worker that is not always on: a Lambda event source mapping scales consumers with the
+    backlog and to zero, billed per use. A Postgres queue needs a long-running poller (ECS), paid
+    while idle.
+  - A database that can sleep: Aurora Serverless v2 pauses at 0 ACU, which 9 weighs; a poller
+    every second never lets it. Today's `JobRelay` also polls Postgres, so this holds for the
+    current design too until 9 says where the relay runs.
+  - Load kept off the database: a backlog's receives, retries and locks hit SQS, not the rows
+    the api reads; a queue table updated on every attempt needs its vacuum watched.
+  - Other AWS services can send or consume (EventBridge Pipes, SNS) without database access.
+  - The template shows AWS integration, which is part of its purpose.
+- **What Postgres would cost besides.** `@stability unstable` (may change in a minor of
+  `effect`); the library creates its own table (`CREATE TABLE IF NOT EXISTS`), outside the one
+  Drizzle migration ([One initial migration](decisions.md#one-initial-migration)); the job body
+  is `TEXT`, not `jsonb`, so 22's search `body @> '{"chatId": …}'` needs an index of ours; 22's
+  trigger would write into the library's private table; it reverses `aws-local` D1.
+- **Rejected already.** Postgres locally and SQS on AWS: `aws-local` D1 refused two queue
+  semantics under one interface.
+- **Check before deciding.** An e2e that a rolled-back send leaves no job; where the relay runs
+  if the worker becomes a Lambda; the cost of an always-on ECS worker against Lambda at this
+  template's load; whether CloudWatch's SQS metrics are something the team would really watch.
+
+### Workflow on top of the queue
+
+For `workflow-cluster` (11).
+
+- **What it is.** The durable engine is `ClusterWorkflowEngine.layer` (needs `Sharding` and
+  `MessageStorage`; `WorkflowEngine.layerMemory` is for tests). One process runs it on
+  `SingleRunner.layer({ runnerStorage: 'memory' })`, with `SqlClient` and `Crypto`, in the
+  tables `cluster_messages`, `cluster_replies` and `cluster_migrations` that its own migrations
+  create. `Activity` stores and replays a step's result, `DurableClock` is a timer that survives
+  restarts, `DurableDeferred` a wait an outside call completes, `DurableQueue` hands work to a
+  worker over `PersistedQueue`.
+- **What it would bring.** Multi-step flows that resume after a crash without our own state
+  machine (18's upload → extract → summarise is the first candidate).
+- **What it would cost.** A long-running runner (no Lambda), no SQS transport, tables outside the
+  Drizzle migration, `@stability unstable`.
+- **To weigh.** Today's jobs are one step each, so Workflow brings nothing until a multi-step flow
+  exists; if the queue moves to Postgres, `DurableQueue` sits on the same `PersistedQueue`. The
+  spike needs no tracing, so its dependency on 8 may drop.
+
+### Authentication with Jose
+
+No ticket yet; `chat-core` decided that today's user later merges into an account.
+
+- **Today.** `identity`'s `UserService` issues 32 random bytes as a base64url secret in an
+  `HttpOnly` cookie, stores only its SHA-256, and resolves the user by that hash on every request
+  through the `Auth` middleware. A session is revoked by deleting its row. No JWT exists.
+- **What Jose is.** `effect/jose`, from `effect@4.1.1` (2026-10-30; `4.1.2` current),
+  `@stability unstable`, on Web Crypto through the new `effect/crypto`, no third-party
+  dependency. `Jwt.sign` and `Jwt.verify` decode claims with a `Schema`; `Jwt.verifyWithKeySet`
+  resolves keys through `Jwks`; `Jwks.layerRemote({ url })` fetches and caches a provider's key
+  set (10-minute TTL, 30-second cooldown for unknown `kid`s, one request shared by concurrent
+  callers, redirects refused); JWE only with `dir` and A256GCM; HS, RS, PS, ES and EdDSA, compact
+  serialisation only. No `HttpApiSecurity` or middleware helper: a bearer check is ours.
+- **Where it would bring something.** Signing in through an external provider (Cognito, Auth0,
+  any OIDC): `Jwks.layerRemote` is the part we would otherwise write.
+- **What it would cost.** Moving the catalog from `effect@4.0.6` to `4.1.x` (no changelog found).
+  Replacing today's session rows with signed tokens saves one query a request but loses
+  revocation (expiry or a deny-list instead): a change of behaviour, not a simplification.
+
+### Telemetry readable by an agent and on AWS
+
+For `observability` (8) and `aws-deployment` (9).
+
+- **The need.** Telemetry a person reads locally, an agent (Claude Code) queries from the
+  terminal while it debugs, and the deployed app shows on AWS; the user works in Vim.
+- **Facts.** No tracer is installed, though every `Effect.fn('<name>')` opens a span (68 in
+  `application`, `kernel` and `apps`). `Otlp.layer({ baseUrl, resource, headers, compression })`
+  sends logs, metrics and traces over OTLP/HTTP and takes an `HttpClient`; `Logger.consoleJson`
+  writes JSON lines. AWS takes OTLP/HTTP at `https://xray.<region>.amazonaws.com/v1/traces` and
+  `https://logs.<region>.amazonaws.com/v1/logs`, signed with SigV4; ECS and Lambda ship stdout
+  to CloudWatch Logs. Grafana's `mcp-grafana` queries Loki; a community `lgtm-mcp` also reads
+  Tempo traces. Not checked: an AWS MCP server for CloudWatch Logs and X-Ray.
+- **Options to weigh.** A local backend with an HTTP query API (Grafana's `otel-lgtm` image, or
+  Jaeger for traces only) behind `make` targets that print a trace or a trace's logs as compact
+  text, against an MCP server; JSON logs on stdout carrying trace ids, so `make dev`'s output and
+  CloudWatch read alike; X-Ray signed in-process by a SigV4 `HttpClient` (the one
+  `bedrock-provider` (21) needs) against an ADOT collector sidecar.
+- **Not a fit.** `effect/devtools`: its tracer streams only to the VS Code extension "Effect Dev
+  Tools", and its debugger panels need VS Code too.
+
+### Smaller fits
+
+- `effect/encoding` `Sse` (unstable): the codec for an SSE tail in `web-app` (7), if one earns
+  its place. `Base64Url` and `Hex` are already used for the user secret.
+- `effect/encoding` `Zip` and `Xml`: `.docx`, `.xlsx` and `.pptx` are zip archives of XML, so
+  `assistant-files` (18) could turn them into text without a third-party library; check their
+  stability tags first.
+- `effect/workers` (`BunWorker`, `BunWorkerRunner` in `@effect/platform-bun`): runs CPU-heavy
+  work, such as that conversion, on a worker thread.
+- `effect/eventlog`: not a fit; it syncs an event journal between offline-capable clients and a
+  server, so it would replace the data layer of a chat whose source of truth is the server.
 
 ## Re-homing `effect-setup`
 
@@ -857,10 +874,3 @@ Cross-ticket facts checked on 2026-10-17; re-verify before relying on one.
   stay thin: outbox relay, SQS and S3 adapters, multipart-to-S3 sink, Lambda event adapter,
   per-test database isolation. Covered by Effect with only glue: SSE chat stream, multipart
   parsing, typed client, OTLP export, config from `.env` and the environment.
-- **Effect modules reviewed for hand-written code they could replace (2026-11-02,
-  `effect@4.0.6`).** Only the queue: `PersistedQueue` replaces `packages/queue`, the relay and the
-  SQS transport (22). Already used: `effect/encoding` `Base64Url` and `Hex` for the user secret.
-  Nothing of ours to replace, recorded where they would apply: `Sse` (7), `Zip`, `Xml` and
-  `effect/workers` (18), `effect/workflow` (11), `effect/jose`, from 4.1.1 (25). Rejected:
-  `effect/eventlog`, a local-first sync of an event journal (7); `effect/devtools`, which streams
-  to a VS Code extension only (8).
