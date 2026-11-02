@@ -116,9 +116,8 @@ that refuses the row's ✗, a Biome override in `biome.json` whose message names
   `#<module>/infrastructure/*`, and `infrastructure/` not `#<module>/services/*`; a service
   reaches the outside world only through a port its `domain/` declares, and a module reaches its
   own files, its contract's too, through `#<module>/…`, never its entry. Another module's files
-  are refused whatever the layer; of another module's entry Biome lets a module take only the
-  names a contract carries, `<Name>Id`, `<Name>Error` and `Current<Name>`, and refuses a
-  namespace or default import of it.
+  are refused whatever the layer; of another module's entry a module takes only the names of its
+  contract, which review holds (`modules.md`), not Biome.
 - **An app's handler** calls one service method or one use case: it imports no repository and no
   mapper (`<Model>FromEntity`, `encode<Model>`, `decode<Model>`); only the process's `layer.ts`
   provides the data layer. The apps never import each other or `deployment`:

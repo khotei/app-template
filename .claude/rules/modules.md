@@ -14,10 +14,8 @@ arguing an exception.
 
 A module's entry, `@app-template/application/<module>`, opens it whole: its contract, its
 models, its services. Another module takes from it only the names of its `contract/` folder,
-and Biome lets through only the forms a contract's names take, `<Name>Id`, `<Name>Error` and
-`Current<Name>`
-([architecture.md › Dependency rules](../../docs/knowledge/architecture.md#dependency-rules));
-an id or an error of its domain outside the contract matches them, so review refuses it.
+and no tool checks the names: review refuses a model, a service, a mapper or a namespace import
+(`import * as`) of another module's entry.
 
 ```ts
 // kept: an id of the contract

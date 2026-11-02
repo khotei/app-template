@@ -98,18 +98,15 @@ the rest of the module. A dependency on a module's contract counts as one on the
 - **Rejected:** the contract as its own workspace: the linker refused the rest of the module,
   but a nested workspace needed `exclude` and a reference in its module's `tsconfig.json`, and a
   second package name for one module. A second entry, `@app-template/application/identity/contract`:
-  two ways in for one module. A Biome list of the contract's names (`allowImportNames`): a guard
-  of another pattern than the kernel's.
-- **Cost:** the entry opens the module whole, so Biome tells the contract by its names: another
-  module takes only `<Name>Id`, `<Name>Error` and `Current<Name>`, so a contract's names take
-  these forms, and an id or error of the module's domain outside its contract is review's
-  (`modules.md`);
+  two ways in for one module. A Biome list of the contract's names (`allowImportNames`) or a ban
+  by name (`importNamePattern`): review holds the names instead.
+- **Cost:** the entry opens the module whole, so which of its names another module takes is
+  review's (`modules.md`), not Biome's;
   `Auth`, an HTTP middleware, lives outside `http-api`; `http-api` also reads identity's `domain`,
   since its user DTO is the `User` model.
 - **Guarded by:** the Biome overrides of each module's layers, which take no module's entry but
   the one below it (chat takes identity's, identity none) and none of its files
-  (`#<module>/…`), and take of it only the names a contract carries (an inverted
-  `importNamePattern`, which also refuses a namespace or default import); the override on
+  (`#<module>/…`); the override on
   `application/identity/contract/**`, which imports no workspace and no other file of identity;
   `.claude/rules/modules.md` refuses a name past the contract and a cycle through contracts.
 - **If reversed:** a consumer that takes the module's entry reaches its services and data
@@ -187,7 +184,7 @@ The HTTP groups stay in `http-api` and the handlers in the apps; `RequestInvalid
 - **Rejected:** `Status` in a shared place: a vocabulary owned by no module.
 - **Cost:** none today.
 - **Guarded by:** another module reaches chat only through its entry and takes only the names of
-  its contract (`modules.md`); Biome refuses its services and mappers by name, review a model.
+  its contract, which review holds (`modules.md`).
 - **If reversed:** a shared `Status` couples every module that reads it to chat's states.
 - **Revisit when:** `jobs` adds statuses: it gets a job vocabulary of its own.
 

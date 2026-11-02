@@ -1441,10 +1441,10 @@
     override of its own (`application/<module>/<layer>/**`), not one per layer as D4's note had
     it; the layer patterns still match by glob. A layer with no override passes every ban but
     the relative path ("Add a module" names it).
-  - On the user's word, of another module's entry a module takes only the forms a contract's
-    names take (`<Name>Id`, `<Name>Error`, `Current<Name>`): an inverted `importNamePattern`,
-    which also refuses `import * as` and a default import (probed); `http-api`, which reads
-    identity's `User`, keeps the suffix ban, and a namespace import passes it (known gaps).
+  - Which names a module takes from another's entry is review's (`modules.md`), on the user's
+    word: a suffix ban, then an inverted `importNamePattern` of the contract's forms
+    (`<Name>Id`, `<Name>Error`, `Current<Name>`) were tried and removed (S29.1); `http-api`,
+    which reads identity's `User`, keeps its suffix ban, which a namespace import passes.
   - Review found a module's source free to import its own test support (`#testing/<module>/…`),
     a gap older than the step; each source layer's override now refuses `#testing/**`.
   - `make bundle-check`'s pattern took the new keys (`Makefile`, added to Files); the bundle is

@@ -500,12 +500,11 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
     `application/identity/contract/`, exported through `@app-template/application/identity`
     with the rest: the user's word on 2026-11-02, one entry per module, guarded as the kernel's
     parts are, by a Biome override per unit over whole entries. What another module takes from
-    identity's entry (today `UserId` alone) Biome holds by the forms a contract's names take, on
-    the user's word: an inverted `importNamePattern` lets through only `<Name>Id`,
-    `<Name>Error` and `Current<Name>`, and refuses a namespace or default import; an id or error
-    of the domain outside the contract is review's (`modules.md`). Rejected:
-    `@app-template/application/identity/contract`, a second entry for one module; a Biome list of
-    the contract's names (`allowImportNames`), one list per module to keep by hand.
+    identity's entry (today `UserId` alone) is held by review (`modules.md`), on the user's word,
+    no longer by a package boundary. Rejected: `@app-template/application/identity/contract`, a
+    second entry for one module; a Biome list of the contract's names (`allowImportNames`) or a
+    ban by name (`importNamePattern`, inverted to the contract's `<Name>Id`, `<Name>Error`,
+    `Current<Name>`): review over a name rule, the user's word.
 
 - **D4 — A module holds `domain/`, `services/` and, once it has an adapter, `infrastructure/`,
   the same `#domain/*`, `#services/*`, `#infrastructure/*` aliases in every module, and an export

@@ -121,12 +121,6 @@
                     "message": "a module's domain is pure and ships to the browser: it imports no workspace but the entry of a module below it, and no @effect/* package (decisions.md › A module's layers; Module contracts)"
                   },
                   {
-                    "group": ["@app-template/application/*"],
-                    "importNamePattern": "([A-Z][A-Za-z]*(Id|Error)|Current[A-Z][A-Za-z]*)",
-                    "invertImportNamePattern": true,
-                    "message": "of another module's entry a module takes only its contract, named <Name>Id, <Name>Error or Current<Name>; a namespace or default import takes it whole (decisions.md › Module contracts)"
-                  },
-                  {
                     "group": ["#*/services/**", "#*/infrastructure/**"],
                     "message": "a module's domain imports neither its services nor its infrastructure (decisions.md › A module's layers)"
                   },
@@ -182,12 +176,6 @@
                     "message": "of @app-template/kernel/data a module's services take only the stores: the client Db, the relations and the migrations folder are the data layer's own (decisions.md › A module's layers; The data at the centre)"
                   },
                   {
-                    "group": ["@app-template/application/*"],
-                    "importNamePattern": "([A-Z][A-Za-z]*(Id|Error)|Current[A-Z][A-Za-z]*)",
-                    "invertImportNamePattern": true,
-                    "message": "of another module's entry a module takes only its contract, named <Name>Id, <Name>Error or Current<Name>; a namespace or default import takes it whole (decisions.md › Module contracts)"
-                  },
-                  {
                     "group": ["#*/infrastructure/**"],
                     "message": "a module's services reach its infrastructure only through a port (decisions.md › A module's layers)"
                   },
@@ -236,12 +224,6 @@
                       "@app-template/http-api/**"
                     ],
                     "message": "a module's infrastructure may import its domain, the entry of a module below it, the kernel and packages/*: no module above it, no use case, http-api, app or deployment (decisions.md › Module contracts; Use cases above the modules)"
-                  },
-                  {
-                    "group": ["@app-template/application/*"],
-                    "importNamePattern": "([A-Z][A-Za-z]*(Id|Error)|Current[A-Z][A-Za-z]*)",
-                    "invertImportNamePattern": true,
-                    "message": "of another module's entry a module takes only its contract, named <Name>Id, <Name>Error or Current<Name>; a namespace or default import takes it whole (decisions.md › Module contracts)"
                   },
                   {
                     "group": ["#*/services/**"],
@@ -303,12 +285,6 @@
                     "message": "of @app-template/kernel/data a module's tests take only the stores: the client Db, the relations and the migrations folder are the data layer's own (decisions.md › A module's layers; The data at the centre)"
                   },
                   {
-                    "group": ["@app-template/application/*"],
-                    "importNamePattern": "([A-Z][A-Za-z]*(Id|Error)|Current[A-Z][A-Za-z]*)",
-                    "invertImportNamePattern": true,
-                    "message": "of another module's entry a module takes only its contract, named <Name>Id, <Name>Error or Current<Name>; a namespace or default import takes it whole (decisions.md › Module contracts)"
-                  },
-                  {
                     "group": [
                       "#testing/*/e2e/**",
                       "@app-template/**/testing/e2e",
@@ -360,12 +336,6 @@
                     "message": "of @app-template/kernel/data a module's test support takes only the stores: the client Db, the relations and the migrations folder are the data layer's own (decisions.md › A module's layers; The data at the centre)"
                   },
                   {
-                    "group": ["@app-template/application/*"],
-                    "importNamePattern": "([A-Z][A-Za-z]*(Id|Error)|Current[A-Z][A-Za-z]*)",
-                    "invertImportNamePattern": true,
-                    "message": "of another module's entry a module takes only its contract, named <Name>Id, <Name>Error or Current<Name>; a namespace or default import takes it whole (decisions.md › Module contracts)"
-                  },
-                  {
                     "group": [
                       "#testing/*/e2e/**",
                       "@app-template/**/testing/e2e",
@@ -414,12 +384,6 @@
                       "@app-template/http-api/**"
                     ],
                     "message": "a module's infrastructure may import its domain, the entry of a module below it, the kernel and packages/*: no module above it, no use case, http-api, app or deployment (decisions.md › Module contracts; Use cases above the modules)"
-                  },
-                  {
-                    "group": ["@app-template/application/*"],
-                    "importNamePattern": "([A-Z][A-Za-z]*(Id|Error)|Current[A-Z][A-Za-z]*)",
-                    "invertImportNamePattern": true,
-                    "message": "of another module's entry a module takes only its contract, named <Name>Id, <Name>Error or Current<Name>; a namespace or default import takes it whole (decisions.md › Module contracts)"
                   },
                   {
                     "group": ["#*/services/**"],
