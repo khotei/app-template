@@ -68,9 +68,9 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   [effect-tests.md › Unit and e2e](../../.claude/rules/effect-tests.md#unit-and-e2e).
 - **One root `vitest.config.ts`, two projects,** chosen by `--project`: `unit` runs
   `__tests__/**/*.test.ts`; `e2e` runs `__e2e__/**/*.e2e.ts`, on Docker, and alone has the
-  `globalSetup`. Both sit at the top of their workspace and mirror the source path; the e2e over
-  assembled layers, the use cases on Postgres and the journey, live in the `apps/__e2e__`
-  workspace, so `use-cases` runs unit tests only. Each project
+  `globalSetup`. Both sit at the top of their workspace and mirror the source path; the e2e
+  through the api, the journey and the use cases' races and rollbacks, live in the `apps/__e2e__`
+  workspace, so `use-cases` runs unit tests only and a module's e2e are its mappers'. Each project
   lists the shared `exclude` (`repos/**` and `.claude/worktrees/**` added to the default) and
   `sequence` itself, and the root sets no `globalSetup`, so a unit run starts no container. A new
   workspace needs no test config, and the vendored suites and the worktrees' copies stay out.
@@ -90,17 +90,18 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   nothing to configure; a unit run starts nothing at all.
 - **The journey, in the `apps/__e2e__` workspace.** `apps/__e2e__/chat.e2e.ts` drives a user, a
   chat, an upload and a send over HTTP and reads the reply and the title back once the worker has
-  written them: `StandTest` (`apps/__e2e__/testing/stand.test-layer.ts`) runs `ApiLayerTest` and
-  `WorkerLayerTest`, the apps' layers that their `./testing` re-exports, in the test's own
-  runtime over a `PgClientTest` database, an `AwsTest` stage and the model stub, under one
-  `ConfigProvider` that names them, so the apps' own adapters and config code are the ones under
-  test. The api takes a free port the layer finds, since `Config.Port` refuses `0`, so two runs
-  share nothing. The apps' SDK clients read credentials from the environment, which the `e2e`
-  project sets to the fixed test pair MiniStack accepts. The journey proves the wiring; every
-  rule keeps its lower seam.
+  written them; the use cases' races share its stand, and their rollbacks are requests too, each
+  on a stand of its own, since it alters the schema to make Postgres refuse a write: `StandTest`
+  (`apps/__e2e__/testing/stand.test-layer.ts`) runs `ApiLayerTest` and `WorkerLayerTest`, the apps'
+  layers that their `./testing` re-exports, in the test's own runtime over a `PgClientTest`
+  database, an `AwsTest` stage and the model stub, under one `ConfigProvider` that names them, so
+  the apps' own adapters and config code are the ones under test. The api takes a free port the
+  layer finds, since `Config.Port` refuses `0`, so two runs share nothing. The apps' SDK clients
+  read credentials from the environment, which the `e2e` project sets to the fixed test pair
+  MiniStack accepts. The journey proves the wiring; every rule keeps its lower seam.
 - **Concurrent within a file.** Both projects set `sequence: { concurrent: true }`; since every
-  test owns its database and its stage, nothing is shared between tests. The journey's file opts
-  out, since its tests share one stand and read its table `jobs` whole.
+  test owns its database and its stage, nothing is shared between tests. The journey's block
+  opts out, since its tests share one stand and read its table `jobs` whole.
 - **Time.** `it.effect` provides a fresh `TestClock` per test, so time stands still unless the
   test moves it; `it.live` runs on the real clock. `@effect/vitest`'s `layer(…)` instead builds
   one `TestClock` for its whole block, so under concurrency one test's `adjust` would move its

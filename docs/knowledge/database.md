@@ -313,14 +313,15 @@ entities, its parent rows written through `Db`. An
 `.entity.e2e.ts` in `kernel/data/__e2e__/<store>/` checks, in entities only, what the schema itself
 refuses (a check, a partial unique index) and reads the `SqlError` of a refused statement with
 `flipSqlError` from `@app-template/packages/db/testing/e2e`. A limit or a pattern the data layer
-declares again beside a model has a `.mapper.e2e.ts` in `apps/__e2e__/mappers/`: it writes the
-model's extreme value, and every value of an enum the model holds too (a status, an author), through
-the mapper and reads it back, so a check or an enum that drifts from its model fails there.
+declares again beside a model has a `.mapper.e2e.ts` in `application/<module>/__e2e__/services/`:
+it writes the model's extreme value, and every value of an enum the model holds too (a status,
+an author), through the mapper and reads it back, so a check or an enum that drifts from its
+model fails there.
 
 The unit suites never reach Postgres ([tooling.md › Tests](tooling.md#tests)). What only a
 transaction decides, that a use case keeps none of its writes or its jobs when one is
-refused, runs in `apps/__e2e__/use-cases/` on `ChatPgTest`. A memory layer copies the four guards
-the database adds (the active message's index, the message status an update expects, an owner in the
-`where`, the cascade from a chat to its messages and their attachments), and each has its twin in a
-repository suite
+refused, runs through the api in `apps/__e2e__/chat.e2e.ts` on `StandTest`. A memory layer copies
+the four guards the database adds (the active message's index, the message status an update
+expects, an owner in the `where`, the cascade from a chat to its messages and their attachments),
+and each has its twin in a repository suite
 ([effect-tests.md › Unit and e2e](../../.claude/rules/effect-tests.md#unit-and-e2e)).

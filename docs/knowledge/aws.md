@@ -207,8 +207,8 @@ publishes the clients too, as the `*FromConfig` layers do, and the stage's `S3Bu
 own suite provisions its own queues under one such stage for its `layer` block, with
 `provisionQueues(queues, buildName)`, and the `s3` suite creates one bucket, named as a stage is,
 for its `S3Bucket`. Nothing cleans a stage up: the container goes with the run. On `AwsTest` run
-`FileRepository`'s suite, the relay's (beside `DbTest`), the use cases' transactions (`ChatPgTest`,
-whose bucket is the stage's) and the journey. The unit suites test our code, not S3 or SQS: they
+`FileRepository`'s suite, the relay's (beside `DbTest`) and the e2e through the api (`StandTest`),
+the journey and the use cases' transactions. The unit suites test our code, not S3 or SQS: they
 provide `FileRepositoryTest` (in `RepositoryStackTest`) and `recordQueue()`
 ([tooling.md › Tests](tooling.md#tests)). So `make test-e2e` needs a running Docker daemon and
 nothing else, not the local stand or `.env`: the Pulumi project is for `make up` alone.

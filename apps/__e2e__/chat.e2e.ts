@@ -1,5 +1,6 @@
-import { assert, describe, layer } from '@effect/vitest'
-import { Array as Arr, Effect, Option, Schedule, Schema } from 'effect'
+import { assert, describe, it, layer } from '@effect/vitest'
+import { Array as Arr, Effect, Option, Order, Schedule, Schema } from 'effect'
+import type { HttpClientError } from 'effect/http'
 import { SqlClient } from 'effect/sql'
 
 import {
@@ -46,12 +47,25 @@ const formOf = (file: File) => {
   return form
 }
 
+const uploadPhoto = ApiClient.use((api) =>
+  api.attachments
+    .upload({ payload: formOf(new File([png], 'photo.png', { type: 'image/png' })) })
+    .pipe(Effect.head),
+)
+
 const selectUnsent = SqlClient.SqlClient.use(
   (sql) => sql`select queue from jobs where sent_at is null`,
 )
 
 const selectJobsOf = (chatId: ChatId) =>
   SqlClient.SqlClient.use((sql) => sql`select queue from jobs where body->>'chatId' = ${chatId}`)
+
+/** The api answers a defect, such as a write Postgres refuses, with a bare `500`. */
+const isDefectAnswer = (error: HttpClientError.HttpClientError) =>
+  Option.fromUndefinedOr(error.response).pipe(Option.exists(({ status }) => status === 500))
+
+const selectMessages = (chatId: ChatId) =>
+  SqlClient.SqlClient.use((sql) => sql`select id from messages where chat_id = ${chatId}`)
 
 const ReplyJobRows = Schema.Tuple([
   Schema.Struct({ body: Schema.toCodecJson(GenerateAssistantMessage) }),
@@ -63,9 +77,6 @@ const selectReplyJob = (chatId: ChatId) =>
       sql`select body from jobs where queue = 'assistant-message' and body->>'chatId' = ${chatId}`,
   ).pipe(Effect.flatMap(Schema.decodeUnknownEffect(ReplyJobRows)))
 
-const selectMessages = (chatId: ChatId) =>
-  SqlClient.SqlClient.use((sql) => sql`select id from messages where chat_id = ${chatId}`)
-
 describe('the journey over both app layers', { concurrent: false }, () => {
   layer(StandTest, { excludeTestServices: true })((it) => {
     it.effect(
@@ -76,9 +87,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           const files = yield* FileRepository
           yield* api.users.ensure()
           const chat = yield* api.chats.create()
-          const uploaded = yield* api.attachments
-            .upload({ payload: formOf(new File([png], 'photo.png', { type: 'image/png' })) })
-            .pipe(Effect.head)
+          const uploaded = yield* uploadPhoto
 
           const sent = yield* api.chats.send({
             params: { chatId: chat.id },
@@ -147,5 +156,157 @@ describe('the journey over both app layers', { concurrent: false }, () => {
         assert.deepStrictEqual(rows, [])
       }),
     )
+
+    it.effect(
+      'of two concurrent sends to one chat, one is stored and the other is refused, keeping nothing',
+      () =>
+        Effect.gen(function* () {
+          const api = yield* ApiClient
+          yield* api.users.ensure()
+          const chat = yield* api.chats.create()
+          // The loser reads the chat queued (ChatBusyError) or, having read it idle, dies on the
+          // status move, which the api answers with a bare 500: both roll it back whole.
+          const send = api.chats
+            .send({ params: { chatId: chat.id }, payload: { text: 'Lisbon?', attachmentIds: [] } })
+            .pipe(
+              Effect.as('sent'),
+              Effect.catchTag('ChatBusyError', () => Effect.succeed('refused')),
+              Effect.catchTag('HttpClientError', (error) =>
+                isDefectAnswer(error) ? Effect.succeed('refused') : Effect.fail(error),
+              ),
+            )
+
+          const outcomes = yield* Effect.all([send, send], { concurrency: 'unbounded' })
+
+          assert.deepStrictEqual(Arr.sort(outcomes, Order.String), ['refused', 'sent'])
+          assert.strictEqual((yield* selectMessages(chat.id)).length, 2)
+        }),
+    )
+
+    it.effect(
+      'of two concurrent sends binding one file to two chats, one binds it and the other is AttachmentBoundError',
+      () =>
+        Effect.gen(function* () {
+          const api = yield* ApiClient
+          yield* api.users.ensure()
+          const chat = yield* api.chats.create()
+          const other = yield* api.chats.create()
+          const photo = yield* uploadPhoto
+          const send = (chatId: ChatId) =>
+            api.chats
+              .send({ params: { chatId }, payload: { text: 'Look', attachmentIds: [photo.id] } })
+              .pipe(
+                Effect.as('sent'),
+                Effect.catchTag('AttachmentBoundError', () => Effect.succeed('bound')),
+              )
+
+          const outcomes = yield* Effect.all([send(chat.id), send(other.id)], {
+            concurrency: 'unbounded',
+          })
+
+          assert.deepStrictEqual(Arr.sort(outcomes, Order.String), ['bound', 'sent'])
+        }),
+    )
   })
+})
+
+// Each case alters the schema to make Postgres refuse a write, so it takes a stand of its own.
+describe('a write Postgres refuses, through the api', () => {
+  it.live(
+    'a send whose title job is refused leaves no message, no bind, no chat change and no job',
+    () =>
+      Effect.gen(function* () {
+        const api = yield* ApiClient
+        const client = yield* SqlClient.SqlClient
+        yield* api.users.ensure()
+        const chat = yield* api.chats.create()
+        const photo = yield* uploadPhoto
+        const created = yield* api.chats.get({ params: { chatId: chat.id } })
+        const unbound = yield* api.attachments.get({ params: { attachmentId: photo.id } })
+        // The title job is the last write of a chat's first send; all the others precede it.
+        yield* client
+          .unsafe(`ALTER TABLE jobs ADD CONSTRAINT refuse_title CHECK (queue <> 'chat-title')`)
+          .pipe(Effect.orDie)
+
+        const outcome = yield* api.chats
+          .send({
+            params: { chatId: chat.id },
+            payload: { text: 'Look', attachmentIds: [photo.id] },
+          })
+          .pipe(
+            Effect.as('sent'),
+            Effect.catchTag('HttpClientError', (error) =>
+              isDefectAnswer(error) ? Effect.succeed('refused') : Effect.fail(error),
+            ),
+          )
+
+        assert.strictEqual(outcome, 'refused')
+        assert.deepStrictEqual(yield* selectMessages(chat.id), [])
+        assert.deepStrictEqual(
+          yield* api.attachments.get({ params: { attachmentId: photo.id } }),
+          unbound,
+        )
+        assert.deepStrictEqual(yield* api.chats.get({ params: { chatId: chat.id } }), created)
+        assert.deepStrictEqual(yield* selectJobsOf(chat.id), [])
+      }).pipe(Effect.provide(StandTest)),
+    30_000,
+  )
+
+  it.live(
+    'a refused chat delete keeps every row and the bytes',
+    () =>
+      Effect.gen(function* () {
+        const api = yield* ApiClient
+        const files = yield* FileRepository
+        const client = yield* SqlClient.SqlClient
+        yield* api.users.ensure()
+        const chat = yield* api.chats.create()
+        const photo = yield* uploadPhoto
+        const sent = yield* api.chats.send({
+          params: { chatId: chat.id },
+          payload: { text: 'Look', attachmentIds: [photo.id] },
+        })
+        // The worker settles the reply and the title first, so only the delete could move a row.
+        const reply = yield* pollSettledMessage(chat.id, sent.assistantMessage.id)
+        const settled = yield* pollTitledChat(chat.id)
+        const asked = yield* api.chats.getMessage({
+          params: { chatId: chat.id, messageId: sent.userMessage.id },
+        })
+        const bound = yield* api.attachments.get({ params: { attachmentId: photo.id } })
+        // A row that references the chat without a cascade: Postgres refuses the chat's delete,
+        // and the cascade it started goes back with it.
+        yield* client
+          .unsafe('CREATE TABLE chat_holds (chat_id uuid NOT NULL REFERENCES chats (id))')
+          .pipe(Effect.orDie)
+        yield* Effect.orDie(client`INSERT INTO chat_holds (chat_id) VALUES (${chat.id})`)
+
+        const outcome = yield* api.chats.delete({ params: { chatId: chat.id } }).pipe(
+          Effect.as('deleted'),
+          Effect.catchTag('HttpClientError', (error) =>
+            isDefectAnswer(error) ? Effect.succeed('refused') : Effect.fail(error),
+          ),
+        )
+
+        assert.strictEqual(outcome, 'refused')
+        assert.deepStrictEqual(yield* api.chats.get({ params: { chatId: chat.id } }), settled)
+        assert.deepStrictEqual(
+          yield* api.chats.getMessage({
+            params: { chatId: chat.id, messageId: sent.userMessage.id },
+          }),
+          asked,
+        )
+        assert.deepStrictEqual(
+          yield* api.chats.getMessage({
+            params: { chatId: chat.id, messageId: sent.assistantMessage.id },
+          }),
+          reply,
+        )
+        assert.deepStrictEqual(
+          yield* api.attachments.get({ params: { attachmentId: photo.id } }),
+          bound,
+        )
+        assert.isTrue(Option.isSome(yield* files.selectOne({ id: photo.id })))
+      }).pipe(Effect.provide(StandTest)),
+    30_000,
+  )
 })

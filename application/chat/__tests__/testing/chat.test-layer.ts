@@ -13,11 +13,12 @@ import {
   encodeMessage,
 } from '#chat/services/chat.mapper'
 
-export const insertChat = (chat: Chat) =>
-  encodeChat(chat).pipe(Effect.flatMap((row) => ChatRepository.use((chats) => chats.insert(row))))
-
 /** Stores `chat` before the layers it feeds start. */
-export const insertChatLayer = (chat: Chat) => Layer.effectDiscard(insertChat(chat))
+export const insertChatLayer = (chat: Chat) =>
+  encodeChat(chat).pipe(
+    Effect.flatMap((row) => ChatRepository.use((chats) => chats.insert(row))),
+    Layer.effectDiscard,
+  )
 
 export const selectChat = (id: ChatId) =>
   ChatRepository.use((chats) => chats.selectOne({ id })).pipe(Effect.flatMap(decodeChat))

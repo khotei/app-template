@@ -106,7 +106,7 @@ Moves are `old → new`; **new** marks a file that does not exist today. `__test
 mirror the source path in every workspace.
 
 ```
-application/                     the behaviour; unit tests only
+application/                     the behaviour; unit tests, a mapper's e2e beside it (S31)
   chat/                          @app-template/chat
     domain/                      ← domain/chat/*, domain/attachment/*, domain/shared/status.model.ts,
                                    minus every *.port.ts of a repository or the bucket
@@ -190,8 +190,7 @@ apps/
   api/                           layer.ts provides the clients from kernel/postgres and kernel/aws
     __tests__/{testing,…}/         ← apps/api/{testing,tests}
   __e2e__/                       @app-template/e2e ← e2e/ (the journey over both processes),
-                                   application/e2e/chat (the use cases on Postgres),
-                                   mappers/<model>.mapper.e2e.ts new (D11)
+                                   the use cases' cases as requests to the api (S31)
   worker/                        layer.ts the same; __tests__/ ← tests/
   web/                           import paths
 deployment/                      imports kernel/config, kernel/aws/resources, kernel/data/file (the tag)
@@ -444,10 +443,10 @@ The behaviour must not change, so the seams are today's, at their new paths.
 | `Api` through `ApiHttp` on the api test layer (`apps/api/__tests__/`) | statuses, cookies and the wire shape of every endpoint (R1) | the database, the queue, the worker |
 | the OpenAPI document of `Api`, before and after | any change of a route, a schema or an error tag on the wire (R1) | runtime behaviour behind the routes |
 | the journey over `ApiLayer` and `WorkerLayer` (`apps/__e2e__/chat.e2e.ts`) | the wiring of both processes: a sent message gets its reply and its title, the job sits in `jobs` (R2, R10) | which module or layer a fault comes from |
-| a use case on Postgres and MiniStack (`apps/__e2e__/use-cases/`) | one transaction across the writes and `jobs`, rolled back by a refused write; a deleted chat loses its rows and objects (R3, R10) | the HTTP shape |
+| a use case through the api on Postgres and MiniStack (`apps/__e2e__/chat.e2e.ts`) | one transaction across the writes and `jobs`, rolled back by a refused write; a deleted chat loses its rows and objects (R3, R10) | which write a defect comes from: a refusal reads as a `500` |
 | a module's services and the use cases over the memory repositories, `TransactionTest` and `recordQueue()` (`application/*/__tests__/`) | the rules, a use case's checks, writes and jobs (R2) | SQL, the real transaction, S3 |
 | a repository on Postgres or MiniStack (`kernel/data/__e2e__/<store>/`), in entities | the SQL, the relations, the partial unique index, the cascades, the checks, the object keys and tags (R9) | the models' rules |
-| a mapper on Postgres (`apps/__e2e__/mappers/`) | a model's extreme value written through its entity and read back, so a limit duplicated by D11 cannot drift (R9) | the services |
+| a mapper on Postgres (`application/<module>/__e2e__/services/`) | a model's extreme value written through its entity and read back, so a limit duplicated by D11 cannot drift (R9) | the services |
 | the `AssistantLlm` adapter over a recording `HttpClient` (`application/chat/__tests__/infrastructure/`) | the requests to the provider, the settings, the retries, the stub (R2) | the provider itself |
 | a worker handler (`apps/worker/__tests__/`) | attempts, the last attempt and the dead letter (R2) | SQS itself |
 | `make reset`, `make up` and a schema dump diffed against `main`'s; `make migration-check` | one migration, the same schema but `jobs` (R4, R5) | a database that is not reset |
@@ -747,16 +746,21 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
 - **D19 — Every workspace keeps its unit tests in `__tests__/` and its e2e in `__e2e__/`, the
   kernel in each of its parts, each with its support in a `testing/` inside, exported as `./testing` and `./testing-e2e`; an e2e
   suite may import `./testing`, a unit test never `./testing-e2e`; `application` has unit tests
-  only, and the e2e over assembled layers live in `apps/__e2e__` (`@app-template/e2e`).**
+  and its mappers' e2e beside the mappers, and the e2e through the api live in `apps/__e2e__`
+  (`@app-template/e2e`).**
   - **Why:** the folder tells a unit test from an e2e and from source; the behaviour ring runs
     over memory, the real stores are tested in the kernel, the assembled layers in the apps.
-  - **Cost accepted:** the drift check of D11 lives in `apps/__e2e__`, away from the mappers;
-    every workspace changes its test paths once.
+  - **Cost accepted:** every workspace changes its test paths once. A use case's race or
+    rollback runs through the api with both processes up (S31), slower than a call of the use
+    case.
   - **Reversal:** a rename of the folders.
   - **Rejected:**
     - `tests/`, `e2e/` and `testing/` at a workspace's top (today) — test support beside the
       source folders.
-    - the use cases' and mappers' e2e in `application` — the behaviour ring would need containers.
+    - the use cases' e2e in `application`, calling the use case on Postgres — the user's word
+      (S31): the use cases are tested on Postgres through the api, the full flow.
+    - the mappers' e2e in `apps/__e2e__/mappers` (S1–S30) — the drift check of D11 away from the
+      mappers it checks.
     - the e2e in each app's `__e2e__` — the journey would make the api import the worker, and apps
       never import each other.
     - the e2e workspace at the root (today's `e2e/`) — a test of the processes away from them.
@@ -774,6 +778,16 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
     entry, so only review could refuse it; `/testing-e2e`, a name no folder carries. The shared
     `packages/testing` keeps only what several units use; support of one package (its rows, its
     Postgres or MiniStack clients) lives in that package, as the kernel's parts hold theirs.
+  - **Note (S31):** the user's word: a test sits beside what it checks, and `apps/__e2e__` checks
+    only the flow from a request to the api to the worker. The mappers' e2e move to
+    `application/<module>/__e2e__/services/`, over the data layer's `DbTest`, each inserting the
+    owner's row itself, so `DbWithUsersTest` goes; the use cases' e2e become requests to the api over
+    `StandTest`, each case and assertion kept (D14), the database's refusal still added by the
+    test. Rejected: the use cases' e2e beside them in `application/use-cases/__e2e__` — a use
+    case called directly, not the flow a user starts.
+    The database's refusal reads on the wire as a `500`, the rows compared with their reads before
+    the refused write; the race's probe drops all four of its guards, since the partial unique
+    index alone also serves the insert's `ON CONFLICT`.
 
 - **D20 — The migrations restart as one initial migration generated from the data layer; every
   database is recreated (`make reset`).**

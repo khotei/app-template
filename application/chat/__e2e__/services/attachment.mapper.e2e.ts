@@ -1,19 +1,14 @@
 import { describe, it } from '@effect/vitest'
 import { DateTime, Effect, Option, pipe, Schema } from 'effect'
 
-import {
-  Attachment,
-  AttachmentFromEntity,
-  AttachmentId,
-  FileName,
-  FileSize,
-  MediaType,
-} from '@app-template/application/chat'
-import { owner } from '@app-template/application/chat/testing'
-import { AttachmentEntityInsert, attachments, Db } from '@app-template/kernel/data'
+import { AttachmentEntityInsert, attachments, Db, users } from '@app-template/kernel/data'
+import { DbTest } from '@app-template/kernel/data/testing/e2e'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { DbWithUsersTest } from '#testing/db.test-layer'
+import { AttachmentId } from '#chat/domain/attachment.id'
+import { Attachment, FileName, FileSize, MediaType } from '#chat/domain/attachment.model'
+import { AttachmentFromEntity } from '#chat/services/attachment.mapper'
+import { owner } from '#testing/chat/chat.test-fixture'
 
 const attachment = new Attachment({
   id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000102'),
@@ -37,12 +32,13 @@ describe('AttachmentFromEntity on Postgres', () => {
         Schema.decodeSync(AttachmentEntityInsert),
       )
 
+      yield* db.insert(users).values({ id: owner, createdAt: new Date(0) })
       yield* db.insert(attachments).values(row)
       const selected = yield* db.query.attachments
         .findFirst({ where: { id: attachment.id } })
         .pipe(Effect.flatMap(Schema.decodeUnknownEffect(AttachmentFromEntity)))
 
       assertSchemaEquals(Attachment, selected, attachment)
-    }).pipe(Effect.provide(DbWithUsersTest)),
+    }).pipe(Effect.provide(DbTest)),
   )
 })

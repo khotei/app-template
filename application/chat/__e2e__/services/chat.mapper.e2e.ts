@@ -2,28 +2,21 @@ import { describe, it } from '@effect/vitest'
 import { DateTime, Effect, Option, pipe, Schema } from 'effect'
 
 import {
-  Chat,
-  ChatFromEntity,
-  ChatId,
-  ChatStatus,
-  ChatTitle,
-  Message,
-  MessageFromEntity,
-  MessageId,
-  MessageStatus,
-  maxTitleLength,
-} from '@app-template/application/chat'
-import { owner } from '@app-template/application/chat/testing'
-import {
   ChatEntityInsert,
   chats,
   Db,
   MessageEntityInsert,
   messages,
+  users,
 } from '@app-template/kernel/data'
+import { DbTest } from '@app-template/kernel/data/testing/e2e'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { DbWithUsersTest } from '#testing/db.test-layer'
+import { ChatId, MessageId } from '#chat/domain/chat.id'
+import { Chat, ChatStatus, ChatTitle, maxTitleLength } from '#chat/domain/chat.model'
+import { Message, MessageStatus } from '#chat/domain/message.model'
+import { ChatFromEntity, MessageFromEntity } from '#chat/services/chat.mapper'
+import { owner } from '#testing/chat/chat.test-fixture'
 
 const chat = new Chat({
   id: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000101'),
@@ -65,13 +58,14 @@ describe('ChatFromEntity on Postgres', () => {
           Schema.decodeSync(ChatEntityInsert),
         )
 
+        yield* db.insert(users).values({ id: owner, createdAt: new Date(0) })
         yield* db.insert(chats).values(row)
         const selected = yield* db.query.chats
           .findFirst({ where: { id: chat.id }, with: { attachments: true } })
           .pipe(Effect.flatMap(Schema.decodeUnknownEffect(ChatFromEntity)))
 
         assertSchemaEquals(Chat, selected, written)
-      }).pipe(Effect.provide(DbWithUsersTest)),
+      }).pipe(Effect.provide(DbTest)),
   )
 })
 
@@ -93,6 +87,7 @@ describe('MessageFromEntity on Postgres', () => {
           Schema.decodeSync(MessageEntityInsert),
         )
 
+        yield* db.insert(users).values({ id: owner, createdAt: new Date(0) })
         yield* db.insert(chats).values(parent)
         yield* db.insert(messages).values(row)
         const selected = yield* db.query.messages
@@ -100,6 +95,6 @@ describe('MessageFromEntity on Postgres', () => {
           .pipe(Effect.flatMap(Schema.decodeUnknownEffect(MessageFromEntity)))
 
         assertSchemaEquals(Message, selected, written)
-      }).pipe(Effect.provide(DbWithUsersTest)),
+      }).pipe(Effect.provide(DbTest)),
   )
 })

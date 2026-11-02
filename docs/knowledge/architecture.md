@@ -217,12 +217,12 @@ support. `apps/__e2e__`, e2e alone, aliases its own support `#testing/*`. Record
 
 | Ring | Suite | Runs on |
 |---|---|---|
-| behaviour | `application/<module>/__tests__/`, `application/use-cases/__tests__/` | memory only: the kernel's memory repositories (`@app-template/kernel/data/testing`), a module's memory layers of its ports (`@app-template/application/chat/testing`), `TransactionTest`; `application` has no e2e |
+| behaviour | `application/<module>/__tests__/`, `application/use-cases/__tests__/` | memory only: the kernel's memory repositories (`@app-template/kernel/data/testing`), a module's memory layers of its ports (`@app-template/application/chat/testing`), `TransactionTest`; of e2e only the mappers' round trips, `application/<module>/__e2e__/services/` on `DbTest` |
 | data | `kernel/data/__e2e__/<store>/` | Postgres (`DbTest`) or MiniStack (`AwsTest`), in entities |
 | boundary | `kernel/postgres/__e2e__/`, `kernel/queue/__e2e__/`, `packages/<package>/__e2e__/`; an adapter's suite in `application/<module>/__tests__/infrastructure/` | the run's containers; the adapter over a recording client |
 | tools | `kernel/config/__tests__/`, `packages/<package>/__tests__/` | memory only |
 | apps | `apps/api/__tests__/`, `apps/worker/__tests__/` | the app's layer over the memory layers |
-| assembled | `apps/__e2e__/`: the use cases on Postgres in `use-cases/`, the mappers' round trips in `mappers/`, the journey `chat.e2e.ts` | both app layers in one runtime (`StandTest`) |
+| assembled | `apps/__e2e__/chat.e2e.ts`: the journey and the use cases' races and rollbacks, each a request to the api | both app layers in one runtime (`StandTest`) |
 
 The memory repositories live in `kernel/data/__tests__/testing/`, over the same entities as the real
 ones. What each kind of test checks, what a memory layer must copy and how to write a test:
@@ -298,8 +298,8 @@ model's.
    tested in `application/<module>/__tests__/domain/`.
 3. **The mapper.** `application/<module>/services/<entity>.mapper.ts`: `<Model>FromEntity` lays the
    model's schemas over the entity's fields; its round trip through Postgres, with the model's
-   extreme values, goes in `apps/__e2e__/mappers/`, so a limit both sides declare cannot drift
-   ([Checks kept in the tables](decisions.md#checks-kept-in-the-tables)).
+   extreme values, goes beside it in `application/<module>/__e2e__/services/`, so a limit both
+   sides declare cannot drift ([Checks kept in the tables](decisions.md#checks-kept-in-the-tables)).
 4. **The service.** `application/<module>/services/<entity>.service.ts`: `<Model>Service` over the
    repository, the one owner every handler goes through, tested over the memory repositories.
    The layers' barrels re-export the new files.

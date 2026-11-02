@@ -28,16 +28,16 @@ paths:
 - **A memory layer copies the guards the database adds** (an index, a `where`, a cascade), each
   with its e2e twin on the data layer's repository, or a unit test passes on a write the
   database refuses.
-- **An e2e test** (`__e2e__/`) proves an adapter or a use case's transaction on the run's
-  containers, or the journey. Atomicity: the database refuses one write of the flow (a constraint
-  the test adds), and no row and no job is kept. A race runs the rival calls with
-  `Effect.all(…, { concurrency: 'unbounded' })` on the real repositories and asserts an outcome
-  that holds whichever call wins; a probe that removes the guard must turn it red.
-- The harnesses: `DbTest` (a database of its own, `Db` and `PgClient`), `AwsTest` (a stage of
-  its own, its bucket and queues provisioned, the SQS and S3 clients) and `StandTest` (both app
-  layers in one runtime, the journey's). Never put `DbTest` in one runtime with an app's layer:
-  a layer is built once per runtime, so its `Db.layer` would serve both, bound to the test's
-  client, and the app's writes would commit outside its transaction.
+- **An e2e test** (`__e2e__/`) proves an adapter on the run's containers, or a flow through the
+  api, a use case's transaction or race among them, never a call of the use case. Atomicity: the
+  database refuses one write (a constraint the test adds), and no row and no job is kept. A race
+  sends the rival requests with `Effect.all(…, { concurrency: 'unbounded' })` and asserts an
+  outcome that holds whichever wins; a probe that removes the guard must turn it red.
+- The harnesses: `DbTest` (a database of its own, `Db` and `PgClient`), `AwsTest` (a stage of its
+  own, its bucket and queues provisioned, the SQS and S3 clients) and `StandTest` (both app layers
+  in one runtime, the e2e through the api). Never put `DbTest` in one runtime with an app's layer: a
+  layer is built once per runtime, so its `Db.layer` would serve both, bound to the test's client,
+  and the app's writes would commit outside its transaction.
 
 ## Test support
 

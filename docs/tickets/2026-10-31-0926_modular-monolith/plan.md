@@ -36,6 +36,8 @@
 | S28 | e2e support in `__tests__/testing/e2e/` | done |
 | S29 | `application/` one workspace, one entry per module | done |
 | S30 | a Biome list per workspace | done |
+| S31 | the mappers' e2e beside the mappers; the use cases' e2e through the api | done |
+| S32 | test support beside its one user | todo |
 
 ## How to run this plan
 
@@ -1496,6 +1498,79 @@
     S27 and S29, since a split would leave one commit checking the packages by neither their
     `references` nor their lists.
 
+
+#### S31 — The mappers' e2e beside the mappers; the use cases' e2e through the api
+
+- **Delivers:** `apps/__e2e__/mappers/{chat,attachment}.mapper.e2e.ts` →
+  `application/chat/__e2e__/services/`, `user.mapper.e2e.ts` →
+  `application/identity/__e2e__/services/`, over the data layer's `DbTest`, each inserting the
+  owner's row in its arrange step; `DbWithUsersTest` (`apps/__e2e__/testing/db.test-layer.ts`) goes,
+  on the user's word, with no support of its own in `application`. The use cases' e2e
+  (`apps/__e2e__/use-cases/*`: two concurrent sends to one chat, one file bound to two chats at
+  once, a refused title job, a refused chat delete) become requests to the api over `StandTest`, in
+  `apps/__e2e__/chat.e2e.ts` beside the journey, whose helpers they share: each case and assertion
+  kept (D14), the outcome read on the wire (the status, the error's tag) and the rows, the jobs and
+  the bytes read behind the apps as today; the database's refusal still added by the test (a table
+  or a constraint). `ChatPgTest` and `apps/__e2e__/use-cases/` go.
+- **Goal:** R11 and R10 as amended; D19's note (S31).
+- **Blocked by:** S30.
+- **Files:** the moved and rewritten suites; `apps/__e2e__/testing/{db,chat}.test-layer.ts`
+  (gone), `biome.json` (an override for each module's `__e2e__/**`, admitting
+  `@app-template/kernel/data/testing/e2e`),
+  `docs/knowledge/decisions.md › Tests in their folders`, `docs/knowledge/architecture.md ›
+  Where tests live`, `docs/knowledge/tooling.md`, `.claude/rules/effect-tests.md` (a use case's
+  transaction or race through the api), `apps/CLAUDE.md` and `application/CLAUDE.md` where they
+  name the e2e.
+- **Test first:** `config only` for the moves; the rewritten cases keep every assertion, and a
+  probe that drops the guard (the database's refusal, the chat's busy status) turns each red.
+- **Verify:** `make check`; `make test-e2e` green, with the same count of cases as before;
+  `git ls-files 'application/**/__e2e__/**'` lists the three mapper suites alone;
+  `grep -rn 'SendMessageUseCase\|ChatService' apps/__e2e__` finds none; a throwaway import of
+  `@app-template/kernel/data/testing/e2e` into `application/chat/__tests__/` fails Biome.
+- **Model:** `opus high`
+- **Status:** done
+- **Findings:**
+  - The four cases sit in `chat.e2e.ts` beside the journey, sharing its helpers (files 22 → 20,
+    cases 110 → 110). The two races share the journey's stand; the refused title job and the
+    refused delete alter the schema, so each builds a stand of its own, with a 30 s timeout.
+  - Review found the first round's stores in `StandTest` serving the test only because the memo
+    map built the apps first; moved beside `FileRepository`, they would have bound the apps to
+    the test's `Db` and the rollback cases would still pass. `StandTest` is unchanged: the cases
+    compare the api's answers, and raw rows through the stand's `SqlClient` where the api has no
+    read (a chat's messages, the jobs), before and after the refused write.
+  - A defect reaches the client as a `DecodeError` at `500`, since the contract declares no
+    error for it; a race counts as refused only a `ChatBusyError` or that `500`.
+  - The race's probe must drop all four guards (the status check in `queueChat`, `status` in the
+    status move's `where`, `onConflictDoNothing` and the partial unique index): dropping the
+    index alone makes the insert's `ON CONFLICT` invalid and refuses both sends, red for the
+    wrong reason. With all four gone both are stored.
+  - The race keeps a live worker on the user's word: both sends are stored only if the loser
+    reads the chat after the winner's reply has set it idle, an outbox tick and several round
+    trips after a request sent alongside; a stand without a worker would close it at the cost of
+    new support.
+
+
+#### S32 — Test support beside its one user
+
+- **Delivers:** support that one unit alone uses moves to it, on the user's word after an audit
+  of every `*.test-*.ts` export's users. `kernel/data/__tests__/testing/e2e/job.test-fixture.ts`
+  (`SampleJob`, `sampleJobQueue`, `sampleProvenance`), which only `kernel/queue/__e2e__` reads,
+  → `kernel/queue/__tests__/testing/e2e/`, aliased `#testing/queue/e2e/*` with no export, since
+  no other unit imports it; the data's `testing/e2e/index.ts` drops it. The fixtures of
+  `application/chat/__tests__/testing/` that one suite alone reads (`unknownAttachmentId`,
+  `unknownMessageId` in chat's service tests, `ask` in a use case's test) move into that suite.
+- **Goal:** R11; D19's note (S28: a unit's support lives with that unit).
+- **Blocked by:** S30. Runs beside S31, in a worktree: S31 touches neither file.
+- **Files:** the fixture files and their readers, `kernel/package.json`, `biome.json` if the
+  queue's support needs the kernel's e2e override, `docs/knowledge/` wherever it names the moved
+  file.
+- **Test first:** `config only` — every case and assertion kept (D14).
+- **Verify:** `make check`; `make test-e2e` green with the same count of cases;
+  `grep -rn 'sampleJobQueue\|SampleJob' kernel/data` finds none; each moved fixture has one
+  reader.
+- **Model:** `opus medium`
+- **Status:** todo
+
 ## Requirement coverage
 
 | Req | Steps |
@@ -1509,8 +1584,8 @@
 | R7 | S11, S19, S21 |
 | R8 | S3, S13, S19, S21 |
 | R9 | S8, S9, S10, S12, S14, S15, S17, S18 |
-| R10 | S10 |
-| R11 | S1, S28 |
+| R10 | S10, S31 |
+| R11 | S1, S28, S31 |
 | R12 | S21, S30 |
 | R13 | S4, S20, S21, S30 |
 | R14 | S8, S21 |
