@@ -143,7 +143,12 @@ Behaviour seen from outside does not change.
 ### Behaviour kept
 
 - **R1** — WHEN a client calls any endpoint that exists before the ticket, THE SYSTEM SHALL answer
-  with the same status, body and errors as before.
+  with the same status, body and errors as before, but for three answers changed on purpose:
+  - `AttachmentNotFoundError` names `ids`, every absent id once in the order asked (was one `id`);
+  - the loser of two sends of one file answers `409`, or `500` when it read the file before the
+    winner committed, since no read takes a lock (was always `409`);
+  - a send answers its attachments in creation order (`createdAt`, then `id`), as a chat answers
+    its messages (was the order asked).
 - **R2** — WHEN a message is sent, THE SYSTEM SHALL produce the assistant's reply and the chat's
   title through the same jobs, queues, attempts and dead letter as before.
 - **R3** — WHEN a chat is deleted, THE SYSTEM SHALL delete its messages, its attachments and their
@@ -222,7 +227,7 @@ Behaviour seen from outside does not change.
 
 | Req | How to verify |
 |---|---|
-| R1 | `make test-unit` and `make test-e2e` pass with every case and assertion kept; the HTTP contract's OpenAPI document is identical before and after |
+| R1 | `make test-unit` and `make test-e2e` pass with every case and assertion kept but the three answers R1 names (the races of two sends count a bare `500` as refused); the HTTP contract's OpenAPI document is identical before and after but for `AttachmentNotFoundErrorEncoded` |
 | R2 | the journey e2e passes: a sent message gets its reply and its title; the worker's handler tests pass unchanged but for import paths |
 | R3 | the delete-chat e2e passes: messages and attachments are gone and the bucket holds none of their objects |
 | R4 | `make reset`, then `make up`, applies one migration; `pg_dump --schema-only` of it, diffed against one of `main`'s, shows only `outbox` renamed `jobs` |

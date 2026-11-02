@@ -45,7 +45,7 @@
 | S37 | the docs the branch review found out of step with the code | done |
 | S38 | the chat module in one shape | done |
 | S39 | `biome.json` keeps only the import rules nothing else holds | done |
-| S40 | R1 names the three answers S38 changed | todo |
+| S40 | R1 names the three answers S38 changed | done |
 | S41 | `packages/` reaches no app ring; the HTTP contract held by a snapshot | todo |
 | S42 | the verification's small fixes in docs, tests and chat's code | todo |
 
@@ -1930,7 +1930,16 @@
 - **Test first:** none, a docs step; the suites already hold the three answers.
 - **Verify:** `make check`; `make doc-width doc-names`.
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Ran in the main tree beside S41 (N=1) and S42 (N=2) on the user's word; its edits keep to R1,
+    its row and the new record `decisions.md › Reads in creation order`. The glossary names no
+    order and is unchanged.
+  - The order is a record of its own, a read's contract, not a field of `Guards in the write, no
+    lock`. Review: the chat list answers newest first, so the record covers a chat's contents
+    only; the acceptance row points at R1's three answers instead of restating them, and covers
+    both races `sendRacing` drives; the `500` falls to a loser that read before the winner
+    committed, here and in the guards' record.
 
 #### S41 — `packages/` reaches no app ring; the HTTP contract held by a snapshot
 
