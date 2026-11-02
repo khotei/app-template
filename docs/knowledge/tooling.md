@@ -48,7 +48,8 @@ bun --bun vitest run --project unit \
 ```
 
 The root `test` script, `bun --bun vitest run`, runs both projects at once (CI's `bun run test`);
-`bun test` would instead start Bun's own test runner, which is denied in `.claude/settings.json`.
+`bun test` would instead start Bun's own test runner, which ignores the vitest projects and
+their setup.
 
 Scripts live only where `make` calls them: the root `package.json` holds `prepare`, `lint`,
 `format` and `test`; each app holds `dev`, `debug` and `start`; library workspaces hold none.

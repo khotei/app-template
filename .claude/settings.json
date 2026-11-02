@@ -51,12 +51,9 @@
       "WebFetch"
     ],
     "ask": [
-      "Bash(git push*)",
       "Bash(gh pr create*)",
       "Bash(gh pr merge*)",
       "Bash(gh repo create*)",
-      "Bash(git checkout *)",
-      "Bash(git restore *)",
       "Bash(git reset --hard*)",
       "Bash(git rebase*)",
       "Bash(git clean*)",
@@ -68,20 +65,7 @@
       "Bash(find *-delete*)",
       "Bash(find *-exec*)"
     ],
-    "deny": [
-      "Bash(git push --force*)",
-      "Bash(git push -f*)",
-      "Bash(git commit *--no-verify*)",
-      "Bash(git commit -n*)",
-      "Bash(git commit * -n*)",
-      "Bash(git push *--no-verify*)",
-      "Bash(rm -rf *)",
-      "Bash(sudo *)",
-      "Bash(bun test*)",
-      "Bash(npm *)",
-      "Bash(yarn *)",
-      "Bash(pnpm *)"
-    ]
+    "deny": ["Bash(rm -rf *)", "Bash(sudo *)", "Bash(npm *)", "Bash(yarn *)", "Bash(pnpm *)"]
   },
   "enabledPlugins": {
     "mattpocock-skills@claude-plugins-official": true,
