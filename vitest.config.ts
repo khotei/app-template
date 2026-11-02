@@ -12,7 +12,7 @@ export default defineConfig({
           name: 'e2e',
           include: ['**/__e2e__/**/*.e2e.ts'],
           exclude,
-          globalSetup: ['kernel/data/__e2e__/testing/e2e.test-setup.ts'],
+          globalSetup: ['kernel/data/__tests__/testing/e2e/e2e.test-setup.ts'],
           // The apps' SDK clients read credentials from the environment; MiniStack accepts any.
           env: { AWS_ACCESS_KEY_ID: 'test', AWS_SECRET_ACCESS_KEY: 'test' },
           sequence,

@@ -3,7 +3,7 @@ import { Effect, Layer } from 'effect'
 import { owner, stranger } from '@app-template/chat/testing'
 import type { UserId } from '@app-template/identity-contract'
 import { UserRepository } from '@app-template/kernel/data'
-import { DbTest } from '@app-template/kernel/data/testing-e2e'
+import { DbTest } from '@app-template/kernel/data/testing/e2e'
 
 /** Gives each user a credential of its own, since a credential's hash is a primary key. */
 const insertUser = (id: UserId) =>

@@ -10,7 +10,7 @@ import { MessageEntity } from '#kernel/data/chat/message.entity'
 import { MessageRepository } from '#kernel/data/chat/message.repository'
 import { Db } from '#kernel/data/db.client'
 import { users } from '#kernel/data/user/user.table'
-import { DbTest } from '#testing-e2e/data/db.test-layer'
+import { DbTest } from '#testing/data/e2e/db.test-layer'
 
 type AttachmentRow = typeof AttachmentEntity.Type
 

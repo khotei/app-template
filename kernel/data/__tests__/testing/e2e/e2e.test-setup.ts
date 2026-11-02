@@ -5,8 +5,9 @@ import { GenericContainer, type StartedTestContainer, Wait } from 'testcontainer
 import type { TestProject } from 'vitest/node'
 
 import { ministackImage, postgresImage } from '@app-template/kernel/config'
+import { ministackRegion } from '@app-template/packages/aws/testing/e2e'
 import { migrateDatabase } from '@app-template/packages/db'
-import { ministackRegion, templateDatabase } from '@app-template/packages/testing'
+import { templateDatabase } from '@app-template/packages/db/testing/e2e'
 
 import { migrationsFolder } from '#kernel/data/migrations'
 

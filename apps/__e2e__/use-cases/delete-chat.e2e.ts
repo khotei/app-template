@@ -17,7 +17,7 @@ import { FileRepository } from '@app-template/kernel/data'
 import { sortById } from '@app-template/packages/testing'
 import { SendMessageUseCase } from '@app-template/use-cases/chat'
 
-import { ChatPgTest } from '#testing-e2e/chat.test-layer'
+import { ChatPgTest } from '#testing/chat.test-layer'
 
 describe('ChatService.delete on Postgres', () => {
   it.effect('a refused chat delete keeps every row and the bytes', () =>

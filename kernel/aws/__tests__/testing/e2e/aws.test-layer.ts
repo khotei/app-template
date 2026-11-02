@@ -8,7 +8,7 @@ import {
   ministackRegion,
   S3ClientTest,
   SqsClientTest,
-} from '@app-template/packages/testing'
+} from '@app-template/packages/aws/testing/e2e'
 
 import { S3BucketOfStage } from '#kernel/aws/aws.client'
 import { buildResourceName } from '#kernel/aws/resources/naming'

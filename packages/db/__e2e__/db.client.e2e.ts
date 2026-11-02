@@ -5,10 +5,11 @@ import { integer, pgTable } from 'drizzle-orm/pg-core'
 import { Context, Effect, Exit, Layer, type LogLevel, References } from 'effect'
 import { SqlClient } from 'effect/sql'
 
-import { PgClientTest, recordLogs } from '@app-template/packages/testing'
+import { recordLogs } from '@app-template/packages/testing'
 
 import { createDb, Transaction } from '#db/db.client'
-import { flipSqlError } from '#testing-e2e/db/sql-error.test-util'
+import { PgClientTest } from '#testing/db/e2e/postgres.test-layer'
+import { flipSqlError } from '#testing/db/e2e/sql-error.test-util'
 
 const probes = pgTable('probes', { id: integer().primaryKey() })
 

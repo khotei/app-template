@@ -11,7 +11,7 @@ import {
   Schema,
 } from 'effect'
 
-import { matches, orDieOnNoRows } from '@app-template/packages/testing'
+import { matches, orDieOnNoRows } from '@app-template/packages/db/testing'
 
 import {
   UserEntity,

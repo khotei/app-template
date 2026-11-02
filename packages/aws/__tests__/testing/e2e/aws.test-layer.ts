@@ -3,7 +3,7 @@ import { SQSService } from '@effect-aws/client-sqs'
 import { Layer } from 'effect'
 import { inject } from 'vitest'
 
-import { ministackRegion } from '#testing/aws.test-util'
+import { ministackRegion } from '#testing/aws/e2e/aws.test-util'
 
 declare module 'vitest' {
   export interface ProvidedContext {

@@ -3,7 +3,7 @@ import { S3Service } from '@effect-aws/client-s3'
 import { Effect, Layer, Option, Stream } from 'effect'
 
 import { buildResourceName, resources } from '@app-template/kernel/aws'
-import { AwsTest } from '@app-template/kernel/aws/testing-e2e'
+import { AwsTest } from '@app-template/kernel/aws/testing/e2e'
 import { AwsConfig } from '@app-template/kernel/config'
 import { png } from '@app-template/packages/testing'
 

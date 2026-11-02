@@ -10,14 +10,14 @@
     "./llm": "./llm/index.ts",
     "./queue": "./queue/index.ts",
     "./data/testing": "./data/__tests__/testing/index.ts",
-    "./data/testing-e2e": "./data/__e2e__/testing/index.ts",
-    "./aws/testing-e2e": "./aws/__e2e__/testing/index.ts"
+    "./data/testing/e2e": "./data/__tests__/testing/e2e/index.ts",
+    "./aws/testing/e2e": "./aws/__tests__/testing/e2e/index.ts"
   },
   "imports": {
     "#kernel/*": "./*.ts",
     "#testing/data/*": "./data/__tests__/testing/*.ts",
-    "#testing-e2e/data/*": "./data/__e2e__/testing/*.ts",
-    "#testing-e2e/aws/*": "./aws/__e2e__/testing/*.ts"
+    "#testing/data/e2e/*": "./data/__tests__/testing/e2e/*.ts",
+    "#testing/aws/e2e/*": "./aws/__tests__/testing/e2e/*.ts"
   },
   "dependencies": {
     "@app-template/packages": "workspace:*",

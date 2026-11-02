@@ -124,7 +124,7 @@ apps/worker/chat/                assistant-message.handler  chat-title.handler
 <workspace>/__tests__/…          <source path>.test.ts   unit, over memory layers, no Docker
 <workspace>/__e2e__/…            <source path>.e2e.ts    on the run's own Postgres and MiniStack
 <workspace>/__tests__/testing/   .test-fake  .test-layer  .test-fixture  unit test support
-<workspace>/__e2e__/testing/     .test-layer  .test-setup  e2e support, never in a unit test
+<workspace>/__tests__/testing/e2e/  .test-layer  .test-setup  e2e support, never in a unit test
 apps/__e2e__/                    the use cases on Postgres and the journey, over assembled layers
 ```
 

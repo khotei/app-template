@@ -169,7 +169,8 @@ Behaviour seen from outside does not change.
   transaction of the writes the job reads.
 - **R11** — THE SYSTEM SHALL keep a workspace's unit tests and its test support under
   `__tests__/`, with the support only the e2e use under `__tests__/testing/e2e/`, and its e2e
-  tests under `__e2e__/`, and SHALL run no e2e test from `application`.
+  tests under `__e2e__/`, SHALL keep in `packages/testing` only the support several units share,
+  and SHALL run no e2e test from `application`.
 - **R21** — THE SYSTEM SHALL import a part of the kernel, a package under `packages/*` and a
   module or the use cases under `application/` by its folder path, `@app-template/<folder>`, through one entry,
   its `index.ts`, and its test support through `@app-template/<folder>/testing` and
@@ -226,13 +227,13 @@ Behaviour seen from outside does not change.
 | R8 | each module holds only `domain/`, `services/`, `infrastructure/`, `__tests__/` and its manifests; every `*.use-case.ts` lies under `application/use-cases/`; the layer overrides pass |
 | R9 | grep: no file under `kernel/data/` imports `@app-template/*` but a package under `packages/*`, or `#kernel/*` outside `#kernel/data`; every `*.table.ts`, `*.entity.ts` and `*.repository.ts` lies under `kernel/data/` |
 | R10 | the send-message e2e finds the job in `jobs` and rolls back both on a failed write |
-| R11 | `git ls-files` finds no `tests/`, `e2e/` or `testing/` folder outside `__tests__/` and `__e2e__/` (but the package `packages/testing` and `apps/__e2e__/testing`), no `__e2e__/testing/` under `kernel/` or `packages/`, and no `__e2e__/` under `application/` |
+| R11 | `git ls-files` finds no `tests/`, `e2e/` or `testing/` folder outside `__tests__/` and `__e2e__/` (but the package `packages/testing` and `apps/__e2e__/testing`), no `__e2e__/testing/` under `kernel/` or `packages/`, no `aws`, `postgres` or `rows` support in `packages/testing`, and no `__e2e__/` under `application/` |
 | R12 | a throwaway import of another module's internals, and one of a unit its workspace's list does not name, each fail `make check` with the import and the decision named |
 | R13 | a throwaway import of a module into the kernel and into a generic package each fail `make check` with the decision named; the modules rule names the contract cycle and its decision |
 | R14 | throwaway imports of a module's model, of `#kernel/aws` and of `@app-template/kernel/config` into a data-layer file each fail `make check` with the decision named |
 | R15 | throwaway imports of the kernel into a module's domain and into a contract, of `@app-template/kernel/llm` and of the module's infrastructure into its services, of `@app-template/kernel/postgres` into a use case (a module's infrastructure in a use case passes), and of the kernel into a package each fail `make check` with the decision named |
 | R16 | `make bundle-check` passes; throwaway imports of a module's service, of a use case and of a repository into the web app each make it fail |
-| R17 | throwaway imports of `#testing/e2e/…` and of `@app-template/kernel/data/testing/e2e` into a unit test each fail `make check` with the decision named |
+| R17 | throwaway imports of `#testing/<unit>/e2e/…` and of `@app-template/kernel/data/testing/e2e` into a unit test each fail `make check` with the decision named |
 | R21 | `git grep` finds no import of `@app-template/<name>` for a unit of `kernel`, `packages` or `application` but by its folder, and none of a layer or store subpath; `make check` passes |
 | R18 | the decisions document and `architecture.md` show a use case spanning modules with a short snippet; grep finds no job whose handler reacts to another module's write |
 | R19 | `make doc-names` passes; `architecture.md` has the seven sections; the glossary has "Application", "Module", "Module contract", "Use case", "Kernel", "Data layer", "Entity", "Model", "Boundary" and "Package" and bans "Component" |

@@ -7,7 +7,7 @@ import { owner } from '@app-template/chat/testing'
 import { AttachmentEntityInsert, attachments, Db } from '@app-template/kernel/data'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { DbWithUsersTest } from '#testing-e2e/db.test-layer'
+import { DbWithUsersTest } from '#testing/db.test-layer'
 
 const attachment = new Attachment({
   id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000102'),

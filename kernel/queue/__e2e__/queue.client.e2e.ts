@@ -8,7 +8,7 @@ import {
   SampleJob,
   sampleJobQueue,
   sampleProvenance,
-} from '@app-template/kernel/data/testing-e2e'
+} from '@app-template/kernel/data/testing/e2e'
 import { QueueSender } from '@app-template/packages/queue'
 
 import { QueueSenderJobs } from '#kernel/queue/queue.client'

@@ -13,7 +13,8 @@ paths:
   (`@app-template/kernel/<part>`), never one of its files.
 - **Across workspaces:** `@app-template/<workspace>[/<subpath>]`, through the `exports` and the
   `index.ts` barrels: a kernel part (`@app-template/kernel/<part>`) and a package
-  (`@app-template/packages/<name>`) one entry and its `/testing`, a module one per layer:
+  (`@app-template/packages/<name>`) one entry, its `/testing` and `/testing/e2e`, a module one
+  per layer:
   [architecture.md › Imports](../../docs/knowledge/architecture.md#imports-workspace-vs-app-template);
   which may import which:
   [architecture.md › Dependency rules](../../docs/knowledge/architecture.md#dependency-rules).
@@ -39,11 +40,13 @@ tool reads.
 | `.client` · `.transport` | client wiring · the service a package's client runs over | a module's `infrastructure`, kernel, http-api, packages |
 | `.http` | a contract group: one resource's routes (`HttpApiGroup`) | http-api |
 | `.test` · `.e2e` | a unit test, no process outside vitest · a test on the run's containers | `__tests__/` · `__e2e__/` |
-| `.test-fixture` | sample values (ids, dates, inputs, bytes); no Effect, no layers | `testing/` of either |
-| `.test-fake` | a test implementation or wrapper of a port or service: records, yields, scripts | `testing/` of either |
-| `.test-layer` | a test layer (real services over fakes or containers), its arrange and read steps | `testing/` of either |
-| `.test-setup` | a vitest `globalSetup`: run-wide resources, handed to tests through `provide` | `__e2e__/testing/` |
-| `.test-util` | an assertion or a value helper with no layer | `testing/` of either |
+| `.test-fixture` | sample values (ids, dates, inputs, bytes); no Effect, no layers | a `testing/` |
+| `.test-fake` | a test implementation or wrapper of a port or service: records, yields, scripts | a `testing/` |
+| `.test-layer` | a test layer (real services over fakes or containers), its arrange and read steps | a `testing/` |
+| `.test-setup` | a vitest `globalSetup`: run-wide resources, handed to tests through `provide` | `__tests__/testing/e2e/` |
+| `.test-util` | an assertion or a value helper with no layer | a `testing/` |
+
+Support that only the e2e use, since it reads the run's containers, sits in `testing/e2e/`.
 
 A test mirrors its source path under its workspace's `__tests__/` or `__e2e__/` (a kernel part's
 own, `kernel/<part>/__tests__/`), or a suite with no source names what it checks; a module folder

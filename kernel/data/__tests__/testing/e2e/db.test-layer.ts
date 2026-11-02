@@ -1,6 +1,6 @@
 import { Layer } from 'effect'
 
-import { PgClientTest } from '@app-template/packages/testing'
+import { PgClientTest } from '@app-template/packages/db/testing/e2e'
 
 import { Db } from '#kernel/data/db.client'
 

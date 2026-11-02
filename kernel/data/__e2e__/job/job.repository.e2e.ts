@@ -3,7 +3,7 @@ import { Array as Arr, Deferred, Effect, Exit, Fiber, Layer, Struct } from 'effe
 import { SqlClient } from 'effect/sql'
 
 import { JobRepository } from '#kernel/data/job/job.repository'
-import { DbTest } from '#testing-e2e/data/db.test-layer'
+import { DbTest } from '#testing/data/e2e/db.test-layer'
 
 const JobRepositoryTest = JobRepository.layer.pipe(Layer.provideMerge(DbTest))
 

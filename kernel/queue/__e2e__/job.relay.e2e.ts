@@ -17,7 +17,7 @@ import {
 import { SqlClient } from 'effect/sql'
 
 import { buildResourceName } from '@app-template/kernel/aws'
-import { AwsTest } from '@app-template/kernel/aws/testing-e2e'
+import { AwsTest } from '@app-template/kernel/aws/testing/e2e'
 import { AwsConfig } from '@app-template/kernel/config'
 import { Db, JobRepository, jobs } from '@app-template/kernel/data'
 import {
@@ -25,7 +25,7 @@ import {
   SampleJob,
   sampleJobQueue,
   sampleProvenance,
-} from '@app-template/kernel/data/testing-e2e'
+} from '@app-template/kernel/data/testing/e2e'
 import { QueueError, QueueSender, QueueTransport } from '@app-template/packages/queue'
 import { recordLogs } from '@app-template/packages/testing'
 

@@ -148,7 +148,8 @@ import { SendMessageUseCase } from '#use-cases/chat/send-message.use-case'  // t
 - **`@app-template/<workspace>[/<subpath>]`** reaches another workspace through its `exports`,
   each entry an `index.ts` barrel: the kernel one per part (`@app-template/kernel/data` →
   `kernel/data/index.ts`, every store), a package by its folder (`@app-template/packages/db`),
-  each with its test support (`@app-template/kernel/data/testing`), and a module one subpath per
+  each with its test support (`@app-template/kernel/data/testing`, `…/testing/e2e`), and a
+  module one subpath per
   layer (`@app-template/chat/domain` → `application/chat/domain/index.ts`).
 - **`#<workspace>/<path>`** reaches a file of the same unit, through the `imports` map in its
   workspace's `package.json` (`"#domain/*": "./domain/*.ts"`, `"#api/*": "./*.ts"`); a kernel
@@ -193,12 +194,14 @@ Every workspace keeps its unit tests in `__tests__/` and its e2e in `__e2e__/`, 
 mirroring the source path; the kernel's parts are units like packages, so each part keeps them in
 its own folder (`kernel/<part>/__tests__/`, `kernel/<part>/__e2e__/`). Vitest's `unit` project
 runs `**/__tests__/**/*.test.ts`, its `e2e` project `**/__e2e__/**/*.e2e.ts`
-([tooling.md › Tests](tooling.md#tests)). Test support lives in the `testing/` inside each:
-`__tests__/testing/` aliased `#testing/*` and exported as `./testing`, `__e2e__/testing/` aliased
-`#testing-e2e/*` and exported as `./testing-e2e`; a kernel part's support names the part after
-the alias and before the export (`#testing-e2e/<part>/*`, `./<part>/testing-e2e`). A unit test
-imports its workspace's source and the `./testing` of the workspaces it declares; an e2e suite
-also their `./testing-e2e`; a unit test never imports e2e support. Record:
+([tooling.md › Tests](tooling.md#tests)). Test support lives in `__tests__/testing/`, imported as
+`@app-template/<folder>/testing` and aliased `#testing/<unit>/*`; the part only the e2e use lives
+in `__tests__/testing/e2e/`, imported as `@app-template/<folder>/testing/e2e` and aliased
+`#testing/<unit>/e2e/*`, which `/testing` does not re-export. The shared `packages/testing` holds
+only the support several units use; a package's own (its rows, its Postgres or MiniStack clients)
+lives in that package. A unit test imports its workspace's source and the `/testing` of the
+units it declares; an e2e suite also their `/testing/e2e`; a unit test never imports e2e
+support. `apps/__e2e__`, e2e alone, aliases its own support `#testing/*`. Record:
 [Tests in their folders](decisions.md#tests-in-their-folders).
 
 | Ring | Suite | Runs on |
@@ -326,8 +329,8 @@ Layer.provide(Db.layer), Layer.provide([PgClientFromConfig, S3BucketFromConfig])
    from the inventory in `kernel/aws/resources`.
 4. **Each process** provides it in its `layer.ts`; a missing one is a type error in the layer's
    requirements.
-5. **The e2e harness** in the part's `__e2e__/testing/` (`kernel/data/__e2e__/testing/`,
-   `kernel/aws/__e2e__/testing/`) provides a client of the test's own (a
+5. **The e2e harness** in the part's `__tests__/testing/e2e/` (`kernel/data/__tests__/testing/e2e/`,
+   `kernel/aws/__tests__/testing/e2e/`) provides a client of the test's own (a
    database, a stage) the same way `DbTest` and `AwsTest` do; `deployment/local/` provisions the
    store on the local stand ([aws.md](aws.md)).
 
@@ -365,7 +368,7 @@ checks what the import rules leave to tree shaking, the web bundle. Record:
 
 | Guard | Catches | Reports |
 |---|---|---|
-| Biome `noRestrictedImports`, one `overrides` entry per ring and layer in `biome.json` | each ✗ of [Dependency rules](#dependency-rules), with the record named in the message; any relative path; in each `<workspace>/__tests__/**`, e2e support (`#testing-e2e/**`, `@app-template/*/testing-e2e`) | `make lint`, `pre-commit`, CI `static` |
+| Biome `noRestrictedImports`, one `overrides` entry per ring and layer in `biome.json` | each ✗ of [Dependency rules](#dependency-rules), with the record named in the message; any relative path; in each `<workspace>/__tests__/**` but its `testing/e2e/`, e2e support (`#testing/*/e2e/**`, `@app-template/**/testing/e2e`) | `make lint`, `pre-commit`, CI `static` |
 | the isolated linker with `tsc -b` | an allowed import of a workspace that is not declared in `package.json` | TS2307 in `make typecheck` and at runtime |
 | `composite` project references (`rootDir: "."`) | a path that reaches into an unreferenced project's files (one package's import of another it does not reference); a cycle of references | TS6059 / TS6307 / TS6202 in `make typecheck` |
 | `make bundle-check`: `bun build` of `apps/web/app/main.ts`, then a `grep` of the bundle | a key of the kernel, of the use cases, of a module's `services/` or `infrastructure/`, or a port key of its `domain/`, in the browser bundle | the matched service keys, in `make check` |

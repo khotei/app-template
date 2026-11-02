@@ -22,7 +22,7 @@ import {
 } from '@app-template/kernel/data'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { DbWithUsersTest } from '#testing-e2e/db.test-layer'
+import { DbWithUsersTest } from '#testing/db.test-layer'
 
 const chat = new Chat({
   id: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000101'),

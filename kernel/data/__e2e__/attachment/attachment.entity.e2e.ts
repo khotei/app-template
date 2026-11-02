@@ -1,12 +1,12 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Effect } from 'effect'
 
-import { flipSqlError } from '@app-template/packages/db/testing-e2e'
+import { flipSqlError } from '@app-template/packages/db/testing/e2e'
 
 import { attachments } from '#kernel/data/attachment/attachment.table'
 import { Db } from '#kernel/data/db.client'
 import { users } from '#kernel/data/user/user.table'
-import { DbTest } from '#testing-e2e/data/db.test-layer'
+import { DbTest } from '#testing/data/e2e/db.test-layer'
 
 const userId = '0192d4e0-7b3a-7c00-8000-000000000090'
 

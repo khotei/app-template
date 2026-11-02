@@ -74,13 +74,13 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   `sequence` itself, and the root sets no `globalSetup`, so a unit run starts no container. A new
   workspace needs no test config, and the vendored suites and the worktrees' copies stay out.
 - **One Postgres and one MiniStack per e2e run, a database and a stage per test.**
-  `kernel/data/__e2e__/testing/e2e.test-setup.ts` starts one `postgres:18.6-alpine` container
-  (about 1.2 s) and migrates a template database in it with `migrateDatabase(folder)`, as
-  `make migrate` does, and one MiniStack container beside it (about two seconds for both). Each
-  test provides `PgClientTest` from `@app-template/packages/testing`: a fresh database copied from
-  the template and dropped when the test ends, about 40 ms in all; a test on S3 or SQS provides
-  `AwsTest` from `kernel/aws/__e2e__/testing/aws.test-layer.ts`: a stage of its own on the run's
-  MiniStack, its bucket and queues provisioned
+  `kernel/data/__tests__/testing/e2e/e2e.test-setup.ts` starts one `postgres:18.6-alpine`
+  container (about 1.2 s) and migrates a template database in it with `migrateDatabase(folder)`,
+  as `make migrate` does, and one MiniStack container beside it (about two seconds for both). Each
+  test provides `PgClientTest` from `@app-template/packages/db/testing/e2e`: a fresh database
+  copied from the template and dropped when the test ends, about 40 ms in all; a test on S3 or
+  SQS provides `AwsTest` from `kernel/aws/__tests__/testing/e2e/aws.test-layer.ts`: a stage of its
+  own on the run's MiniStack, its bucket and queues provisioned
   ([aws.md › Tests on Docker](aws.md#tests-on-docker)). A test therefore sees only its own rows and
   resources, even through a query that reads a whole table, and files run in parallel. E2e tests
   need Docker and nothing else: no `.env`, no `make up`.

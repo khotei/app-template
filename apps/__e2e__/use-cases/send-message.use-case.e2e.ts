@@ -16,7 +16,7 @@ import {
 import { epoch } from '@app-template/packages/testing'
 import { SendMessageUseCase } from '@app-template/use-cases/chat'
 
-import { ChatPgTest } from '#testing-e2e/chat.test-layer'
+import { ChatPgTest } from '#testing/chat.test-layer'
 
 const selectJobs = SqlClient.SqlClient.use((client) => client`SELECT queue FROM jobs`).pipe(
   Effect.orDie,

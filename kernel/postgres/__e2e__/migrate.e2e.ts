@@ -3,7 +3,8 @@ import { Effect } from 'effect'
 
 import { migrationsFolder } from '@app-template/kernel/data'
 import { migrateDatabase } from '@app-template/packages/db'
-import { PgClientTest, recordLogs } from '@app-template/packages/testing'
+import { PgClientTest } from '@app-template/packages/db/testing/e2e'
+import { recordLogs } from '@app-template/packages/testing'
 
 import { applyMigrations } from '#kernel/postgres/migrate'
 

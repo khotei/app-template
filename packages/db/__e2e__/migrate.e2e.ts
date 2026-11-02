@@ -11,9 +11,10 @@ import {
 } from 'effect/sql/SqlError'
 import { TestClock } from 'effect/testing'
 
-import { PgClientTest, recordLogs } from '@app-template/packages/testing'
+import { recordLogs } from '@app-template/packages/testing'
 
 import { migrateDatabase, retryWhileUnreachable } from '#db/migrate'
+import { PgClientTest } from '#testing/db/e2e/postgres.test-layer'
 
 /** A migrations folder of one migration, `20990101000000_probes`, that creates `probes`. */
 const writeProbeMigrations = Effect.gen(function* () {

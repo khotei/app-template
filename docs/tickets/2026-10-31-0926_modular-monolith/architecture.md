@@ -768,7 +768,9 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
     the import names the folder and Biome still refuses `testing/e2e` in a unit test (R17); the
     files keep their kind suffixes (`db.test-layer.ts`). Rejected: a label in the file name
     (`db.e2e-layer.ts`) beside the unit's other support — the label is lost behind the `/testing`
-    entry, so only review could refuse it; `/testing-e2e`, a name no folder carries.
+    entry, so only review could refuse it; `/testing-e2e`, a name no folder carries. The shared
+    `packages/testing` keeps only what several units use; support of one package (its rows, its
+    Postgres or MiniStack clients) lives in that package, as the kernel's parts hold theirs.
 
 - **D20 — The migrations restart as one initial migration generated from the data layer; every
   database is recreated (`make reset`).**
@@ -808,10 +810,16 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
   rings.**
   - **Why:** the isolated linker sees `@app-template/packages`, not `/db` or `/ui`, once a folder
     is one workspace (D21); Biome's message names the record, which TS2307 never could (R12).
-  - **Cost accepted:** a list per unit, kept beside its `tsconfig.json` references by hand.
+  - **Cost accepted:** a list per unit, kept by hand. Each folder is one `tsconfig.json`
+    project, as the kernel is (S29, S30), so the lists alone record which unit imports which:
+    `tsc -b` no longer refuses a cycle between units of one folder (TS6202) nor rebuilds them one
+    by one.
   - **Reversal:** with D21's reversal, the workspace dependencies again.
   - **Rejected:**
     - no list, the boundary held by review — the user's word: the guard stays configuration.
+    - a `tsconfig.json` project per unit beside its list — its `references` would repeat the list
+      (TS6307 refuses an unreferenced unit), one rule in two places; the user's word on
+      2026-11-02.
 
 ## Risks
 
@@ -827,9 +835,10 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
   *Contained by:* each step that renames keys proves the pattern with a throwaway import (R16).
 - **A list of module packages in a Biome override misses a new module.** *Contained by:* the
   per-workspace lists of D22 (an unlisted unit is refused) and the add-a-module checklist.
-- **A unit imports another inside its own folder's workspace unchecked between S27 and S30**,
-  when the linker sees only the folder and the lists do not yet exist. *Contained by:* the steps
-  run back to back, and S30's Verify greps every import against the new lists.
+- **A cycle between units of one folder**, once the folder is one `tsconfig.json` project and
+  `tsc -b` no longer sees units (D22). *Contained by:* each list names only units below its own
+  in the rings, so a cycle needs two lists to name each other, which review of `biome.json`
+  sees. Until S30 the packages' own projects refuse an unreferenced package (TS6307).
 - **A limit duplicated by D11 drifts** between a model and its check. *Contained by:* the
   mappers' e2e writes the extreme value the model allows.
 - **The plan's interim states.** The ports' adapters delegate to the data layer's repositories

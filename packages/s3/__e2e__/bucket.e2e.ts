@@ -2,12 +2,8 @@ import { assert, describe, layer } from '@effect/vitest'
 import { S3Service } from '@effect-aws/client-s3'
 import { Array as Arr, Bytes, Duration, Effect, Layer, Option, Stream } from 'effect'
 
-import {
-  breakAfter,
-  generateStage,
-  S3ClientTest,
-  StreamBrokenError,
-} from '@app-template/packages/testing'
+import { generateStage, S3ClientTest } from '@app-template/packages/aws/testing/e2e'
+import { breakAfter, StreamBrokenError } from '@app-template/packages/testing'
 
 import { S3Bucket } from '#s3/bucket'
 

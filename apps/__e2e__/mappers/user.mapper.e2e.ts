@@ -5,7 +5,7 @@ import { buildUser, Credential, SecretHash, User } from '@app-template/identity/
 import { decodeUser, encodeCredential, encodeUser } from '@app-template/identity/services'
 import { UserId } from '@app-template/identity-contract'
 import { UserRepository } from '@app-template/kernel/data'
-import { DbTest } from '@app-template/kernel/data/testing-e2e'
+import { DbTest } from '@app-template/kernel/data/testing/e2e'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 const user = buildUser({

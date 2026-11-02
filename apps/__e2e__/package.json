@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "imports": {
-    "#testing-e2e/*": "./testing/*.ts"
+    "#testing/*": "./testing/*.ts"
   },
   "devDependencies": {
     "@app-template/api": "workspace:*",

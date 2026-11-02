@@ -4,9 +4,9 @@ How the app reaches S3 and SQS, locally and on AWS, and how the resources it nee
 created and tested. The code: `kernel/aws/resources/` (the inventory, the naming rule),
 `packages/aws` (the generic provisioner), `kernel/aws/aws.client.ts` (the apps' S3 and SQS clients),
 `deployment/local/` (the Pulumi program of the local stand), `deployment/aws/` (its resources),
-`kernel/data/__e2e__/testing/e2e.test-setup.ts` (the MiniStack the e2e run starts),
-`packages/testing/aws.test-layer.ts` (its clients) and
-`kernel/aws/__e2e__/testing/aws.test-layer.ts` (a stage per test).
+`kernel/data/__tests__/testing/e2e/e2e.test-setup.ts` (the MiniStack the e2e run starts),
+`packages/aws/__tests__/testing/e2e/aws.test-layer.ts` (its clients) and
+`kernel/aws/__tests__/testing/e2e/aws.test-layer.ts` (a stage per test).
 
 ## The local stand-in
 
@@ -196,11 +196,11 @@ and the dead letter need no queue.
 
 ## Tests on Docker
 
-The e2e `globalSetup` (`kernel/data/__e2e__/testing/e2e.test-setup.ts`) starts one MiniStack beside
-the run's Postgres (`testcontainers`, about two seconds for both) and hands its endpoint to the
-tests through `inject('awsEndpoint')`; `SqsClientTest` and `S3ClientTest` in
-`@app-template/packages/testing` are clients on it. `AwsTest`
-(`kernel/aws/__e2e__/testing/aws.test-layer.ts`) gives each test a stage of its own (`e2e` and
+The e2e `globalSetup` (`kernel/data/__tests__/testing/e2e/e2e.test-setup.ts`) starts one MiniStack
+beside the run's Postgres (`testcontainers`, about two seconds for both) and hands its endpoint to
+the tests through `inject('awsEndpoint')`; `SqsClientTest` and `S3ClientTest` in
+`@app-template/packages/aws/testing/e2e` are clients on it. `AwsTest`
+(`kernel/aws/__tests__/testing/e2e/aws.test-layer.ts`) gives each test a stage of its own (`e2e` and
 eight hex digits), provisions the inventory's bucket and queues under it and provides `AwsConfig`
 over the endpoint and that stage, so the kernel's clients build their names as in production; it
 publishes the clients too, as the `*FromConfig` layers do, and the stage's `S3Bucket`. The queue's

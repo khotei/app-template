@@ -16,7 +16,8 @@ import {
 } from 'effect'
 
 import { buildDeadLetterName, provisionQueues, type Resources } from '@app-template/packages/aws'
-import { generateStage, recordLogs, SqsClientTest } from '@app-template/packages/testing'
+import { generateStage, SqsClientTest } from '@app-template/packages/aws/testing/e2e'
+import { recordLogs } from '@app-template/packages/testing'
 
 import {
   type AttemptInfo,

@@ -14,7 +14,7 @@ import { ApiClient } from '@app-template/http-api'
 import { FileRepository } from '@app-template/kernel/data'
 import { assertSchemaEquals, png } from '@app-template/packages/testing'
 
-import { StandTest } from '#testing-e2e/stand.test-layer'
+import { StandTest } from '#testing/stand.test-layer'
 
 const stubReply = 'This is the development stub answering the whole reply at once.'
 

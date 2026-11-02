@@ -448,13 +448,18 @@ share lives in a ring below them.
 
 ### Tests in their folders
 
-Every workspace keeps its unit tests in `__tests__/` and its e2e in `__e2e__/`, each with its
-support in a `testing/` inside, exported as `./testing` and `./testing-e2e`; the kernel's parts are
-units like packages, so each part keeps its own (`kernel/<part>/__tests__/`,
-`kernel/<part>/__e2e__/`), its support exported as `./<part>/testing` and `./<part>/testing-e2e`
-and aliased `#testing/<part>/*` and `#testing-e2e/<part>/*`. An e2e suite may import `./testing`, a
-unit test never `./testing-e2e`; `application` has unit tests only, and the e2e over assembled
-layers live in `apps/__e2e__`.
+Every workspace keeps its unit tests and their support in `__tests__/`, the support in
+`__tests__/testing/`, and its e2e in `__e2e__/`; the support only the e2e use sits in
+`__tests__/testing/e2e/`, behind an `index.ts` of its own that `__tests__/testing/index.ts` does
+not re-export. A unit imports it as `@app-template/<folder>/testing` and
+`@app-template/<folder>/testing/e2e`, and its own files through `#testing/<unit>/*` and
+`#testing/<unit>/e2e/*`; the kernel's parts are units like packages, so each part keeps its own
+(`kernel/<part>/__tests__/`, `kernel/<part>/__e2e__/`). The support files keep their kind suffixes
+(`.test-layer`, `.test-setup`). An e2e suite may import both, a unit test never `testing/e2e`;
+`application` has unit tests only, and the e2e over assembled layers live in `apps/__e2e__`, its
+support in `apps/__e2e__/testing/`. The shared `packages/testing` holds only the support several
+units use; a package's own support (its rows, its Postgres or MiniStack clients) lives in that
+package, as a kernel part's does.
 
 - **Why:** the folder tells a unit test from an e2e and from source; the behaviour runs over
   memory, the real stores are tested in the kernel, the assembled layers in the apps. A part's
@@ -462,19 +467,27 @@ layers live in `apps/__e2e__`.
 - **Sources:** `.claude/rules/effect-tests.md`; `vitest.config.ts` selects by folder.
 - **Rejected:** test folders at a workspace's top: support beside the source folders. The
   kernel's tests in one pair of test folders at its top: a part's tests away from it, and one
-  support barrel for every part. The use cases' and mappers' e2e in `application`: the
-  behaviour would need containers. The e2e in each app: the journey would make the api import the
-  worker, and apps never import each other. The e2e workspace at the root: a test of the
-  processes away from them.
+  support barrel for every part. Every package's support in `packages/testing`: a package's own
+  harness away from it, behind a barrel every unit imports. The use cases' and mappers' e2e in
+  `application`: the behaviour would need containers. The e2e in each app: the journey would make
+  the api import the worker, and apps never import each other. The e2e workspace at the root: a
+  test of the processes away from them. The e2e support in `__e2e__/testing/`, exported under a
+  name of its own: a third test folder, and an import name no folder carries. A label in the file
+  name (`<name>.e2e-layer.ts`) beside the unit test support: the label is lost behind the
+  `/testing` entry, so only review could refuse the import.
 - **Cost:** the drift check of the tables' checks lives in `apps/__e2e__`, away from the mappers.
   The kernel declares an alias and an export per part's support. The run's `globalSetup` sits
-  in the data's e2e support, though it starts the MiniStack every workspace's e2e uses.
-- **Guarded by:** every `__tests__/**` Biome override bans `#testing-e2e/**` and
-  `@app-template/**/testing-e2e`; the `application/use-cases/**` override bans
-  `@app-template/*/testing`, `@app-template/kernel/*/testing` and
-  `@app-template/kernel/*/testing-e2e` in source; the `kernel/data/__tests__/**` override keeps the
-  data layer's bans on its memory repositories; the vitest projects `unit` and `e2e` include by
-  folder.
+  in the data's e2e support, though it starts the MiniStack every workspace's e2e uses. The e2e
+  support lies under `__tests__/`, so the kernel's and the packages' `__tests__/**` Biome
+  overrides exclude `__tests__/testing/e2e/**`; a kernel part's e2e override takes it back, and
+  in `packages/` the `packages/**` override covers it as it covers the packages' e2e.
+- **Guarded by:** every `__tests__/**` Biome override bans `#testing/*/e2e/**` and
+  `@app-template/**/testing/e2e`, but in `__tests__/testing/e2e/**`, which the e2e overrides
+  take; the `application/use-cases/**` override bans `@app-template/*/testing`,
+  `@app-template/kernel/*/testing` and `@app-template/kernel/*/testing/e2e` in source; the
+  `kernel/data/__tests__/**` override keeps the data layer's bans on its memory repositories; the
+  vitest projects `unit` (`**/__tests__/**/*.test.ts`) and `e2e` (`**/__e2e__/**/*.e2e.ts`)
+  include by folder and suffix.
 - **If reversed:** a rename of the folders.
 - **Revisit when:** a workspace needs a third kind of test.
 
