@@ -13,16 +13,18 @@ Every move or rename of code then forces a doc edit, and a stale name slips thro
 check reads: on the `modular-monolith` branch every `CLAUDE.md` edit was a path rename, never a
 changed constraint. A rule whose path filter stops matching after a rename stops loading, and
 nothing says so. Each session also pays for instructions it does not need: editing one `.ts` file
-of a module loads about 8.7k tokens of rules, and every step's reviewer reads the ticket's whole
-`architecture.md`.
+of a module loads about 9.6k tokens of rules, every step's reviewer reads the ticket's whole
+`architecture.md` and every rule, and `/ticket-implement` loads its rarely used parallel-steps
+procedure on every step. The commit gate is told in ten files and no longer matches how steps are
+committed.
 
 ## Goal
 
 The instruction files hold the pattern and the why and point to the one file that owns each fact,
 so a refactor that keeps every constraint needs no doc edit, while Claude is guided at least as
 well as today. `make check` refuses the kinds of drift that recurred, so the files stay this way in
-later sessions without anyone re-auditing them. The three measured levers cut at least 20% of the
-load each one targets.
+later sessions without anyone re-auditing them. Each measured lever cuts at least 20% of the load
+it targets.
 
 ## Context
 
@@ -31,23 +33,36 @@ load each one targets.
   Claude reads, writes or edits a matching file, and are not kept after compaction; an `@import`
   loads eagerly; HTML comments are stripped; a skill with `disable-model-invocation` costs nothing
   until invoked. The `InstructionsLoaded` hook logs each file that loads and why.
-- **Measured load** (2026-11-02): about 1–2k tokens at session start; editing a `.ts` file of a
-  module adds about 8.7k; one `/ticket-implement` step costs about 33k across its three contexts,
-  and the reviewers of a behaviour step about 46k. Files loaded together repeat each other for only
-  about 3%.
+- **The official docs** (the docs research, 2026-11-02, Claude Code 2.1.309): a path-scoped rule
+  is summarized away by compaction and reloads on the next matching file; a subagent loads the
+  `CLAUDE.md` hierarchy and the unscoped rules at its start and the path-scoped ones on its own
+  file access; a hook's `additionalContext` arrives next to the tool result, so nothing reaches
+  Claude before a `Write`; a skill may keep supporting files it reads on demand. Anthropic
+  advises against emphasis markers, which make current models over-apply a rule: a rule that
+  cannot bend becomes a check or a hook.
+- **Measured load** (2026-11-02, a tokenizer and an `InstructionsLoaded` run): about 1.0k tokens at
+  session start; editing a `.ts` file of a module adds about 9.6k, the same set whatever its
+  layer, so a services file read after a domain file loads nothing more. One `/ticket-implement`
+  step costs about 33k across its three contexts, and the reviewers of a behaviour step about 46k
+  (not re-measured). Files loaded together repeat each other for only about 3%.
 - **The levers that pass the 20% threshold** the user set for a cut made for tokens alone:
   - the step reviewer reads only the parts of the ticket's `architecture.md` the step cites: about
-    5k per reviewer, 33% of its load;
+    5k per reviewer, 33% of its load; the Standards reviewer reads only the rules whose filters
+    match the diff, where today it reads all of them (about 10k);
   - the implementer stops reading every rule at the start of a step, since a path-scoped rule
     arrives on its own: about 3.7k, 24%;
-  - four rules that load on any `.ts` of a module (deep modules, modules, Effect services,
-    layering) get narrower path filters: 45% of the load of editing such a file together, each
-    alone under 20%.
+  - the rules that load on any `.ts` of a module, trimmed by the audit's findings (default Effect
+    style Claude writes unprompted, a file table that retells `ls`, two rules on one subject):
+    about 30% of that load, by the fresh audit's estimate;
+  - `/ticket-implement` keeps its parallel-steps procedure in a file it reads only for parallel
+    steps: about 45% of the skill's 2.5k.
 - **Where the churn sits** (the md audit, commits since the branch base): `architecture.md` 29,
   `tooling.md` 21, `naming.md` 20, `database.md` 19, `README.md` 12, `effect-tests.md` 10, the root
   `CLAUDE.md` 9, `kernel/CLAUDE.md` 8 of its 8. Facts told in several places: the rings and which
   folder holds what (5 places), versions (4), the test layout, the resource naming, the
-  dependency command, the worktree ports, the database's guards, the data layer's types rule.
+  dependency command, the worktree ports, the database's guards, the data layer's types rule, and
+  the commit gate (ten files: the SDD rule, the commit and PR rules, the five skills, the
+  implementer).
 - **What checks today:** `make doc-names` fails on a backticked path or name the repo lacks, but
   reads only the `CLAUDE.md` files, the rules and `docs/knowledge/`, not the skills, the agents
   or any `README.md`. `make doc-width` holds lines to 100 columns. The size limits of
@@ -65,11 +80,10 @@ load each one targets.
   skills, the agents, the PR template, the `README.md` files and `docs/knowledge/`.
 - Rewriting them to patterns and pointers; deleting lines that change nothing; adding the traps the
   audit found that the code cannot show.
-- Four checks in `make check`: names across every doc, no concrete path in an instruction file,
-  every path filter matching a file, the size limits.
-- The three context levers and a before-and-after measurement.
-- A few rule lines marked required, capped in number, and a Standards review that checks them
-  first.
+- Three checks in `make check`: names across every doc (no concrete source path in an
+  instruction file included), every path filter matching a file, the size limits.
+- The four context levers and a before-and-after measurement.
+- The commit gate stated once, its answer asked once per session.
 - The roadmap's `docs-diet` entry, absorbed.
 
 ## Out of scope
@@ -78,6 +92,8 @@ load each one targets.
 - A cut made for tokens alone that saves under 20% of the load it targets.
 - A hook that runs on every edit, and a check of version literals: the docs say "the pinned
   version" and point to the manifest instead.
+- Emphasis markers on rule lines (`**Required:**`, `IMPORTANT`): the docs advise against them; a
+  costly trap is stated plainly and early in its file.
 - Code changes, and the plugin skills, which are referenced by name and never edited.
 
 ## Requirements
@@ -118,46 +134,48 @@ load each one targets.
 ### Less context per session
 
 - **R12** — WHEN a reviewer reviews one plan step, THE SYSTEM SHALL have it read only the parts of
-  the ticket's design the step cites, not the whole design.
+  the ticket's design the step cites, not the whole design, and on the Standards axis only the
+  rules without a path filter and those whose filter matches a file of the diff.
 - **R13** — WHEN the implementer starts a plan step, THE SYSTEM SHALL let the rules arrive through
   their path filters instead of having it read every rule up front.
-- **R14** — WHEN Claude edits a file of one layer of a module, THE SYSTEM SHALL load only the rules
-  whose subject that layer holds.
-- **R15** — WHEN the ticket is verified, THE SYSTEM SHALL show, for each of R12–R14, the load it
-  targets before and after, measured the same way, and a cut of at least 20% for R12, for R13
-  and for R14 on a domain file; on a services file, which holds most of the narrowed rules'
-  subject, R14's cut is shown with no threshold.
+- **R14** — WHEN Claude edits a `.ts` file of a module, THE SYSTEM SHALL load rules and
+  `CLAUDE.md` text at least 20% smaller than before the ticket, every constraint they held still
+  stated where it binds.
+- **R15** — WHEN the ticket is verified, THE SYSTEM SHALL show, for each of R12–R14 and R16, the
+  load it targets before and after, measured the same way, and a cut of at least 20% for each.
+- **R16** — WHERE a skill holds a procedure most of its runs skip, THE SYSTEM SHALL keep it in a
+  file beside the skill that the skill reads only on that path, and a shell procedure in a script
+  run through `make`.
 
-### Required rules
+### One commit gate
 
-- **R16** — WHERE a rule line states a constraint whose breach the branch found costly and no
-  check refuses, THE SYSTEM SHALL mark it `**Required:**`; IF the marked lines across all rules
-  exceed the cap the maintenance rule names, THEN `make check` SHALL fail, naming the count.
-- **R17** — WHEN a reviewer reviews a step on the Standards axis, THE SYSTEM SHALL have it check
-  first every marked line that binds the diff's files, and report a breach of one as a hard
-  finding that the step is not committed with.
+- **R17** — THE SYSTEM SHALL state the commit gate in one file, and every other file SHALL point to
+  it: WHEN `/ticket-implement` starts its first step of a session, it SHALL ask once whether each
+  ready step is committed without the user's OK or waits for it, and hold the answer for the
+  session; a step is ready when its reviews ran, their fixes are in and `make check` is green;
+  pushing, opening a PR and merging SHALL always wait for the user's OK.
 
 ## Acceptance
 
 | Req | How to verify |
 |---|---|
 | R1 | A probe moves a module's folder and renames a file in it (no constraint changed): `git grep` of the old names over the instruction files finds none, and `make doc-names` stays green; the probe is reverted. |
-| R2 | For each fact the Context lists as told in several places, `git grep` finds its statement in one file and pointers by name elsewhere. |
+| R2 | For each fact the Context lists as told in several places, `git grep` finds its statement in one file and pointers by name elsewhere; `/doctor prompt-audit`, run by hand, reports no contradiction and no dead reference. |
 | R3 | Each step's report lists every removed line with its new home, or "dropped:" and why Claude gets it right without it; review checks the list. |
 | R4 | `git grep -E '\b[0-9]+\.[0-9]+\.[0-9]+\b'` and a grep for "today" and for counts over `docs/knowledge/` and the `README.md` files find each hit only in the doc that owns it. |
 | R5 | The step's report lists each trap added and where; review checks each against the test of R3. |
 | R6 | The local stand's `README.md`, which retells `aws.md`, is gone, and no other doc only retells. |
 | R7 | A probe backticks a missing path in a skill, an agent and a `README.md`: `make check` fails on each, naming file and line. |
-| R8 | A probe adds a concrete source path to a rule and a `CLAUDE.md`: `make check` fails on each; a placeholder pattern and a doc pointer pass. |
+| R8 | A probe adds a concrete source path to a rule, a `CLAUDE.md` and a skill: `make check` fails on each; a placeholder pattern, a package specifier and a doc pointer pass. |
 | R9 | A probe narrows a rule's filter to a folder that does not exist: `make check` fails naming the rule. |
 | R10 | `make check` is green on the tree; a probe adds lines to a rule past 80: it fails, naming the file. |
-| R11 | `claude-md.md` names the test, the owner, the pattern, and the four checks by their `make` targets. |
-| R12 | Measured with `InstructionsLoaded` and the reviewers' transcripts on one step, before and after: each reviewer's ticket reading drops by at least 20%. |
+| R11 | `claude-md.md` names the test, the owner, the pattern, and the three checks by their `make` targets. |
+| R12 | Measured with `InstructionsLoaded` and the reviewers' transcripts on one step, before and after: each reviewer's reading of the ticket's design drops by at least 20%, and the Standards reviewer's reading of rules by at least 20%. |
 | R13 | Measured the same way on one step: the implementer's load drops by at least 20%. |
-| R14 | Measured the same way on editing one `.ts` file of a module's domain and one of its services: the domain file's rules loaded drop by at least 20%; the services file's drop is recorded with no threshold (about 10–14% by estimate), and no rule whose subject the layer holds stops loading on either. |
-| R15 | `verification.md` records the three scenarios before and after; the measuring hook is not committed. |
-| R16 | `git grep -c` of the marker over `.claude/rules/` totals no more than the cap `claude-md.md` names; a probe marks lines past the cap: `make check` fails, naming the count. |
-| R17 | A probe diff writes a marked rule inline (a rule in a service's body): the Standards reviewer reports it as a hard finding citing the marked line, and `/ticket-implement` holds the commit. |
+| R14 | Measured the same way on one session that edits a `.ts` file of a module's domain, then one of its services: the rules and `CLAUDE.md` loaded drop by at least 20%; the step ledger shows every removed constraint's new home. |
+| R15 | `verification.md` records the four scenarios before and after; the measuring hook is not committed. |
+| R16 | A one-step run of `/ticket-implement` loads no parallel-steps text; a parallel run reads the file beside the skill, and `make` sets up a scratch worktree with the same `.env` ports and stage as the old block; the skill's loaded size drops by at least 20%. |
+| R17 | `git grep` finds the gate stated in one file and pointers elsewhere; a new session's first `/ticket-implement` step asks once, the next step of that session does not ask again. |
 
 ## Open questions
 
@@ -168,7 +186,9 @@ load each one targets.
   checked by R9; B — by file suffix (`*.service.ts`), which follows the naming rule but misses a
   file under a new suffix.
 - **Recommendation:** A, since a folder outlives a suffix and R9 catches a folder that goes.
-- **Answer:** A, with the sections that bind another layer moved to a rule that loads there: D1.
+- **Answer:** neither: the filters stay, and R14's cut comes from trimming the rules' text, since
+  a step that edits domain and services together loads their union (R14 amended): D1.
+
 ### Q2 — How does the reviewer find the parts of the design a step cites?
 
 - **Why it matters:** R12's cut depends on the reviewer not opening the whole file.
@@ -176,7 +196,8 @@ load each one targets.
   reads them with `grep -n` on the stable headings; B — the reviewer finds them from the step's
   text itself.
 - **Recommendation:** A, as `toolkit-reading` did for the implementer: the skill knows the step.
-- **Answer:** A: D2.
+- **Answer:** A, extended to the rules the Standards reviewer reads: D2.
+
 ### Q3 — What counts as a doc pointer or a stable anchor in R8?
 
 - **Why it matters:** R8 must refuse the class that churned and pass the anchors `claude-md.md`
@@ -184,8 +205,9 @@ load each one targets.
 - **Options:** A — an allowlist of prefixes (`docs/`, `.claude/`, `.github/`, `repos/`) plus any
   span with a placeholder, and a path of depth below three; B — an explicit list of allowed names.
 - **Recommendation:** A, since a list of names is itself a copy that goes stale.
-- **Answer:** neither as written: the shape of an instance, with the anchors derived from the
-  tree (workspaces, `exports` keys, role names in several workspaces): D3.
+- **Answer:** neither: one pattern inside `make doc-names`, a backticked path with a `/` and a
+  source extension and no placeholder: D3.
+
 ### Q4 — Which rule lines are marked required, and what is the cap?
 
 - **Why it matters:** a marker on many lines weighs as little as the bold that already opens most
@@ -194,4 +216,6 @@ load each one targets.
   breach the branch's reviews or the user's feedback found (a rule written in a service's body, a
   check after a write); B — a cap per rule file, which spreads the marks evenly whatever they cost.
 - **Recommendation:** A, since the weight comes from the marks being few across the whole set.
-- **Answer:** A: D4; the cap is a number in `claude-md.md` that the check reads: D5.
+- **Answer:** none: the marks are dropped, since the docs advise against emphasis markers and the
+  branch shows no costly breach a mark would have stopped; the costliest trap leads its file in
+  plain words (R16 and R17 now hold other requirements): D4.
