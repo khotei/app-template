@@ -62,12 +62,10 @@ uses updates this map too; the Standards review checks it against `.claude/rules
 | `/ticket-plan` | — | `researcher` | — | `plan.md` |
 | `/ticket-implement` | `code-review`; on a behaviour step the built-in `simplify`, with `codebase-design` as its vocabulary, and the built-in `code-review` | `implementer` (one worktree per parallel step, with its own `.env`, ports and MiniStack), `reviewer` (a third, Depth, axis on a behaviour step); `pr-review-toolkit:silent-failure-hunter` on a step with error handling, a retry or a store outside the transaction | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, one commit per approved step |
 | `/ticket-verify` | `code-review` | `verifier`, `reviewer` | — | `verification.md` |
-| `/explain` | `codebase-design`, as vocabulary | `explainer` | — | an HTML walkthrough in `$TMPDIR`; nothing in the repo |
 | `implementer` | `tdd`, preloaded | — | `make-check.sh` on `Stop` (runs as `SubagentStop`) | the step's files |
 | `reviewer` | one axis of `code-review` | — | — | nothing: read-only |
 | `verifier` | — | — | — | nothing: read-only |
 | `researcher` | — | — | — | nothing: read-only |
-| `explainer` | — | — | — | nothing: read-only |
 
 Plugin skills are `mattpocock-skills:<name>`; ticket files are in `docs/tickets/<ticket>/`.
 
@@ -79,12 +77,10 @@ graph LR
     plan["/ticket-plan"]
     impl["/ticket-implement"]
     verify["/ticket-verify"]
-    explain["/explain"]
     researcher([researcher])
     implementer([implementer])
     reviewer([reviewer])
     verifier([verifier])
-    explainer([explainer])
     hook[/make-check.sh/]
   end
   subgraph plugin [mattpocock-skills]
@@ -113,8 +109,6 @@ graph LR
   verify --> verifier & reviewer
   verify -.-> review
   reviewer -.-> review & design
-  explain --> explainer
-  explain -.-> design
 ```
 
 Solid arrows spawn an agent or run a hook; dotted arrows use a plugin skill.
@@ -155,15 +149,6 @@ A step runs through three stages before anything is committed:
    message.
 
 Pushing, opening the PR and creating the remote each need their own OK.
-
-### Reading what was built
-
-`/explain [scope]` is the gate's companion for the reader rather than the reviewer: a fresh
-`explainer` agent turns a step, the whole branch, a commit or one module into a walkthrough
-(dependency map, main flows, each entity's purpose and interface, the `Effect<A, E, R>` of every
-service, the Layer graph, the decisions already recorded) and the skill renders it as an HTML page
-in `$TMPDIR`. It judges nothing: Standards and Spec stay with `code-review`. Run it between the
-review and your approval when a step is hard to follow, and over the branch before the PR.
 
 ## Roadmap and history
 
