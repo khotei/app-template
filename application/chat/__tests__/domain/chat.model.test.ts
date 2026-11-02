@@ -1,11 +1,11 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Effect, Schema } from 'effect'
+import { DateTime, Effect, Option, Schema } from 'effect'
 
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { ChatBusyError, ChatStatusInvalidError } from '#chat/domain/chat.error'
-import { Chat, ChatTitle, failChat, idleChat, queueChat } from '#chat/domain/chat.model'
+import { Chat, ChatTitle, failChat, idleChat, queueChat, renameChat } from '#chat/domain/chat.model'
 import { chat } from '#testing/chat/chat.test-fixture'
 
 describe('queueChat', () => {
@@ -54,6 +54,18 @@ describe('idleChat and failChat', () => {
       )
     }),
   )
+})
+
+describe('renameChat', () => {
+  it('titles the chat and moves its updatedAt', () => {
+    const title = ChatTitle.make('Trip')
+    const at = DateTime.makeUnsafe('2026-10-18T00:00:00.000Z')
+
+    assertEquals(
+      renameChat(chat, { title, at }),
+      new Chat({ ...chat, title: Option.some(title), updatedAt: at }),
+    )
+  })
 })
 
 describe('ChatTitle', () => {

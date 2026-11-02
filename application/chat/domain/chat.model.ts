@@ -57,6 +57,11 @@ export const idleChat = Effect.fn('idleChat')((chat: Chat) => move(chat, 'idle')
 
 export const failChat = Effect.fn('failChat')((chat: Chat) => move(chat, 'failed'))
 
+export const renameChat = (
+  chat: Chat,
+  { title, at }: { readonly title: ChatTitle; readonly at: DateTime.Utc },
+): Chat => new Chat({ ...chat, title: Option.some(title), updatedAt: at })
+
 export const buildChat = (input: {
   readonly id: ChatId
   readonly userId: UserId

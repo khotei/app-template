@@ -9,6 +9,7 @@ import {
   String as Str,
 } from 'effect'
 
+import type { AssistantError } from '#chat/domain/assistant.error'
 import type { AttachmentId } from '#chat/domain/attachment.id'
 import { Attachment } from '#chat/domain/attachment.model'
 import { ChatId, MessageId } from '#chat/domain/chat.id'
@@ -173,3 +174,15 @@ export const failMessage = Effect.fn('failMessage')(
       },
     }),
 )
+
+const replyFailureReasons = {
+  AssistantRefusedError: 'ReplyRefused',
+  AssistantFailedError: 'ReplyFailed',
+} as const satisfies Record<AssistantError['_tag'], MessageFailure['reason']>
+
+export const buildReplyFailure = (
+  error: AssistantError,
+): Pick<MessageFailure, 'reason' | 'cause'> => ({
+  reason: replyFailureReasons[error._tag],
+  cause: error.cause,
+})

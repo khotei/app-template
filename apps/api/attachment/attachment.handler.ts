@@ -81,14 +81,14 @@ export const AttachmentHandler = HttpApiBuilder.group(
         'get',
         Effect.fn('AttachmentHandler.get')(function* ({ params }) {
           const user = yield* CurrentUser
-          return yield* attachments.get(user.id, params.attachmentId)
+          return yield* attachments.getOne({ id: params.attachmentId, userId: user.id })
         }),
       )
       .handleRaw(
         'download',
         Effect.fn('AttachmentHandler.download')(function* ({ params }) {
           const user = yield* CurrentUser
-          const { url } = yield* attachments.download(user.id, params.attachmentId)
+          const url = yield* attachments.download({ id: params.attachmentId, userId: user.id })
           return HttpServerResponse.redirect(url)
         }),
       )
@@ -96,7 +96,7 @@ export const AttachmentHandler = HttpApiBuilder.group(
         'delete',
         Effect.fn('AttachmentHandler.delete')(function* ({ params }) {
           const user = yield* CurrentUser
-          yield* attachments.delete(user.id, params.attachmentId)
+          yield* attachments.delete({ id: params.attachmentId, userId: user.id })
         }),
       )
   }),

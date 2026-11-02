@@ -3,11 +3,13 @@ import { DateTime, Effect, Option } from 'effect'
 
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
+import { AssistantFailedError, AssistantRefusedError } from '#chat/domain/assistant.error'
 import { AttachmentId } from '#chat/domain/attachment.id'
 import { ChatId, MessageId } from '#chat/domain/chat.id'
 import { MessageInputInvalidError, MessageStatusInvalidError } from '#chat/domain/message.error'
 import {
   buildAssistantMessage,
+  buildReplyFailure,
   buildUserMessage,
   completeMessage,
   ensureMessageInput,
@@ -216,5 +218,18 @@ describe('failMessage', () => {
       message,
       'failed',
     ),
+  )
+})
+
+describe('buildReplyFailure', () => {
+  it.effect.each([
+    { error: new AssistantRefusedError({ cause: 'stop_reason refusal' }), reason: 'ReplyRefused' },
+    { error: new AssistantFailedError({ cause: '401 invalid x-api-key' }), reason: 'ReplyFailed' },
+  ] as const)(
+    "fails a reply the assistant ended with $error._tag as $reason with the error's cause",
+    ({ error, reason }) =>
+      Effect.sync(() =>
+        assert.deepStrictEqual(buildReplyFailure(error), { reason, cause: error.cause }),
+      ),
   )
 })

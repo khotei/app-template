@@ -1,14 +1,4 @@
-import {
-  Array as Arr,
-  Context,
-  Crypto,
-  DateTime,
-  Effect,
-  Layer,
-  Option,
-  Struct,
-  type Types,
-} from 'effect'
+import { Array as Arr, Context, Crypto, DateTime, Effect, Layer, Struct, type Types } from 'effect'
 import type { RequireAtLeastOne } from 'type-fest'
 
 import type { UserId } from '@app-template/application/identity'
@@ -17,14 +7,11 @@ import { generateId } from '@app-template/packages/db'
 
 import { ChatNotFoundError } from '#chat/domain/chat.error'
 import { ChatId } from '#chat/domain/chat.id'
-import { buildChat, Chat, type ChatTitle } from '#chat/domain/chat.model'
-import {
-  type ChatWhere,
-  decodeChat,
-  decodeChats,
-  encodeChat,
-  encodeChatWhere,
-} from '#chat/services/chat.mapper'
+import { buildChat, type Chat, type ChatTitle, renameChat } from '#chat/domain/chat.model'
+import { decodeChat, decodeChats, encodeChat, encodeChatWhere } from '#chat/services/chat.mapper'
+
+/** The row found by `id`; every other field named must still hold, so an owner mismatch reads as absent. */
+export type ChatWhere = Types.Simplify<Pick<Chat, 'id'> & Partial<Pick<Chat, 'userId' | 'title'>>>
 
 /** The chat a rename finds: by its owner, or only while it is still untitled. */
 export type ChatRenameWhere = Types.Simplify<
@@ -83,8 +70,8 @@ export class ChatService extends Context.Service<
       title: ChatTitle,
     ) {
       const chat = yield* getOne(where)
-      const updatedAt = yield* DateTime.now
-      const renamed = new Chat({ ...chat, title: Option.some(title), updatedAt })
+      const at = yield* DateTime.now
+      const renamed = renameChat(chat, { title, at })
       const row = yield* encodeChat(renamed)
 
       // Only the renamed fields, under the `where` again: a change landing after the read is kept.

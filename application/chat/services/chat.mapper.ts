@@ -1,4 +1,4 @@
-import { Option, Schema, Struct, type Types, UndefinedOr } from 'effect'
+import { Option, Schema, Struct, UndefinedOr } from 'effect'
 
 import { UserId } from '@app-template/application/identity'
 import {
@@ -14,6 +14,7 @@ import { ChatId, MessageId } from '#chat/domain/chat.id'
 import { Chat, ChatTitle } from '#chat/domain/chat.model'
 import { Message, MessageFailure } from '#chat/domain/message.model'
 import { AttachmentFromEntity } from '#chat/services/attachment.mapper'
+import type { ChatWhere } from '#chat/services/chat.service'
 
 // A nested model is laid by its encoded side, since encoding the parent hands it plain fields.
 const attachments = Schema.Array(AttachmentFromEntity.from)
@@ -37,11 +38,6 @@ export const MessageFromEntity = Schema.Struct({
   updatedAt: Schema.DateTimeUtcFromDate,
   attachments,
 }).pipe(Schema.decodeTo(Message))
-
-/** The row found by `id`; every other field named must still hold, so an owner mismatch reads as absent. */
-export type ChatWhere = Types.Simplify<
-  { readonly id: ChatId } & Partial<Pick<Chat, 'userId' | 'title'>>
->
 
 export const encodeChat = encodeRowWith(ChatFromEntity, ChatEntityInsert)
 

@@ -1,4 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
+import { assertEquals } from '@effect/vitest/utils'
 import { DateTime, Effect, Exit, Option, Schema } from 'effect'
 
 import { UserId } from '@app-template/application/identity'
@@ -8,6 +9,7 @@ import { AttachmentBoundError } from '#chat/domain/attachment.error'
 import { AttachmentId } from '#chat/domain/attachment.id'
 import {
   Attachment,
+  bindAttachment,
   buildAttachment,
   ensureUnbound,
   FileName,
@@ -15,7 +17,7 @@ import {
   isExpiredAt,
   MediaType,
 } from '#chat/domain/attachment.model'
-import { ChatId, MessageId } from '#chat/domain/chat.id'
+import { chatId, messageId } from '#testing/chat/chat.test-fixture'
 
 describe('Attachment', () => {
   const encoded = {
@@ -61,10 +63,12 @@ const unbound = buildAttachment({
   createdAt: DateTime.makeUnsafe('2026-10-18T00:00:00.000Z'),
 })
 
+const message = { messageId, chatId }
+
 const bound = new Attachment({
   ...unbound,
-  messageId: Option.some(MessageId.make('0192d4e0-7b3a-7c00-8000-000000000031')),
-  chatId: Option.some(ChatId.make('0192d4e0-7b3a-7c00-8000-000000000020')),
+  messageId: Option.some(messageId),
+  chatId: Option.some(chatId),
 })
 
 describe('isExpiredAt', () => {
@@ -90,6 +94,22 @@ describe('ensureUnbound', () => {
   it.effect('fails AttachmentBoundError for an attachment a message holds', () =>
     Effect.gen(function* () {
       const error = yield* Effect.succeed(bound).pipe(ensureUnbound, Effect.flip)
+
+      assertSchemaEquals(AttachmentBoundError, error, new AttachmentBoundError({ id: bound.id }))
+    }),
+  )
+})
+
+describe('bindAttachment', () => {
+  it.effect('binds an unbound attachment to the message and its chat', () =>
+    Effect.gen(function* () {
+      assertEquals(yield* bindAttachment(unbound, message), bound)
+    }),
+  )
+
+  it.effect('fails AttachmentBoundError for an attachment a message holds', () =>
+    Effect.gen(function* () {
+      const error = yield* bindAttachment(bound, message).pipe(Effect.flip)
 
       assertSchemaEquals(AttachmentBoundError, error, new AttachmentBoundError({ id: bound.id }))
     }),

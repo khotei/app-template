@@ -38,11 +38,6 @@ export class Attachment extends Schema.Class<Attachment>('Attachment')({
   createdAt: Schema.DateTimeUtc,
 }) {}
 
-export interface AttachmentDownload {
-  readonly attachment: Attachment
-  readonly url: URL
-}
-
 export const buildAttachment = (input: {
   readonly id: AttachmentId
   readonly userId: UserId
@@ -79,4 +74,23 @@ export const isExpiredAt = (now: DateTime.Utc): Predicate.Predicate<Attachment> 
 export const ensureUnbound = Effect.filterOrFail<Attachment, AttachmentBoundError>(
   isUnbound,
   (attachment) => new AttachmentBoundError({ id: attachment.id }),
+)
+
+/** Binds the attachment to the message and its chat; one a message holds is `AttachmentBoundError`. */
+export const bindAttachment = Effect.fn('bindAttachment')(
+  (
+    attachment: Attachment,
+    { messageId, chatId }: { readonly messageId: MessageId; readonly chatId: ChatId },
+  ) =>
+    Effect.succeed(attachment).pipe(
+      ensureUnbound,
+      Effect.map(
+        (unbound) =>
+          new Attachment({
+            ...unbound,
+            messageId: Option.some(messageId),
+            chatId: Option.some(chatId),
+          }),
+      ),
+    ),
 )

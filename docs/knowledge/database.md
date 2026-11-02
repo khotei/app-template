@@ -203,10 +203,15 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
   - `ChatService.rename` reads the chat by the caller's `where` to name a refusal
     (`ChatNotFoundError`), then writes under the same `where`. The title job passes `title:
     none`, so a rename landing between the two wins and the job dies and retries.
-  - `AttachmentService.bind` checks the ids on rows it reads `forUpdate`, then writes the message
-    `where` `messageId` is still `none`: a second send binding one of them waits on the lock and
-    then fails `AttachmentBoundError` in the check. A send without files binds nothing and skips
-    the write, which would die on no rows.
+  - `AttachmentService.bind` checks the ids on rows it reads `forUpdate` and answers the write,
+    which the send runs once its message is stored, so the checks precede the send's first write;
+    the write binds the message `where` `messageId` is still `none`. A second send binding one of
+    them waits on the lock and then fails `AttachmentBoundError` in the check, before the chat's
+    status move, so two sends of one file to one chat answer 409, not the chat's lost race. A
+    send without files binds nothing and skips the write, which would die on no rows.
+  - `AttachmentService.delete` checks the attachment unbound, then deletes it `where`
+    `messageId` is still `none`, so a send binding it in between makes the delete die and keeps
+    the bytes.
 
 `ChatRepository.delete(where)` is one statement and dies when it removes nothing; its messages
 and their attachments go by the cascade, and `RETURNING` answers only the chat's row.

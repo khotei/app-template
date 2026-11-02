@@ -3,7 +3,6 @@ import { assertEquals } from '@effect/vitest/utils'
 import { Array as Arr, DateTime, Effect, Layer, Option, Order } from 'effect'
 
 import {
-  ActiveMessageStatus,
   Attachment,
   AttachmentNotFoundError,
   buildAssistantMessage,
@@ -29,7 +28,7 @@ import {
   updateMessage,
   upload,
 } from '@app-template/application/chat/testing'
-import { ChatRepository, MessageRepository } from '@app-template/kernel/data'
+import { ChatRepository } from '@app-template/kernel/data'
 import { recordQueue } from '@app-template/packages/queue/testing'
 import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
@@ -163,12 +162,11 @@ describe('SendMessageUseCase', () => {
   })
 
   it.effect(
-    "send with another user's attachment is AttachmentNotFoundError before any reply or job",
+    "send with another user's attachment is AttachmentNotFoundError before any message or job",
     () => {
       const queue = recordQueue()
       return Effect.gen(function* () {
         const sendMessage = yield* SendMessageUseCase
-        const messages = yield* MessageRepository
         const photo = yield* upload(stranger)
 
         const error = yield* sendMessage
@@ -180,10 +178,7 @@ describe('SendMessageUseCase', () => {
           error,
           new AttachmentNotFoundError({ id: photo.id }),
         )
-        assertEquals(
-          yield* messages.selectMany({ chatId: chat.id, status: ActiveMessageStatus.literals }),
-          [],
-        )
+        assertEquals(yield* selectMessages(chat.id), [])
         assertEquals(yield* selectAttachments([photo.id]), [photo])
         assertEquals(yield* queue.sent, [])
       }).pipe(Effect.provide(Layer.provide(ChatTest, queue.layer)))

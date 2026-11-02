@@ -65,8 +65,8 @@ import: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests).
   - `generate`: an impure function that makes a fresh value (`generateId` in
     `@app-template/packages/db`);
   - `is` / `has`: a predicate;
-  - `get`: a domain service's read over repositories, never a repository method; it answers the
-    record or its `*NotFoundError`;
+  - `getOne`: a domain service's read over a `where`, as a repository's `selectOne`, never a
+    repository method; it answers the record or its `*NotFoundError`;
   - `select` / `insert` / `update` / `delete`: a repository's persistence; `update` never creates a
     record.
 - Constants are `camelCase`, `as const` for literal objects and arrays; a `Layer` constant is

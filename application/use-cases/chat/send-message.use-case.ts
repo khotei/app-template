@@ -69,6 +69,12 @@ export class SendMessageUseCase extends Context.Service<
       const chat = yield* chatService.getOne({ id: chatId, userId })
       yield* ensureMessageInput(input)
       const queued = yield* queueChat(chat)
+      const userMessageId = yield* generateId(crypto, MessageId.make)
+      // The bind checks now and writes after the insert: its key to the message is not deferrable.
+      const bindAttachments = yield* attachmentService.bind(userId, input.attachmentIds, {
+        messageId: userMessageId,
+        chatId,
+      })
       const isFirstMessage = yield* messages.selectOne({ chatId }).pipe(Effect.map(Option.isNone))
       const at = yield* DateTime.now
 
@@ -76,7 +82,6 @@ export class SendMessageUseCase extends Context.Service<
       // holds, so this write dies: a lost race of two sends at once, rolled back whole.
       yield* chats.update({ status: queued.status }, { id: chatId, status: chat.status })
 
-      const userMessageId = yield* generateId(crypto, MessageId.make)
       const userMessage = buildUserMessage({
         id: userMessageId,
         chatId,
@@ -85,10 +90,7 @@ export class SendMessageUseCase extends Context.Service<
       })
       const userRow = yield* encodeMessage(userMessage)
       yield* messages.insert(userRow)
-      const bound = yield* attachmentService.bind(userId, input.attachmentIds, {
-        messageId: userMessage.id,
-        chatId,
-      })
+      const bound = yield* bindAttachments
       const assistantMessageId = yield* generateId(crypto, MessageId.make)
       const assistantMessage = buildAssistantMessage({
         id: assistantMessageId,

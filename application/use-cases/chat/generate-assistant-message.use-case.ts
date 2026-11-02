@@ -2,9 +2,9 @@ import { Array as Arr, Cause, Context, Data, DateTime, Effect, Layer, Option } f
 
 import {
   Assistant,
-  type AssistantError,
   type AssistantReply,
   type Attachment,
+  buildReplyFailure,
   type ChatId,
   type ChatStatusInvalidError,
   completeMessage,
@@ -35,11 +35,6 @@ const replySkipLogs = {
   chatDeleted: Effect.logInfo('assistant reply skipped: chat deleted'),
   alreadySettled: Effect.logInfo('assistant reply skipped: already settled'),
 } as const satisfies Record<ReplySkip, Effect.Effect<void>>
-
-const replyFailureReasons = {
-  AssistantRefusedError: 'ReplyRefused',
-  AssistantFailedError: 'ReplyFailed',
-} as const satisfies Record<AssistantError['_tag'], MessageFailure['reason']>
 
 class ReplySkipped extends Data.TaggedError('ReplySkipped')<{ readonly why: ReplySkip }> {}
 
@@ -134,11 +129,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
       yield* assistant.reply(history).pipe(
         Effect.matchEffect({
           onSuccess: (answer) => settleCompleted(generating, answer),
-          onFailure: (error) =>
-            settleFailed(generating, {
-              reason: replyFailureReasons[error._tag],
-              cause: error.cause,
-            }),
+          onFailure: (error) => settleFailed(generating, buildReplyFailure(error)),
         }),
       )
     })
