@@ -305,7 +305,8 @@ and patterns itself, and the models check the same rules on their side.
 - **Cost:** a limit or a pattern lives twice (`maxTitleLength`, `mediaTypePattern`,
   `secretHashPattern`, the statuses).
 - **Guarded by:** the mappers' e2e in `apps/__e2e__/mappers` writes each model's extreme value
-  through its entity, so a drift shows as a write the database refuses; `make migration-check`.
+  and every value of its statuses and authors through its entity, so a drift fails the write
+  or the read back; `make migration-check`.
 - **If reversed:** a migration drops a check, and a writer past the services can store a row no
   model decodes.
 - **Revisit when:** a duplicated limit drifts despite the e2e, or a rule cannot be a check.

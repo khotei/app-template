@@ -29,7 +29,7 @@
 | S21 | the Biome guards per ring and layer | done |
 | S22 | `architecture.md` rewritten for the rings | done |
 | S23 | the glossary, the `<Model>` placeholders, the roadmap and the remaining pages | done |
-| S24 | the statuses through the mapper e2e; the test layers' `provideMerge` in the rule | todo |
+| S24 | the statuses through the mapper e2e; the test layers' `provideMerge` in the rule | done |
 
 ## How to run this plan
 
@@ -1182,7 +1182,21 @@
   of `ChatStatus` and `MessageStatus`, through the existing insert and read; no new helper.
 - **Verify:** `make check`; dropping a value from a `pgEnum` in a throwaway edit fails the case.
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - One case per value with `it.effect.each`, each on a database of its own, not one loop per
+    entity (`effect-tests.md`): a failing case names its value, and one message per database lets
+    the assistant write every status despite the active-message index.
+  - The authors cross the mapper too: `message_author` is a third literal set kept twice. The
+    user's case is written out beside the assistant's statuses, not crossed with them, so a dropped
+    status turns one case red, not two.
+  - Probes: dropping `failed` from `chat_status`, `generating` from `message_status` and `user`
+    from `message_author` each turned exactly its case red with a `SchemaError`, the other 8 green.
+  - Beyond the Files: `docs/knowledge/decisions.md` (the record's Guarded by) and
+    `docs/knowledge/database.md`, which describe this e2e; a drift fails the write or the read
+    back through the schemas, not a write the database refuses.
+  - Round S24.2 (review: `it.effect.each`, fixed ids, the authors, the docs).
+  - Size: 4 files, +89 / −19.
 
 ## Requirement coverage
 
