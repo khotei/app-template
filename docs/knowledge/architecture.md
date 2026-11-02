@@ -91,40 +91,41 @@ it.
 ## Dependency rules
 
 Each row lists what its code may import (✓ allowed, ✗ refused); the last column is the guard
-that refuses the row's ✗, a Biome override in `biome.json` whose message names its record in
-[decisions.md](decisions.md). Each override is a list: `@app-template/**` refused but for the
-units its row allows, so an unlisted unit is refused
+that refuses the row's ✗: a Biome override in `biome.json`, one per layer, whose message names
+its record in [decisions.md](decisions.md); the linker, when the importer's manifest does not
+declare the workspace (TS2307); or review, by
+[.claude/rules/modules.md](../../.claude/rules/modules.md)
 ([Guards are configuration](decisions.md#guards-are-configuration)):
 
 | From ↓ / may import → | another module | a contract | `use-cases` | `kernel/data` | rest of `kernel` | `packages/*` | `http-api` | Refused by |
 |---|---|---|---|---|---|---|---|---|
-| a module's `domain/` | ✗ | ✓, through its entry | ✗ | ✗ | ✗ | ✗ | ✗ | `application/<module>/domain/**` |
-| a module's `services/` | ✗ | ✓, through its entry | ✗ | ✓, but `Db` and the relations | `/aws`: the inventory only | `aws`, `db`, `queue` only | ✗ | `application/<module>/services/**` |
-| a module's `infrastructure/` | ✗, its own entry too | ✓, through its entry | ✗ | ✓ | ✓ | ✓ | ✗ | `application/<module>/infrastructure/**` |
-| a contract | ✗, nor its module's files | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | `application/<module>/contract/**` |
-| `use-cases` | ✓, every layer; `/testing` in its tests only | ✓ | — | ✓ | ✗ | ✓ | ✗ | `application/use-cases/**` |
-| `kernel/data` | ✗ | ✗ | ✗ | — | ✗ | ✓, by name | ✗ | `kernel/data/**` |
-| rest of `kernel` | ✗ | ✗ | ✗ | ✓ | ✓, the parts below it | ✓ | ✗ | `kernel/<part>/**` |
-| `packages/*` | ✗ | ✗ | ✗ | ✗ | ✗ | ✓, the ones below it | ✗ | `packages/<package>/**` |
+| a module's `domain/` | ✗ | ✓, through its entry | ✗ | ✗ | ✗ | ✗ | ✗ | `application/*/domain/**` |
+| a module's `services/` | ✗ | ✓, through its entry | ✗ | ✓, but `Db` and the relations | `/aws`: the inventory only | `aws`, `db`, `queue` only | ✗ | `application/*/services/**` |
+| a module's `infrastructure/` | ✗, its own entry too | ✓, through its entry | ✗ | ✓ | ✓ | ✓ | ✗ | `application/*/infrastructure/**`; its own entry, `use-cases`: `noImportCycles` on a cycle, else review |
+| a contract | ✗, nor its module's files | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | `application/*/contract/**` |
+| `use-cases` | ✓, every layer; `/testing` in its tests only | ✓ | — | ✓ | ✗ | ✓ | ✗ | `application/use-cases/**`; review, `/testing` |
+| `kernel/data` | ✗ | ✗ | ✗ | — | ✗ | ✓ | ✗ | `kernel/data/**` |
+| rest of `kernel` | ✗ | ✗ | ✗ | ✓ | ✓, the parts below it | ✓ | ✗ | TS2307, a module, `use-cases`, `http-api`; a part above it: `noImportCycles` on a cycle, else review |
+| `packages/*` | ✗ | ✗ | ✗ | ✗ | ✗ | ✓, the ones below it | ✗ | TS2307, any workspace; a package above it: `noImportCycles` on a cycle, else review |
 | `http-api` | its domain only: no service, mapper or adapter by name | ✓ | ✗ | ✗ | ✗ | ✗ | — | `http-api/**` |
-| `apps/api` | ✓, a mapper in `layer.ts` only | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | ✓ | `apps/api/**`; `apps/api/layer.ts` lifts the data and mapper bans |
-| `apps/worker` | ✓, a mapper in `layer.ts` only | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | ✗ | `apps/worker/**`; `apps/worker/layer.ts` lifts the data and mapper bans |
+| `apps/api` | ✓, a mapper in `layer.ts` only | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | ✓ | review, the data and the mappers |
+| `apps/worker` | ✓, a mapper in `layer.ts` only | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | ✗ | TS2307, `http-api`; review, the data and the mappers |
 | `apps/web` client | ✗ | ✗ | ✗ | ✗ | ✗ | `ui` only | ✓ | `apps/web/**`; `make bundle-check` |
-| `apps/web/main.ts` | ✗ | ✗ | ✗ | ✗ | `/config` only | `ui` only | ✗ | `apps/web/main.ts` |
-| `deployment` | ✗ | ✗ | ✗ | the files' key only | `/config`, `/aws`: the inventory | ✓ | ✗ | `deployment/**` |
-| `apps/e2e` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | `apps/e2e/**`; apps through `api/testing`, `worker/testing` only |
+| `apps/web/main.ts` | ✗ | ✗ | ✗ | ✗ | `/config` only | `ui` only | ✗ | TS2307, a module, `use-cases`; review, the rest |
+| `deployment` | ✗ | ✗ | ✗ | the files' key only | `/config`, `/aws`: the inventory | ✓ | ✗ | TS2307; review, the kernel's names |
+| `apps/e2e` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | the apps' `exports`, their `./testing` only |
 
 - **Inside a module** the layers point inward too: `domain/` imports neither
   `#<module>/services/*` nor `#<module>/infrastructure/*`, `services/` not
   `#<module>/infrastructure/*`, and `infrastructure/` not `#<module>/services/*`; a service
   reaches the outside world only through a port its `domain/` declares, and a module reaches its
-  own files, its contract's too, through `#<module>/…`, never its entry. Another module's files
-  are refused whatever the layer; of another module's entry a module takes only the names of its
-  contract, which review holds (`modules.md`), not Biome.
+  own files, its contract's too, through `#<module>/…`, never its entry. Another unit's files
+  are refused whatever the layer, by `biome-imports.grit`; of another module's entry a module
+  takes only the names of its contract, which review holds (`modules.md`), not Biome.
 - **An app's handler** calls one service method or one use case: it imports no repository and no
   mapper (`<Model>FromEntity`, `encode<Model>`, `decode<Model>`); only the process's `layer.ts`
-  provides the data layer. The apps never import each other or `deployment`:
-  [Independent apps](decisions.md#independent-apps).
+  provides the data layer; review holds it (`modules.md`). The apps never import each other or
+  `deployment`: [Independent apps](decisions.md#independent-apps).
 - **A module's `domain/` and a contract import only `effect`** (and `type-fest` for types), and
   neither they nor a module's `services/` nor `http-api` import an `@effect/*` package: the
   domain ships to the browser through `http-api`, and what that asks of its code is
@@ -134,10 +135,11 @@ units its row allows, so an unlisted unit is refused
   and [.claude/rules/modules.md](../../.claude/rules/modules.md) lists one through `import type`
   with the other forms only review refuses.
 - **A ✓ is permission, not a declaration.** The dependency must also be in the importer's
-  `package.json`, or the isolated linker and `tsc -b` refuse it, and the unit in the importer's
-  list ([Boundary guards](#boundary-guards)). Inside the kernel and `packages/` the units are
-  ordered: a kernel part lists only the parts below it (`/config` at the bottom, `/data` beside
-  it and listing none), a package only the packages below it.
+  `package.json`, or the isolated linker and `tsc -b` refuse it
+  ([Boundary guards](#boundary-guards)). Inside the kernel and `packages/` the units are
+  ordered: a kernel part imports only the parts below it (`/config` at the bottom, `/data` beside
+  it and importing none), a package only the packages below it; `noImportCycles` refuses a part
+  that imports one importing it, review the rest.
 - **Tests** and the support they may import: [tooling.md › Tests](tooling.md#tests).
 
 ## Imports: `#<workspace>/` vs `@app-template/`
@@ -164,9 +166,9 @@ import { SendMessageUseCase } from '#use-cases/chat/send-message.use-case'  // t
   workspace's `package.json` (`"#chat/*": "./chat/*.ts"`, `"#api/*": "./*.ts"`); a kernel part,
   a package or a module reaches another through that one's entry, never its files. Each layer
   of a module keeps its name in the path (`#chat/services/…`), so a layer's Biome override
-  matches the others by glob (`#*/services/**`). Relative `./` and `../` paths are banned
-  ([Imports through subpaths](decisions.md#imports-through-subpaths)). A bare `#/` prefix would
-  be shorter, but Bun 1.4.3 cannot resolve it.
+  matches the others by glob (`#*/services/**`). Relative `./` and `../` paths are banned, by
+  `biome-imports.grit` ([Imports through subpaths](decisions.md#imports-through-subpaths)). A
+  bare `#/` prefix would be shorter, but the pinned Bun cannot resolve it.
 - **Order** is the four groups above, separated by blank lines. `make fmt` sorts them.
 
 ## Where things live
@@ -333,15 +335,11 @@ Record: [Modules by capability](decisions.md#modules-by-capability).
    once it has test support that support's entry and alias
    ([tooling.md › Tests](tooling.md#tests)), as chat's. The folder's one `tsconfig.json` project
    already includes it, and `bun install` links nothing new.
-2. **The Biome overrides.** Copy chat's override of its entry and of each layer the module has
-   (`application/chat/index.ts`, `…/domain/**`, `…/services/**`, `…/infrastructure/**`,
-   `…/__tests__/**` and the ones under it), with `#<module>/**` in place of `#chat/**`; a module
-   below it is the one entry its lists let through, and a module above it, and the use cases,
-   add the new entry to their own lists. A layer with no override passes every ban but the
-   relative path:
-   [tooling.md › Add a workspace](tooling.md#add-a-workspace).
-3. **A contract** is a folder `contract/` with an `index.ts`, re-exported by the module's entry,
-   and its own override as `application/identity/contract/**`'s. Record:
+2. **No Biome override.** The overrides and the plugin already match a new module; a layer of a
+   new name passes every ban but the plugin's
+   ([Guards are configuration](decisions.md#guards-are-configuration)).
+3. **A contract** is a folder `contract/` with an `index.ts`, re-exported by the module's entry;
+   the `application/*/contract/**` override already covers it. Record:
    [Module contracts](decisions.md#module-contracts).
 4. **The consumers** declare `@app-template/application` in their `package.json`; the service
    keys read `'@app-template/application/<module>/services/<Name>'`, which `make bundle-check`
@@ -351,26 +349,23 @@ Record: [Modules by capability](decisions.md#modules-by-capability).
 
 ## Boundary guards
 
-The import rules are enforced three times, each catching what the others miss, and a fourth guard
-checks what the import rules leave to tree shaking, the web bundle. Record:
+Each import rule is held once, by the guard that can see it, and a last guard checks what the
+import rules leave to tree shaking, the web bundle; what no guard sees, review refuses
+([.claude/rules/modules.md](../../.claude/rules/modules.md)). Record:
 [Guards are configuration](decisions.md#guards-are-configuration).
 
 | Guard | Catches | Reports |
 |---|---|---|
-| Biome `noRestrictedImports`, one `overrides` entry per ring, kernel part, package and module layer in `biome.json`, each listing the units it may import | each ✗ of [Dependency rules](#dependency-rules) and each unit no list names, with the record named in the message; any relative path; in each `<workspace>/__tests__/**` but its `testing/e2e/`, e2e support (`#testing/*/e2e/**`, `@app-template/**/testing/e2e`) | `make lint`, `pre-commit`, CI `static` |
-| the isolated linker with `tsc -b` | an allowed import of a workspace that is not declared in `package.json` | TS2307 in `make typecheck` and at runtime |
+| Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json`: `http-api`, the web client, and of `application/*/` the `domain/`, `contract/`, `services/`, `infrastructure/` and `index.ts`, the use cases, the data layer | what reaches the browser, by unit and by imported name; the kernel's boundary in a module's services and in a use case; any workspace but `packages/*` in the data layer, and any in an entry of `application/`; a layer that points outward inside a module; with the record named in the message | `make lint`, `pre-commit`, CI `static` |
+| the GritQL plugin `biome-imports.grit`, which reads the unit (`application/<module>`, `kernel/<part>`, `packages/<package>`) from the file's path | another unit's `#<unit>/…`, `#kernel/<unit>/…` or `#testing/<unit>/…` file, in an import, an `export … from`, an `import()` or a `require()`; any relative path | the same |
+| Biome `noImportCycles` | a cycle of value imports: two files, two modules, a kernel part and one that imports it, a module and its own entry | the same |
+| the isolated linker with `tsc -b` | an import of a workspace the importer's `package.json` does not declare: a module in the kernel, the kernel in a package, an app in another, a module in `deployment` | TS2307 in `make typecheck` and at runtime |
 | `composite` project references (`rootDir: "."`), one project per workspace | a path that reaches into an unreferenced workspace's files; a cycle of references between workspaces | TS6059 / TS6307 / TS6202 in `make typecheck` |
 | `make bundle-check`: `bun build` of `apps/web/app/main.ts`, then a `grep` of the bundle | a key of the kernel, of the use cases, or of a module's `services/`, `infrastructure/` or `domain/`, where only its ports carry one, in the browser bundle | the matched service keys, in `make check` |
 
-Every Biome override allows only the units it lists: what a new package, module, layer or app
-adds to `biome.json` is in [tooling.md › Add a workspace](tooling.md#add-a-workspace). When two
-overrides match one file, Biome replaces the first one's options with the last one's instead of
-merging them, so every override repeats the relative-path ban, every `__tests__/**` override
-repeats its workspace's bans, and each kernel part, package and module's layer has an override
-of its own, which holds its list and its ban on the other units' files. Inside the kernel,
-`packages/` and `application/`, one project each for `tsc -b`, the direction between their
-units rests on the lists alone, and the absence of a cycle on `noImportCycles`, which sees
-value imports only. Symptoms and fixes: [tooling.md › Troubleshooting](tooling.md#troubleshooting).
+Why each rule sits with its guard, and what that costs:
+[Guards are configuration](decisions.md#guards-are-configuration). Symptoms and fixes:
+[tooling.md › Troubleshooting](tooling.md#troubleshooting).
 
 The bundle guard greps the service keys
 (`"@app-template/application/chat/services/ChatService"`): string literals, which survive the
@@ -401,6 +396,6 @@ guard; no code uses them:
   package passes the domain guard, which bans only workspaces and `@effect/*`. Purity rests on
   review and on the grep for `Date.now`, `new Date(` and `randomUUID`.
 - **A server library in a browser-safe package.** An import of `<server library>` in
-  `packages/ui` passes Biome, whose package overrides ban only workspaces, and `tsc -b`, because
+  `packages/ui` passes Biome, which keeps no list for a package, and `tsc -b`, because
   the one `packages/package.json` declares every package's libraries for all of them. `make
   bundle-check` greps only this app's keys, so the library reaches the browser's bundle unseen.

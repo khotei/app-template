@@ -6,9 +6,9 @@ paths:
 
 # Modules: what review refuses
 
-`make check` refuses an import that points outward or across. These pass it, so review refuses
-them. Each names the record in `docs/knowledge/decisions.md` that says why; read it before
-arguing an exception.
+`make check` refuses an import a Biome override, its plugin or the linker sees; what follows
+passes it, so review refuses it. Each names the record in `docs/knowledge/decisions.md` that
+says why; read it before arguing an exception.
 
 ## A name past another module's contract
 
@@ -17,26 +17,26 @@ models, its services. Another module takes from it only the names of its `contra
 and no tool checks the names: review refuses a model, a service, a mapper or a namespace import
 (`import * as`) of another module's entry.
 
-```ts
-// kept: an id of the contract
-import { CustomerId } from '@app-template/application/customer'
-// refused: a model of the customer module's domain
-import { Customer } from '@app-template/application/customer'
-```
-
 Record: [Module contracts](../../docs/knowledge/decisions.md#module-contracts).
 
-## A cycle of modules through their contracts
+## A cycle, or an import of a unit above
 
-A dependency on a module's contract counts as one on the module. If `<a>` imports from `<b>`'s
-entry and `<b>` from `<a>`'s, the modules form a cycle. Biome's `noImportCycles` refuses one of
-value imports, never one through `import type`: refuse a change to `biome.json` whose list lets a
-unit import one above it in the rings (a module the entry of a module above it, a kernel part a
-part that imports it). Break the cycle
-by moving the shared id or error into the contract of the module that owns it, or the flow into
-a use case.
+A dependency on a module's contract counts as one on the module: two modules that import each
+other's entries form a cycle, which `noImportCycles` refuses for value imports, never through
+`import type`. Break it by moving the shared id or error into the contract of the module that
+owns it, or the flow into a use case. No guard sees the rest:
+
+- Refuse a unit importing one above it in its folder (a module the entry of a module above it,
+  a kernel part or a package one above it, a module's infrastructure the use cases).
+- Refuse test support (`<folder>/testing`, `#testing/<unit>/…`) in source, and e2e support
+  (`<folder>/testing/e2e`) in a unit test.
+- Refuse a repository, a mapper (`<Model>FromEntity`) or the data layer in an app's handler:
+  only the process's `layer.ts` provides them.
+- Refuse more of the kernel than its configuration in the web server's entry, than it, the
+  inventory and the files' key in `deployment`, than it and the inventory in the data's tests.
 Records: [Module contracts](../../docs/knowledge/decisions.md#module-contracts),
-[Guards are configuration](../../docs/knowledge/decisions.md#guards-are-configuration).
+[Guards are configuration](../../docs/knowledge/decisions.md#guards-are-configuration),
+[Tests in their folders](../../docs/knowledge/decisions.md#tests-in-their-folders).
 
 ## A service rule or a model in the kernel
 

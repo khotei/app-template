@@ -306,25 +306,17 @@ its sources either way.
 4. Add the path to the root `tsconfig.json` `references`.
 5. Run `bun install` and `make check`.
 
-In `biome.json` every unit has an override whose list names the units it may import, and an
-unlisted unit is refused. A new unit gets its override, and every unit that imports it adds it
-to its own list, never one above its own in the rings
-([decisions.md › Guards are configuration](decisions.md#guards-are-configuration)); the lists
-that open a whole ring below (`!@app-template/packages/*`, `!@app-template/kernel/*`) take a new
-package or kernel part as it is. A new module copies the overrides of a module's layers, one per
-layer it has ([architecture.md › Add a module](architecture.md#add-a-module)). See
-[architecture.md › Boundary guards](architecture.md#boundary-guards) for what each entry
-repeats.
+A new workspace the browser imports gets an override like `http-api/**`'s in `biome.json`; a
+new module, kernel part or package adds nothing there
+([decisions.md › Guards are configuration](decisions.md#guards-are-configuration)).
 
 ### Add a package
 
 `packages/` is one workspace, `@app-template/packages`, and one `tsconfig.json` project, as the
-kernel is: each folder in it is a package, and which package imports which is the packages' Biome
-lists alone. A new package is a folder with its `index.ts`, an `exports` entry `./<name>` and an
-`imports` alias `"#<name>/*": "./<name>/*.ts"` in `packages/package.json`, its dependencies
-there, and an override in `biome.json` like an existing package's, listing the packages below
-it and refusing the other packages' `#<package>/…` files, and one more for its `__tests__/**`
-when it has unit tests.
+kernel is: each folder in it is a package, and which package imports which is held as
+[decisions.md › Guards are configuration](decisions.md#guards-are-configuration) says. A new
+package is a folder with its `index.ts`, an `exports` entry `./<name>` and an `imports` alias
+`"#<name>/*": "./<name>/*.ts"` in `packages/package.json`, and its dependencies there.
 
 ### Upgrade versions
 
@@ -346,7 +338,8 @@ new version. CI also runs a non-blocking job on Bun `latest`, which shows the ne
 
 - **Project references.** The root `tsconfig.json` has no files of its own and references every
   project, one per workspace. Each is a `composite` project that references what it imports;
-  inside `kernel/`, `packages/` and `application/` the Biome lists tell the units apart.
+  inside `kernel/`, `packages/` and `application/` the plugin `biome-imports.grit` tells the
+  units apart.
 - **The patched `tsc -b` is the only typecheck gate.** It walks the references, reports every
   type error, and runs the Effect language service, whose errors and warnings both fail it
   (`ignoreEffectWarningsInTscExitCode` stays `false`). `make typecheck`, `pre-commit` and CI all
@@ -392,10 +385,11 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `TS2307: Cannot find module '@app-template/<name>'` from `make typecheck`, or `Cannot find module` at runtime | the import is allowed, but the workspace is not declared in this workspace's `package.json` | add `"@app-template/<name>": "workspace:*"` and a `tsconfig.json` reference, then `bun install` |
+| `TS2307: Cannot find module '@app-template/<name>'` from `make typecheck`, or `Cannot find module` at runtime | the workspace is not declared in this workspace's `package.json`: a missing declaration, or an import the rings refuse (a module in the kernel, the kernel in a package, one app in another) | if [architecture.md › Dependency rules](architecture.md#dependency-rules) allows it, add `"@app-template/<name>": "workspace:*"` and a `tsconfig.json` reference, then `bun install`; else move the code down a ring |
 | `TS6059 … is not under 'rootDir'` and `TS6307 … is not listed within the file list of project` | a relative path reaches into another workspace that is not referenced | import it as `@app-template/<name>/…`; relative paths are banned anyway |
-| Biome `lint/style/noRestrictedImports`: `… (decisions.md › <record>)` | the import points outward or across a ring or layer, into a sibling app, or a module's `domain/` imports an `@effect/*` package | read the named record in [decisions.md](decisions.md); move the shared code down a layer, or receive it as an argument; in a module's `domain/`, use an `effect` module; see [architecture.md](architecture.md#dependency-rules) |
-| Biome `noRestrictedImports`: `… never a relative path` | a `./` or `../` import inside a workspace | use `#<unit>/<path>`, for example `#chat/domain/chat.model` |
+| Biome `lint/style/noRestrictedImports`: `… (decisions.md › <record>)` | the import points outward or across a ring or layer, or a module's `domain/` imports an `@effect/*` package | read the named record in [decisions.md](decisions.md); move the shared code down a layer, or receive it as an argument; in a module's `domain/`, use an `effect` module; see [architecture.md](architecture.md#dependency-rules) |
+| Biome `plugin`: `… never a relative path` | a `./` or `../` import inside a workspace | use `#<unit>/<path>`, for example `#chat/domain/chat.model` |
+| Biome `plugin`: `a unit reaches its own files …` | a file of another module, kernel part or package, through its `#…` alias | import that unit's entry, `@app-template/<folder>/<unit>`, or its `/testing` |
 | Biome `lint/suspicious/noImportCycles`: `This import is part of a cycle` | two files import each other, typically two aggregates' models through their ids | import the other aggregate's id from its `<aggregate>.id.ts`, never its model |
 | Biome `assist/source/organizeImports`: `Sort these imports.` | import groups out of order or without blank lines between them | `make fmt` |
 | a commit is rejected after `tsc` or Biome output | the `pre-commit` hook failed | fix the reported error, `git add`, and commit again |

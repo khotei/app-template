@@ -78,8 +78,10 @@ const place = Effect.fn('PlaceOrderUseCase.place')(function* (
   data layer does not have.
 - **Cost:** a module's flows live outside the module; a shared transaction makes a module harder
   to extract.
-- **Guarded by:** no file of a module imports `@app-template/application/use-cases` (the Biome
-  overrides of its layers); `.claude/rules/modules.md` refuses a rule in a use case and a job that
+- **Guarded by:** a module's `domain/` and `services/` import no
+  `@app-template/application/use-cases` (their Biome overrides), and its other files make a
+  cycle with the use cases, which import every module (`noImportCycles`);
+  `.claude/rules/modules.md` refuses a rule in a use case and a job that
   carries a module's reaction to another module's write.
 - **If reversed:** events between modules need an event ledger, a handler per reaction and
   at-least-once delivery; a send that spans modules loses its one transaction.
@@ -108,11 +110,13 @@ the rest of the module. A dependency on a module's contract counts as one on the
   review's (`modules.md`), not Biome's;
   `Auth`, an HTTP middleware, lives outside `http-api`; `http-api` also reads identity's `domain`,
   since its user DTO is the `User` model.
-- **Guarded by:** the Biome overrides of each module's layers, which take no module's entry but
-  the one below it (chat takes identity's, identity none) and none of its files
-  (`#<module>/…`); the override on
-  `application/identity/contract/**`, which imports no workspace and no other file of identity;
-  `.claude/rules/modules.md` refuses a name past the contract and a cycle through contracts.
+- **Guarded by:** the Biome overrides of a module's `domain/` and `services/`, which take of
+  `application/` only another module's entry; `biome-imports.grit`, which refuses another
+  module's files (`#<module>/…`); the overrides on `application/*/contract/**`, which imports no
+  workspace and none of its module's other layers, and on `application/*/index.ts`, no
+  workspace; `noImportCycles`, a cycle of value imports between two modules;
+  `.claude/rules/modules.md` refuses a name past the contract, a module importing one above it
+  and a cycle through contracts.
 - **If reversed:** a consumer that takes the module's entry reaches its services and data
   mappers, and two modules can depend on each other with no tool noticing.
 - **Revisit when:** a second consumer needs more of a module than its contract holds: grow the
@@ -139,18 +143,16 @@ calls the data layer's repository directly.
   `#domain/*` aliases in every module: inside one workspace they would collide.
 - **Cost:** a service depends on the data layer directly, so its unit tests take the data layer's
   memory repositories; one entry opens the module whole, so another unit's ban on a layer matches
-  the names it imports, and the bundler parses a module's services to drop them; since Biome
-  replaces the options of two overrides that match one file, each module's layer is an override
-  of its own, `application/<module>/<layer>/**`, which holds the module's ban on another's files;
-  a namespace import (`import * as`) of an entry passes `http-api`'s bans by name.
-- **Guarded by:** the Biome overrides on each `application/<module>/domain/**` (no
-  `#*/services/**` or `#*/infrastructure/**`, no workspace but the entry of a module below it),
-  `…/services/**` (no `#*/infrastructure/**`), `…/infrastructure/**` (no `#*/services/**`), each
-  refusing the other units' files; on `http-api/**` and on `apps/api/**` and `apps/worker/**`, a
+  the names it imports, and the bundler parses a module's services to drop them; a namespace
+  import (`import * as`) of an entry passes `http-api`'s bans by name.
+- **Guarded by:** one Biome override per layer, matching every module by glob:
+  `application/*/domain/**` (no `#*/services/**` or `#*/infrastructure/**`, no workspace but
+  another module's entry), `…/services/**` (no `#*/infrastructure/**`), `…/infrastructure/**`
+  (no `#*/services/**`); `biome-imports.grit`, another module's files; on `http-api/**`, a
   module's services, mappers and adapters by name (`*Service`, `*FromEntity`, `*FromConfig`,
-  `encode*`, `decode*`; the apps the mappers alone, but in `layer.ts`), with no data layer but in
-  `layer.ts`; `make bundle-check` (no service, repository or adapter in the browser). A use case
-  may import every layer of a module below it, its infrastructure too.
+  `encode*`, `decode*`); `make bundle-check` (no service, repository or adapter in the browser);
+  `.claude/rules/modules.md`, a repository, a mapper or the data layer in an app's handler. A use
+  case may import every layer of a module below it, its infrastructure too.
 - **If reversed:** a port per repository comes back with five adapters that only delegate; an
   export per layer brings back the subpaths and a ban per layer by path.
 - **Revisit when:** a service needs a store the data layer cannot reach, or the domain stops
@@ -173,7 +175,8 @@ The HTTP groups stay in `http-api` and the handlers in the apps; `RequestInvalid
   no module owns. `generateId` in `kernel/data`: it knows no app, so it is a package's.
 - **Cost:** a module's HTTP shape lives outside the module.
 - **Guarded by:** the Biome override on `http-api/**` (no workspace but a module's entry, and
-  of it no service, mapper or adapter by name); the `apps/web/**` override; `make bundle-check`.
+  of it no service, mapper or adapter by name); the `apps/web/**` override, but on its server
+  entry `main.ts`; `make bundle-check`.
 - **If reversed:** a handler inside its module imports the assembled `Api`, which imports the
   module: a cycle `tsc -b` refuses.
 - **Revisit when:** the groups stop being assembled into one `Api`, or a module serves its own
@@ -236,11 +239,12 @@ no app.
   module reaching a kernel part it does not use, and inside the kernel the data's direction rests
   on Biome, not on `tsc -b`. One entry per part opens a part whole, so the layers that may take
   only its inventory or its stores are held by the imported names (`*FromConfig`, `Db`).
-- **Guarded by:** the lists of the Biome overrides on each kernel part (no module, contract, use
-  case, `http-api` or app, and only the parts below it), on each package (no kernel, and only the
-  packages below it) and on `deployment/**` (of the kernel only `/config`, the
-  inventory of `/aws` and the files' key of `/data`, by imported name);
-  `.claude/rules/modules.md` refuses a service rule or a model in the kernel.
+- **Guarded by:** the isolated linker and `tsc -b` (TS2307): the kernel's manifest declares no
+  module, use case, `http-api` or app, `packages/`'s no workspace at all; `biome-imports.grit`,
+  another part's files; `noImportCycles`, a part importing one that imports it;
+  `.claude/rules/modules.md` refuses a part or a package importing one above it, what
+  `deployment` takes of the kernel past `/config`, the inventory of `/aws` and the files' key of
+  `/data`, and a service rule or a model in the kernel.
 - **If reversed:** split into packages, the kernel's parts gain a manifest and a project each;
   with service rules in it, the kernel becomes the shared domain the guide calls a smell.
 - **Revisit when:** a kernel part grows dependencies most modules must not reach; `/data` is the
@@ -260,7 +264,7 @@ purposes, and its test builds the models from `LlmConfig`.
 - **Cost:** the test's setup names the environment variables; a purpose is still keyed by
   provider and carries Anthropic's request settings, so a second provider adds a key in `chat`
   too.
-- **Guarded by:** the Biome override on each `application/<module>/services/**` (no
+- **Guarded by:** the Biome override on `application/*/services/**` (no
   `@app-template/kernel/llm`); the `AssistantLlm` suite over a recording client.
 - **If reversed:** the provider choice moves back into `chat`, and each new provider changes the
   module.
@@ -285,9 +289,10 @@ its clients from the context. The tables stay in `public` with their foreign key
 - **Cost:** most features change `kernel/data`; two modules may use one repository, so a change of
   its behaviour reaches both, held by the repository's e2e; a module can be extracted only with
   its stores carved out of the data layer.
-- **Guarded by:** the Biome override on `kernel/data/**` (no workspace but `packages/*`, no
-  `#kernel/**` but `#kernel/data/**`); `.claude/rules/modules.md` refuses a model or a service rule
-  there; the repositories' e2e in `kernel/data/__e2e__`.
+- **Guarded by:** the Biome override on `kernel/data/**` but its tests (no workspace but
+  `packages/*`) and `biome-imports.grit` (no `#kernel/<part>/…` but its own);
+  `.claude/rules/modules.md` refuses a model or a service rule there; the repositories' e2e in
+  `kernel/data/__e2e__`.
 - **If reversed:** a schema and a Drizzle per module, one migration; every join and foreign key
   across modules becomes a read through the owner.
 - **Revisit when:** a module is to be extracted, or two modules' data stop being read together.
@@ -350,9 +355,10 @@ needs `S3Bucket`; `kernel/postgres` (`PgClientFromConfig`, the migrate entry) an
   the boundary's configuration.
 - **Cost:** each process's `layer.ts` names every client; a missing one is a type error in the
   layer's requirements.
-- **Guarded by:** the Biome overrides on `kernel/data/**` (no `#kernel/postgres`, `#kernel/aws` or
-  `@app-template/kernel/config`) and `application/use-cases/**` (of the kernel only the data
-  layer); the layer's requirements in `tsc -b`.
+- **Guarded by:** the Biome overrides on `kernel/data/**` (no `@app-template/kernel/config`, no
+  other part) and `application/use-cases/**` (of the kernel only the data layer);
+  `biome-imports.grit` (no `#kernel/postgres/…` or `#kernel/aws/…` in the data layer); the
+  layer's requirements in `tsc -b`.
 - **If reversed:** the data layer builds its clients from `/config`, and every test of it needs
   the configuration of a real store.
 - **Revisit when:** a store's client needs data-layer knowledge to be built.
@@ -374,7 +380,8 @@ bucket's name and lifecycle; `deployment` reads both.
   row that binds them and deleted once the rows are gone.
 - **Guarded by:** the repository's doc comment and `.claude/rules/layering.md` (the order); the
   refused chat delete in `apps/e2e/api/chat.e2e.ts`; the file repository's e2e in
-  `kernel/data/__e2e__/file`; the `deployment/**` override (of the data only `unboundTag`).
+  `kernel/data/__e2e__/file`; `.claude/rules/modules.md` (of the data `deployment` takes only
+  the files' key, `unboundTag`).
 - **If reversed:** the port goes back into `chat`'s `domain/` with its adapter in
   `infrastructure/`, and a second module needing files imports chat.
 - **Revisit when:** `shared-files` or `assistant-files` needs files outside a chat.
@@ -394,7 +401,8 @@ Jobs are the table `jobs` and `JobRepository` in the data layer; `QueueSenderJob
   `QueueSenderJobs` in the data layer: the data would know the queue's job shape. An outbox per
   module: needed only with a schema per module.
 - **Cost:** none today.
-- **Guarded by:** the `kernel/data/**` override (the data imports no `#kernel/queue`); the queue's
+- **Guarded by:** the `kernel/data/**` override and `biome-imports.grit` (the data imports
+  neither `@app-template/kernel/queue` nor `#kernel/queue/…`); the queue's
   e2e in `kernel/queue/__e2e__`.
 - **If reversed:** a rename in a migration, or the transport inside the data layer.
 - **Revisit when:** `jobs` adds the statuses to the same table.
@@ -403,39 +411,48 @@ Jobs are the table `jobs` and `JobRepository` in the data layer; `QueueSenderJob
 
 ### Guards are configuration
 
-The guards are `exports`, the isolated linker, `tsc -b`, Biome and the bundle check; what no
-configuration expresses is the review rule `.claude/rules/modules.md`, never hand-written test
-code. `kernel/`, `packages/` and `application/` are one workspace and one `tsconfig.json` project
-each, so the linker and `tsc -b` see the folder but not its units: each unit's Biome override
-lists the units it may import, `@app-template/**` refused but for `!@app-template/<folder>/<unit>`
-per unit below it in the rings (a glob, `!@app-template/packages/*`, where a whole ring below is
-open), its test support only in the override that covers its tests. `http-api`, the apps and
-`deployment` keep a list of the same form.
+The guards are `exports`, the isolated linker, `tsc -b`, Biome with its plugin and the bundle
+check; what no configuration expresses is the review rule `.claude/rules/modules.md`, never
+hand-written test code. Each guard holds what the others cannot, and Biome only that:
+`kernel/`, `packages/` and `application/` are one workspace and one `tsconfig.json` project each,
+so the linker and `tsc -b` refuse a workspace its manifest does not declare (TS2307) but see no
+unit inside a folder. `biome.json` has one override per layer, never per unit: what reaches the
+browser (`http-api`, the web client, a module's `domain/` and a contract, by unit and by
+imported name), what a module's `services/` and the use cases take of the kernel, the data
+layer's imports, the inward direction of a module's layers and an entry of `application/`,
+which imports no workspace; `noImportCycles` refuses a cycle
+of value imports; the GritQL plugin `biome-imports.grit` reads the unit from the file's path and
+refuses another unit's `#<unit>/…`, `#kernel/<unit>/…` and `#testing/<unit>/…` files in every
+import form, and a relative path anywhere.
 
 - **Why:** every guard is configuration of a tool the repo has; a fitness test is code to keep,
-  and drifts. The linker sees `@app-template/packages`, not its `/db` or `/ui`, and Biome's
-  message names this record, which TS2307 never could.
+  and drifts. A list per unit repeated what the linker already refused and grew past what a
+  reader checks whole; a rule held once, by the one tool that can, stays read. Biome's message
+  names its record, which TS2307 never could, so it keeps the boundaries whose breach is
+  costly: the browser's, the kernel's boundary in a service, the data layer.
 - **Sources:** the guide's "Add fitness functions in CI … turn violations into failing builds"
   ([styles/modular-monolith](https://software-architecture-guild.com/guide/architecture/styles/modular-monolith/));
-  in modular-monolith-with-ddd an architecture test checks the wrong assembly (research).
+  in modular-monolith-with-ddd an architecture test checks the wrong assembly (research); Biome's
+  GritQL plugins, which read `$filename`.
 - **Rejected:** a module-graph test: test code for a rule review can hold. dependency-cruiser: it
-  needs a TypeScript parser the repo lacks. No list inside a folder, its boundaries held by
-  review: the guard stays configuration. A `tsconfig.json` project per unit beside its list: its
-  `references` would repeat the list (TS6307 refuses an unreferenced unit), one rule in two
-  places.
-- **Cost:** what only the review rule names passes `make check` when review misses it. A list
-  per unit, kept by hand, and a new unit refused by every list until one names it. `tsc -b` no
-  longer refuses a cycle between the units of one folder (TS6202): Biome's `noImportCycles`
-  refuses one of value imports, and one through `import type` needs two lists naming each other,
-  which review refuses (`modules.md`). Where one override covers a unit's source and its e2e (a
-  kernel part, a package), the source may import the test support its list admits, which only
-  review refuses.
-- **Guarded by:** `make check` runs them all; the Standards reviewer reads `.claude/rules/`; the
-  list in each unit's override in `biome.json`.
-- **If reversed:** a test beside the rule, kept in step with every new module; without the lists,
-  a folder splits into a workspace per unit again
-  ([Imports through subpaths](#imports-through-subpaths)) and its dependencies take their
-  place.
+  needs a TypeScript parser the repo lacks. A list per unit, `@app-template/**` refused but for
+  each unit below it: an override per unit and per test folder, since Biome replaces an earlier
+  override's options instead of merging them, most of them repeating TS2307. A `tsconfig.json`
+  project per unit beside a list: its `references` would repeat the list, one rule in two places.
+- **Cost:** what only review refuses, the list in `modules.md`, passes `make check` when review
+  misses it; `noImportCycles` refuses a unit importing one above it only where a cycle of value
+  imports forms, and `make test-unit` e2e support in a unit test only where the test builds it,
+  since it starts no database. A refusal by TS2307 names no record. `tsc -b` no longer refuses a
+  cycle between the units of one folder (TS6202). Grit gives the plugin only the absolute path,
+  so it names the unit by the last `application/`, `kernel/` or `packages/` folder on it: a
+  folder of that name inside a unit misreads its files, and a checkout under one
+  (`~/packages/<repo>/`) misreads every file outside the three folders, refusing an app's own
+  `#<app>/…`.
+- **Guarded by:** `make check` runs them all; the Standards reviewer reads `.claude/rules/`;
+  `biome.json` and `biome-imports.grit` beside it.
+- **If reversed:** a test beside the rule, kept in step with every new module; a list per unit
+  again, or a folder split into a workspace per unit
+  ([Imports through subpaths](#imports-through-subpaths)), its dependencies in place of the lists.
 - **Revisit when:** review misses a violation the rule names, or a tool gains the check.
 
 ### Imports through subpaths
@@ -470,11 +487,11 @@ folders is one workspace, `@app-template/kernel`, `@app-template/packages` and
   the stores of `/data`, a module's contract) is held by the names it imports; `application/`
   and `packages/` are one `tsconfig.json` project each, as the kernel is, so `tsc -b` no longer
   refuses an import between their units ([Guards are configuration](#guards-are-configuration)
-  lists them).
-- **Guarded by:** the root `noRestrictedImports` pattern and its copy in every Biome override;
-  an override per kernel part, per package and per layer of each module, refusing another unit's
-  `#<unit>/…` and `#testing/<unit>/…` files; the overrides' `importNamePattern` on
-  `/aws`, `/data` and the modules' entries.
+  says what does).
+- **Guarded by:** `biome-imports.grit`, which reads the unit from the file's path and refuses a
+  relative path anywhere and another unit's `#<unit>/…`, `#kernel/<unit>/…` and
+  `#testing/<unit>/…` files, in an import, an `export … from`, an `import()` and a `require()`;
+  the overrides' `importNamePattern` on `/aws`, `/data` and the modules' entries.
 - **If reversed:** a folder splits into a workspace per unit, each with its manifest, and the
   specifiers lose the folder; without the `#…` subpaths, the per-layer overrides no longer see
   which layer a relative import reaches.
@@ -490,8 +507,9 @@ share lives in a ring below them.
 - **Sources:** `apps/CLAUDE.md`; `deployment/aws` deploys each app as a service of its own.
 - **Rejected:** a shared helper in one app imported by another: it couples their releases.
 - **Cost:** a helper both processes need moves down into a module, the kernel or a package.
-- **Guarded by:** the Biome overrides on `apps/api/**`, `apps/worker/**` and their tests, and
-  `apps/web/**`; the journey e2e that runs both processes lives in the `apps/e2e` test app.
+- **Guarded by:** the isolated linker and `tsc -b`: no app's manifest declares another app or
+  `deployment` (TS2307), and an app exports at most its `./testing`, which `apps/e2e` alone
+  declares; the journey e2e that runs both processes lives in the `apps/e2e` test app.
 - **If reversed:** a process pulls the other's dependencies and layer, and an app can no longer
   be deployed alone.
 - **Revisit when:** two apps merge into one process.
@@ -531,22 +549,17 @@ memory repositories' row helpers) lives with that unit, its one reader.
   a folder everywhere else holds the e2e of its own folder's source. The e2e support in
   `__e2e__/testing/`, exported under a name of its own: a third test folder, and an import name no
   folder carries. A label in the file name (`<name>.e2e-layer.ts`) beside the unit test support:
-  the label is lost behind the `/testing` entry, so only review could refuse the import.
+  the label is lost behind the `/testing` entry, which every unit test may import.
 - **Cost:** a use case's race or rollback runs through the api with both processes up, slower than a
   call of the use case. The kernel declares an alias per part's support, and an export where another
   unit reads it. The run's `globalSetup` sits in the data's e2e support, though it starts the
-  MiniStack every workspace's e2e uses. The e2e support lies under `__tests__/`, so the kernel's and
-  the packages' `__tests__/**` Biome overrides exclude `__tests__/testing/e2e/**`, and the override
-  of a kernel part or a package that covers its e2e takes it back.
-- **Guarded by:** every `__tests__/**` Biome override bans `#testing/*/e2e/**` and
-  `@app-template/**/testing/e2e`, but in `__tests__/testing/e2e/**`, which the e2e overrides
-  take; the `application/use-cases/**` override bans `@app-template/*/testing`,
-  `@app-template/kernel/*/testing` and `@app-template/kernel/*/testing/e2e` in source, and a
-  module's source overrides ban `#testing/**`, its own support too; the
-  `kernel/data/__tests__/**` override keeps the data layer's bans on its memory repositories; a
-  module's `__e2e__/**` override admits of the kernel only the data layer and its e2e support; the
-  vitest projects `unit` (`**/__tests__/**/*.test.ts`) and `e2e` (`**/__e2e__/**/*.e2e.ts` and
-  `apps/e2e/**/*.e2e.ts`) include by folder and suffix.
+  MiniStack every workspace's e2e uses. No tool refuses an import of e2e support a unit test
+  never builds, nor test support in source: review does.
+- **Guarded by:** `make test-unit`: its vitest project has no `globalSetup`, so a unit test that
+  builds e2e support finds no database and fails; `.claude/rules/modules.md` refuses e2e support
+  in a unit test and test support in source; the vitest projects `unit`
+  (`**/__tests__/**/*.test.ts`) and `e2e` (`**/__e2e__/**/*.e2e.ts` and `apps/e2e/**/*.e2e.ts`)
+  include by folder and suffix.
 - **If reversed:** a rename of the folders.
 - **Revisit when:** a workspace needs a third kind of test.
 

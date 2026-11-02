@@ -120,9 +120,9 @@ Behaviour seen from outside does not change.
   the kernel, whose `exports` give each unit one entry, its `index.ts`, and its test support,
   `<folder>/testing` (`<folder>/testing/e2e` for what only the e2e use); the apps and `http-api`
   keep their package names.
-- The guards: package `exports`, the isolated linker between workspaces, a Biome list per
-  workspace of the units it may import, `tsc -b` project references, a Biome override per ring and per layer, the bundle check rewritten; each Biome failure names the
-  decision it protects. What no configuration expresses (a cycle of modules through their
+- The guards: package `exports`, the isolated linker between workspaces, `tsc -b` project
+  references, a Biome override per layer and a GritQL plugin that refuses another unit's files,
+  the bundle check rewritten; each Biome failure names the decision it protects. What no configuration expresses (a cycle of modules through their
   contracts, a service rule in the kernel) is a review rule, never hand-written test code.
 - Names: the data layer's types end in `Entity`; the word names nothing else, and the domain's
   records are models.
@@ -182,23 +182,24 @@ Behaviour seen from outside does not change.
 
 ### Guards
 
-- **R12** — IF code imports another module's internals, a module from outside the use cases, the
-  processes and the HTTP contract, or a unit its workspace's Biome list does not name,
-  THEN `make check` SHALL fail, naming the import and the decision it breaks.
+- **R12** — IF code imports another module's internals, THEN `make check` SHALL fail, naming the
+  import and the decision it breaks; IF code imports a workspace its manifest does not declare,
+  THEN `make check` SHALL fail with TS2307, naming the import.
 - **R13** — IF the workspaces form a cycle, or the kernel or a generic package imports a module or
   a contract, THEN `make check` SHALL fail; IF the modules form a cycle once a dependency on a
   module's contract counts as one on the module, THEN review SHALL refuse it by the modules rule.
 - **R14** — IF the data layer imports a module, a contract or another part of the kernel, THEN
   `make check` SHALL fail, naming the decision.
 - **R15** — IF a module's domain or a contract imports the kernel, a module's services import the
-  kernel's boundary or the module's own infrastructure, a use case imports the kernel's boundary
-  (every layer of a module below it is open to it), or a package under `packages/*` imports the
-  kernel, THEN
-  `make check` SHALL fail, naming the import and the decision.
+  kernel's boundary or the module's own infrastructure, or a use case imports the kernel's
+  boundary (every layer of a module below it is open to it), THEN `make check` SHALL fail, naming
+  the import and the decision; IF a package under `packages/*` imports the kernel, THEN
+  `make check` SHALL fail with TS2307.
 - **R16** — IF a service, a use case, a repository or an adapter reaches the browser's bundle, THEN
   `make check` SHALL fail.
-- **R17** — IF a unit test imports e2e support (`testing/e2e`), THEN `make check` SHALL fail,
-  naming the decision.
+- **R17** — IF a unit test builds e2e support (`testing/e2e`), THEN `make test-unit` SHALL fail;
+  IF a unit test imports e2e support it never builds, THEN review SHALL refuse it by the modules
+  rule.
 
 ### Rules, docs and decisions
 
@@ -232,12 +233,12 @@ Behaviour seen from outside does not change.
 | R9 | grep: no source file under `kernel/data/` (outside its `__tests__/` and `__e2e__/`) imports `@app-template/*` but a package under `packages/*`, or `#kernel/*` outside `#kernel/data`; its e2e and their support take of the kernel only the inventory (`@app-template/kernel/aws`, with its e2e support) and `@app-template/kernel/config`, to build the stores' clients; every `*.table.ts`, `*.entity.ts` and `*.repository.ts` lies under `kernel/data/` |
 | R10 | a send through the api leaves its job in `jobs`, and a refused write keeps neither the job nor the writes |
 | R11 | `git ls-files` finds no `tests/`, `e2e/` or `testing/` folder outside `__tests__/` and `__e2e__/` (but the package `packages/testing`, the test app `apps/e2e` and its `apps/e2e/testing`), no `__e2e__/testing/` under `kernel/` or `packages/`, no `aws`, `postgres` or `rows` support in `packages/testing`, no `__e2e__/` under `application/`, no `apps/__e2e__`, and no suite under `apps/e2e` that reads a use case or a mapper from the context |
-| R12 | a throwaway import of another module's internals, and one of a unit its workspace's list does not name, each fail `make check` with the import and the decision named |
-| R13 | a throwaway import of a module into the kernel and into a generic package each fail `make check` with the decision named; the modules rule names the contract cycle and its decision |
+| R12 | a throwaway import of another module's internals, in each import form, fails `make check` with the import and the decision named; one of a workspace its manifest does not declare fails it with TS2307 |
+| R13 | a throwaway import of a module into the kernel and into a generic package each fail `make check` with TS2307, and a cycle of value imports between two modules with `noImportCycles`; the modules rule names the contract cycle and its decision |
 | R14 | throwaway imports of a module's model, of `#kernel/aws` and of `@app-template/kernel/config` into a data-layer file each fail `make check` with the decision named |
-| R15 | throwaway imports of the kernel into a module's domain and into a contract, of `@app-template/kernel/llm` and of the module's infrastructure into its services, of `@app-template/kernel/postgres` into a use case (a module's infrastructure in a use case passes), and of the kernel into a package each fail `make check` with the decision named |
+| R15 | throwaway imports of the kernel into a module's domain and into a contract, of `@app-template/kernel/llm` and of the module's infrastructure into its services, of `@app-template/kernel/postgres` into a use case (a module's infrastructure in a use case passes), each fail `make check` with the decision named, and one of the kernel into a package with TS2307 |
 | R16 | `make bundle-check` passes; throwaway imports of a module's service, of a use case and of a repository into the web app each make it fail |
-| R17 | throwaway imports of `#testing/<unit>/e2e/…` and of `@app-template/kernel/data/testing/e2e` into a unit test each fail `make check` with the decision named |
+| R17 | a throwaway unit test that builds e2e support from `@app-template/kernel/data/testing/e2e` fails `make test-unit`, which starts no database; the modules rule names an import of e2e support into a unit test and its decision |
 | R21 | `git grep` finds no import of `@app-template/<name>` for a unit of `kernel`, `packages` or `application` but by its folder, and none of a layer or store subpath; `make check` passes |
 | R18 | the decisions document and `architecture.md` show a use case spanning modules with a short snippet; grep finds no job whose handler reacts to another module's write |
 | R19 | `make doc-names` passes; `architecture.md` has the seven sections; the glossary has "Application", "Module", "Module contract", "Use case", "Kernel", "Data layer", "Entity", "Model", "Boundary" and "Package" and bans "Component" |
@@ -283,7 +284,7 @@ Settled with the user on 2026-10-31, after the research, an audit and the plan r
 - **Imports by folder path** (settled 2026-11-02, after verification): `packages/` and
   `application/` each become one workspace, like the kernel, so the kernel's parts, the packages,
   the modules and the use cases are imported as `@app-template/<folder>`, one `index.ts` and one
-  `/testing` each, by their `exports`, with no `paths` alias; a Biome list per workspace tells
-  the units inside one workspace apart, which the linker cannot; a use case may import any layer of a module
-  below it; e2e support sits in `__tests__/testing/e2e/`, imported as `<folder>/testing/e2e`,
-  which Biome refuses in a unit test.
+  `/testing` each, by their `exports`, with no `paths` alias; a GritQL plugin tells the units
+  inside one workspace apart, which the linker cannot; a use case may import any layer of a
+  module below it; e2e support sits in `__tests__/testing/e2e/`, imported as
+  `<folder>/testing/e2e`, which a unit test may not import.

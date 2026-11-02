@@ -102,7 +102,7 @@ The invariants a change must keep:
 - **A message never exists without its job.** The job is a row of `jobs` in the same transaction.
 - **No service reaches the browser.** `make bundle-check` fails if one does.
 
-The full matrix, and how Biome enforces it:
+The full matrix, and which guard enforces each rule:
 [architecture.md › Dependency rules](docs/knowledge/architecture.md#dependency-rules). Why each
 boundary holds, what it costs and what breaks if it is reversed:
 [decisions.md](docs/knowledge/decisions.md), one record per decision.

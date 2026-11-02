@@ -44,7 +44,7 @@
 | S36 | the branch review's test fixes | done |
 | S37 | the docs the branch review found out of step with the code | done |
 | S38 | the chat module in one shape | todo |
-| S39 | `biome.json` keeps only the import rules nothing else holds | todo |
+| S39 | `biome.json` keeps only the import rules nothing else holds | done |
 
 ## How to run this plan
 
@@ -1862,7 +1862,22 @@
   review.
 - **Verify:** `make check`; `wc -l biome.json` under 300; the probes listed in the report.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - `biome.json` 1931 → 297 lines; the plugin `biome-imports.grit` 25. Every kept rule probed red
+    (39 refusals, 11 import forms of another module's file); every dropped one names its holder:
+    TS2307 (5 probes), `noImportCycles` (4), `make test-unit` (a unit test building `DbTest`), or
+    review (`modules.md`, a list of what passes `make check`).
+  - The plugin also holds kernel parts and packages and the relative-path ban, so no override
+    repeats it; it reads the unit from the absolute path, as Grit gives no other.
+  - The entry of `application/` keeps an override (imports no workspace); `apps/web/main.ts`, the
+    web server entry, went to review.
+  - R12, R15 and R17 changed what they ask: an undeclared workspace fails with TS2307, naming no
+    record; R17 splits between `make test-unit` and review. `feature.md` and its rows follow.
+  - Review: `packages/s3` passed unseen, the unit pattern lacked digits (the bundle check's grep
+    too); the matrix claimed TS2307 for a kernel part importing another and for the web server
+    entry, which pass `tsc`; `modules.md` back to 80 lines, its sample snippet dropped, its
+    `Record:` links kept; `decisions.md` owns the design, the other docs link it.
 
 
 ## Requirement coverage

@@ -840,23 +840,34 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
       entirely and needs a setting in every tool; the user's word on 2026-11-02.
     - a subpath per layer under the folder (`/chat/domain`) — the user's word: one entry.
 
-- **D22 — Each workspace's (or unit's) Biome override lists the units it may import
-  (`@app-template/**` refused but for `!@app-template/<folder>` per unit); the list follows the
-  rings.**
-  - **Why:** the isolated linker sees `@app-template/packages`, not `/db` or `/ui`, once a folder
-    is one workspace (D21); Biome's message names the record, which TS2307 never could (R12).
-  - **Cost accepted:** a list per unit, kept by hand. Each folder is one `tsconfig.json`
-    project, as the kernel is (S29, S30), so the lists alone record which unit imports which:
-    `tsc -b` no longer refuses a cycle between units of one folder (TS6202) nor rebuilds them one
-    by one; Biome's `noImportCycles` refuses one of value imports (probed in S30), review one
-    through `import type`. Where one override covers a unit's source and its e2e (a kernel part,
-    a package), the source may import the test support its list admits.
-  - **Reversal:** with D21's reversal, the workspace dependencies again.
+- **D22 — Biome holds only the import rules no other tool holds: one override per layer, matched
+  by glob, and one GritQL plugin that reads the unit from the file's path and refuses another
+  unit's files and any relative path.**
+  - **Why:** Biome replaces an earlier override's options instead of merging them, so lists per
+    unit repeated every ban per test folder, and most entries repeated what the isolated linker
+    and `tsc -b` refuse already (TS2307). What only Biome sees stays: what reaches the browser,
+    what services and use cases take of the kernel, the data layer's imports, a module's layers
+    pointing inward, an entry of `application/` importing no workspace, a cycle; its message names
+    the record, which TS2307 never could (R12).
+  - **Cost accepted:** an undeclared workspace fails with TS2307, naming no record; the order of
+    units inside one folder (a kernel part, a package or a module above the importer) is
+    `noImportCycles`' where a cycle forms, else review's (`modules.md`), as are test support in
+    source, a repository or mapper in a handler and what `deployment` and the web server entry
+    take of the kernel; a unit test importing e2e support it never builds is review's. The plugin
+    sees only the absolute path, so a folder named `application/`, `kernel/` or `packages/` inside
+    a unit, or a checkout under one, misreads files.
+  - **Reversal:** a list per unit again, one override each, repeating its bans per test folder.
   - **Rejected:**
-    - no list, the boundary held by review — the user's word: the guard stays configuration.
-    - a `tsconfig.json` project per unit beside its list — its `references` would repeat the list
-      (TS6307 refuses an unreferenced unit), one rule in two places; the user's word on
-      2026-11-02.
+    - a list per unit (S30, about 2000 lines nobody read whole) — the user's word on 2026-11-02,
+      design A of the branch review's Biome research;
+    - no Biome at all, the boundary held by review — the user's word: the guard stays
+      configuration;
+    - a `tsconfig.json` project per unit — its `references` would repeat the imports, one rule in
+      two places;
+    - the plugin split in two files to scope the unit rule by `includes` — one file more for a
+      checkout path no one uses today.
+  - **Note (S39):** replaces the per-unit lists of S30; the plugin also covers kernel parts and
+    packages, and the bundle check's module pattern takes digits, as the plugin's does.
 
 ## Risks
 
@@ -870,12 +881,12 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
   doc comment, `layering.md`'s order rule and the send-message e2e.
 - **The bundle check's grep keeps passing with the old pattern** once the service keys change.
   *Contained by:* each step that renames keys proves the pattern with a throwaway import (R16).
-- **A list of module packages in a Biome override misses a new module.** *Contained by:* the
-  per-workspace lists of D22 (an unlisted unit is refused) and the add-a-module checklist.
+- **A new module or unit escapes the guards.** *Contained by:* D22's overrides match a layer by
+  glob and the plugin reads any unit from its path, so a new module needs no Biome edit.
 - **A cycle between units of one folder**, once the folder is one `tsconfig.json` project and
   `tsc -b` no longer sees units (D22). *Contained by:* Biome's `noImportCycles` for value
-  imports; for one through `import type`, each list names only units below its own in the rings,
-  so a cycle needs two lists to name each other, which review of `biome.json` sees.
+  imports; for one through `import type`, review by `modules.md`, which refuses an import of a
+  unit above the importer.
 - **A limit duplicated by D11 drifts** between a model and its check. *Contained by:* a
   mapper's unit test compares the model's limit and pattern with the table's export; the data
   layer's e2e refuse the title limit plus one and accept each extreme value.
