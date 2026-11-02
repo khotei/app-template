@@ -124,7 +124,9 @@ load each one targets.
 - **R14** — WHEN Claude edits a file of one layer of a module, THE SYSTEM SHALL load only the rules
   whose subject that layer holds.
 - **R15** — WHEN the ticket is verified, THE SYSTEM SHALL show, for each of R12–R14, the load it
-  targets before and after, measured the same way, and a cut of at least 20% for each.
+  targets before and after, measured the same way, and a cut of at least 20% for R12, for R13
+  and for R14 on a domain file; on a services file, which holds most of the narrowed rules'
+  subject, R14's cut is shown with no threshold.
 
 ### Required rules
 
@@ -152,7 +154,7 @@ load each one targets.
 | R11 | `claude-md.md` names the test, the owner, the pattern, and the four checks by their `make` targets. |
 | R12 | Measured with `InstructionsLoaded` and the reviewers' transcripts on one step, before and after: each reviewer's ticket reading drops by at least 20%. |
 | R13 | Measured the same way on one step: the implementer's load drops by at least 20%. |
-| R14 | Measured the same way on editing one `.ts` file of a module's domain and one of its services: the rules loaded drop by at least 20%. |
+| R14 | Measured the same way on editing one `.ts` file of a module's domain and one of its services: the domain file's rules loaded drop by at least 20%; the services file's drop is recorded with no threshold (about 10–14% by estimate), and no rule whose subject the layer holds stops loading on either. |
 | R15 | `verification.md` records the three scenarios before and after; the measuring hook is not committed. |
 | R16 | `git grep -c` of the marker over `.claude/rules/` totals no more than the cap `claude-md.md` names; a probe marks lines past the cap: `make check` fails, naming the count. |
 | R17 | A probe diff writes a marked rule inline (a rule in a service's body): the Standards reviewer reports it as a hard finding citing the marked line, and `/ticket-implement` holds the commit. |
@@ -166,8 +168,7 @@ load each one targets.
   checked by R9; B — by file suffix (`*.service.ts`), which follows the naming rule but misses a
   file under a new suffix.
 - **Recommendation:** A, since a folder outlives a suffix and R9 catches a folder that goes.
-- **Answer:**
-
+- **Answer:** A, with the sections that bind another layer moved to a rule that loads there: D1.
 ### Q2 — How does the reviewer find the parts of the design a step cites?
 
 - **Why it matters:** R12's cut depends on the reviewer not opening the whole file.
@@ -175,8 +176,7 @@ load each one targets.
   reads them with `grep -n` on the stable headings; B — the reviewer finds them from the step's
   text itself.
 - **Recommendation:** A, as `toolkit-reading` did for the implementer: the skill knows the step.
-- **Answer:**
-
+- **Answer:** A: D2.
 ### Q3 — What counts as a doc pointer or a stable anchor in R8?
 
 - **Why it matters:** R8 must refuse the class that churned and pass the anchors `claude-md.md`
@@ -184,8 +184,8 @@ load each one targets.
 - **Options:** A — an allowlist of prefixes (`docs/`, `.claude/`, `.github/`, `repos/`) plus any
   span with a placeholder, and a path of depth below three; B — an explicit list of allowed names.
 - **Recommendation:** A, since a list of names is itself a copy that goes stale.
-- **Answer:**
-
+- **Answer:** neither as written: the shape of an instance, with the anchors derived from the
+  tree (workspaces, `exports` keys, role names in several workspaces): D3.
 ### Q4 — Which rule lines are marked required, and what is the cap?
 
 - **Why it matters:** a marker on many lines weighs as little as the bold that already opens most
@@ -194,4 +194,4 @@ load each one targets.
   breach the branch's reviews or the user's feedback found (a rule written in a service's body, a
   check after a write); B — a cap per rule file, which spreads the marks evenly whatever they cost.
 - **Recommendation:** A, since the weight comes from the marks being few across the whole set.
-- **Answer:**
+- **Answer:** A: D4; the cap is a number in `claude-md.md` that the check reads: D5.
