@@ -3,14 +3,12 @@ import { PgClient } from '@effect/sql-pg'
 import { ConfigProvider, Effect, Layer, Redacted } from 'effect'
 import { FetchHttpClient } from 'effect/http'
 
-import { ApiLayerTest } from '@app-template/api/testing'
-import { ApiClient } from '@app-template/http-api'
+import { ApiLayer, layerApiClient } from '@app-template/api/testing'
 import { AwsTest } from '@app-template/kernel/aws/testing/e2e'
 import { AwsConfig } from '@app-template/kernel/config'
 import { FileRepository } from '@app-template/kernel/data'
 import { PgClientTest } from '@app-template/packages/db/testing/e2e'
-import { layerCookieJarTest } from '@app-template/packages/testing'
-import { WorkerLayerTest } from '@app-template/worker/testing'
+import { WorkerLayer } from '@app-template/worker/testing'
 
 // `Config.Port` refuses 0, so the api cannot take an ephemeral port itself.
 const findFreePort = Effect.sync(() => {
@@ -42,14 +40,7 @@ const buildConfigProvider = Effect.fnUntraced(function* (port: number) {
   })
 })
 
-/** One browser: a cookie jar of its own. */
-const layerApiClient = (port: number) =>
-  ApiClient.layer(`http://localhost:${port}`).pipe(
-    Layer.provide(layerCookieJarTest()),
-    Layer.provide(FetchHttpClient.layer),
-  )
-
-const Apps = Layer.merge(ApiLayerTest, WorkerLayerTest).pipe(Layer.provide(BunCrypto.layer))
+const Apps = Layer.merge(ApiLayer, WorkerLayer).pipe(Layer.provide(BunCrypto.layer))
 
 /**
  * The api and the worker in one runtime over the test's database and stage, the model stubbed,
@@ -64,8 +55,10 @@ export const StandTest = Layer.unwrap(
   Effect.gen(function* () {
     const port = yield* findFreePort
     const provider = yield* buildConfigProvider(port)
-    return Layer.merge(Apps, layerApiClient(port)).pipe(
-      Layer.provide(ConfigProvider.layer(provider)),
+
+    const browser = layerApiClient(`http://localhost:${port}`).pipe(
+      Layer.provide(FetchHttpClient.layer),
     )
+    return Layer.merge(Apps, browser).pipe(Layer.provide(ConfigProvider.layer(provider)))
   }).pipe(Effect.orDie),
 ).pipe(Layer.provideMerge(FileRepository.layer), Layer.provideMerge([PgClientTest, AwsTest]))

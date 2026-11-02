@@ -81,9 +81,9 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   `@app-template/<folder>/testing/e2e` and aliased `#testing/<unit>/e2e/*`. Support one unit
   alone reads keeps the alias and no entry. Suites compose these barrels instead of copying them.
   The memory repositories live in `kernel/data/__tests__/testing/`, over the same entities as the
-  real ones, and a module's memory layers of its ports in that module's. The shared
-  `packages/testing` holds only the support several units use; a package's own (its rows, its
-  Postgres or MiniStack clients) lives in that package, as a kernel part's does.
+  real ones and the row helpers they share, and a module's memory layers of its ports in that
+  module's. The shared `packages/testing` holds only the support several units use; a package's
+  own (its Postgres or MiniStack clients) lives in that package, as a kernel part's does.
 - **What a test may import.** A unit test imports its workspace's source and the `/testing` of
   the units its workspace declares; an e2e suite also their `/testing/e2e`; a unit test never
   imports e2e support. The `apps/e2e` test app holds e2e alone, the suites through the api in
@@ -137,13 +137,14 @@ Which suite runs where:
   chat, an upload and a send over HTTP and reads the reply and the title back once the worker has
   written them; the use cases' races share its stand, and their rollbacks are requests too, each
   on a stand of its own, since it alters the schema to make Postgres refuse a write: `StandTest`
-  (`apps/e2e/testing/stand.test-layer.ts`) runs `ApiLayerTest` and `WorkerLayerTest`, the apps'
-  layers that their `./testing` re-exports, in the test's own runtime over a `PgClientTest`
-  database, an `AwsTest` stage and the model stub, under one `ConfigProvider` that names them, so
-  the apps' own adapters and config code are the ones under test. The api takes a free port the
-  layer finds, since `Config.Port` refuses `0`, so two runs share nothing. The apps' SDK clients
-  read credentials from the environment, which the `e2e` project sets to the fixed test pair
-  MiniStack accepts. The journey proves the wiring; every rule keeps its lower seam.
+  (`apps/e2e/testing/stand.test-layer.ts`) runs `ApiLayer` and `WorkerLayer`, the apps' layers
+  that their `./testing` re-exports under their own names (a `Test` suffix names a test double
+  alone), in the test's own runtime over a `PgClientTest` database, an `AwsTest` stage and the
+  model stub, under one `ConfigProvider` that names them, so the apps' own adapters and config
+  code are the ones under test. The api takes a free port the layer finds, since `Config.Port`
+  refuses `0`, so two runs share nothing. The apps' SDK clients read credentials from the
+  environment, which the `e2e` project sets to the fixed test pair MiniStack accepts. The journey
+  proves the wiring; every rule keeps its lower seam.
 - **Concurrent within a file.** Both projects set `sequence: { concurrent: true }`; since every
   test owns its database and its stage, nothing is shared between tests. The journey's block
   opts out, since its tests share one stand and read its table `jobs` whole.

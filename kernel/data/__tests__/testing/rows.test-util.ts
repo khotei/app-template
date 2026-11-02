@@ -1,6 +1,6 @@
 import {
   Array as Arr,
-  Effect,
+  type Effect,
   Equal,
   HashMap,
   Predicate,
@@ -44,15 +44,6 @@ export const matchesAny =
           onDefined: Arr.contains(row[key]),
         }),
       ),
-    )
-
-/** Dies with `message` when a write answers no row, as the Pg repositories' writes do. */
-export const orDieOnNoRows =
-  (message: string) =>
-  <A, E, R>(self: Effect.Effect<ReadonlyArray<A>, E, R>): Effect.Effect<void, E, R> =>
-    self.pipe(
-      Effect.filterOrElse(Arr.isReadonlyArrayNonEmpty, () => Effect.die(new Error(message))),
-      Effect.asVoid,
     )
 
 /**

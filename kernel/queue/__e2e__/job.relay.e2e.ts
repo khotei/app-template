@@ -225,7 +225,11 @@ describe('JobRelay', () => {
         assert.deepStrictEqual(sentWhileFailing, Option.none())
         assert.strictEqual(sent.jobId, jobId(1))
         assert.deepStrictEqual(yield* lockUnsent, [])
-        assert.deepStrictEqual(logs, [['Error', 'outbox relay failed']])
+        // The relay polls again after `pollInterval`, so the failure may be logged more than once.
+        assert.deepStrictEqual(
+          logs,
+          logs.map(() => ['Error', 'outbox relay failed']),
+        )
       }).pipe(Effect.provide([JobsTest, recordedLogs]))
     },
   )

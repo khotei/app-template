@@ -510,8 +510,8 @@ and no entry. The kernel's parts are units like packages, so each part keeps its
 `application` has unit tests alone, its mappers' round trips among them; the e2e through the api,
 the journey and the use cases' races and rollbacks, live in the test app `apps/e2e`, in
 `apps/e2e/api/`, its support in `apps/e2e/testing/`. The shared `packages/testing` holds only the
-support several units use; a package's own support (its rows, its Postgres or MiniStack clients)
-lives in that package, as a kernel part's does.
+support several units use; a unit's own support (a package's Postgres or MiniStack clients, the
+memory repositories' row helpers) lives with that unit, its one reader.
 
 - **Why:** the folder tells a unit test from an e2e and from source; a test sits beside what it
   checks: the behaviour runs over memory, the real stores are tested in the kernel, a mapper

@@ -78,7 +78,7 @@ const selectReplyJob = (chatId: ChatId) =>
   ).pipe(Effect.flatMap(Schema.decodeUnknownEffect(ReplyJobRows)))
 
 describe('the journey over both app layers', { concurrent: false }, () => {
-  layer(StandTest, { excludeTestServices: true })((it) => {
+  layer(StandTest, { timeout: '60 seconds', excludeTestServices: true })((it) => {
     it.effect(
       "a sent message with an upload is answered and titled by the worker, its reply job keeps the api's provenance, and its delete removes the object",
       () =>
@@ -250,6 +250,32 @@ describe('a write Postgres refuses, through the api', () => {
         assert.deepStrictEqual(yield* selectJobsOf(chat.id), [])
       }).pipe(Effect.provide(StandTest)),
     30_000,
+  )
+
+  it.live(
+    "a reply whose chat's move to idle is refused ends failed with its chat, never done beside a queued chat",
+    () =>
+      Effect.gen(function* () {
+        const api = yield* ApiClient
+        const client = yield* SqlClient.SqlClient
+        yield* api.users.ensure()
+        const chat = yield* api.chats.create()
+        // `NOT VALID` spares the chat, created idle: the reply's settle is the next move to idle.
+        yield* client
+          .unsafe(`ALTER TABLE chats ADD CONSTRAINT refuse_idle CHECK (status <> 'idle') NOT VALID`)
+          .pipe(Effect.orDie)
+
+        const sent = yield* api.chats.send({
+          params: { chatId: chat.id },
+          payload: { text: 'Hello', attachmentIds: [] },
+        })
+        const reply = yield* pollSettledMessage(chat.id, sent.assistantMessage.id)
+        const settled = yield* api.chats.get({ params: { chatId: chat.id } })
+
+        assert.strictEqual(reply.status, 'failed')
+        assert.strictEqual(settled.status, 'failed')
+      }).pipe(Effect.provide(StandTest)),
+    60_000,
   )
 
   it.live(

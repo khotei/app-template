@@ -15,15 +15,7 @@ import {
 } from 'effect'
 import { constTrue } from 'effect/Function'
 
-import {
-  deleteRows,
-  insertRow,
-  matches,
-  matchesAny,
-  orDieOnNoRows,
-  updateRows,
-  writeSet,
-} from '@app-template/packages/db/testing'
+import { orDieOnNoRows } from '@app-template/packages/db'
 
 import type { AttachmentEntity } from '#kernel/data/attachment/attachment.entity'
 import { ChatEntity, type ChatEntityWhere } from '#kernel/data/chat/chat.entity'
@@ -32,6 +24,14 @@ import { MessageEntity, type MessageEntityWhere } from '#kernel/data/chat/messag
 import { MessageRepository } from '#kernel/data/chat/message.repository'
 import { activeMessageStatuses } from '#kernel/data/chat/message.table'
 import { AttachmentRows } from '#testing/data/attachment.test-fake'
+import {
+  deleteRows,
+  insertRow,
+  matches,
+  matchesAny,
+  updateRows,
+  writeSet,
+} from '#testing/data/rows.test-util'
 
 const ChatRow = Schema.Struct(Struct.omit(ChatEntity.fields, ['attachments']))
 type ChatRow = typeof ChatRow.Type

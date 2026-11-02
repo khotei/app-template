@@ -28,7 +28,11 @@ const later = DateTime.makeUnsafe('2026-10-17T00:00:01.000Z')
 const assistantAt = (status: MessageStatus) =>
   new Message({ ...buildAssistantMessage({ id: messageId, chatId, createdAt }), status })
 
-const activeStages = ['queued', 'preparing', 'generating'] as const
+const activeStages = [
+  { status: 'queued' },
+  { status: 'preparing' },
+  { status: 'generating' },
+] as const
 
 const userMessage = buildUserMessage({
   id: messageId,
@@ -38,12 +42,14 @@ const userMessage = buildUserMessage({
 })
 
 describe('ensureMessageInput', () => {
-  it.effect.each(['', '  \n\t '])('rejects the blank text %j without attachments', (text) =>
-    Effect.gen(function* () {
-      const error = yield* ensureMessageInput({ text, attachmentIds: [] }).pipe(Effect.flip)
+  it.effect.each([{ text: '' }, { text: '  \n\t ' }])(
+    'rejects the blank text $text without attachments',
+    ({ text }) =>
+      Effect.gen(function* () {
+        const error = yield* ensureMessageInput({ text, attachmentIds: [] }).pipe(Effect.flip)
 
-      assertSchemaEquals(MessageInputInvalidError, error, new MessageInputInvalidError())
-    }),
+        assertSchemaEquals(MessageInputInvalidError, error, new MessageInputInvalidError())
+      }),
   )
 
   it.effect('rejects an attachment id given twice', () =>
@@ -67,9 +73,9 @@ describe('ensureMessageInput', () => {
 })
 
 const inactiveMessages = [
-  ['a user message', userMessage],
-  ['a completed assistant message', assistantAt('done')],
-  ['a failed assistant message', assistantAt('failed')],
+  { name: 'a user message', message: userMessage },
+  { name: 'a completed assistant message', message: assistantAt('done') },
+  { name: 'a failed assistant message', message: assistantAt('failed') },
 ] as const
 
 const withLeftovers = (status: MessageStatus) =>
@@ -98,8 +104,8 @@ const expectStageInvalid = (
 
 describe('prepareMessage', () => {
   it.effect.each(activeStages)(
-    'moves a %s message to preparing with empty text and no error',
-    (status) =>
+    'moves a $status message to preparing with empty text and no error',
+    ({ status }) =>
       Effect.gen(function* () {
         const prepared = yield* prepareMessage(withLeftovers(status), later)
 
@@ -110,7 +116,7 @@ describe('prepareMessage', () => {
       }),
   )
 
-  it.effect.each(inactiveMessages)('fails MessageStatusInvalidError for %s', ([, message]) =>
+  it.effect.each(inactiveMessages)('fails MessageStatusInvalidError for $name', ({ message }) =>
     expectStageInvalid(prepareMessage(message, later), message, 'preparing'),
   )
 })
@@ -126,19 +132,22 @@ describe('generateMessage', () => {
   )
 
   it.effect.each([
-    ['a queued assistant message', assistantAt('queued')],
-    ['a generating assistant message', assistantAt('generating')],
-    ['a user message at preparing', new Message({ ...userMessage, status: 'preparing' })],
+    { name: 'a queued assistant message', message: assistantAt('queued') },
+    { name: 'a generating assistant message', message: assistantAt('generating') },
+    {
+      name: 'a user message at preparing',
+      message: new Message({ ...userMessage, status: 'preparing' }),
+    },
     ...inactiveMessages,
-  ] as const)('fails MessageStatusInvalidError for %s', ([, message]) =>
+  ])('fails MessageStatusInvalidError for $name', ({ message }) =>
     expectStageInvalid(generateMessage(message, later), message, 'generating'),
   )
 })
 
 describe('completeMessage', () => {
   it.effect.each(activeStages)(
-    'moves a %s message to completed with the final text and no error',
-    (status) =>
+    'moves a $status message to completed with the final text and no error',
+    ({ status }) =>
       Effect.gen(function* () {
         const completed = yield* completeMessage(withLeftovers(status), {
           text: 'Hello there',
@@ -152,7 +161,7 @@ describe('completeMessage', () => {
       }),
   )
 
-  it.effect.each(inactiveMessages)('fails MessageStatusInvalidError for %s', ([, message]) =>
+  it.effect.each(inactiveMessages)('fails MessageStatusInvalidError for $name', ({ message }) =>
     expectStageInvalid(
       completeMessage(message, { text: 'Hello there', at: later }),
       message,
@@ -165,8 +174,8 @@ describe('failMessage', () => {
   const cause = 'Provider returned 529: overloaded'
 
   it.effect.each(activeStages)(
-    'moves a %s message to failed with the fixed sentence and the cause',
-    (status) =>
+    'moves a $status message to failed with the fixed sentence and the cause',
+    ({ status }) =>
       Effect.gen(function* () {
         const failed = yield* failMessage(assistantAt(status), {
           reason: 'ReplyFailed',
@@ -201,7 +210,7 @@ describe('failMessage', () => {
     }),
   )
 
-  it.effect.each(inactiveMessages)('fails MessageStatusInvalidError for %s', ([, message]) =>
+  it.effect.each(inactiveMessages)('fails MessageStatusInvalidError for $name', ({ message }) =>
     expectStageInvalid(
       failMessage(message, { reason: 'ReplyFailed', cause, at: later }),
       message,

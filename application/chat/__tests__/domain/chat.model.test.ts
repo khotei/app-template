@@ -57,11 +57,12 @@ describe('idleChat and failChat', () => {
 })
 
 describe('ChatTitle', () => {
-  it.each(['Trip', 'a'.repeat(120)])('accepts %j', (title) => {
-    assert.isTrue(Schema.is(ChatTitle)(title))
-  })
+  it.effect.each([{ title: 'Trip' }, { title: 'a'.repeat(120) }])('accepts $title', ({ title }) =>
+    Effect.sync(() => assert.isTrue(Schema.is(ChatTitle)(title))),
+  )
 
-  it.each(['', '  ', ' Trip', 'a'.repeat(121)])('rejects %j', (title) => {
-    assert.isFalse(Schema.is(ChatTitle)(title))
-  })
+  it.effect.each([{ title: '' }, { title: '  ' }, { title: ' Trip' }, { title: 'a'.repeat(121) }])(
+    'rejects $title',
+    ({ title }) => Effect.sync(() => assert.isFalse(Schema.is(ChatTitle)(title))),
+  )
 })

@@ -185,8 +185,8 @@ packages/
                                  naming by a function the caller passes
   llm/                           + the Anthropic and stub builders from infrastructure/chat/assistant.client.ts
   queue/  s3/                    tests, e2e, testing → __tests__/, __e2e__/
-  testing/                       + epoch, matches, matchesAny, updateRow, the memory orDieOnNoRows
-                                 (the package is test support itself)
+  testing/                       + epoch (the package is test support itself; the row helpers
+                                 sit with the memory repositories, their one reader, since S36)
 http-api/                        imports the chat and identity entries, their domain and contract;
                                  shared/security.ts keeps SchemaErrors; shared/errors.ts unchanged
 apps/
@@ -782,8 +782,9 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
     files keep their kind suffixes (`db.test-layer.ts`). Rejected: a label in the file name
     (`db.e2e-layer.ts`) beside the unit's other support — the label is lost behind the `/testing`
     entry, so only review could refuse it; `/testing-e2e`, a name no folder carries. The shared
-    `packages/testing` keeps only what several units use; support of one package (its rows, its
-    Postgres or MiniStack clients) lives in that package, as the kernel's parts hold theirs.
+    `packages/testing` keeps only what several units use; support of one unit (a package's
+    Postgres or MiniStack clients, the memory repositories' row helpers) lives with that unit, its
+    one reader, as the kernel's parts hold theirs.
   - **Note (S31):** the user's word: a test sits beside what it checks, and `apps/__e2e__` checks
     only the flow from a request to the api to the worker. The mappers' e2e move to
     `application/<module>/__e2e__/services/`, over the data layer's `DbTest`, each inserting the
@@ -801,6 +802,10 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
     keeps the constants private but catches one direction of a drift and checks every insert.
   - **Note (S35):** `apps/__e2e__` is the test app `apps/e2e`, its suites in `apps/e2e/api/`:
     everywhere else `__e2e__/` holds the e2e of its own folder's source.
+  - **Note (S36):** the row helpers moved from the database package's support to the data layer's
+    memory repositories, their one reader, and the cookie jar into the api's client layer; the
+    apps' `./testing` export `ApiLayer` and `WorkerLayer`. Rejected: keeping the row helpers in
+    the package with a recorded reason, since no other unit reads them.
 
 - **D20 — The migrations restart as one initial migration generated from the data layer; every
   database is recreated (`make reset`).**

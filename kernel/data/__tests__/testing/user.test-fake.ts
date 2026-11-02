@@ -11,7 +11,7 @@ import {
   Schema,
 } from 'effect'
 
-import { matches, orDieOnNoRows } from '@app-template/packages/db/testing'
+import { orDieOnNoRows } from '@app-template/packages/db'
 
 import {
   UserEntity,
@@ -19,6 +19,7 @@ import {
   type UserEntityWhere,
 } from '#kernel/data/user/user.entity'
 import { UserRepository } from '#kernel/data/user/user.repository'
+import { matches } from '#testing/data/rows.test-util'
 
 /** A user with the credential it was inserted with. */
 export interface UserRow {

@@ -1,7 +1,5 @@
 export * from '#testing/clock.test-fixture'
-export * from '#testing/http.test-layer'
 export * from '#testing/log.test-fake'
-export * from '#testing/order.test-util'
 export * from '#testing/png.test-fixture'
 export * from '#testing/schema.test-util'
 export * from '#testing/stream.test-util'

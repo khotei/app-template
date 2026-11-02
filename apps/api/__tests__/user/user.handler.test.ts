@@ -56,7 +56,7 @@ describe('users', () => {
       assert.notStrictEqual(readUserSecretCookie(response).pipe(Option.getOrThrow).value, 'forged')
     }).pipe(
       Effect.provide(
-        layerApiClient(Cookies.fromSetCookie('user_secret=forged')).pipe(
+        layerApiClient('', Cookies.fromSetCookie('user_secret=forged')).pipe(
           Layer.provide(ApiServerTest),
         ),
       ),

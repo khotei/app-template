@@ -132,7 +132,7 @@ before the row that binds them and deletes them once the rows are gone.
   `application/chat/domain/attachment.model.ts`) reads as not found everywhere; no read deletes
   it, since a delete on read would race a send binding it. Its object goes by the bucket's rule,
   which acts after `unboundExpirationDays` (S3 rounds up to the next midnight UTC);
-  `application/chat/__tests__/services/resources.test.ts` keeps those days no shorter than
+  `application/chat/__tests__/domain/resources.test.ts` keeps those days no shorter than
   `unboundLifetime`, so nothing still bindable loses its bytes. Its row stays, since no sweep
   removes expired rows. Locally the object stays as well, since MiniStack never runs the rule
   ([Tests on Docker](#tests-on-docker)).

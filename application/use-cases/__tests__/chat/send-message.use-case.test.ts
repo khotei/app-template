@@ -1,6 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { DateTime, Effect, Layer, Option } from 'effect'
+import { Array as Arr, DateTime, Effect, Layer, Option, Order } from 'effect'
 
 import {
   ActiveMessageStatus,
@@ -31,7 +31,7 @@ import {
 } from '@app-template/application/chat/testing'
 import { ChatRepository, MessageRepository } from '@app-template/kernel/data'
 import { recordQueue } from '@app-template/packages/queue/testing'
-import { assertSchemaEquals, epoch, isUuidV7, sortById } from '@app-template/packages/testing'
+import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
 import { ChatTest } from '#testing/use-cases/chat.test-layer'
 import { SendMessageUseCase } from '#use-cases/chat/send-message.use-case'
@@ -104,7 +104,10 @@ describe('SendMessageUseCase', () => {
           },
         )
         const stored = yield* selectMessages(chat.id)
-        assertEquals(sortById(stored), sortById([userMessage, assistantMessage]))
+        assertEquals(
+          stored,
+          Arr.sortWith([userMessage, assistantMessage], (message) => message.id, Order.String),
+        )
         assertEquals(yield* selectAttachments([photo.id]), [bound])
         assertEquals(
           yield* selectChat(chat.id),

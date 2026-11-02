@@ -30,22 +30,25 @@ describe('Attachment', () => {
   }
   const decode = Schema.decodeUnknownExit(Attachment)
 
-  it.each(['application/pdf', 'image/svg+xml', 'application/vnd.ms-excel'])(
-    'decodes the media type %j',
-    (mediaType) => {
-      assert.isTrue(Exit.isSuccess(decode({ ...encoded, mediaType })))
-    },
+  it.effect.each([
+    { mediaType: 'application/pdf' },
+    { mediaType: 'image/svg+xml' },
+    { mediaType: 'application/vnd.ms-excel' },
+  ])('decodes the media type $mediaType', ({ mediaType }) =>
+    Effect.sync(() => assert.isTrue(Exit.isSuccess(decode({ ...encoded, mediaType })))),
   )
 
   it('rejects an empty file name', () => {
     assert.isTrue(Exit.isFailure(decode({ ...encoded, fileName: '' })))
   })
 
-  it.each(['pdf', 'application/', '/pdf', 'image/png extra'])(
-    'rejects the media type %j',
-    (mediaType) => {
-      assert.isTrue(Exit.isFailure(decode({ ...encoded, mediaType })))
-    },
+  it.effect.each([
+    { mediaType: 'pdf' },
+    { mediaType: 'application/' },
+    { mediaType: '/pdf' },
+    { mediaType: 'image/png extra' },
+  ])('rejects the media type $mediaType', ({ mediaType }) =>
+    Effect.sync(() => assert.isTrue(Exit.isFailure(decode({ ...encoded, mediaType })))),
   )
 })
 
@@ -65,12 +68,12 @@ const bound = new Attachment({
 })
 
 describe('isExpiredAt', () => {
-  it.each([
+  it.effect.each([
     { now: '2026-10-18T23:59:59.999Z', expired: false },
     { now: '2026-10-19T00:00:00.000Z', expired: true },
-  ])('an unbound attachment made at 2026-10-18T00:00Z at $now: $expired', ({ now, expired }) => {
-    assert.strictEqual(isExpiredAt(DateTime.makeUnsafe(now))(unbound), expired)
-  })
+  ])('an unbound attachment made at 2026-10-18T00:00Z at $now: $expired', ({ now, expired }) =>
+    Effect.sync(() => assert.strictEqual(isExpiredAt(DateTime.makeUnsafe(now))(unbound), expired)),
+  )
 
   it('never expires a bound attachment, however old', () => {
     assert.isFalse(isExpiredAt(DateTime.makeUnsafe('2027-10-18T00:00:00.000Z'))(bound))

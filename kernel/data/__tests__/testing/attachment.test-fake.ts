@@ -14,15 +14,7 @@ import {
   Schema,
 } from 'effect'
 
-import {
-  deleteRows,
-  insertRow,
-  matches,
-  matchesAny,
-  orDieOnNoRows,
-  updateRows,
-  writeSet,
-} from '@app-template/packages/db/testing'
+import { orDieOnNoRows } from '@app-template/packages/db'
 
 import {
   AttachmentEntity,
@@ -30,6 +22,14 @@ import {
 } from '#kernel/data/attachment/attachment.entity'
 import { AttachmentRepository } from '#kernel/data/attachment/attachment.repository'
 import { MessageRepository } from '#kernel/data/chat/message.repository'
+import {
+  deleteRows,
+  insertRow,
+  matches,
+  matchesAny,
+  updateRows,
+  writeSet,
+} from '#testing/data/rows.test-util'
 
 /** The rows `AttachmentRepositoryTest` keeps, by id, for a test to arrange or read. */
 export class AttachmentRows extends Context.Service<

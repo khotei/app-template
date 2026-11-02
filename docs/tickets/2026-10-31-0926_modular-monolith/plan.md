@@ -41,7 +41,7 @@
 | S33 | the test layout told in one place | done |
 | S34 | the mappers checked by unit tests over the schemas | done |
 | S35 | `apps/__e2e__` → `apps/e2e`, a test app | done |
-| S36 | the branch review's test fixes | todo |
+| S36 | the branch review's test fixes | done |
 | S37 | the docs the branch review found out of step with the code | done |
 | S38 | the chat module in one shape | todo |
 | S39 | `biome.json` keeps only the import rules nothing else holds | todo |
@@ -1708,7 +1708,7 @@
 - **Delivers:** on the user's word after the branch review of 2026-11-02:
   - the reply's rollback through the api: a case in the journey's e2e adds a check the chat's
     move to `idle` breaks, sends a message, and the assistant message ends `failed` (through the
-    dead letter), never `done` with the chat still `queued`, so the worker's transaction is
+    last attempt's failure), never `done` with the chat still `queued`, so the worker's transaction is
     proven bound to its writes as the api's is;
   - `job.relay.e2e.ts`'s failing-batch case asserts the first log entry alone, since the relay's
     retry after 300 ms may log a second;
@@ -1724,8 +1724,8 @@
     provides `FetchHttpClient` to it, so the stand's copy goes;
   - the apps' `./testing` export their layers under their own names (`ApiLayer`, `WorkerLayer`):
     a `Test` suffix names a test double alone; the export stays `./testing` (S26).
-- **Goal:** R10 (the reply's writes in one transaction), R11 (`packages/testing` only shared
-  support).
+- **Goal:** R11 (`packages/testing` only shared support); the rollback case proves for the
+  worker's reply what R10's case proves for the api's send, that its writes commit together.
 - **Blocked by:** S34, S35.
 - **Files:** the suites and support named above, `apps/{api,worker}/__tests__/testing/`,
   `apps/e2e/testing/stand.test-layer.ts`, `docs/knowledge/tooling.md › Tests` where it names a
@@ -1735,7 +1735,23 @@
 - **Verify:** `make check`; `make test-e2e` counts one case more; `git grep -n 'sortById\|LayerTest\b'`
   finds none outside the ticket.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Ran in worktree N=1 beside S37 on the user's word. Unit 213 cases, e2e 103.
+  - The rollback adds `CHECK (status <> 'idle') NOT VALID` on the chats, so the chat, created
+    idle, stands and only the settle's move to idle is refused; red with `transaction.run` dropped
+    from the settle (`expected 'done' to equal 'failed'`). The last attempt fails the reply, the
+    dead letter then finds it settled.
+  - `rows.test-util.ts` moved to the data layer's memory repositories and reuses the database
+    package's `orDieOnNoRows` instead of its copy; `packages/db/testing` keeps `TransactionTest`.
+  - The Verify grep also finds `ClusterLayerTest` in the vendored `repos/effect`: not ours.
+  - Simplify: one sort of the expected messages, since the memory repository orders by creation
+    and then by id, as the database does; `layerApiClient(baseUrl, cookies)` positional, as
+    `effect-style.md` keeps two parameters.
+  - Review: the cookie jar had one reader after the merge and moved into `layerApiClient`; the
+    relay's case asserts every logged entry is the failure, however many polls ran; the rollback
+    case has 60 s, as it builds its own stand and waits out three attempts; `decisions.md` and the
+    ticket's D19 name where a unit's own support lives.
 
 
 #### S37 — The docs the branch review found out of step with the code
