@@ -8,7 +8,6 @@
   "references": [
     { "path": "../../application/chat" },
     { "path": "../../application/use-cases" },
-    { "path": "../../infrastructure" },
     { "path": "../../kernel" },
     { "path": "../../packages/db" },
     { "path": "../../packages/queue" },

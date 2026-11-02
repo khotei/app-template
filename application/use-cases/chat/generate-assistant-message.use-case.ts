@@ -21,6 +21,7 @@ import {
   type MessageStatusInvalidError,
   prepareMessage,
 } from '@app-template/chat/domain'
+import type { GenerateAssistantMessage } from '@app-template/chat/services'
 import {
   decodeChat,
   decodeMessage,
@@ -28,7 +29,6 @@ import {
   encodeMessage,
 } from '@app-template/chat/services'
 import { Transaction } from '@app-template/db'
-import type { GenerateAssistantMessage } from '@app-template/infrastructure/chat'
 import { ChatRepository, MessageRepository } from '@app-template/kernel/data/chat'
 import { FileRepository } from '@app-template/kernel/data/file'
 

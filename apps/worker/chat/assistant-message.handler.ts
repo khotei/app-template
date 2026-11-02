@@ -5,7 +5,7 @@ import {
   assistantMessageDeadLetterQueue,
   assistantMessageQueue,
   type GenerateAssistantMessage,
-} from '@app-template/infrastructure/chat'
+} from '@app-template/chat/services'
 import { type AttemptInfo, worker } from '@app-template/queue'
 import { GenerateAssistantMessageUseCase } from '@app-template/use-cases/chat'
 

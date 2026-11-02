@@ -3,11 +3,11 @@ import { Effect, Layer } from 'effect'
 import { HttpRouter } from 'effect/http'
 import { HttpApiBuilder } from 'effect/http-api'
 
+import { CurrentReplyProvenanceFromConfig } from '@app-template/chat/infrastructure'
 import { AttachmentService, ChatService, MessageService } from '@app-template/chat/services'
 import { Transaction } from '@app-template/db'
 import { Api } from '@app-template/http-api'
 import { UserService } from '@app-template/identity/services'
-import { CurrentReplyProvenance } from '@app-template/infrastructure/chat'
 import { S3BucketFromConfig } from '@app-template/kernel/aws'
 import { ApiConfig, MinimumLogLevelFromConfig, RuntimeConfig } from '@app-template/kernel/config'
 import { Db } from '@app-template/kernel/data'
@@ -49,7 +49,7 @@ const BunHttpServerFromConfig = Layer.unwrap(
 const LogApiStopped = Layer.effectDiscard(Effect.addFinalizer(() => Effect.logInfo('api stopped')))
 
 export const ApiLayer = Layer.merge(ApiHttp, LogApiStopped).pipe(
-  Layer.provide([QueueSenderJobs, Transaction.layer, CurrentReplyProvenance.layerFromConfig]),
+  Layer.provide([QueueSenderJobs, Transaction.layer, CurrentReplyProvenanceFromConfig]),
   Layer.provide([
     UserRepository.layer,
     ChatRepository.layer,

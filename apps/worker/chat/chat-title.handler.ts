@@ -4,7 +4,7 @@ import {
   chatTitleDeadLetterQueue,
   chatTitleQueue,
   type GenerateChatTitle,
-} from '@app-template/infrastructure/chat'
+} from '@app-template/chat/services'
 import { worker } from '@app-template/queue'
 import { GenerateChatTitleUseCase } from '@app-template/use-cases/chat'
 

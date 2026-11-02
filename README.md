@@ -80,10 +80,9 @@ The workspaces, from the bottom up; each imports only from the ones below it:
 
 | Workspace | Holds | Never holds |
 |---|---|---|
-| `application/<module>/` | a module (`chat`, `identity`): models (`Schema.Class`), branded ids, errors and ports in `domain/`, the domain services that own the rules in `services/` | SQL, HTTP, AWS, an `@effect/*` package (tests aside) |
+| `application/<module>/` | a module (`chat`, `identity`): models (`Schema.Class`), branded ids, errors and ports in `domain/`, the domain services that own the rules and the queue definitions in `services/`, the adapters of the ports (the LLM) in `infrastructure/` | SQL, an `@effect/*` package outside `infrastructure/` (tests aside) |
 | `http-api/` | the `HttpApi` contract over the domain's schemas, shared by the api and the browser | handlers, services |
 | `application/use-cases/` | use cases: a flow across domain services, the queue, the bucket, the assistant, in one `Transaction` | rules of an entity, adapters |
-| `infrastructure/` | adapters of the ports: Postgres repositories, the S3 bucket, the LLM | business rules |
 | `kernel/` | this app's configuration of its tools: the config services, the S3 and SQS clients, the AWS inventory, the table `jobs` and the queue's clients over it, the language model | business rules |
 | `packages/*` | generic clients (`queue`, `s3`, `llm`, the `aws` provisioner) knowing nothing of this app | domain imports |
 | `apps/*` | thin entry points: api and worker handlers, the browser client | rules |
@@ -110,9 +109,9 @@ One entity crosses every layer under the same folder name. The `chat` slice, by 
 ```text
 kernel/data/chat/                chat.table  chat.entity  chat.repository
 application/chat/domain/         chat.id  chat.model  chat.error  assistant.port
-application/chat/services/       chat.mapper  chat.service
+application/chat/services/       chat.mapper  chat.service  chat.queue
+application/chat/infrastructure/ assistant.llm
 application/use-cases/chat/      send-message.use-case  generate-assistant-message.use-case
-infrastructure/chat/             chat.queue  assistant.llm
 http-api/chat/                   chat.http
 apps/api/chat/                   chat.handler
 apps/worker/chat/                assistant-message.handler  chat-title.handler

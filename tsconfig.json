@@ -6,7 +6,6 @@
     { "path": "./application/identity" },
     { "path": "./application/identity/contract" },
     { "path": "./application/use-cases" },
-    { "path": "./infrastructure" },
     { "path": "./kernel" },
     { "path": "./packages/aws" },
     { "path": "./packages/db" },

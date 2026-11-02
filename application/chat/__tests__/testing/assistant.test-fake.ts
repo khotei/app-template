@@ -11,7 +11,12 @@ import {
 
 import type { AssistantError } from '#domain/assistant.error'
 import type { AssistantReply } from '#domain/assistant.model'
-import { Assistant, type HistoryMessage } from '#domain/assistant.port'
+import {
+  Assistant,
+  CurrentReplyProvenance,
+  type HistoryMessage,
+  ReplyProvenance,
+} from '#domain/assistant.port'
 import type { ChatTitle } from '#domain/chat.model'
 
 export interface AssistantScript {
@@ -69,3 +74,12 @@ export const holdAssistantCall = () => {
 }
 
 export type AssistantCallHold = ReturnType<typeof holdAssistantCall>
+
+/** The provenance every reply job carries under `CurrentReplyProvenanceTest`. */
+export const replyProvenance = new ReplyProvenance({
+  provider: 'anthropic',
+  model: 'claude-sonnet-5-5',
+  instructionsHash: 'a1b2c3',
+})
+
+export const CurrentReplyProvenanceTest = Layer.succeed(CurrentReplyProvenance, replyProvenance)

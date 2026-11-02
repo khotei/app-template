@@ -29,11 +29,11 @@ tool reads.
 | `.service` | a domain service: `<entity>.service.ts` for an entity's rules, `<operation>.service.ts` for one operation that belongs to no entity | a module's `services/` |
 | `.use-case` | a flow over domain services: `<verb>-<object>.use-case.ts` | application |
 | `.handler` | api: one contract group's handlers · worker: `<object>.handler.ts`, one queue's `handle` and `handleDeadLettered` over a use case | apps |
-| `.repository` · `.llm` · `.queue` | the data layer's access to a store (a table or an object store), `<Name>Repository` over its entities · `LanguageModel`, with the prompts · queue definitions and their job schemas | `kernel/data` · infrastructure |
+| `.repository` · `.llm` · `.queue` | the data layer's access to a store (a table or an object store), `<Name>Repository` over its entities · `LanguageModel`, with the prompts · queue definitions and their job schemas | `kernel/data` · a module's `infrastructure` · a module's `services` |
 | `.relay` | a layer that moves records from the database to a queue | kernel |
 | `.table` · `.entity` | a table, importing only tables · its entities, the schemas read from it, `<Name>Entity` with its `Insert`, `Where` and `Set`, and a `<Verb>Where` for the one verb whose filter differs | `kernel/data` |
 | `.mapper` | an entity's codec into a model, `<Model>FromEntity` | a module's `services` |
-| `.client` · `.transport` | client wiring · the service a package's client runs over | infrastructure, kernel, http-api, packages |
+| `.client` · `.transport` | client wiring · the service a package's client runs over | a module's `infrastructure`, kernel, http-api, packages |
 | `.http` | a contract group: one resource's routes (`HttpApiGroup`) | http-api |
 | `.test` · `.e2e` | a unit test, no process outside vitest · a test on the run's containers | `__tests__/` · `__e2e__/` |
 | `.test-fixture` | sample values (ids, dates, inputs, bytes); no Effect, no layers | `testing/` of either |

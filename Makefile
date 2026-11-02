@@ -228,9 +228,9 @@ test-e2e: ## Run the e2e tests under __e2e__/ on their own containers (Docker ru
 
 # Greps the service keys, string literals that survive the build however Bun applies
 # "sideEffects": docs/knowledge/architecture.md › Boundary guards.
-bundle-check: ## Fail when a domain service, port or adapter reaches the web bundle
+bundle-check: ## Fail when a service, use case, repository, port or adapter reaches the web bundle
 	bun build apps/web/app/main.ts --outdir node_modules/.cache/web-bundle --target browser
-	! grep -rE '@app-template/(infrastructure/[a-z-]+/[A-Za-z]*(Service|Repository|Bucket|Assistant)|[a-z-]+/(services|infrastructure)/|[a-z-]+/domain/[A-Za-z]*(Repository|Bucket|Assistant))' \
+	! grep -rE '@app-template/((use-cases|kernel)/|[a-z-]+/(services|infrastructure)/|[a-z-]+/domain/[A-Za-z]*(Assistant|Provenance))' \
 		node_modules/.cache/web-bundle
 
 clean: ## Remove installed dependencies, build caches and coverage

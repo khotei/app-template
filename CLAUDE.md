@@ -5,8 +5,8 @@ Bun + TypeScript 7 modular monolith; three processes: `apps/api`, `apps/worker`,
 
 ## Map
 
-`application/<module>/` a module's pure `domain/` and its `services/` · `http-api/` the HTTP
-contract shared by `api` and `web` · `infrastructure/` the adapters of the modules' ports ·
+`application/<module>/` a module's pure `domain/`, its `services/` and its `infrastructure/`, the
+adapters of its ports · `http-api/` the HTTP contract shared by `api` and `web` ·
 `application/use-cases/` the use cases ·
 `kernel/` this app's config, AWS clients and inventory · `packages/*` generic clients · `apps/*`
 thin entry points · `deployment/` local and AWS · `apps/__e2e__/` the e2e over assembled layers,

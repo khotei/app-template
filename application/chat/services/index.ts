@@ -1,5 +1,6 @@
 export * from '#services/attachment.mapper'
 export * from '#services/attachment.service'
 export * from '#services/chat.mapper'
+export * from '#services/chat.queue'
 export * from '#services/chat.service'
 export * from '#services/message.service'

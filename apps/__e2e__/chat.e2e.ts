@@ -9,8 +9,8 @@ import {
   type ChatId,
   type MessageId,
 } from '@app-template/chat/domain'
+import { GenerateAssistantMessage } from '@app-template/chat/services'
 import { ApiClient } from '@app-template/http-api'
-import { GenerateAssistantMessage } from '@app-template/infrastructure/chat'
 import { FileRepository } from '@app-template/kernel/data/file'
 import { assertSchemaEquals, png } from '@app-template/testing'
 

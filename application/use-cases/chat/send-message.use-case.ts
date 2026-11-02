@@ -8,6 +8,7 @@ import {
   type ChatBusyError,
   type ChatId,
   type ChatNotFoundError,
+  CurrentReplyProvenance,
   ensureMessageInput,
   Message,
   MessageId,
@@ -15,16 +16,17 @@ import {
   type MessageInputInvalidError,
   queueChat,
 } from '@app-template/chat/domain'
-import { AttachmentService, ChatService, encodeMessage } from '@app-template/chat/services'
-import { generateId, Transaction } from '@app-template/db'
-import type { UserId } from '@app-template/identity-contract'
 import {
+  AttachmentService,
   assistantMessageQueue,
-  CurrentReplyProvenance,
+  ChatService,
   chatTitleQueue,
+  encodeMessage,
   GenerateAssistantMessage,
   GenerateChatTitle,
-} from '@app-template/infrastructure/chat'
+} from '@app-template/chat/services'
+import { generateId, Transaction } from '@app-template/db'
+import type { UserId } from '@app-template/identity-contract'
 import { ChatRepository, MessageRepository } from '@app-template/kernel/data/chat'
 import { QueueSender } from '@app-template/queue'
 

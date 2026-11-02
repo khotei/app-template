@@ -57,7 +57,7 @@ paths:
   siblings that cannot feed each other. Never publish internals with `Layer.provideMerge`; the
   exception is the client a caller opens transactions on (`DbTest`).
 - A client never reads the environment (`SqliteClient.layerConfig` is rejected): `Config` turns
-  into options in `infrastructure` or the kernel, and only `@app-template/kernel/config` reads
-  variables.
+  into options in a module's `infrastructure` or the kernel, and only
+  `@app-template/kernel/config` reads variables.
 - A combinator that returns a `Layer` runs its effect in a fiber the layer's scope owns:
   `Effect.forkScoped` then `Layer.effectDiscard`, so closing the scope stops the work.

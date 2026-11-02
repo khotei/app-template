@@ -20,7 +20,6 @@
     "@app-template/http-api": "workspace:*",
     "@app-template/identity": "workspace:*",
     "@app-template/identity-contract": "workspace:*",
-    "@app-template/infrastructure": "workspace:*",
     "@app-template/kernel": "workspace:*",
     "@app-template/use-cases": "workspace:*",
     "@effect/platform-bun": "catalog:effect",

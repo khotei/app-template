@@ -1,4 +1,4 @@
-import { Context, type Effect, type Option } from 'effect'
+import { Context, type Effect, type Option, Schema } from 'effect'
 
 import type { AssistantError } from '#domain/assistant.error'
 import type { AssistantReply } from '#domain/assistant.model'
@@ -30,3 +30,19 @@ export class Assistant extends Context.Service<
     readonly suggestTitle: (text: string) => Effect.Effect<Option.Option<ChatTitle>, AssistantError>
   }
 >()('@app-template/chat/domain/Assistant') {}
+
+/**
+ * Who the api expects to answer a reply, and with which instructions, read by operators from the
+ * table `jobs`; the worker may run another model while a deploy rolls out.
+ */
+export class ReplyProvenance extends Schema.Class<ReplyProvenance>('ReplyProvenance')({
+  provider: Schema.String,
+  model: Schema.String,
+  instructionsHash: Schema.String,
+}) {}
+
+/** The provenance of every reply this process queues, fixed when its layer is built. */
+export class CurrentReplyProvenance extends Context.Service<
+  CurrentReplyProvenance,
+  ReplyProvenance
+>()('@app-template/chat/domain/CurrentReplyProvenance') {}

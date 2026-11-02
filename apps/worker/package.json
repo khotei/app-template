@@ -16,7 +16,6 @@
   "dependencies": {
     "@app-template/chat": "workspace:*",
     "@app-template/db": "workspace:*",
-    "@app-template/infrastructure": "workspace:*",
     "@app-template/kernel": "workspace:*",
     "@app-template/queue": "workspace:*",
     "@app-template/use-cases": "workspace:*",

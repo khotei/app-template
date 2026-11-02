@@ -12,17 +12,15 @@ live in `architecture.md › Decisions` of the scaffold ticket
 ```mermaid
 graph TD
   apps["apps/api · apps/worker"] --> application
-  application --> infrastructure
-  infrastructure --> modules
   application --> modules
   apps -->|"apps/api only"| httpApi["http-api"]
   httpApi --> modules["application/chat · application/identity (the modules)"]
   apps --> kernel["kernel (config · postgres · aws · llm · data)"]
-  infrastructure --> kernel
+  modules --> kernel
   kernel --> packages
   apps --> packages["packages/* (aws · db · queue · llm · s3 · testing · ui)"]
   application --> packages
-  infrastructure --> packages
+  modules --> packages
   web["apps/web client"] --> httpApi
   web --> ui["packages/ui"]
   webMain["apps/web/main.ts"] --> ui
@@ -32,19 +30,17 @@ graph TD
   e2e["apps/__e2e__ (the e2e over assembled layers)"] -->|"api/layer · worker/layer"| apps
   e2e --> httpApi
   e2e --> application
-  e2e --> infrastructure
 ```
 
-Imports only go **down**: `apps` → `application` → `infrastructure` → the modules, and
+Imports only go **down**: `apps` → `application` → the modules, and
 `apps/api` and `apps/web` → `http-api` → a module's `domain`. A layer may skip levels: the use
 cases usually import the modules directly. The `apps/__e2e__` workspace sits above the apps: it
 runs both app layers in one test process, and the use cases on Postgres, and nothing imports it.
 
 | Workspace | Holds | Rules |
 |---|---|---|
-| `application/chat/` | the chat module: chats, messages, the assistant and attachments; models with their pure operations, errors and ports in `domain/`, the domain services that own the rules over them in `services/`; no I/O of its own, time and ids only through `DateTime.now` and `Crypto` | [application/CLAUDE.md](../../application/CLAUDE.md) |
+| `application/chat/` | the chat module: chats, messages, the assistant and attachments; models with their pure operations, errors and ports in `domain/`, the domain services that own the rules over them and the queue definitions in `services/`, the adapter of the assistant in `infrastructure/`; no I/O outside `infrastructure/`, time and ids only through `DateTime.now` and `Crypto` | [application/CLAUDE.md](../../application/CLAUDE.md) |
 | `http-api/` | the HTTP contract (`HttpApi`) over the domain, shared by `apps/api` and the browser | [http-api/CLAUDE.md](../../http-api/CLAUDE.md) |
-| `infrastructure/` | adapters that implement domain ports on top of `packages/*` clients | [infrastructure/CLAUDE.md](../../infrastructure/CLAUDE.md) |
 | `application/identity/` | the first module: the user and its credential in `domain/`, `UserService` in `services/`; reached from outside only through its contract | [layering.md](../../.claude/rules/layering.md) |
 | `application/identity/contract/` | `@app-template/identity-contract`, what other workspaces need of identity: `UserId`, `UserUnknownError`, `CurrentUser`, `Auth` | this table |
 | `application/use-cases/` | use cases: the flows that join the domain's writes in one transaction, or reach the queue, the bucket or the assistant | [layering.md](../../.claude/rules/layering.md) |
@@ -61,23 +57,23 @@ modules, today `chat` and `identity`, the latter with its contract nested in `id
 
 Each row lists what a workspace may import.
 
-| From ↓ / may import → | a module | http-api | infrastructure | use-cases | kernel | packages/* | apps |
-|---|---|---|---|---|---|---|---|
-| a module | — | ✗ | ✗ | ✗ | ✗ | `db` in `services/` only | ✗ |
-| http-api | `domain` only | — | ✗ | ✗ | ✗ | ✗ | ✗ |
-| infrastructure | all but `services` | ✗ | — | ✗ | ✓ | ✓ | ✗ |
-| use-cases | ✓ | ✗ | ✓ | — | ✓ | ✓ | ✗ |
-| kernel | ✗ | ✗ | ✗ | ✗ | — | ✓ | ✗ |
-| packages/* | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ (each other) | ✗ |
-| apps/api | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ (no sibling app) |
-| apps/worker | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ | ✗ (no sibling app) |
-| apps/web client (`app/`, `features/`, `shared/`) | ✗ | ✓ | ✗ | ✗ | ✗ | `ui` only | ✗ |
-| apps/web/main.ts | ✗ | ✗ | ✗ | ✗ | `config` only | `ui` | ✗ |
-| deployment | ✗ | ✗ | ✗ | ✗ | ✓ | ✓ | ✗ |
-| apps/__e2e__ | ✓ | ✓ | ✓ | ✓ | ✓ | `db`, `testing` | ✓ (`api/layer`, `worker/layer`) |
+| From ↓ / may import → | a module | http-api | use-cases | kernel | packages/* | apps |
+|---|---|---|---|---|---|---|
+| a module | — | ✗ | ✗ | `data/*`, `aws/resources` in `services/`; ✓ in `infrastructure/` | `db`, `aws`, `queue` in `services/`; ✓ in `infrastructure/` | ✗ |
+| http-api | `domain` only | — | ✗ | ✗ | ✗ | ✗ |
+| use-cases | ✓ | ✗ | — | ✓ | ✓ | ✗ |
+| kernel | ✗ | ✗ | ✗ | — | ✓ | ✗ |
+| packages/* | ✗ | ✗ | ✗ | ✗ | ✓ (each other) | ✗ |
+| apps/api | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ (no sibling app) |
+| apps/worker | ✓ | ✗ | ✓ | ✓ | ✓ | ✗ (no sibling app) |
+| apps/web client (`app/`, `features/`, `shared/`) | ✗ | ✓ | ✗ | ✗ | `ui` only | ✗ |
+| apps/web/main.ts | ✗ | ✗ | ✗ | `config` only | `ui` | ✗ |
+| deployment | ✗ | ✗ | ✗ | ✓ | ✓ | ✗ |
+| apps/__e2e__ | ✓ | ✓ | ✓ | ✓ | `db`, `testing` | ✓ (`api/layer`, `worker/layer`) |
 
-- **A module imports `effect` and no workspace but the contracts and `@app-template/db`, in its
-  `services/` only** (for `generateId`). Its `domain/` and `services/` import no `@effect/*`
+- **A module's `domain/` imports `effect` and no workspace but the contracts; its `services/`
+  also `@app-template/db` (for `generateId`), the data layer's stores, the inventory and the queue
+  packages for the job definitions.** Its `domain/` and `services/` import no `@effect/*`
   package at all, so they stay pure and testable without fakes; `type-fest` they import for
   types only (`RequireAtLeastOne`). Its `__tests__/` may also import the test support
   `@app-template/testing` and `@app-template/kernel/testing` and the test runner
@@ -138,8 +134,8 @@ Using the `chat` slice as the map:
 | Postgres client from config and the migrations | `kernel/postgres/`, `kernel/data/` | `PgClientFromConfig` and `applyMigrations`, the `make migrate` program, in `@app-template/kernel/postgres`; `migrationsFolder` over `migrations/` and `drizzle.config.ts` in `kernel/data/`; the e2e run's setup in `kernel/__e2e__/testing/e2e.test-setup.ts` |
 | tables, entities and relations | `kernel/data/chat/chat.table.ts`, `chat.entity.ts`; `kernel/data/relations.ts` | `chats` (`snakeCase.table`), `ChatEntity`, `relations` |
 | mapper from an entity to a model | `application/chat/services/chat.mapper.ts` | `ChatFromEntity`, `MessageFromEntity` with their codecs `encodeChat`, `decodeChat` …, built by `encodeRowWith` and `decodeOptionalWith` from `@app-template/db` |
-| adapter implementing a port | `infrastructure/chat/assistant.llm.ts` | `AssistantLlm` (with the prompts, over a language model per purpose that the kernel's `createLanguageModel` builds on the provider `LLM_PROVIDER` picks: [ai.md](ai.md)), a `Layer` of its port |
-| queue definitions | `infrastructure/chat/chat.queue.ts` | `assistantMessageQueue`, `GenerateAssistantMessage` (the job schema) |
+| adapter implementing a port | `application/chat/infrastructure/assistant.llm.ts` | `AssistantLlm` (with the prompts, over a language model per purpose that the kernel's `createLanguageModel` builds on the provider `LLM_PROVIDER` picks: [ai.md](ai.md)), a `Layer` of its port |
+| queue definitions | `application/chat/services/chat.queue.ts` | `assistantMessageQueue`, `GenerateAssistantMessage` (the job schema) |
 | the queue's clients and the relay from the database to a queue | `kernel/queue/queue.client.ts`, `job.relay.ts`; `kernel/data/job/job.repository.ts` | `QueueSenderJobs`, `QueueConsumerSqs`, `JobRelay` (a worker `Layer` that runs a fiber and provides nothing), all over `JobRepository` |
 | use case composing domain services | `application/use-cases/chat/send-message.use-case.ts`, `generate-assistant-message.use-case.ts` | `SendMessageUseCase`, `SendMessageUseCase.layer`, `GenerateAssistantMessageUseCase` |
 | contract group | `http-api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`), the DTOs `Chat`, `Message` |
@@ -199,10 +195,11 @@ Pascal one (`Document`).
    layers, with `TransactionTest` and `recordQueue()`, and its transaction in
    `apps/__e2e__/use-cases/` with a write the database refuses. Shared test support goes in
    `application/use-cases/__tests__/testing/`. Add `index.ts` and the `exports` entry.
-9. **Job, if the entity has asynchronous work.** `infrastructure/<entity>/<entity>.queue.ts`
+9. **Job, if the entity has asynchronous work.** `application/<module>/services/<entity>.queue.ts`
    holds the queue definitions (name, job schema, retry policy, `jobId`); a model the work calls
-   is a domain port with its `.llm.ts` adapter, which holds the prompts. The use case that starts
-   the work sends the job with `QueueSender.send` from `packages/queue`;
+   is a domain port with its `.llm.ts` adapter in the module's `infrastructure/`, which holds the
+   prompts. The use case that starts the work sends the job with `QueueSender.send` from
+   `packages/queue`;
    `apps/worker/<entity>/<object>.handler.ts` holds `handle` and `handleDeadLettered` over a use
    case and their `worker` layer, which `apps/worker/layer.ts` merges and provides with the
    data layer's repositories and the adapters the handlers read. Test `handle` in
@@ -237,10 +234,10 @@ checks what the import rules leave to tree shaking, the web bundle:
 
 | Guard | Catches | Reports |
 |---|---|---|
-| Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json` | an import that goes up a layer or into a sibling app; any relative path; a workspace or an `@effect/*` package in a layer of a module but the contracts, per layer (`application/*/domain/**`; `services/**`, which may also import `@app-template/db`; `contract/**`; `__tests__/**`, which may also import `@app-template/testing`, `@app-template/kernel/testing`, the data layer's stores and the test runners); e2e support (`#testing-e2e/*`, `./testing-e2e`) in a unit test or its support; a workspace other than a contract or a module's `domain`, or an `@effect/*` package, in `http-api`; `http-api` in a lower layer, a package, the worker or `deployment` | `make lint`, `pre-commit`, CI `static` |
+| Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json` | an import that goes up a layer or into a sibling app; any relative path; a workspace or an `@effect/*` package in a layer of a module but the contracts, per layer (`application/*/domain/**`; `services/**`, which may also import `@app-template/db`, `@app-template/aws`, `@app-template/queue`, `@app-template/kernel/aws/resources` and the data layer's stores; `contract/**`; `__tests__/**`, which may also import `@app-template/testing`, `@app-template/kernel/testing`, `@app-template/kernel/aws/resources`, the data layer's stores and the test runners); a use case, an app or a module's services in a module's infrastructure (`application/*/infrastructure/**` and its tests' `application/*/__tests__/infrastructure/**`); e2e support (`#testing-e2e/*`, `./testing-e2e`) in a unit test or its support; a workspace other than a contract or a module's `domain`, or an `@effect/*` package, in `http-api`; `http-api` in a lower layer, a package, the worker or `deployment` | `make lint`, `pre-commit`, CI `static` |
 | the isolated linker with `tsc -b` | an allowed import of a workspace that is not declared in `package.json` | TS2307 in `make typecheck` and at runtime |
 | `composite` project references (`rootDir: "."`) | a path that reaches into an unreferenced workspace's files | TS6059 / TS6307 in `make typecheck` |
-| `make bundle-check`: `bun build` of `apps/web/app/main.ts`, then a `grep` of the bundle | a domain service or port in the browser bundle, or an adapter, which carries its port's key: a value import of one that `http-api` passes on; a module's `services/` or `infrastructure/` key, or a port key of its `domain/` | the matched service keys, in `make check` |
+| `make bundle-check`: `bun build` of `apps/web/app/main.ts`, then a `grep` of the bundle | a domain service or port in the browser bundle, or an adapter, which carries its port's key: a value import of one that `http-api` passes on; a key of the kernel (the data layer's repositories among them), of the use cases, of a module's `services/` or `infrastructure/`, or a port key of its `domain/` | the matched service keys, in `make check` |
 
 The Biome overrides are **deny-lists**: each names the workspaces a layer must not import. A new
 `packages/*` workspace therefore needs no change to them, while a new layer or app does. The

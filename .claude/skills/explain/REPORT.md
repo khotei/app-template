@@ -14,9 +14,9 @@ Three to five sentences: what was built, how it sits in the system, what to hold
 ### 2. Карта изменений
 
 A Mermaid `flowchart LR` of the modules in scope and their neighbours. One `subgraph` per layer
-(`application`, `infrastructure`, `kernel`, `http-api`, `apps`, `packages`), so the import direction
-is visible. `A --> B` means "A depends on / calls B"; label the edge when the relation is not
-obvious (`-->|"enqueues job"|`).
+(`application`, `kernel`, `http-api`, `apps`, `packages`), so the import direction is visible.
+`A --> B` means "A depends on / calls B"; label the edge when the relation is not obvious
+(`-->|"enqueues job"|`).
 
 ```
 classDef added fill:#d4f7d4,stroke:#2a2

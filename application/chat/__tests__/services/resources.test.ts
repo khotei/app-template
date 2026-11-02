@@ -1,8 +1,9 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Duration } from 'effect'
 
-import { unboundLifetime } from '@app-template/chat/domain'
 import { resources } from '@app-template/kernel/aws/resources'
+
+import { unboundLifetime } from '#domain/attachment.model'
 
 describe('the inventory and the attachment lifetime agree', () => {
   it('the attachments bucket expires unbound objects no sooner than unboundLifetime', () => {

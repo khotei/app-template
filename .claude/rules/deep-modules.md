@@ -2,7 +2,6 @@
 paths:
   - "application/**"
   - "apps/**"
-  - "infrastructure/**"
   - "kernel/**"
 ---
 

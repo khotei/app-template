@@ -8,8 +8,7 @@ columns, the query helpers, `migrateDatabase(folder)` and `retryWhileUnreachable
 migrate program), `kernel/data/` (the client `Db`, made by `createDb(relations)` over the
 `PgClient` in the context; the tables, their entities, the relations, the migrations and
 `drizzle.config.ts`; the data layer's repositories over them) and the mappers in a module's
-`services/` (`UserFromEntity`) or, while chat's ports remain, beside their adapters in
-`infrastructure/<aggregate>/`.
+`services/` (`UserFromEntity`, `ChatFromEntity`).
 Drizzle runs on `@effect/sql-pg` and is reached only through Effect: every query is an `Effect`,
 never a promise.
 

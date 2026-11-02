@@ -8,6 +8,7 @@ import {
   Chat,
   ChatTitle,
 } from '@app-template/chat/domain'
+import { GenerateChatTitle } from '@app-template/chat/services'
 import {
   type AssistantCallHold,
   chat,
@@ -20,7 +21,6 @@ import {
   recordAssistant,
   selectChat,
 } from '@app-template/chat/testing'
-import { GenerateChatTitle } from '@app-template/infrastructure/chat'
 import { ChatRepository } from '@app-template/kernel/data/chat'
 import { recordLogs } from '@app-template/testing'
 

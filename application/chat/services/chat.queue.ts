@@ -1,9 +1,11 @@
 import { Duration, Schema } from 'effect'
 
 import { buildDeadLetterName } from '@app-template/aws'
-import { ChatId, MessageId } from '@app-template/chat/domain'
 import { resources } from '@app-template/kernel/aws/resources'
 import type { QueueDefinition } from '@app-template/queue'
+
+import { ReplyProvenance } from '#domain/assistant.port'
+import { ChatId, MessageId } from '#domain/chat.id'
 
 const { assistantMessage, chatTitle } = resources.queues
 
@@ -21,16 +23,6 @@ const buildDeadLetterQueue = <A, I>(
   maxAttempts: Number.MAX_SAFE_INTEGER,
   retryDelay: (attempt) => Duration.min(buildDoublingDelay(attempt), Duration.minutes(5)),
 })
-
-/**
- * Who the api expects to answer a reply, and with which instructions, read by operators from the
- * table `jobs`; the worker may run another model while a deploy rolls out.
- */
-export class ReplyProvenance extends Schema.Class<ReplyProvenance>('ReplyProvenance')({
-  provider: Schema.String,
-  model: Schema.String,
-  instructionsHash: Schema.String,
-}) {}
 
 export class GenerateAssistantMessage extends Schema.Class<GenerateAssistantMessage>(
   'GenerateAssistantMessage',

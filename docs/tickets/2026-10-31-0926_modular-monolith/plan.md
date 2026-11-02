@@ -24,7 +24,7 @@
 | S16 | the memory repositories over entities in the kernel's test support | done |
 | S17 | chat's services and the use cases over the data layer; the repository ports gone | done |
 | S18 | `FileRepository` in the data layer; the bucket port gone | done |
-| S19 | chat's assistant in `application/chat/infrastructure`; no `infrastructure` workspace | todo |
+| S19 | chat's assistant in `application/chat/infrastructure`; no `infrastructure` workspace | done |
 | S20 | the decisions document and the modules review rule | todo |
 | S21 | the Biome guards per ring and layer | todo |
 | S22 | `architecture.md` rewritten for the rings | todo |
@@ -946,8 +946,8 @@
   `domain/`, beside `Assistant`, and their config layer stays in `infrastructure/` as
   `CurrentReplyProvenanceFromConfig`. The queue definitions live in `application/chat/services`
   and take their names from `@app-template/kernel/aws/resources`. The `infrastructure` workspace
-  is gone; keys read `'@app-template/chat/infrastructure/<Name>'`; `make bundle-check` greps only
-  the new forms. `application/CLAUDE.md` takes `infrastructure/CLAUDE.md`'s rules.
+  is gone; no service is keyed in a module's `infrastructure/`, whose adapters carry their
+  ports' keys; `make bundle-check` greps only the new forms. `application/CLAUDE.md` takes `infrastructure/CLAUDE.md`'s rules.
 - **Goal:** chat whole in its module; the old layer workspaces gone (R2, R6, R7, R8, R16, D1, D4).
 - **Blocked by:** S7, S10, S18.
 - **Files:** `infrastructure/chat/assistant.llm.ts` → `application/chat/infrastructure/`;
@@ -971,9 +971,37 @@
   journey pass at their new paths.
 - **Verify:** `make check`; `git grep -n "@app-template/infrastructure"` finds nothing;
   `ls infrastructure` fails; `make bundle-check` fails on throwaway imports of `FileRepository`,
-  `SendMessageUseCase` and the `Assistant` port into the web app (reverted).
+  `SendMessageUseCase` and the `Assistant` port into the web app, the last two with throwaway web
+  dependencies on `@app-template/chat` and `@app-template/use-cases` (all reverted).
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - No key reads `'@app-template/chat/infrastructure/<Name>'`, as the Delivers first said:
+    `CurrentReplyProvenance` is a port of chat's domain, keyed
+    `'@app-template/chat/domain/CurrentReplyProvenance'`, and the adapter is a `Layer` caught
+    through the domain keys it carries. The Delivers now says so.
+  - Without web dependencies on `@app-template/chat` and `@app-template/use-cases`, a throwaway
+    import fails `bun build` on resolution before the grep runs, so the pattern stays untested;
+    the Verify now names them. `FileRepository` needs none: the web app depends on the kernel.
+  - A module's `services/**` may import `@app-template/aws`, `@app-template/queue` and
+    `@app-template/kernel/aws/resources`, which the queue definitions need, and its tests
+    `kernel/aws/resources`; the matrix allows them.
+  - A new override `application/*/__tests__/infrastructure/**` lets the adapter's suite import
+    `@effect/ai-anthropic`'s types, which the module's tests override bans.
+  - For S21: the `application/*/infrastructure/**` override, copied from the old one, passes
+    `#services/**` and other modules though its message bans them, and the use cases' override
+    does not ban `@app-template/*/infrastructure`; both predate this step.
+  - `application/CLAUDE.md`'s "No I/O" now reads over the module's `infrastructure/` too, where the
+    adapter calls `HttpClient`: S20 or S22 words it.
+  - The moved files import through `#domain/*` and `#testing/*`, not the package's own name; the
+    adapter's `describe` is `CurrentReplyProvenanceFromConfig`.
+  - `layering.md` was untouched: its `paths:` names no `infrastructure/**`.
+  - Beyond the Files: `.claude/skills/explain/REPORT.md`, `docs/knowledge/glossary.md`, the
+    module row of `docs/knowledge/architecture.md`'s matrix (stale since S17), the use cases'
+    Biome message. `.github/PULL_REQUEST_example.md` still names the old layers; it is an example.
+  - Round S19.2 (review): `aws.md`'s queue line, `REPORT.md`'s wrap, the Biome row of Boundary
+    guards.
+  - Size: 57 files, +275 / −355.
 
 #### S20 — The decisions document and the modules rule
 

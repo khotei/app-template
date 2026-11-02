@@ -100,92 +100,6 @@
       }
     },
     {
-      "includes": ["infrastructure/**"],
-      "linter": {
-        "rules": {
-          "style": {
-            "noRestrictedImports": {
-              "level": "error",
-              "options": {
-                "patterns": [
-                  {
-                    "group": [
-                      "@app-template/use-cases",
-                      "@app-template/use-cases/**",
-                      "@app-template/api",
-                      "@app-template/api/**",
-                      "@app-template/worker",
-                      "@app-template/worker/**",
-                      "@app-template/web",
-                      "@app-template/web/**",
-                      "@app-template/deployment",
-                      "@app-template/deployment/**",
-                      "@app-template/http-api",
-                      "@app-template/http-api/**",
-                      "@app-template/*/services",
-                      "@app-template/*/services/**"
-                    ],
-                    "message": "infrastructure may import only a module's domain and contract, and packages/*: no upward imports, no module's services"
-                  },
-                  {
-                    "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
-                  }
-                ]
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "includes": ["infrastructure/__tests__/**"],
-      "linter": {
-        "rules": {
-          "style": {
-            "noRestrictedImports": {
-              "level": "error",
-              "options": {
-                "patterns": [
-                  {
-                    "group": [
-                      "@app-template/use-cases",
-                      "@app-template/use-cases/**",
-                      "@app-template/api",
-                      "@app-template/api/**",
-                      "@app-template/worker",
-                      "@app-template/worker/**",
-                      "@app-template/web",
-                      "@app-template/web/**",
-                      "@app-template/deployment",
-                      "@app-template/deployment/**",
-                      "@app-template/http-api",
-                      "@app-template/http-api/**",
-                      "@app-template/*/services",
-                      "@app-template/*/services/**"
-                    ],
-                    "message": "infrastructure may import only a module's domain and contract, and packages/*: no upward imports, no module's services"
-                  },
-                  {
-                    "group": [
-                      "#testing-e2e/**",
-                      "@app-template/*/testing-e2e",
-                      "@app-template/*/testing-e2e/**"
-                    ],
-                    "message": "a unit test and its support import no e2e support (#testing-e2e/\u2026, @app-template/*/testing-e2e): unit tests run with no container"
-                  },
-                  {
-                    "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
-                  }
-                ]
-              }
-            }
-          }
-        }
-      }
-    },
-    {
       "includes": ["application/*/domain/**"],
       "linter": {
         "rules": {
@@ -230,17 +144,59 @@
                   {
                     "group": [
                       "@app-template/**",
+                      "!@app-template/aws",
                       "!@app-template/db",
+                      "!@app-template/queue",
+                      "!@app-template/kernel/aws/resources",
                       "!@app-template/kernel/data/*",
                       "!@app-template/*-contract",
                       "!@app-template/*-contract/**",
                       "@effect/**"
                     ],
-                    "message": "a module's services import no workspace but @app-template/db for generateId and the mappers' codecs, the data layer's stores (@app-template/kernel/data/*) and the module contracts, and no @effect/* package"
+                    "message": "a module's services import no workspace but @app-template/db for generateId and the mappers' codecs, @app-template/aws and @app-template/queue for the job definitions, the inventory (@app-template/kernel/aws/resources), the data layer's stores (@app-template/kernel/data/*) and the module contracts, and no @effect/* package"
                   },
                   {
                     "group": ["#infrastructure/**"],
                     "message": "a module's services reach its infrastructure only through a port"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["application/*/infrastructure/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/use-cases",
+                      "@app-template/use-cases/**",
+                      "@app-template/api",
+                      "@app-template/api/**",
+                      "@app-template/worker",
+                      "@app-template/worker/**",
+                      "@app-template/web",
+                      "@app-template/web/**",
+                      "@app-template/deployment",
+                      "@app-template/deployment/**",
+                      "@app-template/http-api",
+                      "@app-template/http-api/**",
+                      "@app-template/*/services",
+                      "@app-template/*/services/**"
+                    ],
+                    "message": "a module's infrastructure may import its domain, the contracts, the kernel and packages/*: no upward imports, no module's services"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -294,6 +250,7 @@
                       "!@app-template/*-contract",
                       "!@app-template/*-contract/**",
                       "!@app-template/kernel/testing",
+                      "!@app-template/kernel/aws/resources",
                       "!@app-template/kernel/data/*",
                       "@effect/**",
                       "!@effect/vitest",
@@ -301,7 +258,7 @@
                       "!@effect/platform-bun",
                       "!@effect/platform-bun/**"
                     ],
-                    "message": "a module's tests import no workspace but @app-template/testing, the module contracts, @app-template/kernel/testing and the data layer's stores (@app-template/kernel/data/*) they arrange through, and no @effect/* package except the test runner @effect/vitest and @effect/platform-bun for BunCrypto.layer"
+                    "message": "a module's tests import no workspace but @app-template/testing, the module contracts, @app-template/kernel/testing, the inventory (@app-template/kernel/aws/resources) and the data layer's stores (@app-template/kernel/data/*) they arrange through, and no @effect/* package except the test runner @effect/vitest and @effect/platform-bun for BunCrypto.layer"
                   },
                   {
                     "group": [
@@ -366,6 +323,53 @@
       }
     },
     {
+      "includes": ["application/*/__tests__/infrastructure/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/use-cases",
+                      "@app-template/use-cases/**",
+                      "@app-template/api",
+                      "@app-template/api/**",
+                      "@app-template/worker",
+                      "@app-template/worker/**",
+                      "@app-template/web",
+                      "@app-template/web/**",
+                      "@app-template/deployment",
+                      "@app-template/deployment/**",
+                      "@app-template/http-api",
+                      "@app-template/http-api/**",
+                      "@app-template/*/services",
+                      "@app-template/*/services/**"
+                    ],
+                    "message": "a module's infrastructure may import its domain, the contracts, the kernel and packages/*: no upward imports, no module's services"
+                  },
+                  {
+                    "group": [
+                      "#testing-e2e/**",
+                      "@app-template/*/testing-e2e",
+                      "@app-template/*/testing-e2e/**"
+                    ],
+                    "message": "a unit test and its support import no e2e support (#testing-e2e/\u2026, @app-template/*/testing-e2e): unit tests run with no container"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["application/use-cases/**"],
       "linter": {
         "rules": {
@@ -387,7 +391,7 @@
                       "@app-template/http-api",
                       "@app-template/http-api/**"
                     ],
-                    "message": "use-cases may import infrastructure, the modules and packages/*: no upward imports"
+                    "message": "use-cases may import the modules, the kernel and packages/*: no upward imports"
                   },
                   {
                     "group": ["./**", "../**"],
@@ -422,7 +426,7 @@
                       "@app-template/http-api",
                       "@app-template/http-api/**"
                     ],
-                    "message": "use-cases may import infrastructure, the modules and packages/*: no upward imports"
+                    "message": "use-cases may import the modules, the kernel and packages/*: no upward imports"
                   },
                   {
                     "group": [
@@ -456,8 +460,6 @@
                     "group": [
                       "@app-template/chat",
                       "@app-template/chat/**",
-                      "@app-template/infrastructure",
-                      "@app-template/infrastructure/**",
                       "@app-template/use-cases",
                       "@app-template/use-cases/**",
                       "@app-template/api",
@@ -497,8 +499,6 @@
                     "group": [
                       "@app-template/chat",
                       "@app-template/chat/**",
-                      "@app-template/infrastructure",
-                      "@app-template/infrastructure/**",
                       "@app-template/use-cases",
                       "@app-template/use-cases/**",
                       "@app-template/api",
@@ -546,8 +546,6 @@
                     "group": [
                       "@app-template/chat",
                       "@app-template/chat/**",
-                      "@app-template/infrastructure",
-                      "@app-template/infrastructure/**",
                       "@app-template/use-cases",
                       "@app-template/use-cases/**",
                       "@app-template/api",
@@ -589,8 +587,6 @@
                     "group": [
                       "@app-template/chat",
                       "@app-template/chat/**",
-                      "@app-template/infrastructure",
-                      "@app-template/infrastructure/**",
                       "@app-template/use-cases",
                       "@app-template/use-cases/**",
                       "@app-template/api",
@@ -843,8 +839,6 @@
                     "group": [
                       "@app-template/chat",
                       "@app-template/chat/**",
-                      "@app-template/infrastructure",
-                      "@app-template/infrastructure/**",
                       "@app-template/use-cases",
                       "@app-template/use-cases/**",
                       "@app-template/api",

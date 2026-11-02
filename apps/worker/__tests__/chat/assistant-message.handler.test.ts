@@ -4,6 +4,11 @@ import { Effect, Exit, Fiber, Layer, Option, Schema } from 'effect'
 
 import { AssistantReply, buildAssistantMessage, Chat, Message } from '@app-template/chat/domain'
 import {
+  assistantMessageDeadLetterQueue,
+  assistantMessageQueue,
+  GenerateAssistantMessage,
+} from '@app-template/chat/services'
+import {
   chat,
   chatId,
   deleteChat,
@@ -12,15 +17,10 @@ import {
   messageId,
   queuedChat,
   recordAssistant,
+  replyProvenance,
   selectChat,
   selectMessage,
 } from '@app-template/chat/testing'
-import {
-  assistantMessageDeadLetterQueue,
-  assistantMessageQueue,
-  GenerateAssistantMessage,
-} from '@app-template/infrastructure/chat'
-import { replyProvenance } from '@app-template/infrastructure/testing'
 import type { AttemptInfo } from '@app-template/queue'
 import { epoch, recordLogs } from '@app-template/testing'
 import { AssistantMessageTest } from '@app-template/use-cases/testing'

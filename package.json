@@ -7,7 +7,6 @@
     "http-api",
     "application/*",
     "application/*/contract",
-    "infrastructure",
     "kernel",
     "packages/*",
     "apps/*",

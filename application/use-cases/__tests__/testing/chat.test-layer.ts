@@ -2,9 +2,13 @@ import { BunCrypto } from '@effect/platform-bun'
 import { Layer } from 'effect'
 
 import { AttachmentService, ChatService } from '@app-template/chat/services'
-import { chat, insertChatLayer, queuedChat } from '@app-template/chat/testing'
+import {
+  CurrentReplyProvenanceTest,
+  chat,
+  insertChatLayer,
+  queuedChat,
+} from '@app-template/chat/testing'
 import { TransactionTest } from '@app-template/db/testing'
-import { CurrentReplyProvenanceTest } from '@app-template/infrastructure/testing'
 import { RepositoryStackTest } from '@app-template/kernel/testing'
 
 import { GenerateAssistantMessageUseCase } from '#use-cases/chat/generate-assistant-message.use-case'

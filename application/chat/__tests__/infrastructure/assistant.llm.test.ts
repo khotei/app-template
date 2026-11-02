@@ -16,28 +16,27 @@ import {
 import { HttpClient, type HttpClientRequest, HttpClientResponse } from 'effect/http'
 import { TestClock } from 'effect/testing'
 
-import {
-  Assistant,
-  type AssistantError,
-  AssistantReply,
-  Attachment,
-  AttachmentId,
-  buildAttachment,
-  ChatTitle,
-  FileName,
-  FileSize,
-  type HistoryMessage,
-  MediaType,
-  MessageId,
-} from '@app-template/chat/domain'
-import { asCompleted, assistantMessageAt, owner, userMessageAt } from '@app-template/chat/testing'
 import { epoch, png } from '@app-template/testing'
 
+import type { AssistantError } from '#domain/assistant.error'
+import { AssistantReply } from '#domain/assistant.model'
+import { Assistant, CurrentReplyProvenance, type HistoryMessage } from '#domain/assistant.port'
+import { AttachmentId } from '#domain/attachment.id'
+import {
+  Attachment,
+  buildAttachment,
+  FileName,
+  FileSize,
+  MediaType,
+} from '#domain/attachment.model'
+import { MessageId } from '#domain/chat.id'
+import { ChatTitle } from '#domain/chat.model'
 import {
   AssistantLlm,
-  CurrentReplyProvenance,
+  CurrentReplyProvenanceFromConfig,
   generateInstructionsHash,
-} from '#infrastructure/chat/assistant.llm'
+} from '#infrastructure/assistant.llm'
+import { asCompleted, assistantMessageAt, owner, userMessageAt } from '#testing/chat.test-fixture'
 
 type RequestBody = typeof Generated.BetaCreateMessageParams.Encoded
 
@@ -513,7 +512,7 @@ describe('generateInstructionsHash', () => {
   )
 })
 
-describe('CurrentReplyProvenance', () => {
+describe('CurrentReplyProvenanceFromConfig', () => {
   it.effect(
     'names the configured provider and reply model with the instructions hash, and needs no key',
     () =>
@@ -523,7 +522,7 @@ describe('CurrentReplyProvenance', () => {
         assert.deepStrictEqual({ provider, model }, { provider: 'anthropic', model: replyModel })
         assert.match(instructionsHash, /^[0-9a-f]{64}$/)
       }).pipe(
-        Effect.provide(CurrentReplyProvenance.layerFromConfig),
+        Effect.provide(CurrentReplyProvenanceFromConfig),
         Effect.provide([
           BunCrypto.layer,
           ConfigProvider.layer(

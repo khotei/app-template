@@ -1,7 +1,6 @@
 import {
   Array as Arr,
   type Config,
-  Context,
   Crypto,
   Duration,
   Effect,
@@ -21,22 +20,24 @@ import { AiError, Prompt, Response, Telemetry } from 'effect/ai'
 import { Hex } from 'effect/encoding'
 import type { HttpClient } from 'effect/http'
 
-import {
-  Assistant,
-  type AssistantError,
-  AssistantFailedError,
-  AssistantRefusedError,
-  AssistantReply,
-  type AttachmentBytes,
-  ChatTitle,
-  type HistoryMessage,
-  isBlank,
-  maxTitleLength,
-} from '@app-template/chat/domain'
 import { ReplyModelConfig } from '@app-template/kernel/config'
 import { createLanguageModel } from '@app-template/kernel/llm'
 
-import { ReplyProvenance } from '#infrastructure/chat/chat.queue'
+import {
+  type AssistantError,
+  AssistantFailedError,
+  AssistantRefusedError,
+} from '#domain/assistant.error'
+import { AssistantReply } from '#domain/assistant.model'
+import {
+  Assistant,
+  type AttachmentBytes,
+  CurrentReplyProvenance,
+  type HistoryMessage,
+  ReplyProvenance,
+} from '#domain/assistant.port'
+import { ChatTitle, maxTitleLength } from '#domain/chat.model'
+import { isBlank } from '#domain/message.model'
 
 const toFilePart = ({ attachment, bytes }: AttachmentBytes): Prompt.FilePartEncoded => ({
   type: 'file',
@@ -194,25 +195,20 @@ export const generateInstructionsHash = (
   )
 }
 
-/** The provenance of every reply this process queues, fixed when its layer is built. */
-export class CurrentReplyProvenance extends Context.Service<
+/** The provenance of every reply this process queues, read from the reply model's config. */
+export const CurrentReplyProvenanceFromConfig: Layer.Layer<
   CurrentReplyProvenance,
-  ReplyProvenance
->()('@app-template/infrastructure/chat/CurrentReplyProvenance') {
-  static readonly layerFromConfig: Layer.Layer<
-    CurrentReplyProvenance,
-    Config.ConfigError,
-    Crypto.Crypto
-  > = Layer.effect(
-    this,
-    Effect.gen(function* () {
-      const { provider, replyModel } = yield* ReplyModelConfig
-      const instructionsHash = yield* generateInstructionsHash(systemPrompt, ReplyAnswer)
+  Config.ConfigError,
+  Crypto.Crypto
+> = Layer.effect(
+  CurrentReplyProvenance,
+  Effect.gen(function* () {
+    const { provider, replyModel } = yield* ReplyModelConfig
+    const instructionsHash = yield* generateInstructionsHash(systemPrompt, ReplyAnswer)
 
-      return new ReplyProvenance({ provider, model: replyModel, instructionsHash })
-    }),
-  ).pipe(Layer.provide(ReplyModelConfig.layer))
-}
+    return new ReplyProvenance({ provider, model: replyModel, instructionsHash })
+  }),
+).pipe(Layer.provide(ReplyModelConfig.layer))
 
 const stubReply = JSON.stringify({
   text: 'This is the development stub answering the whole reply at once.',

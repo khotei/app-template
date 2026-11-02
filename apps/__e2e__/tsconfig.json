@@ -13,7 +13,6 @@
     { "path": "../../application/identity/contract" },
     { "path": "../../application/use-cases" },
     { "path": "../../http-api" },
-    { "path": "../../infrastructure" },
     { "path": "../../kernel" },
     { "path": "../../packages/db" },
     { "path": "../../packages/testing" }

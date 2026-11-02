@@ -2,13 +2,13 @@
 
 How the assistant asks a language model for a reply or a title, which parts of `effect/ai` and
 `@effect/ai-anthropic` it uses, and what to know before changing its prompt or its schema. The
-code: `infrastructure/chat/assistant.llm.ts` (`AssistantLlm`: the prompts, the schemas, one
-language model per purpose with its settings and canned stub answer, the finish-reason hook, the
-retries and the failure mapping), `kernel/llm/llm.client.ts` (`createLanguageModel`: the
+code: `application/chat/infrastructure/assistant.llm.ts` (`AssistantLlm`: the prompts, the
+schemas, one language model per purpose with its settings and canned stub answer, the
+finish-reason hook, the retries and the failure mapping), `kernel/llm/llm.client.ts` (`createLanguageModel`: the
 provider `LlmConfig` names), `packages/llm/client.ts` (the Anthropic and stub builders) and
 `kernel/config/config.ts` (`LlmConfig`, `ReplyModelConfig`). The suite:
-`infrastructure/__tests__/chat/assistant.llm.test.ts`, over a fake `HttpClient` that answers
-canned Anthropic bodies, so no test needs a key or the network.
+`application/chat/__tests__/infrastructure/assistant.llm.test.ts`, over a fake `HttpClient` that
+answers canned Anthropic bodies, so no test needs a key or the network.
 
 Every module named here is unstable at 4.0.6: check an API against the vendored sources
 (`repos/effect/packages/effect/src/ai/`, `repos/effect/packages/ai/anthropic/src/`) before using
@@ -107,7 +107,7 @@ ending as `ReplyFailed`. The suite's refusal case fails on such an upgrade; read
 
 ## Changing the system prompt or the reply schema
 
-Both live in `infrastructure/chat/assistant.llm.ts`: `systemPrompt` and `ReplyAnswer`.
+Both live in `application/chat/infrastructure/assistant.llm.ts`: `systemPrompt` and `ReplyAnswer`.
 
 - **The system prompt.** Keep it fixed per process: a date, a name or any user data in it would
   give every request its own prefix, and nothing would be cached. Anthropic adds its own format

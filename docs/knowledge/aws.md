@@ -85,7 +85,7 @@ identifier and carrying its logical `name`. Physical names are `buildResourceNam
 | Resource | Carries | Provisioned as |
 |---|---|---|
 | bucket `attachments` | `lifecycle.unboundExpirationDays`, `lifecycle.abortIncompleteUploadDays` | the bucket and two lifecycle rules: objects carrying the data layer's `unboundTag` (`unbound=true`) expire; incomplete multipart uploads are aborted. |
-| queue `assistant-message`, `chat-title` | `maxReceiveCount` | its dead-letter queue first, named by `buildDeadLetterName` from the physical name (`app-template-<stage>-<name>-dlq`), then the queue with a `RedrivePolicy` to it. A queue definition in `infrastructure` reads its `name` and `maxAttempts` from here, so the two cannot disagree. |
+| queue `assistant-message`, `chat-title` | `maxReceiveCount` | its dead-letter queue first, named by `buildDeadLetterName` from the physical name (`app-template-<stage>-<name>-dlq`), then the queue with a `RedrivePolicy` to it. A queue definition in a module's `services/` reads its `name` and `maxAttempts` from here, so the two cannot disagree. |
 
 `make up` creates the inventory through Pulumi (`deployment/aws/storage.ts`, `queue.ts`); the
 e2e tests create each test's stage with
@@ -101,8 +101,8 @@ queue in place.
 ### Adding a resource
 
 1. Add the entry to `resources.ts`; a queue's dead-letter queue is derived, not listed.
-2. For a queue, add its definition in `infrastructure/<entity>/<entity>.queue.ts`, reading `name`
-   and `maxAttempts` from the entry; for a bucket, `S3BucketFromConfig` reads it from
+2. For a queue, add its definition in `application/<module>/services/<entity>.queue.ts`, reading
+   `name` and `maxAttempts` from the entry; for a bucket, `S3BucketFromConfig` reads it from
    `resources.buckets`.
    Code that names a missing entry fails typecheck.
 3. `make up` creates it locally.
@@ -134,8 +134,8 @@ before the row that binds them and deletes them once the rows are gone.
   `application/chat/domain/attachment.model.ts`) reads as not found everywhere; no read deletes
   it, since a delete on read would race a send binding it. Its object goes by the bucket's rule,
   which acts after `unboundExpirationDays` (S3 rounds up to the next midnight UTC);
-  `infrastructure/__tests__/shared/resources.test.ts` keeps those days no shorter than `unboundLifetime`, so
-  nothing still bindable loses its bytes. Its row stays, since no sweep removes expired rows.
+  `application/chat/__tests__/services/resources.test.ts` keeps those days no shorter than
+  `unboundLifetime`, so nothing still bindable loses its bytes. Its row stays, since no sweep removes expired rows.
   Locally the object stays as well, since MiniStack never runs the rule
   ([Tests on Docker](#tests-on-docker)).
 - **Download.** The api answers `302` to a `GetObject` URL presigned for 300 seconds.
@@ -173,7 +173,7 @@ the worker from `QueueConfig` and `AwsConfig`: a definition's queue is
   attempt: the reply stays active with its job in the dead-letter queue, until the handler's
   `handleDeadLettered` fails it (below).
 - **The worker consumes both dead-letter queues.** `assistantMessageDeadLetterQueue` and
-  `chatTitleDeadLetterQueue` (`infrastructure/chat/chat.queue.ts`) define `<queue>-dlq` with
+  `chatTitleDeadLetterQueue` (`application/chat/services/chat.queue.ts`) define `<queue>-dlq` with
   `maxAttempts` at `Number.MAX_SAFE_INTEGER` and a retry delay that doubles up to 5 minutes:
   nothing redrives a dead-letter queue, so a failing handler must never reach a last attempt.
   The receive count carries over through the redrive (checked on MiniStack), so the first

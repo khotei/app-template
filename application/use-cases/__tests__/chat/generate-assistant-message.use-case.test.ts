@@ -18,7 +18,7 @@ import {
   Message,
   type MessageId,
 } from '@app-template/chat/domain'
-import { encodeAttachment } from '@app-template/chat/services'
+import { encodeAttachment, GenerateAssistantMessage } from '@app-template/chat/services'
 import {
   type AssistantCallHold,
   asCompleted,
@@ -32,13 +32,12 @@ import {
   owner,
   queuedChat,
   recordAssistant,
+  replyProvenance,
   selectChat,
   selectMessage,
   updateMessage,
   userMessageAt,
 } from '@app-template/chat/testing'
-import { GenerateAssistantMessage } from '@app-template/infrastructure/chat'
-import { replyProvenance } from '@app-template/infrastructure/testing'
 import { AttachmentRepository } from '@app-template/kernel/data/attachment'
 import { FileRepository } from '@app-template/kernel/data/file'
 import { epoch, png, recordLogs } from '@app-template/testing'

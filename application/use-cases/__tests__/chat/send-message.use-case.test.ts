@@ -15,10 +15,12 @@ import {
   Message,
   type MessageId,
 } from '@app-template/chat/domain'
+import { GenerateAssistantMessage, GenerateChatTitle } from '@app-template/chat/services'
 import {
   ask,
   chat,
   owner,
+  replyProvenance,
   selectAttachments,
   selectChat,
   selectMessages,
@@ -26,8 +28,6 @@ import {
   updateMessage,
   upload,
 } from '@app-template/chat/testing'
-import { GenerateAssistantMessage, GenerateChatTitle } from '@app-template/infrastructure/chat'
-import { replyProvenance } from '@app-template/infrastructure/testing'
 import { ChatRepository, MessageRepository } from '@app-template/kernel/data/chat'
 import { recordQueue } from '@app-template/queue/testing'
 import { assertSchemaEquals, epoch, isUuidV7, sortById } from '@app-template/testing'

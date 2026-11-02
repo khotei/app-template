@@ -69,7 +69,7 @@ _Avoid_: Template variable, token, embed, slot
 
 **Assistant**:
 The language-model side of a chat, as the user sees it. The model behind it is a provider's
-artefact and is named only in `infrastructure`.
+artefact and is named only in a module's `infrastructure/`.
 _Avoid_: Bot, AI, agent, model
 
 **Provenance**:
@@ -116,7 +116,8 @@ layer's, no port.
 _Avoid_: Interface, client, gateway, driver, store
 
 **Adapter**:
-An implementation of a port over a client, in `infrastructure`: the assistant (`AssistantLlm`).
+An implementation of a port over a client, in a module's `infrastructure/`: the assistant
+(`AssistantLlm`).
 _Avoid_: Implementation, provider, DAO, store
 
 **Domain service**:
