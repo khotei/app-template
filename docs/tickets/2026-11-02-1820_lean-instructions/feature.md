@@ -68,6 +68,8 @@ load each one targets.
 - Four checks in `make check`: names across every doc, no concrete path in an instruction file,
   every path filter matching a file, the size limits.
 - The three context levers and a before-and-after measurement.
+- A few rule lines marked required, capped in number, and a Standards review that checks them
+  first.
 - The roadmap's `docs-diet` entry, absorbed.
 
 ## Out of scope
@@ -124,6 +126,15 @@ load each one targets.
 - **R15** — WHEN the ticket is verified, THE SYSTEM SHALL show, for each of R12–R14, the load it
   targets before and after, measured the same way, and a cut of at least 20% for each.
 
+### Required rules
+
+- **R16** — WHERE a rule line states a constraint whose breach the branch found costly and no
+  check refuses, THE SYSTEM SHALL mark it `**Required:**`; IF the marked lines across all rules
+  exceed the cap the maintenance rule names, THEN `make check` SHALL fail, naming the count.
+- **R17** — WHEN a reviewer reviews a step on the Standards axis, THE SYSTEM SHALL have it check
+  first every marked line that binds the diff's files, and report a breach of one as a hard
+  finding that the step is not committed with.
+
 ## Acceptance
 
 | Req | How to verify |
@@ -143,6 +154,8 @@ load each one targets.
 | R13 | Measured the same way on one step: the implementer's load drops by at least 20%. |
 | R14 | Measured the same way on editing one `.ts` file of a module's domain and one of its services: the rules loaded drop by at least 20%. |
 | R15 | `verification.md` records the three scenarios before and after; the measuring hook is not committed. |
+| R16 | `git grep -c` of the marker over `.claude/rules/` totals no more than the cap `claude-md.md` names; a probe marks lines past the cap: `make check` fails, naming the count. |
+| R17 | A probe diff writes a marked rule inline (a rule in a service's body): the Standards reviewer reports it as a hard finding citing the marked line, and `/ticket-implement` holds the commit. |
 
 ## Open questions
 
@@ -171,4 +184,14 @@ load each one targets.
 - **Options:** A — an allowlist of prefixes (`docs/`, `.claude/`, `.github/`, `repos/`) plus any
   span with a placeholder, and a path of depth below three; B — an explicit list of allowed names.
 - **Recommendation:** A, since a list of names is itself a copy that goes stale.
+- **Answer:**
+
+### Q4 — Which rule lines are marked required, and what is the cap?
+
+- **Why it matters:** a marker on many lines weighs as little as the bold that already opens most
+  bullets; too few and a costly constraint stays unmarked.
+- **Options:** A — a cap of 10, the lines chosen in the step that rewrites the rules, each from a
+  breach the branch's reviews or the user's feedback found (a rule written in a service's body, a
+  check after a write); B — a cap per rule file, which spreads the marks evenly whatever they cost.
+- **Recommendation:** A, since the weight comes from the marks being few across the whole set.
 - **Answer:**
