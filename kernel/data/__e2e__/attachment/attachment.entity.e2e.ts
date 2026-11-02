@@ -22,6 +22,18 @@ const attachment = {
 } satisfies typeof attachments.$inferInsert
 
 describe('attachments', () => {
+  it.effect('accepts a media type of every allowed character through its check', () =>
+    Effect.gen(function* () {
+      const db = yield* Db
+
+      yield* db.insert(users).values({ id: userId, createdAt: new Date(0) })
+      // Upper case among them, which the pattern's `i` flag allows.
+      yield* db
+        .insert(attachments)
+        .values({ ...attachment, mediaType: 'Az09!#$&^_.+-/Az09!#$&^_.+-' })
+    }).pipe(Effect.provide(DbTest)),
+  )
+
   it.effect.each([
     { name: 'an empty file name', check: 'attachments_file_name_check', fields: { fileName: '' } },
     {

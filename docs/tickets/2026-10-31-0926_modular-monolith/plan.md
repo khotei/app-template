@@ -39,11 +39,12 @@
 | S31 | the mappers' e2e beside the mappers; the use cases' e2e through the api | done |
 | S32 | test support beside its one user | done |
 | S33 | the test layout told in one place | done |
-| S34 | the mappers checked by unit tests over the schemas | todo |
+| S34 | the mappers checked by unit tests over the schemas | done |
 | S35 | `apps/__e2e__` → `apps/e2e`, a test app | done |
 | S36 | the branch review's test fixes | todo |
 | S37 | the docs the branch review found out of step with the code | todo |
 | S38 | the chat module in one shape | todo |
+| S39 | `biome.json` keeps only the import rules nothing else holds | todo |
 
 ## How to run this plan
 
@@ -1649,7 +1650,22 @@
 - **Verify:** `make check`; `git ls-files 'application/**/__e2e__/**'` finds none; the unit run
   counts the mapper cases the e2e had; the e2e run counts three files fewer.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Ran in worktree N=1 beside S35 on the user's word; rebased onto S35, keeping its deletion of
+    the two `application/<module>/__e2e__/**` overrides and both steps' wording of
+    `decisions.md › Tests in their folders`. Unit 199 → 213 cases; e2e 110 → 102, three files
+    fewer; every one of the mapper e2e's 11 cases has its unit twin.
+  - One constants case per mapper, not per module, so a pattern's drift fails beside the mapper
+    that writes it. The table's `mediaTypePattern` carries the `i` flag its `~*` applies, so both
+    patterns compare whole; the migration is unchanged (`make migration-check`).
+  - The credential is not round-tripped: its encoder is its own schema both ways; `tsc` holds its
+    kind to the table, and the data e2e accepts a hash of every hex digit.
+  - Review, on the user's word: the case per status and author stays (`tsc` refuses a drifted
+    status only where a use case writes it), and so do the exported constants and their
+    comparison (the entity's insert schema checking them was rejected, see D19's note).
+  - An `i` flag added to both hash patterns already fails `SecretHash › rejects upper-case hex`
+    (probed); `decisions.md` and `tooling.md` say only the title limit is bound by its constant.
 
 
 #### S35 — `apps/__e2e__` → `apps/e2e`, a test app
@@ -1772,7 +1788,7 @@
     file-local; the adapter keeps one exported name.
 - **Goal:** R8 (a module's layers hold what their names say); D8's mapper and the repository
   shape of `deep-modules.md`.
-- **Blocked by:** S36.
+- **Blocked by:** S39.
 - **Files:** `application/chat/{domain,services,infrastructure}/`, `application/identity/services/`,
   `application/use-cases/chat/`, `apps/api/` handlers that call the renamed methods,
   `packages/queue`, `biome.json`, `.claude/rules/naming.md` (`getOne`), their unit tests.
@@ -1780,6 +1796,42 @@
   attachment asserts no message row was inserted before the refusal.
 - **Verify:** `make check`; `make test-e2e` with the same count; `git grep -nw 'get'` finds no
   domain service's read, and no attachment read takes positional ids.
+- **Model:** `opus high`
+- **Status:** todo
+
+
+#### S39 — `biome.json` keeps only the import rules nothing else holds
+
+- **Delivers:** on the user's word of 2026-11-02 (design A of the branch review's Biome research),
+  `biome.json` shrinks from about 2000 lines to about 150–250: one override per layer, not per
+  module, and only the rules no other mechanism holds, by harm:
+  - the browser: what `http-api`, the web client, a module's `domain/` and a contract may import,
+    by unit and by name (`*Service`, `*FromEntity`, `encode*`/`decode*`), since `bundle-check`
+    sees only a service's key;
+  - `noImportCycles`;
+  - the data layer imports no other part of the kernel;
+  - a module reaches only its own files: one GritQL plugin (about 15 lines) reads the module from
+    the file's path and refuses `#<other>/…` and `#testing/<other>/…` in all six import forms,
+    so no list repeats per module;
+  - a module's layers point inward (`application/*/<layer>/**` globs), and no relative import
+    (`./`, `../`) bypasses the aliases.
+
+  Dropped, each to the mechanism that holds it: an import across workspaces (the isolated linker
+  and `tsc -b`, TS2307, with no record's name in the message); a repository or a mapper in a
+  handler, and test support in source (review, by `layering.md` and `effect-tests.md`); e2e
+  support in a unit test (`make test-unit` needs no Docker, so it fails). `decisions.md › Guards
+  are configuration` and every record's Guarded by say which mechanism now holds each boundary;
+  `feature.md`'s acceptance rows of R12, R13, R15 and R17 follow, on the same word.
+- **Goal:** R12–R17 as amended; `biome.json` small enough to read whole.
+- **Blocked by:** S36. S38 follows it, since S38 edits the services' Biome lists.
+- **Files:** `biome.json`, a plugin file beside it, `docs/knowledge/decisions.md`,
+  `architecture.md › Dependency rules` and Known gaps, `.claude/rules/modules.md`, `feature.md`
+  (R12–R17 rows), `tooling.md` where it names the lists.
+- **Test first:** a probe per kept rule turns `make check` red (a server import in the web
+  client, a `#identity/…` file from chat in each import form, a `../` import, `kernel/data`
+  importing another part); a probe per dropped rule names the mechanism that refuses it, or
+  review.
+- **Verify:** `make check`; `wc -l biome.json` under 300; the probes listed in the report.
 - **Model:** `opus high`
 - **Status:** todo
 
@@ -1799,12 +1851,12 @@
 | R9 | S8, S9, S10, S12, S14, S15, S17, S18 |
 | R10 | S10, S31, S36 |
 | R11 | S1, S28, S31, S34, S35, S36 |
-| R12 | S21, S30 |
-| R13 | S4, S20, S21, S30 |
+| R12 | S21, S30, S39 |
+| R13 | S4, S20, S21, S30, S39 |
 | R14 | S8, S21 |
-| R15 | S4, S21, S27, S29 |
+| R15 | S4, S21, S27, S29, S39 |
 | R16 | S11, S13, S19, S21, S27 |
-| R17 | S1, S21, S28 |
+| R17 | S1, S21, S28, S39 |
 | R18 | S20, S22 |
 | R19 | S22, S23, S33, S37 |
 | R20 | S20, S21 |

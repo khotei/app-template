@@ -6,7 +6,8 @@ import { createdAt, id } from '@app-template/packages/db'
 import { messages } from '#kernel/data/chat/message.table'
 import { users } from '#kernel/data/user/user.table'
 
-const mediaTypePattern = /^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/
+/** Its check reads the source alone, so its `i` flag is the check's `~*`, not `~`. */
+export const mediaTypePattern = /^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/i
 
 export const attachments = snakeCase.table(
   'attachments',

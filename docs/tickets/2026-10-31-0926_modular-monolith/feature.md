@@ -173,7 +173,7 @@ Behaviour seen from outside does not change.
   `__tests__/`, with the support only the e2e use under `__tests__/testing/e2e/`, and its e2e
   tests under `__e2e__/`, SHALL keep the e2e of the whole system in the test app `apps/e2e`,
   which starts no process and holds its own support, SHALL keep in `packages/testing` only the support several units share,
-  SHALL run from `application` no e2e test but its mappers' round trips, beside the mappers, and
+  SHALL run from `application` unit tests alone, and
   SHALL drive the use cases' e2e through requests to the api, from `apps/e2e/api/`.
 - **R21** — THE SYSTEM SHALL import a part of the kernel, a package under `packages/*` and a
   module or the use cases under `application/` by its folder path, `@app-template/<folder>`, through one entry,
@@ -231,7 +231,7 @@ Behaviour seen from outside does not change.
 | R8 | each module holds only `domain/`, `services/`, `infrastructure/`, `__tests__/` and its manifests; every `*.use-case.ts` lies under `application/use-cases/`; the layer overrides pass |
 | R9 | grep: no file under `kernel/data/` imports `@app-template/*` but a package under `packages/*`, or `#kernel/*` outside `#kernel/data`; every `*.table.ts`, `*.entity.ts` and `*.repository.ts` lies under `kernel/data/` |
 | R10 | a send through the api leaves its job in `jobs`, and a refused write keeps neither the job nor the writes |
-| R11 | `git ls-files` finds no `tests/`, `e2e/` or `testing/` folder outside `__tests__/` and `__e2e__/` (but the package `packages/testing`, the test app `apps/e2e` and its `apps/e2e/testing`), no `__e2e__/testing/` under `kernel/` or `packages/`, no `aws`, `postgres` or `rows` support in `packages/testing`, no `__e2e__/` under `application/` but `application/<module>/__e2e__/services/` holding `*.mapper.e2e.ts` alone, no `apps/__e2e__`, and no suite under `apps/e2e` that reads a use case or a mapper from the context |
+| R11 | `git ls-files` finds no `tests/`, `e2e/` or `testing/` folder outside `__tests__/` and `__e2e__/` (but the package `packages/testing`, the test app `apps/e2e` and its `apps/e2e/testing`), no `__e2e__/testing/` under `kernel/` or `packages/`, no `aws`, `postgres` or `rows` support in `packages/testing`, no `__e2e__/` under `application/`, no `apps/__e2e__`, and no suite under `apps/e2e` that reads a use case or a mapper from the context |
 | R12 | a throwaway import of another module's internals, and one of a unit its workspace's list does not name, each fail `make check` with the import and the decision named |
 | R13 | a throwaway import of a module into the kernel and into a generic package each fail `make check` with the decision named; the modules rule names the contract cycle and its decision |
 | R14 | throwaway imports of a module's model, of `#kernel/aws` and of `@app-template/kernel/config` into a data-layer file each fail `make check` with the decision named |
@@ -275,8 +275,8 @@ Settled with the user on 2026-10-31, after the research, an audit and the plan r
 - **HTTP groups stay in `http-api`**, handlers in the apps; `generateId` moves to `packages/db`; `Status` belongs to
   `chat`.
 - **Tests** sit in `__tests__/` and `__e2e__/` per workspace, each with its `testing/`; an e2e
-  suite may import `__tests__/testing`, never the reverse; `application` has unit tests and its
-  mappers' e2e, and the e2e through the api live in `apps/__e2e__`.
+  suite may import `__tests__/testing`, never the reverse; `application` has unit tests alone,
+  and the e2e through the api live in the test app `apps/e2e`.
 - **Guards** are configuration (`exports`, the isolated linker, `tsc -b`, Biome, the bundle
   check) plus one review rule, never hand-written test code; the decisions live in
   `docs/knowledge/decisions.md`.

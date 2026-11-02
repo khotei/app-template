@@ -3,7 +3,7 @@ import { check, pgEnum, snakeCase, text, uuid } from 'drizzle-orm/pg-core'
 
 import { createdAt, id } from '@app-template/packages/db'
 
-const secretHashPattern = /^[0-9a-f]{64}$/
+export const secretHashPattern = /^[0-9a-f]{64}$/
 
 export const users = snakeCase.table('users', { id: id(), createdAt: createdAt() })
 

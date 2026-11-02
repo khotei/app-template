@@ -274,9 +274,9 @@ model's.
    `Schema.Class` with its pure operations; time and ids come in as input), `<entity>.error.ts`,
    each with its unit test.
 3. **The mapper.** `application/<module>/services/<entity>.mapper.ts`: `<Model>FromEntity` lays the
-   model's schemas over the entity's fields; its round trip through Postgres, with the model's
-   extreme values, checks every limit and enum both sides declare, so none can drift
-   ([Checks kept in the tables](decisions.md#checks-kept-in-the-tables)).
+   model's schemas over the entity's fields; its unit test encodes the model's extreme values
+   through the entity's insert schema and compares every limit and pattern both sides declare,
+   so none can drift ([Checks kept in the tables](decisions.md#checks-kept-in-the-tables)).
 4. **The service.** `application/<module>/services/<entity>.service.ts`: `<Model>Service` over the
    repository, the one owner every handler goes through, tested over the memory repositories.
    The layers' barrels re-export the new files.

@@ -323,12 +323,14 @@ and patterns itself, and the models check the same rules on their side.
   row the app never writes.
 - **Cost:** a limit or a pattern lives twice (`maxTitleLength`, `mediaTypePattern`,
   `secretHashPattern`, the statuses).
-- **Guarded by:** the mappers' e2e in `application/<module>/__e2e__/services` writes each model's
-  extreme value and every value of its statuses and authors through its entity, so a drift fails
-  the write or the read back; `make migration-check`.
+- **Guarded by:** the data layer exports each limit and pattern from its table; a mapper's unit
+  test compares them with the model's and encodes each model's extreme value and every value of
+  its statuses and authors through its entity's insert schema; the data layer's e2e refuse the
+  title limit plus one by its constant and accept the limit, and accept each pattern's extreme
+  value; `make migration-check`.
 - **If reversed:** a migration drops a check, and a writer past the services can store a row no
   model decodes.
-- **Revisit when:** a duplicated limit drifts despite the e2e, or a rule cannot be a check.
+- **Revisit when:** a duplicated limit drifts despite the tests, or a rule cannot be a check.
 
 ### Clients from the context
 
@@ -501,12 +503,11 @@ the support only the e2e use sits in `__tests__/testing/e2e/`, behind an `index.
 and no entry. The kernel's parts are units like packages, so each part keeps its own
 (`kernel/<part>/__tests__/`, `kernel/<part>/__e2e__/`). The support files keep their kind suffixes
 (`.test-layer`, `.test-setup`). An e2e suite may import both, a unit test never `testing/e2e`;
-`application` has unit tests and, of e2e, only its mappers' round trips on Postgres, beside the
-mappers in `application/<module>/__e2e__/services/`; the e2e through the api, the journey and the
-use cases' races and rollbacks, live in the test app `apps/e2e`, in `apps/e2e/api/`, its support in
-`apps/e2e/testing/`. The shared `packages/testing` holds only the support several units use; a
-package's own support (its rows, its Postgres or MiniStack clients) lives in that package, as a
-kernel part's does.
+`application` has unit tests alone, its mappers' round trips among them; the e2e through the api,
+the journey and the use cases' races and rollbacks, live in the test app `apps/e2e`, in
+`apps/e2e/api/`, its support in `apps/e2e/testing/`. The shared `packages/testing` holds only the
+support several units use; a package's own support (its rows, its Postgres or MiniStack clients)
+lives in that package, as a kernel part's does.
 
 - **Why:** the folder tells a unit test from an e2e and from source; a test sits beside what it
   checks: the behaviour runs over memory, the real stores are tested in the kernel, a mapper
@@ -518,7 +519,8 @@ kernel part's does.
   support barrel for every part. Every package's support in `packages/testing`: a package's own
   harness away from it, behind a barrel every unit imports. The use cases' e2e in
   `application`, a use case called on Postgres: a call, not the flow a user starts. The mappers'
-  e2e in `apps/e2e`: the drift check away from the mappers it checks. The e2e in each app: the
+  round trips on Postgres, in `application/<module>/__e2e__/`: an e2e for what a unit test over
+  the schemas and the data layer's e2e of its checks already prove. The e2e in each app: the
   journey would make
   the api import the worker, and apps never import each other. The e2e workspace at the root: a
   test of the processes away from them. The workspace as an `__e2e__/` folder in `apps/`: such

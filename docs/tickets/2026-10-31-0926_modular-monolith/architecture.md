@@ -446,7 +446,7 @@ The behaviour must not change, so the seams are today's, at their new paths.
 | a use case through the api on Postgres and MiniStack (`apps/__e2e__/chat.e2e.ts`) | one transaction across the writes and `jobs`, rolled back by a refused write; a deleted chat loses its rows and objects (R3, R10) | which write a defect comes from: a refusal reads as a `500` |
 | a module's services and the use cases over the memory repositories, `TransactionTest` and `recordQueue()` (`application/*/__tests__/`) | the rules, a use case's checks, writes and jobs (R2) | SQL, the real transaction, S3 |
 | a repository on Postgres or MiniStack (`kernel/data/__e2e__/<store>/`), in entities | the SQL, the relations, the partial unique index, the cascades, the checks, the object keys and tags (R9) | the models' rules |
-| a mapper on Postgres (`application/<module>/__e2e__/services/`) | a model's extreme value written through its entity and read back, so a limit duplicated by D11 cannot drift (R9) | the services |
+| a mapper over the schemas (`application/<module>/__tests__/services/`) | each model's extreme value and every status and author through the entity's insert schema; each limit and pattern equal to the table's export, which the data layer's e2e binds to its check (R9) | the services, the SQL |
 | the `AssistantLlm` adapter over a recording `HttpClient` (`application/chat/__tests__/infrastructure/`) | the requests to the provider, the settings, the retries, the stub (R2) | the provider itself |
 | a worker handler (`apps/worker/__tests__/`) | attempts, the last attempt and the dead letter (R2) | SQS itself |
 | `make reset`, `make up` and a schema dump diffed against `main`'s; `make migration-check` | one migration, the same schema but `jobs` (R4, R5) | a database that is not reset |
@@ -644,8 +644,8 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
   - **Why:** the database stays a guard against any writer, as the partial unique index already
     is.
   - **Cost accepted:** a limit or a pattern lives twice (`maxTitleLength`, `mediaTypePattern`,
-    `secretHashPattern`, the statuses); a drift shows as a write the database refuses, caught by
-    the mappers' e2e.
+    `secretHashPattern`, the statuses); a drift is caught by the mappers' unit tests, which
+    compare each with the table's export, and by the data layer's e2e of each check.
   - **Reversal:** a migration drops a check.
   - **Rejected:**
     - the checks dropped, the rule only in the services — the database would accept a row the app
@@ -746,8 +746,7 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
 - **D19 — Every workspace keeps its unit tests in `__tests__/` and its e2e in `__e2e__/`, the
   kernel in each of its parts, each with its support in a `testing/` inside, exported as `./testing` and `./testing-e2e`; an e2e
   suite may import `./testing`, a unit test never `./testing-e2e`; `application` has unit tests
-  and its mappers' e2e beside the mappers, and the e2e through the api live in `apps/__e2e__`
-  (`@app-template/e2e`).**
+  alone, and the e2e through the api live in the test app `apps/e2e` (`@app-template/e2e`).**
   - **Why:** the folder tells a unit test from an e2e and from source; the behaviour ring runs
     over memory, the real stores are tested in the kernel, the assembled layers in the apps.
   - **Cost accepted:** every workspace changes its test paths once. A use case's race or
@@ -788,6 +787,13 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
     The database's refusal reads on the wire as a `500`, the rows compared with their reads before
     the refused write; the race's probe drops all four of its guards, since the partial unique
     index alone also serves the insert's `ON CONFLICT`.
+  - **Note (S34):** the user's word: the mappers' round trips run over the entity's insert
+    schema, as unit tests; the tables export their limits and patterns, which each mapper's suite
+    compares with the model's, and the data layer's e2e refuse the title limit plus one and accept
+    each extreme value. Rejected: the entity's insert schema checking the table's limits, which
+    keeps the constants private but catches one direction of a drift and checks every insert.
+  - **Note (S35):** `apps/__e2e__` is the test app `apps/e2e`, its suites in `apps/e2e/api/`:
+    everywhere else `__e2e__/` holds the e2e of its own folder's source.
 
 - **D20 — The migrations restart as one initial migration generated from the data layer; every
   database is recreated (`make reset`).**
@@ -858,8 +864,9 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
   `tsc -b` no longer sees units (D22). *Contained by:* Biome's `noImportCycles` for value
   imports; for one through `import type`, each list names only units below its own in the rings,
   so a cycle needs two lists to name each other, which review of `biome.json` sees.
-- **A limit duplicated by D11 drifts** between a model and its check. *Contained by:* the
-  mappers' e2e writes the extreme value the model allows.
+- **A limit duplicated by D11 drifts** between a model and its check. *Contained by:* a
+  mapper's unit test compares the model's limit and pattern with the table's export; the data
+  layer's e2e refuse the title limit plus one and accept each extreme value.
 - **The plan's interim states.** The ports' adapters delegate to the data layer's repositories
   from the step that moves a repository until chat's services switch (three steps), and the
   memory repositories over entities wait one step for their first user. *Contained by:* each is

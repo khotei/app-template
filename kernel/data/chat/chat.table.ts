@@ -5,7 +5,7 @@ import { createdAt, id, updatedAt } from '@app-template/packages/db'
 
 import { users } from '#kernel/data/user/user.table'
 
-const maxTitleLength = 120
+export const maxTitleLength = 120
 
 export const chatStatus = pgEnum('chat_status', ['idle', 'queued', 'failed'])
 

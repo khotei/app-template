@@ -85,6 +85,15 @@ describe('UserRepository', () => {
       }).pipe(Effect.provide(UserRepositoryDbTest)),
   )
 
+  it.effect('accepts a credentials.hash of every hex digit, through its check', () =>
+    Effect.gen(function* () {
+      const users = yield* UserRepository
+      const ada = user('0192d4e0-7b3a-7c00-8000-000000000015')
+
+      yield* users.insert(ada, { kind: 'secret', hash: '0123456789abcdef'.repeat(4) })
+    }).pipe(Effect.provide(UserRepositoryDbTest)),
+  )
+
   it.effect('rejects a credentials.hash that is not lower-case hex, through its check', () =>
     Effect.gen(function* () {
       const db = yield* Db

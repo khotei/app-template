@@ -397,43 +397,6 @@
       }
     },
     {
-      "includes": ["application/chat/__e2e__/**"],
-      "linter": {
-        "rules": {
-          "style": {
-            "noRestrictedImports": {
-              "level": "error",
-              "options": {
-                "patterns": [
-                  {
-                    "group": [
-                      "@app-template/**",
-                      "!@app-template/packages/testing",
-                      "!@app-template/packages/testing/**",
-                      "!@app-template/kernel/data",
-                      "!@app-template/kernel/data/testing/e2e",
-                      "@effect/**",
-                      "!@effect/vitest",
-                      "!@effect/vitest/**"
-                    ],
-                    "message": "a module's e2e import no workspace but the data layer (@app-template/kernel/data), whose rows they write and read back, its e2e support (@app-template/kernel/data/testing/e2e) and @app-template/packages/testing, and of @effect/* only the test runner @effect/vitest: a use case's e2e runs through the api, in apps/e2e (decisions.md › Tests in their folders; Guards are configuration)"
-                  },
-                  {
-                    "group": ["#*/**", "!#chat/**", "!#testing/chat/**"],
-                    "message": "a module reaches its own files through #<module>/… and another module or the use cases only through its entry, @app-template/application/<unit> or its /testing, never one of its files (decisions.md › Imports through subpaths)"
-                  },
-                  {
-                    "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
-                  }
-                ]
-              }
-            }
-          }
-        }
-      }
-    },
-    {
       "includes": ["application/chat/index.ts"],
       "linter": {
         "rules": {
@@ -628,43 +591,6 @@
                   },
                   {
                     "group": ["#*/**", "!#identity/**", "!#testing/identity/**"],
-                    "message": "a module reaches its own files through #<module>/… and another module or the use cases only through its entry, @app-template/application/<unit> or its /testing, never one of its files (decisions.md › Imports through subpaths)"
-                  },
-                  {
-                    "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
-                  }
-                ]
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "includes": ["application/identity/__e2e__/**"],
-      "linter": {
-        "rules": {
-          "style": {
-            "noRestrictedImports": {
-              "level": "error",
-              "options": {
-                "patterns": [
-                  {
-                    "group": [
-                      "@app-template/**",
-                      "!@app-template/packages/testing",
-                      "!@app-template/packages/testing/**",
-                      "!@app-template/kernel/data",
-                      "!@app-template/kernel/data/testing/e2e",
-                      "@effect/**",
-                      "!@effect/vitest",
-                      "!@effect/vitest/**"
-                    ],
-                    "message": "a module's e2e import no workspace but the data layer (@app-template/kernel/data), whose rows they write and read back, its e2e support (@app-template/kernel/data/testing/e2e) and @app-template/packages/testing, and of @effect/* only the test runner @effect/vitest: a use case's e2e runs through the api, in apps/e2e (decisions.md › Tests in their folders; Guards are configuration)"
-                  },
-                  {
-                    "group": ["#*/**", "!#identity/**"],
                     "message": "a module reaches its own files through #<module>/… and another module or the use cases only through its entry, @app-template/application/<unit> or its /testing, never one of its files (decisions.md › Imports through subpaths)"
                   },
                   {
