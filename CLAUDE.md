@@ -8,11 +8,11 @@ Bun + TypeScript 7 modular monolith; three processes: `apps/api`, `apps/worker`,
 `application/<module>/` a module's pure `domain/`, its `services/` and its `infrastructure/`, the
 adapters of its ports · `http-api/` the HTTP contract shared by `api` and `web` ·
 `application/use-cases/` the use cases ·
-`kernel/` this app's config, AWS clients and inventory · `packages/*` generic clients · `apps/*`
-thin entry points · `deployment/` local and AWS · `apps/__e2e__/` the e2e over assembled layers,
-the journey over `api` and `worker` in one process among them.
-What may import what, which Biome enforces:
-[architecture.md › Dependency rules](docs/knowledge/architecture.md#dependency-rules).
+`kernel/` the data layer (`kernel/data`) and this app's configured clients · `packages/*`
+generic clients · `apps/*` thin entry points · `deployment/` local and AWS · `apps/__e2e__/` the
+e2e over assembled layers, the journey over `api` and `worker` in one process among them.
+The rings, what may import what and how to add a module, an entity or a store's client:
+[architecture.md](docs/knowledge/architecture.md).
 
 ## Working here
 

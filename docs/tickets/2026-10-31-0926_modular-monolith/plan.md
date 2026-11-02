@@ -27,7 +27,7 @@
 | S19 | chat's assistant in `application/chat/infrastructure`; no `infrastructure` workspace | done |
 | S20 | the decisions document and the modules review rule | done |
 | S21 | the Biome guards per ring and layer | done |
-| S22 | `architecture.md` rewritten for the rings | todo |
+| S22 | `architecture.md` rewritten for the rings | done |
 | S23 | the glossary, the `<Model>` placeholders, the roadmap and the remaining pages | todo |
 
 ## How to run this plan
@@ -1109,7 +1109,24 @@
 - **Test first:** `config only` — docs.
 - **Verify:** `make check` (`make doc-names`); the page has the seven sections.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The seven sections stand beside the kept "Imports", "Where things live" and "Boundary
+    guards", whose anchors other docs link.
+  - The dependency table names its guard per row: each refused cell of a row is that row's
+    override's; it follows S21's `biome.json`, `deployment/**` and the apps' `layer.ts` included.
+  - The use-case snippet is hypothetical (no flow spans two modules today); it deletes the files
+    after the transaction commits, since the object store joins none.
+  - The rewrite had dropped two instructions stated nowhere else (a new group joins `Api` before
+    `.middleware(SchemaErrors)`; ownership is a `where` field); the checklists carry them again.
+  - One home per fact: the domain's browser constraints and the data layer's own types stay in
+    their `CLAUDE.md`, the page points there; a store's client stays on the page.
+  - Untouched: `layering`, `deep-modules`, `effect-services`, `effect-tests`, `http-api/` and
+    `packages/CLAUDE.md`: rules the page points to, not restatements.
+  - Left to S23: `README.md` names only the tickets as the home of decisions.
+  - Run in the main tree beside S21 (N=1), synced with its guards before the commit; over budget,
+    kept one step: one page rewritten. Rounds S22.2 and S22.3 (review, the S21 sync).
+  - Size: 6 files, +360 / −245.
 
 #### S23 — The glossary, the placeholders, the roadmap and the rest
 

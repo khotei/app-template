@@ -10,9 +10,10 @@ paths:
 
 - **Inside a workspace:** `#<workspace>/<path>` (`#domain/<entity>.model`), never `./`
   or `../`.
-- **Across workspaces:** `@app-template/<workspace>[/<entity>]`: a layer exposes each entity as a
-  subpath through its `index.ts` barrel, plus `./testing`; a module one per layer, its contract
-  `@app-template/<module>-contract`; `http-api` and each package one entry; which may import which:
+- **Across workspaces:** `@app-template/<workspace>[/<subpath>]`, through the `exports` and the
+  `index.ts` barrels; `http-api` and each package one entry, the subpaths of the others:
+  [architecture.md › Imports](../../docs/knowledge/architecture.md#imports-workspace-vs-app-template);
+  which may import which:
   [architecture.md › Dependency rules](../../docs/knowledge/architecture.md#dependency-rules).
 
 ## Files
@@ -42,15 +43,10 @@ tool reads.
 | `.test-setup` | a vitest `globalSetup`: run-wide resources, handed to tests through `provide` | `__e2e__/testing/` |
 | `.test-util` | an assertion or a value helper with no layer | `testing/` of either |
 
-`__tests__/` and `__e2e__/` sit at the workspace's top and mirror the source path
-(`application/<module>/__tests__/domain/<entity>.model.test.ts`), or a suite with no source
-names what it checks; a module folder holds no test. Test support lives only in the `testing/`
-inside them: a file any unit test imports in `__tests__/testing/` (`#testing/*`, exported as
-`./testing`), the rest in `__e2e__/testing/` (`#testing-e2e/*`, exported as `./testing-e2e`); a
-unit test never imports e2e support. Suites compose these barrels instead of copying them: a
-module's memory layers and fixtures, the kernel's memory repositories and its database and AWS
-harnesses, `use-cases`' test layers, a package's own test helpers. The e2e over assembled layers,
-the journey among them, live in `apps/__e2e__`.
+A test mirrors its source path under its workspace's `__tests__/` or `__e2e__/`, or a suite with
+no source names what it checks; a module folder holds no test. Suites compose the `testing/`
+barrels instead of copying them. Which folder, which support and which suite runs where:
+[architecture.md › Where tests live](../../docs/knowledge/architecture.md#where-tests-live).
 
 ## Symbols
 
