@@ -16,7 +16,10 @@ nothing says so. Each session also pays for instructions it does not need: editi
 of a module loads about 9.6k tokens of rules, every step's reviewer reads the ticket's whole
 `architecture.md` and every rule, and `/ticket-implement` loads its rarely used parallel-steps
 procedure on every step. The commit gate is told in ten files and no longer matches how steps are
-committed.
+committed. In the agents' runs, review passes overlap, the Spec reviewer flags what only the main
+session may write, the implementer runs `/simplify` on its own edits, the verifier reads the
+whole plan twice, and every agent writes its report in the user's style for a reader that is
+the main session.
 
 ## Goal
 
@@ -56,6 +59,18 @@ it targets.
     about 30% of that load, by the fresh audit's estimate;
   - `/ticket-implement` keeps its parallel-steps procedure in a file it reads only for parallel
     steps: about 45% of the skill's 2.5k.
+- **How the agents spend their runs** (234 agent runs of `modular-monolith`, 2026-11-02): a step's
+  time is the implementer's (median 17 min); the reviews run in parallel for 2–3 min and no
+  agent compacted. Depth changed a step's shape in 5 of 5 sampled steps; Spec caught real
+  regressions but flagged an unrecorded `plan.md` deviation in 11 of 47 reports, which only the
+  main session may write; Standards' judgement calls repeated Depth's in 3 of 5; the bug hunt
+  found a real bug once in 12 runs (Spec found it too), the silent-failure hunter none in 3; the
+  implementer ran `/simplify` itself in 36 of 50 runs and once deleted a needed function; the
+  verifier (33 min) read the 2,000-line `plan.md` twice; 38 of 42 implementer reports carried
+  the user's Russian status block. The main session itself ran 1,542 turns with 14 compactions
+  and peaked at 530k tokens, largely reading diffs and code (967 shell calls) to write the fix
+  rounds the reviewers' `path:line` findings already located; verification waits on one
+  verifier over every requirement.
 - **Where the churn sits** (the md audit, commits since the branch base): `architecture.md` 29,
   `tooling.md` 21, `naming.md` 20, `database.md` 19, `README.md` 12, `effect-tests.md` 10, the root
   `CLAUDE.md` 9, `kernel/CLAUDE.md` 8 of its 8. Facts told in several places: the rings and which
@@ -84,6 +99,10 @@ it targets.
   instruction file included), every path filter matching a file, the size limits.
 - The four context levers and a before-and-after measurement.
 - The commit gate stated once, its answer asked once per session.
+- The agents' briefs and texts: what each reads, what it leaves to the main session, which review
+  pass owns which finding, when the bug hunt runs, who runs `/simplify`; the main session as the
+  orchestrator that decides on the agents' reports; verification fanned out over parallel
+  verifiers.
 - The roadmap's `docs-diet` entry, absorbed.
 
 ## Out of scope
@@ -155,6 +174,30 @@ it targets.
   session; a step is ready when its reviews ran, their fixes are in and `make check` is green;
   pushing, opening a PR and merging SHALL always wait for the user's OK.
 
+### Agents that do their own job
+
+- **R18** — WHEN an agent of the toolkit runs, THE SYSTEM SHALL have its definition and brief name
+  what it reads and what it leaves to the main session: the verifier SHALL read the requirements,
+  their acceptance and the design's contracts, not the plan; no reviewer SHALL report as a finding
+  an edit that only the main session may make; the implementer SHALL not stash, check out or
+  commit; and every agent SHALL write its report in English for the main session, without the
+  user's status block.
+- **R19** — WHEN a step is reviewed, THE SYSTEM SHALL give each finding one owning pass: the
+  Standards axis the binding rules, the Depth axis the shape; and SHALL run the bug hunt and the
+  silent-failure hunt as one pass, only on a step that touches a write guard, a transaction, a
+  test fake, concurrent access or error handling.
+- **R20** — WHEN a behaviour step's implementer is done, THE SYSTEM SHALL have the main session
+  run `/simplify` on the step, before the review, and the implementer SHALL never run it.
+
+- **R21** — WHILE `/ticket-implement` runs a step, THE main session SHALL decide on the agents'
+  reports and pass the findings it accepts to the implementer by `path:line`, not read the code
+  or the diff to restate them; a question that needs the code SHALL go to an agent; and every
+  reviewer SHALL report each finding in one shape: `path:line`, the rule or requirement, hard or
+  judgement, the proposed fix.
+- **R22** — WHEN `/ticket-verify` checks the requirements, THE SYSTEM SHALL run one verifier per
+  group of requirements in parallel and merge their verdicts, while the Spec review of the whole
+  branch still reads every requirement at once.
+
 ## Acceptance
 
 | Req | How to verify |
@@ -176,6 +219,11 @@ it targets.
 | R15 | `verification.md` records the four scenarios before and after; the measuring hook is not committed. |
 | R16 | A one-step run of `/ticket-implement` loads no parallel-steps text; a parallel run reads the file beside the skill, and `make` sets up a scratch worktree with the same `.env` ports and stage as the old block; the skill's loaded size drops by at least 20%. |
 | R17 | `git grep` finds the gate stated in one file and pointers elsewhere; a new session's first `/ticket-implement` step asks once, the next step of that session does not ask again. |
+| R18 | The agents' files and the skills' briefs say so; on the next verification the verifier's transcript reads no `plan.md`; on the next steps no Spec report flags an unrecorded `plan.md` edit and no implementer report carries the status block. |
+| R19 | `ticket-implement`'s brief splits the axes and states the hunt's condition; on the next behaviour steps Standards and Depth report no finding twice, and a step outside the condition runs no hunt. |
+| R20 | `ticket-implement` runs `/simplify` from the main session and `implementer.md` forbids it; on the next behaviour step the implementer's transcript holds no `simplify` call. |
+| R21 | `ticket-implement` and `reviewer.md` say so; on the next steps the main session's transcript reads no source file or diff to write a fix round, and every finding carries the four fields. |
+| R22 | `ticket-verify` says so; the next verification runs the verifiers in parallel, and its wall-clock to verdicts is shorter than run 2 of `modular-monolith` (33 min for the verifier). |
 
 ## Open questions
 

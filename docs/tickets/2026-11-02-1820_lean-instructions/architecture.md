@@ -7,7 +7,8 @@
 The ticket changes no code. It changes three things around it: the **text** of every Markdown
 file outside `docs/tickets/` (patterns and pointers instead of instances, shorter rules, one owner
 per fact), the **checks** in `make check` that keep the text that way, and the **reading** the
-toolkit does per session (what the implementer, the reviewers and `/ticket-implement` load).
+toolkit does per session (what the implementer, the reviewers and `/ticket-implement` load), and
+how its agents split their work (who reads what, which pass owns which finding).
 
 ```mermaid
 graph LR
@@ -45,6 +46,10 @@ The facts that shape the design, from two experiments, a fresh audit and the off
   column of `naming.md`'s file table, and `layering.md` and `modules.md` covering one subject.
 - **The docs advise against emphasis markers**: current models over-apply an emphasised rule, and
   a rule that cannot bend belongs in a check or a hook.
+- **The agents' runs** (234 runs of `modular-monolith`): every role earns its place, Depth most;
+  the waste is overlap (Standards and Depth on shape; the bug hunt and Spec on the same bugs),
+  findings about what only the main session writes, `/simplify` run inside the implementer, a
+  verifier that reads the whole plan, and reports written in the user's style.
 - **`git ls-files ':(glob)…'` matches what `paths:` matches for `*` and `**`, and nothing for
   braces**, which Claude Code expands and git does not.
 
@@ -62,13 +67,16 @@ verification.
 | `.claude/rules/*.md` | rewritten to patterns and trimmed; filters kept; `layering.md` and `modules.md` merged or split so each subject has one file; the Effect-4 trap first in `effect.md` |
 | every `CLAUDE.md` | rewritten to patterns and pointers; the traps the branch found added where they bite |
 | `.claude/rules/sdd.md` | owns the commit gate |
-| `.claude/agents/implementer.md` | rules arrive by filter; read a file of a folder before writing a new file in it |
-| `.claude/agents/reviewer.md` | reads only the design parts and the rules the brief names |
-| `.claude/skills/ticket-implement/` | `SKILL.md` names the step's design parts and matching rules in the review brief, asks the commit question once per session, and points to **new** `parallel-steps.md`; the worktree setup becomes a **new** script beside it |
+| `.claude/agents/implementer.md` | rules arrive by filter; read a file of a folder before writing a new file in it; no stash, checkout, commit or `/simplify`; `plan.md` is the main session's |
+| `.claude/agents/reviewer.md` | reads only the design parts and the rules the brief names; per axis, the findings it owns |
+| `.claude/agents/verifier.md` | reads `feature.md`, its acceptance and `architecture.md › Contracts`, not `plan.md` |
+| every agent | the report is for the main session: English, no status block; a reviewer's finding in one shape |
+| `.claude/skills/ticket-implement/` | `SKILL.md` keeps the main session an orchestrator that decides on reports, names the step's design parts and matching rules in the review brief, splits the axes, runs `/simplify` itself and the one hunt pass by its condition, asks the commit question once per session, and points to **new** `parallel-steps.md`; the worktree setup becomes a **new** script beside it |
 | the other skills, the agents | the commit gate as a pointer; patterns |
 | `docs/knowledge/*.md`, `README.md`, `.github/*.md` | each fact kept only in its owner; live names, counts and versions only in the doc that owns them |
 | `docs/knowledge/tooling.md` | the table of `make` targets and the CI `links` job name the new checks and the worktree target |
 | `docs/knowledge/decisions.md` | new record **Instructions name patterns** (D3) |
+| `.claude/skills/ticket-verify/SKILL.md`, `.claude/agents/verifier.md` | one verifier per group of requirements, in parallel; the main session merges the verdicts |
 | `docs/knowledge/sdd.md` | the dependency map and the approval gate, where reading or gating changes |
 | `docs/knowledge/roadmap.md` | entry `docs-diet` marked done |
 | `deployment/local/README.md` | **deleted**: it retells `aws.md` (R6) |
@@ -132,6 +140,20 @@ reads it with offset and limit, as the implementer does.
 commit each ready step without the user's OK, or wait for it. A step is ready when its reviews
 ran, their fixes are in and `make check` is green. Pushing, a PR and a merge always wait.
 
+**The passes of a step's review** (D11, D12), in order: the implementer reports; on a behaviour
+step the main session runs `/simplify`; then in parallel Standards (the binding rules of
+`.claude/rules/` and the touched `CLAUDE.md` files), Spec (the step and its requirements; an edit
+only the main session may make is no finding), Depth on a behaviour step (the shape), and the hunt
+pass (correctness bugs and silent failures in one brief) when the step touches a write guard, a
+transaction, a test fake, concurrent access or error handling.
+
+**A reviewer's finding** (D13), the one shape the main session forwards without reading the
+code:
+
+```text
+- <path>:<line> — <rule or requirement> — hard | judgement — <the proposed fix>
+```
+
 **The parallel-steps path** (D9): `SKILL.md` keeps one line, "for steps run in parallel, read
 `parallel-steps.md` beside this file"; that file holds today's section, and the worktree setup
 runs as `make <target> N=<n> NAME=<name>` over a script in the skill's folder, with the same
@@ -148,6 +170,8 @@ refusals and the same `.env` it writes today.
 | `/doctor prompt-audit`, run by hand at verification | R2: contradictions and dead references across the instruction files | facts retold in agreement |
 | `make <worktree target>` in a scratch worktree, against the old block's output | R16: the same refusals, ports and stage in the written `.env` | a parallel run end to end |
 | A new session's first `/ticket-implement` step, then its second | R17: the question asked once, the answer held | the gate's wording in every pointer (judged by `git grep`) |
+| The next real steps and verification after the step that lands R18–R20, read in their transcripts | R18–R20: the verifier reads no `plan.md`; no Spec finding on a `plan.md` edit; no finding reported by two axes; no hunt outside its condition; no `/simplify` call in the implementer; reports in English without the status block | quality over many steps: a few runs prove the path, not the rate |
+| The next steps' main-session transcript and the next verification's timing | R21, R22: no source file or diff read by the main session to write a fix round; findings in the four fields; verifiers in parallel, verdicts sooner than 33 min | whether a forwarded finding needed the main session's own reading (judged when a round misfires) |
 | The step report's ledger: each removed line with its new home or "dropped:" and why, each trap added and where | R3, R5, R6, R14: nothing lost silently | nothing beyond what the reviewer reads |
 
 ## Decisions
@@ -268,6 +292,71 @@ refusals and the same `.env` it writes today.
   - **Rejected:**
     - a separate skill for parallel steps — splits one procedure across two entry points.
 
+- **D10 — Each agent's definition says what it reads and what it leaves to the main session; its
+  report is written for the main session.** (R18)
+  - **Why:** the runs show agents doing what is not theirs: Spec flagging `plan.md` edits only the
+    main session makes, the implementer stashing to run e2e, the verifier reading the whole plan
+    twice; and the user's global style rule reaches every subagent, so reports carry a Russian
+    status block the main session then retells. A line in the agent's file holds for every brief,
+    so the main session stops repeating it in each prompt.
+  - **Cost accepted:** the verifier no longer sees the steps' findings; what binds beyond the
+    ticket is in `decisions.md`, and the Spec axis of verification still reads the branch.
+  - **Reversal:** one commit.
+  - **Rejected:**
+    - repeating the limits in each brief — the drift the runs show.
+
+- **D11 — Each finding has one owning pass: Standards the binding rules, Depth the shape; the bug
+  hunt and the silent-failure hunt run as one pass, only where such bugs live.** (R19)
+  - **Why:** Standards' judgement calls repeated Depth's in 3 of 5 sampled steps; the bug hunt
+    found a real bug once in 12 runs, on a step with test fakes, and Spec found it too; the
+    silent-failure hunter found none in 3. A condition on what the step touches keeps the hunt
+    where it paid.
+  - **Cost accepted:** a step outside the condition gets no dedicated bug hunt; Spec and Depth
+    still read it.
+  - **Reversal:** one commit.
+  - **Rejected:**
+    - dropping the hunt — it found the one real bug class (fakes diverging from Postgres);
+    - keeping both hunts on every behaviour step — two reports with nothing in them most of the
+      time.
+
+- **D12 — The main session runs `/simplify`, after the implementer and before the review; the
+  implementer never runs it.** (R20)
+  - **Why:** the skill always said so, but the main session's prompts told the implementer to run
+    it, so the same agent judged its own simplifications, and one deleted a needed function
+    (restored a round later). Run before the review, its edits meet fresh reviewers.
+  - **Cost accepted:** none beyond the main session's one call.
+  - **Reversal:** one commit.
+  - **Rejected:**
+    - `/simplify` as a review pass that only proposes deletions — the same function, one fix
+      round later.
+
+- **D13 — The main session orchestrates: it decides on the agents' reports and forwards findings
+  by `path:line`; whatever needs the code goes to an agent.** (R21)
+  - **Why:** the orchestrator-workers pattern keeps the orchestrator's context for decisions and
+    gives the reading to workers with their own context (Anthropic, *Building effective agents*
+    and the multi-agent research system). In `modular-monolith` the main session read diffs and
+    code to restate findings the reviewers had already located, peaking at 530k tokens with 14
+    compactions. One finding shape lets it forward a finding as is.
+  - **Cost accepted:** the main session judges a contested finding without reading the code
+    itself; such a finding goes to a `researcher` or to the user.
+  - **Reversal:** one commit.
+  - **Rejected:**
+    - clearing the main session between steps — it is also the user's conversation, and the user
+      keeps it;
+    - letting agents write the code of one step together — a step is coupled work, which loses
+      detail at every hand-off.
+
+- **D14 — `/ticket-verify` runs one verifier per group of requirements in parallel; the Spec
+  review of the branch still reads them all.** (R22)
+  - **Why:** verification waits on its longest agent, one verifier over every requirement (33 min
+    in run 2); groups are independent reading work, the case parallel agents fit best. The Spec
+    review over the whole branch keeps the view across groups.
+  - **Cost accepted:** more agents and tokens per verification (the user values time over tokens);
+    a problem between two groups rests on the Spec review.
+  - **Reversal:** one commit.
+  - **Rejected:**
+    - one verifier, as today — the slowest stage of a ticket.
+
 ## Risks
 
 - **The rewrite drops a line Claude needed.** Guidance gets worse with less text, against the
@@ -279,6 +368,9 @@ refusals and the same `.env` it writes today.
 - **A reviewer misses a rule because its filter is too narrow.** With D2 the Standards reviewer no
   longer reads every rule. *Contained by:* the filters stay as broad as today (D1); `rule-paths`
   catches a filter that matches nothing.
+- **The verifier misses a detail only the plan records.** A step's finding that changed what a
+  requirement means is lost to verification. *Contained by:* a finding that changes a requirement
+  edits `feature.md` in the same commit (`sdd.md`), and a binding one `decisions.md`.
 - **The worktree script diverges from the block it replaces.** A parallel step gets wrong ports
   or a shared `.env`. *Contained by:* the R16 seam compares the script's `.env` with the old
   block's on a scratch worktree, refusals included.
