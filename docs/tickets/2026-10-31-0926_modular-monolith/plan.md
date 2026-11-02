@@ -29,6 +29,7 @@
 | S21 | the Biome guards per ring and layer | done |
 | S22 | `architecture.md` rewritten for the rings | done |
 | S23 | the glossary, the `<Model>` placeholders, the roadmap and the remaining pages | done |
+| S24 | the statuses through the mapper e2e; the test layers' `provideMerge` in the rule | todo |
 
 ## How to run this plan
 
@@ -1166,6 +1167,22 @@
     that say "visitor".
   - Round S23.2 (review: placeholders, "visitor", the domain service's writes).
   - Size: 19 files, +219 / −153.
+
+#### S24 — The statuses through the mappers; the test layers in the layers rule
+
+- **Delivers:** the chat mapper's e2e writes every chat and message status through its mapper to
+  Postgres and reads it back, so a status the model and the database's enum hold apart fails a
+  test; `effect-services.md › Layers` names a test layer, which merges what its cases read,
+  beside the transaction's client as the exception to `Layer.provideMerge`.
+- **Goal:** D11's cost holds as written: every rule kept twice has the e2e that catches its drift
+  (verification run 1, Spec 1 and Standards 1).
+- **Blocked by:** S23.
+- **Files:** `apps/__e2e__/mappers/chat.mapper.e2e.ts`, `.claude/rules/effect-services.md`.
+- **Test first:** `apps/__e2e__/mappers/chat.mapper.e2e.ts`: a case per entity, over every value
+  of `ChatStatus` and `MessageStatus`, through the existing insert and read; no new helper.
+- **Verify:** `make check`; dropping a value from a `pgEnum` in a throwaway edit fails the case.
+- **Model:** `opus medium`
+- **Status:** todo
 
 ## Requirement coverage
 
