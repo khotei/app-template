@@ -15,10 +15,33 @@ Where a flow lives. Words: `docs/knowledge/glossary.md › Architecture language
 - **A repository is the data layer's, with no port in front:** a service calls
   `<Name>Repository` from `@app-template/kernel/data` in entities and maps them with the
   `<Model>FromEntity` of its module's `services/`.
-- **A domain service owns its model's records for every caller above it:** the rules that need
-  a repository or a port (a check over stored rows, a refusal named after a read) and the plain
-  reads and writes a handler asks for (a list, a create, a record by key with its
-  `*NotFoundError`).
+- **A domain service owns its model's records for every caller above it:** the reads a rule
+  needs (the stored rows a check runs over) and the plain reads and writes a handler asks for (a
+  list, a create, a record by key with its `*NotFoundError`).
+- **A rule is a pure function in its model's `.model` file,** over values passed in (time, ids),
+  combined from small pieces of one condition or step each (`Predicate.and`, a pipeable guard,
+  `flow`) and never repeating their logic. A service, use case or repository only reads, calls it
+  and writes; each piece is tested alone, a combination or a service only for what it adds.
+```ts
+// don't: the rule is inline in the service, so only a layer over a fake tests it
+const order = yield* getOne(where)
+if (Option.isNone(order.paidAt) || DateTime.isGreaterThan(at, order.refundUntil))
+  return yield* new OrderNotRefundableError({ id: order.id })
+
+// do: small pure pieces in the model, each tested alone with plain values…
+export const isPaid: Predicate.Predicate<Order> = (order) => Option.isSome(order.paidAt)
+export const isRefundOpenAt = (at: DateTime.Utc): Predicate.Predicate<Order> => (order) =>
+  DateTime.isLessThanOrEqualTo(at, order.refundUntil)
+// …combined into larger ones, whose test covers only the combination…
+export const isRefundableAt = (at: DateTime.Utc) => Predicate.and(isPaid, isRefundOpenAt(at))
+export const isCancellableAt = (at: DateTime.Utc) =>
+  Predicate.and(Predicate.not(isPaid), isRefundOpenAt(at))
+export const ensureRefundable = (at: DateTime.Utc) =>
+  Effect.filterOrFail<Order, OrderNotRefundableError>(isRefundableAt(at), (order) =>
+    new OrderNotRefundableError({ id: order.id }))
+// …and the service only reads and composes them
+const order = yield* getOne(where).pipe(ensureRefundable(at))
+```
 - It sees the repositories, its ports, the clock (`DateTime.now`) and `Crypto`; never another
   domain service, the queue or the transaction, which are a use case's.
 - **Every method is safe on its own:** a method correct only after another one ran is a trap;
@@ -62,8 +85,8 @@ the signal.
 
 - **Hold no lock in the process.** A rule two writers could break between a read and a write is
   a database guard in the write itself (a partial unique index, an `UPDATE … WHERE` on the
-  state read), and a refused write dies. A check whose loser must get a domain error reads its
-  rows `forUpdate`.
+  state read), and a refused write dies. No read takes a lock: a loser that read the state
+  before the winner wrote it dies on the write's guard, rolled back whole.
 - **Write only the fields you own of a record another process also writes,** and hold a rule in
   the write's `where`, not in a read before it: a background job fills a field only `where` it is
   still empty.

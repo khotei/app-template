@@ -1,20 +1,21 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { DateTime, Effect, Exit, Option, Schema } from 'effect'
+import { DateTime, Effect, Exit, Option, pipe, Schema } from 'effect'
 
 import { UserId } from '@app-template/application/identity'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { AttachmentBoundError } from '#chat/domain/attachment.error'
+import { AttachmentBoundError, AttachmentNotFoundError } from '#chat/domain/attachment.error'
 import { AttachmentId } from '#chat/domain/attachment.id'
 import {
   Attachment,
   bindAttachment,
   buildAttachment,
+  ensureAllLive,
   ensureUnbound,
   FileName,
   FileSize,
-  isExpiredAt,
+  isLiveAt,
   MediaType,
 } from '#chat/domain/attachment.model'
 import { chatId, messageId } from '#testing/chat/chat.test-fixture'
@@ -63,7 +64,7 @@ const unbound = buildAttachment({
   createdAt: DateTime.makeUnsafe('2026-10-18T00:00:00.000Z'),
 })
 
-const message = { messageId, chatId }
+const message = { id: messageId, chatId }
 
 const bound = new Attachment({
   ...unbound,
@@ -71,16 +72,16 @@ const bound = new Attachment({
   chatId: Option.some(chatId),
 })
 
-describe('isExpiredAt', () => {
+describe('isLiveAt', () => {
   it.effect.each([
-    { now: '2026-10-18T23:59:59.999Z', expired: false },
-    { now: '2026-10-19T00:00:00.000Z', expired: true },
-  ])('an unbound attachment made at 2026-10-18T00:00Z at $now: $expired', ({ now, expired }) =>
-    Effect.sync(() => assert.strictEqual(isExpiredAt(DateTime.makeUnsafe(now))(unbound), expired)),
+    { now: '2026-10-18T23:59:59.999Z', live: true },
+    { now: '2026-10-19T00:00:00.000Z', live: false },
+  ])('an unbound attachment made at 2026-10-18T00:00Z at $now: $live', ({ now, live }) =>
+    Effect.sync(() => assert.strictEqual(isLiveAt(DateTime.makeUnsafe(now))(unbound), live)),
   )
 
-  it('never expires a bound attachment, however old', () => {
-    assert.isFalse(isExpiredAt(DateTime.makeUnsafe('2027-10-18T00:00:00.000Z'))(bound))
+  it('keeps a bound attachment live, however old', () => {
+    assert.isTrue(isLiveAt(DateTime.makeUnsafe('2027-10-18T00:00:00.000Z'))(bound))
   })
 })
 
@@ -112,6 +113,78 @@ describe('bindAttachment', () => {
       const error = yield* bindAttachment(bound, message).pipe(Effect.flip)
 
       assertSchemaEquals(AttachmentBoundError, error, new AttachmentBoundError({ id: bound.id }))
+    }),
+  )
+})
+
+describe('ensureAllLive', () => {
+  const other = new Attachment({
+    ...unbound,
+    id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000025'),
+    createdAt: DateTime.makeUnsafe('2026-10-18T12:00:00.000Z'),
+  })
+  const missing = AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000029')
+  const beforeExpiry = unbound.createdAt
+  // `unbound` has expired, `other` has not.
+  const afterUnboundExpiry = DateTime.makeUnsafe('2026-10-19T00:00:00.000Z')
+
+  it.effect('answers the attachments found when they hold every id asked', () =>
+    Effect.gen(function* () {
+      const found = [unbound, other]
+
+      assertEquals(yield* pipe(found, ensureAllLive([other.id, unbound.id], beforeExpiry)), found)
+    }),
+  )
+
+  it.effect('names each missing id, in the order asked', () =>
+    Effect.gen(function* () {
+      const error = yield* pipe(
+        [unbound],
+        ensureAllLive([missing, unbound.id, other.id], beforeExpiry),
+        Effect.flip,
+      )
+
+      assertSchemaEquals(
+        AttachmentNotFoundError,
+        error,
+        new AttachmentNotFoundError({ ids: [missing, other.id] }),
+      )
+    }),
+  )
+
+  it.effect('names an expired id asked twice once', () =>
+    Effect.gen(function* () {
+      const error = yield* pipe(
+        [unbound],
+        ensureAllLive([unbound.id, unbound.id], afterUnboundExpiry),
+        Effect.flip,
+      )
+
+      assertSchemaEquals(
+        AttachmentNotFoundError,
+        error,
+        new AttachmentNotFoundError({ ids: [unbound.id] }),
+      )
+    }),
+  )
+
+  it.effect('names an expired attachment as missing and answers a live one', () =>
+    Effect.gen(function* () {
+      const read = [unbound, other]
+
+      const error = yield* pipe(
+        read,
+        ensureAllLive([unbound.id, other.id], afterUnboundExpiry),
+        Effect.flip,
+      )
+      const live = yield* pipe(read, ensureAllLive([other.id], afterUnboundExpiry))
+
+      assertSchemaEquals(
+        AttachmentNotFoundError,
+        error,
+        new AttachmentNotFoundError({ ids: [unbound.id] }),
+      )
+      assertEquals(live, [other])
     }),
   )
 })

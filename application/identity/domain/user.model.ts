@@ -1,4 +1,4 @@
-import { type DateTime, Schema } from 'effect'
+import { Schema, type Types } from 'effect'
 
 import { UserId } from '#identity/contract/user.id'
 
@@ -24,5 +24,5 @@ export class Credential extends Schema.Class<Credential>('Credential')({
   hash: SecretHash,
 }) {}
 
-export const buildUser = (input: { readonly id: UserId; readonly createdAt: DateTime.Utc }): User =>
-  new User({ id: input.id, createdAt: input.createdAt })
+export const buildUser = (fields: Types.Simplify<Pick<User, 'id' | 'createdAt'>>): User =>
+  new User(fields)

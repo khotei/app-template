@@ -3,6 +3,7 @@ import {
   type Effect,
   Equal,
   HashMap,
+  Order,
   Predicate,
   pipe,
   Ref,
@@ -115,3 +116,20 @@ export const writeSet = <Set extends object>(
   const written = Struct.pick(set, defined)
   return <Row extends Set>(row: Row): Row => ({ ...row, ...written })
 }
+
+interface Created {
+  readonly id: string
+  readonly createdAt: Date
+}
+
+/** Creation order, a tie broken by id, as the repositories order their reads. */
+const inCreationOrder = Order.combine(
+  Order.mapInput(Order.Date, (row: Created) => row.createdAt),
+  Order.mapInput(Order.String, (row: Created) => row.id),
+)
+
+/** The rows where `where` holds, in creation order. */
+export const inCreationOrderWhere = <Row extends Created>(
+  rows: HashMap.HashMap<string, Row>,
+  where: Predicate.Predicate<Row>,
+) => pipe(rows, HashMap.filter(where), HashMap.toValues, Arr.sort(inCreationOrder))

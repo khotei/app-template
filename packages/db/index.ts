@@ -5,6 +5,7 @@ export {
   decodeOptionalRow,
   decodeOptionalWith,
   encodeRowWith,
+  orDieOnMissedRows,
   orDieOnNoRows,
   orDieWithSqlError,
   Transaction,

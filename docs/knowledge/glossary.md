@@ -153,7 +153,7 @@ _Avoid_: Interface, client, gateway, driver, store
 
 **Adapter**:
 An implementation of a port over a client, in a module's `infrastructure/`: the assistant
-(`AssistantLlm`).
+(`AssistantLlmFromConfig`).
 _Avoid_: Implementation, provider, DAO, store
 
 **Domain service**:

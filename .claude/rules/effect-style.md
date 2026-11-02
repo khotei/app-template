@@ -20,6 +20,9 @@ The goal is code that reads top to bottom and extends by adding a row, not a bra
   `orders.update({ updatedAt: at }, { id })`, `orders.update(shipped, { status: order.status })`.
 - Destructure an object whose fields come from different things (`{ reason, cause, at }`) in the
   parameter list; keep a model or a proof value whole, so the reader sees whose field it is.
+- A builder takes the fields it copies as one `Types.Simplify<Pick<<Model>, …>>` and spreads
+  them, setting only its own (`new <Model>({ ...fields, status: 'new' })`), never naming each to
+  pass it on: a `Schema.Class` drops the keys its schema lacks.
 
 ## Control flow
 

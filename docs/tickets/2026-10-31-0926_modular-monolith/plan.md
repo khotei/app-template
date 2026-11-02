@@ -43,7 +43,7 @@
 | S35 | `apps/__e2e__` → `apps/e2e`, a test app | done |
 | S36 | the branch review's test fixes | done |
 | S37 | the docs the branch review found out of step with the code | done |
-| S38 | the chat module in one shape | todo |
+| S38 | the chat module in one shape | done |
 | S39 | `biome.json` keeps only the import rules nothing else holds | done |
 
 ## How to run this plan
@@ -1826,7 +1826,39 @@
 - **Verify:** `make check`; `make test-e2e` with the same count; `git grep -nw 'get'` finds no
   domain service's read, and no attachment read takes positional ids.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Two rounds: S38.1 read attachments by `where` and checked them first; S38.2 finished the
+    shape. Unit 221 cases, e2e 104.
+  - The bind, option B on the user's word: the send reads with `AttachmentService.getMany`, binds
+    with the pure `bindAttachment` before its first write, and writes the bind through the
+    repositories after the message's insert (its key to the message is not deferrable), the files
+    first. `AttachmentService.bind`, which answered an `Effect` of an `Effect`, is gone.
+  - No read takes a lock, on the user's word: the loser of two sends answers `409` when it reads
+    after the winner, else dies with a `500` on the write's `messageId: null` guard. This departs
+    from postgres-drizzle's R10 and reverses S38.1's "two sends of one file answer 409"; recorded
+    in `decisions.md › Guards in the write, no lock` and D7's Note.
+  - Review found a partial race: a send of `[a, b]` against one of `[a]` bound only `b` and
+    committed, its message claiming `a`. A repository write over a list of ids now dies unless it
+    changes a row per distinct id (`orDieOnMissedRows`); an e2e race on overlapping sets and a
+    repository case hold it, both red with the old `orDieOnNoRows`.
+  - A business rule is a pure function in its model, built from small pieces (`isLiveAt`,
+    `ensureAllLive`, `ensureUnbound`, `bindAttachment`); `layering.md` states it with a do/don't
+    fence, `decisions.md › Rules as pure functions` records it. `isFirstMessage` stays in the
+    send: a model function would only rename `Option.isNone`.
+  - One `AttachmentNotFoundError` names every missing id once, in the order asked; reads answer
+    creation order (`createdAt`, then `id`), as the messages do.
+  - Dropped on the user's word: the one SHA-256 digest (the user's secret and the instructions keep
+    their own) and the file-local instructions hash (its test reads it); `UserId` keeps its own
+    schema, `buildIdSchema` serves the chat module's ids.
+  - Drizzle's `inArray` renders `[]` as `1 = 0`; `getMany` still returns early on no ids, so a
+    send without files reads nothing. The bind writes the ids it read, each once.
+  - Known, left open: a send that rolls back after untagging its files leaves their bytes tagged
+    bound, so an expired attachment's bytes stay; the old lock made this rarer, not impossible.
+  - Added on the user's word: a builder spreads one `Types.Simplify<Pick<…>>` of the fields it
+    copies (`effect-style.md`), and every type built from others is wrapped in `Types.Simplify`
+    (`effect.md`).
+  - Over budget, left to `lean-instructions`: `layering.md` at 92 lines, `effect-style.md` at 84.
 
 
 #### S39 — `biome.json` keeps only the import rules nothing else holds

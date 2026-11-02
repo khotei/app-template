@@ -32,7 +32,7 @@ import {
 import { MessageId } from '#chat/domain/chat.id'
 import { ChatTitle } from '#chat/domain/chat.model'
 import {
-  AssistantLlm,
+  AssistantLlmFromConfig,
   CurrentReplyProvenanceFromConfig,
   generateInstructionsHash,
 } from '#chat/infrastructure/assistant.llm'
@@ -54,7 +54,7 @@ const readBody = (request: HttpClientRequest.HttpClientRequest): RequestBody =>
     ? JSON.parse(new TextDecoder().decode(request.body.body))
     : assert.fail(`a request body of ${request.body._tag}`)
 
-/** `AssistantLlm` over the models `env` configures and an `HttpClient` that keeps each request body and the time it was sent, and answers it by `respond`. */
+/** `AssistantLlmFromConfig` over the models `env` configures and an `HttpClient` that keeps each request body and the time it was sent, and answers it by `respond`. */
 const recordProvider = (env: Record<string, string>, respond: (body: RequestBody) => Response) => {
   const requests = Ref.makeUnsafe<
     ReadonlyArray<{ readonly body: RequestBody; readonly at: number }>
@@ -66,7 +66,7 @@ const recordProvider = (env: Record<string, string>, respond: (body: RequestBody
       Effect.as(HttpClientResponse.fromWeb(request, respond(body))),
     )
   })
-  const layer = AssistantLlm.pipe(
+  const layer = AssistantLlmFromConfig.pipe(
     Layer.provide([
       Layer.succeed(HttpClient.HttpClient, httpClient),
       ConfigProvider.layer(ConfigProvider.fromUnknown(env)),
@@ -152,7 +152,7 @@ const photo = image('0192d4e0-7b3a-7c00-8000-000000000040', 'photo.png')
 
 const sketch = image('0192d4e0-7b3a-7c00-8000-000000000041', 'sketch.png')
 
-describe('AssistantLlm', () => {
+describe('AssistantLlmFromConfig', () => {
   it.effect(
     'reply asks the reply model for at most 16 000 tokens, with the prefix cached and the default effort and thinking',
     () => {

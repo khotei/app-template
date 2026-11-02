@@ -67,6 +67,26 @@ const isDefectAnswer = (error: HttpClientError.HttpClientError) =>
 const selectMessages = (chatId: ChatId) =>
   SqlClient.SqlClient.use((sql) => sql`select id from messages where chat_id = ${chatId}`)
 
+const selectAttachmentChat = (id: AttachmentId) =>
+  SqlClient.SqlClient.use(
+    (sql) => sql`select chat_id as "chatId" from attachments where id = ${id}`,
+  )
+
+/**
+ * Sends the files to the chat: 'sent', or 'refused' when the send reads one bound
+ * (`AttachmentBoundError`) or, having read them free, dies on the bind's guard with a bare 500.
+ */
+const sendRacing = (chatId: ChatId, attachmentIds: ReadonlyArray<AttachmentId>) =>
+  ApiClient.use((api) =>
+    api.chats.send({ params: { chatId }, payload: { text: 'Look', attachmentIds } }).pipe(
+      Effect.as('sent'),
+      Effect.catchTag('AttachmentBoundError', () => Effect.succeed('refused')),
+      Effect.catchTag('HttpClientError', (error) =>
+        isDefectAnswer(error) ? Effect.succeed('refused') : Effect.fail(error),
+      ),
+    ),
+  )
+
 const ReplyJobRows = Schema.Tuple([
   Schema.Struct({ body: Schema.toCodecJson(GenerateAssistantMessage) }),
 ])
@@ -124,7 +144,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           assertSchemaEquals(
             AttachmentNotFoundError,
             gone,
-            new AttachmentNotFoundError({ id: uploaded.id }),
+            new AttachmentNotFoundError({ ids: [uploaded.id] }),
           )
         }),
       30_000,
@@ -150,7 +170,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
         assertSchemaEquals(
           AttachmentNotFoundError,
           refused,
-          new AttachmentNotFoundError({ id: stale }),
+          new AttachmentNotFoundError({ ids: [stale] }),
         )
         assert.deepStrictEqual(stored, [])
         assert.deepStrictEqual(rows, [])
@@ -184,7 +204,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
     )
 
     it.effect(
-      'of two concurrent sends binding one file to two chats, one binds it and the other is AttachmentBoundError',
+      'of two concurrent sends binding one file to two chats, one binds it and the other is refused, keeping nothing',
       () =>
         Effect.gen(function* () {
           const api = yield* ApiClient
@@ -192,19 +212,41 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           const chat = yield* api.chats.create()
           const other = yield* api.chats.create()
           const photo = yield* uploadPhoto
-          const send = (chatId: ChatId) =>
-            api.chats
-              .send({ params: { chatId }, payload: { text: 'Look', attachmentIds: [photo.id] } })
-              .pipe(
-                Effect.as('sent'),
-                Effect.catchTag('AttachmentBoundError', () => Effect.succeed('bound')),
-              )
 
-          const outcomes = yield* Effect.all([send(chat.id), send(other.id)], {
-            concurrency: 'unbounded',
-          })
+          const outcomes = yield* Effect.all(
+            [sendRacing(chat.id, [photo.id]), sendRacing(other.id, [photo.id])],
+            { concurrency: 'unbounded' },
+          )
 
-          assert.deepStrictEqual(Arr.sort(outcomes, Order.String), ['bound', 'sent'])
+          const winner = outcomes[0] === 'sent' ? chat.id : other.id
+          const loser = winner === chat.id ? other.id : chat.id
+          assert.deepStrictEqual(Arr.sort(outcomes, Order.String), ['refused', 'sent'])
+          assert.deepStrictEqual(yield* selectAttachmentChat(photo.id), [{ chatId: winner }])
+          assert.deepStrictEqual(yield* selectMessages(loser), [])
+        }),
+    )
+
+    it.effect(
+      'of two concurrent sends of overlapping files to two chats, the loser keeps nothing, not even the file only it named',
+      () =>
+        Effect.gen(function* () {
+          const api = yield* ApiClient
+          yield* api.users.ensure()
+          const chat = yield* api.chats.create()
+          const other = yield* api.chats.create()
+          const [a, b, c] = yield* Effect.all([uploadPhoto, uploadPhoto, uploadPhoto])
+
+          const outcomes = yield* Effect.all(
+            [sendRacing(chat.id, [a.id, b.id]), sendRacing(other.id, [b.id, c.id])],
+            { concurrency: 'unbounded' },
+          )
+
+          const chatWon = outcomes[0] === 'sent'
+          const loser = chatWon ? other.id : chat.id
+          const loserOnly = chatWon ? c.id : a.id
+          assert.deepStrictEqual(Arr.sort(outcomes, Order.String), ['refused', 'sent'])
+          assert.deepStrictEqual(yield* selectMessages(loser), [])
+          assert.deepStrictEqual(yield* selectAttachmentChat(loserOnly), [{ chatId: null }])
         }),
     )
   })

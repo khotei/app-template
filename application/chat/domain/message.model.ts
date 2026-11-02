@@ -7,6 +7,7 @@ import {
   Predicate,
   Schema,
   String as Str,
+  type Types,
 } from 'effect'
 
 import type { AssistantError } from '#chat/domain/assistant.error'
@@ -42,7 +43,7 @@ export class Message extends Schema.Class<Message>('Message')({
   error: Schema.Option(MessageFailure),
   createdAt: Schema.DateTimeUtc,
   updatedAt: Schema.DateTimeUtc,
-  /** Bound by `AttachmentService.bind`, in upload order; the message's own writes never touch them. */
+  /** Bound by the send, in upload order; the message's own writes never touch them. */
   attachments: Schema.Array(Attachment),
 }) {}
 
@@ -57,40 +58,20 @@ export interface MessageInput {
   readonly attachmentIds: ReadonlyArray<AttachmentId>
 }
 
-export const buildUserMessage = (input: {
-  readonly id: MessageId
-  readonly chatId: ChatId
-  readonly text: string
-  readonly createdAt: DateTime.Utc
-}): Message =>
-  new Message({
-    id: input.id,
-    chatId: input.chatId,
-    author: 'user',
-    status: 'done',
-    text: input.text,
-    error: Option.none(),
-    createdAt: input.createdAt,
-    updatedAt: input.createdAt,
-    attachments: [],
-  })
+const buildMessage = (
+  fields: Types.Simplify<
+    Pick<Message, 'id' | 'chatId' | 'author' | 'status' | 'text' | 'createdAt'>
+  >,
+): Message =>
+  new Message({ ...fields, error: Option.none(), updatedAt: fields.createdAt, attachments: [] })
 
-export const buildAssistantMessage = (input: {
-  readonly id: MessageId
-  readonly chatId: ChatId
-  readonly createdAt: DateTime.Utc
-}): Message =>
-  new Message({
-    id: input.id,
-    chatId: input.chatId,
-    author: 'assistant',
-    status: 'queued',
-    text: '',
-    error: Option.none(),
-    createdAt: input.createdAt,
-    updatedAt: input.createdAt,
-    attachments: [],
-  })
+export const buildUserMessage = (
+  fields: Types.Simplify<Pick<Message, 'id' | 'chatId' | 'text' | 'createdAt'>>,
+): Message => buildMessage({ ...fields, author: 'user', status: 'done' })
+
+export const buildAssistantMessage = (
+  fields: Types.Simplify<Pick<Message, 'id' | 'chatId' | 'createdAt'>>,
+): Message => buildMessage({ ...fields, author: 'assistant', status: 'queued', text: '' })
 
 const isActiveShape = Predicate.Struct({
   author: Schema.is(MessageAuthor.pick(['assistant'])),
@@ -129,7 +110,7 @@ const move = Effect.fnUntraced(function* (
   }: {
     readonly to: keyof typeof transitions
     readonly at: DateTime.Utc
-    readonly patch?: Partial<Pick<Message, 'text' | 'error'>>
+    readonly patch?: Types.Simplify<Partial<Pick<Message, 'text' | 'error'>>>
   },
 ) {
   if (!transitions[to](message)) {
@@ -160,9 +141,9 @@ const failureMessages = {
 } as const satisfies Record<MessageFailure['reason'], string>
 
 /** Why a reply failed and when; the user-facing text comes from `failureMessages`. */
-export type MessageFailureInput = Pick<MessageFailure, 'reason' | 'cause'> & {
-  readonly at: DateTime.Utc
-}
+export type MessageFailureInput = Types.Simplify<
+  Pick<MessageFailure, 'reason' | 'cause'> & { readonly at: DateTime.Utc }
+>
 
 export const failMessage = Effect.fn('failMessage')(
   (message: Message, { reason, cause, at }: MessageFailureInput) =>
@@ -182,7 +163,7 @@ const replyFailureReasons = {
 
 export const buildReplyFailure = (
   error: AssistantError,
-): Pick<MessageFailure, 'reason' | 'cause'> => ({
+): Types.Simplify<Pick<MessageFailure, 'reason' | 'cause'>> => ({
   reason: replyFailureReasons[error._tag],
   cause: error.cause,
 })

@@ -1,8 +1,20 @@
-import { DateTime, Duration, Effect, Option, Predicate, Schema } from 'effect'
+import {
+  Array as Arr,
+  DateTime,
+  Duration,
+  Effect,
+  flow,
+  Option,
+  Predicate,
+  pipe,
+  Schema,
+  Struct,
+  type Types,
+} from 'effect'
 
 import { UserId } from '@app-template/application/identity'
 
-import { AttachmentBoundError } from '#chat/domain/attachment.error'
+import { AttachmentBoundError, AttachmentNotFoundError } from '#chat/domain/attachment.error'
 import { AttachmentId } from '#chat/domain/attachment.id'
 import { ChatId, MessageId } from '#chat/domain/chat.id'
 
@@ -38,37 +50,48 @@ export class Attachment extends Schema.Class<Attachment>('Attachment')({
   createdAt: Schema.DateTimeUtc,
 }) {}
 
-export const buildAttachment = (input: {
-  readonly id: AttachmentId
-  readonly userId: UserId
-  readonly fileName: FileName
-  readonly mediaType: MediaType
-  readonly size: FileSize
-  readonly createdAt: DateTime.Utc
-}): Attachment =>
-  new Attachment({
-    id: input.id,
-    userId: input.userId,
-    messageId: Option.none(),
-    chatId: Option.none(),
-    fileName: input.fileName,
-    mediaType: input.mediaType,
-    size: input.size,
-    createdAt: input.createdAt,
-  })
+export const buildAttachment = (
+  fields: Types.Simplify<
+    Pick<Attachment, 'id' | 'userId' | 'fileName' | 'mediaType' | 'size' | 'createdAt'>
+  >,
+): Attachment => new Attachment({ ...fields, messageId: Option.none(), chatId: Option.none() })
 
 export const unboundLifetime = Duration.hours(24)
 
 const isUnbound: Predicate.Predicate<Attachment> = (attachment) =>
   Option.isNone(attachment.messageId)
 
-export const isExpiredAt = (now: DateTime.Utc): Predicate.Predicate<Attachment> =>
+const isExpiredAt = (now: DateTime.Utc): Predicate.Predicate<Attachment> =>
   Predicate.and(isUnbound, (attachment) =>
     DateTime.isGreaterThanOrEqualTo(
       now,
       DateTime.addDuration(attachment.createdAt, unboundLifetime),
     ),
   )
+
+/** Bound, or unbound for less than `unboundLifetime` at `now`. */
+export const isLiveAt = (now: DateTime.Utc): Predicate.Predicate<Attachment> =>
+  Predicate.not(isExpiredAt(now))
+
+/** `found` when it holds every id of `ids`; else one error naming each missing id once, in the order asked. */
+const ensureAllFound =
+  (ids: ReadonlyArray<AttachmentId>) =>
+  (
+    found: ReadonlyArray<Attachment>,
+  ): Effect.Effect<ReadonlyArray<Attachment>, AttachmentNotFoundError> =>
+    pipe(
+      ids,
+      Arr.difference(Arr.map(found, Struct.get('id'))),
+      Arr.dedupe,
+      Arr.match({
+        onEmpty: () => Effect.succeed(found),
+        onNonEmpty: (missing) => Effect.fail(new AttachmentNotFoundError({ ids: missing })),
+      }),
+    )
+
+/** The attachments read, less the expired ones, when they hold every id of `ids` at `now`. */
+export const ensureAllLive = (ids: ReadonlyArray<AttachmentId>, now: DateTime.Utc) =>
+  flow(Arr.filter(isLiveAt(now)), ensureAllFound(ids))
 
 /** Fails `AttachmentBoundError` for an attachment a message holds. */
 export const ensureUnbound = Effect.filterOrFail<Attachment, AttachmentBoundError>(
@@ -78,18 +101,15 @@ export const ensureUnbound = Effect.filterOrFail<Attachment, AttachmentBoundErro
 
 /** Binds the attachment to the message and its chat; one a message holds is `AttachmentBoundError`. */
 export const bindAttachment = Effect.fn('bindAttachment')(
-  (
-    attachment: Attachment,
-    { messageId, chatId }: { readonly messageId: MessageId; readonly chatId: ChatId },
-  ) =>
+  (attachment: Attachment, message: { readonly id: MessageId; readonly chatId: ChatId }) =>
     Effect.succeed(attachment).pipe(
       ensureUnbound,
       Effect.map(
         (unbound) =>
           new Attachment({
             ...unbound,
-            messageId: Option.some(messageId),
-            chatId: Option.some(chatId),
+            messageId: Option.some(message.id),
+            chatId: Option.some(message.chatId),
           }),
       ),
     ),

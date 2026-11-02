@@ -1,5 +1,7 @@
 export {
   type AttemptInfo,
+  buildDeadLetterQueue,
+  buildDoublingDelay,
   encodeJob,
   QueueConsumer,
   type QueueDefinition,

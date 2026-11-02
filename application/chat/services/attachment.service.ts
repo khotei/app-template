@@ -4,12 +4,11 @@ import {
   Crypto,
   DateTime,
   Effect,
-  HashMap,
   Layer,
   Option,
-  Predicate,
   Ref,
   Stream,
+  type Types,
 } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
@@ -20,13 +19,12 @@ import { type AttachmentBoundError, AttachmentNotFoundError } from '#chat/domain
 import { AttachmentId } from '#chat/domain/attachment.id'
 import {
   type Attachment,
-  bindAttachment,
   buildAttachment,
+  ensureAllLive,
   ensureUnbound,
   FileSize,
-  isExpiredAt,
+  isLiveAt,
 } from '#chat/domain/attachment.model'
-import type { ChatId, MessageId } from '#chat/domain/chat.id'
 import {
   decodeAttachment,
   decodeAttachments,
@@ -38,7 +36,7 @@ export interface AttachmentUpload<E> extends Pick<Attachment, 'mediaType' | 'fil
 }
 
 /** The user's attachment; another user's reads as absent. */
-export type AttachmentWhere = Pick<Attachment, 'id' | 'userId'>
+export type AttachmentWhere = Types.Simplify<Pick<Attachment, 'id' | 'userId'>>
 
 /** An attachment unbound for `unboundLifetime` reads as not found; no read deletes it. */
 export class AttachmentService extends Context.Service<
@@ -59,19 +57,13 @@ export class AttachmentService extends Context.Service<
       where: AttachmentWhere,
     ) => Effect.Effect<void, AttachmentNotFoundError | AttachmentBoundError>
     /**
-     * Checks the user's attachments under their rows' lock and answers the write that binds them
-     * to the message of the chat, to run once that message is stored; the write answers them
-     * bound, in the order asked. Of two sends binding one file the second waits on the lock and
-     * fails `AttachmentBoundError`.
+     * The user's attachments in creation order; one `AttachmentNotFoundError` names every absent,
+     * expired or another user's id, in the order asked.
      */
-    readonly bind: (
-      userId: UserId,
-      ids: ReadonlyArray<AttachmentId>,
-      to: { readonly messageId: MessageId; readonly chatId: ChatId },
-    ) => Effect.Effect<
-      Effect.Effect<ReadonlyArray<Attachment>>,
-      AttachmentNotFoundError | AttachmentBoundError
-    >
+    readonly getMany: (where: {
+      readonly id: ReadonlyArray<AttachmentId>
+      readonly userId: UserId
+    }) => Effect.Effect<ReadonlyArray<Attachment>, AttachmentNotFoundError>
   }
 >()('@app-template/application/chat/services/AttachmentService', {
   make: Effect.gen(function* () {
@@ -130,8 +122,8 @@ export class AttachmentService extends Context.Service<
       const now = yield* DateTime.now
 
       return yield* found.pipe(
-        Option.filter(Predicate.not(isExpiredAt(now))),
-        Effect.fromOption(() => new AttachmentNotFoundError({ id: where.id })),
+        Option.filter(isLiveAt(now)),
+        Effect.fromOption(() => new AttachmentNotFoundError({ ids: [where.id] })),
       )
     })
 
@@ -140,7 +132,7 @@ export class AttachmentService extends Context.Service<
 
       return yield* files
         .url({ id })
-        .pipe(Effect.flatMap(Effect.fromOption(() => new AttachmentNotFoundError({ id }))))
+        .pipe(Effect.flatMap(Effect.fromOption(() => new AttachmentNotFoundError({ ids: [id] }))))
     })
 
     const remove = Effect.fn('AttachmentService.delete')(function* (where: AttachmentWhere) {
@@ -151,42 +143,19 @@ export class AttachmentService extends Context.Service<
       yield* files.delete({ id: [id] })
     })
 
-    // One batch read; the refusal still names the first bad id in the order asked.
-    const bind = Effect.fn('AttachmentService.bind')(function* (
-      userId: UserId,
-      ids: ReadonlyArray<AttachmentId>,
-      to: { readonly messageId: MessageId; readonly chatId: ChatId },
-    ) {
-      // A send without files binds nothing, and the update below dies on no rows.
-      if (Arr.isReadonlyArrayEmpty(ids)) return Effect.succeed(Arr.empty<Attachment>())
-      // The rows stay locked until the send commits, so a concurrent bind of one of them waits
-      // here and then finds it bound.
-      const stored = yield* attachments
-        .selectMany({ id: ids, userId }, { forUpdate: true })
-        .pipe(Effect.flatMap(decodeAttachments))
+    const getMany = Effect.fn('AttachmentService.getMany')(function* (where: {
+      readonly id: ReadonlyArray<AttachmentId>
+      readonly userId: UserId
+    }) {
+      if (Arr.isReadonlyArrayEmpty(where.id)) return Arr.empty<Attachment>()
       const now = yield* DateTime.now
-      const found = HashMap.fromIterable(
-        Arr.map(stored, (attachment) => [attachment.id, attachment]),
-      )
-      const bindFound = (id: AttachmentId) =>
-        HashMap.get(found, id).pipe(
-          Option.filter(Predicate.not(isExpiredAt(now))),
-          Effect.fromOption(() => new AttachmentNotFoundError({ id })),
-          Effect.flatMap((attachment) => bindAttachment(attachment, to)),
-        )
 
-      const bound = yield* Effect.forEach(ids, bindFound)
-
-      return Effect.gen(function* () {
-        // Bind the files first: unbound bytes expire, so a crash must never leave a bound row
-        // over them.
-        yield* Effect.forEach(ids, (id) => files.update({ bound: true }, { id }), { discard: true })
-        yield* attachments.update(to, { id: ids, userId, messageId: null })
-        return bound
-      })
+      return yield* attachments
+        .selectMany(where)
+        .pipe(Effect.flatMap(decodeAttachments), Effect.flatMap(ensureAllLive(where.id, now)))
     })
 
-    return { upload, getOne, download, delete: remove, bind }
+    return { upload, getOne, download, delete: remove, getMany }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

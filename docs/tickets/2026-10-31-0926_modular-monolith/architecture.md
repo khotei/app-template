@@ -408,7 +408,7 @@ record in `decisions.md`:
 | Override | Refuses |
 |---|---|
 | `application/<module>/domain/**` | `@app-template/**` but the entry of a module below it; `#<module>/services/**`, `#<module>/infrastructure/**`; `@effect/**` |
-| `application/<module>/services/**` | `@app-template/**` but `packages/{aws,db,queue}`, the entry of a module below it, of `kernel/data` the stores and of `kernel/aws` the inventory; `#<module>/infrastructure/**`; `@effect/**` |
+| `application/<module>/services/**` | `@app-template/**` but `packages/{db,queue}`, the entry of a module below it, of `kernel/data` the stores and of `kernel/aws` the inventory; `#<module>/infrastructure/**`; `@effect/**` |
 | `application/<module>/infrastructure/**` | `@app-template/**` but the entry of a module below it, `kernel/*` and `packages/*`; `#<module>/services/**` |
 | `application/<module>/contract/**` | `@app-template/**`; `@effect/**`; its module's other files |
 | `application/use-cases/**` | `@app-template/**` but the modules' entries, `kernel/data` and `packages/*`; any `/testing` in source |
@@ -452,7 +452,7 @@ The behaviour must not change, so the seams are today's, at their new paths.
 | a module's services and the use cases over the memory repositories, `TransactionTest` and `recordQueue()` (`application/*/__tests__/`) | the rules, a use case's checks, writes and jobs (R2) | SQL, the real transaction, S3 |
 | a repository on Postgres or MiniStack (`kernel/data/__e2e__/<store>/`), in entities | the SQL, the relations, the partial unique index, the cascades, the checks, the object keys and tags (R9) | the models' rules |
 | a mapper over the schemas (`application/<module>/__tests__/services/`) | each model's extreme value and every status and author through the entity's insert schema; each limit and pattern equal to the table's export, which the data layer's e2e binds to its check (R9) | the services, the SQL |
-| the `AssistantLlm` adapter over a recording `HttpClient` (`application/chat/__tests__/infrastructure/`) | the requests to the provider, the settings, the retries, the stub (R2) | the provider itself |
+| the `AssistantLlmFromConfig` adapter over a recording `HttpClient` (`application/chat/__tests__/infrastructure/`) | the requests to the provider, the settings, the retries, the stub (R2) | the provider itself |
 | a worker handler (`apps/worker/__tests__/`) | attempts, the last attempt and the dead letter (R2) | SQS itself |
 | `make reset`, `make up` and a schema dump diffed against `main`'s; `make migration-check` | one migration, the same schema but `jobs` (R4, R5) | a database that is not reset |
 | `make check` with a throwaway import | each Biome override, the isolated linker, `tsc -b`, the bundle check (R12–R17) | what only the review rule names (D12) |
@@ -538,6 +538,13 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
     file, so a shared layer override would erase the module's ban on another's files. A use case may
     import any layer of a module below it, its infrastructure included: the user's word on
     2026-11-02.
+  - **Note (S38):** a business rule is a pure function in its model's `.model` file, combined
+    from small pieces (`isLiveAt`, `ensureAllLive`, `ensureUnbound`, `bindAttachment`); a service
+    reads, calls it and writes ([Rules as pure functions](../../knowledge/decisions.md#rules-as-pure-functions)).
+    The send reads its files with `getMany` and binds them with the pure `bindAttachment` before
+    its first write, then writes the bind through the repositories after the message's insert,
+    since the key to the message is not deferrable. Rejected: `AttachmentService.bind`, which
+    checked and wrote in one call and answered an `Effect` of an `Effect`; a deferrable key.
 
 - **D5 — One kernel workspace, `@app-template/kernel`, with subpaths `/config`, `/postgres`,
   `/aws` (its clients and the inventory), `/queue`, `/llm` and `/data`; it holds the data and the boundary's
@@ -588,6 +595,12 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
       the app reads as one.
     - the tables, repositories and models in the kernel — a shared domain, the guide's "coupling
       magnet".
+  - **Note (S38):** no read takes a lock: a race's guard is the write's `where`, and a write over
+    a list of ids dies unless it changes a row per distinct id
+    ([Guards in the write, no lock](../../knowledge/decisions.md#guards-in-the-write-no-lock)). The
+    loser of two sends answers `409` when it reads after the winner, else dies with a `500`, which
+    departs from postgres-drizzle's R10 on the user's word. Rejected: `forUpdate` on `selectMany`,
+    an option that changed the read's contract.
 
 - **D8 — The data layer's names end in `Entity` (`ChatEntity`, `ChatEntityInsert`,
   `ChatEntityWhere`, `ChatEntitySet`); its repositories are `<Name>Repository`; a table keeps its

@@ -1,7 +1,18 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, Duration, Effect, Exit, HashMap, Layer, Option, Ref, Stream } from 'effect'
+import {
+  Array as Arr,
+  Duration,
+  Effect,
+  Exit,
+  HashMap,
+  Layer,
+  Option,
+  Order,
+  Ref,
+  Stream,
+} from 'effect'
 import { TestClock } from 'effect/testing'
 
 import type { UserId } from '@app-template/application/identity'
@@ -19,7 +30,7 @@ import {
 import { AttachmentBoundError, AttachmentNotFoundError } from '#chat/domain/attachment.error'
 import { AttachmentId } from '#chat/domain/attachment.id'
 import {
-  Attachment,
+  type Attachment,
   buildAttachment,
   FileName,
   FileSize,
@@ -101,23 +112,12 @@ const readers = [
 const addressers = [
   ...readers,
   { name: 'delete', address: (service, userId, id) => service.delete({ id, userId }) },
-  {
-    name: 'bind',
-    address: (service, userId, id) =>
-      service.bind(userId, [id], message).pipe(Effect.flatten, Effect.asVoid),
-  },
 ] as const satisfies ReadonlyArray<Addresser>
-
-/** Where a send binds: the fixture message of the fixture chat. */
-const message = { messageId, chatId }
 
 const bind = (attachment: Attachment) =>
   AttachmentRepository.use((attachments) =>
     attachments.update({ messageId, chatId }, { id: [attachment.id] }),
   )
-
-const boundTo = (attachment: Attachment) =>
-  new Attachment({ ...attachment, messageId: Option.some(messageId), chatId: Option.some(chatId) })
 
 const selectBytes = (id: AttachmentId) => FileRepository.use((files) => files.selectOne({ id }))
 
@@ -160,10 +160,11 @@ describe('AttachmentService', () => {
         Arr.map(uploaded, (attachment) => attachment.fileName),
         [photo.fileName, second.fileName],
       )
-      assertEquals(
-        yield* selectAttachments(Arr.map(uploaded, (attachment) => attachment.id)),
-        uploaded,
-      )
+      // Both share the test clock's `createdAt`, so the rows come back in no defined order.
+      const byId = (attachments: ReadonlyArray<Attachment>) =>
+        Arr.sortWith(attachments, (attachment) => attachment.id, Order.String)
+      const stored = yield* selectAttachments(Arr.map(uploaded, (attachment) => attachment.id))
+      assertEquals(byId(stored), byId(uploaded))
     }).pipe(Effect.provide(AttachmentServiceTest)),
   )
 
@@ -205,7 +206,7 @@ describe('AttachmentService', () => {
       assertSchemaEquals(
         AttachmentNotFoundError,
         error,
-        new AttachmentNotFoundError({ id: attachment.id }),
+        new AttachmentNotFoundError({ ids: [attachment.id] }),
       )
     }).pipe(Effect.provide(AttachmentServiceTest)),
   )
@@ -223,12 +224,12 @@ describe('AttachmentService', () => {
         assertSchemaEquals(
           AttachmentNotFoundError,
           foreign,
-          new AttachmentNotFoundError({ id: attachment.id }),
+          new AttachmentNotFoundError({ ids: [attachment.id] }),
         )
         assertSchemaEquals(
           AttachmentNotFoundError,
           missing,
-          new AttachmentNotFoundError({ id: unknownAttachmentId }),
+          new AttachmentNotFoundError({ ids: [unknownAttachmentId] }),
         )
       }).pipe(Effect.provide(AttachmentServiceTest)),
   )
@@ -244,7 +245,7 @@ describe('AttachmentService', () => {
       assertSchemaEquals(
         AttachmentNotFoundError,
         error,
-        new AttachmentNotFoundError({ id: attachment.id }),
+        new AttachmentNotFoundError({ ids: [attachment.id] }),
       )
       assert.deepStrictEqual(yield* selectBytes(attachment.id), Option.none())
     }).pipe(Effect.provide(AttachmentServiceTest)),
@@ -262,7 +263,7 @@ describe('AttachmentService', () => {
       assertSchemaEquals(
         AttachmentNotFoundError,
         error,
-        new AttachmentNotFoundError({ id: attachment.id }),
+        new AttachmentNotFoundError({ ids: [attachment.id] }),
       )
       assertEquals(found, attachment)
       assert.deepStrictEqual(bytes, Option.some(png))
@@ -287,63 +288,26 @@ describe('AttachmentService', () => {
     }).pipe(Effect.provide(AttachmentServiceTest)),
   )
 
-  it.effect(
-    "bind binds the user's attachments to the message and returns them in the order asked",
-    () =>
-      Effect.gen(function* () {
-        const service = yield* AttachmentService
-        const first = yield* uploadPhoto
-        const second = yield* uploadPhoto
-
-        const bound = yield* service
-          .bind(owner, [second.id, first.id], message)
-          .pipe(Effect.flatten)
-
-        assertEquals(bound, [boundTo(second), boundTo(first)])
-        assertEquals(yield* selectAttachments([second.id, first.id]), bound)
-      }).pipe(Effect.provide(AttachmentServiceTest)),
-  )
-
-  it.effect('bind names the first id not found in the order asked and binds nothing', () =>
+  it.effect("getMany of another user's attachment is AttachmentNotFoundError", () =>
     Effect.gen(function* () {
       const service = yield* AttachmentService
-      const free = yield* uploadPhoto
       const foreign = yield* upload(stranger)
 
-      const strangerFirst = yield* service
-        .bind(owner, [free.id, foreign.id, unknownAttachmentId], message)
-        .pipe(Effect.flatten, Effect.flip)
-      const unknownFirst = yield* service
-        .bind(owner, [free.id, unknownAttachmentId, foreign.id], message)
-        .pipe(Effect.flatten, Effect.flip)
+      const error = yield* service.getMany({ id: [foreign.id], userId: owner }).pipe(Effect.flip)
 
       assertSchemaEquals(
         AttachmentNotFoundError,
-        strangerFirst,
-        new AttachmentNotFoundError({ id: foreign.id }),
+        error,
+        new AttachmentNotFoundError({ ids: [foreign.id] }),
       )
-      assertSchemaEquals(
-        AttachmentNotFoundError,
-        unknownFirst,
-        new AttachmentNotFoundError({ id: unknownAttachmentId }),
-      )
-      assertEquals(yield* selectAttachments([free.id, foreign.id]), [free, foreign])
     }).pipe(Effect.provide(AttachmentServiceTest)),
   )
 
-  it.effect('bind with a bound attachment is AttachmentBoundError and binds nothing else', () =>
+  it.effect('getMany of no ids answers none', () =>
     Effect.gen(function* () {
       const service = yield* AttachmentService
-      const free = yield* uploadPhoto
-      const taken = yield* uploadPhoto
-      yield* bind(taken)
 
-      const error = yield* service
-        .bind(owner, [free.id, taken.id], message)
-        .pipe(Effect.flatten, Effect.flip)
-
-      assertSchemaEquals(AttachmentBoundError, error, new AttachmentBoundError({ id: taken.id }))
-      assertEquals(yield* selectAttachments([free.id, taken.id]), [free, boundTo(taken)])
+      assert.deepStrictEqual(yield* service.getMany({ id: [], userId: owner }), [])
     }).pipe(Effect.provide(AttachmentServiceTest)),
   )
 
@@ -362,7 +326,7 @@ describe('AttachmentService', () => {
         assertSchemaEquals(
           AttachmentNotFoundError,
           error,
-          new AttachmentNotFoundError({ id: attachment.id }),
+          new AttachmentNotFoundError({ ids: [attachment.id] }),
         )
         assertEquals(stored, [attachment])
         assert.deepStrictEqual(bytes, Option.some(png))

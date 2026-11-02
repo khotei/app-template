@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, Effect, Exit, Layer, Option, pipe, Schema, Struct } from 'effect'
+import { Array as Arr, Effect, Exit, Layer, Option, pipe, Schema } from 'effect'
 
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
@@ -107,13 +107,11 @@ describe('AttachmentRepository', () => {
       }).pipe(Effect.provide(AttachmentRepositoryDbTest)),
   )
 
-  it.effect('update where unbound returns the ones it bound and leaves one bound before', () =>
+  it.effect('update where unbound dies when one of the ids it names is bound already', () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentRepository
       const nextMessageId = '0192d4e0-7b3a-7c00-8000-000000000051'
-      const first = attachment('0192d4e0-7b3a-7c00-8000-000000000021')
-      const second = attachment('0192d4e0-7b3a-7c00-8000-000000000022')
-      const free = [first, second]
+      const free = attachment('0192d4e0-7b3a-7c00-8000-000000000021')
       const boundBefore = {
         ...attachment('0192d4e0-7b3a-7c00-8000-000000000023'),
         messageId,
@@ -121,33 +119,32 @@ describe('AttachmentRepository', () => {
       }
       yield* insertChatWithMessage
       yield* insertMessage(nextMessageId)
-      yield* pipe(free, Arr.append(boundBefore), Effect.forEach(attachments.insert))
+      yield* Effect.forEach([free, boundBefore], attachments.insert)
 
-      yield* attachments.update(
-        { messageId: nextMessageId, chatId },
-        { id: [first.id, boundBefore.id, unknownId, second.id], messageId: null },
-      )
+      const exit = yield* attachments
+        .update(
+          { messageId: nextMessageId, chatId },
+          { id: [free.id, boundBefore.id], messageId: null },
+        )
+        .pipe(Effect.exit)
 
-      const boundNow = Arr.map(free, (each) => ({ ...each, messageId: nextMessageId, chatId }))
-      assertSchemaEquals(
-        Attachments,
-        yield* attachments.selectMany({
-          id: pipe(free, Arr.append(boundBefore), Arr.map(Struct.get('id'))),
-        }),
-        Arr.append(boundNow, boundBefore),
-      )
+      assert.isTrue(Exit.hasDies(exit))
     }).pipe(Effect.provide(AttachmentRepositoryDbTest)),
   )
 
-  it.effect('selects the attachments found in the order asked, leaving out unknown ids', () =>
+  it.effect('selects the attachments found in creation order, leaving out unknown ids', () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentRepository
       const first = attachment('0192d4e0-7b3a-7c00-8000-000000000021')
-      const second = attachment('0192d4e0-7b3a-7c00-8000-000000000022')
+      // Created before `first` though its id sorts after it, so only the creation order fits.
+      const second = {
+        ...attachment('0192d4e0-7b3a-7c00-8000-000000000022'),
+        createdAt: new Date('2026-10-17T00:00:00.123Z'),
+      }
       yield* insertChatWithMessage
       yield* Effect.forEach([first, second], attachments.insert)
 
-      const selected = yield* attachments.selectMany({ id: [second.id, unknownId, first.id] })
+      const selected = yield* attachments.selectMany({ id: [first.id, unknownId, second.id] })
       const foreign = yield* attachments.selectMany({ id: [first.id], userId: strangerId })
 
       assertSchemaEquals(Attachments, selected, [second, first])
@@ -168,7 +165,7 @@ describe('AttachmentRepository', () => {
       yield* pipe(dropped, Arr.prepend(kept), Effect.forEach(attachments.insert))
 
       const droppedIds = Arr.map(dropped, (each) => each.id)
-      yield* attachments.delete({ id: Arr.append(droppedIds, unknownId) })
+      yield* attachments.delete({ id: droppedIds })
 
       const ids = Arr.prepend(droppedIds, kept.id)
       assertSchemaEquals(Attachments, yield* attachments.selectMany({ id: ids }), [kept])

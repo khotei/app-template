@@ -26,6 +26,7 @@ import { activeMessageStatuses } from '#kernel/data/chat/message.table'
 import { AttachmentRows } from '#testing/data/attachment.test-fake'
 import {
   deleteRows,
+  inCreationOrderWhere,
   insertRow,
   matches,
   matchesAny,
@@ -55,24 +56,7 @@ export class MessageRows extends Context.Service<
   static readonly layer = Layer.effect(this, Ref.make(HashMap.empty<string, MessageRow>()))
 }
 
-interface Created {
-  readonly id: string
-  readonly createdAt: Date
-}
-
-/** Creation order, a tie broken by id, as `inCreationOrder` in `message.entity.ts`. */
-const inCreationOrder = Order.combine(
-  Order.mapInput(Order.Date, (row: Created) => row.createdAt),
-  Order.mapInput(Order.String, (row: Created) => row.id),
-)
-
 const newestFirst = Order.flip(Order.mapInput(Order.Date, (chat: ChatRow) => chat.createdAt))
-
-/** The rows where `where` holds, in creation order. */
-const inCreationOrderWhere = <Row extends Created>(
-  rows: HashMap.HashMap<string, Row>,
-  where: Predicate.Predicate<Row>,
-) => pipe(rows, HashMap.filter(where), HashMap.toValues, Arr.sort(inCreationOrder))
 
 const isActive = matchesAny<MessageRow>({
   author: ['assistant'],
@@ -90,13 +74,7 @@ const holdsActiveIndex = (messages: HashMap.HashMap<string, MessageRow>) => {
   return Arr.dedupe(chatIds).length === chatIds.length
 }
 
-const holdsChatWhere = (where: ChatEntityWhere) =>
-  matches<ChatRow>({
-    id: where.id,
-    userId: where.userId,
-    title: where.title,
-    status: where.status,
-  })
+const holdsChatWhere = (where: ChatEntityWhere) => matches<ChatRow>(where)
 
 /** `userId` holds when the message's chat is the user's, as the repository's subquery reads. */
 const holdsMessageWhere = (chats: HashMap.HashMap<string, ChatRow>, where: MessageEntityWhere) =>

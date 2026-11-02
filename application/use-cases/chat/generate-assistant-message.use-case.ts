@@ -1,4 +1,14 @@
-import { Array as Arr, Cause, Context, Data, DateTime, Effect, Layer, Option } from 'effect'
+import {
+  Array as Arr,
+  Cause,
+  Context,
+  Data,
+  DateTime,
+  Effect,
+  Layer,
+  Option,
+  type Types,
+} from 'effect'
 
 import {
   Assistant,
@@ -109,7 +119,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
 
     const settleFailed = Effect.fnUntraced(function* (
       active: Message,
-      { reason, cause }: Pick<MessageFailure, 'reason' | 'cause'>,
+      { reason, cause }: Types.Simplify<Pick<MessageFailure, 'reason' | 'cause'>>,
     ) {
       const failedAt = yield* DateTime.now
       const failed = yield* failMessage(active, { reason, cause, at: failedAt })

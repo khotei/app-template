@@ -54,7 +54,7 @@ it and enqueues the jobs; a rule stays in its module. It reads or writes a repos
 where no rule applies ([layering.md › Use cases](../../.claude/rules/layering.md#use-cases)).
 
 ```ts
-// two modules' services, each holding its own rule, under one transaction
+// two modules' services, each reading for its own module's rule, under one transaction
 const place = Effect.fn('PlaceOrderUseCase.place')(function* (
   customerId: CustomerId,
   lines: OrderLines,
@@ -217,6 +217,23 @@ called; no, two rules, each kept by its module.
   through its owner, and the flows that write two modules' records move into use cases.
 - **Revisit when:** a write past an owner's rule causes a bug, or a module is to be extracted.
 
+### Rules as pure functions
+
+A business rule is a pure function in its model's `.model` file, over the values passed in (the
+time, the ids), built from small pieces of one condition or step each; a service, a use case or a
+repository only reads, calls it and writes.
+
+- **Why:** a pure piece is tested with plain values and no layer, and a new rule combines pieces
+  that are already tested instead of repeating their logic; a service reads as reads and writes.
+- **Sources:** `.claude/rules/layering.md › Ports and domain services`.
+- **Rejected:** the check written inline in the service's body: only a layer over fakes tests it,
+  and the next service that needs it copies it.
+- **Cost:** more small exported names in a model, and a one-caller combination stays a name of
+  its own when it makes the service read as one step.
+- **Guarded by:** review, by `layering.md`; nothing mechanical.
+- **If reversed:** the rules move back into the services' bodies, and their tests need layers.
+- **Revisit when:** a model's pieces outgrow one file, or a combination is never reused.
+
 ## The kernel and the data
 
 ### One kernel
@@ -253,11 +270,12 @@ no app.
 ### The language model in the kernel
 
 The language-model technology lives in `packages/llm` (the provider builders) and `kernel/llm`
-(the provider chosen by `LlmConfig`); `chat` keeps only `AssistantLlm` with its prompts and its
-purposes, and its test builds the models from `LlmConfig`.
+(the provider chosen by `LlmConfig`); `chat` keeps only `AssistantLlmFromConfig` with its prompts
+and its purposes, and its test builds the models from `LlmConfig`.
 
 - **Why:** a second provider is added in one place; the test takes the path the app takes.
-  `AssistantLlm` builds both models itself, since a service between them failed the deletion test.
+  `AssistantLlmFromConfig` builds both models itself, since a service between them failed the
+  deletion test.
 - **Sources:** `docs/knowledge/ai.md`; the roadmap's `openai-provider` and `bedrock-provider`.
 - **Rejected:** a provider layer kept only for the test: an interface only a test uses. The test
   building the models itself: it would copy chat's settings and check its copy.
@@ -265,7 +283,7 @@ purposes, and its test builds the models from `LlmConfig`.
   provider and carries Anthropic's request settings, so a second provider adds a key in `chat`
   too.
 - **Guarded by:** the Biome override on `application/*/services/**` (no
-  `@app-template/kernel/llm`); the `AssistantLlm` suite over a recording client.
+  `@app-template/kernel/llm`); the `AssistantLlmFromConfig` suite over a recording client.
 - **If reversed:** the provider choice moves back into `chat`, and each new provider changes the
   module.
 - **Revisit when:** `openai-provider` lands: it decides a provider-neutral purpose, translated
@@ -328,7 +346,7 @@ and patterns itself, and the models check the same rules on their side.
 - **Sources:** the guide's "Foreign keys, views, triggers, and logical invariants encode coupling
   between tables"
   ([managing-operational-data](https://software-architecture-guild.com/guide/architecture/boundaries/managing-operational-data/)).
-- **Rejected:** the checks dropped, the rule only in the services: the database would accept a
+- **Rejected:** the checks dropped, the rule only in the modules: the database would accept a
   row the app never writes.
 - **Cost:** a limit or a pattern lives twice (`maxTitleLength`, `mediaTypePattern`,
   `secretHashPattern`, the statuses).
@@ -340,6 +358,30 @@ and patterns itself, and the models check the same rules on their side.
 - **If reversed:** a migration drops a check, and a writer past the services can store a row no
   model decodes.
 - **Revisit when:** a duplicated limit drifts despite the tests, or a rule cannot be a check.
+
+### Guards in the write, no lock
+
+A rule two writers could break between a read and a write is a guard in the write itself (a
+partial unique index, an `UPDATE … WHERE` on the state read), and no read takes a lock. A write
+over a list of ids dies unless it changes a row per distinct id, so the loser of a race writes
+nothing and rolls back whole.
+
+- **Why:** the checks run as pure functions over a plain read, before every write; a lock would
+  tie the check to the transaction and hold rows while other work runs.
+- **Sources:** `docs/knowledge/database.md › Guards`; `.claude/rules/layering.md ›
+  Concurrency`.
+- **Rejected:** a `FOR UPDATE` read before the check: the loser would wait and then get its
+  domain error, but the read would carry an option that changes its contract. A deferrable key
+  from an attachment to its message, to bind before the insert: a schema change for one order of
+  writes.
+- **Cost:** a loser that read before the winner wrote dies with a `500`, not a typed refusal; a
+  loser that reads after it gets its `409`. A send's untagged files stay tagged bound if it rolls
+  back.
+- **Guarded by:** the repositories' writes die on a missed row; the e2e races of two sends, on one
+  file and on overlapping sets, assert one sent, one refused, and the loser's other files free.
+- **If reversed:** the reads take `forUpdate` again, and a check whose loser must get a domain
+  error waits on the winner's commit.
+- **Revisit when:** a race's `500` reaches users often enough to need its own refusal.
 
 ### Clients from the context
 

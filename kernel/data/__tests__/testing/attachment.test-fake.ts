@@ -2,7 +2,6 @@ import {
   Array as Arr,
   Context,
   Effect,
-  Filter,
   flow,
   HashMap,
   identity,
@@ -14,7 +13,7 @@ import {
   Schema,
 } from 'effect'
 
-import { orDieOnNoRows } from '@app-template/packages/db'
+import { orDieOnMissedRows, orDieOnNoRows } from '@app-template/packages/db'
 
 import {
   AttachmentEntity,
@@ -24,6 +23,7 @@ import { AttachmentRepository } from '#kernel/data/attachment/attachment.reposit
 import { MessageRepository } from '#kernel/data/chat/message.repository'
 import {
   deleteRows,
+  inCreationOrderWhere,
   insertRow,
   matches,
   matchesAny,
@@ -45,15 +45,6 @@ const holdsWhere = (where: AttachmentEntityWhere) =>
     matches<AttachmentEntity>({ userId: where.userId, messageId: where.messageId }),
   )
 
-/** The rows in the order of `ids`, one id or a list. */
-const inOrderOf =
-  (ids: AttachmentEntityWhere['id']) =>
-  (found: HashMap.HashMap<string, AttachmentEntity>): ReadonlyArray<AttachmentEntity> =>
-    pipe(
-      Arr.ensure(ids),
-      Arr.filterMap(Filter.fromPredicateOption((id: string) => HashMap.get(found, id))),
-    )
-
 const decodeAttachment = Schema.decodeUnknownEffect(AttachmentEntity)
 
 /** The column defaults Postgres fills on an insert that leaves them out. */
@@ -66,8 +57,7 @@ const isUnbound = matches<AttachmentEntity>({ messageId: null, chatId: null })
  * and fills the binding with nulls. Copies the guards the repository's e2e proves: the primary
  * key, the where fields, the set fields, and on an update `attachments_message_id_chat_id_check`
  * with `attachments_message_id_chat_id_fk`: a row stays unbound, or binds to a message of that
- * chat, read through the `MessageRepository` in context. `forUpdate` locks nothing: one fiber
- * writes at a time.
+ * chat, read through the `MessageRepository` in context.
  */
 export const AttachmentRepositoryTest = Layer.effect(
   AttachmentRepository,
@@ -85,10 +75,7 @@ export const AttachmentRepositoryTest = Layer.effect(
       )
 
     const selectMany = (where: AttachmentEntityWhere) =>
-      Ref.get(rows).pipe(
-        Effect.map(HashMap.filter(holdsWhere(where))),
-        Effect.map(inOrderOf(where.id)),
-      )
+      Ref.get(rows).pipe(Effect.map((all) => inCreationOrderWhere(all, holdsWhere(where))))
 
     return AttachmentRepository.of({
       insert: (attachment) =>
@@ -99,21 +86,31 @@ export const AttachmentRepositoryTest = Layer.effect(
         ),
       update: (set, where) => {
         const update = writeSet({ messageId: true, chatId: true }, set)
+        // Refused before it writes: in Postgres the die rolls back the caller's transaction,
+        // which `TransactionTest` cannot.
         return Ref.get(rows).pipe(
           Effect.map(flow(HashMap.filter(holdsWhere(where)), HashMap.toValues, Arr.map(update))),
-          Effect.flatMap((written) => Effect.forEach(written, isBindable)),
-          Effect.flatMap((bindable) =>
-            Arr.every(bindable, identity)
-              ? updateRows(rows, { where: holdsWhere(where), update })
-              : Effect.succeed(Arr.empty<AttachmentEntity>()),
+          Effect.flatMap((written) =>
+            Effect.forEach(written, isBindable).pipe(
+              Effect.map((bindable) =>
+                Arr.every(bindable, identity) ? written : Arr.empty<AttachmentEntity>(),
+              ),
+            ),
           ),
-          orDieOnNoRows('no attachment was updated'),
+          orDieOnMissedRows(where.id, 'an attachment named was not updated'),
+          Effect.andThen(updateRows(rows, { where: holdsWhere(where), update })),
+          Effect.asVoid,
         )
       },
       selectOne: (where) => selectMany(where).pipe(Effect.map(Arr.head)),
       selectMany,
       delete: (where) =>
-        deleteRows(rows, holdsWhere(where)).pipe(orDieOnNoRows('no attachment was deleted')),
+        Ref.get(rows).pipe(
+          Effect.map(flow(HashMap.filter(holdsWhere(where)), HashMap.toValues)),
+          orDieOnMissedRows(where.id, 'an attachment named was not deleted'),
+          Effect.andThen(deleteRows(rows, holdsWhere(where))),
+          Effect.asVoid,
+        ),
     })
   }),
 )

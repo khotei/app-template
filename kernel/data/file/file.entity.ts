@@ -1,4 +1,4 @@
-import type { Stream } from 'effect'
+import type { Stream, Types } from 'effect'
 
 /** The object tag the bucket's expiration rule selects on: a file no row binds yet. */
 export const unboundTag = { key: 'unbound', value: 'true' } as const
@@ -15,7 +15,7 @@ export interface FileEntityInsert<E> extends FileEntity {
   readonly content: Stream.Stream<Uint8Array, E>
 }
 
-export type FileEntityWhere = Pick<FileEntity, 'id'>
+export type FileEntityWhere = Types.Simplify<Pick<FileEntity, 'id'>>
 
 export interface FileEntityDeleteWhere {
   readonly id: ReadonlyArray<string>

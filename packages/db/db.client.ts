@@ -4,7 +4,7 @@ import { EffectCache } from 'drizzle-orm/cache/core/cache-effect'
 import { EffectLogger } from 'drizzle-orm/effect-core'
 import { EffectDrizzleQueryError } from 'drizzle-orm/effect-core/errors'
 import * as PgDrizzle from 'drizzle-orm/effect-postgres'
-import { Array as Arr, Cause, Context, Effect, flow, Layer, Schema } from 'effect'
+import { Array as Arr, Cause, Context, Effect, flow, Layer, Predicate, Schema } from 'effect'
 import { SqlClient, SqlError } from 'effect/sql'
 
 /**
@@ -89,6 +89,24 @@ export const orDieOnNoRows =
   <A, E, R>(self: Effect.Effect<ReadonlyArray<A>, E, R>): Effect.Effect<void, E, R> =>
     self.pipe(
       Effect.filterOrElse(Arr.isReadonlyArrayNonEmpty, () => Effect.die(new Error(message))),
+      Effect.asVoid,
+    )
+
+const holdsRowPer = (ids: string | ReadonlyArray<string>) =>
+  Predicate.and(
+    Arr.isReadonlyArrayNonEmpty<unknown>,
+    (rows: ReadonlyArray<unknown>) => rows.length === Arr.dedupe(Arr.ensure(ids)).length,
+  )
+
+/**
+ * Dies with `message` unless a write's `RETURNING` answers one row per distinct id of `ids`: a
+ * write over a list dies where it misses any row it names, as `orDieOnNoRows` where it misses all.
+ */
+export const orDieOnMissedRows =
+  (ids: string | ReadonlyArray<string>, message: string) =>
+  <A, E, R>(self: Effect.Effect<ReadonlyArray<A>, E, R>): Effect.Effect<void, E, R> =>
+    self.pipe(
+      Effect.filterOrElse(holdsRowPer(ids), () => Effect.die(new Error(message))),
       Effect.asVoid,
     )
 

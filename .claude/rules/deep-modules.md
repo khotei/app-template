@@ -28,8 +28,7 @@ existsByOwner(ownerId): Effect<boolean>
 update(set, id): Effect<boolean>
 // deep: the question is data typed from the model, a write that misses is a defect
 selectOne(where: OrderEntityWhere): Effect<Option<OrderEntity>>
-selectMany(where: OrderEntityWhere, options?: { forUpdate?: boolean }):
-  Effect<ReadonlyArray<OrderEntity>>
+selectMany(where: OrderEntityWhere): Effect<ReadonlyArray<OrderEntity>>
 update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
 ```
 
@@ -39,8 +38,8 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
   key, from the written entity or a required `where` field, so it never matches every row.
   A store whose answer has another shape (an object store's signed URL) adds its own verb for it
   alone; the other verbs keep their names, so a caller reads every store alike.
-- A write answers `void` and dies where it matches no row: the caller checked the rule, so a
-  miss is a lost race; a `boolean`, rows or a domain error adds an error mode to every caller.
+- A write answers `void` and dies where it misses a row it names: the caller checked the rule,
+  so a miss is a lost race; a `boolean`, rows or a domain error adds an error mode to every caller.
   An object store's writes are idempotent and cannot tell a missing object, so they never die on
   one. A write that measures what it stores (a stream's byte count) answers the measure.
 - One shape per entity: a related entity is a field the same relational query fills, never a
@@ -62,8 +61,8 @@ yield* orders.update(shipped, { status: order.status })   // dies if another wri
 return shipped                                            // the value built, never a re-read
 ```
 
-- No method sits between a model function and the repository. A domain service keeps only the rules
-  that need a read (an owner check, a cascade with its side effects).
+- No method sits between a model function and the repository. A domain service keeps only the reads
+  a rule needs (an owner check's read, a cascade with its side effects).
 - Two methods that differ by their `where` or `set` are one, taking them from the caller, with
   arguments as narrow as the fields it uses.
 - A copy per model is one function over the varying part: an id maker given the brand, one

@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { buildIdSchema } from '#chat/domain/chat.id'
 
-export const AttachmentId = Schema.String.check(Schema.isUUID()).pipe(Schema.brand('AttachmentId'))
+export const AttachmentId = buildIdSchema('AttachmentId')
 export type AttachmentId = typeof AttachmentId.Type

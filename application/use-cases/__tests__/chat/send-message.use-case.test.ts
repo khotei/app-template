@@ -4,6 +4,7 @@ import { Array as Arr, DateTime, Effect, Layer, Option, Order } from 'effect'
 
 import {
   Attachment,
+  AttachmentBoundError,
   AttachmentNotFoundError,
   buildAssistantMessage,
   buildUserMessage,
@@ -162,6 +163,29 @@ describe('SendMessageUseCase', () => {
   })
 
   it.effect(
+    'send with an attachment bound already is AttachmentBoundError before any message',
+    () => {
+      const queue = recordQueue()
+      return Effect.gen(function* () {
+        const sendMessage = yield* SendMessageUseCase
+        const photo = yield* upload(owner)
+        const first = yield* sendMessage.send(owner, chat.id, {
+          text: 'Look',
+          attachmentIds: [photo.id],
+        })
+        yield* settle(first.assistantMessage)
+
+        const error = yield* sendMessage
+          .send(owner, chat.id, { text: 'Again', attachmentIds: [photo.id] })
+          .pipe(Effect.flip)
+
+        assertSchemaEquals(AttachmentBoundError, error, new AttachmentBoundError({ id: photo.id }))
+        assert.lengthOf(yield* selectMessages(chat.id), 2)
+      }).pipe(Effect.provide(Layer.provide(ChatTest, queue.layer)))
+    },
+  )
+
+  it.effect(
     "send with another user's attachment is AttachmentNotFoundError before any message or job",
     () => {
       const queue = recordQueue()
@@ -176,7 +200,7 @@ describe('SendMessageUseCase', () => {
         assertSchemaEquals(
           AttachmentNotFoundError,
           error,
-          new AttachmentNotFoundError({ id: photo.id }),
+          new AttachmentNotFoundError({ ids: [photo.id] }),
         )
         assertEquals(yield* selectMessages(chat.id), [])
         assertEquals(yield* selectAttachments([photo.id]), [photo])

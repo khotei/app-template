@@ -1,4 +1,4 @@
-import { type DateTime, Effect, Option, Predicate, Schema } from 'effect'
+import { type DateTime, Effect, Option, Predicate, Schema, type Types } from 'effect'
 
 import { UserId } from '@app-template/application/identity'
 
@@ -62,17 +62,13 @@ export const renameChat = (
   { title, at }: { readonly title: ChatTitle; readonly at: DateTime.Utc },
 ): Chat => new Chat({ ...chat, title: Option.some(title), updatedAt: at })
 
-export const buildChat = (input: {
-  readonly id: ChatId
-  readonly userId: UserId
-  readonly createdAt: DateTime.Utc
-}): Chat =>
+export const buildChat = (
+  fields: Types.Simplify<Pick<Chat, 'id' | 'userId' | 'createdAt'>>,
+): Chat =>
   new Chat({
-    id: input.id,
-    userId: input.userId,
+    ...fields,
     title: Option.none(),
     status: 'idle',
-    createdAt: input.createdAt,
-    updatedAt: input.createdAt,
+    updatedAt: fields.createdAt,
     attachments: [],
   })

@@ -122,9 +122,9 @@ const rows = yield* db.query.messages.findMany({
 
 `ChatRepository` and `MessageRepository` read a chat or a message `with` its attachments, in one
 relational query: `Chat.attachments` and `Message.attachments` are the model fields another
-table holds, read and never written by their own writes, since `AttachmentService.bind` binds
-them. A relational query aliases its table, so the chat's `where` is built on the table the
-query hands to `RAW`, never on the `chats` constant.
+table holds, read and never written by their own writes, since the send binds them. A
+relational query aliases its table, so the chat's `where` is built on the table the query hands
+to `RAW`, never on the `chats` constant.
 
 ## Repositories
 
@@ -203,12 +203,15 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
   - `ChatService.rename` reads the chat by the caller's `where` to name a refusal
     (`ChatNotFoundError`), then writes under the same `where`. The title job passes `title:
     none`, so a rename landing between the two wins and the job dies and retries.
-  - `AttachmentService.bind` checks the ids on rows it reads `forUpdate` and answers the write,
-    which the send runs once its message is stored, so the checks precede the send's first write;
-    the write binds the message `where` `messageId` is still `none`. A second send binding one of
-    them waits on the lock and then fails `AttachmentBoundError` in the check, before the chat's
-    status move, so two sends of one file to one chat answer 409, not the chat's lost race. A
-    send without files binds nothing and skips the write, which would die on no rows.
+  - The send reads its attachments through `AttachmentService.getMany`, which takes no lock, and
+    refuses a bound one with `bindAttachment`, both before its first write; once its message is
+    stored, it writes the bind itself, the files first, then the attachments' rows `where`
+    `messageId` is still `none`, a write that dies unless it binds every row it names. Of two
+    sends sharing a file, the loser either reads it bound and fails `AttachmentBoundError` (409)
+    or, having read it free, finds that row taken under the guard and dies (500), rolled back
+    whole with the files only it named; an attachment its owner deletes between the read and the
+    write fails the send the same way. A send without files skips the write, which would die on
+    no rows.
   - `AttachmentService.delete` checks the attachment unbound, then deletes it `where`
     `messageId` is still `none`, so a send binding it in between makes the delete die and keeps
     the bytes.
@@ -230,11 +233,12 @@ through the connection `@effect/sql` keeps in the fiber's context, so no reposit
 transaction parameter. `SendMessageUseCase.send` writes the chat's `status`, the user message,
 the binds, the reply and its jobs, or none of them. The guards above then decide every race inside
 Postgres, with no lock in the process: of two sends to one chat the second waits on the chat's
-row lock and, once the first commits, finds the chat `queued`, and of two binds of one
-attachment the second waits on the attachment's row lock and finds it bound. Two api processes
-behave as two fibers. S3 stays outside the transaction: the bytes are kept before the bind, so no
-bound row sits over expiring bytes, and deleted before the commit, so a rollback restores rows that
-a retry still finds. SQS is reached only through the table `jobs`, whose rows join it.
+row lock and, once the first commits, finds the chat `queued`, and of two binds sharing an
+attachment the second waits on the row the first's update holds and, once it commits, finds it
+bound, so the second misses a row it names and dies. Two api processes behave as two fibers. S3
+stays outside the transaction: the bytes are kept before the bind, so no bound row sits over
+expiring bytes, and deleted before the commit, so a rollback restores rows that a retry still
+finds. SQS is reached only through the table `jobs`, whose rows join it.
 
 ## Stuck replies
 

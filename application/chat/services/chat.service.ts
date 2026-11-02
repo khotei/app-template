@@ -19,7 +19,7 @@ export type ChatRenameWhere = Types.Simplify<
 >
 
 /** The user's chat a delete finds. */
-export type ChatDeleteWhere = Pick<Chat, 'id' | 'userId'>
+export type ChatDeleteWhere = Types.Simplify<Pick<Chat, 'id' | 'userId'>>
 
 export class ChatService extends Context.Service<
   ChatService,

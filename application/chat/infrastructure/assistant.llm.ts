@@ -237,26 +237,29 @@ const assistantModels = Effect.all({
   }),
 })
 
-export const AssistantLlm: Layer.Layer<Assistant, Config.ConfigError, HttpClient.HttpClient> =
-  Layer.effect(
-    Assistant,
-    assistantModels.pipe(
-      Effect.map((models) =>
-        Assistant.of({
-          reply: Effect.fn('Assistant.reply')(function* (history) {
-            const response = yield* models.reply
-              .generateObject({ prompt: buildChatPrompt(history), schema: ReplyAnswer })
-              .pipe(askWithin(2))
-            return new AssistantReply(response.value)
-          }),
-          suggestTitle: Effect.fn('Assistant.suggestTitle')(function* (text) {
-            if (isBlank(text)) return Option.none()
-            const response = yield* models.title
-              .generateObject({ prompt: buildTitlePrompt(text), schema: TitleAnswer })
-              .pipe(askWithin(4))
-            return Option.some(response.value.title)
-          }),
+export const AssistantLlmFromConfig: Layer.Layer<
+  Assistant,
+  Config.ConfigError,
+  HttpClient.HttpClient
+> = Layer.effect(
+  Assistant,
+  assistantModels.pipe(
+    Effect.map((models) =>
+      Assistant.of({
+        reply: Effect.fn('Assistant.reply')(function* (history) {
+          const response = yield* models.reply
+            .generateObject({ prompt: buildChatPrompt(history), schema: ReplyAnswer })
+            .pipe(askWithin(2))
+          return new AssistantReply(response.value)
         }),
-      ),
+        suggestTitle: Effect.fn('Assistant.suggestTitle')(function* (text) {
+          if (isBlank(text)) return Option.none()
+          const response = yield* models.title
+            .generateObject({ prompt: buildTitlePrompt(text), schema: TitleAnswer })
+            .pipe(askWithin(4))
+          return Option.some(response.value.title)
+        }),
+      }),
     ),
-  )
+  ),
+)

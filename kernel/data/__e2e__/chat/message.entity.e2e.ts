@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Schema } from 'effect'
+import { Effect, Schema, type Types } from 'effect'
 
 import { flipSqlError } from '@app-template/packages/db/testing/e2e'
 import { assertSchemaEquals } from '@app-template/packages/testing'
@@ -17,7 +17,10 @@ const updatedAt = new Date('2026-10-18T00:00:01.456Z')
 const userId = '0192d4e0-7b3a-7c00-8000-000000000060'
 const chatId = '0192d4e0-7b3a-7c00-8000-000000000061'
 
-const message = (id: string, fields: Partial<Pick<MessageEntity, 'status'>>): MessageEntity => ({
+const message = (
+  id: string,
+  fields: Types.Simplify<Partial<Pick<MessageEntity, 'status'>>>,
+): MessageEntity => ({
   id,
   chatId,
   author: 'assistant',

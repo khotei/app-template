@@ -1,28 +1,16 @@
-import { Duration, Schema } from 'effect'
+import { Schema } from 'effect'
 
 import { resources } from '@app-template/kernel/aws'
-import { buildDeadLetterName } from '@app-template/packages/aws'
-import type { QueueDefinition } from '@app-template/packages/queue'
+import {
+  buildDeadLetterQueue,
+  buildDoublingDelay,
+  type QueueDefinition,
+} from '@app-template/packages/queue'
 
 import { ReplyProvenance } from '#chat/domain/assistant.port'
 import { ChatId, MessageId } from '#chat/domain/chat.id'
 
 const { assistantMessage, chatTitle } = resources.queues
-
-const buildDoublingDelay = (attempt: number) => Duration.seconds(2 ** (attempt - 1))
-
-/**
- * The dead-letter queue of `queue`: it has no redrive, so its attempts never run out and a failing
- * handler retries at most five minutes apart.
- */
-const buildDeadLetterQueue = <A, I>(
-  queue: QueueDefinition<Schema.Codec<A, I>>,
-): QueueDefinition<Schema.Codec<A, I>> => ({
-  ...queue,
-  name: buildDeadLetterName(queue.name),
-  maxAttempts: Number.MAX_SAFE_INTEGER,
-  retryDelay: (attempt) => Duration.min(buildDoublingDelay(attempt), Duration.minutes(5)),
-})
 
 export class GenerateAssistantMessage extends Schema.Class<GenerateAssistantMessage>(
   'GenerateAssistantMessage',

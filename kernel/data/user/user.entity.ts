@@ -10,7 +10,9 @@ export type UserEntity = typeof UserEntity.Type
 
 export const UserEntityInsert = createInsertSchema(users)
 
-export type UserEntityCredential = Pick<typeof credentials.$inferSelect, 'kind' | 'hash'>
+export type UserEntityCredential = Types.Simplify<
+  Pick<typeof credentials.$inferSelect, 'kind' | 'hash'>
+>
 
 /** `credential` matches any credential the user holds. */
 export type UserEntityWhere = Types.Simplify<

@@ -4,7 +4,7 @@ import { AttachmentId } from '#chat/domain/attachment.id'
 
 export class AttachmentNotFoundError extends Schema.TaggedError<AttachmentNotFoundError>()(
   'AttachmentNotFoundError',
-  { id: AttachmentId },
+  { ids: Schema.NonEmptyArray(AttachmentId) },
 ) {}
 
 export class AttachmentBoundError extends Schema.TaggedError<AttachmentBoundError>()(

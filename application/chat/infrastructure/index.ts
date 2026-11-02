@@ -1,4 +1,4 @@
 export {
-  AssistantLlm as AssistantLlmFromConfig,
+  AssistantLlmFromConfig,
   CurrentReplyProvenanceFromConfig,
 } from '#chat/infrastructure/assistant.llm'

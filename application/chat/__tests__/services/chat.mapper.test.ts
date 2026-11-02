@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { DateTime, Effect, Option, Schema } from 'effect'
+import { DateTime, Effect, Option, Schema, type Types } from 'effect'
 
 import { maxTitleLength as tableMaxTitleLength } from '@app-template/kernel/data'
 import { assertSchemaEquals } from '@app-template/packages/testing'
@@ -37,7 +37,7 @@ const message = new Message({
   attachments: [],
 })
 
-const messageCases: ReadonlyArray<Pick<Message, 'author' | 'status'>> = [
+const messageCases: ReadonlyArray<Types.Simplify<Pick<Message, 'author' | 'status'>>> = [
   ...MessageStatus.literals.map((status) => ({ author: 'assistant' as const, status })),
   { author: 'user', status: 'done' },
 ]

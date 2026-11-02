@@ -174,13 +174,13 @@
                   {
                     "group": [
                       "@app-template/**",
-                      "!@app-template/packages/{aws,db,queue}",
+                      "!@app-template/packages/{db,queue}",
                       "!@app-template/kernel/{aws,data}",
                       "!@app-template/application/*",
                       "@app-template/application/use-cases",
                       "@effect/**"
                     ],
-                    "message": "a module's services import no workspace but @app-template/packages/db for generateId and the mappers' codecs, @app-template/packages/aws and @app-template/packages/queue for the job definitions, the inventory (@app-template/kernel/aws), the data layer's stores (@app-template/kernel/data) and another module's entry, and no @effect/* package: no use case, no boundary part such as @app-template/kernel/llm (decisions.md › A module's layers; Module contracts; Use cases above the modules; The language model in the kernel; Guards are configuration)"
+                    "message": "a module's services import no workspace but @app-template/packages/db for generateId and the mappers' codecs, @app-template/packages/queue for the job definitions, the inventory (@app-template/kernel/aws), the data layer's stores (@app-template/kernel/data) and another module's entry, and no @effect/* package: no use case, no boundary part such as @app-template/kernel/llm (decisions.md › A module's layers; Module contracts; Use cases above the modules; The language model in the kernel; Guards are configuration)"
                   },
                   {
                     "group": ["@app-template/kernel/aws"],
