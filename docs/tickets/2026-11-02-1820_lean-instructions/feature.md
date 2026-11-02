@@ -3,7 +3,7 @@
 > Ticket: `2026-11-02-1820_lean-instructions` · Source: conversation (the branch review of
 > 2026-11-02: the md audit and the context research); absorbs
 > [roadmap entry 17 `docs-diet`](../../knowledge/roadmap.md#17-docs-diet)
-> Related: [architecture.md](./architecture.md) · [plan.md](./plan.md)
+> Related: [architecture.md](./architecture.md) · [plan.md](./plan.md) · [research.md](./research.md)
 
 ## Problem
 
@@ -85,9 +85,16 @@ it targets.
   and four rules sit at or over 80 lines.
 - **The maintenance rule exists:** `claude-md.md` already states the test a line must pass, one
   author per fact and the pattern over the instance; this ticket makes its parts checkable.
-- **Where it lands:** on the `modular-monolith` branch and its PR, after that ticket's last step,
-  so the texts are written against the code in its final shape. The audit's draft texts were
-  written before that ticket's last steps and serve as a model, not as text to paste.
+- **Where it lands:** on its own branch off `modular-monolith`, its PR into that branch, after
+  that ticket's last step, so the texts are written against the code in its final shape. The
+  audit's draft texts were written before that ticket's last steps and serve as a model, not as
+  text to paste.
+- **The ticket artifacts churn the same way** ([research.md](./research.md), 2026-11-02): of the
+  47 commits that touched `modular-monolith`'s three artifacts after its plan, most that did more
+  than add findings or steps fixed a step's file list, a restated config or a path in an
+  acceptance row (12 of 13 `feature.md` commits), and one changed what a requirement asks. The
+  implementer found every file a list missed by `git grep`; what it needed concretely were
+  decided names, traps the code cannot show and checks proven red first.
 
 ## Scope
 
@@ -103,6 +110,8 @@ it targets.
   pass owns which finding, when the bug hunt runs, who runs `/simplify`; the main session as the
   orchestrator that decides on the agents' reports; verification fanned out over parallel
   verifiers.
+- The ticket templates and the skills that write a ticket: what a requirement, a design entry and
+  a step name concretely, and what they leave to a pattern, a grep or a check.
 - The roadmap's `docs-diet` entry, absorbed.
 
 ## Out of scope
@@ -198,6 +207,14 @@ it targets.
   group of requirements in parallel and merge their verdicts, while the Spec review of the whole
   branch still reads every requirement at once.
 
+### Ticket artifacts that survive a change
+
+- **R23** — WHEN a skill writes a ticket's requirements, design or plan, THE SYSTEM SHALL have
+  each requirement and acceptance row state a property and its check, each design entry a decision
+  and its invariant pointing to the config that holds it, and each step its outcome, its
+  constraints and a check that names the state it fails on, naming a concrete path, name or
+  literal only where it is a decided contract, a trap the code cannot show or a probe's target.
+
 ## Acceptance
 
 | Req | How to verify |
@@ -224,6 +241,7 @@ it targets.
 | R20 | `ticket-implement` runs `/simplify` from the main session and `implementer.md` forbids it; on the next behaviour step the implementer's transcript holds no `simplify` call. |
 | R21 | `ticket-implement` and `reviewer.md` say so; on the next steps the main session's transcript reads no source file or diff to write a fix round, and every finding carries the four fields. |
 | R22 | `ticket-verify` says so; the next verification runs the verifiers in parallel, and its wall-clock to verdicts is shorter than run 2 of `modular-monolith` (33 min for the verifier). |
+| R23 | The three templates and the `ticket-feature`, `ticket-architecture` and `ticket-plan` skills say so: a step's file list names what it must pin plus the leftover grep, not every file; a design entry links a config instead of copying it; a `Verify` check names the state it fails on, and a step that replaces a guard pins one probe per guard (lesson L8 of `modular-monolith`). The ledger maps each removed instruction to its new home; each rule cites its evidence in `research.md`. |
 
 ## Open questions
 

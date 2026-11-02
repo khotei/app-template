@@ -18,11 +18,13 @@
 | S10 | `architecture.md`, `README.md` and the glossary own only their facts | todo |
 | S11 | tooling, AWS, database and AI pages own only their facts; the local stand's `README.md` gone | todo |
 | S12 | decisions and the SDD guide trimmed; `docs-diet` done; the move probe | todo |
+| S13 | the ticket templates and the planning skills pin what a step needs and leave the rest to a grep | todo |
 
 ## How to run this plan
 
-- Branch `refactor/modular-monolith` (the ticket lands on that branch and its PR); it starts once
-  that ticket's verification passes. One commit per step under the commit gate of
+- Branch `refactor/lean-instructions`, off `refactor/modular-monolith`, with its own PR into that
+  branch so its diff reads alone (the user's word, 2026-11-02); it starts once that ticket's
+  verification passes (run 3, `2a2616495f`). One commit per step under the commit gate of
   `.claude/rules/sdd.md` (`/ticket-implement`).
 - Each step leaves `make check` green and fits one fresh session (≤ ~400 changed lines, counted
   with `git diff -M --stat`; `bun.lock` excluded).
@@ -45,6 +47,11 @@
 - `Makefile` recipes stay GNU Make 3.81 compatible; each new target gets a `## ` help comment and
   a `.PHONY` entry. `lychee` and `shellcheck` are not installed locally: links are checked by CI's
   `links` job, so a step that moves an anchor `git grep`s every link to it.
+- **A step's `Files` is where it starts and what it must pin** (D15), not the bound of its edits:
+  a named path, anchor or literal is pinned when it is a decided contract, a trap or a probe's
+  target; every other file the change reaches is found by `git grep` at the step and listed in its
+  report. A count or a list of hits written here was true at design time; the step re-finds
+  it.
 - A deviation is recorded in the step's findings, and in `architecture.md › Decisions` when it is a
   decision.
 
@@ -99,14 +106,15 @@
   files; new `rule-paths` over the `paths:` of `.claude/rules/*.md`, skipping a rule without one,
   with `git ls-files --cached --others --exclude-standard ':(glob)<filter>'`; both in `check`
   and the `.PHONY` list);
-  `.github/workflows/ci.yml` (the links job runs `make rule-paths`); `deployment/CLAUDE.md`
-  (`shared/tags.ts`) and `http-api/CLAUDE.md` (`shared/errors.ts`), the only two hits today,
-  become patterns or pointers; `docs/knowledge/decisions.md` (new record **Instructions name
-  patterns** under *Guards, tests and history*, with the seven fields its intro requires); `docs/knowledge/tooling.md › Commands` (the rows of `doc-names`
-  and `rule-paths`, the `check` row) and `› Git hooks and CI`; `.claude/rules/claude-md.md` (the
-  pattern bullet names both targets).
+  `.github/workflows/ci.yml` (the links job runs `make rule-paths`); every instruction file the
+  new pattern flags on the clean tree (two at design time) names a pattern or a pointer instead;
+  `docs/knowledge/decisions.md` (new record **Instructions name patterns** under *Guards, tests
+  and history*, with the seven fields its intro requires); `docs/knowledge/tooling.md › Commands`
+  (the rows of `doc-names` and `rule-paths`, the `check` row) and `› Git hooks and CI`;
+  `.claude/rules/claude-md.md` (the pattern bullet names both targets).
 - **Test first:** the checks seam — probes, each red then reverted: a missing path in a skill, an
-  agent and a `README.md` (`doc-names` names file and line); a `<dir>/<file>.ts` span in a rule, a
+  agent and a `README.md` (`doc-names` names file and line); a `<dir>/<file>.ts` span with no
+  root folder (as `shared/tags.ts` was) in a rule, a
   `CLAUDE.md` and a skill (refused), while `<module>/<name>.ts`, `@app-template/kernel/data` and
   `docs/knowledge/aws.md` pass; a rule filter narrowed to a missing folder, and one with braces
   (`rule-paths` names rule and filter).
@@ -230,11 +238,9 @@
 - **Goal:** less text per `.ts` edit, every constraint kept (R14, R3, R2, R5, D1, D4).
 - **Blocked by:** S1, S6.
 - **Files:** `.claude/rules/{effect,effect-style,effect-services,effect-schema,effect-tests,comments}.md`;
-  every link to a section of theirs (`effect-schema.md#failures` from `layering.md`,
-  `effect-services.md › Layers` from `naming.md`, `effect-style.md#composition` from
-  `docs/knowledge/tooling.md` and `Makefile`, `effect-tests.md#unit-and-e2e` from
-  `docs/knowledge/database.md` and `tooling.md`, and the file links in
-  `docs/knowledge/decisions.md` and `architecture.md`), by `git grep` of the file names.
+  every link to a file or an anchor the step renames or drops, until `git grep` of the six file
+  names over `.claude/`, the `CLAUDE.md` files, `README.md`, `Makefile` and `docs/knowledge/`
+  finds only live targets.
 - **Test first:** `config only` — the ledger is the seam; R14's measurement waits for S8, which
   trims the rest of the set.
 - **Verify:** `make check`; `wc -l` of each rule ≤ 80; `git grep -n 'nested-calls'` over the rules
@@ -253,11 +259,9 @@
 - **Goal:** the cut on a module's `.ts` edit (R14, R15, R3, R2, R5, D1).
 - **Blocked by:** S7.
 - **Files:** `.claude/rules/{naming,layering,modules,deep-modules}.md` (a merged or renamed rule
-  keeps one file per subject); every link to them, by `git grep` of the file names and anchors:
-  `.claude/agents/reviewer.md`, `.claude/rules/{effect-style,effect-services}.md`,
-  `application/CLAUDE.md`, `README.md`, `Makefile`, `docs/knowledge/{architecture,decisions,database,tooling}.md`
-  (`naming.md#symbols`, `naming.md#files`, `layering.md#use-cases`, `layering.md › Ports and
-  domain services`).
+  keeps one file per subject); every link to a file or an anchor the step renames or drops,
+  until `git grep` of the four file names over `.claude/`, the `CLAUDE.md` files, `README.md`,
+  `Makefile` and `docs/knowledge/` finds only live targets.
 - **Test first:** the measuring seam — S1's R14 session rerun; red while the rules and
   `CLAUDE.md` loaded are not ≥ 20% under the baseline.
 - **Verify:** `make check` (`rule-paths` green on the changed filters); `wc -l` of each rule ≤ 80;
@@ -335,6 +339,30 @@
 - **Model:** `opus medium`
 - **Status:** todo
 
+#### S13 — Ticket artifacts that pin only what a step needs
+
+- **Delivers:** the plan template and `/ticket-plan` ask each step for its outcome, its
+  constraints, the paths and names it must pin (a decided contract, a trap, a probe's target) and
+  a check that names the state it fails on, one probe per guard a step replaces (lesson L8 of
+  `modular-monolith`); every other file the step reaches is found by `git grep` at the step
+  and listed in its report, so a step no longer lists every suite and doc. The design template and
+  `/ticket-architecture` have a design entry state its decision and invariant and link the config
+  that holds it instead of copying it. The requirement template and `/ticket-feature` extend the
+  rule that a requirement names no path to its acceptance row. `/ticket-plan`'s `Exists` and
+  `Conforms` checks keep reading what a step still pins.
+- **Goal:** ticket artifacts that a rename or an equivalent approach leaves true (R23, D15).
+- **Blocked by:** S5 (it edits `/ticket-plan` and each skill's last line), S12 (it trims
+  `docs/knowledge/sdd.md`).
+- **Files:** `docs/tickets/_template/{feature,architecture,plan}.md`,
+  `.claude/skills/ticket-{feature,architecture,plan}/SKILL.md`; `docs/knowledge/sdd.md` where it
+  retells what a step lists; the evidence is `research.md`.
+- **Test first:** `config only` — the ledger is the seam: each removed or changed instruction with
+  its new home, each new line with the `research.md` finding it rests on.
+- **Verify:** `make check`; `git grep -n 'every suite'` over `.claude/skills/` finds no demand for
+  an exhaustive list; the plan template's `Verify` line asks for the state each check fails on.
+- **Model:** `opus medium`
+- **Status:** todo
+
 ## Requirement coverage
 
 | Req | Steps |
@@ -361,3 +389,4 @@
 | R20 | S6 |
 | R21 | S6 |
 | R22 | S6 |
+| R23 | S13 |

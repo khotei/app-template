@@ -80,12 +80,13 @@ verification.
 | `docs/knowledge/sdd.md` | the dependency map and the approval gate, where reading or gating changes |
 | `docs/knowledge/roadmap.md` | entry `docs-diet` marked done |
 | `deployment/local/README.md` | **deleted**: it retells `aws.md` (R6) |
+| `docs/tickets/_template/{feature,architecture,plan}.md`, `.claude/skills/ticket-{feature,architecture,plan}/SKILL.md` | what a requirement, a design entry and a step name concretely, and what they leave to a pattern, a grep or a check (D15) |
 
 ### Owners of the facts told in several places
 
 Each fact is stated once, in its owner; every other file points to it by name (R2).
 
-| Fact | Owner | Today also stated in |
+| Fact | Owner | Also stated in, at design time (the step re-finds them by `git grep`) |
 |---|---|---|
 | The rings, which folder holds what | `architecture.md › The three rings` | root `CLAUDE.md` map, `README.md`, the glossary, `application/CLAUDE.md` |
 | Versions | the manifests (root `package.json`: `packageManager`, the catalogs); a doc says "the pinned version" | root `CLAUDE.md`, `README.md`, `effect.md`, `tooling.md`, `aws.md`, the PR example |
@@ -172,6 +173,7 @@ refusals and the same `.env` it writes today.
 | A new session's first `/ticket-implement` step, then its second | R17: the question asked once, the answer held | the gate's wording in every pointer (judged by `git grep`) |
 | The next real steps and verification after the step that lands R18–R20, read in their transcripts | R18–R20: the verifier reads no `plan.md`; no Spec finding on a `plan.md` edit; no finding reported by two axes; no hunt outside its condition; no `/simplify` call in the implementer; reports in English without the status block | quality over many steps: a few runs prove the path, not the rate |
 | The next steps' main-session transcript and the next verification's timing | R21, R22: no source file or diff read by the main session to write a fix round; findings in the four fields; verifiers in parallel, verdicts sooner than 33 min | whether a forwarded finding needed the main session's own reading (judged when a round misfires) |
+| Review of the step that lands R23, against `research.md` | R23: each template and skill rule traced to its evidence; nothing load-bearing dropped | whether later tickets amend their artifacts less (seen over the next tickets) |
 | The step report's ledger: each removed line with its new home or "dropped:" and why, each trap added and where | R3, R5, R6, R14: nothing lost silently | nothing beyond what the reviewer reads |
 
 ## Decisions
@@ -357,6 +359,27 @@ refusals and the same `.env` it writes today.
   - **Rejected:**
     - one verifier, as today — the slowest stage of a ticket.
 
+- **D15 — The ticket templates get a light edit, not a restructure: a step pins its outcome,
+  its constraints, its decided names and traps, and a check proven red first; the rest is found by
+  `git grep` at the step.** (R23)
+  - **Why:** `research.md`: the artifacts of `modular-monolith` were amended again and again for
+    restated code (file lists, configs, paths), and once for changed behaviour; the implementer
+    found every file a list missed, while decided names, invisible traps and red-first checks were
+    what it could not do without. The external sources agree: name what the agent cannot read from
+    the repo, give it a check, keep the rest short. The templates already separate what from how
+    and put a check on every step, so only the parts that copy the code change.
+  - **Cost accepted:** a step whose file list is a start, not the bound, relies on the
+    implementer's leftover grep and on review to find the rest; the `Conforms` check of
+    `/ticket-plan` has fewer literals to check.
+  - **Reversal:** one commit (restore the template lines).
+  - **Rejected:**
+    - a restructure toward a spec-only form, with no paths in the plan either — loses the decided
+      names and traps that were load-bearing;
+    - leaving the templates as they are — keeps the amendments for no gain in results;
+    - keeping lesson L2's cure (`/ticket-plan` lists every file `git grep` finds) — it served the
+      size estimate and the reviewer's expectations, which S5's size estimate per step and the
+      step report's list of files now serve, and it produces the longest lists.
+
 ## Risks
 
 - **The rewrite drops a line Claude needed.** Guidance gets worse with less text, against the
@@ -376,5 +399,9 @@ refusals and the same `.env` it writes today.
   block's on a scratch worktree, refusals included.
 - **The limits line in `claude-md.md` is reworded.** `doc-limits` exits 2. *Contained by:* the
   error names the line it expects (D5).
+- **A step with less listed detail drifts.** The implementer misses a file or picks a name the
+  plan meant to fix. *Contained by:* the step still pins decided names and traps (D15), its check
+  is proven red first, the leftover grep and the Spec axis find a missed file; a recurrence brings
+  the list back for that kind of step (`research.md`).
 - **Text written before `modular-monolith` settles goes stale at once.** *Contained by:* the plan
   starts after that ticket's verification passes.
