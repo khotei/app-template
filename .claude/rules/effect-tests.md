@@ -2,6 +2,7 @@
 paths:
   - "**/__tests__/**"
   - "**/__e2e__/**"
+  - "apps/e2e/**"
 ---
 
 # Effect: tests

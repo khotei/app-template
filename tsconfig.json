@@ -8,7 +8,7 @@
     { "path": "./apps/api" },
     { "path": "./apps/worker" },
     { "path": "./apps/web" },
-    { "path": "./apps/__e2e__" },
+    { "path": "./apps/e2e" },
     { "path": "./deployment" }
   ]
 }

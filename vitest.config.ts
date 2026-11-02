@@ -10,7 +10,7 @@ export default defineConfig({
       {
         test: {
           name: 'e2e',
-          include: ['**/__e2e__/**/*.e2e.ts'],
+          include: ['**/__e2e__/**/*.e2e.ts', 'apps/e2e/**/*.e2e.ts'],
           exclude,
           globalSetup: ['kernel/data/__tests__/testing/e2e/e2e.test-setup.ts'],
           // The apps' SDK clients read credentials from the environment; MiniStack accepts any.

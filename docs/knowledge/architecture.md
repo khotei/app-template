@@ -77,15 +77,16 @@ graph TD
   services --> packages
   deployment --> kernelOut
   deployment -->|"/data: the files' key only"| db
-  e2e["apps/__e2e__"] -->|"api/testing · worker/testing"| api
+  e2e["apps/e2e"] -->|"api/testing · worker/testing"| api
   e2e --> worker
 ```
 
 `application/` is one workspace, `@app-template/application`, and one `tsconfig.json` project:
 each module and the use cases a folder with one entry (`@app-template/application/chat` →
 `application/chat/index.ts`), a module's contract a folder in it
-(`application/identity/contract/`), exported through the module's entry. The `apps/__e2e__`
-workspace runs both app layers in one test process, and nothing imports it.
+(`application/identity/contract/`), exported through the module's entry. The `apps/e2e` test
+app runs both app layers in one test process, starts no process of its own, and nothing imports
+it.
 
 ## Dependency rules
 
@@ -111,7 +112,7 @@ units its row allows, so an unlisted unit is refused
 | `apps/web` client | ✗ | ✗ | ✗ | ✗ | ✗ | `ui` only | ✓ | `apps/web/**`; `make bundle-check` |
 | `apps/web/main.ts` | ✗ | ✗ | ✗ | ✗ | `/config` only | `ui` only | ✗ | `apps/web/main.ts` |
 | `deployment` | ✗ | ✗ | ✗ | the files' key only | `/config`, `/aws`: the inventory | ✓ | ✗ | `deployment/**` |
-| `apps/__e2e__` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | `apps/__e2e__/**`; apps through `api/testing`, `worker/testing` only |
+| `apps/e2e` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | `apps/e2e/**`; apps through `api/testing`, `worker/testing` only |
 
 - **Inside a module** the layers point inward too: `domain/` imports neither
   `#<module>/services/*` nor `#<module>/infrastructure/*`, `services/` not
@@ -201,9 +202,9 @@ file suffixes and the naming verbs: [.claude/rules/naming.md](../../.claude/rule
 ## Where tests live
 
 Every workspace keeps its unit tests in `__tests__/` and its e2e in `__e2e__/`, each with its
-support under `__tests__/testing/`. What goes where, which support a test may import and what
-runs on what: [tooling.md › Tests](tooling.md#tests). Why:
-[Tests in their folders](decisions.md#tests-in-their-folders).
+support under `__tests__/testing/`, but for the test app `apps/e2e`, which is all e2e. What goes
+where, which support a test may import and what runs on what: [tooling.md ›
+Tests](tooling.md#tests). Why: [Tests in their folders](decisions.md#tests-in-their-folders).
 
 ## A use case
 

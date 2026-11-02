@@ -9,8 +9,8 @@ Bun + TypeScript 7 modular monolith; three processes: `apps/api`, `apps/worker`,
 adapters of its ports · `http-api/` the HTTP contract shared by `api` and `web` ·
 `application/use-cases/` the use cases ·
 `kernel/` the data layer (`kernel/data`) and this app's configured clients · `packages/*`
-generic clients · `apps/*` thin entry points · `deployment/` local and AWS · `apps/__e2e__/` the
-e2e through the api ([tooling.md › Tests](docs/knowledge/tooling.md#tests)).
+generic clients · `apps/*` thin entry points · `deployment/` local and AWS · `apps/e2e/` the test
+app, the e2e through the api ([tooling.md › Tests](docs/knowledge/tooling.md#tests)).
 The rings, what may import what and how to add a module, an entity or a store's client:
 [architecture.md](docs/knowledge/architecture.md).
 

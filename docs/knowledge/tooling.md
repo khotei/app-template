@@ -31,7 +31,7 @@ and `make setup` and `make test-unit` need neither.
 | `make typecheck` | `bunx tsc -b`, the patched `tsc` | typecheck every workspace through the project references, Effect diagnostics included |
 | `make migrate` · `migration NAME=<name>` · `migration-check` | `migrate`: `bun --env-file=.env kernel/postgres/migrate.ts`; `migration` and `migration-check`: `bunx drizzle-kit generate --config kernel/data/drizzle.config.ts` from the root | apply, generate and check migrations: [database.md › Migrations](database.md#migrations) |
 | `make test-unit` | `bun --bun vitest run --project unit` | every `__tests__/**/*.test.ts`; no Docker ([Tests](#tests)) |
-| `make test-e2e` | `bun --bun vitest run --project e2e` | every `__e2e__/**/*.e2e.ts`; needs a running Docker daemon for the run's own Postgres and MiniStack containers ([Tests](#tests)) |
+| `make test-e2e` | `bun --bun vitest run --project e2e` | every `__e2e__/**/*.e2e.ts` and `apps/e2e/**/*.e2e.ts`; needs a running Docker daemon for the run's own Postgres and MiniStack containers ([Tests](#tests)) |
 | `make test` | `test-unit`, then `test-e2e` | both projects |
 | `make bundle-check` | `bun build` of the web entry into `node_modules/.cache/web-bundle`, then a negated `grep` for the keys of the kernel, the use cases, a module's services and infrastructure, and its domain's ports | fails when a service, port or adapter reaches the browser: [architecture.md › Boundary guards](architecture.md#boundary-guards) |
 | `make outdated` | `bun outdated --recursive` | newer versions for every workspace |
@@ -66,12 +66,12 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   tests our retry, heartbeat and dead-letter logic and takes most of a run's time with SQS's real
   delays. What each kind checks and how to write it:
   [effect-tests.md › Unit and e2e](../../.claude/rules/effect-tests.md#unit-and-e2e).
-- **A folder per kind, beside the source.** Every workspace keeps its unit tests in `__tests__/`
-  and its e2e in `__e2e__/`, at its top; a test mirrors its source path there, and a suite with
-  no source is named for what it checks. A module folder holds no test. The kernel's parts are
-  units like packages, so each part keeps its own (`kernel/<part>/__tests__/`,
-  `kernel/<part>/__e2e__/`). Why, and what refuses a test in the wrong place:
-  [decisions.md › Tests in their folders](decisions.md#tests-in-their-folders).
+- **A folder per kind, beside the source.** Every workspace keeps its unit tests in `__tests__/` and
+  its e2e in `__e2e__/`, at its top, but for the test app `apps/e2e`, which is all e2e; a test
+  mirrors its source path there, and a suite with no source is named for what it checks. A module
+  folder holds no test. The kernel's parts are units like packages, so each part keeps its own
+  (`kernel/<part>/__tests__/`, `kernel/<part>/__e2e__/`). Why, and what refuses a test in the wrong
+  place: [decisions.md › Tests in their folders](decisions.md#tests-in-their-folders).
 - **Test support in `__tests__/testing/`,** the files ending in a `.test-<role>` suffix
   ([naming.md › Files](../../.claude/rules/naming.md#files)), imported as
   `@app-template/<folder>/testing` and aliased `#testing/<unit>/*` (`#testing/*` in a workspace
@@ -86,9 +86,9 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   Postgres or MiniStack clients) lives in that package, as a kernel part's does.
 - **What a test may import.** A unit test imports its workspace's source and the `/testing` of
   the units its workspace declares; an e2e suite also their `/testing/e2e`; a unit test never
-  imports e2e support. The `apps/__e2e__` workspace holds e2e alone, aliases its own support
-  `#testing/*` (`apps/__e2e__/testing/`) and is the one workspace that imports the apps'
-  `./testing`, so an app has no `__e2e__/` of its own.
+  imports e2e support. The `apps/e2e` test app holds e2e alone, the suites through the api in
+  `apps/e2e/api/`, aliases its own support `#testing/*` (`apps/e2e/testing/`) and is the one
+  workspace that imports the apps' `./testing`, so an app has no `__e2e__/` of its own.
 
 Which suite runs where:
 
@@ -99,7 +99,7 @@ Which suite runs where:
 | boundary | `kernel/postgres/__e2e__/`, `kernel/queue/__e2e__/`, `packages/<package>/__e2e__/`; an adapter's suite in `application/<module>/__tests__/infrastructure/` | the run's containers; the adapter over a recording client |
 | tools | `kernel/config/__tests__/`, `packages/<package>/__tests__/` | memory only |
 | apps | `apps/api/__tests__/`, `apps/worker/__tests__/` | memory only: the api's HTTP layer (`ApiHttp`) with the memory layers in place of the repositories and ports; a worker handler over its use case's test layer |
-| assembled | `apps/__e2e__/chat.e2e.ts`: the journey and the use cases' races and rollbacks, each a request to the api | both app layers in one runtime (`StandTest`) |
+| assembled | `apps/e2e/api/chat.e2e.ts`: the journey and the use cases' races and rollbacks, each a request to the api | both app layers in one runtime (`StandTest`) |
 
 - **The data layer's suites.** A repository's `.repository.e2e.ts` and an entity's
   `.entity.e2e.ts` sit in `kernel/data/__e2e__/<store>/` on `DbTest`; `flipSqlError`, which reads
@@ -110,11 +110,11 @@ Which suite runs where:
   an author), through the mapper and reads it back, so a check or an enum that drifts from its
   model fails there.
 - **One root `vitest.config.ts`, two projects,** chosen by `--project`: `unit` runs
-  `__tests__/**/*.test.ts`; `e2e` runs `__e2e__/**/*.e2e.ts`, on Docker, and alone has the
-  `globalSetup`. Each project lists the shared `exclude` (`repos/**` and `.claude/worktrees/**`
-  added to the default) and `sequence` itself, and the root sets no `globalSetup`, so a unit run
-  starts no container. A new workspace needs no test config, and the vendored suites and the
-  worktrees' copies stay out.
+  `__tests__/**/*.test.ts`; `e2e` runs `__e2e__/**/*.e2e.ts` and the test app's
+  `apps/e2e/**/*.e2e.ts`, on Docker, and alone has the `globalSetup`. Each project lists the
+  shared `exclude` (`repos/**` and `.claude/worktrees/**` added to the default) and `sequence`
+  itself, and the root sets no `globalSetup`, so a unit run starts no container. A new workspace
+  needs no test config, and the vendored suites and the worktrees' copies stay out.
 - **One Postgres and one MiniStack per e2e run, a database and a stage per test.**
   `kernel/data/__tests__/testing/e2e/e2e.test-setup.ts` starts one `postgres:18.6-alpine`
   container (about 1.2 s) and migrates a template database in it with `migrateDatabase(folder)`,
@@ -131,11 +131,11 @@ Which suite runs where:
 - **Two worktrees at once.** Testcontainers maps each container to a free host port and names it
   itself, so two trees run `make test-e2e` side by side, and beside their local stands, with
   nothing to configure; a unit run starts nothing at all.
-- **The journey, in the `apps/__e2e__` workspace.** `apps/__e2e__/chat.e2e.ts` drives a user, a
+- **The journey, in the `apps/e2e` test app.** `apps/e2e/api/chat.e2e.ts` drives a user, a
   chat, an upload and a send over HTTP and reads the reply and the title back once the worker has
   written them; the use cases' races share its stand, and their rollbacks are requests too, each
   on a stand of its own, since it alters the schema to make Postgres refuse a write: `StandTest`
-  (`apps/__e2e__/testing/stand.test-layer.ts`) runs `ApiLayerTest` and `WorkerLayerTest`, the apps'
+  (`apps/e2e/testing/stand.test-layer.ts`) runs `ApiLayerTest` and `WorkerLayerTest`, the apps'
   layers that their `./testing` re-exports, in the test's own runtime over a `PgClientTest`
   database, an `AwsTest` stage and the model stub, under one `ConfigProvider` that names them, so
   the apps' own adapters and config code are the ones under test. The api takes a free port the

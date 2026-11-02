@@ -40,7 +40,10 @@
 | S32 | test support beside its one user | done |
 | S33 | the test layout told in one place | done |
 | S34 | the mappers checked by unit tests over the schemas | todo |
-| S35 | `apps/__e2e__` → `apps/e2e`, a test app | todo |
+| S35 | `apps/__e2e__` → `apps/e2e`, a test app | done |
+| S36 | the branch review's test fixes | todo |
+| S37 | the docs the branch review found out of step with the code | todo |
+| S38 | the chat module in one shape | todo |
 
 ## How to run this plan
 
@@ -1671,6 +1674,113 @@
   `git grep -n 'apps/__e2e__' -- ':!docs/tickets'` finds none; `make dev` starts api, worker and
   web alone.
 - **Model:** `opus medium`
+- **Status:** done
+- **Findings:**
+  - Ran in worktree N=2 beside S34 on the user's word; landed first, so the two Biome messages of
+    the `application/<module>/__e2e__/**` overrides, which S34 deletes, name `apps/e2e` meanwhile.
+  - Beyond Files: the `Makefile`'s help for `make test-e2e` and `naming.md`'s `.e2e` row named the
+    e2e place.
+  - R11's row refused any `e2e/` folder outside `__tests__/` and `__e2e__/`, the test app itself;
+    R11 and its row now admit `apps/e2e` and its `testing/`.
+  - Review: `decisions.md`, `tooling.md` and `architecture.md` said every e2e lives in `__e2e__/`;
+    each names the test app as the exception. `apps/CLAUDE.md` names no future `web/` suite and
+    links the import rule instead of restating it.
+
+
+#### S36 — The branch review's test fixes
+
+- **Delivers:** on the user's word after the branch review of 2026-11-02:
+  - the reply's rollback through the api: a case in the journey's e2e adds a check the chat's
+    move to `idle` breaks, sends a message, and the assistant message ends `failed` (through the
+    dead letter), never `done` with the chat still `queued`, so the worker's transaction is
+    proven bound to its writes as the api's is;
+  - `job.relay.e2e.ts`'s failing-batch case asserts the first log entry alone, since the relay's
+    retry after 300 ms may log a second;
+  - the shared stand of the journey's e2e builds with `timeout: '60 seconds'`, as the
+    `AwsTest` suites do;
+  - the model tests' `it.each` over primitives become `it.effect.each` over objects
+    (`effect-tests.md › Writing a test`);
+  - `sortById` leaves `packages/testing` for its one reader, which sorts or compares id sets in
+    place; `rows.test-util.ts` moves to the data layer's memory repositories, its one reader,
+    or `decisions.md` records why it stays; `resources.test.ts` moves to `__tests__/domain/`,
+    the folder of what it checks;
+  - one `ApiClient` layer with a cookie jar: the api's test layer takes a base URL and the stand
+    provides `FetchHttpClient` to it, so the stand's copy goes;
+  - the apps' `./testing` export their layers under their own names (`ApiLayer`, `WorkerLayer`):
+    a `Test` suffix names a test double alone; the export stays `./testing` (S26).
+- **Goal:** R10 (the reply's writes in one transaction), R11 (`packages/testing` only shared
+  support).
+- **Blocked by:** S34, S35.
+- **Files:** the suites and support named above, `apps/{api,worker}/__tests__/testing/`,
+  `apps/e2e/testing/stand.test-layer.ts`, `docs/knowledge/tooling.md › Tests` where it names a
+  moved file or the layers' names.
+- **Test first:** the rollback case is red when the worker's use case runs outside its
+  transaction (a probe dropping `transaction.run`); every other case kept.
+- **Verify:** `make check`; `make test-e2e` counts one case more; `git grep -n 'sortById\|LayerTest\b'`
+  finds none outside the ticket.
+- **Model:** `opus high`
+- **Status:** todo
+
+
+#### S37 — The docs the branch review found out of step with the code
+
+- **Delivers:** on the user's word after the branch review of 2026-11-02:
+  - `decisions.md`'s use-case snippet calls no method the code lacks: a neutral example, or the
+    real calls;
+  - `architecture.md`'s bundle check names what the `Makefile` greps (the ports it lists), or the
+    grep matches every port of a `domain/`;
+  - `architecture.md › Known gaps` adds a browser-safe package importing a server library: one
+    `packages/package.json` declares them all, and neither Biome nor the bundle check refuses it;
+  - `feature.md`'s acceptance rows of R8 (the contract folder; no `__e2e__` after S34) and R9
+    (the data layer's source, its e2e importing the inventory and config) match the code;
+  - `roadmap.md:123` names no path that no longer exists; the ticket's `architecture.md`
+    Overview and Contracts drop `identity-contract` and `./testing-e2e`.
+- **Goal:** R19 (the docs name nothing that no longer exists).
+- **Blocked by:** S35.
+- **Files:** `docs/knowledge/{decisions,architecture,roadmap}.md`, `feature.md`, the ticket's
+  `architecture.md`, the `Makefile` only if the grep widens.
+- **Test first:** `docs only`; a widened grep is proven red by a probe port named otherwise.
+- **Verify:** `make check`, `make doc-width`, `make doc-names`.
+- **Model:** `opus medium`
+- **Status:** todo
+
+
+#### S38 — The chat module in one shape
+
+- **Delivers:** on the user's word after the branch review of 2026-11-02 (Standards and Depth),
+  the chat module reads as one shape; every item below is the user's word of 2026-11-02, and the
+  step splits by the ~400-line budget:
+  - one read verb per service, over a `where`: a domain service's read is `getOne`, as the
+    repositories' `selectOne`, so `AttachmentService.get` becomes `getOne` and `naming.md`'s `get`
+    becomes `getOne`; `AttachmentService.getOne`, `download` and `delete` take `{ id, userId }`
+    instead of positional ids (`deep-modules.md`: a caller reads every store alike);
+  - an aggregate's `Where` types in one file: `ChatWhere` leaves the mapper for the service,
+    beside `ChatRenameWhere` and `ChatDeleteWhere`; the mapper keeps only `encodeChatWhere`;
+  - the rename a model function (`renameChat`), as every other status or field move is; and every
+    other rule a service or use case writes inline that reads only values (a decision over a
+    model's fields, a mapping of a failure to a reason) becomes a pure function of its model when
+    it has a name of its own and a caller or test that reads better for it; a branch that only
+    sequences steps stays where it is;
+  - the send checks the attachments before its first write: their bind's checks run before the
+    user's message is inserted (`layering.md`: all checks precede every write);
+  - the doubling delay and the dead-letter definition move from chat's queue file to
+    `packages/queue`, which names no chat word, so the services' Biome lists drop
+    `packages/aws`;
+  - one copy each of the SHA-256 hex digest (the user's secret, the reply's instructions), the
+    two message builders and the branded id schema;
+  - answers only callers read: the download answers the URL; the instructions hash stays
+    file-local; the adapter keeps one exported name.
+- **Goal:** R8 (a module's layers hold what their names say); D8's mapper and the repository
+  shape of `deep-modules.md`.
+- **Blocked by:** S36.
+- **Files:** `application/chat/{domain,services,infrastructure}/`, `application/identity/services/`,
+  `application/use-cases/chat/`, `apps/api/` handlers that call the renamed methods,
+  `packages/queue`, `biome.json`, `.claude/rules/naming.md` (`getOne`), their unit tests.
+- **Test first:** every case kept, renamed with its method; the send's case that binds a foreign
+  attachment asserts no message row was inserted before the refusal.
+- **Verify:** `make check`; `make test-e2e` with the same count; `git grep -nw 'get'` finds no
+  domain service's read, and no attachment read takes positional ids.
+- **Model:** `opus high`
 - **Status:** todo
 
 
@@ -1685,10 +1795,10 @@
 | R5 | S6, S8, S10 |
 | R6 | S3, S4, S5, S6, S7, S11, S13, S19 |
 | R7 | S11, S19, S21 |
-| R8 | S3, S13, S19, S21 |
+| R8 | S3, S13, S19, S21, S38 |
 | R9 | S8, S9, S10, S12, S14, S15, S17, S18 |
-| R10 | S10, S31 |
-| R11 | S1, S28, S31, S34, S35 |
+| R10 | S10, S31, S36 |
+| R11 | S1, S28, S31, S34, S35, S36 |
 | R12 | S21, S30 |
 | R13 | S4, S20, S21, S30 |
 | R14 | S8, S21 |
@@ -1696,6 +1806,6 @@
 | R16 | S11, S13, S19, S21, S27 |
 | R17 | S1, S21, S28 |
 | R18 | S20, S22 |
-| R19 | S22, S23, S33 |
+| R19 | S22, S23, S33, S37 |
 | R20 | S20, S21 |
 | R21 | S27, S29 |

@@ -416,7 +416,7 @@
                       "!@effect/vitest",
                       "!@effect/vitest/**"
                     ],
-                    "message": "a module's e2e import no workspace but the data layer (@app-template/kernel/data), whose rows they write and read back, its e2e support (@app-template/kernel/data/testing/e2e) and @app-template/packages/testing, and of @effect/* only the test runner @effect/vitest: a use case's e2e runs through the api, in apps/__e2e__ (decisions.md › Tests in their folders; Guards are configuration)"
+                    "message": "a module's e2e import no workspace but the data layer (@app-template/kernel/data), whose rows they write and read back, its e2e support (@app-template/kernel/data/testing/e2e) and @app-template/packages/testing, and of @effect/* only the test runner @effect/vitest: a use case's e2e runs through the api, in apps/e2e (decisions.md › Tests in their folders; Guards are configuration)"
                   },
                   {
                     "group": ["#*/**", "!#chat/**", "!#testing/chat/**"],
@@ -661,7 +661,7 @@
                       "!@effect/vitest",
                       "!@effect/vitest/**"
                     ],
-                    "message": "a module's e2e import no workspace but the data layer (@app-template/kernel/data), whose rows they write and read back, its e2e support (@app-template/kernel/data/testing/e2e) and @app-template/packages/testing, and of @effect/* only the test runner @effect/vitest: a use case's e2e runs through the api, in apps/__e2e__ (decisions.md › Tests in their folders; Guards are configuration)"
+                    "message": "a module's e2e import no workspace but the data layer (@app-template/kernel/data), whose rows they write and read back, its e2e support (@app-template/kernel/data/testing/e2e) and @app-template/packages/testing, and of @effect/* only the test runner @effect/vitest: a use case's e2e runs through the api, in apps/e2e (decisions.md › Tests in their folders; Guards are configuration)"
                   },
                   {
                     "group": ["#*/**", "!#identity/**"],
@@ -1965,7 +1965,7 @@
       }
     },
     {
-      "includes": ["apps/__e2e__/**"],
+      "includes": ["apps/e2e/**"],
       "linter": {
         "rules": {
           "style": {

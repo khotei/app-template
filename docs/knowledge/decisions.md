@@ -367,7 +367,7 @@ bucket's name and lifecycle; `deployment` reads both.
 - **Cost:** one interface over a store that joins no transaction: the bytes are stored before the
   row that binds them and deleted once the rows are gone.
 - **Guarded by:** the repository's doc comment and `.claude/rules/layering.md` (the order); the
-  refused chat delete in `apps/__e2e__/chat.e2e.ts`; the file repository's e2e in
+  refused chat delete in `apps/e2e/api/chat.e2e.ts`; the file repository's e2e in
   `kernel/data/__e2e__/file`; the `deployment/**` override (of the data only `/data/file`).
 - **If reversed:** the port goes back into `chat`'s `domain/` with its adapter in
   `infrastructure/`, and a second module needing files imports chat.
@@ -485,7 +485,7 @@ share lives in a ring below them.
 - **Rejected:** a shared helper in one app imported by another: it couples their releases.
 - **Cost:** a helper both processes need moves down into a module, the kernel or a package.
 - **Guarded by:** the Biome overrides on `apps/api/**`, `apps/worker/**` and their tests, and
-  `apps/web/**`; the journey e2e that runs both processes lives in `apps/__e2e__`.
+  `apps/web/**`; the journey e2e that runs both processes lives in the `apps/e2e` test app.
 - **If reversed:** a process pulls the other's dependencies and layer, and an app can no longer
   be deployed alone.
 - **Revisit when:** two apps merge into one process.
@@ -493,20 +493,20 @@ share lives in a ring below them.
 ### Tests in their folders
 
 Every workspace keeps its unit tests and their support in `__tests__/`, the support in
-`__tests__/testing/`, and its e2e in `__e2e__/`; the support only the e2e use sits in
-`__tests__/testing/e2e/`, behind an `index.ts` of its own that `__tests__/testing/index.ts` does
-not re-export. A unit imports it as `@app-template/<folder>/testing` and
-`@app-template/<folder>/testing/e2e`, and its own files through `#testing/<unit>/*` and
-`#testing/<unit>/e2e/*`; support that one unit alone reads keeps the alias and no entry. The
-kernel's parts are units like packages, so each part keeps its own
+`__tests__/testing/`, and its e2e in `__e2e__/`, but for the test app `apps/e2e`, which is all e2e;
+the support only the e2e use sits in `__tests__/testing/e2e/`, behind an `index.ts` of its own that
+`__tests__/testing/index.ts` does not re-export. A unit imports it as
+`@app-template/<folder>/testing` and `@app-template/<folder>/testing/e2e`, and its own files through
+`#testing/<unit>/*` and `#testing/<unit>/e2e/*`; support that one unit alone reads keeps the alias
+and no entry. The kernel's parts are units like packages, so each part keeps its own
 (`kernel/<part>/__tests__/`, `kernel/<part>/__e2e__/`). The support files keep their kind suffixes
 (`.test-layer`, `.test-setup`). An e2e suite may import both, a unit test never `testing/e2e`;
 `application` has unit tests and, of e2e, only its mappers' round trips on Postgres, beside the
 mappers in `application/<module>/__e2e__/services/`; the e2e through the api, the journey and the
-use cases' races and rollbacks, live in `apps/__e2e__`, its support in `apps/__e2e__/testing/`.
-The shared `packages/testing` holds only the support several
-units use; a package's own support (its rows, its Postgres or MiniStack clients) lives in that
-package, as a kernel part's does.
+use cases' races and rollbacks, live in the test app `apps/e2e`, in `apps/e2e/api/`, its support in
+`apps/e2e/testing/`. The shared `packages/testing` holds only the support several units use; a
+package's own support (its rows, its Postgres or MiniStack clients) lives in that package, as a
+kernel part's does.
 
 - **Why:** the folder tells a unit test from an e2e and from source; a test sits beside what it
   checks: the behaviour runs over memory, the real stores are tested in the kernel, a mapper
@@ -518,13 +518,14 @@ package, as a kernel part's does.
   support barrel for every part. Every package's support in `packages/testing`: a package's own
   harness away from it, behind a barrel every unit imports. The use cases' e2e in
   `application`, a use case called on Postgres: a call, not the flow a user starts. The mappers'
-  e2e in `apps/__e2e__`: the drift check away from the mappers it checks. The e2e in each app: the
+  e2e in `apps/e2e`: the drift check away from the mappers it checks. The e2e in each app: the
   journey would make
   the api import the worker, and apps never import each other. The e2e workspace at the root: a
-  test of the processes away from them. The e2e support in `__e2e__/testing/`, exported under a
-  name of its own: a third test folder, and an import name no folder carries. A label in the file
-  name (`<name>.e2e-layer.ts`) beside the unit test support: the label is lost behind the
-  `/testing` entry, so only review could refuse the import.
+  test of the processes away from them. The workspace as an `__e2e__/` folder in `apps/`: such
+  a folder everywhere else holds the e2e of its own folder's source. The e2e support in
+  `__e2e__/testing/`, exported under a name of its own: a third test folder, and an import name no
+  folder carries. A label in the file name (`<name>.e2e-layer.ts`) beside the unit test support:
+  the label is lost behind the `/testing` entry, so only review could refuse the import.
 - **Cost:** a use case's race or rollback runs through the api with both processes up, slower than a
   call of the use case. The kernel declares an alias per part's support, and an export where another
   unit reads it. The run's `globalSetup` sits in the data's e2e support, though it starts the
@@ -538,8 +539,8 @@ package, as a kernel part's does.
   module's source overrides ban `#testing/**`, its own support too; the
   `kernel/data/__tests__/**` override keeps the data layer's bans on its memory repositories; a
   module's `__e2e__/**` override admits of the kernel only the data layer and its e2e support; the
-  vitest projects `unit` (`**/__tests__/**/*.test.ts`) and `e2e` (`**/__e2e__/**/*.e2e.ts`)
-  include by folder and suffix.
+  vitest projects `unit` (`**/__tests__/**/*.test.ts`) and `e2e` (`**/__e2e__/**/*.e2e.ts` and
+  `apps/e2e/**/*.e2e.ts`) include by folder and suffix.
 - **If reversed:** a rename of the folders.
 - **Revisit when:** a workspace needs a third kind of test.
 

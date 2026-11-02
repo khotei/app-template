@@ -244,7 +244,7 @@ test: test-unit test-e2e ## Run the unit and the e2e tests
 test-unit: ## Run the unit tests under __tests__/ (no Docker)
 	bun --bun vitest run --project unit
 
-test-e2e: ## Run the e2e tests under __e2e__/ on their own containers (Docker running)
+test-e2e: ## Run the e2e tests under __e2e__/ and apps/e2e/ on their own containers (Docker running)
 	bun --bun vitest run --project e2e
 
 # Greps the service keys, string literals that survive the build however Bun applies

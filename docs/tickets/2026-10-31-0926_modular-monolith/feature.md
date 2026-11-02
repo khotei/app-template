@@ -171,9 +171,10 @@ Behaviour seen from outside does not change.
   transaction of the writes the job reads.
 - **R11** — THE SYSTEM SHALL keep a workspace's unit tests and its test support under
   `__tests__/`, with the support only the e2e use under `__tests__/testing/e2e/`, and its e2e
-  tests under `__e2e__/`, SHALL keep in `packages/testing` only the support several units share,
+  tests under `__e2e__/`, SHALL keep the e2e of the whole system in the test app `apps/e2e`,
+  which starts no process and holds its own support, SHALL keep in `packages/testing` only the support several units share,
   SHALL run from `application` no e2e test but its mappers' round trips, beside the mappers, and
-  SHALL drive the use cases' e2e through requests to the api.
+  SHALL drive the use cases' e2e through requests to the api, from `apps/e2e/api/`.
 - **R21** — THE SYSTEM SHALL import a part of the kernel, a package under `packages/*` and a
   module or the use cases under `application/` by its folder path, `@app-template/<folder>`, through one entry,
   its `index.ts`, and its test support through `@app-template/<folder>/testing` and
@@ -230,7 +231,7 @@ Behaviour seen from outside does not change.
 | R8 | each module holds only `domain/`, `services/`, `infrastructure/`, `__tests__/` and its manifests; every `*.use-case.ts` lies under `application/use-cases/`; the layer overrides pass |
 | R9 | grep: no file under `kernel/data/` imports `@app-template/*` but a package under `packages/*`, or `#kernel/*` outside `#kernel/data`; every `*.table.ts`, `*.entity.ts` and `*.repository.ts` lies under `kernel/data/` |
 | R10 | a send through the api leaves its job in `jobs`, and a refused write keeps neither the job nor the writes |
-| R11 | `git ls-files` finds no `tests/`, `e2e/` or `testing/` folder outside `__tests__/` and `__e2e__/` (but the package `packages/testing` and `apps/__e2e__/testing`), no `__e2e__/testing/` under `kernel/` or `packages/`, no `aws`, `postgres` or `rows` support in `packages/testing`, no `__e2e__/` under `application/` but `application/<module>/__e2e__/services/` holding `*.mapper.e2e.ts` alone, and no suite under `apps/__e2e__` that reads a use case or a mapper from the context |
+| R11 | `git ls-files` finds no `tests/`, `e2e/` or `testing/` folder outside `__tests__/` and `__e2e__/` (but the package `packages/testing`, the test app `apps/e2e` and its `apps/e2e/testing`), no `__e2e__/testing/` under `kernel/` or `packages/`, no `aws`, `postgres` or `rows` support in `packages/testing`, no `__e2e__/` under `application/` but `application/<module>/__e2e__/services/` holding `*.mapper.e2e.ts` alone, no `apps/__e2e__`, and no suite under `apps/e2e` that reads a use case or a mapper from the context |
 | R12 | a throwaway import of another module's internals, and one of a unit its workspace's list does not name, each fail `make check` with the import and the decision named |
 | R13 | a throwaway import of a module into the kernel and into a generic package each fail `make check` with the decision named; the modules rule names the contract cycle and its decision |
 | R14 | throwaway imports of a module's model, of `#kernel/aws` and of `@app-template/kernel/config` into a data-layer file each fail `make check` with the decision named |

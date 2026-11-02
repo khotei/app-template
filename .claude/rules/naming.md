@@ -38,7 +38,7 @@ tool reads.
 | `.mapper` | an entity's codec into a model, `<Model>FromEntity` | a module's `services` |
 | `.client` · `.transport` | client wiring · the service a package's client runs over | a module's `infrastructure`, kernel, http-api, packages |
 | `.http` | a contract group: one resource's routes (`HttpApiGroup`) | http-api |
-| `.test` · `.e2e` | a unit test, no process outside vitest · a test on the run's containers | `__tests__/` · `__e2e__/` |
+| `.test` · `.e2e` | a unit test, no process outside vitest · a test on the run's containers | `__tests__/` · `__e2e__/`, `apps/e2e/` |
 | `.test-fixture` | sample values (ids, dates, inputs, bytes); no Effect, no layers | a `testing/` |
 | `.test-fake` | a test implementation or wrapper of a port or service: records, yields, scripts | a `testing/` |
 | `.test-layer` | a test layer (real services over fakes or containers), its arrange and read steps | a `testing/` |
