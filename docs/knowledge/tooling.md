@@ -256,7 +256,8 @@ its sources either way.
 4. Add the path to the root `tsconfig.json` `references`.
 5. Run `bun install` and `make check`.
 
-A new `packages/*` workspace needs no change to the layer guards, because they are deny-lists. A
+A new `packages/*` workspace joins one list in `biome.json`, the packages the `kernel/data/**`
+override lets the data layer import; the other guards ban by name, so they need no change. A
 new layer or app needs its own `overrides` entry in `biome.json`; see
 [architecture.md › Boundary guards](architecture.md#boundary-guards) for what each
 entry repeats.
@@ -328,7 +329,7 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 |---|---|---|
 | `TS2307: Cannot find module '@app-template/<name>'` from `make typecheck`, or `Cannot find module` at runtime | the import is allowed, but the workspace is not declared in this workspace's `package.json` | add `"@app-template/<name>": "workspace:*"` and a `tsconfig.json` reference, then `bun install` |
 | `TS6059 … is not under 'rootDir'` and `TS6307 … is not listed within the file list of project` | a relative path reaches into another workspace that is not referenced | import it as `@app-template/<name>/…`; relative paths are banned anyway |
-| Biome `lint/style/noRestrictedImports`: `a module's domain is pure…` or `… no upward imports` | the import goes up a layer or into a sibling app, or a module's `domain/` imports an `@effect/*` package | move the shared code down a layer, or receive it as an argument; in a module's `domain/`, use an `effect` module; see [architecture.md](architecture.md#dependency-rules) |
+| Biome `lint/style/noRestrictedImports`: `… (decisions.md › <record>)` | the import points outward or across a ring or layer, into a sibling app, or a module's `domain/` imports an `@effect/*` package | read the named record in [decisions.md](decisions.md); move the shared code down a layer, or receive it as an argument; in a module's `domain/`, use an `effect` module; see [architecture.md](architecture.md#dependency-rules) |
 | Biome `noRestrictedImports`: `… never a relative path` | a `./` or `../` import inside a workspace | use `#<workspace>/<path>`, for example `#domain/chat.model` |
 | Biome `lint/suspicious/noImportCycles`: `This import is part of a cycle` | two modules import each other, typically two aggregates' models through their ids | import the other aggregate's id from its `<aggregate>.id.ts`, never its model |
 | Biome `assist/source/organizeImports`: `Sort these imports.` | import groups out of order or without blank lines between them | `make fmt` |

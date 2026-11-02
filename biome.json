@@ -35,7 +35,7 @@
             "patterns": [
               {
                 "group": ["./**", "../**"],
-                "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
               }
             ]
           }
@@ -86,11 +86,11 @@
                       "!@app-template/*/domain",
                       "@effect/**"
                     ],
-                    "message": "http-api is the HTTP boundary shared by the apps: it imports only effect, the module contracts and a module's domain"
+                    "message": "http-api is the HTTP boundary shared by the apps: it imports only effect, the module contracts and a module's domain (decisions.md › HTTP outside the modules)"
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
                   }
                 ]
               }
@@ -115,15 +115,15 @@
                       "!@app-template/*-contract/**",
                       "@effect/**"
                     ],
-                    "message": "a module's domain is pure and ships to the browser: it imports no workspace but the module contracts, and no @effect/* package"
+                    "message": "a module's domain is pure and ships to the browser: it imports no workspace but the module contracts, and no @effect/* package (decisions.md › A module's layers; Module contracts)"
                   },
                   {
                     "group": ["#services/**", "#infrastructure/**"],
-                    "message": "a module's domain imports neither its services nor its infrastructure"
+                    "message": "a module's domain imports neither its services nor its infrastructure (decisions.md › A module's layers)"
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
                   }
                 ]
               }
@@ -153,15 +153,15 @@
                       "!@app-template/*-contract/**",
                       "@effect/**"
                     ],
-                    "message": "a module's services import no workspace but @app-template/db for generateId and the mappers' codecs, @app-template/aws and @app-template/queue for the job definitions, the inventory (@app-template/kernel/aws/resources), the data layer's stores (@app-template/kernel/data/*) and the module contracts, and no @effect/* package"
+                    "message": "a module's services import no workspace but @app-template/db for generateId and the mappers' codecs, @app-template/aws and @app-template/queue for the job definitions, the inventory (@app-template/kernel/aws/resources), the data layer's stores (@app-template/kernel/data/*) and the module contracts, and no @effect/* package: no other module, no use case, no boundary part such as @app-template/kernel/llm (decisions.md › A module's layers; Module contracts; Use cases above the modules; The language model in the kernel)"
                   },
                   {
                     "group": ["#infrastructure/**"],
-                    "message": "a module's services reach its infrastructure only through a port"
+                    "message": "a module's services reach its infrastructure only through a port (decisions.md › A module's layers)"
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
                   }
                 ]
               }
@@ -181,8 +181,14 @@
                 "patterns": [
                   {
                     "group": [
+                      "@app-template/chat",
+                      "@app-template/chat/**",
+                      "@app-template/identity",
+                      "@app-template/identity/**",
                       "@app-template/use-cases",
                       "@app-template/use-cases/**",
+                      "@app-template/http-api",
+                      "@app-template/http-api/**",
                       "@app-template/api",
                       "@app-template/api/**",
                       "@app-template/worker",
@@ -190,17 +196,17 @@
                       "@app-template/web",
                       "@app-template/web/**",
                       "@app-template/deployment",
-                      "@app-template/deployment/**",
-                      "@app-template/http-api",
-                      "@app-template/http-api/**",
-                      "@app-template/*/services",
-                      "@app-template/*/services/**"
+                      "@app-template/deployment/**"
                     ],
-                    "message": "a module's infrastructure may import its domain, the contracts, the kernel and packages/*: no upward imports, no module's services"
+                    "message": "a module's infrastructure may import its domain, the contracts, the kernel and packages/*: no module package (its own through #domain/…), no use case, http-api, app or deployment (decisions.md › Module contracts; Use cases above the modules)"
+                  },
+                  {
+                    "group": ["#services/**"],
+                    "message": "a module's infrastructure implements its domain's ports and never calls its services (decisions.md › A module's layers)"
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
                   }
                 ]
               }
@@ -220,11 +226,11 @@
                 "patterns": [
                   {
                     "group": ["@app-template/**", "@effect/**"],
-                    "message": "a module contract imports no workspace and no @effect/* package: every consumer of the module reads it"
+                    "message": "a module contract imports no workspace and no @effect/* package: every consumer of the module reads it (decisions.md › Module contracts)"
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
                   }
                 ]
               }
@@ -258,7 +264,7 @@
                       "!@effect/platform-bun",
                       "!@effect/platform-bun/**"
                     ],
-                    "message": "a module's tests import no workspace but @app-template/testing, the module contracts, @app-template/kernel/testing, the inventory (@app-template/kernel/aws/resources) and the data layer's stores (@app-template/kernel/data/*) they arrange through, and no @effect/* package except the test runner @effect/vitest and @effect/platform-bun for BunCrypto.layer"
+                    "message": "a module's tests import no workspace but @app-template/testing, the module contracts, @app-template/kernel/testing, the inventory (@app-template/kernel/aws/resources) and the data layer's stores (@app-template/kernel/data/*) they arrange through, and no @effect/* package except the test runner @effect/vitest and @effect/platform-bun for BunCrypto.layer (decisions.md › A module's layers; Module contracts)"
                   },
                   {
                     "group": [
@@ -266,11 +272,11 @@
                       "@app-template/*/testing-e2e",
                       "@app-template/*/testing-e2e/**"
                     ],
-                    "message": "a unit test and its support import no e2e support (#testing-e2e/\u2026, @app-template/*/testing-e2e): unit tests run with no container"
+                    "message": "a unit test and its support import no e2e support (#testing-e2e/…, @app-template/*/testing-e2e): unit tests run with no container (decisions.md › Tests in their folders)"
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
                   }
                 ]
               }
@@ -301,7 +307,7 @@
                       "!@effect/vitest",
                       "!@effect/vitest/**"
                     ],
-                    "message": "a module's test support imports no workspace but @app-template/testing, the module contracts, @app-template/kernel/testing and the data layer's stores (@app-template/kernel/data/*) it arranges through, and no @effect/* package except the test runner @effect/vitest"
+                    "message": "a module's test support imports no workspace but @app-template/testing, the module contracts, @app-template/kernel/testing and the data layer's stores (@app-template/kernel/data/*) it arranges through, and no @effect/* package except the test runner @effect/vitest (decisions.md › A module's layers; Module contracts)"
                   },
                   {
                     "group": [
@@ -309,11 +315,11 @@
                       "@app-template/*/testing-e2e",
                       "@app-template/*/testing-e2e/**"
                     ],
-                    "message": "a unit test and its support import no e2e support (#testing-e2e/\u2026, @app-template/*/testing-e2e): unit tests run with no container"
+                    "message": "a unit test and its support import no e2e support (#testing-e2e/…, @app-template/*/testing-e2e): unit tests run with no container (decisions.md › Tests in their folders)"
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
                   }
                 ]
               }
@@ -333,8 +339,14 @@
                 "patterns": [
                   {
                     "group": [
+                      "@app-template/chat",
+                      "@app-template/chat/**",
+                      "@app-template/identity",
+                      "@app-template/identity/**",
                       "@app-template/use-cases",
                       "@app-template/use-cases/**",
+                      "@app-template/http-api",
+                      "@app-template/http-api/**",
                       "@app-template/api",
                       "@app-template/api/**",
                       "@app-template/worker",
@@ -342,13 +354,13 @@
                       "@app-template/web",
                       "@app-template/web/**",
                       "@app-template/deployment",
-                      "@app-template/deployment/**",
-                      "@app-template/http-api",
-                      "@app-template/http-api/**",
-                      "@app-template/*/services",
-                      "@app-template/*/services/**"
+                      "@app-template/deployment/**"
                     ],
-                    "message": "a module's infrastructure may import its domain, the contracts, the kernel and packages/*: no upward imports, no module's services"
+                    "message": "a module's infrastructure may import its domain, the contracts, the kernel and packages/*: no module package (its own through #domain/…), no use case, http-api, app or deployment (decisions.md › Module contracts; Use cases above the modules)"
+                  },
+                  {
+                    "group": ["#services/**"],
+                    "message": "a module's infrastructure implements its domain's ports and never calls its services (decisions.md › A module's layers)"
                   },
                   {
                     "group": [
@@ -356,11 +368,11 @@
                       "@app-template/*/testing-e2e",
                       "@app-template/*/testing-e2e/**"
                     ],
-                    "message": "a unit test and its support import no e2e support (#testing-e2e/\u2026, @app-template/*/testing-e2e): unit tests run with no container"
+                    "message": "a unit test and its support import no e2e support (#testing-e2e/…, @app-template/*/testing-e2e): unit tests run with no container (decisions.md › Tests in their folders)"
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
                   }
                 ]
               }
@@ -391,11 +403,27 @@
                       "@app-template/http-api",
                       "@app-template/http-api/**"
                     ],
-                    "message": "use-cases may import the modules, the kernel and packages/*: no upward imports"
+                    "message": "use cases sit under http-api, the apps and deployment and import none of them (decisions.md › Use cases above the modules)"
+                  },
+                  {
+                    "group": [
+                      "@app-template/*/infrastructure",
+                      "@app-template/*/infrastructure/**"
+                    ],
+                    "message": "a use case reaches a module's adapters only through the ports of its domain; the processes provide them (decisions.md › A module's layers)"
+                  },
+                  {
+                    "group": [
+                      "@app-template/kernel",
+                      "@app-template/kernel/**",
+                      "!@app-template/kernel/data",
+                      "!@app-template/kernel/data/**"
+                    ],
+                    "message": "a use case imports only the kernel's data layer (@app-template/kernel/data/*), never its boundary (/config, /postgres, /aws, /queue, /llm): the processes provide the clients (decisions.md › Clients from the context)"
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
                   }
                 ]
               }
@@ -426,7 +454,24 @@
                       "@app-template/http-api",
                       "@app-template/http-api/**"
                     ],
-                    "message": "use-cases may import the modules, the kernel and packages/*: no upward imports"
+                    "message": "use cases sit under http-api, the apps and deployment and import none of them (decisions.md › Use cases above the modules)"
+                  },
+                  {
+                    "group": [
+                      "@app-template/*/infrastructure",
+                      "@app-template/*/infrastructure/**"
+                    ],
+                    "message": "a use case reaches a module's adapters only through the ports of its domain; the processes provide them (decisions.md › A module's layers)"
+                  },
+                  {
+                    "group": [
+                      "@app-template/kernel",
+                      "@app-template/kernel/**",
+                      "!@app-template/kernel/data",
+                      "!@app-template/kernel/data/**",
+                      "!@app-template/kernel/testing"
+                    ],
+                    "message": "a use case imports only the kernel's data layer (@app-template/kernel/data/*), never its boundary (/config, /postgres, /aws, /queue, /llm): the processes provide the clients (decisions.md › Clients from the context)"
                   },
                   {
                     "group": [
@@ -434,11 +479,11 @@
                       "@app-template/*/testing-e2e",
                       "@app-template/*/testing-e2e/**"
                     ],
-                    "message": "a unit test and its support import no e2e support (#testing-e2e/\u2026, @app-template/*/testing-e2e): unit tests run with no container"
+                    "message": "a unit test and its support import no e2e support (#testing-e2e/…, @app-template/*/testing-e2e): unit tests run with no container (decisions.md › Tests in their folders)"
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
                   }
                 ]
               }
@@ -460,6 +505,10 @@
                     "group": [
                       "@app-template/chat",
                       "@app-template/chat/**",
+                      "@app-template/identity",
+                      "@app-template/identity/**",
+                      "@app-template/*-contract",
+                      "@app-template/*-contract/**",
                       "@app-template/use-cases",
                       "@app-template/use-cases/**",
                       "@app-template/api",
@@ -473,11 +522,55 @@
                       "@app-template/http-api",
                       "@app-template/http-api/**"
                     ],
-                    "message": "the kernel holds this app's tools: it may import only packages/*, never a layer (http-api included) or an app"
+                    "message": "the kernel holds this app's tools and data: it may import only packages/*, never a module, a contract, a use case, http-api or an app (decisions.md › One kernel)"
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["kernel/data/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/**",
+                      "!@app-template/aws",
+                      "!@app-template/aws/**",
+                      "!@app-template/db",
+                      "!@app-template/db/**",
+                      "!@app-template/llm",
+                      "!@app-template/llm/**",
+                      "!@app-template/queue",
+                      "!@app-template/queue/**",
+                      "!@app-template/s3",
+                      "!@app-template/s3/**",
+                      "!@app-template/testing",
+                      "!@app-template/testing/**",
+                      "!@app-template/ui",
+                      "!@app-template/ui/**"
+                    ],
+                    "message": "the data layer imports no workspace but packages/*: no module or model, no other kernel part such as @app-template/kernel/config (decisions.md › The data at the centre; Clients from the context)"
+                  },
+                  {
+                    "group": ["#kernel/**", "!#kernel/data/**"],
+                    "message": "the data layer imports no other kernel part (#kernel/postgres, #kernel/aws, #kernel/queue, #kernel/config): it takes its clients from the context (decisions.md › The data at the centre; Clients from the context; Jobs as a table in the data layer)"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
                   }
                 ]
               }
@@ -499,6 +592,10 @@
                     "group": [
                       "@app-template/chat",
                       "@app-template/chat/**",
+                      "@app-template/identity",
+                      "@app-template/identity/**",
+                      "@app-template/*-contract",
+                      "@app-template/*-contract/**",
                       "@app-template/use-cases",
                       "@app-template/use-cases/**",
                       "@app-template/api",
@@ -512,7 +609,7 @@
                       "@app-template/http-api",
                       "@app-template/http-api/**"
                     ],
-                    "message": "the kernel holds this app's tools: it may import only packages/*, never a layer (http-api included) or an app"
+                    "message": "the kernel holds this app's tools and data: it may import only packages/*, never a module, a contract, a use case, http-api or an app (decisions.md › One kernel)"
                   },
                   {
                     "group": [
@@ -520,11 +617,11 @@
                       "@app-template/*/testing-e2e",
                       "@app-template/*/testing-e2e/**"
                     ],
-                    "message": "a unit test and its support import no e2e support (#testing-e2e/\u2026, @app-template/*/testing-e2e): unit tests run with no container"
+                    "message": "a unit test and its support import no e2e support (#testing-e2e/…, @app-template/*/testing-e2e): unit tests run with no container (decisions.md › Tests in their folders)"
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
                   }
                 ]
               }
@@ -544,8 +641,14 @@
                 "patterns": [
                   {
                     "group": [
+                      "@app-template/kernel",
+                      "@app-template/kernel/**",
                       "@app-template/chat",
                       "@app-template/chat/**",
+                      "@app-template/identity",
+                      "@app-template/identity/**",
+                      "@app-template/*-contract",
+                      "@app-template/*-contract/**",
                       "@app-template/use-cases",
                       "@app-template/use-cases/**",
                       "@app-template/api",
@@ -557,15 +660,13 @@
                       "@app-template/deployment",
                       "@app-template/deployment/**",
                       "@app-template/http-api",
-                      "@app-template/http-api/**",
-                      "@app-template/kernel",
-                      "@app-template/kernel/**"
+                      "@app-template/http-api/**"
                     ],
-                    "message": "packages/* are generic: they may import each other, but never the kernel, a layer (http-api included) or an app"
+                    "message": "packages/* are generic: they may import each other, but never the kernel, a module, a contract, a use case, http-api or an app (decisions.md › One kernel)"
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
                   }
                 ]
               }
@@ -585,8 +686,14 @@
                 "patterns": [
                   {
                     "group": [
+                      "@app-template/kernel",
+                      "@app-template/kernel/**",
                       "@app-template/chat",
                       "@app-template/chat/**",
+                      "@app-template/identity",
+                      "@app-template/identity/**",
+                      "@app-template/*-contract",
+                      "@app-template/*-contract/**",
                       "@app-template/use-cases",
                       "@app-template/use-cases/**",
                       "@app-template/api",
@@ -598,11 +705,9 @@
                       "@app-template/deployment",
                       "@app-template/deployment/**",
                       "@app-template/http-api",
-                      "@app-template/http-api/**",
-                      "@app-template/kernel",
-                      "@app-template/kernel/**"
+                      "@app-template/http-api/**"
                     ],
-                    "message": "packages/* are generic: they may import each other, but never the kernel, a layer (http-api included) or an app"
+                    "message": "packages/* are generic: they may import each other, but never the kernel, a module, a contract, a use case, http-api or an app (decisions.md › One kernel)"
                   },
                   {
                     "group": [
@@ -610,11 +715,11 @@
                       "@app-template/*/testing-e2e",
                       "@app-template/*/testing-e2e/**"
                     ],
-                    "message": "a unit test and its support import no e2e support (#testing-e2e/\u2026, @app-template/*/testing-e2e): unit tests run with no container"
+                    "message": "a unit test and its support import no e2e support (#testing-e2e/…, @app-template/*/testing-e2e): unit tests run with no container (decisions.md › Tests in their folders)"
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
                   }
                 ]
               }
@@ -644,8 +749,48 @@
                     "message": "apps are independent: api must not import another app"
                   },
                   {
+                    "group": ["@app-template/kernel/data", "@app-template/kernel/data/**"],
+                    "message": "a handler calls one service method or one use case, never a repository: only the process's layer.ts provides the data layer (decisions.md › A module's layers)"
+                  },
+                  {
+                    "group": ["@app-template/*/services", "@app-template/*/services/**"],
+                    "importNamePattern": "([A-Za-z]+FromEntity|(en|de)code[A-Z][A-Za-z]*)",
+                    "message": "a handler never maps an entity: the module's services own the mappers (decisions.md › A module's layers)"
+                  },
+                  {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/api/layer.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/worker",
+                      "@app-template/worker/**",
+                      "@app-template/web",
+                      "@app-template/web/**",
+                      "@app-template/deployment",
+                      "@app-template/deployment/**"
+                    ],
+                    "message": "apps are independent: api must not import another app"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
                   }
                 ]
               }
@@ -675,16 +820,25 @@
                     "message": "apps are independent: api must not import another app"
                   },
                   {
+                    "group": ["@app-template/kernel/data", "@app-template/kernel/data/**"],
+                    "message": "a handler calls one service method or one use case, never a repository: only the process's layer.ts provides the data layer (decisions.md › A module's layers)"
+                  },
+                  {
+                    "group": ["@app-template/*/services", "@app-template/*/services/**"],
+                    "importNamePattern": "([A-Za-z]+FromEntity|(en|de)code[A-Z][A-Za-z]*)",
+                    "message": "a handler never maps an entity: the module's services own the mappers (decisions.md › A module's layers)"
+                  },
+                  {
                     "group": [
                       "#testing-e2e/**",
                       "@app-template/*/testing-e2e",
                       "@app-template/*/testing-e2e/**"
                     ],
-                    "message": "a unit test and its support import no e2e support (#testing-e2e/\u2026, @app-template/*/testing-e2e): unit tests run with no container"
+                    "message": "a unit test and its support import no e2e support (#testing-e2e/…, @app-template/*/testing-e2e): unit tests run with no container (decisions.md › Tests in their folders)"
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
                   }
                 ]
               }
@@ -716,8 +870,50 @@
                     "message": "apps are independent: worker must not import another app"
                   },
                   {
+                    "group": ["@app-template/kernel/data", "@app-template/kernel/data/**"],
+                    "message": "a handler calls one service method or one use case, never a repository: only the process's layer.ts provides the data layer (decisions.md › A module's layers)"
+                  },
+                  {
+                    "group": ["@app-template/*/services", "@app-template/*/services/**"],
+                    "importNamePattern": "([A-Za-z]+FromEntity|(en|de)code[A-Z][A-Za-z]*)",
+                    "message": "a handler never maps an entity: the module's services own the mappers (decisions.md › A module's layers)"
+                  },
+                  {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/worker/layer.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/api",
+                      "@app-template/api/**",
+                      "@app-template/web",
+                      "@app-template/web/**",
+                      "@app-template/deployment",
+                      "@app-template/deployment/**",
+                      "@app-template/http-api",
+                      "@app-template/http-api/**"
+                    ],
+                    "message": "apps are independent: worker must not import another app"
+                  },
+                  {
+                    "group": ["./**", "../**"],
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
                   }
                 ]
               }
@@ -749,16 +945,25 @@
                     "message": "apps are independent: worker must not import another app"
                   },
                   {
+                    "group": ["@app-template/kernel/data", "@app-template/kernel/data/**"],
+                    "message": "a handler calls one service method or one use case, never a repository: only the process's layer.ts provides the data layer (decisions.md › A module's layers)"
+                  },
+                  {
+                    "group": ["@app-template/*/services", "@app-template/*/services/**"],
+                    "importNamePattern": "([A-Za-z]+FromEntity|(en|de)code[A-Z][A-Za-z]*)",
+                    "message": "a handler never maps an entity: the module's services own the mappers (decisions.md › A module's layers)"
+                  },
+                  {
                     "group": [
                       "#testing-e2e/**",
                       "@app-template/*/testing-e2e",
                       "@app-template/*/testing-e2e/**"
                     ],
-                    "message": "a unit test and its support import no e2e support (#testing-e2e/\u2026, @app-template/*/testing-e2e): unit tests run with no container"
+                    "message": "a unit test and its support import no e2e support (#testing-e2e/…, @app-template/*/testing-e2e): unit tests run with no container (decisions.md › Tests in their folders)"
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
                   }
                 ]
               }
@@ -784,11 +989,11 @@
                       "!@app-template/ui",
                       "!@app-template/ui/**"
                     ],
-                    "message": "web client code may import only @app-template/http-api and @app-template/ui: it ships to the browser"
+                    "message": "web client code may import only @app-template/http-api and @app-template/ui: it ships to the browser (decisions.md › HTTP outside the modules)"
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
                   }
                 ]
               }
@@ -813,11 +1018,11 @@
                       "!@app-template/ui/**",
                       "!@app-template/kernel/config"
                     ],
-                    "message": "the web server entry imports only @app-template/ui and @app-template/kernel/config of our workspaces, never @app-template/http-api"
+                    "message": "the web server entry imports only @app-template/ui and @app-template/kernel/config of our workspaces, never @app-template/http-api (decisions.md › HTTP outside the modules)"
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
                   }
                 ]
               }
@@ -839,6 +1044,10 @@
                     "group": [
                       "@app-template/chat",
                       "@app-template/chat/**",
+                      "@app-template/identity",
+                      "@app-template/identity/**",
+                      "@app-template/*-contract",
+                      "@app-template/*-contract/**",
                       "@app-template/use-cases",
                       "@app-template/use-cases/**",
                       "@app-template/api",
@@ -848,13 +1057,18 @@
                       "@app-template/web",
                       "@app-template/web/**",
                       "@app-template/http-api",
-                      "@app-template/http-api/**"
+                      "@app-template/http-api/**",
+                      "@app-template/kernel",
+                      "@app-template/kernel/**",
+                      "!@app-template/kernel/config",
+                      "!@app-template/kernel/aws/resources",
+                      "!@app-template/kernel/data/file"
                     ],
-                    "message": "deployment may import only the kernel and packages/*"
+                    "message": "deployment may import only packages/* and of the kernel its config, the inventory (/aws/resources) and the files' key (/data/file) (decisions.md › One kernel; Files in the data layer)"
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/\u2026 subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
                   }
                 ]
               }

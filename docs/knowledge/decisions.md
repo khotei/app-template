@@ -126,8 +126,11 @@ layer. A repository is no port: a service calls the data layer's repository dire
 - **Cost:** a service depends on the data layer directly, so its unit tests take the data layer's
   memory repositories; an alias does not name its module.
 - **Guarded by:** the Biome overrides on `application/*/domain/**` (no `#services/**` or
-  `#infrastructure/**`, no workspace but the contracts) and `application/*/services/**` (no
-  `#infrastructure/**`); `make bundle-check` (no service, repository or adapter in the browser).
+  `#infrastructure/**`, no workspace but the contracts), `application/*/services/**` (no
+  `#infrastructure/**`), `application/*/infrastructure/**` (no `#services/**`),
+  `application/use-cases/**` (no module's `infrastructure`) and `apps/api/**` and `apps/worker/**`
+  (no data layer and no mapper but in `layer.ts`); `make bundle-check` (no service, repository or
+  adapter in the browser).
 - **If reversed:** a port per repository comes back with five adapters that only delegate, and
   every override is repeated per module.
 - **Revisit when:** a service needs a store the data layer cannot reach, or the domain stops
@@ -212,7 +215,8 @@ clients and no service rule; `packages/*` is configurable and knows no app.
   module reaching a kernel part it does not use, and inside the kernel the data's direction rests
   on Biome, not on `tsc -b`.
 - **Guarded by:** the Biome overrides on `kernel/**` (no module, contract, use case, `http-api` or
-  app) and `packages/**` (no kernel); `.claude/rules/modules.md` refuses a service rule or a model
+  app), `packages/**` (no kernel) and `deployment/**` (of the kernel only `/config`,
+  `/aws/resources` and `/data/file`); `.claude/rules/modules.md` refuses a service rule or a model
   in the kernel.
 - **If reversed:** split into packages, the kernel's parts gain a manifest and a project each;
   with service rules in it, the kernel becomes the shared domain the guide calls a smell.
@@ -320,8 +324,9 @@ needs `S3Bucket`; `kernel/postgres` (`PgClientFromConfig`, the migrate entry) an
   the boundary's configuration.
 - **Cost:** each process's `layer.ts` names every client; a missing one is a type error in the
   layer's requirements.
-- **Guarded by:** the Biome override on `kernel/data/**` (no `#kernel/postgres`, `#kernel/aws` or
-  `@app-template/kernel/config`); the layer's requirements in `tsc -b`.
+- **Guarded by:** the Biome overrides on `kernel/data/**` (no `#kernel/postgres`, `#kernel/aws` or
+  `@app-template/kernel/config`) and `application/use-cases/**` (of the kernel only the data
+  layer); the layer's requirements in `tsc -b`.
 - **If reversed:** the data layer builds its clients from `/config`, and every test of it needs
   the configuration of a real store.
 - **Revisit when:** a store's client needs data-layer knowledge to be built.
@@ -343,7 +348,7 @@ bucket's name and lifecycle; `deployment` reads both.
   row that binds them and deleted once the rows are gone.
 - **Guarded by:** the repository's doc comment and `.claude/rules/layering.md` (the order); the
   delete-chat e2e in `apps/__e2e__/use-cases`; the file repository's e2e in
-  `kernel/__e2e__/data/file`.
+  `kernel/__e2e__/data/file`; the `deployment/**` override (of the data only `/data/file`).
 - **If reversed:** the port goes back into `chat`'s `domain/` with its adapter in
   `infrastructure/`, and a second module needing files imports chat.
 - **Revisit when:** `shared-files` or `assistant-files` needs files outside a chat.
