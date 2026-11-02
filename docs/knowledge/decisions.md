@@ -393,6 +393,38 @@ code.
 - **If reversed:** a test beside the rule, kept in step with every new module.
 - **Revisit when:** review misses a violation the rule names, or a tool gains the check.
 
+### Imports through subpaths
+
+Inside a workspace a file imports through the workspace's `#<workspace>/…` subpaths (`#domain/*`,
+`#kernel/*`), never a relative path; across workspaces through the package name.
+
+- **Why:** a subpath names the layer it reaches, so a Biome override can refuse it by pattern; a
+  relative path hides the layer and can reach into another workspace's files.
+- **Sources:** `.claude/rules/naming.md`; `tsc -b`'s TS6059 and TS6307 on a path into an
+  unreferenced workspace.
+- **Rejected:** relative paths inside a layer only: one more rule for a reader to apply, and no
+  pattern tells a layer's own folder from the next.
+- **Cost:** every workspace declares its `imports` in `package.json`.
+- **Guarded by:** the root `noRestrictedImports` pattern and its copy in every Biome override.
+- **If reversed:** the per-layer overrides no longer see which layer a relative import reaches.
+- **Revisit when:** Biome can restrict an import by the folder it resolves to.
+
+### Independent apps
+
+`apps/api`, `apps/worker` and `apps/web` never import each other or `deployment`; what two apps
+share lives in a ring below them.
+
+- **Why:** each app is one process with its own deployment; an import between them ships one
+  process's code and dependencies inside another.
+- **Sources:** `apps/CLAUDE.md`; `deployment/aws` deploys each app as a service of its own.
+- **Rejected:** a shared helper in one app imported by another: it couples their releases.
+- **Cost:** a helper both processes need moves down into a module, the kernel or a package.
+- **Guarded by:** the Biome overrides on `apps/api/**`, `apps/worker/**` and their tests, and
+  `apps/web/**`; the journey e2e that runs both processes lives in `apps/__e2e__`.
+- **If reversed:** a process pulls the other's dependencies and layer, and an app can no longer
+  be deployed alone.
+- **Revisit when:** two apps merge into one process.
+
 ### Tests in their folders
 
 Every workspace keeps its unit tests in `__tests__/` and its e2e in `__e2e__/`, each with its
@@ -409,7 +441,8 @@ e2e over assembled layers live in `apps/__e2e__`.
   workspace at the root: a test of the processes away from them.
 - **Cost:** the drift check of the tables' checks lives in `apps/__e2e__`, away from the mappers.
 - **Guarded by:** every `__tests__/**` Biome override bans `#testing-e2e/**` and
-  `@app-template/*/testing-e2e`; the vitest projects `unit` and `e2e` include by folder.
+  `@app-template/*/testing-e2e`; the `application/use-cases/**` override bans
+  `@app-template/*/testing` in source; the vitest projects `unit` and `e2e` include by folder.
 - **If reversed:** a rename of the folders.
 - **Revisit when:** a workspace needs a third kind of test.
 

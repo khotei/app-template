@@ -74,7 +74,7 @@ What may import what (✓ allowed, ✗ refused by Biome; a ✓ still needs the `
 | From ↓ / may import → | another module | a contract | `use-cases` | `kernel/data` | rest of `kernel` | `packages/*` | `http-api` |
 |---|---|---|---|---|---|---|---|
 | a module's `domain/` | ✗ | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
-| a module's `services/` | ✗ | ✓ | ✗ | ✓ | `/aws/resources` only | ✓ | ✗ |
+| a module's `services/` | ✗ | ✓ | ✗ | ✓ | `/aws/resources` only | `aws`, `db`, `queue` | ✗ |
 | a module's `infrastructure/` | ✗ | ✓ | ✗ | ✓ | ✓ | ✓ | ✗ |
 | a contract | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
 | `use-cases` | `./domain`, `./services` | ✓ | — | ✓ | ✗ | ✓ | ✗ |
@@ -82,7 +82,7 @@ What may import what (✓ allowed, ✗ refused by Biome; a ✓ still needs the `
 | rest of `kernel` | ✗ | ✗ | ✗ | ✓ | ✓ | ✓ | ✗ |
 | `packages/*` | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ (each other) | ✗ |
 | `http-api` | `./domain` only | ✓ | ✗ | ✗ | ✗ | ✗ | — |
-| `apps/api`, `apps/worker` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | api only |
+| `apps/api`, `apps/worker` | ✓ | ✓ | ✓ | in `layer.ts` only | ✓ | ✓ | api only |
 | `apps/web` client | ✗ | ✗ | ✗ | ✗ | ✗ | `ui` | ✓ |
 | `deployment` | ✗ | ✗ | ✗ | `/data/file` only | `/config`, `/aws/resources` | ✓ | ✗ |
 
@@ -403,11 +403,13 @@ record in `decisions.md`:
 | `application/*/services/**` | the other module packages; `@app-template/kernel/**` but `/data/**` and `/aws/resources`; `#infrastructure/**`; `use-cases`, `http-api`, the apps, `deployment` |
 | `application/*/infrastructure/**` | the other module packages, `use-cases`, `http-api`, the apps, `deployment` |
 | `application/*/contract/**` | `@app-template/**` |
-| `application/use-cases/**` | `*/infrastructure`, `@app-template/kernel/**` but `/data/**`, `http-api`, the apps, `deployment` |
+| `application/use-cases/**` | `*/infrastructure`, `*/testing` (source only), `@app-template/kernel/**` but `/data/**`, `http-api`, the apps, `deployment` |
 | `kernel/data/**` | `@app-template/**` but the `packages/*` names; `#kernel/**` but `#kernel/data/**` |
 | `kernel/**` | the module packages, `*-contract`, `use-cases`, `http-api`, the apps |
 | `packages/**` | `@app-template/kernel/**`, the module packages, `*-contract`, `use-cases`, `http-api`, the apps |
 | `http-api/**` | `@app-template/**` but `*-contract` and `*/domain`; `@effect/**` |
+| `apps/{api,worker}/**` | `@app-template/kernel/data/**` and a module's mappers but in `layer.ts`; another app |
+| `deployment/**` | the module packages, `*-contract`, `use-cases`, `http-api`, the apps; `@app-template/kernel/**` but `/config`, `/aws/resources`, `/data/file` |
 | `<workspace>/__tests__/**`, one per workspace | that workspace's bans repeated, and `#testing-e2e/**`, `@app-template/*/testing-e2e` |
 
 The masks `!@app-template/*-contract` and `!@app-template/*/domain` work in Biome 2.5.15 (verified
@@ -415,6 +417,9 @@ in a sandbox). When two overrides match one file, Biome replaces the first one's
 `noRestrictedImports` options with the last one's instead of merging them (verified), so a test
 folder's override repeats its workspace's bans. A list that names the module packages grows by one entry per module: the
 add-a-module checklist says so.
+*Note (S21):* rows for the apps and `deployment` added, the use cases refuse a module's `./testing`
+in source, and the matrix's cells for a module's `services/` packages and the apps' `kernel/data`
+follow `biome.json`; the relative-path and app-independence bans got records of their own.
 
 **One initial migration.** The app is not in production, so the two migrations go and one
 initial migration is generated from the data layer (D20). Every table, enum, index and constraint

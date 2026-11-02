@@ -26,7 +26,7 @@
 | S18 | `FileRepository` in the data layer; the bucket port gone | done |
 | S19 | chat's assistant in `application/chat/infrastructure`; no `infrastructure` workspace | done |
 | S20 | the decisions document and the modules review rule | done |
-| S21 | the Biome guards per ring and layer | todo |
+| S21 | the Biome guards per ring and layer | done |
 | S22 | `architecture.md` rewritten for the rings | todo |
 | S23 | the glossary, the `<Model>` placeholders, the roadmap and the remaining pages | todo |
 
@@ -1068,7 +1068,26 @@
   refuses yet (a data-layer file importing `#kernel/aws`).
 - **Verify:** `make check`; each throwaway run and reverted, its output pasted in the step report.
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Today's code passes every new override; nothing moved. Each throwaway of R12–R17 and of the
+    gaps S11, S18 and S19 handed on passed the old `biome.json` and fails the new one with its
+    record named; R12's undeclared workspace is `tsc`'s (TS2307), R16's the bundle check's.
+  - Beyond the Contracts, on the main session's word: a `deployment/**` override (the kernel
+    only `/config`, `/aws/resources`, `/data/file`) and `apps/{api,worker}/**` (no data layer, no
+    mapper but in `layer.ts`); both rows and two matrix cells now in `architecture.md`.
+  - A message names every record its pattern guards: Biome reports each matching pattern, so a
+    pattern per record would print several errors for one import.
+  - The apps' mapper ban matches import names (`*FromEntity`, `encode*`, `decode*`): mappers ship
+    in the module's `./services` beside the services, so a mapper named otherwise passes.
+  - R20 for every guard: the relative-path ban and the apps' independence got records,
+    "Imports through subpaths" and "Independent apps"; 75 messages, none without a record.
+  - The use cases' source refuses a module's `./testing`, which the matrix never allowed.
+  - `kernel/data/**` and a module's `services/**` allow-list packages, and seven lists name the
+    module packages: `tooling.md` says what a new package and a new module change.
+  - Run in worktree N=1 beside S22; rounds S21.1 (the overrides) and S21.2 (review: the two
+    records, the `./testing` ban, `tooling.md`).
+  - Size: 3 files, +337 / −79.
 
 #### S22 — The architecture page for the rings
 

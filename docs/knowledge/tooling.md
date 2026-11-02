@@ -256,8 +256,9 @@ its sources either way.
 4. Add the path to the root `tsconfig.json` `references`.
 5. Run `bun install` and `make check`.
 
-A new `packages/*` workspace joins one list in `biome.json`, the packages the `kernel/data/**`
-override lets the data layer import; the other guards ban by name, so they need no change. A
+In `biome.json`, a new `packages/*` workspace joins the allow-lists of the `kernel/data/**`
+override and, if a module's services use it, of `application/*/services/**`; a new module joins
+every list that names the module packages (`grep -n '@app-template/identity/\*\*' biome.json`). A
 new layer or app needs its own `overrides` entry in `biome.json`; see
 [architecture.md › Boundary guards](architecture.md#boundary-guards) for what each
 entry repeats.

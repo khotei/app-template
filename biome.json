@@ -35,7 +35,7 @@
             "patterns": [
               {
                 "group": ["./**", "../**"],
-                "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
               }
             ]
           }
@@ -90,7 +90,7 @@
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
                   }
                 ]
               }
@@ -123,7 +123,7 @@
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
                   }
                 ]
               }
@@ -161,7 +161,7 @@
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
                   }
                 ]
               }
@@ -206,7 +206,7 @@
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
                   }
                 ]
               }
@@ -230,7 +230,7 @@
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
                   }
                 ]
               }
@@ -276,7 +276,7 @@
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
                   }
                 ]
               }
@@ -319,7 +319,7 @@
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
                   }
                 ]
               }
@@ -372,7 +372,7 @@
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
                   }
                 ]
               }
@@ -413,6 +413,10 @@
                     "message": "a use case reaches a module's adapters only through the ports of its domain; the processes provide them (decisions.md › A module's layers)"
                   },
                   {
+                    "group": ["@app-template/*/testing", "@app-template/*/testing/**"],
+                    "message": "a use case's source imports no test support (@app-template/*/testing): only its __tests__/ do (decisions.md › Tests in their folders)"
+                  },
+                  {
                     "group": [
                       "@app-template/kernel",
                       "@app-template/kernel/**",
@@ -423,7 +427,7 @@
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
                   }
                 ]
               }
@@ -483,7 +487,7 @@
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
                   }
                 ]
               }
@@ -526,7 +530,7 @@
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
                   }
                 ]
               }
@@ -570,7 +574,7 @@
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
                   }
                 ]
               }
@@ -621,7 +625,7 @@
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
                   }
                 ]
               }
@@ -666,7 +670,7 @@
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
                   }
                 ]
               }
@@ -719,7 +723,7 @@
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
                   }
                 ]
               }
@@ -746,7 +750,7 @@
                       "@app-template/deployment",
                       "@app-template/deployment/**"
                     ],
-                    "message": "apps are independent: api must not import another app"
+                    "message": "apps are independent: api must not import another app (decisions.md › Independent apps)"
                   },
                   {
                     "group": ["@app-template/kernel/data", "@app-template/kernel/data/**"],
@@ -759,7 +763,7 @@
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
                   }
                 ]
               }
@@ -786,11 +790,11 @@
                       "@app-template/deployment",
                       "@app-template/deployment/**"
                     ],
-                    "message": "apps are independent: api must not import another app"
+                    "message": "apps are independent: api must not import another app (decisions.md › Independent apps)"
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
                   }
                 ]
               }
@@ -817,7 +821,7 @@
                       "@app-template/deployment",
                       "@app-template/deployment/**"
                     ],
-                    "message": "apps are independent: api must not import another app"
+                    "message": "apps are independent: api must not import another app (decisions.md › Independent apps)"
                   },
                   {
                     "group": ["@app-template/kernel/data", "@app-template/kernel/data/**"],
@@ -838,7 +842,7 @@
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
                   }
                 ]
               }
@@ -867,7 +871,7 @@
                       "@app-template/http-api",
                       "@app-template/http-api/**"
                     ],
-                    "message": "apps are independent: worker must not import another app"
+                    "message": "apps are independent: worker must not import another app (decisions.md › Independent apps)"
                   },
                   {
                     "group": ["@app-template/kernel/data", "@app-template/kernel/data/**"],
@@ -880,7 +884,7 @@
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
                   }
                 ]
               }
@@ -909,11 +913,11 @@
                       "@app-template/http-api",
                       "@app-template/http-api/**"
                     ],
-                    "message": "apps are independent: worker must not import another app"
+                    "message": "apps are independent: worker must not import another app (decisions.md › Independent apps)"
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
                   }
                 ]
               }
@@ -942,7 +946,7 @@
                       "@app-template/http-api",
                       "@app-template/http-api/**"
                     ],
-                    "message": "apps are independent: worker must not import another app"
+                    "message": "apps are independent: worker must not import another app (decisions.md › Independent apps)"
                   },
                   {
                     "group": ["@app-template/kernel/data", "@app-template/kernel/data/**"],
@@ -963,7 +967,7 @@
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
                   }
                 ]
               }
@@ -993,7 +997,7 @@
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
                   }
                 ]
               }
@@ -1022,7 +1026,7 @@
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
                   }
                 ]
               }
@@ -1068,7 +1072,7 @@
                   },
                   {
                     "group": ["./**", "../**"],
-                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path"
+                    "message": "inside a workspace import through its #<workspace>/… subpath, never a relative path (decisions.md › Imports through subpaths)"
                   }
                 ]
               }
