@@ -41,9 +41,9 @@ graph LR
 | 6 | [`llm-providers`](#6-llm-providers) | `feat` | 5 | done: [docs/tickets/2026-10-29-1435_llm-providers/](../tickets/2026-10-29-1435_llm-providers/feature.md) |
 | 7 | [`web-app`](#7-web-app) | `feat` | 3 (18 for assistant attachments) | planned |
 | 8 | [`observability`](#8-observability) | `feat` | 3 | planned |
-| 9 | [`aws-deployment`](#9-aws-deployment) | `feat` | 4, 5 | planned |
+| 9 | [`aws-deployment`](#9-aws-deployment) | `feat` | 4, 5, 22 | planned |
 | 10 | [`client-publishing`](#10-client-publishing) | `chore` | 3 | planned |
-| 11 | [`workflow-cluster`](#11-workflow-cluster) | `feat` | 4, 8 | planned, exploratory |
+| 11 | [`workflow-cluster`](#11-workflow-cluster) | `feat` | 22 | planned, exploratory |
 | 12 | [`template-handoff`](#12-template-handoff) | `chore` | all above | planned |
 | 13 | [`ticket-folder-order`](#13-ticket-folder-order) | `chore` | 3 | done: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md) |
 | 14 | [`toolkit-reading`](#14-toolkit-reading) | `chore` | 2 | done: [docs/tickets/2026-10-21-1347_toolkit-reading/](../tickets/2026-10-21-1347_toolkit-reading/feature.md) |
@@ -54,9 +54,10 @@ graph LR
 | 19 | [`openai-provider`](#19-openai-provider) | `feat` | 6 | planned |
 | 20 | [`context-window`](#20-context-window) | `feat` | 6 | planned |
 | 21 | [`bedrock-provider`](#21-bedrock-provider) | `feat` | 6, 9 | planned |
-| 22 | [`jobs`](#22-jobs) | `feat` | 4, 23 | planned |
+| 22 | [`persisted-queue`](#22-persisted-queue) | `refactor` | 4, 23 | planned |
 | 23 | [`modular-monolith`](#23-modular-monolith) | `refactor` | 15 | done: [docs/tickets/2026-10-31-0926_modular-monolith/](../tickets/2026-10-31-0926_modular-monolith/feature.md) |
 | 24 | [`attachment-storage-failures`](#24-attachment-storage-failures) | `fix` | 23 | planned |
+| 25 | [`authentication`](#25-authentication) | `feat` | 23 | planned, exploratory |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; its remaining work is re-homed
 in [Re-homing `effect-setup`](#re-homing-effect-setup).
@@ -318,6 +319,11 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   are `effect/reactivity/*` in core plus `@effect/atom-react@4.0.5` (React ≥ 19 only) with
   `ReactHydration.HydrationBoundary`; `@effect-atom/*` is the v3 line; no official TanStack bridge
   exists; nothing is called "Effect UI".
+- **Facts (2026-11-02).** `effect/encoding` `Sse` (`@stability unstable` in `effect@4.0.6`) encodes
+  and decodes server-sent events as stream channels, with schema variants: the codec for an SSE
+  tail if one earns its place. `effect/eventlog` is not a fit: it syncs an event journal between
+  offline-capable clients and a server (local-first), so adopting it would replace the data layer
+  of a chat whose source of truth is the server and whose reply the worker writes.
 
 ### 8. `observability`
 
@@ -332,10 +338,21 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Open questions for its feature phase.** `Otlp.layer` versus `@effect/opentelemetry` with the
   OTel SDK (needed only if a vendor SDK is required); which local UI (Jaeger, Grafana LGTM,
   SigNoz).
+- **Facts (2026-11-02).** No tracer is installed yet, though every `Effect.fn('<name>')` already
+  opens a span (68 of them in `application`, `kernel` and `apps`). `effect/devtools`
+  `DevTools.layer(url?)` installs a tracer that keeps the current one and streams spans, span
+  events and metric snapshots over a WebSocket to `ws://localhost:34437`, the server of the VS Code
+  extension "Effect Dev Tools" (started from its Clients panel); the client reconnects every
+  second, so the api and the worker may start first. A dev-only layer behind a config flag, never
+  in tests or on AWS. The extension's debugger panels (Fibers, Context, Span Stack, pause on
+  defect) need no code and work under `make debug-<app>`. Unverified: whether the extension's
+  tracer panel reads the v4 protocol; the v4 DevTools page documents only the debugger panels, and
+  the extension's README still imports `DevTools` from `@effect/experimental`, the v3 line.
+  `@stability unstable` throughout.
 
 ### 9. `aws-deployment`
 
-- **Goal.** One Pulumi program deploys the api, the worker, Postgres, S3 and SQS to AWS, from the
+- **Goal.** One Pulumi program deploys the api, the worker, Postgres and S3 to AWS, from the
   resource inventory `aws-local` (5) introduced, and the same program provisions MiniStack for the
   "true emulator" local mode, so a new project is live in one command.
 - **Scope.** `deployment/` on Pulumi `runtime: bun`; Lambda packaging for api and worker (Lambda
@@ -353,8 +370,13 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   infrastructure provides them (`aws-local` D5 dropped the startup `verify`); `provision` in
   `packages/aws` serves the tests only (each test file creates its own resources in milliseconds,
   without the Pulumi CLI).
+- **Decided (2026-11-02).** The queue moves into Postgres (`persisted-queue`, 22), so the worker
+  is a long-running process that polls the database, not a Lambda woken by an SQS event source
+  mapping: ECS (Express Mode or Fargate) runs it; the SQS queues, their dead-letter queues and the
+  Lambda event adapter leave the Scope. The api may still run on Lambda.
 - **Open questions for its feature phase.** Cold starts of `@effect/platform-bun` on Lambda; whether
-  `pulumi.dynamic.Resource`, unsupported under `runtime: bun`, is ever needed.
+  `pulumi.dynamic.Resource`, unsupported under `runtime: bun`, is ever needed; the worker's
+  service on ECS (Express Mode or Fargate) and how many tasks poll one database.
 - **Facts (2026-10-17).** Pulumi ≥ 3.227 runs TypeScript under `runtime: bun` (no function
   serialisation, no dynamic providers); CLI 3.270, `@pulumi/aws` 7.51. Bun on Lambda: the official
   guide uses Lambda Web Adapter in a container (also gives response streaming for SSE);
@@ -409,6 +431,16 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Facts (2026-10-17).** Both modules are in `effect@4.0.5` (`@stability unstable`); the cluster
   runtime has HTTP and socket runners, SQL message storage and Kubernetes discovery, but no SQS
   transport.
+- **Facts (2026-11-02).** The durable engine is `ClusterWorkflowEngine.layer`, which needs
+  `Sharding` and `MessageStorage`; `WorkflowEngine.layerMemory` is for tests only. One process
+  runs it on `SingleRunner.layer({ runnerStorage: 'memory' })`, which needs `SqlClient` and
+  `Crypto` and stores messages in the tables `cluster_messages`, `cluster_replies` and
+  `cluster_migrations` (prefix configurable), created by the library's own migrations, beside the
+  one Drizzle migration. `Activity` stores and replays a step's result, `DurableClock` is a timer
+  that survives restarts, `DurableDeferred` a wait an outside call completes, and `DurableQueue`
+  hands work to a worker over `PersistedQueue`, the queue 22 adopts. So once 22 lands, Workflow
+  adds only multi-step durability: the spike waits for a flow of several steps (18's
+  upload → extract → summarise is the first candidate); today's jobs are one step each.
 
 ### 12. `template-handoff`
 
@@ -550,6 +582,13 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   and has code execution, the Files API and Skills; its client is beta. MiniStack emulates
   Transcribe (canned transcript) and Knowledge Bases (lexical search), not Data Automation or the
   Code Interpreter.
+- **Facts on Effect (2026-11-02).** `.docx`, `.xlsx` and `.pptx` are zip archives of XML, so
+  converting them to text on our side needs no third-party library: `effect/encoding` `Zip`
+  decodes an archive as a stream without buffering whole entries, and `Xml` reads XML as a
+  stream of events, with `elements` for repeated items (both new in 4.0; check their stability
+  tags before relying on them). If that conversion is heavy enough to stall the worker,
+  `effect/workers` runs it on a Bun worker thread (`BunWorker`, `BunWorkerRunner` in
+  `@effect/platform-bun`), typed messages and `Transferable` buffers included.
 - **Status.** Planned.
 
 ### 19. `openai-provider`
@@ -606,12 +645,52 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   and does not emulate the Messages endpoint, so local runs stay on the stub.
 - **Status.** Planned.
 
-### 22. `jobs`
+### 22. `persisted-queue`
 
-- **Goal.** Every job, whatever its queue, leaves one row that says where it stands and why it
-  failed, searchable by what it is about; and deleting a chat or a file never waits on S3,
-  however many files it holds: the request deletes rows only, and a job deletes the bytes.
-- **Scope.**
+- **Goal.** The hand-written queue goes: jobs live in Postgres through Effect's `PersistedQueue`,
+  so the queue logic, the outbox relay and the SQS transport are deleted, not maintained. Every
+  job still leaves one row that says where it stands and why it failed; and deleting a chat or a
+  file never waits on S3, however many files it holds: the request deletes rows only, and a job
+  deletes the bytes.
+- **Decided (2026-11-02).** Replaces the ticket `jobs`, whose ledger below was to be written by
+  hand on top of the SQS queue. The ledger it planned (statuses, attempts, the last error) comes
+  with the library's table; its trigger and its open questions carry over.
+- **Deleted.** `packages/queue` (`QueueConsumer`, `QueueSender`, `QueueTransport` over SQS, the
+  dead-letter retry logic), `kernel/queue` (`QueueSenderJobs`, `JobRelay`, `QueueConsumerSqs`),
+  `kernel/data/job` and the `jobs` table, the dead-letter handlers and definitions of the worker
+  and of `chat`, the SQS queues and dead-letter queues in `deployment/`, the variables
+  `QUEUE_LOCK_EXPIRATION`, `QUEUE_LOCK_REFRESH_INTERVAL` and `OUTBOX_POLL_INTERVAL`: about 610
+  lines of code and 960 of tests on 2026-11-02.
+- **Gained from the library.**
+  - The outbox for free: `offer` writes a row through the current `SqlClient`, so inside the
+    send's `withTransaction` the job commits with the message, and no relay is needed (to prove by
+    one e2e: a rolled-back send leaves no job).
+  - Retries by `maxAttempts` and a `retrySchedule` replayed from the stored attempt count, so the
+    delays hold across processes; a delayed first run (`offer` with `delay`); de-duplication by
+    the offered `id`, the job id of today's definitions.
+  - Per row: `state` (`pending` → `processing` → `completed` or `failed`), `attempts`,
+    `last_failure`; a partial index on pending rows; `layerCleanup` removes old finished rows,
+    which answers the retention question below.
+  - `layerStoreMemory`, the same semantics in memory, for the tests above the queue.
+- **Costs.**
+  - SQS leaves the template: the worker polls Postgres and runs as a long-running process, which
+    rewrites `aws-deployment` (9).
+  - The library creates its table at start (`CREATE TABLE IF NOT EXISTS`), outside the one
+    Drizzle migration; the feature phase decides whether to accept that or to mirror the table in
+    Drizzle and skip its DDL.
+  - `element` is `TEXT`, not `jsonb`: finding a chat's jobs by `body @> '{"chatId": …}'` needs an
+    index of ours on a cast, or a column of our own.
+  - `@stability unstable`: the API may change in a minor of `effect`.
+  - It rewrites `aws-local` D1 ("`PersistedQueue` goes": an SQS store could not keep the store's
+    promises), the records
+    [Jobs as a table in the data layer](decisions.md#jobs-as-a-table-in-the-data-layer) and
+    [One initial migration](decisions.md#one-initial-migration) if the library's DDL stays.
+- **Open questions added (2026-11-02).** How the handler learns its last attempt (`take` gives
+  `attempts`; `maxAttempts` is the definition's); where a `failed` row is surfaced, now that no
+  dead-letter queue exists; whether the trigger below may insert into the library's table, which
+  ties the schema to the library's private columns, or writes a row of ours that a job reads.
+- **The `jobs` ticket's scope, kept for its trigger and open questions; its statuses, relay and
+  write-back are what the library replaces.**
   - The table `jobs` (renamed from `outbox` by `modular-monolith`) keeps one row per job with
     `status`, `attempts`, the last `error`,
     `updated_at`, and a GIN index (`jsonb_path_ops`) on `body`, so `body @> '{"chatId": …}'`
@@ -693,10 +772,34 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
     so a rollback leaves unbound rows over untagged bytes that the lifecycle rule never expires;
     the transaction's failure restores the tag, or logs the ids.
 - **Related, not in scope.** The bytes of a deleted chat whose `FileRepository.delete` fails after
-  the rows are gone: 22 `jobs` moves that delete into an `attachment-deletion` job.
+  the rows are gone: 22 `persisted-queue` moves that delete into an `attachment-deletion` job.
 - **Found by** `modular-monolith` S18's review (2026-11-01): every gap predates that ticket,
   which moves the code as is.
 - **Status.** Planned.
+
+### 25. `authentication`
+
+- **Goal.** To be set by its feature phase. The starting point is `chat-core`'s decision that
+  today's user, known by a server-issued secret in an `HttpOnly` cookie, later merges into an
+  account.
+- **Today (2026-11-02).** `identity`'s `UserService` issues 32 random bytes as a base64url secret,
+  stores only its SHA-256, and resolves the user by that hash on every request through the
+  `Auth` middleware's cookie security. A session is revoked by deleting its row; no JWT exists.
+- **Open questions for its feature phase.** An external identity provider (Cognito, Auth0, any
+  OIDC) or accounts of our own; how a cookie user merges into an account; whether sessions stay
+  rows (revocable, one query a request) or become signed tokens (no query, revoked only by
+  expiry or a deny-list).
+- **Facts (2026-11-02).** `effect/jose` ships from `effect@4.1.1` (2026-10-30; `4.1.2` is
+  current), `@stability unstable`, on Web Crypto through the new `effect/crypto`, with no
+  third-party dependency. `Jwt.sign` and `Jwt.verify` take a `Schema` for the claims;
+  `Jwt.verifyWithKeySet` resolves the key through `Jwks`; `Jwks.layerRemote({ url })` fetches and
+  caches a provider's key set (10-minute TTL, a 30-second cooldown for unknown `kid`s, one request
+  shared by concurrent callers, redirects refused); `Jwt.encrypt` and `Jwt.decrypt` cover JWE with
+  `dir` and A256GCM only. Algorithms: HS, RS, PS and ES at 256, 384 and 512, and EdDSA; compact
+  serialisation only. There is no `HttpApiSecurity` or middleware helper: a bearer check is a
+  middleware of ours that calls `Jwt.verifyWithKeySet`. Adopting it first moves the catalog from
+  `effect@4.0.6` to `4.1.x`, an upgrade whose changelog was not found.
+- **Status.** Planned, exploratory.
 
 ## Re-homing `effect-setup`
 
@@ -735,3 +838,9 @@ Cross-ticket facts checked on 2026-10-17; re-verify before relying on one.
   stay thin: outbox relay, SQS and S3 adapters, multipart-to-S3 sink, Lambda event adapter,
   per-test database isolation. Covered by Effect with only glue: SSE chat stream, multipart
   parsing, typed client, OTLP export, config from `.env` and the environment.
+- **Effect modules reviewed for hand-written code they could replace (2026-11-02,
+  `effect@4.0.6`).** Only the queue: `PersistedQueue` replaces `packages/queue`, the relay and the
+  SQS transport (22). Already used: `effect/encoding` `Base64Url` and `Hex` for the user secret.
+  Nothing of ours to replace, recorded where they would apply: `Sse` (7), `Zip`, `Xml` and
+  `effect/workers` (18), `effect/devtools` (8), `effect/workflow` (11), `effect/jose`, from 4.1.1
+  (25). Rejected: `effect/eventlog`, a local-first sync of an event journal (7).
