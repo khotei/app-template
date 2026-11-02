@@ -48,6 +48,7 @@
 | S40 | R1 names the three answers S38 changed | done |
 | S41 | `packages/` reaches no app ring; the HTTP contract held by a snapshot | done |
 | S42 | the verification's small fixes in docs, tests and chat's code | done |
+| S43 | the two import guards run 3 found lost: apps and `deployment` by manifest, tests by layer | todo |
 
 ## How to run this plan
 
@@ -2018,6 +2019,27 @@
     list reads worse than the two calls of the liveness rule.
   - No `/simplify` pass: the step is itself the verification's simplifications.
 
+#### S43 — The import guards run 3 found lost
+
+- **Delivers:** on the user's standing word of 2026-11-02 after verification run 3, the two guards
+  S39's rewrite of `biome.json` dropped come back. An app (`api`, `worker`) imports no other app
+  and `deployment` only `packages`, whatever their manifests declare, as S41 made true for
+  `packages/`; and a test under `__tests__/<layer>/` imports only what its layer may, plus test
+  support. Each refusal names its record in `decisions.md`.
+- **Goal:** R13 and R15 hold for every ring, not only by TS2307 (run 3 Spec 4, 5; lesson L8).
+- **Blocked by:** none.
+- **Files:** `biome-imports.grit` or `biome.json`, the records the refusals name, and
+  `architecture.md › Known gaps` if a form stays open; every other file the change reaches is found
+  by `git grep` and listed in the report.
+- **Test first:** the guards seam — run 3's two probes, red after the change and green before
+  it: `apps/worker` importing `@app-template/api/testing` with `api` declared in its manifest;
+  a file in `application/chat/__tests__/domain/` importing `@app-template/kernel/aws`. Also one
+  probe per further form the change refuses (`deployment` importing `kernel`), and one that must
+  still pass (`apps/e2e` importing `@app-template/api/testing`).
+- **Verify:** `make check`; each probe red, then removed.
+- **Model:** `opus high`
+- **Status:** todo
+
 ## Requirement coverage
 
 | Req | Steps |
@@ -2034,9 +2056,9 @@
 | R10 | S10, S31, S36 |
 | R11 | S1, S28, S31, S34, S35, S36 |
 | R12 | S21, S30, S39 |
-| R13 | S4, S20, S21, S30, S39, S41 |
+| R13 | S4, S20, S21, S30, S39, S41, S43 |
 | R14 | S8, S21 |
-| R15 | S4, S21, S27, S29, S39 |
+| R15 | S4, S21, S27, S29, S39, S43 |
 | R16 | S11, S13, S19, S21, S27 |
 | R17 | S1, S21, S28, S39 |
 | R18 | S20, S22 |

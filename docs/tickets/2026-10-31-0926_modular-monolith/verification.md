@@ -275,3 +275,126 @@ outside the ticket, `6c43a60a76` among them.
 - **Cost:** a fix round in S25, gaps recorded in S27 and S28, 1931 lines of `biome.json`.
 - **Proposed change:** none: S39 replaced the override lists with one GritQL plugin (297 lines).
 - **Applied:** yes, S39
+
+## 2026-11-02 — run 3
+
+**Verdict:** pass
+
+Branch `refactor/modular-monolith` at `42e9ce6c36` (S1–S42; the three commits after S42 are the
+`lean-instructions` ticket's docs and change nothing a gate reads), merge base `5bfec347df`.
+`make check` green: Biome over 249 files, `tsc -b`, `api-check`, `migration-check`, 221 unit tests
+in 24 files, 104 e2e in 17 files, the web bundle check.
+
+### Requirements
+
+| Req | Result | Evidence |
+|---|---|---|
+| R1 | pass | The OpenAPI documents generated at merge base and HEAD differ only in `AttachmentNotFoundErrorEncoded` (`id` → `ids`); HEAD's equals the snapshot `http-api/openapi.json` byte for byte. Each of the 14 test titles gone since merge base has a renamed twin; the race counts a bare `500` as refused (`apps/e2e/api/chat.e2e.ts:75-88`); creation order in `attachment.repository.ts:58` and its e2e `:135`. |
+| R2 | pass | The journey e2e green; worker tests differ from merge base in imports and a shared `insertMessage` only; attempts 3 and 5 (`kernel/aws/resources/resources.ts:11-12`), the queues' fields in `chat.queue.ts:26-50`, the capped backoff in `packages/queue/queue.ts:33-46`. |
+| R3 | pass | After `chats.delete`, `files.selectOne` answers none and the attachment `AttachmentNotFoundError` (`chat.e2e.ts:140-150`); the repository's cascade case; a refused delete keeps rows and bytes. |
+| R4 | pass | On two clean `postgres:18-alpine` containers: HEAD applies 1 migration, merge base 2; their `pg_dump --schema-only` differ only in `outbox` → `jobs`, its key and its index; 6 tables, 4 enums, 7 indexes. |
+| R5 | pass | `make migration-check` exit 0; `kernel/data/migrations` holds only `20261101174807_init`. |
+| R6 | pass | Workspaces `http-api`, `application`, `kernel`, `packages`, `apps/{api,e2e,web,worker}`, `deployment`; `git ls-files domain infrastructure e2e apps/__e2e__ packages/config` empty. |
+| R7 | pass | chat takes only `UserId` from identity's entry (7 files); identity imports no chat; `modules.md:13-20`. |
+| R8 | pass | Each module's layers as named; the three use cases only in `application/use-cases/chat/`; no `__e2e__` under `application/`; the layers' overrides green. |
+| R9 | pass | `kernel/data` source imports only `packages/*` and `#kernel/data`; its 17 table, entity and repository files; `PgClient` (`db.client.ts:8`) and `S3Bucket` (`file.repository.ts:34`) from the context. |
+| R10 | pass | Both `queue.send` inside `transaction.run` (`send-message.use-case.ts:121-144`); a refused title job leaves no message, bind, chat change or job. |
+| R11 | pass | Outside `__tests__/`, `__e2e__/`: only `apps/e2e` and `packages/testing`; no `*.test.ts` imports `testing/e2e`; `vitest.config.ts` globs as `tooling.md` says. |
+| R12 | pass | Six import forms of `#identity/services/user.service` from chat's services: six plugin diagnostics naming `decisions.md › Imports through subpaths`; an undeclared `@app-template/http-api` fails with TS2307. |
+| R13 | pass | Run 2's probe (`@app-template/kernel` declared in `packages/package.json`, imported in `packages/db`) refused by the plugin naming `One kernel`; a value cycle six `noImportCycles`; a `references` cycle TS6202. |
+| R14 | pass | Chat's entry, `kernel/config` and `#kernel/aws/aws.client` in `kernel/data/chat/`: three diagnostics naming the records. |
+| R15 | pass | Kernel into domain and contract, `kernel/llm` and `#chat/infrastructure` into services, `kernel/postgres` into a use case: each refused naming its record; `AssistantLlmFromConfig` from chat's entry passes. |
+| R16 | pass | `make bundle-check` exit 0; a service or use case in `main.ts` fails to resolve, a repository by key; `ChatService` and `SendMessageUseCase` through `http-api` fail by key, exit 2. |
+| R17 | pass | A unit test building `DbTest` fails `make test-unit` (1 failed, 221 passed); containers 4 before and after. |
+| R18 | pass | `PlaceOrderUseCase` in `decisions.md:48-65` and `architecture.md:211-257`; the worker's handlers call only the two generate use cases. |
+| R19 | pass | `make doc-names` green; the seven sections; ten glossary terms, `Component` under _Avoid_; no instruction file or doc names a gone name. |
+| R20 | pass | 25 records of seven fields; the 10 records `biome.json` and the plugin name exist; 17 anchors resolve. |
+| R21 | pass | Every `@app-template/…` specifier is a folder's entry or its `testing`; no `"paths"`. |
+
+**Not verifiable:** R4 through `make reset` and `make up` (it wipes the local database; two clean
+containers of the same image instead); which of `409` and `500` a race's loser gets (the test
+admits both, not forced); R13's cycle through contracts, a review rule no tool reads.
+
+### Review
+
+#### Standards
+
+No hard violation in production code. Run 2's items: `settleWith` fixed (`Effect.fromOption`,
+`Effect.orDie`); the `ChatWhere` cycle fixed (`encodeChatWhere` in `chat.service.ts:35`); the
+nullable `messageId` fixed through `eqOrIsNull`; `identity` from `'effect'` everywhere;
+`getMany`'s where named once; `isFirstMessage` kept on the user's word (S38); the handler's media
+type check against the extension (`attachment.handler.ts:35-45`) still open and never decided.
+
+Judgement calls:
+
+1. `generate-chat-title.use-case.ts:12-18` and `generate-assistant-message.use-case.ts:40-45`
+   each define a `Skip` union, a log record and a `catchTag` that differ only in keys and text
+   (Duplicated Code; a rename of `chatDeleted` edits both).
+2. `send-message.use-case.ts:106` binds files with one `files.update` per id in an unbounded
+   loop; `layering.md › Use cases` forbids one call per id for reads and deletes, and
+   `attachments.update` beside it already takes the id list.
+3. `encodeWhere` is a module function in `chat.repository.ts:35` and a closure in
+   `message.repository.ts:56` (it reads `db` there).
+4. `eqOrIsNull` is not verb-first (`naming.md › Functions`), mirroring drizzle's `eq`, `isNull`.
+
+Still open from run 2: the two `new TextEncoder()`, the private `move` in both models,
+`assistant.llm.ts` at 265 lines, `send` at about 100 lines. Not reviewed: `deployment/`, the
+docs, `packages/s3` and `packages/queue`.
+
+#### Spec
+
+No requirement missing or partial. Run 2's items 3–6 fixed (`resources.test.ts` in
+`__tests__/services/`, the services' packages `db` and `queue`, the diagram label); 1–2 kept on
+the user's word, and `6c43a60a76` also drops `git checkout *` and `git restore *` from `ask`,
+which the PR body should list too. `make api-check` is accepted as S41 (lesson L5); it runs in
+every local `make check`, so a local Bun newer than the pinned one may fail it with no contract
+change.
+
+Guards deleted from `biome.json` and where they live now:
+
+1. `packages/**`: the plugin (S41), probe red.
+2. The layers, `http-api/**`, `apps/web/**`, `kernel/data/**`: one override each.
+3. Relative-path bans: the plugin's last rule.
+4. Partly lost: `apps/api/**`, `apps/worker/**` (apps are independent) and `deployment/**`
+   (only `packages/*`) have no Biome ban and rely on TS2307 (`decisions.md:576`); once a manifest
+   declares the workspace, `apps/worker` importing `@app-template/api/testing` passes every check,
+   the gap S41 closed for `packages/`, and `architecture.md › Known gaps` does not list it.
+5. Lost: the `domain/tests/**` override (a domain test imports no workspace but test support) has
+   no successor; a file in `application/*/__tests__/domain/` importing `@app-template/kernel/aws`
+   passes Biome, run 2's item 4 exactly, found only by review.
+
+### Simplifications
+
+1. Extend the plugin's `packages/` rule to `apps/api`, `apps/worker` and `deployment` (each
+   imports only what its record allows, whatever its manifest declares), or list the gap in
+   `architecture.md › Known gaps`.
+2. Add `__tests__/<layer>/**` to each layer's override, so a test imports as the layer it tests.
+3. `FileRepository.update` over an id list; the bind's loop goes (Standards 2).
+4. One shared skip-and-log shape for the two generate use cases (Standards 1).
+5. Decide the handler's media-type check: a rule in `attachment.service.ts`, or recorded as an
+   HTTP concern in `layering.md › Handlers`.
+
+Taken on the user's standing word of 2026-11-02 (work through the night, no OK per item): 1 and 2
+as step S43; 3–5 left for the user, as judgement calls that change a contract or a rule.
+
+### Lessons
+
+#### L8 — A guard config rewritten, its old guards lost without a probe
+
+- **Evidence:** S39 replaced `biome.json`'s override lists; run 2 found the `packages/` manifest
+  gap (R13), this run the apps' and `deployment`'s bans and the domain tests' override, each
+  dropped with no successor and no failing check.
+- **Cost:** a failed verification (run 2), a fix step (S41) and now S43.
+- **Proposed change:** in `/ticket-plan`, a step that rewrites a guard's config pins one probe
+  per guard it replaces, each red before and after; `lean-instructions` S13 carries it, since its
+  R23 makes a probe's target one of the few things a step pins.
+- **Applied:** no
+
+#### L9 — Agents' reports written for the user, not the main session
+
+- **Evidence:** this run's verifier wrote its report in Russian under the user's status block; run
+  2's analysis counted 38 of 42 implementer reports alike.
+- **Cost:** the main session translates every report before recording it.
+- **Proposed change:** none here: `lean-instructions` R18 (S6) has each agent report in English
+  for the main session.
+- **Applied:** no, left to `lean-instructions`
