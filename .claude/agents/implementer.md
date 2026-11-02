@@ -38,9 +38,10 @@ You are **implementer**. `/ticket-implement` gives you a ticket folder and one s
   options. Requirements come only from the ticket.
 - **The repo's rules bind you:** the `CLAUDE.md` of every workspace you touch and
   `.claude/rules/*`.
-- **Evidence.** Run every command in the step's **Verify** and quote its real output. Delete
-  probe files before you report. A step that grows past ~400 changed lines comes back with a
-  proposed split.
+- **Evidence.** Run every command in the step's **Verify** and quote its real output. Run each
+  Verify grep or probe once against a planted hit first; one that stays green is reported and
+  replaced. Delete probe files before you report. A step that grows past ~400 changed lines
+  comes back with a proposed split.
 - **Leftovers.** Before the report, `git grep` every identifier the step removed or renamed and
   every number it changed, across code, `README.md`, `docs/knowledge` and the ticket folder. Fix
   each hit in your files; list the ticket's under *Deviations* with the edit they need.

@@ -134,3 +134,144 @@ so an array `where` would move the loop into the repository, not remove it.
 - **Proposed change:** `/ticket-implement`'s Spec override: "the Spec axis names, for each
   deleted statement or guard, where it now lives, or reports it lost".
 - **Applied:** yes, `b98639da49`
+
+## 2026-11-02 — run 2
+
+**Verdict:** fail
+
+Branch `refactor/modular-monolith` at `dc1eec9fd9` (S1–S39), merge base `5bfec347df`. `make check`
+green: Biome over 248 files, `tsc -b`, 221 unit tests in 24 files, 104 e2e in 17 files, the web
+bundle check, `make migration-check`. R1 fails on three answers S38.2 changed; R13 is partial.
+
+### Requirements
+
+| Req | Result | Evidence |
+|---|---|---|
+| R1 | fail | (1) `AttachmentNotFoundError`'s body is `{ _tag, ids }`, was `{ _tag, id }` (`attachment.error.ts:5-8`): the OpenAPI documents of merge base and HEAD differ only in `AttachmentNotFoundErrorEncoded`. (2) The loser of two sends of one file may answer `500`, was always `409` under the dropped `forUpdate`; `sendRacing` (`apps/e2e/api/chat.e2e.ts:75-88`) now counts a bare `500` as refused, a weakened assertion. (3) A send answers its attachments in creation order, was the order asked: a probe sending `[b, a]` passes on merge base, fails on HEAD. (1) and (2) are in `plan.md` and `decisions.md`, (3) in `plan.md` only; `feature.md` R1 is unchanged. |
+| R2 | pass | The journey reaches the reply `done` and the title; worker handlers changed in imports only; attempts 3 and 5 (`kernel/aws/resources/resources.ts:11-12`), delay and dead letter in `packages/queue/queue.ts:33-46`. |
+| R3 | pass | After `chats.delete`, `files.selectOne` answers none and the attachment `AttachmentNotFoundError`; the repository's cascade case. |
+| R4 | pass | One migration `20261101174807_init`; on a clean `postgres:18.6-alpine` its `pg_dump --schema-only` equals merge base's two (with `outbox` → `jobs`) up to order: 6 tables, 4 enums, 7 indexes, 12 constraints. |
+| R5 | pass | `make migration-check` exit 0, no SQL. |
+| R6 | pass | Workspaces `http-api`, `application`, `kernel`, `packages`, `apps/{api,e2e,web,worker}`, `deployment`; `git ls-files domain infrastructure e2e apps/__e2e__` empty; `packages/` names no app workspace nor chat, attachment, assistant. |
+| R7 | pass | chat takes only `UserId` from identity's contract; identity imports no chat; `modules.md:13-20`. |
+| R8 | pass | Each module's layers as named; the three use cases in `application/use-cases/chat/`; layer-direction probes red. |
+| R9 | pass | `kernel/data` source imports only `packages/db`, `packages/s3`, `#kernel/data`; its 17 table, entity and repository files; `PgClient`, `S3Bucket` from the context. |
+| R10 | pass | `send-message.use-case.ts:121,130` queues inside `transaction.run` (`:140`); a refused title job leaves `jobs` empty. |
+| R11 | pass | Outside `__tests__/`, `__e2e__/`: only `apps/e2e` and `packages/testing`, each export of which 2+ units read. |
+| R12 | pass | 6 import forms of another module's `#identity/…` refused by the GritQL plugin naming `decisions.md › Imports through subpaths`; a deep path and an undeclared workspace fail with TS2307. |
+| R13 | partial | Kernel in `kernel/config` and `packages/db` fails with TS2307, a value cycle with `noImportCycles`, a `references` cycle with TS6202; but `"@app-template/kernel"` declared in `packages/package.json` plus an import of `@app-template/kernel/config` in `packages/db` passes `tsc -b` and Biome. Not in `architecture.md › Known gaps`. |
+| R14 | pass | Chat's model, `kernel/config`, `kernel/aws` refused in `kernel/data` naming the records; `#kernel/aws/aws.client` refused by the plugin. |
+| R15 | pass | Kernel into domain and contract, `kernel/llm` into services, `#chat/infrastructure` into services, `kernel/postgres` into a use case: each refused naming the record. |
+| R16 | pass | `ChatRepository` in `apps/web/app/main.ts` fails `bundle-check`; `ChatService`, `SendMessageUseCase`, `AssistantLlmFromConfig` through `http-api` fail it by key. |
+| R17 | pass | A unit test building `DbTest` fails `make test-unit`; container count unchanged; `modules.md:31-32`. |
+| R18 | pass | The `PlaceOrderUseCase` example in `architecture.md:218-240` and `decisions.md:56-65`. |
+| R19 | pass | `make doc-names doc-width ids` exit 0; the seven sections; ten glossary terms, `Component` under _Avoid_. (Spec finds one stale label, below.) |
+| R20 | pass | 24 records of 7 fields; the 9 records `biome.json` and the plugin name exist; 17 anchors resolve. |
+| R21 | pass | Every `@app-template/…` import is by folder; no `"paths"`. |
+
+**Not verifiable:** R4 through `make reset` and `make up` (it wipes the local database; a separate
+container of the same image instead); the `500` of R1's race, inferred from the code, the test and
+the record; the attachments' order on Postgres, probed through the memory layer only.
+
+### Review
+
+#### Standards
+
+No hard violation in production code; judgement calls:
+
+1. `generate-assistant-message.use-case.ts` › `settleWith` reads the chat with
+   `Effect.map(Option.getOrThrow)`: a `throw` (`effect-schema.md › Failures`) where a pipeable
+   defect fits (`deep-modules.md`).
+2. `apps/api/attachment/attachment.handler.ts`: `matchesExtension`, `decodeDeclaredType` check the
+   media type against the extension, arguably a rule in a handler (`layering.md › Handlers`).
+3. `send-message.use-case.ts`: `isFirstMessage` decides the title job (`modules.md`); kept in S38
+   on the user's word.
+4. `chat.mapper.ts` imports `type ChatWhere` from `chat.service.ts`, which imports the mapper: a
+   cycle through a type (`deep-modules.md`), and Feature Envy in `encodeChatWhere`.
+5. `attachment.repository.ts`: `messageId === null ? isNull(…) : eq(…)` where `chat.repository.ts`
+   reads its nullable `title` through `Option` (`effect.md`).
+
+Smells: the skip-reason union plus log table repeated in the two generate use cases; `getMany`'s
+inline `where` type written twice in `attachment.service.ts`; two `new TextEncoder()`; Divergent
+Change in `assistant.llm.ts` (~270 lines: prompt, early finish and retry, hash, provenance, stub);
+`SendMessageUseCase.send` ~90 lines; the private `move` in both models; `identity` from
+`'effect/Function'` in two repositories, from `'effect'` in the third. Tests: `chat.mapper.test.ts`
+rebuilds fixtures `#testing/chat/chat.test-fixture` has; its title-limit case compares constants
+(kept in S34 on the user's word). `packages/`, `deployment/`, docs and the plugin not reviewed.
+
+#### Spec
+
+R1–R21 hold on the Spec axis's reading, with five departures:
+
+1. Scope: ten commits outside the ticket (`docs(sdd)` ×4, `chore(tooling)` ×2, `docs(roadmap)` ×3,
+   `docs(lean-instructions)`), hidden under the ticket's title once squashed.
+2. Scope, security weight: `6c43a60a76` drops `git push*` from `ask` in `.claude/settings.json` and
+   the `deny` of `git push --force`, `--no-verify` and `bun test*`; nothing in `feature.md` asks
+   for it.
+3. Scope: the `doc-width` gate (run 1's L1, applied on the user's OK).
+4. `application/chat/__tests__/domain/resources.test.ts:4` imports `@app-template/kernel/aws`; a
+   domain file may not, and tests import as their source does (`architecture.md:90`).
+5. `docs/knowledge/architecture.md:103` and the ticket's matrix (line 78) let services import
+   `packages/aws`; `biome.json:177` admits only `{db,queue}`. No service imports it.
+6. `docs/knowledge/architecture.md:63`: the arrow label `/domain only` names a per-layer subpath
+   D21 removed (R19); `make doc-names` reads no diagram label.
+
+### Simplifications
+
+1. Amend `feature.md` R1 (and its acceptance row) to name the three answers S38.2 changed, and
+   record the attachments' creation order in `decisions.md`; or restore the order asked.
+2. Close R13's manifest gap: the GritQL plugin refuses `@app-template/{kernel,application,
+   http-api}` and the apps from `packages/**`; record the probe in `architecture.md › Known gaps`
+   if left open.
+3. `architecture.md:63` and `:103`, the ticket matrix line 78: the label and the services' packages
+   as `biome.json` holds them.
+4. `resources.test.ts` from `__tests__/domain/` to the layer its import belongs to.
+5. `settleWith`: `Effect.flatMap(Effect.fromOption(…))` with `Effect.orDie`, no `getOrThrow`.
+6. Break the `ChatWhere` type cycle: `encodeChatWhere` into the service, its one caller.
+7. `getMany`'s `where` named once beside `AttachmentWhere`; `identity` imported from `'effect'`
+   alike; the attachment repository's `messageId` through `Option`, as the chat's `title`.
+
+Accepted on the user's word: 1 as step S40 (R1 amended, the order recorded, not restored), 2 as
+S41, 3–7 as S42 of `plan.md`. Spec 1–2: kept on the user's word; the PR body lists the commits
+outside the ticket, `6c43a60a76` among them.
+
+### Lessons
+
+#### L4 — A Verify check that could not fail
+
+- **Evidence:** S26 and S27 (the grep matched the internal `#api/layer` imports and the
+  repositories' keys, narrowed), S30 (a probe that could not fail; `git ls-files
+  'packages/**/tsconfig.json'` matched nothing in any tree state), S36 (the grep found the vendored
+  `repos/effect`), S37 (a probe port passed the old grep).
+- **Cost:** a check reported green that proved nothing, found by review or by chance, in five steps.
+- **Proposed change:** `implementer.md › Evidence`: "run each Verify grep or probe once against a
+  planted hit first; one that stays green is reported and replaced".
+- **Applied:** yes, `implementer.md › Evidence`
+
+#### L5 — An HTTP answer changed with no amendment of R1
+
+- **Evidence:** S31 (a race counts a defect's `500` as refused) and S38.2 (the error's `ids`, the
+  `500` of the lockless race, the attachments' order), each passing step review; this run fails R1
+  on them.
+- **Cost:** a failed verification and an amendment step; a client reading `error.id` breaks.
+- **Proposed change:** a `make api-check` in `make check` that diffs the generated OpenAPI document
+  against a committed snapshot, so a contract change fails until the snapshot and R1 move with it.
+- **Applied:** accepted, step S41
+
+#### L6 — Docs restating what a config holds drifted from it
+
+- **Evidence:** review found `decisions.md` and `architecture.md` out of step with the code in S32,
+  S33, S35, S37 (a step of its own) and S39 (the matrix's TS2307 claims); this run finds two more in
+  `architecture.md`, both restating `biome.json`.
+- **Cost:** a review finding in five steps and one whole step.
+- **Proposed change:** none here: `lean-instructions` cuts the restatements (one author per fact);
+  its feature.md names it.
+- **Applied:** no, left to `lean-instructions`
+
+#### L7 — Biome's override semantics rediscovered per step
+
+- **Evidence:** S25 (round S25.2), S27, S28, S29, S30: Biome takes the last matching override and
+  replaces the options of two, found again each time.
+- **Cost:** a fix round in S25, gaps recorded in S27 and S28, 1931 lines of `biome.json`.
+- **Proposed change:** none: S39 replaced the override lists with one GritQL plugin (297 lines).
+- **Applied:** yes, S39

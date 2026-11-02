@@ -45,6 +45,9 @@
 | S37 | the docs the branch review found out of step with the code | done |
 | S38 | the chat module in one shape | done |
 | S39 | `biome.json` keeps only the import rules nothing else holds | done |
+| S40 | R1 names the three answers S38 changed | todo |
+| S41 | `packages/` reaches no app ring; the HTTP contract held by a snapshot | todo |
+| S42 | the verification's small fixes in docs, tests and chat's code | todo |
 
 ## How to run this plan
 
@@ -1912,11 +1915,74 @@
     `Record:` links kept; `decisions.md` owns the design, the other docs link it.
 
 
+#### S40 — R1 names the three answers S38 changed
+
+- **Delivers:** on the user's word after verification run 2, R1 keeps "the same status, body and
+  errors as before" but for three answers S38.2 changed on purpose: `AttachmentNotFoundError`
+  names `ids`, every absent id once in the order asked; the loser of two sends of one file answers
+  `409`, or `500` when it read before the winner wrote (no row lock); a send answers its
+  attachments in creation order. R1's acceptance row names them, and `decisions.md` records the
+  creation order beside `Guards in the write, no lock`.
+- **Goal:** R1 states what the branch answers; verification run 3 can pass it.
+- **Blocked by:** none.
+- **Files:** `feature.md` (R1 and its row), `docs/knowledge/decisions.md`, the glossary if it names
+  the order.
+- **Test first:** none, a docs step; the suites already hold the three answers.
+- **Verify:** `make check`; `make doc-width doc-names`.
+- **Model:** `opus medium`
+- **Status:** todo
+
+#### S41 — `packages/` reaches no app ring; the HTTP contract held by a snapshot
+
+- **Delivers:** R13's gap closed: the GritQL plugin `biome-imports.grit` refuses, from any file
+  under `packages/`, an import of `@app-template/kernel`, `application`, `http-api` or an app,
+  naming `decisions.md`'s record of the packages, so a dependency declared in the manifest no
+  longer passes. Lesson L5: `make api-check`, in `make check`, generates the OpenAPI document of
+  `Api` and diffs it against a committed snapshot; a contract change fails until the snapshot
+  moves with it, and `make api-snapshot` rewrites it.
+- **Goal:** R13 whole; a contract change seen by `make check` (R1).
+- **Blocked by:** none; runs beside S40 and S42 on the user's word.
+- **Files:** `biome-imports.grit`, `Makefile`, a snapshot and its generator beside `http-api` (or
+  in `apps/e2e`), `docs/knowledge/decisions.md` (Guarded by), `architecture.md › Known gaps`,
+  `tooling.md` (the new target), `feature.md` R13's row if it names the check.
+- **Test first:** the probe of verification run 2 (`"@app-template/kernel"` in
+  `packages/package.json`, an import of `@app-template/kernel/config` in `packages/db`) turns
+  `make check` red naming the record; a field renamed in an error schema turns `make api-check`
+  red.
+- **Verify:** `make check`; both probes red, then removed; `make api-check` green on HEAD.
+- **Model:** `opus high`
+- **Status:** todo
+
+#### S42 — The verification's small fixes in docs, tests and chat's code
+
+- **Delivers:** run 2's simplifications 3–7:
+  - `docs/knowledge/architecture.md`: the diagram label `/domain only` names what the entries
+    give; the services' packages are `db` and `queue`, as `biome.json` holds (and the ticket's
+    matrix row);
+  - `application/chat/__tests__/domain/resources.test.ts` moves to the layer its import of
+    `@app-template/kernel/aws` belongs to;
+  - `settleWith` in the reply use case reads the chat without `Option.getOrThrow`, a defect
+    through a pipeable;
+  - the type cycle between `chat.mapper.ts` and `chat.service.ts` breaks (`encodeChatWhere` into
+    its one caller, or the where type where both read it);
+  - `getMany`'s where type named once beside `AttachmentWhere`; `identity` imported from
+    `'effect'` in every repository; the attachment repository's nullable `messageId` read as the
+    chat repository reads its `title`.
+- **Goal:** the branch matches its rules and its docs before the PR.
+- **Blocked by:** none; runs beside S40 and S41 on the user's word.
+- **Files:** `docs/knowledge/architecture.md`, the ticket's `architecture.md` matrix, the moved
+  test, `generate-assistant-message.use-case.ts`, `chat.mapper.ts`, `chat.service.ts`,
+  `attachment.service.ts`, the three repositories in `kernel/data`.
+- **Test first:** none new; every case kept, the moved suite green in its new place.
+- **Verify:** `make check`; `git grep -n 'getOrThrow' -- application`.
+- **Model:** `opus high`
+- **Status:** todo
+
 ## Requirement coverage
 
 | Req | Steps |
 |---|---|
-| R1 | S11, S13, S17, S18, S19 (every step keeps the suites green) |
+| R1 | S11, S13, S17, S18, S19, S40, S41 (every step keeps the suites green) |
 | R2 | S7, S10, S19 |
 | R3 | S17, S18 |
 | R4 | S6, S8, S10 |
@@ -1928,7 +1994,7 @@
 | R10 | S10, S31, S36 |
 | R11 | S1, S28, S31, S34, S35, S36 |
 | R12 | S21, S30, S39 |
-| R13 | S4, S20, S21, S30, S39 |
+| R13 | S4, S20, S21, S30, S39, S41 |
 | R14 | S8, S21 |
 | R15 | S4, S21, S27, S29, S39 |
 | R16 | S11, S13, S19, S21, S27 |
