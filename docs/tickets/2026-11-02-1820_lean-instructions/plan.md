@@ -11,7 +11,7 @@
 | S3 | reviewers read only the cited design and the matching rules; the implementer reads no rule up front | done |
 | S4 | parallel steps read on demand; the worktree setup a script | done |
 | S5 | the commit gate in one place, asked once per session; skills and agents as patterns | done |
-| S6 | agents do only their own part; the main session orchestrates on reports; one hunt pass by condition; `/simplify` from the main session; parallel verifiers | todo |
+| S6 | agents do only their own part; the main session orchestrates on reports; one hunt pass by condition; `/simplify` from the main session; parallel verifiers | done |
 | S7 | the Effect rules and the comments rule trimmed; the Effect-4 trap first | todo |
 | S8 | naming, layering, modules and deep modules trimmed, one file per subject | todo |
 | S9 | every `CLAUDE.md` and the process rules as patterns; `doc-limits` | todo |
@@ -405,7 +405,7 @@
   axes' split, the Spec note, the hunt's condition and its one brief; steps 4–5: the main session
   decides on reports and forwards findings), `.claude/skills/ticket-verify/SKILL.md` (verifiers
   per group of requirements, in parallel; the merge), `docs/knowledge/sdd.md` (the
-  dependency map, the overrides table and *The approval gate*: who runs `/simplify`, the one hunt
+  dependency map, the overrides table and *The commit gate*: who runs `/simplify`, the one hunt
   pass and its condition).
 - **Test first:** `config only` — the seam is the next real steps and verification, read in their
   transcripts (R18–R20); this step's report quotes each new line and the brief it replaces.
@@ -413,7 +413,29 @@
   implementer's prohibition; `git grep -n 'plan.md'` over `verifier.md` and `ticket-verify`'s
   verifier brief finds no read of it; the ledger.
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Verify: `git grep -n 'simplify'` over `.claude/agents/` hits only the implementer's line that
+    the main session runs it and the prohibition; `git grep -n 'plan.md'` over `verifier.md` hits
+    only "stays closed", and `ticket-verify`'s hits are the main session's Lessons and fix steps.
+    Each grep went red on a planted line, then the file was restored. The transcript half of
+    R18–R20 is read on the next real steps and verification and recorded there.
+  - Ledger: each agent's file now says what it reads, what it leaves to the main session and that
+    its report is in English for the main session without the status block; the implementer's
+    prohibitions (commit, push, `gh`) gain stash, check-out, `/simplify` and editing `plan.md` or
+    `architecture.md`, so `parallel-steps.md` no longer repeats the last; the reviewer's "cite
+    everything, label hard or judgement" became the one finding shape, which Depth uses too with
+    its mark after the fix; the verifier reads its group, their acceptance rows, `architecture.md ›
+    Contracts` and the Seams rows they name, never `plan.md`.
+  - Deviations: the hunt is a `reviewer` briefed for bugs and silent failures together, with the
+    diff's files, their callers and a fake's real adapter as sources, replacing the built-in
+    `code-review` and `silent-failure-hunter` (Contracts › the passes); the hunt's condition is
+    R19's list alone, without the old "a store outside the transaction"; verification groups
+    follow `feature.md`'s `###` sections, and the requirements that start the apps, run the e2e
+    or write a probe form one group that alone runs `make check` (D14's note).
+  - Review: `parallel-steps.md` (outside Files) dropped its order to leave `plan.md` alone; the
+    reviewer's Spec pass names verification's whole `feature.md`; the map's `reviewer` row names
+    the hunt.
 
 #### S7 — The Effect rules trimmed
 

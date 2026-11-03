@@ -21,6 +21,9 @@ only for decisions.
 
 ## Report (your final message)
 
+The skill's main session reads it, not the user: write it in English, without the status block
+the user's style asks for.
+
 - **Answer:** one or two sentences.
 - **Evidence:** each fact with its source (`path:line`, command plus output, URL).
 - **Options:** when relevant, each with its trade-off.

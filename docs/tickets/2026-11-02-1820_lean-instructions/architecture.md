@@ -147,7 +147,7 @@ ran, their fixes are in and `make check` is green. Pushing, a PR and a merge alw
 step the main session runs `/simplify`; then in parallel Standards (the binding rules of
 `.claude/rules/` and the touched `CLAUDE.md` files), Spec (the step and its requirements; an edit
 only the main session may make is no finding), Depth on a behaviour step (the shape), and the hunt
-pass (correctness bugs and silent failures in one brief) when the step touches a write guard, a
+pass (a `reviewer`; correctness bugs and silent failures in one brief) when the step touches a write guard, a
 transaction, a test fake, concurrent access or error handling.
 
 **A reviewer's finding** (D13), the one shape the main session forwards without reading the
@@ -379,6 +379,9 @@ refusals and the same `.env` it writes today.
   - **Reversal:** one commit.
   - **Rejected:**
     - one verifier, as today — the slowest stage of a ticket.
+  - **Note (S6):** the verifiers share one tree, its ports and its containers, so the requirements
+    whose acceptance starts the apps, runs the e2e or writes a probe into the tree form one group,
+    and that group's verifier alone runs `make check`, which runs the e2e too.
 
 - **D15 — The ticket templates get a light edit, not a restructure: a step pins its outcome,
   its constraints, its decided names and traps, and a check proven red first; the rest is found by

@@ -60,10 +60,10 @@ uses updates this map too; the Standards review checks it against `.claude/rules
 | `/ticket-feature` | `grilling`, `domain-modeling` | `researcher` | — | `feature.md`, `docs/knowledge/glossary.md`, `docs/knowledge/roadmap.md` |
 | `/ticket-architecture` | `codebase-design`, `grilling` | `researcher` | — | `architecture.md` |
 | `/ticket-plan` | — | `researcher` | — | `plan.md` |
-| `/ticket-implement` | `code-review`; on a behaviour step the built-in `simplify`, with `codebase-design` as its vocabulary, and the built-in `code-review` | `implementer` (one worktree per parallel step, with its own `.env`, ports and MiniStack, set up by `make worktree`; `parallel-steps.md` read only on a parallel run), `reviewer` (a third, Depth, axis on a behaviour step); `pr-review-toolkit:silent-failure-hunter` on a step with error handling, a retry or a store outside the transaction | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, one commit per step |
-| `/ticket-verify` | `code-review` | `verifier`, `reviewer` | — | `verification.md` |
+| `/ticket-implement` | `code-review`; on a behaviour step the built-in `simplify`, run by the main session, with `codebase-design` as its vocabulary | `implementer` (one worktree per parallel step, with its own `.env`, ports and MiniStack, set up by `make worktree`; `parallel-steps.md` read only on a parallel run), `reviewer` (a third, Depth, axis on a behaviour step; the hunt on a step that touches a write guard, a transaction, a test fake, concurrent access or error handling) | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, one commit per step |
+| `/ticket-verify` | `code-review` | `verifier` (one per group of requirements, in parallel), `reviewer` | — | `verification.md` |
 | `implementer` | `tdd`, preloaded | — | `make-check.sh` on `Stop` (runs as `SubagentStop`) | the step's files |
-| `reviewer` | one axis of `code-review` | — | — | nothing: read-only |
+| `reviewer` | one pass: an axis of `code-review`, or the hunt | — | — | nothing: read-only |
 | `verifier` | — | — | — | nothing: read-only |
 | `researcher` | — | — | — | nothing: read-only |
 
@@ -90,10 +90,8 @@ graph LR
     tdd{{tdd}}
     review{{code-review}}
   end
-  subgraph builtin [built-in and pr-review-toolkit]
+  subgraph builtin [built-in]
     simplify{{simplify}}
-    bugs{{code-review, bugs}}
-    hunter([silent-failure-hunter])
   end
   feature -.-> grilling & modeling
   feature --> researcher
@@ -101,9 +99,8 @@ graph LR
   arch --> researcher
   plan --> researcher
   impl --> implementer & reviewer
-  impl -.-> review & simplify & bugs
+  impl -.-> review & simplify
   simplify -.-> design
-  impl --> hunter
   implementer -.-> tdd
   implementer --> hook
   verify --> verifier & reviewer
@@ -121,7 +118,7 @@ Solid arrows spawn an agent or run a hook; dotted arrows use a plugin skill.
 | `to-spec` and `to-tickets` write to `.scratch/` or an issue tracker, as user stories | `/ticket-feature` and `/ticket-plan` write EARS requirements and steps into the ticket folder | artifacts are reviewed and committed with the code |
 | `tdd` asks the user to confirm seams before testing | the implementer takes them from `architecture.md › Seams`, confirmed earlier | a subagent cannot ask, and the seams were already agreed |
 | `implement` commits on its own and reviews committed work | `/ticket-implement` reviews the uncommitted step and commits it under the commit gate | a step commits only once reviewed, and as you chose |
-| `code-review` diffs from a fixed point to `HEAD` and spawns generic sub-agents | for a step: `git diff HEAD` plus untracked files, reviewed by read-only `reviewer` agents, each reading only the design parts the step cites and, on Standards, the rules `make review-rules` lists; the Spec axis also flags a diff that changes what a requirement asks | the step is reviewed before it is committed, by agents that cannot edit and read no more than the step needs, and `feature.md` changes with the requirement |
+| `code-review` diffs from a fixed point to `HEAD` and spawns generic sub-agents | for a step: `git diff HEAD` plus untracked files, reviewed by read-only `reviewer` agents, each reading only the design parts the step cites and, on Standards, the rules `make review-rules` lists, each owning one kind of finding and writing it in one shape; the Spec axis also flags a diff that changes what a requirement asks | the step is reviewed before it is committed, by agents that cannot edit and read no more than the step needs; no finding comes twice, and the main session forwards one without reading the code; `feature.md` changes with the requirement |
 | `improve-codebase-architecture` scans the whole codebase, writes an HTML report, grills, and writes `GLOSSARY.md` and ADRs | the Depth axis of `/ticket-implement`: a read-only `reviewer` on a behaviour step's files and their callers, a text report, `docs/knowledge/decisions.md` and `architecture.md › Decisions` as the records not to re-litigate | the shape is questioned while the step is small, and no doc lands outside `docs/knowledge/` and the ticket |
 | `research` writes a notes file into the repo | `researcher` answers in its report | facts reach the conversation, not the tree |
 
@@ -134,22 +131,24 @@ A step runs through three stages before anything is committed; the gate itself i
    their path filters as it reads and edits files. A hook runs `make check` when
    it tries to finish and sends it back while the gate is red. Its only way out on red is a final
    message starting with `BLOCKED:`, which reaches you unchanged. On a step that writes
-   behaviour, `simplify` then does the refactor `tdd` keeps out of its loop, judged by the rules
-   and `codebase-design`'s deletion test, sparing the interim states the plan names, and
-   `make check` runs again; a move skips it, since its files must keep their content for `git`
-   to see the rename.
+   behaviour, the main session then runs `simplify`, never the implementer, so the agent that
+   wrote the code does not judge its own cuts. It does the refactor `tdd` keeps out of its loop,
+   judged by the rules and `codebase-design`'s deletion test, sparing the interim states the plan
+   names, and `make check` runs again; a move skips it, since its files must keep their content
+   for `git` to see the rename.
 2. **`code-review`** runs two `reviewer` agents in parallel, each in a fresh context: **Standards**
    (the rules that bind the diff's files, which `make review-rules` lists, and the smell
    baseline) and **Spec** (the step, its requirements and the parts of the design it cites). The
-   two reports stay separate, so one axis cannot hide the other. Neither axis
-   hunts for bugs, so a behaviour step also gets the built-in `code-review` at `medium`, and one
-   with error handling or a store outside the transaction `silent-failure-hunter`. A behaviour
-   step gets a third `reviewer` too, **Depth**: `improve-codebase-architecture`'s search for
-   shallow modules, limited to the step's files and their callers, as text; a candidate that
-   contradicts a decision or reshapes a module comes to you as a question.
-3. **You** read the report and the reviews, then send feedback to the same implementer, or stop.
-   A ready step commits as the gate says, with the proposed message, updating `plan.md` and
-   recording any decision.
+   two reports stay separate, so one axis cannot hide the other. A behaviour step gets a third
+   `reviewer` too, **Depth**: `improve-codebase-architecture`'s search for shallow modules,
+   limited to the step's files and their callers, as text; Standards leaves the shape to it, so
+   no finding comes twice. A candidate that contradicts a decision or reshapes a module comes to
+   you as a question. Neither axis hunts for bugs, so a step that touches a write guard, a
+   transaction, a test fake, concurrent access or error handling gets one more `reviewer`, the
+   **hunt**, for correctness bugs and silent failures in one pass; the hunts paid off only there.
+3. **You** read the report and the reviews, which the main session presents without re-reading
+   the code, then send feedback to the same implementer, or stop. A ready step commits as the
+   gate says, with the proposed message, updating `plan.md` and recording any decision.
 
 ## Roadmap and history
 

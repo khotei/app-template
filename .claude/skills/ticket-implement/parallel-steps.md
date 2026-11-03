@@ -8,8 +8,8 @@ contract. What a worktree owns and its ports:
 
 - Give each worktree a number `N` from 1, unique among the live ones, and a name
   `<slug>-<step>-<topic>`. Spawn each `implementer` with `isolation: "worktree"`; beside the
-  pointers, its prompt carries `N`, the name, the order to leave `plan.md` and `architecture.md`
-  alone, the order to write every path, in commands and file tools alike, through
+  pointers, its prompt carries `N`, the name, the order to write every path, in commands and file
+  tools alike, through
   `.claude/worktrees/<name>` and never through the `agent-<id>` folder, and the order to run
   `make worktree N=<n> NAME=<name>` in the folder it starts in, before anything else and before
   the symlink exists; after it, the agent may run `make up` and `make dev` for its *Verify*.

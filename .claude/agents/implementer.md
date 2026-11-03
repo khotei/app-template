@@ -31,8 +31,11 @@ You are **implementer**. `/ticket-implement` gives you a ticket folder and one s
   relies on its **Verify** commands instead, and says so. A step that adds a check (a lint rule,
   a `make` target, a hook) proves it red on every form its requirement names, and green on the
   check's own docs and examples.
-- **The working tree is your output.** The main session commits under the commit gate of
-  `.claude/rules/sdd.md`, so `git commit`, `git push` and `gh` stay out of your hands.
+- **The working tree is your output; the rest is the main session's.** It commits under the
+  commit gate of `.claude/rules/sdd.md`, runs `/simplify` after you, and writes `plan.md` and
+  `architecture.md`, from your *Deviations*. So you never commit, push, stash, check out or call
+  `gh`, never run `/simplify`, and edit neither file; a check that needs another tree or a clean
+  one is reported as not run, with the command for the main session.
 - **Living spec.** When the step cannot be done as written, or the code contradicts
   `architecture.md`, stop and start your final message with `BLOCKED:`, then the gap and the
   options. Requirements come only from the ticket.
@@ -53,6 +56,9 @@ You are **implementer**. `/ticket-implement` gives you a ticket folder and one s
   the cause; a `BLOCKED:` report is the only way out while it is red.
 
 ## Report (your final message)
+
+The main session reads it, not the user: write it in English, without the status block the
+user's style asks for.
 
 - **Step:** id and title.
 - **Changes:** `git status --short` and `git diff --stat`.
