@@ -17,7 +17,7 @@
 | S9 | every `CLAUDE.md` and the process rules as patterns; `doc-limits` | done |
 | S10 | `architecture.md`, `README.md` and the glossary own only their facts | done |
 | S11 | tooling, AWS, database and AI pages own only their facts; the local stand's `README.md` gone | done |
-| S12 | decisions and the SDD guide trimmed; `docs-diet` done; the move probe | todo |
+| S12 | decisions and the SDD guide trimmed; `docs-diet` done; the move probe | done |
 | S13 | the ticket templates and the planning skills pin what a step needs and leave the rest to a grep | todo |
 
 ## How to run this plan
@@ -647,11 +647,30 @@
 - **Files:** `docs/knowledge/{decisions,sdd,roadmap}.md`.
 - **Test first:** the move-probe seam — `application/chat` moved to a scratch name and one of its
   files renamed: `git grep` of the old names over the instruction files finds none and `make
-  doc-names` stays green; reverted.
-- **Verify:** `make check`; the probe; the R4 greps (`git grep -P`) over `docs/knowledge/` and every `README.md`;
-  `/doctor prompt-audit` run by hand, its findings in the step's report.
+  doc-names` fails only on the worked example `architecture.md › Where things live` owns;
+  reverted.
+- **Verify:** `make check`; the probe; the R4 greps (`git grep -P`) over `docs/knowledge/` and
+  every `README.md`; `/doctor prompt-audit` run by hand, its findings in the step's report.
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The probe (`application/chat` moved, `chat.id.ts` renamed) left every instruction file clean,
+    before the edits and after; a planted rule naming `application/chat` was found. `make
+    doc-names` went red only on `architecture.md › Where things live`, whose chat paths are the
+    page's worked example: the check catches a stale example there, as it should. Deviation,
+    the user's call: R1's acceptance and this Test first now expect that red instead of a green
+    `doc-names`; rewriting the example with placeholders was rejected, it loses the concrete
+    path a reader copies.
+  - `decisions.md`: the *Guarded by* fields name the dependency matrix rows, Boundary guards and
+    Known gaps, keeping only what review or a bundle check holds; *Guards are configuration*
+    and *Tests in their folders* keep the decision and point to `architecture.md` and
+    `tooling.md › Tests`. Live lists went: kernel parts, identity's contract names, a
+    repository's methods, constant names, "seven manifests", "five adapters".
+  - `sdd.md` keeps why the commit gate is cut as it is and drops what `/ticket-implement` and
+    `/ticket-verify` already say.
+  - The R4 version grep hits only the roadmap's dated history, out of scope.
+  - `docs-diet` is marked done now, as the plan asks, though S13 still runs.
+  - Not run: `/doctor prompt-audit`; no agent can run a slash command.
 
 #### S13 — Ticket artifacts that pin only what a step needs
 

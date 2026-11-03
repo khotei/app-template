@@ -220,7 +220,7 @@ it targets.
 
 | Req | How to verify |
 |---|---|
-| R1 | A probe moves a module's folder and renames a file in it (no constraint changed): `git grep` of the old names over the instruction files finds none, and `make doc-names` stays green; the probe is reverted. |
+| R1 | A probe moves a module's folder and renames a file in it (no constraint changed): `git grep` of the old names over the instruction files finds none, and `make doc-names` fails only on a worked example of the doc that owns it (`architecture.md › Where things live`); the probe is reverted. |
 | R2 | For each fact the Context lists as told in several places, `git grep` finds its statement in one file and pointers by name elsewhere; `/doctor prompt-audit`, run by hand, reports no contradiction and no dead reference. |
 | R3 | Each step's report lists every removed line with its new home, or "dropped:" and why Claude gets it right without it; review checks the list. |
 | R4 | `git grep -P '\b[0-9]+\.[0-9]+\.[0-9]+\b'` and a grep for "today" and for counts over `docs/knowledge/` and the `README.md` files find each hit only in the doc that owns it. |
