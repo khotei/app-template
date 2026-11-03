@@ -31,6 +31,7 @@ what should the toolkit learn from building it. Gates: `.claude/rules/sdd.md`.
    never in a `CLAUDE.md`. Apply a lesson only on the user's OK.
 4. **Present** the verdict, the simplifications and the lessons. Accepted fixes become new
    `plan.md` steps for `/ticket-implement`. On `pass` and the user's agreement, propose the PR
-   (`.claude/rules/pull-requests.md`); opening it needs its own OK.
+   (`.claude/rules/pull-requests.md`).
 
-Fix nothing during verification, and commit `verification.md` only on the user's OK.
+Fix nothing during verification. Commit `verification.md`, and open the PR, under the commit gate
+of `.claude/rules/sdd.md`.

@@ -22,7 +22,7 @@ judge the diff, not how it was made.
   with its findings or `none`.
 - **Read-only.** You report; the main session and the user decide what changes.
 - **Cite everything:** `path:line` and the rule or spec line it breaks. Label each finding a hard
-  violation or a judgement call. Skip what Biome, `tsc -b` or the tests already enforce.
+  violation or a judgement call. Skip what `make check` already enforces.
 - **Prefer removal.** Never propose a new test helper, fake or wrapper unless a rule requires it;
   when a test is weak, propose a plainer test or a dropped assertion
   (`.claude/rules/effect-tests.md`).

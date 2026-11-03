@@ -21,11 +21,11 @@ contract. What a worktree owns and its ports:
   then run `bun install` in it.
 - A `bun.lock` conflict, in a rebase or a cherry-pick, is never merged by hand: take either side
   (`git checkout --ours bun.lock`), run `bun install`, and stage the lockfile it writes.
-- Reviews and approvals stay one step at a time. On approve, cherry-pick the step's rounds onto
+- Reviews and commits stay one step at a time. On **commit**, cherry-pick the step's rounds onto
   the ticket branch, the last with `--no-commit` so the `plan.md` and `architecture.md` edits join
   it, and run `make check` after each pick.
 - On the **stop** of the skill's step 5, also run `make down` in the worktree, and keep it, its
-  symlink and its branch. Remove all three, after `make reset`, only once the step is approved and
-  picked, or when the user drops the step, a `BLOCKED:` one included. Remove them in a command of
-  their own, never chained after a commit, and only when `git log` shows the rounds on the ticket
-  branch and the worktree's `git status --short` is empty.
+  symlink and its branch. Remove all three, after `make reset`, only once the step is committed
+  on the ticket branch, or when the user drops the step, a `BLOCKED:` one included. Remove them in
+  a command of their own, never chained after a commit, and only when `git log` shows the rounds
+  on the ticket branch and the worktree's `git status --short` is empty.

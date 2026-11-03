@@ -61,17 +61,11 @@ on the user's OK.
 
 ## The toolkit
 
-- Procedures are skills in `.claude/skills/ticket-<phase>/SKILL.md` with
-  `disable-model-invocation: true`; a colon is reserved for plugin namespaces, and there is no
-  `.claude/commands/`.
-- `mattpocock-skills` is referenced by name (`mattpocock-skills:<skill>`), never copied or edited;
-  a wrapper overrides only paths and gates.
-- **The dependency map in `docs/knowledge/sdd.md` is the only summary** of what each skill and
-  agent uses (plugin skills, agents, hooks, overrides). A commit that changes what a skill or agent
-  uses updates the map in the same commit.
+How the skills, agents and plugin fit, and what each uses: `docs/knowledge/sdd.md`, whose
+dependency map a commit updates when it changes what a skill or agent uses. Two constraints it
+does not hold:
+
+- Procedures are skills in `.claude/skills/ticket-<phase>/SKILL.md`: a colon is reserved for
+  plugin namespaces, and there is no `.claude/commands/`.
 - Tool limits live on the agent (`disallowedTools`); an agent that cannot edit or spawn
   agents has its skill persist its output.
-- Subagents cannot ask the user, so grilling, plan review and commit approval run in the main
-  session.
-- `implementer` ends only with `make check` green (`.claude/hooks/make-check.sh`) or a final
-  message starting with `BLOCKED:`.

@@ -299,6 +299,10 @@ refusals and the same `.env` it writes today.
   - **Rejected:**
     - "only on the user's OK" everywhere — slows every step and no longer matches the practice;
     - commit without asking, always — a team adopting the template loses the gate silently.
+  - **Note (S5):** the answer covers a step's rounds too. Every other ticket artifact
+    (`feature.md`, `architecture.md`, `plan.md`, `verification.md`) commits once the user has
+    confirmed it in its skill, with no second question; rejected: the session's answer for them
+    too, since each is the user's own decision, read whole before it lands.
 
 - **D9 — `/ticket-implement` keeps its parallel-steps procedure in a file beside it and the
   worktree setup in a script run through `make`.** (R16)

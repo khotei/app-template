@@ -26,7 +26,7 @@ The format is owned by `commits.md`; this file only adapts it to the PR surface.
 - **`main` is the only long-lived branch.** The squash merge deletes the ticket branch; the
   steps stay in the merged PR's commit list and the ticket's `plan.md`
   (`docs/knowledge/sdd.md › Roadmap and history`).
-- Opening a PR, pushing and creating a remote are outward-facing: ask the user first.
+- When a push, a PR or a merge may happen: the commit gate in `sdd.md › Gates`.
 
 Template: `.github/PULL_REQUEST_TEMPLATE.md`. A filled PR and the commit it produces:
 `.github/PULL_REQUEST_example.md`. Required repo setting: *Settings → Pull Requests → Allow squash

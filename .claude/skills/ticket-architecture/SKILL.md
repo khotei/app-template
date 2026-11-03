@@ -29,4 +29,4 @@ where tests observe it, and every non-obvious decision. Gates: `.claude/rules/sd
 4. Present it. The step is done when the user approves the Seams and the Decisions; next comes
    `/ticket-plan <ticket folder>`.
 
-Commit only on the user's explicit OK.
+Commit under the commit gate of `.claude/rules/sdd.md`.

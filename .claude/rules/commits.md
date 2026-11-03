@@ -20,7 +20,7 @@ Refs: docs/tickets/<ticket folder>/
 - **Scope:** the ticket slug (`monorepo-setup`), else the area (`api`, `domain`, `ci`, `tooling`).
 - **Decision:** required whenever a choice is non-obvious; add one paragraph per decision.
 - **Refs:** the ticket folder, as the last paragraph before any trailers.
-- Never commit or amend a ticket step without the user's explicit approval (see `sdd.md`).
+- When a ticket's commit may land: the commit gate in `sdd.md › Gates`.
 
 ## Vocabulary
 

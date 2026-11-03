@@ -22,6 +22,9 @@ steps only conform to the plan. Gates: `.claude/rules/sdd.md`.
    - **Files**, including every suite that builds or asserts on a changed type (grep its
      constructor) and every doc, rule, `CLAUDE.md` and skill that `git grep` finds naming a moved
      path or a changed symbol;
+   - **Size**: the changed lines expected, as `git diff -M --stat` counts them, summed over every
+     file the change reaches, tests and docs included; a step over ~400 is split before the plan
+     is presented. Steps sized by the code they move alone came back over the limit;
    - **Test first**: the Seam from `architecture.md` and the behaviour to see red, or `config only`;
    - **Verify**: commands and manual checks;
    - **Model**: `opus medium` for a move, rename or config step, `opus high` for a step that
@@ -42,4 +45,4 @@ steps only conform to the plan. Gates: `.claude/rules/sdd.md`.
 6. Present the plan and iterate until the user approves it. Next comes
    `/ticket-implement <ticket folder>`.
 
-Commit only on the user's explicit OK.
+Commit under the commit gate of `.claude/rules/sdd.md`.

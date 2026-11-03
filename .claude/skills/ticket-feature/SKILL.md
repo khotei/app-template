@@ -41,4 +41,4 @@ repository holds no `GLOSSARY.md`, `GLOSSARY-MAP.md`, `CONTEXT.md` or `docs/adr/
 4. Present it and ask the user to confirm the shared understanding. The step is done when they
    confirm; next comes `/ticket-architecture <ticket folder>`.
 
-Commit `feature.md` and the glossary only on the user's explicit OK (`.claude/rules/commits.md`).
+Commit `feature.md` and the glossary under the commit gate of `.claude/rules/sdd.md`.

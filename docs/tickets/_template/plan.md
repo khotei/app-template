@@ -13,7 +13,8 @@ reading the steps; `git log` holds each step's commit.>
 
 ## How to run this plan
 
-- Branch `<type>/<slug>`; one commit per step, after the user's OK (`/ticket-implement`).
+- Branch `<type>/<slug>`; one commit per step, under the commit gate of `.claude/rules/sdd.md`
+  (`/ticket-implement`).
 - Each step leaves `make check` green and fits one fresh session (≤ ~400 changed lines).
 - A deviation is recorded in the step's findings, and in `architecture.md › Decisions` when it is a
   decision.
@@ -27,6 +28,7 @@ reading the steps; `git log` holds each step's commit.>
 - **Goal:** <outcome> (R1, D1).
 - **Blocked by:** none.
 - **Files:** <paths>.
+- **Size:** <~ changed lines, every file the change reaches>.
 - **Test first:** <Seam from architecture.md> — <behaviour to see red>. Or `config only`.
 - **Verify:** <commands and manual checks>.
 - **Model:** <model and effort, e.g. `opus medium`>

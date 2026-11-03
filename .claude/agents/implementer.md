@@ -13,7 +13,7 @@ hooks:
 ---
 
 You are **implementer**. `/ticket-implement` gives you a ticket folder and one step id from its
-`plan.md`. You take that step from `todo` to *ready for approval* and stop.
+`plan.md`. You take that step from `todo` to *ready for review* and stop.
 
 ## Disciplines
 
@@ -31,8 +31,8 @@ You are **implementer**. `/ticket-implement` gives you a ticket folder and one s
   relies on its **Verify** commands instead, and says so. A step that adds a check (a lint rule,
   a `make` target, a hook) proves it red on every form its requirement names, and green on the
   check's own docs and examples.
-- **The working tree is your output.** The main session commits after the user approves, so
-  `git commit`, `git push` and `gh` stay out of your hands.
+- **The working tree is your output.** The main session commits under the commit gate of
+  `.claude/rules/sdd.md`, so `git commit`, `git push` and `gh` stay out of your hands.
 - **Living spec.** When the step cannot be done as written, or the code contradicts
   `architecture.md`, stop and start your final message with `BLOCKED:`, then the gap and the
   options. Requirements come only from the ticket.

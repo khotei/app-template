@@ -1,11 +1,11 @@
 ---
 name: ticket-implement
-description: "SDD 4/5: implement one plan.md step, review it, and commit only after approval"
+description: "SDD 4/5: implement one plan.md step, review it, and commit it under the commit gate"
 argument-hint: "<ticket folder> [step id, default: next todo]"
 disable-model-invocation: true
 ---
 
-Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. Gates:
+Take one step of the ticket at `$ARGUMENTS` from `todo` to a commit. Gates:
 `.claude/rules/sdd.md`. Steps run in parallel change how steps 2 and 5 run: before them, read
 [parallel-steps.md](parallel-steps.md) beside this file.
 
@@ -18,7 +18,9 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. G
    step id, on the `model` and `effort` the step's **Model** line names (`opus medium` for a
    move, rename or config step; `opus high` for one that writes behaviour). Its `make check`
    hook keeps it working until the gate is green. A report that starts with `BLOCKED:` goes
-   straight to the user.
+   straight to the user. At the session's first step, ask the commit question of
+   `.claude/rules/sdd.md › Gates` now, while the implementer works, and hold the answer; a later
+   step does not ask again.
    - **Simplify, a behaviour step only** (`opus high`): the refactor that `tdd` leaves out of its
      red → green loop. Call the Skill tool with `simplify` on the uncommitted step, its args
      pointing at the step in `plan.md`, the rules `make review-rules` prints (which override
@@ -64,8 +66,9 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. G
    user's choice, asked as its own question. Filter the findings first: a fix
    that adds test support (a helper, a fake, a wrapper) is never forwarded as routine; offer the
    user a plainer test instead, or the finding as a choice of its own.
-5. **Approval gate.** Wait for the user's explicit word:
-   - **approve:** set the step's `Status: done` (or `blocked: <gate>` while a gate the step
+5. **Commit gate.** Once the step is ready, commit it as the session's answer says, or wait for
+   the user's word:
+   - **commit:** set the step's `Status: done` (or `blocked: <gate>` while a gate the step
      names, such as a branch, a push or a CI run, has not run yet) in the step and in its row
      of the plan's **Status** table, add its findings to `plan.md`
      and any new decision to `architecture.md`, with the record it adds or changes in
@@ -73,10 +76,8 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. G
      proposed message as a command of its own. An amendment also rewrites the decision's body,
      Contract, Seam or Risks entry it makes wrong; its note keeps only what changed and the
      rejected alternative;
-   - **feedback:** first offer to commit the tree as it stands as the current round (`S11.1`,
-     code only, no `plan.md` edit), then send the feedback to the same implementer
-     (`SendMessage`) as the next round, and return to 3;
+   - **feedback** (the user's, or the fixes you recommend): first commit the tree as it stands as
+     the current round under the gate (`S11.1`, code only, no `plan.md` edit), then send the
+     feedback to the same implementer (`SendMessage`) as the next round, and return to 3;
    - **stop:** leave the working tree as it is.
 6. Name the next unblocked step.
-
-One step, or one round of it, per approval. Pushing or opening a PR needs its own OK.

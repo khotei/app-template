@@ -32,7 +32,7 @@ An older `Refs:` line may name a folder before its rename: the slug is unchanged
 ## The five skills
 
 All five are typed by you (`disable-model-invocation: true`) and run in the main session, because
-grilling, plan review and commit approval need you. Each takes the ticket folder, except
+grilling, plan review and the commit gate need you. Each takes the ticket folder, except
 `/ticket-feature`, which takes a slug.
 
 | Skill | Input | You decide | Output |
@@ -40,7 +40,7 @@ grilling, plan review and commit approval need you. Each takes the ticket folder
 | `/ticket-feature <slug> [idea]` | an idea, notes or a link | the answers to each grilling round; the terms | `feature.md` with EARS requirements; glossary entries |
 | `/ticket-architecture <ticket>` | `feature.md` | the Seams and the Decisions | `architecture.md` |
 | `/ticket-plan <ticket>` | `feature.md`, `architecture.md` | the plan as a whole: the heavy review | `plan.md` with steps and coverage |
-| `/ticket-implement <ticket> [step]` | the next unblocked step | approve, give feedback, or stop | one commit per approved step |
+| `/ticket-implement <ticket> [step]` | the next unblocked step | the commit gate's question, once per session; feedback, or stop | one commit per step |
 | `/ticket-verify <ticket>` | the branch against `origin/main` | which simplifications and lessons to apply; whether to open the PR | `verification.md` |
 
 ## Under the hood
@@ -60,7 +60,7 @@ uses updates this map too; the Standards review checks it against `.claude/rules
 | `/ticket-feature` | `grilling`, `domain-modeling` | `researcher` | — | `feature.md`, `docs/knowledge/glossary.md`, `docs/knowledge/roadmap.md` |
 | `/ticket-architecture` | `codebase-design`, `grilling` | `researcher` | — | `architecture.md` |
 | `/ticket-plan` | — | `researcher` | — | `plan.md` |
-| `/ticket-implement` | `code-review`; on a behaviour step the built-in `simplify`, with `codebase-design` as its vocabulary, and the built-in `code-review` | `implementer` (one worktree per parallel step, with its own `.env`, ports and MiniStack, set up by `make worktree`; `parallel-steps.md` read only on a parallel run), `reviewer` (a third, Depth, axis on a behaviour step); `pr-review-toolkit:silent-failure-hunter` on a step with error handling, a retry or a store outside the transaction | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, one commit per approved step |
+| `/ticket-implement` | `code-review`; on a behaviour step the built-in `simplify`, with `codebase-design` as its vocabulary, and the built-in `code-review` | `implementer` (one worktree per parallel step, with its own `.env`, ports and MiniStack, set up by `make worktree`; `parallel-steps.md` read only on a parallel run), `reviewer` (a third, Depth, axis on a behaviour step); `pr-review-toolkit:silent-failure-hunter` on a step with error handling, a retry or a store outside the transaction | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, one commit per step |
 | `/ticket-verify` | `code-review` | `verifier`, `reviewer` | — | `verification.md` |
 | `implementer` | `tdd`, preloaded | — | `make-check.sh` on `Stop` (runs as `SubagentStop`) | the step's files |
 | `reviewer` | one axis of `code-review` | — | — | nothing: read-only |
@@ -120,14 +120,15 @@ Solid arrows spawn an agent or run a hook; dotted arrows use a plugin skill.
 | `domain-modeling` writes `GLOSSARY.md` at the root and ADRs to `docs/adr/` | glossary in `docs/knowledge/glossary.md`; ADR candidates become open questions, then `D…` decisions, and a binding one a record in `docs/knowledge/decisions.md` | one docs tree; a decision's history stays next to the ticket that made it, its living record in one page |
 | `to-spec` and `to-tickets` write to `.scratch/` or an issue tracker, as user stories | `/ticket-feature` and `/ticket-plan` write EARS requirements and steps into the ticket folder | artifacts are reviewed and committed with the code |
 | `tdd` asks the user to confirm seams before testing | the implementer takes them from `architecture.md › Seams`, confirmed earlier | a subagent cannot ask, and the seams were already agreed |
-| `implement` commits on its own and reviews committed work | `/ticket-implement` reviews the uncommitted step and commits only after your OK | every commit is approved |
+| `implement` commits on its own and reviews committed work | `/ticket-implement` reviews the uncommitted step and commits it under the commit gate | a step commits only once reviewed, and as you chose |
 | `code-review` diffs from a fixed point to `HEAD` and spawns generic sub-agents | for a step: `git diff HEAD` plus untracked files, reviewed by read-only `reviewer` agents, each reading only the design parts the step cites and, on Standards, the rules `make review-rules` lists; the Spec axis also flags a diff that changes what a requirement asks | the step is reviewed before it is committed, by agents that cannot edit and read no more than the step needs, and `feature.md` changes with the requirement |
 | `improve-codebase-architecture` scans the whole codebase, writes an HTML report, grills, and writes `GLOSSARY.md` and ADRs | the Depth axis of `/ticket-implement`: a read-only `reviewer` on a behaviour step's files and their callers, a text report, `docs/knowledge/decisions.md` and `architecture.md › Decisions` as the records not to re-litigate | the shape is questioned while the step is small, and no doc lands outside `docs/knowledge/` and the ticket |
 | `research` writes a notes file into the repo | `researcher` answers in its report | facts reach the conversation, not the tree |
 
-## The approval gate
+## The commit gate
 
-A step runs through three stages before anything is committed:
+A step runs through three stages before anything is committed; the gate itself is stated in
+[.claude/rules/sdd.md › Gates](../../.claude/rules/sdd.md#gates):
 
 1. **`implementer`** builds the step test-first at the agreed seam; the rules reach it through
    their path filters as it reads and edits files. A hook runs `make check` when
@@ -146,11 +147,9 @@ A step runs through three stages before anything is committed:
    step gets a third `reviewer` too, **Depth**: `improve-codebase-architecture`'s search for
    shallow modules, limited to the step's files and their callers, as text; a candidate that
    contradicts a decision or reshapes a module comes to you as a question.
-3. **You** read the report and both reviews, then approve, send feedback to the same implementer,
-   or stop. Approval updates `plan.md`, records any decision, and commits with the proposed
-   message.
-
-Pushing, opening the PR and creating the remote each need their own OK.
+3. **You** read the report and the reviews, then send feedback to the same implementer, or stop.
+   A ready step commits as the gate says, with the proposed message, updating `plan.md` and
+   recording any decision.
 
 ## Roadmap and history
 

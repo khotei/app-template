@@ -10,7 +10,7 @@
 | S2 | `doc-names` over every doc, refusing a source path in an instruction file; `rule-paths` | done |
 | S3 | reviewers read only the cited design and the matching rules; the implementer reads no rule up front | done |
 | S4 | parallel steps read on demand; the worktree setup a script | done |
-| S5 | the commit gate in one place, asked once per session; skills and agents as patterns | todo |
+| S5 | the commit gate in one place, asked once per session; skills and agents as patterns | done |
 | S6 | agents do only their own part; the main session orchestrates on reports; one hunt pass by condition; `/simplify` from the main session; parallel verifiers | todo |
 | S7 | the Effect rules and the comments rule trimmed; the Effect-4 trap first | todo |
 | S8 | naming, layering, modules and deep modules trimmed, one file per subject | todo |
@@ -358,7 +358,30 @@
   real step, recorded in that step's findings).
 - **Verify:** `make check`; the grep above; the ledger.
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - **The gate seam:** `git grep -n -i` of the gate's wording (`approv`, `explicit OK`, `user's
+    OK`, `own OK`, `commit gate`) over `.claude/`, `docs/knowledge/`, the `CLAUDE.md` files and
+    `docs/tickets/_template` finds the statement once, `sdd.md › Gates`, and pointers elsewhere;
+    the other hits are a lesson applied on the user's OK and the user confirming an artifact. A
+    planted retelling in a skill folder was found, then removed. **R17's by-hand half** (a new
+    session's first `/ticket-implement` step asks once, its second does not) is checked on the
+    next step run in a new session and recorded in its findings.
+  - Ledger: every retelling became a pointer (`commits.md`, `pull-requests.md`, the five skills'
+    last lines, `ticket-implement`'s description, head and step 5, `implementer.md`,
+    `parallel-steps.md`, `docs/knowledge/sdd.md`); dropped from `claude-md.md › The toolkit`,
+    held by `docs/knowledge/sdd.md`: plugin skills by name, wrappers override paths and gates,
+    subagents cannot ask, `disable-model-invocation`, the implementer's end on `make check` or
+    `BLOCKED:`; dropped, Claude gets it right without it: a plugin is never edited, and
+    "one step, or one round of it, per commit", which `sdd.md › Gates` holds. `researcher.md` and
+    `reviewer.md` name owners (`make check`, the registry, the installed package) for tools.
+  - Trap placed (R5): `/ticket-plan` estimates a step's **Size** over every file the change
+    reaches, tests and docs included, and splits one over ~400 lines before presenting.
+  - Deviations: `docs/tickets/_template/plan.md` (outside Files, found by the gate grep) points
+    to the gate and gains the `Size:` line; `docs/knowledge/sdd.md › The approval gate` is now
+    *The commit gate* (no link pointed to the old anchor; S6's Files still name the old title);
+    the gate also covers a step's rounds and lets every other artifact commit once confirmed in
+    its skill (D8's note).
 
 #### S6 — Agents that do their own job
 

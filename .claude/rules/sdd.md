@@ -35,12 +35,16 @@ Every change of substance runs **feature → architecture → plan → implement
 - **One plan step = one commit**, of ≤ ~400 changed lines, fitting one fresh session. A ticket is
   one branch `<type>/<slug>` and one squash-merged PR.
 - **A step lands in rounds, one commit each.** The implementer's pass is round `S11.1`; before a
-  recommendation of the user's is applied, the main session offers to commit what stands, and the
-  recommendation lands as `S11.2`, so each diff is read alone. The commit body opens with the
-  round id and what it changed; `plan.md` is edited only at the last round.
-- **Approval gate.** After each step: the implementer's report, the two-axis review, then the
-  user's explicit OK before any commit or amend. Pushing, opening a PR or creating a remote needs
-  its own OK.
+  recommendation of the user's is applied, what stands is committed as its round under the commit
+  gate, and the recommendation lands as `S11.2`, so each diff is read alone. The commit body opens
+  with the round id and what it changed; `plan.md` is edited only at the last round.
+- **The commit gate, for every commit or amend of a ticket.** At its first step of a session,
+  `/ticket-implement` asks once whether each ready step commits without the user's OK or waits
+  for it, and holds the answer for the session; it covers the step's rounds too. A step is ready
+  when its reviews ran, their fixes are in and `make check` is green, a round when `make check` is
+  green; a finding left to the user's choice waits for the user either way. Any other ticket
+  artifact commits once the user has confirmed it in its skill. Pushing, opening a PR, merging
+  and creating a remote always wait for the user's OK.
 - **Deviations are recorded** in the same commit: `plan.md` findings, `architecture.md ›
   Decisions` when it is a decision, and `feature.md` when it changes what a requirement asks.
   A decision that adds or changes a binding rule also adds or rewrites its record in
