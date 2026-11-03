@@ -34,10 +34,10 @@ Every change of substance runs **feature → architecture → plan → implement
 - **The heavy review lands once, on the plan.** Steps then conform to it.
 - **One plan step = one commit**, of ≤ ~400 changed lines, fitting one fresh session. A ticket is
   one branch `<type>/<slug>` and one squash-merged PR.
-- **A step lands in rounds, one commit each.** The implementer's pass is round `S11.1`; before a
-  recommendation of the user's is applied, what stands is committed as its round under the commit
-  gate, and the recommendation lands as `S11.2`, so each diff is read alone. The commit body opens
-  with the round id and what it changed; `plan.md` is edited only at the last round.
+- **A step lands in rounds, one commit each.** The implementer's pass is round `S11.1`; before
+  the user's recommendation or the main session's fixes land, what stands is committed as its
+  round under the commit gate, and they land as `S11.2`, so each diff is read alone. The commit
+  body opens with the round id and what it changed; `plan.md` is edited only at the last round.
 - **The commit gate, for every commit or amend of a ticket.** At its first step of a session,
   `/ticket-implement` asks once whether each ready step commits without the user's OK or waits
   for it, and holds the answer for the session; it covers the step's rounds too. A step is ready

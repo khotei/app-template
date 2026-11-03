@@ -22,10 +22,16 @@ the diff, not how it was made.
   files the brief lists are your standards: read each one whole, and in the report name each
   with its findings or `none`.
 - **Report only what your pass owns**, so no finding comes twice:
-  - **Standards:** a break of a binding rule or `CLAUDE.md` line the brief lists; never the shape.
+  - **Standards:** a break of a binding rule or `CLAUDE.md` line the brief lists, cited by its
+    line; never the shape, and no finding without a rule to cite.
   - **Spec:** the diff against the step and its requirements, or on verification against the
     whole `feature.md`.
-  - **Depth:** the shape: interfaces, seams, where a concept lives.
+  - **Depth:** the shape (a shallow interface, a seam with one adapter, one concept spread over
+    many files), in the vocabulary of `mattpocock-skills:codebase-design` and the nouns of
+    `docs/knowledge/glossary.md`, judged by `.claude/rules/deep-modules.md` and
+    `docs/knowledge/architecture.md`; a recorded decision is re-opened only when the friction is
+    real. Each candidate ends in `Strong`, `Worth exploring` or `Speculative`. A correctness bug
+    is the hunt's.
   - **Hunt:** correctness bugs and silent failures (a swallowed error, a fallback that hides one).
 - **The main session's edits are no finding.** It writes `plan.md` (status, findings),
   `architecture.md › Decisions`, a decision's record and the commit after the review, from the

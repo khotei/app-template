@@ -12,7 +12,8 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to a commit. Gates:
 ## Steps
 
 1. **Pick the step:** the one named, else the first `todo` step whose `Blocked by` steps are all
-   `done`. Check that the branch is the ticket branch (`<type>/<slug>`) and that `git status`
+   `done`. Of `plan.md`, read only the **Status** table and the step's own section, by `grep -n`
+   and offset. Check that the branch is the ticket branch (`<type>/<slug>`) and that `git status`
    shows no uncommitted change to tracked files; otherwise stop and ask.
 2. **Implement.** Spawn the `implementer` agent with pointers only: the ticket folder and the
    step id, on the `model` and `effort` the step's **Model** line names (`opus medium` for a
@@ -56,16 +57,8 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to a commit. Gates:
    are the diff's files, their callers and, for a test fake, the adapter it stands in for, and its
    word limit is the axes'. Any other step runs no hunt.
 
-   A behaviour step also gets a **Depth** axis, the core of mattpocock's
-   `improve-codebase-architecture` scoped to the step: a `reviewer` agent, in parallel with the
-   others, on the diff's files and the modules that call them. It asks whether the shape is right
-   (a shallow interface, a seam with one adapter, one concept spread over many files), in the
-   vocabulary of `mattpocock-skills:codebase-design` and the nouns of
-   `docs/knowledge/glossary.md`, judged by `.claude/rules/deep-modules.md` and
-   `docs/knowledge/architecture.md`, and re-opens a decision of the ticket's `architecture.md`
-   or of `docs/knowledge/decisions.md` only when the friction is real. It reports text only, each
-   candidate in the finding's shape with `Strong`, `Worth exploring` or `Speculative` after its
-   fix: no HTML report, no grilling, no glossary or ADR file.
+   A behaviour step also gets a **Depth** axis, a `reviewer` in parallel with the others, as
+   `docs/knowledge/sdd.md › What the wrappers override` scopes it.
 4. **Decide and present.** You orchestrate: decide on the reports as they stand, without reading
    the code or the diff to restate a finding; a question that needs the code goes to a
    `researcher`, or to the reviewer that raised it (`SendMessage`). Present the implementer's
@@ -78,8 +71,8 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to a commit. Gates:
    own. Each finding the user must decide on is one block, ending in its question: what is wrong,
    what it leads to, the options with their cost, your recommendation, then the question; never
    the findings in one section and the questions in another.
-5. **Commit gate.** Once the step is ready, commit it as the session's answer says, or wait for
-   the user's word:
+5. **Commit gate.** The step is ready only once the passes of steps 2 and 3 have run; its commit
+   body names them. Then commit it as the session's answer says, or wait for the user's word:
    - **commit:** set the step's `Status: done` (or `blocked: <gate>` while a gate the step
      names, such as a branch, a push or a CI run, has not run yet) in the step and in its row
      of the plan's **Status** table, add its findings to `plan.md` (one that states a check's
@@ -88,9 +81,9 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to a commit. Gates:
      commit with the proposed message as a command of its own. An amendment also rewrites the
      decision's body, Contract, Seam or Risks entry it makes wrong; its note keeps only what
      changed and the rejected alternative;
-   - **feedback** (the user's, or the fixes you recommend): first commit the tree as it stands as
-     the current round under the gate (`S11.1`, code only, no `plan.md` edit), then send the
-     feedback to the same implementer (`SendMessage`) as the next round, each accepted finding
-     forwarded as its reviewer wrote it, `path:line` first, and return to 3;
+   - **feedback** (the user's, or the fixes you recommend): commit the round first
+     (`.claude/rules/sdd.md › Gates`), then send the feedback to the same implementer
+     (`SendMessage`) as the next round, each accepted finding forwarded as its reviewer wrote it,
+     `path:line` first, and return to 3;
    - **stop:** leave the working tree as it is.
 6. Name the next unblocked step.

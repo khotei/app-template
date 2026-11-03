@@ -146,9 +146,9 @@ DOC_NAMES_IN = '*.md' ':!docs/tickets' ':!repos' ':!docs/knowledge/roadmap.md'
 # a tool of the harness.
 DOC_NAMES_ABSENT = docs/adr/ docs/superpowers/ .claude/commands/ CreateMultipartUpload GetObject \
   FundsTransfer SendMessage
-# Scratch lists, rewritten on every run.
-DOC_NAMES_KNOWN = node_modules/.cache/doc-names/known
-DOC_NAMES_SPANS = node_modules/.cache/doc-names/spans
+# A grep that exits 2 (a pattern it rejects, a file it cannot read) stops the check with 2, so a
+# broken pattern never reads as no hit.
+DOC_NAMES_FAILED = [ $$? -le 1 ] || { echo 'doc-names: a grep failed' >&2; exit 2; }
 PASCAL = [A-Z][a-z0-9]+([A-Z][a-z0-9]*)+
 # The instruction files Claude reads, and a source path in one: a span with a `/` that ends in
 # .ts, .tsx or .json and holds no placeholder or glob; a package specifier (`@<scope>/…`) passes.
@@ -159,22 +159,26 @@ SOURCE_PATH = `[^`<*?[{]*/[^`<*?[{]*[.](ts|tsx|json)`
 # space; a name is a PascalCase word of two parts or more, a dotted one checked by its head. The
 # code is every file but Markdown, repos/ included, so a library's own names pass. A source path
 # in an instruction file fails whether it exists or not: why, docs/knowledge/decisions.md ›
-# Instructions name patterns.
+# Instructions name patterns. Its lists are per-run temporary files, so two runs never share them.
 doc-names: ## Fail on a backticked path or name the repo lacks, or a source path in an instruction file
-	@mkdir -p $(dir $(DOC_NAMES_KNOWN))
-	@{ git grep --untracked -ohwE '$(PASCAL)' -- ':!*.md'; printf '%s\n' $(DOC_NAMES_ABSENT); } \
-		| sort -u > $(DOC_NAMES_KNOWN)
-	@git grep --untracked -noE -e '`[^`]+`' --and --not -e '_Avoid_' -- $(DOC_NAMES_IN) \
-		> $(DOC_NAMES_SPANS); [ $$? -le 1 ] || { echo 'doc-names: git grep failed' >&2; exit 2; }
-	@top=$$(git ls-files | cut -d/ -f1 | sort -u | sed 's/[.]/[.]/g' | paste -sd '|' -); \
-	missing=$$(tr -d '`' < $(DOC_NAMES_SPANS) \
-		| sed -E -e 's/ › .*//' -e 's/^([^:]+:[0-9]+:$(PASCAL))[.].*/\1/' \
-		| grep -E "^[^:]+:[0-9]+:(($$top)(/[A-Za-z0-9._-]+)*/?|$(PASCAL))$$" \
-		| while IFS=: read -r file line name; do \
-			[ -e "$$name" ] || grep -qxF "$$name" $(DOC_NAMES_KNOWN) || echo "$$file:$$line: $$name"; \
-		done); \
-	sources=$$(grep -E '^$(INSTRUCTIONS):[0-9]+:$(SOURCE_PATH)$$' $(DOC_NAMES_SPANS) \
-		| grep -v ':`@[a-z0-9-][a-z0-9-]*/' | sed -E 's/`//g; s/^([^:]+:[0-9]+:)(.*)/\1 \2, write the pattern/'); \
+	@tmp=$$(mktemp -d) || exit 2; trap 'rm -rf "$$tmp"' EXIT; \
+	git grep --untracked -ohwE '$(PASCAL)' -- ':!*.md' > "$$tmp/known"; $(DOC_NAMES_FAILED); \
+	printf '%s\n' $(DOC_NAMES_ABSENT) >> "$$tmp/known"; \
+	sort -u -o "$$tmp/known" "$$tmp/known" || exit 2; \
+	git grep --untracked -noE -e '`[^`]+`' --and --not -e '_Avoid_' -- $(DOC_NAMES_IN) \
+		> "$$tmp/spans"; $(DOC_NAMES_FAILED); \
+	top=$$(git ls-files | cut -d/ -f1 | sort -u | sed 's/[.]/[.]/g' | paste -sd '|' -); \
+	sed -E -e 's/`//g' -e 's/ › .*//' -e 's/^([^:]+:[0-9]+:$(PASCAL))[.].*/\1/' "$$tmp/spans" \
+		> "$$tmp/heads" || exit 2; \
+	grep -E "^[^:]+:[0-9]+:(($$top)(/[A-Za-z0-9._-]+)*/?|$(PASCAL))$$" "$$tmp/heads" \
+		> "$$tmp/names"; $(DOC_NAMES_FAILED); \
+	missing=$$(while IFS=: read -r file line name; do \
+			[ -e "$$name" ] || grep -qxF "$$name" "$$tmp/known" || echo "$$file:$$line: $$name"; \
+		done < "$$tmp/names"); \
+	grep -E '^$(INSTRUCTIONS):[0-9]+:$(SOURCE_PATH)$$' "$$tmp/spans" > "$$tmp/sources"; \
+	$(DOC_NAMES_FAILED); \
+	sources=$$(sed -E -e '\#:`@[a-z0-9-][a-z0-9-]*/#d' \
+		-e 's/`//g; s/^([^:]+:[0-9]+:)(.*)/\1 \2, write the pattern/' "$$tmp/sources") || exit 2; \
 	[ -z "$$missing" ] || { echo "$$missing"; \
 		echo 'The docs name a path or a code name the repo lacks: fix the name, or cut it.'; }; \
 	[ -z "$$sources" ] || { echo "$$sources"; \

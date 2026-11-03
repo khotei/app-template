@@ -29,7 +29,8 @@ steps only conform to the plan. Gates: `.claude/rules/sdd.md`.
    - **Test first**: the Seam from `architecture.md` and the behaviour to see red, or `config only`;
    - **Verify**: commands and manual checks, each naming the state it fails on, so a check that
      cannot fail is seen before the step runs; a step that replaces a guard has one probe per
-     guard, run red before the guard is replaced;
+     guard, run red before the guard is replaced; a step that edits a file a requirement measures
+     re-measures it;
    - **Model**: `opus medium` for a move, rename or config step, `opus high` for a step that
      writes behaviour; `/ticket-implement` spawns the implementer on it;
    - **Status:** `todo`.
