@@ -94,7 +94,8 @@ Each row lists what its code may import (✓ allowed, ✗ refused); the last col
 that refuses the row's ✗: a Biome override in `biome.json`, one per layer and its tests, or
 `biome-imports.grit`, whose message names its record in [decisions.md](decisions.md); the
 linker, when the importer's manifest does not declare the workspace (TS2307); or review, by
-[.claude/rules/modules.md](../../.claude/rules/modules.md)
+[.claude/rules/modules.md](../../.claude/rules/modules.md), and in an app's handler by
+[.claude/rules/layering.md](../../.claude/rules/layering.md)
 ([Guards are configuration](decisions.md#guards-are-configuration)):
 
 | From ↓ / may import → | another module | a contract | `use-cases` | `kernel/data` | rest of `kernel` | `packages/*` | `http-api` | Refused by |
@@ -124,7 +125,7 @@ linker, when the importer's manifest does not declare the workspace (TS2307); or
   takes only the names of its contract, which review holds (`modules.md`), not Biome.
 - **An app's handler** calls one service method or one use case: it imports no repository and no
   mapper (`<Model>FromEntity`, `encode<Model>`, `decode<Model>`); only the process's `layer.ts`
-  provides the data layer; review holds it (`modules.md`). The apps never import each other or
+  provides the data layer; review holds it (`layering.md`). The apps never import each other or
   `deployment`: [Independent apps](decisions.md#independent-apps).
 - **A module's `domain/` and a contract import only `effect`** (and `type-fest` for types), and
   neither they nor a module's `services/` nor `http-api` import an `@effect/*` package: the
@@ -351,7 +352,8 @@ Record: [Modules by capability](decisions.md#modules-by-capability).
 
 Each import rule is held once, by the guard that can see it, and a last guard checks what the
 import rules leave to tree shaking, the web bundle; what no guard sees, review refuses
-([.claude/rules/modules.md](../../.claude/rules/modules.md)). Record:
+([.claude/rules/modules.md](../../.claude/rules/modules.md), and
+[layering.md](../../.claude/rules/layering.md) for a handler). Record:
 [Guards are configuration](decisions.md#guards-are-configuration).
 
 | Guard | Catches | Reports |
@@ -379,7 +381,8 @@ services.
 ### Known gaps
 
 What no tool checks, review refuses through
-[.claude/rules/modules.md](../../.claude/rules/modules.md). Six import forms also pass every
+[.claude/rules/modules.md](../../.claude/rules/modules.md), and
+[layering.md](../../.claude/rules/layering.md) for a handler. Six import forms also pass every
 guard; no code uses them:
 
 - **A type import inside an expression in web client code.** `export type X =

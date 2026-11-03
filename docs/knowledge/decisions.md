@@ -154,7 +154,7 @@ calls the data layer's repository directly.
   `#*/infrastructure/**`), `…/infrastructure/**` (no `#*/services/**`); `biome-imports.grit`,
   another module's files; on `http-api/**`, a module's services, mappers and adapters by name
   (`*Service`, `*FromEntity`, `*FromConfig`, `encode*`, `decode*`); `make bundle-check` (no
-  service, repository or adapter in the browser); `.claude/rules/modules.md`, a repository, a
+  service, repository or adapter in the browser); `.claude/rules/layering.md`, a repository, a
   mapper or the data layer in an app's handler. A use case may import every layer of a module
   below it, its infrastructure too.
 - **If reversed:** a port per repository comes back with five adapters that only delegate; an
@@ -482,7 +482,8 @@ Jobs are the table `jobs` and `JobRepository` in the data layer; `QueueSenderJob
 ### Guards are configuration
 
 The guards are `exports`, the isolated linker, `tsc -b`, Biome with its plugin and the bundle
-check; what no configuration expresses is the review rule `.claude/rules/modules.md`, never
+check; what no configuration expresses are the review rules `.claude/rules/modules.md` and, for a
+handler, `layering.md`, never
 hand-written test code. Each guard holds what the others cannot, and Biome only that:
 `kernel/`, `packages/` and `application/` are one workspace and one `tsconfig.json` project each,
 so the linker and `tsc -b` refuse a workspace its manifest does not declare (TS2307) but see no
@@ -513,13 +514,13 @@ app or `deployment`.
   each unit below it: an override per unit and per test folder, since Biome replaces an earlier
   override's options instead of merging them, most of them repeating TS2307. A `tsconfig.json`
   project per unit beside a list: its `references` would repeat the list, one rule in two places.
-- **Cost:** what only review refuses, the list in `modules.md`, passes `make check` when review
-  misses it; `noImportCycles` refuses a unit importing one above it only where a cycle of value
-  imports forms, and `make test-unit` e2e support in a unit test only where the test builds it,
-  since it starts no database. A refusal by TS2307 names no record. `tsc -b` no longer refuses a
-  cycle between the units of one folder (TS6202). Grit gives the plugin only the absolute path,
-  so it names the unit by the last `application/`, `kernel/` or `packages/` folder on it: a
-  folder of that name inside a unit misreads its files, and a checkout under one
+- **Cost:** what only review refuses, the lists in `modules.md` and `layering.md`, passes
+  `make check` when review misses it; `noImportCycles` refuses a unit importing one above it only
+  where a cycle of value imports forms, and `make test-unit` e2e support in a unit test only where
+  the test builds it, since it starts no database. A refusal by TS2307 names no record. `tsc -b` no
+  longer refuses a cycle between the units of one folder (TS6202). Grit gives the plugin only the
+  absolute path, so it names the unit by the last `application/`, `kernel/` or `packages/` folder on
+  it: a folder of that name inside a unit misreads its files, and a checkout under one
   (`~/packages/<repo>/`) misreads every file outside the three folders, refusing an app's own
   `#<app>/…`; the rules of the apps and `deployment` read the last ring folder on it the same way.
 - **Guarded by:** `make check` runs them all; the Standards reviewer reads the rules that bind

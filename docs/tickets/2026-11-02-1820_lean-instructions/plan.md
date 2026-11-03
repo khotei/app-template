@@ -13,7 +13,7 @@
 | S5 | the commit gate in one place, asked once per session; skills and agents as patterns | done |
 | S6 | agents do only their own part; the main session orchestrates on reports; one hunt pass by condition; `/simplify` from the main session; parallel verifiers | done |
 | S7 | the Effect rules and the comments rule trimmed; the Effect-4 trap first | done |
-| S8 | naming, layering, modules and deep modules trimmed, one file per subject | todo |
+| S8 | naming, layering, modules and deep modules trimmed, one file per subject | done |
 | S9 | every `CLAUDE.md` and the process rules as patterns; `doc-limits` | todo |
 | S10 | `architecture.md`, `README.md` and the glossary own only their facts | todo |
 | S11 | tooling, AWS, database and AI pages own only their facts; the local stand's `README.md` gone | todo |
@@ -503,7 +503,34 @@
   the R14 and R13 cuts recorded, and the implementer's transcript edits through the file tools;
   the ledger names every constraint's new home.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The four rules 19 391 → 13 530 B (−30%), 59 to 66 lines each.
+  - **R14** (S1's session, worktree `lean-instructions-S8-replay`, `N=1`): the same 9 rules and
+    two `CLAUDE.md` load, **32 544 B / 8 109 tok against 41 921 B / 10 451 tok, −22.4%**.
+  - **R13** (the implementer on `modular-monolith` S34, 621 s): the same 13 rules load, none read
+    by tool, **39 851 B / 9 926 tok against 49 968 B / 12 452 tok, −20.2%**; the margin is
+    about 25 tok, so a run loading one more rule would miss. Its transcript edits through Edit
+    and Write only (30 Read, 44 Edit, 3 Write; Bash for `git rm` and a temp log). Both counts
+    include the review's last edits (+23 B, measured before them).
+  - The worktree was made with the main tree's `make -f <main>/Makefile worktree`, as
+    `17c552af21^` has no `worktree` target.
+  - Ledger: the naming table's hidden constraints moved to `layering.md` (`.id`, `.port`,
+    `.model`, handlers) and `kernel/CLAUDE.md` (`.table`); which folder holds what to
+    `architecture.md`; the handler's refusal of a repository, mapper or data layer from
+    `modules.md` to `layering.md`, since `modules.md` never loads under `apps/`, where handlers
+    live, so `decisions.md` and `architecture.md` name both rules where they named `modules.md`
+    alone; concurrency, the field mappers and the transaction's test layer to pointers at
+    `database.md` and `tooling.md`. Dropped: `git log -S`, an instance (`generateId`), a reason
+    ("do not wait for the method to grow"), and the extra status-vocabulary examples.
+  - Trap placed (R5): a unit's `index.ts` only re-exports, and e2e support sits behind its own
+    entry, in `naming.md › Imports`.
+  - Review: the constants line, lost, is back under *Symbols*; the trap names a unit's
+    `index.ts`, since the Pulumi programs' `index.ts` hold code; `make check`, not `make lint`,
+    refuses a deep import.
+  - Left open: `packages/ui/index.ts` holds code (`joinClassNames`), against the new trap;
+    `effect.md` and `effect-style.md` both name `Match` and `Predicate` (S7 left it, neither is
+    in S8's files); `architecture.md` still restates the handler's refused list (S10).
 
 #### S9 — `CLAUDE.md` files, process rules, size limits
 
