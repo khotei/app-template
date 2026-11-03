@@ -470,6 +470,20 @@ refusals and the same `.env` it writes today.
       (an editor, a bare `biome`) lints with the defaults and no plugin, unseen;
     - `.config/` — the tools do not read it either, and the user prefers `.misc/`.
 
+- **D18 — An agent's behaviour passes when its mechanism holds; deviations are counted, not
+  failed.** (R12, R13, R19, R21)
+  - **Why:** the user's choice of 2026-11-03, after runs 1–3 each failed one of these four on a
+    new deviation: an agent follows a text, a hook or a brief less than every time, so "none on
+    the next steps" fails every run. The mechanism (the hook, the verbatim rule list, the
+    literal finding line, the axes' split) is what a step can make hold.
+  - **Invariant:** each of the four has a mechanism a verifier checks red or present; the next
+    steps' deviations are counted per kind in `verification.md`.
+  - **Cost accepted:** a requirement passes while an agent still deviates sometimes; the counts
+    feed roadmap 25 `toolkit-quality`, which acts on a kind that recurs.
+  - **Reversal:** one commit (the acceptance rows back).
+  - **Rejected:** zero deviations — it measures the model's variance, not the toolkit, and keeps
+    the ticket from closing.
+
 ## Risks
 
 - **The rewrite drops a line Claude needed.** Guidance gets worse with less text, against the
