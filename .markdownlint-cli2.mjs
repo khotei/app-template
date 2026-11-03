@@ -5,6 +5,8 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
 
+import { filtersOf } from '#rule-filters'
+
 const root = import.meta.dirname
 
 function git(...args) {
@@ -21,9 +23,13 @@ const limitsLines = readFileSync(resolve(root, LIMITS_RULE), 'utf8')
 if (limitsLines.length !== 1) throw new Error(`${LIMITS_RULE} needs one line: ${LIMITS_LINE}`)
 const [claudeMdLimit, ruleLimit] = limitsLines[0].match(/[0-9]+/g).map(Number)
 
+const tracked = git('ls-files')
+const tops = [...new Set(tracked.map((file) => file.split('/')[0]))]
+// The globs walk only the tracked top-level folders, so an untracked tree (node_modules/, .git/)
+// is never read and a new tracked folder is linted.
+const folders = tops.filter((top) => tracked.some((file) => file.startsWith(`${top}/`)))
 // A path is a span that starts at a tracked top-level entry and holds no placeholder, glob or
 // space.
-const tops = [...new Set(git('ls-files').map((file) => file.split('/')[0]))]
 const PATH = new RegExp(
   `^(${tops.map((top) => top.replace(/[.]/g, '[.]')).join('|')})(/[A-Za-z0-9._-]+)*/?$`,
 )
@@ -100,20 +106,8 @@ const unmatchedFilter = {
   parser: 'none',
   function: (params, onError) => {
     if (!RULE.test(fileOf(params))) return
-    // A filter is read as a list item, an inline list or a scalar.
-    let inPaths = false
-    for (const [index, line] of params.frontMatterLines.entries()) {
-      if (line.startsWith('#')) continue
-      let filters = []
-      if (/^[^ -]/.test(line)) {
-        inPaths = line.startsWith('paths:')
-        const value = line.replace(/^paths: */, '').replace(/["']/g, '')
-        if (inPaths) filters = value.startsWith('[') ? value.slice(1, -1).split(/ *, */) : [value]
-      } else if (inPaths && /^ *- /.test(line)) filters = [line.replace(/^ *- *|["']/g, '')]
-      for (const filter of filters.filter(Boolean))
-        if (matchesNoFile(filter))
-          onError({ lineNumber: index + 1, frontMatter: true, detail: filter })
-    }
+    for (const { filter, lineNumber } of filtersOf(params.frontMatterLines))
+      if (matchesNoFile(filter)) onError({ lineNumber, frontMatter: true, detail: filter })
   },
 }
 
@@ -136,9 +130,11 @@ const overLimit = {
 }
 
 export default {
-  globs: ['**/*.md'],
+  globs: ['*.md', ...folders.map((folder) => `${folder}/**/*.md`)],
   ignores: ['docs/tickets/**', 'repos/**'],
-  gitignore: true,
+  // The root file only: `true` searches the whole tree for .gitignore files, half of a run, and
+  // the repo's other ones are all in repos/.
+  gitignore: '.gitignore',
   noBanner: true,
   noProgress: true,
   noInlineConfig: true,

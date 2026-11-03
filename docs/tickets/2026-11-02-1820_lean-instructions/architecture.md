@@ -18,9 +18,9 @@ graph LR
     gate[the commit gate, once]
   end
   subgraph checks [make check]
-    names[doc-names: every doc, no source path in an instruction file]
-    filters[rule-paths: every filter matches]
-    limits[doc-limits: 40 and 80 lines]
+    names[doc-lint: every doc's paths, no source path in an instruction file]
+    filters[doc-lint: every filter matches]
+    limits[doc-lint: 40 and 80 lines]
   end
   subgraph reading [the toolkit]
     impl[implementer: rules arrive by filter]
@@ -62,7 +62,7 @@ verification.
 
 | Area | Change |
 |---|---|
-| `Makefile` | `doc-names` reads every `*.md` outside `docs/tickets/`, `repos/` and the roadmap, and refuses a source path in an instruction file; new `rule-paths` and `doc-limits`; a target that sets up a parallel step's worktree; `check` runs the new checks |
+| `Makefile` | `doc-lint` runs `markdownlint-cli2` over every `*.md` outside `docs/tickets/` and `repos/`, its rules in the config (D16); a target that sets up a parallel step's worktree; `check` runs the doc lint |
 | `.claude/rules/claude-md.md` | the test, the owner of each fact, the pattern, the limits line, each check by its `make` target; its toolkit section cut to what `docs/knowledge/sdd.md` does not hold |
 | `.claude/rules/*.md` | rewritten to patterns and trimmed; filters kept; `layering.md` and `modules.md` merged or split so each subject has one file; the Effect-4 trap first in `effect.md` |
 | every `CLAUDE.md` | rewritten to patterns and pointers; the traps the branch found added where they bite |
@@ -103,32 +103,32 @@ trap, not a version: it stays once, first in `effect.md`, in plain words (R5, D4
 
 ## Contracts
 
-The checks are the contracts other sessions rely on. Each prints one line per hit and exits 1;
-an internal failure (a pattern that does not compile, a missing limits line) exits 2. None reads
-`repos/`, which holds a tracked vendored skill.
+The checks are the contracts other sessions rely on: rules of the doc lint (D16), which prints
+one line per hit and exits 1; an internal failure (a missing limits line, a failed `git`) exits
+2. It reads no `repos/`, which holds a tracked vendored skill.
 
 ```text
-$ make doc-names     # R7, R8
-<file>:<line>: <path or name>
-<file>:<line>: <source path>, write the pattern
-$ make rule-paths    # R9
-<rule>: <filter>
-$ make doc-limits    # R10
-<file>: <lines> lines, over <limit>
+$ make doc-lint      # R7–R10
+<file>:<line> error missing-path <description> [<path>]
+<file>:<line> error source-path <description> [<source path>]
+<rule>:<line> error unmatched-filter <description> [<filter>]
+<file>:<line> error over-limit <description> [<lines> lines, over <limit>]
 ```
 
-**The source path `doc-names` refuses** (D3): in an instruction file (every `CLAUDE.md`,
+**The source path the doc lint refuses** (D3): in an instruction file (every `CLAUDE.md`,
 `.claude/rules/`, `.claude/skills/`, `.claude/agents/`), a backticked span with a `/`, ending in
 `.ts`, `.tsx` or `.json`, with no `<…>` placeholder, no glob and no `@app-template/` prefix.
 
-**The limits line in `claude-md.md`** (D5), which `doc-limits` reads:
+**The limits line in `claude-md.md`** (D5), which the doc lint reads:
 
 ```md
-- **Limits, checked by `make doc-limits`:** a `CLAUDE.md` 40 lines, a rule 80.
+- **Limits, checked by `make doc-lint`:** a `CLAUDE.md` 40 lines, a rule 80.
 ```
 
-**A rule's filter** uses only `*` and `**`; a brace matches nothing in git, so `rule-paths` fails
-it.
+**A rule's filter** uses only `*` and `**`; a brace matches nothing in git, so the doc lint fails
+it. One reader, `rule-filters.mjs` (imported as `#rule-filters`, the root's one subpath, since
+`biome-imports.grit` refuses a relative import), reads the filters for the doc lint and for
+`make review-rules`.
 
 **The review brief of a step** (D2), from `/ticket-implement` to the Standards and Spec
 `reviewer`: the step id, its `R…` ids, and the `D…` ids, Seam row and Contracts entries the step's
@@ -167,7 +167,7 @@ refusals and the same `.env` it writes today.
 
 | Seam | Catches | Misses |
 |---|---|---|
-| `make doc-names`, `make rule-paths`, `make doc-limits`, run on a planted probe and on the clean tree | each form R7–R10 name, red on the probe with file and line, green on the tree | whether a true, existing name merely retells the code (judged in review, R3, R4) |
+| `make doc-lint`, run on a planted probe and on the clean tree | each form R7–R10 name, red on the probe with file and line, green on the tree | whether a true, existing name merely retells the code (judged in review, R3, R4) |
 | `make check` on the tree | the checks wired into the gate and green together | the same as above |
 | A move probe: a module folder moved and a file renamed, then `git grep` of the old names over the instruction files, then reverted | R1: no instruction file names an instance a refactor moves | a constraint that changed without a doc edit |
 | The `InstructionsLoaded` log and the agents' transcripts, on the scenarios of D6, before and after | R12–R16: what loads and what is read, per lever, in the same units | whether Claude is guided as well with less (judged in review and the ledger) |
@@ -212,7 +212,7 @@ refusals and the same `.env` it writes today.
   - **Rejected:**
     - the reviewer finding the parts on its own — no cut it can be held to.
 
-- **D3 — No concrete source path in an instruction file: one pattern in `doc-names`.** (answers
+- **D3 — No concrete source path in an instruction file: one pattern in the doc lint.** (answers
   Q3; R8)
   - **Why:** the instances that churned are source files (`shared/tags.ts`); one pattern refuses
     them, and the doc lint fails any other stale path after a rename (D16). The record
@@ -238,15 +238,16 @@ refusals and the same `.env` it writes today.
     - `**Required:**` marks with a cap, a check and a hard stop on a breach — machinery for an
       unevidenced problem, and the hard stop took the decision from the user.
 
-- **D5 — The limits are numbers in `claude-md.md`, and `doc-limits` reads them from it.**
+- **D5 — The limits are numbers in `claude-md.md`, and the doc lint reads them from it.**
   - **Why:** R10 names the limits the maintenance rule states; one author per fact is the
     ticket's own rule, and a second copy in the `Makefile` would drift unseen.
-  - **How:** `doc-limits` reads the line that equals `DOC_LIMITS_LINE` once its numbers become
-    `<n>`, so the `Makefile` spells the line's shape once; the record is
+  - **How:** the doc lint's config reads the line that equals its `LIMITS_LINE` once its numbers
+    become `<n>`, so the config spells the line's shape once (it was `DOC_LIMITS_LINE` in the
+    `Makefile` until D16); the record is
     `decisions.md › Instructions within size limits`.
   - **Cost accepted:** the check depends on one line's shape; a reworded line makes it exit 2,
     naming the line it expects. The "about" goes: 40 and 80 become hard.
-  - **Reversal:** one commit (move the numbers into `Makefile` variables).
+  - **Reversal:** one commit (move the numbers into the config).
   - **Rejected:**
     - the numbers in the `Makefile`, the rule pointing to them — a reader of the rule must open
       the `Makefile` to learn a limit;
@@ -451,7 +452,7 @@ refusals and the same `.env` it writes today.
   *Contained by:* D6 measures it in the step that trims; a shortfall is reported, and the step
   cuts further or the lever is reported under the threshold for the user's call.
 - **A reviewer misses a rule because its filter is too narrow.** With D2 the Standards reviewer reads
-  the rules whose filter matches the diff, not a fixed list. *Contained by:* the filters stay as broad as today (D1); `rule-paths`
+  the rules whose filter matches the diff, not a fixed list. *Contained by:* the filters stay as broad as today (D1); the doc lint
   catches a filter that matches nothing.
 - **The verifier misses a detail only the plan records.** A step's finding that changed what a
   requirement means is lost to verification. *Contained by:* a finding that changes a requirement
@@ -459,7 +460,7 @@ refusals and the same `.env` it writes today.
 - **The worktree script diverges from the block it replaces.** A parallel step gets wrong ports
   or a shared `.env`. *Contained by:* the R16 seam compares the script's `.env` with the old
   block's on a scratch worktree, refusals included.
-- **The limits line in `claude-md.md` is reworded.** `doc-limits` exits 2. *Contained by:* the
+- **The limits line in `claude-md.md` is reworded.** The doc lint exits 2. *Contained by:* the
   error names the line it expects (D5).
 - **A step with less listed detail drifts.** The implementer misses a file or picks a name the
   plan meant to fix. *Contained by:* the step still pins decided names and traps (D15), its check

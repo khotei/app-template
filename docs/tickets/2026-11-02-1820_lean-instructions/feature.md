@@ -238,7 +238,7 @@ it targets.
 
 | Req | How to verify |
 |---|---|
-| R1 | A probe moves a module's folder and renames a file in it (no constraint changed): `git grep` of the old names over the instruction files finds none, and `make doc-names` fails only on a worked example of the doc that owns it (`architecture.md › Where things live`); the probe is reverted. |
+| R1 | A probe moves a module's folder and renames a file in it (no constraint changed): `git grep` of the old names over the instruction files finds none, and `make doc-lint` fails only on a worked example of the doc that owns it (`architecture.md › Where things live`); the probe is reverted. |
 | R2 | For each fact the Context lists as told in several places, `git grep` finds its statement in one file and pointers by name elsewhere, the root `CLAUDE.md`'s dependency command aside; `/doctor prompt-audit`, run by hand, reports no contradiction and no dead reference. |
 | R3 | Each step's report lists every removed line with its new home, or "dropped:" and why Claude gets it right without it; review checks the list. |
 | R4 | `git grep -P '\b[0-9]+\.[0-9]+\.[0-9]+\b'` and a grep for "today" and for counts over `docs/knowledge/` and the `README.md` files find each hit only in the doc that owns it. |
@@ -248,7 +248,7 @@ it targets.
 | R8 | A probe adds a concrete source path to a rule, a `CLAUDE.md` and a skill: `make check` fails on each; a placeholder pattern, a package specifier and a doc pointer pass. |
 | R9 | A probe narrows a rule's filter to a folder that does not exist: `make check` fails naming the rule. |
 | R10 | `make check` is green on the tree; a probe adds lines to a rule past 80: it fails, naming the file. |
-| R11 | `claude-md.md` names the test, the owner, the pattern, and the three checks by their `make` targets. |
+| R11 | `claude-md.md` names the test, the owner, the pattern, and the doc lint that holds the checks by its `make` target. |
 | R12 | Measured with `InstructionsLoaded` and the reviewers' transcripts on one step, before and after, as the mean of two runs: the Spec reviewer's reading of the ticket's design drops by at least 20%; the Standards reviewer's report cites every rule whose filter matches a file of the diff. |
 | R13 | Measured the same way on one step, once the rules are trimmed: the implementer's load drops by at least 20%, and its transcript reads and edits files through the file tools. |
 | R14 | Measured the same way on one session that edits a `.ts` file of a module's domain, then one of its services: the rules and `CLAUDE.md` loaded drop by at least 20%; the step ledger shows every removed constraint's new home. |

@@ -24,7 +24,7 @@
 | S16 | a named function is a `function` declaration; an arrow is a callback or an expression body | done |
 | S17 | verification run 2 fixed: the skill back under its cut, one round rule, lessons L6–L9, `doc-names` safe in parallel | done |
 | S18 | the Effect-style checks are Biome rules; the bundle check stops on a failed `grep` | done |
-| S19 | the doc checks are `markdownlint-cli2` rules; the names and ids checks gone | todo |
+| S19 | the doc checks are `markdownlint-cli2` rules; the names and ids checks gone | done |
 
 ## How to run this plan
 
@@ -1087,7 +1087,70 @@
   `docs/tickets/`; R13 re-measured,
   since `claude-md.md` is one of the rules it counts. Probes are deleted before the commit.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - **Red at `HEAD`.** Probes: a 113-character prose line in a doc; a missing backticked path in
+    a skill and in a `README.md`; a source path in a rule and a skill; rule filters to a missing
+    folder, with a brace, in an inline list and after a `#` comment; a rule of 85 lines and a
+    `CLAUDE.md` of 45. `make doc-width`: `zz-probe-width.md:3: 113`; `make doc-names`:
+    `zz-probe/SKILL.md:6: docs/knowledge/missing-page.md`, `:8: apps/api/gone.ts`,
+    `zz-probe/README.md:3: deployment/missing/index.ts` and the three source paths, `…, write the
+    pattern`; `make rule-paths`: `zz-probe-filter.md: nowhere/**`, `…: application/**/*.{ts,tsx}`,
+    `zz-probe-long.md: gone/**`, `zz-probe-comment.md: missing-folder/**`; `make doc-limits`:
+    `zz-probe-long.md: 85 lines, over 80`, `docs/zz-probe/CLAUDE.md: 45 lines, over 40`; each
+    `Error 1`.
+  - **Red on the doc lint, the same probes.** `make doc-lint`, one hit each, same file and line:
+    `zz-probe-width.md:3:101 error MD013/line-length … [Expected: 100; Actual: 113]`,
+    `zz-probe/SKILL.md:6 error missing-path … [docs/knowledge/missing-page.md]`,
+    `zz-probe-source.md:8 error source-path …`, `zz-probe-filter.md:3 error unmatched-filter …
+    [nowhere/**]` and `:4 … [application/**/*.{ts,tsx}]`, `zz-probe-long.md:2 … [gone/**]`,
+    `zz-probe-comment.md:4 … [missing-folder/**]`, `zz-probe-long.md:81 error over-limit … [85
+    lines, over 80]`, `docs/zz-probe/CLAUDE.md:41 … [45 lines, over 40]`; `Error 1`. A filter is
+    reported on its own file line, so `frontMatterLines` hold the `---` delimiters.
+  - **The exemptions pass** on both checks: a long front matter line, heading, table row, fenced
+    line, lone link and lone code span; `<module>/<name>.ts`, `application/**/*.ts`,
+    `@app-template/kernel/data/x.ts`, `docs/knowledge/tooling.md › Worktrees`, `docs/adr/`,
+    `docs/superpowers/`, `.claude/commands/`.
+  - **A reworded limits line** (`enforced by`): `Error: .claude/rules/claude-md.md needs one line:
+    - **Limits, checked by …` with the expected line whole, `Error 2`, inside
+    `markdownlint-cli2`'s stack trace.
+  - **One filter reader (S19.2).** `rule-filters.mjs` reads the `paths:` filters for the doc
+    lint's `unmatched-filter` (`#rule-filters`, the root's one subpath) and for `make
+    review-rules`, which runs it with `bun`; the awk `RULE_FILTERS` is gone. Probes of each form
+    (list items after a `#` comment, quoted either way; an inline list; a scalar; no front
+    matter): the awk's and the module's `<rule> <filter>` pairs are identical (33 lines), and
+    `make review-rules` lists the same rules with the old and the new `Makefile` on one diff. The
+    doc lint refuses a missing filter in each form: `zz-probe-inline.md:2 [gone/**]`,
+    `zz-probe-items.md:6 [kernel-gone/**]`, `zz-probe-scalar.md:2 [scalar-gone/**]`.
+  - **The time (S19.2).** `make doc-lint` 2.89–2.94 s → **1.45–1.48 s**. The globs from the
+    tracked top-level folders alone gave 3.04–3.10 s; the cost was `gitignore: true`, which
+    searches the whole tree for `.gitignore` files: the root one alone (every other is in
+    `repos/`) halves the run. The files linted: 48, `git ls-files --cached --others
+    --exclude-standard '*.md' ':!docs/tickets' ':!repos'` exactly; before, 49, the extra one
+    `.git/template-bootstrap-findings.md`.
+  - `make help | grep` of the five targets: exit 1; `git grep -e doc-names -e doc-width -e
+    doc-limits -e rule-paths -e "make ids"` outside `docs/tickets/` and `repos/`: exit 1 (at
+    `HEAD` before S19: 34 lines in six files); `git grep RULE_FILTERS`: exit 1 after S19.2.
+    `make check`: exit 0 at each round.
+  - **R13** (the 13 rules, characters ÷ 4): 39 672 → **39 641 chars / 9 910 tok, −20.41%**
+    against 12 452; S19.2 changes no rule.
+  - **Deviation, the width.** MD013 keeps its own exception and `stern` stays off: a line with no
+    space past column 100 passes, so prose ending in a long token across the limit passes where
+    `doc-width` refused it; a quote, a line with a URL and `.github/` are now held to the width.
+    The tree has none of either.
+  - **Deviation, the spans.** The rules read each line's backticked spans as the shell `grep`
+    did, front matter included, not micromark code spans, so spans inside fences and HTML
+    comments are still checked. The `_Avoid_` line exemption goes with the names check it served.
+  - **Deviation, CI.** The doc lint runs in the `static` job, which installs already, not in
+    `links`, which installs nothing; it runs on both Bun versions.
+  - **Deviation, the ticket ids.** No rule line refuses them in the docs, on the user's word: a
+    ticket id is refused only in a code comment (`comments.md`), and
+    `decisions.md › Decisions recorded in one page` says so (S19.2).
+  - **Deviation, the ignore file.** `gitignore: '.gitignore'` reads the root file only, not
+    `.git/info/exclude` or a nested `.gitignore` outside `repos/`.
+  - Passes: `simplify` after S19.1 (three comments moved beside their code); Standards, Spec,
+    Depth and the hunt on S19.1; S19.2 applies their findings (one filter reader, the globs and
+    the ignore file, the ids record true).
 
 ## Requirement coverage
 

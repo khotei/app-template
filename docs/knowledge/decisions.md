@@ -630,8 +630,8 @@ its record.
   know which ticket made a rule.
 - **Cost:** each decision is written twice: in its ticket as history, here as the binding rule.
 - **Guarded by:** `make doc-lint` (every backticked repo path exists); review against
-  `.claude/rules/claude-md.md` and `.claude/rules/comments.md`, which refuse a ticket id outside
-  `docs/tickets/`.
+  `.claude/rules/claude-md.md`. A ticket id is refused only in a code comment
+  (`.claude/rules/comments.md`), nowhere in the docs: the user wants no check and no rule for it.
 - **If reversed:** the decisions go back to the tickets, and the pointer in `CLAUDE.md` goes.
 - **Revisit when:** the records outgrow one page.
 

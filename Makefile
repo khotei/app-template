@@ -136,23 +136,12 @@ check: doc-lint lint typecheck api-check migration-check test bundle-check ## Ru
 doc-lint: ## Lint the Markdown outside docs/tickets: width, paths, rule filters, file limits
 	@bunx markdownlint-cli2
 
-# Prints `<rule> <filter>` for each paths: filter of a rule in .claude/rules/, subfolders included,
-# as the harness loads them. A filter is read as a list item, an inline list or a scalar; a rule
-# without paths: prints nothing, since it loads in every session.
-RULE_FILTERS = awk 'FNR == 1 { fm = ($$0 == "---"); inp = 0; next } \
-	fm && $$0 == "---" { fm = 0 } !fm { next } \
-	/^\#/ { next } \
-	/^[^ -]/ { inp = /^paths:/; if (inp) { v = $$0; gsub(/^paths: *|["\047]/, "", v); \
-		if (v ~ /^\[/) { gsub(/^\[|\]$$/, "", v); n = split(v, a, / *, */) } else { n = 1; a[1] = v } \
-		for (i = 1; i <= n; i++) if (a[i] != "") print FILENAME, a[i] } next } \
-	inp && /^ *- / { f = $$0; gsub(/^ *- *|["\047]/, "", f); print FILENAME, f }' \
-	$$(find .claude/rules -name '*.md')
-
 # The rules a review of the uncommitted step holds the diff to: each rule without paths:, and each
 # whose filter matches a file the diff adds, changes or deletes (both sides of a rename), untracked
-# files included. /ticket-implement hands this list to the Standards reviewer.
+# files included. /ticket-implement hands this list to the Standards reviewer. The filters are
+# read by rule-filters.mjs, the doc lint's reader.
 review-rules: ## List the rules that bind the uncommitted diff: no paths: filter, or one it matches
-	@filters=$$($(RULE_FILTERS)) || exit 2; \
+	@filters=$$(bun rule-filters.mjs) || exit 2; \
 	bound=$$(printf '%s\n' "$$filters" | while read -r rule filter; do \
 		[ -n "$$filter" ] || continue; \
 		files=$$(git diff HEAD --no-renames --name-only -- ":(glob)$$filter" && \

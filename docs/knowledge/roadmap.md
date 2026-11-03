@@ -734,6 +734,12 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   - `/ticket-plan` checks that each step's checks can turn red before the plan is presented.
   - A skill or rule edit passes the tests of `mattpocock-skills:writing-for-agents`.
   - A bug ticket starts from phases 1–2 of `mattpocock-skills:diagnosing-bugs` as its red loop.
+  - Each lint rule's outcome since `lean-instructions`: its real catches in the session
+    transcripts, the planted probes and the cleanup of the step that introduced it left out. As
+    of 2026-11-03 the doc width and the missing paths catch agent mistakes often; the Effect
+    style rules caught 64, 101 and 5 sites at their introduction and nothing since, which the
+    rule text alone may explain; the bundle check caught nothing and went stale twice. A rule
+    that still catches nothing is kept or dropped on the user's word.
 - **Not adopted.** A plugin agent that runs unasked, edits code, writes outside
   `docs/tickets/` or filters findings by a confidence score; a second artifact store.
 - **Found by** `lean-instructions`' review of the installed plugins (2026-11-03), which turns
