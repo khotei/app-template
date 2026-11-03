@@ -126,10 +126,5 @@
     "code-review-anthropics@anthropic-plugin-directory": false,
     "context7@anthropic-plugin-directory": false
   },
-  "disableClaudeAiConnectors": true,
-  "deniedMcpServers": [
-    { "serverName": "notion" },
-    { "serverName": "claude-in-chrome" },
-    { "serverName": "computer-use" }
-  ]
+  "disableClaudeAiConnectors": true
 }
