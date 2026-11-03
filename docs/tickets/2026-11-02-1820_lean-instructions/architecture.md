@@ -67,7 +67,7 @@ verification.
 | `.claude/rules/*.md` | rewritten to patterns and trimmed; filters kept; `layering.md` and `modules.md` merged or split so each subject has one file; the Effect-4 trap first in `effect.md` |
 | every `CLAUDE.md` | rewritten to patterns and pointers; the traps the branch found added where they bite |
 | `.claude/rules/sdd.md` | owns the commit gate |
-| `.claude/agents/implementer.md` | rules arrive by filter; read a file of a folder before writing a new file in it; no stash, checkout, commit or `/simplify`; `plan.md` is the main session's |
+| `.claude/agents/implementer.md` | rules arrive by filter; read a file of a folder before writing a new file in it; no stash, checkout, commit or `/simplify`; `plan.md` is the main session's; a hook refuses reads and edits through Bash |
 | `.claude/agents/reviewer.md` | reads only the design parts and the rules the brief names; per axis, the findings it owns |
 | `.claude/agents/verifier.md` | reads `feature.md`, its acceptance and `architecture.md › Contracts`, not `plan.md` |
 | every agent | the report is for the main session: English, no status block; a reviewer's finding in one shape |
@@ -156,8 +156,10 @@ transaction, a test fake, concurrent access or error handling.
 code:
 
 ```text
-- <path>:<line> — <rule or requirement> — hard | judgement — <the proposed fix>
+- `path:line` — <rule or R…> — hard | judgement — <fix>
 ```
+
+A finding without a line is not reported.
 
 **The parallel-steps path** (D9): `SKILL.md` keeps one line, "for steps run in parallel, read
 `parallel-steps.md` beside this file"; that file holds today's section, and the worktree setup
@@ -180,6 +182,7 @@ refusals and the same `.env` it writes today.
 | Review of the step that lands R23, against `research.md` | R23: each template and skill rule traced to its evidence; nothing load-bearing dropped | whether later tickets amend their artifacts less (seen over the next tickets) |
 | A probe file per replaced check, run against the shell target before it goes and against the lint rule after | R24: the same violations refused by the rule, with file and line; the clean tree green on both | a violation neither the shell pattern nor the rule was written for |
 | The step report's ledger: each removed line with its new home or "dropped:" and why, each trap added and where | R3, R5, R6, R14: nothing lost silently | nothing beyond what the reviewer reads |
+| The implementer's Bash guard, fed one `PreToolUse` input per command, red first with no guard and against the previous round's guard | L10 (R13): a read through `cat`, `head`, `tail` or `sed` at a command's start (a line, `;`, `&`, `(`, `\|\|`, `{`, a backtick, `do`, `then`, `else`); an edit through `sed -i`, a heredoc or a redirect into anything but a descriptor or `/dev/null`; `git checkout` or `restore`; `make`, `git grep`, `git diff`, `git status`, `bun test` and a single pipe pass | an evasion or a rarer form: `sh -c`, `python3 -c`, `tee`, `"$(cat …)"`, a command after `if`, `while`, `!` or a `case` arm, `\|&`, which is refused |
 
 ## Decisions
 

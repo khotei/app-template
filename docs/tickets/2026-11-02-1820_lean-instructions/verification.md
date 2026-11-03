@@ -251,7 +251,7 @@ No hard finding. Judgement call:
 - **Cost:** a failed requirement, a fix step and a third run.
 - **Proposed change:** in `/ticket-implement`, a step that edits a file a requirement measures
   re-measures it in its Verify.
-- **Applied:** no
+- **Applied:** yes, in S17 (2026-11-03)
 
 #### L7 — A code step was called mechanical and skipped `simplify` and Depth
 
@@ -259,7 +259,7 @@ No hard finding. Judgement call:
 - **Cost:** R20 failed in both runs; S16's 22 converted functions had no design review.
 - **Proposed change:** in `/ticket-implement` step 5, a step is ready only once the passes step 2
   and 3 name for it have run, and the commit body names them.
-- **Applied:** no
+- **Applied:** yes, in S17 (2026-11-03)
 
 #### L8 — Two passes reported one finding, or a pass reported outside its kind
 
@@ -268,7 +268,7 @@ No hard finding. Judgement call:
 - **Cost:** a duplicated fix in S15's round 3, a non-finding in S16's report.
 - **Proposed change:** in `reviewer.md`, Depth leaves a correctness bug to the hunt, and Standards
   reports only a binding rule it can cite.
-- **Applied:** no
+- **Applied:** yes, in S17 (2026-11-03)
 
 #### L9 — The main session filled its window by reading whole ticket files
 
@@ -279,7 +279,7 @@ No hard finding. Judgement call:
 - **Cost:** earlier compactions (four in this session) and summaries that drop detail.
 - **Proposed change:** in `/ticket-implement` step 1, read only the plan's **Status** table and the
   step's own section. Accepted by the user on 2026-11-03.
-- **Applied:** no
+- **Applied:** yes, in S17 (2026-11-03)
 
 ## 2026-11-03 — run 3
 
@@ -416,7 +416,7 @@ No baseline smell in the code hunks; the TypeScript changes are arrow-to-declara
 - **Proposed change:** a mechanical check: a `PreToolUse` hook in `implementer.md`'s front matter
   refusing `cat`, `sed -n`, `sed -i`, a heredoc into a file and `git checkout --`, since the line
   in `implementer.md` did not hold against the bypass-mode harness text.
-- **Applied:** no
+- **Applied:** yes, in S22 (2026-11-03)
 
 #### L11 — The main session's briefs broke the skill they ran
 
@@ -426,7 +426,8 @@ No baseline smell in the code hunks; the TypeScript changes are arrow-to-declara
 - **Proposed change:** in `/ticket-implement`, the Standards brief pastes `make review-rules`'s
   output verbatim; `implementer.md` lets the implementer write the `plan.md` edits the main
   session dictates at the last round, so the main session keeps off the files (R21).
-- **Applied:** no
+- **Applied:** in part, in S22: the brief pastes `make review-rules` verbatim; the implementer
+  writing `plan.md` was dropped on the user's choice
 
 #### L12 — Standards and Depth reported the same shape finding
 
@@ -435,7 +436,7 @@ No baseline smell in the code hunks; the TypeScript changes are arrow-to-declara
 - **Cost:** R19 failed three runs in a row; duplicated fixes in the rounds.
 - **Proposed change:** in `/ticket-implement`'s override table, "Standards: no smell baseline;
   Depth owns the shape".
-- **Applied:** no
+- **Applied:** yes, in S22 (2026-11-03)
 
 #### L13 — Findings off the four-field shape
 
@@ -444,7 +445,7 @@ No baseline smell in the code hunks; the TypeScript changes are arrow-to-declara
 - **Proposed change:** in `reviewer.md`, the shape as a literal line
   `` `path:line` — <rule or R…> — hard | judgement — <fix> ``, and "a finding without a line is
   not reported".
-- **Applied:** no
+- **Applied:** yes, in S22 (2026-11-03)
 
 #### L14 — A changed statement left its old copies standing
 
@@ -454,4 +455,4 @@ No baseline smell in the code hunks; the TypeScript changes are arrow-to-declara
 - **Proposed change:** in `implementer.md › Leftovers`, a step that changes a rule or a decision
   greps the old statement's key phrase over `.claude/`, the `CLAUDE.md` files and
   `docs/knowledge/`, not only the renamed names.
-- **Applied:** no
+- **Applied:** yes, in S22 (2026-11-03)

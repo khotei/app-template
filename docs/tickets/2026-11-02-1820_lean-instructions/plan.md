@@ -27,7 +27,7 @@
 | S19 | the doc checks are `markdownlint-cli2` rules; the names and ids checks gone | done |
 | S20 | the lint configuration lives in `.misc/lint/`; the root keeps two stubs the tools find | done |
 | S21 | verification run 3's doc fixes: one statement each for the commit per round, ticket ids and the limits; `gh api` asks; the verify fixed point; pointers as links | done |
-| S22 | lessons L10–L14: the implementer's shell guard, Standards without the smell baseline and with `make review-rules` verbatim, one finding line, statement leftovers, one behaviour-step test | planned |
+| S22 | lessons L10–L14: the implementer's shell guard, Standards without the smell baseline and with `make review-rules` verbatim, one finding line, statement leftovers, one behaviour-step test | done |
 
 ## How to run this plan
 
@@ -1296,7 +1296,32 @@
   grep` finds each lesson's line in its file; on the next step's run no Standards finding repeats
   a Depth one and every finding carries the four fields.
 - **Model:** `opus high`
-- **Status:** planned
+- **Status:** done
+- **Findings:**
+  - **Hook seam, red first.** With no hook, all 22 refusal cases gave `want 2 got 0`; against the
+    S22.1 hook, 9 failed (`false || cat f`, `do cat $f`, `then head f`, `else tail f`,
+    `{ head x; }`, `` echo `cat x` ``, `false || git checkout -- x`, and `make check >> /dev/null` refused); green:
+    `0 failing`, 43 of 43. Bad input: `printf 'not json' | sh bash-guard.sh` exits 2 with the
+    fail-closed message. Live: the hook refused the implementer's own `2>err.txt` and
+    `git show … > s221-hook.sh` in its session.
+  - **R16** (body without front matter, characters ÷ 4): 6 719 chars, **1 680 tok** under 1 761;
+    the Spec axis's 7 024 was the whole file in bytes. **R13**: 39 752 chars, **9 938 tok** under
+    9 961, no rule touched.
+  - **Deviation, `plan.md`'s writer (the user's choice A).** The third Delivers bullet is dropped:
+    `plan.md` stays the main session's alone, as the commit bullet has it; the dictation split one
+    concept across two writers and left a step without a feedback round to the main session
+    anyway (Depth). L11's second half is not applied.
+  - **Deviation, wider than Delivers.** The guard also refuses `head`, `tail` and `git restore`,
+    siblings of the habits L10 names; it is not widened to `git reset`, `stash` or `clean`.
+  - **Known misses, left on purpose** (the S22.2 hunt): `if`, `while`, `!` and a `case` arm as a
+    command start, `"$(cat …)"` inside double quotes, and `|&` refused as a start; the guard
+    targets a habit, and each extra form adds an edge case. Recorded in `architecture.md › Seams`.
+  - **Not run:** the next step's transcripts (no Standards finding repeating a Depth one, every
+    finding in the four fields); verification run 4 reads them.
+  - `make check` exit 0 at each round. Passes: `simplify` (reuse, simplification, efficiency,
+    altitude) after S22.1's implementation; Standards, Spec, Depth and the hunt on S22.1; the hunt
+    again on S22.2's guard; the last round is the main session's `architecture.md`, `plan.md` and
+    `verification.md` edits.
 
 ## Requirement coverage
 
