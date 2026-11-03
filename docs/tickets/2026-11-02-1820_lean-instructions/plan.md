@@ -20,7 +20,8 @@
 | S12 | decisions and the SDD guide trimmed; `docs-diet` done; the move probe | done |
 | S13 | the ticket templates and the planning skills pin what a step needs and leave the rest to a grep | done |
 | S14 | verification run 1 and the prompt audit fixed: two stale doc lines, two recorded exceptions, a contradiction, findings presented one block each | done |
-| S15 | lessons L2–L5 of verification run 1: briefs name sources only, results quote their output, a behaviour step is one that changes code, the implementer's Bash guarded | todo |
+| S15 | lessons L2–L5 of verification run 1: briefs name sources only, results quote their output, a behaviour step is one that changes code, the implementer's Bash guarded; plugins that overlap the skills off | todo |
+| S16 | a named function is a `function` declaration; an arrow is a callback or an expression body | todo |
 
 ## How to run this plan
 
@@ -778,19 +779,50 @@
   quotes the output it rests on (L4); a behaviour step is one that changes code (`.ts`, a
   `Makefile` recipe, a script), and only it gets `simplify` and Depth (L5); the implementer's
   Bash cannot read a tracked file with `cat`, `head` or `sed -n`, nor run `git checkout`,
-  `git stash` or `git restore` (L3).
+  `git stash` or `git restore` (L3); the plugins whose skills and agents overlap the `/ticket-*`
+  skills (`pr-review-toolkit`, `code-simplifier`, `commit-commands`, the plugin `code-review`,
+  `superpowers`) are off for this project, and `mattpocock-skills` stays on.
 - **Goal:** R13, R18, R19, R20 and R21 hold on the next steps by mechanism or by one line each,
-  not by the main session remembering them (R13, R18–R21).
+  not by the main session remembering them; no plugin agent runs unasked, edits code or writes
+  outside `docs/tickets/` (R13, R18–R21).
 - **Blocked by:** S14 (both edit `ticket-implement/SKILL.md`).
 - **Files:** `verification.md` run 1 › Lessons; `ticket-implement/SKILL.md` steps 2, 3 and 5,
   `ticket-verify/SKILL.md` step 1; the implementer's frontmatter hooks beside its `Stop` hook,
   and a script in `.claude/hooks/`; `docs/knowledge/sdd.md`'s dependency map if a skill's use
-  changes.
-- **Size:** ~80 lines.
+  changes. `enabledPlugins` in `.claude/settings.json`, each key `<plugin>@<marketplace>` as the
+  installed plugin names it (`superpowers` is already off); a plugin skill is never edited.
+  Trap: `skillOverrides` does not reach plugin skills, and `settings.local.json` overrides the
+  project file.
+- **Size:** ~90 lines.
 - **Test first:** the hook seam — the guard refuses `cat <tracked file>`, `sed -n 1,5p <tracked
   file>` and `git checkout -- <file>` through the implementer's Bash, each seen red, and lets
   `git status`, `make check` and `cat` of an untracked log through.
-- **Verify:** `make check`; the hook probes; each lesson's line found by `git grep` in its skill.
+- **Verify:** `make check`; the hook probes; each lesson's line found by `git grep` in its skill;
+  a new session lists none of the disabled plugins' skills or agents, which the session before
+  the change still lists.
+- **Model:** `opus high`
+- **Status:** todo
+
+#### S16 — Named functions as declarations
+
+- **Delivers:** `effect-style.md` says a named function is a `function` declaration and an arrow
+  is a callback or an expression body, with one example of each; every named block-bodied arrow
+  in the code (about 18, such as `apps/web/main.ts`'s `proxyToApi`) is a declaration.
+- **Goal:** one way to write a named function, so a reader and an agent meet one shape; no
+  behaviour changes. Asked by the user on 2026-11-03, outside the requirements; `feature.md ›
+  Scope` records it in the same commit.
+- **Blocked by:** S15 (run in order; a plugin agent that rewrites declarations into arrows goes
+  off in S15).
+- **Files:** `.claude/rules/effect-style.md`, at 79 of 80 lines, so the rule replaces a line
+  rather than adding one; the code the implementer finds by grep for a named block-bodied arrow
+  (`const <name> = (…) => {`), outside `repos/`. Traps: an arrow typed by its `const`'s
+  annotation (`const f: Handler = …`) keeps its type only as an arrow, so it stays; a value built
+  by a call (`Effect.fn(…)`, `Layer.effect(…)`) is not an arrow and stays.
+- **Size:** ~120 lines.
+- **Test first:** `config only` — a refactor: `make check` green before and after, no test
+  changed.
+- **Verify:** `make check`; the grep for a named block-bodied arrow finds only the kept cases,
+  each named in the report; `make doc-limits` passes on `effect-style.md`.
 - **Model:** `opus high`
 - **Status:** todo
 
@@ -821,3 +853,6 @@
 | R21 | S6, S14, S15 |
 | R22 | S6 |
 | R23 | S13 |
+
+S16 serves the user's request of 2026-11-03, outside the requirements; `feature.md › Scope`
+records it.

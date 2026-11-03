@@ -57,6 +57,7 @@ graph LR
 | 22 | [`jobs`](#22-jobs) | `feat` | 4, 23 | planned |
 | 23 | [`modular-monolith`](#23-modular-monolith) | `refactor` | 15 | done: [docs/tickets/2026-10-31-0926_modular-monolith/](../tickets/2026-10-31-0926_modular-monolith/feature.md) |
 | 24 | [`attachment-storage-failures`](#24-attachment-storage-failures) | `fix` | 23 | planned |
+| 25 | [`toolkit-quality`](#25-toolkit-quality) | `chore` | 17 | planned |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; its remaining work is re-homed
 in [Re-homing `effect-setup`](#re-homing-effect-setup).
@@ -709,6 +710,34 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   the rows are gone: 22 `jobs` moves that delete into an `attachment-deletion` job.
 - **Found by** `modular-monolith` S18's review (2026-11-01): every gap predates that ticket,
   which moves the code as is.
+- **Status.** Planned.
+
+### 25. `toolkit-quality`
+
+- **Goal.** A step's review finds what makes the code hard to change, not only what breaks a
+  rule or the spec, and every check a plan names can fail before its step runs.
+- **Scope.**
+  - A **Design** axis replaces Depth in `/ticket-implement`'s review of a behaviour step. It
+    looks for a narrower interface; composition over a wrapper per case; pure functions taken
+    out of effects; the links between modules (horizontal) and between rings (vertical); a
+    shorter or plainer implementation, shown as a before → after sketch. It judges each by
+    cohesion (what changes together lives together) and coupling (a module knows of another
+    only its contract).
+  - The axis carries do and don't examples in code, written on a neutral entity
+    (`claude-md.md › The pattern`), and the experience of past tickets: the lessons of each
+    `verification.md` and the `decisions.md` records they produced. Where they live, a file
+    the reviewer reads by link or the brief, is decided in the feature phase.
+  - The hunt asks of each `catchAll`, `orElse`, `ignore`, `Option.getOrElse`, retry, and error
+    folded into a refusal what it hides; a hard finding is confirmed by a `researcher` before it
+    reaches the user.
+  - A missing test is reported with the failure it would catch.
+  - `/ticket-plan` checks that each step's checks can turn red before the plan is presented.
+  - A skill or rule edit passes the tests of `mattpocock-skills:writing-for-agents`.
+  - A bug ticket starts from phases 1–2 of `mattpocock-skills:diagnosing-bugs` as its red loop.
+- **Not adopted.** A plugin agent that runs unasked, edits code, writes outside
+  `docs/tickets/` or filters findings by a confidence score; a second artifact store.
+- **Found by** `lean-instructions`' review of the installed plugins (2026-11-03), which turns
+  the overlapping ones off and keeps here what they did better.
 - **Status.** Planned.
 
 ## Ideas to weigh
