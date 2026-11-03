@@ -37,11 +37,11 @@ the diff, not how it was made.
   `architecture.md › Decisions`, a decision's record and the commit after the review, from the
   implementer's report; an unrecorded deviation is a finding only when that report omits it.
 - **Read-only.** You report; the main session and the user decide what changes.
-- **One shape per finding**, so the main session forwards it without reading the code. Skip what
-  `make check` already enforces.
+- **Each finding is this one line**, so the main session forwards it without reading the code;
+  a finding without a line is not reported. Skip what `make check` already enforces.
 
   ```text
-  - <path>:<line> — <rule or requirement> — hard | judgement — <the proposed fix>
+  - `path:line` — <rule or R…> — hard | judgement — <fix>
   ```
 
 - **Prefer removal.** Never propose a new test helper, fake or wrapper unless a rule requires it;

@@ -24,15 +24,14 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to a commit. Gates:
    `.claude/rules/sdd.md › Gates` now, while the implementer works, and hold the answer; a later
    step does not ask again.
    - **Simplify, a behaviour step only**, run by you, never by the implementer: the refactor that
-     `tdd` leaves out of its red → green loop. A behaviour step is one that changes code (a `.ts`
-     file, a `Makefile` recipe, a script), whatever its **Model** line; a docs-only step gets
-     Standards and Spec alone. Call the Skill tool with `simplify`
-     on the uncommitted step, its args pointing at the step in `plan.md`, the rules
+     `tdd` leaves out of its red → green loop. One test decides, whatever the **Model** line: a
+     behaviour step's diff changes the content of a `.ts` file, a `Makefile` recipe or a script.
+     Any other step, a pure move included, gets Standards and Spec alone. Call the Skill tool with
+     `simplify` on the uncommitted step, its args pointing at the step in `plan.md`, the rules
      `make review-rules` prints (which override it), and the deletion test and depth of
      `mattpocock-skills:codebase-design`; it keeps every interim state the plan names (a
      delegating adapter, a module the next step removes) and every test case.
-     Then run `make check`. Its edits join the step's diff before review. Never on a move, rename
-     or config step: a move keeps each file's content for `git` to see the rename.
+     Then run `make check`. Its edits join the step's diff before review.
 3. **Review.** Every pass is a `reviewer` agent, which owns one kind of finding and reports each
    in one shape (its file says which and how). Call the Skill tool with
    `mattpocock-skills:code-review`, overriding:
@@ -41,14 +40,15 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to a commit. Gates:
    |---|---|
    | the fixed point and diff | `HEAD`; the diff is `git diff HEAD` plus every untracked file in `git status --short`, so the uncommitted step is reviewed |
    | the spec | the step in `plan.md`, and the `R…` it cites from `feature.md`; the Spec axis also reports whether the diff changes what a quoted `R…` asks, which then requires the `feature.md` edit in the same diff, and names for each deleted statement, guard or check where it now lives, or reports it lost |
-   | the standards | the rules `make review-rules` prints for the diff, and the `CLAUDE.md` of every touched workspace |
+   | the standards | `make review-rules`'s output for the diff, pasted verbatim with nothing added, and the `CLAUDE.md` of every touched workspace |
+   | the smell baseline | none: the shape is Depth's |
    | the sub-agents | the `reviewer` agent, once per axis, in parallel; the Standards axis on `model: sonnet`, the Spec axis on the agent's own |
 
    The Standards and Spec briefs also name the parts of `architecture.md` the step's own lines
    cite, each by its anchor, and no other: a `D…` it names (`- **D<n> —`), the Seam row its
    **Test first** names (the row's first words, under `## Seams`), a Contracts entry it names
    (its bold lead, under `## Contracts`). The Standards brief lists the standards by path and
-   asks for each in the report with its findings or `none`; the shape is Depth's. Every brief
+   asks for each in the report with its findings or `none`. Every brief
    names its sources and nothing else: no question or focus of its own.
 
    A step that touches a write guard, a transaction, a test fake, concurrent access or error
@@ -84,6 +84,7 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to a commit. Gates:
    - **feedback** (the user's, or the fixes you recommend): commit the round first
      (`.claude/rules/sdd.md › Gates`), then send the feedback to the same implementer
      (`SendMessage`) as the next round, each accepted finding forwarded as its reviewer wrote it,
-     `path:line` first, and return to 3;
+     `path:line` first, the last round also dictating the commit's `plan.md` edits, and return
+     to 3;
    - **stop:** leave the working tree as it is.
 6. Name the next unblocked step.
