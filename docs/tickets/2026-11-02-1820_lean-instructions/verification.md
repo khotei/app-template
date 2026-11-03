@@ -127,7 +127,7 @@ Judgement calls:
   obeying one line; a checkout can drop uncommitted work.
 - **Proposed change:** a `PreToolUse` hook on the implementer's Bash that refuses `cat`, `head`,
   `sed -n` on a tracked file and any `git checkout`, `git stash` or `git restore`.
-- **Applied:** yes, in S15 (2026-11-03)
+- **Applied:** no: the hook landed in S15 and was removed on the user's word (2026-11-03)
 
 #### L4 — A recorded result claimed more than the command showed
 

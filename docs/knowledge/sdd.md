@@ -63,9 +63,9 @@ uses updates this map too; the Standards review checks it against `.claude/rules
 | `/ticket-feature` | `grilling`, `domain-modeling` | `researcher` | — | `feature.md`, `docs/knowledge/glossary.md`, `docs/knowledge/roadmap.md` |
 | `/ticket-architecture` | `codebase-design`, `grilling` | `researcher` | — | `architecture.md` |
 | `/ticket-plan` | — | `researcher` | — | `plan.md` |
-| `/ticket-implement` | `code-review`; on a behaviour step the built-in `simplify`, run by the main session, with `codebase-design` as its vocabulary | `implementer` (one worktree per parallel step, set up by `make worktree`), `reviewer` (one per review pass) | `make-check.sh` and `bash-guard.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, one commit per step |
+| `/ticket-implement` | `code-review`; on a behaviour step the built-in `simplify`, run by the main session, with `codebase-design` as its vocabulary | `implementer` (one worktree per parallel step, set up by `make worktree`), `reviewer` (one per review pass) | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, one commit per step |
 | `/ticket-verify` | `code-review` | `verifier` (one per group of requirements, in parallel), `reviewer` | — | `verification.md` |
-| `implementer` | `tdd`, preloaded | — | `make-check.sh` on `Stop` (runs as `SubagentStop`); `bash-guard.sh` on `PreToolUse` of `Bash` | the step's files |
+| `implementer` | `tdd`, preloaded | — | `make-check.sh` on `Stop` (runs as `SubagentStop`) | the step's files |
 | `reviewer` | one pass: an axis of `code-review`, or the hunt | — | — | nothing: read-only |
 | `verifier` | — | — | — | nothing: read-only |
 | `researcher` | — | — | — | nothing: read-only |
@@ -85,7 +85,6 @@ graph LR
     reviewer([reviewer])
     verifier([verifier])
     hook[/make-check.sh/]
-    guard[/bash-guard.sh/]
   end
   subgraph plugin [mattpocock-skills]
     grilling{{grilling}}
@@ -106,7 +105,7 @@ graph LR
   impl -.-> review & simplify
   simplify -.-> design
   implementer -.-> tdd
-  implementer --> hook & guard
+  implementer --> hook
   verify --> verifier & reviewer
   verify -.-> review
   reviewer -.-> review & design
@@ -134,9 +133,6 @@ step, then the review passes, then you. Why it is cut so:
 
 - **The implementer cannot finish red.** A hook runs `make check` when it stops and sends it
   back; `BLOCKED:` is its only way out, and reaches you unchanged.
-- **The implementer's Bash cannot read a tracked file or drop uncommitted work.** A hook refuses
-  a read such as `cat` of a tracked file, which would load no rule, and a git command such as
-  `checkout` or `reset --hard`; both lists head `bash-guard.sh`. Writes through Bash pass.
 - **The main session runs `simplify`, never the implementer,** so the agent that wrote the code
   does not judge its own cuts. A move skips it: its files keep their content for `git` to see
   the rename.

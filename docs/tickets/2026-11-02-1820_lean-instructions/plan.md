@@ -20,7 +20,7 @@
 | S12 | decisions and the SDD guide trimmed; `docs-diet` done; the move probe | done |
 | S13 | the ticket templates and the planning skills pin what a step needs and leave the rest to a grep | done |
 | S14 | verification run 1 and the prompt audit fixed: two stale doc lines, two recorded exceptions, a contradiction, findings presented one block each | done |
-| S15 | lessons L2–L5 of verification run 1: briefs name sources only, results quote their output, a behaviour step is one that changes code, the implementer's Bash guarded; plugins that overlap the skills off | done |
+| S15 | lessons L2–L5 of verification run 1: briefs name sources only, results quote their output, a behaviour step is one that changes code; plugins that overlap the skills off | done |
 | S16 | a named function is a `function` declaration; an arrow is a callback or an expression body | done |
 
 ## How to run this plan
@@ -777,9 +777,7 @@
 - **Delivers:** a brief of `/ticket-implement` or `/ticket-verify` names its sources and nothing
   else, and no verifier's brief names `plan.md` (L2); a finding that states a check's result
   quotes the output it rests on (L4); a behaviour step is one that changes code (`.ts`, a
-  `Makefile` recipe, a script), and only it gets `simplify` and Depth (L5); the implementer's
-  Bash cannot read a tracked file with `cat`, `head` or `sed -n`, nor run a git command that
-  drops uncommitted work (L3); the plugins whose skills and agents overlap the `/ticket-*`
+  `Makefile` recipe, a script), and only it gets `simplify` and Depth (L5); the plugins whose skills and agents overlap the `/ticket-*`
   skills (`pr-review-toolkit`, `code-simplifier`, `commit-commands`, the plugin `code-review`,
   `superpowers`) are off for this project, and `mattpocock-skills` stays on.
 - **Goal:** R13, R18, R19, R20 and R21 hold on the next steps by mechanism or by one line each,
@@ -830,6 +828,7 @@
     command, `reset --hard` and `clean`); S15.3 the reviews (symlinks, `switch`, a failing guard
     refuses, one owner for the lists, the header narrowed to reads). Size about 215 lines against
     ~90: the guard parses shell words so a quoted mention or a here-document body passes.
+  - Round 4: the guard removed on the user's word; L3 rests on the line in `implementer.md`.
 
 #### S16 — Named functions as declarations
 

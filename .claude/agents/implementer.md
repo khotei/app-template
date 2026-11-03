@@ -6,11 +6,6 @@ description: >-
 skills:
   - mattpocock-skills:tdd
 hooks:
-  PreToolUse:
-    - matcher: Bash
-      hooks:
-        - type: command
-          command: '"${CLAUDE_PROJECT_DIR}/.claude/hooks/bash-guard.sh"'
   Stop:
     - hooks:
         - type: command
