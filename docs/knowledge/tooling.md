@@ -27,7 +27,7 @@ and `make setup` and `make test-unit` need neither.
 | `make review-rules` | the same reader of `paths:`, then `git diff HEAD --no-renames --name-only` and `git ls-files --others --exclude-standard` for each filter | lists the rules that bind the uncommitted diff, those without a filter included: the standards `/ticket-implement` gives the Standards reviewer; not part of `check` |
 | `make doc-limits` | `awk` for the limits line of `.claude/rules/claude-md.md` and for the length of every `CLAUDE.md` and every rule in `.claude/rules/`, outside `repos/` | a `CLAUDE.md` or a rule over its limit fails the gate, naming the file and its length: [decisions.md › Instructions within size limits](decisions.md#instructions-within-size-limits); the numbers live only in that line, and a reworded line fails it with exit 2, naming the line it expects |
 | `make doc-width` | `perl` over the tracked Markdown outside `docs/tickets/`, `repos/` and `.github/` | a prose line wraps at 100, as the code does; what it skips: the comments above the target |
-| `make lint` | `biome check`, with the GritQL plugins `biome-imports.grit` and `biome-effect.grit` | lint, format and import order, without writing; `biome-effect.grit` refuses a service reached by `Effect.flatMap` or `Effect.map` ([effect-style.md › Composition](../../.claude/rules/effect-style.md#composition)), a curated data-first combinator of effect's modules whose subject is another call (the same section; what each list flags: the comments in the plugin), and a check against `undefined` or a sort by a comparator lambda ([effect.md](../../.claude/rules/effect.md)) |
+| `make lint` | `biome check` (CI: `make lint BIOME=ci`, `biome ci`) with the GritQL plugins `biome-imports.grit` (imports) and `biome-effect.grit` (the Effect style of [effect-style.md › Composition](../../.claude/rules/effect-style.md#composition) and [effect.md](../../.claude/rules/effect.md); what each list flags: the plugin's comments) | lint, format and import order, without writing; a plugin that errors on a file, which Biome only notes and skips, fails it with exit 2 |
 | `make fmt` | `biome check --write` | apply formatting, import sorting and safe fixes |
 | `make typecheck` | `bunx tsc -b`, the patched `tsc` | typecheck every workspace through the project references, Effect diagnostics included |
 | `make migrate` · `migration NAME=<name>` · `migration-check` | the kernel's migrate program · `drizzle-kit generate` | apply, generate and check migrations: [database.md › Migrations](database.md#migrations) |
@@ -385,7 +385,7 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 
 | Job | Runs |
 |---|---|
-| `static` | `bun install --frozen-lockfile`, `biome ci`, `tsc --version \| grep effect-tsgo`, `make typecheck`, `make api-check` (`pinned` only), `make migration-check`, `make bundle-check` |
+| `static` | `bun install --frozen-lockfile`, `make lint BIOME=ci`, `tsc --version \| grep effect-tsgo`, `make typecheck`, `make api-check` (`pinned` only), `make migration-check`, `make bundle-check` |
 | `test` | `bun install --frozen-lockfile`, `bun run test` |
 | `links` | `make ids`, `make doc-names`, `make rule-paths`, `make doc-limits`, `make doc-width`, then `lychee --offline` on `README.md`, `docs/**/*.md` and `.claude/**/*.md` |
 

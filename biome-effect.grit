@@ -40,7 +40,7 @@ pattern one() {
 
 pattern two() {
   or {
-    r"Effect\.(?:filterOrFail|forEach|catchTag|catchIf|catchCauseIf|tapCauseIf|tapErrorTag|provideService|zipWith)",
+    r"Effect\.(?:filterOrFail|forEach|catchTag|catchIf|catchCauseIf|tapCauseIf|tapErrorTag|provideService)",
     r"Arr\.reduce",
     r"Str\.(?:replace|slice)",
     r"Stream\.(?:mapEffect|mapAccum|runFold|groupedWithin|scan\w*|flatMap)",

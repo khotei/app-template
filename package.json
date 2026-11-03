@@ -12,7 +12,6 @@
     "deployment"
   ],
   "scripts": {
-    "lint": "biome check",
     "format": "biome check --write",
     "test": "bun --bun vitest run",
     "prepare": "husky && effect-tsgo patch"

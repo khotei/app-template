@@ -427,7 +427,10 @@ refusals and the same `.env` it writes today.
     `tools` catalog; the check of backticked PascalCase names goes, so a doc naming a renamed
     class passes until review sees it (it never caught one: its 7-entry allowlist was its only
     yield); `make ids` goes too, on the user's word, so a ticket id outside `docs/tickets/` is
-    refused only by review against `comments.md` and `claude-md.md`.
+    refused only by review against `comments.md` and `claude-md.md`. Biome reports a plugin that
+    errors on a file only as a notice and exits 0, so `make lint` turns it into exit 2 and CI runs
+    Biome through `make lint`; the pre-commit hook's direct `--staged` run does not, and CI
+    catches what it misses.
   - **Reversal:** one commit per step (restore the targets from `git log`).
   - **Rejected:**
     - the checks as reviewer prompts — a review runs once per step and costs tokens, while each

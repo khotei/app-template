@@ -23,7 +23,7 @@
 | S15 | lessons L2–L5 of verification run 1: briefs name sources only, results quote their output, a behaviour step is one that changes code; plugins that overlap the skills off | done |
 | S16 | a named function is a `function` declaration; an arrow is a callback or an expression body | done |
 | S17 | verification run 2 fixed: the skill back under its cut, one round rule, lessons L6–L9, `doc-names` safe in parallel | done |
-| S18 | the Effect-style checks are Biome rules; the bundle check stops on a failed `grep` | todo |
+| S18 | the Effect-style checks are Biome rules; the bundle check stops on a failed `grep` | done |
 | S19 | the doc checks are `markdownlint-cli2` rules; the names and ids checks gone | todo |
 
 ## How to run this plan
@@ -977,8 +977,8 @@
   in that list); the new plugin is `biome-effect.grit` beside it. The shell recipes at `HEAD`
   hold the exact lists and exemptions to port: read them from `git show HEAD:Makefile`, and the
   comments above each target. Trap: Grit has no type information, so a service is a capitalised
-  identifier, as in the perl; a trailing `$...` after named metavariables in a call pattern can
-  miss calls, so spell each arity. The rules that name the gates: `.claude/rules/effect.md` and
+  identifier, as in the perl; a call pattern with a trailing `$...` misses calls only as a later
+  branch of an `or` sharing one `where`; standing alone it matches any arity. The rules that name the gates: `.claude/rules/effect.md` and
   `.claude/rules/effect-style.md` (R13 counts both: re-measure). `docs/knowledge/tooling.md` (the
   rows), `.github/workflows/ci.yml` (the steps), `docs/knowledge/decisions.md › Guards are
   configuration` (Guarded by).
@@ -992,7 +992,52 @@
   `make help` lists no `service-use`, `idioms` or `nested-calls`; `git grep` finds no reference
   to them outside `docs/tickets/`; R13 re-measured. Probes are deleted before the commit.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - **Red at `HEAD`.** Probes `service-use.ts`, `idioms.ts` and `nested-calls.ts`, each case the
+    recipes' comments name. `make service-use`: `service-use.ts:2,3,4,5,6`, `Error 1`; `make
+    idioms`: `idioms.ts:2,3,4,5` and `:10`, `const text = 'value === undefined, xs.sort(('`, a
+    hit inside a string; `make nested-calls`: `nested-calls.ts:2–6` (unary), `8–13` (one),
+    `15–17` (two), `Error 1`. `bunx biome lint` before the plugin: no plugin diagnostic.
+  - **Green.** `bunx biome lint --reporter=github` with `biome-effect.grit`: the same lines, one
+    diagnostic each, minus `idioms.ts:10`; every exempt case passes
+    (`Effect.scoped(Effect.gen(…))`, a lone data-last call with or without a trailing comma,
+    `Effect.forEach(f, { discard })` and `(makeHandler(x), { concurrency })`, a constructor,
+    schema or predicate over a call, `.use`, `.useSync`); `bunx biome ci`: 23 plugin errors on
+    the probes, exit 0 on the tree. Rerun at S18.2 on the main session's `$...` rewrite: the same
+    lines, and `Effect.zipWith(Effect.succeed(1), (a, b) => a + b)` passes.
+  - **`make bundle-check`.** A pattern with an unbalanced `(`: `grep: parentheses not balanced`,
+    exit 0 before the fix; after it `bundle-check: grep failed`, `Error 2`. A key planted in
+    `node_modules/.cache/web-bundle/`: printed, `Error 1`; the clean tree: exit 0.
+  - **A plugin that errors (S18.2).** A scratch plugin with a capturing group, listed in
+    `biome.json`: `i broken errored: regex pattern matched 1 variables, but expected 0`, and
+    `make lint` and `bunx biome ci` both exit 0 before the fix; after it `make lint` and
+    `make lint BIOME=ci` print `lint: a Biome plugin errored and checked nothing in that file:
+    fix the plugin.`, `Error 2`. A plain lint error still fails with `Error 1`.
+  - `make help | grep -E "service-use|idioms|nested-calls"`: exit 1 (the Makefile before S18
+    lists all three); `git grep` of the targets, `NESTED_`, `IDIOMS` and the negated `grep` outside
+    `docs/tickets/` and `repos/`: exit 1 (before S18: 27 hits in five files); `git grep` of
+    `bun run lint` and the `lint` script: exit 1. `make check`: exit 0 at each round.
+  - **R13** (the 13 rules, characters ÷ 4): 39 688 → **39 672 chars / 9 918 tok, −20.35%**
+    against 12 452; S18.2 changes no rule.
+  - **Deviation, the string hit.** The plugin reads syntax, so an `=== undefined` inside a string
+    no longer fails (D16's reason for the move).
+  - **Deviation, the migrations.** Their exemption is `biome.json › files.includes`
+    (`!kernel/data/migrations`), not a path test in the plugin; the repo's one migrations folder
+    holds SQL only. A probe there: no hit.
+  - **Deviation, narrower than the perl.** A unary combinator's subject must be a call or a chain
+    of calls, so `Effect.orDie(load(id).value)` passes where the perl's prefix match refused it.
+    `zipWith` left the `two` list (S18.2): its data-last form takes an effect first, so the list
+    refused valid code; `Effect.zipWith(call, call, f)` now passes too.
+  - **Deviation, one way to run Biome (S18.2).** Biome reports a plugin that errors on a file as an
+    info notice, skips the plugin there and exits 0, in 2.5.15 with no option to fail on it. `make
+    lint` runs `bunx biome $(BIOME) --diagnostic-level=info --colors=off` and fails with exit 2 on
+    ` errored: `; CI's `static` job runs `make lint BIOME=ci`, and the `lint` script of
+    `package.json` is gone, so no path runs Biome without the check but the `pre-commit` hook's
+    `--staged` run, which CI backs.
+  - Passes: `simplify` after S18.1 (the `$...` patterns, a `nested` predicate, the header);
+    Standards, Spec, Depth and the hunt on S18.1; S18.2 applies their findings (the plugin
+    error, `zipWith`, the `make lint` row cut to what it runs and where its cases are read).
 
 #### S19 — The doc checks as `markdownlint-cli2` rules
 

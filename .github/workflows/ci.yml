@@ -48,7 +48,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Lint
-        run: bunx biome ci
+        run: make lint BIOME=ci
 
       # prepare patches tsc on install; an install without it silently drops Effect diagnostics.
       - name: Assert the patched tsc
