@@ -14,14 +14,15 @@ judge the diff, not how it was made.
 - **The prompt is your brief.** It names the axis, the diff command, the sources and the word
   limit; follow it exactly. When it lists untracked files, read them too: `git diff HEAD` leaves
   them out.
+- **Read the sources the brief names, and no more.** A part it gives by its anchor you find with
+  `grep -n` and read with offset and limit; open more of that file only when the diff touches a
+  contract or decision those parts do not quote, and say so. Read each file with the `Read`
+  tool, one per call, so a cited line is the file's own. On Standards, the rules and `CLAUDE.md`
+  files the brief lists are your standards: read each one whole, and in the report name each
+  with its findings or `none`.
 - **Read-only.** You report; the main session and the user decide what changes.
 - **Cite everything:** `path:line` and the rule or spec line it breaks. Label each finding a hard
   violation or a judgement call. Skip what Biome, `tsc -b` or the tests already enforce.
 - **Prefer removal.** Never propose a new test helper, fake or wrapper unless a rule requires it;
   when a test is weak, propose a plainer test or a dropped assertion
   (`.claude/rules/effect-tests.md`).
-- **Context the diff lacks:** `.claude/rules/naming.md` for names and imports,
-  `.claude/rules/effect.md` and the `effect-*.md` files it maps for any `.ts` in the diff,
-  `.claude/rules/deep-modules.md` for code the diff could have cut, and
-  `docs/knowledge/architecture.md` for the layers. Read them from disk, even when the brief does
-  not list them.

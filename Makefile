@@ -3,9 +3,9 @@
 .DEFAULT_GOAL := help
 
 .PHONY: help setup stack up down reset dev dev-api dev-worker dev-web debug-api debug-worker \
-  debug-web check ids doc-names rule-paths doc-width service-use nested-calls lint fmt typecheck \
-  test test-unit test-e2e bundle-check clean outdated vendor-effect vendor-drizzle migrate migration \
-  migration-check api-check api-snapshot
+  debug-web check ids doc-names rule-paths review-rules doc-width service-use nested-calls lint \
+  fmt typecheck test test-unit test-e2e bundle-check clean outdated vendor-effect vendor-drizzle \
+  migrate migration migration-check api-check api-snapshot
 
 # The local Pulumi project: each tree's file backend under its .data/, named per command, so no
 # login is stored; the home (the provider plugins) is the main tree's .pulumi/, shared by every
@@ -178,19 +178,22 @@ doc-names: ## Fail on a backticked path or name the repo lacks, or a source path
 		echo 'specifier or the doc that owns the fact.'; }; \
 	[ -z "$$missing$$sources" ] || exit 1
 
+# Prints `<rule> <filter>` for each paths: filter of a rule in .claude/rules/, subfolders included,
+# as the harness loads them. A filter is read as a list item, an inline list or a scalar; a rule
+# without paths: prints nothing, since it loads in every session.
+RULE_FILTERS = awk 'FNR == 1 { fm = ($$0 == "---"); inp = 0; next } \
+	fm && $$0 == "---" { fm = 0 } !fm { next } \
+	/^\#/ { next } \
+	/^[^ -]/ { inp = /^paths:/; if (inp) { v = $$0; gsub(/^paths: *|["\047]/, "", v); \
+		if (v ~ /^\[/) { gsub(/^\[|\]$$/, "", v); n = split(v, a, / *, */) } else { n = 1; a[1] = v } \
+		for (i = 1; i <= n; i++) if (a[i] != "") print FILENAME, a[i] } next } \
+	inp && /^ *- / { f = $$0; gsub(/^ *- *|["\047]/, "", f); print FILENAME, f }' \
+	$$(find .claude/rules -name '*.md')
+
 # A rule loads only where its paths: filter matches a file, so a filter that matches none loads it
 # nowhere. git's glob reads * and ** as the harness does and has no braces, so a brace fails too.
-# A filter is read as a list item, an inline list or a scalar; a rule without paths: loads in every
-# session and is skipped. Rules in subfolders count, as the harness loads them too.
 rule-paths: ## Fail on a rule whose paths: filter matches no file in the repo
-	@filters=$$(awk 'FNR == 1 { fm = ($$0 == "---"); inp = 0; next } \
-		fm && $$0 == "---" { fm = 0 } !fm { next } \
-		/^#/ { next } \
-		/^[^ -]/ { inp = /^paths:/; if (inp) { v = $$0; gsub(/^paths: *|["\047]/, "", v); \
-			if (v ~ /^\[/) { gsub(/^\[|\]$$/, "", v); n = split(v, a, / *, */) } else { n = 1; a[1] = v } \
-			for (i = 1; i <= n; i++) if (a[i] != "") print FILENAME, a[i] } next } \
-		inp && /^ *- / { f = $$0; gsub(/^ *- *|["\047]/, "", f); print FILENAME, f }' \
-		$$(find .claude/rules -name '*.md')) || exit 2; \
+	@filters=$$($(RULE_FILTERS)) || exit 2; \
 	hits=$$(printf '%s\n' "$$filters" | while read -r rule filter; do \
 		[ -n "$$filter" ] || continue; \
 		files=$$(git ls-files --cached --others --exclude-standard -- ":(glob)$$filter") || exit 2; \
@@ -199,6 +202,21 @@ rule-paths: ## Fail on a rule whose paths: filter matches no file in the repo
 	[ -z "$$hits" ] || { echo "$$hits"; \
 		echo 'A rule filter matches no file: point it at a folder that exists, with * and ** only.'; \
 		exit 1; }
+
+# The rules a review of the uncommitted step holds the diff to: each rule without paths:, and each
+# whose filter matches a file the diff adds, changes or deletes (both sides of a rename), untracked
+# files included. /ticket-implement hands this list to the Standards reviewer.
+review-rules: ## List the rules that bind the uncommitted diff: no paths: filter, or one it matches
+	@filters=$$($(RULE_FILTERS)) || exit 2; \
+	bound=$$(printf '%s\n' "$$filters" | while read -r rule filter; do \
+		[ -n "$$filter" ] || continue; \
+		files=$$(git diff HEAD --no-renames --name-only -- ":(glob)$$filter" && \
+			git ls-files --others --exclude-standard -- ":(glob)$$filter") || exit 2; \
+		[ -z "$$files" ] || echo "$$rule"; \
+	done) || exit 2; \
+	{ for rule in $$(find .claude/rules -name '*.md'); do \
+		printf '%s\n' "$$filters" | cut -d' ' -f1 | grep -qxF "$$rule" || echo "$$rule"; \
+	done; printf '%s\n' "$$bound"; } | grep . | sort -u
 
 # A prose line wraps at 100, as Biome's lineWidth does the code. Exempt: the frontmatter, fences,
 # tables, headings, quotes, a URL, and a line that is one code span or link with no space to break

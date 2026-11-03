@@ -522,8 +522,8 @@ app or `deployment`.
   folder of that name inside a unit misreads its files, and a checkout under one
   (`~/packages/<repo>/`) misreads every file outside the three folders, refusing an app's own
   `#<app>/…`; the rules of the apps and `deployment` read the last ring folder on it the same way.
-- **Guarded by:** `make check` runs them all; the Standards reviewer reads `.claude/rules/`;
-  `biome.json` and `biome-imports.grit` beside it.
+- **Guarded by:** `make check` runs them all; the Standards reviewer reads the rules that bind
+  the diff (`make review-rules`); `biome.json` and `biome-imports.grit` beside it.
 - **If reversed:** a test beside the rule, kept in step with every new module; a list per unit
   again, or a folder split into a workspace per unit
   ([Imports through subpaths](#imports-through-subpaths)), its dependencies in place of the lists.

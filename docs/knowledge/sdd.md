@@ -121,7 +121,7 @@ Solid arrows spawn an agent or run a hook; dotted arrows use a plugin skill.
 | `to-spec` and `to-tickets` write to `.scratch/` or an issue tracker, as user stories | `/ticket-feature` and `/ticket-plan` write EARS requirements and steps into the ticket folder | artifacts are reviewed and committed with the code |
 | `tdd` asks the user to confirm seams before testing | the implementer takes them from `architecture.md › Seams`, confirmed earlier | a subagent cannot ask, and the seams were already agreed |
 | `implement` commits on its own and reviews committed work | `/ticket-implement` reviews the uncommitted step and commits only after your OK | every commit is approved |
-| `code-review` diffs from a fixed point to `HEAD` and spawns generic sub-agents | for a step: `git diff HEAD` plus untracked files, reviewed by read-only `reviewer` agents; the Spec axis also flags a diff that changes what a requirement asks | the step is reviewed before it is committed, by agents that cannot edit, and `feature.md` changes with the requirement |
+| `code-review` diffs from a fixed point to `HEAD` and spawns generic sub-agents | for a step: `git diff HEAD` plus untracked files, reviewed by read-only `reviewer` agents, each reading only the design parts the step cites and, on Standards, the rules `make review-rules` lists; the Spec axis also flags a diff that changes what a requirement asks | the step is reviewed before it is committed, by agents that cannot edit and read no more than the step needs, and `feature.md` changes with the requirement |
 | `improve-codebase-architecture` scans the whole codebase, writes an HTML report, grills, and writes `GLOSSARY.md` and ADRs | the Depth axis of `/ticket-implement`: a read-only `reviewer` on a behaviour step's files and their callers, a text report, `docs/knowledge/decisions.md` and `architecture.md › Decisions` as the records not to re-litigate | the shape is questioned while the step is small, and no doc lands outside `docs/knowledge/` and the ticket |
 | `research` writes a notes file into the repo | `researcher` answers in its report | facts reach the conversation, not the tree |
 
@@ -129,7 +129,8 @@ Solid arrows spawn an agent or run a hook; dotted arrows use a plugin skill.
 
 A step runs through three stages before anything is committed:
 
-1. **`implementer`** builds the step test-first at the agreed seam. A hook runs `make check` when
+1. **`implementer`** builds the step test-first at the agreed seam; the rules reach it through
+   their path filters as it reads and edits files. A hook runs `make check` when
    it tries to finish and sends it back while the gate is red. Its only way out on red is a final
    message starting with `BLOCKED:`, which reaches you unchanged. On a step that writes
    behaviour, `simplify` then does the refactor `tdd` keeps out of its loop, judged by the rules
@@ -137,8 +138,9 @@ A step runs through three stages before anything is committed:
    `make check` runs again; a move skips it, since its files must keep their content for `git`
    to see the rename.
 2. **`code-review`** runs two `reviewer` agents in parallel, each in a fresh context: **Standards**
-   (the rules in `.claude/rules/` and the smell baseline) and **Spec** (the step and its
-   requirements). The two reports stay separate, so one axis cannot hide the other. Neither axis
+   (the rules that bind the diff's files, which `make review-rules` lists, and the smell
+   baseline) and **Spec** (the step, its requirements and the parts of the design it cites). The
+   two reports stay separate, so one axis cannot hide the other. Neither axis
    hunts for bugs, so a behaviour step also gets the built-in `code-review` at `medium`, and one
    with error handling or a store outside the transaction `silent-failure-hunter`. A behaviour
    step gets a third `reviewer` too, **Depth**: `improve-codebase-architecture`'s search for

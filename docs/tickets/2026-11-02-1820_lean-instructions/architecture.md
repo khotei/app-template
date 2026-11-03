@@ -130,12 +130,14 @@ $ make doc-limits    # R10
 **A rule's filter** uses only `*` and `**`; a brace matches nothing in git, so `rule-paths` fails
 it.
 
-**The review brief of a step** (D2), from `/ticket-implement` to each `reviewer`: the step id,
-its `R…` ids, its `D…` ids, its Seam row and its Contracts entries; to the Standards reviewer also
-the rules without `paths:` and those whose filter matches a file of the diff (the skill matches
-them with `git ls-files ':(glob)<filter>'` over the diff's files). The reviewer locates each
-design part with `grep -n` on the stable anchors (`- **D<n> —`, `## Seams`, `## Contracts`) and
-reads it with offset and limit, as the implementer does.
+**The review brief of a step** (D2), from `/ticket-implement` to the Standards and Spec
+`reviewer`: the step id, its `R…` ids, and the `D…` ids, Seam row and Contracts entries the step's
+own lines name; to the Standards reviewer also the rules `make review-rules` prints, those without
+`paths:` and those whose filter matches a file of the uncommitted diff, untracked files and both
+sides of a rename included. The reviewer locates each design part with `grep -n` on the stable
+anchors (`- **D<n> —`, `## Seams`, `## Contracts`) and reads it with offset and limit, as the
+implementer does. The Depth reviewer keeps its own sources: `deep-modules.md`,
+`docs/knowledge/architecture.md` and the records it must not re-open.
 
 **The commit question** (D8), asked by `/ticket-implement` once, at the first step of a session:
 commit each ready step without the user's OK, or wait for it. A step is ready when its reviews
@@ -197,7 +199,13 @@ refusals and the same `.env` it writes today.
   - **Why:** the skill knows the step and the diff; a reviewer left to find them opens the whole
     design and every rule to be sure. A rule whose filter matches no diff file cannot bind it.
   - **Cost accepted:** a step that touches a decision it does not cite is reviewed without it; a
-    reviewer still opens more when the diff touches a contract the cited parts do not quote.
+    reviewer still opens more when the diff touches a contract the cited parts do not quote; a
+    contract the step's files reach but its lines do not name is read only when the diff touches
+    it; the Standards reviewer reads each bound rule whole (S3: 4.8 times its old rule reading),
+    so it can be held to naming each.
+  - **Note (S3):** worded "its Contracts entries of its files", the first replay handed the Spec
+    reviewer eight parts for a step citing one and read 22% more than the baseline; the brief now
+    names what the step's own lines name, and `make review-rules` lists the rules.
   - **Reversal:** one commit.
   - **Rejected:**
     - the reviewer finding the parts on its own — no cut it can be held to.

@@ -36,8 +36,12 @@ You are **implementer**. `/ticket-implement` gives you a ticket folder and one s
 - **Living spec.** When the step cannot be done as written, or the code contradicts
   `architecture.md`, stop and start your final message with `BLOCKED:`, then the gap and the
   options. Requirements come only from the ticket.
-- **The repo's rules bind you:** the `CLAUDE.md` of every workspace you touch and
-  `.claude/rules/*`.
+- **The repo's rules bind you, and arrive on their own:** a `CLAUDE.md` loads when you read a
+  file of its workspace, a rule when you read, edit or write a file its `paths:` filter matches,
+  so read no rule up front. Only the `Read`, `Edit` and `Write` tools fire the filters: read and
+  edit through them, never `cat`, `sed` or a heredoc. A rule matched first by a `Write` arrives
+  after the file is written, so before a new file in a folder, read a file of that folder, or of a
+  sibling folder of the same kind when it is new.
 - **Evidence.** Run every command in the step's **Verify** and quote its real output. Run each
   Verify grep or probe once against a planted hit first; one that stays green is reported and
   replaced. Delete probe files before you report. A step that grows past ~400 changed lines

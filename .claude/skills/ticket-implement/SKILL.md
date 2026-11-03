@@ -20,9 +20,10 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. G
    straight to the user.
    - **Simplify, a behaviour step only** (`opus high`): the refactor that `tdd` leaves out of its
      red → green loop. Call the Skill tool with `simplify` on the uncommitted step, its args
-     pointing at the step in `plan.md`, `.claude/rules/*.md` (which override it), and the
-     deletion test and depth of `mattpocock-skills:codebase-design`; it keeps every interim state
-     the plan names (a delegating adapter, a module the next step removes) and every test case.
+     pointing at the step in `plan.md`, the rules `make review-rules` prints (which override
+     it), and the deletion test and depth of `mattpocock-skills:codebase-design`; it keeps every
+     interim state the plan names (a delegating adapter, a module the next step removes) and
+     every test case.
      Then run `make check`. Its edits join the step's diff before review. Never on a move, rename
      or config step: a move keeps each file's content for `git` to see the rename.
 3. **Review.** Call the Skill tool with `mattpocock-skills:code-review`, overriding:
@@ -31,8 +32,14 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. G
    |---|---|
    | the fixed point and diff | `HEAD`; the diff is `git diff HEAD` plus every untracked file in `git status --short`, so the uncommitted step is reviewed |
    | the spec | the step in `plan.md`, and the `R…` it cites from `feature.md`; the Spec axis also reports whether the diff changes what a quoted `R…` asks, which then requires the `feature.md` edit in the same diff, and names for each deleted statement, guard or check where it now lives, or reports it lost |
-   | the standards | `.claude/rules/*.md` and the `CLAUDE.md` of every touched workspace |
+   | the standards | the rules `make review-rules` prints for the diff, and the `CLAUDE.md` of every touched workspace |
    | the sub-agents | the `reviewer` agent, once per axis, in parallel; the Standards axis on `model: sonnet`, the Spec axis on the agent's own |
+
+   The Standards and Spec briefs also name the parts of `architecture.md` the step's own lines
+   cite, each by its anchor, and no other: a `D…` it names (`- **D<n> —`), the Seam row its
+   **Test first** names (the row's first words, under `## Seams`), a Contracts entry it names
+   (its bold lead, under `## Contracts`). The Standards brief lists the standards by path and
+   asks for each in the report with its findings or `none`.
 
    A behaviour step also gets, in parallel with the two axes, a hunt for correctness bugs: the
    Skill tool with the built-in `code-review` at `medium`, on the same uncommitted diff, report
@@ -44,9 +51,11 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to an approved commit. G
    others, on the diff's files and the modules that call them. It asks whether the shape is right
    (a shallow interface, a seam with one adapter, one concept spread over many files), in the
    vocabulary of `mattpocock-skills:codebase-design` and the nouns of
-   `docs/knowledge/glossary.md`, and re-opens a decision of `architecture.md` only when the
-   friction is real. It reports text only, each candidate marked `Strong`, `Worth exploring` or
-   `Speculative`: no HTML report, no grilling, no glossary or ADR file.
+   `docs/knowledge/glossary.md`, judged by `.claude/rules/deep-modules.md` and
+   `docs/knowledge/architecture.md`, and re-opens a decision of the ticket's `architecture.md`
+   or of `docs/knowledge/decisions.md` only when the friction is real. It reports text only, each
+   candidate marked `Strong`, `Worth exploring` or `Speculative`: no HTML report, no grilling, no
+   glossary or ADR file.
 4. **Present** the implementer's report and what `simplify` changed, then the `## Standards` and
    `## Spec` reports as code-review aggregates them, then the bugs and silent failures found,
    then the `## Depth` candidates, then the fixes you recommend. A Depth candidate inside the

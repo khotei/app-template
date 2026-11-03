@@ -8,7 +8,7 @@
 |---|---|---|
 | S1 | the baseline: what each lever's target loads today | done |
 | S2 | `doc-names` over every doc, refusing a source path in an instruction file; `rule-paths` | done |
-| S3 | reviewers read only the cited design and the matching rules; the implementer reads no rule up front | todo |
+| S3 | reviewers read only the cited design and the matching rules; the implementer reads no rule up front | done |
 | S4 | parallel steps read on demand; the worktree setup a script | todo |
 | S5 | the commit gate in one place, asked once per session; skills and agents as patterns | todo |
 | S6 | agents do only their own part; the main session orchestrates on reports; one hunt pass by condition; `/simplify` from the main session; parallel verifiers | todo |
@@ -225,20 +225,21 @@
 
 #### S3 — Reviewers and the implementer read less
 
-- **Delivers:** `/ticket-implement` gives each reviewer the step's design parts (its `D…` ids,
-  Seam row and Contracts entries) and the Standards reviewer the rules without a filter plus
-  those whose filter matches a file of the diff; the reviewer reads only those. The implementer
-  no longer reads every rule at the start: the rules arrive as it reads files, and it reads a
-  file of a folder before writing a new file there, reading and editing through the file tools
-  (S1: under `bypassPermissions` an agent edits through Bash and no path filter fires). The replayed step shows each cut against the
-  baseline.
+- **Delivers:** `/ticket-implement` gives each reviewer the design parts the step's own lines
+  name (its `D…` ids, Seam row and Contracts entries) and the Standards reviewer the rules without
+  a filter plus those whose filter matches a file of the diff; the reviewer reads only those. The
+  implementer no longer reads every rule at the start: the rules arrive as it reads files, and it
+  reads a file of a folder before writing a new file there, reading and editing through the file
+  tools (S1: under `bypassPermissions` an agent edits through Bash and no path filter fires). The
+  replayed step shows each cut against the baseline.
 - **Goal:** less reading per step, the same rules applied (R12, R13, R15, D2, D7).
 - **Blocked by:** S1.
 - **Files:** `.claude/skills/ticket-implement/SKILL.md` (step 3: the brief), `.claude/agents/reviewer.md`
   (what it reads; its list of rules read from disk goes), `.claude/agents/implementer.md` (*Read
   the step* and *The repo's rules* disciplines), `.claude/skills/ticket-verify/SKILL.md` if its
   review brief relies on the reviewer reading every rule, `docs/knowledge/sdd.md` (the
-  dependency map and *The approval gate*, where the reading changes).
+  dependency map and *The approval gate*, where the reading changes); found at the step: the
+  `Makefile` and `docs/knowledge/tooling.md` (`make review-rules`).
 - **Test first:** the measuring seam — S1's R12 replay rerun twice with the new toolkit; red is a
   mean cut under 20% on the Spec reviewer's design reading, or a Standards report that misses a
   rule whose filter matches a file of the diff.
@@ -246,7 +247,45 @@
   reviewer's report on the replayed diff cites every rule that binds its files (compared with the
   baseline report); `implementer.md` has the agent read and edit through the file tools.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - **Recipe:** S1's (worktree `lean-instructions-S3-replay`, `N=1`, at `17c552af21^`, the
+    prompt and command verbatim, `acceptEdits`, counting as S1), with three differences:
+    `17c552af21^` has no `make review-rules`, so the scratch commit of `.claude/` also appends
+    the target and its reader to the `Makefile`; `.claude/` comes from the uncommitted toolkit
+    (tracked and untracked files, ignored ones left out); the hook takes its log path from
+    `S3_LOG`. Two pairs of runs: a, b on D2's wording; c, d on the narrowed brief. Removed
+    after, with its branch; no `local1` container was left.
+  - **R12, the Spec reviewer's reading of the ticket's `architecture.md`:**
+
+    | | run 1 | run 2 | mean |
+    |---|---|---|---|
+    | baseline (S1) | 3 294 B / 820 tok | 5 096 B / 1 268 tok | 4 195 B / 1 044 tok |
+    | D2's wording (a, b) | 5 683 B / 1 415 tok | 4 576 B / 1 141 tok | 5 130 B / 1 278 tok (+22%) |
+    | **narrowed (c, d)** | 1 498 B / 373 tok | 3 494 B / 869 tok | **2 496 B / 621 tok (−40%)** |
+
+    Deviation (D2's note): "its Contracts entries of its files" got the reviewer D11, D14, D19,
+    two Seam rows and three Contracts entries for a step citing D11 alone; the brief now names
+    only what the step's own lines name.
+  - **R12, Standards:** each of the four reports names all 13 rules `make review-rules` lists
+    for the diff; the baseline report named 3. Given the list alone (a, b), the reviewer opened 2
+    and 4 of them and wrote `none` for the rest unread; told to read each whole (c, d), it read
+    all 13: 51 708 B / 12 887 tok with `commits.md`, against 10 685 B / 2 663 tok (×4.8), the
+    cost D6's note accepted. R13 is not measured here: S8 reruns it.
+  - Deviation: `make review-rules` lists the rules instead of the skill matching them, over the
+    `paths:` reader lifted from `rule-paths` into `RULE_FILTERS` (S2's note); it is not in
+    `check`. `Makefile` and `tooling.md` join the step's files; `ticket-verify/SKILL.md` stays,
+    since its brief lists the rules itself. `git grep` found the *Guarded by* line in
+    `decisions.md` that said the Standards reviewer reads `.claude/rules/`.
+  - Simplify, done by the main session: nothing to cut in the target.
+  - Review: the narrowing had cut the Depth reviewer's sources and clashed with `/ticket-verify`'s
+    whole-file brief, so "read no more" binds the sources the brief names, Depth names
+    `deep-modules.md`, the architecture page and the records, and simplify gets the same rule
+    list as review; the reviewer reads each file with `Read`, one per call (run d had cited lines
+    of the harness's saved output); a new folder's rules come from a sibling folder's file.
+  - Left open: a rule with an empty or unparsed `paths:` list counts as unfiltered; a rule's own
+    filter decides where it binds, so `deep-modules.md` and `layering.md` reach no diff outside
+    `application/`, `apps/` and `kernel/`, for the implementer and the reviewer alike.
 
 #### S4 — Parallel steps on demand
 
