@@ -2,10 +2,10 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help setup stack up down reset dev dev-api dev-worker dev-web debug-api debug-worker \
-  debug-web check ids doc-names rule-paths review-rules doc-width service-use nested-calls lint \
-  fmt typecheck test test-unit test-e2e bundle-check clean outdated vendor-effect vendor-drizzle \
-  migrate migration migration-check api-check api-snapshot
+.PHONY: help setup stack up down reset worktree dev dev-api dev-worker dev-web debug-api \
+  debug-worker debug-web check ids doc-names rule-paths review-rules doc-width service-use \
+  nested-calls lint fmt typecheck test test-unit test-e2e bundle-check clean outdated \
+  vendor-effect vendor-drizzle migrate migration migration-check api-check api-snapshot
 
 # The local Pulumi project: each tree's file backend under its .data/, named per command, so no
 # login is stored; the home (the provider plugins) is the main tree's .pulumi/, shared by every
@@ -61,6 +61,10 @@ reset: ## Remove MiniStack, the database's container and volume, and .data/ whol
 		docker rm -f "$$ministack" $$(docker ps -aq --filter label=ministack=rds --filter "label=db_id=$$database") && \
 		docker volume ls -q --filter "name=instance-$$database-data" | xargs -r docker volume rm
 	rm -rf .data .env.pulumi
+
+# Run inside the new worktree; the ports it moves: docs/knowledge/tooling.md › Worktrees.
+worktree: ## Name a parallel step's worktree, install it, write its .env: N=<n> NAME=<name>
+	@sh .claude/skills/ticket-implement/worktree.sh "$$N" "$$NAME"
 
 migrate: ## Apply the pending migrations to the database in .env.pulumi
 	bun --env-file=.env --env-file=.env.pulumi kernel/postgres/migrate.ts

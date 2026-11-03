@@ -16,6 +16,7 @@ and `make setup` and `make test-unit` need neither.
 | `make setup` | `bun install`, then copies `.env.example` to `.env` if missing | first clone; installs the git hooks too; needs no Pulumi CLI |
 | `make stack` | `stack select local` or `init` on the tree's file backend under `.data/pulumi` | idempotent; `up` runs it first |
 | `make up` · `down` · `reset` | `pulumi up` on `deployment/local/`, `.env.pulumi`, `make migrate` · `docker stop` · `docker rm -f`, `rm -rf .data` | MiniStack with the database, the bucket and the queues: [aws.md › The local stand-in](aws.md#the-local-stand-in) |
+| `make worktree N=<n> NAME=<name>` | `.claude/skills/ticket-implement/worktree.sh` | inside a new worktree: names it, `bun install`, writes its `.env` with the ports and stage of `N` ([Worktrees](#worktrees)) |
 | `make dev` | `make migrate`, then `bun --filter './apps/*' dev` | all three processes, interleaved output; stops first on a stand behind its migrations |
 | `make dev-api` · `dev-worker` · `dev-web` | one app's `dev` script, the api's and the worker's after `make migrate` | one process |
 | `make debug-api` · `debug-worker` · `debug-web` | one app's `debug` script | the same mode plus `--inspect` |
@@ -236,8 +237,9 @@ container and volume after the stage:
 | `RDS_BASE_PORT` | `15432 + 10N` | 15432 | 15442 |
 | `STAGE` | `local<N>` | `local` | `local1` |
 
-The commands that write it:
-[`ticket-implement` › Parallel steps](../../.claude/skills/ticket-implement/SKILL.md#parallel-steps).
+`make worktree N=<n> NAME=<name>`, run inside the new worktree, writes it; how parallel steps
+use it:
+[`ticket-implement` › Parallel steps](../../.claude/skills/ticket-implement/parallel-steps.md).
 Run `make reset` in a worktree before it is removed, or its containers outlive it and keep their
 ports, and the database's volume stays.
 

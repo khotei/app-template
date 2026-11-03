@@ -9,7 +9,7 @@
 | S1 | the baseline: what each lever's target loads today | done |
 | S2 | `doc-names` over every doc, refusing a source path in an instruction file; `rule-paths` | done |
 | S3 | reviewers read only the cited design and the matching rules; the implementer reads no rule up front | done |
-| S4 | parallel steps read on demand; the worktree setup a script | todo |
+| S4 | parallel steps read on demand; the worktree setup a script | done |
 | S5 | the commit gate in one place, asked once per session; skills and agents as patterns | todo |
 | S6 | agents do only their own part; the main session orchestrates on reports; one hunt pass by condition; `/simplify` from the main session; parallel verifiers | todo |
 | S7 | the Effect rules and the comments rule trimmed; the Effect-4 trap first | todo |
@@ -307,7 +307,30 @@
 - **Verify:** `make check`; the comparison above; the R16 slice measured as in S1 and the cut
   (≥ 20%) recorded; `shellcheck` on the script if installed.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - **R16, the text a one-step `/ticket-implement` run loads** (the skill's body without front
+    matter, `wc -c`, characters ÷ 4, as S1): **before 8 814 B / 2 202 tok** (S1; 9 440 B /
+    2 357 tok at S3's commit), **after 5 821 B / 1 455 tok, a cut of 34%**. A parallel run also
+    reads `parallel-steps.md`, 2 357 B / 589 tok.
+  - **The worktree seam:** the old block (from `SKILL.md` at S3's commit) and `make worktree` on
+    two scratch worktrees at N=1, then N=2: the same `.env` (`diff` empty), the symlink `<name>`
+    beside the folder and the branch `wt/<name>`; red before the script, and red on a planted
+    wrong port. After the review round, rerun at N=2: only the five lines move. Refusals as
+    before: `N=0`, the main tree, a main `.env` without `STAGE` (in a scratch repo, nothing
+    written). No container started.
+  - Beyond the block: every check runs before the first change, so a refusal leaves no link,
+    branch or `.env`; it refuses an `N` with a leading zero (shell arithmetic reads it as
+    octal), a `NAME` outside letters, digits, `.` and `-`, a link of that name to another
+    folder and an existing `wt/<name>` branch; it links nothing when the folder already has the
+    name (S1's note). `make` hands `N` and `NAME` to the script through the environment, so a
+    quote in a value cannot reach the shell. The ports are computed once for writing and
+    checking.
+  - Review: the pointer to `parallel-steps.md` moved to the skill's head, since a parallel run
+    changes steps 2 and 5. Kept: the script in the skill's folder (D9), though `make` now
+    reaches into `.claude/`; a `NAME` exported by the shell (WSL sets one) still fills a missing
+    `NAME=`, and the pattern check is the only guard.
+  - `shellcheck` is not installed; not run.
 
 #### S5 — One commit gate; skills and agents as patterns
 
