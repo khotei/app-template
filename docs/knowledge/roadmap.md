@@ -753,6 +753,15 @@ phase weighs one. Each holds what it would bring, what it would cost, and what t
 Raised on 2026-11-02 by a review of Effect's modules (`effect@4.0.6`, Jose from `4.1.1`) for
 hand-written code they could replace; only the queue qualified.
 
+### Drizzle's agent skill
+
+- **Brings:** Drizzle's own skill (`drizzle-kit skills`) on choosing a migration workflow, telling
+  a rename from a data loss, and resolving conflicts, which `database.md` does not cover.
+- **Costs:** its description in every session; the installer fetches from the network.
+- **Check first:** where it writes its files, and that it targets the pinned `drizzle-kit`.
+- Raised on 2026-11-03 by `lean-instructions`' research of plugins and MCP servers; the Drizzle
+  MCP was skipped, since `make migration` and `make migration-check` cover it.
+
 ### Queue on SQS or in Postgres
 
 For `jobs` (22) and `aws-deployment` (9), and the record

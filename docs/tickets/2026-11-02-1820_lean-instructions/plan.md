@@ -28,6 +28,7 @@
 | S20 | the lint configuration lives in `.misc/lint/`; the root keeps two stubs the tools find | done |
 | S21 | verification run 3's doc fixes: one statement each for the commit per round, ticket ids and the limits; `gh api` asks; the verify fixed point; pointers as links | done |
 | S22 | lessons L10–L14: the implementer's shell guard, Standards without the smell baseline and with `make review-rules` verbatim, one finding line, statement leftovers, one behaviour-step test | done |
+| S23 | Claude Code's TypeScript LSP on the project's own `tsc`; the plugins and MCP servers the project turns off actually gone | planned |
 
 ## How to run this plan
 
@@ -1323,6 +1324,49 @@
     again on S22.2's guard; the last round is the main session's `architecture.md`, `plan.md` and
     `verification.md` edits.
 
+#### S23 — The project's LSP, and what it turns off gone
+
+- **Delivers:**
+  - A plugin the repository carries gives Claude Code's `LSP` tool and its post-edit diagnostics
+    a TypeScript server: the project's pinned `tsc --lsp --stdio` (TS 7 with the Effect plugin),
+    never a download; everyone who clones and trusts the folder gets it, with no install step
+    (D19).
+  - `.claude/settings.json` turns off `typescript-lsp@claude-plugins-official`, whose
+    `typescript-language-server` is missing here and needs a `tsserver.js` TS 7 lacks.
+  - Every plugin and MCP server the project means to turn off is gone from a new session: each
+    `enabledPlugins` id names the marketplace the plugin is installed from, so the skills of
+    `commit-commands`, `pr-review-toolkit`, `code-review`, `code-simplifier` and the plugin copy
+    of `context7` no longer list; the `notion` deny takes effect, or the setting that does.
+  - `implementer.md` finds a symbol's definition and references through the `LSP` tool, `git grep`
+    staying for text; its Leftovers use `findReferences` for a renamed symbol.
+  - `docs/knowledge/tooling.md` owns how the LSP is wired and how to turn it back on per machine
+    (`.claude/settings.local.json`).
+- **Goal:** the user's requests of 2026-11-03: the LSP enabled and working, and the plugins and
+  MCP servers this project turns off costing no context.
+- **Blocked by:** S22.
+- **Files:** the docs the research of 2026-11-03 quotes:
+  <https://code.claude.com/docs/en/plugins-reference> (`lspServers`),
+  <https://code.claude.com/docs/en/plugins/loading.md>. Traps: a marketplace's relative plugin
+  `source` resolves from the folder holding `.claude-plugin/`; whether a `directory`
+  marketplace's relative `path` resolves from the project is undocumented, so prove it in a live
+  session before relying on it; a plugin with a `plugin.json` ignores the entry's `lspServers`;
+  the server's working directory is undocumented, so set `workspaceFolder` to
+  `${CLAUDE_PROJECT_DIR}`; an LSP call loads no path-scoped rule (only Read, Write, Edit do); two
+  servers claiming `.ts` leave one unused; a bad `.lsp.json` is skipped whole, seen only in
+  `/plugin` › Errors or `claude --debug`. The repository root stays as it is: the marketplace
+  lives under `.misc/`, beside the lint configuration (D17). The copy of `context7` in the
+  user's `~/.claude.json` is the user's file and stays.
+- **Size:** ~50 lines.
+- **Test first:** the LSP seam: a headless `claude -p` session in a scratch worktree, before the
+  plugin, gets `typescript-language-server` not found from an `LSP` `findReferences` on a
+  service class; after it, the same call lists the class's references across workspaces. The
+  same session's skill and tool listing, before and after, shows the turned-off plugins and
+  `mcp__notion__*` present, then gone.
+- **Verify:** `make check`; the before and after outputs quoted; a type error planted in a
+  `.ts` file shows as a diagnostic after the edit, then reverted; `/plugin` › Errors empty.
+- **Model:** `opus medium`
+- **Status:** planned
+
 ## Requirement coverage
 
 | Req | Steps |
@@ -1352,5 +1396,5 @@
 | R23 | S13 |
 | R24 | S18, S19, S20 |
 
-S16 serves the user's request of 2026-11-03, outside the requirements; `feature.md › Scope`
-records it.
+S16 and S23 serve the user's requests of 2026-11-03, outside the requirements;
+`feature.md › Scope` records them.

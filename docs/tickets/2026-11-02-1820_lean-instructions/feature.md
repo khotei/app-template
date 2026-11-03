@@ -125,6 +125,8 @@ it targets.
   the MCP servers no step uses denied.
 - The lint configuration moved to `.misc/lint/` with two stubs at the root, asked by the user on
   2026-11-03.
+- Claude Code's TypeScript LSP working on TS 7 and the plugins and MCP servers the project turns
+  off gone from its sessions, asked by the user on 2026-11-03.
 
 ## Out of scope
 

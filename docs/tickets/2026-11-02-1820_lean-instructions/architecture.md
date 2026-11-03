@@ -484,6 +484,20 @@ refusals and the same `.env` it writes today.
   - **Rejected:** zero deviations — it measures the model's variance, not the toolkit, and keeps
     the ticket from closing.
 
+- **D19 — The LSP comes from a plugin the repository carries, running the project's `tsc`.**
+  (S23, the user's request)
+  - **Why:** the official `typescript-lsp` runs `typescript-language-server`, which needs
+    `tsserver.js`; TS 7 ships none. The pinned `tsc --lsp --stdio` answers hover, definition,
+    references, rename and diagnostics, the Effect checks included (tested by hand 2026-11-03).
+  - **Invariant:** the server is the `tsc` the lockfile pins; a clone that trusts the folder gets
+    it with no install; the official plugin is off for the project.
+  - **Cost accepted:** a marketplace folder under `.misc/`; an LSP call loads no path-scoped
+    rule, so a rule still arrives on the Read or Edit that follows.
+  - **Reversal:** one commit (the folder and the two settings).
+  - **Rejected:** installing `typescript-language-server` with a TypeScript 5 beside the
+    project's — it would type the code with another compiler and no Effect plugin; a GitHub
+    marketplace — each clone would run `claude plugin install` and get updates only by commit.
+
 ## Risks
 
 - **The rewrite drops a line Claude needed.** Guidance gets worse with less text, against the
