@@ -23,6 +23,8 @@
 | S15 | lessons L2–L5 of verification run 1: briefs name sources only, results quote their output, a behaviour step is one that changes code; plugins that overlap the skills off | done |
 | S16 | a named function is a `function` declaration; an arrow is a callback or an expression body | done |
 | S17 | verification run 2 fixed: the skill back under its cut, one round rule, lessons L6–L9, `doc-names` safe in parallel | done |
+| S18 | the Effect-style checks are Biome rules; the bundle check stops on a failed `grep` | todo |
+| S19 | the doc checks are `markdownlint-cli2` rules; the names and ids checks gone | todo |
 
 ## How to run this plan
 
@@ -955,6 +957,86 @@
   - Passes: `simplify` after S17.1; Standards, Spec, Depth and the hunt on S17.1 and S17.2;
     S17.3 applies their last findings and is not reviewed again.
 
+#### S18 — The Effect-style checks as Biome rules
+
+- **Delivers:**
+  - A second GritQL plugin beside the import one refuses what `make service-use`, `make idioms`
+    and `make nested-calls` refused: a service reached by `Effect.flatMap` or `Effect.map`, a
+    check against `undefined`, a sort by a comparator lambda, a data-first combinator whose subject
+    is another call. `make lint` and CI's `biome ci` report them with file and line.
+  - The three targets, their variables, their `check:` entries and their CI steps are gone; the
+    tooling page's rows for them become one line on the plugin, and the rules that name the gates
+    point to it.
+  - `make bundle-check` exits 2 when its `grep` fails, instead of reading the failure as a clean
+    bundle.
+- **Goal:** R24 for the TypeScript checks, with every case each shell check refused still refused
+  (D16); the exemptions the shell checks recorded (`Effect.gen` as a subject, data-last calls,
+  `Effect.forEach` with options, the migrations) still pass.
+- **Blocked by:** S17.
+- **Files:** `biome-imports.grit` and `biome.json` › `plugins` (the precedent: a plugin is a path
+  in that list); the new plugin is `biome-effect.grit` beside it. The shell recipes at `HEAD`
+  hold the exact lists and exemptions to port: read them from `git show HEAD:Makefile`, and the
+  comments above each target. Trap: Grit has no type information, so a service is a capitalised
+  identifier, as in the perl; a trailing `$...` after named metavariables in a call pattern can
+  miss calls, so spell each arity. The rules that name the gates: `.claude/rules/effect.md` and
+  `.claude/rules/effect-style.md` (R13 counts both: re-measure). `docs/knowledge/tooling.md` (the
+  rows), `.github/workflows/ci.yml` (the steps), `docs/knowledge/decisions.md › Guards are
+  configuration` (Guarded by).
+- **Size:** ~200 lines (plugin ~60, Makefile −70, CI −8, docs ~20).
+- **Test first:** the probe Seam of R24: one probe `.ts` file per shell check, holding each case
+  the recipe's comments name as refused and as exempt, run red against the shell target at `HEAD`
+  before the target goes, then red against `biome lint` on the same file with the same lines.
+- **Verify:** each probe fails `biome lint` with the lines the shell target named, and each exempt
+  case passes; `make check` and `bunx biome ci` green on the tree; a probe `grep` pattern the
+  bundle check's `grep` rejects makes `make bundle-check` exit 2 (red before the fix: exit 0);
+  `make help` lists no `service-use`, `idioms` or `nested-calls`; `git grep` finds no reference
+  to them outside `docs/tickets/`; R13 re-measured. Probes are deleted before the commit.
+- **Model:** `opus high`
+- **Status:** todo
+
+#### S19 — The doc checks as `markdownlint-cli2` rules
+
+- **Delivers:**
+  - `markdownlint-cli2` lints the Markdown outside `docs/tickets/` and `repos/` with one config at
+    the root: the 100-character width (MD013, tables, code and a lone link exempt as `doc-width`
+    exempted them), a backticked repo path that does not exist (the roadmap skipped), a source
+    path in an instruction file, a rule whose `paths:` filter matches no file, and a `CLAUDE.md`
+    or rule over its limit, the numbers read from `claude-md.md`'s limits line. Every other
+    markdownlint rule is off.
+  - `make doc-names`, `make doc-width`, `make doc-limits` and `make rule-paths` are gone, with
+    their CI steps; one target runs the doc lint in `make check` and CI. The check of backticked
+    PascalCase names is dropped, and `feature.md › R7` already asks for paths only.
+  - `make ids` is gone with its CI step, on the user's word; review against `comments.md` and
+    `claude-md.md` refuses a ticket id outside `docs/tickets/`.
+  - `claude-md.md › The limits and the checks`, the tooling page and the records
+    `Instructions name patterns`, `Instructions within size limits` and `Decisions recorded in one
+    page` name the doc lint in place of the old targets.
+- **Goal:** R24 for the Markdown checks, R7–R11 kept (R7 for paths), D5's limits still read from
+  one line (D16).
+- **Blocked by:** S18.
+- **Files:** the config is `.markdownlint-cli2.mjs` at the root, its custom rules inline; the
+  dependency is `bun add -d --catalog=tools markdownlint-cli2@0.24.0`. The shell recipes at `HEAD`
+  hold the scopes, the allowlist (`DOC_NAMES_ABSENT`, its paths only) and the source-path pattern
+  to port. Traps: markdownlint's `frontMatterLines` include the `---` delimiters; MD013 `stern`
+  flags a lone long link that `doc-width` exempted (`docs/knowledge/architecture.md` holds one),
+  so it stays off; `repos/drizzle/.markdownlint.yaml` is a nested config the globs must exclude;
+  `rule-paths` matched with git's glob over tracked and untracked files, and a brace failed. The
+  target's name is `doc-lint`.
+- **Size:** ~300 lines (config ~70, Makefile −110, CI −10, docs and records ~40, lockfile
+  excluded).
+- **Test first:** the probe Seam of R24: one probe per shell check (a long prose line, a missing
+  backticked path in a skill and a `README.md`, a source path in a rule, a rule filter to a folder
+  that does not exist, a rule over 80 lines), run red against its shell target at `HEAD`, then red
+  against the doc lint with the same file and line.
+- **Verify:** each probe fails the doc lint as it failed the shell target; the exemptions pass (a
+  table, a fence, a lone link, a placeholder pattern, a package specifier, a doc pointer, a
+  `DOC_NAMES_ABSENT` path); a reworded limits line makes the doc lint fail naming it;
+  `make check` green; `git grep` finds no reference to the five gone targets outside
+  `docs/tickets/`; R13 re-measured,
+  since `claude-md.md` is one of the rules it counts. Probes are deleted before the commit.
+- **Model:** `opus high`
+- **Status:** todo
+
 ## Requirement coverage
 
 | Req | Steps |
@@ -965,13 +1047,13 @@
 | R4 | S10, S11, S12 |
 | R5 | S5, S7, S8, S9 |
 | R6 | S10, S11, S12, S17 |
-| R7 | S2, S14, S17 |
-| R8 | S2 |
-| R9 | S2 |
-| R10 | S9 |
-| R11 | S2, S9 |
+| R7 | S2, S14, S17, S19 |
+| R8 | S2, S19 |
+| R9 | S2, S19 |
+| R10 | S9, S19 |
+| R11 | S2, S9, S19 |
 | R12 | S1, S3 |
-| R13 | S1, S3, S8, S15, S17 |
+| R13 | S1, S3, S8, S15, S17, S19 |
 | R14 | S1, S7, S8 |
 | R15 | S1, S3, S4, S8, S17 |
 | R16 | S1, S4, S17 |
@@ -982,6 +1064,7 @@
 | R21 | S6, S14, S15, S17 |
 | R22 | S6 |
 | R23 | S13 |
+| R24 | S18, S19 |
 
 S16 serves the user's request of 2026-11-03, outside the requirements; `feature.md › Scope`
 records it.

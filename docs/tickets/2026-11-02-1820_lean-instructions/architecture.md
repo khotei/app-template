@@ -177,6 +177,7 @@ refusals and the same `.env` it writes today.
 | The next real steps and verification after the step that lands R18–R20, read in their transcripts | R18–R20: the verifier reads no `plan.md`; no Spec finding on a `plan.md` edit; no finding reported by two axes; no hunt outside its condition; no `/simplify` call in the implementer; reports in English without the status block | quality over many steps: a few runs prove the path, not the rate |
 | The next steps' main-session transcript and the next verification's timing | R21, R22: no source file or diff read by the main session to write a fix round; findings in the four fields; verifiers in parallel, verdicts sooner than 33 min | whether a forwarded finding needed the main session's own reading (judged when a round misfires) |
 | Review of the step that lands R23, against `research.md` | R23: each template and skill rule traced to its evidence; nothing load-bearing dropped | whether later tickets amend their artifacts less (seen over the next tickets) |
+| A probe file per replaced check, run against the shell target before it goes and against the lint rule after | R24: the same violations refused by the rule, with file and line; the clean tree green on both | a violation neither the shell pattern nor the rule was written for |
 | The step report's ledger: each removed line with its new home or "dropped:" and why, each trap added and where | R3, R5, R6, R14: nothing lost silently | nothing beyond what the reviewer reads |
 
 ## Decisions
@@ -214,7 +215,7 @@ refusals and the same `.env` it writes today.
 - **D3 — No concrete source path in an instruction file: one pattern in `doc-names`.** (answers
   Q3; R8)
   - **Why:** the instances that churned are source files (`shared/tags.ts`); one pattern refuses
-    them, and `doc-names` already fails any other stale name after a rename. The record
+    them, and the doc lint fails any other stale path after a rename (D16). The record
     **Instructions name patterns** in `docs/knowledge/decisions.md` says why, landed with the
     check.
   - **Cost accepted:** a bare file name or a folder instance passes until it goes stale; R1's probe
@@ -409,6 +410,34 @@ refusals and the same `.env` it writes today.
     - keeping lesson L2's cure (`/ticket-plan` lists every file `git grep` finds) — it served the
       size estimate and the reviewer's expectations, which S5's size estimate per step and the
       step report's list of files now serve, and it produces the longest lists.
+
+- **D16 — The checks that read code or Markdown are lint rules: a Biome GritQL plugin for the
+  Effect style, `markdownlint-cli2` for the docs; the shell keeps the bundle and the snapshots.**
+  (R24, R7)
+  - **Why:** the user's request of 2026-11-03, after an audit of the ten shell checks: each catches
+    a harm the log shows, but three read TypeScript as text (a capitalised value read as a
+    service, `=== undefined` inside a string) and the doc checks are about 110 lines of awk and
+    perl. The repo already runs a GritQL plugin (`biome-imports.grit`, `decisions.md › Guards are
+    configuration`), so the code rules cost no dependency and no time; `markdownlint-cli2` holds
+    the width natively (MD013) and the rest as small rules in its own API. Both were proven in a
+    scratch run on a real file and a planted probe.
+  - **Invariant:** `biome.json` › `plugins` and the doc lint's config are where a check lives;
+    `make check` runs them through `make lint` and the doc lint's target.
+  - **Cost accepted:** the doc rules stay code, in a linter's API; one dev dependency in the
+    `tools` catalog; the check of backticked PascalCase names goes, so a doc naming a renamed
+    class passes until review sees it (it never caught one: its 7-entry allowlist was its only
+    yield); `make ids` goes too, on the user's word, so a ticket id outside `docs/tickets/` is
+    refused only by review against `comments.md` and `claude-md.md`.
+  - **Reversal:** one commit per step (restore the targets from `git log`).
+  - **Rejected:**
+    - the checks as reviewer prompts — a review runs once per step and costs tokens, while each
+      check catches a harm the log shows on every `make check`;
+    - ast-grep for the code rules — a second binary for what Biome already hosts, and no inline
+      Markdown;
+    - dependency-cruiser for the bundle — it reads the import graph, which tree shaking prunes: 64
+      false hits on a tree the bundle check passes;
+    - the doc checks merged into one shell target — fewer lines, the same awk and perl;
+    - `ids` kept in the shell or as a doc rule — the user does not want the check.
 
 ## Risks
 

@@ -116,6 +116,10 @@ it targets.
 - One shape for a named function, asked by the user on 2026-11-03 outside the requirements: a
   `function` declaration, an arrow only for a callback or an expression body, or one typed by its
   `const`'s annotation; the code follows it, with no behaviour change.
+- The checks of `make check` themselves, asked by the user on 2026-11-03: each one that reads code
+  or Markdown becomes a rule of a lint tool the repo pins, and the check of backticked code names
+  is dropped, since it never caught a stale name, and so is the check of ticket ids (the user's
+  word: review against `comments.md` holds it).
 
 ## Out of scope
 
@@ -125,8 +129,8 @@ it targets.
   version" and point to the manifest instead.
 - Emphasis markers on rule lines (`**Required:**`, `IMPORTANT`): the docs advise against them; a
   costly trap is stated plainly and early in its file.
-- Code changes other than the shape of a named function, and the plugin skills, which are
-  referenced by name and never edited.
+- Code changes other than the shape of a named function and the checks' own rules, and the
+  plugin skills, which are referenced by name and never edited.
 
 ## Requirements
 
@@ -152,7 +156,7 @@ it targets.
 ### Checks that keep it so
 
 - **R7** — IF any Markdown file outside the ticket folders and the roadmap, the skills, the agents
-  and every `README.md` included, names in backticks a path or a name the repository lacks, THEN
+  and every `README.md` included, names in backticks a path the repository lacks, THEN
   `make check` SHALL fail, naming the file and the line. The roadmap is skipped because it plans
   files and names not built yet.
 - **R8** — IF an instruction file Claude reads names a concrete path to a source file, rather
@@ -224,6 +228,12 @@ it targets.
   constraints and a check that names the state it fails on, naming a concrete path, name or
   literal only where it is a decided contract, a trap the code cannot show or a probe's target.
 
+### Checks as lint rules
+
+- **R24** — WHERE a check of `make check` reads TypeScript or Markdown, THE SYSTEM SHALL hold it as
+  a rule of a lint tool the repo pins, refusing what the shell check refused; a shell recipe SHALL
+  remain only for a check no such rule can see: the web bundle, the migrations, the HTTP contract.
+
 ## Acceptance
 
 | Req | How to verify |
@@ -251,6 +261,7 @@ it targets.
 | R21 | `ticket-implement` and `reviewer.md` say so; on the next steps the main session's transcript reads no source file or diff to write a fix round, and every finding carries the four fields. |
 | R22 | `ticket-verify` says so; the next verification runs the verifiers in parallel, and its wall-clock to verdicts is shorter than run 2 of `modular-monolith` (33 min for the verifier). |
 | R23 | The three templates and the `ticket-feature`, `ticket-architecture` and `ticket-plan` skills say so: a step's file list names what it must pin plus the leftover grep, not every file; a design entry links a config instead of copying it; a `Verify` check names the state it fails on, and a step that replaces a guard pins one probe per guard (lesson L8 of `modular-monolith`). The ledger maps each removed instruction to its new home; each rule cites its evidence in `research.md`. |
+| R24 | Before each shell check goes, a probe file of its violations fails it; the same probe fails the lint rule that replaces it, naming file and line, and the clean tree passes both; `make help` lists no target for a replaced check, and CI runs the lint tools in their place. |
 
 ## Open questions
 
