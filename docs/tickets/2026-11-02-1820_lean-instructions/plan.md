@@ -20,6 +20,7 @@
 | S12 | decisions and the SDD guide trimmed; `docs-diet` done; the move probe | done |
 | S13 | the ticket templates and the planning skills pin what a step needs and leave the rest to a grep | done |
 | S14 | verification run 1 and the prompt audit fixed: two stale doc lines, two recorded exceptions, a contradiction, findings presented one block each | todo |
+| S15 | lessons L2–L5 of verification run 1: briefs name sources only, results quote their output, a behaviour step is one that changes code, the implementer's Bash guarded | todo |
 
 ## How to run this plan
 
@@ -745,6 +746,29 @@
 - **Model:** `opus high`
 - **Status:** todo
 
+#### S15 — Lessons L2–L5 of verification run 1
+
+- **Delivers:** a brief of `/ticket-implement` or `/ticket-verify` names its sources and nothing
+  else, and no verifier's brief names `plan.md` (L2); a finding that states a check's result
+  quotes the output it rests on (L4); a behaviour step is one that changes code (`.ts`, a
+  `Makefile` recipe, a script), and only it gets `simplify` and Depth (L5); the implementer's
+  Bash cannot read a tracked file with `cat`, `head` or `sed -n`, nor run `git checkout`,
+  `git stash` or `git restore` (L3).
+- **Goal:** R13, R18, R19, R20 and R21 hold on the next steps by mechanism or by one line each,
+  not by the main session remembering them (R13, R18–R21).
+- **Blocked by:** S14 (both edit `ticket-implement/SKILL.md`).
+- **Files:** `verification.md` run 1 › Lessons; `ticket-implement/SKILL.md` steps 2, 3 and 5,
+  `ticket-verify/SKILL.md` step 1; the implementer's frontmatter hooks beside its `Stop` hook,
+  and a script in `.claude/hooks/`; `docs/knowledge/sdd.md`'s dependency map if a skill's use
+  changes.
+- **Size:** ~80 lines.
+- **Test first:** the hook seam — the guard refuses `cat <tracked file>`, `sed -n 1,5p <tracked
+  file>` and `git checkout -- <file>` through the implementer's Bash, each seen red, and lets
+  `git status`, `make check` and `cat` of an untracked log through.
+- **Verify:** `make check`; the hook probes; each lesson's line found by `git grep` in its skill.
+- **Model:** `opus high`
+- **Status:** todo
+
 ## Requirement coverage
 
 | Req | Steps |
@@ -761,14 +785,14 @@
 | R10 | S9 |
 | R11 | S2, S9 |
 | R12 | S1, S3 |
-| R13 | S1, S3, S8 |
+| R13 | S1, S3, S8, S15 |
 | R14 | S1, S7, S8 |
 | R15 | S1, S3, S4, S8 |
 | R16 | S1, S4 |
 | R17 | S5 |
-| R18 | S6 |
-| R19 | S6 |
-| R20 | S6 |
-| R21 | S6, S14 |
+| R18 | S6, S15 |
+| R19 | S6, S15 |
+| R20 | S6, S15 |
+| R21 | S6, S14, S15 |
 | R22 | S6 |
 | R23 | S13 |
