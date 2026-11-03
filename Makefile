@@ -168,13 +168,14 @@ doc-names: ## Fail on a backticked path or name the repo lacks, or a source path
 	git grep --untracked -noE -e '`[^`]+`' --and --not -e '_Avoid_' -- $(DOC_NAMES_IN) \
 		> "$$tmp/spans"; $(DOC_NAMES_FAILED); \
 	top=$$(git ls-files | cut -d/ -f1 | sort -u | sed 's/[.]/[.]/g' | paste -sd '|' -); \
+	[ -n "$$top" ] || exit 2; \
 	sed -E -e 's/`//g' -e 's/ › .*//' -e 's/^([^:]+:[0-9]+:$(PASCAL))[.].*/\1/' "$$tmp/spans" \
 		> "$$tmp/heads" || exit 2; \
 	grep -E "^[^:]+:[0-9]+:(($$top)(/[A-Za-z0-9._-]+)*/?|$(PASCAL))$$" "$$tmp/heads" \
 		> "$$tmp/names"; $(DOC_NAMES_FAILED); \
 	missing=$$(while IFS=: read -r file line name; do \
 			[ -e "$$name" ] || grep -qxF "$$name" "$$tmp/known" || echo "$$file:$$line: $$name"; \
-		done < "$$tmp/names"); \
+		done < "$$tmp/names") || exit 2; \
 	grep -E '^$(INSTRUCTIONS):[0-9]+:$(SOURCE_PATH)$$' "$$tmp/spans" > "$$tmp/sources"; \
 	$(DOC_NAMES_FAILED); \
 	sources=$$(sed -E -e '\#:`@[a-z0-9-][a-z0-9-]*/#d' \

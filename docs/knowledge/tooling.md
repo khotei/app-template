@@ -1,6 +1,6 @@
 # Tooling
 
-How to run, check and extend the monorepo, and why it is set up this way. Its two traps for agents
+How to run, check and extend the monorepo, and why it is set up this way. Its traps for agents
 also load from [.claude/rules/tooling.md](../../.claude/rules/tooling.md); the rest lives only
 here. Every version is pinned once in the root `package.json`: Bun's in `packageManager`, the
 rest in [Catalogs](#catalogs); a doc says "the pinned version" and never repeats it.

@@ -57,8 +57,8 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to a commit. Gates:
    are the diff's files, their callers and, for a test fake, the adapter it stands in for, and its
    word limit is the axes'. Any other step runs no hunt.
 
-   A behaviour step also gets a **Depth** axis, a `reviewer` in parallel with the others, as
-   `docs/knowledge/sdd.md › What the wrappers override` scopes it.
+   A behaviour step also gets a **Depth** axis: one `reviewer`, in parallel with the others; its
+   sources are the diff's files and the modules that call them, and its word limit is the axes'.
 4. **Decide and present.** You orchestrate: decide on the reports as they stand, without reading
    the code or the diff to restate a finding; a question that needs the code goes to a
    `researcher`, or to the reviewer that raised it (`SendMessage`). Present the implementer's
@@ -71,8 +71,8 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to a commit. Gates:
    own. Each finding the user must decide on is one block, ending in its question: what is wrong,
    what it leads to, the options with their cost, your recommendation, then the question; never
    the findings in one section and the questions in another.
-5. **Commit gate.** The step is ready only once the passes of steps 2 and 3 have run; its commit
-   body names them. Then commit it as the session's answer says, or wait for the user's word:
+5. **Commit gate.** Once the step is ready (`.claude/rules/sdd.md › Gates`), commit it as the
+   session's answer says, its body naming the passes that ran, or wait for the user's word:
    - **commit:** set the step's `Status: done` (or `blocked: <gate>` while a gate the step
      names, such as a branch, a push or a CI run, has not run yet) in the step and in its row
      of the plan's **Status** table, add its findings to `plan.md` (one that states a check's

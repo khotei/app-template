@@ -60,7 +60,4 @@ return shipped                                           // the value built: no 
   each read.
 - Plumbing is a pipeable, never `if (…) return yield* Effect.die(…)`; an import cycle is broken by
   widening a type, never by a new file.
-
-## After a removal
-
-Grep the removed name, its types and its options in code, fakes, docs and `.claude/rules/`.
+- After a removal, grep its names where `.claude/agents/implementer.md › Leftovers` says.
