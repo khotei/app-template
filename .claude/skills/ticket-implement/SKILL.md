@@ -84,7 +84,6 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to a commit. Gates:
    - **feedback** (the user's, or the fixes you recommend): commit the round first
      (`.claude/rules/sdd.md › Gates`), then send the feedback to the same implementer
      (`SendMessage`) as the next round, each accepted finding forwarded as its reviewer wrote it,
-     `path:line` first, the last round also dictating the commit's `plan.md` edits, and return
-     to 3;
+     `path:line` first, and return to 3;
    - **stop:** leave the working tree as it is.
 6. Name the next unblocked step.

@@ -67,7 +67,7 @@ uses updates this map too; the Standards review checks it against `.claude/rules
 | `/ticket-plan` | — | `researcher` | — | `plan.md` |
 | `/ticket-implement` | `code-review`; on a behaviour step the built-in `simplify`, run by the main session, with `codebase-design` as its vocabulary | `implementer` (one worktree per parallel step, set up by `make worktree`), `reviewer` (one per review pass) | `make-check.sh` and `bash-guard.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, the step's commits |
 | `/ticket-verify` | `code-review` | `verifier` (one per group of requirements, in parallel), `reviewer` | — | `verification.md` |
-| `implementer` | `tdd`, preloaded | — | `make-check.sh` on `Stop` (runs as `SubagentStop`); `bash-guard.sh` on `PreToolUse` of `Bash` | the step's files; the `plan.md` edits the main session dictates at the last round |
+| `implementer` | `tdd`, preloaded | — | `make-check.sh` on `Stop` (runs as `SubagentStop`); `bash-guard.sh` on `PreToolUse` of `Bash` | the step's files |
 | `reviewer` | one pass: an axis of `code-review`, or the hunt | — | — | nothing: read-only |
 | `verifier` | — | — | — | nothing: read-only |
 | `researcher` | — | — | — | nothing: read-only |
@@ -136,10 +136,9 @@ step, then the review passes, then you. Why it is cut so:
 
 - **The implementer cannot finish red.** A hook runs `make check` when it stops and sends it
   back; `BLOCKED:` is its only way out, and reaches you unchanged.
-- **Only the file tools load the rules,** so a hook refuses the implementer's Bash reads and edits.
 - **The main session runs `simplify`, never the implementer,** so the agent that wrote the code
-  does not judge its own cuts. A move skips it: its files keep their content for `git` to see
-  the rename.
+  does not judge its own cuts. A pure move skips it: its files keep their content for `git` to
+  see the rename.
 - **Each review pass is its own `reviewer` in a fresh context,** and owns one kind of finding, so
   one pass cannot hide another and no finding comes twice. Depth runs only on a behaviour step,
   where it changed the step's shape; the hunt for bugs only on a step whose kind of change it
