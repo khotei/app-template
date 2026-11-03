@@ -488,10 +488,16 @@ refusals and the same `.env` it writes today.
   (S23, the user's request)
   - **Why:** the official `typescript-lsp` runs `typescript-language-server`, which needs
     `tsserver.js`; TS 7 ships none. The pinned `tsc --lsp --stdio` answers hover, definition,
-    references, rename and diagnostics, the Effect checks included (tested by hand 2026-11-03).
+    references and rename across the workspaces (tested by hand and in a session, 2026-11-03).
   - **Invariant:** the server is the `tsc` the lockfile pins; a clone that trusts the folder gets
-    it with no install; the official plugin is off for the project.
-  - **Cost accepted:** a marketplace folder under `.misc/`; an LSP call loads no path-scoped
+    it with no install; the official plugin is off for the project; the LSP serves navigation,
+    and type errors stay with `make check`.
+  - **Amended in S23.2:** post-edit diagnostics are off (`"diagnostics": false`): TS 7 serves a
+    file's diagnostics only when pulled, and Claude Code reads only pushed ones
+    (microsoft/typescript-go#2362); the roadmap's ideas hold the question. Rejected: a stdio
+    proxy that pulls and re-pushes, protocol code the template would keep.
+  - **Cost accepted:** a marketplace folder under `.misc/`; the first session after a clone only
+    registers the marketplace, and the LSP loads from the next one; an LSP call loads no path-scoped
     rule, so a rule still arrives on the Read or Edit that follows.
   - **Reversal:** one commit (the folder and the two settings).
   - **Rejected:** installing `typescript-language-server` with a TypeScript 5 beside the

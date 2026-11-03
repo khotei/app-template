@@ -28,7 +28,7 @@
 | S20 | the lint configuration lives in `.misc/lint/`; the root keeps two stubs the tools find | done |
 | S21 | verification run 3's doc fixes: one statement each for the commit per round, ticket ids and the limits; `gh api` asks; the verify fixed point; pointers as links | done |
 | S22 | lessons L10–L14: the implementer's shell guard, Standards without the smell baseline and with `make review-rules` verbatim, one finding line, statement leftovers, one behaviour-step test | done |
-| S23 | Claude Code's TypeScript LSP on the project's own `tsc`; the plugins and MCP servers the project turns off actually gone | planned |
+| S23 | Claude Code's TypeScript LSP on the project's own `tsc`; the plugins and MCP servers the project turns off actually gone | done |
 
 ## How to run this plan
 
@@ -1365,7 +1365,36 @@
 - **Verify:** `make check`; the before and after outputs quoted; a type error planted in a
   `.ts` file shows as a diagnostic after the edit, then reverted; `/plugin` › Errors empty.
 - **Model:** `opus medium`
-- **Status:** planned
+- **Status:** done
+- **Findings:**
+  - **LSP seam, red first.** Before the plugin, a headless `LSP findReferences` on `ChatService`
+    answered `Command failed with ENOENT: typescript-language-server --stdio`; after it, `Found 22
+    references across 7 files` (services, use cases, their tests, `apps/api`), the same after
+    S23.2. The debug log: `Loaded 1 LSP server(s) from plugin: tsgo-lsp`, `Total LSP servers
+    loaded: 1`. `claude plugin validate .misc/claude`: `Validation passed with warnings` (no
+    marketplace description).
+  - **Deviation, diagnostics off (the user's choice C).** TS 7 pushes only project-level
+    diagnostics and serves a file's errors only on `textDocument/diagnostic`; Claude Code reads
+    only `publishDiagnostics`. A planted `const x: number = "…"` was pushed nothing in 15 s and
+    answered on a pull. The entry sets `"diagnostics": false`; the Delivers' "post-edit
+    diagnostics" and the Verify's planted type error are dropped; the roadmap's
+    `Post-edit type diagnostics` holds the question (microsoft/typescript-go#2362; no
+    `anthropics/claude-code` issue found).
+  - **Deviation, the ids were right.** Every `enabledPlugins` id matched `installed_plugins.json`;
+    a fresh headless session's init, before S23, already listed none of the turned-off plugins,
+    no plugin copy of `context7` and no `notion`. Only the main session started 2026-11-02, before
+    19ff237b04, still carries them (and its subagents, as the Spec reviewer saw); a restart or
+    `/reload-plugins` drops them. The only id change is `typescript-lsp@claude-plugins-official`
+    off.
+  - **Deviation, the relative marketplace path works.** `./.misc/claude` resolved from the project
+    (`known_marketplaces.json` holds the absolute path); the first session after the change only
+    registers it, the LSP loads from the next one. The server config sits inline in the
+    marketplace entry, `source: "./"`, no plugin folder and no `plugin.json`.
+  - **Left out:** `sdd.md`'s dependency map has no column for a built-in tool, so the LSP is not
+    in it.
+  - `make check` and `make doc-lint` exit 0 at each round. Passes: Standards and Spec on the
+    whole step (config and docs, no `simplify`, Depth or hunt); the last round is the main
+    session's `plan.md` and `architecture.md` edits.
 
 ## Requirement coverage
 
