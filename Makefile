@@ -3,9 +3,9 @@
 .DEFAULT_GOAL := help
 
 .PHONY: help setup stack up down reset dev dev-api dev-worker dev-web debug-api debug-worker \
-  debug-web check ids doc-names doc-width service-use nested-calls lint fmt typecheck test test-unit \
-  test-e2e bundle-check clean outdated vendor-effect vendor-drizzle migrate migration migration-check \
-  api-check api-snapshot
+  debug-web check ids doc-names rule-paths doc-width service-use nested-calls lint fmt typecheck \
+  test test-unit test-e2e bundle-check clean outdated vendor-effect vendor-drizzle migrate migration \
+  migration-check api-check api-snapshot
 
 # The local Pulumi project: each tree's file backend under its .data/, named per command, so no
 # login is stored; the home (the provider plugins) is the main tree's .pulumi/, shared by every
@@ -126,7 +126,7 @@ debug-worker: ## Run the worker with --inspect and --watch
 debug-web: ## Run the web dev server with --inspect
 	bun --filter @app-template/web debug
 
-check: ids doc-names doc-width service-use nested-calls idioms lint typecheck api-check migration-check test bundle-check ## Run every gate: ids, doc names, doc width, service use, nested calls, idioms, lint, types, the HTTP contract, migrations, tests, the web bundle
+check: ids doc-names rule-paths doc-width service-use nested-calls idioms lint typecheck api-check migration-check test bundle-check ## Run every gate: ids, doc names, rule filters, doc width, service use, nested calls, idioms, lint, types, the HTTP contract, migrations, tests, the web bundle
 
 ids: ## Fail on ticket ids in parentheses (D12, R3, Q70) outside docs/tickets
 	@if git grep --untracked -nE '\((D|R|Q)[0-9]+[a-z]?\)' -- . ':!docs/tickets' \
@@ -135,35 +135,70 @@ ids: ## Fail on ticket ids in parentheses (D12, R3, Q70) outside docs/tickets
 		exit 1; \
 	fi
 
-# The docs whose names doc-names keeps true; the roadmap plans files and names not built yet.
-DOC_NAMES_IN = CLAUDE.md '*/CLAUDE.md' '.claude/rules/*.md' 'docs/knowledge/*.md' ':!repos' \
-  ':!docs/knowledge/roadmap.md'
-# Named on purpose, absent on purpose: the paths the docs forbid, S3 operations, a naming example.
+# The docs whose names doc-names keeps true: every Markdown file but the tickets, the vendored
+# repos and the roadmap, which plans files and names not built yet.
+DOC_NAMES_IN = '*.md' ':!docs/tickets' ':!repos' ':!docs/knowledge/roadmap.md'
+# Named on purpose, absent on purpose: the paths the docs forbid, S3 operations, a naming example,
+# a tool of the harness.
 DOC_NAMES_ABSENT = docs/adr/ docs/superpowers/ .claude/commands/ CreateMultipartUpload GetObject \
-  FundsTransfer
+  FundsTransfer SendMessage
 # Scratch lists, rewritten on every run.
 DOC_NAMES_KNOWN = node_modules/.cache/doc-names/known
 DOC_NAMES_SPANS = node_modules/.cache/doc-names/spans
 PASCAL = [A-Z][a-z0-9]+([A-Z][a-z0-9]*)+
+# The instruction files Claude reads, and a source path in one: a span with a `/` that ends in
+# .ts, .tsx or .json and holds no placeholder or glob; a package specifier (`@<scope>/…`) passes.
+INSTRUCTIONS = (([^:]*/)?CLAUDE[.]md|[.]claude/(rules|skills|agents)/[^:]*)
+SOURCE_PATH = `[^`<*?[{]*/[^`<*?[{]*[.](ts|tsx|json)`
 
 # A path is a span that starts at a tracked top-level entry and holds no placeholder, glob or
 # space; a name is a PascalCase word of two parts or more, a dotted one checked by its head. The
-# code is every file but Markdown, repos/ included, so a library's own names pass.
-doc-names: ## Fail on a backticked path or PascalCase name in the docs that the repo lacks
+# code is every file but Markdown, repos/ included, so a library's own names pass. A source path
+# in an instruction file fails whether it exists or not: why, docs/knowledge/decisions.md ›
+# Instructions name patterns.
+doc-names: ## Fail on a backticked path or name the repo lacks, or a source path in an instruction file
 	@mkdir -p $(dir $(DOC_NAMES_KNOWN))
 	@{ git grep --untracked -ohwE '$(PASCAL)' -- ':!*.md'; printf '%s\n' $(DOC_NAMES_ABSENT); } \
 		| sort -u > $(DOC_NAMES_KNOWN)
 	@git grep --untracked -noE -e '`[^`]+`' --and --not -e '_Avoid_' -- $(DOC_NAMES_IN) \
 		> $(DOC_NAMES_SPANS); [ $$? -le 1 ] || { echo 'doc-names: git grep failed' >&2; exit 2; }
 	@top=$$(git ls-files | cut -d/ -f1 | sort -u | sed 's/[.]/[.]/g' | paste -sd '|' -); \
-	if tr -d '`' < $(DOC_NAMES_SPANS) | sed -E -e 's/ › .*//' -e 's/^([^:]+:[0-9]+:$(PASCAL))[.].*/\1/' \
+	missing=$$(tr -d '`' < $(DOC_NAMES_SPANS) \
+		| sed -E -e 's/ › .*//' -e 's/^([^:]+:[0-9]+:$(PASCAL))[.].*/\1/' \
 		| grep -E "^[^:]+:[0-9]+:(($$top)(/[A-Za-z0-9._-]+)*/?|$(PASCAL))$$" \
 		| while IFS=: read -r file line name; do \
 			[ -e "$$name" ] || grep -qxF "$$name" $(DOC_NAMES_KNOWN) || echo "$$file:$$line: $$name"; \
-		done | grep .; then \
-		echo 'The docs name a path or a code name the repo lacks: fix the name, or cut it.'; \
-		exit 1; \
-	fi
+		done); \
+	sources=$$(grep -E '^$(INSTRUCTIONS):[0-9]+:$(SOURCE_PATH)$$' $(DOC_NAMES_SPANS) \
+		| grep -v ':`@[a-z0-9-][a-z0-9-]*/' | sed -E 's/`//g; s/^([^:]+:[0-9]+:)(.*)/\1 \2, write the pattern/'); \
+	[ -z "$$missing" ] || { echo "$$missing"; \
+		echo 'The docs name a path or a code name the repo lacks: fix the name, or cut it.'; }; \
+	[ -z "$$sources" ] || { echo "$$sources"; \
+		echo 'An instruction file names a source file: write a <placeholder> pattern, the package'; \
+		echo 'specifier or the doc that owns the fact.'; }; \
+	[ -z "$$missing$$sources" ] || exit 1
+
+# A rule loads only where its paths: filter matches a file, so a filter that matches none loads it
+# nowhere. git's glob reads * and ** as the harness does and has no braces, so a brace fails too.
+# A filter is read as a list item, an inline list or a scalar; a rule without paths: loads in every
+# session and is skipped. Rules in subfolders count, as the harness loads them too.
+rule-paths: ## Fail on a rule whose paths: filter matches no file in the repo
+	@filters=$$(awk 'FNR == 1 { fm = ($$0 == "---"); inp = 0; next } \
+		fm && $$0 == "---" { fm = 0 } !fm { next } \
+		/^#/ { next } \
+		/^[^ -]/ { inp = /^paths:/; if (inp) { v = $$0; gsub(/^paths: *|["\047]/, "", v); \
+			if (v ~ /^\[/) { gsub(/^\[|\]$$/, "", v); n = split(v, a, / *, */) } else { n = 1; a[1] = v } \
+			for (i = 1; i <= n; i++) if (a[i] != "") print FILENAME, a[i] } next } \
+		inp && /^ *- / { f = $$0; gsub(/^ *- *|["\047]/, "", f); print FILENAME, f }' \
+		$$(find .claude/rules -name '*.md')) || exit 2; \
+	hits=$$(printf '%s\n' "$$filters" | while read -r rule filter; do \
+		[ -n "$$filter" ] || continue; \
+		files=$$(git ls-files --cached --others --exclude-standard -- ":(glob)$$filter") || exit 2; \
+		[ -n "$$files" ] || echo "$$rule: $$filter"; \
+	done) || exit 2; \
+	[ -z "$$hits" ] || { echo "$$hits"; \
+		echo 'A rule filter matches no file: point it at a folder that exists, with * and ** only.'; \
+		exit 1; }
 
 # A prose line wraps at 100, as Biome's lineWidth does the code. Exempt: the frontmatter, fences,
 # tables, headings, quotes, a URL, and a line that is one code span or link with no space to break

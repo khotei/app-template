@@ -7,7 +7,7 @@
 | Step | Delivers | Status |
 |---|---|---|
 | S1 | the baseline: what each lever's target loads today | done |
-| S2 | `doc-names` over every doc, refusing a source path in an instruction file; `rule-paths` | todo |
+| S2 | `doc-names` over every doc, refusing a source path in an instruction file; `rule-paths` | done |
 | S3 | reviewers read only the cited design and the matching rules; the implementer reads no rule up front | todo |
 | S4 | parallel steps read on demand; the worktree setup a script | todo |
 | S5 | the commit gate in one place, asked once per session; skills and agents as patterns | todo |
@@ -173,8 +173,6 @@
     - Proposed: R12's design cut applies to the Spec reviewer and is the mean of two runs; the
       Standards reviewer is held to citing every rule that binds its files, not to a cut; S8
       reruns R13 beside R14.
-  - Found for later steps: with file tools allowed, `claude-md.md` loaded on a read of a
-    `docs/knowledge/` page that matches neither of its filters (S2 checks the filters).
 
 #### S2 — Names across every doc, and every filter matching
 
@@ -205,7 +203,25 @@
   (`rule-paths` names rule and filter).
 - **Verify:** `make check`; each probe above red, then green once reverted.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The clean tree's two hits were the ones named; they now name a helper or nothing, and
+    `SendMessage` joined `DOC_NAMES_ABSENT`, the only new miss once the skills were read.
+  - S1's note on `claude-md.md` does not hold: `docs/knowledge/**` is one of its filters, and
+    every filter of every rule matches files.
+  - `rule-paths` reads a filter as a list item, an inline list or a scalar, and every rule under
+    `.claude/rules/`, subfolders included (the bug hunt found a scalar or inline filter skipped);
+    the reader prints the same pairs under BSD awk and CI's `mawk` 1.3.4.
+  - A span starting with `@` is a package specifier and passes, not only `@app-template/`.
+  - Simplify: the awk's two substitutions and the `tr`/`sed` stages joined; `rule-paths` ends in
+    the shape `doc-names` does. Kept: one `git ls-files` per filter (git's own glob, ~0.8 s), and
+    the `filters` variable, so an `awk` failure exits 2.
+  - Review: `tooling.md` and the record point to the comment above the target instead of
+    restating the pattern; the `.PHONY` line wraps at 100.
+  - Left open: only `.ts`, `.tsx` and `.json` count as source files, as D3 decided; a span with a
+    suffix (`<path>.ts › <name>`) passes; the record links into `docs/tickets/`, as older
+    records do. S3 matches rules to a diff by their filters, so it may lift the front-matter
+    reader into a target of its own rather than parse `paths:` twice.
 
 #### S3 — Reviewers and the implementer read less
 

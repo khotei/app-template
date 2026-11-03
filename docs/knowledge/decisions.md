@@ -683,3 +683,26 @@ its record.
   outside `docs/tickets/`); review against `.claude/rules/claude-md.md`.
 - **If reversed:** the decisions go back to the tickets, and the pointer in `CLAUDE.md` goes.
 - **Revisit when:** the records outgrow one page.
+
+### Instructions name patterns
+
+An instruction file, a `CLAUDE.md`, a rule, a skill or an agent, names a pattern with placeholders
+(`<module>/<name>.ts`), a package specifier or the doc that owns a fact, never a source file.
+
+- **Why:** a refactor that keeps every constraint should need no doc edit; on the branch that cut
+  the modules, every `CLAUDE.md` edit was a path rename, never a changed constraint. Source files
+  are the instances that move, and Claude reads an instruction file in every session it matches,
+  so a stale path there misleads the most.
+- **Sources:** `.claude/rules/claude-md.md` (the pattern, not the instance); the audit of
+  [the ticket that made this record](../tickets/2026-11-02-1820_lean-instructions/feature.md).
+- **Rejected:** a separate check with allowed prefixes and a depth limit: four heuristics for the
+  few source paths the files then named. An allowlist of names: itself a copy that goes stale.
+- **Cost:** a bare file name or a folder (`shared/`) passes until it goes stale; `make doc-names`
+  then fails on it only where it starts at a top-level folder of the repo.
+- **Guarded by:** `make doc-names`, which fails on a source path in an instruction file whether
+  the file exists or not (what counts as one: the comments above the target); `make rule-paths`,
+  which fails on a rule whose `paths:` filter matches no file, since a rename can stop a rule
+  loading unseen.
+- **If reversed:** drop the pattern from `doc-names`; a source path is then checked only for
+  existing, so a moved file's line is caught but its rename still forces a doc edit.
+- **Revisit when:** an instruction file must name a source file no pattern describes.

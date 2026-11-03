@@ -34,7 +34,9 @@ update it.
   a model of this app). A live name only for a stable anchor: a workspace, a `make` target, a
   library API, the template's own infrastructure (the transaction, the queue client, the test
   harnesses). Never list what `ls` or `grep` reproduces; `make doc-names` fails on a backticked
-  path or name the repo lacks.
+  path or name the repo lacks, and on a source path in an instruction file
+  ([why](../../docs/knowledge/decisions.md#instructions-name-patterns)); `make rule-paths` fails
+  on a rule whose `paths:` filter matches no file.
 
 ## Where each kind of fact lives
 

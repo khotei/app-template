@@ -130,6 +130,9 @@ jobs:
       - name: The names the docs cite exist
         run: make doc-names
 
+      - name: Every rule filter matches a file
+        run: make rule-paths
+
       - name: Prose wrapped at 100
         run: make doc-width
 

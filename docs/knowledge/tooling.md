@@ -19,9 +19,10 @@ and `make setup` and `make test-unit` need neither.
 | `make dev` | `make migrate`, then `bun --filter './apps/*' dev` | all three processes, interleaved output; stops first on a stand behind its migrations |
 | `make dev-api` · `dev-worker` · `dev-web` | one app's `dev` script, the api's and the worker's after `make migrate` | one process |
 | `make debug-api` · `debug-worker` · `debug-web` | one app's `debug` script | the same mode plus `--inspect` |
-| `make check` | `ids`, `doc-names`, `doc-width`, `service-use`, `nested-calls`, `idioms`, `lint`, `typecheck`, `api-check`, `migration-check`, `test`, `bundle-check` | the gate before every commit and step report |
+| `make check` | `ids`, `doc-names`, `rule-paths`, `doc-width`, `service-use`, `nested-calls`, `idioms`, `lint`, `typecheck`, `api-check`, `migration-check`, `test`, `bundle-check` | the gate before every commit and step report |
 | `make ids` | `git grep` for ticket ids in parentheses outside `docs/tickets/` and `repos/` | a new project deletes the ticket, so an id elsewhere points nowhere |
-| `make doc-names` | `git grep` for the backticked repo paths and two-word capitalised names in the `CLAUDE.md` files, the rules and `docs/knowledge/`, then a lookup of each in the tree and in every file but Markdown, `repos/` included | a doc that still names a moved file or a renamed class fails the gate; what it skips and why: the comments above the target |
+| `make doc-names` | `git grep` for the backticked repo paths and two-word capitalised names in every Markdown file outside `docs/tickets/`, `repos/` and the roadmap, then a lookup of each in the tree and in every file but Markdown, `repos/` included; in a `CLAUDE.md`, a rule, a skill or an agent, also for a source path | a doc that still names a moved file or a renamed class fails the gate, and so does an instruction file that names a source file at all: [decisions.md › Instructions name patterns](decisions.md#instructions-name-patterns); what it skips and why: the comments above the target |
+| `make rule-paths` | `git ls-files --cached --others --exclude-standard ':(glob)<filter>'` for each `paths:` filter of a rule in `.claude/rules/`; a rule without one is skipped | a filter that matches no file, a folder gone or a brace git cannot read, loads its rule nowhere and fails the gate, naming the rule and the filter |
 | `make doc-width` | `perl` over the tracked Markdown outside `docs/tickets/`, `repos/` and `.github/` | a prose line wraps at 100, as the code does; what it skips: the comments above the target |
 | `make service-use` | `perl` over every `.ts` file outside `repos/`, each read whole | the gate for the `Service.use` line of [effect-style.md › Composition](../../.claude/rules/effect-style.md#composition) |
 | `make nested-calls` | `perl` over the same files, for a curated list of data-first combinators of effect's modules whose subject is another call; what each list flags: the comments above the target | the gate for the nesting line of [effect-style.md › Composition](../../.claude/rules/effect-style.md#composition); a constructor, a schema or a predicate takes any argument |
@@ -377,7 +378,7 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 |---|---|
 | `static` | `bun install --frozen-lockfile`, `biome ci`, `tsc --version \| grep effect-tsgo`, `make typecheck`, `make api-check` (`pinned` only), `make migration-check`, `make bundle-check` |
 | `test` | `bun install --frozen-lockfile`, `bun run test` |
-| `links` | `make ids`, `make service-use`, `make nested-calls`, `make idioms`, `make doc-names`, `make doc-width`, then `lychee --offline` on `README.md`, `docs/**/*.md` and `.claude/**/*.md` |
+| `links` | `make ids`, `make service-use`, `make nested-calls`, `make idioms`, `make doc-names`, `make rule-paths`, `make doc-width`, then `lychee --offline` on `README.md`, `docs/**/*.md` and `.claude/**/*.md` |
 
 `static` and `test` run on two Bun versions: `pinned` (from `packageManager`) blocks the merge, and
 `latest` only reports. The link check keeps relative links between documents from rotting.
