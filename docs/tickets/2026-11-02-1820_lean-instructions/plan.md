@@ -160,7 +160,7 @@
   - **R16.** `/ticket-implement` loads `SKILL.md` without its front matter, a fixed text:
     **8 814 B, 2 202 tok**. `## Parallel steps`, which a one-step run does not need, is
     3 745 B, 936 tok (42% of the body).
-  - Open, the user's call before S3, where the baseline contradicts the requirements:
+  - Where the baseline contradicted the requirements:
     - R12's row asks each reviewer's reading of the design to drop by 20%; the Standards
       reviewer reads none of it.
     - R12's row also asks the Standards reviewer's rule reading to drop by 20%, while R12 hands
@@ -170,9 +170,9 @@
       slice a lever targets does not.
     - R13 assumed the implementer reads every rule up front; it reads none, so R13's cut can
       come only from shorter rule text (S7, S8), and no step measures R13 after them.
-    - Proposed: R12's design cut applies to the Spec reviewer and is the mean of two runs; the
-      Standards reviewer is held to citing every rule that binds its files, not to a cut; S8
-      reruns R13 beside R14.
+    - Settled on the user's word (2026-11-03): R12's design cut applies to the Spec reviewer and
+      is the mean of two runs; the Standards reviewer is held to citing every rule that binds its
+      files, not to a cut; R13 asks for the file tools and S8 reruns it beside R14 (D6's note).
 
 #### S2 — Names across every doc, and every filter matching
 
@@ -239,12 +239,12 @@
   the step* and *The repo's rules* disciplines), `.claude/skills/ticket-verify/SKILL.md` if its
   review brief relies on the reviewer reading every rule, `docs/knowledge/sdd.md` (the
   dependency map and *The approval gate*, where the reading changes).
-- **Test first:** the measuring seam — S1's R12 and R13 replays rerun with the new toolkit; red
-  is a cut under 20% on the design reading, the Standards rule reading or the implementer's rule
-  load.
-- **Verify:** `make check`; the three cuts recorded in the findings, each ≥ 20%; the Standards
-  reviewer's report on the replayed diff still cites every rule that binds its files (compared
-  with the baseline report).
+- **Test first:** the measuring seam — S1's R12 replay rerun twice with the new toolkit; red is a
+  mean cut under 20% on the Spec reviewer's design reading, or a Standards report that misses a
+  rule whose filter matches a file of the diff.
+- **Verify:** `make check`; the Spec cut recorded in the findings, ≥ 20%; the Standards
+  reviewer's report on the replayed diff cites every rule that binds its files (compared with the
+  baseline report); `implementer.md` has the agent read and edit through the file tools.
 - **Model:** `opus high`
 - **Status:** todo
 
@@ -358,16 +358,18 @@
   repositories are told once. The deep-modules rule keeps one example per idea. Facts the
   kernel's `CLAUDE.md`, `tooling.md › Tests` or `database.md › Guards` own become pointers. A
   session editing a domain file then a services file loads at least 20% less than the baseline.
-- **Goal:** the cut on a module's `.ts` edit (R14, R15, R3, R2, R5, D1).
+- **Goal:** the cut on a module's `.ts` edit and on the implementer's load (R14, R13, R15, R3,
+  R2, R5, D1).
 - **Blocked by:** S7.
 - **Files:** `.claude/rules/{naming,layering,modules,deep-modules}.md` (a merged or renamed rule
   keeps one file per subject); every link to a file or an anchor the step renames or drops,
   until `git grep` of the four file names over `.claude/`, the `CLAUDE.md` files, `README.md`,
   `Makefile` and `docs/knowledge/` finds only live targets.
-- **Test first:** the measuring seam — S1's R14 session rerun; red while the rules and
-  `CLAUDE.md` loaded are not ≥ 20% under the baseline.
+- **Test first:** the measuring seam — S1's R14 session and R13 replay rerun; red while the rules
+  and `CLAUDE.md` loaded, or the implementer's load, are not ≥ 20% under the baseline.
 - **Verify:** `make check` (`rule-paths` green on the changed filters); `wc -l` of each rule ≤ 80;
-  the R14 cut recorded; the ledger names every constraint's new home.
+  the R14 and R13 cuts recorded, and the implementer's transcript edits through the file tools;
+  the ledger names every constraint's new home.
 - **Model:** `opus high`
 - **Status:** todo
 
@@ -398,7 +400,9 @@
 - **Delivers:** `architecture.md` owns the rings and which folder holds what; `README.md` and the
   glossary point to it instead of retelling. Live paths, counts, versions and lists of what
   exists stay only where their doc owns them; a line stays only where a reader would go wrong or
-  search long without it.
+  search long without it. What a ring may import is stated once, in the dependency matrix, and
+  the guard table, Known gaps and `decisions.md` point to it; Known gaps lists only import forms
+  under its lead (the review of `modular-monolith`'s S43 found both).
 - **Goal:** human docs with one owner per fact (R2, R4, R6).
 - **Blocked by:** S9.
 - **Files:** `docs/knowledge/{architecture,glossary}.md`, `README.md`; any rule or `CLAUDE.md`
@@ -481,7 +485,7 @@
 | R10 | S9 |
 | R11 | S2, S9 |
 | R12 | S1, S3 |
-| R13 | S1, S3 |
+| R13 | S1, S3, S8 |
 | R14 | S1, S7, S8 |
 | R15 | S1, S3, S4, S8 |
 | R16 | S1, S4 |

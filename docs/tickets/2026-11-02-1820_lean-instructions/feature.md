@@ -165,7 +165,8 @@ it targets.
   the ticket's design the step cites, not the whole design, and on the Standards axis only the
   rules without a path filter and those whose filter matches a file of the diff.
 - **R13** — WHEN the implementer starts a plan step, THE SYSTEM SHALL let the rules arrive through
-  their path filters instead of having it read every rule up front.
+  their path filters, the implementer reading and editing through the file tools that fire them,
+  instead of having it read every rule up front.
 - **R14** — WHEN Claude edits a `.ts` file of a module, THE SYSTEM SHALL load rules and
   `CLAUDE.md` text at least 20% smaller than before the ticket, every constraint they held still
   stated where it binds.
@@ -230,8 +231,8 @@ it targets.
 | R9 | A probe narrows a rule's filter to a folder that does not exist: `make check` fails naming the rule. |
 | R10 | `make check` is green on the tree; a probe adds lines to a rule past 80: it fails, naming the file. |
 | R11 | `claude-md.md` names the test, the owner, the pattern, and the three checks by their `make` targets. |
-| R12 | Measured with `InstructionsLoaded` and the reviewers' transcripts on one step, before and after: each reviewer's reading of the ticket's design drops by at least 20%, and the Standards reviewer's reading of rules by at least 20%. |
-| R13 | Measured the same way on one step: the implementer's load drops by at least 20%. |
+| R12 | Measured with `InstructionsLoaded` and the reviewers' transcripts on one step, before and after, as the mean of two runs: the Spec reviewer's reading of the ticket's design drops by at least 20%; the Standards reviewer's report cites every rule whose filter matches a file of the diff. |
+| R13 | Measured the same way on one step, once the rules are trimmed: the implementer's load drops by at least 20%, and its transcript reads and edits files through the file tools. |
 | R14 | Measured the same way on one session that edits a `.ts` file of a module's domain, then one of its services: the rules and `CLAUDE.md` loaded drop by at least 20%; the step ledger shows every removed constraint's new home. |
 | R15 | `verification.md` records the four scenarios before and after; the measuring hook is not committed. |
 | R16 | A one-step run of `/ticket-implement` loads no parallel-steps text; a parallel run reads the file beside the skill, and `make` sets up a scratch worktree with the same `.env` ports and stage as the old block; the skill's loaded size drops by at least 20%. |

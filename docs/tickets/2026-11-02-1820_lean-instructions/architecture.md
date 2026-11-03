@@ -240,13 +240,16 @@ refusals and the same `.env` it writes today.
 
 - **D6 — The levers are measured on fixed scenarios, before and after, counting only the slice
   each lever targets.**
-  - **Why:** an agent's whole context varies from run to run; the slice a lever targets does not.
-    The baseline is taken in the first step, before any lever lands, with an `InstructionsLoaded`
-    hook kept out of git:
+  - **Why:** an agent's whole context varies from run to run; a slice a lever targets varies less,
+    and a reviewer's reading still varies, so it is the mean of two runs. The baseline is taken
+    in the first step, before any lever lands, with an `InstructionsLoaded` hook kept out of git,
+    in `acceptEdits` (in `bypassPermissions` an agent edits through Bash and no filter fires):
     - R12: the reviewers of one committed behaviour step of `modular-monolith`, replayed
-      uncommitted in a scratch worktree; the slices are what they read of the ticket's
-      `architecture.md` and, for Standards, of `.claude/rules/`;
-    - R13: the implementer on the same replayed step; the slice is the rules it reads or loads;
+      uncommitted in a scratch worktree; the slice is what the Spec reviewer reads of the
+      ticket's `architecture.md`; the Standards reviewer is held to citing the rules that bind
+      the diff, since it reads no design and, given those rules, reads more than it did;
+    - R13: the implementer on the same replayed step, rerun once the rules are trimmed; the slice
+      is the rules it reads or loads, all through the filters already;
     - R14: one session that edits a `.ts` file of a module's `domain/`, then one of its
       `services/`; the slice is the rules and `CLAUDE.md` loaded;
     - R16: the text `/ticket-implement` loads on a one-step run.
@@ -256,17 +259,23 @@ refusals and the same `.env` it writes today.
   - **Rejected:**
     - computing the cut from file sizes alone — blind to whether the agents read what the brief
       says.
+  - **Note (S1, the user's word):** the baseline found the Standards reviewer reading no design
+    and at most three rules, the implementer reading no rule up front, and a reviewer's slice
+    doubling between runs; R12's cut moved to the Spec reviewer and R13's to after the trims.
+    Rejected: keeping a cut for each reviewer, which the lever would miss or reverse.
 
-- **D7 — The implementer relies on the filters, and reads a file of a folder before writing a
-  new file in it.** (R13)
-  - **Why:** a subagent loads path-scoped rules itself, but a rule matched first by a `Write`
-    arrives after the file is written; reading a neighbour first loads the folder's rules in
-    time.
+- **D7 — The implementer relies on the filters, reads and edits through the file tools, and
+  reads a file of a folder before writing a new file in it.** (R13)
+  - **Why:** a subagent loads path-scoped rules itself, but only on `Read`, `Edit` and `Write`: an
+    edit through Bash, which `bypassPermissions` steers to, loads none (S1: 3 rules instead of
+    13); and a rule matched first by a `Write` arrives after the file is written, so reading a
+    neighbour first loads the folder's rules in time.
   - **Cost accepted:** one extra read when a step starts a new folder; a rule lost to the
     implementer's own compaction returns only at its next matching file.
   - **Reversal:** one commit.
   - **Rejected:**
-    - keeping the up-front read of every rule — 24% of the implementer's load;
+    - keeping the up-front read of every rule — 24% of the implementer's load by the audit; S1
+      found the implementer skipping it already;
     - a hook that injects the rule before a write — the docs place hook context after the tool
       result, so it cannot.
 
@@ -388,8 +397,8 @@ refusals and the same `.env` it writes today.
 - **The trimmed rules miss 20% on a module's `.ts` edit.** The 30% is the audit's estimate.
   *Contained by:* D6 measures it in the step that trims; a shortfall is reported, and the step
   cuts further or the lever is reported under the threshold for the user's call.
-- **A reviewer misses a rule because its filter is too narrow.** With D2 the Standards reviewer no
-  longer reads every rule. *Contained by:* the filters stay as broad as today (D1); `rule-paths`
+- **A reviewer misses a rule because its filter is too narrow.** With D2 the Standards reviewer reads
+  the rules whose filter matches the diff, not a fixed list. *Contained by:* the filters stay as broad as today (D1); `rule-paths`
   catches a filter that matches nothing.
 - **The verifier misses a detail only the plan records.** A step's finding that changed what a
   requirement means is lost to verification. *Contained by:* a finding that changes a requirement
