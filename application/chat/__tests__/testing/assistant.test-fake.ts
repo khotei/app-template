@@ -30,7 +30,7 @@ export type AssistantCall =
   | { readonly method: 'suggestTitle'; readonly text: string }
 
 /** An `Assistant` answering from `script`, keeping each call in `calls`; an unscripted call dies. */
-export const recordAssistant = (script: AssistantScript) => {
+export function recordAssistant(script: AssistantScript) {
   const calls = Ref.makeUnsafe<ReadonlyArray<AssistantCall>>([])
   const record = (call: AssistantCall) => Ref.update(calls, Arr.append(call))
   const layer = Layer.succeed(
@@ -63,7 +63,7 @@ export const recordAssistant = (script: AssistantScript) => {
  * A pause for a scripted assistant call: `hold` signals `asked`, then waits for `release`, so a
  * test acts between a flow's call to the assistant and its answer.
  */
-export const holdAssistantCall = () => {
+export function holdAssistantCall() {
   const asked = Deferred.makeUnsafe<void>()
   const released = Deferred.makeUnsafe<void>()
   return {

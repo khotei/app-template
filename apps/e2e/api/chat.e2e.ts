@@ -41,7 +41,7 @@ const pollTitledChat = (chatId: ChatId) =>
     poll(api.chats.get({ params: { chatId } }), (chat) => Option.isSome(chat.title)),
   )
 
-const formOf = (file: File) => {
+function formOf(file: File) {
   const form = new FormData()
   form.append('files', file)
   return form

@@ -18,7 +18,7 @@ const mebibyte = 1024 * 1024
 const file = (name: string, type: string, size = mebibyte) =>
   new File([new Uint8Array(size).fill(7)], name, { type })
 
-const formOf = (...files: ReadonlyArray<File>) => {
+function formOf(...files: ReadonlyArray<File>) {
   const form = new FormData()
   Arr.forEach(files, (entry) => form.append('files', entry))
   return form

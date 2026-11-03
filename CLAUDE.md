@@ -1,18 +1,12 @@
 # App Template
 
-A chat clone (user → message → assistant reply) built as a template for enterprise projects.
-Bun + TypeScript 7 modular monolith; three processes: `apps/api`, `apps/worker`, `apps/web`.
+A chat clone (user → message → assistant reply) built as a template for enterprise projects: a
+Bun and TypeScript modular monolith of three processes, `api`, `worker` and `web`.
 
 ## Map
 
-`application/<module>/` a module's pure `domain/`, its `services/` and its `infrastructure/`, the
-adapters of its ports · `http-api/` the HTTP contract shared by `api` and `web` ·
-`application/use-cases/` the use cases ·
-`kernel/` the data layer (`kernel/data`) and this app's configured clients · `packages/*`
-generic clients · `apps/*` thin entry points · `deployment/` local and AWS · `apps/e2e/` the test
-app, the e2e through the api ([tooling.md › Tests](docs/knowledge/tooling.md#tests)).
-The rings, what may import what and how to add a module, an entity or a store's client:
-[architecture.md](docs/knowledge/architecture.md).
+Which folder holds what, the three rings, what may import what, and how to add a module, an
+entity or a store's client: [architecture.md](docs/knowledge/architecture.md).
 
 ## Working here
 
@@ -20,7 +14,7 @@ The rings, what may import what and how to add a module, an entity or a store's 
   `make check` passes before work is reported. Tests: `make test-unit` (no Docker),
   `make test-e2e` (Docker running). Debug: `make debug-<app>`.
 - Add a dependency with `bun add [-d] --catalog=<namespace> <pkg>@<exact>`, never a version in a
-  workspace (`.claude/rules/tooling.md`).
+  workspace ([tooling.md › Add a dependency](docs/knowledge/tooling.md#add-a-dependency)).
 - Update `docs/knowledge/` in the commit that changes the behaviour it describes.
 - **A change of substance runs through the `/ticket-*` skills; their artifacts live only in
   `docs/tickets/`.** Ignore artifact paths that plugins suggest (`.scratch/`, `docs/superpowers/`,

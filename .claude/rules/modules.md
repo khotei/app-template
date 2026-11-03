@@ -6,44 +6,37 @@ paths:
 
 # Modules: what review refuses
 
-`make check` refuses an import a Biome override, its plugin or the linker sees; what follows
-passes it, so review refuses it. Each names the record in `docs/knowledge/decisions.md` that
-says why; read it before arguing an exception.
+What `make check` cannot see, so review refuses it. Read the record in
+`docs/knowledge/decisions.md` before arguing an exception.
 
 ## A name past another module's contract
 
-A module's entry, `@app-template/application/<module>`, opens it whole: its contract, its
-models, its services. Another module takes from it only the names of its `contract/` folder,
-and no tool checks the names: review refuses a model, a service, a mapper or a namespace import
-(`import * as`) of another module's entry.
-
+A module's entry opens it whole; another module takes from it only the names of its `contract/`
+folder, never a model, a service, a mapper or a namespace import (`import * as`).
 Record: [Module contracts](../../docs/knowledge/decisions.md#module-contracts).
 
 ## A cycle, or an import of a unit above
 
-A dependency on a module's contract counts as one on the module: two modules that import each
-other's entries form a cycle, which `noImportCycles` refuses for value imports, never through
-`import type`. Break it by moving the shared id or error into the contract of the module that
-owns it, or the flow into a use case. No guard sees the rest:
+Two modules that import each other's entries form a cycle, which `noImportCycles` refuses for
+value imports and misses through `import type`: move the shared id or error into the contract of
+the module that owns it, or the flow into a use case. Refuse too:
 
-- Refuse a unit importing one above it in its folder (a module the entry of a module above it,
-  a kernel part or a package one above it, a module's infrastructure the use cases).
-- Refuse test support (`<folder>/testing`, `#testing/<unit>/…`) in source, and e2e support
-  (`<folder>/testing/e2e`) in a unit test.
-- Refuse a repository, a mapper (`<Model>FromEntity`) or the data layer in an app's handler:
-  only the process's `layer.ts` provides them.
-- Refuse more of the kernel than its configuration in the web server's entry, than it, the
-  inventory and the files' key in `deployment`, than it and the inventory in the data's tests.
+- a unit importing one above it in its folder (a module the entry of a module above it, a kernel
+  part or a package one above it, a module's infrastructure the use cases);
+- test support (`<folder>/testing`, `#testing/<unit>/…`) in source, and e2e support
+  (`<folder>/testing/e2e`) in a unit test;
+- of the kernel, more than its configuration in the web server's entry, than it and the inventory
+  in the data's tests, than those and the files' key in `deployment`.
+
 Records: [Module contracts](../../docs/knowledge/decisions.md#module-contracts),
 [Guards are configuration](../../docs/knowledge/decisions.md#guards-are-configuration),
 [Tests in their folders](../../docs/knowledge/decisions.md#tests-in-their-folders).
 
 ## A service rule or a model in the kernel
 
-The kernel holds this app's tools and its data in the data layer's own types. A check that
-refuses a write, a status move, a choice between outcomes or a `Schema.Class` of the domain
-belongs in a module's `domain/` or `services/`, even when every module needs it. An entity keeps
-only what the store enforces (a column, a check, an index).
+A check that refuses a write, a status move, a choice between outcomes or a domain
+`Schema.Class` belongs in a module's `domain/` or `services/`, even when every module needs it;
+an entity keeps only what the store enforces (a column, a check, an index).
 Records: [One kernel](../../docs/knowledge/decisions.md#one-kernel),
 [The data at the centre](../../docs/knowledge/decisions.md#the-data-at-the-centre).
 
@@ -52,29 +45,18 @@ Records: [One kernel](../../docs/knowledge/decisions.md#one-kernel),
 A module may read and write any record, but a rule another module owns is called through a use
 case, never repeated. The test: if the owner changes the rule, must this module change too? Yes:
 one rule, call it. No: two rules that only look alike, each kept by its module.
-
-```ts
-// refused: the order module repeats the customer module's rule
-if (customer.blockedAt !== null) return yield* new OrderRefusedError()
-// kept: the use case calls the owner, then the order's own service
-yield* CustomerService.requireActive(customerId)
-yield* OrderService.place(customerId, lines)
-```
-
 Record: [Records open, rules called](../../docs/knowledge/decisions.md#records-open-rules-called).
 
 ## A rule in a use case
 
-A use case composes services, holds the transaction, orders the writes against a store outside
-it and enqueues the jobs. A branch on a model's state, a limit or a refusal of its own belongs in
-the module whose model it reads; the use case calls it. A plain read or write with no rule may
-go to the repository: [layering.md › Use cases](layering.md#use-cases).
+A branch on a model's state, a limit or a refusal of the use case's own belongs in the module
+whose model it reads; the use case calls it.
 Record:
 [Use cases above the modules](../../docs/knowledge/decisions.md#use-cases-above-the-modules).
 
 ## A job that reacts to another module's write
 
 A job carries work that outlives a request (a slow call, a retry), never a module's reaction to
-what another module wrote. A flow that needs several modules is one use case, run synchronously.
+another module's write: a flow over several modules is one use case, run synchronously.
 Record:
 [Use cases above the modules](../../docs/knowledge/decisions.md#use-cases-above-the-modules).

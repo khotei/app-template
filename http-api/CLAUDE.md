@@ -12,8 +12,7 @@ the browser, which calls it through its client.
   so it builds a payload's brand through this entry.
 - **Statuses are set here, never in the domain:**
   `<Model>NotFoundError.pipe(HttpApiSchema.status(404))` where an endpoint or middleware lists
-  the error. Only HTTP's own errors (`shared/errors.ts`)
-  carry `httpApiStatus` on the class.
+  the error. Only HTTP's own errors carry `httpApiStatus` on the class.
 - **A domain schema edit is a contract edit.** DTOs reuse the domain's schemas, so the change
   reaches the wire past the api's handler tests, which check only what HTTP adds (statuses, the
   cookie, the wire shape); `make api-check` fails on it until `make api-snapshot` moves

@@ -72,7 +72,7 @@ export const decodeManyWith = <Mapper extends Schema.Constraint>(mapper: Mapper)
  * Drizzle types the wrapped cause `unknown`, but its Effect driver only ever wraps a `SqlError`,
  * so anything else is a bug and dies.
  */
-export const unwrapQueryError = (error: EffectDrizzleQueryError) => {
+export function unwrapQueryError(error: EffectDrizzleQueryError) {
   const cause = Cause.isCause(error.cause) ? Cause.squash(error.cause) : error.cause
   return SqlError.isSqlError(cause) ? Effect.fail(cause) : Effect.die(error)
 }

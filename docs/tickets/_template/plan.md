@@ -4,8 +4,8 @@
 
 ## Status
 
-<One row per step, updated in each step's commit, so the reader sees the ticket's state without
-reading the steps; `git log` holds each step's commit.>
+<One row per step, updated in the step's last round, so the reader sees the ticket's state without
+reading the steps; `git log` holds the step's commits.>
 
 | Step | Delivers | Status |
 |---|---|---|
@@ -13,7 +13,8 @@ reading the steps; `git log` holds each step's commit.>
 
 ## How to run this plan
 
-- Branch `<type>/<slug>`; one commit per step, after the user's OK (`/ticket-implement`).
+- Branch `<type>/<slug>`; commits by round, under the commit gate of `.claude/rules/sdd.md ›
+  Gates` (`/ticket-implement`).
 - Each step leaves `make check` green and fits one fresh session (≤ ~400 changed lines).
 - A deviation is recorded in the step's findings, and in `architecture.md › Decisions` when it is a
   decision.
@@ -24,11 +25,12 @@ reading the steps; `git log` holds each step's commit.>
 
 - **Delivers:** <two to four plain lines: what exists or behaves differently once the step lands,
   without ids>.
-- **Goal:** <outcome> (R1, D1).
+- **Goal:** <outcome, and the constraints it keeps> (R1, D1).
 - **Blocked by:** none.
-- **Files:** <paths>.
+- **Files:** <where the step starts; the names, traps and probe targets it pins>.
+- **Size:** <~ changed lines, every file the change reaches>.
 - **Test first:** <Seam from architecture.md> — <behaviour to see red>. Or `config only`.
-- **Verify:** <commands and manual checks>.
+- **Verify:** <commands and manual checks, each with the state it fails on>.
 - **Model:** <model and effort, e.g. `opus medium`>
 - **Status:** todo
 

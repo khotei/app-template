@@ -11,7 +11,7 @@ declare module 'vitest' {
 /** The migrated database the `globalSetup` creates; `PgClientTest` copies it for each test. */
 export const templateDatabase = 'template'
 
-const buildDatabaseUrl = (url: string, database: string) => {
+function buildDatabaseUrl(url: string, database: string) {
   const target = new URL(url)
   target.pathname = `/${database}`
   return Redacted.make(target.href)

@@ -32,7 +32,7 @@ An older `Refs:` line may name a folder before its rename: the slug is unchanged
 ## The five skills
 
 All five are typed by you (`disable-model-invocation: true`) and run in the main session, because
-grilling, plan review and commit approval need you. Each takes the ticket folder, except
+grilling, plan review and the commit gate need you. Each takes the ticket folder, except
 `/ticket-feature`, which takes a slug.
 
 | Skill | Input | You decide | Output |
@@ -40,15 +40,20 @@ grilling, plan review and commit approval need you. Each takes the ticket folder
 | `/ticket-feature <slug> [idea]` | an idea, notes or a link | the answers to each grilling round; the terms | `feature.md` with EARS requirements; glossary entries |
 | `/ticket-architecture <ticket>` | `feature.md` | the Seams and the Decisions | `architecture.md` |
 | `/ticket-plan <ticket>` | `feature.md`, `architecture.md` | the plan as a whole: the heavy review | `plan.md` with steps and coverage |
-| `/ticket-implement <ticket> [step]` | the next unblocked step | approve, give feedback, or stop | one commit per approved step |
-| `/ticket-verify <ticket>` | the branch against `origin/main` | which simplifications and lessons to apply; whether to open the PR | `verification.md` |
+| `/ticket-implement <ticket> [step]` | the next unblocked step | the commit gate's question, once per session; feedback, or stop | the step's commits, by round ([Gates](../../.claude/rules/sdd.md#gates)) |
+| `/ticket-verify <ticket>` | the branch against its PR's base branch | which simplifications and lessons to apply; whether to open the PR | `verification.md` |
 
 ## Under the hood
 
 The skills are thin wrappers over the [mattpocock-skills](https://github.com/mattpocock/skills)
-plugin, which the project enables in `.claude/settings.json`. The wrappers decide **where** files
-go and **when** you decide; the plugin decides **how** to interview, model, design, test and
-review. Its skills are referenced by name and never copied, so plugin updates arrive on their own.
+plugin, which the project enables in `.claude/settings.json`; the same file turns off the plugins
+whose skills and agents overlap the wrappers (`superpowers`, `pr-review-toolkit`,
+`code-simplifier`, `commit-commands` and the plugin `code-review`), so none runs unasked or
+writes outside the ticket, and the MCP servers no step uses (the claude.ai connectors, Notion,
+Chrome, computer use, the plugin copy of context7), so their tools load into no session. The
+wrappers decide **where** files go and **when** you decide; the plugin decides **how** to
+interview, model, design, test and review. Its skills are referenced by name and never copied, so
+plugin updates arrive on their own.
 
 ### Dependency map
 
@@ -60,10 +65,10 @@ uses updates this map too; the Standards review checks it against `.claude/rules
 | `/ticket-feature` | `grilling`, `domain-modeling` | `researcher` | — | `feature.md`, `docs/knowledge/glossary.md`, `docs/knowledge/roadmap.md` |
 | `/ticket-architecture` | `codebase-design`, `grilling` | `researcher` | — | `architecture.md` |
 | `/ticket-plan` | — | `researcher` | — | `plan.md` |
-| `/ticket-implement` | `code-review`; on a behaviour step the built-in `simplify`, with `codebase-design` as its vocabulary, and the built-in `code-review` | `implementer` (one worktree per parallel step, with its own `.env`, ports and MiniStack), `reviewer` (a third, Depth, axis on a behaviour step); `pr-review-toolkit:silent-failure-hunter` on a step with error handling, a retry or a store outside the transaction | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, one commit per approved step |
-| `/ticket-verify` | `code-review` | `verifier`, `reviewer` | — | `verification.md` |
-| `implementer` | `tdd`, preloaded | — | `make-check.sh` on `Stop` (runs as `SubagentStop`) | the step's files |
-| `reviewer` | one axis of `code-review` | — | — | nothing: read-only |
+| `/ticket-implement` | `code-review`; on a behaviour step the built-in `simplify`, run by the main session, with `codebase-design` as its vocabulary | `implementer` (one worktree per parallel step, set up by `make worktree`), `reviewer` (one per review pass) | `make-check.sh` and `bash-guard.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, the step's commits |
+| `/ticket-verify` | `code-review` | `verifier` (one per group of requirements, in parallel), `reviewer` | — | `verification.md` |
+| `implementer` | `tdd`, preloaded | — | `make-check.sh` on `Stop` (runs as `SubagentStop`); `bash-guard.sh` on `PreToolUse` of `Bash` | the step's files |
+| `reviewer` | one pass: an axis of `code-review`, or the hunt | — | — | nothing: read-only |
 | `verifier` | — | — | — | nothing: read-only |
 | `researcher` | — | — | — | nothing: read-only |
 
@@ -82,6 +87,7 @@ graph LR
     reviewer([reviewer])
     verifier([verifier])
     hook[/make-check.sh/]
+    guard[/bash-guard.sh/]
   end
   subgraph plugin [mattpocock-skills]
     grilling{{grilling}}
@@ -90,10 +96,8 @@ graph LR
     tdd{{tdd}}
     review{{code-review}}
   end
-  subgraph builtin [built-in and pr-review-toolkit]
+  subgraph builtin [built-in]
     simplify{{simplify}}
-    bugs{{code-review, bugs}}
-    hunter([silent-failure-hunter])
   end
   feature -.-> grilling & modeling
   feature --> researcher
@@ -101,11 +105,10 @@ graph LR
   arch --> researcher
   plan --> researcher
   impl --> implementer & reviewer
-  impl -.-> review & simplify & bugs
+  impl -.-> review & simplify
   simplify -.-> design
-  impl --> hunter
   implementer -.-> tdd
-  implementer --> hook
+  implementer --> hook & guard
   verify --> verifier & reviewer
   verify -.-> review
   reviewer -.-> review & design
@@ -120,35 +123,27 @@ Solid arrows spawn an agent or run a hook; dotted arrows use a plugin skill.
 | `domain-modeling` writes `GLOSSARY.md` at the root and ADRs to `docs/adr/` | glossary in `docs/knowledge/glossary.md`; ADR candidates become open questions, then `D…` decisions, and a binding one a record in `docs/knowledge/decisions.md` | one docs tree; a decision's history stays next to the ticket that made it, its living record in one page |
 | `to-spec` and `to-tickets` write to `.scratch/` or an issue tracker, as user stories | `/ticket-feature` and `/ticket-plan` write EARS requirements and steps into the ticket folder | artifacts are reviewed and committed with the code |
 | `tdd` asks the user to confirm seams before testing | the implementer takes them from `architecture.md › Seams`, confirmed earlier | a subagent cannot ask, and the seams were already agreed |
-| `implement` commits on its own and reviews committed work | `/ticket-implement` reviews the uncommitted step and commits only after your OK | every commit is approved |
-| `code-review` diffs from a fixed point to `HEAD` and spawns generic sub-agents | for a step: `git diff HEAD` plus untracked files, reviewed by read-only `reviewer` agents; the Spec axis also flags a diff that changes what a requirement asks | the step is reviewed before it is committed, by agents that cannot edit, and `feature.md` changes with the requirement |
-| `improve-codebase-architecture` scans the whole codebase, writes an HTML report, grills, and writes `GLOSSARY.md` and ADRs | the Depth axis of `/ticket-implement`: a read-only `reviewer` on a behaviour step's files and their callers, a text report, `docs/knowledge/decisions.md` and `architecture.md › Decisions` as the records not to re-litigate | the shape is questioned while the step is small, and no doc lands outside `docs/knowledge/` and the ticket |
+| `implement` commits on its own and reviews committed work | `/ticket-implement` reviews the uncommitted step and commits it under the commit gate | a step commits only once reviewed, and as you chose |
+| `code-review` diffs from a fixed point to `HEAD` and spawns generic sub-agents | for a step: the uncommitted diff, reviewed by read-only `reviewer` agents that read only what the step cites, each owning one kind of finding | the step is reviewed before it is committed, by agents that cannot edit and read no more than the step needs; no finding comes twice, and the main session forwards one without reading the code |
+| `improve-codebase-architecture` scans the whole codebase, writes an HTML report, grills, and writes `GLOSSARY.md` and ADRs | the Depth axis of `/ticket-implement`: a read-only `reviewer` on one step, with a text report | the shape is questioned while the step is small, and no doc lands outside `docs/knowledge/` and the ticket |
 | `research` writes a notes file into the repo | `researcher` answers in its report | facts reach the conversation, not the tree |
 
-## The approval gate
+## The commit gate
 
-A step runs through three stages before anything is committed:
+The gate is stated in [.claude/rules/sdd.md › Gates](../../.claude/rules/sdd.md#gates), and
+`/ticket-implement` runs a step through it: the `implementer`, then `simplify` on a behaviour
+step, then the review passes, then you. Why it is cut so:
 
-1. **`implementer`** builds the step test-first at the agreed seam. A hook runs `make check` when
-   it tries to finish and sends it back while the gate is red. Its only way out on red is a final
-   message starting with `BLOCKED:`, which reaches you unchanged. On a step that writes
-   behaviour, `simplify` then does the refactor `tdd` keeps out of its loop, judged by the rules
-   and `codebase-design`'s deletion test, sparing the interim states the plan names, and
-   `make check` runs again; a move skips it, since its files must keep their content for `git`
-   to see the rename.
-2. **`code-review`** runs two `reviewer` agents in parallel, each in a fresh context: **Standards**
-   (the rules in `.claude/rules/` and the smell baseline) and **Spec** (the step and its
-   requirements). The two reports stay separate, so one axis cannot hide the other. Neither axis
-   hunts for bugs, so a behaviour step also gets the built-in `code-review` at `medium`, and one
-   with error handling or a store outside the transaction `silent-failure-hunter`. A behaviour
-   step gets a third `reviewer` too, **Depth**: `improve-codebase-architecture`'s search for
-   shallow modules, limited to the step's files and their callers, as text; a candidate that
-   contradicts a decision or reshapes a module comes to you as a question.
-3. **You** read the report and both reviews, then approve, send feedback to the same implementer,
-   or stop. Approval updates `plan.md`, records any decision, and commits with the proposed
-   message.
-
-Pushing, opening the PR and creating the remote each need their own OK.
+- **The implementer cannot finish red.** A hook runs `make check` when it stops and sends it
+  back; `BLOCKED:` is its only way out, and reaches you unchanged.
+- **The main session runs `simplify`, never the implementer,** so the agent that wrote the code
+  does not judge its own cuts. A pure move skips it: its files keep their content for `git` to
+  see the rename.
+- **Each review pass is its own `reviewer` in a fresh context,** and owns one kind of finding, so
+  one pass cannot hide another and no finding comes twice. Depth runs only on a behaviour step,
+  where it changed the step's shape; the hunt for bugs only on a step whose kind of change it
+  paid off on.
+- **You decide** on the reports, which the main session presents without re-reading the code.
 
 ## Roadmap and history
 
@@ -158,7 +153,7 @@ A ticket starts as an entry in [the roadmap](./roadmap.md), which says what an e
 **`main` is the only long-lived branch.** It holds one commit per ticket: the squash, whose body
 is the PR description, the history to read for *what* the template is and *why*. The *how*, step
 by step, stays in two places that outlive the ticket branch: the merged PR's commit list on
-GitHub, one commit per plan step, and the ticket folder's `plan.md` with each step's findings.
+GitHub, a step's commits by round, and the ticket folder's `plan.md` with each step's findings.
 `chore/monorepo-setup` keeps the scaffold ticket's steps, which predate the PRs.
 
 ```mermaid
@@ -176,11 +171,10 @@ branch, so no merge commit is needed and the repository allows none.
 
 ## Lessons
 
-`/ticket-verify` ends with **Lessons**: mistakes that recurred in two or more steps, each turned
-into one proposed change. A mechanical mistake (an import shape, a banned API) gets a check: a Biome
-rule, a test or a hook. A judgement call gets one line in a named skill or rule. A `CLAUDE.md`
-never grows from a lesson, and nothing is applied without your OK. For a broader look at a whole
-session, the plugin's `/mattpocock-skills:retro` is available to run by hand.
+`/ticket-verify` ends with **Lessons**, each a recurring mistake turned into one proposed change
+to a skill, a rule or a check, applied only on your OK: the toolkit learns from a ticket, while a
+`CLAUDE.md` keeps only binding constraints. For a broader look at a whole session, the plugin's
+`/mattpocock-skills:retro` is available to run by hand.
 
 ## Periodically
 
@@ -212,7 +206,7 @@ The plugin updates itself, so its behaviour can shift under the wrappers. After 
 | Symptom | Cause | Fix |
 |---|---|---|
 | `/ticket-*` is not offered when typing `/` | Claude Code was started outside the repository root | start it in the root; the skills live in `.claude/skills/` |
-| plugin skills are missing, or `superpowers` is active | the plugin is not installed, or the session predates `enabledPlugins` | install `mattpocock-skills` from `claude-plugins-official` and restart the session |
+| plugin skills are missing, or a plugin turned off above is active | the plugin is not installed, the session predates `enabledPlugins`, or a `settings.local.json` enables it | install `mattpocock-skills` from `claude-plugins-official`, or remove the plugin's key from `settings.local.json`, then restart the session |
 | `implementer` never stops | `make check` stays red and the agent keeps fixing | stop it; resume with guidance, or let it report `BLOCKED:` |
 | the `make check` hook never runs | the folder's workspace trust was never accepted (a `-p` session does not accept it) | open Claude Code interactively in the folder once and accept the trust dialog |
 | a `GLOSSARY.md` or `docs/adr/` appeared | a plugin skill fired outside `/ticket-feature` | move the terms into `docs/knowledge/glossary.md` and delete the file |

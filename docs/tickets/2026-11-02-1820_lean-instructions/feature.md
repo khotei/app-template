@@ -3,7 +3,7 @@
 > Ticket: `2026-11-02-1820_lean-instructions` · Source: conversation (the branch review of
 > 2026-11-02: the md audit and the context research); absorbs
 > [roadmap entry 17 `docs-diet`](../../knowledge/roadmap.md#17-docs-diet)
-> Related: [architecture.md](./architecture.md) · [plan.md](./plan.md)
+> Related: [architecture.md](./architecture.md) · [plan.md](./plan.md) · [research.md](./research.md)
 
 ## Problem
 
@@ -85,9 +85,16 @@ it targets.
   and four rules sit at or over 80 lines.
 - **The maintenance rule exists:** `claude-md.md` already states the test a line must pass, one
   author per fact and the pattern over the instance; this ticket makes its parts checkable.
-- **Where it lands:** on the `modular-monolith` branch and its PR, after that ticket's last step,
-  so the texts are written against the code in its final shape. The audit's draft texts were
-  written before that ticket's last steps and serve as a model, not as text to paste.
+- **Where it lands:** on its own branch off `modular-monolith`, its PR into that branch, after
+  that ticket's last step, so the texts are written against the code in its final shape. The
+  audit's draft texts were written before that ticket's last steps and serve as a model, not as
+  text to paste.
+- **The ticket artifacts churn the same way** ([research.md](./research.md), 2026-11-02): of the
+  47 commits that touched `modular-monolith`'s three artifacts after its plan, most that did more
+  than add findings or steps fixed a step's file list, a restated config or a path in an
+  acceptance row (12 of 13 `feature.md` commits), and one changed what a requirement asks. The
+  implementer found every file a list missed by `git grep`; what it needed concretely were
+  decided names, traps the code cannot show and checks proven red first.
 
 ## Scope
 
@@ -103,7 +110,23 @@ it targets.
   pass owns which finding, when the bug hunt runs, who runs `/simplify`; the main session as the
   orchestrator that decides on the agents' reports; verification fanned out over parallel
   verifiers.
+- The ticket templates and the skills that write a ticket: what a requirement, a design entry and
+  a step name concretely, and what they leave to a pattern, a grep or a check.
 - The roadmap's `docs-diet` entry, absorbed.
+- One shape for a named function, asked by the user on 2026-11-03 outside the requirements: a
+  `function` declaration, an arrow only for a callback or an expression body, or one typed by its
+  `const`'s annotation; the code follows it, with no behaviour change.
+- The checks of `make check` themselves, asked by the user on 2026-11-03: each one that reads code
+  or Markdown becomes a rule of a lint tool the repo pins, and the check of backticked code names
+  is dropped, since it never caught a stale name, and so is the check of ticket ids (the user's
+  word: review against `comments.md` and `claude-md.md` holds it).
+- The harness settings in `.claude/settings.json`, asked by the user on 2026-11-03: one settings
+  file, a wider allow list with the pushes, PRs, merges and `gh api` on ask, five plugins off and
+  the MCP servers no step uses denied.
+- The lint configuration moved to `.misc/lint/` with two stubs at the root, asked by the user on
+  2026-11-03.
+- Claude Code's TypeScript LSP working on TS 7 and the plugins and MCP servers the project turns
+  off gone from its sessions, asked by the user on 2026-11-03.
 
 ## Out of scope
 
@@ -113,7 +136,8 @@ it targets.
   version" and point to the manifest instead.
 - Emphasis markers on rule lines (`**Required:**`, `IMPORTANT`): the docs advise against them; a
   costly trap is stated plainly and early in its file.
-- Code changes, and the plugin skills, which are referenced by name and never edited.
+- Code changes other than the shape of a named function and the checks' own rules, and the
+  plugin skills, which are referenced by name and never edited.
 
 ## Requirements
 
@@ -122,7 +146,9 @@ it targets.
 - **R1** — WHEN code is moved or renamed and no constraint changes, THE SYSTEM SHALL need no edit
   to any instruction file Claude reads.
 - **R2** — THE SYSTEM SHALL state each fact in one file, its owner, and every other file that needs
-  it SHALL point to the owner by name instead of retelling it.
+  it SHALL point to the owner by name instead of retelling it. One exception: the root
+  `CLAUDE.md` keeps the dependency command, as a pattern beside its pointer, because the rule
+  that points to its owner loads only on a manifest, while a session runs `bun add` from the shell.
 - **R3** — WHERE a line of an instruction file would not change what Claude does in this project,
   because Claude gets it right from the code, the stack or the surrounding style, THE SYSTEM SHALL
   not carry that line.
@@ -136,9 +162,10 @@ it targets.
 
 ### Checks that keep it so
 
-- **R7** — IF any Markdown file outside the ticket folders, the skills, the agents and every
-  `README.md` included, names in backticks a path or a name the repository lacks, THEN
-  `make check` SHALL fail, naming the file and the line.
+- **R7** — IF any Markdown file outside the ticket folders and the roadmap, the skills, the agents
+  and every `README.md` included, names in backticks a path the repository lacks, THEN
+  `make check` SHALL fail, naming the file and the line. The roadmap is skipped because it plans
+  files and names not built yet.
 - **R8** — IF an instruction file Claude reads names a concrete path to a source file, rather
   than a pattern with placeholders or a pointer to a doc, THEN `make check` SHALL fail, naming
   the file and the line.
@@ -156,7 +183,8 @@ it targets.
   the ticket's design the step cites, not the whole design, and on the Standards axis only the
   rules without a path filter and those whose filter matches a file of the diff.
 - **R13** — WHEN the implementer starts a plan step, THE SYSTEM SHALL let the rules arrive through
-  their path filters instead of having it read every rule up front.
+  their path filters, the implementer reading and editing through the file tools that fire them,
+  instead of having it read every rule up front.
 - **R14** — WHEN Claude edits a `.ts` file of a module, THE SYSTEM SHALL load rules and
   `CLAUDE.md` text at least 20% smaller than before the ticket, every constraint they held still
   stated where it binds.
@@ -171,7 +199,8 @@ it targets.
 - **R17** — THE SYSTEM SHALL state the commit gate in one file, and every other file SHALL point to
   it: WHEN `/ticket-implement` starts its first step of a session, it SHALL ask once whether each
   ready step is committed without the user's OK or waits for it, and hold the answer for the
-  session; a step is ready when its reviews ran, their fixes are in and `make check` is green;
+  session; a step is ready when the passes `/ticket-implement` names for it ran, their fixes are
+  in and `make check` is green;
   pushing, opening a PR and merging SHALL always wait for the user's OK.
 
 ### Agents that do their own job
@@ -198,32 +227,48 @@ it targets.
   group of requirements in parallel and merge their verdicts, while the Spec review of the whole
   branch still reads every requirement at once.
 
+### Ticket artifacts that survive a change
+
+- **R23** — WHEN a skill writes a ticket's requirements, design or plan, THE SYSTEM SHALL have
+  each requirement and acceptance row state a property and its check, each design entry a decision
+  and its invariant pointing to the config that holds it, and each step its outcome, its
+  constraints and a check that names the state it fails on, naming a concrete path, name or
+  literal only where it is a decided contract, a trap the code cannot show or a probe's target.
+
+### Checks as lint rules
+
+- **R24** — WHERE a check of `make check` reads TypeScript or Markdown, THE SYSTEM SHALL hold it as
+  a rule of a lint tool the repo pins, refusing what the shell check refused; a shell recipe SHALL
+  remain only for a check no such rule can see: the web bundle, the migrations, the HTTP contract.
+
 ## Acceptance
 
 | Req | How to verify |
 |---|---|
-| R1 | A probe moves a module's folder and renames a file in it (no constraint changed): `git grep` of the old names over the instruction files finds none, and `make doc-names` stays green; the probe is reverted. |
-| R2 | For each fact the Context lists as told in several places, `git grep` finds its statement in one file and pointers by name elsewhere; `/doctor prompt-audit`, run by hand, reports no contradiction and no dead reference. |
+| R1 | A probe moves a module's folder and renames a file in it (no constraint changed): `git grep` of the old names over the instruction files finds none, and `make doc-lint` fails only on a worked example of the doc that owns it (`architecture.md › Where things live`); the probe is reverted. |
+| R2 | For each fact the Context lists as told in several places, `git grep` finds its statement in one file and pointers by name elsewhere, the root `CLAUDE.md`'s dependency command aside; `/doctor prompt-audit`, run by hand, reports no contradiction and no dead reference. |
 | R3 | Each step's report lists every removed line with its new home, or "dropped:" and why Claude gets it right without it; review checks the list. |
-| R4 | `git grep -E '\b[0-9]+\.[0-9]+\.[0-9]+\b'` and a grep for "today" and for counts over `docs/knowledge/` and the `README.md` files find each hit only in the doc that owns it. |
+| R4 | `git grep -P '\b[0-9]+\.[0-9]+\.[0-9]+\b'` and a grep for "today" and for counts over `docs/knowledge/` and the `README.md` files find each hit only in the doc that owns it. |
 | R5 | The step's report lists each trap added and where; review checks each against the test of R3. |
 | R6 | The local stand's `README.md`, which retells `aws.md`, is gone, and no other doc only retells. |
 | R7 | A probe backticks a missing path in a skill, an agent and a `README.md`: `make check` fails on each, naming file and line. |
 | R8 | A probe adds a concrete source path to a rule, a `CLAUDE.md` and a skill: `make check` fails on each; a placeholder pattern, a package specifier and a doc pointer pass. |
 | R9 | A probe narrows a rule's filter to a folder that does not exist: `make check` fails naming the rule. |
 | R10 | `make check` is green on the tree; a probe adds lines to a rule past 80: it fails, naming the file. |
-| R11 | `claude-md.md` names the test, the owner, the pattern, and the three checks by their `make` targets. |
-| R12 | Measured with `InstructionsLoaded` and the reviewers' transcripts on one step, before and after: each reviewer's reading of the ticket's design drops by at least 20%, and the Standards reviewer's reading of rules by at least 20%. |
-| R13 | Measured the same way on one step: the implementer's load drops by at least 20%. |
+| R11 | `claude-md.md` names the test, the owner, the pattern, and the doc lint that holds the checks by its `make` target. |
+| R12 | Measured with `InstructionsLoaded` and the reviewers' transcripts on one step, before and after, as the mean of two runs: the Spec reviewer's reading of the ticket's design drops by at least 20%; the Standards reviewer's report cites every rule whose filter matches a file of the diff; `ticket-implement` has the Standards brief paste `make review-rules`'s output verbatim; on the next steps, a brief that adds or drops a rule is counted and recorded, not failed (D18). |
+| R13 | Measured the same way on one step, once the rules are trimmed: the implementer's load drops by at least 20%; the implementer's Bash guard refuses a read and an edit through the shell, its seam's cases red first; on the next steps, a shell read or edit in its transcript is counted and recorded, not failed (D18). |
 | R14 | Measured the same way on one session that edits a `.ts` file of a module's domain, then one of its services: the rules and `CLAUDE.md` loaded drop by at least 20%; the step ledger shows every removed constraint's new home. |
 | R15 | `verification.md` records the four scenarios before and after; the measuring hook is not committed. |
 | R16 | A one-step run of `/ticket-implement` loads no parallel-steps text; a parallel run reads the file beside the skill, and `make` sets up a scratch worktree with the same `.env` ports and stage as the old block; the skill's loaded size drops by at least 20%. |
 | R17 | `git grep` finds the gate stated in one file and pointers elsewhere; a new session's first `/ticket-implement` step asks once, the next step of that session does not ask again. |
 | R18 | The agents' files and the skills' briefs say so; on the next verification the verifier's transcript reads no `plan.md`; on the next steps no Spec report flags an unrecorded `plan.md` edit and no implementer report carries the status block. |
-| R19 | `ticket-implement`'s brief splits the axes and states the hunt's condition; on the next behaviour steps Standards and Depth report no finding twice, and a step outside the condition runs no hunt. |
+| R19 | `ticket-implement`'s brief splits the axes, gives Standards no smell baseline and states the hunt's condition; on the next behaviour steps, a finding Standards and Depth both report and a hunt outside the condition are counted and recorded, not failed (D18). |
 | R20 | `ticket-implement` runs `/simplify` from the main session and `implementer.md` forbids it; on the next behaviour step the implementer's transcript holds no `simplify` call. |
-| R21 | `ticket-implement` and `reviewer.md` say so; on the next steps the main session's transcript reads no source file or diff to write a fix round, and every finding carries the four fields. |
+| R21 | `ticket-implement` and `reviewer.md` say so, the finding shape as one literal line; on the next steps, a source file or diff the main session reads to write a fix round and a finding off the shape are counted and recorded, not failed (D18). |
 | R22 | `ticket-verify` says so; the next verification runs the verifiers in parallel, and its wall-clock to verdicts is shorter than run 2 of `modular-monolith` (33 min for the verifier). |
+| R23 | The three templates and the `ticket-feature`, `ticket-architecture` and `ticket-plan` skills say so: a step's file list names what it must pin plus the leftover grep, not every file; a design entry links a config instead of copying it; a `Verify` check names the state it fails on, and a step that replaces a guard pins one probe per guard (lesson L8 of `modular-monolith`). The ledger maps each removed instruction to its new home; each rule cites its evidence in `research.md`. |
+| R24 | Before each shell check goes, a probe file of its violations fails it; the same probe fails the lint rule that replaces it, naming file and line, and the clean tree passes both; `make help` lists no target for a replaced check, and CI runs the lint tools in their place. |
 
 ## Open questions
 

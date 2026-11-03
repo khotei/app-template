@@ -58,7 +58,7 @@ const job = new GenerateAssistantMessage({
   provenance: Option.some(replyProvenance),
 })
 
-const assertFailed = (failed: Message, cause: string) => {
+function assertFailed(failed: Message, cause: string) {
   const error = Option.getOrThrow(failed.error)
   assert.strictEqual(failed.status, 'failed')
   assert.strictEqual(error.reason, 'ReplyFailed')

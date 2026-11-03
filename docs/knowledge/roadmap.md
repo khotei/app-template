@@ -49,7 +49,7 @@ graph LR
 | 14 | [`toolkit-reading`](#14-toolkit-reading) | `chore` | 2 | done: [docs/tickets/2026-10-21-1347_toolkit-reading/](../tickets/2026-10-21-1347_toolkit-reading/feature.md) |
 | 15 | [`architecture-audit`](#15-architecture-audit) | `refactor` | 4 | in progress: [docs/tickets/2026-10-27-1433_architecture-audit/](../tickets/2026-10-27-1433_architecture-audit/feature.md) |
 | 16 | [`shared-files`](#16-shared-files) | `feat` | 15, 23 | planned |
-| 17 | [`docs-diet`](#17-docs-diet) | `docs` | 15 | in progress, as `lean-instructions`: [docs/tickets/2026-11-02-1820_lean-instructions/](../tickets/2026-11-02-1820_lean-instructions/feature.md) |
+| 17 | [`docs-diet`](#17-docs-diet) | `docs` | 15 | done, as `lean-instructions`: [docs/tickets/2026-11-02-1820_lean-instructions/](../tickets/2026-11-02-1820_lean-instructions/feature.md) |
 | 18 | [`assistant-files`](#18-assistant-files) | `feat` | 6, 23 | planned |
 | 19 | [`openai-provider`](#19-openai-provider) | `feat` | 6 | planned |
 | 20 | [`context-window`](#20-context-window) | `feat` | 6 | planned |
@@ -57,6 +57,7 @@ graph LR
 | 22 | [`jobs`](#22-jobs) | `feat` | 4, 23 | planned |
 | 23 | [`modular-monolith`](#23-modular-monolith) | `refactor` | 15 | done: [docs/tickets/2026-10-31-0926_modular-monolith/](../tickets/2026-10-31-0926_modular-monolith/feature.md) |
 | 24 | [`attachment-storage-failures`](#24-attachment-storage-failures) | `fix` | 23 | planned |
+| 25 | [`toolkit-quality`](#25-toolkit-quality) | `chore` | 17 | planned |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; its remaining work is re-homed
 in [Re-homing `effect-setup`](#re-homing-effect-setup).
@@ -508,10 +509,10 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   lists of a module's exports or class names, the layouts `ls` reproduces. Each becomes the
   concept and one exemplar, or goes; a code name stays where a rule or a gotcha needs it.
 - **Out of scope.** The ticket folders and the roadmap's history.
-- **Inherits from `architecture-audit` (2026-10-29).** `make doc-names` keeps the names the docs
-  keep true, but not whether a true name restates the code: that judgement is this ticket's. Most
+- **Inherits from `architecture-audit` (2026-10-29).** `make doc-lint` keeps the paths the docs
+  name true, but not whether a true name restates the code: that judgement is this ticket's. Most
   review rounds of that ticket's last steps fixed copies of code names gone stale.
-- **Status.** In progress, absorbed by `lean-instructions`:
+- **Status.** Done, absorbed by `lean-instructions`:
   [docs/tickets/2026-11-02-1820_lean-instructions/](../tickets/2026-11-02-1820_lean-instructions/feature.md).
 
 ### 18. `assistant-files`
@@ -711,12 +712,71 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   which moves the code as is.
 - **Status.** Planned.
 
+### 25. `toolkit-quality`
+
+- **Goal.** A step's review finds what makes the code hard to change, not only what breaks a
+  rule or the spec, and every check a plan names can fail before its step runs.
+- **Scope.**
+  - A **Design** axis replaces Depth in `/ticket-implement`'s review of a behaviour step. It
+    looks for a narrower interface; composition over a wrapper per case; pure functions taken
+    out of effects; the links between modules (horizontal) and between rings (vertical); a
+    shorter or plainer implementation, shown as a before → after sketch. It judges each by
+    cohesion (what changes together lives together) and coupling (a module knows of another
+    only its contract).
+  - The axis carries do and don't examples in code, written on a neutral entity
+    (`claude-md.md › The pattern`), and the experience of past tickets: the lessons of each
+    `verification.md` and the `decisions.md` records they produced. Where they live, a file
+    the reviewer reads by link or the brief, is decided in the feature phase.
+  - The hunt asks of each `catchAll`, `orElse`, `ignore`, `Option.getOrElse`, retry, and error
+    folded into a refusal what it hides; a hard finding is confirmed by a `researcher` before it
+    reaches the user.
+  - A missing test is reported with the failure it would catch.
+  - `/ticket-plan` checks that each step's checks can turn red before the plan is presented.
+  - A skill or rule edit passes the tests of `mattpocock-skills:writing-for-agents`.
+  - A bug ticket starts from phases 1–2 of `mattpocock-skills:diagnosing-bugs` as its red loop.
+  - Each lint rule's outcome since `lean-instructions`: its real catches in the session
+    transcripts, the planted probes and the cleanup of the step that introduced it left out. As
+    of 2026-11-03 the doc width and the missing paths catch agent mistakes often; the Effect
+    style rules caught 64, 101 and 5 sites at their introduction and nothing since, which the
+    rule text alone may explain; the bundle check caught nothing and went stale twice. A rule
+    that still catches nothing is kept or dropped on the user's word.
+- **Not adopted.** A plugin agent that runs unasked, edits code, writes outside
+  `docs/tickets/` or filters findings by a confidence score; a second artifact store.
+- **Found by** `lean-instructions`' review of the installed plugins (2026-11-03), which turns
+  the overlapping ones off and keeps here what they did better.
+- **Status.** Planned.
+
 ## Ideas to weigh
 
 Options raised outside a ticket, **not decided**: the plan above stands until a ticket's feature
 phase weighs one. Each holds what it would bring, what it would cost, and what to check first.
 Raised on 2026-11-02 by a review of Effect's modules (`effect@4.0.6`, Jose from `4.1.1`) for
 hand-written code they could replace; only the queue qualified.
+
+### Drizzle's agent skill
+
+- **Brings:** Drizzle's own skill (`drizzle-kit skills`) on choosing a migration workflow, telling
+  a rename from a data loss, and resolving conflicts, which `database.md` does not cover.
+- **Costs:** its description in every session; the installer fetches from the network.
+- **Check first:** where it writes its files, and that it targets the pinned `drizzle-kit`.
+- Raised on 2026-11-03 by `lean-instructions`' research of plugins and MCP servers; the Drizzle
+  MCP was skipped, since `make migration` and `make migration-check` cover it.
+
+### Post-edit type diagnostics
+
+For Claude Code's LSP ([tooling.md › Claude Code's LSP](tooling.md#claude-codes-lsp)).
+
+- **Brings:** a type error shown to the agent right after its edit, before `make check`.
+- **Blocked by:** TypeScript 7 serves only pulled diagnostics, and Claude Code reads only pushed
+  ones. A typescript-go maintainer (microsoft/typescript-go#2362): "We only support pull
+  diagnostics (`textDocument/diagnostic`) … It's a significant architectural change to use push
+  diagnostics, which we haven't looked into yet." No `anthropics/claude-code` issue on pull
+  diagnostics was found (`gh search issues`, 2026-11-03).
+- **Revisit when:** Claude Code pulls diagnostics, or typescript-go pushes them; then drop
+  `"diagnostics": false` from the server entry in `.misc/claude/`.
+- **Rejected:** a stdio proxy that pulls and re-pushes, which is protocol code the template would
+  keep.
+- Raised on 2026-11-03 by `lean-instructions` S23.
 
 ### Queue on SQS or in Postgres
 

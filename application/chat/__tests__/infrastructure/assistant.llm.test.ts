@@ -55,7 +55,7 @@ const readBody = (request: HttpClientRequest.HttpClientRequest): RequestBody =>
     : assert.fail(`a request body of ${request.body._tag}`)
 
 /** `AssistantLlmFromConfig` over the models `env` configures and an `HttpClient` that keeps each request body and the time it was sent, and answers it by `respond`. */
-const recordProvider = (env: Record<string, string>, respond: (body: RequestBody) => Response) => {
+function recordProvider(env: Record<string, string>, respond: (body: RequestBody) => Response) {
   const requests = Ref.makeUnsafe<
     ReadonlyArray<{ readonly body: RequestBody; readonly at: number }>
   >([])

@@ -7,58 +7,47 @@ paths:
 
 ## Functions
 
-- An effectful function at a tracing boundary is `Effect.fn('<name>')(function* (…) { … })`,
-  named after its export; a service method is named `'<Service>.<method>'`. An internal helper
-  that marks no useful tracing boundary is `Effect.fnUntraced`.
-- A body that only delegates is passed as is,
-  `Effect.fn('<Service>.<method>')(port.<method>)`, or as an arrow returning the effect; a
-  generator is for a body with more than one step. Extra arguments to `Effect.fn` are the
-  pipeables every call runs through (`transaction.run`).
-- The variable holding an `Effect.fn` is named after the span's last segment; a reserved word
-  gets its plain synonym (`remove` for `'<Model>Service.delete'`), never a model suffix, since
-  `'<Service>.<method>'` already names the model. A method that needs the model in its name
-  is often doing a neighbouring service's work: look there before accepting the name.
-- A module-level function that another module composes states its `Effect.fn.Return<A, E, R>`
-  on the generator, so the contract is read in one line; a helper used once stays inferred,
-  since the annotation drifts on refactors.
-- A pure builder that cannot fail returns the model itself, not an `Effect`.
-- A pure transition (`naming.md`) checks its source through one shared table of allowed sources and
-  fails one `<Model>StatusInvalidError { id, from, to }`; a transition is one row and one call.
-  One whose refusal reaches the user maps that error to its own (`<Model>BusyError`), so the
-  contract names the refusal and the table still holds the rule.
+- An effectful function at a tracing boundary is `Effect.fn('<name>')(function* (…) { … })`, named
+  after its export, a service method `'<Service>.<method>'`; a helper that marks no useful
+  boundary is `Effect.fnUntraced`. Extra arguments to `Effect.fn` are the pipeables every call
+  runs through (`transaction.run`); a body that only delegates is passed as is
+  (`Effect.fn('<Service>.<method>')(port.<method>)`).
+- The variable holding it is named after the span's last segment, a reserved word its plain
+  synonym (`remove` for `'<Model>Service.delete'`), never with a model suffix. A method that needs
+  the model in its name is often doing a neighbouring service's work.
+- A module-level function another module composes states `Effect.fn.Return<A, E, R>` on the
+  generator; a helper used once stays inferred.
+- A pure builder that cannot fail returns the model, not an `Effect`.
+- A pure transition (`naming.md`) checks its source in one shared table of allowed sources and
+  fails one `<Model>StatusInvalidError { id, from, to }`. One whose refusal reaches the user maps
+  it to its own (`<Model>BusyError`), so the contract names the refusal and the table holds the
+  rule.
 
 ## Services
 
-- Add a `Context.Service` only when something varies (the implementation: Postgres, S3,
-  memory; a test double; an injected dependency) or when several holders must share one state.
-  A rule with one implementation and no dependency is a plain function.
-- Key a service `'@app-template/<folder>/<Name>'`: the folder its file lives in, from the
-  repository root, so the key says where to look.
-- A domain service's `layer` is `Layer.effect(this, this.make)` alone, every dependency left
-  open: a process provides the adapters, a unit test the memory layers.
-- A service built in a body beside its declaration is
-  `Context.Service<Self, Shape>()(key, { make })`: the explicit `Shape` keeps the contract and its
-  docs, `make` the body. A one-expression build (`Config.all`) goes straight into `Layer.effect`.
-- A repository's or port's doc comment states the contract the type cannot (order of a list, what
-  a missing key yields); its other layers repeat none of it.
+- A `Context.Service` only when something varies (the implementation, a test double, an injected
+  dependency) or several holders share one state; otherwise a plain function.
+- Its key is `'@app-template/<folder>/<Name>'`, `<folder>` its file's folder from the repository
+  root, so the key says where to look.
+- One built in a body beside its declaration is `Context.Service<Self, Shape>()(key, { make })`:
+  the explicit `Shape` keeps the contract and its docs. A one-expression build (`Config.all`) goes
+  straight into `Layer.effect`.
 
 ## Layers
 
-- A service's layers are statics on the class, as in effect's own modules (`PgClient.layer`,
-  `BunHttpServer.layerTest`). `static readonly layer = Layer.effect(this, this.make)` provides
-  every dependency with one implementation and leaves open the leaves that vary (a port, a client,
-  a platform service); there is no `layerNoDeps`. A ready variant that closes such a leaf
-  is `static layer<Variant>`, a function when it takes options (`QueueTransport.layerSqs`,
-  `ApiClient.layerFetch(baseUrl)`). A layer for a service declared elsewhere (a domain port) is a
-  constant in the workspace that implements it (`<Port><Variant>`, `naming.md`).
+- A service's layers are statics on the class. `static readonly layer = Layer.effect(this,
+  this.make)` provides each dependency that has one implementation and leaves open the leaves
+  that vary (a port, a client, a platform service); a domain service's leaves every dependency
+  open. There is no `layerNoDeps`. A variant that closes a leaf is `static layer<Variant>`, a
+  function when it takes options; a layer for a service declared elsewhere (a domain port) is a
+  constant in the workspace that implements it (`naming.md`).
 - Variants live in the service's file: a separate file would import the class while the class
   referenced it, a cycle.
-- Chain `Layer.provide` from the nearest dependency outward. `Layer.provide([a, b])` provides
-  siblings that cannot feed each other. Never publish internals with `Layer.provideMerge`; the
-  exceptions are the client a caller opens transactions on (`DbTest`) and a test layer, which
-  merges what its cases read.
-- A client never reads the environment (`SqliteClient.layerConfig` is rejected): `Config` turns
-  into options in a module's `infrastructure` or the kernel, and only
-  `@app-template/kernel/config` reads variables.
+- Chain `Layer.provide` from the nearest dependency outward; `Layer.provide([a, b])` only for
+  siblings that cannot feed each other. `Layer.provideMerge` publishes internals: only for the
+  client a caller opens transactions on (`DbTest`) and a test layer that merges what its cases
+  read.
+- A client takes its settings as options and never reads `Config` (`PgClient.layerConfig` is
+  rejected): [tooling.md › Environment](../../docs/knowledge/tooling.md#environment).
 - A combinator that returns a `Layer` runs its effect in a fiber the layer's scope owns:
-  `Effect.forkScoped` then `Layer.effectDiscard`, so closing the scope stops the work.
+  `Effect.forkScoped`, then `Layer.effectDiscard`.

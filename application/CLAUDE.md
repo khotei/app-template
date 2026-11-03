@@ -1,8 +1,8 @@
 # application
 
-The behaviour ring: the modules and the use cases over them. What each layer of a module holds
-and may import:
-[architecture.md › The three rings](../docs/knowledge/architecture.md#the-three-rings).
+The behaviour ring: the modules and the use cases over them. What each layer of a module holds:
+[architecture.md › The three rings](../docs/knowledge/architecture.md#the-three-rings); what it
+may import: [› Dependency rules](../docs/knowledge/architecture.md#dependency-rules).
 
 - **No I/O and no ambient state outside a module's `infrastructure/`:** no `Bun.env`, no `fetch`,
   no `Date.now()`, no `new Date()`, no `crypto.randomUUID()`. A pure operation takes time and ids
@@ -13,8 +13,6 @@ and may import:
   every module the client does not use. Ports live only in `.port.ts` files and services only in
   `services/`, never beside a model, so `make bundle-check` can prove neither reaches the
   bundle.
-- Another module's ids and errors come from its entry, and only the names of its `contract/`
-  folder ([modules.md](../.claude/rules/modules.md)).
 - **Each port has one memory layer** in its module's test support, for every workspace's unit
   tests: [tooling.md › Tests](../docs/knowledge/tooling.md#tests).
 - **An adapter is a `Layer` of a port** in the module's `infrastructure/`, so callers never see

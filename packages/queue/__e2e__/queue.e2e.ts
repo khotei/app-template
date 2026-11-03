@@ -132,7 +132,7 @@ const QueueConsumerFailingOnce = wrapTransport((transport) =>
 )
 
 // Over the suite's SQS transport; the first `extend` completes `extending`, then waits a second.
-const slowFirstExtend = () => {
+function slowFirstExtend() {
   const extending = Deferred.makeUnsafe<void>()
   const layer = wrapTransport((transport) =>
     Effect.succeed(

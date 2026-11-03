@@ -11,7 +11,7 @@ import { templateDatabase } from '@app-template/packages/db/testing/e2e'
 
 import { migrationsFolder } from '#kernel/data/migrations'
 
-const startPostgresWithTemplate = async () => {
+async function startPostgresWithTemplate() {
   const container = await new PostgreSqlContainer(postgresImage).start()
   const onDatabase = (database: string) =>
     PgClient.layer({

@@ -18,9 +18,9 @@ graph LR
     gate[the commit gate, once]
   end
   subgraph checks [make check]
-    names[doc-names: every doc, no source path in an instruction file]
-    filters[rule-paths: every filter matches]
-    limits[doc-limits: 40 and 80 lines]
+    names[doc-lint: every doc's paths, no source path in an instruction file]
+    filters[doc-lint: every filter matches]
+    limits[doc-lint: 40 and 80 lines]
   end
   subgraph reading [the toolkit]
     impl[implementer: rules arrive by filter]
@@ -62,12 +62,12 @@ verification.
 
 | Area | Change |
 |---|---|
-| `Makefile` | `doc-names` reads every `*.md` outside `docs/tickets/`, `repos/` and the roadmap, and refuses a source path in an instruction file; new `rule-paths` and `doc-limits`; a target that sets up a parallel step's worktree; `check` runs the new checks |
+| `Makefile` | `doc-lint` runs `markdownlint-cli2` over every `*.md` outside `docs/tickets/` and `repos/`, its rules in the config (D16); a target that sets up a parallel step's worktree; `check` runs the doc lint |
 | `.claude/rules/claude-md.md` | the test, the owner of each fact, the pattern, the limits line, each check by its `make` target; its toolkit section cut to what `docs/knowledge/sdd.md` does not hold |
 | `.claude/rules/*.md` | rewritten to patterns and trimmed; filters kept; `layering.md` and `modules.md` merged or split so each subject has one file; the Effect-4 trap first in `effect.md` |
 | every `CLAUDE.md` | rewritten to patterns and pointers; the traps the branch found added where they bite |
 | `.claude/rules/sdd.md` | owns the commit gate |
-| `.claude/agents/implementer.md` | rules arrive by filter; read a file of a folder before writing a new file in it; no stash, checkout, commit or `/simplify`; `plan.md` is the main session's |
+| `.claude/agents/implementer.md` | rules arrive by filter; read a file of a folder before writing a new file in it; no stash, checkout, commit or `/simplify`; `plan.md` is the main session's; a hook refuses reads and edits through Bash |
 | `.claude/agents/reviewer.md` | reads only the design parts and the rules the brief names; per axis, the findings it owns |
 | `.claude/agents/verifier.md` | reads `feature.md`, its acceptance and `architecture.md › Contracts`, not `plan.md` |
 | every agent | the report is for the main session: English, no status block; a reviewer's finding in one shape |
@@ -80,18 +80,19 @@ verification.
 | `docs/knowledge/sdd.md` | the dependency map and the approval gate, where reading or gating changes |
 | `docs/knowledge/roadmap.md` | entry `docs-diet` marked done |
 | `deployment/local/README.md` | **deleted**: it retells `aws.md` (R6) |
+| `docs/tickets/_template/{feature,architecture,plan}.md`, `.claude/skills/ticket-{feature,architecture,plan}/SKILL.md` | what a requirement, a design entry and a step name concretely, and what they leave to a pattern, a grep or a check (D15) |
 
 ### Owners of the facts told in several places
 
 Each fact is stated once, in its owner; every other file points to it by name (R2).
 
-| Fact | Owner | Today also stated in |
+| Fact | Owner | Also stated in, at design time (the step re-finds them by `git grep`) |
 |---|---|---|
 | The rings, which folder holds what | `architecture.md › The three rings` | root `CLAUDE.md` map, `README.md`, the glossary, `application/CLAUDE.md` |
 | Versions | the manifests (root `package.json`: `packageManager`, the catalogs); a doc says "the pinned version" | root `CLAUDE.md`, `README.md`, `effect.md`, `tooling.md`, `aws.md`, the PR example |
 | The test layout | `tooling.md › Tests` | `architecture.md`, `README.md`, `naming.md`, `modules.md` |
 | The resource naming | `aws.md` | `deployment/CLAUDE.md` |
-| The dependency command | `tooling.md › Add a dependency` | root `CLAUDE.md` |
+| The dependency command | `tooling.md › Add a dependency` | root `CLAUDE.md`, which keeps it on purpose (R2's exception) |
 | The worktree ports | `tooling.md › Worktrees`; the setup script computes them | the block of `/ticket-implement`, `aws.md` |
 | The database's guards | `database.md › Guards`; the repository's write contract stays in the rule that loads in the data layer; the why in `decisions.md` | `layering.md`, `effect-tests.md`, `architecture.md`, `README.md` |
 | The data layer's types rule | `kernel/CLAUDE.md`; the why in `decisions.md` | `modules.md`, `naming.md` |
@@ -102,57 +103,63 @@ trap, not a version: it stays once, first in `effect.md`, in plain words (R5, D4
 
 ## Contracts
 
-The checks are the contracts other sessions rely on. Each prints one line per hit and exits 1;
-an internal failure (a pattern that does not compile, a missing limits line) exits 2. None reads
-`repos/`, which holds a tracked vendored skill.
+The checks are the contracts other sessions rely on: rules of the doc lint (D16), which prints
+one line per hit and exits 1; an internal failure (a missing limits line, a failed `git`) exits
+2. It reads no `repos/`, which holds a tracked vendored skill.
 
 ```text
-$ make doc-names     # R7, R8
-<file>:<line>: <path or name>
-<file>:<line>: <source path>, write the pattern
-$ make rule-paths    # R9
-<rule>: <filter>
-$ make doc-limits    # R10
-<file>: <lines> lines, over <limit>
+$ make doc-lint      # R7–R10
+<file>:<line> error missing-path <description> [<path>]
+<file>:<line> error source-path <description> [<source path>]
+<rule>:<line> error unmatched-filter <description> [<filter>]
+<file>:<line> error over-limit <description> [<lines> lines, over <limit>]
 ```
 
-**The source path `doc-names` refuses** (D3): in an instruction file (every `CLAUDE.md`,
+**The source path the doc lint refuses** (D3): in an instruction file (every `CLAUDE.md`,
 `.claude/rules/`, `.claude/skills/`, `.claude/agents/`), a backticked span with a `/`, ending in
-`.ts`, `.tsx` or `.json`, with no `<…>` placeholder, no glob and no `@app-template/` prefix.
+`.ts`, `.tsx` or `.json`, with no `<…>` placeholder, no glob and no package specifier
+(`@<scope>/…`).
 
-**The limits line in `claude-md.md`** (D5), which `doc-limits` reads:
+**The limits line in `claude-md.md`** (D5), which the doc lint reads:
 
 ```md
-- **Limits, checked by `make doc-limits`:** a `CLAUDE.md` 40 lines, a rule 80.
+- **Limits, checked by `make doc-lint`:** a `CLAUDE.md` 40 lines, a rule 80.
 ```
 
-**A rule's filter** uses only `*` and `**`; a brace matches nothing in git, so `rule-paths` fails
-it.
+**A rule's filter** uses only `*` and `**`; a brace matches nothing in git, so the doc lint fails
+it. One reader, `rule-filters.mjs` (imported as `#rule-filters`, the root's one subpath, since
+`biome-imports.grit` refuses a relative import), reads the filters for the doc lint and for
+`make review-rules`.
 
-**The review brief of a step** (D2), from `/ticket-implement` to each `reviewer`: the step id,
-its `R…` ids, its `D…` ids, its Seam row and its Contracts entries; to the Standards reviewer also
-the rules without `paths:` and those whose filter matches a file of the diff (the skill matches
-them with `git ls-files ':(glob)<filter>'` over the diff's files). The reviewer locates each
-design part with `grep -n` on the stable anchors (`- **D<n> —`, `## Seams`, `## Contracts`) and
-reads it with offset and limit, as the implementer does.
+**The review brief of a step** (D2), from `/ticket-implement` to the Standards and Spec
+`reviewer`: the step id, its `R…` ids, and the `D…` ids, Seam row and Contracts entries the step's
+own lines name; to the Standards reviewer also the rules `make review-rules` prints, those without
+`paths:` and those whose filter matches a file of the uncommitted diff, untracked files and both
+sides of a rename included. The reviewer locates each design part with `grep -n` on the stable
+anchors (`- **D<n> —`, `## Seams`, `## Contracts`) and reads it with offset and limit, as the
+implementer does. The Depth reviewer keeps its own sources: `deep-modules.md`,
+`docs/knowledge/architecture.md` and the records it must not re-open.
 
 **The commit question** (D8), asked by `/ticket-implement` once, at the first step of a session:
-commit each ready step without the user's OK, or wait for it. A step is ready when its reviews
-ran, their fixes are in and `make check` is green. Pushing, a PR and a merge always wait.
+commit each ready step without the user's OK, or wait for it. A step is ready when the passes
+`/ticket-implement` names for it ran, their fixes are in and `make check` is green. Pushing, a PR
+and a merge always wait.
 
 **The passes of a step's review** (D11, D12), in order: the implementer reports; on a behaviour
 step the main session runs `/simplify`; then in parallel Standards (the binding rules of
 `.claude/rules/` and the touched `CLAUDE.md` files), Spec (the step and its requirements; an edit
 only the main session may make is no finding), Depth on a behaviour step (the shape), and the hunt
-pass (correctness bugs and silent failures in one brief) when the step touches a write guard, a
+pass (a `reviewer`; correctness bugs and silent failures in one brief) when the step touches a write guard, a
 transaction, a test fake, concurrent access or error handling.
 
 **A reviewer's finding** (D13), the one shape the main session forwards without reading the
 code:
 
 ```text
-- <path>:<line> — <rule or requirement> — hard | judgement — <the proposed fix>
+- `path:line` — <rule or R…> — hard | judgement — <fix>
 ```
+
+A finding without a line is not reported.
 
 **The parallel-steps path** (D9): `SKILL.md` keeps one line, "for steps run in parallel, read
 `parallel-steps.md` beside this file"; that file holds today's section, and the worktree setup
@@ -163,7 +170,7 @@ refusals and the same `.env` it writes today.
 
 | Seam | Catches | Misses |
 |---|---|---|
-| `make doc-names`, `make rule-paths`, `make doc-limits`, run on a planted probe and on the clean tree | each form R7–R10 name, red on the probe with file and line, green on the tree | whether a true, existing name merely retells the code (judged in review, R3, R4) |
+| `make doc-lint`, run on a planted probe and on the clean tree | each form R7–R10 name, red on the probe with file and line, green on the tree | whether a true, existing name merely retells the code (judged in review, R3, R4) |
 | `make check` on the tree | the checks wired into the gate and green together | the same as above |
 | A move probe: a module folder moved and a file renamed, then `git grep` of the old names over the instruction files, then reverted | R1: no instruction file names an instance a refactor moves | a constraint that changed without a doc edit |
 | The `InstructionsLoaded` log and the agents' transcripts, on the scenarios of D6, before and after | R12–R16: what loads and what is read, per lever, in the same units | whether Claude is guided as well with less (judged in review and the ledger) |
@@ -172,7 +179,10 @@ refusals and the same `.env` it writes today.
 | A new session's first `/ticket-implement` step, then its second | R17: the question asked once, the answer held | the gate's wording in every pointer (judged by `git grep`) |
 | The next real steps and verification after the step that lands R18–R20, read in their transcripts | R18–R20: the verifier reads no `plan.md`; no Spec finding on a `plan.md` edit; no finding reported by two axes; no hunt outside its condition; no `/simplify` call in the implementer; reports in English without the status block | quality over many steps: a few runs prove the path, not the rate |
 | The next steps' main-session transcript and the next verification's timing | R21, R22: no source file or diff read by the main session to write a fix round; findings in the four fields; verifiers in parallel, verdicts sooner than 33 min | whether a forwarded finding needed the main session's own reading (judged when a round misfires) |
+| Review of the step that lands R23, against `research.md` | R23: each template and skill rule traced to its evidence; nothing load-bearing dropped | whether later tickets amend their artifacts less (seen over the next tickets) |
+| A probe file per replaced check, run against the shell target before it goes and against the lint rule after | R24: the same violations refused by the rule, with file and line; the clean tree green on both | a violation neither the shell pattern nor the rule was written for |
 | The step report's ledger: each removed line with its new home or "dropped:" and why, each trap added and where | R3, R5, R6, R14: nothing lost silently | nothing beyond what the reviewer reads |
+| The implementer's Bash guard, fed one `PreToolUse` input per command, red first with no guard and against the previous round's guard | L10 (R13): a read through `cat`, `head`, `tail` or `sed` at a command's start (a line, `;`, `&`, `(`, `\|\|`, `{`, a backtick, `do`, `then`, `else`); an edit through `sed -i`, a heredoc or a redirect into anything but a descriptor or `/dev/null`; `git checkout` or `restore`; `make`, `git grep`, `git diff`, `git status`, `bun test` and a single pipe pass | an evasion or a rarer form: `sh -c`, `python3 -c`, `tee`, `"$(cat …)"`, a command after `if`, `while`, `!` or a `case` arm, `\|&`, which is refused |
 
 ## Decisions
 
@@ -195,15 +205,21 @@ refusals and the same `.env` it writes today.
   - **Why:** the skill knows the step and the diff; a reviewer left to find them opens the whole
     design and every rule to be sure. A rule whose filter matches no diff file cannot bind it.
   - **Cost accepted:** a step that touches a decision it does not cite is reviewed without it; a
-    reviewer still opens more when the diff touches a contract the cited parts do not quote.
+    reviewer still opens more when the diff touches a contract the cited parts do not quote; a
+    contract the step's files reach but its lines do not name is read only when the diff touches
+    it; the Standards reviewer reads each bound rule whole (S3: 4.8 times its old rule reading),
+    so it can be held to naming each.
+  - **Note (S3):** worded "its Contracts entries of its files", the first replay handed the Spec
+    reviewer eight parts for a step citing one and read 22% more than the baseline; the brief now
+    names what the step's own lines name, and `make review-rules` lists the rules.
   - **Reversal:** one commit.
   - **Rejected:**
     - the reviewer finding the parts on its own — no cut it can be held to.
 
-- **D3 — No concrete source path in an instruction file: one pattern in `doc-names`.** (answers
+- **D3 — No concrete source path in an instruction file: one pattern in the doc lint.** (answers
   Q3; R8)
   - **Why:** the instances that churned are source files (`shared/tags.ts`); one pattern refuses
-    them, and `doc-names` already fails any other stale name after a rename. The record
+    them, and the doc lint fails any other stale path after a rename (D16). The record
     **Instructions name patterns** in `docs/knowledge/decisions.md` says why, landed with the
     check.
   - **Cost accepted:** a bare file name or a folder instance passes until it goes stale; R1's probe
@@ -226,25 +242,34 @@ refusals and the same `.env` it writes today.
     - `**Required:**` marks with a cap, a check and a hard stop on a breach — machinery for an
       unevidenced problem, and the hard stop took the decision from the user.
 
-- **D5 — The limits are numbers in `claude-md.md`, and `doc-limits` reads them from it.**
+- **D5 — The limits are numbers in `claude-md.md`, and the doc lint reads them from it.**
   - **Why:** R10 names the limits the maintenance rule states; one author per fact is the
     ticket's own rule, and a second copy in the `Makefile` would drift unseen.
+  - **How:** the doc lint's config reads the line that equals its `LIMITS_LINE` once its numbers
+    become `<n>`, so the config spells the line's shape once (it was `DOC_LIMITS_LINE` in the
+    `Makefile` until D16); the record is
+    `decisions.md › Instructions within size limits`.
   - **Cost accepted:** the check depends on one line's shape; a reworded line makes it exit 2,
     naming the line it expects. The "about" goes: 40 and 80 become hard.
-  - **Reversal:** one commit (move the numbers into `Makefile` variables).
+  - **Reversal:** one commit (move the numbers into the config).
   - **Rejected:**
     - the numbers in the `Makefile`, the rule pointing to them — a reader of the rule must open
-      the `Makefile` to learn a limit.
+      the `Makefile` to learn a limit;
+    - a `sed` pattern beside the expected line (`DOC_LIMITS_READ`, S5 to S13) — a second spelling
+      of the line that could drift from the message naming it (S14).
 
 - **D6 — The levers are measured on fixed scenarios, before and after, counting only the slice
   each lever targets.**
-  - **Why:** an agent's whole context varies from run to run; the slice a lever targets does not.
-    The baseline is taken in the first step, before any lever lands, with an `InstructionsLoaded`
-    hook kept out of git:
+  - **Why:** an agent's whole context varies from run to run; a slice a lever targets varies less,
+    and a reviewer's reading still varies, so it is the mean of two runs. The baseline is taken
+    in the first step, before any lever lands, with an `InstructionsLoaded` hook kept out of git,
+    in `acceptEdits` (in `bypassPermissions` an agent edits through Bash and no filter fires):
     - R12: the reviewers of one committed behaviour step of `modular-monolith`, replayed
-      uncommitted in a scratch worktree; the slices are what they read of the ticket's
-      `architecture.md` and, for Standards, of `.claude/rules/`;
-    - R13: the implementer on the same replayed step; the slice is the rules it reads or loads;
+      uncommitted in a scratch worktree; the slice is what the Spec reviewer reads of the
+      ticket's `architecture.md`; the Standards reviewer is held to citing the rules that bind
+      the diff, since it reads no design and, given those rules, reads more than it did;
+    - R13: the implementer on the same replayed step, rerun once the rules are trimmed; the slice
+      is the rules it reads or loads, all through the filters already;
     - R14: one session that edits a `.ts` file of a module's `domain/`, then one of its
       `services/`; the slice is the rules and `CLAUDE.md` loaded;
     - R16: the text `/ticket-implement` loads on a one-step run.
@@ -254,17 +279,23 @@ refusals and the same `.env` it writes today.
   - **Rejected:**
     - computing the cut from file sizes alone — blind to whether the agents read what the brief
       says.
+  - **Note (S1, the user's word):** the baseline found the Standards reviewer reading no design
+    and at most three rules, the implementer reading no rule up front, and a reviewer's slice
+    doubling between runs; R12's cut moved to the Spec reviewer and R13's to after the trims.
+    Rejected: keeping a cut for each reviewer, which the lever would miss or reverse.
 
-- **D7 — The implementer relies on the filters, and reads a file of a folder before writing a
-  new file in it.** (R13)
-  - **Why:** a subagent loads path-scoped rules itself, but a rule matched first by a `Write`
-    arrives after the file is written; reading a neighbour first loads the folder's rules in
-    time.
+- **D7 — The implementer relies on the filters, reads and edits through the file tools, and
+  reads a file of a folder before writing a new file in it.** (R13)
+  - **Why:** a subagent loads path-scoped rules itself, but only on `Read`, `Edit` and `Write`: an
+    edit through Bash, which `bypassPermissions` steers to, loads none (S1: 3 rules instead of
+    13); and a rule matched first by a `Write` arrives after the file is written, so reading a
+    neighbour first loads the folder's rules in time.
   - **Cost accepted:** one extra read when a step starts a new folder; a rule lost to the
     implementer's own compaction returns only at its next matching file.
   - **Reversal:** one commit.
   - **Rejected:**
-    - keeping the up-front read of every rule — 24% of the implementer's load;
+    - keeping the up-front read of every rule — 24% of the implementer's load by the audit; S1
+      found the implementer skipping it already;
     - a hook that injects the rule before a write — the docs place hook context after the tool
       result, so it cannot.
 
@@ -280,6 +311,10 @@ refusals and the same `.env` it writes today.
   - **Rejected:**
     - "only on the user's OK" everywhere — slows every step and no longer matches the practice;
     - commit without asking, always — a team adopting the template loses the gate silently.
+  - **Note (S5):** the answer covers a step's rounds too. Every other ticket artifact
+    (`feature.md`, `architecture.md`, `plan.md`, `verification.md`) commits once the user has
+    confirmed it in its skill, with no second question; rejected: the session's answer for them
+    too, since each is the user's own decision, read whole before it lands.
 
 - **D9 — `/ticket-implement` keeps its parallel-steps procedure in a file beside it and the
   worktree setup in a script run through `make`.** (R16)
@@ -356,6 +391,118 @@ refusals and the same `.env` it writes today.
   - **Reversal:** one commit.
   - **Rejected:**
     - one verifier, as today — the slowest stage of a ticket.
+  - **Note (S6):** the verifiers share one tree, its ports and its containers, so the requirements
+    whose acceptance starts the apps, runs the e2e or writes a probe into the tree form one group,
+    and that group's verifier alone runs `make check`, which runs the e2e too.
+
+- **D15 — The ticket templates get a light edit, not a restructure: a step pins its outcome,
+  its constraints, its decided names and traps, and a check proven red first; the rest is found by
+  `git grep` at the step.** (R23)
+  - **Why:** `research.md`: the artifacts of `modular-monolith` were amended again and again for
+    restated code (file lists, configs, paths), and once for changed behaviour; the implementer
+    found every file a list missed, while decided names, invisible traps and red-first checks were
+    what it could not do without. The external sources agree: name what the agent cannot read from
+    the repo, give it a check, keep the rest short. The templates already separate what from how
+    and put a check on every step, so only the parts that copy the code change.
+  - **Cost accepted:** a step whose file list is a start, not the bound, relies on the
+    implementer's leftover grep and on review to find the rest; the `Conforms` check of
+    `/ticket-plan` has fewer literals to check.
+  - **Reversal:** one commit (restore the template lines).
+  - **Rejected:**
+    - a restructure toward a spec-only form, with no paths in the plan either — loses the decided
+      names and traps that were load-bearing;
+    - leaving the templates as they are — keeps the amendments for no gain in results;
+    - keeping lesson L2's cure (`/ticket-plan` lists every file `git grep` finds) — it served the
+      size estimate and the reviewer's expectations, which S5's size estimate per step and the
+      step report's list of files now serve, and it produces the longest lists.
+
+- **D16 — The checks that read code or Markdown are lint rules: a Biome GritQL plugin for the
+  Effect style, `markdownlint-cli2` for the docs; the shell keeps the bundle and the snapshots.**
+  (R24, R7)
+  - **Why:** the user's request of 2026-11-03, after an audit of the ten shell checks: each catches
+    a harm the log shows, but three read TypeScript as text (a capitalised value read as a
+    service, `=== undefined` inside a string) and the doc checks are about 110 lines of awk and
+    perl. The repo already runs a GritQL plugin (`biome-imports.grit`, `decisions.md › Guards are
+    configuration`), so the code rules cost no dependency and no time; `markdownlint-cli2` holds
+    the width natively (MD013) and the rest as small rules in its own API. Both were proven in a
+    scratch run on a real file and a planted probe.
+  - **Invariant:** `biome.json` › `plugins` and the doc lint's config are where a check lives;
+    `make check` runs them through `make lint` and the doc lint's target.
+  - **Cost accepted:** the doc rules stay code, in a linter's API; one dev dependency in the
+    `tools` catalog; the check of backticked PascalCase names goes, so a doc naming a renamed
+    class passes until review sees it (it never caught one: its 7-entry allowlist was its only
+    yield); `make ids` goes too, on the user's word, so a ticket id outside `docs/tickets/` is
+    refused only by review against `comments.md` and `claude-md.md`. Biome reports a plugin that
+    errors on a file only as a notice and exits 0, so `make lint` turns it into exit 2 and CI runs
+    Biome through `make lint`; the pre-commit hook's direct `--staged` run does not, and CI
+    catches what it misses.
+  - **Reversal:** the step's commits (restore the targets from `git log`).
+  - **Rejected:**
+    - the checks as reviewer prompts — a review runs once per step and costs tokens, while each
+      check catches a harm the log shows on every `make check`;
+    - ast-grep for the code rules — a second binary for what Biome already hosts, and no inline
+      Markdown;
+    - dependency-cruiser for the bundle — it reads the import graph, which tree shaking prunes: 64
+      false hits on a tree the bundle check passes;
+    - the doc checks merged into one shell target — fewer lines, the same awk and perl;
+    - `ids` kept in the shell or as a doc rule — the user does not want the check.
+
+- **D17 — The lint configuration lives in `.misc/lint/`; the root keeps two stubs the tools find
+  by name.** (R24)
+  - **Why:** the user's request of 2026-11-03: configuration that serves the repo, not the
+    application, leaves the root, and `.misc/` is where such files go. A scratch run proved that
+    Biome and `markdownlint-cli2` read a config only in the folder they start from and its
+    parents, and that a root `extends` or re-export loads one from a subfolder.
+  - **Invariant:** every caller finds the configuration with no flag; `.misc/lint/` is the only
+    place a lint rule is written.
+  - **Cost accepted:** two stub files stay in the root; a plugin path in the extended config is
+    written from the root; the extended config is named `biome.base.json`, never `biome.json`,
+    which Biome's scan would load again as a nested config; `package.json › imports` maps
+    `#lint/*` to `.misc/lint/*.mjs`, as the imports plugin refuses a relative re-export.
+  - **Amended in S20:** the extended config first force-ignored itself (`!!`), which left it
+    unformatted and unlinted; renamed instead. `#rule-filters` became `#lint/*`, one pattern for
+    the stub's re-export and the filter reader.
+  - **Reversal:** one commit (`git mv` back).
+  - **Rejected:**
+    - a workspace under `packages/` — `packages/*` holds tools that know no app, and the plugins
+      read this repo's folders and cite its rules;
+    - no stub, a `--config-path` and `--config` on every caller — a caller that forgets it
+      (an editor, a bare `biome`) lints with the defaults and no plugin, unseen;
+    - `.config/` — the tools do not read it either, and the user prefers `.misc/`.
+
+- **D18 — An agent's behaviour passes when its mechanism holds; deviations are counted, not
+  failed.** (R12, R13, R19, R21)
+  - **Why:** the user's choice of 2026-11-03, after runs 1–3 each failed one of these four on a
+    new deviation: an agent follows a text, a hook or a brief less than every time, so "none on
+    the next steps" fails every run. The mechanism (the hook, the verbatim rule list, the
+    literal finding line, the axes' split) is what a step can make hold.
+  - **Invariant:** each of the four has a mechanism a verifier checks red or present; the next
+    steps' deviations are counted per kind in `verification.md`.
+  - **Cost accepted:** a requirement passes while an agent still deviates sometimes; the counts
+    feed roadmap 25 `toolkit-quality`, which acts on a kind that recurs.
+  - **Reversal:** one commit (the acceptance rows back).
+  - **Rejected:** zero deviations — it measures the model's variance, not the toolkit, and keeps
+    the ticket from closing.
+
+- **D19 — The LSP comes from a plugin the repository carries, running the project's `tsc`.**
+  (S23, the user's request)
+  - **Why:** the official `typescript-lsp` runs `typescript-language-server`, which needs
+    `tsserver.js`; TS 7 ships none. The pinned `tsc --lsp --stdio` answers hover, definition,
+    references and rename across the workspaces (tested by hand and in a session, 2026-11-03).
+  - **Invariant:** the server is the `tsc` the lockfile pins; a clone that trusts the folder gets
+    it with no install; the official plugin is off for the project; the LSP serves navigation,
+    and type errors stay with `make check`.
+  - **Amended in S23.2:** post-edit diagnostics are off (`"diagnostics": false`): TS 7 serves a
+    file's diagnostics only when pulled, and Claude Code reads only pushed ones
+    (microsoft/typescript-go#2362); the roadmap's ideas hold the question. Rejected: a stdio
+    proxy that pulls and re-pushes, protocol code the template would keep.
+  - **Cost accepted:** a marketplace folder under `.misc/`; the first session after a clone only
+    registers the marketplace, and the LSP loads from the next one; an LSP call loads no path-scoped
+    rule, so a rule still arrives on the Read or Edit that follows.
+  - **Reversal:** one commit (the folder and the two settings).
+  - **Rejected:** installing `typescript-language-server` with a TypeScript 5 beside the
+    project's — it would type the code with another compiler and no Effect plugin; a GitHub
+    marketplace — each clone would run `claude plugin install` and get updates only by commit.
 
 ## Risks
 
@@ -365,8 +512,8 @@ refusals and the same `.env` it writes today.
 - **The trimmed rules miss 20% on a module's `.ts` edit.** The 30% is the audit's estimate.
   *Contained by:* D6 measures it in the step that trims; a shortfall is reported, and the step
   cuts further or the lever is reported under the threshold for the user's call.
-- **A reviewer misses a rule because its filter is too narrow.** With D2 the Standards reviewer no
-  longer reads every rule. *Contained by:* the filters stay as broad as today (D1); `rule-paths`
+- **A reviewer misses a rule because its filter is too narrow.** With D2 the Standards reviewer reads
+  the rules whose filter matches the diff, not a fixed list. *Contained by:* the filters stay as broad as today (D1); the doc lint
   catches a filter that matches nothing.
 - **The verifier misses a detail only the plan records.** A step's finding that changed what a
   requirement means is lost to verification. *Contained by:* a finding that changes a requirement
@@ -374,7 +521,11 @@ refusals and the same `.env` it writes today.
 - **The worktree script diverges from the block it replaces.** A parallel step gets wrong ports
   or a shared `.env`. *Contained by:* the R16 seam compares the script's `.env` with the old
   block's on a scratch worktree, refusals included.
-- **The limits line in `claude-md.md` is reworded.** `doc-limits` exits 2. *Contained by:* the
+- **The limits line in `claude-md.md` is reworded.** The doc lint exits 2. *Contained by:* the
   error names the line it expects (D5).
+- **A step with less listed detail drifts.** The implementer misses a file or picks a name the
+  plan meant to fix. *Contained by:* the step still pins decided names and traps (D15), its check
+  is proven red first, the leftover grep and the Spec axis find a missed file; a recurrence brings
+  the list back for that kind of step (`research.md`).
 - **Text written before `modular-monolith` settles goes stale at once.** *Contained by:* the plan
   starts after that ticket's verification passes.

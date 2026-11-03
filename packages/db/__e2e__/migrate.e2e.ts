@@ -57,7 +57,7 @@ const refusals = {
 } as const
 
 /** Fails with `reason` on the first `times` attempts, then succeeds; counts the attempts. */
-const refuseConnections = (reason: SqlErrorReason, times: number) => {
+function refuseConnections(reason: SqlErrorReason, times: number) {
   let attempts = 0
   const connect = Effect.suspend(() => {
     attempts += 1

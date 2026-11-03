@@ -17,7 +17,9 @@ where tests observe it, and every non-obvious decision. Gates: `.claude/rules/sd
    interface, depth, seam, adapter), and with `mattpocock-skills:grilling` for the decisions.
    Facts go to the `researcher` agent; when a decision depends on behaviour, run an experiment.
 3. Write `architecture.md` from `docs/tickets/_template/architecture.md`:
-   - overview with a diagram, structure, contracts and data;
+   - overview with a diagram, structure, contracts and data. Each entry states its decision and
+     the invariant it keeps, and links the config or file that holds a rule instead of copying
+     it: a copied config, tree or key drifts with the next change;
    - **Seams**: each public interface tests will use, with one line on what it catches and what it
      misses. `tdd` later writes tests only at these seams, so the user confirms them here;
    - **Decisions** `D1…`: each with its why, the cost accepted, how it is reversed, and the
@@ -29,4 +31,4 @@ where tests observe it, and every non-obvious decision. Gates: `.claude/rules/sd
 4. Present it. The step is done when the user approves the Seams and the Decisions; next comes
    `/ticket-plan <ticket folder>`.
 
-Commit only on the user's explicit OK.
+Commit under the commit gate of `.claude/rules/sdd.md`.

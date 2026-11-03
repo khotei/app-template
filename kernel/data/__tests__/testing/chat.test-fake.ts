@@ -64,7 +64,7 @@ const isActive = matchesAny<MessageRow>({
 })
 
 /** Holds while no chat has two active messages, as `messages_chat_id_active_index` keeps it. */
-const holdsActiveIndex = (messages: HashMap.HashMap<string, MessageRow>) => {
+function holdsActiveIndex(messages: HashMap.HashMap<string, MessageRow>) {
   const chatIds = pipe(
     messages,
     HashMap.toValues,
