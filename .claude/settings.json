@@ -119,6 +119,7 @@
     "tsgo-lsp@app-template": true,
     "typescript-lsp@claude-plugins-official": false,
     "mattpocock-skills@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": true,
     "superpowers@anthropic-plugin-directory": false,
     "pr-review-toolkit@claude-plugins-official": false,
     "code-simplifier@anthropic-plugin-directory": false,

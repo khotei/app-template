@@ -35,8 +35,12 @@ help: ## List all targets
 	@grep -E '^[a-zA-Z0-9_-]+:.*## ' $(MAKEFILE_LIST) \
 		| awk 'BEGIN { FS = ":.*## " } { printf "  %-16s %s\n", $$1, $$2 }'
 
-setup: ## Install dependencies and create .env from .env.example if missing
+# Claude Code fetches a plugin from an outside source only when user settings enable it, so setup
+# installs mattpocock-skills, which the /ticket-* skills wrap; a machine without claude skips it.
+setup: ## Install dependencies and the Claude Code plugins, create .env from .env.example if missing
 	bun install
+	@if command -v claude >/dev/null; then \
+		claude plugin install mattpocock-skills@claude-plugins-official --scope project; fi
 	@test -f .env || (cp .env.example .env && echo "created .env from .env.example")
 
 stack: ## Create the tree's Pulumi file backend and select or create the local stack

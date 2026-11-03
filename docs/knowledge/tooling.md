@@ -14,7 +14,7 @@ and `make setup` and `make test-unit` need neither.
 
 | Target | Runs | Use |
 |---|---|---|
-| `make setup` | `bun install`, then copies `.env.example` to `.env` if missing | first clone; installs the git hooks too; needs no Pulumi CLI |
+| `make setup` | `bun install`, the Claude Code plugin `mattpocock-skills` when `claude` is on the `PATH`, then copies `.env.example` to `.env` if missing | first clone; installs the git hooks too; needs no Pulumi CLI; safe to rerun |
 | `make up` · `down` · `reset` · `stack` | Pulumi on `deployment/local/`, then `make migrate` · Docker | the local stand, MiniStack with the database, the bucket and the queues; what each target does: [aws.md › The local stand-in](aws.md#the-local-stand-in) |
 | `make worktree N=<n> NAME=<name>` | `.claude/skills/ticket-implement/worktree.sh` | inside a new worktree: names it, `bun install`, writes its `.env` with the ports and stage of `N` ([Worktrees](#worktrees)) |
 | `make dev` | `make migrate`, then `bun --filter './apps/*' dev` | every app's process, interleaved output; stops first on a stand behind its migrations |

@@ -46,7 +46,7 @@ Requires Bun at the version in `package.json › packageManager`, GNU Make, Dock
 [Pulumi CLI](https://www.pulumi.com/docs/install/).
 
 ```sh
-make setup   # bun install, git hooks, and .env from .env.example
+make setup   # bun install, git hooks, the Claude Code plugin, .env from .env.example
 make up      # MiniStack with Postgres, the bucket and the queues inside it; migrates
 make dev     # api, worker and web together
 ```
