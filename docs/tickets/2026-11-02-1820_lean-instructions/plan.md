@@ -22,7 +22,7 @@
 | S14 | verification run 1 and the prompt audit fixed: two stale doc lines, two recorded exceptions, a contradiction, findings presented one block each | done |
 | S15 | lessons L2–L5 of verification run 1: briefs name sources only, results quote their output, a behaviour step is one that changes code; plugins that overlap the skills off | done |
 | S16 | a named function is a `function` declaration; an arrow is a callback or an expression body | done |
-| S17 | verification run 2 fixed: the skill back under its cut, one round rule, lessons L6–L9, `doc-names` safe in parallel | todo |
+| S17 | verification run 2 fixed: the skill back under its cut, one round rule, lessons L6–L9, `doc-names` safe in parallel | done |
 
 ## How to run this plan
 
@@ -907,7 +907,53 @@
   each lesson's line in its file; in a new session, the first step asks the commit question once
   (R17) and no disabled plugin's skill or agent is listed.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - **`doc-names` seam, red first.** Two runs started 0.8 to 2.0 s apart against the shared cache:
+    the first exited 2 every time, with 252 down to 4 false hits (`docs/knowledge/ai.md:67:
+    InvalidOutputError`, `http-api/CLAUDE.md:3: HttpApi`); `make doc-names SOURCE_PATH='('`
+    printed `grep: parentheses not balanced` and exited 0, and `PASCAL='[A-Z'` exited 0 too. A
+    failing `paste` on `PATH` emptied the top-folder list and gave about 60 false hits
+    (`README.md:56: /health`), exit 1.
+  - **Green, at the last round.** The same staggered pairs (0 to 2.0 s): `0 0` each time. A
+    rejected pattern: `doc-names: a grep failed`, `make: *** [doc-names] Error 2`. The failing
+    `paste`: `doc-names: git ls-files listed nothing`, Error 2. Planted hits still exit 1:
+    `.claude/agents/verifier.md:39: apps/nope/missing.md`, `…: ProbeMissingName`, `…:
+    apps/api/src/x.ts, write the pattern`. A clean run exits 0. The read loop's `|| exit 2`
+    fires on a missing names file (the hunt's probe in S17.2's review).
+  - **R16** (the skill body without front matter, characters ÷ 4): run 2 7 272 chars / 1 818 tok;
+    now **6 721 chars / 1 680 tok, −23.7%** against 2 202, under 1 761, with the L7 and L9 lines
+    counted.
+  - **R13** (the 13 rules the implementer loads, characters ÷ 4): run 2 39 842 chars / 9 961 tok;
+    now **39 688 chars / 9 922 tok, −20.3%** against 12 452.
+  - **Lessons, each `git grep` hit in the tree and absent at `HEAD` before the step:** L9
+    `ticket-implement/SKILL.md:15`; L6 `ticket-plan/SKILL.md:33`; L8 `reviewer.md:26` (Standards
+    needs a rule to cite) and `reviewer.md:34` (a correctness bug is the hunt's); L7 and the
+    round rule in `sdd.md › Gates`, which the skill's step 5 points to.
+  - `make check`: exit 0 at each round. Not run: the new-session check of R17's question and of
+    the disabled plugins' listing; it needs a new session.
+  - **Deviation, Depth (S17.1, S17.2).** The plan's "pointer to `docs/knowledge/sdd.md`" held
+    only part of the paragraph. The skill names the Depth brief's sources inline, as the hunt's;
+    `reviewer.md › Depth` owns what the pass reads, judges and labels, and which decisions it
+    re-opens only on real friction; the `sdd.md` override row keeps the override and the why.
+  - **Deviation, readiness (S17.2, S17.3).** L7's "ready once the passes steps 2 and 3 name have
+    run" lives in `sdd.md › Gates` as "the passes `/ticket-implement` names for it ran"; the
+    skill points to it and asks the commit body to name the passes that ran. R17 in `feature.md`
+    now says the same.
+  - **Deviation, L6's home.** In `/ticket-plan`, as this step says; run 2's L6 proposed
+    `/ticket-implement`.
+  - **Deviation, Leftovers.** `deep-modules.md › After a removal` restated the implementer's
+    Leftovers scope with a different list; it is gone, since only the implementer acts on it.
+  - **Ledger.** `tooling.md` (rule) keeps the catalog pin and the config layers with
+    `.env.pulumi`; dropped, each owned by `docs/knowledge/tooling.md`: the namespace choice
+    (› Catalogs), declaring in other workspaces (› Add a dependency), `.env.example`, the
+    `--env-file` pair, quoting and tests without `.env` (› Environment), `--hot` / `--watch`
+    (› `--hot` vs `--watch`), "never commit `.env.pulumi`" (`.gitignore`). `effect-style.md`
+    drops "`.value` only under a narrowing guard", which `tsc` enforces. `deployment/CLAUDE.md`
+    loses the future event. The skill's feedback bullet points to `sdd.md › Gates` for the round
+    id and the `plan.md` rule.
+  - Passes: `simplify` after S17.1; Standards, Spec, Depth and the hunt on S17.1 and S17.2;
+    S17.3 applies their last findings and is not reviewed again.
 
 ## Requirement coverage
 

@@ -168,7 +168,7 @@ doc-names: ## Fail on a backticked path or name the repo lacks, or a source path
 	git grep --untracked -noE -e '`[^`]+`' --and --not -e '_Avoid_' -- $(DOC_NAMES_IN) \
 		> "$$tmp/spans"; $(DOC_NAMES_FAILED); \
 	top=$$(git ls-files | cut -d/ -f1 | sort -u | sed 's/[.]/[.]/g' | paste -sd '|' -); \
-	[ -n "$$top" ] || exit 2; \
+	[ -n "$$top" ] || { echo 'doc-names: git ls-files listed nothing' >&2; exit 2; }; \
 	sed -E -e 's/`//g' -e 's/ › .*//' -e 's/^([^:]+:[0-9]+:$(PASCAL))[.].*/\1/' "$$tmp/spans" \
 		> "$$tmp/heads" || exit 2; \
 	grep -E "^[^:]+:[0-9]+:(($$top)(/[A-Za-z0-9._-]+)*/?|$(PASCAL))$$" "$$tmp/heads" \

@@ -140,8 +140,9 @@ implementer does. The Depth reviewer keeps its own sources: `deep-modules.md`,
 `docs/knowledge/architecture.md` and the records it must not re-open.
 
 **The commit question** (D8), asked by `/ticket-implement` once, at the first step of a session:
-commit each ready step without the user's OK, or wait for it. A step is ready when its reviews
-ran, their fixes are in and `make check` is green. Pushing, a PR and a merge always wait.
+commit each ready step without the user's OK, or wait for it. A step is ready when the passes
+`/ticket-implement` names for it ran, their fixes are in and `make check` is green. Pushing, a PR
+and a merge always wait.
 
 **The passes of a step's review** (D11, D12), in order: the implementer reports; on a behaviour
 step the main session runs `/simplify`; then in parallel Standards (the binding rules of

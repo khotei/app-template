@@ -188,7 +188,8 @@ it targets.
 - **R17** — THE SYSTEM SHALL state the commit gate in one file, and every other file SHALL point to
   it: WHEN `/ticket-implement` starts its first step of a session, it SHALL ask once whether each
   ready step is committed without the user's OK or waits for it, and hold the answer for the
-  session; a step is ready when its reviews ran, their fixes are in and `make check` is green;
+  session; a step is ready when the passes `/ticket-implement` names for it ran, their fixes are
+  in and `make check` is green;
   pushing, opening a PR and merging SHALL always wait for the user's OK.
 
 ### Agents that do their own job

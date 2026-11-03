@@ -35,17 +35,16 @@ Every change of substance runs **feature → architecture → plan → implement
 - **One plan step = one commit**, of ≤ ~400 changed lines, fitting one fresh session. A ticket is
   one branch `<type>/<slug>` and one squash-merged PR.
 - **A step lands in rounds, one commit each.** The implementer's pass is round `S<n>.1`; what
-  stands commits under the commit gate before any fix, the user's or the main session's, lands
-  as `S<n>.2`, so each diff is read alone. The commit body opens with the round id and what it
-  changed; `plan.md` is edited only at the last round.
+  stands commits first, under the commit gate; any fix, the user's or the main session's, then
+  lands as `S<n>.2`, so each diff is read alone. The commit body opens with the round id and what
+  it changed; `plan.md` is edited only at the last round.
 - **The commit gate, for every commit or amend of a ticket.** At its first step of a session,
   `/ticket-implement` asks once whether each ready step commits without the user's OK or waits
   for it, and holds the answer for the session; it covers the step's rounds too. A step is ready
-  when the passes `/ticket-implement` names for it ran (`simplify`, the reviews), their fixes are
-  in and `make check` is green, a round when `make check` is green; a finding left to the user's
-  choice waits for the user either way. Any other ticket artifact commits once the user has
-  confirmed it in its skill. Pushing, opening a PR, merging and creating a remote always wait for
-  the user's OK.
+  when the passes `/ticket-implement` names for it ran, their fixes are in and `make check` is
+  green, a round when `make check` is green; a finding left to the user's choice waits for the
+  user either way. Any other ticket artifact commits once the user has confirmed it in its skill.
+  Pushing, opening a PR, merging and creating a remote always wait for the user's OK.
 - **Deviations are recorded** in the same commit: `plan.md` findings, `architecture.md ›
   Decisions` when it is a decision, and `feature.md` when it changes what a requirement asks.
   A decision that adds or changes a binding rule also adds or rewrites its record in
