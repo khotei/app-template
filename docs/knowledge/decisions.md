@@ -78,11 +78,10 @@ const place = Effect.fn('PlaceOrderUseCase.place')(function* (
   data layer does not have.
 - **Cost:** a module's flows live outside the module; a shared transaction makes a module harder
   to extract.
-- **Guarded by:** a module's `domain/` and `services/` import no
-  `@app-template/application/use-cases` (their Biome overrides), and its other files make a
-  cycle with the use cases, which import every module (`noImportCycles`);
-  `.claude/rules/modules.md` refuses a rule in a use case and a job that
-  carries a module's reaction to another module's write.
+- **Guarded by:** the rows of a module's layers in
+  [architecture.md › Dependency rules](architecture.md#dependency-rules);
+  `.claude/rules/modules.md` refuses a rule in a use case and a job that carries a module's
+  reaction to another module's write.
 - **If reversed:** events between modules need an event ledger, a handler per reaction and
   at-least-once delivery; a send that spans modules loses its one transaction.
 - **Revisit when:** a module must be extracted into its own process, or a flow must outlive the
@@ -91,11 +90,10 @@ const place = Effect.fn('PlaceOrderUseCase.place')(function* (
 ### Module contracts
 
 A module other modules need exposes a contract, a folder of the module created with its first
-consumer, `application/identity/contract/` (`UserId`, `UserUnknownError`, `CurrentUser`,
-`Auth`), exported through the module's one entry, `@app-template/application/identity`, with
-the rest of the module. A dependency on a module's contract counts as one on the module.
+consumer, `application/<module>/contract/`, exported through the module's one entry with the
+rest of the module. A dependency on a module's contract counts as one on the module.
 
-- **Why:** `chat` and `http-api` need these four and little else of identity; one entry per
+- **Why:** `chat` and `http-api` need a few names of identity and little else; one entry per
   module is all a caller must know, and the kernel's parts work the same way.
 - **Sources:** the guide's "design contracts around use cases, not around internal entity
   models"
@@ -103,18 +101,15 @@ the rest of the module. A dependency on a module's contract counts as one on the
   Spring Modulith's named interfaces and Packwerk's public folder (research).
 - **Rejected:** the contract as its own workspace: the linker refused the rest of the module,
   but a nested workspace needed `exclude` and a reference in its module's `tsconfig.json`, and a
-  second package name for one module. A second entry, `@app-template/application/identity/contract`:
-  two ways in for one module. A Biome list of the contract's names (`allowImportNames`) or a ban
+  second package name for one module. A second entry for the contract: two ways in for one
+  module. A Biome list of the contract's names (`allowImportNames`) or a ban
   by name (`importNamePattern`): review holds the names instead.
 - **Cost:** the entry opens the module whole, so which of its names another module takes is
   review's (`modules.md`), not Biome's;
   `Auth`, an HTTP middleware, lives outside `http-api`; `http-api` also reads identity's `domain`,
   since its user DTO is the `User` model.
-- **Guarded by:** the Biome overrides of a module's `domain/` and `services/`, which take of
-  `application/` only another module's entry; `biome-imports.grit`, which refuses another
-  module's files (`#<module>/…`); the overrides on `application/*/contract/**`, which imports no
-  workspace and none of its module's other layers, and on `application/*/index.ts`, no
-  workspace; `noImportCycles`, a cycle of value imports between two modules;
+- **Guarded by:** the rows of a module's layers and of a contract in
+  [architecture.md › Dependency rules](architecture.md#dependency-rules);
   `.claude/rules/modules.md` refuses a name past the contract, a module importing one above it
   and a cycle through contracts.
 - **If reversed:** a consumer that takes the module's entry reaches its services and data
@@ -126,7 +121,7 @@ the rest of the module. A dependency on a module's contract counts as one on the
 
 A module holds `domain/`, `services/` and, once it has an adapter, `infrastructure/`, behind one
 entry, its `index.ts`, which re-exports every layer; its files reach each other through aliases
-that name the module (`#chat/domain/*`, `#chat/services/*`). A repository is no port: a service
+that name the module (`#<module>/domain/*`). A repository is no port: a service
 calls the data layer's repository directly.
 
 - **Why:** `domain/` ships to the browser, so what reads the data cannot sit there; the data
@@ -143,21 +138,14 @@ calls the data layer's repository directly.
   `#domain/*` aliases in every module: inside one workspace they would collide.
 - **Cost:** a service depends on the data layer directly, so its unit tests take the data layer's
   memory repositories; one entry opens the module whole, so another unit's ban on a layer matches
-  the names it imports, and the bundler parses a module's services to drop them; a namespace
-  import (`import * as`) of an entry passes `http-api`'s bans by name. A layer's override covers
-  its tests, so what they need passes in its source too: test support, which review refuses
-  there, and in a module's services `@effect/platform-bun`, which no guard refuses.
+  the names it imports, and the bundler parses a module's services to drop them. A layer's
+  override covers its tests, so what they need passes in its source too. What passes every
+  guard: [architecture.md › Known gaps](architecture.md#known-gaps).
 - **Guarded by:** one Biome override per layer, matching every module by glob and covering the
-  layer's tests (`application/*/__tests__/<layer>/**`, the use cases' `__tests__/`), which take
-  test support beside it: `application/*/domain/**` (no `#*/services/**` or
-  `#*/infrastructure/**`, no workspace but another module's entry), `…/services/**` (no
-  `#*/infrastructure/**`), `…/infrastructure/**` (no `#*/services/**`); `biome-imports.grit`,
-  another module's files; on `http-api/**`, a module's services, mappers and adapters by name
-  (`*Service`, `*FromEntity`, `*FromConfig`, `encode*`, `decode*`); `make bundle-check` (no
-  service, repository or adapter in the browser); `.claude/rules/layering.md`, a repository, a
-  mapper or the data layer in an app's handler. A use case may import every layer of a module
-  below it, its infrastructure too.
-- **If reversed:** a port per repository comes back with five adapters that only delegate; an
+  layer's tests: the rows of a module's layers and of `http-api` in
+  [architecture.md › Dependency rules](architecture.md#dependency-rules); `make bundle-check`;
+  `.claude/rules/layering.md`, a repository, a mapper or the data layer in an app's handler.
+- **If reversed:** a port per repository comes back with an adapter each that only delegates; an
   export per layer brings back the subpaths and a ban per layer by path.
 - **Revisit when:** a service needs a store the data layer cannot reach, or the domain stops
   shipping to the browser.
@@ -178,9 +166,8 @@ The HTTP groups stay in `http-api` and the handlers in the apps; `RequestInvalid
 - **Rejected:** `generateId` spelled out at each call, or copied per module: two copies of a rule
   no module owns. `generateId` in `kernel/data`: it knows no app, so it is a package's.
 - **Cost:** a module's HTTP shape lives outside the module.
-- **Guarded by:** the Biome override on `http-api/**` (no workspace but a module's entry, and
-  of it no service, mapper or adapter by name); the `apps/web/**` override, but on its server
-  entry `main.ts`; `make bundle-check`.
+- **Guarded by:** the `http-api` and `apps/web` rows of
+  [architecture.md › Dependency rules](architecture.md#dependency-rules); `make bundle-check`.
 - **If reversed:** a handler inside its module imports the assembled `Api`, which imports the
   module: a cycle `tsc -b` refuses.
 - **Revisit when:** the groups stop being assembled into one `Api`, or a module serves its own
@@ -242,8 +229,8 @@ repository only reads, calls it and writes.
 
 ### One kernel
 
-One kernel workspace, `@app-template/kernel`, with one entry per part, `/config`, `/postgres`,
-`/aws` (the clients and the inventory), `/queue`, `/llm` and `/data` (every store), holds the data
+One kernel workspace, `@app-template/kernel`, with one entry per part
+([architecture.md › The three rings](architecture.md#the-three-rings) lists them), holds the data
 and the boundary's configured clients and no service rule; `packages/*` is configurable and knows
 no app.
 
@@ -253,21 +240,17 @@ no app.
   smell"
   ([integration-of-bounded-contexts](https://software-architecture-guild.com/guide/architecture/domains/integration-of-bounded-contexts/),
   [styles/modular-monolith](https://software-architecture-guild.com/guide/architecture/styles/modular-monolith/)).
-- **Rejected:** a package per kernel part: seven manifests for one app's tools. `packages/aws`
+- **Rejected:** a package per kernel part: a manifest per part for one app's tools. `packages/aws`
   moved whole: the queue package's e2e would import the kernel, so the generic provisioner stays
   and the inventory and its naming rule moved.
 - **Cost:** one manifest declares every client's dependency, so the linker no longer stops a
   module reaching a kernel part it does not use, and inside the kernel the data's direction rests
   on Biome, not on `tsc -b`. One entry per part opens a part whole, so the layers that may take
   only its inventory or its stores are held by the imported names (`*FromConfig`, `Db`).
-- **Guarded by:** the isolated linker and `tsc -b` (TS2307): the kernel's manifest declares no
-  module, use case, `http-api` or app, `packages/`'s no workspace at all; `biome-imports.grit`,
-  another part's files, in a file under `packages/` any workspace but `@app-template/packages`,
-  and under `deployment/` any but `packages` and the kernel's `/config`, `/aws` and `/data`, even
-  one the manifest declares; `noImportCycles`, a part importing one that imports it;
-  `.claude/rules/modules.md` refuses a part or a package importing one above it, what
-  `deployment` takes of `/aws` past the inventory and of `/data` past the files' key, and a
-  service rule or a model in the kernel.
+- **Guarded by:** the kernel's, `packages/*`'s and `deployment`'s rows of
+  [architecture.md › Dependency rules](architecture.md#dependency-rules), what their *Refused by*
+  leaves to review held by `.claude/rules/modules.md`, which also refuses a service rule or a
+  model in the kernel.
 - **If reversed:** split into packages, the kernel's parts gain a manifest and a project each;
   with service rules in it, the kernel becomes the shared domain the guide calls a smell.
 - **Revisit when:** a kernel part grows dependencies most modules must not reach; `/data` is the
@@ -288,8 +271,9 @@ and its purposes, and its test builds the models from `LlmConfig`.
 - **Cost:** the test's setup names the environment variables; a purpose is still keyed by
   provider and carries Anthropic's request settings, so a second provider adds a key in `chat`
   too.
-- **Guarded by:** the Biome override on `application/*/services/**` (no
-  `@app-template/kernel/llm`); the `AssistantLlmFromConfig` suite over a recording client.
+- **Guarded by:** the row of a module's `services/` in
+  [architecture.md › Dependency rules](architecture.md#dependency-rules); the
+  `AssistantLlmFromConfig` suite over a recording client.
 - **If reversed:** the provider choice moves back into `chat`, and each new provider changes the
   module.
 - **Revisit when:** `openai-provider` lands: it decides a provider-neutral purpose, translated
@@ -313,10 +297,9 @@ its clients from the context. The tables stay in `public` with their foreign key
 - **Cost:** most features change `kernel/data`; two modules may use one repository, so a change of
   its behaviour reaches both, held by the repository's e2e; a module can be extracted only with
   its stores carved out of the data layer.
-- **Guarded by:** the Biome override on `kernel/data/**` but its tests (no workspace but
-  `packages/*`) and `biome-imports.grit` (no `#kernel/<part>/…` but its own);
-  `.claude/rules/modules.md` refuses a model or a service rule there; the repositories' e2e in
-  `kernel/data/__e2e__`.
+- **Guarded by:** the `kernel/data` row of
+  [architecture.md › Dependency rules](architecture.md#dependency-rules);
+  `.claude/rules/modules.md` refuses a model or a service rule there; the repositories' e2e.
 - **If reversed:** a schema and a Drizzle per module, one migration; every join and foreign key
   across modules becomes a read through the owner.
 - **Revisit when:** a module is to be extracted, or two modules' data stop being read together.
@@ -354,13 +337,10 @@ and patterns itself, and the models check the same rules on their side.
   ([managing-operational-data](https://software-architecture-guild.com/guide/architecture/boundaries/managing-operational-data/)).
 - **Rejected:** the checks dropped, the rule only in the modules: the database would accept a
   row the app never writes.
-- **Cost:** a limit or a pattern lives twice (`maxTitleLength`, `mediaTypePattern`,
-  `secretHashPattern`, the statuses).
-- **Guarded by:** the data layer exports each limit and pattern from its table; a mapper's unit
-  test compares them with the model's and encodes each model's extreme value and every value of
-  its statuses and authors through its entity's insert schema; the data layer's e2e refuse the
-  title limit plus one by its constant and accept the limit, and accept each pattern's extreme
-  value; `make migration-check`.
+- **Cost:** a limit, a pattern or an enum's values live twice.
+- **Guarded by:** the data layer exports each limit and pattern from its table, and a mapper's
+  unit test and the data layer's e2e check both sides
+  ([tooling.md › Tests](tooling.md#tests)); `make migration-check`.
 - **If reversed:** a migration drops a check, and a writer past the services can store a row no
   model decodes.
 - **Revisit when:** a duplicated limit drifts despite the tests, or a rule cannot be a check.
@@ -425,19 +405,17 @@ needs `S3Bucket`; `kernel/postgres` (`PgClientFromConfig`, the migrate entry) an
   the boundary's configuration.
 - **Cost:** each process's `layer.ts` names every client; a missing one is a type error in the
   layer's requirements.
-- **Guarded by:** the Biome overrides on `kernel/data/**` (no `@app-template/kernel/config`, no
-  other part) and `application/use-cases/**` (of the kernel only the data layer);
-  `biome-imports.grit` (no `#kernel/postgres/…` or `#kernel/aws/…` in the data layer); the
-  layer's requirements in `tsc -b`.
+- **Guarded by:** the `kernel/data` and `use-cases` rows of
+  [architecture.md › Dependency rules](architecture.md#dependency-rules); the layer's
+  requirements in `tsc -b`.
 - **If reversed:** the data layer builds its clients from `/config`, and every test of it needs
   the configuration of a real store.
 - **Revisit when:** a store's client needs data-layer knowledge to be built.
 
 ### Files in the data layer
 
-Files are `FileEntity` and `FileRepository` in `kernel/data/file`: `insert` (answering the byte
-count it stored), `selectOne`, `update`, `delete` and `url`, over the `S3Bucket` in the context.
-The data layer declares the key and the `unbound` tag; `kernel/aws/resources` declares the
+Files are `FileEntity` and `FileRepository` in the data layer, over the `S3Bucket` in the
+context. The data layer declares the key and the `unbound` tag; `kernel/aws/resources` declares the
 bucket's name and lifecycle; `deployment` reads both.
 
 - **Why:** a consumer reads and writes through one kind of repository, whichever store holds the
@@ -449,9 +427,8 @@ bucket's name and lifecycle; `deployment` reads both.
 - **Cost:** one interface over a store that joins no transaction: the bytes are stored before the
   row that binds them and deleted once the rows are gone.
 - **Guarded by:** the repository's doc comment and `.claude/rules/layering.md` (the order); the
-  refused chat delete in `apps/e2e/api/chat.e2e.ts`; the file repository's e2e in
-  `kernel/data/__e2e__/file`; `.claude/rules/modules.md` (of the data `deployment` takes only
-  the files' key, `unboundTag`).
+  api e2e of a refused chat delete; the file repository's e2e; the `deployment` row of
+  [architecture.md › Dependency rules](architecture.md#dependency-rules).
 - **If reversed:** the port goes back into `chat`'s `domain/` with its adapter in
   `infrastructure/`, and a second module needing files imports chat.
 - **Revisit when:** `shared-files` or `assistant-files` needs files outside a chat.
@@ -471,9 +448,8 @@ Jobs are the table `jobs` and `JobRepository` in the data layer; `QueueSenderJob
   `QueueSenderJobs` in the data layer: the data would know the queue's job shape. An outbox per
   module: needed only with a schema per module.
 - **Cost:** none today.
-- **Guarded by:** the `kernel/data/**` override and `biome-imports.grit` (the data imports
-  neither `@app-template/kernel/queue` nor `#kernel/queue/…`); the queue's
-  e2e in `kernel/queue/__e2e__`.
+- **Guarded by:** the `kernel/data` row of
+  [architecture.md › Dependency rules](architecture.md#dependency-rules); the queue's e2e.
 - **If reversed:** a rename in a migration, or the transport inside the data layer.
 - **Revisit when:** `jobs` adds the statuses to the same table.
 
@@ -481,24 +457,15 @@ Jobs are the table `jobs` and `JobRepository` in the data layer; `QueueSenderJob
 
 ### Guards are configuration
 
-The guards are `exports`, the isolated linker, `tsc -b`, Biome with its plugin and the bundle
-check; what no configuration expresses are the review rules `.claude/rules/modules.md` and, for a
-handler, `layering.md`, never
-hand-written test code. Each guard holds what the others cannot, and Biome only that:
-`kernel/`, `packages/` and `application/` are one workspace and one `tsconfig.json` project each,
-so the linker and `tsc -b` refuse a workspace its manifest does not declare (TS2307) but see no
-unit inside a folder. `biome.json` has one override per layer, never per unit: what reaches the
-browser (`http-api`, the web client, a module's `domain/` and a contract, by unit and by
-imported name), what a module's `services/` and the use cases take of the kernel, the data
-layer's imports, the inward direction of a module's layers and an entry of `application/`,
-which imports no workspace, each layer's override covering its tests; `noImportCycles` refuses
-a cycle of value imports; the GritQL plugin `biome-imports.grit` reads the unit and the ring
-from the file's path and refuses another unit's `#<unit>/…`, `#kernel/<unit>/…` and
-`#testing/<unit>/…` files in every import form it reads, a relative path anywhere, and the
-workspaces a ring may not import, which the linker lets through once the manifest declares them:
-under `packages/` any but `@app-template/packages`, under `deployment/` any but it and the
-kernel's `/config`, `/aws` and `/data`, under `apps/api`, `apps/worker` and `apps/web` another
-app or `deployment`.
+The guards are `exports`, the isolated linker, `tsc -b`, Biome with its GritQL plugin and the
+bundle check; what no configuration expresses are the review rules `.claude/rules/modules.md`
+and, for a handler, `layering.md`, never hand-written test code. Each import rule is held once,
+by the guard that can see it: the linker and `tsc -b` see a workspace but no unit inside a
+folder, since `kernel/`, `packages/` and `application/` are one workspace and one
+`tsconfig.json` project each; `biome.json` has one override per layer, never per unit, and the
+plugin reads the unit and the ring from the file's path. Which guard refuses what:
+[architecture.md › Dependency rules](architecture.md#dependency-rules) and
+[Boundary guards](architecture.md#boundary-guards).
 
 - **Why:** every guard is configuration of a tool the repo has; a fitness test is code to keep,
   and drifts. A list per unit repeated what the linker already refused and grew past what a
@@ -532,16 +499,12 @@ app or `deployment`.
 
 ### Imports through subpaths
 
-A file imports its own unit's files through the workspace's `#…` subpaths (`#chat/domain/*`,
-`#kernel/<part>/*`, `#db/*`), never a relative path, and another unit only through that unit's
-entry, even inside one workspace (a kernel part reaches another as
-`@app-template/kernel/<part>`, a module another as `@app-template/application/<module>`). A unit
-of the kernel, of `packages/` or of `application/` is imported by its folder: each of the three
-folders is one workspace, `@app-template/kernel`, `@app-template/packages` and
-`@app-template/application`, with one export per unit, its `index.ts`
-(`@app-template/kernel/data`, every store; `@app-template/packages/db`;
-`@app-template/application/chat`, every layer), and its test support
-(`@app-template/packages/db/testing`). `http-api` and the apps keep their package names.
+A file imports its own unit's files through the workspace's `#…` subpaths, never a relative path,
+and another unit only through that unit's entry, even inside one workspace. A unit of the
+kernel, of `packages/` or of `application/` is imported by its folder: each of the three folders
+is one workspace with one export per unit, its `index.ts`, and its test support. `http-api` and
+the apps keep their package names. The forms, with examples:
+[architecture.md › Imports](architecture.md#imports-workspace-vs-app-template).
 
 - **Why:** an import tells where its code lives, and one entry per unit is all a caller must know;
   a subpath inside a workspace names the unit and the layer it reaches, so a Biome override can
@@ -563,10 +526,8 @@ folders is one workspace, `@app-template/kernel`, `@app-template/packages` and
   and `packages/` are one `tsconfig.json` project each, as the kernel is, so `tsc -b` no longer
   refuses an import between their units ([Guards are configuration](#guards-are-configuration)
   says what does).
-- **Guarded by:** `biome-imports.grit`, which reads the unit from the file's path and refuses a
-  relative path anywhere and another unit's `#<unit>/…`, `#kernel/<unit>/…` and
-  `#testing/<unit>/…` files, in an import, an `export … from`, an `import()` and a `require()`;
-  the overrides' `importNamePattern` on `/aws`, `/data` and the modules' entries.
+- **Guarded by:** `biome-imports.grit` and the overrides' `importNamePattern`, in the forms
+  [architecture.md › Boundary guards](architecture.md#boundary-guards) lists.
 - **If reversed:** a folder splits into a workspace per unit, each with its manifest, and the
   specifiers lose the folder; without the `#…` subpaths, the per-layer overrides no longer see
   which layer a relative import reaches.
@@ -582,31 +543,19 @@ share lives in a ring below them.
 - **Sources:** `apps/CLAUDE.md`; `deployment/aws` deploys each app as a service of its own.
 - **Rejected:** a shared helper in one app imported by another: it couples their releases.
 - **Cost:** a helper both processes need moves down into a module, the kernel or a package.
-- **Guarded by:** `biome-imports.grit`, which refuses in `apps/api`, `apps/worker` and
-  `apps/web` any workspace but `application`, `http-api`, `kernel` and `packages`, even one the
-  manifest declares; the isolated linker and `tsc -b` (TS2307), as no app's manifest declares
-  another app or `deployment`; an app exports at most its `./testing`, which `apps/e2e` alone
-  declares; the journey e2e that runs both processes lives in the `apps/e2e` test app.
+- **Guarded by:** the apps' rows of
+  [architecture.md › Dependency rules](architecture.md#dependency-rules); the journey e2e that
+  runs both processes lives in the `apps/e2e` test app.
 - **If reversed:** a process pulls the other's dependencies and layer, and an app can no longer
   be deployed alone.
 - **Revisit when:** two apps merge into one process.
 
 ### Tests in their folders
 
-Every workspace keeps its unit tests and their support in `__tests__/`, the support in
-`__tests__/testing/`, and its e2e in `__e2e__/`, but for the test app `apps/e2e`, which is all e2e;
-the support only the e2e use sits in `__tests__/testing/e2e/`, behind an `index.ts` of its own that
-`__tests__/testing/index.ts` does not re-export. A unit imports it as
-`@app-template/<folder>/testing` and `@app-template/<folder>/testing/e2e`, and its own files through
-`#testing/<unit>/*` and `#testing/<unit>/e2e/*`; support that one unit alone reads keeps the alias
-and no entry. The kernel's parts are units like packages, so each part keeps its own
-(`kernel/<part>/__tests__/`, `kernel/<part>/__e2e__/`). The support files keep their kind suffixes
-(`.test-layer`, `.test-setup`). An e2e suite may import both, a unit test never `testing/e2e`;
-`application` has unit tests alone, its mappers' round trips among them; the e2e through the api,
-the journey and the use cases' races and rollbacks, live in the test app `apps/e2e`, in
-`apps/e2e/api/`, its support in `apps/e2e/testing/`. The shared `packages/testing` holds only the
-support several units use; a unit's own support (a package's Postgres or MiniStack clients, the
-memory repositories' row helpers) lives with that unit, its one reader.
+Every workspace keeps its unit tests in `__tests__/` and its e2e in `__e2e__/`, each kernel part
+as a package does. `application` has unit tests alone; its e2e, through the api, live in the
+test app `apps/e2e`. Test support lives with the unit that uses it. The layout, the entries and
+what a test may import: [tooling.md › Tests](tooling.md#tests).
 
 - **Why:** the folder tells a unit test from an e2e and from source; a test sits beside what it
   checks: the behaviour runs over memory, the real stores are tested in the kernel, a mapper
@@ -634,9 +583,7 @@ memory repositories' row helpers) lives with that unit, its one reader.
   never builds, nor test support in source: review does.
 - **Guarded by:** `make test-unit`: its vitest project has no `globalSetup`, so a unit test that
   builds e2e support finds no database and fails; `.claude/rules/modules.md` refuses e2e support
-  in a unit test and test support in source; the vitest projects `unit`
-  (`**/__tests__/**/*.test.ts`) and `e2e` (`**/__e2e__/**/*.e2e.ts` and `apps/e2e/**/*.e2e.ts`)
-  include by folder and suffix.
+  in a unit test and test support in source; the vitest projects include by folder and suffix.
 - **If reversed:** a rename of the folders.
 - **Revisit when:** a workspace needs a third kind of test.
 

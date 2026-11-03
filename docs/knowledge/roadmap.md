@@ -49,7 +49,7 @@ graph LR
 | 14 | [`toolkit-reading`](#14-toolkit-reading) | `chore` | 2 | done: [docs/tickets/2026-10-21-1347_toolkit-reading/](../tickets/2026-10-21-1347_toolkit-reading/feature.md) |
 | 15 | [`architecture-audit`](#15-architecture-audit) | `refactor` | 4 | in progress: [docs/tickets/2026-10-27-1433_architecture-audit/](../tickets/2026-10-27-1433_architecture-audit/feature.md) |
 | 16 | [`shared-files`](#16-shared-files) | `feat` | 15, 23 | planned |
-| 17 | [`docs-diet`](#17-docs-diet) | `docs` | 15 | in progress, as `lean-instructions`: [docs/tickets/2026-11-02-1820_lean-instructions/](../tickets/2026-11-02-1820_lean-instructions/feature.md) |
+| 17 | [`docs-diet`](#17-docs-diet) | `docs` | 15 | done, as `lean-instructions`: [docs/tickets/2026-11-02-1820_lean-instructions/](../tickets/2026-11-02-1820_lean-instructions/feature.md) |
 | 18 | [`assistant-files`](#18-assistant-files) | `feat` | 6, 23 | planned |
 | 19 | [`openai-provider`](#19-openai-provider) | `feat` | 6 | planned |
 | 20 | [`context-window`](#20-context-window) | `feat` | 6 | planned |
@@ -511,7 +511,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Inherits from `architecture-audit` (2026-10-29).** `make doc-names` keeps the names the docs
   keep true, but not whether a true name restates the code: that judgement is this ticket's. Most
   review rounds of that ticket's last steps fixed copies of code names gone stale.
-- **Status.** In progress, absorbed by `lean-instructions`:
+- **Status.** Done, absorbed by `lean-instructions`:
   [docs/tickets/2026-11-02-1820_lean-instructions/](../tickets/2026-11-02-1820_lean-instructions/feature.md).
 
 ### 18. `assistant-files`
