@@ -49,11 +49,9 @@ The skills are thin wrappers over the [mattpocock-skills](https://github.com/mat
 plugin, which the project enables in `.claude/settings.json`; the same file turns off the plugins
 whose skills and agents overlap the wrappers (`superpowers`, `pr-review-toolkit`,
 `code-simplifier`, `commit-commands` and the plugin `code-review`), so none runs unasked or
-writes outside the ticket, and the MCP servers no step uses (the claude.ai connectors and the
-plugin copy of context7), so their tools load into no session. The
-wrappers decide **where** files go and **when** you decide; the plugin decides **how** to
-interview, model, design, test and review. Its skills are referenced by name and never copied, so
-plugin updates arrive on their own.
+writes outside the ticket. The wrappers decide **where** files go and **when** you decide; the
+plugin decides **how** to interview, model, design, test and review. Its skills are referenced by
+name and never copied, so plugin updates arrive on their own.
 
 ### Dependency map
 
