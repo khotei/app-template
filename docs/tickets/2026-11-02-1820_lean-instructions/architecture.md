@@ -92,7 +92,7 @@ Each fact is stated once, in its owner; every other file points to it by name (R
 | Versions | the manifests (root `package.json`: `packageManager`, the catalogs); a doc says "the pinned version" | root `CLAUDE.md`, `README.md`, `effect.md`, `tooling.md`, `aws.md`, the PR example |
 | The test layout | `tooling.md › Tests` | `architecture.md`, `README.md`, `naming.md`, `modules.md` |
 | The resource naming | `aws.md` | `deployment/CLAUDE.md` |
-| The dependency command | `tooling.md › Add a dependency` | root `CLAUDE.md` |
+| The dependency command | `tooling.md › Add a dependency` | root `CLAUDE.md`, which keeps it on purpose (R2's exception) |
 | The worktree ports | `tooling.md › Worktrees`; the setup script computes them | the block of `/ticket-implement`, `aws.md` |
 | The database's guards | `database.md › Guards`; the repository's write contract stays in the rule that loads in the data layer; the why in `decisions.md` | `layering.md`, `effect-tests.md`, `architecture.md`, `README.md` |
 | The data layer's types rule | `kernel/CLAUDE.md`; the why in `decisions.md` | `modules.md`, `naming.md` |
@@ -239,12 +239,17 @@ refusals and the same `.env` it writes today.
 - **D5 — The limits are numbers in `claude-md.md`, and `doc-limits` reads them from it.**
   - **Why:** R10 names the limits the maintenance rule states; one author per fact is the
     ticket's own rule, and a second copy in the `Makefile` would drift unseen.
+  - **How:** `doc-limits` reads the line that equals `DOC_LIMITS_LINE` once its numbers become
+    `<n>`, so the `Makefile` spells the line's shape once; the record is
+    `decisions.md › Instructions within size limits`.
   - **Cost accepted:** the check depends on one line's shape; a reworded line makes it exit 2,
     naming the line it expects. The "about" goes: 40 and 80 become hard.
   - **Reversal:** one commit (move the numbers into `Makefile` variables).
   - **Rejected:**
     - the numbers in the `Makefile`, the rule pointing to them — a reader of the rule must open
-      the `Makefile` to learn a limit.
+      the `Makefile` to learn a limit;
+    - a `sed` pattern beside the expected line (`DOC_LIMITS_READ`, S5 to S13) — a second spelling
+      of the line that could drift from the message naming it (S14).
 
 - **D6 — The levers are measured on fixed scenarios, before and after, counting only the slice
   each lever targets.**

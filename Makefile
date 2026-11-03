@@ -222,15 +222,16 @@ review-rules: ## List the rules that bind the uncommitted diff: no paths: filter
 		printf '%s\n' "$$filters" | cut -d' ' -f1 | grep -qxF "$$rule" || echo "$$rule"; \
 	done; printf '%s\n' "$$bound"; } | grep . | sort -u
 
-# The limits are numbers in the maintenance rule's limits line, its one author; a reworded line
-# exits 2, naming the line it expects. A file deleted but not staged is skipped.
+# The limits are numbers in the maintenance rule's limits line, its one author: the line that
+# reads as DOC_LIMITS_LINE once its numbers become <n>, so DOC_LIMITS_LINE holds no digit: every
+# digit of a candidate line becomes <n> before the match. A reworded line exits 2, naming the
+# line it expects. A file deleted but not staged is skipped.
 DOC_LIMITS_RULE = .claude/rules/claude-md.md
 DOC_LIMITS_LINE = - **Limits, checked by `make doc-limits`:** a `CLAUDE.md` <n> lines, a rule <n>.
-DOC_LIMITS_READ = s/^- \*\*Limits, checked by `make doc-limits`:\*\* a `CLAUDE[.]md` ([0-9]+) lines,\
-  a rule ([0-9]+)[.]$$/\1 \2/p
 
 doc-limits: ## Fail on a CLAUDE.md or a rule over the limits its maintenance rule states
-	@set -- $$(sed -nE '$(DOC_LIMITS_READ)' $(DOC_LIMITS_RULE)); \
+	@set -- $$(awk -v want='$(DOC_LIMITS_LINE)' '{ line = $$0; gsub(/[0-9]+/, "<n>", line) } \
+		line == want { gsub(/[^0-9]+/, " "); print }' $(DOC_LIMITS_RULE)); \
 	[ $$# -eq 2 ] || { echo '$(DOC_LIMITS_RULE) needs one line: $(DOC_LIMITS_LINE)' >&2; exit 2; }; \
 	hits=$$(git ls-files --cached --others --exclude-standard -- 'CLAUDE.md' '*/CLAUDE.md' \
 			'.claude/rules/*.md' ':!repos' | sort -u | while read -r file; do \

@@ -13,9 +13,9 @@ contract. What a worktree owns and its ports:
   `.claude/worktrees/<name>` and never through the `agent-<id>` folder, and the order to run
   `make worktree N=<n> NAME=<name>` in the folder it starts in, before anything else and before
   the symlink exists; after it, the agent may run `make up` and `make dev` for its *Verify*.
-- `make worktree` names the worktree before the agent's first real command. Check the symlink and
-  the branch `wt/<name>` with `git worktree list` once the agent has started. Never move a folder
-  an agent works in.
+- `make worktree` names the worktree before the agent's first real command. Once the agent has
+  started, check the branch `wt/<name>` with `git worktree list` and the symlink `<name>` beside
+  its folder. Never move a folder an agent works in.
 - Every status names each worktree by its full path, its `N` and its ports.
 - Rounds commit in the worktree; rebase its branch onto the ticket branch before the next round,
   then run `bun install` in it.

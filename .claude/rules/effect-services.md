@@ -47,7 +47,7 @@ paths:
   siblings that cannot feed each other. `Layer.provideMerge` publishes internals: only for the
   client a caller opens transactions on (`DbTest`) and a test layer that merges what its cases
   read.
-- A client takes its settings as options and never reads `Config` (`SqliteClient.layerConfig` is
+- A client takes its settings as options and never reads `Config` (`PgClient.layerConfig` is
   rejected): [tooling.md › Environment](../../docs/knowledge/tooling.md#environment).
 - A combinator that returns a `Layer` runs its effect in a fiber the layer's scope owns:
   `Effect.forkScoped`, then `Layer.effectDiscard`.

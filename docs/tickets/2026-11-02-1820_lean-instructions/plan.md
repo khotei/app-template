@@ -19,7 +19,7 @@
 | S11 | tooling, AWS, database and AI pages own only their facts; the local stand's `README.md` gone | done |
 | S12 | decisions and the SDD guide trimmed; `docs-diet` done; the move probe | done |
 | S13 | the ticket templates and the planning skills pin what a step needs and leave the rest to a grep | done |
-| S14 | verification run 1 and the prompt audit fixed: two stale doc lines, two recorded exceptions, a contradiction, findings presented one block each | todo |
+| S14 | verification run 1 and the prompt audit fixed: two stale doc lines, two recorded exceptions, a contradiction, findings presented one block each | done |
 | S15 | lessons L2–L5 of verification run 1: briefs name sources only, results quote their output, a behaviour step is one that changes code, the implementer's Bash guarded | todo |
 
 ## How to run this plan
@@ -513,7 +513,9 @@
   - **R13** (the implementer on `modular-monolith` S34, 621 s): the same 13 rules load, none read
     by tool, **39 851 B / 9 926 tok against 49 968 B / 12 452 tok, −20.2%**; the margin is
     about 25 tok, so a run loading one more rule would miss. Its transcript edits through Edit
-    and Write only (30 Read, 44 Edit, 3 Write; Bash for `git rm` and a temp log). Both counts
+    and Write (30 Read, 44 Edit, 3 Write), but its Bash also ran `git rm`, a temp log and about
+    12 file reads (`cat`, `sed -n`, `head`), which `implementer.md` forbids (verification run 1,
+    R13). Both counts
     include the review's last edits (+23 B, measured before them).
   - The worktree was made with the main tree's `make -f <main>/Makefile worktree`, as
     `17c552af21^` has no `worktree` target.
@@ -744,7 +746,30 @@
   `.claude/` finds nothing; `git grep -n 'Equal.equals'` over `.claude/rules/` finds no line that
   lets errors through it.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Move probe: before the fix `make doc-names` failed on `architecture.md:126:
+    application/chat/index.ts` and on `:143`–`:150`; after it, only on `:143`–`:150` (› Where
+    things live).
+  - `doc-limits`, red before and after the `Makefile` change: an 81-line rule gives
+    `.claude/rules/zz-probe.md: 81 lines, over 80` (exit 1); a reworded limits line gives
+    `.claude/rules/claude-md.md needs one line: …` naming the line with `<n>` for each number
+    (exit 2); limits set to 20 and 78 fail `effect-style.md: 79 lines, over 78`.
+  - `worktree.sh` with a failing `bun install`, run by the main session (the implementer's
+    scratch-repo setup was denied) in a scratch worktree with a `bun` that exits 1 first on
+    `PATH`: the script on `HEAD` exits 1 and leaves `.env.new`; the new one exits 1 and leaves
+    none.
+  - `git grep -n 'SqliteClient' -- .claude/` finds nothing (before: `effect-services.md:50`);
+    `Equal.equals` hits only `effect-style.md:78` (models) and `effect-tests.md:68` (never on
+    errors).
+  - Depth review: the header of `worktree.sh` now states the contract as it is (the draft
+    `.env.new` is the only change before the checks; a failed `ln`, rename or install after them
+    leaves what it made), and the `doc-limits` comment says `DOC_LIMITS_LINE` holds no digit.
+  - Deviation: `tooling.md`'s `doc-limits` row, beyond the step's *Files*, points to the new
+    record and says `awk`; D5 records the match and the rejected `DOC_LIMITS_READ`; the owners
+    table marks the root `CLAUDE.md`'s dependency command as R2's exception; S8's finding on the
+    replay's Bash calls is corrected.
+  - Simplify not run: the code is about 12 lines, reviewed by hand; Size 82 lines against ~120.
 
 #### S15 — Lessons L2–L5 of verification run 1
 

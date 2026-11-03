@@ -131,7 +131,9 @@ it targets.
 - **R1** — WHEN code is moved or renamed and no constraint changes, THE SYSTEM SHALL need no edit
   to any instruction file Claude reads.
 - **R2** — THE SYSTEM SHALL state each fact in one file, its owner, and every other file that needs
-  it SHALL point to the owner by name instead of retelling it.
+  it SHALL point to the owner by name instead of retelling it. One exception: the root
+  `CLAUDE.md` keeps the dependency command, as a pattern beside its pointer, because the rule
+  that points to its owner loads only on a manifest, while a session runs `bun add` from the shell.
 - **R3** — WHERE a line of an instruction file would not change what Claude does in this project,
   because Claude gets it right from the code, the stack or the surrounding style, THE SYSTEM SHALL
   not carry that line.
@@ -145,9 +147,10 @@ it targets.
 
 ### Checks that keep it so
 
-- **R7** — IF any Markdown file outside the ticket folders, the skills, the agents and every
-  `README.md` included, names in backticks a path or a name the repository lacks, THEN
-  `make check` SHALL fail, naming the file and the line.
+- **R7** — IF any Markdown file outside the ticket folders and the roadmap, the skills, the agents
+  and every `README.md` included, names in backticks a path or a name the repository lacks, THEN
+  `make check` SHALL fail, naming the file and the line. The roadmap is skipped because it plans
+  files and names not built yet.
 - **R8** — IF an instruction file Claude reads names a concrete path to a source file, rather
   than a pattern with placeholders or a pointer to a doc, THEN `make check` SHALL fail, naming
   the file and the line.
@@ -221,7 +224,7 @@ it targets.
 | Req | How to verify |
 |---|---|
 | R1 | A probe moves a module's folder and renames a file in it (no constraint changed): `git grep` of the old names over the instruction files finds none, and `make doc-names` fails only on a worked example of the doc that owns it (`architecture.md › Where things live`); the probe is reverted. |
-| R2 | For each fact the Context lists as told in several places, `git grep` finds its statement in one file and pointers by name elsewhere; `/doctor prompt-audit`, run by hand, reports no contradiction and no dead reference. |
+| R2 | For each fact the Context lists as told in several places, `git grep` finds its statement in one file and pointers by name elsewhere, the root `CLAUDE.md`'s dependency command aside; `/doctor prompt-audit`, run by hand, reports no contradiction and no dead reference. |
 | R3 | Each step's report lists every removed line with its new home, or "dropped:" and why Claude gets it right without it; review checks the list. |
 | R4 | `git grep -P '\b[0-9]+\.[0-9]+\.[0-9]+\b'` and a grep for "today" and for counts over `docs/knowledge/` and the `README.md` files find each hit only in the doc that owns it. |
 | R5 | The step's report lists each trap added and where; review checks each against the test of R3. |

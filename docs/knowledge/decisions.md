@@ -654,3 +654,22 @@ An instruction file, a `CLAUDE.md`, a rule, a skill or an agent, names a pattern
 - **If reversed:** drop the pattern from `doc-names`; a source path is then checked only for
   existing, so a moved file's line is caught but its rename still forces a doc edit.
 - **Revisit when:** an instruction file must name a source file no pattern describes.
+
+### Instructions within size limits
+
+A `CLAUDE.md` holds at most 40 lines and a rule at most 80; the numbers live only in the limits
+line of `.claude/rules/claude-md.md`, which `make doc-limits` reads.
+
+- **Why:** a `CLAUDE.md` or a rule is paid for in every session it matches, and files grow by
+  appending: rules sat at or over 80 lines while the limits were advice that nothing checked.
+  A hard limit makes the next fix cut a line instead of adding one.
+- **Sources:** `.claude/rules/claude-md.md` (the test a line must pass, the limits); the audit of
+  [the ticket that made this record](../tickets/2026-11-02-1820_lean-instructions/feature.md).
+- **Rejected:** the numbers in the `Makefile`, the rule pointing to them: a reader of the rule
+  must open the `Makefile` to learn a limit. Soft limits ("about 40"): nothing refuses them.
+- **Cost:** the check depends on one line's shape, so a reworded limits line makes it exit 2,
+  naming the line it expects; a file at its limit takes no line without giving one up.
+- **Guarded by:** `make doc-limits`, which fails on a file over its limit, naming file and length.
+- **If reversed:** drop `doc-limits` from `make check`; the limits go back to advice.
+- **Revisit when:** a constraint that passes the test of `claude-md.md` no longer fits its file
+  after every other line has been cut.

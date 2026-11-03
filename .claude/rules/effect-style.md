@@ -65,8 +65,7 @@ pipe(orders, sumBy((order) => order.refunded))
 - A closed union of three or more arms read in one place is a `Match` (`Match.typeTags`,
   `Match.valueTags`, `Match.discriminators('<field>')`) ending in `Match.exhaustive`; two arms stay
   a guard.
-- A varying value is passed as data (`Effect.logWithLevel(level)`), never a choice between two
-  functions.
+- A varying value is passed as data (`Effect.logWithLevel(level)`), not a choice of two functions.
 
 ## Errors and logs
 
@@ -76,5 +75,5 @@ pipe(orders, sumBy((order) => order.refunded))
   `Effect.catchCauseIf(Predicate.not(Cause.hasInterruptsOnly), …)`, paired with the `tapCauseIf`
   that logs every other cause. Inspect a `Cause` with `Cause.hasInterruptsOnly`, `hasDies`,
   `hasFails`, never by walking it; a ternary in `catchCause` only when the handler can fail.
-- A "nothing changed" check before a write or a snapshot compares models and errors with
-  `Equal.equals`.
+- A "nothing changed" check before a write or a snapshot compares models with `Equal.equals`,
+  and errors by their encoded form, as tests do (`tooling.md › Tests`).

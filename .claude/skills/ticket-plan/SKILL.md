@@ -25,7 +25,7 @@ steps only conform to the plan. Gates: `.claude/rules/sdd.md`.
      start, not the bound;
    - **Size**: the changed lines expected, as `git diff -M --stat` counts them, summed over every
      file the change reaches, tests and docs included; a step over ~400 is split before the plan
-     is presented. Steps sized by the code they move alone came back over the limit;
+     is presented; counting only the moved code undercounts it;
    - **Test first**: the Seam from `architecture.md` and the behaviour to see red, or `config only`;
    - **Verify**: commands and manual checks, each naming the state it fails on, so a check that
      cannot fail is seen before the step runs; a step that replaces a guard has one probe per

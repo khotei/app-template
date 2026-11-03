@@ -122,8 +122,8 @@ import { SendMessageUseCase } from '#use-cases/chat/send-message.use-case'  // t
 - **`@app-template/<folder>`** reaches another unit through its workspace's `exports`, each
   entry an `index.ts` barrel: the kernel one per part (`@app-template/kernel/data` →
   `kernel/data/index.ts`, every store), a package by its folder (`@app-template/packages/db`),
-  a module or the use cases by theirs (`@app-template/application/chat` →
-  `application/chat/index.ts`, every layer), each with its test support's entries
+  a module or the use cases by theirs (`@app-template/application/<module>` →
+  `application/<module>/index.ts`, every layer), each with its test support's entries
   ([tooling.md › Tests](tooling.md#tests)).
 - **`#<unit>/<path>`** reaches a file of the same unit, through the `imports` map in its
   workspace's `package.json` (`"#chat/*": "./chat/*.ts"`, `"#api/*": "./*.ts"`); a kernel part,
