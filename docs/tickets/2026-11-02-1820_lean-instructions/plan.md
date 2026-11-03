@@ -12,7 +12,7 @@
 | S4 | parallel steps read on demand; the worktree setup a script | done |
 | S5 | the commit gate in one place, asked once per session; skills and agents as patterns | done |
 | S6 | agents do only their own part; the main session orchestrates on reports; one hunt pass by condition; `/simplify` from the main session; parallel verifiers | done |
-| S7 | the Effect rules and the comments rule trimmed; the Effect-4 trap first | todo |
+| S7 | the Effect rules and the comments rule trimmed; the Effect-4 trap first | done |
 | S8 | naming, layering, modules and deep modules trimmed, one file per subject | todo |
 | S9 | every `CLAUDE.md` and the process rules as patterns; `doc-limits` | todo |
 | S10 | `architecture.md`, `README.md` and the glossary own only their facts | todo |
@@ -455,7 +455,32 @@
 - **Verify:** `make check`; `wc -l` of each rule ≤ 80; `git grep -n 'nested-calls'` over the rules
   finds only a pointer; the ledger.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - The six rules: 365 → 320 lines, 22 494 → 18 081 B (−20%); each ≤ 80 lines (effect 34,
+    effect-style 80, effect-services 53, effect-schema 39, effect-tests 75, comments 39). R14's
+    token measurement runs in S8.
+  - Verify: `git grep -n 'nested-calls'` over the rules finds only the pointer in
+    `effect-style.md › Composition`; `effect.md` opens with the Effect-4 trap in plain words.
+  - Ledger, moved: the repository write `update(set, where)` to `deep-modules.md` (loads where
+    repositories live); a port's contract stated once, to `comments.md`; `Arr.append` and
+    `Arr.getSomes` to `effect.md`'s native-code line; the harnesses, the recorders' list and "a
+    plainer test, not a helper" to `tooling.md › Tests` behind a pointer at the head of
+    `effect-tests.md`; the memory guards to `database.md › Tests`; `<Port><Variant>` to
+    `naming.md`. Dropped as default style or a reason only: the reasons after the constraints,
+    the instance examples, "decode untrusted input with a schema", `drizzle-orm/effect-postgres`
+    being thinly documented, an arrow for a one-step function; `recordQueue()` and
+    `recordAssistant()` by name, found in their module's `testing` barrel.
+  - Review: three drops came back, each an Effect-4 habit no check holds — `Service.use` /
+    `useSync` in its positive form (`make service-use` flags only a service mapped over, so
+    `Service.pipe(Effect.flatMap(…))` passes), "never `Effect.Do`" (still in Effect 4), and
+    "`.value` only under a narrowing guard"; `effect.md` said `make idioms` catches `??`, which it
+    does not. `tooling.md`'s rows stay as they were: the rule text lives in the rule.
+  - D4 read as covering every bold lead-in in the six files, not only `**Required:**` marks.
+  - Out of scope, for S8: `effect.md` and `effect-style.md › Branching` both name `Match` and
+    `Predicate`; `deep-modules.md`'s "a copy per model is one function over the varying part"
+    overlaps the `sumBy` rule.
+
 
 #### S8 — Naming, layering, modules, deep modules trimmed
 

@@ -7,21 +7,18 @@ paths:
 
 ## Schemas
 
-- Decode untrusted input with a schema, never with hand-written predicates.
-- Put an invariant in the schema whenever a check can state it (`Schema.isTrimmed()`,
-  `Schema.isPattern(…)`, a brand), so the constructor and every decode of a row enforce it.
-- Brand with `Schema.brand`, never the `Brand` module: the schema route keeps the check and the
-  brand together, so `make`, the row's decode and the wire DTO all agree. An id is
-  `Schema.String.check(Schema.isUUID()).pipe(Schema.brand('<Model>Id'))`; a constrained value a
-  port or use case accepts (a file name, a media type, a size) is a brand too, so a plain `string`
-  or `number` cannot slip in.
+- An invariant a check can state goes in the schema (`Schema.isTrimmed()`, `Schema.isPattern(…)`,
+  a brand), so the constructor and every decode of a row enforce it.
+- Brand with `Schema.brand`, never the `Brand` module, so `make`, the row's decode and the wire
+  DTO agree. An id is `Schema.String.check(Schema.isUUID()).pipe(Schema.brand('<Model>Id'))`; a
+  constrained value a port or use case accepts (a file name, a media type, a size) is a brand too.
 - An absent value is an `Option` (`Schema.Option(…)` in a model), never `null` or `undefined`;
   `null` exists only in a wire DTO.
-- An annotation a JSON Schema must carry (a `description` a model reads) sits on the encoded
-  side, on the key of a checked field (`annotateKey`); its test reads it back from
-  `Schema.toJsonSchemaDocument`, since `annotate` on a check or a transformation drops it.
-- A closed set of stages or kinds is `Schema.Literals([...])`; a subset is `.pick([...])` of it, and
-  its membership test is `Schema.is(Subset)`, not a hand-written `includes`.
+- An annotation a JSON Schema must carry sits on the encoded side, on the key of a checked field
+  (`annotateKey`): `annotate` on a check or a transformation drops it. Its test reads it back from
+  `Schema.toJsonSchemaDocument`.
+- A closed set of stages or kinds is `Schema.Literals([...])`; a subset is `.pick([...])` of it,
+  tested with `Schema.is(Subset)`.
 
 ## Failures
 
@@ -29,15 +26,14 @@ paths:
   TypeScript.
 - A refused operation is a typed failure: never a `throw` (a defect that reads as an infrastructure
   failure) and never an `Option.none` (no detail for the caller or the log).
-- A domain error is a `Schema.TaggedError` whose tag is its class name, so it decodes at the
-  wire; its HTTP status lives in `http-api/CLAUDE.md`. A marker that never leaves its module (a
-  failure carried out of a callback for the loop around it) is `Data.TaggedError`.
+- A domain error is a `Schema.TaggedError` tagged with its class name, so it decodes at the wire;
+  its HTTP status lives in `http-api/CLAUDE.md`. A marker that never leaves its module is
+  `Data.TaggedError`.
 - Not-found from a port is a value (`Option`, or an id left out of an array); its reader turns it
   into the domain's `*NotFoundError`.
-- A port declares no error channel: its adapter turns a client's failure or a stored value that
-  no longer decodes into a defect, since every caller handles both alike. The exception is a port
-  whose failures are outcomes a use case settles, each its own way (an external service that
-  declines or gives up): it declares one final `<Port><Problem>Error` per outcome, its adapter
-  retries before raising one, and every other failure stays a defect.
-- A user-facing sentence per failure reason lives in one table keyed by the reason; the cause stays
-  in a separate field that never reaches the user.
+- A port declares no error channel: its adapter turns a client's failure, or a stored value that
+  no longer decodes, into a defect. The exception is a port whose failures are outcomes a use case
+  settles each its own way (an external service that declines or gives up): one final
+  `<Port><Problem>Error` per outcome, raised after the adapter's retries.
+- A failure's user-facing sentence comes from one table keyed by its reason; the cause stays in a
+  field that never reaches the user.
