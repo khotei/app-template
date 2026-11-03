@@ -15,8 +15,8 @@
 | S7 | the Effect rules and the comments rule trimmed; the Effect-4 trap first | done |
 | S8 | naming, layering, modules and deep modules trimmed, one file per subject | done |
 | S9 | every `CLAUDE.md` and the process rules as patterns; `doc-limits` | done |
-| S10 | `architecture.md`, `README.md` and the glossary own only their facts | todo |
-| S11 | tooling, AWS, database and AI pages own only their facts; the local stand's `README.md` gone | todo |
+| S10 | `architecture.md`, `README.md` and the glossary own only their facts | done |
+| S11 | tooling, AWS, database and AI pages own only their facts; the local stand's `README.md` gone | done |
 | S12 | decisions and the SDD guide trimmed; `docs-diet` done; the move probe | todo |
 | S13 | the ticket templates and the planning skills pin what a step needs and leave the rest to a grep | todo |
 
@@ -589,7 +589,21 @@
   over these files, each hit in its owner only.
 - **Verify:** `make check`; the greps; the ledger.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Ran in parallel with S11, each in its own worktree; the two touch no file in common.
+  - `architecture.md` 415 → 373 lines. The dependency matrix states what each ring may import and
+    which guard refuses the rest; `README.md`, `application/CLAUDE.md` and the glossary link it.
+  - The R4 version grep needs `git grep -P`: with `-E`, macOS's `git grep` matches no `\b`, so
+    the check passed on nothing. `feature.md`'s R4 row and S12's Test first now say `-P`.
+  - Review: the `packages/*` row had lost the grit refusal of an app or module import; it states
+    `biome-imports.grit` and TS2307 again, `noImportCycles` only for a package above it.
+  - Left to S12: `decisions.md › Guards are configuration` and the records' *Guarded by* fields
+    still restate the matrix, and `decisions.md` restates the test layout `tooling.md › Tests`
+    owns.
+  - Left open (judgement calls of the Standards review): the guard table's *Refused by* column
+    and *Boundary guards* overlap; `README.md` keeps three invariants a newcomer needs before the
+    map.
 
 #### S11 — Tooling, AWS, database and AI pages
 
@@ -604,21 +618,37 @@
 - **Test first:** `config only` — the R4 greps over these files, each hit in its owner only.
 - **Verify:** `make check`; the greps; the ledger.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Ledger: stack commands and credentials to `aws.md`; ports to `tooling.md › Worktrees`; the
+    migrate command to `database.md › Migrations`; Tests on Docker to `tooling.md › Tests`; the
+    database's guards to `database.md › Guards`; versions, the Postgres image and model names to
+    `package.json`, the code and `.env.example`. No heading changed, so no anchor moved.
+  - `deployment/local/README.md` is deleted (R6); nothing linked to it.
+  - Review: `tooling.md` names `packageManager` as the home of Bun's version, which no catalog
+    holds; `database.md` keeps that `uuidv7()` needs Postgres 18 or later, the one constraint the
+    dropped version carried.
+  - Deviation: `.claude/rules/effect-tests.md` said "vitest 5", a live version outside its owner
+    that no step lists; fixed here.
+  - Left open (judgement calls of the Standards review): `tooling.md` and `aws.md` point to each
+    other around Tests on Docker; `aws.md` keeps a few instances (a 24-hour expiry, a 5-minute
+    timeout, queue names) a reader needs while debugging.
 
 #### S12 — Decisions, the SDD guide and the move probe
 
 - **Delivers:** `decisions.md` keeps the why, the cost and the guard of each record, pointing to
   the owners for live names; the SDD guide keeps what the skills do not say. The roadmap marks
   `docs-diet` done. A probe that moves a module's folder and renames a file in it needs no edit to
-  any instruction file.
+  any instruction file. `decisions.md › Guards are configuration`, the records' *Guarded by*
+  fields and the test layout point to `architecture.md`'s dependency matrix and `tooling.md ›
+  Tests` instead of restating them (found by S10).
 - **Goal:** the last human docs, and proof that a refactor needs no doc edit (R1, R2, R4, R6).
 - **Blocked by:** S10, S11.
 - **Files:** `docs/knowledge/{decisions,sdd,roadmap}.md`.
 - **Test first:** the move-probe seam — `application/chat` moved to a scratch name and one of its
   files renamed: `git grep` of the old names over the instruction files finds none and `make
   doc-names` stays green; reverted.
-- **Verify:** `make check`; the probe; the R4 greps over `docs/knowledge/` and every `README.md`;
+- **Verify:** `make check`; the probe; the R4 greps (`git grep -P`) over `docs/knowledge/` and every `README.md`;
   `/doctor prompt-audit` run by hand, its findings in the step's report.
 - **Model:** `opus medium`
 - **Status:** todo

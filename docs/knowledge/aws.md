@@ -1,16 +1,16 @@
 # AWS
 
 How the app reaches S3 and SQS, locally and on AWS, and how the resources it needs are described,
-created and tested. The code: `kernel/aws/resources/` (the inventory, the naming rule),
-`packages/aws` (the generic provisioner), `kernel/aws/aws.client.ts` (the apps' S3 and SQS clients),
-`deployment/local/` (the Pulumi program of the local stand) and `deployment/aws/` (its
-resources); the e2e support, [tooling.md › Tests](tooling.md#tests).
+created and tested. The code: the kernel's `aws` part (the inventory, the naming rule, the apps'
+S3 and SQS clients), `packages/aws` (the generic provisioner) and `deployment/` (the Pulumi
+program of the local stand and the resource code it runs); the e2e support,
+[tooling.md › Tests](tooling.md#tests).
 
 ## The local stand-in
 
 [MiniStack](https://hub.docker.com/r/ministackorg/ministack) emulates S3, SQS and RDS on the port of
-`AWS_ENDPOINT_URL`: `http://localhost:4566` in the main tree, another port in each worktree
-([tooling.md › Worktrees](tooling.md#worktrees)). `deployment/local/` is a Pulumi project of its
+`AWS_ENDPOINT_URL`, one per tree ([tooling.md › Worktrees](tooling.md#worktrees)).
+`deployment/local/` is a Pulumi project of its
 own (`runtime: bun`): `@pulumi/docker`'s `Container` with the image by digest, the environment,
 the bind mount of `.data/ministack` and the health check with `wait: true`, so `pulumi up` returns
 only once MiniStack answers. The program reads `AwsConfig` from `.env` (how `make up` passes it:
@@ -20,7 +20,7 @@ its 4566 is published on the endpoint's port, and the container is named
 A new name or image replaces the container, the old one deleted first because it holds the port.
 
 Through an `aws.Provider` that waits for the healthy container, the same program creates inside
-MiniStack the inventory (below) and the database: an `aws.rds.Instance`, Postgres 18, named
+MiniStack the inventory (below) and the database: an `aws.rds.Instance` of Postgres, named
 `app-template-<STAGE>-database`. The resource code lives in `deployment/aws/` as functions of a
 provider, so the AWS stacks call it without an endpoint. MiniStack runs the instance as a real
 Postgres container on the host's Docker (its socket is mounted), on the host port `RDS_BASE_PORT`
@@ -42,8 +42,8 @@ the local database's password, a constant in `settings.ts`. Each command names t
 in `PULUMI_BACKEND_URL`, so no login is stored. `PULUMI_HOME` is the main tree's `.pulumi/`, so a
 clone touches nothing outside the repo, `make reset` keeps the provider plugins, and a worktree
 reuses them: its first `make up` takes 9 s, not the 44 s of a download (858 MB for AWS). The
-image digest is pinned once, as `ministackImage` in `@app-template/kernel/config`, which
-`deployment/local/ministack.ts` and the tests' container both read.
+image digest is pinned once, as `ministackImage` in `@app-template/kernel/config`, which the
+local program and the tests' container both read.
 
 | Target | Does |
 |---|---|
@@ -70,7 +70,7 @@ path-style addressing; without one, the SDK's own endpoints.
 | the Pulumi CLI is missing | `make up`, `down`, `reset` and `stack` fail at `pulumi`; install it (<https://www.pulumi.com/docs/install/>). `make check` does not need it |
 | an older `.env` lacks `AWS_*`, `STAGE` or `RDS_BASE_PORT` | `make up` fails with a `ConfigError` naming the variable; `make setup` leaves an existing `.env` alone, so copy the block from `.env.example` |
 | the first `make up` takes longer | it downloads the Docker and AWS provider plugins into `.pulumi/` once; worktrees reuse them |
-| port 4566 is taken | the container fails to start; free the port (a leftover `app-template-ministack-4566`, or another emulator) |
+| the endpoint's port is taken | the container fails to start; free the port (a leftover `app-template-ministack-<port>`, or another emulator) |
 | `make up` failed midway | run it again; it goes on from what it created |
 | you want a clean slate | `make reset` also wipes the database, not only MiniStack |
 
@@ -82,10 +82,10 @@ identifier and carrying its logical `name`. Physical names are `buildResourceNam
 
 | Resource | Carries | Provisioned as |
 |---|---|---|
-| bucket `attachments` | `lifecycle.unboundExpirationDays`, `lifecycle.abortIncompleteUploadDays` | the bucket and two lifecycle rules: objects carrying the data layer's `unboundTag` (`unbound=true`) expire; incomplete multipart uploads are aborted. |
-| queue `assistant-message`, `chat-title` | `maxReceiveCount` | its dead-letter queue first, named by `buildDeadLetterName` from the physical name (`app-template-<stage>-<name>-dlq`), then the queue with a `RedrivePolicy` to it. A queue definition in a module's `services/` reads its `name` and `maxAttempts` from here, so the two cannot disagree. |
+| a bucket | its `lifecycle` days | the bucket and its lifecycle rules; the attachments' bucket expires the objects carrying the data layer's `unboundTag` (`unbound=true`) and aborts incomplete multipart uploads. |
+| a queue | `maxReceiveCount` | its dead-letter queue first, named by `buildDeadLetterName` from the physical name (`app-template-<stage>-<name>-dlq`), then the queue with a `RedrivePolicy` to it. A queue definition in a module's `services/` reads its `name` and `maxAttempts` from here, so the two cannot disagree. |
 
-`make up` creates the inventory through Pulumi (`deployment/aws/storage.ts`, `queue.ts`); the
+`make up` creates the inventory through Pulumi, with the resource code of `deployment/aws/`; the
 e2e tests create each test's stage with
 `provision(resources, (name) => buildResourceName(stage, name))` from `packages/aws`, in
 milliseconds and without the Pulumi CLI: the provisioner knows no naming rule, its caller passes
@@ -108,11 +108,11 @@ queue in place.
 ## Attachments
 
 An attachment's record lives in Postgres; its bytes live in the `attachments` bucket under
-`attachments/<id>`. `FileRepository` (`kernel/data/file/file.repository.ts`) holds only the
-keys, the headers and the tag, which `file.entity.ts` declares beside the key; the upload itself
-is `S3Bucket` in `packages/s3`, taken from the context. `S3BucketFromConfig`
-(`kernel/aws/aws.client.ts`) binds it to the stage's bucket, and the api and the worker provide
-it beside `FileRepository.layer`. The store joins no transaction, so a service keeps the bytes
+`attachments/<id>`. `FileRepository`, in the data layer, holds only the keys, the headers and the
+tag, which its entity file declares beside the key; the upload itself is `S3Bucket` in
+`packages/s3`, taken from the context. `S3BucketFromConfig`, among the kernel's AWS clients,
+binds it to the stage's bucket, and the api and the worker provide it beside
+`FileRepository.layer`. The store joins no transaction, so a service keeps the bytes
 before the row that binds them and deletes them once the rows are gone.
 
 - **Upload.** The file streams in and is never buffered whole: up to 5 MiB it is one `PutObject`,
@@ -125,15 +125,15 @@ before the row that binds them and deletes them once the rows are gone.
 - **The unbound tag.** A new object carries `unbound=true`, sent with the `PutObject` or
   `CreateMultipartUpload` that writes it, and the bucket's expiration rule
   ([The inventory](#the-inventory)) acts on the tag; locally a file over 5 MiB stays untagged
-  ([Tests on Docker](#tests-on-docker)), so `file.repository.e2e.ts` asserts the tag on a
-  small upload only. Binding the attachment removes the tag before the bind is written, so a
+  ([Tests on Docker](#tests-on-docker)), so the repository's e2e asserts the tag on a small
+  upload only. Binding the attachment removes the tag before the bind is written, so a
   crash between leaves an orphaned object, never a bound attachment without bytes.
-- **Expiry.** An attachment still unbound 24 hours after its upload (`unboundLifetime` in
-  `application/chat/domain/attachment.model.ts`) reads as not found everywhere; no read deletes
-  it, since a delete on read would race a send binding it. Its object goes by the bucket's rule,
-  which acts after `unboundExpirationDays` (S3 rounds up to the next midnight UTC);
-  `application/chat/__tests__/services/resources.test.ts` keeps those days no shorter than
-  `unboundLifetime`, so nothing still bindable loses its bytes. Its row stays, since no sweep
+- **Expiry.** An attachment still unbound 24 hours after its upload (the attachment model's
+  `unboundLifetime`) reads as not found everywhere; no read deletes it, since a delete on read
+  would race a send binding it. Its object goes by the bucket's rule, which acts after
+  `unboundExpirationDays` (S3 rounds up to the next midnight UTC); a unit test of the module's
+  services keeps those days no shorter than `unboundLifetime`, so nothing still bindable loses
+  its bytes. Its row stays, since no sweep
   removes expired rows. Locally the object stays as well, since MiniStack never runs the rule
   ([Tests on Docker](#tests-on-docker)).
 - **Download.** The api answers `302` to a `GetObject` URL presigned for 300 seconds.
@@ -151,35 +151,34 @@ before the row that binds them and deletes them once the rows are gone.
 for the worker from `QueueConfig` and `AwsConfig`: a definition's queue is
 `buildResourceName(STAGE, definition.name)`.
 
-- **Delivery is at-least-once** (`QueueDefinition.jobId` in `packages/queue/queue.ts`): the jobs
-  skip a settled reply and a titled chat.
+- **Delivery is at-least-once** (the doc of `QueueDefinition.jobId`): the jobs skip a settled
+  reply and a titled chat.
 - **An attempt is a receive.** A worker long-polls for one message at a time, and the
   message stays hidden for `QUEUE_LOCK_EXPIRATION`; a heartbeat extends that every
   `QUEUE_LOCK_REFRESH_INTERVAL` while the handler runs. The attempt number is SQS's
   `ApproximateReceiveCount`, and the last attempt is the definition's `maxAttempts`, which is the
   inventory's `maxReceiveCount`.
-- **Every outcome is a visibility**, as the `QueueConsumer.consume` doc in
-  `packages/queue/queue.ts` lists them; SQS rounds a retry delay up to whole seconds, and an
-  interrupt (a worker stopping, a handler interrupting itself) spends its attempt.
+- **Every outcome is a visibility**, as the doc of `QueueConsumer.consume` lists them; SQS rounds
+  a retry delay up to whole seconds, and an interrupt (a worker stopping, a handler interrupting
+  itself) spends its attempt.
 - **Redrive is the only way to the dead-letter queue.** The receive after the
   `maxReceiveCount`-th moves the message to `<queue>-dlq` instead of returning it; the client never
   sends there itself. A worker that dies mid-attempt leaves its message hidden until the
   visibility runs out; it then comes back as the next attempt, or goes to the dead-letter queue.
   A reply's last attempt writes `failed` on any outcome but success, a stopping worker included
-  (`apps/worker/chat/assistant-message.handler.ts`). That write never happens after a killed
-  process, a store failing the write, or a stopped worker's leftover long poll spending the last
-  attempt: the reply stays active with its job in the dead-letter queue, until the handler's
+  (the reply's handler in the worker). That write never happens after a killed process, a store
+  failing the write, or a stopped worker's leftover long poll spending the last attempt: the
+  reply stays active with its job in the dead-letter queue, until the handler's
   `handleDeadLettered` fails it (below).
-- **The worker consumes both dead-letter queues.** `assistantMessageDeadLetterQueue` and
-  `chatTitleDeadLetterQueue` (`application/chat/services/chat.queue.ts`) define `<queue>-dlq` with
-  `maxAttempts` at `Number.MAX_SAFE_INTEGER` and a retry delay that doubles up to 5 minutes:
-  nothing redrives a dead-letter queue, so a failing handler must never reach a last attempt.
-  The receive count carries over through the redrive (checked on MiniStack), so the first
-  receive there is attempt `maxReceiveCount + 1`. The reply's consumer logs the stuck reply and
-  writes it `failed` with `ReplyFailed`, a cause naming the queue and the attempts, and the
-  chat's `updatedAt`, under the status guard the job uses, so a reply settled meanwhile or a
-  deleted chat is only logged. The title's consumer only logs, since an untitled chat is
-  harmless.
+- **The worker consumes every dead-letter queue.** Each queue's definition has a twin for
+  `<queue>-dlq`, beside it in the module's `services/`, with `maxAttempts` at
+  `Number.MAX_SAFE_INTEGER` and a retry delay that doubles up to 5 minutes: nothing redrives a
+  dead-letter queue, so a failing handler must never reach a last attempt. The receive count
+  carries over through the redrive (checked on MiniStack), so the first receive there is attempt
+  `maxReceiveCount + 1`. The reply's consumer logs the stuck reply and writes it `failed` with
+  `ReplyFailed`, a cause naming the queue and the attempts, and the chat's `updatedAt`, under the
+  status guard the job uses, so a reply settled meanwhile or a deleted chat is only logged. The
+  title's consumer only logs, since an untitled chat is harmless.
 - **A stopped worker's long poll can outlive it.** Interrupting a receive aborts its HTTP request,
   but MiniStack keeps the poll open and hides the next message it finds for its visibility
   timeout; that message returns after `QUEUE_LOCK_EXPIRATION` with an attempt spent.
@@ -194,19 +193,15 @@ and the dead letter need no queue.
 
 ## Tests on Docker
 
-The e2e `globalSetup` starts one MiniStack beside the run's Postgres (`testcontainers`) and hands
-its endpoint to the tests through `inject('awsEndpoint')`; `SqsClientTest` and `S3ClientTest` are
-clients on it. `AwsTest` gives each test a stage of its own (`e2e` and eight hex digits),
+The e2e run's one MiniStack, and where its harnesses live: [tooling.md › Tests](tooling.md#tests).
+`AwsTest` gives each test a stage of its own (`e2e` and eight hex digits),
 provisions the inventory's bucket and queues under it and provides `AwsConfig` over the endpoint
 and that stage, so the kernel's clients build their names as in production; it
 publishes the clients too, as the `*FromConfig` layers do, and the stage's `S3Bucket`. The queue's
 own suite provisions its own queues under one such stage for its `layer` block, with
 `provisionQueues(queues, buildName)`, and the `s3` suite creates one bucket, named as a stage is,
-for its `S3Bucket`. Nothing cleans a stage up: the container goes with the run. The unit suites
-test our code, not S3 or SQS: they provide `FileRepositoryTest` (in `RepositoryStackTest`) and
-`recordQueue()`. So `make test-e2e` needs a running Docker daemon and nothing else, not the local
-stand or `.env`: the Pulumi project is for `make up` alone. Where the harnesses live and which
-suites run on `AwsTest`: [tooling.md › Tests](tooling.md#tests).
+for its `S3Bucket`. Nothing cleans a stage up: the container goes with the run. The Pulumi
+project is for `make up` alone.
 
 MiniStack differs from AWS in what it never does: lifecycle rules never run, the 5 MiB minimum
 part size is not enforced, and the `Tagging` sent with `CreateMultipartUpload` is dropped. What

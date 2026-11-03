@@ -52,8 +52,8 @@ Where each kind of test and its support live, and what a test may import:
 
 - Every test owns its resources (a database from `PgClientTest` or `DbTest`, a stage from
   `AwsTest`), provided in the test, never cleaned up by hand. Tests in a file run concurrently; a
-  suite sharing one resource opts out with `describe(name, { concurrent: false }, …)` (vitest 5
-  has no `describe.sequential`).
+  suite sharing one resource opts out with `describe(name, { concurrent: false }, …)` (vitest has
+  no `describe.sequential`).
 - `it.effect`'s `TestClock` stands at 0, the fixtures' `epoch`. A test whose point is that time
   moves runs `it.live` and asserts relations (`child.createdAt == parent.updatedAt > epoch`), not
   instants. Move a `TestClock` only in a test about a delay or an expiry, never inside a shared

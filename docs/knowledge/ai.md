@@ -2,17 +2,16 @@
 
 How the assistant asks a language model for a reply or a title, which parts of `effect/ai` and
 `@effect/ai-anthropic` it uses, and what to know before changing its prompt or its schema. The
-code: `application/chat/infrastructure/assistant.llm.ts` (`AssistantLlmFromConfig`: the prompts, the
-schemas, one language model per purpose with its settings and canned stub answer, the
-finish-reason hook, the retries and the failure mapping), `kernel/llm/llm.client.ts`
-(`createLanguageModel`: the provider `LlmConfig` names), `packages/llm/client.ts` (the Anthropic and
-stub builders) and `kernel/config/config.ts` (`LlmConfig`, `ReplyModelConfig`). The suite:
-`application/chat/__tests__/infrastructure/assistant.llm.test.ts`, over a fake `HttpClient` that
-answers canned Anthropic bodies, so no test needs a key or the network.
+code: `AssistantLlmFromConfig`, the chat module's adapter of its `Assistant` port (the prompts,
+the schemas, one language model per purpose with its settings and canned stub answer, the
+finish-reason hook, the retries and the failure mapping); `createLanguageModel` in the kernel
+(the provider `LlmConfig` names); the Anthropic and stub builders in `packages/llm`; and
+`LlmConfig` and `ReplyModelConfig` in `@app-template/kernel/config`. The adapter's suite runs over
+a fake `HttpClient` that answers canned Anthropic bodies, so no test needs a key or the network.
 
-Every module named here is unstable at 4.0.6: check an API against the vendored sources
-(`repos/effect/packages/effect/src/ai/`, `repos/effect/packages/ai/anthropic/src/`) before using
-it, and read this page again after an upgrade.
+Every module named here is unstable at the pinned version: check an API against the vendored
+sources (`repos/effect/packages/effect/src/ai/`, `repos/effect/packages/ai/anthropic/src/`)
+before using it, and read this page again after an upgrade.
 
 ## The request
 
@@ -48,7 +47,7 @@ by the same schemas; the suite's stub case fails when the canned JSON no longer 
 
 - **The title model must accept `thinking: { type: 'disabled' }`.** Sonnet 5.5 rejects it, so a
   title model set to Sonnet 5.5 fails every title request with a 400, which is not retried;
-  `.env.example` names Haiku 5.5.
+  `.env.example` names a model that accepts it.
 - No `temperature` is sent: the package sends none by default, and the Claude 5 models want it
   left out.
 - Anthropic's requests wait up to 10 minutes for a byte (`transformClient` on
@@ -107,7 +106,7 @@ ending as `ReplyFailed`. The suite's refusal case fails on such an upgrade; read
 
 ## Changing the system prompt or the reply schema
 
-Both live in `application/chat/infrastructure/assistant.llm.ts`: `systemPrompt` and `ReplyAnswer`.
+Both live beside `AssistantLlmFromConfig`: `systemPrompt` and `ReplyAnswer`.
 
 - **The system prompt.** Keep it fixed per process: a date, a name or any user data in it would
   give every request its own prefix, and nothing would be cached. Anthropic adds its own format
@@ -122,8 +121,8 @@ Both live in `application/chat/infrastructure/assistant.llm.ts`: `systemPrompt` 
     spares only Anthropic's separate cache of the compiled schema, which a description change
     does not recompile.
 - **A new or changed field.** Add the bound to the domain's `AssistantReply` and the field, with
-  its description, to `ReplyAnswer`; update the stub's canned reply in
-  `assistant.llm.ts`, or the suite's stub case fails.
+  its description, to `ReplyAnswer`; update the stub's canned reply beside them, or the suite's
+  stub case fails.
   - *Cache:* every chat's cached prefix is invalidated, and the first request with the new
     schema waits while Anthropic compiles it.
 
@@ -134,18 +133,18 @@ which replies were asked under which instructions.
 
 ## The modules of `effect/ai`
 
-Every file of `repos/effect/packages/effect/src/ai/` but `index.ts`, at 4.0.6.
+Every file of `repos/effect/packages/effect/src/ai/` but `index.ts`, at the pinned version.
 
 | Module | What it is | Here |
 |---|---|---|
-| `AiError` | the one error of every AI call, with a `reason` per failure kind, `isRetryable` and `retryAfter` | `assistant.llm.ts`: the retry decision and the mapping to the port's errors; `AiError.make` raises an early finish |
+| `AiError` | the one error of every AI call, with a `reason` per failure kind, `isRetryable` and `retryAfter` | the adapter: the retry decision and the mapping to the port's errors; `AiError.make` raises an early finish |
 | `AnthropicStructuredOutput` | turns a `Schema` into the JSON Schema subset Anthropic accepts, with a codec that still enforces what was left out | indirectly: `AnthropicLanguageModel` calls it for `generateObject` |
 | `Chat` | a stateful session that keeps the prompt history in a `Ref` | not used: the history lives in the database and every request is rebuilt from it |
 | `Decision` | named classification, rating or probability decisions over one input | not used: nothing is classified |
 | `DecisionModel` | the service that answers a `Decision` in one call | not used: as `Decision` |
 | `EmbeddingModel` | text to vectors | not used: no search or retrieval |
 | `IdGenerator` | ids for tool calls and response items | indirectly: `LanguageModel` falls back to its default generator |
-| `LanguageModel` | the provider-neutral service: `generateText`, `streamText`, `generateObject`, and `make` for providers | `assistant.llm.ts` calls `generateObject` on two, one per purpose; the stub is built with `make` |
+| `LanguageModel` | the provider-neutral service: `generateText`, `streamText`, `generateObject`, and `make` for providers | the adapter calls `generateObject` on two, one per purpose; the stub is built with `make` |
 | `McpClient` | a client of Model Context Protocol servers | not used: the assistant calls no tools |
 | `McpClientError` | the errors of `McpClient` | not used: as `McpClient` |
 | `McpProtocol` | the MCP protocol versions a server can speak | not used: the app serves no MCP |
@@ -153,17 +152,17 @@ Every file of `repos/effect/packages/effect/src/ai/` but `index.ts`, at 4.0.6.
 | `McpServer` | builds an MCP server | not used: as `McpProtocol` |
 | `Model` | a provider layer carrying its provider and model names (`ProviderName`, `ModelName`) | not used: `AssistantLlmFromConfig` holds two `LanguageModel` values, one per purpose, instead of one model per context; provenance names the model from `ReplyModelConfig` |
 | `OpenAiStructuredOutput` | `AnthropicStructuredOutput`'s counterpart for OpenAI | not used: no OpenAI provider (roadmap `openai-provider`) |
-| `Prompt` | the message list sent to a model: roles and text, file, tool parts | `assistant.llm.ts`: the chat and title prompts |
-| `Response` | the parts a model answers: text, finish, tool calls, usage | `assistant.llm.ts` reads `FinishReason`; the stub answers `Response` parts |
+| `Prompt` | the message list sent to a model: roles and text, file, tool parts | the adapter: the chat and title prompts |
+| `Response` | the parts a model answers: text, finish, tool calls, usage | the adapter reads `FinishReason`; the stub answers `Response` parts |
 | `ResponseIdTracker` | sends only the new messages after a provider's earlier response id | not used: Anthropic's Messages API keeps no server-side conversation |
-| `Telemetry` | OpenTelemetry `gen_ai.*` span attributes and `CurrentSpanTransformer` | `assistant.llm.ts`: the finish-reason hook; no trace exporter yet (roadmap `observability`) |
+| `Telemetry` | OpenTelemetry `gen_ai.*` span attributes and `CurrentSpanTransformer` | the adapter: the finish-reason hook; no trace exporter yet (roadmap `observability`) |
 | `Tokenizer` | token counting and truncating a prompt to a limit | not used: no provider implements it (roadmap `context-window`) |
 | `Tool` | a tool the model may call, with its parameter and result schemas | not used: the assistant calls no tools |
 | `Toolkit` | tools grouped with their handlers | not used: as `Tool` |
 
 ## The modules of `@effect/ai-anthropic`
 
-Every file of `repos/effect/packages/ai/anthropic/src/` but `index.ts`, at 4.0.6.
+Every file of `repos/effect/packages/ai/anthropic/src/` but `index.ts`, at the pinned version.
 
 | Module | What it is | Here |
 |---|---|---|

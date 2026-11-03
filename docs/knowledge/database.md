@@ -1,23 +1,20 @@
 # Database
 
 How the app stores its records in Postgres: where the tables are declared, how a row becomes a
-domain model, how the schema changes, and how tests get a database. The code: `packages/db/`
-(`@app-template/packages/db`, which knows no table: `createDb`, `Transaction`, the shared columns,
-the query helpers, `migrateDatabase(folder)` and `retryWhileUnreachable`), `kernel/postgres/`
-(`PgClientFromConfig`, the `PgClient` built from `DatabaseConfig`, and the migrate program),
-`kernel/data/` (the client `Db`, made by `createDb(relations)` over the `PgClient` in the context;
-the tables, their entities, the relations, the migrations and `drizzle.config.ts`; the data layer's
-repositories over them) and the mappers in a module's `services/` (`UserFromEntity`,
-`ChatFromEntity`). Drizzle runs on `@effect/sql-pg` and is reached only through Effect: every query
-is an `Effect`, never a promise.
+domain model, how the schema changes, and how tests get a database. The code:
+`@app-template/packages/db`, which knows no table (the client factory `createDb`, `Transaction`,
+the shared columns and the query helpers); the kernel's `postgres` part (`PgClientFromConfig`
+and the migrate program); the data layer, `kernel/data/` (the client `Db`, made by
+`createDb(relations)` over the `PgClient` in the context, the tables, their entities, the
+migrations and the repositories over them); and the `<Model>FromEntity` mappers in a module's
+`services/`. Drizzle runs on `@effect/sql-pg` and is reached only through Effect: every query is
+an `Effect`, never a promise.
 
 ## Schema and entity files
 
 The data layer, `kernel/data/<store>/`, declares each table in `<name>.table.ts` and its
-entities, the schemas read from it, in `<name>.entity.ts` (`user/user.table.ts`: `users`,
-`credentials`; `chat/chat.table.ts`: `chats`; `chat/message.table.ts`: `messages`;
-`attachment/attachment.table.ts`: `attachments`; `job/job.table.ts`: `jobs`); what each
-may import: [kernel/CLAUDE.md](../../kernel/CLAUDE.md). Since a table imports no entity,
+entities, the schemas read from it, in `<name>.entity.ts`; what each may import:
+[kernel/CLAUDE.md](../../kernel/CLAUDE.md). Since a table imports no entity,
 `ChatEntity` and `MessageEntity` nest `AttachmentEntity` without a cycle. The tables are the one
 declaration of the schema: the migrations are generated from them and the entities derived
 from them.
@@ -25,11 +22,11 @@ from them.
 - **Names.** A table is declared with `snakeCase.table` from `drizzle-orm/pg-core`, so the
   `camelCase` keys in code (`createdAt`) become `snake_case` columns (`created_at`) with no name
   spelled twice.
-- **Shared columns** come from `packages/db/columns.ts`: `id()`, a `uuid` primary key with
+- **Shared columns** come from `@app-template/packages/db`: `id()`, a `uuid` primary key with
   `DEFAULT uuidv7()`, and `createdAt()` and `updatedAt()`, `timestamptz` columns with no default
   and no `$onUpdate`. The domain writes every id and every timestamp with its own clock, so
   `TestClock` holds and there is no second clock; the `uuidv7()` default serves only
-  hand-written SQL.
+  hand-written SQL, and needs Postgres 18 or later.
 - **Enums and checks state the data layer's own values.** An enum lists its values
   (`pgEnum('message_status', ['queued', …])`), and a check declares its own pattern or limit
   beside the table (`credentials_hash_check` the pattern `SecretHash` checks with;
@@ -97,7 +94,7 @@ export const UserFromEntity = Schema.Struct({
   given as a function (`{ error: () => MessageFailureJson }`) keeps the column's `NullOr`.
 - A model nested in another (an attachment in a chat, the failure in a message) is laid by its
   encoded side, `AttachmentFromEntity.from` or `Schema.toEncoded(MessageFailure)`; why: the
-  comment in `application/chat/services/chat.mapper.ts`.
+  comment above `ChatFromEntity`.
 - A service writes a model encoded through its mapper and decoded with `<Name>EntityInsert`,
   which cuts the nested attachments and checks the row. A value already in the data layer's
   types (brands, literals) is passed as is: `UserRepository.insert` takes the credential with
@@ -107,11 +104,11 @@ export const UserFromEntity = Schema.Struct({
 
 ## Relations
 
-`kernel/data/relations.ts` declares the relations once, with `defineRelations` over every
-table, and `Db` is built with them (`PgDrizzle.make({ relations })`), so `db.query.<table>` is
-typed. A relation names its columns (`from`, `to`) and joins on their equality only, and holds
-no order: a query states it with `orderBy`. A relational query returns nested rows of the same
-shape as a `select`, so they decode with the same entities:
+The data layer declares the relations once, with `defineRelations` over every table, and `Db` is
+built with them (`PgDrizzle.make({ relations })`), so `db.query.<table>` is typed. A relation
+names its columns (`from`, `to`) and joins on their equality only, and holds no order: a query
+states it with `orderBy`. A relational query returns nested rows of the same shape as a
+`select`, so they decode with the same entities:
 
 ```ts
 const rows = yield* db.query.messages.findMany({
@@ -129,15 +126,13 @@ to `RAW`, never on the `chats` constant.
 ## Repositories
 
 A repository is a `Layer` over `Db` and `SqlClient` in its entity's `.repository.ts` (names:
-[naming.md › Symbols](../../.claude/rules/naming.md#symbols)). The data layer's,
-`UserRepository` in `kernel/data/user/`, `ChatRepository` and `MessageRepository` in
-`kernel/data/chat/`, `AttachmentRepository` in `kernel/data/attachment/` and `FileRepository`
-over the attachments' objects in `kernel/data/file/` ([aws.md › Attachments](aws.md#attachments)),
-speak entities:
-they take a `<Name>EntityInsert`, a `<Name>EntitySet` and a `<Name>EntityWhere` and answer
-`<Name>Entity`. A module's service calls one directly, with no port in front, and maps with its
-module's mapper (`UserService` over `UserRepository`). A method that writes several tables runs
-them in one `sql.withTransaction`, passed to `Effect.fn` as a pipeable:
+[naming.md › Symbols](../../.claude/rules/naming.md#symbols)). The data layer's, in
+`kernel/data/<store>/`, `FileRepository` over the attachments' objects among them
+([aws.md › Attachments](aws.md#attachments)), speak entities: they take a `<Name>EntityInsert`,
+a `<Name>EntitySet` and a `<Name>EntityWhere` and answer `<Name>Entity`. A module's service
+calls one directly, with no port in front, and maps with its module's mapper (`UserService` over
+`UserRepository`). A method that writes several tables runs them in one `sql.withTransaction`,
+passed to `Effect.fn` as a pipeable:
 `UserRepository.insert` writes the user and its credential, or neither. `SqlClient` is the
 `PgClient` that `Db.layer` takes from the context (`PgClientFromConfig` in the processes, `DbTest`
 in the e2e), so the transaction runs on the connection `Db` uses. Every method ends with
@@ -157,7 +152,7 @@ row it found, or answers `Option.none()` for the `undefined` or `null` of none. 
 relation (`{ credentials: { kind, hash } }`) renders as `exists (…)`.
 
 A write of some fields under a condition maps its `<Name>EntitySet` and `<Name>EntityWhere` onto
-the table through `packages/db/columns.ts`, one mapper per field.
+the table through the column mappers of `@app-template/packages/db`, one per field.
 `buildSet<Fields, Table>(columns)` takes a `SetColumns<Fields, Table>`, each mapper typed by the
 table's column (`PgUpdateSetSource<Table>`), and answers the row Drizzle's `set` takes;
 `buildWhere<Fields>(columns)` takes a `WhereColumns<Fields>`, each mapper answering
@@ -230,8 +225,8 @@ never expired: the price of a delete with no transaction.
 ## Transactions
 
 A use case that writes several aggregates commits them together: `Transaction.run` is a pipeable
-of the `Effect.fn` that holds the writes (`Transaction.layer` in `packages/db/db.client.ts`
-wraps `SqlClient.withTransaction`), and every repository call inside joins the transaction
+of the `Effect.fn` that holds the writes (`Transaction.layer` wraps
+`SqlClient.withTransaction`), and every repository call inside joins the transaction
 through the connection `@effect/sql` keeps in the fiber's context, so no repository takes a
 transaction parameter. `SendMessageUseCase.send` writes the chat's `status`, the user message,
 the binds, the reply and its jobs, or none of them. The guards above then decide every race inside
@@ -255,10 +250,10 @@ not tell a dead reply from one waiting in a backlog.
 A job reaches SQS through the table `jobs`, so it commits or rolls back with the writes that
 enqueue it (the transactional outbox): `apps/api` provides `QueueSenderJobs` as its `QueueSender`
 and never sends to SQS, and `apps/worker` consumes through `QueueConsumerSqs` beside the relay.
-The three live in `kernel/queue/` over `JobRepository` (`kernel/data/job/job.repository.ts`),
-which inserts a job, selects the unsent ones and sets their `sentAt`.
+The three live in the kernel's `queue` part over the data layer's `JobRepository`, which
+inserts a job, selects the unsent ones and sets their `sentAt`.
 
-- **`QueueSenderJobs`** (`kernel/queue/queue.client.ts`) is the `QueueSender` whose `send`
+- **`QueueSenderJobs`** is the `QueueSender` whose `send`
   encodes the job through its definition's schema to a JSON value (`Schema.toCodecJson`) and
   inserts a row: the definition's `name` as `queue` (the stage is added on the way out), the
   `jobId` and the value as `body`. The insert joins the caller's `sql.withTransaction`; outside
@@ -267,7 +262,7 @@ which inserts a job, selects the unsent ones and sets their `sentAt`.
   value for the relay, and `jsonb` keeps it a value an operator can read by hand
   (`body->'provenance'->>'model'` on a reply's job) instead of a string to parse. `jsonb` stores
   keys in its own order, so the string the relay sends is the row's, not the sender's.
-- **`JobRelay`** (`kernel/queue/job.relay.ts`), a layer the worker provides as `JobRelaySqs`, polls
+- **`JobRelay`**, a layer the worker provides as `JobRelaySqs`, polls
   in one transaction: it selects up to 10 rows `WHERE sent_at IS NULL ORDER BY created_at, id`
   `FOR UPDATE SKIP LOCKED`, sends each over `QueueTransport` to `buildResourceName(STAGE, queue)`
   with its `jobId` and its `body` as a JSON string (`JSON.stringify`, the form the SQS client
@@ -321,9 +316,8 @@ and that are committed.
 A repository's e2e runs on `DbTest`, in entities, its parent rows written through `Db`. An
 entity's e2e checks, in entities only, what the schema itself refuses (a check, a partial unique
 index) and reads the `SqlError` of a refused statement with `flipSqlError`. A memory layer copies
-the four guards the database adds (the active message's index, the message status an update
-expects, an owner in the `where`, the cascade from a chat to its messages and their attachments),
-and each has its twin in a repository suite
+each [guard](#guards) the database adds, the cascades of its
+[foreign keys](#schema-and-entity-files) included, and each has its twin in a repository suite
 ([effect-tests.md › Unit and e2e](../../.claude/rules/effect-tests.md#unit-and-e2e)). Where each
 suite and its support live, the mappers' check of the limits a model declares again and the e2e
 of a use case's transaction: [tooling.md › Tests](tooling.md#tests).
