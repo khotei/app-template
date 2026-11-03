@@ -190,14 +190,18 @@ Behaviour seen from outside does not change.
 - **R12** — IF code imports another module's internals, THEN `make check` SHALL fail, naming the
   import and the decision it breaks; IF code imports a workspace its manifest does not declare,
   THEN `make check` SHALL fail with TS2307, naming the import.
-- **R13** — IF the workspaces form a cycle, or the kernel or a generic package imports a module or
-  a contract, THEN `make check` SHALL fail; IF the modules form a cycle once a dependency on a
+- **R13** — IF the workspaces form a cycle, the kernel or a generic package imports a module or a
+  contract, an app imports another app or the deployment code, or the deployment code imports
+  more than the generic packages and the kernel's configuration, resource inventory and data,
+  THEN `make check` SHALL fail; IF the modules form a cycle once a dependency on a
   module's contract counts as one on the module, THEN review SHALL refuse it by the modules rule.
 - **R14** — IF the data layer imports a module, a contract or another part of the kernel, THEN
   `make check` SHALL fail, naming the decision.
 - **R15** — IF a module's domain or a contract imports the kernel, a module's services import the
   kernel's boundary or the module's own infrastructure, or a use case imports the kernel's
-  boundary (every layer of a module below it is open to it), THEN `make check` SHALL fail, naming
+  boundary (every layer of a module below it is open to it), or the unit tests of a module's
+  domain, services or infrastructure or of the use cases import what their layer may not, test
+  support aside, THEN `make check` SHALL fail, naming
   the import and the decision; IF a package under `packages/*` imports the kernel, THEN
   `make check` SHALL fail with TS2307.
 - **R16** — IF a service, a use case, a repository or an adapter reaches the browser's bundle, THEN
@@ -239,9 +243,9 @@ Behaviour seen from outside does not change.
 | R10 | a send through the api leaves its job in `jobs`, and a refused write keeps neither the job nor the writes |
 | R11 | `git ls-files` finds no `tests/`, `e2e/` or `testing/` folder outside `__tests__/` and `__e2e__/` (but the package `packages/testing`, the test app `apps/e2e` and its `apps/e2e/testing`), no `__e2e__/testing/` under `kernel/` or `packages/`, no `aws`, `postgres` or `rows` support in `packages/testing`, no `__e2e__/` under `application/`, no `apps/__e2e__`, and no suite under `apps/e2e` that reads a use case or a mapper from the context |
 | R12 | a throwaway import of another module's internals, in each import form, fails `make check` with the import and the decision named; one of a workspace its manifest does not declare fails it with TS2307 |
-| R13 | a throwaway import of a module into the kernel and into a generic package each fail `make check` with TS2307; the kernel, `application`, `http-api` or an app declared in `packages/package.json` and imported from a package fails it naming `decisions.md › One kernel`; a cycle of value imports between two modules with `noImportCycles`; the modules rule names the contract cycle and its decision |
+| R13 | a throwaway import of a module into the kernel and into a generic package each fail `make check` with TS2307; the kernel, `application`, `http-api` or an app declared in `packages/package.json` and imported from a package fails it naming `decisions.md › One kernel`, `api` declared in `apps/worker/package.json` and `@app-template/api/testing` imported from the worker naming `decisions.md › Independent apps`; `@app-template/kernel/postgres`, a module or the bare `@app-template/kernel` imported from `deployment` naming `decisions.md › One kernel`; a cycle of value imports between two modules with `noImportCycles`; the modules rule names the contract cycle and its decision |
 | R14 | throwaway imports of a module's model, of `#kernel/aws` and of `@app-template/kernel/config` into a data-layer file each fail `make check` with the decision named |
-| R15 | throwaway imports of the kernel into a module's domain and into a contract, of `@app-template/kernel/llm` and of the module's infrastructure into its services, of `@app-template/kernel/postgres` into a use case (a module's infrastructure in a use case passes), each fail `make check` with the decision named, and one of the kernel into a package with TS2307 |
+| R15 | throwaway imports of the kernel into a module's domain and into a contract, of `@app-template/kernel/llm` and of the module's infrastructure into its services, of `@app-template/kernel/postgres` into a use case (a module's infrastructure in a use case passes), and the same imports into the tests of the domain, the services and the use cases (`__tests__/<layer>/`), and of a module's services into its infrastructure's tests, each fail `make check` with the decision named, and one of the kernel into a package with TS2307 |
 | R16 | `make bundle-check` passes; throwaway imports of a module's service, of a use case and of a repository into the web app each make it fail |
 | R17 | a throwaway unit test that builds e2e support from `@app-template/kernel/data/testing/e2e` fails `make test-unit`, which starts no database; the modules rule names an import of e2e support into a unit test and its decision |
 | R21 | `git grep` finds no import of `@app-template/<name>` for a unit of `kernel`, `packages` or `application` but by its folder, and none of a layer or store subpath; `make check` passes |

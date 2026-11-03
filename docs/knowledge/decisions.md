@@ -144,15 +144,19 @@ calls the data layer's repository directly.
 - **Cost:** a service depends on the data layer directly, so its unit tests take the data layer's
   memory repositories; one entry opens the module whole, so another unit's ban on a layer matches
   the names it imports, and the bundler parses a module's services to drop them; a namespace
-  import (`import * as`) of an entry passes `http-api`'s bans by name.
-- **Guarded by:** one Biome override per layer, matching every module by glob:
-  `application/*/domain/**` (no `#*/services/**` or `#*/infrastructure/**`, no workspace but
-  another module's entry), `…/services/**` (no `#*/infrastructure/**`), `…/infrastructure/**`
-  (no `#*/services/**`); `biome-imports.grit`, another module's files; on `http-api/**`, a
-  module's services, mappers and adapters by name (`*Service`, `*FromEntity`, `*FromConfig`,
-  `encode*`, `decode*`); `make bundle-check` (no service, repository or adapter in the browser);
-  `.claude/rules/modules.md`, a repository, a mapper or the data layer in an app's handler. A use
-  case may import every layer of a module below it, its infrastructure too.
+  import (`import * as`) of an entry passes `http-api`'s bans by name. A layer's override covers
+  its tests, so what they need passes in its source too: test support, which review refuses
+  there, and in a module's services `@effect/platform-bun`, which no guard refuses.
+- **Guarded by:** one Biome override per layer, matching every module by glob and covering the
+  layer's tests (`application/*/__tests__/<layer>/**`, the use cases' `__tests__/`), which take
+  test support beside it: `application/*/domain/**` (no `#*/services/**` or
+  `#*/infrastructure/**`, no workspace but another module's entry), `…/services/**` (no
+  `#*/infrastructure/**`), `…/infrastructure/**` (no `#*/services/**`); `biome-imports.grit`,
+  another module's files; on `http-api/**`, a module's services, mappers and adapters by name
+  (`*Service`, `*FromEntity`, `*FromConfig`, `encode*`, `decode*`); `make bundle-check` (no
+  service, repository or adapter in the browser); `.claude/rules/modules.md`, a repository, a
+  mapper or the data layer in an app's handler. A use case may import every layer of a module
+  below it, its infrastructure too.
 - **If reversed:** a port per repository comes back with five adapters that only delegate; an
   export per layer brings back the subpaths and a ban per layer by path.
 - **Revisit when:** a service needs a store the data layer cannot reach, or the domain stops
@@ -258,11 +262,12 @@ no app.
   only its inventory or its stores are held by the imported names (`*FromConfig`, `Db`).
 - **Guarded by:** the isolated linker and `tsc -b` (TS2307): the kernel's manifest declares no
   module, use case, `http-api` or app, `packages/`'s no workspace at all; `biome-imports.grit`,
-  another part's files, and in a file under `packages/` any workspace but `@app-template/packages`,
-  even one its manifest declares; `noImportCycles`, a part importing one that imports it;
+  another part's files, in a file under `packages/` any workspace but `@app-template/packages`,
+  and under `deployment/` any but `packages` and the kernel's `/config`, `/aws` and `/data`, even
+  one the manifest declares; `noImportCycles`, a part importing one that imports it;
   `.claude/rules/modules.md` refuses a part or a package importing one above it, what
-  `deployment` takes of the kernel past `/config`, the inventory of `/aws` and the files' key of
-  `/data`, and a service rule or a model in the kernel.
+  `deployment` takes of `/aws` past the inventory and of `/data` past the files' key, and a
+  service rule or a model in the kernel.
 - **If reversed:** split into packages, the kernel's parts gain a manifest and a project each;
   with service rules in it, the kernel becomes the shared domain the guide calls a smell.
 - **Revisit when:** a kernel part grows dependencies most modules must not reach; `/data` is the
@@ -485,11 +490,14 @@ unit inside a folder. `biome.json` has one override per layer, never per unit: w
 browser (`http-api`, the web client, a module's `domain/` and a contract, by unit and by
 imported name), what a module's `services/` and the use cases take of the kernel, the data
 layer's imports, the inward direction of a module's layers and an entry of `application/`,
-which imports no workspace; `noImportCycles` refuses a cycle
-of value imports; the GritQL plugin `biome-imports.grit` reads the unit from the file's path and
-refuses another unit's `#<unit>/…`, `#kernel/<unit>/…` and `#testing/<unit>/…` files in every
-import form it reads, a relative path anywhere, and in a file under `packages/` any workspace but
-`@app-template/packages`, which the linker lets through once the one manifest declares it.
+which imports no workspace, each layer's override covering its tests; `noImportCycles` refuses
+a cycle of value imports; the GritQL plugin `biome-imports.grit` reads the unit and the ring
+from the file's path and refuses another unit's `#<unit>/…`, `#kernel/<unit>/…` and
+`#testing/<unit>/…` files in every import form it reads, a relative path anywhere, and the
+workspaces a ring may not import, which the linker lets through once the manifest declares them:
+under `packages/` any but `@app-template/packages`, under `deployment/` any but it and the
+kernel's `/config`, `/aws` and `/data`, under `apps/api`, `apps/worker` and `apps/web` another
+app or `deployment`.
 
 - **Why:** every guard is configuration of a tool the repo has; a fitness test is code to keep,
   and drifts. A list per unit repeated what the linker already refused and grew past what a
@@ -513,7 +521,7 @@ import form it reads, a relative path anywhere, and in a file under `packages/` 
   so it names the unit by the last `application/`, `kernel/` or `packages/` folder on it: a
   folder of that name inside a unit misreads its files, and a checkout under one
   (`~/packages/<repo>/`) misreads every file outside the three folders, refusing an app's own
-  `#<app>/…`.
+  `#<app>/…`; the rules of the apps and `deployment` read the last ring folder on it the same way.
 - **Guarded by:** `make check` runs them all; the Standards reviewer reads `.claude/rules/`;
   `biome.json` and `biome-imports.grit` beside it.
 - **If reversed:** a test beside the rule, kept in step with every new module; a list per unit
@@ -573,8 +581,10 @@ share lives in a ring below them.
 - **Sources:** `apps/CLAUDE.md`; `deployment/aws` deploys each app as a service of its own.
 - **Rejected:** a shared helper in one app imported by another: it couples their releases.
 - **Cost:** a helper both processes need moves down into a module, the kernel or a package.
-- **Guarded by:** the isolated linker and `tsc -b`: no app's manifest declares another app or
-  `deployment` (TS2307), and an app exports at most its `./testing`, which `apps/e2e` alone
+- **Guarded by:** `biome-imports.grit`, which refuses in `apps/api`, `apps/worker` and
+  `apps/web` any workspace but `application`, `http-api`, `kernel` and `packages`, even one the
+  manifest declares; the isolated linker and `tsc -b` (TS2307), as no app's manifest declares
+  another app or `deployment`; an app exports at most its `./testing`, which `apps/e2e` alone
   declares; the journey e2e that runs both processes lives in the `apps/e2e` test app.
 - **If reversed:** a process pulls the other's dependencies and layer, and an app can no longer
   be deployed alone.

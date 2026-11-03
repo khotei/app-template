@@ -134,7 +134,7 @@
       }
     },
     {
-      "includes": ["application/*/domain/**"],
+      "includes": ["application/*/domain/**", "application/*/__tests__/domain/**"],
       "linter": {
         "rules": {
           "style": {
@@ -146,10 +146,15 @@
                     "group": [
                       "@app-template/**",
                       "!@app-template/application/*",
+                      "!@app-template/application/*/testing",
+                      "!@app-template/packages/testing",
                       "@app-template/application/use-cases",
-                      "@effect/**"
+                      "@app-template/application/use-cases/**",
+                      "@effect/**",
+                      "!@effect/vitest",
+                      "!@effect/vitest/**"
                     ],
-                    "message": "a module's domain is pure and ships to the browser: it imports no workspace but another module's entry, for its contract, and no @effect/* package (decisions.md › A module's layers; Module contracts; Guards are configuration)"
+                    "message": "a module's domain is pure and ships to the browser: it imports no workspace but another module's entry, for its contract, and no @effect/* package; its tests add test support, a module's /testing, @app-template/packages/testing and @effect/vitest (decisions.md › A module's layers; Module contracts; Guards are configuration)"
                   },
                   {
                     "group": ["#*/services/**", "#*/infrastructure/**"],
@@ -163,7 +168,7 @@
       }
     },
     {
-      "includes": ["application/*/services/**"],
+      "includes": ["application/*/services/**", "application/*/__tests__/services/**"],
       "linter": {
         "rules": {
           "style": {
@@ -174,13 +179,20 @@
                   {
                     "group": [
                       "@app-template/**",
-                      "!@app-template/packages/{db,queue}",
+                      "!@app-template/packages/{db,queue,testing}",
+                      "!@app-template/packages/{db,queue}/testing",
                       "!@app-template/kernel/{aws,data}",
+                      "!@app-template/kernel/{aws,data}/testing",
                       "!@app-template/application/*",
+                      "!@app-template/application/*/testing",
                       "@app-template/application/use-cases",
-                      "@effect/**"
+                      "@app-template/application/use-cases/**",
+                      "@effect/**",
+                      "!@effect/vitest",
+                      "!@effect/vitest/**",
+                      "!@effect/platform-bun"
                     ],
-                    "message": "a module's services import no workspace but @app-template/packages/db for generateId and the mappers' codecs, @app-template/packages/queue for the job definitions, the inventory (@app-template/kernel/aws), the data layer's stores (@app-template/kernel/data) and another module's entry, and no @effect/* package: no use case, no boundary part such as @app-template/kernel/llm (decisions.md › A module's layers; Module contracts; Use cases above the modules; The language model in the kernel; Guards are configuration)"
+                    "message": "a module's services import no workspace but @app-template/packages/db for generateId and the mappers' codecs, @app-template/packages/queue for the job definitions, the inventory (@app-template/kernel/aws), the data layer's stores (@app-template/kernel/data) and another module's entry, and no @effect/* package: no use case, no boundary part such as @app-template/kernel/llm; its tests add test support, the /testing of those, @app-template/packages/testing, @effect/vitest and @effect/platform-bun (decisions.md › A module's layers; Module contracts; Use cases above the modules; The language model in the kernel; Guards are configuration)"
                   },
                   {
                     "group": ["@app-template/kernel/aws"],
@@ -204,7 +216,7 @@
       }
     },
     {
-      "includes": ["application/*/infrastructure/**"],
+      "includes": ["application/*/infrastructure/**", "application/*/__tests__/infrastructure/**"],
       "linter": {
         "rules": {
           "style": {
@@ -224,7 +236,7 @@
       }
     },
     {
-      "includes": ["application/use-cases/**", "!application/use-cases/__tests__/**"],
+      "includes": ["application/use-cases/**"],
       "linter": {
         "rules": {
           "style": {
@@ -236,11 +248,15 @@
                     "group": [
                       "@app-template/**",
                       "!@app-template/application/*",
+                      "!@app-template/application/*/testing",
                       "@app-template/application/use-cases",
+                      "@app-template/application/use-cases/**",
                       "!@app-template/kernel/data",
-                      "!@app-template/packages/*"
+                      "!@app-template/kernel/data/testing",
+                      "!@app-template/packages/*",
+                      "!@app-template/packages/*/testing"
                     ],
-                    "message": "the use cases import no workspace but a module's entry, the data layer (@app-template/kernel/data) and packages/*: no http-api, app or deployment above them, no boundary part of the kernel (/config, /postgres, /aws, /queue, /llm), which the processes provide (decisions.md › Use cases above the modules; Clients from the context; Guards are configuration)"
+                    "message": "the use cases import no workspace but a module's entry, the data layer (@app-template/kernel/data) and packages/*: no http-api, app or deployment above them, no boundary part of the kernel (/config, /postgres, /aws, /queue, /llm), which the processes provide; their tests add the /testing of those (decisions.md › Use cases above the modules; Clients from the context; Guards are configuration)"
                   }
                 ]
               }

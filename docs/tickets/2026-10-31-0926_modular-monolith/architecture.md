@@ -881,6 +881,18 @@ Each becomes a record in `docs/knowledge/decisions.md` (R20).
       checkout path no one uses today.
   - **Note (S39):** replaces the per-unit lists of S30; the plugin also covers kernel parts and
     packages, and the bundle check's module pattern takes digits, as the plugin's does.
+  - **Note (S43):** verification run 3 found two guards S39 dropped with no successor. The plugin
+    now also reads the ring (`apps/<app>`, `deployment`) and refuses, whatever the manifest
+    declares, another app or `deployment` in `apps/api`, `apps/worker` and `apps/web`, and in
+    `deployment` any workspace but `packages` and the kernel's `/config`, `/aws` and `/data`; of
+    those parts the names stay review's; every capture group of the plugin is required, since
+    one left unmatched aborts the plugin on the whole file. Each layer's override covers its
+    tests (`application/*/__tests__/<layer>/**`, `application/use-cases/__tests__/**`) and admits
+    their support (`/testing`, `@app-template/packages/testing`, `@effect/vitest`, in services
+    `@effect/platform-bun`), so the layer's source admits it too: test support stays review's
+    as since S39, `@effect/platform-bun` in a service passes. Rejected: an override per layer's
+    tests, the layer's bans repeated (`biome.json` 297 → 439 lines). A module's test support and
+    the data layer's tests keep no list (`architecture.md › Known gaps`).
 
 ## Risks
 

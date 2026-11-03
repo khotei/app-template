@@ -91,9 +91,9 @@ it.
 ## Dependency rules
 
 Each row lists what its code may import (✓ allowed, ✗ refused); the last column is the guard
-that refuses the row's ✗: a Biome override in `biome.json`, one per layer, whose message names
-its record in [decisions.md](decisions.md); the linker, when the importer's manifest does not
-declare the workspace (TS2307); or review, by
+that refuses the row's ✗: a Biome override in `biome.json`, one per layer and its tests, or
+`biome-imports.grit`, whose message names its record in [decisions.md](decisions.md); the
+linker, when the importer's manifest does not declare the workspace (TS2307); or review, by
 [.claude/rules/modules.md](../../.claude/rules/modules.md)
 ([Guards are configuration](decisions.md#guards-are-configuration)):
 
@@ -108,11 +108,11 @@ declare the workspace (TS2307); or review, by
 | rest of `kernel` | ✗ | ✗ | ✗ | ✓ | ✓, the parts below it | ✓ | ✗ | TS2307, a module, `use-cases`, `http-api`; a part above it: `noImportCycles` on a cycle, else review |
 | `packages/*` | ✗ | ✗ | ✗ | ✗ | ✗ | ✓, the ones below it | ✗ | TS2307, any workspace; a package above it: `noImportCycles` on a cycle, else review |
 | `http-api` | its domain only: no service, mapper or adapter by name | ✓ | ✗ | ✗ | ✗ | ✗ | — | `http-api/**` |
-| `apps/api` | ✓, a mapper in `layer.ts` only | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | ✓ | review, the data and the mappers |
-| `apps/worker` | ✓, a mapper in `layer.ts` only | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | ✗ | TS2307, `http-api`; review, the data and the mappers |
+| `apps/api` | ✓, a mapper in `layer.ts` only | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | ✓ | `biome-imports.grit`, another app and `deployment`; review, the data and the mappers |
+| `apps/worker` | ✓, a mapper in `layer.ts` only | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | ✗ | `biome-imports.grit`, another app and `deployment`; TS2307, `http-api`; review, the data and the mappers |
 | `apps/web` client | ✗ | ✗ | ✗ | ✗ | ✗ | `ui` only | ✓ | `apps/web/**`; `make bundle-check` |
-| `apps/web/main.ts` | ✗ | ✗ | ✗ | ✗ | `/config` only | `ui` only | ✗ | TS2307, a module, `use-cases`; review, the rest |
-| `deployment` | ✗ | ✗ | ✗ | the files' key only | `/config`, `/aws`: the inventory | ✓ | ✗ | TS2307; review, the kernel's names |
+| `apps/web/main.ts` | ✗ | ✗ | ✗ | ✗ | `/config` only | `ui` only | ✗ | `biome-imports.grit`, another app and `deployment`; TS2307, a module, `use-cases`; review, the rest |
+| `deployment` | ✗ | ✗ | ✗ | the files' key only | `/config`, `/aws`: the inventory | ✓ | ✗ | `biome-imports.grit`, any workspace but these and another part; review, the kernel's names |
 | `apps/e2e` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | the apps' `exports`, their `./testing` only |
 
 - **Inside a module** the layers point inward too: `domain/` imports neither
@@ -356,8 +356,8 @@ import rules leave to tree shaking, the web bundle; what no guard sees, review r
 
 | Guard | Catches | Reports |
 |---|---|---|
-| Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json`: `http-api`, the web client, and of `application/*/` the `domain/`, `contract/`, `services/`, `infrastructure/` and `index.ts`, the use cases, the data layer | what reaches the browser, by unit and by imported name; the kernel's boundary in a module's services and in a use case; any workspace but `packages/*` in the data layer, and any in an entry of `application/`; a layer that points outward inside a module; with the record named in the message | `make lint`, `pre-commit`, CI `static` |
-| the GritQL plugin `biome-imports.grit`, which reads the unit (`application/<module>`, `kernel/<part>`, `packages/<package>`) from the file's path | another unit's `#<unit>/…`, `#kernel/<unit>/…` or `#testing/<unit>/…` file, in an import, an `export … from`, an `import()` in code or in a type, a `require()`, a `require.resolve()` or `import.meta.resolve()`, or a `vi` loader (`vi.mock`, `vi.importActual`, …), a template literal included; any relative path; in a file under `packages/`, any workspace but `@app-template/packages`, even one its manifest declares | the same |
+| Biome `noRestrictedImports`, one `overrides` entry per layer in `biome.json`: `http-api`, the web client, and of `application/*/` the `domain/`, `contract/`, `services/`, `infrastructure/` and `index.ts`, the use cases, the data layer; a layer's override covers its tests (`application/*/__tests__/<layer>/`, `application/use-cases/__tests__/`) | what reaches the browser, by unit and by imported name; the kernel's boundary in a module's services and in a use case; any workspace but `packages/*` in the data layer, and any in an entry of `application/`; a layer that points outward inside a module; in a layer's tests, what the layer may not import, test support aside; with the record named in the message | `make lint`, `pre-commit`, CI `static` |
+| the GritQL plugin `biome-imports.grit`, which reads the unit (`application/<module>`, `kernel/<part>`, `packages/<package>`) and the ring (`apps/<app>`, `deployment`) from the file's path | another unit's `#<unit>/…`, `#kernel/<unit>/…` or `#testing/<unit>/…` file, in an import, an `export … from`, an `import()` in code or in a type, a `require()`, a `require.resolve()` or `import.meta.resolve()`, or a `vi` loader (`vi.mock`, `vi.importActual`, …), a template literal included; any relative path; even when the manifest declares it, any workspace but `@app-template/packages` under `packages/`, any but it and the kernel's `/config`, `/aws` and `/data` under `deployment/`, another app or `deployment` under `apps/api`, `apps/worker` and `apps/web` | the same |
 | Biome `noImportCycles` | a cycle of value imports: two files, two modules, a kernel part and one that imports it, a module and its own entry | the same |
 | the isolated linker with `tsc -b` | an import of a workspace the importer's `package.json` does not declare: a module in the kernel, the kernel in a package, an app in another, a module in `deployment` | TS2307 in `make typecheck` and at runtime |
 | `composite` project references (`rootDir: "."`), one project per workspace | a path that reaches into an unreferenced workspace's files; a cycle of references between workspaces | TS6059 / TS6307 / TS6202 in `make typecheck` |
@@ -379,7 +379,7 @@ services.
 ### Known gaps
 
 What no tool checks, review refuses through
-[.claude/rules/modules.md](../../.claude/rules/modules.md). Five import forms also pass every
+[.claude/rules/modules.md](../../.claude/rules/modules.md). Six import forms also pass every
 guard; no code uses them:
 
 - **A type import inside an expression in web client code.** `export type X =
@@ -400,6 +400,12 @@ guard; no code uses them:
   `packages/ui` passes Biome, which keeps no list for a package, and `tsc -b`, because
   the one `packages/package.json` declares every package's libraries for all of them. `make
   bundle-check` greps only this app's keys, so the library reaches the browser's bundle unseen.
+- **A test's needs in a layer's source, a test file outside a layer.** A layer's override covers
+  its tests, so `@effect/vitest`, a `/testing` entry and, in a module's services,
+  `@effect/platform-bun` pass in the layer's source too. A module's test support
+  (`application/<module>/__tests__/testing/`) serves several layers and keeps no list, and the
+  data layer's tests and e2e sit outside its override, so `@app-template/kernel/llm` passes
+  there; `tsc -b` too, as the folder's manifest declares the kernel.
 - **A specifier the plugin cannot read.** `biome-imports.grit` reads a literal in the forms
   [Boundary guards](#boundary-guards) lists; one built at runtime (`import(name)`, a string
   joined from parts) or handed to another loader passes it. In `packages/` it then reaches any

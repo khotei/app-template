@@ -48,7 +48,7 @@
 | S40 | R1 names the three answers S38 changed | done |
 | S41 | `packages/` reaches no app ring; the HTTP contract held by a snapshot | done |
 | S42 | the verification's small fixes in docs, tests and chat's code | done |
-| S43 | the two import guards run 3 found lost: apps and `deployment` by manifest, tests by layer | todo |
+| S43 | the two import guards run 3 found lost: apps and `deployment` by manifest, tests by layer | done |
 
 ## How to run this plan
 
@@ -2038,7 +2038,24 @@
   still pass (`apps/e2e` importing `@app-template/api/testing`).
 - **Verify:** `make check`; each probe red, then removed.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Run 3's two probes are red, and green on the tree before the step; `apps/e2e` importing
+    `@app-template/api/testing` still passes. Unit 221 cases, e2e 104.
+  - Deviation: `deployment` keeps the kernel's `/config`, `/aws` and `/data`, as
+    `decisions.md › One kernel` records, not `packages` alone as Delivers read; the plugin
+    refuses the other parts. The app rule covers `apps/web` too, not only `api` and `worker`.
+  - A layer's tests share the layer's override, so test support, `@effect/vitest` and, in a
+    service, `@effect/platform-bun` pass in the layer's source too (listed in Known gaps and the
+    record's Cost); the alternative for the last is to move `BunCrypto` into the module's test
+    layers. A module's test support and the data layer's tests keep no list: they serve several
+    layers. Contract tests keep none until `__tests__/contract/` exists.
+  - `biome.json` 297 → 313 lines, `biome-imports.grit` 44 → 87.
+  - Review: an optional capture group left unbound makes the plugin log "missing capture group"
+    and skip the whole file, so a bare `@app-template/kernel` passed in `deployment` and silenced
+    the relative-path ban beside it; every group is now required, each rule probed with a bare
+    specifier beside `import '../x'`. Round 1's separate test overrides (439 lines) merged into
+    the layers'.
 
 ## Requirement coverage
 
