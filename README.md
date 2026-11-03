@@ -1,7 +1,7 @@
 # App Template
 
 A chat clone (user → message → assistant reply) built as a template for enterprise projects:
-a Bun + TypeScript 7 + Effect 4 modular monolith, with an api, a worker and a web client over one
+a Bun, TypeScript and Effect modular monolith, with an api, a worker and a web client over one
 domain. It grows one ticket at a time along the [roadmap](docs/knowledge/roadmap.md), and each
 ticket keeps its spec, design and plan in `docs/tickets/`, so a project started from it inherits
 the reasoning along with the code.
@@ -73,64 +73,32 @@ fails: [aws.md › When the stand fails](docs/knowledge/aws.md#when-the-stand-fa
 
 ## Architecture at a glance
 
-Three processes share one codebase and one database. Each is one `Layer`, launched by
-`BunRuntime.runMain(Layer.launch(...))`, so stopping it closes one scope.
-
-The code is cut in three rings, and every dependency points inward, from the boundary to the
-behaviour to the data:
-
-| Ring | Workspace | Holds | Never holds |
-|---|---|---|---|
-| data | `kernel/data` | `Db` over every table and relation, the migrations, and one repository per store (the attachments' objects and the jobs among them), in its own types: entities | a model, a rule, a module, config |
-| behaviour | `application/<module>/` | a module (`chat`, `identity`): models (`Schema.Class`), branded ids, errors and ports in `domain/`; the domain services that own the rules, the mappers between entity and model and the queue definitions in `services/`; a contract other modules import (`identity/contract`) | SQL, another module but through its contract, an `@effect/*` package outside `infrastructure/` (tests aside) |
-| behaviour | `application/use-cases/` | every use case: a flow across domain services, of one module or several, with the files, the jobs and the assistant, in one `Transaction` | a model's rules, adapters |
-| boundary | the rest of `kernel/` | this app's clients, built from its config: Postgres and the migrate program, S3 and SQS with the AWS inventory, the queue's sender, consumer and relay, the language model | business rules, a module |
-| boundary | a module's `infrastructure/` | the adapters of its ports (the LLM) | another module |
-| boundary | `http-api/` | the `HttpApi` contract over the domain's schemas, shared by the api and the browser | handlers, services |
-| boundary | `apps/*` | thin entry points: api and worker handlers, each process's `layer.ts`, the browser client | rules, a repository outside `layer.ts` |
-| any | `packages/*` | generic tools (`db`, `queue`, `s3`, `llm`, the `aws` provisioner) knowing nothing of this app | an import of this app |
-
-The invariants a change must keep:
-
-- **The rules live in the modules.** A model's pure operations and its domain service hold them;
-  a use case composes them and adds only rule-free writes, and it never decides what a model may
-  do. A rule another module owns is called, never copied.
-- **No rule in a handler.** An api or worker handler decodes, calls one use case or service, and
-  maps the answer.
-- **The database guards, not locks.** One active message per chat, a bind only while unbound and
-  every status move are single conditional statements.
-- **A message never exists without its job.** The job is a row of `jobs` in the same transaction.
-- **No service reaches the browser.** `make bundle-check` fails if one does.
-
-The full matrix, and which guard enforces each rule:
+Three processes share one codebase and one database. The code is cut in three rings, the data
+at the centre, the behaviour around it and the boundary outside, and every dependency points
+inward. Which folder holds what:
+[architecture.md › The three rings](docs/knowledge/architecture.md#the-three-rings); what may
+import what, and the guard that refuses the rest:
 [architecture.md › Dependency rules](docs/knowledge/architecture.md#dependency-rules). Why each
 boundary holds, what it costs and what breaks if it is reversed:
 [decisions.md](docs/knowledge/decisions.md), one record per decision.
 
+The rules a change most often breaks, each with its owner: no rule outside the modules
+([Use cases above the modules](docs/knowledge/decisions.md#use-cases-above-the-modules)), no
+lock but a guard in the write ([database.md › Guards](docs/knowledge/database.md#guards)), no
+message without its job ([database.md › The outbox](docs/knowledge/database.md#the-outbox)),
+no service in the browser
+([architecture.md › Boundary guards](docs/knowledge/architecture.md#boundary-guards)).
+
 ## Anatomy of a slice
 
-One name crosses every ring under the same folder name: the entity and the model share it. The
-`chat` slice, by file suffix:
-
-```text
-kernel/data/chat/                chat.table  chat.entity  chat.repository
-application/chat/domain/         chat.id  chat.model  chat.error  assistant.port
-application/chat/services/       chat.mapper  chat.service  chat.queue
-application/chat/infrastructure/ assistant.llm
-application/use-cases/chat/      send-message.use-case  generate-assistant-message.use-case
-http-api/chat/                   chat.http
-apps/api/chat/                   chat.handler
-apps/worker/chat/                assistant-message.handler  chat-title.handler
-```
-
-Read it from the data outward: the data layer's table, entity and repository, the model and its
+One name crosses every ring under the same folder name: the entity and the model share it. Read
+a slice from the data outward: the data layer's table, entity and repository, the model and its
 pure operations, the mapper between entity and model, the service with the rules, the use case
 composing services, the adapter implementing a port, the handler calling the use case. Every
-file of the slice and what it is named:
+file of the `chat` slice and what it is named:
 [architecture.md › Where things live](docs/knowledge/architecture.md#where-things-live); the
-suffixes and naming verbs: [.claude/rules/naming.md](.claude/rules/naming.md). A slice's tests sit
-in its workspace's `__tests__/` and `__e2e__/`:
-[tooling.md › Tests](docs/knowledge/tooling.md#tests).
+suffixes and naming verbs: [.claude/rules/naming.md](.claude/rules/naming.md); where its tests
+sit: [tooling.md › Tests](docs/knowledge/tooling.md#tests).
 
 ## Daily development
 
@@ -139,25 +107,15 @@ in its workspace's `__tests__/` and `__e2e__/`:
 | run every gate before a commit | `make check` (Docker running) | [tooling.md › Commands](docs/knowledge/tooling.md#commands) |
 | run one process, or debug it | `make dev-api`, `make debug-api` (also `-worker`, `-web`) | [tooling.md › Run and debug](docs/knowledge/tooling.md#run-and-debug) |
 | run the unit suites only, in seconds | `make test-unit` | [tooling.md › Tests](docs/knowledge/tooling.md#tests) |
-| run one test file or one test | `bun --bun vitest run --project unit <file> -t <name>` | [tooling.md › Commands](docs/knowledge/tooling.md#commands) |
+| run one test file or one test | `vitest` on the file, with `-t` | [tooling.md › Commands](docs/knowledge/tooling.md#commands) |
 | fix formatting and import order | `make fmt` | [tooling.md › Troubleshooting](docs/knowledge/tooling.md#troubleshooting) |
 | change a table | edit its `.table.ts`, then `make migration NAME=<name>` and `make migrate` | [database.md › Migrations](docs/knowledge/database.md#migrations) |
 | start over with an empty database | `make reset && make up` | [tooling.md › Environment](docs/knowledge/tooling.md#environment) |
 | work on two branches at once | a worktree with its own ports and containers | [tooling.md › Worktrees](docs/knowledge/tooling.md#worktrees) |
 | read Effect's or Drizzle's source at our pin | `repos/effect`, `repos/drizzle` | [tooling.md › Commands](docs/knowledge/tooling.md#commands) |
 | learn why a check failed | the symptom table | [tooling.md › Troubleshooting](docs/knowledge/tooling.md#troubleshooting) |
-
-Tips that save time:
-
-- **Test at the lowest seam that shows the rule.** A model's rule is a unit test of its
-  domain service over memory layers; only an adapter or a transaction needs e2e.
-- **Every e2e test owns its database and its stage,** so suites run in parallel and in two
-  worktrees at once; nothing needs `make up`.
-- **Time stands still in `it.effect`.** Move it with `TestClock.adjust`, or use `it.live`.
-- **The worker reloads by re-exec, the api in place,** so a worker edit never leaves a second
-  consumer behind: [tooling.md › Run and debug](docs/knowledge/tooling.md#run-and-debug).
-- **A rejected commit is the hook:** `make typecheck`, then Biome on the staged files. Fix and
-  commit again; never `--no-verify`.
+| learn why a commit or a push was rejected | the hooks; never `--no-verify` | [tooling.md › Git hooks and CI](docs/knowledge/tooling.md#git-hooks-and-ci) |
+| write a test | the kinds, where each goes, and time in `it.effect` | [tooling.md › Tests](docs/knowledge/tooling.md#tests) |
 
 ## Adding a feature
 
@@ -179,14 +137,13 @@ Tips that save time:
 | What do the domain words mean? | [docs/knowledge/glossary.md](docs/knowledge/glossary.md) |
 | How is a change specified, planned, implemented and verified? | [docs/knowledge/sdd.md](docs/knowledge/sdd.md) |
 | What is built next, and in which order? | [docs/knowledge/roadmap.md](docs/knowledge/roadmap.md) |
-| What are the rules for one layer? | its `CLAUDE.md`, listed in [CLAUDE.md](CLAUDE.md) |
+| What are the rules for one layer? | the `CLAUDE.md` in its folder, and `.claude/rules/` |
 | How are commits and pull requests written? | [.claude/rules/commits.md](.claude/rules/commits.md), [.claude/rules/pull-requests.md](.claude/rules/pull-requests.md) |
 | Why is it built this way? | [docs/knowledge/decisions.md](docs/knowledge/decisions.md): each binding decision with its reason, its rejected alternatives and what a reversal breaks; its history in the ticket that made it, under `docs/tickets/` |
 
 ## History and new projects
 
-`main` is the only long-lived branch: one squash commit per ticket, whose body is the PR
-description. A ticket's plan steps stay in its merged PR's commit list and in its `plan.md`:
+`main` holds one squash commit per ticket; how a ticket's steps and reasoning stay findable:
 [sdd.md › Roadmap and history](docs/knowledge/sdd.md#roadmap-and-history).
 
 On GitHub, *Use this template* starts a new project from `main`; what to rename, delete and keep

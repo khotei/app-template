@@ -1,8 +1,8 @@
 # application
 
-The behaviour ring: the modules and the use cases over them. What each layer of a module holds
-and may import:
-[architecture.md › The three rings](../docs/knowledge/architecture.md#the-three-rings).
+The behaviour ring: the modules and the use cases over them. What each layer of a module holds:
+[architecture.md › The three rings](../docs/knowledge/architecture.md#the-three-rings); what it
+may import: [› Dependency rules](../docs/knowledge/architecture.md#dependency-rules).
 
 - **No I/O and no ambient state outside a module's `infrastructure/`:** no `Bun.env`, no `fetch`,
   no `Date.now()`, no `new Date()`, no `crypto.randomUUID()`. A pure operation takes time and ids

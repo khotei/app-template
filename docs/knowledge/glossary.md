@@ -43,13 +43,12 @@ _Avoid_: Pending message, current reply
 The one vocabulary of states in flight: `idle` waits for work, `queued` has work in flight,
 `preparing` and `generating` run it, `done` and `failed` end it. Every model with a status picks
 its subset of `Status` (the chat, the message), and a check on one value reads the shared
-predicate (`isQueued`).
+predicate.
 _Avoid_: State, stage; a new word for one of the six
 
 **Chat status**:
 `queued` while the chat's reply is in work, `failed` after its last reply failed, else `idle`;
-stored on the chat. A send moves it to `queued` (`queueChat`), the reply's end to `idle`
-(`idleChat`) or `failed` (`failChat`).
+stored on the chat. A send moves it to `queued`, the reply's end to `idle` or `failed`.
 _Avoid_: Busy, chat state; a value outside its subset (`generating`)
 
 **Title**:
@@ -69,8 +68,7 @@ _Avoid_: Template variable, token, embed, slot
 
 **Assistant**:
 The language-model side of a chat, as the user sees it. The language model behind it is a
-provider's artefact and is named only at the boundary: `kernel/llm` and a module's
-`infrastructure/`.
+provider's artefact and is named only at the boundary.
 _Avoid_: Bot, AI, agent, model
 
 **Provenance**:
@@ -82,10 +80,9 @@ _Avoid_: Metadata, model info, source, origin
 
 ## Architecture language
 
-The words the rings, layers, rules and tickets use for the shape of the code. The code is cut in
-three rings, the data layer at the centre, the application around it and the boundary outside,
-and every dependency points inward. Each word has one meaning here; the `_Avoid_` lists name the
-synonyms the sources use that we do not.
+The words the rings, layers, rules and tickets use for the shape of the code. The rings and which
+folder holds what: [architecture.md › The three rings](architecture.md#the-three-rings). Each
+word has one meaning here; the `_Avoid_` lists name the synonyms the sources use that we do not.
 
 **Entity**:
 A record as the data layer reads and writes it, derived from its table in the data layer's own
@@ -94,10 +91,8 @@ returns. Never a model; a module's mapper turns it into one.
 _Avoid_: Model, row type, record class, DTO
 
 **Data layer**:
-The ring at the centre, `kernel/data`: one `Db` over every table and relation, the migrations,
-and a repository per store (a table, the attachments' objects, the jobs), all in entities. It
-holds no rule, knows no module and takes its clients from the context; every module reads and
-writes it.
+The ring at the centre, `kernel/data`: every store's records, in entities. It holds no rule and
+knows no module; every module reads and writes it.
 _Avoid_: Persistence layer, DAL, repository layer, shared domain
 
 **Application**:
@@ -108,31 +103,23 @@ _Avoid_: Application layer, app (a process under `apps/`), business layer
 
 **Module**:
 A business capability whose mission fits one sentence, a folder of `application/` with one
-entry, `@app-template/application/<module>`: its models, rules, errors and ports in `domain/`,
-its domain services, mappers and queue definitions in `services/`, the adapters of its ports in
-`infrastructure/`. Its records live in the data layer. It imports another module only through
-that module's contract, and never the use cases. Never one per table or per aggregate.
+entry, `@app-template/application/<module>`. Its records live in the data layer. Never one per
+table or per aggregate.
 _Avoid_: Component, core, slice, feature folder, bounded context, service
 
 **Module contract**:
-The part of a module other modules may depend on, a folder of the module
-(`application/identity/contract/`) exported through its entry: its ids, its errors and the
-shapes they carry, with no implementation. A dependency on a contract is a dependency on its
-module, so two modules that import each other's contracts form a cycle.
+The part of a module other modules may depend on, its folder `contract/`, exported through its
+entry: its ids, its errors and the shapes they carry, with no implementation.
 _Avoid_: Public API, interface, SDK, client
 
 **Use case**:
 One scenario that composes domain services, of one module or several, with the files, the jobs,
 the assistant or one transaction; what a handler calls when a flow is more than one service
-method. Every use case lives in `application/use-cases`, above the modules, so a flow that spans
-modules is one too: it calls each module's rules, holds none of its own, and may commit their
-writes in one transaction.
+method. It calls each module's rules and holds none of its own.
 _Avoid_: Interactor, orchestrator, workflow, application service, job
 
 **Boundary**:
-The outer ring, everything that touches the world outside the process: the kernel's configured
-clients, each module's `infrastructure/`, `http-api` and the apps, which assemble the layers and
-provide the clients.
+The outer ring, everything that touches the world outside the process.
 _Avoid_: Edge, shell, outer layer, infrastructure layer
 
 **Aggregate**:
@@ -182,29 +169,24 @@ _Avoid_: Task, event, command, message (the chat's word)
 
 **Kernel**:
 The workspace `kernel/`: the data layer at its centre, and around it the tools of `packages/*`
-configured for this app (its config, its Postgres client and migrate program, its AWS clients
-and inventory, its queue's transport and relay, its language model). It holds no business rule
-and knows no module.
+configured for this app. It holds no business rule and knows no module.
 _Avoid_: Shared kernel, common, core, shared, utils, platform
 
 **Package**:
 A folder under `packages/`, imported as `@app-template/packages/<name>`: a tool configured by
-its caller that knows no app, so it would work in another project unchanged. Every ring may use
-it; the kernel configures it for this one.
+its caller that knows no app, so it would work in another project unchanged; the kernel
+configures it for this one.
 _Avoid_: Library (for a workspace), lib, helper, kernel
 
 **Unit test**:
-A test of a domain service, a use case or a handler over memory layers, needing no process
-outside the test runner.
+A test over memory layers, needing no process outside the test runner.
 _Avoid_: Fast test, isolated test, mock test
 
 **E2E test**:
-A test over the containers the run starts (Postgres, MiniStack): of a repository, of an adapter,
-of the transaction a use case runs, or of the journey through both apps.
+A test over the containers the run starts (Postgres, MiniStack).
 _Avoid_: Integration test, system test, functional test
 
 **Memory layer**:
-A layer of a repository or a port over a `Ref<HashMap>`, one per service, in the test support of
-the workspace that declares the service; the repositories' over the same entities as the real
-ones. The unit tests' only double.
+A layer of a repository or a port over a `Ref<HashMap>`, one per service; a repository's over
+the same entities as the real one. The unit tests' only double.
 _Avoid_: Mock, stub, in-memory repository
