@@ -6,7 +6,7 @@ paths:
 
 # Layering: models, domain services, use cases, handlers
 
-Words: `docs/knowledge/glossary.md › Architecture language`.
+Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#architecture-language).
 
 ## Ports and domain services
 

@@ -77,4 +77,4 @@ pipe(orders, sumBy((order) => order.refunded))
   that logs every other cause. Inspect a `Cause` with `Cause.hasInterruptsOnly`, `hasDies`,
   `hasFails`, never by walking it; a ternary in `catchCause` only when the handler can fail.
 - A "nothing changed" check before a write or a snapshot compares models with `Equal.equals`,
-  and errors by their encoded form, as tests do (`tooling.md › Tests`).
+  and errors by their encoded form, as tests do ([tooling.md › Tests](../../docs/knowledge/tooling.md#tests)).

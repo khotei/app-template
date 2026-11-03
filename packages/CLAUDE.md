@@ -6,4 +6,4 @@ is this app's (its settings, its resources and their names, the pinned images) l
 
 - A package the web client imports ships to the browser: no Bun APIs, no `Bun.env`, no Node
   built-ins.
-- Add a package with `docs/knowledge/tooling.md › Add a package`.
+- Add a package: [tooling.md › Add a package](../docs/knowledge/tooling.md#add-a-package).

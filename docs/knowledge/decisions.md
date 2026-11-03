@@ -354,7 +354,7 @@ nothing and rolls back whole.
 
 - **Why:** the checks run as pure functions over a plain read, before every write; a lock would
   tie the check to the transaction and hold rows while other work runs.
-- **Sources:** `docs/knowledge/database.md › Guards`; `.claude/rules/layering.md ›
+- **Sources:** [database.md › Guards](database.md#guards); `.claude/rules/layering.md ›
   Concurrency`.
 - **Rejected:** a `FOR UPDATE` read before the check: the loser would wait and then get its
   domain error, but the read would carry an option that changes its contract. A deferrable key
@@ -379,7 +379,8 @@ asked.
 
 - **Why:** one order for a chat's contents, written once in each repository's `ORDER BY` and in
   the memory fakes; a send's message answers its attachments as a later read of the chat does.
-- **Sources:** `docs/knowledge/database.md › Schema and entity files` (the index that serves it).
+- **Sources:** [database.md › Schema and entity files](database.md#schema-and-entity-files) (the
+  index that serves it).
 - **Rejected:** the order asked, kept by sorting the rows by the ids in the service: a second
   order for one read, lost again when the chat is read back.
 - **Cost:** a client that sends `[b, a]` gets `[a, b]` back when `a` was uploaded first, and
@@ -631,8 +632,9 @@ its record.
   know which ticket made a rule.
 - **Cost:** each decision is written twice: in its ticket as history, here as the binding rule.
 - **Guarded by:** `make doc-lint` (every backticked repo path exists); review against
-  `.claude/rules/claude-md.md`. A ticket id is refused only in a code comment
-  (`.claude/rules/comments.md`), nowhere in the docs: the user wants no check and no rule for it.
+  `.claude/rules/claude-md.md`. A ticket id is refused in a code comment by
+  `.claude/rules/comments.md` and in an instruction file by `.claude/rules/claude-md.md`, by
+  review alone: the user wants no check for it.
 - **If reversed:** the decisions go back to the tickets, and the pointer in `CLAUDE.md` goes.
 - **Revisit when:** the records outgrow one page.
 
@@ -661,16 +663,16 @@ An instruction file, a `CLAUDE.md`, a rule, a skill or an agent, names a pattern
 
 ### Instructions within size limits
 
-A `CLAUDE.md` holds at most 40 lines and a rule at most 80; the numbers live only in the limits
-line of `.claude/rules/claude-md.md`, which `make doc-lint` reads.
+A `CLAUDE.md` and a rule each have a line limit; the numbers live only in the limits line of
+`.claude/rules/claude-md.md`, which `make doc-lint` reads.
 
 - **Why:** a `CLAUDE.md` or a rule is paid for in every session it matches, and files grow by
-  appending: rules sat at or over 80 lines while the limits were advice that nothing checked.
+  appending: rules sat at or over the limit while the limits were advice that nothing checked.
   A hard limit makes the next fix cut a line instead of adding one.
 - **Sources:** `.claude/rules/claude-md.md` (the test a line must pass, the limits); the audit of
   [the ticket that made this record](../tickets/2026-11-02-1820_lean-instructions/feature.md).
 - **Rejected:** the numbers in the doc lint's config, the rule pointing to them: a reader of the
-  rule must open the config to learn a limit. Soft limits ("about 40"): nothing refuses them.
+  rule must open the config to learn a limit. Soft limits ("about" a number): nothing refuses them.
 - **Cost:** the check depends on one line's shape, so a reworded limits line makes it exit 2,
   naming the line it expects; a file at its limit takes no line without giving one up.
 - **Guarded by:** `make doc-lint`, which fails on a file over its limit, naming file and length.

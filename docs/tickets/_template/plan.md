@@ -13,8 +13,8 @@ reading the steps; `git log` holds each step's commit.>
 
 ## How to run this plan
 
-- Branch `<type>/<slug>`; one commit per step, under the commit gate of `.claude/rules/sdd.md`
-  (`/ticket-implement`).
+- Branch `<type>/<slug>`; commits by round, under the commit gate of `.claude/rules/sdd.md ›
+  Gates` (`/ticket-implement`).
 - Each step leaves `make check` green and fits one fresh session (≤ ~400 changed lines).
 - A deviation is recorded in the step's findings, and in `architecture.md › Decisions` when it is a
   decision.

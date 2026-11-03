@@ -98,6 +98,7 @@
       "Bash(gh pr create*)",
       "Bash(gh pr merge*)",
       "Bash(gh repo create*)",
+      "Bash(gh api*)",
       "Bash(git reset --hard*)",
       "Bash(git rebase*)",
       "Bash(git clean*)",

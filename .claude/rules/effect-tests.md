@@ -72,4 +72,5 @@ Where each kind of test and its support live, and what a test may import:
 - The cases of one rule run with `it.effect.each` over objects (a name template over `$field`),
   never a `for` loop around `it` or a lookup by key.
 - A test of logging asserts the level with the message.
-- Configuration comes from `ConfigProvider.fromUnknown({ … })` (`tooling.md › Environment`).
+- Configuration comes from `ConfigProvider.fromUnknown({ … })`
+  ([tooling.md › Environment](../../docs/knowledge/tooling.md#environment)).

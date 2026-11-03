@@ -40,8 +40,8 @@ grilling, plan review and the commit gate need you. Each takes the ticket folder
 | `/ticket-feature <slug> [idea]` | an idea, notes or a link | the answers to each grilling round; the terms | `feature.md` with EARS requirements; glossary entries |
 | `/ticket-architecture <ticket>` | `feature.md` | the Seams and the Decisions | `architecture.md` |
 | `/ticket-plan <ticket>` | `feature.md`, `architecture.md` | the plan as a whole: the heavy review | `plan.md` with steps and coverage |
-| `/ticket-implement <ticket> [step]` | the next unblocked step | the commit gate's question, once per session; feedback, or stop | one commit per step |
-| `/ticket-verify <ticket>` | the branch against `origin/main` | which simplifications and lessons to apply; whether to open the PR | `verification.md` |
+| `/ticket-implement <ticket> [step]` | the next unblocked step | the commit gate's question, once per session; feedback, or stop | the step's commits, by round ([Gates](../../.claude/rules/sdd.md#gates)) |
+| `/ticket-verify <ticket>` | the branch against its PR's base branch | which simplifications and lessons to apply; whether to open the PR | `verification.md` |
 
 ## Under the hood
 
@@ -65,7 +65,7 @@ uses updates this map too; the Standards review checks it against `.claude/rules
 | `/ticket-feature` | `grilling`, `domain-modeling` | `researcher` | — | `feature.md`, `docs/knowledge/glossary.md`, `docs/knowledge/roadmap.md` |
 | `/ticket-architecture` | `codebase-design`, `grilling` | `researcher` | — | `architecture.md` |
 | `/ticket-plan` | — | `researcher` | — | `plan.md` |
-| `/ticket-implement` | `code-review`; on a behaviour step the built-in `simplify`, run by the main session, with `codebase-design` as its vocabulary | `implementer` (one worktree per parallel step, set up by `make worktree`), `reviewer` (one per review pass) | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, one commit per step |
+| `/ticket-implement` | `code-review`; on a behaviour step the built-in `simplify`, run by the main session, with `codebase-design` as its vocabulary | `implementer` (one worktree per parallel step, set up by `make worktree`), `reviewer` (one per review pass) | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, the step's commits |
 | `/ticket-verify` | `code-review` | `verifier` (one per group of requirements, in parallel), `reviewer` | — | `verification.md` |
 | `implementer` | `tdd`, preloaded | — | `make-check.sh` on `Stop` (runs as `SubagentStop`) | the step's files |
 | `reviewer` | one pass: an axis of `code-review`, or the hunt | — | — | nothing: read-only |
@@ -152,7 +152,7 @@ A ticket starts as an entry in [the roadmap](./roadmap.md), which says what an e
 **`main` is the only long-lived branch.** It holds one commit per ticket: the squash, whose body
 is the PR description, the history to read for *what* the template is and *why*. The *how*, step
 by step, stays in two places that outlive the ticket branch: the merged PR's commit list on
-GitHub, one commit per plan step, and the ticket folder's `plan.md` with each step's findings.
+GitHub, a step's commits by round, and the ticket folder's `plan.md` with each step's findings.
 `chore/monorepo-setup` keeps the scaffold ticket's steps, which predate the PRs.
 
 ```mermaid

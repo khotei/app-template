@@ -11,7 +11,7 @@ the body is the PR description. **GitHub keeps HTML comments in that body**, so 
 `gh pr merge <n> --squash --body-file <file>`, where the file is the description without its
 `<!-- … -->` block. The PR description *is* the permanent history.
 
-The format is owned by `commits.md`; one PR per ticket and one commit per step, by `sdd.md ›
+The format is owned by `commits.md`; one PR per ticket and the commits of a step, by `sdd.md ›
 Gates`. This file only adapts them to the PR surface.
 
 - **PR title** = a `commits.md` subject line. Only the title sets the squash subject.
@@ -24,7 +24,7 @@ Gates`. This file only adapts them to the PR surface.
   inside one: it closes the block early and leaks review notes into history.
 - **`main` is the only long-lived branch.** The squash merge deletes the ticket branch; the
   steps stay in the merged PR's commit list and the ticket's `plan.md`
-  (`docs/knowledge/sdd.md › Roadmap and history`).
+  ([sdd.md › Roadmap and history](../../docs/knowledge/sdd.md#roadmap-and-history)).
 - When a push, a PR or a merge may happen: the commit gate in `sdd.md › Gates`.
 
 Template: `.github/PULL_REQUEST_TEMPLATE.md`. A filled PR and the commit it produces:

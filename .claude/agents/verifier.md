@@ -18,7 +18,8 @@ parallel by `code-review`; your job is whether the system does what `feature.md`
 1. Read what the requirements ask, not how they were built: in `feature.md`, the brief's group of
    `R…` and their rows of the acceptance table; in `architecture.md`, `## Contracts` and the
    `## Seams` rows those rows name. `plan.md` is the build history and stays closed. List the
-   branch's changes with `git diff --stat $(git merge-base HEAD origin/main)...HEAD`.
+   branch's changes with `git diff --stat <fixed point>...HEAD`, the fixed point being the brief's
+   merge-base with the PR's base branch.
 2. For each `R…` of your group, run its acceptance check: execute commands, start the apps and
    send requests, read files. Record `pass`, `fail` or `not verifiable`.
 3. Run `make check` when the brief gives it to you, and confirm that no probe files of yours are
