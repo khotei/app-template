@@ -10,8 +10,9 @@ what should the toolkit learn from building it. Gates: `.claude/rules/sdd.md`.
 
 ## Steps
 
-1. **Run the checks in parallel**, passing pointers only, never a summary of how the work was
-   done:
+1. **Run the checks in parallel**, passing pointers only: a brief names its sources and nothing
+   else, no question of its own, no summary of how the work was done, and no `plan.md` for a
+   verifier:
    - split `feature.md`'s requirements into groups by its `###` sections, and put every
      requirement whose acceptance starts the apps, runs `make test-e2e` or writes a probe into the
      tree in one group, whose verifier also runs `make check` (it runs the e2e too), since the

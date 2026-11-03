@@ -46,7 +46,10 @@ grilling, plan review and the commit gate need you. Each takes the ticket folder
 ## Under the hood
 
 The skills are thin wrappers over the [mattpocock-skills](https://github.com/mattpocock/skills)
-plugin, which the project enables in `.claude/settings.json`. The wrappers decide **where** files
+plugin, which the project enables in `.claude/settings.json`; the same file turns off the plugins
+whose skills and agents overlap the wrappers (`superpowers`, `pr-review-toolkit`,
+`code-simplifier`, `commit-commands` and the plugin `code-review`), so none runs unasked or
+writes outside the ticket. The wrappers decide **where** files
 go and **when** you decide; the plugin decides **how** to interview, model, design, test and
 review. Its skills are referenced by name and never copied, so plugin updates arrive on their own.
 
@@ -60,9 +63,9 @@ uses updates this map too; the Standards review checks it against `.claude/rules
 | `/ticket-feature` | `grilling`, `domain-modeling` | `researcher` | — | `feature.md`, `docs/knowledge/glossary.md`, `docs/knowledge/roadmap.md` |
 | `/ticket-architecture` | `codebase-design`, `grilling` | `researcher` | — | `architecture.md` |
 | `/ticket-plan` | — | `researcher` | — | `plan.md` |
-| `/ticket-implement` | `code-review`; on a behaviour step the built-in `simplify`, run by the main session, with `codebase-design` as its vocabulary | `implementer` (one worktree per parallel step, set up by `make worktree`), `reviewer` (one per review pass) | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, one commit per step |
+| `/ticket-implement` | `code-review`; on a behaviour step the built-in `simplify`, run by the main session, with `codebase-design` as its vocabulary | `implementer` (one worktree per parallel step, set up by `make worktree`), `reviewer` (one per review pass) | `make-check.sh` and `bash-guard.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, one commit per step |
 | `/ticket-verify` | `code-review` | `verifier` (one per group of requirements, in parallel), `reviewer` | — | `verification.md` |
-| `implementer` | `tdd`, preloaded | — | `make-check.sh` on `Stop` (runs as `SubagentStop`) | the step's files |
+| `implementer` | `tdd`, preloaded | — | `make-check.sh` on `Stop` (runs as `SubagentStop`); `bash-guard.sh` on `PreToolUse` of `Bash` | the step's files |
 | `reviewer` | one pass: an axis of `code-review`, or the hunt | — | — | nothing: read-only |
 | `verifier` | — | — | — | nothing: read-only |
 | `researcher` | — | — | — | nothing: read-only |
@@ -82,6 +85,7 @@ graph LR
     reviewer([reviewer])
     verifier([verifier])
     hook[/make-check.sh/]
+    guard[/bash-guard.sh/]
   end
   subgraph plugin [mattpocock-skills]
     grilling{{grilling}}
@@ -102,7 +106,7 @@ graph LR
   impl -.-> review & simplify
   simplify -.-> design
   implementer -.-> tdd
-  implementer --> hook
+  implementer --> hook & guard
   verify --> verifier & reviewer
   verify -.-> review
   reviewer -.-> review & design
@@ -130,6 +134,9 @@ step, then the review passes, then you. Why it is cut so:
 
 - **The implementer cannot finish red.** A hook runs `make check` when it stops and sends it
   back; `BLOCKED:` is its only way out, and reaches you unchanged.
+- **The implementer's Bash cannot read a tracked file or drop uncommitted work.** A hook refuses
+  a read such as `cat` of a tracked file, which would load no rule, and a git command such as
+  `checkout` or `reset --hard`; both lists head `bash-guard.sh`. Writes through Bash pass.
 - **The main session runs `simplify`, never the implementer,** so the agent that wrote the code
   does not judge its own cuts. A move skips it: its files keep their content for `git` to see
   the rename.
@@ -200,7 +207,7 @@ The plugin updates itself, so its behaviour can shift under the wrappers. After 
 | Symptom | Cause | Fix |
 |---|---|---|
 | `/ticket-*` is not offered when typing `/` | Claude Code was started outside the repository root | start it in the root; the skills live in `.claude/skills/` |
-| plugin skills are missing, or `superpowers` is active | the plugin is not installed, or the session predates `enabledPlugins` | install `mattpocock-skills` from `claude-plugins-official` and restart the session |
+| plugin skills are missing, or a plugin turned off above is active | the plugin is not installed, the session predates `enabledPlugins`, or a `settings.local.json` enables it | install `mattpocock-skills` from `claude-plugins-official`, or remove the plugin's key from `settings.local.json`, then restart the session |
 | `implementer` never stops | `make check` stays red and the agent keeps fixing | stop it; resume with guidance, or let it report `BLOCKED:` |
 | the `make check` hook never runs | the folder's workspace trust was never accepted (a `-p` session does not accept it) | open Claude Code interactively in the folder once and accept the trust dialog |
 | a `GLOSSARY.md` or `docs/adr/` appeared | a plugin skill fired outside `/ticket-feature` | move the terms into `docs/knowledge/glossary.md` and delete the file |

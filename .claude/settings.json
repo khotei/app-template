@@ -69,6 +69,10 @@
   },
   "enabledPlugins": {
     "mattpocock-skills@claude-plugins-official": true,
-    "superpowers@anthropic-plugin-directory": false
+    "superpowers@anthropic-plugin-directory": false,
+    "pr-review-toolkit@claude-plugins-official": false,
+    "code-simplifier@anthropic-plugin-directory": false,
+    "commit-commands@claude-plugins-official": false,
+    "code-review-anthropics@anthropic-plugin-directory": false
   }
 }

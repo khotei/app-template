@@ -20,7 +20,7 @@
 | S12 | decisions and the SDD guide trimmed; `docs-diet` done; the move probe | done |
 | S13 | the ticket templates and the planning skills pin what a step needs and leave the rest to a grep | done |
 | S14 | verification run 1 and the prompt audit fixed: two stale doc lines, two recorded exceptions, a contradiction, findings presented one block each | done |
-| S15 | lessons L2–L5 of verification run 1: briefs name sources only, results quote their output, a behaviour step is one that changes code, the implementer's Bash guarded; plugins that overlap the skills off | todo |
+| S15 | lessons L2–L5 of verification run 1: briefs name sources only, results quote their output, a behaviour step is one that changes code, the implementer's Bash guarded; plugins that overlap the skills off | done |
 | S16 | a named function is a `function` declaration; an arrow is a callback or an expression body | todo |
 
 ## How to run this plan
@@ -778,8 +778,8 @@
   else, and no verifier's brief names `plan.md` (L2); a finding that states a check's result
   quotes the output it rests on (L4); a behaviour step is one that changes code (`.ts`, a
   `Makefile` recipe, a script), and only it gets `simplify` and Depth (L5); the implementer's
-  Bash cannot read a tracked file with `cat`, `head` or `sed -n`, nor run `git checkout`,
-  `git stash` or `git restore` (L3); the plugins whose skills and agents overlap the `/ticket-*`
+  Bash cannot read a tracked file with `cat`, `head` or `sed -n`, nor run a git command that
+  drops uncommitted work (L3); the plugins whose skills and agents overlap the `/ticket-*`
   skills (`pr-review-toolkit`, `code-simplifier`, `commit-commands`, the plugin `code-review`,
   `superpowers`) are off for this project, and `mattpocock-skills` stays on.
 - **Goal:** R13, R18, R19, R20 and R21 hold on the next steps by mechanism or by one line each,
@@ -801,7 +801,35 @@
   a new session lists none of the disabled plugins' skills or agents, which the session before
   the change still lists.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Hook seam, red first: before `.claude/hooks/bash-guard.sh` existed every refuse case came
+    back allowed; round 3's new cases were red on round 2's guard (`FAIL allow (exit 0) cat
+    …/repo-link/CLAUDE.md`, `FAIL allow (exit 0) git switch -f main`, `FAIL allow (exit 127) no
+    bun on PATH, cat README.md`). After: `probe.sh exit 0`, `extra.sh exit 0`, e.g. `ok refuse
+    (exit 2) cd docs && cat ../README.md`, `ok allow (exit 0) git grep -n "git checkout" --
+    .claude`, `ok allow (exit 0) cat probe-untracked.log`.
+  - Deviation: the guard refuses every git command that drops uncommitted work, not only the
+    three L3 names: also `clean`, `reset --hard` and `switch` with `--discard-changes`, `-f` or
+    `--force` (simplify's altitude pass and the hunt). Writes through Bash pass, as the header
+    and `sdd.md` say.
+  - Deviation: only words naming an existing file inside the repo, symlinks resolved, reach one
+    `git ls-files` per command, so a shell glob over tracked files (`cat src/*.ts`) passes.
+  - The guard refuses when it fails (bad JSON, no bun: `bash-guard.sh failed (exit 127), so the
+    command is refused`); a Bash call naming no guarded word never starts bun (`git status`
+    0.007 s against 0.046 s).
+  - The guard is `sh` with an inline `bun` script, like `make-check.sh`, not a `.ts` file, which
+    the Effect rules bind; the two command lists live once, in the `sh` part.
+  - Plugins: `claude plugin list --json` in the repo shows `pr-review-toolkit`,
+    `code-simplifier`, `commit-commands`, `code-review-anthropics` and `superpowers`
+    `enabled=false`, `mattpocock-skills` `enabled=true`; outside the repo all five are
+    `enabled=true`.
+  - Not run: a live probe through a fresh implementer's Bash and a new session's skill and
+    agent lists; both need a session started after the change.
+  - Rounds: S15.1 the lessons and the guard; S15.2 simplify (prefilter, one `git` call per
+    command, `reset --hard` and `clean`); S15.3 the reviews (symlinks, `switch`, a failing guard
+    refuses, one owner for the lists, the header narrowed to reads). Size about 215 lines against
+    ~90: the guard parses shell words so a quoted mention or a here-document body passes.
 
 #### S16 — Named functions as declarations
 

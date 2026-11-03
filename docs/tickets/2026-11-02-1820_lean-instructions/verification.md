@@ -117,7 +117,7 @@ Judgement calls:
 - **Cost:** a finding reported twice, and a verifier reading what R18 keeps from it.
 - **Proposed change:** `/ticket-implement` step 3 and `/ticket-verify` step 1: "a brief names its
   sources and nothing else: no question of its own, and no `plan.md` for a verifier".
-- **Applied:** no; planned as S15 on the user's OK
+- **Applied:** yes, in S15 (2026-11-03)
 
 #### L3 — Agents broke `implementer.md`'s tool rules
 
@@ -127,7 +127,7 @@ Judgement calls:
   obeying one line; a checkout can drop uncommitted work.
 - **Proposed change:** a `PreToolUse` hook on the implementer's Bash that refuses `cat`, `head`,
   `sed -n` on a tracked file and any `git checkout`, `git stash` or `git restore`.
-- **Applied:** no; planned as S15 on the user's OK
+- **Applied:** yes, in S15 (2026-11-03)
 
 #### L4 — A recorded result claimed more than the command showed
 
@@ -137,7 +137,7 @@ Judgement calls:
 - **Cost:** two requirements fail on the main session's own records, not on the work.
 - **Proposed change:** `/ticket-implement` step 5: "a finding that states a check's result quotes
   the output it rests on".
-- **Applied:** no; planned as S15 on the user's OK
+- **Applied:** yes, in S15 (2026-11-03)
 
 #### L5 — Which steps count as behaviour was decided case by case
 
@@ -147,4 +147,4 @@ Judgement calls:
   so R20 fails on the main session's choice.
 - **Proposed change:** `/ticket-implement` step 2: "a behaviour step is one that changes code
   (`.ts`, a `Makefile` recipe, a script); a docs-only step gets Standards and Spec alone".
-- **Applied:** no; planned as S15 on the user's OK
+- **Applied:** yes, in S15 (2026-11-03)

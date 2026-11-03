@@ -22,8 +22,10 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to a commit. Gates:
    `BLOCKED:` goes straight to the user. At the session's first step, ask the commit question of
    `.claude/rules/sdd.md › Gates` now, while the implementer works, and hold the answer; a later
    step does not ask again.
-   - **Simplify, a behaviour step only** (`opus high`), run by you, never by the implementer: the
-     refactor that `tdd` leaves out of its red → green loop. Call the Skill tool with `simplify`
+   - **Simplify, a behaviour step only**, run by you, never by the implementer: the refactor that
+     `tdd` leaves out of its red → green loop. A behaviour step is one that changes code (a `.ts`
+     file, a `Makefile` recipe, a script), whatever its **Model** line; a docs-only step gets
+     Standards and Spec alone. Call the Skill tool with `simplify`
      on the uncommitted step, its args pointing at the step in `plan.md`, the rules
      `make review-rules` prints (which override it), and the deletion test and depth of
      `mattpocock-skills:codebase-design`; it keeps every interim state the plan names (a
@@ -45,7 +47,8 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to a commit. Gates:
    cite, each by its anchor, and no other: a `D…` it names (`- **D<n> —`), the Seam row its
    **Test first** names (the row's first words, under `## Seams`), a Contracts entry it names
    (its bold lead, under `## Contracts`). The Standards brief lists the standards by path and
-   asks for each in the report with its findings or `none`; the shape is Depth's.
+   asks for each in the report with its findings or `none`; the shape is Depth's. Every brief
+   names its sources and nothing else: no question or focus of its own.
 
    A step that touches a write guard, a transaction, a test fake, concurrent access or error
    handling (a retry, a fallback) also gets the **hunt**: one `reviewer`, in parallel with the
@@ -79,12 +82,12 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to a commit. Gates:
    the user's word:
    - **commit:** set the step's `Status: done` (or `blocked: <gate>` while a gate the step
      names, such as a branch, a push or a CI run, has not run yet) in the step and in its row
-     of the plan's **Status** table, add its findings to `plan.md`
-     and any new decision to `architecture.md`, with the record it adds or changes in
-     `docs/knowledge/decisions.md`, stage the step's files, and commit with the
-     proposed message as a command of its own. An amendment also rewrites the decision's body,
-     Contract, Seam or Risks entry it makes wrong; its note keeps only what changed and the
-     rejected alternative;
+     of the plan's **Status** table, add its findings to `plan.md` (one that states a check's
+     result quotes the output it rests on) and any new decision to `architecture.md`, with the
+     record it adds or changes in `docs/knowledge/decisions.md`, stage the step's files, and
+     commit with the proposed message as a command of its own. An amendment also rewrites the
+     decision's body, Contract, Seam or Risks entry it makes wrong; its note keeps only what
+     changed and the rejected alternative;
    - **feedback** (the user's, or the fixes you recommend): first commit the tree as it stands as
      the current round under the gate (`S11.1`, code only, no `plan.md` edit), then send the
      feedback to the same implementer (`SendMessage`) as the next round, each accepted finding
