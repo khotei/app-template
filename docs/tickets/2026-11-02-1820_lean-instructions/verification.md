@@ -148,3 +148,135 @@ Judgement calls:
 - **Proposed change:** `/ticket-implement` step 2: "a behaviour step is one that changes code
   (`.ts`, a `Makefile` recipe, a script); a docs-only step gets Standards and Spec alone".
 - **Applied:** yes, in S15 (2026-11-03)
+
+## 2026-11-03 — run 2
+
+**Verdict:** fail
+
+Run from the main session that implemented S14–S16, on the user's "ok", not in a new session.
+The fixed point is `refactor/modular-monolith`, as in run 1. Four verifiers (R1 and R7–R11,
+R2–R6 and R23, R12–R16, R17–R22) and the two review axes started together at 15:09 local time;
+the last verdict came at 15:25. The probe verifier planted its probes in a scratch worktree, so
+the axes' doc checks in the main tree stayed clean.
+
+### Requirements
+
+| Req | Result | Evidence |
+|---|---|---|
+| R1 | pass | Probe: `application/chat` moved to `application/conversation`, `chat.service.ts` renamed; `git grep -nE 'application/chat\|chat\.service\|#chat/\|chat/services\|chat/domain'` over every `CLAUDE.md`, rule, skill and agent exits 1. `make doc-names` fails only on `docs/knowledge/architecture.md:143-150` (› Where things live). |
+| R2 | pass | Each fact has one owner; the root `CLAUDE.md` keeps the dependency command as the recorded exception. |
+| R3 | not verifiable | Its acceptance is the ledgers in `plan.md`, which a verifier does not read. |
+| R4 | pass | `git grep -nP '\b[0-9]+\.[0-9]+\.[0-9]+\b'` over `docs/knowledge` and every `README.md` hits only the roadmap's dated history. |
+| R5 | not verifiable | As R3. |
+| R6 | fail | Judgement: `.claude/rules/tooling.md:16-35` retells `docs/knowledge/tooling.md:207-305` instead of pointing to it. For keeping it: the rule loads by itself on `package.json` and `.env*`; the doc does not. The user's choice. |
+| R7 | pass | Missing paths planted in a skill, an agent, `README.md` and `.github/PULL_REQUEST_TEMPLATE.md`, and a missing PascalCase name: `make doc-names` exits 1 with `.claude/agents/verifier.md:40: apps/nope/missing-probe.md`, `.claude/skills/ticket-verify/SKILL.md:45: ProbeMissingName`, `README.md:153: docs/knowledge/missing-probe.md`, `.github/PULL_REQUEST_TEMPLATE.md:67: apps/nope/x.md`. |
+| R8 | pass | Source paths in a rule, a `CLAUDE.md`, a skill and an agent fail with `write the pattern` (`.claude/rules/naming.md:61: application/chat/domain/chat.model.ts`, `kernel/CLAUDE.md:22: kernel/package.json`); a placeholder, a package specifier, a `docs/knowledge` pointer, a glob and a path in `glossary.md` pass. |
+| R9 | pass | `apps/nope-folder/**` in `layering.md` gives `.claude/rules/layering.md: apps/nope-folder/**`, exit 1; a one-line filter, a brace filter and a rule in a subfolder are flagged too. |
+| R10 | pass | Green on the tree (`effect-style.md` at 80); probes give `.claude/rules/naming.md: 89 lines, over 80` and `kernel/CLAUDE.md: 45 lines, over 40`, exit 1; a changed limits line exits 2 and names the line it expects. |
+| R11 | pass | `.claude/rules/claude-md.md`: the test :14-24, the owner :26-43, the pattern :45-52, the checks by their `make` targets :56-61. |
+| R12 | pass | Spec reviewer's design reading −40.5%. |
+| R13 | pass | 12 452 → 9 961 tok, −20.01%: a margin of one token's worth. The S16 implementer read a file with `sed -n` through Bash once. |
+| R14 | pass | 10 451 → 8 027 tok, −23.2%. |
+| R15 | fail | The table below records R16 under the 20% the requirement asks. |
+| R16 | fail | Skill body 2 202 → 1 818 tok, −17.4%; it must be ≤ 1 761. S14 and S15 added about 139 tok after run 1's −23.8%. The worktree script's `.env` matches the old block's; each refusal leaves nothing. |
+| R17 | not verifiable | Text: the gate is stated once, in `sdd.md:41-47`; every other hit points to it. Runtime: no new session has run `/ticket-implement` since the question was added; S14–S16 did not ask again. |
+| R18 | pass | No run 2 verifier read `plan.md`; the S14–S16 Spec reports flag no `plan.md` edit; no implementer ran stash, checkout or commit; every report is English without a status block. |
+| R19 | fail | S15: the hunt (`bash-guard.sh:107-108`) and Depth (`bash-guard.sh:108`) reported the same `git switch --discard-changes` bypass. S16: Standards reported `feature.md:128`, a long line, as "a style slip, not a binding rule". |
+| R20 | fail | S16 changed 17 `.ts` files, a behaviour step by the skill's definition, and the main session ran neither `simplify` nor Depth, calling it "mechanical, like a rename". |
+| R21 | fail | No source read before a fix round, and each round forwards `path:line`. But the S16 Standards finding lacks the rule field, and the four S15 `simplify` agents reported without `hard \| judgement`, as their brief asked. |
+| R22 | pass | Six agents started between 15:09:11 and 15:09:23; the last verdict came about 16 minutes later, against run 2 of `modular-monolith`'s 33. |
+| R23 | pass | The templates and skills pin contracts, traps and probe targets; an acceptance row names no path. |
+
+**Before and after (R15),** characters ÷ 4, at HEAD:
+
+| Scenario | Before | After | Cut |
+|---|---|---|---|
+| R12 Spec reviewer's design reading | — | — | −40.5% |
+| R13 implementer's rules and `CLAUDE.md` | 12 452 tok | 9 961 tok | −20.01% |
+| R14 edit of a module's domain, then a service | 10 451 tok | 8 027 tok | −23.2% |
+| R16 `/ticket-implement` body | 2 202 tok | 1 818 tok | −17.4% |
+
+**Not verifiable:** R3 and R5 (their acceptance is the ledgers in `plan.md`); R17's new-session
+check (no new session has run a step since the question was added).
+
+**Outside the requirements:**
+- `sdd.md:37-40` asks for a round commit only before the user's recommendation lands;
+  `ticket-implement/SKILL.md:91-94` asks for it before the main session's fixes too. Under the
+  skill, the fix rounds of S14, S15 and S16 should have been committed first and were not.
+- `doc-names` misses a stale path under a top-level folder that is gone (accepted in
+  `decisions.md`), and R8 sees only backticked spans (D3).
+- Two `doc-names` runs in one tree share `node_modules/.cache/doc-names/{known,spans}`: one run
+  in three exited 2 with about 120 false hits while another agent ran the doc checks.
+
+### Review
+
+#### Standards
+
+No hard finding. Judgement call:
+
+- `deployment/CLAUDE.md:3-4` — "its other files are stubs until the deploy ticket lands" is
+  bound to a future event; "the other files are stubs; an AWS stack is not deployable from them"
+  stays true.
+
+#### Spec
+
+- `.claude/skills/ticket-implement/SKILL.md` — R16, R15 — hard — the body is at −17.4%; turning
+  the Depth paragraph (:59-68) into a pointer to `docs/knowledge/sdd.md › What the wrappers
+  override` saves the 226-233 characters it needs.
+- R13 — judgement — passes by a hair (−20.01%), and its behaviour half rests on one line of
+  `implementer.md`.
+- `Makefile:169` — R7 — judgement — the `grep -E` inside `$(…)` in `doc-names` does not check
+  for exit 2, so a broken pattern reads as "no hit".
+
+### Simplifications
+
+1. `.claude/skills/ticket-implement/SKILL.md:59-68`: the Depth paragraph becomes a pointer to
+   `docs/knowledge/sdd.md`, where the same text lives; restores R16 and R15.
+2. `.claude/skills/ticket-implement/SKILL.md:91-94`: the round commit points to `sdd.md › Gates`
+   instead of restating it, so the two cannot disagree again.
+3. `.claude/rules/effect-style.md:27`: drop "`.value` only under a narrowing guard", which the
+   compiler enforces; gives R13 margin and the rule a free line.
+4. `Makefile` `doc-names`: per-run temporary files instead of the shared cache, and a check of
+   `grep`'s exit 2.
+5. `deployment/CLAUDE.md:3-4`: the stub sentence without the future event.
+6. `.claude/agents/implementer.md:52-54`: the Leftovers grep also covers `.claude/` and the
+   `CLAUDE.md` files.
+
+### Lessons
+
+#### L6 — Later steps grew a measured file back over its threshold
+
+- **Evidence:** R16 went from −23.8% in run 1 to −17.4% after S14 and S15 added to the skill;
+  R13 fell from −20.5% to −20.01% after S14 and S16 touched the rules.
+- **Cost:** a failed requirement, a fix step and a third run.
+- **Proposed change:** in `/ticket-implement`, a step that edits a file a requirement measures
+  re-measures it in its Verify.
+- **Applied:** no
+
+#### L7 — A code step was called mechanical and skipped `simplify` and Depth
+
+- **Evidence:** S9 (run 1) and S16 (run 2), the second after L5 defined a behaviour step.
+- **Cost:** R20 failed in both runs; S16's 22 converted functions had no design review.
+- **Proposed change:** in `/ticket-implement` step 5, a step is ready only once the passes step 2
+  and 3 name for it have run, and the commit body names them.
+- **Applied:** no
+
+#### L8 — Two passes reported one finding, or a pass reported outside its kind
+
+- **Evidence:** S13 (run 1, Standards and Spec), S15 (the hunt and Depth), S16 (Standards on a
+  non-binding style point).
+- **Cost:** a duplicated fix in S15's round 3, a non-finding in S16's report.
+- **Proposed change:** in `reviewer.md`, Depth leaves a correctness bug to the hunt, and Standards
+  reports only a binding rule it can cite.
+- **Applied:** no
+
+#### L9 — The main session filled its window by reading whole ticket files
+
+- **Evidence:** fresh sessions start at about 57 000 tok and reached 100 000 within 8 to 26 turns
+  (2026-10-31 to 2026-11-03), mostly whole reads of `plan.md` (11 500 tok on `modular-monolith`),
+  `architecture.md` and `feature.md`, and `cat` loops over several files; `plan.md` grows with
+  every step's findings.
+- **Cost:** earlier compactions (four in this session) and summaries that drop detail.
+- **Proposed change:** in `/ticket-implement` step 1, read only the plan's **Status** table and the
+  step's own section. Accepted by the user on 2026-11-03.
+- **Applied:** no
