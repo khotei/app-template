@@ -7,7 +7,7 @@ import { migrateDatabase, retryWhileUnreachable } from '@app-template/packages/d
 
 import { PgClientFromConfig } from '#kernel/postgres/postgres.client'
 
-const describeApplied = (applied: number) => {
+function describeApplied(applied: number) {
   if (applied === 0) return 'nothing to apply'
   return `applied ${applied} migration${applied === 1 ? '' : 's'}`
 }

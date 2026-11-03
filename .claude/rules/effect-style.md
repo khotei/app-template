@@ -9,6 +9,8 @@ Code reads top to bottom and extends by adding a row, not a branch.
 
 ## Signatures
 
+- A named function is a declaration (`function cancel(order: Order) { … }`); an arrow is a callback,
+  an expression body (`const isPaid = (order: Order) => order.paid`) or typed by its `const`.
 - Up to two parameters stay positional (`shipOrder(order, at)`); a third, or a boolean, moves into
   one trailing object after the subject: `cancelOrder(order, { reason, cause, at })`. More stay
   positional only where branded types tell them apart (`placeOrder(userId, cartId, input)`).
@@ -44,8 +46,7 @@ Code reads top to bottom and extends by adding a row, not a branch.
 - A composable function takes its subject last and alone, options first and curried
   (`pipe(message, encodeWith(codec))`); `dual` only when it is called both ways.
 - Helpers that differ only by a step inside one frame (a predicate, a mapper) are one function
-  taking that step, each caller passing its own in place, never a named wrapper per variant. A
-  rule varying by a key of a closed set stays a lookup table (› Branching).
+  taking that step, each caller passing its own in place, never a named wrapper per variant.
 ```ts
 // don't: a copy of the frame per field
 const sumTotal = (xs: ReadonlyArray<Order>) => pipe(xs, Arr.map((o) => o.total), Num.sumAll)

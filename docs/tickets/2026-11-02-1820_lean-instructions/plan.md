@@ -21,7 +21,7 @@
 | S13 | the ticket templates and the planning skills pin what a step needs and leave the rest to a grep | done |
 | S14 | verification run 1 and the prompt audit fixed: two stale doc lines, two recorded exceptions, a contradiction, findings presented one block each | done |
 | S15 | lessons L2–L5 of verification run 1: briefs name sources only, results quote their output, a behaviour step is one that changes code, the implementer's Bash guarded; plugins that overlap the skills off | done |
-| S16 | a named function is a `function` declaration; an arrow is a callback or an expression body | todo |
+| S16 | a named function is a `function` declaration; an arrow is a callback or an expression body | done |
 
 ## How to run this plan
 
@@ -852,7 +852,22 @@
 - **Verify:** `make check`; the grep for a named block-bodied arrow finds only the kept cases,
   each named in the report; `make doc-limits` passes on `effect-style.md`.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - 22 named block-bodied arrows became declarations, four of them with multi-line signatures
+    that a one-line grep misses; the multi-line grep found a planted probe
+    (`packages/testing/zz-probe.ts:1:plantedProbe`) and on the tree only `keepEarlyFinish`,
+    kept as typed by its `const`. Kept too, as values built by a call: `HttpClient.make`,
+    `Effect.sync`, `Effect.suspend`, `Logger.make`.
+  - `make check` before and after: exit 0, `221 passed (221)` and `104 passed (104)`; no test
+    changed. `make test-e2e` not run; the four e2e files change only declaration lines, which
+    the typecheck covers.
+  - Ledger: `effect-style.md` gains the rule in › Signatures and drops the Composition bullet's
+    pointer to the lookup-table rule, which › Branching states in full; 80 of 80 lines.
+  - Deviation: `feature.md › Out of scope` now excludes code changes other than the shape of a
+    named function, or it would contradict this step.
+  - Reviewed as a mechanical step (Standards and Spec): only declaration lines change, no body,
+    so `simplify` and Depth had nothing to judge.
 
 ## Requirement coverage
 

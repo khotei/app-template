@@ -116,10 +116,10 @@ export class QueueConsumer extends Context.Service<
     Effect.gen(function* () {
       const transport = yield* QueueTransport
 
-      const consume = <A, I, E, R>(
+      function consume<A, I, E, R>(
         definition: QueueDefinition<Schema.Codec<A, I>>,
         handle: Handler<A, E, R>,
-      ) => {
+      ) {
         const queue = queueName(definition.name)
         const decode = Schema.decodeEffect(buildJsonCodec(definition.schema))
         const extend = (received: Received, visibility: Duration.Input) =>

@@ -10,7 +10,7 @@ export interface SentJob {
 }
 
 /** A `QueueSender` that keeps each job sent in `sent`, in order. */
-export const recordQueue = () => {
+export function recordQueue() {
   const sent = Ref.makeUnsafe<ReadonlyArray<SentJob>>([])
   const layer = Layer.succeed(
     QueueSender,

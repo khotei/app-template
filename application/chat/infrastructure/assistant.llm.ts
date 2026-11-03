@@ -184,10 +184,10 @@ const encoder = new TextEncoder()
  * Hashes the system prompt with the JSON Schema document the model reads, so it moves exactly when
  * what is sent does.
  */
-export const generateInstructionsHash = (
+export function generateInstructionsHash(
   systemPrompt: string,
   schema: Schema.Top,
-): Effect.Effect<string, never, Crypto.Crypto> => {
+): Effect.Effect<string, never, Crypto.Crypto> {
   const instructions = `${systemPrompt}\n${JSON.stringify(Schema.toJsonSchemaDocument(schema))}`
   return Crypto.Crypto.use((crypto) => crypto.digest('SHA-256', encoder.encode(instructions))).pipe(
     Effect.map(Hex.encode),

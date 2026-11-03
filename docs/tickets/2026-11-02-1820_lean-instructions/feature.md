@@ -113,6 +113,9 @@ it targets.
 - The ticket templates and the skills that write a ticket: what a requirement, a design entry and
   a step name concretely, and what they leave to a pattern, a grep or a check.
 - The roadmap's `docs-diet` entry, absorbed.
+- One shape for a named function, asked by the user on 2026-11-03 outside the requirements: a
+  `function` declaration, an arrow only for a callback or an expression body, or one typed by its
+  `const`'s annotation; the code follows it, with no behaviour change.
 
 ## Out of scope
 
@@ -122,7 +125,8 @@ it targets.
   version" and point to the manifest instead.
 - Emphasis markers on rule lines (`**Required:**`, `IMPORTANT`): the docs advise against them; a
   costly trap is stated plainly and early in its file.
-- Code changes, and the plugin skills, which are referenced by name and never edited.
+- Code changes other than the shape of a named function, and the plugin skills, which are
+  referenced by name and never edited.
 
 ## Requirements
 
