@@ -50,6 +50,9 @@ jobs:
       - name: Lint
         run: make lint BIOME=ci
 
+      - name: Lint the docs
+        run: make doc-lint
+
       # prepare patches tsc on install; an install without it silently drops Effect diagnostics.
       - name: Assert the patched tsc
         run: bunx tsc --version | grep effect-tsgo
@@ -114,22 +117,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-
-      # A new project deletes the ticket folder, so an id outside it points nowhere.
-      - name: No ticket ids outside docs/tickets
-        run: make ids
-
-      - name: The names the docs cite exist
-        run: make doc-names
-
-      - name: Every rule filter matches a file
-        run: make rule-paths
-
-      - name: CLAUDE.md files and rules within their limits
-        run: make doc-limits
-
-      - name: Prose wrapped at 100
-        run: make doc-width
 
       - name: Check links
         uses: lycheeverse/lychee-action@v2

@@ -629,8 +629,9 @@ its record.
 - **Rejected:** `docs/adr/`: banned. The decisions only in the tickets: a session would have to
   know which ticket made a rule.
 - **Cost:** each decision is written twice: in its ticket as history, here as the binding rule.
-- **Guarded by:** `make doc-names` (every backticked name exists) and `make ids` (no ticket ids
-  outside `docs/tickets/`); review against `.claude/rules/claude-md.md`.
+- **Guarded by:** `make doc-lint` (every backticked repo path exists); review against
+  `.claude/rules/claude-md.md` and `.claude/rules/comments.md`, which refuse a ticket id outside
+  `docs/tickets/`.
 - **If reversed:** the decisions go back to the tickets, and the pointer in `CLAUDE.md` goes.
 - **Revisit when:** the records outgrow one page.
 
@@ -647,31 +648,30 @@ An instruction file, a `CLAUDE.md`, a rule, a skill or an agent, names a pattern
   [the ticket that made this record](../tickets/2026-11-02-1820_lean-instructions/feature.md).
 - **Rejected:** a separate check with allowed prefixes and a depth limit: four heuristics for the
   few source paths the files then named. An allowlist of names: itself a copy that goes stale.
-- **Cost:** a bare file name or a folder (`shared/`) passes until it goes stale; `make doc-names`
+- **Cost:** a bare file name or a folder (`shared/`) passes until it goes stale; `make doc-lint`
   then fails on it only where it starts at a top-level folder of the repo.
-- **Guarded by:** `make doc-names`, which fails on a source path in an instruction file whether
-  the file exists or not (what counts as one: the comments above the target); `make rule-paths`,
-  which fails on a rule whose `paths:` filter matches no file, since a rename can stop a rule
-  loading unseen.
-- **If reversed:** drop the pattern from `doc-names`; a source path is then checked only for
-  existing, so a moved file's line is caught but its rename still forces a doc edit.
+- **Guarded by:** `make doc-lint`, which fails on a source path in an instruction file whether
+  the file exists or not (what counts as one: the comments of `.markdownlint-cli2.mjs`), and on a
+  rule whose `paths:` filter matches no file, since a rename can stop a rule loading unseen.
+- **If reversed:** drop the `source-path` rule of the doc lint; a source path is then checked
+  only for existing, so a moved file's line is caught but its rename still forces a doc edit.
 - **Revisit when:** an instruction file must name a source file no pattern describes.
 
 ### Instructions within size limits
 
 A `CLAUDE.md` holds at most 40 lines and a rule at most 80; the numbers live only in the limits
-line of `.claude/rules/claude-md.md`, which `make doc-limits` reads.
+line of `.claude/rules/claude-md.md`, which `make doc-lint` reads.
 
 - **Why:** a `CLAUDE.md` or a rule is paid for in every session it matches, and files grow by
   appending: rules sat at or over 80 lines while the limits were advice that nothing checked.
   A hard limit makes the next fix cut a line instead of adding one.
 - **Sources:** `.claude/rules/claude-md.md` (the test a line must pass, the limits); the audit of
   [the ticket that made this record](../tickets/2026-11-02-1820_lean-instructions/feature.md).
-- **Rejected:** the numbers in the `Makefile`, the rule pointing to them: a reader of the rule
-  must open the `Makefile` to learn a limit. Soft limits ("about 40"): nothing refuses them.
+- **Rejected:** the numbers in the doc lint's config, the rule pointing to them: a reader of the
+  rule must open the config to learn a limit. Soft limits ("about 40"): nothing refuses them.
 - **Cost:** the check depends on one line's shape, so a reworded limits line makes it exit 2,
   naming the line it expects; a file at its limit takes no line without giving one up.
-- **Guarded by:** `make doc-limits`, which fails on a file over its limit, naming file and length.
-- **If reversed:** drop `doc-limits` from `make check`; the limits go back to advice.
+- **Guarded by:** `make doc-lint`, which fails on a file over its limit, naming file and length.
+- **If reversed:** drop the `over-limit` rule of the doc lint; the limits go back to advice.
 - **Revisit when:** a constraint that passes the test of `claude-md.md` no longer fits its file
   after every other line has been cut.

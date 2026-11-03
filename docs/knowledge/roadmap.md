@@ -509,8 +509,8 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   lists of a module's exports or class names, the layouts `ls` reproduces. Each becomes the
   concept and one exemplar, or goes; a code name stays where a rule or a gotcha needs it.
 - **Out of scope.** The ticket folders and the roadmap's history.
-- **Inherits from `architecture-audit` (2026-10-29).** `make doc-names` keeps the names the docs
-  keep true, but not whether a true name restates the code: that judgement is this ticket's. Most
+- **Inherits from `architecture-audit` (2026-10-29).** `make doc-lint` keeps the paths the docs
+  name true, but not whether a true name restates the code: that judgement is this ticket's. Most
   review rounds of that ticket's last steps fixed copies of code names gone stale.
 - **Status.** Done, absorbed by `lean-instructions`:
   [docs/tickets/2026-11-02-1820_lean-instructions/](../tickets/2026-11-02-1820_lean-instructions/feature.md).

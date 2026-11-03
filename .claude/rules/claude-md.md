@@ -53,12 +53,12 @@ not *why*: delete the line, don't update it.
 
 ## The limits and the checks
 
-- **Limits, checked by `make doc-limits`:** a `CLAUDE.md` 40 lines, a rule 80.
+- **Limits, checked by `make doc-lint`:** a `CLAUDE.md` 40 lines, a rule 80.
   Over a limit, cut; never append
   ([why](../../docs/knowledge/decisions.md#instructions-within-size-limits)).
-- `make doc-names` fails on a backticked path or name the repo lacks, and on a source path in an
-  instruction file ([why](../../docs/knowledge/decisions.md#instructions-name-patterns)).
-- `make rule-paths` fails on a rule whose `paths:` filter matches no file.
+- `make doc-lint` also fails on a backticked path the repo lacks, on a source path in an
+  instruction file ([why](../../docs/knowledge/decisions.md#instructions-name-patterns)) and on a
+  rule whose `paths:` filter matches no file.
 
 ## The toolkit
 
