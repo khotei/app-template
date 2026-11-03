@@ -19,6 +19,7 @@
 | S11 | tooling, AWS, database and AI pages own only their facts; the local stand's `README.md` gone | done |
 | S12 | decisions and the SDD guide trimmed; `docs-diet` done; the move probe | done |
 | S13 | the ticket templates and the planning skills pin what a step needs and leave the rest to a grep | done |
+| S14 | verification run 1 and the prompt audit fixed: two stale doc lines, two recorded exceptions, a contradiction, findings presented one block each | todo |
 
 ## How to run this plan
 
@@ -714,17 +715,47 @@
     planted file under `.claude/skills/` was refused by permissions, so the pre-step tree served
     as the red case.
 
+#### S14 — Fixes from verification run 1 and the prompt audit
+
+- **Delivers:** the move probe turns `doc-names` red only on `architecture.md › Where things
+  live`; the requirements record the two exceptions the tree already holds (the root
+  `CLAUDE.md` keeps the dependency command, `doc-names` skips the roadmap); the limits line has
+  its `decisions.md` record; the Effect rules no longer contradict each other on comparing
+  errors, nor name a client the repo lacks; the planning skills state rules, not incidents, and
+  point to where the worktree's symlink shows; `/ticket-implement` presents each finding the user
+  must decide on as one block, ending in its question; the `Makefile` spells the limits line once;
+  `worktree.sh` leaves no `.env.new` behind; `effect-style.md` sits under its cap.
+- **Goal:** run 2 of `/ticket-verify` passes R1, R2 and R7; the instruction files hold no
+  contradiction and no dead example; constraints unchanged (R1, R2, R7, R10, R21).
+- **Blocked by:** S13.
+- **Files:** `verification.md` run 1 and the prompt audit's proposed diff
+  (`/doctor prompt-audit`, 2026-11-03) are the start; they pin `architecture.md › Imports`'s
+  chat path, the R2 and R7 rows of `feature.md`, `effect-style.md` and `effect-tests.md` on
+  `Equal.equals`, `effect-services.md`'s `SqliteClient` example, `ticket-plan/SKILL.md › Size`,
+  `parallel-steps.md`'s `git worktree list` line, `ticket-implement/SKILL.md` step 4, the
+  `Makefile`'s `DOC_LIMITS_*`, `worktree.sh`, and S8's finding on the replay's Bash calls.
+- **Size:** ~120 lines.
+- **Test first:** the move-probe seam — the probe of S12 again, red on `doc-names` only at
+  `architecture.md › Where things live`; the checks seam — `doc-limits` still red on a rule at 81
+  lines and a reworded limits line after the `Makefile` change, and `worktree.sh` refusing with
+  no `.env.new` left when `bun install` fails.
+- **Verify:** `make check`; the probes above, each seen red; `git grep -n 'SqliteClient'` over
+  `.claude/` finds nothing; `git grep -n 'Equal.equals'` over `.claude/rules/` finds no line that
+  lets errors through it.
+- **Model:** `opus high`
+- **Status:** todo
+
 ## Requirement coverage
 
 | Req | Steps |
 |---|---|
-| R1 | S5, S9, S12 |
-| R2 | S5, S7, S8, S9, S10, S11, S12 |
+| R1 | S5, S9, S12, S14 |
+| R2 | S5, S7, S8, S9, S10, S11, S12, S14 |
 | R3 | S5, S7, S8, S9 |
 | R4 | S10, S11, S12 |
 | R5 | S5, S7, S8, S9 |
 | R6 | S10, S11, S12 |
-| R7 | S2 |
+| R7 | S2, S14 |
 | R8 | S2 |
 | R9 | S2 |
 | R10 | S9 |
@@ -738,6 +769,6 @@
 | R18 | S6 |
 | R19 | S6 |
 | R20 | S6 |
-| R21 | S6 |
+| R21 | S6, S14 |
 | R22 | S6 |
 | R23 | S13 |
