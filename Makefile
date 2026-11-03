@@ -138,7 +138,7 @@ check: doc-lint lint typecheck api-check migration-check test bundle-check ## Ru
 
 # Its scope and rules are .misc/lint/markdownlint-cli2.mjs; a reworded limits line stops it with 2.
 doc-lint: ## Lint the Markdown outside docs/tickets: width, paths, rule filters, file limits
-	@bunx markdownlint-cli2
+	@bunx markdownlint-cli2 --config .misc/lint/markdownlint-cli2.mjs
 
 # The rules a review of the uncommitted step holds the diff to: each rule without paths:, and each
 # whose filter matches a file the diff adds, changes or deletes (both sides of a rename), untracked
