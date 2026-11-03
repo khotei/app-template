@@ -270,14 +270,15 @@ doc-width: ## Fail on a prose line over 100 characters in the docs outside docs/
 		exit 1; \
 	fi
 
-# A plugin that errors on a file is skipped there with a notice, and Biome still exits 0: the run
-# prints notices, and an `errored:` among them stops it with 2. CI runs `make lint BIOME=ci`.
+# A plugin that errors on a file is skipped there with a notice, `  i <plugin> errored: <reason>`,
+# and Biome still exits 0: that line stops the run with 2. The pattern is anchored, as the output
+# also quotes source lines. CI runs `make lint BIOME=ci`.
 BIOME = check
 
 lint: ## Lint and format-check with Biome and its plugins, failing on a plugin that errored
-	@out=$$(bunx biome $(BIOME) --diagnostic-level=info --colors=off 2>&1); status=$$?; \
+	@out=$$(bunx biome $(BIOME) --colors=off 2>&1); status=$$?; \
 	printf '%s\n' "$$out"; \
-	if printf '%s\n' "$$out" | grep -q ' errored: '; then \
+	if printf '%s\n' "$$out" | grep -qE '^  i [^ ]+ errored: '; then \
 		echo 'lint: a Biome plugin errored and checked nothing in that file: fix the plugin.' >&2; \
 		exit 2; \
 	fi; \

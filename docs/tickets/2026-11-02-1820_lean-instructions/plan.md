@@ -1014,6 +1014,12 @@
     `make lint` and `bunx biome ci` both exit 0 before the fix; after it `make lint` and
     `make lint BIOME=ci` print `lint: a Biome plugin errored and checked nothing in that file:
     fix the plugin.`, `Error 2`. A plain lint error still fails with `Error 1`.
+  - **A quoted ` errored: ` (S18.3).** A probe `const s = " errored: "`, unused: S18.2's
+    unanchored `grep` read the code frame as a plugin error, `Error 2`; with
+    `^  i [^ ]+ errored: ` it fails as lint, `Error 1`, on `make lint` and `make lint BIOME=ci`,
+    and the broken-plugin probe beside it still gives `Error 2`. The notice prints at Biome's
+    default level, on `biome check` and `biome ci` alike (`  i broken errored: …`), so
+    `--diagnostic-level=info` is dropped.
   - `make help | grep -E "service-use|idioms|nested-calls"`: exit 1 (the Makefile before S18
     lists all three); `git grep` of the targets, `NESTED_`, `IDIOMS` and the negated `grep` outside
     `docs/tickets/` and `repos/`: exit 1 (before S18: 27 hits in five files); `git grep` of
@@ -1031,13 +1037,14 @@
     refused valid code; `Effect.zipWith(call, call, f)` now passes too.
   - **Deviation, one way to run Biome (S18.2).** Biome reports a plugin that errors on a file as an
     info notice, skips the plugin there and exits 0, in 2.5.15 with no option to fail on it. `make
-    lint` runs `bunx biome $(BIOME) --diagnostic-level=info --colors=off` and fails with exit 2 on
-    ` errored: `; CI's `static` job runs `make lint BIOME=ci`, and the `lint` script of
-    `package.json` is gone, so no path runs Biome without the check but the `pre-commit` hook's
-    `--staged` run, which CI backs.
+    lint` runs `bunx biome $(BIOME) --colors=off` and fails with exit 2 on a line
+    `  i <plugin> errored: ` (S18.3); CI's `static` job runs `make lint BIOME=ci`, and the `lint`
+    script of `package.json` is gone, so no path runs Biome without the check but the
+    `pre-commit` hook's `--staged` run, which CI backs.
   - Passes: `simplify` after S18.1 (the `$...` patterns, a `nested` predicate, the header);
     Standards, Spec, Depth and the hunt on S18.1; S18.2 applies their findings (the plugin
-    error, `zipWith`, the `make lint` row cut to what it runs and where its cases are read).
+    error, `zipWith`, the `make lint` row cut to what it runs and where its cases are read); the
+    hunt on S18.2; S18.3 anchors the plugin-error match.
 
 #### S19 — The doc checks as `markdownlint-cli2` rules
 
