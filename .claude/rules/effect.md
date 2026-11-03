@@ -23,7 +23,7 @@ are unstable and change between patches. Check Drizzle the same way, against
   `Option`); a comparator lambda in a sort (`Order`); an accumulator in a loop or `reduce` (`Arr`,
   `Reducer`); a spread that appends (`Arr.append`) or rebuilds a nested object (`Struct`, `Optic`);
   filter then map (`Arr.filterMap`, `Filter`); `flatMap(Option.toArray)` (`Arr.getSomes`);
-  `JSON.stringify` in a log (`Formatter`). `make idioms` fails on `=== undefined` and a comparator
+  `JSON.stringify` in a log (`Formatter`). `make lint` fails on `=== undefined` and a comparator
   sort.
 - Look for a utility type in effect's `Types` module, then in `type-fest`, before writing one.
 - Wrap a type built from others (`Pick`, `Omit`, `Partial`, `RequireAtLeastOne`, an

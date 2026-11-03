@@ -22,7 +22,7 @@
       "semicolons": "asNeeded"
     }
   },
-  "plugins": ["./biome-imports.grit"],
+  "plugins": ["./biome-imports.grit", "./biome-effect.grit"],
   "linter": {
     "enabled": true,
     "rules": {

@@ -3,9 +3,9 @@
 .DEFAULT_GOAL := help
 
 .PHONY: help setup stack up down reset worktree dev dev-api dev-worker dev-web debug-api \
-  debug-worker debug-web check ids doc-names rule-paths review-rules doc-limits doc-width \
-  service-use nested-calls lint fmt typecheck test test-unit test-e2e bundle-check clean outdated \
-  vendor-effect vendor-drizzle migrate migration migration-check api-check api-snapshot
+  debug-worker debug-web check ids doc-names rule-paths review-rules doc-limits doc-width lint \
+  fmt typecheck test test-unit test-e2e bundle-check clean outdated vendor-effect vendor-drizzle \
+  migrate migration migration-check api-check api-snapshot
 
 # The local Pulumi project: each tree's file backend under its .data/, named per command, so no
 # login is stored; the home (the provider plugins) is the main tree's .pulumi/, shared by every
@@ -130,7 +130,7 @@ debug-worker: ## Run the worker with --inspect and --watch
 debug-web: ## Run the web dev server with --inspect
 	bun --filter @app-template/web debug
 
-check: ids doc-names rule-paths doc-limits doc-width service-use nested-calls idioms lint typecheck api-check migration-check test bundle-check ## Run every gate: ids, doc names, rule filters, doc limits, doc width, service use, nested calls, idioms, lint, types, the HTTP contract, migrations, tests, the web bundle
+check: ids doc-names rule-paths doc-limits doc-width lint typecheck api-check migration-check test bundle-check ## Run every gate: ids, doc names, rule filters, doc limits, doc width, lint and the Effect style, types, the HTTP contract, migrations, tests, the web bundle
 
 ids: ## Fail on ticket ids in parentheses (D12, R3, Q70) outside docs/tickets
 	@if git grep --untracked -nE '\((D|R|Q)[0-9]+[a-z]?\)' -- . ':!docs/tickets' \
@@ -270,69 +270,6 @@ doc-width: ## Fail on a prose line over 100 characters in the docs outside docs/
 		exit 1; \
 	fi
 
-# Reads each file whole, so a call Biome wraps across lines is caught too; any second argument
-# counts, a point-free `Ref.get` included (.claude/rules/effect-style.md › Composition). The hits
-# go through a variable, so a perl that fails (a broken pattern) fails the gate too.
-service-use: ## Fail on Effect.flatMap or Effect.map over a service, which Service.use spells
-	@hits=$$(perl -0777 -ne 'while (/Effect\.(flatMap|map)\(\s*[A-Z][A-Za-z0-9_.]*\s*,/g) { \
-		print "$$ARGV:", 1 + (substr($$_, 0, $$-[0]) =~ tr/\n//), "\n" }' \
-		$$(git ls-files --cached --others --exclude-standard -- '*.ts' ':!repos')) || exit 2; \
-	if [ -n "$$hits" ]; then \
-		echo "$$hits"; \
-		echo 'Reach a service by Service.use, or Service.useSync for a plain value.'; \
-		exit 1; \
-	fi
-
-# Data-first combinators of effect's modules, curated so a constructor, a schema or a predicate
-# takes any argument. A subject is a call, a method chain or a trailing `.pipe(…)` included.
-# - unary: their one argument is the subject; any call there fails, a generator body passes
-#   (`Effect.scoped(Effect.gen(…))`).
-# - one: their data-last form takes one argument, so a call fails only when a second argument
-#   follows it; a lone `.pipe(…)` fails too, a pipe inside a pipe step (`Effect.provide(X.pipe(…))`).
-# - two: their data-last form takes two (`forEach(f, { discard })`), so only a module call fails.
-# The pattern is matched with /x: make joins the continued lines with spaces.
-NESTED_UNARY = Effect\.(fromOption|fromNullishOr|head|flip|exit|asVoid|asSome|orDie|ignore|forkChild|\
-forkScoped|forever|timed|transposeOption|option|flatten|scoped)|Option\.(getOrThrow|isSome|isNone|\
-flatten)|Arr\.(head|last|getSomes|flatten|isReadonlyArrayEmpty|isReadonlyArrayNonEmpty)|\
-Str\.(isEmpty|isNonEmpty|trim|toLowerCase)|Stream\.(runCollect|runDrain|runLast)|Layer\.(build|\
-launch|orDie)|Record\.(keys|values|toEntries)
-NESTED_ONE = Effect\.(map|flatMap|andThen|tap|as|mapError|catch|catchCause|catchTags|tapError|\
-tapCause|provide|repeat|retry|zip|race|raceFirst|ensuring|onExit|onError|timeout|match|matchEffect|\
-orElse\w*)|Option\.(map|flatMap|filter|getOrElse|match|exists|orElse)|Arr\.(map|filter|filterMap|\
-flatMap|sort|findFirst|findLast|some|every|append|appendAll|prepend|prependAll|match|take|drop|join)|\
-Str\.(split|startsWith|endsWith|includes)|Stream\.(map|tap|concat|merge|filter|take|runForEach|\
-schedule|grouped|catch|provide)|Layer\.(provide|provideMerge|merge|tap|catch)|Record\.(map|filter|get)
-NESTED_TWO = Effect\.(filterOrFail|forEach|catchTag|catchIf|catchCauseIf|tapCauseIf|tapErrorTag|\
-provideService|zipWith)|Arr\.reduce|Str\.(replace|slice)|Stream\.(mapEffect|mapAccum|runFold|\
-groupedWithin|scan\w*|flatMap)|Layer\.catchTag
-NESTED_PARENS = (\((?:[^()]++|(?-1))*+\))(?:\s*\.\s*[\w\$$]+\s*(?-1))*
-NESTED_ANY = [A-Za-z_\$$][\w\$$.]*\s*(?:<[^<>()]*>)?\s*$(NESTED_PARENS)
-NESTED_MODULE = (?:Effect|Option|Arr|Str|Stream|Layer|Record|Ref)\.\w+\s*$(NESTED_PARENS)
-NESTED_CALL = \b(?:$(NESTED_UNARY))\(\s*(?!Effect\.gen\b)$(NESTED_ANY) \
-  | \b(?:$(NESTED_ONE))\(\s*(?:$(NESTED_ANY)\s*,(?!\s*\))|[\w.]+\.pipe\() \
-  | \b(?:$(NESTED_TWO))\(\s*$(NESTED_MODULE)\s*,(?!\s*\))
-
-# The hits go through a variable, so a perl that fails (a broken pattern) fails the gate too.
-# Native code that an effect module spells: a check for undefined (UndefinedOr, Option) and a sort
-# by a comparator lambda (Order).
-IDIOMS = [!=]== undefined|\.sort\(\(
-
-idioms: ## Fail on native code an effect module spells (.claude/rules/effect.md)
-	@if git grep --untracked -nE '$(IDIOMS)' -- '*.ts' ':!repos' ':!**/migrations/**'; then \
-		echo 'Use the effect module named in .claude/rules/effect.md: UndefinedOr or Option, Order.'; \
-		exit 1; \
-	fi
-
-nested-calls: ## Fail on a combinator whose subject is another call, which a pipe spells in order
-	@hits=$$(perl -0777 -ne 'while (/$(NESTED_CALL)/gx) { \
-		print "$$ARGV:", 1 + (substr($$_, 0, $$-[0]) =~ tr/\n//), "\n" }' \
-		$$(git ls-files --cached --others --exclude-standard -- '*.ts' ':!repos')) || exit 2; \
-	if [ -n "$$hits" ]; then \
-		echo "$$hits"; \
-		echo 'Pipe the subject through the combinator: x.pipe(f), pipe(x, f), or flow(…) without x.'; \
-		exit 1; \
-	fi
-
 lint: ## Lint and format-check with Biome
 	bun run lint
 
@@ -353,11 +290,13 @@ test-e2e: ## Run the e2e tests under __e2e__/ and apps/e2e/ on their own contain
 	bun --bun vitest run --project e2e
 
 # Greps the service keys, string literals that survive the build however Bun applies
-# "sideEffects": docs/knowledge/architecture.md › Boundary guards.
+# "sideEffects": docs/knowledge/architecture.md › Boundary guards. A grep that exits 2 (a pattern
+# it rejects, a bundle it cannot read) stops the check with 2, so it never reads as a clean bundle.
 bundle-check: ## Fail when a service, use case, repository, port or adapter reaches the web bundle
 	bun build apps/web/app/main.ts --outdir node_modules/.cache/web-bundle --target browser
-	! grep -rE '@app-template/(kernel/|application/(use-cases/|[a-z0-9-]+/(services|infrastructure|domain)/))' \
-		node_modules/.cache/web-bundle
+	@grep -rE '@app-template/(kernel/|application/(use-cases/|[a-z0-9-]+/(services|infrastructure|domain)/))' \
+		node_modules/.cache/web-bundle; case $$? in 1) ;; 0) exit 1 ;; \
+		*) echo 'bundle-check: grep failed' >&2; exit 2 ;; esac
 
 clean: ## Remove installed dependencies, build caches and coverage
 	find . -name node_modules -type d -prune -exec rm -rf {} +

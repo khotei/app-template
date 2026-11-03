@@ -491,7 +491,9 @@ plugin reads the unit and the ring from the file's path. Which guard refuses wha
   (`~/packages/<repo>/`) misreads every file outside the three folders, refusing an app's own
   `#<app>/…`; the rules of the apps and `deployment` read the last ring folder on it the same way.
 - **Guarded by:** `make check` runs them all; the Standards reviewer reads the rules that bind
-  the diff (`make review-rules`); `biome.json` and `biome-imports.grit` beside it.
+  the diff (`make review-rules`); `biome.json` and its GritQL plugins beside it,
+  `biome-imports.grit` for the imports and `biome-effect.grit` for the Effect style a type-blind
+  reader can see.
 - **If reversed:** a test beside the rule, kept in step with every new module; a list per unit
   again, or a folder split into a workspace per unit
   ([Imports through subpaths](#imports-through-subpaths)), its dependencies in place of the lists.

@@ -1,0 +1,96 @@
+language js
+
+// The Effect style a type-blind reader can see. Grit has no types, so a service is a capitalised
+// name, and effect's modules are named as the code imports them (`Array as Arr`, `String as Str`).
+// A call pattern with a trailing $... stands alone, never as a later branch of an `or` sharing one
+// `where`, where it misses calls. Every regex group is non-capturing, as a capture group aborts the
+// plugin on the whole file.
+
+// Data-first combinators of effect's modules, curated so a constructor, a schema or a predicate
+// takes any argument.
+// - unary: their one argument is the subject, so any call there fails but a generator body
+//   (`Effect.scoped(Effect.gen(…))`).
+// - one: their data-last form takes one argument, so a call fails only when a second argument
+//   follows it; a lone `<name>.pipe(…)` fails too, a pipe inside a pipe step.
+// - two: their data-last form takes two (`forEach(f, { discard })`), so only a module call
+//   followed by another argument fails.
+pattern unary() {
+  or {
+    r"Effect\.(?:fromOption|fromNullishOr|head|flip|exit|asVoid|asSome|orDie|ignore|forkChild|forkScoped|forever|timed|transposeOption|option|flatten|scoped)",
+    r"Option\.(?:getOrThrow|isSome|isNone|flatten)",
+    r"Arr\.(?:head|last|getSomes|flatten|isReadonlyArrayEmpty|isReadonlyArrayNonEmpty)",
+    r"Str\.(?:isEmpty|isNonEmpty|trim|toLowerCase)",
+    r"Stream\.(?:runCollect|runDrain|runLast)",
+    r"Layer\.(?:build|launch|orDie)",
+    r"Record\.(?:keys|values|toEntries)"
+  }
+}
+
+pattern one() {
+  or {
+    r"Effect\.(?:map|flatMap|andThen|tap|as|mapError|catch|catchCause|catchTags|tapError|tapCause|provide|repeat|retry|zip|race|raceFirst|ensuring|onExit|onError|timeout|match|matchEffect|orElse\w*)",
+    r"Option\.(?:map|flatMap|filter|getOrElse|match|exists|orElse)",
+    r"Arr\.(?:map|filter|filterMap|flatMap|sort|findFirst|findLast|some|every|append|appendAll|prepend|prependAll|match|take|drop|join)",
+    r"Str\.(?:split|startsWith|endsWith|includes)",
+    r"Stream\.(?:map|tap|concat|merge|filter|take|runForEach|schedule|grouped|catch|provide)",
+    r"Layer\.(?:provide|provideMerge|merge|tap|catch)",
+    r"Record\.(?:map|filter|get)"
+  }
+}
+
+pattern two() {
+  or {
+    r"Effect\.(?:filterOrFail|forEach|catchTag|catchIf|catchCauseIf|tapCauseIf|tapErrorTag|provideService|zipWith)",
+    r"Arr\.reduce",
+    r"Str\.(?:replace|slice)",
+    r"Stream\.(?:mapEffect|mapAccum|runFold|groupedWithin|scan\w*|flatMap)",
+    r"Layer\.catchTag"
+  }
+}
+
+predicate nested($call) {
+  register_diagnostic(span=$call, message="a combinator's subject is never another call: pipe the subject through it, x.pipe(f), pipe(x, f) or flow(…) without x (effect-style.md › Composition)")
+}
+
+pattern module_call() {
+  JsCallExpression() as $call where {
+    $call <: r"(?s)(?:Effect|Option|Arr|Str|Stream|Layer|Record|Ref)\.\w+\s*(?:<.*>)?\s*\(.*"
+  }
+}
+
+or {
+  `$callee($subject, $_, $...)` as $call where {
+    $callee <: r"Effect\.(?:flatMap|map)",
+    $subject <: r"[A-Z][A-Za-z0-9_.]*",
+    register_diagnostic(span=$call, message="a service is reached by <Service>.use((s) => s.<method>(…)), or useSync for a plain value, never Effect.flatMap or Effect.map over it (effect-style.md › Composition)")
+  },
+  or {
+    `$value === undefined`,
+    `$value !== undefined`
+  } as $check where {
+    register_diagnostic(span=$check, message="a check against undefined is spelled by effect's UndefinedOr or Option (effect.md)")
+  },
+  `$values.sort($compare)` as $call where {
+    $compare <: JsArrowFunctionExpression(),
+    register_diagnostic(span=$call, message="a sort by a comparator lambda is spelled by effect's Order (effect.md)")
+  },
+  `$callee($subject, $...)` as $call where {
+    $callee <: unary(),
+    $subject <: JsCallExpression(),
+    not $subject <: r"(?s)Effect\.gen\b.*",
+    nested($call)
+  },
+  `$callee($subject, $_, $...)` as $call where {
+    or {
+      and { $callee <: one(), $subject <: JsCallExpression() },
+      and { $callee <: two(), $subject <: module_call() }
+    },
+    nested($call)
+  },
+  `$callee($subject)` as $call where {
+    $callee <: one(),
+    $subject <: `$name.pipe($_)`,
+    $name <: r"[\w.]+",
+    nested($call)
+  }
+}

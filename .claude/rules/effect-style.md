@@ -37,12 +37,12 @@ Code reads top to bottom and extends by adding a row, not a branch.
   logging, retries, transactions, tracing) is piped onto the step it serves, never wrapped around
   it, or passed as `Effect.fn`'s pipeables (`effect-services.md › Functions`).
 - A service is reached by `Service.use((s) => s.m(…))`, or `useSync` for a plain value; a call
-  never takes another call's result as its subject (`make service-use`, `make nested-calls`). A
-  value with `.pipe` goes through it, plain data through `pipe(value, …)`, never both in one
-  chain. A function whose every step feeds only the next is point-free (`flow(…)`, or an arrow
-  whose body is one `.pipe`), never at the cost of a cast or a lost `E` or `R`. Go data-last when
-  the function's name says the step (`Effect.tap(Arr.match({ … }))`); a lambda only to add an
-  argument or a name.
+  never takes another call's result as its subject (`make lint` fails on both). A value with
+  `.pipe` goes through it, plain data through `pipe(value, …)`, never both in one chain. A
+  function whose every step feeds only the next is point-free (`flow(…)`, or an arrow whose body
+  is one `.pipe`), never at the cost of a cast or a lost `E` or `R`. Go data-last when the
+  function's name says the step (`Effect.tap(Arr.match({ … }))`); a lambda only to add an argument
+  or a name.
 - A composable function takes its subject last and alone, options first and curried
   (`pipe(message, encodeWith(codec))`); `dual` only when it is called both ways.
 - Helpers that differ only by a step inside one frame (a predicate, a mapper) are one function
