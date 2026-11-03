@@ -6,7 +6,7 @@
 
 | Step | Delivers | Status |
 |---|---|---|
-| S1 | the baseline: what each lever's target loads today | todo |
+| S1 | the baseline: what each lever's target loads today | done |
 | S2 | `doc-names` over every doc, refusing a source path in an instruction file; `rule-paths` | todo |
 | S3 | reviewers read only the cited design and the matching rules; the implementer reads no rule up front | todo |
 | S4 | parallel steps read on demand; the worktree setup a script | todo |
@@ -39,7 +39,8 @@
   APIs checked against `repos/effect`, first in `effect.md` (S7).
 - **Measuring** (D6): S1 writes the recipe into its findings; S3, S4 and S8 repeat it for their
   lever and record before, after and the cut in their findings. The `InstructionsLoaded` hook
-  lives in the scratch worktree's `.claude/settings.local.json` and is never committed. A lever
+  lives in the scratch worktree's `.claude/settings.local.json` and is never committed. Sessions
+  run in `acceptEdits` with the file tools allowed, never `bypassPermissions` (S1). A lever
   under 20% where R15 asks for 20% is reported, not committed as done: the step cuts further or
   the user decides.
 - A step that rewrites a `docs/knowledge/` page also trims every rule and `CLAUDE.md` line that
@@ -89,7 +90,91 @@
     its containers and the hook are removed after (`make down`, `make reset`, `git worktree
     remove`); `git status --short` shows only `plan.md`.
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - **Worktree.** A scratch worktree `lean-instructions-S1-replay` (`N=1`), on a branch at
+    `17c552af21^`, set up by the block of `ticket-implement/SKILL.md › Parallel steps` (its
+    `ln -sfn` line skipped: the folder already has the name, so it would link inside itself).
+    `.claude/` is taken from the ticket branch's `HEAD` and committed on the scratch branch, so
+    `git diff HEAD` shows only the replayed step: left staged, it made the main session send the
+    reviewers to `git show HEAD:.claude/rules/…`, the old rules. Removed after, with its
+    containers and branch.
+  - **Hook.** `InstructionsLoaded` in the worktree's `.claude/settings.local.json` runs
+    `jq -c '. + {logged_at: (now|todate)}' >> <log>`, one JSON line per input (`file_path`,
+    `load_reason`, `trigger_file_path`, `agent_id` on a subagent's load).
+  - **Sessions**, with the worktree as cwd, in the mode the *Measuring* line names:
+
+    ```sh
+    claude -p "$(cat <prompt>)" --permission-mode acceptEdits \
+      --allowedTools "Bash Read Edit Write Glob Grep Agent Skill" \
+      --output-format stream-json --verbose < /dev/null
+    ```
+
+    The prompts, verbatim:
+    - R13: `You are the main session of /ticket-implement, step 2 only (Implement). Spawn the
+      implementer agent (subagent_type "implementer", model "opus", effort "high") with this
+      exact prompt: "Ticket folder: docs/tickets/2026-10-31-0926_modular-monolith/. Step: S34."
+      Wait for its report and print it verbatim. Do nothing else.`
+    - R12, on S34's diff applied uncommitted (its own `plan.md` and `architecture.md` edits left
+      out, as approval makes them): `You are the main session of /ticket-implement for the
+      ticket docs/tickets/2026-10-31-0926_modular-monolith/, step S34. The implementer has
+      finished; its uncommitted step is the working tree. Read
+      .claude/skills/ticket-implement/SKILL.md and perform its step 3 (Review) exactly as written
+      for S34, with one exception: run only the Standards and Spec axes as reviewer sub-agents
+      with the overrides its table gives. Skip the bug hunt, the silent-failure hunter, the Depth
+      axis and simplify. Print the two reports. Edit nothing, commit nothing.`
+    - R14: `Use only the Read and Edit tools. Read application/chat/domain/chat.model.ts, then
+      append the line // probe after its last line; then the same for
+      application/chat/services/chat.service.ts. Reply done.`
+  - **Counting.** Reads come from each subagent's transcript
+    (`~/.claude/projects/<cwd>/<session>/subagents/agent-<id>.jsonl`): every `Read`, `cat`,
+    `sed`, `grep` or `git show` of a counted file, sized by rerunning the same command and
+    counting its output. Loads come from the hook log; a subagent inherits `CLAUDE.md` and the
+    unfiltered `commits.md` without a hook line, so both count as loaded. Project files only.
+    Bytes by `wc -c`; tokens as characters (`wc -m`) ÷ 4, rounded (no tokenizer locally).
+  - **R13 (the implementer on S34, `opus high`, 616 s, `make check` green).** It read no rule
+    by tool. The filters loaded 13 rules: `commits` (at start), `sdd`, `claude-md`,
+    `effect-schema`, `effect`, `deep-modules`, `comments`, `effect-tests`, `modules`,
+    `effect-style`, `effect-services`, `naming` and `layering`; not `tooling` or
+    `pull-requests`. **Baseline: 49 968 B, 12 452 tok.** Outside the slice: `CLAUDE.md`,
+    `kernel/CLAUDE.md` and `application/CLAUDE.md`, 4 954 B, 1 233 tok.
+  - **R12, two runs** (Standards on `sonnet`, Spec on `opus`):
+
+    | | run 1 | run 2 | mean |
+    |---|---|---|---|
+    | Standards, ticket `architecture.md` read | 0 | 0 | **0** |
+    | Spec, ticket `architecture.md` read | 3 294 B / 820 tok | 5 096 B / 1 268 tok | **4 195 B / 1 044 tok** |
+    | Standards, rules read | 12 946 B / 3 224 tok | 5 328 B / 1 328 tok | 9 137 B / 2 276 tok |
+    | Standards, rules loaded (`commits`) | 1 548 B / 387 tok | 1 548 B / 387 tok | 1 548 B / 387 tok |
+    | **Standards, rules total** | 14 494 B / 3 611 tok | 6 876 B / 1 715 tok | **10 685 B / 2 663 tok** |
+
+    The Spec reviewer finds the step's `D…` with `grep -n` and reads about 50 lines of the
+    874-line file with `sed -n`. The Standards reviewer reads with `cat` alone, so no filter
+    fires for it, and reads at most three of the rules `reviewer.md` lists (run 1: `effect-tests`,
+    `comments`, `naming` whole; run 2: most of `effect-tests`, 10 grep lines of `naming`).
+  - **R14.** The domain file loads `application/CLAUDE.md` and 9 rules (`deep-modules`,
+    `effect-schema`, `modules`, `comments`, `effect`, `effect-style`, `layering`, `naming`,
+    `effect-services`); the services file loads nothing new. With `CLAUDE.md` and `commits.md`
+    from the start: **baseline 41 921 B, 10 451 tok** (rules 38 245 B / 9 536 tok, `CLAUDE.md`
+    files 3 676 B / 915 tok).
+  - **R16.** `/ticket-implement` loads `SKILL.md` without its front matter, a fixed text:
+    **8 814 B, 2 202 tok**. `## Parallel steps`, which a one-step run does not need, is
+    3 745 B, 936 tok (42% of the body).
+  - Open, the user's call before S3, where the baseline contradicts the requirements:
+    - R12's row asks each reviewer's reading of the design to drop by 20%; the Standards
+      reviewer reads none of it.
+    - R12's row also asks the Standards reviewer's rule reading to drop by 20%, while R12 hands
+      it every unfiltered rule and every rule whose filter matches the diff; today it reads at
+      most three, so the lever would raise that reading, not cut it.
+    - The reviewers' slices vary between runs (Standards 1 715 and 3 611 tok); D6 says the
+      slice a lever targets does not.
+    - R13 assumed the implementer reads every rule up front; it reads none, so R13's cut can
+      come only from shorter rule text (S7, S8), and no step measures R13 after them.
+    - Proposed: R12's design cut applies to the Spec reviewer and is the mean of two runs; the
+      Standards reviewer is held to citing every rule that binds its files, not to a cut; S8
+      reruns R13 beside R14.
+  - Found for later steps: with file tools allowed, `claude-md.md` loaded on a read of a
+    `docs/knowledge/` page that matches neither of its filters (S2 checks the filters).
 
 #### S2 — Names across every doc, and every filter matching
 
@@ -128,7 +213,8 @@
   Seam row and Contracts entries) and the Standards reviewer the rules without a filter plus
   those whose filter matches a file of the diff; the reviewer reads only those. The implementer
   no longer reads every rule at the start: the rules arrive as it reads files, and it reads a
-  file of a folder before writing a new file there. The replayed step shows each cut against the
+  file of a folder before writing a new file there, reading and editing through the file tools
+  (S1: under `bypassPermissions` an agent edits through Bash and no path filter fires). The replayed step shows each cut against the
   baseline.
 - **Goal:** less reading per step, the same rules applied (R12, R13, R15, D2, D7).
 - **Blocked by:** S1.
