@@ -96,7 +96,7 @@ changes it.
 | `deployment/` | Pulumi programs that provision the stores, in MiniStack locally and on AWS |
 | `docs/knowledge/` | how the system works today: architecture, data, AWS, AI, tooling, process, decisions, glossary, roadmap |
 | `docs/tickets/` | one folder per ticket: its requirements, design, plan and verification |
-| `.claude/` | the agent toolkit: skills, agents, hooks, rules and the project's settings |
+| `.claude/` | the agent toolkit: the project's `CLAUDE.md`, skills, agents, hooks, rules and settings |
 | `repos/` | Effect's and Drizzle's source at the pinned versions, to read rather than guess |
 | `CLAUDE.md` in a folder | the rules of that layer, written for the agent and short enough for you |
 
