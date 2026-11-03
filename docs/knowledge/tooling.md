@@ -21,9 +21,9 @@ and `make setup` and `make test-unit` need neither.
 | `make dev-api` · `dev-worker` · `dev-web` | one app's `dev` script, the api's and the worker's after `make migrate` | one process |
 | `make debug-api` · `debug-worker` · `debug-web` | one app's `debug` script | the same mode plus `--inspect` |
 | `make check` | `doc-lint`, `lint`, `typecheck`, `api-check`, `migration-check`, `test`, `bundle-check` | the gate before every commit and step report |
-| `make doc-lint` | `markdownlint-cli2` with `.markdownlint-cli2.mjs` over the Markdown outside `docs/tickets/`, `repos/` and the ignored files: MD013 at 100 and four rules of its own, every other markdownlint rule off | a prose line over 100 (tables, fences, headings and a line with no space past 100 pass); a backticked repo path that does not exist, the roadmap skipped; a source path in a `CLAUDE.md`, a rule, a skill or an agent ([decisions.md › Instructions name patterns](decisions.md#instructions-name-patterns)); a rule `paths:` filter that matches no file through git's glob, a brace included; a `CLAUDE.md` or a rule over its limit ([decisions.md › Instructions within size limits](decisions.md#instructions-within-size-limits)). Each fails the gate naming file and line; a reworded limits line stops it with exit 2, naming the line it expects |
-| `make review-rules` | `bun rule-filters.mjs`, the doc lint's reader of each rule's `paths:`, then `git diff HEAD --no-renames --name-only` and `git ls-files --others --exclude-standard` for each filter | lists the rules that bind the uncommitted diff, those without a filter included: the standards `/ticket-implement` gives the Standards reviewer; not part of `check` |
-| `make lint` | `biome check` (CI: `make lint BIOME=ci`, `biome ci`) with the GritQL plugins `biome-imports.grit` (imports) and `biome-effect.grit` (the Effect style of [effect-style.md › Composition](../../.claude/rules/effect-style.md#composition) and [effect.md](../../.claude/rules/effect.md); what each list flags: the plugin's comments) | lint, format and import order, without writing; a plugin that errors on a file, which Biome only notes and skips, fails it with exit 2 |
+| `make doc-lint` | `markdownlint-cli2` with `.misc/lint/markdownlint-cli2.mjs` over the Markdown outside `docs/tickets/`, `repos/` and the ignored files: MD013 at 100 and four rules of its own, every other markdownlint rule off | a prose line over 100 (tables, fences, headings and a line with no space past 100 pass); a backticked repo path that does not exist, the roadmap skipped; a source path in a `CLAUDE.md`, a rule, a skill or an agent ([decisions.md › Instructions name patterns](decisions.md#instructions-name-patterns)); a rule `paths:` filter that matches no file through git's glob, a brace included; a `CLAUDE.md` or a rule over its limit ([decisions.md › Instructions within size limits](decisions.md#instructions-within-size-limits)). Each fails the gate naming file and line; a reworded limits line stops it with exit 2, naming the line it expects |
+| `make review-rules` | `bun .misc/lint/rule-filters.mjs`, the doc lint's reader of each rule's `paths:`, then `git diff HEAD --no-renames --name-only` and `git ls-files --others --exclude-standard` for each filter | lists the rules that bind the uncommitted diff, those without a filter included: the standards `/ticket-implement` gives the Standards reviewer; not part of `check` |
+| `make lint` | `biome check` (CI: `make lint BIOME=ci`, `biome ci`) with `.misc/lint/biome.json` and its GritQL plugins `biome-imports.grit` (imports) and `biome-effect.grit` (the Effect style of [effect-style.md › Composition](../../.claude/rules/effect-style.md#composition) and [effect.md](../../.claude/rules/effect.md); what each list flags: the plugin's comments) | lint, format and import order, without writing; a plugin that errors on a file, which Biome only notes and skips, fails it with exit 2 |
 | `make fmt` | `biome check --write` | apply formatting, import sorting and safe fixes |
 | `make typecheck` | `bunx tsc -b`, the patched `tsc` | typecheck every workspace through the project references, Effect diagnostics included |
 | `make migrate` · `migration NAME=<name>` · `migration-check` | the kernel's migrate program · `drizzle-kit generate` | apply, generate and check migrations: [database.md › Migrations](database.md#migrations) |
@@ -36,6 +36,14 @@ and `make setup` and `make test-unit` need neither.
 | `make vendor-effect` | `git subtree pull --squash --prefix repos/effect` of the `effect@<pin>` tag | update `repos/effect` to the catalog pin; it commits, so run it on a clean tree. First time: `git subtree add` with the same arguments |
 | `make vendor-drizzle` | `git subtree add`, then `pull`, `--squash --prefix repos/drizzle` of the `v<pin>` tag of `drizzle-orm` | the same for `repos/drizzle`: the whole Drizzle monorepo, since `git subtree` takes no subfolder; the source is under `repos/drizzle/drizzle-orm/src` |
 | `make clean` | removes every `node_modules` and `coverage` | a clean reinstall: follow with `make setup` |
+
+The lint configuration lives in `.misc/lint/`, the folder for what serves the repo and not the
+application; a lint rule is written only there. Biome and `markdownlint-cli2` read a config only
+in the folder they start from and its parents, so the root keeps two stubs they and an editor
+find by name: `biome.json` (`"root": true`) extends `.misc/lint/biome.json`, and
+`.markdownlint-cli2.mjs` re-exports `#lint/markdownlint-cli2`. Biome resolves a `plugins` path of
+the extended config from the root, so it reads `./.misc/lint/<name>.grit`, and that config
+force-ignores itself (`!!`), since Biome would load it again as a second root config.
 
 One file, or the tests whose name matches, through vitest itself (`--project e2e` for an e2e
 file, Docker running; `vitest` without `run` watches):
@@ -313,7 +321,8 @@ symlink and checks its sources either way.
 4. Add the path to the root `tsconfig.json` `references`.
 5. Run `bun install` and `make check`.
 
-A new workspace the browser imports gets an override like `http-api/**`'s in `biome.json`; a
+A new workspace the browser imports gets an override like `http-api/**`'s in
+`.misc/lint/biome.json`; a
 new module, kernel part or package adds nothing there
 ([decisions.md › Guards are configuration](decisions.md#guards-are-configuration)).
 

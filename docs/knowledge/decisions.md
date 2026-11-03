@@ -462,8 +462,8 @@ bundle check; what no configuration expresses are the review rules `.claude/rule
 and, for a handler, `layering.md`, never hand-written test code. Each import rule is held once,
 by the guard that can see it: the linker and `tsc -b` see a workspace but no unit inside a
 folder, since `kernel/`, `packages/` and `application/` are one workspace and one
-`tsconfig.json` project each; `biome.json` has one override per layer, never per unit, and the
-plugin reads the unit and the ring from the file's path. Which guard refuses what:
+`tsconfig.json` project each; `.misc/lint/biome.json` has one override per layer, never per
+unit, and the plugin reads the unit and the ring from the file's path. Which guard refuses what:
 [architecture.md › Dependency rules](architecture.md#dependency-rules) and
 [Boundary guards](architecture.md#boundary-guards).
 
@@ -491,7 +491,7 @@ plugin reads the unit and the ring from the file's path. Which guard refuses wha
   (`~/packages/<repo>/`) misreads every file outside the three folders, refusing an app's own
   `#<app>/…`; the rules of the apps and `deployment` read the last ring folder on it the same way.
 - **Guarded by:** `make check` runs them all; the Standards reviewer reads the rules that bind
-  the diff (`make review-rules`); `biome.json` and its GritQL plugins beside it,
+  the diff (`make review-rules`); `.misc/lint/biome.json` and its GritQL plugins beside it,
   `biome-imports.grit` for the imports and `biome-effect.grit` for the Effect style a type-blind
   reader can see.
 - **If reversed:** a test beside the rule, kept in step with every new module; a list per unit
@@ -651,8 +651,9 @@ An instruction file, a `CLAUDE.md`, a rule, a skill or an agent, names a pattern
 - **Cost:** a bare file name or a folder (`shared/`) passes until it goes stale; `make doc-lint`
   then fails on it only where it starts at a top-level folder of the repo.
 - **Guarded by:** `make doc-lint`, which fails on a source path in an instruction file whether
-  the file exists or not (what counts as one: the comments of `.markdownlint-cli2.mjs`), and on a
-  rule whose `paths:` filter matches no file, since a rename can stop a rule loading unseen.
+  the file exists or not (what counts as one: the comments of
+  `.misc/lint/markdownlint-cli2.mjs`), and on a rule whose `paths:` filter matches no file,
+  since a rename can stop a rule loading unseen.
 - **If reversed:** drop the `source-path` rule of the doc lint; a source path is then checked
   only for existing, so a moved file's line is caught but its rename still forces a doc edit.
 - **Revisit when:** an instruction file must name a source file no pattern describes.

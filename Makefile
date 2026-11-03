@@ -132,16 +132,16 @@ debug-web: ## Run the web dev server with --inspect
 
 check: doc-lint lint typecheck api-check migration-check test bundle-check ## Run every gate: the docs, lint and the Effect style, types, the HTTP contract, migrations, tests, the web bundle
 
-# Its scope and rules are .markdownlint-cli2.mjs; a reworded limits line stops it with 2.
+# Its scope and rules are .misc/lint/markdownlint-cli2.mjs; a reworded limits line stops it with 2.
 doc-lint: ## Lint the Markdown outside docs/tickets: width, paths, rule filters, file limits
 	@bunx markdownlint-cli2
 
 # The rules a review of the uncommitted step holds the diff to: each rule without paths:, and each
 # whose filter matches a file the diff adds, changes or deletes (both sides of a rename), untracked
 # files included. /ticket-implement hands this list to the Standards reviewer. The filters are
-# read by rule-filters.mjs, the doc lint's reader.
+# read by .misc/lint/rule-filters.mjs, the doc lint's reader.
 review-rules: ## List the rules that bind the uncommitted diff: no paths: filter, or one it matches
-	@filters=$$(bun rule-filters.mjs) || exit 2; \
+	@filters=$$(bun .misc/lint/rule-filters.mjs) || exit 2; \
 	bound=$$(printf '%s\n' "$$filters" | while read -r rule filter; do \
 		[ -n "$$filter" ] || continue; \
 		files=$$(git diff HEAD --no-renames --name-only -- ":(glob)$$filter" && \
