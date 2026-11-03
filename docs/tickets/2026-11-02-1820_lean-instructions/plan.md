@@ -26,6 +26,8 @@
 | S18 | the Effect-style checks are Biome rules; the bundle check stops on a failed `grep` | done |
 | S19 | the doc checks are `markdownlint-cli2` rules; the names and ids checks gone | done |
 | S20 | the lint configuration lives in `.misc/lint/`; the root keeps two stubs the tools find | done |
+| S21 | verification run 3's doc fixes: one statement each for the commit per round, ticket ids and the limits; `gh api` asks; the verify fixed point; pointers as links | planned |
+| S22 | lessons L10–L14: the implementer's shell guard, Standards without the smell baseline and with `make review-rules` verbatim, one finding line, statement leftovers, one behaviour-step test | planned |
 
 ## How to run this plan
 
@@ -1209,12 +1211,78 @@
   - `make check` green after each round: unit 221 passed, e2e 104 passed, the bundle check
     passed.
 
+#### S21 — Doc fixes from verification run 3
+
+- **Delivers:**
+  - How a step commits is stated once, in `sdd.md › Gates` (rounds, one commit each); "one plan
+    step = one commit" goes from `sdd.md` and every other file that repeats it points to the
+    Gates (R2).
+  - `docs/knowledge/decisions.md` agrees with D16: a ticket id is refused in a code comment by
+    `comments.md` and in an instruction file by `claude-md.md`, by review, with no check; the
+    limits record names `claude-md.md`'s limits line without its numbers (R2).
+  - `.claude/settings.json` asks before `gh api`, so no merge or ref write runs unasked (R17).
+  - `/ticket-verify` and `verifier.md` take the fixed point as the merge-base with the PR's base
+    branch, not `origin/main`.
+  - Every `file › section` pointer that `make doc-lint` skips and that names a doc, not the rule
+    of the same name, is a link to its anchor; `architecture.md › Contracts` says a package
+    specifier (`@<scope>/…`) passes, as the lint does.
+  - `feature.md › Scope` names the settings, plugin and MCP changes and the lint configuration in
+    `.misc/lint/`, each asked by the user.
+- **Goal:** R2 holds again; R17's "merging always waits" holds against the shell too; the review
+  of a branch whose PR targets another branch sees only its own commits.
+- **Blocked by:** S20.
+- **Files:** `verification.md` run 3 › Requirements (R2), Review and Simplifications 1, 5, 6, 7.
+  Trap: the old statements are phrases, not names; the Leftovers grep runs on "one commit" and
+  "ticket number" over `.claude/`, the `CLAUDE.md` files, `docs/knowledge/` and the templates.
+- **Size:** ~40 lines.
+- **Test first:** docs and config only; the R2 grep as the check: "one commit" and the limits'
+  numbers hit only their owner, seen hitting several files first.
+- **Verify:** `make check`; the R2 greps quoted; `make doc-lint` green with the new links; R13's
+  and R16's measurements repeated if a measured file changed (L6).
+- **Model:** `sonnet high`
+- **Status:** planned
+
+#### S22 — Lessons L10–L14 of verification run 3
+
+- **Delivers:**
+  - `implementer.md`'s front matter carries a `PreToolUse` hook on Bash that refuses a file read
+    or edit through the shell (`cat`, `sed -n`, `sed -i`, a heredoc or redirect into a file) and
+    `git checkout --`, naming the file tool to use instead (L10, the user's choice A over the
+    removal in 7b4e4ffe45). `make`, `git grep`, `git status`, `git diff` and the test runners
+    pass.
+  - `/ticket-implement`: the Standards brief carries no smell baseline, since Depth owns the
+    shape, and its rule list is `make review-rules`'s output pasted verbatim (L11, L12); a
+    behaviour step is decided by one test, the diff changes the content of a `.ts` file, a recipe
+    or a script, so a pure move is not one (R20).
+  - `implementer.md` writes the `plan.md` edits the main session dictates at the last round, and
+    no other (L11); the skill's feedback bullet says the same.
+  - `reviewer.md` states the finding shape as one literal line, `` `path:line` — <rule or R…> —
+    hard | judgement — <fix> ``, and drops a finding without a line (L13).
+  - `implementer.md › Leftovers`: a step that changes a rule or a decision greps the old
+    statement's key phrase, not only the renamed names (L14).
+- **Goal:** R12, R13, R19 and R21 hold on the next steps by their mechanism, not by an agent
+  remembering a line.
+- **Blocked by:** S21.
+- **Files:** `verification.md` run 3 › Lessons and Simplifications 2, 3, 4, 8; the hook script
+  under `.claude/hooks/`; `docs/knowledge/sdd.md`'s dependency map gains the hook's row and node,
+  as the removed guard had. Trap: the lesson lines add to the skill R16 measures (≤ 1 761 tok)
+  and to the rules R13 measures (≤ 9 961 tok), so measure after all of them (L6).
+- **Size:** ~120 lines.
+- **Test first:** the hook's seam: piped tool inputs for `cat x`, `sed -i '' …`, `cat > x <<EOF`,
+  `python3 - <<EOF` writing a file and `git checkout -- x` are refused, seen red first with no
+  hook; `make check`, `git grep -n x`, `git diff`, `bun test` pass.
+- **Verify:** `make check`; the hook's cases quoted; R16's and R13's measurements quoted; `git
+  grep` finds each lesson's line in its file; on the next step's run no Standards finding repeats
+  a Depth one and every finding carries the four fields.
+- **Model:** `opus high`
+- **Status:** planned
+
 ## Requirement coverage
 
 | Req | Steps |
 |---|---|
 | R1 | S5, S9, S12, S14 |
-| R2 | S5, S7, S8, S9, S10, S11, S12, S14 |
+| R2 | S5, S7, S8, S9, S10, S11, S12, S14, S21 |
 | R3 | S5, S7, S8, S9 |
 | R4 | S10, S11, S12 |
 | R5 | S5, S7, S8, S9 |
@@ -1224,16 +1292,16 @@
 | R9 | S2, S19 |
 | R10 | S9, S19 |
 | R11 | S2, S9, S19 |
-| R12 | S1, S3 |
-| R13 | S1, S3, S8, S15, S17, S19 |
+| R12 | S1, S3, S22 |
+| R13 | S1, S3, S8, S15, S17, S19, S22 |
 | R14 | S1, S7, S8 |
 | R15 | S1, S3, S4, S8, S17 |
 | R16 | S1, S4, S17 |
-| R17 | S5, S17 |
+| R17 | S5, S17, S21 |
 | R18 | S6, S15 |
-| R19 | S6, S15, S17 |
-| R20 | S6, S15, S17 |
-| R21 | S6, S14, S15, S17 |
+| R19 | S6, S15, S17, S22 |
+| R20 | S6, S15, S17, S22 |
+| R21 | S6, S14, S15, S17, S22 |
 | R22 | S6 |
 | R23 | S13 |
 | R24 | S18, S19, S20 |
