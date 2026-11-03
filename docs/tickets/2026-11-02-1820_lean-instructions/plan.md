@@ -25,6 +25,7 @@
 | S17 | verification run 2 fixed: the skill back under its cut, one round rule, lessons L6–L9, `doc-names` safe in parallel | done |
 | S18 | the Effect-style checks are Biome rules; the bundle check stops on a failed `grep` | done |
 | S19 | the doc checks are `markdownlint-cli2` rules; the names and ids checks gone | done |
+| S20 | the lint configuration lives in `.misc/lint/`; the root keeps two stubs the tools find | todo |
 
 ## How to run this plan
 
@@ -1152,6 +1153,37 @@
     Depth and the hunt on S19.1; S19.2 applies their findings (one filter reader, the globs and
     the ignore file, the ids record true).
 
+#### S20 — The lint configuration out of the root
+
+- **Delivers:**
+  - `.misc/lint/` holds Biome's configuration, both GritQL plugins, the doc lint's config and the
+    filter reader; `.misc/` is the repo's place for what serves the repo, not the application.
+  - The root keeps two stubs the tools and editors find by name: a `biome.json` that extends the
+    one in `.misc/lint/`, and a `.markdownlint-cli2.mjs` that re-exports the doc lint's config.
+    `make lint`, `make doc-lint`, `make review-rules`, CI, the pre-commit hook and an editor run
+    unchanged.
+- **Goal:** the user's request of 2026-11-03 (D17), with R24's rules refusing what they refused
+  before the move.
+- **Blocked by:** S19.
+- **Files:** the moves are `git mv` so each file keeps its history: `biome-imports.grit`,
+  `biome-effect.grit`, the body of `biome.json`, the body of `.markdownlint-cli2.mjs`,
+  `rule-filters.mjs`. Traps (proven in a scratch run): a `plugins` path in an extended Biome
+  config resolves against the root config's folder, so it is written from the root
+  (`./.misc/lint/<name>.grit`), and the root stub needs `"root": true`; neither tool reads a
+  config in a subfolder on its own; the doc lint's config takes the repo root from its own folder
+  (`import.meta.dirname`), two levels up after the move; `package.json › imports` points
+  `#rule-filters` at the new path, and `review-rules` runs it there.
+- **Size:** ~60 lines, renames counted once.
+- **Test first:** config only; the probe Seam of R24 as a regression: one probe per GritQL rule
+  family and per doc lint rule fails before the move and fails the same way after it.
+- **Verify:** the probes fail with the same file and line before and after; `make check` green;
+  `git diff -M --stat` shows the five files as renames; `git ls-files` lists no `.grit` and no
+  `rule-filters.mjs` at the root; `biome check --staged` (the pre-commit hook's form) still runs
+  the plugins (a staged probe fails it); `make review-rules` prints the same rules before and
+  after on one diff. Probes are deleted before the commit.
+- **Model:** `opus medium`
+- **Status:** todo
+
 ## Requirement coverage
 
 | Req | Steps |
@@ -1179,7 +1211,7 @@
 | R21 | S6, S14, S15, S17 |
 | R22 | S6 |
 | R23 | S13 |
-| R24 | S18, S19 |
+| R24 | S18, S19, S20 |
 
 S16 serves the user's request of 2026-11-03, outside the requirements; `feature.md › Scope`
 records it.

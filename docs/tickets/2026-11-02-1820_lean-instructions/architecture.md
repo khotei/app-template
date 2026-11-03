@@ -443,6 +443,24 @@ refusals and the same `.env` it writes today.
     - the doc checks merged into one shell target — fewer lines, the same awk and perl;
     - `ids` kept in the shell or as a doc rule — the user does not want the check.
 
+- **D17 — The lint configuration lives in `.misc/lint/`; the root keeps two stubs the tools find
+  by name.** (R24)
+  - **Why:** the user's request of 2026-11-03: configuration that serves the repo, not the
+    application, leaves the root, and `.misc/` is where such files go. A scratch run proved that
+    Biome and `markdownlint-cli2` read a config only in the folder they start from and its
+    parents, and that a root `extends` or re-export loads one from a subfolder.
+  - **Invariant:** every caller finds the configuration with no flag; `.misc/lint/` is the only
+    place a lint rule is written.
+  - **Cost accepted:** two stub files stay in the root; a plugin path in the extended config is
+    written from the root.
+  - **Reversal:** one commit (`git mv` back).
+  - **Rejected:**
+    - a workspace under `packages/` — `packages/*` holds tools that know no app, and the plugins
+      read this repo's folders and cite its rules;
+    - no stub, a `--config-path` and `--config` on every caller — a caller that forgets it
+      (an editor, a bare `biome`) lints with the defaults and no plugin, unseen;
+    - `.config/` — the tools do not read it either, and the user prefers `.misc/`.
+
 ## Risks
 
 - **The rewrite drops a line Claude needed.** Guidance gets worse with less text, against the
