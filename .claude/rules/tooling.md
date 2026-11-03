@@ -8,16 +8,17 @@ paths:
 
 # Tooling
 
-Imperatives only. The commands: the root `CLAUDE.md`; the explanations:
+Imperatives only. The commands and why they are so:
 [docs/knowledge/tooling.md](../../docs/knowledge/tooling.md).
 
 ## Dependencies
 
 - Versions live only in the root `catalogs`, pinned exactly. Workspaces reference them with
   `catalog:<namespace>`, never the unnamed `catalog:`.
-- Put a new dependency in `tools` or `runtime` by the definitions in the knowledge doc; give a
-  lock-step family its own namespace.
-- After `bun add` (the root `CLAUDE.md`), declare the dependency in each consuming workspace.
+- Put a new dependency in `tools` or `runtime` by the definitions of
+  [Catalogs](../../docs/knowledge/tooling.md#catalogs); give a lock-step family its own namespace.
+- After `bun add` ([Add a dependency](../../docs/knowledge/tooling.md#add-a-dependency)), declare
+  the dependency in each other consuming workspace.
 
 ## Environment
 

@@ -133,6 +133,9 @@ jobs:
       - name: Every rule filter matches a file
         run: make rule-paths
 
+      - name: CLAUDE.md files and rules within their limits
+        run: make doc-limits
+
       - name: Prose wrapped at 100
         run: make doc-width
 

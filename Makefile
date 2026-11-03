@@ -3,8 +3,8 @@
 .DEFAULT_GOAL := help
 
 .PHONY: help setup stack up down reset worktree dev dev-api dev-worker dev-web debug-api \
-  debug-worker debug-web check ids doc-names rule-paths review-rules doc-width service-use \
-  nested-calls lint fmt typecheck test test-unit test-e2e bundle-check clean outdated \
+  debug-worker debug-web check ids doc-names rule-paths review-rules doc-limits doc-width \
+  service-use nested-calls lint fmt typecheck test test-unit test-e2e bundle-check clean outdated \
   vendor-effect vendor-drizzle migrate migration migration-check api-check api-snapshot
 
 # The local Pulumi project: each tree's file backend under its .data/, named per command, so no
@@ -130,7 +130,7 @@ debug-worker: ## Run the worker with --inspect and --watch
 debug-web: ## Run the web dev server with --inspect
 	bun --filter @app-template/web debug
 
-check: ids doc-names rule-paths doc-width service-use nested-calls idioms lint typecheck api-check migration-check test bundle-check ## Run every gate: ids, doc names, rule filters, doc width, service use, nested calls, idioms, lint, types, the HTTP contract, migrations, tests, the web bundle
+check: ids doc-names rule-paths doc-limits doc-width service-use nested-calls idioms lint typecheck api-check migration-check test bundle-check ## Run every gate: ids, doc names, rule filters, doc limits, doc width, service use, nested calls, idioms, lint, types, the HTTP contract, migrations, tests, the web bundle
 
 ids: ## Fail on ticket ids in parentheses (D12, R3, Q70) outside docs/tickets
 	@if git grep --untracked -nE '\((D|R|Q)[0-9]+[a-z]?\)' -- . ':!docs/tickets' \
@@ -221,6 +221,27 @@ review-rules: ## List the rules that bind the uncommitted diff: no paths: filter
 	{ for rule in $$(find .claude/rules -name '*.md'); do \
 		printf '%s\n' "$$filters" | cut -d' ' -f1 | grep -qxF "$$rule" || echo "$$rule"; \
 	done; printf '%s\n' "$$bound"; } | grep . | sort -u
+
+# The limits are numbers in the maintenance rule's limits line, its one author; a reworded line
+# exits 2, naming the line it expects. A file deleted but not staged is skipped.
+DOC_LIMITS_RULE = .claude/rules/claude-md.md
+DOC_LIMITS_LINE = - **Limits, checked by `make doc-limits`:** a `CLAUDE.md` <n> lines, a rule <n>.
+DOC_LIMITS_READ = s/^- \*\*Limits, checked by `make doc-limits`:\*\* a `CLAUDE[.]md` ([0-9]+) lines,\
+  a rule ([0-9]+)[.]$$/\1 \2/p
+
+doc-limits: ## Fail on a CLAUDE.md or a rule over the limits its maintenance rule states
+	@set -- $$(sed -nE '$(DOC_LIMITS_READ)' $(DOC_LIMITS_RULE)); \
+	[ $$# -eq 2 ] || { echo '$(DOC_LIMITS_RULE) needs one line: $(DOC_LIMITS_LINE)' >&2; exit 2; }; \
+	hits=$$(git ls-files --cached --others --exclude-standard -- 'CLAUDE.md' '*/CLAUDE.md' \
+			'.claude/rules/*.md' ':!repos' | sort -u | while read -r file; do \
+		[ -f "$$file" ] || continue; \
+		limit=$$2; [ "$${file##*/}" != CLAUDE.md ] || limit=$$1; \
+		lines=$$(awk 'END { print NR }' "$$file") || exit 2; \
+		[ "$$lines" -le "$$limit" ] || echo "$$file: $$lines lines, over $$limit"; \
+	done) || exit 2; \
+	[ -z "$$hits" ] || { echo "$$hits"; \
+		echo 'Cut the file to its limit: the test in $(DOC_LIMITS_RULE) says which lines go.'; \
+		exit 1; }
 
 # A prose line wraps at 100, as Biome's lineWidth does the code. Exempt: the frontmatter, fences,
 # tables, headings, quotes, a URL, and a line that is one code span or link with no space to break

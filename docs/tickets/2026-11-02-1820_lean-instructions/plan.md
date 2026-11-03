@@ -14,7 +14,7 @@
 | S6 | agents do only their own part; the main session orchestrates on reports; one hunt pass by condition; `/simplify` from the main session; parallel verifiers | done |
 | S7 | the Effect rules and the comments rule trimmed; the Effect-4 trap first | done |
 | S8 | naming, layering, modules and deep modules trimmed, one file per subject | done |
-| S9 | every `CLAUDE.md` and the process rules as patterns; `doc-limits` | todo |
+| S9 | every `CLAUDE.md` and the process rules as patterns; `doc-limits` | done |
 | S10 | `architecture.md`, `README.md` and the glossary own only their facts | todo |
 | S11 | tooling, AWS, database and AI pages own only their facts; the local stand's `README.md` gone | todo |
 | S12 | decisions and the SDD guide trimmed; `docs-diet` done; the move probe | todo |
@@ -552,7 +552,26 @@
 - **Verify:** `make check`; the probes; the owners table of `architecture.md` checked row by row
   with `git grep` over the instruction files; the ledger.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - `make doc-limits` reads its two numbers from the limits line of `claude-md.md`: red with the
+    line missing or reworded (exit 2, naming the line it expects), red on a rule at 81 lines and
+    a `CLAUDE.md` at 41, tracked or untracked and nested (exit 1, naming file and length), green
+    on the tree. `effect-style.md` sits at 80.
+  - Line counts: root `CLAUDE.md` 28, the workspaces' 9 to 21; `claude-md.md` 71.
+  - Ledger: the root's folder map, its `apps/e2e` note and "TypeScript 7" go to
+    `architecture.md`, `apps/CLAUDE.md` and the manifests; resource naming to `aws.md › The
+    inventory`; one PR per ticket to `sdd.md › Gates`; `application/CLAUDE.md`'s contract line
+    to `modules.md`, which loads on the same files. `claude-md.md` regrouped under the test, the
+    owner, the pattern, the limits and the checks; nothing dropped there.
+  - `apps/CLAUDE.md`, `http-api/CLAUDE.md` and `commits.md` already met the step and stay.
+  - The recipe avoids `case … in x)` inside `$(…)`, which macOS's bash 3.2 cannot parse.
+  - Review: the root keeps `bun add [-d] --catalog=<namespace> <pkg>@<exact>` as a pattern, since
+    `tooling.md`'s rule loads only on a manifest and a session runs `bun add` from the shell.
+    Kept against the Depth review: the check matches the whole limits line, not only its two
+    numbers, as Test first asks it to name the line it expects.
+  - Left open: `idioms` is missing from the `Makefile`'s `.PHONY`; the versions in `README.md`,
+    `tooling.md` and the PR example are S10's and S11's.
 
 #### S10 — The architecture page, the README and the glossary
 
