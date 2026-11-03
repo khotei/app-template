@@ -26,7 +26,7 @@
 | S18 | the Effect-style checks are Biome rules; the bundle check stops on a failed `grep` | done |
 | S19 | the doc checks are `markdownlint-cli2` rules; the names and ids checks gone | done |
 | S20 | the lint configuration lives in `.misc/lint/`; the root keeps two stubs the tools find | done |
-| S21 | verification run 3's doc fixes: one statement each for the commit per round, ticket ids and the limits; `gh api` asks; the verify fixed point; pointers as links | planned |
+| S21 | verification run 3's doc fixes: one statement each for the commit per round, ticket ids and the limits; `gh api` asks; the verify fixed point; pointers as links | done |
 | S22 | lessons L10–L14: the implementer's shell guard, Standards without the smell baseline and with `make review-rules` verbatim, one finding line, statement leftovers, one behaviour-step test | planned |
 
 ## How to run this plan
@@ -1240,7 +1240,28 @@
 - **Verify:** `make check`; the R2 greps quoted; `make doc-lint` green with the new links; R13's
   and R16's measurements repeated if a measured file changed (L6).
 - **Model:** `sonnet high`
-- **Status:** planned
+- **Status:** done
+- **Findings:**
+  - **R2 greps, red first.** Before the edits "one commit" hit 5 files and `decisions.md:634`,
+    `:664`; after, "one commit" hits only the owner `sdd.md:37` and unrelated lines (the PR
+    squash, a typo fix, the template's Reversal); the limits' numbers hit only `claude-md.md:56`;
+    "ticket number" only `claude-md.md:41`; `git grep origin/main` over `.claude/`, the
+    `CLAUDE.md` files, `docs/knowledge/`, the templates and `README.md` finds nothing.
+  - **Anchors.** `make doc-lint` does not check a link's anchor (a planted `#add-a-pckage` stayed
+    green); the 7 new anchors were checked by a heading-slug script, all resolve.
+  - **R13** (the 13 rules, characters ÷ 4): 9 910 → **9 938 tok** after S21.1, a margin of 23 tok
+    under 9 961; S22 must cut what it adds to the rules. R16's skill is untouched.
+  - **Deviation, the fixed point without a PR.** `/ticket-verify` and `verifier.md` fall back to
+    `main` while no PR exists, since the base branch is unknown until then.
+  - **Deviation, `gh api` asks for reads too:** it is one verb for reads and writes.
+  - **Left as backticks:** `ticket-feature/SKILL.md:18` (`roadmap.md › <slug>`, an entry key, not
+    a heading) and pointers to a rule of the same name.
+  - **S21.2** (Standards, Spec): the plan template's status note, `ticket-plan`'s step definition
+    as a pointer to `sdd.md › Gates`, the scaffold ticket's Decisions pointer as a link, Scope
+    naming `claude-md.md` beside `comments.md`; the main session moved `architecture.md ›
+    Contracts` to "no package specifier" and D16's Reversal to "the step's commits".
+  - `make check` exit 0 at each round. Passes: Standards and Spec on S21.1 (docs and config, no
+    `simplify`, Depth or hunt); S21.2 applies their findings and is not reviewed again.
 
 #### S22 — Lessons L10–L14 of verification run 3
 

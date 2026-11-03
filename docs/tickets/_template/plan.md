@@ -4,8 +4,8 @@
 
 ## Status
 
-<One row per step, updated in each step's commit, so the reader sees the ticket's state without
-reading the steps; `git log` holds each step's commit.>
+<One row per step, updated in the step's last round, so the reader sees the ticket's state without
+reading the steps; `git log` holds the step's commits.>
 
 | Step | Delivers | Status |
 |---|---|---|

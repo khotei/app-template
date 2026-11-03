@@ -5,8 +5,8 @@ that refuses the rest, where tests live, the shape of a use case, and the checkl
 entity, a store's client or a module. **Why each boundary holds, what it costs and what breaks if
 it is reversed live in [decisions.md](decisions.md),** the living decisions, one record each;
 read the record before changing a boundary. Decisions older than those records live in
-`architecture.md › Decisions` of the scaffold ticket
-(`docs/tickets/2026-10-16-1433_monorepo-setup/`) and of the architecture audit
+[architecture.md › Decisions](../tickets/2026-10-16-1433_monorepo-setup/architecture.md#decisions)
+of the scaffold ticket and of the architecture audit
 (`docs/tickets/2026-10-27-1433_architecture-audit/`). Each layer's binding rules live in its
 `CLAUDE.md` and in `.claude/rules/`.
 

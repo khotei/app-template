@@ -117,7 +117,8 @@ $ make doc-lint      # R7–R10
 
 **The source path the doc lint refuses** (D3): in an instruction file (every `CLAUDE.md`,
 `.claude/rules/`, `.claude/skills/`, `.claude/agents/`), a backticked span with a `/`, ending in
-`.ts`, `.tsx` or `.json`, with no `<…>` placeholder, no glob and no `@app-template/` prefix.
+`.ts`, `.tsx` or `.json`, with no `<…>` placeholder, no glob and no package specifier
+(`@<scope>/…`).
 
 **The limits line in `claude-md.md`** (D5), which the doc lint reads:
 
@@ -432,7 +433,7 @@ refusals and the same `.env` it writes today.
     errors on a file only as a notice and exits 0, so `make lint` turns it into exit 2 and CI runs
     Biome through `make lint`; the pre-commit hook's direct `--staged` run does not, and CI
     catches what it misses.
-  - **Reversal:** one commit per step (restore the targets from `git log`).
+  - **Reversal:** the step's commits (restore the targets from `git log`).
   - **Rejected:**
     - the checks as reviewer prompts — a review runs once per step and costs tokens, while each
       check catches a harm the log shows on every `make check`;

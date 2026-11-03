@@ -119,7 +119,7 @@ it targets.
 - The checks of `make check` themselves, asked by the user on 2026-11-03: each one that reads code
   or Markdown becomes a rule of a lint tool the repo pins, and the check of backticked code names
   is dropped, since it never caught a stale name, and so is the check of ticket ids (the user's
-  word: review against `comments.md` holds it).
+  word: review against `comments.md` and `claude-md.md` holds it).
 - The harness settings in `.claude/settings.json`, asked by the user on 2026-11-03: one settings
   file, a wider allow list with the pushes, PRs, merges and `gh api` on ask, five plugins off and
   the MCP servers no step uses denied.

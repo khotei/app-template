@@ -11,8 +11,8 @@ steps only conform to the plan. Gates: `.claude/rules/sdd.md`.
 ## Steps
 
 1. Read `feature.md` and `architecture.md`.
-2. Cut the work into **vertical slices**, each a step that leaves `make check` green and fits
-   one fresh implementer session (≤ ~400 changed lines, lockfiles excluded).
+2. Cut the work into **vertical slices**, each a step, as `sdd.md › Gates` defines it, that
+   leaves `make check` green (lockfiles excluded from its size).
 3. Write `plan.md` from `docs/tickets/_template/plan.md`, opening with its **Status** table, one
    row per step. Every step has:
    - **Delivers**: what exists or behaves differently once it lands, in plain words, no ids;
