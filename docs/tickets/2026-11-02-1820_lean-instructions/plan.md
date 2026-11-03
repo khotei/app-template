@@ -22,6 +22,7 @@
 | S14 | verification run 1 and the prompt audit fixed: two stale doc lines, two recorded exceptions, a contradiction, findings presented one block each | done |
 | S15 | lessons L2–L5 of verification run 1: briefs name sources only, results quote their output, a behaviour step is one that changes code; plugins that overlap the skills off | done |
 | S16 | a named function is a `function` declaration; an arrow is a callback or an expression body | done |
+| S17 | verification run 2 fixed: the skill back under its cut, one round rule, lessons L6–L9, `doc-names` safe in parallel | todo |
 
 ## How to run this plan
 
@@ -868,6 +869,46 @@
   - Reviewed as a mechanical step (Standards and Spec): only declaration lines change, no body,
     so `simplify` and Depth had nothing to judge.
 
+#### S17 — Fixes from verification run 2
+
+- **Delivers:**
+  - `/ticket-implement`'s Depth paragraph becomes a pointer to `docs/knowledge/sdd.md › What the
+    wrappers override`, where the same text lives; step 1 reads only the plan's **Status** table
+    and the step's own section (L9); a step is ready only once the passes steps 2 and 3 name for
+    it have run, and the commit body names them (L7).
+  - The round commit is stated once, in `sdd.md › Gates`: before the user's recommendation or the
+    main session's fixes land, what stands commits as its round; the skill's step 5 points to it
+    (the user's choice, 2026-11-03).
+  - `/ticket-plan`: a step that edits a file a requirement measures re-measures it in its
+    **Verify** (L6).
+  - `reviewer.md`: Depth leaves a correctness bug to the hunt; Standards reports only a binding
+    rule it can cite (L8).
+  - `.claude/rules/tooling.md` keeps one or two lines of its constraints and points to
+    `docs/knowledge/tooling.md` for the rest (R6, the user's choice A).
+  - `make doc-names` writes per-run temporary files instead of `node_modules/.cache/doc-names/`,
+    and stops with exit 2 when a `grep` inside it fails with 2.
+  - `effect-style.md` drops "`.value` only under a narrowing guard", which the compiler enforces;
+    `deployment/CLAUDE.md:3-4` loses "until the deploy ticket lands"; the Leftovers grep in
+    `implementer.md` also covers `.claude/` and the `CLAUDE.md` files.
+- **Goal:** R15 and R16 hold again with every line this step adds counted (body ≤ 1 761 tok,
+  characters ÷ 4); R13 gains margin; R6, R19, R20 and R21 hold by one line each; two parallel
+  checks in one tree cannot corrupt each other.
+- **Blocked by:** S16.
+- **Files:** `verification.md` run 2 › Simplifications and Lessons;
+  `.claude/skills/ticket-implement/SKILL.md`, `.claude/skills/ticket-plan/SKILL.md`, `.claude/rules/sdd.md`,
+  `.claude/agents/reviewer.md`, `.claude/agents/implementer.md`, `.claude/rules/tooling.md`,
+  `.claude/rules/effect-style.md`, `deployment/CLAUDE.md`, the `doc-names` recipe in `Makefile`;
+  the record in `docs/knowledge/decisions.md` if the round rule has one. Trap: the lesson lines
+  add to the skill the cut must shrink, so measure after all of them.
+- **Size:** ~100 lines.
+- **Test first:** the `doc-names` seam — two runs started together on the clean tree both exit 0,
+  seen red first against the shared cache; a pattern `grep` rejects makes the recipe exit 2.
+- **Verify:** `make check`; R16's and R13's measurements repeated, each quoted; `git grep` finds
+  each lesson's line in its file; in a new session, the first step asks the commit question once
+  (R17) and no disabled plugin's skill or agent is listed.
+- **Model:** `opus high`
+- **Status:** todo
+
 ## Requirement coverage
 
 | Req | Steps |
@@ -877,22 +918,22 @@
 | R3 | S5, S7, S8, S9 |
 | R4 | S10, S11, S12 |
 | R5 | S5, S7, S8, S9 |
-| R6 | S10, S11, S12 |
-| R7 | S2, S14 |
+| R6 | S10, S11, S12, S17 |
+| R7 | S2, S14, S17 |
 | R8 | S2 |
 | R9 | S2 |
 | R10 | S9 |
 | R11 | S2, S9 |
 | R12 | S1, S3 |
-| R13 | S1, S3, S8, S15 |
+| R13 | S1, S3, S8, S15, S17 |
 | R14 | S1, S7, S8 |
-| R15 | S1, S3, S4, S8 |
-| R16 | S1, S4 |
-| R17 | S5 |
+| R15 | S1, S3, S4, S8, S17 |
+| R16 | S1, S4, S17 |
+| R17 | S5, S17 |
 | R18 | S6, S15 |
-| R19 | S6, S15 |
-| R20 | S6, S15 |
-| R21 | S6, S14, S15 |
+| R19 | S6, S15, S17 |
+| R20 | S6, S15, S17 |
+| R21 | S6, S14, S15, S17 |
 | R22 | S6 |
 | R23 | S13 |
 
