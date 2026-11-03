@@ -8,14 +8,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": [
-      "**",
-      "!bun.lock",
-      "!repos",
-      "!kernel/data/migrations",
-      "!http-api/openapi.json",
-      "!!.misc/lint/biome.json"
-    ]
+    "includes": ["**", "!bun.lock", "!repos", "!kernel/data/migrations", "!http-api/openapi.json"]
   },
   "formatter": {
     "enabled": true,

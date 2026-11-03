@@ -452,7 +452,12 @@ refusals and the same `.env` it writes today.
   - **Invariant:** every caller finds the configuration with no flag; `.misc/lint/` is the only
     place a lint rule is written.
   - **Cost accepted:** two stub files stay in the root; a plugin path in the extended config is
-    written from the root.
+    written from the root; the extended config is named `biome.base.json`, never `biome.json`,
+    which Biome's scan would load again as a nested config; `package.json › imports` maps
+    `#lint/*` to `.misc/lint/*.mjs`, as the imports plugin refuses a relative re-export.
+  - **Amended in S20:** the extended config first force-ignored itself (`!!`), which left it
+    unformatted and unlinted; renamed instead. `#rule-filters` became `#lint/*`, one pattern for
+    the stub's re-export and the filter reader.
   - **Reversal:** one commit (`git mv` back).
   - **Rejected:**
     - a workspace under `packages/` — `packages/*` holds tools that know no app, and the plugins

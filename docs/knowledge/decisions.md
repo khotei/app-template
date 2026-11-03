@@ -462,8 +462,9 @@ bundle check; what no configuration expresses are the review rules `.claude/rule
 and, for a handler, `layering.md`, never hand-written test code. Each import rule is held once,
 by the guard that can see it: the linker and `tsc -b` see a workspace but no unit inside a
 folder, since `kernel/`, `packages/` and `application/` are one workspace and one
-`tsconfig.json` project each; `.misc/lint/biome.json` has one override per layer, never per
-unit, and the plugin reads the unit and the ring from the file's path. Which guard refuses what:
+`tsconfig.json` project each; `.misc/lint/biome.base.json` has one override per layer, never
+per unit, and the plugin reads the unit and the ring from the file's path. Which guard refuses
+what:
 [architecture.md › Dependency rules](architecture.md#dependency-rules) and
 [Boundary guards](architecture.md#boundary-guards).
 
@@ -491,9 +492,9 @@ unit, and the plugin reads the unit and the ring from the file's path. Which gua
   (`~/packages/<repo>/`) misreads every file outside the three folders, refusing an app's own
   `#<app>/…`; the rules of the apps and `deployment` read the last ring folder on it the same way.
 - **Guarded by:** `make check` runs them all; the Standards reviewer reads the rules that bind
-  the diff (`make review-rules`); `.misc/lint/biome.json` and its GritQL plugins beside it,
-  `biome-imports.grit` for the imports and `biome-effect.grit` for the Effect style a type-blind
-  reader can see.
+  the diff (`make review-rules`); `.misc/lint/biome.base.json` and its GritQL plugins beside
+  it, `biome-imports.grit` for the imports and `biome-effect.grit` for the Effect style a
+  type-blind reader can see.
 - **If reversed:** a test beside the rule, kept in step with every new module; a list per unit
   again, or a folder split into a workspace per unit
   ([Imports through subpaths](#imports-through-subpaths)), its dependencies in place of the lists.

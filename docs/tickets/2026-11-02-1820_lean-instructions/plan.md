@@ -25,7 +25,7 @@
 | S17 | verification run 2 fixed: the skill back under its cut, one round rule, lessons L6–L9, `doc-names` safe in parallel | done |
 | S18 | the Effect-style checks are Biome rules; the bundle check stops on a failed `grep` | done |
 | S19 | the doc checks are `markdownlint-cli2` rules; the names and ids checks gone | done |
-| S20 | the lint configuration lives in `.misc/lint/`; the root keeps two stubs the tools find | todo |
+| S20 | the lint configuration lives in `.misc/lint/`; the root keeps two stubs the tools find | done |
 
 ## How to run this plan
 
@@ -1170,19 +1170,44 @@
   `rule-filters.mjs`. Traps (proven in a scratch run): a `plugins` path in an extended Biome
   config resolves against the root config's folder, so it is written from the root
   (`./.misc/lint/<name>.grit`), and the root stub needs `"root": true`; neither tool reads a
-  config in a subfolder on its own; the doc lint's config takes the repo root from its own folder
-  (`import.meta.dirname`), two levels up after the move; `package.json › imports` points
-  `#rule-filters` at the new path, and `review-rules` runs it there.
+  config in a subfolder on its own; the extended Biome config is named `biome.base.json`, as the
+  scan loads a second `biome.json` as a nested config; the doc lint's config takes the repo root
+  from its own folder (`import.meta.dirname`), two levels up after the move;
+  `package.json › imports` maps `#lint/*` to `.misc/lint/*.mjs`, and `review-rules` runs the
+  reader there.
 - **Size:** ~60 lines, renames counted once.
 - **Test first:** config only; the probe Seam of R24 as a regression: one probe per GritQL rule
   family and per doc lint rule fails before the move and fails the same way after it.
 - **Verify:** the probes fail with the same file and line before and after; `make check` green;
-  `git diff -M --stat` shows the five files as renames; `git ls-files` lists no `.grit` and no
+  `git diff -B -M --stat` shows the five files as renames; `git ls-files` lists no `.grit` and no
   `rule-filters.mjs` at the root; `biome check --staged` (the pre-commit hook's form) still runs
   the plugins (a staged probe fails it); `make review-rules` prints the same rules before and
   after on one diff. Probes are deleted before the commit.
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - **Same hits before and after.** Probes: a TS file with a relative import, `=== undefined`,
+    `.sort(lambda)` and a nested `Effect.map`; a doc with a long line and a missing path; a rule
+    with an unmatched filter, a source path and over its limit. Biome: `3:19`, `5:45`, `6:18`,
+    `7:18`, the four plugin messages; markdownlint: `.claude/rules/zz-probe.md:3
+    unmatched-filter`, `:8 source-path`, `:81 over-limit`, `docs/knowledge/zz-probe.md:3:101
+    MD013`, `:5 missing-path`. After each round, `diff` of the outputs: `BIOME SAME`, `MD SAME`;
+    `biome check --staged` on the staged TS probe: the same four plugin lines.
+  - **Overrides hold.** `apps/web/zz-probe.ts:1:19 lint/style/noRestrictedImports … web client
+    code may import only …`.
+  - **The filter reader is unchanged.** The reader at `HEAD` and the moved one print the same
+    filters on one tree: `FILTERS SAME 29`.
+  - **A second `biome.json` breaks the scan.** Biome loads `.misc/lint/biome.json` as a nested
+    config: without `root`, "Found a nested root configuration"; with `"root": false`, it resolves
+    `plugins` from its own folder, "Error(s) during loading of plugins". S20.1 force-ignored it
+    (`!!`), which dropped it from lint and format (`biome check --verbose` left it out); S20.2
+    renamed it `biome.base.json`: `make lint` checks 254 files, one more, and a mis-formatted edit
+    fails it (`.misc/lint/biome.base.json format`, `Found 1 error.`).
+  - **The renames need break detection.** The stubs reuse the old paths, so `git diff -M` shows
+    `biome.json` and `.markdownlint-cli2.mjs` as modified; `git diff -B -M --stat` shows all five
+    as renames.
+  - `make check` green after each round: unit 221 passed, e2e 104 passed, the bundle check
+    passed.
 
 ## Requirement coverage
 
