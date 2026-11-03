@@ -25,12 +25,12 @@ reading the steps; `git log` holds each step's commit.>
 
 - **Delivers:** <two to four plain lines: what exists or behaves differently once the step lands,
   without ids>.
-- **Goal:** <outcome> (R1, D1).
+- **Goal:** <outcome, and the constraints it keeps> (R1, D1).
 - **Blocked by:** none.
-- **Files:** <paths>.
+- **Files:** <where the step starts; the names, traps and probe targets it pins>.
 - **Size:** <~ changed lines, every file the change reaches>.
 - **Test first:** <Seam from architecture.md> — <behaviour to see red>. Or `config only`.
-- **Verify:** <commands and manual checks>.
+- **Verify:** <commands and manual checks, each with the state it fails on>.
 - **Model:** <model and effort, e.g. `opus medium`>
 - **Status:** todo
 

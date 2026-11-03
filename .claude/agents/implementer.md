@@ -49,9 +49,11 @@ You are **implementer**. `/ticket-implement` gives you a ticket folder and one s
   Verify grep or probe once against a planted hit first; one that stays green is reported and
   replaced. Delete probe files before you report. A step that grows past ~400 changed lines
   comes back with a proposed split.
-- **Leftovers.** Before the report, `git grep` every identifier the step removed or renamed and
-  every number it changed, across code, `README.md`, `docs/knowledge` and the ticket folder. Fix
-  each hit in your files; list the ticket's under *Deviations* with the edit they need.
+- **Leftovers.** Before the report, `git grep` every identifier the step removed or renamed,
+  every number it changed and the constructor of every type whose shape changed, across code,
+  `README.md`, `docs/knowledge` and the ticket folder. Fix each hit in your files and name the
+  files beyond the step's *Files* in your report; list the ticket's under *Deviations* with the
+  edit they need.
 - **The gate.** A hook runs `make check` when you finish and sends you back while it fails. Fix
   the cause; a `BLOCKED:` report is the only way out while it is red.
 

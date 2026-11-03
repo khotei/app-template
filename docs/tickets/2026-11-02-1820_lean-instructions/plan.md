@@ -18,7 +18,7 @@
 | S10 | `architecture.md`, `README.md` and the glossary own only their facts | done |
 | S11 | tooling, AWS, database and AI pages own only their facts; the local stand's `README.md` gone | done |
 | S12 | decisions and the SDD guide trimmed; `docs-diet` done; the move probe | done |
-| S13 | the ticket templates and the planning skills pin what a step needs and leave the rest to a grep | todo |
+| S13 | the ticket templates and the planning skills pin what a step needs and leave the rest to a grep | done |
 
 ## How to run this plan
 
@@ -694,7 +694,25 @@
 - **Verify:** `make check`; `git grep -n 'every suite'` over `.claude/skills/` finds no demand for
   an exhaustive list; the plan template's `Verify` line asks for the state each check fails on.
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Ledger: a step's `Files` names where it starts and what it pins (a decided contract, a trap,
+    a probe's target); `Goal` adds the constraints it keeps; `Verify` names the state each check
+    fails on, with one probe per replaced guard run red first (L8); a design entry states its
+    decision and invariant and links the config that holds a rule; an acceptance row, like its
+    requirement, names no path or code name; `Conforms` reads "every literal a step pins".
+  - The skill holds each rule; the templates keep short placeholders, so the two no longer say
+    it twice.
+  - Deviation: `.claude/agents/implementer.md › Leftovers` now also greps the constructor of
+    every type whose shape changed and names the files beyond the step's `Files` in the report.
+    The removed "every suite … grep its constructor" had no other home (Spec review), and the
+    skill's promise that the report names those files had no owner (Standards review).
+  - Dropped from the draft: "a kind of step that went wrong for want of a listed file lists it
+    again", which no `research.md` finding backs.
+  - `docs/knowledge/sdd.md` needed no edit: after S12 it no longer retells a step's file list.
+  - Verify: `git grep 'every suite'` over `.claude/skills/` hits on `HEAD` and not on the tree; a
+    planted file under `.claude/skills/` was refused by permissions, so the pre-step tree served
+    as the red case.
 
 ## Requirement coverage
 

@@ -13,7 +13,8 @@ graph LR
 
 ## Structure
 
-<Files and modules added or changed, per workspace. Mark new files.>
+<Where the change lives, per workspace: the modules it adds or changes and the invariant each
+keeps. A rule a config holds is linked, never copied.>
 
 ## Contracts
 
@@ -33,7 +34,7 @@ graph LR
 Each line of an entry is one or two sentences; a rejected alternative is kept only when someone
 would propose it again.>
 
-- **D1 — <the decision, in one line>.**
+- **D1 — <the decision and the invariant it keeps, in one line>.**
   - **Why:** <the reason>.
   - **Cost accepted:** <what this choice makes worse>.
   - **Reversal:** <one commit | a migration | irreversible: …>.

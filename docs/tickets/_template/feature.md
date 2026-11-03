@@ -27,8 +27,8 @@ come from `docs/knowledge/glossary.md`.>
 ## Requirements
 
 <EARS only. One behaviour per requirement; group them under `###` headings when there are many.
-A requirement states behaviour or an observable result, never a path or a code name: those go
-to `plan.md › Files`, and a check below may name a command.>
+A requirement and its acceptance row state a property and its check, never a path or a code name:
+those go to `plan.md › Files`, and a check below may name a command.>
 
 - **R1** — WHEN <trigger>, THE SYSTEM SHALL <response>.
 - **R2** — IF <unwanted condition>, THEN THE SYSTEM SHALL <response>.
