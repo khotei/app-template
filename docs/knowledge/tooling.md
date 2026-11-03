@@ -373,6 +373,36 @@ new version. CI also runs a non-blocking job on Bun `latest`, which shows the ne
   declares. An undeclared import fails at runtime and in `make typecheck` with TS2307. References
   alone do not stop it.
 
+### Claude Code's LSP
+
+- **The server is the project's own `tsc`.** The directory marketplace in `.misc/claude/`, which
+  `.claude/settings.json` registers (`extraKnownMarketplaces`) and enables (`tsgo-lsp`), runs
+  `node_modules/.bin/tsc --lsp --stdio` from the project root: the pinned TypeScript 7 with the
+  Effect plugin, nothing downloaded. The official `typescript-lsp` plugin is off for the project:
+  its `typescript-language-server` needs the `tsserver.js` TypeScript 7 no longer ships.
+- **Navigation only.** The `LSP` tool answers definition, references, hover and symbols. Type
+  errors stay with `make check`: TypeScript 7 serves only pulled diagnostics
+  (`textDocument/diagnostic`), Claude Code reads only pushed ones, so the entry sets
+  `"diagnostics": false` (roadmap: [Ideas to weigh › Post-edit type
+  diagnostics](roadmap.md#post-edit-type-diagnostics)).
+- **The first session after a clone** registers the marketplace in the background, once the
+  folder is trusted; the plugin loads from the next session, or after `/reload-plugins`. A
+  change to `enabledPlugins` reaches a running session the same way.
+- **Back to the official plugin on one machine:** an untracked `settings.local.json` beside the
+  project's `.claude/settings.json` overrides it, key by key:
+
+  ```json
+  {
+    "enabledPlugins": {
+      "tsgo-lsp@app-template": false,
+      "typescript-lsp@claude-plugins-official": true
+    }
+  }
+  ```
+
+  Two servers claiming `.ts` leave one unused, so turn one off. A bad server entry is skipped
+  whole and shows only in `/plugin` › Errors or `claude --debug`.
+
 ## Git hooks and CI
 
 `bun install` runs the `prepare` script (`husky && effect-tsgo patch`), which installs the hooks and

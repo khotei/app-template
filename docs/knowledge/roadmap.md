@@ -762,6 +762,22 @@ hand-written code they could replace; only the queue qualified.
 - Raised on 2026-11-03 by `lean-instructions`' research of plugins and MCP servers; the Drizzle
   MCP was skipped, since `make migration` and `make migration-check` cover it.
 
+### Post-edit type diagnostics
+
+For Claude Code's LSP ([tooling.md › Claude Code's LSP](tooling.md#claude-codes-lsp)).
+
+- **Brings:** a type error shown to the agent right after its edit, before `make check`.
+- **Blocked by:** TypeScript 7 serves only pulled diagnostics, and Claude Code reads only pushed
+  ones. A typescript-go maintainer (microsoft/typescript-go#2362): "We only support pull
+  diagnostics (`textDocument/diagnostic`) … It's a significant architectural change to use push
+  diagnostics, which we haven't looked into yet." No `anthropics/claude-code` issue on pull
+  diagnostics was found (`gh search issues`, 2026-11-03).
+- **Revisit when:** Claude Code pulls diagnostics, or typescript-go pushes them; then drop
+  `"diagnostics": false` from the server entry in `.misc/claude/`.
+- **Rejected:** a stdio proxy that pulls and re-pushes, which is protocol code the template would
+  keep.
+- Raised on 2026-11-03 by `lean-instructions` S23.
+
 ### Queue on SQS or in Postgres
 
 For `jobs` (22) and `aws-deployment` (9), and the record

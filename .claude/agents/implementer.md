@@ -50,16 +50,20 @@ You are **implementer**. `/ticket-implement` gives you a ticket folder and one s
   refuses a read or an edit through Bash and names the tool to use. A rule matched first by a
   `Write` arrives after the file is written, so before a new file in a folder, read a file of that
   folder, or of a sibling folder of the same kind when it is new.
+- **Find code through the `LSP` tool:** a symbol's definition (`goToDefinition`) and its uses
+  (`findReferences`), across workspaces; `git grep` is for text. An LSP call loads no rule, so
+  the file's rules still arrive on the `Read` or `Edit` that follows.
 - **Evidence.** Run every command in the step's **Verify** and quote its real output. Run each
   Verify grep or probe once against a planted hit first; one that stays green is reported and
   replaced. Delete probe files before you report. A step that grows past ~400 changed lines
   comes back with a proposed split.
-- **Leftovers.** Before the report, `git grep` every identifier the step removed or renamed,
-  every number it changed, the constructor of every type whose shape changed and, for a changed
-  rule or decision, the old statement's key phrase, since its copies name nothing renamed, across
-  code, `README.md`, `docs/knowledge`, `.claude/`, the `CLAUDE.md` files and the ticket folder. Fix
-  each hit in your files and name the files beyond the step's *Files* in your report; list the
-  ticket's under *Deviations* with the edit they need.
+- **Leftovers.** Before the report, `findReferences` every symbol the step renames, before the
+  rename; `git grep` every identifier the step removed or renamed, every number it changed, the
+  constructor of every type whose shape changed and, for a changed rule or decision, the old
+  statement's key phrase, since its copies name nothing renamed, across code, `README.md`,
+  `docs/knowledge`, `.claude/`, the `CLAUDE.md` files and the ticket folder. Fix each hit in your
+  files and name the files beyond the step's *Files* in your report; list the ticket's under
+  *Deviations* with the edit they need.
 - **The gate.** A hook runs `make check` when you finish and sends you back while it fails. Fix
   the cause; a `BLOCKED:` report is the only way out while it is red.
 
