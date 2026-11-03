@@ -5,39 +5,35 @@ paths:
 
 # Code comments
 
-Default is **no comment**: a stale comment is acted on with full confidence, so a bad one is worse
-than none. Comment the **why**; the code states the what.
+The default is no comment: a stale comment is acted on with full confidence, so a bad one is worse
+than none. A comment says why; the code says what.
 
-## Gate A — should it exist?
+## Should it exist
 
-**Could a competent reader of this stack get it from the code itself** (types, signatures, control
-flow, a test name, a rule or `CLAUDE.md`)? Yes → delete it on sight. Only four reasons to keep one:
+Delete it if a competent reader of this stack gets it from the code (types, signatures, control
+flow, a test name, a rule or `CLAUDE.md`). Keep one only for:
 
-- a non-obvious **decision plus the rejected alternative** (it stops an agent "fixing" it back);
-- a **gotcha or non-local coupling** that is surprising from a distance;
-- an **invariant or policy the type cannot express**: an export that carries one (an attempt
-  count, an ordering, a proof value) gets exactly one TSDoc sentence stating it, since the reader
-  otherwise reconstructs it from the helpers;
-- a usage **constraint on an exported symbol** ("keep `lockRefreshInterval` below `lockExpiration`").
+- a non-obvious decision and the rejected alternative, so an agent does not "fix" it back;
+- a gotcha or a non-local coupling surprising from a distance;
+- an invariant or policy the type cannot express (an attempt count, an ordering, a proof value,
+  the order of a list a port returns, what a missing key yields): one TSDoc sentence on the
+  export that carries it, stated once, on the port or the repository, never again in its other
+  layers;
+- a usage constraint on an exported symbol ("keep `refreshInterval` below `expiry`").
 
-Never write line narration, step markers, a doc block that repeats the function name, a `@param`
-that restates a type, or provenance tags (ticket or requirement ids belong in the commit `Refs:`).
-**Test:** write it, delete it, re-read the code. If the code still says the same thing, keep it
+Never line narration, step markers, a doc block that repeats the function name, a `@param` that
+restates a type, architecture or layering, or provenance tags (ticket or requirement ids belong in
+the commit's `Refs:`). Test: delete it and re-read the code; if it still says the same, keep it
 deleted.
 
-## Gate B — write the survivor as documentation
+## How to write it
 
-An export gets no doc block by default. A survivor is a **TSDoc `/** … */`** comment: one
-declarative sentence a caller can act on without reading the body (if you cannot write it, fix the
-interface), plus an optional second paragraph only for the reason it passed Gate A. A single-line
-`//` is for a pinpoint gotcha inside a body. Use `@param`/`@returns` only when name and type do not
-say it; never `@since` or `@category`.
+A survivor is a TSDoc `/** … */`: one declarative sentence a caller can act on without reading
+the body (if it cannot be written, fix the interface), and an optional second paragraph for the
+reason it passed. A single-line `//` is for a pinpoint gotcha inside a body. `@param` and
+`@returns` only when name and type do not say it; never `@since` or `@category`.
 
-## Maintenance
+A change that makes a comment wrong shows it restated code: delete it, do not update it.
 
-A comment is never "kept in sync": if a change makes it wrong, it was restating code, so **delete
-it, don't update it**. Never narrate architecture or layering in a comment; that is the job of the
-rules and `CLAUDE.md`. Most files need zero comments.
-
-**Never strip these, they are code, not prose:** `biome-ignore`, `@ts-expect-error`, `@ts-ignore`,
-shebangs, build pragmas.
+Never strip `biome-ignore`, `@ts-expect-error`, `@ts-ignore`, shebangs or build pragmas: they are
+code, not prose.

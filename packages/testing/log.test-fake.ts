@@ -7,7 +7,7 @@ export type LogLine = ReadonlyArray<unknown>
  * Records each log line as its level, its first message part, then the values of the named
  * annotations, so a test asserts the level with the message.
  */
-export const recordLogs = (...annotations: ReadonlyArray<string>) => {
+export function recordLogs(...annotations: ReadonlyArray<string>) {
   const logs: Array<LogLine> = []
   const logger = Logger.make<unknown, void>(({ logLevel, message, fiber }) => {
     const first = Array.isArray(message) ? message[0] : message

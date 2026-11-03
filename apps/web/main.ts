@@ -1,6 +1,6 @@
 import { Effect, Layer } from 'effect'
 
-import { ApiConfig, RuntimeConfig, WebConfig } from '@app-template/config'
+import { ApiConfig, RuntimeConfig, WebConfig } from '@app-template/kernel/config'
 
 import index from '#web/index.html'
 
@@ -14,7 +14,7 @@ const { api, web, runtime } = Effect.all({
 )
 const apiOrigin = `http://localhost:${api.port}`
 
-const proxyToApi = (request: Request): Promise<Response> => {
+function proxyToApi(request: Request): Promise<Response> {
   const url = new URL(request.url)
   const target = new URL(url.pathname.replace(/^\/api/, '') + url.search, apiOrigin)
   return fetch(new Request(target, request))

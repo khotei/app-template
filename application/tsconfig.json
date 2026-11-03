@@ -5,10 +5,5 @@
     "outDir": "../node_modules/.cache/tsc/application"
   },
   "include": ["**/*.ts"],
-  "references": [
-    { "path": "../domain" },
-    { "path": "../infrastructure" },
-    { "path": "../packages/queue" },
-    { "path": "../packages/testing" }
-  ]
+  "references": [{ "path": "../kernel" }, { "path": "../packages" }]
 }

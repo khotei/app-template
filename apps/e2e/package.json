@@ -1,0 +1,20 @@
+{
+  "name": "@app-template/e2e",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#testing/*": "./testing/*.ts"
+  },
+  "devDependencies": {
+    "@app-template/api": "workspace:*",
+    "@app-template/application": "workspace:*",
+    "@app-template/http-api": "workspace:*",
+    "@app-template/kernel": "workspace:*",
+    "@app-template/packages": "workspace:*",
+    "@app-template/worker": "workspace:*",
+    "@effect/platform-bun": "catalog:effect",
+    "@effect/sql-pg": "catalog:effect",
+    "@effect/vitest": "catalog:effect",
+    "effect": "catalog:effect"
+  }
+}

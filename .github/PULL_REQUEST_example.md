@@ -1,17 +1,16 @@
 # PR template — worked example
 
 This is a **reference**, not a template GitHub offers on PR creation (only
-`PULL_REQUEST_TEMPLATE.md` is). It shows a fully filled PR for a real ticket
-(`2026-10-16-1433_monorepo-setup`) and the exact commit it squash-merges into. Use
-it to see the shape end-to-end. Source of truth for the format stays
-`.claude/rules/commits.md`.
+`PULL_REQUEST_TEMPLATE.md` is). It shows a fully filled PR for an invented ticket,
+`order-export`, and the exact commit it squash-merges into. Use it to see the shape
+end-to-end. Source of truth for the format stays `.claude/rules/commits.md`.
 
 ---
 
 ## 1. The PR title (becomes the squash commit subject)
 
 ```
-:wrench: chore(monorepo-setup): Scaffold Bun monorepo
+:sparkles: feat(order-export): Add order CSV export
 ```
 
 ## 2. The PR description (pasted into the description box, template filled)
@@ -23,67 +22,55 @@ it to see the shape end-to-end. Source of truth for the format stays
 
   Author self-check:
   [x] Title is a commits.md subject line
-  [x] `make check` passes (Biome + tsc -b + vitest)
-  [x] Imports follow docs/knowledge/architecture.md › Dependency rules
-  [x] #<workspace>/… imports inside workspaces, no relative paths
-  [x] Every dependency pinned in catalogs.tools or catalogs.runtime
-  [x] Ticket docs updated
+  [x] `make check` passes
+  [x] Every new dependency pinned in a named catalog
+  [x] Ticket docs and docs/knowledge/ updated
 
   How to test:
-    make setup && make check && make dev
-    curl localhost:3000/health; open localhost:3001
+    make up && make dev
+    export the orders from the orders page; open the downloaded CSV
 
   Screenshots / notes:
-    Keep chore/monorepo-setup after the squash: it holds the step history.
+    An export of ten thousand orders streams in about two seconds locally.
 -->
 
 ## Summary
 
-Scaffold App Template on Bun 1.4 and TypeScript 7: one workspace
-per layer, an example slice through every layer, and the tooling and
-in-repo SDD flow that every later ticket builds on. No product
-behaviour yet; the slice proves the wiring compiles, runs and is tested.
+Let a user export their orders as one CSV file. Support asked for it to
+reconcile invoices; until now users copied rows from the page by hand.
 
 ## What changed
 
-- Workspaces domain, application, infrastructure, packages/*, apps/*
-  and deployment, with exact versions in named catalogs (tools, runtime).
-- Example slice: domain model and port, in-memory adapters, a use case,
-  and runnable api (--hot), worker (--watch) and web (HMR) apps.
-- Biome with import-direction guards, husky hooks, PR template and CI.
-- Makefile as the human interface; a single root .env.
+- A use case that streams a user's orders as CSV rows.
+- A route that answers the file as a download.
+- An export button on the orders page.
 
 ## How it works
 
-Imports only go down the stack; Biome rejects upward and sibling-app
-imports, the isolated linker and bun check reject undeclared ones.
+The use case reads the orders a page at a time and encodes each row as
+it goes, so memory stays flat however many orders a user has.
 
-<details><summary>Layer stack</summary>
+<details><summary>Export flow</summary>
 
 ```mermaid
-graph TD
-  apps[apps/api · apps/worker] --> application
-  application --> infrastructure
-  infrastructure --> domain
-  apps --> packages[packages/*]
-  application --> packages
-  infrastructure --> packages
+graph LR
+  page[orders page] --> route[export route]
+  route --> useCase[export use case]
+  useCase --> orders[(orders)]
 ```
 
 </details>
 
 ## Decisions
 
-Decision: Project references with composite + emitDeclarationOnly, since
-referenced projects may not disable emit (TS6310); bun check emits
-nothing and tsc -b writes only to a gitignored cache.
-
-Decision: Inside a workspace, import through #<workspace>/… subpaths. A
-bare #/ prefix type-checks but Bun cannot resolve it.
+Decision: Stream the rows instead of building the file first. A user
+with years of orders would otherwise hold the whole file in memory;
+the cost is that a failure midway leaves the browser a cut file, which
+the user downloads again.
 
 ## Refs
 
-Refs: docs/tickets/2026-10-16-1433_monorepo-setup/
+Refs: docs/tickets/<YYYY-MM-DD-HHmm>_order-export/
 ````
 
 ## 3. The squashed commit it produces
@@ -93,7 +80,7 @@ Merged with the HTML comment left out of `--body-file`, the commit on `main` is:
 **Subject** (from the PR title):
 
 ```
-:wrench: chore(monorepo-setup): Scaffold Bun monorepo
+:sparkles: feat(order-export): Add order CSV export
 ```
 
 **Body**: the PR description from `## Summary` down to `## Refs`, with the

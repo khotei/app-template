@@ -1,0 +1,157 @@
+import { BunCrypto } from '@effect/platform-bun'
+import { assert, describe, it } from '@effect/vitest'
+import { assertEquals } from '@effect/vitest/utils'
+import { DateTime, Effect, Layer, Option, Stream } from 'effect'
+
+import type { UserId } from '@app-template/application/identity'
+import { AttachmentRepository, FileRepository } from '@app-template/kernel/data'
+import { RepositoryStackTest } from '@app-template/kernel/data/testing'
+import { assertSchemaEquals, epoch, png } from '@app-template/packages/testing'
+
+import { AttachmentId } from '#chat/domain/attachment.id'
+import {
+  Attachment,
+  buildAttachment,
+  FileName,
+  FileSize,
+  MediaType,
+} from '#chat/domain/attachment.model'
+import { ChatNotFoundError } from '#chat/domain/chat.error'
+import { type ChatId, MessageId } from '#chat/domain/chat.id'
+import { Chat, ChatTitle } from '#chat/domain/chat.model'
+import { buildAssistantMessage } from '#chat/domain/message.model'
+import { encodeAttachment } from '#chat/services/attachment.mapper'
+import { ChatService } from '#chat/services/chat.service'
+import { chat, firstMessage, owner, stranger, unknownChatId } from '#testing/chat/chat.test-fixture'
+import {
+  insertChatLayer,
+  insertMessage,
+  selectChat,
+  selectMessages,
+} from '#testing/chat/chat.test-layer'
+
+/** The chat services over the memory layers, on fresh rows where `chat` exists. */
+const ChatTest = ChatService.layer.pipe(
+  Layer.provideMerge(insertChatLayer(chat)),
+  Layer.provideMerge(RepositoryStackTest),
+  Layer.provide(BunCrypto.layer),
+)
+
+const trip = ChatTitle.make('Trip')
+
+const lisbonWeekend = ChatTitle.make('Lisbon weekend')
+
+/** The `where` a generated title writes with: only a chat no one has titled yet. */
+const untitled = (id: ChatId) => ({ id, title: Option.none<ChatTitle>() })
+
+type ChatCall = (
+  service: ChatService['Service'],
+  userId: UserId,
+  chatId: ChatId,
+) => Effect.Effect<unknown, ChatNotFoundError>
+
+const chatCalls: ReadonlyArray<{ readonly name: string; readonly call: ChatCall }> = [
+  { name: 'getOne', call: (service, userId, chatId) => service.getOne({ id: chatId, userId }) },
+  {
+    name: 'rename',
+    call: (service, userId, chatId) => service.rename({ id: chatId, userId }, trip),
+  },
+  { name: 'delete', call: (service, userId, chatId) => service.delete({ id: chatId, userId }) },
+]
+
+describe('ChatService', () => {
+  it.live("rename titles the owner's chat, moves its updatedAt and returns it", () =>
+    Effect.gen(function* () {
+      const service = yield* ChatService
+
+      const renamed = yield* service.rename({ id: chat.id, userId: owner }, trip)
+
+      assert.isTrue(DateTime.isGreaterThan(renamed.updatedAt, epoch))
+      assertEquals(
+        renamed,
+        new Chat({ ...chat, title: Option.some(trip), updatedAt: renamed.updatedAt }),
+      )
+      assertEquals(yield* selectChat(chat.id), Option.some(renamed))
+    }).pipe(Effect.provide(ChatTest)),
+  )
+
+  it.effect('rename where the title is none titles an untitled chat', () =>
+    Effect.gen(function* () {
+      const service = yield* ChatService
+
+      const renamed = yield* service.rename(untitled(chat.id), lisbonWeekend)
+
+      assertEquals(renamed.title, Option.some(lisbonWeekend))
+      assertEquals(yield* selectChat(chat.id), Option.some(renamed))
+    }).pipe(Effect.provide(ChatTest)),
+  )
+
+  it.effect(
+    'rename where the title is none of a titled chat is ChatNotFoundError and keeps the title',
+    () =>
+      Effect.gen(function* () {
+        const service = yield* ChatService
+        const renamed = yield* service.rename({ id: chat.id, userId: owner }, trip)
+
+        const error = yield* service.rename(untitled(chat.id), lisbonWeekend).pipe(Effect.flip)
+
+        assertSchemaEquals(ChatNotFoundError, error, new ChatNotFoundError({ id: chat.id }))
+        assertEquals(yield* selectChat(chat.id), Option.some(renamed))
+      }).pipe(Effect.provide(ChatTest)),
+  )
+
+  it.effect(
+    'delete while a reply runs removes the chat, its messages, their attachments and bytes',
+    () =>
+      Effect.gen(function* () {
+        const service = yield* ChatService
+        const attachments = yield* AttachmentRepository
+        const files = yield* FileRepository
+        yield* insertMessage(firstMessage)
+        yield* insertMessage(
+          buildAssistantMessage({
+            id: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000031'),
+            chatId: chat.id,
+            createdAt: epoch,
+          }),
+        )
+        const photo = new Attachment({
+          ...buildAttachment({
+            id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000024'),
+            userId: owner,
+            fileName: FileName.make('photo.png'),
+            mediaType: MediaType.make('image/png'),
+            size: FileSize.make(png.length),
+            createdAt: epoch,
+          }),
+          messageId: Option.some(firstMessage.id),
+          chatId: Option.some(chat.id),
+        })
+        const row = yield* encodeAttachment(photo)
+        yield* attachments.insert(row)
+        yield* files.insert({ ...photo, content: Stream.make(png) })
+
+        yield* service.delete({ id: chat.id, userId: owner })
+
+        assertEquals(yield* selectChat(chat.id), Option.none())
+        assertEquals(yield* selectMessages(chat.id), [])
+        assertEquals(yield* attachments.selectMany({ id: [photo.id] }), [])
+        assertEquals(yield* files.selectOne({ id: photo.id }), Option.none())
+      }).pipe(Effect.provide(ChatTest)),
+  )
+
+  it.effect.each(chatCalls)(
+    "$name of another user's chat or of an unknown chat is ChatNotFoundError",
+    ({ call }) =>
+      Effect.gen(function* () {
+        const service = yield* ChatService
+
+        const foreign = yield* call(service, stranger, chat.id).pipe(Effect.flip)
+        const missing = yield* call(service, owner, unknownChatId).pipe(Effect.flip)
+
+        assertSchemaEquals(ChatNotFoundError, foreign, new ChatNotFoundError({ id: chat.id }))
+        assertSchemaEquals(ChatNotFoundError, missing, new ChatNotFoundError({ id: unknownChatId }))
+        assertEquals(yield* service.getOne({ id: chat.id, userId: owner }), chat)
+      }).pipe(Effect.provide(ChatTest)),
+  )
+})

@@ -3,32 +3,15 @@ paths:
   - "**/package.json"
   - "Makefile"
   - ".env*"
-  - "packages/config/**"
+  - "kernel/config/**"
 ---
 
 # Tooling
 
-Imperatives only. The commands: the root `CLAUDE.md`; the explanations:
-[docs/knowledge/tooling.md](../../docs/knowledge/tooling.md).
-
-## Dependencies
-
-- Versions live only in the root `catalogs`, pinned exactly. Workspaces reference them with
+- A version lives only in a root catalog, pinned exactly; a workspace references it as
   `catalog:<namespace>`, never the unnamed `catalog:`.
-- Put a new dependency in `tools` or `runtime` by the definitions in the knowledge doc; give a
-  lock-step family its own namespace.
-- After `bun add` (the root `CLAUDE.md`), declare the dependency in each consuming workspace.
+- Settings are read only through the `@app-template/kernel/config` layers; `.env.pulumi` is
+  written by `make up`, never by hand.
 
-## Environment
-
-- Keep one hand-written root `.env`, plus `.env.pulumi`, which `make up` writes from the stack's
-  outputs; never edit or commit it. List in `.env.example` only the variables the code reads from
-  `.env`, plus the ones a client SDK reads from the environment itself; keep values for stubbed
-  services commented out.
-- App scripts load both, `--env-file=../../.env --env-file=../../.env.pulumi`. Quote every
-  `.env` value that holds a space. Read settings only through the `@app-template/config`
-  services' layers. Tests never depend on `.env`.
-
-## Dev modes
-
-- Keep `api` and `web` on `--hot` and `worker` on `--watch`; never invent a `--dev` flag.
+The rest, with the commands and why they are so: the catalogs, the environment files and the dev
+modes of [docs/knowledge/tooling.md](../../docs/knowledge/tooling.md).

@@ -48,7 +48,10 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Lint
-        run: bunx biome ci
+        run: make lint BIOME=ci
+
+      - name: Lint the docs
+        run: make doc-lint
 
       # prepare patches tsc on install; an install without it silently drops Effect diagnostics.
       - name: Assert the patched tsc
@@ -56,6 +59,12 @@ jobs:
 
       - name: Typecheck
         run: make typecheck
+
+      # Pinned only: the document is effect's output, and a newer runtime's would read as a contract
+      # change.
+      - name: The HTTP contract matches its snapshot
+        if: matrix.bun == 'pinned'
+        run: make api-check
 
       # Strict here: docs/knowledge/database.md › Migrations.
       - name: Migrations match the entities
@@ -108,21 +117,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-
-      # A new project deletes the ticket folder, so an id outside it points nowhere.
-      - name: No ticket ids outside docs/tickets
-        run: make ids
-
-      - name: Services reached by Service.use
-        run: make service-use
-
-      - name: No call takes another call's result as its subject
-        run: make nested-calls
-      - name: No native code that an effect module spells
-        run: make idioms
-
-      - name: The names the docs cite exist
-        run: make doc-names
 
       - name: Check links
         uses: lycheeverse/lychee-action@v2

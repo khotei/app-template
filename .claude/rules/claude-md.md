@@ -17,57 +17,56 @@ only by changing behaviour.
    Yes → don't write it (restating a signature goes stale on the next refactor).
 2. **Would a reader get this wrong, or waste real time, without it?** Yes → write it.
 
-If a rename or refactor forces a doc edit, the doc held *what*, not *why*: delete the line, don't
-update it.
+What passes: binding decisions plus the rejected alternative (the ones a reader would "fix"
+back) · invariants types cannot express · cross-workspace coupling · non-obvious gotchas
+(ordering, version quirks) · boundaries (import direction, ownership) · one pointer to the file
+where a surface lives. What fails: behaviour narration (per-function descriptions, signatures,
+test walkthroughs). When in doubt, cut.
 
-## Hard limits
+## The owner
 
-- **`CLAUDE.md` ≤ ~40 lines; a rule file ≤ ~80.** Over budget ⇒ cut, don't append.
-- **Decision history lives in commit `Decision:` paragraphs and the ticket's
-  `architecture.md › Decisions`**, never in `CLAUDE.md` or rules. These state only the
-  *currently binding* constraint: no dates, no superseded chains, no ticket numbers, no tombstones.
-- **No behaviour narration**: no per-function descriptions, signatures or test walkthroughs.
-- **One author per fact**: if another doc states it, link it by name; never restate it.
-- **Write the pattern, not the instance,** so a refactor leaves the rule true: placeholders
-  (`<Entity>Repository`, `<verb>-<object>`) and a short neutral snippet in a fence (an `Order`, not
-  a model of this app). A live name only for a stable anchor: a workspace, a `make` target, a
-  library API, the template's own infrastructure (the transaction, the queue client, the test
-  harnesses). Never list what `ls` or `grep` reproduces; `make doc-names` fails on a backticked
-  path or name the repo lacks.
-
-## Where each kind of fact lives
+Each fact has one author; every other file links it by name and never restates it.
 
 | Fact | Home |
 |---|---|
 | Binding constraints of one layer or workspace | `<layer>/CLAUDE.md` |
 | Repo-wide conventions | `.claude/rules/*.md` |
 | How the system works, for humans | `docs/knowledge/*.md` |
+| Why a boundary holds, what guards it, what its reversal breaks | `docs/knowledge/decisions.md` |
 | One ticket's what, why and how | its folder in `docs/tickets/` (`sdd.md`) |
 | What changed and why | `git log` |
 
-## Belongs
+A `CLAUDE.md` or rule states only the *currently binding* constraint and links its record: its
+history lives in commit `Decision:` paragraphs and the ticket's `architecture.md › Decisions`, so
+no dates, superseded chains, ticket numbers or tombstones. Refresh a doc only when a real change
+lands, inside that change's commit. A lesson learned from building changes a skill, a rule or a
+check, never a `CLAUDE.md`, and only on the user's OK.
 
-Binding decisions plus the rejected alternative (the ones a reader would "fix" back) · invariants
-types cannot express · cross-workspace coupling · non-obvious gotchas (ordering, version quirks) ·
-boundaries (import direction, ownership) · one pointer to the file where a surface lives.
+## The pattern
 
-Refresh a doc only when a real change lands, inside that change's commit. When in doubt, cut.
-A lesson learned from building changes a skill, a rule or a check, never a `CLAUDE.md`, and only
-on the user's OK.
+Write the pattern, not the instance, so a refactor leaves the line true: placeholders
+(`<Name>Repository`, `<verb>-<object>`) and a short neutral snippet in a fence (an `Order`, not a
+model of this app). A live name only for a stable anchor: a workspace, a `make` target, a library
+API, the template's own infrastructure (the transaction, the queue client, the test harnesses).
+Never list what `ls` or `grep` reproduces. If a rename forces a doc edit, the doc held *what*,
+not *why*: delete the line, don't update it.
+
+## The limits and the checks
+
+- **Limits, checked by `make doc-lint`:** a `CLAUDE.md` 40 lines, a rule 80.
+  Over a limit, cut; never append
+  ([why](../../docs/knowledge/decisions.md#instructions-within-size-limits)).
+- `make doc-lint` also fails on a backticked path the repo lacks, on a source path in an
+  instruction file ([why](../../docs/knowledge/decisions.md#instructions-name-patterns)) and on a
+  rule whose `paths:` filter matches no file.
 
 ## The toolkit
 
-- Procedures are skills in `.claude/skills/ticket-<phase>/SKILL.md` with
-  `disable-model-invocation: true`; a colon is reserved for plugin namespaces, and there is no
-  `.claude/commands/`.
-- `mattpocock-skills` is referenced by name (`mattpocock-skills:<skill>`), never copied or edited;
-  a wrapper overrides only paths and gates.
-- **The dependency map in `docs/knowledge/sdd.md` is the only summary** of what each skill and
-  agent uses (plugin skills, agents, hooks, overrides). A commit that changes what a skill or agent
-  uses updates the map in the same commit.
+How the skills, agents and plugin fit, and what each uses: `docs/knowledge/sdd.md`, whose
+dependency map a commit updates when it changes what a skill or agent uses. Two constraints it
+does not hold:
+
+- Procedures are skills in `.claude/skills/ticket-<phase>/SKILL.md`: a colon is reserved for
+  plugin namespaces, and there is no `.claude/commands/`.
 - Tool limits live on the agent (`disallowedTools`); an agent that cannot edit or spawn
   agents has its skill persist its output.
-- Subagents cannot ask the user, so grilling, plan review and commit approval run in the main
-  session.
-- `implementer` ends only with `make check` green (`.claude/hooks/make-check.sh`) or a final
-  message starting with `BLOCKED:`.

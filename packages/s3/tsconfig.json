@@ -1,9 +1,0 @@
-{
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "rootDir": ".",
-    "outDir": "../../node_modules/.cache/tsc/s3"
-  },
-  "include": ["**/*.ts"],
-  "references": [{ "path": "../testing" }]
-}

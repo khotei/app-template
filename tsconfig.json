@@ -1,21 +1,14 @@
 {
   "files": [],
   "references": [
-    { "path": "./domain" },
     { "path": "./http-api" },
     { "path": "./application" },
-    { "path": "./infrastructure" },
-    { "path": "./packages/aws" },
-    { "path": "./packages/config" },
-    { "path": "./packages/queue" },
-    { "path": "./packages/llm" },
-    { "path": "./packages/s3" },
-    { "path": "./packages/testing" },
-    { "path": "./packages/ui" },
+    { "path": "./kernel" },
+    { "path": "./packages" },
     { "path": "./apps/api" },
     { "path": "./apps/worker" },
     { "path": "./apps/web" },
-    { "path": "./deployment" },
-    { "path": "./e2e" }
+    { "path": "./apps/e2e" },
+    { "path": "./deployment" }
   ]
 }

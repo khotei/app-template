@@ -1,7 +1,7 @@
 import { Effect } from 'effect'
 
 import { ApiClient } from '@app-template/http-api'
-import { joinClassNames } from '@app-template/ui'
+import { joinClassNames } from '@app-template/packages/ui'
 
 const getHealth = ApiClient.use((api) => api.health.get())
 

@@ -16,10 +16,8 @@
   │                                                                          │
   │  ── Author self-check (tick before requesting review) ──                 │
   │  [ ] Title is a commits.md subject (gitmoji + type(scope) + imperative ≤50)
-  │  [ ] `make check` passes (Biome + tsc -b + vitest)                       │
-  │  [ ] Imports follow docs/knowledge/architecture.md › Dependency rules    │
-  │  [ ] Inside a workspace: #<workspace>/… imports, no relative paths       │
-  │  [ ] New dependency pinned in catalogs.tools or catalogs.runtime         │
+  │  [ ] `make check` passes                                                 │
+  │  [ ] New dependency pinned in a named catalog (tooling.md › Catalogs)    │
   │  [ ] Ticket docs (feature / architecture / plan) and docs/knowledge/     │
   │      updated if behaviour or conventions changed                         │
   │                                                                          │

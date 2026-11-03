@@ -76,7 +76,7 @@ export class QueueTransport extends Context.Service<
     readonly extend: (queue: string, change: VisibilityChange) => Effect.Effect<void, QueueError>
     readonly delete: (queue: string, handle: string) => Effect.Effect<void, QueueError>
   }
->()('@app-template/queue/QueueTransport', {
+>()('@app-template/packages/queue/QueueTransport', {
   make: Effect.gen(function* () {
     const sqs = yield* SQSService
     const urls = yield* Cache.makeWith(

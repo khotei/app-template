@@ -44,7 +44,7 @@ const initialUploadState: UploadState = {
   size: 0,
 }
 
-const buildInlineDisposition = (fileName: string) => {
+function buildInlineDisposition(fileName: string) {
   const encoded = encodeURIComponent(fileName).replace(
     /[!'()*]/g,
     (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`,
@@ -120,18 +120,18 @@ export class S3Bucket extends Context.Service<
     /** Idempotent; one request per 1000 keys, none for no key. */
     readonly deleteMany: (keys: ReadonlyArray<string>) => Effect.Effect<void>
   }
->()('@app-template/s3/S3Bucket', {
+>()('@app-template/packages/s3/S3Bucket', {
   make: ({ bucket }: { readonly bucket: string }) =>
     Effect.gen(function* () {
       const s3 = yield* S3Service
 
       const buildObjectRef = (key: string) => ({ Bucket: bucket, Key: key })
 
-      const createUpload = (key: string, options: PutOptions) => {
+      function createUpload(key: string, options: PutOptions) {
         const ref = buildObjectRef(key)
         const headers = buildObjectHeaders(options)
 
-        const abortUnlessCompleted = (uploadId: string, exit: Exit.Exit<unknown, unknown>) => {
+        function abortUnlessCompleted(uploadId: string, exit: Exit.Exit<unknown, unknown>) {
           if (Exit.isSuccess(exit)) return Effect.void
           return s3.abortMultipartUpload({ ...ref, UploadId: uploadId }).pipe(Effect.orDie)
         }

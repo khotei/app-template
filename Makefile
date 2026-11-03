@@ -2,9 +2,10 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help setup stack up down reset dev dev-api dev-worker dev-web debug-api debug-worker \
-  debug-web check ids doc-names service-use nested-calls lint fmt typecheck test test-unit \
-  test-e2e bundle-check clean outdated vendor-effect vendor-drizzle migrate migration migration-check
+.PHONY: help setup stack up down reset worktree dev dev-api dev-worker dev-web debug-api \
+  debug-worker debug-web check doc-lint review-rules lint \
+  fmt typecheck test test-unit test-e2e bundle-check clean outdated vendor-effect vendor-drizzle \
+  migrate migration migration-check api-check api-snapshot
 
 # The local Pulumi project: each tree's file backend under its .data/, named per command, so no
 # login is stored; the home (the provider plugins) is the main tree's .pulumi/, shared by every
@@ -27,6 +28,7 @@ EXPORT_ENV = set -a && . ./.env && set +a
 NAME_MINISTACK = ministack=app-template-ministack-$$(echo "$$AWS_ENDPOINT_URL" | sed -E 's/.*:([0-9]+).*/\1/')
 # The pair of the identifier in deployment/aws/database.ts, for the same reason.
 NAME_DATABASE = database=app-template-$$STAGE-database
+DRIZZLE_CONFIG = kernel/data/drizzle.config.ts
 
 help: ## List all targets
 	@echo 'App Template: make <target>'
@@ -60,20 +62,24 @@ reset: ## Remove MiniStack, the database's container and volume, and .data/ whol
 		docker volume ls -q --filter "name=instance-$$database-data" | xargs -r docker volume rm
 	rm -rf .data .env.pulumi
 
-migrate: ## Apply the pending migrations to the database in .env.pulumi
-	bun --env-file=.env --env-file=.env.pulumi infrastructure/db/migrate.ts
+# Run inside the new worktree; the ports it moves: docs/knowledge/tooling.md › Worktrees.
+worktree: ## Name a parallel step's worktree, install it, write its .env: N=<n> NAME=<name>
+	@sh .claude/skills/ticket-implement/worktree.sh "$$N" "$$NAME"
 
-# drizzle-kit runs from infrastructure/: the pinned binary is that workspace's devDependency, and
-# the config's paths resolve against the working directory, not the config file.
+migrate: ## Apply the pending migrations to the database in .env.pulumi
+	bun --env-file=.env --env-file=.env.pulumi kernel/postgres/migrate.ts
+
+# drizzle-kit is a root devDependency: the isolated linker links a workspace's binary only in that
+# workspace. The config's paths resolve against the working directory, the root.
 migration: ## Generate a migration from the entities, with no database: NAME=<name>
 	@test -n "$(NAME)" || { echo 'usage: make migration NAME=<name>'; exit 1; }
-	cd infrastructure && bunx drizzle-kit generate --name $(NAME)
+	bunx drizzle-kit generate --config $(DRIZZLE_CONFIG) --name $(NAME)
 
 # Compares folder listings, not git; soft here, strict in CI (docs/knowledge/database.md ›
 # Migrations). Closed stdin makes a rename prompt fail the target instead of hanging it.
 migration-check: ## Fail when an entity changed without a migration
-	@dir=infrastructure/db/migrations; before=$$(ls $$dir); \
-	out=$$(cd infrastructure && bunx drizzle-kit generate --name unmigrated </dev/null 2>&1) || \
+	@dir=kernel/data/migrations; before=$$(ls $$dir); \
+	out=$$(bunx drizzle-kit generate --config $(DRIZZLE_CONFIG) --name unmigrated </dev/null 2>&1) || \
 		{ echo "$$out"; exit 1; }; \
 	new=$$(ls $$dir | grep -vxF "$$before"); \
 	if [ -n "$$new" ]; then \
@@ -82,6 +88,26 @@ migration-check: ## Fail when an entity changed without a migration
 		echo 'Run make migration NAME=<name> and commit the folder.'; \
 		exit 1; \
 	fi
+
+# The generator writes the file it is given, not stdout, so a log while the modules load stays out
+# of the document; the snapshot is replaced only once a generation succeeded.
+API_SNAPSHOT = http-api/openapi.json
+API_GENERATED = node_modules/.cache/openapi.json
+
+api-check: ## Fail when the OpenAPI document of the HTTP contract differs from its snapshot
+	@test -f $(API_SNAPSHOT) || { echo "$(API_SNAPSHOT) is missing: run make api-snapshot."; exit 1; }
+	@mkdir -p $(dir $(API_GENERATED))
+	@bun apps/api/openapi.ts $(API_GENERATED)
+	@diff -u $(API_SNAPSHOT) $(API_GENERATED) || { \
+		echo; echo "The HTTP contract differs from $(API_SNAPSHOT) (above: - snapshot, + code)."; \
+		echo 'A change on purpose: run make api-snapshot and commit the snapshot with it.'; \
+		exit 1; \
+	}
+
+api-snapshot: ## Rewrite the HTTP contract's OpenAPI snapshot from the code
+	@mkdir -p $(dir $(API_GENERATED))
+	bun apps/api/openapi.ts $(API_GENERATED)
+	mv $(API_GENERATED) $(API_SNAPSHOT)
 
 dev: migrate ## Run api, worker and web together in dev mode
 	bun --filter './apps/*' dev
@@ -104,110 +130,41 @@ debug-worker: ## Run the worker with --inspect and --watch
 debug-web: ## Run the web dev server with --inspect
 	bun --filter @app-template/web debug
 
-check: ids doc-names service-use nested-calls idioms lint typecheck migration-check test bundle-check ## Run every gate: ids, doc names, service use, nested calls, idioms, lint, types, migrations, tests, the web bundle
+check: doc-lint lint typecheck api-check migration-check test bundle-check ## Run every gate: the docs, lint and the Effect style, types, the HTTP contract, migrations, tests, the web bundle
 
-ids: ## Fail on ticket ids in parentheses (D12, R3, Q70) outside docs/tickets
-	@if git grep --untracked -nE '\((D|R|Q)[0-9]+[a-z]?\)' -- . ':!docs/tickets' \
-		':!.github/PULL_REQUEST_example.md' ':!repos'; then \
-		echo 'Ticket ids belong in docs/tickets/ and commit messages, not in code, config or docs.'; \
-		exit 1; \
-	fi
+# Its scope and rules are .misc/lint/markdownlint-cli2.mjs; a reworded limits line stops it with 2.
+doc-lint: ## Lint the Markdown outside docs/tickets: width, paths, rule filters, file limits
+	@bunx markdownlint-cli2
 
-# The docs whose names doc-names keeps true; the roadmap plans files and names not built yet.
-DOC_NAMES_IN = CLAUDE.md '*/CLAUDE.md' '.claude/rules/*.md' 'docs/knowledge/*.md' ':!repos' \
-  ':!docs/knowledge/roadmap.md'
-# Named on purpose, absent on purpose: the paths the docs forbid, S3 operations, a naming example.
-DOC_NAMES_ABSENT = docs/adr/ docs/superpowers/ .claude/commands/ CreateMultipartUpload GetObject \
-  FundsTransfer
-# Scratch lists, rewritten on every run.
-DOC_NAMES_KNOWN = node_modules/.cache/doc-names/known
-DOC_NAMES_SPANS = node_modules/.cache/doc-names/spans
-PASCAL = [A-Z][a-z0-9]+([A-Z][a-z0-9]*)+
+# The rules a review of the uncommitted step holds the diff to: each rule without paths:, and each
+# whose filter matches a file the diff adds, changes or deletes (both sides of a rename), untracked
+# files included. /ticket-implement hands this list to the Standards reviewer. The filters are
+# read by .misc/lint/rule-filters.mjs, the doc lint's reader.
+review-rules: ## List the rules that bind the uncommitted diff: no paths: filter, or one it matches
+	@filters=$$(bun .misc/lint/rule-filters.mjs) || exit 2; \
+	bound=$$(printf '%s\n' "$$filters" | while read -r rule filter; do \
+		[ -n "$$filter" ] || continue; \
+		files=$$(git diff HEAD --no-renames --name-only -- ":(glob)$$filter" && \
+			git ls-files --others --exclude-standard -- ":(glob)$$filter") || exit 2; \
+		[ -z "$$files" ] || echo "$$rule"; \
+	done) || exit 2; \
+	{ for rule in $$(find .claude/rules -name '*.md'); do \
+		printf '%s\n' "$$filters" | cut -d' ' -f1 | grep -qxF "$$rule" || echo "$$rule"; \
+	done; printf '%s\n' "$$bound"; } | grep . | sort -u
 
-# A path is a span that starts at a tracked top-level entry and holds no placeholder, glob or
-# space; a name is a PascalCase word of two parts or more, a dotted one checked by its head. The
-# code is every file but Markdown, repos/ included, so a library's own names pass.
-doc-names: ## Fail on a backticked path or PascalCase name in the docs that the repo lacks
-	@mkdir -p $(dir $(DOC_NAMES_KNOWN))
-	@{ git grep --untracked -ohwE '$(PASCAL)' -- ':!*.md'; printf '%s\n' $(DOC_NAMES_ABSENT); } \
-		| sort -u > $(DOC_NAMES_KNOWN)
-	@git grep --untracked -noE -e '`[^`]+`' --and --not -e '_Avoid_' -- $(DOC_NAMES_IN) \
-		> $(DOC_NAMES_SPANS); [ $$? -le 1 ] || { echo 'doc-names: git grep failed' >&2; exit 2; }
-	@top=$$(git ls-files | cut -d/ -f1 | sort -u | sed 's/[.]/[.]/g' | paste -sd '|' -); \
-	if tr -d '`' < $(DOC_NAMES_SPANS) | sed -E -e 's/ › .*//' -e 's/^([^:]+:[0-9]+:$(PASCAL))[.].*/\1/' \
-		| grep -E "^[^:]+:[0-9]+:(($$top)(/[A-Za-z0-9._-]+)*/?|$(PASCAL))$$" \
-		| while IFS=: read -r file line name; do \
-			[ -e "$$name" ] || grep -qxF "$$name" $(DOC_NAMES_KNOWN) || echo "$$file:$$line: $$name"; \
-		done | grep .; then \
-		echo 'The docs name a path or a code name the repo lacks: fix the name, or cut it.'; \
-		exit 1; \
-	fi
+# A plugin that errors on a file is skipped there with a notice, `  i <plugin> errored: <reason>`,
+# and Biome still exits 0: that line stops the run with 2. The pattern is anchored, as the output
+# also quotes source lines. CI runs `make lint BIOME=ci`.
+BIOME = check
 
-# Reads each file whole, so a call Biome wraps across lines is caught too; any second argument
-# counts, a point-free `Ref.get` included (.claude/rules/effect-style.md › Composition). The hits
-# go through a variable, so a perl that fails (a broken pattern) fails the gate too.
-service-use: ## Fail on Effect.flatMap or Effect.map over a service, which Service.use spells
-	@hits=$$(perl -0777 -ne 'while (/Effect\.(flatMap|map)\(\s*[A-Z][A-Za-z0-9_.]*\s*,/g) { \
-		print "$$ARGV:", 1 + (substr($$_, 0, $$-[0]) =~ tr/\n//), "\n" }' \
-		$$(git ls-files --cached --others --exclude-standard -- '*.ts' ':!repos')) || exit 2; \
-	if [ -n "$$hits" ]; then \
-		echo "$$hits"; \
-		echo 'Reach a service by Service.use, or Service.useSync for a plain value.'; \
-		exit 1; \
-	fi
-
-# Data-first combinators of effect's modules, curated so a constructor, a schema or a predicate
-# takes any argument. A subject is a call, a method chain or a trailing `.pipe(…)` included.
-# - unary: their one argument is the subject; any call there fails, a generator body passes
-#   (`Effect.scoped(Effect.gen(…))`).
-# - one: their data-last form takes one argument, so a call fails only when a second argument
-#   follows it; a lone `.pipe(…)` fails too, a pipe inside a pipe step (`Effect.provide(X.pipe(…))`).
-# - two: their data-last form takes two (`forEach(f, { discard })`), so only a module call fails.
-# The pattern is matched with /x: make joins the continued lines with spaces.
-NESTED_UNARY = Effect\.(fromOption|fromNullishOr|head|flip|exit|asVoid|asSome|orDie|ignore|forkChild|\
-forkScoped|forever|timed|transposeOption|option|flatten|scoped)|Option\.(getOrThrow|isSome|isNone|\
-flatten)|Arr\.(head|last|getSomes|flatten|isReadonlyArrayEmpty|isReadonlyArrayNonEmpty)|\
-Str\.(isEmpty|isNonEmpty|trim|toLowerCase)|Stream\.(runCollect|runDrain|runLast)|Layer\.(build|\
-launch|orDie)|Record\.(keys|values|toEntries)
-NESTED_ONE = Effect\.(map|flatMap|andThen|tap|as|mapError|catch|catchCause|catchTags|tapError|\
-tapCause|provide|repeat|retry|zip|race|raceFirst|ensuring|onExit|onError|timeout|match|matchEffect|\
-orElse\w*)|Option\.(map|flatMap|filter|getOrElse|match|exists|orElse)|Arr\.(map|filter|filterMap|\
-flatMap|sort|findFirst|findLast|some|every|append|appendAll|prepend|prependAll|match|take|drop|join)|\
-Str\.(split|startsWith|endsWith|includes)|Stream\.(map|tap|concat|merge|filter|take|runForEach|\
-schedule|grouped|catch|provide)|Layer\.(provide|provideMerge|merge|tap|catch)|Record\.(map|filter|get)
-NESTED_TWO = Effect\.(filterOrFail|forEach|catchTag|catchIf|catchCauseIf|tapCauseIf|tapErrorTag|\
-provideService|zipWith)|Arr\.reduce|Str\.(replace|slice)|Stream\.(mapEffect|mapAccum|runFold|\
-groupedWithin|scan\w*|flatMap)|Layer\.catchTag
-NESTED_PARENS = (\((?:[^()]++|(?-1))*+\))(?:\s*\.\s*[\w\$$]+\s*(?-1))*
-NESTED_ANY = [A-Za-z_\$$][\w\$$.]*\s*(?:<[^<>()]*>)?\s*$(NESTED_PARENS)
-NESTED_MODULE = (?:Effect|Option|Arr|Str|Stream|Layer|Record|Ref)\.\w+\s*$(NESTED_PARENS)
-NESTED_CALL = \b(?:$(NESTED_UNARY))\(\s*(?!Effect\.gen\b)$(NESTED_ANY) \
-  | \b(?:$(NESTED_ONE))\(\s*(?:$(NESTED_ANY)\s*,(?!\s*\))|[\w.]+\.pipe\() \
-  | \b(?:$(NESTED_TWO))\(\s*$(NESTED_MODULE)\s*,(?!\s*\))
-
-# The hits go through a variable, so a perl that fails (a broken pattern) fails the gate too.
-# Native code that an effect module spells: a check for undefined (UndefinedOr, Option) and a sort
-# by a comparator lambda (Order).
-IDIOMS = [!=]== undefined|\.sort\(\(
-
-idioms: ## Fail on native code an effect module spells (.claude/rules/effect.md)
-	@if git grep --untracked -nE '$(IDIOMS)' -- '*.ts' ':!repos' ':!**/migrations/**'; then \
-		echo 'Use the effect module named in .claude/rules/effect.md: UndefinedOr or Option, Order.'; \
-		exit 1; \
-	fi
-
-nested-calls: ## Fail on a combinator whose subject is another call, which a pipe spells in order
-	@hits=$$(perl -0777 -ne 'while (/$(NESTED_CALL)/gx) { \
-		print "$$ARGV:", 1 + (substr($$_, 0, $$-[0]) =~ tr/\n//), "\n" }' \
-		$$(git ls-files --cached --others --exclude-standard -- '*.ts' ':!repos')) || exit 2; \
-	if [ -n "$$hits" ]; then \
-		echo "$$hits"; \
-		echo 'Pipe the subject through the combinator: x.pipe(f), pipe(x, f), or flow(…) without x.'; \
-		exit 1; \
-	fi
-
-lint: ## Lint and format-check with Biome
-	bun run lint
+lint: ## Lint and format-check with Biome and its plugins, failing on a plugin that errored
+	@out=$$(bunx biome $(BIOME) --colors=off 2>&1); status=$$?; \
+	printf '%s\n' "$$out"; \
+	if printf '%s\n' "$$out" | grep -qE '^  i [^ ]+ errored: '; then \
+		echo 'lint: a Biome plugin errored and checked nothing in that file: fix the plugin.' >&2; \
+		exit 2; \
+	fi; \
+	exit $$status
 
 fmt: ## Apply Biome formatting and safe fixes
 	bun run format
@@ -219,18 +176,20 @@ typecheck: ## Typecheck every workspace with Effect diagnostics
 
 test: test-unit test-e2e ## Run the unit and the e2e tests
 
-test-unit: ## Run the unit tests under tests/ (no Docker)
+test-unit: ## Run the unit tests under __tests__/ (no Docker)
 	bun --bun vitest run --project unit
 
-test-e2e: ## Run the e2e tests under e2e/ on their own containers (Docker running)
+test-e2e: ## Run the e2e tests under __e2e__/ and apps/e2e/ on their own containers (Docker running)
 	bun --bun vitest run --project e2e
 
 # Greps the service keys, string literals that survive the build however Bun applies
-# "sideEffects": docs/knowledge/architecture.md › Boundary guards.
-bundle-check: ## Fail when a domain service, port or adapter reaches the web bundle
+# "sideEffects": docs/knowledge/architecture.md › Boundary guards. A grep that exits 2 (a pattern
+# it rejects, a bundle it cannot read) stops the check with 2, so it never reads as a clean bundle.
+bundle-check: ## Fail when a service, use case, repository, port or adapter reaches the web bundle
 	bun build apps/web/app/main.ts --outdir node_modules/.cache/web-bundle --target browser
-	! grep -rE '@app-template/(domain|infrastructure)/[a-z-]+/[A-Za-z]*(Service|Repository|Bucket|Assistant)' \
-		node_modules/.cache/web-bundle
+	@grep -rE '@app-template/(kernel/|application/(use-cases/|[a-z0-9-]+/(services|infrastructure|domain)/))' \
+		node_modules/.cache/web-bundle; case $$? in 1) ;; 0) exit 1 ;; \
+		*) echo 'bundle-check: grep failed' >&2; exit 2 ;; esac
 
 clean: ## Remove installed dependencies, build caches and coverage
 	find . -name node_modules -type d -prune -exec rm -rf {} +

@@ -5,8 +5,6 @@ import {
   AttachmentBoundError,
   AttachmentId,
   AttachmentNotFoundError,
-} from '@app-template/domain/attachment'
-import {
   ChatBusyError,
   ChatId,
   Chat as ChatModel,
@@ -17,11 +15,11 @@ import {
   MessageInputInvalidError,
   Message as MessageModel,
   MessageNotFoundError,
-} from '@app-template/domain/chat'
+} from '@app-template/application/chat'
+import { Auth } from '@app-template/application/identity'
 
 import { Attachment } from '#http-api/attachment/attachment.http'
 import * as limits from '#http-api/shared/limits'
-import { Auth } from '#http-api/shared/security'
 
 export const Chat = ChatModel.mapFields((fields) => ({
   ...fields,

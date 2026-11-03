@@ -1,8 +1,8 @@
 import { Array as Arr, Effect, Layer, Predicate, SchemaIssue } from 'effect'
 import { type HttpApiError, HttpApiMiddleware } from 'effect/http-api'
 
-import { UserService } from '@app-template/domain/user'
-import { Auth, CurrentUser, RequestInvalidError, SchemaErrors } from '@app-template/http-api'
+import { Auth, CurrentUser, UserService } from '@app-template/application/identity'
+import { RequestInvalidError, SchemaErrors } from '@app-template/http-api'
 
 export const AuthUserService = Layer.effect(
   Auth,

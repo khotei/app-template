@@ -2,21 +2,29 @@
   "name": "@app-template/application",
   "private": true,
   "type": "module",
+  "sideEffects": false,
   "exports": {
     "./chat": "./chat/index.ts",
-    "./testing": "./testing/index.ts"
+    "./identity": "./identity/index.ts",
+    "./use-cases": "./use-cases/index.ts",
+    "./chat/testing": "./chat/__tests__/testing/index.ts",
+    "./use-cases/testing": "./use-cases/__tests__/testing/index.ts"
   },
   "imports": {
-    "#application/*": "./*.ts"
+    "#chat/*": "./chat/*.ts",
+    "#identity/*": "./identity/*.ts",
+    "#use-cases/*": "./use-cases/*.ts",
+    "#testing/chat/*": "./chat/__tests__/testing/*.ts",
+    "#testing/use-cases/*": "./use-cases/__tests__/testing/*.ts"
   },
   "dependencies": {
-    "@app-template/domain": "workspace:*",
-    "@app-template/infrastructure": "workspace:*",
-    "@app-template/queue": "workspace:*",
-    "effect": "catalog:effect"
+    "@app-template/kernel": "workspace:*",
+    "@app-template/packages": "workspace:*",
+    "effect": "catalog:effect",
+    "type-fest": "catalog:runtime"
   },
   "devDependencies": {
-    "@app-template/testing": "workspace:*",
+    "@effect/ai-anthropic": "catalog:effect",
     "@effect/platform-bun": "catalog:effect",
     "@effect/vitest": "catalog:effect"
   }

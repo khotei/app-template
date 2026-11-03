@@ -1,9 +1,0 @@
-{
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "rootDir": ".",
-    "outDir": "../../node_modules/.cache/tsc/queue"
-  },
-  "include": ["**/*.ts"],
-  "references": [{ "path": "../aws" }, { "path": "../testing" }]
-}

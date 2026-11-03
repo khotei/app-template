@@ -2,25 +2,25 @@
 
 How the assistant asks a language model for a reply or a title, which parts of `effect/ai` and
 `@effect/ai-anthropic` it uses, and what to know before changing its prompt or its schema. The
-code: `infrastructure/chat/assistant.llm.ts` (`AssistantLlm`: the prompts, the schemas, the
-finish-reason hook, the retries and the failure mapping), `infrastructure/chat/assistant.client.ts`
-(`AssistantModels`: one language model per purpose, Anthropic or the stub),
-`packages/llm/client.ts` (the stub) and `packages/config/config.ts` (`LlmConfig`,
-`ReplyModelConfig`). The suite: `infrastructure/tests/chat/assistant.llm.test.ts`, over a fake
-`HttpClient` that answers canned Anthropic bodies, so no test needs a key or the network.
+code: `AssistantLlmFromConfig`, the chat module's adapter of its `Assistant` port (the prompts,
+the schemas, one language model per purpose with its settings and canned stub answer, the
+finish-reason hook, the retries and the failure mapping); `createLanguageModel` in the kernel
+(the provider `LlmConfig` names); the Anthropic and stub builders in `packages/llm`; and
+`LlmConfig` and `ReplyModelConfig` in `@app-template/kernel/config`. The adapter's suite runs over
+a fake `HttpClient` that answers canned Anthropic bodies, so no test needs a key or the network.
 
-Every module named here is unstable at 4.0.6: check an API against the vendored sources
-(`repos/effect/packages/effect/src/ai/`, `repos/effect/packages/ai/anthropic/src/`) before using
-it, and read this page again after an upgrade.
+Every module named here is unstable at the pinned version: check an API against the vendored
+sources (`repos/effect/packages/effect/src/ai/`, `repos/effect/packages/ai/anthropic/src/`)
+before using it, and read this page again after an upgrade.
 
 ## The request
 
 ```mermaid
 graph LR
-  P["Assistant port<br/>reply · suggestTitle"] -.-> L["AssistantLlm<br/>Prompt.make · generateObject"]
-  L --> M["AssistantModels<br/>reply · title"]
-  M -->|"LLM_PROVIDER=anthropic"| A["AnthropicLanguageModel<br/>AnthropicClient · HttpClient"]
-  M -->|"LLM_PROVIDER=stub"| S["createLanguageModelStub<br/>canned JSON after 1 s"]
+  P["Assistant port<br/>reply · suggestTitle"] -.-> L["AssistantLlmFromConfig<br/>Prompt.make · generateObject"]
+  L -->|"reply · title"| K["createLanguageModel<br/>the provider by LlmConfig"]
+  K -->|"LLM_PROVIDER=anthropic"| A["AnthropicLanguageModel<br/>AnthropicClient · HttpClient"]
+  K -->|"LLM_PROVIDER=stub"| S["createLanguageModelStub<br/>canned JSON after 1 s"]
 ```
 
 1. `reply` turns the chat's `done` messages into a `Prompt`: the fixed system prompt first, then
@@ -47,17 +47,17 @@ by the same schemas; the suite's stub case fails when the canned JSON no longer 
 
 - **The title model must accept `thinking: { type: 'disabled' }`.** Sonnet 5.5 rejects it, so a
   title model set to Sonnet 5.5 fails every title request with a 400, which is not retried;
-  `.env.example` names Haiku 5.5.
+  `.env.example` names a model that accepts it.
 - No `temperature` is sent: the package sends none by default, and the Claude 5 models want it
   left out.
 - Anthropic's requests wait up to 10 minutes for a byte (`transformClient` on
-  `AnthropicClient.layer`): Bun's `fetch` cuts a silent request at 360 s, and a non-streamed
-  answer of 16 000 tokens arrives only at the end.
+  `AnthropicClient.make` in `createLanguageModelAnthropic`): Bun's `fetch` cuts a silent request
+  at 360 s, and a non-streamed answer of 16 000 tokens arrives only at the end.
 
 ## Failures and retries
 
-`AssistantLlm` retries in place what a retry can fix and lets only a final failure out of the
-port, as `AssistantRefusedError` or `AssistantFailedError`; the use cases turn them into a
+`AssistantLlmFromConfig` retries in place what a retry can fix and lets only a final failure out of
+the port, as `AssistantRefusedError` or `AssistantFailedError`; the use cases turn them into a
 `failed` message (`ReplyRefused` or `ReplyFailed`) or an untitled chat. The queue's own retries
 cover crashes only.
 
@@ -77,7 +77,7 @@ The final error's `cause` is the `AiError`'s message, for operators; it never re
 ### The finish-reason hook
 
 `generateObject` ignores the finish reason, and `StructuredOutputError` does not carry it, so a
-refusal written as prose would look like a malformed answer and be retried. `AssistantLlm`
+refusal written as prose would look like a malformed answer and be retried. `AssistantLlmFromConfig`
 provides `Telemetry.CurrentSpanTransformer` for each request: `generateObject` hands it every
 response part after the provider answers and **before** it decodes, so the hook keeps the
 `finish` part and the adapter reads it whether the decode passed or failed. A `length` finish
@@ -106,7 +106,7 @@ ending as `ReplyFailed`. The suite's refusal case fails on such an upgrade; read
 
 ## Changing the system prompt or the reply schema
 
-Both live in `infrastructure/chat/assistant.llm.ts`: `systemPrompt` and `ReplyAnswer`.
+Both live beside `AssistantLlmFromConfig`: `systemPrompt` and `ReplyAnswer`.
 
 - **The system prompt.** Keep it fixed per process: a date, a name or any user data in it would
   give every request its own prefix, and nothing would be cached. Anthropic adds its own format
@@ -121,55 +121,55 @@ Both live in `infrastructure/chat/assistant.llm.ts`: `systemPrompt` and `ReplyAn
     spares only Anthropic's separate cache of the compiled schema, which a description change
     does not recompile.
 - **A new or changed field.** Add the bound to the domain's `AssistantReply` and the field, with
-  its description, to `ReplyAnswer`; update the stub's canned reply in
-  `infrastructure/chat/assistant.client.ts`, or the suite's stub case fails.
+  its description, to `ReplyAnswer`; update the stub's canned reply beside them, or the suite's
+  stub case fails.
   - *Cache:* every chat's cached prefix is invalidated, and the first request with the new
     schema waits while Anthropic compiles it.
 
 Either change moves the instructions hash, the SHA-256 of the system prompt and the reply
 schema's JSON Schema document, which the api writes into each reply's job as its provenance
-(**Provenance** in [glossary.md](glossary.md)). Operators read it from the outbox to tell
+(**Provenance** in [glossary.md](glossary.md)). Operators read it from the table `jobs` to tell
 which replies were asked under which instructions.
 
 ## The modules of `effect/ai`
 
-Every file of `repos/effect/packages/effect/src/ai/` but `index.ts`, at 4.0.6.
+Every file of `repos/effect/packages/effect/src/ai/` but `index.ts`, at the pinned version.
 
 | Module | What it is | Here |
 |---|---|---|
-| `AiError` | the one error of every AI call, with a `reason` per failure kind, `isRetryable` and `retryAfter` | `assistant.llm.ts`: the retry decision and the mapping to the port's errors; `AiError.make` raises an early finish |
+| `AiError` | the one error of every AI call, with a `reason` per failure kind, `isRetryable` and `retryAfter` | the adapter: the retry decision and the mapping to the port's errors; `AiError.make` raises an early finish |
 | `AnthropicStructuredOutput` | turns a `Schema` into the JSON Schema subset Anthropic accepts, with a codec that still enforces what was left out | indirectly: `AnthropicLanguageModel` calls it for `generateObject` |
 | `Chat` | a stateful session that keeps the prompt history in a `Ref` | not used: the history lives in the database and every request is rebuilt from it |
 | `Decision` | named classification, rating or probability decisions over one input | not used: nothing is classified |
 | `DecisionModel` | the service that answers a `Decision` in one call | not used: as `Decision` |
 | `EmbeddingModel` | text to vectors | not used: no search or retrieval |
 | `IdGenerator` | ids for tool calls and response items | indirectly: `LanguageModel` falls back to its default generator |
-| `LanguageModel` | the provider-neutral service: `generateText`, `streamText`, `generateObject`, and `make` for providers | `assistant.llm.ts` calls `generateObject`; `AssistantModels` holds two; the stub is built with `make` |
+| `LanguageModel` | the provider-neutral service: `generateText`, `streamText`, `generateObject`, and `make` for providers | the adapter calls `generateObject` on two, one per purpose; the stub is built with `make` |
 | `McpClient` | a client of Model Context Protocol servers | not used: the assistant calls no tools |
 | `McpClientError` | the errors of `McpClient` | not used: as `McpClient` |
 | `McpProtocol` | the MCP protocol versions a server can speak | not used: the app serves no MCP |
 | `McpSchema` | schemas of MCP messages | not used: as `McpProtocol` |
 | `McpServer` | builds an MCP server | not used: as `McpProtocol` |
-| `Model` | a provider layer carrying its provider and model names (`ProviderName`, `ModelName`) | not used: `AssistantModels` holds two `LanguageModel` values, one per purpose, instead of one model per context; provenance names the model from `ReplyModelConfig` |
+| `Model` | a provider layer carrying its provider and model names (`ProviderName`, `ModelName`) | not used: `AssistantLlmFromConfig` holds two `LanguageModel` values, one per purpose, instead of one model per context; provenance names the model from `ReplyModelConfig` |
 | `OpenAiStructuredOutput` | `AnthropicStructuredOutput`'s counterpart for OpenAI | not used: no OpenAI provider (roadmap `openai-provider`) |
-| `Prompt` | the message list sent to a model: roles and text, file, tool parts | `assistant.llm.ts`: the chat and title prompts |
-| `Response` | the parts a model answers: text, finish, tool calls, usage | `assistant.llm.ts` reads `FinishReason`; the stub answers `Response` parts |
+| `Prompt` | the message list sent to a model: roles and text, file, tool parts | the adapter: the chat and title prompts |
+| `Response` | the parts a model answers: text, finish, tool calls, usage | the adapter reads `FinishReason`; the stub answers `Response` parts |
 | `ResponseIdTracker` | sends only the new messages after a provider's earlier response id | not used: Anthropic's Messages API keeps no server-side conversation |
-| `Telemetry` | OpenTelemetry `gen_ai.*` span attributes and `CurrentSpanTransformer` | `assistant.llm.ts`: the finish-reason hook; no trace exporter yet (roadmap `observability`) |
+| `Telemetry` | OpenTelemetry `gen_ai.*` span attributes and `CurrentSpanTransformer` | the adapter: the finish-reason hook; no trace exporter yet (roadmap `observability`) |
 | `Tokenizer` | token counting and truncating a prompt to a limit | not used: no provider implements it (roadmap `context-window`) |
 | `Tool` | a tool the model may call, with its parameter and result schemas | not used: the assistant calls no tools |
 | `Toolkit` | tools grouped with their handlers | not used: as `Tool` |
 
 ## The modules of `@effect/ai-anthropic`
 
-Every file of `repos/effect/packages/ai/anthropic/src/` but `index.ts`, at 4.0.6.
+Every file of `repos/effect/packages/ai/anthropic/src/` but `index.ts`, at the pinned version.
 
 | Module | What it is | Here |
 |---|---|---|
-| `AnthropicClient` | the Messages API client: auth and version headers, decoding, error mapping | `AssistantModels.layerAnthropic` provides `AnthropicClient.layer` with the key and the 10-minute wait |
-| `AnthropicConfig` | changes the HTTP client for the requests one effect makes | not used: the wait is set once, on `AnthropicClient.layer`, for every request |
+| `AnthropicClient` | the Messages API client: auth and version headers, decoding, error mapping | `createLanguageModelAnthropic` builds one per model with `AnthropicClient.make`, the key and the 10-minute wait |
+| `AnthropicConfig` | changes the HTTP client for the requests one effect makes | not used: the wait is set once, on `AnthropicClient.make`, for every request |
 | `AnthropicError` | Anthropic's fields on `AiError` metadata, by module augmentation | not read: the mapping needs `AiError`'s reason, and `cause` its message |
-| `AnthropicLanguageModel` | the Anthropic `LanguageModel`: prompts, files and options to Messages requests and back | `AssistantModels.layerAnthropic`: `make` twice, one request config per purpose |
+| `AnthropicLanguageModel` | the Anthropic `LanguageModel`: prompts, files and options to Messages requests and back | `createLanguageModelAnthropic`: `make` with the request config `AssistantLlmFromConfig` gives each purpose |
 | `AnthropicTelemetry` | `gen_ai.anthropic.*` span attributes | indirectly: the language model writes them on its spans |
 | `AnthropicTool` | Anthropic's own tools (web search, code execution, …) | not used: the assistant calls no tools |
 | `Generated` | the schemas and types of Anthropic's API, generated from its spec | the suite types its canned response bodies with them |

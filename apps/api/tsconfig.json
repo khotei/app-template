@@ -7,10 +7,8 @@
   "include": ["**/*.ts"],
   "references": [
     { "path": "../../application" },
-    { "path": "../../domain" },
     { "path": "../../http-api" },
-    { "path": "../../infrastructure" },
-    { "path": "../../packages/config" },
-    { "path": "../../packages/testing" }
+    { "path": "../../kernel" },
+    { "path": "../../packages" }
   ]
 }

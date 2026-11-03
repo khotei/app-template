@@ -10,7 +10,7 @@
     "#http-api/*": "./*.ts"
   },
   "dependencies": {
-    "@app-template/domain": "workspace:*",
+    "@app-template/application": "workspace:*",
     "effect": "catalog:effect"
   }
 }

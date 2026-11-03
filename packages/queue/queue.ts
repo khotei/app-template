@@ -13,6 +13,8 @@ import {
   Schema,
 } from 'effect'
 
+import { buildDeadLetterName } from '@app-template/packages/aws'
+
 import { type QueueError, QueueTransport, type Received } from '#queue/queue.transport'
 
 export interface QueueDefinition<S extends Schema.Top> {
@@ -27,6 +29,22 @@ export interface QueueDefinition<S extends Schema.Top> {
    */
   readonly jobId: (message: S['Type']) => string
 }
+
+export const buildDoublingDelay = (attempt: number): Duration.Duration =>
+  Duration.seconds(2 ** (attempt - 1))
+
+/**
+ * The dead-letter queue of `queue`: it has no redrive, so its attempts never run out and a failing
+ * handler retries at most five minutes apart.
+ */
+export const buildDeadLetterQueue = <A, I>(
+  queue: QueueDefinition<Schema.Codec<A, I>>,
+): QueueDefinition<Schema.Codec<A, I>> => ({
+  ...queue,
+  name: buildDeadLetterName(queue.name),
+  maxAttempts: Number.MAX_SAFE_INTEGER,
+  retryDelay: (attempt) => Duration.min(buildDoublingDelay(attempt), Duration.minutes(5)),
+})
 
 export interface AttemptInfo {
   /** 1-based. */
@@ -74,7 +92,7 @@ export class QueueSender extends Context.Service<
       message: A,
     ) => Effect.Effect<void>
   }
->()('@app-template/queue/QueueSender') {}
+>()('@app-template/packages/queue/QueueSender') {}
 
 export class QueueConsumer extends Context.Service<
   QueueConsumer,
@@ -93,15 +111,15 @@ export class QueueConsumer extends Context.Service<
       handle: Handler<A, E, R>,
     ) => Effect.Effect<never, QueueError, R>
   }
->()('@app-template/queue/QueueConsumer', {
+>()('@app-template/packages/queue/QueueConsumer', {
   make: ({ queueName, lockExpiration, lockRefreshInterval }: QueueConsumerOptions) =>
     Effect.gen(function* () {
       const transport = yield* QueueTransport
 
-      const consume = <A, I, E, R>(
+      function consume<A, I, E, R>(
         definition: QueueDefinition<Schema.Codec<A, I>>,
         handle: Handler<A, E, R>,
-      ) => {
+      ) {
         const queue = queueName(definition.name)
         const decode = Schema.decodeEffect(buildJsonCodec(definition.schema))
         const extend = (received: Received, visibility: Duration.Input) =>

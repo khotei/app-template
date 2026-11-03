@@ -3,18 +3,18 @@
   "private": true,
   "type": "module",
   "packageManager": "bun@1.4.3",
+  "imports": {
+    "#lint/*": "./.misc/lint/*.mjs"
+  },
   "workspaces": [
-    "domain",
     "http-api",
     "application",
-    "infrastructure",
-    "packages/*",
+    "kernel",
+    "packages",
     "apps/*",
-    "deployment",
-    "e2e"
+    "deployment"
   ],
   "scripts": {
-    "lint": "biome check",
     "format": "biome check --write",
     "test": "bun --bun vitest run",
     "prepare": "husky && effect-tsgo patch"
@@ -23,6 +23,7 @@
     "tools": {
       "@biomejs/biome": "2.5.15",
       "husky": "9.1.7",
+      "markdownlint-cli2": "0.24.0",
       "vitest": "5.0.5"
     },
     "runtime": {
@@ -60,7 +61,9 @@
     "@biomejs/biome": "catalog:tools",
     "@effect/tsgo": "catalog:typescript",
     "@types/bun": "catalog:runtime",
+    "drizzle-kit": "catalog:drizzle",
     "husky": "catalog:tools",
+    "markdownlint-cli2": "catalog:tools",
     "typescript": "catalog:typescript",
     "vitest": "catalog:tools"
   }

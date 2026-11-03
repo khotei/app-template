@@ -2,18 +2,25 @@ import { BunCrypto } from '@effect/platform-bun'
 import { Effect, Layer } from 'effect'
 import { FetchHttpClient } from 'effect/http'
 
-import { MinimumLogLevelFromConfig } from '@app-template/config'
-import { AttachmentPgS3 } from '@app-template/infrastructure/attachment'
-import { AssistantLlmFromConfig, ChatPg } from '@app-template/infrastructure/chat'
-import { Db, Transaction } from '@app-template/infrastructure/db'
-import { OutboxRelaySqs } from '@app-template/infrastructure/outbox'
-import { QueueConsumerSqs } from '@app-template/infrastructure/shared'
+import { AssistantLlmFromConfig } from '@app-template/application/chat'
+import { S3BucketFromConfig, SQSServiceFromConfig } from '@app-template/kernel/aws'
+import { MinimumLogLevelFromConfig } from '@app-template/kernel/config'
+import {
+  ChatRepository,
+  Db,
+  FileRepository,
+  JobRepository,
+  MessageRepository,
+} from '@app-template/kernel/data'
+import { PgClientFromConfig } from '@app-template/kernel/postgres'
+import { JobRelaySqs, QueueConsumerSqs } from '@app-template/kernel/queue'
+import { Transaction } from '@app-template/packages/db'
 
 import { AssistantMessageHandler } from '#worker/chat/assistant-message.handler'
 import { ChatTitleHandler } from '#worker/chat/chat-title.handler'
 
 const WorkerHandlers = Layer.mergeAll(AssistantMessageHandler, ChatTitleHandler).pipe(
-  Layer.provide([ChatPg, AttachmentPgS3, AssistantLlmFromConfig, Transaction.layer]),
+  Layer.provide([AssistantLlmFromConfig, Transaction.layer]),
 )
 
 const LogWorkerLifecycle = Effect.logInfo('worker started').pipe(
@@ -21,8 +28,17 @@ const LogWorkerLifecycle = Effect.logInfo('worker started').pipe(
   Layer.effectDiscard,
 )
 
-export const WorkerLayer = Layer.mergeAll(WorkerHandlers, OutboxRelaySqs, LogWorkerLifecycle).pipe(
-  Layer.provide([Db.layerFromConfig, QueueConsumerSqs, BunCrypto.layer]),
+export const WorkerLayer = Layer.mergeAll(WorkerHandlers, JobRelaySqs, LogWorkerLifecycle).pipe(
+  Layer.provide([
+    ChatRepository.layer,
+    MessageRepository.layer,
+    JobRepository.layer,
+    FileRepository.layer,
+    QueueConsumerSqs,
+    BunCrypto.layer,
+  ]),
+  Layer.provide([Db.layer, SQSServiceFromConfig, S3BucketFromConfig]),
+  Layer.provide(PgClientFromConfig),
   Layer.provide(FetchHttpClient.layer),
   Layer.provide(MinimumLogLevelFromConfig),
 )
