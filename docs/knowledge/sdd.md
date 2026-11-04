@@ -40,7 +40,7 @@ grilling, plan review and the commit gate need you. Each takes the ticket folder
 | `/ticket-feature <slug> [idea]` | an idea, notes or a link | the answers to each grilling round; the terms | `feature.md` with EARS requirements; glossary entries |
 | `/ticket-architecture <ticket>` | `feature.md` | the Seams and the Decisions | `architecture.md` |
 | `/ticket-plan <ticket>` | `feature.md`, `architecture.md` | the plan as a whole: the heavy review | `plan.md` with steps and coverage |
-| `/ticket-implement <ticket> [step]` | the next unblocked step | the commit gate's question, once per session; feedback, or stop | the step's commits, by round ([Gates](../../.claude/rules/sdd.md#gates)) |
+| `/ticket-implement <ticket> [step \| loop]` | the next unblocked step, or each in turn ([the loop](#the-loop)) | the commit gate's question, once per session; feedback, or stop | the step's commits, by round ([Gates](../../.claude/rules/sdd.md#gates)) |
 | `/ticket-verify <ticket>` | the branch against its PR's base branch | which simplifications and lessons to apply; whether to open the PR | `verification.md` |
 
 ## Under the hood
@@ -151,6 +151,21 @@ step, then the review passes, then you. Why it is cut so:
 - **You decide** on the reports, which the main session presents without re-reading the code.
   Each finding's pass and fate land in the step's **Findings** in `plan.md`, and
   `/ticket-verify` sums them per pass in its **Review ledger**.
+
+### The loop
+
+`/ticket-implement <ticket> loop` runs the plan's unblocked `todo` steps one after another, each
+through the whole gate, and commits each without asking you: the main session forwards the fixes
+it recommends as rounds, as it would on your word. It stops at an implementer's `BLOCKED:`, at a
+finding you must decide, at a step still not ready after three fix rounds, or when no unblocked
+step is left, and only then shows you each committed step and the cause of the stop. To stop it
+sooner, tell the session to stop; the step under way stays uncommitted in the tree. To go on
+after a stop, answer it, then type the command again. Pushing and opening the PR still wait for
+your OK.
+
+The loop runs in the main session, which learns that a step is done from the agent's
+notification; the built-in `/loop` fires on a timer instead, so it would either wait for nothing
+or start a step while the last one still runs.
 
 ## Roadmap and history
 

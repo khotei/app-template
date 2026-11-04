@@ -40,11 +40,13 @@ Every change of substance runs **feature → architecture → plan → implement
   it changed; `plan.md` is edited only at the last round.
 - **The commit gate, for every commit or amend of a ticket.** At its first step of a session,
   `/ticket-implement` asks once whether each ready step commits without the user's OK or waits
-  for it, and holds the answer for the session; it covers the step's rounds too. A step is ready
-  when the passes `/ticket-implement` names for it ran, their fixes are in and `make check` is
-  green, a round when `make check` is green; a finding left to the user's choice waits for the
-  user either way. Any other ticket artifact commits once the user has confirmed it in its skill.
-  Pushing, opening a PR, merging and creating a remote always wait for the user's OK.
+  for it, and holds the answer for the session; it covers the step's rounds too. Started with
+  `loop`, it does not ask: the loop waives the OK between its steps and their rounds, not the OK
+  for a push, a PR or a merge. A step is ready when the passes `/ticket-implement` names for it
+  ran, their fixes are in and `make check` is green, a round when `make check` is green; a
+  finding left to the user's choice waits for the user either way. Any other ticket artifact
+  commits once the user has confirmed it in its skill. Pushing, opening a PR, merging and
+  creating a remote always wait for the user's OK.
 - **Deviations are recorded** in the same commit: `plan.md` findings, `architecture.md ›
   Decisions` when it is a decision, and `feature.md` when it changes what a requirement asks.
   A decision that adds or changes a binding rule also adds or rewrites its record in

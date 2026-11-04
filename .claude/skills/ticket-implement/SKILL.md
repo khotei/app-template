@@ -1,11 +1,12 @@
 ---
 name: ticket-implement
 description: "SDD 4/5: implement one plan.md step, review it, and commit it under the commit gate"
-argument-hint: "<ticket folder> [step id, default: next todo]"
+argument-hint: "<ticket folder> [step id | loop, default: next todo]"
 disable-model-invocation: true
 ---
 
-Take one step of the ticket at `$ARGUMENTS` from `todo` to a commit. Gates:
+Take one step of the ticket at `$ARGUMENTS` from `todo` to a commit; given `loop` in place of a
+step id, take step after step, as **The loop** below says. Gates:
 `.claude/rules/sdd.md`. Steps run in parallel change how steps 2 and 5 run: before them, read
 [parallel-steps.md](parallel-steps.md) beside this file.
 
@@ -20,9 +21,9 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to a commit. Gates:
    move, rename or config step; `opus high` for one that writes behaviour). What it reads, what
    it leaves to you and how it reports are in its file; a brief does not repeat them. Its
    `make check` hook keeps it working until the gate is green. A report that starts with
-   `BLOCKED:` goes straight to the user. At the session's first step, ask the commit question of
-   `.claude/rules/sdd.md › Gates` now, while the implementer works, and hold the answer; a later
-   step does not ask again.
+   `BLOCKED:` goes straight to the user. At the session's first step outside a loop, ask the
+   commit question of `.claude/rules/sdd.md › Gates` now, while the implementer works, and hold
+   the answer; a later step does not ask again.
    - **Simplify, a behaviour step only**, run by you, never by the implementer: the refactor that
      `tdd` leaves out of its red → green loop. One test decides, whatever the **Model** line: a
      behaviour step's diff changes the content of a `.ts` file, a `Makefile` recipe or a script,
@@ -100,4 +101,17 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to a commit. Gates:
      (`SendMessage`) as the next round, each accepted finding forwarded as its reviewer wrote it,
      `path:line` first, and return to 3;
    - **stop:** leave the working tree as it is.
-6. Name the next unblocked step.
+6. Name the next unblocked step and end the turn; in a loop, return to 1 instead.
+
+## The loop
+
+`loop` takes the unblocked `todo` steps one at a time, each through steps 1 to 5, with no OK of
+the user's between them: the commit question is not asked, each ready step commits, and the
+fixes you recommend go to the implementer as the next round without asking. Step 4 presents
+nothing then; each committed step adds a line (its id, its commits and the passes that ran) to
+what you present when the loop stops, at the first of:
+
+- a `BLOCKED:` report;
+- a finding the user must decide, presented as step 4 says;
+- a step not ready after three fix rounds, left as step 5's **stop** leaves it;
+- no unblocked `todo` step left.
