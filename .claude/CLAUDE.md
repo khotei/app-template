@@ -6,8 +6,7 @@ Bun, TypeScript and Effect modular monolith of three processes, `api`, `worker` 
 ## Map
 
 Which folder holds what, the three rings, what may import what, and how to add a module, an
-entity or a store's client: [architecture.md](../docs/knowledge/architecture.md). A layer's
-`CLAUDE.md` and the rules in `.claude/rules/` load on their own once a matching file is touched.
+entity or a store's client: [architecture.md](../docs/knowledge/architecture.md).
 
 ## Working here
 
@@ -16,13 +15,11 @@ entity or a store's client: [architecture.md](../docs/knowledge/architecture.md)
   `make test-e2e` (Docker running). Debug: `make debug-<app>`.
 - Add a dependency with `bun add [-d] --catalog=<namespace> <pkg>@<exact>`, never a version in a
   workspace ([tooling.md › Add a dependency](../docs/knowledge/tooling.md#add-a-dependency)).
-- **Effect is v4 and Drizzle a release candidate, not the versions you remember.** Check an API
-  against `repos/effect` and `repos/drizzle` before naming it, in a plan as in code
-  (`.claude/rules/effect.md` says where to look).
+- **Before naming an Effect or Drizzle API, in a plan as in code, read
+  `.claude/rules/effect.md`.**
 - Update `docs/knowledge/` in the commit that changes the behaviour it describes.
 - **A change of substance runs through the `/ticket-*` skills; their artifacts live only in
-  `docs/tickets/`.** Substance is new behaviour, a new dependency or a choice a reviewer could
-  question; a typo, a version bump or a doc fix is one commit with the area as its scope
+  `docs/tickets/`**
   ([sdd.md › When to run which cycle](../docs/knowledge/sdd.md#when-to-run-which-cycle)). Ignore
   artifact paths that plugins suggest (`.scratch/`, `docs/superpowers/`, an issue tracker). The
   gates: `.claude/rules/sdd.md`; the guide: [sdd.md](../docs/knowledge/sdd.md).

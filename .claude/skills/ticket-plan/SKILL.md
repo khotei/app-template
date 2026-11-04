@@ -59,8 +59,8 @@ steps only conform to the plan. Gates: `.claude/rules/sdd.md`.
      on the main tree, read-only. Each comes back `fails as expected` with its output, `passes`,
      or `cannot run` with its error.
    For a step that adds, changes or removes a guard or a scope of one, spawn a second `researcher`
-   with its probes and the worktree `<slug>-plan-probes`: it plants each probe there, runs the
-   probe's command and quotes its output. Create the worktree first with
+   with its probes and the worktree `<slug>-plan-probes`; it runs them as
+   `.claude/agents/researcher.md` says. Create the worktree first with
    `git worktree add -b wt/<slug>-plan-probes .claude/worktrees/<slug>-plan-probes HEAD`, then run
    `make worktree N=<n> NAME=<slug>-plan-probes` inside it, `<n>` unused by a live worktree; the
    branch comes first because `make worktree` renames the current branch, so on a detached

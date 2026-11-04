@@ -36,10 +36,8 @@ interface OrderService {
 }
 ```
 
-**Don't: a port that narrows a store to the calls one service makes.** It looks narrower, but it
-is a seam with one adapter: a second interface to keep in step, and the deletion test brings
-back every call it forwards. Rests on:
-[layering.md › Ports and domain services](../../rules/layering.md#ports-and-domain-services).
+**Don't: a port that narrows a store to the calls one service makes.**
+Rests on: [layering.md › Ports and domain services](../../rules/layering.md#ports-and-domain-services).
 
 ```ts
 // proposed: the service sees two methods instead of the repository's verbs
@@ -84,10 +82,9 @@ function price(order: Order, tier: Tier) {
 }
 ```
 
-**Don't: a combinator for one caller, so the step "composes".** It wraps what a pipeable already
-says, and its one caller gains a name to look up. Rests on:
-[effect-services.md › Functions](../../rules/effect-services.md#functions) and the deletion test
-of [deep-modules.md › The tests](../../rules/deep-modules.md#the-tests).
+**Don't: a combinator for one caller, so the step "composes".**
+Rests on: [effect-services.md › Functions](../../rules/effect-services.md#functions) and the
+deletion test of [deep-modules.md › The tests](../../rules/deep-modules.md#the-tests).
 
 ```ts
 // proposed: a wrapper that adds a span and a log annotation
@@ -135,10 +132,8 @@ const shipOrder = Effect.fn('shipOrder')(function* (order: Order, at: DateTime.U
 })
 ```
 
-**Don't: a helper that is still an effect and only renames a call.** Nothing pure comes out; the
-reader follows one more name to the same read. Rests on:
-[effect-services.md › Functions](../../rules/effect-services.md#functions), where a body that
-only delegates is passed as is.
+**Don't: a helper that is still an effect and only renames a call.**
+Rests on: [effect-services.md › Functions](../../rules/effect-services.md#functions).
 
 ```ts
 // proposed: "extract" the read and the write
@@ -169,9 +164,8 @@ yield* orders.update(shipped, { id: order.id, status: order.status })
 return shipped
 ```
 
-**Don't: a shorter chain that nests what a generator names.** Two lines fewer, but later steps
-read earlier values, so it is business logic, and the span name is gone. Rests on:
-[effect-style.md › Composition](../../rules/effect-style.md#composition).
+**Don't: a shorter chain that nests what a generator names.**
+Rests on: [effect-style.md › Composition](../../rules/effect-style.md#composition).
 
 ```ts
 // proposed, in place of a generator that reads, ships and writes

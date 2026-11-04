@@ -66,18 +66,15 @@ step id, take step after step, as **The loop** below says. Gates:
    ticket's `D…` that bind the diff's files, and its word limit is the axes'.
 4. **Decide and present.** You orchestrate: decide on the reports as they stand, without reading
    the code or the diff to restate a finding; a question that needs the code goes to a
-   `researcher`, or to the reviewer that raised it (`SendMessage`). **Confirm first:** send each
-   `claimed` finding to its own `researcher` on `model: opus`, all in parallel, its brief the
-   finding verbatim and the diff command, so it is not anchored on the reviewer's reading.
-   Present a `confirmed` one as the finding, drop a `refuted` one as rejected, and ask an
-   `unclear` one as a question, with what the researcher could not settle. A behaviour finding
-   without a scenario and a `path:line` is not presented. A dispute over whether an instruction
-   line changes what an agent does is not argued: a `researcher` runs the no-op experiment its
-   file describes, and the line stays only when the two answers differ in what it asks.
-   Present the implementer's
-   report and what `simplify` changed, then the `## Standards` and `## Spec` reports as
-   code-review aggregates them, then the hunt's findings, then the Design candidates, then the
-   fixes you recommend. A Design candidate inside the plan is a fix like any other; one that
+   `researcher`, or to the reviewer that raised it (`SendMessage`). **Confirm first:** when a
+   report holds a `claimed` finding, read [claimed-findings.md](claimed-findings.md) beside this
+   file and settle each as it says before presenting any. A behaviour finding without a scenario
+   and a `path:line` is not presented. A dispute over whether an instruction line changes what an
+   agent does is not argued: a `researcher` runs the no-op experiment its file describes, and the
+   line stays only when the two answers differ in what it asks. Present the implementer's report
+   and what `simplify` changed, then the `## Standards` and `## Spec` reports as code-review
+   aggregates them, then the hunt's findings, then the Design candidates, then the fixes you
+   recommend. A Design candidate inside the plan is a fix like any other; one that
    contradicts a decision or reshapes a module is the user's choice, asked as its own question.
    Filter the findings first: a fix that adds test support (a helper, a fake, a wrapper) is never
    forwarded as routine; offer the user a plainer test instead, or the finding as a choice of its

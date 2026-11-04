@@ -26,7 +26,7 @@ An older `Refs:` line may name a folder before its rename: the slug is unchanged
 | Change | Cycle |
 |---|---|
 | New behaviour, a new dependency, or any choice a reviewer could question | the full cycle |
-| A bug fix or small change with no new decision and an existing seam to test at | `/ticket-feature` with a few requirements, a bug's starting from one command that shows it failing, then `/ticket-plan`, `/ticket-implement`, `/ticket-verify`; skip `/ticket-architecture` |
+| A bug fix or small change with no new decision and an existing seam to test at | `/ticket-feature` with a few requirements (a bug starts from one command that shows it failing), then `/ticket-plan`, `/ticket-implement`, `/ticket-verify`; skip `/ticket-architecture` |
 | A typo, a version bump, a doc fix | no ticket: one commit with the area as its scope (`docs`, `tooling`) |
 
 ## The five skills
