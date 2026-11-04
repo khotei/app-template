@@ -8,7 +8,7 @@
 |---|---|---|
 | S1 | a behaviour finding carries its failure; a claimed one is confirmed first; each finding's pass and fate in `plan.md`, summed at verification | done |
 | S2 | the Design pass in place of Depth, with its examples file | done |
-| S3 | a plan's new checks run before it is presented; a guard's bans probed in a disposable worktree | todo |
+| S3 | a plan's new checks run before it is presented; a guard's bans probed in a disposable worktree | done |
 | S4 | writing-for-agents in the Standards pass of instruction edits; a bug ticket starts from a red command | todo |
 | S5 | the replay of the Design pass and the hunt on five committed steps, with their wall time | todo |
 | S6 | the replay of the plan-time run and the probes; the briefs seen as the skill writes them; the roadmap's re-count note | todo |
@@ -204,7 +204,17 @@
     today.
   - `make check` green.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Spec — accepted, fixed in S3.2 — `.claude/agents/researcher.md:6` — R8 — judgement — the
+    description said "Never edits the repository" while its Bash line allows planting probes in
+    a disposable worktree, so a researcher could refuse to plant one; now "never edits the main
+    tree".
+  - Deviation: the probe worktree is removed with its branch only; its folder already bears the
+    name, so `make worktree` makes no symlink (`.claude/skills/ticket-implement/worktree.sh`, the symlink line). It is
+    removed with `--force`, since the planted probes are untracked.
+  - Deviation: `docs/knowledge/sdd.md`'s `researcher` map row changed too, since it no longer
+    writes nothing.
 
 #### S4 — Instruction edits judged by running them; bug tickets from a red command
 

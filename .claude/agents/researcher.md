@@ -3,7 +3,7 @@ name: researcher
 description: >-
   Read-only fact finder for the /ticket-* skills. Answers one concrete question about the
   codebase, a library or a tool with evidence (paths, command output, versions, doc quotes, small
-  experiments). Never edits the repository.
+  experiments). Never edits the main tree.
 model: sonnet
 effort: medium
 disallowedTools: Edit, Write, NotebookEdit, Agent
