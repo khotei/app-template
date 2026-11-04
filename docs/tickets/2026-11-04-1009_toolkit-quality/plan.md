@@ -12,6 +12,11 @@
 | S4 | writing-for-agents in the Standards pass of instruction edits; a bug ticket starts from a red command | done |
 | S5 | the replay of the Design pass and the hunt on five committed steps, with their wall time | done |
 | S6 | the replay of the plan-time run and the probes; the briefs seen as the skill writes them; the roadmap's re-count note | done |
+| S7 | a step that only moves files and rewrites their imports gets Standards and Spec alone | todo |
+| S8 | a guard's probes are one per ban group, not one per scope | todo |
+| S9 | the hunt questions a discarded result; S8.1's hunt and S10.1's Design replayed again | todo |
+| S10 | the five simplifications of the verification | todo |
+| S11 | the verification's lessons L1–L3 | todo |
 
 ## How to run this plan
 
@@ -449,19 +454,145 @@
   - Deviation: a probe fails by its ban diagnostic, not the exit code, since `biome check` exits 1
     on formatting alone (P42, P45, P48).
 
+#### S7 — A move is no behaviour step
+
+- **Delivers:** a step whose diff only renames files and rewrites the import lines that name them
+  gets Standards and Spec alone, as a rename with untouched importers does today; a step that
+  changes any other line of a `.ts` file, a `Makefile` recipe or a script stays a behaviour step.
+- **Goal:** R1's "a move-only step gets no design pass" (D1), from `verification.md` run 1.
+- **Blocked by:** none.
+- **Files:**
+  - `.claude/skills/ticket-implement/SKILL.md:27-29`: the one test of a behaviour step names the
+    move, its renamed files and its rewritten import lines, as the exception.
+  - `docs/knowledge/sdd.md:141`: "A pure move skips it" says the same.
+- **Size:** ~10.
+- **Test first:** A brief as the skill writes it — the verification's case, `git mv
+  packages/aws/naming.ts packages/aws/names.ts` with both importers rewritten to `#aws/names`,
+  today gets `simplify` and Design.
+- **Verify:**
+  - The same case, in a replay worktree at the ticket branch, run as `/ticket-implement`'s main
+    session printing the passes it would run, spawning nothing: Standards and Spec alone. Fails
+    on `simplify`, Design or the hunt.
+  - The same worktree with one more changed line in a moved file: `simplify` and Design. Fails
+    when the move exception swallows it.
+  - `make check` green.
+- **Model:** `opus high`
+- **Status:** todo
+
+#### S8 — One probe per ban group
+
+- **Delivers:** a step that changes or removes a guard plants one probe per ban the guard
+  enforces, a ban being one restriction with its own message (a pattern or a path of a Biome
+  override, a grep's pattern), for each scope the step changes or removes; a guard rewritten whole
+  probes every group.
+- **Goal:** R8 (D5), from `verification.md` run 1; the Probes shape of the template stays.
+- **Blocked by:** none.
+- **Files:**
+  - `.claude/skills/ticket-plan/SKILL.md:32-33`: the ban's definition and which scopes are probed.
+  - `docs/tickets/_template/plan.md`, the Probes comment, if it names the unit.
+  - `docs/tickets/2026-11-04-1009_toolkit-quality/replay.md`: the probes section gains the rerun
+    below, with its wall time.
+- **Size:** ~60, the probe list ~40 of it.
+- **Test first:** The plan-time run on a past plan — at `8572da12bf`, the overrides of
+  `apps/api/**`, `apps/worker/**` and `deployment/**` hold more groups than S6's one probe each.
+- **Verify:**
+  - In a replay worktree at `8572da12bf`, a researcher plants one probe per group of those three
+    overrides and the domain tests' one, each failing Biome with its own message; after S39's
+    change (`dbb29d488a`), the probes of L8's four lost bans no longer fail. Fails when a group
+    has no probe or two groups share one.
+  - `git worktree list` after the main session's removal shows no replay tree.
+  - `make check` green.
+- **Model:** `opus high`
+- **Status:** todo
+
+#### S9 — The hunt questions a discarded result
+
+- **Delivers:** the hunt also asks which failure a discarded result hides (a write's answer turned
+  into nothing); the replay holds a second hunt on `postgres-drizzle` S8.1 and a Design run on
+  `postgres-drizzle` S10.1 on opus, each with its findings and wall time.
+- **Goal:** R4, and R11's three Design steps on one model, from `verification.md` run 1; the rule
+  names the pattern, not this code (`claude-md.md › The pattern`).
+- **Blocked by:** none.
+- **Files:**
+  - `.claude/agents/reviewer.md:56-58`: the construct list of the hunt.
+  - `docs/tickets/2026-11-04-1009_toolkit-quality/replay.md`: two rows and their reports, read
+    against the later commits as S5's were.
+  - The replay as in S5: each round's diff applied uncommitted in a replay worktree at its parent
+    (S8.1 `a2c21e2502` ← `7a2c073f1d`, S10.1 `db5270171b` ← `76ea73d8bf`), every `reviewer` at
+    effort `low`, the prompt naming each agent's model.
+- **Size:** ~120.
+- **Test first:** The replay of a committed step — S5's hunt on S8.1 said "I found no silent
+  fallback in `ChatRepositoryPg.update`" over `touch`'s `Effect.asVoid`.
+- **Verify:**
+  - `grep -n 'discarded result' .claude/agents/reviewer.md` — one hit; none today.
+  - The S8.1 hunt names `touch`'s discarded update and the failure it hides; a second miss is
+    recorded as a miss, not dropped (R4).
+  - The S10.1 Design reviewer's model is opus in its transcript; its report keeps R2's shape.
+  - `git worktree list` after the main session's removal shows no replay tree.
+  - `make check` green.
+- **Model:** `opus high`
+- **Status:** todo
+
+#### S10 — The verification's simplifications
+
+- **Delivers:** the instruction files hold each fact once: `.claude/CLAUDE.md` without the lines a
+  rule or `sdd.md` owns, the examples' don'ts as a snippet and a link, step 4's confirmation
+  behind a pointer, the probe procedure in `researcher.md` alone, and `sdd.md`'s bug row readable.
+- **Goal:** `verification.md` run 1 › Simplifications 1–5; no behaviour changes.
+- **Blocked by:** S7, S8, S9, which edit the same skills.
+- **Files:**
+  - `.claude/CLAUDE.md:11-12`, `:19-20`, `:24-26`.
+  - `.claude/skills/ticket-implement/design-examples.md:23-60`, `:76-80`.
+  - `.claude/skills/ticket-implement/SKILL.md`, step 4's confirmation, to a sibling file; the
+    orphan line.
+  - `.claude/skills/ticket-plan/SKILL.md`'s researcher brief and `.claude/agents/researcher.md`.
+  - `docs/knowledge/sdd.md`, *When to run which cycle*, row 2.
+- **Size:** ~80.
+- **Test first:** `make check` over the edited skills, agents and templates — the links of the
+  moved confirmation and of the shortened don'ts resolve.
+- **Verify:**
+  - `git grep -n 'Substance is new behaviour' .claude/CLAUDE.md` — no hit.
+  - Every link of `design-examples.md` and the new sibling file resolves (`make doc-lint`).
+  - `make check` green.
+- **Model:** `opus high`
+- **Status:** todo
+
+#### S11 — The verification's lessons
+
+- **Delivers:** a report counts in the requirement's unit and only the runs that meet its
+  conditions; a reviewer reads `path:line` from the file; a finding that fails one of the ticket's
+  requirements is fixed in the step's next round.
+- **Goal:** `verification.md` run 1 › Lessons L1–L3.
+- **Blocked by:** S10, which edits `ticket-implement` step 4.
+- **Files:**
+  - `.claude/agents/implementer.md`: L1's line.
+  - `.claude/agents/reviewer.md`, the finding line: L2's.
+  - `.claude/skills/ticket-implement/SKILL.md`, step 4: L3's.
+  - `docs/tickets/2026-11-04-1009_toolkit-quality/verification.md`: each lesson's **Applied:**
+    reads `yes, S11`.
+- **Size:** ~15.
+- **Test first:** A brief as the skill writes it — today no agent file asks for a line read from
+  the file, and step 4 lets a failing requirement stay `accepted, open`.
+- **Verify:**
+  - `grep -n 'Applied:\*\* yes, S11' docs/tickets/2026-11-04-1009_toolkit-quality/verification.md`
+    — three hits.
+  - `make check` green.
+- **Model:** `opus high`
+- **Status:** todo
+
 ## Requirement coverage
 
 | Req | Steps |
 |---|---|
-| R1 | S2; observed in S5, S6 |
+| R1 | S2, S7; observed in S5, S6 |
 | R2 | S2; observed in S5 |
 | R3 | S2; observed in S5 |
-| R4 | S1; observed in S5 |
+| R4 | S1, S9; observed in S5, S9 |
 | R5 | S1; observed in S5 |
 | R6 | S1; observed in S5 |
 | R7 | S3; observed in S6 |
-| R8 | S3; observed in S6 |
+| R8 | S3, S8; observed in S6, S8 |
 | R9 | S4; observed in S6 |
 | R10 | S4 |
-| R11 | S5, S6 |
+| R11 | S5, S6, S9 |
 | R12 | S1; filled by this ticket's `/ticket-verify` |
