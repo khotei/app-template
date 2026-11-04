@@ -88,7 +88,7 @@ changes it.
 
 | Folder | What it holds |
 |---|---|
-| `apps/` | the three processes, thin entry points that assemble the layers; `apps/__e2e__` tests them assembled |
+| `apps/` | the three processes, thin entry points that assemble the layers; `apps/e2e` tests them assembled |
 | `http-api/` | the HTTP contract the api serves and the web client calls |
 | `application/` | the behaviour: the modules `chat` and `identity`, and every use case in `application/use-cases` |
 | `kernel/` | the configured clients (`config`, `postgres`, `aws`, `queue`, `llm`) and `kernel/data`: every table, migration and repository |
