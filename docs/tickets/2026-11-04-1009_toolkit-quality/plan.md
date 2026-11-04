@@ -20,7 +20,7 @@
 | S12 | a loop over the plan's steps, each to a commit without the user's OK between them | done |
 | S13 | the probes of every scope of S39's whole rewrite, one per ban; the S37 record corrected | done |
 | S14 | one more attempt at R6's `unclear` branch, with a claim no trace or run settles | done |
-| S15 | the second verification's three simplifications | todo |
+| S15 | the second verification's three simplifications | done |
 | S16 | the second verification's lessons L1–L3 | todo |
 | S17 | a hook refuses the reviewer's `cat`, `head`, `tail` and `sed -n` on a tracked file (L4) | todo |
 | S18 | a Verify that repeats one check over many inputs runs them from one script | todo |
@@ -650,9 +650,10 @@
     without its period.
   - Spec — rejected: it describes how Claude Code loads files, which no doc of this repo owns —
     the cut line on layer `CLAUDE.md`s and rules loading on their own has no other home.
-  - Implementer — open, outside the verification's list — `.claude/CLAUDE.md:20`, "Update
-    `docs/knowledge/` in the commit that changes the behaviour it describes", repeats
-    `.claude/rules/sdd.md › Artifacts`.
+  - Implementer — rejected in S15.2, outside the verification's list — `.claude/CLAUDE.md:20`,
+    "Update `docs/knowledge/` in the commit that changes the behaviour it describes", repeats
+    `.claude/rules/sdd.md › Artifacts` — that rule loads only for ticket, roadmap and skill
+    files, so a code change outside a ticket reaches the duty only through `.claude/CLAUDE.md`.
 
 #### S11 — The verification's lessons
 
@@ -828,8 +829,8 @@
 #### S15 — The second verification's simplifications
 
 - **Delivers:** the guard-probe definition of `/ticket-plan` step 3 in a sibling file behind one
-  pointer; the move definition of `/ticket-implement` its own bullet, out of `simplify`'s;
-  `.claude/CLAUDE.md` without the line `sdd.md › Artifacts` owns.
+  pointer; the move definition of `/ticket-implement` its own bullet, out of `simplify`'s.
+  `.claude/CLAUDE.md` keeps the line `sdd.md › Artifacts` repeats (Simplification 3 rejected).
 - **Goal:** `verification.md` run 2 › Simplifications 1–3; no behaviour changes.
 - **Blocked by:** none.
 - **Files:**
@@ -837,15 +838,38 @@
   - `.claude/skills/ticket-implement/SKILL.md:26-37`.
   - `.claude/CLAUDE.md:20`.
 - **Size:** ~50.
-- **Test first:** `make check` over the edited skills, agents and templates — a backticked path to
-  the new file resolves.
+- **Test first:** `make check` over the edited skills, agents and templates — the relative-link
+  script over the edited skills: the link to the new file resolves (`make doc-lint` checks only
+  backticked repo-root paths).
 - **Verify:**
-  - `git grep -n "Update \`docs/knowledge/\`" .claude/CLAUDE.md` — no hit.
   - Every relative link of the edited files resolves, by a relative-link script (CI's `links` job
     runs `lychee --offline`).
   - `make check` green.
-- **Model:** `opus high`
-- **Status:** todo
+- **Model:** `opus high`; run on `opus medium`, as a move of text
+- **Status:** done
+- **Findings:** passes that ran: Standards (sonnet, with writing-for-agents) and Spec on S15.1
+  S15.2; S15.3 checked by the main session against its finding. No `simplify`, Design or hunt, an
+  instruction-only step. Implementer 4, 2 and 1.5 min on `opus medium`.
+  - Standards — accepted, fixed in S15.2 — cutting `.claude/CLAUDE.md`'s `docs/knowledge/` line
+    loses the duty for a code change outside a ticket: `sdd.md` loads for ticket, roadmap and
+    skill files, `claude-md.md` for `CLAUDE.md`, `.claude/` and `docs/knowledge/`; the line is
+    restored and Simplification 3 rejected.
+  - Spec — accepted, fixed in the Test first — the pointer is a relative link, which `make check`
+    does not see: with `guard-probes.md` moved away `make doc-lint` still exits 0; the
+    relative-link script fails on it (`MISS .claude/skills/ticket-plan/SKILL.md ->
+    guard-probes.md`, exit 1).
+  - Spec — accepted, fixed in S15.2 — `guard-probes.md` named "the template's **Probes** shape"
+    with no template beside it; it names `docs/tickets/_template/plan.md`.
+  - Implementer — accepted, fixed in S15.2 and S15.3 — "Standards and Spec alone, as does any step
+    that is not a behaviour step" contradicted step 3's hunt; a move keeps Standards and Spec
+    alone, any other non-behaviour step gets no `simplify` and no Design pass, and the hunt's
+    trigger skips a move.
+  - Spec — accepted, fixed in S15.3 — S15.2's wording opened a move that renames a test fake to
+    the hunt, against S7's decision.
+  - Standards — rejected: `.claude/CLAUDE.md` keeps the line `sdd.md` repeats, since `sdd.md`
+    does not load for a code change outside a ticket — the owner rule asks for one home.
+  - Standards — rejected: "gets no `simplify` and no Design pass" names what such a step loses; a
+    positive list would restate the hunt's trigger — prompt the positive.
 
 #### S16 — The second verification's lessons
 

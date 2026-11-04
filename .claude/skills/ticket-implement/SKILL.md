@@ -27,8 +27,8 @@ step id, take step after step, as **The loop** below says. Gates:
    - **A behaviour step**, whatever the **Model** line, is one whose diff changes the content of a
      `.ts` file, a `Makefile` recipe or a script, beyond a move. A move renames files whose
      content `git diff -M` shows unchanged and rewrites only the import and re-export lines
-     (`from '<old path>'`) that name them. A move, like any step that is not a behaviour step,
-     gets no `simplify` and no Design pass.
+     (`from '<old path>'`) that name them. A move gets Standards and Spec alone; any other step
+     that is not a behaviour step gets no `simplify` and no Design pass.
    - **Simplify, a behaviour step only**, run by you, never by the implementer: the refactor that
      `tdd` leaves out of its red → green loop. Call the Skill tool with `simplify` on the
      uncommitted step, its args pointing at the step in `plan.md`, the rules `make review-rules`
@@ -55,10 +55,11 @@ step id, take step after step, as **The loop** below says. Gates:
    asks for each in the report with its findings or `none`. Every brief
    names its sources and nothing else: no question or focus of its own.
 
-   A step that touches a write guard, a transaction, a test fake, concurrent access or error
-   handling (a retry, a fallback) also gets the **hunt**: one `reviewer`, in parallel with the
-   axes, on the same diff; its sources are the diff's files, their callers and, for a test fake,
-   the adapter it stands in for, and its word limit is the axes'. Any other step runs no hunt.
+   A step other than a move that touches a write guard, a transaction, a test fake, concurrent
+   access or error handling (a retry, a fallback) also gets the **hunt**: one `reviewer`, in
+   parallel with the axes, on the same diff; its sources are the diff's files, their callers and,
+   for a test fake, the adapter it stands in for, and its word limit is the axes'. Any other step
+   runs no hunt.
 
    A behaviour step also gets the **Design** pass: one `reviewer`, in parallel with the others,
    on the same diff; its sources are the step id, the diff's files and the modules that call
