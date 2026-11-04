@@ -22,8 +22,8 @@ only for decisions.
   it by tracing the input through the code or by an existing test or command, never by a file
   planted in the tree: the tree holds the uncommitted step, and a planted file joins its diff.
   When only a new test or a run the repo cannot make (a production limit, a live service's
-  behaviour) would settle it, the verdict is `unclear`, naming what is left open; a claim the
-  evidence answers on other grounds stays `refuted` or `confirmed`.
+  behaviour) would settle it, the verdict is `unclear`; a claim the evidence answers on other
+  grounds stays `refuted` or `confirmed`.
 - **Probes** come with the disposable worktree the brief names, the one place you plant a file,
   never the main tree. Plant each probe there (a file path and its content), run the command it
   names and quote its output; the main session sets the worktree up and removes it.

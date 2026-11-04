@@ -261,7 +261,8 @@ real input. `tdd` writes no test here; a step's *Test first* names the seam to o
     because a wrong `refuted` hides a real bug from the user, and a step raises one or two such
     claims. The tree holds the uncommitted step, so a planted file would join its diff.
   - **Cost accepted:** the wall time of the slowest confirmation before the step is presented; a
-    failure that only a new test shows comes back `unclear` and costs the user a question.
+    failure that only a new test or a run the repo cannot make (a production limit, a live
+    service's behaviour) shows comes back `unclear` and costs the user a question.
   - **Reversal:** one commit in `ticket-implement` and `researcher.md`.
   - **Rejected:**
     - The raising reviewer re-checks through `SendMessage` — it confirms its own reading.

@@ -24,7 +24,7 @@
 | S16 | the second verification's lessons L1–L3 | done |
 | S17 | a hook refuses the reviewer's `cat`, `head`, `tail` and `sed -n` on a tracked file (L4) | done |
 | S18 | a Verify that repeats one check over many inputs runs them from one script | done |
-| S19 | a claim only a run outside the repo would settle gets `unclear`, not `refuted` | todo |
+| S19 | a claim only a run outside the repo would settle gets `unclear`, not `refuted` | done |
 
 ## How to run this plan
 
@@ -1020,7 +1020,25 @@
     left open.
   - `make check` green.
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:** passes that ran: Standards (sonnet, with writing-for-agents) and Spec on S19.1;
+  S19.2 checked by the main session against its finding and the experiment's rerun. No
+  `simplify`, Design or hunt, an instruction-only step. Implementer 5.0 and 2.2 min on `opus
+  medium`. The Test first ran as the no-op experiment on haiku, 3 runs a side, S14's planted
+  claim with a lost title as the wrong outcome: without the line "`Verdict: confirmed` in all 3
+  runs"; with it "`Verdict: unclear` in all 3 runs, each naming what is left open"; after S19.2's
+  cut, `unclear` 3/3 again. The baseline is `confirmed`, not the `refuted` this step expected:
+  S14's `refuted` came from opus in the worktree; either way the old rule never reached
+  `unclear`. A first pair whose task said "no test … sends a burst against real S3" gave
+  `unclear` on both sides and was dropped, since it handed the reader the old rule's reason.
+  - Standards — accepted, fixed in S19.2 — "naming what is left open" repeated the report
+    format's "`unclear` names what could not be settled".
+  - Standards — rejected — "stays `refuted` or `confirmed`" as a no-op: this step's Delivers
+    asks for it.
+  - Spec — refuted by the implementer's report — no experiment output; and the last clause
+    letting S14's `refuted` stand: with the line, `unclear` 3/3.
+  - Spec and Standards — accepted, fixed by the main session — D4's Cost accepted named only "a
+    new test".
 
 ## Requirement coverage
 
