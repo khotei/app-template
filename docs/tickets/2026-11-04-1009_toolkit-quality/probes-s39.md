@@ -19,11 +19,12 @@ plugin's diagnostics as an added scope's own.
   appended to that file, hence their line numbers.
 - **How each import was chosen:** the first of a fixed list of candidate imports, ranked by the
   probe's top folder (a module's probe reaches another module, a kernel part's another part), that
-  the group's message alone refuses at `8572da12bf`.
+  the group's message alone refuses at `8572da12bf`. P8.1 takes its own module's file instead of
+  the first, another module's, which the plugin also refuses after S39.
 - **The run:** a script with no agent, in `git archive` exports of both commits in the session's
   scratch folder. Each probe is a file of its own, the import and `export const y = x`, linted
   alone with `biome lint --vcs-enabled=false --reporter=json <path>` (Biome 2.5.15), then deleted
-  or its file restored. The 360 runs take 33.9 s; choosing the imports took about ten minutes.
+  or its file restored. The 360 runs take 33.6 s; choosing the imports took about ten minutes.
 - **The checks, each red on a planted hit first:** one probe dropped, two probes on one group and
   one probe that passes each fail the per-override count; a G1 that the plugin allows fails the
   after-check.
@@ -34,14 +35,38 @@ plugin's diagnostics as an added scope's own.
   module group `#*/** !#<module>/**`, which matches every `#testing/…`. A rewrite that drops the
   first leaves its probe failing on the second message. G1 passes. G2 fails on the root's pattern,
   with the same text: no relative import was free at `8572da12bf`.
-- **After (`dbb29d488a`):** of the 176 override probes, 71 pass, 85 fail on the plugin alone, 12
-  on their own message, 7 on a group S39 reworded, and P8.1 on the plugin and its own message. R1,
-  G1 and G2 fail on the plugin, R2 on `noImportCycles`.
+- **After (`dbb29d488a`):** of the 176 override probes, 71 pass, 85 fail on the plugin alone, 13
+  on their own message and 7 on a group S39 reworded. R1, G1 and G2 fail on the plugin, R2 on
+  `noImportCycles`. Each ban of the nine overrides S39 leaves fails on its own probe, alone (*After
+  S39's bans*).
 - **Against L8:** each group of the four overrides L8 names has its probe. The groups of
   `apps/api/**` (P38.0–P38.2), `apps/worker/**` (P41.0–P41.2), `deployment/**` (P46.0–P46.2) and
   the domain tests' `application/chat/__tests__/**` (P4.0–P4.3) pass after S39. Their
   relative-path groups (P38.3, P41.3, P46.3, P4.5) and P4.4, another module's file, fail on the
   plugin.
+
+## After S39's bans
+
+The nine overrides of `biome.json` at `dbb29d488a` hold 15 bans, `<o>.<g>` counted from 0 as
+above. Each fails, after S39, on the probes below and on no other message there.
+
+| Ban | Scope | Message | Probes |
+|---|---|---|---|
+| 0.0 | `http-api/**` | "http-api is the HTTP boundary shared by the apps …" | P0.0 |
+| 0.1 | `http-api/**` | "of a module's entry http-api takes only its contract …" | P0.1 |
+| 1.0 | `apps/web/**` | "web client code may import only …" | P44.0 |
+| 2.0 | `application/*/contract/**` | "a module contract imports no workspace and no …" (reworded) | P8.0 |
+| 2.1 | `application/*/contract/**` | "a module contract imports none of its module's other files …" | P8.1 |
+| 3.0 | `application/*/domain/**` | "a module's domain is pure and ships to the browser …" (reworded) | P1.0 |
+| 3.1 | `application/*/domain/**` | "a module's domain imports neither its services nor …" | P1.1, P9.1 |
+| 4.0 | `application/*/services/**` | "a module's services import no workspace but …" (reworded) | P2.0 |
+| 4.1 | `application/*/services/**` | "of @app-template/kernel/aws a module's services …" | P2.1, P10.1 |
+| 4.2 | `application/*/services/**` | "of @app-template/kernel/data a module's services …" | P2.2, P10.2 |
+| 4.3 | `application/*/services/**` | "a module's services reach its infrastructure only …" | P2.3, P10.3 |
+| 5.0 | `application/*/infrastructure/**` | "a module's infrastructure implements its …" (reworded) | P3.1 |
+| 6.0 | `application/use-cases/**` | "the use cases import no workspace but a module's …" | P13.0 |
+| 7.0 | `application/*/index.ts` | "an entry of application/ re-exports its own …" (reworded) | P7.0, P12.0 |
+| 8.0 | `kernel/data/**` | "the data layer imports no workspace but …" (reworded) | P16.0 |
 
 ## Probes
 
@@ -89,7 +114,7 @@ message is quoted to its first words.
 - P7.2 `application/chat/index.ts` — `application/chat/index.ts`: `import { x } from '#testing/chat/x'` → `4:19` "a module reaches its own files through #<module>/… …" and `4:19` "a module's source imports no test support, its own …" — after: passes
 - P7.3 `application/chat/index.ts` — `application/chat/index.ts`: `import { x } from './x'` → `4:19` "inside a workspace import through its …" — after: fails, plugin
 - P8.0 `application/identity/contract/**` — `application/identity/contract/probe.ts`: `import { x } from '@app-template/application/chat'` → `1:19` "a module contract imports no workspace and no …" — after: fails, reworded "a module contract imports no workspace and …"
-- P8.1 `application/identity/contract/**` — `application/identity/contract/probe.ts`: `import { x } from '#chat/domain/x'` → `1:19` "a module contract imports none of its module's …" — after: fails, plugin and own message
+- P8.1 `application/identity/contract/**` — `application/identity/contract/probe.ts`: `import { x } from '#identity/domain/x'` → `1:19` "a module contract imports none of its module's …" — after: fails, own message
 - P8.2 `application/identity/contract/**` — `application/identity/contract/probe.ts`: `import { x } from './x'` → `1:19` "inside a workspace import through its …" — after: fails, plugin
 - P9.0 `application/identity/domain/**` — `application/identity/domain/probe.ts`: `import { x } from '@app-template/application/chat'` → `1:19` "a module's domain is pure and ships to the browser: …" — after: passes
 - P9.1 `application/identity/domain/**` — `application/identity/domain/probe.ts`: `import { x } from '#identity/services/x'` → `1:19` "a module's domain imports neither its services nor …" — after: fails, own message

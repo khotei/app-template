@@ -18,7 +18,7 @@
 | S10 | the five simplifications of the verification | done |
 | S11 | the verification's lessons L1–L3 | done |
 | S12 | a loop over the plan's steps, each to a commit without the user's OK between them | done |
-| S13 | the probes of every scope of S39's whole rewrite, one per ban; the S37 record corrected | todo |
+| S13 | the probes of every scope of S39's whole rewrite, one per ban; the S37 record corrected | done |
 | S14 | one more attempt at R6's `unclear` branch, with a claim no trace or run settles | todo |
 | S15 | the second verification's three simplifications | todo |
 | S16 | the second verification's lessons L1–L3 | todo |
@@ -736,8 +736,8 @@
 - **Delivers:** a probe per ban of every scope `/ticket-plan` step 3 names for S39, which rewrites
   the guard whole and adds the plugin: each override's groups, the root config's bans, and the
   plugin's diagnostics as an added scope's own; each with its output at `8572da12bf` and after
-  S39 (`dbb29d488a`). The S37 row of the plan-time run records `doc-width` as it ran on a clean
-  parent.
+  S39 (`dbb29d488a`). The S37 row of the plan-time run records `doc-width` and `make check` as
+  they ran on a clean parent.
 - **Goal:** R8, from `verification.md` run 2; R7's record (run 2, R7 row).
 - **Blocked by:** none.
 - **Files:**
@@ -752,10 +752,38 @@
   - Per override, the distinct messages among its probes equal its groups, by the same `jq` count;
     a group with no probe or two groups sharing one fails it.
   - Every probe but the plugin's fails at `8572da12bf` with its own message; the plugin's fail
-    after S39 only.
+    after S39, G1 only after it: G2 fails before on the root's pattern, as no relative import
+    was free at `8572da12bf`.
   - `make check` green.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:** passes that ran: Standards (sonnet) and Spec on S13.1 and S13.2; no `simplify`,
+  Design or hunt, a docs-only step. The probes ran by script in `git archive` exports, not by a
+  researcher in a worktree, as S8's; the Verify names none and planted hits turned each check red
+  first. S13.2's run: `probes 180; wall 33.6 s; overrides 48; groups 176; own messages 176`,
+  `before: 179 fail, G1 pass`, `after: 13 fails, own message / 88 fails, plugin / 7 fails,
+  reworded / 71 passes / 1 fails, noImportCycles`, `errors: 0`.
+  - Spec — accepted, fixed in S13.2 — S37's `make check` also passes on a clean parent (confirmed
+    by a researcher: `Tests  213 passed (213)`, `Tests  102 passed (102)`, exit 0), so S37's three
+    checks all pass and R7's record counts three `passes`.
+  - Spec — accepted, fixed in S13.2 — the list did not show which probe holds each of the 15 bans
+    of the nine overrides at `dbb29d488a`; it now maps them, and P8.1 takes an import only its ban
+    refuses on both commits (rerun by a researcher: one diagnostic each, `errors: 0`).
+  - Spec — accepted, fixed in the Verify — G2 cannot fail after S39 only: the root refused every
+    relative import at `8572da12bf`.
+  - Spec — accepted, fixed in the Delivers — S13.2 records `make check` on the clean parent, which
+    the Delivers named only as `doc-width`.
+  - Implementer — accepted, open — the seven `#testing/**` groups have no import their ban alone
+    refuses, as `/ticket-plan` step 3 asks: the module group shadows each; the list names both
+    messages.
+  - Spec — rejected: a widened glob after S39 reaches no file the old overrides missed, and each
+    of the 15 new bans has a probe (refuted by a researcher) — the added scopes' reach is unprobed.
+  - Spec — rejected: P8.1's import came from a rerun at both commits (refuted by a researcher) —
+    nothing shows it fails before S39.
+  - Spec — rejected: the commit's `Decision:` records that P8.1's import replaces the candidate
+    list's — the list should say whether the import is on it.
+  - Standards — rejected: the trailer names the model that writes the commit, Opus — the
+    reviewer's own Sonnet.
 
 #### S14 — An unclear confirmation, seen
 
