@@ -343,3 +343,147 @@ Standards brief to name it.
 - **Proposed change:** a mechanical check — a `PreToolUse` hook on the `reviewer` agent that
   refuses `cat`, `head`, `tail` and `sed -n` on a tracked file and names `Read`.
 - **Applied:** yes, S17
+
+## 2026-11-04 — run 3
+
+**Verdict:** fail
+
+Branch `chore/toolkit-quality` at `f6e16c674e`, against the merge-base `aaf033494f` with `main`,
+after S13–S21. Six verifiers, one per `###` section of the requirements; the R7–R8 verifier ran
+`make check` (exit 0: 221 unit tests, 104 e2e tests, the bundle), the R13 verifier too. The R4–R6
+verifier re-ran S8.1's hunt and S14's `unclear` prompt under the current toolkit in two worktrees
+at `7a2c073f1d`, removed afterwards; its first attempt was refused on an `rm -rf` (`deny`). The
+seven commits outside the ticket are PR #17's (`chore/claude-code-setup`, open), so they leave
+this branch once #17 merges and the branch is rebased.
+
+### Requirements
+
+| Req | Result | Evidence |
+|---|---|---|
+| R1 | pass | Design on a behaviour step only (`.claude/skills/ticket-implement/SKILL.md:26-30`, `:63-67`); four lenses and no candidate on import direction (`.claude/agents/reviewer.md:32-39`). The move case run 2 left open, run live: `git mv packages/aws/naming.ts packages/aws/names.ts` with both importers rewritten (`similarity index 100%`), and a `claude -p` session under the skill answered "Design — не запустился бы", citing `SKILL.md:63`. Caveat: two replayed candidates are labelled by a criterion ("Coupling: …") or a move, not a lens |
+| R2 | pass | 3, 4, 3, 2 and 4 candidates; every `### n.` has two `ts` fences and ends in `Strong`, `Worth exploring` or `Speculative` |
+| R3 | pass | `design-examples.md` linked only from `SKILL.md:65`, every example on `Order`; 0 of its 53 code lines in `.claude/rules/` or `docs/knowledge/`, and 0 of theirs in it; 8 links resolve |
+| R4 | fail | The question is in `reviewer.md:55-58`. S8.1 re-run at `f6e16c674e` (100 s): the hunt names the construct and clears it — "The `boolean` that `chats.update` returns is ignored in `touch` and `writeSettled`. That is right: a deleted chat stays deleted." A send that loses to a delete ends in a foreign-key 500, which `f6e2561120` fixed. Fourth run on S8.1; only run 2's named the failure. S30.2 passes by the record (`replay.md:173-187`), not re-run |
+| R5 | pass | Both real findings of the re-run carry an input and a wrong outcome; the planted `:161` finding without a scenario was not presented. Lines are now the file's own after D13: `send-message.use-case.ts:70` is `sql.withTransaction`, `attachment.service.ts:175` the `Effect.forEach`, `apps/api/src/layer.ts:48` the `Layer.provide` (run 2: `:775` in an 87-line file) |
+| R6 | pass | Three `researcher` calls on opus in one message (`msg_011CgiXMtwwXa4P6X7kfCEGG`) before the presentation: two `confirmed` and presented, the planted `:174` `refuted` (`vitest … -t updateTitle` → 4 passed) and dropped. **The `unclear` branch, first seen:** S14's prompt (77 s) got `Verdict: unclear` ("only a live S3 bucket can show them"), presented as one block with options A–C, a recommendation and a question |
+| R7 | pass | Red list `.claude/skills/ticket-plan/SKILL.md:49-55`, fixes `:65-66`, core unchanged since the replay; the replay's `cannot run` (S26, S30) and `passes` (S37) re-checked by hand |
+| R8 | pass | `probes-s39.md`: 180 probes for S39's whole rewrite — 176 bans over 48 overrides (`jq` at `8572da12bf` → `[48,176]`) plus R1, R2, G1, G2. P0.0, P4.0, P38.0, P41.0, P46.0 fail at `8572da12bf` (exit 1, each on its own message); at `dbb29d488a` P4.0, P38.0, P41.0, P46.0 pass, the bans run 2's L8 records lost; G1, an added scope, fails only after |
+| R9 | pass | `SKILL.md:46` names `writing-for-agents` for an instruction-file diff, `reviewer.md:24-28` loads it, the implementer's brief does not; a `claude -p` run of the skill gave it for a rule edit and not for a `.ts` edit; the no-op mechanism told `PINEAPPLE` from none |
+| R10 | pass | `ticket-feature` step 2 runs `diagnosing-bugs` phases 1–2 before grilling and requirements; a headless run on "Deleted chats still show up in the sidebar" did so |
+| R11 | pass | `replay.md:14-31`: pass → step → findings → wall time for three Design steps, two hunts, the plan-time run and the probes |
+| R12 | pass | Template `docs/tickets/_template/verification.md:21-27`; this run's ledger below covers S1–S21, with the Design, hunt and `simplify` rows the later steps added |
+| R13 | pass | No-op run, haiku, 3 each: first step — with the loop lines 0/3 ask the commit question, without 3/3; not ready after three rounds — with 3/3 stop, without 3/3 send round S3.5 |
+
+**Not verifiable:**
+
+- R4's variance: one run per toolkit; S30.2 not re-run.
+- R5's missing-test finding: no replay runs a Spec pass.
+- R8 by an agent: the per-ban lists of S8 and S13 came from the implementer's script; no
+  `/ticket-plan` session wrote one. A guard other than Biome or a grep has no rule for what a ban is.
+- R13's other stops (`BLOCKED:`, a user's decision, the user's word) and a real multi-step loop by
+  opus; the haiku run shows what it says it would do.
+
+### Review
+
+#### Review ledger
+
+Summed from every step's **Findings** in `plan.md`, S1–S21; a finding raised by two passes counts
+for each; an `accepted, open` one counts as accepted (run 2's Implementer row, corrected). The S6
+replay's two findings are not a review pass and are left out.
+
+| Pass | Findings | Accepted | Fixed | Rejected |
+|---|---|---|---|---|
+| Standards | 36 | 19 | 19 | 17 |
+| Spec | 55 | 42 | 39 | 13 |
+| hunt | 3 | 3 | 2 | 0 |
+| Design | 2 | 0 | 0 | 2 |
+| `simplify` | 1 | 1 | 1 | 0 |
+| Implementer | 5 | 4 | 2 | 1 |
+
+S13–S21 alone: Standards 16 (8 accepted, 8 fixed, 8 rejected), Spec 26 (21, 18, 5), hunt 3 (3,
+2, 0), Design 2 (0, 0, 2), `simplify` 1, Implementer 4 (3, 2, 1).
+
+#### Standards
+
+No hard break; `make doc-lint` exit 0; `.claude/CLAUDE.md` 34 lines, the longest rule 80.
+
+- `.claude/rules/commits.md` — judgement — seven commits carry no `Refs:` (`baa7103882`,
+  `321a3ba54f`, `8d230ddf02`, `27b14f77cb`, `afc397f86a`, `8d5fb342ef`, `0db9fb79f4`); they belong
+  to no ticket, and the rule says "every commit".
+- `.claude/agents/researcher.md:6`, `:15` against `:27` — writing-for-agents, contradiction — "Read-only
+  … experiments in a temp directory outside the working tree", while `:27` lets it plant probe
+  files in a worktree; a run can follow either.
+- `.claude/skills/ticket-implement/SKILL.md:29-30` — no-op — "A move gets Standards and Spec alone;
+  any other step that is not a behaviour step gets no `simplify` and no Design pass": a move is
+  already not a behaviour step.
+- `.claude/skills/ticket-plan/SKILL.md:42-66` — sprawl — step 4 holds the worktree recipe only a
+  guard step needs; `guard-probes.md` already exists for that branch.
+- `.claude/skills/ticket-implement/SKILL.md:20-30` — co-location, and Duplicated Code — the
+  behaviour-step definition sits in step 2's sub-bullet while steps 3 and 4 route the Design pass
+  and the hunt by it.
+
+Every other rule: none (the diff has no TypeScript).
+
+#### Spec
+
+- R8, R12, R6 — claimed — unverified since run 2, the ledger stopping at S12, `unclear` never seen
+  end to end. This run settles all three (above).
+- R1 — claimed — the move with rewritten importers was never replayed. Run live this time (R1).
+- `.claude/settings.json:98` — judgement — S21 drops the `ask` entries for `git branch -D/-f`,
+  `git stash drop`, `find -delete/-exec`, `git switch --discard-changes`; `feature.md`'s Scope line
+  speaks of tool choice only, so the permission change is recorded in `plan.md` and the S21 commit
+  but not in Scope.
+- `.claude/settings.json:125`, `.mcp.json`, `Makefile:43`, `.claude/CLAUDE.md`, `README.md` —
+  judgement — the seven commits outside the ticket match no Scope line; they are PR #17's.
+
+### Simplifications
+
+1. Merge `.claude/agents/researcher.md:15` and `:27` into one bullet on where the researcher may
+   write (a temp folder, or a probe worktree); the contradiction goes, one bullet fewer.
+2. Define a behaviour step once, above the numbered steps of
+   `.claude/skills/ticket-implement/SKILL.md`, and cut the restated clause at `:29-30`; steps 2–4
+   point at it.
+3. Move the probe-worktree recipe of `.claude/skills/ticket-plan/SKILL.md:42-66` into
+   `guard-probes.md`; a plan with no guard step stops reading it.
+
+### Lessons
+
+#### L1 — A step that reversed a decision left its record stale
+
+- **Evidence:** S20 reversed monorepo-setup's D29 with no record (this run's interim Spec, hard);
+  S21 left D11, the `PreToolUse` Seam row and its permission change out of Files (S21's Spec).
+- **Cost:** two Spec findings, a D-record written a step late, two commit-time fixes.
+- **Proposed change:** `.claude/skills/ticket-plan/SKILL.md` step 3, **Files**: "A step whose
+  Goal reverses a decision lists `architecture.md › Decisions` and every Seam, Contract or Risk
+  the decision named."
+- **Applied:** no
+
+#### L2 — The hunt names a discarded result and judges its failure harmless
+
+- **Evidence:** S8.1's hunt in run 2's S9 rerun, the interim run 3 and this run: three of four
+  runs name `Effect.asVoid(chats.update(…))` and clear it; the failure is a foreign-key 500.
+- **Cost:** R4 fails in runs 1, 2 and 3; a real 500 passes review.
+- **Proposed change:** `.claude/agents/reviewer.md`, the hunt: "For a discarded result, follow
+  the failure it hides to what the caller returns (a row deleted mid-write is a foreign-key error,
+  a 500, not a not-found) before judging it handled."
+- **Applied:** no
+
+#### L3 — A guard against an agent's tool habit cost more than the habit
+
+- **Evidence:** S7's `bash-guard.sh` and S17's `read-guard.sh` (run 2's L4); S17 took three
+  rounds (two for bypasses the hunt found), S21 removed both. In 1,211 transcripts: 37 refusals, 7
+  bypassed, 3 false; a fresh session in `bypassPermissions` has no `Grep` or `Glob` at all.
+- **Cost:** S17 (20 min) and S21 (about 10 min); about 2 min lost to refusals; the user's call to
+  drop every tool guard (D13).
+- **Proposed change:** `.claude/skills/ticket-verify/SKILL.md` step 3: "A lesson about which tool
+  an agent uses proposes a check of its output, never a hook that refuses a tool."
+- **Applied:** no
+
+#### L4 — An agent stopped at the `rm -rf` deny instead of using `rm -r`
+
+- **Evidence:** this run's R4–R6 verifier (its replay refused, re-run on a message) and its R9
+  verifier (four scratch folders left); run 3's interim verifiers; the earlier implementers.
+- **Cost:** R4–R6 took a second message and about 9 more minutes; scratch folders left behind.
+- **Proposed change:** `.claude/agents/verifier.md` and `.claude/agents/researcher.md`: "`rm -rf`
+  is denied; remove with `rm -r`."
+- **Applied:** no
