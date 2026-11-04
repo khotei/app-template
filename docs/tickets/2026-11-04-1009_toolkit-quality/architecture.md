@@ -129,13 +129,13 @@ Evidence: <the path:line chain the input takes, or an existing test or command a
   the main tree, read-only. Each comes back `fails as expected` with its output, `passes`, or
   `cannot run` with its error; the plan fixes every `passes` and `cannot run` before it is
   presented. The report stays in the conversation.
-- **Probes:** for a step that changes or removes a guard, one probe per ban of each scope the step
-  adds, changes or removes and of every scope whose files those also match, of every scope when
-  it rewrites the guard whole, read from its config: a file path and its content. A scope and a
-  ban are as `/ticket-plan` step 3 defines them. A researcher plants each in the worktree
-  `<slug>-plan-probes` (`make worktree`, set up and removed by the main session), runs
-  the guard and quotes the failure. The step's Verify lists every probe with that output, and
-  the implementer runs the same probes after the change:
+- **Probes:** for a step that adds, changes or removes a guard or a scope of one, one probe per
+  ban of the scopes `/ticket-plan` step 3 names, read from the guard's config: a file path and its
+  content. A researcher plants each in the worktree `<slug>-plan-probes` (`make worktree`, set up
+  and removed by the main session), runs the guard and quotes its output: the failing line, or
+  for an added scope's own probe the output it gives before the change, a probe that must fail
+  after it, which takes the failing line's place in the shape below. The step's Verify lists
+  every probe with that output, and the implementer runs the same probes after the change:
 
 ```text
 - **Probes** (<guard>, run at plan time):
@@ -210,7 +210,7 @@ real input. `tdd` writes no test here; a step's *Test first* names the seam to o
 |---|---|---|
 | `make check` over the edited skills, agents and templates | a broken link, a missing path, a source path in an instruction file, an over-width line | whether a line changes what an agent does |
 | The replay of a committed step (`replay.md`) | what the Design pass and the hunt report on a real diff, against what was found later; the finding shapes (R5); the confirmations (R6); each pass's wall time | step kinds outside the replayed five; the variance of one run per step |
-| The plan-time run on a past plan (`replay.md`) | checks that pass on the tree before their step, checks that cannot run, a guard change's bans with no probe in an added, changed or removed scope (R7, R8) | plans with checks of another kind |
+| The plan-time run on a past plan (`replay.md`) | checks that pass on the tree before their step, checks that cannot run, a guard change's bans with no probe in the scopes `/ticket-plan` step 3 names (an added, changed or removed scope, one whose files those also match, every scope of a whole rewrite), each failing before the change but an added scope's own, which this run cannot show failing (R7, R8) | plans with checks of another kind |
 | A brief as the skill writes it | that the Design brief links the examples file, the Standards brief of an instruction edit names `writing-for-agents`, the implementer's brief names neither (R3, R9) | whether the agent follows the brief |
 | A template and the skill that fills it | the Reproduction section and its order in `/ticket-feature` (R10); the Review ledger, which this ticket's own verification fills (R12) | a real bug ticket's reproduction, until the first one runs |
 

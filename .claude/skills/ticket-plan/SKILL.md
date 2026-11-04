@@ -29,16 +29,19 @@ steps only conform to the plan. Gates: `.claude/rules/sdd.md`.
    - **Test first**: the Seam from `architecture.md` and the behaviour to see red, or `config only`;
    - **Verify**: commands and manual checks, each naming the state it fails on, so a check that
      cannot fail is seen before the step runs.
-     - A step that changes or removes a guard lists, in the template's **Probes** shape, one probe
-       per ban of each scope it adds, changes or removes and of every scope whose files those also
-       match, since a later Biome override replaces an earlier one's options for the files both
-       match; of every scope when it rewrites the guard whole. An added scope's own probes fail
-       only after the change. A scope is one Biome override, the root config, one Biome plugin or
-       one grep; a ban is one restriction in it with its own message: a pattern or a path of an
-       override or of the root's import rule, a root rule that refuses an import
-       (`noImportCycles`), one diagnostic a plugin registers, a grep's pattern. An override of
-       four groups takes four probes. Each probe is one import or line that its ban alone
-       refuses, and names the command it fails (the guard's tool alone, or `make check`).
+     - A step that adds, changes or removes a guard or a scope of one lists, in the template's
+       **Probes** shape, one probe per ban of each scope it adds, changes or removes, of every
+       scope whose files those also match, and of every scope when it rewrites the guard whole.
+       The overlap counts because a later Biome override replaces an earlier one's options for
+       the files both match.
+     - An added scope's own probes fail only after the change; they are recorded with the output
+       they give at plan time. Every other probe fails at plan time.
+     - A scope is one Biome override, the root config, one Biome plugin or one grep; a ban is one
+       restriction in it with its own message: a pattern or a path of an override or of the
+       root's import rule, a root rule that refuses an import (`noImportCycles`), one diagnostic
+       a plugin registers, a grep's pattern. An override of four groups takes four probes. Each
+       probe is one import or line that its ban alone refuses, and names the command it fails
+       (the guard's tool alone, or `make check`).
      - A step that edits a file a requirement measures re-measures it.
    - **Model**: `opus medium` for a move, rename or config step, `opus high` for a step that
      writes behaviour; `/ticket-implement` spawns the implementer on it;
@@ -55,9 +58,9 @@ steps only conform to the plan. Gates: `.claude/rules/sdd.md`.
    - **Red**: every Verify check for new work (one that names a state the step creates), run once
      on the main tree, read-only. Each comes back `fails as expected` with its output, `passes`,
      or `cannot run` with its error.
-   For a step that changes or removes a guard, spawn a second `researcher` with its probes and the
-   worktree `<slug>-plan-probes`: it plants each probe there, runs the probe's command and quotes
-   the failing line. Create the worktree first with
+   For a step that adds, changes or removes a guard or a scope of one, spawn a second `researcher`
+   with its probes and the worktree `<slug>-plan-probes`: it plants each probe there, runs the
+   probe's command and quotes its output. Create the worktree first with
    `git worktree add -b wt/<slug>-plan-probes .claude/worktrees/<slug>-plan-probes HEAD`, then run
    `make worktree N=<n> NAME=<slug>-plan-probes` inside it, `<n>` unused by a live worktree; the
    branch comes first because `make worktree` renames the current branch, so on a detached
@@ -66,7 +69,7 @@ steps only conform to the plan. Gates: `.claude/rules/sdd.md`.
    longer shows it.
    Fix in `plan.md`, before presenting it, every `wrong`, every broken rule, every `passes` and
    `cannot run`, and every probe that does not fail, but an added scope's own. The reports stay in
-   the conversation; `plan.md` records no check but the probes, each with its failing line.
+   the conversation; `plan.md` records no check but the probes, each with its plan-time output.
 5. End with a coverage table that maps every `R…` to at least one step.
 6. Present the plan and iterate until the user approves it. Next comes
    `/ticket-implement <ticket folder>`.

@@ -31,9 +31,9 @@ reading the steps; `git log` holds the step's commits.>
 - **Size:** <~ changed lines, every file the change reaches>.
 - **Test first:** <Seam from architecture.md> — <behaviour to see red>. Or `config only`.
 - **Verify:** <commands and manual checks, each with the state it fails on>.
-  - **Probes** (<guard>, run at plan time): <only a step that changes or removes a guard; one per
-    ban of each scope it adds, changes or removes and of every scope whose files those also
-    match, as `/ticket-plan` step 3 defines both, run again after the change>
+  - **Probes** (<guard>, run at plan time): <only a step that adds, changes or removes a guard or a
+    scope of one; one per ban of the scopes `/ticket-plan` step 3 names, run again after the
+    change; an added scope's own fail only after the change, so each shows its plan-time output>
     - <ban> — `<path>`: `<content>` → `<the guard's failing line>`
 - **Model:** <model and effort, e.g. `opus medium`>
 - **Status:** todo
