@@ -42,7 +42,7 @@ graph LR
 | 7 | [`web-app`](#7-web-app) | `feat` | 3 (18 for assistant attachments) | planned |
 | 8 | [`observability`](#8-observability) | `feat` | 3 | planned |
 | 9 | [`aws-deployment`](#9-aws-deployment) | `feat` | 4, 5 | planned |
-| 10 | [`client-publishing`](#10-client-publishing) | `chore` | 3 | planned |
+| 10 | [`client-publishing`](#10-client-publishing) | `chore` | 3 | in progress: [docs/tickets/2026-11-04-1131_client-publishing/](../tickets/2026-11-04-1131_client-publishing/feature.md) |
 | 11 | [`workflow-cluster`](#11-workflow-cluster) | `feat` | 4, 8 | planned, exploratory |
 | 12 | [`template-handoff`](#12-template-handoff) | `chore` | all above | planned |
 | 13 | [`ticket-folder-order`](#13-ticket-folder-order) | `chore` | 3 | done: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md) |
@@ -58,6 +58,7 @@ graph LR
 | 23 | [`modular-monolith`](#23-modular-monolith) | `refactor` | 15 | done: [docs/tickets/2026-10-31-0926_modular-monolith/](../tickets/2026-10-31-0926_modular-monolith/feature.md) |
 | 24 | [`attachment-storage-failures`](#24-attachment-storage-failures) | `fix` | 23 | planned |
 | 25 | [`toolkit-quality`](#25-toolkit-quality) | `chore` | 17 | in progress: [docs/tickets/2026-11-04-1009_toolkit-quality/](../tickets/2026-11-04-1009_toolkit-quality/feature.md) |
+| 26 | [`domain-from-data`](#26-domain-from-data) | `refactor` | 10 | planned |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; its remaining work is re-homed
 in [Re-homing `effect-setup`](#re-homing-effect-setup).
@@ -396,15 +397,13 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 
 ### 10. `client-publishing`
 
-- **Goal.** `@app-template/http-api` and its `ApiClient` consumable from any TypeScript
-  project without the server code, with every type intact.
-- **Scope.** Build and `exports` of `http-api` (types from the `HttpApi` definition; the
-  modules' `domain` subpaths and contracts it imports ship with it); versioning; publishing to
-  GitHub Packages or npm from CI on a tag; a consumer smoke test in a scratch project.
-- **Out of scope.** A client for other languages; an SDK generator, which would need an OpenAPI
-  spec the api does not serve.
-- **Open questions for its feature phase.** Registry; how the client's `effect` dependency is
-  declared for consumers that do not use Effect.
+- **Goal.** The web reaches the server only through `http-api`, a contract of its own that
+  imports nothing of the app, with every type intact on the client and no rule on the backend
+  for the web's sake.
+- **Scope.** The contract's own schemas as the one codec of the round trip; a parity check with
+  the domain; the web bundle check keyed on package names.
+- **Out of scope.** Publishing to a registry and use from other repositories; a generated client.
+- **Status.** In progress: [docs/tickets/2026-11-04-1131_client-publishing/](../tickets/2026-11-04-1131_client-publishing/feature.md).
 
 ### 11. `workflow-cluster`
 
@@ -747,6 +746,15 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Found by** `lean-instructions`' review of the installed plugins (2026-11-03), which turns
   the overlapping ones off and keeps here what they did better.
 - **Status.** In progress: [docs/tickets/2026-11-04-1009_toolkit-quality/](../tickets/2026-11-04-1009_toolkit-quality/feature.md).
+
+### 26. `domain-from-data`
+
+- **Goal.** A module's domain may take its types and schemas from the data layer instead of
+  redeclaring them, now that the domain no longer ships to the browser.
+- **Scope.** The domain's import bans; the records "A module's layers" and "The data at the
+  centre"; the mappers it would make redundant.
+- **Depends on** `client-publishing`, which takes the domain out of the browser.
+- **Status.** Planned.
 
 ## Ideas to weigh
 

@@ -107,6 +107,12 @@ The part of a module other modules may depend on, its folder `contract/`, export
 entry: its ids, its errors and the shapes they carry, with no implementation.
 _Avoid_: Public API, interface, SDK, client
 
+**API contract**:
+The HTTP API described on its own, `http-api`: its routes, the shapes and errors on the wire and
+the client derived from them. It imports nothing of the app; the api implements it and the web
+calls it. Never a module contract.
+_Avoid_: DTO layer, SDK, wire schemas, shared domain
+
 **Use case**:
 One scenario that composes domain services, of one module or several, with the files, the jobs,
 the assistant or one transaction; what a handler calls when a flow is more than one service
