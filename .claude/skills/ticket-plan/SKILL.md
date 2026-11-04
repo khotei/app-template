@@ -46,9 +46,11 @@ steps only conform to the plan. Gates: `.claude/rules/sdd.md`.
      in `.claude/rules/*.md` or that workspace's `CLAUDE.md`.
    - **Red**: every Verify check for new work (one that names a state the step creates), run once
      on the main tree, read-only. Each comes back `fails as expected` with its output, `passes`,
-     or `cannot run` with its error. Each is also run once on a copy outside the tree with the
-     break it is meant to catch planted (a broken link, the line removed), and comes back
-     `catches` or `misses`.
+     or `cannot run` with its error. Each is also run once with the break it is meant to catch
+     planted (a broken link, the line removed) in a `git clone --local` of the repo in the system
+     temp directory, since a copy without its own git repository fails a git-aware check before
+     it runs. It comes back `catches` only when its output names the planted break, else
+     `misses`.
    For a step that adds, changes or removes a guard or a scope of one, spawn a second `researcher`
    with its probes and the worktree `<slug>-plan-probes`; it runs them as
    `.claude/agents/researcher.md` says. Create the worktree first with

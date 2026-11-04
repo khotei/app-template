@@ -127,8 +127,10 @@ Evidence: <the path:line chain the input takes, or an existing test or command a
 
 - **Red:** every Verify check for new work (one that names a state the step creates), run once on
   the main tree, read-only. Each comes back `fails as expected` with its output, `passes`, or
-  `cannot run` with its error; the plan fixes every `passes` and `cannot run` before it is
-  presented. The report stays in the conversation.
+  `cannot run` with its error. Each is also run once on a copy with its own git repository
+  outside the tree (`git clone --local`), the break it is meant to catch planted, and comes back
+  `catches` only when its output names the break, else `misses`; the plan fixes every `passes`,
+  `cannot run` and `misses` before it is presented. The report stays in the conversation.
 - **Probes:** for a step that adds, changes or removes a guard or a scope of one, one probe per
   ban of the scopes `/ticket-plan` step 3 names, a scope and a ban as it defines them, read from
   the guard's config: a file path and its content. A researcher plants each in the worktree

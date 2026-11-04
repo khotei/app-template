@@ -21,7 +21,7 @@
 | S13 | the probes of every scope of S39's whole rewrite, one per ban; the S37 record corrected | done |
 | S14 | one more attempt at R6's `unclear` branch, with a claim no trace or run settles | done |
 | S15 | the second verification's three simplifications | done |
-| S16 | the second verification's lessons L1–L3 | todo |
+| S16 | the second verification's lessons L1–L3 | done |
 | S17 | a hook refuses the reviewer's `cat`, `head`, `tail` and `sed -n` on a tracked file (L4) | todo |
 | S18 | a Verify that repeats one check over many inputs runs them from one script | todo |
 | S19 | a claim only a run outside the repo would settle gets `unclear`, not `refuted` | todo |
@@ -891,8 +891,22 @@
   - `grep -c 'Applied:\*\* yes, S16' docs/tickets/2026-11-04-1009_toolkit-quality/verification.md`
     — 3.
   - `make check` green.
-- **Model:** `opus high`
-- **Status:** todo
+- **Model:** `opus high`; run on `opus medium`
+- **Status:** done
+- **Findings:** passes that ran: Standards (sonnet, with writing-for-agents) and Spec on S16.1;
+  S16.2 checked by the main session against its finding. No `simplify`, Design or hunt, an
+  instruction-only step. Implementer 3.4 and 1.4 min on `opus medium`. The Test first was read by
+  hand: a grep of the two files, no hit before, the lines after. `architecture.md` › Contracts ›
+  the plan-time run's **Red** gains the planted run, by the main session.
+  - Spec — accepted, fixed in S16.2 — a planted run on a copy without its own git repository
+    cannot run a git-aware check (confirmed by a researcher: in a `git archive` export `make
+    doc-lint` printed `fatal: not a git repository` and exited 2 without linting; in a `git clone
+    --local` the plant failed on its own line, `missing-path`, and the reverted plant exited 0).
+    The skill names the clone, and `catches` needs the output to name the break.
+  - Spec — rejected: `researcher.md` gives experiments a temp directory outside the working tree
+    (refuted by a researcher) — the step-4 researcher has nowhere allowed to plant.
+  - Implementer — accepted, fixed by the main session — `architecture.md`'s Red contract listed
+    only `fails as expected`, `passes` and `cannot run`.
 
 #### S17 — The reviewer reads through Read
 
