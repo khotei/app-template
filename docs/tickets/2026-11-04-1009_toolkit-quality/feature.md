@@ -68,6 +68,9 @@ and how long it takes, so the user can judge each pass on outcome and time.
 - A record of each review pass's outcome and time: a replay under the new toolkit and a per-pass
   ledger in each later verification.
 - A loop mode of `/ticket-implement` that takes a plan's steps to commits one after another.
+- The model may run a `/ticket-*` skill when the user asks for its phase.
+- No hook or instruction line steers which tool an agent reads, searches or edits with; the
+  read-only agents' tool limits and the implementer's `make check` gate stay.
 - Every current check of `make check` is kept; the roadmap notes to re-count the zero-catch ones
   after three or four tickets.
 

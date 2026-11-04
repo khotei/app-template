@@ -81,6 +81,7 @@
       "Bash(git apply*)",
       "Bash(git cherry-pick*)",
       "Bash(git branch*)",
+      "Bash(git rebase*)",
       "Bash(git switch *)",
       "Bash(git checkout*)",
       "Bash(git worktree *)",
@@ -90,6 +91,7 @@
       "Bash(docker ps*)",
       "Bash(docker logs*)",
       "Bash(docker compose ps*)",
+      "Bash(claude -p *)",
       "Bash(claude mcp list*)",
       "Bash(claude plugin list*)",
       "mcp__postgres"
@@ -101,15 +103,8 @@
       "Bash(gh repo create*)",
       "Bash(gh api*)",
       "Bash(git reset --hard*)",
-      "Bash(git rebase*)",
       "Bash(git clean*)",
-      "Bash(git branch -D*)",
-      "Bash(git branch -f*)",
-      "Bash(git stash drop*)",
-      "Bash(git stash clear*)",
-      "Bash(git switch *--discard-changes*)",
-      "Bash(find *-delete*)",
-      "Bash(find *-exec*)"
+      "Bash(git stash clear*)"
     ],
     "deny": ["Bash(rm -rf *)", "Bash(sudo *)", "Bash(npm *)", "Bash(yarn *)", "Bash(pnpm *)"]
   },

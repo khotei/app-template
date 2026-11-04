@@ -66,10 +66,10 @@ uses updates this map too; the Standards review checks it against `.claude/rules
 | `/ticket-feature` | `grilling`, `domain-modeling`; for a bug, `diagnosing-bugs` phases 1 and 2 | `researcher` | — | `feature.md`, `docs/knowledge/glossary.md`, `docs/knowledge/roadmap.md` |
 | `/ticket-architecture` | `codebase-design`, `grilling` | `researcher` | — | `architecture.md` |
 | `/ticket-plan` | — | `researcher`; for a step that adds, changes or removes a guard a second one, which plants the probes in the disposable worktree `<slug>-plan-probes` set up by `make worktree` | — | `plan.md` |
-| `/ticket-implement` | `code-review`; on a behaviour step the built-in `simplify`, run by the main session, with `codebase-design` as its vocabulary | `implementer` (one worktree per parallel step, set up by `make worktree`), `reviewer` (one per review pass), `researcher` (one per claimed finding, in parallel) | `make-check.sh` and `bash-guard.sh`, through `implementer`; `read-guard.sh`, through `reviewer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, the step's commits |
-| `/ticket-verify` | `code-review` | `verifier` (one per group of requirements, in parallel), `reviewer` | `read-guard.sh`, through `reviewer` | `verification.md` |
-| `implementer` | `tdd`, preloaded | — | `make-check.sh` on `Stop` (runs as `SubagentStop`); `bash-guard.sh` on `PreToolUse` of `Bash` | the step's files |
-| `reviewer` | one pass: an axis of `code-review`, the Design pass or the hunt; on Standards over an instruction file, `writing-for-agents` | — | `read-guard.sh` on `PreToolUse` of `Bash` | nothing: read-only |
+| `/ticket-implement` | `code-review`; on a behaviour step the built-in `simplify`, run by the main session, with `codebase-design` as its vocabulary | `implementer` (one worktree per parallel step, set up by `make worktree`), `reviewer` (one per review pass), `researcher` (one per claimed finding, in parallel) | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, the step's commits |
+| `/ticket-verify` | `code-review` | `verifier` (one per group of requirements, in parallel), `reviewer` | — | `verification.md` |
+| `implementer` | `tdd`, preloaded | — | `make-check.sh` on `Stop` (runs as `SubagentStop`) | the step's files |
+| `reviewer` | one pass: an axis of `code-review`, the Design pass or the hunt; on Standards over an instruction file, `writing-for-agents` | — | — | nothing: read-only |
 | `verifier` | — | — | — | nothing: read-only |
 | `researcher` | — | — | — | nothing in the main tree; probe files only in a disposable worktree its brief names |
 
@@ -88,8 +88,6 @@ graph LR
     reviewer([reviewer])
     verifier([verifier])
     hook[/make-check.sh/]
-    guard[/bash-guard.sh/]
-    readguard[/read-guard.sh/]
   end
   subgraph plugin [mattpocock-skills]
     grilling{{grilling}}
@@ -112,11 +110,10 @@ graph LR
   impl -.-> review & simplify
   simplify -.-> design
   implementer -.-> tdd
-  implementer --> hook & guard
+  implementer --> hook
   verify --> verifier & reviewer
   verify -.-> review
   reviewer -.-> review & design & writing
-  reviewer --> readguard
 ```
 
 Solid arrows spawn an agent or run a hook; dotted arrows use a plugin skill.
