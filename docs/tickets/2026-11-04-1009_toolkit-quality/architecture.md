@@ -214,7 +214,7 @@ real input. `tdd` writes no test here; a step's *Test first* names the seam to o
 | The replay of a committed step (`replay.md`) | what the Design pass and the hunt report on a real diff, against what was found later; the finding shapes (R5); the confirmations (R6); each pass's wall time | step kinds outside the replayed five; the variance of one run per step |
 | The plan-time run on a past plan (`replay.md`) | checks that pass on the tree before their step, checks that cannot run, a guard change's bans with no probe in the scopes `/ticket-plan` step 3 names (an added, changed or removed scope, one whose files those also match, every scope of a whole rewrite), each failing before the change but an added scope's own, which this run cannot show failing (R7, R8) | plans with checks of another kind |
 | A brief as the skill writes it | that the Design brief links the examples file, the Standards brief of an instruction edit names `writing-for-agents`, the implementer's brief names neither (R3, R9); whether the main session in a loop, given the loop lines, stops the loop at a step not ready after three fix rounds instead of a fourth round, and skips the commit question, by the no-op run (R13) | whether the agent follows a brief it gets; R13's other stops (`BLOCKED:`, a user's decision, the user's word, no step left) |
-| A hook fed a `PreToolUse` input | which commands the hook refuses and which pass, the message it names, a probe per form run from one script | whether the agent then uses `Read`, or turns to a command the hook does not name |
+| A hook fed a `PreToolUse` input (retired by D13: no such hook is left) | which commands the hook refuses and which pass, the message it names, a probe per form run from one script | whether the agent then uses `Read`, or turns to a command the hook does not name |
 | A template and the skill that fills it | the Reproduction section and its order in `/ticket-feature` (R10); the Review ledger, which this ticket's own verification fills (R12) | a real bug ticket's reproduction, until the first one runs |
 
 ## Decisions
@@ -345,6 +345,7 @@ real input. `tdd` writes no test here; a step's *Test first* names the seam to o
       either waits for nothing or starts while a step still runs.
 
 - **D11 — The reviewer's reads of a tracked file go through `Read`, held by a hook on its `Bash`.**
+  *Reversed by D13 (S21).*
   - **Why:** run 1's L2 put the rule in `reviewer.md`, and run 2's S8.1 re-run still cited two
     blank lines read through `cat -n`; a rule line did not change what a reviewer at effort `low`
     does, a hook does.
@@ -354,6 +355,41 @@ real input. `tdd` writes no test here; a step's *Test first* names the seam to o
   - **Rejected:**
     - A stronger line in `reviewer.md` — L2's line was already that line.
     - The main session re-reading each `shown` finding's line — it reads no code (step 4).
+
+- **D12 — The model runs a `/ticket-*` skill when the user asks for its phase in words.**
+  - **Why:** reverses monorepo-setup's D29, whose `disable-model-invocation: true` kept
+    side-effecting procedures under the user's control. It also refused a phase the user had
+    asked the main session to run (`/ticket-verify` overnight). The gates of
+    `.claude/rules/sdd.md` hold that control now: the commit gate, a push, a PR, a merge. Each
+    description says to run the skill only when the user asks for its phase.
+  - **Cost accepted:** a description is a request, not a guard, so a model could start a phase
+    nobody asked for; its commits still pass the commit gate.
+  - **Reversal:** one commit restores the flag in the five skills.
+  - **Rejected:**
+    - Keeping the flag — the user would type every phase by hand, even one asked for in words.
+
+- **D13 — No hook or instruction line steers which tool an agent reads, searches or edits with.**
+  - **Why:** reverses D11 and S7's `bash-guard.sh`, on the user's word of 2026-11-04 after
+    measuring:
+    - in 1,211 transcripts, Bash read files 23,748 times and `Read` 2,356;
+    - the reasons were many files per call, a range after a `grep` or a diff, or another
+      worktree, and never a failing `Read`;
+    - the harness itself steers to Bash in `auto` and `bypassPermissions` mode, and drops `Grep`
+      and `Glob` there;
+    - a `paths:` rule also loads on a one-file `cat`, `head`, `sed -n` or matching `grep`.
+
+    The guards fought the harness, and its next version comes for free. `implementer.md` states
+    which reads load a rule. A wrong `path:line` is caught by checking the finding, not by a ban.
+  - **Cost accepted:**
+    - a piped or multi-file read loads no rule;
+    - a reviewer may cite a line from `cat` output.
+  - **Reversal:** one commit restores both hooks from history.
+  - **Kept:** the read-only agents' `disallowedTools`, a role boundary, and `make-check.sh`, a
+    gate. The implementer's rule not to undo a probe with `git checkout` or `git restore` is a
+    line now, since it guards uncommitted work, not a tool choice.
+  - **Rejected:**
+    - Keeping `read-guard.sh` for the reviewer — of the 37 refusals, 7 were bypassed and 3 hit
+      scratch files the hook should have passed; a reviewer's wrong line is rarer than that.
 
 None of these binds beyond the toolkit, so none adds a record to `docs/knowledge/decisions.md`;
 `docs/knowledge/sdd.md` explains them.

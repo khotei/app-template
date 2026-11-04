@@ -26,7 +26,7 @@
 | S18 | a Verify that repeats one check over many inputs runs them from one script | done |
 | S19 | a claim only a run outside the repo would settle gets `unclear`, not `refuted` | done |
 | S20 | the model may run a `/ticket-*` skill when the user asks it to | done |
-| S21 | no hook or instruction line refuses or steers which tool an agent reads, searches or edits with | todo |
+| S21 | no hook or instruction line refuses or steers which tool an agent reads, searches or edits with | done |
 
 ## How to run this plan
 
@@ -1086,8 +1086,9 @@
   their `hooks:` entries; `reviewer.md` drops "Read each file with the `Read` tool, one per call"
   and keeps a finding's line as the file's own line number, never a position in a diff hunk;
   `implementer.md` states, in place of the hook line, which calls load a rule's `paths:` filter
-  (below), so the agent knows it; `.claude/settings.json` allows `claude -p` and `git worktree`,
-  so a background agent runs the experiments its file describes. The read-only agents'
+  (below), so the agent knows it; `.claude/settings.json` allows `claude -p` (`git worktree` was
+  allowed already), so a background agent runs the experiments its file describes, and asks only
+  before a remote or the loss of uncommitted work (the user's addition). The read-only agents'
   `disallowedTools` and the implementer's `make-check.sh` stay: a role boundary and a gate, not a
   tool choice.
 - **Goal:** the user's decision of 2026-11-04: "давай вообще уберем все, что связано с вот этой
@@ -1103,7 +1104,9 @@
 - **Files:**
   - `.claude/hooks/`: the two guards; `make-check.sh` stays.
   - `.claude/agents/implementer.md`, `.claude/agents/reviewer.md`: frontmatter and the lines above.
-  - `.claude/settings.json`: `permissions.allow`.
+  - `.claude/settings.json`: `permissions.allow` gains `claude -p` and `git rebase`;
+    `permissions.ask` keeps push, PR create and merge, repo create, `gh api`, `reset --hard`,
+    `clean` and `stash clear`; `deny` unchanged.
   - `docs/knowledge/sdd.md`: the dependency map's hook cells and diagram nodes.
   - `docs/tickets/2026-11-04-1009_toolkit-quality/feature.md` › Scope: a line for S20 and S21.
 - **Size:** ~120, most of it deleted.
@@ -1116,7 +1119,25 @@
   - After the commit, a spawned `reviewer` runs `cat -n` on a tracked file and is not refused
     (the main session).
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:** passes that ran: Standards (sonnet, with writing-for-agents) and Spec on S21.1;
+  S21.2 checked by the main session against its two findings. No `simplify`, Design or hunt, a
+  config step. Implementer on `opus medium`, about 5 and 1.5 min. Verify: the planted
+  `.claude/probe.txt` printed `.claude/probe.txt:1:bash-guard`, the real grep printed nothing
+  (exit 1); `ls .claude/hooks` → `make-check.sh`; `make check` exit 0 (221 unit, 104 e2e); a
+  spawned `reviewer` ran `cat -n application/chat/services/attachment.service.ts`, with and
+  without `| head -5`, and neither was refused (its first line is line 1, `import {`).
+  - Spec — accepted, fixed in S21.2 — bash-guard's `git checkout`/`git restore` refusal kept a
+    probe from wiping uncommitted work and chose no tool; it is a line in `implementer.md` now.
+  - Standards — accepted, fixed in S21.2 — `reviewer.md:66`: `enforces.` sat alone after the
+    reflow.
+  - Spec — accepted, fixed at the commit — `architecture.md`'s Seam row "A hook fed a
+    `PreToolUse` input" and D11 still read as holding: the row is marked retired, D11 reversed
+    by D13; D12 records S20's reversal of monorepo-setup's D29, missed when S20 committed.
+  - Spec — accepted, fixed at the commit — the `permissions` changes went beyond Files: Delivers
+    and Files name them now.
+  - Standards — rejected — trim `implementer.md`'s list of the reads that load a rule to one
+    clause: the list (a pipe or `cd … &&` loads none) is what the agent cannot find by looking.
 
 ## Requirement coverage
 

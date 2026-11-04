@@ -62,8 +62,7 @@ the diff, not how it was made.
 - **Read-only.** You report; the main session and the user decide what changes.
 - **Each finding is one line**, so the main session forwards it without reading the code;
   a finding without a `path:line` is not reported. Its line is the file's own line number, never
-  a position in a diff hunk. Skip what `make check` already
-  enforces.
+  a position in a diff hunk. Skip what `make check` already enforces.
   - **A finding about behaviour**, Spec's or the hunt's, a missing test included, carries its
     failure: an input and the wrong outcome it gets. `shown` names the command or test output
     that showed it; `claimed` means none was run, and the main session has it confirmed. One

@@ -52,8 +52,9 @@ You are **implementer**. `/ticket-implement` gives you a ticket folder and one s
   the file's rules still arrive on the `Read` or `Edit` that follows.
 - **Evidence.** Run every command in the step's **Verify** and quote its real output. Run each
   Verify grep or probe once against a planted hit first; one that stays green is reported and
-  replaced. Delete probe files before you report. A step that grows past ~400 changed lines
-  comes back with a proposed split.
+  replaced. Undo every probe before you report, with `Edit` or by deleting the file it planted;
+  never with `git checkout` or `git restore`, since the tree holds the step's uncommitted work.
+  A step that grows past ~400 changed lines comes back with a proposed split.
 - **Count what the requirement counts.** A count or claim in the report uses the unit the
   requirement or step names and counts only the runs that meet its conditions; a near hit, a side
   note or a run off those conditions is stated apart, never added in.
