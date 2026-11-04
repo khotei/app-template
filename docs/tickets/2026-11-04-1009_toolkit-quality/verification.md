@@ -190,3 +190,156 @@ No user feedback in this session.
 - S22's Standards and Spec briefs carry `code-review`'s own asks against "names its sources and
   nothing else". Proposed: `ticket-implement` step 3 says the rule covers the main session's
   additions, and `code-review`'s axis asks pass unchanged.
+
+## 2026-11-04 — run 2
+
+**Verdict:** fail
+
+Branch `chore/toolkit-quality` at `5dc07c1bc1`, against the merge-base `aaf033494f` with `main`,
+after S7–S12. Six verifiers, one per `###` section of the requirements; the R13 verifier ran
+`make check` (exit 0: 104 e2e tests, the web bundle). The R4–R6 and R7–R8 verifiers re-ran their
+replays under the current toolkit in disposable worktrees, removed afterwards.
+
+**Accepted by the user:** R8's probes on every scope of S39; one more attempt at R6's `unclear`
+branch; the three simplifications as one step; L1–L4 applied, L4 as a hook; the S37 record of
+`replay.md` corrected. They land as `plan.md` S13–S17.
+
+### Requirements
+
+| Req | Result | Evidence |
+|---|---|---|
+| R1 | pass | No Depth axis left (`git grep -i -E '\bdepth\b\|module.shape'` over `.claude`, `docs/knowledge`, `README.md`: no hit); Design on a behaviour step only (`.claude/skills/ticket-implement/SKILL.md:62`), a move gets Standards and Spec (`:30-32`); 13 candidates in the four Design transcripts, none on import direction. Caveat: the move case of the current wording (importers' lines rewritten) was never replayed |
+| R2 | pass | Candidates per run 3, 4, 3 then 2, and 4 (the opus rerun); two code blocks under each heading, each ending in `Strong`, `Worth exploring` or `Speculative` |
+| R3 | pass | `design-examples.md` linked only from `SKILL.md:64`; every example on `Order`; none of its 53 code lines of 20+ characters appears in the 31 rule, `CLAUDE.md` and `docs/knowledge` files (a planted copy from `deep-modules.md:31` was found); 8 links resolve. Caveat: at effort `low`, 3 of 5 Design reports were written without opening the file |
+| R4 | pass | `.claude/agents/reviewer.md:55-58` names a discarded result. Re-run on S8.1 under the current toolkit: the report names `touch`'s `Effect.asVoid(chats.update(…))` and says it hides "a chat deleted mid-send" that the FK "turns into a defect", the failure `f6e2561120` fixed, yet judges it sound and raises no finding. S30.2: `Makefile:149`, a missing perl lets the gate pass (`perl … /nonexist.ts` exit 0, piped into `grep .` → 1). Caveat: on S8.1 one correct run of three (S5 missed the construct, S9 misjudged its failure) |
+| R5 | pass | All 4 reviewer findings of the two re-runs give an input and a wrong outcome; a planted finding with no scenario was dropped ("у находки нет сценария"). Defect: both S8.1 lines land on blank lines (`send-message.use-case.ts:64`, code at `:62-63`; `chat-title.job.ts:24`, code at `:25-27`); the reviewer read through `cat -n` and `git diff`, not `Read` (`reviewer.md:20-21`, `:64-65`) |
+| R6 | pass, in part | S8.1 re-run: four `claimed` findings to four opus researchers in one message before the presentation; two `confirmed`, two planted ones `refuted` by trace and listed as rejected. S30.2: two `confirmed`, asked with options. The `unclear` branch was never observed (below) |
+| R7 | pass | Red list at `.claude/skills/ticket-plan/SKILL.md:58-60`, fixes at `:70-72`. A verifier re-ran S37's plan at its parent `17c552af21` through `claude -p`: `make check` `cannot run` (no `node_modules`, TS2307), `make doc-width` and `make doc-names` `passes` (both exit 0 by hand), each fixed in the plan. Record error: `replay.md:392-394` has S37's `doc-width` as `fails as expected`, a failure from `design-examples.md` copied into that tree, so "one `passes`" at `:607-609` undercounts |
+| R8 | fail | The skill holds R8 (`SKILL.md:32-44`, `:61-69`) and the mechanism works: a verifier set up `toolkit-quality-plan-probes` (`make worktree N=7`, 5.95 s), planted one probe per ban of `application/*/services/**` (`.misc/lint/biome.base.json:171-212`), four `exit=1` each with its own message, the control `exit=0`. No observed plan lists the set R8 names: S39 rewrites `biome.json` whole (1931 → 297 lines) and adds the plugin, so every ban of every scope is probed — 176 groups (`jq` at `8572da12bf`), the root's bans and the plugin's diagnostics as an added scope's own. S6 planted 50 (one per override), S8's script 18 (four overrides) |
+| R9 | pass | `SKILL.md:46` names `mattpocock-skills:writing-for-agents` for an instruction-file diff; `reviewer.md:25-28` loads it, the rule wins; the no-op experiment at `SKILL.md:72-74` and `researcher.md:28-33`; `implementer.md:6-7` preloads only `tdd`, and no implementer file names the skill |
+| R10 | pass | `.claude/skills/ticket-feature/SKILL.md:33-39` (step 2) runs `diagnosing-bugs` phases 1 and 2 before the grilling and the requirements, copies the command and output into `feature.md › Reproduction` (`docs/tickets/_template/feature.md:27-38`), and makes it the acceptance check (`:47-48`) |
+| R11 | pass | `replay.md:14-29` covers the three Design steps (S10.1 again on opus), the two hunts (S8.1 again), the plan-time run on five steps and the S39 probes; all 19 hashes exist with their parents; every reviewer spawned with `effort: 'low'`; each pass time matches its transcript's `totalDurationMs` |
+| R12 | pass | `docs/tickets/_template/verification.md:21-27`; summed by `.claude/skills/ticket-verify/SKILL.md:33-36` from the findings `.claude/skills/ticket-implement/SKILL.md:90-92` writes; this run's ledger below |
+| R13 | pass | A verifier's no-op run, the skill with and without every loop line, both started with `loop`, haiku, 3 runs each: the loop's first step — with 0/3 ask the commit question ("the commit question … is waived"), without 3/3; a step not ready after three fix rounds — with 3/3 stop the loop ("I would stop rather than send a fourth fix round"), without 3/3 send a fourth round |
+
+**Not verifiable:**
+
+- R6's `unclear` branch: two claims built to be unsettleable (pool exhaustion, a race between two
+  api processes) came back `refuted` by trace, as run 1's attempt did; only `claimed-findings.md:9`
+  shows that `unclear` is asked.
+- R8 in full: a skill-driven `/ticket-plan` session on S39 (176+ probes) was not run.
+- R13's other stops (`BLOCKED:`, a user's decision, the user's word, no step left), and a real loop
+  over several steps beyond this session's S9–S11.
+- R4 and R5's variance: each step ran once under the current toolkit.
+
+### Review
+
+#### Review ledger
+
+Summed from every step's **Findings** in `plan.md` (S1–S12); a finding raised by two passes counts
+for each, S1 and S2 had none.
+
+| Pass | Findings | Accepted | Fixed | Rejected |
+|---|---|---|---|---|
+| Standards | 20 | 11 | 11 | 9 |
+| Spec | 29 | 21 | 21 | 8 |
+| Replay (S6, not a review pass) | 2 | 2 | 0 | 0 |
+| Implementer (out of scope, S10) | 1 | 0 | 0 | 0 (open) |
+
+#### Standards
+
+No hard breaks; `make doc-lint` exits 0. `.claude/CLAUDE.md` is 34 lines, `.claude/rules/sdd.md`
+53; the commits read carry gitmoji, scope, `Decision:` and `Refs:`. Three judgement findings, from
+`writing-for-agents`:
+
+- `.claude/agents/reviewer.md:28` — Pruning — the instruction to load `writing-for-agents` on an
+  instruction-file diff is stated twice, here and in the Standards row of
+  `.claude/skills/ticket-implement/SKILL.md:46`.
+- `.claude/skills/ticket-plan/SKILL.md:31-46` — Information hierarchy — step 3's **Verify** bullet
+  carries the full guard-probe definition (scope, ban, overlap, plan-time output); every plan run
+  reads it, only guard steps need it. A sibling file behind a pointer, as `claimed-findings.md`.
+- `.claude/skills/ticket-implement/SKILL.md:56-81` — Information hierarchy, Co-location — steps 3
+  and 4 are one long item; the `git diff -M` move definition sits inside the `simplify` sub-bullet
+  though it routes Standards and Spec.
+
+Not a rule break: a leftover `.claude/worktrees/toolkit-quality-plan-probes` folder, ignored by
+git, which `git worktree list` does not show.
+
+#### Spec
+
+Four findings against `feature.md` R1–R13 and `architecture.md`:
+
+- `.claude/agents/reviewer.md:55` — R4 — S9's rerun named the discarded result and judged it
+  handled, missing the 500 of a send that loses to a delete (`replay.md:591-594`); no later step
+  reruns it, while the coverage table lists R4 as observed.
+- `.claude/skills/ticket-implement/claimed-findings.md:9` — R6 — the `unclear` branch was never
+  observed (`replay.md:601-603`; run 1, "pass, in part") — claimed.
+- `.claude/skills/ticket-plan/SKILL.md:32` — R8 — S39 rewrote the guard whole, so R8 asks for every
+  scope; S8's rerun probes four overrides of 48 (`replay.md:490-494`) — judgement.
+- `.claude/skills/ticket-plan/SKILL.md:58` — the Problem's L4 — the Red list asks only whether a
+  check fails on today's tree; four of L4's five defects came back `fails as expected` though they
+  could never pass after their step (`replay.md:607-612`); no step after S6 deals with it —
+  judgement.
+
+Checked with no finding: R1–R3, R5 (`path:line` from the file, L2), R9–R13, and every Structure row
+of `architecture.md`.
+
+### Simplifications
+
+1. Move the guard-probe definition out of `.claude/skills/ticket-plan/SKILL.md:31-46` into a
+   sibling file behind one pointer; every plan run stops reading ~15 lines only a guard step needs.
+2. Lift the move definition out of the `simplify` sub-bullet of
+   `.claude/skills/ticket-implement/SKILL.md:26-37` into its own bullet, since it decides which
+   passes run; the routing reads in one place.
+3. Cut `.claude/CLAUDE.md:20` ("Update `docs/knowledge/` in the commit that changes the behaviour
+   it describes"), which `.claude/rules/sdd.md › Artifacts` owns; one line fewer loaded every
+   session.
+
+Not proposed: cutting the `writing-for-agents` clause from `SKILL.md:46` — R9's acceptance asks the
+Standards brief to name it.
+
+### Lessons
+
+#### L1 — A step's check was run by the implementer, not the researcher its Verify names
+
+- **Evidence:** S8 (the probes planted by a script in `git archive` exports, not by a researcher in
+  a replay worktree; `git worktree list` could then not fail) and S12 (the implementer ran the no-op
+  experiment itself and reworded the task until the two sides differed).
+- **Cost:** S12's evidence was tuned; it took a round (S12.3) and two researcher reruns to find that
+  the acceptance tested nothing the lines add.
+- **Proposed change:** `.claude/agents/implementer.md`, Disciplines: "A Verify line that names a
+  researcher is the main session's: report it as not run, with the command or task it needs."
+- **Applied:** no
+
+#### L2 — A check named in a plan could not fail on the break it was meant to catch
+
+- **Evidence:** S10 (`make doc-lint` named for the links; two planted broken links passed),
+  S12 (the no-op run asked whether the session continues, which the word `loop` decides on both
+  sides), S8 (`git worktree list` with no worktree made), and the Problem's L4, open since run 1.
+- **Cost:** a wrong check recorded in S10's plan, S12.3 and its reruns, and the Spec finding above.
+- **Proposed change:** `.claude/skills/ticket-plan/SKILL.md` step 4: the Red run also plants, once,
+  the break each check is meant to catch (a broken link, the line removed) and fixes in the plan
+  every check that still passes.
+- **Applied:** no
+
+#### L3 — A rule's wording was changed in one place and left in its copies
+
+- **Evidence:** S8 (R8, its acceptance row, the Probes contract, the template, the Seam and two
+  Structure rows, fixed over S8.2–S8.5), S12 (the loop's stops in the skill, the guide and R13;
+  the waiver in the rule and twice in the skill), S10 (the worktree rule twice in `researcher.md`).
+- **Cost:** S8 took four fix rounds, one past the limit of three on the user's word; S12 a second
+  round.
+- **Proposed change:** `.claude/agents/implementer.md`, Disciplines: "Before changing a rule's
+  wording, grep its old phrase across `.claude`, `docs/knowledge` and the ticket, and edit every
+  copy in the same round."
+- **Applied:** no
+
+#### L4 — The reviewer cites lines from `cat -n` or a diff, not from `Read`
+
+- **Evidence:** S5 and S9's replays (code read only through `Bash`), and this run's S8.1 re-run,
+  after L2 of run 1 landed in `reviewer.md:64-65`: both lines on blank lines.
+- **Cost:** a `shown` finding reaches the user with a wrong `path:line`; only a researcher corrects
+  a `claimed` one.
+- **Proposed change:** a mechanical check — a `PreToolUse` hook on the `reviewer` agent that
+  refuses `cat`, `head`, `tail` and `sed -n` on a tracked file and names `Read`.
+- **Applied:** no
