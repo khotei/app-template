@@ -14,7 +14,7 @@
 | S6 | the replay of the plan-time run and the probes; the briefs seen as the skill writes them; the roadmap's re-count note | done |
 | S7 | a step that only moves files and rewrites their imports gets Standards and Spec alone | done |
 | S8 | a guard's probes are one per ban group, not one per scope | done |
-| S9 | the hunt questions a discarded result; S8.1's hunt and S10.1's Design replayed again | todo |
+| S9 | the hunt questions a discarded result; S8.1's hunt and S10.1's Design replayed again | done |
 | S10 | the five simplifications of the verification | todo |
 | S11 | the verification's lessons L1–L3 | todo |
 | S12 | a loop over the plan's steps, each to a commit without the user's OK between them | done |
@@ -585,7 +585,24 @@
   - `git worktree list` after the main session's removal shows no replay tree.
   - `make check` green.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:** passes that ran: Standards (sonnet, with writing-for-agents on S9.1) and Spec, on
+  S9.1 and S9.2; no `simplify`, Design or hunt, an instruction-only step. The replay trees were
+  set up before the step's `reviewer.md` existed, so the implementer copied it into each, hidden
+  from `git diff HEAD` by `--skip-worktree`; the S9 prompt names opus for every agent and drops
+  the planted lines. Verify 2: the hunt named the construct and judged it handled — "`touch` and
+  `writeSettled` drop the 'wrote or not' answer. That only matters when the chat was deleted at
+  the same time, which the job already handles" — a second miss on the failure, recorded as one.
+  Verify 4: `git worktree list` after the removal lists the main tree and the two
+  `client-publishing` trees, no replay tree.
+  - Spec — accepted, fixed in S9.2 — R4's list of constructs lacked the discarded result
+    `reviewer.md` now names.
+  - Spec — accepted, fixed in S9.2 — `replay.md` read one rerun as variance, which the replay's
+    Seam says it cannot show.
+  - Standards — rejected: the limit still holds for every step run once — the Seam row's "the
+    variance of one run per step" should narrow to S8.1's two runs.
+  - Spec — rejected: the Seam row's Misses holds the caveat on purpose — the dropped variance
+    reading should stay in `replay.md`.
 
 #### S10 — The verification's simplifications
 

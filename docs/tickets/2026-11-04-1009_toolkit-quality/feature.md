@@ -102,7 +102,7 @@ and how long it takes, so the user can judge each pass on outcome and time.
 
 - **R4** — WHEN the hunt reviews a step, THE hunt SHALL ask of each construct that absorbs an
   error (a catch-all, a fallback, an ignore, a default for an absent value, a retry, an error
-  folded into a refusal) which failure it hides and who learns of it.
+  folded into a refusal, a discarded result) which failure it hides and who learns of it.
 - **R5** — THE review SHALL report a finding about behaviour, a missing test included, only with
   its failure scenario (an input and the wrong outcome) and the code location it rests on.
 - **R6** — IF a finding claims a runtime failure it does not show, THEN THE main session SHALL have

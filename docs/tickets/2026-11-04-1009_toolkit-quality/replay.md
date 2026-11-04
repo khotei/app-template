@@ -633,8 +633,7 @@ S5's S10.1, whose reviewer ran on fable, is left out.
   hunts found a real failure a later round fixed (S30.2 in its own words, S8.1's enqueue before
   commit); S8.1 missed the discarded answer and declared there was none. Told to question a
   discarded result, S9's run on S8.1 found it and judged it harmless, and lost S5's hit by
-  reading a grep line of `QueueClientOutbox` as `QueueClientSqs`'s: one run per step varies more
-  than the instruction moves it.
+  reading a grep line of `QueueClientOutbox` as `QueueClientSqs`'s.
 - **Design comes within one later change per step:** a hit on S2.1, a near on S11.1, where the
   later commit removed the service the candidate kept, and a hit on S10.1 on opus (S9), the
   send-only port the fable run did not find, in 19 s against fable's 74 s.
