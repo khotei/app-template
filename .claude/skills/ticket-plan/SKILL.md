@@ -30,14 +30,16 @@ steps only conform to the plan. Gates: `.claude/rules/sdd.md`.
    - **Verify**: commands and manual checks, each naming the state it fails on, so a check that
      cannot fail is seen before the step runs.
      - A step that changes or removes a guard lists, in the template's **Probes** shape, one probe
-       per ban of each scope it changes or removes, of every scope when it rewrites the guard
-       whole. A scope is one Biome override, the root config, one Biome plugin or one grep; a ban
-       is one restriction in it with its own message: a pattern or a path of an override or of
-       the root's import rule, a root rule that refuses an import (`noImportCycles`), one
-       diagnostic a plugin registers, a grep's pattern. An override of four groups takes four
-       probes. Each probe is one import or line that its ban alone refuses, and names the command
-       it fails (the guard's tool alone, or `make check`).
-     - A step that edits a file a requirement measures re-measures it;
+       per ban of each scope it adds, changes or removes and of every scope whose files those also
+       match, since a later Biome override replaces an earlier one's options for the files both
+       match; of every scope when it rewrites the guard whole. An added scope's own probes fail
+       only after the change. A scope is one Biome override, the root config, one Biome plugin or
+       one grep; a ban is one restriction in it with its own message: a pattern or a path of an
+       override or of the root's import rule, a root rule that refuses an import
+       (`noImportCycles`), one diagnostic a plugin registers, a grep's pattern. An override of
+       four groups takes four probes. Each probe is one import or line that its ban alone
+       refuses, and names the command it fails (the guard's tool alone, or `make check`).
+     - A step that edits a file a requirement measures re-measures it.
    - **Model**: `opus medium` for a move, rename or config step, `opus high` for a step that
      writes behaviour; `/ticket-implement` spawns the implementer on it;
    - **Status:** `todo`.
@@ -63,8 +65,8 @@ steps only conform to the plan. Gates: `.claude/rules/sdd.md`.
    own (`git worktree remove --force`, `git branch -D`) and check that `git worktree list` no
    longer shows it.
    Fix in `plan.md`, before presenting it, every `wrong`, every broken rule, every `passes` and
-   `cannot run`, and every probe that does not fail. The reports stay in the conversation;
-   `plan.md` records no check but the probes, each with its failing line.
+   `cannot run`, and every probe that does not fail, but an added scope's own. The reports stay in
+   the conversation; `plan.md` records no check but the probes, each with its failing line.
 5. End with a coverage table that maps every `R…` to at least one step.
 6. Present the plan and iterate until the user approves it. Next comes
    `/ticket-implement <ticket folder>`.

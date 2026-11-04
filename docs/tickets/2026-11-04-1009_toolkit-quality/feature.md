@@ -114,9 +114,9 @@ and how long it takes, so the user can judge each pass on outcome and time.
   as it stands before the plan is presented, and fix in the plan any check that passes there or
   cannot run as written.
 - **R8** — WHERE a step changes or removes a guard, THE plan SHALL hold one probe per ban of each
-  scope the step changes or removes, of every scope when it rewrites the guard whole, each shown
-  failing the guard at plan time, and the step's checks SHALL run the same probes after the
-  change.
+  scope the step adds, changes or removes and of every scope whose files those also match, of
+  every scope when it rewrites the guard whole, each shown failing the guard at plan time but an
+  added scope's own, and the step's checks SHALL run the same probes after the change.
 
 ### Instruction edits and bug tickets
 
@@ -149,7 +149,7 @@ and how long it takes, so the user can judge each pass on outcome and time.
 | R5 | every behaviour finding in the replay's reports has an input → wrong outcome and a `path:line`; a planted finding without one is not reported |
 | R6 | a replayed finding that claims an unshown failure gets a researcher verdict of confirmed, refuted or unclear before it is presented; an unclear one is asked |
 | R7 | the plan-time run on the past plan reports each check that passes on the tree as it stands or fails to run |
-| R8 | a plan for a guard-changing step lists one probe per ban of each scope the step changes or removes, of every scope when it rewrites the guard whole, each with its failing output; the step's Verify runs them |
+| R8 | a plan for a guard-changing step lists one probe per ban of each scope the step adds, changes or removes and of every scope whose files those also match, of every scope when it rewrites the guard whole, each with its failing output, an added scope's own after the change; the step's Verify runs them |
 | R9 | the Standards brief of an instruction-editing step names the writing-for-agents guidance; an implementer brief does not |
 | R10 | the bug-ticket start of `/ticket-feature` asks for the red command or the existing failing check and its output before requirements |
 | R11 | the ticket holds a table of pass → step → findings → wall time for the replays |
