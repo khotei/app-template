@@ -752,7 +752,10 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Goal.** A module's domain may take its types and schemas from the data layer instead of
   redeclaring them, now that the domain no longer ships to the browser.
 - **Scope.** The domain's import bans; the records "A module's layers" and "The data at the
-  centre"; the mappers it would make redundant.
+  centre"; the mappers it would make redundant; where an id, a constrained string or a limit is
+  declared once for the data layer, the domain and the API contract, which today each declare
+  their own (a chat title's 120 lives in the table and the domain, and `client-publishing` adds
+  the contract's twin).
 - **Depends on** `client-publishing`, which takes the domain out of the browser.
 - **Status.** Planned.
 
