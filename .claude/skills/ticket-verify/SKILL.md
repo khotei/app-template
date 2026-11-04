@@ -30,7 +30,10 @@ what should the toolkit learn from building it. Gates: `.claude/rules/sdd.md`.
    running `/ticket-verify` in a new session.
 2. **Write `verification.md`** from `docs/tickets/_template/verification.md`, appending a dated
    section per run: the verdicts merged from every group (`pass` only when every group passes),
-   the Standards and Spec reports, ranked simplifications, and **Lessons**.
+   the **Review ledger**, the Standards and Spec reports, ranked simplifications, and **Lessons**.
+   You sum the ledger yourself, per pass, from each step's **Findings** in `plan.md`, since no
+   verifier reads `plan.md`; a fix counts as accepted too, and a step with no findings adds
+   nothing.
 3. **Lessons.** Collect the mistakes that recurred in two or more steps: `plan.md` findings,
    review rounds, and the user's feedback in this session. Each lesson names where it recurred
    and what it cost (rounds, time, a wrong result), and proposes one line in a named skill or

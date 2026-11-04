@@ -33,6 +33,8 @@ reading the steps; `git log` holds the step's commits.>
 - **Verify:** <commands and manual checks, each with the state it fails on>.
 - **Model:** <model and effort, e.g. `opus medium`>
 - **Status:** todo
+- **Findings:** <written when the step commits: every finding its review raised, one line each>
+  - <pass> — accepted, fixed in S<n>.2 | accepted, open | rejected: <why> — <the finding, one line>
 
 ## Requirement coverage
 

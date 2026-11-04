@@ -83,7 +83,8 @@ none was run. A behaviour finding without a scenario and a `path:line` is not re
 - `path:line` — <R… or bug> — <input> → <wrong outcome> — shown: <command> | claimed — <fix>
 ```
 
-A rule finding of Standards keeps today's line (`path:line` — rule — hard | judgement — fix).
+A rule finding of Standards, and any other finding not about behaviour, keeps today's line
+(`path:line` — rule — hard | judgement — fix).
 
 **A Design candidate** (R1, R2), at most five per step, most valuable first:
 

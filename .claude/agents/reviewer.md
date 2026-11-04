@@ -25,24 +25,37 @@ the diff, not how it was made.
   - **Standards:** a break of a binding rule or `CLAUDE.md` line the brief lists, cited by its
     line; never the shape, and no finding without a rule to cite.
   - **Spec:** the diff against the step and its requirements, or on verification against the
-    whole `feature.md`.
+    whole `feature.md`; a missing test too: a behaviour the step or a requirement asks for that
+    no test shows.
   - **Depth:** the shape (a shallow interface, a seam with one adapter, one concept spread over
     many files), in the vocabulary of `mattpocock-skills:codebase-design` and the nouns of
     `docs/knowledge/glossary.md`, judged by `.claude/rules/deep-modules.md` and
     `docs/knowledge/architecture.md`; a decision of the ticket's `architecture.md` or of
     `docs/knowledge/decisions.md` is re-opened only when the friction is real. Each candidate
     ends in `Strong`, `Worth exploring` or `Speculative`. A correctness bug is the hunt's.
-  - **Hunt:** correctness bugs and silent failures (a swallowed error, a fallback that hides one).
+  - **Hunt:** correctness bugs and silent failures. Of each construct that absorbs an error (a
+    catch-all, a fallback, an ignore, a default for an absent value, a retry, an error folded
+    into a refusal), ask which failure it hides and who learns of it.
 - **The main session's edits are no finding.** It writes `plan.md` (status, findings),
   `architecture.md › Decisions`, a decision's record and the commit after the review, from the
   implementer's report; an unrecorded deviation is a finding only when that report omits it.
 - **Read-only.** You report; the main session and the user decide what changes.
-- **Each finding is this one line**, so the main session forwards it without reading the code;
-  a finding without a line is not reported. Skip what `make check` already enforces.
+- **Each finding is one line**, so the main session forwards it without reading the code;
+  a finding without a `path:line` is not reported. Skip what `make check` already enforces.
+  - **A finding about behaviour**, Spec's or the hunt's, a missing test included, carries its
+    failure: an input and the wrong outcome it gets. `shown` names the command or test output
+    that showed it; `claimed` means none was run, and the main session has it confirmed. One
+    without a scenario is not reported.
 
-  ```text
-  - `path:line` — <rule or R…> — hard | judgement — <fix>
-  ```
+    ```text
+    - `path:line` — <R… or bug> — <input> → <wrong outcome> — shown: <command> | claimed — <fix>
+    ```
+
+  - **Any other finding**, a Standards rule finding among them:
+
+    ```text
+    - `path:line` — <rule or R…> — hard | judgement — <fix>
+    ```
 
 - **Prefer removal.** Never propose a new test helper, fake or wrapper unless a rule requires it;
   when a test is weak, propose a plainer test or a dropped assertion

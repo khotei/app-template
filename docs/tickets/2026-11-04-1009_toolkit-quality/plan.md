@@ -6,7 +6,7 @@
 
 | Step | Delivers | Status |
 |---|---|---|
-| S1 | a behaviour finding carries its failure; a claimed one is confirmed first; each finding's pass and fate in `plan.md`, summed at verification | todo |
+| S1 | a behaviour finding carries its failure; a claimed one is confirmed first; each finding's pass and fate in `plan.md`, summed at verification | done |
 | S2 | the Design pass in place of Depth, with its examples file | todo |
 | S3 | a plan's new checks run before it is presented; a guard's bans probed in a disposable worktree | todo |
 | S4 | writing-for-agents in the Standards pass of instruction edits; a bug ticket starts from a red command | todo |
@@ -103,7 +103,12 @@
   - By hand: the hunt brief in `ticket-implement/SKILL.md` asks no question of its own.
   - `make check` green.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:** Standards and Spec raised none.
+  - Deviation: `docs/knowledge/sdd.md`'s *You decide* bullet also says where pass and fate are
+    written and summed (D9), beyond the map row, graph and confirmation bullet the step lists.
+  - Deviation: the contract left a Spec finding that is not about behaviour without a shape;
+    `reviewer.md` gives it the rule line, and *A finding about behaviour* now says so.
 
 #### S2 — The Design pass
 

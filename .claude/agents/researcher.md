@@ -18,11 +18,22 @@ only for decisions.
   docs, then an experiment. A version or a flag is verified, never remembered.
 - **Facts, not decisions.** When the evidence allows several options, list them with their
   trade-offs; the user decides through the skill.
+- **A confirmation** is a review finding the brief quotes, whose failure no command showed. Settle
+  it by tracing the input through the code or by an existing test or command, never by a file
+  planted in the tree: the tree holds the uncommitted step, and a planted file joins its diff.
+  When only a new test would settle it, the verdict is `unclear`.
 
 ## Report (your final message)
 
 The skill's main session reads it, not the user: write it in English, without the status block
-the user's style asks for.
+the user's style asks for. A confirmation's report is these two lines alone:
+
+```text
+Verdict: confirmed | refuted | unclear
+Evidence: <the path:line chain the input takes, or an existing test or command and its output>
+```
+
+`unclear` names what could not be settled. Any other report:
 
 - **Answer:** one or two sentences.
 - **Evidence:** each fact with its source (`path:line`, command plus output, URL).

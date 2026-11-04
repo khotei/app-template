@@ -63,7 +63,7 @@ uses updates this map too; the Standards review checks it against `.claude/rules
 | `/ticket-feature` | `grilling`, `domain-modeling` | `researcher` | — | `feature.md`, `docs/knowledge/glossary.md`, `docs/knowledge/roadmap.md` |
 | `/ticket-architecture` | `codebase-design`, `grilling` | `researcher` | — | `architecture.md` |
 | `/ticket-plan` | — | `researcher` | — | `plan.md` |
-| `/ticket-implement` | `code-review`; on a behaviour step the built-in `simplify`, run by the main session, with `codebase-design` as its vocabulary | `implementer` (one worktree per parallel step, set up by `make worktree`), `reviewer` (one per review pass) | `make-check.sh` and `bash-guard.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, the step's commits |
+| `/ticket-implement` | `code-review`; on a behaviour step the built-in `simplify`, run by the main session, with `codebase-design` as its vocabulary | `implementer` (one worktree per parallel step, set up by `make worktree`), `reviewer` (one per review pass), `researcher` (one per claimed finding, in parallel) | `make-check.sh` and `bash-guard.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, the step's commits |
 | `/ticket-verify` | `code-review` | `verifier` (one per group of requirements, in parallel), `reviewer` | — | `verification.md` |
 | `implementer` | `tdd`, preloaded | — | `make-check.sh` on `Stop` (runs as `SubagentStop`); `bash-guard.sh` on `PreToolUse` of `Bash` | the step's files |
 | `reviewer` | one pass: an axis of `code-review`, or the hunt | — | — | nothing: read-only |
@@ -102,7 +102,7 @@ graph LR
   arch -.-> design & grilling
   arch --> researcher
   plan --> researcher
-  impl --> implementer & reviewer
+  impl --> implementer & reviewer & researcher
   impl -.-> review & simplify
   simplify -.-> design
   implementer -.-> tdd
@@ -141,7 +141,13 @@ step, then the review passes, then you. Why it is cut so:
   one pass cannot hide another and no finding comes twice. Depth runs only on a behaviour step,
   where it changed the step's shape; the hunt for bugs only on a step whose kind of change it
   paid off on.
+- **A failure no command showed is confirmed before it reaches you.** A behaviour finding names
+  its input, the wrong outcome and whether a command showed it; each `claimed` one goes to its
+  own `researcher`, not anchored on the reviewer's reading, which answers `confirmed` (you see
+  the finding), `refuted` (dropped) or `unclear` (you get it as a question).
 - **You decide** on the reports, which the main session presents without re-reading the code.
+  Each finding's pass and fate land in the step's **Findings** in `plan.md`, and
+  `/ticket-verify` sums them per pass in its **Review ledger**.
 
 ## Roadmap and history
 

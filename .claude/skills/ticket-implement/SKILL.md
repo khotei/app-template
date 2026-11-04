@@ -53,15 +53,19 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to a commit. Gates:
 
    A step that touches a write guard, a transaction, a test fake, concurrent access or error
    handling (a retry, a fallback) also gets the **hunt**: one `reviewer`, in parallel with the
-   axes, on the same diff, briefed for correctness bugs and silent failures together; its sources
-   are the diff's files, their callers and, for a test fake, the adapter it stands in for, and its
-   word limit is the axes'. Any other step runs no hunt.
+   axes, on the same diff; its sources are the diff's files, their callers and, for a test fake,
+   the adapter it stands in for, and its word limit is the axes'. Any other step runs no hunt.
 
    A behaviour step also gets a **Depth** axis: one `reviewer`, in parallel with the others; its
    sources are the diff's files and the modules that call them, and its word limit is the axes'.
 4. **Decide and present.** You orchestrate: decide on the reports as they stand, without reading
    the code or the diff to restate a finding; a question that needs the code goes to a
-   `researcher`, or to the reviewer that raised it (`SendMessage`). Present the implementer's
+   `researcher`, or to the reviewer that raised it (`SendMessage`). **Confirm first:** send each
+   `claimed` finding to its own `researcher` on `model: opus`, all in parallel, its brief the
+   finding verbatim and the diff command, so it is not anchored on the reviewer's reading.
+   Present a `confirmed` one as the finding, drop a `refuted` one as rejected, and ask an
+   `unclear` one as a question, with what the researcher could not settle. A behaviour finding
+   without a scenario and a `path:line` is not presented. Present the implementer's
    report and what `simplify` changed, then the `## Standards` and `## Spec` reports as
    code-review aggregates them, then the hunt's findings, then the `## Depth` candidates, then
    the fixes you recommend. A Depth candidate inside the plan is a fix like any other; one that
@@ -75,9 +79,11 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to a commit. Gates:
    session's answer says, its body naming the passes that ran, or wait for the user's word:
    - **commit:** set the step's `Status: done` (or `blocked: <gate>` while a gate the step
      names, such as a branch, a push or a CI run, has not run yet) in the step and in its row
-     of the plan's **Status** table, add its findings to `plan.md` (one that states a check's
-     result quotes the output it rests on) and any new decision to `architecture.md`, with the
-     record it adds or changes in `docs/knowledge/decisions.md`, stage the step's files, and
+     of the plan's **Status** table, write every finding the review raised in the step's
+     **Findings**, each with its pass and fate in the shape of the plan template (one that
+     states a check's result quotes the output it rests on), add any new decision to
+     `architecture.md`, with the record it adds or changes in `docs/knowledge/decisions.md`,
+     stage the step's files, and
      commit with the proposed message as a command of its own. An amendment also rewrites the
      decision's body, Contract, Seam or Risks entry it makes wrong; its note keeps only what
      changed and the rejected alternative;
