@@ -33,8 +33,8 @@ steps only conform to the plan. Gates: `.claude/rules/sdd.md`.
        [guard-probes.md](guard-probes.md) beside this file says.
      - A step that edits a file a requirement measures re-measures it.
      - A check repeated over many inputs (a probe list, a count per file) runs from one script
-       the step names, not one tool call per input, so the plan-time run and the step rerun the
-       same set.
+       the step names, not one tool call per input, so the Red run in step 4 and the step's rerun
+       use the same set.
    - **Model**: `opus medium` for a move, rename or config step, `opus high` for a step that
      writes behaviour; `/ticket-implement` spawns the implementer on it;
    - **Status:** `todo`.
