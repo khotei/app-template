@@ -28,6 +28,7 @@ related reason), `miss` (no later commit acted on it, or the run passed over the
 | probes of every scope (S13) | `modular-monolith` S39, the whole rewrite | 180 probes, 179 fail before (G1, the plugin's own, passes); 71 of the 176 override probes no longer fail after | 33.6 s for both commits, a script with no agent |
 | hunt, again (S9) | `postgres-drizzle` S8.1 | 2 (2 miss), 2 confirmed; the discarded result named, its failure judged handled | 78 s (session 206 s) |
 | Design, on opus (S9) | `postgres-drizzle` S10.1 | 4 (1 hit, 1 near, 2 miss) | 19 s (session 125 s) |
+| confirmation (S14) | `postgres-drizzle` S8.1 | 1 planted `claimed`, `refuted`: not asked | 67 s (session 96 s) |
 
 Wall time is the pass's: its reviewer's or researcher's `totalDurationMs`, plus a resent round,
 plus the confirmations (run in parallel, so their span); the session's `duration_ms` adds the main
@@ -279,6 +280,65 @@ no `<planted>` lines and no appended ones. Both ran at once, 14:52 to 14:55; Cla
 - **Confirmations:** none.
 - **Presentation:** 1 asked, recommending the move; 2 asked, recommending to keep D4's `consume`
   that dies; 3 forwarded; 4 rejected.
+
+## An unclear confirmation, attempted (S14)
+
+A `claimed` finding whose code path is real and whose trigger only production shows, a limit of
+S3, so that neither a trace nor a run in the tree settles it. In
+`.claude/worktrees/toolkit-quality-S14-unclear`, set up as above on S8.1 with the toolkit of
+`e6eceeb643`; one session, 20:58:41 to 21:00:20, Claude Code 2.1.311. The prompt runs step 4
+alone on a report the prompt holds, so no reviewer ran:
+
+```text
+Replay, non-interactive. This worktree holds round S8.1 of step S8 of
+docs/tickets/2026-10-22-1915_postgres-drizzle/, uncommitted, at the parent of that round. Act as
+the main session of /ticket-implement: read .claude/skills/ticket-implement/SKILL.md and perform
+its step 4 alone, taking the report below as the report of the hunt, whatever its trigger says.
+Run no implementer, no reviewer, no simplify, no other pass and no commit; edit no file. Ask the
+user nothing: write each question as you would ask it. Print, in this order: ## Confirmations
+(each claimed finding with the brief you sent its researcher and its answer, verbatim, or none),
+## Presentation (what you would present to the user).
+
+The report of the hunt:
+
+- `application/attachment/attachment.service.ts:175` — bug — a send with attachments during a
+  burst of sends in production → S3 answers `DeleteObjectTagging` with `503 SlowDown` once the
+  bucket's `attachments/` prefix passes its request rate, past the SDK's default retries;
+  `keep`'s `Effect.orDie` makes it a defect inside the send's transaction, which rolls back, so
+  the user gets a 500 and the message is not stored — claimed — retry `keep` with backoff, or
+  keep the bytes after the commit
+```
+
+- **Confirmation:** one `researcher`, `model: opus`, its brief the finding verbatim, the worktree
+  and `git diff HEAD` plus the untracked files; 67 s, 17 tool calls. The answer, verbatim:
+
+  ```text
+  Verdict: refuted
+  Evidence: The code does what the finding traces. A failed `keep` dies
+  (`infrastructure/attachment/attachment.storage.ts:216-221`). `bind` calls it at
+  `application/attachment/attachment.service.ts:175`. `send` runs inside `sql.withTransaction`
+  (`application/chat/send-message.use-case.ts`, diff), so the send rolls back. But that rollback
+  is the behaviour the ticket requires: `docs/tickets/2026-10-22-1915_postgres-drizzle/feature.md:157-158`
+  (R6) says "IF any write of the send fails, THEN THE SYSTEM SHALL leave no message, bind, chat
+  change or outbox entry behind". This diff also did not add the `keep`-then-die path. `git diff
+  HEAD` shows that HEAD already ran `store.keep` with `Effect.orDie` inside `bind`, outside any
+  transaction, so the same S3 failure already returned a 500 and left the user message stored
+  half-done. Last, the S3 client adds no retry settings (`infrastructure/shared/aws.client.ts:15-18`),
+  so the SDK defaults apply. In the installed SDK, `node_modules/.bun/@smithy+core@3.36.1/node_modules/@smithy/core/dist-cjs/submodules/retry/index.js`
+  lists `"SlowDown"` among `THROTTLING_ERROR_CODES` (line 28) and sets `DEFAULT_MAX_ATTEMPTS = 3`
+  and `DEFAULT_RETRY_MODE = RETRY_MODES.STANDARD` (lines 433-434). So `SlowDown` is already
+  retried with backoff, and nothing in the repo shows that a chat send burst would pass S3's
+  per-prefix request rate.
+  ```
+
+- **Read against the claim:** the trace holds, and the researcher says so. It refutes the wrong
+  outcome instead: the rollback and the 500 are what the ticket's R6 asks of a failed write. The
+  trigger it leaves unsettled ("nothing in the repo shows … would pass S3's per-prefix request
+  rate") and still answers `refuted`, not `unclear`; `researcher.md` gives `unclear` only to what
+  a new test would settle, which a production limit is not.
+- **Presentation:** "Раунд S8.1 можно коммитить: единственную находку ревью проверка отклонила";
+  the finding listed under the hunt as rejected, with the three reasons; no question.
+- **Wall time:** 67 s for the confirmation (session 96 s, wall 99 s).
 
 ## The plan checks: the run
 
@@ -626,8 +686,10 @@ verbatim, headed by its agent, model and effort).
   file's end. These runs are no evidence that a reviewer's own `path:line` is correct.
 - **R6:** each `claimed` finding, the planted `:174` among them, had a verdict before the
   presentation: five `confirmed`, one `refuted`. **R6's `unclear` branch is unobserved:** no
-  researcher answered `unclear`, so no finding reached the user as a question; it is left to the
-  ticket's verification.
+  researcher answered `unclear`, so no finding reached the user as a question. S14's claim, a
+  real path whose trigger is a production limit of S3, came back `refuted` too, by R6 of its own
+  ticket, the trigger named as unsettled (*An unclear confirmation, attempted*). It is left to
+  the ticket's verification.
 - **R1, the move:** no `simplify`, no Design, no hunt, for a rename whose importers are untouched.
   A real move rewrites its importers' lines, a change to a `.ts` file's content, which the skill's
   one test counts as a behaviour step; that case was not run.
