@@ -62,10 +62,10 @@ replay last, in a fresh session, once every change has landed (R11).
 | `.claude/skills/ticket-implement/SKILL.md` | the Design brief and its sources; the Standards brief names `writing-for-agents` when the diff touches an instruction file; step 4 confirms each claimed failure before presenting it (D4); step 5 writes each finding's pass and fate (D9) |
 | `.claude/skills/ticket-implement/design-examples.md` | **new**: do and don't pairs on a neutral entity, one per lens, pointing to the rule examples and records they rest on (D2) |
 | `.claude/agents/researcher.md` | may work in a disposable worktree the brief names and run `claude -p` in a temporary folder (D5, D6); a confirmation answers `confirmed`, `refuted` or `unclear` (D4) |
-| `.claude/skills/ticket-plan/SKILL.md` | step 4's check runs every check for new work on the tree as it stands, and every probe of a guard-changing step in a disposable worktree; the probes and their failing output stay in `plan.md` (D5) |
+| `.claude/skills/ticket-plan/SKILL.md` | step 4's check runs every check for new work on the tree as it stands, and every probe of a step that adds, changes or removes a guard in a disposable worktree; the probes and their plan-time output stay in `plan.md` (D5) |
 | `.claude/skills/ticket-feature/SKILL.md` | a bug ticket starts from one red command, before the grilling (D7) |
 | `docs/tickets/_template/feature.md` | a `## Reproduction` section, kept only by a bug ticket (D7) |
-| `docs/tickets/_template/plan.md` | the findings line with pass and fate; a guard-changing step's probe list (D5, D9) |
+| `docs/tickets/_template/plan.md` | the findings line with pass and fate; the probe list of a step that adds, changes or removes a guard (D5, D9) |
 | `.claude/skills/ticket-verify/SKILL.md`, `docs/tickets/_template/verification.md` | a **Review ledger** per pass, summed from `plan.md` (D9) |
 | `docs/knowledge/sdd.md` | the dependency map (`writing-for-agents` through `reviewer`, `diagnosing-bugs` through `/ticket-feature`, the probe worktree), the override row of `improve-codebase-architecture`, and the commit-gate paragraph on passes |
 | `docs/knowledge/roadmap.md` | entry 25's status; the note to re-count each zero-catch check of `make check` after three or four tickets |
@@ -130,9 +130,9 @@ Evidence: <the path:line chain the input takes, or an existing test or command a
   `cannot run` with its error; the plan fixes every `passes` and `cannot run` before it is
   presented. The report stays in the conversation.
 - **Probes:** for a step that adds, changes or removes a guard or a scope of one, one probe per
-  ban of the scopes `/ticket-plan` step 3 names, read from the guard's config: a file path and its
-  content. A researcher plants each in the worktree `<slug>-plan-probes` (`make worktree`, set up
-  and removed by the main session), runs the guard and quotes its output: the failing line, or
+  ban of the scopes `/ticket-plan` step 3 names, a scope and a ban as it defines them, read from
+  the guard's config: a file path and its content. A researcher plants each in the worktree
+  `<slug>-plan-probes` (`make worktree`, set up and removed by the main session), runs the guard and quotes its output: the failing line, or
   for an added scope's own probe the output it gives before the change, a probe that must fail
   after it, which takes the failing line's place in the shape below. The step's Verify lists
   every probe with that output, and the implementer runs the same probes after the change:
@@ -272,8 +272,8 @@ real input. `tdd` writes no test here; a step's *Test first* names the seam to o
     tree. A worktree costs 7 to 9 s and leaves the main tree clean. The probes stay in the plan
     because the step runs the same ones after the change (R8); every other result stays in the
     conversation, as today.
-  - **Cost accepted:** one worktree's setup and removal per plan with a guard-changing step; the
-    exception to "`plan.md` records no check".
+  - **Cost accepted:** one worktree's setup and removal per plan with a guard-adding, -changing or
+    -removing step; the exception to "`plan.md` records no check".
   - **Reversal:** one commit in `ticket-plan`.
   - **Rejected:**
     - Probes planted by the main session in the main tree — a forgotten probe joins the plan's

@@ -150,7 +150,7 @@ and how long it takes, so the user can judge each pass on outcome and time.
 | R5 | every behaviour finding in the replay's reports has an input → wrong outcome and a `path:line`; a planted finding without one is not reported |
 | R6 | a replayed finding that claims an unshown failure gets a researcher verdict of confirmed, refuted or unclear before it is presented; an unclear one is asked |
 | R7 | the plan-time run on the past plan reports each check that passes on the tree as it stands or fails to run |
-| R8 | a plan for a guard-changing step lists one probe per ban of the scopes `/ticket-plan` step 3 names, each with its plan-time output, failing except an added scope's own; the step's Verify runs them |
+| R8 | a plan for a step that adds, changes or removes a guard or a scope of one lists one probe per ban of the scopes `/ticket-plan` step 3 names, each with its plan-time output, failing except an added scope's own; the step's Verify runs them |
 | R9 | the Standards brief of an instruction-editing step names the writing-for-agents guidance; an implementer brief does not |
 | R10 | the bug-ticket start of `/ticket-feature` asks for the red command or the existing failing check and its output before requirements |
 | R11 | the ticket holds a table of pass → step → findings → wall time for the replays |

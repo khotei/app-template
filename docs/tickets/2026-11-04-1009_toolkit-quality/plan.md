@@ -13,7 +13,7 @@
 | S5 | the replay of the Design pass and the hunt on five committed steps, with their wall time | done |
 | S6 | the replay of the plan-time run and the probes; the briefs seen as the skill writes them; the roadmap's re-count note | done |
 | S7 | a step that only moves files and rewrites their imports gets Standards and Spec alone | done |
-| S8 | a guard's probes are one per ban group, not one per scope | todo |
+| S8 | a guard's probes are one per ban group, not one per scope | done |
 | S9 | the hunt questions a discarded result; S8.1's hunt and S10.1's Design replayed again | todo |
 | S10 | the five simplifications of the verification | todo |
 | S11 | the verification's lessons L1–L3 | todo |
@@ -518,7 +518,45 @@
   - `git worktree list` after the main session's removal shows no replay tree.
   - `make check` green.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:** passes that ran: Standards (sonnet, with writing-for-agents) and Spec, on each of
+  rounds S8.1–S8.5; no `simplify`, Design or hunt, an instruction-only step. S8.5 is a fourth fix
+  round, past the three, on the user's word. The step grew past its Delivers: a step that adds a
+  guard or a scope, the scopes an added override shadows, a Biome plugin's and the root config's
+  bans; R8, its acceptance row and the Probes contract follow. `docs/knowledge/sdd.md:65`, outside
+  the step's Files, names the three kinds of guard step.
+  - Standards — accepted, fixed in S8.2 — `replay.md` counted 14 probes that stop failing after
+    S39; its list holds 13 "after: passes" and 5 "after: fails (plugin)" (confirmed by a
+    researcher).
+  - Spec — accepted, fixed in S8.2 — R8 and its acceptance row still asked for every ban the guard
+    enforces while the skill probes the scopes a step touches (confirmed by a researcher).
+  - Spec — accepted, fixed in S8.2 — a Biome plugin was no scope, so its five registered
+    diagnostics got no probe (confirmed by a researcher).
+  - Standards — accepted, fixed in S8.2 — the Verify item of `/ticket-plan` step 3 was one run-on
+    sentence of three rules.
+  - Spec — rejected: the outputs are Biome's own, and `replay.md` says how it ran — the rerun ran
+    by script in `git archive` exports, not by a researcher in a replay worktree, so Verify 2
+    (`git worktree list`) could not fail.
+  - Spec — accepted, fixed in S8.3 — an added override replaces an earlier one's options for the
+    files both match, so the shadowed scope's bans were lost with no probe asked for (confirmed by
+    a researcher on Biome 2.5.15: `apps/api/x.ts` reported only "apps ban").
+  - Spec and Standards — accepted, fixed in S8.3 — the Seam row named a whole rewrite only; a
+    sub-bullet ended in `;`; the Probes contract ran past 100 columns.
+  - Spec and Standards — accepted, fixed in S8.4 — the added-scope exception was missing from the
+    Probes contract, the template comment and the Seam row; R8's trigger left out adding a guard;
+    the scope rule was written out in four places.
+  - Standards — rejected: D5 says the probes keep their output and rerun after the change, not
+    that each fails at plan time — D5 contradicted the added-scope exception.
+  - Spec — accepted, fixed in S8.5 — R8's acceptance row, D5's cost line, two Structure rows and
+    `docs/knowledge/sdd.md:65` still said "a guard-changing step"; the Probes contract no longer
+    pointed to step 3 for a ban.
+  - Standards — rejected: the plan's Goal keeps the template's Probes shape — the placeholder
+    `<the guard's failing line>` should read the plan-time output.
+  - Standards — rejected: a requirement reads on its own — R8 restates the scope list step 3 owns.
+  - Standards and Spec — rejected: no rule sets the width of a ticket file and `make check` is
+    green; "guard change" and "adds, changes or removes a guard" without "or a scope of one" are
+    summaries that point to step 3 — `architecture.md:135` runs to 140 columns, and the Seam row
+    and Structure rows use the short form.
 
 #### S9 — The hunt questions a discarded result
 
