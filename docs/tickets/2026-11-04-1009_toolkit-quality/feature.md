@@ -162,7 +162,7 @@ and how long it takes, so the user can judge each pass on outcome and time.
 - **Options:** A — a researcher picks them from fix rounds, verification findings and bug
   commits, and the user confirms the list; B — the user names them.
 - **Recommendation:** A, at `/ticket-architecture`.
-- **Answer:**
+- **Answer:** A: a researcher picked the steps from later fixes; the set is in [architecture.md › Contracts](./architecture.md#contracts), run as [D8](./architecture.md#decisions).
 
 ### Q2 — Where does the per-pass ledger get its counts?
 
@@ -171,4 +171,4 @@ and how long it takes, so the user can judge each pass on outcome and time.
 - **Options:** A — each step's findings in `plan.md` carry their pass and fate, and the verifier
   sums them; B — the verifier rebuilds them from the step commits' bodies.
 - **Recommendation:** A, decided at `/ticket-architecture`.
-- **Answer:**
+- **Answer:** A, as [D9](./architecture.md#decisions); `/ticket-verify`'s main session sums them, since a verifier never reads `plan.md`.
