@@ -26,6 +26,7 @@
 | S18 | a Verify that repeats one check over many inputs runs them from one script | done |
 | S19 | a claim only a run outside the repo would settle gets `unclear`, not `refuted` | done |
 | S20 | the model may run a `/ticket-*` skill when the user asks it to | done |
+| S21 | no hook or instruction line refuses or steers which tool an agent reads, searches or edits with | todo |
 
 ## How to run this plan
 
@@ -1077,6 +1078,45 @@
     carries the same guard.
   - Spec — rejected — `feature.md`'s Scope does not cover how the skills start: no requirement
     changes, and the user asked for the step.
+
+#### S21 — The agent picks its own tools
+
+- **Delivers:** no hook or instruction line refuses or steers which tool an agent reads, searches
+  or edits with: `.claude/hooks/bash-guard.sh` and `.claude/hooks/read-guard.sh` are deleted with
+  their `hooks:` entries; `reviewer.md` drops "Read each file with the `Read` tool, one per call"
+  and keeps a finding's line as the file's own line number, never a position in a diff hunk;
+  `implementer.md` states, in place of the hook line, which calls load a rule's `paths:` filter
+  (below), so the agent knows it; `.claude/settings.json` allows `claude -p` and `git worktree`,
+  so a background agent runs the experiments its file describes. The read-only agents'
+  `disallowedTools` and the implementer's `make-check.sh` stay: a role boundary and a gate, not a
+  tool choice.
+- **Goal:** the user's decision of 2026-11-04: "давай вообще уберем все, что связано с вот этой
+  блокировкой клауды, ее возможностей". Measured on Claude Code 2.1.311 the same day:
+  - a rule's `paths:` filter loads on `Read`, `Edit`, and a single-file `cat`, `head`, `sed -n`
+    or a `grep` with a match; not on a pipe, `cd … &&`, two files or `sed -i`; a loaded rule
+    stays for the session;
+  - a fresh session in `bypassPermissions` has no `Grep` or `Glob` and gets the harness's
+    Bash-first reminder, and read through Bash 16 of 16 times; in `acceptEdits` it read through
+    `Read` 21 of 24 times; project instructions changed neither.
+  Reverses D11.
+- **Blocked by:** none.
+- **Files:**
+  - `.claude/hooks/`: the two guards; `make-check.sh` stays.
+  - `.claude/agents/implementer.md`, `.claude/agents/reviewer.md`: frontmatter and the lines above.
+  - `.claude/settings.json`: `permissions.allow`.
+  - `docs/knowledge/sdd.md`: the dependency map's hook cells and diagram nodes.
+  - `docs/tickets/2026-11-04-1009_toolkit-quality/feature.md` › Scope: a line for S20 and S21.
+- **Size:** ~120, most of it deleted.
+- **Test first:** A hook fed a `PreToolUse` input — `cat -n
+  application/chat/services/attachment.service.ts` fed to `read-guard.sh` exits 2 today.
+- **Verify:**
+  - `git grep -n -e bash-guard -e read-guard -- .claude docs/knowledge` prints nothing; `ls
+    .claude/hooks` lists only `make-check.sh`.
+  - `make check` green.
+  - After the commit, a spawned `reviewer` runs `cat -n` on a tracked file and is not refused
+    (the main session).
+- **Model:** `opus medium`
+- **Status:** todo
 
 ## Requirement coverage
 
