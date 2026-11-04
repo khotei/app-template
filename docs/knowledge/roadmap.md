@@ -57,7 +57,7 @@ graph LR
 | 22 | [`jobs`](#22-jobs) | `feat` | 4, 23 | planned |
 | 23 | [`modular-monolith`](#23-modular-monolith) | `refactor` | 15 | done: [docs/tickets/2026-10-31-0926_modular-monolith/](../tickets/2026-10-31-0926_modular-monolith/feature.md) |
 | 24 | [`attachment-storage-failures`](#24-attachment-storage-failures) | `fix` | 23 | planned |
-| 25 | [`toolkit-quality`](#25-toolkit-quality) | `chore` | 17 | planned |
+| 25 | [`toolkit-quality`](#25-toolkit-quality) | `chore` | 17 | in progress: [docs/tickets/2026-11-04-1009_toolkit-quality/](../tickets/2026-11-04-1009_toolkit-quality/feature.md) |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; its remaining work is re-homed
 in [Re-homing `effect-setup`](#re-homing-effect-setup).
@@ -744,7 +744,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   `docs/tickets/` or filters findings by a confidence score; a second artifact store.
 - **Found by** `lean-instructions`' review of the installed plugins (2026-11-03), which turns
   the overlapping ones off and keeps here what they did better.
-- **Status.** Planned.
+- **Status.** In progress: [docs/tickets/2026-11-04-1009_toolkit-quality/](../tickets/2026-11-04-1009_toolkit-quality/feature.md).
 
 ## Ideas to weigh
 
