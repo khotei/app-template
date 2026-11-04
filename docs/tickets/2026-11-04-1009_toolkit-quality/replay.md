@@ -22,9 +22,10 @@ related reason), `miss` (no later commit acted on it, or the run passed over the
 | plan-time run | `modular-monolith` S27 | 2 checks: 2 fail as expected; L4 miss at the verdict, hit in the researcher's note | 62 s (session 129 s) |
 | plan-time run | `modular-monolith` S30 | 2 checks: 1 fails as expected, 1 cannot run; L4 miss | 15 s (session 79 s) |
 | plan-time run | `modular-monolith` S36 | 2 checks: 2 fail as expected; L4 miss at the verdict, hit in the researcher's note | 57 s (session 118 s) |
-| plan-time run | `modular-monolith` S37 | 3 checks: 2 fail as expected, 1 passes; L4 near | 71 s (session 166 s) |
+| plan-time run | `modular-monolith` S37 | 3 checks: 1 fails as expected, 2 pass (`doc-width` on a clean parent, S13); L4 near | 71 s (session 166 s) |
 | probes | `modular-monolith` S39 | 50 probes, 50 fail before; 37 no longer fail after, L8's among them | 116 s (session 378 s), rerun 99 s |
 | probes per ban | `modular-monolith` S39, four overrides | 18 probes, 18 fail before; 13 no longer fail after, each of L8's four bans among them, 5 still fail | 2.3 s, rerun 2 s, a script with no agent |
+| probes of every scope (S13) | `modular-monolith` S39, the whole rewrite | 180 probes, 179 fail before (G1, the plugin's own, passes); 71 of the 176 override probes no longer fail after | 33.9 s for both commits, a script with no agent |
 | hunt, again (S9) | `postgres-drizzle` S8.1 | 2 (2 miss), 2 confirmed; the discarded result named, its failure judged handled | 78 s (session 206 s) |
 | Design, on opus (S9) | `postgres-drizzle` S10.1 | 4 (1 hit, 1 near, 2 miss) | 19 s (session 125 s) |
 
@@ -394,6 +395,10 @@ verbatim), ## Probes that did not fail (or none).
   replay copied in, a setup artifact.
   `make doc-names` `passes`, and cannot fail on any of the step's stale lines: it reads neither
   `docs/tickets/` nor `roadmap.md` (`Makefile:118-119`).
+- **On a clean parent (S13):** `make doc-width` `passes`. Run on a `git archive` export of
+  `17c552af21` with nothing copied in (`git init` for its `git ls-files`), it exits 0 over 42
+  Markdown files; a planted line of 150 characters in `docs/knowledge/` fails it (exit 2). The
+  session read it as failing and proposed no fix for it.
 - **Fixes:** one grep per stale spot, among them the bundle check's row: `Makefile:253` greps
   "only `Assistant|Provenance`", and "a widened grep instead fails its probe port".
 - **Against L4: near.** S37's finding: "a probe port `Clock` passed the old grep and failed the
@@ -527,6 +532,22 @@ verbatim), ## Probes that did not fail (or none).
   - T5 the same, another module's file — `…/probe-t5.test.ts`: `import { x } from '#identity/domain/x'` → "a module reaches its own files through #<module>/… and another module … only through its entry" — after: fails (plugin)
   - T6 the same, relative path — `…/probe-t6.test.ts`: `import { x } from './x'` → the message of A4 — after: fails (plugin)
 
+## The probes of every scope — `modular-monolith` S39 (S13)
+
+- **The list:** [probes-s39.md](./probes-s39.md), one probe per ban of every scope, since S39
+  rewrites the guard whole: the 176 groups of the 48 overrides at `8572da12bf`, the root's two
+  bans and the plugin's two diagnostics as an added scope's own, 180 in all.
+- **The run:** a script with no agent, the same `git archive` exports and `biome lint` as S8's;
+  360 runs, one per probe and commit, in 33.9 s, after about ten minutes choosing the imports.
+- **Before:** 179 of 180 fail, each with its own message; the distinct messages per override equal
+  its groups in all 48. Seven probes also draw a second group's message, since the module source's
+  `#testing/**` group never refuses an import alone. G1, the plugin's cross-unit diagnostic,
+  passes. G2, its relative path, already fails on the root's pattern.
+- **After:** of the 176 override probes, 71 pass, 85 fail on the plugin alone, 12 on their own
+  message, 7 on a group S39 reworded, and one on the plugin and its own message. G1 and G2 fail on
+  the plugin. Every group of L8's four overrides has its own probe; each passes after S39 but the
+  ones the plugin holds.
+
 ## The briefs
 
 Each session printed the briefs `/ticket-implement` steps 2 and 3 would send, spawning nothing:
@@ -605,7 +626,8 @@ verbatim, headed by its agent, model and effort).
   A real move rewrites its importers' lines, a change to a `.ts` file's content, which the skill's
   one test counts as a behaviour step; that case was not run.
 - **R7:** among the 11 checks of the five steps, two `cannot run` (S26's Biome probe through
-  stdin, S30's undefined script) and one `passes` (S37's `make doc-names`), each with a fix. **The
+  stdin, S30's undefined script) and two `passes`, S37's `make doc-names` with a fix and its
+  `make doc-width`, a `passes` on a clean parent the session read as failing (S13). **The
   verdicts themselves catch none of L4's five defects:** at the verdict, S26, S27, S30 and S36 are
   misses, each a check that `fails as expected` today and could never pass after the step. S26's,
   S27's and S36's are hits in the researchers' notes, which the sessions' briefs asked for; S30's
@@ -614,7 +636,8 @@ verbatim, headed by its agent, model and effort).
   bans an import, each with its failing line, not one per ban group (176); after S39's change the
   probes of the overrides L8 names no longer fail (P9, P41–P46, P49), and neither do 29 others
   under Biome. Four of L8's bans have no probe of their own (the list above); S8's rerun, one
-  probe per ban group, gives each its own (*The probes per ban*).
+  probe per ban group, gives each its own (*The probes per ban*). S13 probes every ban of every
+  scope, 180, the set R8 names for a whole rewrite (*The probes of every scope*).
 - **R9:** S22's Standards brief names `mattpocock-skills:writing-for-agents` and its implementer
   brief does not; the move's Standards brief does not either.
 
