@@ -17,6 +17,7 @@
 | S9 | the hunt questions a discarded result; S8.1's hunt and S10.1's Design replayed again | todo |
 | S10 | the five simplifications of the verification | todo |
 | S11 | the verification's lessons L1–L3 | todo |
+| S12 | a loop over the plan's steps, each to a commit without the user's OK between them | todo |
 
 ## How to run this plan
 
@@ -633,6 +634,27 @@
 - **Model:** `opus high`
 - **Status:** todo
 
+#### S12 — A loop over the plan's steps
+
+- **Delivers:** `/ticket-implement <ticket> loop` takes step after step to a commit, with the
+  stops of R13; the commit gate states that the loop waives the OK between steps, not the OK for
+  a push, a PR or a merge.
+- **Goal:** R13 (D10).
+- **Blocked by:** none.
+- **Files:**
+  - `.claude/skills/ticket-implement/SKILL.md`: the loop argument; step 6 returns to step 1 in a
+    loop; the stops.
+  - `.claude/rules/sdd.md › Gates`, the commit gate: the loop's waiver.
+  - `docs/knowledge/sdd.md`: how to start and stop a loop.
+- **Size:** ~40.
+- **Test first:** A brief as the skill writes it — the no-op experiment of R13: today step 6
+  names the next step and stops.
+- **Verify:**
+  - A researcher runs the experiment of R13 on the skill before and after; the answers differ.
+  - `make check` green.
+- **Model:** `opus high`
+- **Status:** todo
+
 ## Requirement coverage
 
 | Req | Steps |
@@ -649,3 +671,4 @@
 | R10 | S4 |
 | R11 | S5, S6, S9 |
 | R12 | S1; filled by this ticket's `/ticket-verify` |
+| R13 | S12 |

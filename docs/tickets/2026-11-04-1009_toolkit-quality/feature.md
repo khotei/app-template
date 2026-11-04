@@ -67,6 +67,7 @@ and how long it takes, so the user can judge each pass on outcome and time.
 - The reproduction-first start of a bug ticket.
 - A record of each review pass's outcome and time: a replay under the new toolkit and a per-pass
   ledger in each later verification.
+- A loop mode of `/ticket-implement` that takes a plan's steps to commits one after another.
 - Every current check of `make check` is kept; the roadmap notes to re-count the zero-catch ones
   after three or four tickets.
 
@@ -139,6 +140,13 @@ and how long it takes, so the user can judge each pass on outcome and time.
 - **R12** — WHEN a ticket is verified, THE verification SHALL record per review pass how many of
   its findings across the steps were accepted, rejected and fixed.
 
+### Loop
+
+- **R13** — WHERE the user starts `/ticket-implement` in loop mode, THE main session SHALL take
+  each unblocked `todo` step in turn to a commit without the user's OK between steps, and SHALL
+  stop at a `BLOCKED:` report, a finding the user must decide, a step not ready after three fix
+  rounds, or when no `todo` step remains.
+
 ## Acceptance
 
 | Req | How to verify |
@@ -155,6 +163,7 @@ and how long it takes, so the user can judge each pass on outcome and time.
 | R10 | the bug-ticket start of `/ticket-feature` asks for the red command or the existing failing check and its output before requirements |
 | R11 | the ticket holds a table of pass → step → findings → wall time for the replays |
 | R12 | the verification template has the per-pass ledger, and this ticket's verification fills it |
+| R13 | a no-op run: after a committed step, the skill with the loop lines starts the next unblocked step; without them it names the step and stops |
 
 ## Open questions
 

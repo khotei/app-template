@@ -330,6 +330,16 @@ real input. `tdd` writes no test here; a step's *Test first* names the seam to o
   - **Rejected:**
     - Rebuilding the counts from the commit bodies — they hold no count to rebuild.
 
+- **D10 — The loop runs in the main session, starting a step when the last one has committed.**
+  - **Why:** each step ends with an agent's notification, so the session that orchestrates the
+    step is the one that knows it is done; the implementer already gets a fresh context per step.
+  - **Cost accepted:** the main session's context grows over the loop and is summarized when it
+    fills; the user sees each step's report only when the loop stops.
+  - **Reversal:** one commit.
+  - **Rejected:**
+    - The built-in `/loop` — it fires on a timer, while a step ends on a notification, so a timer
+      either waits for nothing or starts while a step still runs.
+
 None of these binds beyond the toolkit, so none adds a record to `docs/knowledge/decisions.md`;
 `docs/knowledge/sdd.md` explains them.
 
