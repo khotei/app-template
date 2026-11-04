@@ -23,7 +23,7 @@
 | S15 | the second verification's three simplifications | done |
 | S16 | the second verification's lessons L1–L3 | done |
 | S17 | a hook refuses the reviewer's `cat`, `head`, `tail` and `sed -n` on a tracked file (L4) | done |
-| S18 | a Verify that repeats one check over many inputs runs them from one script | todo |
+| S18 | a Verify that repeats one check over many inputs runs them from one script | done |
 | S19 | a claim only a run outside the repo would settle gets `unclear`, not `refuted` | todo |
 
 ## How to run this plan
@@ -982,7 +982,23 @@
   - The experiment's two answers differ in whether the Verify names one script for the probes.
   - `make check` green.
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:** passes that ran: Standards (sonnet, with writing-for-agents) and Spec on S18.1
+  and S18.2; S18.3 checked by the main session against its finding. No `simplify`, Design or
+  hunt, an instruction-only step. Implementer 3.5, 2.6 and 1.3 min on `opus medium`. The Test
+  first ran as the no-op experiment on haiku, S13 without its Verify as the task: without the
+  line, "seven bullets, one per kind of check… No script is named"; with it, the Verify opens
+  with "`sh docs/tickets/x/run-probes.sh 8572da12bf > …`" and reruns it at the second commit.
+  The S18.1 Standards brief left out `.claude/rules/commits.md` from `make review-rules`'s
+  output (the main session's slip; no commit in the diff); S18.2's brief had it.
+  - Standards — accepted, fixed in S18.2 — "the plan-time run" is the ticket's term, not the
+    skill's.
+  - Standards — rejected after the no-op experiment — cut "not one tool call per input": with
+    the cut, haiku's Verify named no script and only "noted that the rule was not met"; with
+    the ban, it named one.
+  - Spec — accepted, fixed in S18.3 — "the Red run in step 4" misses the guard probes, which
+    step 4's second `researcher` runs; and "the step's rerun" dropped "Verify". The line names
+    step 4's run and the step's Verify.
 
 #### S19 — Unclear when the repo cannot settle it
 
