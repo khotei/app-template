@@ -9,7 +9,7 @@
 | S1 | a behaviour finding carries its failure; a claimed one is confirmed first; each finding's pass and fate in `plan.md`, summed at verification | done |
 | S2 | the Design pass in place of Depth, with its examples file | done |
 | S3 | a plan's new checks run before it is presented; a guard's bans probed in a disposable worktree | done |
-| S4 | writing-for-agents in the Standards pass of instruction edits; a bug ticket starts from a red command | todo |
+| S4 | writing-for-agents in the Standards pass of instruction edits; a bug ticket starts from a red command | done |
 | S5 | the replay of the Design pass and the hunt on five committed steps, with their wall time | todo |
 | S6 | the replay of the plan-time run and the probes; the briefs seen as the skill writes them; the roadmap's re-count note | todo |
 
@@ -270,7 +270,27 @@
     — the `diagnosing-bugs` line comes first; today only the grilling call's line.
   - `make check` green.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Standards — accepted, fixed in S4.2 — `.claude/skills/ticket-feature/SKILL.md:35` —
+    writing-for-agents › Negation — judgement — the bug step led with "Never a new file"; it now
+    states what the command runs on and where the failing test is written.
+  - Standards — accepted, fixed in S4.2 — `docs/tickets/_template/feature.md:30` —
+    writing-for-agents › Pruning — judgement — the Reproduction comment repeated the
+    acceptance-check rule the skill holds; cut from the template.
+  - Standards — rejected: this step's Seam requires the Standards brief to name
+    `writing-for-agents` — `.claude/skills/ticket-implement/SKILL.md:43` repeats the trigger
+    `reviewer.md` carries.
+  - Spec — rejected: shown by the implementer's run, where a folder `CLAUDE.md` asking for French
+    got `Française.` under the flag — `.claude/agents/researcher.md:30`, the folder's `CLAUDE.md`
+    loading under `--setting-sources project`, claimed.
+  - Verify, the flag: `--setting-sources project` answered `None`, without it `Русский`; D6's
+    *Cost accepted* now states it.
+  - Deviation: an instruction file is defined by its four kinds, since `make doc-lint` lints all
+    Markdown and only its source-path check is limited to them; D6's *Why* says so.
+  - Deviation: `docs/knowledge/sdd.md` also gained the `diagnosing-bugs` override row and the two
+    skills in *After a plugin update*; `/ticket-feature`'s steps are renumbered after the new
+    step 2.
 
 #### S5 — The replay of the review passes
 

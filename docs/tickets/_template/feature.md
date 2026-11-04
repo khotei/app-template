@@ -27,8 +27,7 @@ come from `docs/knowledge/glossary.md`.>
 ## Reproduction
 
 <A bug ticket keeps this section; any other deletes it. The user's symptom in their words, then
-one command that shows it failing on the tree as it stands; the bug's requirement takes that
-command as its acceptance check.>
+one command that shows it failing on the tree as it stands.>
 
 ```sh
 <one command that runs on the tree as it stands>

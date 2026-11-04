@@ -32,11 +32,11 @@ repository holds no `GLOSSARY.md`, `GLOSSARY-MAP.md`, `CONTEXT.md` or `docs/adr/
    `researcher` agent to re-verify.
 2. **A bug starts from a red command.** A bug is what the user reports as broken; ask when the
    input leaves it open. Call the Skill tool with `mattpocock-skills:diagnosing-bugs` and run
-   its phases 1 and 2 only, to one minimised command that runs on the tree as it stands and
-   shows the user's exact symptom failing, or name the existing failing check that shows it.
-   Never a new file in the tree, though phase 1 lists a failing test first: that test is the
-   fix step's **Test first**. With neither, stop and ask the user, as phase 1 does. The command
-   and its failing output go into `feature.md › Reproduction`.
+   its phases 1 and 2 only, to one minimised command that runs on the files already in the tree
+   and shows the user's exact symptom failing, or name the existing failing check that shows
+   it. The failing test phase 1 lists first is the fix step's **Test first**, written in that
+   step. With neither, stop and ask the user, as phase 1 does. The command and its failing
+   output go into `feature.md › Reproduction`.
 3. Call the Skill tool with `mattpocock-skills:grilling` and `mattpocock-skills:domain-modeling`,
    then grill the user until the frontier is empty. Every fact question goes to the `researcher`
    agent; the user answers only decisions. Resolved terms go into the glossary as they settle.

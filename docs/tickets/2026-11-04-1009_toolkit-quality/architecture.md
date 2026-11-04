@@ -280,11 +280,12 @@ real input. `tdd` writes no test here; a step's *Test first* names the seam to o
 - **D6 — An instruction edit's Standards pass also loads `writing-for-agents`; a no-op dispute is
   settled by a `claude -p` experiment.**
   - **Why:** the skill's own test is to run the document; two temporary folders and haiku answer
-    in seconds, outside the repository. An instruction file is the set `make doc-lint` treats as
-    one: every `CLAUDE.md`, `.claude/rules/`, `.claude/skills/`, `.claude/agents/`.
-  - **Cost accepted:** the experiment uses the user's login and runs a model outside the session;
-    whether `--setting-sources project` keeps the user's own `CLAUDE.md` out is unverified, and
-    the step that lands this checks it.
+    in seconds, outside the repository. An instruction file is one of the four kinds whose source
+    paths `make doc-lint` rejects: every `CLAUDE.md`, `.claude/rules/`, `.claude/skills/`,
+    `.claude/agents/`.
+  - **Cost accepted:** the experiment uses the user's login and runs a model outside the session,
+    and each `claude -p` run waits for the user's approval. `--setting-sources project` keeps the
+    user's `~/.claude/rules/` out and still loads the folder's `CLAUDE.md` (checked in S4).
   - **Reversal:** one commit.
   - **Rejected:**
     - Settling it by argument between the reviewer and the main session — the skill names
