@@ -105,13 +105,14 @@ step id, take step after step, as **The loop** below says. Gates:
 
 ## The loop
 
-`loop` takes the unblocked `todo` steps one at a time, each through steps 1 to 5, with no OK of
-the user's between them: the commit question is not asked, each ready step commits, and the
-fixes you recommend go to the implementer as the next round without asking. Step 4 presents
-nothing then; each committed step adds a line (its id, its commits and the passes that ran) to
-what you present when the loop stops, at the first of:
+`loop` takes the unblocked `todo` steps one at a time, each through steps 1 to 5, under the
+waiver of `.claude/rules/sdd.md › Gates`: each ready step commits, and the fixes you recommend
+go to the implementer as the next round without asking. Step 4 defers its presentation to the
+stop; each committed step adds a line (its id, its commits and the passes that ran) to what you
+present when the loop stops, at the first of:
 
 - a `BLOCKED:` report;
 - a finding the user must decide, presented as step 4 says;
 - a step not ready after three fix rounds, left as step 5's **stop** leaves it;
-- no unblocked `todo` step left.
+- the user's word to stop, which leaves the current round uncommitted;
+- no unblocked `todo` step remains.

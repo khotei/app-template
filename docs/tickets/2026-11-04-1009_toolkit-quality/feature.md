@@ -145,7 +145,7 @@ and how long it takes, so the user can judge each pass on outcome and time.
 - **R13** — WHERE the user starts `/ticket-implement` in loop mode, THE main session SHALL take
   each unblocked `todo` step in turn to a commit without the user's OK between steps, and SHALL
   stop at a `BLOCKED:` report, a finding the user must decide, a step not ready after three fix
-  rounds, or when no `todo` step remains.
+  rounds, the user's word to stop, or when no unblocked `todo` step remains.
 
 ## Acceptance
 

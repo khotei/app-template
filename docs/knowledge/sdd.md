@@ -156,10 +156,10 @@ step, then the review passes, then you. Why it is cut so:
 
 `/ticket-implement <ticket> loop` runs the plan's unblocked `todo` steps one after another, each
 through the whole gate, and commits each without asking you: the main session forwards the fixes
-it recommends as rounds, as it would on your word. It stops at an implementer's `BLOCKED:`, at a
-finding you must decide, at a step still not ready after three fix rounds, or when no unblocked
-step is left, and only then shows you each committed step and the cause of the stop. To stop it
-sooner, tell the session to stop; the step under way stays uncommitted in the tree. To go on
+it recommends as rounds, as it would on your word. It stops where
+[the skill](../../.claude/skills/ticket-implement/SKILL.md#the-loop) lists, and only then shows
+you each committed step and the cause of the stop. To stop it sooner, tell the session to stop:
+the rounds already committed stay, and the current round stays uncommitted in the tree. To go on
 after a stop, answer it, then type the command again. Pushing and opening the PR still wait for
 your OK.
 
