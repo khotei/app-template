@@ -27,8 +27,8 @@ step id, take step after step, as **The loop** below says. Gates:
    - **A behaviour step**, whatever the **Model** line, is one whose diff changes the content of a
      `.ts` file, a `Makefile` recipe or a script, beyond a move. A move renames files whose
      content `git diff -M` shows unchanged and rewrites only the import and re-export lines
-     (`from '<old path>'`) that name them; it gets Standards and Spec alone, as does any step
-     that is not a behaviour step.
+     (`from '<old path>'`) that name them. A move, like any step that is not a behaviour step,
+     gets no `simplify` and no Design pass.
    - **Simplify, a behaviour step only**, run by you, never by the implementer: the refactor that
      `tdd` leaves out of its red → green loop. Call the Skill tool with `simplify` on the
      uncommitted step, its args pointing at the step in `plan.md`, the rules `make review-rules`
