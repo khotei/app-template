@@ -342,4 +342,4 @@ Standards brief to name it.
   a `claimed` one.
 - **Proposed change:** a mechanical check — a `PreToolUse` hook on the `reviewer` agent that
   refuses `cat`, `head`, `tail` and `sed -n` on a tracked file and names `Read`.
-- **Applied:** no
+- **Applied:** yes, S17

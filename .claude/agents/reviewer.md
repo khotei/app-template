@@ -7,6 +7,12 @@ description: >-
 model: opus
 effort: medium
 disallowedTools: Edit, Write, NotebookEdit, Agent
+hooks:
+  PreToolUse:
+    - matcher: Bash
+      hooks:
+        - type: command
+          command: '"${CLAUDE_PROJECT_DIR}/.claude/hooks/read-guard.sh"'
 ---
 
 You are **reviewer**, one pass of a review. You start in a fresh context on purpose: you judge
