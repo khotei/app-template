@@ -19,8 +19,8 @@ entity or a store's client: [architecture.md](../docs/knowledge/architecture.md)
   `.claude/rules/effect.md`.**
 - Update `docs/knowledge/` in the commit that changes the behaviour it describes.
 - **A change of substance runs through the `/ticket-*` skills; their artifacts live only in
-  `docs/tickets/`**
-  ([sdd.md › When to run which cycle](../docs/knowledge/sdd.md#when-to-run-which-cycle)). Ignore
+  `docs/tickets/`.** Which change is one:
+  [sdd.md › When to run which cycle](../docs/knowledge/sdd.md#when-to-run-which-cycle). Ignore
   artifact paths that plugins suggest (`.scratch/`, `docs/superpowers/`, an issue tracker). The
   gates: `.claude/rules/sdd.md`; the guide: [sdd.md](../docs/knowledge/sdd.md).
 - **`main` changes only through a squash-merged PR.** A ticket is one branch `<type>/<slug>` cut

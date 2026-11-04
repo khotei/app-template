@@ -59,9 +59,9 @@ replay last, in a fresh session, once every change has landed (R11).
 | Area | Change |
 |---|---|
 | `.claude/agents/reviewer.md` | **Design** replaces Depth (D1); the hunt asks of each error-absorbing construct what it hides (R4); a behaviour finding carries its failure scenario and whether it is shown (D3); Spec owns a missing test (D3); Standards on an instruction edit also judges by `writing-for-agents` (D6) |
-| `.claude/skills/ticket-implement/SKILL.md` | the Design brief and its sources; the Standards brief names `writing-for-agents` when the diff touches an instruction file; step 4 confirms each claimed failure before presenting it (D4); step 5 writes each finding's pass and fate (D9) |
+| `.claude/skills/ticket-implement/SKILL.md` | the Design brief and its sources; the Standards brief names `writing-for-agents` when the diff touches an instruction file; step 4 confirms each claimed failure before presenting it, by `claimed-findings.md` beside it (D4); step 5 writes each finding's pass and fate (D9) |
 | `.claude/skills/ticket-implement/design-examples.md` | **new**: do and don't pairs on a neutral entity, one per lens, pointing to the rule examples and records they rest on (D2) |
-| `.claude/agents/researcher.md` | may work in a disposable worktree the brief names and run `claude -p` in a temporary folder (D5, D6); a confirmation answers `confirmed`, `refuted` or `unclear` (D4) |
+| `.claude/agents/researcher.md` | may work in a disposable worktree the brief names, where it plants each probe and quotes its output, and run `claude -p` in a temporary folder (D5, D6); a confirmation answers `confirmed`, `refuted` or `unclear` (D4) |
 | `.claude/skills/ticket-plan/SKILL.md` | step 4's check runs every check for new work on the tree as it stands, and every probe of a step that adds, changes or removes a guard in a disposable worktree; the probes and their plan-time output stay in `plan.md` (D5) |
 | `.claude/skills/ticket-feature/SKILL.md` | a bug ticket starts from one red command, before the grilling (D7) |
 | `docs/tickets/_template/feature.md` | a `## Reproduction` section, kept only by a bug ticket (D7) |
@@ -208,7 +208,7 @@ real input. `tdd` writes no test here; a step's *Test first* names the seam to o
 
 | Seam | Catches | Misses |
 |---|---|---|
-| `make check` over the edited skills, agents and templates | a broken link, a missing path, a source path in an instruction file, an over-width line | whether a line changes what an agent does |
+| `make check` over the edited skills, agents and templates | a missing path, a source path in an instruction file, an over-width line | whether a line changes what an agent does; a broken Markdown link, which only CI's `links` job checks |
 | The replay of a committed step (`replay.md`) | what the Design pass and the hunt report on a real diff, against what was found later; the finding shapes (R5); the confirmations (R6); each pass's wall time | step kinds outside the replayed five; the variance of one run per step |
 | The plan-time run on a past plan (`replay.md`) | checks that pass on the tree before their step, checks that cannot run, a guard change's bans with no probe in the scopes `/ticket-plan` step 3 names (an added, changed or removed scope, one whose files those also match, every scope of a whole rewrite), each failing before the change but an added scope's own, which this run cannot show failing (R7, R8) | plans with checks of another kind |
 | A brief as the skill writes it | that the Design brief links the examples file, the Standards brief of an instruction edit names `writing-for-agents`, the implementer's brief names neither (R3, R9); whether the main session in a loop, given the loop lines, stops the loop at a step not ready after three fix rounds instead of a fourth round, and skips the commit question, by the no-op run (R13) | whether the agent follows a brief it gets; R13's other stops (`BLOCKED:`, a user's decision, the user's word, no step left) |

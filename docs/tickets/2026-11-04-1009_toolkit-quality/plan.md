@@ -15,7 +15,7 @@
 | S7 | a step that only moves files and rewrites their imports gets Standards and Spec alone | done |
 | S8 | a guard's probes are one per ban group, not one per scope | done |
 | S9 | the hunt questions a discarded result; S8.1's hunt and S10.1's Design replayed again | done |
-| S10 | the five simplifications of the verification | todo |
+| S10 | the five simplifications of the verification | done |
 | S11 | the verification's lessons L1–L3 | todo |
 | S12 | a loop over the plan's steps, each to a commit without the user's OK between them | done |
 
@@ -626,7 +626,26 @@
   - Every link of `design-examples.md` and the new sibling file resolves (`make doc-lint`).
   - `make check` green.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:** passes that ran: Standards (sonnet, with writing-for-agents) and Spec, on S10.1
+  and S10.2; no `simplify`, Design or hunt, an instruction-only step. The Effect and Drizzle line
+  of `.claude/CLAUDE.md` stays as a pointer to `effect.md`, which loads on a `.ts` file only.
+  Verify 1: `git grep -n 'Substance is new behaviour' .claude/CLAUDE.md` exits 1.
+  - Spec — accepted, fixed in S10.2 (`plan.md`, `architecture.md`) — Test first and Verify 2 name
+    `make doc-lint` for the links, which checks none: with two broken links planted it "printed
+    nothing and exited 0"; only CI's `links` job (`lychee --offline`) does. The links were checked
+    by the implementer's relative-link script ("all 25 links of the seven edited files resolve")
+    and by Spec's `[ -e ]` loop (none missing); the `make check` Seam row lists a broken link
+    under Misses.
+  - Standards — accepted, fixed in S10.2 — `researcher.md` stated the disposable-worktree rule in
+    two bullets.
+  - Standards — accepted, fixed in S10.2 — the cut left `.claude/CLAUDE.md`'s substance sentence
+    without its period.
+  - Spec — rejected: it describes how Claude Code loads files, which no doc of this repo owns —
+    the cut line on layer `CLAUDE.md`s and rules loading on their own has no other home.
+  - Implementer — open, outside the verification's list — `.claude/CLAUDE.md:20`, "Update
+    `docs/knowledge/` in the commit that changes the behaviour it describes", repeats
+    `.claude/rules/sdd.md › Artifacts`.
 
 #### S11 — The verification's lessons
 
