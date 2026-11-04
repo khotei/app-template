@@ -25,6 +25,7 @@
 | S17 | a hook refuses the reviewer's `cat`, `head`, `tail` and `sed -n` on a tracked file (L4) | done |
 | S18 | a Verify that repeats one check over many inputs runs them from one script | done |
 | S19 | a claim only a run outside the repo would settle gets `unclear`, not `refuted` | done |
+| S20 | the model may run a `/ticket-*` skill when the user asks it to | todo |
 
 ## How to run this plan
 
@@ -1039,6 +1040,29 @@
     letting S14's `refuted` stand: with the line, `unclear` 3/3.
   - Spec and Standards — accepted, fixed by the main session — D4's Cost accepted named only "a
     new test".
+
+#### S20 — The model runs a ticket skill when asked
+
+- **Delivers:** the five `/ticket-*` skills drop `disable-model-invocation: true`, and each
+  description says it runs only when the user asks for that phase, so the main session runs a
+  phase the user asked for in words (`run the verify yourself`) without the user typing it; the
+  gates of `.claude/rules/sdd.md` (the commit gate, a push, a PR, a merge) still wait for the user.
+- **Goal:** the user's request of 2026-11-04: the main session could not start `/ticket-verify`
+  ("cannot be used with Skill tool due to disable-model-invocation") though the user asked it to.
+  Reverses monorepo-setup's D29 "keeps side-effecting procedures under the user's control": the
+  gates hold that control now.
+- **Blocked by:** none.
+- **Files:**
+  - `.claude/skills/ticket-{feature,architecture,plan,implement,verify}/SKILL.md`, frontmatter.
+  - `docs/knowledge/sdd.md` › The five skills: who starts them.
+- **Size:** ~15.
+- **Test first:** none runs in-session: the Skill tool's refusal is the red state, quoted in Goal.
+- **Verify:**
+  - `git grep -n disable-model-invocation .claude/skills/ticket-*` prints nothing.
+  - `make check` green.
+  - After the commit, the main session calls the Skill tool with `ticket-verify` and it loads.
+- **Model:** `opus medium`
+- **Status:** todo
 
 ## Requirement coverage
 
