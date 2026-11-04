@@ -22,7 +22,7 @@
 | S14 | one more attempt at R6's `unclear` branch, with a claim no trace or run settles | done |
 | S15 | the second verification's three simplifications | done |
 | S16 | the second verification's lessons L1–L3 | done |
-| S17 | a hook refuses the reviewer's `cat`, `head`, `tail` and `sed -n` on a tracked file (L4) | todo |
+| S17 | a hook refuses the reviewer's `cat`, `head`, `tail` and `sed -n` on a tracked file (L4) | done |
 | S18 | a Verify that repeats one check over many inputs runs them from one script | todo |
 | S19 | a claim only a run outside the repo would settle gets `unclear`, not `refuted` | todo |
 
@@ -922,16 +922,46 @@
   - `docs/tickets/2026-11-04-1009_toolkit-quality/verification.md`: run 2's L4 **Applied:** reads
     `yes, S17`.
 - **Size:** ~50.
-- **Test first:** The hook run on a tool input — `cat -n application/chat/chat.service.ts` passes
-  today.
+- **Test first:** A hook fed a `PreToolUse` input — `cat -n
+  application/chat/services/attachment.service.ts` passes today.
 - **Verify:**
   - Probes, one per refused form, each fed to the script as a `PreToolUse` input: `cat -n`,
     `head -n 40`, `tail -n 40`, `sed -n '1,40p'` on a tracked file — each refused with a message
-    naming `Read`; controls `git diff HEAD`, `git show HEAD:<file>`, `cat` of a file outside the
-    repo — each passes.
+    naming `Read`; controls `git diff HEAD`, `git show HEAD:<file>`, `cat` of a file no git
+    repository tracks — each passes.
   - `make check` green.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:** passes that ran: `simplify` on S17.1; Standards (sonnet, with writing-for-agents
+  on S17.1 and S17.2), Spec, Design and the hunt on S17.1, S17.2 and S17.3. Implementer 4.5, 3.8
+  and 2.1 min on `opus high`, then 1.4 min for S17.3's header. The Test first and Verify ran from
+  one script, 29 probes fed as `PreToolUse` inputs: before S17.1 all passed; after S17.3, "29 of
+  29 `ok`", and `make check` exit 0. Live: the S17.1 Spec reviewer's own `cat -n
+  .claude/hooks/make-check.sh` was refused by `PreToolUse:Bash`.
+  - simplify — accepted, applied by the main session in S17.1 — the implementer's own tokenizer
+    (52 lines) cut to `bash-guard.sh`'s idiom (23 lines). Skipped: a shared hook library, an `sh`
+    pre-filter before `bun`, refusing every file, `nl` and `awk`. The cut lost the quoted path
+    and the `cd`, which the hunt then showed.
+  - hunt — accepted, fixed in S17.2 — a quoted path, a relative path after `cd`, a file in a
+    worktree under the gitignored `.claude/worktrees` (each shown), and a cwd outside the repo
+    (confirmed by a researcher; a missing `git` refuted: the `|| reason=` line refuses it).
+  - Standards and Spec — accepted, fixed in S17.2 — the `/ticket-verify` row of the dependency
+    map lacked the hook its `reviewer` carries.
+  - Spec — accepted, fixed by the main session — the Test first named an untracked path, so it
+    could not fail.
+  - Design — rejected — refuse `cat` on every file, which drops the `git ls-files` check:
+    contradicts D11's "a tracked file" and this Verify's control; offered to the user as a
+    simplification. Register `bash-guard.sh` on the reviewer: it also refuses redirects into a
+    file.
+  - Spec — accepted as is — S17.2 refuses a file another repository tracks, since a finding
+    cites the line `Read` shows wherever the file lives; the control reads "no git repository".
+  - hunt — accepted, fixed in S17.3 — `cd -P`, a `cd` in a subshell or `$(…)`, `cd -`, a failed
+    `cd` before `;`, each shown: every folder the command may be in now counts.
+  - Spec and hunt — accepted as is, named in the header in S17.3 — the over-refusal after a `cd`
+    elsewhere, one `Read`; the header's "a folder that does not exist names no file" reworded.
+  - Design — rejected — one command parser shared with `bash-guard.sh` (a third guard pays for
+    it), a pure `reads()` function, the `cd` line split in two, one `git` per folder.
+  - Standards — rejected — the header narrates the code: `bash-guard.sh`'s header does the same.
 
 #### S18 — One script for a repeated check
 
