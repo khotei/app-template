@@ -129,8 +129,9 @@ Evidence: <the path:line chain the input takes, or an existing test or command a
   the main tree, read-only. Each comes back `fails as expected` with its output, `passes`, or
   `cannot run` with its error; the plan fixes every `passes` and `cannot run` before it is
   presented. The report stays in the conversation.
-- **Probes:** for a step that changes or removes a guard, one probe per ban the guard enforces
-  today, read from its config: a file path and its content. A researcher plants each in the
+- **Probes:** for a step that changes or removes a guard, one probe per ban of each scope the step
+  changes or removes, of every scope when it rewrites the guard whole, read from its config: a
+  file path and its content. A scope and a ban are as `/ticket-plan` step 3 defines them. A researcher plants each in the
   worktree `<slug>-plan-probes` (`make worktree`, set up and removed by the main session), runs
   the guard and quotes the failure. The step's Verify lists every probe with that output, and
   the implementer runs the same probes after the change:

@@ -28,13 +28,16 @@ steps only conform to the plan. Gates: `.claude/rules/sdd.md`.
      is presented; counting only the moved code undercounts it;
    - **Test first**: the Seam from `architecture.md` and the behaviour to see red, or `config only`;
    - **Verify**: commands and manual checks, each naming the state it fails on, so a check that
-     cannot fail is seen before the step runs; a step that changes or removes a guard lists, in
-     the template's **Probes** shape, one probe per ban of each scope it changes or removes, and of
-     every scope when it rewrites the guard whole. A scope is one Biome override, the root config
-     or one grep; a ban is one restriction in it with its own message (a pattern or a path of the
-     override, a grep's pattern), so an override of four groups takes four probes. Each probe is
-     one import or line that its ban alone refuses, and names the command it fails (the guard's
-     tool alone, or `make check`); a step that edits a file a requirement measures re-measures it;
+     cannot fail is seen before the step runs.
+     - A step that changes or removes a guard lists, in the template's **Probes** shape, one probe
+       per ban of each scope it changes or removes, of every scope when it rewrites the guard
+       whole. A scope is one Biome override, the root config, one Biome plugin or one grep; a ban
+       is one restriction in it with its own message: a pattern or a path of an override or of
+       the root's import rule, a root rule that refuses an import (`noImportCycles`), one
+       diagnostic a plugin registers, a grep's pattern. An override of four groups takes four
+       probes. Each probe is one import or line that its ban alone refuses, and names the command
+       it fails (the guard's tool alone, or `make check`).
+     - A step that edits a file a requirement measures re-measures it;
    - **Model**: `opus medium` for a move, rename or config step, `opus high` for a step that
      writes behaviour; `/ticket-implement` spawns the implementer on it;
    - **Status:** `todo`.

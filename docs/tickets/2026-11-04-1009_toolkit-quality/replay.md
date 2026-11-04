@@ -24,7 +24,7 @@ related reason), `miss` (no later commit acted on it, or the run passed over the
 | plan-time run | `modular-monolith` S36 | 2 checks: 2 fail as expected; L4 miss at the verdict, hit in the researcher's note | 57 s (session 118 s) |
 | plan-time run | `modular-monolith` S37 | 3 checks: 2 fail as expected, 1 passes; L4 near | 71 s (session 166 s) |
 | probes | `modular-monolith` S39 | 50 probes, 50 fail before; 37 no longer fail after, L8's among them | 116 s (session 378 s), rerun 99 s |
-| probes per ban | `modular-monolith` S39, four overrides | 18 probes, 18 fail before; 14 no longer fail after, each of L8's four bans among them | 2.3 s, rerun 2 s, a script with no agent |
+| probes per ban | `modular-monolith` S39, four overrides | 18 probes, 18 fail before; 13 no longer fail after, each of L8's four bans among them, 5 still fail | 2.3 s, rerun 2 s, a script with no agent |
 
 Wall time is the pass's: its reviewer's or researcher's `totalDurationMs`, plus a resent round,
 plus the confirmations (run in parallel, so their span); the session's `duration_ms` adds the main
@@ -434,8 +434,8 @@ verbatim), ## Probes that did not fail (or none).
   probe fails on its ban, not on the planting.
 - **Before:** 18 of 18 exit 1 on `noRestrictedImports` alone, each with its own group's message:
   the distinct messages per override are 4, 4, 4 and 6, its group count.
-- **After:** 14 no longer fail; the four that do fail through the plugin `biome-imports.grit`:
-  the relative paths (A4, W4, D4, T6) and the cross-module file (T5).
+- **After:** 13 no longer fail; five still fail, through the plugin `biome-imports.grit`: the
+  four relative paths (A4, W4, D4, T6) and the cross-module file (T5).
 - **Against L8:** every one of its four lost bans has its own probe now, and each no longer fails
   after S39: A1 and W1 (another app), D1 (a kernel part outside `deployment`'s three), T1–T4 (the
   domain tests' workspace, client, store and e2e bans).
