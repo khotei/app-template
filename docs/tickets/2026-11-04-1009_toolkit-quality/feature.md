@@ -72,8 +72,8 @@ and how long it takes, so the user can judge each pass on outcome and time.
 
 ## Out of scope
 
-- Removing the web bundle check: `client-publishing` removes it once the web stops importing the
-  server's API definition.
+- Rewriting the web bundle check: `client-publishing` keys it on package names once the web
+  reaches the server only through the API contract.
 - A baseline replay under the old toolkit or a pass/fail threshold: the user judges the recorded
   outcome and time.
 - A design pass split into two narrower passes; import direction as a design lens (Biome's import
