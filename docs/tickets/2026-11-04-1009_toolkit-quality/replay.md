@@ -285,8 +285,9 @@ no `<planted>` lines and no appended ones. Both ran at once, 14:52 to 14:55; Cla
 
 A `claimed` finding whose code path is real and whose trigger only production shows, a limit of
 S3, so that neither a trace nor a run in the tree settles it. In
-`.claude/worktrees/toolkit-quality-S14-unclear`, set up as above on S8.1 with the toolkit of
-`e6eceeb643`; one session, 20:58:41 to 21:00:20, Claude Code 2.1.311. The prompt runs step 4
+`.claude/worktrees/toolkit-quality-S14-unclear`, set up as above: at S8.1's parent `7a2c073f1d`,
+the toolkit of `e6eceeb643` committed on `wt/toolkit-quality-S14-unclear` and round
+`a2c21e2502` applied uncommitted, less its `plan.md` and `architecture.md`; one session, 20:58:41 to 21:00:20, Claude Code 2.1.311. The prompt runs step 4
 alone on a report the prompt holds, so no reviewer ran:
 
 ```text
@@ -336,8 +337,9 @@ The report of the hunt:
   trigger it leaves unsettled ("nothing in the repo shows … would pass S3's per-prefix request
   rate") and still answers `refuted`, not `unclear`; `researcher.md` gives `unclear` only to what
   a new test would settle, which a production limit is not.
-- **Presentation:** "Раунд S8.1 можно коммитить: единственную находку ревью проверка отклонила";
-  the finding listed under the hunt as rejected, with the three reasons; no question.
+- **Presentation** (translated from the session's Russian): "Round S8.1 can be committed: the
+  check rejected the review's only finding"; the finding listed under the hunt as rejected, with
+  the three reasons; no question.
 - **Wall time:** 67 s for the confirmation (session 96 s, wall 99 s).
 
 ## The plan checks: the run

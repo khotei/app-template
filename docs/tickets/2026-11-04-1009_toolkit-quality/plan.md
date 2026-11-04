@@ -19,11 +19,12 @@
 | S11 | the verification's lessons L1–L3 | done |
 | S12 | a loop over the plan's steps, each to a commit without the user's OK between them | done |
 | S13 | the probes of every scope of S39's whole rewrite, one per ban; the S37 record corrected | done |
-| S14 | one more attempt at R6's `unclear` branch, with a claim no trace or run settles | todo |
+| S14 | one more attempt at R6's `unclear` branch, with a claim no trace or run settles | done |
 | S15 | the second verification's three simplifications | todo |
 | S16 | the second verification's lessons L1–L3 | todo |
 | S17 | a hook refuses the reviewer's `cat`, `head`, `tail` and `sed -n` on a tracked file (L4) | todo |
 | S18 | a Verify that repeats one check over many inputs runs them from one script | todo |
+| S19 | a claim only a run outside the repo would settle gets `unclear`, not `refuted` | todo |
 
 ## How to run this plan
 
@@ -808,7 +809,21 @@
   - `git worktree list` after the main session's removal shows no replay tree.
   - `make check` green.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:** passes that ran: Standards (sonnet) and Spec on S14.1; S14.2's two fixes checked
+  by the main session against their findings, with no review of their own. The researcher
+  answered `refuted` in 67 s ("the rollback is what the replayed ticket's R6 requires"; the SDK
+  retries `SlowDown`, `DEFAULT_MAX_ATTEMPTS = 3`), and also wrote "nothing in the repo shows that
+  a chat send burst would pass S3's per-prefix request rate": R6's `unclear` branch is still
+  unobserved.
+  - Spec — accepted, open — the plant was settled from the tree, by the replayed ticket's R6 and
+    the installed SDK's defaults; only the burst rate was left open.
+  - Spec — accepted, fixed in S19 — `researcher.md` gives `unclear` only to what a new test would
+    settle, so a claim only production shows cannot reach it.
+  - Spec — accepted, fixed in S14.2 — the section leaned on the S9 setup for its commits.
+  - Standards — accepted, fixed in S14.2 — a Russian quote in an English doc.
+  - Implementer — rejected: `replay.md:423` quotes the session's "Нет" with its gloss "(none)" —
+    the same rule as the S14.2 fix.
 
 #### S15 — The second verification's simplifications
 
@@ -901,6 +916,28 @@
 - **Model:** `opus medium`
 - **Status:** todo
 
+#### S19 — Unclear when the repo cannot settle it
+
+- **Delivers:** `researcher.md` gives `unclear` to a claim that only a new test or a run the repo
+  cannot make (a production limit, a live service's behaviour) would settle, naming what is left
+  open; a claim the evidence answers on other grounds stays `refuted` or `confirmed`.
+- **Goal:** R6's `unclear` branch; S14's finding: the researcher named the trigger as unsettled
+  and answered `refuted`.
+- **Blocked by:** none.
+- **Files:**
+  - `.claude/agents/researcher.md`, the **A confirmation** bullet.
+- **Size:** ~5.
+- **Test first:** The replay of a committed step — the no-op experiment of `researcher.md` on the
+  file with and without the line, its task S14's planted claim with a wrong outcome no
+  requirement or installed default answers (the user sees a lost title, not a 500); today the
+  verdict is `refuted`.
+- **Verify:**
+  - The experiment's two answers differ in the verdict: `unclear` with the line, naming what is
+    left open.
+  - `make check` green.
+- **Model:** `opus medium`
+- **Status:** todo
+
 ## Requirement coverage
 
 | Req | Steps |
@@ -910,7 +947,7 @@
 | R3 | S2; observed in S5 |
 | R4 | S1, S9; observed in S5, S9 |
 | R5 | S1; observed in S5; S17 |
-| R6 | S1; observed in S5; S14 |
+| R6 | S1; observed in S5; S14, S19 |
 | R7 | S3; observed in S6; S16 |
 | R8 | S3, S8; observed in S6, S8; S13, S18 |
 | R9 | S4; observed in S6 |
