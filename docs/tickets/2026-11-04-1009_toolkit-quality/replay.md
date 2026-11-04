@@ -18,10 +18,10 @@ related reason), `miss` (no later commit acted on it, or the run passed over the
 | Design | `architecture-audit` S11.1 | 2 (1 near, 1 miss), after a resent report | 43 s (session 152 s) |
 | hunt | `architecture-audit` S30.2 | 2 (1 hit, 1 miss), 1 confirmed | 41 s (session 131 s) |
 | hunt | `postgres-drizzle` S8.1 | 4 (1 hit, 2 near, 1 miss), 4 confirmed; 2 planted dropped | 80 s (session 241 s) |
-| plan-time run | `modular-monolith` S26 | 2 checks: 1 fails as expected, 1 cannot run; L4 hit | 49 s (session 131 s) |
-| plan-time run | `modular-monolith` S27 | 2 checks: 2 fail as expected; L4 hit, outside the verdicts | 62 s (session 129 s) |
+| plan-time run | `modular-monolith` S26 | 2 checks: 1 fails as expected, 1 cannot run; L4 miss at the verdict, hit in the researcher's note | 49 s (session 131 s) |
+| plan-time run | `modular-monolith` S27 | 2 checks: 2 fail as expected; L4 miss at the verdict, hit in the researcher's note | 62 s (session 129 s) |
 | plan-time run | `modular-monolith` S30 | 2 checks: 1 fails as expected, 1 cannot run; L4 miss | 15 s (session 79 s) |
-| plan-time run | `modular-monolith` S36 | 2 checks: 2 fail as expected; L4 hit, outside the verdicts | 57 s (session 118 s) |
+| plan-time run | `modular-monolith` S36 | 2 checks: 2 fail as expected; L4 miss at the verdict, hit in the researcher's note | 57 s (session 118 s) |
 | plan-time run | `modular-monolith` S37 | 3 checks: 2 fail as expected, 1 passes; L4 near | 71 s (session 166 s) |
 | probes | `modular-monolith` S39 | 50 probes, 50 fail before; 37 no longer fail after, L8's among them | 116 s (session 378 s), rerun 99 s |
 
@@ -274,9 +274,10 @@ verbatim), ## Probes that did not fail (or none).
   at all", `debugger` as a control included; and the ban `@app-template/worker/**` already matches
   `…/worker/testing` today, so the check cannot tell the step's state.
 - **Fixes:** both checks rewritten, (2) as a grep of `"./layer"` in the apps' `package.json`.
-- **Against L4: hit.** S26's own finding: "Verify's grep was narrowed to
-  `@app-template/(api|worker)/layer`: the written one matched the internal `#api/layer` imports
-  `main.ts` keeps". The check came back `fails as expected`; the hit is in the researcher's note.
+- **Against L4: miss at the verdict, hit in the researcher's note.** S26's own finding: "Verify's
+  grep was narrowed to `@app-template/(api|worker)/layer`: the written one matched the internal
+  `#api/layer` imports `main.ts` keeps". Check 1 came back `fails as expected`; its `cannot run`
+  is check 2's, another defect.
 
 ### S27 — the packages one workspace, the kernel's parts one entry each
 
@@ -290,8 +291,9 @@ verbatim), ## Probes that did not fail (or none).
   worktree under `/tmp`, removed after; `git worktree list` shows none.
 - **Fixes:** "Нет" (none) by the rule, since no check came back `passes` or `cannot run`; the
   session still wrote both rewrites below it.
-- **Against L4: hit.** S27's Verify names the stores, `kernel/data/(attachment|chat|file|job|user)['/]`,
-  the researcher's option 1. Its "finds only the repositories' service keys" was not seen.
+- **Against L4: miss at the verdict, hit in the researcher's note.** S27's Verify names the
+  stores, `kernel/data/(attachment|chat|file|job|user)['/]`, the researcher's option 1. Its "finds
+  only the repositories' service keys" was not seen.
 
 ### S30 — a Biome list per workspace
 
@@ -314,7 +316,7 @@ verbatim), ## Probes that did not fail (or none).
   `repos/effect/ai-docs/src/80_cluster/10_entities.ts:76,91` (`ClusterLayerTest`) and another
   ticket's plan, which stay after the step: "As written, the check can never come back empty."
 - **Fixes:** `Tests  103 passed (103)` named, the pathspec `-- . ':!docs/tickets' ':!repos'` added.
-- **Against L4: hit** (the vendored `repos/effect`), again in the researcher's note, not a verdict.
+- **Against L4: miss at the verdict, hit in the researcher's note** (the vendored `repos/effect`).
 
 ### S37 — the docs the branch review found out of step with the code
 
@@ -333,6 +335,9 @@ verbatim), ## Probes that did not fail (or none).
 
 - **The list:** one probe per override of `biome.json` at `8572da12bf` (48) and one per root rule
   that bans an import (relative paths, `noImportCycles`), each run by `bunx biome lint <probe>`.
+  A ban here is one override, as `/ticket-plan` step 3 defines it ("one scope of the guard (a
+  Biome override …)"), not one of the overrides' 176 ban groups: `apps/api/**` has four, and P41
+  plants only the repository one. R8's "one probe per ban the guard enforces" is observed in part.
   The template there has no Probes shape (the replay copies only `.claude/agents/` and
   `.claude/skills/`), so the session wrote its own; the list below puts it in the ticket's shape.
 - **Before:** 50 of 50 fail, each with exit 1 and the ban on the planted line; `git status
@@ -349,6 +354,16 @@ verbatim), ## Probes that did not fail (or none).
   each layer's override over its tests. The other 29 S39 meant to leave to the manifests and
   `tsc -b`; the probes ran against Biome alone (the plan's trap), so whether another tool holds
   each is not checked here.
+- **L8's bans with no probe of their own:**
+  - `apps/api/**`'s "the apps never import each other or deployment": probed only through
+    `apps/api/layer.ts` (P42), another override;
+  - `apps/worker/**`'s same group: P44 and P45 plant `@app-template/http-api`, not another app or
+    `deployment`;
+  - `apps/web`'s: no probe imports another app or `deployment` (P47 a module, P48 `http-api`);
+  - `deployment/**`'s "may import only packages/* and of the kernel its config, the inventory
+    (/aws) and /data": P49 plants the `unboundTag` group alone;
+  - the domain tests': no override at `8572da12bf` covers `__tests__/domain/`, so there was none
+    to probe; P9 covers the infrastructure tests' override.
 
 - **Probes** (`biome.json`, run at plan time; `bunx biome lint <path>`):
   - P1 root, relative path — `probe.ts`: `import { x } from './x'` → `1:19` "inside a workspace import through its #<workspace>/… subpath, never a relative path" — after: fails (plugin)
@@ -477,13 +492,14 @@ verbatim, headed by its agent, model and effort).
   one test counts as a behaviour step; that case was not run.
 - **R7:** among the 11 checks of the five steps, two `cannot run` (S26's Biome probe through
   stdin, S30's undefined script) and one `passes` (S37's `make doc-names`), each with a fix. **The
-  verdicts themselves catch none of L4's five defects:** S26's, S27's and S36's are checks that
-  `fail as expected` today and could never pass after the step, found only in the researchers'
-  notes, which the sessions' briefs asked for; S30's is of the same kind and was missed; S37's
-  came near.
-- **R8:** one probe per override of `biome.json` at `8572da12bf`, and per root rule that bans an
-  import, each with its failing line; after S39's change the probes of the overrides L8 names no
-  longer fail (P9, P41–P46, P49), and neither do 29 others under Biome.
+  verdicts themselves catch none of L4's five defects:** at the verdict, S26, S27, S30 and S36 are
+  misses, each a check that `fails as expected` today and could never pass after the step. S26's,
+  S27's and S36's are hits in the researchers' notes, which the sessions' briefs asked for; S30's
+  is missed there too; S37's came near.
+- **R8, in part:** one probe per override of `biome.json` at `8572da12bf`, and per root rule that
+  bans an import, each with its failing line, not one per ban group (176); after S39's change the
+  probes of the overrides L8 names no longer fail (P9, P41–P46, P49), and neither do 29 others
+  under Biome. Four of L8's bans have no probe of their own (the list above).
 - **R9:** S22's Standards brief names `mattpocock-skills:writing-for-agents` and its implementer
   brief does not; the move's Standards brief does not either.
 
@@ -509,9 +525,10 @@ The plan checks and the briefs:
 - **The plan-time run finds what the past plans got wrong, but outside its verdicts.** Three of
   L4's five came back `fails as expected` with a note that the check could never pass after the
   step; the rule fixes only `passes` and `cannot run`, so S27's session wrote "Fixes: none" above
-  the two rewrites it went on to propose. The one miss, S30's glob, is the same kind: no
-  researcher ran a check against the state its step creates.
-- **The probes make a guard rewrite's losses countable:** 37 of 50 bans no longer fail Biome after
-  S39, L8's four among them, for 116 s of a researcher and a 99 s rerun.
+  the two rewrites it went on to propose. S30's glob, the same kind, is missed in the notes too:
+  no researcher ran a check against the state its step creates.
+- **The probes make a guard rewrite's losses countable:** 37 of 50 probes no longer fail Biome
+  after S39, L8's four overrides among them, for 116 s of a researcher and a 99 s rerun; one probe
+  per override leaves most of the 176 ban groups unplanted.
 - **The briefs follow the skill's one test:** `writing-for-agents` reaches the Standards brief of
   an instruction edit only, and a rename with its content unchanged gets Standards and Spec alone.

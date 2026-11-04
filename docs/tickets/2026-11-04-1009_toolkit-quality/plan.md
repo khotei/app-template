@@ -11,7 +11,7 @@
 | S3 | a plan's new checks run before it is presented; a guard's bans probed in a disposable worktree | done |
 | S4 | writing-for-agents in the Standards pass of instruction edits; a bug ticket starts from a red command | done |
 | S5 | the replay of the Design pass and the hunt on five committed steps, with their wall time | done |
-| S6 | the replay of the plan-time run and the probes; the briefs seen as the skill writes them; the roadmap's re-count note | todo |
+| S6 | the replay of the plan-time run and the probes; the briefs seen as the skill writes them; the roadmap's re-count note | done |
 
 ## How to run this plan
 
@@ -422,7 +422,32 @@
   - `git worktree list` after the main session's removal shows no replay tree.
   - `make check` green.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Spec — accepted, fixed in S6.2 — `replay.md`, the probe list — R8 — judgement — the probes
+    are one per override (48 overrides, 176 ban groups at `8572da12bf`), so R8's per-ban ask is
+    observed in part and four of L8's bans had no probe of their own; now stated.
+  - Spec — accepted, fixed in S6.2 — `replay.md`, the probes summary — R8 — judgement — "37 of 50
+    bans" counted probes as bans; now "37 of 50 probes".
+  - Spec — accepted, fixed in S6.2 — `replay.md`, the plan-time rows — R7 — judgement — S26, S27
+    and S36 read as L4 hits though their defects came back `fails as expected`; now misses at the
+    verdict, hits only in the researcher's note.
+  - Replay — accepted, open — the Red list has no verdict for a check that fails today and can
+    never pass after its step, the kind of three of L4's five defects; left to a ticket of its
+    own (`verification.md` Lessons).
+  - Replay — accepted, open — a real move rewrites its importers' `.ts` lines, so the skill's
+    test makes it a behaviour step and R1's "no design pass on a move" holds only for a rename
+    with untouched importers; S22's Standards and Spec briefs carry `code-review`'s own asks
+    against "names its sources and nothing else"; `/ticket-plan` counts a ban as an override,
+    R8 as a ban group. All three left to the next ticket (`verification.md` Lessons).
+  - Decision, the user's, after reading S5's replay: the reviewer's default effort stays
+    `medium` (D8).
+  - Deviation: the S22 tree keeps its own `.claude/`, since S22's diff edits the files the replay
+    would commit; its session read the ticket's skill and agents by absolute path.
+  - Deviation: the gate is the main tree's `make check`; the synthetic-move tree is red by design
+    (`packages/aws/index.ts(1,37): error TS2307: Cannot find module '#aws/naming'`).
+  - Deviation: a probe fails by its ban diagnostic, not the exit code, since `biome check` exits 1
+    on formatting alone (P42, P45, P48).
 
 ## Requirement coverage
 
