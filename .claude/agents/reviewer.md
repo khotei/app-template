@@ -55,7 +55,8 @@ the diff, not how it was made.
 
   - **Hunt:** correctness bugs and silent failures. Of each construct that absorbs an error (a
     catch-all, a fallback, an ignore, a default for an absent value, a retry, an error folded
-    into a refusal), ask which failure it hides and who learns of it.
+    into a refusal, a discarded result such as a write's answer of what it changed), ask which
+    failure it hides and who learns of it.
 - **The main session's edits are no finding.** It writes `plan.md` (status, findings),
   `architecture.md › Decisions`, a decision's record and the commit after the review, from the
   implementer's report; an unrecorded deviation is a finding only when that report omits it.

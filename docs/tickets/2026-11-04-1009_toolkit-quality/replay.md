@@ -25,6 +25,8 @@ related reason), `miss` (no later commit acted on it, or the run passed over the
 | plan-time run | `modular-monolith` S37 | 3 checks: 2 fail as expected, 1 passes; L4 near | 71 s (session 166 s) |
 | probes | `modular-monolith` S39 | 50 probes, 50 fail before; 37 no longer fail after, L8's among them | 116 s (session 378 s), rerun 99 s |
 | probes per ban | `modular-monolith` S39, four overrides | 18 probes, 18 fail before; 13 no longer fail after, each of L8's four bans among them, 5 still fail | 2.3 s, rerun 2 s, a script with no agent |
+| hunt, again (S9) | `postgres-drizzle` S8.1 | 2 (2 miss), 2 confirmed; the discarded result named, its failure judged handled | 78 s (session 206 s) |
+| Design, on opus (S9) | `postgres-drizzle` S10.1 | 4 (1 hit, 1 near, 2 miss) | 19 s (session 125 s) |
 
 Wall time is the pass's: its reviewer's or researcher's `totalDurationMs`, plus a resent round,
 plus the confirmations (run in parallel, so their span); the session's `duration_ms` adds the main
@@ -43,6 +45,8 @@ What the problems found later came to:
 | S11.1 | one wrapper per message write, a service with no rule of its own (`9a3863c3cb`) | near, candidate 1: the four wrappers seen, a combinator proposed, not the service's removal |
 | S30.2 | a failing `perl` piped into `grep .` passes the gate (`f09318d2ce`) | hit, finding 1, `shown` |
 | S8.1 | a write's "did it write" answer discarded, a deleted chat ignored (`f6e2561120`) | **not found**: the report says "I found no silent fallback in `ChatRepositoryPg.update`" while `touch` wraps it in `Effect.asVoid` |
+| S10.1, on opus (S9) | a send-only client implementing consume as a die (`9d50a4775a`) | hit, candidate 2 |
+| S8.1, again (S9) | the same | **named, its failure missed**: listed under "nothing wrong" as "only matters when the chat was deleted at the same time, which the job already handles" |
 
 ## The run
 
@@ -211,6 +215,69 @@ The first has no scenario; the second is false (line 174 runs after the update h
   scenario … so by step 4 it is not shown".
 - **Presentation:** the four confirmed findings, three asked as questions; `:174` reported as
   refuted and `:161` as not shown, neither among the findings.
+
+## The runs of S9
+
+Two runs after `reviewer.md`'s hunt also names a discarded result, in
+`.claude/worktrees/toolkit-quality-S9-hunt-s8-1` and `…-S9-design-s10-1`, set up as above. The
+step's `reviewer.md` was copied into each and marked `git update-index --skip-worktree`, so the
+session spawned it while `git diff HEAD` showed only the round; the hunt reviewer's transcript
+holds the new line. The prompt is the one above with
+"Spawn every agent, reviewer and researcher alike, with model opus." after the effort sentence,
+no `<planted>` lines and no appended ones. Both ran at once, 14:52 to 14:55; Claude Code 2.1.311.
+
+## hunt — `postgres-drizzle` S8.1, again (S9)
+
+- **Brief named:** the diff (no untracked files), its 28 files, seven callers. **Lacked:** none.
+  The reviewer `opus`, effort `low`, 41 s, seven `Bash` calls over `git diff` and `grep`.
+- **Report:**
+  - `attachment.service.ts:174` — `store.keep` runs inside the send's transaction, which cannot
+    undo it, so a rolled-back send leaves bytes kept forever — claimed — **miss** (S5's fourth
+    finding again; `store.keep` still precedes the bind at `f6e2561120`,
+    `attachment.service.ts:175`).
+  - `chat-title.job.ts:25` — the job calls the model before learning that a rename titled the
+    chat, one LLM call wasted — claimed — **miss** (the job is unchanged at `f6e2561120`; the plan
+    asked it to drop its chat reads).
+  - Under "I checked these and found nothing wrong": "**Ignored write results:** `touch` and
+    `writeSettled` drop the 'wrote or not' answer. That only matters when the chat was deleted at
+    the same time, which the job already handles as 'chat deleted'."
+- **The discarded result:** named, with the input that matters, a chat deleted beside the send.
+  The outcome is wrong: `touch` runs in the send, not in a job, and the deletion surfaces as the
+  foreign key's failure, a 500, which `f6e2561120` turns into `ChatNotFoundError` by reading the
+  update's answer. **A miss on the failure it hides** (R4).
+- **Lost:** S5's hit, the enqueues inside the transaction while the api sends through
+  `QueueClientSqs`. The reviewer grepped `apps/api/src/layer.ts` (`QueueClientSqs`), then
+  `queue.client.ts` for `outbox|insert`, and wrote "both jobs go through `QueueClientSqs`, which
+  writes to the `outbox` table": the insert it saw is `QueueClientOutbox`'s.
+- **Confirmations**, researchers on opus, launched as background agents: `confirmed` for both,
+  37 s and 21 s, in parallel; the first narrows the fix ("covers a lost bind race, but not a
+  rollback caused by `addAssistantMessage`, `touch` or `enqueue` after `keep`").
+- **Presentation:** both asked as questions, the first recommending `keep` last before the
+  commit, the second keeping the plan's choice.
+
+## Design — `postgres-drizzle` S10.1, on opus (S9)
+
+- **Brief named:** as S5's, the same seven untracked files, four callers, `design-examples.md`,
+  `docs/knowledge/architecture.md`, D2–D4, D9, D10, D13, D21. **Lacked:**
+  `.claude/rules/deep-modules.md`, `docs/knowledge/decisions.md`.
+- **Model:** `opus`, effort `low`, in the session's `Agent` call and in every assistant message
+  of the reviewer's transcript (`claude-opus-5-5`); 19 s, one `Bash` call (`git diff` of four
+  paths and `cat` of the untracked files). Not `design-examples.md`.
+- **Report** (each candidate with a before and an after sketch and a strength):
+  1. `Plainer implementation: move QueueClientOutbox into infrastructure/outbox/ — Strong`,
+     `infrastructure/shared/queue.client.ts:32` — **miss** (S5's candidate 2; `QueueSenderOutbox`
+     is still in `shared/queue.client.ts` at `9d50a4775a`). Its lens is a move, not a plainer body.
+  2. `Narrower interface: give the api a send-only port instead of a consume that dies — Worth
+     exploring`, `queue.client.ts:53` — **hit** (`9d50a4775a`, `QueueSender` and `QueueConsumer`):
+     the defect S5's fable run did not find.
+  3. `Composition: have shared export one SQS transport layer for the worker — Worth exploring`,
+     `apps/worker/src/layer.ts:18` — **near** (`171d8b6249` moves `OutboxRelaySqs` beside
+     `OutboxRelay`, out of the app; the candidate keeps the relay's wiring in the app).
+  4. `Plainer implementation: store the full queue name in the outbox row — Speculative`,
+     `outbox.relay.ts:39` — **miss** (the relay still builds the name at `9d50a4775a`).
+- **Confirmations:** none.
+- **Presentation:** 1 asked, recommending the move; 2 asked, recommending to keep D4's `consume`
+  that dies; 3 forwarded; 4 rejected.
 
 ## The plan checks: the run
 
@@ -516,11 +583,15 @@ verbatim, headed by its agent, model and effort).
 
 - **R1, R2:** three Design reports, 3, 4 and 2 candidates, each with a strength and a before and
   an after sketch; none on import direction. Two labels name no lens (S2.1's "Coupling", S10.1's
-  "Plainer" for "a shorter or plainer implementation").
-- **R3:** each Design brief names `.claude/skills/ticket-implement/design-examples.md`. Two of
-  the four reports at effort `low` were written without reading it (S2.1, S11.1's first).
+  "Plainer" for "a shorter or plainer implementation"). S9's S10.1 run on opus keeps the shape:
+  four candidates, each with both sketches and a strength.
+- **R3:** each Design brief names `.claude/skills/ticket-implement/design-examples.md`. Three of
+  the five reports at effort `low` were written without reading it (S2.1, S11.1's first, S9's
+  S10.1).
 - **R4:** S30.2 names the swallowed construct, perl's failure under `| grep .`, and what it hides,
-  a gate that passes unchecked. S8.1 misses its own: `touch`'s `Effect.asVoid`.
+  a gate that passes unchecked. S8.1 misses its own: `touch`'s `Effect.asVoid`. Asked of a
+  discarded result (S9), the hunt names `touch`'s and judges it handled: **a second miss** on the
+  failure it hides, a send that loses to a delete ending in a 500.
 - **R5:** every behaviour finding presented has an input → wrong outcome, and the planted one
   without a scenario was not presented. The code location held only after the confirmations:
   every `path:line` the S8.1 reviewer gave was a line of the `git diff` output, not of the file,
@@ -549,20 +620,24 @@ verbatim, headed by its agent, model and effort).
 
 ## What the replay shows
 
-These read the four runs whose reviewer ran on the agent's own model, opus; S10.1, whose
-reviewer ran on fable, is left out.
+These read the runs whose reviewer ran on the agent's own model, opus: S5's four and S9's two;
+S5's S10.1, whose reviewer ran on fable, is left out.
 
 - **The reviewer at effort `low` reads less than its brief names, and cites lines from `Bash`
-  output.** All four read the code only through `Bash` output (`git diff`, `cat`), against
+  output.** All six read the code only through `Bash` output (`git diff`, `cat`, `grep`), against
   `reviewer.md`'s "read each file with the `Read` tool, one per call". S11.1's first report and
   all of S8.1's line numbers came from that output. A hunt finding is corrected by its
   confirmation; a Design candidate has none, and S11.1's was caught only because its lines passed
   the file's end.
 - **The hunt finds the failures a step introduces, not always the one it was chosen for.** Both
   hunts found a real failure a later round fixed (S30.2 in its own words, S8.1's enqueue before
-  commit); S8.1 missed the discarded answer and declared there was none.
+  commit); S8.1 missed the discarded answer and declared there was none. Told to question a
+  discarded result, S9's run on S8.1 found it and judged it harmless, and lost S5's hit by
+  reading a grep line of `QueueClientOutbox` as `QueueClientSqs`'s: one run per step varies more
+  than the instruction moves it.
 - **Design comes within one later change per step:** a hit on S2.1, a near on S11.1, where the
-  later commit removed the service the candidate kept.
+  later commit removed the service the candidate kept, and a hit on S10.1 on opus (S9), the
+  send-only port the fable run did not find, in 19 s against fable's 74 s.
 
 The plan checks and the briefs:
 
