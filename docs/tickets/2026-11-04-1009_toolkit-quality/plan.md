@@ -18,6 +18,11 @@
 | S10 | the five simplifications of the verification | done |
 | S11 | the verification's lessons L1–L3 | done |
 | S12 | a loop over the plan's steps, each to a commit without the user's OK between them | done |
+| S13 | the probes of every scope of S39's whole rewrite, one per ban; the S37 record corrected | todo |
+| S14 | one more attempt at R6's `unclear` branch, with a claim no trace or run settles | todo |
+| S15 | the second verification's three simplifications | todo |
+| S16 | the second verification's lessons L1–L3 | todo |
+| S17 | a hook refuses the reviewer's `cat`, `head`, `tail` and `sed -n` on a tracked file (L4) | todo |
 
 ## How to run this plan
 
@@ -725,6 +730,127 @@
   - Standards — rejected: the loop stays in one section, which the skill's opening links — the
     stop list belongs in step 6.
 
+
+#### S13 — The probes of a whole rewrite
+
+- **Delivers:** a probe per ban of every scope `/ticket-plan` step 3 names for S39, which rewrites
+  the guard whole and adds the plugin: each override's groups, the root config's bans, and the
+  plugin's diagnostics as an added scope's own; each with its output at `8572da12bf` and after
+  S39 (`dbb29d488a`). The S37 row of the plan-time run records `doc-width` as it ran on a clean
+  parent.
+- **Goal:** R8, from `verification.md` run 2; R7's record (run 2, R7 row).
+- **Blocked by:** none.
+- **Files:**
+  - `docs/tickets/2026-11-04-1009_toolkit-quality/probes-s39.md`: **new**, the probe list in the
+    template's Probes shape, one line per probe.
+  - `docs/tickets/2026-11-04-1009_toolkit-quality/replay.md`: the probes section points to it,
+    with its counts and wall time; S37's `doc-width` row and the "one `passes`" summary.
+- **Size:** ~250, the list most of it.
+- **Test first:** The plan-time run on a past plan — at `8572da12bf`, `jq` counts 176 restriction
+  groups across the overrides, and the S8 rerun probed 18.
+- **Verify:**
+  - Per override, the distinct messages among its probes equal its groups, by the same `jq` count;
+    a group with no probe or two groups sharing one fails it.
+  - Every probe but the plugin's fails at `8572da12bf` with its own message; the plugin's fail
+    after S39 only.
+  - `make check` green.
+- **Model:** `opus high`
+- **Status:** todo
+
+#### S14 — An unclear confirmation, seen
+
+- **Delivers:** a replay of `/ticket-implement` step 4 on a round with a planted `claimed` finding
+  that neither a trace of the code nor a run in the tree can settle (a limit of a production
+  service, say); the researcher's verdict and whether the main session asks it as a question.
+- **Goal:** R6's `unclear` branch, from `verification.md` run 2.
+- **Blocked by:** S13, which edits `replay.md`.
+- **Files:**
+  - `docs/tickets/2026-11-04-1009_toolkit-quality/replay.md`: the run, its prompt, the verdict
+    quoted and its wall time.
+  - The replay as in S9: a worktree at `7a2c073f1d` with round `a2c21e2502` applied uncommitted,
+    set up and removed by the main session.
+- **Size:** ~40.
+- **Test first:** The replay of a committed step — runs 1 and 2 planted two such claims each, and
+  each came back `refuted`.
+- **Verify:**
+  - The researcher answers `unclear` and the session's presentation holds the finding as a
+    question with what could not be settled; a `refuted` or `confirmed` answer is recorded as such,
+    with the claim that drew it.
+  - `git worktree list` after the main session's removal shows no replay tree.
+  - `make check` green.
+- **Model:** `opus high`
+- **Status:** todo
+
+#### S15 — The second verification's simplifications
+
+- **Delivers:** the guard-probe definition of `/ticket-plan` step 3 in a sibling file behind one
+  pointer; the move definition of `/ticket-implement` its own bullet, out of `simplify`'s;
+  `.claude/CLAUDE.md` without the line `sdd.md › Artifacts` owns.
+- **Goal:** `verification.md` run 2 › Simplifications 1–3; no behaviour changes.
+- **Blocked by:** none.
+- **Files:**
+  - `.claude/skills/ticket-plan/SKILL.md:31-46` and a new sibling file.
+  - `.claude/skills/ticket-implement/SKILL.md:26-37`.
+  - `.claude/CLAUDE.md:20`.
+- **Size:** ~50.
+- **Test first:** `make check` over the edited skills, agents and templates — a backticked path to
+  the new file resolves.
+- **Verify:**
+  - `git grep -n "Update \`docs/knowledge/\`" .claude/CLAUDE.md` — no hit.
+  - Every relative link of the edited files resolves, by a relative-link script (CI's `links` job
+    runs `lychee --offline`).
+  - `make check` green.
+- **Model:** `opus high`
+- **Status:** todo
+
+#### S16 — The second verification's lessons
+
+- **Delivers:** the implementer leaves a Verify line that names a researcher to the main session;
+  before changing a rule's wording, it greps the old phrase and edits every copy in the round; the
+  plan-time Red run plants, once, the break each check is meant to catch, and the plan fixes every
+  check that still passes.
+- **Goal:** `verification.md` run 2 › Lessons L1–L3; L2 also the Problem's L4.
+- **Blocked by:** S15, which edits `ticket-plan`.
+- **Files:**
+  - `.claude/agents/implementer.md`, Disciplines: L1's and L3's lines.
+  - `.claude/skills/ticket-plan/SKILL.md`, step 4: L2's line.
+  - `docs/tickets/2026-11-04-1009_toolkit-quality/verification.md`: run 2's L1–L3 **Applied:**
+    read `yes, S16`.
+- **Size:** ~20.
+- **Test first:** A brief as the skill writes it — today no agent file leaves a researcher's
+  check to the main session, and step 4's Red run never plants a break.
+- **Verify:**
+  - `grep -c 'Applied:\*\* yes, S16' docs/tickets/2026-11-04-1009_toolkit-quality/verification.md`
+    — 3.
+  - `make check` green.
+- **Model:** `opus high`
+- **Status:** todo
+
+#### S17 — The reviewer reads through Read
+
+- **Delivers:** a `PreToolUse` hook on the `reviewer` agent's `Bash` refuses `cat`, `head`, `tail`
+  and `sed -n` on a tracked file, naming `Read`; `git diff`, `git show` and every other command
+  pass (D11).
+- **Goal:** `verification.md` run 2 › L4; R5's `path:line`.
+- **Blocked by:** none.
+- **Files:**
+  - `.claude/agents/reviewer.md`, frontmatter: the hook.
+  - `.claude/hooks/`: the hook's script, beside `bash-guard.sh`.
+  - `docs/knowledge/sdd.md`: the dependency map's hook row.
+  - `docs/tickets/2026-11-04-1009_toolkit-quality/verification.md`: run 2's L4 **Applied:** reads
+    `yes, S17`.
+- **Size:** ~50.
+- **Test first:** The hook run on a tool input — `cat -n application/chat/chat.service.ts` passes
+  today.
+- **Verify:**
+  - Probes, one per refused form, each fed to the script as a `PreToolUse` input: `cat -n`,
+    `head -n 40`, `tail -n 40`, `sed -n '1,40p'` on a tracked file — each refused with a message
+    naming `Read`; controls `git diff HEAD`, `git show HEAD:<file>`, `cat` of a file outside the
+    repo — each passes.
+  - `make check` green.
+- **Model:** `opus high`
+- **Status:** todo
+
 ## Requirement coverage
 
 | Req | Steps |
@@ -733,10 +859,10 @@
 | R2 | S2; observed in S5 |
 | R3 | S2; observed in S5 |
 | R4 | S1, S9; observed in S5, S9 |
-| R5 | S1; observed in S5 |
-| R6 | S1; observed in S5 |
-| R7 | S3; observed in S6 |
-| R8 | S3, S8; observed in S6, S8 |
+| R5 | S1; observed in S5; S17 |
+| R6 | S1; observed in S5; S14 |
+| R7 | S3; observed in S6; S16 |
+| R8 | S3, S8; observed in S6, S8; S13 |
 | R9 | S4; observed in S6 |
 | R10 | S4 |
 | R11 | S5, S6, S9 |

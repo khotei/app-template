@@ -340,6 +340,17 @@ real input. `tdd` writes no test here; a step's *Test first* names the seam to o
     - The built-in `/loop` — it fires on a timer, while a step ends on a notification, so a timer
       either waits for nothing or starts while a step still runs.
 
+- **D11 — The reviewer's reads of a tracked file go through `Read`, held by a hook on its `Bash`.**
+  - **Why:** run 1's L2 put the rule in `reviewer.md`, and run 2's S8.1 re-run still cited two
+    blank lines read through `cat -n`; a rule line did not change what a reviewer at effort `low`
+    does, a hook does.
+  - **Cost accepted:** a reviewer that wants a range uses `Read`'s offset; a file's past version
+    still comes through `git show`.
+  - **Reversal:** one commit.
+  - **Rejected:**
+    - A stronger line in `reviewer.md` — L2's line was already that line.
+    - The main session re-reading each `shown` finding's line — it reads no code (step 4).
+
 None of these binds beyond the toolkit, so none adds a record to `docs/knowledge/decisions.md`;
 `docs/knowledge/sdd.md` explains them.
 
