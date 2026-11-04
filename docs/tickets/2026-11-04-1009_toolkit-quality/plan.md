@@ -23,6 +23,7 @@
 | S15 | the second verification's three simplifications | todo |
 | S16 | the second verification's lessons L1–L3 | todo |
 | S17 | a hook refuses the reviewer's `cat`, `head`, `tail` and `sed -n` on a tracked file (L4) | todo |
+| S18 | a Verify that repeats one check over many inputs runs them from one script | todo |
 
 ## How to run this plan
 
@@ -879,6 +880,27 @@
 - **Model:** `opus high`
 - **Status:** todo
 
+#### S18 — One script for a repeated check
+
+- **Delivers:** `/ticket-plan` step 3 asks a Verify that repeats one check over many inputs (a
+  probe list, a count per file) to run them from one script the step names, not one tool call
+  each, so the plan-time run and the step's Verify rerun the same set.
+- **Goal:** R8's "the step's checks SHALL run the same probes after the change"; S13's cost: 89
+  minutes for 180 probes, where the script's run took 34 s.
+- **Blocked by:** S15, which moves step 3's probe definition into a sibling file.
+- **Files:**
+  - `.claude/skills/ticket-plan/SKILL.md`, step 3's **Verify**, or the sibling file S15 adds
+    when the line belongs with the probes.
+- **Size:** ~5.
+- **Test first:** The plan-time run on a past plan — the no-op experiment of
+  `.claude/agents/researcher.md` on the skill with and without the line, each asked for S13's
+  Verify; today the answer does not name a script.
+- **Verify:**
+  - The experiment's two answers differ in whether the Verify names one script for the probes.
+  - `make check` green.
+- **Model:** `opus medium`
+- **Status:** todo
+
 ## Requirement coverage
 
 | Req | Steps |
@@ -890,7 +912,7 @@
 | R5 | S1; observed in S5; S17 |
 | R6 | S1; observed in S5; S14 |
 | R7 | S3; observed in S6; S16 |
-| R8 | S3, S8; observed in S6, S8; S13 |
+| R8 | S3, S8; observed in S6, S8; S13, S18 |
 | R9 | S4; observed in S6 |
 | R10 | S4 |
 | R11 | S5, S6, S9 |
