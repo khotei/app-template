@@ -1,8 +1,7 @@
 ---
 name: ticket-feature
-description: "SDD 1/5: grill an idea into docs/tickets/<date-time>_<slug>/feature.md"
+description: "SDD 1/5: grill an idea into docs/tickets/<date-time>_<slug>/feature.md. Run only when the user asks for this phase"
 argument-hint: "<slug> [idea, notes or link]"
-disable-model-invocation: true
 ---
 
 Turn `$ARGUMENTS` into the ticket's `feature.md`: what changes and why, as EARS requirements the

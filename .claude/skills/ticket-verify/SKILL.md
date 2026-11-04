@@ -1,8 +1,7 @@
 ---
 name: ticket-verify
-description: "SDD 5/5: verify a whole ticket in a fresh context into verification.md with Lessons"
+description: "SDD 5/5: verify a whole ticket in a fresh context into verification.md with Lessons. Run only when the user asks for this phase"
 argument-hint: "<ticket folder>"
-disable-model-invocation: true
 ---
 
 Verify the ticket at `$ARGUMENTS` before its PR: does the branch do what `feature.md` asks, and

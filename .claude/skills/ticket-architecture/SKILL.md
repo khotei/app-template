@@ -1,8 +1,7 @@
 ---
 name: ticket-architecture
-description: "SDD 2/5: design a ticket into architecture.md with Seams and Decisions"
+description: "SDD 2/5: design a ticket into architecture.md with Seams and Decisions. Run only when the user asks for this phase"
 argument-hint: "<ticket folder>"
-disable-model-invocation: true
 ---
 
 Design the ticket at `$ARGUMENTS` into its `architecture.md`: where the change lives, the Seams

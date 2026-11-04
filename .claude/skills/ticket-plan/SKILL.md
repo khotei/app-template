@@ -1,8 +1,7 @@
 ---
 name: ticket-plan
-description: "SDD 3/5: turn feature.md and architecture.md into a reviewed plan.md"
+description: "SDD 3/5: turn feature.md and architecture.md into a reviewed plan.md. Run only when the user asks for this phase"
 argument-hint: "<ticket folder>"
-disable-model-invocation: true
 ---
 
 Write the implementation plan for the ticket at `$ARGUMENTS`. **This is the heavy review**: later

@@ -1,8 +1,7 @@
 ---
 name: ticket-implement
-description: "SDD 4/5: implement one plan.md step, review it, and commit it under the commit gate"
+description: "SDD 4/5: implement one plan.md step, review it, and commit it under the commit gate. Run only when the user asks for this phase"
 argument-hint: "<ticket folder> [step id | loop, default: next todo]"
-disable-model-invocation: true
 ---
 
 Take one step of the ticket at `$ARGUMENTS` from `todo` to a commit; given `loop` in place of a

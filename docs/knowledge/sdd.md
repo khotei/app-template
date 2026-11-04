@@ -31,8 +31,10 @@ An older `Refs:` line may name a folder before its rename: the slug is unchanged
 
 ## The five skills
 
-All five are typed by you (`disable-model-invocation: true`) and run in the main session, because
-grilling, plan review and the commit gate need you. Each takes the ticket folder, except
+All five run in the main session, because grilling, plan review and the commit gate need you.
+You start one by typing it or by asking for its phase in words (`run the verify yourself`); the
+model never starts one on its own, and the [gates](../../.claude/rules/sdd.md#gates) (a commit, a
+push, a PR, a merge) still wait for you. Each takes the ticket folder, except
 `/ticket-feature`, which takes a slug.
 
 | Skill | Input | You decide | Output |
