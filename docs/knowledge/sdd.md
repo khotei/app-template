@@ -138,8 +138,8 @@ step, then the review passes, then you. Why it is cut so:
 - **The implementer cannot finish red.** A hook runs `make check` when it stops and sends it
   back; `BLOCKED:` is its only way out, and reaches you unchanged.
 - **The main session runs `simplify`, never the implementer,** so the agent that wrote the code
-  does not judge its own cuts. A pure move skips it: its files keep their content for `git` to
-  see the rename.
+  does not judge its own cuts. A move skips it, even with its import lines rewritten to
+  the new paths: its files keep their content for `git` to see the rename.
 - **Each review pass is its own `reviewer` in a fresh context,** and owns one kind of finding, so
   one pass cannot hide another and no finding comes twice. Design runs only on a behaviour step,
   where the shape is still cheap to change; the hunt for bugs only on a step whose kind of change
