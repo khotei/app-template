@@ -16,7 +16,7 @@
 | S8 | a guard's probes are one per ban group, not one per scope | done |
 | S9 | the hunt questions a discarded result; S8.1's hunt and S10.1's Design replayed again | done |
 | S10 | the five simplifications of the verification | done |
-| S11 | the verification's lessons L1–L3 | todo |
+| S11 | the verification's lessons L1–L3 | done |
 | S12 | a loop over the plan's steps, each to a commit without the user's OK between them | done |
 
 ## How to run this plan
@@ -668,7 +668,15 @@
     — three hits.
   - `make check` green.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:** passes that ran: Standards (sonnet, with writing-for-agents) and Spec on S11.1;
+  no `simplify`, Design or hunt, an instruction-only step. L2's line drops "at `HEAD`": the step
+  under review is uncommitted, so `Read` cites the working tree. Verify 1: `grep -n
+  'Applied:\*\* yes, S11'` gives `161:`, `172:` and `183:`.
+  - Spec — rejected: in the skill "a fix you recommend" is what step 5 sends as the next round,
+    in a loop without asking, and the clause after it forbids `accepted, open` for a finding that
+    fails an `R…` — L3's line says "a fix you recommend for the step's next round" where L3 says
+    "is fixed in the step's next round".
 
 #### S12 — A loop over the plan's steps
 

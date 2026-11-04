@@ -158,7 +158,7 @@ No user feedback in this session.
 - **Proposed change:** `.claude/agents/implementer.md`, one line: a count or claim in a report
   uses the requirement's unit and counts only the runs that meet its conditions; a near hit, a
   side note or a run off those conditions is stated apart.
-- **Applied:** accepted, lands as S11
+- **Applied:** yes, S11
 
 #### L2 — Reviewers cite lines from `git diff` output, not from the file
 
@@ -169,7 +169,7 @@ No user feedback in this session.
   `shown` finding gets none.
 - **Proposed change:** `.claude/agents/reviewer.md`, the finding line: its `path:line` is read
   from the file at `HEAD` with `Read`, never from a diff hunk's position.
-- **Applied:** accepted, lands as S11
+- **Applied:** yes, S11
 
 #### L3 — A replay finding that fails this ticket's requirement was deferred, not fixed
 
@@ -180,7 +180,7 @@ No user feedback in this session.
 - **Proposed change:** `.claude/skills/ticket-implement/SKILL.md`, step 4: a finding that fails
   one of this ticket's requirements is fixed in the step's next round; only one outside them may
   stay `accepted, open`.
-- **Applied:** accepted, lands as S11
+- **Applied:** yes, S11
 
 #### Carried from `plan.md` › S6 (left to verification there)
 

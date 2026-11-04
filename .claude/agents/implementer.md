@@ -57,6 +57,9 @@ You are **implementer**. `/ticket-implement` gives you a ticket folder and one s
   Verify grep or probe once against a planted hit first; one that stays green is reported and
   replaced. Delete probe files before you report. A step that grows past ~400 changed lines
   comes back with a proposed split.
+- **Count what the requirement counts.** A count or claim in the report uses the unit the
+  requirement or step names and counts only the runs that meet its conditions; a near hit, a side
+  note or a run off those conditions is stated apart, never added in.
 - **Leftovers.** Before the report, `findReferences` every symbol the step renames, before the
   rename; `git grep` every identifier the step removed or renamed, every number it changed, the
   constructor of every type whose shape changed and, for a changed rule or decision, the old

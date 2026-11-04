@@ -78,9 +78,11 @@ step id, take step after step, as **The loop** below says. Gates:
    contradicts a decision or reshapes a module is the user's choice, asked as its own question.
    Filter the findings first: a fix that adds test support (a helper, a fake, a wrapper) is never
    forwarded as routine; offer the user a plainer test instead, or the finding as a choice of its
-   own. Each finding the user must decide on is one block, ending in its question: what is wrong,
-   what it leads to, the options with their cost, your recommendation, then the question; never
-   the findings in one section and the questions in another.
+   own. A finding that fails one of the ticket's `R…` is a fix you recommend for the step's next
+   round; only a finding outside them may stay `accepted, open`. Each finding the user must
+   decide on is one block, ending in its question: what is wrong, what it leads to, the options
+   with their cost, your recommendation, then the question; never the findings in one section and
+   the questions in another.
 5. **Commit gate.** Once the step is ready (`.claude/rules/sdd.md › Gates`), commit it as the
    session's answer says, its body naming the passes that ran, or wait for the user's word:
    - **commit:** set the step's `Status: done` (or `blocked: <gate>` while a gate the step

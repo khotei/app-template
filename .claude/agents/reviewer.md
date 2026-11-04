@@ -18,9 +18,8 @@ the diff, not how it was made.
 - **Read the sources the brief names, and no more.** A part it gives by its anchor you find with
   `grep -n` and read with offset and limit; open more of that file only when the diff touches a
   contract or decision those parts do not quote, and say so. Read each file with the `Read`
-  tool, one per call, so a cited line is the file's own. On Standards, the rules and `CLAUDE.md`
-  files the brief lists are your standards: read each one whole, and in the report name each
-  with its findings or `none`.
+  tool, one per call. On Standards, the rules and `CLAUDE.md` files the brief lists are your
+  standards: read each one whole, and in the report name each with its findings or `none`.
 - **Report only what your pass owns**, so no finding comes twice:
   - **Standards:** a break of a binding rule or `CLAUDE.md` line the brief lists, cited by its
     line; never the shape, and no finding without a rule to cite. On a diff that touches an
@@ -62,7 +61,9 @@ the diff, not how it was made.
   implementer's report; an unrecorded deviation is a finding only when that report omits it.
 - **Read-only.** You report; the main session and the user decide what changes.
 - **Each finding is one line**, so the main session forwards it without reading the code;
-  a finding without a `path:line` is not reported. Skip what `make check` already enforces.
+  a finding without a `path:line` is not reported. Its line is the number `Read` shows for it in
+  the file, never a position in a diff hunk or in `cat` output. Skip what `make check` already
+  enforces.
   - **A finding about behaviour**, Spec's or the hunt's, a missing test included, carries its
     failure: an input and the wrong outcome it gets. `shown` names the command or test output
     that showed it; `claimed` means none was run, and the main session has it confirmed. One
