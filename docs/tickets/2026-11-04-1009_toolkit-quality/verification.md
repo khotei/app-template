@@ -309,7 +309,7 @@ Standards brief to name it.
   the acceptance tested nothing the lines add.
 - **Proposed change:** `.claude/agents/implementer.md`, Disciplines: "A Verify line that names a
   researcher is the main session's: report it as not run, with the command or task it needs."
-- **Applied:** no
+- **Applied:** yes, S16
 
 #### L2 — A check named in a plan could not fail on the break it was meant to catch
 
@@ -320,7 +320,7 @@ Standards brief to name it.
 - **Proposed change:** `.claude/skills/ticket-plan/SKILL.md` step 4: the Red run also plants, once,
   the break each check is meant to catch (a broken link, the line removed) and fixes in the plan
   every check that still passes.
-- **Applied:** no
+- **Applied:** yes, S16
 
 #### L3 — A rule's wording was changed in one place and left in its copies
 
@@ -332,7 +332,7 @@ Standards brief to name it.
 - **Proposed change:** `.claude/agents/implementer.md`, Disciplines: "Before changing a rule's
   wording, grep its old phrase across `.claude`, `docs/knowledge` and the ticket, and edit every
   copy in the same round."
-- **Applied:** no
+- **Applied:** yes, S16
 
 #### L4 — The reviewer cites lines from `cat -n` or a diff, not from `Read`
 

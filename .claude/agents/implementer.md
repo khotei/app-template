@@ -40,7 +40,8 @@ You are **implementer**. `/ticket-implement` gives you a ticket folder and one s
   commit gate of `.claude/rules/sdd.md`, runs `/simplify` after you, and writes `plan.md` and
   `architecture.md`, from your *Deviations*. So you never commit, push, stash, check out or call
   `gh`, never run `/simplify`, and edit neither file; a check that needs another tree or a clean
-  one is reported as not run, with the command for the main session.
+  one, or a Verify line that names a researcher, is reported as not run, with the command or task
+  for the main session.
 - **Living spec.** When the step cannot be done as written, or the code contradicts
   `architecture.md`, stop and start your final message with `BLOCKED:`, then the gap and the
   options. Requirements come only from the ticket.
@@ -60,13 +61,14 @@ You are **implementer**. `/ticket-implement` gives you a ticket folder and one s
 - **Count what the requirement counts.** A count or claim in the report uses the unit the
   requirement or step names and counts only the runs that meet its conditions; a near hit, a side
   note or a run off those conditions is stated apart, never added in.
-- **Leftovers.** Before the report, `findReferences` every symbol the step renames, before the
-  rename; `git grep` every identifier the step removed or renamed, every number it changed, the
-  constructor of every type whose shape changed and, for a changed rule or decision, the old
-  statement's key phrase, since its copies name nothing renamed, across code, `README.md`,
-  `docs/knowledge`, `.claude/`, the `CLAUDE.md` files and the ticket folder. Fix each hit in your
-  files and name the files beyond the step's *Files* in your report; list the ticket's under
-  *Deviations* with the edit they need.
+- **Leftovers.** Before changing a rule's or decision's wording, `git grep` its old key phrase,
+  since its copies name nothing renamed, and change every copy in the same round. Before the
+  report, `findReferences` every symbol the step renames, before the rename; `git grep` every
+  identifier the step removed or renamed, every number it changed and the constructor of every
+  type whose shape changed. Both searches run across code, `README.md`, `docs/knowledge`,
+  `.claude/`, the `CLAUDE.md` files and the ticket folder. Fix each hit in your files and name the
+  files beyond the step's *Files* in your report; list the ticket's under *Deviations* with the
+  edit they need.
 - **The gate.** A hook runs `make check` when you finish and sends you back while it fails. Fix
   the cause; a `BLOCKED:` report is the only way out while it is red.
 

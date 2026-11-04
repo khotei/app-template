@@ -46,7 +46,9 @@ steps only conform to the plan. Gates: `.claude/rules/sdd.md`.
      in `.claude/rules/*.md` or that workspace's `CLAUDE.md`.
    - **Red**: every Verify check for new work (one that names a state the step creates), run once
      on the main tree, read-only. Each comes back `fails as expected` with its output, `passes`,
-     or `cannot run` with its error.
+     or `cannot run` with its error. Each is also run once on a copy outside the tree with the
+     break it is meant to catch planted (a broken link, the line removed), and comes back
+     `catches` or `misses`.
    For a step that adds, changes or removes a guard or a scope of one, spawn a second `researcher`
    with its probes and the worktree `<slug>-plan-probes`; it runs them as
    `.claude/agents/researcher.md` says. Create the worktree first with
@@ -56,9 +58,10 @@ steps only conform to the plan. Gates: `.claude/rules/sdd.md`.
    worktree it fails. After the report, remove the worktree and its branch in a command of their
    own (`git worktree remove --force`, `git branch -D`) and check that `git worktree list` no
    longer shows it.
-   Fix in `plan.md`, before presenting it, every `wrong`, every broken rule, every `passes` and
-   `cannot run`, and every probe that does not fail, but an added scope's own. The reports stay in
-   the conversation; `plan.md` records no check but the probes, each with its plan-time output.
+   Fix in `plan.md`, before presenting it, every `wrong`, every broken rule, every `passes`,
+   `cannot run` and `misses`, and every probe that does not fail, but an added scope's own. The
+   reports stay in the conversation; `plan.md` records no check but the probes, each with its
+   plan-time output.
 5. End with a coverage table that maps every `R…` to at least one step.
 6. Present the plan and iterate until the user approves it. Next comes
    `/ticket-implement <ticket folder>`.
