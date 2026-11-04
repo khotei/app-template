@@ -32,7 +32,8 @@ reading the steps; `git log` holds the step's commits.>
 - **Test first:** <Seam from architecture.md> — <behaviour to see red>. Or `config only`.
 - **Verify:** <commands and manual checks, each with the state it fails on>.
   - **Probes** (<guard>, run at plan time): <only a step that changes or removes a guard; one per
-    ban it enforces today, run again after the change>
+    ban of each scope it changes or removes, as `/ticket-plan` step 3 defines both, run again
+    after the change>
     - <ban> — `<path>`: `<content>` → `<the guard's failing line>`
 - **Model:** <model and effort, e.g. `opus medium`>
 - **Status:** todo

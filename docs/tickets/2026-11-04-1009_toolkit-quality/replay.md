@@ -24,6 +24,7 @@ related reason), `miss` (no later commit acted on it, or the run passed over the
 | plan-time run | `modular-monolith` S36 | 2 checks: 2 fail as expected; L4 miss at the verdict, hit in the researcher's note | 57 s (session 118 s) |
 | plan-time run | `modular-monolith` S37 | 3 checks: 2 fail as expected, 1 passes; L4 near | 71 s (session 166 s) |
 | probes | `modular-monolith` S39 | 50 probes, 50 fail before; 37 no longer fail after, L8's among them | 116 s (session 378 s), rerun 99 s |
+| probes per ban | `modular-monolith` S39, four overrides | 18 probes, 18 fail before; 14 no longer fail after, each of L8's four bans among them | 2.3 s, rerun 2 s, a script with no agent |
 
 Wall time is the pass's: its reviewer's or researcher's `totalDurationMs`, plus a resent round,
 plus the confirmations (run in parallel, so their span); the session's `duration_ms` adds the main
@@ -417,6 +418,48 @@ verbatim), ## Probes that did not fail (or none).
   - P49 `deployment/**` — `deployment/probe.ts`: `import { Db } from '@app-template/kernel/data'` → `1:10` "of @app-template/kernel/data deployment takes only the files' key, unboundTag" — after: passes
   - P50 `apps/e2e/**` — `apps/e2e/probe.ts`: `import { x } from '@app-template/deployment'` → `1:19` "the e2e import no workspace but the processes' test support …: never web or deployment" — after: passes
 
+## The probes per ban — `modular-monolith` S39, again (S8)
+
+- **The list:** one probe per ban group, as `/ticket-plan` step 3 now defines a ban, of the three
+  overrides L8 names (`apps/api/**`, `apps/worker/**`, `deployment/**`, four groups each) and of
+  the domain tests' override. No override of its own covers `__tests__/domain/` at `8572da12bf`;
+  `application/chat/__tests__/**` (six groups) does, so its probes sit in `__tests__/domain/`.
+  18 probes for 18 groups, where the list above has four (P41, P44, P49, P7).
+- **The run:** the implementer wrote the list from the skill's definition and planted it by a
+  script, with no `claude -p` session and no researcher, in `git archive` exports of
+  `8572da12bf` and `dbb29d488a` (S39's commit) in the session's scratch folder, outside the
+  repository; each probe a file of its own, `import` and `export const y = x`, run by `biome lint
+  --vcs-enabled=false <probe>` and deleted. Three imports each ban allows (`kernel/config` in
+  `apps/api`, `unboundTag` in `deployment`, `packages/testing` in the domain tests) pass, so a
+  probe fails on its ban, not on the planting.
+- **Before:** 18 of 18 exit 1 on `noRestrictedImports` alone, each with its own group's message:
+  the distinct messages per override are 4, 4, 4 and 6, its group count.
+- **After:** 14 no longer fail; the four that do fail through the plugin `biome-imports.grit`:
+  the relative paths (A4, W4, D4, T6) and the cross-module file (T5).
+- **Against L8:** every one of its four lost bans has its own probe now, and each no longer fails
+  after S39: A1 and W1 (another app), D1 (a kernel part outside `deployment`'s three), T1–T4 (the
+  domain tests' workspace, client, store and e2e bans).
+
+- **Probes** (`biome.json`, run at plan time; `biome lint <path>`):
+  - A1 `apps/api/**`, the apps never import each other — `apps/api/probe-a1.ts`: `import { x } from '@app-template/worker'` → "apps/api imports no workspace but … the apps never import each other or deployment" — after: passes
+  - A2 `apps/api/**`, no repository — `apps/api/probe-a2.ts`: `import { x } from '@app-template/kernel/data'` → "a handler calls one service method or one use case, never a repository" — after: passes
+  - A3 `apps/api/**`, no mapper — `apps/api/probe-a3.ts`: `import { chatFromEntity as x } from '@app-template/application/chat'` → "a handler never maps an entity: the module's services own the mappers" — after: passes
+  - A4 `apps/api/**`, relative path — `apps/api/probe-a4.ts`: `import { x } from './x'` → "inside a workspace import through its #<workspace>/… subpath, never a relative path" — after: fails (plugin)
+  - W1 `apps/worker/**`, the apps never import each other — `apps/worker/probe-w1.ts`: `import { x } from '@app-template/api'` → "apps/worker imports no workspace but … the apps never import each other or deployment" — after: passes
+  - W2 `apps/worker/**`, no repository — `apps/worker/probe-w2.ts`: `import { x } from '@app-template/kernel/data'` → "a handler calls one service method or one use case, never a repository" — after: passes
+  - W3 `apps/worker/**`, no mapper — `apps/worker/probe-w3.ts`: `import { chatFromEntity as x } from '@app-template/application/chat'` → "a handler never maps an entity" — after: passes
+  - W4 `apps/worker/**`, relative path — `apps/worker/probe-w4.ts`: `import { x } from './x'` → the message of A4 — after: fails (plugin)
+  - D1 `deployment/**`, its workspaces — `deployment/probe-d1.ts`: `import { x } from '@app-template/kernel/llm'` → "deployment may import only packages/* and of the kernel its config, the inventory (/aws) and the files' key (/data)" — after: passes
+  - D2 `deployment/**`, no configured client — `deployment/probe-d2.ts`: `import { sqsClientFromConfig as x } from '@app-template/kernel/aws'` → "of @app-template/kernel/aws deployment takes only the inventory and its naming rule, never a configured client" — after: passes
+  - D3 `deployment/**`, only `unboundTag` — `deployment/probe-d3.ts`: `import { Db as x } from '@app-template/kernel/data'` → "of @app-template/kernel/data deployment takes only the files' key, unboundTag" — after: passes
+  - D4 `deployment/**`, relative path — `deployment/probe-d4.ts`: `import { x } from './x'` → the message of A4 — after: fails (plugin)
+  - T1 `application/chat/__tests__/**`, its workspaces — `application/chat/__tests__/domain/probe-t1.test.ts`: `import { x } from '@app-template/kernel/llm'` → "a module's tests import no workspace but @app-template/packages/testing, …" — after: passes
+  - T2 the same, no configured client — `…/probe-t2.test.ts`: `import { s3ClientFromConfig as x } from '@app-template/kernel/aws'` → "of @app-template/kernel/aws a module's tests take only the inventory" — after: passes
+  - T3 the same, no client `Db` — `…/probe-t3.test.ts`: `import { Db as x } from '@app-template/kernel/data'` → "of @app-template/kernel/data a module's tests take only the stores" — after: passes
+  - T4 the same, no e2e support — `…/probe-t4.test.ts`: `import { x } from '#testing/chat/e2e/x'` → "a unit test and its support import no e2e support" — after: passes
+  - T5 the same, another module's file — `…/probe-t5.test.ts`: `import { x } from '#identity/domain/x'` → "a module reaches its own files through #<module>/… and another module … only through its entry" — after: fails (plugin)
+  - T6 the same, relative path — `…/probe-t6.test.ts`: `import { x } from './x'` → the message of A4 — after: fails (plugin)
+
 ## The briefs
 
 Each session printed the briefs `/ticket-implement` steps 2 and 3 would send, spawning nothing:
@@ -499,7 +542,8 @@ verbatim, headed by its agent, model and effort).
 - **R8, in part:** one probe per override of `biome.json` at `8572da12bf`, and per root rule that
   bans an import, each with its failing line, not one per ban group (176); after S39's change the
   probes of the overrides L8 names no longer fail (P9, P41–P46, P49), and neither do 29 others
-  under Biome. Four of L8's bans have no probe of their own (the list above).
+  under Biome. Four of L8's bans have no probe of their own (the list above); S8's rerun, one
+  probe per ban group, gives each its own (*The probes per ban*).
 - **R9:** S22's Standards brief names `mattpocock-skills:writing-for-agents` and its implementer
   brief does not; the move's Standards brief does not either.
 
