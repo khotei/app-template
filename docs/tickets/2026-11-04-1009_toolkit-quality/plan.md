@@ -25,7 +25,7 @@
 | S17 | a hook refuses the reviewer's `cat`, `head`, `tail` and `sed -n` on a tracked file (L4) | done |
 | S18 | a Verify that repeats one check over many inputs runs them from one script | done |
 | S19 | a claim only a run outside the repo would settle gets `unclear`, not `refuted` | done |
-| S20 | the model may run a `/ticket-*` skill when the user asks it to | todo |
+| S20 | the model may run a `/ticket-*` skill when the user asks it to | done |
 
 ## How to run this plan
 
@@ -1062,7 +1062,21 @@
   - `make check` green.
   - After the commit, the main session calls the Skill tool with `ticket-verify` and it loads.
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:** passes that ran: Standards (sonnet, with writing-for-agents) and Spec on S20.1;
+  S20.2 checked by the main session against its two findings. No `simplify`, Design or hunt, a
+  config step. Implementer 2.7 and 1.3 min on `opus medium`. Verify: the planted
+  `ticket-probe/SKILL.md` printed its line, the real grep printed nothing (exit 1); the session's
+  skill list now shows the five with "Run only when the user asks for this phase". The Skill
+  call on `ticket-verify` runs after this commit, as the ticket's verification.
+  - Standards — accepted, fixed in S20.2 — `sdd.md` said "the model never starts one on its
+    own", which nothing enforces once the flag is gone.
+  - Spec — accepted, fixed in S20.2 — "(a commit, a push, a PR, a merge) still wait for you":
+    the commit gate may let a ready step commit without the user (the session's answer, a loop).
+  - Standards — rejected — the five-word tail costs context in every session: no shorter wording
+    carries the same guard.
+  - Spec — rejected — `feature.md`'s Scope does not cover how the skills start: no requirement
+    changes, and the user asked for the step.
 
 ## Requirement coverage
 
