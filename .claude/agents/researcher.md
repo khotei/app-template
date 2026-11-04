@@ -23,6 +23,12 @@ only for decisions.
   it by tracing the input through the code or by an existing test or command, never by a file
   planted in the tree: the tree holds the uncommitted step, and a planted file joins its diff.
   When only a new test would settle it, the verdict is `unclear`.
+- **The no-op experiment** asks whether an instruction line changes what an agent does. Copy the
+  file as `CLAUDE.md` into two new folders of the system temp directory, one without the line,
+  and run the task the line governs in each with
+  `claude -p --model haiku --setting-sources project "<task>"`: the flag keeps the user's own
+  rules out, the folder's `CLAUDE.md` still loads. Quote both answers and say whether they differ
+  in what the line asks; then delete the folders.
 
 ## Report (your final message)
 

@@ -26,7 +26,7 @@ An older `Refs:` line may name a folder before its rename: the slug is unchanged
 | Change | Cycle |
 |---|---|
 | New behaviour, a new dependency, or any choice a reviewer could question | the full cycle |
-| A bug fix or small change with no new decision and an existing seam to test at | `/ticket-feature` with a few requirements, then `/ticket-plan`, `/ticket-implement`, `/ticket-verify`; skip `/ticket-architecture` |
+| A bug fix or small change with no new decision and an existing seam to test at | `/ticket-feature` with a few requirements, a bug's starting from one command that shows it failing, then `/ticket-plan`, `/ticket-implement`, `/ticket-verify`; skip `/ticket-architecture` |
 | A typo, a version bump, a doc fix | no ticket: one commit with the area as its scope (`docs`, `tooling`) |
 
 ## The five skills
@@ -60,13 +60,13 @@ uses updates this map too; the Standards review checks it against `.claude/rules
 
 | Skill or agent | Plugin skills | Spawns | Hook | Writes |
 |---|---|---|---|---|
-| `/ticket-feature` | `grilling`, `domain-modeling` | `researcher` | — | `feature.md`, `docs/knowledge/glossary.md`, `docs/knowledge/roadmap.md` |
+| `/ticket-feature` | `grilling`, `domain-modeling`; for a bug, `diagnosing-bugs` phases 1 and 2 | `researcher` | — | `feature.md`, `docs/knowledge/glossary.md`, `docs/knowledge/roadmap.md` |
 | `/ticket-architecture` | `codebase-design`, `grilling` | `researcher` | — | `architecture.md` |
 | `/ticket-plan` | — | `researcher`; for a guard-changing step a second one, which plants the probes in the disposable worktree `<slug>-plan-probes` set up by `make worktree` | — | `plan.md` |
 | `/ticket-implement` | `code-review`; on a behaviour step the built-in `simplify`, run by the main session, with `codebase-design` as its vocabulary | `implementer` (one worktree per parallel step, set up by `make worktree`), `reviewer` (one per review pass), `researcher` (one per claimed finding, in parallel) | `make-check.sh` and `bash-guard.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, the step's commits |
 | `/ticket-verify` | `code-review` | `verifier` (one per group of requirements, in parallel), `reviewer` | — | `verification.md` |
 | `implementer` | `tdd`, preloaded | — | `make-check.sh` on `Stop` (runs as `SubagentStop`); `bash-guard.sh` on `PreToolUse` of `Bash` | the step's files |
-| `reviewer` | one pass: an axis of `code-review`, the Design pass or the hunt | — | — | nothing: read-only |
+| `reviewer` | one pass: an axis of `code-review`, the Design pass or the hunt; on Standards over an instruction file, `writing-for-agents` | — | — | nothing: read-only |
 | `verifier` | — | — | — | nothing: read-only |
 | `researcher` | — | — | — | nothing in the main tree; probe files only in a disposable worktree its brief names |
 
@@ -93,11 +93,13 @@ graph LR
     design{{codebase-design}}
     tdd{{tdd}}
     review{{code-review}}
+    diagnosing{{diagnosing-bugs}}
+    writing{{writing-for-agents}}
   end
   subgraph builtin [built-in]
     simplify{{simplify}}
   end
-  feature -.-> grilling & modeling
+  feature -.-> grilling & modeling & diagnosing
   feature --> researcher
   arch -.-> design & grilling
   arch --> researcher
@@ -109,7 +111,7 @@ graph LR
   implementer --> hook & guard
   verify --> verifier & reviewer
   verify -.-> review
-  reviewer -.-> review & design
+  reviewer -.-> review & design & writing
 ```
 
 Solid arrows spawn an agent or run a hook; dotted arrows use a plugin skill.
@@ -125,6 +127,7 @@ Solid arrows spawn an agent or run a hook; dotted arrows use a plugin skill.
 | `code-review` diffs from a fixed point to `HEAD` and spawns generic sub-agents | for a step: the uncommitted diff, reviewed by read-only `reviewer` agents that read only what the step cites, each owning one kind of finding | the step is reviewed before it is committed, by agents that cannot edit and read no more than the step needs; no finding comes twice, and the main session forwards one without reading the code |
 | `improve-codebase-architecture` scans the whole codebase, writes an HTML report, grills, and writes `GLOSSARY.md` and ADRs | the Design pass of `/ticket-implement`: a read-only `reviewer` on one step, with at most five candidates, each a sketch and a strength | the shape is questioned while the step is small, and no doc lands outside `docs/knowledge/` and the ticket |
 | `research` writes a notes file into the repo | `researcher` answers in its report | facts reach the conversation, not the tree |
+| `diagnosing-bugs` runs from a feedback loop to the fix and its regression test | `/ticket-feature` runs phases 1 and 2 only, to one red command on the tree as it stands, copied into `feature.md` | the fix and its test go through the plan and its review |
 
 ## The commit gate
 
@@ -197,8 +200,9 @@ user-invoked:
 
 The plugin updates itself, so its behaviour can shift under the wrappers. After an update:
 
-1. Read the plugin's changelog or diff for `grilling`, `domain-modeling`, `codebase-design`, `tdd`
-   and `code-review`, the skills the map above delegates to.
+1. Read the plugin's changelog or diff for `grilling`, `domain-modeling`, `codebase-design`, `tdd`,
+   `code-review`, `diagnosing-bugs` and `writing-for-agents`, the skills the map above delegates
+   to.
 2. Check that each override in the table above still targets something the skill does; a renamed
    file or step makes the override silently stale.
 3. Run `/ticket-feature` on a throwaway slug in a scratch clone outside `~/.claude/` and settle one

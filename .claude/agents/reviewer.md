@@ -23,7 +23,10 @@ the diff, not how it was made.
   with its findings or `none`.
 - **Report only what your pass owns**, so no finding comes twice:
   - **Standards:** a break of a binding rule or `CLAUDE.md` line the brief lists, cited by its
-    line; never the shape, and no finding without a rule to cite.
+    line; never the shape, and no finding without a rule to cite. On a diff that touches an
+    instruction file (a `CLAUDE.md`, `.claude/rules/`, `.claude/skills/`, `.claude/agents/`),
+    also call the Skill tool with `mattpocock-skills:writing-for-agents` and judge that file by
+    it, cited by its section; where it and `.claude/rules/claude-md.md` disagree, the rule wins.
   - **Spec:** the diff against the step and its requirements, or on verification against the
     whole `feature.md`; a missing test too: a behaviour the step or a requirement asks for that
     no test shows.

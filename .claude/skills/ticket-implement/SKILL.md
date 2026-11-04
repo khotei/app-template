@@ -40,7 +40,7 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to a commit. Gates:
    |---|---|
    | the fixed point and diff | `HEAD`; the diff is `git diff HEAD` plus every untracked file in `git status --short`, so the uncommitted step is reviewed |
    | the spec | the step in `plan.md`, and the `R…` it cites from `feature.md`; the Spec axis also reports whether the diff changes what a quoted `R…` asks, which then requires the `feature.md` edit in the same diff, and names for each deleted statement, guard or check where it now lives, or reports it lost |
-   | the standards | `make review-rules`'s output for the diff, pasted verbatim with nothing added, and the `CLAUDE.md` of every touched workspace |
+   | the standards | `make review-rules`'s output for the diff, pasted verbatim with nothing added, and the `CLAUDE.md` of every touched workspace; on a diff that touches an instruction file (a `CLAUDE.md`, a rule, a skill or an agent), also `mattpocock-skills:writing-for-agents` |
    | the smell baseline | none: the shape is Design's |
    | the sub-agents | the `reviewer` agent, once per axis, in parallel; the Standards axis on `model: sonnet`, the Spec axis on the agent's own |
 
@@ -68,7 +68,10 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to a commit. Gates:
    finding verbatim and the diff command, so it is not anchored on the reviewer's reading.
    Present a `confirmed` one as the finding, drop a `refuted` one as rejected, and ask an
    `unclear` one as a question, with what the researcher could not settle. A behaviour finding
-   without a scenario and a `path:line` is not presented. Present the implementer's
+   without a scenario and a `path:line` is not presented. A dispute over whether an instruction
+   line changes what an agent does is not argued: a `researcher` runs the no-op experiment its
+   file describes, and the line stays only when the two answers differ in what it asks.
+   Present the implementer's
    report and what `simplify` changed, then the `## Standards` and `## Spec` reports as
    code-review aggregates them, then the hunt's findings, then the Design candidates, then the
    fixes you recommend. A Design candidate inside the plan is a fix like any other; one that
