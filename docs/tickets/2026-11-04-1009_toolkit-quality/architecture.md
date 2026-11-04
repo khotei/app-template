@@ -173,7 +173,8 @@ The bug's requirement takes this command as its acceptance check.
 
 **The replay set** (R11, D8), chosen by a researcher from later fixes and confirmed by the user.
 Each step's round, by the hash on its ticket's final chain (S30.2 is a second round, reviewed
-alone as it was then); the later commit is the ground truth its report is read against.
+alone as it was then); the later commit is the ground truth its report is read against, and any
+later commit that makes a finding's change counts as a hit, not only the one listed.
 
 | Pass | Step | Round, parent | Found later |
 |---|---|---|---|

@@ -10,7 +10,7 @@
 | S2 | the Design pass in place of Depth, with its examples file | done |
 | S3 | a plan's new checks run before it is presented; a guard's bans probed in a disposable worktree | done |
 | S4 | writing-for-agents in the Standards pass of instruction edits; a bug ticket starts from a red command | done |
-| S5 | the replay of the Design pass and the hunt on five committed steps, with their wall time | todo |
+| S5 | the replay of the Design pass and the hunt on five committed steps, with their wall time | done |
 | S6 | the replay of the plan-time run and the probes; the briefs seen as the skill writes them; the roadmap's re-count note | todo |
 
 ## How to run this plan
@@ -343,7 +343,27 @@
   - `git worktree list` after the main session's removal shows no `toolkit-quality-S5-` tree.
   - `make check` green.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:**
+  - Spec — accepted, fixed in S5.2 — `replay.md`, the R6 line — R6 — judgement — no researcher
+    answered `unclear`, so its question path was never seen; now stated as unobserved, left to
+    the verification.
+  - Spec — accepted, fixed in S5.2 — `replay.md`, the R5 line — R5 — judgement — the reviewers'
+    own lines were diff positions (S8.1) or past the file's end (S11.1), right only after the
+    confirmations; the line now says so.
+  - Spec — accepted, fixed in S5.2 — `replay.md`, the summary — R11 / D8 — judgement — S10.1's
+    reviewer ran on fable, yet the summary counted it; the summary now reads the four opus runs.
+  - Replay: at effort `low`, four of the four opus reviewers read the code through `git diff` or
+    `cat`, not `Read`, and cited lines from that output; the default effort is the user's call
+    once they read the replay (D8).
+  - Replay: the hunt on S8.1 missed `touch`'s `Effect.asVoid` and said "I found no silent
+    fallback in `ChatRepositoryPg.update`"; recorded as a miss (R4).
+  - Deviation: a pass's wall time is its reviewer's time plus a resent round plus the span of its
+    parallel confirmations; the five sessions ran at once.
+  - Deviation: a finding is a hit on any later commit that made it, not only the *Found later*
+    column; *The replay set* says so.
+  - Deviation: the main session set up the five worktrees with the round's diff applied, and
+    removed them and their branches after the run; `git worktree list` shows none.
 
 #### S6 — The replay of the plan checks and the briefs
 
@@ -380,6 +400,8 @@
     send, spawning nothing: `lean-instructions` S22, `8b6e947cca` ← `c57cf517b4` (PR #16); and a
     synthetic move, one `.ts` file renamed by `git mv` with its content unchanged, in a replay
     worktree at the ticket branch.
+  - Every replay prompt names the model of each agent it spawns, as the skill states it; a `-p`
+    session otherwise picks one from the user's memory (S5's S10.1 ran on fable).
   - `docs/knowledge/roadmap.md` entry 25: the note to re-count each check of `make check` that
     caught nothing (the Effect style rules, the import bans, the web bundle check) after three or
     four tickets.

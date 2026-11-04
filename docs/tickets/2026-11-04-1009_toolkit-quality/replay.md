@@ -211,22 +211,29 @@ The first has no scenario; the second is false (line 174 runs after the update h
   the four reports at effort `low` were written without reading it (S2.1, S11.1's first).
 - **R4:** S30.2 names the swallowed construct, perl's failure under `| grep .`, and what it hides,
   a gate that passes unchecked. S8.1 misses its own: `touch`'s `Effect.asVoid`.
-- **R5:** every behaviour finding presented has an input → wrong outcome and a `path:line`; the
-  planted one without a scenario was not presented. In S8.1 every `path:line` the reviewer gave
-  was a diff position, corrected only by the confirmations.
+- **R5:** every behaviour finding presented has an input → wrong outcome, and the planted one
+  without a scenario was not presented. The code location held only after the confirmations:
+  every `path:line` the S8.1 reviewer gave was a line of the `git diff` output, not of the file,
+  and each researcher gave the file's own; S11.1's first Design report cited lines past the
+  file's end. These runs are no evidence that a reviewer's own `path:line` is correct.
 - **R6:** each `claimed` finding, the planted `:174` among them, had a verdict before the
-  presentation: five `confirmed`, one `refuted`. No `unclear` came back, so the question path did
-  not run.
+  presentation: five `confirmed`, one `refuted`. **R6's `unclear` branch is unobserved:** no
+  researcher answered `unclear`, so no finding reached the user as a question; it is left to the
+  ticket's verification.
 
 ## What the replay shows
 
+These read the four runs whose reviewer ran on the agent's own model, opus; S10.1, whose
+reviewer ran on fable, is left out.
+
 - **The reviewer at effort `low` reads less than its brief names, and cites lines from `Bash`
-  output.** Four of five reviewers read the code only through `Bash` output (`git diff`, `cat`),
-  against `reviewer.md`'s "read each file with the `Read` tool, one per call"; S10.1's, on fable,
-  used `Read`. S11.1's first report and all of S8.1's line numbers came from that output. A hunt finding is corrected by its
+  output.** All four read the code only through `Bash` output (`git diff`, `cat`), against
+  `reviewer.md`'s "read each file with the `Read` tool, one per call". S11.1's first report and
+  all of S8.1's line numbers came from that output. A hunt finding is corrected by its
   confirmation; a Design candidate has none, and S11.1's was caught only because its lines passed
   the file's end.
 - **The hunt finds the failures a step introduces, not always the one it was chosen for.** Both
   hunts found a real failure a later round fixed (S30.2 in its own words, S8.1's enqueue before
   commit); S8.1 missed the discarded answer and declared there was none.
-- **Design hits one later change per step at most,** and misses a port's split roles (S10.1).
+- **Design comes within one later change per step:** a hit on S2.1, a near on S11.1, where the
+  later commit removed the service the candidate kept.
