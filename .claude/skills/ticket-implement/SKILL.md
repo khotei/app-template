@@ -27,9 +27,9 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to a commit. Gates:
      `tdd` leaves out of its red → green loop. One test decides, whatever the **Model** line: a
      behaviour step's diff changes the content of a `.ts` file, a `Makefile` recipe or a script,
      beyond a move. A move renames files whose content `git diff -M` shows unchanged and rewrites
-     only the import lines that name them; it gets Standards and Spec alone, as does any step
-     that is not a behaviour step. Call the Skill tool with `simplify` on the uncommitted step,
-     its args pointing at the step in `plan.md`, the rules
+     only the import and re-export lines (`from '<old path>'`) that name them; it gets Standards
+     and Spec alone, as does any step that is not a behaviour step. Call the Skill tool with
+     `simplify` on the uncommitted step, its args pointing at the step in `plan.md`, the rules
      `make review-rules` prints (which override it), and the deletion test and depth of
      `mattpocock-skills:codebase-design`; it keeps every interim state the plan names (a
      delegating adapter, a module the next step removes) and every test case.

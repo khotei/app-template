@@ -12,7 +12,7 @@
 | S4 | writing-for-agents in the Standards pass of instruction edits; a bug ticket starts from a red command | done |
 | S5 | the replay of the Design pass and the hunt on five committed steps, with their wall time | done |
 | S6 | the replay of the plan-time run and the probes; the briefs seen as the skill writes them; the roadmap's re-count note | done |
-| S7 | a step that only moves files and rewrites their imports gets Standards and Spec alone | todo |
+| S7 | a step that only moves files and rewrites their imports gets Standards and Spec alone | done |
 | S8 | a guard's probes are one per ban group, not one per scope | todo |
 | S9 | the hunt questions a discarded result; S8.1's hunt and S10.1's Design replayed again | todo |
 | S10 | the five simplifications of the verification | todo |
@@ -477,7 +477,22 @@
     when the move exception swallows it.
   - `make check` green.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:** passes that ran: Standards (sonnet, with writing-for-agents) and Spec; no
+  `simplify`, Design or hunt, an instruction-only step.
+  - Spec — accepted, fixed in S7.2 — `export … from` in `index.ts` is a re-export, not an import
+    line, so the literal exception missed the verification's own case (confirmed by a researcher).
+  - Spec and Standards — rejected: `.misc/lint/biome-imports.grit:83-86` bans relative paths, and
+    a `#<unit>/…` line stays the same when its file moves inside its unit — a moved file's own
+    relative imports would change under `git diff -M`.
+  - Spec — rejected: the main session ran both in a replay worktree at the ticket branch, as fresh
+    opus agents playing the main session; move: "simplify: no … Standards: yes … Spec: yes … the
+    hunt: no … Design: no"; with `-dlq` → `-dead-letter` in `names.ts`: "simplify: yes …
+    Standards: yes … Spec: yes … The hunt: no … Design: yes"; the worktree is removed — no record
+    that Verify 1–2 ran.
+  - Standards — accepted, fixed in S7.2 — `docs/knowledge/sdd.md` restated the skill's definition
+    of a move.
+  - Standards — accepted, fixed in S7.2 — the S7.1 rewrap left ragged lines in `SKILL.md`.
 
 #### S8 — One probe per ban group
 
