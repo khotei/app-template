@@ -7,7 +7,7 @@
 | Step | Delivers | Status |
 |---|---|---|
 | S1 | a behaviour finding carries its failure; a claimed one is confirmed first; each finding's pass and fate in `plan.md`, summed at verification | done |
-| S2 | the Design pass in place of Depth, with its examples file | todo |
+| S2 | the Design pass in place of Depth, with its examples file | done |
 | S3 | a plan's new checks run before it is presented; a guard's bans probed in a disposable worktree | todo |
 | S4 | writing-for-agents in the Standards pass of instruction edits; a bug ticket starts from a red command | todo |
 | S5 | the replay of the Design pass and the hunt on five committed steps, with their wall time | todo |
@@ -161,7 +161,8 @@
     `path:line`.
   - `make check` green.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:** Standards and Spec raised none.
 
 #### S3 — Plan checks that are seen to fail
 

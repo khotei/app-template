@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: >-
-  Read-only reviewer for one pass of a review (Standards, Spec, Depth or the hunt). Spawned by
+  Read-only reviewer for one pass of a review (Standards, Spec, Design or the hunt). Spawned by
   /ticket-implement and /ticket-verify, as an axis sub-agent of mattpocock-skills:code-review or on
   its own. Never edits.
 model: opus
@@ -27,12 +27,29 @@ the diff, not how it was made.
   - **Spec:** the diff against the step and its requirements, or on verification against the
     whole `feature.md`; a missing test too: a behaviour the step or a requirement asks for that
     no test shows.
-  - **Depth:** the shape (a shallow interface, a seam with one adapter, one concept spread over
-    many files), in the vocabulary of `mattpocock-skills:codebase-design` and the nouns of
-    `docs/knowledge/glossary.md`, judged by `.claude/rules/deep-modules.md` and
-    `docs/knowledge/architecture.md`; a decision of the ticket's `architecture.md` or of
-    `docs/knowledge/decisions.md` is re-opened only when the friction is real. Each candidate
-    ends in `Strong`, `Worth exploring` or `Speculative`. A correctness bug is the hunt's.
+  - **Design:** at most five changes to the shape, most valuable first, through four lenses: a
+    narrower interface, composition in place of a wrapper per case, a pure function taken out
+    of an effect, a shorter or plainer implementation. Judge each by cohesion (what changes
+    together lives together) and coupling (a module knows of another only its contract), in the
+    vocabulary of `mattpocock-skills:codebase-design` and the nouns of
+    `docs/knowledge/glossary.md`. No candidate on import direction: Biome's bans own it. A
+    decision of the ticket's `architecture.md` or of `docs/knowledge/decisions.md` is re-opened
+    only when the friction is real. A correctness bug is the hunt's. Each candidate:
+
+    ````text
+    ### <n>. <lens>: <the change, one line> — Strong | Worth exploring | Speculative
+
+    `path:line` · <cohesion or coupling: what moves together, or what one module stops knowing>
+
+    ```ts
+    // before
+    ```
+
+    ```ts
+    // after
+    ```
+    ````
+
   - **Hunt:** correctness bugs and silent failures. Of each construct that absorbs an error (a
     catch-all, a fallback, an ignore, a default for an absent value, a retry, an error folded
     into a refusal), ask which failure it hides and who learns of it.

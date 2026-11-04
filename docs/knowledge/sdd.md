@@ -66,7 +66,7 @@ uses updates this map too; the Standards review checks it against `.claude/rules
 | `/ticket-implement` | `code-review`; on a behaviour step the built-in `simplify`, run by the main session, with `codebase-design` as its vocabulary | `implementer` (one worktree per parallel step, set up by `make worktree`), `reviewer` (one per review pass), `researcher` (one per claimed finding, in parallel) | `make-check.sh` and `bash-guard.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, the step's commits |
 | `/ticket-verify` | `code-review` | `verifier` (one per group of requirements, in parallel), `reviewer` | — | `verification.md` |
 | `implementer` | `tdd`, preloaded | — | `make-check.sh` on `Stop` (runs as `SubagentStop`); `bash-guard.sh` on `PreToolUse` of `Bash` | the step's files |
-| `reviewer` | one pass: an axis of `code-review`, or the hunt | — | — | nothing: read-only |
+| `reviewer` | one pass: an axis of `code-review`, the Design pass or the hunt | — | — | nothing: read-only |
 | `verifier` | — | — | — | nothing: read-only |
 | `researcher` | — | — | — | nothing: read-only |
 
@@ -123,7 +123,7 @@ Solid arrows spawn an agent or run a hook; dotted arrows use a plugin skill.
 | `tdd` asks the user to confirm seams before testing | the implementer takes them from `architecture.md › Seams`, confirmed earlier | a subagent cannot ask, and the seams were already agreed |
 | `implement` commits on its own and reviews committed work | `/ticket-implement` reviews the uncommitted step and commits it under the commit gate | a step commits only once reviewed, and as you chose |
 | `code-review` diffs from a fixed point to `HEAD` and spawns generic sub-agents | for a step: the uncommitted diff, reviewed by read-only `reviewer` agents that read only what the step cites, each owning one kind of finding | the step is reviewed before it is committed, by agents that cannot edit and read no more than the step needs; no finding comes twice, and the main session forwards one without reading the code |
-| `improve-codebase-architecture` scans the whole codebase, writes an HTML report, grills, and writes `GLOSSARY.md` and ADRs | the Depth axis of `/ticket-implement`: a read-only `reviewer` on one step, with a text report | the shape is questioned while the step is small, and no doc lands outside `docs/knowledge/` and the ticket |
+| `improve-codebase-architecture` scans the whole codebase, writes an HTML report, grills, and writes `GLOSSARY.md` and ADRs | the Design pass of `/ticket-implement`: a read-only `reviewer` on one step, with at most five candidates, each a sketch and a strength | the shape is questioned while the step is small, and no doc lands outside `docs/knowledge/` and the ticket |
 | `research` writes a notes file into the repo | `researcher` answers in its report | facts reach the conversation, not the tree |
 
 ## The commit gate
@@ -138,9 +138,9 @@ step, then the review passes, then you. Why it is cut so:
   does not judge its own cuts. A pure move skips it: its files keep their content for `git` to
   see the rename.
 - **Each review pass is its own `reviewer` in a fresh context,** and owns one kind of finding, so
-  one pass cannot hide another and no finding comes twice. Depth runs only on a behaviour step,
-  where it changed the step's shape; the hunt for bugs only on a step whose kind of change it
-  paid off on.
+  one pass cannot hide another and no finding comes twice. Design runs only on a behaviour step,
+  where the shape is still cheap to change; the hunt for bugs only on a step whose kind of change
+  it paid off on.
 - **A failure no command showed is confirmed before it reaches you.** A behaviour finding names
   its input, the wrong outcome and whether a command showed it; each `claimed` one goes to its
   own `researcher`, not anchored on the reviewer's reading, which answers `confirmed` (you see

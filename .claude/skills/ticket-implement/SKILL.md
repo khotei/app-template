@@ -41,7 +41,7 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to a commit. Gates:
    | the fixed point and diff | `HEAD`; the diff is `git diff HEAD` plus every untracked file in `git status --short`, so the uncommitted step is reviewed |
    | the spec | the step in `plan.md`, and the `R…` it cites from `feature.md`; the Spec axis also reports whether the diff changes what a quoted `R…` asks, which then requires the `feature.md` edit in the same diff, and names for each deleted statement, guard or check where it now lives, or reports it lost |
    | the standards | `make review-rules`'s output for the diff, pasted verbatim with nothing added, and the `CLAUDE.md` of every touched workspace |
-   | the smell baseline | none: the shape is Depth's |
+   | the smell baseline | none: the shape is Design's |
    | the sub-agents | the `reviewer` agent, once per axis, in parallel; the Standards axis on `model: sonnet`, the Spec axis on the agent's own |
 
    The Standards and Spec briefs also name the parts of `architecture.md` the step's own lines
@@ -56,8 +56,11 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to a commit. Gates:
    axes, on the same diff; its sources are the diff's files, their callers and, for a test fake,
    the adapter it stands in for, and its word limit is the axes'. Any other step runs no hunt.
 
-   A behaviour step also gets a **Depth** axis: one `reviewer`, in parallel with the others; its
-   sources are the diff's files and the modules that call them, and its word limit is the axes'.
+   A behaviour step also gets the **Design** pass: one `reviewer`, in parallel with the others,
+   on the same diff; its sources are the step id, the diff's files and the modules that call
+   them, [design-examples.md](design-examples.md) by its path, `.claude/rules/deep-modules.md`,
+   `docs/knowledge/architecture.md`, and the records of `docs/knowledge/decisions.md` and the
+   ticket's `D…` that bind the diff's files, and its word limit is the axes'.
 4. **Decide and present.** You orchestrate: decide on the reports as they stand, without reading
    the code or the diff to restate a finding; a question that needs the code goes to a
    `researcher`, or to the reviewer that raised it (`SendMessage`). **Confirm first:** send each
@@ -67,8 +70,8 @@ Take one step of the ticket at `$ARGUMENTS` from `todo` to a commit. Gates:
    `unclear` one as a question, with what the researcher could not settle. A behaviour finding
    without a scenario and a `path:line` is not presented. Present the implementer's
    report and what `simplify` changed, then the `## Standards` and `## Spec` reports as
-   code-review aggregates them, then the hunt's findings, then the `## Depth` candidates, then
-   the fixes you recommend. A Depth candidate inside the plan is a fix like any other; one that
+   code-review aggregates them, then the hunt's findings, then the Design candidates, then the
+   fixes you recommend. A Design candidate inside the plan is a fix like any other; one that
    contradicts a decision or reshapes a module is the user's choice, asked as its own question.
    Filter the findings first: a fix that adds test support (a helper, a fake, a wrapper) is never
    forwarded as routine; offer the user a plainer test instead, or the finding as a choice of its
