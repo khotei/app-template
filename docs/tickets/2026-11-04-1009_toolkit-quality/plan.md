@@ -17,7 +17,7 @@
 | S9 | the hunt questions a discarded result; S8.1's hunt and S10.1's Design replayed again | todo |
 | S10 | the five simplifications of the verification | todo |
 | S11 | the verification's lessons L1–L3 | todo |
-| S12 | a loop over the plan's steps, each to a commit without the user's OK between them | todo |
+| S12 | a loop over the plan's steps, each to a commit without the user's OK between them | done |
 
 ## How to run this plan
 
@@ -653,7 +653,33 @@
   - A researcher runs the experiment of R13 on the skill before and after; the answers differ.
   - `make check` green.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:** passes that ran: Standards (sonnet, with writing-for-agents) and Spec on S12.1
+  and S12.2; no `simplify`, Design or hunt, an instruction-only step. S12.3 is the main session's
+  edit of R13's acceptance row and the Seam row after the rerun below, with no review of its own.
+  The Test first was wrong: today's step 6 does not stop a session started with `loop`.
+  - Spec — accepted, fixed in S12.3 — Verify was run by the implementer, its task telling the
+    model to act only on the file; a researcher's own task on haiku, 6 runs a side, continued on
+    both sides ("Because the session was started with `loop`, I continue rather than stop"), so
+    the acceptance row tested nothing the lines add. Rewritten to two cases and rerun by a
+    researcher on haiku and opus, 3 runs per model and side: at the loop's first step, before
+    6/6 ask the commit question, after 0/6 ("Step 2 asks it only at the session's first step
+    outside a loop"); after three fix rounds, before 6/6 offer a fourth round ("a fourth round
+    follows the same path as the first three"), after 6/6 stop the loop with the tree as is
+    ("The loop stops here. S3 has hit the third exit condition").
+  - Spec — accepted, fixed in S12.2 — R13 stopped when no `todo` step remains, the skill when no
+    unblocked one does (confirmed by a researcher).
+  - Spec — accepted, fixed in S12.2 — the guide promised a stop on the user's word that the skill
+    did not list, and said the step stays uncommitted though its first round is committed
+    (confirmed by a researcher).
+  - Spec — accepted, fixed in S12.2 — the Seam row of a brief as the skill writes it did not
+    cover R13, and then implied the run poses a stop.
+  - Standards — accepted, fixed in S12.2 — the waiver was stated in the rule and twice in the
+    skill; the stop list in the skill and the guide; step 4's deferral as a negation.
+  - Standards — rejected: `docs/knowledge/decisions.md` holds decisions that bind the code, none
+    on the commit gate (refuted by a researcher) — the changed gate needs a record there.
+  - Standards — rejected: the loop stays in one section, which the skill's opening links — the
+    stop list belongs in step 6.
 
 ## Requirement coverage
 

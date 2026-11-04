@@ -163,7 +163,7 @@ and how long it takes, so the user can judge each pass on outcome and time.
 | R10 | the bug-ticket start of `/ticket-feature` asks for the red command or the existing failing check and its output before requirements |
 | R11 | the ticket holds a table of pass → step → findings → wall time for the replays |
 | R12 | the verification template has the per-pass ledger, and this ticket's verification fills it |
-| R13 | a no-op run: after a committed step, the skill with the loop lines starts the next unblocked step; without them it names the step and stops |
+| R13 | a no-op run on the skill with and without the loop lines, both started with `loop`, on two cases: a step not ready after three fix rounds, and the loop's first step; the answers differ in whether the session asks the commit question and in whether it sends a fourth fix round or stops the loop |
 
 ## Open questions
 
