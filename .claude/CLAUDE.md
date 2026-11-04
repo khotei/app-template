@@ -17,7 +17,6 @@ entity or a store's client: [architecture.md](../docs/knowledge/architecture.md)
   workspace ([tooling.md › Add a dependency](../docs/knowledge/tooling.md#add-a-dependency)).
 - **Before naming an Effect or Drizzle API, in a plan as in code, read
   `.claude/rules/effect.md`.**
-- Update `docs/knowledge/` in the commit that changes the behaviour it describes.
 - **A change of substance runs through the `/ticket-*` skills; their artifacts live only in
   `docs/tickets/`.** Which change is one:
   [sdd.md › When to run which cycle](../docs/knowledge/sdd.md#when-to-run-which-cycle). Ignore

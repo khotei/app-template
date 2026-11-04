@@ -24,14 +24,15 @@ step id, take step after step, as **The loop** below says. Gates:
    `BLOCKED:` goes straight to the user. At the session's first step outside a loop, ask the
    commit question of `.claude/rules/sdd.md › Gates` now, while the implementer works, and hold
    the answer; a later step does not ask again.
+   - **A behaviour step**, whatever the **Model** line, is one whose diff changes the content of a
+     `.ts` file, a `Makefile` recipe or a script, beyond a move. A move renames files whose
+     content `git diff -M` shows unchanged and rewrites only the import and re-export lines
+     (`from '<old path>'`) that name them; it gets Standards and Spec alone, as does any step
+     that is not a behaviour step.
    - **Simplify, a behaviour step only**, run by you, never by the implementer: the refactor that
-     `tdd` leaves out of its red → green loop. One test decides, whatever the **Model** line: a
-     behaviour step's diff changes the content of a `.ts` file, a `Makefile` recipe or a script,
-     beyond a move. A move renames files whose content `git diff -M` shows unchanged and rewrites
-     only the import and re-export lines (`from '<old path>'`) that name them; it gets Standards
-     and Spec alone, as does any step that is not a behaviour step. Call the Skill tool with
-     `simplify` on the uncommitted step, its args pointing at the step in `plan.md`, the rules
-     `make review-rules` prints (which override it), and the deletion test and depth of
+     `tdd` leaves out of its red → green loop. Call the Skill tool with `simplify` on the
+     uncommitted step, its args pointing at the step in `plan.md`, the rules `make review-rules`
+     prints (which override it), and the deletion test and depth of
      `mattpocock-skills:codebase-design`; it keeps every interim state the plan names (a
      delegating adapter, a module the next step removes) and every test case.
      Then run `make check`. Its edits join the step's diff before review.
