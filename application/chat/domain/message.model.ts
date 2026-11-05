@@ -26,8 +26,11 @@ export type ActiveMessageStatus = typeof ActiveMessageStatus.Type
 export const MessageAuthor = Schema.Literals(['user', 'assistant'])
 export type MessageAuthor = typeof MessageAuthor.Type
 
+export const MessageFailureReason = Schema.Literals(['ReplyFailed', 'ReplyRefused'])
+export type MessageFailureReason = typeof MessageFailureReason.Type
+
 export class MessageFailure extends Schema.Class<MessageFailure>('MessageFailure')({
-  reason: Schema.Literals(['ReplyFailed', 'ReplyRefused']),
+  reason: MessageFailureReason,
   /** A user-facing sentence fixed per reason; it never quotes the cause. */
   message: Schema.String,
   /** Diagnostic detail for operators; it never leaves the api. */

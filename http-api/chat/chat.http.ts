@@ -43,9 +43,12 @@ export const ApiChat = Schema.Struct({
 })
 export type ApiChat = typeof ApiChat.Type
 
+export const MessageFailureReason = Schema.Literals(['ReplyFailed', 'ReplyRefused'])
+export type MessageFailureReason = typeof MessageFailureReason.Type
+
 /** Carries the failure's user-facing sentence, never its cause. */
 export const ApiMessageFailure = Schema.Struct({
-  reason: Schema.Literals(['ReplyFailed', 'ReplyRefused']),
+  reason: MessageFailureReason,
   message: Schema.String,
 })
 export type ApiMessageFailure = typeof ApiMessageFailure.Type
