@@ -26,6 +26,7 @@ run() {
   case $1 in
     blocked) case_ "$1" 1 0 - '{"last_assistant_message":"BLOCKED: no way","cwd":"'"$root"'"}' ;;
     blocked-bold) case_ "$1" 1 0 - '{"last_assistant_message":"**BLOCKED:** no way","cwd":"'"$root"'"}' ;;
+    blocked-heading) case_ "$1" 1 0 - '{"last_assistant_message":"## BLOCKED: no way","cwd":"'"$root"'"}' ;;
     blocked-mid) case_ "$1" 1 2 'make check is red' '{"last_assistant_message":"Not BLOCKED: done","cwd":"'"$root"'"}' ;;
     red) case_ "$1" 1 2 'make check is red' '{"last_assistant_message":"done","cwd":"'"$root"'"}' ;;
     green) case_ "$1" 0 0 - '{"last_assistant_message":"done","cwd":"'"$root"'"}' ;;
@@ -35,6 +36,6 @@ run() {
   esac
 }
 
-if [ $# -eq 0 ]; then set -- blocked blocked-bold blocked-mid red green cwd-missing cwd-absent; fi
+if [ $# -eq 0 ]; then set -- blocked blocked-bold blocked-heading blocked-mid red green cwd-missing cwd-absent; fi
 for c in "$@"; do run "$c"; done
 exit $failed

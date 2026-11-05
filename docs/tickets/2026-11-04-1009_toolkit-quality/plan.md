@@ -28,7 +28,7 @@
 | S20 | the model may run a `/ticket-*` skill when the user asks it to | done |
 | S21 | no hook or instruction line refuses or steers which tool an agent reads, searches or edits with | done |
 | S22 | the implementer's gate refuses to finish when it cannot find the agent's tree, instead of checking another one | done |
-| S23 | a `BLOCKED:` set in Markdown emphasis lets the implementer stop | todo |
+| S23 | a `BLOCKED:` set in Markdown emphasis lets the implementer stop | done |
 | S24 | `rm -rf` is no longer denied: the deny stopped agents and protected nothing | done |
 | S25 | `make worktree` refuses a number another live worktree holds, one whose ports pass 65535, and a renumbered worktree | done |
 | S26 | the lines that still named a read or search tool state what to read instead | done |
@@ -1185,8 +1185,8 @@
   - hunt — accepted, fixed in S22.2 — `make-check.sh:14`: no `cwd` or invalid JSON → the hook
     checked `CLAUDE_PROJECT_DIR`, the main checkout, so a green main tree let a red worktree
     finish (shown); the fallback is gone.
-  - Design — accepted, open — `make-check.sh:6-9,13`: parse the input once, not with two `bun`
-    starts; S23 edits the same read.
+  - Design — accepted, fixed in S23 — `make-check.sh:6-9,13`: parse the input once, not with
+    two `bun` starts.
   - hunt — rejected: refuted — `make check` past the hook's 600 s default timeout lets the agent
     stop: true of a timeout, but a researcher timed `make check` at 33 s beside two other runs.
   - hunt — rejected: S23's own scope — a `**BLOCKED:**` in bold is sent back.
@@ -1194,7 +1194,9 @@
 #### S23 — A `BLOCKED:` in Markdown emphasis lets the implementer stop
 
 - **Delivers:** a final message that opens with `BLOCKED:` set in Markdown emphasis (`**BLOCKED:**`)
-  lets the implementer stop like a plain one; a `BLOCKED:` later in the message still does not.
+  or behind a heading, quote or inline-code marker lets the implementer stop like a plain one; a
+  `BLOCKED:` later in the message still does not. An input the hook cannot read is named as
+  that, with `bun`'s own error, instead of a missing git tree.
   Today the hook sends such a message back, and Claude Code ends the loop only after eight blocks
   in a row with no tool call between them.
 - **Goal:** `BLOCKED:` stays the one way out of a red gate, however the model formats it.
@@ -1205,11 +1207,30 @@
 - **Test first:** A toolkit script fed its input — `sh <ticket>/hook-cases.sh blocked-bold` prints
   `FAIL blocked-bold: exit 2 (expected 0)` today.
 - **Verify:**
-  - `sh docs/tickets/2026-11-04-1009_toolkit-quality/hook-cases.sh` prints six `PASS` lines and
-    exits 0; fails while `blocked-bold` exits 2 or `blocked-mid` exits 0.
+  - `sh docs/tickets/2026-11-04-1009_toolkit-quality/hook-cases.sh` prints eight `PASS` lines and
+    exits 0; fails while `blocked-bold` or `blocked-heading` exits 2 or `blocked-mid` exits 0.
   - `make check` green.
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:** passes that ran on S23.1: Standards (sonnet), Spec, Design, hunt, each a
+  `reviewer` spawned directly; S23.2 checked by the main session against its findings. No
+  `simplify`: skipped by the main session on a six-line change. Implementer on `opus medium` in
+  the worktree `toolkit-quality-S23-blocked-bold` (N=3), about 2.5 and 5.1 min. Verify: before,
+  `FAIL blocked-bold: exit 2 (expected 0)`; after, eight `PASS` lines (`blocked-heading` added in
+  S23.2, red first); a probe without the `^` anchor turned `blocked-mid` to `FAIL`; `make check`
+  exit 0. S22's open Design finding (parse the input once) is taken here: one `bun` read exits 3
+  for a `BLOCKED:` message, else prints the `cwd`. Rounds S23.1 and S23.2 land as one commit,
+  on the user's word.
+  - hunt — accepted, fixed in S23.2 — `make-check.sh:10`: `## BLOCKED:`, `> BLOCKED:` and
+    `` `BLOCKED:` `` were still sent back (shown); the leading class takes Markdown markers and
+    spaces, still anchored.
+  - hunt — accepted, fixed in S23.2 — `make-check.sh:12`: a missing `bun` or invalid JSON left
+    `cwd` empty, so the hook blamed the git tree and hid `bun`'s error (shown); any exit but 0
+    or 3 is refused as an unreadable input, with `bun`'s error.
+  - Spec — accepted, fixed at the commit — Verify counted six `PASS` lines after S22.2 had
+    added a seventh case.
+  - Design — rejected — split the read back into two `bun` starts (Speculative): the single read
+    is S22's accepted candidate, and the exit codes now name each outcome.
 
 #### S24 — `rm -rf` is not denied
 

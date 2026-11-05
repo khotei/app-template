@@ -1,17 +1,23 @@
 #!/bin/sh
 # SubagentStop gate for the implementer agent: it finishes only with a green `make check`.
-# A final message that starts with "BLOCKED:" passes, so a stuck agent can still report why.
+# A final message that starts with "BLOCKED:", plain or behind Markdown markers (`**BLOCKED:**`,
+# `## BLOCKED:`, `> BLOCKED:`), passes, so a stuck agent can still report why.
 
-input=$(cat)
-prefix=$(printf '%s' "$input" | bun -e '
+# One read of the input: exit 3 for a BLOCKED: message, else print the agent's cwd.
+cwd=$(bun -e '
   const input = await Bun.stdin.json()
-  console.log(String(input.last_assistant_message ?? "").trimStart().slice(0, 8))
+  if (/^[#>*_`\s]*BLOCKED[*_`]*:/.test(String(input.last_assistant_message ?? ""))) process.exit(3)
+  console.log(input.cwd ?? "")
 ')
-[ "$prefix" = "BLOCKED:" ] && exit 0
+read_exit=$?
+[ "$read_exit" -eq 3 ] && exit 0
+if [ "$read_exit" -ne 0 ]; then
+  echo "make-check.sh could not read its input (bun exit $read_exit), so make check did not run." >&2
+  exit 2
+fi
 
 # The agent's own tree or none: an agent started with `isolation: worktree` works outside
 # CLAUDE_PROJECT_DIR, so a missing cwd never falls back to it. `git -C ""` runs in the current folder.
-cwd=$(printf '%s' "$input" | bun -e 'console.log((await Bun.stdin.json()).cwd ?? "")' 2>/dev/null)
 if [ -z "$cwd" ] || ! dir=$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null) || ! cd "$dir" 2>/dev/null; then
   {
     echo "make-check.sh cannot find the agent's git tree (cwd: $cwd), so make check did not run."
