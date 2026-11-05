@@ -36,7 +36,7 @@ graph LR
 | 1 | [`template-bootstrap`](#1-template-bootstrap) | `chore` | — | done: [docs/tickets/2026-10-17-1508_template-bootstrap/](../tickets/2026-10-17-1508_template-bootstrap/feature.md) |
 | 2 | [`claude-toolkit`](#2-claude-toolkit) | `chore` | 1, 3 | done: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md) |
 | 3 | [`chat-core`](#3-chat-core) | `feat` | 1 | done: [docs/tickets/2026-10-17-1748_chat-core/](../tickets/2026-10-17-1748_chat-core/feature.md) |
-| 4 | [`postgres-drizzle`](#4-postgres-drizzle) | `feat` | 3 | in progress: [docs/tickets/2026-10-22-1915_postgres-drizzle/](../tickets/2026-10-22-1915_postgres-drizzle/feature.md) |
+| 4 | [`postgres-drizzle`](#4-postgres-drizzle) | `feat` | 3 | done: [docs/tickets/2026-10-22-1915_postgres-drizzle/](../tickets/2026-10-22-1915_postgres-drizzle/feature.md) |
 | 5 | [`aws-local`](#5-aws-local) | `feat` | 3 | done: [docs/tickets/2026-10-19-1448_aws-local/](../tickets/2026-10-19-1448_aws-local/feature.md) |
 | 6 | [`llm-providers`](#6-llm-providers) | `feat` | 5 | done: [docs/tickets/2026-10-29-1435_llm-providers/](../tickets/2026-10-29-1435_llm-providers/feature.md) |
 | 7 | [`web-app`](#7-web-app) | `feat` | 3 (18 for assistant attachments) | planned |
@@ -47,7 +47,7 @@ graph LR
 | 12 | [`template-handoff`](#12-template-handoff) | `chore` | all above | planned |
 | 13 | [`ticket-folder-order`](#13-ticket-folder-order) | `chore` | 3 | done: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md) |
 | 14 | [`toolkit-reading`](#14-toolkit-reading) | `chore` | 2 | done: [docs/tickets/2026-10-21-1347_toolkit-reading/](../tickets/2026-10-21-1347_toolkit-reading/feature.md) |
-| 15 | [`architecture-audit`](#15-architecture-audit) | `refactor` | 4 | in progress: [docs/tickets/2026-10-27-1433_architecture-audit/](../tickets/2026-10-27-1433_architecture-audit/feature.md) |
+| 15 | [`architecture-audit`](#15-architecture-audit) | `refactor` | 4 | done: [docs/tickets/2026-10-27-1433_architecture-audit/](../tickets/2026-10-27-1433_architecture-audit/feature.md) |
 | 16 | [`shared-files`](#16-shared-files) | `feat` | 15, 23 | planned |
 | 17 | [`docs-diet`](#17-docs-diet) | `docs` | 15 | done, as `lean-instructions`: [docs/tickets/2026-11-02-1820_lean-instructions/](../tickets/2026-11-02-1820_lean-instructions/feature.md) |
 | 18 | [`assistant-files`](#18-assistant-files) | `feat` | 6, 23 | planned |
@@ -198,13 +198,13 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   consumer or sweep for replies left active in the dead-letter queue (a killed worker, a failed
   `failed` write, a stopped worker's long poll); a `WHERE status IN (…)` guard on the reply's
   terminal write.
-- **Status.** In progress:
-  [docs/tickets/2026-10-22-1915_postgres-drizzle/](../tickets/2026-10-22-1915_postgres-drizzle/feature.md).
-  Its grilling departed from this entry: the outbox relays to SQS (there is no SQL queue store any
-  more); `$onUpdate` is dropped, timestamps and ids stay the domain's; tests run on Testcontainers
-  only, one Postgres per `vitest` run with a database per test, PGlite rejected as a second driver;
-  the local stand is one Pulumi program, MiniStack with the RDS instance, the bucket and the queues
-  inside it; the attachment record sweep was declined.
+- **Status.** Done:
+  [docs/tickets/2026-10-22-1915_postgres-drizzle/](../tickets/2026-10-22-1915_postgres-drizzle/feature.md),
+  merged as `b7d6edf`. Its grilling departed from this entry: the outbox relays to SQS (there is
+  no SQL queue store any more); `$onUpdate` is dropped, timestamps and ids stay the domain's;
+  tests run on Testcontainers only, one Postgres per `vitest` run with a database per test, PGlite
+  rejected as a second driver; the local stand is one Pulumi program, MiniStack with the RDS
+  instance, the bucket and the queues inside it; the attachment record sweep was declined.
 
 ### 5. `aws-local`
 
@@ -469,9 +469,9 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   `application`, handlers in the apps (the worker like the api), tests in `tests/` over memory
   ports and `e2e/` over the real infrastructure, the architecture language in the
   glossary.
-- **Status.** In progress:
-  [docs/tickets/2026-10-27-1433_architecture-audit/](../tickets/2026-10-27-1433_architecture-audit/feature.md).
-  Its branch is cut from `feat/postgres-drizzle`; its PR waits for that merge.
+- **Status.** Done:
+  [docs/tickets/2026-10-27-1433_architecture-audit/](../tickets/2026-10-27-1433_architecture-audit/feature.md),
+  merged as `8871613` and `e5838e1`.
 
 ### 16. `shared-files`
 

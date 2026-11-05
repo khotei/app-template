@@ -57,8 +57,9 @@ The root `test` script, `bun --bun vitest run`, runs both projects at once (CI's
 `bun test` would instead start Bun's own test runner, which ignores the vitest projects and
 their setup.
 
-Scripts live only where `make` calls them: the root `package.json` holds `prepare`, `lint`,
-`format` and `test`; each app holds `dev`, `debug` and `start`; library workspaces hold none.
+Scripts live only where `make` calls them: the root `package.json` holds `prepare`, `format`
+and `test` (`make lint` calls Biome itself); each process app (`api`, `worker`, `web`) holds
+`dev`, `debug` and `start`; `apps/e2e` and the library workspaces hold none.
 
 ### Tests
 
@@ -251,12 +252,13 @@ ports, and the database's volume stays.
 
 ## Environment
 
-- **One root `.env`**, gitignored, written by hand; beside it `make up` writes `.env.pulumi`, the
-  stack's outputs (`DATABASE_URL`). `.env.example` is the template of `.env` and lists what the code
-  reads from it, plus the variables a client SDK reads from the environment itself, such as the
-  AWS credentials, which never pass through `@app-template/kernel/config`
-  ([aws.md › The local stand-in](aws.md#the-local-stand-in)). Variables of clients that are still
-  stubs stay commented out.
+- **One root `.env`**, gitignored: `make setup` creates it from `.env.example` and you edit it
+  by hand, while a worktree's is written by `make worktree`; beside it `make up` writes
+  `.env.pulumi`, the stack's outputs (`DATABASE_URL`). `.env.example` is the template of `.env`
+  and lists what the code reads from it, plus the variables a client SDK reads from the
+  environment itself, such as the AWS credentials, which never pass through
+  `@app-template/kernel/config` ([aws.md › The local stand-in](aws.md#the-local-stand-in)).
+  Variables of clients that are still stubs stay commented out.
 - **Quoting.** Strings are double-quoted (`LOG_LEVEL="Info"`), numbers are bare (`API_PORT=3000`).
 - **Loading.** Each app script passes `--env-file=../../.env --env-file=../../.env.pulumi`, paths
   relative to the app folder, and `make migrate` the same two files; the second wins, and Bun

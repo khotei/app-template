@@ -136,7 +136,7 @@ import { SendMessageUseCase } from '#use-cases/chat/send-message.use-case'  // t
 
 ## Where things live
 
-Using the `chat` slice as the map:
+Using the files of `chat` as the map:
 
 | What | File | Named |
 |---|---|---|
@@ -218,7 +218,7 @@ export class PlaceOrderUseCase extends Context.Service<PlaceOrderUseCase, {
 
 ## Add a new entity
 
-An entity is the data layer's record; its model is the module's. Follow the `chat` slice from the
+An entity is the data layer's record; its model is the module's. Follow the files of `chat` from the
 data outward, write each test before its code and run `make check` after each step. `<entity>` is
 the kebab name (`document`), `<Name>` the Pascal one of the data layer's names, `<Model>` the
 model's.
@@ -356,7 +356,7 @@ them:
   bundle.
 - **A runtime module or third-party package in a module's `domain/`.** `node:crypto` or any npm
   package passes the domain guard, which bans only workspaces and `@effect/*`. Purity rests on
-  review and on the grep for `Date.now`, `new Date(` and `randomUUID`.
+  review alone: no check looks for `Date.now`, `new Date(` or `randomUUID`.
 - **A server library in a browser-safe package.** An import of `<server library>` in
   `packages/ui` passes Biome, which keeps no list for a package, and `tsc -b`, because
   the one `packages/package.json` declares every package's libraries for all of them. `make

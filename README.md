@@ -58,8 +58,12 @@ Requires Bun at the version in `package.json › packageManager`, GNU Make, Dock
 ```sh
 make setup   # bun install, git hooks, the Claude Code plugin, .env from .env.example
 make up      # MiniStack with Postgres, the bucket and the queues inside it; migrates
-make dev     # api, worker and web together
+make dev     # runs make migrate, then api, worker and web together; needs make up's stand
 ```
+
+`.env` starts with `LLM_PROVIDER="stub"`, which needs no key. `LLM_PROVIDER="anthropic"` also needs
+`ANTHROPIC_API_KEY`, `LLM_REPLY_MODEL` and `LLM_TITLE_MODEL`, which `.env.example` leaves commented
+out; without them the api and the worker fail at start (the web does not read them).
 
 | Process | URL | Try |
 |---|---|---|
@@ -128,8 +132,8 @@ server module in the browser's bundle. The rules a change most often breaks:
 - no service in the browser
   ([architecture.md › Boundary guards](docs/knowledge/architecture.md#boundary-guards)).
 
-One name crosses every ring: a slice reads from the data outward, table and repository, then
-model, mapper, service, use case, adapter and handler. Every file of the `chat` slice:
+One name crosses every ring: a module's files read from the data outward, table and repository,
+then model, mapper, service, use case, adapter and handler. Every file of `chat`:
 [architecture.md › Where things live](docs/knowledge/architecture.md#where-things-live). Why each
 boundary holds, what it costs and what breaks if it is reversed:
 [decisions.md](docs/knowledge/decisions.md), one record per decision.

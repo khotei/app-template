@@ -47,7 +47,7 @@ local program and the tests' container both read.
 
 | Target | Does |
 |---|---|
-| `make stack` | logs the Pulumi CLI in to the file backend and selects the `local` stack or creates it. Idempotent; `up` runs it first. |
+| `make stack` | creates the tree's file backend under `.data/pulumi` and selects the `local` stack or creates it; it never runs `pulumi login`. Idempotent; `up` runs it first. |
 | `make up` | refreshes the MiniStack container alone, once it is in the state, so a stopped one starts again; a full refresh, or `up --refresh`, while MiniStack is down would drop the bucket from the state. Then `pulumi up`, `.env.pulumi` and `make migrate`, which waits for a database MiniStack is still respawning ([database.md › Migrations](database.md#migrations)). A second run changes nothing. |
 | `make down` | `docker stop` of MiniStack, which saves its state under `.data/ministack/` and stops the instance's container; the stack keeps every resource. |
 | `make reset` | `docker rm -f` of MiniStack, of the instance's container and of the tree's Postgres MCP containers ([tooling.md › Claude Code's Postgres MCP](tooling.md#claude-codes-postgres-mcp)), `docker volume rm` of its volume, then removes `.data/` (MiniStack's state and the Pulumi stack) and `.env.pulumi`. No `pulumi destroy` runs: every resource lives in what these commands remove, and the stack's state goes with `.data/`. `.pulumi/` (the provider plugins) stays. |

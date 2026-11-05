@@ -37,7 +37,7 @@
 | S29 | a claimed failure is confirmed by a test the researcher writes in a disposable worktree | done |
 | S30 | the review passes are `reviewer` agents the skills spawn themselves, with no `code-review` wrapper | done |
 | S31 | the toolkit's shell scripts stop on every failed command and run the same under `dash` | todo |
-| S32 | the docs and the README state what the repository does today | todo |
+| S32 | the docs and the README state what the repository does today | done |
 
 ## How to run this plan
 
@@ -1650,7 +1650,26 @@
   - `grep -c -e ANTHROPIC_API_KEY -e 'make up' README.md` counts more than today.
   - `make check` green (`doc-lint` checks the links and paths).
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:** passes that ran on S32.1: Standards (sonnet) and Spec, each a `reviewer`
+  spawned directly; S32.2 checked by the main session against its findings. No `simplify`,
+  Design or hunt, a docs step. Implementer on `opus medium` in the worktree
+  `toolkit-quality-S32-docs-refresh` (N=4), about 6.7 and 1.2 min. Verify: each grep printed
+  its stale lines before and nothing after; the README count went from 3 to 5; `make check`
+  exit 0. Rounds S32.1 and S32.2 land as one commit, on the user's word.
+  - Deviation — the roadmap's two done entries cite their merge commits (`b7d6edf`, `8871613`,
+    `e5838e1`), as the earlier done entries do; the step did not ask for them.
+  - Spec — refuted, then fixed in S32.2 — `README.md:66`: claimed only the worker reads the LLM
+    keys, so "the processes fail at start" should say "the worker". A `researcher` in a
+    disposable worktree (`toolkit-quality-S32-confirm`, N=5) started each process with
+    `LLM_PROVIDER="anthropic"` and the three variables unset: the api exited 1 (`ConfigError`
+    on `LLM_REPLY_MODEL`, through `CurrentReplyProvenanceFromConfig`), the worker exited 1
+    (`ConfigError` on `ANTHROPIC_API_KEY`), the web kept running. Both the README and the
+    claimed fix were wrong; the line now names the api and the worker. The first use of S29's
+    confirm-by-run.
+  - Standards — none.
+  - Out of scope — "slice" stays in `roadmap.md:121,122,508` and "placeholder" in its planned
+    entries: they describe tickets' scope, not the code.
 
 ## Requirement coverage
 
