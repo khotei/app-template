@@ -11,10 +11,10 @@ import {
   MediaType,
   MessageId,
 } from '@app-template/application/chat'
-import { Auth } from '@app-template/application/identity'
 
 import { AttachmentTooLargeError, AttachmentTypeUnsupportedError } from '#http-api/shared/errors'
 import * as limits from '#http-api/shared/limits'
+import { Auth } from '#http-api/shared/security'
 
 export const Attachment = AttachmentModel.mapFields((fields) => ({
   ...fields,

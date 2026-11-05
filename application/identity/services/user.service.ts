@@ -4,8 +4,8 @@ import { Base64Url, Hex } from 'effect/encoding'
 import { UserRepository } from '@app-template/kernel/data'
 import { generateId } from '@app-template/packages/db'
 
-import { UserUnknownError } from '#identity/contract/user.error'
 import { UserId } from '#identity/contract/user.id'
+import { UserUnknownError } from '#identity/domain/user.error'
 import { buildUser, Credential, SecretHash, type User } from '#identity/domain/user.model'
 import { decodeUser, encodeCredential, encodeUser } from '#identity/services/user.mapper'
 

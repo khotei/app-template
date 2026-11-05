@@ -105,9 +105,8 @@ rest of the module. A dependency on a module's contract counts as one on the mod
   module. A Biome list of the contract's names (`allowImportNames`) or a ban
   by name (`importNamePattern`): review holds the names instead.
 - **Cost:** the entry opens the module whole, so which of its names another module takes is
-  review's (`modules.md`), not Biome's;
-  `Auth`, an HTTP middleware, lives outside `http-api`; `http-api` also reads identity's `domain`,
-  since its user DTO is the `User` model.
+  review's (`modules.md`), not Biome's; `http-api` also reads identity's `domain`, since its
+  user DTO is the `User` model.
 - **Guarded by:** the rows of a module's layers and of a contract in
   [architecture.md › Dependency rules](architecture.md#dependency-rules);
   `.claude/rules/modules.md` refuses a name past the contract, a module importing one above it

@@ -3,12 +3,12 @@ import { HttpServerResponse, Mime, Multipart } from 'effect/http'
 import { HttpApiBuilder } from 'effect/http-api'
 
 import { AttachmentService, FileName, type MediaType } from '@app-template/application/chat'
-import { CurrentUser } from '@app-template/application/identity'
 import {
   Api,
   AttachmentMediaType,
   AttachmentTooLargeError,
   AttachmentTypeUnsupportedError,
+  CurrentUser,
   limits,
   RequestInvalidError,
   type RequestIssue,

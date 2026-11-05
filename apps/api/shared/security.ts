@@ -1,19 +1,15 @@
 import { Array as Arr, Effect, Layer, Predicate, SchemaIssue } from 'effect'
 import { type HttpApiError, HttpApiMiddleware } from 'effect/http-api'
 
-import { Auth, CurrentUser, UserService } from '@app-template/application/identity'
-import { RequestInvalidError, SchemaErrors } from '@app-template/http-api'
+import { UserService } from '@app-template/application/identity'
+import { Auth, CurrentUser, RequestInvalidError, SchemaErrors } from '@app-template/http-api'
 
 export const AuthUserService = Layer.effect(
   Auth,
   UserService.useSync((users) =>
     Auth.of({
       cookie: (httpEffect, { credential }) =>
-        Effect.provideServiceEffect(
-          httpEffect,
-          CurrentUser,
-          users.authenticate(credential).pipe(Effect.map((user) => ({ id: user.id }))),
-        ),
+        Effect.provideServiceEffect(httpEffect, CurrentUser, users.authenticate(credential)),
     }),
   ),
 )

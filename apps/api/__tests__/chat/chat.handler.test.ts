@@ -10,8 +10,7 @@ import {
   MessageNotFoundError,
 } from '@app-template/application/chat'
 import { selectMessage, updateMessage } from '@app-template/application/chat/testing'
-import { UserUnknownError } from '@app-template/application/identity'
-import { ApiClient } from '@app-template/http-api'
+import { ApiClient, UserUnknownError } from '@app-template/http-api'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { ApiServerTest, ApiTest, layerApiClient } from '#testing/api.test-layer'
