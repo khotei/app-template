@@ -69,8 +69,8 @@
               "options": {
                 "patterns": [
                   {
-                    "group": ["@app-template/**", "@effect/**"],
-                    "message": "the API contract imports only effect: no workspace and no @effect/* package (decisions.md › The API contract on its own; Guards are configuration)"
+                    "group": ["@app-template/**", "@effect/**", "node:*", "bun", "bun:*"],
+                    "message": "the API contract imports only effect: no workspace, no @effect/* package, no node: or bun built-in (decisions.md › The API contract on its own; Guards are configuration)"
                   }
                 ]
               }

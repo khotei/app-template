@@ -11,6 +11,7 @@
 | S1 | ~105 | 61+/48- over 18 files (S1.1), 3+/3- (S1.2) | 14:10:44 → 14:15:30 (4m46s) | 14:15:30 → 14:17:01 | 14:17:01 → 14:18:25 | 14:10:44 → 14:21 (about 10m) |
 | S2 | ~390 | 268+/95- over 19 files (S2.1), 8+/6- (S2.2) | about 5m50s | about 5m (4 agents) | about 6m (3 agents) | about 20m |
 | S5 | ~20 | 39+/2- over 2 files | 3m26s (agent time, no wall clock taken) | none (no new interface) | Standards 18s, Spec 37s | not taken |
+| S6 | ~15 | 12+/8- over 4 files | 3m31s (agent time) | none | Standards 20s, Spec 51s | not taken |
 
 ## Review value
 

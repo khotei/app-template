@@ -452,8 +452,9 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   - `make lint-docs` on lines over 100 characters in the living docs; whether `docs/tickets/` is
     in.
   - Biome guards for `node:`/`bun:` imports and `Bun`/`process` globals in the browser-facing
-    layers, and `Date`/`crypto`/`fetch` in `domain`: no recorded agent mistake, but a hand grep in
-    every verification.
+    layers other than `http-api` (its Biome import ban, and `"types": []` for the globals), and
+    `Date`/`crypto`/`fetch` in `domain`: no recorded agent mistake, but a hand grep in every
+    verification.
 - **Out of scope.** A cut made for tokens alone that saves under 20% of the load it targets.
 - **Facts (2026-10-21).** Rewording four rules without losing a constraint saved 11%; the
   always-loaded project files measured 4.5k tokens by `/context` before `claude-toolkit`.

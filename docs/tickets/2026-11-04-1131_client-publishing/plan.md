@@ -11,7 +11,7 @@
 | S3 | the twins test over every twin, and the knowledge docs and records of the new boundary, each page written once | done |
 | S4 | the guards: the contract's Biome override bans every workspace; `make bundle-check` reads the metafile against `browserPackages` | done |
 | S5 | the chat and message mappers hand nested attachments to `buildApiAttachment`, so a wire rename inside the attachment edits one mapper | done |
-| S6 | the contract imports no `node:*` and no `bun:*`: Biome ban and no `bun` types | todo |
+| S6 | the contract imports no `node:*` and no `bun:*`: Biome ban and no `bun` types | done |
 | S7 | the `.http` row of `naming.md` allows the contract's models and errors; the reviewer owns the "step that does not stand alone" check | todo |
 
 ## How to run this plan
@@ -498,7 +498,8 @@
 - **Blocked by:** S4.
 - **Files:** `.misc/lint/biome.base.json` (the `http-api/**` group gains `node:*`, `bun`, `bun:*`;
   the message reads "the API contract imports only effect: no workspace, no @effect/* package, no
-  node: or bun built-in"); `http-api/tsconfig.json`; `docs/knowledge/roadmap.md` (the Biome guard
+  node: or bun built-in"); `http-api/tsconfig.json`; `docs/knowledge/decisions.md` (the *Guarded by*
+  line of The API contract on its own); `docs/knowledge/roadmap.md` (the Biome guard
   for `node:`/`bun:` imports in the browser-facing layers loses `http-api` from its list of what
   is still open); the guard's probes in `guard-probes.md` form, as `ticket-plan` asks.
 - **Size:** ~15.
@@ -513,7 +514,22 @@
   - If `"types": []` is set: `bunx tsc -b` green; a planted `node:fs` import then also fails it.
     If `tsc -b` fails without `bun` types, keep the lint ban alone and record the deviation.
 - **Model:** `opus medium`.
-- **Status:** `todo`.
+- **Status:** `done`.
+- **Findings:** passes: Standards, Spec; no simplify (no new interface), no hunt. `make check` green
+  (246 unit, 104 e2e).
+  - Deviation — `decisions.md` joined the step's Files (`sdd.md`: a guard change rewrites its record
+    in the same commit); the roadmap line also drops `http-api` from the open `Bun`/`process`
+    globals guard, since `"types": []` makes those fail `tsc`.
+  - Probes — `node:fs`, `node:path`, `bun:sqlite`, `import { file } from 'bun'`, `import 'bun'`
+    each fail `bunx biome lint` with the new message; `import 'bun'` passes `tsc -b`, so the lint
+    ban is its only guard; a planted `node:fs` fails `tsc -b` with TS2591.
+  - Standards — none.
+  - Spec — accepted, fixed in this commit: `architecture.md` described the old ban (Structure
+    invariant, Guards, the `make lint` Seams row).
+  - Spec — rejected (claimed, run by the main session): a bare `import … from 'fs'` passes the
+    lint ban, but `bunx tsc -b` fails it with `TS2591: Cannot find name 'fs'`, so `make check`
+    fails and R1 holds.
+
 
 #### S7 — Two instruction files, each fact once
 

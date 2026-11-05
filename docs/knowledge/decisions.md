@@ -205,9 +205,11 @@ domain's errors as they are; the web calls it. Nothing of `application/` reaches
   line more; `openapi.json`'s component names follow the contract's identifiers. The class
   marker is internal to Effect, so an upgrade that drops it turns every domain error into a
   `500`.
-- **Guarded by:** the `http-api/**` override, which refuses any workspace and any `@effect/*`
-  package; the api's twins test, which compares each contract schema with the domain export of
-  the same name by its representation and encodes a domain error through the contract's class;
+- **Guarded by:** the `http-api/**` override, which refuses any workspace, any `@effect/*`
+  package and any `node:` or `bun` built-in; `"types": []` in its `tsconfig.json`, so a `Bun` or
+  `process` global fails `tsc`; the api's twins test, which compares each contract schema with
+  the domain export of the same name by its representation and encodes a domain error through
+  the contract's class;
   the `buildApi<Model>` mappers and `CurrentUser` under `tsc`, where a brand, tag, literal or
   field drifted on one side no longer typechecks; `make bundle-check`.
 - **If reversed:** the contract imports the modules again, the web bundle holds whatever the
