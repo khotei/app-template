@@ -1,23 +1,32 @@
 # App Template
 
-A chat clone (user → message → assistant reply) built as a template for enterprise projects:
-a Bun, TypeScript and Effect modular monolith, with an api, a worker and a web client over one
-domain. It grows one ticket at a time along the [roadmap](docs/knowledge/roadmap.md), and each
-ticket keeps its spec, design and plan in `docs/tickets/`, so a project started from it inherits
-the reasoning along with the code.
+A working enterprise application to start new ones from, and the AI-assisted process that builds
+it.
+
+The application is a chat clone: a user sends a message, the assistant replies. The chat is only
+the worked example; what a new project inherits is around it:
+
+- 🏛️ **An architecture that holds.** A Bun, TypeScript and Effect modular monolith: three
+  processes (`api`, `worker`, `web`) over one domain, the code cut in three rings, and the build,
+  not a reviewer, refusing an import that points the wrong way.
+- 🧱 **A stack wired end to end.** Postgres through Drizzle, files in S3 and jobs in SQS (MiniStack
+  locally), Pulumi to provision the stores, a language model behind a port.
+- 🤖 **A development process run with AI agents.** Every change of substance is a ticket that
+  Claude Code agents specify, design, plan, implement and verify, while you decide at each gate.
+  The ticket's reasoning is committed next to its code, so a project started from here inherits
+  the why along with the what.
 
 It is not a framework, and nothing here is generated: every layer is plain code meant to be read,
 copied and changed.
 
-## What it does today
+## ✨ What the example does
 
 An anonymous user gets a secret in a cookie, creates chats, sends messages with attachments, and
 the assistant answers. The api writes the message and its jobs in one transaction and answers
 `202`; the worker relays the jobs to SQS, writes the model's whole reply into the message and
-titles the chat; the client polls the message until it is `done` or `failed`. Records
-live in Postgres, attachment bytes in S3, and jobs go through an outbox and SQS (MiniStack
-locally); `LLM_PROVIDER` picks the language model: Anthropic, or a stub that needs no key. The
-browser UI still shows only the health panel.
+titles the chat; the client polls the message until it is `done` or `failed`. `LLM_PROVIDER`
+picks the language model: Anthropic, or a stub that needs no key. The browser UI still shows only
+the health panel.
 
 ```mermaid
 sequenceDiagram
@@ -40,16 +49,21 @@ How the transaction, the outbox and the relay work:
 [database.md › The outbox](docs/knowledge/database.md#the-outbox),
 [aws.md › Queues](docs/knowledge/aws.md#queues).
 
-## Quick start
+## 🚀 Quick start
 
 Requires Bun at the version in `package.json › packageManager`, GNU Make, Docker running and the
-[Pulumi CLI](https://www.pulumi.com/docs/install/).
+[Pulumi CLI](https://www.pulumi.com/docs/install/). The development process also needs
+[Claude Code](https://code.claude.com/docs/en); the application does not.
 
 ```sh
-make setup   # bun install, git hooks, and .env from .env.example
+make setup   # bun install, git hooks, the Claude Code plugin, .env from .env.example
 make up      # MiniStack with Postgres, the bucket and the queues inside it; migrates
-make dev     # api, worker and web together
+make dev     # runs make migrate, then api, worker and web together; needs make up's stand
 ```
+
+`.env` starts with `LLM_PROVIDER="stub"`, which needs no key. `LLM_PROVIDER="anthropic"` also needs
+`ANTHROPIC_API_KEY`, `LLM_REPLY_MODEL` and `LLM_TITLE_MODEL`, which `.env.example` leaves commented
+out; without them the api and the worker fail at start (the web does not read them).
 
 | Process | URL | Try |
 |---|---|---|
@@ -71,36 +85,99 @@ curl -s -b jar localhost:3000/chats/<chatId>/messages/<assistantMessageId>
 `make down` stops the stand and keeps its data; `make reset` removes it whole. When `make up`
 fails: [aws.md › When the stand fails](docs/knowledge/aws.md#when-the-stand-fails).
 
-## Architecture at a glance
+## 🗺️ The repository as a system
 
-Three processes share one codebase and one database. The code is cut in three rings, the data
-at the centre, the behaviour around it and the boundary outside, and every dependency points
-inward. Which folder holds what:
-[architecture.md › The three rings](docs/knowledge/architecture.md#the-three-rings); what may
-import what, and the guard that refuses the rest:
-[architecture.md › Dependency rules](docs/knowledge/architecture.md#dependency-rules). Why each
+The repository holds three things: the application, the knowledge about it, and the toolkit that
+changes it.
+
+| Folder | What it holds |
+|---|---|
+| `apps/` | the three processes, thin entry points that assemble the layers; `apps/e2e` tests them assembled |
+| `http-api/` | the HTTP contract the api serves and the web client calls |
+| `application/` | the behaviour: the modules `chat` and `identity`, and every use case in `application/use-cases` |
+| `kernel/` | the configured clients (`config`, `postgres`, `aws`, `queue`, `llm`) and `kernel/data`: every table, migration and repository |
+| `packages/` | generic tools that know no app: database, S3, queue and model clients, UI, test helpers |
+| `deployment/` | Pulumi programs that provision the stores, in MiniStack locally and on AWS |
+| `docs/knowledge/` | how the system works today: architecture, data, AWS, AI, tooling, process, decisions, glossary, roadmap |
+| `docs/tickets/` | one folder per ticket: its requirements, design, plan and verification |
+| `.claude/` | the agent toolkit: the project's `CLAUDE.md`, skills, agents, hooks, rules and settings |
+| `repos/` | Effect's and Drizzle's source at the pinned versions, to read rather than guess |
+| `CLAUDE.md` in a folder | the rules of that layer, written for the agent and short enough for you |
+
+## 🏛️ Architecture at a glance
+
+The code is cut in three rings, and every dependency points inward:
+
+```mermaid
+graph LR
+  B["🌐 boundary<br/>apps · http-api · kernel clients · adapters"] --> U["application/use-cases"]
+  U --> M["⚙️ behaviour<br/>application/chat · application/identity"]
+  M --> D["🗄️ data<br/>kernel/data"]
+```
+
+- **The data** at the centre: `kernel/data` is the one source of truth over every store.
+- **The behaviour** around it: each module holds its models, rules and services; a use case above
+  the modules composes their services in one transaction.
+- **The boundary** outside: everything that touches the world, from the configured clients to the
+  apps.
+
+The guards are in the build, so a wrong import fails before a review: `tsc -b` refuses a cycle and
+an undeclared workspace, Biome refuses an import across a ring, and `make bundle-check` refuses a
+server module in the browser's bundle. The rules a change most often breaks:
+
+- no rule outside the modules
+  ([Use cases above the modules](docs/knowledge/decisions.md#use-cases-above-the-modules));
+- no lock but a guard in the write ([database.md › Guards](docs/knowledge/database.md#guards));
+- no message without its job ([database.md › The outbox](docs/knowledge/database.md#the-outbox));
+- no service in the browser
+  ([architecture.md › Boundary guards](docs/knowledge/architecture.md#boundary-guards)).
+
+One name crosses every ring: a module's files read from the data outward, table and repository,
+then model, mapper, service, use case, adapter and handler. Every file of `chat`:
+[architecture.md › Where things live](docs/knowledge/architecture.md#where-things-live). Why each
 boundary holds, what it costs and what breaks if it is reversed:
 [decisions.md](docs/knowledge/decisions.md), one record per decision.
 
-The rules a change most often breaks, each with its owner: no rule outside the modules
-([Use cases above the modules](docs/knowledge/decisions.md#use-cases-above-the-modules)), no
-lock but a guard in the write ([database.md › Guards](docs/knowledge/database.md#guards)), no
-message without its job ([database.md › The outbox](docs/knowledge/database.md#the-outbox)),
-no service in the browser
-([architecture.md › Boundary guards](docs/knowledge/architecture.md#boundary-guards)).
+## 🤖 How work gets done
 
-## Anatomy of a slice
+You work in this repository with Claude Code. A change of substance becomes a ticket on its own
+branch, and five skills you type carry it from an idea to a pull request. The agents do the
+reading, writing and reviewing; you answer their questions and approve what lands.
 
-One name crosses every ring under the same folder name: the entity and the model share it. Read
-a slice from the data outward: the data layer's table, entity and repository, the model and its
-pure operations, the mapper between entity and model, the service with the rules, the use case
-composing services, the adapter implementing a port, the handler calling the use case. Every
-file of the `chat` slice and what it is named:
-[architecture.md › Where things live](docs/knowledge/architecture.md#where-things-live); the
-suffixes and naming verbs: [.claude/rules/naming.md](.claude/rules/naming.md); where its tests
-sit: [tooling.md › Tests](docs/knowledge/tooling.md#tests).
+```mermaid
+graph LR
+  F["/ticket-feature"] --> A["/ticket-architecture"] --> P["/ticket-plan"]
+  P --> I["/ticket-implement<br/>(once per step)"]
+  I -->|next step| I
+  I --> V["/ticket-verify"]
+  V -->|fixes become steps| I
+  V -->|pass| PR[PR · squash merge]
+```
 
-## Daily development
+| Skill | What it produces | What you decide |
+|---|---|---|
+| `/ticket-feature` | `feature.md`: the requirements, as testable `WHEN … THE SYSTEM SHALL …` sentences | the answers to its questions, the domain terms |
+| `/ticket-architecture` | `architecture.md`: the seams to test at and the decisions | the seams and each decision |
+| `/ticket-plan` | `plan.md`: steps small enough for one session, each with its first test | the plan as a whole: the one heavy review |
+| `/ticket-implement` | one step, written test-first, reviewed, then committed | whether it commits, or what to fix first |
+| `/ticket-verify` | `verification.md`: every requirement checked against observable behaviour | the fixes to make, and whether to open the PR |
+
+What keeps the agents honest:
+
+- 🧪 **An `implementer` cannot finish red.** A hook runs `make check` when it stops and sends it
+  back until it passes; the only other way out is to report itself blocked, which reaches you.
+- 🔍 **Every step is reviewed before it is committed,** by read-only `reviewer` agents in a fresh
+  context, each owning one kind of finding.
+- ✅ **Every requirement is verified** by `verifier` agents that see the behaviour, not the
+  implementer's report.
+- 📜 **The reasoning stays.** The ticket folder and the commit messages keep each decision, its
+  rejected alternatives and its cost; `main` holds one squash commit per ticket.
+
+A typo or a version bump needs no ticket, and a small fix skips the architecture: which cycle a
+change needs, what each skill does under the hood and the plugin it wraps:
+[sdd.md](docs/knowledge/sdd.md).
+
+## 🛠️ Daily development
 
 | To | Run | More |
 |---|---|---|
@@ -112,21 +189,29 @@ sit: [tooling.md › Tests](docs/knowledge/tooling.md#tests).
 | change a table | edit its `.table.ts`, then `make migration NAME=<name>` and `make migrate` | [database.md › Migrations](docs/knowledge/database.md#migrations) |
 | start over with an empty database | `make reset && make up` | [tooling.md › Environment](docs/knowledge/tooling.md#environment) |
 | work on two branches at once | a worktree with its own ports and containers | [tooling.md › Worktrees](docs/knowledge/tooling.md#worktrees) |
-| read Effect's or Drizzle's source at our pin | `repos/effect`, `repos/drizzle` | [tooling.md › Commands](docs/knowledge/tooling.md#commands) |
 | learn why a check failed | the symptom table | [tooling.md › Troubleshooting](docs/knowledge/tooling.md#troubleshooting) |
 | learn why a commit or a push was rejected | the hooks; never `--no-verify` | [tooling.md › Git hooks and CI](docs/knowledge/tooling.md#git-hooks-and-ci) |
 | write a test | the kinds, where each goes, and time in `it.effect` | [tooling.md › Tests](docs/knowledge/tooling.md#tests) |
 
-## Adding a feature
+## 🧩 Extending it
 
-1. **Specify it as a ticket:** `/ticket-feature`, then architecture, plan, implement, verify —
-   [sdd.md › The five skills](docs/knowledge/sdd.md#the-five-skills).
-2. **Add an entity and its model** from the data outward, test first —
-   [architecture.md › Add a new entity](docs/knowledge/architecture.md#add-a-new-entity).
-3. **Add an AWS resource** to the inventory, local and deployed alike —
-   [aws.md › Adding a resource](docs/knowledge/aws.md#adding-a-resource).
+Each addition has a checklist, written from the data outward and test first:
 
-## Where to read next
+- an entity and its model: [architecture.md › Add a new entity](docs/knowledge/architecture.md#add-a-new-entity);
+- a module: [architecture.md › Add a module](docs/knowledge/architecture.md#add-a-module);
+- a store's client: [architecture.md › Add a store's client](docs/knowledge/architecture.md#add-a-stores-client);
+- an AWS resource, local and deployed alike:
+  [aws.md › Adding a resource](docs/knowledge/aws.md#adding-a-resource);
+- a dependency or a workspace: [tooling.md › Dependencies](docs/knowledge/tooling.md#dependencies).
+
+## 🌱 Starting a new project
+
+On GitHub, *Use this template* starts a new project from `main`. The checklist of what to rename,
+delete and keep afterwards is planned as the roadmap's
+[`template-handoff`](docs/knowledge/roadmap.md#12-template-handoff). What is built next, and in
+which order: [roadmap.md](docs/knowledge/roadmap.md).
+
+## 📚 Where to read next
 
 | Question | Document |
 |---|---|
@@ -134,6 +219,7 @@ sit: [tooling.md › Tests](docs/knowledge/tooling.md#tests).
 | Which ring and layer does my code belong to, and what may it import? | [docs/knowledge/architecture.md](docs/knowledge/architecture.md) |
 | How are records stored, guarded, migrated and tested? | [docs/knowledge/database.md](docs/knowledge/database.md) |
 | How do the apps reach S3 and SQS, locally and on AWS? | [docs/knowledge/aws.md](docs/knowledge/aws.md) |
+| How does the assistant ask the model for a reply or a title? | [docs/knowledge/ai.md](docs/knowledge/ai.md) |
 | What do the domain words mean? | [docs/knowledge/glossary.md](docs/knowledge/glossary.md) |
 | How is a change specified, planned, implemented and verified? | [docs/knowledge/sdd.md](docs/knowledge/sdd.md) |
 | What is built next, and in which order? | [docs/knowledge/roadmap.md](docs/knowledge/roadmap.md) |
@@ -141,11 +227,5 @@ sit: [tooling.md › Tests](docs/knowledge/tooling.md#tests).
 | How are commits and pull requests written? | [.claude/rules/commits.md](.claude/rules/commits.md), [.claude/rules/pull-requests.md](.claude/rules/pull-requests.md) |
 | Why is it built this way? | [docs/knowledge/decisions.md](docs/knowledge/decisions.md): each binding decision with its reason, its rejected alternatives and what a reversal breaks; its history in the ticket that made it, under `docs/tickets/` |
 
-## History and new projects
-
-`main` holds one squash commit per ticket; how a ticket's steps and reasoning stay findable:
+How a merged ticket's steps and reasoning stay findable in the history:
 [sdd.md › Roadmap and history](docs/knowledge/sdd.md#roadmap-and-history).
-
-On GitHub, *Use this template* starts a new project from `main`; what to rename, delete and keep
-afterwards is the roadmap's
-[`template-handoff`](docs/knowledge/roadmap.md#12-template-handoff).

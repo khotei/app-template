@@ -18,13 +18,21 @@
 
 ### Review
 
+#### Review ledger
+
+<Summed by `/ticket-verify` from each step's **Findings** in `plan.md`, one row per pass.>
+
+| Pass | Findings | Accepted | Fixed | Rejected |
+|---|---|---|---|---|
+| <pass> | <n> | <n> | <n> | <n> |
+
 #### Standards
 
-<code-review Standards report, verbatim>
+<the Standards reviewer's report, verbatim>
 
 #### Spec
 
-<code-review Spec report, verbatim>
+<the Spec reviewer's report, verbatim>
 
 ### Simplifications
 

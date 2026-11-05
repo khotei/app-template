@@ -57,14 +57,9 @@ first message unless the user has already set one; a user's title is never overw
 _Avoid_: Name, subject, summary
 
 **Attachment**:
-A file a user uploaded, or one produced for an assistant message. A user's attachment is bound
-to a message when that message is sent; until then only its owner can see it.
+A file a user uploaded; no assistant produces files yet. An attachment is bound to a message
+when that message is sent; until then only its owner can see it.
 _Avoid_: File, upload, document, media, draft
-
-**Placeholder**:
-A marker inside a message's text that stands for one of its attachments; the web app renders the
-attachment in its place.
-_Avoid_: Template variable, token, embed, slot
 
 **Assistant**:
 The language-model side of a chat, as the user sees it. The language model behind it is a

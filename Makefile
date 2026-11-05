@@ -3,7 +3,7 @@
 .DEFAULT_GOAL := help
 
 .PHONY: help setup stack up down reset worktree dev dev-api dev-worker dev-web debug-api \
-  debug-worker debug-web check doc-lint review-rules lint \
+  debug-worker debug-web check doc-lint sh-lint review-rules lint \
   fmt typecheck test test-unit test-e2e bundle-check clean outdated vendor-effect vendor-drizzle \
   migrate migration migration-check api-check api-snapshot
 
@@ -35,8 +35,12 @@ help: ## List all targets
 	@grep -E '^[a-zA-Z0-9_-]+:.*## ' $(MAKEFILE_LIST) \
 		| awk 'BEGIN { FS = ":.*## " } { printf "  %-16s %s\n", $$1, $$2 }'
 
-setup: ## Install dependencies and create .env from .env.example if missing
+# Claude Code fetches a plugin from an outside source only when user settings enable it, so setup
+# installs mattpocock-skills, which the /ticket-* skills wrap; a machine without claude skips it.
+setup: ## Install dependencies and the Claude Code plugins, create .env from .env.example if missing
 	bun install
+	@if command -v claude >/dev/null; then \
+		claude plugin install mattpocock-skills@claude-plugins-official --scope project; fi
 	@test -f .env || (cp .env.example .env && echo "created .env from .env.example")
 
 stack: ## Create the tree's Pulumi file backend and select or create the local stack
@@ -56,9 +60,10 @@ down: ## Stop MiniStack, which stops the database's container; every resource ke
 
 # A killed MiniStack leaves the database's container running; why no destroy runs:
 # docs/knowledge/aws.md.
-reset: ## Remove MiniStack, the database's container and volume, and .data/ whole
+reset: ## Remove MiniStack, the database's container and volume, the tree's MCP containers, .data/
 	$(EXPORT_ENV) && $(NAME_MINISTACK) && $(NAME_DATABASE) && \
-		docker rm -f "$$ministack" $$(docker ps -aq --filter label=ministack=rds --filter "label=db_id=$$database") && \
+		docker rm -f "$$ministack" $$(docker ps -aq --filter label=ministack=rds --filter "label=db_id=$$database") \
+			$$(docker ps -aq --filter "label=app-template.mcp-tree=$(CURDIR)") && \
 		docker volume ls -q --filter "name=instance-$$database-data" | xargs -r docker volume rm
 	rm -rf .data .env.pulumi
 
@@ -130,11 +135,26 @@ debug-worker: ## Run the worker with --inspect and --watch
 debug-web: ## Run the web dev server with --inspect
 	bun --filter @app-template/web debug
 
-check: doc-lint lint typecheck api-check migration-check test bundle-check ## Run every gate: the docs, lint and the Effect style, types, the HTTP contract, migrations, tests, the web bundle
+check: doc-lint sh-lint lint typecheck api-check migration-check test bundle-check ## Run every gate: the docs, the shell scripts, lint and the Effect style, types, the HTTP contract, migrations, tests, the web bundle
 
 # Its scope and rules are .misc/lint/markdownlint-cli2.mjs; a reworded limits line stops it with 2.
 doc-lint: ## Lint the Markdown outside docs/tickets: width, paths, rule filters, file limits
-	@bunx markdownlint-cli2
+	@bunx markdownlint-cli2 --config .misc/lint/markdownlint-cli2.mjs
+
+# The image by version and by the digest of its multi-arch index, so a moved tag changes nothing.
+# The files: tracked and untracked, not ignored, still on disk (a deleted script awaits its commit),
+# listed NUL-separated into a file, so a space or a glob in a path stays one name and a failed git
+# stops the target instead of linting nothing. No script left runs no ShellCheck, which would exit 3.
+SHELLCHECK_IMAGE = koalaman/shellcheck:v0.11.0@sha256:61862eba1fcf09a484ebcc6feea46f1782532571a34ed51fedf90dd25f925a8d
+SH_LINT_FILES = node_modules/.cache/sh-lint-files
+
+sh-lint: ## Lint the shell scripts outside repos/ with ShellCheck (Docker running)
+	@mkdir -p $(dir $(SH_LINT_FILES))
+	@git ls-files -z -co --exclude-standard -- '*.sh' ':!:repos/' > $(SH_LINT_FILES)
+	@xargs -0 sh -c 'for f do shift; [ ! -f "$$f" ] || set -- "$$@" "$$f"; done; \
+		[ $$# -gt 0 ] || exit 0; \
+		exec docker run --rm -v "$$PWD:/mnt" -w /mnt $(SHELLCHECK_IMAGE) \
+			--rcfile .misc/lint/shellcheckrc "$$@"' sh < $(SH_LINT_FILES)
 
 # The rules a review of the uncommitted step holds the diff to: each rule without paths:, and each
 # whose filter matches a file the diff adds, changes or deletes (both sides of a rename), untracked

@@ -14,14 +14,15 @@ and `make setup` and `make test-unit` need neither.
 
 | Target | Runs | Use |
 |---|---|---|
-| `make setup` | `bun install`, then copies `.env.example` to `.env` if missing | first clone; installs the git hooks too; needs no Pulumi CLI |
+| `make setup` | `bun install`, the Claude Code plugin `mattpocock-skills` when `claude` is on the `PATH`, then copies `.env.example` to `.env` if missing | first clone; installs the git hooks too; needs no Pulumi CLI; safe to rerun |
 | `make up` · `down` · `reset` · `stack` | Pulumi on `deployment/local/`, then `make migrate` · Docker | the local stand, MiniStack with the database, the bucket and the queues; what each target does: [aws.md › The local stand-in](aws.md#the-local-stand-in) |
 | `make worktree N=<n> NAME=<name>` | `.claude/skills/ticket-implement/worktree.sh` | inside a new worktree: names it, `bun install`, writes its `.env` with the ports and stage of `N` ([Worktrees](#worktrees)) |
 | `make dev` | `make migrate`, then `bun --filter './apps/*' dev` | every app's process, interleaved output; stops first on a stand behind its migrations |
 | `make dev-api` · `dev-worker` · `dev-web` | one app's `dev` script, the api's and the worker's after `make migrate` | one process |
 | `make debug-api` · `debug-worker` · `debug-web` | one app's `debug` script | the same mode plus `--inspect` |
-| `make check` | `doc-lint`, `lint`, `typecheck`, `api-check`, `migration-check`, `test`, `bundle-check` | the gate before every commit and step report |
+| `make check` | `doc-lint`, `sh-lint`, `lint`, `typecheck`, `api-check`, `migration-check`, `test`, `bundle-check` | the gate before every commit and step report |
 | `make doc-lint` | `markdownlint-cli2` with `.misc/lint/markdownlint-cli2.mjs` over the Markdown outside `docs/tickets/`, `repos/` and the ignored files: MD013 at 100 and four rules of its own, every other markdownlint rule off | a prose line over 100 (tables, fences, headings and a line with no space past 100 pass); a backticked repo path that does not exist, the roadmap skipped; a source path in a `CLAUDE.md`, a rule, a skill or an agent ([decisions.md › Instructions name patterns](decisions.md#instructions-name-patterns)); a rule `paths:` filter that matches no file through git's glob, a brace included; a `CLAUDE.md` or a rule over its limit ([decisions.md › Instructions within size limits](decisions.md#instructions-within-size-limits)). Each fails the gate naming file and line; a reworded limits line stops it with exit 2, naming the line it expects |
+| `make sh-lint` | ShellCheck from its image, pinned in the `Makefile`, with `.misc/lint/shellcheckrc`, over the `*.sh` files outside `repos/` that git tracks or does not ignore, a deleted one skipped | every optional check on, the masked return of a command substitution (SC2312) among them, and braces around every variable (SC2250) and a default branch in every `case` (SC2249) off; a deliberate exception is a `# shellcheck disable=<code> # <reason>` line above its command; needs Docker |
 | `make review-rules` | `bun .misc/lint/rule-filters.mjs`, the doc lint's reader of each rule's `paths:`, then `git diff HEAD --no-renames --name-only` and `git ls-files --others --exclude-standard` for each filter | lists the rules that bind the uncommitted diff, those without a filter included: the standards `/ticket-implement` gives the Standards reviewer; not part of `check` |
 | `make lint` | `biome check` (CI: `make lint BIOME=ci`, `biome ci`) with `.misc/lint/biome.base.json` and its GritQL plugins `biome-imports.grit` (imports) and `biome-effect.grit` (the Effect style of [effect-style.md › Composition](../../.claude/rules/effect-style.md#composition) and [effect.md](../../.claude/rules/effect.md); what each list flags: the plugin's comments) | lint, format and import order, without writing; a plugin that errors on a file, which Biome only notes and skips, fails it with exit 2 |
 | `make fmt` | `biome check --write` | apply formatting, import sorting and safe fixes |
@@ -38,12 +39,14 @@ and `make setup` and `make test-unit` need neither.
 | `make clean` | removes every `node_modules` and `coverage` | a clean reinstall: follow with `make setup` |
 
 The lint configuration lives in `.misc/lint/`, the folder for what serves the repo and not the
-application; a lint rule is written only there. Biome and `markdownlint-cli2` read a config only
-in the folder they start from and its parents, so the root keeps two stubs they and an editor
-find by name: `biome.json` (`"root": true`) extends `.misc/lint/biome.base.json`, and
-`.markdownlint-cli2.mjs` re-exports `#lint/markdownlint-cli2`. Biome resolves a `plugins` path of
-the extended config from the root, so it reads `./.misc/lint/<name>.grit`; the extended config is
-not named `biome.json`, since Biome's scan would load a second one as a nested config.
+application; a lint rule is written only there. `make doc-lint` hands `markdownlint-cli2` its
+config with `--config`, so an editor's markdownlint, which looks for a config by name, does not
+apply the repo's rules; `make sh-lint` hands ShellCheck its config with `--rcfile` for the same
+reason. Biome reads a config only in the folder it starts from and its parents,
+so the root keeps one stub: `biome.json` (`"root": true`) extends `.misc/lint/biome.base.json`.
+Biome resolves a `plugins` path of the extended config from the root, so it reads
+`./.misc/lint/<name>.grit`; the extended config is not named `biome.json`, since Biome's scan
+would load a second one as a nested config.
 
 One file, or the tests whose name matches, through vitest itself (`--project e2e` for an e2e
 file, Docker running; `vitest` without `run` watches):
@@ -56,8 +59,9 @@ The root `test` script, `bun --bun vitest run`, runs both projects at once (CI's
 `bun test` would instead start Bun's own test runner, which ignores the vitest projects and
 their setup.
 
-Scripts live only where `make` calls them: the root `package.json` holds `prepare`, `lint`,
-`format` and `test`; each app holds `dev`, `debug` and `start`; library workspaces hold none.
+Scripts live only where `make` calls them: the root `package.json` holds `prepare`, `format`
+and `test` (`make lint` calls Biome itself); each process app (`api`, `worker`, `web`) holds
+`dev`, `debug` and `start`; `apps/e2e` and the library workspaces hold none.
 
 ### Tests
 
@@ -240,20 +244,23 @@ container and volume after the stage:
 | `RDS_BASE_PORT` | `15432 + 10N` | 15432 | 15442 |
 | `STAGE` | `local<N>` | `local` | `local1` |
 
-`make worktree N=<n> NAME=<name>`, run inside the new worktree, writes it; how parallel steps
-use it:
+`make worktree N=<n> NAME=<name>`, run inside the new worktree, writes it. It refuses an `N`
+another live worktree's `.env` holds as its stage, an `N` above 5010 (`RDS_BASE_PORT` would pass
+65535), and a worktree already set up under another `N`, whose containers would keep running;
+a rerun with the same `N` passes. How parallel steps use it:
 [`ticket-implement` › Parallel steps](../../.claude/skills/ticket-implement/parallel-steps.md).
 Run `make reset` in a worktree before it is removed, or its containers outlive it and keep their
 ports, and the database's volume stays.
 
 ## Environment
 
-- **One root `.env`**, gitignored, written by hand; beside it `make up` writes `.env.pulumi`, the
-  stack's outputs (`DATABASE_URL`). `.env.example` is the template of `.env` and lists what the code
-  reads from it, plus the variables a client SDK reads from the environment itself, such as the
-  AWS credentials, which never pass through `@app-template/kernel/config`
-  ([aws.md › The local stand-in](aws.md#the-local-stand-in)). Variables of clients that are still
-  stubs stay commented out.
+- **One root `.env`**, gitignored: `make setup` creates it from `.env.example` and you edit it
+  by hand, while a worktree's is written by `make worktree`; beside it `make up` writes
+  `.env.pulumi`, the stack's outputs (`DATABASE_URL`). `.env.example` is the template of `.env`
+  and lists what the code reads from it, plus the variables a client SDK reads from the
+  environment itself, such as the AWS credentials, which never pass through
+  `@app-template/kernel/config` ([aws.md › The local stand-in](aws.md#the-local-stand-in)).
+  Variables of clients that are still stubs stay commented out.
 - **Quoting.** Strings are double-quoted (`LOG_LEVEL="Info"`), numbers are bare (`API_PORT=3000`).
 - **Loading.** Each app script passes `--env-file=../../.env --env-file=../../.env.pulumi`, paths
   relative to the app folder, and `make migrate` the same two files; the second wins, and Bun
@@ -402,6 +409,20 @@ new version. CI also runs a non-blocking job on Bun `latest`, which shows the ne
 
   Two servers claiming `.ts` leave one unused, so turn one off. A bad server entry is skipped
   whole and shows only in `/plugin` › Errors or `claude --debug`.
+
+### Claude Code's Postgres MCP
+
+- **The tree's own database, read-only.** `.mcp.json`'s `postgres` entry runs
+  `.misc/claude/postgres-mcp.sh`: it reads `DATABASE_URL` from the `.env.pulumi` that `make up`
+  wrote beside it, and starts Postgres MCP Pro (`crystaldba/postgres-mcp`, pinned by digest) in
+  Docker with `--access-mode=restricted`. A worktree's session therefore reaches its own stand's
+  database; schema changes stay with `make migration`. The tools list schemas and objects, run a
+  read-only query, explain it, and advise on indexes and the database's health.
+- **Start the stand first.** The server connects when the session starts; after a late `make up`,
+  reconnect it in `/mcp`. The first session asks once to approve the project's servers.
+- **Its container goes with the session.** A session's exit stops it (`--rm --init`); one a killed
+  session left behind carries the label `app-template.mcp-tree=<the tree's path>`, and
+  `make reset` removes the tree's ones, so a worktree's go before it is removed.
 
 ## Git hooks and CI
 

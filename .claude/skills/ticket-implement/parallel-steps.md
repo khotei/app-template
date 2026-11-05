@@ -7,12 +7,13 @@ contract. What a worktree owns and its ports:
 [tooling.md › Worktrees](../../../docs/knowledge/tooling.md#worktrees).
 
 - Give each worktree a number `N` from 1, unique among the live ones, and a name
-  `<slug>-<step>-<topic>`. Spawn each `implementer` with `isolation: "worktree"`; beside the
-  pointers, its prompt carries `N`, the name, the order to write every path, in commands and file
-  tools alike, through
-  `.claude/worktrees/<name>` and never through the `agent-<id>` folder, and the order to run
-  `make worktree N=<n> NAME=<name>` in the folder it starts in, before anything else and before
-  the symlink exists; after it, the agent may run `make up` and `make dev` for its *Verify*.
+  `<slug>-<step>-<topic>`. Spawn each `implementer` with `isolation: "worktree"`, which branches
+  from the ticket branch, since the project settings set `worktree.baseRef` to `"head"`; beside
+  the pointers, its prompt carries `N`, the name, the order to write every path, in commands and
+  file tools alike, through `.claude/worktrees/<name>` and never through the `agent-<id>` folder,
+  and the order to run `make worktree N=<n> NAME=<name>` in the folder it starts in, before
+  anything else and before the symlink exists; after it, the agent may run `make up` and
+  `make dev` for its *Verify*.
 - `make worktree` names the worktree before the agent's first real command. Once the agent has
   started, check the branch `wt/<name>` with `git worktree list` and the symlink `<name>` beside
   its folder. Never move a folder an agent works in.

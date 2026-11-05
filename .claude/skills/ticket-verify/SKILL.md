@@ -1,8 +1,7 @@
 ---
 name: ticket-verify
-description: "SDD 5/5: verify a whole ticket in a fresh context into verification.md with Lessons"
+description: "SDD 5/5: verify a whole ticket in a fresh context into verification.md with Lessons. Run only when the user asks for this phase"
 argument-hint: "<ticket folder>"
-disable-model-invocation: true
 ---
 
 Verify the ticket at `$ARGUMENTS` before its PR: does the branch do what `feature.md` asks, and
@@ -12,33 +11,39 @@ what should the toolkit learn from building it. Gates: `.claude/rules/sdd.md`.
 
 1. **Run the checks in parallel**, passing pointers only: a brief names its sources and nothing
    else, no question of its own, no summary of how the work was done, and no `plan.md` for a
-   verifier:
+   verifier. The fixed point is the merge-base of `HEAD` with the PR's base branch (`main` while
+   no PR exists); before spawning, check that `git rev-parse <fixed point>` resolves and
+   `git diff <fixed point>...HEAD` is not empty, else stop and tell the user:
    - split `feature.md`'s requirements into groups by its `###` sections, and put every
      requirement whose acceptance starts the apps, runs `make test-e2e` or writes a probe into the
      tree in one group, whose verifier also runs `make check` (it runs the e2e too), since the
      verifiers share the tree, its ports and its containers; spawn one `verifier` per group with
      the ticket folder, the branch, the fixed point and its `R…` ids;
-   - call the Skill tool with `mattpocock-skills:code-review` with the fixed point, the
-     merge-base of `HEAD` with the PR's base branch (`main` while no PR exists), the spec
-     `feature.md` plus `architecture.md`, the standards `.claude/rules/*.md` plus the touched
-     `CLAUDE.md` files, and the `reviewer` agent as each axis sub-agent, the Standards axis on
-     `model: sonnet`; its Spec axis reads every requirement at once, so a gap between two groups
-     still shows.
+   - spawn one `reviewer` per axis, each brief naming its pass, the diff
+     `git diff <fixed point>...HEAD` and the word limit of 400: **Standards**, on
+     `model: sonnet`, with the standards `.claude/rules/*.md` plus the touched `CLAUDE.md` files;
+     **Spec**, on the agent's own model, with `feature.md` plus `architecture.md`. The Spec pass
+     reads every requirement at once, so a gap between two groups still shows.
 
    Tell every agent to read the rules, `CLAUDE.md` files, skills and agents from disk: agents
    spawned in a long session can carry the copies loaded when it started. After rule edits, prefer
    running `/ticket-verify` in a new session.
 2. **Write `verification.md`** from `docs/tickets/_template/verification.md`, appending a dated
    section per run: the verdicts merged from every group (`pass` only when every group passes),
-   the Standards and Spec reports, ranked simplifications, and **Lessons**.
+   the **Review ledger**, the Standards and Spec reports, ranked simplifications, and **Lessons**.
+   You sum the ledger yourself, per pass, from each step's **Findings** in `plan.md`, since no
+   verifier reads `plan.md`; a fix counts as accepted too, and a step with no findings adds
+   nothing.
 3. **Lessons.** Collect the mistakes that recurred in two or more steps: `plan.md` findings,
    review rounds, and the user's feedback in this session. Each lesson names where it recurred
    and what it cost (rounds, time, a wrong result), and proposes one line in a named skill or
    rule, or a mechanical check (a Biome rule, a test, a hook) when the mistake is mechanical;
    never in a `CLAUDE.md`. Apply a lesson only on the user's OK.
 4. **Present** the verdict, the simplifications and the lessons. Accepted fixes become new
-   `plan.md` steps for `/ticket-implement`. On `pass` and the user's agreement, propose the PR
-   (`.claude/rules/pull-requests.md`).
+   `plan.md` steps for `/ticket-implement`; on a ticket that changes only `.claude/` or `docs/`,
+   they land without a second `/ticket-verify` unless one changes what a requirement asks
+   ([the cycles](../../../docs/knowledge/sdd.md#when-to-run-which-cycle)). On `pass` and the
+   user's agreement, propose the PR (`.claude/rules/pull-requests.md`).
 
 Fix nothing during verification. Commit `verification.md`, and open the PR, under the commit gate
 of `.claude/rules/sdd.md`.

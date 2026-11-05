@@ -26,13 +26,17 @@ An older `Refs:` line may name a folder before its rename: the slug is unchanged
 | Change | Cycle |
 |---|---|
 | New behaviour, a new dependency, or any choice a reviewer could question | the full cycle |
-| A bug fix or small change with no new decision and an existing seam to test at | `/ticket-feature` with a few requirements, then `/ticket-plan`, `/ticket-implement`, `/ticket-verify`; skip `/ticket-architecture` |
+| A bug fix or small change with no new decision and an existing seam to test at | `/ticket-feature` with a few requirements (a bug starts from one command that shows it failing), then `/ticket-plan`, `/ticket-implement`, `/ticket-verify`; skip `/ticket-architecture` |
+| A ticket that changes only the toolkit or docs (`.claude/`, `docs/`), no app code | the cycle its change calls for, with one `/ticket-verify`: its accepted fixes land as steps without a second run unless one changes what a requirement asks; a past step is replayed (its commit's parent run again under the new toolkit) only for a requirement nothing else can check |
 | A typo, a version bump, a doc fix | no ticket: one commit with the area as its scope (`docs`, `tooling`) |
 
 ## The five skills
 
-All five are typed by you (`disable-model-invocation: true`) and run in the main session, because
-grilling, plan review and the commit gate need you. Each takes the ticket folder, except
+All five run in the main session, because grilling, plan review and the commit gate need you.
+You start one by typing it or by asking for its phase in words (`run the verify yourself`); each
+description tells the model to run the skill only when asked, and the
+[gates](../../.claude/rules/sdd.md#gates) (the commit gate, a push, a PR and a merge) still wait
+for you. Each takes the ticket folder, except
 `/ticket-feature`, which takes a slug.
 
 | Skill | Input | You decide | Output |
@@ -40,20 +44,20 @@ grilling, plan review and the commit gate need you. Each takes the ticket folder
 | `/ticket-feature <slug> [idea]` | an idea, notes or a link | the answers to each grilling round; the terms | `feature.md` with EARS requirements; glossary entries |
 | `/ticket-architecture <ticket>` | `feature.md` | the Seams and the Decisions | `architecture.md` |
 | `/ticket-plan <ticket>` | `feature.md`, `architecture.md` | the plan as a whole: the heavy review | `plan.md` with steps and coverage |
-| `/ticket-implement <ticket> [step]` | the next unblocked step | the commit gate's question, once per session; feedback, or stop | the step's commits, by round ([Gates](../../.claude/rules/sdd.md#gates)) |
+| `/ticket-implement <ticket> [step \| loop]` | the next unblocked step, or each in turn ([the loop](#the-loop)) | the commit gate's question, once per session; feedback, or stop | the step's commits, by round ([Gates](../../.claude/rules/sdd.md#gates)) |
 | `/ticket-verify <ticket>` | the branch against its PR's base branch | which simplifications and lessons to apply; whether to open the PR | `verification.md` |
 
 ## Under the hood
 
 The skills are thin wrappers over the [mattpocock-skills](https://github.com/mattpocock/skills)
-plugin, which the project enables in `.claude/settings.json`; the same file turns off the plugins
-whose skills and agents overlap the wrappers (`superpowers`, `pr-review-toolkit`,
-`code-simplifier`, `commit-commands` and the plugin `code-review`), so none runs unasked or
-writes outside the ticket, and the MCP servers no step uses (the claude.ai connectors, Notion,
-Chrome, computer use, the plugin copy of context7), so their tools load into no session. The
-wrappers decide **where** files go and **when** you decide; the plugin decides **how** to
-interview, model, design, test and review. Its skills are referenced by name and never copied, so
-plugin updates arrive on their own.
+plugin, which the project enables in `.claude/settings.json` and `make setup` installs; the same
+file turns off the plugins whose skills and agents overlap the wrappers (`superpowers`,
+`pr-review-toolkit`, `code-simplifier`, `commit-commands` and `code-review-anthropics`), so none
+runs unasked or writes outside the ticket. The wrappers decide **where** files go and **when** you
+decide; the plugin decides **how** to interview, model, design and test. Its skills are
+referenced by name and never copied, so plugin updates arrive on their own. The review is the
+exception: the skills spawn one `reviewer` per pass themselves, since a wrapper that replaced
+every input of the plugin's review skill would go silently stale when an update renamed a step.
 
 ### Dependency map
 
@@ -62,15 +66,15 @@ uses updates this map too; the Standards review checks it against `.claude/rules
 
 | Skill or agent | Plugin skills | Spawns | Hook | Writes |
 |---|---|---|---|---|
-| `/ticket-feature` | `grilling`, `domain-modeling` | `researcher` | — | `feature.md`, `docs/knowledge/glossary.md`, `docs/knowledge/roadmap.md` |
+| `/ticket-feature` | `grilling`, `domain-modeling`; for a bug, `diagnosing-bugs` phases 1 and 2 | `researcher` | — | `feature.md`, `docs/knowledge/glossary.md`, `docs/knowledge/roadmap.md` |
 | `/ticket-architecture` | `codebase-design`, `grilling` | `researcher` | — | `architecture.md` |
-| `/ticket-plan` | — | `researcher` | — | `plan.md` |
-| `/ticket-implement` | `code-review`; on a behaviour step the built-in `simplify`, run by the main session, with `codebase-design` as its vocabulary | `implementer` (one worktree per parallel step, set up by `make worktree`), `reviewer` (one per review pass) | `make-check.sh` and `bash-guard.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, the step's commits |
-| `/ticket-verify` | `code-review` | `verifier` (one per group of requirements, in parallel), `reviewer` | — | `verification.md` |
-| `implementer` | `tdd`, preloaded | — | `make-check.sh` on `Stop` (runs as `SubagentStop`); `bash-guard.sh` on `PreToolUse` of `Bash` | the step's files |
-| `reviewer` | one pass: an axis of `code-review`, or the hunt | — | — | nothing: read-only |
+| `/ticket-plan` | — | `researcher`; for a step that adds, changes or removes a guard a second one, which plants the probes in the disposable worktree `<slug>-plan-probes` set up by `make worktree` | — | `plan.md` |
+| `/ticket-implement` | on a behaviour step the built-in `simplify`, run by the main session, with `codebase-design` as its vocabulary | `implementer` (one worktree per parallel step, set up by `make worktree`), `reviewer` (one per review pass, in parallel), `researcher` (one per claimed finding, in parallel, all writing their confirming tests in one disposable worktree per review round, set up by `make worktree`) | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, the step's commits |
+| `/ticket-verify` | — | `verifier` (one per group of requirements, in parallel), `reviewer` (one per axis, in parallel) | — | `verification.md` |
+| `implementer` | `tdd`, preloaded | — | `make-check.sh` on `Stop` (runs as `SubagentStop`) | the step's files |
+| `reviewer` | one pass: Standards, Spec, Design or the hunt; on Standards over an instruction file, `writing-for-agents`; on Design, `codebase-design` as its vocabulary | — | — | nothing: read-only |
 | `verifier` | — | — | — | nothing: read-only |
-| `researcher` | — | — | — | nothing: read-only |
+| `researcher` | — | — | — | nothing in the main tree; a probe or a confirming test only in a disposable worktree its brief names, set up by `make worktree` |
 
 Plugin skills are `mattpocock-skills:<name>`; ticket files are in `docs/tickets/<ticket>/`.
 
@@ -87,31 +91,30 @@ graph LR
     reviewer([reviewer])
     verifier([verifier])
     hook[/make-check.sh/]
-    guard[/bash-guard.sh/]
   end
   subgraph plugin [mattpocock-skills]
     grilling{{grilling}}
     modeling{{domain-modeling}}
     design{{codebase-design}}
     tdd{{tdd}}
-    review{{code-review}}
+    diagnosing{{diagnosing-bugs}}
+    writing{{writing-for-agents}}
   end
   subgraph builtin [built-in]
     simplify{{simplify}}
   end
-  feature -.-> grilling & modeling
+  feature -.-> grilling & modeling & diagnosing
   feature --> researcher
   arch -.-> design & grilling
   arch --> researcher
   plan --> researcher
-  impl --> implementer & reviewer
-  impl -.-> review & simplify
+  impl --> implementer & reviewer & researcher
+  impl -.-> simplify
   simplify -.-> design
   implementer -.-> tdd
-  implementer --> hook & guard
+  implementer --> hook
   verify --> verifier & reviewer
-  verify -.-> review
-  reviewer -.-> review & design
+  reviewer -.-> design & writing
 ```
 
 Solid arrows spawn an agent or run a hook; dotted arrows use a plugin skill.
@@ -124,9 +127,9 @@ Solid arrows spawn an agent or run a hook; dotted arrows use a plugin skill.
 | `to-spec` and `to-tickets` write to `.scratch/` or an issue tracker, as user stories | `/ticket-feature` and `/ticket-plan` write EARS requirements and steps into the ticket folder | artifacts are reviewed and committed with the code |
 | `tdd` asks the user to confirm seams before testing | the implementer takes them from `architecture.md › Seams`, confirmed earlier | a subagent cannot ask, and the seams were already agreed |
 | `implement` commits on its own and reviews committed work | `/ticket-implement` reviews the uncommitted step and commits it under the commit gate | a step commits only once reviewed, and as you chose |
-| `code-review` diffs from a fixed point to `HEAD` and spawns generic sub-agents | for a step: the uncommitted diff, reviewed by read-only `reviewer` agents that read only what the step cites, each owning one kind of finding | the step is reviewed before it is committed, by agents that cannot edit and read no more than the step needs; no finding comes twice, and the main session forwards one without reading the code |
-| `improve-codebase-architecture` scans the whole codebase, writes an HTML report, grills, and writes `GLOSSARY.md` and ADRs | the Depth axis of `/ticket-implement`: a read-only `reviewer` on one step, with a text report | the shape is questioned while the step is small, and no doc lands outside `docs/knowledge/` and the ticket |
+| `improve-codebase-architecture` scans the whole codebase, writes an HTML report, grills, and writes `GLOSSARY.md` and ADRs | the Design pass of `/ticket-implement`: a read-only `reviewer` on one step, with at most five candidates, each a sketch and a strength | the shape is questioned while the step is small, and no doc lands outside `docs/knowledge/` and the ticket |
 | `research` writes a notes file into the repo | `researcher` answers in its report | facts reach the conversation, not the tree |
+| `diagnosing-bugs` runs from a feedback loop to the fix and its regression test | `/ticket-feature` runs phases 1 and 2 only, to one red command on the tree as it stands, copied into `feature.md` | the fix and its test go through the plan and its review |
 
 ## The commit gate
 
@@ -137,13 +140,35 @@ step, then the review passes, then you. Why it is cut so:
 - **The implementer cannot finish red.** A hook runs `make check` when it stops and sends it
   back; `BLOCKED:` is its only way out, and reaches you unchanged.
 - **The main session runs `simplify`, never the implementer,** so the agent that wrote the code
-  does not judge its own cuts. A pure move skips it: its files keep their content for `git` to
-  see the rename.
-- **Each review pass is its own `reviewer` in a fresh context,** and owns one kind of finding, so
-  one pass cannot hide another and no finding comes twice. Depth runs only on a behaviour step,
-  where it changed the step's shape; the hunt for bugs only on a step whose kind of change it
-  paid off on.
+  does not judge its own cuts. A move, as `/ticket-implement` defines one, skips it: the
+  moved files keep their content for `git` to see the rename.
+- **Each review pass is its own `reviewer` in a fresh context,** on the uncommitted step, so the
+  step is reviewed before it commits and one pass cannot hide another; what a reviewer reads,
+  owns and reports is in [reviewer.md](../../.claude/agents/reviewer.md). Design runs only on a
+  behaviour step, where the shape is still cheap to change; the hunt for bugs only on a step
+  whose kind of change it paid off on.
+- **A failure no command showed is confirmed before it reaches you.** A behaviour finding names
+  its input, the wrong outcome and whether a command showed it; each `claimed` one goes to its
+  own `researcher`, not anchored on the reviewer's reading, which answers `confirmed` (you see
+  the finding), `refuted` (dropped) or `unclear` (you get it as a question).
 - **You decide** on the reports, which the main session presents without re-reading the code.
+  Each finding's pass and fate land in the step's **Findings** in `plan.md`, and
+  `/ticket-verify` sums them per pass in its **Review ledger**.
+
+### The loop
+
+`/ticket-implement <ticket> loop` runs the plan's unblocked `todo` steps one after another, each
+through the whole gate, and commits each without asking you: the main session forwards the fixes
+it recommends as rounds, as it would on your word. It stops where
+[the skill](../../.claude/skills/ticket-implement/SKILL.md#the-loop) lists, and only then shows
+you each committed step and the cause of the stop. To stop it sooner, tell the session to stop:
+the rounds already committed stay, and the current round stays uncommitted in the tree. To go on
+after a stop, answer it, then type the command again. Pushing and opening the PR still wait for
+your OK.
+
+The loop runs in the main session, which learns that a step is done from the agent's
+notification; the built-in `/loop` fires on a timer instead, so it would either wait for nothing
+or start a step while the last one still runs.
 
 ## Roadmap and history
 
@@ -193,8 +218,8 @@ user-invoked:
 
 The plugin updates itself, so its behaviour can shift under the wrappers. After an update:
 
-1. Read the plugin's changelog or diff for `grilling`, `domain-modeling`, `codebase-design`, `tdd`
-   and `code-review`, the skills the map above delegates to.
+1. Read the plugin's changelog or diff for `grilling`, `domain-modeling`, `codebase-design`,
+   `tdd`, `diagnosing-bugs` and `writing-for-agents`, the skills the map above delegates to.
 2. Check that each override in the table above still targets something the skill does; a renamed
    file or step makes the override silently stale.
 3. Run `/ticket-feature` on a throwaway slug in a scratch clone outside `~/.claude/` and settle one

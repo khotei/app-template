@@ -1,0 +1,13 @@
+# The shell lint (`make sh-lint`), handed to ShellCheck with --rcfile, so an editor's ShellCheck,
+# which looks for .shellcheckrc by name, does not apply it. What it guards:
+# docs/knowledge/tooling.md › Commands.
+
+# Every optional check, the masked return of a command substitution (SC2312) among them: a
+# `cd "$(git …)"` whose git fails still runs the cd.
+enable=all
+
+# Braces around every variable: the scripts brace only where a name runs into the next character.
+disable=SC2250
+
+# A default case in every case: the scripts' cases list refusals, and a value matching none is valid.
+disable=SC2249

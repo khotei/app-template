@@ -24,6 +24,19 @@ come from `docs/knowledge/glossary.md`.>
 
 - <adjacent capability left out, and where it goes instead>
 
+## Reproduction
+
+<A bug ticket keeps this section; any other deletes it. The user's symptom in their words, then
+one command that shows it failing on the tree as it stands.>
+
+```sh
+<one command that runs on the tree as it stands>
+```
+
+```text
+<its failing output, trimmed to the symptom>
+```
+
 ## Requirements
 
 <EARS only. One behaviour per requirement; group them under `###` headings when there are many.
