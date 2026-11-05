@@ -84,9 +84,8 @@ export const AttachmentHandler = HttpApiBuilder.group(
         'get',
         Effect.fn('AttachmentHandler.get')(function* ({ params }) {
           const user = yield* CurrentUser
-          return buildApiAttachment(
-            yield* attachments.getOne({ id: params.attachmentId, userId: user.id }),
-          )
+          const attachment = yield* attachments.getOne({ id: params.attachmentId, userId: user.id })
+          return buildApiAttachment(attachment)
         }),
       )
       .handleRaw(

@@ -20,21 +20,24 @@ export const ChatHandler = HttpApiBuilder.group(
         'create',
         Effect.fn('ChatHandler.create')(function* () {
           const user = yield* CurrentUser
-          return buildApiChat(yield* chatService.create(user.id))
+          const chat = yield* chatService.create(user.id)
+          return buildApiChat(chat)
         }),
       )
       .handle(
         'list',
         Effect.fn('ChatHandler.list')(function* () {
           const user = yield* CurrentUser
-          return Arr.map(yield* chatService.list(user.id), buildApiChat)
+          const chats = yield* chatService.list(user.id)
+          return Arr.map(chats, buildApiChat)
         }),
       )
       .handle(
         'get',
         Effect.fn('ChatHandler.get')(function* ({ params }) {
           const user = yield* CurrentUser
-          return buildApiChat(yield* chatService.getOne({ id: params.chatId, userId: user.id }))
+          const chat = yield* chatService.getOne({ id: params.chatId, userId: user.id })
+          return buildApiChat(chat)
         }),
       )
       .handle(

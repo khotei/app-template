@@ -7,7 +7,7 @@
 | Step | Delivers | Status |
 |---|---|---|
 | S1 | the ids, `Auth`, `CurrentUser` and `UserUnknownError` declared by the contract; identity's contract keeps `UserId` | done |
-| S2 | the contract on its own schemas: the user, attachment and chat groups, their mappers, the manifest declaring only `effect` | todo |
+| S2 | the contract on its own schemas: the user, attachment and chat groups, their mappers, the manifest declaring only `effect` | done |
 | S3 | the twins test over every twin, and the knowledge docs and records of the new boundary, each page written once | todo |
 | S4 | the guards: the contract's Biome override bans every workspace; `make bundle-check` reads the metafile against `browserPackages` | todo |
 
@@ -141,7 +141,8 @@
     `buildApiAttachment = (attachment: Attachment): ApiAttachment => attachment`;
     `apps/api/chat/chat.mapper.ts` (new): `buildApiChat = (chat: Chat): ApiChat => chat`,
     `buildApiMessage = (message: Message): ApiMessage => message`. The handlers return through
-    them: `ensure` returns `buildApiUser(user)`; `upload` maps with `Arr.map(buildApiAttachment)`;
+    them: `ensure` returns `buildApiUser(user)`; `upload` maps with `Arr.map(buildApiAttachment)`; `get`
+    returns `buildApiAttachment(…)`;
     `create`, `get`, `rename` return `buildApiChat(…)`, `list` maps with `Arr.map(buildApiChat)`,
     `send` returns both messages through `buildApiMessage`, `getMessage` returns
     `buildApiMessage(…)`.
@@ -180,14 +181,38 @@
     `grep -n "application" http-api/tsconfig.json` — both print nothing; fail on a leftover
     import, dependency or project reference.
   - Planted (R5, by `tsc`): `Schema.brand('ChatID')` on the contract's `ChatId` → `make typecheck`
-    fails in `apps/api/chat/chat.mapper.ts`; reverted after.
+    fails in `apps/api/chat/chat.mapper.ts` and in the handlers that pass the param's id to a service;
+    reverted after.
   - Planted (R8): the domain's `Attachment.fileName` renamed to `name` → `make typecheck` names
-    `apps/api/attachment/attachment.mapper.ts` and no file under `http-api/`, `apps/web/` or
+    `apps/api/attachment/attachment.mapper.ts` (and `chat.mapper.ts`, which nests attachments) and no file under `http-api/`, `apps/web/` or
     `apps/api/*/*.handler.ts`; the domain's `MessageFailure.cause` renamed to `detail` → no file
     under `http-api/` or `apps/web/`; each reverted after.
 - **Model:** `opus high`
-- **Status:** todo
-- **Findings:**
+- **Status:** done
+- **Findings:** passes: simplify (4 angles), Standards, Spec, Design; no hunt (no retry, fallback or fake).
+  Size 363 changed lines of code and tests (268+/95-, 19 files); `make check` green (224 unit,
+  104 e2e); `openapi.json` moved on two lines, `UserEncoded` → `User`.
+  - Deviation — `AttachmentHandler.get` returns through `buildApiAttachment` too (D6: every
+    response model); the Files bullet now says so.
+  - Deviation — `feature.md › Acceptance` R4 reworded as the step's Files ask; `bun.lock` lost
+    `http-api`'s `@app-template/application` dependency with the manifest change.
+  - Deviation — the R5 and R8 plants fail in more files than the plan named (the handlers that
+    pass a param's id to a service; `chat.mapper.ts`, which nests attachments); Verify reworded.
+  - Standards — accepted, fixed in S2.2: `yield*` nested in a `buildApi<Model>` call at four
+    sites (`effect-style.md`: one `yield*` per statement, its value named).
+  - Standards — accepted, open for S3: `naming.md` `.mapper` row names `<Model>FromEntity` only
+    (S3's docs add `buildApi<Model>`).
+  - simplify — accepted, fixed in S2.1: two assertions that repeat decoding (`Schema.is` on a
+    decoded id, `instanceOf` after `assertSchemaEquals`).
+  - simplify — rejected: dropping the mapper from list handlers (D6, R3); inlining `rename` and
+    `getMessage` (the style rule); a `buildApiSendResult` (the result is not a model, the plan
+    routes both messages through `buildApiMessage`); a `getWireJson` test helper (three sites).
+  - Design — rejected: decoding an upload with the contract's `FileName` and `MediaType` (the
+    domain validates its own input; S3's twins test keeps the two equal); one call form for every
+    mapper (the style rule fixes it).
+  - Spec — none.
+  - Process — the implementer's S2.1 report lacked the **Scope** block the new rule asks for; it
+    came with S2.2.
 
 #### S3 — The twins test and the boundary's documents
 

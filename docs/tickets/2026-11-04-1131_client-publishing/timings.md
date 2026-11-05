@@ -9,6 +9,7 @@
 | Step | Estimated | Actual (`git diff -M --stat`) | Implementer | Simplify | Review | Total to commit |
 |---|---|---|---|---|---|---|
 | S1 | ~105 | 61+/48- over 18 files (S1.1), 3+/3- (S1.2) | 14:10:44 → 14:15:30 (4m46s) | 14:15:30 → 14:17:01 | 14:17:01 → 14:18:25 | 14:10:44 → 14:21 (about 10m) |
+| S2 | ~390 | 268+/95- over 19 files (S2.1), 8+/6- (S2.2) | about 5m50s | about 5m (4 agents) | about 6m (3 agents) | about 20m |
 
 ## Review value
 
@@ -25,12 +26,27 @@ gate have caught it.
 | S1 | 1 | Design | translate identity's error at the seam | rejected: speculative | none | no |
 | S1 | 1 | Design | `UserUnknownError` into `errors.ts` | rejected: speculative | none | no |
 | S1 | 1 | simplify | simpler `brand` parameter type | tried, `tsc` refused | none | yes |
+| S2 | 1 | simplify | redundant `Schema.is` and `instanceOf` in tests (2 items) | fixed in S2.1 | none | no |
+| S2 | 1 | simplify | identity `Arr.map` in list handlers; inline `rename`; `buildApiSendResult`; test helper (4 items) | rejected | none | no |
+| S2 | 1 | Standards | `yield*` nested in the mapper call, 4 sites | fixed in S2.2 | form (hard rule) | no |
+| S2 | 1 | Standards | `.mapper` row of `naming.md` | open for S3 | form | no |
+| S2 | 1 | Spec | none | - | - | - |
+| S2 | 1 | Design | upload decodes with the domain's strings; one call form for mappers | rejected | none | no |
 
 ## Per pass, running totals
 
 | Pass | Findings | Fixed | Real | Time |
 |---|---|---|---|---|
-| simplify (4 agents) | 4 reports, 1 item | 0 | 0 | about 1m30s |
-| Standards | 3 | 2 | 0 | about 1m (parallel) |
-| Spec | 1 | 1 | 1 | about 1m (parallel) |
-| Design | 2 | 0 | 0 | about 1m (parallel) |
+| simplify (4 agents) | S1: 1 item; S2: 6 items | S1: 0; S2: 2 | 0 | S1 about 1m30s; S2 about 5m |
+| Standards | S1: 3; S2: 2 | S1: 2; S2: 1 | 0 | about 1m (parallel) |
+| Spec | S1: 1; S2: 0 | S1: 1 | 1 (S1) | about 1m (parallel) |
+| Design | S1: 2; S2: 2 | 0 | 0 | about 1m (parallel) |
+
+## Process notes
+
+- S1 cost 10 minutes for 105 lines, S2 about 20 for 363: the step cut matters more than a pass.
+- A plan cut by endpoint group made the first S2 block (a twins test on names a later step
+  replaces); the plan was recut from five steps to three, and the toolkit gained a Shape check,
+  an Introduces field and a Scope block (`36c24b3581`).
+- The implementer left out the new Scope block in its first S2 report: a new report field needs
+  the main session to ask for it once.
