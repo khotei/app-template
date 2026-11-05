@@ -16,7 +16,7 @@
 | S8 | the contract's Biome override becomes an allow-list: only `effect`, `effect/*` and the contract's own `#http-api/…` files | done |
 | S9 | the message failure's reason is one named schema on both sides, so the twins test pairs it | done |
 | S10 | `implementer.md` points to `reviewer.md`; `ticket-implement` says when the hunt runs on a behaviour step | done |
-| S11 | `application/CLAUDE.md` states the layers' constraint and links its record, with no narration of the removed browser rule | todo |
+| S11 | `application/CLAUDE.md` states the layers' constraint and links its record, with no narration of the removed browser rule | done |
 
 ## How to run this plan
 
@@ -689,7 +689,13 @@
   - `make doc-lint` — green; `make check` — green;
   - `grep -n "reaches the browser" application/CLAUDE.md` — prints nothing; prints one line today.
 - **Model:** `opus medium`.
-- **Status:** `todo`.
+- **Status:** `done`.
+- **Findings:** passes: Standards, Spec; no simplify, no hunt. `make doc-lint` and `make check`
+  green; `grep -n "reaches the browser" application/CLAUDE.md` prints nothing, one line before.
+  - Standards — rejected: restore a trigger in the pointer ("Record (why the bans hold though
+    `domain/` never reaches the browser)"); that is the narration of the removed rule this step
+    cuts, and `claude-md.md` › The owner asks only for the link.
+  - Spec — none.
 
 
 ## Requirement coverage

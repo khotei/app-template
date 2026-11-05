@@ -10,8 +10,8 @@ may import: [› Dependency rules](../docs/knowledge/architecture.md#dependency-
   (`HttpClient`) and the settings of `@app-template/kernel/config`, never `fetch` or `Bun.env`.
 - **A module's `domain/` is pure:** it imports `effect` and another module's contract, no other
   workspace, no Bun API and no Node built-in. Ports live only in `.port.ts` files and services
-  only in `services/`, never beside a model. Why the bans stay though nothing of the domain
-  reaches the browser: [A module's layers](../docs/knowledge/decisions.md#a-modules-layers).
+  only in `services/`, never beside a model.
+  Record: [A module's layers](../docs/knowledge/decisions.md#a-modules-layers).
 - **Each port has one memory layer** in its module's test support, for every workspace's unit
   tests: [tooling.md › Tests](../docs/knowledge/tooling.md#tests).
 - **An adapter is a `Layer` of a port** in the module's `infrastructure/`, so callers never see
