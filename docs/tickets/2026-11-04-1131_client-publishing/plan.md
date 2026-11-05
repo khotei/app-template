@@ -7,10 +7,9 @@
 | Step | Delivers | Status |
 |---|---|---|
 | S1 | the ids, `Auth`, `CurrentUser` and `UserUnknownError` declared by the contract; identity's contract keeps `UserId` | done |
-| S2 | the twins test: every export both the contract and the modules declare under one name compared by representation | todo |
-| S3 | the user and attachment groups on the contract's own schemas, answered through `buildApiUser` and `buildApiAttachment` | todo |
-| S4 | the chat group on its own schemas; the contract's manifest declares only `effect`; the docs describe the new boundary | todo |
-| S5 | the guards: the contract's Biome override bans every workspace; `make bundle-check` reads the metafile against `browserPackages` | todo |
+| S2 | the contract on its own schemas: the user, attachment and chat groups, their mappers, the manifest declaring only `effect` | todo |
+| S3 | the twins test over every twin, and the knowledge docs and records of the new boundary, each page written once | todo |
+| S4 | the guards: the contract's Biome override bans every workspace; `make bundle-check` reads the metafile against `browserPackages` | todo |
 
 ## How to run this plan
 
@@ -19,8 +18,8 @@
 - Each step leaves `make check` green and fits one fresh session (≤ ~400 changed lines).
 - A deviation is recorded in the step's findings, and in `architecture.md › Decisions` when it is a
   decision.
-- The steps run in order: each builds on the names the one before it declares, and each step's
-  Verify reads the twins test's titles once S2 has landed.
+- The steps run in order. Each delivers a whole thing: a step never leaves a name, a file or a page
+  that a later step rewrites, so a step's Verify reads only what it delivers.
 - The prototype branch `proto/client-publishing-contract` (worktree
   `client-publishing-contract-proto`) is a reference, never a source to cherry-pick (feature.md ›
   Q2): the sketches in `architecture.md › Contracts` are the contract's shape.
@@ -56,12 +55,12 @@
     `user.handler.ts` and `chat.handler.test.ts` take `CurrentUser`, `Auth` and `UserUnknownError`
     from `@app-template/http-api`.
   - `http-api/CLAUDE.md`: the two bullets this step makes false change now, within the file's
-    pattern style (S4 rewrites the file): "Reuse the domain" becomes "the ids, the auth middleware
+    pattern style (S3 rewrites the file): "Reuse the domain" becomes "the ids, the auth middleware
     and HTTP's own errors are the contract's; a model's shape and a module's errors still come
     from the module's entry", and "Statuses are set here" says a status sits on the contract's
     error class as `httpApiStatus`, or on `.pipe(HttpApiSchema.status(…))` where the class is
     still the domain's.
-  - Trap: `UserUnknownError` is the first twin S2 compares, so it keeps the domain's tag and its
+  - Trap: `UserUnknownError` is the first twin S3 compares, so it keeps the domain's tag and its
     empty field list; its only contract-side addition is `httpApiStatus`.
   - Leftovers: `grep -rnE "contract/auth|contract/user\.error|HttpApiMiddleware|HttpApiSecurity" application/ apps/ http-api/ --include='*.ts'`.
 - **Size:** ~105.
@@ -76,14 +75,14 @@
     module that still declares HTTP middleware.
   - `grep -rn "contract/auth" --include='*.ts' .` — prints nothing; fails on a leftover import.
   - `grep -rn "application/identity" http-api/` — prints only `http-api/user/user.http.ts` (the
-    user model, which S3 replaces); fails on `Auth` still imported from identity.
+    user model, which S2 replaces); fails on `Auth` still imported from identity.
 - **Model:** `opus high`
 - **Status:** done
 - **Findings:** passes: simplify (4 angles), Standards, Spec, Design; no hunt (no write guard, fake or retry).
   - Deviation — the four ids are built through a private `buildIdSchema` in `ids.ts`, as the domain's
     helper does (`deep-modules.md`: one function over the varying part); the schemas are the plan's.
   - Deviation — `decisions.md › Module contracts` Cost lost its "`Auth` lives outside `http-api`"
-    clause (made false by this step; D4 says the record loses it); the user-DTO clause stays until S3.
+    clause (made false by this step; D4 says the record loses it); the user-DTO clause stays until S2.
   - `make api-check` and `make api-snapshot` leave `openapi.json` byte-identical; `make check` green
     (221 unit, 104 e2e).
   - simplify — rejected: `buildIdSchema(brand: B)` does not compile (`B & EnsureSingleBrandKey<B>`),
@@ -91,24 +90,114 @@
   - Standards — accepted, fixed in S1.2: `http-api/CLAUDE.md` "still the domain's" would go stale.
   - Standards — accepted, fixed in S1.2: the ids bullet listed what the folder holds.
   - Spec — accepted, fixed in S1.2: the same bullet called the ids the contract's while the groups
-    still import the domain's until S3/S4.
+    still import the domain's until S2.
   - Standards — rejected: `ids.ts` plural, no `.id` suffix — `errors.ts` and `limits.ts` set the
     precedent in this folder.
   - Design — rejected: translate identity's `UserUnknownError` at the seam — D4 provides the `User`
-    as it is; S2's twins test guards the shape.
+    as it is; S3's twins test guards the shape.
   - Design — rejected: `UserUnknownError` into `errors.ts` — the plan keeps it with `Auth`.
   - User — `http-api/shared` keeps its name (asked 2026-11-05).
 
-#### S2 — The twins test
+#### S2 — The contract on its own schemas
+
+- **Delivers:** the user, attachment and chat groups declare their wire shapes (`ApiUser`,
+  `ApiAttachment`, `ApiChat`, `ApiMessageFailure`, `ApiMessage`), the constrained strings and
+  literals (`FileName`, `MediaType`, `FileSize`, `ChatTitle`, `ChatStatus`, `MessageStatus`,
+  `MessageAuthor`) and the six errors of the two groups themselves. The contract's manifest declares
+  only `effect` and its `tsconfig.json` references no project. The api answers every model through
+  `buildApiUser`, `buildApiAttachment`, `buildApiChat` and `buildApiMessage`, the identity while
+  the shapes match, and fails with the domain's errors untouched. The OpenAPI snapshot's user
+  component is named `User`; nothing else moves.
+- **Goal:** a client reads a chat or an attachment back with every type intact and catches a refusal
+  by its tag as the contract's class (R2); the api hands each model to the contract through one
+  mapper and the wire shows `null` and ISO dates (R3); the snapshot moves by one component's name
+  only (R4, D2); the contract imports nothing of the app, by its manifest and `tsc` (R1; S4 adds
+  the lint); a wire field renamed in the domain breaks one mapper, no handler (R8, D6). The
+  contract is whole in this step, so no group is left half on the domain's schemas and no name of
+  it collides with the domain's (D1).
+- **Blocked by:** S1.
+- **Files:**
+  - `http-api/user/user.http.ts`: `ApiUser = Schema.Struct({ id: UserId, createdAt: Schema.DateTimeUtc })`
+    annotated `identifier: 'User'`; `ensure`'s success is `ApiUser` with status 201.
+  - `http-api/attachment/attachment.http.ts`: `FileName`, `MediaType` (the domain's pattern with
+    its `i` flag), `FileSize`, `ApiAttachment` (`messageId` and `chatId` as
+    `Schema.OptionFromNullOr`), `AttachmentNotFoundError` (`{ ids: Schema.NonEmptyArray(AttachmentId) }`,
+    `httpApiStatus: 404`), `AttachmentBoundError` (`{ id: AttachmentId }`, `httpApiStatus: 409`);
+    `AttachmentMediaType` decodes to the contract's `MediaType`; the endpoints list the classes
+    bare, the status being on the class.
+  - `http-api/chat/chat.http.ts`: the sketches of `architecture.md › Contracts`; `ApiMessageFailure`
+    is `Schema.Struct({ reason: Schema.Literals(['ReplyFailed', 'ReplyRefused']), message: Schema.String })`,
+    so `cause` never reaches the wire; `ChatNotFoundError` 404, `ChatBusyError` 409,
+    `MessageNotFoundError` 404, `MessageInputInvalidError` 400, the status on the class and the
+    endpoints listing the classes bare; the ids from `#http-api/shared/ids`; `ApiAttachment` and
+    the two attachment errors from `#http-api/attachment/attachment.http`. Each model is named
+    `Api<Model>` at its first appearance, so no export shares a name with the domain's model.
+  - `http-api/shared/limits.ts`: `chat.maxTitleLength` is the contract's own `120`.
+  - `http-api/index.ts` drops the re-export from `@app-template/application/chat`;
+    `http-api/package.json` `dependencies` hold `effect` alone; `http-api/tsconfig.json` has no
+    `references`. `apps/web/tsconfig.json` and `apps/api/tsconfig.json` are unchanged.
+  - `apps/api/user/user.mapper.ts` (new): `buildApiUser = (user: User): ApiUser => user`;
+    `apps/api/attachment/attachment.mapper.ts` (new):
+    `buildApiAttachment = (attachment: Attachment): ApiAttachment => attachment`;
+    `apps/api/chat/chat.mapper.ts` (new): `buildApiChat = (chat: Chat): ApiChat => chat`,
+    `buildApiMessage = (message: Message): ApiMessage => message`. The handlers return through
+    them: `ensure` returns `buildApiUser(user)`; `upload` maps with `Arr.map(buildApiAttachment)`;
+    `create`, `get`, `rename` return `buildApiChat(…)`, `list` maps with `Arr.map(buildApiChat)`,
+    `send` returns both messages through `buildApiMessage`, `getMessage` returns
+    `buildApiMessage(…)`.
+  - `http-api/openapi.json`: `make api-snapshot`; the diff is `UserEncoded` → `User` on two lines
+    and nothing else, recorded in the step report. `feature.md › Acceptance` R4 reads "`make
+    api-check` passes; the snapshot differs from today's only in a component's name".
+  - `apps/api/__tests__/attachment/attachment.handler.test.ts` and
+    `apps/api/__tests__/chat/chat.handler.test.ts`: on `ApiClient`, an uploaded attachment reads
+    back with `messageId` `Option.none()`, `createdAt` a `DateTime.Utc` and `id` the branded id; a
+    created chat with `title` `Option.none()`, `createdAt` a `DateTime.Utc` and `id` the branded
+    id; `get` of an unknown attachment is caught with `Effect.catchTag('AttachmentNotFoundError', …)`
+    as the contract's class; on the raw `HttpClient`, `null` and an ISO date; the existing case
+    keeps `error.cause` off the wire. The errors come from `@app-template/http-api`, in
+    `apps/e2e/api/chat.e2e.ts` too.
+  - Docs wait for S3 on purpose: the ticket is one branch and one squash-merged PR, so no commit
+    between S2 and S3 reaches `main`, and each page is written once, with the whole contract in
+    view. `make doc-lint` stays green meanwhile (the pages name paths that exist).
+  - Leftovers: `grep -rn "@app-template/application" http-api/`; `grep -rn "AttachmentNotFoundError" apps/e2e/`.
+- **Size:** ~390 by the prototype's measure (the contract ~230, the api ~45, the tests ~110, the
+  e2e and snapshot ~10); a step that runs over 400 stops with `BLOCKED:` and the plan is recut
+  before more code is written.
+- **Test first:** Seam `ApiClient` over `ApiServerTest` (the two handler tests) — the cases that
+  catch an error by tag as the contract's class are red until the contract exports it (TS2305 on the
+  import); the raw-wire assertions (`null`, an ISO date) are green before and after and hold R4
+  through the change.
+- **Verify:**
+  - `make check` — green; fails on a handler whose return no longer matches the contract, on the
+    snapshot, or on a lint ban.
+  - `git diff HEAD~1 -- http-api/openapi.json` — two changed lines, `UserEncoded` → `User`; fails
+    on any other line.
+  - `grep -rn "@app-template/application" http-api/ --include='*.ts' --include='*.json'` and
+    `grep -n "application" http-api/tsconfig.json` — both print nothing; fail on a leftover
+    import, dependency or project reference.
+  - Planted (R5, by `tsc`): `Schema.brand('ChatID')` on the contract's `ChatId` → `make typecheck`
+    fails in `apps/api/chat/chat.mapper.ts`; reverted after.
+  - Planted (R8): the domain's `Attachment.fileName` renamed to `name` → `make typecheck` names
+    `apps/api/attachment/attachment.mapper.ts` and no file under `http-api/`, `apps/web/` or
+    `apps/api/*/*.handler.ts`; the domain's `MessageFailure.cause` renamed to `detail` → no file
+    under `http-api/` or `apps/web/`; each reverted after.
+- **Model:** `opus high`
+- **Status:** todo
+- **Findings:**
+
+#### S3 — The twins test and the boundary's documents
 
 - **Delivers:** a unit test in the api pairs every export that the contract and the modules both
   declare under one name and fails when their checks differ: a limit, a pattern and its flags, a
   UUID version, a literal, a class's identifier or fields. One case proves a domain error instance
-  encodes through the contract's class. A new twin on both sides joins the test with no edit.
+  encodes through the contract's class. A new twin on both sides joins the test with no edit. The
+  knowledge docs, the records and the instruction files describe the new boundary, each page
+  written once.
 - **Goal:** a drift between the contract and the domain fails `make check` naming the pair, with no
   list of pairs or boundary values kept by hand (R5, D3); the risk "a contract-only annotation
-  leaks into the representation" is settled here, in one place.
-- **Blocked by:** S1.
+  leaks into the representation" is settled here, in one place; the record of the boundary exists
+  (D1, D2, D6).
+- **Blocked by:** S2.
 - **Files:**
   - `apps/api/__tests__/contract-twins.test.ts` (new): `import * as Contract from
     '@app-template/http-api'`, `import * as Chat from '@app-template/application/chat'`,
@@ -125,173 +214,57 @@
     (`isMaxLength` 120 vs 121 differ), a pattern's `source` and `flags` (`i` vs none differ), a
     class's `~identifier` and its tag literal (`XError` vs `YError` differ); it holds no brand
     (`brand('A')` and `brand('B')` are equal, by design: a renamed brand is `tsc`'s through the
-    mappers of S3 and S4) and no annotation such as `httpApiStatus` (a `TaggedError` with and
-    without it are equal), so no strip is needed. If a later Effect adds annotations to it, the
-    error pairs fail and the step that upgrades Effect decides.
-  - Leftovers: none; the test imports entries only.
-- **Size:** ~90.
+    mappers of S2) and no annotation such as `httpApiStatus` (a `TaggedError` with and without it
+    are equal), so no strip is needed. If a later Effect adds annotations to it, the error pairs
+    fail and the step that upgrades Effect decides.
+  - Docs, one pass: `http-api/CLAUDE.md` rewritten within 40 lines (imports only `effect`; a twin
+    keeps the domain's export name, so the twins test finds it; `Api<Model>` is a `Schema.Struct`;
+    a status sits on the error class; a wire change moves the snapshot); `application/CLAUDE.md`'s
+    browser bullet becomes the domain's import bans with their record, no browser reason (S4 drops
+    its `"sideEffects"` mention); `docs/knowledge/architecture.md`: *The three rings* (the domain
+    no longer ships to the browser; `http-api` is the API contract that imports only `effect`),
+    *Dependency rules* (the `http-api` row all ✗; the bullet on what imports only `effect`),
+    *Where things live* (`ApiChat`, the contract's twins), *Add a new entity* step 6 (the contract
+    declares the entity's wire shape, twins and errors; the api's `buildApi<Model>`);
+    `docs/knowledge/tooling.md`'s "A new workspace the browser imports" line;
+    `.claude/rules/effect-schema.md`'s "`null` exists only in a wire DTO" names the API contract;
+    `.claude/rules/naming.md` `.mapper` row adds the api's `buildApi<Model>`;
+    `.claude/rules/layering.md › Handlers`: a handler returns a model through its
+    `buildApi<Model>` and fails with domain errors as they are, and the ban "imports no
+    repository, mapper or data layer" names the module's `<Model>FromEntity` as the mapper it
+    means; `layering.md › Use cases` "Return the contract's shape, a model as is: its DTO's
+    encoder drops the fields it leaves out" becomes "Return a model as is: the api's
+    `buildApi<Model>` and the contract's struct shape the wire";
+    `docs/knowledge/decisions.md`: the record *The API contract on its own* with the page's seven
+    fields (D1's Why, Rejected, Cost; Guarded by: the `http-api/**` override, the twins test, the
+    mappers under `tsc`, `make bundle-check`; If reversed; Revisit when: a second consumer of the
+    contract or a generated client), *A module's layers* rewritten (the domain no longer ships to
+    the browser; its bans stay for roadmap entry 26), *Module contracts* Cost without the user DTO
+    line.
+  - Leftovers: `grep -rn "ships to the browser" docs/ .claude/ application/ http-api/ packages/`.
+- **Size:** ~260: the test ~110, the docs and records ~150.
 - **Test first:** Seam `apps/api/__tests__/contract-twins.test.ts` — with `Schema.isUUID()`
   dropped from the contract's `UserId` in `http-api/shared/ids.ts`, the test fails naming `UserId`;
-  with the check back, it passes.
+  with the check back, it passes. The docs part is `config only`.
 - **Verify:**
-  - `make test-unit` — the suite's titles name `UserId`, `ChatId`, `MessageId`, `AttachmentId` and
-    `UserUnknownError`; fails on fewer pairs (a namespace import that misses an entry).
+  - `make test-unit` — the suite's titles name `UserId`, `ChatId`, `MessageId`, `AttachmentId`,
+    `UserUnknownError`, `ChatTitle`, `ChatStatus`, `MessageStatus`, `MessageAuthor`, `FileName`,
+    `MediaType`, `FileSize` and the six errors of the two groups; fails on fewer pairs (a namespace
+    import that misses an entry). `grep -n "ChatTitle" http-api/index.ts` prints nothing: the
+    contract's `ChatTitle` is its own, not a re-export that would compare with itself.
   - Planted: `http-api/shared/ids.ts` without `Schema.isUUID()` on `UserId` → `make test-unit`
-    fails naming `UserId`; reverted after.
-  - Planted: the contract's `UserUnknownError` with identifier `'UserUnknown'` → the twins case and
-    the hand-written case both fail; reverted after.
+    fails naming `UserId`; the contract's `UserUnknownError` with identifier `'UserUnknown'` → the
+    twins case and the hand-written case both fail; the contract's `MediaType` pattern without its
+    `i` flag → fails naming `MediaType`; `limits.chat.maxTitleLength` 121 → fails naming
+    `ChatTitle`; the contract's `ChatNotFoundError` identifier `'ChatNotFound'` → fails naming
+    `ChatNotFoundError`; each reverted after.
+  - `make doc-lint` — fails on `http-api/CLAUDE.md` over 40 lines or a broken path.
   - `make check` — green.
 - **Model:** `opus high`
 - **Status:** todo
 - **Findings:**
 
-#### S3 — The user and attachment groups on the contract's own schemas
-
-- **Delivers:** the user and attachment groups declare their wire shapes (`ApiUser`,
-  `ApiAttachment`), the constrained strings (`FileName`, `MediaType`, `FileSize`) and the errors
-  (`AttachmentNotFoundError`, `AttachmentBoundError`) themselves; the api answers them through
-  `buildApiUser` and `buildApiAttachment`, the identity while the shapes match, and fails with the
-  domain's errors untouched. The OpenAPI snapshot's user component is named `User`.
-- **Goal:** a client reads an attachment back as `Option`, `DateTime` and a branded id and catches a
-  refusal by its tag as the contract's class (R2); the api hands each model to the contract through
-  one mapper and the wire shows `null` and ISO dates (R3); the snapshot moves by one component's
-  name only (R4, D2); a wire field renamed in the domain breaks one mapper, no handler (R8, D6).
-- **Blocked by:** S1, S2.
-- **Files:**
-  - `http-api/user/user.http.ts`: `ApiUser = Schema.Struct({ id: UserId, createdAt: Schema.DateTimeUtc })`
-    annotated `identifier: 'User'`; `ensure`'s success is `ApiUser` with status 201.
-  - `http-api/attachment/attachment.http.ts`: `FileName`, `MediaType` (the domain's pattern with
-    its `i` flag), `FileSize`, `ApiAttachment` (`messageId` and `chatId` as
-    `Schema.OptionFromNullOr`), `AttachmentNotFoundError` (`{ ids: Schema.NonEmptyArray(AttachmentId) }`,
-    `httpApiStatus: 404`), `AttachmentBoundError` (`{ id: AttachmentId }`, `httpApiStatus: 409`);
-    `AttachmentMediaType` decodes to the contract's `MediaType`; the endpoints list the classes
-    bare, the status being on the class. `chat.http.ts` takes `ApiAttachment` and the two errors
-    from `#http-api/attachment/attachment.http`; its own schemas change in S4.
-  - `apps/api/user/user.mapper.ts` (new): `buildApiUser = (user: User): ApiUser => user`;
-    `apps/api/attachment/attachment.mapper.ts` (new):
-    `buildApiAttachment = (attachment: Attachment): ApiAttachment => attachment`. `ensure` returns
-    `buildApiUser(user)`; `upload` maps its result with `Arr.map(buildApiAttachment)`; `get`
-    returns `buildApiAttachment(…)`.
-  - `http-api/openapi.json`: `make api-snapshot`; the diff is `UserEncoded` → `User` on two lines
-    and nothing else, recorded in the step report. `feature.md › Acceptance` R4 reads "`make
-    api-check` passes; the snapshot differs from today's only in a component's name".
-  - `apps/api/__tests__/attachment/attachment.handler.test.ts`: on `ApiClient`, an uploaded
-    attachment reads back with `messageId` `Option.none()`, `createdAt` a `DateTime.Utc`
-    (`DateTime.isDateTime`) and `id` the branded id; `get` of an unknown id is caught with
-    `Effect.catchTag('AttachmentNotFoundError', …)` as the contract's class; on the raw
-    `HttpClient`, `messageId: null` and an ISO `createdAt`. `apps/e2e/api/chat.e2e.ts` takes
-    `AttachmentNotFoundError` from `@app-template/http-api`.
-  - Docs: `.claude/rules/naming.md` `.mapper` row adds the api's `buildApi<Model>`, the identity
-    while the shapes match; `.claude/rules/layering.md › Handlers`: a handler returns a model
-    through its `buildApi<Model>` and fails with domain errors as they are, and the ban "imports
-    no repository, mapper or data layer" names the module's `<Model>FromEntity` as the mapper it
-    means; `layering.md › Use cases` "Return the contract's shape, a model as is: its DTO's
-    encoder drops the fields it leaves out" becomes "Return a model as is: the api's
-    `buildApi<Model>` and the contract's struct shape the wire";
-    `docs/knowledge/decisions.md › Module contracts` Cost loses the user DTO line.
-  - Leftovers: `grep -rnE "AttachmentModel|application/identity|application/chat" http-api/` for
-    the imports this step removes; `grep -rn "AttachmentNotFoundError" apps/e2e/`.
-- **Size:** ~195.
-- **Test first:** Seam `ApiClient` over `ApiServerTest`
-  (`apps/api/__tests__/attachment/attachment.handler.test.ts`) — the case that catches
-  `AttachmentNotFoundError` by tag as the contract's class is red until the contract exports it
-  (TS2305 on the import); the raw-wire assertions (`null`, an ISO date) are green before and after
-  and hold R4 through the change.
-- **Verify:**
-  - `make check` — green; fails on a handler whose return no longer matches the contract, on the
-    snapshot, or on a lint ban.
-  - `git diff HEAD~1 -- http-api/openapi.json` — two changed lines, `UserEncoded` → `User`; fails
-    on any other line.
-  - `make test-unit` — the twins test's titles now include `FileName`, `MediaType`, `FileSize`,
-    `AttachmentNotFoundError`, `AttachmentBoundError`, with `git diff HEAD~1 --stat --
-    apps/api/__tests__/contract-twins.test.ts` empty; fails when a twin is declared under another
-    name.
-  - Planted: the contract's `MediaType` pattern without its `i` flag → `make test-unit` fails
-    naming `MediaType`; reverted after.
-  - Planted (R8): the domain's `Attachment.fileName` renamed to `name` → `make typecheck` names
-    `apps/api/attachment/attachment.mapper.ts` and no file under `http-api/`, `apps/web/` or
-    `apps/api/*/*.handler.ts`; reverted after.
-  - `grep -rn "application/identity" http-api/` — prints nothing; fails on a leftover.
-- **Model:** `opus high`
-- **Status:** todo
-- **Findings:**
-
-#### S4 — The chat group and the contract on its own
-
-- **Delivers:** the chat group declares `ChatTitle`, `ChatStatus`, `MessageStatus`,
-  `MessageAuthor`, `ApiChat`, `ApiMessageFailure`, `ApiMessage` and its four errors; the contract's
-  manifest declares only `effect`, its `tsconfig.json` references no project, and `openapi.json`
-  does not move. The api answers chats and messages through `buildApiChat` and `buildApiMessage`.
-  The knowledge docs, the records and the instruction files describe the new boundary.
-- **Goal:** the contract imports nothing of the app (R1, by the manifest and `tsc`; S5 adds the
-  lint); a client reads a chat back with every type intact (R2); the api hands every model through
-  one mapper and an internal field never reaches the response (R3); the wire is unchanged (R4); a
-  backend rename off the wire touches no contract or web file (R8); the record of the boundary
-  exists (D1, D2, D6).
-- **Blocked by:** S3.
-- **Files:**
-  - `http-api/chat/chat.http.ts`: the sketches of `architecture.md › Contracts`; `ApiMessageFailure`
-    is `Schema.Struct({ reason: Schema.Literals(['ReplyFailed', 'ReplyRefused']), message: Schema.String })`,
-    so `cause` never reaches the wire; `ChatNotFoundError` 404, `ChatBusyError` 409,
-    `MessageNotFoundError` 404, `MessageInputInvalidError` 400, the status on the class and the
-    endpoints listing the classes bare; the ids from `#http-api/shared/ids`.
-  - `http-api/shared/limits.ts`: `chat.maxTitleLength` is the contract's own `120`.
-  - `http-api/index.ts` drops the re-export from `@app-template/application/chat`;
-    `http-api/package.json` `dependencies` hold `effect` alone; `http-api/tsconfig.json` has no
-    `references`. `apps/web/tsconfig.json` and `apps/api/tsconfig.json` are unchanged.
-  - `apps/api/chat/chat.mapper.ts` (new): `buildApiChat = (chat: Chat): ApiChat => chat`,
-    `buildApiMessage = (message: Message): ApiMessage => message`; `chat.handler.ts`: `create`,
-    `get`, `rename` return `buildApiChat(…)`, `list` maps with `Arr.map(buildApiChat)`, `send`
-    returns both messages through `buildApiMessage`, `getMessage` returns `buildApiMessage(…)`.
-  - `apps/api/__tests__/chat/chat.handler.test.ts`: the errors from `@app-template/http-api`; a
-    created chat reads back with `title` `Option.none()`, `createdAt` a `DateTime.Utc` and `id`
-    the branded id, and on the raw `HttpClient` with `title: null` and an ISO `createdAt`; the
-    existing case keeps `error.cause` off the wire.
-  - Docs, in this step since it lands the boundary: `http-api/CLAUDE.md` rewritten within 40
-    lines (imports only `effect`; a twin keeps the domain's export name, so the twins test finds
-    it; `Api<Model>` is a `Schema.Struct`; a status sits on the error class; a wire change moves
-    the snapshot); `application/CLAUDE.md`'s browser bullet becomes the domain's import bans with
-    their record, no browser reason; `docs/knowledge/architecture.md`: *The three rings* (the
-    domain no longer ships to the browser; `http-api` is the API contract that imports only
-    `effect`), *Dependency rules* (the `http-api` row all ✗, refused by `http-api/**`; the bullet
-    on what imports only `effect`), *Where things live* (`ApiChat`, the contract's twins), *Add a
-    new entity* step 6 (the contract declares the entity's wire shape, twins and errors; the api's
-    `buildApi<Model>`); `docs/knowledge/tooling.md`'s "A new workspace the browser imports" line;
-    `.claude/rules/effect-schema.md`'s "`null` exists only in a wire DTO" names the API contract;
-    `docs/knowledge/decisions.md`: the record *The API contract on its own* with the page's seven
-    fields (D1's Why, Rejected, Cost; Guarded by: the `http-api/**` override, the twins test, the
-    mappers under `tsc`, `make bundle-check`; If reversed; Revisit when: a second consumer of the
-    contract or a generated client), *A module's layers* rewritten (the domain no longer ships to
-    the browser; its bans stay for roadmap entry 26), *Module contracts* Cost without the `Auth`
-    line.
-  - Leftovers: `grep -rn "@app-template/application" http-api/`; `grep -rn "ships to the browser" docs/ .claude/ application/ http-api/ packages/`.
-- **Size:** ~345: the contract file ~150, the api ~45, the docs and records ~150.
-- **Test first:** Seam `ApiClient` over `ApiServerTest` (`chat.handler.test.ts`) — the errors
-  imported from `@app-template/http-api` are red (TS2305) until the group declares them; the
-  raw-wire case (`title: null`, an ISO date) is green before and after and holds R4.
-- **Verify:**
-  - `make check` — green; `make api-check` fails on any wire change.
-  - `git diff HEAD~1 --stat -- http-api/openapi.json` — empty; fails when the chat group moved
-    the document.
-  - `grep -rn "@app-template/application" http-api/ --include='*.ts' --include='*.json'` and
-    `grep -n "application" http-api/tsconfig.json` — both print nothing; fail on a leftover
-    import, dependency or project reference (today: eight matches and the reference).
-  - `make test-unit` — the twins test's titles include `ChatTitle`, `ChatStatus`, `MessageStatus`,
-    `MessageAuthor`, `ChatNotFoundError`, `ChatBusyError`, `MessageNotFoundError`,
-    `MessageInputInvalidError`, the test file unchanged.
-  - Planted (R5): `limits.chat.maxTitleLength` 121 → `make test-unit` fails naming `ChatTitle`;
-    `Schema.brand('ChatID')` on the contract's `ChatId` → `make typecheck` fails in
-    `apps/api/chat/chat.mapper.ts`; the contract's `ChatNotFoundError` identifier
-    `'ChatNotFound'` → `make test-unit` fails naming `ChatNotFoundError`; each reverted after.
-  - Planted (R8): the domain's `MessageFailure.cause` renamed to `detail` → `git diff --name-only`
-    lists no file under `http-api/` or `apps/web/`, and `make typecheck` names no file there;
-    reverted after.
-  - `make doc-lint` — fails on `http-api/CLAUDE.md` over 40 lines or a broken path.
-- **Model:** `opus high`
-- **Status:** todo
-- **Findings:**
-
-#### S5 — The guards: the contract's override and the bundle check over the metafile
+#### S4 — The guards: the contract's override and the bundle check over the metafile
 
 - **Delivers:** Biome refuses any workspace or `@effect/*` import in the contract, naming the
   record; the contract and domain overrides' messages lose their browser reason.
@@ -301,7 +274,7 @@
 - **Goal:** an import of the app in the contract fails `make check` naming it (R1); the web bundle
   holds no server code whether or not a side-effects flag holds (R6); a package outside the list
   fails the check with its chain (R7); D5.
-- **Blocked by:** S4.
+- **Blocked by:** S3.
 - **Files:**
   - `.misc/lint/biome.base.json`: the `http-api/**` override keeps one pattern,
     `["@app-template/**", "@effect/**"]`, message "the API contract imports only effect: no
@@ -349,7 +322,7 @@
   `apps/web/app/main.ts → apps/web/features/health/health-panel.ts → packages/ui/index.ts → …`.
   R6's baseline, measured at plan time on `fd7c0a6464`: with `"sideEffects": false` removed from
   `http-api/package.json` and `application/package.json`, today's check fails, the bundle grows
-  from 0.43 MB to 2.97 MB and holds the three chat services and `QueueConfig`; after S4 nothing
+  from 0.43 MB to 2.97 MB and holds the three chat services and `QueueConfig`; after S2 nothing
   of `application/` is imported, so the same build passes the new check.
 - **Verify:**
   - `make check` — green.
@@ -373,15 +346,15 @@
     runs the same ten again: the first seven fail with their new messages, the last three with
     the package and its chain.
     - workspace in the contract — `http-api/shared/limits.ts`: `import { Db } from '@app-template/kernel/data'` → `lint/style/noRestrictedImports` 1:20 "http-api is the HTTP boundary shared by the apps: it imports only effect and a module's entry, …"; `Found 1 error.`
-    - a module's service in the contract (the pattern S5 removes; after S5 the one pattern refuses it) — `http-api/shared/limits.ts`: `import { ChatService } from '@app-template/application/chat'` → `lint/style/noRestrictedImports` 1:10 "of a module's entry http-api takes only its contract and its domain: …"; `Found 1 error.`
-    - a module's entry in the contract (the widened ban's own: passes until S5) — `http-api/shared/limits.ts`: `import { ChatId } from '@app-template/application/chat'` → no `noRestrictedImports` diagnostic, only `noUnusedImports`; `Found 1 warning.`
+    - a module's service in the contract (the pattern S4 removes; after S4 the one pattern refuses it) — `http-api/shared/limits.ts`: `import { ChatService } from '@app-template/application/chat'` → `lint/style/noRestrictedImports` 1:10 "of a module's entry http-api takes only its contract and its domain: …"; `Found 1 error.`
+    - a module's entry in the contract (the widened ban's own: passes until S4) — `http-api/shared/limits.ts`: `import { ChatId } from '@app-template/application/chat'` → no `noRestrictedImports` diagnostic, only `noUnusedImports`; `Found 1 warning.`
     - workspace in a module contract — `application/identity/contract/user.id.ts`: `import { Db } from '@app-template/kernel/data'` → `lint/style/noRestrictedImports` 1:20 "a module contract imports no workspace and no @effect/* package: every consumer of the module reads it, the browser too …"; `Found 1 error.`
     - a module's own file in its contract — `application/identity/contract/user.id.ts`: `import { User } from '#identity/domain/user.model'` → `lint/style/noRestrictedImports` 1:22 "a module contract imports none of its module's other files: …" (and `noImportCycles`)
     - workspace in a domain — `application/chat/domain/chat.id.ts`: `import { Db } from '@app-template/kernel/data'` → `lint/style/noRestrictedImports` 1:20 "a module's domain is pure and ships to the browser: it imports no workspace but another module's entry, …"; `Found 1 error.`
     - a service in a domain — `application/chat/domain/chat.id.ts`: `import { ChatService } from '#chat/services/chat.service'` → `lint/style/noRestrictedImports` 1:29 "a module's domain imports neither its services nor its infrastructure …" (and `noImportCycles`)
-    - a kernel key in the bundle (today's grep ban; after S5 refused as `@app-template/kernel/data` with its chain) — `apps/web/app/main.ts`: `import { Db } from '@app-template/kernel/data'` and `console.log(Db.key)` → the grep prints `…main.js:class Db extends Service()("@app-template/kernel/data/Db", …` and six repository keys; `make: *** [bundle-check] Error 1`
-    - a server library through an allowed package (the new check's own: passes until S5) — `packages/ui/index.ts`: `import { sql } from 'drizzle-orm'`, `void sql` first in `joinClassNames` → exit 0 after `bun build`'s `node:net` polyfill warnings; the metafile names `drizzle-orm` 51 times, so the library is in the bundle unseen
-    - a server entry of a shared workspace (the new check's own: passes until S5) — `apps/web/app/main.ts`: `import { Transaction } from '@app-template/packages/db'` and `console.log(Transaction.key)` → exit 0 after the same `node:net` warnings; the entry is in the bundle unseen
+    - a kernel key in the bundle (today's grep ban; after S4 refused as `@app-template/kernel/data` with its chain) — `apps/web/app/main.ts`: `import { Db } from '@app-template/kernel/data'` and `console.log(Db.key)` → the grep prints `…main.js:class Db extends Service()("@app-template/kernel/data/Db", …` and six repository keys; `make: *** [bundle-check] Error 1`
+    - a server library through an allowed package (the new check's own: passes until S4) — `packages/ui/index.ts`: `import { sql } from 'drizzle-orm'`, `void sql` first in `joinClassNames` → exit 0 after `bun build`'s `node:net` polyfill warnings; the metafile names `drizzle-orm` 51 times, so the library is in the bundle unseen
+    - a server entry of a shared workspace (the new check's own: passes until S4) — `apps/web/app/main.ts`: `import { Transaction } from '@app-template/packages/db'` and `console.log(Transaction.key)` → exit 0 after the same `node:net` warnings; the entry is in the bundle unseen
 - **Model:** `opus high`
 - **Status:** todo
 - **Findings:**
@@ -390,11 +363,11 @@
 
 | Req | Steps |
 |---|---|
-| R1 | S1, S4, S5 |
-| R2 | S3, S4 |
-| R3 | S3, S4 |
-| R4 | S1, S3, S4 |
-| R5 | S2, S3, S4 |
-| R6 | S5 |
-| R7 | S5 |
-| R8 | S3, S4 |
+| R1 | S1, S2, S4 |
+| R2 | S2 |
+| R3 | S2 |
+| R4 | S1, S2 |
+| R5 | S3 |
+| R6 | S4 |
+| R7 | S4 |
+| R8 | S2 |
