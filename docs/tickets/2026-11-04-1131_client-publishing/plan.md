@@ -462,30 +462,31 @@
 - **Goal:** R8 — a rename of a wire field in the domain `Attachment` edits one mapper (verification
   run 1, Spec finding 1).
 - **Blocked by:** S4.
-- **Files:** `apps/api/chat/chat.mapper.ts`; `http-api/CLAUDE.md` or `layering.md` only if a line
-  says a mapper returns its argument for every model.
+- **Files:** `apps/api/chat/chat.mapper.ts`; `apps/api/__tests__/chat/chat.handler.test.ts` (one
+  case with an attachment); `http-api/CLAUDE.md` or `layering.md` only if a line says a mapper
+  returns its argument for every model.
 - **Size:** ~20.
 - **Introduces:** none. Removes later: none.
-- **Test first:** Seam `apps/api` handler tests — the chat handler test shows a chat with an
-  attachment whose wire JSON keeps the attachment's fields; green before and after, so the red
-  check is the rename in Verify.
+- **Test first:** Seam `apps/api` handler tests — a new case in the chat handler test creates a
+  chat with one attachment (the existing cases hold `attachments: []`) and reads its fields back
+  from the wire JSON; green before and after, so the red check is the rename in Verify.
 - **Verify:**
   - `make check` — green.
-  - Planted (R8): rename `Attachment.fileName` → `name` in the domain → `bunx tsc -b` reports errors
-    in `attachment.mapper.ts` alone, none in `chat.mapper.ts`; fails today with three errors in
-    two files. Reverted after.
+  - Planted (R8): rename `Attachment.fileName` → `name` in the domain → the `tsc -b` errors under
+    `apps/api` are in `apps/api/attachment/attachment.mapper.ts` alone, none in
+    `apps/api/chat/chat.mapper.ts`; fails today with three errors in two files. The errors in
+    `application/` and in the handlers that read `AttachmentUpload.fileName` are the rename's own
+    and are left out. Reverted after.
 - **Model:** `opus medium`.
 - **Status:** `todo`.
 
 #### S6 — The twins test finds its modules
 
 - **Delivers:** `apps/api/__tests__/contract-twins.test.ts` builds `modules` from the exports of
-  `application/package.json`, so a new module is compared with no edit; `http-api/CLAUDE.md` loses
-  any line telling to add a module to the list.
+  `application/package.json`, so a new module is compared with no edit.
 - **Goal:** R5 — no list of pairs or modules kept by hand (verification run 1, Spec finding 2).
 - **Blocked by:** S4.
-- **Files:** `apps/api/__tests__/contract-twins.test.ts`; `http-api/CLAUDE.md` if it mentions the
-  list.
+- **Files:** `apps/api/__tests__/contract-twins.test.ts`.
 - **Size:** ~40.
 - **Introduces:** none. Removes later: none.
 - **Test first:** Seam `make test-unit` over the twins test — a planted module with a twin of a
@@ -506,8 +507,10 @@
   run 1, Spec finding 3).
 - **Blocked by:** S4.
 - **Files:** `.misc/lint/biome.base.json` (the `http-api/**` group gains `node:*`, `bun`, `bun:*`;
-  message keeps "imports only effect"); `http-api/tsconfig.json`; the guard's probes in
-  `guard-probes.md` form, as `ticket-plan` asks.
+  the message reads "the API contract imports only effect: no workspace, no @effect/* package, no
+  node: or bun built-in"); `http-api/tsconfig.json`; `docs/knowledge/roadmap.md` (the Biome guard
+  for `node:`/`bun:` imports in the browser-facing layers loses `http-api` from its list of what
+  is still open); the guard's probes in `guard-probes.md` form, as `ticket-plan` asks.
 - **Size:** ~15.
 - **Introduces:** none. Removes later: none.
 - **Test first:** `config only` — a planted `import { readFileSync } from 'node:fs'` in
@@ -516,6 +519,7 @@
   - `make check` — green.
   - Probes: `node:fs`, `node:path`, `bun:sqlite`, `bun` each as the first import of
     `http-api/shared/limits.ts` → `bunx biome lint` fails with the new message; each reverted.
+    `import 'bun'` passes `tsc` even with `"types": []`, so the lint ban is its only guard.
   - If `"types": []` is set: `bunx tsc -b` green; a planted `node:fs` import then also fails it.
     If `tsc -b` fails without `bun` types, keep the lint ban alone and record the deviation.
 - **Model:** `opus medium`.
@@ -537,8 +541,8 @@
   the four files.
 - **Verify:**
   - `make doc-lint` — green; `make check` — green.
-  - `grep -n "stand alone\|stands alone" .claude/skills/*/SKILL.md .claude/agents/reviewer.md` —
-    prints the reviewer's line only.
+  - `grep -n "reviewer.md" .claude/skills/ticket-implement/SKILL.md .claude/skills/ticket-plan/SKILL.md`
+    — prints one line per file; prints nothing today.
 - **Model:** `opus medium`.
 - **Status:** `todo`.
 
