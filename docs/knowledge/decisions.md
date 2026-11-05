@@ -144,7 +144,8 @@ calls the data layer's repository directly.
   guard: [architecture.md › Known gaps](architecture.md#known-gaps).
 - **Guarded by:** one Biome override per layer, matching every module by glob and covering the
   layer's tests: the rows of a module's layers and of `http-api` in
-  [architecture.md › Dependency rules](architecture.md#dependency-rules); `make bundle-check`;
+  [architecture.md › Dependency rules](architecture.md#dependency-rules); `make bundle-check`,
+  which reads the web bundle's metafile and refuses the module's package in it;
   `.claude/rules/layering.md`, a repository, a mapper or the data layer in an app's handler.
 - **If reversed:** a port per repository comes back with an adapter each that only delegates; an
   export per layer brings back the subpaths and a ban per layer by path.
@@ -501,7 +502,8 @@ Jobs are the table `jobs` and `JobRepository` in the data layer; `QueueSenderJob
 ### Guards are configuration
 
 The guards are `exports`, the isolated linker, `tsc -b`, Biome with its GritQL plugin and the
-bundle check; what no configuration expresses are the review rules `.claude/rules/modules.md`
+bundle check, which reads the web build's metafile against the packages the web's manifest lists
+in `browserPackages`; what no configuration expresses are the review rules `.claude/rules/modules.md`
 and, for a handler, `layering.md`, never hand-written test code. Each import rule is held once,
 by the guard that can see it: the linker and `tsc -b` see a workspace but no unit inside a
 folder, since `kernel/`, `packages/` and `application/` are one workspace and one

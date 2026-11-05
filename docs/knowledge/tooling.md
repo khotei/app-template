@@ -32,7 +32,7 @@ and `make setup` and `make test-unit` need neither.
 | `make test-unit` | `bun --bun vitest run --project unit` | every `__tests__/**/*.test.ts`; no Docker ([Tests](#tests)) |
 | `make test-e2e` | `bun --bun vitest run --project e2e` | every `__e2e__/**/*.e2e.ts` and `apps/e2e/**/*.e2e.ts`; needs a running Docker daemon for the run's own Postgres and MiniStack containers ([Tests](#tests)) |
 | `make test` | `test-unit`, then `test-e2e` | both projects |
-| `make bundle-check` | `bun build` of the web entry into `node_modules/.cache/web-bundle`, then a `grep` for the keys of the kernel, the use cases, a module's services and infrastructure, and its domain's ports | fails when a service, port or adapter reaches the browser: [architecture.md › Boundary guards](architecture.md#boundary-guards); a `grep` that fails (a broken pattern, a bundle it cannot read) stops it with exit 2 |
+| `make bundle-check` | `bun build` of the web entry into `node_modules/.cache/web-bundle` with a metafile, then `bun .misc/lint/bundle-check.mjs` over it | fails when the bundle holds a package outside `browserPackages` in `apps/web/package.json`, naming the package and the import chain that brought it: [architecture.md › Boundary guards](architecture.md#boundary-guards); a metafile or a manifest it cannot read stops it with exit 2 |
 | `make outdated` | `bun outdated --recursive` | newer versions for every workspace |
 | `make vendor-effect` | `git subtree pull --squash --prefix repos/effect` of the `effect@<pin>` tag | update `repos/effect` to the catalog pin; it commits, so run it on a clean tree. First time: `git subtree add` with the same arguments |
 | `make vendor-drizzle` | `git subtree add`, then `pull`, `--squash --prefix repos/drizzle` of the `v<pin>` tag of `drizzle-orm` | the same for `repos/drizzle`: the whole Drizzle monorepo, since `git subtree` takes no subfolder; the source is under `repos/drizzle/drizzle-orm/src` |
@@ -330,8 +330,9 @@ symlink and checks its sources either way.
 
 A new workspace the browser imports takes nothing of the app, as the API contract does
 ([decisions.md › The API contract on its own](decisions.md#the-api-contract-on-its-own)): it
-gets an override like `http-api/**`'s in `.misc/lint/biome.base.json` and joins the
-`apps/web/**` override's allowed imports; a new module, kernel part or package adds nothing there
+gets an override like `http-api/**`'s in `.misc/lint/biome.base.json`, joins the
+`apps/web/**` override's allowed imports and `browserPackages` in `apps/web/package.json`, which
+`make bundle-check` reads; a new module, kernel part or package adds nothing there
 ([decisions.md › Guards are configuration](decisions.md#guards-are-configuration)).
 
 ### Add a package

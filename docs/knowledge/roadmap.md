@@ -308,13 +308,11 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   placeholders moved to `assistant-files` (18).
   The visitor cookie is the user cookie of `chat-core`'s `CurrentUser` security.
 - **Inherited from `architecture-audit`.** `make bundle-check` builds `apps/web/app/main.ts` with
-  `bun build` and greps the bundle for service keys ending in `Service`, `Repository`, `Bucket` or
-  `Assistant`; `modular-monolith` (23) replaced the suffixes with key paths: every key of the
-  kernel, of the use cases and of a module's `services/`, `infrastructure/` and `domain/`, where
-  only its ports carry one
-  ([architecture.md › Boundary guards](architecture.md#boundary-guards)). On the new bundler:
-  rebuild its command, clear the output dir before each build, keep that grep, and run it in CI's
-  `static` job.
+  `bun build --metafile` and refuses any package of the bundle outside `browserPackages` in
+  `apps/web/package.json`, naming its import chain; `client-publishing` (10) replaced the grep of
+  service keys with it ([architecture.md › Boundary guards](architecture.md#boundary-guards)). On
+  the new bundler: rebuild its command, have it write a metafile the check reads (its shape is
+  Bun's today), clear the output dir before each build, and run it in CI's `static` job.
 - **Facts (2026-10-17).** `@tanstack/react-start@1.169.3` (router 1.170, Vite ≥ 8, React 19 for
   the Bun preset, `aws_lambda` preset with streaming); `@chakra-ui/react@3.37.0`; Effect v4 atoms
   are `effect/reactivity/*` in core plus `@effect/atom-react@4.0.5` (React ≥ 19 only) with

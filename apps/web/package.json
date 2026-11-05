@@ -16,5 +16,10 @@
     "@app-template/kernel": "workspace:*",
     "@app-template/packages": "workspace:*",
     "effect": "catalog:effect"
-  }
+  },
+  "browserPackages": [
+    "effect",
+    "@app-template/http-api",
+    "@app-template/packages/ui"
+  ]
 }

@@ -308,16 +308,15 @@ Record: [Modules by capability](decisions.md#modules-by-capability).
 3. **A contract** is a folder `contract/` with an `index.ts`, re-exported by the module's entry;
    the `application/*/contract/**` override already covers it. Record:
    [Module contracts](decisions.md#module-contracts).
-4. **The consumers** declare `@app-template/application` in their `package.json`; the service
-   keys read `'@app-template/application/<module>/services/<Name>'`, which `make bundle-check`
-   already greps.
+4. **The consumers** declare `@app-template/application` in their `package.json`; the browser is
+   none, and `make bundle-check` refuses the module in its bundle with no edit.
 5. **The docs.** The glossary gains the module's words; `decisions.md` a record if the cut is a
    decision ([Decisions recorded in one page](decisions.md#decisions-recorded-in-one-page)).
 
 ## Boundary guards
 
 Each import rule of [Dependency rules](#dependency-rules) is held once, by the guard that can see
-it, and a last guard checks what the import rules leave to tree shaking, the web bundle; what no
+it, and a last guard checks what an allowed import brings into the web bundle; what no
 guard sees, review refuses ([.claude/rules/modules.md](../../.claude/rules/modules.md), and
 [layering.md](../../.claude/rules/layering.md) for a handler). Record:
 [Guards are configuration](decisions.md#guards-are-configuration).
@@ -329,20 +328,22 @@ guard sees, review refuses ([.claude/rules/modules.md](../../.claude/rules/modul
 | Biome `noImportCycles` | a cycle of value imports: two files, two modules, a kernel part and one that imports it, a module and its own entry | the same |
 | the isolated linker with `tsc -b` | an import of a workspace the importer's `package.json` does not declare: the TS2307 cells of [Dependency rules](#dependency-rules) | TS2307 in `make typecheck` and at runtime |
 | `composite` project references (`rootDir: "."`), one project per workspace | a path that reaches into an unreferenced workspace's files; a cycle of references between workspaces | TS6059 / TS6307 / TS6202 in `make typecheck` |
-| `make bundle-check`: `bun build` of `apps/web/app/main.ts`, then a `grep` of the bundle | a key of the kernel, of the use cases, or of a module's `services/`, `infrastructure/` or `domain/`, where only its ports carry one, in the browser bundle | the matched service keys, in `make check` |
+| `make bundle-check`: `bun build` of `apps/web/app/main.ts` with a metafile, read by `.misc/lint/bundle-check.mjs` | a package in the browser bundle outside `browserPackages` in `apps/web/package.json`: a workspace's entry, a third-party library, a Node built-in | the package and the shortest import chain from the entry, in `make check` |
 
 Why each rule sits with its guard, and what that costs:
 [Guards are configuration](decisions.md#guards-are-configuration). Symptoms and fixes:
 [tooling.md › Troubleshooting](tooling.md#troubleshooting).
 
-The bundle guard greps the service keys
-(`"@app-template/application/chat/services/ChatService"`): string literals, which survive the
-build however Bun applies `"sideEffects": false`. A type-only import is erased and passes, as it
-should. `apps/web` cannot import a module at all, so a leak comes through `http-api`, which
-imports the modules' entries for their schemas and errors; tree shaking drops the services,
-adapters and ports beside them, and the guard proves it on every check. Bun still parses what it
-drops, so the build warns about `node:net`, which `@effect/sql-pg` reaches below a module's
-services.
+The bundle guard reads the build's metafile, which lists every input the bundle keeps with its
+imports, so it sees what the bundle holds however Bun applies `"sideEffects"`, and names no
+folder of the repository: an input under `node_modules` belongs to the package its last
+`node_modules/<name>` names, any other to its nearest `package.json`, plus the subpath of the
+export whose folder holds it (`@app-template/packages/ui`). The entry's own workspace is implied.
+A type-only import is erased and passes, as it should. `apps/web` imports only `http-api` and
+`packages/ui`, and the contract imports only `effect`, so a leak comes through a package the list
+allows growing a server import, which the guard refuses with its chain. A metafile without
+`inputs`, `outputs` or one entry point, or a manifest it cannot find, stops it with exit 2, never
+a clean pass.
 
 ### Known gaps
 
@@ -355,18 +356,12 @@ them:
   and `tsc -b`, because web declares `@app-template/kernel` for its server entry. The type is
   erased, so nothing reaches the browser, but the client then depends on the shape of the server
   config.
-- **A namespace import of an entry.** `import * as Chat from '@app-template/application/chat'`
-  in `http-api/` passes every ban by name (`importNamePattern` sees no name), and so does one of
-  `@app-template/kernel/data` where only its stores are allowed; `Chat.ChatService` then reaches
-  what the names were refused for, and `make bundle-check` catches it only in the browser's
-  bundle.
+- **A namespace import of an entry.** `import * as Data from '@app-template/kernel/data'` where
+  only its stores are allowed passes every ban by name (`importNamePattern` sees no name);
+  `Data.<Name>` then reaches what the names were refused for.
 - **A runtime module or third-party package in a module's `domain/`.** `node:crypto` or any npm
   package passes the domain guard, which bans only workspaces and `@effect/*`. Purity rests on
   review alone: no check looks for `Date.now`, `new Date(` or `randomUUID`.
-- **A server library in a browser-safe package.** An import of `<server library>` in
-  `packages/ui` passes Biome, which keeps no list for a package, and `tsc -b`, because
-  the one `packages/package.json` declares every package's libraries for all of them. `make
-  bundle-check` greps only this app's keys, so the library reaches the browser's bundle unseen.
 - **A test's needs in a layer's source, a test file outside a layer.** A layer's override covers
   its tests, so `@effect/vitest`, a `/testing` entry and, in a module's services,
   `@effect/platform-bun` pass in the layer's source too. A module's test support

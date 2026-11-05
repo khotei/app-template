@@ -69,18 +69,8 @@
               "options": {
                 "patterns": [
                   {
-                    "group": [
-                      "@app-template/**",
-                      "!@app-template/application/*",
-                      "@app-template/application/use-cases",
-                      "@effect/**"
-                    ],
-                    "message": "http-api is the HTTP boundary shared by the apps: it imports only effect and a module's entry, for its contract and its domain (decisions.md › HTTP outside the modules; Guards are configuration)"
-                  },
-                  {
-                    "group": ["@app-template/application/*"],
-                    "importNamePattern": "([A-Za-z]+(Service|FromEntity|FromConfig)|(en|de)code[A-Z][A-Za-z]*)",
-                    "message": "of a module's entry http-api takes only its contract and its domain: its services, mappers and adapters never reach the browser (decisions.md › HTTP outside the modules)"
+                    "group": ["@app-template/**", "@effect/**"],
+                    "message": "the API contract imports only effect: no workspace and no @effect/* package (decisions.md › The API contract on its own; Guards are configuration)"
                   }
                 ]
               }
@@ -120,7 +110,7 @@
                 "patterns": [
                   {
                     "group": ["@app-template/**", "@effect/**"],
-                    "message": "a module contract imports no workspace and no @effect/* package: every consumer of the module reads it, the browser too (decisions.md › Module contracts; Guards are configuration)"
+                    "message": "a module contract imports no workspace and no @effect/* package: every consumer of the module reads it (decisions.md › Module contracts; Guards are configuration)"
                   },
                   {
                     "group": ["#*/index", "#*/domain/**", "#*/services/**", "#*/infrastructure/**"],
@@ -154,7 +144,7 @@
                       "!@effect/vitest",
                       "!@effect/vitest/**"
                     ],
-                    "message": "a module's domain is pure and ships to the browser: it imports no workspace but another module's entry, for its contract, and no @effect/* package; its tests add test support, a module's /testing, @app-template/packages/testing and @effect/vitest (decisions.md › A module's layers; Module contracts; Guards are configuration)"
+                    "message": "a module's domain is pure: it imports no workspace but another module's entry, for its contract, and no @effect/* package; its tests add test support, a module's /testing, @app-template/packages/testing and @effect/vitest (decisions.md › A module's layers; Module contracts; Guards are configuration)"
                   },
                   {
                     "group": ["#*/services/**", "#*/infrastructure/**"],
