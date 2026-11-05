@@ -414,6 +414,9 @@ new version. CI also runs a non-blocking job on Bun `latest`, which shows the ne
   read-only query, explain it, and advise on indexes and the database's health.
 - **Start the stand first.** The server connects when the session starts; after a late `make up`,
   reconnect it in `/mcp`. The first session asks once to approve the project's servers.
+- **Its container goes with the session.** A session's exit stops it (`--rm --init`); one a killed
+  session left behind carries the label `app-template.mcp-tree=<the tree's path>`, and
+  `make reset` removes the tree's ones, so a worktree's go before it is removed.
 
 ## Git hooks and CI
 

@@ -60,9 +60,10 @@ down: ## Stop MiniStack, which stops the database's container; every resource ke
 
 # A killed MiniStack leaves the database's container running; why no destroy runs:
 # docs/knowledge/aws.md.
-reset: ## Remove MiniStack, the database's container and volume, and .data/ whole
+reset: ## Remove MiniStack, the database's container and volume, the tree's MCP containers, .data/
 	$(EXPORT_ENV) && $(NAME_MINISTACK) && $(NAME_DATABASE) && \
-		docker rm -f "$$ministack" $$(docker ps -aq --filter label=ministack=rds --filter "label=db_id=$$database") && \
+		docker rm -f "$$ministack" $$(docker ps -aq --filter label=ministack=rds --filter "label=db_id=$$database") \
+			$$(docker ps -aq --filter "label=app-template.mcp-tree=$(CURDIR)") && \
 		docker volume ls -q --filter "name=instance-$$database-data" | xargs -r docker volume rm
 	rm -rf .data .env.pulumi
 
