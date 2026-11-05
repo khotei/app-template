@@ -35,7 +35,7 @@
 | S27 | an agent's worktree branches from the ticket branch on every machine, not only the user's | done |
 | S28 | a ticket that changes only the toolkit or docs runs a lighter cycle: one verification, no replay by default | done |
 | S29 | a claimed failure is confirmed by a test the researcher writes in a disposable worktree | done |
-| S30 | the review passes are `reviewer` agents the skills spawn themselves, with no `code-review` wrapper | todo |
+| S30 | the review passes are `reviewer` agents the skills spawn themselves, with no `code-review` wrapper | done |
 | S32 | the docs and the README state what the repository does today | todo |
 
 ## How to run this plan
@@ -1537,7 +1537,35 @@
     `code-review`.
   - `make check` green.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:** passes that ran on S30.1: Standards (sonnet, with writing-for-agents) and Spec,
+  each a `reviewer` spawned directly; S30.2 checked by the main session against its findings.
+  No `simplify`, Design or hunt, a docs step. Implementer on `opus high` in the worktree
+  `toolkit-quality-S30-no-wrapper` (N=3), about 8.1 and 2.6 min. Verify: the grep printed 13
+  lines before and nothing after, its pattern first shown to catch a planted line; in the no-op
+  experiment the skill before the change named "`mattpocock-skills:code-review` … with the
+  overrides", after it one `reviewer` per pass and no plugin skill; `make check` exit 0. The
+  decision is `architecture.md › D14`. Rounds S30.1 and S30.2 land as one commit, on the
+  user's word.
+  - Deviation — `docs/tickets/_template/verification.md` named the plugin in two placeholders,
+    found by the leftover search; reworded.
+  - Deviation — the old override table's two Spec checks (a changed `R…` needs its `feature.md`
+    edit; a deleted guard is located or reported lost) moved into `reviewer.md`'s Spec pass,
+    since a brief names sources only; `/ticket-verify`'s Spec pass now runs them too.
+  - Spec — accepted, fixed in S30.2 — `reviewer.md`: the plugin's "quote the spec line" was lost
+    with the wrapper; a Spec finding now quotes the step's or the `R…`'s line.
+  - Spec — accepted, fixed in S30.2 — `ticket-verify/SKILL.md` step 1: the plugin's check that
+    the fixed point resolves and the diff is not empty was lost; restored before spawning.
+  - Spec — rejected — `ticket-verify/SKILL.md` step 1 lacks "a brief names its sources and
+    nothing else": the step's opening already says it for every brief it writes.
+  - Spec — refuted — claimed the no-op experiment was not run: the implementer's report quotes
+    both answers.
+  - Standards — accepted, fixed in S30.2 — `sdd.md:145` restated what `reviewer.md` owns
+    (`claude-md.md › The owner`); it keeps why the passes are separate and links the agent.
+  - Standards — accepted, fixed in S30.2 — `ticket-implement/SKILL.md` step 4, "neither merged
+    into nor ranked" (writing-for-agents › Negation); it states the target now.
+  - Standards — rejected — the older "nothing else" and "no other" lines of the two skills: S30
+    did not write them, and each already names its positive target.
 
 #### S32 — The docs state what the repository does today
 

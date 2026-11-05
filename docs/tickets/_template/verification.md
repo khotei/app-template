@@ -28,11 +28,11 @@
 
 #### Standards
 
-<code-review Standards report, verbatim>
+<the Standards reviewer's report, verbatim>
 
 #### Spec
 
-<code-review Spec report, verbatim>
+<the Spec reviewer's report, verbatim>
 
 ### Simplifications
 

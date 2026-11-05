@@ -404,6 +404,20 @@ None of these binds beyond the toolkit, so none adds a record to `docs/knowledge
 - **The Design pass proposes abstractions nobody needs.** The user spends time rejecting them,
   as current models over-build. *Contained by:* the cap of five, the strength, the examples'
   don't of a wrapper or a seam with one adapter, and the ledger's rejected count.
+- **D14 — The skills spawn one `reviewer` per review pass themselves, with no plugin skill
+  between.** (S30, on the audit's decision D.)
+  - **Why:** `/ticket-implement` called `mattpocock-skills:code-review` and overrode every one of
+    its inputs (the fixed point, the spec, the standards, the smell baseline, the sub-agents);
+    the plugin's version is not pinned, so a renamed step upstream would leave the table
+    silently stale, and S22–S27 ran their reviews as direct `reviewer`s with the same outcome.
+  - **Cost accepted:** the two-axis split, the three Spec questions (missing, not asked for,
+    wrong) and the spec-line quote now live in `reviewer.md` and the skills; the plugin's later
+    improvements to review no longer arrive on their own.
+  - **Reversal:** one commit restores the override table and the map's `code-review` entries.
+  - **Rejected:**
+    - Keeping the wrapper and re-checking it after each plugin update — the check is manual and
+      the table already replaced everything the skill brought.
+
 - **Design and `simplify` propose the same cut.** A finding comes twice. *Contained by:* Design
   reviews the diff after `simplify`'s edits; the replay shows the overlap.
 - **Confirmations slow every step.** The user waits longer for a review. *Contained by:* only

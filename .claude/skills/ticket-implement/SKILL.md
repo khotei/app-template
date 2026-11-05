@@ -36,35 +36,32 @@ step id, take step after step, as **The loop** below says. Gates:
      delegating adapter, a module the next step removes) and every test case.
      Then run `make check`. Its edits join the step's diff before review.
 3. **Review.** Every pass is a `reviewer` agent, which owns one kind of finding and reports each
-   in one shape (its file says which and how). Call the Skill tool with
-   `mattpocock-skills:code-review`, overriding:
+   in one shape (its file says which and how). Spawn the passes in parallel, one `reviewer` each,
+   its brief naming the pass, the diff, its sources and the word limit of 400, and nothing else:
+   no question or focus of its own. The diff is `git diff HEAD` plus every untracked file in
+   `git status --short`, so the uncommitted step is reviewed. Every step gets the two axes:
 
-   | code-review asks for | Use |
-   |---|---|
-   | the fixed point and diff | `HEAD`; the diff is `git diff HEAD` plus every untracked file in `git status --short`, so the uncommitted step is reviewed |
-   | the spec | the step in `plan.md`, and the `R…` it cites from `feature.md`; the Spec axis also reports whether the diff changes what a quoted `R…` asks, which then requires the `feature.md` edit in the same diff, and names for each deleted statement, guard or check where it now lives, or reports it lost |
-   | the standards | `make review-rules`'s output for the diff, pasted verbatim with nothing added, and the `CLAUDE.md` of every touched workspace; on a diff that touches an instruction file (a `CLAUDE.md`, a rule, a skill or an agent), also `mattpocock-skills:writing-for-agents` |
-   | the smell baseline | none: the shape is Design's |
-   | the sub-agents | the `reviewer` agent, once per axis, in parallel; the Standards axis on `model: sonnet`, the Spec axis on the agent's own |
+   - **Standards**, on `model: sonnet`: `make review-rules`'s output for the diff, pasted
+     verbatim with nothing added, and the `CLAUDE.md` of every touched workspace, each by its
+     path; on a diff that touches an instruction file (a `CLAUDE.md`, a rule, a skill or an
+     agent), also `mattpocock-skills:writing-for-agents`.
+   - **Spec**, on the agent's own model: the step in `plan.md` and the `R…` it cites from
+     `feature.md`.
 
-   The Standards and Spec briefs also name the parts of `architecture.md` the step's own lines
-   cite, each by its anchor, and no other: a `D…` it names (`- **D<n> —`), the Seam row its
-   **Test first** names (the row's first words, under `## Seams`), a Contracts entry it names
-   (its bold lead, under `## Contracts`). The Standards brief lists the standards by path and
-   asks for each in the report with its findings or `none`. Every brief
-   names its sources and nothing else: no question or focus of its own.
+   Both briefs also name the parts of `architecture.md` the step's own lines cite, each by its
+   anchor, and no other: a `D…` it names (`- **D<n> —`), the Seam row its **Test first** names
+   (the row's first words, under `## Seams`), a Contracts entry it names (its bold lead, under
+   `## Contracts`).
 
    A step other than a move that touches a write guard, a transaction, a test fake, concurrent
-   access or error handling (a retry, a fallback) also gets the **hunt**: one `reviewer`, in
-   parallel with the axes, on the same diff; its sources are the diff's files, their callers and,
-   for a test fake, the adapter it stands in for, and its word limit is the axes'. Any other step
-   runs no hunt.
+   access or error handling (a retry, a fallback) also gets the **hunt** on the same diff; its
+   sources are the diff's files, their callers and, for a test fake, the adapter it stands in
+   for. Any other step runs no hunt.
 
-   A behaviour step also gets the **Design** pass: one `reviewer`, in parallel with the others,
-   on the same diff; its sources are the step id, the diff's files and the modules that call
-   them, [design-examples.md](design-examples.md) by its path, `.claude/rules/deep-modules.md`,
-   `docs/knowledge/architecture.md`, and the records of `docs/knowledge/decisions.md` and the
-   ticket's `D…` that bind the diff's files, and its word limit is the axes'.
+   A behaviour step also gets the **Design** pass on the same diff; its sources are the step id,
+   the diff's files and the modules that call them, [design-examples.md](design-examples.md) by
+   its path, `.claude/rules/deep-modules.md`, `docs/knowledge/architecture.md`, and the records
+   of `docs/knowledge/decisions.md` and the ticket's `D…` that bind the diff's files.
 4. **Decide and present.** You orchestrate: decide on the reports as they stand, without reading
    the code or the diff to restate a finding; a question that needs the code goes to a
    `researcher`, or to the reviewer that raised it (`SendMessage`). **Confirm first:** when a
@@ -73,10 +70,11 @@ step id, take step after step, as **The loop** below says. Gates:
    and a `path:line` is not presented. A dispute over whether an instruction line changes what an
    agent does is not argued: a `researcher` runs the no-op experiment its file describes, and the
    line stays only when the two answers differ in what it asks. Present the implementer's report
-   and what `simplify` changed, then the `## Standards` and `## Spec` reports as code-review
-   aggregates them, then the hunt's findings, then the Design candidates, then the fixes you
-   recommend. A Design candidate inside the plan is a fix like any other; one that
-   contradicts a decision or reshapes a module is the user's choice, asked as its own question.
+   and what `simplify` changed, then the two axes' reports, each under its own heading
+   (`## Standards`, `## Spec`) as its reviewer wrote it, then the hunt's findings, then the
+   Design candidates, then the fixes you recommend. A Design candidate inside the plan is a fix
+   like any other; one that contradicts a decision or reshapes a module is the user's choice,
+   asked as its own question.
    Filter the findings first: a fix that adds test support (a helper, a fake, a wrapper) is never
    forwarded as routine; offer the user a plainer test instead, or the finding as a choice of its
    own. A finding that fails one of the ticket's `R…` is a fix you recommend for the step's next

@@ -11,7 +11,7 @@ disallowedTools: Edit, Write, NotebookEdit, Agent
 
 You are **verifier**. You start with no memory of how the ticket was built, and that is the
 point: you check **behaviour, not authorship**. Code style and spec fidelity are reviewed in
-parallel by `code-review`; your job is whether the system does what `feature.md` says.
+parallel by `reviewer` agents; your job is whether the system does what `feature.md` says.
 
 ## How you work
 

@@ -52,10 +52,12 @@ for you. Each takes the ticket folder, except
 The skills are thin wrappers over the [mattpocock-skills](https://github.com/mattpocock/skills)
 plugin, which the project enables in `.claude/settings.json` and `make setup` installs; the same
 file turns off the plugins whose skills and agents overlap the wrappers (`superpowers`,
-`pr-review-toolkit`, `code-simplifier`, `commit-commands` and the plugin `code-review`), so none
+`pr-review-toolkit`, `code-simplifier`, `commit-commands` and `code-review-anthropics`), so none
 runs unasked or writes outside the ticket. The wrappers decide **where** files go and **when** you
-decide; the plugin decides **how** to interview, model, design, test and review. Its skills are
-referenced by name and never copied, so plugin updates arrive on their own.
+decide; the plugin decides **how** to interview, model, design and test. Its skills are
+referenced by name and never copied, so plugin updates arrive on their own. The review is the
+exception: the skills spawn one `reviewer` per pass themselves, since a wrapper that replaced
+every input of the plugin's review skill would go silently stale when an update renamed a step.
 
 ### Dependency map
 
@@ -67,10 +69,10 @@ uses updates this map too; the Standards review checks it against `.claude/rules
 | `/ticket-feature` | `grilling`, `domain-modeling`; for a bug, `diagnosing-bugs` phases 1 and 2 | `researcher` | — | `feature.md`, `docs/knowledge/glossary.md`, `docs/knowledge/roadmap.md` |
 | `/ticket-architecture` | `codebase-design`, `grilling` | `researcher` | — | `architecture.md` |
 | `/ticket-plan` | — | `researcher`; for a step that adds, changes or removes a guard a second one, which plants the probes in the disposable worktree `<slug>-plan-probes` set up by `make worktree` | — | `plan.md` |
-| `/ticket-implement` | `code-review`; on a behaviour step the built-in `simplify`, run by the main session, with `codebase-design` as its vocabulary | `implementer` (one worktree per parallel step, set up by `make worktree`), `reviewer` (one per review pass), `researcher` (one per claimed finding, in parallel) | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, the step's commits |
-| `/ticket-verify` | `code-review` | `verifier` (one per group of requirements, in parallel), `reviewer` | — | `verification.md` |
+| `/ticket-implement` | on a behaviour step the built-in `simplify`, run by the main session, with `codebase-design` as its vocabulary | `implementer` (one worktree per parallel step, set up by `make worktree`), `reviewer` (one per review pass, in parallel), `researcher` (one per claimed finding, in parallel, all writing their confirming tests in one disposable worktree per review round, set up by `make worktree`) | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, the step's commits |
+| `/ticket-verify` | — | `verifier` (one per group of requirements, in parallel), `reviewer` (one per axis, in parallel) | — | `verification.md` |
 | `implementer` | `tdd`, preloaded | — | `make-check.sh` on `Stop` (runs as `SubagentStop`) | the step's files |
-| `reviewer` | one pass: an axis of `code-review`, the Design pass or the hunt; on Standards over an instruction file, `writing-for-agents` | — | — | nothing: read-only |
+| `reviewer` | one pass: Standards, Spec, Design or the hunt; on Standards over an instruction file, `writing-for-agents`; on Design, `codebase-design` as its vocabulary | — | — | nothing: read-only |
 | `verifier` | — | — | — | nothing: read-only |
 | `researcher` | — | — | — | nothing in the main tree; a probe or a confirming test only in a disposable worktree its brief names, set up by `make worktree` |
 
@@ -95,7 +97,6 @@ graph LR
     modeling{{domain-modeling}}
     design{{codebase-design}}
     tdd{{tdd}}
-    review{{code-review}}
     diagnosing{{diagnosing-bugs}}
     writing{{writing-for-agents}}
   end
@@ -108,13 +109,12 @@ graph LR
   arch --> researcher
   plan --> researcher
   impl --> implementer & reviewer & researcher
-  impl -.-> review & simplify
+  impl -.-> simplify
   simplify -.-> design
   implementer -.-> tdd
   implementer --> hook
   verify --> verifier & reviewer
-  verify -.-> review
-  reviewer -.-> review & design & writing
+  reviewer -.-> design & writing
 ```
 
 Solid arrows spawn an agent or run a hook; dotted arrows use a plugin skill.
@@ -127,7 +127,6 @@ Solid arrows spawn an agent or run a hook; dotted arrows use a plugin skill.
 | `to-spec` and `to-tickets` write to `.scratch/` or an issue tracker, as user stories | `/ticket-feature` and `/ticket-plan` write EARS requirements and steps into the ticket folder | artifacts are reviewed and committed with the code |
 | `tdd` asks the user to confirm seams before testing | the implementer takes them from `architecture.md › Seams`, confirmed earlier | a subagent cannot ask, and the seams were already agreed |
 | `implement` commits on its own and reviews committed work | `/ticket-implement` reviews the uncommitted step and commits it under the commit gate | a step commits only once reviewed, and as you chose |
-| `code-review` diffs from a fixed point to `HEAD` and spawns generic sub-agents | for a step: the uncommitted diff, reviewed by read-only `reviewer` agents that read only what the step cites, each owning one kind of finding | the step is reviewed before it is committed, by agents that cannot edit and read no more than the step needs; no finding comes twice, and the main session forwards one without reading the code |
 | `improve-codebase-architecture` scans the whole codebase, writes an HTML report, grills, and writes `GLOSSARY.md` and ADRs | the Design pass of `/ticket-implement`: a read-only `reviewer` on one step, with at most five candidates, each a sketch and a strength | the shape is questioned while the step is small, and no doc lands outside `docs/knowledge/` and the ticket |
 | `research` writes a notes file into the repo | `researcher` answers in its report | facts reach the conversation, not the tree |
 | `diagnosing-bugs` runs from a feedback loop to the fix and its regression test | `/ticket-feature` runs phases 1 and 2 only, to one red command on the tree as it stands, copied into `feature.md` | the fix and its test go through the plan and its review |
@@ -143,10 +142,11 @@ step, then the review passes, then you. Why it is cut so:
 - **The main session runs `simplify`, never the implementer,** so the agent that wrote the code
   does not judge its own cuts. A move, as `/ticket-implement` defines one, skips it: the
   moved files keep their content for `git` to see the rename.
-- **Each review pass is its own `reviewer` in a fresh context,** and owns one kind of finding, so
-  one pass cannot hide another and no finding comes twice. Design runs only on a behaviour step,
-  where the shape is still cheap to change; the hunt for bugs only on a step whose kind of change
-  it paid off on.
+- **Each review pass is its own `reviewer` in a fresh context,** on the uncommitted step, so the
+  step is reviewed before it commits and one pass cannot hide another; what a reviewer reads,
+  owns and reports is in [reviewer.md](../../.claude/agents/reviewer.md). Design runs only on a
+  behaviour step, where the shape is still cheap to change; the hunt for bugs only on a step
+  whose kind of change it paid off on.
 - **A failure no command showed is confirmed before it reaches you.** A behaviour finding names
   its input, the wrong outcome and whether a command showed it; each `claimed` one goes to its
   own `researcher`, not anchored on the reviewer's reading, which answers `confirmed` (you see
@@ -218,9 +218,8 @@ user-invoked:
 
 The plugin updates itself, so its behaviour can shift under the wrappers. After an update:
 
-1. Read the plugin's changelog or diff for `grilling`, `domain-modeling`, `codebase-design`, `tdd`,
-   `code-review`, `diagnosing-bugs` and `writing-for-agents`, the skills the map above delegates
-   to.
+1. Read the plugin's changelog or diff for `grilling`, `domain-modeling`, `codebase-design`,
+   `tdd`, `diagnosing-bugs` and `writing-for-agents`, the skills the map above delegates to.
 2. Check that each override in the table above still targets something the skill does; a renamed
    file or step makes the override silently stale.
 3. Run `/ticket-feature` on a throwaway slug in a scratch clone outside `~/.claude/` and settle one

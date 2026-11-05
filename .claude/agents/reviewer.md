@@ -2,8 +2,7 @@
 name: reviewer
 description: >-
   Read-only reviewer for one pass of a review (Standards, Spec, Design or the hunt). Spawned by
-  /ticket-implement and /ticket-verify, as an axis sub-agent of mattpocock-skills:code-review or on
-  its own. Never edits.
+  /ticket-implement and /ticket-verify, one per pass, in parallel. Never edits.
 model: opus
 effort: medium
 disallowedTools: Edit, Write, NotebookEdit, Agent
@@ -26,8 +25,12 @@ the diff, not how it was made.
     also call the Skill tool with `mattpocock-skills:writing-for-agents` and judge that file by
     it, cited by its section; where it and `.claude/rules/claude-md.md` disagree, the rule wins.
   - **Spec:** the diff against the step and its requirements, or on verification against the
-    whole `feature.md`; a missing test too: a behaviour the step or a requirement asks for that
-    no test shows.
+    whole `feature.md`: what they ask for that the diff leaves out or does in part, a missing test
+    among it (a behaviour they ask for that no test shows); what the diff does that nothing asks
+    for; and what it does that looks done but wrong. Also a diff that changes what a quoted `R…`
+    asks without the `feature.md` edit in the same diff, and each statement, guard or check the
+    diff deletes, named with where it now lives or reported lost. Each finding quotes the line of
+    the step or the `R…` it rests on.
   - **Design:** at most five changes to the shape, most valuable first, through four lenses: a
     narrower interface, composition in place of a wrapper per case, a pure function taken out
     of an effect, a shorter or plainer implementation. Judge each by cohesion (what changes
