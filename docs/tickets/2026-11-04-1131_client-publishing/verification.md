@@ -87,7 +87,9 @@ no-workspace ban, the grep by `.misc/lint/bundle-check.mjs`); roadmap entries 10
    `buildApiChat` and `buildApiMessage` (`Struct.evolve`); a nested-field rename then edits one
    mapper, which closes R8.
 2. `apps/api/__tests__/contract-twins.test.ts:27` — derive the module list from
-   `application/package.json › exports`; a new module is then compared with no edit (R5).
+   `application/package.json › exports` (R5). Dropped by the user, 2026-11-05: the mappers' types
+   already fail a drifted brand or error tag of a new module; a drifted constraint (length,
+   pattern) of a new module stays unchecked until its twin is added to the list.
 3. `.misc/lint/biome.base.json:72` and `http-api/tsconfig.json` — ban `node:*` and `bun:*` imports in
    the contract and narrow its `types` (R1).
 4. `.claude/rules/naming.md` — one contract-side exception on the `.http` row (the contract keeps the

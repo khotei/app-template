@@ -11,9 +11,8 @@
 | S3 | the twins test over every twin, and the knowledge docs and records of the new boundary, each page written once | done |
 | S4 | the guards: the contract's Biome override bans every workspace; `make bundle-check` reads the metafile against `browserPackages` | done |
 | S5 | the chat and message mappers hand nested attachments to `buildApiAttachment`, so a wire rename inside the attachment edits one mapper | todo |
-| S6 | the twins test derives its module list from `application/package.json › exports` | todo |
-| S7 | the contract imports no `node:*` and no `bun:*`: Biome ban and no `bun` types | todo |
-| S8 | the `.http` row of `naming.md` allows the contract's models and errors; the reviewer owns the "step that does not stand alone" check | todo |
+| S6 | the contract imports no `node:*` and no `bun:*`: Biome ban and no `bun` types | todo |
+| S7 | the `.http` row of `naming.md` allows the contract's models and errors; the reviewer owns the "step that does not stand alone" check | todo |
 
 ## How to run this plan
 
@@ -480,26 +479,7 @@
 - **Model:** `opus medium`.
 - **Status:** `todo`.
 
-#### S6 — The twins test finds its modules
-
-- **Delivers:** `apps/api/__tests__/contract-twins.test.ts` builds `modules` from the exports of
-  `application/package.json`, so a new module is compared with no edit.
-- **Goal:** R5 — no list of pairs or modules kept by hand (verification run 1, Spec finding 2).
-- **Blocked by:** S4.
-- **Files:** `apps/api/__tests__/contract-twins.test.ts`.
-- **Size:** ~40.
-- **Introduces:** none. Removes later: none.
-- **Test first:** Seam `make test-unit` over the twins test — a planted module with a twin of a
-  different `maxLength` fails the test naming the pair.
-- **Verify:**
-  - `make check` — green.
-  - Planted (R5): a module `probe` in `application/` with an `InvoiceTitle` of `maxLength 80`,
-    exported in `application/package.json`, and a contract twin of 100 → `make test-unit` fails
-    naming `InvoiceTitle`; passes today. Reverted after.
-- **Model:** `opus high`.
-- **Status:** `todo`.
-
-#### S7 — No `node:*` and no `bun:*` in the contract
+#### S6 — No `node:*` and no `bun:*` in the contract
 
 - **Delivers:** the `http-api/**` Biome override also refuses `node:*`, `bun` and `bun:*`;
   `http-api/tsconfig.json` sets `"types": []` when `tsc -b` stays green with it.
@@ -525,7 +505,7 @@
 - **Model:** `opus medium`.
 - **Status:** `todo`.
 
-#### S8 — Two instruction files, each fact once
+#### S7 — Two instruction files, each fact once
 
 - **Delivers:** the `.http` row of `.claude/rules/naming.md` allows the contract's `.http` files to
   declare its models, ids and errors under the domain's export names; `ticket-implement/SKILL.md`
@@ -550,11 +530,11 @@
 
 | Req | Steps |
 |---|---|
-| R1 | S1, S2, S4, S7 |
+| R1 | S1, S2, S4, S6 |
 | R2 | S2 |
 | R3 | S2 |
 | R4 | S1, S2 |
-| R5 | S3, S6 |
+| R5 | S3 |
 | R6 | S4 |
 | R7 | S4 |
 | R8 | S2, S5 |
