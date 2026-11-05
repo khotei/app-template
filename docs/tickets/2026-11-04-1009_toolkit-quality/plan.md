@@ -36,6 +36,7 @@
 | S28 | a ticket that changes only the toolkit or docs runs a lighter cycle: one verification, no replay by default | done |
 | S29 | a claimed failure is confirmed by a test the researcher writes in a disposable worktree | done |
 | S30 | the review passes are `reviewer` agents the skills spawn themselves, with no `code-review` wrapper | todo |
+| S32 | the docs and the README state what the repository does today | todo |
 
 ## How to run this plan
 
@@ -54,6 +55,9 @@
   The scripts `hook-cases.sh` and `worktree-cases.sh` beside this plan hold their cases.
 - **S28–S30** apply the audit's decisions A, C and D, on the user's word of 2026-11-05, in the
   same way: one worktree each where they do not share a line, one commit each.
+- **S32** fixes what two `researcher`s found stale in `README.md`, `docs/knowledge/` and the
+  folder `CLAUDE.md` files, on the user's request of 2026-11-05 to review the docs; each item
+  carries its evidence from that audit. It shares no file with S30 and runs beside it.
 - **From S1 on, each step's findings use the pass-and-fate line** S1 adds to the template, so this
   ticket's verification fills the Review ledger (R12).
 - Every edited skill, agent and template states the pattern, not this ticket's instances
@@ -1480,8 +1484,16 @@
   experiment the old `researcher.md` answered `unclear` twice ("needs a new concurrency test"),
   the new one wrote and ran a test in the worktree and answered `confirmed`; the carry-over
   (`git diff HEAD --binary | git apply`, a `tar` of untracked files) left `diff -r` empty
-  against the step's tree; `make check` exit 0. The after-commit check is below. Rounds S29.1
-  and S29.2 land as one commit, on the user's word.
+  against the step's tree; `make check` exit 0. Rounds S29.1 and S29.2 land as one commit, on
+  the user's word. The after-commit check, run by the main session on `opus` in a worktree at
+  `3b7b6f24c1` set up by hand: `confirmed`. The researcher wrote
+  `send-delete-race.probe.test.ts` beside the chat tests, paused the send after its ownership
+  check, committed the delete, and the send died on `SqlError` `23503`
+  (`messages_chat_id_chats_id_fkey`) where the test expected `ChatNotFoundError`; 4.8 s wall,
+  the same on a second run. It also corrected the claim's chain: the send dies on the first
+  insert, before `touch` runs, so the fix belonged at the insert (as `f6e2561120` did), not in
+  `touch`. The existing race test in `delete-chat.use-case.test.ts` discards the send's exit and
+  could not show it.
   - Deviation — `architecture.md › D4` said "never by a file planted in the tree" and accepted
     `unclear` for a claim only a new test settles; rewritten in this commit, with the old rule
     among its rejected alternatives, and the *A confirmation* `Evidence:` line widened.
@@ -1525,6 +1537,48 @@
     `code-review`.
   - `make check` green.
 - **Model:** `opus high`
+- **Status:** todo
+
+#### S32 — The docs state what the repository does today
+
+- **Delivers:** each statement below says what the code does, or goes:
+  - `docs/knowledge/tooling.md`, the scripts paragraph: the root `package.json` holds `prepare`,
+    `format` and `test`, no `lint` (`make lint` calls Biome); `dev`, `debug` and `start` live in
+    `api`, `worker` and `web` only, not in `apps/e2e`.
+  - `tooling.md › Environment`: the root `.env` is created from `.env.example` by `make setup`
+    and edited by hand; a worktree's is written by `make worktree`.
+  - `docs/knowledge/roadmap.md`, entries 4 (`postgres-drizzle`) and 15 (`architecture-audit`),
+    their table rows and their **Status**: done, since PRs #8, #9 and #13 are merged into `main`;
+    entry 15 drops "its PR waits for that merge".
+  - `docs/knowledge/architecture.md › Known gaps`: domain purity rests on review alone; no grep for
+    `Date.now`, `new Date(` or `randomUUID` exists in the `Makefile`, the lint configuration, CI
+    or the hooks.
+  - `docs/knowledge/aws.md`, the `make stack` row: it creates the tree's file backend under
+    `.data/pulumi` and selects or creates the `local` stack; it never runs `pulumi login`.
+  - `docs/knowledge/glossary.md`: **Attachment** is a file a user uploaded (no assistant produces
+    files yet); **Placeholder** goes, since no code holds it and roadmap entry 18 owns it.
+  - `README.md` and `architecture.md`: the three uses of "slice", a word the glossary's
+    **Module** lists under *Avoid*, say "the files of `chat`" or the like.
+  - `README.md`: `LLM_PROVIDER=anthropic` needs the key and the two model names that
+    `.env.example` leaves commented out, or the processes fail at start; `make dev` runs
+    `make migrate` first, so it needs `make up`'s stand.
+- **Goal:** the user's request of 2026-11-05 to review the docs and the README for outdated
+  statements; the rest of each file was checked and holds.
+- **Blocked by:** none.
+- **Files:** the six named above.
+- **Size:** ~40.
+- **Test first:** the greps below print their stale lines today.
+- **Verify:**
+  - `grep -n -e 'holds `prepare`, `lint`' -e 'written by hand' docs/knowledge/tooling.md`,
+    `grep -n 'grep for `Date.now`' docs/knowledge/architecture.md`,
+    `grep -n 'logs the Pulumi CLI in' docs/knowledge/aws.md`,
+    `grep -n -e 'produced for an assistant message' -e '^\*\*Placeholder' docs/knowledge/glossary.md`
+    and `grep -n -w -i slice README.md docs/knowledge/architecture.md` print nothing.
+  - `grep -n -i 'in progress' docs/knowledge/roadmap.md` names neither `postgres-drizzle` nor
+    `architecture-audit`.
+  - `grep -c -e ANTHROPIC_API_KEY -e 'make up' README.md` counts more than today.
+  - `make check` green (`doc-lint` checks the links and paths).
+- **Model:** `opus medium`
 - **Status:** todo
 
 ## Requirement coverage
