@@ -1,5 +1,3 @@
-export { ChatTitle } from '@app-template/application/chat'
-
 export * from '#http-api/api'
 export * from '#http-api/api.client'
 export * from '#http-api/attachment/attachment.http'

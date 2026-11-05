@@ -1,16 +1,17 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, Effect, Order, Schema } from 'effect'
+import { Array as Arr, DateTime, Effect, Option, Order, Schema } from 'effect'
 import { HttpClient } from 'effect/http'
 
+import { failMessage } from '@app-template/application/chat'
+import { selectMessage, updateMessage } from '@app-template/application/chat/testing'
 import {
+  ApiClient,
   ChatBusyError,
   ChatNotFoundError,
-  failMessage,
   type MessageId,
   MessageNotFoundError,
-} from '@app-template/application/chat'
-import { selectMessage, updateMessage } from '@app-template/application/chat/testing'
-import { ApiClient, UserUnknownError } from '@app-template/http-api'
+  UserUnknownError,
+} from '@app-template/http-api'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { ApiServerTest, ApiTest, layerApiClient } from '#testing/api.test-layer'
@@ -46,6 +47,23 @@ describe('chats', () => {
       assert.deepStrictEqual(yield* response.json, { _tag: 'UserUnknownError' })
       assertSchemaEquals(UserUnknownError, error, new UserUnknownError())
     }).pipe(Effect.provide(ApiTest)),
+  )
+
+  it.effect(
+    'a created chat reads back with Option and DateTime, and null and ISO on the wire',
+    () =>
+      Effect.gen(function* () {
+        const http = yield* HttpClient.HttpClient
+        const chat = yield* openChat
+
+        const wire = yield* http
+          .get(`/chats/${chat.id}`)
+          .pipe(Effect.flatMap((response) => response.json))
+
+        assert.deepStrictEqual(chat.title, Option.none())
+        assert.isTrue(DateTime.isUtc(chat.createdAt))
+        assert.deepInclude(wire, { title: null, createdAt: DateTime.formatIso(chat.createdAt) })
+      }).pipe(Effect.provide(ApiTest)),
   )
 
   it.effect(

@@ -14,6 +14,8 @@ import {
   type RequestIssue,
 } from '@app-template/http-api'
 
+import { buildApiAttachment } from '#api/attachment/attachment.mapper'
+
 const buildRequestInvalid = (path: RequestIssue['path'], message: string) =>
   new RequestInvalidError({ issues: [{ path, message }] })
 
@@ -74,6 +76,7 @@ export const AttachmentHandler = HttpApiBuilder.group(
             Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty, () =>
               buildRequestInvalid(['files'], 'Expected at least 1 file'),
             ),
+            Effect.map(Arr.map(buildApiAttachment)),
           )
         }),
       )
@@ -81,7 +84,9 @@ export const AttachmentHandler = HttpApiBuilder.group(
         'get',
         Effect.fn('AttachmentHandler.get')(function* ({ params }) {
           const user = yield* CurrentUser
-          return yield* attachments.getOne({ id: params.attachmentId, userId: user.id })
+          return buildApiAttachment(
+            yield* attachments.getOne({ id: params.attachmentId, userId: user.id }),
+          )
         }),
       )
       .handleRaw(

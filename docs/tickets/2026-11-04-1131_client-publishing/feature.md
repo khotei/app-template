@@ -110,7 +110,7 @@ only through it; the backend keeps no rule for the web's sake.
 | R1 | an import of any workspace planted in the contract fails `make lint` with its name; the contract's manifest lists only `effect` |
 | R2 | a client call in a test reads a chat back as `Option`, `DateTime` and a branded id, and a refused call is caught by its tag as the contract's class |
 | R3 | each model a handler returns passes through its mapper, and a mapper of matching shapes returns its argument; a handler test shows `title: null` and an ISO date on the wire, a domain error answered with the contract's status, and a domain field absent from the contract absent from the JSON |
-| R4 | `make api-check` passes against today's snapshot |
+| R4 | `make api-check` passes; the snapshot differs from today's only in a component's name |
 | R5 | a planted drift of the title limit, of a brand name and of an error identifier each fails `make check` naming the pair; a new twin schema added to both sides is compared with no edit to the check; one test shows a domain error encoded through the contract's class |
 | R6 | a web build with every side-effects flag removed succeeds and the bundle check passes |
 | R7 | a planted import of a database package, and of a server entry of a shared workspace, into web code each fail the bundle check naming the package and the chain; the check holds no repository folder name |

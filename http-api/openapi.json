@@ -63,7 +63,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserEncoded"
+                  "$ref": "#/components/schemas/User"
                 }
               }
             }
@@ -2141,7 +2141,7 @@
         ],
         "additionalProperties": false
       },
-      "UserEncoded": {
+      "User": {
         "type": "object",
         "properties": {
           "id": {

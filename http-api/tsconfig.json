@@ -4,6 +4,5 @@
     "rootDir": ".",
     "outDir": "../node_modules/.cache/tsc/http-api"
   },
-  "include": ["**/*.ts"],
-  "references": [{ "path": "../application" }]
+  "include": ["**/*.ts"]
 }

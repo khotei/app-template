@@ -5,6 +5,8 @@ import { UserService } from '@app-template/application/identity'
 import { Api, Auth } from '@app-template/http-api'
 import { RuntimeConfig } from '@app-template/kernel/config'
 
+import { buildApiUser } from '#api/user/user.mapper'
+
 const cookieMaxAge = Duration.days(365)
 
 // A request without the cookie decodes to an empty secret, not a failure.
@@ -31,7 +33,7 @@ export const UserHandler = HttpApiBuilder.group(
           maxAge: cookieMaxAge,
           secure: nodeEnv === 'production',
         })
-        return user
+        return buildApiUser(user)
       }),
     )
   }),
