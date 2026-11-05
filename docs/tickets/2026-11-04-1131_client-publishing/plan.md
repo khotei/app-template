@@ -211,6 +211,11 @@
     domain validates its own input; S3's twins test keeps the two equal); one call form for every
     mapper (the style rule fixes it).
   - Spec — none.
+  - Design — accepted late, fixed in S2.3: the mapper rides as `Effect.fn`'s extra argument in
+    all eight handler sites (like `transaction.run`), so every return path passes it and the body
+    holds domain steps only; the user raised it. Main session error: it first rejected the
+    candidate as a style-rule break, but `effect-style.md` hands a one-step transformation to a
+    combinator.
   - Process — the implementer's S2.1 report lacked the **Scope** block the new rule asks for; it
     came with S2.2.
 

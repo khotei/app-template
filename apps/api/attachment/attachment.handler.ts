@@ -64,29 +64,30 @@ export const AttachmentHandler = HttpApiBuilder.group(
     return handlers
       .handle(
         'upload',
-        Effect.fn('AttachmentHandler.upload')(function* ({ payload }) {
-          const user = yield* CurrentUser
+        Effect.fn('AttachmentHandler.upload')(
+          function* ({ payload }) {
+            const user = yield* CurrentUser
 
-          return yield* attachments.upload(user.id, Stream.mapEffect(payload, decodeUpload)).pipe(
-            Effect.catchTag(
-              'MultipartError',
-              (error): Effect.Effect<never, UploadRefusal> =>
-                refuseMultipart[error.reason._tag](error),
-            ),
-            Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty, () =>
-              buildRequestInvalid(['files'], 'Expected at least 1 file'),
-            ),
-            Effect.map(Arr.map(buildApiAttachment)),
-          )
-        }),
+            return yield* attachments.upload(user.id, Stream.mapEffect(payload, decodeUpload)).pipe(
+              Effect.catchTag(
+                'MultipartError',
+                (error): Effect.Effect<never, UploadRefusal> =>
+                  refuseMultipart[error.reason._tag](error),
+              ),
+              Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty, () =>
+                buildRequestInvalid(['files'], 'Expected at least 1 file'),
+              ),
+            )
+          },
+          Effect.map(Arr.map(buildApiAttachment)),
+        ),
       )
       .handle(
         'get',
         Effect.fn('AttachmentHandler.get')(function* ({ params }) {
           const user = yield* CurrentUser
-          const attachment = yield* attachments.getOne({ id: params.attachmentId, userId: user.id })
-          return buildApiAttachment(attachment)
-        }),
+          return yield* attachments.getOne({ id: params.attachmentId, userId: user.id })
+        }, Effect.map(buildApiAttachment)),
       )
       .handleRaw(
         'download',

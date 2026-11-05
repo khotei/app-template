@@ -1,4 +1,4 @@
-import { Array as Arr, Effect } from 'effect'
+import { Array as Arr, Effect, Struct } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
 import { ChatService, MessageService } from '@app-template/application/chat'
@@ -20,36 +20,32 @@ export const ChatHandler = HttpApiBuilder.group(
         'create',
         Effect.fn('ChatHandler.create')(function* () {
           const user = yield* CurrentUser
-          const chat = yield* chatService.create(user.id)
-          return buildApiChat(chat)
-        }),
+          return yield* chatService.create(user.id)
+        }, Effect.map(buildApiChat)),
       )
       .handle(
         'list',
-        Effect.fn('ChatHandler.list')(function* () {
-          const user = yield* CurrentUser
-          const chats = yield* chatService.list(user.id)
-          return Arr.map(chats, buildApiChat)
-        }),
+        Effect.fn('ChatHandler.list')(
+          function* () {
+            const user = yield* CurrentUser
+            return yield* chatService.list(user.id)
+          },
+          Effect.map(Arr.map(buildApiChat)),
+        ),
       )
       .handle(
         'get',
         Effect.fn('ChatHandler.get')(function* ({ params }) {
           const user = yield* CurrentUser
-          const chat = yield* chatService.getOne({ id: params.chatId, userId: user.id })
-          return buildApiChat(chat)
-        }),
+          return yield* chatService.getOne({ id: params.chatId, userId: user.id })
+        }, Effect.map(buildApiChat)),
       )
       .handle(
         'rename',
         Effect.fn('ChatHandler.rename')(function* ({ params, payload }) {
           const user = yield* CurrentUser
-          const chat = yield* chatService.rename(
-            { id: params.chatId, userId: user.id },
-            payload.title,
-          )
-          return buildApiChat(chat)
-        }),
+          return yield* chatService.rename({ id: params.chatId, userId: user.id }, payload.title)
+        }, Effect.map(buildApiChat)),
       )
       .handle(
         'delete',
@@ -60,30 +56,26 @@ export const ChatHandler = HttpApiBuilder.group(
       )
       .handle(
         'send',
-        Effect.fn('ChatHandler.send')(function* ({ params, payload }) {
-          const user = yield* CurrentUser
-          const { userMessage, assistantMessage } = yield* sendMessage.send(
-            user.id,
-            params.chatId,
-            payload,
-          )
-          return {
-            userMessage: buildApiMessage(userMessage),
-            assistantMessage: buildApiMessage(assistantMessage),
-          }
-        }),
+        Effect.fn('ChatHandler.send')(
+          function* ({ params, payload }) {
+            const user = yield* CurrentUser
+            return yield* sendMessage.send(user.id, params.chatId, payload)
+          },
+          Effect.map(
+            Struct.evolve({ userMessage: buildApiMessage, assistantMessage: buildApiMessage }),
+          ),
+        ),
       )
       .handle(
         'getMessage',
         Effect.fn('ChatHandler.getMessage')(function* ({ params }) {
           const user = yield* CurrentUser
-          const message = yield* messageService.getOne({
+          return yield* messageService.getOne({
             id: params.messageId,
             chatId: params.chatId,
             userId: user.id,
           })
-          return buildApiMessage(message)
-        }),
+        }, Effect.map(buildApiMessage)),
       )
   }),
 )

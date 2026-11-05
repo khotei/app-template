@@ -33,8 +33,8 @@ export const UserHandler = HttpApiBuilder.group(
           maxAge: cookieMaxAge,
           secure: nodeEnv === 'production',
         })
-        return buildApiUser(user)
-      }),
+        return user
+      }, Effect.map(buildApiUser)),
     )
   }),
 )
