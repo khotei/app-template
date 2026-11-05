@@ -4,12 +4,13 @@
 # writes its .env, the main tree's with the ports and stage of number N moved
 # (docs/knowledge/tooling.md › Worktrees). Run through `make worktree N=<n> NAME=<name>` from the
 # worktree's own folder. The only change before the checks pass is the draft .env.new, which an
-# EXIT trap drops on any exit before it becomes .env, so a refusal leaves nothing. Once they pass,
-# .env is written first, so a failed ln, branch rename or bun install leaves it and the symlink or
-# branch already made; a rerun with the same N finishes the job.
+# EXIT trap drops on any exit before it becomes .env, HUP, INT and TERM included, so a refusal
+# leaves nothing. Once they pass, .env is written first, so a failed ln, branch rename or bun
+# install leaves it and the symlink or branch already made; a rerun with the same N finishes the
+# job.
 N=$1
 NAME=$2
-refuse() { echo "refused: $1" >&2; exit 1; }
+refuse() { printf 'refused: %s\n' "$1" >&2; exit 1; }
 # Letters spelled out: a range such as a-z follows the locale's collation.
 letters=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ
 case $NAME in
@@ -20,17 +21,27 @@ case $N in
   # Bounded before any arithmetic, which overflows past 19 digits; the port check comes later.
   ??????*) refuse 'N has at most five digits' ;;
 esac
-cd "$(git rev-parse --show-toplevel)" || exit 1
-main=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
-[ "$(git rev-parse --path-format=absolute --git-dir)" != "$main/.git" ] ||
-  refuse 'this is the main tree, the source of every .env'
+# Before .env, so a rerun is not left failing at git branch -m.
+git check-ref-format --branch "wt/$NAME" > /dev/null 2>&1 || refuse "git refuses wt/$NAME as a branch"
+# Each git query is checked: outside a repository each fails with an empty output, and cd ""
+# stays put.
+top=$(git rev-parse --show-toplevel) || exit 1
+cd "$top" || exit 1
+common=$(git rev-parse --path-format=absolute --git-common-dir) || exit 1
+git_dir=$(git rev-parse --path-format=absolute --git-dir) || exit 1
+[ "$git_dir" != "$common" ] || refuse 'this is the main tree, the source of every .env'
+main=$(dirname "$common")
 here=$(basename "$PWD")
 link="$(dirname "$PWD")/$NAME"
 if [ "$here" != "$NAME" ] && { [ -e "$link" ] || [ -L "$link" ]; }; then
-  [ "$(readlink "$link")" = "$here" ] || refuse "$link already names another folder"
+  # A folder or file there has no target, so readlink prints nothing and it is refused too.
+  target=$(readlink "$link")
+  [ "$target" = "$here" ] || refuse "$link already names another folder"
 fi
-[ "$(git branch --show-current)" = "wt/$NAME" ] || ! git show-ref --verify --quiet "refs/heads/wt/$NAME" ||
+branch=$(git branch --show-current) || exit 1
+if [ "$branch" != "wt/$NAME" ] && git show-ref --verify --quiet "refs/heads/wt/$NAME"; then
   refuse "the branch wt/$NAME already exists"
+fi
 api=$((3000 + 10 * N))
 web=$((3001 + 10 * N))
 aws=$((4566 + 10 * N))
@@ -45,16 +56,19 @@ case $own in
     refuse "this worktree is set up under $own; stop its containers and remove it instead" ;;
 esac
 # .env.new covers a run already past its draft; two runs between this scan and their drafts
-# both pass, so the main session hands out distinct N (parallel-steps.md). A run killed
-# without its EXIT trap leaves a .env.new, hence the refusal names the file.
-taken=$(git worktree list --porcelain | sed -n 's/^worktree //p' | while IFS= read -r tree; do
+# both pass, so the main session hands out distinct N (parallel-steps.md). A run killed by
+# SIGKILL, which no trap catches, leaves a .env.new, hence the refusal names the file.
+trees=$(git worktree list --porcelain) || exit 1
+taken=$(printf '%s\n' "$trees" | sed -n 's/^worktree //p' | while IFS= read -r tree; do
   [ "$tree" -ef . ] && continue
   for file in "$tree/.env" "$tree/.env.new"; do
-    ! grep -qx "$stage" "$file" 2>/dev/null || echo "$file"
+    if grep -qxF "$stage" "$file" 2>/dev/null; then printf '%s\n' "$file"; fi
   done
 done)
 [ -z "$taken" ] || refuse "N=$N is already the stage in $taken"
 trap 'rm -f .env.new' EXIT
+# dash runs no EXIT trap on a signal, but does on the exit its trap makes.
+trap 'exit 1' HUP INT TERM
 sed -E -e "s/^API_PORT=.*/API_PORT=$api/" \
   -e "s/^WEB_PORT=.*/WEB_PORT=$web/" \
   -e "s/^(AWS_ENDPOINT_URL=.*:)[0-9]+/\1$aws/" \
@@ -67,8 +81,9 @@ grep -qx "API_PORT=$api" .env.new &&
   grep -qx "RDS_BASE_PORT=$rds" .env.new ||
   refuse "$main/.env lacks API_PORT, WEB_PORT, the port of AWS_ENDPOINT_URL, STAGE or RDS_BASE_PORT"
 # Before the slow steps, so a run started meanwhile finds the stage taken.
-mv .env.new .env
-# A folder that already has the name needs no link: ln would put one inside it.
-[ "$here" = "$NAME" ] || ln -sfn "$here" "$link" || exit 1
+mv .env.new .env || exit 1
+# A folder that already has the name needs no link: ln would put one inside it. A link already
+# there names this folder, as checked above.
+[ "$here" = "$NAME" ] || [ -L "$link" ] || ln -s "$here" "$link" || exit 1
 git branch -m "wt/$NAME" || exit 1
 bun install

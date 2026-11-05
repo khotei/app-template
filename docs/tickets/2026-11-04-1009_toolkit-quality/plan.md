@@ -36,7 +36,7 @@
 | S28 | a ticket that changes only the toolkit or docs runs a lighter cycle: one verification, no replay by default | done |
 | S29 | a claimed failure is confirmed by a test the researcher writes in a disposable worktree | done |
 | S30 | the review passes are `reviewer` agents the skills spawn themselves, with no `code-review` wrapper | done |
-| S31 | the toolkit's shell scripts stop on every failed command and run the same under `dash` | todo |
+| S31 | the toolkit's shell scripts stop on every failed command and run the same under `dash` | done |
 | S32 | the docs and the README state what the repository does today | done |
 | S33 | `make check` and CI lint the shell scripts with a pinned ShellCheck | todo |
 
@@ -1613,7 +1613,34 @@
     nothing but the deliberate SC2016, SC2249, SC2015 and the style-only SC2250.
   - `make check` green.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:** passes that ran on S31.1: Standards (sonnet), Spec, the hunt and Design, each a
+  `reviewer` spawned directly; S31.2 checked by the main session against its findings. No
+  `simplify`: the Design pass covered the shape of ~75 lines of `sh`, as on S22–S27's script
+  steps. Implementer on `opus high` in the worktree `toolkit-quality-S31-shell-fixes` (N=3),
+  about 6.9 and 6.4 min. Verify: `outside-repo` and `bad-name` red on the old script (`.env`
+  rewritten to `API_PORT` 3020; the `a..b` symlink left), green after; `sh` and `SH=dash` print
+  only PASS on both case scripts (9 and 8); ShellCheck 0.11.0 `-o all`: SC2015 1, SC2016 2,
+  SC2249 3, SC2250 137, no SC2312; `make check` exit 0. The `CDPATH` case, refused to the agent
+  by the harness, run by the main session: one line, the tree's `.env.pulumi` path. Rounds S31.1
+  and S31.2 land as one commit, on the user's word.
+  - Deviation — ShellCheck ran without `-s sh`, which the harness refused to the agent; the
+    `#!/bin/sh` shebang selects the same dialect.
+  - Spec — accepted, fixed in S31.2 — `worktree.sh:7`: the header said the `EXIT` trap covers "a
+    signal", the later comment that `SIGKILL` does not; both now name `HUP`, `INT`, `TERM`.
+  - Design — accepted, fixed in S31.2 — `postgres-mcp.sh:5`: the comment explained the other
+    scripts' choice and would go stale with them; one line about this script.
+  - Design — rejected — decide the symlink once where it is checked: the sketch adds a flag and
+    two lines for the same decision.
+  - Design — rejected — one `git rev-parse` for the three paths (Speculative): splitting its
+    output costs as many lines and breaks on a path with a space.
+  - Implementer — accepted, fixed in S31.2 — the refusal cases matched only an exit code and
+    still passed with `SH=false`; each now matches its refusal's text, and `SH=false` fails all 9.
+  - Standards — rejected — `tooling.md › Worktrees` lacks the new NAME refusal: it lists the
+    refusals of `N` only, and the earlier NAME refusals are not there either.
+  - Hunt — none: each construct that absorbs an error was traced, and the cases rerun under
+    both shells.
+  - Out of scope — `worktree.sh:25` runs to 102 columns; no check measures shell line length.
 
 #### S32 — The docs state what the repository does today
 

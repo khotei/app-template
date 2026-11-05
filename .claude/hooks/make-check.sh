@@ -12,7 +12,7 @@ cwd=$(bun -e '
 read_exit=$?
 [ "$read_exit" -eq 3 ] && exit 0
 if [ "$read_exit" -ne 0 ]; then
-  echo "make-check.sh could not read its input (bun exit $read_exit), so make check did not run." >&2
+  printf 'make-check.sh could not read its input (bun exit %s), so make check did not run.\n' "$read_exit" >&2
   exit 2
 fi
 
@@ -20,7 +20,7 @@ fi
 # CLAUDE_PROJECT_DIR, so a missing cwd never falls back to it. `git -C ""` runs in the current folder.
 if [ -z "$cwd" ] || ! dir=$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null) || ! cd "$dir" 2>/dev/null; then
   {
-    echo "make-check.sh cannot find the agent's git tree (cwd: $cwd), so make check did not run."
+    printf "make-check.sh cannot find the agent's git tree (cwd: %s), so make check did not run.\n" "$cwd"
     echo "Fix it before finishing, or start your final message with BLOCKED: and explain why."
   } >&2
   exit 2
