@@ -48,8 +48,9 @@ Write the pattern, not the instance, so a refactor leaves the line true: placeho
 (`<Name>Repository`, `<verb>-<object>`) and a short neutral snippet in a fence (an `Order`, not a
 model of this app). A live name only for a stable anchor: a workspace, a `make` target, a library
 API, the template's own infrastructure (the transaction, the queue client, the test harnesses).
-Never list what `ls` or `grep` reproduces. If a rename forces a doc edit, the doc held *what*,
-not *why*: delete the line, don't update it.
+Before stating a fact, grep for it: when another file owns it, link there. Never list what `ls`
+or `grep` reproduces. If a rename forces a doc edit, the doc held *what*, not *why*: delete the
+line, don't update it.
 
 ## The limits and the checks
 

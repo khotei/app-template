@@ -108,7 +108,7 @@ no-workspace ban, the grep by `.misc/lint/bundle-check.mjs`); roadmap entries 10
 - **Proposed change:** one line in `.claude/skills/ticket-plan/SKILL.md` (Verify items): a
   "renaming X edits N files" item names the deepest nesting of X (a field inside a model another
   model embeds) and plants the rename there.
-- **Applied:** no
+- **Applied:** yes (2026-11-05)
 
 #### L2 — a doc line restated a fact another file owns, or listed what the folder holds
 
@@ -120,4 +120,4 @@ no-workspace ban, the grep by `.misc/lint/bundle-check.mjs`); roadmap entries 10
 - **Cost:** a fix round in S1 (S1.2) and S3 (S3.2), and one more open now.
 - **Proposed change:** one line in `.claude/rules/claude-md.md`: before a rule or `CLAUDE.md` line
   states a fact, grep for it; if another file owns it, link to that file.
-- **Applied:** no
+- **Applied:** yes (2026-11-05)
