@@ -15,7 +15,7 @@
 | S7 | `naming.md` allows the contract's ids, models and errors in its `.http` files; the reviewer owns the "step that does not stand alone" check | done |
 | S8 | the contract's Biome override becomes an allow-list: only `effect`, `effect/*` and relative paths inside `http-api/` | todo |
 | S9 | the message failure's reason is one named schema on both sides, so the twins test pairs it | todo |
-| S10 | `implementer.md` points to `reviewer.md`; `ticket-implement` says when the hunt runs on a behaviour step | todo |
+| S10 | `implementer.md` points to `reviewer.md`; `ticket-implement` says when the hunt runs on a behaviour step | done |
 
 ## How to run this plan
 
@@ -628,7 +628,19 @@
   - `make doc-lint` — green; `make check` — green;
   - `grep -n "reviewer.md" .claude/agents/implementer.md` — prints one line; prints nothing today.
 - **Model:** `opus medium`.
-- **Status:** `todo`.
+- **Status:** `done`.
+- **Findings:** passes: Standards, Spec (rounds S10.1, S10.2); no simplify, no hunt. `make doc-lint`
+  green.
+  - Deviation — the implementer's stop condition now follows `reviewer.md`'s definition (code or a
+    page a *later* step rewrites); it still lists every page another step also edits.
+  - Standards — accepted, fixed in S10.2: the first wording of `ticket-implement/SKILL.md` stated
+    the hunt's trigger a second time, and wrongly (a plain behaviour step would get a hunt); the
+    line now says "and the hunt where step 3 names it".
+  - Spec — accepted, fixed in S10.2: the same line restated "Standards, Spec" from line 43.
+  - Spec — rejected: "another step" → "a later step" in the implementer's list; the list also
+    serves steps that run in parallel, where an earlier or sibling step edits the same page.
+  - Process — the main session wrote S10.2 itself, since the step's worktree was out of its reach;
+    it applied the implementer's diff on the ticket branch as S10.1 first.
 
 
 ## Requirement coverage
