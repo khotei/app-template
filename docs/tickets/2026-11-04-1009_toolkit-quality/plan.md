@@ -38,7 +38,7 @@
 | S30 | the review passes are `reviewer` agents the skills spawn themselves, with no `code-review` wrapper | done |
 | S31 | the toolkit's shell scripts stop on every failed command and run the same under `dash` | done |
 | S32 | the docs and the README state what the repository does today | done |
-| S33 | `make check` and CI lint the shell scripts with a pinned ShellCheck | todo |
+| S33 | `make check` and CI lint the shell scripts with a pinned ShellCheck | done |
 
 ## How to run this plan
 
@@ -1710,8 +1710,10 @@
   digest and needs no install on a machine beyond what `make setup` and Docker already give.
   Its configuration lives beside the other lint configuration in `.misc/lint/`: it enables the
   masked-return check (`check-extra-masked-returns`, SC2312) and turns off the brace-every-
-  variable style (SC2250), which the scripts do not follow. Each deliberate exception the
-  scripts keep (SC2016, SC2015, SC2249) is disabled on its line with the reason.
+  variable style (SC2250), which the scripts do not follow, and the default branch in every
+  `case` (SC2249), since the scripts' `case`s list refusals and a value matching none is valid.
+  The one deliberate exception left, SC2016, is disabled on the line above its command with the
+  reason; the `worktree.sh` grep chain is grouped instead of excepted from SC2015.
   `docs/knowledge/tooling.md` lists the target with the other gates.
 - **Goal:** a failure like S31's `worktree.sh` rewriting `./.env` outside a repository is caught
   at `make check`, not by a review; on the user's word of 2026-11-05.
@@ -1727,7 +1729,32 @@
   - Each of the five scripts' deliberate exceptions carries its reason on its line.
   - `make check` green; the CI step names the target.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:** passes that ran on S33.1: Standards (sonnet), Spec, Design and the hunt, each a
+  `reviewer` spawned directly; no `simplify`. S33.2 checked by the main session: `make sh-lint`
+  exit 0 on the tree, exit 2 with `.misc/a b.sh` holding `[[ 1 ]]`; `hook-cases.sh` and
+  `worktree-cases.sh` exit 0 under `sh` and `SH=dash`. Implementer on `opus high` in the worktree
+  `toolkit-quality-S33-shellcheck` (N=3), about 8.1 and 3.6 min. Verify: the probe failed the
+  target with SC2312 and SC3010; `make check` exit 0. Rounds S33.1 and S33.2 land as one commit.
+  - Deviation — the target is `sh-lint`, beside `doc-lint`; the config sets `enable=all`, since
+    SC2312, SC2249 and SC2250 are all optional checks; untracked files git does not ignore are
+    linted and a deleted one skipped; each directive sits on the line above its command.
+  - Hunt — shown, fixed in S33.2 — `Makefile`, `sh-lint`: `for f in $$files` split a path with a
+    space or a glob, so `.misc/a b.sh` holding `[[ … ]]` passed with exit 0. The list is now read
+    NUL-separated from `node_modules/.cache/sh-lint-files`, a file rather than a pipe, so a failed
+    `git ls-files` still stops the target.
+  - Hunt — shown, fixed in S33.2 — `Makefile`, `sh-lint`: with no script left ShellCheck printed
+    its usage and exited 3, failing `make check`; the target now exits 0 before `docker run`.
+  - Design — fixed in S33.2 — SC2249 was disabled on three `case`s of `worktree.sh` for one
+    reason; it is disabled once in `.misc/lint/shellcheckrc`.
+  - Design — fixed in S33.2 — the SC2015 directive on the `worktree.sh` grep chain: the chain is
+    grouped as `{ grep … && … grep …; } || refuse …`, so no exception is needed.
+  - Standards — fixed in S33.2 — `docs/knowledge/tooling.md` restated the pinned version, which
+    lives in the `Makefile`, and left SC2249 out of what the config turns off.
+  - Standards — rejected — a version in the root catalog (`.claude/rules/tooling.md`): the rule
+    covers packages; a Docker image has no catalog, and `postgres-mcp.sh` pins its image the
+    same way.
+  - Spec — none.
 
 ## Requirement coverage
 

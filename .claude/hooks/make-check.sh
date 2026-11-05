@@ -4,6 +4,7 @@
 # `## BLOCKED:`, `> BLOCKED:`), passes, so a stuck agent can still report why.
 
 # One read of the input: exit 3 for a BLOCKED: message, else print the agent's cwd.
+# shellcheck disable=SC2016 # the quoted text is a program for bun; the shell expands none of it
 cwd=$(bun -e '
   const input = await Bun.stdin.json()
   if (/^[#>*_`\s]*BLOCKED[*_`]*:/.test(String(input.last_assistant_message ?? ""))) process.exit(3)

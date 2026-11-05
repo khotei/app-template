@@ -9,6 +9,7 @@ tmp=$(mktemp -d) || exit 2
 trap 'rm -r -f "$tmp"' EXIT
 # dash runs no EXIT trap on a signal, but does on the exit its trap makes.
 trap 'exit 2' HUP INT TERM
+# shellcheck disable=SC2016 # $PWD and STUB_RC are the stub's own, expanded when the stub runs
 printf '#!/bin/sh\necho "stub make in $PWD"\nexit "${STUB_RC:-1}"\n' > "$tmp/make"
 chmod +x "$tmp/make"
 failed=0

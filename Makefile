@@ -3,7 +3,7 @@
 .DEFAULT_GOAL := help
 
 .PHONY: help setup stack up down reset worktree dev dev-api dev-worker dev-web debug-api \
-  debug-worker debug-web check doc-lint review-rules lint \
+  debug-worker debug-web check doc-lint sh-lint review-rules lint \
   fmt typecheck test test-unit test-e2e bundle-check clean outdated vendor-effect vendor-drizzle \
   migrate migration migration-check api-check api-snapshot
 
@@ -135,11 +135,26 @@ debug-worker: ## Run the worker with --inspect and --watch
 debug-web: ## Run the web dev server with --inspect
 	bun --filter @app-template/web debug
 
-check: doc-lint lint typecheck api-check migration-check test bundle-check ## Run every gate: the docs, lint and the Effect style, types, the HTTP contract, migrations, tests, the web bundle
+check: doc-lint sh-lint lint typecheck api-check migration-check test bundle-check ## Run every gate: the docs, the shell scripts, lint and the Effect style, types, the HTTP contract, migrations, tests, the web bundle
 
 # Its scope and rules are .misc/lint/markdownlint-cli2.mjs; a reworded limits line stops it with 2.
 doc-lint: ## Lint the Markdown outside docs/tickets: width, paths, rule filters, file limits
 	@bunx markdownlint-cli2 --config .misc/lint/markdownlint-cli2.mjs
+
+# The image by version and by the digest of its multi-arch index, so a moved tag changes nothing.
+# The files: tracked and untracked, not ignored, still on disk (a deleted script awaits its commit),
+# listed NUL-separated into a file, so a space or a glob in a path stays one name and a failed git
+# stops the target instead of linting nothing. No script left runs no ShellCheck, which would exit 3.
+SHELLCHECK_IMAGE = koalaman/shellcheck:v0.11.0@sha256:61862eba1fcf09a484ebcc6feea46f1782532571a34ed51fedf90dd25f925a8d
+SH_LINT_FILES = node_modules/.cache/sh-lint-files
+
+sh-lint: ## Lint the shell scripts outside repos/ with ShellCheck (Docker running)
+	@mkdir -p $(dir $(SH_LINT_FILES))
+	@git ls-files -z -co --exclude-standard -- '*.sh' ':!:repos/' > $(SH_LINT_FILES)
+	@xargs -0 sh -c 'for f do shift; [ ! -f "$$f" ] || set -- "$$@" "$$f"; done; \
+		[ $$# -gt 0 ] || exit 0; \
+		exec docker run --rm -v "$$PWD:/mnt" -w /mnt $(SHELLCHECK_IMAGE) \
+			--rcfile .misc/lint/shellcheckrc "$$@"' sh < $(SH_LINT_FILES)
 
 # The rules a review of the uncommitted step holds the diff to: each rule without paths:, and each
 # whose filter matches a file the diff adds, changes or deletes (both sides of a rename), untracked

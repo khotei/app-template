@@ -53,6 +53,10 @@ jobs:
       - name: Lint the docs
         run: make doc-lint
 
+      # ShellCheck runs from its pinned image, on the runner's Docker.
+      - name: Lint the shell scripts
+        run: make sh-lint
+
       # prepare patches tsc on install; an install without it silently drops Effect diagnostics.
       - name: Assert the patched tsc
         run: bunx tsc --version | grep effect-tsgo

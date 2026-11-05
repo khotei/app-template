@@ -74,11 +74,11 @@ sed -E -e "s/^API_PORT=.*/API_PORT=$api/" \
   -e "s/^(AWS_ENDPOINT_URL=.*:)[0-9]+/\1$aws/" \
   -e "s/^STAGE=.*/$stage/" \
   -e "s/^RDS_BASE_PORT=.*/RDS_BASE_PORT=$rds/" "$main/.env" > .env.new
-grep -qx "API_PORT=$api" .env.new &&
+{ grep -qx "API_PORT=$api" .env.new &&
   grep -qx "WEB_PORT=$web" .env.new &&
   grep -qE "^AWS_ENDPOINT_URL=\"?[a-z]+://[^/]+:$aws([/\"]|$)" .env.new &&
   grep -qx "$stage" .env.new &&
-  grep -qx "RDS_BASE_PORT=$rds" .env.new ||
+  grep -qx "RDS_BASE_PORT=$rds" .env.new; } ||
   refuse "$main/.env lacks API_PORT, WEB_PORT, the port of AWS_ENDPOINT_URL, STAGE or RDS_BASE_PORT"
 # Before the slow steps, so a run started meanwhile finds the stage taken.
 mv .env.new .env || exit 1

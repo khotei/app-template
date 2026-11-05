@@ -20,8 +20,9 @@ and `make setup` and `make test-unit` need neither.
 | `make dev` | `make migrate`, then `bun --filter './apps/*' dev` | every app's process, interleaved output; stops first on a stand behind its migrations |
 | `make dev-api` · `dev-worker` · `dev-web` | one app's `dev` script, the api's and the worker's after `make migrate` | one process |
 | `make debug-api` · `debug-worker` · `debug-web` | one app's `debug` script | the same mode plus `--inspect` |
-| `make check` | `doc-lint`, `lint`, `typecheck`, `api-check`, `migration-check`, `test`, `bundle-check` | the gate before every commit and step report |
+| `make check` | `doc-lint`, `sh-lint`, `lint`, `typecheck`, `api-check`, `migration-check`, `test`, `bundle-check` | the gate before every commit and step report |
 | `make doc-lint` | `markdownlint-cli2` with `.misc/lint/markdownlint-cli2.mjs` over the Markdown outside `docs/tickets/`, `repos/` and the ignored files: MD013 at 100 and four rules of its own, every other markdownlint rule off | a prose line over 100 (tables, fences, headings and a line with no space past 100 pass); a backticked repo path that does not exist, the roadmap skipped; a source path in a `CLAUDE.md`, a rule, a skill or an agent ([decisions.md › Instructions name patterns](decisions.md#instructions-name-patterns)); a rule `paths:` filter that matches no file through git's glob, a brace included; a `CLAUDE.md` or a rule over its limit ([decisions.md › Instructions within size limits](decisions.md#instructions-within-size-limits)). Each fails the gate naming file and line; a reworded limits line stops it with exit 2, naming the line it expects |
+| `make sh-lint` | ShellCheck from its image, pinned in the `Makefile`, with `.misc/lint/shellcheckrc`, over the `*.sh` files outside `repos/` that git tracks or does not ignore, a deleted one skipped | every optional check on, the masked return of a command substitution (SC2312) among them, and braces around every variable (SC2250) and a default branch in every `case` (SC2249) off; a deliberate exception is a `# shellcheck disable=<code> # <reason>` line above its command; needs Docker |
 | `make review-rules` | `bun .misc/lint/rule-filters.mjs`, the doc lint's reader of each rule's `paths:`, then `git diff HEAD --no-renames --name-only` and `git ls-files --others --exclude-standard` for each filter | lists the rules that bind the uncommitted diff, those without a filter included: the standards `/ticket-implement` gives the Standards reviewer; not part of `check` |
 | `make lint` | `biome check` (CI: `make lint BIOME=ci`, `biome ci`) with `.misc/lint/biome.base.json` and its GritQL plugins `biome-imports.grit` (imports) and `biome-effect.grit` (the Effect style of [effect-style.md › Composition](../../.claude/rules/effect-style.md#composition) and [effect.md](../../.claude/rules/effect.md); what each list flags: the plugin's comments) | lint, format and import order, without writing; a plugin that errors on a file, which Biome only notes and skips, fails it with exit 2 |
 | `make fmt` | `biome check --write` | apply formatting, import sorting and safe fixes |
@@ -40,7 +41,8 @@ and `make setup` and `make test-unit` need neither.
 The lint configuration lives in `.misc/lint/`, the folder for what serves the repo and not the
 application; a lint rule is written only there. `make doc-lint` hands `markdownlint-cli2` its
 config with `--config`, so an editor's markdownlint, which looks for a config by name, does not
-apply the repo's rules. Biome reads a config only in the folder it starts from and its parents,
+apply the repo's rules; `make sh-lint` hands ShellCheck its config with `--rcfile` for the same
+reason. Biome reads a config only in the folder it starts from and its parents,
 so the root keeps one stub: `biome.json` (`"root": true`) extends `.misc/lint/biome.base.json`.
 Biome resolves a `plugins` path of the extended config from the root, so it reads
 `./.misc/lint/<name>.grit`; the extended config is not named `biome.json`, since Biome's scan
