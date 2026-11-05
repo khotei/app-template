@@ -16,6 +16,7 @@
 | S8 | the contract's Biome override becomes an allow-list: only `effect`, `effect/*` and the contract's own `#http-api/…` files | done |
 | S9 | the message failure's reason is one named schema on both sides, so the twins test pairs it | done |
 | S10 | `implementer.md` points to `reviewer.md`; `ticket-implement` says when the hunt runs on a behaviour step | done |
+| S11 | `application/CLAUDE.md` states the layers' constraint and links its record, with no narration of the removed browser rule | todo |
 
 ## How to run this plan
 
@@ -671,6 +672,24 @@
     serves steps that run in parallel, where an earlier or sibling step edits the same page.
   - Process — the main session wrote S10.2 itself, since the step's worktree was out of its reach;
     it applied the implementer's diff on the ticket branch as S10.1 first.
+
+#### S11 — `application/CLAUDE.md` without the narrated rule
+
+- **Delivers:** the clause "Why the bans stay though nothing of the domain reaches the browser" in
+  `application/CLAUDE.md` becomes the link to the record "A module's layers".
+- **Goal:** the Standards finding of verification run 3 (`claude-md.md` › The owner: only the
+  currently binding constraint, no tombstones).
+- **Blocked by:** none.
+- **Files:** `application/CLAUDE.md`.
+- **Size:** docs ~3, code 0.
+- **Introduces:** none. Removes later: none.
+- **Test first:** `config only` — `make doc-lint` green before and after; the check is a read of
+  the file.
+- **Verify:**
+  - `make doc-lint` — green; `make check` — green;
+  - `grep -n "reaches the browser" application/CLAUDE.md` — prints nothing; prints one line today.
+- **Model:** `opus medium`.
+- **Status:** `todo`.
 
 
 ## Requirement coverage

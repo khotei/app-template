@@ -70,6 +70,9 @@ only through it; the backend keeps no rule for the web's sake.
   record "A module's layers" loses its browser reason while the domain's import bans stay.
 - The roadmap: this entry rewritten; a new entry for a domain that takes types from the data
   layer.
+- The toolkit's own lessons from building this ticket: the step kinds and the "whole step" gate in
+  the `/ticket-*` skills, `implementer.md` and `reviewer.md`, `sdd.md`, the plan template and the
+  guard probes.
 
 ## Out of scope
 
@@ -87,9 +90,9 @@ only through it; the backend keeps no rule for the web's sake.
   branded ids, an absent value as an `Option`, a timestamp as a `DateTime`, and a refusal as the
   contract's error class matched by its tag.
 - **R3** — WHEN the api answers an endpoint, THE api SHALL hand each domain model to the contract
-  through one mapper per model, which returns the value as it is while the shapes match, and its
-  domain errors to the contract's error classes as they are; an internal field of a domain value
-  SHALL NOT reach the response.
+  through one mapper per model, which returns each field of its own as it is while the shapes
+  match and hands a nested model to that model's mapper, and its domain errors to the contract's
+  error classes as they are; an internal field of a domain value SHALL NOT reach the response.
 - **R4** — THE wire SHALL stay as it is today: every route, field, status and error shape
   unchanged.
 - **R5** — IF a brand name, a class identifier or a constraint of the contract differs from the
@@ -109,7 +112,7 @@ only through it; the backend keeps no rule for the web's sake.
 |---|---|
 | R1 | an import of any workspace planted in the contract fails `make lint` with its name; the contract's manifest lists only `effect` |
 | R2 | a client call in a test reads a chat back as `Option`, `DateTime` and a branded id, and a refused call is caught by its tag as the contract's class |
-| R3 | each model a handler returns passes through its mapper, and a mapper of matching shapes returns its argument; a handler test shows `title: null` and an ISO date on the wire, a domain error answered with the contract's status, and a domain field absent from the contract absent from the JSON |
+| R3 | each model a handler returns passes through its mapper, and a mapper of matching shapes returns each of its own fields unchanged, while a model nested in it passes through that model's mapper; a handler test shows `title: null` and an ISO date on the wire, a domain error answered with the contract's status, and a domain field absent from the contract absent from the JSON |
 | R4 | `make api-check` passes; the snapshot differs from today's only in a component's name |
 | R5 | a planted drift of the title limit, of a brand name and of an error identifier each fails `make check` naming the pair; a new twin schema added to both sides is compared with no edit to the check; one test shows a domain error encoded through the contract's class |
 | R6 | a web build with every side-effects flag removed succeeds and the bundle check passes |

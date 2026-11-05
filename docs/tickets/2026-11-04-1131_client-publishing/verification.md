@@ -232,3 +232,120 @@ R7; the two deleted guards are replaced; the record "The API contract on its own
   when the requirement says "only X", and plants one member of each class the requirement names
   (a workspace, a built-in, an installed third-party package).
 - **Applied:** yes (2026-11-05), in `.claude/skills/ticket-plan/guard-probes.md`, which owns the guard probes, not in `SKILL.md`.
+
+## 2026-11-05 — run 3
+
+**Verdict:** pass
+
+Fixed point `da59b81b29`. Same two groups: A (R1, R4, R5, R6, R7, R8 and `make check`, since it plants
+probes and starts the api) and B (R2, R3, unit tests only). `make check` is green (247 unit, 104 e2e,
+34 s); both verifiers left the tree clean.
+
+### Requirements
+
+| Req | Result | Evidence |
+|---|---|---|
+| R1 | pass | Manifest lists only `effect`. A probe importing every workspace, `@effect/platform-bun`, `drizzle-orm`, `node:fs`, `bun`, a `../application/...` path and `#http-api/../application/...` failed `make lint` with 20 errors, one per import, each naming it; `effect`, `effect/Schema` and `#http-api/shared/ids` passed. `export * from`, `export { … } from` and `import()` forms failed too (3 errors). Run 2's gap (`vitest` from the root `node_modules`) is closed by S8's allow-list. |
+| R2 | pass | `chat.handler.test.ts:52-67` reads `Option.none()` and a UTC `DateTime`; `attachment.handler.test.ts:113-158` catches the contract's class by tag; a runtime probe printed `instanceof contract true`, `instanceof domain false`; `bunx tsc -b apps/api` exits 0 with the branded `ChatId` required (brands are proven by types only). |
+| R3 | pass | Nine of 13 endpoints return a model and each passes through `buildApi<Model>` (`chat.handler.ts` 24, 33, 41, 48, 65, 78; `attachment.handler.ts` 82, 90; `user.handler.ts` 37); no handler translates a domain error; wire tests assert `title: null`, an ISO date, `cause` absent. Caveat: see Spec finding 2 (the chat and message mappers return a copy, not their argument). |
+| R4 | pass | `make api-check` exits 0; `openapi.json` differs only in `UserEncoded` → `User`; the fixed point's own generated document is byte-identical to its snapshot. Not run: one recorded request sequence against both versions (the sandbox refused the probe file); R4 rests on the OpenAPI comparison and the unchanged test assertions. |
+| R5 | pass | Drifted title limit, brand, error tag each fail naming the pair; a new `ProbeTwin` on both sides was compared with no edit to the test (22 → 23 tests); the test that encodes a domain error through the contract's class holds. Dropping `'ReplyRefused'` from the domain literal now fails `× MessageFailureReason`. Notes: Spec finding 3 and the order of failure below. |
+| R6 | pass | Every side-effects flag removed, then effect's installed one as well: `make bundle-check` exit 0 both times (bundle 0.42 → 0.51 MB, inputs only the web, `effect`, `http-api`, `packages/ui`); the fixed point with its flags removed fails with `AttachmentService`, `ChatService`, `QueueConfig` in `main.js`. |
+| R7 | pass | Planted `drizzle-orm`, `@app-template/packages/db`, `@effect/sql-pg` and six `node:*` built-ins each refused with package and shortest chain (`main.ts → health-panel.ts → packages/db/index.ts`); no repository folder name in `bundle-check.mjs`. |
+| R8 | pass | `MessageFailure.cause` → `detail` touches only `application/**` and tests; `Attachment.fileName` → `originalName` flags one api file, `attachment.mapper.ts`, and nothing in the contract or the web (it is also read as input, so the handler's input builder follows, as the acceptance row says). The rename probe was reverted; `fileName` stays (user, 2026-11-05). |
+
+**Not verifiable:** none within R2 and R3 (the web's own client code has no test, per the architecture's
+Seams). Group A's live-response diff for R4 is noted above.
+
+### Review
+
+#### Review ledger
+
+Summed from each step's **Findings** in `plan.md` (S1–S10), one bullet is one finding.
+
+| Pass | Findings | Accepted | Fixed | Rejected |
+|---|---|---|---|---|
+| simplify | 3 | 1 | 1 | 2 |
+| Standards | 11 | 8 | 7 | 3 |
+| Spec | 13 | 10 | 9 | 3 |
+| Design | 8 | 4 | 4 | 4 |
+
+One accepted Standards finding (S2, `naming.md` `.mapper` row) was "open for S3" and one accepted Spec
+finding (S3, `browserPackages` in `tooling.md`) was "moved to S4"; both count as accepted, not as
+fixed. No hunt pass ran in any step; S9's out-of-scope note (the literal reason list a third time in
+`kernel/data/chat/message.table.ts:20`) is a question for the kernel ring.
+
+#### Standards
+
+All rules and the touched `CLAUDE.md` files read whole; no hard breaks, one judgement finding.
+
+- `application/CLAUDE.md:11-14` — `claude-md.md` › The owner (only the currently binding constraint,
+  no tombstones) — judgement. The clause "Why the bans stay though nothing of the domain reaches the
+  browser" narrates the removed browser-shipping rule. Cut it to the link to the record.
+
+#### Spec
+
+Checked and holding: R1–R8 as in the table above; the Biome `importNamePattern` ban is replaced by the
+allow-list at `.misc/lint/biome.base.json:73`, the service-key `grep` by `.misc/lint/bundle-check.mjs`,
+and the "Browser-safe" line of `http-api/CLAUDE.md` by its "Imports only `effect`" line; roadmap entry
+26 is present. Three findings, all judgement:
+
+- `.claude/skills/ticket-implement/SKILL.md:26` and seven more files — nothing in the ticket asks for
+  them: the "new-interface step" kind, **Introduces**, the **Shape** check, the "whole step" gate in
+  `implementer.md` and `sdd.md:35`, `claude-md.md:51`, `docs/tickets/_template/plan.md`,
+  `docs/knowledge/sdd.md:72`, `guard-probes.md`. `feature.md › Scope` does not name them. Fix: one
+  line in Scope naming the toolkit's own lessons, or leave them to the PR description.
+- `apps/api/chat/chat.mapper.ts:10` — R3 ("returns the value as it is while the shapes match";
+  acceptance "returns its argument") — `buildApiChat` and `buildApiMessage` return a copy made by
+  `Struct.evolve`, not their argument (D6, which closed run 1's R8). Group B confirmed it at runtime
+  (`apiChat === chat` is `false`, every field equal). Fix: reword R3 and its acceptance row to "the
+  identity on its own fields; a nested model through its own mapper".
+- `apps/api/__tests__/contract-twins.test.ts:17` (group A) — R5 ("no list … kept by hand") —
+  `modules = { Chat, Identity }` is still a list kept by hand; a twin in a new module is compared only
+  once that module is added. Dropped by the user in run 1, simplification 2; listed again only
+  because group A met it.
+
+Order of failure (group A, R5): a title limit drifted on the contract side stops `make check` first at
+`api-check` with an OpenAPI diff (`maxLength 120 → 121`) that does not name `ChatTitle`; the twins test
+would, but runs later. The pair is named whenever the drift is on the domain side.
+
+### Simplifications
+
+1. `application/CLAUDE.md:11-14` — cut the narrated clause to a link to the record (Standards).
+2. `feature.md` R3 and its acceptance row — reword to "the identity on its own fields; a nested model
+   through its own mapper", so the text matches D6. Open for the user: a `feature.md` change, not a
+   code step.
+3. `feature.md › Scope` — name the toolkit's own lessons (the `.claude/` and `docs/tickets/_template`
+   edits), or leave it. Open for the user.
+4. Kept as is (user, 2026-11-05): `api-check` naming an OpenAPI diff counts as naming the pair for a
+   contract-side drift of a limit (R5); the twins test would run after the e2e if moved before it.
+5. Kept as is (user, 2026-11-05): the twins test's hand-kept module list; derived from
+   `application/package.json › exports` it would need a second list of exceptions (`use-cases`, the
+   `testing` entries).
+
+### Lessons
+
+#### L4 — a step changed a behaviour and left a page that describes it, or a file outside its Files
+
+- **Evidence:** Spec findings "`architecture.md` described the old check/ban" in S4 (Contracts), S5
+  (Contracts entry, D6 heading, Seams row), S6 (Structure invariant, Guards, Seams row) and S8
+  (Guards, Seams row); S4's "`roadmap.md` entry 7 rewritten", S6's "`decisions.md` joined the step's
+  Files", S8's "`http-api/CLAUDE.md` joined the step's Files".
+- **Cost:** a Spec finding fixed in the same commit in each of four steps, and a Files list wrong in
+  three; no wrong result reached a gate.
+- **Proposed change:** one line in `.claude/skills/ticket-plan/SKILL.md` (Files item): a step that
+  changes a guard, mapper or check lists every `architecture.md`, record and `CLAUDE.md` line that
+  names it, found by grep of its name.
+- **Applied:** yes (2026-11-05), as a Verify bullet in `.claude/skills/ticket-plan/SKILL.md`; the
+  Files list stays "a start, not the bound", so only the grep is asked.
+
+#### L5 — L2 recurred after it was applied
+
+- **Evidence:** S7.2 Standards (the `.http` cell restated the `.id` · `.model` · `.error` row) and
+  S10.2 Standards and Spec (the line restated the hunt's trigger and "Standards, Spec" from line 43),
+  both after L2's line landed in `claude-md.md`, which the implementer does not necessarily read.
+- **Cost:** one fix round each in S7 and S10 (S7.2, S10.2).
+- **Proposed change:** one line in `.claude/agents/implementer.md`: an edit of an instruction file or
+  rule ends with a grep of each fact the new line states, and a line whose fact another file owns
+  becomes a pointer.
+- **Applied:** yes (2026-11-05), as the "A fact once" discipline in `.claude/agents/implementer.md`.
