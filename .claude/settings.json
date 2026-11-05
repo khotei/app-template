@@ -91,7 +91,8 @@
       "Bash(docker logs*)",
       "Bash(docker compose ps*)",
       "Bash(claude mcp list*)",
-      "Bash(claude plugin list*)"
+      "Bash(claude plugin list*)",
+      "mcp__postgres"
     ],
     "ask": [
       "Bash(git push*)",

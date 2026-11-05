@@ -404,6 +404,17 @@ new version. CI also runs a non-blocking job on Bun `latest`, which shows the ne
   Two servers claiming `.ts` leave one unused, so turn one off. A bad server entry is skipped
   whole and shows only in `/plugin` › Errors or `claude --debug`.
 
+### Claude Code's Postgres MCP
+
+- **The tree's own database, read-only.** `.mcp.json`'s `postgres` entry runs
+  `.misc/claude/postgres-mcp.sh`: it reads `DATABASE_URL` from the `.env.pulumi` that `make up`
+  wrote beside it, and starts Postgres MCP Pro (`crystaldba/postgres-mcp`, pinned by digest) in
+  Docker with `--access-mode=restricted`. A worktree's session therefore reaches its own stand's
+  database; schema changes stay with `make migration`. The tools list schemas and objects, run a
+  read-only query, explain it, and advise on indexes and the database's health.
+- **Start the stand first.** The server connects when the session starts; after a late `make up`,
+  reconnect it in `/mcp`. The first session asks once to approve the project's servers.
+
 ## Git hooks and CI
 
 `bun install` runs the `prepare` script (`husky && effect-tsgo patch`), which installs the hooks and
