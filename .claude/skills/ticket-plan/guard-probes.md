@@ -14,3 +14,6 @@ both match.
   registers, a grep's pattern. An override of four groups takes four probes. Each probe is one
   import or line that its ban alone refuses, and names the command it fails (the guard's tool
   alone, or `make check`).
+- A guard whose requirement says "only X" is an allow-list; a deny-list of the families seen so far
+  leaves the rest open. When a deny-list is the only option, add one probe per class the requirement
+  names (a workspace, a built-in, an installed third-party package).

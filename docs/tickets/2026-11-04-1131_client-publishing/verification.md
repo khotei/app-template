@@ -123,3 +123,112 @@ no-workspace ban, the grep by `.misc/lint/bundle-check.mjs`); roadmap entries 10
 - **Proposed change:** one line in `.claude/rules/claude-md.md`: before a rule or `CLAUDE.md` line
   states a fact, grep for it; if another file owns it, link to that file.
 - **Applied:** yes (2026-11-05)
+
+## 2026-11-05 — run 2
+
+**Verdict:** fail
+
+Fixed point `da59b81b29`. Same two groups as run 1: A (R1, R4, R5, R6, R7, R8 and `make check`, since
+it plants probes and starts the api) and B (R2, R3, unit tests only). `make check` is green on both
+sides of A's probes (246 unit, 104 e2e); A left the tree clean.
+
+### Requirements
+
+| Req | Result | Evidence |
+|---|---|---|
+| R1 | **fail** | Manifest lists only `effect`; planted workspace imports, `@effect/vitest`, `node:fs` and a relative path each fail `make lint` with the import quoted (11 errors); an undeclared `drizzle-orm` fails `tsc -b` (`TS2307`). Gap: `export { describe as probe } from 'vitest'` appended to `http-api/shared/limits.ts` passed `doc-lint sh-lint lint typecheck api-check migration-check test-unit bundle-check` (exit 0), because `vitest` resolves from the root `node_modules`; so would `drizzle-kit`, `typescript`, `husky`, `markdownlint-cli2`. The ban is a deny-list of four families, not "no package but Effect". |
+| R2 | pass | `chat.handler.test.ts` reads `Option.none()` and `DateTime.isUtc`; the attachment test catches the contract's error by tag; a type probe (`tsc` exit 0) shows branded `ChatId`, `Option<ChatTitle>`, `Utc`, and two `@ts-expect-error` held; a decode probe gave `instanceof` the contract's class `true`. |
+| R3 | pass | Every model-returning endpoint passes through `buildApi<Model>` (`chat.handler.ts` 24, 33, 41, 48, 65, 78; `attachment.handler.ts` 82, 90; `user.handler.ts` 37); no `mapError` in the chat handler; wire tests assert `title: null`, ISO date, `cause` absent. |
+| R4 | pass | `make api-check` green; `openapi.json` differs only in `UserEncoded` → `User`. |
+| R5 | pass | Drifted title limit, brand, error tag and a dropped `i` flag each fail naming the pair; a new `ProbeTwin` on both sides was compared with no edit to the test (21 → 22). Gaps: see Spec findings 1 and 2. |
+| R6 | pass | `sideEffects` removed from `http-api` and from the installed `effect` manifest: `make bundle-check` exit 0 both times. |
+| R7 | pass | Planted `packages/db`, `drizzle-orm`, `@effect/sql-pg` refused with package and chain (`main.ts → health-panel.ts → packages/db/index.ts → …`); no repository folder name in `bundle-check.mjs`. |
+| R8 | pass | `MessageFailure.cause` → `detail`: errors only in `application/**` and tests; `Attachment.size` → `byteSize`: one api file (`attachment.mapper.ts`), no contract, web or handler file, e2e 104/104. Caveat: `Attachment.fileName` also feeds `AttachmentUpload = Pick<Attachment, 'mediaType' | 'fileName'>` (`attachment.service.ts:34`), built in `attachment.handler.ts` (`decodeUpload`), so that rename edits a handler; the acceptance row ("no … handler file") holds for fields the api only returns. |
+
+**Not verifiable:** none.
+
+### Review
+
+#### Review ledger
+
+Summed from each step's **Findings** in `plan.md` (S1–S7), one bullet is one finding.
+
+| Pass | Findings | Accepted | Fixed | Rejected |
+|---|---|---|---|---|
+| simplify | 3 | 1 | 1 | 2 |
+| Standards | 9 | 6 | 5 | 3 |
+| Spec | 9 | 7 | 6 | 2 |
+| Design | 7 | 3 | 3 | 4 |
+
+One accepted Standards finding (S2, `naming.md` `.mapper` row) was "open for S3" and one accepted
+Spec finding (S3, `browserPackages` in `tooling.md`) was "moved to S4"; both count as accepted, not
+as fixed. No hunt pass ran in any step.
+
+#### Standards
+
+Rules and `CLAUDE.md` files read whole; no hard breaks, three judgement findings.
+
+- `http-api/shared/ids.ts:1` — `naming.md` › Files (singular name, role suffix) — judgement. Plural
+  `ids.ts` has no role; rename to `id.ts`. Already rejected in S1 (`errors.ts` and `limits.ts` set
+  the precedent in this folder), so it stands rejected unless the user says otherwise.
+- `.claude/agents/implementer.md:22` — `claude-md.md` › The owner (one author per fact) —
+  judgement. The line restates the "step that does not stand alone" test (a name only a later step
+  uses, code a later step removes, a shared page) that `.claude/agents/reviewer.md:31` owns and
+  `ticket-plan/SKILL.md` already points to. Replace it with a pointer.
+- `.claude/skills/ticket-implement/SKILL.md:26` — `writing-for-agents` › completion criteria —
+  judgement. "Any other step gets Standards and Spec" sits beside the hunt rule at line 59 and "Any
+  other step runs no hunt" at line 61: a behaviour step that touches access or error handling reads
+  two ways. Say "a behaviour step that is not new-interface gets Standards, Spec and, per line 59,
+  the hunt".
+
+#### Spec
+
+Checked and holding: R1 (workspace, `@effect/**`, `node:*`, `bun*` bans; `types: []`), R2–R4, R6,
+R7; the two deleted guards are replaced; the record "The API contract on its own", roadmap entries
+10 and 26, `application/CLAUDE.md` and the `http-api` README are in the diff. Two findings, both R5:
+
+- `apps/api/__tests__/contract-twins.test.ts:17` — `modules = { Chat, Identity }` is a list kept by
+  hand: a third module `application/billing` exporting `InvoiceId` beside a contract `InvoiceId`
+  with a different check is compared by nothing, and `make check` passes. Fix: build the list from
+  `application/package.json › exports`, or fail the test when an export is missing from `modules`.
+  (Dropped by the user in run 1, simplification 2.)
+- `http-api/chat/chat.http.ts` (about line 54) — `ApiMessageFailure.reason` restates
+  `Schema.Literals(['ReplyFailed', 'ReplyRefused'])` from `application/chat/domain/message.model.ts:30`
+  with no schema of that name on both sides, so the twins test never pairs them. If the domain drops
+  `'ReplyRefused'`, the narrower domain type still fits the contract's in `buildApiMessage`, so
+  `tsc` and `make check` stay green while the contract and `openapi.json` promise a reason the
+  server no longer sends. Fix: export the literal as a named schema on both sides
+  (`MessageFailureReason`).
+
+### Simplifications
+
+1. `biome.base.json:72` (the `http-api/**` override) — turn the deny-list into an allow-list: refuse
+   every import except `effect`, `effect/*`, and relative paths inside `http-api/` (check that
+   Biome's `noRestrictedImports` negated patterns express this; if not, a small import check in the
+   style of `bundle-check.mjs` over the contract's files). Closes R1.
+2. `http-api/chat/chat.http.ts` and `application/chat/domain/message.model.ts` — export the failure
+   reason as `MessageFailureReason` on both sides so the twins test pairs it (R5).
+3. `.claude/agents/implementer.md:22` — pointer to `reviewer.md` in place of the restated test.
+4. `.claude/skills/ticket-implement/SKILL.md:26` — say when the hunt still runs on a behaviour step.
+5. Open for the user (a `feature.md` change, not a code step): reword the R8 acceptance row to "a
+   rename of a domain field that is on the wire edits one mapper and no contract or web file; a
+   field the api also reads from input edits the handler's input builder too", or keep the row and
+   accept the caveat above. The twins test's hand-kept module list (Spec finding 1) stays dropped
+   per run 1, unless the user reopens it.
+
+### Lessons
+
+#### L3 — a guard was closed by its planted cases, not by the class it bans
+
+- **Evidence:** S6 Spec finding rejected a bare `'fs'` import because `tsc` would catch it
+  (reasoned per case, not per class); run 1 found `node:*` and `bun:*` passing the lint ban (fixed
+  in S6); run 2 finds a root-installed third-party package passing every gate (R1), and an
+  unpaired literal beside the twins test (R5). Two verification runs in a row failed a guard at the
+  edge of its list.
+- **Cost:** R1 failed at the last gate in run 2 after S6 had closed run 1's gap; one more fix step
+  and a second `/ticket-verify`.
+- **Proposed change:** one line in `.claude/skills/ticket-plan/guard-probes.md`: a step that
+  adds a ban or a guard states whether it is an allow-list or a deny-list, prefers the allow-list
+  when the requirement says "only X", and plants one member of each class the requirement names
+  (a workspace, a built-in, an installed third-party package).
+- **Applied:** yes (2026-11-05), in `.claude/skills/ticket-plan/guard-probes.md`, which owns the guard probes, not in `SKILL.md`.

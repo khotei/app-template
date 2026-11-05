@@ -114,7 +114,7 @@ only through it; the backend keeps no rule for the web's sake.
 | R5 | a planted drift of the title limit, of a brand name and of an error identifier each fails `make check` naming the pair; a new twin schema added to both sides is compared with no edit to the check; one test shows a domain error encoded through the contract's class |
 | R6 | a web build with every side-effects flag removed succeeds and the bundle check passes |
 | R7 | a planted import of a database package, and of a server entry of a shared workspace, into web code each fail the bundle check naming the package and the chain; the check holds no repository folder name |
-| R8 | renaming an internal domain field that is not on the wire touches no contract or web file; renaming a domain field that is on the wire edits one mapper and no contract, web or handler file |
+| R8 | renaming an internal domain field that is not on the wire touches no contract or web file; renaming a domain field that is on the wire edits one mapper and no contract or web file (a field the api also reads as input edits the handler's input builder too) |
 
 ## Open questions
 

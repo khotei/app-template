@@ -13,6 +13,9 @@
 | S5 | the chat and message mappers hand nested attachments to `buildApiAttachment`, so a wire rename inside the attachment edits one mapper | done |
 | S6 | the contract imports no `node:*` and no `bun:*`: Biome ban and no `bun` types | done |
 | S7 | `naming.md` allows the contract's ids, models and errors in its `.http` files; the reviewer owns the "step that does not stand alone" check | done |
+| S8 | the contract's Biome override becomes an allow-list: only `effect`, `effect/*` and relative paths inside `http-api/` | todo |
+| S9 | the message failure's reason is one named schema on both sides, so the twins test pairs it | todo |
+| S10 | `implementer.md` points to `reviewer.md`; `ticket-implement` says when the hunt runs on a behaviour step | todo |
 
 ## How to run this plan
 
@@ -567,15 +570,76 @@
     as `limits.ts` and `ids.ts` are).
 
 
+#### S8 — The contract imports only Effect
+
+- **Delivers:** the `http-api/**` Biome override refuses every import except `effect`, `effect/*`
+  and relative paths inside `http-api/`, in place of the four banned families; if Biome's
+  negated patterns cannot say it, a small import check over the contract's files in the style of
+  `.misc/lint/bundle-check.mjs`, run by `make lint`.
+- **Goal:** R1 — an import of any package but `effect` fails `make check` naming it (verification
+  run 2, R1).
+- **Blocked by:** S7.
+- **Files:** `.misc/lint/biome.base.json` (or the new check and the `Makefile`);
+  `docs/knowledge/decisions.md` (the guard's record); `architecture.md` (Guards, the `make lint`
+  Seams row).
+- **Size:** ~30.
+- **Introduces:** none. Removes later: none.
+- **Test first:** `config only` — the probes below fail today.
+- **Verify:** as [guard-probes.md](../../../.claude/skills/ticket-plan/guard-probes.md) says, one
+  probe per class; each fails `make lint` (or the check) naming the import, and is reverted after:
+  - `export { describe } from 'vitest'` in `http-api/shared/limits.ts` — passes today;
+  - `@app-template/application/chat`, `@effect/vitest`, `node:fs`, `bun:sqlite` — fail today, keep
+    failing, with the new message;
+  - `make check` — green.
+- **Model:** `opus medium`.
+- **Status:** `todo`.
+
+#### S9 — The message failure's reason on both sides
+
+- **Delivers:** `MessageFailureReason` exported by `message.model.ts` and by `chat.http.ts`, used by
+  their failure schemas, so the twins test compares the pair.
+- **Goal:** R5 — a domain that drops `'ReplyRefused'` fails `make check` naming the pair (verification
+  run 2, Spec finding 2).
+- **Blocked by:** S7.
+- **Files:** `application/chat/domain/message.model.ts`; `http-api/chat/chat.http.ts`.
+- **Size:** ~10.
+- **Introduces:** `MessageFailureReason` (both sides). Removes later: none.
+- **Test first:** Seam `apps/api` twins test — drop `'ReplyRefused'` from the domain literal: fails
+  naming `MessageFailureReason`; fails today with no error.
+- **Verify:**
+  - the planted drop above fails the twins test naming the pair; reverted after;
+  - `make api-check` — green, `openapi.json` unchanged; `make check` — green.
+- **Model:** `opus medium`.
+- **Status:** `todo`.
+
+#### S10 — Two instruction lines, each fact once
+
+- **Delivers:** `.claude/agents/implementer.md` points to `.claude/agents/reviewer.md` for the "step
+  that does not stand alone" test in place of restating it; `ticket-implement/SKILL.md` says "a
+  behaviour step that is not new-interface gets Standards, Spec and, per the hunt rule, the hunt".
+- **Goal:** the Standards findings of verification run 2.
+- **Blocked by:** S7.
+- **Files:** `.claude/agents/implementer.md`, `.claude/skills/ticket-implement/SKILL.md`.
+- **Size:** docs ~10, code 0.
+- **Introduces:** none. Removes later: none.
+- **Test first:** `config only` — `make doc-lint` green before and after; the check is a read of the
+  two files.
+- **Verify:**
+  - `make doc-lint` — green; `make check` — green;
+  - `grep -n "reviewer.md" .claude/agents/implementer.md` — prints one line; prints nothing today.
+- **Model:** `opus medium`.
+- **Status:** `todo`.
+
+
 ## Requirement coverage
 
 | Req | Steps |
 |---|---|
-| R1 | S1, S2, S4, S6 |
+| R1 | S1, S2, S4, S6, S8 |
 | R2 | S2 |
 | R3 | S2 |
 | R4 | S1, S2 |
-| R5 | S3 |
+| R5 | S3, S9 |
 | R6 | S4 |
 | R7 | S4 |
 | R8 | S2, S5 |
