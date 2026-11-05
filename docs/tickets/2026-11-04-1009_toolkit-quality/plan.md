@@ -36,6 +36,7 @@
 | S28 | a ticket that changes only the toolkit or docs runs a lighter cycle: one verification, no replay by default | done |
 | S29 | a claimed failure is confirmed by a test the researcher writes in a disposable worktree | done |
 | S30 | the review passes are `reviewer` agents the skills spawn themselves, with no `code-review` wrapper | done |
+| S31 | the toolkit's shell scripts stop on every failed command and run the same under `dash` | todo |
 | S32 | the docs and the README state what the repository does today | todo |
 
 ## How to run this plan
@@ -55,6 +56,11 @@
   The scripts `hook-cases.sh` and `worktree-cases.sh` beside this plan hold their cases.
 - **S28–S30** apply the audit's decisions A, C and D, on the user's word of 2026-11-05, in the
   same way: one worktree each where they do not share a line, one commit each.
+- **S31** fixes what an independent review of the five shell scripts found, on the user's
+  request of 2026-11-05 for scripts that follow good POSIX `sh` practice (they stay `sh`, the
+  user's word); each item was reproduced on a scratch copy, and its cases ran under `sh` and
+  `dash`. A first review had called the scripts good; the second, given only the code and the
+  sources, found four real failures, so the step rests on the second.
 - **S32** fixes what two `researcher`s found stale in `README.md`, `docs/knowledge/` and the
   folder `CLAUDE.md` files, on the user's request of 2026-11-05 to review the docs; each item
   carries its evidence from that audit. It shares no file with S30 and runs beside it.
@@ -1566,6 +1572,43 @@
     into nor ranked" (writing-for-agents › Negation); it states the target now.
   - Standards — rejected — the older "nothing else" and "no other" lines of the two skills: S30
     did not write them, and each already names its positive target.
+
+#### S31 — The shell scripts stop on every failed command
+
+- **Delivers:**
+  - `worktree.sh` stops at the first failed `git` query, before it writes anything: each
+    `$(git rev-parse …)` and `git worktree list` is assigned to a variable and checked, so a run
+    outside a repository no longer rewrites `./.env` (reproduced: 7 `fatal:` lines, `.env`
+    rewritten, exit 1; `cd ""` succeeds in both shells).
+  - `worktree.sh` refuses a NAME git refuses as a branch (`git check-ref-format --branch`), before
+    it writes `.env`, so a rerun is not left failing at `git branch -m`.
+  - `worktree.sh` checks `mv .env.new .env`; uses `ln -s` without the non-POSIX `-n` (an existing
+    link to elsewhere is already refused); writes the double-negated chains as `if`.
+  - Every script with an `EXIT` trap also traps `HUP INT TERM` into an exit, since `dash` runs no
+    `EXIT` trap on a signal; `worktree.sh`'s comment on a killed run then speaks of `SIGKILL` only.
+  - Text that varies is printed with `printf '%s'`, never `echo` (paths, the hook's `cwd`, the
+    case scripts' excerpts); every expansion is quoted, `exit "$failed"` included.
+  - The case scripts run the script under test with `${SH:-sh}`, so `SH=dash sh <case script>`
+    tests it under `dash`.
+  - `postgres-mcp.sh` resolves its root with `CDPATH=''` and `cd --`, and says in a comment why
+    it alone uses `set -eu`.
+- **Goal:** the user's request of 2026-11-05: scripts that follow good POSIX `sh` practice and
+  code style, judged by the POSIX spec, the ShellCheck wiki, Rich's sh tricks and BashPitfalls.
+- **Blocked by:** none.
+- **Files:** `.claude/skills/ticket-implement/worktree.sh`, `.claude/hooks/make-check.sh`,
+  `.misc/claude/postgres-mcp.sh`, and beside this plan `hook-cases.sh` and `worktree-cases.sh`;
+  `docs/knowledge/tooling.md › Worktrees` if a refusal it lists changes.
+- **Size:** ~80.
+- **Test first:** the toolkit-script seam (`worktree-cases.sh`): new cases `outside-repo` (run
+  in a folder outside any repository: exit 1, no `.env` written there) and `bad-name`
+  (NAME `a..b`: exit 1, no `.env` and no symlink), both red today.
+- **Verify:**
+  - `sh` and `SH=dash sh` on both case scripts print only `PASS` lines.
+  - ShellCheck 0.11.0 `-s sh -o all` over the five files reports no SC2312 on a `git` query and
+    nothing but the deliberate SC2016, SC2249, SC2015 and the style-only SC2250.
+  - `make check` green.
+- **Model:** `opus high`
+- **Status:** todo
 
 #### S32 — The docs state what the repository does today
 
