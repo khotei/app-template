@@ -160,6 +160,10 @@
     between S2 and S3 reaches `main`, and each page is written once, with the whole contract in
     view. `make doc-lint` stays green meanwhile (the pages name paths that exist).
   - Leftovers: `grep -rn "@app-template/application" http-api/`; `grep -rn "AttachmentNotFoundError" apps/e2e/`.
+- **Introduces:** `ApiUser`, `ApiAttachment`, `ApiChat`, `ApiMessage`, `ApiMessageFailure`, the
+  strings, literals and six errors → the endpoints that list them, the mappers and the handler
+  tests of this step; `buildApiUser`, `buildApiAttachment`, `buildApiChat`, `buildApiMessage` →
+  the handlers of this step. Removes later: none.
 - **Size:** ~390 by the prototype's measure (the contract ~230, the api ~45, the tests ~110, the
   e2e and snapshot ~10); a step that runs over 400 stops with `BLOCKED:` and the plan is recut
   before more code is written.
@@ -242,6 +246,8 @@
     the browser; its bans stay for roadmap entry 26), *Module contracts* Cost without the user DTO
     line.
   - Leftovers: `grep -rn "ships to the browser" docs/ .claude/ application/ http-api/ packages/`.
+- **Introduces:** `contract-twins.test.ts` → `make test-unit` in this step; the pages listed
+  above, each written once. Removes later: none.
 - **Size:** ~260: the test ~110, the docs and records ~150.
 - **Test first:** Seam `apps/api/__tests__/contract-twins.test.ts` — with `Schema.isUUID()`
   dropped from the contract's `UserId` in `http-api/shared/ids.ts`, the test fails naming `UserId`;
@@ -316,6 +322,8 @@
   - Leftovers: `grep -rn "sideEffects" --include=package.json application http-api apps`;
     `grep -rnE "grep.*service keys|greps the service keys|service keys" docs/ .claude/ application/`.
 - **Size:** ~210.
+- **Introduces:** `bundle-check.mjs` → the `bundle-check` recipe; `browserPackages` → the script.
+  Removes later: none.
 - **Test first:** Seam `make bundle-check` — with `import { sql } from 'drizzle-orm'` planted in
   `packages/ui/index.ts` and used inside `joinClassNames`, today's check passes (the metafile
   names `drizzle-orm` 51 times); the new check fails naming `drizzle-orm` and the chain
