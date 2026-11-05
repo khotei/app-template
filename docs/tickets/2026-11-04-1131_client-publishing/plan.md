@@ -9,7 +9,7 @@
 | S1 | the ids, `Auth`, `CurrentUser` and `UserUnknownError` declared by the contract; identity's contract keeps `UserId` | done |
 | S2 | the contract on its own schemas: the user, attachment and chat groups, their mappers, the manifest declaring only `effect` | done |
 | S3 | the twins test over every twin, and the knowledge docs and records of the new boundary, each page written once | done |
-| S4 | the guards: the contract's Biome override bans every workspace; `make bundle-check` reads the metafile against `browserPackages` | todo |
+| S4 | the guards: the contract's Biome override bans every workspace; `make bundle-check` reads the metafile against `browserPackages` | done |
 
 ## How to run this plan
 
@@ -424,8 +424,32 @@
     - a server library through an allowed package (the new check's own: passes until S4) — `packages/ui/index.ts`: `import { sql } from 'drizzle-orm'`, `void sql` first in `joinClassNames` → exit 0 after `bun build`'s `node:net` polyfill warnings; the metafile names `drizzle-orm` 51 times, so the library is in the bundle unseen
     - a server entry of a shared workspace (the new check's own: passes until S4) — `apps/web/app/main.ts`: `import { Transaction } from '@app-template/packages/db'` and `console.log(Transaction.key)` → exit 0 after the same `node:net` warnings; the entry is in the bundle unseen
 - **Model:** `opus high`
-- **Status:** todo
-- **Findings:**
+- **Status:** done
+- **Findings:** passes: simplify (no change), Standards, Spec, Design; no hunt (no retry, fallback
+  or fake). `make check` green (245 unit, 104 e2e); rounds S4.1, S4.2. Every planted probe of the
+  plan ran and was reverted.
+  - Deviation — Bun records a folder import as `<folder>.js` while its input is
+    `<folder>/index.js`; the script tries both, or a chain stops at that import.
+  - Deviation — `bun build --target browser` keeps polyfilled built-ins as inputs (`node:crypto`);
+    each is its own package and is refused.
+  - Deviation — a barrel the bundler dropped is no input, so a chain through it is rebuilt
+    backwards from the refused input and shows `… (a module the bundle dropped)` at the gap. No
+    Verify item runs the gap path; the relative-import probe of S4.1 did.
+  - Deviation — every refused package is reported once with its shortest chain, not only the first.
+  - Deviation — more cases exit 2 than the plan lists: an entry not among the inputs, a manifest
+    without `name`, an entry manifest without `browserPackages`.
+  - Deviation — `docs/knowledge/roadmap.md` entry 7 ("keep that grep") rewritten to the metafile
+    check, found by the plan's leftovers grep.
+  - Deviation — the R6 probe ran in the tree, not in a `git clone --local`: `application/` had
+    lost its flag already, so removing `http-api`'s covered "every flag removed"; restored after.
+  - Design — accepted, fixed in S4.2: one backward walk in place of a forward map stitched to a
+    backward one; the manifest cache dropped. Main session decision: after the first S4.2 pass a
+    package's chain ran to its first input, not the shortest; restored, because R7 and this step
+    ask for the shortest chain.
+  - Design — rejected: choosing the export subpath in one chained expression (no gain).
+  - Standards — none; one 101-character line in `decisions.md` left (`doc-lint` is green).
+  - Spec — accepted, fixed in S4.2: the ticket's `architecture.md › Contracts` described the old
+    check (a second argument, a folder mapping).
 
 ## Requirement coverage
 

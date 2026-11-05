@@ -10,14 +10,10 @@ function stop(reason) {
   process.exit(2)
 }
 
-const manifests = new Map()
-
 function manifestOf(file) {
   for (let folder = dirname(file); ; folder = dirname(folder)) {
     const path = join(folder, 'package.json')
-    if (!manifests.has(path) && existsSync(path))
-      manifests.set(path, JSON.parse(readFileSync(path, 'utf8')))
-    if (manifests.has(path)) return { path, folder, manifest: manifests.get(path) }
+    if (existsSync(path)) return { path, folder, manifest: JSON.parse(readFileSync(path, 'utf8')) }
     if (dirname(folder) === folder) stop(`no package.json above ${file}`)
   }
 }
@@ -60,37 +56,28 @@ if (!(entry in inputs)) stop(`${metafile} lists no input for its entry point ${e
 const inputAt = (path) =>
   [path, path.replace(/(\.[a-z]+)$/, '/index$1')].find((candidate) => candidate in inputs) ?? []
 
-const imported = new Map()
 const importers = new Map()
 for (const [file, input] of Object.entries(inputs)) {
   if (!Array.isArray(input.imports)) stop(`${file} has no imports in ${metafile}`)
-  imported.set(file, [...new Set(input.imports.flatMap(({ path }) => inputAt(path)))])
-  for (const path of imported.get(file)) importers.set(path, [...(importers.get(path) ?? []), file])
+  for (const path of new Set(input.imports.flatMap((imported) => inputAt(imported.path))))
+    importers.set(path, [...(importers.get(path) ?? []), file])
 }
 
-const reachedFrom = new Map([[entry, null]])
-for (const file of reachedFrom.keys())
-  for (const path of imported.get(file) ?? [])
-    if (!reachedFrom.has(path)) reachedFrom.set(path, file)
+// The shortest chain, walked back from the input through its importers to the entry. A module the
+// bundle dropped (a re-export a side-effects flag let go) is no input, so a chain through it starts
+// at the topmost importer the walk finds.
+const dropped = '… (a module the bundle dropped)'
 
-// A module the bundle dropped (a re-export a side-effects flag let go) is no input, so an input
-// behind it is reached backwards, through its importers, up to one the entry reaches.
 function chainTo(file) {
   const leadsTo = new Map([[file, null]])
-  for (const current of leadsTo.keys()) {
-    if (reachedFrom.has(current)) {
-      const chain = []
-      for (let step = current; step !== null; step = reachedFrom.get(step)) chain.unshift(step)
-      for (let step = leadsTo.get(current); step !== null; step = leadsTo.get(step))
-        chain.push(step)
-      return chain
-    }
+  for (const current of leadsTo.keys())
     for (const importer of importers.get(current) ?? [])
       if (!leadsTo.has(importer)) leadsTo.set(importer, current)
-  }
-  const top = [...leadsTo.keys()].find((step) => !importers.has(step))
-  const chain = [entry, '… (a module the bundle dropped)']
-  for (let step = top ?? file; step !== null; step = leadsTo.get(step)) chain.push(step)
+  const top = leadsTo.has(entry)
+    ? entry
+    : ([...leadsTo.keys()].find((step) => !importers.has(step)) ?? file)
+  const chain = top === entry ? [] : [entry, dropped]
+  for (let step = top; step !== null; step = leadsTo.get(step)) chain.push(step)
   return chain
 }
 
@@ -100,16 +87,19 @@ if (!Array.isArray(allowed)) stop(`${manifest.path} has no browserPackages list`
 const allowedPackages = new Set([packageOf(entry), ...allowed])
 
 const refused = new Map()
-for (const file of [...reachedFrom.keys(), ...Object.keys(inputs)]) {
+for (const file of Object.keys(inputs)) {
   const name = packageOf(file)
-  if (!allowedPackages.has(name) && !refused.has(name)) refused.set(name, file)
+  if (!allowedPackages.has(name)) refused.set(name, [...(refused.get(name) ?? []), file])
 }
-for (const [name, file] of refused) {
+
+// A chain with a gap ranks after every whole one; a tie keeps the first.
+const rankOf = (chain) => (chain[1] === dropped ? Number.POSITIVE_INFINITY : chain.length)
+
+for (const [name, files] of refused) {
+  const shortest = files
+    .map(chainTo)
+    .reduce((best, chain) => (rankOf(chain) < rankOf(best) ? chain : best))
   console.error(`bundle-check: ${name} is not in ${manifest.path} › browserPackages`)
-  console.error(
-    chainTo(file)
-      .map((step, index) => `${index === 0 ? ' ' : '→'} ${step}`)
-      .join('\n'),
-  )
+  console.error(shortest.map((step, index) => `${index === 0 ? ' ' : '→'} ${step}`).join('\n'))
 }
 process.exit(refused.size === 0 ? 0 : 1)

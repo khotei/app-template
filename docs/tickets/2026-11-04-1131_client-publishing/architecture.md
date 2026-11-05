@@ -150,18 +150,26 @@ it.effect.each(twins)('$name: the contract declares the domain\'s checks', ({ co
 ```sh
 # Makefile › bundle-check
 bun build apps/web/app/main.ts --outdir $(WEB_BUNDLE) --target browser --metafile=$(WEB_BUNDLE)/meta.json
-bun .misc/lint/bundle-check.mjs $(WEB_BUNDLE)/meta.json apps/web/package.json
-# on a refusal:
-# bundle-check: @app-template/application/chat is not in apps/web/package.json › browserPackages
-#   apps/web/app/main.ts → apps/web/features/health/health-panel.ts → http-api/index.ts
-#   → http-api/chat/chat.http.ts → application/chat/index.ts
+bun .misc/lint/bundle-check.mjs $(WEB_BUNDLE)/meta.json
+# on a refusal, one per refused package, exit 1:
+# bundle-check: drizzle-orm is not in apps/web/package.json › browserPackages
+#   apps/web/app/main.ts
+# → apps/web/features/health/health-panel.ts
+# → packages/ui/index.ts
+# → node_modules/.bun/drizzle-orm@<version>+<hash>/node_modules/drizzle-orm/index.js
 ```
 
-The metafile (`bun build --metafile`, Bun 1.4.3) lists every input by its path from the repo
-root with its `imports` (`path`, `kind`, `original`), so the script maps an input to a package
-(the last `node_modules/<name>` or `node_modules/@<scope>/<name>` on its path, else
-`@app-template/<folder>` plus the unit folder for `packages/` and `application/`) and walks the
-graph from the entry to print the shortest chain to the refused input.
+The metafile (`bun build --metafile`, Bun 1.4.3) lists every input the bundle keeps by its path
+from the repo root with its `imports` (`path`, `kind`, `original`). The script takes the metafile
+alone and reads the list from the entry's manifest, the nearest `package.json` above the one
+`outputs[*].entryPoint`. It maps an input to a package: the last `node_modules/<name>` or
+`node_modules/@<scope>/<name>` on its path; a `node:<name>` input (a built-in Bun polyfills) is
+its own package; any other input is the nearest `package.json`'s `name` plus the subpath of the
+export whose target folder holds it (`@app-template/packages/ui`). Bun records an import of a
+folder as `<folder>.js` while the input is `<folder>/index.js`, so the script tries both. Every
+refused package is reported once, with its shortest chain to the package from the entry,
+walked back through the importers; a chain through a module the bundler dropped (a re-export a side-effects flag let
+go, so no input) shows a gap there, `… (a module the bundle dropped)`.
 
 ## Data
 
@@ -280,7 +288,8 @@ settled in D2.
     web depends on, and the list sits beside the dependencies it narrows.
   - **Cost accepted:** a package the list allows may itself grow a server import unseen; the
     list is a second statement of the web's Biome override, at the bundle's level. The check
-    depends on Bun's metafile shape; a change there stops it with exit 2, never a clean pass.
+    depends on Bun's metafile shape; a change there stops it with exit 2, never a clean pass. A
+    chain through a module the bundler dropped shows a gap there.
   - **Reversal:** one commit, back to the `grep`.
   - **Record:** rewrites the bundle-check lines of *Guards are configuration* and of *A
     module's layers* › Guarded by.
