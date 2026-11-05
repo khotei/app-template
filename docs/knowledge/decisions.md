@@ -206,8 +206,7 @@ domain's errors as they are; the web calls it. Nothing of `application/` reaches
   marker is internal to Effect, so an upgrade that drops it turns every domain error into a
   `500`.
 - **Guarded by:** the `http-api/**` override, an allow-list that refuses every import but
-  `effect`, `effect/<module>` and the contract's own `#http-api/…` files, so a package
-  installed at the root fails as a workspace or a built-in does; `"types": []` in its
+  `effect`, `effect/<module>` and the contract's own `#http-api/…` files; `"types": []` in its
   `tsconfig.json`, so a `Bun` or `process` global fails `tsc`; the api's twins test, which
   compares each contract schema with the domain export of the same name by its representation
   and encodes a domain error through the contract's class; the `buildApi<Model>` mappers and

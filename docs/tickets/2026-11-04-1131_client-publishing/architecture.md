@@ -67,8 +67,9 @@ are `effect`, `http-api` and `packages/ui`.
   more, and the flag promised what the bundle check never proved.
 - **`apps/web`.** No client code changes. Its `package.json` gains the list of the packages the
   browser bundle may hold (D5); `make bundle-check` reads it.
-- **Guards.** `.misc/lint/biome.base.json`: the `http-api/**` override shrinks to one pattern, which also refuses the `node:` and `bun`
-  built-ins;
+- **Guards.** `.misc/lint/biome.base.json`: the `http-api/**` override is an allow-list: every import but `effect`, `effect/<module>` and
+  the contract's own `#http-api/…` files is refused, and an alias that climbs out through `..`
+  is refused again;
   the `apps/web/**` override stays. `Makefile › bundle-check` builds with `--metafile` and runs
   `.misc/lint/bundle-check.mjs` instead of the `grep`. No repository folder name remains in the
   check.
@@ -191,7 +192,7 @@ settled in D2.
 | `make api-check` (`http-api/openapi.json`) | any route, field, status or error shape the contract changes (R4) | a schema's checks that JSON Schema does not carry (a pattern's `i` flag); the component names are documentation, not wire |
 | `apps/api/__tests__/contract-twins.test.ts` | a constraint that differs between a contract schema and the domain export of the same name: a limit, a pattern and its flags, a UUID version, a literal added or removed; a class whose identifier or fields differ (R5); one hand-written case proves a domain error instance encodes through the contract's class, so an Effect upgrade that drops the class marker fails here | a twin declared under another name (review, `http-api/CLAUDE.md`); a brand's name, which the representation does not carry (tsc catches it through the mappers and `CurrentUser`) |
 | `make typecheck` (the mappers, `CurrentUser`) | a brand renamed, a tag or literal drifted, a field renamed or made optional on one side only: the model's own mapper no longer typechecks (R5, R8) | a value-level constraint (the twins test) |
-| `make lint` (`.misc/lint/biome.base.json`: the `http-api/**` and `apps/web/**` overrides) | an import of any workspace, `@effect/*` package or `node:`/`bun` built-in in the contract (R1); a web client import outside `http-api` and `packages/ui` | what reaches the bundle through an allowed import (the bundle check) |
+| `make lint` (`.misc/lint/biome.base.json`: the `http-api/**` and `apps/web/**` overrides) | an import in the contract of anything but `effect`, `effect/<module>` or its own `#http-api/…` files (R1); a web client import outside `http-api` and `packages/ui` | what reaches the bundle through an allowed import (the bundle check) |
 | `make bundle-check` (`.misc/lint/bundle-check.mjs` over the metafile) | a package outside `browserPackages` in the built bundle, with the chain that brought it, whether a side-effects flag holds or not (R6, R7); a server library pulled by an allowed package | a type-only import (erased, as it should be); a package the list allows that later grows a server import |
 | `make test-e2e` (`apps/e2e/api/chat.e2e.ts`) | the assembled apps answering through the contract on real stores | nothing the seams above do not already prove; it changes only where the shapes change |
 

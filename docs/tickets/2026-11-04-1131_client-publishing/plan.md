@@ -13,7 +13,7 @@
 | S5 | the chat and message mappers hand nested attachments to `buildApiAttachment`, so a wire rename inside the attachment edits one mapper | done |
 | S6 | the contract imports no `node:*` and no `bun:*`: Biome ban and no `bun` types | done |
 | S7 | `naming.md` allows the contract's ids, models and errors in its `.http` files; the reviewer owns the "step that does not stand alone" check | done |
-| S8 | the contract's Biome override becomes an allow-list: only `effect`, `effect/*` and relative paths inside `http-api/` | todo |
+| S8 | the contract's Biome override becomes an allow-list: only `effect`, `effect/*` and the contract's own `#http-api/…` files | done |
 | S9 | the message failure's reason is one named schema on both sides, so the twins test pairs it | done |
 | S10 | `implementer.md` points to `reviewer.md`; `ticket-implement` says when the hunt runs on a behaviour step | done |
 
@@ -573,7 +573,8 @@
 #### S8 — The contract imports only Effect
 
 - **Delivers:** the `http-api/**` Biome override refuses every import except `effect`, `effect/*`
-  and relative paths inside `http-api/`, in place of the four banned families; if Biome's
+  and the contract's own files through `#http-api/…` (an alias that climbs out through `..` is
+  refused), in place of the four banned families; if Biome's
   negated patterns cannot say it, a small import check over the contract's files in the style of
   `.misc/lint/bundle-check.mjs`, run by `make lint`.
 - **Goal:** R1 — an import of any package but `effect` fails `make check` naming it (verification
@@ -592,7 +593,24 @@
     failing, with the new message;
   - `make check` — green.
 - **Model:** `opus medium`.
-- **Status:** `todo`.
+- **Status:** `done`.
+- **Findings:** passes: Standards, Spec (rounds S8.1, S8.2); no simplify, no hunt. `make check`
+  green (246 unit, 104 e2e).
+  - Probe — before: `vitest`, `drizzle-kit` and `import('typescript')` passed `bunx biome lint`
+    (`Found 4 errors` for the four refused families only); after: `vitest`, a workspace,
+    `@effect/vitest`, `node:fs`, `bun:sqlite` each fail `make lint` naming the import; `effect`,
+    `effect/http-api` and `#http-api/shared/ids` raise nothing.
+  - Deviation — own files are allowed through `#http-api/**`, not relative paths: the contract
+    reaches them through that alias, and the Grit plugin refuses relative paths everywhere.
+  - Deviation — Biome's globs take no braces, so the `..` re-refusal is two entries
+    (`#http-api/**/..`, `#http-api/**/../**`); worktree number N=4, not 1 (held by the main tree).
+  - Deviation — `http-api/CLAUDE.md` joined the step's Files: its import bullet listed the old
+    families.
+  - Standards — accepted, fixed in S8.2: a clause of the `decisions.md` record was hard to parse.
+  - Spec — accepted, fixed in S8.1/S8.2: `architecture.md` (Guards, `make lint` row) described the
+    old ban; the main session wrote both.
+  - Spec — accepted, fixed in S8.2: `#http-api/../apps/api/x` passed the allow-list through `..`.
+  - Not probed — `effect/..` is matched by `!effect/*`; `tsc` should refuse it (not an export).
 
 #### S9 — The message failure's reason on both sides
 

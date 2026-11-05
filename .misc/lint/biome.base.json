@@ -69,7 +69,14 @@
               "options": {
                 "patterns": [
                   {
-                    "group": ["**", "!effect", "!effect/*", "!#http-api/**"],
+                    "group": [
+                      "**",
+                      "!effect",
+                      "!effect/*",
+                      "!#http-api/**",
+                      "#http-api/**/..",
+                      "#http-api/**/../**"
+                    ],
                     "message": "the API contract imports only effect, effect/<module> and its own files through #http-api/…: no workspace, no other package, no node: or bun built-in (decisions.md › The API contract on its own; Guards are configuration)"
                   }
                 ]
