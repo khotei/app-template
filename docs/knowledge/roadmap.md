@@ -769,10 +769,9 @@ What its third verification left open
   - **The review loop closes:** at verification only a hard violation or an unmet requirement
     starts a step; a judgement finding (the simplifications below) goes here. After two runs the
     ticket closes, with its known limits in `verification.md`.
-  - **Its lessons L1–L4:**
+  - **Its lessons L1–L3:**
     - a step that reverses a decision lists the record in its Files;
     - a lesson about an agent's tool habit proposes a check of the output, never a hook;
-    - the verifier and the researcher are told that `rm -rf` is denied and to use `rm -r`;
     - plus L2, the R4 line above.
   - **Its simplifications:**
     - `researcher.md` gets one bullet on where it may write;

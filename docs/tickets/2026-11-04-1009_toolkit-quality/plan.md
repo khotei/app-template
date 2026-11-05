@@ -29,7 +29,7 @@
 | S21 | no hook or instruction line refuses or steers which tool an agent reads, searches or edits with | done |
 | S22 | the implementer's gate refuses to finish when it cannot find the agent's tree, instead of checking another one | todo |
 | S23 | a `BLOCKED:` set in Markdown emphasis lets the implementer stop | todo |
-| S24 | `rm -rf` is no longer denied: the deny stopped agents and protected nothing | todo |
+| S24 | `rm -rf` is no longer denied: the deny stopped agents and protected nothing | done |
 | S25 | `make worktree` refuses a number another live worktree holds, one whose ports pass 65535, and a renumbered worktree | todo |
 | S26 | the lines that still named a read or search tool state what to read instead | todo |
 | S27 | an agent's worktree branches from the ticket branch on every machine, not only the user's | todo |
@@ -1210,7 +1210,17 @@
     until both change.
   - `make check` green.
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:** passes that ran: Standards (sonnet) and Spec on S24.1; S24.2 checked by the main
+  session against its finding. No `simplify`, Design or hunt, a config step. Implementer on
+  `opus medium` in the worktree `toolkit-quality-S24-rm-deny` (N=4), about 2.7 and 1.4 min.
+  Verify: the `jq` check printed `false` before and `true` after; the `git grep` printed
+  `.claude/settings.json:109` and `docs/knowledge/roadmap.md:775` before and nothing after
+  (exit 1); `make check` exit 0. Rounds S24.1 and S24.2 land as one commit, on the user's word.
+  - Spec — accepted, fixed in S24.2 — `roadmap.md:775` sat in the list of what run 3 left open
+    while it described S24's change as done; the bullet goes and the list names L1–L3.
+  - Implementer — rejected — add "L4 later closed by S24" to run 3's `verification.md:361`: it
+    is the record of that run.
 
 #### S25 — `make worktree` refuses a number in use
 

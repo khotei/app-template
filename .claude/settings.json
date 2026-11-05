@@ -106,7 +106,7 @@
       "Bash(git clean*)",
       "Bash(git stash clear*)"
     ],
-    "deny": ["Bash(rm -rf *)", "Bash(sudo *)", "Bash(npm *)", "Bash(yarn *)", "Bash(pnpm *)"]
+    "deny": ["Bash(sudo *)", "Bash(npm *)", "Bash(yarn *)", "Bash(pnpm *)"]
   },
   "extraKnownMarketplaces": {
     "app-template": { "source": { "source": "directory", "path": "./.misc/claude" } }
