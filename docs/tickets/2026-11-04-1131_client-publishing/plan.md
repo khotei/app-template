@@ -10,7 +10,7 @@
 | S2 | the contract on its own schemas: the user, attachment and chat groups, their mappers, the manifest declaring only `effect` | done |
 | S3 | the twins test over every twin, and the knowledge docs and records of the new boundary, each page written once | done |
 | S4 | the guards: the contract's Biome override bans every workspace; `make bundle-check` reads the metafile against `browserPackages` | done |
-| S5 | the chat and message mappers hand nested attachments to `buildApiAttachment`, so a wire rename inside the attachment edits one mapper | todo |
+| S5 | the chat and message mappers hand nested attachments to `buildApiAttachment`, so a wire rename inside the attachment edits one mapper | done |
 | S6 | the contract imports no `node:*` and no `bun:*`: Biome ban and no `bun` types | todo |
 | S7 | the `.http` row of `naming.md` allows the contract's models and errors; the reviewer owns the "step that does not stand alone" check | todo |
 
@@ -477,7 +477,17 @@
     `application/` and in the handlers that read `AttachmentUpload.fileName` are the rename's own
     and are left out. Reverted after.
 - **Model:** `opus medium`.
-- **Status:** `todo`.
+- **Status:** `done`.
+- **Findings:** passes: Standards, Spec; no simplify (no new interface), no hunt (no write guard,
+  fake or retry). `make check` green (246 unit, 104 e2e).
+  - Deviation — `Struct.evolve` takes the model as its first argument: curried, TypeScript infers
+    the subject as `object` and the result no longer types as `ApiChat`.
+  - Planted (R8): the rename `Attachment.fileName` → `name` gave three errors in two files in
+    `apps/api` before the step and one, in `attachment.mapper.ts`, after.
+  - Standards — none.
+  - Spec — accepted, fixed in this commit: `architecture.md` described the chat mappers as the
+    identity (Contracts entry, D6 heading, the `make typecheck` Seams row).
+
 
 #### S6 — No `node:*` and no `bun:*` in the contract
 

@@ -1,6 +1,13 @@
+import { Array as Arr, Struct } from 'effect'
+
 import type { Chat, Message } from '@app-template/application/chat'
 import type { ApiChat, ApiMessage } from '@app-template/http-api'
 
-export const buildApiChat = (chat: Chat): ApiChat => chat
+import { buildApiAttachment } from '#api/attachment/attachment.mapper'
 
-export const buildApiMessage = (message: Message): ApiMessage => message
+const attachments = Arr.map(buildApiAttachment)
+
+export const buildApiChat = (chat: Chat): ApiChat => Struct.evolve(chat, { attachments })
+
+export const buildApiMessage = (message: Message): ApiMessage =>
+  Struct.evolve(message, { attachments })

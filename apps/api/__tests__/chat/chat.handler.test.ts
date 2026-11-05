@@ -97,6 +97,36 @@ describe('chats', () => {
       }).pipe(Effect.provide(ApiTest)),
   )
 
+  it.effect('a chat and its message carry a sent attachment on the wire', () =>
+    Effect.gen(function* () {
+      const api = yield* ApiClient
+      const http = yield* HttpClient.HttpClient
+      const chat = yield* openChat
+      const form = new FormData()
+      form.append('files', new File(['png'], 'photo.png', { type: 'image/png' }))
+      const uploaded = yield* api.attachments.upload({ payload: form }).pipe(Effect.head)
+      const { userMessage } = yield* api.chats.send({
+        params: { chatId: chat.id },
+        payload: { text: 'Hello', attachmentIds: [uploaded.id] },
+      })
+
+      const wires = yield* Effect.forEach(
+        [`/chats/${chat.id}`, `/chats/${chat.id}/messages/${userMessage.id}`],
+        (url) => http.get(url).pipe(Effect.flatMap((response) => response.json)),
+      )
+
+      Arr.forEach(wires, (wire) =>
+        assert.deepNestedInclude(wire, {
+          'attachments[0].id': uploaded.id,
+          'attachments[0].messageId': userMessage.id,
+          'attachments[0].chatId': chat.id,
+          'attachments[0].fileName': 'photo.png',
+          'attachments[0].createdAt': DateTime.formatIso(uploaded.createdAt),
+        }),
+      )
+    }).pipe(Effect.provide(ApiTest)),
+  )
+
   it.effect('two concurrent sends to one chat answer one 202 and one 409 ChatBusyError', () =>
     Effect.gen(function* () {
       const api = yield* ApiClient

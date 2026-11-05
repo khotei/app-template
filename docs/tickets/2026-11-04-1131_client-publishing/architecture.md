@@ -117,9 +117,12 @@ export class Auth extends HttpApiMiddleware.Service<Auth, { provides: CurrentUse
 ```
 
 ```ts
-// apps/api/chat/chat.mapper.ts — the identity while the shapes match; tsc fails it on a drift
-export const buildApiChat = (chat: Chat): ApiChat => chat
-export const buildApiMessage = (message: Message): ApiMessage => message
+// apps/api/chat/chat.mapper.ts — the identity on its own fields; a nested model goes through its
+// own mapper; tsc fails it on a drift
+const attachments = Arr.map(buildApiAttachment)
+export const buildApiChat = (chat: Chat): ApiChat => Struct.evolve(chat, { attachments })
+export const buildApiMessage = (message: Message): ApiMessage =>
+  Struct.evolve(message, { attachments })
 
 // apps/api/chat/chat.handler.ts
 .handle('get', Effect.fn('ChatHandler.get')(function* ({ params }) {
@@ -185,7 +188,7 @@ settled in D2.
 | `ApiClient` over `ApiServerTest` (`apps/api/__tests__/<group>/<entity>.handler.test.ts`) | the round trip through the contract: a chat read back as `Option`, `DateTime` and a branded id, a refusal caught by its tag as the contract's class (R2); on the raw `HttpClient`, `title: null`, an ISO date, a domain error's status and a domain-only field (`cause`) absent from the JSON (R3); a handler that forgets its mapper only where the shapes differ | the web's own code, which has no test; a mapper that is the identity (tsc proves it) |
 | `make api-check` (`http-api/openapi.json`) | any route, field, status or error shape the contract changes (R4) | a schema's checks that JSON Schema does not carry (a pattern's `i` flag); the component names are documentation, not wire |
 | `apps/api/__tests__/contract-twins.test.ts` | a constraint that differs between a contract schema and the domain export of the same name: a limit, a pattern and its flags, a UUID version, a literal added or removed; a class whose identifier or fields differ (R5); one hand-written case proves a domain error instance encodes through the contract's class, so an Effect upgrade that drops the class marker fails here | a twin declared under another name (review, `http-api/CLAUDE.md`); a brand's name, which the representation does not carry (tsc catches it through the mappers and `CurrentUser`) |
-| `make typecheck` (the mappers, `CurrentUser`) | a brand renamed, a tag or literal drifted, a field renamed or made optional on one side only: the identity mapper no longer typechecks (R5, R8) | a value-level constraint (the twins test) |
+| `make typecheck` (the mappers, `CurrentUser`) | a brand renamed, a tag or literal drifted, a field renamed or made optional on one side only: the model's own mapper no longer typechecks (R5, R8) | a value-level constraint (the twins test) |
 | `make lint` (`.misc/lint/biome.base.json`: the `http-api/**` and `apps/web/**` overrides) | an import of any workspace or `@effect/*` package in the contract (R1); a web client import outside `http-api` and `packages/ui` | what reaches the bundle through an allowed import (the bundle check) |
 | `make bundle-check` (`.misc/lint/bundle-check.mjs` over the metafile) | a package outside `browserPackages` in the built bundle, with the chain that brought it, whether a side-effects flag holds or not (R6, R7); a server library pulled by an allowed package | a type-only import (erased, as it should be); a package the list allows that later grows a server import |
 | `make test-e2e` (`apps/e2e/api/chat.e2e.ts`) | the assembled apps answering through the contract on real stores | nothing the seams above do not already prove; it changes only where the shapes change |
@@ -301,7 +304,8 @@ settled in D2.
       the web may import.
 
 - **D6 — One mapper per response model, `buildApi<Model>` in `apps/api/<group>/<entity>.mapper.ts`,
-  the identity while the shapes match; inputs have none.**
+  the identity while the shapes match, a nested response model through its own mapper; inputs
+  have none.**
   - **Why:** renaming a nested domain field on the wire broke 8 of 13 handlers without a
     mapper and only the mappers with one (the prototype's experiment); one handler reads each
     payload, so an input needs no mapper. The api is the one place that knows both shapes.
