@@ -241,8 +241,10 @@ container and volume after the stage:
 | `RDS_BASE_PORT` | `15432 + 10N` | 15432 | 15442 |
 | `STAGE` | `local<N>` | `local` | `local1` |
 
-`make worktree N=<n> NAME=<name>`, run inside the new worktree, writes it; how parallel steps
-use it:
+`make worktree N=<n> NAME=<name>`, run inside the new worktree, writes it. It refuses an `N`
+another live worktree's `.env` holds as its stage, an `N` above 5010 (`RDS_BASE_PORT` would pass
+65535), and a worktree already set up under another `N`, whose containers would keep running;
+a rerun with the same `N` passes. How parallel steps use it:
 [`ticket-implement` › Parallel steps](../../.claude/skills/ticket-implement/parallel-steps.md).
 Run `make reset` in a worktree before it is removed, or its containers outlive it and keep their
 ports, and the database's volume stays.

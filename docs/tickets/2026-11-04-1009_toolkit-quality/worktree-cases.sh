@@ -39,6 +39,7 @@ next=$main/.claude/worktrees/agent-x
 case_ main-tree "$main" 2 x-S1-a 1 3000
 case_ n-taken "$next" 1 x-S1-a 1 -
 case_ n-too-big "$next" 5011 x-S1-a 1 -
+case_ n-overflow "$next" 922337203685477580 x-S1-a 1 -
 case_ n-free "$next" 2 x-S1-a 0 3020
 case_ n-rerun "$next" 2 x-S1-a 0 3020
 case_ n-renumber "$next" 3 x-S1-a 1 3020

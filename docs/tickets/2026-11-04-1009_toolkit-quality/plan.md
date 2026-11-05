@@ -30,7 +30,7 @@
 | S22 | the implementer's gate refuses to finish when it cannot find the agent's tree, instead of checking another one | done |
 | S23 | a `BLOCKED:` set in Markdown emphasis lets the implementer stop | todo |
 | S24 | `rm -rf` is no longer denied: the deny stopped agents and protected nothing | done |
-| S25 | `make worktree` refuses a number another live worktree holds, one whose ports pass 65535, and a renumbered worktree | todo |
+| S25 | `make worktree` refuses a number another live worktree holds, one whose ports pass 65535, and a renumbered worktree | done |
 | S26 | the lines that still named a read or search tool state what to read instead | todo |
 | S27 | an agent's worktree branches from the ticket branch on every machine, not only the user's | todo |
 
@@ -1250,7 +1250,8 @@
   `.env` already holds as its stage, an `N` whose highest port would pass 65535 (`RDS_BASE_PORT`,
   `15432 + 10 × N`, so `N` above 5010; the four ports end in 0, 1, 6 and 2, so no two of any `N`
   meet), and a worktree already set up under another `N`, whose containers would be left
-  running; a rerun with its own `N` still passes. Today all three pass and rewrite the ports.
+  running; a rerun with its own `N` still passes. Today all three pass and rewrite the ports. An
+  `N` of six digits or more, which the shell's arithmetic would overflow, is refused too.
 - **Goal:** each worktree keeps its own ports and containers (`docs/knowledge/tooling.md ›
   Worktrees`), checked by the script rather than by the main session's count.
 - **Blocked by:** none.
@@ -1260,11 +1261,37 @@
 - **Test first:** A toolkit script fed its input — `sh <ticket>/worktree-cases.sh` prints `FAIL`
   for `n-taken`, `n-too-big` and `n-renumber` today.
 - **Verify:**
-  - `sh docs/tickets/2026-11-04-1009_toolkit-quality/worktree-cases.sh` prints six `PASS` lines
-    and exits 0; fails while any of the three refusals passes.
+  - `sh docs/tickets/2026-11-04-1009_toolkit-quality/worktree-cases.sh` prints seven `PASS` lines
+    and exits 0; fails while any of the four refusals passes.
   - `make check` green.
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:** passes that ran on S25.1: Standards (sonnet), Spec, Design, hunt; a second hunt on
+  S25.2 alone, since it reordered the script's writes; S25.3 checked by the main session against
+  its findings. Each `reviewer` spawned directly with the brief `code-review`'s overrides would
+  give. No `simplify`: skipped by the main session, Design's four cuts taken instead. Implementer
+  on `opus medium` in the worktree `toolkit-quality-S25-worktree-n` (N=5), about 3.4, 2.6 and
+  2.1 min. Verify: before, `FAIL` for `n-taken`, `n-too-big` and `n-renumber`; after, seven
+  `PASS` lines (`n-overflow` added in S25.3, red first: `API_PORT -9223372036854772816`);
+  `make check` exit 0. Rounds S25.1–S25.3 land as one commit, on the user's word.
+  - hunt — accepted, fixed in S25.2 — `worktree.sh:36`: two runs given the same `N` at once
+    both passed, since the new `.env` appeared after `bun install`; a researcher confirmed it
+    (two runs, the second 0.5 s later, both `STAGE="local2"`). The scan reads `.env.new` too
+    and `.env` is written before the slow steps.
+  - Design — accepted, fixed in S25.2 — four cuts: the port bound from the computed
+    `RDS_BASE_PORT`, the stage line named once, the own stage read once, `refuse` out of the
+    piped subshell.
+  - hunt (S25.2) — accepted, fixed in S25.3 — an `N` of 19 digits overflowed to a negative port
+    that passed the bound (shown); six digits or more are refused before any arithmetic.
+  - hunt (S25.2) — accepted, fixed in S25.3 — two runs both between the scan and their drafts
+    still both pass: a known limit, no lock; the comment says the main session hands out
+    distinct `N`.
+  - hunt (S25.2) — accepted, fixed in S25.3 — a run killed by SIGKILL leaves `.env.new`, and a
+    later refusal named a tree whose `.env` showed another stage; the refusal names the file.
+  - Spec — rejected — a case at `N=5010`: it needs a third worktree in the case script, and the
+    bound now comes from the formula.
+  - Implementer — accepted, open — the harness refuses a `cd` into the readable symlink;
+    `parallel-steps.md` asks every path through it, so the agent used absolute paths.
 
 #### S26 — No line names a read or search tool
 
