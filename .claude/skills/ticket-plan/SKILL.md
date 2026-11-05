@@ -39,6 +39,8 @@ steps only conform to the plan. Gates: `.claude/rules/sdd.md`.
      - A step that adds, changes or removes a guard or a scope of one lists its probes as
        [guard-probes.md](guard-probes.md) beside this file says.
      - A step that edits a file a requirement measures re-measures it.
+     - A step that changes a guard, a mapper or a check greps its name over `architecture.md`, the
+       records and the `CLAUDE.md` files, and lists each line it rewrites.
      - A check that says "renaming X edits N files" plants the rename at X's deepest nesting (a
        field inside a model that another model embeds), not at the top level.
      - A check never reads "passes until S<n>" or names a state a later step changes; reorder

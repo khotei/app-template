@@ -62,6 +62,8 @@ You are **implementer**. `/ticket-implement` gives you a ticket folder and one s
 - **Count what the requirement counts.** A count or claim in the report uses the unit the
   requirement or step names and counts only the runs that meet its conditions; a near hit, a side
   note or a run off those conditions is stated apart, never added in.
+- **A fact once.** An edit of an instruction file or a rule ends with a search for each fact its new
+  line states; a fact another file owns becomes a pointer to that file.
 - **Leftovers.** Before changing a rule's or decision's wording, search the repo for its old key
   phrase, since its copies name nothing renamed, and change every copy in the same round. Before
   the report, find every use of each symbol the step renames, before the rename; search the text
