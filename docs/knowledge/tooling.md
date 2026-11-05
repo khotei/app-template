@@ -328,8 +328,10 @@ symlink and checks its sources either way.
 4. Add the path to the root `tsconfig.json` `references`.
 5. Run `bun install` and `make check`.
 
-A new workspace the browser imports gets an override like `http-api/**`'s in
-`.misc/lint/biome.base.json`; a new module, kernel part or package adds nothing there
+A new workspace the browser imports takes nothing of the app, as the API contract does
+([decisions.md › The API contract on its own](decisions.md#the-api-contract-on-its-own)): it
+gets an override like `http-api/**`'s in `.misc/lint/biome.base.json` and joins the
+`apps/web/**` override's allowed imports; a new module, kernel part or package adds nothing there
 ([decisions.md › Guards are configuration](decisions.md#guards-are-configuration)).
 
 ### Add a package

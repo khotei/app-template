@@ -19,21 +19,23 @@ Every dependency points inward, from the boundary to the behaviour to the data:
   attachments' objects and the jobs among them. It takes its clients from the context.
 - **The behaviour**, `application/`: the modules and above them every use case in
   `application/use-cases`. A module's `domain/` holds its models, pure rules, errors and the ports
-  that reach outside, and ships to the browser; its `services/` the domain services, the mappers
+  that reach outside; its `services/` the domain services, the mappers
   between an entity and a model and the job definitions, over the data layer's repositories; its
   `infrastructure/` the adapters of its ports; its `contract/`, once another module needs one,
   what other modules may take of it.
 - **The boundary**, everything that touches the world outside the process: the kernel's
   configured clients (`/config`, `/postgres`, `/aws`, `/queue`, `/llm`), each module's
-  `infrastructure/`, `http-api`, the HTTP contract the api and the web client share, and the
-  apps, thin entry points that assemble the layers and provide the clients.
+  `infrastructure/`, `http-api`, the API contract the api implements and the web client calls,
+  which declares the wire itself and imports only `effect`, and the apps, thin entry points that
+  assemble the layers and provide the clients. Nothing of `application/` reaches the browser.
 
 `packages/*` holds generic tools, configured by their caller, that know no app. `deployment/`
 provisions the stores, locally and on AWS ([aws.md](aws.md)). What each ring and layer may import:
 [Dependency rules](#dependency-rules). The records:
 [Modules by capability](decisions.md#modules-by-capability),
 [A module's layers](decisions.md#a-modules-layers), [One kernel](decisions.md#one-kernel),
-[The data at the centre](decisions.md#the-data-at-the-centre).
+[The data at the centre](decisions.md#the-data-at-the-centre),
+[The API contract on its own](decisions.md#the-api-contract-on-its-own).
 
 ```mermaid
 graph TD
@@ -74,7 +76,7 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 | `kernel/data` | ✗ | ✗ | ✗ | — | ✗ | ✓ | ✗ | `kernel/data/**` |
 | rest of `kernel` | ✗ | ✗ | ✗ | ✓ | ✓, the parts below it | ✓ | ✗ | TS2307, a module, `use-cases`, `http-api`; a part above it: `noImportCycles` on a cycle, else review |
 | `packages/*` | ✗ | ✗ | ✗ | ✗ | ✗ | ✓, the ones below it | ✗ | `biome-imports.grit` and TS2307, any workspace; a package above it: `noImportCycles` on a cycle, else review |
-| `http-api` | its domain only: no service, mapper or adapter by name | ✓ | ✗ | ✗ | ✗ | ✗ | — | `http-api/**` |
+| `http-api` | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | — | `http-api/**` |
 | `apps/api` | ✓, a mapper in `layer.ts` only | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | ✓ | `biome-imports.grit`, another app and `deployment`; review, the data and the mappers |
 | `apps/worker` | ✓, a mapper in `layer.ts` only | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | ✗ | `biome-imports.grit`, another app and `deployment`; TS2307, `http-api`; review, the data and the mappers |
 | `apps/web` client | ✗ | ✗ | ✗ | ✗ | ✗ | `ui` only | ✓ | `apps/web/**`; `make bundle-check` |
@@ -92,10 +94,12 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 - **The apps** never import each other or `deployment`:
   [Independent apps](decisions.md#independent-apps). What a handler may call and import:
   [layering.md › Handlers](../../.claude/rules/layering.md#handlers).
-- **A module's `domain/` and a contract import only `effect`** (and `type-fest` for types), and
-  neither they nor a module's `services/` nor `http-api` import an `@effect/*` package: the
-  domain ships to the browser through `http-api`, and what that asks of its code is
-  [application/CLAUDE.md](../../application/CLAUDE.md)'s.
+- **`http-api` imports only `effect`:** it is the browser's whole way into the app, so it
+  declares every id, constrained string, model shape and error itself
+  ([The API contract on its own](decisions.md#the-api-contract-on-its-own)). **A module's
+  `domain/` and a contract import only `effect`** too (and `type-fest` for types), and neither
+  they nor a module's `services/` import an `@effect/*` package
+  ([A module's layers](decisions.md#a-modules-layers)).
 - **A dependency on a module's contract counts as one on the module**, so two modules that import
   each other's contracts form a cycle, refused by review where no tool sees it
   ([modules.md](../../.claude/rules/modules.md)).
@@ -154,8 +158,9 @@ Using the files of `chat` as the map:
 | database client and migrations | `kernel/data/db.client.ts`, `kernel/data/migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |
 | the queue's transport | `kernel/queue/queue.client.ts`, `job.relay.ts` | the sender, the consumer and the relay ([database.md › The outbox](database.md#the-outbox)) |
 | database tools any app could use | `packages/db/` | `Transaction`, `createDb`, the shared columns |
-| contract group | `http-api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`), the DTOs |
+| contract group | `http-api/chat/chat.http.ts`; the ids in `http-api/shared/ids.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Schema.Struct`); the domain's twins under its names: `ChatTitle`, `ChatStatus`, `ChatNotFoundError` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
+| mapper from a model to its wire shape | `apps/api/chat/chat.mapper.ts` | `buildApiChat`, `buildApiMessage` |
 | worker handler: a queue's consumer over a use case | `apps/worker/chat/assistant-message.handler.ts` | `AssistantMessageHandler` |
 | the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp` over the repositories and ports, `ApiLayer` with the clients, `WorkerLayer`; `main.ts` runs them |
 | browser feature | `apps/web/features/health/health-panel.ts` | `renderHealthPanel` |
@@ -246,10 +251,14 @@ model's.
 5. **The flows.** A flow over two services or a job is a [use case](#a-use-case); asynchronous
    work is a queue definition in the module's `services/` and a handler in `apps/worker/`
    ([database.md › The outbox](database.md#the-outbox)).
-6. **The boundary.** A contract group in `http-api/<entity>/<entity>.http.ts`, listing the domain's
-   errors with their statuses, added to `Api` in `http-api/api.ts` before
-   `.middleware(SchemaErrors)`, which reaches only the groups added before it; its handler in
-   `apps/api/<entity>/`, added to `ApiRoutes` and its services to `ApiHttp`, the repository's
+6. **The boundary.** A contract group in `http-api/<entity>/<entity>.http.ts` declares the
+   entity's wire shape, `Api<Model>` (a `Schema.Struct`), and the domain's id, constrained
+   strings and errors as its own twins under the domain's names, each error with its status on
+   the class; the api's twins test compares each twin with the domain's. The group is added to
+   `Api` in `http-api/api.ts` before `.middleware(SchemaErrors)`, which reaches only the groups
+   added before it. Its handler in `apps/api/<entity>/` returns each model through its
+   `buildApi<Model>` in `apps/api/<entity>/<entity>.mapper.ts` and fails with the domain's errors
+   as they are; it is added to `ApiRoutes` and its services to `ApiHttp`, the repository's
    layer to `ApiLayer`. Test only what HTTP adds, on the
    api test layer; a flow new to both apps joins the journey. A browser feature calls it through
    `ApiClient` from `apps/web/features/<entity>/`.

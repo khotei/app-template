@@ -44,13 +44,14 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 - Enqueue inside the transaction of the writes the job reads, through `QueueSender.send`
   ([database.md › The outbox](../../docs/knowledge/database.md#the-outbox)).
 - Read or delete a set through one batch call, never one call per id.
-- Return the contract's shape, a model as is: its DTO's encoder drops the fields it leaves out.
+- Return a model as is: the api's `buildApi<Model>` and the contract's struct shape the wire.
 
 ## Handlers
 
-- A handler decodes the input, calls one domain service method or one use case, and shapes the
-  outcome. It holds no rule and imports no repository, mapper or data layer: only the process's
-  `layer.ts` provides them.
+- A handler decodes the input, calls one domain service method or one use case, returns a model
+  through its `buildApi<Model>` and fails with the domain's errors as they are. It holds no rule
+  and imports no repository, `<Model>FromEntity` or data layer: only the process's `layer.ts`
+  provides them.
 - A worker handler owns the queue's policy, the last attempt and the dead letter: it composes the
   use case's work, then its failure on the last attempt's cause; the use case never sees the
   attempt.

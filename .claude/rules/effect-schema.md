@@ -9,11 +9,12 @@ paths:
 
 - An invariant a check can state goes in the schema (`Schema.isTrimmed()`, `Schema.isPattern(…)`,
   a brand), so the constructor and every decode of a row enforce it.
-- Brand with `Schema.brand`, never the `Brand` module, so `make`, the row's decode and the wire
-  DTO agree. An id is `Schema.String.check(Schema.isUUID()).pipe(Schema.brand('<Model>Id'))`; a
-  constrained value a port or use case accepts (a file name, a media type, a size) is a brand too.
+- Brand with `Schema.brand`, never the `Brand` module, so `make`, the row's decode and the API
+  contract's twin agree. An id is
+  `Schema.String.check(Schema.isUUID()).pipe(Schema.brand('<Model>Id'))`; a constrained value a
+  port or use case accepts (a file name, a media type, a size) is a brand too.
 - An absent value is an `Option` (`Schema.Option(…)` in a model), never `null` or `undefined`;
-  `null` exists only in a wire DTO.
+  `null` exists only on the wire, in the API contract (`Schema.OptionFromNullOr(…)`).
 - An annotation a JSON Schema must carry sits on the encoded side, on the key of a checked field
   (`annotateKey`): `annotate` on a check or a transformation drops it. Its test reads it back from
   `Schema.toJsonSchemaDocument`.
@@ -26,9 +27,9 @@ paths:
   TypeScript.
 - A refused operation is a typed failure: never a `throw` (a defect that reads as an infrastructure
   failure) and never an `Option.none` (no detail for the caller or the log).
-- A domain error is a `Schema.TaggedError` tagged with its class name, so it decodes at the wire;
-  its HTTP status lives in `http-api/CLAUDE.md`. A marker that never leaves its module is
-  `Data.TaggedError`.
+- A domain error is a `Schema.TaggedError` tagged with its class name, so the API contract's twin
+  encodes it at the wire with its HTTP status (`http-api/CLAUDE.md`). A marker that never leaves
+  its module is `Data.TaggedError`.
 - Not-found from a port is a value (`Option`, or an id left out of an array); its reader turns it
   into the domain's `*NotFoundError`.
 - A port declares no error channel: its adapter turns a client's failure, or a stored value that
