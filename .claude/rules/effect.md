@@ -17,7 +17,7 @@ are unstable and change between patches. Check Drizzle the same way, against
   `Reducer`, a nested update `Optic`, success or failure as data `Result`, text for a log
   `Formatter`, composing functions `Function`.
 - Look one up in `repos/effect/packages/effect/src/<Module>.ts`: its first comment says what it
-  covers, `grep -n '^export' <file>` lists the functions, each with an example;
+  covers, its exports list the functions, each with an example;
   `repos/effect/ai-docs/src/` shows them in use.
 - Native code that signals a missing module: `=== undefined` or `??` on a value (`UndefinedOr`,
   `Option`); a comparator lambda in a sort (`Order`); an accumulator in a loop or `reduce` (`Arr`,

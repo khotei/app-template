@@ -12,8 +12,8 @@ step id, take step after step, as **The loop** below says. Gates:
 ## Steps
 
 1. **Pick the step:** the one named, else the first `todo` step whose `Blocked by` steps are all
-   `done`. Of `plan.md`, read only the **Status** table and the step's own section, by `grep -n`
-   and offset. Check that the branch is the ticket branch (`<type>/<slug>`) and that `git status`
+   `done`. Of `plan.md`, read only the **Status** table and the step's own section.
+   Check that the branch is the ticket branch (`<type>/<slug>`) and that `git status`
    shows no uncommitted change to tracked files; otherwise stop and ask.
 2. **Implement.** Spawn the `implementer` agent with pointers only: the ticket folder and the
    step id, on the `model` and `effort` the step's **Model** line names (`opus medium` for a

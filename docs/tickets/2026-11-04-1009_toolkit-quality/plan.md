@@ -31,7 +31,7 @@
 | S23 | a `BLOCKED:` set in Markdown emphasis lets the implementer stop | todo |
 | S24 | `rm -rf` is no longer denied: the deny stopped agents and protected nothing | done |
 | S25 | `make worktree` refuses a number another live worktree holds, one whose ports pass 65535, and a renumbered worktree | done |
-| S26 | the lines that still named a read or search tool state what to read instead | todo |
+| S26 | the lines that still named a read or search tool state what to read instead | done |
 | S27 | an agent's worktree branches from the ticket branch on every machine, not only the user's | todo |
 
 ## How to run this plan
@@ -1304,7 +1304,9 @@
   with.
 - **Blocked by:** none.
 - **Files:** `.claude/agents/implementer.md`, `.claude/agents/reviewer.md`,
-  `.claude/skills/ticket-implement/SKILL.md`; `docs/knowledge/sdd.md` if it repeats them.
+  `.claude/skills/ticket-implement/SKILL.md`; `docs/knowledge/sdd.md` if it repeats them; found
+  at review: `implementer.md`'s *Leftovers*, `.claude/rules/effect.md`'s lookup and
+  `/ticket-plan`'s copy of the *Leftovers* wording.
 - **Size:** ~15.
 - **Test first:** `make check` over the edited skills, agents and templates — the grep below
   prints five lines today (`SKILL.md`'s read spans lines 15 and 16).
@@ -1313,7 +1315,24 @@
     .claude/skills` prints nothing; fails while any of the four lines stays.
   - `make check` green.
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:** passes that ran on S26.1: Standards (sonnet, with writing-for-agents) and Spec,
+  each a `reviewer` spawned directly; S26.2 checked by the main session against its findings.
+  No `simplify`, Design or hunt, an instruction-only step. Implementer on `opus medium` in the
+  worktree `toolkit-quality-S26-tool-lines` (N=6), about 6.8 and 2.6 min. Verify: the grep
+  printed five lines before and nothing after; widened to `.claude/rules` and a backticked
+  `git grep`, it printed `ticket-plan/SKILL.md:23` before that line's edit and nothing after;
+  `make check` exit 0. The main session committed S26.1 after S26.2 had started, so
+  52d55ae149 holds part of S26.2; both land as one commit, on the user's word.
+  - Spec — accepted, fixed in S26.2 — `implementer.md:61`, `:63`: *Leftovers* still named
+    `git grep`; it says what to search for.
+  - Spec — accepted, fixed in S26.2 — `.claude/rules/effect.md:20`: "`grep -n '^export'
+    <file>` lists the functions" named the tool; the module's exports list them.
+  - Standards — accepted, fixed in S26.2 — `reviewer.md:18-19`, `implementer.md:50-51`:
+    two lines ended on the forbidden behaviour (writing-for-agents › negation), and a
+    short line after the rewrap.
+  - Standards — rejected — the proposed message lacked `Co-Authored-By`: the main session
+    adds it at the commit.
 
 #### S27 — An agent's worktree branches from the ticket branch
 

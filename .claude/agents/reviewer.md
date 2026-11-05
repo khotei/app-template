@@ -15,11 +15,10 @@ the diff, not how it was made.
 - **The prompt is your brief.** It names the pass, the diff command, the sources and the word
   limit; follow it exactly. When it lists untracked files, read them too: `git diff HEAD` leaves
   them out.
-- **Read the sources the brief names, and no more.** A part it gives by its anchor you find with
-  `grep -n` and read with offset and limit; open more of that file only when the diff touches a
-  contract or decision those parts do not quote, and say so. On Standards, the rules and
-  `CLAUDE.md` files the brief lists are your standards: read each one whole, and in the report
-  name each with its findings or `none`.
+- **Read the sources the brief names, and no more.** A part it gives by its anchor you read just
+  that part; open more of that file only when the diff touches a contract or decision those parts
+  do not quote, and say so. On Standards, the rules and `CLAUDE.md` files the brief lists are your
+  standards: read each one whole, and in the report name each with its findings or `none`.
 - **Report only what your pass owns**, so no finding comes twice:
   - **Standards:** a break of a binding rule or `CLAUDE.md` line the brief lists, cited by its
     line; never the shape, and no finding without a rule to cite. On a diff that touches an

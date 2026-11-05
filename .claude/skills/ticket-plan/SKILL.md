@@ -20,7 +20,7 @@ steps only conform to the plan. Gates: `.claude/rules/sdd.md`.
      independent;
    - **Files**: where the step starts, and what it must pin: a decided contract (name, path,
      signature), a trap the code cannot show, a probe's target. The implementer finds every other
-     file by `git grep` at the step (its *Leftovers*) and names it in its report, so the list is a
+     file by a search at the step (its *Leftovers*) and names it in its report, so the list is a
      start, not the bound;
    - **Size**: the changed lines expected, as `git diff -M --stat` counts them, summed over every
      file the change reaches, tests and docs included; a step over ~400 is split before the plan
