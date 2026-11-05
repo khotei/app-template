@@ -14,7 +14,7 @@
 | S6 | the contract imports no `node:*` and no `bun:*`: Biome ban and no `bun` types | done |
 | S7 | `naming.md` allows the contract's ids, models and errors in its `.http` files; the reviewer owns the "step that does not stand alone" check | done |
 | S8 | the contract's Biome override becomes an allow-list: only `effect`, `effect/*` and relative paths inside `http-api/` | todo |
-| S9 | the message failure's reason is one named schema on both sides, so the twins test pairs it | todo |
+| S9 | the message failure's reason is one named schema on both sides, so the twins test pairs it | done |
 | S10 | `implementer.md` points to `reviewer.md`; `ticket-implement` says when the hunt runs on a behaviour step | done |
 
 ## How to run this plan
@@ -610,7 +610,19 @@
   - the planted drop above fails the twins test naming the pair; reverted after;
   - `make api-check` — green, `openapi.json` unchanged; `make check` — green.
 - **Model:** `opus medium`.
-- **Status:** `todo`.
+- **Status:** `done`.
+- **Findings:** passes: Standards, Spec, Design (rounds S9.1, S9.2); no simplify run (one exported
+  name, two lines), no hunt. `make check` green (247 unit, 104 e2e).
+  - Probe — dropping `'ReplyRefused'` from the domain literal passed the twins test before the step
+    (21 passed) and fails it after: `× MessageFailureReason: the contract declares the domain's
+    checks`, `Tests 1 failed | 21 passed (22)`; reverted, `22 passed`.
+  - Deviation — worktree number N=9, not 2: N=2 was held by the prototype worktree
+    `client-publishing-contract-proto`.
+  - Standards — none. Spec — none.
+  - Design — accepted, fixed in S9.2 (Speculative): `failureMessages` and `replyFailureReasons`
+    name `MessageFailureReason` in place of `MessageFailure['reason']`.
+  - Out of scope — `kernel/data/chat/message.table.ts:20` repeats the literal list a third time and
+    nothing compares it with the domain; a question for the kernel ring, not this step.
 
 #### S10 — Two instruction lines, each fact once
 

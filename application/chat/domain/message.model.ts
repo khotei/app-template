@@ -141,7 +141,7 @@ export const completeMessage = Effect.fn('completeMessage')(
 const failureMessages = {
   ReplyFailed: 'The assistant could not reply. Please try again.',
   ReplyRefused: 'The assistant declined to answer this message.',
-} as const satisfies Record<MessageFailure['reason'], string>
+} as const satisfies Record<MessageFailureReason, string>
 
 /** Why a reply failed and when; the user-facing text comes from `failureMessages`. */
 export type MessageFailureInput = Types.Simplify<
@@ -162,7 +162,7 @@ export const failMessage = Effect.fn('failMessage')(
 const replyFailureReasons = {
   AssistantRefusedError: 'ReplyRefused',
   AssistantFailedError: 'ReplyFailed',
-} as const satisfies Record<AssistantError['_tag'], MessageFailure['reason']>
+} as const satisfies Record<AssistantError['_tag'], MessageFailureReason>
 
 export const buildReplyFailure = (
   error: AssistantError,
