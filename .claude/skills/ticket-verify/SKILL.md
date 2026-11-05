@@ -39,8 +39,10 @@ what should the toolkit learn from building it. Gates: `.claude/rules/sdd.md`.
    rule, or a mechanical check (a Biome rule, a test, a hook) when the mistake is mechanical;
    never in a `CLAUDE.md`. Apply a lesson only on the user's OK.
 4. **Present** the verdict, the simplifications and the lessons. Accepted fixes become new
-   `plan.md` steps for `/ticket-implement`. On `pass` and the user's agreement, propose the PR
-   (`.claude/rules/pull-requests.md`).
+   `plan.md` steps for `/ticket-implement`; on a ticket that changes only `.claude/` or `docs/`,
+   they land without a second `/ticket-verify` unless one changes what a requirement asks
+   ([the cycles](../../../docs/knowledge/sdd.md#when-to-run-which-cycle)). On `pass` and the
+   user's agreement, propose the PR (`.claude/rules/pull-requests.md`).
 
 Fix nothing during verification. Commit `verification.md`, and open the PR, under the commit gate
 of `.claude/rules/sdd.md`.

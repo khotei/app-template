@@ -33,7 +33,7 @@
 | S25 | `make worktree` refuses a number another live worktree holds, one whose ports pass 65535, and a renumbered worktree | done |
 | S26 | the lines that still named a read or search tool state what to read instead | done |
 | S27 | an agent's worktree branches from the ticket branch on every machine, not only the user's | done |
-| S28 | a ticket that changes only the toolkit or docs runs a lighter cycle: one verification, no replay by default | todo |
+| S28 | a ticket that changes only the toolkit or docs runs a lighter cycle: one verification, no replay by default | done |
 | S29 | a claimed failure is confirmed by a test the researcher writes in a disposable worktree | todo |
 | S30 | the review passes are `reviewer` agents the skills spawn themselves, with no `code-review` wrapper | todo |
 
@@ -1420,7 +1420,24 @@
     `/ticket-verify` runs.
   - `make check` green.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:** passes that ran on S28.1: Standards (sonnet, with writing-for-agents) and Spec,
+  each a `reviewer` spawned directly; S28.2 checked by the main session against its findings.
+  No `simplify`, Design or hunt, a docs step. Implementer on `opus high` in the worktree
+  `toolkit-quality-S28-light-cycle` (N=3), about 3.6 and 1.5 min. Verify: the `grep -c` printed
+  `0` before and `1` after; `make check` exit 0. The optional `ticket-verify/SKILL.md` edit was
+  made: in the no-op experiment, the skill without it answered "Implement them, then verify
+  again", with it "Skip a second `/ticket-verify` if the fixes don't change what a requirement
+  asks". Rounds S28.1 and S28.2 land as one commit, on the user's word.
+  - Standards — rejected — `ticket-verify/SKILL.md:42` restates the row `sdd.md` owns
+    (`claude-md.md › The owner`): the no-op experiment shows a link alone leaves the session
+    verifying twice; the row explains the cycle, the skill acts on it.
+  - Standards — rejected — `sdd.md:30` packs the replay rule into the row: the step's
+    *Delivers* asks for it, and the skill needs it only where a replay is chosen.
+  - Standards — accepted, fixed in S28.2 — `ticket-verify/SKILL.md:44-45`: "propose the PR"
+    left alone on a short line.
+  - Spec — refuted — claimed the no-op experiment was not run: the implementer's report quotes
+    both answers.
 
 #### S29 — Confirm a claimed failure with a test
 

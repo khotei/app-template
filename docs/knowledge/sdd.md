@@ -27,6 +27,7 @@ An older `Refs:` line may name a folder before its rename: the slug is unchanged
 |---|---|
 | New behaviour, a new dependency, or any choice a reviewer could question | the full cycle |
 | A bug fix or small change with no new decision and an existing seam to test at | `/ticket-feature` with a few requirements (a bug starts from one command that shows it failing), then `/ticket-plan`, `/ticket-implement`, `/ticket-verify`; skip `/ticket-architecture` |
+| A ticket that changes only the toolkit or docs (`.claude/`, `docs/`), no app code | the cycle its change calls for, with one `/ticket-verify`: its accepted fixes land as steps without a second run unless one changes what a requirement asks; a past step is replayed (its commit's parent run again under the new toolkit) only for a requirement nothing else can check |
 | A typo, a version bump, a doc fix | no ticket: one commit with the area as its scope (`docs`, `tooling`) |
 
 ## The five skills
