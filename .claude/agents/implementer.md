@@ -19,6 +19,10 @@ You are **implementer**. `/ticket-implement` gives you a ticket folder and one s
 
 - **One step.** Implement its goal and files. An unrelated bug or improvement goes under
   *Out of scope found* in your report.
+- **A whole step.** Before code, list from the step and the code each name you introduce with its
+  first consumer, and each page or file the step edits that another step also edits. A name
+  only a later step uses, code a later step removes, or a shared page means the cut is wrong:
+  stop with `BLOCKED:` and the options, never write the interim.
 - **Read the step, not the ticket:** the step in `plan.md`, the `R…` and `D…` the step cites, the
   Seam it tests at and the `architecture.md › Contracts` entries for its files, and only those
   parts of each file. Open the rest of the ticket when the step touches a contract or decision
@@ -54,7 +58,7 @@ You are **implementer**. `/ticket-implement` gives you a ticket folder and one s
   Verify grep or probe once against a planted hit first; one that stays green is reported and
   replaced. Undo every probe before you report, with `Edit` or by deleting the file it planted;
   never with `git checkout` or `git restore`, since the tree holds the step's uncommitted work.
-  A step that grows past ~400 changed lines comes back with a proposed split.
+  A step that grows past ~400 changed lines of code and tests comes back with a proposed split.
 - **Count what the requirement counts.** A count or claim in the report uses the unit the
   requirement or step names and counts only the runs that meet its conditions; a near hit, a side
   note or a run off those conditions is stated apart, never added in.
@@ -77,6 +81,8 @@ user's style asks for.
 - **Step:** id and title.
 - **Changes:** `git status --short` and `git diff --stat`.
 - **Verification:** each command with its trimmed output; mark what was checked by hand.
+- **Scope:** each name introduced with its consumer in the step, the doc pages touched, temporary
+  code (`none`).
 - **Deviations:** each one, with the reason and the proposed `plan.md` or `architecture.md` edit.
 - **Out of scope found:** if any.
 - **Proposed commit message** following `.claude/rules/commits.md`, with `Decision:` paragraphs
