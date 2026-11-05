@@ -9,10 +9,10 @@ prefix=$(printf '%s' "$input" | bun -e '
 ')
 [ "$prefix" = "BLOCKED:" ] && exit 0
 
-# The agent's own tree: an agent started with `isolation: worktree` works outside CLAUDE_PROJECT_DIR.
-cwd=$(printf '%s' "$input" | bun -e 'console.log((await Bun.stdin.json()).cwd ?? "")')
-dir=$(git -C "${cwd:-${CLAUDE_PROJECT_DIR:-.}}" rev-parse --show-toplevel 2>/dev/null)
-if ! cd "$dir" 2>/dev/null; then
+# The agent's own tree or none: an agent started with `isolation: worktree` works outside
+# CLAUDE_PROJECT_DIR, so a missing cwd never falls back to it. `git -C ""` runs in the current folder.
+cwd=$(printf '%s' "$input" | bun -e 'console.log((await Bun.stdin.json()).cwd ?? "")' 2>/dev/null)
+if [ -z "$cwd" ] || ! dir=$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null) || ! cd "$dir" 2>/dev/null; then
   {
     echo "make-check.sh cannot find the agent's git tree (cwd: $cwd), so make check did not run."
     echo "Fix it before finishing, or start your final message with BLOCKED: and explain why."

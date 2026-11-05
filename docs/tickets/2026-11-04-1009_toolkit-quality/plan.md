@@ -27,7 +27,7 @@
 | S19 | a claim only a run outside the repo would settle gets `unclear`, not `refuted` | done |
 | S20 | the model may run a `/ticket-*` skill when the user asks it to | done |
 | S21 | no hook or instruction line refuses or steers which tool an agent reads, searches or edits with | done |
-| S22 | the implementer's gate refuses to finish when it cannot find the agent's tree, instead of checking another one | todo |
+| S22 | the implementer's gate refuses to finish when it cannot find the agent's tree, instead of checking another one | done |
 | S23 | a `BLOCKED:` set in Markdown emphasis lets the implementer stop | todo |
 | S24 | `rm -rf` is no longer denied: the deny stopped agents and protected nothing | done |
 | S25 | `make worktree` refuses a number another live worktree holds, one whose ports pass 65535, and a renumbered worktree | todo |
@@ -1155,19 +1155,41 @@
 - **Delivers:** when the implementer's stop input names a `cwd` git cannot resolve,
   `make-check.sh` refuses to let it finish and says why, as its own comment intends; today
   `git -C` prints nothing, `cd ""` succeeds, and `make check` runs in whatever folder the hook
-  started in, so a worktree implementer can pass on the main tree's state.
+  started in, so a worktree implementer can pass on the main tree's state. A stop input with no
+  `cwd`, or one that is not valid JSON, is refused too, never checked against
+  `CLAUDE_PROJECT_DIR`.
 - **Goal:** the gate checks the agent's own tree or none (D13 keeps `make-check.sh` as the gate).
 - **Blocked by:** none.
-- **Files:** `.claude/hooks/make-check.sh`, the `cd "$dir"` branch.
+- **Files:** `.claude/hooks/make-check.sh`, the `cd "$dir"` branch; `hook-cases.sh` beside this
+  plan, its `cwd-absent` case.
 - **Size:** ~3.
 - **Test first:** A toolkit script fed its input — `sh <ticket>/hook-cases.sh cwd-missing` prints
   `FAIL cwd-missing: exit 0 (expected 2)` today.
 - **Verify:**
-  - `sh docs/tickets/2026-11-04-1009_toolkit-quality/hook-cases.sh cwd-missing red green blocked`
-    prints four `PASS` lines; fails while `cwd-missing` exits 0.
+  - `sh docs/tickets/2026-11-04-1009_toolkit-quality/hook-cases.sh cwd-missing cwd-absent red
+    green blocked` prints five `PASS` lines; fails while `cwd-missing` or `cwd-absent` exits 0.
   - `make check` green.
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:** passes that ran on S22.1: Standards (sonnet), Spec, Design, hunt, each a
+  `reviewer` spawned directly with the brief `code-review`'s overrides would give; S22.2 checked
+  by the main session against its findings. No `simplify`: the main session skipped it on a
+  one-line fix in a worktree. Implementer on `opus medium` in the worktree
+  `toolkit-quality-S22-gate-tree` (N=3), about 2.7 and 2.1 min. Verify: before the fix
+  `FAIL cwd-missing: exit 0 (expected 2)`, after it five `PASS` lines (`cwd-absent` added in
+  S22.2, red first: `FAIL cwd-absent: exit 0`); `make check` exit 0. Rounds S22.1 and S22.2
+  land as one commit, on the user's word.
+  - Design — accepted, fixed in S22.2 — `make-check.sh:14-15`: let git's exit status reject a
+    missing tree instead of testing for an empty answer; an empty `cwd` keeps its own test,
+    since `git -C ""` runs in the current folder and succeeds.
+  - hunt — accepted, fixed in S22.2 — `make-check.sh:14`: no `cwd` or invalid JSON → the hook
+    checked `CLAUDE_PROJECT_DIR`, the main checkout, so a green main tree let a red worktree
+    finish (shown); the fallback is gone.
+  - Design — accepted, open — `make-check.sh:6-9,13`: parse the input once, not with two `bun`
+    starts; S23 edits the same read.
+  - hunt — rejected: refuted — `make check` past the hook's 600 s default timeout lets the agent
+    stop: true of a timeout, but a researcher timed `make check` at 33 s beside two other runs.
+  - hunt — rejected: S23's own scope — a `**BLOCKED:**` in bold is sent back.
 
 #### S23 — A `BLOCKED:` in Markdown emphasis lets the implementer stop
 

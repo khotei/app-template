@@ -30,10 +30,11 @@ run() {
     red) case_ "$1" 1 2 'make check is red' '{"last_assistant_message":"done","cwd":"'"$root"'"}' ;;
     green) case_ "$1" 0 0 - '{"last_assistant_message":"done","cwd":"'"$root"'"}' ;;
     cwd-missing) case_ "$1" 0 2 "cannot find the agent's git tree" '{"last_assistant_message":"done","cwd":"/nonexistent"}' ;;
+    cwd-absent) case_ "$1" 0 2 "cannot find the agent's git tree" '{"last_assistant_message":"done"}' ;;
     *) echo "unknown case: $1" >&2; exit 2 ;;
   esac
 }
 
-if [ $# -eq 0 ]; then set -- blocked blocked-bold blocked-mid red green cwd-missing; fi
+if [ $# -eq 0 ]; then set -- blocked blocked-bold blocked-mid red green cwd-missing cwd-absent; fi
 for c in "$@"; do run "$c"; done
 exit $failed
