@@ -38,6 +38,7 @@
 | S30 | the review passes are `reviewer` agents the skills spawn themselves, with no `code-review` wrapper | done |
 | S31 | the toolkit's shell scripts stop on every failed command and run the same under `dash` | todo |
 | S32 | the docs and the README state what the repository does today | done |
+| S33 | `make check` and CI lint the shell scripts with a pinned ShellCheck | todo |
 
 ## How to run this plan
 
@@ -61,6 +62,10 @@
   user's word); each item was reproduced on a scratch copy, and its cases ran under `sh` and
   `dash`. A first review had called the scripts good; the second, given only the code and the
   sources, found four real failures, so the step rests on the second.
+- **S33** adds ShellCheck to the gates, on the user's word of 2026-11-05, after S31 showed
+  that its optional masked-return check names a class of failure the scripts had. On the same
+  word, the ticket's fourth `/ticket-verify` does not run: S28's row verifies a toolkit-only
+  ticket once, and this one ran three.
 - **S32** fixes what two `researcher`s found stale in `README.md`, `docs/knowledge/` and the
   folder `CLAUDE.md` files, on the user's request of 2026-11-05 to review the docs; each item
   carries its evidence from that audit. It shares no file with S30 and runs beside it.
@@ -1670,6 +1675,32 @@
   - Standards — none.
   - Out of scope — "slice" stays in `roadmap.md:121,122,508` and "placeholder" in its planned
     entries: they describe tickets' scope, not the code.
+
+#### S33 — ShellCheck lints the shell scripts
+
+- **Delivers:** a `make` target that runs ShellCheck over every tracked `*.sh` outside `repos/`,
+  is part of `make check` and runs as its own CI step. ShellCheck is pinned by version and
+  digest and needs no install on a machine beyond what `make setup` and Docker already give.
+  Its configuration lives beside the other lint configuration in `.misc/lint/`: it enables the
+  masked-return check (`check-extra-masked-returns`, SC2312) and turns off the brace-every-
+  variable style (SC2250), which the scripts do not follow. Each deliberate exception the
+  scripts keep (SC2016, SC2015, SC2249) is disabled on its line with the reason.
+  `docs/knowledge/tooling.md` lists the target with the other gates.
+- **Goal:** a failure like S31's `worktree.sh` rewriting `./.env` outside a repository is caught
+  at `make check`, not by a review; on the user's word of 2026-11-05.
+- **Blocked by:** S31 (the scripts' final lines, which the exceptions name).
+- **Files:** `Makefile`, `.misc/lint/` (the ShellCheck configuration), `.github/workflows/ci.yml`,
+  the scripts' exception lines, `docs/knowledge/tooling.md`.
+- **Size:** ~40.
+- **Test first:** the toolkit-script seam: a probe script planted in a scratch copy, holding a
+  masked `$(git …)` inside `cd "…"` and a `[[ … ]]`, fails the target with SC2312 and SC3010;
+  the target does not exist today.
+- **Verify:**
+  - The target exits 0 on the tree and non-zero with the probe; the probe is removed after.
+  - Each of the five scripts' deliberate exceptions carries its reason on its line.
+  - `make check` green; the CI step names the target.
+- **Model:** `opus high`
+- **Status:** todo
 
 ## Requirement coverage
 
