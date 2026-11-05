@@ -5,9 +5,9 @@ The API contract: one `HttpApi` that `apps/api` implements and the browser calls
 and the auth middleware. Why:
 [The API contract on its own](../docs/knowledge/decisions.md#the-api-contract-on-its-own).
 
-- **Imports only `effect`:** no workspace and no `@effect/*` package, and no Bun API or Node
-  built-in, since it ships to the browser. The domain's schemas are restated here, never
-  imported.
+- **Imports only `effect`:** `effect`, `effect/<module>` and its own files through
+  `#http-api/…`; no workspace, no other package, no Bun API or Node built-in, since it ships to
+  the browser. The domain's schemas are restated here, never imported.
 - **A twin keeps the domain's export name.** A schema the domain declares too (an id, a
   constrained string, a status list, an error) is exported here under the domain's name and
   brand, so the api's twins test pairs it by name and fails on a drifted check. It carries no
