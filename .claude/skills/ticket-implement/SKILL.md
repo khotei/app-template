@@ -24,8 +24,8 @@ step id, take step after step, as **The loop** below says. Gates:
    commit question of `.claude/rules/sdd.md › Gates` now, while the implementer works, and hold
    the answer; a later step does not ask again.
    - **A new-interface step** is a behaviour step (below) whose diff adds an exported name, a
-     module or a Seam. Simplify and Design run on it alone; any other step gets Standards and
-     Spec.
+     module or a Seam. Simplify and Design run on it alone; a behaviour step that is not
+     new-interface gets Standards, Spec and, per the hunt rule of step 3, the hunt.
    - **A behaviour step**, whatever the **Model** line, is one whose diff changes the content of a
      `.ts` file, a `Makefile` recipe or a script, beyond a move. A move renames files whose
      content `git diff -M` shows unchanged and rewrites only the import and re-export lines

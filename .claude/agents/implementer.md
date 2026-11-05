@@ -20,9 +20,9 @@ You are **implementer**. `/ticket-implement` gives you a ticket folder and one s
 - **One step.** Implement its goal and files. An unrelated bug or improvement goes under
   *Out of scope found* in your report.
 - **A whole step.** Before code, list from the step and the code each name you introduce with its
-  first consumer, and each page or file the step edits that another step also edits. A name
-  only a later step uses, code a later step removes, or a shared page means the cut is wrong:
-  stop with `BLOCKED:` and the options, never write the interim.
+  first consumer, and each page or file the step edits that another step also edits. A step that
+  does not stand alone, as the Spec pass of `.claude/agents/reviewer.md` defines it, means the
+  cut is wrong: stop with `BLOCKED:` and the options, never write the interim.
 - **Read the step, not the ticket:** the step in `plan.md`, the `R…` and `D…` the step cites, the
   Seam it tests at and the `architecture.md › Contracts` entries for its files, and only those
   parts of each file. Open the rest of the ticket when the step touches a contract or decision
