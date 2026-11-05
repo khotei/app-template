@@ -66,8 +66,8 @@ steps only conform to the plan. Gates: `.claude/rules/sdd.md`.
      it runs. It comes back `catches` only when its output names the planted break, else
      `misses`.
    - **Shape**: from the plan's text and `git grep`, one line per step, `ok` or `fail: <reason>`:
-     a name whose first consumer is in a later step; a file or page that two steps edit (the
-     Status and coverage tables apart); wording that makes a step depend on a later one ("until
+     a step that does not stand alone, as the Spec pass of `.claude/agents/reviewer.md` defines
+     it (the Status and coverage tables apart); wording that makes a step depend on a later one ("until
      S", "interim", "temporary"), an added scope's own probes apart; a guard whose break an
      earlier step's Verify already fails on.
    For a step that adds, changes or removes a guard or a scope of one, spawn a second `researcher`

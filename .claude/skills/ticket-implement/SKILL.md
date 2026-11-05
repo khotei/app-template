@@ -47,7 +47,8 @@ step id, take step after step, as **The loop** below says. Gates:
      path; on a diff that touches an instruction file (a `CLAUDE.md`, a rule, a skill or an
      agent), also `mattpocock-skills:writing-for-agents`.
    - **Spec**, on the agent's own model: the step in `plan.md`, the **Files** and **Introduces**
-     of the steps after it, and the `R…` it cites from `feature.md`.
+     of the steps after it (its check of a step that does not stand alone:
+     `.claude/agents/reviewer.md`), and the `R…` it cites from `feature.md`.
 
    Both briefs also name the parts of `architecture.md` the step's own lines cite, each by its
    anchor, and no other: a `D…` it names (`- **D<n> —`), the Seam row its **Test first** names
