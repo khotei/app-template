@@ -27,6 +27,12 @@
 | S19 | a claim only a run outside the repo would settle gets `unclear`, not `refuted` | done |
 | S20 | the model may run a `/ticket-*` skill when the user asks it to | done |
 | S21 | no hook or instruction line refuses or steers which tool an agent reads, searches or edits with | done |
+| S22 | the implementer's gate refuses to finish when it cannot find the agent's tree, instead of checking another one | todo |
+| S23 | a `BLOCKED:` set in Markdown emphasis lets the implementer stop | todo |
+| S24 | `rm -rf` is no longer denied: the deny stopped agents and protected nothing | todo |
+| S25 | `make worktree` refuses a number another live worktree holds, one whose ports pass 65535, and a renumbered worktree | todo |
+| S26 | the lines that still named a read or search tool state what to read instead | todo |
+| S27 | an agent's worktree branches from the ticket branch on every machine, not only the user's | todo |
 
 ## How to run this plan
 
@@ -34,10 +40,15 @@
   `.claude/rules/sdd.md › Gates` (`/ticket-implement`).
 - Each step leaves `make check` green and fits one fresh session (≤ ~400 changed lines, counted
   with `git diff -M --stat`).
-- **No step here is a behaviour step** by `/ticket-implement`'s review test (none changes a `.ts`
-  file, a `Makefile` recipe or a script), so each gets Standards and Spec alone; the Design pass
-  and the hunt run only in the replays of S5 and S6. Every step still writes how the toolkit
-  behaves, so each runs on `opus high`.
+- **No step up to S21 is a behaviour step** by `/ticket-implement`'s review test (none changes a
+  `.ts` file, a `Makefile` recipe or a script), so each gets Standards and Spec alone; the Design
+  pass and the hunt run only in the replays of S5 and S6. Every step still writes how the toolkit
+  behaves, so each runs on `opus high`. S22, S23 and S25 change a script, so they are.
+- **S22–S27** fix what the audit of 2026-11-05 found by running the toolkit's scripts on stubbed
+  input and against Claude Code's documentation. On the user's word they run in parallel, one
+  worktree each (`.claude/skills/ticket-implement/parallel-steps.md`), and each lands on the
+  ticket branch as one commit: its rounds commit in its worktree and are cherry-picked together.
+  The scripts `hook-cases.sh` and `worktree-cases.sh` beside this plan hold their cases.
 - **From S1 on, each step's findings use the pass-and-fate line** S1 adds to the template, so this
   ticket's verification fills the Review ledger (R12).
 - Every edited skill, agent and template states the pattern, not this ticket's instances
@@ -1138,6 +1149,134 @@
     and Files name them now.
   - Standards — rejected — trim `implementer.md`'s list of the reads that load a rule to one
     clause: the list (a pipe or `cd … &&` loads none) is what the agent cannot find by looking.
+
+#### S22 — The gate refuses a tree it cannot find
+
+- **Delivers:** when the implementer's stop input names a `cwd` git cannot resolve,
+  `make-check.sh` refuses to let it finish and says why, as its own comment intends; today
+  `git -C` prints nothing, `cd ""` succeeds, and `make check` runs in whatever folder the hook
+  started in, so a worktree implementer can pass on the main tree's state.
+- **Goal:** the gate checks the agent's own tree or none (D13 keeps `make-check.sh` as the gate).
+- **Blocked by:** none.
+- **Files:** `.claude/hooks/make-check.sh`, the `cd "$dir"` branch.
+- **Size:** ~3.
+- **Test first:** A toolkit script fed its input — `sh <ticket>/hook-cases.sh cwd-missing` prints
+  `FAIL cwd-missing: exit 0 (expected 2)` today.
+- **Verify:**
+  - `sh docs/tickets/2026-11-04-1009_toolkit-quality/hook-cases.sh cwd-missing red green blocked`
+    prints four `PASS` lines; fails while `cwd-missing` exits 0.
+  - `make check` green.
+- **Model:** `opus medium`
+- **Status:** todo
+
+#### S23 — A `BLOCKED:` in Markdown emphasis lets the implementer stop
+
+- **Delivers:** a final message that opens with `BLOCKED:` set in Markdown emphasis (`**BLOCKED:**`)
+  lets the implementer stop like a plain one; a `BLOCKED:` later in the message still does not.
+  Today the hook sends such a message back, and Claude Code ends the loop only after eight blocks
+  in a row with no tool call between them.
+- **Goal:** `BLOCKED:` stays the one way out of a red gate, however the model formats it.
+- **Blocked by:** S22 (the same file).
+- **Files:** `.claude/hooks/make-check.sh`, the prefix read; `.claude/agents/implementer.md` only
+  if its `BLOCKED:` line must change.
+- **Size:** ~3.
+- **Test first:** A toolkit script fed its input — `sh <ticket>/hook-cases.sh blocked-bold` prints
+  `FAIL blocked-bold: exit 2 (expected 0)` today.
+- **Verify:**
+  - `sh docs/tickets/2026-11-04-1009_toolkit-quality/hook-cases.sh` prints six `PASS` lines and
+    exits 0; fails while `blocked-bold` exits 2 or `blocked-mid` exits 0.
+  - `make check` green.
+- **Model:** `opus medium`
+- **Status:** todo
+
+#### S24 — `rm -rf` is not denied
+
+- **Delivers:** `.claude/settings.json` no longer denies `rm -rf`, so an agent cleans its scratch
+  folders without stopping; the deny never protected anything, since `rm -fr` and `rm -r -f` pass
+  it (run on 2026-11-05). The other denies stay: `sudo`, and `npm`, `yarn`, `pnpm` for the
+  bun-only rule.
+- **Goal:** run 3's L4 (an agent stopped at the deny, +9 min, folders left), closed by removing the
+  cause instead of a line in two agents; D13's "no hook or instruction line steers which tool".
+- **Blocked by:** none.
+- **Files:** `.claude/settings.json` › `permissions.deny`; `docs/knowledge/roadmap.md` › The
+  toolkit after `toolkit-quality`, L4's line.
+- **Size:** ~4.
+- **Test first:** `config only`.
+- **Verify:**
+  - `jq -e '[.permissions.deny[] | select(startswith("Bash(rm"))] | length == 0'
+    .claude/settings.json` prints `true`; prints `false` while a `rm` deny stays.
+  - `git grep -n 'rm -rf' -- .claude docs/knowledge` prints nothing; today it prints
+    `settings.json:109` and the roadmap's line for L4's fix (`roadmap.md:775`), and it stays red
+    until both change.
+  - `make check` green.
+- **Model:** `opus medium`
+- **Status:** todo
+
+#### S25 — `make worktree` refuses a number in use
+
+- **Delivers:** `make worktree N=<n> NAME=<name>` refuses an `N` that another live worktree's
+  `.env` already holds as its stage, an `N` whose highest port would pass 65535 (`RDS_BASE_PORT`,
+  `15432 + 10 × N`, so `N` above 5010; the four ports end in 0, 1, 6 and 2, so no two of any `N`
+  meet), and a worktree already set up under another `N`, whose containers would be left
+  running; a rerun with its own `N` still passes. Today all three pass and rewrite the ports.
+- **Goal:** each worktree keeps its own ports and containers (`docs/knowledge/tooling.md ›
+  Worktrees`), checked by the script rather than by the main session's count.
+- **Blocked by:** none.
+- **Files:** `.claude/skills/ticket-implement/worktree.sh`, its checks before the draft `.env`;
+  `docs/knowledge/tooling.md › Worktrees` if it states the limits.
+- **Size:** ~15.
+- **Test first:** A toolkit script fed its input — `sh <ticket>/worktree-cases.sh` prints `FAIL`
+  for `n-taken`, `n-too-big` and `n-renumber` today.
+- **Verify:**
+  - `sh docs/tickets/2026-11-04-1009_toolkit-quality/worktree-cases.sh` prints six `PASS` lines
+    and exits 0; fails while any of the three refusals passes.
+  - `make check` green.
+- **Model:** `opus medium`
+- **Status:** todo
+
+#### S26 — No line names a read or search tool
+
+- **Delivers:** the lines D13 missed state what an agent reads, not which tool reads it:
+  `implementer.md`'s "Read the step" (`grep -n` and offset) and "Find code through the `LSP`
+  tool", `reviewer.md`'s anchored parts (`grep -n` and offset), and `/ticket-implement` step 1's
+  read of `plan.md` (`grep -n` and offset). What each line bounds (only the step's section, only
+  the anchored part, every use of a renamed symbol) stays.
+- **Goal:** D13: no hook or instruction line steers which tool an agent reads, searches or edits
+  with.
+- **Blocked by:** none.
+- **Files:** `.claude/agents/implementer.md`, `.claude/agents/reviewer.md`,
+  `.claude/skills/ticket-implement/SKILL.md`; `docs/knowledge/sdd.md` if it repeats them.
+- **Size:** ~15.
+- **Test first:** `make check` over the edited skills, agents and templates — the grep below
+  prints five lines today (`SKILL.md`'s read spans lines 15 and 16).
+- **Verify:**
+  - `git grep -n -E 'grep -n|with offset|and offset|through the .LSP' -- .claude/agents
+    .claude/skills` prints nothing; fails while any of the four lines stays.
+  - `make check` green.
+- **Model:** `opus medium`
+- **Status:** todo
+
+#### S27 — An agent's worktree branches from the ticket branch
+
+- **Delivers:** `.claude/settings.json` sets `worktree.baseRef` to `"head"`, so an implementer
+  spawned with `isolation: "worktree"` starts from the ticket branch on any machine. Claude Code
+  branches such a worktree from `origin/HEAD` by default
+  ([worktrees › Choose the base branch](https://code.claude.com/docs/en/worktrees#choose-the-base-branch));
+  it works today only because the user's own settings set the key.
+- **Goal:** parallel steps (`parallel-steps.md`) start from the steps already committed.
+- **Blocked by:** S24 (the same file).
+- **Files:** `.claude/settings.json`; `docs/knowledge/tooling.md › Worktrees` or
+  `parallel-steps.md`, wherever the base belongs.
+- **Size:** ~5.
+- **Test first:** `config only`.
+- **Verify:**
+  - `jq -e '.worktree.baseRef == "head"' .claude/settings.json` prints `true`; prints `false`
+    today.
+  - Not settled by a check: that Claude Code reads the key from project settings as from the
+    user's (the docs say "settings"); seeing it needs a machine without the user's key.
+  - `make check` green.
+- **Model:** `opus medium`
+- **Status:** todo
 
 ## Requirement coverage
 
