@@ -33,6 +33,9 @@
 | S25 | `make worktree` refuses a number another live worktree holds, one whose ports pass 65535, and a renumbered worktree | done |
 | S26 | the lines that still named a read or search tool state what to read instead | done |
 | S27 | an agent's worktree branches from the ticket branch on every machine, not only the user's | done |
+| S28 | a ticket that changes only the toolkit or docs runs a lighter cycle: one verification, no replay by default | todo |
+| S29 | a claimed failure is confirmed by a test the researcher writes in a disposable worktree | todo |
+| S30 | the review passes are `reviewer` agents the skills spawn themselves, with no `code-review` wrapper | todo |
 
 ## How to run this plan
 
@@ -49,6 +52,8 @@
   worktree each (`.claude/skills/ticket-implement/parallel-steps.md`), and each lands on the
   ticket branch as one commit: its rounds commit in its worktree and are cherry-picked together.
   The scripts `hook-cases.sh` and `worktree-cases.sh` beside this plan hold their cases.
+- **S28–S30** apply the audit's decisions A, C and D, on the user's word of 2026-11-05, in the
+  same way: one worktree each where they do not share a line, one commit each.
 - **From S1 on, each step's findings use the pass-and-fate line** S1 adds to the template, so this
   ticket's verification fills the Review ledger (R12).
 - Every edited skill, agent and template states the pattern, not this ticket's instances
@@ -1389,6 +1394,100 @@
     the unwanted base (writing-for-agents › negation); and a short line after the edit.
   - Standards — rejected — the proposed message lacked `Co-Authored-By`: the main session adds
     it at the commit.
+
+#### S28 — A lighter cycle for a toolkit ticket
+
+- **Delivers:** `sdd.md › When to run which cycle` gains a row for a ticket that changes only the
+  toolkit or docs (`.claude/`, `docs/`, no app code): it runs one `/ticket-verify`, whose accepted
+  fixes land as steps without a second run unless a fix changes what a requirement asks, and it
+  replays past steps only for a requirement nothing else can check.
+- **Goal:** the audit's decision A: this ticket wrote 3285 lines of artifacts for 460 changed
+  lines of toolkit, over three verification runs and a replay.
+- **Blocked by:** none.
+- **Files:** `docs/knowledge/sdd.md › When to run which cycle`, which `.claude/CLAUDE.md` names as
+  the place that decides a cycle; `.claude/skills/ticket-verify/SKILL.md` step 4 if a toolkit
+  ticket's fixes need a word there. `.claude/rules/sdd.md` does not restate the cycles (checked at
+  plan time), so it stays.
+- **Size:** ~10.
+- **Test first:** `make check` over the edited skills, agents and templates — the check below
+  prints `0` today.
+- **Verify:**
+  - `sed -n '/^## When to run which cycle/,/^## The five/p' docs/knowledge/sdd.md | grep -c
+    '\.claude/'` prints `1` or more; prints `0` today.
+  - If `ticket-verify/SKILL.md` changes: the no-op experiment of `.claude/agents/researcher.md` on
+    the skill with and without the line, the task "a toolkit-only ticket's first verification
+    accepted two fixes; they are committed: what next?"; the answers differ in whether a second
+    `/ticket-verify` runs.
+  - `make check` green.
+- **Model:** `opus high`
+- **Status:** todo
+
+#### S29 — Confirm a claimed failure with a test
+
+- **Delivers:** a researcher confirming a `claimed` finding may write a failing test in a
+  disposable worktree that holds the uncommitted step, and runs it: `confirmed` when the test
+  fails with the finding's wrong outcome, `refuted` when it passes, `unclear` only when no test or
+  command the repo can run would show it (a production limit, a live service). The main session
+  sets the worktree up once per review round, from `HEAD` plus the step's uncommitted diff and
+  untracked files, and removes it after the verdicts. The main tree stays untouched.
+- **Goal:** the audit's decision C: a finding shown by a run was right 5 times of 5 in S22–S27,
+  while the hunt named R4's hidden failure in one run of four and a researcher bound to reading
+  code answers `unclear` where a test would settle it.
+- **Blocked by:** none.
+- **Files:** `.claude/agents/researcher.md` (*A confirmation*, *Probes*; run 3's simplification
+  merges where it may write into one bullet); `.claude/skills/ticket-implement/claimed-findings.md`
+  (the worktree's setup and removal, one per round, shared by the round's confirmations; the
+  `make worktree` recipe of `/ticket-plan` step 4 is the model); `docs/knowledge/sdd.md`'s
+  dependency map, the `researcher` row.
+- **Size:** ~25.
+- **Test first:** A brief as the skill writes it — the no-op experiment of `researcher.md` with
+  and without the new lines, the task a claimed finding only a test settles; today the answer is
+  `unclear` without a test.
+- **Verify:**
+  - The no-op experiment's two answers differ in whether the researcher writes and runs a test in
+    the worktree.
+  - `make check` green.
+  - After the commit (the main session): a researcher briefed with S8.1's claim — a send that
+    loses to a delete gets a foreign-key 500, `touch` discarding `chats.update`'s answer — in a
+    worktree at `3b7b6f24c1`, the parent of its fix `f6e2561120`, comes back `confirmed` with a
+    failing test's output. That commit has no `make worktree`, so the main session sets the
+    worktree up by hand (`git worktree add`, `bun install --frozen-lockfile`); the test sits beside
+    `application/chat/send-message.use-case.test.ts`, which runs alone with
+    `bun --bun vitest run <file>` in about 6 s with Docker up (checked at plan time).
+- **Model:** `opus high`
+- **Status:** todo
+
+#### S30 — The skills spawn the review passes themselves
+
+- **Delivers:** `/ticket-implement` step 3 and `/ticket-verify` step 1 spawn one `reviewer` per
+  pass with its brief, in place of calling `mattpocock-skills:code-review` and overriding all its
+  inputs; what the overrides set stays (the uncommitted diff with untracked files, the step and
+  its `R…` as the spec, `make review-rules`' output and the touched `CLAUDE.md` files as the
+  standards, Standards on sonnet, a word limit), and the plugin's Spec questions (asked for but
+  missing, done but not asked for, done wrong) move into `reviewer.md`'s Spec pass if it lacks
+  them. The reports are still presented under `## Standards` and `## Spec`.
+- **Goal:** the audit's decision D: the override table replaced every input of the plugin's
+  skill, whose version is not pinned, so a renamed step would leave it silently stale; S22–S27
+  ran their reviews this way with the same outcome.
+- **Blocked by:** S29 (the `/ticket-implement` row of `sdd.md`'s dependency map).
+- **Files:** `.claude/skills/ticket-implement/SKILL.md` steps 3 and 4;
+  `.claude/skills/ticket-verify/SKILL.md` step 1; `.claude/agents/reviewer.md` (its
+  description, the Spec pass); `.claude/agents/verifier.md:14`; `docs/knowledge/sdd.md` (the
+  dependency map and its diagram, *What the wrappers override*, *After a plugin update*, and the
+  list of turned-off plugins, which names the plugin by its key `code-review-anthropics`).
+- **Size:** ~60.
+- **Test first:** A brief as the skill writes it — the no-op experiment on `/ticket-implement`
+  with and without the change, the task "list the agents and skills you would call to review a
+  behaviour step"; today the answer calls `code-review`.
+- **Verify:**
+  - `git grep -n -E 'code-review([^-]|$)' -- .claude docs/knowledge` prints nothing; prints 13
+    lines today, the unquoted table header and diagram node among them. The pattern skips
+    `code-review-anthropics`, the turned-off plugin's key in `settings.json`.
+  - The experiment's answer after the change spawns one `reviewer` per pass and calls no
+    `code-review`.
+  - `make check` green.
+- **Model:** `opus high`
+- **Status:** todo
 
 ## Requirement coverage
 
