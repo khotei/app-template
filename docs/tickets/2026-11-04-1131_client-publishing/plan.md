@@ -6,7 +6,7 @@
 
 | Step | Delivers | Status |
 |---|---|---|
-| S1 | the ids, `Auth`, `CurrentUser` and `UserUnknownError` declared by the contract; identity's contract keeps `UserId` | todo |
+| S1 | the ids, `Auth`, `CurrentUser` and `UserUnknownError` declared by the contract; identity's contract keeps `UserId` | done |
 | S2 | the twins test: every export both the contract and the modules declare under one name compared by representation | todo |
 | S3 | the user and attachment groups on the contract's own schemas, answered through `buildApiUser` and `buildApiAttachment` | todo |
 | S4 | the chat group on its own schemas; the contract's manifest declares only `effect`; the docs describe the new boundary | todo |
@@ -78,8 +78,26 @@
   - `grep -rn "application/identity" http-api/` — prints only `http-api/user/user.http.ts` (the
     user model, which S3 replaces); fails on `Auth` still imported from identity.
 - **Model:** `opus high`
-- **Status:** todo
-- **Findings:**
+- **Status:** done
+- **Findings:** passes: simplify (4 angles), Standards, Spec, Design; no hunt (no write guard, fake or retry).
+  - Deviation — the four ids are built through a private `buildIdSchema` in `ids.ts`, as the domain's
+    helper does (`deep-modules.md`: one function over the varying part); the schemas are the plan's.
+  - Deviation — `decisions.md › Module contracts` Cost lost its "`Auth` lives outside `http-api`"
+    clause (made false by this step; D4 says the record loses it); the user-DTO clause stays until S3.
+  - `make api-check` and `make api-snapshot` leave `openapi.json` byte-identical; `make check` green
+    (221 unit, 104 e2e).
+  - simplify — rejected: `buildIdSchema(brand: B)` does not compile (`B & EnsureSingleBrandKey<B>`),
+    tried and reverted.
+  - Standards — accepted, fixed in S1.2: `http-api/CLAUDE.md` "still the domain's" would go stale.
+  - Standards — accepted, fixed in S1.2: the ids bullet listed what the folder holds.
+  - Spec — accepted, fixed in S1.2: the same bullet called the ids the contract's while the groups
+    still import the domain's until S3/S4.
+  - Standards — rejected: `ids.ts` plural, no `.id` suffix — `errors.ts` and `limits.ts` set the
+    precedent in this folder.
+  - Design — rejected: translate identity's `UserUnknownError` at the seam — D4 provides the `User`
+    as it is; S2's twins test guards the shape.
+  - Design — rejected: `UserUnknownError` into `errors.ts` — the plan keeps it with `Auth`.
+  - User — `http-api/shared` keeps its name (asked 2026-11-05).
 
 #### S2 — The twins test
 
