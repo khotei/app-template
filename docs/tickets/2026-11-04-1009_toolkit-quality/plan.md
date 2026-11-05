@@ -32,7 +32,7 @@
 | S24 | `rm -rf` is no longer denied: the deny stopped agents and protected nothing | done |
 | S25 | `make worktree` refuses a number another live worktree holds, one whose ports pass 65535, and a renumbered worktree | done |
 | S26 | the lines that still named a read or search tool state what to read instead | done |
-| S27 | an agent's worktree branches from the ticket branch on every machine, not only the user's | todo |
+| S27 | an agent's worktree branches from the ticket branch on every machine, not only the user's | done |
 
 ## How to run this plan
 
@@ -1350,11 +1350,24 @@
 - **Verify:**
   - `jq -e '.worktree.baseRef == "head"' .claude/settings.json` prints `true`; prints `false`
     today.
-  - Not settled by a check: that Claude Code reads the key from project settings as from the
-    user's (the docs say "settings"); seeing it needs a machine without the user's key.
+  - Claude Code reads the key from project settings: `claude -p --setting-sources project`
+    spawning an agent with `isolation: "worktree"` that prints `git rev-parse --short HEAD`.
   - `make check` green.
 - **Model:** `opus medium`
-- **Status:** todo
+- **Status:** done
+- **Findings:** passes that ran on S27.1: Standards (sonnet, with writing-for-agents) and Spec,
+  each a `reviewer` spawned directly; S27.2 checked by the main session against its findings.
+  No `simplify`, Design or hunt, a config step. Implementer on `opus medium` in the worktree
+  `toolkit-quality-S27-base-ref` (N=4), about 2.7 and 1.4 min. Verify: `jq` printed `false`
+  before and `true` after; `make check` exit 0. The project-scope check, run by the main
+  session with the user's settings left out: the agent's worktree printed `8161e25979`, the
+  ticket branch's `HEAD`; the same run with `--settings '{"worktree":{"baseRef":"fresh"}}'`
+  printed `aaf033494f`, `origin/main`. Rounds S27.1 and S27.2 land as one commit, on the user's
+  word.
+  - Standards — accepted, fixed in S27.2 — `parallel-steps.md:10-11`: "not `origin/HEAD`" named
+    the unwanted base (writing-for-agents › negation); and a short line after the edit.
+  - Standards — rejected — the proposed message lacked `Co-Authored-By`: the main session adds
+    it at the commit.
 
 ## Requirement coverage
 

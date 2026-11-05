@@ -123,5 +123,6 @@
     "code-review-anthropics@anthropic-plugin-directory": false,
     "context7@anthropic-plugin-directory": false
   },
+  "worktree": { "baseRef": "head" },
   "disableClaudeAiConnectors": true
 }
