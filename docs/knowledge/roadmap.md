@@ -755,6 +755,32 @@ phase weighs one. Each holds what it would bring, what it would cost, and what t
 Raised on 2026-11-02 by a review of Effect's modules (`effect@4.0.6`, Jose from `4.1.1`) for
 hand-written code they could replace; only the queue qualified.
 
+### The toolkit after `toolkit-quality`
+
+What its third verification left open
+([verification.md › run 3](../tickets/2026-11-04-1009_toolkit-quality/verification.md)).
+
+- **Brings:**
+  - **R4, a known limit:** the hunt names a discarded result and clears it. In 3 of 4 runs it
+    did not name the foreign-key 500 that `Effect.asVoid` hid on `postgres-drizzle` S8.1. A line
+    in `reviewer.md` would ask it to follow the hidden failure to what the caller returns.
+  - **A rate, not one run:** a requirement on what a model does passes when it holds in N of M
+    runs (say 3 of 5). Otherwise R4 passes and fails by chance.
+  - **The review loop closes:** at verification only a hard violation or an unmet requirement
+    starts a step; a judgement finding (the simplifications below) goes here. After two runs the
+    ticket closes, with its known limits in `verification.md`.
+  - **Its lessons L1–L4:**
+    - a step that reverses a decision lists the record in its Files;
+    - a lesson about an agent's tool habit proposes a check of the output, never a hook;
+    - the verifier and the researcher are told that `rm -rf` is denied and to use `rm -r`;
+    - plus L2, the R4 line above.
+  - **Its simplifications:**
+    - `researcher.md` gets one bullet on where it may write;
+    - `ticket-implement` defines a behaviour step once;
+    - the probe-worktree recipe moves into `ticket-plan/guard-probes.md`.
+- **Costs:** a step or two in a later toolkit ticket; the rate makes a no-op run five times longer.
+- **Check first:** the R4 line by a no-op run of five on S8.1, with the line and without it.
+
 ### Drizzle's agent skill
 
 - **Brings:** Drizzle's own skill (`drizzle-kit skills`) on choosing a migration workflow, telling

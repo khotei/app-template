@@ -356,6 +356,11 @@ at `7a2c073f1d`, removed afterwards; its first attempt was refused on an `rm -rf
 seven commits outside the ticket are PR #17's (`chore/claude-code-setup`, open), so they leave
 this branch once #17 merges and the branch is rebased.
 
+**Accepted by the user:** R4 stays a known limit, not a step: the hunt named the hidden failure in
+one run of four, and the lines added for it did not change that. R4, the simplifications and
+L1–L4 move to [roadmap.md › The toolkit after
+`toolkit-quality`](../../knowledge/roadmap.md#the-toolkit-after-toolkit-quality), none applied.
+
 ### Requirements
 
 | Req | Result | Evidence |
