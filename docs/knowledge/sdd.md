@@ -72,7 +72,7 @@ uses updates this map too; the Standards review checks it against `.claude/rules
 | `implementer` | `tdd`, preloaded | — | `make-check.sh` on `Stop` (runs as `SubagentStop`) | the step's files |
 | `reviewer` | one pass: an axis of `code-review`, the Design pass or the hunt; on Standards over an instruction file, `writing-for-agents` | — | — | nothing: read-only |
 | `verifier` | — | — | — | nothing: read-only |
-| `researcher` | — | — | — | nothing in the main tree; probe files only in a disposable worktree its brief names |
+| `researcher` | — | — | — | nothing in the main tree; a probe or a confirming test only in a disposable worktree its brief names, set up by `make worktree` |
 
 Plugin skills are `mattpocock-skills:<name>`; ticket files are in `docs/tickets/<ticket>/`.
 

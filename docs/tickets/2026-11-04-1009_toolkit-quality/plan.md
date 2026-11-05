@@ -34,7 +34,7 @@
 | S26 | the lines that still named a read or search tool state what to read instead | done |
 | S27 | an agent's worktree branches from the ticket branch on every machine, not only the user's | done |
 | S28 | a ticket that changes only the toolkit or docs runs a lighter cycle: one verification, no replay by default | done |
-| S29 | a claimed failure is confirmed by a test the researcher writes in a disposable worktree | todo |
+| S29 | a claimed failure is confirmed by a test the researcher writes in a disposable worktree | done |
 | S30 | the review passes are `reviewer` agents the skills spawn themselves, with no `code-review` wrapper | todo |
 
 ## How to run this plan
@@ -1472,7 +1472,28 @@
     `application/chat/send-message.use-case.test.ts`, which runs alone with
     `bun --bun vitest run <file>` in about 6 s with Docker up (checked at plan time).
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:** passes that ran on S29.1: Standards (sonnet, with writing-for-agents) and Spec,
+  each a `reviewer` spawned directly; S29.2 checked by the main session against its findings.
+  No `simplify`, Design or hunt, a docs step. Implementer on `opus high` in the worktree
+  `toolkit-quality-S29-confirm-test` (N=4), about 8.7 and 2.2 min. Verify: in the no-op
+  experiment the old `researcher.md` answered `unclear` twice ("needs a new concurrency test"),
+  the new one wrote and ran a test in the worktree and answered `confirmed`; the carry-over
+  (`git diff HEAD --binary | git apply`, a `tar` of untracked files) left `diff -r` empty
+  against the step's tree; `make check` exit 0. The after-commit check is below. Rounds S29.1
+  and S29.2 land as one commit, on the user's word.
+  - Deviation — `architecture.md › D4` said "never by a file planted in the tree" and accepted
+    `unclear` for a claim only a new test settles; rewritten in this commit, with the old rule
+    among its rejected alternatives, and the *A confirmation* `Evidence:` line widened.
+  - Deviation — the dependency map's `/ticket-implement` row still says "`researcher` (one per
+    claimed finding, in parallel)" with no word of the shared worktree; S30 rewrites that row.
+  - Spec — accepted, fixed in S29.2 — `claimed-findings.md:21`: a step of untracked files only
+    gives an empty diff, and `git apply` exits 128 ("No valid patches in input") before the
+    files are copied; now `apply --allow-empty`, checked red and green.
+  - Standards — accepted, fixed in S29.2 — `researcher.md`: where the worktree comes from was
+    said twice (`claude-md.md › The owner`); *Probes* now only points at it.
+  - Standards — accepted, fixed in S29.2 — `claimed-findings.md` setup step 3 had no done
+    criterion (writing-for-agents › Steps and completion criteria); it now ends on exit 0.
 
 #### S30 — The skills spawn the review passes themselves
 

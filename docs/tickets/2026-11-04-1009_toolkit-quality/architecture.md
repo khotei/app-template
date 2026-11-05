@@ -116,7 +116,7 @@ ticket's `D…` it must not re-open without real friction; no question of its ow
 
 ```text
 Verdict: confirmed | refuted | unclear
-Evidence: <the path:line chain the input takes, or an existing test or command and its output>
+Evidence: <the test or command, the written test's path, and the run's output; or the path:line chain that answers it on other grounds>
 ```
 
 `confirmed` reaches the user as the finding; `refuted` is dropped and counted as rejected;
@@ -256,17 +256,21 @@ real input. `tdd` writes no test here; a step's *Test first* names the seam to o
   - **Rejected:**
     - The hunt owns missing tests — they would surface only on risky steps.
 
-- **D4 — A claimed failure is confirmed by its own `researcher` on opus, by trace or an existing
-  test, never by a file planted in the tree.**
+- **D4 — A claimed failure is confirmed by its own `researcher` on opus, by a run: an existing
+  test or command, else a test it writes in the round's disposable worktree, never in the tree
+  that holds the step.** (S29 rewrote it, on the audit's decision C.)
   - **Why:** a fresh agent is not anchored on the claim, as the reviewer that raised it is; opus,
     because a wrong `refuted` hides a real bug from the user, and a step raises one or two such
-    claims. The tree holds the uncommitted step, so a planted file would join its diff.
-  - **Cost accepted:** the wall time of the slowest confirmation before the step is presented; a
-    failure that only a new test or a run the repo cannot make (a production limit, a live
-    service's behaviour) shows comes back `unclear` and costs the user a question.
+    claims. The step's tree holds the uncommitted step, so a file planted there would join its
+    diff; the round's worktree holds a copy of it instead.
+  - **Cost accepted:** the wall time of the slowest confirmation before the step is presented; one
+    worktree set up and removed per review round; `unclear`, and a question to the user, only for
+    a failure the repo cannot run (a production limit, a live service's behaviour).
   - **Reversal:** one commit in `ticket-implement` and `researcher.md`.
   - **Rejected:**
     - The raising reviewer re-checks through `SendMessage` — it confirms its own reading.
+    - A trace or an existing test only (D4 before S29) — a claim only a new test settles came
+      back `unclear`, while a finding shown by a run was right 5 times of 5 in S22–S27.
     - The main session reads the code — it orchestrates on reports (`ticket-implement` step 4).
     - A confidence threshold — out of scope; filtering after the report is the verdict's job.
 
