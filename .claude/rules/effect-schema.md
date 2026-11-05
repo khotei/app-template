@@ -14,7 +14,7 @@ paths:
   `Schema.String.check(Schema.isUUID()).pipe(Schema.brand('<Model>Id'))`; a constrained value a
   port or use case accepts (a file name, a media type, a size) is a brand too.
 - An absent value is an `Option` (`Schema.Option(…)` in a model), never `null` or `undefined`;
-  `null` exists only on the wire, in the API contract (`Schema.OptionFromNullOr(…)`).
+  `null` exists only on the wire, in the API contract.
 - An annotation a JSON Schema must carry sits on the encoded side, on the key of a checked field
   (`annotateKey`): `annotate` on a check or a transformation drops it. Its test reads it back from
   `Schema.toJsonSchemaDocument`.

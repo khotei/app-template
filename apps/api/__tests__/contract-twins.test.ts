@@ -1,5 +1,14 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, flow, Predicate, pipe, Record as Rec, Schema, SchemaRepresentation } from 'effect'
+import {
+  Array as Arr,
+  Effect,
+  flow,
+  Predicate,
+  pipe,
+  Record as Rec,
+  Schema,
+  SchemaRepresentation,
+} from 'effect'
 
 import * as Chat from '@app-template/application/chat'
 import * as Identity from '@app-template/application/identity'
@@ -27,7 +36,7 @@ describe('the contract twins', () => {
     ({ domain }) => Effect.sync(() => assert.isNotEmpty(twinsOf(domain))),
   )
 
-  it.effect.each(twinsOf({ ...Chat, ...Identity }))(
+  it.effect.each(pipe(modules, Rec.values, Arr.flatMap(twinsOf)))(
     "$name: the contract declares the domain's checks",
     ({ contract, domain }) =>
       Effect.sync(() =>

@@ -44,7 +44,7 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 - Enqueue inside the transaction of the writes the job reads, through `QueueSender.send`
   ([database.md › The outbox](../../docs/knowledge/database.md#the-outbox)).
 - Read or delete a set through one batch call, never one call per id.
-- Return a model as is: the api's `buildApi<Model>` and the contract's struct shape the wire.
+- Return a model as is.
 
 ## Handlers
 

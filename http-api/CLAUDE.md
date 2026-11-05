@@ -10,8 +10,9 @@ and the auth middleware. Why:
   imported.
 - **A twin keeps the domain's export name.** A schema the domain declares too (an id, a
   constrained string, a status list, an error) is exported here under the domain's name and
-  brand, so the api's twins test pairs it by name and fails on a drifted check. One under
-  another name is compared with nothing, so review refuses it.
+  brand, so the api's twins test pairs it by name and fails on a drifted check. It carries no
+  annotation the domain's lacks (a `description` alone fails the test). One under another name
+  is compared with nothing, so review refuses it.
 - **A model's wire shape is `Api<Model>`, a `Schema.Struct`,** never a class: it encodes the
   domain's instance as it is and writes only its own fields, so an internal field stays off the
   wire. An `Option` is `Schema.OptionFromNullOr`. The api hands it the model through its

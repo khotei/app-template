@@ -251,16 +251,13 @@ model's.
 5. **The flows.** A flow over two services or a job is a [use case](#a-use-case); asynchronous
    work is a queue definition in the module's `services/` and a handler in `apps/worker/`
    ([database.md › The outbox](database.md#the-outbox)).
-6. **The boundary.** A contract group in `http-api/<entity>/<entity>.http.ts` declares the
-   entity's wire shape, `Api<Model>` (a `Schema.Struct`), and the domain's id, constrained
-   strings and errors as its own twins under the domain's names, each error with its status on
-   the class; the api's twins test compares each twin with the domain's. The group is added to
+6. **The boundary.** A contract group in `http-api/<entity>/<entity>.http.ts`, with the entity's
+   wire shape, ids and errors as [http-api/CLAUDE.md](../../http-api/CLAUDE.md) says, added to
    `Api` in `http-api/api.ts` before `.middleware(SchemaErrors)`, which reaches only the groups
-   added before it. Its handler in `apps/api/<entity>/` returns each model through its
-   `buildApi<Model>` in `apps/api/<entity>/<entity>.mapper.ts` and fails with the domain's errors
-   as they are; it is added to `ApiRoutes` and its services to `ApiHttp`, the repository's
-   layer to `ApiLayer`. Test only what HTTP adds, on the
-   api test layer; a flow new to both apps joins the journey. A browser feature calls it through
+   added before it; its handler in `apps/api/<entity>/` and its mappers in
+   `apps/api/<entity>/<entity>.mapper.ts`, the handler added to `ApiRoutes` and its services to
+   `ApiHttp`, the repository's layer to `ApiLayer`. Test only what HTTP adds, on the api test
+   layer; a flow new to both apps joins the journey. A browser feature calls it through
    `ApiClient` from `apps/web/features/<entity>/`.
 
 A new entity in existing workspaces usually needs no new dependency; an undeclared one fails

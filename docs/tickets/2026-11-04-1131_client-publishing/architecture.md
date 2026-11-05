@@ -134,9 +134,12 @@ import * as Contract from '@app-template/http-api'
 import * as Chat from '@app-template/application/chat'
 import * as Identity from '@app-template/application/identity'
 
-const twins = pairSchemasByName(Contract, { ...Chat, ...Identity }) // every export both sides hold
-it.each(twins)('$name: the contract declares the domain\'s checks', ({ contract, domain }) =>
-  assert.deepStrictEqual(Schema.toRepresentation(contract), Schema.toRepresentation(domain)))
+const modules = { Chat, Identity }
+const twins = pipe(modules, Rec.values, Arr.flatMap(twinsOf)) // per module, every export both sides hold
+// the JSON form: the live representation holds closures that never compare equal
+const representationOf = flow(Schema.toRepresentation, SchemaRepresentation.toJson)
+it.effect.each(twins)('$name: the contract declares the domain\'s checks', ({ contract, domain }) =>
+  Effect.sync(() => assert.deepStrictEqual(representationOf(contract), representationOf(domain))))
 ```
 
 ```jsonc
@@ -230,13 +233,17 @@ settled in D2.
       the prototype removed, each a place for the wire to drift.
 
 - **D3 — The twins test pairs a contract export with the domain export of the same name and
-  compares their `Schema.toRepresentation`; tsc covers the rest through the mappers.**
+  compares the JSON form of their `Schema.toRepresentation`; tsc covers the rest through the
+  mappers.**
   - **Why:** a hand list of pairs or boundary values drifts with the first new twin (R5). The
     representation carries what the types cannot: a limit's number, a pattern's source and
     flags (JSON Schema drops the `i` flag), a UUID version, every literal; equal representations
-    mean equal checks (checked: a 120 vs 121 limit and an `i` flag each differ). A brand's name
-    is not in the representation, and need not be: the identity mapper and `CurrentUser` make a
-    renamed brand, tag, literal or field a type error.
+    mean equal checks (checked: a 120 vs 121 limit and an `i` flag each differ). The test
+    compares its JSON form (`SchemaRepresentation.toJson`): the live document holds each check's
+    closures (`toJsonSchema`, `toCode`), which never compare equal across two declarations, and
+    the JSON form drops every annotation that is not JSON. A brand's name is not in the
+    representation, and need not be: the identity mapper and `CurrentUser` make a renamed brand,
+    tag, literal or field a type error.
   - **Cost accepted:** a twin declared under another name is never compared; the contract's
     rule (a twin keeps the domain's name, `http-api/CLAUDE.md`) and the Standards review hold
     it. `Api<Model>` structs are not paired by design: their shape differs (`Option` vs
@@ -304,9 +311,11 @@ settled in D2.
   handler tests, which read a domain error's status through `ApiClient`; `make vendor-effect`
   runs `make check`.
 - **A contract-only annotation leaks into the representation.** `httpApiStatus` on the contract's
-  error classes could make every error pair differ. *Contained by:* the step that writes the
-  twins test checks the representation of an error pair first and strips what the contract adds
-  on purpose, in one place.
+  error classes could make every error pair differ. *Settled in S3:* the JSON form of the
+  representation drops every annotation that is not JSON and holds no `httpApiStatus`, so no
+  strip is needed; a JSON annotation on one side only (a `description`) differs, so a twin
+  carries none the domain's lacks (`http-api/CLAUDE.md`), and one Effect adds later fails the
+  error pairs.
 - **A twin under another name.** A constraint drifts with no test noticing. *Contained by:*
   `http-api/CLAUDE.md`'s rule and the Standards review; the twins test lists the pairs it
   compared in its titles, so a missing one is visible.

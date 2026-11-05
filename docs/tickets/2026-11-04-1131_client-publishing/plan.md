@@ -8,7 +8,7 @@
 |---|---|---|
 | S1 | the ids, `Auth`, `CurrentUser` and `UserUnknownError` declared by the contract; identity's contract keeps `UserId` | done |
 | S2 | the contract on its own schemas: the user, attachment and chat groups, their mappers, the manifest declaring only `effect` | done |
-| S3 | the twins test over every twin, and the knowledge docs and records of the new boundary, each page written once | todo |
+| S3 | the twins test over every twin, and the knowledge docs and records of the new boundary, each page written once | done |
 | S4 | the guards: the contract's Biome override bans every workspace; `make bundle-check` reads the metafile against `browserPackages` | todo |
 
 ## How to run this plan
@@ -235,40 +235,46 @@
 - **Files:**
   - `apps/api/__tests__/contract-twins.test.ts` (new): `import * as Contract from
     '@app-template/http-api'`, `import * as Chat from '@app-template/application/chat'`,
-    `import * as Identity from '@app-template/application/identity'`; the pairs are the names
-    both `Contract` and `{ ...Chat, ...Identity }` export whose values are schemas
-    (`Schema.isSchema`); `it.effect.each(pairs)('$name: the contract declares the domain's
-    checks', …)` asserts `Schema.toRepresentation` of both sides `deepStrictEqual`; the suite
-    fails when no pair is found, so a wrong namespace import cannot pass vacuously. The
+    `import * as Identity from '@app-template/application/identity'`, listed once as
+    `modules = { Chat, Identity }`; the pairs are, per module, the names both `Contract` and the
+    module export whose values are schemas (`Schema.isSchema`);
+    `it.effect.each(pairs)('$name: the contract declares the domain's checks', …)` asserts the
+    JSON form of the representation,
+    `SchemaRepresentation.toJson(Schema.toRepresentation(…))`, of both sides
+    `deepStrictEqual`: the live document holds each check's closures (`toJsonSchema`, `toCode`),
+    which never compare equal across two declarations. A case per module fails when it shares
+    no twin with the contract, so a wrong namespace import cannot pass vacuously. The
     hand-written case:
     `Schema.encodeUnknownEffect(Schema.toCodecJson(Contract.UserUnknownError))(new Identity.UserUnknownError())`
     yields `{ _tag: 'UserUnknownError' }`, so an Effect upgrade that drops the class marker fails
     here first.
-  - What the representation holds, checked at plan time on `effect@4.0.6`: a check's payload
+  - What the JSON form holds, checked on `effect@4.0.6`: a check's payload
     (`isMaxLength` 120 vs 121 differ), a pattern's `source` and `flags` (`i` vs none differ), a
     class's `~identifier` and its tag literal (`XError` vs `YError` differ); it holds no brand
     (`brand('A')` and `brand('B')` are equal, by design: a renamed brand is `tsc`'s through the
-    mappers of S2) and no annotation such as `httpApiStatus` (a `TaggedError` with and without it
-    are equal), so no strip is needed. If a later Effect adds annotations to it, the error pairs
-    fail and the step that upgrades Effect decides.
+    mappers of S2) and no annotation that is not JSON, nor `httpApiStatus` (a `TaggedError` with
+    and without it are equal), so no strip is needed; a JSON annotation such as `description`
+    on one side only differs, so a twin carries none the domain's lacks. If a later Effect adds
+    annotations to it, the error pairs fail and the step that upgrades Effect decides.
   - Docs, one pass: `http-api/CLAUDE.md` rewritten within 40 lines (imports only `effect`; a twin
     keeps the domain's export name, so the twins test finds it; `Api<Model>` is a `Schema.Struct`;
     a status sits on the error class; a wire change moves the snapshot); `application/CLAUDE.md`'s
-    browser bullet becomes the domain's import bans with their record, no browser reason (S4 drops
-    its `"sideEffects"` mention); `docs/knowledge/architecture.md`: *The three rings* (the domain
+    browser bullet becomes the domain's import bans with their record, no browser reason;
+    `docs/knowledge/architecture.md`: *The three rings* (the domain
     no longer ships to the browser; `http-api` is the API contract that imports only `effect`),
     *Dependency rules* (the `http-api` row all ✗; the bullet on what imports only `effect`),
-    *Where things live* (`ApiChat`, the contract's twins), *Add a new entity* step 6 (the contract
-    declares the entity's wire shape, twins and errors; the api's `buildApi<Model>`);
-    `docs/knowledge/tooling.md`'s "A new workspace the browser imports" line;
+    *Where things live* (`ApiChat`, the contract's twins), *Add a new entity* step 6 (the files
+    to add and where they are wired, the api's mapper file among them; the rules linked to
+    `http-api/CLAUDE.md`);
+    `docs/knowledge/tooling.md`'s "A new workspace the browser imports" line (true before S4:
+    the override, not `browserPackages`);
     `.claude/rules/effect-schema.md`'s "`null` exists only in a wire DTO" names the API contract;
     `.claude/rules/naming.md` `.mapper` row adds the api's `buildApi<Model>`;
     `.claude/rules/layering.md › Handlers`: a handler returns a model through its
     `buildApi<Model>` and fails with domain errors as they are, and the ban "imports no
     repository, mapper or data layer" names the module's `<Model>FromEntity` as the mapper it
     means; `layering.md › Use cases` "Return the contract's shape, a model as is: its DTO's
-    encoder drops the fields it leaves out" becomes "Return a model as is: the api's
-    `buildApi<Model>` and the contract's struct shape the wire";
+    encoder drops the fields it leaves out" becomes "Return a model as is.";
     `docs/knowledge/decisions.md`: the record *The API contract on its own* with the page's seven
     fields (D1's Why, Rejected, Cost; Guarded by: the `http-api/**` override, the twins test, the
     mappers under `tsc`, `make bundle-check`; If reversed; Revisit when: a second consumer of the
@@ -285,9 +291,10 @@
 - **Verify:**
   - `make test-unit` — the suite's titles name `UserId`, `ChatId`, `MessageId`, `AttachmentId`,
     `UserUnknownError`, `ChatTitle`, `ChatStatus`, `MessageStatus`, `MessageAuthor`, `FileName`,
-    `MediaType`, `FileSize` and the six errors of the two groups; fails on fewer pairs (a namespace
-    import that misses an entry). `grep -n "ChatTitle" http-api/index.ts` prints nothing: the
-    contract's `ChatTitle` is its own, not a re-export that would compare with itself.
+    `MediaType`, `FileSize` and the six errors of the two groups; fails when a module (`Chat`,
+    `Identity`) shares no twin with the contract. `grep -n "ChatTitle" http-api/index.ts` prints
+    nothing: the contract's `ChatTitle` is its own, not a re-export that would compare with
+    itself.
   - Planted: `http-api/shared/ids.ts` without `Schema.isUUID()` on `UserId` → `make test-unit`
     fails naming `UserId`; the contract's `UserUnknownError` with identifier `'UserUnknown'` → the
     twins case and the hand-written case both fail; the contract's `MediaType` pattern without its
@@ -297,8 +304,28 @@
   - `make doc-lint` — fails on `http-api/CLAUDE.md` over 40 lines or a broken path.
   - `make check` — green.
 - **Model:** `opus high`
-- **Status:** todo
-- **Findings:**
+- **Status:** done
+- **Findings:** passes: simplify (no change), Standards, Spec, Design; no hunt (no write guard,
+  transaction, fake or retry). `make check` green (245 unit, 104 e2e); rounds S3.1, S3.2.
+  - Deviation — the test compares `SchemaRepresentation.toJson(Schema.toRepresentation(…))`, not
+    the live representation: its checks hold closures that never compare equal across two
+    declarations (the first run failed 13 of 18 pairs). The JSON form keeps every payload, flag and
+    identifier and holds no `httpApiStatus`.
+  - Deviation — "fails on fewer pairs" became "fails when a module shares no twin with the
+    contract": a count would be a number kept by hand (R5).
+  - Deviation — `application/CLAUDE.md` drops its `"sideEffects"` mention here, so the page is
+    written once; the flag leaves `application/package.json` in S4.
+  - Standards — rejected: renaming the test file (the plan names it); the handler bullet of
+    `layering.md` (the plan prescribes it).
+  - Standards — accepted, fixed in S3.2: `effect-schema.md` restated `OptionFromNullOr`, owned by
+    `http-api/CLAUDE.md`.
+  - Design — accepted, fixed in S3.2: the module list stood twice in the test (a later module's
+    export could overwrite an earlier one's); `layering.md` Use cases named the api's mapper;
+    step 6 of "Add a new entity" restated the contract's rules.
+  - Spec — accepted, fixed in S3.2: a one-sided `description` on a twin fails its pair, so
+    `http-api/CLAUDE.md` says a twin carries no annotation the domain's lacks.
+  - Spec — accepted, moved to S4: `tooling.md` "A new workspace the browser imports" gains the
+    `browserPackages` entry in S4, since the list exists only after it.
 
 #### S4 — The guards: the contract's override and the bundle check over the metafile
 
@@ -342,13 +369,16 @@
   - `apps/web/package.json`: `"browserPackages": ["effect", "@app-template/http-api", "@app-template/packages/ui"]`.
   - `application/package.json`: `"sideEffects": false` removed; `http-api/package.json` keeps
     its own, since the contract is a browser library.
-  - Docs: `docs/knowledge/tooling.md`'s `make bundle-check` row; `docs/knowledge/architecture.md`:
+  - Docs: `docs/knowledge/tooling.md`'s `make bundle-check` row, and its "A new workspace the
+    browser imports" line adds that the workspace joins `browserPackages` in
+    `apps/web/package.json`, an entry that exists only after this step;
+    `docs/knowledge/architecture.md`:
     *Boundary guards* row and the paragraph under the table (the metafile, not the keys), *Known
     gaps* (the namespace-import gap no longer reaches `http-api`; the server-library gap is
     closed), *Add a module* step 4 (no service key to grep); `architecture.md › Contracts` of this
     ticket: the mapping reads the manifests, not folder names; `docs/knowledge/decisions.md`:
     *Guards are configuration* and *A module's layers* › Guarded by name the bundle check over the
-    metafile; `application/CLAUDE.md` no longer mentions `"sideEffects"`.
+    metafile.
   - Leftovers: `grep -rn "sideEffects" --include=package.json application http-api apps`;
     `grep -rnE "grep.*service keys|greps the service keys|service keys" docs/ .claude/ application/`.
 - **Size:** ~210.
