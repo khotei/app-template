@@ -67,9 +67,9 @@ steps only conform to the plan. Gates: `.claude/rules/sdd.md`.
      `misses`.
    - **Shape**: from the plan's text and `git grep`, one line per step, `ok` or `fail: <reason>`:
      a step that does not stand alone, as the Spec pass of `.claude/agents/reviewer.md` defines
-     it (the Status and coverage tables apart); wording that makes a step depend on a later one ("until
-     S", "interim", "temporary"), an added scope's own probes apart; a guard whose break an
-     earlier step's Verify already fails on.
+     it; a file or page that two steps edit (the Status and coverage tables apart); wording that
+     makes a step depend on a later one ("until S", "interim", "temporary"), an added scope's own
+     probes apart; a guard whose break an earlier step's Verify already fails on.
    For a step that adds, changes or removes a guard or a scope of one, spawn a second `researcher`
    with its probes and the worktree `<slug>-plan-probes`; it runs them as
    `.claude/agents/researcher.md` says. Create the worktree first with

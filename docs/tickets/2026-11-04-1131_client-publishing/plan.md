@@ -12,7 +12,7 @@
 | S4 | the guards: the contract's Biome override bans every workspace; `make bundle-check` reads the metafile against `browserPackages` | done |
 | S5 | the chat and message mappers hand nested attachments to `buildApiAttachment`, so a wire rename inside the attachment edits one mapper | done |
 | S6 | the contract imports no `node:*` and no `bun:*`: Biome ban and no `bun` types | done |
-| S7 | the `.http` row of `naming.md` allows the contract's models and errors; the reviewer owns the "step that does not stand alone" check | todo |
+| S7 | `naming.md` allows the contract's ids, models and errors in its `.http` files; the reviewer owns the "step that does not stand alone" check | done |
 
 ## How to run this plan
 
@@ -533,8 +533,8 @@
 
 #### S7 — Two instruction files, each fact once
 
-- **Delivers:** the `.http` row of `.claude/rules/naming.md` allows the contract's `.http` files to
-  declare its models, ids and errors under the domain's export names; `ticket-implement/SKILL.md`
+- **Delivers:** the `.id` · `.model` · `.error` row of `.claude/rules/naming.md` allows the
+  contract's `.http` files to declare its ids, models and errors under the domain's export names; `ticket-implement/SKILL.md`
   and `ticket-plan/SKILL.md` point to `.claude/agents/reviewer.md` for the "step that does not
   stand alone" check instead of restating it.
 - **Goal:** the Standards findings of verification run 1.
@@ -550,7 +550,22 @@
   - `grep -n "reviewer.md" .claude/skills/ticket-implement/SKILL.md .claude/skills/ticket-plan/SKILL.md`
     — prints one line per file; prints nothing today.
 - **Model:** `opus medium`.
-- **Status:** `todo`.
+- **Status:** `done`.
+- **Findings:** passes: Standards, Spec (rounds S7.1, S7.2); no simplify, no hunt. `make doc-lint`
+  and `make check` green (246 unit, 104 e2e).
+  - Deviation — the exception sits on the `.id` · `.model` · `.error` row, not the `.http` row
+    (S7.2, Standards): the row that names the suffixes owns the fact; Delivers reworded.
+  - Standards — accepted, fixed in S7.2: the first wording on the `.http` cell restated the
+    `.id` · `.model` · `.error` row; line 70 of `ticket-plan` over 100 columns.
+  - Standards — rejected: a pointer in the `.http` row (a second statement of the exception);
+    dropping "or page" from "a file or page that two steps edit" (the clause is the toolkit's
+    own wording, restored, not new).
+  - Spec — accepted, fixed in S7.2: the Shape check lost "a file or page that two steps edit"
+    when it pointed to `reviewer.md`; it keeps its own item, since it runs on a plan with no diff
+    and the reviewer's definition reads a diff. The two checks differ and both stay.
+  - Spec — rejected: `http-api/shared/security.ts` bare name (the auth group, named for its role
+    as `limits.ts` and `ids.ts` are).
+
 
 ## Requirement coverage
 
