@@ -7,6 +7,9 @@
 | Step | Delivers | Status |
 |---|---|---|
 | S1 | `FileRepository` reads metadata (`selectOne`, `selectMany`) and downloads bytes (`download`); `send` asks the store through `selectMany` | done |
+| S2 | `FileRepository.update` takes a list of ids; `send` binds the files in one call | todo |
+| S3 | `AttachmentService` (plain records), `LiveAttachmentService` (live reads), `FileAttachmentService` (bytes) | todo |
+| S4 | Roadmap: entry 24 done, entry 27 `rules-from-attachment-work` added | todo |
 
 ## How to run this plan
 
@@ -24,6 +27,11 @@
   store's differently shaped answer (a signed URL) a verb of its own: that line, and the record in
   `docs/knowledge/decisions.md` it rests on, are rewritten in this step.
 - The rule stays: `ensureAllStored(ids, stored)` in the attachment model, composed by the send.
+- **Decision (user, 2026-11-06):** the follow-ups ride on this branch as S2 to S4, not as separate
+  PRs; each is its own commit. S3 supersedes the line of `layering.md` that bars a domain service
+  from seeing another: `LiveAttachmentService` wraps `AttachmentService` and
+  `FileAttachmentService` wraps `LiveAttachmentService`, the layers of one model, and the rule and
+  its record in `decisions.md` say so.
 
 ## Steps
 
@@ -97,6 +105,69 @@
     `(.+)` became `(.*)`). Rejected: a missing or malformed `Content-Disposition` is a defect (a
     stored value that no longer decodes, `effect-schema.md`; only a value written outside the
     app reaches it, confirmed by a run).
+
+#### S2 — Batch `update`
+
+- **Delivers:** `FileRepository.update(set, { id })` takes one id or a list and untags them in one
+  pass; the send binds its files with one call, not an `Effect.forEach` of single updates; the
+  memory fake and the e2e take a list too.
+- **Goal:** a set is written through one batch call, never one call per id
+  (`layering.md`); behaviour of the bind is unchanged.
+- **Blocked by:** S1.
+- **Files:** `kernel/data/file/file.repository.ts`, `file.entity.ts` (the unused `_set` is named
+  for what it writes), `kernel/data/__e2e__/file/file.repository.e2e.ts`,
+  `kernel/data/__tests__/testing/file.test-fake.ts`, `send-message.use-case.ts`.
+- **Introduces:** nothing new; `FileEntityWhere.id` already takes a list.
+- **Size:** ~30 changed lines.
+- **Test first:** the repository e2e: `update({ bound: true }, { id: [a, b] })` leaves both
+  objects without the unbound tag — red while `update` takes one id.
+- **Verify:** `make check` green.
+- **Model:** `opus medium`.
+- **Status:** todo
+- **Findings:**
+
+#### S3 — Three attachment services
+
+- **Delivers:**
+  - `AttachmentService`: plain records, no rule: `getOne`, `getMany` and `delete`, which removes
+    the row, then its bytes.
+  - `LiveAttachmentService` over it: the same reads, applying `ensureLive` / `ensureAllLive`.
+  - `FileAttachmentService` over the live one: `upload`, `download` and `delete`, which checks the
+    attachment live and unbound (`ensureUnbound`) and deletes through `AttachmentService`.
+  - The send and the handlers read the service whose name says what they get.
+  - `layering.md` states the layered services as the exception to "never another domain service";
+    `decisions.md` records it, with the rejected single service and the pipe-outside option.
+- **Goal:** a read's name says what it answers (`Live…` drops the expired); a file is stored and
+  removed with its attachment; behaviour of the API and the send is unchanged.
+- **Blocked by:** S2.
+- **Files:** `application/chat/services/`, its mapper and index, `application/chat/__tests__/`,
+  `application/use-cases/chat/send-message.use-case.ts` and its test layer, `apps/api/layer.ts`,
+  `apps/api/attachment/attachment.handler.ts`, `.claude/rules/layering.md`,
+  `docs/knowledge/decisions.md`, `docs/knowledge/database.md` (the two bullets naming
+  `AttachmentService`).
+- **Introduces:** `LiveAttachmentService` (first consumer: the send), `FileAttachmentService`
+  (first consumer: the attachment handler).
+- **Size:** ~250 changed lines of code and tests; docs apart.
+- **Test first:** the plain `getOne` answers an expired attachment, `LiveAttachmentService.getOne`
+  fails `AttachmentNotFoundError` on it — red before the split.
+- **Verify:** `make check` green; the existing attachment cases pass over the new services.
+- **Model:** `opus high`.
+- **Status:** todo
+- **Findings:**
+
+#### S4 — Roadmap
+
+- **Delivers:** entry 24 `attachment-storage-failures` marked done with the pull requests that
+  closed it; entry 27 `rules-from-attachment-work` added from the scratchpad draft.
+- **Goal:** the roadmap shows what landed and the lessons still to apply.
+- **Blocked by:** S3.
+- **Files:** `docs/knowledge/roadmap.md`.
+- **Size:** docs only.
+- **Test first:** `config only`; `make check` (the docs links) is the check.
+- **Verify:** `make check` green.
+- **Model:** `opus medium`.
+- **Status:** todo
+- **Findings:**
 
 ## Requirement coverage
 
