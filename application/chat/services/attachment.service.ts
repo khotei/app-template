@@ -8,7 +8,6 @@ import {
   Option,
   Ref,
   Stream,
-  Struct,
   type Types,
 } from 'effect'
 
@@ -64,7 +63,7 @@ export class AttachmentService extends Context.Service<
     ) => Effect.Effect<void, AttachmentNotFoundError | AttachmentBoundError>
     /**
      * The user's attachments in creation order; one `AttachmentNotFoundError` names every absent,
-     * expired or another user's id, in the order asked, else every id whose bytes the store lost.
+     * expired or another user's id, in the order asked.
      */
     readonly getMany: (
       where: AttachmentGetManyWhere,
@@ -148,21 +147,6 @@ export class AttachmentService extends Context.Service<
       yield* files.delete({ id: [id] })
     })
 
-    const ensureAllStored = (found: ReadonlyArray<Attachment>) =>
-      Effect.filter(
-        found,
-        (attachment) => files.url({ id: attachment.id }).pipe(Effect.map(Option.isNone)),
-        { concurrency: 'unbounded' },
-      ).pipe(
-        Effect.flatMap(
-          Arr.match({
-            onEmpty: () => Effect.succeed(found),
-            onNonEmpty: (lost) =>
-              Effect.fail(new AttachmentNotFoundError({ ids: Arr.map(lost, Struct.get('id')) })),
-          }),
-        ),
-      )
-
     const getMany = Effect.fn('AttachmentService.getMany')(function* (
       where: AttachmentGetManyWhere,
     ) {
@@ -171,11 +155,7 @@ export class AttachmentService extends Context.Service<
 
       return yield* attachments
         .selectMany(where)
-        .pipe(
-          Effect.flatMap(decodeAttachments),
-          Effect.flatMap(ensureAllLive(where.id, now)),
-          Effect.flatMap(ensureAllStored),
-        )
+        .pipe(Effect.flatMap(decodeAttachments), Effect.flatMap(ensureAllLive(where.id, now)))
     })
 
     return { upload, getOne, download, delete: remove, getMany }

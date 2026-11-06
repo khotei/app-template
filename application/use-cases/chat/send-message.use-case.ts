@@ -1,4 +1,14 @@
-import { Array as Arr, Context, Crypto, DateTime, Effect, Layer, Option, Struct } from 'effect'
+import {
+  Array as Arr,
+  Context,
+  Crypto,
+  DateTime,
+  Effect,
+  Layer,
+  Option,
+  pipe,
+  Struct,
+} from 'effect'
 
 import {
   type AttachmentBoundError,
@@ -15,6 +25,7 @@ import {
   CurrentReplyProvenance,
   chatTitleQueue,
   encodeMessage,
+  ensureAllStored,
   ensureMessageInput,
   GenerateAssistantMessage,
   GenerateChatTitle,
@@ -77,7 +88,13 @@ export class SendMessageUseCase extends Context.Service<
       const chat = yield* chatService.getOne({ id: chatId, userId })
       yield* ensureMessageInput(input)
       const queued = yield* queueChat(chat)
-      const requested = yield* attachmentService.getMany({ id: input.attachmentIds, userId })
+      const live = yield* attachmentService.getMany({ id: input.attachmentIds, userId })
+      const storedIds = yield* Effect.filter(
+        Arr.map(live, Struct.get('id')),
+        (id) => files.url({ id }).pipe(Effect.map(Option.isSome)),
+        { concurrency: 'unbounded' },
+      )
+      const requested = yield* pipe(live, ensureAllStored(input.attachmentIds, storedIds))
       const isFirstMessage = yield* messages.selectOne({ chatId }).pipe(Effect.map(Option.isNone))
       const at = yield* DateTime.now
       const userMessageId = yield* generateId(crypto, MessageId.make)
