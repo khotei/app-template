@@ -1,11 +1,11 @@
-import { assert, describe, it } from '@effect/vitest'
+import { describe, it } from '@effect/vitest'
 import { DateTime, Effect, Option, Schema, type Types } from 'effect'
 
-import { maxTitleLength as tableMaxTitleLength } from '@app-template/kernel/data'
+import { maxTitleLength } from '@app-template/kernel/data'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { ChatId, MessageId } from '#chat/domain/chat.id'
-import { Chat, ChatStatus, ChatTitle, maxTitleLength } from '#chat/domain/chat.model'
+import { Chat, ChatStatus, ChatTitle } from '#chat/domain/chat.model'
 import { Message, MessageStatus } from '#chat/domain/message.model'
 import {
   ChatFromEntity,
@@ -43,10 +43,6 @@ const messageCases: ReadonlyArray<Types.Simplify<Pick<Message, 'author' | 'statu
 ]
 
 describe('ChatFromEntity', () => {
-  it('declares the title limit of the table chats', () => {
-    assert.strictEqual(maxTitleLength, tableMaxTitleLength)
-  })
-
   it.effect.each(ChatStatus.literals.map((status) => ({ status })))(
     '$status: encodes a title of the maximum length for chats and reads it back',
     ({ status }) =>

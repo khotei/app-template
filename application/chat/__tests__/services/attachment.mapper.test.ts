@@ -1,17 +1,10 @@
-import { assert, describe, it } from '@effect/vitest'
+import { describe, it } from '@effect/vitest'
 import { DateTime, Effect, Option, Schema } from 'effect'
 
-import { mediaTypePattern as tableMediaTypePattern } from '@app-template/kernel/data'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { AttachmentId } from '#chat/domain/attachment.id'
-import {
-  Attachment,
-  FileName,
-  FileSize,
-  MediaType,
-  mediaTypePattern,
-} from '#chat/domain/attachment.model'
+import { Attachment, FileName, FileSize, MediaType } from '#chat/domain/attachment.model'
 import { AttachmentFromEntity, encodeAttachment } from '#chat/services/attachment.mapper'
 import { owner } from '#testing/chat/chat.test-fixture'
 
@@ -27,10 +20,6 @@ const attachment = new Attachment({
 })
 
 describe('AttachmentFromEntity', () => {
-  it('declares the media type pattern of the table attachments', () => {
-    assert.deepStrictEqual(mediaTypePattern, tableMediaTypePattern)
-  })
-
   it.effect(
     'encodes a media type of every allowed character for attachments and reads it back',
     () =>

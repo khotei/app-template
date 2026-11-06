@@ -10,6 +10,13 @@ import {
   type Types,
 } from 'effect'
 
+import {
+  activeMessageStatuses,
+  messageAuthor,
+  messageFailureReasons,
+  messageStatus,
+} from '@app-template/kernel/data'
+
 import type { AssistantError } from '#chat/domain/assistant.error'
 import type { AttachmentId } from '#chat/domain/attachment.id'
 import { Attachment } from '#chat/domain/attachment.model'
@@ -17,16 +24,16 @@ import { ChatId, MessageId } from '#chat/domain/chat.id'
 import { MessageInputInvalidError, MessageStatusInvalidError } from '#chat/domain/message.error'
 import { isPreparing, Status } from '#chat/domain/status.model'
 
-export const MessageStatus = Status.pick(['queued', 'preparing', 'generating', 'done', 'failed'])
+export const MessageStatus = Status.pick(messageStatus.enumValues)
 export type MessageStatus = typeof MessageStatus.Type
 
-export const ActiveMessageStatus = MessageStatus.pick(['queued', 'preparing', 'generating'])
+export const ActiveMessageStatus = MessageStatus.pick(activeMessageStatuses)
 export type ActiveMessageStatus = typeof ActiveMessageStatus.Type
 
-export const MessageAuthor = Schema.Literals(['user', 'assistant'])
+export const MessageAuthor = Schema.Literals(messageAuthor.enumValues)
 export type MessageAuthor = typeof MessageAuthor.Type
 
-export const MessageFailureReason = Schema.Literals(['ReplyFailed', 'ReplyRefused'])
+export const MessageFailureReason = Schema.Literals(messageFailureReasons)
 export type MessageFailureReason = typeof MessageFailureReason.Type
 
 export class MessageFailure extends Schema.Class<MessageFailure>('MessageFailure')({

@@ -113,11 +113,11 @@ Which suite runs where:
 - **The data layer's suites.** A repository's `.repository.e2e.ts` and an entity's
   `.entity.e2e.ts` sit in `kernel/data/__e2e__/<store>/` on `DbTest`; `flipSqlError`, which reads
   the `SqlError` of a refused statement, comes from `@app-template/packages/db/testing/e2e`. What
-  they check: [database.md › Tests](database.md#tests). A limit or a pattern the data layer
-  declares again beside a model is exported from its table. The mapper's `.mapper.test.ts` in
-  `application/<module>/__tests__/services/` compares it with the model's, and encodes the
-  model's extreme value and every value of an enum the model holds (a status, an author) through
-  the mapper and the entity's insert schema, which holds the table's enums, and reads it back.
+  they check: [database.md › Tests](database.md#tests). A limit, a pattern or an enum's values
+  is declared once, in its table, and the model imports it. The mapper's `.mapper.test.ts` in
+  `application/<module>/__tests__/services/` encodes the model's extreme value and every value
+  of an enum the model holds (a status, an author) through the mapper and the entity's insert
+  schema, which holds the table's enums, and reads it back.
   The data layer's e2e refuse a limit plus one by its constant and accept the limit itself, and
   accept a pattern's extreme value.
 - **One root `vitest.config.ts`, two projects,** chosen by `--project`: `unit` runs

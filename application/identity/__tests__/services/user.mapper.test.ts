@@ -1,11 +1,10 @@
-import { assert, describe, it } from '@effect/vitest'
+import { describe, it } from '@effect/vitest'
 import { DateTime, Effect, Schema } from 'effect'
 
-import { secretHashPattern as tableSecretHashPattern } from '@app-template/kernel/data'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { UserId } from '#identity/contract/user.id'
-import { buildUser, secretHashPattern, User } from '#identity/domain/user.model'
+import { buildUser, User } from '#identity/domain/user.model'
 import { encodeUser, UserFromEntity } from '#identity/services/user.mapper'
 
 const user = buildUser({
@@ -14,10 +13,6 @@ const user = buildUser({
 })
 
 describe('UserFromEntity', () => {
-  it('declares the credential hash pattern of the table credentials', () => {
-    assert.deepStrictEqual(secretHashPattern, tableSecretHashPattern)
-  })
-
   it.effect('encodes a user for users and reads it back', () =>
     Effect.gen(function* () {
       const row = yield* encodeUser(user)

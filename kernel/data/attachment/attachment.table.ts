@@ -6,8 +6,13 @@ import { createdAt, id } from '@app-template/packages/db'
 import { messages } from '#kernel/data/chat/message.table'
 import { users } from '#kernel/data/user/user.table'
 
-/** Its check reads the source alone, so its `i` flag is the check's `~*`, not `~`. */
+/**
+ * A check reads its source as SQL with `~*` for its `i` flag, so it uses only syntax that
+ * JavaScript and Postgres regular expressions read alike.
+ */
 export const mediaTypePattern = /^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/i
+
+export const minFileSize = 0
 
 export const attachments = snakeCase.table(
   'attachments',
@@ -26,7 +31,7 @@ export const attachments = snakeCase.table(
   (table) => [
     check('attachments_file_name_check', sql`${table.fileName} <> ''`),
     check('attachments_media_type_check', sql`${table.mediaType} ~* ${mediaTypePattern.source}`),
-    check('attachments_size_check', sql`${table.size} >= 0`),
+    check('attachments_size_check', sql`${table.size} >= ${minFileSize}`),
     check(
       'attachments_message_id_chat_id_check',
       sql`(${table.messageId} is null) = (${table.chatId} is null)`,

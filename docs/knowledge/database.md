@@ -32,10 +32,10 @@ from them.
   beside the table (`credentials_hash_check` the pattern `SecretHash` checks with;
   `attachments_media_type_check` the one `MediaType` checks with, matched with `~*` for its `i`
   flag; `chats_title_check` the length `ChatTitle` caps), so a row written by hand cannot hold
-  what the domain rejects. The model checks the same rule on its side, so a value lives twice: a
-  change to one is a change to both. drizzle-kit inlines the values into the DDL, so a changed
-  literal, pattern or limit changes the schema, and `make migration-check` fails until a
-  migration exists.
+  what the domain rejects. The model imports the value from the table and checks the same rule
+  on its side, so a change to the value changes both. drizzle-kit inlines the values into the
+  DDL, so a changed literal, pattern or limit changes the schema, and `make migration-check`
+  fails until a migration exists.
 - **A check is a backstop, never stricter than the brand.** It may let through what the brand
   refuses, never the reverse: `chats_title_check` trims spaces only and counts code points, where
   `ChatTitle` trims every whitespace and counts UTF-16 units. Checks are named

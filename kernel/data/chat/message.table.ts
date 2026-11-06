@@ -15,9 +15,11 @@ import { createdAt, id, updatedAt } from '@app-template/packages/db'
 
 import { chats } from '#kernel/data/chat/chat.table'
 
+export const messageFailureReasons = ['ReplyFailed', 'ReplyRefused'] as const
+
 /** Why a reply failed, as the column `error` holds it. */
 export const MessageFailureJson = Schema.Struct({
-  reason: Schema.Literals(['ReplyFailed', 'ReplyRefused']),
+  reason: Schema.Literals(messageFailureReasons),
   message: Schema.String,
   cause: Schema.String,
 })
@@ -54,7 +56,7 @@ export const messages = snakeCase.table(
   ],
 )
 
-/** The statuses of an assistant message whose reply still runs; the memory fake reads them too. */
+/** The statuses of an assistant message whose reply still runs. */
 export const activeMessageStatuses = ['queued', 'preparing', 'generating'] as const
 
 /**

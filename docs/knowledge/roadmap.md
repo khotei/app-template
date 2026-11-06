@@ -58,7 +58,7 @@ graph LR
 | 23 | [`modular-monolith`](#23-modular-monolith) | `refactor` | 15 | done: [docs/tickets/2026-10-31-0926_modular-monolith/](../tickets/2026-10-31-0926_modular-monolith/feature.md) |
 | 24 | [`attachment-storage-failures`](#24-attachment-storage-failures) | `fix` | 23 | planned |
 | 25 | [`toolkit-quality`](#25-toolkit-quality) | `chore` | 17 | in progress: [docs/tickets/2026-11-04-1009_toolkit-quality/](../tickets/2026-11-04-1009_toolkit-quality/feature.md) |
-| 26 | [`domain-from-data`](#26-domain-from-data) | `refactor` | 10 | planned |
+| 26 | [`domain-from-data`](#26-domain-from-data) | `refactor` | 10 | done: [docs/tickets/2026-11-06-1005_domain-from-data/](../tickets/2026-11-06-1005_domain-from-data/plan.md) |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; its remaining work is re-homed
 in [Re-homing `effect-setup`](#re-homing-effect-setup).
@@ -757,7 +757,8 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   their own (a chat title's 120 lives in the table and the domain, and `client-publishing` adds
   the contract's twin).
 - **Depends on** `client-publishing`, which takes the domain out of the browser.
-- **Status.** Planned.
+- **Status.** Done:
+  [docs/tickets/2026-11-06-1005_domain-from-data/](../tickets/2026-11-06-1005_domain-from-data/plan.md).
 
 ## Ideas to weigh
 

@@ -13,6 +13,7 @@ import {
 } from 'effect'
 
 import { UserId } from '@app-template/application/identity'
+import { mediaTypePattern, minFileSize } from '@app-template/kernel/data'
 
 import { AttachmentBoundError, AttachmentNotFoundError } from '#chat/domain/attachment.error'
 import { AttachmentId } from '#chat/domain/attachment.id'
@@ -21,19 +22,13 @@ import { ChatId, MessageId } from '#chat/domain/chat.id'
 export const FileName = Schema.String.check(Schema.isNonEmpty()).pipe(Schema.brand('FileName'))
 export type FileName = typeof FileName.Type
 
-/**
- * The pattern a `MediaType` matches, which a database check also reads as SQL with `~*` for its
- * `i` flag, so it uses only syntax that JavaScript and Postgres regular expressions read alike.
- */
-export const mediaTypePattern = /^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/i
-
 /** A `type/subtype` pair of RFC 6838 restricted-name characters, without parameters. */
 export const MediaType = Schema.String.check(Schema.isPattern(mediaTypePattern)).pipe(
   Schema.brand('MediaType'),
 )
 export type MediaType = typeof MediaType.Type
 
-export const FileSize = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)).pipe(
+export const FileSize = Schema.Int.check(Schema.isGreaterThanOrEqualTo(minFileSize)).pipe(
   Schema.brand('FileSize'),
 )
 export type FileSize = typeof FileSize.Type

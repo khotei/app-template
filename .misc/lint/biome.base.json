@@ -145,13 +145,14 @@
                       "!@app-template/application/*",
                       "!@app-template/application/*/testing",
                       "!@app-template/packages/testing",
+                      "!@app-template/kernel/data",
                       "@app-template/application/use-cases",
                       "@app-template/application/use-cases/**",
                       "@effect/**",
                       "!@effect/vitest",
                       "!@effect/vitest/**"
                     ],
-                    "message": "a module's domain is pure: it imports no workspace but another module's entry, for its contract, and no @effect/* package; its tests add test support, a module's /testing, @app-template/packages/testing and @effect/vitest (decisions.md › A module's layers; Module contracts; Guards are configuration)"
+                    "message": "a module's domain is pure: it imports no workspace but another module's entry, for its contract, and the data layer (@app-template/kernel/data), for the limits, patterns and enum values its tables declare, and no @effect/* package; its tests add test support, a module's /testing, @app-template/packages/testing and @effect/vitest (decisions.md › A module's layers; The data at the centre; Module contracts; Guards are configuration)"
                   },
                   {
                     "group": ["#*/services/**", "#*/infrastructure/**"],
