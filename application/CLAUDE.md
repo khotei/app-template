@@ -8,9 +8,10 @@ may import: [› Dependency rules](../docs/knowledge/architecture.md#dependency-
   no `Date.now()`, no `new Date()`, no `crypto.randomUUID()`. A pure operation takes time and ids
   as input. An adapter in `infrastructure/` does the I/O, over the clients the process provides
   (`HttpClient`) and the settings of `@app-template/kernel/config`, never `fetch` or `Bun.env`.
-- **A module's `domain/` is pure:** it imports `effect` and another module's contract, no other
-  workspace, no Bun API and no Node built-in. Ports live only in `.port.ts` files and services
-  only in `services/`, never beside a model.
+- **A module's `domain/` is pure:** it imports `effect`, another module's contract and the data
+  layer's values (a table's limit, pattern or enum values, never a table, entity or repository),
+  no other workspace, no Bun API and no Node built-in. Ports live only in `.port.ts` files and
+  services only in `services/`, never beside a model.
   Record: [A module's layers](../docs/knowledge/decisions.md#a-modules-layers).
 - **Each port has one memory layer** in its module's test support, for every workspace's unit
   tests: [tooling.md › Tests](../docs/knowledge/tooling.md#tests).

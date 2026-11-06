@@ -123,34 +123,45 @@ that name the module (`#<module>/domain/*`). A repository is no port: a service
 calls the data layer's repository directly.
 
 - **Why:** `domain/` holds the rules as pure functions over values passed in, so what reads the
-  data cannot sit there; nothing of it reaches the browser any more
-  ([The API contract on its own](#the-api-contract-on-its-own)), but its import bans stay until
-  roadmap entry 26 (`domain-from-data`) weighs them. The data layer's repository already is the
-  contract a service needs, and a port with an adapter over it would repeat its methods; the
-  aliases keep the layer in every import line, so each layer's Biome override matches the others
-  by glob (`#*/services/**`). A handler calls one service
-  method or one use case, never a repository, so each record has one owner every caller goes
-  through.
+  data cannot sit there. Nothing of it reaches the browser any more
+  ([The API contract on its own](#the-api-contract-on-its-own)), so it takes from the data layer
+  the values its tables declare (a limit, a pattern, an enum's values) instead of declaring them
+  again, and keeps its own brands, models and refinements: the vocabulary is the domain's, and
+  the data layer stays free of models ([The data at the centre](#the-data-at-the-centre)). The
+  data layer's repository already is the contract a service needs, and a port with an adapter
+  over it would repeat its methods; the aliases keep the layer in every import line, so each
+  layer's Biome override matches the others by glob (`#*/services/**`). A handler calls one
+  service method or one use case, never a repository, so each record has one owner every caller
+  goes through.
 - **Sources:** the guide's "Keep internal layering per module"
   ([styles/modular-monolith](https://software-architecture-guild.com/guide/architecture/styles/modular-monolith/));
   `.claude/rules/layering.md`.
 - **Rejected:** ports in `domain/` with adapters over the data layer: two layers with the same
   methods. An export per layer (`/chat/domain`): a caller must know the module's inside. The same
-  `#domain/*` aliases in every module: inside one workspace they would collide.
+  `#domain/*` aliases in every module: inside one workspace they would collide. The domain taking
+  the data layer's schemas too: the tables would first declare a brand and a checked column for
+  every id and constrained string, and own the domain's vocabulary, against
+  [.claude/rules/modules.md › A service rule or a model in the kernel](../../.claude/rules/modules.md#a-service-rule-or-a-model-in-the-kernel).
+  A leaf package of shared values for the data layer, the domain and the API contract: the
+  contract would import a workspace ([The API contract on its own](#the-api-contract-on-its-own)).
+  The domain's own copies kept: a value could drift between the two declarations.
 - **Cost:** a service depends on the data layer directly, so its unit tests take the data layer's
-  memory repositories; one entry opens the module whole, so another unit's ban on a layer matches
-  the names it imports. A layer's
-  override covers its tests, so what they need passes in its source too. What passes every
-  guard: [architecture.md › Known gaps](architecture.md#known-gaps).
+  memory repositories; the domain loads the data layer's entry, and its guard admits of it only
+  the names of a value's shape, so a value of a new shape widens the guard's pattern; one entry
+  opens the module whole, so another unit's ban on a layer matches the names it imports. A
+  layer's override covers its tests, so what they need passes in its source too. What passes
+  every guard: [architecture.md › Known gaps](architecture.md#known-gaps).
 - **Guarded by:** one Biome override per layer, matching every module by glob and covering the
-  layer's tests: the rows of a module's layers and of `http-api` in
-  [architecture.md › Dependency rules](architecture.md#dependency-rules); `make bundle-check`,
+  layer's tests, the domain's admitting of the kernel only `@app-template/kernel/data`, and of
+  it only a value's name (`<name>Pattern`, `<name>Statuses`): the rows of a module's layers and
+  of `http-api` in [architecture.md › Dependency rules](architecture.md#dependency-rules); `make bundle-check`,
   which reads the web bundle's metafile and refuses the module's package in it;
   `.claude/rules/layering.md`, a repository, a mapper or the data layer in an app's handler.
 - **If reversed:** a port per repository comes back with an adapter each that only delegates; an
-  export per layer brings back the subpaths and a ban per layer by path.
-- **Revisit when:** a service needs a store the data layer cannot reach, or the domain takes its
-  types and schemas from the data layer (roadmap entry 26, `domain-from-data`).
+  export per layer brings back the subpaths and a ban per layer by path; a domain without the
+  data layer declares each value again, and a mapper's unit test per value compares the copies.
+- **Revisit when:** a service needs a store the data layer cannot reach, or the data layer
+  brands its ids and constrained strings itself, so the domain could take its schemas too.
 
 ### HTTP outside the modules
 
@@ -331,7 +342,8 @@ repositories in its own types, one `Db` over every table; it imports only `packa
 its clients from the context. The tables stay in `public` with their foreign keys.
 
 - **Why:** the data is the app's source of truth; one place declares every store, joins and
-  foreign keys included, and every module reads what it needs.
+  foreign keys included, and every module reads what it needs, its domain the tables' limits,
+  patterns and enum values, each declared once ([A module's layers](#a-modules-layers)).
 - **Sources:** departs from the guide's "share a physical database, but not each other's tables"
   ([styles/modular-monolith](https://software-architecture-guild.com/guide/architecture/styles/modular-monolith/))
   and "The service that writes to a table owns that table"
@@ -339,9 +351,10 @@ its clients from the context. The tables stay in `public` with their foreign key
 - **Rejected:** a Postgres schema and a typed Drizzle per module, no key across modules:
   boundaries on data the app reads as one. The tables, repositories and models together in the
   kernel: a shared domain, the guide's coupling magnet.
-- **Cost:** most features change `kernel/data`; two modules may use one repository, so a change of
-  its behaviour reaches both, held by the repository's e2e; a module can be extracted only with
-  its stores carved out of the data layer.
+- **Cost:** most features change `kernel/data`; a table's value is the domain's too, so changing
+  it changes the model's check; two modules may use one repository, so a change of its behaviour
+  reaches both, held by the repository's e2e; a module can be extracted only with its stores
+  carved out of the data layer.
 - **Guarded by:** the `kernel/data` row of
   [architecture.md › Dependency rules](architecture.md#dependency-rules);
   `.claude/rules/modules.md` refuses a model or a service rule there; the repositories' e2e.
@@ -372,8 +385,8 @@ its repositories are `<Name>Repository`; a table lives in `<name>.table.ts`, its
 
 ### Checks kept in the tables
 
-The tables keep their checks: the data layer redeclares the enums' values and the checks' limits
-and patterns itself, and the models check the same rules on their side.
+The tables keep their checks: the data layer declares the enums' values and the checks' limits
+and patterns, and the models import them to check the same rules on their side.
 
 - **Why:** the database stays a guard against any writer, as the partial unique index already
   is.
@@ -382,13 +395,16 @@ and patterns itself, and the models check the same rules on their side.
   ([managing-operational-data](https://software-architecture-guild.com/guide/architecture/boundaries/managing-operational-data/)).
 - **Rejected:** the checks dropped, the rule only in the modules: the database would accept a
   row the app never writes.
-- **Cost:** a limit, a pattern or an enum's values live twice.
-- **Guarded by:** the data layer exports each limit and pattern from its table, and a mapper's
-  unit test and the data layer's e2e check both sides
+- **Cost:** a rule lives twice, as a check and as a model's refinement, though each value once;
+  the model's side may add to the check (trimming every whitespace, counting UTF-16 units),
+  never accept less.
+- **Guarded by:** the data layer exports each limit, pattern and enum's values from its table and
+  the model imports it; a mapper's unit test round-trips the model's extreme values through the
+  entity, and the data layer's e2e check the table's side
   ([tooling.md › Tests](tooling.md#tests)); `make migration-check`.
 - **If reversed:** a migration drops a check, and a writer past the services can store a row no
   model decodes.
-- **Revisit when:** a duplicated limit drifts despite the tests, or a rule cannot be a check.
+- **Revisit when:** a rule cannot be a check, or a model needs a value its table cannot state.
 
 ### Guards in the write, no lock
 

@@ -68,7 +68,7 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 
 | From ↓ / may import → | another module | a contract | `use-cases` | `kernel/data` | rest of `kernel` | `packages/*` | `http-api` | Refused by |
 |---|---|---|---|---|---|---|---|---|
-| a module's `domain/` | ✗ | ✓, through its entry | ✗ | ✗ | ✗ | ✗ | ✗ | `application/*/domain/**` |
+| a module's `domain/` | ✗ | ✓, through its entry | ✗ | the tables' values only | ✗ | ✗ | ✗ | `application/*/domain/**`, `kernel/data` by name |
 | a module's `services/` | ✗ | ✓, through its entry | ✗ | ✓, but `Db` and the relations | `/aws`: the inventory only | `db`, `queue` only | ✗ | `application/*/services/**` |
 | a module's `infrastructure/` | ✗, its own entry too | ✓, through its entry | ✗ | ✓ | ✓ | ✓ | ✗ | `application/*/infrastructure/**`; its own entry, `use-cases`: `noImportCycles` on a cycle, else review |
 | a contract | ✗, nor its module's files | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | `application/*/contract/**` |
@@ -96,10 +96,11 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
   [layering.md › Handlers](../../.claude/rules/layering.md#handlers).
 - **`http-api` imports only `effect`:** it is the browser's whole way into the app, so it
   declares every id, constrained string, model shape and error itself
-  ([The API contract on its own](decisions.md#the-api-contract-on-its-own)). **A module's
-  `domain/` and a contract import only `effect`** too (and `type-fest` for types), and neither
-  they nor a module's `services/` import an `@effect/*` package
-  ([A module's layers](decisions.md#a-modules-layers)).
+  ([The API contract on its own](decisions.md#the-api-contract-on-its-own)). **A contract
+  imports only `effect`** too (and `type-fest` for types), **a module's `domain/` also the values
+  its tables declare** (a limit, a pattern, an enum's values, from
+  `@app-template/kernel/data`), and none of them nor a module's `services/` import an
+  `@effect/*` package ([A module's layers](decisions.md#a-modules-layers)).
 - **A dependency on a module's contract counts as one on the module**, so two modules that import
   each other's contracts form a cycle, refused by review where no tool sees it
   ([modules.md](../../.claude/rules/modules.md)).
@@ -239,12 +240,13 @@ model's.
    Test the repository on `DbTest`, and add its memory repository with a twin of every guard
    the e2e proves ([tooling.md › Tests](tooling.md#tests)).
 2. **The model.** `application/<module>/domain/`: `<entity>.id.ts`, `<entity>.model.ts` (a
-   `Schema.Class` with its pure operations; time and ids come in as input), `<entity>.error.ts`,
+   `Schema.Class` with its pure operations; time and ids come in as input; a limit, a pattern or
+   an enum's values imported from its table, never declared again,
+   [Checks kept in the tables](decisions.md#checks-kept-in-the-tables)), `<entity>.error.ts`,
    each with its unit test.
 3. **The mapper.** `application/<module>/services/<entity>.mapper.ts`: `<Model>FromEntity` lays the
    model's schemas over the entity's fields; its unit test encodes the model's extreme values
-   through the entity's insert schema and compares every limit and pattern both sides declare,
-   so none can drift ([Checks kept in the tables](decisions.md#checks-kept-in-the-tables)).
+   through the entity's insert schema and reads them back.
 4. **The service.** `application/<module>/services/<entity>.service.ts`: `<Model>Service` over the
    repository, the one owner every handler goes through, tested over the memory repositories.
    The layers' barrels re-export the new files.
@@ -359,6 +361,11 @@ them:
 - **A namespace import of an entry.** `import * as Data from '@app-template/kernel/data'` where
   only its stores are allowed passes every ban by name (`importNamePattern` sees no name);
   `Data.<Name>` then reaches what the names were refused for.
+- **A data layer's export named like a value, in a module's `domain/`.** Of
+  `@app-template/kernel/data` the domain guard admits only the names of a value's shape
+  (`<name>Pattern`, `<name>Length`, `<name>Size`, a plural such as `<name>Statuses`) and refuses
+  the rest, a namespace import included; a table or an enum given such a name passes it, so
+  review keeps those names to values.
 - **A runtime module or third-party package in a module's `domain/`.** `node:crypto` or any npm
   package passes the domain guard, which bans only workspaces and `@effect/*`. Purity rests on
   review alone: no check looks for `Date.now`, `new Date(` or `randomUUID`.

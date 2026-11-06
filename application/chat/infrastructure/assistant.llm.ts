@@ -21,6 +21,7 @@ import { Hex } from 'effect/encoding'
 import type { HttpClient } from 'effect/http'
 
 import { ReplyModelConfig } from '@app-template/kernel/config'
+import { maxTitleLength } from '@app-template/kernel/data'
 import { createLanguageModel } from '@app-template/kernel/llm'
 
 import {
@@ -36,7 +37,7 @@ import {
   type HistoryMessage,
   ReplyProvenance,
 } from '#chat/domain/assistant.port'
-import { ChatTitle, maxTitleLength } from '#chat/domain/chat.model'
+import { ChatTitle } from '#chat/domain/chat.model'
 import { isBlank } from '#chat/domain/message.model'
 
 const toFilePart = ({ attachment, bytes }: AttachmentBytes): Prompt.FilePartEncoded => ({

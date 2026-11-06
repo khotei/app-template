@@ -27,15 +27,16 @@ from them.
   and no `$onUpdate`. The domain writes every id and every timestamp with its own clock, so
   `TestClock` holds and there is no second clock; the `uuidv7()` default serves only
   hand-written SQL, and needs Postgres 18 or later.
-- **Enums and checks state the data layer's own values.** An enum lists its values
-  (`pgEnum('message_status', ['queued', …])`), and a check declares its own pattern or limit
+- **Enums and checks state the data layer's own values.** An enum takes its values from a tuple
+  the table exports (`messageStatuses = ['queued', …] as const`, then
+  `pgEnum('message_status', messageStatuses)`), and a check declares its own pattern or limit
   beside the table (`credentials_hash_check` the pattern `SecretHash` checks with;
   `attachments_media_type_check` the one `MediaType` checks with, matched with `~*` for its `i`
   flag; `chats_title_check` the length `ChatTitle` caps), so a row written by hand cannot hold
-  what the domain rejects. The model checks the same rule on its side, so a value lives twice: a
-  change to one is a change to both. drizzle-kit inlines the values into the DDL, so a changed
-  literal, pattern or limit changes the schema, and `make migration-check` fails until a
-  migration exists.
+  what the domain rejects. The model imports the value from the table and checks the same rule
+  on its side, so a change to the value changes both. drizzle-kit inlines the values into the
+  DDL, so a changed literal, pattern or limit changes the schema, and `make migration-check`
+  fails until a migration exists.
 - **A check is a backstop, never stricter than the brand.** It may let through what the brand
   refuses, never the reverse: `chats_title_check` trims spaces only and counts code points, where
   `ChatTitle` trims every whitespace and counts UTF-16 units. Checks are named
@@ -319,5 +320,5 @@ index) and reads the `SqlError` of a refused statement with `flipSqlError`. A me
 each [guard](#guards) the database adds, the cascades of its
 [foreign keys](#schema-and-entity-files) included, and each has its twin in a repository suite
 ([effect-tests.md › Unit and e2e](../../.claude/rules/effect-tests.md#unit-and-e2e)). Where each
-suite and its support live, the mappers' check of the limits a model declares again and the e2e
-of a use case's transaction: [tooling.md › Tests](tooling.md#tests).
+suite and its support live, the mappers' round trip of a model's extreme values and the e2e of a
+use case's transaction: [tooling.md › Tests](tooling.md#tests).

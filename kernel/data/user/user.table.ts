@@ -3,11 +3,17 @@ import { check, pgEnum, snakeCase, text, uuid } from 'drizzle-orm/pg-core'
 
 import { createdAt, id } from '@app-template/packages/db'
 
+/**
+ * A check reads its source as SQL, so it uses only syntax that JavaScript and Postgres regular
+ * expressions read alike.
+ */
 export const secretHashPattern = /^[0-9a-f]{64}$/
 
 export const users = snakeCase.table('users', { id: id(), createdAt: createdAt() })
 
-export const credentialKind = pgEnum('credential_kind', ['secret'])
+export const credentialKinds = ['secret'] as const
+
+export const credentialKind = pgEnum('credential_kind', credentialKinds)
 
 export const credentials = snakeCase.table(
   'credentials',
