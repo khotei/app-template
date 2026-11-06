@@ -776,6 +776,10 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   (`file-repository-verbs`). A later commit's decision replaces an earlier one it rejects (the
   bytes check moved from `getMany` to a model function and then to the send), so a rule is taken
   from the last standing decision, not the first.
+- **Intent of the work.** Each change moved a decision to the place whose name states it, and made
+  what a call costs or drops visible in its name: the model decides, a repository answers data in
+  one entity shape, a service names what it guarantees, a use case reads and composes. A lesson is
+  worth a line only if it keeps the next change from being moved a second time.
 - **Scope.** One line, or one mechanical check, per lesson, each in a named rule or skill and
   applied on the user's OK ([sdd.md › Gates](../knowledge/sdd.md)):
   - **A rule is a pure function of its model, and no other layer builds its refusal.** It recurred
@@ -805,6 +809,27 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
     research a usage tree before a refactor; a small refactor skips the feature and architecture
     phases ([sdd.md › When to run which cycle](../knowledge/sdd.md#when-to-run-which-cycle)); an
     answer of "yes" to two questions is two answers.
+  - **A plain layer takes its filters from the caller.** The plain `delete` hardcoded the unbound
+    guard, the plain `getMany` hid the live check: each is a rule in a layer named for records.
+    The layer that checked the rule passes its guard in the `where`
+    (`records.delete({ id, userId, messageId: null })`); `layering.md` says so beside the
+    layered-services line.
+  - **A set goes through one call, though the rule exists.** `layering.md` already asks for one
+    batch call, and it recurred three times: `files.url` per attachment, a `forEach` of single
+    `update`s, a `forEach` of reads. The proposal is a review-rules line naming the symptom
+    (`Effect.forEach` whose callback is one repository call over an id) and, if it finds no false
+    positive on the tree, a GritQL pattern.
+  - **A verb that takes a list is tested with one id missing.** The fake and the e2e twin each
+    covered the whole list only: the order of `selectMany` (S1.2) and a partial `delete` (S3.4)
+    were found by review. `effect-tests.md` gets one line: a verb over a list has a case for a
+    list with one id that misses, in the e2e and in the fake it shares a matcher with.
+  - **A split moves tests with the methods.** After the service split the new service's tests
+    repeated the expiry and not-found cases of the services below (S3.2). `effect-tests.md` has
+    "a rule once, at the lowest seam"; the line adds that a wrapping service's test holds only
+    what it adds.
+  - **A step's Test first is checked against the interface it changes.** S2 planned a red case
+    for a list `update` already took, and S1's probe expected two red cases where four were red.
+    `ticket-plan` asks the plan to read the current signature before it promises a red case.
 - **Out of scope.** New domain behaviour; rewriting a rule the session did not touch.
 
 ## Ideas to weigh
