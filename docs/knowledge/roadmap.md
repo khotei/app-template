@@ -42,7 +42,7 @@ graph LR
 | 7 | [`web-app`](#7-web-app) | `feat` | 3 (18 for assistant attachments) | planned |
 | 8 | [`observability`](#8-observability) | `feat` | 3 | planned |
 | 9 | [`aws-deployment`](#9-aws-deployment) | `feat` | 4, 5 | planned |
-| 10 | [`client-publishing`](#10-client-publishing) | `chore` | 3 | in progress: [docs/tickets/2026-11-04-1131_client-publishing/](../tickets/2026-11-04-1131_client-publishing/feature.md) |
+| 10 | [`client-publishing`](#10-client-publishing) | `chore` | 3 | done: [docs/tickets/2026-11-04-1131_client-publishing/](../tickets/2026-11-04-1131_client-publishing/feature.md) |
 | 11 | [`workflow-cluster`](#11-workflow-cluster) | `feat` | 4, 8 | planned, exploratory |
 | 12 | [`template-handoff`](#12-template-handoff) | `chore` | all above | planned |
 | 13 | [`ticket-folder-order`](#13-ticket-folder-order) | `chore` | 3 | done: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md) |
@@ -401,7 +401,8 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Scope.** The contract's own schemas as the one codec of the round trip; a parity check with
   the domain; the web bundle check keyed on package names.
 - **Out of scope.** Publishing to a registry and use from other repositories; a generated client.
-- **Status.** In progress: [docs/tickets/2026-11-04-1131_client-publishing/](../tickets/2026-11-04-1131_client-publishing/feature.md).
+- **Status.** Done:
+  [docs/tickets/2026-11-04-1131_client-publishing/](../tickets/2026-11-04-1131_client-publishing/feature.md).
 
 ### 11. `workflow-cluster`
 
