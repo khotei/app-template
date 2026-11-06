@@ -281,6 +281,47 @@ repository only reads, calls it and writes.
 - **If reversed:** the rules move back into the services' bodies, and their tests need layers.
 - **Revisit when:** a model's pieces outgrow one file, or a combination is never reused.
 
+### Layered services of one model
+
+A model's records may be served by domain services layered over each other, each named for what
+it adds: `<Model>Service` holds the plain records (a read by key with its `*NotFoundError`, a
+read of many, a delete of many under the full `where` its caller passes), `Live<Model>Service`
+over it applies the model's rule to the same reads, and `File<Model>Service` over the live one
+stores, serves and removes the bytes with the record, checking the rule a delete needs and
+passing its guard into the plain delete's `where`. A layer sees only the layers of its own model
+below it; another model's service stays a use case's.
+
+```ts
+// the rule's layer reads through the plain one and pipes the model's guard
+const getOne = Effect.fn('LiveOrderService.getOne')(function* (where: OrderWhere) {
+  const now = yield* DateTime.now
+  return yield* orders.getOne(where).pipe(ensureOpen(now))
+})
+```
+
+- **Why:** a read's name says what it answers. One `getMany` that dropped the expired
+  attachments without a word taught its reader the rule from the source; the plain service
+  answers the records as stored, the live one says in its name that the expired read as absent,
+  and the bytes are stored and removed with their record in one service.
+- **Sources:** `.claude/rules/layering.md › Ports and domain services`;
+  `.claude/rules/deep-modules.md › The tests` (a name per variation is the last resort).
+- **Rejected:** one service with the rule in its method names (`getOneLive` beside `getOne`):
+  two reads per verb on one interface, doubling with each rule. The rule piped onto the plain
+  `getMany` by each caller (`getMany(where).pipe(ensureAllLive(ids, now))`): every caller
+  repeats the clock read and the pipe, and one that forgets it treats an expired attachment as
+  usable.
+- **Cost:** it breaks the line that a domain service never sees another one, and the line that a
+  domain service's `layer` leaves every dependency open: a layer provides the one below it. Three
+  services and three layers for one model; a handler of the model takes two of them; the rule's
+  layer is shallow, two reads over the plain ones; the plain `getMany` leaves an absent id out,
+  so only the live layer's error names every absent and expired id at once.
+- **Guarded by:** review, by `layering.md`; `noImportCycles` refuses a lower layer that imports
+  an upper one; nothing refuses a service of another model.
+- **If reversed:** the live and file methods fold back into one `<Model>Service` that applies
+  the rule in every read, and a caller that needs the plain record reads the repository.
+- **Revisit when:** a model needs a second rule over the same reads, so the layers would
+  multiply per combination, or a layer is left with one caller.
+
 ## The kernel and the data
 
 ### One kernel
@@ -477,17 +518,21 @@ needs `S3Bucket`; `kernel/postgres` (`PgClientFromConfig`, the migrate entry) an
 ### Files in the data layer
 
 Files are `FileEntity` and `FileRepository` in the data layer, over the `S3Bucket` in the
-context. The data layer declares the key and the `unbound` tag; `kernel/aws/resources` declares the
-bucket's name and lifecycle; `deployment` reads both.
+context. A file is one entity read from its object's metadata, with its signed URL as a field;
+only `download` reads the bytes, answering `DownloadedFileEntity`, the entity with them. The data
+layer declares the key and the `unbound` tag; `kernel/aws/resources` declares the bucket's name
+and lifecycle; `deployment` reads both.
 
 - **Why:** a consumer reads and writes through one kind of repository, whichever store holds the
   data; the objects stay in their bucket under their keys.
 - **Sources:** the ticket's design; `docs/knowledge/aws.md`.
 - **Rejected:** a bucket port in `chat` with an S3 adapter: a module's adapter over data every
   module may need. The bucket's name and lifecycle in the data layer: the name depends on the
-  stage, a configuration the data does not read.
+  stage, a configuration the data does not read. A verb per signed URL: a caller then asks for
+  presence through a URL, one call per file.
 - **Cost:** one interface over a store that joins no transaction: the bytes are stored before the
-  row that binds them and deleted once the rows are gone.
+  row that binds them and deleted once the rows are gone. Every read signs a URL, which sends no
+  request.
 - **Guarded by:** the repository's doc comment and `.claude/rules/layering.md` (the order); the
   api e2e of a refused chat delete; the file repository's e2e; the `deployment` row of
   [architecture.md › Dependency rules](architecture.md#dependency-rules).

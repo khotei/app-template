@@ -72,9 +72,12 @@ export const isLiveAt = (now: DateTime.Utc): Predicate.Predicate<Attachment> =>
 export const ensureFound = (id: AttachmentId) =>
   Effect.fromOption(() => new AttachmentNotFoundError({ ids: [id] }))
 
-/** The attachment read, when it is live at `now`; else `AttachmentNotFoundError` naming `id`. */
-export const ensureLive = (id: AttachmentId, now: DateTime.Utc) =>
-  flow(Option.filter(isLiveAt(now)), ensureFound(id))
+/** Fails `AttachmentNotFoundError` naming the attachment when it is not live at `now`. */
+export const ensureLive = (now: DateTime.Utc) =>
+  Effect.filterOrFail<Attachment, AttachmentNotFoundError>(
+    isLiveAt(now),
+    (attachment) => new AttachmentNotFoundError({ ids: [attachment.id] }),
+  )
 
 /** `found` when it holds every id of `ids`; else one error naming each missing id once, in the order asked. */
 const ensureAllFound =

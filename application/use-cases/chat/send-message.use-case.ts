@@ -12,8 +12,8 @@ import {
 
 import {
   type AttachmentBoundError,
+  AttachmentId,
   type AttachmentNotFoundError,
-  AttachmentService,
   assistantMessageQueue,
   bindAttachment,
   buildAssistantMessage,
@@ -29,6 +29,7 @@ import {
   ensureMessageInput,
   GenerateAssistantMessage,
   GenerateChatTitle,
+  LiveAttachmentService,
   Message,
   MessageId,
   type MessageInput,
@@ -74,7 +75,7 @@ export class SendMessageUseCase extends Context.Service<
     const files = yield* FileRepository
     const chatService = yield* ChatService
     const messages = yield* MessageRepository
-    const attachmentService = yield* AttachmentService
+    const liveAttachments = yield* LiveAttachmentService
     const queue = yield* QueueSender
     const transaction = yield* Transaction
     const crypto = yield* Crypto.Crypto
@@ -88,12 +89,10 @@ export class SendMessageUseCase extends Context.Service<
       const chat = yield* chatService.getOne({ id: chatId, userId })
       yield* ensureMessageInput(input)
       const queued = yield* queueChat(chat)
-      const live = yield* attachmentService.getMany({ id: input.attachmentIds, userId })
-      const storedIds = yield* Effect.filter(
-        Arr.map(live, Struct.get('id')),
-        (id) => files.url({ id }).pipe(Effect.map(Option.isSome)),
-        { concurrency: 'unbounded' },
-      )
+      const live = yield* liveAttachments.getMany({ id: input.attachmentIds, userId })
+      const storedIds = yield* files
+        .selectMany({ id: Arr.map(live, Struct.get('id')) })
+        .pipe(Effect.map(Arr.map((file) => AttachmentId.make(file.id))))
       const requested = yield* pipe(live, ensureAllStored(input.attachmentIds, storedIds))
       const isFirstMessage = yield* messages.selectOne({ chatId }).pipe(Effect.map(Option.isNone))
       const at = yield* DateTime.now
@@ -117,10 +116,7 @@ export class SendMessageUseCase extends Context.Service<
       if (Arr.isReadonlyArrayNonEmpty(bound)) {
         const ids = Arr.map(bound, Struct.get('id'))
         // The files first: unbound bytes expire, so a crash must never leave a bound row over them.
-        yield* Effect.forEach(ids, (id) => files.update({ bound: true }, { id }), {
-          concurrency: 'unbounded',
-          discard: true,
-        })
+        yield* files.update({ bound: true }, { id: ids })
         // `messageId: null` is the race's guard: a send that bound any of them since the read
         // leaves this write short of a row it names, so it dies and the send rolls back whole.
         yield* attachments.update(
@@ -160,6 +156,6 @@ export class SendMessageUseCase extends Context.Service<
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make).pipe(
-    Layer.provide([ChatService.layer, AttachmentService.layer]),
+    Layer.provide([ChatService.layer, LiveAttachmentService.layer]),
   )
 }

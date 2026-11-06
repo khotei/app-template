@@ -56,9 +56,10 @@ graph LR
 | 21 | [`bedrock-provider`](#21-bedrock-provider) | `feat` | 6, 9 | planned |
 | 22 | [`jobs`](#22-jobs) | `feat` | 4, 23 | planned |
 | 23 | [`modular-monolith`](#23-modular-monolith) | `refactor` | 15 | done: [docs/tickets/2026-10-31-0926_modular-monolith/](../tickets/2026-10-31-0926_modular-monolith/feature.md) |
-| 24 | [`attachment-storage-failures`](#24-attachment-storage-failures) | `fix` | 23 | planned |
+| 24 | [`attachment-storage-failures`](#24-attachment-storage-failures) | `fix` | 23 | done: [docs/tickets/2026-11-06-0947_attachment-storage-failures/](../tickets/2026-11-06-0947_attachment-storage-failures/plan.md) |
 | 25 | [`toolkit-quality`](#25-toolkit-quality) | `chore` | 17 | in progress: [docs/tickets/2026-11-04-1009_toolkit-quality/](../tickets/2026-11-04-1009_toolkit-quality/feature.md) |
 | 26 | [`domain-from-data`](#26-domain-from-data) | `refactor` | 10 | done: [docs/tickets/2026-11-06-1005_domain-from-data/](../tickets/2026-11-06-1005_domain-from-data/plan.md) |
+| 27 | [`rules-from-attachment-work`](#27-rules-from-attachment-work) | `docs` | 24 | planned |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; its remaining work is re-homed
 in [Re-homing `effect-setup`](#re-homing-effect-setup).
@@ -696,7 +697,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Goal.** A failure in the attachments' object store is never silent: a lost file is logged or
   refused where it is noticed, and no bytes are left in S3 that no rule or job will remove.
 - **Scope.**
-  - The reply's history: a bound attachment whose bytes `FileRepository.selectOne` no longer
+  - The reply's history: a bound attachment whose bytes `FileRepository.download` no longer
     finds is dropped from the assistant's input without a word today; it logs a warning with the
     attachment's and the chat's ids, or fails the reply while the chat still exists.
   - The bind: `FileRepository.update({ bound: true })` succeeds on a missing object, since S3's
@@ -709,7 +710,11 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   the rows are gone: 22 `jobs` moves that delete into an `attachment-deletion` job.
 - **Found by** `modular-monolith` S18's review (2026-11-01): every gap predates that ticket,
   which moves the code as is.
-- **Status.** Planned.
+- **Status.** Done:
+  [docs/tickets/2026-11-06-0947_attachment-storage-failures/](../tickets/2026-11-06-0947_attachment-storage-failures/plan.md).
+  Its follow-ups, `attachment-stored-model`, `attachment-model-rules` and `file-repository-verbs`,
+  moved the lost-bytes check and the attachment rules into the model and the file reads into the
+  repository.
 
 ### 25. `toolkit-quality`
 
@@ -759,6 +764,73 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Depends on** `client-publishing`, which takes the domain out of the browser.
 - **Status.** Done:
   [docs/tickets/2026-11-06-1005_domain-from-data/](../tickets/2026-11-06-1005_domain-from-data/plan.md).
+
+### 27. `rules-from-attachment-work`
+
+- **Goal.** The rules, skills and checks say what the attachment refactors taught (entries 24 and
+  26 and the PRs after them), so the next change puts each rule in its model and names each read
+  for what it answers the first time, without the user restating it.
+- **Sources.** The `Decision:` paragraphs of the commits `git log` holds for the work: the
+  attachment fixes (`78349910f9`, `2de1db4f5a`, the model-rules refactor), the domain taking its
+  values from the tables (`fb1b52383a`), the API contract (`e0bafb32ca`) and the file repository
+  (`file-repository-verbs`). A later commit's decision replaces an earlier one it rejects (the
+  bytes check moved from `getMany` to a model function and then to the send), so a rule is taken
+  from the last standing decision, not the first.
+- **Intent of the work.** Each change moved a decision to the place whose name states it, and made
+  what a call costs or drops visible in its name: the model decides, a repository answers data in
+  one entity shape, a service names what it guarantees, a use case reads and composes. A lesson is
+  worth a line only if it keeps the next change from being moved a second time.
+- **Scope.** One line, or one mechanical check, per lesson, each in a named rule or skill and
+  applied on the user's OK ([sdd.md › Gates](../knowledge/sdd.md)):
+  - **A rule is a pure function of its model, and no other layer builds its refusal.** It recurred
+    three times: the lost-bytes check inside `getMany`, `AttachmentService` building
+    `AttachmentNotFoundError` twice, an expiry filter inside a read. `layering.md` states the rule;
+    the proposal is a check: a value import of a domain error class (a type import stays) is
+    refused in `services/` and `use-cases/`, as a Biome `noRestrictedImports` pattern.
+  - **A read's name says what it answers.** `getMany` dropped expired attachments without a word
+    and a reader learned it from the source. A method applies no rule its name does not state; a
+    rule goes to the caller (`getOne(where).pipe(ensure<Rule>(at))`) or to a service named for it
+    (`Live<Model>Service`, over the plain one).
+  - **A service over another service of the same model.** `layering.md` forbids a domain service
+    that sees another one; the layered split (plain records, `Live…` reads, `File…` bytes) needs
+    the exception worded in the rule and recorded in `decisions.md`.
+  - **A use case reads, then pipes the model's rules.** The send reads the live attachments
+    (`getMany`), asks the repository which have bytes (`selectMany`), then runs
+    `pipe(live, ensureAllStored(ids, stored))`: each read a named value, each rule one pipe step,
+    no branch or refusal of its own. `layering.md › Use cases` and `modules.md › A rule in a use
+    case` get the example as a neutral pattern, not the live names.
+  - **A rule series reads as one family.** `is<State>At` predicates stay private, each exported
+    guard is `ensure<All><State>` with the same shape (`ensureLive` beside `ensureAllLive`), and a
+    one-element rule takes the element, not an `Option`.
+  - **Repository reads.** A value the store derives is a field, presence is `selectMany`, never a
+    probe through another verb (done in `file-repository-verbs`; this entry checks that the rule
+    and its record say it).
+  - **The workflow.** Check the code before stating a cause (the "expired draft" claim was wrong);
+    research a usage tree before a refactor; a small refactor skips the feature and architecture
+    phases ([sdd.md › When to run which cycle](../knowledge/sdd.md#when-to-run-which-cycle)); an
+    answer of "yes" to two questions is two answers.
+  - **A plain layer takes its filters from the caller.** The plain `delete` hardcoded the unbound
+    guard, the plain `getMany` hid the live check: each is a rule in a layer named for records.
+    The layer that checked the rule passes its guard in the `where`
+    (`records.delete({ id, userId, messageId: null })`); `layering.md` says so beside the
+    layered-services line.
+  - **A set goes through one call, though the rule exists.** `layering.md` already asks for one
+    batch call, and it recurred three times: `files.url` per attachment, a `forEach` of single
+    `update`s, a `forEach` of reads. The proposal is a review-rules line naming the symptom
+    (`Effect.forEach` whose callback is one repository call over an id) and, if it finds no false
+    positive on the tree, a GritQL pattern.
+  - **A verb that takes a list is tested with one id missing.** The fake and the e2e twin each
+    covered the whole list only: the order of `selectMany` (S1.2) and a partial `delete` (S3.4)
+    were found by review. `effect-tests.md` gets one line: a verb over a list has a case for a
+    list with one id that misses, in the e2e and in the fake it shares a matcher with.
+  - **A split moves tests with the methods.** After the service split the new service's tests
+    repeated the expiry and not-found cases of the services below (S3.2). `effect-tests.md` has
+    "a rule once, at the lowest seam"; the line adds that a wrapping service's test holds only
+    what it adds.
+  - **A step's Test first is checked against the interface it changes.** S2 planned a red case
+    for a list `update` already took, and S1's probe expected two red cases where four were red.
+    `ticket-plan` asks the plan to read the current signature before it promises a red case.
+- **Out of scope.** New domain behaviour; rewriting a rule the session did not touch.
 
 ## Ideas to weigh
 

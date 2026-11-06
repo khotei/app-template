@@ -1,6 +1,6 @@
 import { assert, describe, layer } from '@effect/vitest'
 import { S3Service } from '@effect-aws/client-s3'
-import { Effect, Layer, Option, Stream } from 'effect'
+import { Array as Arr, Effect, Layer, Option, Stream, Struct } from 'effect'
 
 import { buildResourceName, resources } from '@app-template/kernel/aws'
 import { AwsTest } from '@app-template/kernel/aws/testing/e2e'
@@ -64,35 +64,78 @@ describe('FileRepository on AwsTest', () => {
       }),
     )
 
-    it.effect('update to bound removes the unbound tag', () =>
+    it.effect('update to bound removes the unbound tag from every file it names', () =>
       Effect.gen(function* () {
         const files = yield* FileRepository
         const s3 = yield* S3Service
         const { stage } = yield* AwsConfig
-        const id = fileId(3)
-        yield* files.insert(file(id))
+        const ids = [fileId(3), fileId(10)]
+        yield* Effect.forEach(ids, (id) => files.insert(file(id)), { discard: true })
 
-        yield* files.update({ bound: true }, { id })
-        const { TagSet } = yield* s3.getObjectTagging({
-          Bucket: buildResourceName(stage, resources.buckets.attachments.name),
-          Key: `attachments/${id}`,
-        })
+        yield* files.update({ bound: true }, { id: ids })
+        const tagSets = yield* Effect.forEach(ids, (id) =>
+          s3.getObjectTagging({
+            Bucket: buildResourceName(stage, resources.buckets.attachments.name),
+            Key: `attachments/${id}`,
+          }),
+        )
 
-        assert.deepStrictEqual(TagSet, [])
+        assert.deepStrictEqual(Arr.map(tagSets, Struct.get('TagSet')), [[], []])
       }),
     )
 
-    it.effect("url serves attachments/<id> from the endpoint's host", () =>
+    it.effect("selectOne signs a URL that serves attachments/<id> from the endpoint's host", () =>
       Effect.gen(function* () {
         const files = yield* FileRepository
         const { endpoint } = yield* AwsConfig
         const id = fileId(4)
         yield* files.insert(file(id))
 
-        const url = yield* files.url({ id }).pipe(Effect.flatMap(Effect.fromOption))
+        const { url } = yield* files.selectOne({ id }).pipe(Effect.flatMap(Effect.fromOption))
 
         assert.strictEqual(url.host, Option.getOrThrow(endpoint).host)
         assert.isTrue(url.pathname.endsWith(`/attachments/${id}`))
+      }),
+    )
+
+    it.effect(
+      'selectMany answers the stored files in the order asked with their media type and file name, leaving out a missing id',
+      () =>
+        Effect.gen(function* () {
+          const files = yield* FileRepository
+          const first = fileId(9)
+          const second = fileId(7)
+          yield* files.insert(file(second))
+          yield* files.insert(file(first))
+
+          const found = yield* files.selectMany({ id: [first, unknownId, second] })
+
+          assert.deepStrictEqual(
+            Arr.map(found, (stored) => Struct.omit(stored, ['url'])),
+            [
+              { id: first, mediaType: 'image/png', fileName: 'отчёт (1).png' },
+              { id: second, mediaType: 'image/png', fileName: 'отчёт (1).png' },
+            ],
+          )
+        }),
+    )
+
+    it.effect('download answers the file with its bytes, and none for a missing id', () =>
+      Effect.gen(function* () {
+        const files = yield* FileRepository
+        const id = fileId(8)
+        yield* files.insert(file(id))
+
+        const found = yield* files.download({ id }).pipe(Effect.flatMap(Effect.fromOption))
+        const missing = yield* files.download({ id: unknownId })
+
+        assert.deepStrictEqual(Struct.omit(found, ['url']), {
+          id,
+          mediaType: 'image/png',
+          fileName: 'отчёт (1).png',
+          blob: png,
+        })
+        assert.deepStrictEqual(missing, Option.none())
       }),
     )
 

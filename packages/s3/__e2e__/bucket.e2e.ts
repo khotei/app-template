@@ -1,6 +1,6 @@
 import { assert, describe, layer } from '@effect/vitest'
 import { S3Service } from '@effect-aws/client-s3'
-import { Array as Arr, Bytes, Duration, Effect, Layer, Option, Stream } from 'effect'
+import { Array as Arr, Bytes, Effect, Layer, Option, Stream } from 'effect'
 
 import { generateStage, S3ClientTest } from '@app-template/packages/aws/testing/e2e'
 import { breakAfter, StreamBrokenError } from '@app-template/packages/testing'
@@ -57,17 +57,15 @@ describe('S3Bucket over S3ClientTest against MiniStack', () => {
             Stream.fromIterable(splitIntoMebibytes(content)),
             octetStream,
           )
-          const read = yield* files.get(key)
+          const read = yield* files.download(key).pipe(Effect.flatMap(Effect.fromOption))
           const stored = yield* readPartCount(key)
 
           assert.strictEqual(written, size)
-          assert.isTrue(Option.isSome(read))
-          assert.isTrue(
-            Bytes.Equivalence(
-              Option.getOrElse(read, () => new Uint8Array()),
-              content,
-            ),
-          )
+          assert.deepStrictEqual(read.head, {
+            contentType: 'application/octet-stream',
+            fileName: Option.none(),
+          })
+          assert.isTrue(Bytes.Equivalence(read.blob, content))
           assert.deepStrictEqual(stored, parts)
         }),
       uploadTimeout,
@@ -89,11 +87,11 @@ describe('S3Bucket over S3ClientTest against MiniStack', () => {
           const content = breakAfter(splitIntoMebibytes(buildContent(size)), error)
 
           const failed = yield* files.put(key, content, octetStream).pipe(Effect.flip)
-          const exists = yield* files.exists(key)
+          const head = yield* files.head(key)
           const { Uploads } = yield* s3.listMultipartUploads({ Bucket: bucket, Prefix: key })
 
           assert.strictEqual(failed, error)
-          assert.isFalse(exists)
+          assert.deepStrictEqual(head, Option.none())
           assert.deepStrictEqual(Uploads ?? [], [])
         }),
       uploadTimeout,
@@ -110,21 +108,37 @@ describe('S3Bucket over S3ClientTest against MiniStack', () => {
           yield* files.deleteMany(['drop-1', 'drop-2', 'missing'])
           yield* files.deleteMany([])
 
-          const exist = yield* Effect.forEach(['drop-1', 'drop-2', 'keep'], files.exists)
-          assert.deepStrictEqual(exist, [false, false, true])
+          const heads = yield* Effect.forEach(['drop-1', 'drop-2', 'keep'], files.head)
+          assert.deepStrictEqual(Arr.map(heads, Option.isSome), [false, false, true])
         }),
     )
 
-    it.effect('answers none, false and void for a missing key', () =>
+    it.effect.each([
+      { name: 'with a name', key: 'named', fileName: Option.some('отчёт (1).png') },
+      { name: 'with an empty name', key: 'empty-name', fileName: Option.some('') },
+      { name: 'without a name', key: 'nameless', fileName: Option.none() },
+    ])(
+      'head answers the media type and the file name of an object put $name',
+      ({ key, fileName }) =>
+        Effect.gen(function* () {
+          const files = yield* S3Bucket
+          const options = { contentType: 'image/png', fileName: Option.getOrUndefined(fileName) }
+          yield* files.put(key, Stream.make(buildContent(1)), options)
+
+          const head = yield* files.head(key)
+
+          assert.deepStrictEqual(head, Option.some({ contentType: 'image/png', fileName }))
+        }),
+    )
+
+    it.effect('answers none and void for a missing key', () =>
       Effect.gen(function* () {
         const files = yield* S3Bucket
 
-        const url = yield* files.url('missing', Duration.minutes(5))
-        const exists = yield* files.exists('missing')
+        const head = yield* files.head('missing')
         yield* files.untag('missing')
 
-        assert.deepStrictEqual(url, Option.none())
-        assert.isFalse(exists)
+        assert.deepStrictEqual(head, Option.none())
       }),
     )
   })

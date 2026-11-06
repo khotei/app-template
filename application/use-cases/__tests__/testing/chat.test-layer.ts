@@ -1,7 +1,7 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { Layer } from 'effect'
 
-import { AttachmentService, ChatService } from '@app-template/application/chat'
+import { ChatService, FileAttachmentService } from '@app-template/application/chat'
 import {
   CurrentReplyProvenanceTest,
   chat,
@@ -21,7 +21,7 @@ import { SendMessageUseCase } from '#use-cases/chat/send-message.use-case'
  */
 export const ChatTest = Layer.mergeAll(
   ChatService.layer,
-  AttachmentService.layer,
+  FileAttachmentService.layer,
   SendMessageUseCase.layer,
 ).pipe(
   Layer.provide(CurrentReplyProvenanceTest),

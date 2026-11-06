@@ -104,11 +104,11 @@ export const AttachmentRepositoryTest = Layer.effect(
       },
       selectOne: (where) => selectMany(where).pipe(Effect.map(Arr.head)),
       selectMany,
+      // Deletes before it dies: outside a transaction, Postgres keeps the rows the statement
+      // removed although another id named none.
       delete: (where) =>
-        Ref.get(rows).pipe(
-          Effect.map(flow(HashMap.filter(holdsWhere(where)), HashMap.toValues)),
+        deleteRows(rows, holdsWhere(where)).pipe(
           orDieUnless(hasRowPer(where.id), 'an attachment named was not deleted'),
-          Effect.andThen(deleteRows(rows, holdsWhere(where))),
           Effect.asVoid,
         ),
     })

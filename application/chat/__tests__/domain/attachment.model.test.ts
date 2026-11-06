@@ -148,20 +148,13 @@ describe('ensureLive', () => {
     { name: 'an old bound', attachment: bound, now: afterUnboundExpiry },
   ])('answers $name attachment', ({ attachment, now }) =>
     Effect.gen(function* () {
-      assert.strictEqual(
-        yield* pipe(Option.some(attachment), ensureLive(attachment.id, now)),
-        attachment,
-      )
+      assert.strictEqual(yield* Effect.succeed(attachment).pipe(ensureLive(now)), attachment)
     }),
   )
 
   it.effect('fails AttachmentNotFoundError naming the id of an expired attachment', () =>
     Effect.gen(function* () {
-      const error = yield* pipe(
-        Option.some(unbound),
-        ensureLive(unbound.id, afterUnboundExpiry),
-        Effect.flip,
-      )
+      const error = yield* Effect.succeed(unbound).pipe(ensureLive(afterUnboundExpiry), Effect.flip)
 
       assertSchemaEquals(
         AttachmentNotFoundError,

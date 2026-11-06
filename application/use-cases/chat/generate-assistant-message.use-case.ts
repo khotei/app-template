@@ -82,12 +82,12 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
 
     const readBytes = (attachment: Attachment) =>
       files
-        .selectOne({ id: attachment.id })
+        .download({ id: attachment.id })
         .pipe(
           Effect.tap(
             Option.match({ onNone: () => logMissingFile(attachment), onSome: () => Effect.void }),
           ),
-          Effect.map(Option.map((bytes) => ({ attachment, bytes }))),
+          Effect.map(Option.map(({ blob }) => ({ attachment, bytes: blob }))),
         )
 
     const readHistoryMessage = (message: Message) =>

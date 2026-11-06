@@ -1,1 +1,1 @@
-export { type PutOptions, S3Bucket } from '#s3/bucket'
+export { type ObjectHead, type PutOptions, S3Bucket } from '#s3/bucket'
