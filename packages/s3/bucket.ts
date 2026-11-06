@@ -13,6 +13,7 @@ import {
   Predicate,
   pipe,
   Sink,
+  String as Str,
   Stream,
 } from 'effect'
 
@@ -24,6 +25,12 @@ export interface PutOptions {
    */
   readonly fileName?: string
   readonly tags?: Record<string, string>
+}
+
+/** What `put` wrote of the object's options; the name is none when it was put without one. */
+export interface ObjectHead {
+  readonly contentType: string
+  readonly fileName: Option.Option<string>
 }
 
 /** The S3 minimum for every part but the last. */
@@ -51,6 +58,31 @@ function buildInlineDisposition(fileName: string) {
   )
   return `inline; filename*=UTF-8''${encoded}`
 }
+
+const inlineFileName = /^inline; filename\*=UTF-8''(.+)$/
+
+const buildInlineFileName = (disposition: string | undefined): Option.Option<string> =>
+  Option.fromNullishOr(disposition).pipe(
+    Option.flatMap(Str.match(inlineFileName)),
+    Option.flatMap(Arr.get(1)),
+    Option.map(decodeURIComponent),
+  )
+
+const decodeObjectHead = ({
+  ContentType,
+  ContentDisposition,
+}: {
+  readonly ContentType?: string | undefined
+  readonly ContentDisposition?: string | undefined
+}) =>
+  Effect.fromNullishOr(ContentType).pipe(
+    Effect.map(
+      (contentType): ObjectHead => ({
+        contentType,
+        fileName: buildInlineFileName(ContentDisposition),
+      }),
+    ),
+  )
 
 const buildTagging = (tags: Record<string, string>) => new URLSearchParams(tags).toString()
 
@@ -111,10 +143,11 @@ export class S3Bucket extends Context.Service<
       content: Stream.Stream<Uint8Array, E>,
       options: PutOptions,
     ) => Effect.Effect<number, E>
-    readonly get: (key: string) => Effect.Effect<Option.Option<Uint8Array>>
-    readonly exists: (key: string) => Effect.Effect<boolean>
-    /** A presigned GET valid for `lifetime`; none for a missing key. */
-    readonly url: (key: string, lifetime: Duration.Duration) => Effect.Effect<Option.Option<URL>>
+    readonly download: (key: string) => Effect.Effect<Option.Option<Uint8Array>>
+    /** One `HeadObject`; none for a missing key. */
+    readonly head: (key: string) => Effect.Effect<Option.Option<ObjectHead>>
+    /** A presigned GET valid for `lifetime`, signed without a request: it never checks that the key exists. */
+    readonly url: (key: string, lifetime: Duration.Duration) => Effect.Effect<URL>
     /** Idempotent, a no-op for a missing key. */
     readonly untag: (key: string) => Effect.Effect<void>
     /** Idempotent; one request per 1000 keys, none for no key. */
@@ -203,7 +236,7 @@ export class S3Bucket extends Context.Service<
         },
       )
 
-      const get = Effect.fn('S3Bucket.get')((key: string) =>
+      const download = Effect.fn('S3Bucket.download')((key: string) =>
         s3.getObject(buildObjectRef(key)).pipe(
           Effect.flatMap(({ Body }) => Effect.fromNullishOr(Body)),
           Effect.flatMap((body) => Effect.promise(() => body.transformToByteArray())),
@@ -213,19 +246,16 @@ export class S3Bucket extends Context.Service<
         ),
       )
 
-      const exists = Effect.fn('S3Bucket.exists')((key: string) =>
+      const head = Effect.fn('S3Bucket.head')((key: string) =>
         s3.headObject(buildObjectRef(key)).pipe(
-          Effect.as(true),
-          Effect.catchTag('NotFound', () => Effect.succeed(false)),
+          Effect.flatMap(decodeObjectHead),
+          Effect.map(Option.some),
+          Effect.catchTag('NotFound', () => Effect.succeedNone),
           Effect.orDie,
         ),
       )
 
-      // Presigning never checks that the object exists.
       const url = Effect.fn('S3Bucket.url')(function* (key: string, lifetime: Duration.Duration) {
-        const found = yield* exists(key)
-        if (!found) return Option.none()
-
         const now = yield* DateTime.nowAsDate
         const signed = yield* s3
           .getObject(buildObjectRef(key), {
@@ -234,7 +264,7 @@ export class S3Bucket extends Context.Service<
             signingDate: now,
           })
           .pipe(Effect.orDie)
-        return Option.some(new URL(signed))
+        return new URL(signed)
       })
 
       const untag = Effect.fn('S3Bucket.untag')((key: string) =>
@@ -264,7 +294,7 @@ export class S3Bucket extends Context.Service<
         pipe(keys, Arr.chunksOf(deleteBatchSize), Effect.forEach(deleteBatch, { discard: true })),
       )
 
-      return { put, get, exists, url, untag, deleteMany }
+      return { put, download, head, url, untag, deleteMany }
     }),
 }) {
   static readonly layer = (options: {

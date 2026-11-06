@@ -1,6 +1,6 @@
 import { assert, describe, layer } from '@effect/vitest'
 import { S3Service } from '@effect-aws/client-s3'
-import { Effect, Layer, Option, Stream } from 'effect'
+import { Array as Arr, Effect, Layer, Option, Stream, Struct } from 'effect'
 
 import { buildResourceName, resources } from '@app-template/kernel/aws'
 import { AwsTest } from '@app-template/kernel/aws/testing/e2e'
@@ -82,17 +82,53 @@ describe('FileRepository on AwsTest', () => {
       }),
     )
 
-    it.effect("url serves attachments/<id> from the endpoint's host", () =>
+    it.effect("selectOne signs a URL that serves attachments/<id> from the endpoint's host", () =>
       Effect.gen(function* () {
         const files = yield* FileRepository
         const { endpoint } = yield* AwsConfig
         const id = fileId(4)
         yield* files.insert(file(id))
 
-        const url = yield* files.url({ id }).pipe(Effect.flatMap(Effect.fromOption))
+        const { url } = yield* files.selectOne({ id }).pipe(Effect.flatMap(Effect.fromOption))
 
         assert.strictEqual(url.host, Option.getOrThrow(endpoint).host)
         assert.isTrue(url.pathname.endsWith(`/attachments/${id}`))
+      }),
+    )
+
+    it.effect(
+      'selectMany answers the stored files with their media type and file name, leaving out a missing id',
+      () =>
+        Effect.gen(function* () {
+          const files = yield* FileRepository
+          const id = fileId(7)
+          yield* files.insert(file(id))
+
+          const found = yield* files.selectMany({ id: [unknownId, id] })
+
+          assert.deepStrictEqual(
+            Arr.map(found, (stored) => Struct.omit(stored, ['url'])),
+            [{ id, mediaType: 'image/png', fileName: 'отчёт (1).png' }],
+          )
+        }),
+    )
+
+    it.effect('download answers the file with its bytes, and none for a missing id', () =>
+      Effect.gen(function* () {
+        const files = yield* FileRepository
+        const id = fileId(8)
+        yield* files.insert(file(id))
+
+        const found = yield* files.download({ id }).pipe(Effect.flatMap(Effect.fromOption))
+        const missing = yield* files.download({ id: unknownId })
+
+        assert.deepStrictEqual(Struct.omit(found, ['url']), {
+          id,
+          mediaType: 'image/png',
+          fileName: 'отчёт (1).png',
+          blob: png,
+        })
+        assert.deepStrictEqual(missing, Option.none())
       }),
     )
 

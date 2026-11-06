@@ -1,11 +1,13 @@
-import { Array as Arr, Context, Duration, Effect, Layer, type Option } from 'effect'
+import { Array as Arr, Context, Duration, Effect, Layer, Option } from 'effect'
 
-import { S3Bucket } from '@app-template/packages/s3'
+import { type ObjectHead, S3Bucket } from '@app-template/packages/s3'
 
 import {
   buildFileKey,
-  type FileEntityDeleteWhere,
+  type DownloadedFileEntity,
+  type FileEntity,
   type FileEntityInsert,
+  type FileEntityManyWhere,
   type FileEntitySet,
   type FileEntityWhere,
   unboundTag,
@@ -13,6 +15,16 @@ import {
 
 const urlLifetime = Duration.minutes(5)
 const unboundTags = { [unboundTag.key]: unboundTag.value }
+
+/** `insert` always writes the name, so an object without one is a defect. */
+const buildFileEntity =
+  (id: string, url: URL) =>
+  ({ contentType, fileName }: ObjectHead): FileEntity => ({
+    id,
+    mediaType: contentType,
+    fileName: Option.getOrThrowWith(fileName, () => new Error(`file ${id} has no name`)),
+    url,
+  })
 
 /**
  * An object store joins no transaction: keep the bytes before the row that binds them, delete
@@ -23,36 +35,55 @@ export class FileRepository extends Context.Service<
   {
     /** Writes the bytes unbound and answers their count; fails with the stream's error and leaves nothing behind. */
     readonly insert: <E>(file: FileEntityInsert<E>) => Effect.Effect<number, E>
-    readonly selectOne: (where: FileEntityWhere) => Effect.Effect<Option.Option<Uint8Array>>
-    /** A URL that serves the bytes with the stored media type and an inline disposition; none for a missing file. */
-    readonly url: (where: FileEntityWhere) => Effect.Effect<Option.Option<URL>>
+    /** One `HeadObject` per file, no bytes read. */
+    readonly selectOne: (where: FileEntityWhere) => Effect.Effect<Option.Option<FileEntity>>
+    /** The files found, in the order asked. */
+    readonly selectMany: (where: FileEntityManyWhere) => Effect.Effect<ReadonlyArray<FileEntity>>
+    readonly download: (
+      where: FileEntityWhere,
+    ) => Effect.Effect<Option.Option<DownloadedFileEntity>>
     readonly update: (set: FileEntitySet, where: FileEntityWhere) => Effect.Effect<void>
     /** In as few requests as the store allows. */
-    readonly delete: (where: FileEntityDeleteWhere) => Effect.Effect<void>
+    readonly delete: (where: FileEntityManyWhere) => Effect.Effect<void>
   }
 >()('@app-template/kernel/data/file/FileRepository', {
-  make: S3Bucket.useSync((bucket) => ({
-    insert: Effect.fn('FileRepository.insert')(
-      <E>({ id, content, mediaType, fileName }: FileEntityInsert<E>) =>
-        bucket.put(buildFileKey(id), content, {
-          contentType: mediaType,
-          fileName,
-          tags: unboundTags,
-        }),
-    ),
-    selectOne: Effect.fn('FileRepository.selectOne')(({ id }: FileEntityWhere) =>
-      bucket.get(buildFileKey(id)),
-    ),
-    url: Effect.fn('FileRepository.url')(({ id }: FileEntityWhere) =>
-      bucket.url(buildFileKey(id), urlLifetime),
-    ),
-    update: Effect.fn('FileRepository.update')((_set: FileEntitySet, { id }: FileEntityWhere) =>
-      bucket.untag(buildFileKey(id)),
-    ),
-    delete: Effect.fn('FileRepository.delete')(({ id }: FileEntityDeleteWhere) =>
-      bucket.deleteMany(Arr.map(id, buildFileKey)),
-    ),
-  })),
+  make: S3Bucket.useSync((bucket) => {
+    // Signing sends no request, so a missing file costs only its `HeadObject`.
+    const selectOne = Effect.fn('FileRepository.selectOne')(function* ({ id }: FileEntityWhere) {
+      const head = yield* bucket.head(buildFileKey(id))
+      const url = yield* bucket.url(buildFileKey(id), urlLifetime)
+      return Option.map(head, buildFileEntity(id, url))
+    })
+
+    return {
+      insert: Effect.fn('FileRepository.insert')(
+        <E>({ id, content, mediaType, fileName }: FileEntityInsert<E>) =>
+          bucket.put(buildFileKey(id), content, {
+            contentType: mediaType,
+            fileName,
+            tags: unboundTags,
+          }),
+      ),
+      selectOne,
+      selectMany: Effect.fn('FileRepository.selectMany')(({ id }: FileEntityManyWhere) =>
+        Effect.forEach(id, (one) => selectOne({ id: one }), { concurrency: 'unbounded' }).pipe(
+          Effect.map(Arr.getSomes),
+        ),
+      ),
+      download: Effect.fn('FileRepository.download')((where: FileEntityWhere) =>
+        Effect.all({ file: selectOne(where), blob: bucket.download(buildFileKey(where.id)) }).pipe(
+          Effect.map(Option.all),
+          Effect.map(Option.map(({ file, blob }) => ({ ...file, blob }))),
+        ),
+      ),
+      update: Effect.fn('FileRepository.update')((_set: FileEntitySet, { id }: FileEntityWhere) =>
+        bucket.untag(buildFileKey(id)),
+      ),
+      delete: Effect.fn('FileRepository.delete')(({ id }: FileEntityManyWhere) =>
+        bucket.deleteMany(Arr.map(id, buildFileKey)),
+      ),
+    }
+  }),
 }) {
   static readonly layer = Layer.effect(this, this.make)
 }

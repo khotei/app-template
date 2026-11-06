@@ -12,6 +12,7 @@ import {
   Order,
   Ref,
   Stream,
+  Struct,
 } from 'effect'
 import { TestClock } from 'effect/testing'
 
@@ -75,7 +76,9 @@ const countStored = Effect.all({
 })
 
 const bucketHref = (id: AttachmentId) =>
-  FileRepository.use((files) => files.url({ id })).pipe(Effect.map(Option.map((url) => url.href)))
+  FileRepository.use((files) => files.selectOne({ id })).pipe(
+    Effect.map(Option.map((file) => file.url.href)),
+  )
 
 const brokenUploads = [
   {
@@ -119,7 +122,10 @@ const bind = (attachment: Attachment) =>
     attachments.update({ messageId, chatId }, { id: [attachment.id] }),
   )
 
-const selectBytes = (id: AttachmentId) => FileRepository.use((files) => files.selectOne({ id }))
+const downloadBytes = (id: AttachmentId) =>
+  FileRepository.use((files) => files.download({ id })).pipe(
+    Effect.map(Option.map(Struct.get('blob'))),
+  )
 
 describe('AttachmentService', () => {
   it.effect('upload stores the bytes and the metadata of an unbound attachment', () =>
@@ -128,7 +134,7 @@ describe('AttachmentService', () => {
 
       const attachment = yield* uploadPhoto
       const found = yield* service.getOne({ id: attachment.id, userId: owner })
-      const bytes = yield* selectBytes(attachment.id)
+      const bytes = yield* downloadBytes(attachment.id)
 
       assert.isTrue(isUuidV7(attachment.id))
       assertEquals(
@@ -247,7 +253,7 @@ describe('AttachmentService', () => {
         error,
         new AttachmentNotFoundError({ ids: [attachment.id] }),
       )
-      assert.deepStrictEqual(yield* selectBytes(attachment.id), Option.none())
+      assert.deepStrictEqual(yield* downloadBytes(attachment.id), Option.none())
     }).pipe(Effect.provide(AttachmentServiceTest)),
   )
 
@@ -258,7 +264,7 @@ describe('AttachmentService', () => {
 
       const error = yield* service.delete({ id: attachment.id, userId: stranger }).pipe(Effect.flip)
       const found = yield* service.getOne({ id: attachment.id, userId: owner })
-      const bytes = yield* selectBytes(attachment.id)
+      const bytes = yield* downloadBytes(attachment.id)
 
       assertSchemaEquals(
         AttachmentNotFoundError,
@@ -277,7 +283,7 @@ describe('AttachmentService', () => {
       yield* bind(attachment)
 
       const error = yield* service.delete({ id: attachment.id, userId: owner }).pipe(Effect.flip)
-      const bytes = yield* selectBytes(attachment.id)
+      const bytes = yield* downloadBytes(attachment.id)
 
       assertSchemaEquals(
         AttachmentBoundError,
@@ -321,7 +327,7 @@ describe('AttachmentService', () => {
 
         const error = yield* address(service, owner, attachment.id).pipe(Effect.flip)
         const stored = yield* selectAttachments([attachment.id])
-        const bytes = yield* selectBytes(attachment.id)
+        const bytes = yield* downloadBytes(attachment.id)
 
         assertSchemaEquals(
           AttachmentNotFoundError,

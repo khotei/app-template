@@ -696,7 +696,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Goal.** A failure in the attachments' object store is never silent: a lost file is logged or
   refused where it is noticed, and no bytes are left in S3 that no rule or job will remove.
 - **Scope.**
-  - The reply's history: a bound attachment whose bytes `FileRepository.selectOne` no longer
+  - The reply's history: a bound attachment whose bytes `FileRepository.download` no longer
     finds is dropped from the assistant's input without a word today; it logs a warning with the
     attachment's and the chat's ids, or fails the reply while the chat still exists.
   - The bind: `FileRepository.update({ bound: true })` succeeds on a missing object, since S3's

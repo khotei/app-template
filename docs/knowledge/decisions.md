@@ -477,17 +477,21 @@ needs `S3Bucket`; `kernel/postgres` (`PgClientFromConfig`, the migrate entry) an
 ### Files in the data layer
 
 Files are `FileEntity` and `FileRepository` in the data layer, over the `S3Bucket` in the
-context. The data layer declares the key and the `unbound` tag; `kernel/aws/resources` declares the
-bucket's name and lifecycle; `deployment` reads both.
+context. A file is one entity read from its object's metadata, with its signed URL as a field;
+only `download` reads the bytes, answering `DownloadedFileEntity`, the entity with them. The data
+layer declares the key and the `unbound` tag; `kernel/aws/resources` declares the bucket's name
+and lifecycle; `deployment` reads both.
 
 - **Why:** a consumer reads and writes through one kind of repository, whichever store holds the
   data; the objects stay in their bucket under their keys.
 - **Sources:** the ticket's design; `docs/knowledge/aws.md`.
 - **Rejected:** a bucket port in `chat` with an S3 adapter: a module's adapter over data every
   module may need. The bucket's name and lifecycle in the data layer: the name depends on the
-  stage, a configuration the data does not read.
+  stage, a configuration the data does not read. A verb per signed URL: a caller then asks for
+  presence through a URL, one call per file.
 - **Cost:** one interface over a store that joins no transaction: the bytes are stored before the
-  row that binds them and deleted once the rows are gone.
+  row that binds them and deleted once the rows are gone. Every read signs a URL, which sends no
+  request.
 - **Guarded by:** the repository's doc comment and `.claude/rules/layering.md` (the order); the
   api e2e of a refused chat delete; the file repository's e2e; the `deployment` row of
   [architecture.md › Dependency rules](architecture.md#dependency-rules).

@@ -12,6 +12,7 @@ import {
 
 import {
   type AttachmentBoundError,
+  AttachmentId,
   type AttachmentNotFoundError,
   AttachmentService,
   assistantMessageQueue,
@@ -89,11 +90,9 @@ export class SendMessageUseCase extends Context.Service<
       yield* ensureMessageInput(input)
       const queued = yield* queueChat(chat)
       const live = yield* attachmentService.getMany({ id: input.attachmentIds, userId })
-      const storedIds = yield* Effect.filter(
-        Arr.map(live, Struct.get('id')),
-        (id) => files.url({ id }).pipe(Effect.map(Option.isSome)),
-        { concurrency: 'unbounded' },
-      )
+      const storedIds = yield* files
+        .selectMany({ id: Arr.map(live, Struct.get('id')) })
+        .pipe(Effect.map(Arr.map((file) => AttachmentId.make(file.id))))
       const requested = yield* pipe(live, ensureAllStored(input.attachmentIds, storedIds))
       const isFirstMessage = yield* messages.selectOne({ chatId }).pipe(Effect.map(Option.isNone))
       const at = yield* DateTime.now

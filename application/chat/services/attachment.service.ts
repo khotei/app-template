@@ -7,6 +7,7 @@ import {
   Layer,
   Ref,
   Stream,
+  Struct,
   type Types,
 } from 'effect'
 
@@ -131,7 +132,9 @@ export class AttachmentService extends Context.Service<
     const download = Effect.fn('AttachmentService.download')(function* (where: AttachmentWhere) {
       const { id } = yield* getOne(where)
 
-      return yield* files.url({ id }).pipe(Effect.flatMap(ensureFound(id)))
+      return yield* files
+        .selectOne({ id })
+        .pipe(Effect.flatMap(ensureFound(id)), Effect.map(Struct.get('url')))
     })
 
     const remove = Effect.fn('AttachmentService.delete')(function* (where: AttachmentWhere) {
