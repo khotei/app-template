@@ -48,21 +48,21 @@ const FileAttachmentServiceTest = FileAttachmentService.layer.pipe(
   Layer.provide(BunCrypto.layer),
 )
 
-const AttachmentRepositoryInsertDying = Layer.effect(
+const AttachmentRepositoryInsertDyingTest = Layer.effect(
   AttachmentRepository,
   AttachmentRepository.useSync((inner) =>
     AttachmentRepository.of({ ...inner, insert: () => Effect.die('the record write was lost') }),
   ),
 )
 
-const FileAttachmentServiceRecordLost = FileAttachmentService.layer.pipe(
-  Layer.provide(AttachmentRepositoryInsertDying),
+const FileAttachmentServiceRecordLostTest = FileAttachmentService.layer.pipe(
+  Layer.provide(AttachmentRepositoryInsertDyingTest),
   Layer.provideMerge(RepositoryStackTest),
   Layer.provide(BunCrypto.layer),
 )
 
 /** A send binds the attachment between the service's check and its delete. */
-const AttachmentRepositoryBoundBeforeDelete = Layer.effect(
+const AttachmentRepositoryBoundBeforeDeleteTest = Layer.effect(
   AttachmentRepository,
   AttachmentRepository.useSync((inner) =>
     AttachmentRepository.of({
@@ -75,8 +75,8 @@ const AttachmentRepositoryBoundBeforeDelete = Layer.effect(
   ),
 )
 
-const FileAttachmentServiceBoundBeforeDelete = FileAttachmentService.layer.pipe(
-  Layer.provide(AttachmentRepositoryBoundBeforeDelete),
+const FileAttachmentServiceBoundBeforeDeleteTest = FileAttachmentService.layer.pipe(
+  Layer.provide(AttachmentRepositoryBoundBeforeDeleteTest),
   Layer.provideMerge(Layer.effectDiscard(insertMessage(firstMessage))),
   Layer.provideMerge(RepositoryStackTest),
   Layer.provide(BunCrypto.layer),
@@ -272,7 +272,7 @@ describe('FileAttachmentService', () => {
       assert.isTrue(Exit.hasDies(exit))
       assert.strictEqual(stored.length, 1)
       assert.deepStrictEqual(bytes, Option.some(png))
-    }).pipe(Effect.provide(FileAttachmentServiceBoundBeforeDelete)),
+    }).pipe(Effect.provide(FileAttachmentServiceBoundBeforeDeleteTest)),
   )
 
   it.effect('upload aborted after the bytes were written leaves neither bytes nor a record', () =>
@@ -284,6 +284,6 @@ describe('FileAttachmentService', () => {
 
       assert.isTrue(Exit.hasDies(exit))
       assert.deepStrictEqual(stored, { rows: 0, objects: 0 })
-    }).pipe(Effect.provide(FileAttachmentServiceRecordLost)),
+    }).pipe(Effect.provide(FileAttachmentServiceRecordLostTest)),
   )
 })

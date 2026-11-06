@@ -172,6 +172,20 @@ describe('AttachmentRepository', () => {
     }).pipe(Effect.provide(AttachmentRepositoryDbTest)),
   )
 
+  it.effect('delete of a stored and a missing id dies, the stored row deleted', () =>
+    Effect.gen(function* () {
+      const attachments = yield* AttachmentRepository
+      const stored = attachment('0192d4e0-7b3a-7c00-8000-000000000026')
+      yield* insertChatWithMessage
+      yield* attachments.insert(stored)
+
+      const exit = yield* attachments.delete({ id: [stored.id, unknownId] }).pipe(Effect.exit)
+
+      assert.isTrue(Exit.hasDies(exit))
+      assert.deepStrictEqual(yield* attachments.selectMany({ id: [stored.id] }), [])
+    }).pipe(Effect.provide(AttachmentRepositoryDbTest)),
+  )
+
   it.effect("update dies and binds nothing when chatId is not the message's chat", () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentRepository

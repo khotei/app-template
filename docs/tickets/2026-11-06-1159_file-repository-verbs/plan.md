@@ -170,7 +170,8 @@
   - Deviation — `ensureLive(now)` takes the attachment, not an `Option` (like `ensureUnbound`), so
     the live `getOne` pipes it onto the plain one; `attachment.model.ts` and its test are in the
     step. The plain `getMany` leaves an absent id out, so the live layer's one error names absent
-    and expired ids together. The plain `delete` keeps the guard `messageId: null` in its write.
+    and expired ids together. The plain `delete` deletes many attachments by the full `where` its caller passes, then their
+    bytes in one call; `FileAttachmentService.delete` passes the guard `messageId: null` (S3.3).
   - Deviation — `effect-services.md` (a layer may provide the services it is layered over) and
     `naming.md` (file and type names of a layered service) are edited beside `layering.md`.
   - Standards — accepted, fixed in S3.2: two blank lines in short bodies; the file service's tests
@@ -181,6 +182,12 @@
     (the user ordered the plain service to delete the file with the row); making `ensureAllLive`
     an effect pipeable (consistency only; the `ensureAll…` family stays pure like
     `ensureAllStored`).
+  - S3.3 (the delete takes the full `where` from its caller) — Standards, hunt. Accepted, fixed in
+    S3.4: the test-only layers end in `Test`; the memory fake deletes the rows it matched before it
+    dies, as Postgres does outside a transaction (confirmed by a code read: `[stored, missing]`
+    deletes the stored row, then dies, so its bytes stay); the e2e shows it; the TSDoc of
+    `AttachmentService.delete` states it. Rejected: the unbound guard inside the plain delete (the
+    user's order). `make check` green (256 unit, 110 e2e).
   - Spec — accepted: the model's and the two rules' edits are recorded above. Hunt — no findings;
     two deletes of one attachment at once, and a `files.delete` that dies after the row is gone,
     behave as before.

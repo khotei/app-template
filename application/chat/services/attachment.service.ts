@@ -26,7 +26,11 @@ export class AttachmentService extends Context.Service<
     readonly getOne: (where: AttachmentWhere) => Effect.Effect<Attachment, AttachmentNotFoundError>
     /** The user's attachments among `where.id` in creation order; an absent id is left out. */
     readonly getMany: (where: AttachmentGetManyWhere) => Effect.Effect<ReadonlyArray<Attachment>>
-    /** Removes the user's attachments, then their bytes; dies unless a row matches each id. */
+    /**
+     * Removes the user's attachments, then their bytes; dies unless a row matches each id. A miss
+     * leaves the rows it matched deleted and all the bytes in place, unless the caller's
+     * transaction rolls the rows back.
+     */
     readonly delete: (where: AttachmentDeleteWhere) => Effect.Effect<void>
   }
 >()('@app-template/application/chat/services/AttachmentService', {
