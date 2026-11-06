@@ -64,21 +64,23 @@ describe('FileRepository on AwsTest', () => {
       }),
     )
 
-    it.effect('update to bound removes the unbound tag', () =>
+    it.effect('update to bound removes the unbound tag from every file it names', () =>
       Effect.gen(function* () {
         const files = yield* FileRepository
         const s3 = yield* S3Service
         const { stage } = yield* AwsConfig
-        const id = fileId(3)
-        yield* files.insert(file(id))
+        const ids = [fileId(3), fileId(10)]
+        yield* Effect.forEach(ids, (id) => files.insert(file(id)))
 
-        yield* files.update({ bound: true }, { id })
-        const { TagSet } = yield* s3.getObjectTagging({
-          Bucket: buildResourceName(stage, resources.buckets.attachments.name),
-          Key: `attachments/${id}`,
-        })
+        yield* files.update({ bound: true }, { id: ids })
+        const tagSets = yield* Effect.forEach(ids, (id) =>
+          s3.getObjectTagging({
+            Bucket: buildResourceName(stage, resources.buckets.attachments.name),
+            Key: `attachments/${id}`,
+          }),
+        )
 
-        assert.deepStrictEqual(TagSet, [])
+        assert.deepStrictEqual(Arr.map(tagSets, Struct.get('TagSet')), [[], []])
       }),
     )
 

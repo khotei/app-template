@@ -116,10 +116,7 @@ export class SendMessageUseCase extends Context.Service<
       if (Arr.isReadonlyArrayNonEmpty(bound)) {
         const ids = Arr.map(bound, Struct.get('id'))
         // The files first: unbound bytes expire, so a crash must never leave a bound row over them.
-        yield* Effect.forEach(ids, (id) => files.update({ bound: true }, { id }), {
-          concurrency: 'unbounded',
-          discard: true,
-        })
+        yield* files.update({ bound: true }, { id: ids })
         // `messageId: null` is the race's guard: a send that bound any of them since the read
         // leaves this write short of a row it names, so it dies and the send rolls back whole.
         yield* attachments.update(

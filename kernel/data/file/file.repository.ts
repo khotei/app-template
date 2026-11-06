@@ -37,8 +37,9 @@ const readEach =
 
 /**
  * An object store joins no transaction: keep the bytes before the row that binds them, delete
- * them after the rows. Every write is idempotent, and none dies on a missing file. A read sends
- * one request per id and answers in the order asked.
+ * them after the rows. Every write is idempotent, and none dies on a missing file. A read and an
+ * `update` send one request per id, concurrently, since the store tags no batch; a read answers
+ * in the order asked.
  */
 export class FileRepository extends Context.Service<
   FileRepository,
@@ -98,7 +99,7 @@ export class FileRepository extends Context.Service<
       download: Effect.fn('FileRepository.download')((where: FileEntityWhere) =>
         readEach(downloadFile)(where).pipe(Effect.map(Arr.head)),
       ),
-      update: Effect.fn('FileRepository.update')((_set: FileEntitySet, { id }: FileEntityWhere) =>
+      update: Effect.fn('FileRepository.update')((_bound: FileEntitySet, { id }: FileEntityWhere) =>
         pipe(
           id,
           Arr.ensure,
