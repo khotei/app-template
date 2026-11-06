@@ -749,13 +749,13 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 
 ### 26. `domain-from-data`
 
-- **Goal.** A module's domain may take its types and schemas from the data layer instead of
-  redeclaring them, now that the domain no longer ships to the browser.
-- **Scope.** The domain's import bans; the records "A module's layers" and "The data at the
-  centre"; the mappers it would make redundant; where an id, a constrained string or a limit is
-  declared once for the data layer, the domain and the API contract, which today each declare
-  their own (a chat title's 120 lives in the table and the domain, and `client-publishing` adds
-  the contract's twin).
+- **Goal.** A module's domain takes the limits, patterns and literal lists its tables declare
+  instead of declaring them again, now that the domain no longer ships to the browser; its
+  brands and models stay its own.
+- **Scope.** The domain's import bans; the records "A module's layers", "The data at the centre"
+  and "Checks kept in the tables"; the mapper tests that compared the copies; each such value
+  declared once for the data layer and the domain (a chat title's 120 lived in both). The API
+  contract keeps its own twins and imports only `effect`.
 - **Depends on** `client-publishing`, which takes the domain out of the browser.
 - **Status.** Done:
   [docs/tickets/2026-11-06-1005_domain-from-data/](../tickets/2026-11-06-1005_domain-from-data/plan.md).

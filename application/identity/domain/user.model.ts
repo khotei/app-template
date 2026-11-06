@@ -1,6 +1,6 @@
 import { Schema, type Types } from 'effect'
 
-import { credentialKind, secretHashPattern } from '@app-template/kernel/data'
+import { credentialKinds, secretHashPattern } from '@app-template/kernel/data'
 
 import { UserId } from '#identity/contract/user.id'
 
@@ -16,7 +16,7 @@ export const SecretHash = Schema.String.check(Schema.isPattern(secretHashPattern
 export type SecretHash = typeof SecretHash.Type
 
 export class Credential extends Schema.Class<Credential>('Credential')({
-  kind: Schema.Literals(credentialKind.enumValues),
+  kind: Schema.Literals(credentialKinds),
   hash: SecretHash,
 }) {}
 

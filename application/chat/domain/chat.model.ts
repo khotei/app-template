@@ -1,7 +1,7 @@
 import { type DateTime, Effect, Option, Predicate, Schema, type Types } from 'effect'
 
 import { UserId } from '@app-template/application/identity'
-import { chatStatus, maxTitleLength } from '@app-template/kernel/data'
+import { chatStatuses, maxTitleLength } from '@app-template/kernel/data'
 
 import { Attachment } from '#chat/domain/attachment.model'
 import { ChatBusyError, ChatStatusInvalidError } from '#chat/domain/chat.error'
@@ -9,7 +9,7 @@ import { ChatId } from '#chat/domain/chat.id'
 import { isQueued, Status } from '#chat/domain/status.model'
 
 /** `queued` while the chat's reply is in work, `failed` after its last reply failed, else `idle`. */
-export const ChatStatus = Status.pick(chatStatus.enumValues)
+export const ChatStatus = Status.pick(chatStatuses)
 export type ChatStatus = typeof ChatStatus.Type
 
 /** Its length is counted in UTF-16 code units, as `Schema.isMaxLength` counts them. */

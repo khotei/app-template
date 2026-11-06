@@ -7,7 +7,9 @@ import { users } from '#kernel/data/user/user.table'
 
 export const maxTitleLength = 120
 
-export const chatStatus = pgEnum('chat_status', ['idle', 'queued', 'failed'])
+export const chatStatuses = ['idle', 'queued', 'failed'] as const
+
+export const chatStatus = pgEnum('chat_status', chatStatuses)
 
 export const chats = snakeCase.table(
   'chats',

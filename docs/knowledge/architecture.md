@@ -68,7 +68,7 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 
 | From ↓ / may import → | another module | a contract | `use-cases` | `kernel/data` | rest of `kernel` | `packages/*` | `http-api` | Refused by |
 |---|---|---|---|---|---|---|---|---|
-| a module's `domain/` | ✗ | ✓, through its entry | ✗ | the tables' values only | ✗ | ✗ | ✗ | `application/*/domain/**`; review, the rest of `kernel/data` |
+| a module's `domain/` | ✗ | ✓, through its entry | ✗ | the tables' values only | ✗ | ✗ | ✗ | `application/*/domain/**`, `kernel/data` by name |
 | a module's `services/` | ✗ | ✓, through its entry | ✗ | ✓, but `Db` and the relations | `/aws`: the inventory only | `db`, `queue` only | ✗ | `application/*/services/**` |
 | a module's `infrastructure/` | ✗, its own entry too | ✓, through its entry | ✗ | ✓ | ✓ | ✓ | ✗ | `application/*/infrastructure/**`; its own entry, `use-cases`: `noImportCycles` on a cycle, else review |
 | a contract | ✗, nor its module's files | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | `application/*/contract/**` |
@@ -361,9 +361,11 @@ them:
 - **A namespace import of an entry.** `import * as Data from '@app-template/kernel/data'` where
   only its stores are allowed passes every ban by name (`importNamePattern` sees no name);
   `Data.<Name>` then reaches what the names were refused for.
-- **A store or the client in a module's `domain/`.** The domain guard admits
-  `@app-template/kernel/data` whole for its tables' values, so a table, an entity, a repository
-  or `Db` passes it, and `tsc -b` too; only review keeps the domain to the values.
+- **A data layer's export named like a value, in a module's `domain/`.** Of
+  `@app-template/kernel/data` the domain guard admits only the names of a value's shape
+  (`<name>Pattern`, `<name>Length`, `<name>Size`, a plural such as `<name>Statuses`) and refuses
+  the rest, a namespace import included; a table or an enum given such a name passes it, so
+  review keeps those names to values.
 - **A runtime module or third-party package in a module's `domain/`.** `node:crypto` or any npm
   package passes the domain guard, which bans only workspaces and `@effect/*`. Purity rests on
   review alone: no check looks for `Date.now`, `new Date(` or `randomUUID`.

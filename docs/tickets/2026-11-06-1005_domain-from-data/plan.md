@@ -6,7 +6,7 @@
 
 | Step | Delivers | Status |
 |---|---|---|
-| S1 | a module's domain takes each limit, pattern and literal list from the data layer's table instead of declaring it again | todo |
+| S1 | a module's domain takes each limit, pattern and literal list from the data layer's table instead of declaring it again | done |
 
 ## How to run this plan
 
@@ -27,8 +27,9 @@
   pattern or literal list (a chat title's 120, the chat, message and credential statuses, the
   message's author and failure reasons, the media type's pattern, a file name's or size's limit),
   the table's export is the only declaration and the domain imports it; the Biome override of the
-  domain admits `@app-template/kernel/data` and nothing else of the kernel; the mapper tests that
-  compared the two copies are gone.
+  domain admits of the kernel only `@app-template/kernel/data`, and of it only a value's name
+  (`<name>Pattern`, `<name>Length`, `<name>Size`, `<name>Statuses`, `<name>Authors`,
+  `<name>Reasons`, `<name>Kinds`); the mapper tests that compared the two copies are gone.
 - **Goal:** entry 26 in its A-lite form: one declaration of each value for the data layer and the
   domain, so a value cannot drift between them, with every brand, model and refinement staying in
   the domain, and the contract unchanged (`http-api` imports only `effect`).
@@ -58,16 +59,37 @@
     - `import { maxTitleLength } from '@app-template/kernel/data'` in
       `application/chat/domain/chat.model.ts` — fails `make lint` today, passes after;
     - `import { Db } from '@app-template/kernel/config'` there — fails before and after;
-    - `import { sql } from 'drizzle-orm'` there — fails before and after (the domain reaches
-      drizzle only through the data entry);
+    - `import { sql } from 'drizzle-orm'` there — fails `make typecheck` with TS2307 before and
+      after (the domain reaches drizzle only through the data entry);
     - `import … from '@app-template/packages/db'` there — fails before and after.
-  - `grep -rn "maxTitleLength" application/chat/domain` — prints the import only, no
+  - `grep -rn "maxTitleLength" application/chat/domain` — prints the import and its use, no
     `= 120`; prints a declaration today.
   - `grep -rn "tableMaxTitleLength" application` — prints nothing after.
   - `make doc-lint` — green.
 - **Model:** `opus high`.
-- **Status:** todo
-- **Findings:** written when the step is reviewed.
+- **Status:** done
+- **Findings:** passes: Standards, Spec, Design (rounds S1.1, S1.2); no simplify run by the main
+  session (no new interface beyond two exported values), no hunt. `make check` green (244 unit,
+  104 e2e); `make migration-check` green, the DDL unchanged (a planted extra enum value failed it).
+  - Deviation — a file name keeps its two checks: the table's `<> ''` and the domain's
+    `isNonEmpty()` carry no value to share, and a length constant would change the DDL.
+  - Deviation — two exports the tables kept inline: `minFileSize` (`attachment.table.ts`) and
+    `messageFailureReasons` (`message.table.ts`); files beyond the list: `assistant.llm.ts` (it
+    imported the domain's `maxTitleLength`), `tooling.md` and `database.md` (old copies of the rule).
+  - Deviation — the `drizzle-orm` probe is refused by `make typecheck` (TS2307), not by Biome,
+    before and after: the domain guard bans only workspaces.
+  - Probe — S1.2: `chats`, `ChatRepository`, `Db`, `chatStatus` (a `pgEnum`), `ChatEntity` and a
+    namespace import each refused with the new message; `chatStatuses`, `maxTitleLength` admitted;
+    `@app-template/kernel/config` still refused.
+  - Standards — accepted, fixed in S1.2: `database.md` still said the mappers check the limits a
+    model declares again (hard); `application/CLAUDE.md` restated the decision.
+  - Standards — accepted, closed by the Design fix: the guard admitted the data entry whole.
+  - Spec — accepted, fixed in S1.2: entry 26's goal and scope still asked for types, schemas and
+    the contract's copies; the comment on `activeMessageStatuses` lost its second reader.
+  - Design — accepted, fixed in S1.2: each enum's values are an exported tuple the `pgEnum` and
+    the domain both read; the override admits of the data entry only a value's name
+    (`invertImportNamePattern`). A table given a value's name still passes: review holds it
+    (`architecture.md` › Known gaps).
 
 ## Requirement coverage
 

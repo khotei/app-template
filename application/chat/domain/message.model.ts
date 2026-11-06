@@ -12,9 +12,9 @@ import {
 
 import {
   activeMessageStatuses,
-  messageAuthor,
+  messageAuthors,
   messageFailureReasons,
-  messageStatus,
+  messageStatuses,
 } from '@app-template/kernel/data'
 
 import type { AssistantError } from '#chat/domain/assistant.error'
@@ -24,13 +24,13 @@ import { ChatId, MessageId } from '#chat/domain/chat.id'
 import { MessageInputInvalidError, MessageStatusInvalidError } from '#chat/domain/message.error'
 import { isPreparing, Status } from '#chat/domain/status.model'
 
-export const MessageStatus = Status.pick(messageStatus.enumValues)
+export const MessageStatus = Status.pick(messageStatuses)
 export type MessageStatus = typeof MessageStatus.Type
 
 export const ActiveMessageStatus = MessageStatus.pick(activeMessageStatuses)
 export type ActiveMessageStatus = typeof ActiveMessageStatus.Type
 
-export const MessageAuthor = Schema.Literals(messageAuthor.enumValues)
+export const MessageAuthor = Schema.Literals(messageAuthors)
 export type MessageAuthor = typeof MessageAuthor.Type
 
 export const MessageFailureReason = Schema.Literals(messageFailureReasons)

@@ -24,15 +24,13 @@ export const MessageFailureJson = Schema.Struct({
   cause: Schema.String,
 })
 
-export const messageAuthor = pgEnum('message_author', ['user', 'assistant'])
+export const messageAuthors = ['user', 'assistant'] as const
 
-export const messageStatus = pgEnum('message_status', [
-  'queued',
-  'preparing',
-  'generating',
-  'done',
-  'failed',
-])
+export const messageAuthor = pgEnum('message_author', messageAuthors)
+
+export const messageStatuses = ['queued', 'preparing', 'generating', 'done', 'failed'] as const
+
+export const messageStatus = pgEnum('message_status', messageStatuses)
 
 export const messages = snakeCase.table(
   'messages',
@@ -56,7 +54,10 @@ export const messages = snakeCase.table(
   ],
 )
 
-/** The statuses of an assistant message whose reply still runs. */
+/**
+ * The statuses of an assistant message whose reply still runs, read by the index's predicate, the
+ * memory fake's matcher and the domain's `ActiveMessageStatus`.
+ */
 export const activeMessageStatuses = ['queued', 'preparing', 'generating'] as const
 
 /**

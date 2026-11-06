@@ -11,7 +11,9 @@ export const secretHashPattern = /^[0-9a-f]{64}$/
 
 export const users = snakeCase.table('users', { id: id(), createdAt: createdAt() })
 
-export const credentialKind = pgEnum('credential_kind', ['secret'])
+export const credentialKinds = ['secret'] as const
+
+export const credentialKind = pgEnum('credential_kind', credentialKinds)
 
 export const credentials = snakeCase.table(
   'credentials',

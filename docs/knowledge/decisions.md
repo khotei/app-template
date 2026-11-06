@@ -146,15 +146,15 @@ calls the data layer's repository directly.
   contract would import a workspace ([The API contract on its own](#the-api-contract-on-its-own)).
   The domain's own copies kept: a value could drift between the two declarations.
 - **Cost:** a service depends on the data layer directly, so its unit tests take the data layer's
-  memory repositories; the domain loads the data layer's entry, and its guard admits that entry
-  whole, so only review keeps it to the values; one entry opens the module whole, so another
-  unit's ban on a layer matches the names it imports. A layer's override covers its tests, so
-  what they need passes in its source too. What passes every guard:
-  [architecture.md › Known gaps](architecture.md#known-gaps).
+  memory repositories; the domain loads the data layer's entry, and its guard admits of it only
+  the names of a value's shape, so a value of a new shape widens the guard's pattern; one entry
+  opens the module whole, so another unit's ban on a layer matches the names it imports. A
+  layer's override covers its tests, so what they need passes in its source too. What passes
+  every guard: [architecture.md › Known gaps](architecture.md#known-gaps).
 - **Guarded by:** one Biome override per layer, matching every module by glob and covering the
-  layer's tests, the domain's admitting `@app-template/kernel/data` and nothing else of the
-  kernel: the rows of a module's layers and of `http-api` in
-  [architecture.md › Dependency rules](architecture.md#dependency-rules); `make bundle-check`,
+  layer's tests, the domain's admitting of the kernel only `@app-template/kernel/data`, and of
+  it only a value's name (`<name>Pattern`, `<name>Statuses`): the rows of a module's layers and
+  of `http-api` in [architecture.md › Dependency rules](architecture.md#dependency-rules); `make bundle-check`,
   which reads the web bundle's metafile and refuses the module's package in it;
   `.claude/rules/layering.md`, a repository, a mapper or the data layer in an app's handler.
 - **If reversed:** a port per repository comes back with an adapter each that only delegates; an
