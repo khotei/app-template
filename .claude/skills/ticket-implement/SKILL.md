@@ -23,17 +23,18 @@ step id, take step after step, as **The loop** below says. Gates:
    `BLOCKED:` goes straight to the user. At the session's first step outside a loop, ask the
    commit question of `.claude/rules/sdd.md › Gates` now, while the implementer works, and hold
    the answer; a later step does not ask again.
+   - **A new-interface step** is a behaviour step (below) whose diff adds an exported name, a
+     module or a Seam. Simplify and Design run on it alone; any other step gets Standards and
+     Spec, and the hunt where step 3 names it.
    - **A behaviour step**, whatever the **Model** line, is one whose diff changes the content of a
      `.ts` file, a `Makefile` recipe or a script, beyond a move. A move renames files whose
      content `git diff -M` shows unchanged and rewrites only the import and re-export lines
-     (`from '<old path>'`) that name them. A move gets Standards and Spec alone; any other step
-     that is not a behaviour step gets no `simplify` and no Design pass.
-   - **Simplify, a behaviour step only**, run by you, never by the implementer: the refactor that
+     (`from '<old path>'`) that name them. A move gets Standards and Spec alone.
+   - **Simplify, a new-interface step only**, run by you, never by the implementer: the refactor that
      `tdd` leaves out of its red → green loop. Call the Skill tool with `simplify` on the
      uncommitted step, its args pointing at the step in `plan.md`, the rules `make review-rules`
      prints (which override it), and the deletion test and depth of
-     `mattpocock-skills:codebase-design`; it keeps every interim state the plan names (a
-     delegating adapter, a module the next step removes) and every test case.
+     `mattpocock-skills:codebase-design`; it keeps every test case.
      Then run `make check`. Its edits join the step's diff before review.
 3. **Review.** Every pass is a `reviewer` agent, which owns one kind of finding and reports each
    in one shape (its file says which and how). Spawn the passes in parallel, one `reviewer` each,
@@ -45,8 +46,9 @@ step id, take step after step, as **The loop** below says. Gates:
      verbatim with nothing added, and the `CLAUDE.md` of every touched workspace, each by its
      path; on a diff that touches an instruction file (a `CLAUDE.md`, a rule, a skill or an
      agent), also `mattpocock-skills:writing-for-agents`.
-   - **Spec**, on the agent's own model: the step in `plan.md` and the `R…` it cites from
-     `feature.md`.
+   - **Spec**, on the agent's own model: the step in `plan.md`, the **Files** and **Introduces**
+     of the steps after it (its check of a step that does not stand alone:
+     `.claude/agents/reviewer.md`), and the `R…` it cites from `feature.md`.
 
    Both briefs also name the parts of `architecture.md` the step's own lines cite, each by its
    anchor, and no other: a `D…` it names (`- **D<n> —`), the Seam row its **Test first** names
@@ -58,7 +60,7 @@ step id, take step after step, as **The loop** below says. Gates:
    sources are the diff's files, their callers and, for a test fake, the adapter it stands in
    for. Any other step runs no hunt.
 
-   A behaviour step also gets the **Design** pass on the same diff; its sources are the step id,
+   A new-interface step also gets the **Design** pass on the same diff; its sources are the step id,
    the diff's files and the modules that call them, [design-examples.md](design-examples.md) by
    its path, `.claude/rules/deep-modules.md`, `docs/knowledge/architecture.md`, and the records
    of `docs/knowledge/decisions.md` and the ticket's `D…` that bind the diff's files.

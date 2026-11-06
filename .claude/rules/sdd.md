@@ -32,8 +32,10 @@ Every change of substance runs **feature → architecture → plan → implement
 - **Requirements are EARS** (`WHEN … THE SYSTEM SHALL …`; also `WHILE`, `WHERE`, `IF … THEN`).
 - **Tests sit at the Seams** agreed in `architecture.md`; a step's *Test first* names one.
 - **The heavy review lands once, on the plan.** Steps then conform to it.
-- **A plan step** is ≤ ~400 changed lines and fits one fresh session. A ticket is one branch
-  `<type>/<slug>` and one squash-merged PR.
+- **A plan step is a deliverable:** one outcome a person or a test can observe, whole when it
+  lands, with an acceptance check red before it and green after. It is ≤ ~400 changed lines of
+  code and tests (its docs counted apart) and fits one fresh session. A ticket is one branch
+  `<type>/<slug>` and one squash-merged PR, so no commit between two steps reaches `main`.
 - **A step lands in rounds, one commit each.** The implementer's pass is round `S<n>.1`; what
   stands commits first, under the commit gate; any fix, the user's or the main session's, then
   lands as `S<n>.2`, so each diff is read alone. The commit body opens with the round id and what

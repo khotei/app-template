@@ -2,7 +2,6 @@
   "name": "@app-template/application",
   "private": true,
   "type": "module",
-  "sideEffects": false,
   "exports": {
     "./chat": "./chat/index.ts",
     "./identity": "./identity/index.ts",

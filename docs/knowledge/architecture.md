@@ -19,21 +19,23 @@ Every dependency points inward, from the boundary to the behaviour to the data:
   attachments' objects and the jobs among them. It takes its clients from the context.
 - **The behaviour**, `application/`: the modules and above them every use case in
   `application/use-cases`. A module's `domain/` holds its models, pure rules, errors and the ports
-  that reach outside, and ships to the browser; its `services/` the domain services, the mappers
+  that reach outside; its `services/` the domain services, the mappers
   between an entity and a model and the job definitions, over the data layer's repositories; its
   `infrastructure/` the adapters of its ports; its `contract/`, once another module needs one,
   what other modules may take of it.
 - **The boundary**, everything that touches the world outside the process: the kernel's
   configured clients (`/config`, `/postgres`, `/aws`, `/queue`, `/llm`), each module's
-  `infrastructure/`, `http-api`, the HTTP contract the api and the web client share, and the
-  apps, thin entry points that assemble the layers and provide the clients.
+  `infrastructure/`, `http-api`, the API contract the api implements and the web client calls,
+  which declares the wire itself and imports only `effect`, and the apps, thin entry points that
+  assemble the layers and provide the clients. Nothing of `application/` reaches the browser.
 
 `packages/*` holds generic tools, configured by their caller, that know no app. `deployment/`
 provisions the stores, locally and on AWS ([aws.md](aws.md)). What each ring and layer may import:
 [Dependency rules](#dependency-rules). The records:
 [Modules by capability](decisions.md#modules-by-capability),
 [A module's layers](decisions.md#a-modules-layers), [One kernel](decisions.md#one-kernel),
-[The data at the centre](decisions.md#the-data-at-the-centre).
+[The data at the centre](decisions.md#the-data-at-the-centre),
+[The API contract on its own](decisions.md#the-api-contract-on-its-own).
 
 ```mermaid
 graph TD
@@ -74,7 +76,7 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 | `kernel/data` | ✗ | ✗ | ✗ | — | ✗ | ✓ | ✗ | `kernel/data/**` |
 | rest of `kernel` | ✗ | ✗ | ✗ | ✓ | ✓, the parts below it | ✓ | ✗ | TS2307, a module, `use-cases`, `http-api`; a part above it: `noImportCycles` on a cycle, else review |
 | `packages/*` | ✗ | ✗ | ✗ | ✗ | ✗ | ✓, the ones below it | ✗ | `biome-imports.grit` and TS2307, any workspace; a package above it: `noImportCycles` on a cycle, else review |
-| `http-api` | its domain only: no service, mapper or adapter by name | ✓ | ✗ | ✗ | ✗ | ✗ | — | `http-api/**` |
+| `http-api` | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | — | `http-api/**` |
 | `apps/api` | ✓, a mapper in `layer.ts` only | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | ✓ | `biome-imports.grit`, another app and `deployment`; review, the data and the mappers |
 | `apps/worker` | ✓, a mapper in `layer.ts` only | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | ✗ | `biome-imports.grit`, another app and `deployment`; TS2307, `http-api`; review, the data and the mappers |
 | `apps/web` client | ✗ | ✗ | ✗ | ✗ | ✗ | `ui` only | ✓ | `apps/web/**`; `make bundle-check` |
@@ -92,10 +94,12 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 - **The apps** never import each other or `deployment`:
   [Independent apps](decisions.md#independent-apps). What a handler may call and import:
   [layering.md › Handlers](../../.claude/rules/layering.md#handlers).
-- **A module's `domain/` and a contract import only `effect`** (and `type-fest` for types), and
-  neither they nor a module's `services/` nor `http-api` import an `@effect/*` package: the
-  domain ships to the browser through `http-api`, and what that asks of its code is
-  [application/CLAUDE.md](../../application/CLAUDE.md)'s.
+- **`http-api` imports only `effect`:** it is the browser's whole way into the app, so it
+  declares every id, constrained string, model shape and error itself
+  ([The API contract on its own](decisions.md#the-api-contract-on-its-own)). **A module's
+  `domain/` and a contract import only `effect`** too (and `type-fest` for types), and neither
+  they nor a module's `services/` import an `@effect/*` package
+  ([A module's layers](decisions.md#a-modules-layers)).
 - **A dependency on a module's contract counts as one on the module**, so two modules that import
   each other's contracts form a cycle, refused by review where no tool sees it
   ([modules.md](../../.claude/rules/modules.md)).
@@ -154,8 +158,9 @@ Using the files of `chat` as the map:
 | database client and migrations | `kernel/data/db.client.ts`, `kernel/data/migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |
 | the queue's transport | `kernel/queue/queue.client.ts`, `job.relay.ts` | the sender, the consumer and the relay ([database.md › The outbox](database.md#the-outbox)) |
 | database tools any app could use | `packages/db/` | `Transaction`, `createDb`, the shared columns |
-| contract group | `http-api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`), the DTOs |
+| contract group | `http-api/chat/chat.http.ts`; the ids in `http-api/shared/ids.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Schema.Struct`); the domain's twins under its names: `ChatTitle`, `ChatStatus`, `ChatNotFoundError` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
+| mapper from a model to its wire shape | `apps/api/chat/chat.mapper.ts` | `buildApiChat`, `buildApiMessage` |
 | worker handler: a queue's consumer over a use case | `apps/worker/chat/assistant-message.handler.ts` | `AssistantMessageHandler` |
 | the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp` over the repositories and ports, `ApiLayer` with the clients, `WorkerLayer`; `main.ts` runs them |
 | browser feature | `apps/web/features/health/health-panel.ts` | `renderHealthPanel` |
@@ -246,12 +251,13 @@ model's.
 5. **The flows.** A flow over two services or a job is a [use case](#a-use-case); asynchronous
    work is a queue definition in the module's `services/` and a handler in `apps/worker/`
    ([database.md › The outbox](database.md#the-outbox)).
-6. **The boundary.** A contract group in `http-api/<entity>/<entity>.http.ts`, listing the domain's
-   errors with their statuses, added to `Api` in `http-api/api.ts` before
-   `.middleware(SchemaErrors)`, which reaches only the groups added before it; its handler in
-   `apps/api/<entity>/`, added to `ApiRoutes` and its services to `ApiHttp`, the repository's
-   layer to `ApiLayer`. Test only what HTTP adds, on the
-   api test layer; a flow new to both apps joins the journey. A browser feature calls it through
+6. **The boundary.** A contract group in `http-api/<entity>/<entity>.http.ts`, with the entity's
+   wire shape, ids and errors as [http-api/CLAUDE.md](../../http-api/CLAUDE.md) says, added to
+   `Api` in `http-api/api.ts` before `.middleware(SchemaErrors)`, which reaches only the groups
+   added before it; its handler in `apps/api/<entity>/` and its mappers in
+   `apps/api/<entity>/<entity>.mapper.ts`, the handler added to `ApiRoutes` and its services to
+   `ApiHttp`, the repository's layer to `ApiLayer`. Test only what HTTP adds, on the api test
+   layer; a flow new to both apps joins the journey. A browser feature calls it through
    `ApiClient` from `apps/web/features/<entity>/`.
 
 A new entity in existing workspaces usually needs no new dependency; an undeclared one fails
@@ -302,16 +308,15 @@ Record: [Modules by capability](decisions.md#modules-by-capability).
 3. **A contract** is a folder `contract/` with an `index.ts`, re-exported by the module's entry;
    the `application/*/contract/**` override already covers it. Record:
    [Module contracts](decisions.md#module-contracts).
-4. **The consumers** declare `@app-template/application` in their `package.json`; the service
-   keys read `'@app-template/application/<module>/services/<Name>'`, which `make bundle-check`
-   already greps.
+4. **The consumers** declare `@app-template/application` in their `package.json`; the browser is
+   none, and `make bundle-check` refuses the module in its bundle with no edit.
 5. **The docs.** The glossary gains the module's words; `decisions.md` a record if the cut is a
    decision ([Decisions recorded in one page](decisions.md#decisions-recorded-in-one-page)).
 
 ## Boundary guards
 
 Each import rule of [Dependency rules](#dependency-rules) is held once, by the guard that can see
-it, and a last guard checks what the import rules leave to tree shaking, the web bundle; what no
+it, and a last guard checks what an allowed import brings into the web bundle; what no
 guard sees, review refuses ([.claude/rules/modules.md](../../.claude/rules/modules.md), and
 [layering.md](../../.claude/rules/layering.md) for a handler). Record:
 [Guards are configuration](decisions.md#guards-are-configuration).
@@ -323,20 +328,22 @@ guard sees, review refuses ([.claude/rules/modules.md](../../.claude/rules/modul
 | Biome `noImportCycles` | a cycle of value imports: two files, two modules, a kernel part and one that imports it, a module and its own entry | the same |
 | the isolated linker with `tsc -b` | an import of a workspace the importer's `package.json` does not declare: the TS2307 cells of [Dependency rules](#dependency-rules) | TS2307 in `make typecheck` and at runtime |
 | `composite` project references (`rootDir: "."`), one project per workspace | a path that reaches into an unreferenced workspace's files; a cycle of references between workspaces | TS6059 / TS6307 / TS6202 in `make typecheck` |
-| `make bundle-check`: `bun build` of `apps/web/app/main.ts`, then a `grep` of the bundle | a key of the kernel, of the use cases, or of a module's `services/`, `infrastructure/` or `domain/`, where only its ports carry one, in the browser bundle | the matched service keys, in `make check` |
+| `make bundle-check`: `bun build` of `apps/web/app/main.ts` with a metafile, read by `.misc/lint/bundle-check.mjs` | a package in the browser bundle outside `browserPackages` in `apps/web/package.json`: a workspace's entry, a third-party library, a Node built-in | the package and the shortest import chain from the entry, in `make check` |
 
 Why each rule sits with its guard, and what that costs:
 [Guards are configuration](decisions.md#guards-are-configuration). Symptoms and fixes:
 [tooling.md › Troubleshooting](tooling.md#troubleshooting).
 
-The bundle guard greps the service keys
-(`"@app-template/application/chat/services/ChatService"`): string literals, which survive the
-build however Bun applies `"sideEffects": false`. A type-only import is erased and passes, as it
-should. `apps/web` cannot import a module at all, so a leak comes through `http-api`, which
-imports the modules' entries for their schemas and errors; tree shaking drops the services,
-adapters and ports beside them, and the guard proves it on every check. Bun still parses what it
-drops, so the build warns about `node:net`, which `@effect/sql-pg` reaches below a module's
-services.
+The bundle guard reads the build's metafile, which lists every input the bundle keeps with its
+imports, so it sees what the bundle holds however Bun applies `"sideEffects"`, and names no
+folder of the repository: an input under `node_modules` belongs to the package its last
+`node_modules/<name>` names, any other to its nearest `package.json`, plus the subpath of the
+export whose folder holds it (`@app-template/packages/ui`). The entry's own workspace is implied.
+A type-only import is erased and passes, as it should. `apps/web` imports only `http-api` and
+`packages/ui`, and the contract imports only `effect`, so a leak comes through a package the list
+allows growing a server import, which the guard refuses with its chain. A metafile without
+`inputs`, `outputs` or one entry point, or a manifest it cannot find, stops it with exit 2, never
+a clean pass.
 
 ### Known gaps
 
@@ -349,18 +356,12 @@ them:
   and `tsc -b`, because web declares `@app-template/kernel` for its server entry. The type is
   erased, so nothing reaches the browser, but the client then depends on the shape of the server
   config.
-- **A namespace import of an entry.** `import * as Chat from '@app-template/application/chat'`
-  in `http-api/` passes every ban by name (`importNamePattern` sees no name), and so does one of
-  `@app-template/kernel/data` where only its stores are allowed; `Chat.ChatService` then reaches
-  what the names were refused for, and `make bundle-check` catches it only in the browser's
-  bundle.
+- **A namespace import of an entry.** `import * as Data from '@app-template/kernel/data'` where
+  only its stores are allowed passes every ban by name (`importNamePattern` sees no name);
+  `Data.<Name>` then reaches what the names were refused for.
 - **A runtime module or third-party package in a module's `domain/`.** `node:crypto` or any npm
   package passes the domain guard, which bans only workspaces and `@effect/*`. Purity rests on
   review alone: no check looks for `Date.now`, `new Date(` or `randomUUID`.
-- **A server library in a browser-safe package.** An import of `<server library>` in
-  `packages/ui` passes Biome, which keeps no list for a package, and `tsc -b`, because
-  the one `packages/package.json` declares every package's libraries for all of them. `make
-  bundle-check` greps only this app's keys, so the library reaches the browser's bundle unseen.
 - **A test's needs in a layer's source, a test file outside a layer.** A layer's override covers
   its tests, so `@effect/vitest`, a `/testing` entry and, in a module's services,
   `@effect/platform-bun` pass in the layer's source too. A module's test support

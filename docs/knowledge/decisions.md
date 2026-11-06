@@ -93,8 +93,8 @@ A module other modules need exposes a contract, a folder of the module created w
 consumer, `application/<module>/contract/`, exported through the module's one entry with the
 rest of the module. A dependency on a module's contract counts as one on the module.
 
-- **Why:** `chat` and `http-api` need a few names of identity and little else; one entry per
-  module is all a caller must know, and the kernel's parts work the same way.
+- **Why:** `chat` needs a few names of identity and little else; one entry per module is all a
+  caller must know, and the kernel's parts work the same way.
 - **Sources:** the guide's "design contracts around use cases, not around internal entity
   models"
   ([contracts](https://software-architecture-guild.com/guide/architecture/boundaries/contracts/));
@@ -105,9 +105,7 @@ rest of the module. A dependency on a module's contract counts as one on the mod
   module. A Biome list of the contract's names (`allowImportNames`) or a ban
   by name (`importNamePattern`): review holds the names instead.
 - **Cost:** the entry opens the module whole, so which of its names another module takes is
-  review's (`modules.md`), not Biome's;
-  `Auth`, an HTTP middleware, lives outside `http-api`; `http-api` also reads identity's `domain`,
-  since its user DTO is the `User` model.
+  review's (`modules.md`), not Biome's.
 - **Guarded by:** the rows of a module's layers and of a contract in
   [architecture.md › Dependency rules](architecture.md#dependency-rules);
   `.claude/rules/modules.md` refuses a name past the contract, a module importing one above it
@@ -124,10 +122,13 @@ entry, its `index.ts`, which re-exports every layer; its files reach each other 
 that name the module (`#<module>/domain/*`). A repository is no port: a service
 calls the data layer's repository directly.
 
-- **Why:** `domain/` ships to the browser, so what reads the data cannot sit there; the data
-  layer's repository already is the contract a service needs, and a port with an adapter over it
-  would repeat its methods; the aliases keep the layer in every import line, so each layer's
-  Biome override matches the others by glob (`#*/services/**`). A handler calls one service
+- **Why:** `domain/` holds the rules as pure functions over values passed in, so what reads the
+  data cannot sit there; nothing of it reaches the browser any more
+  ([The API contract on its own](#the-api-contract-on-its-own)), but its import bans stay until
+  roadmap entry 26 (`domain-from-data`) weighs them. The data layer's repository already is the
+  contract a service needs, and a port with an adapter over it would repeat its methods; the
+  aliases keep the layer in every import line, so each layer's Biome override matches the others
+  by glob (`#*/services/**`). A handler calls one service
   method or one use case, never a repository, so each record has one owner every caller goes
   through.
 - **Sources:** the guide's "Keep internal layering per module"
@@ -138,17 +139,18 @@ calls the data layer's repository directly.
   `#domain/*` aliases in every module: inside one workspace they would collide.
 - **Cost:** a service depends on the data layer directly, so its unit tests take the data layer's
   memory repositories; one entry opens the module whole, so another unit's ban on a layer matches
-  the names it imports, and the bundler parses a module's services to drop them. A layer's
+  the names it imports. A layer's
   override covers its tests, so what they need passes in its source too. What passes every
   guard: [architecture.md › Known gaps](architecture.md#known-gaps).
 - **Guarded by:** one Biome override per layer, matching every module by glob and covering the
   layer's tests: the rows of a module's layers and of `http-api` in
-  [architecture.md › Dependency rules](architecture.md#dependency-rules); `make bundle-check`;
+  [architecture.md › Dependency rules](architecture.md#dependency-rules); `make bundle-check`,
+  which reads the web bundle's metafile and refuses the module's package in it;
   `.claude/rules/layering.md`, a repository, a mapper or the data layer in an app's handler.
 - **If reversed:** a port per repository comes back with an adapter each that only delegates; an
   export per layer brings back the subpaths and a ban per layer by path.
-- **Revisit when:** a service needs a store the data layer cannot reach, or the domain stops
-  shipping to the browser.
+- **Revisit when:** a service needs a store the data layer cannot reach, or the domain takes its
+  types and schemas from the data layer (roadmap entry 26, `domain-from-data`).
 
 ### HTTP outside the modules
 
@@ -172,6 +174,49 @@ The HTTP groups stay in `http-api` and the handlers in the apps; `RequestInvalid
   module: a cycle `tsc -b` refuses.
 - **Revisit when:** the groups stop being assembled into one `Api`, or a module serves its own
   HTTP surface.
+
+### The API contract on its own
+
+`http-api` declares the wire itself and imports only `effect`: every id, constrained string,
+status list and error restates the domain's under the same name, a model's wire shape is an
+`Api<Model>` `Schema.Struct`, and an error carries its status on the class. The api implements
+it, handing it the domain's models through one `buildApi<Model>` per response model and the
+domain's errors as they are; the web calls it. Nothing of `application/` reaches the browser.
+
+- **Why:** the web's freedom from server code rested on tree shaking, which a lost side-effects
+  flag undoes in one build; the backend kept rules for the web's sake, and the bundle check was
+  rewritten on every rename. A contract of its own closes the only path from the browser into
+  the app. A struct encodes any object that has its fields and writes only them, so an internal
+  field stays off the wire with no code, and the contract's error class encodes the domain's
+  instance by the class marker Effect puts on it, so no handler translates an error.
+- **Sources:** the guide's "design contracts around use cases, not around internal entity
+  models"
+  ([contracts](https://software-architecture-guild.com/guide/architecture/boundaries/contracts/));
+  the prototype of `docs/tickets/2026-11-04-1131_client-publishing/`, where renaming a nested
+  domain field on the wire broke 8 of 13 handlers without a mapper.
+- **Rejected:** the contract's DTOs as `mapFields` over the domain's schemas: the browser bundle
+  holds whatever the bundler fails to drop, and the domain must stay browser-safe for it. A
+  client generated from `openapi.json`: it loses `Option`, `DateTime` and the error classes, and
+  adds a generator to keep. A module `contract/` that ships to the browser: every module would
+  carry the browser's constraints, and the web would import `application/`. A translation per
+  handler from a domain error to the contract's: a place per handler for the wire to drift.
+- **Cost:** every id, constrained string, status list and error is declared twice, in the domain
+  and in the contract, held in step by the twins test only under one name; a wire field costs a
+  line more; `openapi.json`'s component names follow the contract's identifiers. The class
+  marker is internal to Effect, so an upgrade that drops it turns every domain error into a
+  `500`.
+- **Guarded by:** the `http-api/**` override, an allow-list that refuses every import but
+  `effect`, `effect/<module>` and the contract's own `#http-api/…` files; `"types": []` in its
+  `tsconfig.json`, so a `Bun` or `process` global fails `tsc`; the api's twins test, which
+  compares each contract schema with the domain export of the same name by its representation
+  and encodes a domain error through the contract's class; the `buildApi<Model>` mappers and
+  `CurrentUser` under `tsc`, where a brand, tag, literal or field drifted on one side no longer
+  typechecks; `make bundle-check`.
+- **If reversed:** the contract imports the modules again, the web bundle holds whatever the
+  bundler fails to drop, and the domain must stay browser-safe; one commit per group, back to
+  `mapFields` over the domain.
+- **Revisit when:** a second consumer of the contract appears, or a client generated from it
+  replaces `ApiClient`.
 
 ### Status owned by chat
 
@@ -459,7 +504,8 @@ Jobs are the table `jobs` and `JobRepository` in the data layer; `QueueSenderJob
 ### Guards are configuration
 
 The guards are `exports`, the isolated linker, `tsc -b`, Biome with its GritQL plugin and the
-bundle check; what no configuration expresses are the review rules `.claude/rules/modules.md`
+bundle check, which reads the web build's metafile against the packages the web's manifest lists
+in `browserPackages`; what no configuration expresses are the review rules `.claude/rules/modules.md`
 and, for a handler, `layering.md`, never hand-written test code. Each import rule is held once,
 by the guard that can see it: the linker and `tsc -b` see a workspace but no unit inside a
 folder, since `kernel/`, `packages/` and `application/` are one workspace and one

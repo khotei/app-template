@@ -94,7 +94,6 @@
     "http-api": {
       "name": "@app-template/http-api",
       "dependencies": {
-        "@app-template/application": "workspace:*",
         "effect": "catalog:effect",
       },
     },

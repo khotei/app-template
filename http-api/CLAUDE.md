@@ -1,19 +1,24 @@
 # http-api
 
-The HTTP contract: one `HttpApi` over the domain, shared by `apps/api`, which implements it, and
-the browser, which calls it through its client.
+The API contract: one `HttpApi` that `apps/api` implements and the browser calls through
+`ApiClient`. It declares the wire itself: every id, constrained string, model shape, error, limit
+and the auth middleware. Why:
+[The API contract on its own](../docs/knowledge/decisions.md#the-api-contract-on-its-own).
 
-- **Browser-safe:** no Bun APIs, no `Bun.env`, no Node built-ins.
-- **Reuse the domain; never redeclare it.** Ids, models and errors come from a module's entry
-  (`@app-template/application/<module>`), its contract or its `domain/`. A DTO is the model's
-  `mapFields`: it only drops an internal field, turns an `Option` into `NullOr` or swaps a nested
-  model for its DTO.
-- **`index.ts` re-exports each domain schema a payload names**: `web` may not import the domain,
-  so it builds a payload's brand through this entry.
-- **Statuses are set here, never in the domain:**
-  `<Model>NotFoundError.pipe(HttpApiSchema.status(404))` where an endpoint or middleware lists
-  the error. Only HTTP's own errors carry `httpApiStatus` on the class.
-- **A domain schema edit is a contract edit.** DTOs reuse the domain's schemas, so the change
-  reaches the wire past the api's handler tests, which check only what HTTP adds (statuses, the
-  cookie, the wire shape); `make api-check` fails on it until `make api-snapshot` moves
-  `openapi.json` with it.
+- **Imports only `effect`:** `effect`, `effect/<module>` and its own files through
+  `#http-api/…`; no workspace, no other package, no Bun API or Node built-in, since it ships to
+  the browser. The domain's schemas are restated here, never imported.
+- **A twin keeps the domain's export name.** A schema the domain declares too (an id, a
+  constrained string, a status list, an error) is exported here under the domain's name and
+  brand, so the api's twins test pairs it by name and fails on a drifted check. It carries no
+  annotation the domain's lacks (a `description` alone fails the test). One under another name
+  is compared with nothing, so review refuses it.
+- **A model's wire shape is `Api<Model>`, a `Schema.Struct`,** never a class: it encodes the
+  domain's instance as it is and writes only its own fields, so an internal field stays off the
+  wire. An `Option` is `Schema.OptionFromNullOr`. The api hands it the model through its
+  `buildApi<Model>`, which typechecks only while the two shapes match.
+- **An error is a `Schema.TaggedError` with the domain's tag and its status on the class**
+  (`{ httpApiStatus: <code> }`): the contract's class encodes the domain's instance, so a
+  handler fails with the domain's errors as they are.
+- **A wire change is a contract edit:** `make api-check` fails on it until `make api-snapshot`
+  moves `openapi.json` with it.

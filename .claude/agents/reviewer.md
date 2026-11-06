@@ -28,7 +28,9 @@ the diff, not how it was made.
     whole `feature.md`: what they ask for that the diff leaves out or does in part, a missing test
     among it (a behaviour they ask for that no test shows); what the diff does that nothing asks
     for; and what it does that looks done but wrong. Also a diff that changes what a quoted `R…`
-    asks without the `feature.md` edit in the same diff, and each statement, guard or check the
+    asks without the `feature.md` edit in the same diff, a step that does not stand alone (a name
+    only a later step uses, code or a page a later step rewrites, quoted from the plan's later
+    **Files**), and each statement, guard or check the
     diff deletes, named with where it now lives or reported lost. Each finding quotes the line of
     the step or the `R…` it rests on.
   - **Design:** at most five changes to the shape, most valuable first, through four lenses: a

@@ -15,7 +15,8 @@ reading the steps; `git log` holds the step's commits.>
 
 - Branch `<type>/<slug>`; commits by round, under the commit gate of `.claude/rules/sdd.md ›
   Gates` (`/ticket-implement`).
-- Each step leaves `make check` green and fits one fresh session (≤ ~400 changed lines).
+- Each step is a whole deliverable, leaves `make check` green and fits one fresh session (≤ ~400
+  changed lines of code and tests; its docs counted apart).
 - A deviation is recorded in the step's findings, and in `architecture.md › Decisions` when it is a
   decision.
 
@@ -28,8 +29,10 @@ reading the steps; `git log` holds the step's commits.>
 - **Goal:** <outcome, and the constraints it keeps> (R1, D1).
 - **Blocked by:** none.
 - **Files:** <where the step starts; the names, traps and probe targets it pins>.
-- **Size:** <~ changed lines, every file the change reaches>.
-- **Test first:** <Seam from architecture.md> — <behaviour to see red>. Or `config only`.
+- **Introduces:** <each new name → its first consumer, in this step>. Removes later: none.
+- **Size:** <~ changed lines of code and tests, every file the change reaches; docs apart>.
+- **Test first:** <Seam from architecture.md> — <the acceptance check, red before the step and green
+  after>. Or `config only`, whose Verify has a command that fails before the step.
 - **Verify:** <commands and manual checks, each with the state it fails on>.
   - **Probes** (<guard>, run at plan time): <only a step that adds, changes or removes a guard or a
     scope of one; one per ban of the scopes `/ticket-plan` step 3 names, run again after the

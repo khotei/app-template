@@ -1,9 +1,11 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, Effect, Schema } from 'effect'
+import { Array as Arr, DateTime, Effect, Option, Schema } from 'effect'
 import { FetchHttpClient, HttpBody, HttpClient } from 'effect/http'
 
 import {
   ApiClient,
+  AttachmentId,
+  AttachmentNotFoundError,
   AttachmentTooLargeError,
   AttachmentTypeUnsupportedError,
   limits,
@@ -105,6 +107,52 @@ describe('attachments', () => {
           UploadError,
           yield* response.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(UploadError))),
           error,
+        )
+      }).pipe(Effect.provide(ApiTest)),
+  )
+
+  it.effect(
+    'an uploaded attachment reads back with Option and DateTime, and null and ISO on the wire',
+    () =>
+      Effect.gen(function* () {
+        const api = yield* ApiClient
+        const http = yield* HttpClient.HttpClient
+        yield* api.users.ensure()
+        const uploaded = yield* api.attachments
+          .upload({ payload: formOf(png('photo.png')) })
+          .pipe(Effect.head)
+
+        const read = yield* api.attachments.get({ params: { attachmentId: uploaded.id } })
+        const wire = yield* http
+          .get(`/attachments/${uploaded.id}`)
+          .pipe(Effect.flatMap((response) => response.json))
+
+        assert.deepStrictEqual(read.messageId, Option.none())
+        assert.isTrue(DateTime.isUtc(read.createdAt))
+        assert.deepInclude(wire, {
+          messageId: null,
+          chatId: null,
+          createdAt: DateTime.formatIso(read.createdAt),
+        })
+      }).pipe(Effect.provide(ApiTest)),
+  )
+
+  it.effect(
+    'GET /attachments/:attachmentId of an unknown id is caught as AttachmentNotFoundError',
+    () =>
+      Effect.gen(function* () {
+        const api = yield* ApiClient
+        yield* api.users.ensure()
+        const unknown = AttachmentId.make('0192d4e0-7b3a-7c00-8000-00000000dead')
+
+        const caught = yield* api.attachments
+          .get({ params: { attachmentId: unknown } })
+          .pipe(Effect.catchTag('AttachmentNotFoundError', Effect.succeed))
+
+        assertSchemaEquals(
+          AttachmentNotFoundError,
+          caught,
+          new AttachmentNotFoundError({ ids: [unknown] }),
         )
       }).pipe(Effect.provide(ApiTest)),
   )

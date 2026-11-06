@@ -69,7 +69,7 @@ uses updates this map too; the Standards review checks it against `.claude/rules
 | `/ticket-feature` | `grilling`, `domain-modeling`; for a bug, `diagnosing-bugs` phases 1 and 2 | `researcher` | — | `feature.md`, `docs/knowledge/glossary.md`, `docs/knowledge/roadmap.md` |
 | `/ticket-architecture` | `codebase-design`, `grilling` | `researcher` | — | `architecture.md` |
 | `/ticket-plan` | — | `researcher`; for a step that adds, changes or removes a guard a second one, which plants the probes in the disposable worktree `<slug>-plan-probes` set up by `make worktree` | — | `plan.md` |
-| `/ticket-implement` | on a behaviour step the built-in `simplify`, run by the main session, with `codebase-design` as its vocabulary | `implementer` (one worktree per parallel step, set up by `make worktree`), `reviewer` (one per review pass, in parallel), `researcher` (one per claimed finding, in parallel, all writing their confirming tests in one disposable worktree per review round, set up by `make worktree`) | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, the step's commits |
+| `/ticket-implement` | on a new-interface step the built-in `simplify`, run by the main session, with `codebase-design` as its vocabulary | `implementer` (one worktree per parallel step, set up by `make worktree`), `reviewer` (one per review pass, in parallel), `researcher` (one per claimed finding, in parallel, all writing their confirming tests in one disposable worktree per review round, set up by `make worktree`) | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, the step's commits |
 | `/ticket-verify` | — | `verifier` (one per group of requirements, in parallel), `reviewer` (one per axis, in parallel) | — | `verification.md` |
 | `implementer` | `tdd`, preloaded | — | `make-check.sh` on `Stop` (runs as `SubagentStop`) | the step's files |
 | `reviewer` | one pass: Standards, Spec, Design or the hunt; on Standards over an instruction file, `writing-for-agents`; on Design, `codebase-design` as its vocabulary | — | — | nothing: read-only |
@@ -134,7 +134,7 @@ Solid arrows spawn an agent or run a hook; dotted arrows use a plugin skill.
 ## The commit gate
 
 The gate is stated in [.claude/rules/sdd.md › Gates](../../.claude/rules/sdd.md#gates), and
-`/ticket-implement` runs a step through it: the `implementer`, then `simplify` on a behaviour
+`/ticket-implement` runs a step through it: the `implementer`, then `simplify` on a new-interface
 step, then the review passes, then you. Why it is cut so:
 
 - **The implementer cannot finish red.** A hook runs `make check` when it stops and sends it
@@ -145,8 +145,8 @@ step, then the review passes, then you. Why it is cut so:
 - **Each review pass is its own `reviewer` in a fresh context,** on the uncommitted step, so the
   step is reviewed before it commits and one pass cannot hide another; what a reviewer reads,
   owns and reports is in [reviewer.md](../../.claude/agents/reviewer.md). Design runs only on a
-  behaviour step, where the shape is still cheap to change; the hunt for bugs only on a step
-  whose kind of change it paid off on.
+  new-interface step (a behaviour step that adds an export, a module or a Seam), where the shape
+  is still cheap to change; the hunt for bugs only on a step whose kind of change it paid off on.
 - **A failure no command showed is confirmed before it reaches you.** A behaviour finding names
   its input, the wrong outcome and whether a command showed it; each `claimed` one goes to its
   own `researcher`, not anchored on the reviewer's reading, which answers `confirmed` (you see

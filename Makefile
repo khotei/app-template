@@ -202,14 +202,14 @@ test-unit: ## Run the unit tests under __tests__/ (no Docker)
 test-e2e: ## Run the e2e tests under __e2e__/ and apps/e2e/ on their own containers (Docker running)
 	bun --bun vitest run --project e2e
 
-# Greps the service keys, string literals that survive the build however Bun applies
-# "sideEffects": docs/knowledge/architecture.md › Boundary guards. A grep that exits 2 (a pattern
-# it rejects, a bundle it cannot read) stops the check with 2, so it never reads as a clean bundle.
-bundle-check: ## Fail when a service, use case, repository, port or adapter reaches the web bundle
-	bun build apps/web/app/main.ts --outdir node_modules/.cache/web-bundle --target browser
-	@grep -rE '@app-template/(kernel/|application/(use-cases/|[a-z0-9-]+/(services|infrastructure|domain)/))' \
-		node_modules/.cache/web-bundle; case $$? in 1) ;; 0) exit 1 ;; \
-		*) echo 'bundle-check: grep failed' >&2; exit 2 ;; esac
+# Reads the build's metafile, so it sees what the bundle holds however Bun applies "sideEffects":
+# docs/knowledge/architecture.md › Boundary guards. A metafile or manifest the script cannot read
+# stops the check with 2, so it never reads as a clean bundle.
+WEB_BUNDLE = node_modules/.cache/web-bundle
+
+bundle-check: ## Fail when the web bundle holds a package outside browserPackages in apps/web/package.json, naming its import chain
+	bun build apps/web/app/main.ts --outdir $(WEB_BUNDLE) --target browser --metafile=$(WEB_BUNDLE)/meta.json
+	@bun .misc/lint/bundle-check.mjs $(WEB_BUNDLE)/meta.json
 
 clean: ## Remove installed dependencies, build caches and coverage
 	find . -name node_modules -type d -prune -exec rm -rf {} +

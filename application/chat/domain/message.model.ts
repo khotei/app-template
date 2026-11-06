@@ -26,8 +26,11 @@ export type ActiveMessageStatus = typeof ActiveMessageStatus.Type
 export const MessageAuthor = Schema.Literals(['user', 'assistant'])
 export type MessageAuthor = typeof MessageAuthor.Type
 
+export const MessageFailureReason = Schema.Literals(['ReplyFailed', 'ReplyRefused'])
+export type MessageFailureReason = typeof MessageFailureReason.Type
+
 export class MessageFailure extends Schema.Class<MessageFailure>('MessageFailure')({
-  reason: Schema.Literals(['ReplyFailed', 'ReplyRefused']),
+  reason: MessageFailureReason,
   /** A user-facing sentence fixed per reason; it never quotes the cause. */
   message: Schema.String,
   /** Diagnostic detail for operators; it never leaves the api. */
@@ -138,7 +141,7 @@ export const completeMessage = Effect.fn('completeMessage')(
 const failureMessages = {
   ReplyFailed: 'The assistant could not reply. Please try again.',
   ReplyRefused: 'The assistant declined to answer this message.',
-} as const satisfies Record<MessageFailure['reason'], string>
+} as const satisfies Record<MessageFailureReason, string>
 
 /** Why a reply failed and when; the user-facing text comes from `failureMessages`. */
 export type MessageFailureInput = Types.Simplify<
@@ -159,7 +162,7 @@ export const failMessage = Effect.fn('failMessage')(
 const replyFailureReasons = {
   AssistantRefusedError: 'ReplyRefused',
   AssistantFailedError: 'ReplyFailed',
-} as const satisfies Record<AssistantError['_tag'], MessageFailure['reason']>
+} as const satisfies Record<AssistantError['_tag'], MessageFailureReason>
 
 export const buildReplyFailure = (
   error: AssistantError,

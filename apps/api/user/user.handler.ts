@@ -1,9 +1,11 @@
 import { Duration, Effect, Option, Redacted } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
-import { Auth, UserService } from '@app-template/application/identity'
-import { Api } from '@app-template/http-api'
+import { UserService } from '@app-template/application/identity'
+import { Api, Auth } from '@app-template/http-api'
 import { RuntimeConfig } from '@app-template/kernel/config'
+
+import { buildApiUser } from '#api/user/user.mapper'
 
 const cookieMaxAge = Duration.days(365)
 
@@ -32,7 +34,7 @@ export const UserHandler = HttpApiBuilder.group(
           secure: nodeEnv === 'production',
         })
         return user
-      }),
+      }, Effect.map(buildApiUser)),
     )
   }),
 )

@@ -42,7 +42,7 @@ graph LR
 | 7 | [`web-app`](#7-web-app) | `feat` | 3 (18 for assistant attachments) | planned |
 | 8 | [`observability`](#8-observability) | `feat` | 3 | planned |
 | 9 | [`aws-deployment`](#9-aws-deployment) | `feat` | 4, 5 | planned |
-| 10 | [`client-publishing`](#10-client-publishing) | `chore` | 3 | planned |
+| 10 | [`client-publishing`](#10-client-publishing) | `chore` | 3 | in progress: [docs/tickets/2026-11-04-1131_client-publishing/](../tickets/2026-11-04-1131_client-publishing/feature.md) |
 | 11 | [`workflow-cluster`](#11-workflow-cluster) | `feat` | 4, 8 | planned, exploratory |
 | 12 | [`template-handoff`](#12-template-handoff) | `chore` | all above | planned |
 | 13 | [`ticket-folder-order`](#13-ticket-folder-order) | `chore` | 3 | done: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md) |
@@ -58,6 +58,7 @@ graph LR
 | 23 | [`modular-monolith`](#23-modular-monolith) | `refactor` | 15 | done: [docs/tickets/2026-10-31-0926_modular-monolith/](../tickets/2026-10-31-0926_modular-monolith/feature.md) |
 | 24 | [`attachment-storage-failures`](#24-attachment-storage-failures) | `fix` | 23 | planned |
 | 25 | [`toolkit-quality`](#25-toolkit-quality) | `chore` | 17 | in progress: [docs/tickets/2026-11-04-1009_toolkit-quality/](../tickets/2026-11-04-1009_toolkit-quality/feature.md) |
+| 26 | [`domain-from-data`](#26-domain-from-data) | `refactor` | 10 | planned |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; its remaining work is re-homed
 in [Re-homing `effect-setup`](#re-homing-effect-setup).
@@ -307,13 +308,11 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   placeholders moved to `assistant-files` (18).
   The visitor cookie is the user cookie of `chat-core`'s `CurrentUser` security.
 - **Inherited from `architecture-audit`.** `make bundle-check` builds `apps/web/app/main.ts` with
-  `bun build` and greps the bundle for service keys ending in `Service`, `Repository`, `Bucket` or
-  `Assistant`; `modular-monolith` (23) replaced the suffixes with key paths: every key of the
-  kernel, of the use cases and of a module's `services/`, `infrastructure/` and `domain/`, where
-  only its ports carry one
-  ([architecture.md › Boundary guards](architecture.md#boundary-guards)). On the new bundler:
-  rebuild its command, clear the output dir before each build, keep that grep, and run it in CI's
-  `static` job.
+  `bun build --metafile` and refuses any package of the bundle outside `browserPackages` in
+  `apps/web/package.json`, naming its import chain; `client-publishing` (10) replaced the grep of
+  service keys with it ([architecture.md › Boundary guards](architecture.md#boundary-guards)). On
+  the new bundler: rebuild its command, have it write a metafile the check reads (its shape is
+  Bun's today), clear the output dir before each build, and run it in CI's `static` job.
 - **Facts (2026-10-17).** `@tanstack/react-start@1.169.3` (router 1.170, Vite ≥ 8, React 19 for
   the Bun preset, `aws_lambda` preset with streaming); `@chakra-ui/react@3.37.0`; Effect v4 atoms
   are `effect/reactivity/*` in core plus `@effect/atom-react@4.0.5` (React ≥ 19 only) with
@@ -396,15 +395,13 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 
 ### 10. `client-publishing`
 
-- **Goal.** `@app-template/http-api` and its `ApiClient` consumable from any TypeScript
-  project without the server code, with every type intact.
-- **Scope.** Build and `exports` of `http-api` (types from the `HttpApi` definition; the
-  modules' `domain` subpaths and contracts it imports ship with it); versioning; publishing to
-  GitHub Packages or npm from CI on a tag; a consumer smoke test in a scratch project.
-- **Out of scope.** A client for other languages; an SDK generator, which would need an OpenAPI
-  spec the api does not serve.
-- **Open questions for its feature phase.** Registry; how the client's `effect` dependency is
-  declared for consumers that do not use Effect.
+- **Goal.** The web reaches the server only through `http-api`, a contract of its own that
+  imports nothing of the app, with every type intact on the client and no rule on the backend
+  for the web's sake.
+- **Scope.** The contract's own schemas as the one codec of the round trip; a parity check with
+  the domain; the web bundle check keyed on package names.
+- **Out of scope.** Publishing to a registry and use from other repositories; a generated client.
+- **Status.** In progress: [docs/tickets/2026-11-04-1131_client-publishing/](../tickets/2026-11-04-1131_client-publishing/feature.md).
 
 ### 11. `workflow-cluster`
 
@@ -455,8 +452,9 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   - `make lint-docs` on lines over 100 characters in the living docs; whether `docs/tickets/` is
     in.
   - Biome guards for `node:`/`bun:` imports and `Bun`/`process` globals in the browser-facing
-    layers, and `Date`/`crypto`/`fetch` in `domain`: no recorded agent mistake, but a hand grep in
-    every verification.
+    layers other than `http-api` (its Biome import ban, and `"types": []` for the globals), and
+    `Date`/`crypto`/`fetch` in `domain`: no recorded agent mistake, but a hand grep in every
+    verification.
 - **Out of scope.** A cut made for tokens alone that saves under 20% of the load it targets.
 - **Facts (2026-10-21).** Rewording four rules without losing a constraint saved 11%; the
   always-loaded project files measured 4.5k tokens by `/context` before `claude-toolkit`.
@@ -747,6 +745,18 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Found by** `lean-instructions`' review of the installed plugins (2026-11-03), which turns
   the overlapping ones off and keeps here what they did better.
 - **Status.** In progress: [docs/tickets/2026-11-04-1009_toolkit-quality/](../tickets/2026-11-04-1009_toolkit-quality/feature.md).
+
+### 26. `domain-from-data`
+
+- **Goal.** A module's domain may take its types and schemas from the data layer instead of
+  redeclaring them, now that the domain no longer ships to the browser.
+- **Scope.** The domain's import bans; the records "A module's layers" and "The data at the
+  centre"; the mappers it would make redundant; where an id, a constrained string or a limit is
+  declared once for the data layer, the domain and the API contract, which today each declare
+  their own (a chat title's 120 lives in the table and the domain, and `client-publishing` adds
+  the contract's twin).
+- **Depends on** `client-publishing`, which takes the domain out of the browser.
+- **Status.** Planned.
 
 ## Ideas to weigh
 

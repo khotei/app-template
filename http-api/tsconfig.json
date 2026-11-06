@@ -2,8 +2,8 @@
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": ".",
-    "outDir": "../node_modules/.cache/tsc/http-api"
+    "outDir": "../node_modules/.cache/tsc/http-api",
+    "types": []
   },
-  "include": ["**/*.ts"],
-  "references": [{ "path": "../application" }]
+  "include": ["**/*.ts"]
 }
