@@ -70,7 +70,7 @@ describe('FileRepository on AwsTest', () => {
         const s3 = yield* S3Service
         const { stage } = yield* AwsConfig
         const ids = [fileId(3), fileId(10)]
-        yield* Effect.forEach(ids, (id) => files.insert(file(id)))
+        yield* Effect.forEach(ids, (id) => files.insert(file(id)), { discard: true })
 
         yield* files.update({ bound: true }, { id: ids })
         const tagSets = yield* Effect.forEach(ids, (id) =>
