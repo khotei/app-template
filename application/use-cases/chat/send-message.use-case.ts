@@ -14,7 +14,6 @@ import {
   type AttachmentBoundError,
   AttachmentId,
   type AttachmentNotFoundError,
-  AttachmentService,
   assistantMessageQueue,
   bindAttachment,
   buildAssistantMessage,
@@ -30,6 +29,7 @@ import {
   ensureMessageInput,
   GenerateAssistantMessage,
   GenerateChatTitle,
+  LiveAttachmentService,
   Message,
   MessageId,
   type MessageInput,
@@ -75,7 +75,7 @@ export class SendMessageUseCase extends Context.Service<
     const files = yield* FileRepository
     const chatService = yield* ChatService
     const messages = yield* MessageRepository
-    const attachmentService = yield* AttachmentService
+    const liveAttachments = yield* LiveAttachmentService
     const queue = yield* QueueSender
     const transaction = yield* Transaction
     const crypto = yield* Crypto.Crypto
@@ -89,7 +89,7 @@ export class SendMessageUseCase extends Context.Service<
       const chat = yield* chatService.getOne({ id: chatId, userId })
       yield* ensureMessageInput(input)
       const queued = yield* queueChat(chat)
-      const live = yield* attachmentService.getMany({ id: input.attachmentIds, userId })
+      const live = yield* liveAttachments.getMany({ id: input.attachmentIds, userId })
       const storedIds = yield* files
         .selectMany({ id: Arr.map(live, Struct.get('id')) })
         .pipe(Effect.map(Arr.map((file) => AttachmentId.make(file.id))))
@@ -156,6 +156,6 @@ export class SendMessageUseCase extends Context.Service<
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make).pipe(
-    Layer.provide([ChatService.layer, AttachmentService.layer]),
+    Layer.provide([ChatService.layer, LiveAttachmentService.layer]),
   )
 }

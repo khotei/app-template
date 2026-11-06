@@ -2,7 +2,12 @@ import { Array as Arr, Effect, Option, Schema, Stream } from 'effect'
 import { HttpServerResponse, Mime, Multipart } from 'effect/http'
 import { HttpApiBuilder } from 'effect/http-api'
 
-import { AttachmentService, FileName, type MediaType } from '@app-template/application/chat'
+import {
+  FileAttachmentService,
+  FileName,
+  LiveAttachmentService,
+  type MediaType,
+} from '@app-template/application/chat'
 import {
   Api,
   AttachmentMediaType,
@@ -59,7 +64,8 @@ export const AttachmentHandler = HttpApiBuilder.group(
   Api,
   'attachments',
   Effect.fnUntraced(function* (handlers) {
-    const attachments = yield* AttachmentService
+    const liveAttachments = yield* LiveAttachmentService
+    const fileAttachments = yield* FileAttachmentService
 
     return handlers
       .handle(
@@ -68,16 +74,18 @@ export const AttachmentHandler = HttpApiBuilder.group(
           function* ({ payload }) {
             const user = yield* CurrentUser
 
-            return yield* attachments.upload(user.id, Stream.mapEffect(payload, decodeUpload)).pipe(
-              Effect.catchTag(
-                'MultipartError',
-                (error): Effect.Effect<never, UploadRefusal> =>
-                  refuseMultipart[error.reason._tag](error),
-              ),
-              Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty, () =>
-                buildRequestInvalid(['files'], 'Expected at least 1 file'),
-              ),
-            )
+            return yield* fileAttachments
+              .upload(user.id, Stream.mapEffect(payload, decodeUpload))
+              .pipe(
+                Effect.catchTag(
+                  'MultipartError',
+                  (error): Effect.Effect<never, UploadRefusal> =>
+                    refuseMultipart[error.reason._tag](error),
+                ),
+                Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty, () =>
+                  buildRequestInvalid(['files'], 'Expected at least 1 file'),
+                ),
+              )
           },
           Effect.map(Arr.map(buildApiAttachment)),
         ),
@@ -86,14 +94,14 @@ export const AttachmentHandler = HttpApiBuilder.group(
         'get',
         Effect.fn('AttachmentHandler.get')(function* ({ params }) {
           const user = yield* CurrentUser
-          return yield* attachments.getOne({ id: params.attachmentId, userId: user.id })
+          return yield* liveAttachments.getOne({ id: params.attachmentId, userId: user.id })
         }, Effect.map(buildApiAttachment)),
       )
       .handleRaw(
         'download',
         Effect.fn('AttachmentHandler.download')(function* ({ params }) {
           const user = yield* CurrentUser
-          const url = yield* attachments.download({ id: params.attachmentId, userId: user.id })
+          const url = yield* fileAttachments.download({ id: params.attachmentId, userId: user.id })
           return HttpServerResponse.redirect(url)
         }),
       )
@@ -101,7 +109,7 @@ export const AttachmentHandler = HttpApiBuilder.group(
         'delete',
         Effect.fn('AttachmentHandler.delete')(function* ({ params }) {
           const user = yield* CurrentUser
-          yield* attachments.delete({ id: params.attachmentId, userId: user.id })
+          yield* fileAttachments.delete({ id: params.attachmentId, userId: user.id })
         }),
       )
   }),

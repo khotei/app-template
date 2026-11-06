@@ -7,11 +7,11 @@ import { png } from '@app-template/packages/testing'
 import type { AttachmentId } from '#chat/domain/attachment.id'
 import { FileName, MediaType } from '#chat/domain/attachment.model'
 import { decodeAttachments } from '#chat/services/attachment.mapper'
-import { AttachmentService } from '#chat/services/attachment.service'
+import { FileAttachmentService } from '#chat/services/file-attachment.service'
 
-/** Uploads one `png` as `photo.png` for `userId` through the `AttachmentService` in context. */
+/** Uploads one `png` as `photo.png` for `userId` through the `FileAttachmentService` in context. */
 export const upload = (userId: UserId) =>
-  AttachmentService.use((attachments) =>
+  FileAttachmentService.use((attachments) =>
     attachments.upload(
       userId,
       Stream.make({

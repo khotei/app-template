@@ -26,7 +26,7 @@ its support go: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests).
 |---|---|
 | `.id` · `.model` · `.error` | branded ids · `Schema.Class`es and their pure operations, split by the value they act on · domain errors; the contract declares its own in its `.http` files, under the domain's export names |
 | `.port` | a module's ports, `Context.Service`s, beside the values they take and answer |
-| `.service` | a domain service: `<model>.service.ts`, or `<operation>.service.ts` for one operation of no model |
+| `.service` | a domain service: `<model>.service.ts`, `<layer>-<model>.service.ts` for one layered over it, or `<operation>.service.ts` for one operation of no model |
 | `.use-case` | `<verb>-<object>.use-case.ts`, a flow over domain services |
 | `.handler` | api: one contract group's handlers · worker: `<object>.handler.ts`, one queue's |
 | `.repository` · `.llm` · `.queue` | a store's access · `LanguageModel` with its prompts · queue definitions and their job schemas |
@@ -41,7 +41,8 @@ its support go: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests).
 ## Symbols
 
 - Types are `PascalCase` `<Name><Role>`: `<Model><Problem>Error`, a port's `<Port><Problem>Error`,
-  `<Verb><Object>UseCase`, `<Model>Service` or, for one operation of no model, that operation.
+  `<Verb><Object>UseCase`, `<Model>Service` (`<Layer><Model>Service` layered over it) or, for one
+  operation of no model, that operation.
 - Functions are verb-first, and the verb marks the kind of work:
   - `create<Thing>`: a factory that wires dependencies;
   - `layer<Variant>`: a static building one variant of a service's `Layer`; a `Layer` that runs

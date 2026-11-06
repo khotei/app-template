@@ -18,8 +18,14 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   entities and maps them with its module's `<Model>FromEntity`.
 - A domain service owns its model's records for every caller above it: the reads a rule needs and
   the plain reads and writes a handler asks for (a list, a create, a record by key with its
-  `*NotFoundError`). It sees the repositories, its ports, the clock and `Crypto`; never another
-  domain service, the queue or the transaction, which are a use case's.
+  `*NotFoundError`). It sees the repositories, its ports, the clock and `Crypto`, and the
+  services of its own model it is layered over; never another model's service, the queue or the
+  transaction, which are a use case's.
+- A model's services layer when a read must say what it answers: `<Model>Service` holds the plain
+  records, a service named for its rule (`Live<Model>Service`) applies it to the same reads, and
+  one named for a store (`File<Model>Service`) writes the records with it, each over the one
+  below. Record:
+  [Layered services of one model](../../docs/knowledge/decisions.md#layered-services-of-one-model).
 - A rule is a pure function in its model's `.model` file, over values passed in (time, ids),
   combined from small pieces of one condition or step each, never repeating their logic; a
   service, use case or repository only reads, calls it and writes

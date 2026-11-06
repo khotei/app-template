@@ -4,9 +4,10 @@ import { HttpRouter } from 'effect/http'
 import { HttpApiBuilder } from 'effect/http-api'
 
 import {
-  AttachmentService,
   ChatService,
   CurrentReplyProvenanceFromConfig,
+  FileAttachmentService,
+  LiveAttachmentService,
   MessageService,
 } from '@app-template/application/chat'
 import { UserService } from '@app-template/application/identity'
@@ -43,7 +44,8 @@ export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
     UserService.layer,
     ChatService.layer,
     MessageService.layer,
-    AttachmentService.layer,
+    LiveAttachmentService.layer,
+    FileAttachmentService.layer,
     SendMessageUseCase.layer,
     RuntimeConfig.layer,
   ]),

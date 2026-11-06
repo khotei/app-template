@@ -202,8 +202,8 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
   - `ChatService.rename` reads the chat by the caller's `where` to name a refusal
     (`ChatNotFoundError`), then writes under the same `where`. The title job passes `title:
     none`, so a rename landing between the two wins and the job dies and retries.
-  - The send reads its attachments through `AttachmentService.getMany`, which takes no lock and
-    reads no bytes; the send then refuses one whose bytes the store no longer has
+  - The send reads its attachments through `LiveAttachmentService.getMany`, which takes no lock
+    and reads no bytes; the send then refuses one whose bytes the store no longer has
     (`AttachmentNotFoundError`) and a bound one (`bindAttachment`), both before its first write;
     once its message is stored, it writes the bind itself, the files first, then the
     attachments' rows `where` `messageId` is still `none`, a write that dies unless it binds
@@ -212,9 +212,9 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
     and dies (500), rolled back whole with the files only it named; an attachment its owner
     deletes between the read and the write fails the send the same way. A send without files
     skips the write, which would die on no rows.
-  - `AttachmentService.delete` checks the attachment unbound, then deletes it `where`
-    `messageId` is still `none`, so a send binding it in between makes the delete die and keeps
-    the bytes.
+  - `FileAttachmentService.delete` checks the attachment live and unbound, then deletes it
+    through `AttachmentService.delete`, `where` `messageId` is still `none` and its bytes after
+    the row, so a send binding it in between makes the delete die and keeps the bytes.
 
 `ChatRepository.delete(where)` is one statement and dies when it removes nothing; its messages
 and their attachments go by the cascade, and `RETURNING` answers only the chat's row.
