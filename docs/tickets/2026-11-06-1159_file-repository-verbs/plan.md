@@ -6,7 +6,7 @@
 
 | Step | Delivers | Status |
 |---|---|---|
-| S1 | `FileRepository` reads metadata (`selectOne`, `selectMany`) and downloads bytes (`download`); `send` asks the store through `selectMany` | todo |
+| S1 | `FileRepository` reads metadata (`selectOne`, `selectMany`) and downloads bytes (`download`); `send` asks the store through `selectMany` | done |
 
 ## How to run this plan
 
@@ -31,9 +31,10 @@
 
 - **Delivers:**
   - `S3Bucket` gets `head(key)`: the object's `contentType` and `fileName` as an `Option`, none for
-    a missing key (one `headObject`); `get` is renamed `download`; `exists` is removed (`head`
-    answers the same, and its only callers were `S3Bucket.url`, which builds on `head`, and two
-    cases of the bucket's e2e, which move to `head`).
+    a missing key (one `headObject`); `get` is renamed `download` and answers the head and the
+    bytes from one `GetObject`; `exists` is removed (`head` answers the same, and its callers
+    were `S3Bucket.url` and two cases of the bucket's e2e, which move to `head`); `url` only
+    signs, sends no request and checks no key.
   - `FileEntity` (`kernel/data/file/file.entity.ts`) gains `url`; `FileEntityInsert` takes the
     entity without it (`Types.Simplify<Omit<FileEntity, 'url'>>`), the write has no URL.
     `DownloadedFileEntity` is `FileEntity` plus `blob: Uint8Array`.
@@ -52,14 +53,14 @@
 - **Blocked by:** none.
 - **Files:**
   - `packages/s3/bucket.ts`, `packages/s3/__e2e__/bucket.e2e.ts` — `head`, `get` → `download`.
-  - `kernel/data/file/file.entity.ts` — `FileEntityManyWhere` beside `FileEntityDeleteWhere` (may
-    be one shared `where` type if it reads better).
+  - `kernel/data/file/file.entity.ts` — one `FileEntityWhere` (`id` one or many) for every verb;
+    `FileEntityDeleteWhere` is gone.
   - `kernel/data/file/file.repository.ts`, `kernel/data/__e2e__/file/file.repository.e2e.ts`,
     `kernel/data/__tests__/testing/file.test-fake.ts` — the verbs, their e2e and the memory fake
     (same entities, shared matcher).
-  - Callers of the old `selectOne` (bytes): `apps/e2e/api/chat.e2e.ts` (the byte read becomes
-    `download`; the presence check at the end becomes `selectOne`), and any use case that reads
-    bytes; find the rest by grep.
+  - Callers of the old `selectOne` (bytes): the history read of
+    `generate-assistant-message.use-case.ts`; `apps/e2e/api/chat.e2e.ts` only checks presence
+    through `selectOne` and needed no edit.
   - `application/use-cases/chat/send-message.use-case.ts` — the stored ids through `selectMany`.
   - `docs/knowledge/database.md` (and any other page naming the file verbs) — the verbs.
 - **Introduces:** `S3Bucket.head` (first consumer: `FileRepository.selectOne`), `selectMany` (first
@@ -75,8 +76,27 @@
   - Probe: make `selectMany` answer every id; the repository case and the send's lost-bytes case
     go red and nothing else; restore it.
 - **Model:** `opus high`.
-- **Status:** todo
-- **Findings:** written when the step is reviewed.
+- **Status:** done
+- **Findings:** passes: Standards, Spec, Design, hunt (S1.1); Standards, hunt (S1.2); Standards
+  fix (S1.3); no simplify. `make check` green (254 unit, 109 e2e).
+  - Probe — `selectMany` answering every id turned the send's lost-bytes case and the repository
+    e2e case red and nothing else (`Tests 1 failed | 253 passed` unit, `1 failed | 107 passed`
+    e2e).
+  - Deviation — `S3Bucket.url` only signs: building it on `head` would send two `HeadObject`
+    requests per read. `ObjectHead.fileName` is an `Option` (the package takes the name as
+    optional); a file without a name is a defect, since `insert` always writes it.
+  - Design — accepted, fixed in S1.2: `download` sent a `HeadObject` then a `GetObject`; one
+    `GetObject` answers both. Accepted, fixed in S1.2: one `FileEntityWhere` for every verb,
+    like the attachments have. Rejected: `ensureAllStored` typed over `string` (widens the model
+    for one line).
+  - Standards — accepted, fixed in S1.2: a `throw` for a missing name became `Effect.die`; two
+    successive `Effect.map` became one step; `naming.md` and `deep-modules.md` name
+    `Downloaded<Name>Entity`. Accepted, fixed in S1.3: an `Option` goes through its own `.pipe`.
+  - Spec — accepted, fixed in S1.2: `selectMany`'s order had no test.
+  - Hunt — confirmed and fixed in S1.2: an empty file name read back as nameless (the pattern
+    `(.+)` became `(.*)`). Rejected: a missing or malformed `Content-Disposition` is a defect (a
+    stored value that no longer decodes, `effect-schema.md`; only a value written outside the
+    app reaches it, confirmed by a run).
 
 ## Requirement coverage
 

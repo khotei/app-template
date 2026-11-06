@@ -64,14 +64,13 @@ export class FileRepository extends Context.Service<
     const headFile = Effect.fnUntraced(function* (id: string) {
       const head = yield* bucket.head(buildFileKey(id))
       const url = yield* signUrl(id)
-      return yield* pipe(head, Option.map(buildFileEntity(id, url)), Effect.transposeOption)
+      return yield* head.pipe(Option.map(buildFileEntity(id, url)), Effect.transposeOption)
     })
 
     const downloadFile = Effect.fnUntraced(function* (id: string) {
       const object = yield* bucket.download(buildFileKey(id))
       const url = yield* signUrl(id)
-      return yield* pipe(
-        object,
+      return yield* object.pipe(
         Option.map(({ head, blob }) =>
           buildFileEntity(id, url)(head).pipe(Effect.map((file) => ({ ...file, blob }))),
         ),
