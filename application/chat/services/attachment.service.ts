@@ -14,6 +14,11 @@ export type AttachmentGetManyWhere = Types.Simplify<
   { readonly id: ReadonlyArray<Attachment['id']> } & Pick<Attachment, 'userId'>
 >
 
+/** The user's attachments by id; `messageId: null` deletes them only while unbound, else bound or not. */
+export type AttachmentDeleteWhere = Types.Simplify<
+  AttachmentGetManyWhere & { readonly messageId?: null }
+>
+
 /** The attachments' records as stored, expired ones included; `LiveAttachmentService` drops those. */
 export class AttachmentService extends Context.Service<
   AttachmentService,
@@ -21,8 +26,8 @@ export class AttachmentService extends Context.Service<
     readonly getOne: (where: AttachmentWhere) => Effect.Effect<Attachment, AttachmentNotFoundError>
     /** The user's attachments among `where.id` in creation order; an absent id is left out. */
     readonly getMany: (where: AttachmentGetManyWhere) => Effect.Effect<ReadonlyArray<Attachment>>
-    /** Removes the user's attachment, then its bytes; dies unless it is unbound. */
-    readonly delete: (where: AttachmentWhere) => Effect.Effect<void>
+    /** Removes the user's attachments, then their bytes; dies unless a row matches each id. */
+    readonly delete: (where: AttachmentDeleteWhere) => Effect.Effect<void>
   }
 >()('@app-template/application/chat/services/AttachmentService', {
   make: Effect.gen(function* () {
@@ -42,10 +47,10 @@ export class AttachmentService extends Context.Service<
       return yield* attachments.selectMany(where).pipe(Effect.flatMap(decodeAttachments))
     })
 
-    const remove = Effect.fn('AttachmentService.delete')(function* (where: AttachmentWhere) {
-      // A send that binds it after the caller's check makes this die, so its bytes stay.
-      yield* attachments.delete({ id: [where.id], userId: where.userId, messageId: null })
-      yield* files.delete({ id: [where.id] })
+    const remove = Effect.fn('AttachmentService.delete')(function* (where: AttachmentDeleteWhere) {
+      if (Arr.isReadonlyArrayEmpty(where.id)) return
+      yield* attachments.delete(where)
+      yield* files.delete({ id: where.id })
     })
 
     return { getOne, getMany, delete: remove }

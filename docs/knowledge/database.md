@@ -213,8 +213,10 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
     deletes between the read and the write fails the send the same way. A send without files
     skips the write, which would die on no rows.
   - `FileAttachmentService.delete` checks the attachment live and unbound, then deletes it
-    through `AttachmentService.delete`, `where` `messageId` is still `none` and its bytes after
-    the row, so a send binding it in between makes the delete die and keeps the bytes.
+    through `AttachmentService.delete` with its guard, `where` `messageId` is still `none`, and
+    the bytes after the row, so a send binding it in between makes the delete die and keeps the
+    bytes. `AttachmentService.delete` deletes many attachments by the full `where` it is given,
+    then their bytes in one call, so without the guard it removes bound ones too.
 
 `ChatRepository.delete(where)` is one statement and dies when it removes nothing; its messages
 and their attachments go by the cascade, and `RETURNING` answers only the chat's row.

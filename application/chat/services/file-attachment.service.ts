@@ -104,7 +104,8 @@ export class FileAttachmentService extends Context.Service<
 
     const remove = Effect.fn('FileAttachmentService.delete')(function* (where: AttachmentWhere) {
       yield* live.getOne(where).pipe(ensureUnbound)
-      yield* records.delete(where)
+      // A send that binds it after the check makes this die, so its bytes stay.
+      yield* records.delete({ id: [where.id], userId: where.userId, messageId: null })
     })
 
     return { upload, download, delete: remove }

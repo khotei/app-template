@@ -61,6 +61,27 @@ const FileAttachmentServiceRecordLost = FileAttachmentService.layer.pipe(
   Layer.provide(BunCrypto.layer),
 )
 
+/** A send binds the attachment between the service's check and its delete. */
+const AttachmentRepositoryBoundBeforeDelete = Layer.effect(
+  AttachmentRepository,
+  AttachmentRepository.useSync((inner) =>
+    AttachmentRepository.of({
+      ...inner,
+      delete: (where) =>
+        inner
+          .update({ messageId, chatId }, { id: where.id })
+          .pipe(Effect.andThen(inner.delete(where))),
+    }),
+  ),
+)
+
+const FileAttachmentServiceBoundBeforeDelete = FileAttachmentService.layer.pipe(
+  Layer.provide(AttachmentRepositoryBoundBeforeDelete),
+  Layer.provideMerge(Layer.effectDiscard(insertMessage(firstMessage))),
+  Layer.provideMerge(RepositoryStackTest),
+  Layer.provide(BunCrypto.layer),
+)
+
 const photo = { fileName: FileName.make('photo.png'), mediaType: MediaType.make('image/png') }
 
 const photoUpload = { ...photo, content: Stream.make(png) }
@@ -237,6 +258,21 @@ describe('FileAttachmentService', () => {
         assertEquals(stored, [attachment])
         assert.deepStrictEqual(bytes, Option.some(png))
       }).pipe(Effect.provide(FileAttachmentServiceTest)),
+  )
+
+  it.effect('delete of an attachment a send binds after the check dies and keeps it whole', () =>
+    Effect.gen(function* () {
+      const service = yield* FileAttachmentService
+      const attachment = yield* uploadPhoto
+
+      const exit = yield* service.delete({ id: attachment.id, userId: owner }).pipe(Effect.exit)
+      const stored = yield* selectAttachments([attachment.id])
+      const bytes = yield* downloadBytes(attachment.id)
+
+      assert.isTrue(Exit.hasDies(exit))
+      assert.strictEqual(stored.length, 1)
+      assert.deepStrictEqual(bytes, Option.some(png))
+    }).pipe(Effect.provide(FileAttachmentServiceBoundBeforeDelete)),
   )
 
   it.effect('upload aborted after the bytes were written leaves neither bytes nor a record', () =>

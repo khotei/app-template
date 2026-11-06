@@ -1,12 +1,12 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Duration, Effect, Exit, Layer, Option, Struct } from 'effect'
+import { Duration, Effect, Layer, Option, Struct } from 'effect'
 import { TestClock } from 'effect/testing'
 
 import { AttachmentRepository, FileRepository } from '@app-template/kernel/data'
 import { RepositoryStackTest } from '@app-template/kernel/data/testing'
-import { assertSchemaEquals, png } from '@app-template/packages/testing'
+import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { AttachmentNotFoundError } from '#chat/domain/attachment.error'
 import { AttachmentId } from '#chat/domain/attachment.id'
@@ -100,33 +100,23 @@ describe('AttachmentService', () => {
     }).pipe(Effect.provide(AttachmentServiceTest)),
   )
 
-  it.effect('delete removes the record, then the bytes, of an unbound attachment', () =>
+  it.effect('delete with no messageId removes the attachments, one bound, then their bytes', () =>
     Effect.gen(function* () {
       const service = yield* AttachmentService
-      const attachment = yield* uploadPhoto
-
-      yield* service.delete({ id: attachment.id, userId: owner })
-
-      assert.deepStrictEqual(yield* selectAttachments([attachment.id]), [])
-      assert.deepStrictEqual(yield* downloadBytes(attachment.id), Option.none())
-    }).pipe(Effect.provide(AttachmentServiceTest)),
-  )
-
-  it.effect('delete of an attachment a send bound since the check dies and keeps it whole', () =>
-    Effect.gen(function* () {
-      const service = yield* AttachmentService
-      const attachment = yield* uploadPhoto
+      const unbound = yield* uploadPhoto
+      const bound = yield* uploadPhoto
       yield* AttachmentRepository.use((attachments) =>
-        attachments.update({ messageId, chatId }, { id: [attachment.id] }),
+        attachments.update({ messageId, chatId }, { id: [bound.id] }),
       )
+      const ids = [unbound.id, bound.id]
 
-      const exit = yield* service.delete({ id: attachment.id, userId: owner }).pipe(Effect.exit)
-      const stored = yield* selectAttachments([attachment.id])
-      const bytes = yield* downloadBytes(attachment.id)
+      yield* service.delete({ id: ids, userId: owner })
 
-      assert.isTrue(Exit.hasDies(exit))
-      assert.strictEqual(stored.length, 1)
-      assert.deepStrictEqual(bytes, Option.some(png))
+      assert.deepStrictEqual(yield* selectAttachments(ids), [])
+      assert.deepStrictEqual(yield* Effect.forEach(ids, downloadBytes), [
+        Option.none(),
+        Option.none(),
+      ])
     }).pipe(Effect.provide(AttachmentServiceTest)),
   )
 })

@@ -285,10 +285,11 @@ repository only reads, calls it and writes.
 
 A model's records may be served by domain services layered over each other, each named for what
 it adds: `<Model>Service` holds the plain records (a read by key with its `*NotFoundError`, a
-read of many, a delete guarded in its write), `Live<Model>Service` over it applies the model's
-rule to the same reads, and `File<Model>Service` over the live one stores, serves and removes
-the bytes with the record. A layer sees only the layers of its own model below it; another
-model's service stays a use case's.
+read of many, a delete of many under the full `where` its caller passes), `Live<Model>Service`
+over it applies the model's rule to the same reads, and `File<Model>Service` over the live one
+stores, serves and removes the bytes with the record, checking the rule a delete needs and
+passing its guard into the plain delete's `where`. A layer sees only the layers of its own model
+below it; another model's service stays a use case's.
 
 ```ts
 // the rule's layer reads through the plain one and pipes the model's guard
