@@ -5,7 +5,6 @@ import {
   DateTime,
   Effect,
   Layer,
-  Option,
   Ref,
   Stream,
   type Types,
@@ -15,15 +14,16 @@ import type { UserId } from '@app-template/application/identity'
 import { AttachmentRepository, FileRepository } from '@app-template/kernel/data'
 import { generateId } from '@app-template/packages/db'
 
-import { type AttachmentBoundError, AttachmentNotFoundError } from '#chat/domain/attachment.error'
+import type { AttachmentBoundError, AttachmentNotFoundError } from '#chat/domain/attachment.error'
 import { AttachmentId } from '#chat/domain/attachment.id'
 import {
   type Attachment,
   buildAttachment,
   ensureAllLive,
+  ensureFound,
+  ensureLive,
   ensureUnbound,
   FileSize,
-  isLiveAt,
 } from '#chat/domain/attachment.model'
 import {
   decodeAttachment,
@@ -125,18 +125,13 @@ export class AttachmentService extends Context.Service<
       const found = yield* attachments.selectOne(where).pipe(Effect.flatMap(decodeAttachment))
       const now = yield* DateTime.now
 
-      return yield* found.pipe(
-        Option.filter(isLiveAt(now)),
-        Effect.fromOption(() => new AttachmentNotFoundError({ ids: [where.id] })),
-      )
+      return yield* found.pipe(ensureLive(where.id, now))
     })
 
     const download = Effect.fn('AttachmentService.download')(function* (where: AttachmentWhere) {
       const { id } = yield* getOne(where)
 
-      return yield* files
-        .url({ id })
-        .pipe(Effect.flatMap(Effect.fromOption(() => new AttachmentNotFoundError({ ids: [id] }))))
+      return yield* files.url({ id }).pipe(Effect.flatMap(ensureFound(id)))
     })
 
     const remove = Effect.fn('AttachmentService.delete')(function* (where: AttachmentWhere) {
