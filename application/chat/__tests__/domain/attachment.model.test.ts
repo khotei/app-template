@@ -13,6 +13,8 @@ import {
   buildAttachment,
   ensureAllLive,
   ensureAllStored,
+  ensureFound,
+  ensureLive,
   ensureUnbound,
   FileName,
   FileSize,
@@ -114,6 +116,58 @@ describe('bindAttachment', () => {
       const error = yield* bindAttachment(bound, message).pipe(Effect.flip)
 
       assertSchemaEquals(AttachmentBoundError, error, new AttachmentBoundError({ id: bound.id }))
+    }),
+  )
+})
+
+describe('ensureFound', () => {
+  it.effect('answers the value found', () =>
+    Effect.gen(function* () {
+      assert.strictEqual(yield* pipe(Option.some(unbound), ensureFound(unbound.id)), unbound)
+    }),
+  )
+
+  it.effect('fails AttachmentNotFoundError naming the id for an absent value', () =>
+    Effect.gen(function* () {
+      const error = yield* pipe(Option.none(), ensureFound(unbound.id), Effect.flip)
+
+      assertSchemaEquals(
+        AttachmentNotFoundError,
+        error,
+        new AttachmentNotFoundError({ ids: [unbound.id] }),
+      )
+    }),
+  )
+})
+
+describe('ensureLive', () => {
+  const afterUnboundExpiry = DateTime.makeUnsafe('2026-10-19T00:00:00.000Z')
+
+  it.effect.each([
+    { name: 'a live unbound', attachment: unbound, now: unbound.createdAt },
+    { name: 'an old bound', attachment: bound, now: afterUnboundExpiry },
+  ])('answers $name attachment', ({ attachment, now }) =>
+    Effect.gen(function* () {
+      assert.strictEqual(
+        yield* pipe(Option.some(attachment), ensureLive(attachment.id, now)),
+        attachment,
+      )
+    }),
+  )
+
+  it.effect('fails AttachmentNotFoundError naming the id of an expired attachment', () =>
+    Effect.gen(function* () {
+      const error = yield* pipe(
+        Option.some(unbound),
+        ensureLive(unbound.id, afterUnboundExpiry),
+        Effect.flip,
+      )
+
+      assertSchemaEquals(
+        AttachmentNotFoundError,
+        error,
+        new AttachmentNotFoundError({ ids: [unbound.id] }),
+      )
     }),
   )
 })
