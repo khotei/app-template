@@ -16,7 +16,6 @@ import {
   type AssistantReply,
   type Attachment,
   buildReplyFailure,
-  type ChatId,
   type ChatStatusInvalidError,
   completeMessage,
   decodeChat,
@@ -96,13 +95,13 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
         Effect.map((found): HistoryMessage => ({ message, attachments: Arr.getSomes(found) })),
       )
 
-    const readHistory = (chatId: ChatId) =>
+    const readHistory = (reply: Message) =>
       messages
-        .selectMany({ chatId, status: ['done'] })
+        .selectMany({ chatId: reply.chatId, status: ['done'] })
         .pipe(
           Effect.flatMap(decodeMessages),
           Effect.flatMap(Effect.forEach(readHistoryMessage)),
-          Effect.annotateLogs({ chatId }),
+          Effect.annotateLogs({ chatId: reply.chatId, messageId: reply.id }),
         )
 
     const updateMessage = (message: Message, from: MessageStatus) =>
@@ -146,7 +145,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
       const prepared = yield* prepareMessage(taken, preparedAt)
       yield* updateMessage(prepared, taken.status)
 
-      const history = yield* readHistory(prepared.chatId)
+      const history = yield* readHistory(prepared)
       const generatingAt = yield* DateTime.now
       const generating = yield* generateMessage(prepared, generatingAt)
       yield* updateMessage(generating, prepared.status)

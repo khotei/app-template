@@ -6,7 +6,7 @@
 
 | Step | Delivers | Status |
 |---|---|---|
-| S1 | a missing file is logged where the reply reads history and refused where a send binds it | todo |
+| S1 | a missing file is logged where the reply reads history and refused where a send binds it | done |
 
 ## How to run this plan
 
@@ -30,11 +30,14 @@
   - `application/use-cases/chat/generate-assistant-message.use-case.ts` — `readBytes`: the `None`
     of `files.selectOne` logs through `Effect.logWarning` annotated with `attachmentId` and
     `chatId` (`effect-style.md`), and still drops the file from the input.
-  - `application/use-cases/chat/send-message.use-case.ts` — before the binds, `files.url({ id })`
-    of each requested attachment; a `None` collects its id into
+  - `application/chat/services/attachment.service.ts` — `getMany`, after `ensureAllLive`:
+    `files.url({ id })` of each row found; a `None` collects its id into
     `AttachmentNotFoundError({ ids })`, which `send` already declares. `url` already answers `None`
-    for a missing id in `FileRepositoryTest`.
-  - Their unit tests under `application/use-cases/__tests__/chat/`.
+    for a missing id in `FileRepositoryTest`. `send-message.use-case.ts` is unchanged: it calls
+    `getMany`.
+  - `docs/knowledge/database.md` — the sentence on what the send refuses before its first write.
+  - Their unit tests under `application/use-cases/__tests__/chat/` and
+    `application/chat/__tests__/services/`.
 - **Introduces:** none. Removes later: none.
 - **Size:** ~50 changed lines of code and tests.
 - **Test first:** the use cases' unit tests, at the fakes: (a) an attachment whose bytes were
@@ -48,8 +51,27 @@
   - `grep -n "getSomes" application/use-cases/chat/generate-assistant-message.use-case.ts` — the
     dropped `None` now passes a log first.
 - **Model:** `opus medium`.
-- **Status:** todo
-- **Findings:** written when the step is reviewed.
+- **Status:** done
+- **Findings:** passes: Standards, Spec, hunt (rounds S1.1, S1.2); no simplify, no Design (no new
+  interface); the S1.2 round has no second review (a move and one annotation, red before and green
+  after, with a probe). `make check` green (250 unit, 104 e2e).
+  - Deviation — the bytes check moved from the send into `AttachmentService.getMany` (S1.2); the
+    plan's first wording put it in `send`.
+  - Deviation — `chatId` annotates the history read, `messageId` joins it there, not all of
+    `generate`.
+  - Probe — S1.2: removing the check from `getMany` turned the service case and the send case red.
+  - Standards — accepted, fixed in S1.2 (judgement): the refusal is the attachment module's, so it
+    sits in `getMany`, not the use case.
+  - Standards — rejected (hard): one `files.url` call per id against `layering.md` › Use cases
+    (batch reads); the store has no batch read, the wire caps the ids at five.
+  - Spec — none.
+  - Hunt — accepted, fixed in S1.2: the warning had no reply id; `messageId` is annotated.
+  - Hunt — rejected (claimed, settled by a read of the main session): the HEADs have no bound; the
+    wire caps `attachmentIds` at `limits.attachment.maxFiles` (`chat.http.ts:120`).
+  - Hunt — rejected: the store read runs inside the send's transaction and holds a connection; the
+    send's `files.update` already calls the store inside it, so the check adds latency, not a new
+    pattern. A store failure there dies and rolls back whole.
+  - Out of scope — the send's rollback leaving untagged bytes: roadmap entry 22 `jobs`.
 
 ## Requirement coverage
 

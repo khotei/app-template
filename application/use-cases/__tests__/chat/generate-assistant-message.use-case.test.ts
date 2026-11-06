@@ -232,10 +232,10 @@ describe('GenerateAssistantMessageUseCase', () => {
   )
 
   it.effect(
-    'generate prompts without an attachment whose bytes are gone and logs a warning with its and the chat ids',
+    "generate prompts without an attachment whose bytes are gone and logs a warning with its, the chat's and the reply's ids",
     () => {
       const assistant = recordAssistant({ reply: Effect.succeed(sure) })
-      const { logs, layer: logger } = recordLogs('attachmentId', 'chatId')
+      const { logs, layer: logger } = recordLogs('attachmentId', 'chatId', 'messageId')
       return Effect.gen(function* () {
         yield* insertMessages([attachmentsOnly, queuedReply])
         yield* insertAttachment(sketch, 'lost')
@@ -254,7 +254,7 @@ describe('GenerateAssistantMessageUseCase', () => {
           },
         ])
         assert.deepStrictEqual(logs, [
-          ['Warn', 'attachment skipped: file missing', sketch.id, chatId],
+          ['Warn', 'attachment skipped: file missing', sketch.id, chatId, messageId],
         ])
       }).pipe(Effect.provide([AssistantMessageTest.pipe(Layer.provide(assistant.layer)), logger]))
     },

@@ -2,7 +2,7 @@ import { Array as Arr, Context, Crypto, DateTime, Effect, Layer, Option, Struct 
 
 import {
   type AttachmentBoundError,
-  AttachmentNotFoundError,
+  type AttachmentNotFoundError,
   AttachmentService,
   assistantMessageQueue,
   bindAttachment,
@@ -78,15 +78,6 @@ export class SendMessageUseCase extends Context.Service<
       yield* ensureMessageInput(input)
       const queued = yield* queueChat(chat)
       const requested = yield* attachmentService.getMany({ id: input.attachmentIds, userId })
-      // A row whose bytes the store lost would bind the message to nothing the reply can read.
-      const lost = yield* Effect.filter(
-        requested,
-        (attachment) => files.url({ id: attachment.id }).pipe(Effect.map(Option.isNone)),
-        { concurrency: 'unbounded' },
-      )
-      if (Arr.isReadonlyArrayNonEmpty(lost)) {
-        return yield* new AttachmentNotFoundError({ ids: Arr.map(lost, Struct.get('id')) })
-      }
       const isFirstMessage = yield* messages.selectOne({ chatId }).pipe(Effect.map(Option.isNone))
       const at = yield* DateTime.now
       const userMessageId = yield* generateId(crypto, MessageId.make)

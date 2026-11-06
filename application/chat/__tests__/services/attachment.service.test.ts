@@ -303,6 +303,25 @@ describe('AttachmentService', () => {
     }).pipe(Effect.provide(AttachmentServiceTest)),
   )
 
+  it.effect('getMany of an attachment whose bytes are gone is AttachmentNotFoundError', () =>
+    Effect.gen(function* () {
+      const service = yield* AttachmentService
+      const kept = yield* uploadPhoto
+      const lost = yield* uploadPhoto
+      yield* FileRepository.use((files) => files.delete({ id: [lost.id] }))
+
+      const error = yield* service
+        .getMany({ id: [kept.id, lost.id], userId: owner })
+        .pipe(Effect.flip)
+
+      assertSchemaEquals(
+        AttachmentNotFoundError,
+        error,
+        new AttachmentNotFoundError({ ids: [lost.id] }),
+      )
+    }).pipe(Effect.provide(AttachmentServiceTest)),
+  )
+
   it.effect('getMany of no ids answers none', () =>
     Effect.gen(function* () {
       const service = yield* AttachmentService
