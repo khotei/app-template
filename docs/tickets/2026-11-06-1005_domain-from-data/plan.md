@@ -90,6 +90,10 @@
     the domain both read; the override admits of the data entry only a value's name
     (`invertImportNamePattern`). A table given a value's name still passes: review holds it
     (`architecture.md` › Known gaps).
+  - Spec (S1.2 review, claimed) — rejected, confirmed by a probe of the main session: that Biome
+    may match `importNamePattern` anywhere in the name, so a capitalised `ChatEntityStatuses`
+    passes. `import { ChatEntityStatuses, chatStatuses }` in a domain file is refused on
+    `ChatEntityStatuses` alone; Biome itself refuses `^` and `$` there as implicit.
 
 ## Requirement coverage
 
