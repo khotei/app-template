@@ -202,8 +202,9 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
   - `ChatService.rename` reads the chat by the caller's `where` to name a refusal
     (`ChatNotFoundError`), then writes under the same `where`. The title job passes `title:
     none`, so a rename landing between the two wins and the job dies and retries.
-  - The send reads its attachments through `AttachmentService.getMany`, which takes no lock, and
-    refuses a bound one with `bindAttachment`, both before its first write; once its message is
+  - The send reads its attachments through `AttachmentService.getMany`, which takes no lock,
+    refuses one whose bytes the store no longer has (`AttachmentNotFoundError`) and a bound one
+    with `bindAttachment`, all before its first write; once its message is
     stored, it writes the bind itself, the files first, then the attachments' rows `where`
     `messageId` is still `none`, a write that dies unless it binds every row it names. Of two
     sends sharing a file, the loser either reads it bound and fails `AttachmentBoundError` (409)

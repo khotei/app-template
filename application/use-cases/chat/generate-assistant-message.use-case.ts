@@ -76,10 +76,20 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
     const messages = yield* MessageRepository
     const transaction = yield* Transaction
 
+    const logMissingFile = (attachment: Attachment) =>
+      Effect.logWarning('attachment skipped: file missing').pipe(
+        Effect.annotateLogs({ attachmentId: attachment.id }),
+      )
+
     const readBytes = (attachment: Attachment) =>
       files
         .selectOne({ id: attachment.id })
-        .pipe(Effect.map(Option.map((bytes) => ({ attachment, bytes }))))
+        .pipe(
+          Effect.tap(
+            Option.match({ onNone: () => logMissingFile(attachment), onSome: () => Effect.void }),
+          ),
+          Effect.map(Option.map((bytes) => ({ attachment, bytes }))),
+        )
 
     const readHistoryMessage = (message: Message) =>
       Effect.forEach(message.attachments, readBytes).pipe(
@@ -89,7 +99,11 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
     const readHistory = (chatId: ChatId) =>
       messages
         .selectMany({ chatId, status: ['done'] })
-        .pipe(Effect.flatMap(decodeMessages), Effect.flatMap(Effect.forEach(readHistoryMessage)))
+        .pipe(
+          Effect.flatMap(decodeMessages),
+          Effect.flatMap(Effect.forEach(readHistoryMessage)),
+          Effect.annotateLogs({ chatId }),
+        )
 
     const updateMessage = (message: Message, from: MessageStatus) =>
       encodeMessage(message).pipe(
