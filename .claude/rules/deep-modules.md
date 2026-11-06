@@ -39,8 +39,8 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
 - A write answers `void` and dies where it misses a row it names: the caller checked the rule, so
   a miss is a lost race. An object store's writes are idempotent and never die on a missing
   object; a write that measures what it stores answers the measure.
-- One shape per entity: a related entity is a field the same relational query fills, never a
-  second type (`<Name>EntityWith<Thing>`); an option never changes the answer's type.
+- One shape per entity: a related entity is a field the same relational query fills, and never
+  becomes a second type (`<Name>EntityWith<Thing>`); an option never changes the answer's type.
 - The filter lives in the `where`, a relation in the database (`ON DELETE CASCADE`), never in code
   after the read. The field mappers and a relational query's alias:
   [database.md › Repositories](../../docs/knowledge/database.md#repositories).

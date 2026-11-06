@@ -14,7 +14,6 @@ import {
 import {
   buildFileKey,
   type DownloadedFileEntity,
-  type FileEntityManyWhere,
   type FileEntityWhere,
 } from '#kernel/data/file/file.entity'
 import { FileRepository } from '#kernel/data/file/file.repository'
@@ -40,18 +39,17 @@ const withoutBlob = (file: DownloadedFileEntity) => Struct.omit(file, ['blob'])
 export const FileRepositoryTest = Layer.effect(
   FileRepository,
   FileObjects.useSync((objects) => {
-    const selectMany = ({ id }: FileEntityManyWhere) =>
+    const downloadMany = ({ id }: FileEntityWhere) =>
       Ref.get(objects).pipe(
         Effect.map((all) =>
           pipe(
-            id,
+            Arr.ensure(id),
             Arr.map((one) => HashMap.get(all, one)),
             Arr.getSomes,
           ),
         ),
       )
-    const download = ({ id }: FileEntityWhere) =>
-      selectMany({ id: [id] }).pipe(Effect.map(Arr.head))
+    const download = (where: FileEntityWhere) => downloadMany(where).pipe(Effect.map(Arr.head))
     return FileRepository.of({
       insert: (insert) =>
         Effect.gen(function* () {
@@ -66,10 +64,10 @@ export const FileRepositoryTest = Layer.effect(
           return blob.length
         }),
       selectOne: (where) => download(where).pipe(Effect.map(Option.map(withoutBlob))),
-      selectMany: (where) => selectMany(where).pipe(Effect.map(Arr.map(withoutBlob))),
+      selectMany: (where) => downloadMany(where).pipe(Effect.map(Arr.map(withoutBlob))),
       download,
       update: () => Effect.void,
-      delete: ({ id }) => Ref.update(objects, HashMap.removeMany(id)),
+      delete: ({ id }) => Ref.update(objects, HashMap.removeMany(Arr.ensure(id))),
     })
   }),
 )

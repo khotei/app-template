@@ -97,18 +97,23 @@ describe('FileRepository on AwsTest', () => {
     )
 
     it.effect(
-      'selectMany answers the stored files with their media type and file name, leaving out a missing id',
+      'selectMany answers the stored files in the order asked with their media type and file name, leaving out a missing id',
       () =>
         Effect.gen(function* () {
           const files = yield* FileRepository
-          const id = fileId(7)
-          yield* files.insert(file(id))
+          const first = fileId(9)
+          const second = fileId(7)
+          yield* files.insert(file(second))
+          yield* files.insert(file(first))
 
-          const found = yield* files.selectMany({ id: [unknownId, id] })
+          const found = yield* files.selectMany({ id: [first, unknownId, second] })
 
           assert.deepStrictEqual(
             Arr.map(found, (stored) => Struct.omit(stored, ['url'])),
-            [{ id, mediaType: 'image/png', fileName: 'отчёт (1).png' }],
+            [
+              { id: first, mediaType: 'image/png', fileName: 'отчёт (1).png' },
+              { id: second, mediaType: 'image/png', fileName: 'отчёт (1).png' },
+            ],
           )
         }),
     )

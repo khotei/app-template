@@ -57,17 +57,15 @@ describe('S3Bucket over S3ClientTest against MiniStack', () => {
             Stream.fromIterable(splitIntoMebibytes(content)),
             octetStream,
           )
-          const read = yield* files.download(key)
+          const read = yield* files.download(key).pipe(Effect.flatMap(Effect.fromOption))
           const stored = yield* readPartCount(key)
 
           assert.strictEqual(written, size)
-          assert.isTrue(Option.isSome(read))
-          assert.isTrue(
-            Bytes.Equivalence(
-              Option.getOrElse(read, () => new Uint8Array()),
-              content,
-            ),
-          )
+          assert.deepStrictEqual(read.head, {
+            contentType: 'application/octet-stream',
+            fileName: Option.none(),
+          })
+          assert.isTrue(Bytes.Equivalence(read.blob, content))
           assert.deepStrictEqual(stored, parts)
         }),
       uploadTimeout,
@@ -117,6 +115,7 @@ describe('S3Bucket over S3ClientTest against MiniStack', () => {
 
     it.effect.each([
       { name: 'with a name', key: 'named', fileName: Option.some('отчёт (1).png') },
+      { name: 'with an empty name', key: 'empty-name', fileName: Option.some('') },
       { name: 'without a name', key: 'nameless', fileName: Option.none() },
     ])(
       'head answers the media type and the file name of an object put $name',

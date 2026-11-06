@@ -59,7 +59,7 @@ function buildInlineDisposition(fileName: string) {
   return `inline; filename*=UTF-8''${encoded}`
 }
 
-const inlineFileName = /^inline; filename\*=UTF-8''(.+)$/
+const inlineFileName = /^inline; filename\*=UTF-8''(.*)$/
 
 const buildInlineFileName = (disposition: string | undefined): Option.Option<string> =>
   Option.fromNullishOr(disposition).pipe(
@@ -82,6 +82,11 @@ const decodeObjectHead = ({
         fileName: buildInlineFileName(ContentDisposition),
       }),
     ),
+  )
+
+const readBody = ({ Body }: { readonly Body?: { transformToByteArray(): Promise<Uint8Array> } }) =>
+  Effect.fromNullishOr(Body).pipe(
+    Effect.flatMap((body) => Effect.promise(() => body.transformToByteArray())),
   )
 
 const buildTagging = (tags: Record<string, string>) => new URLSearchParams(tags).toString()
@@ -143,7 +148,10 @@ export class S3Bucket extends Context.Service<
       content: Stream.Stream<Uint8Array, E>,
       options: PutOptions,
     ) => Effect.Effect<number, E>
-    readonly download: (key: string) => Effect.Effect<Option.Option<Uint8Array>>
+    /** One `GetObject`; none for a missing key. */
+    readonly download: (
+      key: string,
+    ) => Effect.Effect<Option.Option<{ readonly head: ObjectHead; readonly blob: Uint8Array }>>
     /** One `HeadObject`; none for a missing key. */
     readonly head: (key: string) => Effect.Effect<Option.Option<ObjectHead>>
     /** A presigned GET valid for `lifetime`, signed without a request: it never checks that the key exists. */
@@ -238,8 +246,9 @@ export class S3Bucket extends Context.Service<
 
       const download = Effect.fn('S3Bucket.download')((key: string) =>
         s3.getObject(buildObjectRef(key)).pipe(
-          Effect.flatMap(({ Body }) => Effect.fromNullishOr(Body)),
-          Effect.flatMap((body) => Effect.promise(() => body.transformToByteArray())),
+          Effect.flatMap((object) =>
+            Effect.all({ head: decodeObjectHead(object), blob: readBody(object) }),
+          ),
           Effect.map(Option.some),
           Effect.catchTag('NoSuchKey', () => Effect.succeedNone),
           Effect.orDie,
