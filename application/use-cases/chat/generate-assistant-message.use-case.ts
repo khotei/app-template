@@ -16,7 +16,6 @@ import {
   type AssistantReply,
   type Attachment,
   buildReplyFailure,
-  type ChatId,
   type ChatStatusInvalidError,
   completeMessage,
   decodeChat,
@@ -76,20 +75,34 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
     const messages = yield* MessageRepository
     const transaction = yield* Transaction
 
+    const logMissingFile = (attachment: Attachment) =>
+      Effect.logWarning('attachment skipped: file missing').pipe(
+        Effect.annotateLogs({ attachmentId: attachment.id }),
+      )
+
     const readBytes = (attachment: Attachment) =>
       files
         .selectOne({ id: attachment.id })
-        .pipe(Effect.map(Option.map((bytes) => ({ attachment, bytes }))))
+        .pipe(
+          Effect.tap(
+            Option.match({ onNone: () => logMissingFile(attachment), onSome: () => Effect.void }),
+          ),
+          Effect.map(Option.map((bytes) => ({ attachment, bytes }))),
+        )
 
     const readHistoryMessage = (message: Message) =>
       Effect.forEach(message.attachments, readBytes).pipe(
         Effect.map((found): HistoryMessage => ({ message, attachments: Arr.getSomes(found) })),
       )
 
-    const readHistory = (chatId: ChatId) =>
+    const readHistory = (reply: Message) =>
       messages
-        .selectMany({ chatId, status: ['done'] })
-        .pipe(Effect.flatMap(decodeMessages), Effect.flatMap(Effect.forEach(readHistoryMessage)))
+        .selectMany({ chatId: reply.chatId, status: ['done'] })
+        .pipe(
+          Effect.flatMap(decodeMessages),
+          Effect.flatMap(Effect.forEach(readHistoryMessage)),
+          Effect.annotateLogs({ chatId: reply.chatId, messageId: reply.id }),
+        )
 
     const updateMessage = (message: Message, from: MessageStatus) =>
       encodeMessage(message).pipe(
@@ -132,7 +145,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
       const prepared = yield* prepareMessage(taken, preparedAt)
       yield* updateMessage(prepared, taken.status)
 
-      const history = yield* readHistory(prepared.chatId)
+      const history = yield* readHistory(prepared)
       const generatingAt = yield* DateTime.now
       const generating = yield* generateMessage(prepared, generatingAt)
       yield* updateMessage(generating, prepared.status)

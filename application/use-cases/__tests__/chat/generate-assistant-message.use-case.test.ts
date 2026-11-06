@@ -206,7 +206,7 @@ describe('GenerateAssistantMessageUseCase', () => {
       return Effect.gen(function* () {
         yield* insertMessages([...history, queuedReply])
         yield* insertAttachment(photo)
-        yield* insertAttachment(sketch, 'lost')
+        yield* insertAttachment(sketch)
 
         yield* generate
 
@@ -222,12 +222,41 @@ describe('GenerateAssistantMessageUseCase', () => {
               { message: andAgain, attachments: [] },
               {
                 message: new Message({ ...attachmentsOnly, attachments: [sketch] }),
-                attachments: [],
+                attachments: [{ attachment: sketch, bytes: png }],
               },
             ],
           },
         ])
       }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
+    },
+  )
+
+  it.effect(
+    "generate prompts without an attachment whose bytes are gone and logs a warning with its, the chat's and the reply's ids",
+    () => {
+      const assistant = recordAssistant({ reply: Effect.succeed(sure) })
+      const { logs, layer: logger } = recordLogs('attachmentId', 'chatId', 'messageId')
+      return Effect.gen(function* () {
+        yield* insertMessages([attachmentsOnly, queuedReply])
+        yield* insertAttachment(sketch, 'lost')
+
+        yield* generate
+
+        assertEquals(yield* assistant.calls, [
+          {
+            method: 'reply',
+            history: [
+              {
+                message: new Message({ ...attachmentsOnly, attachments: [sketch] }),
+                attachments: [],
+              },
+            ],
+          },
+        ])
+        assert.deepStrictEqual(logs, [
+          ['Warn', 'attachment skipped: file missing', sketch.id, chatId, messageId],
+        ])
+      }).pipe(Effect.provide([AssistantMessageTest.pipe(Layer.provide(assistant.layer)), logger]))
     },
   )
 

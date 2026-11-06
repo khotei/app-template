@@ -29,7 +29,7 @@ import {
   updateMessage,
   upload,
 } from '@app-template/application/chat/testing'
-import { ChatRepository } from '@app-template/kernel/data'
+import { ChatRepository, FileRepository } from '@app-template/kernel/data'
 import { recordQueue } from '@app-template/packages/queue/testing'
 import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
@@ -192,6 +192,32 @@ describe('SendMessageUseCase', () => {
       return Effect.gen(function* () {
         const sendMessage = yield* SendMessageUseCase
         const photo = yield* upload(stranger)
+
+        const error = yield* sendMessage
+          .send(owner, chat.id, { text: 'Look', attachmentIds: [photo.id] })
+          .pipe(Effect.flip)
+
+        assertSchemaEquals(
+          AttachmentNotFoundError,
+          error,
+          new AttachmentNotFoundError({ ids: [photo.id] }),
+        )
+        assertEquals(yield* selectMessages(chat.id), [])
+        assertEquals(yield* selectAttachments([photo.id]), [photo])
+        assertEquals(yield* queue.sent, [])
+      }).pipe(Effect.provide(Layer.provide(ChatTest, queue.layer)))
+    },
+  )
+
+  it.effect(
+    'send with an attachment whose bytes are gone is AttachmentNotFoundError before any message or bind',
+    () => {
+      const queue = recordQueue()
+      return Effect.gen(function* () {
+        const files = yield* FileRepository
+        const sendMessage = yield* SendMessageUseCase
+        const photo = yield* upload(owner)
+        yield* files.delete({ id: [photo.id] })
 
         const error = yield* sendMessage
           .send(owner, chat.id, { text: 'Look', attachmentIds: [photo.id] })
