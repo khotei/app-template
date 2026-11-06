@@ -39,7 +39,6 @@ export class AttachmentService extends Context.Service<
       where: AttachmentGetManyWhere,
     ) {
       if (Arr.isReadonlyArrayEmpty(where.id)) return Arr.empty<Attachment>()
-
       return yield* attachments.selectMany(where).pipe(Effect.flatMap(decodeAttachments))
     })
 

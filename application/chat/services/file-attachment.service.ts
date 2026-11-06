@@ -21,7 +21,7 @@ export interface AttachmentUpload<E> extends Pick<Attachment, 'mediaType' | 'fil
   readonly content: Stream.Stream<Uint8Array, E>
 }
 
-/** An attachment with its bytes: stored together, read through the live attachments, removed together. */
+/** An attachment's record and its bytes, stored and removed as one. */
 export class FileAttachmentService extends Context.Service<
   FileAttachmentService,
   {
@@ -97,7 +97,6 @@ export class FileAttachmentService extends Context.Service<
       where: AttachmentWhere,
     ) {
       const { id } = yield* live.getOne(where)
-
       return yield* files
         .selectOne({ id })
         .pipe(Effect.flatMap(ensureFound(id)), Effect.map(Struct.get('url')))
@@ -112,6 +111,7 @@ export class FileAttachmentService extends Context.Service<
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make).pipe(
-    Layer.provide([LiveAttachmentService.layer, AttachmentService.layer]),
+    Layer.provide(LiveAttachmentService.layer),
+    Layer.provide(AttachmentService.layer),
   )
 }

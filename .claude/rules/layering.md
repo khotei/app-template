@@ -21,10 +21,8 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   `*NotFoundError`). It sees the repositories, its ports, the clock and `Crypto`, and the
   services of its own model it is layered over; never another model's service, the queue or the
   transaction, which are a use case's.
-- A model's services layer when a read must say what it answers: `<Model>Service` holds the plain
-  records, a service named for its rule (`Live<Model>Service`) applies it to the same reads, and
-  one named for a store (`File<Model>Service`) writes the records with it, each over the one
-  below. Record:
+- A model needs a second read that applies a rule → `Live<Model>Service` over the plain
+  `<Model>Service`; one that stores bytes → `File<Model>Service` over the live one. Record:
   [Layered services of one model](../../docs/knowledge/decisions.md#layered-services-of-one-model).
 - A rule is a pure function in its model's `.model` file, over values passed in (time, ids),
   combined from small pieces of one condition or step each, never repeating their logic; a
