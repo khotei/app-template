@@ -7,9 +7,9 @@
 | Step | Delivers | Status |
 |---|---|---|
 | S1 | `FileRepository` reads metadata (`selectOne`, `selectMany`) and downloads bytes (`download`); `send` asks the store through `selectMany` | done |
-| S2 | `FileRepository.update` takes a list of ids; `send` binds the files in one call | todo |
-| S3 | `AttachmentService` (plain records), `LiveAttachmentService` (live reads), `FileAttachmentService` (bytes) | todo |
-| S4 | Roadmap: entry 24 done, entry 27 `rules-from-attachment-work` added | todo |
+| S2 | `send` binds its files with one `update` call over the ids (`update` took a list since S1.2) | done |
+| S3 | `AttachmentService` (plain records), `LiveAttachmentService` (live reads), `FileAttachmentService` (bytes) | done |
+| S4 | Roadmap: entry 24 done, entry 27 `rules-from-attachment-work` added | done |
 
 ## How to run this plan
 
@@ -123,8 +123,16 @@
   objects without the unbound tag — red while `update` takes one id.
 - **Verify:** `make check` green.
 - **Model:** `opus medium`.
-- **Status:** todo
-- **Findings:**
+- **Status:** done
+- **Findings:** passes: Standards, Spec (S2.1); `make check` green (254 unit, 109 e2e).
+  - Deviation — no red-first case: `update` took a list since S1.2, so the e2e over two ids was
+    green from the start. Probe — `Arr.take(1)` in `update` turned the new case red and nothing
+    else (`Tests 1 failed | 7 passed`). `file.entity.ts` and the memory fake needed no edit.
+  - Deviation — `update` sends one tagging request per id, concurrently, since S3 has no batch
+    tagging call; the class TSDoc says so. The Goal's "write through one batch call" is met at the
+    repository's contract; `layering.md:46` binds reads and deletes only.
+  - Standards — accepted, fixed in S2.2: the e2e's seeding `forEach` discards its results.
+  - Spec — no findings.
 
 #### S3 — Three attachment services
 
@@ -152,8 +160,30 @@
   fails `AttachmentNotFoundError` on it — red before the split.
 - **Verify:** `make check` green; the existing attachment cases pass over the new services.
 - **Model:** `opus high`.
-- **Status:** todo
-- **Findings:**
+- **Status:** done
+- **Findings:** passes: Standards, Spec, Design, hunt (S3.1); Standards fixes (S3.2); `make check`
+  green (256 unit, 109 e2e).
+  - Probes — `LiveAttachmentService.getOne` skipping `ensureLive` turned three cases red and
+    nothing else (`Tests 3 failed | 256 passed`); an import of `LiveAttachmentService` in
+    `attachment.service.ts` was refused by `noImportCycles`. Test first: the plain `getOne` of an
+    attachment unbound for 24 h was red before the split, green after.
+  - Deviation — `ensureLive(now)` takes the attachment, not an `Option` (like `ensureUnbound`), so
+    the live `getOne` pipes it onto the plain one; `attachment.model.ts` and its test are in the
+    step. The plain `getMany` leaves an absent id out, so the live layer's one error names absent
+    and expired ids together. The plain `delete` keeps the guard `messageId: null` in its write.
+  - Deviation — `effect-services.md` (a layer may provide the services it is layered over) and
+    `naming.md` (file and type names of a layered service) are edited beside `layering.md`.
+  - Standards — accepted, fixed in S3.2: two blank lines in short bodies; the file service's tests
+    keep only what it adds (duplicated expiry and not-found cases dropped); the layer chains
+    `Layer.provide` twice; the class comment says what it does; the `layering.md` bullet states a
+    branch.
+  - Design — rejected: moving the byte delete from `AttachmentService` to `FileAttachmentService`
+    (the user ordered the plain service to delete the file with the row); making `ensureAllLive`
+    an effect pipeable (consistency only; the `ensureAll…` family stays pure like
+    `ensureAllStored`).
+  - Spec — accepted: the model's and the two rules' edits are recorded above. Hunt — no findings;
+    two deletes of one attachment at once, and a `files.delete` that dies after the row is gone,
+    behave as before.
 
 #### S4 — Roadmap
 
@@ -166,8 +196,10 @@
 - **Test first:** `config only`; `make check` (the docs links) is the check.
 - **Verify:** `make check` green.
 - **Model:** `opus medium`.
-- **Status:** todo
-- **Findings:**
+- **Status:** done
+- **Findings:** passes: none (docs only). Entry 24 links its ticket folder and names the
+  follow-ups; entry 27 is added from the scratchpad draft, its lessons still to apply on the
+  user's OK.
 
 ## Requirement coverage
 
