@@ -12,6 +12,7 @@ import {
   bindAttachment,
   buildAttachment,
   ensureAllLive,
+  ensureAllStored,
   ensureUnbound,
   FileName,
   FileSize,
@@ -185,6 +186,54 @@ describe('ensureAllLive', () => {
         new AttachmentNotFoundError({ ids: [unbound.id] }),
       )
       assertEquals(live, [other])
+    }),
+  )
+})
+
+describe('ensureAllStored', () => {
+  const other = new Attachment({
+    ...unbound,
+    id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000025'),
+  })
+  const found = [unbound, other]
+
+  it.effect('answers the attachments when the store holds every one asked', () =>
+    Effect.gen(function* () {
+      const stored = [other.id, unbound.id]
+
+      assertEquals(yield* pipe(found, ensureAllStored([unbound.id, other.id], stored)), found)
+    }),
+  )
+
+  it.effect('names each lost id once, in the order asked', () =>
+    Effect.gen(function* () {
+      const error = yield* pipe(
+        found,
+        ensureAllStored([other.id, unbound.id, other.id], []),
+        Effect.flip,
+      )
+
+      assertSchemaEquals(
+        AttachmentNotFoundError,
+        error,
+        new AttachmentNotFoundError({ ids: [other.id, unbound.id] }),
+      )
+    }),
+  )
+
+  it.effect('names the lost one and not the stored one', () =>
+    Effect.gen(function* () {
+      const error = yield* pipe(
+        found,
+        ensureAllStored([unbound.id, other.id], [unbound.id]),
+        Effect.flip,
+      )
+
+      assertSchemaEquals(
+        AttachmentNotFoundError,
+        error,
+        new AttachmentNotFoundError({ ids: [other.id] }),
+      )
     }),
   )
 })

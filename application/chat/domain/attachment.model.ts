@@ -88,6 +88,20 @@ const ensureAllFound =
 export const ensureAllLive = (ids: ReadonlyArray<AttachmentId>, now: DateTime.Utc) =>
   flow(Arr.filter(isLiveAt(now)), ensureAllFound(ids))
 
+const isStoredIn =
+  (stored: ReadonlyArray<AttachmentId>): Predicate.Predicate<Attachment> =>
+  (attachment) =>
+    Arr.contains(stored, attachment.id)
+
+/**
+ * Keeps the attachments whose id is in `stored`, the ids whose bytes the object store holds;
+ * fails `AttachmentNotFoundError` naming each id of `ids` left out, once, in the order asked.
+ */
+export const ensureAllStored = (
+  ids: ReadonlyArray<AttachmentId>,
+  stored: ReadonlyArray<AttachmentId>,
+) => flow(Arr.filter(isStoredIn(stored)), ensureAllFound(ids))
+
 /** Fails `AttachmentBoundError` for an attachment a message holds. */
 export const ensureUnbound = Effect.filterOrFail<Attachment, AttachmentBoundError>(
   isUnbound,

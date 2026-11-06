@@ -203,15 +203,15 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
     (`ChatNotFoundError`), then writes under the same `where`. The title job passes `title:
     none`, so a rename landing between the two wins and the job dies and retries.
   - The send reads its attachments through `AttachmentService.getMany`, which takes no lock and
-    refuses one whose bytes the store no longer has (`AttachmentNotFoundError`), and refuses a
-    bound one with `bindAttachment`, both before its first write; once its message is stored, it
-    writes the bind itself, the files first, then the attachments' rows `where`
-    `messageId` is still `none`, a write that dies unless it binds every row it names. Of two
-    sends sharing a file, the loser either reads it bound and fails `AttachmentBoundError` (409)
-    or, having read it free, finds that row taken under the guard and dies (500), rolled back
-    whole with the files only it named; an attachment its owner deletes between the read and the
-    write fails the send the same way. A send without files skips the write, which would die on
-    no rows.
+    reads no bytes; the send then refuses one whose bytes the store no longer has
+    (`AttachmentNotFoundError`) and a bound one (`bindAttachment`), both before its first write;
+    once its message is stored, it writes the bind itself, the files first, then the
+    attachments' rows `where` `messageId` is still `none`, a write that dies unless it binds
+    every row it names. Of two sends sharing a file, the loser either reads it bound and fails
+    `AttachmentBoundError` (409) or, having read it free, finds that row taken under the guard
+    and dies (500), rolled back whole with the files only it named; an attachment its owner
+    deletes between the read and the write fails the send the same way. A send without files
+    skips the write, which would die on no rows.
   - `AttachmentService.delete` checks the attachment unbound, then deletes it `where`
     `messageId` is still `none`, so a send binding it in between makes the delete die and keeps
     the bytes.
