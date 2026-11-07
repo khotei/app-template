@@ -4,12 +4,22 @@
 
 ## Status
 
-<One row per step, updated in the step's last round, so the reader sees the ticket's state without
-reading the steps; `git log` holds the step's commits.>
+<The skeleton: every step of the ticket, one row each, grouped by stage, so the reader sees the
+ticket's state without reading the steps. A stage holds three steps; one of one, two or four names
+its reason in its heading. A row's Status is updated in the step's last round; `git log` holds the
+step's commits.>
 
-| Step | Delivers | Status |
-|---|---|---|
-| S1 | <the step's Delivers, in a few words> | todo |
+### Stage 1 — <the outcome it delivers> · completes R1
+
+| Step | Delivers | Serves | Size | Status |
+|---|---|---|---|---|
+| S1 | <the step's outcome, in a few words> | R1, D1 | ~200, docs ~50 | todo |
+
+### Stage 2 — <the outcome it delivers> (four steps: <reason>) · completes R2
+
+| Step | Delivers | Serves | Size | Status |
+|---|---|---|---|---|
+| S4 | <the step's outcome, in a few words> | R2 | ~150 | todo |
 
 ## How to run this plan
 
@@ -20,7 +30,16 @@ reading the steps; `git log` holds the step's commits.>
 - A deviation is recorded in the step's findings, and in `architecture.md › Decisions` when it is a
   decision.
 
-## Steps
+## Stage 1 — <title>
+
+### Stage design
+
+<The facts the stage rests on, each with its source or probe output, an assumption by its `A…`
+id; then the names, signatures and files the stage fixes; then each choice it makes:>
+
+- **<choice>** — set aside: <option> — fact: <the fact, its source or probe output> — used by: S<n>
+
+### Steps
 
 #### S1 — <title>
 
@@ -35,16 +54,28 @@ reading the steps; `git log` holds the step's commits.>
   after>. Or `config only`, whose Verify has a command that fails before the step.
 - **Verify:** <commands and manual checks, each with the state it fails on>.
   - **Probes** (<guard>, run at plan time): <only a step that adds, changes or removes a guard or a
-    scope of one; one per ban of the scopes `/ticket-plan` step 3 names, run again after the
-    change; an added scope's own fail only after the change, so each shows its plan-time output>
+    scope of one; one per ban of the scopes `/ticket-plan`'s stage procedure names, run again
+    after the change; an added scope's own fail only after the change, so each shows its plan-time
+    output>
     - <ban> — `<path>`: `<content>` → `<the guard's failing line>`
 - **Model:** <model and effort, e.g. `opus medium`>
 - **Status:** todo
 - **Findings:** <written when the step commits: every finding its review raised, one line each>
   - <pass> — accepted, fixed in S<n>.2 | accepted, open | rejected: <why> — <the finding, one line>
 
+### Stage review
+
+<Written by the stage's last step, in its last round: every finding of the review of the stage's
+diff, in the shape of a step's Findings. A stage verification, when run, is `verification.md ›
+Stage 1`.>
+
+## Stage 2 — <title>
+
+Not prepared: `/ticket-plan <ticket folder> next` prepares it once Stage 1 lands.
+
 ## Requirement coverage
 
-| Req | Steps |
-|---|---|
-| R1 | S1 |
+| Req | Steps | Completed in |
+|---|---|---|
+| R1 | S1 | Stage 1 |
+| R2 | S4 | Stage 2 |
