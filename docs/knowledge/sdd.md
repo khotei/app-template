@@ -6,13 +6,22 @@ this document explains them.
 
 ```mermaid
 graph LR
-  F["/ticket-feature"] --> A["/ticket-architecture"] --> P["/ticket-plan"]
+  F["/ticket-feature"] --> A["/ticket-architecture"] --> P["/ticket-plan<br/>skeleton + stage 1"]
   P --> I["/ticket-implement<br/>(once per step)"]
   I -->|next step| I
-  I --> V["/ticket-verify"]
+  I -->|stage's last step| R[Stage review]
+  R -.->|due| SV["/ticket-verify<br/>… stage n"]
+  R --> N["/ticket-plan … next<br/>prepares stage n+1"]
+  SV -.-> N
+  N --> I
+  R -->|last stage| V["/ticket-verify"]
+  I -->|one stage| V
   V -->|fixes become steps| I
   V -->|pass| PR[PR · squash merge]
 ```
+
+A plan of one stage, or one written before stages, has no Stage review, no stage verification
+and no `next`: its steps run straight to `/ticket-verify` ([Plans in stages](#plans-in-stages)).
 
 Every artifact lives in a ticket folder named by `.claude/rules/sdd.md`, started from
 [docs/tickets/_template/](../tickets/_template/feature.md). The domain glossary is
@@ -30,6 +39,52 @@ An older `Refs:` line may name a folder before its rename: the slug is unchanged
 | A ticket that changes only the toolkit or docs (`.claude/`, `docs/`), no app code | the cycle its change calls for, with one `/ticket-verify`: its accepted fixes land as steps without a second run unless one changes what a requirement asks; a past step is replayed (its commit's parent run again under the new toolkit) only for a requirement nothing else can check |
 | A typo, a version bump, a doc fix | no ticket: one commit with the area as its scope (`docs`, `tooling`) |
 
+## Plans in stages
+
+A plan names every step up front but writes the low level of only a few at a time, once the steps
+before them have landed and the facts they rest on are checked: detail written before its facts
+goes stale ([why](./decisions.md#plans-in-stages)). The terms are the process's, not the domain's,
+so the glossary holds none of them.
+
+- **Stage** — about three consecutive steps that deliver one outcome and complete the requirements
+  whose last step they hold. A stage of another size names its reason in its heading. It is
+  unrelated to the deployment `STAGE` of [aws.md](./aws.md) and to the "stage" the glossary avoids
+  for a message's status.
+- **Skeleton** — the plan's **Status** table, split by stage: every step's outcome, the `R…` and
+  `D…` it serves, its place in the order and its size. `/ticket-plan` cuts it once; a later stage
+  changes a row only through its preparation, and drops one only with a finding that says why.
+- **Direction** — a recommendation in `architecture.md › Direction` for a choice a stage can
+  still make or undo, naming the stage that settles it. It is never put to you: the stage design
+  takes it or sets it aside, with the fact. Beside it, each entry of `architecture.md ›
+  Assumptions` names the stage whose preparation checks it.
+- **Stage design** — the `### Stage design` section of a stage in `plan.md`: the facts checked for
+  it, each with its source or probe output; the names, signatures and files the stage fixes; and
+  each choice it makes, with the option set aside, the fact and the step that uses it. It is not
+  the Design pass of a review, which judges code.
+- **Stage preparation** — [stage.md](../../.claude/skills/ticket-plan/stage.md): a `researcher`
+  checks the facts and probes what only a run shows; the stage design and the stage's steps in
+  full are written; another `researcher` checks them against the repo and every requirement's
+  coverage; then the changes are triaged. What changes the architecture or the step list becomes
+  one question round for you; the rest commits as `St<n> (PLAN) Prepare stage <n>`, stage 1's with
+  your approval of the plan, and that commit is the stage's base. `/ticket-plan` runs it for stage
+  1 and on `next`; the loop runs it at a stage's close.
+- **Stage review** — the close of a stage, on its last step once that step's own passes are
+  settled: `simplify` over the stage's diff, then the Standards and Design passes on it, Design
+  also against `architecture.md`, the skeleton and the stage design. Its fixes commit as `STAGE`
+  rounds of the steps whose code they change. "Stage review" names the close, never a pass.
+- **Stage verification** — `/ticket-verify <ticket> stage <n>`: verifiers on the requirements the
+  stage completes and on the earlier ones whose files it changed, over the stage's range; a
+  failure is fixed as a `VERIFY` round of the step whose code it changes. When it is **due**
+  ([the stage close](../../.claude/skills/ticket-implement/SKILL.md#the-stage-close)), the close
+  names it outside a loop, and you may run one for any stage; inside a loop it runs at the close
+  without stopping.
+
+You approve the skeleton and stage 1 together; what a later stage commits without your OK is in
+the [gates](../../.claude/rules/sdd.md#gates). A ticket whose steps fit one stage is prepared at
+once and has no boundary to cross. Stages apply to plans written since they were introduced: a
+plan whose **Status** has no `### Stage` heading keeps its form, and every skill runs it step by
+step as before.
+
 ## The five skills
 
 All five run in the main session, because grilling, plan review and the commit gate need you.
@@ -43,9 +98,9 @@ for you. Each takes the ticket folder, except
 |---|---|---|---|
 | `/ticket-feature <slug> [idea]` | an idea, notes or a link | the answers to each grilling round; the terms | `feature.md` with EARS requirements; glossary entries |
 | `/ticket-architecture <ticket>` | `feature.md` | the Seams and the Decisions | `architecture.md` |
-| `/ticket-plan <ticket>` | `feature.md`, `architecture.md` | the plan as a whole: the heavy review | `plan.md` with steps and coverage |
+| `/ticket-plan <ticket> [next]` | `feature.md`, `architecture.md`; with `next`, also the closed stages | the skeleton and stage 1, in one approval; with `next`, only a question round, when the preparation raises one | `plan.md`: the skeleton, the coverage and stage 1 in full; with `next`, the next stage in full |
 | `/ticket-implement <ticket> [step \| loop]` | the next unblocked step, or each in turn ([the loop](#the-loop)) | whether a ready step closes without your OK, once per session; per round, feedback, a rejection or stop | the step's commits, one per round, each committed before you read it ([Gates](../../.claude/rules/sdd.md#gates)) |
-| `/ticket-verify <ticket>` | the branch against its PR's base branch | which simplifications and lessons to apply; whether to open the PR | `verification.md` |
+| `/ticket-verify <ticket> [stage <n>]` | the branch against its PR's base branch; with `stage <n>`, that stage's range | which simplifications and lessons to apply; whether to open the PR; for a stage, only a failure that needs a requirement changed | `verification.md`, with a per-stage table for a plan in stages; for a stage, its `## Stage <n>` section and a `VERIFY` round per failure |
 
 ## Under the hood
 
@@ -64,17 +119,22 @@ every input of the plugin's review skill would go silently stale when an update 
 What each skill and agent uses, read from their files. A commit that changes what a skill or agent
 uses updates this map too; the Standards review checks it against `.claude/rules/claude-md.md`.
 
-| Skill or agent | Plugin skills | Spawns | Hook | Writes |
-|---|---|---|---|---|
-| `/ticket-feature` | `grilling`, `domain-modeling`; for a bug, `diagnosing-bugs` phases 1 and 2 | `researcher` | — | `feature.md`, `docs/knowledge/glossary.md`, `docs/knowledge/roadmap.md` |
-| `/ticket-architecture` | `codebase-design`, `grilling` | `researcher` | — | `architecture.md` |
-| `/ticket-plan` | — | `researcher`; for a step that adds, changes or removes a guard a second one, which plants the probes in the disposable worktree `<slug>-plan-probes` set up by `make worktree` | — | `plan.md` |
-| `/ticket-implement` | on a new-interface step the built-in `simplify`, run by the main session, with `codebase-design` as its vocabulary | `implementer` (one worktree per parallel step, set up by `make worktree`), `reviewer` (one per review pass, in parallel), `researcher` (one per claimed finding, in parallel, all writing their confirming tests in one disposable worktree per review round, set up by `make worktree`) | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, the step's commits |
-| `/ticket-verify` | — | `verifier` (one per group of requirements, in parallel), `reviewer` (one per axis, in parallel) | — | `verification.md` |
-| `implementer` | `tdd`, preloaded | — | `make-check.sh` on `Stop` (runs as `SubagentStop`) | the step's files |
-| `reviewer` | one pass: Standards, Spec, Design or the hunt; on Standards over an instruction file, `writing-for-agents`; on Design, `codebase-design` as its vocabulary | — | — | nothing: read-only |
-| `verifier` | — | — | — | nothing: read-only |
-| `researcher` | — | — | — | nothing in the main tree; a probe or a confirming test only in a disposable worktree its brief names, set up by `make worktree` |
+| Skill or agent | Plugin skills | Spawns | Default model and effort, per use | Hook | Writes |
+|---|---|---|---|---|---|
+| `/ticket-feature` | `grilling`, `domain-modeling`; for a bug, `diagnosing-bugs` phases 1 and 2 | `researcher` | a fact to re-verify or a fact question: `opus high` | — | `feature.md`, `docs/knowledge/glossary.md`, `docs/knowledge/roadmap.md` |
+| `/ticket-architecture` | `codebase-design`, `grilling` | `researcher` | a fact or an experiment: `opus high` | — | `architecture.md` |
+| `/ticket-plan` | — | through [stage.md](../../.claude/skills/ticket-plan/stage.md), read afresh for each stage: `researcher` for the fact check, a second for a probe of behaviour, one for the plan check; for a step that adds, changes or removes a guard, one more for its probes; every probe runs in the disposable worktree `<slug>-plan-probes` set up by `make worktree` | the fact check, a probe of behaviour, the plan check: `opus high`; the guard probes: `sonnet medium`; each step's **Model** line it writes: `opus medium` for a move, rename or config step, `opus high` for one that writes behaviour | — | `plan.md`; `architecture.md` where you agreed to a stage's question; the stage's facts and preparation commits |
+| `/ticket-implement` | on a new-interface step and at a stage's close the built-in `simplify`, run by the main session, with `codebase-design` as its vocabulary | `implementer` (one worktree per parallel step, set up by `make worktree`), `reviewer` (one per review pass, in parallel; Standards and Design over the stage's diff at its close), `researcher` (one per claimed finding, in parallel, all writing their confirming tests in one disposable worktree per review round, set up by `make worktree`); in a loop, after a stage's close, what a due stage verification and the next stage's preparation spawn, read afresh from `ticket-verify/SKILL.md` and `ticket-plan/stage.md` | `implementer`: the step's **Model** line; Standards: `sonnet medium`; Spec: `opus medium`; the hunt and Design: `opus high`; a question about the code and a claimed finding: `researcher` on `opus high`; the no-op experiment: `sonnet medium` | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, the step's commits, a stage's `STAGE` rounds; in a loop, what the stage verification and preparation write |
+| `/ticket-verify` | — | `verifier` (one per group of requirements, in parallel), `reviewer` (one per axis, in parallel; none for a stage), `implementer` (a stage's `VERIFY` round per failure) | `verifier`: `opus high`, or `xhigh` for a stage over ~30 minutes of work; Standards: `sonnet medium`; Spec: `opus high`; `implementer`: the fixed step's **Model** line, `opus high` when it names none | — | `verification.md`, a stage's `VERIFY` rounds |
+| `implementer` | `tdd`, preloaded | — | the spawn's | `make-check.sh` on `Stop` (runs as `SubagentStop`) | the step's files |
+| `reviewer` | one pass: Standards, Spec, Design or the hunt, and at a stage's close Standards and Design over its diff, Design also against `architecture.md`, the skeleton and the stage design; on Standards over an instruction file, `writing-for-agents`; on Design, `codebase-design` as its vocabulary | — | the spawn's | — | nothing: read-only |
+| `verifier` | — | — | the spawn's | — | nothing: read-only |
+| `researcher` | — | — | the spawn's | — | nothing in the main tree; a probe or a confirming test only in a disposable worktree its brief names, set up by `make worktree` |
+
+**The rule for `fable`:** every spawn names its default model and effort. The spawning session
+may choose `fable` instead where it judges the result will be better for it, chiefly where a
+wrong answer passes every later check: a fact that settles a design, a review of shape, a
+verifier. A spawn on `fable` names it in the session's status.
 
 Plugin skills are `mattpocock-skills:<name>`; ticket files are in `docs/tickets/<ticket>/`.
 
@@ -91,6 +151,7 @@ graph LR
     reviewer([reviewer])
     verifier([verifier])
     hook[/make-check.sh/]
+    stagemd[[stage.md]]
   end
   subgraph plugin [mattpocock-skills]
     grilling{{grilling}}
@@ -107,17 +168,21 @@ graph LR
   feature --> researcher
   arch -.-> design & grilling
   arch --> researcher
-  plan --> researcher
+  plan ==> stagemd
+  stagemd --> researcher
   impl --> implementer & reviewer & researcher
+  impl ==>|in a loop| stagemd
+  impl ==>|in a loop| verify
   impl -.-> simplify
   simplify -.-> design
   implementer -.-> tdd
   implementer --> hook
-  verify --> verifier & reviewer
+  verify --> verifier & reviewer & implementer
   reviewer -.-> design & writing
 ```
 
-Solid arrows spawn an agent or run a hook; dotted arrows use a plugin skill.
+Solid arrows spawn an agent or run a hook; thick arrows read another file's procedure and run
+it; dotted arrows use a plugin skill.
 
 ### What the wrappers override, and why
 
@@ -167,6 +232,15 @@ the rounds already committed stay, and the current round stays uncommitted in th
 after a stop, answer it, then type the command again: a run that finds changes in the tree first
 asks whose they are, so your edits commit as an `OWNER` round and the agent's stopped round is
 finished by the implementer. Pushing and opening the PR still wait for your OK.
+
+In a plan in stages the loop crosses a stage's boundary on its own. On the stage's last step it
+runs the Stage review and commits its fixes as `STAGE` rounds; a Design finding that reshapes a
+module lands too, for you to read afterwards by its commit, unless it contradicts a `D…`: that one
+is held open and shown at the next stop, without causing one. Then it runs a due stage
+verification, prepares the next stage with `stage.md` and goes on with that stage's first step.
+Beyond a step's own stops, the boundary adds two: a question round of the preparation, and a
+verification failure that needs a requirement changed. Outside a loop, a stage's close names the
+stage verification when due and `/ticket-plan <ticket> next`, and waits for you.
 
 The loop runs in the main session, which learns that a step is done from the agent's
 notification; the built-in `/loop` fires on a timer instead, so it would either wait for nothing

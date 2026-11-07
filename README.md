@@ -158,7 +158,7 @@ graph LR
 |---|---|---|
 | `/ticket-feature` | `feature.md`: the requirements, as testable `WHEN … THE SYSTEM SHALL …` sentences | the answers to its questions, the domain terms |
 | `/ticket-architecture` | `architecture.md`: the seams to test at and the decisions | the seams and each decision |
-| `/ticket-plan` | `plan.md`: steps small enough for one session, each with its first test | the plan as a whole: the one heavy review |
+| `/ticket-plan` | `plan.md`: a skeleton of every step, then one stage of about three steps at a time, each step small enough for one session and with its first test | the skeleton and the first stage, in the one heavy review; a later stage only when its preparation asks |
 | `/ticket-implement` | one step, written test-first, committed round by round, then reviewed | whether it closes, what to fix first, or which round to reject |
 | `/ticket-verify` | `verification.md`: every requirement checked against observable behaviour | the fixes to make, and whether to open the PR |
 
