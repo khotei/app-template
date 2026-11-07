@@ -10,8 +10,8 @@ review is the skeleton and the first stage**: each later stage is checked when i
 Gates: `.claude/rules/sdd.md`. A stage is prepared by [stage.md](stage.md) beside this file, read
 afresh each time.
 
-A plan whose **Status** has no `### Stage` heading is in its old form: never re-cut it into
-stages, and stop `next` on it, saying so.
+A plan whose **Status** has no `### Stage` heading is in its old form: keep it in that form, and
+stop `next` on it, saying so.
 
 ## The first plan
 
@@ -38,8 +38,10 @@ stages, and stop `next` on it, saying so.
 
 ## `next`
 
-1. Find the first stage whose section reads "Not prepared". Stop and say so when a step of an
-   earlier stage is not `done`, or when no stage is left.
+1. Find the first stage that has a `### Stage design` but no `St<n> (PLAN) Prepare stage <n>`
+   commit (`git log --grep`), and resume it at `stage.md › Does` step 2; else the first stage
+   whose section reads "Not prepared". Stop and say so when a step of an earlier stage is not
+   `done`, or when no stage is left.
 2. Run `stage.md` for it.
 3. With no question, `stage.md` has committed: name the stage's first step,
    `/ticket-implement <ticket folder> S<n>`. With a question round, present it and wait; on the

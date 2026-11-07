@@ -12,7 +12,7 @@ whose skill says how the run ends.
 The ticket folder and the stage `<n>` to prepare. Read `feature.md`, `architecture.md`, the
 plan's **Status** (the skeleton) and, of each closed stage, its `### Stage design`, its
 `### Stage review` and its `verification.md › Stage <k>` section where one was run, with the code
-as it stands. That is the base: look only at the stage ahead, and never re-review a closed stage.
+as it stands. That is the base: look only at the stage ahead, and review only that stage.
 
 ## Does
 
@@ -20,14 +20,14 @@ as it stands. That is the base: look only at the stage ahead, and never re-revie
    assumption of `architecture.md › Assumptions` that names this stage and every fact the stage's
    skeleton rows rest on: a file, API or flag, the shape of the earlier stages' code. A fact only
    a run shows goes to a second `researcher` on `opus high`, with the probe and the worktree
-   below. Record the results at the head of the stage's `### Stage design`, each with its source
-   or probe output. For a stage after the first, commit `plan.md` at once as `St<n> (PLAN) Record
-   the facts of stage <n>`, so a compaction or a question round loses none; a first plan's
-   facts wait for its approval.
+   below. Record the results at the head of the stage's `### Stage design`, in place of its
+   "Not prepared" line where it has one, each with its source or probe output. For a stage after
+   the first, commit `plan.md` at once as `St<n> (PLAN) Record the facts of stage <n>`, so a
+   compaction or a question round loses none; a first plan's facts wait for its approval.
 2. **Write the stage design:** the names, signatures and files the stage fixes, then each choice
    it makes from `architecture.md › Direction` or that a fact forces, as
-   `- **<choice>** — set aside: <option> — fact: <the fact> — used by: S<n>`. A direction is
-   taken or set aside with its fact, never put to the user.
+   `- **<choice>** — set aside: <option> — fact: <the fact> — used by: S<n>`. The stage design
+   settles each direction itself, taking it or setting it aside with its fact.
 3. **Write the stage's steps in full** under `### Steps`, from its skeleton rows, each a
    deliverable cut by the rule of **Cut the skeleton** in [SKILL.md](SKILL.md) beside this file.
    Every step has:
