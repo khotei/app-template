@@ -28,7 +28,10 @@ repository holds no `GLOSSARY.md`, `GLOSSARY-MAP.md`, `CONTEXT.md` or `docs/adr/
    `docs/knowledge/` documents the idea touches, and the slug's entry in
    `docs/knowledge/roadmap.md` if the slug has one, whose goal, scope, inherited requirements, open
    questions and facts seed the grilling; send the entry's dated facts the ticket relies on to the
-   `researcher` agent to re-verify.
+   `researcher` agent to re-verify, on the default model and effort `opus high`. You may choose
+   `fable` over this default for any researcher of this skill where you judge the answer will be
+   better for it, chiefly where it settles a requirement and nothing after it re-checks it, and
+   name it in the status.
 2. **A bug starts from a red command.** A bug is what the user reports as broken; ask when the
    input leaves it open. Call the Skill tool with `mattpocock-skills:diagnosing-bugs` and run
    its phases 1 and 2 only, to one minimised command that runs on the files already in the tree
@@ -38,7 +41,8 @@ repository holds no `GLOSSARY.md`, `GLOSSARY-MAP.md`, `CONTEXT.md` or `docs/adr/
    output go into `feature.md › Reproduction`.
 3. Call the Skill tool with `mattpocock-skills:grilling` and `mattpocock-skills:domain-modeling`,
    then grill the user until the frontier is empty. Every fact question goes to the `researcher`
-   agent; the user answers only decisions. Resolved terms go into the glossary as they settle.
+   agent on `opus high`; the user answers only decisions. Resolved terms go into the glossary as
+   they settle.
 4. Write `feature.md`: problem, goal, context, scope, out of scope, requirements `R1…` in EARS
    (`WHEN … THE SYSTEM SHALL …`, `WHILE`, `WHERE`, `IF … THEN`) that name behaviour, not paths
    or code names, one acceptance check per requirement that names none either (a command,
