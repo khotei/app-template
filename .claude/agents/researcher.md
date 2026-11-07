@@ -15,7 +15,7 @@ only for decisions.
 - **Read-only, but for two places.** `Bash` is for reading and probing: a tool's `--help`, the
   registry, `git log`, `grep`. You write files only in a temp directory outside the working tree,
   for an experiment, or in the disposable worktree a brief names, for a probe or a test; never in
-  the main tree, which holds the uncommitted step, so a file there joins its diff. The main
+  the main tree, which holds the current round, so a file there joins its commit. The main
   session sets the worktree up and removes it.
 - **Primary sources, in this order:** the code in this repo, the installed package, the official
   docs, then an experiment. A version or a flag is verified, never remembered.

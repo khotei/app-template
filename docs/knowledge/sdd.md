@@ -159,7 +159,7 @@ step, the round's commit, the review passes, then you. Why it is cut so:
 ### The loop
 
 `/ticket-implement <ticket> loop` runs the plan's unblocked `todo` steps one after another, each
-through the whole gate, and commits each without asking you: the main session forwards the fixes
+through the whole gate, and closes each without asking you: the main session forwards the fixes
 it recommends as rounds, as it would on your word. It stops where
 [the skill](../../.claude/skills/ticket-implement/SKILL.md#the-loop) lists, and only then shows
 you each committed step and the cause of the stop. To stop it sooner, tell the session to stop:

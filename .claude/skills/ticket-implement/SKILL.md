@@ -14,22 +14,24 @@ step id, take step after step, as **The loop** below says. Gates:
 1. **Pick the step:** the one named, else the first `todo` step whose `Blocked by` steps are all
    `done`. Of `plan.md`, read only the **Status** table and the step's own section.
    Check that the branch is the ticket branch (`<type>/<slug>`); otherwise stop and ask. Before
-   anything else, commit a change to tracked files that this session did not make as an `OWNER`
-   round of the step whose files it changes (`.claude/rules/commits.md › A ticket's rounds`), its
-   body naming what changed and what it reaches: the callers and tests a search finds. When the
-   last status named a stopped round as left uncommitted, ask instead whose the changes are.
+   anything else, run the **owner check**: a change in `git status --short`, an untracked file
+   included, that this session did not make commits as an `OWNER` round of the step whose files
+   it changes (`.claude/rules/commits.md › A ticket's rounds`), its body naming what changed and
+   what it reaches: the callers and tests a search finds. When the last status named a stopped
+   round as left uncommitted, ask instead whose the changes are.
 2. **Implement.** Spawn the `implementer` agent with pointers only: the ticket folder and the
    step id, on the `model` and `effort` the step's **Model** line names (`opus medium` for a
    move, rename or config step; `opus high` for one that writes behaviour). You may choose `fable`
-   over this default or any of steps 3 and 4 where you judge the result will be better for it,
+   over this default or any model named in steps 3 and 4 where you judge the result will be
+   better for it,
    chiefly where a wrong answer passes every later check, and name it in the status. What
    it reads, what it leaves to you and how it reports are in its file; a brief does not repeat
    them. Its `make check` hook keeps it working until the gate is green. A report that starts with
    `BLOCKED:` goes straight to the user. At the session's first step outside a loop, ask the
    commit question of `.claude/rules/sdd.md › Gates` now, while the implementer works, and hold
    the answer; a later step does not ask again. Once `simplify` (below) and `make check` are done,
-   commit the round with the implementer's proposed message, named as `commits.md` says, before
-   anything is presented.
+   commit the round with the implementer's proposed message, named as
+   `.claude/rules/commits.md › A ticket's rounds` says, before anything is presented.
    - **A new-interface step** is a behaviour step (below) whose diff adds an exported name, a
      module or a Seam. Simplify and Design run on it alone; any other step gets Standards and
      Spec, and the hunt where step 3 names it.
@@ -105,20 +107,19 @@ step id, take step after step, as **The loop** below says. Gates:
      commit them as the step's `PLAN` round, its body naming the passes that ran, as a command of
      its own. An amendment also rewrites the decision's body, Contract, Seam or Risks entry it
      makes wrong; its note keeps only what changed and the rejected alternative;
-   - **feedback** (the user's, or the fixes you recommend): send it to the same implementer
-     (`SendMessage`) as the next round, each accepted finding forwarded as its reviewer wrote it,
-     `path:line` first; commit its report's round as step 2 does, under its source, its body
-     opening with the fixed round's id, and return to 3;
-   - **reject** (a round): while it is the branch's last commit, `git revert` it by a new commit
-     whose subject names it; once later work rests on it, the rejection is feedback for a round
-     that fixes it forward;
+   - **feedback** (the user's, or the fixes you recommend): run step 1's owner check, then send
+     it to the same implementer (`SendMessage`) as the next round, each accepted finding
+     forwarded as its reviewer wrote it, `path:line` first; commit its report's round as step 2
+     does, under its source, its body opening with the fixed round's id, and return to 3;
+   - **reject** (a round): run step 1's owner check, then revert the round with `git revert` or
+     fix it forward as `.claude/rules/sdd.md › Gates` says;
    - **stop:** leave the working tree as it is, and name a round left uncommitted in the status.
 6. Name the next unblocked step and end the turn; in a loop, return to 1 instead.
 
 ## The loop
 
 `loop` takes the unblocked `todo` steps one at a time, each through steps 1 to 5, under the
-waiver of `.claude/rules/sdd.md › Gates`: each ready step commits, and the fixes you recommend
+waiver of `.claude/rules/sdd.md › Gates`: each ready step closes, and the fixes you recommend
 go to the implementer as the next round without asking. Step 4 defers its presentation to the
 stop; each committed step adds a line (its id, its commits and the passes that ran) to what you
 present when the loop stops, at the first of:
