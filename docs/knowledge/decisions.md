@@ -830,8 +830,11 @@ a verification of what it built (`.claude/rules/sdd.md › Gates`).
   late-step detail edited after approval in 6 of the 9 with history: 4 to 8 of the 10 steps after
   the third, with edits reaching up to 8 steps ahead. What held was the step list, each step's
   outcome and the architecture's decisions, which the skeleton keeps; so the heavy review lands
-  on the skeleton and the first stage, each later stage is checked when prepared and reviewed
-  when it closes, and a preparation that asks the user nothing commits without the user's OK.
+  on the skeleton and the first stage, and each later stage is checked when prepared and
+  reviewed when it closes. Three commits skip the user's OK, so a loop crosses a boundary
+  without stopping: a stage's facts, which land before its triage so a compaction or a question
+  round loses none; a preparation that asks the user nothing; and a stage verification's section
+  when no failure in it needs a requirement changed.
 - **Sources:** `.claude/skills/ticket-plan/stage.md` (the preparation), the stage close of
   `.claude/skills/ticket-implement/SKILL.md` and the stage mode of
   `.claude/skills/ticket-verify/SKILL.md`;
@@ -842,7 +845,7 @@ a verification of what it built (`.claude/rules/sdd.md › Gates`).
   architecture, the skeleton and the stage design, already reads the stage's shape.
 - **Cost:** the user sees a later stage only as its commits, unless its preparation asks; each
   close runs `simplify` and two reviewers over the stage's diff, and a verifier every second
-  close or after a change to the architecture; a plan grows by a section per stage.
+  close or after a change to a contract or the architecture; a plan grows by a section per stage.
 - **Guarded by:** a stage's steps are written only by its preparation, so `/ticket-implement`
   finds no `todo` step in a stage not yet prepared; review against `.claude/rules/sdd.md`.
 - **If reversed:** one commit brings back the plan detailed whole under one review and drops the
