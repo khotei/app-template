@@ -36,19 +36,23 @@ Every change of substance runs **feature → architecture → plan → implement
   lands, with an acceptance check red before it and green after. It is ≤ ~400 changed lines of
   code and tests (its docs counted apart) and fits one fresh session. A ticket is one branch
   `<type>/<slug>` and one squash-merged PR, so no commit between two steps reaches `main`.
-- **A step lands in rounds, one commit each.** The implementer's pass is round `S<n>.1`; what
-  stands commits first, under the commit gate; any fix, the user's or the main session's, then
-  lands as `S<n>.2`, so each diff is read alone. The commit body opens with the round id and what
-  it changed; `plan.md` is edited only at the last round.
-- **The commit gate, for every commit or amend of a ticket.** At its first step of a session,
-  `/ticket-implement` asks once whether each ready step commits without the user's OK or waits
-  for it, and holds the answer for the session; it covers the step's rounds too. Started with
-  `loop`, it does not ask: the loop waives the OK between its steps and their rounds, not the OK
-  for a push, a PR or a merge. A step is ready when the passes `/ticket-implement` names for it
+- **A step lands in rounds, one commit each,** named as `commits.md › A ticket's rounds` says. A
+  round commits once `make check` is green, before the user reads it, so each diff is read alone,
+  and the step's passes review its committed rounds. The user's own edits, found between rounds,
+  commit first as an `OWNER` round; an edit during a live round is not one, so the user says stop
+  first. No commit the user has seen is amended or squashed before the PR: a rejected round is
+  reverted by a new commit only while it is the branch's last, and fixed forward by a new round
+  once later work rests on it. `plan.md` is edited only at the step's close, a `PLAN` round.
+- **The commit gate, for every commit of a ticket.** A round commits when ready; the gate decides
+  whether a ready step closes. At its first step of a session, `/ticket-implement` asks once
+  whether a ready step closes without the user's OK or waits for it, and holds the answer for the
+  session. Started with `loop`, it does not ask: the loop waives the OK between its steps, not the
+  OK for a push, a PR or a merge. A step is ready when the passes `/ticket-implement` names for it
   ran, their fixes are in and `make check` is green, a round when `make check` is green; a
   finding left to the user's choice waits for the user either way. Any other ticket artifact
-  commits once the user has confirmed it in its skill. Pushing, opening a PR, merging and
-  creating a remote always wait for the user's OK.
+  commits once the user has confirmed it in its skill; a stage preparation with no question
+  commits without the user's OK. Pushing, opening a PR, merging and creating a remote always wait
+  for the user's OK.
 - **Deviations are recorded** in the same commit: `plan.md` findings, `architecture.md ›
   Decisions` when it is a decision, and `feature.md` when it changes what a requirement asks.
   A decision that adds or changes a binding rule also adds or rewrites its record in

@@ -80,6 +80,7 @@
       "Bash(git stash*)",
       "Bash(git apply*)",
       "Bash(git cherry-pick*)",
+      "Bash(git revert*)",
       "Bash(git branch*)",
       "Bash(git rebase*)",
       "Bash(git switch *)",

@@ -786,3 +786,35 @@ A `CLAUDE.md` and a rule each have a line limit; the numbers live only in the li
 - **If reversed:** drop the `over-limit` rule of the doc lint; the limits go back to advice.
 - **Revisit when:** a constraint that passes the test of `claude-md.md` no longer fits its file
   after every other line has been cut.
+
+### Rounds by commit
+
+Every round of a ticket's step is a commit, named by its stage, step, round and source
+(`.claude/rules/commits.md › A ticket's rounds`), committed as soon as `make check` is green and
+before the user reads it; the user's own edits, found between rounds, are a round of their own,
+and no commit the user has seen is rewritten before the PR.
+
+- **Why:** the user reviews by commit. A change made over an uncommitted round, by an agent or by
+  hand, cannot be told apart from the round afterwards, so the user re-reads the whole step to
+  find what moved. A subject that opens with the round's id and source, and a fix's body that
+  opens with the round it fixes, show in `git log --oneline` where a change belongs, who asked for
+  it and what it corrects. Committing before reading costs nothing on `main`, which takes the
+  ticket as one squash.
+- **Sources:** `.claude/rules/sdd.md › Gates` (the rounds and the commit gate);
+  [the ticket that made this record](../tickets/2026-11-07-1232_sdd-stages/feature.md).
+- **Rejected:** the kind of change in the brackets (`FIX`): it repeats the gitmoji and type and
+  leaves the source unnamed. The fixed commit's hash in a fix's body: it goes stale after a
+  cherry-pick. A review of the uncommitted step: the user's edits over it mix with the round. The
+  user's edits folded into the next agent round: that round's diff is no longer the agent's.
+- **Cost:** more commits on the branch, a rejected round among them as a revert; a subject longer
+  by the id, which counts apart from its 50 characters; a commit takes 1.3 s for docs and 2.5 s
+  for code with the pre-commit hook. Every reader of the step's diff reads a committed range
+  (`make review-rules BASE=<base>`, the parallel steps' pick, the claimed finding's worktree), and
+  `git revert` is in the allow list of `.claude/settings.json`. A rejection after later work rests
+  on a round fixes forward, since a revert there would pull the base from under that work.
+- **Guarded by:** review against `.claude/rules/commits.md` and `.claude/rules/sdd.md`; nothing
+  checks a subject's id.
+- **If reversed:** one commit in `commits.md`, `sdd.md` and `/ticket-implement` brings back one
+  commit per reviewed step; a written history keeps its names.
+- **Revisit when:** a ticket's history is read by its PR alone, or the rounds' count makes
+  `git log --oneline` of a branch harder to read than its steps.

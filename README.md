@@ -159,15 +159,15 @@ graph LR
 | `/ticket-feature` | `feature.md`: the requirements, as testable `WHEN … THE SYSTEM SHALL …` sentences | the answers to its questions, the domain terms |
 | `/ticket-architecture` | `architecture.md`: the seams to test at and the decisions | the seams and each decision |
 | `/ticket-plan` | `plan.md`: steps small enough for one session, each with its first test | the plan as a whole: the one heavy review |
-| `/ticket-implement` | one step, written test-first, reviewed, then committed | whether it commits, or what to fix first |
+| `/ticket-implement` | one step, written test-first, committed round by round, then reviewed | whether it closes, what to fix first, or which round to reject |
 | `/ticket-verify` | `verification.md`: every requirement checked against observable behaviour | the fixes to make, and whether to open the PR |
 
 What keeps the agents honest:
 
 - 🧪 **An `implementer` cannot finish red.** A hook runs `make check` when it stops and sends it
   back until it passes; the only other way out is to report itself blocked, which reaches you.
-- 🔍 **Every step is reviewed before it is committed,** by read-only `reviewer` agents in a fresh
-  context, each owning one kind of finding.
+- 🔍 **Every round is a commit you read alone, and every step is reviewed before it closes,** by
+  read-only `reviewer` agents in a fresh context, each owning one kind of finding.
 - ✅ **Every requirement is verified** by `verifier` agents that see the behaviour, not the
   implementer's report.
 - 📜 **The reasoning stays.** The ticket folder and the commit messages keep each decision, its

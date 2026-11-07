@@ -44,7 +44,7 @@ for you. Each takes the ticket folder, except
 | `/ticket-feature <slug> [idea]` | an idea, notes or a link | the answers to each grilling round; the terms | `feature.md` with EARS requirements; glossary entries |
 | `/ticket-architecture <ticket>` | `feature.md` | the Seams and the Decisions | `architecture.md` |
 | `/ticket-plan <ticket>` | `feature.md`, `architecture.md` | the plan as a whole: the heavy review | `plan.md` with steps and coverage |
-| `/ticket-implement <ticket> [step \| loop]` | the next unblocked step, or each in turn ([the loop](#the-loop)) | the commit gate's question, once per session; feedback, or stop | the step's commits, by round ([Gates](../../.claude/rules/sdd.md#gates)) |
+| `/ticket-implement <ticket> [step \| loop]` | the next unblocked step, or each in turn ([the loop](#the-loop)) | whether a ready step closes without your OK, once per session; per round, feedback, a rejection or stop | the step's commits, one per round, each committed before you read it ([Gates](../../.claude/rules/sdd.md#gates)) |
 | `/ticket-verify <ticket>` | the branch against its PR's base branch | which simplifications and lessons to apply; whether to open the PR | `verification.md` |
 
 ## Under the hood
@@ -126,7 +126,7 @@ Solid arrows spawn an agent or run a hook; dotted arrows use a plugin skill.
 | `domain-modeling` writes `GLOSSARY.md` at the root and ADRs to `docs/adr/` | glossary in `docs/knowledge/glossary.md`; ADR candidates become open questions, then `D…` decisions, and a binding one a record in `docs/knowledge/decisions.md` | one docs tree; a decision's history stays next to the ticket that made it, its living record in one page |
 | `to-spec` and `to-tickets` write to `.scratch/` or an issue tracker, as user stories | `/ticket-feature` and `/ticket-plan` write EARS requirements and steps into the ticket folder | artifacts are reviewed and committed with the code |
 | `tdd` asks the user to confirm seams before testing | the implementer takes them from `architecture.md › Seams`, confirmed earlier | a subagent cannot ask, and the seams were already agreed |
-| `implement` commits on its own and reviews committed work | `/ticket-implement` reviews the uncommitted step and commits it under the commit gate | a step commits only once reviewed, and as you chose |
+| `implement` commits on its own and reviews committed work | `/ticket-implement` commits each round as soon as it is green, reviews the step's committed rounds, and closes the step under the commit gate | every change, yours included, is a commit you can read alone; the step closes only once reviewed, and as you chose |
 | `improve-codebase-architecture` scans the whole codebase, writes an HTML report, grills, and writes `GLOSSARY.md` and ADRs | the Design pass of `/ticket-implement`: a read-only `reviewer` on one step, with at most five candidates, each a sketch and a strength | the shape is questioned while the step is small, and no doc lands outside `docs/knowledge/` and the ticket |
 | `research` writes a notes file into the repo | `researcher` answers in its report | facts reach the conversation, not the tree |
 | `diagnosing-bugs` runs from a feedback loop to the fix and its regression test | `/ticket-feature` runs phases 1 and 2 only, to one red command on the tree as it stands, copied into `feature.md` | the fix and its test go through the plan and its review |
@@ -135,15 +135,16 @@ Solid arrows spawn an agent or run a hook; dotted arrows use a plugin skill.
 
 The gate is stated in [.claude/rules/sdd.md › Gates](../../.claude/rules/sdd.md#gates), and
 `/ticket-implement` runs a step through it: the `implementer`, then `simplify` on a new-interface
-step, then the review passes, then you. Why it is cut so:
+step, the round's commit, the review passes, then you. Why it is cut so:
 
 - **The implementer cannot finish red.** A hook runs `make check` when it stops and sends it
   back; `BLOCKED:` is its only way out, and reaches you unchanged.
 - **The main session runs `simplify`, never the implementer,** so the agent that wrote the code
   does not judge its own cuts. A move, as `/ticket-implement` defines one, skips it: the
   moved files keep their content for `git` to see the rename.
-- **Each review pass is its own `reviewer` in a fresh context,** on the uncommitted step, so the
-  step is reviewed before it commits and one pass cannot hide another; what a reviewer reads,
+- **Each round commits before anyone reads it, and each review pass is its own `reviewer` in a
+  fresh context,** on the step's committed rounds, so an edit of yours or an agent's over a round
+  never mixes with it, and one pass cannot hide another; what a reviewer reads,
   owns and reports is in [reviewer.md](../../.claude/agents/reviewer.md). Design runs only on a
   new-interface step (a behaviour step that adds an export, a module or a Seam), where the shape
   is still cheap to change; the hunt for bugs only on a step whose kind of change it paid off on.
@@ -186,7 +187,9 @@ gitGraph
   commit id: "postgres-drizzle (squash)"
   branch refactor/effect-primitives
   commit id: "S28.1"
-  commit id: "S28.2"
+  commit id: "S28.2 (REVIEW)"
+  commit id: "S28.3 (OWNER)"
+  commit id: "S28.4 (PLAN)"
   checkout main
   commit id: "effect-primitives (squash)"
 ```
