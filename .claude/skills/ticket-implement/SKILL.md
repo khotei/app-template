@@ -49,8 +49,8 @@ step id, take step after step, as **The loop** below says. Gates:
    in one shape (its file says which and how). Spawn the passes in parallel, one `reviewer` each,
    its brief naming the pass, the diff, its sources and the word limit of 400, and nothing else:
    no question or focus of its own. The diff is the step's committed rounds, `git diff <base>
-   HEAD`, where `<base>` is the parent of the step's `S<n>.1`, found by the subject search of
-   `commits.md`. Every step gets the two axes:
+   HEAD`, where `<base>` is the parent of the oldest commit the subject search of `commits.md`
+   finds for the step. Every step gets the two axes:
 
    - **Standards**, on `sonnet medium`: `make review-rules BASE=<base>`'s output, pasted
      verbatim with nothing added, and the `CLAUDE.md` of every touched workspace, each by its
@@ -97,22 +97,24 @@ step id, take step after step, as **The loop** below says. Gates:
    with their cost, your recommendation, then the question; never the findings in one section and
    the questions in another.
 5. **Commit gate.** Once the step is ready (`.claude/rules/sdd.md › Gates`), close it as the
-   session's answer says, or wait for the user's word. Nothing presented is amended:
-   - **close:** set the step's `Status: done` (or `blocked: <gate>` while a gate the step
-     names, such as a branch, a push or a CI run, has not run yet) in the step and in its row
-     of the plan's **Status** table, write every finding the review raised in the step's
-     **Findings**, each with its pass and fate in the shape of the plan template (one that
-     states a check's result quotes the output it rests on), add any new decision to
-     `architecture.md`, with the record it adds or changes in `docs/knowledge/decisions.md`, and
-     commit them as the step's `PLAN` round, its body naming the passes that ran, as a command of
-     its own. An amendment also rewrites the decision's body, Contract, Seam or Risks entry it
-     makes wrong; its note keeps only what changed and the rejected alternative;
+   session's answer says, or wait for the user's word:
+   - **close:** run step 1's owner check, then set the step's `Status: done` (or
+     `blocked: <gate>` while a gate the step names, such as a branch, a push or a CI run, has not
+     run yet) in the step and in its row of the plan's **Status** table, write every finding the
+     review raised in the step's **Findings**, each with its pass and fate in the shape of the
+     plan template (one that states a check's result quotes the output it rests on), add any new
+     decision to `architecture.md`, and commit them as the step's `PLAN` round, its body naming
+     the passes that ran, as a command of its own; the decision's record in
+     `docs/knowledge/decisions.md` landed with its round. An amendment also rewrites the
+     decision's body, Contract, Seam or Risks entry it makes wrong; its note keeps only what
+     changed and the rejected alternative;
    - **feedback** (the user's, or the fixes you recommend): run step 1's owner check, then send
      it to the same implementer (`SendMessage`) as the next round, each accepted finding
      forwarded as its reviewer wrote it, `path:line` first; commit its report's round as step 2
      does, under its source, its body opening with the fixed round's id, and return to 3;
-   - **reject** (a round): run step 1's owner check, then revert the round with `git revert` or
-     fix it forward as `.claude/rules/sdd.md › Gates` says;
+   - **reject** (a round): run step 1's owner check, then revert the round or fix it forward as
+     `.claude/rules/sdd.md › Gates` says; a revert is named as
+     `.claude/rules/commits.md › A ticket's rounds` says (`git revert --no-commit`, then commit);
    - **stop:** leave the working tree as it is, and name a round left uncommitted in the status.
 6. Name the next unblocked step and end the turn; in a loop, return to 1 instead.
 

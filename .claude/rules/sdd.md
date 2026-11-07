@@ -53,7 +53,7 @@ Every change of substance runs **feature → architecture → plan → implement
   commits once the user has confirmed it in its skill; a stage preparation with no question
   commits without the user's OK. Pushing, opening a PR, merging and creating a remote always wait
   for the user's OK.
-- **Deviations are recorded** in the same commit: `plan.md` findings, `architecture.md ›
-  Decisions` when it is a decision, and `feature.md` when it changes what a requirement asks.
-  A decision that adds or changes a binding rule also adds or rewrites its record in
-  `docs/knowledge/decisions.md`, in the same commit.
+- **Deviations are recorded** by the step's `PLAN` round: `plan.md` findings, and
+  `architecture.md › Decisions` when it is a decision. `feature.md`, when it changes what a
+  requirement asks, and the record in `docs/knowledge/decisions.md` of a decision that adds or
+  changes a binding rule land in the round itself.
