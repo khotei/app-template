@@ -44,7 +44,9 @@ the diff, not how it was made.
     only when the friction is real. A correctness bug is the hunt's. When the brief names a
     stage's diff, with `architecture.md`, the plan's skeleton and the stage design among its
     sources, also report a departure from any of them and scaffolding a later skeleton step
-    rewrites, and only what changes correctness or shape. Each candidate:
+    rewrites, and only what changes correctness or shape. There a correctness bug is yours too,
+    reported as a behaviour finding below, since no hunt runs over a stage's diff. Each
+    candidate:
 
     ````text
     ### <n>. <lens>: <the change, one line> — Strong | Worth exploring | Speculative
@@ -71,10 +73,10 @@ the diff, not how it was made.
 - **Each finding is one line**, so the main session forwards it without reading the code;
   a finding without a `path:line` is not reported. Its line is the file's own line number, never
   a position in a diff hunk. Skip what `make check` already enforces.
-  - **A finding about behaviour**, Spec's or the hunt's, a missing test included, carries its
-    failure: an input and the wrong outcome it gets. `shown` names the command or test output
-    that showed it; `claimed` means none was run, and the main session has it confirmed. One
-    without a scenario is not reported.
+  - **A finding about behaviour**, Spec's, the hunt's or Design's on a stage, a missing test
+    included, carries its failure: an input and the wrong outcome it gets. `shown` names the
+    command or test output that showed it; `claimed` means none was run, and the main session has
+    it confirmed. One without a scenario is not reported.
 
     ```text
     - `path:line` — <R… or bug> — <input> → <wrong outcome> — shown: <command> | claimed — <fix>

@@ -140,7 +140,8 @@ verification: `/ticket-verify` verifies it.
 2. **Simplify** it: call the Skill tool with `simplify`, its args naming that range, the rules
    `make review-rules BASE=<base>` prints and the deletion test and depth of
    `mattpocock-skills:codebase-design`, since without a range it reviews the whole branch. Run
-   `make check`, then commit its edits as a `STAGE` round of each step whose code they change.
+   `make check`, then commit its edits as one `STAGE` round carrying the id of each step whose
+   code they change.
 3. **Review** the range as `## Steps` 3 briefs the passes, in parallel: **Standards** on
    `sonnet medium`, its brief also naming the `simplify` round's commit when it made one;
    **Design** on `opus high`, its sources also naming `architecture.md`, the plan's **Status**
@@ -149,7 +150,9 @@ verification: `/ticket-verify` verifies it.
    the last step's implementer, resumed by its agent id (`SendMessage`), or, when it was stopped,
    to a fresh `implementer` given that step's brief, on its **Model** line as step 2 says; the
    message names the **Files** and Traps of the steps whose code the fix changes. Its round
-   commits as a `STAGE` round of those steps, and this close's step 3 runs again on the range.
+   commits as one `STAGE` round carrying the id of each of those steps, and this close's step 3
+   runs again on the range. Each such fix round counts toward the last step's three fix rounds
+   of **The loop**, whichever steps' code it changes.
 5. **Record** every finding under the stage's `### Stage review`, in the shape of a step's
    **Findings**, in the last step's `PLAN` round (`## Steps` 5's **close**).
 
@@ -174,7 +177,7 @@ without causing one. The loop stops at the first of:
 
 - a `BLOCKED:` report;
 - a finding the user must decide, presented as step 4 says, a stage verification's failure that
-  needs a requirement changed among them;
+  needs a requirement changed among them, but not a stage's Design finding held open above;
 - a stage preparation with a question round, presented as `stage.md` returns it;
 - a step not ready after three fix rounds, left as step 5's **stop** leaves it;
 - the user's word to stop, which leaves the current round uncommitted;
