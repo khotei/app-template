@@ -58,13 +58,17 @@ commit gate of `.claude/rules/sdd.md`.
 Verify what stage `<n>` built before a later stage rests on it. A plan without `## Stage`
 headings has no `Completed in`: stop and say so.
 
-1. **Pick the requirements:** those whose `Completed in` in `plan.md › Requirement coverage` is
-   stage `<n>`, and each one completed earlier whose steps' **Files** the stage's diff changes
-   (`git diff --name-only <fixed point>...HEAD`). The fixed point is the stage's base, the commit
-   `St<n> (PLAN) Prepare stage <n>` (`git log --grep`); check it as step 1 does.
-2. **Verify** them as step 1 groups and briefs them, the verifiers on `opus high`, or `xhigh` for
-   a stage over ~30 minutes of work. No reviewer, since the stage's close reviewed its diff, and
-   no lessons, which stay with the whole-ticket run.
+1. **Pick the requirements.** The stage's range starts at its base, the commit
+   `St<n> (PLAN) Prepare stage <n>` (`git log --grep`), the fixed point, and ends at the parent
+   of `St<n+1> (PLAN) Prepare stage <n+1>` when that commit exists, else at `HEAD`; check it as
+   step 1 does. The requirements are those whose `Completed in` in
+   `plan.md › Requirement coverage` is stage `<n>`, and each one completed earlier whose steps'
+   **Files** `git diff --name-only <fixed point>...<end>` lists.
+2. **Verify** them, grouped and briefed as step 1 does, each brief naming the range's end too,
+   the verifiers on `opus high`, or `xhigh` for a stage over ~30 minutes of work. No reviewer,
+   since the stage's close reviewed its diff, and no lessons, which stay with the whole-ticket
+   run. The step is done when every requirement of the list has a `pass`, `fail` or
+   `not verifiable` verdict.
 3. **Fix a `fail`** before anything else runs: spawn an `implementer` with the ticket folder, the
    id of the step whose code the fix changes and the verifier's evidence, on the step's
    **Model** line, `opus high` when it names none. It is a `VERIFY` round of that step, committed
