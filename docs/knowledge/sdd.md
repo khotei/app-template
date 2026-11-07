@@ -15,6 +15,7 @@ graph LR
   SV -.-> N
   N --> I
   R -->|last stage| V["/ticket-verify"]
+  SV -.->|last stage| V
   I -->|one stage| V
   V -->|fixes become steps| I
   V -->|pass| PR[PR · squash merge]
@@ -82,8 +83,9 @@ so the glossary holds none of them.
 
 You approve the skeleton and stage 1 together; what a later stage commits without your OK is in
 the [gates](../../.claude/rules/sdd.md#gates). A ticket whose steps fit one stage is prepared at
-once and has no boundary to cross. Stages apply only to a plan whose **Status** has `### Stage`
-headings: a plan without one keeps its form and runs step by step.
+once and has no boundary to cross. `/ticket-plan` writes every plan with `### Stage` headings in
+its **Status**, and stages apply only to such a plan: a plan without them keeps its form, is not
+re-cut, and runs step by step.
 
 ## The five skills
 
