@@ -818,3 +818,35 @@ and no commit the user has seen is rewritten before the PR.
   commit per reviewed step; a written history keeps its names.
 - **Revisit when:** a ticket's history is read by its PR alone, or the rounds' count makes
   `git log --oneline` of a branch harder to read than its steps.
+
+### Plans in stages
+
+A ticket's plan holds every step as a skeleton, with its outcome and coverage, and writes the low
+level, a stage design and its steps in full, one stage of about three steps at a time, after the
+facts those steps rest on are checked. Each stage closes with a review of its diff and, when due,
+a verification of what it built (`.claude/rules/sdd.md › Gates`).
+
+- **Why:** the low level written before its facts goes stale. An audit of 21 tickets found
+  late-step detail edited after approval in 6 of the 9 with history: 4 to 8 of the 10 steps after
+  the third, with edits reaching up to 8 steps ahead. What held was the step list, each step's
+  outcome and the architecture's decisions, which the skeleton keeps; so the heavy review lands
+  on the skeleton and the first stage, each later stage is checked when prepared and reviewed
+  when it closes, and a preparation that asks the user nothing commits without the user's OK.
+- **Sources:** `.claude/skills/ticket-plan/stage.md` (the preparation), the stage close of
+  `.claude/skills/ticket-implement/SKILL.md` and the stage mode of
+  `.claude/skills/ticket-verify/SKILL.md`;
+  [the ticket that made this record](../tickets/2026-11-07-1232_sdd-stages/feature.md).
+- **Rejected:** the whole plan detailed and approved up front: the stale detail above. Each stage
+  approved by the user: an independent critic counted 8 to 14 approvals per ticket and a loop
+  stopping every three steps. A review pass of its own for a stage: the Design pass, given the
+  architecture, the skeleton and the stage design, already reads the stage's shape.
+- **Cost:** the user sees a later stage only as its commits, unless its preparation asks; each
+  close runs `simplify` and two reviewers over the stage's diff, and a verifier every second
+  close or after a change to the architecture; a plan grows by a section per stage.
+- **Guarded by:** a stage's steps are written only by its preparation, so `/ticket-implement`
+  finds no `todo` step in a stage not yet prepared; review against `.claude/rules/sdd.md`.
+- **If reversed:** one commit brings back the plan detailed whole under one review and drops the
+  stage close; plans written in stages stay readable, and a plan without stage headings already
+  runs as one.
+- **Revisit when:** the first two tickets planned in stages, `lambda-processes` and
+  `telemetry-minimal`, have reported their per-stage tables.

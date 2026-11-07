@@ -23,6 +23,8 @@ the diff, not how it was made.
     instruction file (a `CLAUDE.md`, `.claude/rules/`, `.claude/skills/`, `.claude/agents/`),
     also call the Skill tool with `mattpocock-skills:writing-for-agents` and judge that file by
     it, cited by its section; where it and `.claude/rules/claude-md.md` disagree, the rule wins.
+    When the brief names a `simplify` round, also each rule or case that round deleted, named
+    with where it now lives or reported lost, cited by the deleted line.
   - **Spec:** the diff against the step and its requirements, or on verification against the
     whole `feature.md`: what they ask for that the diff leaves out or does in part, a missing test
     among it (a behaviour they ask for that no test shows); what the diff does that nothing asks
@@ -39,7 +41,10 @@ the diff, not how it was made.
     vocabulary of `mattpocock-skills:codebase-design` and the nouns of
     `docs/knowledge/glossary.md`. No candidate on import direction: Biome's bans own it. A
     decision of the ticket's `architecture.md` or of `docs/knowledge/decisions.md` is re-opened
-    only when the friction is real. A correctness bug is the hunt's. Each candidate:
+    only when the friction is real. A correctness bug is the hunt's. When the brief names a
+    stage's diff, with `architecture.md`, the plan's skeleton and the stage design among its
+    sources, also report a departure from any of them and scaffolding a later skeleton step
+    rewrites, and only what changes correctness or shape. Each candidate:
 
     ````text
     ### <n>. <lens>: <the change, one line> — Strong | Worth exploring | Speculative

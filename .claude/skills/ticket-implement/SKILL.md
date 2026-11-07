@@ -98,8 +98,9 @@ step id, take step after step, as **The loop** below says. Gates:
    decide on is one block, ending in its question: what is wrong, what it leads to, the options
    with their cost, your recommendation, then the question; never the findings in one section and
    the questions in another.
-5. **Commit gate.** Once the step is ready (`.claude/rules/sdd.md › Gates`), close it as the
-   session's answer says, or wait for the user's word:
+5. **Commit gate.** Once the step is ready (`.claude/rules/sdd.md › Gates`), the last step of a
+   stage after **The stage close** below, close it as the session's answer says, or wait for the
+   user's word:
    - **close:** run step 1's owner check, then set the step's `Status: done` (or
      `blocked: <gate>` while a gate the step names, such as a branch, a push or a CI run, has not
      run yet) in the step and in its row of the plan's **Status** table, write every finding the
@@ -118,7 +119,45 @@ step id, take step after step, as **The loop** below says. Gates:
      `.claude/rules/sdd.md › Gates` says; a revert is named as
      `.claude/rules/commits.md › A ticket's rounds` says (`git revert --no-commit`, then commit);
    - **stop:** leave the working tree as it is, and name a round left uncommitted in the status.
-6. Name the next unblocked step and end the turn; in a loop, return to 1 instead.
+6. **Next.** Outside a loop, name the next unblocked step and end the turn; after a stage's
+   close, name `/ticket-plan <ticket folder> next` instead, or `/ticket-verify <ticket folder>`
+   after the last stage, with `/ticket-verify <ticket folder> stage <n>` to run first when that
+   verification is due. In a loop, return to 1; after a stage's close, first run a due
+   verification by reading `.claude/skills/ticket-verify/SKILL.md` afresh and following its
+   `stage <n>` section, then, unless the stage was the last, read
+   `.claude/skills/ticket-plan/stage.md` afresh, run it for the next stage, and return to 1 once
+   it has committed.
+
+## The stage close
+
+A plan with `## Stage <n>` headings and more than one stage closes each stage on the step whose
+row is the last of its stage in the **Status** table, once that step's own passes are settled and
+its rounds committed. A plan without stage headings, or of one stage, has no close and no stage
+verification: `/ticket-verify` verifies it.
+
+1. **The range** is `git diff <base> HEAD`, where `<base>` is the commit whose subject ends
+   `St<n> (PLAN) Prepare stage <n>` (`git log --grep='<that text>$'`), not the facts commit
+   before it; what you present names it.
+2. **Simplify** it: call the Skill tool with `simplify`, its args naming that range, the rules
+   `make review-rules BASE=<base>` prints and the deletion test and depth of
+   `mattpocock-skills:codebase-design`, since without a range it reviews the whole branch. Run
+   `make check`, then commit its edits as a `STAGE` round of each step whose code they change.
+3. **Review** the range as `## Steps` 3 briefs the passes, in parallel: **Standards** on
+   `sonnet medium`, its brief also naming the `simplify` round's commit; **Design** on
+   `opus high`, its sources also naming `architecture.md`, the plan's **Status** table (the
+   skeleton) and the stage's `### Stage design`.
+4. **Decide** on the findings and present them as `## Steps` 4 does. Each accepted fix goes to
+   the last step's implementer, resumed by its agent id (`SendMessage`), or to a fresh
+   `implementer` given that step's brief when it was stopped; the message names the **Files** and
+   Traps of the steps whose code the fix changes. Its round commits as a `STAGE` round of those
+   steps, and this close's step 3 runs again on the range.
+5. **Record** every finding under the stage's `### Stage review`, in the shape of a step's
+   **Findings**, in the last step's `PLAN` round (`## Steps` 5's **close**).
+
+A stage verification is **due** when two stages have closed since the last `## Stage <k>` section
+of `verification.md` (since the plan's start when there is none), or when the stage changed
+`architecture.md`, its preparation commit included. Outside a loop the user may run one for any
+stage.
 
 ## The loop
 
@@ -126,10 +165,18 @@ step id, take step after step, as **The loop** below says. Gates:
 waiver of `.claude/rules/sdd.md › Gates`: each ready step closes, and the fixes you recommend
 go to the implementer as the next round without asking. Step 4 defers its presentation to the
 stop; each committed step adds a line (its id, its commits and the passes that ran) to what you
-present when the loop stops, at the first of:
+present when the loop stops, and each stage's close a line of its own (its range, its `STAGE`
+rounds, the stage verification if one ran, the next stage's preparation commit).
+
+At a stage's close, a Design finding that reshapes a module and contradicts no `D…` is a fix you
+recommend, which the user reads afterwards by its `STAGE` commit; one that contradicts a `D…` is
+recorded open under `### Stage review`, the user's choice, and presented at the loop's next stop
+without causing one. The loop stops at the first of:
 
 - a `BLOCKED:` report;
-- a finding the user must decide, presented as step 4 says;
+- a finding the user must decide, presented as step 4 says, a stage verification's failure that
+  needs a requirement changed among them;
+- a stage preparation with a question round, presented as `stage.md` returns it;
 - a step not ready after three fix rounds, left as step 5's **stop** leaves it;
 - the user's word to stop, which leaves the current round uncommitted;
 - no unblocked `todo` step remains.

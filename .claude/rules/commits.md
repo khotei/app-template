@@ -33,11 +33,13 @@ change belongs and who asked for it:
 :bug: fix(<slug>): St2 S4.2 (REVIEW) Reject an empty order
 :recycle: refactor(<slug>): St2 S5+S6 (STAGE) One order type for both
 :rewind: revert(<slug>): St2 S5.3 (OWNER) Revert S5.2
+:memo: docs(<slug>): St2 (VERIFY) Verify stage 2
 :memo: docs(<slug>): St3 (PLAN) Prepare stage 3
 ```
 
-- **The id:** `St<stage> S<step>.<round>`; a stage's preparation is `St<stage>` alone; a plan of
-  the old form, without stages, drops the stage (`S4.2 (REVIEW)`).
+- **The id:** `St<stage> S<step>.<round>`; a stage's preparation and its verification's section
+  are `St<stage>` alone; a plan of the old form, without stages, drops the stage
+  (`S4.2 (REVIEW)`).
 - **The source**, in capitals, past the implementer's first pass: `REVIEW` the step's passes,
   `OWNER` the user's word or edit, `STAGE` the Stage review, `VERIFY` a verification, `PLAN` an
   edit of the plan alone (a stage's preparation, a step's close). The kind of change stays in the
