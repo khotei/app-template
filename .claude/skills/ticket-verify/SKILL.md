@@ -1,11 +1,12 @@
 ---
 name: ticket-verify
-description: "SDD 5/5: verify a whole ticket in a fresh context into verification.md with Lessons. Run only when the user asks for this phase"
-argument-hint: "<ticket folder>"
+description: "SDD 5/5: verify a whole ticket, or one of its stages, in a fresh context into verification.md with Lessons. Run only when the user asks for this phase"
+argument-hint: "<ticket folder> [stage <n>]"
 ---
 
 Verify the ticket at `$ARGUMENTS` before its PR: does the branch do what `feature.md` asks, and
-what should the toolkit learn from building it. Gates: `.claude/rules/sdd.md`.
+what should the toolkit learn from building it. With `stage <n>`, verify one stage instead, as
+its section below says. Gates: `.claude/rules/sdd.md`.
 
 ## Steps
 
@@ -17,23 +18,27 @@ what should the toolkit learn from building it. Gates: `.claude/rules/sdd.md`.
    - split `feature.md`'s requirements into groups by its `###` sections, and put every
      requirement whose acceptance starts the apps, runs `make test-e2e` or writes a probe into the
      tree in one group, whose verifier also runs `make check` (it runs the e2e too), since the
-     verifiers share the tree, its ports and its containers; spawn one `verifier` per group with
-     the ticket folder, the branch, the fixed point and its `R…` ids;
+     verifiers share the tree, its ports and its containers; spawn one `verifier` per group, on
+     `opus high`, with the ticket folder, the branch, the fixed point and its `R…` ids;
    - spawn one `reviewer` per axis, each brief naming its pass, the diff
      `git diff <fixed point>...HEAD` and the word limit of 400: **Standards**, on
-     `model: sonnet`, with the standards `.claude/rules/*.md` plus the touched `CLAUDE.md` files;
-     **Spec**, on the agent's own model, with `feature.md` plus `architecture.md`. The Spec pass
-     reads every requirement at once, so a gap between two groups still shows.
+     `sonnet medium`, with the standards `.claude/rules/*.md` plus the touched `CLAUDE.md` files;
+     **Spec**, on `opus high`, with `feature.md` plus `architecture.md`. The Spec pass reads every
+     requirement at once, so a gap between two groups still shows.
 
    Tell every agent to read the rules, `CLAUDE.md` files, skills and agents from disk: agents
    spawned in a long session can carry the copies loaded when it started. After rule edits, prefer
    running `/ticket-verify` in a new session.
 2. **Write `verification.md`** from `docs/tickets/_template/verification.md`, appending a dated
    section per run: the verdicts merged from every group (`pass` only when every group passes),
-   the **Review ledger**, the Standards and Spec reports, ranked simplifications, and **Lessons**.
-   You sum the ledger yourself, per pass, from each step's **Findings** in `plan.md`, since no
-   verifier reads `plan.md`; a fix counts as accepted too, and a step with no findings adds
-   nothing.
+   the per-stage table of a plan in stages, the **Review ledger**, the Standards and Spec reports,
+   ranked simplifications, and **Lessons**. You sum the ledger yourself, per pass, from each
+   step's **Findings** in `plan.md`, since no verifier reads `plan.md`; a fix counts as accepted
+   too, and a step with no findings adds nothing. You sum the per-stage table too, a row per stage
+   from its `### Stage review`, its steps' **Findings**, its `## Stage <n>` sections of
+   `verification.md` and `git log -p -- plan.md`: the deviations that changed a step's outcome or
+   order, those that changed only details, the edits made to later steps, and whether the loop
+   stopped at its close.
 3. **Lessons.** Collect the mistakes that recurred in two or more steps: `plan.md` findings,
    review rounds, and the user's feedback in this session. Each lesson names where it recurred
    and what it cost (rounds, time, a wrong result), and proposes one line in a named skill or
@@ -45,5 +50,32 @@ what should the toolkit learn from building it. Gates: `.claude/rules/sdd.md`.
    ([the cycles](../../../docs/knowledge/sdd.md#when-to-run-which-cycle)). On `pass` and the
    user's agreement, propose the PR (`.claude/rules/pull-requests.md`).
 
-Fix nothing during verification. Commit `verification.md`, and open the PR, under the commit gate
-of `.claude/rules/sdd.md`.
+Fix nothing during a whole-ticket run. Commit `verification.md`, and open the PR, under the
+commit gate of `.claude/rules/sdd.md`.
+
+## `stage <n>`
+
+Verify what stage `<n>` built before a later stage rests on it. A plan without `## Stage`
+headings has no `Completed in`: stop and say so.
+
+1. **Pick the requirements:** those whose `Completed in` in `plan.md › Requirement coverage` is
+   stage `<n>`, and each one completed earlier whose steps' **Files** the stage's diff changes
+   (`git diff --name-only <fixed point>...HEAD`). The fixed point is the stage's base, the commit
+   `St<n> (PLAN) Prepare stage <n>` (`git log --grep`); check it as step 1 does.
+2. **Verify** them as step 1 groups and briefs them, the verifiers on `opus high`, or `xhigh` for
+   a stage over ~30 minutes of work. No reviewer, since the stage's close reviewed its diff, and
+   no lessons, which stay with the whole-ticket run.
+3. **Fix a `fail`** before anything else runs: spawn an `implementer` with the ticket folder, the
+   id of the step whose code the fix changes and the verifier's evidence, on the step's
+   **Model** line, `opus high` when it names none. It is a `VERIFY` round of that step, committed
+   under the commit gate and the round rule of `.claude/rules/sdd.md`. Then verify only the
+   failed requirements again. A failure that needs a requirement changed is the user's question:
+   present it and stop.
+4. **Append** `## Stage <n> — <date>` to `verification.md`, in the template's shape: the verdict
+   per requirement and the rounds that fixed a failure. Commit it under the commit gate.
+
+## The models
+
+Each spawn above names its default model and effort. You may choose `fable` over any of them
+where you judge the result will be better for it, chiefly where a wrong answer passes every later
+check, and name it in the status.
