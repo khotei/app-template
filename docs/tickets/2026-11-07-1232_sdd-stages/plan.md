@@ -6,7 +6,7 @@
 
 | Step | Delivers | Status |
 |---|---|---|
-| S1 | every round commits before it is read, under a name that says where it belongs; the owner's edits are a round | todo |
+| S1 | every round commits before it is read, under a name that says where it belongs; the owner's edits are a round | done |
 | S2 | the architecture phase writes the high level, with direction and assumptions | todo |
 | S3 | the plan phase writes a skeleton and prepares one stage at a time | todo |
 | S4 | the verification runs for one stage at the owner's word, and reports the ticket per stage | todo |
@@ -123,7 +123,56 @@
     agents, the rules, `docs/knowledge/` and the `CLAUDE.md` files, and lists each line it
     rewrites (at plan time: the files above).
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:** rounds S1.1 to S1.5; passes Standards and Spec each round; claimed findings
+  settled by a `researcher`.
+  - implementer — accepted, recorded — Test first ran `make review-rules BASE=HEAD~4`, whose
+    range holds `.ts` changes, instead of a branch whose last commit touches one (a checkout the
+    implementer may not do): no `BASE` lists `commits.md` alone, `BASE=HEAD~4` lists 14 rules,
+    `effect.md` among them.
+  - implementer — accepted, recorded — `sdd.md` states the R13 stage-preparation rule without
+    linking `stage.md`, which S3 creates; `doc-lint` fails on a missing path.
+  - implementer — accepted, recorded — a step's close is `S<n>.<r> (PLAN)`, apart from a stage
+    preparation's `St<n> (PLAN)`; added to the Contracts entry's examples.
+  - implementer — accepted, recorded — lines edited beyond Files, each made wrong by the step:
+    `ticket-implement/SKILL.md`'s `description` and The loop's "each ready step closes",
+    `docs/knowledge/sdd.md`'s commit-gate intro and loop paragraph, `researcher.md` and
+    `implementer.md` on the tree holding the current round, and `sdd.md`'s Deviations bullet
+    (plan and architecture land in the `PLAN` round, `feature.md` and the `decisions.md` record
+    in the round itself, since `plan.md` is edited only at the close).
+  - Spec — accepted, fixed in S1.2 — the owner check ran only in step 1, so an edit by hand
+    before feedback or a reject joined the next agent round.
+  - Spec — accepted, fixed in S1.2 — the owner check covered tracked files only, so a new file of
+    the owner's joined the next round; it now reads `git status --short`, wider than Files'
+    "tracked files".
+  - Spec — accepted, fixed in S1.2 — The loop and the guide still said a ready step "commits".
+  - Standards — accepted, fixed in S1.2 — four wording fixes: the subject limit and the source,
+    the reject bullet restating the gate, the `commits.md` anchor, which defaults `fable` may
+    replace.
+  - Spec — accepted, fixed in S1.3 — the close ran no owner check.
+  - Spec — accepted, fixed in S1.3 — a reject's `git revert` took git's default `Revert "…"`
+    subject, which the step search misses (probe repo: the search listed `S4.2` and `S4.1`, not
+    the revert); a revert now commits by `--no-commit` under its round's name.
+  - Spec — accepted, fixed in S1.3 — the review base did not say to take the oldest match of the
+    newest-first search.
+  - Standards — accepted, fixed in S1.3 — the skill restated the no-amend rule; `sdd.md`'s
+    Deviations bullet clashed with `plan.md` edited only at the close.
+  - Spec — accepted, fixed in S1.4 — a fresh session after a stopped round took the implementer's
+    unfinished round for the owner's edit, since the stopped-round status lived only in the old
+    session; a run's first owner check now asks whose each change is, wider than the Trap's
+    "only then".
+  - Standards — accepted, fixed in S1.4 — the subject limit still read as counting the id inside
+    the 50 characters; the `fable` clause rewrapped.
+  - Spec — accepted, fixed in S1.5 — no line said what a round's commit stages, once S1.1 dropped
+    "stage the step's files"; the session had committed S1.1 to S1.4 with `git add -u`, which
+    skips new files. Step 2 now stages with `git add -A`.
+  - Standards — rejected: Files asks for D9's `fable` line in `claimed-findings.md` — drop the
+    copy there and point at `SKILL.md` (raised three times).
+  - Standards — accepted, open — the `decisions.md` record's Cost line quotes measured commit
+    times (1.3 s, 2.5 s) that go stale with the pre-commit hook.
+  - Spec — rejected: covered by `sdd.md`'s "the user says stop first" — `git add -A` would sweep
+    an owner's edit made during a live round into the agent's round.
+  - Out of step, for later steps: `ticket-verify/SKILL.md` still names models the old way (S4).
 
 #### S2 — The architecture phase writes the high level
 

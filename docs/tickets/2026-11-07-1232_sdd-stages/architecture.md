@@ -226,6 +226,7 @@ of the subject, and a fix names what it fixes at the head of its body:
 :recycle: refactor(<slug>): St2 S5+S6 (STAGE) One widget type for both
 :rewind: revert(<slug>): St2 S5.3 (OWNER) Revert S5.2
 :memo: docs(<slug>): St3 (PLAN) Prepare stage 3
+:memo: docs(<slug>): St2 S4.4 (PLAN) Close S4
 
 body of a fix:  Fixes St2 S4.1: <what was wrong>
 ```
@@ -245,8 +246,11 @@ body of a fix:  Fixes St2 S4.1: <what was wrong>
   whether the step closes. A rejected round is reverted by a new commit while it is the last
   commit of the branch; once later work rests on it, the rejection is a round that fixes forward.
 - The owner's own edits, found between rounds, commit as an `OWNER` round before anything else
-  runs, the body naming what changed and what it reaches (callers, tests). An edit during a live
-  round is not told apart from the agent's; the owner says stop first. No commit the owner has
+  runs, the body naming what changed and what it reaches (callers, tests). At a run's start the
+  session asks whose each change is, since a stopped round and the owner's edit look alike in
+  `git status` and a fresh session never saw the stop (rejected: asking only when the last status
+  named a stopped round). An edit during a live round is not told apart from the agent's; the
+  owner says stop first. No commit the owner has
   seen is amended or squashed before the PR.
 - A step's passes review its committed rounds, from the parent of `S<n>.1` to `HEAD`; `simplify`
   runs before the first commit, so its edits are part of `S<n>.1`.
