@@ -40,7 +40,7 @@ graph LR
 | 5 | [`aws-local`](#5-aws-local) | `feat` | 3 | done: [docs/tickets/2026-10-19-1448_aws-local/](../tickets/2026-10-19-1448_aws-local/feature.md) |
 | 6 | [`llm-providers`](#6-llm-providers) | `feat` | 5 | done: [docs/tickets/2026-10-29-1435_llm-providers/](../tickets/2026-10-29-1435_llm-providers/feature.md) |
 | 7 | [`web-app`](#7-web-app) | `feat` | 3 (18 for assistant attachments) | planned |
-| 8 | [`observability`](#8-observability) | `feat` | 3 | planned |
+| 8 | [`observability`](#8-observability) | `feat` | 3 | in progress: [docs/tickets/2026-11-07-0944_telemetry-minimal/](../tickets/2026-11-07-0944_telemetry-minimal/feature.md) |
 | 9 | [`aws-deployment`](#9-aws-deployment) | `feat` | 4, 5 | planned |
 | 10 | [`client-publishing`](#10-client-publishing) | `chore` | 3 | done: [docs/tickets/2026-11-04-1131_client-publishing/](../tickets/2026-11-04-1131_client-publishing/feature.md) |
 | 11 | [`workflow-cluster`](#11-workflow-cluster) | `feat` | 4, 8 | planned, exploratory |
@@ -332,6 +332,10 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   `docker-compose`; structured logging conventions; health and readiness endpoints; a
   `docs/knowledge/observability.md`.
 - **Out of scope.** Dashboards and alerting in AWS (9).
+- **Status.** In progress, narrowed to the least code: the `api`'s export and one trace per request:
+  [docs/tickets/2026-11-07-0944_telemetry-minimal/](../tickets/2026-11-07-0944_telemetry-minimal/feature.md).
+  Later: the `worker`'s telemetry (after its consumer moves to a Lambda, 9), `web` in the trace,
+  one trace across the queue, Effect DevTools, health and readiness, log conventions.
 - **Open questions for its feature phase.** `Otlp.layer` versus `@effect/opentelemetry` with the
   OTel SDK (needed only if a vendor SDK is required); which local UI (Jaeger, Grafana LGTM,
   SigNoz).
