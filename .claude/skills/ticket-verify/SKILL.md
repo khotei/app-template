@@ -58,16 +58,18 @@ commit gate of `.claude/rules/sdd.md`.
 Verify what stage `<n>` built before a later stage rests on it. A plan without `## Stage`
 headings has no `Completed in`: stop and say so.
 
-1. **Pick the requirements.** The stage's range starts at its base, the commit
-   `St<n> (PLAN) Prepare stage <n>` (`git log --grep`), the fixed point, and ends at the parent
-   of `St<n+1> (PLAN) Prepare stage <n+1>` when that commit exists, else at `HEAD`; check it as
-   step 1 does. The requirements are those whose `Completed in` in
-   `plan.md › Requirement coverage` is stage `<n>`, and each one completed earlier whose steps'
-   **Files** `git diff --name-only <fixed point>...<end>` lists.
-2. **Verify** them, grouped and briefed as step 1 does, each brief naming the range's end too,
-   the verifiers on `opus high`, or `xhigh` for a stage over ~30 minutes of work. No reviewer,
-   since the stage's close reviewed its diff, and no lessons, which stay with the whole-ticket
-   run. The step is done when every requirement of the list has a `pass`, `fail` or
+1. **Pick the requirements.** The stage's range starts at its base, the fixed point: the commit
+   whose subject ends `St<n> (PLAN) Prepare stage <n>` (`git log --grep='<that text>$'`). It ends
+   at the parent of the commit whose subject ends `St<n+1> (PLAN) Prepare stage <n+1>` when one
+   exists, else at `HEAD`. Check that `git rev-parse <fixed point>` resolves and
+   `git diff <fixed point>...<end>` is not empty, else stop and tell the user. The requirements
+   are those whose `Completed in` in `plan.md › Requirement coverage` is stage `<n>`, and each
+   one completed earlier whose steps' **Files** `git diff --name-only <fixed point>...<end>`
+   lists.
+2. **Verify** them, grouped and briefed as `## Steps` 1 does, each brief naming the range's end
+   too, the verifiers on `opus high`, or `xhigh` for a stage over ~30 minutes of work. No
+   reviewer, since the stage's close reviewed its diff, and no lessons, which stay with the
+   whole-ticket run. The step is done when every requirement of the list has a `pass`, `fail` or
    `not verifiable` verdict.
 3. **Fix a `fail`** before anything else runs: spawn an `implementer` with the ticket folder, the
    id of the step whose code the fix changes and the verifier's evidence, on the step's
