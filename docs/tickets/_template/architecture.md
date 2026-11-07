@@ -33,8 +33,8 @@ or tests depend on, as sketches of their shape, never a function signature.>
 ## Decisions
 
 <One entry per choice that is hard to reverse, surprising without context, and a real trade-off.
-Each line of an entry is one or two sentences; a rejected alternative is kept only when someone
-would propose it again.>
+Each line of an entry is one or two sentences; each entry keeps at least one rejected
+alternative, the one someone would propose again.>
 
 - **D1 — <the decision and the invariant it keeps, in one line>.**
   - **Why:** <the reason>.
@@ -45,8 +45,8 @@ would propose it again.>
 
 ## Direction
 
-<One recommendation per choice a stage can still make or undo, never put to the owner; the stage
-design takes it or sets it aside, with the fact.>
+<One recommendation per choice a stage can still make or undo, shown to the user as written; the
+stage design takes it or sets it aside, with the fact.>
 
 - **<area>** — recommend <option>, over <option>: <why>. Settled in Stage <n>.
 

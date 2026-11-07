@@ -15,7 +15,7 @@ where tests observe it, and every non-obvious decision. Gates: `.claude/rules/sd
 2. Call the Skill tool with `mattpocock-skills:codebase-design` for the vocabulary (module,
    interface, depth, seam, adapter), and with `mattpocock-skills:grilling` for the high level
    only: the seams, the contracts and the irreversible decisions. A choice a stage can still make
-   or undo is a direction, written as a recommendation and never put to the user. Facts go to the
+   or undo is a direction, written as a recommendation and shown as written. Facts go to the
    `researcher` agent, on the default model and effort `opus high`; when a decision depends on
    behaviour, run an experiment. You may choose `fable` over this default where you judge the
    answer will be better for it, chiefly where it settles a design and nothing after it re-checks
