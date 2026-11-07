@@ -64,4 +64,4 @@ empty.>
 - **Why it matters:** <one line>.
 - **Options:** A — <consequence>; B — <consequence>.
 - **Recommendation:** <A, and why>.
-- **Answer:** <filled when settled, naming the D… or R… it became>
+- **Answer:** <filled when settled, naming the D… or R… it became, or the Direction's area>

@@ -14,13 +14,12 @@ graph LR
 ## Structure
 
 <Where the change lives, per workspace: the modules it adds or changes and the invariant each
-keeps. It names modules and workspaces, never a file or a signature. A rule a config holds is
-linked, never copied.>
+keeps. It names modules and workspaces. A rule a config holds is linked, never copied.>
 
 ## Contracts
 
 <Interfaces, routes, messages and data shapes between modules and between steps that other code
-or tests depend on, as sketches of their shape, never a function signature.>
+or tests depend on; it sketches the shape of each contract.>
 
 ## Seams
 

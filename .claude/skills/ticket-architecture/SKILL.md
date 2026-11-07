@@ -11,7 +11,8 @@ where tests observe it, and every non-obvious decision. Gates: `.claude/rules/sd
 
 1. Read `feature.md`, `docs/knowledge/architecture.md`, the glossary, and the `CLAUDE.md` of
    every workspace the change touches. Each open question of `feature.md` is settled here: its
-   `Answer` names the `D…` or `R…` it became.
+   `Answer` names the `D…` or `R…` it became, or the Direction's area and the stage that settles
+   it.
 2. Call the Skill tool with `mattpocock-skills:codebase-design` for the vocabulary (module,
    interface, depth, seam, adapter), and with `mattpocock-skills:grilling` for the high level
    only: the seams, the contracts and the irreversible decisions. A choice a stage can still make
@@ -21,7 +22,8 @@ where tests observe it, and every non-obvious decision. Gates: `.claude/rules/sd
    answer will be better for it, chiefly where it settles a design and nothing after it re-checks
    it, and name it in the status.
 3. Write `architecture.md` from `docs/tickets/_template/architecture.md`, the high level of the
-   whole ticket only: no file list and no function signature, which the plan's steps hold.
+   whole ticket only: it names modules, workspaces and the shape of contracts; the plan's steps
+   hold files and signatures.
    - overview with a diagram, structure by module and workspace, contracts and data between
      modules and between steps. Each entry states its decision and the invariant it keeps, and
      links the config or file that holds a rule instead of copying it: a copied config, tree or
