@@ -12,7 +12,7 @@
 | S4 | the verification runs for one stage at the owner's word, and reports the ticket per stage | done |
 | S5 | a stage closes with a review of its code, a due verification runs, and the loop crosses it | done |
 | S6 | the process guide describes stages, terms, models and the new loop | done |
-| S7 | a sample ticket and a runner for the acceptance runs | todo |
+| S7 | a sample ticket and a runner for the acceptance runs | done |
 
 ## How to run this plan
 
@@ -616,21 +616,25 @@
   - `docs/tickets/2026-11-07-1232_sdd-stages/sample/`: a small feature of about six steps in two
     stages, docs or a few lines of code each, so a loop over a stage boundary finishes in one run;
     its `feature.md`, and one script per state under `sample/states/`, each making the commits the
-    state needs with the names of `commits.md`: `feature-only` (R1–R5), `stage-1-done` (R6,
-    R10–R13, R20, R21, R23: the plan commit, `St1 S1.1` to `St1 S3.1`), and variants of it:
-    `owner-edit` (one tracked file edited and left uncommitted, R22), `no-coverage` (a
-    requirement's only step removed, R7), `forced-choice` (an assumption of stage 2 a probe shows
-    false, so two contract shapes remain, R8), `used-later` (a stage choice that changes a
-    contract and whose `used by` names a later stage, R9), `three-steps` (R14), `all-done` (R16).
+    state needs with the names of `commits.md`: `feature-only` (R1, R2), `architecture-done`
+    (R3–R5), `stage-1-done` (R10–R12, R21, R23: the plan commit, `St1 S1.1` to `St1 S3.1`, S3
+    still open), `stage-1-closed` (R6, R13, R20: S3 closed, since `/ticket-plan … next` stops on
+    an earlier step not done), and variants: `owner-edit` (one tracked file edited and left
+    uncommitted, R22), `no-coverage` (a requirement's only step removed, R7), `forced-choice` (an
+    assumption of stage 2 a probe shows false, so two contract shapes remain, R8), `used-later`
+    (a stage choice that changes a contract and whose `used by` names a later stage, R9),
+    `planted-failure` (a stage-1 acceptance false by a run, R20), `three-steps` (R14), `all-done`
+    (R16). Variants edit the sample before its first commit, so no `git log` hints at them.
   - `docs/tickets/2026-11-07-1232_sdd-stages/sample/run.sh`: `run.sh <state> ("<prompt>" |
     --no-run)`; clones into the system temp directory, cuts `chore/sample`, commits the sample
-    ticket as `docs/tickets/2026-01-01-0000_sample/`, runs the state's script, then either runs
-    `claude -p --setting-sources project` with the prompt or, with `--no-run`, prints the clone's
-    `git log --oneline`; it prints the clone's path.
+    ticket as `docs/tickets/2026-01-01-0000_sample/` and drops this ticket's folder on the clone's
+    `main`, runs the state's script, then either runs `claude -p --setting-sources project
+    --settings .claude/settings.json` with the prompt or, with `--no-run`, builds the state alone;
+    it prints the clone's `git log --oneline`, `git status` and path.
   - Trap: the sample's assumption that fails must fail by a run in the clone, not by its text,
     or R6's probe proves nothing.
 - **Introduces:** `run.sh`, `sample/states/` → the step's own Verify. Removes later: none.
-- **Size:** ~90 of code, docs ~250.
+- **Size:** ~480 of shell (fixture text ~150 of it), docs ~460.
 - **Test first:** `config only` — `test -x docs/tickets/2026-11-07-1232_sdd-stages/sample/run.sh`
   fails before the step.
 - **Verify:**
@@ -638,10 +642,36 @@
     stage and no Stage review in the clone's `plan.md`;
   - `sample/run.sh stage-1-done --no-run` builds the state without a run and prints the clone's
     `git log --oneline`, whose subjects open with `St1 S1.1` to `St1 S3.1`;
-  - `make sh-lint` passes on the scripts;
-  - `make doc-lint` passes.
+  - `make sh-lint` passes on the scripts.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:** rounds S7.1 and S3+S7.2; passes Standards and Spec on S7.1 (a script step with no
+  write guard, transaction, fake, concurrency or retry: no hunt; no exported name: no `simplify`
+  or Design). One fix round by the owner's word for this step (only findings that fail an `R…`),
+  so S7.2 had no second review. Verify after S7.2: the `three-steps` `/ticket-plan` run wrote
+  `### Stage 1 …` and `grep -c 'Stage review'` `0`; `stage-1-done --no-run` lists `St1 S1.1` to
+  `St1 S3.1`; `make sh-lint` and `make check` exit 0.
+  - implementer — accepted, recorded — two states beyond the list (`architecture-done`,
+    `stage-1-closed`), variants edited before the first commit, `run.sh`'s extra duties
+    (`--settings .claude/settings.json`, since a fresh clone is an untrusted workspace whose
+    project settings load without their permissions; the clone's `main` at HEAD; `.env` and
+    `bun install` for probes), and the size: Files and Size above now say so.
+  - implementer — accepted, recorded — `make doc-lint` ignores `docs/tickets/**`, so it could not
+    fail on this step: its Verify line is dropped.
+  - Spec — accepted, fixed in S3+S7.2 — the clone kept this ticket's `plan.md` and `feature.md`,
+    whose S7 Files spell out each variant's answer, so a run could read R6's and R8's outcome
+    instead of finding it.
+  - Spec, confirmed by a `researcher`'s run — accepted, fixed in S3+S7.2 — no state left a stage-1
+    acceptance false, so R20's `VERIFY` round had nothing to fix: `planted-failure` added.
+  - implementer — accepted, fixed in S3+S7.2 — the plan template kept an empty `### Stage review`
+    heading in a one-stage plan, failing R14; the template now says to delete it (S3's file).
+  - Standards — none.
+  - implementer — accepted, open — in a `-p` run the planner's stage probes were denied: the
+    project's allow list has no `git worktree` or `git clone`, so R6's runs through `run.sh`
+    cannot probe; the owner's choice (allow them in `.claude/settings.json`, or pass
+    `--allowedTools` in `run.sh`).
+  - implementer — accepted, open — a `-p` run of `/ticket-implement` stops at its first question
+    (whose changes these are), so R22 runs by hand in the printed clone.
 
 ## Requirement coverage
 
