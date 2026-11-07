@@ -10,8 +10,8 @@
 | S2 | the architecture phase writes the high level, with direction and assumptions | done |
 | S3 | the plan phase writes a skeleton and prepares one stage at a time | done |
 | S4 | the verification runs for one stage at the owner's word, and reports the ticket per stage | done |
-| S5 | a stage closes with a review of its code, a due verification runs, and the loop crosses it | | done |
-| S6 | the process guide describes stages, terms, models and the new loop | todo |
+| S5 | a stage closes with a review of its code, a due verification runs, and the loop crosses it | done |
+| S6 | the process guide describes stages, terms, models and the new loop | done |
 | S7 | a sample ticket and a runner for the acceptance runs | todo |
 
 ## How to run this plan
@@ -576,7 +576,33 @@
     (medium|high|xhigh)`' docs/knowledge/sdd.md | sort -u)` prints nothing;
   - `make doc-lint` passes.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:** rounds S6.1 to S6.3; passes Standards and Spec after each round (a docs-only step:
+  no `simplify`, Design or hunt). Verify after S6.3: `grep -c 'skeleton' docs/knowledge/sdd.md`
+  `5` (`0` before); the `plan as a whole` grep and the glossary guard print nothing; the map
+  `diff` prints nothing; `make doc-lint` and `make check` exit 0.
+  - implementer — accepted — the map's agent rows read "the spawn's" in the model column: the
+    skill sets the model at each spawn, and an agent's front matter is the fallback D9 rejects.
+  - Standards — accepted, fixed in S6.2 — the guide told staged plans apart by when they were
+    written ("written before stages", "since they were introduced"), a history a living doc
+    does not hold.
+  - Spec — accepted, fixed in S6.2 — the `/ticket-verify` row spawned an `implementer` for a
+    stage's `VERIFY` round but its Hook cell read `—`.
+  - Spec — accepted, fixed in S6.2 — the rule for `fable` said "a verifier" where D9 says "the
+    verification".
+  - Spec — accepted, fixed in S6.3 — after S6.2 the guide no longer said that `/ticket-plan`
+    writes every plan in stages and that an existing plan is not re-cut (R15).
+  - Spec — accepted, fixed in S6.3 — the first diagram led a due stage verification only to
+    `next`, though after the last stage `ticket-implement` names it before `/ticket-verify`.
+  - Standards (twice) — rejected: S6's Files asks for D9's rule once in the guide — the rule for
+    `fable` restates the skills' spawn lines; link D9 instead.
+  - Standards — rejected: R19 and S6's Files ask for the column, and the step's map `diff` keeps
+    it true — the model column copies values the skills own and goes stale.
+  - Standards — rejected: S6's Delivers asks that the loop show stages, and the step's Trap bars
+    restating the rule, not the skill — the loop's stage-boundary paragraph restates
+    `ticket-implement/SKILL.md › The stage close`; replace it with a link.
+  - S5's note for S6 (the map gains `simplify` on a stage's range and the reads of `stage.md`
+    and `ticket-verify/SKILL.md`) — done in S6.1, in the `/ticket-implement` row of the map.
 
 #### S7 — A sample ticket and a runner for the acceptance runs
 
