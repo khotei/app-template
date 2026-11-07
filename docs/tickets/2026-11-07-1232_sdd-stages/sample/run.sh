@@ -5,8 +5,8 @@
 #   run.sh <state> ("<prompt>" | --no-run)
 #
 # It clones this repository's HEAD with `git clone --local` into the system temp directory, makes
-# that commit the clone's `main`, deletes this folder there in a commit of `main`, so no run finds
-# the answers, and cuts `chore/sample`. The script states/<state>.sh then commits the ticket, from
+# that commit the clone's `main`, deletes the ticket that holds this folder there in a commit of
+# `main`, so no run finds the answers, and cuts `chore/sample`. The script states/<state>.sh then commits the ticket, from
 # this folder as it is on disk, as docs/tickets/2026-01-01-0000_sample/ up to the state, under the
 # names of .claude/rules/commits.md; each script's header says what its state holds and which
 # acceptance runs start from it. The clone also gets this tree's `.env` and a `bun install`, so
@@ -46,8 +46,11 @@ cd "$clone" || exit 2
 # A stage's probe worktree takes its .env from the clone's (make worktree), and git copies none.
 [ ! -f "$top/.env" ] || cp "$top/.env" .env || exit 2
 git checkout -q -B main || exit 2
-if [ -e "$prefix" ]; then
-  git rm -q -r -- "$prefix" && git commit -q --no-verify -m ':fire: chore(docs): Drop a fixture' ||
+# The ticket this folder belongs to, whose plan and acceptance name every state's answer.
+owner=${prefix%/}
+owner=${owner%/*}
+if [ -e "$owner" ]; then
+  git rm -q -r -- "$owner" && git commit -q --no-verify -m ':fire: chore(docs): Drop a fixture' ||
     exit 2
 fi
 git checkout -q -b chore/sample || exit 2
@@ -105,6 +108,11 @@ build() {
   # shellcheck source=/dev/null # the state is chosen at run time
   . "$states/$1.sh"
 }
+
+# plant: runs in stage-1-done before its St1 S3.1 commit; a variant redefines it to break that
+# round's code.
+# shellcheck disable=SC2329 # stage-1-done calls it
+plant() { :; }
 
 build "$1"
 bun install --frozen-lockfile > "$tmp/install.log" 2>&1 || {

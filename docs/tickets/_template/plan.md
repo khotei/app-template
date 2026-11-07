@@ -67,7 +67,7 @@ id; then the names, signatures and files the stage fixes; then each choice it ma
 
 <Written by the stage's last step, in its last round: every finding of the review of the stage's
 diff, in the shape of a step's Findings. A stage verification, when run, is `verification.md ›
-Stage 1`.>
+Stage 1`. A plan of one stage has no Stage review: delete this heading.>
 
 ## Stage 2 — <title>
 

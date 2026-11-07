@@ -2,7 +2,7 @@
 # stage-1-done: architecture-done, the plan of plan.md as its approval commits it, and stage 1's
 # rounds from St1 S1.1 to St1 S3.1: S1 and S2 closed, S3, the stage's last step, landed and not
 # yet closed, so its passes and the stage's close come next (R10-R12, R21, R23). The runs that
-# prepare stage 2 start from stage-1-closed.
+# prepare stage 2 start from stage-1-closed. `plant` runs before the St1 S3.1 commit.
 build architecture-done
 cp "$sample/plan.md" "$ticket/plan.md" || exit 2
 commit ':memo: docs(sample): St1 (PLAN) Prepare stage 1' \
@@ -141,6 +141,7 @@ printf '\n.PHONY: ticket\nticket: ## Create a ticket'"'"'s folder from the templ
   .misc/tickets/ticket.mjs >> Makefile
 replace docs/knowledge/tooling.md "$slug_row" "$slug_row
 | \`make ticket TITLE=\"<title>\"\` | \`.misc/tickets/ticket.mjs\` | creates the ticket's folder from \`docs/tickets/_template/\`, named by the local time and the slug, the title as the feature's heading |"
+plant
 commit ":sparkles: feat(sample): St1 S3.1 Create a ticket's folder from its title" \
   'make ticket TITLE="<title>" copies the template into
 docs/tickets/<YYYY-MM-DD-HHmm>_<slug>/ in local time and writes the
