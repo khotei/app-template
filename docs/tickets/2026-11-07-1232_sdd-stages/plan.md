@@ -9,7 +9,7 @@
 | S1 | every round commits before it is read, under a name that says where it belongs; the owner's edits are a round | done |
 | S2 | the architecture phase writes the high level, with direction and assumptions | done |
 | S3 | the plan phase writes a skeleton and prepares one stage at a time | done |
-| S4 | the verification runs for one stage at the owner's word, and reports the ticket per stage | todo |
+| S4 | the verification runs for one stage at the owner's word, and reports the ticket per stage | done |
 | S5 | a stage closes with a review of its code, a due verification runs, and the loop crosses it | todo |
 | S6 | the process guide describes stages, terms, models and the new loop | todo |
 | S7 | a sample ticket and a runner for the acceptance runs | todo |
@@ -380,7 +380,39 @@
     'implementer[^.]*`(opus|sonnet) (medium|high)`' | wc -l`: `0` before, at least `1` after;
   - `make doc-lint` passes.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:** rounds S4.1 to S4.4; passes Standards and Spec after each round; three claimed
+  findings settled by a `researcher`, all confirmed. Verify after S4.4: `Completed in` count `2`,
+  `argument-hint` reads `"<ticket folder> [stage <n>]"`, the template's header on line 36, no
+  `merge-base` in `verifier.md`, the implementer regex `1`, `make doc-lint` and `make check`
+  exit 0.
+  - implementer — accepted, recorded — "Fix nothing during verification" narrowed to the
+    whole-ticket run, which the stage mode's fix would otherwise contradict.
+  - implementer — accepted, recorded — every stage's base is the `Prepare stage <n>` commit,
+    stage 1's included, as S3 named it.
+  - Spec, confirmed by a `researcher` — accepted, fixed in S4.2, recorded in `architecture.md` —
+    the stage range ran to `HEAD`, so a stage verified after the next one closed took in its
+    files; it ends at the parent of the next stage's preparation commit.
+  - Standards — accepted, fixed in S4.2 and S4.3 — the stage mode's second step named no done
+    condition, and "step 1" was ambiguous inside a section with its own steps.
+  - Spec — accepted, fixed in S4.3 — the base and end lookups matched any line, not the subject.
+  - Spec, confirmed by a `researcher` — accepted, fixed in S4.4, recorded in `architecture.md` —
+    a re-run after a `VERIFY` fix, briefed on the same range, never listed the fix; its brief
+    names the fix's commits (briefing to `HEAD` was rejected: it takes in the next stage).
+  - Spec, confirmed by a `researcher` — accepted, moved to S5's Files — inside a loop the stage
+    section's commit waits for the user under the commit gate, and no rule names its subject;
+    the gate and `commits.md` are S1's and S5's files, so S5 now edits both.
+  - Standards — accepted, open — `ticket-verify/SKILL.md` step 2 paraphrases the per-stage
+    table's columns the template holds.
+  - Standards — rejected (raised three times): the `fable` section restates D9 — D9 asks for the
+    line in each spawning file.
+  - Standards — rejected: the lookup restates the preparation's subject — a lookup needs its
+    literal text, and `commits.md` owns the format.
+  - Standards — rejected: "No reviewer … no lessons" steers by prohibition — an earlier pass
+    accepted it as a scope line with its reason, as the Contract words it.
+  - implementer — accepted, open — `ticket-plan/SKILL.md › next` (S3) finds the preparation
+    commit with an unanchored `git log --grep`; a body quoting that subject would match too.
+  - Out of step, for S6: the guide's dependency map adds `implementer` under `/ticket-verify`.
 
 #### S5 — A stage closes with a review of its code, a due verification runs, and the loop crosses it
 
@@ -408,7 +440,8 @@
     now lives. No pass is added, and none is named "Stage".
   - `.claude/skills/ticket-implement/SKILL.md`, its stage close, step 6 and **The loop**: the
     close of the Contracts entry on a step whose row is the last of its stage in a plan of more
-    than one stage, from the stage's `St<n> (PLAN)` commit, `simplify`'s args naming that range;
+    than one stage, from the stage's `St<n> (PLAN) Prepare stage <n>` commit, `simplify`'s args
+    naming that range;
     the last implementer resumed by its agent id, or a fresh one with its step's brief when it
     was stopped; `### Stage review` in the close's `PLAN` round; the due rule of D10; step 6
     names the next command and a due verification, or, in a loop, runs the verification, then
@@ -416,10 +449,15 @@
     "a stage preparation with a question round", fixes a Design reshape that contradicts no
     `D…`, and holds one that does as an open finding for its next stop. Its passes are spawned on
     the defaults S1 wrote in step 3.
-  - `.claude/rules/sdd.md`, its Artifacts rows and heavy-review gate only: `architecture.md`
-    (direction, assumptions) and `plan.md` (skeleton, stages, stage design, Stage review); "The
-    heavy review lands once, on the plan" rewritten to the skeleton and the first stage, each
-    later stage checked when prepared and reviewed when it closes. Stays within its limit.
+  - `.claude/rules/sdd.md`, its Artifacts rows, heavy-review gate and commit gate only:
+    `architecture.md` (direction, assumptions) and `plan.md` (skeleton, stages, stage design,
+    Stage review); "The heavy review lands once, on the plan" rewritten to the skeleton and the
+    first stage, each later stage checked when prepared and reviewed when it closes; the commit
+    gate also commits without the user's OK a stage's facts, which land before its triage, and a
+    stage verification's section when no failure needs a requirement changed, so a loop crosses
+    a due verification (S3, S4 findings). Stays within its limit.
+  - `.claude/rules/commits.md`, its round ids only: a stage verification's section commits as
+    `St<n> (VERIFY) Verify stage <n>` (S4 finding).
   - `docs/knowledge/decisions.md`: a record `### Plans in stages` under "Guards, tests and
     history", in its seven fields; **Revisit when:** `lambda-processes` and `telemetry-minimal`
     have reported their per-stage tables.
@@ -463,7 +501,8 @@
   - `docs/knowledge/sdd.md`, all but S1's lines on rounds: the first diagram; the skills table (the
     `/ticket-plan` row's "the plan as a whole: the heavy review", its `next`, the `/ticket-verify`
     row's `stage <n>`; the `/ticket-implement` row is S1's); a section on stages with the terms; the
-    dependency map (`stage.md`, the `reviewer` row's Design and Standards at a stage's close, a
+    dependency map (`stage.md`, `/ticket-verify`'s `implementer` for a stage's `VERIFY` round,
+    the `reviewer` row's Design and Standards at a stage's close, a
     column of model and effort per use, D9's rule once); **The loop** with the stage boundary. A
     term keeps the name of the existing Design pass apart, and says the process stage is unrelated
     to the deployment `STAGE` and to the glossary's avoided "stage" of a message.

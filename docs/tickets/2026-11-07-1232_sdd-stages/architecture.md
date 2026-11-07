@@ -207,7 +207,9 @@ close's `PLAN` round.
 
 **The stage verification** (R20, D10): `/ticket-verify <ticket> stage <n>` runs one `verifier`
 per group of the stage's requirements, as `/ticket-verify` step 1 groups them, with the stage's
-base as the fixed point. Its requirements are those the stage completes and the earlier ones
+base as the fixed point and the parent of the next stage's preparation commit, or `HEAD`, as the
+end, so a stage verified late leaves out the later stages' changes; a re-run's brief also names
+the `VERIFY` round's commits, which land past that end (S4). Its requirements are those the stage completes and the earlier ones
 whose steps' files the stage changed, since a later stage breaking an earlier requirement is the
 drift this ticket fights. No reviewer, since the Stage review ran, and no lessons, which stay with
 the ticket. A `fail` goes to an `implementer` as a `VERIFY` round of the step whose code it
