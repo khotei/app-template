@@ -20,8 +20,9 @@ graph LR
   V -->|pass| PR[PR · squash merge]
 ```
 
-A plan of one stage, or one written before stages, has no Stage review, no stage verification
-and no `next`: its steps run straight to `/ticket-verify` ([Plans in stages](#plans-in-stages)).
+A plan of one stage, or one whose **Status** has no `### Stage` heading, has no Stage review, no
+stage verification and no `next`: its steps run straight to `/ticket-verify`
+([Plans in stages](#plans-in-stages)).
 
 Every artifact lives in a ticket folder named by `.claude/rules/sdd.md`, started from
 [docs/tickets/_template/](../tickets/_template/feature.md). The domain glossary is
@@ -81,9 +82,8 @@ so the glossary holds none of them.
 
 You approve the skeleton and stage 1 together; what a later stage commits without your OK is in
 the [gates](../../.claude/rules/sdd.md#gates). A ticket whose steps fit one stage is prepared at
-once and has no boundary to cross. Stages apply to plans written since they were introduced: a
-plan whose **Status** has no `### Stage` heading keeps its form, and every skill runs it step by
-step as before.
+once and has no boundary to cross. Stages apply only to a plan whose **Status** has `### Stage`
+headings: a plan without one keeps its form and runs step by step.
 
 ## The five skills
 
@@ -125,7 +125,7 @@ uses updates this map too; the Standards review checks it against `.claude/rules
 | `/ticket-architecture` | `codebase-design`, `grilling` | `researcher` | a fact or an experiment: `opus high` | — | `architecture.md` |
 | `/ticket-plan` | — | through [stage.md](../../.claude/skills/ticket-plan/stage.md), read afresh for each stage: `researcher` for the fact check, a second for a probe of behaviour, one for the plan check; for a step that adds, changes or removes a guard, one more for its probes; every probe runs in the disposable worktree `<slug>-plan-probes` set up by `make worktree` | the fact check, a probe of behaviour, the plan check: `opus high`; the guard probes: `sonnet medium`; each step's **Model** line it writes: `opus medium` for a move, rename or config step, `opus high` for one that writes behaviour | — | `plan.md`; `architecture.md` where you agreed to a stage's question; the stage's facts and preparation commits |
 | `/ticket-implement` | on a new-interface step and at a stage's close the built-in `simplify`, run by the main session, with `codebase-design` as its vocabulary | `implementer` (one worktree per parallel step, set up by `make worktree`), `reviewer` (one per review pass, in parallel; Standards and Design over the stage's diff at its close), `researcher` (one per claimed finding, in parallel, all writing their confirming tests in one disposable worktree per review round, set up by `make worktree`); in a loop, after a stage's close, what a due stage verification and the next stage's preparation spawn, read afresh from `ticket-verify/SKILL.md` and `ticket-plan/stage.md` | `implementer`: the step's **Model** line; Standards: `sonnet medium`; Spec: `opus medium`; the hunt and Design: `opus high`; a question about the code and a claimed finding: `researcher` on `opus high`; the no-op experiment: `sonnet medium` | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, the step's commits, a stage's `STAGE` rounds; in a loop, what the stage verification and preparation write |
-| `/ticket-verify` | — | `verifier` (one per group of requirements, in parallel), `reviewer` (one per axis, in parallel; none for a stage), `implementer` (a stage's `VERIFY` round per failure) | `verifier`: `opus high`, or `xhigh` for a stage over ~30 minutes of work; Standards: `sonnet medium`; Spec: `opus high`; `implementer`: the fixed step's **Model** line, `opus high` when it names none | — | `verification.md`, a stage's `VERIFY` rounds |
+| `/ticket-verify` | — | `verifier` (one per group of requirements, in parallel), `reviewer` (one per axis, in parallel; none for a stage), `implementer` (a stage's `VERIFY` round per failure) | `verifier`: `opus high`, or `xhigh` for a stage over ~30 minutes of work; Standards: `sonnet medium`; Spec: `opus high`; `implementer`: the fixed step's **Model** line, `opus high` when it names none | `make-check.sh`, through `implementer` | `verification.md`, a stage's `VERIFY` rounds |
 | `implementer` | `tdd`, preloaded | — | the spawn's | `make-check.sh` on `Stop` (runs as `SubagentStop`) | the step's files |
 | `reviewer` | one pass: Standards, Spec, Design or the hunt, and at a stage's close Standards and Design over its diff, Design also against `architecture.md`, the skeleton and the stage design; on Standards over an instruction file, `writing-for-agents`; on Design, `codebase-design` as its vocabulary | — | the spawn's | — | nothing: read-only |
 | `verifier` | — | — | the spawn's | — | nothing: read-only |
@@ -133,8 +133,8 @@ uses updates this map too; the Standards review checks it against `.claude/rules
 
 **The rule for `fable`:** every spawn names its default model and effort. The spawning session
 may choose `fable` instead where it judges the result will be better for it, chiefly where a
-wrong answer passes every later check: a fact that settles a design, a review of shape, a
-verifier. A spawn on `fable` names it in the session's status.
+wrong answer passes every later check: a fact that settles a design, a review of shape, the
+verification. A spawn on `fable` names it in the session's status.
 
 Plugin skills are `mattpocock-skills:<name>`; ticket files are in `docs/tickets/<ticket>/`.
 
