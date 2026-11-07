@@ -41,7 +41,7 @@ where tests observe it, and every non-obvious decision. Gates: `.claude/rules/sd
      checks it (the first whose work rests on it), whether by a read or a probe, and the Seam,
      contract or decision it changes if false;
    - risks, each with what it would cause and what contains it.
-4. Present it. The step is done when the user approves the Seams and the Decisions; the
-   Direction is shown as written, not asked. Next comes `/ticket-plan <ticket folder>`.
+4. Present it. The step is done when the user approves the Seams and the Decisions and reads the
+   Direction as written. Next comes `/ticket-plan <ticket folder>`.
 
 Commit under the commit gate of `.claude/rules/sdd.md`.
