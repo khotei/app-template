@@ -101,6 +101,8 @@ file list. Two sections join them:
 ```
 
 A direction is never put to the owner; the stage design takes it or sets it aside, with the fact.
+An open question of `feature.md` that a stage can still settle closes as a direction's area. An
+assumption names the first stage whose work rests on it, since no plan exists yet (S2).
 
 **The plan's layout** (R3, R4, R5, D3, D4):
 

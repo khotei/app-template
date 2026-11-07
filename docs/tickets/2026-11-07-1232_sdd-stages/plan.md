@@ -7,7 +7,7 @@
 | Step | Delivers | Status |
 |---|---|---|
 | S1 | every round commits before it is read, under a name that says where it belongs; the owner's edits are a round | done |
-| S2 | the architecture phase writes the high level, with direction and assumptions | todo |
+| S2 | the architecture phase writes the high level, with direction and assumptions | done |
 | S3 | the plan phase writes a skeleton and prepares one stage at a time | todo |
 | S4 | the verification runs for one stage at the owner's word, and reports the ticket per stage | todo |
 | S5 | a stage closes with a review of its code, a due verification runs, and the loop crosses it | todo |
@@ -208,7 +208,38 @@
   - `grep -n 'Direction' .claude/skills/ticket-architecture/SKILL.md`: empty before;
   - `make doc-lint` passes.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:** rounds S2.1 to S2.4; passes Standards and Spec after S2.1, S2.2 and S2.3, S2.4
+  not re-reviewed; claimed findings settled by a `researcher`. Verify after S2.4: the template
+  grep prints `2`, `effort` is on `ticket-feature/SKILL.md:31` and
+  `ticket-architecture/SKILL.md:20`, `make doc-lint` and `make check` exit 0.
+  - implementer — accepted, recorded — the template writes `A1`, like its `D1`; the Contracts
+    sketch keeps `A<n>`.
+  - implementer — accepted, recorded — an assumption names the first stage whose work rests on
+    it, since no plan exists when the architecture is written; added to the Contracts entry.
+  - implementer — accepted, recorded — `ticket-feature`'s step 3 spawn says "on `opus high`"
+    without the word `effort`, so the Verify grep stays at one line per file.
+  - implementer — accepted, recorded — a line edited beyond Files, made wrong by the step:
+    `docs/tickets/_template/feature.md`'s `Answer` placeholder (S2.3, S2.4).
+  - Spec — rejected: refuted by a `researcher` — `researcher.md`'s front matter still says
+    `sonnet medium`; a spawn sets model and effort, and D9 rejects the session choosing unseen.
+  - Spec — accepted, fixed in S2.2 — the template let a decision drop its rejected alternative,
+    against R1.
+  - Standards — accepted, fixed in S2.2 — the Direction steered by prohibition; the template said
+    "the owner" where the skill says "the user".
+  - Standards — rejected: the Trap asks for the `fable` line whole in each skill — drop the copy
+    and link one home (raised three times).
+  - Spec — accepted, fixed in S2.3, confirmed by a `researcher` — an open question a stage can
+    still settle could close only as a `D…`, which puts a direction to the user, against R2.
+  - Standards — accepted, fixed in S2.3 — the skill's step 3 and the template's Structure and
+    Contracts named what the architecture leaves out instead of what it holds.
+  - Standards — rejected: R19 names the default at each spawn — `ticket-feature` names
+    `opus high` at both of its spawns (raised twice).
+  - Spec — accepted, fixed in S2.4 — S2.3 dropped the template's limit on files and signatures;
+    the template's `Answer` dropped the stage that settles a direction.
+  - Standards — accepted, fixed in S2.4 — the skill's step 4 still said "not asked".
+  - Out of step, for S6: the guide's map says an agent's front matter is only the fallback for a
+    spawn that names no model, so `researcher.md`'s `sonnet medium` reads as intended.
 
 #### S3 — The plan phase writes a skeleton and prepares one stage at a time
 
