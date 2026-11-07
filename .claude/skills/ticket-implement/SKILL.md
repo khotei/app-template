@@ -12,7 +12,9 @@ step id, take step after step, as **The loop** below says. Gates:
 ## Steps
 
 1. **Pick the step:** the one named, else the first `todo` step whose `Blocked by` steps are all
-   `done`. Of `plan.md`, read only the **Status** table and the step's own section.
+   `done`. Of `plan.md`, read only the **Status** table and the step's own section. A step with
+   no `#### S<n>` section of its own lies in a stage not yet prepared: even when it is named, do
+   not run it; stop and name `/ticket-plan <ticket folder> next`.
    Check that the branch is the ticket branch (`<type>/<slug>`); otherwise stop and ask. Before
    anything else, run the **owner check** on each change `git status --short` shows, an
    untracked file included. At a run's start, before this session has changed anything, ask

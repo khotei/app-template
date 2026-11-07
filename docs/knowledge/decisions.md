@@ -846,8 +846,9 @@ a verification of what it built (`.claude/rules/sdd.md › Gates`).
 - **Cost:** the user sees a later stage only as its commits, unless its preparation asks; each
   close runs `simplify` and two reviewers over the stage's diff, and a verifier every second
   close or after a change to a contract or the architecture; a plan grows by a section per stage.
-- **Guarded by:** a stage's steps are written only by its preparation, so `/ticket-implement`
-  finds no `todo` step in a stage not yet prepared; review against `.claude/rules/sdd.md`.
+- **Guarded by:** a stage's steps get their sections only from its preparation, and
+  `/ticket-implement` runs no step without one, naming `/ticket-plan <ticket> next` instead;
+  review against `.claude/rules/sdd.md`.
 - **If reversed:** one commit brings back the plan detailed whole under one review and drops the
   stage close; plans written in stages stay readable, and a plan without stage headings already
   runs as one.
