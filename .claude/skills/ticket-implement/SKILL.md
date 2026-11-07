@@ -14,22 +14,23 @@ step id, take step after step, as **The loop** below says. Gates:
 1. **Pick the step:** the one named, else the first `todo` step whose `Blocked by` steps are all
    `done`. Of `plan.md`, read only the **Status** table and the step's own section.
    Check that the branch is the ticket branch (`<type>/<slug>`); otherwise stop and ask. Before
-   anything else, run the **owner check**: a change in `git status --short`, an untracked file
-   included, that this session did not make commits as an `OWNER` round of the step whose files
-   it changes (`.claude/rules/commits.md › A ticket's rounds`), its body naming what changed and
-   what it reaches: the callers and tests a search finds. When the last status named a stopped
-   round as left uncommitted, ask instead whose the changes are.
+   anything else, run the **owner check** on each change `git status --short` shows, an
+   untracked file included. At a run's start, before this session has changed anything, ask
+   whose the changes are, since a stopped round looks the same: the user's commit as an `OWNER`
+   round of the step whose files they change (`.claude/rules/commits.md › A ticket's rounds`),
+   its body naming what changed and what it reaches, the callers and tests a search finds; a
+   round the user names as the agent's stays in the tree for the implementer to finish. Later in
+   the run, a change this session did not make commits as an `OWNER` round without asking.
 2. **Implement.** Spawn the `implementer` agent with pointers only: the ticket folder and the
    step id, on the `model` and `effort` the step's **Model** line names (`opus medium` for a
    move, rename or config step; `opus high` for one that writes behaviour). You may choose `fable`
    over this default or any model named in steps 3 and 4 where you judge the result will be
-   better for it,
-   chiefly where a wrong answer passes every later check, and name it in the status. What
-   it reads, what it leaves to you and how it reports are in its file; a brief does not repeat
-   them. Its `make check` hook keeps it working until the gate is green. A report that starts with
-   `BLOCKED:` goes straight to the user. At the session's first step outside a loop, ask the
-   commit question of `.claude/rules/sdd.md › Gates` now, while the implementer works, and hold
-   the answer; a later step does not ask again. Once `simplify` (below) and `make check` are done,
+   better for it, chiefly where a wrong answer passes every later check, and name it in the
+   status. What it reads, what it leaves to you and how it reports are in its file; a brief does
+   not repeat them. Its `make check` hook keeps it working until the gate is green. A report that
+   starts with `BLOCKED:` goes straight to the user. At the session's first step outside a loop,
+   ask the commit question of `.claude/rules/sdd.md › Gates` now, while the implementer works, and
+   hold the answer; a later step does not ask again. Once `simplify` (below) and `make check` are done,
    commit the round with the implementer's proposed message, named as
    `.claude/rules/commits.md › A ticket's rounds` says, before anything is presented.
    - **A new-interface step** is a behaviour step (below) whose diff adds an exported name, a

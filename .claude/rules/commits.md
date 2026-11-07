@@ -15,8 +15,8 @@ Decision: <non-obvious choice: trade-off, rejected alternative, or downstream im
 Refs: docs/tickets/<ticket folder>/
 ```
 
-- **Subject:** imperative, capitalised, no trailing period, ≤ 50 characters after the prefix and,
-  in a ticket, the round id and its source.
+- **Subject:** imperative, capitalised, no trailing period, ≤ 50 characters, counted from after
+  the prefix and, in a ticket, after the round id and its source too.
 - **Gitmoji** as a `:code:` shortcode (`:sparkles:`), not the emoji character.
 - **Scope:** the ticket slug (`monorepo-setup`), else the area (`api`, `domain`, `ci`, `tooling`).
 - **Decision:** required whenever a choice is non-obvious; add one paragraph per decision.

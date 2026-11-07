@@ -164,8 +164,9 @@ it recommends as rounds, as it would on your word. It stops where
 [the skill](../../.claude/skills/ticket-implement/SKILL.md#the-loop) lists, and only then shows
 you each committed step and the cause of the stop. To stop it sooner, tell the session to stop:
 the rounds already committed stay, and the current round stays uncommitted in the tree. To go on
-after a stop, answer it, then type the command again. Pushing and opening the PR still wait for
-your OK.
+after a stop, answer it, then type the command again: a run that finds changes in the tree first
+asks whose they are, so your edits commit as an `OWNER` round and the agent's stopped round is
+finished by the implementer. Pushing and opening the PR still wait for your OK.
 
 The loop runs in the main session, which learns that a step is done from the agent's
 notification; the built-in `/loop` fires on a timer instead, so it would either wait for nothing
