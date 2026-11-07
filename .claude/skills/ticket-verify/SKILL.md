@@ -75,10 +75,12 @@ headings has no `Completed in`: stop and say so.
    id of the step whose code the fix changes and the verifier's evidence, on the step's
    **Model** line, `opus high` when it names none. It is a `VERIFY` round of that step, committed
    under the commit gate and the round rule of `.claude/rules/sdd.md`. Then verify only the
-   failed requirements again. A failure that needs a requirement changed is the user's question:
-   present it and stop.
+   failed requirements again, on the same range, each brief also naming the `VERIFY` round's
+   commits. A failure that needs a requirement changed is the user's question: present it and
+   stop.
 4. **Append** `## Stage <n> — <date>` to `verification.md`, in the template's shape: the verdict
-   per requirement and the rounds that fixed a failure. Commit it under the commit gate.
+   per requirement and the rounds that fixed a failure. Commit it under the commit gate, named as
+   `.claude/rules/commits.md` says.
 
 ## The models
 
