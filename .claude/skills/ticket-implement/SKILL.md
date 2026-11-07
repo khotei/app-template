@@ -30,8 +30,9 @@ step id, take step after step, as **The loop** below says. Gates:
    not repeat them. Its `make check` hook keeps it working until the gate is green. A report that
    starts with `BLOCKED:` goes straight to the user. At the session's first step outside a loop,
    ask the commit question of `.claude/rules/sdd.md › Gates` now, while the implementer works, and
-   hold the answer; a later step does not ask again. Once `simplify` (below) and `make check` are done,
-   commit the round with the implementer's proposed message, named as
+   hold the answer; a later step does not ask again. Once `simplify` (below) and `make check` are
+   done, stage every file the round changes, adds or deletes, untracked ones included
+   (`git add -A`), and commit the round with the implementer's proposed message, named as
    `.claude/rules/commits.md › A ticket's rounds` says, before anything is presented.
    - **A new-interface step** is a behaviour step (below) whose diff adds an exported name, a
      module or a Seam. Simplify and Design run on it alone; any other step gets Standards and
