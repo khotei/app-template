@@ -117,7 +117,7 @@ assumption names the first stage whose work rests on it, since no plan exists ye
 
 ## Stage 1 — <title>
 ### Stage design
-<names, signatures and files the stage fixes; then its choices:>
+<the facts, each with its source or probe output; then the names, signatures and files the stage fixes; then its choices:>
 - **<choice>** — set aside: <option> — fact: <the fact, its source or probe output> — used by: S<n>
 ### Steps
 #### S1 — <title>          (the step's fields as today)
@@ -146,8 +146,11 @@ heading is the old form, and every skill runs it as before (R15).
 - **Does, in order:** reads `stage.md` afresh, since compaction restores only the files last
   modified; the fact check: a `researcher` confirms every assumption naming this stage and every
   fact its steps rest on, and a probe in the disposable worktree `<slug>-plan-probes` settles any
-  fact only a run shows (R6); the facts commit at once as `St<n> (PLAN) Facts`, so a compaction or
-  a question round loses none;
+  fact only a run shows (R6); the facts head the stage design in place of its "Not prepared"
+  line and commit at once as `St<n> (PLAN) Record the facts of stage <n>`, so a compaction or a
+  question round loses none, and `next` resumes a stage that has a design but no `Prepare stage
+  <n>` commit; a first plan's facts commit with its approval instead, since the commit gate
+  commits an artifact only once the owner confirms it (S3);
   the stage design and the steps in full; the plan check of today's step 4 over the stage's steps,
   plus a coverage list that fails on a requirement no skeleton or stage step serves (R7); the
   triage below.
@@ -183,7 +186,7 @@ review's findings among the causes.
 
 **The Stage review** (R10, D2, D5): on a stage's last step, once its own passes are settled and
 its rounds committed, the quality passes run once more over the stage's diff, from its
-`St<n> (PLAN)` preparation commit (the plan's commit for stage 1) to `HEAD`:
+`St<n> (PLAN) Prepare stage <n>` commit, not the facts commit before it, to `HEAD`:
 
 - `simplify`, run by the main session with that range named in its args, since without one it
   reviews the whole branch; its edits commit as a `STAGE` round of the steps whose code they

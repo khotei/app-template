@@ -8,7 +8,7 @@
 |---|---|---|
 | S1 | every round commits before it is read, under a name that says where it belongs; the owner's edits are a round | done |
 | S2 | the architecture phase writes the high level, with direction and assumptions | done |
-| S3 | the plan phase writes a skeleton and prepares one stage at a time | todo |
+| S3 | the plan phase writes a skeleton and prepares one stage at a time | done |
 | S4 | the verification runs for one stage at the owner's word, and reports the ticket per stage | todo |
 | S5 | a stage closes with a review of its code, a due verification runs, and the loop crosses it | todo |
 | S6 | the process guide describes stages, terms, models and the new loop | todo |
@@ -300,7 +300,40 @@
     least `1` (the guard probes);
   - `make doc-lint` passes.
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:** rounds S3.1 to S3.3; passes Standards and Spec after each round; two claimed
+  findings settled by a `researcher`, both confirmed. Verify after S3.1: `stage.md` exists, the
+  template's `^### Stage` count is `4`, `argument-hint` reads `"<ticket folder> [next]"`, the
+  "later steps only conform" count is `0`, `stage.md` holds `` `opus high` `` 4 times and
+  `` `sonnet medium` `` once, `make doc-lint` and `make check` exit 0; after S3.3, `make check`
+  exits 0.
+  - implementer — accepted, recorded in `architecture.md` — the facts commit is named
+    `Record the facts of stage <n>`, as the step says, not the Contract's `Facts`.
+  - implementer, Spec (raised three times) — accepted, recorded in `architecture.md` — a first
+    plan's facts commit with its approval as `St1 (PLAN) Prepare stage 1`, since the commit gate
+    commits an artifact only once confirmed; the facts may be lost before that, and a fact check
+    reruns them.
+  - implementer — accepted, recorded in `architecture.md` — the facts head the stage design.
+  - Spec, confirmed by a `researcher` — accepted, fixed in S3.2 — a step over ~400 lines split
+    "before the stage is presented", but `next` commits a stage with no question unpresented.
+  - Spec, confirmed by a `researcher` — accepted, fixed in S3.3 — `next` found a stage only by
+    its "Not prepared" line, so a stage with its facts committed and a question round open could
+    not be resumed.
+  - Standards — accepted, fixed in S3.2 and S3.3 — the read-afresh reason and three bans named
+    no positive target; the `fable` line cut the step list.
+  - Spec — accepted, recorded in `architecture.md` — two `St<n> (PLAN)` commits per stage made
+    the Stage review's base ambiguous; it is the `Prepare stage <n>` commit.
+  - Standards — rejected (raised three times): `.claude/rules/sdd.md:34` and
+    `docs/knowledge/sdd.md:46` still say the heavy review lands once on the plan — S5 and S6 own
+    those lines.
+  - Standards — rejected (raised twice): the `fable` section restates D9 and should move again —
+    D9 asks for the line in each spawning file, and S3.2 moved it out of the steps at the
+    reviewer's request.
+  - Standards — rejected: the template's Probes line and `stage.md` hold one fact twice — the
+    template links the procedure.
+  - Out of step, for S5: the commit gate of `.claude/rules/sdd.md` names the facts commit, which
+    lands before the triage and so before the owner confirms a stage that raises a question.
+  - Out of step, for S6: the guide's dependency map adds `stage.md` and its `researcher` spawns.
 
 #### S4 — The verification runs one stage on request and reports the ticket per stage
 
