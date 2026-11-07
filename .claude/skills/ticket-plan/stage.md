@@ -1,7 +1,7 @@
 # The stage procedure
 
 Read this file afresh at every preparation, even when this session read it before: compaction
-restores only the files last modified, never one only read.
+restores only the files last modified, so this one returns only when read again.
 
 It prepares one stage of a plan in stages: `/ticket-plan` runs it for the first stage and for
 `next`, the loop of `/ticket-implement` at a stage's close. It ends by returning to its caller,
@@ -43,7 +43,7 @@ as it stands. That is the base: look only at the stage ahead, and never re-revie
      `Removes later: none`; a consumer in a later step moves the name there;
    - **Size**: the changed lines expected, as `git diff -M --stat` counts them, summed over every
      file the change reaches, code and tests together, docs apart (`~260, docs ~150`); a step over
-     ~400 of code and tests is split before the stage is presented; counting only the moved code
+     ~400 of code and tests is split before the stage is checked; counting only the moved code
      undercounts it;
    - **Test first**: the Seam from `architecture.md` and the acceptance check to see red, or
      `config only` with a Verify command that fails before the step;
@@ -113,10 +113,6 @@ as it stands. That is the base: look only at the stage ahead, and never re-revie
    commit follows the commit gate of `.claude/rules/sdd.md` and is named as
    `.claude/rules/commits.md` says.
 
-You may choose `fable` over any default of this file where you judge the answer will be better
-for it, chiefly where it settles a design that nothing after it re-checks, and name it in the
-status.
-
 ## The worktree
 
 A probe runs in the disposable worktree `<slug>-plan-probes`. Create it first with
@@ -131,3 +127,9 @@ shows it.
 
 The edited `plan.md` (and `architecture.md` where the user agreed), and either nothing for the
 user or the question round. Return to the caller.
+
+## The models
+
+Each spawn above names its default model and effort. You may choose `fable` over any of them
+where you judge the answer will be better for it, chiefly where it settles a design that nothing
+after it re-checks, and name it in the status.
