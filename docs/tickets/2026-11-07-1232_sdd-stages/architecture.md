@@ -189,21 +189,23 @@ its rounds committed, the quality passes run once more over the stage's diff, fr
 `St<n> (PLAN) Prepare stage <n>` commit, not the facts commit before it, to `HEAD`:
 
 - `simplify`, run by the main session with that range named in its args, since without one it
-  reviews the whole branch; its edits commit as a `STAGE` round of the steps whose code they
-  change;
+  reviews the whole branch; its edits commit as one `STAGE` round carrying the id of each step
+  whose code they change (S5);
 - then Standards and Design in parallel. Standards also asks, of each deletion in the `simplify`
-  round, where the deleted rule or case now lives. Design's sources gain `architecture.md`, the
-  skeleton and the stage's design, so it also reports a departure from them and scaffolding a
-  later step rewrites; it reports only what changes correctness or shape.
+  round when it made one, where the deleted rule or case now lives. Design's sources gain
+  `architecture.md`, the skeleton and the stage's design, so it also reports a departure from them
+  and scaffolding a later step rewrites; it reports only what changes correctness or shape, a
+  correctness bug included, since no hunt runs over the stage's diff (S5).
 
 The findings go through `ticket-implement` step 4 as any pass's do, but for one rule: in a loop, a
 Design finding that reshapes a module and contradicts no `D…` is fixed without asking, the owner
 reading it afterwards by its `STAGE` commit; one that contradicts a `D…` is recorded open under
 `### Stage review` and presented at the loop's next stop, without causing one. Each accepted fix
 goes to the last step's implementer, resumed by its agent id (or a fresh one, given that step's
-brief, if it was stopped), with the Files and Traps of the steps whose code the fix changes, and
-commits as a `STAGE` round of those steps. The findings land under `### Stage review` in the
-close's `PLAN` round.
+brief, on its **Model** line, if it was stopped), with the Files and Traps of the steps whose code
+the fix changes, and commits as one `STAGE` round carrying their ids; Standards and Design then run
+again on the range, and in a loop each such fix round counts toward the last step's three (S5).
+The findings land under `### Stage review` in the close's `PLAN` round.
 
 **The stage verification** (R20, D10): `/ticket-verify <ticket> stage <n>` runs one `verifier`
 per group of the stage's requirements, as `/ticket-verify` step 1 groups them, with the stage's
@@ -218,7 +220,10 @@ changed is the owner's question. The verdicts land as `## Stage <n> — <date>` 
 `verification.md`.
 
 It is **due** when two stages have closed since the last one, or the stage changed a contract or
-the architecture. Outside a loop the close names the command; the owner may run it for any stage.
+the architecture: counted from the last `## Stage <k>` section of `verification.md`, a contract
+being an interface another module or a later stage uses, and a change to `architecture.md`
+counting the stage's preparation commit; a due one runs at every close, the last stage's too
+(S5). Outside a loop the close names the command; the owner may run it for any stage.
 Inside a loop a due verification runs at the close without stopping, as part of the loop's
 waiver; only a failure that needs a requirement changed stops it.
 
@@ -312,7 +317,8 @@ real input. `tdd` writes no test here; a step's *Test first* names the seam it i
     loop going on); a file with no ending of its own leaves each caller its end. The plan skill
     then holds the skeleton alone, and a first plan and a later stage each read what they need.
   - **Cost accepted:** one more file in the dependency map; `ticket-implement` reads a file of
-    another skill's folder; each preparation reads it afresh, since a file read once is not among
+    another skill's folder, and in a loop `ticket-verify/SKILL.md` too, for a due stage
+    verification, by the same reasoning (S5); each preparation reads it afresh, since a file read once is not among
     those compaction restores (Claude Code docs, context window).
   - **Reversal:** one commit.
   - **Rejected:**

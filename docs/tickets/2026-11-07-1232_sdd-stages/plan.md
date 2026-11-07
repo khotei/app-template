@@ -10,7 +10,7 @@
 | S2 | the architecture phase writes the high level, with direction and assumptions | done |
 | S3 | the plan phase writes a skeleton and prepares one stage at a time | done |
 | S4 | the verification runs for one stage at the owner's word, and reports the ticket per stage | done |
-| S5 | a stage closes with a review of its code, a due verification runs, and the loop crosses it | todo |
+| S5 | a stage closes with a review of its code, a due verification runs, and the loop crosses it | | done |
 | S6 | the process guide describes stages, terms, models and the new loop | todo |
 | S7 | a sample ticket and a runner for the acceptance runs | todo |
 
@@ -419,9 +419,9 @@
 - **Delivers:** the last step of a stage also runs `simplify` over the stage's committed diff,
   then Standards and Design over it; Standards asks where each deleted rule or case now lives,
   Design also reports departures from the architecture and the stage design and scaffolding a
-  later step rewrites, only what changes correctness or shape. Each accepted fix commits as a
-  `STAGE` round of the step whose code it changes, made by the last step's implementer with that
-  step's Files and Traps. Outside a loop the close names `/ticket-plan <ticket> next` (or
+  later step rewrites, only what changes correctness or shape. Each accepted fix commits as one
+  `STAGE` round carrying the id of each step whose code it changes, made by the last step's
+  implementer with those steps' Files and Traps. Outside a loop the close names `/ticket-plan <ticket> next` (or
   `/ticket-verify` after the last stage) and a due stage verification; in a loop it runs a due
   verification, fixes a reshape that contradicts no decision, prepares the next stage and goes
   on, stopping only where the owner must answer. The gates say where the heavy review lands now
@@ -485,7 +485,61 @@
     open tickets, the records and the `CLAUDE.md` files, and lists each line it rewrites (at
     plan time: `.claude/rules/sdd.md` alone, beside the lines S3 and S6 own).
 - **Model:** `opus high`
-- **Status:** todo
+- **Status:** done
+- **Findings:** rounds S5.1 to S5.4; passes Standards and Spec after each round (a docs-only step:
+  no `simplify`, Design or hunt); five claimed findings settled by a `researcher`, all confirmed.
+  Verify after S5.4: `once, on the plan` in `sdd.md` `0`, `ticket-plan/stage.md` in
+  `ticket-implement` `1`, `stage <n>` `3`, `scaffolding` `1` and `deleted` `2` in `reviewer.md`,
+  `822:### Plans in stages`, `wc -l < .claude/rules/sdd.md` `63`, `make doc-lint` and
+  `make check` exit 0; the `heavy review` grep rewrote `.claude/rules/sdd.md:34` alone.
+  - implementer — accepted, recorded in `architecture.md` — the due rule counts from the last
+    `## Stage <k>` section of `verification.md`, reads a contract as an interface another module
+    or a later stage uses, counts the preparation commit, and runs at every close, the last too.
+  - implementer — accepted, recorded in `architecture.md` (D1) — in a loop the stage verification
+    runs by reading `ticket-verify/SKILL.md` afresh, not through the Skill tool, as D1 argues for
+    `stage.md`.
+  - implementer — accepted, recorded in `architecture.md` — a `STAGE` fix round re-runs Standards
+    and Design over the stage's range, as a step's feedback round returns to its passes.
+  - Spec, confirmed by a `researcher` — accepted, fixed in S5.2, recorded in `architecture.md` —
+    the due rule named only `architecture.md`, so a contract changed in code alone skipped the
+    verification R20 asks for.
+  - Spec, confirmed — accepted, fixed in S5.2 — the Standards brief named a `simplify` commit
+    that does not exist when `simplify` changes nothing.
+  - Spec — accepted, fixed in S5.2 — the record's Why explained one of the three commits that
+    skip the user's OK.
+  - Standards — accepted, fixed in S5.2 — step 5's opening did not parse; step 6 packed four
+    cases into one sentence and restated the due rule.
+  - Standards — accepted, fixed in S5.2 — a fresh implementer for a `STAGE` fix named no model.
+  - Spec, confirmed — accepted, fixed in S5.3, recorded in `architecture.md` — the close's fix
+    rounds had no bound, since the loop's three belonged to a step whose passes had settled.
+  - Spec, confirmed (a no-op run: 3 of 3 wrote two commits before, one `S7+S9 (STAGE)` after) —
+    accepted, fixed in S5.3, recorded in `architecture.md` — "a `STAGE` round of each step" read
+    as one commit per step.
+  - Spec — accepted, fixed in S5.3, recorded in `architecture.md` — Design was told a
+    correctness bug is the hunt's while no hunt runs over a stage's diff.
+  - Spec — accepted, fixed in S5.3 — the loop's stop on a finding for the user also matched the
+    Design finding held open without a stop.
+  - Spec, confirmed — accepted, fixed in S5.4 — the record's Guarded by claimed `/ticket-implement`
+    finds no `todo` step in an unprepared stage, yet the template's later rows read `todo`; step 1
+    now runs no step without its own `#### S<n>` section and names `/ticket-plan … next`.
+  - Spec — accepted, recorded — S5.4 edits `ticket-implement` step 1, outside this step's Files
+    (S1's section), for the guard the record rests on.
+  - Standards — rejected (raised three times): the record's Why restates the gate's three
+    commits — the gate holds the rule, the record why each may skip the OK, as a Spec finding
+    asked.
+  - Standards — rejected: the Design paragraph belongs under the close's step 4 — it holds in a
+    loop only, and the step's Files place it in **The loop**.
+  - Standards — rejected: Guarded by restates step 1's guard — naming the guard is that field's
+    job.
+  - Standards — rejected: step 1's new line leads with the prohibition — its action follows in
+    the same line.
+  - implementer — accepted, open — `.claude/rules/sdd.md:45` says `plan.md` is edited only at a
+    step's close, while a stage's facts and preparation commits edit it too.
+  - implementer — accepted, open — `make doc-lint` does not check an `#anchor` in another file
+    (a planted `#plans-in-stagez` passed).
+  - Out of step, for S6: the guide's dependency map and the `/ticket-implement` row gain
+    `simplify` on a stage's range and the reads of `stage.md` and `ticket-verify/SKILL.md`
+    (Standards, under `claude-md.md › The toolkit`).
 
 #### S6 — The process guide describes stages, terms, models and the new loop
 
