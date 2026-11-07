@@ -60,6 +60,8 @@ against them.
 - The implement phase: the stage review and how the loop crosses a stage boundary.
 - A review pass for a stage; the verification's per-stage table.
 - The process guide, its dependency map and its terms; the gate rule within its size limit.
+- The model and effort each skill spawns an agent on, added at the owner's word during the
+  architecture.
 
 ## Out of scope
 
@@ -115,7 +117,7 @@ against them.
 - **R12** — WHEN a stage ends outside a loop, THE SYSTEM SHALL name the command that prepares the
   next stage.
 - **R13** — WHEN a stage's preparation needs no answer from the owner, THE SYSTEM SHALL commit it
-  without the owner's OK, its commit stating what the stage review found and what changed.
+  without the owner's OK, its commit stating what changed and why.
 
 ### Reach
 
@@ -134,6 +136,12 @@ against them.
   rather than in the domain glossary, keeping the name of the existing Design review pass apart.
 - **R18** — THE SYSTEM SHALL keep every instruction file within its size limit.
 
+### Models
+
+- **R19** — WHEN a skill spawns an agent, THE SYSTEM SHALL name a default model and effort there,
+  and SHALL let the spawning session choose the strongest model instead where it judges the
+  task's result will be better for it, naming that choice in its status.
+
 ## Acceptance
 
 | Req | How to verify |
@@ -150,12 +158,13 @@ against them.
 | R10 | After a stage's last step, the plan holds a stage review covering conformance, scaffolding, coverage and recorded choices. |
 | R11 | Run the loop across a stage boundary on the sample: it reviews, prepares and continues; with a choice under R8 pending, it stops with the questions. |
 | R12 | Run one step that ends a stage without the loop: the output names the command for the next stage. |
-| R13 | `git log` after an unattended stage preparation: one commit, no owner's OK asked, its body naming the review's findings and the changes. |
+| R13 | `git log` after an unattended stage preparation: one commit, no owner's OK asked, its body naming the changes and their causes. |
 | R14 | Plan a three-step sample ticket: one stage, no stage review, the same flow as before. |
 | R15 | Open a closed ticket's plan after the change: unchanged; the process guide says stages apply to new plans. |
 | R16 | Verify the sample: the verification holds one row per stage with the three figures. |
 | R17 | Read the process guide: the terms are defined there, the loop diagram shows stages, the dependency map matches the skills' files; the glossary has no process terms. |
 | R18 | `make doc-lint` passes. |
+| R19 | Every place a skill spawns an agent names a default model and effort, and the guide's map lists the same per agent and use; the guide states when the session may choose the strongest model instead, and a status of a spawn on it names the model. |
 
 ## Open questions
 
@@ -169,6 +178,8 @@ For `/ticket-architecture`.
   B — the preparation lives in a file beside the plan skill that both skills read.
 - **Recommendation:** A if a skill can run another in the main session without losing the loop's
   state, else B; a researcher checks it.
+- **Answer:** B, as [D1](./architecture.md#decisions): A works in a short experiment, but loads the
+  whole plan skill at every boundary.
 
 ### Q2 — Does the plan skill keep its size?
 
@@ -176,9 +187,11 @@ For `/ticket-architecture`.
 - **Options:** A — all in the skill; B — the stage preparation in a file beside it, as the probe
   procedure already is.
 - **Recommendation:** B, so a first plan and a stage preparation each read what they need.
+- **Answer:** B, as [D1](./architecture.md#decisions).
 
 ### Q3 — Where do the stage review's findings and the per-stage table live?
 
 - **Options:** A — the stage review under its stage in the plan, the per-stage table in the
   verification; B — both in the plan.
 - **Recommendation:** A: the plan holds what steps did, the verification what the ticket measured.
+- **Answer:** A, as [D3](./architecture.md#decisions) and [D8](./architecture.md#decisions).
