@@ -387,9 +387,8 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   migration command for a deployed stage. Locally `make up` sets `VCR_MODE=REPLAY_ONLY` to skip
   the provider's fixed waits; never on AWS.
 - **Inherits from `llm-providers` (2026-10-30).** `deployment/` sets no LLM variables, so a
-  deployed worker and api fail at start: both need `LLM_PROVIDER` and, for `anthropic`,
-  `LLM_REPLY_MODEL`; the worker also `LLM_TITLE_MODEL` and `ANTHROPIC_API_KEY` (in SSM). The api
-  never reads the key.
+  deployed worker and api fail at start: both need `LLM_REPLY_MODEL`; the worker also
+  `LLM_TITLE_MODEL` and `ANTHROPIC_API_KEY` (in SSM). The api never reads the key.
 - **To weigh.** [Ideas to weigh › Queue on SQS or in Postgres](#queue-on-sqs-or-in-postgres)
   decides whether the worker is a Lambda on SQS or a long-running poller, and where the relay
   runs; [Telemetry readable by an agent and on AWS](#telemetry-readable-by-an-agent-and-on-aws)
@@ -524,7 +523,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Scope.** Anthropic's code execution tool with its `docx`, `xlsx`, `pptx`, `pdf` Skills and the
   Files API; uploading a user's file into the container; downloading produced files into S3 as
   attachments of the assistant message; the placeholder syntax; the `pause_turn` continuation;
-  deleting files at Anthropic once copied; the stub producing a file for dev and e2e; audio by a
+  deleting files at Anthropic once copied; the e2e's scripted assistant producing a file; audio by a
   speech-to-text service.
 - **Out of scope.** Providers other than Anthropic.
 - **Open questions for its feature phase.** One container per chat or per reply; which files go
@@ -615,7 +614,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   Billed through AWS Marketplace; the global route has no premium, regional profiles +10%;
   per-token prices were not readable from aws.amazon.com/bedrock/pricing and need the AWS
   calculator. MiniStack 1.5.31 emulates Bedrock Runtime with canned replies that fail a schema
-  and does not emulate the Messages endpoint, so local runs stay on the stub.
+  and does not emulate the Messages endpoint, so local runs call Anthropic.
 - **Status.** Planned.
 
 ### 22. `jobs`

@@ -24,9 +24,8 @@ copied and changed.
 An anonymous user gets a secret in a cookie, creates chats, sends messages with attachments, and
 the assistant answers. The api writes the message and its jobs in one transaction and answers
 `202`; the worker relays the jobs to SQS, writes the model's whole reply into the message and
-titles the chat; the client polls the message until it is `done` or `failed`. `LLM_PROVIDER`
-picks the language model: Anthropic, or a stub that needs no key. The browser UI still shows only
-the health panel.
+titles the chat; the client polls the message until it is `done` or `failed`. The language model
+is Anthropic's. The browser UI still shows only the health panel.
 
 ```mermaid
 sequenceDiagram
@@ -61,9 +60,10 @@ make up      # MiniStack with Postgres, the bucket and the queues inside it; mig
 make dev     # runs make migrate, then api, worker and web together; needs make up's stand
 ```
 
-`.env` starts with `LLM_PROVIDER="stub"`, which needs no key. `LLM_PROVIDER="anthropic"` also needs
-`ANTHROPIC_API_KEY`, `LLM_REPLY_MODEL` and `LLM_TITLE_MODEL`, which `.env.example` leaves commented
-out; without them the api and the worker fail at start (the web does not read them).
+`.env` needs your `ANTHROPIC_API_KEY`; `.env.example` leaves it empty and names the models in
+`LLM_REPLY_MODEL` and `LLM_TITLE_MODEL`. Without a key the worker's every reply fails at
+Anthropic, and without the models the api and the worker fail at start (the web reads none of
+them).
 
 | Process | URL | Try |
 |---|---|---|

@@ -204,37 +204,25 @@ export const CurrentReplyProvenanceFromConfig: Layer.Layer<
 > = Layer.effect(
   CurrentReplyProvenance,
   Effect.gen(function* () {
-    const { provider, replyModel } = yield* ReplyModelConfig
+    const { replyModel } = yield* ReplyModelConfig
     const instructionsHash = yield* generateInstructionsHash(systemPrompt, ReplyAnswer)
 
-    return new ReplyProvenance({ provider, model: replyModel, instructionsHash })
+    return new ReplyProvenance({ provider: 'anthropic', model: replyModel, instructionsHash })
   }),
 ).pipe(Layer.provide(ReplyModelConfig.layer))
 
-const stubReply = JSON.stringify({
-  text: 'This is the development stub answering the whole reply at once.',
-})
-
-const stubTitle = JSON.stringify({ title: 'Stub chat title' })
-
 const assistantModels = Effect.all({
   reply: createLanguageModel({
-    anthropic: {
-      model: Struct.get('replyModel'),
-      config: { max_tokens: 16_000, cache_control: { type: 'ephemeral' } },
-    },
-    stub: { text: stubReply },
+    model: Struct.get('replyModel'),
+    config: { max_tokens: 16_000, cache_control: { type: 'ephemeral' } },
   }),
   title: createLanguageModel({
-    anthropic: {
-      model: Struct.get('titleModel'),
-      config: {
-        max_tokens: 1_000,
-        output_config: { effort: 'low' },
-        thinking: { type: 'disabled' },
-      },
+    model: Struct.get('titleModel'),
+    config: {
+      max_tokens: 1_000,
+      output_config: { effort: 'low' },
+      thinking: { type: 'disabled' },
     },
-    stub: { text: stubTitle },
   }),
 })
 

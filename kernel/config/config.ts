@@ -76,64 +76,29 @@ export class RuntimeConfig extends Context.Service<
   )
 }
 
-const llmProviders = ['stub', 'anthropic'] as const
-
-type LlmProvider = (typeof llmProviders)[number]
-
-const llmProvider = Config.Literals(llmProviders, 'LLM_PROVIDER')
-
 const replyModel = Config.String('LLM_REPLY_MODEL')
 
-type LlmSettings =
-  | { readonly provider: 'stub' }
-  | {
-      readonly provider: 'anthropic'
-      readonly apiKey: Redacted.Redacted
-      readonly replyModel: string
-      readonly titleModel: string
-    }
-
-const llmSettings = {
-  stub: Config.succeed({ provider: 'stub' }),
-  anthropic: Config.all({
-    provider: Config.succeed('anthropic' as const),
-    apiKey: Config.Redacted('ANTHROPIC_API_KEY'),
-    replyModel,
-    titleModel: Config.String('LLM_TITLE_MODEL'),
-  }),
-} as const satisfies Record<LlmProvider, Config.Config<LlmSettings>>
-
-export class LlmConfig extends Context.Service<LlmConfig, LlmSettings>()(
-  '@app-template/kernel/config/LlmConfig',
-) {
+/** Anthropic's key and the models that answer replies and titles. */
+export class LlmConfig extends Context.Service<
+  LlmConfig,
+  { readonly apiKey: Redacted.Redacted; readonly replyModel: string; readonly titleModel: string }
+>()('@app-template/kernel/config/LlmConfig') {
   static readonly layer = Layer.effect(
     this,
-    llmProvider.pipe(
-      Config.flatMap((provider): Config.Config<LlmSettings> => llmSettings[provider]),
-    ),
+    Config.all({
+      apiKey: Config.Redacted('ANTHROPIC_API_KEY'),
+      replyModel,
+      titleModel: Config.String('LLM_TITLE_MODEL'),
+    }),
   )
 }
 
-type ReplyModelSettings = { readonly provider: LlmProvider; readonly replyModel: string }
-
-const replyModelSettings = {
-  stub: Config.succeed({ provider: 'stub', replyModel: 'stub' }),
-  anthropic: Config.all({
-    provider: Config.succeed('anthropic' as const),
-    replyModel,
-  }),
-} as const satisfies Record<LlmProvider, Config.Config<ReplyModelSettings>>
-
-/** The provider and the model that answer replies, read without the provider's key. */
-export class ReplyModelConfig extends Context.Service<ReplyModelConfig, ReplyModelSettings>()(
-  '@app-template/kernel/config/ReplyModelConfig',
-) {
-  static readonly layer = Layer.effect(
-    this,
-    llmProvider.pipe(
-      Config.flatMap((provider): Config.Config<ReplyModelSettings> => replyModelSettings[provider]),
-    ),
-  )
+/** The model that answers replies, read without the key. */
+export class ReplyModelConfig extends Context.Service<
+  ReplyModelConfig,
+  { readonly replyModel: string }
+>()('@app-template/kernel/config/ReplyModelConfig') {
+  static readonly layer = Layer.effect(this, Config.all({ replyModel }))
 }
 
 export const MinimumLogLevelFromConfig = RuntimeConfig.pipe(

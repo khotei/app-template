@@ -39,7 +39,6 @@ const buildConfigProvider = Effect.fnUntraced(function* (apiPort: number, worker
     WORKER_PORT: workerPort,
     NODE_ENV: 'test',
     LOG_LEVEL: 'Warn',
-    LLM_PROVIDER: 'anthropic',
     LLM_REPLY_MODEL: 'e2e-reply',
   })
 })

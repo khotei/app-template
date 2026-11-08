@@ -356,7 +356,7 @@ no app.
 ### The language model in the kernel
 
 The language-model technology lives in `packages/llm` (the provider builders) and `kernel/llm`
-(the provider chosen by `LlmConfig`); `chat` keeps only `AssistantLlmFromConfig` with its prompts
+(Anthropic's, configured by `LlmConfig`); `chat` keeps only `AssistantLlmFromConfig` with its prompts
 and its purposes, and its test builds the models from `LlmConfig`.
 
 - **Why:** a second provider is added in one place; the test takes the path the app takes.

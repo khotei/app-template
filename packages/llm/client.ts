@@ -1,6 +1,6 @@
 import { AnthropicClient, AnthropicLanguageModel } from '@effect/ai-anthropic'
-import { Duration, Effect, type Redacted, Stream, type Types } from 'effect'
-import { LanguageModel, type Response } from 'effect/ai'
+import { Duration, Effect, type Redacted, type Types } from 'effect'
+import type { LanguageModel } from 'effect/ai'
 import { FetchHttpClient, HttpClient } from 'effect/http'
 
 /** The settings an Anthropic model sends with every request, but the model's name. */
@@ -31,23 +31,3 @@ export const createLanguageModelAnthropic = ({
       AnthropicClient.make({ apiKey, transformClient: waitForAnswer }),
     ),
   )
-
-export const createLanguageModelStub = ({
-  text,
-  delay,
-}: {
-  readonly text: string
-  readonly delay: Duration.Input
-}): Effect.Effect<LanguageModel.LanguageModel> =>
-  LanguageModel.make({
-    generateText: () =>
-      Effect.succeed<Array<Response.PartEncoded>>([{ type: 'text', text }]).pipe(
-        Effect.delay(delay),
-      ),
-    streamText: () =>
-      Effect.succeed<Array<Response.StreamPartEncoded>>([
-        { type: 'text-start', id: 'stub' },
-        { type: 'text-delta', id: 'stub', delta: text },
-        { type: 'text-end', id: 'stub' },
-      ]).pipe(Effect.delay(delay), Stream.fromIterableEffect),
-  })

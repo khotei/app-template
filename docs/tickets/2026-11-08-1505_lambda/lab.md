@@ -295,6 +295,12 @@ API and `ANTHROPIC_API_URL` go; `WorkerProcess` is the worker but its `Assistant
 `WorkerLayer` closes with the language model and the e2e stand with `recordAssistant`'s scripted
 answers (variant B); the adapter stays checked by `assistant.llm.test.ts` alone · visible:
 `make test-e2e`, `chat.e2e.ts` "a sent message with an upload…"
+[N:ai] piece 4 (the owner, in the chat: "only Anthropic for now, nothing switches"): the stub
+builder, its canned answers and `LLM_PROVIDER` go; `LlmConfig` reads the key and both models,
+`ReplyModelConfig` the reply model, and the provenance names `anthropic` itself; `.env.example`
+sets both models and an empty key; six tests of the stub and the provider went with them ·
+visible: `make check` (252 unit, 109 e2e), `git grep -i stub -- application kernel packages apps`
+finds nothing
 
 ### Notes
 

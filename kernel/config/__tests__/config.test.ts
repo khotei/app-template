@@ -28,29 +28,22 @@ describe('config layers', () => {
     { variable: 'AWS_REGION', layer: AwsConfig.layer },
     { variable: 'STAGE', layer: AwsConfig.layer, given: { AWS_REGION: 'eu-central-1' } },
     { variable: 'RDS_BASE_PORT', layer: MiniStackConfig.layer },
-    { variable: 'LLM_PROVIDER', layer: LlmConfig.layer },
-    { variable: 'LLM_PROVIDER', layer: LlmConfig.layer, given: { LLM_PROVIDER: 'openai' } },
     {
       variable: 'ANTHROPIC_API_KEY',
       layer: LlmConfig.layer,
-      given: { LLM_PROVIDER: 'anthropic', LLM_REPLY_MODEL: 'reply', LLM_TITLE_MODEL: 'title' },
+      given: { LLM_REPLY_MODEL: 'reply', LLM_TITLE_MODEL: 'title' },
     },
     {
       variable: 'LLM_REPLY_MODEL',
       layer: LlmConfig.layer,
-      given: { LLM_PROVIDER: 'anthropic', ANTHROPIC_API_KEY: 'key', LLM_TITLE_MODEL: 'title' },
+      given: { ANTHROPIC_API_KEY: 'key', LLM_TITLE_MODEL: 'title' },
     },
     {
       variable: 'LLM_TITLE_MODEL',
       layer: LlmConfig.layer,
-      given: { LLM_PROVIDER: 'anthropic', ANTHROPIC_API_KEY: 'key', LLM_REPLY_MODEL: 'reply' },
+      given: { ANTHROPIC_API_KEY: 'key', LLM_REPLY_MODEL: 'reply' },
     },
-    { variable: 'LLM_PROVIDER', layer: ReplyModelConfig.layer },
-    {
-      variable: 'LLM_REPLY_MODEL',
-      layer: ReplyModelConfig.layer,
-      given: { LLM_PROVIDER: 'anthropic' },
-    },
+    { variable: 'LLM_REPLY_MODEL', layer: ReplyModelConfig.layer },
   ])(
     'fails with a ConfigError naming a missing or invalid $variable',
     ({ variable, layer, given }) =>
@@ -70,25 +63,10 @@ describe('config layers', () => {
     }).pipe(Effect.provide(provideVariables(RuntimeConfig.layer, {}))),
   )
 
-  it.effect('reads the stub provider with no key and no model', () =>
+  it.effect('reads the reply model with no key', () =>
     Effect.gen(function* () {
-      assert.deepStrictEqual(yield* LlmConfig, { provider: 'stub' })
-    }).pipe(Effect.provide(provideVariables(LlmConfig.layer, { LLM_PROVIDER: 'stub' }))),
-  )
-
-  it.effect.each<{
-    given: Record<string, string>
-    read: typeof ReplyModelConfig.Service
-  }>([
-    { given: { LLM_PROVIDER: 'stub' }, read: { provider: 'stub', replyModel: 'stub' } },
-    {
-      given: { LLM_PROVIDER: 'anthropic', LLM_REPLY_MODEL: 'reply' },
-      read: { provider: 'anthropic', replyModel: 'reply' },
-    },
-  ])('reads the reply model of $given.LLM_PROVIDER with no key', ({ given, read }) =>
-    Effect.gen(function* () {
-      assert.deepStrictEqual(yield* ReplyModelConfig, read)
-    }).pipe(Effect.provide(provideVariables(ReplyModelConfig.layer, given))),
+      assert.deepStrictEqual(yield* ReplyModelConfig, { replyModel: 'reply' })
+    }).pipe(Effect.provide(provideVariables(ReplyModelConfig.layer, { LLM_REPLY_MODEL: 'reply' }))),
   )
 
   it.effect.each([

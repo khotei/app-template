@@ -148,14 +148,15 @@ Which suite runs where:
   send over HTTP and reads the reply and the title back once the worker has written them; the use
   cases' races share its stand, and their rollbacks are requests too, each on a stand of its
   own, since it alters the schema to make Postgres refuse a write: `StandTest`, in the test
-  app's support, runs `ApiLayer` and `WorkerLayer`, the apps' layers that their `./testing`
-  re-exports under their own names (a `Test` suffix names a test double alone), in the test's
-  own runtime over a `PgClientTest` database, an `AwsTest` stage and the
-  model stub, under one `ConfigProvider` that names them, so the apps' own adapters and config
-  code are the ones under test. The api takes a free port the layer finds, since `Config.Port`
-  refuses `0`, so two runs share nothing. The apps' SDK clients read credentials from the
-  environment, which the `e2e` project sets to the fixed test pair MiniStack accepts. The journey
-  proves the wiring; every rule keeps its lower seam.
+  app's support, runs `ApiLayer` and `WorkerProcess` (the worker but its `Assistant`), the apps'
+  layers that their `./testing` re-exports under their own names (a `Test` suffix names a test
+  double alone), in the test's own runtime over a `PgClientTest` database, an `AwsTest` stage and
+  the chat module's scripted `Assistant` (`recordAssistant`), under one `ConfigProvider` that
+  names them, so the apps' own adapters and config code are the ones under test, but the
+  assistant's, which its own suite covers ([ai.md](ai.md)). The api takes a free port the layer
+  finds, since `Config.Port` refuses `0`, so two runs share nothing. The apps' SDK clients read
+  credentials from the environment, which the `e2e` project sets to the fixed test pair MiniStack
+  accepts. The journey proves the wiring; every rule keeps its lower seam.
 - **Concurrent within a file.** Both projects set `sequence: { concurrent: true }`; since every
   test owns its database and its stage, nothing is shared between tests. The journey's block
   opts out, since its tests share one stand and read its table `jobs` whole.
