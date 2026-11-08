@@ -10,7 +10,8 @@ paths:
 Every change of substance runs **feature → architecture → plan → implement → verify** through the
 `/ticket-*` skills; a direct task runs without a ticket
 ([which change is which](../../docs/knowledge/sdd.md#when-to-run-which-cycle)). The procedures
-live in the skills; this file holds the constraints they share.
+live in the skills; this file holds the constraints they share. A lab step (`lab.md`) follows
+`.claude/rules/lab.md` instead of the round and commit-gate lines below.
 
 ## Artifacts
 

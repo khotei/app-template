@@ -1,13 +1,23 @@
 # Design examples
 
-The Design pass reads this file; no other pass does. One do and one don't per lens, on an `Order`
-that stands for any model. A do is a candidate worth proposing, a don't one to leave out. Each
-pair rests on a rule or a record, linked here and read there: when the two disagree, the rule
-wins.
+The Design pass reads this file, and the lab at every Shape (`.claude/rules/lab.md`); no other
+pass does. One do and one don't per lens, on an `Order` that stands for any model. A do is a
+candidate worth proposing, a don't one to leave out. Each pair rests on a rule or a record,
+linked here and read there: when the two disagree, the rule wins.
 
 A candidate earns `Strong` when the cost is already in the diff (a third copy, a rule two callers
 repeat), `Worth exploring` when the next step of the plan pays it, `Speculative` when only a
 guess about later code does. A don't is no candidate at any strength.
+
+## The five questions
+
+The lab asks them aloud of every contract, one per kind of rework the owner has had to do:
+
+1. What breaks if this is removed?
+2. Is it already in Effect, or in the code?
+3. Is the rule a pure function in the model?
+4. Is each method named for what it answers, with no wrapper and no probe?
+5. Does each test helper sit beside its one test?
 
 ## A narrower interface
 
@@ -178,3 +188,8 @@ const ship = (id: OrderId, at: DateTime.Utc) =>
     ),
   )
 ```
+
+## The owner's stops
+
+One pair per fix the owner accepted after a stop in a lab, recorded in that fix's commit: a before
+→ after on an `Order` and one line why. The owner's word stands in for the rule it rests on.
