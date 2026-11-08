@@ -315,12 +315,11 @@ the adapter unchecked by the e2e.
 [N:ai] Two `make dev` side by side ran 2026-11-08 on the real Anthropic: the main tree and the
 worktree `N=1` (3010/3011/3012, MiniStack 4576, stage `local1`) each answered and titled its own
 chat in 3 s; each worker took its own 2 events, each database holds its 2 jobs `done`.
-[D:ai] (review, the hunt, claimed) kernel/config/config.ts:89: `Config.Redacted` takes the empty
-`ANTHROPIC_API_KEY=""` that `.env.example` now ships, so a fresh `make setup` starts the worker
-cleanly and every reply and title then fails at Anthropic as `AssistantFailedError`. Without the
-fix nothing says the key is missing until the first message fails. Fix: read the key through a
-non-empty schema, so the worker fails at start with a `ConfigError` naming `ANTHROPIC_API_KEY`,
-plus a `config.test.ts` row and the README's sentence (about 8 lines).
+[N:ai] review (the hunt, claimed, refuted by a run): "an empty `ANTHROPIC_API_KEY` passes as
+present" is not so: Effect 4 reads an empty variable as missing, and
+`ANTHROPIC_API_KEY= … bun <probe of LlmConfig.layer>` answered `ConfigError … at
+["ANTHROPIC_API_KEY"]`, so the worker stops at start. The README said every reply fails at
+Anthropic instead; it says the start fails now.
 
 ## Knowledge
 

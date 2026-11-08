@@ -61,9 +61,8 @@ make dev     # runs make migrate, then api, worker and web together; needs make 
 ```
 
 `.env` needs your `ANTHROPIC_API_KEY`; `.env.example` leaves it empty and names the models in
-`LLM_REPLY_MODEL` and `LLM_TITLE_MODEL`. Without a key the worker's every reply fails at
-Anthropic, and without the models the api and the worker fail at start (the web reads none of
-them).
+`LLM_REPLY_MODEL` and `LLM_TITLE_MODEL`. An empty or missing key stops the worker at start with a
+`ConfigError` naming it; the api reads only `LLM_REPLY_MODEL`, and the web none of them.
 
 | Process | URL | Try |
 |---|---|---|
