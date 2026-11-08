@@ -140,7 +140,7 @@ picks earlier requirements by **Files**; `ticket-plan/SKILL.md › next` has no 
 - **Proposed change:** `ticket-implement/SKILL.md` step 3: a later round's brief names the
   findings already rejected for the step, with their reason, and the reviewer does not raise
   them again.
-- **Applied:** no
+- **Applied:** yes, `ticket-implement/SKILL.md` step 3 and `.claude/agents/reviewer.md`
 
 #### L2 — Fix rounds run on findings that fail no requirement
 
@@ -150,4 +150,4 @@ picks earlier requirements by **Files**; `ticket-plan/SKILL.md › next` has no 
 - **Cost:** about 10 extra rounds over the ticket, each with a full Standards and Spec pass.
 - **Proposed change:** `ticket-implement/SKILL.md` step 5: one fix round by default; a second
   only for a finding that fails one of the ticket's `R…`.
-- **Applied:** no
+- **Applied:** yes, `ticket-implement/SKILL.md` steps 4, the stage close and the loop

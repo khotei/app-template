@@ -8,7 +8,9 @@ paths:
 # Spec-driven development
 
 Every change of substance runs **feature → architecture → plan → implement → verify** through the
-`/ticket-*` skills. The procedures live in the skills; this file holds the constraints they share.
+`/ticket-*` skills; a direct task runs without a ticket
+([which change is which](../../docs/knowledge/sdd.md#when-to-run-which-cycle)). The procedures
+live in the skills; this file holds the constraints they share.
 
 ## Artifacts
 

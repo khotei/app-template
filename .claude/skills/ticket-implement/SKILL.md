@@ -51,8 +51,9 @@ step id, take step after step, as **The loop** below says. Gates:
      Then run `make check`. Its edits join the round before its commit.
 3. **Review.** Every pass is a `reviewer` agent, which owns one kind of finding and reports each
    in one shape (its file says which and how). Spawn the passes in parallel, one `reviewer` each,
-   its brief naming the pass, the diff, its sources and the word limit of 400, and nothing else:
-   no question or focus of its own. The diff is the step's committed rounds, `git diff <base>
+   its brief naming the pass, the diff, its sources, the word limit of 400 and, after the step's
+   first review, the findings rejected in it with their reasons, and nothing else: no question or
+   focus of its own. The diff is the step's committed rounds, `git diff <base>
    HEAD`, where `<base>` is the parent of the oldest commit the subject search of `commits.md`
    finds for the step. Every step gets the two axes:
 
@@ -95,9 +96,9 @@ step id, take step after step, as **The loop** below says. Gates:
    asked as its own question.
    Filter the findings first: a fix that adds test support (a helper, a fake, a wrapper) is never
    forwarded as routine; offer the user a plainer test instead, or the finding as a choice of its
-   own. A finding that fails one of the ticket's `R…` is a fix you recommend for the step's next
-   round; only a finding outside them may stay `accepted, open`. Each finding the user must
-   decide on is one block, ending in its question: what is wrong, what it leads to, the options
+   own. A finding that fails one of the ticket's `R…` is a fix you recommend for the step's one
+   fix round; any other stays `accepted, open` unless the user forwards it. Each finding the user
+   must decide on is one block, ending in its question: what is wrong, what it leads to, the options
    with their cost, your recommendation, then the question; never the findings in one section and
    the questions in another.
 5. **Commit gate.** On a stage's last step, run **The stage close** below first. Once the step is
@@ -153,8 +154,8 @@ verification: `/ticket-verify` verifies it.
    to a fresh `implementer` given that step's brief, on its **Model** line as step 2 says; the
    message names the **Files** and Traps of the steps whose code the fix changes. Its round
    commits as one `STAGE` round carrying the id of each of those steps, and this close's step 3
-   runs again on the range. Each such fix round counts toward the last step's three fix rounds
-   of **The loop**, whichever steps' code it changes.
+   runs again on the range. Such a fix round counts as the last step's fix round in
+   **The loop**, whichever steps' code it changes.
 5. **Record** every finding under the stage's `### Stage review`, in the shape of a step's
    **Findings**, in the last step's `PLAN` round (`## Steps` 5's **close**).
 
@@ -181,6 +182,6 @@ without causing one. The loop stops at the first of:
 - a finding the user must decide, presented as step 4 says, a stage verification's failure that
   needs a requirement changed among them, but not a stage's Design finding held open above;
 - a stage preparation with a question round, presented as `stage.md` returns it;
-- a step not ready after three fix rounds, left as step 5's **stop** leaves it;
+- a step not ready after its fix round, left as step 5's **stop** leaves it;
 - the user's word to stop, which leaves the current round uncommitted;
 - no unblocked `todo` step remains.
