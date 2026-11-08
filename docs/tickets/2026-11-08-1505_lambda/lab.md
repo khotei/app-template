@@ -70,14 +70,16 @@ a Lambda function? MiniStack should handle this locally.
 
 | Step | Goal | Kind | Status |
 |---|---|---|---|
-| L1 | MiniStack's SQS mapping invokes the worker's `POST /events`; a chat reply arrives with no receive loop | build | in progress |
+| L1 | MiniStack's SQS mapping invokes the worker's `POST /events` through `queue-2`; a chat reply arrives with no receive loop | build | in progress |
+| L2 | A job moves `idle` -> `queued` -> `done` or `failed` in `jobs`; it is sent after the commit, and a sweep resends a lost send | build | todo |
+| L3 | api and worker run on `queue-2`; the old queue, its relay and `sentAt` are gone | build | todo |
 
 ## L1 — SQS invokes the worker in dev
 
 Reference: a researcher's probe (L0.4), run as is on MiniStack 1.5.31: a Bun server on the host
 answers `POST /events`; a proxy-mode function and an SQS mapping with `ReportBatchItemFailures`
 invoke it; a failed record retries after the handler's `ChangeMessageVisibility`, then reaches
-the DLQ · Budget: reference + 250 lines
+the DLQ · Budget: reference + 250 lines; spent 497, over (see Notes)
 
 ### Shape
 
@@ -132,17 +134,28 @@ case, a callback that sends) -> send -> `enqueued` (the owner, in the chat).
   use case stays as it is and a second use case cannot forget it?
   [A] yes (the owner, in the chat: "1-5 yes").
 
+[D] Build a new `queue-2` beside the old queue, piece by piece, then switch to it and remove
+the old; nothing is committed until the owner says so (the owner, in the chat).
+[D] `queue-2` splits by role: `queue.model.ts` (types and pure functions), `queue.sender.ts`
+(`QueueSender.send`), `queue.consumer.ts` (`QueueConsumer.consume`, private in its `make`); no
+transport service; tests mock `SQSService` (the owner, in the chat).
+[N:ai] Budget overrun: 497 of 250 lines (L1.6 176, queue-2 pieces 1 to 2b 321); pieces 2a
+(129) and 2b (about 106) over their 100. Proposed: three steps (L1, L2, L3) with budgets 400, 300, 100; waits for the owner.
+
 ### Pieces
 
-Contract, accepted by the owner in the chat ("1-5 yes"):
+Contract, accepted by the owner in the chat, then moved to `queue-2` and renamed by the owner:
 
 ```ts
-// packages/queue: one SQS batch in, the failed records out
-export const handleBatch: <A, I, E, R>(
+// packages/queue-2/queue.consumer.ts: one SQS batch in, the failed records out
+QueueConsumer.consume: <A, I, E, R>(
   definition: QueueDefinition<Schema.Codec<A, I>>,
   handle: Handler<A, E, R>,
-) => (event: SqsEvent) => Effect.Effect<SqsBatchResponse, never, QueueTransport | R>
+) => (event: SqsEvent) => Effect.Effect<SqsBatchResponse, never, R>
 ```
+
+Planned pieces: 1 model and sender · 2a `consume` answers the failures · 2b its retry delay ·
+6 the worker's `POST /events` on `queue-2` · 7 the functions and mappings in `make up`.
 
 [N:ai] L1.6 `handleBatch` answers a batch's failed records and hides each for its retry delay, at
 once on the last attempt · visible: `bunx vitest run --project unit packages/queue`
@@ -152,6 +165,16 @@ once on the last attempt · visible: `bunx vitest run --project unit packages/qu
 <Proposed by the agent, accepted by the owner. A learn step: the answer and its proof (a command,
 a snippet of at most 20 lines), ending "Can you write the signature now?". A build step: the code
 accepted and how to see it.>
+
+## L2 — Job statuses and the send after the commit
+
+Budget: waits for the owner · Planned pieces: 3 `status` in `jobs` and its pure transitions ·
+4 the job written `idle`, sent by `afterCommit`, set `queued` · 5 the sweep of `idle` jobs.
+
+## L3 — Switch to queue-2
+
+Budget: waits for the owner · Planned piece: 8 api and worker on `queue-2`; the old queue, the
+relay and `sentAt` removed.
 
 ## Knowledge
 
