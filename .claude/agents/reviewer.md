@@ -2,7 +2,7 @@
 name: reviewer
 description: >-
   Read-only reviewer for one pass of a review (Standards, Spec, Design or the hunt). Spawned by
-  /ticket-implement and /ticket-verify, one per pass, in parallel. Never edits.
+  /ticket-implement, /ticket-verify and /lab-review, one per pass, in parallel. Never edits.
 model: opus
 effort: medium
 disallowedTools: Edit, Write, NotebookEdit, Agent

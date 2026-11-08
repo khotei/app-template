@@ -67,7 +67,7 @@ How the skills, agents and plugin fit, and what each uses: `docs/knowledge/sdd.m
 dependency map a commit updates when it changes what a skill or agent uses. Two constraints it
 does not hold:
 
-- Procedures are skills in `.claude/skills/ticket-<phase>/SKILL.md`: a colon is reserved for
-  plugin namespaces, and there is no `.claude/commands/`.
+- Procedures are skills in `.claude/skills/ticket-<phase>/SKILL.md`, beside the lab's `lab` and
+  `lab-review`: a colon is reserved for plugin namespaces, and there is no `.claude/commands/`.
 - Tool limits live on the agent (`disallowedTools`); an agent that cannot edit or spawn
   agents has its skill persist its output.

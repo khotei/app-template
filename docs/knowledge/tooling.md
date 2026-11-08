@@ -247,7 +247,9 @@ container and volume after the stage:
 `make worktree N=<n> NAME=<name>`, run inside the new worktree, writes it. It refuses an `N`
 another live worktree's `.env` holds as its stage, an `N` above 5010 (`RDS_BASE_PORT` would pass
 65535), and a worktree already set up under another `N`, whose containers would keep running;
-a rerun with the same `N` passes. How parallel steps use it:
+a rerun with the same `N` passes. It renames the worktree's branch `wt/<name>`; with `KEEP=1` the
+branch keeps its name, for a lab's worktree, which stands on its ticket branch so accepted code
+needs no moving ([`/lab`](../../.claude/skills/lab/SKILL.md)). How parallel steps use it:
 [`ticket-implement` › Parallel steps](../../.claude/skills/ticket-implement/parallel-steps.md).
 Run `make reset` in a worktree before it is removed, or its containers outlive it and keep their
 ports, and the database's volume stays.

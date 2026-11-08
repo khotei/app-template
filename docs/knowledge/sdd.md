@@ -129,6 +129,8 @@ uses updates this map too; the Standards review checks it against `.claude/rules
 | `/ticket-plan` | — | through [stage.md](../../.claude/skills/ticket-plan/stage.md), read afresh for each stage: `researcher` for the fact check, a second for a probe of behaviour, one for the plan check; for a step that adds, changes or removes a guard, one more for its probes; every probe runs in the disposable worktree `<slug>-plan-probes` set up by `make worktree` | the fact check, a probe of behaviour, the plan check: `opus high`; the guard probes: `sonnet medium`; each step's **Model** line it writes: `opus medium` for a move, rename or config step, `opus high` for one that writes behaviour | — | `plan.md`; `architecture.md` where you agreed to a stage's question; the stage's facts and preparation commits |
 | `/ticket-implement` | on a new-interface step and at a stage's close the built-in `simplify`, run by the main session, with `codebase-design` as its vocabulary | `implementer` (one worktree per parallel step, set up by `make worktree`), `reviewer` (one per review pass, in parallel; Standards and Design over the stage's diff at its close), `researcher` (one per claimed finding, in parallel, all writing their confirming tests in one disposable worktree per review round, set up by `make worktree`); in a loop, after a stage's close, what a due stage verification and the next stage's preparation spawn, read afresh from `ticket-verify/SKILL.md` and `ticket-plan/stage.md` | `implementer`: the step's **Model** line; Standards: `sonnet medium`; Spec: `opus medium`; the hunt and Design: `opus high`; a question about the code and a claimed finding: `researcher` on `opus high`; the no-op experiment: `sonnet medium` | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, the step's commits, a stage's `STAGE` rounds; in a loop, what the stage verification and preparation write |
 | `/ticket-verify` | — | `verifier` (one per group of requirements, in parallel), `reviewer` (one per axis, in parallel; none for a stage), `implementer` (a stage's `VERIFY` round per failure) | `verifier`: `opus high`, or `xhigh` for a stage over ~30 minutes of work; Standards: `sonnet medium`; Spec: `opus high`; `implementer`: the fixed step's **Model** line, `opus high` when it names none | `make-check.sh`, through `implementer` | `verification.md`, a stage's `VERIFY` rounds |
+| `/lab` | — | `researcher` (one per `[R]`, in the background; a second on the same question at a key fork in an unfamiliar area); no `implementer`, since your stop must reach the one who writes; a learn step's draft runs in its own worktree on `wt/<name>`, a lab's own worktree stays on the ticket branch, both set up by `make worktree` (`KEEP=1` for the second) | `researcher`: `opus high` | — | `lab.md`, the lab's rounds, a pair in `design-examples.md` after a stop; at the close, what moves to `docs/knowledge/` |
+| `/lab-review` | — | `reviewer` (Standards and the hunt in parallel; Design only on `design`); it picks and reads the lab as `/lab` does, from `/lab`'s file | Standards: `sonnet medium`; the hunt and Design: `opus high` | — | your edits as an `OWNER` round, one `REVIEW` round, `[D:ai]` lines in `lab.md` |
 | `implementer` | `tdd`, preloaded | — | the spawn's | `make-check.sh` on `Stop` (runs as `SubagentStop`) | the step's files |
 | `reviewer` | one pass: Standards, Spec, Design or the hunt, and at a stage's close Standards and Design over its diff, Design also against `architecture.md`, the skeleton and the stage design; on Standards over an instruction file, `writing-for-agents`; on Design, `codebase-design` as its vocabulary | — | the spawn's | — | nothing: read-only |
 | `verifier` | — | — | the spawn's | — | nothing: read-only |
@@ -149,6 +151,8 @@ graph LR
     plan["/ticket-plan"]
     impl["/ticket-implement"]
     verify["/ticket-verify"]
+    lab["/lab"]
+    labreview["/lab-review"]
     researcher([researcher])
     implementer([implementer])
     reviewer([reviewer])
@@ -182,6 +186,9 @@ graph LR
   implementer --> hook
   verify --> verifier & reviewer & implementer
   reviewer -.-> design & writing
+  lab --> researcher
+  labreview --> reviewer
+  labreview ==> lab
 ```
 
 Solid arrows spawn an agent or run a hook; thick arrows read another file's procedure and run

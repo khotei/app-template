@@ -3,14 +3,17 @@
 # (a symlink <name> beside the folder, the branch wt/<name>), installs its dependencies, and
 # writes its .env, the main tree's with the ports and stage of number N moved
 # (docs/knowledge/tooling.md › Worktrees). Run through `make worktree N=<n> NAME=<name>` from the
-# worktree's own folder. The only change before the checks pass is the draft .env.new, which an
+# worktree's own folder; with KEEP=1 the branch keeps its name, for a worktree on a ticket branch. The only change before the checks pass is the draft .env.new, which an
 # EXIT trap drops on any exit before it becomes .env, HUP, INT and TERM included, so a refusal
 # leaves nothing. Once they pass, .env is written first, so a failed ln, branch rename or bun
 # install leaves it and the symlink or branch already made; a rerun with the same N finishes the
 # job.
 N=$1
 NAME=$2
+KEEP=$3
 refuse() { printf 'refused: %s\n' "$1" >&2; exit 1; }
+# Any other value would rename the ticket branch it was meant to keep.
+case $KEEP in '' | 1) ;; *) refuse 'KEEP is 1 or unset' ;; esac
 # Letters spelled out: a range such as a-z follows the locale's collation.
 letters=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ
 case $NAME in
@@ -22,7 +25,8 @@ case $N in
   ??????*) refuse 'N has at most five digits' ;;
 esac
 # Before .env, so a rerun is not left failing at git branch -m.
-git check-ref-format --branch "wt/$NAME" > /dev/null 2>&1 || refuse "git refuses wt/$NAME as a branch"
+[ -n "$KEEP" ] || git check-ref-format --branch "wt/$NAME" > /dev/null 2>&1 ||
+  refuse "git refuses wt/$NAME as a branch"
 # Each git query is checked: outside a repository each fails with an empty output, and cd ""
 # stays put.
 top=$(git rev-parse --show-toplevel) || exit 1
@@ -39,7 +43,8 @@ if [ "$here" != "$NAME" ] && { [ -e "$link" ] || [ -L "$link" ]; }; then
   [ "$target" = "$here" ] || refuse "$link already names another folder"
 fi
 branch=$(git branch --show-current) || exit 1
-if [ "$branch" != "wt/$NAME" ] && git show-ref --verify --quiet "refs/heads/wt/$NAME"; then
+if [ -z "$KEEP" ] && [ "$branch" != "wt/$NAME" ] &&
+  git show-ref --verify --quiet "refs/heads/wt/$NAME"; then
   refuse "the branch wt/$NAME already exists"
 fi
 api=$((3000 + 10 * N))
@@ -85,5 +90,5 @@ mv .env.new .env || exit 1
 # A folder that already has the name needs no link: ln would put one inside it. A link already
 # there names this folder, as checked above.
 [ "$here" = "$NAME" ] || [ -L "$link" ] || ln -s "$here" "$link" || exit 1
-git branch -m "wt/$NAME" || exit 1
+[ -n "$KEEP" ] || git branch -m "wt/$NAME" || exit 1
 bun install

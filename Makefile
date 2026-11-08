@@ -68,8 +68,8 @@ reset: ## Remove MiniStack, the database's container and volume, the tree's MCP 
 	rm -rf .data .env.pulumi
 
 # Run inside the new worktree; the ports it moves: docs/knowledge/tooling.md › Worktrees.
-worktree: ## Name a parallel step's worktree, install it, write its .env: N=<n> NAME=<name>
-	@sh .claude/skills/ticket-implement/worktree.sh "$$N" "$$NAME"
+worktree: ## Name a worktree, install it, write its .env: N=<n> NAME=<name> [KEEP=1, the branch stays]
+	@sh .claude/skills/ticket-implement/worktree.sh "$$N" "$$NAME" "$$KEEP"
 
 migrate: ## Apply the pending migrations to the database in .env.pulumi
 	bun --env-file=.env --env-file=.env.pulumi kernel/postgres/migrate.ts
