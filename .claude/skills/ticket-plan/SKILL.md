@@ -38,7 +38,9 @@ stop `next` on it, saying so.
 
 ## `next`
 
-1. Find the first stage that has a `### Stage design` but no `St<n> (PLAN) Prepare stage <n>`
+1. Run the owner check of `/ticket-implement`'s step 1 on the tree, so the user's edits commit
+   as an `OWNER` round, never inside a facts commit. Find the first stage that has a
+   `### Stage design` but no `St<n> (PLAN) Prepare stage <n>`
    commit (`git log --grep`), and resume it at `stage.md › Does` step 2; else the first stage
    whose section reads "Not prepared". Stop and say so when a step of an earlier stage is not
    `done`, or when no stage is left.

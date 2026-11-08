@@ -49,8 +49,8 @@ before them have landed and the facts they rest on are checked: detail written b
 goes stale ([why](./decisions.md#plans-in-stages)). The terms are the process's, not the domain's,
 so the glossary holds none of them.
 
-- **Stage** — about three consecutive steps that deliver one outcome and complete the requirements
-  whose last step they hold. A stage of another size names its reason in its heading. It is
+- **Stage** — three consecutive steps that deliver one outcome and complete the requirements
+  whose last step they hold. A stage of one, two or four names its reason in its heading. It is
   unrelated to the deployment `STAGE` of [aws.md](./aws.md) and to the "stage" the glossary avoids
   for a message's status.
 - **Skeleton** — the plan's **Status** table, split by stage: every step's outcome, the `R…` and

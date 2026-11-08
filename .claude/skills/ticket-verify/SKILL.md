@@ -64,8 +64,9 @@ headings has no `Completed in`: stop and say so.
    exists, else at `HEAD`. Check that `git rev-parse <fixed point>` resolves and
    `git diff <fixed point>...<end>` is not empty, else stop and tell the user. The requirements
    are those whose `Completed in` in `plan.md › Requirement coverage` is stage `<n>`, and each
-   one completed earlier whose steps' **Files** `git diff --name-only <fixed point>...<end>`
-   lists.
+   one completed earlier whose steps' commits (the subject search of
+   `.claude/rules/commits.md`) touched a file `git diff --name-only <fixed point>...<end>` lists.
+   First run the owner check of `/ticket-implement`'s step 1 on the tree.
 2. **Verify** them, grouped and briefed as `## Steps` 1 does, each brief naming the range's end
    too, the verifiers on `opus high`, or `xhigh` for a stage over ~30 minutes of work. No
    reviewer, since the stage's close reviewed its diff, and no lessons, which stay with the
