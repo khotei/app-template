@@ -101,6 +101,7 @@ idle -> enqueued -> in-progress -> done | error
 [Q:ai] Q1 (what breaks if removed): `idle` and `enqueued` say what `sentAt` says today, null =
 not sent (kernel/data/job/job.table.ts:20, read by the relay at kernel/queue/job.relay.ts:40).
 Does `status` replace `sentAt`, or do both stay, two fields that can disagree?
+  [A] status (the owner, in the chat).
 [Q:ai] Q1: who reads `in-progress`? While the worker runs, SQS already hides the message; if the
 function dies at its timeout, the row stays `in-progress` until the next delivery. With no reader,
 the system loses nothing without it.
@@ -113,6 +114,17 @@ each repeat the check?
 [Q:ai] Naming: the tables already say `queued` and `failed` (kernel/data/chat/message.table.ts:31,
 kernel/data/chat/chat.table.ts:10); the same words for a job: idle, queued, in-progress, done,
 failed?
+[D] Before the send, the job is created `idle`; after the commit (`afterCommit` inside the use
+case, a callback that sends) -> send -> `enqueued` (the owner, in the chat).
+  [Q:ai] `SqlClient.afterCommit` drops a callback when the process exits before it runs, and logs
+  and swallows its failure; Effect says "work that must happen belongs in a table written in the
+  same transaction" (repos/effect/packages/effect/src/sql/SqlClient.ts:130-142, :492-498). So a
+  failed send leaves the row `idle` forever: does a sweep of `idle` rows resend them (a schedule
+  of at least 1 minute on AWS, `eventbridge.py:3845`)?
+  [Q:ai] `withTransaction` waits for the callbacks (SqlClient.ts:135), so the SQS send delays the
+  api's response. The one caller is send-message.use-case.ts:79, through `QueueSender.send`
+  (kernel/queue/queue.client.ts:37-57): register the callback inside `QueueSender.send`, so the
+  use case stays as it is and a second use case cannot forget it?
 
 ### Pieces
 
@@ -126,7 +138,9 @@ accepted and how to see it.>
 
 ## Knowledge
 
-<Only an accepted [D] or Output, written in the commit that settles it.>
+- A job's `status` replaces `sentAt` (L1).
+- A job is written `idle` in the use case's transaction and sent after the commit, then set
+  `enqueued` (L1).
 
 ## Numbers
 
