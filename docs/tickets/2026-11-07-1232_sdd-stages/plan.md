@@ -666,10 +666,12 @@
   - implementer — accepted, fixed in S3+S7.2 — the plan template kept an empty `### Stage review`
     heading in a one-stage plan, failing R14; the template now says to delete it (S3's file).
   - Standards — none.
-  - implementer — accepted, open — in a `-p` run the planner's stage probes were denied: the
-    project's allow list has no `git worktree` or `git clone`, so R6's runs through `run.sh`
-    cannot probe; the owner's choice (allow them in `.claude/settings.json`, or pass
-    `--allowedTools` in `run.sh`).
+  - implementer — accepted, fixed in S7.4 — in a `-p` run the planner's stage probes were denied:
+    the clone is an untrusted workspace, whose project permissions Claude Code ignores even under
+    `--settings` ("Ignoring 88 permissions.allow entries … this workspace has not been trusted"),
+    so a command ran only when the user's auto mode let it; `run.sh` now passes the allow list as
+    `--allowedTools` and the deny and ask lists as `--disallowedTools` (`git worktree add`: one
+    denial without the flag, none with it).
   - implementer — accepted, open — a `-p` run of `/ticket-implement` stops at its first question
     (whose changes these are), so R22 runs by hand in the printed clone.
 
