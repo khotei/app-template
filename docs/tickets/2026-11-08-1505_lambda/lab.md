@@ -242,6 +242,9 @@ relay and `sentAt` removed.
 gone in piece 2a; the old `packages/queue`, imported by nothing but itself, is deleted, and
 `queue-2` takes its name, `@app-template/packages/queue` · visible: `make check` (249 unit, 98
 e2e; the old queue's suites went with it)
+[N:ai] piece 9 (the owner): the three migrations give way to one `init` generated from the data
+layer, the same schema as the three applied in order; the main stand was recreated (`make
+reset`, `make up`: "applied 1 migration") · visible: `make check`, `make migration-check`
 
 ## L4 — A failed send shows under the user's message
 

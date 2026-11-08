@@ -1,1 +1,0 @@
-ALTER TYPE "job_status" ADD VALUE 'running' BEFORE 'done';

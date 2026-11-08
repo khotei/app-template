@@ -2,7 +2,7 @@
   "type": "base",
   "version": "9",
   "dialect": "postgres",
-  "id": "d5539076-c5bb-4b73-acc8-514ba3af5163",
+  "id": "0fa3611c-6932-4d1c-b050-8eacbc2a7dc9",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -53,6 +53,23 @@
         "n|enum|public.message_status",
         "e|enum|public.message_status",
         "n|type|public.message_status"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_enum",
+      "statementTarget": [
+        "enum",
+        "public",
+        "job_status"
+      ],
+      "writes": [
+        "s|enum|public.job_status",
+        "n|enum|public.job_status",
+        "e|enum|public.job_status",
+        "n|type|public.job_status"
       ],
       "reads": [
         "n|sch|public"
@@ -152,7 +169,8 @@
         "n|rel|public.jobs_pkey"
       ],
       "reads": [
-        "n|sch|public"
+        "n|sch|public",
+        "n|enum|public.job_status"
       ]
     },
     {
@@ -325,13 +343,13 @@
         "index",
         "public",
         "jobs",
-        "jobs_unsent_created_at_index"
+        "jobs_idle_created_at_index"
       ],
       "writes": [
-        "s|idx|public.jobs_unsent_created_at_index",
-        "n|idx|public.jobs_unsent_created_at_index",
-        "e|idx|public.jobs_unsent_created_at_index",
-        "n|rel|public.jobs_unsent_created_at_index"
+        "s|idx|public.jobs_idle_created_at_index",
+        "n|idx|public.jobs_idle_created_at_index",
+        "e|idx|public.jobs_idle_created_at_index",
+        "n|rel|public.jobs_idle_created_at_index"
       ],
       "reads": [
         "n|tbl|public.jobs",
@@ -520,6 +538,18 @@
         "queued",
         "preparing",
         "generating",
+        "done",
+        "failed"
+      ],
+      "entityType": "enums"
+    },
+    {
+      "schema": "public",
+      "name": "job_status",
+      "values": [
+        "idle",
+        "queued",
+        "running",
         "done",
         "failed"
       ],
@@ -848,8 +878,8 @@
     {
       "schema": "public",
       "table": "jobs",
-      "name": "job_id",
-      "type": "text",
+      "name": "body",
+      "type": "jsonb",
       "typeSchema": null,
       "notNull": true,
       "dimensions": 0,
@@ -861,9 +891,9 @@
     {
       "schema": "public",
       "table": "jobs",
-      "name": "body",
-      "type": "jsonb",
-      "typeSchema": null,
+      "name": "status",
+      "type": "job_status",
+      "typeSchema": "public",
       "notNull": true,
       "dimensions": 0,
       "default": null,
@@ -878,19 +908,6 @@
       "type": "timestamp with time zone",
       "typeSchema": null,
       "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "jobs",
-      "name": "sent_at",
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
       "dimensions": 0,
       "default": null,
       "generated": null,
@@ -1126,7 +1143,7 @@
     {
       "schema": "public",
       "table": "jobs",
-      "name": "jobs_unsent_created_at_index",
+      "name": "jobs_idle_created_at_index",
       "nameExplicit": true,
       "columns": [
         {
@@ -1138,7 +1155,7 @@
         }
       ],
       "isUnique": false,
-      "where": "(\"sent_at\" is null)",
+      "where": "\"status\" = 'idle'",
       "with": "",
       "method": "btree",
       "concurrently": false,
