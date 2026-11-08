@@ -9,13 +9,13 @@ import {
   Option,
   Result,
   Schema,
-  String as Str,
 } from 'effect'
 
 import { QueueClient } from '#queue-2/queue.client'
 import {
   type AttemptInfo,
   buildAttemptInfo,
+  buildQueueName,
   type Handler,
   type QueueDefinition,
 } from '#queue-2/queue.model'
@@ -39,10 +39,6 @@ export type SqsEvent = typeof SqsEvent.Type
 export interface SqsBatchResponse {
   readonly batchItemFailures: ReadonlyArray<{ readonly itemIdentifier: string }>
 }
-
-/** The name of the queue a record came from, read from its ARN. */
-export const buildQueueName = (record: SqsRecord) =>
-  Arr.lastNonEmpty(Str.split(record.eventSourceARN, ':'))
 
 export class QueueConsumer extends Context.Service<
   QueueConsumer,
@@ -72,7 +68,7 @@ export class QueueConsumer extends Context.Service<
 
       const retry = Effect.fnUntraced(function* (record: SqsRecord, info: AttemptInfo) {
         const delay = info.isLastAttempt ? 0 : definition.retryDelay(info.attempt)
-        yield* client.getUrl(buildQueueName(record)).pipe(
+        yield* client.getUrl(buildQueueName(record.eventSourceARN)).pipe(
           Effect.flatMap((url) =>
             sqs.changeMessageVisibility({
               QueueUrl: url,

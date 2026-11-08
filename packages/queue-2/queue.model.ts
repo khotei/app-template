@@ -1,4 +1,4 @@
-import type { Duration, Effect, Schema } from 'effect'
+import { Array as Arr, type Duration, type Effect, type Schema, String as Str } from 'effect'
 
 export interface QueueDefinition<S extends Schema.Top> {
   readonly name: string
@@ -18,8 +18,11 @@ export interface AttemptInfo {
 
 export type Handler<A, E, R> = (message: A, attempt: AttemptInfo) => Effect.Effect<void, E, R>
 
-export const buildAttemptInfo = (receiveCount: number, maxAttempts: number): AttemptInfo => ({
-  attempt: receiveCount,
-  maxAttempts,
-  isLastAttempt: receiveCount >= maxAttempts,
-})
+export function buildAttemptInfo(receiveCount: number, maxAttempts: number): AttemptInfo {
+  return { attempt: receiveCount, maxAttempts, isLastAttempt: receiveCount >= maxAttempts }
+}
+
+/** The name of the queue an ARN names. */
+export function buildQueueName(arn: string): string {
+  return Arr.lastNonEmpty(Str.split(arn, ':'))
+}

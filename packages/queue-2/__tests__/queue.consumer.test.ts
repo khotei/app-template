@@ -14,18 +14,22 @@ const definition = {
   retryDelay: (attempt) => `${attempt * 10} seconds`,
 } satisfies QueueDefinition<typeof Ping>
 
-const buildRecord = (messageId: string, { body = '{"text":"ok"}', receiveCount = 1 } = {}) => ({
-  messageId,
-  receiptHandle: `handle-${messageId}`,
-  body,
-  attributes: { ApproximateReceiveCount: receiveCount },
-  messageAttributes: { jobId: { stringValue: messageId } },
-  eventSourceARN: 'arn:aws:sqs:us-east-1:000000000000:stage-pings',
-})
+function buildRecord(messageId: string, { body = '{"text":"ok"}', receiveCount = 1 } = {}) {
+  return {
+    messageId,
+    receiptHandle: `handle-${messageId}`,
+    body,
+    attributes: { ApproximateReceiveCount: receiveCount },
+    messageAttributes: { jobId: { stringValue: messageId } },
+    eventSourceARN: 'arn:aws:sqs:us-east-1:000000000000:stage-pings',
+  }
+}
 
 type VisibilityChange = Parameters<SQSService['Service']['changeMessageVisibility']>[0]
 
-const failOnBoom = (ping: Ping) => (ping.text === 'boom' ? Effect.fail('failed') : Effect.void)
+function failOnBoom(ping: Ping) {
+  return ping.text === 'boom' ? Effect.fail('failed') : Effect.void
+}
 
 function recordVisibility() {
   const changes = Ref.makeUnsafe<ReadonlyArray<VisibilityChange>>([])

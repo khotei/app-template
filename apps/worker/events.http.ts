@@ -13,15 +13,15 @@ export type EventConsumers<R> = Record.ReadonlyRecord<
  * `POST /events`: the batch an SQS mapping invokes the worker with, run by the consumer of the
  * queue it came from; a batch of a queue with no consumer is a defect.
  */
-export const addEventsRoute = <R>(consumers: EventConsumers<R>) =>
-  HttpRouter.add(
+export function addEventsRoute<R>(consumers: EventConsumers<R>) {
+  return HttpRouter.add(
     'POST',
     '/events',
     Effect.gen(function* () {
       const event = yield* HttpServerRequest.schemaBodyJson(SqsEvent)
       const consume = yield* pipe(
         Arr.head(event.Records),
-        Option.flatMap((record) => Record.get(consumers, buildQueueName(record))),
+        Option.flatMap((record) => Record.get(consumers, buildQueueName(record.eventSourceARN))),
         Effect.fromOption,
         Effect.orDie,
       )
@@ -30,3 +30,4 @@ export const addEventsRoute = <R>(consumers: EventConsumers<R>) =>
       return HttpServerResponse.jsonUnsafe(response)
     }),
   )
+}

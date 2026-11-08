@@ -7,19 +7,22 @@ import type { SqsEvent } from '@app-template/packages/queue-2'
 
 import { addEventsRoute } from '#worker/events.http'
 
-const buildRecord = (messageId: string, queue: string) => ({
-  messageId,
-  receiptHandle: `handle-${messageId}`,
-  body: '{}',
-  attributes: { ApproximateReceiveCount: '1' },
-  messageAttributes: { jobId: { stringValue: messageId } },
-  eventSourceARN: `arn:aws:sqs:us-east-1:000000000000:${queue}`,
-})
+function buildRecord(messageId: string, queue: string) {
+  return {
+    messageId,
+    receiptHandle: `handle-${messageId}`,
+    body: '{}',
+    attributes: { ApproximateReceiveCount: '1' },
+    messageAttributes: { jobId: { stringValue: messageId } },
+    eventSourceARN: `arn:aws:sqs:us-east-1:000000000000:${queue}`,
+  }
+}
 
-const failEvery = (event: SqsEvent) =>
-  Effect.succeed({
+function failEvery(event: SqsEvent) {
+  return Effect.succeed({
     batchItemFailures: Arr.map(event.Records, (record) => ({ itemIdentifier: record.messageId })),
   })
+}
 
 const EventsTest = HttpRouter.serve(
   addEventsRoute({ 'stage-pings': failEvery, 'stage-pongs': () => Effect.die('wrong queue') }),
