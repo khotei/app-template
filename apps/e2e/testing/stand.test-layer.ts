@@ -49,13 +49,13 @@ export const scriptedAnswers = {
   title: ChatTitle.make('Scripted chat title'),
 }
 
-const { layer: ScriptedAssistant } = recordAssistant({
+const { layer: AssistantTest } = recordAssistant({
   reply: Effect.succeed(scriptedAnswers.reply),
   suggestTitle: Effect.succeed(Option.some(scriptedAnswers.title)),
 })
 
 const Apps = Layer.merge(ApiLayer, WorkerProcess).pipe(
-  Layer.provide([BunCrypto.layer, ScriptedAssistant]),
+  Layer.provide([BunCrypto.layer, AssistantTest]),
 )
 
 /**
