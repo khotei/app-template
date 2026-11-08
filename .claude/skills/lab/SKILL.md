@@ -70,7 +70,8 @@ one who writes, and a subagent does not see the chat.
   commit as an `OWNER` round. A learn step's draft worktree then goes, in a command of its own:
   `make reset` inside it, `git worktree remove --force`, `git branch -D wt/<name>`.
   Without an id, once every step is `done`, the whole lab: fill Numbers as below, propose which
-  Knowledge outlives the lab and moves to `docs/knowledge/`, and commit as `L0` with `OWNER`. The
+  Knowledge outlives the lab and moves to `docs/knowledge/`, and commit as the next `L0.<round>`
+  with `OWNER`. The
   PR waits for the owner's word.
 - **Free text:** the owner's move, read as the marker it would be, a stop phrase among them.
 

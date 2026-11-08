@@ -14,8 +14,9 @@ whole branch, in one round under `.claude/rules/lab.md`. Pick and read the lab a
    touch; a piece of this session's own still open is finished and committed first.
 2. **`make check`**, green before any reviewer starts.
 3. **The range** is `git diff <base> HEAD`. For `L<n>`, `<base>` is the parent of the oldest
-   commit the subject search of `.claude/rules/commits.md › A ticket's rounds` finds for the step;
-   for `all`, `git merge-base main HEAD`.
+   commit the subject search of `.claude/rules/commits.md › A ticket's rounds` finds for the step,
+   so another step's rounds landed since are reviewed with it; for `all`,
+   `git merge-base main HEAD`.
 4. **Review.** Spawn the passes in parallel, one `reviewer` each, its brief naming the pass, the
    range, its sources and a word limit of 400, and nothing else:
    - **Standards**, on `sonnet medium`: `make review-rules BASE=<base>`'s output, pasted verbatim
