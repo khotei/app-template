@@ -5,10 +5,11 @@ import type { Schema } from 'effect'
 import { createdAt, id } from '@app-template/packages/db'
 
 /**
- * `idle` until SQS takes the job, `queued` until the worker settles it, then `done` or `failed`;
- * a job stays `idle` when its send fails.
+ * `idle` until SQS takes the job, `queued` until the worker takes it, `running` while an attempt
+ * runs and `queued` again before a retry, then `done` or `failed`; a job stays `idle` when its
+ * send fails.
  */
-export const jobStatuses = ['idle', 'queued', 'done', 'failed'] as const
+export const jobStatuses = ['idle', 'queued', 'running', 'done', 'failed'] as const
 
 export const jobStatus = pgEnum('job_status', jobStatuses)
 

@@ -198,6 +198,15 @@ accepted and how to see it.>
 Budget: waits for the owner · Planned pieces: 3 `status` in `jobs` and its pure transitions ·
 4 the job written `idle`, sent by `afterCommit`, set `queued` · 5 the sweep of `idle` jobs.
 
+### Reference
+
+[N:ai] A schedule in MiniStack 1.5.31, run 2026-11-08 by HTTP (no AWS CLI on the machine):
+`AWSEvents.PutRule` `{"Name":"probe-sweep","ScheduleExpression":"rate(1 minute)"}`, then
+`AWSEvents.PutTargets` with the worker function's ARN. MiniStack invoked the function every
+minute, and its proxy posted the event to the worker's `POST /events`, the same path as the SQS
+batches: `{"version":"0","source":"aws.events","detail-type":"Scheduled Event","detail":{},…}`;
+with a target's `Input`, that JSON instead. The rule was deleted after the run.
+
 ### Pieces
 
 [N:ai] piece 2a: `JobSender` in `kernel/job` writes a job `idle` in the caller's transaction,
@@ -209,6 +218,10 @@ over 100 lines: it turned green only whole · visible: `make test-e2e`, the `Job
 row: `done` on success, `failed` on the last attempt's failure, no change before; a settled job is
 a redelivery, acknowledged without its handler; `AttemptInfo.jobId` carries the row; no `running`
 status · visible: `make test-e2e`, the `JobConsumer` e2e
+[N:ai] piece 2c (the owner, in the chat): `JobConsumer` marks the job `running` before its
+handler and `queued` again after a failed attempt that is not the last; `running` joins the
+glossary's `Status` as a run in one stage · visible: `make test-e2e`, the `JobConsumer` e2e
+"a queued job reads running while its handler runs"
 [D] `JobSender.send` writes the job's row in the use case's transaction and answers the step that
 sends it to SQS and marks it `queued`; the use case runs that step after the commit,
 `jobs.send(<queue>, job).pipe(Effect.flatMap(transaction.afterCommit))`, through the new

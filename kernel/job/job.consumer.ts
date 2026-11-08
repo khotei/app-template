@@ -1,5 +1,5 @@
 import type { SQSService } from '@effect-aws/client-sqs'
-import { Array as Arr, Context, Effect, Exit, Layer, Option, type Schema } from 'effect'
+import { Array as Arr, Context, Effect, Exit, Layer, type Schema } from 'effect'
 
 import type { JobEntity } from '@app-template/kernel/data'
 import { JobRepository } from '@app-template/kernel/data'
@@ -12,8 +12,11 @@ import {
   type SqsEvent,
 } from '@app-template/packages/queue-2'
 
-/** The statuses a job leaves for `done` or `failed`, never to come back. */
-const unsettledStatuses = ['idle', 'queued'] as const
+/**
+ * The statuses a job leaves for `done` or `failed`, never to come back; `idle` among them, as SQS
+ * may deliver a job before its sender marks it `queued`.
+ */
+const unsettledStatuses = ['idle', 'queued', 'running'] as const
 
 type Job = typeof JobEntity.Type
 
@@ -21,21 +24,22 @@ function isSettled(job: Job): boolean {
   return !Arr.contains(unsettledStatuses, job.status)
 }
 
-/** `done` once the handler succeeds, `failed` once the last attempt fails, else no change. */
-function buildSettledStatus(
+/** `done` once the handler succeeds, `failed` once the last attempt fails, else `queued` for the retry. */
+function buildAttemptStatus(
   exit: Exit.Exit<unknown, unknown>,
   info: AttemptInfo,
-): Option.Option<'done' | 'failed'> {
-  if (Exit.isSuccess(exit)) return Option.some('done')
-  return info.isLastAttempt ? Option.some('failed') : Option.none()
+): 'done' | 'failed' | 'queued' {
+  if (Exit.isSuccess(exit)) return 'done'
+  return info.isLastAttempt ? 'failed' : 'queued'
 }
 
 export class JobConsumer extends Context.Service<
   JobConsumer,
   {
     /**
-     * `QueueConsumer.consume` that settles each job's row from its handler's outcome; a job
-     * already settled is a redelivery, acknowledged without running the handler.
+     * `QueueConsumer.consume` that marks each job's row `running` before its handler, then
+     * settles it from the outcome; a job already settled is a redelivery, acknowledged without
+     * running the handler.
      */
     readonly consume: <A, I, E, R>(
       definition: QueueDefinition<Schema.Codec<A, I>>,
@@ -49,12 +53,9 @@ export class JobConsumer extends Context.Service<
 
     function settle(job: Job, info: AttemptInfo) {
       return (exit: Exit.Exit<unknown, unknown>) =>
-        buildSettledStatus(exit, info).pipe(
-          Option.match({
-            onNone: () => Effect.void,
-            onSome: (status) =>
-              jobs.update({ status }, { id: [job.id], status: unsettledStatuses }),
-          }),
+        jobs.update(
+          { status: buildAttemptStatus(exit, info) },
+          { id: [job.id], status: unsettledStatuses },
         )
     }
 
@@ -71,6 +72,7 @@ export class JobConsumer extends Context.Service<
             .pipe(Effect.flatMap(Effect.fromOption), Effect.orDie)
           if (isSettled(job)) return
 
+          yield* jobs.update({ status: 'running' }, { id: [job.id], status: unsettledStatuses })
           yield* handle(message, info).pipe(Effect.onExit(settle(job, info)))
         }),
       )

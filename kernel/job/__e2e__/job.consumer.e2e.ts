@@ -110,4 +110,27 @@ describe('JobConsumer.consume', () => {
         assert.deepStrictEqual(Option.map(stored, Struct.get('status')), Option.some(settled))
       }).pipe(Effect.provide(JobConsumerTest)),
   )
+
+  it.effect('a queued job reads running while its handler runs', () =>
+    Effect.gen(function* () {
+      const consumer = yield* JobConsumer
+      const jobs = yield* JobRepository
+      yield* jobs.insert({
+        id: jobId,
+        queue: sampleJobQueue.name,
+        body,
+        status: 'queued',
+        createdAt: new Date(0),
+      })
+
+      const seen = yield* Ref.make(Option.none<string>())
+      yield* consumer.consume(sampleJobQueue, () =>
+        jobs
+          .selectOne({ id: [jobId] })
+          .pipe(Effect.flatMap((job) => Ref.set(seen, Option.map(job, Struct.get('status'))))),
+      )(buildEvent(1))
+
+      assert.deepStrictEqual(yield* Ref.get(seen), Option.some('running'))
+    }).pipe(Effect.provide(JobConsumerTest)),
+  )
 })

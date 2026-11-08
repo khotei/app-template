@@ -543,11 +543,12 @@ and lifecycle; `deployment` reads both.
 ### Jobs as a table in the data layer
 
 Jobs are the table `jobs` and `JobRepository` in the data layer, each row with its status
-(`idle`, `queued`, `done`, `failed`); `JobSender.send` in `kernel/job` writes the row in the
-caller's transaction and answers the step that sends it to SQS and marks it `queued`, which a use
-case runs through `Transaction.afterCommit`: the sender knows no transaction, a rollback keeps
-no job and sends nothing, and a commit never stands without its job. "Outbox" names the pattern,
-not the table.
+(`idle`, `queued`, `running`, `done`, `failed`); `JobSender.send` in `kernel/job` writes the row
+in the caller's transaction and answers the step that sends it to SQS and marks it `queued`,
+which a use case runs through `Transaction.afterCommit`: the sender knows no transaction, a
+rollback keeps no job and sends nothing, and a commit never stands without its job.
+`JobConsumer` marks the row `running` before its handler, then `done`, `failed` on the last
+attempt, or `queued` again for the retry. "Outbox" names the pattern, not the table.
 
 - **Why:** a row is a job, the glossary's word, and stays after the send; the table is data like
   any other, the transport the boundary's; a send after the commit needs no relay polling the

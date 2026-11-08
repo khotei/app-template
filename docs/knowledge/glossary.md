@@ -41,10 +41,10 @@ _Avoid_: Pending message, current reply
 
 **Status**:
 The one vocabulary of states in flight: `idle` waits for work, `queued` has work in flight,
-`preparing` and `generating` run it, `done` and `failed` end it. Every model with a status picks
-its subset of `Status` (the chat, the message), and a check on one value reads the shared
-predicate.
-_Avoid_: State, stage; a new word for one of the six
+`preparing` and `generating` run it in stages, `running` in one, `done` and `failed` end it.
+Every model with a status picks its subset of `Status` (the chat, the message, the job), and a
+check on one value reads the shared predicate.
+_Avoid_: State, stage, in progress; a new word for one of the seven
 
 **Chat status**:
 `queued` while the chat's reply is in work, `failed` after its last reply failed, else `idle`;
